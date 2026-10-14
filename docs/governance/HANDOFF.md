@@ -29,6 +29,23 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Extract parity | Eloquent-shaped deepen on `main` (PR #25). Deferred: morph*/through relations, custom cast classes, cursor/simple pagination. |
 | Kona Idea | Separate native IntelliJ plugin repo [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea) (`dev.kona.idea`) — Crema filetype, HTML-layered highlighter, directive completion, Grind run configs. TextMate path in monorepo is legacy. |
 
+## Known thin surfaces (ledger “done”, deepen later)
+
+Post-M13 audits found several M3–M10 checklist items that are **shape-complete but behaviorally thin**. Do **not** invent M14+ to fix these unless a human opens a milestone in `MILESTONES.md`. Highest-impact leftovers:
+
+| Area | Thinness |
+|------|----------|
+| Scaffold / `kona new` | Stock kits still need manual provider/deps for queue/schedule/mail/session/auth in some paths; grind `queue:*` / `schedule:*` fail if unbound |
+| Queue | Job payload not fully cross-process (in-process `JobRegistry`); `release` delay ignored; failed jobs in-memory; `queue:retry` forgets without re-dispatch |
+| Notifications / broadcast / search | “Database” notifications in-memory; broadcast = log/null; search = collection/memory only |
+| Session / auth | Redis session store exists but `SessionServiceProvider` may not inject Redis; cookie session unsigned; users/tokens/password resets often in-memory |
+| Cache / Redis / support | No cache locks/tags/increment; Redis client surface minimal; localization has no lang-file loader |
+| Events / mail | Sync bus only; SMTP minimal (no attachments / queued mailables) |
+| Testing / drip | HTTP client get+postJson; fakes incomplete; drip no patch/multipart |
+| Crema / Extract | App-facing deepen landed in PRs #24 / #25 — remaining: morphs/through, Vite manifest/hot, rich `<x-*>` |
+
+When a human opens a deepen milestone, prefer: (1) durable queue serialize + retry, (2) scaffold provider wiring, (3) Redis session wire-up + signed cookies, (4) durable notification/failed-job stores.
+
 ## M13 IDE / language support summary (for reviewers)
 
 - Grammar: `ide-support/crema/` — TextMate + language-configuration for `*.crema.html` / `*.crema.kt`
