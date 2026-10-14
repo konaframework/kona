@@ -50,26 +50,26 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 
 ### Parity checklist
 
-Implementation landed on branch. Quality backlog: [docs/quality/M1-architecture-review.md](docs/quality/M1-architecture-review.md).  
-**Formal Laravel/Almasix parity inspection + P0 quality items still pending** before M1 merge.
+Quality + parity audits: [docs/quality/M1-architecture-review.md](docs/quality/M1-architecture-review.md), [docs/quality/M1-parity-audit.md](docs/quality/M1-parity-audit.md).  
+**Verdict: blocked for merge** until blockers in those docs are closed.
 
-- [x] Application boot (`Kona.start`)
-- [x] Service container (bind / singleton / resolve)
-- [x] Service providers (register / boot)
-- [x] Config + env
-- [x] HTTP request / response
-- [x] Middleware pipeline
-- [x] Router (groups, prefixes, named routes, resource-style registration)
-- [x] Kotlin route DSL **and** Java fluent registration
-- [x] Exception handling
-- [x] Logging
-- [x] Validation (request rules)
-- [x] `grind serve`
-- [x] `grind new` (`--lang=kotlin|java`)
-- [x] `grind make:controller`
-- [x] Kotlin hello sample
-- [x] Java hello sample (no Kotlin sources in the Java app)
-- [ ] Parity inspection vs Laravel/Almasix (behavioral review — gate for merge)
+- [x] Application boot (`Kona.start`) — thin; builder/boot-order still open
+- [ ] Service container (bind / singleton / resolve) — needs autowiring + thread-safety
+- [ ] Service providers (register / boot) — all register before any boot
+- [ ] Config + env — env improved; config file load / nesting open
+- [x] HTTP request / response — core shapes present; request/response depth open
+- [ ] Middleware pipeline — global middleware must wrap routing + errors
+- [x] Router (groups, prefixes, named routes, resource-style registration) — skeleton present; 405/HEAD/resource parity open
+- [ ] Kotlin route DSL **and** Java fluent registration — Java group/middleware API incomplete
+- [x] Exception handling — basic; envelope/headers open
+- [x] Logging — basic facade
+- [ ] Validation (request rules) — expand rules; fail unknown; type-aware min/max
+- [ ] `grind serve` — must run the generated app
+- [ ] `grind new` (`--lang=kotlin|java`) — must emit a buildable Gradle app
+- [x] `grind make:controller` — basic + name validation
+- [x] Kotlin hello sample — in-process only; real HTTP later
+- [ ] Java hello sample — Law 8: groups/middleware/providers still thin
+- [x] Parity inspection vs Laravel/Almasix (documented; fixes outstanding)
 
 ### In-scope modules
 
