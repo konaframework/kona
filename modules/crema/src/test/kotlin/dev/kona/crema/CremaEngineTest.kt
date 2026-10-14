@@ -1,6 +1,8 @@
 package dev.kona.crema
 
 import dev.kona.core.Application
+import dev.kona.support.lang.Lang
+import dev.kona.support.lang.Translator
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -57,6 +59,118 @@ class CremaEngineTest {
         assertEquals("@if", crema.render("escape"))
         assertEquals("truetruetrue", crema.render("cmp", mapOf("a" to 1, "n" to 2)))
         assertEquals("<p></p><p></p>", crema.render("hello", emptyMap()))
+    }
+
+    @Test
+    fun bladePrismParityDirectives() {
+        val crema = engine(
+            "elseif" to "@if(n == 1)one@elseif(n == 2)two@else other@endif",
+            "isset-block" to "@isset(name)Y@endisset",
+            "empty-block" to "@empty(name)E@endempty",
+            "while" to "@while(loop.iteration <= n){{ loop.iteration }}@endwhile",
+            "for-in" to "@for(i in 0..2){{ i }}@endfor",
+            "for-c" to "@for(i = 0; i < n; i++){{ i }}@endfor",
+            "loop-meta" to "@foreach(items as item){{ loop.even }}-{{ loop.odd }}-{{ loop.index }};@endforeach",
+            "forelse-loop" to "@forelse(items as item){{ item }}:{{ loop.count }}:{{ loop.even }}@empty none@endforelse",
+            "nested-loop" to "@foreach(outer as o)@foreach(inner as i){{ loop.depth }}:{{ loop.parent.iteration }};@endforeach@endforeach",
+            "auth" to "@auth A @endauth @guest G @endguest",
+            "can" to "@can('edit')E@endcan @cannot('edit')N@endcannot",
+            "switch" to "@switch(n)@case(1)one@break@case(2)two@break@default other@endswitch",
+            "include-unless" to "@includeUnless(hide, 'partials.nav')",
+            "include-first" to "@includeFirst(['missing.a', 'partials.nav'])",
+            "partials.nav" to "Nav",
+            "once" to "@once X @endonce @once X @endonce",
+            "method" to "@method('PUT')",
+            "asset" to "@asset('css/app.css')",
+            "lang" to "@lang('hi')|@lang('greet', replace)",
+            "vite" to "@vite('resources/js/app.js')",
+            "vite-css" to "@vite('resources/css/app.css')",
+            "vite-list" to "@vite(['resources/js/a.js', 'resources/css/b.css'])",
+            "has-section" to "@section('title')T@endsection @hasSection('title')Y@endif @sectionMissing('x')M@endif",
+            "error" to "@error('email') bad @enderror",
+            "verbatim" to "@verbatim{{ not }}@if(x)@endverbatim",
+            "components.alert" to "[{{ slot }}]",
+            "x-comp" to "<x-alert>Hi</x-alert><x-alert />",
+        )
+
+        assertEquals("one", crema.render("elseif", mapOf("n" to 1)).trim())
+        assertEquals("two", crema.render("elseif", mapOf("n" to 2)).trim())
+        assertEquals(" other", crema.render("elseif", mapOf("n" to 3)))
+        assertEquals("Y", crema.render("isset-block", mapOf("name" to "Ada")))
+        assertEquals("", crema.render("isset-block", emptyMap()))
+        assertEquals("E", crema.render("empty-block", emptyMap()))
+        assertEquals("", crema.render("empty-block", mapOf("name" to "x")))
+        assertEquals("123", crema.render("while", mapOf("n" to 3)))
+        assertEquals("012", crema.render("for-in"))
+        assertEquals("012", crema.render("for-c", mapOf("n" to 3)))
+        assertEquals("true-false-0;false-true-1;", crema.render("loop-meta", mapOf("items" to listOf("a", "b"))))
+        assertEquals("a:2:true", crema.render("forelse-loop", mapOf("items" to listOf("a", "b"))).take(8))
+        assertTrue(crema.render("forelse-loop", mapOf("items" to listOf("a", "b"))).contains("false"))
+        assertEquals("none", crema.render("forelse-loop", mapOf("items" to emptyList<String>())).trim())
+        assertEquals(
+            "2:1;2:1;",
+            crema.render("nested-loop", mapOf("outer" to listOf(1), "inner" to listOf("a", "b"))),
+        )
+        assertTrue(crema.render("auth", mapOf("user" to "u")).contains("A"))
+        assertFalse(crema.render("auth", mapOf("user" to "u")).contains("G"))
+        assertTrue(crema.render("auth", emptyMap()).contains("G"))
+        assertTrue(crema.render("auth", mapOf("auth_user" to "u")).contains("A"))
+        assertTrue(crema.render("auth", mapOf("__authenticated" to true)).contains("A"))
+        assertTrue(crema.render("can", mapOf("__abilities" to setOf("edit"))).contains("E"))
+        assertFalse(crema.render("can", mapOf("__abilities" to setOf("edit"))).contains("N"))
+        assertTrue(crema.render("can", mapOf("can" to mapOf("edit" to false))).contains("N"))
+        assertTrue(crema.render("can", mapOf("__abilities" to listOf("edit"))).contains("E"))
+        assertEquals("one", crema.render("switch", mapOf("n" to 1)).trim())
+        assertEquals("two", crema.render("switch", mapOf("n" to 2)).trim())
+        assertEquals(" other", crema.render("switch", mapOf("n" to 9)))
+        assertEquals("Nav", crema.render("include-unless", mapOf("hide" to false)).trim())
+        assertEquals("", crema.render("include-unless", mapOf("hide" to true)).trim())
+        assertEquals("Nav", crema.render("include-first").trim())
+        assertEquals("X", crema.render("once").replace(" ", ""))
+        assertTrue(crema.render("method").contains("name=\"_method\""))
+        assertTrue(crema.render("method").contains("value=\"PUT\""))
+        assertEquals("/css/app.css", crema.render("asset"))
+        assertEquals(
+            "https://cdn.example/css/app.css",
+            crema.render("asset", mapOf("asset_url" to "https://cdn.example")),
+        )
+
+        val t = Translator()
+        t.addLines("en", mapOf("hi" to "Hello", "greet" to "Hi :name"))
+        Lang.setTranslator(t)
+        assertEquals(
+            "Hello|Hi Ada",
+            crema.render("lang", mapOf("replace" to mapOf("name" to "Ada"))),
+        )
+        assertEquals(
+            "FromCtx",
+            crema.renderSource("@lang('k')", mapOf("lang" to mapOf("k" to "FromCtx"))),
+        )
+
+        assertTrue(crema.render("vite").contains("/build/resources/js/app.js"))
+        assertTrue(crema.render("vite").contains("<script"))
+        assertTrue(crema.render("vite-css").contains("<link"))
+        assertTrue(crema.render("vite-list").contains("a.js"))
+        assertTrue(crema.render("vite-list").contains("b.css"))
+        assertTrue(crema.render("has-section").contains("Y"))
+        assertTrue(crema.render("has-section").contains("M"))
+        assertEquals(" bad ", crema.render("error", mapOf("errors" to mapOf("email" to "required"))))
+        assertEquals("", crema.render("error", mapOf("errors" to emptyMap<String, String>())))
+        assertEquals("{{ not }}@if(x)", crema.render("verbatim"))
+        assertEquals("[Hi][]", crema.render("x-comp").replace(Regex("\\s+"), ""))
+        assertEquals(
+            """<script type="module" src="/build/resources/js/app.js"></script>""",
+            ViteTags.tag("resources/js/app.js"),
+        )
+        assertEquals(
+            """<script type="module" src="/build/assets/app.js"></script>""",
+            ViteTags.tag("/build/assets/app.js"),
+        )
+        assertEquals(
+            """<link rel="stylesheet" href="/build/assets/app.css">""",
+            ViteTags.tag("build/assets/app.css"),
+        )
+        assertEquals(ViteTags.tags(listOf("a.js", "b.css")), ViteTags.tags("a.js", "b.css"))
     }
 
     @Test

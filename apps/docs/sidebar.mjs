@@ -70,6 +70,7 @@ export async function buildSidebar() {
         { label: 'Includes', slug: 'docs/crema/includes' },
         { label: 'Components', slug: 'docs/crema/components' },
         { label: 'Stacks', slug: 'docs/crema/stacks' },
+        { label: 'Forms', slug: 'docs/crema/forms' },
       ],
     },
     {

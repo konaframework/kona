@@ -8,6 +8,7 @@ plugins {
 dependencies {
     api(project(":kona-core"))
     api(project(":kona-http"))
+    api(project(":kona-support"))
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
@@ -19,8 +20,7 @@ kover {
             filters {
                 excludes {
                     // Template interpreter — exercised via CremaEngine behavioral suite.
-                    classes("dev.kona.crema.CremaRuntime")
-                    classes("dev.kona.crema.CremaRuntime\$Companion")
+                    classes("dev.kona.crema.CremaRuntime*")
                 }
             }
             verify {

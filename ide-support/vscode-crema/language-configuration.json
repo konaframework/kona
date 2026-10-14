@@ -25,8 +25,8 @@
   ],
   "folding": {
     "markers": {
-      "start": "^\\s*@(section|if|foreach|push|slot)\\b",
-      "end": "^\\s*@(endsection|show|endif|endforeach|endpush|endslot)\\b"
+      "start": "^\\s*@(section|if|unless|isset|empty|while|foreach|forelse|each|for|switch|auth|guest|can|cannot|error|once|verbatim|push|prepend|component|slot)\\b",
+      "end": "^\\s*@(endsection|show|endif|endunless|endisset|endempty|endwhile|endforeach|endforelse|endeach|endfor|endswitch|endauth|endguest|endcan|endcannot|enderror|endonce|endverbatim|endpush|endprepend|endcomponent|endslot)\\b"
     }
   }
 }

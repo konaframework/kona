@@ -1,6 +1,6 @@
 ---
 title: Layouts
-description: Build page layouts with @extends, @section, @yield, and @parent.
+description: Build page layouts with @extends, @section, @yield, @parent, and section checks.
 ---
 
 Layouts let child views fill named regions of a shared shell (HTML document, admin chrome, and so on).
@@ -12,6 +12,12 @@ Layouts let child views fill named regions of a shared shell (HTML document, adm
 <html>
   <title>@yield('title', 'App')</title>
   <body>
+    @hasSection('sidebar')
+      <aside>@yield('sidebar')</aside>
+    @endif
+    @sectionMissing('sidebar')
+      <aside>Default sidebar</aside>
+    @endif
     @yield('content')
     @stack('scripts')
   </body>
@@ -19,6 +25,8 @@ Layouts let child views fill named regions of a shared shell (HTML document, adm
 ```
 
 `@yield('name')` prints the section named `name`. A second argument is the default when the child did not define the section.
+
+`@hasSection('name')…@endif` and `@sectionMissing('name')…@endif` are conditionals that check whether a section was defined for this render.
 
 ## Child view
 
@@ -39,10 +47,14 @@ Layouts let child views fill named regions of a shared shell (HTML document, adm
 
 ## `@parent`
 
-When a child redefines a section that already has content from a parent, use `@parent` inside the child section to keep the parent’s text:
+When a child redefines a section that the parent also filled, use `@parent` inside the child section to keep the parent’s text:
 
 ```crema
+{{-- parent defines section content = PARENT --}}
 @section('content')
   CHILD @parent MORE
 @endsection
+{{-- yields: CHILD PARENT MORE --}}
 ```
+
+Crema stores the earlier section body as the parent buffer and replaces `@parent` when the section is yielded.

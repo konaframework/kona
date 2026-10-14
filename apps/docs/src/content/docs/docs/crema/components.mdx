@@ -1,6 +1,6 @@
 ---
 title: Components
-description: Reusable Crema components with default and named slots.
+description: Reusable Crema components with slots and simple x-tags.
 ---
 
 Components are views rendered with a body and optional named slots.
@@ -28,3 +28,16 @@ Components are views rendered with a body and optional named slots.
 ```
 
 The component view is rendered with a child context containing the expanded slots.
+
+## `<x-*>` tags
+
+As a lightweight alternative, Crema resolves HTML-like tags to views under `components.`:
+
+```crema
+<x-alert>Hi</x-alert>
+<x-alert />
+```
+
+Both render `components.alert`. Dotted or slashed names map to nested views (`<x-inputs.button>` → `components.inputs.button`). Missing views render as empty string.
+
+Named attributes and class-based component objects are not part of this surface yet — use `@component` / `@slot` when you need named slots.

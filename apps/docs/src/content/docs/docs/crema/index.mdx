@@ -3,7 +3,7 @@ title: Getting started with Crema
 description: Render HTML views with Crema templates from Kotlin or Java.
 ---
 
-**Crema** is Kona’s server-side view engine. Templates live under `resources/views` as `*.crema.html` and use `@` directives plus `{{ }}` echoes.
+**Crema** is Kona’s server-side view engine. Templates live under `resources/views` as `*.crema.html` (or `*.crema.kt`) and use `@` directives plus `{{ }}` echoes. Crema was inspired by familiar server-side template menus; this guide describes Crema on its own terms.
 
 ## Render a view
 
@@ -39,17 +39,38 @@ return Response.html(html);
 
 Creates `resources/views/....crema.html`.
 
+## Directive menu
+
+| Area | Directives |
+|------|------------|
+| Echoes | `{{ }}`, `{!! !!}`, `@@`, `{{-- --}}` |
+| Layouts | `@extends`, `@section` / `@endsection` / `@show`, `@yield`, `@parent`, `@hasSection`, `@sectionMissing` |
+| Stacks | `@push` / `@endpush`, `@prepend` / `@endprepend`, `@stack` |
+| Includes | `@include`, `@includeIf`, `@includeWhen`, `@includeUnless`, `@includeFirst`, `@once`, `@verbatim` |
+| Conditionals | `@if` / `@elseif` / `@else` / `@endif`, `@unless`, `@isset`, `@empty` |
+| Loops | `@while`, `@foreach` / `@each` / `@for`, `@forelse`, `loop.*` |
+| Auth | `@auth`, `@guest`, `@can`, `@cannot` |
+| Switch | `@switch` / `@case` / `@break` / `@default` / `@endswitch` |
+| Components | `@component` / `@slot`, `<x-*>` |
+| Helpers | `@json`, `@csrf`, `@method`, `@asset`, `@lang`, `@vite`, `@error` |
+
 ## Config
 
 - Default path: `{basePath}/resources/views`
 - Override: `view.path` in config
-- CSRF: pass `_token` in the data map for `@csrf`
+- CSRF: pass `_token` or `csrf_token` in the data map for `@csrf`
+- Assets: optional `asset_url` / `assetUrl` base for `@asset`
+- Auth helpers: pass `__authenticated`, `auth_user`, or `user` for `@auth` / `@guest`
+- Abilities: pass `__abilities` (set/list/map) or a `can` map for `@can` / `@cannot`
+- Validation errors: pass an `errors` map for `@error`
+- Translations: wire `Lang` via support, or pass a `lang` map in the view data
 
 ## Next steps
 
-- [Rendering](/docs/crema/rendering) — echoes, `@json`, and escaping
-- [Layouts](/docs/crema/layouts) — `@extends`, `@section`, `@yield`
-- [Control structures](/docs/crema/control-structures) — `@if`, loops
-- [Includes](/docs/crema/includes) — partials and conditional includes
-- [Components](/docs/crema/components) — reusable slots
+- [Rendering](/docs/crema/rendering) — echoes, `@json`, `@lang`, `@vite`, escaping
+- [Layouts](/docs/crema/layouts) — `@extends`, `@section`, `@yield`, `@parent`, `@hasSection`
+- [Control structures](/docs/crema/control-structures) — conditionals, loops, auth, switch
+- [Includes](/docs/crema/includes) — partials, `@once`, `@verbatim`
+- [Components](/docs/crema/components) — `@component` / `@slot` and `<x-*>` tags
 - [Stacks](/docs/crema/stacks) — `@push` / `@stack` for scripts and styles
+- [Forms](/docs/crema/forms) — `@csrf`, `@method`, `@asset`, `@error`

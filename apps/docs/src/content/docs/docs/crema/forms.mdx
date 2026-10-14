@@ -1,0 +1,64 @@
+---
+title: Forms
+description: CSRF tokens, method spoofing, and validation errors in Crema templates.
+---
+
+Crema includes a small set of form helpers that read values from the view data map.
+
+## CSRF
+
+```crema
+<form method="post">
+  @csrf
+  …
+</form>
+```
+
+Renders a hidden `_token` input. Pass the token as `_token` or `csrf_token` in the data map:
+
+```kotlin
+engine.render("form", mapOf("_token" to csrfToken))
+```
+
+## Asset URLs
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+Resolves to `/css/app.css` by default, or prefixes `asset_url` / `assetUrl` from the view data when set (CDN base).
+
+## Method spoofing
+
+HTML forms only support `GET` and `POST`. Use `@method` to send other verbs to your router:
+
+```crema
+<form method="post">
+  @csrf
+  @method('PUT')
+  …
+</form>
+```
+
+Emits `<input type="hidden" name="_method" value="PUT">`.
+
+## Field errors
+
+```crema
+@error('email')
+  <p class="error">{{ errors.email }}</p>
+@enderror
+```
+
+The body renders when the view data contains an `errors` map with a non-empty value for that field (string, collection, or any non-null entry).
+
+```kotlin
+engine.render(
+    "form",
+    mapOf("errors" to mapOf("email" to "Required")),
+)
+```
+
+## Language strings in forms
+
+Labels and messages often use `@lang` — see [Rendering](/docs/crema/rendering#lang).
