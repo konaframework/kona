@@ -43,4 +43,14 @@ class MainTest {
             NotesDemo.run("jdbc:h2:mem:hello_notes_test;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
         )
     }
+
+    @Test
+    fun securitySessionAndAuthDemo() {
+        val lines = SecurityDemo.run(arrayOf("--base=$temp"))
+        assertEquals("flash1=200:{\"prior\":\"\"}", lines[0])
+        assertEquals("flash2=200:{\"prior\":\"saved\"}", lines[1])
+        assertTrue(lines[2].startsWith("login=200:"))
+        assertTrue(lines[2].contains("\"ok\":true"))
+        assertTrue(lines[2].contains("\"id\":1"))
+    }
 }

@@ -15,6 +15,8 @@ application {
 
 dependencies {
     implementation(project(":kona-http"))
+    implementation(project(":kona-session"))
+    implementation(project(":kona-auth"))
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

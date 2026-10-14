@@ -100,6 +100,7 @@ public final class Main {
 
     public static void main(String[] args) {
         demo(boot(args)).forEach(System.out::println);
+        SecurityDemo.run(args).forEach(System.out::println);
     }
 
     private Main() {

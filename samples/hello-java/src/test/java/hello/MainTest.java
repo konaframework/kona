@@ -35,4 +35,14 @@ class MainTest {
         assertEquals("404 [Kona]", lines.get(4));
         assertEquals("route(api.hello) = /api/hello/kona", lines.get(5));
     }
+
+    @Test
+    void securitySessionAndAuthDemo() {
+        List<String> lines = SecurityDemo.run(new String[] {"--base=" + temp});
+        assertEquals("flash1=200:{\"prior\":\"\"}", lines.get(0));
+        assertEquals("flash2=200:{\"prior\":\"saved\"}", lines.get(1));
+        assertTrue(lines.get(2).startsWith("login=200:"));
+        assertTrue(lines.get(2).contains("\"ok\":true"));
+        assertTrue(lines.get(2).contains("\"id\":1"));
+    }
 }

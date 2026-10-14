@@ -1,0 +1,17 @@
+---
+title: Security overview
+description: Sessions, authentication, authorization, CSRF, encryption, CORS, and rate limiting in Kona.
+---
+
+Kona’s security stack ships in two modules:
+
+- **`kona-session`** — HTTP sessions (array/file/cookie drivers), flash data, and CSRF verification.
+- **`kona-auth`** — hashing, guards, password resets, gates/policies, API tokens, encryption, CORS, security headers, and rate limiting.
+
+## Simple path
+
+1. Register `SessionServiceProvider` and `AuthServiceProvider`.
+2. Put `StartSession` (and usually `VerifyCsrfToken`) on the HTTP kernel.
+3. Use `AuthManager` / session attributes in controllers.
+
+Later pages dig into each piece. Prefer the simple path in new apps; wire providers explicitly until higher-level scaffolding lands.

@@ -11,6 +11,8 @@ dependencies {
         api(project(":kona-core"))
         api(project(":kona-http"))
         api(project(":kona-extract"))
+        api(project(":kona-auth"))
+        api(project(":kona-session"))
         api(project(":kona-grind"))
         api(project(":kona-cli"))
     }

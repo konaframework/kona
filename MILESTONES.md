@@ -38,19 +38,19 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Responses | M1 | done |
 | API Resources | M5 | pending |
 | Middleware | M1 | done |
-| CSRF Protection | M3 | pending |
+| CSRF Protection | M3 | implemented (checklist) |
 | Validation | M1 | done |
 | Views (Crema) | M6 | pending |
 | Asset Bundling | M12 | pending |
 | URL Generation | M5 | pending |
-| Session | M3 | pending |
-| Authentication | M3 | pending |
-| Hashing | M3 | pending |
-| Passwords | M3 | pending |
+| Session | M3 | implemented (checklist) |
+| Authentication | M3 | implemented (checklist) |
+| Hashing | M3 | implemented (checklist) |
+| Passwords | M3 | implemented (checklist) |
 | Error Handling | M1 (basic); deepen in M5 | partial |
 | Logging | M1 (basic); deepen in M5 | partial |
-| Security headers & CORS | M3 | pending |
-| Rate Limiting | M3 | pending |
+| Security headers & CORS | M3 | implemented (checklist) |
+| Rate Limiting | M3 | implemented (checklist) |
 
 ### Deeper
 
@@ -85,9 +85,9 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Authorization (Gates, Policies) | M3 | pending |
-| API Tokens | M3 | pending |
-| Encryption | M3 | pending |
+| Authorization (Gates, Policies) | M3 | implemented (checklist) |
+| API Tokens | M3 | implemented (checklist) |
+| Encryption | M3 | implemented (checklist) |
 
 ### Database
 
@@ -246,23 +246,25 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ### Parity checklist
 
-- [ ] Session drivers (cookie, file; Redis session driver when Redis lands in M4 or dual-ship if needed)
-- [ ] Authentication guards / providers / user providers
-- [ ] Hashing (password hash verify; configurable driver)
-- [ ] Passwords (reset tokens / broker parity surface)
-- [ ] Authorization — Gates and Policies (and Java-friendly registration)
-- [ ] CSRF protection (middleware + token helpers)
-- [ ] Security headers middleware
-- [ ] CORS (configurable origins/methods/headers)
-- [ ] Rate limiting (HTTP throttle middleware + named limiters)
-- [ ] Encryption (app key; encrypt/decrypt strings & payloads)
-- [ ] API tokens (personal access / Sanctum-class surface for SPA/API)
-- [ ] Public docs: Session, Authentication, Authorization, CSRF, Security, Rate limiting
-- [ ] Kotlin + Java samples / regression for the security surface
+- [x] Session drivers (cookie, file; Redis session driver when Redis lands in M4 or dual-ship if needed)
+- [x] Authentication guards / providers / user providers
+- [x] Hashing (password hash verify; configurable driver)
+- [x] Passwords (reset tokens / broker parity surface)
+- [x] Authorization — Gates and Policies (and Java-friendly registration)
+- [x] CSRF protection (middleware + token helpers)
+- [x] Security headers middleware
+- [x] CORS (configurable origins/methods/headers)
+- [x] Rate limiting (HTTP throttle middleware + named limiters)
+- [x] Encryption (app key; encrypt/decrypt strings & payloads)
+- [x] API tokens (personal access / Sanctum-class surface for SPA/API)
+- [x] Public docs: Session, Authentication, Authorization, CSRF, Security, Rate limiting
+- [x] Kotlin + Java samples / regression for the security surface
 
 ### In-scope modules
 
 `kona-session`, `kona-auth` (or equivalent packages under `modules/`), extensions to `kona-http` / `kona-core` as required
+
+> **Note:** Parity checklist complete; sibling module coverage is 100% green locally. Mark **done** and activate M4 after the milestone PR merges. Redis session driver stays deferred to M4 as scoped above.
 
 ---
 
