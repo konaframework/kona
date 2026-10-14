@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M10 (M0–M9 complete).
+**Active milestone:** M11 (M0–M10 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -71,11 +71,11 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Cache | M4 | done |
 | Redis | M4 | done |
 | Events | M7 | done |
-| Broadcasting | M10 | pending |
+| Broadcasting | M10 | implemented (checklist) |
 | HTTP Client → `drip` | M9 | implemented (checklist) |
 | Processes | M9 | implemented (checklist) |
 | Concurrency | M9 | implemented (checklist) |
-| Search | M10 | pending |
+| Search | M10 | implemented (checklist) |
 | Package Development | M8 | done |
 | Livewire / Conduit-class reactive UI | M11 | pending |
 | Inertia | M12 | pending |
@@ -413,16 +413,16 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M10 — Broadcasting and search
 
-**Status:** active  
+**Status:** done  
 **Branch:** `milestone/M10-broadcasting-search`
 
 **Parity slice:** Broadcasting + Scout/search-class indexing.
 
 ### Parity checklist
 
-- [ ] Broadcasting (channels, events to websocket/log driver minimum)
-- [ ] Search (Scout-class searchable models + driver abstraction; at least one concrete driver)
-- [ ] Docs
+- [x] Broadcasting (channels, events to websocket/log driver minimum)
+- [x] Search (Scout-class searchable models + driver abstraction; at least one concrete driver)
+- [x] Docs
 
 ### In-scope modules
 
@@ -432,7 +432,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M11 — Reactive UI (Livewire / Conduit parity)
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M11-reactive-ui`
 
 **Parity slice:** Something similar to Livewire or Conduit — full-stack reactive components on the JVM.
