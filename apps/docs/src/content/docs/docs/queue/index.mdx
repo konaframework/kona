@@ -1,0 +1,35 @@
+---
+title: Queues
+description: Dispatch jobs, run workers, and inspect failed jobs.
+---
+
+Kona queues run background work with sync, in-memory, Redis, and database drivers. Jobs that implement `ShouldQueue` are pushed; everything else runs immediately through `Bus`.
+
+## Quick start
+
+```kotlin
+class SendInvoice : Job, ShouldQueue {
+    override fun handle() { /* … */ }
+}
+
+val bus = app.resolve(Bus::class.java)
+bus.dispatch(SendInvoice())
+Worker(app.resolve(QueueManager::class.java)).run(maxJobs = 10)
+```
+
+Register `QueueServiceProvider`. Configure `queue.default` and `queue.connections.{name}.driver` (`sync`, `array`/`memory`, `redis`, `database`).
+
+## Workers and failed jobs
+
+```bash
+./grind queue:work [--connection=array] [--queue=default] [--max=100]
+./grind queue:failed
+./grind queue:retry <id>|--all
+./grind queue:flush
+```
+
+Failed jobs are kept in `FailedJobProvider` (in-memory). Retries re-queue until `tries()` is exhausted.
+
+## Job contracts
+
+Optional `JobContract` methods: `tries()`, `backoffSeconds()`, `displayName()`. Register factories via `JobRegistry` when jobs must be restored across processes.

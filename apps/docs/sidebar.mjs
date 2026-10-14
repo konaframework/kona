@@ -25,11 +25,27 @@ export async function buildSidebar() {
       label: 'HTTP',
       items: [
         { label: 'Routing', slug: 'docs/http/routing' },
+        { label: 'Controllers', slug: 'docs/http/controllers' },
         { label: 'Request & response', slug: 'docs/http/request-response' },
         { label: 'Middleware', slug: 'docs/http/middleware' },
         { label: 'Validation', slug: 'docs/http/validation' },
+        { label: 'API Resources', slug: 'docs/http/api-resources' },
+        { label: 'URL generation', slug: 'docs/http/url-generation' },
         { label: 'Exceptions', slug: 'docs/http/exceptions' },
+        { label: 'Logging', slug: 'docs/http/logging' },
         { label: 'Kernel & server', slug: 'docs/http/kernel-server' },
+      ],
+    },
+    {
+      label: 'Security',
+      items: [
+        { label: 'Session', slug: 'docs/security/session' },
+        { label: 'Authentication', slug: 'docs/security/authentication' },
+        { label: 'Authorization', slug: 'docs/security/authorization' },
+        { label: 'CSRF protection', slug: 'docs/security/csrf' },
+        { label: 'Encryption', slug: 'docs/security/encryption' },
+        { label: 'CORS & security headers', slug: 'docs/security/cors-headers' },
+        { label: 'Rate limiting', slug: 'docs/security/rate-limiting' },
       ],
     },
     {
@@ -41,6 +57,43 @@ export async function buildSidebar() {
         { label: 'Relations', slug: 'docs/extract/relations' },
         { label: 'Migrations', slug: 'docs/extract/migrations' },
         { label: 'Seeders & factories', slug: 'docs/extract/seeders-factories' },
+        { label: 'Serialization & events', slug: 'docs/extract/serialization-events' },
+      ],
+    },
+    {
+      label: 'Crema',
+      items: [
+        { label: 'Views', slug: 'docs/crema' },
+      ],
+    },
+    {
+      label: 'Cache & Redis',
+      items: [
+        { label: 'Cache', slug: 'docs/cache' },
+        { label: 'Redis', slug: 'docs/cache/redis' },
+      ],
+    },
+    {
+      label: 'Async & storage',
+      items: [
+        { label: 'Events', slug: 'docs/events' },
+        { label: 'Queues', slug: 'docs/queue' },
+        { label: 'Mail', slug: 'docs/mail' },
+        { label: 'Notifications', slug: 'docs/notifications' },
+        { label: 'Filesystem', slug: 'docs/filesystem' },
+      ],
+    },
+    {
+      label: 'Support',
+      items: [
+        { label: 'Utilities', slug: 'docs/support' },
+      ],
+    },
+    {
+      label: 'Security reference',
+      items: [
+        { label: 'Overview', slug: 'docs/security' },
+        { label: 'Encryption, CORS, rate limit', slug: 'docs/security/encryption-cors-rate-limit' },
       ],
     },
     {
@@ -48,6 +101,31 @@ export async function buildSidebar() {
       items: [
         { label: 'Overview', slug: 'docs/grind' },
         { label: 'new / serve / make', slug: 'docs/grind/commands' },
+        { label: 'Console depth', slug: 'docs/grind/console' },
+        { label: 'steam', slug: 'docs/steam' },
+      ],
+    },
+    {
+      label: 'Scheduling & packages',
+      items: [
+        { label: 'Task scheduling', slug: 'docs/scheduling' },
+        { label: 'Packages', slug: 'docs/packages' },
+      ],
+    },
+    {
+      label: 'HTTP client & jobs',
+      items: [
+        { label: 'drip (HTTP client)', slug: 'docs/drip' },
+        { label: 'Processes', slug: 'docs/processes' },
+        { label: 'Concurrency', slug: 'docs/concurrency' },
+      ],
+    },
+    {
+      label: 'Testing',
+      items: [
+        { label: 'Getting started', slug: 'docs/testing' },
+        { label: 'HTTP & console', slug: 'docs/testing/http-console' },
+        { label: 'Database & fakes', slug: 'docs/testing/database-fakes' },
       ],
     },
   ];

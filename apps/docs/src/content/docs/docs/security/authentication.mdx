@@ -1,0 +1,32 @@
+---
+title: Authentication
+description: Guards, hashing, passwords, and API tokens.
+---
+
+## Hashing
+
+```kotlin
+Hash.make("secret")
+Hash.check("secret", hash)
+```
+
+Bcrypt is the default driver (`hash.rounds`, default 10). Passwords longer than 72 bytes are truncated to bcrypt’s limit.
+
+## Guards
+
+`AuthManager` resolves named guards. The default `web` guard is a `SessionGuard` that stores the user id in the session. The `api` guard is a `TokenGuard` that accepts bearer personal access tokens.
+
+```kotlin
+auth.attempt(mapOf("email" to "a@b.c", "password" to "secret"))
+auth.check()
+auth.user()
+auth.logout()
+```
+
+## Passwords
+
+`PasswordBroker` issues in-memory reset tokens and applies resets through a callback. Persist tokens in a later milestone if you need multi-node resets.
+
+## API tokens
+
+`PersonalAccessTokenManager.create(user, name)` returns a plain-text token once (`id|secret`) and stores a SHA-256 hash. Authenticate with `Authorization: Bearer …` via `TokenGuard` or `AuthenticateWithToken` middleware.

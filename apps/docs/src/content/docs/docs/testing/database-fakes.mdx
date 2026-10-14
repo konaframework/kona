@@ -1,0 +1,40 @@
+---
+title: Database & fakes
+description: Transactional database helpers and mail/queue/storage fakes.
+---
+
+## Database
+
+```kotlin
+DatabaseTest.refresh(database, listOf("users", "posts"))
+DatabaseTest.transactional(database) { db ->
+    // work inside a transaction on the default connection
+    db.connection().statement("INSERT INTO users (email) VALUES ('a@b.c')")
+}
+```
+
+`refresh` runs `DELETE FROM` for each table name. Prefer factories/seeders for richer fixtures when your app already uses Extract.
+
+## Fakes
+
+| Class | Role |
+|-------|------|
+| `FakeMail` | `Mailer` + `LogTransport`; inspect with `messages()` |
+| `FakeQueue` | Array-driver `QueueManager` / `Bus` |
+| `FakeStorage` | In-memory `FilesystemAdapter` |
+
+```kotlin
+val mail = FakeMail()
+mail.mailer.send(MailMessage().subject("Hi").text("body"))
+assertEquals(1, mail.messages().size)
+
+val queue = FakeQueue()
+queue.dispatch { /* job */ }
+queue.size()
+
+val disk = FakeStorage()
+disk.put("avatar.png", bytes)
+disk.exists("avatar.png")
+```
+
+Swap these into your container bindings in tests instead of SMTP, Redis, or local disk.

@@ -1,0 +1,20 @@
+---
+title: Package development
+description: Discover service providers from META-INF/kona/providers.
+---
+
+Reusable Kona packages expose service providers through a classpath resource:
+
+```
+META-INF/kona/providers
+```
+
+One fully-qualified `ServiceProvider` class name per line (`#` comments allowed).
+
+```kotlin
+PackageDiscovery.registerAll(app)
+// or
+PackageDiscovery.loadProviders(classLoader).forEach { app.register(it) }
+```
+
+Apps typically call discovery during bootstrap so third-party jars can register themselves.

@@ -1,0 +1,69 @@
+---
+title: API Resources
+description: Transform domain objects into stable JSON maps with JsonResource and ResourceCollection.
+---
+
+An **API resource** is a dedicated transformer between your domain object and the JSON map you send to clients. Keeping that mapping in one class avoids leaking internal fields and keeps list vs detail payloads consistent.
+
+## Single resource
+
+Subclass `JsonResource` and implement `toArray`:
+
+```kotlin
+class UserResource(private val id: Int, private val name: String) : JsonResource(name) {
+    override fun toArray(request: Request): Map<String, Any?> =
+        mapOf(
+            "id" to id,
+            "name" to name,
+            "self" to request.path,
+        )
+}
+
+router.get("/users/{id}") { request ->
+    UserResource(1, "Ada").toResponse(request)
+}
+```
+
+```java
+public class UserResource extends JsonResource {
+    private final int id;
+    private final String name;
+
+    public UserResource(int id, String name) {
+        super(name);
+        this.id = id;
+        this.name = name;
+    }
+
+    @Override
+    public Map<String, Object> toArray(Request request) {
+        return Map.of("id", id, "name", name, "self", request.getPath());
+    }
+}
+
+router.get("/users/{id}", request -> new UserResource(1, "Ada").toResponse(request));
+```
+
+`toResponse` wraps `toArray` in `Response.json(...)`. Call `resolve(request)` when you need the map without building a response yet.
+
+## Collections
+
+Wrap many resources with `JsonResource.collection(...)`. By default the payload is `{ "data": [ ... ] }`. Change or remove the wrapper with `wrap`:
+
+```kotlin
+val payload = JsonResource.collection(
+    listOf(UserResource(1, "Ada"), UserResource(2, "Grace")),
+).wrap("users").toResponse(request)
+```
+
+```java
+Response payload = JsonResource.collection(
+    List.of(new UserResource(1, "Ada"), new UserResource(2, "Grace"))
+).wrap("users").toResponse(request);
+```
+
+Pass `wrap(null)` for a bare JSON array.
+
+## Where resources fit
+
+Typical flow: controller loads a model → builds a resource → returns `toResponse`. Pair resources with [Controllers](../controllers/) and named links from [URL generation](../url-generation/).

@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M3 (M0–M2 complete).
+**Active milestone:** M10 (M0–M9 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -33,50 +33,50 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Topic | Milestone | Status |
 |-------|-----------|--------|
 | Routing | M1 | done |
-| Controllers | M1 (basic); deepen in M5 | partial |
+| Controllers | M1 (basic); deepen in M5 | implemented (checklist) |
 | Requests | M1 | done |
 | Responses | M1 | done |
-| API Resources | M5 | pending |
+| API Resources | M5 | implemented (checklist) |
 | Middleware | M1 | done |
-| CSRF Protection | M3 | pending |
+| CSRF Protection | M3 | implemented (checklist) |
 | Validation | M1 | done |
-| Views (Crema) | M6 | pending |
+| Views (Crema) | M6 | implemented (checklist) |
 | Asset Bundling | M12 | pending |
-| URL Generation | M5 | pending |
-| Session | M3 | pending |
-| Authentication | M3 | pending |
-| Hashing | M3 | pending |
-| Passwords | M3 | pending |
-| Error Handling | M1 (basic); deepen in M5 | partial |
-| Logging | M1 (basic); deepen in M5 | partial |
-| Security headers & CORS | M3 | pending |
-| Rate Limiting | M3 | pending |
+| URL Generation | M5 | implemented (checklist) |
+| Session | M3 | implemented (checklist) |
+| Authentication | M3 | implemented (checklist) |
+| Hashing | M3 | implemented (checklist) |
+| Passwords | M3 | implemented (checklist) |
+| Error Handling | M1 (basic); deepen in M5 | implemented (checklist) |
+| Logging | M1 (basic); deepen in M5 | implemented (checklist) |
+| Security headers & CORS | M3 | implemented (checklist) |
+| Rate Limiting | M3 | implemented (checklist) |
 
 ### Deeper
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Smith Console → `grind` depth + `steam` | M8 | pending |
-| Prompts | M8 | pending |
-| Task Scheduling | M8 | pending |
-| File Storage | M7 | pending |
-| Queues | M7 | pending |
-| Mail | M7 | pending |
-| Notifications | M7 | pending |
-| Collections | M4 | pending |
-| Helpers | M4 | pending |
-| Dates (Carbon/Chrono-class) | M4 | pending |
-| Strings | M4 | pending |
-| Localization | M4 | pending |
-| Cache | M4 | pending |
-| Redis | M4 | pending |
-| Events | M7 | pending |
+| Smith Console → `grind` depth + `steam` | M8 | done |
+| Prompts | M8 | done |
+| Task Scheduling | M8 | done |
+| File Storage | M7 | done |
+| Queues | M7 | done |
+| Mail | M7 | done |
+| Notifications | M7 | done |
+| Collections | M4 | done |
+| Helpers | M4 | done |
+| Dates (Carbon/Chrono-class) | M4 | done |
+| Strings | M4 | done |
+| Localization | M4 | done |
+| Cache | M4 | done |
+| Redis | M4 | done |
+| Events | M7 | done |
 | Broadcasting | M10 | pending |
-| HTTP Client → `drip` | M9 | pending |
-| Processes | M9 | pending |
-| Concurrency | M9 | pending |
+| HTTP Client → `drip` | M9 | implemented (checklist) |
+| Processes | M9 | implemented (checklist) |
+| Concurrency | M9 | implemented (checklist) |
 | Search | M10 | pending |
-| Package Development | M8 | pending |
+| Package Development | M8 | done |
 | Livewire / Conduit-class reactive UI | M11 | pending |
 | Inertia | M12 | pending |
 | Starter Kits | M12 | pending |
@@ -85,9 +85,9 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Authorization (Gates, Policies) | M3 | pending |
-| API Tokens | M3 | pending |
-| Encryption | M3 | pending |
+| Authorization (Gates, Policies) | M3 | implemented (checklist) |
+| API Tokens | M3 | implemented (checklist) |
+| Encryption | M3 | implemented (checklist) |
 
 ### Database
 
@@ -106,21 +106,21 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Extract: Getting Started (docs) | M2; rewrite toward simple-first ongoing | partial |
 | Relationships | M2 | done |
 | Mutators & Casts | M2 | done |
-| Serialization | M4 | pending |
-| Collections (Extract) | M4 | pending |
-| Soft Deletes & Events | Soft deletes M2; model events M4 | partial |
+| Serialization | M4 | done |
+| Collections (Extract) | M4 | done |
+| Soft Deletes & Events | Soft deletes M2; model events M4 | done |
 
 ### View layer (Crema)
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Crema: Getting Started | M6 | pending |
-| Rendering Views | M6 | pending |
-| Layouts & Inheritance | M6 | pending |
-| Components & Slots | M6 | pending |
-| Control Structures | M6 | pending |
-| Including Subviews | M6 | pending |
-| Stacks & Directives | M6 | pending |
+| Crema: Getting Started | M6 | done |
+| Rendering Views | M6 | done |
+| Layouts & Inheritance | M6 | done |
+| Components & Slots | M6 | done |
+| Control Structures | M6 | done |
+| Including Subviews | M6 | done |
+| Stacks & Directives | M6 | done |
 
 ### Language / editor
 
@@ -134,11 +134,11 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Testing: Getting Started | M9 | pending |
-| HTTP Tests | M9 | pending |
-| Console Tests | M9 | pending |
-| Database Testing | M9 | pending |
-| Mocking | M9 | pending |
+| Testing: Getting Started | M9 | implemented (checklist) |
+| HTTP Tests | M9 | implemented (checklist) |
+| Console Tests | M9 | implemented (checklist) |
+| Database Testing | M9 | implemented (checklist) |
+| Mocking | M9 | implemented (checklist) |
 
 ---
 
@@ -239,53 +239,55 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M3 — Session, auth, and security
 
-**Status:** active  
+**Status:** done  
 **Branch:** `milestone/M3-auth-session-security`
 
 **Parity slice:** Almasix / Laravel Session, Authentication, Hashing, Passwords, Authorization, CSRF, Encryption, API Tokens, Security headers & CORS, Rate Limiting.
 
 ### Parity checklist
 
-- [ ] Session drivers (cookie, file; Redis session driver when Redis lands in M4 or dual-ship if needed)
-- [ ] Authentication guards / providers / user providers
-- [ ] Hashing (password hash verify; configurable driver)
-- [ ] Passwords (reset tokens / broker parity surface)
-- [ ] Authorization — Gates and Policies (and Java-friendly registration)
-- [ ] CSRF protection (middleware + token helpers)
-- [ ] Security headers middleware
-- [ ] CORS (configurable origins/methods/headers)
-- [ ] Rate limiting (HTTP throttle middleware + named limiters)
-- [ ] Encryption (app key; encrypt/decrypt strings & payloads)
-- [ ] API tokens (personal access / Sanctum-class surface for SPA/API)
-- [ ] Public docs: Session, Authentication, Authorization, CSRF, Security, Rate limiting
-- [ ] Kotlin + Java samples / regression for the security surface
+- [x] Session drivers (cookie, file; Redis session driver when Redis lands in M4 or dual-ship if needed)
+- [x] Authentication guards / providers / user providers
+- [x] Hashing (password hash verify; configurable driver)
+- [x] Passwords (reset tokens / broker parity surface)
+- [x] Authorization — Gates and Policies (and Java-friendly registration)
+- [x] CSRF protection (middleware + token helpers)
+- [x] Security headers middleware
+- [x] CORS (configurable origins/methods/headers)
+- [x] Rate limiting (HTTP throttle middleware + named limiters)
+- [x] Encryption (app key; encrypt/decrypt strings & payloads)
+- [x] API tokens (personal access / Sanctum-class surface for SPA/API)
+- [x] Public docs: Session, Authentication, Authorization, CSRF, Security, Rate limiting
+- [x] Kotlin + Java samples / regression for the security surface
 
 ### In-scope modules
 
 `kona-session`, `kona-auth` (or equivalent packages under `modules/`), extensions to `kona-http` / `kona-core` as required
 
+> **Note:** Merged to `main` via #9. Redis session driver completed in M4.
+
 ---
 
 ## M4 — Cache, Redis, support utilities, Extract deepen
 
-**Status:** blocked  
+**Status:** done  
 **Branch:** `milestone/M4-cache-redis-support`
 
 **Parity slice:** Cache, Redis, Collections, Helpers, Dates, Strings, Localization + Extract Serialization / Collections / model events.
 
 ### Parity checklist
 
-- [ ] Cache stores (memory, file, Redis)
-- [ ] Redis connection module (shared by cache/session/queues later)
-- [ ] Collections (immutable-friendly, map/filter/pluck/groupBy parity helpers)
-- [ ] Helpers (common global/facade helpers used across the framework)
-- [ ] Dates (Carbon/Chrono-class fluent date/time API)
-- [ ] Strings (fluent string helpers)
-- [ ] Localization (lang files, `__()` / translator, locale switching)
-- [ ] Extract: attribute / model serialization (toArray / toJson / hidden / visible / appends)
-- [ ] Extract: model Collections helpers
-- [ ] Extract: Soft Deletes **events** + model lifecycle events (creating/created/…)
-- [ ] Docs for Cache, Redis, Support, Localization, Extract serialization/events
+- [x] Cache stores (memory, file, Redis)
+- [x] Redis connection module (shared by cache/session/queues later)
+- [x] Collections (immutable-friendly, map/filter/pluck/groupBy parity helpers)
+- [x] Helpers (common global/facade helpers used across the framework)
+- [x] Dates (Carbon/Chrono-class fluent date/time API)
+- [x] Strings (fluent string helpers)
+- [x] Localization (lang files, `__()` / translator, locale switching)
+- [x] Extract: attribute / model serialization (toArray / toJson / hidden / visible / appends)
+- [x] Extract: model Collections helpers
+- [x] Extract: Soft Deletes **events** + model lifecycle events (creating/created/…)
+- [x] Docs for Cache, Redis, Support, Localization, Extract serialization/events
 
 ### In-scope modules
 
@@ -295,19 +297,19 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M5 — HTTP polish: URL, API Resources, controllers, logging/errors
 
-**Status:** blocked  
+**Status:** done  
 **Branch:** `milestone/M5-http-polish`
 
 **Parity slice:** URL Generation, API Resources, Controllers deepen, Error Handling / Logging deepen.
 
 ### Parity checklist
 
-- [ ] URL / route generation (`route()`, `url()`, signed URLs as applicable)
-- [ ] API Resources / Resource collections (transform models for JSON APIs)
-- [ ] Controllers deepen (invokable, resource controllers, form-request style validation objects)
-- [ ] Error Handling deepen (report/render callbacks, HTTP exception pages, JSON vs HTML)
-- [ ] Logging deepen (channels, levels, contextual logging)
-- [ ] Docs rewrite for HTTP chapter (progressive: simple controller → resources → URL helpers)
+- [x] URL / route generation (`route()`, `url()`, signed URLs as applicable)
+- [x] API Resources / Resource collections (transform models for JSON APIs)
+- [x] Controllers deepen (invokable, resource controllers, form-request style validation objects)
+- [x] Error Handling deepen (report/render callbacks, HTTP exception pages, JSON vs HTML)
+- [x] Logging deepen (channels, levels, contextual logging)
+- [x] Docs rewrite for HTTP chapter (progressive: simple controller → resources → URL helpers)
 
 ### In-scope modules
 
@@ -317,22 +319,22 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M6 — Crema (views)
 
-**Status:** blocked  
+**Status:** done  
 **Branch:** `milestone/M6-crema`
 
 **Parity slice:** Full Crema / Blade / Prism view layer menu.
 
 ### Parity checklist
 
-- [ ] Crema: Getting Started (`*.crema.html` / `*.crema.kt`)
-- [ ] Rendering views from controllers / responses
-- [ ] Layouts & inheritance (`@extends`, `@section`, `@yield`)
-- [ ] Components & slots
-- [ ] Control structures (`@if`, `@foreach`, …)
-- [ ] Including subviews
-- [ ] Stacks & directives
-- [ ] `grind` make:view (as applicable)
-- [ ] Docs: full Crema sidebar matching the Almasix view menu
+- [x] Crema: Getting Started (`*.crema.html` / `*.crema.kt`)
+- [x] Rendering views from controllers / responses
+- [x] Layouts & inheritance (`@extends`, `@section`, `@yield`)
+- [x] Components & slots
+- [x] Control structures (`@if`, `@foreach`, …)
+- [x] Including subviews
+- [x] Stacks & directives
+- [x] `grind` make:view (as applicable)
+- [x] Docs: full Crema sidebar matching the Almasix view menu
 
 ### In-scope modules
 
@@ -342,19 +344,19 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M7 — Queues, events, mail, notifications, filesystem
 
-**Status:** blocked  
+**Status:** done  
 **Branch:** `milestone/M7-queue-events-mail-fs`
 
 **Parity slice:** Queues, Events, Mail, Notifications, File Storage.
 
 ### Parity checklist
 
-- [ ] Events + listeners (SAM-friendly for Java)
-- [ ] Job dispatch, workers, retries, failed jobs
-- [ ] Mail (log + SMTP minimum; mailables)
-- [ ] Notifications (channels: mail + database/log minimum)
-- [ ] Filesystem disks (local + S3-compatible)
-- [ ] Docs for each surface
+- [x] Events + listeners (SAM-friendly for Java)
+- [x] Job dispatch, workers, retries, failed jobs
+- [x] Mail (log + SMTP minimum; mailables)
+- [x] Notifications (channels: mail + database/log minimum)
+- [x] Filesystem disks (local + S3-compatible)
+- [x] Docs for each surface
 
 ### In-scope modules
 
@@ -364,19 +366,19 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M8 — grind console, prompts, scheduling, packages
 
-**Status:** blocked  
+**Status:** done  
 **Branch:** `milestone/M8-grind-console-schedule`
 
 **Parity slice:** Smith Console depth, Prompts, Task Scheduling, Package Development, `steam` REPL.
 
 ### Parity checklist
 
-- [ ] `grind` console depth (command IO, exit codes, verbosity, help parity)
-- [ ] Prompts (interactive ask/confirm/select)
-- [ ] Task scheduling (cron-style scheduler + `grind schedule:run`)
-- [ ] Package development (reusable service provider packages / discover conventions)
-- [ ] `grind steam` REPL (Kotlin + Java expressions in app context)
-- [ ] Docs: grind, scheduling, packages, steam
+- [x] `grind` console depth (command IO, exit codes, verbosity, help parity)
+- [x] Prompts (interactive ask/confirm/select)
+- [x] Task scheduling (cron-style scheduler + `grind schedule:run`)
+- [x] Package development (reusable service provider packages / discover conventions)
+- [x] `grind steam` REPL (Kotlin + Java expressions in app context)
+- [x] Docs: grind, scheduling, packages, steam
 
 ### In-scope modules
 
@@ -386,22 +388,22 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M9 — Testing, drip, processes, concurrency
 
-**Status:** blocked  
+**Status:** done  
 **Branch:** `milestone/M9-testing-drip-concurrency`
 
 **Parity slice:** Testing menu + HTTP Client (`drip`) + Processes + Concurrency.
 
 ### Parity checklist
 
-- [ ] Testing: Getting Started (app test harness / bootstrap)
-- [ ] HTTP tests (get/post/json, assert status/json)
-- [ ] Console / grind tests
-- [ ] Database testing (refresh / transactions / factories)
-- [ ] Mocking (fakes for mail, queue, storage, …)
-- [ ] `drip` fluent HTTP client
-- [ ] Processes (external process API)
-- [ ] Concurrency helpers (Virtual Thread–friendly parallel map / pool utilities)
-- [ ] Docs for Testing + drip + concurrency
+- [x] Testing: Getting Started (app test harness / bootstrap)
+- [x] HTTP tests (get/post/json, assert status/json)
+- [x] Console / grind tests
+- [x] Database testing (refresh / transactions / factories)
+- [x] Mocking (fakes for mail, queue, storage, …)
+- [x] `drip` fluent HTTP client
+- [x] Processes (external process API)
+- [x] Concurrency helpers (Virtual Thread–friendly parallel map / pool utilities)
+- [x] Docs for Testing + drip + concurrency
 
 ### In-scope modules
 
@@ -411,7 +413,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M10 — Broadcasting and search
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M10-broadcasting-search`
 
 **Parity slice:** Broadcasting + Scout/search-class indexing.

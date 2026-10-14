@@ -1,0 +1,68 @@
+---
+title: Logging
+description: Write structured application logs through channels, shared context, and the Log facade.
+---
+
+Kona’s `Log` facade sits on top of SLF4J. Use it from HTTP handlers, jobs, and boot code without wiring a logger by hand.
+
+## Levels
+
+```kotlin
+Log.info("Application started")
+Log.debug("Resolved route home")
+Log.warn("Cache miss for users")
+Log.error("Payment failed")
+Log.error("Payment failed", exception)
+```
+
+```java
+Log.info("Application started");
+Log.debug("Resolved route home");
+Log.warn("Cache miss for users");
+Log.error("Payment failed");
+Log.error("Payment failed", exception);
+```
+
+## Channels
+
+A **channel** is a named SLF4J logger. Separate noisy domains (`orders`, `billing`) from the default `kona` channel:
+
+```kotlin
+Log.channel("orders").info("Order placed")
+Log.setDefaultChannel("api")
+Log.info("uses the api channel")
+```
+
+```java
+Log.channel("orders").info("Order placed");
+Log.setDefaultChannel("api");
+Log.info("uses the api channel");
+```
+
+`Log.stack("a", "b")` returns a channel for the first name (a convenience when you already think in “stack” terms).
+
+## Shared context
+
+Attach request-scoped fields once; every subsequent message on a channel includes them until you flush:
+
+```kotlin
+Log.shareContext(mapOf("requestId" to "r-1", "userId" to 42))
+Log.info("Handling checkout")
+// message includes {requestId=r-1, userId=42}
+
+Log.channel("orders").with(mapOf("orderId" to 9)).info("charged")
+Log.flushSharedContext()
+```
+
+```java
+Log.shareContext(Map.of("requestId", "r-1", "userId", 42));
+Log.info("Handling checkout");
+Log.channel("orders").with(Map.of("orderId", 9)).info("charged");
+Log.flushSharedContext();
+```
+
+`withContext` merges values and returns the default channel for chaining. Prefer flushing at the end of each HTTP request (for example in middleware) so context does not leak across virtual threads.
+
+## Errors and the HTTP stack
+
+`DefaultExceptionHandler` logs unexpected failures through `Log.error` unless you install a custom `report` callback — see [Exceptions](../exceptions/).

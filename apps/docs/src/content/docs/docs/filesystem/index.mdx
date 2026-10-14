@@ -1,0 +1,22 @@
+---
+title: Filesystem
+description: Local and S3-compatible storage disks.
+---
+
+`FilesystemManager` resolves named disks. Use `put` / `get` / `exists` / `delete` / `copy` / `move` / directory helpers.
+
+## Quick start
+
+```kotlin
+val disk = app.resolve(FilesystemManager::class.java).disk()
+disk.put("reports/q1.txt", "ok")
+val body = disk.getString("reports/q1.txt")
+```
+
+Register `FilesystemServiceProvider`. Drivers:
+
+| Driver | Notes |
+| --- | --- |
+| `local` | Files under `filesystems.disks.local.root` (default `storage/app`) |
+| `memory` / `s3-memory` | In-process S3-shaped store |
+| `s3` | Path-style HTTP client with AWS SigV4 (`endpoint`, `bucket`, `key`, `secret`, `region`) |

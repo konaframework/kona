@@ -1,0 +1,26 @@
+---
+title: Mail
+description: Send mailables through log or SMTP transports.
+---
+
+Build messages with `Mailable` / `MailMessage`, then send them through a `Mailer`.
+
+## Quick start
+
+```kotlin
+class WelcomeMail : Mailable() {
+    override fun envelope() = Envelope(subject = "Welcome", from = Address("app@example.com"))
+    override fun content() = Content(html = "<p>Hi</p>", text = "Hi")
+}
+
+app.resolve(Mailer::class.java).to("user@example.com").send(WelcomeMail())
+```
+
+Register `MailServiceProvider`. Drivers:
+
+| Transport | Config |
+| --- | --- |
+| `log` / `array` | Records messages (great for tests) |
+| `smtp` | `host`, `port`, `username`, `password` |
+
+Defaults: `mail.default`, `mail.from.address`, `mail.from.name`.

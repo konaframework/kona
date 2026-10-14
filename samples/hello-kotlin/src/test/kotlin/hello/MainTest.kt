@@ -43,4 +43,49 @@ class MainTest {
             NotesDemo.run("jdbc:h2:mem:hello_notes_test;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
         )
     }
+
+    @Test
+    fun securitySessionAndAuthDemo() {
+        val lines = SecurityDemo.run(arrayOf("--base=$temp"))
+        assertEquals("flash1=200:{\"prior\":\"\"}", lines[0])
+        assertEquals("flash2=200:{\"prior\":\"saved\"}", lines[1])
+        assertTrue(lines[2].startsWith("login=200:"))
+        assertTrue(lines[2].contains("\"ok\":true"))
+        assertTrue(lines[2].contains("\"id\":1"))
+    }
+
+    @Test
+    fun supportCacheAndRedisDemo() {
+        val result = SupportCacheDemo.run(temp)
+        assertEquals("hello-kona", result["slug"])
+        assertEquals(listOf("Ada", "Grace"), result["names"])
+        assertEquals("PONG", result["redis"])
+    }
+
+    @Test
+    fun httpPolishDemo() {
+        val result = HttpPolishDemo.run(arrayOf("--base=$temp"))
+        assertTrue(result["index"]!!.startsWith("200:"))
+        assertTrue(result["index"]!!.contains("Ada"))
+        assertTrue(result["created"]!!.startsWith("201:"))
+        assertEquals("https://demo.test/notes", result["route"])
+        assertEquals("https://demo.test/notes", result["signed"])
+        assertEquals("pong", result["ping"])
+    }
+
+    @Test
+    fun cremaDemo() {
+        val result = CremaDemo.run(temp)
+        assertTrue(result["file"]!!.contains("Hi Kona"))
+        assertEquals("pong 1", result["memory"])
+    }
+
+    @Test
+    fun asyncDemo() {
+        val result = AsyncDemo.run(temp)
+        assertEquals("42", result["event"])
+        assertEquals("1", result["jobs"])
+        assertEquals("1", result["mail"])
+        assertEquals("stored", result["file"])
+    }
 }

@@ -36,7 +36,16 @@ tasks.processResources {
 }
 
 tasks.test {
-    dependsOn(":kona-core:publishToMavenLocal", ":kona-http:publishToMavenLocal", ":kona-extract:publishToMavenLocal", ":kona-grind:publishToMavenLocal")
+    dependsOn(
+        ":kona-core:publishToMavenLocal",
+        ":kona-http:publishToMavenLocal",
+        ":kona-extract:publishToMavenLocal",
+        ":kona-crema:publishToMavenLocal",
+        ":kona-redis:publishToMavenLocal",
+        ":kona-queue:publishToMavenLocal",
+        ":kona-schedule:publishToMavenLocal",
+        ":kona-grind:publishToMavenLocal",
+    )
     systemProperty("kona.repoRoot", rootDir.absolutePath)
 }
 

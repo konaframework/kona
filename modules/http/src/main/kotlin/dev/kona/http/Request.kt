@@ -68,6 +68,12 @@ class Request @JvmOverloads constructor(
 
     fun getAttribute(key: String): Any? = attributes[key]
 
+    /** Parsed `Cookie` header name→value map (empty when absent). */
+    fun cookies(): Map<String, String> = Cookie.parseHeader(header("Cookie"))
+
+    @JvmOverloads
+    fun cookie(name: String, default: String? = null): String? = cookies()[name] ?: default
+
     private fun decode(value: String): String =
         java.net.URLDecoder.decode(value, Charsets.UTF_8)
 
@@ -76,6 +82,7 @@ class Request @JvmOverloads constructor(
         fun get(path: String): Request = Request("GET", path)
 
         @JvmStatic
+        @JvmOverloads
         fun post(path: String, body: String = ""): Request = Request("POST", path, body = body)
     }
 }

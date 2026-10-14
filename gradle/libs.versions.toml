@@ -7,6 +7,8 @@ logback = "1.5.18"
 jackson = "2.18.3"
 hikaricp = "6.3.0"
 h2 = "2.3.232"
+bcrypt = "0.10.2"
+lettuce = "6.5.5.RELEASE"
 
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -15,8 +17,11 @@ jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", ver
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
+bcrypt = { module = "at.favre.lib:bcrypt", version.ref = "bcrypt" }
+lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+kotlin-scripting-jsr223 = { module = "org.jetbrains.kotlin:kotlin-scripting-jsr223", version.ref = "kotlin" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

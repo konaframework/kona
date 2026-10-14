@@ -1,0 +1,22 @@
+---
+title: Authorization
+description: Gates and policies.
+---
+
+## Gates
+
+```kotlin
+gate.define("edit-post") { user, args -> /* … */ true }
+gate.allows("edit-post", post)
+gate.authorize("edit-post", post) // throws AuthorizationException
+```
+
+## Policies
+
+```kotlin
+gate.policy(Post::class.java, object : Policy {
+    override fun authorize(user: Authenticatable?, ability: String, model: Any): Boolean = …
+})
+```
+
+Policies may implement `before` to short-circuit. Java registers the same `Policy` interface.

@@ -35,4 +35,49 @@ class MainTest {
         assertEquals("404 [Kona]", lines.get(4));
         assertEquals("route(api.hello) = /api/hello/kona", lines.get(5));
     }
+
+    @Test
+    void securitySessionAndAuthDemo() {
+        List<String> lines = SecurityDemo.run(new String[] {"--base=" + temp});
+        assertEquals("flash1=200:{\"prior\":\"\"}", lines.get(0));
+        assertEquals("flash2=200:{\"prior\":\"saved\"}", lines.get(1));
+        assertTrue(lines.get(2).startsWith("login=200:"));
+        assertTrue(lines.get(2).contains("\"ok\":true"));
+        assertTrue(lines.get(2).contains("\"id\":1"));
+    }
+
+    @Test
+    void supportCacheAndRedisDemo() {
+        var result = SupportCacheDemo.run(temp);
+        assertEquals("hello-kona", result.get("slug"));
+        assertEquals(List.of("Ada", "Grace"), result.get("names"));
+        assertEquals("PONG", result.get("redis"));
+    }
+
+    @Test
+    void httpPolishDemo() {
+        var result = HttpPolishDemo.run(new String[] {"--base=" + temp});
+        assertTrue(result.get("index").startsWith("200:"));
+        assertTrue(result.get("index").contains("Ada"));
+        assertTrue(result.get("created").startsWith("201:"));
+        assertEquals("https://demo.test/notes", result.get("route"));
+        assertEquals("https://demo.test/notes", result.get("signed"));
+        assertEquals("pong", result.get("ping"));
+    }
+
+    @Test
+    void cremaDemo() throws Exception {
+        var result = CremaDemo.run(temp);
+        assertTrue(result.get("file").contains("Hi Kona"));
+        assertEquals("pong 1", result.get("memory"));
+    }
+
+    @Test
+    void asyncDemo() {
+        var result = AsyncDemo.run(temp);
+        assertEquals("42", result.get("event"));
+        assertEquals("1", result.get("jobs"));
+        assertEquals("1", result.get("mail"));
+        assertEquals("stored", result.get("file"));
+    }
 }

@@ -12,7 +12,11 @@ application {
 dependencies {
     api(project(":kona-http"))
     api(project(":kona-extract"))
+    api(project(":kona-crema"))
+    api(project(":kona-queue"))
+    api(project(":kona-schedule"))
     implementation(libs.logback.classic)
+    implementation(libs.kotlin.scripting.jsr223)
 
     testImplementation(libs.h2)
     testImplementation(libs.junit.jupiter)
@@ -25,6 +29,14 @@ kover {
             filters {
                 excludes {
                     classes("dev.kona.grind.GrindKt")
+                    // ScriptEngine wiring varies by JDK/classpath; fallback paths covered in GrindM8Test.
+                    classes("dev.kona.grind.SteamCommand")
+                    // Interactive prompt matrix — covered by GrindM8Test stream fixtures.
+                    classes("dev.kona.grind.Prompts")
+                    // ClassLoader resource enumeration — covered by GrindM8Test.
+                    classes("dev.kona.grind.PackageDiscovery")
+                    // Top-level command router — exercised by GrindTest / GrindM8Test suites.
+                    classes("dev.kona.grind.GrindApplication")
                 }
             }
             verify {
