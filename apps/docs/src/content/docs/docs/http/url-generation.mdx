@@ -1,0 +1,72 @@
+---
+title: URL generation
+description: Build absolute and named routes, and create signed URLs that the framework can verify.
+---
+
+**URL generation** turns route names and paths into strings your app can put in JSON, redirects, emails, or HTML. Kona registers a singleton `UrlGenerator` when you boot with `HttpServiceProvider`.
+
+## Resolve the generator
+
+```kotlin
+val urls = app.resolve(UrlGenerator::class.java)
+urls.setRoot("https://example.com")
+urls.setKey(app.config.getString("app.key", "kona-app-key"))
+```
+
+```java
+UrlGenerator urls = app.resolve(UrlGenerator.class);
+urls.setRoot("https://example.com");
+urls.setKey(app.config.getString("app.key", "kona-app-key"));
+```
+
+`HttpServiceProvider` already applies `app.url` and `app.key` from config when those keys are set.
+
+## Named routes
+
+Give routes a name, then generate paths (with optional parameters):
+
+```kotlin
+router.get("/users/{id}") { ... }.name("users.show")
+
+urls.route("users.show", mapOf("id" to "42"))
+// https://example.com/users/42  (when root is set)
+```
+
+```java
+router.get("/users/{id}", request -> Response.text("ok")).name("users.show");
+urls.route("users.show", Map.of("id", "42"));
+```
+
+`to(path)` joins a path onto the configured root. Absolute `http://` / `https://` strings pass through unchanged.
+
+## Signed URLs
+
+A **signed URL** includes an HMAC signature (and optionally an `expires` timestamp). Use it for one-time downloads, email confirmations, or any link that must not be tampered with:
+
+```kotlin
+val link = urls.signed("/downloads/report", expirationSeconds = 600)
+val named = urls.signedRoute("users.show", mapOf("id" to "42"), expirationSeconds = 120)
+```
+
+```java
+String link = urls.signed("/downloads/report", 600L);
+String named = urls.signedRoute("users.show", Map.of("id", "42"), 120L);
+```
+
+Verify incoming requests with `hasValidSignature(request)`. The check fails when the signature is missing, wrong, or the `expires` timestamp is in the past.
+
+```kotlin
+router.get("/downloads/report") { request ->
+    if (!urls.hasValidSignature(request)) {
+        throw HttpException(403, "Invalid signature.")
+    }
+    Response.text("ok")
+}
+```
+
+Signing uses HMAC-SHA256 with the generator’s key. Query parameters are sorted before signing so verification is stable regardless of parameter order in the browser.
+
+## Next steps
+
+- Register named routes in [Routing](../routing/).
+- Return transformed models from [API Resources](../api-resources/).
