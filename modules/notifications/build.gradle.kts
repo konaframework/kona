@@ -9,6 +9,8 @@ dependencies {
     api(project(":kona-core"))
     api(project(":kona-mail"))
     api(libs.slf4j.api)
+    implementation(libs.jackson.databind)
+    implementation(libs.jackson.module.kotlin)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

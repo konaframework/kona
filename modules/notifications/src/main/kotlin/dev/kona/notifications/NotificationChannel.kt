@@ -1,7 +1,12 @@
 package dev.kona.notifications
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import dev.kona.mail.Mailer
 import org.slf4j.LoggerFactory
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
 
 fun interface NotificationChannel {
@@ -21,15 +26,26 @@ class MailChannel(
 }
 
 /**
- * Persists notification arrays in memory (stand-in for a database notifications table).
+ * Persists notification arrays in memory, optionally mirrored to a JSON file so rows survive restart.
+ *
+ * Pass a [path] (or set `notifications.database.path` via [NotificationServiceProvider]) for file-backed storage.
+ * Omit [path] for the default in-memory-only channel.
  */
-class DatabaseChannel : NotificationChannel {
+class DatabaseChannel @JvmOverloads constructor(
+    private val path: Path? = null,
+    private val mapper: ObjectMapper = jacksonObjectMapper(),
+) : NotificationChannel {
     private val rows = CopyOnWriteArrayList<Map<String, Any?>>()
+
+    init {
+        load()
+    }
 
     fun all(): List<Map<String, Any?>> = rows.toList()
 
     fun clear() {
         rows.clear()
+        persist()
     }
 
     override fun send(notifiable: Notifiable, notification: Notification) {
@@ -38,6 +54,30 @@ class DatabaseChannel : NotificationChannel {
             "type" to notification.javaClass.name,
             "data" to notification.toArray(notifiable),
         )
+        persist()
+    }
+
+    private fun persist() {
+        val target = path ?: return
+        val parent = target.parent
+        if (parent != null) {
+            Files.createDirectories(parent)
+        }
+        Files.writeString(target, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(rows.toList()))
+    }
+
+    private fun load() {
+        val target = path ?: return
+        if (!Files.exists(target) || Files.size(target) == 0L) {
+            return
+        }
+        try {
+            val loaded: List<Map<String, Any?>> = mapper.readValue(Files.readString(target))
+            rows.clear()
+            rows.addAll(loaded)
+        } catch (_: Exception) {
+            rows.clear()
+        }
     }
 }
 

@@ -12,12 +12,15 @@ data class FailedJob(
 )
 
 /**
- * Stores failed jobs in memory (swap for database later). Laravel `failed_jobs` shape for listing/retry.
+ * Stores failed jobs (Laravel `failed_jobs` shape for listing/retry).
+ *
+ * Default is in-memory. Use [FileFailedJobProvider] (or `queue.failed.driver=file`)
+ * when retries must survive process restart.
  */
-class FailedJobProvider {
-    private val jobs = CopyOnWriteArrayList<FailedJob>()
+open class FailedJobProvider {
+    protected val jobs = CopyOnWriteArrayList<FailedJob>()
 
-    fun log(connection: String, queue: String, payload: QueuePayload, exception: Throwable) {
+    open fun log(connection: String, queue: String, payload: QueuePayload, exception: Throwable) {
         jobs += FailedJob(
             id = payload.id,
             connection = connection,
@@ -25,15 +28,26 @@ class FailedJobProvider {
             payload = payload,
             exception = exception.message ?: exception.javaClass.name,
         )
+        persist()
     }
 
-    fun all(): List<FailedJob> = jobs.toList()
+    open fun all(): List<FailedJob> = jobs.toList()
 
-    fun find(id: String): FailedJob? = jobs.find { it.id == id }
+    open fun find(id: String): FailedJob? = jobs.find { it.id == id }
 
-    fun forget(id: String): Boolean = jobs.removeIf { it.id == id }
+    open fun forget(id: String): Boolean {
+        val removed = jobs.removeIf { it.id == id }
+        if (removed) {
+            persist()
+        }
+        return removed
+    }
 
-    fun flush() {
+    open fun flush() {
         jobs.clear()
+        persist()
     }
+
+    /** Hook for durable providers; no-op in memory. */
+    protected open fun persist() = Unit
 }

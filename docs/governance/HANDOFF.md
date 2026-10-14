@@ -16,7 +16,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M10 — Broadcasting and search** (`main`, PR #16) |
-| Next / active | **M11 — Reactive UI** (`milestone/M11-reactive-ui`) — paused for M3–M10 parity hardening when that branch is open |
+| Parity hardening | **M3–M10 parity round2** on `fix/m3-m10-parity-round2` (cookie encryption, lang files, collections, file failed jobs, testing/drip deepen, Crema docs split, Url helpers, make:middleware/request, websocket broadcast, package auto-discovery, notification file persistence). Do **not** start M11 until this merges. |
+| Next / active after merge | **M11 — Reactive UI** (`milestone/M11-reactive-ui`) |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) Almasix coverage ledger → through **M13** |
 | Docs brand | Primary `#FF9A00`, accent `#286291` (`apps/docs/src/styles/custom.css`) |
 | Docs shape | Still low-level (providers, explicit wiring). Trajectory: Laravel-style progressive guides (simple first, dig deeper later). Rewrite as features land — do not freeze the current structure. |
@@ -37,8 +38,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ```text
 Read AGENTS.md, MILESTONES.md, and docs/governance/continuous-autopilot.md.
-Active milestone is whatever MILESTONES.md says (expect M11 — reactive UI, unless a
-fix/m3-m10-parity-hardening branch is still open).
+If fix/m3-m10-parity-round2 (or a successor parity branch) is still open, finish that
+first — M11 is next only after merge. Otherwise active milestone is M11 — reactive UI.
 Run continuous autopilot: exhaust parity + 100% coverage + rewrite docs as needed →
 commit → PR → automerge → next milestone until the Almasix coverage ledger is fully done (through M13).
 Use Auto for all models. Never edit GitHub rulesets.

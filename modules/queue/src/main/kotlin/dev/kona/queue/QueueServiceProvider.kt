@@ -20,7 +20,7 @@ class QueueServiceProvider : ServiceProvider {
                 } else {
                     null
                 }
-            QueueManager(app.config, redis, database)
+            QueueManager(app.config, redis, database, app.basePath)
         }
         app.container.singleton(Bus::class.java) { _ ->
             Bus(app.resolve(QueueManager::class.java))

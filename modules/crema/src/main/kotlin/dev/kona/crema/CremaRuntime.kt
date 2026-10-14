@@ -1,10 +1,14 @@
 package dev.kona.crema
 
+import com.fasterxml.jackson.databind.ObjectMapper
+
 /**
  * Crema template runtime — directives and echoes for `*.crema.html`.
  * Kept in one file so the behavioral suite can drive 100% line/branch coverage.
  */
 internal class CremaRuntime(private val finder: ViewFinder) {
+    private val jsonMapper = ObjectMapper()
+
     fun render(name: String, data: Map<String, Any?>): String =
         renderSource(finder.get(name), CremaContext().merge(data))
 
@@ -96,6 +100,7 @@ internal class CremaRuntime(private val finder: ViewFinder) {
             val token = context.get("_token")?.toString() ?: ""
             "<input type=\"hidden\" name=\"_token\" value=\"${escape(token)}\">"
         }
+        text = replaceJson(text, context)
         text = replacePush(text, context)
         text = replaceYield(text, context)
         text = replaceInclude(text, context)
@@ -107,6 +112,12 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         text = replaceStack(text, context)
         return text
     }
+
+    private fun replaceJson(source: String, context: CremaContext): String =
+        JSON.replace(source) { m ->
+            val value = eval(m.groupValues[1], context)
+            jsonMapper.writeValueAsString(value)
+        }
 
     private fun replaceYield(source: String, context: CremaContext): String =
         YIELD.replace(source) { m ->
@@ -344,5 +355,6 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         val PREPEND = Regex("""@prepend\(\s*'([^']+)'\s*\)([\s\S]*?)@endprepend""")
         val COMPONENT = Regex("""@component\(\s*'([^']+)'\s*\)([\s\S]*?)@endcomponent""")
         val SLOT = Regex("""@slot\(\s*'([^']+)'\s*\)([\s\S]*?)@endslot""")
+        val JSON = Regex("""@json\(\s*([^)]+)\s*\)""")
     }
 }

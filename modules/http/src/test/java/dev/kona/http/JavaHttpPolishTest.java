@@ -45,8 +45,11 @@ public class JavaHttpPolishTest {
         Router router = new Router();
         router.get("/users/{id}", request -> Response.text("u")).name("users.show");
         UrlGenerator urls = new UrlGenerator(router).setRoot("https://api.test").setKey("java-key");
+        Url.setGenerator(urls);
         assertEquals("https://api.test/users/3", urls.route("users.show", Map.of("id", "3")));
         assertEquals("https://api.test/users/3", urls.route("users.show", Map.of("id", "3")));
+        assertEquals("https://api.test/users/3", Url.route("users.show", Map.of("id", "3")));
+        assertEquals("https://api.test/about", Url.url("/about"));
         String signed = urls.signed("/invite", 120L);
         assertTrue(signed.contains("signature="));
         assertTrue(urls.signed("/invite").contains("signature="));

@@ -7,6 +7,7 @@ plugins {
 
 dependencies {
     api(project(":kona-core"))
+    implementation(libs.slf4j.api)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

@@ -1,0 +1,48 @@
+---
+title: Layouts
+description: Build page layouts with @extends, @section, @yield, and @parent.
+---
+
+Layouts let child views fill named regions of a shared shell (HTML document, admin chrome, and so on).
+
+## Parent layout
+
+```crema
+{{-- layouts/app.crema.html --}}
+<html>
+  <title>@yield('title', 'App')</title>
+  <body>
+    @yield('content')
+    @stack('scripts')
+  </body>
+</html>
+```
+
+`@yield('name')` prints the section named `name`. A second argument is the default when the child did not define the section.
+
+## Child view
+
+```crema
+{{-- home.crema.html --}}
+@extends('layouts.app')
+@section('title', 'Home')
+@section('content')
+  Hello {{ name }}
+@endsection
+```
+
+`@extends('layouts.app')` must appear in the child. Sections can be:
+
+- Inline: `@section('title', 'Home')`
+- Block: `@section('content') … @endsection`
+- Immediate show: `@section('s')…@show` (expands then stores)
+
+## `@parent`
+
+When a child redefines a section that already has content from a parent, use `@parent` inside the child section to keep the parent’s text:
+
+```crema
+@section('content')
+  CHILD @parent MORE
+@endsection
+```

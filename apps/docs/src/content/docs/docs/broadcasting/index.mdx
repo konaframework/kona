@@ -3,7 +3,7 @@ title: Broadcasting
 description: Broadcast events to named channels.
 ---
 
-**Broadcasting** pushes application events to named channels so other processes (or a future websocket driver) can react.
+**Broadcasting** pushes application events to named channels so listeners (in-process websocket subscribers, tests, or a future network driver) can react.
 
 ## Register
 
@@ -16,7 +16,7 @@ Config keys:
 | Key | Meaning |
 |-----|---------|
 | `broadcasting.default` | Connection name (default `log`) |
-| `broadcasting.connections.{name}.driver` | `log` or `null` / `none` |
+| `broadcasting.connections.{name}.driver` | `log`, `null` / `none`, or `websocket` / `ws` |
 
 ## ShouldBroadcast events
 
@@ -47,5 +47,22 @@ Broadcast.to(Channel.publicChannel("orders"), Channel.privateOf("user.1"))
 |--------|----------|
 | `log` | Stores payloads in memory (`Broadcast.manager().log().messages()`) — ideal for tests |
 | `null` / `none` | No-op |
+| `websocket` / `ws` | In-process fan-out to registered connection handlers (`WebsocketBroadcaster`) |
 
-The log driver is the minimum concrete driver for this release. Additional websocket/redis drivers can plug into the same `Broadcaster` interface later.
+### Websocket (in-process)
+
+`WebsocketBroadcaster` keeps a channel → listener map. Subscribe locally, then broadcast; each distinct connection receives the payload once even if it listens on multiple matching channels. There is no network socket in this release — the driver is the websocket *shape* (subscribe + fan-out) for tests and Java callers, ready to wrap a Netty endpoint later.
+
+```kotlin
+val ws = Broadcast.manager().websocket()
+ws.subscribe("orders") { channels, event, payload ->
+    // deliver to a client connection
+}
+app.config.set("broadcasting.default", "websocket")
+Broadcast.event(OrderShipped())
+```
+
+```java
+WebsocketBroadcaster ws = Broadcast.manager().websocket();
+ws.subscribe("orders", (channels, event, payload) -> { /* … */ });
+```

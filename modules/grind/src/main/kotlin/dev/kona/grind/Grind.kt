@@ -23,6 +23,8 @@ class GrindApplication {
             when (val command = positional[0]) {
                 "serve" -> ServeCommand().run(positional.drop(1) + flatten(options))
                 "make:controller" -> MakeControllerCommand().run(positional.drop(1) + flatten(options))
+                "make:middleware" -> MakeMiddlewareCommand().run(positional.drop(1) + flatten(options))
+                "make:request" -> MakeRequestCommand().run(positional.drop(1) + flatten(options))
                 "make:view" -> MakeViewCommand().run(positional.drop(1) + flatten(options))
                 "make:model" -> MakeModelCommand().run(positional.drop(1) + flatten(options))
                 "make:migration" -> MakeMigrationCommand().run(positional.drop(1) + flatten(options))
@@ -76,6 +78,8 @@ class GrindApplication {
               ./grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
                             [--in-process [--bootstrap=bootstrap.App] [--once]]
               ./grind make:controller <Name> [--resource] [--lang=kotlin|java] [--base=.]
+              ./grind make:middleware <Name> [--lang=kotlin|java] [--base=.]
+              ./grind make:request <Name> [--lang=kotlin|java] [--base=.]
               ./grind make:view <name> [--base=.]
               ./grind make:model <Name> [--migration] [--factory] [--seeder] [--all] [--lang=kotlin|java]
               ./grind make:migration <snake_name> [--create=table] [--table=table] [--lang=kotlin|java]

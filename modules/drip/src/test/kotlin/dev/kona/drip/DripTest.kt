@@ -23,6 +23,7 @@ class DripTest {
                 ex.requestMethod == "GET" -> "get:" + (ex.requestURI.rawQuery ?: "")
                 ex.requestMethod == "POST" -> "post:" + String(body, StandardCharsets.UTF_8)
                 ex.requestMethod == "PUT" -> "put:" + String(body, StandardCharsets.UTF_8)
+                ex.requestMethod == "PATCH" -> "patch:" + String(body, StandardCharsets.UTF_8)
                 ex.requestMethod == "DELETE" -> "deleted"
                 else -> "nope"
             }
@@ -42,8 +43,11 @@ class DripTest {
             assertTrue(drip.post("/", mapOf("n" to 1)).body.contains("n"))
             assertTrue(drip.post("/", "plain").body.contains("plain"))
             assertTrue(drip.put("/", mapOf("k" to "v")).body.contains("k"))
+            assertTrue(drip.patch("/", mapOf("p" to 1)).body.contains("p"))
+            assertTrue(drip.patch("/", "plain").body.contains("plain"))
             assertTrue(drip.post("/").successful())
             assertTrue(drip.put("/").successful())
+            assertTrue(drip.patch("/").successful())
             assertEquals("deleted", drip.delete("/x").body)
             assertEquals(true, drip.get("/json").json()["ok"])
             assertEquals(false, DripResponse(404, "nope", emptyMap()).successful())

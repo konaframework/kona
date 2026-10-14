@@ -50,6 +50,10 @@ class Drip(
 
     fun put(url: String, body: Any?): DripResponse = send("PUT", url, emptyMap(), body)
 
+    fun patch(url: String): DripResponse = patch(url, null)
+
+    fun patch(url: String, body: Any?): DripResponse = send("PATCH", url, emptyMap(), body)
+
     fun delete(url: String): DripResponse = send("DELETE", url, emptyMap(), null)
 
     private fun send(method: String, url: String, query: Map<String, String>, body: Any?): DripResponse {

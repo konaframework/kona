@@ -50,10 +50,23 @@ class AppLoader(
             )
         }
         return try {
-            method.invoke(null, args) as Application
+            val app = method.invoke(null, args) as Application
+            discoverPackages(app, loader)
+            app
         } catch (ex: InvocationTargetException) {
             throw ex.targetException
         }
+    }
+
+    /**
+     * When `META-INF/kona/providers` is present on [loader], registers each listed
+     * [dev.kona.core.ServiceProvider] onto [app] (idempotent if already registered).
+     */
+    fun discoverPackages(app: Application, loader: ClassLoader): List<String> {
+        if (PackageDiscovery.providerNames(loader).isEmpty()) {
+            return emptyList()
+        }
+        return PackageDiscovery.registerAll(app, loader)
     }
 
     companion object {

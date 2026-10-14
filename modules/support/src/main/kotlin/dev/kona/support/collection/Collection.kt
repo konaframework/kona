@@ -44,6 +44,60 @@ class Collection<T> private constructor(
     fun <R> map(transform: (T) -> R): Collection<R> =
         Collection(items.map(transform))
 
+    fun <R> flatMap(transform: (T) -> Iterable<R>): Collection<R> =
+        Collection(items.flatMap(transform))
+
+    fun <R> reduce(initial: R, operation: (R, T) -> R): R =
+        items.fold(initial, operation)
+
+    fun reduce(operation: (T, T) -> T): T {
+        if (items.isEmpty()) {
+            throw IllegalStateException("Cannot reduce an empty collection")
+        }
+        return items.reduce(operation)
+    }
+
+    fun chunk(size: Int): Collection<Collection<T>> {
+        if (size < 1) {
+            throw IllegalArgumentException("Chunk size must be at least 1")
+        }
+        return Collection(items.chunked(size).map { Collection(it) })
+    }
+
+    fun sum(): Double {
+        var total = 0.0
+        for (item in items) {
+            total += when (item) {
+                is Number -> item.toDouble()
+                else -> 0.0
+            }
+        }
+        return total
+    }
+
+    fun avg(): Double? {
+        if (items.isEmpty()) {
+            return null
+        }
+        return sum() / items.size
+    }
+
+    /** Runs [block] when [condition] is true; always returns this collection. */
+    fun `when`(condition: Boolean, block: (Collection<T>) -> Unit): Collection<T> {
+        if (condition) {
+            block(this)
+        }
+        return this
+    }
+
+    /** Runs [block] when [condition] is false; always returns this collection. */
+    fun unless(condition: Boolean, block: (Collection<T>) -> Unit): Collection<T> {
+        if (!condition) {
+            block(this)
+        }
+        return this
+    }
+
     fun each(action: (T) -> Unit): Collection<T> {
         items.forEach(action)
         return this

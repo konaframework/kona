@@ -61,6 +61,32 @@ class GrindTest {
     }
 
     @Test
+    fun makeMiddlewareAndRequest() {
+        val base = temp.resolve("mw-req")
+        Files.createDirectories(base.resolve("app"))
+        assertEquals(0, MakeMiddlewareCommand().run(listOf("Auth", "--base=$base", "--lang=kotlin")))
+        assertTrue(Files.exists(base.resolve("app/Http/Middleware/AuthMiddleware.kt")))
+        assertTrue(Files.readString(base.resolve("app/Http/Middleware/AuthMiddleware.kt")).contains("Middleware"))
+        assertEquals(0, MakeMiddlewareCommand().run(listOf("LogMiddleware", "--base=$base", "--lang=java")))
+        assertTrue(Files.exists(base.resolve("app/Http/Middleware/LogMiddleware.java")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:middleware", "Auth", "--base=$base", "--lang=kotlin")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:middleware")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:middleware", "Bad-Name", "--base=$base")))
+
+        assertEquals(0, MakeRequestCommand().run(listOf("StoreUser", "--base=$base", "--lang=kotlin")))
+        val ktReq = Files.readString(base.resolve("app/Http/Requests/StoreUserRequest.kt"))
+        assertTrue(ktReq.contains("FormRequest"))
+        assertTrue(ktReq.contains("fun rules("))
+        assertEquals(0, MakeRequestCommand().run(listOf("UpdatePostRequest", "--base=$base", "--lang=java")))
+        assertTrue(Files.readString(base.resolve("app/Http/Requests/UpdatePostRequest.java")).contains("extends FormRequest"))
+        assertEquals(1, GrindApplication().run(arrayOf("make:request", "StoreUser", "--base=$base", "--lang=kotlin")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:request")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:request", "Bad-Name", "--base=$base")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:middleware" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:request" })
+    }
+
+    @Test
     fun makeView() {
         val base = temp.resolve("views-proj")
         Files.createDirectories(base)

@@ -25,6 +25,8 @@ public class JavaDripApiTest {
             Drip drip = new Drip().baseUrl("http://127.0.0.1:" + server.getAddress().getPort());
             assertTrue(drip.get("/").successful());
             assertTrue(drip.post("/", Map.of("a", 1)).successful());
+            assertTrue(drip.patch("/", Map.of("p", 1)).successful());
+            assertTrue(drip.patch("/").successful());
         } finally {
             server.stop(0);
         }

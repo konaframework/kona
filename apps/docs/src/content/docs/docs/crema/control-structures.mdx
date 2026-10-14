@@ -1,0 +1,54 @@
+---
+title: Control structures
+description: Conditionals and loops in Crema templates.
+---
+
+## Conditionals
+
+```crema
+@if(ok)
+  Yes
+@else
+  No
+@endif
+
+@unless(ok)
+  Hidden when ok is truthy
+@endunless
+```
+
+Truthy values: non-null, non-false, non-zero numbers, non-empty strings/collections/maps/arrays.
+
+## `@foreach` / `@each` / `@for`
+
+All three iterate a collection (or range / scalar wrapped as a single item):
+
+```crema
+@foreach(items as item)
+  <li>{{ item }} ({{ loop.iteration }})</li>
+@endforeach
+```
+
+Loop metadata under `loop`:
+
+| Key | Meaning |
+|-----|---------|
+| `index` | Zero-based index |
+| `iteration` | One-based index |
+| `first` / `last` | Booleans |
+| `count` | Total size |
+| `remaining` | Items after this one |
+
+`@each` and `@for` use the same body shape with `@endeach` / `@endfor`.
+
+## `@forelse`
+
+Like foreach, with an `@empty` branch when the collection has no items:
+
+```crema
+@forelse(items as item)
+  {{ item }}
+@empty
+  None
+@endforelse
+```

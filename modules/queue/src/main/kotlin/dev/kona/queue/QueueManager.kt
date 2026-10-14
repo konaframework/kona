@@ -3,6 +3,7 @@ package dev.kona.queue
 import dev.kona.core.Config
 import dev.kona.extract.Database
 import dev.kona.redis.RedisManager
+import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -12,18 +13,24 @@ import java.util.concurrent.ConcurrentHashMap
  * - `queue.connections.{name}.driver` — `sync`, `array`/`memory`, `redis`, `database`
  * - `queue.connections.{name}.queue` — default queue name
  * - `queue.prefix` — redis key prefix
+ * - `queue.failed.driver` — `memory` (default) or `file`
+ * - `queue.failed.path` — file path when driver is `file` (default `storage/framework/failed_jobs.json`)
  */
 class QueueManager(
     private val config: Config,
     private val redis: RedisManager?,
     private val database: Database?,
+    private val basePath: Path = Path.of("").toAbsolutePath().normalize(),
 ) {
     constructor(config: Config) : this(config, null, null)
 
     constructor(config: Config, redis: RedisManager?) : this(config, redis, null)
 
+    constructor(config: Config, redis: RedisManager?, database: Database?) :
+        this(config, redis, database, Path.of("").toAbsolutePath().normalize())
+
     private val connections = ConcurrentHashMap<String, Queue>()
-    val failed = FailedJobProvider()
+    val failed: FailedJobProvider = createFailedProvider()
 
     fun connection(): Queue = connection(defaultConnection())
 
@@ -68,6 +75,24 @@ class QueueManager(
                 DatabaseQueue(database.connection(), table).also { it.ensureTable() }
             }
             else -> throw IllegalArgumentException("Queue connection [$name] is not defined.")
+        }
+    }
+
+    private fun createFailedProvider(): FailedJobProvider {
+        val driver = (config.getString("queue.failed.driver") ?: "memory").lowercase()
+        return when (driver) {
+            "file" -> FileFailedJobProvider(failedPath())
+            else -> FailedJobProvider()
+        }
+    }
+
+    private fun failedPath(): Path {
+        val configured = config.getString("queue.failed.path")
+        return if (configured.isNullOrBlank()) {
+            basePath.resolve("storage").resolve("framework").resolve("failed_jobs.json")
+        } else {
+            val path = Path.of(configured)
+            if (path.isAbsolute) path else basePath.resolve(configured)
         }
     }
 }

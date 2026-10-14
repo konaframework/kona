@@ -1,0 +1,30 @@
+---
+title: Components
+description: Reusable Crema components with default and named slots.
+---
+
+Components are views rendered with a body and optional named slots.
+
+## Define a component
+
+```crema
+{{-- alert.crema.html --}}
+<div class="alert">
+  <strong>{{ title }}</strong>
+  <div>{{ slot }}</div>
+</div>
+```
+
+- `slot` — default (unnamed) body content
+- Named slots become data keys of the same name (`title` above)
+
+## Use a component
+
+```crema
+@component('alert')
+  @slot('title')Notice@endslot
+  Body text goes in the default slot.
+@endcomponent
+```
+
+The component view is rendered with a child context containing the expanded slots.

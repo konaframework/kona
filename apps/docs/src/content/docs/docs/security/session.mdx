@@ -15,12 +15,14 @@ Configure with `session.driver`:
 |--------|----------|
 | `array` / `memory` | In-process map (tests / single process) |
 | `file` | JSON files under `storage/framework/sessions` (or `session.files`) |
-| `cookie` | Base64 JSON payload in the session cookie (unsigned — encrypt later) |
+| `cookie` | JSON payload in the session cookie (Base64 by default; encrypted when an Encrypter is wired) |
 | `redis` | Keys on a Redis connection (`session.connection_prefix`, default `kona_session:`) |
 
 For `redis`, register `RedisServiceProvider` **before** `SessionServiceProvider` so `SessionManager` can resolve a `RedisConnection` / `RedisManager` from the container.
 
-Other keys: `session.lifetime` (minutes), `session.cookie`, `session.path`, `session.secure`, `session.http_only`, `session.same_site`.
+Cookie encryption: register `AuthServiceProvider` with a valid `app.key`, or set `session.encrypt=true` plus `app.key`. `SessionServiceProvider` then encrypts cookie payloads with `Encrypter` instead of storing raw Base64.
+
+Other keys: `session.lifetime` (minutes), `session.cookie`, `session.path`, `session.secure`, `session.http_only`, `session.same_site`, `session.encrypt`.
 
 ## Usage
 

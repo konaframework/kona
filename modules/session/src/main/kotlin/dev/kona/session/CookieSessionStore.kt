@@ -3,17 +3,31 @@ package dev.kona.session
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import java.util.Base64
+import java.util.function.Function
 
 /**
- * Cookie session driver: payload travels in the session cookie as Base64(JSON).
+ * Cookie session driver: payload travels in the session cookie.
  *
- * **Encryption / signing is deferred** to the M3 encryption slice. Payloads are
- * unsigned Base64 JSON suitable for tests and local development only — do not
- * use in production until encrypt/sign lands.
+ * By default the cookie value is URL-safe Base64(JSON). When [encrypt] / [decrypt]
+ * are provided (typically AES via `dev.kona.security.Encrypter`), the cookie holds
+ * the encrypted string instead of raw Base64 — preferred for production.
  */
 class CookieSessionStore @JvmOverloads constructor(
     private val mapper: ObjectMapper = jacksonObjectMapper(),
+    private val encrypt: ((String) -> String)? = null,
+    private val decrypt: ((String) -> String)? = null,
 ) : SessionStore {
+    /** Java-friendly constructor taking [Function] codecs. */
+    constructor(
+        mapper: ObjectMapper,
+        encrypt: Function<String, String>?,
+        decrypt: Function<String, String>?,
+    ) : this(
+        mapper,
+        encrypt?.let { fn -> { s: String -> fn.apply(s) } },
+        decrypt?.let { fn -> { s: String -> fn.apply(s) } },
+    )
+
     /** Inbound cookie payload for the current request (set by [SessionManager]). */
     @Volatile
     var inboundPayload: String? = null
@@ -28,7 +42,7 @@ class CookieSessionStore @JvmOverloads constructor(
             return emptyMap()
         }
         return try {
-            val json = String(Base64.getUrlDecoder().decode(raw), Charsets.UTF_8)
+            val json = decodePayload(raw) ?: return emptyMap()
             @Suppress("UNCHECKED_CAST")
             val envelope = mapper.readValue(json, Map::class.java) as Map<String, Any?>
             @Suppress("UNCHECKED_CAST")
@@ -41,8 +55,8 @@ class CookieSessionStore @JvmOverloads constructor(
 
     override fun write(id: String, data: Map<String, Any?>, lifetimeMinutes: Int) {
         val envelope = mapOf("id" to id, "data" to data)
-        outboundPayload = Base64.getUrlEncoder().withoutPadding()
-            .encodeToString(mapper.writeValueAsString(envelope).toByteArray(Charsets.UTF_8))
+        val json = mapper.writeValueAsString(envelope)
+        outboundPayload = encodePayload(json)
     }
 
     override fun destroy(id: String) {
@@ -55,10 +69,33 @@ class CookieSessionStore @JvmOverloads constructor(
             return null
         }
         return try {
-            val json = String(Base64.getUrlDecoder().decode(payload), Charsets.UTF_8)
+            val json = decodePayload(payload) ?: return null
             @Suppress("UNCHECKED_CAST")
             val envelope = mapper.readValue(json, Map::class.java) as Map<String, Any?>
             envelope["id"] as? String
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun encodePayload(json: String): String {
+        val encryptFn = encrypt
+        return if (encryptFn != null) {
+            encryptFn(json)
+        } else {
+            Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(json.toByteArray(Charsets.UTF_8))
+        }
+    }
+
+    private fun decodePayload(raw: String): String? {
+        val decryptFn = decrypt
+        return try {
+            if (decryptFn != null) {
+                decryptFn(raw)
+            } else {
+                String(Base64.getUrlDecoder().decode(raw), Charsets.UTF_8)
+            }
         } catch (_: Exception) {
             null
         }

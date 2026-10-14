@@ -11,7 +11,7 @@ The `kona-support` module ships everyday helpers used across apps and the framew
 val names = collect(users).pluck("name").filter { it != null }
 ```
 
-`Collection` wraps a list with `map`, `filter`, `pluck`, `groupBy`, `sortBy`, `unique`, and more. Java: `Collection.make(...)` / `Collection.of(...)`.
+`Collection` wraps a list with `map`, `flatMap`, `filter`, `reduce`, `chunk`, `sum`, `avg`, `when` / `unless`, `pluck`, `groupBy`, `sortBy`, `unique`, and more. Java: `Collection.make(...)` / `Collection.of(...)`.
 
 ## Strings
 
@@ -34,7 +34,11 @@ Str.of("hello_world").camel()    // helloWorld
 val t = Translator().addLines("en", mapOf("hi" to "Hello :name"))
 t.get("hi", mapOf("name" to "Ada"))
 Lang.setTranslator(t)
-Lang.get("hi", mapOf("name" to "Ada"))
+translate("hi", mapOf("name" to "Ada"))
 ```
 
-Register `SupportServiceProvider` to bind a shared `Translator`.
+```java
+Translations.__("hi", Map.of("name", "Ada"));
+```
+
+Register `SupportServiceProvider` to bind a shared `Translator`. If `lang.path` is set or `{base}/lang` exists, JSON and `key=value` files are loaded automatically (`lang/en.json`, `lang/en/messages.json`, `lang/en.properties`, and so on).

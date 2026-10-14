@@ -10,7 +10,13 @@ Hash.make("secret")
 Hash.check("secret", hash)
 ```
 
-Bcrypt is the default driver (`hash.rounds`, default 10). Passwords longer than 72 bytes are truncated to bcrypt’s limit.
+**Bcrypt** is the shipped password hasher (`hash.rounds`, default 10). Passwords longer than 72 bytes are truncated to bcrypt’s limit. Argon2 is not bundled in this release; register another `Hasher` with `HashManager.extend("argon2", …)` if you need a different algorithm.
+
+```kotlin
+val hashes = HashManager(defaultRounds = 10)
+hashes.extend("custom", MyHasher())
+hashes.setDefaultDriver("custom")
+```
 
 ## Guards
 

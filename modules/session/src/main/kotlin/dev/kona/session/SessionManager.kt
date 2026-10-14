@@ -11,18 +11,23 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Resolves session drivers from config and starts/saves sessions on requests.
  *
- * Config keys (Laravel shape):
+ * Config keys:
  * - `session.driver` — `array` / `memory`, `cookie`, `file`, `redis` (default `array`)
  * - `session.lifetime` — minutes (default `120`)
  * - `session.cookie` — cookie name (default `kona_session`)
  * - `session.path` — cookie path (default `/`)
  * - `session.files` — file store directory (default `{base}/storage/framework/sessions`)
  * - `session.secure` / `session.http_only` / `session.same_site` — cookie flags
+ * - `session.encrypt` — when `true` (and an app key / Encrypter is available), cookie
+ *   payloads are encrypted; [SessionServiceProvider] also wires encryption when an
+ *   `Encrypter` is already bound in the container
  */
 class SessionManager @JvmOverloads constructor(
     private val config: Config,
     private val basePath: Path,
     private val redis: RedisConnection? = null,
+    private val cookieEncrypt: ((String) -> String)? = null,
+    private val cookieDecrypt: ((String) -> String)? = null,
 ) {
     private val stores = ConcurrentHashMap<String, SessionStore>()
 
@@ -113,7 +118,10 @@ class SessionManager @JvmOverloads constructor(
     private fun createDriver(name: String): SessionStore =
         when (name) {
             "array", "memory" -> ArraySessionStore()
-            "cookie" -> CookieSessionStore()
+            "cookie" -> CookieSessionStore(
+                encrypt = cookieEncrypt,
+                decrypt = cookieDecrypt,
+            )
             "file" -> FileSessionStore(filesPath())
             "redis" -> {
                 val connection = redis

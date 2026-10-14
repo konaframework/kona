@@ -36,5 +36,14 @@ public class JavaBroadcastApiTest {
         Broadcast.event(new Ping());
         assertEquals(1, Broadcast.manager().log().messages().size());
         assertTrue(Channel.publicChannel("java").getName().equals("java"));
+
+        app.getConfig().set("broadcasting.connections.websocket.driver", "websocket");
+        WebsocketBroadcaster ws = Broadcast.manager().websocket();
+        java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
+        ws.subscribe("java", (channels, event, payload) -> hits.incrementAndGet());
+        Broadcast.manager().connection("websocket").broadcast(
+                List.of(Channel.publicChannel("java")), "ping", Map.of("ok", true));
+        assertEquals(1, hits.get());
+        assertEquals(1, ws.messages().size());
     }
 }

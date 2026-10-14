@@ -230,6 +230,11 @@ class HttpPolishTest {
         val router = app.resolve(Router::class.java)
         router.get("/home") { Response.text("h") }.name("home")
         assertEquals("https://app.test/home", urls.route("home"))
+        assertEquals("https://app.test/home", Url.route("home"))
+        assertEquals("https://app.test/home", route("home"))
+        assertEquals("https://app.test/about", Url.url("/about"))
+        assertEquals("https://app.test/about", url("/about"))
+        assertEquals(urls, Url.generator())
 
         val plainDir = temp.resolve("plain")
         java.nio.file.Files.createDirectories(plainDir)
@@ -239,5 +244,27 @@ class HttpPolishTest {
         val defaultUrls = plain.resolve(UrlGenerator::class.java)
         plain.resolve(Router::class.java).get("/x") { Response.text("x") }.name("x")
         assertEquals("/x", defaultUrls.route("x"))
+        assertEquals("/x", route("x"))
+        assertEquals("/y", url("/y"))
+    }
+
+    @Test
+    fun urlHelpersRequireConfiguredGenerator() {
+        val previous = runCatching { Url.generator() }.getOrNull()
+        try {
+            Url.clearGenerator()
+            assertThrows(IllegalStateException::class.java) { Url.generator() }
+            assertThrows(IllegalStateException::class.java) { route("missing") }
+            assertThrows(IllegalStateException::class.java) { url("/x") }
+            Url.setGenerator(UrlGenerator(Router()))
+            assertEquals("/p", Url.to("/p"))
+            assertEquals("/p", Url.url("/p"))
+        } finally {
+            if (previous != null) {
+                Url.setGenerator(previous)
+            } else {
+                Url.clearGenerator()
+            }
+        }
     }
 }

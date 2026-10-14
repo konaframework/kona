@@ -103,4 +103,43 @@ class SessionStoreTest {
 
         CookieSessionStore(jacksonObjectMapper()).write(id, emptyMap(), 1)
     }
+
+    @Test
+    fun cookieStoreEncryptRoundTripAndFallbackWithoutEncrypter() {
+        val id = SessionId.generate()
+        val plain = CookieSessionStore()
+        plain.write(id, mapOf("x" to 1), 10)
+        val rawBase64 = plain.outboundPayload
+        assertTrue(!rawBase64.startsWith("ENC:"))
+
+        val encrypted = CookieSessionStore(
+            encrypt = { json -> "ENC:$json" },
+            decrypt = { payload -> payload.removePrefix("ENC:") },
+        )
+        encrypted.write(id, mapOf("user" to "ada"), 120)
+        assertTrue(encrypted.outboundPayload.startsWith("ENC:"))
+        assertEquals(id, encrypted.readId(encrypted.outboundPayload))
+        encrypted.inboundPayload = encrypted.outboundPayload
+        assertEquals("ada", encrypted.read(id)["user"])
+
+        encrypted.inboundPayload = "ENC:not-json"
+        assertTrue(encrypted.read(id).isEmpty())
+        assertEquals(null, encrypted.readId("ENC:!!!"))
+        assertEquals(null, encrypted.readId("bad-cipher-text"))
+
+        val javaFns = CookieSessionStore(
+            jacksonObjectMapper(),
+            java.util.function.Function { json: String -> "E:$json" },
+            java.util.function.Function { payload: String -> payload.removePrefix("E:") },
+        )
+        javaFns.write(id, mapOf("n" to 2), 1)
+        javaFns.inboundPayload = javaFns.outboundPayload
+        assertEquals(2, javaFns.read(id)["n"])
+
+        CookieSessionStore(
+            jacksonObjectMapper(),
+            null as java.util.function.Function<String, String>?,
+            null as java.util.function.Function<String, String>?,
+        ).write(id, emptyMap(), 1)
+    }
 }
