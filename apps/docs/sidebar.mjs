@@ -53,16 +53,26 @@ export async function buildSidebar() {
         { label: 'Relations', slug: 'docs/extract/relations' },
         { label: 'Migrations', slug: 'docs/extract/migrations' },
         { label: 'Seeders & factories', slug: 'docs/extract/seeders-factories' },
+        { label: 'Serialization & events', slug: 'docs/extract/serialization-events' },
       ],
     },
     {
-      label: 'Security',
+      label: 'Cache & Redis',
+      items: [
+        { label: 'Cache', slug: 'docs/cache' },
+        { label: 'Redis', slug: 'docs/cache/redis' },
+      ],
+    },
+    {
+      label: 'Support',
+      items: [
+        { label: 'Utilities', slug: 'docs/support' },
+      ],
+    },
+    {
+      label: 'Security reference',
       items: [
         { label: 'Overview', slug: 'docs/security' },
-        { label: 'Session', slug: 'docs/security/session' },
-        { label: 'Authentication', slug: 'docs/security/authentication' },
-        { label: 'Authorization', slug: 'docs/security/authorization' },
-        { label: 'CSRF', slug: 'docs/security/csrf' },
         { label: 'Encryption, CORS, rate limit', slug: 'docs/security/encryption-cors-rate-limit' },
       ],
     },

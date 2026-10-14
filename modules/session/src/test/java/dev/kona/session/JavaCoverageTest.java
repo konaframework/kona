@@ -30,6 +30,11 @@ public class JavaCoverageTest {
 
         Config config = new Config();
         config.set("session.driver", "cookie");
+        SessionManager twoArg = new SessionManager(config, base);
+        assertNotNull(twoArg.driver());
+        RedisSessionStore redisStore = new RedisSessionStore(new dev.kona.redis.InMemoryRedisConnection());
+        redisStore.write("id", Map.of("a", 1), 10);
+        assertEquals(1, ((Number) redisStore.read("id").get("a")).intValue());
         SessionManager manager = SessionManager.fromConfig(config, base);
         StoreSession first = manager.start(Request.get("/"));
         first.put("x", "y");

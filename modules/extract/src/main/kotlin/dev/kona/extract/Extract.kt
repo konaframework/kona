@@ -70,11 +70,26 @@ abstract class Extract<T : Extract<T>> {
     open val perPage: Int
         get() = 15
 
+    /** Attribute keys omitted from [toArray] / [toJson] unless listed in [visible]. */
+    open val hidden: Set<String>
+        get() = emptySet()
+
+    /** When non-empty, only these keys (plus [appends]) appear in serialization. */
+    open val visible: Set<String>
+        get() = emptySet()
+
+    /** Virtual attribute names resolved via `get{Name}Attribute` / [getAppendedAttribute]. */
+    open val appends: Set<String>
+        get() = emptySet()
+
     private val attributes = linkedMapOf<String, Any?>()
     private var original: Map<String, Any?> = emptyMap()
     private val relations = linkedMapOf<String, Any?>()
     private var persisted = false
     private var recentlyCreated = false
+    private var hiddenOverrides: MutableSet<String>? = null
+    private var visibleOverrides: MutableSet<String>? = null
+    private var appendOverrides: MutableSet<String>? = null
 
     @Suppress("UNCHECKED_CAST")
     private fun self(): T = this as T
@@ -179,14 +194,23 @@ abstract class Extract<T : Extract<T>> {
 
     /** Inserts or updates (dirty attributes only); maintains timestamps. */
     fun save(): Boolean {
-        if (persisted) {
+        val creating = !persisted
+        ModelDispatcher.dispatch(ModelEvent.SAVING, this)
+        if (creating) {
+            ModelDispatcher.dispatch(ModelEvent.CREATING, this)
+        } else {
             if (isClean()) {
+                ModelDispatcher.dispatch(ModelEvent.SAVED, this)
                 return true
             }
+            ModelDispatcher.dispatch(ModelEvent.UPDATING, this)
+        }
+        if (persisted) {
             if (timestamps) {
                 touchTimestamps()
             }
             keyQuery().update(getDirty())
+            ModelDispatcher.dispatch(ModelEvent.UPDATED, this)
         } else {
             if (timestamps) {
                 touchTimestamps()
@@ -202,8 +226,10 @@ abstract class Extract<T : Extract<T>> {
             }
             persisted = true
             recentlyCreated = true
+            ModelDispatcher.dispatch(ModelEvent.CREATED, this)
         }
         syncOriginal()
+        ModelDispatcher.dispatch(ModelEvent.SAVED, this)
         return true
     }
 
@@ -214,12 +240,15 @@ abstract class Extract<T : Extract<T>> {
         if (!persisted) {
             return false
         }
+        ModelDispatcher.dispatch(ModelEvent.DELETING, this)
         if (this is SoftDeletes) {
             runSoftDelete(deletedAtColumn)
+            ModelDispatcher.dispatch(ModelEvent.TRASHED, this)
         } else {
             keyQuery().delete()
             persisted = false
         }
+        ModelDispatcher.dispatch(ModelEvent.DELETED, this)
         return true
     }
 
@@ -269,6 +298,7 @@ abstract class Extract<T : Extract<T>> {
         model.attributes.putAll(row)
         model.persisted = true
         model.syncOriginal()
+        model.markRetrieved()
         return model
     }
 
@@ -373,18 +403,104 @@ abstract class Extract<T : Extract<T>> {
 
     // ---- serialization ----
 
-    /** Cast attribute values plus loaded relations (models rendered recursively). */
-    open fun toMap(): Map<String, Any?> {
+    fun makeHidden(vararg keys: String): T {
+        val bag = hiddenOverrides
+        if (bag == null) {
+            val created = linkedSetOf<String>()
+            hiddenOverrides = created
+            created.addAll(keys)
+        } else {
+            bag.addAll(keys)
+        }
+        return self()
+    }
+
+    fun makeVisible(vararg keys: String): T {
+        val bag = visibleOverrides
+        if (bag == null) {
+            val created = linkedSetOf<String>()
+            visibleOverrides = created
+            created.addAll(keys)
+        } else {
+            bag.addAll(keys)
+        }
+        val hidden = hiddenOverrides
+        if (hidden != null) {
+            hidden.removeAll(keys.toSet())
+        }
+        return self()
+    }
+
+    fun setAppends(vararg keys: String): T {
+        appendOverrides = linkedSetOf(*keys)
+        return self()
+    }
+
+    fun effectiveHidden(): Set<String> {
+        val base = hidden.toMutableSet()
+        hiddenOverrides?.let { base.addAll(it) }
+        visibleOverrides?.let { base.removeAll(it) }
+        return base
+    }
+
+    fun effectiveVisible(): Set<String> {
+        val base = visible.toMutableSet()
+        visibleOverrides?.let { base.addAll(it) }
+        return base
+    }
+
+    fun effectiveAppends(): Set<String> {
+        val base = appends.toMutableSet()
+        appendOverrides?.let { base.clear(); base.addAll(it) }
+        return base
+    }
+
+    /** Override to resolve appended attributes (`getFullNameAttribute` shape). */
+    open fun getAppendedAttribute(key: String): Any? = null
+
+    /**
+     * Cast attribute values plus loaded relations (models rendered recursively),
+     * respecting [hidden], [visible], and [appends].
+     */
+    open fun toMap(): Map<String, Any?> = toArray()
+
+    /** Laravel `toArray()` alias for model serialization. */
+    open fun toArray(): Map<String, Any?> {
         val result = linkedMapOf<String, Any?>()
-        attributes.keys.forEach { result[it] = getAttribute(it) }
+        val visibleKeys = effectiveVisible()
+        val hiddenKeys = effectiveHidden()
+        attributes.keys.forEach { key ->
+            if (shouldSerialize(key, visibleKeys, hiddenKeys)) {
+                result[key] = getAttribute(key)
+            }
+        }
         relations.forEach { (name, value) ->
+            if (!shouldSerialize(name, visibleKeys, hiddenKeys)) {
+                return@forEach
+            }
             result[name] = when (value) {
-                is Extract<*> -> value.toMap()
-                is Collection<*> -> value.map { if (it is Extract<*>) it.toMap() else it }
+                is Extract<*> -> value.toArray()
+                is Collection<*> -> value.map { if (it is Extract<*>) it.toArray() else it }
                 else -> value
             }
         }
+        for (append in effectiveAppends()) {
+            result[append] = getAppendedAttribute(append)
+        }
         return result
+    }
+
+    /** JSON serialization of [toArray]. */
+    open fun toJson(): String {
+        val mapper = com.fasterxml.jackson.databind.ObjectMapper()
+        return mapper.writeValueAsString(toArray())
+    }
+
+    private fun shouldSerialize(key: String, visibleKeys: Set<String>, hiddenKeys: Set<String>): Boolean {
+        if (visibleKeys.isNotEmpty()) {
+            return key in visibleKeys
+        }
+        return key !in hiddenKeys
     }
 
     override fun toString(): String = javaClass.simpleName + attributes
@@ -393,14 +509,23 @@ abstract class Extract<T : Extract<T>> {
         if (!persisted) {
             return false
         }
+        ModelDispatcher.dispatch(ModelEvent.FORCE_DELETING, this)
         keyQuery().delete()
         persisted = false
+        ModelDispatcher.dispatch(ModelEvent.FORCE_DELETED, this)
         return true
     }
 
     internal fun performRestore(column: String): Boolean {
+        ModelDispatcher.dispatch(ModelEvent.RESTORING, this)
         attributes[column] = null
-        return save()
+        val saved = save()
+        ModelDispatcher.dispatch(ModelEvent.RESTORED, this)
+        return saved
+    }
+
+    internal fun markRetrieved() {
+        ModelDispatcher.dispatch(ModelEvent.RETRIEVED, this)
     }
 
     private fun runSoftDelete(column: String) {

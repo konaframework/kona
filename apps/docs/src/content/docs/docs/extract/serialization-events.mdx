@@ -1,0 +1,25 @@
+---
+title: Serialization & model events
+description: toArray/toJson, hidden/visible/appends, and lifecycle events.
+---
+
+## Serialization
+
+Models expose Laravel-shaped serialization:
+
+- `hidden` / `visible` / `appends` open properties
+- `makeHidden` / `makeVisible` / `setAppends`
+- `toArray()` / `toMap()` / `toJson()`
+- Override `getAppendedAttribute` for virtual fields
+
+`ExtractCollection` wraps lists of models with `pluck`, `modelKeys`, `toArray`, `load`, and `filter`.
+
+## Lifecycle events
+
+`ModelDispatcher` fires `CREATING`, `CREATED`, `UPDATING`, `UPDATED`, `SAVING`, `SAVED`, `DELETING`, `DELETED`, `TRASHED`, `RESTORING`, `RESTORED`, `FORCE_DELETING`, `FORCE_DELETED`, and `RETRIEVED`.
+
+```kotlin
+ModelDispatcher.listen(ModelEvent.CREATED) { model ->
+    logger.info("created {}", model.getKey())
+}
+```

@@ -53,4 +53,12 @@ class MainTest {
         assertTrue(lines[2].contains("\"ok\":true"))
         assertTrue(lines[2].contains("\"id\":1"))
     }
+
+    @Test
+    fun supportCacheAndRedisDemo() {
+        val result = SupportCacheDemo.run(temp)
+        assertEquals("hello-kona", result["slug"])
+        assertEquals(listOf("Ada", "Grace"), result["names"])
+        assertEquals("PONG", result["redis"])
+    }
 }

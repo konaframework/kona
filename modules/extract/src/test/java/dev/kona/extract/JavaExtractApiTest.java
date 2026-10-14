@@ -206,5 +206,10 @@ public class JavaExtractApiTest {
         assertFalse(article.trashed());
         assertTrue(article.forceDelete());
         assertEquals(0L, articles.withTrashed().count());
+
+        ExtractCollection<Member> fromOf = ExtractCollection.of(List.of(ada));
+        assertEquals(1, fromOf.count());
+        ExtractCollection<Member> fromMake = ExtractCollection.make(ada);
+        assertEquals(1, fromMake.count());
     }
 }

@@ -4,6 +4,7 @@ import dev.kona.core.Config
 import dev.kona.http.Cookie
 import dev.kona.http.Request
 import dev.kona.http.Response
+import dev.kona.redis.RedisConnection
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
@@ -11,16 +12,17 @@ import java.util.concurrent.ConcurrentHashMap
  * Resolves session drivers from config and starts/saves sessions on requests.
  *
  * Config keys (Laravel shape):
- * - `session.driver` — `array` / `memory`, `cookie`, `file` (default `array`)
+ * - `session.driver` — `array` / `memory`, `cookie`, `file`, `redis` (default `array`)
  * - `session.lifetime` — minutes (default `120`)
  * - `session.cookie` — cookie name (default `kona_session`)
  * - `session.path` — cookie path (default `/`)
  * - `session.files` — file store directory (default `{base}/storage/framework/sessions`)
  * - `session.secure` / `session.http_only` / `session.same_site` — cookie flags
  */
-class SessionManager(
+class SessionManager @JvmOverloads constructor(
     private val config: Config,
     private val basePath: Path,
+    private val redis: RedisConnection? = null,
 ) {
     private val stores = ConcurrentHashMap<String, SessionStore>()
 
@@ -113,6 +115,12 @@ class SessionManager(
             "array", "memory" -> ArraySessionStore()
             "cookie" -> CookieSessionStore()
             "file" -> FileSessionStore(filesPath())
+            "redis" -> {
+                val connection = redis
+                    ?: throw IllegalStateException("Redis session driver requires a RedisConnection")
+                val prefix = config.getString("session.connection_prefix", "kona_session:")
+                RedisSessionStore(connection, prefix)
+            }
             else -> throw IllegalArgumentException("Unsupported session driver [$name]")
         }
 
