@@ -74,6 +74,16 @@ export async function buildSidebar() {
       ],
     },
     {
+      label: 'Async & storage',
+      items: [
+        { label: 'Events', slug: 'docs/events' },
+        { label: 'Queues', slug: 'docs/queue' },
+        { label: 'Mail', slug: 'docs/mail' },
+        { label: 'Notifications', slug: 'docs/notifications' },
+        { label: 'Filesystem', slug: 'docs/filesystem' },
+      ],
+    },
+    {
       label: 'Support',
       items: [
         { label: 'Utilities', slug: 'docs/support' },

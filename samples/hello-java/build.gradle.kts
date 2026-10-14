@@ -21,6 +21,11 @@ dependencies {
     implementation(project(":kona-redis"))
     implementation(project(":kona-cache"))
     implementation(project(":kona-crema"))
+    implementation(project(":kona-events"))
+    implementation(project(":kona-queue"))
+    implementation(project(":kona-mail"))
+    implementation(project(":kona-notifications"))
+    implementation(project(":kona-filesystem"))
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
