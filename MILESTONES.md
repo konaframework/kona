@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M0 (until merged; then M1).
+**Active milestone:** M1 (M0 complete).
 
 ---
 
@@ -20,8 +20,8 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 
 ## M0 — Plan + rules lock
 
-**Status:** in progress  
-**Branch:** `milestone/M0-plan`  
+**Status:** done  
+**Branch:** `milestone/M0-plan` (merged)  
 **Parity scope:** N/A (process)
 
 ### Deliverables
@@ -33,17 +33,17 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 - [x] `.cursor/rules/kona-milestones.mdc` (`alwaysApply`)
 - [x] `MILESTONES.md` (this file)
 - [x] `README.md` + `LICENSE`
-- [ ] Merged to `main`
+- [x] Merged to `main`
 
 ### DoD
 
-- [ ] Docs on `main`; agents can enforce rules from a fresh clone.
+- [x] Docs on `main`; agents can enforce rules from a fresh clone.
 
 ---
 
 ## M1 — Kona kernel + HTTP + grind
 
-**Status:** blocked (awaiting M0)  
+**Status:** active  
 **Branch:** `milestone/M1-kernel-http-grind` (create only after M0 on `main`)
 
 **Parity slice:** Laravel Application / Container / Providers / Config / Routing / HTTP Kernel / Middleware / Validation + Artisan `serve` / `make` ≈ Almasix `framework` / `http` / `routing` / console bootstrap.
