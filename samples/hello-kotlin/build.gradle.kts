@@ -12,6 +12,9 @@ dependencies {
     implementation(project(":kona-extract"))
     implementation(project(":kona-session"))
     implementation(project(":kona-auth"))
+    implementation(project(":kona-support"))
+    implementation(project(":kona-redis"))
+    implementation(project(":kona-cache"))
     runtimeOnly(libs.h2)
 
     testImplementation(libs.junit.jupiter)

@@ -8,6 +8,7 @@ plugins {
 dependencies {
     api(project(":kona-core"))
     api(project(":kona-http"))
+    api(project(":kona-redis"))
     api(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
     api(libs.slf4j.api)

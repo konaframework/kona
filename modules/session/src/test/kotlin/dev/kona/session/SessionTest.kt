@@ -75,7 +75,8 @@ class SessionTest {
         (manager.driver("array") as ArraySessionStore).clear()
         assertEquals(0, (manager.driver("array") as ArraySessionStore).size())
         manager.forgetDriver("array")
-        assertThrows(IllegalArgumentException::class.java) { manager.driver("redis") }
+        assertThrows(IllegalArgumentException::class.java) { manager.driver("bogus") }
+        assertThrows(IllegalStateException::class.java) { manager.driver("redis") }
     }
 
     @Test

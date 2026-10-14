@@ -134,7 +134,9 @@ class SessionManagerTest {
 
     @Test
     fun unsupportedDriverThrows() {
-        val manager = SessionManager(Config().apply { set("session.driver", "redis") }, base)
+        val manager = SessionManager(Config().apply { set("session.driver", "bogus") }, base)
         assertThrows(IllegalArgumentException::class.java) { manager.driver() }
+        val redisMissing = SessionManager(Config().apply { set("session.driver", "redis") }, base)
+        assertThrows(IllegalStateException::class.java) { redisMissing.driver() }
     }
 }

@@ -239,7 +239,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M3 — Session, auth, and security
 
-**Status:** active  
+**Status:** done  
 **Branch:** `milestone/M3-auth-session-security`
 
 **Parity slice:** Almasix / Laravel Session, Authentication, Hashing, Passwords, Authorization, CSRF, Encryption, API Tokens, Security headers & CORS, Rate Limiting.
@@ -264,30 +264,30 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 `kona-session`, `kona-auth` (or equivalent packages under `modules/`), extensions to `kona-http` / `kona-core` as required
 
-> **Note:** Parity checklist complete; sibling module coverage is 100% green locally. Mark **done** and activate M4 after the milestone PR merges. Redis session driver stays deferred to M4 as scoped above.
+> **Note:** Merged to `main` via #9. Redis session driver completed in M4.
 
 ---
 
 ## M4 — Cache, Redis, support utilities, Extract deepen
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M4-cache-redis-support`
 
 **Parity slice:** Cache, Redis, Collections, Helpers, Dates, Strings, Localization + Extract Serialization / Collections / model events.
 
 ### Parity checklist
 
-- [ ] Cache stores (memory, file, Redis)
-- [ ] Redis connection module (shared by cache/session/queues later)
-- [ ] Collections (immutable-friendly, map/filter/pluck/groupBy parity helpers)
-- [ ] Helpers (common global/facade helpers used across the framework)
-- [ ] Dates (Carbon/Chrono-class fluent date/time API)
-- [ ] Strings (fluent string helpers)
-- [ ] Localization (lang files, `__()` / translator, locale switching)
-- [ ] Extract: attribute / model serialization (toArray / toJson / hidden / visible / appends)
-- [ ] Extract: model Collections helpers
-- [ ] Extract: Soft Deletes **events** + model lifecycle events (creating/created/…)
-- [ ] Docs for Cache, Redis, Support, Localization, Extract serialization/events
+- [x] Cache stores (memory, file, Redis)
+- [x] Redis connection module (shared by cache/session/queues later)
+- [x] Collections (immutable-friendly, map/filter/pluck/groupBy parity helpers)
+- [x] Helpers (common global/facade helpers used across the framework)
+- [x] Dates (Carbon/Chrono-class fluent date/time API)
+- [x] Strings (fluent string helpers)
+- [x] Localization (lang files, `__()` / translator, locale switching)
+- [x] Extract: attribute / model serialization (toArray / toJson / hidden / visible / appends)
+- [x] Extract: model Collections helpers
+- [x] Extract: Soft Deletes **events** + model lifecycle events (creating/created/…)
+- [x] Docs for Cache, Redis, Support, Localization, Extract serialization/events
 
 ### In-scope modules
 

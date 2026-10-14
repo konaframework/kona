@@ -1,0 +1,40 @@
+---
+title: Support utilities
+description: Collections, strings, dates, helpers, and localization.
+---
+
+The `kona-support` module ships everyday helpers used across apps and the framework.
+
+## Collections
+
+```kotlin
+val names = collect(users).pluck("name").filter { it != null }
+```
+
+`Collection` wraps a list with `map`, `filter`, `pluck`, `groupBy`, `sortBy`, `unique`, and more. Java: `Collection.make(...)` / `Collection.of(...)`.
+
+## Strings
+
+```kotlin
+Str.slug("Hello World")          // hello-world
+Str.of("hello_world").camel()    // helloWorld
+```
+
+## Dates
+
+`KonaDate` is a fluent Instant wrapper: `now()`, `parse()`, `addDays()`, `toDateString()`, `isPast()`, `diffInSeconds()`.
+
+## Arrays / maps
+
+`Arr.get`, `Arr.set`, `Arr.has`, `Arr.only`, `Arr.except`, `Arr.wrap`, and `Arr.flatten` work with nested dotted keys (`user.name`).
+
+## Localization
+
+```kotlin
+val t = Translator().addLines("en", mapOf("hi" to "Hello :name"))
+t.get("hi", mapOf("name" to "Ada"))
+Lang.setTranslator(t)
+Lang.get("hi", mapOf("name" to "Ada"))
+```
+
+Register `SupportServiceProvider` to bind a shared `Translator`.

@@ -45,4 +45,12 @@ class MainTest {
         assertTrue(lines.get(2).contains("\"ok\":true"));
         assertTrue(lines.get(2).contains("\"id\":1"));
     }
+
+    @Test
+    void supportCacheAndRedisDemo() {
+        var result = SupportCacheDemo.run(temp);
+        assertEquals("hello-kona", result.get("slug"));
+        assertEquals(List.of("Ada", "Grace"), result.get("names"));
+        assertEquals("PONG", result.get("redis"));
+    }
 }
