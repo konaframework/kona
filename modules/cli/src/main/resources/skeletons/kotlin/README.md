@@ -19,6 +19,7 @@ Create more apps with the **global** `kona` CLI (not grind):
 
 ```bash
 kona new other-app
+kona new ui-app --kit=inertia   # api | crema | inertia | brew
 ```
 
 ## Resolving Kona artifacts

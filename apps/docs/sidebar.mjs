@@ -82,6 +82,14 @@ export async function buildSidebar() {
       ],
     },
     {
+      label: 'Inertia & assets',
+      items: [
+        { label: 'Inertia', slug: 'docs/inertia' },
+        { label: 'Vite / asset bundling', slug: 'docs/assets/vite' },
+        { label: 'Starter kits', slug: 'docs/starter-kits' },
+      ],
+    },
+    {
       label: 'Cache & Redis',
       items: [
         { label: 'Cache', slug: 'docs/cache' },

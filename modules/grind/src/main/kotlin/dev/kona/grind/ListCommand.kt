@@ -36,6 +36,7 @@ class ListCommand {
             "schedule:run" to "Run due scheduled tasks",
             "schedule:list" to "List scheduled tasks",
             "steam" to "Interactive REPL",
+            "assets:vite" to "Print Vite asset bundling setup help",
             "list" to "List grind commands",
             "help" to "Show usage",
         )

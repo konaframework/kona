@@ -81,6 +81,15 @@ class MainTest {
     }
 
     @Test
+    void inertiaDemo() throws Exception {
+        List<String> lines = InertiaDemo.run(new String[] {"--base=" + temp}, temp.resolve("public"));
+        assertEquals("html=true", lines.get(0));
+        assertEquals("json=true", lines.get(1));
+        assertEquals("conflict=409", lines.get(2));
+        assertEquals("vite=true", lines.get(3));
+    }
+
+    @Test
     void asyncDemo() {
         var result = AsyncDemo.run(temp);
         assertEquals("42", result.get("event"));

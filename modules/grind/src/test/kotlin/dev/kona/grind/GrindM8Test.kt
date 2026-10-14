@@ -45,11 +45,18 @@ class GrindM8Test {
     fun listVerboseQuietAndIo() {
         assertEquals(0, capture { GrindApplication().run(arrayOf("list")) }.first)
         assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("schedule:run"))
+        assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("assets:vite"))
         assertEquals("", capture { GrindApplication().run(arrayOf("list", "-q")) }.second.trim())
         assertEquals("", capture { GrindApplication().run(arrayOf("list", "--quiet")) }.second.trim())
         assertEquals(Verbosity.VERBOSE, GrindIO.fromOptions(mapOf("verbose" to "true")).verbosity)
         assertEquals(Verbosity.VERBOSE, GrindIO.fromOptions(mapOf("v" to "true")).verbosity)
         assertEquals(Verbosity.QUIET, GrindIO.fromOptions(mapOf("q" to "true")).verbosity)
+
+        val vite = capture { GrindApplication().run(arrayOf("assets:vite")) }
+        assertEquals(0, vite.first)
+        assertTrue(vite.second.contains("Vite asset bundling"))
+        assertTrue(vite.second.contains("manifest.json"))
+        assertEquals(0, AssetsViteCommand().run(emptyList()))
 
         val buf = ByteArrayOutputStream()
         val err = ByteArrayOutputStream()

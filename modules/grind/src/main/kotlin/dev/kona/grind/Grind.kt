@@ -42,6 +42,7 @@ class GrindApplication {
                 "schedule:run" -> ScheduleRunCommand(ScheduleRunCommand.Action.RUN).run(positional.drop(1) + flatten(options))
                 "schedule:list" -> ScheduleRunCommand(ScheduleRunCommand.Action.LIST).run(positional.drop(1) + flatten(options))
                 "steam" -> SteamCommand().run(positional.drop(1) + flatten(options))
+                "assets:vite" -> AssetsViteCommand().run(positional.drop(1) + flatten(options))
                 "list" -> ListCommand().run(positional.drop(1) + flatten(options))
                 "new" -> {
                     io.error("Create applications with the global CLI: kona new <name>")
@@ -97,13 +98,14 @@ class GrindApplication {
               ./grind schedule:run
               ./grind schedule:list
               ./grind steam [--bootstrap=bootstrap.App]
+              ./grind assets:vite
               ./grind help
 
             Database, queue, schedule, and steam commands boot the app in-process from build/classes
             (run ./gradlew classes first) and use services bound in its container.
 
             Create a new application with:
-              kona new <name> [--lang=kotlin|java]
+              kona new <name> [--lang=kotlin|java] [--kit=api|crema|inertia|brew]
             """.trimIndent(),
         )
     }
