@@ -50,7 +50,8 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 
 ### Parity checklist
 
-Implementation landed on branch; **formal Laravel/Almasix parity inspection still pending** before M1 merge.
+Implementation landed on branch. Quality backlog: [docs/quality/M1-architecture-review.md](docs/quality/M1-architecture-review.md).  
+**Formal Laravel/Almasix parity inspection + P0 quality items still pending** before M1 merge.
 
 - [x] Application boot (`Kona.start`)
 - [x] Service container (bind / singleton / resolve)

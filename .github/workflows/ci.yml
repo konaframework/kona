@@ -22,6 +22,7 @@ jobs:
           test -f docs/architecture/PLAN.md
           test -f docs/architecture/components.md
           test -f docs/governance/github-rulesets.md
+          test -f docs/quality/M1-architecture-review.md
           test -f .cursor/rules/kona-milestones.mdc
 
   test:

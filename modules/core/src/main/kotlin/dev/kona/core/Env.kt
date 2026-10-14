@@ -4,7 +4,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Environment access with optional `.env` file loading (Laravel/Almasix shape).
+ * Environment access with optional `.env` file loading (Laravel shape:
+ * real process environment wins over `.env`).
  */
 object Env {
     private val values = linkedMapOf<String, String>()
@@ -15,16 +16,28 @@ object Env {
             return
         }
         Files.readAllLines(path).forEach { raw ->
-            val line = raw.trim()
+            var line = raw.trim()
             if (line.isEmpty() || line.startsWith("#")) {
                 return@forEach
+            }
+            if (line.startsWith("export ")) {
+                line = line.removePrefix("export ").trim()
             }
             val idx = line.indexOf('=')
             if (idx <= 0) {
                 return@forEach
             }
             val key = line.substring(0, idx).trim()
-            values[key] = line.substring(idx + 1).trim()
+            var value = line.substring(idx + 1).trim()
+            val quoted = value.startsWith("\"") || value.startsWith("'")
+            if (!quoted) {
+                val hash = value.indexOf(" #")
+                if (hash >= 0) {
+                    value = value.substring(0, hash).trim()
+                }
+            }
+            value = value.removeSurrounding("\"").removeSurrounding("'")
+            values[key] = value
         }
     }
 
@@ -35,8 +48,8 @@ object Env {
 
     @JvmStatic
     fun get(key: String, default: String? = null): String? {
-        values[key]?.let { return it }
-        return System.getenv(key) ?: default
+        System.getenv(key)?.let { return it }
+        return values[key] ?: default
     }
 
     @JvmStatic

@@ -16,11 +16,11 @@ class ServeCommand(
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
         val base = Path.of(options.getOrDefault("base", ".")).toAbsolutePath().normalize()
-        val host = options.getOrDefault("host", Env.getOrDefault("HOST", "0.0.0.0"))
-        val port = options.getOrDefault("port", Env.getOrDefault("PORT", "8080")).toInt()
 
         Kona.reset()
         val app = Kona.start(arrayOf("--base=$base"))
+        val host = options.getOrDefault("host", Env.getOrDefault("HOST", "127.0.0.1"))
+        val port = options.getOrDefault("port", Env.getOrDefault("PORT", "8080")).toInt()
         app.register(HttpServiceProvider())
         configureDefaultRoutes(app)
 

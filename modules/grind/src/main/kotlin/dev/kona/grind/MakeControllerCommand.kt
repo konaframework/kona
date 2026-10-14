@@ -10,6 +10,9 @@ class MakeControllerCommand {
             throw GrindException("Usage: grind make:controller <Name>")
         }
         val name = positional.first()
+        if (!CLASS_NAME.matches(name)) {
+            throw GrindException("Invalid controller name [$name]: expected a class name like UserController")
+        }
         val simple = if (name.endsWith("Controller")) name else name + "Controller"
         val base = Path.of(options.getOrDefault("base", ".")).toAbsolutePath().normalize()
         val lang = options.getOrDefault("lang", detectLang(base))
@@ -69,3 +72,5 @@ class MakeControllerCommand {
         """.trimIndent() + "\n"
     }
 }
+
+private val CLASS_NAME = Regex("^[A-Za-z_][A-Za-z0-9_]*$")

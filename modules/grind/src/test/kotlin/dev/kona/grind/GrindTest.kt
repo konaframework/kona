@@ -28,13 +28,17 @@ class GrindTest {
         assertEquals(0, NewCommand().run(listOf(kt.toString()))) // default lang kotlin
         assertTrue(Files.exists(kt.resolve("README.md")))
         assertTrue(Files.exists(kt.resolve(".env")))
+        assertTrue(Files.readString(kt.resolve(".env")).contains("APP_NAME=appkt\n"))
+        assertTrue(Files.exists(kt.resolve("routes/web.kt")))
+        assertTrue(Files.exists(kt.resolve("app/Http/Controllers/WelcomeController.kt")))
         assertEquals(1, GrindApplication().run(arrayOf("new", kt.toString(), "--lang=kotlin")))
         assertEquals(1, GrindApplication().run(arrayOf("new", temp.resolve("x2").toString(), "--lang=ruby")))
         assertEquals(1, GrindApplication().run(arrayOf("new")))
 
         val j = temp.resolve("appjava")
         assertEquals(0, NewCommand().run(listOf(j.toString(), "--lang=java")))
-        assertTrue(Files.exists(j.resolve("app/Http/Controllers/WelcomeController.java.txt")))
+        assertTrue(Files.exists(j.resolve("app/Http/Controllers/WelcomeController.java")))
+        assertTrue(Files.exists(j.resolve("routes/WebRoutes.java")))
     }
 
     @Test
@@ -47,6 +51,9 @@ class GrindTest {
         assertTrue(Files.exists(base.resolve("app/Http/Controllers/AccountController.kt")))
         assertEquals(1, GrindApplication().run(arrayOf("make:controller", "User", "--base=$base", "--lang=kotlin")))
         assertEquals(1, GrindApplication().run(arrayOf("make:controller")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:controller", "../../Evil", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:controller", "Bad-Name", "--base=$base")))
+        assertTrue(Files.notExists(temp.resolve("EvilController.kt")))
         assertEquals(0, MakeControllerCommand().run(listOf("Post", "--base=$base", "--lang=java")))
         Files.writeString(base.resolve("app/Http/Controllers/X.java"), "class X {}")
         // detectLang java via existing .java under app/
@@ -102,6 +109,18 @@ class GrindTest {
             )
         } finally {
             System.clearProperty("kona.routes")
+        }
+    }
+
+    @Test
+    fun serveReadsHostAndPortFromDotEnv() {
+        val base = temp.resolve("dotenv")
+        Files.createDirectories(base)
+        java.net.ServerSocket(0, 50, java.net.InetAddress.getByName("127.0.0.1")).use { occupied ->
+            Files.writeString(base.resolve(".env"), "HOST=127.0.0.1\nPORT=${occupied.localPort}\n")
+            assertThrows(java.net.BindException::class.java) {
+                ServeCommand(waitForever = {}).run(listOf("--base=$base", "--once=true"))
+            }
         }
     }
 

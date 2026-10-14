@@ -24,22 +24,31 @@ class EnvConfigApplicationTest {
             """
             # comment
 
-            APP_NAME=Demo
+            export APP_NAME="Demo App"
             EMPTY=
             =novalue
             NOEQ
             BAD
             KEY=value
+            QUOTED='x'
+            INLINE=hello # trailing
+            KEEP="hash # inside"
+            PATH=/should-not-win
+            NOHASH=plain
             """.trimIndent(),
         )
         Env.load(env)
         Env.load(dir.resolve("missing.env"))
-        assertEquals("Demo", Env.get("APP_NAME"))
+        assertEquals("Demo App", Env.get("APP_NAME"))
         assertEquals("value", Env.get("KEY"))
+        assertEquals("x", Env.get("QUOTED"))
+        assertEquals("hello", Env.get("INLINE"))
+        assertEquals("hash # inside", Env.get("KEEP"))
+        assertEquals("plain", Env.get("NOHASH"))
         assertEquals("fallback", Env.getOrDefault("NOPE", "fallback"))
-        // hit System.getenv branch when not in .env map
-        assertTrue(Env.get("PATH") != null || Env.get("PATH") == null)
-        Env.get("PATH")
+        // Process environment wins over .env
+        val path = Env.get("PATH")
+        assertTrue(path == null || path != "/should-not-win")
         Env.set("CUSTOM", "1")
         assertEquals("1", Env.require("CUSTOM"))
         assertThrows(IllegalStateException::class.java) { Env.require("MISSING_REQUIRED") }
@@ -79,6 +88,24 @@ class EnvConfigApplicationTest {
             // default boot()
         })
         assertEquals(base.resolve("routes").resolve("web"), app.path("routes", "web"))
+
+        val nestedApp = Application(base)
+        var nestedBooted = false
+        nestedApp.register(object : ServiceProvider {
+            override fun register(app: Application) = Unit
+
+            override fun boot(app: Application) {
+                app.register(object : ServiceProvider {
+                    override fun register(app: Application) = Unit
+
+                    override fun boot(app: Application) {
+                        nestedBooted = true
+                    }
+                })
+            }
+        })
+        nestedApp.boot()
+        assertTrue(nestedBooted)
         assertEquals(app, app.resolve(Application::class.java))
         assertEquals(app, app.make(Application::class.java))
     }
@@ -86,9 +113,10 @@ class EnvConfigApplicationTest {
     @Test
     fun konaStartAndLog() {
         val base = Files.createTempDirectory("kona-start")
-        Files.writeString(base.resolve(".env"), "APP_NAME=TestApp\nAPP_DEBUG=false\n")
+        Files.writeString(base.resolve(".env"), "APP_NAME=TestApp\n")
         val app = Kona.start(arrayOf("--base=$base"))
         assertEquals("TestApp", app.config.getString("app.name"))
+        assertEquals(false, app.config.get<Boolean>("app.debug"))
         assertEquals(app, Kona.app())
         Kona.reset()
         assertThrows(IllegalStateException::class.java) { Kona.app() }
@@ -97,6 +125,7 @@ class EnvConfigApplicationTest {
         Kona.reset()
         val cwdApp = Kona.start(emptyArray())
         assertTrue(cwdApp.basePath.isAbsolute)
+        assertEquals(false, cwdApp.config.get<Boolean>("app.debug"))
         Log.info("i")
         Log.debug("d")
         Log.warn("w")

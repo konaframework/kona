@@ -38,7 +38,7 @@ class GrindApplication {
             Kona grind
 
             Usage:
-              grind serve [--host=0.0.0.0] [--port=8080] [--base=.]
+              grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
               grind new <name> [--lang=kotlin|java]
               grind make:controller <Name>
               grind help

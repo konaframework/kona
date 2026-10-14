@@ -16,7 +16,7 @@ object Kona {
         val application = Application(base)
         application.config.set("app.name", Env.getOrDefault("APP_NAME", "Kona"))
         application.config.set("app.env", Env.getOrDefault("APP_ENV", "local"))
-        application.config.set("app.debug", Env.getOrDefault("APP_DEBUG", "true").toBoolean())
+        application.config.set("app.debug", Env.getOrDefault("APP_DEBUG", "false").toBoolean())
         application.boot()
         app = application
         return application

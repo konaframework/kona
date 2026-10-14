@@ -159,6 +159,7 @@ class HttpStackTest {
         assertEquals(500, handler.handle(Request.get("/"), RuntimeException("secret")).status)
         assertFalse(handler.handle(Request.get("/"), RuntimeException("secret")).body.contains("secret"))
         assertEquals(405, DefaultExceptionHandler().handle(Request.get("/"), MethodNotAllowedException()).status)
+        assertFalse(DefaultExceptionHandler().handle(Request.get("/"), RuntimeException("secret")).body.contains("secret"))
         assertEquals(422, kernel.handle(Request.get("/hi").also { }).let {
             HttpKernel(router, exceptionHandler = DefaultExceptionHandler()).handle(Request.get("/hi"))
             DefaultExceptionHandler().handle(Request.get("/"), ValidationException(mapOf("a" to listOf("b")))).status

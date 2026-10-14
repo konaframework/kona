@@ -17,7 +17,7 @@ class NewCommand {
             throw GrindException("Directory already exists: $target")
         }
         Files.createDirectories(target)
-        copySkeleton(lang, target, name)
+        copySkeleton(lang, target, target.fileName.toString())
         println("Created Kona application at $target ($lang)")
         return 0
     }
@@ -27,7 +27,7 @@ class NewCommand {
         val classLoader = NewCommand::class.java.classLoader
         val files = listSkeletonFiles(lang)
         files.forEach { relative ->
-            val dest = target.resolve(relative)
+            val dest = target.resolve(relative.removeSuffix(".txt"))
             Files.createDirectories(dest.parent)
             val resource = "$resourceRoot/$relative"
             val url = classLoader.getResource(resource)

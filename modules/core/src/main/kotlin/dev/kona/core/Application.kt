@@ -44,7 +44,12 @@ class Application(
         if (booted) {
             return this
         }
-        providers.forEach { it.boot(this) }
+        // Index loop: providers registered from another provider's boot() must also boot.
+        var index = 0
+        while (index < providers.size) {
+            providers[index].boot(this)
+            index++
+        }
         booted = true
         log.info("Kona application booted at {}", basePath)
         return this

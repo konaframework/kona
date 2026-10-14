@@ -7,7 +7,7 @@ fun interface ExceptionHandler {
 }
 
 class DefaultExceptionHandler(
-    private val debug: Boolean = true,
+    private val debug: Boolean = false,
 ) : ExceptionHandler {
     override fun handle(request: Request, throwable: Throwable): Response {
         return when (throwable) {

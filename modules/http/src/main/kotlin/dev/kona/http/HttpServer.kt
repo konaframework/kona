@@ -11,7 +11,7 @@ import java.util.concurrent.Executors
  */
 class KonaHttpServer(
     private val kernel: HttpKernel,
-    private val host: String = "0.0.0.0",
+    private val host: String = "127.0.0.1",
     private val port: Int = 8080,
 ) {
     private var server: HttpServer? = null
