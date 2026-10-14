@@ -19,12 +19,16 @@ Cross-check: [M1 architecture quality review](6b11b4a1-f9c2-4ab3-9661-b6665bfb8b
 | G1–G2 | `grind new` must emit a buildable app; `grind serve` must run it |
 | S1 | Java must exercise groups/middleware/providers (Law 8) |
 
-## Already addressed (post-architecture review)
+## Already addressed (post-review commits on this branch)
 
-- `APP_DEBUG` defaults to **false**
-- `Env`: process environment wins over `.env`; quotes / `export` / inline comments
-- `grind serve` default host **127.0.0.1**; HOST/PORT after `.env` load
-- `grind new` strips `.txt`; safe controller names; nested provider boot
+These were open in the audit snapshot; they are **done** on current `milestone/M1-kernel-http-grind` (do not re-open as blockers):
+
+- **C5 / C6 (partial) / C7:** `APP_DEBUG` defaults to **false**; process env wins over `.env`; quotes / `export` / inline `#` comments
+- **G1 (partial):** `grind new` strips `.txt` and sets `APP_NAME` from the folder name; controller name validation
+- **H12 (partial) / serve:** default bind **127.0.0.1**; HOST/PORT read after `.env` load
+- Nested provider boot during `Application.boot()`
+
+Still open from the audit: C1–C4, H1–H3, H9, G1 (Gradle app), G2 (serve user app), S1, and the API-shape items (builder, `Handler`, method-set routes).
 
 ## Keep
 
