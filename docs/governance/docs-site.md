@@ -4,7 +4,7 @@ Stack (same as Shamar): **Astro + Starlight + `@almasix/starlight-theme`**, pnpm
 
 | Path | Role |
 |------|------|
-| `apps/docs/` | Starlight site → [konaframework.dev](https://konaframework.dev) |
+| `apps/docs/` | Starlight site → [konaframework.dev](https://konaframework.dev) (Cloudflare) and [konaframework.github.io/kona](https://konaframework.github.io/kona/) (GitHub Pages) |
 | `docs/architecture/` | In-repo architecture / agent plan (not the public site) |
 | `docs/quality/` | Milestone audits |
 | `docs/governance/` | Process locks (this file, rulesets) |
@@ -19,9 +19,15 @@ Public guides for a milestone’s parity slice are written **in the same wave** 
 
 ## Deploy
 
+**Cloudflare (konaframework.dev):**
+
 ```bash
 pnpm pages:build
 pnpm --filter @kona/docs cf:deploy
 ```
 
-Production site URL: `PUBLIC_SITE_URL=https://konaframework.dev`.
+**GitHub Pages (konaframework.github.io/kona):** workflow [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml) builds with `PUBLIC_BASE_PATH=/kona/` on pushes to `main` that touch docs. Enable **Settings → Pages → Source: GitHub Actions** once per repo (human; agents must not change rulesets).
+
+```bash
+pnpm pages:gh   # local parity build for the /kona/ base path
+```

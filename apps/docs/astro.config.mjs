@@ -4,9 +4,10 @@ import starlight from '@astrojs/starlight';
 import almasixTheme from '@almasix/starlight-theme';
 import { buildSidebar } from './sidebar.mjs';
 
+// GitHub Pages project site: PUBLIC_BASE_PATH=/kona/ → https://konaframework.github.io/kona/
 const base = process.env.PUBLIC_BASE_PATH || '/';
 const site = process.env.PUBLIC_SITE_URL || 'https://konaframework.dev';
-const ogImage = new URL('/og.png', site).href;
+const ogImage = new URL('og.png', site.endsWith('/') ? site : `${site}/`).href;
 const ogImageAlt = 'Kona — Kotlin-first web framework for the JVM';
 const sidebar = await buildSidebar();
 
