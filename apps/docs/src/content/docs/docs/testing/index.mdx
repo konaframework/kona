@@ -1,0 +1,29 @@
+---
+title: Testing
+description: Boot applications and assert behavior in JUnit tests.
+---
+
+**kona-testing** gives you a small harness for booting a Kona application inside JUnit and driving HTTP, grind, the database, and common fakes.
+
+## Boot an app
+
+```kotlin
+@TempDir
+lateinit var base: Path
+
+val app = TestApplication.create(base, HttpServiceProvider(), MyProvider())
+```
+
+```java
+Path base = Files.createTempDirectory("app");
+Application app = TestApplication.create(base, new HttpServiceProvider(), new MyProvider());
+```
+
+`TestApplication.create` passes `--base=…` into `Kona.create`, registers the providers you supply, and boots the application.
+
+## What to assert next
+
+- [HTTP & console](./http-console/) — in-process requests and grind capture
+- [Database & fakes](./database-fakes/) — transactional helpers and mail/queue/storage fakes
+
+Add `kona-testing` as a `testImplementation` dependency in your app module.

@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M9 (M0–M8 complete).
+**Active milestone:** M10 (M0–M9 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -72,9 +72,9 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Redis | M4 | done |
 | Events | M7 | done |
 | Broadcasting | M10 | pending |
-| HTTP Client → `drip` | M9 | pending |
-| Processes | M9 | pending |
-| Concurrency | M9 | pending |
+| HTTP Client → `drip` | M9 | implemented (checklist) |
+| Processes | M9 | implemented (checklist) |
+| Concurrency | M9 | implemented (checklist) |
 | Search | M10 | pending |
 | Package Development | M8 | done |
 | Livewire / Conduit-class reactive UI | M11 | pending |
@@ -134,11 +134,11 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Testing: Getting Started | M9 | pending |
-| HTTP Tests | M9 | pending |
-| Console Tests | M9 | pending |
-| Database Testing | M9 | pending |
-| Mocking | M9 | pending |
+| Testing: Getting Started | M9 | implemented (checklist) |
+| HTTP Tests | M9 | implemented (checklist) |
+| Console Tests | M9 | implemented (checklist) |
+| Database Testing | M9 | implemented (checklist) |
+| Mocking | M9 | implemented (checklist) |
 
 ---
 
@@ -388,22 +388,22 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M9 — Testing, drip, processes, concurrency
 
-**Status:** active  
+**Status:** done  
 **Branch:** `milestone/M9-testing-drip-concurrency`
 
 **Parity slice:** Testing menu + HTTP Client (`drip`) + Processes + Concurrency.
 
 ### Parity checklist
 
-- [ ] Testing: Getting Started (app test harness / bootstrap)
-- [ ] HTTP tests (get/post/json, assert status/json)
-- [ ] Console / grind tests
-- [ ] Database testing (refresh / transactions / factories)
-- [ ] Mocking (fakes for mail, queue, storage, …)
-- [ ] `drip` fluent HTTP client
-- [ ] Processes (external process API)
-- [ ] Concurrency helpers (Virtual Thread–friendly parallel map / pool utilities)
-- [ ] Docs for Testing + drip + concurrency
+- [x] Testing: Getting Started (app test harness / bootstrap)
+- [x] HTTP tests (get/post/json, assert status/json)
+- [x] Console / grind tests
+- [x] Database testing (refresh / transactions / factories)
+- [x] Mocking (fakes for mail, queue, storage, …)
+- [x] `drip` fluent HTTP client
+- [x] Processes (external process API)
+- [x] Concurrency helpers (Virtual Thread–friendly parallel map / pool utilities)
+- [x] Docs for Testing + drip + concurrency
 
 ### In-scope modules
 
@@ -413,7 +413,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M10 — Broadcasting and search
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M10-broadcasting-search`
 
 **Parity slice:** Broadcasting + Scout/search-class indexing.
