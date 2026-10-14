@@ -30,4 +30,17 @@ class MainTest {
             HelloKotlin.demo(app),
         )
     }
+
+    @Test
+    fun extractNotesDemo() {
+        assertEquals(
+            listOf(
+                "migrated [CreateNotebooksAndNotes]",
+                "Notebook 1: 1 notes",
+                "Notebook 2: 2 notes",
+                "first note belongs to Notebook 1",
+            ),
+            NotesDemo.run("jdbc:h2:mem:hello_notes_test;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
+        )
+    }
 }

@@ -1,5 +1,6 @@
 package dev.kona.grind
 
+import dev.kona.extract.ExtractException
 import kotlin.system.exitProcess
 
 /**
@@ -20,6 +21,15 @@ class GrindApplication {
             when (val command = args[0]) {
                 "serve" -> ServeCommand().run(args.drop(1))
                 "make:controller" -> MakeControllerCommand().run(args.drop(1))
+                "make:model" -> MakeModelCommand().run(args.drop(1))
+                "make:migration" -> MakeMigrationCommand().run(args.drop(1))
+                "make:factory" -> MakeFactoryCommand().run(args.drop(1))
+                "make:seeder" -> MakeSeederCommand().run(args.drop(1))
+                "migrate" -> MigrateCommand(MigrateCommand.Action.MIGRATE).run(args.drop(1))
+                "migrate:rollback" -> MigrateCommand(MigrateCommand.Action.ROLLBACK).run(args.drop(1))
+                "migrate:reset" -> MigrateCommand(MigrateCommand.Action.RESET).run(args.drop(1))
+                "migrate:status" -> MigrateCommand(MigrateCommand.Action.STATUS).run(args.drop(1))
+                "db:seed" -> SeedCommand().run(args.drop(1))
                 "new" -> {
                     System.err.println("Create applications with the global CLI: kona new <name>")
                     System.err.println("grind is app-local — run ./grind serve from inside a project.")
@@ -34,6 +44,9 @@ class GrindApplication {
         } catch (ex: GrindException) {
             System.err.println(ex.message)
             1
+        } catch (ex: ExtractException) {
+            System.err.println(ex.message)
+            1
         }
     }
 
@@ -46,7 +59,19 @@ class GrindApplication {
               ./grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
                             [--in-process [--bootstrap=bootstrap.App] [--once]]
               ./grind make:controller <Name> [--lang=kotlin|java] [--base=.]
+              ./grind make:model <Name> [--migration] [--factory] [--seeder] [--all] [--lang=kotlin|java]
+              ./grind make:migration <snake_name> [--create=table] [--table=table] [--lang=kotlin|java]
+              ./grind make:factory <Name>Factory [--model=Name] [--lang=kotlin|java]
+              ./grind make:seeder <Name>Seeder [--lang=kotlin|java]
+              ./grind migrate [--database=name] [--bootstrap=bootstrap.App]
+              ./grind migrate:rollback [--step=1]
+              ./grind migrate:reset
+              ./grind migrate:status
+              ./grind db:seed [--class=database.seeders.DatabaseSeeder]
               ./grind help
+
+            Database commands boot the app in-process from build/classes (run ./gradlew classes first)
+            and use the MigrationRegistry bound in its container.
 
             Create a new application with:
               kona new <name> [--lang=kotlin|java]

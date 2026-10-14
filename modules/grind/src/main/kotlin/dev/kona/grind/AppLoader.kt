@@ -18,6 +18,10 @@ class AppLoader(
     private val root: Path,
     private val bootstrapClass: String = DEFAULT_BOOTSTRAP,
 ) {
+    /** Loader of the app's classes, set by [create]; use it to load app classes by name. */
+    var classLoader: ClassLoader? = null
+        private set
+
     fun classpath(): List<Path> = OUTPUT_DIRS.map { root.resolve(it) }.filter { Files.isDirectory(it) }
 
     fun create(args: Array<String>): Application {
@@ -29,6 +33,7 @@ class AppLoader(
             dirs.map { it.toUri().toURL() }.toTypedArray(),
             AppLoader::class.java.classLoader,
         )
+        classLoader = loader
         val clazz = try {
             Class.forName(bootstrapClass, true, loader)
         } catch (ex: ClassNotFoundException) {

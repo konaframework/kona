@@ -33,6 +33,17 @@ export async function buildSidebar() {
       ],
     },
     {
+      label: 'Extract',
+      items: [
+        { label: 'Overview', slug: 'docs/extract' },
+        { label: 'Models', slug: 'docs/extract/models' },
+        { label: 'Query builder', slug: 'docs/extract/query-builder' },
+        { label: 'Relations', slug: 'docs/extract/relations' },
+        { label: 'Migrations', slug: 'docs/extract/migrations' },
+        { label: 'Seeders & factories', slug: 'docs/extract/seeders-factories' },
+      ],
+    },
+    {
       label: 'grind',
       items: [
         { label: 'Overview', slug: 'docs/grind' },

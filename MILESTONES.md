@@ -89,22 +89,22 @@ Quality + parity audits: [docs/quality/M1-architecture-review.md](docs/quality/M
 
 ### Parity checklist
 
-- [ ] Connection manager
-- [ ] Query builder
-- [ ] Models (ActiveRecord)
-- [ ] Relations: hasOne, hasMany, belongsTo, belongsToMany
-- [ ] Eager loading
-- [ ] Pagination
-- [ ] Soft deletes
-- [ ] Casts
-- [ ] Migrations + schema DSL (Kotlin) / builder (Java)
-- [ ] Seeders
-- [ ] Factories
-- [ ] `grind make:model` / `make:migration` / `migrate`
+- [x] Connection manager
+- [x] Query builder
+- [x] Models (ActiveRecord)
+- [x] Relations: hasOne, hasMany, belongsTo, belongsToMany
+- [x] Eager loading
+- [x] Pagination
+- [x] Soft deletes
+- [x] Casts
+- [x] Migrations + schema DSL (Kotlin) / builder (Java)
+- [x] Seeders
+- [x] Factories
+- [x] `grind make:model` / `make:migration` / `migrate`
 
 ### In-scope modules
 
-`kona-extract`
+`kona-extract`, `kona-grind` (database commands)
 
 ---
 

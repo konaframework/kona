@@ -115,7 +115,8 @@ A request to `GET /hello/kona` returns `{"message":"Hello, kona"}`. The rest of 
 - **Middleware** (`dev.kona.http.Middleware`): A function that sits in front of a handler. It receives the request and a `next` handler, and may change the request, change the response, or answer immediately without calling `next` (for example, rejecting a request with `401`).
 - **HTTP kernel** (`dev.kona.http.HttpKernel`): The single entry point that turns a `Request` into a `Response`: it runs global middleware, asks the router for a matching route, runs that route's middleware and handler, and converts any thrown exception into an error response.
 - **kona** (global CLI): creates applications — `kona new my-app`.
-- **grind** (app-local CLI): lives in each project as `./grind` — `./grind serve`, `./grind make:controller`.
+- **grind** (app-local CLI): lives in each project as `./grind` — `./grind serve`, `./grind make:controller`, `./grind migrate`.
+- **Extract** (`dev.kona.extract`): the database layer — connections, a query builder, models, relations, and migrations. See [Extract overview](../../extract/).
 
 ## The lifecycle, start to finish
 
@@ -133,16 +134,16 @@ Steps 1 to 5 happen once. Step 7 happens for every request.
 
 ## The Kona toolbox
 
-Kona is organised into named components. The first three below ship today; the rest are planned and will get their own guides when they land.
+Kona is organised into named components. Those marked available ship today; the rest are planned and will get their own guides when they land.
 
 | Name | Role | Status |
 |------|------|--------|
 | **Kona core** | Application, providers, container, config, env, logging (`kona-core`) | Available |
 | **Kona HTTP** | Router, middleware, HTTP kernel, validation, embedded server (`kona-http`) | Available |
 | **kona** | Global CLI: `kona new` (`kona-cli`) | Available |
-| **grind** | App-local CLI: `./grind serve`, `make:controller` (`kona-grind`) | Available |
+| **grind** | App-local CLI: `./grind serve`, `make:*`, `migrate`, `db:seed` (`kona-grind`) | Available |
 | **steam** | Interactive shell inside a booted application | Planned |
-| **Extract** | Database models and query layer | Planned |
+| **Extract** | Database connections, query builder, models, relations, migrations, seeders, factories (`kona-extract`) — see [Extract](../../extract/) | Available |
 | **Crema** | Server-side HTML templates | Planned |
 | **drip** | Outbound HTTP client | Planned |
 

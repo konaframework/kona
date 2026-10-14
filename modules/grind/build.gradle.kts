@@ -11,8 +11,10 @@ application {
 
 dependencies {
     api(project(":kona-http"))
+    api(project(":kona-extract"))
     implementation(libs.logback.classic)
 
+    testImplementation(libs.h2)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
