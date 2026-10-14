@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M8 (M0–M7 complete).
+**Active milestone:** M9 (M0–M8 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -56,9 +56,9 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Smith Console → `grind` depth + `steam` | M8 | pending |
-| Prompts | M8 | pending |
-| Task Scheduling | M8 | pending |
+| Smith Console → `grind` depth + `steam` | M8 | done |
+| Prompts | M8 | done |
+| Task Scheduling | M8 | done |
 | File Storage | M7 | done |
 | Queues | M7 | done |
 | Mail | M7 | done |
@@ -76,7 +76,7 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Processes | M9 | pending |
 | Concurrency | M9 | pending |
 | Search | M10 | pending |
-| Package Development | M8 | pending |
+| Package Development | M8 | done |
 | Livewire / Conduit-class reactive UI | M11 | pending |
 | Inertia | M12 | pending |
 | Starter Kits | M12 | pending |
@@ -366,19 +366,19 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M8 — grind console, prompts, scheduling, packages
 
-**Status:** active  
+**Status:** done  
 **Branch:** `milestone/M8-grind-console-schedule`
 
 **Parity slice:** Smith Console depth, Prompts, Task Scheduling, Package Development, `steam` REPL.
 
 ### Parity checklist
 
-- [ ] `grind` console depth (command IO, exit codes, verbosity, help parity)
-- [ ] Prompts (interactive ask/confirm/select)
-- [ ] Task scheduling (cron-style scheduler + `grind schedule:run`)
-- [ ] Package development (reusable service provider packages / discover conventions)
-- [ ] `grind steam` REPL (Kotlin + Java expressions in app context)
-- [ ] Docs: grind, scheduling, packages, steam
+- [x] `grind` console depth (command IO, exit codes, verbosity, help parity)
+- [x] Prompts (interactive ask/confirm/select)
+- [x] Task scheduling (cron-style scheduler + `grind schedule:run`)
+- [x] Package development (reusable service provider packages / discover conventions)
+- [x] `grind steam` REPL (Kotlin + Java expressions in app context)
+- [x] Docs: grind, scheduling, packages, steam
 
 ### In-scope modules
 
@@ -388,7 +388,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M9 — Testing, drip, processes, concurrency
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M9-testing-drip-concurrency`
 
 **Parity slice:** Testing menu + HTTP Client (`drip`) + Processes + Concurrency.

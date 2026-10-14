@@ -22,6 +22,7 @@ dependencies {
         api(project(":kona-mail"))
         api(project(":kona-notifications"))
         api(project(":kona-filesystem"))
+        api(project(":kona-schedule"))
         api(project(":kona-grind"))
         api(project(":kona-cli"))
     }

@@ -101,6 +101,15 @@ export async function buildSidebar() {
       items: [
         { label: 'Overview', slug: 'docs/grind' },
         { label: 'new / serve / make', slug: 'docs/grind/commands' },
+        { label: 'Console depth', slug: 'docs/grind/console' },
+        { label: 'steam', slug: 'docs/steam' },
+      ],
+    },
+    {
+      label: 'Scheduling & packages',
+      items: [
+        { label: 'Task scheduling', slug: 'docs/scheduling' },
+        { label: 'Packages', slug: 'docs/packages' },
       ],
     },
   ];
