@@ -177,10 +177,23 @@ A transaction commits when the block returns and rolls back when it throws (the 
 
 Failed statements throw `QueryException`, which carries the SQL (`sql`) and the bindings (`bindings`) for debugging. All Extract errors extend `ExtractException`.
 
+## Feature menu
+
+| Topic | Where |
+|-------|--------|
+| Models, CRUD, casts, soft deletes, pagination | [Models](../models/) |
+| Retrieve-or-create, upserts, scopes, mutators, chunking | [Models](../models/#retrieving-or-creating) |
+| Fluent SQL without models | [Query builder](../query-builder/) |
+| Relations, eager loads, existence queries, `withCount`, pivots | [Relations](../relations/) |
+| `toArray` / JSON, collections, lifecycle events | [Serialization & events](../serialization-events/) |
+| Schema changes | [Migrations](../migrations/) |
+| Seed data and factories | [Seeders & factories](../seeders-factories/) |
+
 ## Where to go next
 
-- [Models](../models/): define a model, read and write rows, casts, soft deletes, pagination.
-- [Query builder](../query-builder/): every clause, aggregate, and write operation.
-- [Relations](../relations/): links between models and eager loading.
-- [Migrations](../migrations/): the schema DSL, the migrator, and `./grind migrate`.
-- [Seeders & factories](../seeders-factories/): generating data for development and tests.
+- [Models](../models/) — define a model, read and write rows, casts, soft deletes, pagination, scopes.
+- [Query builder](../query-builder/) — every clause, aggregate, upsert, and write operation.
+- [Relations](../relations/) — links between models, existence filters, counts, eager loading.
+- [Serialization & events](../serialization-events/) — maps/JSON, collections, lifecycle hooks.
+- [Migrations](../migrations/) — the schema DSL, the migrator, and `./grind migrate`.
+- [Seeders & factories](../seeders-factories/) — generating data for development and tests.

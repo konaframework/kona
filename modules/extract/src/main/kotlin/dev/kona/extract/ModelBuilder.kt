@@ -1,6 +1,10 @@
 package dev.kona.extract
 
+import dev.kona.extract.relations.BelongsTo
+import dev.kona.extract.relations.BelongsToMany
 import dev.kona.extract.relations.EagerLoader
+import dev.kona.extract.relations.HasOneOrMany
+import dev.kona.extract.relations.Relation
 import dev.kona.extract.relations.RelationConstraint
 import java.util.function.Consumer
 
@@ -29,6 +33,24 @@ class ModelBuilder<T : Extract<T>> internal constructor(
     /** Applies this builder's [with] relations to already hydrated [models]. */
     fun eagerLoadRelations(models: List<T>): List<T> =
         if (eagerLoads.isEmpty()) models else EagerLoader.load(models, eagerLoads)
+
+    /**
+     * Adds a `{relation}_count` (or alias) select subquery for each name.
+     * Supports `posts as published_posts_count` aliases.
+     */
+    fun withCount(vararg relations: String): ModelBuilder<T> {
+        if (!query.hasSelectColumns()) {
+            query.select("${model.table}.*")
+        }
+        val grammar = model.connection().grammar
+        for (spec in relations) {
+            val (name, alias) = parseRelationAlias(spec)
+            val countAlias = alias ?: "${name}_count"
+            val subquery = existenceQuery(name, null, forCount = true)
+            query.selectRaw("(${subquery.toSql()}) as ${grammar.wrap(countAlias)}", subquery.getBindings())
+        }
+        return this
+    }
 
     fun withTrashed(): ModelBuilder<T> {
         trashed = Trashed.INCLUDE
@@ -81,6 +103,25 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun whereBetween(column: String, from: Any?, to: Any?): ModelBuilder<T> = apply { query.whereBetween(column, from, to) }
 
+    fun orWhereBetween(column: String, from: Any?, to: Any?): ModelBuilder<T> =
+        apply { query.orWhereBetween(column, from, to) }
+
+    fun whereNotBetween(column: String, from: Any?, to: Any?): ModelBuilder<T> =
+        apply { query.whereNotBetween(column, from, to) }
+
+    fun orWhereNotBetween(column: String, from: Any?, to: Any?): ModelBuilder<T> =
+        apply { query.orWhereNotBetween(column, from, to) }
+
+    fun whereColumn(first: String, second: String): ModelBuilder<T> = apply { query.whereColumn(first, second) }
+
+    fun whereColumn(first: String, operator: String, second: String): ModelBuilder<T> =
+        apply { query.whereColumn(first, operator, second) }
+
+    fun orWhereColumn(first: String, second: String): ModelBuilder<T> = apply { query.orWhereColumn(first, second) }
+
+    fun orWhereColumn(first: String, operator: String, second: String): ModelBuilder<T> =
+        apply { query.orWhereColumn(first, operator, second) }
+
     @JvmOverloads
     fun whereRaw(sql: String, bindings: List<Any?> = emptyList()): ModelBuilder<T> = apply { query.whereRaw(sql, bindings) }
 
@@ -89,6 +130,9 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun leftJoin(table: String, first: String, operator: String, second: String): ModelBuilder<T> =
         apply { query.leftJoin(table, first, operator, second) }
+
+    fun rightJoin(table: String, first: String, operator: String, second: String): ModelBuilder<T> =
+        apply { query.rightJoin(table, first, operator, second) }
 
     @JvmOverloads
     fun orderBy(column: String, direction: String = "asc"): ModelBuilder<T> = apply { query.orderBy(column, direction) }
@@ -111,13 +155,89 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun forPage(page: Int, perPage: Int): ModelBuilder<T> = apply { query.forPage(page, perPage) }
 
+    fun `when`(condition: Boolean, callback: Consumer<ModelBuilder<T>>): ModelBuilder<T> {
+        if (condition) {
+            callback.accept(this)
+        }
+        return this
+    }
+
+    fun unless(condition: Boolean, callback: Consumer<ModelBuilder<T>>): ModelBuilder<T> = `when`(!condition, callback)
+
+    /** Runs [callback] against this builder (named scope helper). */
+    fun scope(callback: Consumer<ModelBuilder<T>>): ModelBuilder<T> {
+        callback.accept(this)
+        return this
+    }
+
+    // ---- relation existence ----
+
+    @JvmOverloads
+    fun whereHas(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
+        addHas(AND, relation, constraint, negate = false)
+
+    @JvmOverloads
+    fun orWhereHas(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
+        addHas(OR, relation, constraint, negate = false)
+
+    @JvmOverloads
+    fun whereDoesntHave(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
+        addHas(AND, relation, constraint, negate = true)
+
+    @JvmOverloads
+    fun orWhereDoesntHave(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
+        addHas(OR, relation, constraint, negate = true)
+
+    fun has(relation: String): ModelBuilder<T> = whereHas(relation)
+
+    fun doesntHave(relation: String): ModelBuilder<T> = whereDoesntHave(relation)
+
     // ---- reads ----
 
     fun get(): List<T> = eagerLoadRelations(hydrate(toBase().get()))
 
+    /** Hydrated results as an [ExtractCollection]. */
+    fun getCollection(): ExtractCollection<T> = ExtractCollection(get())
+
     fun first(): T? = toBase().first()?.let { eagerLoadRelations(listOf(model.newFromBuilder(it))).first() }
 
     fun firstOrFail(): T = first() ?: throw ModelNotFoundException(model.javaClass)
+
+    /** First matching [attributes], or a new unsaved instance filled with them. */
+    fun firstOrNew(attributes: Map<String, Any?>): T {
+        attributes.forEach { (column, value) -> where(column, value) }
+        return first() ?: model.newInstance(attributes)
+    }
+
+    /** First matching [attributes], or creates one with [attributes] + [values]. */
+    @JvmOverloads
+    fun firstOrCreate(attributes: Map<String, Any?>, values: Map<String, Any?> = emptyMap()): T {
+        attributes.forEach { (column, value) -> where(column, value) }
+        val found = first()
+        if (found != null) {
+            return found
+        }
+        val created = model.newInstance()
+        created.fill(LinkedHashMap(attributes).also { it.putAll(values) })
+        created.save()
+        return created
+    }
+
+    /** Updates the first matching [attributes] with [values], or creates `attributes + values`. */
+    @JvmOverloads
+    fun updateOrCreate(attributes: Map<String, Any?>, values: Map<String, Any?> = emptyMap()): T {
+        attributes.forEach { (column, value) -> where(column, value) }
+        val found = first()
+        if (found != null) {
+            found.fill(values)
+            found.save()
+            return found
+        }
+        val created = model.newInstance()
+        created.fill(LinkedHashMap(attributes).also { it.putAll(values) })
+        created.save()
+        return created
+    }
 
     fun find(id: Any?): T? = where(qualifiedKey(), id).first()
 
@@ -131,6 +251,14 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun count(): Long = toBase().count()
 
+    fun max(column: String): Any? = toBase().max(column)
+
+    fun min(column: String): Any? = toBase().min(column)
+
+    fun sum(column: String): Any? = toBase().sum(column)
+
+    fun avg(column: String): Any? = toBase().avg(column)
+
     fun exists(): Boolean = toBase().exists()
 
     fun doesntExist(): Boolean = toBase().doesntExist()
@@ -140,6 +268,22 @@ class ModelBuilder<T : Extract<T>> internal constructor(
         toBase().paginate(perPage, page).map { model.newFromBuilder(it) }.also { eagerLoadRelations(it.data) }
 
     fun hydrate(rows: List<Map<String, Any?>>): List<T> = rows.map { model.newFromBuilder(it) }
+
+    fun chunk(count: Int, consumer: Consumer<List<T>>) {
+        require(count >= 1) { "Chunk size must be at least 1, got $count" }
+        var page = 1
+        while (true) {
+            val models = eagerLoadRelations(hydrate(toBase().forPage(page, count).get()))
+            if (models.isEmpty()) {
+                break
+            }
+            consumer.accept(models)
+            if (models.size < count) {
+                break
+            }
+            page += 1
+        }
+    }
 
     // ---- writes ----
 
@@ -151,6 +295,19 @@ class ModelBuilder<T : Extract<T>> internal constructor(
         }
         return toBase().update(withTimestamp)
     }
+
+    @JvmOverloads
+    fun updateOrInsert(attributes: Map<String, Any?>, values: Map<String, Any?> = emptyMap()): Boolean =
+        toBase().updateOrInsert(attributes, values)
+
+    fun upsert(rows: List<Map<String, Any?>>, uniqueBy: Collection<String>): Int =
+        toBase().upsert(rows, uniqueBy)
+
+    fun upsert(rows: List<Map<String, Any?>>, uniqueBy: Collection<String>, update: Collection<String>?): Int =
+        toBase().upsert(rows, uniqueBy, update)
+
+    fun insertOrIgnore(rows: List<Map<String, Any?>>, uniqueBy: Collection<String>): Int =
+        toBase().insertOrIgnore(rows, uniqueBy)
 
     /** Deletes matching rows, or trashes them for [SoftDeletes] models. */
     fun delete(): Int {
@@ -178,7 +335,81 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun getBindings(): List<Any?> = toBase().getBindings()
 
+    private fun addHas(
+        boolean: String,
+        relation: String,
+        constraint: Consumer<ModelBuilder<*>>?,
+        negate: Boolean,
+    ): ModelBuilder<T> {
+        val subquery = existenceQuery(relation, constraint, forCount = false)
+        val sql = if (negate) "not exists (${subquery.toSql()})" else "exists (${subquery.toSql()})"
+        if (boolean == AND) {
+            query.whereRaw(sql, subquery.getBindings())
+        } else {
+            query.orWhereRaw(sql, subquery.getBindings())
+        }
+        return this
+    }
+
+    private fun existenceQuery(
+        relation: String,
+        constraint: Consumer<ModelBuilder<*>>?,
+        forCount: Boolean,
+    ): QueryBuilder {
+        val rel = EagerLoader.relationOf(model, relation)
+        @Suppress("UNCHECKED_CAST")
+        constraint?.accept(rel.query as ModelBuilder<*>)
+        val base = rel.query.toBase()
+        correlate(base, rel)
+        return if (forCount) {
+            base.resetForAggregate().selectRaw("count(*)")
+        } else {
+            base.resetForAggregate().selectRaw("1")
+        }
+    }
+
+    private fun correlate(base: QueryBuilder, rel: Relation<*, *>) {
+        when (rel) {
+            is HasOneOrMany<*, *> ->
+                base.whereColumn(
+                    "${rel.related.table}.${rel.foreignKey}",
+                    "${model.table}.${rel.localKey}",
+                )
+            is BelongsTo<*> ->
+                base.whereColumn(
+                    "${rel.related.table}.${rel.ownerKey}",
+                    "${model.table}.${rel.foreignKey}",
+                )
+            is BelongsToMany<*> ->
+                base.whereColumn(
+                    "${rel.pivotTable}.${rel.foreignPivotKey}",
+                    "${model.table}.${rel.parentKey}",
+                )
+            else ->
+                throw ExtractException(
+                    "Relationship [${rel.javaClass.name}] does not support whereHas / withCount.",
+                )
+        }
+    }
+
     private fun qualifiedKey(): String = "${model.table}.${model.primaryKey}"
 
     private enum class Trashed { EXCLUDE, INCLUDE, ONLY }
+
+    private companion object {
+        const val AND = "and"
+        const val OR = "or"
+
+        fun parseRelationAlias(spec: String): Pair<String, String?> {
+            val match = ALIAS.find(spec.trim())
+            return if (match == null) {
+                spec.trim() to null
+            } else {
+                spec.trim().substring(0, match.range.first).trim() to
+                    spec.trim().substring(match.range.last + 1).trim()
+            }
+        }
+
+        private val ALIAS = Regex("\\s+as\\s+", RegexOption.IGNORE_CASE)
+    }
 }

@@ -25,7 +25,23 @@ class Author : Extract<Author>() {
 
     fun broken(): HasMany<Book> = throw IllegalStateException("broken relation")
 
+    fun dummy(): DummyRelation = DummyRelation(this, Book())
+
     companion object : ExtractCompanion<Author>(Author::class.java)
+}
+
+/** Unsupported relation shape used to cover whereHas / withCount rejection. */
+class DummyRelation(
+    parent: Extract<*>,
+    related: Book,
+) : Relation<Book, List<Book>>(parent, related) {
+    override fun getResults(): List<Book> = emptyList()
+
+    override fun addConstraints(): Boolean = false
+
+    override fun addEagerConstraints(models: List<Extract<*>>) {}
+
+    override fun match(models: List<Extract<*>>, results: List<Book>, relation: String) {}
 }
 
 class Profile : Extract<Profile>() {

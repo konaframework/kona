@@ -1,25 +1,132 @@
 ---
-title: Serialization & model events
-description: toArray/toJson, hidden/visible/appends, and lifecycle events.
+title: Serialization, collections & events
+description: Convert models to arrays and JSON, work with ExtractCollection, and listen to lifecycle events.
 ---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Serialization
 
-Models expose Laravel-shaped serialization:
+Models turn themselves into maps and JSON for APIs and views.
 
-- `hidden` / `visible` / `appends` open properties
-- `makeHidden` / `makeVisible` / `setAppends`
-- `toArray()` / `toMap()` / `toJson()`
-- Override `getAppendedAttribute` for virtual fields
+| API | Role |
+|-----|------|
+| `toArray()` / `toMap()` | Cast attributes + loaded relations as nested maps |
+| `toJson()` | JSON string of `toMap()` |
+| `hidden` | Attribute names omitted from serialization |
+| `visible` | When non-empty, only these attributes are included (minus `hidden` overrides) |
+| `appends` | Virtual keys filled by `getAppendedAttribute` |
+| `makeHidden` / `makeVisible` / `setAppends` | Per-instance overrides |
 
-`ExtractCollection` wraps lists of models with `pluck`, `modelKeys`, `toArray`, `load`, and `filter`.
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class User : Extract<User>() {
+    override val hidden = setOf("password")
+    override val appends = setOf("display_name")
+
+    override fun getAppendedAttribute(key: String): Any? =
+        if (key == "display_name") getAttribute("name") else null
+}
+
+val payload = user.toMap()
+Response.json(user.toMap())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class User extends Extract<User> {
+    @Override
+    public Set<String> getHidden() {
+        return Set.of("password");
+    }
+
+    @Override
+    public Set<String> getAppends() {
+        return Set.of("display_name");
+    }
+
+    @Override
+    public Object getAppendedAttribute(String key) {
+        return "display_name".equals(key) ? getAttribute("name") : null;
+    }
+}
+
+Map<String, Object> payload = user.toMap();
+Response.json(user.toMap());
+```
+
+</TabItem>
+</Tabs>
+
+Loaded relations appear under their relation names. Soft-deleted timestamps and other cast columns use their cast Java types in the map (for example `Instant`).
+
+## Collections
+
+`get()` returns a `List`. Prefer `getCollection()` when you want Extract helpers:
+
+```kotlin
+val users = User.query().where("admin", true).getCollection()
+users.pluck("email")
+users.modelKeys()
+users.find(1)
+users.load("posts")
+users.loadMissing("roles")
+users.filter { it["admin"] == true }
+users.toArray()
+users.toMapKeyedById()
+```
+
+`ExtractCollection.of(list)` / `ExtractCollection.make(…)` wrap an existing list. Mutations that load relations update the same model instances you already hold.
 
 ## Lifecycle events
 
-`ModelDispatcher` fires `CREATING`, `CREATED`, `UPDATING`, `UPDATED`, `SAVING`, `SAVED`, `DELETING`, `DELETED`, `TRASHED`, `RESTORING`, `RESTORED`, `FORCE_DELETING`, `FORCE_DELETED`, and `RETRIEVED`.
+`ModelDispatcher` is a process-wide registry for persistence hooks. Events:
+
+| Event | When |
+|-------|------|
+| `RETRIEVED` | After a model is hydrated from a row |
+| `CREATING` / `CREATED` | Before / after insert |
+| `UPDATING` / `UPDATED` | Before / after update |
+| `SAVING` / `SAVED` | Around every `save` (including clean no-op updates) |
+| `DELETING` / `DELETED` | Around `delete` |
+| `TRASHED` | Soft-delete completed |
+| `RESTORING` / `RESTORED` | Soft-delete restore |
+| `FORCE_DELETING` / `FORCE_DELETED` | Permanent delete on a soft-deleting model |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 ModelDispatcher.listen(ModelEvent.CREATED) { model ->
-    logger.info("created {}", model.getKey())
+    logger.info("created {}#{}", model.javaClass.simpleName, model.getKey())
 }
+
+ModelDispatcher.withoutEvents {
+    user.save()   // no listeners run
+}
+
+user.saveQuietly()
+user.deleteQuietly()
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ModelDispatcher.listen(ModelEvent.CREATED, model -> {
+    logger.info("created {}#{}", model.getClass().getSimpleName(), model.getKey());
+});
+
+ModelDispatcher.withoutEvents(() -> user.save());
+user.saveQuietly();
+user.deleteQuietly();
+```
+
+</TabItem>
+</Tabs>
+
+Call `ModelDispatcher.flush()` in tests to clear listeners between cases. Nested `withoutEvents` blocks nest safely (a depth counter).

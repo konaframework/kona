@@ -1,6 +1,7 @@
 package dev.kona.extract.relations
 
 import dev.kona.extract.Database
+import dev.kona.extract.ExtractCollection
 import dev.kona.extract.ExtractException
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -258,5 +259,109 @@ class RelationsTest {
         assertEquals(listOf("book_id", "id", "book"), listOf(chapterBook.foreignKey, chapterBook.ownerKey, chapterBook.relationName))
         val many = Genre().belongsToMany(Author::class.java, "links", "g", "a", "gid", "aid")
         assertEquals(listOf("links", "g", "a", "gid", "aid"), listOf(many.pivotTable, many.foreignPivotKey, many.relatedPivotKey, many.parentKey, many.relatedKey))
+    }
+
+    @Test
+    fun whereHasWithCountAndPivotHelpers() {
+        val ada = author("Ada")
+        val bob = author("Bob")
+        ada.books().create(mapOf("title" to "Engines"))
+        ada.books().create(mapOf("title" to "Notes"))
+        val trashed = ada.books().create(mapOf("title" to "Gone"))
+        trashed.delete()
+        bob.books().create(mapOf("title" to "Only"))
+        ada.profile().create(mapOf("bio" to "Hi"))
+
+        val sci = Genre().forceFill(mapOf("name" to "Science")).also { it.save() }
+        val art = Genre().forceFill(mapOf("name" to "Art")).also { it.save() }
+        ada.genres().attach(sci)
+        ada.genres().attach(listOf(art.getKey()), mapOf("weight" to 3))
+        bob.genres().attach(sci)
+
+        assertEquals(listOf("Ada", "Bob"), Author.has("books").orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Bob"), Author.doesntHave("profile").orderBy("name").get().map { it["name"] })
+        assertEquals(
+            listOf("Ada"),
+            Author.whereHas("books") { it.where("title", "Notes") }.get().map { it["name"] },
+        )
+        assertEquals(
+            listOf("Bob"),
+            Author.whereDoesntHave("books") { it.where("title", "Notes") }.orderBy("name").get().map { it["name"] },
+        )
+        assertEquals(
+            2,
+            Author.query().where("name", "Nobody").orWhereHas("genres").get().size,
+        )
+        assertEquals(
+            listOf("Ada", "Bob"),
+            Author.query().where("name", "Ada").orWhereDoesntHave("profile").orderBy("name").get().map { it["name"] },
+        )
+        assertEquals(
+            listOf("Ada"),
+            Author.whereHas("genres") { it.where("name", "Art") }.get().map { it["name"] },
+        )
+        assertEquals(
+            listOf("Ada"),
+            Author.whereHas("profile").get().map { it["name"] },
+        )
+        assertEquals(
+            "Hi",
+            Profile.whereHas("author") { it.where("name", "Ada") }.first()!!["bio"],
+        )
+
+        val counted = Author.withCount("books", "genres", "books as published_books_count").orderBy("name").get()
+        assertEquals(listOf(2L, 1L), counted.map { (it["books_count"] as Number).toLong() })
+        assertEquals(listOf(2L, 1L), counted.map { (it["genres_count"] as Number).toLong() })
+        assertEquals(2L, (counted.first()["published_books_count"] as Number).toLong())
+
+        ada.loadCount("books as loaded_books_count")
+        assertEquals(2L, (ada["loaded_books_count"] as Number).toLong())
+        Author().loadCount("books")
+        ada.loadCount()
+
+        assertEquals(
+            SyncResult(emptyList(), emptyList()),
+            ada.genres().syncWithoutDetaching(listOf(sci, art)),
+        )
+        val math = Genre().forceFill(mapOf("name" to "Math")).also { it.save() }
+        assertEquals(SyncResult(listOf(math.getKey()), emptyList()), ada.genres().syncWithoutDetaching(listOf(math)))
+        assertEquals(
+            SyncResult(emptyList(), listOf(math.getKey())),
+            ada.genres().toggle(listOf(math)),
+        )
+        assertEquals(
+            SyncResult(listOf(math.getKey()), emptyList()),
+            ada.genres().toggle(listOf(math)),
+        )
+        assertEquals(listOf("Art"), ada.genres().wherePivot("weight", 3).get().map { it["name"] })
+        assertEquals(listOf("Art"), ada.genres().wherePivot("weight", ">=", 3).get().map { it["name"] })
+        assertEquals(
+            listOf("Art", "Science"),
+            ada.genres().wherePivotIn("genre_id", listOf(sci.getKey(), art.getKey())).orderBy("name").get().map { it["name"] },
+        )
+
+        val col = Author.query().with("books").orderBy("id").getCollection()
+        assertEquals(ada.getKey(), col.find(ada.getKey())!!.getKey())
+        col.loadMissing("genres")
+        assertTrue(col.first()!!.relationLoaded("genres"))
+        col.loadMissing("genres")
+        ExtractCollection.of(emptyList<Author>()).loadMissing("books")
+
+        assertEquals(listOf("Ada"), Author.orWhereHas("profile").where("name", "Ada").get().map { it["name"] })
+        assertEquals(listOf("Bob"), Author.whereDoesntHave("profile").get().map { it["name"] })
+        assertEquals(
+            listOf("Ada", "Bob"),
+            Author.orWhereDoesntHave("profile").where("name", "Missing").orWhere("name", "Ada").orWhere("name", "Bob")
+                .orderBy("name").get().map { it["name"] },
+        )
+        assertEquals(
+            2L,
+            (Author.query().select("authors.id", "authors.name").withCount("books").where("id", ada.getKey()).first()!!["books_count"] as Number).toLong(),
+        )
+        ada.loadCount("books")
+        assertEquals(2L, (ada["books_count"] as Number).toLong())
+
+        assertThrows(ExtractException::class.java) { Author.whereHas("dummy").get() }
+        assertThrows(ExtractException::class.java) { Author.withCount("dummy").get() }
     }
 }

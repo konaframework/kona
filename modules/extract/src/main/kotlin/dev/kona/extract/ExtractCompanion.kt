@@ -1,5 +1,7 @@
 package dev.kona.extract
 
+import java.util.function.Consumer
+
 /**
  * Static-style helpers for one model class. Use as a Kotlin companion
  * (`companion object : ExtractCompanion<User>(User::class.java)` → `User.find(1)`)
@@ -19,6 +21,8 @@ open class ExtractCompanion<T : Extract<T>>(
     /** Query that eager loads [relations] (`User.with("posts").get()`). */
     fun with(vararg relations: String): ModelBuilder<T> = query().with(*relations)
 
+    fun withCount(vararg relations: String): ModelBuilder<T> = query().withCount(*relations)
+
     fun first(): T? = query().first()
 
     fun find(id: Any?): T? = query().find(id)
@@ -34,11 +38,41 @@ open class ExtractCompanion<T : Extract<T>>(
         return model
     }
 
+    fun firstOrNew(attributes: Map<String, Any?>): T = query().firstOrNew(attributes)
+
+    @JvmOverloads
+    fun firstOrCreate(attributes: Map<String, Any?>, values: Map<String, Any?> = emptyMap()): T =
+        query().firstOrCreate(attributes, values)
+
+    @JvmOverloads
+    fun updateOrCreate(attributes: Map<String, Any?>, values: Map<String, Any?> = emptyMap()): T =
+        query().updateOrCreate(attributes, values)
+
     fun where(column: String, value: Any?): ModelBuilder<T> = query().where(column, value)
 
     fun where(column: String, operator: String, value: Any?): ModelBuilder<T> = query().where(column, operator, value)
 
     fun whereIn(column: String, values: Collection<*>): ModelBuilder<T> = query().whereIn(column, values)
+
+    @JvmOverloads
+    fun whereHas(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
+        query().whereHas(relation, constraint)
+
+    @JvmOverloads
+    fun orWhereHas(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
+        query().orWhereHas(relation, constraint)
+
+    @JvmOverloads
+    fun whereDoesntHave(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
+        query().whereDoesntHave(relation, constraint)
+
+    @JvmOverloads
+    fun orWhereDoesntHave(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
+        query().orWhereDoesntHave(relation, constraint)
+
+    fun has(relation: String): ModelBuilder<T> = query().has(relation)
+
+    fun doesntHave(relation: String): ModelBuilder<T> = query().doesntHave(relation)
 
     fun withTrashed(): ModelBuilder<T> = query().withTrashed()
 

@@ -29,6 +29,7 @@ fun interface ModelEventListener {
  */
 object ModelDispatcher {
     private val listeners = linkedMapOf<ModelEvent, MutableList<ModelEventListener>>()
+    private val muteDepth = ThreadLocal.withInitial { 0 }
 
     @JvmStatic
     fun listen(event: ModelEvent, listener: ModelEventListener) {
@@ -42,14 +43,35 @@ object ModelDispatcher {
 
     @JvmStatic
     fun dispatch(event: ModelEvent, model: Extract<*>) {
+        if (muteDepth.get() > 0) {
+            return
+        }
         val bag = listeners[event] ?: return
         for (listener in bag.toList()) {
             listener.handle(model)
         }
     }
 
+    /** Runs [action] with event dispatch muted (nestable). */
+    @JvmStatic
+    fun withoutEvents(action: Runnable) {
+        withoutEvents<Unit> { action.run() }
+    }
+
+    /** Runs [block] with event dispatch muted (nestable); returns [block]'s result. */
+    @JvmStatic
+    fun <R> withoutEvents(block: () -> R): R {
+        muteDepth.set(muteDepth.get() + 1)
+        try {
+            return block()
+        } finally {
+            muteDepth.set(muteDepth.get() - 1)
+        }
+    }
+
     @JvmStatic
     fun flush() {
         listeners.clear()
+        muteDepth.remove()
     }
 }

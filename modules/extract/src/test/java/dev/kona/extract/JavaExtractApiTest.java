@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.kona.extract.relations.HasMany;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -25,12 +26,16 @@ public class JavaExtractApiTest {
 
         @Override
         public Set<String> getFillable() {
-            return Set.of("name", "age", "settings");
+            return Set.of("name", "email", "age", "settings");
         }
 
         @Override
         public Map<String, CastType> getCasts() {
             return Map.of("age", CastType.INT, "settings", CastType.JSON);
+        }
+
+        public HasMany<Article> posts() {
+            return hasMany(Article.class, "user_id", "id");
         }
     }
 
@@ -211,5 +216,45 @@ public class JavaExtractApiTest {
         assertEquals(1, fromOf.count());
         ExtractCollection<Member> fromMake = ExtractCollection.make(ada);
         assertEquals(1, fromMake.count());
+    }
+
+    @Test
+    void firstOrCreateAndWhereHasFromJava() {
+        Member ada = Member.QUERY.firstOrCreate(Map.of("email", "ada@j.io"), Map.of("name", "Ada", "age", 36));
+        assertTrue(ada.exists());
+        Member again = Member.QUERY.firstOrCreate(Map.of("email", "ada@j.io"), Map.of("name", "Nope"));
+        assertEquals(ada.getKey(), again.getKey());
+        Member oneArg = Member.QUERY.firstOrCreate(Map.of("email", "one@j.io", "name", "OneArg", "age", 21));
+        assertEquals("OneArg", oneArg.get("name"));
+        Member neu = Member.QUERY.firstOrNew(Map.of("email", "neu@j.io", "name", "Neu", "age", 22));
+        assertFalse(neu.exists());
+        Member updated = Member.QUERY.updateOrCreate(Map.of("email", "up@j.io"), Map.of("name", "Up", "age", 23));
+        assertTrue(updated.exists());
+        Member updateOne = Member.QUERY.updateOrCreate(Map.of("email", "up2@j.io", "name", "Up2", "age", 24));
+        assertEquals("Up2", updateOne.get("name"));
+
+        Extract.of(Article.class).create(Map.of("user_id", ada.getKey(), "title", "One"));
+        Extract.of(Article.class).create(Map.of("user_id", ada.getKey(), "title", "Two"));
+        Member lonely = Member.QUERY.create(Map.of("name", "Lonely", "email", "l@j.io", "age", 20));
+
+        List<Member> withPosts = Member.QUERY.whereHas("posts").orderBy("id").get();
+        assertEquals(1, withPosts.size());
+        assertEquals("Ada", withPosts.get(0).get("name"));
+        assertEquals(1, Member.QUERY.orWhereHas("posts").where("email", "ada@j.io").get().size());
+        assertEquals(1, Member.QUERY.whereDoesntHave("posts").where("email", "l@j.io").get().size());
+        assertTrue(Member.QUERY.orWhereDoesntHave("posts").count() >= 1);
+
+        List<Member> counted = Member.QUERY.withCount("posts").orderBy("id").get();
+        assertEquals(2L, ((Number) counted.get(0).get("posts_count")).longValue());
+        assertEquals(0L, ((Number) counted.stream().filter(m -> m.getKey().equals(lonely.getKey())).findFirst().orElseThrow().get("posts_count")).longValue());
+
+        assertTrue(DB.table("users").updateOrInsert(Map.of("email", "uo@j.io", "name", "UO", "age", 25)));
+        assertTrue(Member.QUERY.query().updateOrInsert(Map.of("email", "uo2@j.io", "name", "UO2", "age", 26)));
+        assertTrue(Member.QUERY.query().firstOrCreate(Map.of("email", "mb@j.io", "name", "MB", "age", 27)).exists());
+        assertTrue(Member.QUERY.query().updateOrCreate(Map.of("email", "mb2@j.io", "name", "MB2", "age", 28)).exists());
+
+        Member copy = ada.replicate();
+        assertFalse(copy.exists());
+        assertNull(copy.getKey());
     }
 }

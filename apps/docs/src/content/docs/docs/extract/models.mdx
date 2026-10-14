@@ -252,3 +252,138 @@ Response.json(page.toMap());
 </Tabs>
 
 Page numbers start at 1; values below 1 are treated as page 1.
+
+## Retrieving or creating
+
+When you want “find this row, or make one” in a single call:
+
+| Call | Behavior |
+|------|----------|
+| `firstOrNew(attributes)` | Returns the first match, or a new **unsaved** model filled with `attributes` |
+| `firstOrCreate(attributes, values)` | Returns the first match, or **creates** a row from `attributes` merged with optional `values` |
+| `updateOrCreate(attributes, values)` | Updates the first match with `values`, or creates `attributes + values` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.firstOrCreate(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada"),
+)
+val flight = Flight.updateOrCreate(
+    mapOf("departure" to "OAK", "destination" to "SDY"),
+    mapOf("price" to 99, "discounted" to true),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.firstOrCreate(
+    Map.of("email", "ada@example.com"),
+    Map.of("name", "Ada")
+);
+Flight flight = Flight.QUERY.updateOrCreate(
+    Map.of("departure", "OAK", "destination", "SDY"),
+    Map.of("price", 99, "discounted", true)
+);
+```
+
+</TabItem>
+</Tabs>
+
+`wasRecentlyCreated()` is true only when the last `save()` inserted that instance (useful after `firstOrCreate`).
+
+## Upserts and insert-or-ignore
+
+On the model query (or the table [query builder](../query-builder/#upserts)):
+
+```kotlin
+User.query().upsert(
+    listOf(
+        mapOf("email" to "a@example.com", "name" to "A"),
+        mapOf("email" to "b@example.com", "name" to "B"),
+    ),
+    uniqueBy = listOf("email"),
+    update = listOf("name"),
+)
+
+User.query().updateOrInsert(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada Lovelace"),
+)
+
+User.query().insertOrIgnore(
+    listOf(mapOf("email" to "ada@example.com", "name" to "Ada")),
+    uniqueBy = listOf("email"),
+)
+```
+
+`upsert` walks each row: when a row matching `uniqueBy` exists it updates the listed columns (or every non-unique column when `update` is omitted); otherwise it inserts. Prefer a unique index on those columns in the schema so concurrent writers do not race.
+
+## Query scopes
+
+Reusable filters are ordinary methods on your companion (or static helpers in Java) that return a `ModelBuilder`:
+
+```kotlin
+class User : Extract<User>() {
+    companion object : ExtractCompanion<User>(User::class.java) {
+        fun admins(): ModelBuilder<User> = query().where("admin", true)
+        fun named(name: String): ModelBuilder<User> = query().where("name", name)
+    }
+}
+
+User.admins().orderBy("name").get()
+```
+
+Inline scopes use `scope { … }` or conditional `when` / `unless`:
+
+```kotlin
+User.query()
+    .scope { it.where("active", true) }
+    .when(onlyAdmins) { it.where("admin", true) }
+    .unless(includeBanned) { it.where("banned", false) }
+    .get()
+```
+
+## Accessors and mutators
+
+Override `getMutatedAttribute` (after casts on read) and `setMutatedAttribute` (before casts on write) to transform values:
+
+```kotlin
+class User : Extract<User>() {
+    override fun getMutatedAttribute(key: String, value: Any?): Any? =
+        if (key == "name" && value is String) value.uppercase() else value
+
+    override fun setMutatedAttribute(key: String, value: Any?): Any? =
+        if (key == "email" && value is String) value.lowercase() else value
+}
+```
+
+Virtual fields for serialization still use `appends` + `getAppendedAttribute` — see [Serialization & events](../serialization-events/).
+
+## Replicating, touching, and comparing
+
+```kotlin
+val copy = user.replicate()                    // unsaved clone without id / timestamps
+val draft = user.replicate(setOf("email"))     // also skip email
+user.touch()                                   // bump updated_at and persist
+user.`is`(other)                               // same class + same non-null primary key
+user.isNot(other)
+```
+
+## Chunking large result sets
+
+```kotlin
+User.query().orderBy("id").chunk(200) { batch ->
+    batch.forEach { process(it) }
+}
+```
+
+Each chunk runs a page query (`forPage`). Always `orderBy` a stable column so pages do not skip or repeat rows under concurrent writes.
+
+## Quiet persistence
+
+`saveQuietly()` and `deleteQuietly()` persist without firing [model events](../serialization-events/#lifecycle-events). For a whole block of work, use `ModelDispatcher.withoutEvents { … }`.

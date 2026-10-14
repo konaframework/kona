@@ -96,6 +96,32 @@ class QueryBuilder(val connection: DatabaseConnection) {
         return this
     }
 
+    fun orWhereBetween(column: String, from: Any?, to: Any?): QueryBuilder {
+        wheres.add(Clause(OR, "${grammar.wrap(column)} between ? and ?", listOf(from, to)))
+        return this
+    }
+
+    fun whereNotBetween(column: String, from: Any?, to: Any?): QueryBuilder {
+        wheres.add(Clause(AND, "${grammar.wrap(column)} not between ? and ?", listOf(from, to)))
+        return this
+    }
+
+    fun orWhereNotBetween(column: String, from: Any?, to: Any?): QueryBuilder {
+        wheres.add(Clause(OR, "${grammar.wrap(column)} not between ? and ?", listOf(from, to)))
+        return this
+    }
+
+    /** Column-to-column comparison (no value bindings). */
+    fun whereColumn(first: String, second: String): QueryBuilder = whereColumn(first, "=", second)
+
+    fun whereColumn(first: String, operator: String, second: String): QueryBuilder =
+        addColumnCompare(AND, first, operator, second)
+
+    fun orWhereColumn(first: String, second: String): QueryBuilder = orWhereColumn(first, "=", second)
+
+    fun orWhereColumn(first: String, operator: String, second: String): QueryBuilder =
+        addColumnCompare(OR, first, operator, second)
+
     @JvmOverloads
     fun whereRaw(sql: String, bindings: List<Any?> = emptyList()): QueryBuilder {
         wheres.add(Clause(AND, sql, bindings))
@@ -108,6 +134,17 @@ class QueryBuilder(val connection: DatabaseConnection) {
         return this
     }
 
+    /** Applies [callback] only when [condition] is true. */
+    fun `when`(condition: Boolean, callback: Consumer<QueryBuilder>): QueryBuilder {
+        if (condition) {
+            callback.accept(this)
+        }
+        return this
+    }
+
+    /** Applies [callback] only when [condition] is false. */
+    fun unless(condition: Boolean, callback: Consumer<QueryBuilder>): QueryBuilder = `when`(!condition, callback)
+
     // ---- joins ----
 
     fun join(table: String, first: String, operator: String, second: String): QueryBuilder =
@@ -119,6 +156,14 @@ class QueryBuilder(val connection: DatabaseConnection) {
         addJoin("left", table, first, operator, second)
 
     fun leftJoin(table: String, first: String, second: String): QueryBuilder = leftJoin(table, first, "=", second)
+
+    fun rightJoin(table: String, first: String, operator: String, second: String): QueryBuilder =
+        addJoin("right", table, first, operator, second)
+
+    fun rightJoin(table: String, first: String, second: String): QueryBuilder = rightJoin(table, first, "=", second)
+
+    /** True when at least one select column / expression has been set (not the default `*`). */
+    fun hasSelectColumns(): Boolean = columns.isNotEmpty()
 
     // ---- grouping / ordering / paging ----
 
@@ -251,6 +296,102 @@ class QueryBuilder(val connection: DatabaseConnection) {
         connection.statement("truncate table ${requireTable()}")
     }
 
+    /**
+     * Updates rows matching [attributes] with [values], or inserts `attributes + values` when none match.
+     * Returns true when a row was updated or inserted.
+     */
+    @JvmOverloads
+    fun updateOrInsert(attributes: Map<String, Any?>, values: Map<String, Any?> = emptyMap()): Boolean {
+        val matcher = copy()
+        attributes.forEach { (column, value) -> matcher.where(column, value) }
+        if (matcher.exists()) {
+            if (values.isNotEmpty()) {
+                val updater = copy()
+                attributes.forEach { (column, value) -> updater.where(column, value) }
+                updater.update(values)
+            }
+            return true
+        }
+        val row = LinkedHashMap(attributes)
+        row.putAll(values)
+        insert(row)
+        return true
+    }
+
+    /**
+     * Portable per-row upsert: for each row, update when [uniqueBy] columns match, otherwise insert.
+     * Updates every non-unique key on match.
+     */
+    fun upsert(rows: List<Map<String, Any?>>, uniqueBy: Collection<String>): Int = upsert(rows, uniqueBy, null)
+
+    /**
+     * Portable per-row upsert: for each row, update when [uniqueBy] columns match, otherwise insert.
+     * When [update] is null, every non-unique key is updated; when empty, matching rows are left unchanged.
+     * Returns the number of rows inserted or updated.
+     */
+    fun upsert(rows: List<Map<String, Any?>>, uniqueBy: Collection<String>, update: Collection<String>?): Int {
+        if (rows.isEmpty()) {
+            return 0
+        }
+        require(uniqueBy.isNotEmpty()) { "upsert requires at least one uniqueBy column" }
+        var affected = 0
+        for (row in rows) {
+            val matcher = copy()
+            uniqueBy.forEach { matcher.where(it, row[it]) }
+            if (matcher.exists()) {
+                val keys = update ?: row.keys.filter { it !in uniqueBy }
+                if (keys.isNotEmpty()) {
+                    val values = keys.associateWith { row[it] }
+                    val updater = copy()
+                    uniqueBy.forEach { updater.where(it, row[it]) }
+                    affected += updater.update(values)
+                }
+            } else {
+                insert(row)
+                affected += 1
+            }
+        }
+        return affected
+    }
+
+    /** Inserts each row only when no existing row matches [uniqueBy]; returns how many were inserted. */
+    fun insertOrIgnore(rows: List<Map<String, Any?>>, uniqueBy: Collection<String>): Int {
+        if (rows.isEmpty()) {
+            return 0
+        }
+        require(uniqueBy.isNotEmpty()) { "insertOrIgnore requires at least one uniqueBy column" }
+        var inserted = 0
+        for (row in rows) {
+            val matcher = copy()
+            uniqueBy.forEach { matcher.where(it, row[it]) }
+            if (!matcher.exists()) {
+                insert(row)
+                inserted += 1
+            }
+        }
+        return inserted
+    }
+
+    /**
+     * Pages through results [count] at a time and passes each page to [consumer].
+     * Uses existing order clauses when present; otherwise limit/offset alone.
+     */
+    fun chunk(count: Int, consumer: Consumer<List<Map<String, Any?>>>) {
+        require(count >= 1) { "Chunk size must be at least 1, got $count" }
+        var page = 1
+        while (true) {
+            val rows = copy().forPage(page, count).get()
+            if (rows.isEmpty()) {
+                break
+            }
+            consumer.accept(rows)
+            if (rows.size < count) {
+                break
+            }
+            page += 1
+        }
+    }
+
     // ---- debugging ----
 
     fun toSql(): String {
@@ -333,13 +474,19 @@ class QueryBuilder(val connection: DatabaseConnection) {
         return this
     }
 
+    private fun addColumnCompare(boolean: String, first: String, operator: String, second: String): QueryBuilder {
+        wheres.add(Clause(boolean, "${grammar.wrap(first)} ${operatorOf(operator)} ${grammar.wrap(second)}", emptyList()))
+        return this
+    }
+
     private fun aggregate(function: String, column: String): Any? {
         val query = copy().resetForAggregate()
         val sql = "select $function(${grammar.wrap(column)}) as aggregate" + query.tail()
         return connection.select(sql, query.getBindings()).first().values.first()
     }
 
-    private fun resetForAggregate(): QueryBuilder {
+    /** Clears select / order / limit so a copy can become `select 1 from … where …` for EXISTS / counts. */
+    internal fun resetForAggregate(): QueryBuilder {
         columns.clear()
         selectBindings.clear()
         orders.clear()

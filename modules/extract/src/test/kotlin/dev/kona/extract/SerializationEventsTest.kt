@@ -123,6 +123,32 @@ class SerializationEventsTest {
     }
 
     @Test
+    fun withoutEventsAndSaveQuietly() {
+        val seen = mutableListOf<ModelEvent>()
+        ModelEvent.entries.forEach { event ->
+            ModelDispatcher.listen(event) { seen += event }
+        }
+
+        ModelDispatcher.withoutEvents(
+            Runnable {
+                User.create(mapOf("name" to "Silent", "email" to "s@x"))
+            },
+        )
+        assertTrue(seen.isEmpty())
+
+        val user = User.create(mapOf("name" to "Loud", "email" to "l@x"))
+        seen.clear()
+        user["name"] = "Louder"
+        assertTrue(user.saveQuietly())
+        assertTrue(seen.isEmpty())
+
+        seen.clear()
+        assertTrue(user.deleteQuietly())
+        assertTrue(seen.isEmpty())
+        assertNull(User.find(user.getKey()))
+    }
+
+    @Test
     fun extractCollectionHelpers() {
         val a = User.create(mapOf("name" to "A", "email" to "a@x"))
         val b = User.create(mapOf("name" to "B", "email" to "b@x"))
@@ -142,8 +168,12 @@ class SerializationEventsTest {
         assertEquals(1, col.filter { it["name"] == "A" }.count())
         assertEquals(3, col.toList().size)
         assertEquals(2, ExtractCollection.make(a, b).count())
+        assertEquals(a.getKey(), col.find(a.getKey())!!.getKey())
+        assertNull(col.find(9999))
         col.load()
+        col.loadMissing()
         ExtractCollection.of(emptyList<User>()).load()
+        ExtractCollection.of(emptyList<User>()).loadMissing("x")
         val iterated = mutableListOf<User>()
         for (item in col) {
             iterated += item
