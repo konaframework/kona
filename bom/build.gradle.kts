@@ -29,5 +29,7 @@ dependencies {
         api(project(":kona-process"))
         api(project(":kona-concurrency"))
         api(project(":kona-testing"))
+        api(project(":kona-broadcasting"))
+        api(project(":kona-search"))
     }
 }

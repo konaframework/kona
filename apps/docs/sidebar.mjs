@@ -128,5 +128,12 @@ export async function buildSidebar() {
         { label: 'Database & fakes', slug: 'docs/testing/database-fakes' },
       ],
     },
+    {
+      label: 'Realtime & search',
+      items: [
+        { label: 'Broadcasting', slug: 'docs/broadcasting' },
+        { label: 'Search', slug: 'docs/search' },
+      ],
+    },
   ];
 }

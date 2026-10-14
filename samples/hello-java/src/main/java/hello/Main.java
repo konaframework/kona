@@ -102,6 +102,7 @@ public final class Main {
         demo(boot(args)).forEach(System.out::println);
         SecurityDemo.run(args).forEach(System.out::println);
         M9Demo.run().forEach(System.out::println);
+        M10Demo.run(args).forEach(System.out::println);
     }
 
     private Main() {

@@ -1,0 +1,51 @@
+---
+title: Broadcasting
+description: Broadcast events to named channels.
+---
+
+**Broadcasting** pushes application events to named channels so other processes (or a future websocket driver) can react.
+
+## Register
+
+```kotlin
+app.register(BroadcastServiceProvider())
+```
+
+Config keys:
+
+| Key | Meaning |
+|-----|---------|
+| `broadcasting.default` | Connection name (default `log`) |
+| `broadcasting.connections.{name}.driver` | `log` or `null` / `none` |
+
+## ShouldBroadcast events
+
+```kotlin
+class OrderShipped : ShouldBroadcast {
+    override fun broadcastOn() = listOf(Channel.publicChannel("orders"))
+    override fun broadcastAs() = "order.shipped"
+    override fun broadcastWith() = mapOf("id" to 42)
+}
+
+Broadcast.event(OrderShipped())
+```
+
+```java
+Broadcast.event(new OrderShipped());
+```
+
+## Ad-hoc broadcasts
+
+```kotlin
+Broadcast.to(Channel.publicChannel("orders"), Channel.privateOf("user.1"))
+    .event("order.shipped", mapOf("id" to 42))
+```
+
+## Drivers
+
+| Driver | Behavior |
+|--------|----------|
+| `log` | Stores payloads in memory (`Broadcast.manager().log().messages()`) — ideal for tests |
+| `null` / `none` | No-op |
+
+The log driver is the minimum concrete driver for this release. Additional websocket/redis drivers can plug into the same `Broadcaster` interface later.
