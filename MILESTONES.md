@@ -3,7 +3,9 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M1 (M0 complete).
+**Active milestone:** M2 (M0–M1 complete).
+
+Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).
 
 ---
 
@@ -13,6 +15,7 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 - [ ] 100% line + branch coverage on in-scope production modules (Kover/JaCoCo; CI enforced).
 - [ ] Full regression suite green (this milestone + all prior completed milestones).
 - [ ] Kotlin sample and Java sample (or regression paths) exercise new public API.
+- [ ] Public docs for the slice updated under `apps/docs/` (guides + sidebar).
 - [ ] Milestone PR merged to `main` via required checks + automerge.
 - [ ] `MILESTONES.md` updated: milestone marked **done**, next marked **active**.
 
@@ -43,16 +46,15 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 
 ## M1 — Kona kernel + HTTP + grind
 
-**Status:** active (exhaustion PR)  
-**Branch:** `milestone/M1-completion`  
-**Prior scaffold:** `milestone/M1-kernel-http-grind` (merged thin; blockers closed here)
+**Status:** done  
+**Branch:** `milestone/M1-completion` (merged; scaffold was `milestone/M1-kernel-http-grind`)
 
 **Parity slice:** Laravel Application / Container / Providers / Config / Routing / HTTP Kernel / Middleware / Validation + Artisan `serve` / `make` ≈ Almasix `framework` / `http` / `routing` / console bootstrap.
 
 ### Parity checklist
 
 Quality + parity audits: [docs/quality/M1-architecture-review.md](docs/quality/M1-architecture-review.md), [docs/quality/M1-parity-audit.md](docs/quality/M1-parity-audit.md).  
-**Verdict: unblocked** — checklist complete; awaiting merge to mark M1 **done** and activate M2.
+**Verdict: complete** on `main`.
 
 - [x] Application boot (`Kona.start` + `Kona.create().providers().boot()` builder)
 - [x] Service container (bind / singleton / resolve / autowire / thread-safe / cycles)
@@ -80,7 +82,7 @@ Quality + parity audits: [docs/quality/M1-architecture-review.md](docs/quality/M
 
 ## M2 — Extract
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M2-extract`
 
 **Parity slice:** Eloquent / Almasix ORM.

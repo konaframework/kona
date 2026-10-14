@@ -1,0 +1,37 @@
+---
+title: Kotlin and Java
+description: Kotlin-first internals with first-class Java call sites.
+---
+
+Kona is written in Kotlin. Public types use `@JvmStatic`, `@JvmOverloads`, and SAM interfaces (`Handler`, `Middleware`) so Java call sites stay natural.
+
+## Routing
+
+**Kotlin** — trailing lambdas:
+
+```kotlin
+router.get("/") { Response.text("ok") }
+router.group(prefix = "/api", middleware = listOf(auth)) {
+    get("/me") { Response.json(mapOf("ok" to true)) }
+}
+```
+
+**Java** — fluent groups:
+
+```java
+router.prefix("/api").name("api.").middleware(auth).group(api -> {
+    api.get("/me", req -> Response.json(Map.of("ok", true)));
+});
+```
+
+## Handlers
+
+```java
+router.get("/ping", request -> Response.text("pong"));
+```
+
+`Handler` is a `fun interface`; Java lambdas implement `handle(Request)`.
+
+## Samples
+
+Both languages ship regression samples under `samples/`. Law 8 of the project: every public-API milestone includes a Java path.

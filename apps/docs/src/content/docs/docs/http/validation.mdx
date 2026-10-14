@@ -1,0 +1,20 @@
+---
+title: Validation
+description: Laravel-shaped request rules; unknown rules fail closed.
+---
+
+```kotlin
+request.validate(
+    mapOf(
+        "email" to "required|email",
+        "age" to "nullable|integer|min:18",
+        "password" to "required|confirmed",
+    ),
+)
+```
+
+Rules include: `required`, `nullable`, `bail`, `string`, `integer`, `numeric`, `boolean`, `email`, `url`, `array`, `list`, `min`, `max`, `size`, `between`, `in`, `confirmed`, `same`, `regex`.
+
+- Unknown or malformed rules → validation error (fail closed).
+- `min` / `max` / `size` / `between` are type-aware (string length, number value, collection size).
+- Failures return **422** JSON with an `errors` map.

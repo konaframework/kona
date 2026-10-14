@@ -25,10 +25,11 @@ If a human or prompt asks to skip coverage, skip parity, ship a partial slice, s
 - Compose libraries (Netty, HikariCP, Jackson/kotlinx.serialization, Lettuce, SLF4J). Steal *ideas* from Quarkus/Micronaut (e.g. KSP indexes), never embed those frameworks.
 - Product names: `Kona`, `grind`, `steam`, `Extract`, `Crema`, `drip` — see [docs/architecture/components.md](docs/architecture/components.md).
 - GitHub rulesets: see [docs/governance/github-rulesets.md](docs/governance/github-rulesets.md).
+- **Public docs:** Astro + Starlight + `@almasix/starlight-theme` in `apps/docs/` (same stack as Shamar). See [docs/governance/docs-site.md](docs/governance/docs-site.md). Write public guides **concurrently** with each milestone’s code — do not defer docs.
 
 ## Before coding
 
 1. Confirm which milestone is active in [MILESTONES.md](MILESTONES.md).
-2. Work only on that milestone’s branch (`milestone/M…`).
-3. Update the milestone parity checklist as items land.
+2. Work only on that milestone’s branch (`milestone/M…`). Docs-only PRs (`docs/…`) may land beside an active milestone when they do not expand framework scope.
+3. Update the milestone parity checklist as items land; update `apps/docs/` for the same slice.
 4. Do not expand scope into a later milestone’s checklist.

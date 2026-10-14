@@ -1,0 +1,31 @@
+---
+title: Routing
+description: Groups, named routes, resources, HEAD, 405, OPTIONS, and any().
+---
+
+## Basics
+
+```kotlin
+router.get("/", { Response.text("home") }).name("home")
+router.post("/users", handler)
+router.match(listOf("PUT", "PATCH"), "/users/{id}", handler)
+router.any("/health", { Response.text("ok") })
+```
+
+## Groups
+
+Kotlin DSL and Java fluent builders both apply prefix, name namespace, and middleware.
+
+## Method semantics
+
+- **HEAD** falls back to the matching **GET** route (body stripped by the kernel).
+- Path matches but method does not → **405** with `Allow`.
+- Automatic **OPTIONS** with `Allow` when no explicit OPTIONS route exists.
+- Trailing slashes are normalized; path parameters are URL-decoded.
+
+## Resources
+
+```kotlin
+router.resource("posts", PostsController())
+// posts.index, posts.show, posts.store, posts.update, posts.destroy
+```

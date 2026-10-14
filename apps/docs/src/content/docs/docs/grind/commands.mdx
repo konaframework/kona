@@ -1,0 +1,32 @@
+---
+title: new / serve / make
+description: grind new, grind serve, and grind make:controller.
+---
+
+## `grind new`
+
+```bash
+grind new my-app --lang=kotlin
+grind new my-app --lang=java
+grind new my-app --lang=kotlin --kona-version=0.1.0-SNAPSHOT
+```
+
+Emits `settings.gradle.kts`, `build.gradle.kts`, Gradle wrapper, `.env`, bootstrap, providers, routes, and a welcome controller. Dependencies resolve from `mavenLocal()` / Maven Central; pass `-Pkona.home=…` or `KONA_HOME` to include a local Kona checkout.
+
+## `grind serve`
+
+```bash
+grind serve
+grind serve --host=127.0.0.1 --port=8080
+grind serve --in-process --once
+```
+
+Finds the nearest Gradle project and runs `./gradlew run` (or `gradle`). `--in-process` loads compiled classes via `AppLoader` and calls `bootstrap.App.create`.
+
+## `grind make:controller`
+
+```bash
+grind make:controller Post
+```
+
+Rejects path traversal and invalid class names. Writes under `app/Http/Controllers`.

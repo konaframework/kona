@@ -1,0 +1,15 @@
+---
+title: Middleware
+description: Global and route middleware; pipeline wraps routing and errors.
+---
+
+Global middleware wraps **routing and exception handling**. A 404 or handled exception still flows back through outer middleware “after” logic.
+
+```kotlin
+val kernel = HttpKernel(router, listOf(RequestIdMiddleware()))
+kernel.pushMiddleware(LoggingMiddleware())
+```
+
+Route / group middleware runs inside the global stack, around the action only.
+
+`Middleware` receives `next: Handler`. Java calls `next.handle(req)`; Kotlin may use `next(req)`.

@@ -1,0 +1,17 @@
+{
+  "name": "kona",
+  "private": true,
+  "description": "Kona framework monorepo — JVM modules + docs site",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "docs:dev": "pnpm --filter @kona/docs dev",
+    "docs:build": "pnpm --filter @kona/docs build",
+    "docs:preview": "pnpm --filter @kona/docs preview",
+    "pages:build": "PUBLIC_SITE_URL=https://konaframework.dev pnpm --filter @kona/docs build",
+    "pages:gh": "PUBLIC_SITE_URL=https://konaframework.github.io PUBLIC_BASE_PATH=/kona/ pnpm --filter @kona/docs build"
+  },
+  "license": "Apache-2.0"
+}

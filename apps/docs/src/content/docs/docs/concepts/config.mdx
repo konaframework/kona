@@ -1,0 +1,21 @@
+---
+title: Config & env
+description: Nested dotted config, file load, and process-env-over-.env.
+---
+
+## Env
+
+`Env` loads `.env` then applies **real process environment** on top (process wins). `APP_DEBUG` defaults to **false**.
+
+## Config
+
+Nested maps with dotted keys:
+
+```kotlin
+config.set("app.name", "Demo")
+config.getString("app.name", "Kona")
+config.load(path.resolve("config/app.json")) // nested JSON object
+config.loadDirectory(path.resolve("config")) // file stem → top-level key
+```
+
+Supported files: `.properties` and JSON objects.

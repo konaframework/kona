@@ -1,0 +1,43 @@
+---
+title: Your first app
+description: Scaffold with grind new, register routes, and serve.
+---
+
+## Scaffold
+
+```bash
+grind new hello-kona --lang=kotlin
+# or: grind new hello-kona --lang=java
+cd hello-kona
+```
+
+`grind new` emits a Gradle app with wrapper, `.env`, `bootstrap/App`, `AppServiceProvider`, a welcome controller, and routes.
+
+## Boot shape
+
+Providers **register** before any **boot**. Prefer the builder:
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .boot()
+```
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .boot();
+```
+
+## Serve
+
+```bash
+./grind serve
+# defaults to 127.0.0.1 — set HOST/PORT in .env
+```
+
+`grind serve` runs `./gradlew run` in the project root. For tests or an already-compiled classpath, `--in-process` loads `bootstrap.App`.
+
+## Samples in the monorepo
+
+`samples/hello-kotlin` and `samples/hello-java` exercise providers, route groups, and middleware through the in-process `HttpKernel` without binding a port.
