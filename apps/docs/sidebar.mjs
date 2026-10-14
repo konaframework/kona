@@ -61,6 +61,12 @@ export async function buildSidebar() {
       ],
     },
     {
+      label: 'Crema',
+      items: [
+        { label: 'Views', slug: 'docs/crema' },
+      ],
+    },
+    {
       label: 'Cache & Redis',
       items: [
         { label: 'Cache', slug: 'docs/cache' },

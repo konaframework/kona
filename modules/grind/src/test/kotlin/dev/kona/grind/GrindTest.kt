@@ -53,6 +53,23 @@ class GrindTest {
     }
 
     @Test
+    fun makeView() {
+        val base = temp.resolve("views-proj")
+        Files.createDirectories(base)
+        assertEquals(0, MakeViewCommand().run(listOf("home", "--base=$base")))
+        assertTrue(Files.exists(base.resolve("resources/views/home.crema.html")))
+        assertEquals(0, MakeViewCommand().run(listOf("posts.show", "--base=$base")))
+        assertTrue(Files.exists(base.resolve("resources/views/posts/show.crema.html")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:view", "home", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:view")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:view", "Bad-Name", "--base=$base")))
+        assertEquals("CreateUsersTable", Names.studly("create_users_table"))
+        assertEquals("AB", Names.studly("a__b"))
+        assertEquals(0, MakeMigrationCommand().run(listOf("create_widgets_table", "--base=$base", "--lang=kotlin")))
+        assertEquals(0, MakeMigrationCommand().run(listOf("add_name_to_widgets_table", "--base=$base", "--lang=kotlin")))
+    }
+
+    @Test
     fun serveRequiresProject() {
         val empty = temp.resolve("empty")
         Files.createDirectories(empty)

@@ -15,6 +15,7 @@ dependencies {
     implementation(project(":kona-support"))
     implementation(project(":kona-redis"))
     implementation(project(":kona-cache"))
+    implementation(project(":kona-crema"))
     runtimeOnly(libs.h2)
 
     testImplementation(libs.junit.jupiter)

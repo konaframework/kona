@@ -64,4 +64,11 @@ class MainTest {
         assertEquals("https://demo.test/notes", result.get("signed"));
         assertEquals("pong", result.get("ping"));
     }
+
+    @Test
+    void cremaDemo() throws Exception {
+        var result = CremaDemo.run(temp);
+        assertTrue(result.get("file").contains("Hi Kona"));
+        assertEquals("pong 1", result.get("memory"));
+    }
 }

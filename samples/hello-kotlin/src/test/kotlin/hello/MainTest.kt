@@ -72,4 +72,11 @@ class MainTest {
         assertEquals("https://demo.test/notes", result["signed"])
         assertEquals("pong", result["ping"])
     }
+
+    @Test
+    fun cremaDemo() {
+        val result = CremaDemo.run(temp)
+        assertTrue(result["file"]!!.contains("Hi Kona"))
+        assertEquals("pong 1", result["memory"])
+    }
 }

@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M6 (M0–M5 complete).
+**Active milestone:** M7 (M0–M6 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -40,7 +40,7 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Middleware | M1 | done |
 | CSRF Protection | M3 | implemented (checklist) |
 | Validation | M1 | done |
-| Views (Crema) | M6 | pending |
+| Views (Crema) | M6 | implemented (checklist) |
 | Asset Bundling | M12 | pending |
 | URL Generation | M5 | implemented (checklist) |
 | Session | M3 | implemented (checklist) |
@@ -114,13 +114,13 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Crema: Getting Started | M6 | pending |
-| Rendering Views | M6 | pending |
-| Layouts & Inheritance | M6 | pending |
-| Components & Slots | M6 | pending |
-| Control Structures | M6 | pending |
-| Including Subviews | M6 | pending |
-| Stacks & Directives | M6 | pending |
+| Crema: Getting Started | M6 | done |
+| Rendering Views | M6 | done |
+| Layouts & Inheritance | M6 | done |
+| Components & Slots | M6 | done |
+| Control Structures | M6 | done |
+| Including Subviews | M6 | done |
+| Stacks & Directives | M6 | done |
 
 ### Language / editor
 
@@ -319,22 +319,22 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M6 — Crema (views)
 
-**Status:** active  
+**Status:** done  
 **Branch:** `milestone/M6-crema`
 
 **Parity slice:** Full Crema / Blade / Prism view layer menu.
 
 ### Parity checklist
 
-- [ ] Crema: Getting Started (`*.crema.html` / `*.crema.kt`)
-- [ ] Rendering views from controllers / responses
-- [ ] Layouts & inheritance (`@extends`, `@section`, `@yield`)
-- [ ] Components & slots
-- [ ] Control structures (`@if`, `@foreach`, …)
-- [ ] Including subviews
-- [ ] Stacks & directives
-- [ ] `grind` make:view (as applicable)
-- [ ] Docs: full Crema sidebar matching the Almasix view menu
+- [x] Crema: Getting Started (`*.crema.html` / `*.crema.kt`)
+- [x] Rendering views from controllers / responses
+- [x] Layouts & inheritance (`@extends`, `@section`, `@yield`)
+- [x] Components & slots
+- [x] Control structures (`@if`, `@foreach`, …)
+- [x] Including subviews
+- [x] Stacks & directives
+- [x] `grind` make:view (as applicable)
+- [x] Docs: full Crema sidebar matching the Almasix view menu
 
 ### In-scope modules
 
@@ -344,7 +344,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M7 — Queues, events, mail, notifications, filesystem
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M7-queue-events-mail-fs`
 
 **Parity slice:** Queues, Events, Mail, Notifications, File Storage.
