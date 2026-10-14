@@ -113,6 +113,50 @@ class CliTest {
         assertEquals("v", opt["k"])
     }
 
+    @Test
+    fun starterKitsOverlayFiles() {
+        val crema = temp.resolve("crema-app")
+        assertEquals(0, NewCommand().run(listOf(crema.toString(), "--kit=crema")))
+        assertTrue(Files.readString(crema.resolve("build.gradle.kts")).contains("kona-crema"))
+        assertTrue(Files.isRegularFile(crema.resolve("resources/views/welcome.crema.html")))
+        assertTrue(Files.readString(crema.resolve("bootstrap/App.kt")).contains("CremaServiceProvider"))
+        assertTrue(Files.readString(crema.resolve("README.md")).contains("Crema"))
+
+        val inertia = temp.resolve("inertia-app")
+        assertEquals(0, NewCommand().run(listOf(inertia.toString(), "--preset=inertia", "--lang=kotlin")))
+        assertTrue(Files.readString(inertia.resolve("build.gradle.kts")).contains("kona-inertia"))
+        assertTrue(Files.isRegularFile(inertia.resolve("package.json")))
+        assertTrue(Files.isRegularFile(inertia.resolve("vite.config.js")))
+        assertTrue(Files.isRegularFile(inertia.resolve("resources/js/app.js")))
+        assertTrue(Files.isRegularFile(inertia.resolve("app/Http/Middleware/HandleInertia.kt")))
+        assertTrue(Files.readString(inertia.resolve("app/Http/Controllers/WelcomeController.kt")).contains("Inertia.render"))
+
+        val brew = temp.resolve("brew-app")
+        assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew")))
+        assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-brew"))
+        assertTrue(Files.isRegularFile(brew.resolve("app/Brew/Counter.kt")))
+        assertTrue(Files.readString(brew.resolve("bootstrap/App.kt")).contains("BrewServiceProvider"))
+
+        val javaInertia = temp.resolve("java-inertia")
+        assertEquals(0, NewCommand().run(listOf(javaInertia.toString(), "--lang=java", "--kit=inertia")))
+        assertTrue(Files.readString(javaInertia.resolve("build.gradle.kts")).contains("kona-inertia"))
+        assertTrue(Files.isRegularFile(javaInertia.resolve("app/Http/Middleware/HandleInertia.java")))
+
+        assertEquals(1, KonaApplication().run(arrayOf("new", temp.resolve("badkit").toString(), "--kit=nope")))
+        assertThrows(KonaCliException::class.java) {
+            NewCommand().run(listOf(temp.resolve("x").toString(), "--preset=rails"))
+        }
+        assertThrows(KonaCliException::class.java) {
+            NewCommand().applyKit("kotlin", "nope", temp.resolve("z"), emptyMap())
+        }
+        // Empty overlays: unknown kit keys / unknown lang hit orEmpty branches.
+        val emptyOverlay = temp.resolve("empty-overlay")
+        Files.createDirectories(emptyOverlay)
+        NewCommand().overlayKit("missing-kit", "kotlin", emptyOverlay, emptyMap())
+        NewCommand().overlayKit("crema", "ruby", emptyOverlay, emptyMap())
+        assertEquals(0, NewCommand().run(listOf(temp.resolve("api-explicit").toString(), "--kit=api")))
+    }
+
     private fun assertNoPlaceholders(root: Path) {
         Files.walk(root).use { stream ->
             stream.filter { Files.isRegularFile(it) && !it.toString().endsWith(".jar") }.forEach {

@@ -82,4 +82,5 @@ fun main(args: Array<String>) {
     M9Demo.run().forEach(::println)
     M10Demo.run(args).forEach(::println)
     BrewDemo.run(args).forEach(::println)
+    InertiaDemo.run(args, java.nio.file.Files.createTempDirectory("inertia-demo")).forEach(::println)
 }

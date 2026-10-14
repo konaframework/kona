@@ -1,0 +1,43 @@
+---
+title: Starter kits
+description: Choose an application preset when you run kona new.
+---
+
+`kona new` scaffolds a Gradle app with a local `./grind` CLI. Use **`--kit`** (alias **`--preset`**) to pick a starting shape.
+
+```bash
+kona new my-app --kit=api
+kona new my-app --kit=crema --lang=kotlin
+kona new my-app --kit=inertia --lang=java
+kona new my-app --kit=brew
+```
+
+## Kits
+
+| Kit | Dependencies | What you get |
+|-----|--------------|--------------|
+| `api` (default) | `kona-http`, `kona-grind` | Minimal HTTP routes and JSON health check |
+| `crema` | + `kona-crema` | Crema welcome view and `CremaServiceProvider` |
+| `inertia` | + `kona-crema`, `kona-inertia` | Inertia middleware, root shell, Vite stubs, example page props |
+| `brew` | + `kona-crema`, `kona-brew` | Sample Brew counter on `/` with `brew.js` |
+
+## After scaffolding
+
+```bash
+cd my-app
+./grind serve
+```
+
+For Inertia frontends:
+
+```bash
+npm install
+npm run dev    # or npm run build
+./grind assets:vite
+```
+
+Artifacts resolve from **mavenLocal()** then Maven Central. From a Kona checkout run `./gradlew publishToMavenLocal`, or set `KONA_HOME` / `-Pkona.home` for a composite build.
+
+## Kotlin and Java
+
+Every kit has Kotlin and Java skeletons (`--lang=kotlin|java`). Controllers, providers, and routes match the language you choose; shared assets (views, `package.json`) are language-neutral.

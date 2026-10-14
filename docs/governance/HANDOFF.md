@@ -15,29 +15,31 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M10 — Broadcasting and search** (`main`, PR #16); parity round2 may also be on `main` (PR #18) |
-| In progress | **M11 — Brew (Reactive UI)** on `milestone/M11-reactive-ui` — implementation complete locally; parent commits/PR |
-| Next / active after M11 merge | **M12 — Inertia, asset bundling, starter kits** (`milestone/M12-inertia-assets-starters`) |
+| Last merged milestone | **M11 — Brew (Reactive UI)** on `main` |
+| In progress | **M12 — Inertia, asset bundling, starter kits** on `milestone/M12-inertia-assets-starters` — implementation complete locally; parent commits/PR |
+| Next / active after M12 merge | **M13 — Language support, LSP, editor setup** (`milestone/M13-ide-support`) |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) Almasix coverage ledger → through **M13** |
 | Docs brand | Primary `#FF9A00`, accent `#286291` (`apps/docs/src/styles/custom.css`) |
-| Docs shape | Still low-level (providers, explicit wiring). Trajectory: Laravel-style progressive guides (simple first, dig deeper later). Rewrite as features land — do not freeze the current structure. |
+| Docs shape | Progressive guides; rewrite as features land. |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Continuous M3→M13 (full Almasix menu); no pause between merges |
 
-## M11 Brew summary (for reviewers)
+## M12 Inertia summary (for reviewers)
 
-- Module: `modules/brew` → Maven `dev.kona:kona-brew`
-- Package: `dev.kona.brew` — `Component`, `BrewManager`, `BrewServiceProvider`, `Brew` facade, `brew.js`
-- HTTP: `POST /brew/message`, `GET /brew/brew.js`, alias `POST /_brew/update`
-- Docs: `apps/docs` sidebar group **Brew** (getting-started, components, events, forms)
-- Samples: `BrewDemo` in hello-kotlin / hello-java
+- Module: `modules/inertia` → Maven `dev.kona:kona-inertia`
+- Package: `dev.kona.inertia` — `Inertia`, `InertiaManager`, `HandleInertiaRequests`, `InertiaServiceProvider`
+- Assets: `dev.kona.inertia.assets` — `Vite` / `AssetManifest` (manifest + `public/hot`)
+- CLI: `kona new --kit=api|crema|inertia|brew` (alias `--preset`)
+- grind: `assets:vite` help command
+- Docs: sidebar **Inertia & assets** (Inertia, Vite, Starter kits)
+- Samples: `InertiaDemo` in hello-kotlin / hello-java
 
 ## How to resume the continuous session
 
 ```text
 Read AGENTS.md, MILESTONES.md, and docs/governance/continuous-autopilot.md.
-If milestone/M11-reactive-ui is not yet on main, finish that PR (commit → push → automerge).
-Otherwise active milestone is M12 — Inertia, asset bundling, starter kits.
+If milestone/M12-inertia-assets-starters is not yet on main, finish that PR (commit → push → automerge).
+Otherwise active milestone is M13 — Language support, LSP, editor setup.
 Run continuous autopilot: exhaust parity + 100% coverage + rewrite docs as needed →
 commit → PR → automerge → next milestone until the Almasix coverage ledger is fully done (through M13).
 Use Auto for all models. Never edit GitHub rulesets.
@@ -55,7 +57,7 @@ pnpm --filter @kona/docs build   # or: cd apps/docs && pnpm build
 
 Artifacts are `0.1.0-SNAPSHOT` from `mavenLocal()` unless `KONA_HOME` / `-Pkona.home` composite-builds a checkout.
 Publish with `./gradlew publishToMavenLocal` from this repo before expecting a scaffolded app to resolve deps.
-The skeleton only registers `HttpServiceProvider`; register Extract/Session/Auth/Queue/… providers when adopting those grind commands.
+Kits: `api` (default), `crema`, `inertia`, `brew`.
 
 ## Explicit wiring note (M2)
 

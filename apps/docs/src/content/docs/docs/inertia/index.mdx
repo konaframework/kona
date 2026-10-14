@@ -1,0 +1,110 @@
+---
+title: Inertia
+description: Serve modern single-page frontends with server-driven page props from Kona.
+---
+
+**Inertia** in Kona lets your JVM app return a **page object** — component name plus props — that a JavaScript client hydrates. The first visit is a normal HTML document; later navigations send the `X-Inertia` header and receive JSON.
+
+(Coffee nod: you can think of it as pressing the page into a portable shape. The public name stays Inertia.)
+
+## Register the provider
+
+```kotlin
+app.register(HttpServiceProvider())
+app.register(CremaServiceProvider()) // optional root view
+app.register(InertiaServiceProvider())
+app.boot()
+app.resolve(HttpKernel::class.java).pushMiddleware(HandleInertiaRequests())
+```
+
+```java
+app.register(new HttpServiceProvider());
+app.register(new CremaServiceProvider());
+app.register(new InertiaServiceProvider());
+app.boot();
+app.resolve(HttpKernel.class).pushMiddleware(new HandleInertiaRequests());
+```
+
+`InertiaServiceProvider` binds `InertiaManager` and the Vite [`AssetManifest`](/docs/assets/vite).
+
+## Render a page
+
+```kotlin
+router.get("/") {
+    Inertia.render("Pages/Home", mapOf("user" to mapOf("name" to "Ada")))
+}
+```
+
+```java
+router.get("/", request ->
+    Inertia.render("Pages/Home", Map.of("user", Map.of("name", "Ada")))
+);
+```
+
+| Visit | Response |
+|-------|----------|
+| First load (no `X-Inertia`) | HTML shell with `data-page='…json…'` |
+| `X-Inertia: true` | JSON `{ component, props, url, version }` plus `X-Inertia` / `X-Inertia-Version` |
+
+You can also pass the request explicitly: `Inertia.render(request, "Pages/Home", props)`.
+
+## Shared props and versioning
+
+```kotlin
+Inertia.share("appName", "Kona")
+Inertia.version("1") // or config inertia.version
+```
+
+Subclass the middleware to share per request:
+
+```kotlin
+class HandleInertia : HandleInertiaRequests() {
+    override fun share(request: Request) = mapOf("path" to request.path)
+    override fun version(request: Request) = "1"
+}
+```
+
+When an Inertia client sends `X-Inertia-Version` that does not match the server version, Kona responds with **409** so the client can reload.
+
+## Root template
+
+Config:
+
+| Key | Purpose |
+|-----|---------|
+| `inertia.root_view` | Crema view name (e.g. `app`) |
+| `inertia.root_html` | Plain HTML with `@page` (and optional `@vite`) |
+| `inertia.version` | Asset version string |
+| `inertia.public_path` | Directory for Vite `build/` and `hot` |
+
+Crema example (`resources/views/app.crema.html`):
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>{!! vite !!}</head>
+  <body>
+    <div id="app" data-page="{!! pageAttr !!}"></div>
+  </body>
+</html>
+```
+
+- `page` — raw JSON string  
+- `pageAttr` — HTML-escaped JSON for attributes  
+- `vite` — tags from [`Vite.tags`](/docs/assets/vite)
+
+## External redirects
+
+```kotlin
+Inertia.location("https://example.com")
+```
+
+Inertia clients get `409` with `X-Inertia-Location`; ordinary browsers get a `302` `Location` header.
+
+## Starter kit
+
+```bash
+kona new my-app --kit=inertia
+```
+
+See [Starter kits](/docs/starter-kits).

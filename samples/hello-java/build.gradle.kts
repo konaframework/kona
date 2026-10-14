@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":kona-broadcasting"))
     implementation(project(":kona-search"))
     implementation(project(":kona-brew"))
+    implementation(project(":kona-inertia"))
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

@@ -32,5 +32,6 @@ dependencies {
         api(project(":kona-broadcasting"))
         api(project(":kona-search"))
         api(project(":kona-brew"))
+        api(project(":kona-inertia"))
     }
 }

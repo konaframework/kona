@@ -1,0 +1,69 @@
+---
+title: Asset bundling with Vite
+description: Emit script and stylesheet tags from a Vite manifest or the Vite dev server.
+---
+
+Kona ships a small **Vite helper** inside `kona-inertia` (`dev.kona.inertia.assets`). It reads the standard Vite build output and optional hot file so your HTML (or Crema root view) can include the right tags in development and production.
+
+## Layout on disk
+
+```text
+public/
+  hot                 # optional: full URL of the Vite dev server
+  build/
+    manifest.json     # Vite manifest (npm run build)
+    assets/…
+```
+
+## Emit tags
+
+```kotlin
+Vite.tags("resources/js/app.js")
+// production:
+// <link rel="stylesheet" href="/build/assets/app.css">
+// <script type="module" src="/build/assets/app.js"></script>
+```
+
+```java
+Vite.tags("resources/js/app.js");
+```
+
+When `public/hot` exists (contents like `http://127.0.0.1:5173`), tags point at the Vite server instead:
+
+```html
+<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
+<script type="module" src="http://127.0.0.1:5173/resources/js/app.js"></script>
+```
+
+Resolve a single URL:
+
+```kotlin
+Vite.asset("resources/js/app.js") // /build/assets/… or hot URL
+```
+
+`InertiaServiceProvider` binds `AssetManifest` to `inertia.public_path` (default `<base>/public`) and sets the `Vite` facade.
+
+## grind help
+
+```bash
+./grind assets:vite
+```
+
+Prints the same setup checklist (no processes are started).
+
+## Typical frontend scripts
+
+```json
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  }
+}
+```
+
+Point Vite’s `build.outDir` at `public/build` and enable `build.manifest: true`. The Inertia starter kit (`kona new … --kit=inertia`) includes `package.json` and `vite.config.js` stubs.
+
+## Inertia root view
+
+With `inertia.root_view` set, the HTML shell receives a `vite` string you can print with `{!! vite !!}`. Default entry: `resources/js/app.js` (`InertiaManager.viteEntries`).

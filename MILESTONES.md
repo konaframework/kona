@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M12 (M0–M11 complete).
+**Active milestone:** M13 (M0–M12 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -41,7 +41,7 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | CSRF Protection | M3 | implemented (checklist) |
 | Validation | M1 | done |
 | Views (Crema) | M6 | implemented (checklist) |
-| Asset Bundling | M12 | pending |
+| Asset Bundling | M12 | done |
 | URL Generation | M5 | implemented (checklist) |
 | Session | M3 | implemented (checklist) |
 | Authentication | M3 | implemented (checklist) |
@@ -78,8 +78,8 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Search | M10 | implemented (checklist) |
 | Package Development | M8 | done |
 | Livewire / Conduit-class reactive UI | M11 | done |
-| Inertia | M12 | pending |
-| Starter Kits | M12 | pending |
+| Inertia | M12 | done |
+| Starter Kits | M12 | done |
 
 ### Security
 
@@ -455,17 +455,17 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M12 — Inertia, asset bundling, starter kits
 
-**Status:** active
+**Status:** done
 **Branch:** `milestone/M12-inertia-assets-starters`
 
 **Parity slice:** Inertia, Asset Bundling, Starter Kits.
 
 ### Parity checklist
 
-- [ ] Inertia adapter (SSR optional later; first-party client page props + middleware)
-- [ ] Asset bundling (Vite-class integration / grind-friendly frontend pipeline docs + hooks)
-- [ ] Starter kits (`kona new` presets: API, Crema, Inertia, reactive UI as available)
-- [ ] Docs + kit READMEs
+- [x] Inertia adapter (SSR optional later; first-party client page props + middleware)
+- [x] Asset bundling (Vite-class integration / grind-friendly frontend pipeline docs + hooks)
+- [x] Starter kits (`kona new` presets: API, Crema, Inertia, reactive UI as available)
+- [x] Docs + kit READMEs
 
 ### In-scope modules
 
@@ -475,7 +475,8 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M13 — Language support, LSP, editor setup
 
-**Status:** blocked  
+**Status:** active  
+
 **Branch:** `milestone/M13-ide-support` (may live partly in `ide-support` repo)
 
 **Parity slice:** Language support, Language server, Editor setup for Crema / grind / Extract DSLs.

@@ -90,6 +90,16 @@ class MainTest {
     }
 
     @Test
+    fun inertiaDemo() {
+        val lines = InertiaDemo.run(arrayOf("--base=$temp"), temp.resolve("public"))
+        assertEquals("html=true", lines[0])
+        assertEquals("json=true", lines[1])
+        assertEquals("conflict=409", lines[2])
+        assertEquals("vite=true", lines[3])
+        assertEquals("manifest=assets/app.js", lines[4])
+    }
+
+    @Test
     fun asyncDemo() {
         val result = AsyncDemo.run(temp)
         assertEquals("42", result["event"])

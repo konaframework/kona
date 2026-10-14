@@ -9,6 +9,7 @@ import dev.kona.http.Middleware;
 import dev.kona.http.Request;
 import dev.kona.http.Response;
 import dev.kona.http.Router;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,6 +105,11 @@ public final class Main {
         M9Demo.run().forEach(System.out::println);
         M10Demo.run(args).forEach(System.out::println);
         BrewDemo.run(args).forEach(System.out::println);
+        try {
+            InertiaDemo.run(args, Files.createTempDirectory("inertia-demo")).forEach(System.out::println);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private Main() {
