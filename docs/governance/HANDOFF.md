@@ -26,13 +26,14 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Merge habit | Enable automerge, but **once required CI is green, squash-merge immediately** if automerge stalls — do not wait forever |
 | Post-M13 sweep | Full `test`+`koverVerify` green; `hello-kotlin`/`hello-java` demos green; fresh `kona new` **api** (Kotlin+Java), **crema**, **brew**, **inertia** kits compile + HTTP smoke; Brew `/brew/message` increment OK; Inertia `X-Inertia` JSON OK; ~1.8k req/s GET `/` on api kit (local curl loop). Kit serve regressions live in `GeneratedAppBuildTest`. |
 | Crema parity | Blade + Prism app-facing surface on `main` (PR #24). Deferred: Vite manifest/hot, rich `<x-*>` attributes. |
-| Extract parity | Eloquent-shaped deepen on `fix/extract-eloquent-parity`: `firstOrCreate`/`updateOrCreate`, upserts, `whereHas`/`withCount`, scopes/`when`, pivot `toggle`/`syncWithoutDetaching`/`wherePivot`, `chunk`, `withoutEvents`/`saveQuietly`, `replicate`/`touch`/`is`, accessor hooks, `ExtractCollection` helpers. Docs rewritten under Extract sidebar. Deferred: morph*/through relations, custom cast classes, cursor/simple pagination. |
+| Extract parity | Eloquent-shaped deepen on `main` (PR #25). Deferred: morph*/through relations, custom cast classes, cursor/simple pagination. |
+| Kona Idea | Separate native IntelliJ plugin repo [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea) (`dev.kona.idea`) — Crema filetype, HTML-layered highlighter, directive completion, Grind run configs. TextMate path in monorepo is legacy. |
 
 ## M13 IDE / language support summary (for reviewers)
 
 - Grammar: `ide-support/crema/` — TextMate + language-configuration for `*.crema.html` / `*.crema.kt`
 - LSP: `modules/lsp` → Maven `dev.kona:kona-lsp`, package `dev.kona.lsp` — stdio JSON-RPC (`initialize`/`shutdown`/`exit`, completion, publishDiagnostics + pull diagnostic)
-- Editors: `ide-support/vscode-crema/`, `ide-support/intellij/README.md`
+- Editors: `ide-support/vscode-crema/`; native IntelliJ → [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea); legacy TextMate notes in `ide-support/intellij/README.md`
 - grind: `ide:lsp` prints how to run the jar (no long-lived process)
 - Docs: sidebar **Language / Editor** (Getting started, grammar, LSP, VS Code/Cursor, IntelliJ)
 

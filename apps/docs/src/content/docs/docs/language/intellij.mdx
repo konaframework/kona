@@ -1,44 +1,54 @@
 ---
 title: IntelliJ
-description: Use the Crema TextMate grammar and kona-lsp from IntelliJ IDEA.
+description: Install the native Kona Idea plugin for Crema in IntelliJ IDEA.
 ---
 
-IntelliJ can highlight Crema via **TextMate bundles** and optional LSP integration. Packaging notes also live in `ide-support/intellij/README.md`.
+IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.com/konaframework/kona-idea) — the same approach as other first-class JetBrains language plugins. Crema is a real file type with an HTML-layered highlighter, not a TextMate bundle.
 
-## TextMate bundle
+| | |
+| --- | --- |
+| Repository | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) |
+| Plugin id | `dev.kona.idea` |
+| Releases | [GitHub Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
+| Products | IntelliJ IDEA Community and Ultimate (2024.2+) |
 
-1. Open **Settings → Editor → TextMate Bundles**.
-2. Add the directory `ide-support/crema` (contains `crema.tmLanguage.json`).
-3. Ensure patterns cover `*.crema.html` and `*.crema.kt`.
-4. Reopen a Crema view to refresh highlighting.
+Installing, updating, or removing the plugin requires an IDE restart.
 
-If your IDE prefers a classic bundle layout:
+## Install
 
-```text
-Crema.tmbundle/
-  Syntaxes/crema.tmLanguage.json
+1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases).
+2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** and choose the zip.
+3. Restart when prompted.
+4. Open a Crema view (`resources/views/….crema.html` or `*.crema.kt`). Confirm the language chip shows **Crema** (not HTML).
+
+## What you get
+
+- Native Crema lexer: HTML colors plus `@directives`, `{{ }}`, `{!! !!}`, `{{-- --}}`
+- Directive completion (Ctrl+Space on `@…`)
+- Warnings for unknown `@name` tokens (emails like `hi@example.com` are ignored)
+- `{{` auto-closes as `{{  }}` with the caret in the middle
+- **Grind** run configuration type for `./grind …`
+- **Kona** menu → **Show kona-lsp Setup Help** (optional language server; not started by default)
+
+## Develop the plugin
+
+```bash
+git clone https://github.com/konaframework/kona-idea.git
+cd kona-idea
+./gradlew test
+./gradlew buildPlugin   # → build/distributions/*.zip
+./gradlew runIde        # sandboxed IntelliJ with the plugin loaded
 ```
 
-Copy the grammar from `ide-support/crema/crema.tmLanguage.json`.
+Keep `CremaDirectives` in the plugin in sync with `modules/lsp` `CremaDirectives` in this repository when you add template directives.
 
-## File types
+## Optional: TextMate or LSP only
 
-Under **Settings → Editor → File Types**, create or reuse a **Crema** type and register:
-
-- `*.crema.html`
-- `*.crema.kt`
-
-Pair this with the TextMate grammar for scopes; without TextMate you still get basic editing as HTML-like text.
-
-## Language server
-
-Build and run kona-lsp the same way as other editors:
+If you cannot install the zip, see the legacy TextMate notes in `ide-support/intellij/README.md`. For a stdio language server used by other tooling:
 
 ```bash
 ./gradlew :kona-lsp:jar
 java -jar modules/lsp/build/libs/kona-lsp-*.jar
 ```
 
-Point IntelliJ’s LSP-compatible client (where available for your build) at that command with stdio. Details of the protocol are on the [language server](/docs/language/lsp) page.
-
-`./grind ide:lsp` prints a short reminder from any Kona app project.
+Details: [Language server](/docs/language/lsp).
