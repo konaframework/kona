@@ -2,6 +2,17 @@
 
 Read this file and the **current milestone** section in [MILESTONES.md](MILESTONES.md) before writing any code.
 
+Cross-session resume: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).  
+Uninterrupted M3→… delivery: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md).
+
+## Models (locked)
+
+Use **Auto** (Cursor Auto / `inherit`) for the parent agent and all subagents. Do **not** pin named models unless a human explicitly overrides for that turn.
+
+## Continuous autopilot (locked)
+
+When running the long milestone session: after each milestone merges to `main`, **immediately** start the next — implement to full parity, write/rewrite docs, commit, PR with automerge — until remaining checklists are done. Do not pause between milestones for permission. Details: [continuous-autopilot.md](docs/governance/continuous-autopilot.md).
+
 ## Milestone laws (non-negotiable)
 
 1. **One active milestone at a time.** Do not start the next milestone until the current one is merged to `main`.
@@ -25,7 +36,7 @@ If a human or prompt asks to skip coverage, skip parity, ship a partial slice, s
 - Compose libraries (Netty, HikariCP, Jackson/kotlinx.serialization, Lettuce, SLF4J). Steal *ideas* from Quarkus/Micronaut (e.g. KSP indexes), never embed those frameworks.
 - Product names: `Kona`, global CLI `kona`, app-local `./grind`, `steam`, `Extract`, `Crema`, `drip` — see [docs/architecture/components.md](docs/architecture/components.md).
 - GitHub rulesets: see [docs/governance/github-rulesets.md](docs/governance/github-rulesets.md).
-- **Public docs:** Astro + Starlight + `@almasix/starlight-theme` in `apps/docs/`. See [docs/governance/docs-site.md](docs/governance/docs-site.md) and [`.cursor/rules/kona-docs.mdc`](.cursor/rules/kona-docs.mdc). Write guides **concurrently** with each milestone. Public pages must be **detailed** for programmers new to Kona, and must **not** compare Kona to other frameworks after a brief introduction nod.
+- **Public docs:** Astro + Starlight + `@almasix/starlight-theme` in `apps/docs/`. Brand: primary `#FF9A00`, accent `#286291`. See [docs/governance/docs-site.md](docs/governance/docs-site.md) and [`.cursor/rules/kona-docs.mdc`](.cursor/rules/kona-docs.mdc). Write or **rewrite** guides **concurrently** with each milestone. Trajectory: simple-first developer path (progressive depth), not a frozen low-level dump. Public pages must be **detailed** for programmers new to Kona, and must **not** compare Kona to other frameworks after a brief introduction nod.
 
 ## Before coding
 

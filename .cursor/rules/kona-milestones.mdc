@@ -36,4 +36,8 @@ Use Kona product names: `Kona`, `grind`, `steam`, `Extract`, `Crema`, `drip`. Ma
 
 ## Docs (concurrent)
 
-Public site: `apps/docs/` — Astro + Starlight + `@almasix/starlight-theme`. Update guides/sidebar with each milestone’s public API. Voice rules in `docs/governance/docs-site.md` and `.cursor/rules/kona-docs.mdc`: detailed for general programmers; no framework comparison culture after a brief intro nod.
+Public site: `apps/docs/` — Astro + Starlight + `@almasix/starlight-theme`. Primary `#FF9A00`, accent `#286291`. Update or rewrite guides/sidebar with each milestone’s public API. Voice rules in `docs/governance/docs-site.md` and `.cursor/rules/kona-docs.mdc`: detailed, progressive simple-first trajectory; no framework comparison culture after a brief intro nod.
+
+## Continuous autopilot + Auto
+
+See `.cursor/rules/kona-autopilot.mdc` and `docs/governance/continuous-autopilot.md`. Use Auto for models; after merge, immediately continue the next milestone.

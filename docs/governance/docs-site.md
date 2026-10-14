@@ -11,6 +11,15 @@ Stack: **Astro + Starlight + `@almasix/starlight-theme`**, pnpm workspace, Cloud
 
 Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) (globs `apps/docs/**`).
 
+## Brand (locked)
+
+| Token | Hex |
+|-------|-----|
+| Primary | `#FF9A00` |
+| Accent | `#286291` |
+
+CSS: `apps/docs/src/styles/custom.css` (`--kona-primary`, `--kona-accent`).
+
 ## Voice and depth (locked)
 
 1. **Audience.** Readers know programming and common web ideas (HTTP methods, JSON, packages, classes). They do **not** necessarily know any particular web framework’s jargon. Define every Kona concept (application, provider, container, middleware, grind, …) in plain language the first time it appears. Walk through *why* it exists and *when* it runs.
@@ -19,15 +28,17 @@ Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) 
 
 3. **Detail.** Prefer thorough guides over thin stubs. Include lifecycle notes, defaults, error behavior, and Kotlin **plus** Java examples for public surfaces.
 
-4. **Internal vs public.** Component maps that exist for agents under `docs/architecture/` stay out of the public site unless rewritten in Kona-only language.
+4. **Progressive path (trajectory).** Today’s public site still leans on low-level application wiring (explicit providers, registries). That is honest for the current API, but it is **not** the end state. As scaffolding and conventions land, **rewrite** guides so newcomers start with the simple path and only dig into providers/container internals later — developer-friendly progressive disclosure, not a disjoint dump of every knob on page one.
+
+5. **Internal vs public.** Component maps that exist for agents under `docs/architecture/` stay out of the public site unless rewritten in Kona-only language.
 
 ## Concurrent with milestones
 
-Public guides for a milestone’s API surface are written **in the same wave** as the code. Do not defer docs.
+Public guides for a milestone’s API surface are written **or rewritten** **in the same wave** as the code. Do not defer docs; do not treat early low-level pages as frozen.
 
 - Expand `apps/docs/sidebar.mjs` and `src/content/docs/` when new APIs land.
 - Kotlin and Java examples on public API pages.
-- `pnpm docs:dev` / `pnpm docs:build` from the repo root.
+- `pnpm --filter @kona/docs build` (or `cd apps/docs && pnpm build`) before merging docs-touching PRs.
 
 ## Deploy
 
