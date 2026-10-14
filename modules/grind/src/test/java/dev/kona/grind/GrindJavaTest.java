@@ -2,7 +2,6 @@ package dev.kona.grind;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -17,20 +16,23 @@ class GrindJavaTest {
     Path temp;
 
     @Test
-    void newAndLocateProjectFromJava() throws Exception {
-        GrindVersions versions = GrindVersions.load();
-        assertEquals(versions, GrindVersions.load("dev/kona/grind/grind.properties"));
-        assertThrows(GrindException.class, () -> GrindVersions.load("dev/kona/grind/absent.properties"));
-
+    void serveAndLocateProjectFromJava() throws Exception {
         Path app = temp.resolve("javaapp");
-        assertEquals(0, new GrindApplication().run(new String[] {"new", app.toString(), "--lang=java"}));
-        assertTrue(Files.readString(app.resolve("build.gradle.kts")).contains("dev.kona:kona-http:" + versions.getKona()));
+        Files.createDirectories(app);
+        Files.writeString(app.resolve("settings.gradle.kts"), "rootProject.name = \"javaapp\"\n");
+        Files.writeString(app.resolve("gradlew"), "#!/bin/sh\n");
+        app.resolve("gradlew").toFile().setExecutable(true);
 
         Path nested = app.resolve("app/Http/Controllers");
+        Files.createDirectories(nested);
         assertEquals(app, ServeCommand.findProjectRoot(nested));
         assertNull(ServeCommand.findProjectRoot(temp));
 
-        ProcessRunner runner = (command, dir, env) -> command.equals(List.of(app.resolve("gradlew").toString(), "run")) ? 0 : 1;
+        ProcessRunner runner =
+                (command, dir, env) -> command.equals(List.of(app.resolve("gradlew").toString(), "run")) ? 0 : 1;
         assertEquals(0, new ServeCommand(server -> kotlin.Unit.INSTANCE, runner, false).run(List.of("--base=" + app)));
+
+        assertEquals(1, new GrindApplication().run(new String[] {"new", "x"}));
+        assertTrue(new GrindApplication().run(new String[] {"help"}) == 0);
     }
 }

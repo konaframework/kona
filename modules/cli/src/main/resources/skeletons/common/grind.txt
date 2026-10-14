@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# App-local grind — run from the project root.
+set -euo pipefail
+DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+cd "$DIR"
+if [[ $# -eq 0 ]]; then
+  exec ./gradlew -q grind
+fi
+exec ./gradlew -q grind -PgrindArgs="$*"

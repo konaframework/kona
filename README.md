@@ -11,14 +11,21 @@
 | Kona | Laravel / Almasix | Role |
 |------|-------------------|------|
 | **Kona** | Laravel / Almasix core | Framework core, container, routing, boot |
-| **grind** | Artisan / `smith` | CLI |
+| **kona** (CLI) | `laravel` new | Global: create apps |
+| **grind** | Artisan / `smith` | App-local CLI (`./grind`) |
 | **steam** | Tinker | REPL (`grind steam`) |
 | **Extract** | Eloquent | ActiveRecord ORM |
 | **Crema** | Blade / Prism | Templates |
 | **drip** | HTTP client | Fluent client/SDK |
 
 ```text
-./grind | ./grind steam | Extract | *.crema.html | Kona.start(args)
+kona new my-app | cd my-app && ./grind | ./grind steam | Extract | *.crema.html
+```
+
+```bash
+./scripts/install-kona.sh   # global `kona` on ~/.local/bin
+kona new my-app
+cd my-app && ./grind serve
 ```
 
 ## Status

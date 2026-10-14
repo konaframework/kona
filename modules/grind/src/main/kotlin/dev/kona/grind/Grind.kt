@@ -3,7 +3,8 @@ package dev.kona.grind
 import kotlin.system.exitProcess
 
 /**
- * `grind` CLI entry — Artisan / smith equivalent.
+ * App-local `grind` CLI — serve and generate code inside a Kona application.
+ * Create apps with the global `kona new` command.
  */
 fun main(args: Array<String>) {
     exitProcess(GrindApplication().run(args))
@@ -18,8 +19,12 @@ class GrindApplication {
         return try {
             when (val command = args[0]) {
                 "serve" -> ServeCommand().run(args.drop(1))
-                "new" -> NewCommand().run(args.drop(1))
                 "make:controller" -> MakeControllerCommand().run(args.drop(1))
+                "new" -> {
+                    System.err.println("Create applications with the global CLI: kona new <name>")
+                    System.err.println("grind is app-local — run ./grind serve from inside a project.")
+                    1
+                }
                 else -> {
                     System.err.println("Unknown command: $command")
                     printHelp()
@@ -35,14 +40,16 @@ class GrindApplication {
     private fun printHelp() {
         println(
             """
-            Kona grind
+            grind — Kona app CLI (run from your project root)
 
             Usage:
-              grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
-                          [--in-process [--bootstrap=bootstrap.App] [--once]]
-              grind new <name> [--lang=kotlin|java] [--kona-version=x.y.z]
-              grind make:controller <Name> [--lang=kotlin|java] [--base=.]
-              grind help
+              ./grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
+                            [--in-process [--bootstrap=bootstrap.App] [--once]]
+              ./grind make:controller <Name> [--lang=kotlin|java] [--base=.]
+              ./grind help
+
+            Create a new application with:
+              kona new <name> [--lang=kotlin|java]
             """.trimIndent(),
         )
     }

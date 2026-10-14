@@ -6,8 +6,9 @@ Kona is a full-stack, developer-friendly web framework for the Java/Kotlin ecosy
 
 | Kona component | Laravel equivalent | Almasix equivalent | Role |
 | :--- | :--- | :--- | :--- |
-| **Kona** | Laravel | Almasix core | Framework core, service container, auto-wiring, routing, bootloader |
-| **grind** | Artisan | `smith` | CLI for scaffolding, migrations, serve, and command execution |
+| **Kona** (framework) | Laravel | Almasix core | Framework core, service container, auto-wiring, routing, bootloader |
+| **`kona` CLI** | `laravel` installer | — | Global CLI to create applications (`kona new`) |
+| **grind** | Artisan | `smith` | **App-local** CLI (`./grind`) for serve, generators, migrate, steam |
 | **steam** | Tinker | (REPL) | Interactive REPL in bootstrapped app context |
 | **Extract** | Eloquent | Almasix ORM | ActiveRecord ORM, query builder, relationships, migrations |
 | **Crema** | Blade / Prism | Prism | Server-side templates with layouts, directives, components |
@@ -16,20 +17,22 @@ Kona is a full-stack, developer-friendly web framework for the Java/Kotlin ecosy
 ## Ecosystem conventions
 
 ```text
-CLI Binary:      ./grind
-REPL Command:    ./grind steam
-View Files:      *.crema.html (or *.crema.kt)
-Model Base:      Extract
-Main Boot:       Kona.start(args)
+Global installer:  kona new my-app
+App CLI:           ./grind | ./grind steam
+View Files:        *.crema.html (or *.crema.kt)
+Model Base:        Extract
+Main Boot:         Kona.create(args).boot()
 ```
 
 ## Component specs (agent guidance)
 
-### `grind` (CLI)
+### `kona` (global CLI — `kona-cli`)
 
-Primary entry point for developer commands.
+Installed on the developer machine PATH. Primary command: `kona new --lang=kotlin|java`.
 
-Target commands: `grind serve`, `grind make:model`, `grind make:controller`, `grind make:migration`, `grind migrate`, `grind steam`, `grind new` (`--lang=kotlin|java`).
+### `grind` (app-local CLI — `kona-grind`)
+
+Shipped inside each generated application as `./grind`. Target commands: `./grind serve`, `./grind make:model`, `./grind make:controller`, `./grind make:migration`, `./grind migrate`, `./grind steam`. **Not** used to create new apps.
 
 ### `steam` (REPL)
 

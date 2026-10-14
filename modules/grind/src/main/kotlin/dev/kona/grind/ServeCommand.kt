@@ -29,7 +29,7 @@ class ServeCommand(
         val root = findProjectRoot(start)
             ?: throw GrindException(
                 "No Kona application found at $start (expected settings.gradle.kts or build.gradle.kts). " +
-                    "Create one with: grind new <name>",
+                    "Create one with: kona new <name>",
             )
         if (options["in-process"] == "true") {
             return serveInProcess(root, options)

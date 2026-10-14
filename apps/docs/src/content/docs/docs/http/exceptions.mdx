@@ -114,7 +114,7 @@ When debug mode is on, the default handler helps you diagnose problems locally:
 
 Validation responses are the same in both modes.
 
-The kernel registered by `HttpServiceProvider` reads debug mode from the `app.debug` config value, which comes from `APP_DEBUG` in the environment or `.env` (default `false`). Projects created by `grind new` set `APP_DEBUG=true` in `.env` for local work. **Set `APP_DEBUG=false` in production**, either in that environment’s `.env` or as a real environment variable, which takes precedence. To build a handler directly, pass the flag: `DefaultExceptionHandler(debug = true)` in Kotlin, `new DefaultExceptionHandler(true)` in Java.
+The kernel registered by `HttpServiceProvider` reads debug mode from the `app.debug` config value, which comes from `APP_DEBUG` in the environment or `.env` (default `false`). Projects created by `kona new` set `APP_DEBUG=true` in `.env` for local work. **Set `APP_DEBUG=false` in production**, either in that environment’s `.env` or as a real environment variable, which takes precedence. To build a handler directly, pass the flag: `DefaultExceptionHandler(debug = true)` in Kotlin, `new DefaultExceptionHandler(true)` in Java.
 
 ## Where exceptions are caught
 

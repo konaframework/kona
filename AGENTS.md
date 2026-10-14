@@ -23,7 +23,7 @@ If a human or prompt asks to skip coverage, skip parity, ship a partial slice, s
 - Language: Kotlin internals; Java apps supported equally (`dev.kona` artifacts).
 - Concurrency: Virtual Threads (JDK 21+); not coroutines-first HTTP.
 - Compose libraries (Netty, HikariCP, Jackson/kotlinx.serialization, Lettuce, SLF4J). Steal *ideas* from Quarkus/Micronaut (e.g. KSP indexes), never embed those frameworks.
-- Product names: `Kona`, `grind`, `steam`, `Extract`, `Crema`, `drip` — see [docs/architecture/components.md](docs/architecture/components.md).
+- Product names: `Kona`, global CLI `kona`, app-local `./grind`, `steam`, `Extract`, `Crema`, `drip` — see [docs/architecture/components.md](docs/architecture/components.md).
 - GitHub rulesets: see [docs/governance/github-rulesets.md](docs/governance/github-rulesets.md).
 - **Public docs:** Astro + Starlight + `@almasix/starlight-theme` in `apps/docs/`. See [docs/governance/docs-site.md](docs/governance/docs-site.md) and [`.cursor/rules/kona-docs.mdc`](.cursor/rules/kona-docs.mdc). Write guides **concurrently** with each milestone. Public pages must be **detailed** for programmers new to Kona, and must **not** compare Kona to other frameworks after a brief introduction nod.
 

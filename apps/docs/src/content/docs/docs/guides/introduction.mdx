@@ -114,7 +114,8 @@ A request to `GET /hello/kona` returns `{"message":"Hello, kona"}`. The rest of 
 - **Router** (`dev.kona.http.Router`): Maps an HTTP method plus a URL pattern (for example `GET /hello/{name}`) to a **handler**: a function that takes a `Request` and returns a `Response`.
 - **Middleware** (`dev.kona.http.Middleware`): A function that sits in front of a handler. It receives the request and a `next` handler, and may change the request, change the response, or answer immediately without calling `next` (for example, rejecting a request with `401`).
 - **HTTP kernel** (`dev.kona.http.HttpKernel`): The single entry point that turns a `Request` into a `Response`: it runs global middleware, asks the router for a matching route, runs that route's middleware and handler, and converts any thrown exception into an error response.
-- **grind**: Kona's command-line tool. It scaffolds new projects (`grind new`), runs them (`grind serve`), and generates classes (`grind make:controller`).
+- **kona** (global CLI): creates applications — `kona new my-app`.
+- **grind** (app-local CLI): lives in each project as `./grind` — `./grind serve`, `./grind make:controller`.
 
 ## The lifecycle, start to finish
 
@@ -138,7 +139,8 @@ Kona is organised into named components. The first three below ship today; the r
 |------|------|--------|
 | **Kona core** | Application, providers, container, config, env, logging (`kona-core`) | Available |
 | **Kona HTTP** | Router, middleware, HTTP kernel, validation, embedded server (`kona-http`) | Available |
-| **grind** | Command-line tool: `new`, `serve`, `make:controller` (`kona-grind`) | Available |
+| **kona** | Global CLI: `kona new` (`kona-cli`) | Available |
+| **grind** | App-local CLI: `./grind serve`, `make:controller` (`kona-grind`) | Available |
 | **steam** | Interactive shell inside a booted application | Planned |
 | **Extract** | Database models and query layer | Planned |
 | **Crema** | Server-side HTML templates | Planned |
@@ -153,7 +155,7 @@ Kona is organised into named components. The first three below ship today; the r
 
 ## Where to go next
 
-- [Installation](../installation/): JDK, Gradle, Kona artifacts, and installing grind.
-- [Your first app](../first-app/): `grind new`, a tour of the generated files, and a running server.
+- [Installation](../installation/): install global `kona`, then create an app.
+- [Your first app](../first-app/): `kona new`, then `./grind serve`.
 - [Kotlin and Java](../kotlin-java/): how the same APIs look from each language.
 - [Application & providers](../../concepts/application/): the boot sequence in depth.

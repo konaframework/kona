@@ -7,7 +7,7 @@ The **router** decides which code runs for an incoming request. A **route** is o
 
 ## Getting the router
 
-`HttpServiceProvider` registers one shared `Router` in the application container. Resolve it after the application has booted — in a provider’s `boot` method, or right after `boot()` in your bootstrap code. Applications created by `grind new` do the latter and pass the router to a `WebRoutes` class:
+`HttpServiceProvider` registers one shared `Router` in the application container. Resolve it after the application has booted — in a provider’s `boot` method, or right after `boot()` in your bootstrap code. Applications created by `kona new` do the latter and pass the router to a `WebRoutes` class:
 
 ```kotlin
 val app = Kona.create(args)

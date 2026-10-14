@@ -1,9 +1,53 @@
-/* Site-specific extras. Chrome (type, paper, code, header) comes from @almasix/starlight-theme. */
+/*
+ * Kona brand — primary #FF9A00, complementary accent #0066FF.
+ * Overrides @almasix/starlight-theme oranges for the whole site.
+ */
 
 :root {
-  --kona-brown: #6f4e37;
+  --kona-primary: #ff9a00;
+  --kona-primary-soft: #ffb84d;
+  --kona-primary-deep: #cc7a00;
+  --kona-accent: #0066ff;
+  --kona-accent-soft: #3d8bff;
+  --kona-accent-deep: #0047b3;
+  --kona-glow: rgba(255, 154, 0, 0.22);
+
+  --almasix-orange: var(--kona-primary);
+  --almasix-orange-soft: var(--kona-primary-soft);
+  --almasix-orange-deep: var(--kona-primary-deep);
+  --almasix-blue: var(--kona-accent-deep);
+  --almasix-blue-bright: var(--kona-accent-soft);
+  --almasix-glow: var(--kona-glow);
+
+  /* Dark mode (default :root in the Almasix theme) */
+  --sl-color-accent-low: #3d2a00;
+  --sl-color-accent: var(--kona-primary-soft);
+  --sl-color-accent-high: #ffe0a8;
+  --sl-color-text-accent: var(--kona-primary-soft);
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #fff0d6;
+  --sl-color-accent: var(--kona-primary);
+  --sl-color-accent-high: var(--kona-primary-deep);
+  --sl-color-text-accent: var(--kona-primary-deep);
+}
+
+/* Links and secondary emphasis use the complementary blue */
+:root {
+  --sl-color-bg-accent: var(--kona-primary);
+}
+
+a:not(.sl-link-button):hover {
+  color: var(--kona-accent-soft);
+}
+
+:root[data-theme='light'] a:not(.sl-link-button):hover {
+  color: var(--kona-accent);
 }
 
 .kona-callout {
   margin: 1.25rem 0;
+  border-left: 3px solid var(--kona-primary);
+  padding-left: 1rem;
 }

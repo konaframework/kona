@@ -1,17 +1,23 @@
-package dev.kona.grind
+package dev.kona.cli
 
+import dev.kona.grind.GrindApplication
+import dev.kona.grind.ProcessRunner
+import dev.kona.grind.ServeCommand
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 
 /**
- * Golden path: `grind new` output compiles with its own Gradle wrapper against Kona artifacts
- * (published to mavenLocal by the `test` task) and `grind serve` runs it.
+ * Golden path: `kona new` → Gradle build → `grind serve` / in-process HTTP.
  */
 class GeneratedAppBuildTest {
     @TempDir
@@ -19,11 +25,10 @@ class GeneratedAppBuildTest {
 
     @Test
     fun kotlinAppBuildsAndServes() {
-        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-grind:test")
+        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
         val app = temp.resolve("hello-kt")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin")))
 
-        // Default serve path: `./gradlew run` in the project root, PORT forwarded as env.
         val port = freePort()
         var spawnedBody = ""
         val runner = ProcessRunner { command, dir, env ->
@@ -47,7 +52,7 @@ class GeneratedAppBuildTest {
 
     @Test
     fun javaAppBuildsAndServes() {
-        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-grind:test")
+        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
         val app = temp.resolve("hello-java")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=java")))
         assertEquals(0, GrindApplication().run(arrayOf("make:controller", "Post", "--base=$app")))
@@ -95,4 +100,12 @@ class GeneratedAppBuildTest {
         }
         throw AssertionError("app did not answer $url:\n${output()}")
     }
+
+    private fun httpGet(url: String): HttpResponse<String> =
+        HttpClient.newHttpClient().send(
+            HttpRequest.newBuilder(URI.create(url)).GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+
+    private fun freePort(): Int = java.net.ServerSocket(0).use { it.localPort }
 }

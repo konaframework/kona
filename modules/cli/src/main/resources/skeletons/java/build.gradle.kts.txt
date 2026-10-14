@@ -1,0 +1,42 @@
+plugins {
+    java
+    application
+}
+
+group = "app"
+version = "0.1.0"
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation("dev.kona:kona-http:{{konaVersion}}")
+    implementation("dev.kona:kona-grind:{{konaVersion}}")
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+sourceSets["main"].java.setSrcDirs(listOf("app", "bootstrap", "routes"))
+sourceSets["main"].resources.setSrcDirs(listOf("resources"))
+
+application {
+    mainClass.set("bootstrap.App")
+}
+
+tasks.register<JavaExec>("grind") {
+    group = "kona"
+    description = "App-local grind CLI (serve, make:controller, …)"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dev.kona.grind.GrindKt")
+    standardInput = System.`in`
+    val grindArgs = project.findProperty("grindArgs") as String?
+    if (!grindArgs.isNullOrBlank()) {
+        args(grindArgs.split(Regex("\\s+")).filter { it.isNotEmpty() })
+    }
+}
