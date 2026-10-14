@@ -28,7 +28,8 @@ Register `QueueServiceProvider`. Configure `queue.default` and `queue.connection
 ./grind queue:flush
 ```
 
-Failed jobs are kept in `FailedJobProvider` (in-memory until a durable store lands).  
+Failed jobs default to an in-memory `FailedJobProvider`. Set `queue.failed.driver=file` and optionally `queue.failed.path` (default `storage/framework/failed_jobs.json`) to persist a JSON array on disk so retries survive process restart.
+
 `./grind queue:retry` **re-queues** the payload (attempts reset) onto the original connection/queue, then forgets the failed row.
 
 Backoff uses `availableAt` on the payload: array/Redis/database drivers skip jobs until the delay elapses (workers are not blocked with `Thread.sleep`).

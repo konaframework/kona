@@ -1,9 +1,9 @@
 ---
-title: Crema views
-description: Render HTML with Crema templates — layouts, sections, loops, and components.
+title: Getting started with Crema
+description: Render HTML views with Crema templates from Kotlin or Java.
 ---
 
-**Crema** is Kona’s server-side view engine. Templates live under `resources/views` as `*.crema.html` (or `*.crema.kt`) and use `@` directives plus `{{ }}` echoes.
+**Crema** is Kona’s server-side view engine. Templates live under `resources/views` as `*.crema.html` and use `@` directives plus `{{ }}` echoes.
 
 ## Render a view
 
@@ -23,61 +23,11 @@ return Response.html(html);
 
 `Crema.view(engine, name, data)` builds an HTML `Response` in one call. `View.with(...)` accumulates data before `render()` / `toResponse()`.
 
-## Echoes
-
-- `{{ name }}` — HTML-escaped output  
-- `{!! html !!}` — raw HTML  
-- `@@` — literal `@`
-
-## Layouts
+## Minimal template
 
 ```crema
-{{-- layouts/app.crema.html --}}
-<html>
-  <title>@yield('title', 'App')</title>
-  @yield('content')
-  @stack('scripts')
-</html>
-```
-
-```crema
-{{-- home.crema.html --}}
-@extends('layouts.app')
-@section('title', 'Home')
-@section('content')
-  Hello {{ name }}
-  @push('scripts')<script src="/app.js"></script>@endpush
-@endsection
-```
-
-Use `@parent` inside a section to merge with a parent section’s content.
-
-## Control flow
-
-```crema
-@if(ok) Yes @else No @endif
-@unless(ok) Hidden @endunless
-@foreach(items as item)
-  <li>{{ item }} ({{ loop.iteration }})</li>
-@endforeach
-@forelse(items as item)
-  {{ item }}
-@empty
-  None
-@endforelse
-```
-
-## Includes and components
-
-```crema
-@include('partials.nav')
-@includeIf('optional')
-@includeWhen(show, 'partials.banner')
-
-@component('alert')
-  @slot('title')Notice@endslot
-  Body text
-@endcomponent
+{{-- resources/views/home.crema.html --}}
+<h1>Hello {{ name }}</h1>
 ```
 
 ## Scaffolding
@@ -91,6 +41,15 @@ Creates `resources/views/....crema.html`.
 
 ## Config
 
-- Default path: `{basePath}/resources/views`  
-- Override: `view.path` in config  
-- App key for CSRF token in templates: pass `_token` in the data map for `@csrf`
+- Default path: `{basePath}/resources/views`
+- Override: `view.path` in config
+- CSRF: pass `_token` in the data map for `@csrf`
+
+## Next steps
+
+- [Rendering](/docs/crema/rendering) — echoes, `@json`, and escaping
+- [Layouts](/docs/crema/layouts) — `@extends`, `@section`, `@yield`
+- [Control structures](/docs/crema/control-structures) — `@if`, loops
+- [Includes](/docs/crema/includes) — partials and conditional includes
+- [Components](/docs/crema/components) — reusable slots
+- [Stacks](/docs/crema/stacks) — `@push` / `@stack` for scripts and styles

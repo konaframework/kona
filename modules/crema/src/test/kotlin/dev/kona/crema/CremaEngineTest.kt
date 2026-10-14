@@ -32,6 +32,8 @@ class CremaEngineTest {
             "for" to "@for(items as item){{ item }}@endfor",
             "each" to "@each(items as item){{ item }}@endeach",
             "csrf" to "@csrf",
+            "json" to "@json(\$user)",
+            "json-list" to "@json(items)",
             "escape" to "@@if",
             "cmp" to "{{ a == 1 }}{{ n >= 2 }}{{ n <= 2 }}",
         )
@@ -46,6 +48,12 @@ class CremaEngineTest {
         assertEquals("xy", crema.render("for", mapOf("items" to listOf("x", "y"))))
         assertEquals("ab", crema.render("each", mapOf("items" to listOf("a", "b"))))
         assertTrue(crema.render("csrf", mapOf("_token" to "t")).contains("value=\"t\""))
+        assertEquals(
+            """{"name":"Ada"}""",
+            crema.render("json", mapOf("user" to mapOf("name" to "Ada"))),
+        )
+        assertEquals("""[1,2]""", crema.render("json-list", mapOf("items" to listOf(1, 2))))
+        assertEquals("null", crema.render("json", emptyMap()))
         assertEquals("@if", crema.render("escape"))
         assertEquals("truetruetrue", crema.render("cmp", mapOf("a" to 1, "n" to 2)))
         assertEquals("<p></p><p></p>", crema.render("hello", emptyMap()))

@@ -1,6 +1,11 @@
 package dev.kona.testing
 
+import dev.kona.broadcasting.BroadcastManager
+import dev.kona.broadcasting.ShouldBroadcast
+import dev.kona.cache.ArrayCacheStore
+import dev.kona.cache.Repository
 import dev.kona.core.Config
+import dev.kona.events.EventDispatcher
 import dev.kona.filesystem.FilesystemAdapter
 import dev.kona.mail.LogTransport
 import dev.kona.mail.MailMessage
@@ -13,6 +18,7 @@ import dev.kona.notifications.NotificationSender
 import dev.kona.queue.Bus
 import dev.kona.queue.Job
 import dev.kona.queue.QueueManager
+import java.util.concurrent.CopyOnWriteArrayList
 
 /** Fake mailer backed by [LogTransport]. */
 class FakeMail {
@@ -51,6 +57,61 @@ class FakeNotification {
     fun assertSent(type: Class<out Notification>): Boolean =
         database.all().any { it["type"] == type.name } ||
             log.entries().any { it.contains("notify ${type.simpleName} ") }
+}
+
+/** Fake event dispatcher that records every [dispatch] call. */
+class FakeEvent {
+    val dispatcher = EventDispatcher()
+    private val recorded = CopyOnWriteArrayList<Any>()
+
+    fun dispatch(event: Any) {
+        recorded += event
+        dispatcher.dispatch(event)
+    }
+
+    fun events(): List<Any> = recorded.toList()
+
+    fun assertDispatched(type: Class<*>): Boolean = recorded.any { type.isInstance(it) }
+
+    fun clear() {
+        recorded.clear()
+        dispatcher.flush()
+    }
+}
+
+/** In-memory cache repository backed by [ArrayCacheStore]. */
+class FakeCache {
+    val store = ArrayCacheStore()
+    val repository = Repository(store)
+
+    fun get(key: String): Any? = repository.get(key)
+
+    @JvmOverloads
+    fun put(key: String, value: Any?, seconds: Long = 60): Boolean = repository.put(key, value, seconds)
+
+    fun forever(key: String, value: Any?): Boolean = repository.forever(key, value)
+
+    fun forget(key: String): Boolean = repository.forget(key)
+
+    fun flush(): Boolean = repository.flush()
+
+    fun has(key: String): Boolean = repository.has(key)
+}
+
+/** Fake broadcaster using the log driver; records via [BroadcastManager.log]. */
+class FakeBroadcast {
+    val manager = BroadcastManager(
+        Config().also {
+            it.set("broadcasting.default", "log")
+            it.set("broadcasting.connections.log.driver", "log")
+        },
+    )
+
+    fun broadcast(event: ShouldBroadcast) = manager.broadcast(event)
+
+    fun messages() = manager.log().messages()
+
+    fun clear() = manager.log().clear()
 }
 
 /** In-memory filesystem fake. */

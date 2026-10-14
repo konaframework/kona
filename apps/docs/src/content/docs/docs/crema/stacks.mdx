@@ -1,0 +1,30 @@
+---
+title: Stacks
+description: Push scripts and styles onto named stacks from child views.
+---
+
+Stacks collect fragments from child views (or includes) and print them where the layout yields the stack — typically before `</body>` for scripts.
+
+## Push and prepend
+
+```crema
+@push('scripts')
+  <script src="/app.js"></script>
+@endpush
+
+@prepend('scripts')
+  <script src="/vendor.js"></script>
+@endprepend
+```
+
+`@push` appends; `@prepend` inserts at the front of the stack.
+
+## Render the stack
+
+In the layout:
+
+```crema
+@stack('scripts')
+```
+
+Order with both push and prepend: prepended fragments first, then pushed ones in registration order.

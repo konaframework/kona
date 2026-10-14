@@ -10,7 +10,7 @@ class HttpServiceProvider : ServiceProvider {
             val router = c.resolve(Router::class.java)
             val root = app.config.getString("app.url") ?: ""
             val key = app.config.getString("app.key") ?: "kona-app-key"
-            UrlGenerator(router).setRoot(root).setKey(key)
+            UrlGenerator(router).setRoot(root).setKey(key).also { Url.setGenerator(it) }
         }
         app.container.singleton(HttpKernel::class.java) { c ->
             val router = c.resolve(Router::class.java)

@@ -1,0 +1,30 @@
+---
+title: Includes
+description: Include partial templates from Crema views.
+---
+
+Includes render another view into the current output, sharing a child context (isolated section/stack state, same data unless you nest further).
+
+## Always include
+
+```crema
+@include('partials.nav')
+```
+
+Resolves `resources/views/partials/nav.crema.html` (dotted name → path).
+
+## Optional include
+
+```crema
+@includeIf('optional.banner')
+```
+
+Renders nothing when the view file is missing (no error).
+
+## Conditional include
+
+```crema
+@includeWhen(show, 'partials.banner')
+```
+
+Renders the named view only when the first expression is truthy.

@@ -18,16 +18,58 @@ class TestingHarnessTest {
     @Test
     fun httpConsoleDatabaseAndFakes(@TempDir base: Path) {
         val app = TestApplication.create(base, HttpServiceProvider())
-        app.resolve(Router::class.java).get("/ping") { Response.json(mapOf("ok" to true)) }
-        app.resolve(Router::class.java).post("/echo") { r -> Response.json(mapOf("body" to r.body)) }
+        val router = app.resolve(Router::class.java)
+        router.get("/ping") { Response.json(mapOf("ok" to true, "user" to mapOf("name" to "Ada"))) }
+        router.get("/types") {
+            Response.json(
+                mapOf(
+                    "n" to null,
+                    "f" to 1.5,
+                    "i" to 7,
+                    "nested" to mapOf("list" to listOf(1, 2)),
+                    "s" to "x",
+                ),
+            )
+        }
+        router.post("/echo") { r -> Response.json(mapOf("body" to r.body)) }
+        router.put("/echo") { r -> Response.json(mapOf("method" to "PUT", "body" to r.body)) }
+        router.patch("/echo") { r -> Response.json(mapOf("method" to "PATCH", "body" to r.body)) }
+        router.delete("/gone") { Response.json(mapOf("deleted" to true)) }
 
         val http = HttpTestClient(app)
         http.get("/ping").assertOk().assertJsonContains("ok")
+        http.get("/ping").assertJsonPath("user.name", "Ada").assertJson("ok", true)
+        http.get("/types").assertJsonPath("n", null)
+        http.get("/types").assertJsonPath("f", 1.5)
+        http.get("/types").assertJsonPath("i", 7)
+        http.get("/types").assertJsonPath("i", 7L)
+        http.get("/types").assertJsonPath("nested.list", listOf(1, 2))
+        http.get("/types").assertJsonPath("nested", mapOf("list" to listOf(1, 2)))
+        http.get("/types").assertJsonPath("s", "x")
+        http.get("/types").assertJsonPath("i", "7")
+        http.get("/types").assertJsonPath("nested..list", listOf(1, 2))
+        assertThrows(IllegalArgumentException::class.java) { http.get("/types").assertJsonPath("n", "x") }
+        assertThrows(IllegalArgumentException::class.java) { http.get("/types").assertJsonPath("s", null) }
+        assertThrows(IllegalArgumentException::class.java) { http.get("/types").assertJsonPath("s", "nope") }
+        assertThrows(IllegalArgumentException::class.java) { http.get("/types").assertJsonPath("i", "8") }
+        TestResponse(Response.json(mapOf("a" to true))).assertJson("a", true)
         http.get("/ping", mapOf("X-Test" to "1")).assertOk()
         http.postJson("/echo", mapOf("a" to 1)).assertStatus(200).assertJsonContains("a")
         http.postJson("/echo", mapOf("b" to 2), mapOf("X-Test" to "1")).assertOk()
+        http.put("/echo", "plain").assertOk().assertJsonContains("PUT")
+        http.putJson("/echo", mapOf("k" to "v")).assertOk().assertJsonContains("k")
+        http.putJson("/echo", mapOf("k" to 1), mapOf("X-Test" to "1")).assertOk()
+        http.put("/echo").assertOk()
+        http.patch("/echo", "p").assertOk().assertJsonContains("PATCH")
+        http.patchJson("/echo", mapOf("p" to true)).assertOk().assertJsonContains("p")
+        http.patchJson("/echo", mapOf("p" to 2), mapOf("X-Test" to "1")).assertOk()
+        http.patch("/echo").assertOk()
+        http.delete("/gone").assertOk().assertJson("deleted", true)
+        http.delete("/gone", mapOf("X-Test" to "1")).assertOk()
         assertThrows(IllegalArgumentException::class.java) { http.get("/ping").assertStatus(404) }
         assertThrows(IllegalArgumentException::class.java) { http.get("/ping").assertJsonContains("missing") }
+        assertThrows(IllegalArgumentException::class.java) { http.get("/ping").assertJsonPath("user.name", "Wrong") }
+        assertThrows(IllegalArgumentException::class.java) { http.get("/ping").assertJsonPath("missing.path", 1) }
 
         val console = ConsoleTester()
         console.run("list").assertOk().assertSee("list")
@@ -94,6 +136,37 @@ class TestingHarnessTest {
         val logOnly = FakeNotification()
         logOnly.send(user, LogNotice())
         assertTrue(logOnly.assertSent(LogNotice::class.java))
+
+        val events = FakeEvent()
+        var heard = false
+        events.dispatcher.listen(OrderPlaced::class.java) { heard = true }
+        events.dispatch(OrderPlaced("o1"))
+        assertTrue(heard)
+        assertTrue(events.assertDispatched(OrderPlaced::class.java))
+        assertEquals(1, events.events().size)
+        events.clear()
+        assertTrue(events.events().isEmpty())
+
+        val cache = FakeCache()
+        assertTrue(cache.put("k", "v", 60))
+        assertEquals("v", cache.get("k"))
+        assertTrue(cache.has("k"))
+        assertTrue(cache.forever("f", 1))
+        assertTrue(cache.forget("k"))
+        assertTrue(cache.flush())
+
+        val broadcast = FakeBroadcast()
+        broadcast.broadcast(PingBroadcast())
+        assertEquals(1, broadcast.messages().size)
+        assertEquals("PingBroadcast", broadcast.messages().first().event)
+        broadcast.clear()
+        assertTrue(broadcast.messages().isEmpty())
+    }
+
+    data class OrderPlaced(val id: String)
+
+    class PingBroadcast : dev.kona.broadcasting.ShouldBroadcast {
+        override fun broadcastOn() = listOf(dev.kona.broadcasting.Channel.publicChannel("orders"))
     }
 
     class WelcomeNotice : dev.kona.notifications.Notification() {

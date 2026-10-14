@@ -1,0 +1,63 @@
+---
+title: Rendering
+description: Echoes, raw HTML, JSON encoding, and escaping in Crema templates.
+---
+
+Crema evaluates expressions against the data map (and nested maps / bean getters) passed to `render`.
+
+## Escaped echoes
+
+`{{ expr }}` prints the value with HTML escaping (`&`, `<`, `>`, quotes):
+
+```crema
+<p>Hello {{ name }}</p>
+```
+
+Empty or missing values render as an empty string.
+
+## Raw HTML
+
+`{!! expr !!}` prints without escaping — use only for trusted markup:
+
+```crema
+<div>{!! html !!}</div>
+```
+
+## Literal `@`
+
+Write `@@` when you need a literal at-sign in the output (for example documenting directives).
+
+## `@json`
+
+`@json($expr)` encodes a data value as JSON (Jackson). Useful for embedding structured data in scripts or attributes:
+
+```crema
+<script>
+  window.user = @json($user);
+</script>
+```
+
+```kotlin
+engine.render("page", mapOf("user" to mapOf("name" to "Ada", "id" to 1)))
+// → window.user = {"name":"Ada","id":1};
+```
+
+The expression uses the same resolver as echoes (`$user`, `user`, dotted paths, literals).
+
+## CSRF field
+
+```crema
+@csrf
+```
+
+Renders a hidden `_token` input when the data map includes `_token`.
+
+## Expressions
+
+Crema supports simple expressions in echoes and directives:
+
+- Literals: `true`, `false`, `null` / `nil`, numbers, `'strings'`
+- Comparisons: `==`, `!=`, `<`, `>`, `<=`, `>=`
+- Logic: `and`, `or`, `not`, `!`
+- Helpers: `isset(name)`, `empty(name)`
+- Paths: `user.name` (map keys or `getName()`-style getters)

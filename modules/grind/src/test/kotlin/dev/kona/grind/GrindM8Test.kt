@@ -7,6 +7,8 @@ import dev.kona.schedule.Schedule
 import dev.kona.schedule.ScheduleServiceProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -99,6 +101,30 @@ class GrindM8Test {
             Files.writeString(bad.resolve("META-INF/kona/providers"), "java.lang.String\n")
             PackageDiscovery.loadProviders(URLClassLoader(arrayOf(bad.toUri().toURL()), GrindM8Test::class.java.classLoader))
         }
+    }
+
+    @Test
+    fun appLoaderAutoRegistersPackagesWhenProvidersPresent() {
+        DemoPackageProvider.registered = false
+        val withPkg = fixtureProject(temp.resolve("auto-pkg"))
+        Files.createDirectories(withPkg.resolve("build/resources/main/META-INF/kona"))
+        Files.writeString(
+            withPkg.resolve("build/resources/main/META-INF/kona/providers"),
+            "dev.kona.grind.DemoPackageProvider\n",
+        )
+        val loader = AppLoader(withPkg, FixtureApp::class.java.name)
+        val app = loader.create(arrayOf("--base=$withPkg"))
+        assertTrue(DemoPackageProvider.registered)
+        assertNotNull(app.getProvider(DemoPackageProvider::class.java))
+
+        DemoPackageProvider.registered = false
+        val bare = fixtureProject(temp.resolve("no-pkg"))
+        val bareLoader = AppLoader(bare, FixtureApp::class.java.name)
+        bareLoader.create(arrayOf("--base=$bare"))
+        assertFalse(DemoPackageProvider.registered)
+        assertTrue(
+            bareLoader.discoverPackages(Application(temp.resolve("empty-disc")), bareLoader.classLoader!!).isEmpty(),
+        )
     }
 
     private fun assertFalseConfirm(out: ByteArrayOutputStream) {

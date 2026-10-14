@@ -17,4 +17,8 @@ PackageDiscovery.registerAll(app)
 PackageDiscovery.loadProviders(classLoader).forEach { app.register(it) }
 ```
 
-Apps typically call discovery during bootstrap so third-party jars can register themselves.
+## Automatic discovery with grind
+
+When you boot an app through `AppLoader` (for example `grind serve --in-process`), grind checks the app classloader for `META-INF/kona/providers`. If that file exists and lists providers, `PackageDiscovery.registerAll` runs after `bootstrap.App.create` returns. Providers already registered by the bootstrap are skipped (same class is registered only once).
+
+Place the file under your app’s `src/main/resources/META-INF/kona/providers` so it lands on `build/resources/main` after compile. Manual bootstrap apps can still call `PackageDiscovery.registerAll(app)` themselves.

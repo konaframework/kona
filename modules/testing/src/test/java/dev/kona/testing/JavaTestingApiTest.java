@@ -23,5 +23,16 @@ public class JavaTestingApiTest {
         FakeStorage storage = new FakeStorage();
         storage.put("f.txt", "x");
         assertTrue(storage.exists("f.txt"));
+        FakeEvent events = new FakeEvent();
+        events.dispatch("ping");
+        assertEquals(1, events.events().size());
+        FakeCache cache = new FakeCache();
+        cache.put("k", "v");
+        assertEquals("v", cache.get("k"));
+        FakeBroadcast broadcast = new FakeBroadcast();
+        assertTrue(broadcast.messages().isEmpty());
+        app.resolve(dev.kona.http.Router.class)
+                .put("/u", request -> Response.json(java.util.Map.of("ok", true)));
+        new HttpTestClient(app).putJson("/u", java.util.Map.of("a", 1)).assertOk().assertJson("ok", true);
     }
 }

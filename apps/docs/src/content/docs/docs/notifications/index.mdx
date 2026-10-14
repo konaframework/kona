@@ -17,4 +17,15 @@ class InvoicePaid : Notification() {
 app.resolve(NotificationSender::class.java).send(user, InvoicePaid())
 ```
 
-Register `MailServiceProvider` then `NotificationServiceProvider`. Channels: `mail` (needs `Mailer`), `database` (in-memory rows), `log`.
+Register `MailServiceProvider` then `NotificationServiceProvider`. Channels: `mail` (needs `Mailer`), `database`, `log`.
+
+## Database channel persistence
+
+By default `DatabaseChannel` keeps rows in memory for the process lifetime. Set `notifications.database.path` to a JSON file (absolute, or relative to the application base path) so rows are written to disk and reloaded on the next boot:
+
+```kotlin
+app.config.set("notifications.database.path", "storage/notifications.json")
+app.register(NotificationServiceProvider())
+```
+
+You can also construct `DatabaseChannel(path)` directly in tests without the provider.

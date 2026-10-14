@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.jackson.module.kotlin)
     api(libs.slf4j.api)
 
+    testImplementation(project(":kona-auth"))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
