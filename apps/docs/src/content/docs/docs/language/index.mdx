@@ -9,21 +9,27 @@ Kona ships **editor support** for Crema templates so you can edit `*.crema.html`
 
 | Piece | Location | Role |
 |-------|----------|------|
-| TextMate grammar | `ide-support/crema/` | Colors directives, echoes, comments |
+| TextMate grammar | `ide-support/crema/` | Shared scopes for VS Code / Cursor |
 | Language server | `modules/lsp` (`dev.kona:kona-lsp`) | Completions + diagnostics over LSP stdio |
 | VS Code / Cursor extension | `ide-support/vscode-crema/` | Language contribution + setup help |
-| IntelliJ notes | `ide-support/intellij/` | TextMate bundle / file types |
+| IntelliJ native plugin | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) | Crema file type, HTML-layered highlighter, Grind configs |
 
 ## Fastest path
 
-1. Open a Crema view in an editor that loads the grammar (see [VS Code & Cursor](/docs/language/vscode) or [IntelliJ](/docs/language/intellij)).
+### IntelliJ IDEA
+
+Install the [Kona Idea](https://github.com/konaframework/kona-idea/releases) zip (**Install Plugin from Disk…**), restart, and open a `*.crema.html` view — language should read **Crema**. Details: [IntelliJ](/docs/language/intellij).
+
+### VS Code / Cursor
+
+1. Open a Crema view with the [VS Code extension](/docs/language/vscode) (grammar from `ide-support/crema/`).
 2. Build the language server once:
 
    ```bash
    ./gradlew :kona-lsp:jar
    ```
 
-3. Point your editor’s LSP client at:
+3. Point the LSP client at:
 
    ```bash
    java -jar modules/lsp/build/libs/kona-lsp-*.jar
@@ -40,7 +46,7 @@ From an application project you can also print the same reminder without startin
 1. [Crema grammar](/docs/language/grammar) — what is highlighted and how to sync the TextMate files.
 2. [Language server](/docs/language/lsp) — protocol surface, Kotlin/Java usage in tests, running the jar.
 3. [VS Code & Cursor](/docs/language/vscode) — install the extension stub and wire `crema.lsp.jarPath`.
-4. [IntelliJ](/docs/language/intellij) — TextMate bundles and file type patterns.
+4. [IntelliJ](/docs/language/intellij) — native Kona Idea plugin (preferred) and optional LSP help.
 
 Crema template behavior itself (layouts, `@foreach`, stacks) is documented under [Crema](/docs/crema).
 
