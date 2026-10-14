@@ -296,6 +296,5 @@ class LspServer {
     companion object {
         const val PARSE_ERROR = -32700
         const val METHOD_NOT_FOUND = -32601
-        const val INTERNAL_ERROR = -32603
     }
 }
