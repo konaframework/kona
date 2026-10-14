@@ -16,6 +16,10 @@ Write for programmers who know **general** languages and web concepts (HTTP, JSO
 
 Sections must be **detailed**: what the piece is for, how it fits the request/boot lifecycle, concrete Kotlin **and** Java examples where the API is public, and what happens on success and failure. Prefer teaching over skimpy reference stubs.
 
+## Progressive path
+
+Lead with the simplest successful path a new app author can follow. Defer provider registries, container internals, and other low-level wiring to later sections or “going deeper” pages as higher-level conventions appear. Early docs may still document explicit wiring honestly — **rewrite** toward simple-first as the framework grows. Brand accent in CSS is `#286291` (primary remains `#FF9A00`).
+
 ## Independence (no comparison culture)
 
 Kona may give Laravel and Almasix a **brief nod once** in the introduction (inspiration). After that:

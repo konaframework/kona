@@ -3,9 +3,10 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M2 (M0–M1 complete).
+**Active milestone:** M3 (M0–M2 complete).
 
-Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).
+Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
+Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
 
 ---
 
@@ -82,8 +83,8 @@ Quality + parity audits: [docs/quality/M1-architecture-review.md](docs/quality/M
 
 ## M2 — Extract
 
-**Status:** active  
-**Branch:** `milestone/M2-extract`
+**Status:** done  
+**Branch:** `milestone/M2-extract` (merged)
 
 **Parity slice:** Eloquent / Almasix ORM.
 
@@ -110,7 +111,7 @@ Quality + parity audits: [docs/quality/M1-architecture-review.md](docs/quality/M
 
 ## M3 — Auth, session, cache
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M3-auth-session-cache`
 
 ### Parity checklist

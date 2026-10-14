@@ -1,0 +1,18 @@
+---
+description: Continuous milestone autopilot + Auto model default
+alwaysApply: true
+---
+
+# Continuous autopilot + Auto models
+
+Full text: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
+
+## Models
+
+Always use **Auto** (Cursor Auto / `inherit`) for this agent and every subagent/Task. Do **not** select named models (Opus, Sonnet, GPT, Grok, etc.) unless the human explicitly requests a model for that turn.
+
+## Continuous drill
+
+After a milestone merges to `main`, immediately start the next active milestone. Loop: exhaust parity → 100% coverage → docs write/rewrite → commit → PR → automerge → next. Do not pause between milestones for permission.
+
+Stop only for ruleset blocks (Law 9), security/destructive approvals, or unrecoverable environment failure.

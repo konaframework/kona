@@ -1,5 +1,5 @@
 /*
- * Kona brand — primary #FF9A00, complementary accent #0066FF.
+ * Kona brand — primary #FF9A00, complementary accent #286291.
  * Overrides @almasix/starlight-theme oranges for the whole site.
  */
 
@@ -7,9 +7,9 @@
   --kona-primary: #ff9a00;
   --kona-primary-soft: #ffb84d;
   --kona-primary-deep: #cc7a00;
-  --kona-accent: #0066ff;
-  --kona-accent-soft: #3d8bff;
-  --kona-accent-deep: #0047b3;
+  --kona-accent: #286291;
+  --kona-accent-soft: #4a8ab8;
+  --kona-accent-deep: #1c4668;
   --kona-glow: rgba(255, 154, 0, 0.22);
 
   --almasix-orange: var(--kona-primary);
