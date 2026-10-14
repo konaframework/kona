@@ -1,11 +1,16 @@
 package routes;
 
 import app.Http.Controllers.WelcomeController;
+import dev.kona.http.Response;
 import dev.kona.http.Router;
+import java.util.Map;
 
 public class WebRoutes {
     public void register(Router router) {
         WelcomeController welcome = new WelcomeController();
         router.get("/", welcome::index).name("welcome");
+        router.prefix("/api").name("api.").group(api -> {
+            api.get("/health", request -> Response.json(Map.of("status", "ok"))).name("health");
+        });
     }
 }

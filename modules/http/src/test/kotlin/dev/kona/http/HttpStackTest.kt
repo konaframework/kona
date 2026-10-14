@@ -113,9 +113,9 @@ class HttpStackTest {
         assertEquals("json-file", kernel.handle(Request.get("/file.json")).body)
         assertEquals(null, Request.get("/").getAttribute("missing"))
         // method mismatch on parameterized route
-        assertEquals(404, kernel.handle(Request.post("/posts/9")).status)
-        // min/max with null-equivalent missing fields treated as empty
-        assertTrue(Validator.make(emptyMap(), mapOf("n" to listOf("min:1"))).fails())
+        assertEquals(405, kernel.handle(Request.post("/posts/9")).status)
+        // Laravel: non-implicit rules are skipped for missing fields
+        assertTrue(Validator.make(emptyMap(), mapOf("n" to listOf("min:1"))).passes())
         assertTrue(Validator.make(mapOf("n" to "abcd"), mapOf("n" to listOf("min:1", "max:10"))).passes())
         assertTrue(Validator.make(mapOf("n" to "toolong"), mapOf("n" to listOf("max:3"))).fails())
         assertTrue(Validator.make(mapOf("n" to "ok"), mapOf("n" to listOf("max:3"))).passes())
@@ -201,6 +201,14 @@ class HttpStackTest {
                 HttpResponse.BodyHandlers.ofString(),
             ).statusCode(),
         )
+        val head = client.send(
+            HttpRequest.newBuilder(URI.create("http://127.0.0.1:$free/"))
+                .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                .build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(200, head.statusCode())
+        assertEquals("", head.body())
         assertEquals(
             200,
             client.send(

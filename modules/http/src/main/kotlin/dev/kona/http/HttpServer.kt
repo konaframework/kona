@@ -40,7 +40,7 @@ class KonaHttpServer(
     internal fun dispatch(exchange: HttpExchange) {
         val request = readRequest(exchange)
         val response = kernel.handle(request)
-        writeResponse(exchange, response)
+        writeResponse(exchange, response, request.method.equals("HEAD", ignoreCase = true))
     }
 
     private fun readRequest(exchange: HttpExchange): Request {
@@ -53,14 +53,15 @@ class KonaHttpServer(
         return Request(method, path, headers, query, body)
     }
 
-    private fun writeResponse(exchange: HttpExchange, response: Response) {
+    private fun writeResponse(exchange: HttpExchange, response: Response, head: Boolean) {
         response.headers.forEach { (k, v) -> exchange.responseHeaders.add(k, v) }
         val bytes = response.body.toByteArray(Charsets.UTF_8)
-        exchange.sendResponseHeaders(response.status, if (response.status == 204) -1 else bytes.size.toLong())
-        if (response.status != 204) {
-            exchange.responseBody.use { it.write(bytes) }
-        } else {
+        if (head || response.status == 204) {
+            exchange.sendResponseHeaders(response.status, -1)
             exchange.responseBody.close()
+        } else {
+            exchange.sendResponseHeaders(response.status, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
         }
     }
 

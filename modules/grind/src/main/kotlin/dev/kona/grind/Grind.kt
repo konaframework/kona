@@ -39,8 +39,9 @@ class GrindApplication {
 
             Usage:
               grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
-              grind new <name> [--lang=kotlin|java]
-              grind make:controller <Name>
+                          [--in-process [--bootstrap=bootstrap.App] [--once]]
+              grind new <name> [--lang=kotlin|java] [--kona-version=x.y.z]
+              grind make:controller <Name> [--lang=kotlin|java] [--base=.]
               grind help
             """.trimIndent(),
         )

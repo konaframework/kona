@@ -1,0 +1,10 @@
+rootProject.name = "{{appName}}"
+
+// Build against a local Kona checkout instead of published artifacts:
+//   ./gradlew run -Pkona.home=/path/to/kona   (or export KONA_HOME=/path/to/kona)
+val konaHome = providers.gradleProperty("kona.home")
+    .orElse(providers.environmentVariable("KONA_HOME"))
+    .orNull
+if (konaHome != null) {
+    includeBuild(konaHome)
+}

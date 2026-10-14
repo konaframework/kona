@@ -3,27 +3,38 @@ package dev.kona.core
 import java.nio.file.Path
 
 /**
- * Framework entry facade — `Kona.start(args)`.
+ * Framework entry facade.
+ *
+ * ```kotlin
+ * Kona.create(args).providers(HttpServiceProvider()).configure { it.set("app.debug", true) }.boot()
+ * ```
+ *
+ * `create` loads `.env` and the `config/` directory from the base path and seeds `app.*`
+ * defaults before user configurers run; every provider registers before any provider boots.
  */
 object Kona {
     @Volatile
     private var app: Application? = null
 
     @JvmStatic
-    fun start(args: Array<String>): Application {
-        val base = resolveBasePath(args)
-        Env.load(base.resolve(".env"))
-        val application = Application(base)
-        application.config.set("app.name", Env.getOrDefault("APP_NAME", "Kona"))
-        application.config.set("app.env", Env.getOrDefault("APP_ENV", "local"))
-        application.config.set("app.debug", Env.getOrDefault("APP_DEBUG", "false").toBoolean())
-        application.boot()
-        app = application
-        return application
+    fun create(args: Array<String>): Application.Builder = create(resolveBasePath(args))
+
+    @JvmStatic
+    fun create(basePath: Path): Application.Builder {
+        val builder = Application.Builder(basePath.toAbsolutePath().normalize())
+        builder.bootstrappers.add(::bootstrap)
+        builder.onBooted.add { app = it }
+        return builder
     }
 
     @JvmStatic
-    fun start(basePath: Path): Application = start(arrayOf("--base=$basePath"))
+    fun create(): Application.Builder = create(emptyArray())
+
+    @JvmStatic
+    fun start(args: Array<String>): Application = create(args).boot()
+
+    @JvmStatic
+    fun start(basePath: Path): Application = create(basePath).boot()
 
     @JvmStatic
     fun app(): Application =
@@ -33,6 +44,15 @@ object Kona {
     fun reset() {
         app = null
         Env.clear()
+    }
+
+    private fun bootstrap(application: Application) {
+        Env.load(application.path(".env"))
+        val config = application.config
+        config.set("app.name", Env.getOrDefault("APP_NAME", "Kona"))
+        config.set("app.env", Env.getOrDefault("APP_ENV", "local"))
+        config.set("app.debug", Config.toBoolean(Env.getOrDefault("APP_DEBUG", "false")) ?: false)
+        config.loadDirectory(application.path("config"))
     }
 
     private fun resolveBasePath(args: Array<String>): Path {
