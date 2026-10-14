@@ -1,0 +1,45 @@
+---
+title: Search
+description: Index records and query them with Scout-class search.
+---
+
+**Search** indexes application records and runs full-text-style queries against a pluggable engine.
+
+## Register
+
+```kotlin
+app.register(SearchServiceProvider())
+```
+
+| Key | Meaning |
+|-----|---------|
+| `search.default` | Engine name (default `collection`) |
+| `search.engines.{name}.driver` | `collection`, `array`, or `memory` |
+
+## Searchable types
+
+```kotlin
+data class Post(val id: String, val title: String) : Searchable {
+    override fun searchableAs() = "posts"
+    override fun getScoutKey() = id
+    override fun toSearchableArray() = mapOf("title" to title)
+}
+```
+
+## Index and query
+
+```kotlin
+Scout.update(post)
+val result = Scout.search("posts", "kona")
+result.keys() // matching scout keys
+Scout.remove(post)
+```
+
+```java
+Scout.update(article);
+SearchResult result = Scout.search("articles", "kona");
+```
+
+## Collection engine
+
+The built-in **collection** engine keeps documents in memory and matches when the query appears in any indexed field (case-insensitive). It is the concrete driver for local development and tests; additional engines can implement `Engine`.

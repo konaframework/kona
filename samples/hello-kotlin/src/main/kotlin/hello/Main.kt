@@ -80,4 +80,5 @@ fun main(args: Array<String>) {
     NotesDemo.run().forEach(::println)
     SecurityDemo.run(args).forEach(::println)
     M9Demo.run().forEach(::println)
+    M10Demo.run(args).forEach(::println)
 }
