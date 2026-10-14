@@ -62,6 +62,7 @@ class NewCommand(
     private fun destination(relative: String): String =
         when (relative) {
             "gitignore.txt" -> ".gitignore"
+            "env.txt" -> ".env"
             "grind.txt" -> "grind"
             "grind.bat.txt" -> "grind.bat"
             else -> relative.removeSuffix(".txt")
@@ -81,7 +82,7 @@ class NewCommand(
         private val SKELETONS = mapOf(
             "kotlin" to listOf(
                 "README.md",
-                ".env",
+                "env.txt",
                 "settings.gradle.kts.txt",
                 "build.gradle.kts.txt",
                 "bootstrap/App.kt.txt",
@@ -91,7 +92,7 @@ class NewCommand(
             ),
             "java" to listOf(
                 "README.md",
-                ".env",
+                "env.txt",
                 "settings.gradle.kts.txt",
                 "build.gradle.kts.txt",
                 "bootstrap/App.java.txt",

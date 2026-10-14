@@ -25,7 +25,8 @@ Thumbs.db
 # Local env (keep grind skeleton templates)
 .env
 .env.local
-!modules/grind/src/main/resources/skeletons/**/.env
+!modules/cli/src/main/resources/skeletons/**/.env
+!modules/cli/src/main/resources/skeletons/**/env.txt
 *.log
 
 # Coverage / test
