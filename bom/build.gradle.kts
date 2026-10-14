@@ -25,5 +25,9 @@ dependencies {
         api(project(":kona-schedule"))
         api(project(":kona-grind"))
         api(project(":kona-cli"))
+        api(project(":kona-drip"))
+        api(project(":kona-process"))
+        api(project(":kona-concurrency"))
+        api(project(":kona-testing"))
     }
 }

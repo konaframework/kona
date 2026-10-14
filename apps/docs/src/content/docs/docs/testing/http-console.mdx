@@ -1,0 +1,38 @@
+---
+title: HTTP & console tests
+description: In-process HTTP client and grind console capture.
+---
+
+## HTTP
+
+`HttpTestClient` resolves `HttpKernel` from the booted app and runs requests without opening a socket.
+
+```kotlin
+val http = HttpTestClient(app)
+http.get("/ping").assertOk().assertJsonContains("ok")
+http.postJson("/users", mapOf("name" to "Ada")).assertStatus(201)
+```
+
+Available assertions:
+
+| Method | Behavior |
+|--------|----------|
+| `assertStatus(code)` | Exact status |
+| `assertOk()` | Status `200` |
+| `assertJsonContains(fragment)` | Body contains the substring |
+| `status()` / `body()` | Raw values for custom asserts |
+
+Register routes in a provider `boot` method (or after boot) before calling the client.
+
+## Console (grind)
+
+`ConsoleTester` runs grind and captures stdout:
+
+```kotlin
+ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertSee("schedule:run")
+```
+
+Pass the same flags you would on the CLI (`--base=…`, `--bootstrap=…`, `-q`, and so on).

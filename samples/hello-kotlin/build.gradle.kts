@@ -21,6 +21,9 @@ dependencies {
     implementation(project(":kona-mail"))
     implementation(project(":kona-notifications"))
     implementation(project(":kona-filesystem"))
+    implementation(project(":kona-drip"))
+    implementation(project(":kona-process"))
+    implementation(project(":kona-concurrency"))
     runtimeOnly(libs.h2)
 
     testImplementation(libs.junit.jupiter)

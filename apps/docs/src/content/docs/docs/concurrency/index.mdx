@@ -1,0 +1,38 @@
+---
+title: Concurrency
+description: Virtual-thread helpers for parallel map and task lists.
+---
+
+**Concurrency** helpers run work on JDK virtual threads so you can fan out CPU-light or IO-bound work without managing a thread pool by hand.
+
+## Parallel map
+
+```kotlin
+val doubled = Concurrency.map(listOf(1, 2, 3)) { it * 2 }
+```
+
+```java
+List<Integer> doubled = Concurrency.map(List.of(1, 2, 3), n -> n * 2);
+```
+
+Empty input returns an empty list without starting an executor.
+
+## Task list
+
+```kotlin
+val results = Concurrency.run(
+    listOf(
+        Callable { fetchA() },
+        Callable { fetchB() },
+    )
+)
+```
+
+```java
+List<String> results = Concurrency.run(List.of(
+    (Callable<String>) () -> fetchA(),
+    (Callable<String>) () -> fetchB()
+));
+```
+
+Results preserve input order. Exceptions from a task propagate when the future is collected.

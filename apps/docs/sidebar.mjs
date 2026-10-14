@@ -112,5 +112,21 @@ export async function buildSidebar() {
         { label: 'Packages', slug: 'docs/packages' },
       ],
     },
+    {
+      label: 'HTTP client & jobs',
+      items: [
+        { label: 'drip (HTTP client)', slug: 'docs/drip' },
+        { label: 'Processes', slug: 'docs/processes' },
+        { label: 'Concurrency', slug: 'docs/concurrency' },
+      ],
+    },
+    {
+      label: 'Testing',
+      items: [
+        { label: 'Getting started', slug: 'docs/testing' },
+        { label: 'HTTP & console', slug: 'docs/testing/http-console' },
+        { label: 'Database & fakes', slug: 'docs/testing/database-fakes' },
+      ],
+    },
   ];
 }
