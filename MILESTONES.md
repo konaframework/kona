@@ -50,22 +50,25 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 
 ### Parity checklist
 
-- [ ] Application boot (`Kona.start`)
-- [ ] Service container (bind / singleton / resolve)
-- [ ] Service providers (register / boot)
-- [ ] Config + env
-- [ ] HTTP request / response
-- [ ] Middleware pipeline
-- [ ] Router (groups, prefixes, named routes, resource-style registration)
-- [ ] Kotlin route DSL **and** Java fluent registration
-- [ ] Exception handling
-- [ ] Logging
-- [ ] Validation (request rules)
-- [ ] `grind serve`
-- [ ] `grind new` (`--lang=kotlin|java`)
-- [ ] `grind make:controller`
-- [ ] Kotlin hello sample
-- [ ] Java hello sample (no Kotlin sources in the Java app)
+Implementation landed on branch; **formal Laravel/Almasix parity inspection still pending** before M1 merge.
+
+- [x] Application boot (`Kona.start`)
+- [x] Service container (bind / singleton / resolve)
+- [x] Service providers (register / boot)
+- [x] Config + env
+- [x] HTTP request / response
+- [x] Middleware pipeline
+- [x] Router (groups, prefixes, named routes, resource-style registration)
+- [x] Kotlin route DSL **and** Java fluent registration
+- [x] Exception handling
+- [x] Logging
+- [x] Validation (request rules)
+- [x] `grind serve`
+- [x] `grind new` (`--lang=kotlin|java`)
+- [x] `grind make:controller`
+- [x] Kotlin hello sample
+- [x] Java hello sample (no Kotlin sources in the Java app)
+- [ ] Parity inspection vs Laravel/Almasix (behavioral review — gate for merge)
 
 ### In-scope modules
 

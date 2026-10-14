@@ -1,0 +1,12 @@
+package routes
+
+import dev.kona.http.Response
+import dev.kona.http.Router
+import app.Http.Controllers.WelcomeController
+
+class WebRoutes {
+    fun register(router: Router) {
+        val welcome = WelcomeController()
+        router.get("/") { welcome.index(it) }.name("welcome")
+    }
+}

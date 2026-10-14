@@ -1,0 +1,11 @@
+package routes;
+
+import app.Http.Controllers.WelcomeController;
+import dev.kona.http.Router;
+
+public class WebRoutes {
+    public void register(Router router) {
+        WelcomeController welcome = new WelcomeController();
+        router.get("/", welcome::index).name("welcome");
+    }
+}
