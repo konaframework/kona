@@ -68,7 +68,7 @@ Quality + parity audits: [docs/quality/M1-architecture-review.md](docs/quality/M
 - [x] Logging — basic facade
 - [x] Validation (Laravel-shaped rules; fail unknown; type-aware min/max/size)
 - [x] `grind serve` — runs generated app (`gradlew run` or `--in-process`)
-- [x] `grind new` (`--lang=kotlin|java`) — buildable Gradle app + wrapper
+- [x] `kona new` (`--lang=kotlin|java`) — global CLI; buildable Gradle app + local `./grind`
 - [x] `grind make:controller` — basic + name validation
 - [x] Kotlin hello sample — providers, groups, middleware via HttpKernel
 - [x] Java hello sample — groups, middleware, providers (Law 8)

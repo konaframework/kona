@@ -11,5 +11,6 @@ dependencies {
         api(project(":kona-core"))
         api(project(":kona-http"))
         api(project(":kona-grind"))
+        api(project(":kona-cli"))
     }
 }

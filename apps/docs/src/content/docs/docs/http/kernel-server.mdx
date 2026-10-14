@@ -209,7 +209,7 @@ A **virtual thread** is a lightweight thread managed by the JVM (JDK 21 and late
 
 ## `HOST` and `PORT`
 
-Applications created by `grind new` start the server in `bootstrap/App`’s `main` function, reading the bind address from the environment:
+Applications created by `kona new` start the server in `bootstrap/App`’s `main` function, reading the bind address from the environment:
 
 ```kotlin
 val host = Env.getOrDefault("HOST", "127.0.0.1")

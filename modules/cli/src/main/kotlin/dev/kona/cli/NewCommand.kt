@@ -1,26 +1,25 @@
-package dev.kona.grind
+package dev.kona.cli
 
 import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * `grind new <name>` — scaffolds a self-contained Gradle application (Laravel `laravel new` shape):
- * wrapper, build scripts, `.env`, bootstrap entry, provider, routes, and a welcome controller.
+ * `kona new <name>` — scaffolds a self-contained Gradle application with a local `./grind` CLI.
  */
 class NewCommand(
-    private val versions: GrindVersions = GrindVersions.load(),
+    private val versions: KonaVersions = KonaVersions.load(),
 ) {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
         val name = positional.firstOrNull()
-            ?: throw GrindException("Usage: grind new <name> [--lang=kotlin|java] [--kona-version=x.y.z]")
+            ?: throw KonaCliException("Usage: kona new <name> [--lang=kotlin|java] [--kona-version=x.y.z]")
         val lang = options["lang"] ?: "kotlin"
         if (lang !in SKELETONS) {
-            throw GrindException("--lang must be kotlin or java")
+            throw KonaCliException("--lang must be kotlin or java")
         }
         val target = Path.of(name).toAbsolutePath().normalize()
         if (Files.exists(target)) {
-            throw GrindException("Directory already exists: $target")
+            throw KonaCliException("Directory already exists: $target")
         }
         val variables = mapOf(
             "appName" to target.fileName.toString(),
@@ -29,24 +28,26 @@ class NewCommand(
         )
         Files.createDirectories(target)
         copySkeleton(lang, target, variables)
+        target.resolve("grind").toFile().setExecutable(true)
+        target.resolve("gradlew").toFile().setExecutable(true)
         println("Created Kona application at $target ($lang)")
-        println("  cd ${target.fileName} && grind serve")
+        println("  cd ${target.fileName}")
+        println("  ./grind serve")
         return 0
     }
 
     internal fun copySkeleton(lang: String, target: Path, variables: Map<String, String>) {
-        val files = SKELETONS[lang] ?: throw GrindException("Unknown skeleton: $lang")
+        val files = SKELETONS[lang] ?: throw KonaCliException("Unknown skeleton: $lang")
         COMMON_FILES.forEach { copyResource("skeletons/common/$it", target.resolve(destination(it)), variables) }
         files.forEach { copyResource("skeletons/$lang/$it", target.resolve(destination(it)), variables) }
         listOf("app/Http/Controllers", "app/Providers", "config", "resources", "routes").forEach {
             Files.createDirectories(target.resolve(it))
         }
-        target.resolve("gradlew").toFile().setExecutable(true)
     }
 
     internal fun copyResource(resource: String, dest: Path, variables: Map<String, String>) {
         val url = NewCommand::class.java.classLoader.getResource(resource)
-            ?: throw GrindException("Missing skeleton resource: $resource")
+            ?: throw KonaCliException("Missing skeleton resource: $resource")
         Files.createDirectories(dest.parent)
         val bytes = url.readBytes()
         if (resource.endsWith(".jar")) {
@@ -59,7 +60,12 @@ class NewCommand(
     }
 
     private fun destination(relative: String): String =
-        if (relative == "gitignore.txt") ".gitignore" else relative.removeSuffix(".txt")
+        when (relative) {
+            "gitignore.txt" -> ".gitignore"
+            "grind.txt" -> "grind"
+            "grind.bat.txt" -> "grind.bat"
+            else -> relative.removeSuffix(".txt")
+        }
 
     companion object {
         private val COMMON_FILES = listOf(
@@ -68,6 +74,8 @@ class NewCommand(
             "gradlew.bat",
             "gradle/wrapper/gradle-wrapper.jar",
             "gradle/wrapper/gradle-wrapper.properties",
+            "grind.txt",
+            "grind.bat.txt",
         )
 
         private val SKELETONS = mapOf(
@@ -95,17 +103,17 @@ class NewCommand(
     }
 }
 
-/** Versions stamped into `grind.properties` at build time; used for generated `build.gradle.kts`. */
-data class GrindVersions(val kona: String, val kotlin: String) {
+/** Versions stamped into `kona.properties` at build time. */
+data class KonaVersions(val kona: String, val kotlin: String) {
     companion object {
         @JvmStatic
         @JvmOverloads
-        fun load(resource: String = "dev/kona/grind/grind.properties"): GrindVersions {
-            val stream = GrindVersions::class.java.classLoader.getResourceAsStream(resource)
-                ?: throw GrindException("Missing grind version resource: $resource")
+        fun load(resource: String = "dev/kona/cli/kona.properties"): KonaVersions {
+            val stream = KonaVersions::class.java.classLoader.getResourceAsStream(resource)
+                ?: throw KonaCliException("Missing kona version resource: $resource")
             val props = java.util.Properties()
             stream.use { props.load(it) }
-            return GrindVersions(
+            return KonaVersions(
                 kona = props.getProperty("konaVersion"),
                 kotlin = props.getProperty("kotlinVersion"),
             )

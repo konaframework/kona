@@ -1,0 +1,8 @@
+@echo off
+setlocal
+cd /d "%~dp0"
+if "%~1"=="" (
+  call gradlew.bat -q grind
+) else (
+  call gradlew.bat -q grind -PgrindArgs="%*"
+)

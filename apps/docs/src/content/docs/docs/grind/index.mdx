@@ -1,99 +1,40 @@
 ---
 title: grind
-description: Kona’s command-line tool for creating projects, serving applications, and generating code.
+description: The app-local CLI — serve and generate code inside a Kona project.
 ---
 
-**grind** is Kona’s command-line tool. You run it in a terminal to do the jobs that surround writing application code: creating a new project, starting your application’s HTTP server, and generating source files so you do not type the same boilerplate twice.
-
-grind is an ordinary JVM program shipped as the `dev.kona:kona-grind` artifact. It needs JDK 21 or newer, like the rest of Kona.
-
-## Commands available today
-
-| Command | What it does |
-|---------|--------------|
-| [`grind new <name>`](./commands/#grind-new) | Creates a complete Kotlin or Java Gradle project with a working home page and health route |
-| [`grind serve`](./commands/#grind-serve) | Finds the project you are in and runs it, by default through `./gradlew run` |
-| [`grind make:controller <Name>`](./commands/#grind-makecontroller) | Writes a new controller class into `app/Http/Controllers` |
-| `grind help` | Prints usage for every command (`--help` and `-h` work too) |
-
-Each command is described in full on the [commands reference](./commands/).
-
-## Running grind
-
-### From a Kona checkout
-
-If you have cloned the Kona repository, Gradle can run grind directly:
+**grind** is the command-line tool that lives **inside each application**. After you `cd` into a project created by `kona new`, you run:
 
 ```bash
-./gradlew :kona-grind:run --args="help"
+./grind serve
+./grind make:controller Post
+./grind help
 ```
 
-Gradle runs the program with the `modules/grind` directory as its working directory, so pass **absolute paths** to commands that create or look for files:
+There is no global grind install. Creating applications is always:
 
 ```bash
-./gradlew :kona-grind:run --args="new $HOME/projects/hello-kona"
+kona new my-app
 ```
 
-### As an installed command
+## Why two CLIs?
 
-To get a `grind` command on your `PATH`, build the launcher once and link it:
+- **`kona`** (global): rare, machine-wide — “make me a new project.”
+- **`./grind`** (per app): everyday — “run *this* app,” “add a controller *here*.”
 
-```bash
-./gradlew :kona-grind:installDist
-# The launcher script is named after the module:
-ln -s "$PWD/modules/grind/build/install/kona-grind/bin/kona-grind" ~/.local/bin/grind
-```
+The generated `./grind` script forwards to a Gradle `grind` task that puts `kona-grind` on the classpath for that project’s dependency versions.
 
-`installDist` writes a `bin/` directory with launcher scripts for macOS/Linux and Windows, plus a `lib/` directory with grind and its dependencies. Any directory on your `PATH` works in place of `~/.local/bin`. The rest of this documentation writes the command as `grind`.
+## Commands (today)
 
-## grind and Gradle
+| Command | Purpose |
+|---------|---------|
+| [`./grind serve`](./commands/#grind-serve) | Build and run the HTTP server |
+| [`./grind make:controller`](./commands/#grind-makecontroller) | Generate a controller class |
+| `./grind help` | Show usage |
 
-A Kona application is a normal Gradle project, and grind does not replace Gradle. Building, testing, and packaging still go through the project’s wrapper: `./gradlew build`, `./gradlew test`, `./gradlew run`. grind adds conveniences on top:
+If you type `./grind new …`, grind reminds you to use `kona new` instead.
 
-- `grind new` writes the Gradle files for you, already wired to Kona.
-- `grind serve` locates the project root from wherever you are in the tree and runs `./gradlew run` there, passing your `--host` and `--port` choices through as environment variables.
-- `grind make:controller` writes source files into the folders the generated build compiles.
+## Next
 
-Because of this split, everything grind does can also be done by hand, and a project created by grind keeps working on machines where grind is not installed — `./gradlew run` is enough to start it.
-
-## How grind reads its arguments
-
-Every command follows the same conventions:
-
-- **Positional arguments** are plain words, such as the project name in `grind new hello-kona` or the class name in `grind make:controller Post`.
-- **Options** start with `--`. They take a value with `=` (`--port=9000`, with no spaces around `=`) or stand alone as a switch (`--in-process`).
-- Options may appear before or after positional arguments.
-- Options a command does not use are ignored.
-
-## Exit codes and errors
-
-grind exits with status **0** on success. When something is wrong — an unknown command, a missing argument, a directory that already exists, no project found — it prints a one-line explanation to standard error and exits with status **1**. An unknown command also prints the help text.
-
-`grind serve` is the one exception: in its default mode it exits with whatever status the application process returned, so a crash in your app is visible to scripts and CI.
-
-## A typical first session
-
-```bash
-grind new hello-kona          # create the project (Kotlin by default)
-cd hello-kona
-grind serve                   # build and start it on http://127.0.0.1:8080
-```
-
-In another terminal:
-
-```bash
-curl http://127.0.0.1:8080/            # Welcome to Kona
-curl http://127.0.0.1:8080/api/health  # {"status":"ok"}
-```
-
-Then add a controller and route it:
-
-```bash
-grind make:controller Post
-```
-
-The [Your first app](../guides/first-app/) guide walks through the generated files in detail.
-
-## What comes next
-
-Future releases add more generators, database commands, and **steam**, an interactive shell that runs inside a booted application so you can call your services directly.
+- [Command reference](./commands/)  
+- [Installation](../guides/installation/) — install global `kona`  

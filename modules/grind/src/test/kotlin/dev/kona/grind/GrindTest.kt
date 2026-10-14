@@ -1,8 +1,6 @@
 package dev.kona.grind
 
-import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -24,92 +22,7 @@ class GrindTest {
         assertEquals(0, app.run(arrayOf("--help")))
         assertEquals(0, app.run(arrayOf("-h")))
         assertEquals(1, app.run(arrayOf("nope")))
-    }
-
-    @Test
-    fun newKotlinEmitsGradleApp() {
-        val kt = temp.resolve("appkt")
-        assertEquals(0, NewCommand().run(listOf(kt.toString()))) // default lang kotlin
-        listOf(
-            "README.md",
-            ".env",
-            ".gitignore",
-            "settings.gradle.kts",
-            "build.gradle.kts",
-            "gradlew",
-            "gradlew.bat",
-            "gradle/wrapper/gradle-wrapper.jar",
-            "gradle/wrapper/gradle-wrapper.properties",
-            "bootstrap/App.kt",
-            "app/Providers/AppServiceProvider.kt",
-            "app/Http/Controllers/WelcomeController.kt",
-            "routes/web.kt",
-        ).forEach { assertTrue(Files.isRegularFile(kt.resolve(it)), it) }
-        listOf("config", "resources").forEach { assertTrue(Files.isDirectory(kt.resolve(it)), it) }
-        assertTrue(Files.isExecutable(kt.resolve("gradlew")))
-        assertFalse(Files.exists(kt.resolve("routes/web.kt.txt")))
-
-        val versions = GrindVersions.load()
-        assertTrue(Files.readString(kt.resolve(".env")).contains("APP_NAME=appkt\n"))
-        assertTrue(Files.readString(kt.resolve("settings.gradle.kts")).contains("rootProject.name = \"appkt\""))
-        val build = Files.readString(kt.resolve("build.gradle.kts"))
-        assertTrue(build.contains("dev.kona:kona-http:${versions.kona}"))
-        assertTrue(build.contains("kotlin(\"jvm\") version \"${versions.kotlin}\""))
-        assertTrue(build.contains("mainClass.set(\"bootstrap.App\")"))
-        assertTrue(Files.readString(kt.resolve("bootstrap/App.kt")).contains("fun create(args: Array<String>): Application"))
-        assertNoPlaceholders(kt)
-
-        val repoRoot = System.getProperty("kona.repoRoot")
-        if (repoRoot != null) {
-            assertArrayEquals(
-                Files.readAllBytes(Path.of(repoRoot, "gradle/wrapper/gradle-wrapper.jar")),
-                Files.readAllBytes(kt.resolve("gradle/wrapper/gradle-wrapper.jar")),
-            )
-        }
-
-        assertEquals(1, GrindApplication().run(arrayOf("new", kt.toString(), "--lang=kotlin")))
-        assertEquals(1, GrindApplication().run(arrayOf("new", temp.resolve("x2").toString(), "--lang=ruby")))
-        assertEquals(1, GrindApplication().run(arrayOf("new")))
-    }
-
-    @Test
-    fun newJavaEmitsGradleApp() {
-        val j = temp.resolve("appjava")
-        assertEquals(0, NewCommand().run(listOf(j.toString(), "--lang=java", "--kona-version=9.9.9")))
-        listOf(
-            "settings.gradle.kts",
-            "build.gradle.kts",
-            "gradlew",
-            "bootstrap/App.java",
-            "app/Providers/AppServiceProvider.java",
-            "app/Http/Controllers/WelcomeController.java",
-            "routes/WebRoutes.java",
-        ).forEach { assertTrue(Files.isRegularFile(j.resolve(it)), it) }
-        val build = Files.readString(j.resolve("build.gradle.kts"))
-        assertTrue(build.contains("dev.kona:kona-http:9.9.9"))
-        assertFalse(build.contains("kotlin(\"jvm\")"))
-        assertTrue(Files.readString(j.resolve("bootstrap/App.java")).contains("public static Application create(String[] args)"))
-        assertNoPlaceholders(j)
-    }
-
-    @Test
-    fun skeletonAndVersionErrors() {
-        assertThrows(GrindException::class.java) {
-            NewCommand().run(listOf(temp.resolve("x").toString(), "--lang=ruby"))
-        }
-        val target = temp.resolve("broken")
-        Files.createDirectories(target)
-        assertThrows(GrindException::class.java) {
-            NewCommand().copySkeleton("broken", target, emptyMap())
-        }
-        assertThrows(GrindException::class.java) {
-            NewCommand().copyResource("skeletons/nope/missing.txt", target.resolve("x"), emptyMap())
-        }
-        assertThrows(GrindException::class.java) { GrindVersions.load("dev/kona/grind/missing.properties") }
-        val custom = NewCommand(GrindVersions("1.2.3", "2.0.0"))
-        val app = temp.resolve("custom")
-        assertEquals(0, custom.run(listOf(app.toString())))
-        assertTrue(Files.readString(app.resolve("build.gradle.kts")).contains("kona-http:1.2.3"))
+        assertEquals(1, app.run(arrayOf("new", "x")))
     }
 
     @Test
@@ -126,32 +39,17 @@ class GrindTest {
         assertEquals(1, GrindApplication().run(arrayOf("make:controller", "Bad-Name", "--base=$base")))
         assertTrue(Files.notExists(temp.resolve("EvilController.kt")))
         assertEquals(0, MakeControllerCommand().run(listOf("Post", "--base=$base", "--lang=java")))
-        // detectLang java via existing .java under app/
         val javaProj = temp.resolve("javap")
         Files.createDirectories(javaProj.resolve("app/Http/Controllers"))
         Files.writeString(javaProj.resolve("app/Http/Controllers/X.java"), "class X {}")
         assertEquals(0, MakeControllerCommand().run(listOf("Auto", "--base=$javaProj")))
         assertTrue(Files.exists(javaProj.resolve("app/Http/Controllers/AutoController.java")))
-        // detectLang kotlin default when no java
         val ktProj = temp.resolve("ktp")
         Files.createDirectories(ktProj.resolve("app/Http/Controllers"))
         assertEquals(0, MakeControllerCommand().run(listOf("Auto", "--base=$ktProj")))
-        // app dir missing -> kotlin
         val bare = temp.resolve("bare")
         Files.createDirectories(bare)
         assertEquals(0, MakeControllerCommand().run(listOf("Bare", "--base=$bare")))
-    }
-
-    @Test
-    fun makeControllerInsideGeneratedApps() {
-        val kt = temp.resolve("genkt")
-        val java = temp.resolve("genjava")
-        NewCommand().run(listOf(kt.toString()))
-        NewCommand().run(listOf(java.toString(), "--lang=java"))
-        assertEquals(0, GrindApplication().run(arrayOf("make:controller", "Post", "--base=$kt")))
-        assertEquals(0, GrindApplication().run(arrayOf("make:controller", "Post", "--base=$java")))
-        assertTrue(Files.exists(kt.resolve("app/Http/Controllers/PostController.kt")))
-        assertTrue(Files.exists(java.resolve("app/Http/Controllers/PostController.java")))
     }
 
     @Test
@@ -178,8 +76,7 @@ class GrindTest {
             calls += Triple(command, dir, env)
             7
         }
-        val app = temp.resolve("spawned")
-        NewCommand().run(listOf(app.toString()))
+        val app = stubGradleApp(temp.resolve("spawned"))
         Files.createDirectories(app.resolve("routes/nested"))
 
         val serve = ServeCommand(runner = runner, windows = false)
@@ -278,7 +175,7 @@ class GrindTest {
         Files.createDirectories(base.resolve("build/resources/main"))
         assertEquals(3, AppLoader(base).classpath().size)
         val args = arrayOf("--base=$base")
-        assertThrows(GrindException::class.java) { AppLoader(base).create(args) } // bootstrap.App absent
+        assertThrows(GrindException::class.java) { AppLoader(base).create(args) }
         assertThrows(GrindException::class.java) { AppLoader(base, NoCreateApp::class.java.name).create(args) }
         assertThrows(GrindException::class.java) { AppLoader(base, InstanceCreateApp::class.java.name).create(args) }
         assertThrows(GrindException::class.java) { AppLoader(base, WrongReturnApp::class.java.name).create(args) }
@@ -296,11 +193,12 @@ class GrindTest {
         assertEquals("v", opt["k"])
     }
 
-    private fun assertNoPlaceholders(root: Path) {
-        Files.walk(root).use { stream ->
-            stream.filter { Files.isRegularFile(it) && !it.toString().endsWith(".jar") }.forEach {
-                assertFalse(Files.readString(it).contains("{{"), "placeholder left in $it")
-            }
-        }
+    private fun stubGradleApp(dir: Path): Path {
+        Files.createDirectories(dir)
+        Files.writeString(dir.resolve("settings.gradle.kts"), "rootProject.name = \"stub\"\n")
+        Files.writeString(dir.resolve("gradlew"), "#!/bin/sh\n")
+        Files.writeString(dir.resolve("gradlew.bat"), "@echo off\n")
+        dir.resolve("gradlew").toFile().setExecutable(true)
+        return dir
     }
 }

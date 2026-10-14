@@ -229,7 +229,7 @@ The cast is unchecked: if the stored value has another type, you get a `ClassCas
 
 ## Mixing both languages in one project
 
-A Kotlin project can contain Java classes and the other way round; Kona does not care which language a provider or controller was written in. The `grind new --lang=kotlin` build file sets Java source folders to empty, so to add Java files to a Kotlin-generated project, list your source folders in `sourceSets["main"].java.setSrcDirs(...)`. `grind make:controller` chooses `.java` as soon as `app/` contains any `.java` file; pass `--lang=` to override.
+A Kotlin project can contain Java classes and the other way round; Kona does not care which language a provider or controller was written in. The `kona new --lang=kotlin` build file sets Java source folders to empty, so to add Java files to a Kotlin-generated project, list your source folders in `sourceSets["main"].java.setSrcDirs(...)`. `grind make:controller` chooses `.java` as soon as `app/` contains any `.java` file; pass `--lang=` to override.
 
 ## Reference samples
 
