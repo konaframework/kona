@@ -1,0 +1,22 @@
+---
+title: Task scheduling
+description: Cron-style schedules and grind schedule:run.
+---
+
+Register tasks on a `Schedule`, then run due work with `./grind schedule:run`.
+
+## Quick start
+
+```kotlin
+app.resolve(Schedule::class.java)
+    .everyMinute("heartbeat") { ping() }
+    .dailyAt("reports", hour = 8, minute = 0) { buildReports() }
+    .command("custom", "*/15 * * * *") { sync() }
+```
+
+```bash
+./grind schedule:list
+./grind schedule:run
+```
+
+Register `ScheduleServiceProvider`. Cron fields are `min hour dom month dow` with `*`, numbers, and `*/n` steps.

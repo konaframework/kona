@@ -21,6 +21,7 @@ bcrypt = { module = "at.favre.lib:bcrypt", version.ref = "bcrypt" }
 lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+kotlin-scripting-jsr223 = { module = "org.jetbrains.kotlin:kotlin-scripting-jsr223", version.ref = "kotlin" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

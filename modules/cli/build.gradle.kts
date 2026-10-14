@@ -43,6 +43,7 @@ tasks.test {
         ":kona-crema:publishToMavenLocal",
         ":kona-redis:publishToMavenLocal",
         ":kona-queue:publishToMavenLocal",
+        ":kona-schedule:publishToMavenLocal",
         ":kona-grind:publishToMavenLocal",
     )
     systemProperty("kona.repoRoot", rootDir.absolutePath)

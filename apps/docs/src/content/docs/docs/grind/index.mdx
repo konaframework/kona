@@ -35,7 +35,12 @@ The generated `./grind` script forwards to a Gradle `grind` task that puts `kona
 | [`./grind make:factory` / `make:seeder`](./commands/#database-commands) | Generate a factory or seeder |
 | [`./grind migrate`](./commands/#database-commands) | Run pending migrations (`migrate:rollback`, `migrate:reset`, `migrate:status`) |
 | [`./grind db:seed`](./commands/#database-commands) | Run a seeder |
+| `./grind schedule:run` / `schedule:list` | Run or list scheduled tasks |
+| `./grind steam` | Interactive REPL |
+| `./grind list` | List commands |
 | `./grind help` | Show usage |
+
+Global flags: `-v` / `--verbose`, `-q` / `--quiet`. See [Console depth](./console/).
 
 If you type `./grind new …`, grind reminds you to use `kona new` instead.
 
