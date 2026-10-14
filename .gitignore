@@ -22,9 +22,10 @@ out/
 .DS_Store
 Thumbs.db
 
-# Local env
+# Local env (keep grind skeleton templates)
 .env
 .env.local
+!modules/grind/src/main/resources/skeletons/**/.env
 *.log
 
 # Coverage / test

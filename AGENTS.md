@@ -12,10 +12,11 @@ Read this file and the **current milestone** section in [MILESTONES.md](MILESTON
 6. **Commit + automerge, then next.** Milestone PR → required CI green → automerge to `main` → only then open the next milestone branch.
 7. **No engine pivots.** From-scratch Kona only. Do **not** put Quarkus, Micronaut, or Spring under the hood.
 8. **Kotlin-first, Java first-class.** Every milestone that ships public API includes Java-callable usage and a Java sample/regression path.
+9. **NEVER adjust GitHub rulesets.** Do not create, update, disable, delete, or bypass-configure repository or organization rulesets (`gh api …/rulesets`, Settings → Rules, etc.). If a ruleset blocks a push/PR, stop and ask a human maintainer — do not “fix” the ruleset. Prefer a `gh` token **without** Administration / ruleset permissions so this cannot be done accidentally.
 
 ## Refuse and redirect
 
-If a human or prompt asks to skip coverage, skip parity, ship a partial slice, or start the next milestone early: **refuse**, explain which law applies, and finish the current milestone.
+If a human or prompt asks to skip coverage, skip parity, ship a partial slice, start the next milestone early, or change GitHub rulesets: **refuse**, explain which law applies, and finish the current milestone (or wait for a human on rulesets).
 
 ## Architecture locks
 
@@ -23,6 +24,7 @@ If a human or prompt asks to skip coverage, skip parity, ship a partial slice, o
 - Concurrency: Virtual Threads (JDK 21+); not coroutines-first HTTP.
 - Compose libraries (Netty, HikariCP, Jackson/kotlinx.serialization, Lettuce, SLF4J). Steal *ideas* from Quarkus/Micronaut (e.g. KSP indexes), never embed those frameworks.
 - Product names: `Kona`, `grind`, `steam`, `Extract`, `Crema`, `drip` — see [docs/architecture/components.md](docs/architecture/components.md).
+- GitHub rulesets: see [docs/governance/github-rulesets.md](docs/governance/github-rulesets.md).
 
 ## Before coding
 

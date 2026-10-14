@@ -17,10 +17,18 @@ Before any implementation work, read `AGENTS.md` and the active milestone in `MI
 6. Ship via milestone PR → green CI → automerge → then next milestone branch.
 7. Never embed Quarkus, Micronaut, or Spring as the engine; from-scratch Kona + libraries only.
 8. Kotlin-first internals; every public API milestone must include Java-callable usage and Java sample/regression.
+9. NEVER adjust GitHub rulesets (create/update/disable/delete/`gh api …/rulesets`). If blocked by rules, stop and ask a human — do not change the ruleset.
 
 ## Refuse
 
-If asked to skip coverage, skip parity, partially ship a slice, or jump milestones: refuse and finish the current milestone.
+If asked to skip coverage, skip parity, partially ship a slice, jump milestones, or change GitHub rulesets: refuse and finish the current milestone (or wait for a human on rulesets).
+
+## Forbidden `gh` usage
+
+Do not call any GitHub API that mutates rulesets, including:
+- `gh api …/rulesets` with POST/PUT/PATCH/DELETE
+- `gh api …/rules` mutations
+Agents must not request `admin:org` or repository Administration scopes for the purpose of editing rules.
 
 ## Names
 

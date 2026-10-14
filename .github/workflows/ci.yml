@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  m0-docs:
-    name: M0 docs present
+  governance:
+    name: Governance files
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,5 +21,25 @@ jobs:
           test -f LICENSE
           test -f docs/architecture/PLAN.md
           test -f docs/architecture/components.md
+          test -f docs/governance/github-rulesets.md
+          test -f docs/quality/M1-architecture-review.md
+          test -f docs/quality/M1-parity-audit.md
           test -f .cursor/rules/kona-milestones.mdc
-          echo "M0 governance files OK"
+
+  test:
+    name: Test + 100% coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests with Kover verification
+        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify test
+      - name: Kotlin sample
+        run: ./gradlew :hello-kotlin:run --args='--base=.'
+      - name: Java sample
+        run: ./gradlew :hello-java:run --args='--base=.'

@@ -31,6 +31,7 @@ Milestone **M0** locks architecture and working rules. Framework code begins in 
 | [MILESTONES.md](MILESTONES.md) | Ordered milestones and parity checklists |
 | [docs/architecture/PLAN.md](docs/architecture/PLAN.md) | Full architectural plan |
 | [docs/architecture/components.md](docs/architecture/components.md) | Component map and conventions |
+| [docs/governance/github-rulesets.md](docs/governance/github-rulesets.md) | Never mutate GitHub rulesets |
 
 ## License
 
