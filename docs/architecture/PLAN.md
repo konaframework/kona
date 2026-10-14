@@ -95,64 +95,29 @@ Trunk: `main`. SemVer via BOM. Apache-2.0. Milestone branches: `milestone/M0-pla
 
 ## Milestones (exhausted, sequential)
 
-### M0 — Plan + rules lock (first commit)
+Canonical checklists and the **full Almasix menu coverage ledger** live in [`MILESTONES.md`](../../MILESTONES.md). Summary:
 
-**Parity scope:** N/A (process milestone).
-
-**Deliverables:**
-
-- Create/init `konaframework/kona` if empty.
-- Commit canonical architecture plan, component map, `MILESTONES.md`, `AGENTS.md`, `.cursor/rules/kona-milestones.mdc`, README pointing at docs.
-- No production framework code required yet (or minimal stub README only).
-
-**DoD:** Docs merged to `main`; agents can enforce rules from a fresh clone.
-
-### M1 — Kona kernel + HTTP + grind (foundation)
-
-**Parity slice:** Laravel Application/Container/Providers/Config/Routing/HTTP Kernel/Middleware/Validation + Artisan `serve`/`make` ≈ Almasix framework/http/routing/console bootstrap.
-
-**Includes:** `Kona.start`, container, providers, config/env, request/response, middleware, router (Kotlin DSL + Java fluent), exceptions, logging, validation, `grind serve`, `grind new`, `grind make:controller`, Kotlin + Java samples.
-
-**DoD:** Full slice parity checklist in `MILESTONES.md` checked; 100% coverage on `kona-core` / `kona-http` / `kona-grind` (in-scope); regression green; automerge.
-
-### M2 — Extract
-
-**Parity slice:** Eloquent / Almasix ORM (models, relations, eager load, soft deletes, casts, query builder, pagination, migrations, seeders, factories).
-
-**Includes:** `grind make:model|migration`, `grind migrate`.
-
-**DoD:** Exhausted ORM slice parity + 100% coverage + regression + automerge.
-
-### M3 — Auth, session, cache
-
-**Parity slice:** Laravel/Almasix auth guards, sessions, cache stores (memory, Redis, file/cookie as applicable).
-
-**DoD:** Same gates.
-
-### M4 — Queue, events, mail, filesystem
-
-**Parity slice:** Jobs/workers/retries/failed jobs, events/listeners, mail/notifications (log+SMTP min), filesystem disks (local + S3-compatible).
-
-**DoD:** Same gates.
-
-### M5 — Crema, steam, drip (+ harness polish)
-
-**Parity slice:** Blade/Prism-class directives; Tinker-class REPL; first-party HTTP client; testing harness + scheduling as in Laravel/Almasix for this wave.
-
-**DoD:** Same gates.
-
-### M6+ — Later exhausted milestones (separate)
-
-Broadcasting, Scout/search, IDE/LSP, Orbit-class admin — each its own milestone with the same rules. Not started until M5 is on `main`.
+| # | Focus |
+|---|--------|
+| M0 | Plan + rules lock |
+| M1 | Kernel + HTTP + grind (routing, requests, middleware, validation, …) |
+| M2 | Extract ORM + DB (query builder, migrations, seeders, factories, …) |
+| M3 | Session, auth, hashing, passwords, authorization, CSRF, CORS, rate limit, encryption, API tokens |
+| M4 | Cache, Redis, Collections, Helpers, Dates, Strings, Localization, Extract serialization/events |
+| M5 | URL generation, API Resources, controllers/logging/errors deepen |
+| M6 | Crema views (full view menu) |
+| M7 | Queues, events, mail, notifications, filesystem |
+| M8 | grind console, prompts, scheduling, packages, steam |
+| M9 | Testing harness, drip, processes, concurrency |
+| M10 | Broadcasting, search |
+| M11 | Reactive UI (Livewire / Conduit parity; product name TBD) |
+| M12 | Inertia, asset bundling, starter kits |
+| M13 | Language support, LSP, editor setup |
 
 ```mermaid
 flowchart LR
-  M0[M0_Plan_Rules] --> M1[M1_Kernel_HTTP_grind]
-  M1 --> M2[M2_Extract]
-  M2 --> M3[M3_Auth_Session_Cache]
-  M3 --> M4[M4_Queue_Events_Mail_FS]
-  M4 --> M5[M5_Crema_steam_drip]
-  M5 --> M6[M6plus]
+  M0 --> M1 --> M2 --> M3 --> M4 --> M5 --> M6
+  M6 --> M7 --> M8 --> M9 --> M10 --> M11 --> M12 --> M13
 ```
 
 ## Architecture principles (summary)
@@ -166,10 +131,9 @@ flowchart LR
 
 ## Non-goals (until their milestone)
 
-- Rust/Actix latency race; Spring/Quarkus embedding; coroutines-first HTTP; Kotlin-only APIs; Orbit admin before M6+.
+- Rust/Actix latency race; Spring/Quarkus embedding; coroutines-first HTTP; Kotlin-only APIs; Orbit-class admin before a post-M13 milestone is opened in `MILESTONES.md`.
 
-## Immediate execution order (after plan approval)
+## Immediate execution order
 
-1. **M0:** Push plan + agent/milestone rules to `konaframework/kona`, PR, automerge.
-2. Open `milestone/M1-…` only after M0 is on `main`.
-3. Exhaust M1 under the locked rules before any later milestone.
+1. Confirm **active** milestone in `MILESTONES.md` (currently M3).
+2. Exhaust that milestone under the locked rules → PR → automerge → next, through **M13** ([continuous-autopilot.md](../governance/continuous-autopilot.md)).

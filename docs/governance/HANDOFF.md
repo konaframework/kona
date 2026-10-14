@@ -16,11 +16,12 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M2 — Extract** (`main`, PR #6) |
-| Next / active | **M3 — Auth, session, cache** (`milestone/M3-auth-session-cache`) |
+| Next / active | **M3 — Session, auth, and security** (`milestone/M3-auth-session-security`) |
+| Full parity map | [MILESTONES.md](../../MILESTONES.md) Almasix coverage ledger → through **M13** |
 | Docs brand | Primary `#FF9A00`, accent `#286291` (`apps/docs/src/styles/custom.css`) |
 | Docs shape | Still low-level (providers, explicit wiring). Trajectory: Laravel-style progressive guides (simple first, dig deeper later). Rewrite as features land — do not freeze the current structure. |
 | Models | **Auto only** unless the human names a model for that turn |
-| Autopilot | Continuous through remaining milestones; no pause between merges |
+| Autopilot | Continuous M3→M13 (full Almasix menu); no pause between merges |
 
 ## Repo facts
 
@@ -36,9 +37,9 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ```text
 Read AGENTS.md, MILESTONES.md, and docs/governance/continuous-autopilot.md.
-Active milestone is whatever MILESTONES.md says (expect M3 after M2).
+Active milestone is whatever MILESTONES.md says (expect M3 — session/auth/security).
 Run continuous autopilot: exhaust parity + 100% coverage + rewrite docs as needed →
-commit → PR → automerge → next milestone until M5+ checklists are done.
+commit → PR → automerge → next milestone until the Almasix coverage ledger is fully done (through M13).
 Use Auto for all models. Never edit GitHub rulesets.
 ```
 

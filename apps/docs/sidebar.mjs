@@ -33,6 +33,18 @@ export async function buildSidebar() {
       ],
     },
     {
+      label: 'Security',
+      items: [
+        { label: 'Session', slug: 'docs/security/session' },
+        { label: 'Authentication', slug: 'docs/security/authentication' },
+        { label: 'Authorization', slug: 'docs/security/authorization' },
+        { label: 'CSRF protection', slug: 'docs/security/csrf' },
+        { label: 'Encryption', slug: 'docs/security/encryption' },
+        { label: 'CORS & security headers', slug: 'docs/security/cors-headers' },
+        { label: 'Rate limiting', slug: 'docs/security/rate-limiting' },
+      ],
+    },
+    {
       label: 'Extract',
       items: [
         { label: 'Overview', slug: 'docs/extract' },
@@ -41,6 +53,17 @@ export async function buildSidebar() {
         { label: 'Relations', slug: 'docs/extract/relations' },
         { label: 'Migrations', slug: 'docs/extract/migrations' },
         { label: 'Seeders & factories', slug: 'docs/extract/seeders-factories' },
+      ],
+    },
+    {
+      label: 'Security',
+      items: [
+        { label: 'Overview', slug: 'docs/security' },
+        { label: 'Session', slug: 'docs/security/session' },
+        { label: 'Authentication', slug: 'docs/security/authentication' },
+        { label: 'Authorization', slug: 'docs/security/authorization' },
+        { label: 'CSRF', slug: 'docs/security/csrf' },
+        { label: 'Encryption, CORS, rate limit', slug: 'docs/security/encryption-cors-rate-limit' },
       ],
     },
     {

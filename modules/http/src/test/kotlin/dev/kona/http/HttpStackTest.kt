@@ -177,6 +177,9 @@ class HttpStackTest {
         val router = app.resolve(Router::class.java)
         router.get("/") { Response.text("brew") }
         router.get("/empty") { Response.noContent() }
+        router.get("/cookie") {
+            Response.text("c").cookie("sid", "1").cookie(Cookie("x", "y", httpOnly = false))
+        }
         router.post("/echo") { r -> Response.json(r.all()) }
         val kernel = app.resolve(HttpKernel::class.java)
         val free = java.net.ServerSocket(0).use { it.localPort }
@@ -201,6 +204,12 @@ class HttpStackTest {
                 HttpResponse.BodyHandlers.ofString(),
             ).statusCode(),
         )
+        val cookieResp = client.send(
+            HttpRequest.newBuilder(URI.create("http://127.0.0.1:$free/cookie")).GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+        assertEquals(200, cookieResp.statusCode())
+        assertTrue(cookieResp.headers().allValues("Set-Cookie").size >= 2)
         val head = client.send(
             HttpRequest.newBuilder(URI.create("http://127.0.0.1:$free/"))
                 .method("HEAD", HttpRequest.BodyPublishers.noBody())

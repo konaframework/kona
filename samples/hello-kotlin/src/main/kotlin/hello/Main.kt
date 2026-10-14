@@ -78,4 +78,5 @@ object HelloKotlin {
 fun main(args: Array<String>) {
     HelloKotlin.demo(HelloKotlin.boot(args)).forEach(::println)
     NotesDemo.run().forEach(::println)
+    SecurityDemo.run(args).forEach(::println)
 }

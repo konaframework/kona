@@ -1,0 +1,32 @@
+---
+title: Encryption, CORS, headers, rate limiting
+description: App-key encryption, CORS, security headers, and throttling.
+---
+
+## Encryption
+
+Set `app.key` to a `base64:…` value (`Encrypter.generateKey()`). Then:
+
+```kotlin
+encrypter.encryptString("secret")
+encrypter.decryptString(payload)
+```
+
+Uses AES-256-GCM.
+
+## CORS
+
+`CorsMiddleware(CorsConfig(…))` handles preflight `OPTIONS` and applies allow-origin/methods/headers.
+
+## Security headers
+
+`SecurityHeadersMiddleware` adds configurable browser security headers.
+
+## Rate limiting
+
+```kotlin
+rateLimiter.forName("api") { RateLimit(60, 60) }
+rateLimiter.attempt(key, maxAttempts, decaySeconds)
+```
+
+`ThrottleRequests` middleware returns **429** with `Retry-After` when a named limiter is exceeded.

@@ -1,0 +1,88 @@
+---
+title: Encryption
+description: Encrypt and decrypt strings with AES-256-GCM using the application key (app.key / APP_KEY).
+---
+
+**Encryption** turns sensitive strings into ciphertext that only your application can read, using a secret **application key**. Use it for cookie payloads, stored secrets, and any value that must remain opaque at rest or in transit through untrusted layers.
+
+Artifact: `dev.kona:kona-auth` (`dev.kona.security.Encrypter`). `AuthServiceProvider` binds an `Encrypter` when `app.key` is set.
+
+## Application key
+
+The key is 32 raw bytes, usually stored as `base64:…` in config:
+
+| Source | Notes |
+|--------|--------|
+| Config `app.key` | Read by `Encrypter.fromConfig` / `AuthServiceProvider` |
+| Environment | Commonly mirrored as `APP_KEY` into that config key in your bootstrap |
+
+Generate a key:
+
+```kotlin
+import dev.kona.security.Encrypter
+
+val key = Encrypter.generateKey()  // "base64:...."
+println(key)
+```
+
+```java
+String key = Encrypter.generateKey();
+```
+
+Put it in config before boot (or ensure `.env` / `config/` seeds `app.key`):
+
+```kotlin
+.configure { it.set("app.key", Encrypter.generateKey()) }
+```
+
+Never commit real production keys. Rotate carefully — ciphertext encrypted with the old key will not decrypt after rotation unless you re-encrypt.
+
+## Encrypt and decrypt
+
+```kotlin
+val encrypter = app.resolve(Encrypter::class.java)
+// or: Encrypter.fromBase64Key(app.config.getString("app.key")!!)
+
+val cipher = encrypter.encryptString("user@example.com")
+val plain = encrypter.decryptString(cipher)
+```
+
+```java
+Encrypter encrypter = app.resolve(Encrypter.class);
+String cipher = encrypter.encryptString("user@example.com");
+String plain = encrypter.decryptString(cipher);
+```
+
+Algorithm: **AES-256-GCM**. The payload is Base64-encoded JSON with Base64 fields `iv`, `value`, and `tag`.
+
+## Creating an encrypter manually
+
+```kotlin
+val fromConfig = Encrypter.fromConfig(app.config)
+val fromKey = Encrypter.fromBase64Key("base64:…")
+val fromBytes = Encrypter(ByteArray(32) /* exactly 32 bytes */)
+```
+
+```java
+Encrypter.fromConfig(app.getConfig());
+Encrypter.fromBase64Key("base64:…");
+new Encrypter(keyBytes); // length must be 32
+```
+
+## Failure modes
+
+| Situation | Exception |
+|-----------|-----------|
+| Missing `app.key` in `fromConfig` | `EncryptionException` — “No application encryption key has been specified.” |
+| Wrong key length / bad Base64 | `EncryptionException` — unsupported cipher or incorrect key length |
+| Tampered or wrong-key ciphertext | `EncryptionException` — could not decrypt |
+| `AuthServiceProvider` with blank/invalid key | Encrypter left unbound; resolve later after you set a valid key |
+
+`EncryptionException` is unchecked — catch it at boundaries where you accept untrusted ciphertext.
+
+## When to encrypt
+
+- Values you would not want readable in logs, cookies, or database columns
+- Session cookie payloads when using the cookie session driver in non-local environments (combine with [session](../session/) configuration)
+
+Do **not** use encryption as a substitute for password hashing. Passwords belong with [Hash / bcrypt](../authentication/#password-hashing).

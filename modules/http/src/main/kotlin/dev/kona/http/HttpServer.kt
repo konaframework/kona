@@ -55,6 +55,9 @@ class KonaHttpServer(
 
     private fun writeResponse(exchange: HttpExchange, response: Response, head: Boolean) {
         response.headers.forEach { (k, v) -> exchange.responseHeaders.add(k, v) }
+        response.cookies.forEach { cookie ->
+            exchange.responseHeaders.add("Set-Cookie", cookie.toSetCookieHeader())
+        }
         val bytes = response.body.toByteArray(Charsets.UTF_8)
         if (head || response.status == 204) {
             exchange.sendResponseHeaders(response.status, -1)
