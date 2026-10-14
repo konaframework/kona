@@ -15,41 +15,37 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M11 — Brew (Reactive UI)** on `main` |
-| In progress | **M12 — Inertia, asset bundling, starter kits** on `milestone/M12-inertia-assets-starters` — implementation complete locally; parent commits/PR |
-| Next / active after M12 merge | **M13 — Language support, LSP, editor setup** (`milestone/M13-ide-support`) |
-| Full parity map | [MILESTONES.md](../../MILESTONES.md) Almasix coverage ledger → through **M13** |
+| Last merged milestone | **M12 — Inertia, asset bundling, starter kits** on `main` |
+| In progress | **M13 — Language support, LSP, editor setup** on `milestone/M13-ide-support` — implementation complete locally; parent commits/PR |
+| Next / active after M13 merge | **none** — Almasix coverage ledger through **M13** is complete; maintenance / new numbered milestones only if a human opens them in `MILESTONES.md` |
+| Full parity map | [MILESTONES.md](../../MILESTONES.md) Almasix coverage ledger → **complete through M13** |
 | Docs brand | Primary `#FF9A00`, accent `#286291` (`apps/docs/src/styles/custom.css`) |
 | Docs shape | Progressive guides; rewrite as features land. |
 | Models | **Auto only** unless the human names a model for that turn |
-| Autopilot | Continuous M3→M13 (full Almasix menu); no pause between merges |
+| Autopilot | Continuous M3→M13 finished when M13 is on `main`; do not invent M14+ without a human |
 
-## M12 Inertia summary (for reviewers)
+## M13 IDE / language support summary (for reviewers)
 
-- Module: `modules/inertia` → Maven `dev.kona:kona-inertia`
-- Package: `dev.kona.inertia` — `Inertia`, `InertiaManager`, `HandleInertiaRequests`, `InertiaServiceProvider`
-- Assets: `dev.kona.inertia.assets` — `Vite` / `AssetManifest` (manifest + `public/hot`)
-- CLI: `kona new --kit=api|crema|inertia|brew` (alias `--preset`)
-- grind: `assets:vite` help command
-- Docs: sidebar **Inertia & assets** (Inertia, Vite, Starter kits)
-- Samples: `InertiaDemo` in hello-kotlin / hello-java
+- Grammar: `ide-support/crema/` — TextMate + language-configuration for `*.crema.html` / `*.crema.kt`
+- LSP: `modules/lsp` → Maven `dev.kona:kona-lsp`, package `dev.kona.lsp` — stdio JSON-RPC (`initialize`/`shutdown`/`exit`, completion, publishDiagnostics + pull diagnostic)
+- Editors: `ide-support/vscode-crema/`, `ide-support/intellij/README.md`
+- grind: `ide:lsp` prints how to run the jar (no long-lived process)
+- Docs: sidebar **Language / Editor** (Getting started, grammar, LSP, VS Code/Cursor, IntelliJ)
 
-## How to resume the continuous session
+## How to resume
 
 ```text
 Read AGENTS.md, MILESTONES.md, and docs/governance/continuous-autopilot.md.
-If milestone/M12-inertia-assets-starters is not yet on main, finish that PR (commit → push → automerge).
-Otherwise active milestone is M13 — Language support, LSP, editor setup.
-Run continuous autopilot: exhaust parity + 100% coverage + rewrite docs as needed →
-commit → PR → automerge → next milestone until the Almasix coverage ledger is fully done (through M13).
-Use Auto for all models. Never edit GitHub rulesets.
+If milestone/M13-ide-support is not yet on main, finish that PR (commit → push → automerge).
+After M13 merges: Almasix ledger through M13 is complete — stop autopilot unless a human
+adds a new milestone section. Use Auto for all models. Never edit GitHub rulesets.
 ```
 
 ## Local verify before a milestone PR
 
 ```bash
 export JAVA_HOME=…   # JDK 21+
-./gradlew test koverVerify
+./gradlew :kona-lsp:test :kona-lsp:koverVerify test koverVerify
 pnpm --filter @kona/docs build   # or: cd apps/docs && pnpm build
 ```
 

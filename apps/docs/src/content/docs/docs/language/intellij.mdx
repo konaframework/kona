@@ -1,0 +1,44 @@
+---
+title: IntelliJ
+description: Use the Crema TextMate grammar and kona-lsp from IntelliJ IDEA.
+---
+
+IntelliJ can highlight Crema via **TextMate bundles** and optional LSP integration. Packaging notes also live in `ide-support/intellij/README.md`.
+
+## TextMate bundle
+
+1. Open **Settings → Editor → TextMate Bundles**.
+2. Add the directory `ide-support/crema` (contains `crema.tmLanguage.json`).
+3. Ensure patterns cover `*.crema.html` and `*.crema.kt`.
+4. Reopen a Crema view to refresh highlighting.
+
+If your IDE prefers a classic bundle layout:
+
+```text
+Crema.tmbundle/
+  Syntaxes/crema.tmLanguage.json
+```
+
+Copy the grammar from `ide-support/crema/crema.tmLanguage.json`.
+
+## File types
+
+Under **Settings → Editor → File Types**, create or reuse a **Crema** type and register:
+
+- `*.crema.html`
+- `*.crema.kt`
+
+Pair this with the TextMate grammar for scopes; without TextMate you still get basic editing as HTML-like text.
+
+## Language server
+
+Build and run kona-lsp the same way as other editors:
+
+```bash
+./gradlew :kona-lsp:jar
+java -jar modules/lsp/build/libs/kona-lsp-*.jar
+```
+
+Point IntelliJ’s LSP-compatible client (where available for your build) at that command with stdio. Details of the protocol are on the [language server](/docs/language/lsp) page.
+
+`./grind ide:lsp` prints a short reminder from any Kona app project.

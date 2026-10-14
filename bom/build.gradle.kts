@@ -33,5 +33,6 @@ dependencies {
         api(project(":kona-search"))
         api(project(":kona-brew"))
         api(project(":kona-inertia"))
+        api(project(":kona-lsp"))
     }
 }

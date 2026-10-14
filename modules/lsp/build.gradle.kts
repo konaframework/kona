@@ -1,0 +1,60 @@
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kover)
+    application
+    `java-library`
+    `maven-publish`
+}
+
+application {
+    applicationName = "kona-lsp"
+    mainClass.set("dev.kona.lsp.LspKt")
+}
+
+dependencies {
+    api(libs.jackson.databind)
+    implementation(libs.jackson.module.kotlin)
+
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "dev.kona.lsp.LspKt"
+    }
+}
+
+kover {
+    reports {
+        total {
+            filters {
+                excludes {
+                    // Process entrypoint only — LspServer is fully covered via injected streams.
+                    classes("dev.kona.lsp.LspKt")
+                }
+            }
+            verify {
+                rule {
+                    bound {
+                        minValue = 100
+                        coverageUnits.set(kotlinx.kover.gradle.plugin.dsl.CoverageUnit.LINE)
+                    }
+                    bound {
+                        minValue = 100
+                        coverageUnits.set(kotlinx.kover.gradle.plugin.dsl.CoverageUnit.BRANCH)
+                    }
+                }
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+            artifactId = "kona-lsp"
+        }
+    }
+}

@@ -90,6 +90,16 @@ export async function buildSidebar() {
       ],
     },
     {
+      label: 'Language / Editor',
+      items: [
+        { label: 'Getting started', slug: 'docs/language' },
+        { label: 'Crema grammar', slug: 'docs/language/grammar' },
+        { label: 'Language server (LSP)', slug: 'docs/language/lsp' },
+        { label: 'VS Code & Cursor', slug: 'docs/language/vscode' },
+        { label: 'IntelliJ', slug: 'docs/language/intellij' },
+      ],
+    },
+    {
       label: 'Cache & Redis',
       items: [
         { label: 'Cache', slug: 'docs/cache' },
