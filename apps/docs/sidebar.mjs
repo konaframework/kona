@@ -25,9 +25,11 @@ export async function buildSidebar() {
       label: 'HTTP',
       items: [
         { label: 'Routing', slug: 'docs/http/routing' },
+        { label: 'Request & response', slug: 'docs/http/request-response' },
         { label: 'Middleware', slug: 'docs/http/middleware' },
         { label: 'Validation', slug: 'docs/http/validation' },
         { label: 'Exceptions', slug: 'docs/http/exceptions' },
+        { label: 'Kernel & server', slug: 'docs/http/kernel-server' },
       ],
     },
     {

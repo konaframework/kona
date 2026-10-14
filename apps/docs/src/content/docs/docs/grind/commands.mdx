@@ -1,55 +1,231 @@
 ---
 title: new / serve / make
-description: Reference for grind new, grind serve, and grind make:controller.
+description: Reference for grind new, grind serve, and grind make:controller — every flag, default, and error.
 ---
+
+This page documents each grind command: what it does step by step, every option it accepts, and the errors it reports. For installing grind and general argument conventions, see the [grind overview](../).
 
 ## `grind new`
 
-Create a new application directory with Gradle build files, wrapper scripts, `.env`, bootstrap, an app service provider, routes, and a welcome controller.
-
 ```bash
-grind new my-app --lang=kotlin
-grind new my-app --lang=java
-grind new my-app --lang=kotlin --kona-version=0.1.0-SNAPSHOT
+grind new <name> [--lang=kotlin|java] [--kona-version=x.y.z]
 ```
 
-| Flag | Effect |
-|------|--------|
-| `--lang=kotlin\|java` | Which skeleton language to copy |
-| `--kona-version=…` | Version string stamped into the generated Gradle dependency |
+`grind new` creates a **self-contained Gradle project**: a directory you can build and run with nothing but a JDK, because it includes the Gradle wrapper.
 
-The generated build depends on `dev.kona:kona-http` and resolves from `mavenLocal()` and Maven Central. To wire a local Kona checkout during development, use `-Pkona.home=/path/to/kona` on Gradle invocations or set `KONA_HOME`; the generated settings file documents the `includeBuild` hook.
+```bash
+grind new hello-kona                     # Kotlin project in ./hello-kona
+grind new hello-kona --lang=java         # Java project
+grind new ~/work/shop --lang=kotlin      # any path works; the last segment is the app name
+grind new hello-kona --kona-version=0.2.0
+```
 
-`APP_NAME` in `.env` is set from the directory name you pass to `new`.
+| Option | Default | Effect |
+|--------|---------|--------|
+| `<name>` | *(required)* | Directory to create, relative to the current directory or absolute. Its last path segment becomes the application name. |
+| `--lang=kotlin\|java` | `kotlin` | Which language the generated sources use. |
+| `--kona-version=…` | The version of grind you are running | Version of `dev.kona:kona-http` written into `build.gradle.kts`. |
+
+### What it creates
+
+| Path | Purpose |
+|------|---------|
+| `settings.gradle.kts` | Sets the Gradle project name to the app name, and optionally includes a local Kona checkout (see below). |
+| `build.gradle.kts` | Applies the Kotlin JVM plugin (Kotlin projects only) and the `application` plugin, targets JDK 21, depends on `dev.kona:kona-http`, and sets the main class to `bootstrap.App`. |
+| `gradlew`, `gradlew.bat`, `gradle/wrapper/` | The Gradle wrapper. `gradlew` is marked executable. |
+| `.env` | Local settings: `APP_NAME=<name>`, `APP_ENV=local`, `APP_DEBUG=true`, `HOST=127.0.0.1`, `PORT=8080`. |
+| `.gitignore` | Ignores build output and local files. |
+| `README.md` | Short instructions for the project. |
+| `bootstrap/App.kt` or `App.java` | The entry point. `create(args)` boots the application and registers routes; `main(args)` calls `create` and starts the HTTP server. |
+| `app/Providers/AppServiceProvider` | Your first service provider, with empty `register` and `boot` methods. |
+| `app/Http/Controllers/WelcomeController` | Returns `Welcome to Kona` from `index`. |
+| `routes/web.kt` or `routes/WebRoutes.java` | Registers `GET /` (named `welcome`) and `GET /api/health` (named `api.health`, returns `{"status":"ok"}`). |
+| `config/`, `resources/` | Empty directories for configuration files and classpath resources. |
+
+The source directories are `app/`, `bootstrap/`, and `routes/` at the project root (not `src/main/…`), and packages follow the folders: `app.Http.Controllers`, `app.Providers`, `bootstrap`, `routes`. A Kotlin project compiles only `.kt` files and a Java project only `.java` files.
+
+When the command finishes, it prints the path and the next step:
+
+```text
+Created Kona application at /home/you/hello-kona (kotlin)
+  cd hello-kona && grind serve
+```
+
+### Where Kona comes from
+
+The generated build looks for Kona in your local Maven repository (`~/.m2`) first, then Maven Central. To build against a local Kona checkout instead — useful while developing Kona itself — point the project at it:
+
+```bash
+./gradlew run -Pkona.home=/path/to/kona
+# or
+export KONA_HOME=/path/to/kona
+```
+
+`settings.gradle.kts` reads the `kona.home` Gradle property, or the `KONA_HOME` environment variable, and includes that build so Gradle substitutes the checkout’s modules.
+
+### Errors
+
+| Situation | Message |
+|-----------|---------|
+| No name given | `Usage: grind new <name> [--lang=kotlin\|java] [--kona-version=x.y.z]` |
+| Unsupported language | `--lang must be kotlin or java` |
+| Target already exists | `Directory already exists: <path>` — grind never overwrites files |
 
 ## `grind serve`
 
-Start the HTTP server for the application in the current (or nearest) Gradle project.
+```bash
+grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
+            [--in-process [--bootstrap=bootstrap.App] [--once]]
+```
+
+`grind serve` starts your application’s HTTP server. It has two modes: the default **Gradle mode**, which builds and runs the app as its own process, and **in-process mode**, which loads already-compiled classes into grind itself.
+
+### Finding the project
+
+Both modes first look for the **project root**. Starting at `--base` (default: the current directory), grind checks for `settings.gradle.kts`, `settings.gradle`, `build.gradle.kts`, or `build.gradle`, then moves up one directory at a time until it finds one. You can therefore run `grind serve` from any folder inside the project, such as `app/Http`.
+
+If no directory up to the filesystem root contains a build file, grind exits with:
+
+```text
+No Kona application found at <path> (expected settings.gradle.kts or build.gradle.kts). Create one with: grind new <name>
+```
+
+### Gradle mode (default)
 
 ```bash
 grind serve
-grind serve --host=127.0.0.1 --port=8080
-grind serve --in-process --once
-grind serve --bootstrap=com.example.bootstrap.App
+grind serve --host=0.0.0.0 --port=9000
 ```
 
-| Flag | Effect |
-|------|--------|
-| `--host` / `--port` | Override bind address (also settable via `.env` as `HOST` / `PORT`) |
-| `--in-process` | Load compiled classes and call `bootstrap.App.create` instead of `gradlew run` |
-| `--once` | With in-process mode, return after the server has started (tests) |
-| `--bootstrap=` | Fully qualified bootstrap class name |
-| `--base=` | Directory to search upward for a Gradle project |
+1. grind runs `./gradlew run` in the project root (`gradlew.bat run` on Windows). If the project has no wrapper script, it runs `gradle run` from your `PATH`.
+2. If you passed `--host` or `--port`, grind sets the `HOST` and `PORT` environment variables for that process. Process environment variables take precedence over `.env`, so the flags override `.env` for this run only.
+3. Gradle compiles the project and starts `bootstrap.App.main`, which reads `HOST` and `PORT` (defaults `127.0.0.1` and `8080`) and starts the server.
+4. The app’s output appears directly in your terminal. grind waits for it to finish and exits with the **same exit code**.
 
-If grind cannot find `settings.gradle(.kts)` or `build.gradle(.kts)`, it exits with a message suggesting `grind new`. Default bind host is **127.0.0.1**.
+Press **Ctrl+C** to stop the server. Use this mode for everyday development: it uses your project’s full dependency list, so any library you add to `build.gradle.kts` is available.
 
-The default path shells out to `./gradlew run` so the app’s full dependency set is on the classpath. `--in-process` is faster for tests but only sees classes already compiled into `build/`.
+### In-process mode
+
+```bash
+./gradlew classes
+grind serve --in-process
+grind serve --in-process --port=9000 --bootstrap=com.example.Boot
+grind serve --in-process --once
+```
+
+In-process mode skips Gradle at run time. It is faster to start and useful in scripts and tests, with some limits:
+
+1. grind looks for compiled output in `build/classes/kotlin/main`, `build/classes/java/main`, and `build/resources/main`. Run `./gradlew classes` (or any build) first.
+2. It loads the **bootstrap class** (default `bootstrap.App`, change it with `--bootstrap=`) and calls its static `create(String[] args)` method with `--base=<project root>`, so the application reads `.env` and `config/` from the project.
+3. It picks the bind address: `--host` / `--port` if given, otherwise `HOST` / `PORT` from the environment or the project’s `.env`, otherwise `127.0.0.1:8080`.
+4. It resolves `HttpKernel` from the application, starts a `KonaHttpServer`, and keeps running until the process is stopped.
+
+Things to know about in-process mode:
+
+- Your app’s **`main` method is not called**. Anything you do only in `main` — custom server setup, extra startup work — does not happen. Put startup logic in `create` or in a service provider.
+- Kona’s own classes come from **grind**, not from your project. Only your app’s classes and resources are loaded from `build/`. Third-party libraries your app depends on are **not** on the classpath; use Gradle mode for those apps.
+- The bootstrap `create` method must be `static` (`@JvmStatic` inside a Kotlin `object`) and return an `Application`. The generated `bootstrap/App` already does this.
+
+`--once` starts the server and stops it immediately after it binds, then exits with status 0. It is a quick check that the application boots and the port is free, for example in CI.
+
+### Options
+
+| Option | Default | Mode | Effect |
+|--------|---------|------|--------|
+| `--host=…` | `HOST`, else `127.0.0.1` | both | Address to bind. `127.0.0.1` accepts local connections only; `0.0.0.0` accepts connections on every interface. |
+| `--port=…` | `PORT`, else `8080` | both | TCP port to bind. |
+| `--base=…` | `.` | both | Where to start searching upward for the project root. |
+| `--in-process` | off | — | Use in-process mode instead of Gradle mode. |
+| `--bootstrap=…` | `bootstrap.App` | in-process | Fully qualified name of the bootstrap class. |
+| `--once` | off | in-process | Start, then stop right away and exit. |
+
+### Errors
+
+| Situation | Message |
+|-----------|---------|
+| No project found | `No Kona application found at …` (see above) |
+| In-process with nothing compiled | `No compiled classes under <root>/build — run ./gradlew classes first` |
+| Bootstrap class missing | `Bootstrap class [bootstrap.App] not found in [...]` |
+| No `create(String[])` method | `[bootstrap.App] must declare static Application create(String[] args)` |
+| `create` not static, or wrong return type | `[bootstrap.App].create(String[]) must be static (@JvmStatic in Kotlin) and return Application` |
+| Gradle cannot be started | `Failed to start <command>: <reason>` |
+
+If the port is already in use, or your `create` method throws, the error is reported with its full stack trace and grind exits with a non-zero status.
 
 ## `grind make:controller`
 
 ```bash
-grind make:controller Post
-grind make:controller Blog/PostController
+grind make:controller <Name> [--lang=kotlin|java] [--base=.]
 ```
 
-Writes a controller under `app/Http/Controllers` (language matches the project). Names are validated: path traversal and illegal class identifiers are rejected.
+A **controller** is a class that groups the handlers for one area of your application — for example a `PostController` with methods to list, show, and create posts. `make:controller` writes a starter controller so you can begin filling in methods.
+
+```bash
+grind make:controller Post                 # app/Http/Controllers/PostController.kt
+grind make:controller AccountController    # suffix already present, not doubled
+grind make:controller Invoice --lang=java  # force Java
+```
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `<Name>` | *(required)* | Class name. `Controller` is appended unless the name already ends with it. |
+| `--lang=kotlin\|java` | Detected | Language of the generated file. Without the flag, grind uses Java if any `.java` file exists under `app/`, and Kotlin otherwise. |
+| `--base=…` | `.` | Project root. Unlike `serve`, `make:controller` does **not** search upward — run it from the project root or pass `--base`. |
+
+The name must be a single class identifier: letters, digits, and underscores, not starting with a digit. Slashes, dots, and dashes are rejected (so `Blog/Post` or `../Evil` cannot write outside the controllers folder). Use PascalCase such as `BlogPost`.
+
+### What it writes
+
+The file goes to `app/Http/Controllers/<Name>Controller.kt` or `.java`, in package `app.Http.Controllers`, with one `index` method:
+
+```kotlin
+package app.Http.Controllers
+
+import dev.kona.http.Request
+import dev.kona.http.Response
+
+class PostController {
+    fun index(request: Request): Response = Response.text("PostController")
+}
+```
+
+```java
+package app.Http.Controllers;
+
+import dev.kona.http.Request;
+import dev.kona.http.Response;
+
+public class PostController {
+    public Response index(Request request) {
+        return Response.text("PostController");
+    }
+}
+```
+
+grind prints `Controller created: app/Http/Controllers/PostController.kt`. Choose the language that matches your project: a Kotlin project does not compile `.java` files, and the reverse.
+
+### Routing to the new controller
+
+A generated controller is not reachable until you register a route for it. Add one to your routes file:
+
+```kotlin
+// routes/web.kt
+val posts = PostController()
+router.get("/posts") { posts.index(it) }.name("posts.index")
+```
+
+```java
+// routes/WebRoutes.java
+PostController posts = new PostController();
+router.get("/posts", posts::index).name("posts.index");
+```
+
+Restart `grind serve` and request `/posts`. See [Routing](../../http/routing/) for path parameters, groups, and resource routes.
+
+### Errors
+
+| Situation | Message |
+|-----------|---------|
+| No name given | `Usage: grind make:controller <Name>` |
+| Invalid name | `Invalid controller name [Bad-Name]: expected a class name like UserController` |
+| File already exists | `Controller already exists: <path>` — existing files are never overwritten |

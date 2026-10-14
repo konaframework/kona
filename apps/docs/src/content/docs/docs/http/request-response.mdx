@@ -1,0 +1,224 @@
+---
+title: Request & response
+description: Read headers, query strings, form fields, and JSON from a Request, and build text, HTML, JSON, or empty Responses.
+---
+
+Every piece of HTTP code in Kona works with two small classes from the `dev.kona.http` package:
+
+- **`Request`** — an immutable snapshot of what the client sent: method, path, headers, query string, and body. It also carries a mutable **attributes** map that Kona and your middleware use to pass values along (route parameters live there).
+- **`Response`** — what you send back: a status code, a string body, and a map of headers. Responses are mutable and chainable, so middleware can adjust them on the way out.
+
+A **handler** is any function that takes a `Request` and returns a `Response` (the `Handler` interface). Route actions, controller methods, and the end of a middleware chain are all handlers. This page explains both classes in detail; [Routing](../routing/) explains how a request reaches your handler, and [Kernel & server](../kernel-server/) explains how the bytes on the socket become a `Request` in the first place.
+
+## Where a `Request` comes from
+
+When the embedded server (`KonaHttpServer`) receives a call, it builds a `Request` from the raw exchange:
+
+| Field | Source |
+|-------|--------|
+| `method` | The HTTP method as sent, for example `GET` or `POST` |
+| `path` | The **raw** request path, without the query string, still percent-encoded (for example `/files/a%20b`) |
+| `headers` | One entry per header name; when a client repeats a header, only the **first** value is kept |
+| `query` | The query string parsed into `name → value`, percent-decoded; a repeated name keeps the **last** value, and `?flag` with no `=` becomes `flag → ""` |
+| `body` | The full request body read into memory and decoded as UTF-8 |
+| `attributes` | Starts empty; the kernel adds route parameters, middleware can add anything |
+
+Because the request is fully read before your code runs, `body` is always a complete `String`. There is no streaming body API yet, so very large uploads are held in memory.
+
+You can also build requests yourself, which is how most HTTP tests in Kona are written — you hand the request straight to the kernel without opening a socket:
+
+```kotlin
+val get = Request.get("/users/42")
+val form = Request.post("/login", "email=ada%40example.com&password=secret")
+val json = Request(
+    method = "POST",
+    path = "/users",
+    headers = mapOf("Content-Type" to "application/json"),
+    body = """{"name":"Ada","age":36}""",
+)
+```
+
+```java
+Request get = Request.get("/users/42");
+Request form = Request.post("/login", "email=ada%40example.com&password=secret");
+Request json = new Request(
+    "POST",
+    "/users",
+    Map.of("Content-Type", "application/json"),
+    Map.of(),                              // query
+    "{\"name\":\"Ada\",\"age\":36}"        // body
+);
+```
+
+The constructor’s trailing parameters are optional in both languages: Java can call `new Request("DELETE", "/users/42")` and stop there. `Request.post` takes the body as a second argument; Kotlin may omit it, Java passes it explicitly (use `""` for an empty body).
+
+In Java, the fields are read through getters: `getMethod()`, `getPath()`, `getHeaders()`, `getQuery()`, `getBody()`, `getAttributes()`.
+
+## Headers
+
+Use `header(name)` to read a header. The lookup is **case-insensitive**, so `header("content-type")` and `header("Content-Type")` return the same value. A second overload supplies a default when the header is absent.
+
+```kotlin
+val agent = request.header("User-Agent")              // String? — null when missing
+val accept = request.header("Accept", "*/*")          // falls back to "*/*"
+```
+
+```java
+String agent = request.header("User-Agent");           // may be null
+String accept = request.header("Accept", "*/*");
+```
+
+Prefer `header(...)` over reading the `headers` map directly. The map keeps the names exactly as the server delivered them, and map lookups are case-sensitive.
+
+## Query string and form fields
+
+Kona gives you three ways to read simple string input, and the difference between them matters when the same name appears in both the query string and the body.
+
+### `query`
+
+The parsed query string, exactly as described in the table above. `request.query["page"]` in Kotlin, `request.getQuery().get("page")` in Java.
+
+### `form()`
+
+`form()` parses the **body** into a `Map<String, String>`:
+
+- An empty or whitespace-only body gives an empty map.
+- If the `Content-Type` header contains `application/json` (case-insensitive, so `application/json; charset=utf-8` counts), the body is read as a JSON object and **flattened to strings**: text values stay as-is, `null` becomes `""`, and numbers, booleans, arrays, and nested objects become their JSON text (`36`, `true`, `["a","b"]`). A JSON body that is not an object (for example a top-level array) gives an empty map.
+- For **any other content type**, the body is parsed as URL-encoded form data (`a=1&b=two`), with names and values percent-decoded. A repeated field keeps the last value. Multipart uploads are not parsed.
+
+`form()` parses on every call; store the result in a local variable if you read it many times.
+
+### `input(key, default)` and `all()`
+
+- `input(key, default)` looks in the **query string first**, then in `form()`, and returns `default` when neither has the key.
+- `all()` merges both into one map. When a name exists in both, the **body value wins**.
+
+```kotlin
+val page = request.input("page", "1")
+val search = request.input("q")            // default is null
+val everything: Map<String, String> = request.all()
+```
+
+```java
+String page = request.input("page", "1");
+String search = request.input("q", null);  // Java passes the default explicitly
+Map<String, String> everything = request.all();
+```
+
+## Typed JSON with `data()`
+
+`form()` and `all()` always give you strings, which is right for HTML forms but loses information for JSON APIs. `data()` returns `Map<String, Any?>` with **natural JSON types**:
+
+| JSON value | Kotlin / Java type in `data()` |
+|------------|-------------------------------|
+| `"Ada"` | `String` |
+| `36` | `Int` / `Integer` (larger values become `Long` or `BigInteger`) |
+| `1.5` | `Double` |
+| `true` | `Boolean` |
+| `null` | `null` |
+| `[...]` | `List` |
+| `{...}` | `Map` |
+
+When the request is JSON (same `Content-Type` check as above), `data()` returns the query string merged with the parsed body object, with body keys winning on conflict. For every other request, `data()` returns `all()`, so all values are strings.
+
+```kotlin
+val payload = request.data()
+val tags = payload["tags"] as? List<*> ?: emptyList<Any>()
+val active = payload["active"] == true
+```
+
+```java
+Map<String, Object> payload = request.data();
+Object tags = payload.get("tags");         // a java.util.List for a JSON array
+boolean active = Boolean.TRUE.equals(payload.get("active"));
+```
+
+[Validation](../validation/) reads input through `data()`, which is why rules such as `boolean`, `array`, and `integer` behave correctly for JSON bodies.
+
+:::caution
+If the body is labelled JSON but is not valid JSON, `form()`, `input()`, `all()`, and `data()` throw the parser’s exception. Kona does not turn this into a 400 or 422 response; the default exception handler treats it as an unexpected error and answers **500**. Wrap the call in your own handler code if you want a friendlier response for malformed JSON.
+:::
+
+## Attributes
+
+`attributes` is a mutable map that lives for exactly one request. It is the standard place for one stage of the pipeline to hand data to a later one: an authentication middleware stores the current user, a handler reads it.
+
+```kotlin
+request.setAttribute("user", currentUser)  // returns the Request, so calls chain
+val user = request.getAttribute("user") as User?
+```
+
+```java
+request.setAttribute("user", currentUser);
+User user = (User) request.getAttribute("user");
+```
+
+The kernel writes **route parameters** here before your handler runs. For a route `/users/{id}` and the path `/users/42`, both `getAttribute("id")` and `getAttribute("route.id")` return `"42"` (always a `String`). Use the `route.` form when a plain name could collide with something your middleware stores.
+
+## Building a `Response`
+
+### Factories
+
+Four static factories cover the common cases. Each sets a `Content-Type` header for you; the first three accept an optional status code (default `200`).
+
+| Factory | Body | `Content-Type` |
+|---------|------|----------------|
+| `Response.text(body, status)` | The string as given | `text/plain; charset=utf-8` |
+| `Response.html(body, status)` | The string as given | `text/html; charset=utf-8` |
+| `Response.json(payload, status)` | `payload` serialized to JSON | `application/json; charset=utf-8` |
+| `Response.noContent()` | Empty, status `204` | `text/plain; charset=utf-8` (no body is sent) |
+
+`json` accepts any value the bundled Jackson serializer understands: maps, lists, strings, numbers, booleans, `null` (serialized as `null`), Kotlin data classes, Java records, and ordinary classes with getters.
+
+```kotlin
+data class UserView(val id: Int, val name: String)
+
+router.get("/hello") { Response.text("Hello") }
+router.get("/page") { Response.html("<h1>Welcome</h1>") }
+router.get("/users/{id}") { Response.json(UserView(42, "Ada")) }
+router.post("/users") { Response.json(mapOf("id" to 43), 201) }
+router.delete("/users/{id}") { Response.noContent() }
+```
+
+```java
+record UserView(int id, String name) {}
+
+router.get("/hello", request -> Response.text("Hello"));
+router.get("/page", request -> Response.html("<h1>Welcome</h1>"));
+router.get("/users/{id}", request -> Response.json(new UserView(42, "Ada")));
+router.post("/users", request -> Response.json(Map.of("id", 43), 201));
+router.delete("/users/{id}", request -> Response.noContent());
+```
+
+### Adjusting a response
+
+`Response` has three public, mutable parts: `status`, `body`, and `headers`. The fluent helpers each change one part and return the same object:
+
+- `header(name, value)` sets a header, replacing any earlier value stored under the **same** name.
+- `withStatus(code)` changes the status.
+- `withBody(content)` replaces the body.
+
+```kotlin
+return Response.json(mapOf("ok" to true))
+    .withStatus(202)
+    .header("Location", "/jobs/7")
+    .header("Cache-Control", "no-store")
+```
+
+```java
+return Response.json(Map.of("ok", true))
+    .withStatus(202)
+    .header("Location", "/jobs/7")
+    .header("Cache-Control", "no-store");
+```
+
+The no-argument constructor (`Response()` / `new Response()`) gives status `200`, an empty body, and a `text/plain` content type; it is handy when middleware builds a response from scratch. In Java, `getStatus()`/`setStatus(...)`, `getBody()`/`setBody(...)`, and `getHeaders()` expose the same fields.
+
+Two details about response headers:
+
+- Header names in a `Response` are stored **exactly as written**. To replace the content type set by a factory, use the same spelling, `Content-Type`; a different spelling such as `content-type` adds a second entry instead.
+- A response holds **one value per header name**. Calling `header("Set-Cookie", …)` twice keeps only the second value.
+
+## What the server does with your response
+
+After the kernel returns, the server writes every header, then the body encoded as UTF-8 with a matching `Content-Length`. For `204 No Content` responses and for `HEAD` requests, no body is sent at all. See [Kernel & server](../kernel-server/) for the full sequence.

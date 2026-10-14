@@ -6,7 +6,7 @@ hero:
   tagline: Kotlin-first. Java first-class. Full-stack web apps on the JVM.
   actions:
     - text: Get started
-      link: docs/guides/introduction/
+      link: guides/introduction/
       icon: right-arrow
       variant: primary
     - text: GitHub
@@ -15,4 +15,23 @@ hero:
       variant: minimal
 ---
 
-Kona ships as Maven artifacts under `dev.kona`. These pages are the public guides. Architecture notes for contributors live in the [repository](https://github.com/konaframework/kona).
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+Kona is a web framework for the JVM. You boot an **application**, plug features in with **service providers**, look services up from a **container**, and answer HTTP requests with **routes** and **middleware**. The same APIs work from Kotlin and Java, and the **grind** command-line tool scaffolds and serves your project.
+
+<CardGrid>
+  <Card title="Start here" icon="rocket">
+    Read the [introduction](guides/introduction/) for the vocabulary and lifecycle, then follow [Installation](guides/installation/) and [Your first app](guides/first-app/).
+  </Card>
+  <Card title="Core concepts" icon="puzzle">
+    How an [application boots](concepts/application/), how the [container](concepts/container/) builds services, and where [config and env](concepts/config/) values come from.
+  </Card>
+  <Card title="HTTP" icon="random">
+    [Routing](http/routing/), [middleware](http/middleware/), [validation](http/validation/), and [error responses](http/exceptions/).
+  </Card>
+  <Card title="grind" icon="seti:shell">
+    Create, serve, and generate code with the [grind CLI](grind/).
+  </Card>
+</CardGrid>
+
+Kona ships as Maven artifacts under the group `dev.kona` and requires JDK 21 or newer. Notes for contributors working on the framework itself live in the [repository](https://github.com/konaframework/kona).

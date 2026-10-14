@@ -1,36 +1,38 @@
 ---
 title: Middleware
-description: Wrap requests with cross-cutting logic before and after handlers run.
+description: Wrap requests with cross-cutting logic before and after handlers run, globally or per route.
 ---
 
-**Middleware** is code that runs around a handler. Common uses: add a request ID header, reject unauthenticated calls, log timing, or transform the response. Each middleware receives the `Request` and a `next` handler. Calling `next` continues the pipeline; returning a `Response` without calling `next` stops it.
+**Middleware** is code that runs *around* a handler. It sees the request before the handler does and the response after the handler returns, which makes it the right place for concerns shared by many routes: request IDs, authentication, access logs, timing, CORS headers, or forcing a response format.
 
-## Global vs route middleware
-
-The **HTTP kernel** holds a list of **global** middleware. That list wraps **everything**: routing, the matched route’s middleware, the action, and exception handling. Practical consequence: a global middleware still runs for 404 and 405 responses, and it still sees the response produced by the exception handler.
-
-**Route** (and group) middleware run only after a route has been selected, around that route’s action.
-
-Order: outer global → … → inner global → route middleware → action. On the way out, middleware runs in reverse (each can inspect or replace the `Response`).
-
-## Configuring the kernel
+A middleware is any object implementing the `Middleware` interface:
 
 ```kotlin
-val kernel = HttpKernel(router, listOf(RequestIdMiddleware()))
-kernel.pushMiddleware(AccessLogMiddleware())
-kernel.prependMiddleware(ForceJsonMiddleware())
+fun interface Middleware {
+    fun handle(request: Request, next: Handler): Response
+}
 ```
 
-```java
-HttpKernel kernel = new HttpKernel(router, List.of(new RequestIdMiddleware()));
-kernel.pushMiddleware(new AccessLogMiddleware());
-```
+`next` is “the rest of the pipeline” — the next middleware, or the route handler if this is the last one. A middleware does one of three things:
 
-You can also replace the list with `setGlobalMiddleware`. Inspect with `globalMiddleware` / `hasMiddleware`.
+1. **Pass through:** call `next` with the request and return its response, possibly after modifying it.
+2. **Short-circuit:** return a `Response` without calling `next`. Nothing further in the chain runs. This is how an authentication middleware rejects a request.
+3. **Throw:** raise an exception (for example `HttpException(401, "Unauthenticated.")`). The kernel’s exception handler turns it into a response; see [Where exceptions go](#where-exceptions-go).
 
-## Implementing middleware
+## Writing middleware
+
+### A pass-through middleware
+
+This middleware ensures every response carries an `X-Request-Id` header, reusing the client’s ID when it sent one and storing it in the request attributes so handlers can log it.
 
 ```kotlin
+import dev.kona.http.Handler
+import dev.kona.http.Middleware
+import dev.kona.http.Request
+import dev.kona.http.Response
+import dev.kona.http.invoke
+import java.util.UUID
+
 class RequestIdMiddleware : Middleware {
     override fun handle(request: Request, next: Handler): Response {
         val id = request.header("X-Request-Id") ?: UUID.randomUUID().toString()
@@ -42,11 +44,16 @@ class RequestIdMiddleware : Middleware {
 ```
 
 ```java
+import dev.kona.http.Handler;
+import dev.kona.http.Middleware;
+import dev.kona.http.Request;
+import dev.kona.http.Response;
+import java.util.UUID;
+
 public final class RequestIdMiddleware implements Middleware {
     @Override
     public Response handle(Request request, Handler next) {
-        String id = Optional.ofNullable(request.header("X-Request-Id"))
-            .orElse(UUID.randomUUID().toString());
+        String id = request.header("X-Request-Id", UUID.randomUUID().toString());
         request.setAttribute("requestId", id);
         Response response = next.handle(request);
         return response.header("X-Request-Id", id);
@@ -54,4 +61,150 @@ public final class RequestIdMiddleware implements Middleware {
 }
 ```
 
-Attach route middleware with `.middleware(mw)` on a route or via group parameters.
+In Kotlin, `next(request)` is shorthand for `next.handle(request)`; it needs `import dev.kona.http.invoke` when your file is in another package. Both spellings do the same thing.
+
+### A short-circuiting middleware
+
+```kotlin
+class Authenticate(private val tokens: TokenStore) : Middleware {
+    override fun handle(request: Request, next: Handler): Response {
+        val token = request.header("Authorization")?.removePrefix("Bearer ")
+        val user = token?.let(tokens::find)
+            ?: return Response.json(mapOf("message" to "Unauthenticated."), 401)
+        request.setAttribute("user", user)
+        return next.handle(request)
+    }
+}
+```
+
+```java
+public final class Authenticate implements Middleware {
+    private final TokenStore tokens;
+
+    public Authenticate(TokenStore tokens) { this.tokens = tokens; }
+
+    @Override
+    public Response handle(Request request, Handler next) {
+        String header = request.header("Authorization", "");
+        User user = tokens.find(header.replaceFirst("^Bearer ", ""));
+        if (user == null) {
+            return Response.json(Map.of("message", "Unauthenticated."), 401);
+        }
+        request.setAttribute("user", user);
+        return next.handle(request);
+    }
+}
+```
+
+### Lambdas
+
+Because `Middleware` is a functional interface, small middleware can be a lambda:
+
+```kotlin
+val poweredBy = Middleware { request, next -> next.handle(request).header("X-Powered-By", "Kona") }
+```
+
+```java
+Middleware poweredBy = (request, next) -> next.handle(request).header("X-Powered-By", "Kona");
+```
+
+Keep a reference to a lambda if you need to check for it later with `hasMiddleware`; two separately written lambdas are never equal.
+
+### What middleware may change
+
+- **Request:** method, path, headers, query, and body are read-only. Use **attributes** (`setAttribute` / `getAttribute`) to pass data to later stages.
+- **Response:** status, body, and headers are mutable. Use `header`, `withStatus`, and `withBody`, or return a completely new `Response`.
+
+Middleware objects are shared by all requests, which run concurrently on separate threads. Keep per-request data in local variables or request attributes, never in fields of the middleware.
+
+## Global middleware
+
+**Global middleware** belongs to the `HttpKernel` and runs for **every** request — including requests that match no route. It wraps routing, route middleware, the handler, and the exception handling for all of those. As a result, global middleware sees the final 404, 405, 422, or 500 response just like a successful one, which is exactly what an access log or a security-header middleware needs.
+
+Configure it on the kernel, usually from a service provider’s `boot` method:
+
+```kotlin
+override fun boot(app: Application) {
+    app.resolve(HttpKernel::class.java)
+        .pushMiddleware(RequestIdMiddleware())
+        .pushMiddleware(AccessLogMiddleware())
+        .prependMiddleware(SecurityHeaders())
+}
+```
+
+```java
+@Override
+public void boot(Application app) {
+    app.resolve(HttpKernel.class)
+        .pushMiddleware(new RequestIdMiddleware())
+        .pushMiddleware(new AccessLogMiddleware())
+        .prependMiddleware(new SecurityHeaders());
+}
+```
+
+| Method | Effect |
+|--------|--------|
+| `pushMiddleware(mw)` | Add at the end of the list — the **innermost** position. Skipped if already present. |
+| `prependMiddleware(mw)` | Add at the front — the **outermost** position. Skipped if already present. |
+| `setGlobalMiddleware(list)` | Replace the list entirely (no duplicate check). |
+| `hasMiddleware(mw)` | Whether `mw` is in the list (compared with `equals`). |
+| `globalMiddleware` / `getGlobalMiddleware()` | The current list. |
+
+You can also pass the list when you construct a kernel yourself: `HttpKernel(router, listOf(a, b))` in Kotlin, `new HttpKernel(router, List.of(a, b))` in Java. Each request uses a snapshot of the list taken when it starts.
+
+## Route and group middleware
+
+**Route middleware** runs only after a route has been selected, and only for that route. Attach it to one route with `.middleware(...)`, or to many at once through a group:
+
+```kotlin
+router.get("/reports") { reports.index(it) }.middleware(Authenticate(tokens), RequireRole("analyst"))
+
+router.group(prefix = "/admin", middleware = listOf(Authenticate(tokens), RequireAdmin())) {
+    get("/users") { admin.users(it) }
+}
+```
+
+```java
+router.get("/reports", reports::index).middleware(new Authenticate(tokens), new RequireRole("analyst"));
+
+router.prefix("/admin").middleware(new Authenticate(tokens), new RequireAdmin()).group(admin ->
+    admin.get("/users", adminController::users));
+```
+
+Route middleware does **not** run for 404 responses, 405 responses, or automatic `OPTIONS` replies, because no route was selected. For a `HEAD` request served by a `GET` route, the `GET` route’s middleware runs.
+
+## Execution order
+
+The list order is the wrapping order: the first middleware is the outermost layer. For global middleware `[A, B]`, group middleware `[G]`, and route middleware `[R]`, a request flows like this:
+
+```text
+A before → B before → (route resolved) → G before → R before → handler
+A after  ← B after  ←                    G after  ← R after  ←
+```
+
+Code you write before `next` runs top-down; code after `next` runs in reverse. Nested groups append their middleware after the outer group’s, and `.middleware(...)` on the route itself comes last.
+
+## Where exceptions go
+
+The kernel catches exceptions in two places, and which one applies changes who can see the error:
+
+- **Thrown inside routing** — by the router (404/405), by route or group middleware, or by the handler. The exception first propagates up through the route middleware, so a route middleware can `try`/`catch` around `next` if it wants to recover. If it is not caught, the kernel’s `ExceptionHandler` converts it to a response, and that response then passes back out through **all global middleware** normally.
+- **Thrown by a global middleware itself.** The kernel catches it at the very outside and converts it with the same exception handler. Global middleware does **not** see this response, because the chain has already unwound past them.
+
+Global middleware therefore never receives an exception from `next` — it always receives a `Response`. See [Exceptions](../exceptions/) for the response format and [Kernel & server](../kernel-server/) for the full pipeline.
+
+## Testing middleware
+
+`MiddlewarePipeline.pipe(middlewares, destination)` builds the same chain the kernel uses, which lets you test a middleware in isolation:
+
+```kotlin
+val handler = MiddlewarePipeline.pipe(listOf(RequestIdMiddleware())) { Response.text("ok") }
+val response = handler.handle(Request.get("/"))
+check(response.headers.containsKey("X-Request-Id"))
+```
+
+```java
+Handler handler = MiddlewarePipeline.pipe(List.of(new RequestIdMiddleware()), request -> Response.text("ok"));
+Response response = handler.handle(Request.get("/"));
+assert response.getHeaders().containsKey("X-Request-Id");
+```
