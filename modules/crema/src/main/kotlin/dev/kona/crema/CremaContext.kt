@@ -4,6 +4,7 @@ class CremaContext(
     private val data: MutableMap<String, Any?> = linkedMapOf(),
     private val sections: MutableMap<String, SectionBuffer> = linkedMapOf(),
     private val stacks: MutableMap<String, MutableList<String>> = linkedMapOf(),
+    private val onceKeys: MutableSet<String> = linkedSetOf(),
 ) {
     fun get(key: String): Any? = data[key]
 
@@ -20,9 +21,21 @@ class CremaContext(
     fun snapshot(): Map<String, Any?> = LinkedHashMap(data)
 
     fun child(extra: Map<String, Any?> = emptyMap()): CremaContext =
-        CremaContext(LinkedHashMap(data).also { it.putAll(extra) }, sections, stacks)
+        CremaContext(
+            LinkedHashMap(data).also { it.putAll(extra) },
+            sections,
+            stacks,
+            onceKeys,
+        )
 
     fun section(name: String): SectionBuffer = sections.getOrPut(name) { SectionBuffer() }
+
+    fun hasSection(name: String): Boolean = !section(name).isEmpty()
+
+    /**
+     * Marks a `@once` key. Returns true the first time this key is seen in the render.
+     */
+    fun markOnce(key: String): Boolean = onceKeys.add(key)
 
     fun push(name: String, content: String) {
         stacks.getOrPut(name) { mutableListOf() }.add(content)

@@ -46,7 +46,7 @@
     },
     "crema-directive": {
       "name": "meta.directive.crema",
-      "begin": "(@)(extends|section|endsection|show|yield|parent|stack|push|endpush|include|includeIf|includeWhen|if|else|endif|foreach|endforeach|slot|endslot|json|csrf)\\b",
+      "begin": "(@)(extends|section|endsection|show|yield|parent|hasSection|sectionMissing|stack|push|endpush|prepend|endprepend|include|includeIf|includeWhen|includeUnless|includeFirst|if|elseif|else|endif|unless|endunless|isset|endisset|empty|endempty|while|endwhile|foreach|endforeach|forelse|endforelse|each|endeach|for|endfor|switch|case|break|default|endswitch|auth|endauth|guest|endguest|can|endcan|cannot|endcannot|error|enderror|once|endonce|verbatim|endverbatim|component|endcomponent|slot|endslot|json|csrf|method|asset|lang|vite)\\b",
       "beginCaptures": {
         "1": { "name": "punctuation.definition.directive.crema" },
         "2": { "name": "keyword.control.directive.crema" }

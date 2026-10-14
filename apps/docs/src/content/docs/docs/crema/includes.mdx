@@ -1,9 +1,9 @@
 ---
 title: Includes
-description: Include partial templates from Crema views.
+description: Include partial templates, once blocks, and verbatim regions in Crema.
 ---
 
-Includes render another view into the current output, sharing a child context (isolated section/stack state, same data unless you nest further).
+Includes render another view into the current output, sharing stacks/sections with a child data context.
 
 ## Always include
 
@@ -25,6 +25,35 @@ Renders nothing when the view file is missing (no error).
 
 ```crema
 @includeWhen(show, 'partials.banner')
+@includeUnless(hide, 'partials.banner')
 ```
 
-Renders the named view only when the first expression is truthy.
+`@includeWhen` renders when the expression is truthy; `@includeUnless` when it is not.
+
+## First available view
+
+```crema
+@includeFirst(['theme.banner', 'partials.banner'])
+```
+
+Renders the first quoted name that resolves; skips missing views without error.
+
+## `@once`
+
+```crema
+@once
+  <script>/* register once per render */</script>
+@endonce
+```
+
+The body renders at most once per render pass (shared across includes via the same context). Identical `@once` bodies are treated as the same key.
+
+## `@verbatim`
+
+```crema
+@verbatim
+  Document {{ this }} and @if(examples) literally.
+@endverbatim
+```
+
+Nothing inside `@verbatim`…`@endverbatim` is processed as Crema — echoes and directives are left as text.

@@ -1,27 +1,49 @@
 ---
 title: Control structures
-description: Conditionals and loops in Crema templates.
+description: Conditionals, loops, auth, abilities, and switch in Crema templates.
 ---
 
 ## Conditionals
 
 ```crema
-@if(ok)
-  Yes
+@if(n == 1)
+  One
+@elseif(n == 2)
+  Two
 @else
-  No
+  Other
 @endif
 
 @unless(ok)
   Hidden when ok is truthy
 @endunless
+
+@isset(name)
+  Name is present
+@endisset
+
+@empty(items)
+  No items
+@endempty
 ```
 
 Truthy values: non-null, non-false, non-zero numbers, non-empty strings/collections/maps/arrays.
 
+`@isset(expr)` is true when the resolved value is non-null. `@empty(expr)` is true when the value is not truthy (same idea as the `empty()` expression helper).
+
+## `@while`
+
+```crema
+@while(loop.iteration <= n)
+  {{ loop.iteration }}
+@endwhile
+```
+
+Each pass injects a `loop` map (`index`, `iteration`, …) into a child context before evaluating the condition. Cap is 10 000 iterations as a safety limit.
+
 ## `@foreach` / `@each` / `@for`
 
-All three iterate a collection (or range / scalar wrapped as a single item):
+Collection form (all three share the same loop helpers):
 
 ```crema
 @foreach(items as item)
@@ -29,7 +51,23 @@ All three iterate a collection (or range / scalar wrapped as a single item):
 @endforeach
 ```
 
-Loop metadata under `loop`:
+`@each` / `@endeach` and `@for(items as item)…@endfor` behave the same.
+
+### Range and C-style `@for`
+
+```crema
+@for(i in 0..2)
+  {{ i }}
+@endfor
+
+@for(i = 0; i < n; i++)
+  {{ i }}
+@endfor
+```
+
+`0..2` is inclusive. The C-style form uses a strict `<` upper bound.
+
+### Loop metadata
 
 | Key | Meaning |
 |-----|---------|
@@ -38,12 +76,13 @@ Loop metadata under `loop`:
 | `first` / `last` | Booleans |
 | `count` | Total size |
 | `remaining` | Items after this one |
+| `even` / `odd` | Based on zero-based index |
+| `depth` | Nesting depth (1 at the outermost loop) |
+| `parent` | Outer loop map when nested, else null |
 
-`@each` and `@for` use the same body shape with `@endeach` / `@endfor`.
+`@forelse` uses the same loop map as `@foreach`.
 
 ## `@forelse`
-
-Like foreach, with an `@empty` branch when the collection has no items:
 
 ```crema
 @forelse(items as item)
@@ -52,3 +91,55 @@ Like foreach, with an `@empty` branch when the collection has no items:
   None
 @endforelse
 ```
+
+## Auth and guest
+
+```crema
+@auth
+  Signed in
+@endauth
+
+@guest
+  Please sign in
+@endguest
+```
+
+A visitor is treated as authenticated when the view data has any of:
+
+- `__authenticated` truthy
+- `auth_user` non-null
+- `user` non-null
+
+## Abilities
+
+```crema
+@can('edit')
+  Edit button
+@endcan
+
+@cannot('edit')
+  Read-only
+@endcannot
+```
+
+Crema checks, in order:
+
+1. `__abilities` as a `Set` / `List` containing the ability string, or a `Map` whose value for that key is truthy
+2. A `can` map in the data (`can['edit']` truthy)
+
+## `@switch`
+
+```crema
+@switch(status)
+@case(1)
+  Open
+  @break
+@case(2)
+  Closed
+  @break
+@default
+  Unknown
+@endswitch
+```
+
+Cases compare stringified values. `@break` stops the active arm; `@default` runs when no case matched.

@@ -11,6 +11,7 @@ class CremaAnalyzerTest {
     fun knownDirectivesAndCompletionsList() {
         assertTrue(CremaDirectives.isKnown("extends"))
         assertTrue(CremaDirectives.isKnown("csrf"))
+        assertTrue(CremaDirectives.isKnown("asset"))
         assertFalse(CremaDirectives.isKnown("nope"))
         assertTrue(CremaDirectives.COMPLETION_LABELS.contains("@foreach"))
         assertEquals(CremaDirectives.KNOWN.size, CremaDirectives.COMPLETION_LABELS.size)

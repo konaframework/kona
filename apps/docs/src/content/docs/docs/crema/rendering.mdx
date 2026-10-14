@@ -1,6 +1,6 @@
 ---
 title: Rendering
-description: Echoes, raw HTML, JSON encoding, and escaping in Crema templates.
+description: Echoes, raw HTML, JSON, language strings, Vite tags, and escaping in Crema.
 ---
 
 Crema evaluates expressions against the data map (and nested maps / bean getters) passed to `render`.
@@ -42,15 +42,55 @@ engine.render("page", mapOf("user" to mapOf("name" to "Ada", "id" to 1)))
 // → window.user = {"name":"Ada","id":1};
 ```
 
-The expression uses the same resolver as echoes (`$user`, `user`, dotted paths, literals).
+## `@lang`
 
-## CSRF field
+`@lang('key')` resolves a translation string. Crema prefers a `lang` map in the view data when present; otherwise it calls `Lang.get` from `kona-support`.
 
 ```crema
-@csrf
+@lang('messages.welcome')
+@lang('messages.hello', replace)
 ```
 
-Renders a hidden `_token` input when the data map includes `_token`.
+The optional second argument is an expression that evaluates to a `Map` of replacements (`:name` style placeholders).
+
+```kotlin
+engine.render(
+    "greet",
+    mapOf(
+        "replace" to mapOf("name" to "Ada"),
+        // or: "lang" to mapOf("messages.hello" to "Hi :name"),
+    ),
+)
+```
+
+Wire a real translator by registering `SupportServiceProvider` (or calling `Lang.setTranslator`) before rendering.
+
+## `@asset`
+
+`@asset('css/app.css')` builds a public URL for a path under your asset root. With no base in the data map it emits `/css/app.css`. Pass `asset_url` or `assetUrl` to prefix a CDN:
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+See also [Forms](/docs/crema/forms#asset-urls) for the same helper in form layouts.
+
+## `@vite`
+
+`@vite('resources/js/app.js')` emits a script (or link) tag pointing at `/build/...`. Lists are supported:
+
+```crema
+@vite('resources/js/app.js')
+@vite(['resources/js/app.js', 'resources/css/app.css'])
+```
+
+`.css` entries become `<link rel="stylesheet">`; everything else becomes `<script type="module">`. This helper is intentionally thin — it does not read a Vite manifest. For full hot-reload / manifest resolution, use the Inertia asset helpers and inject the resulting HTML into the view.
+
+## Comments
+
+```crema
+{{-- This never appears in the output --}}
+```
 
 ## Expressions
 
