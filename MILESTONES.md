@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M3 (M0–M2 complete).
+**Active milestone:** M6 (M0–M5 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -33,22 +33,22 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Topic | Milestone | Status |
 |-------|-----------|--------|
 | Routing | M1 | done |
-| Controllers | M1 (basic); deepen in M5 | partial |
+| Controllers | M1 (basic); deepen in M5 | implemented (checklist) |
 | Requests | M1 | done |
 | Responses | M1 | done |
-| API Resources | M5 | pending |
+| API Resources | M5 | implemented (checklist) |
 | Middleware | M1 | done |
 | CSRF Protection | M3 | implemented (checklist) |
 | Validation | M1 | done |
 | Views (Crema) | M6 | pending |
 | Asset Bundling | M12 | pending |
-| URL Generation | M5 | pending |
+| URL Generation | M5 | implemented (checklist) |
 | Session | M3 | implemented (checklist) |
 | Authentication | M3 | implemented (checklist) |
 | Hashing | M3 | implemented (checklist) |
 | Passwords | M3 | implemented (checklist) |
-| Error Handling | M1 (basic); deepen in M5 | partial |
-| Logging | M1 (basic); deepen in M5 | partial |
+| Error Handling | M1 (basic); deepen in M5 | implemented (checklist) |
+| Logging | M1 (basic); deepen in M5 | implemented (checklist) |
 | Security headers & CORS | M3 | implemented (checklist) |
 | Rate Limiting | M3 | implemented (checklist) |
 
@@ -63,13 +63,13 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Queues | M7 | pending |
 | Mail | M7 | pending |
 | Notifications | M7 | pending |
-| Collections | M4 | pending |
-| Helpers | M4 | pending |
-| Dates (Carbon/Chrono-class) | M4 | pending |
-| Strings | M4 | pending |
-| Localization | M4 | pending |
-| Cache | M4 | pending |
-| Redis | M4 | pending |
+| Collections | M4 | done |
+| Helpers | M4 | done |
+| Dates (Carbon/Chrono-class) | M4 | done |
+| Strings | M4 | done |
+| Localization | M4 | done |
+| Cache | M4 | done |
+| Redis | M4 | done |
 | Events | M7 | pending |
 | Broadcasting | M10 | pending |
 | HTTP Client → `drip` | M9 | pending |
@@ -106,9 +106,9 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Extract: Getting Started (docs) | M2; rewrite toward simple-first ongoing | partial |
 | Relationships | M2 | done |
 | Mutators & Casts | M2 | done |
-| Serialization | M4 | pending |
-| Collections (Extract) | M4 | pending |
-| Soft Deletes & Events | Soft deletes M2; model events M4 | partial |
+| Serialization | M4 | done |
+| Collections (Extract) | M4 | done |
+| Soft Deletes & Events | Soft deletes M2; model events M4 | done |
 
 ### View layer (Crema)
 
@@ -270,7 +270,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M4 — Cache, Redis, support utilities, Extract deepen
 
-**Status:** active  
+**Status:** done  
 **Branch:** `milestone/M4-cache-redis-support`
 
 **Parity slice:** Cache, Redis, Collections, Helpers, Dates, Strings, Localization + Extract Serialization / Collections / model events.
@@ -297,19 +297,19 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M5 — HTTP polish: URL, API Resources, controllers, logging/errors
 
-**Status:** blocked  
+**Status:** done  
 **Branch:** `milestone/M5-http-polish`
 
 **Parity slice:** URL Generation, API Resources, Controllers deepen, Error Handling / Logging deepen.
 
 ### Parity checklist
 
-- [ ] URL / route generation (`route()`, `url()`, signed URLs as applicable)
-- [ ] API Resources / Resource collections (transform models for JSON APIs)
-- [ ] Controllers deepen (invokable, resource controllers, form-request style validation objects)
-- [ ] Error Handling deepen (report/render callbacks, HTTP exception pages, JSON vs HTML)
-- [ ] Logging deepen (channels, levels, contextual logging)
-- [ ] Docs rewrite for HTTP chapter (progressive: simple controller → resources → URL helpers)
+- [x] URL / route generation (`route()`, `url()`, signed URLs as applicable)
+- [x] API Resources / Resource collections (transform models for JSON APIs)
+- [x] Controllers deepen (invokable, resource controllers, form-request style validation objects)
+- [x] Error Handling deepen (report/render callbacks, HTTP exception pages, JSON vs HTML)
+- [x] Logging deepen (channels, levels, contextual logging)
+- [x] Docs rewrite for HTTP chapter (progressive: simple controller → resources → URL helpers)
 
 ### In-scope modules
 
@@ -319,7 +319,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M6 — Crema (views)
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M6-crema`
 
 **Parity slice:** Full Crema / Blade / Prism view layer menu.

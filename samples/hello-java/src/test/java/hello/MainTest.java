@@ -53,4 +53,15 @@ class MainTest {
         assertEquals(List.of("Ada", "Grace"), result.get("names"));
         assertEquals("PONG", result.get("redis"));
     }
+
+    @Test
+    void httpPolishDemo() {
+        var result = HttpPolishDemo.run(new String[] {"--base=" + temp});
+        assertTrue(result.get("index").startsWith("200:"));
+        assertTrue(result.get("index").contains("Ada"));
+        assertTrue(result.get("created").startsWith("201:"));
+        assertEquals("https://demo.test/notes", result.get("route"));
+        assertEquals("https://demo.test/notes", result.get("signed"));
+        assertEquals("pong", result.get("ping"));
+    }
 }

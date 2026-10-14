@@ -61,4 +61,15 @@ class MainTest {
         assertEquals(listOf("Ada", "Grace"), result["names"])
         assertEquals("PONG", result["redis"])
     }
+
+    @Test
+    fun httpPolishDemo() {
+        val result = HttpPolishDemo.run(arrayOf("--base=$temp"))
+        assertTrue(result["index"]!!.startsWith("200:"))
+        assertTrue(result["index"]!!.contains("Ada"))
+        assertTrue(result["created"]!!.startsWith("201:"))
+        assertEquals("https://demo.test/notes", result["route"])
+        assertEquals("https://demo.test/notes", result["signed"])
+        assertEquals("pong", result["ping"])
+    }
 }
