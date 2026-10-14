@@ -1,6 +1,6 @@
 ---
 title: serve / make
-description: Reference for ./grind serve and ./grind make:controller.
+description: Reference for ./grind serve, the make generators, and the database commands.
 ---
 
 All commands below assume you are in an application directory that contains `./grind` (created by `kona new`).
@@ -34,6 +34,33 @@ Default host is **127.0.0.1**. If no Gradle project is found, grind exits and te
 Writes under `app/Http/Controllers`. Names cannot contain path separators; invalid identifiers are rejected. Language defaults from existing `.java` / `.kt` files under `app/`, or pass `--lang=`.
 
 Unlike `serve`, `make:controller` does not walk upward from nested folders unless you pass `--base=`.
+
+## Database commands
+
+These commands work with [Extract](../../extract/). Generators write source files; the others boot your application in-process.
+
+| Command | Writes / does |
+|---------|---------------|
+| `./grind make:model <Name> [--migration] [--factory] [--seeder] [--all]` | `app/Models/<Name>`; flags add `database/migrations/Create<Table>Table`, `database/factories/<Name>Factory`, `database/seeders/<Name>Seeder` |
+| `./grind make:migration <snake_name> [--create=table] [--table=table]` | `database/migrations/<StudlyName>`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
+| `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
+| `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
+| `./grind migrate` | Runs pending migrations as one new batch |
+| `./grind migrate:rollback [--step=N]` | Reverts the last `N` batches (default 1) |
+| `./grind migrate:reset` | Reverts every migration |
+| `./grind migrate:status` | Lists each registered migration as `Ran` (with its batch) or `Pending` |
+| `./grind db:seed [--class=…]` | Runs a seeder (default `database.seeders.DatabaseSeeder`) |
+
+All generators accept `--lang=kotlin|java` (default: Java when `app/` already has `.java` files) and `--base=`, and never overwrite an existing file.
+
+The migrate and seed commands:
+
+1. find the project at or above `--base` (default: current directory);
+2. load `build/classes` and call `create(String[])` on the bootstrap class (`--bootstrap=`, default `bootstrap.App`), so run `./gradlew classes` first;
+3. use the `MigrationRegistry` bound in the application container (they stop with a message when none is bound);
+4. use the container's `Database` (registered by `ExtractServiceProvider`), or build one from `config/database.json`; `--database=name` selects a named connection.
+
+Errors (unknown connection, a failing migration, a missing seeder class) print a message and exit with status 1. See [Migrations](../../extract/migrations/) and [Seeders & factories](../../extract/seeders-factories/) for the APIs behind these commands.
 
 ## Not a grind command: creating apps
 

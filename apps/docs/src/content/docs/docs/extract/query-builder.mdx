@@ -1,0 +1,149 @@
+---
+title: Query builder
+description: Build SQL queries fluently with bound parameters — selects, filters, joins, aggregates, and writes.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The **query builder** (`dev.kona.extract.QueryBuilder`) assembles one SQL statement from method calls. It works on plain tables and returns rows as `Map<String, Any?>` (column name → value). Models use the same builder underneath, so everything here also works after `User.query()`.
+
+Start a query from the `DB` facade, a `Database`, or a `DatabaseConnection`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import dev.kona.extract.DB
+
+val rows: List<Map<String, Any?>> = DB.table("users")
+    .where("votes", ">", 100)
+    .orWhere { it.where("name", "Ada").whereNotNull("email") }
+    .orderBy("name")
+    .limit(10)
+    .get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import dev.kona.extract.DB;
+import java.util.List;
+import java.util.Map;
+
+List<Map<String, Object>> rows = DB.table("users")
+    .where("votes", ">", 100)
+    .orWhere(q -> q.where("name", "Ada").whereNotNull("email"))
+    .orderBy("name")
+    .limit(10)
+    .get();
+```
+
+</TabItem>
+</Tabs>
+
+The builder is **mutable**: each call changes the builder and returns it. Use `copy()` to branch a query without affecting the original.
+
+## How values reach the database
+
+Values are never pasted into the SQL text. The builder writes a `?` placeholder and sends the value as a JDBC parameter; only table and column names appear in the SQL, quoted by the connection's grammar (`"users"."id"`). `toSql()` shows the statement and `getBindings()` shows the values:
+
+```kotlin
+val query = DB.table("users").where("email", "ada@example.com")
+query.toSql()        // select * from "users" where "email" = ?
+query.getBindings()  // [ada@example.com]
+```
+
+Operators are checked against an allow-list (`=`, `<`, `>`, `<=`, `>=`, `<>`, `!=`, `like`, `not like`, `ilike`, `not ilike`); anything else throws `IllegalArgumentException`.
+
+## Selecting columns
+
+| Call | SQL |
+|------|-----|
+| `select("id", "name")` | `select "id", "name"` (replaces earlier columns) |
+| `addSelect("email")` | adds a column |
+| `select("users.name as author")` | `"users"."name" as "author"` |
+| `selectRaw("count(*) as total")` | raw expression; optional bindings list |
+| `distinct()` | `select distinct` |
+
+## Filtering
+
+| Call | Meaning |
+|------|---------|
+| `where("name", "Ada")` | `name = ?` |
+| `where("votes", ">=", 10)` | any allowed operator |
+| `where("deleted_at", null)` | becomes `is null` (`!=` / `<>` with null become `is not null`) |
+| `where { … }` / `orWhere { … }` | parenthesized group |
+| `orWhere(column, value)` / `orWhere(column, op, value)` | joined with `or` |
+| `whereNull` / `whereNotNull` (and `or…` forms) | null checks |
+| `whereIn("id", listOf(1, 2))` / `whereNotIn` (and `or…` forms) | membership; an empty list matches nothing (`whereIn`) or everything (`whereNotIn`) |
+| `whereBetween("age", 18, 65)` | inclusive range |
+| `whereRaw("lower(email) = ?", listOf(email))` / `orWhereRaw` | raw fragment with bindings |
+
+## Joins, grouping, ordering, paging
+
+```kotlin
+DB.table("posts")
+    .join("users", "users.id", "=", "posts.user_id")       // inner join
+    .leftJoin("images", "images.post_id", "posts.id")      // operator defaults to "="
+    .select("posts.title", "users.name as author")
+    .groupBy("posts.id", "users.name")
+    .having("posts.votes", ">", 5)
+    .orderBy("posts.created_at", "desc")                   // or orderByDesc / latest / oldest
+    .offset(20).limit(10)                                  // or skip / take / forPage(page, perPage)
+    .get()
+```
+
+`orderBy` accepts `asc` or `desc`. `latest()` and `oldest()` order by `created_at` unless you pass a column. A negative `limit` removes the limit.
+
+## Reading results
+
+| Call | Returns |
+|------|---------|
+| `get()` | every row |
+| `first()` | first row or `null` |
+| `find(id)` | row whose `id` (or the given column) matches, or `null` |
+| `value("email")` | one column of the first row |
+| `pluck("email")` | one column of every row |
+| `count()`, `max(c)`, `min(c)`, `sum(c)`, `avg(c)` | aggregates (`count()` is a `Long`) |
+| `exists()` / `doesntExist()` | whether any row matches |
+| `paginate(perPage, page)` | a `Page` of rows plus totals (see [Models](../models/#pagination)) |
+
+## Writing
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DB.table("users").insert(mapOf("name" to "Ada", "email" to "ada@example.com"))
+DB.table("users").insert(listOf(mapOf("name" to "Bob"), mapOf("name" to "Cy")))  // multi-row
+val id = DB.table("users").insertGetId(mapOf("name" to "Dee"))
+
+DB.table("users").where("id", id).update(mapOf("name" to "Dee Dee"))   // rows changed
+DB.table("users").where("id", id).increment("votes")                 // or increment("votes", 5)
+DB.table("users").where("votes", "<", 0).delete()
+DB.table("sessions").truncate()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DB.table("users").insert(Map.of("name", "Ada", "email", "ada@example.com"));
+DB.table("users").insert(List.of(Map.of("name", "Bob"), Map.of("name", "Cy")));
+Object id = DB.table("users").insertGetId(Map.of("name", "Dee"));
+
+DB.table("users").where("id", id).update(Map.of("name", "Dee Dee"));
+DB.table("users").where("id", id).increment("votes");
+DB.table("users").where("votes", "<", 0).delete();
+DB.table("sessions").truncate();
+```
+
+</TabItem>
+</Tabs>
+
+Multi-row inserts take their column list from the first row; keys missing in later rows are written as `NULL`. `update` with an empty map does nothing and returns 0.
+
+## Errors
+
+A statement the database rejects throws `QueryException` with the driver's message, the SQL, and the bindings. Building a query without a table (`DB.connection().query().get()`) throws `ExtractException`.

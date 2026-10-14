@@ -9,6 +9,8 @@ application {
 
 dependencies {
     implementation(project(":kona-http"))
+    implementation(project(":kona-extract"))
+    runtimeOnly(libs.h2)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

@@ -1,0 +1,460 @@
+package dev.kona.extract
+
+import dev.kona.extract.relations.BelongsTo
+import dev.kona.extract.relations.BelongsToMany
+import dev.kona.extract.relations.EagerLoader
+import dev.kona.extract.relations.HasMany
+import dev.kona.extract.relations.HasOne
+import dev.kona.extract.relations.Relation
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
+/**
+ * ActiveRecord model base. Subclasses need a no-arg constructor and pass themselves as [T].
+ *
+ * ```kotlin
+ * class User : Extract<User>() {
+ *     override val fillable = setOf("name", "email")
+ *     override val casts = mapOf("admin" to CastType.BOOLEAN)
+ *     companion object : ExtractCompanion<User>(User::class.java)
+ * }
+ * val ada = User.create(mapOf("name" to "Ada"))
+ * ```
+ * ```java
+ * public class User extends Extract<User> {
+ *     public static final ExtractCompanion<User> QUERY = Extract.of(User.class);
+ *     @Override public Set<String> getFillable() { return Set.of("name", "email"); }
+ * }
+ * ```
+ *
+ * Attributes hold the stored (database) values; [getAttribute] applies [effectiveCasts] on read.
+ * Override the `open` properties to change table, key, timestamps, mass assignment, casts, or connection.
+ */
+abstract class Extract<T : Extract<T>> {
+    /** Table name; defaults to the snake-case plural of the class name (`BlogPost` → `blog_posts`). */
+    open val table: String
+        get() = tableNameFor(javaClass.simpleName)
+
+    open val primaryKey: String
+        get() = "id"
+
+    /** When true, inserts read the generated key back into [primaryKey]. */
+    open val incrementing: Boolean
+        get() = true
+
+    /** When true, `created_at` / `updated_at` are maintained and cast to `Instant`. */
+    open val timestamps: Boolean
+        get() = true
+
+    open val createdAtColumn: String
+        get() = "created_at"
+
+    open val updatedAtColumn: String
+        get() = "updated_at"
+
+    /** Mass-assignable keys for [fill]; when non-empty, other keys are silently skipped. */
+    open val fillable: Set<String>
+        get() = emptySet()
+
+    /** Keys [fill] refuses; `*` (the default) guards everything not in [fillable]. */
+    open val guarded: Set<String>
+        get() = setOf("*")
+
+    open val casts: Map<String, CastType>
+        get() = emptyMap()
+
+    /** Named connection on the global [Database]; null uses its default connection. */
+    open val connectionName: String?
+        get() = null
+
+    open val perPage: Int
+        get() = 15
+
+    private val attributes = linkedMapOf<String, Any?>()
+    private var original: Map<String, Any?> = emptyMap()
+    private val relations = linkedMapOf<String, Any?>()
+    private var persisted = false
+    private var recentlyCreated = false
+
+    @Suppress("UNCHECKED_CAST")
+    private fun self(): T = this as T
+
+    /** True once the model was loaded from or saved to the database (and not hard-deleted). */
+    fun exists(): Boolean = persisted
+
+    /** True when the last [save] inserted this model. */
+    fun wasRecentlyCreated(): Boolean = recentlyCreated
+
+    // ---- attributes ----
+
+    operator fun get(key: String): Any? = getAttribute(key)
+
+    operator fun set(key: String, value: Any?) {
+        setAttribute(key, value)
+    }
+
+    fun getAttribute(key: String): Any? {
+        val raw = attributes[key]
+        val cast = effectiveCasts()[key] ?: return raw
+        return cast.get(raw)
+    }
+
+    /** Typed read: `val name: String? = user.attribute("name")`. */
+    @Suppress("UNCHECKED_CAST")
+    fun <V> attribute(key: String): V? = getAttribute(key) as V?
+
+    fun setAttribute(key: String, value: Any?): T {
+        val cast = effectiveCasts()[key]
+        attributes[key] = if (cast == null) value else cast.set(value)
+        return self()
+    }
+
+    fun hasAttribute(key: String): Boolean = attributes.containsKey(key)
+
+    fun getRawAttribute(key: String): Any? = attributes[key]
+
+    fun getAttributes(): Map<String, Any?> = LinkedHashMap(attributes)
+
+    fun getOriginal(): Map<String, Any?> = LinkedHashMap(original)
+
+    fun getOriginal(key: String): Any? = original[key]
+
+    /** Attributes changed since load / last save. */
+    fun getDirty(): Map<String, Any?> =
+        attributes.filter { (key, value) -> !original.containsKey(key) || original[key] != value }
+
+    fun isDirty(): Boolean = getDirty().isNotEmpty()
+
+    fun isDirty(key: String): Boolean = getDirty().containsKey(key)
+
+    fun isClean(): Boolean = !isDirty()
+
+    fun syncOriginal(): T {
+        original = LinkedHashMap(attributes)
+        return self()
+    }
+
+    /** Declared [casts] plus `Instant` casts for timestamp and soft-delete columns. */
+    fun effectiveCasts(): Map<String, CastType> {
+        val result = linkedMapOf<String, CastType>()
+        if (timestamps) {
+            result[createdAtColumn] = CastType.INSTANT
+            result[updatedAtColumn] = CastType.INSTANT
+        }
+        if (this is SoftDeletes) {
+            result[deletedAtColumn] = CastType.INSTANT
+        }
+        result.putAll(casts)
+        return result
+    }
+
+    // ---- mass assignment ----
+
+    /** Sets fillable keys; throws [MassAssignmentException] for other keys on a totally guarded model. */
+    fun fill(attributes: Map<String, Any?>): T {
+        val totallyGuarded = isTotallyGuarded()
+        attributes.forEach { (key, value) ->
+            if (isFillable(key)) {
+                setAttribute(key, value)
+            } else if (totallyGuarded) {
+                throw MassAssignmentException(key, javaClass)
+            }
+        }
+        return self()
+    }
+
+    /** Sets every key, ignoring [fillable] / [guarded]. */
+    fun forceFill(attributes: Map<String, Any?>): T {
+        attributes.forEach { (key, value) -> setAttribute(key, value) }
+        return self()
+    }
+
+    fun isFillable(key: String): Boolean = key in fillable || (fillable.isEmpty() && !isGuarded(key))
+
+    fun isGuarded(key: String): Boolean = "*" in guarded || key in guarded
+
+    fun isTotallyGuarded(): Boolean = fillable.isEmpty() && "*" in guarded
+
+    // ---- persistence ----
+
+    /** Inserts or updates (dirty attributes only); maintains timestamps. */
+    fun save(): Boolean {
+        if (persisted) {
+            if (isClean()) {
+                return true
+            }
+            if (timestamps) {
+                touchTimestamps()
+            }
+            keyQuery().update(getDirty())
+        } else {
+            if (timestamps) {
+                touchTimestamps()
+            }
+            val query = connection().table(table)
+            if (incrementing) {
+                val id = query.insertGetId(attributes)
+                if (id != null) {
+                    attributes[primaryKey] = id
+                }
+            } else {
+                query.insert(attributes)
+            }
+            persisted = true
+            recentlyCreated = true
+        }
+        syncOriginal()
+        return true
+    }
+
+    fun update(attributes: Map<String, Any?>): Boolean = fill(attributes).save()
+
+    /** Deletes the row (or trashes it for [SoftDeletes] models); false when not persisted. */
+    fun delete(): Boolean {
+        if (!persisted) {
+            return false
+        }
+        if (this is SoftDeletes) {
+            runSoftDelete(deletedAtColumn)
+        } else {
+            keyQuery().delete()
+            persisted = false
+        }
+        return true
+    }
+
+    /** Re-reads this row (including trashed rows) as a new instance; null when not persisted or gone. */
+    fun fresh(): T? {
+        if (!persisted) {
+            return null
+        }
+        return newQuery().withTrashed().find(getKey())
+    }
+
+    /** Reloads this instance's attributes from the database. */
+    fun refresh(): T {
+        if (!persisted) {
+            return self()
+        }
+        val fresh = fresh() ?: throw ModelNotFoundException(javaClass, listOf(getKey()))
+        attributes.clear()
+        attributes.putAll(fresh.attributes)
+        syncOriginal()
+        return self()
+    }
+
+    fun getKey(): Any? = attributes[primaryKey]
+
+    /** Current time used for timestamps (microsecond precision). */
+    fun freshTimestamp(): Instant = Instant.now().truncatedTo(ChronoUnit.MICROS)
+
+    fun connection(): DatabaseConnection {
+        val database = Database.global()
+        val name = connectionName
+        return if (name == null) database.connection() else database.connection(name)
+    }
+
+    // ---- query / instance factories ----
+
+    /** Query scoped to this model's table (soft-delete scope applied at execution). */
+    fun newQuery(): ModelBuilder<T> = ModelBuilder(self(), connection().table(table))
+
+    fun newInstance(): T = instantiate(self().javaClass)
+
+    fun newInstance(attributes: Map<String, Any?>): T = newInstance().fill(attributes)
+
+    /** Builds a persisted instance from a database row (no casts or mass-assignment checks). */
+    fun newFromBuilder(row: Map<String, Any?>): T {
+        val model = newInstance()
+        model.attributes.putAll(row)
+        model.persisted = true
+        model.syncOriginal()
+        return model
+    }
+
+    // ---- relations (storage for relation / eager-load features) ----
+
+    fun getRelation(name: String): Any? = relations[name]
+
+    fun setRelation(name: String, value: Any?): T {
+        relations[name] = value
+        return self()
+    }
+
+    fun relationLoaded(name: String): Boolean = relations.containsKey(name)
+
+    fun getRelations(): Map<String, Any?> = LinkedHashMap(relations)
+
+    /**
+     * A loaded relation's value, loading it first when needed (`user.getRelationValue<List<Post>>("posts")`).
+     * [name] is the relation method name.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <V> getRelationValue(name: String): V? {
+        if (!relationLoaded(name)) {
+            load(name)
+        }
+        return relations[name] as V?
+    }
+
+    /** Eager loads [relations] onto this model, replacing any loaded values. */
+    fun load(vararg relations: String): T {
+        EagerLoader.load(listOf(this), *relations)
+        return self()
+    }
+
+    /** Loads only the [relations] not loaded yet. */
+    fun loadMissing(vararg relations: String): T {
+        val missing = relations.filter { !relationLoaded(it.substringBefore('.')) }
+        return load(*missing.toTypedArray())
+    }
+
+    // ---- relation definitions (call from a public no-arg method named after the relation) ----
+
+    /** This model owns one [related] row whose [foreignKey] (default `user_id` for `User`) holds our [localKey]. */
+    @JvmOverloads
+    fun <R : Extract<R>> hasOne(related: Class<R>, foreignKey: String? = null, localKey: String? = null): HasOne<R> =
+        HasOne(this, instantiate(related), foreignKey ?: defaultForeignKey(), localKey ?: primaryKey)
+
+    /** This model owns many [related] rows whose [foreignKey] (default `user_id` for `User`) holds our [localKey]. */
+    @JvmOverloads
+    fun <R : Extract<R>> hasMany(related: Class<R>, foreignKey: String? = null, localKey: String? = null): HasMany<R> =
+        HasMany(this, instantiate(related), foreignKey ?: defaultForeignKey(), localKey ?: primaryKey)
+
+    /**
+     * Our [foreignKey] (default `user_id` for related `User`) points at the [related] row's [ownerKey].
+     * [relation] (default `user`) is the name [BelongsTo.associate] stores the owner under.
+     */
+    @JvmOverloads
+    fun <R : Extract<R>> belongsTo(
+        related: Class<R>,
+        foreignKey: String? = null,
+        ownerKey: String? = null,
+        relation: String? = null,
+    ): BelongsTo<R> {
+        val owner = instantiate(related)
+        return BelongsTo(
+            this,
+            owner,
+            foreignKey ?: owner.defaultForeignKey(),
+            ownerKey ?: owner.primaryKey,
+            relation ?: (related.simpleName.take(1).lowercase() + related.simpleName.drop(1)),
+        )
+    }
+
+    /**
+     * Many-to-many through [table] (default: both snake names sorted and joined, `role_user`)
+     * with [foreignPivotKey] (`user_id`) and [relatedPivotKey] (`role_id`).
+     */
+    @JvmOverloads
+    fun <R : Extract<R>> belongsToMany(
+        related: Class<R>,
+        table: String? = null,
+        foreignPivotKey: String? = null,
+        relatedPivotKey: String? = null,
+        parentKey: String? = null,
+        relatedKey: String? = null,
+    ): BelongsToMany<R> {
+        val other = instantiate(related)
+        val pivot = table ?: listOf(Relation.snake(javaClass.simpleName), Relation.snake(related.simpleName)).sorted().joinToString("_")
+        return BelongsToMany(
+            this,
+            other,
+            pivot,
+            foreignPivotKey ?: defaultForeignKey(),
+            relatedPivotKey ?: other.defaultForeignKey(),
+            parentKey ?: primaryKey,
+            relatedKey ?: other.primaryKey,
+        )
+    }
+
+    /** `user_id` for a `User` keyed by `id`. */
+    fun defaultForeignKey(): String = Relation.snake(javaClass.simpleName) + "_" + primaryKey
+
+    // ---- serialization ----
+
+    /** Cast attribute values plus loaded relations (models rendered recursively). */
+    open fun toMap(): Map<String, Any?> {
+        val result = linkedMapOf<String, Any?>()
+        attributes.keys.forEach { result[it] = getAttribute(it) }
+        relations.forEach { (name, value) ->
+            result[name] = when (value) {
+                is Extract<*> -> value.toMap()
+                is Collection<*> -> value.map { if (it is Extract<*>) it.toMap() else it }
+                else -> value
+            }
+        }
+        return result
+    }
+
+    override fun toString(): String = javaClass.simpleName + attributes
+
+    internal fun performForceDelete(): Boolean {
+        if (!persisted) {
+            return false
+        }
+        keyQuery().delete()
+        persisted = false
+        return true
+    }
+
+    internal fun performRestore(column: String): Boolean {
+        attributes[column] = null
+        return save()
+    }
+
+    private fun runSoftDelete(column: String) {
+        val now = freshTimestamp()
+        val values = linkedMapOf<String, Any?>(column to now)
+        if (timestamps) {
+            values[updatedAtColumn] = now
+        }
+        keyQuery().update(values)
+        attributes.putAll(values)
+        original = original + values
+    }
+
+    private fun touchTimestamps() {
+        val now = freshTimestamp()
+        if (!isDirty(updatedAtColumn)) {
+            attributes[updatedAtColumn] = now
+        }
+        if (!persisted && !isDirty(createdAtColumn)) {
+            attributes[createdAtColumn] = now
+        }
+    }
+
+    private fun keyQuery(): QueryBuilder {
+        val key = getKey() ?: throw ExtractException("Model [${javaClass.name}] has no [$primaryKey] value.")
+        return connection().table(table).where(primaryKey, key)
+    }
+
+    companion object {
+        private val Y_PLURAL = Regex("[^aeiou]y$")
+        private val SIBILANT = Regex("(s|x|z|ch|sh)$")
+        private val CAMEL = Regex("([a-z0-9])([A-Z])")
+
+        /** Static helpers for a model class (Java: `Extract.of(User.class).find(1)`). */
+        @JvmStatic
+        fun <T : Extract<T>> of(type: Class<T>): ExtractCompanion<T> = ExtractCompanion(type)
+
+        /** `BlogPost` → `blog_posts`, `Category` → `categories`, `Box` → `boxes`. */
+        @JvmStatic
+        fun tableNameFor(className: String): String {
+            val snake = CAMEL.replace(className, "$1_$2").lowercase()
+            return when {
+                Y_PLURAL.containsMatchIn(snake) -> snake.dropLast(1) + "ies"
+                SIBILANT.containsMatchIn(snake) -> snake + "es"
+                else -> snake + "s"
+            }
+        }
+
+        internal fun <M> instantiate(type: Class<M>): M = try {
+            val constructor = type.getDeclaredConstructor()
+            constructor.isAccessible = true
+            constructor.newInstance()
+        } catch (e: ReflectiveOperationException) {
+            throw ExtractException("Cannot instantiate model [${type.name}]; it needs a no-arg constructor.", e)
+        }
+    }
+}
