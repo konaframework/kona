@@ -43,33 +43,34 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 
 ## M1 — Kona kernel + HTTP + grind
 
-**Status:** active  
-**Branch:** `milestone/M1-kernel-http-grind` (create only after M0 on `main`)
+**Status:** active (exhaustion PR)  
+**Branch:** `milestone/M1-completion`  
+**Prior scaffold:** `milestone/M1-kernel-http-grind` (merged thin; blockers closed here)
 
 **Parity slice:** Laravel Application / Container / Providers / Config / Routing / HTTP Kernel / Middleware / Validation + Artisan `serve` / `make` ≈ Almasix `framework` / `http` / `routing` / console bootstrap.
 
 ### Parity checklist
 
 Quality + parity audits: [docs/quality/M1-architecture-review.md](docs/quality/M1-architecture-review.md), [docs/quality/M1-parity-audit.md](docs/quality/M1-parity-audit.md).  
-**Verdict: blocked for merge** until blockers in those docs are closed.
+**Verdict: unblocked** — checklist complete; awaiting merge to mark M1 **done** and activate M2.
 
-- [x] Application boot (`Kona.start`) — thin; builder/boot-order still open
-- [ ] Service container (bind / singleton / resolve) — needs autowiring + thread-safety
-- [ ] Service providers (register / boot) — all register before any boot
-- [ ] Config + env — env improved; config file load / nesting open
-- [x] HTTP request / response — core shapes present; request/response depth open
-- [ ] Middleware pipeline — global middleware must wrap routing + errors
-- [x] Router (groups, prefixes, named routes, resource-style registration) — skeleton present; 405/HEAD/resource parity open
-- [ ] Kotlin route DSL **and** Java fluent registration — Java group/middleware API incomplete
-- [x] Exception handling — basic; envelope/headers open
+- [x] Application boot (`Kona.start` + `Kona.create().providers().boot()` builder)
+- [x] Service container (bind / singleton / resolve / autowire / thread-safe / cycles)
+- [x] Service providers (register / boot — all register before any boot)
+- [x] Config + env (nested dotted keys; file/directory load; env precedence)
+- [x] HTTP request / response (typed data, headers, HEAD body strip)
+- [x] Middleware pipeline (global wraps routing + errors; configurable)
+- [x] Router (groups, prefixes, named routes, resource, HEAD→GET, 405/Allow, OPTIONS, `any`)
+- [x] Kotlin route DSL **and** Java fluent registration (prefix/name/middleware/group)
+- [x] Exception handling (JSON envelope; Allow on 405; validation 422)
 - [x] Logging — basic facade
-- [ ] Validation (request rules) — expand rules; fail unknown; type-aware min/max
-- [ ] `grind serve` — must run the generated app
-- [ ] `grind new` (`--lang=kotlin|java`) — must emit a buildable Gradle app
+- [x] Validation (Laravel-shaped rules; fail unknown; type-aware min/max/size)
+- [x] `grind serve` — runs generated app (`gradlew run` or `--in-process`)
+- [x] `grind new` (`--lang=kotlin|java`) — buildable Gradle app + wrapper
 - [x] `grind make:controller` — basic + name validation
-- [x] Kotlin hello sample — in-process only; real HTTP later
-- [ ] Java hello sample — Law 8: groups/middleware/providers still thin
-- [x] Parity inspection vs Laravel/Almasix (documented; fixes outstanding)
+- [x] Kotlin hello sample — providers, groups, middleware via HttpKernel
+- [x] Java hello sample — groups, middleware, providers (Law 8)
+- [x] Parity inspection vs Laravel/Almasix (audits updated; blockers closed)
 
 ### In-scope modules
 

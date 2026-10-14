@@ -3,7 +3,7 @@ package dev.kona.http
 /**
  * HTTP request (Laravel Request shape).
  */
-class Request(
+class Request @JvmOverloads constructor(
     val method: String,
     val path: String,
     val headers: Map<String, String> = emptyMap(),
@@ -29,6 +29,17 @@ class Request(
     }
 
     fun all(): Map<String, String> = query + form()
+
+    /** Query + body with natural JSON types (arrays, numbers, booleans, null) for validation. */
+    fun data(): Map<String, Any?> {
+        if (header("Content-Type").orEmpty().contains("application/json", ignoreCase = true)) {
+            return query + JsonSupport.parseObject(body)
+        }
+        return all()
+    }
+
+    /** Laravel `$request->validate(...)`: validated data or [ValidationException]. */
+    fun validate(rules: Map<String, List<String>>): Map<String, Any?> = Validator.make(this, rules).validate()
 
     fun form(): Map<String, String> {
         if (body.isBlank()) {

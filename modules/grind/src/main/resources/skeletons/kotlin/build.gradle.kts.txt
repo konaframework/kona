@@ -1,0 +1,28 @@
+plugins {
+    kotlin("jvm") version "{{kotlinVersion}}"
+    application
+}
+
+group = "app"
+version = "0.1.0"
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    implementation("dev.kona:kona-http:{{konaVersion}}")
+}
+
+kotlin {
+    jvmToolchain(21)
+    sourceSets["main"].kotlin.setSrcDirs(listOf("app", "bootstrap", "routes"))
+}
+
+sourceSets["main"].java.setSrcDirs(emptyList<String>())
+sourceSets["main"].resources.setSrcDirs(listOf("resources"))
+
+application {
+    mainClass.set("bootstrap.App")
+}
