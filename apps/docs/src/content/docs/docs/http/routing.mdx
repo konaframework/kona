@@ -1,31 +1,73 @@
 ---
 title: Routing
-description: Groups, named routes, resources, HEAD, 405, OPTIONS, and any().
+description: Map URLs and HTTP methods to handlers, groups, named routes, and resources.
 ---
 
-## Basics
+The **router** decides which code runs for an incoming request. You register routes with an HTTP method, a path pattern, and a `Handler`. At request time the HTTP kernel asks the router for a match, then runs middleware and the handler.
+
+Obtain the router from the container after `HttpServiceProvider` has registered (typically in a provider’s `boot` method):
+
+```kotlin
+val router = app.make(Router::class.java)
+```
+
+## Declaring routes
 
 ```kotlin
 router.get("/", { Response.text("home") }).name("home")
-router.post("/users", handler)
-router.match(listOf("PUT", "PATCH"), "/users/{id}", handler)
-router.any("/health", { Response.text("ok") })
+router.post("/users", ::createUser)
+router.put("/users/{id}", ::updateUser)
+router.patch("/users/{id}", ::updateUser)
+router.delete("/users/{id}", ::deleteUser)
+router.options("/users", { Response.text("") })
+router.any("/health") { Response.text("ok") }
 ```
+
+```java
+router.get("/", req -> Response.text("home")).name("home");
+router.post("/users", this::createUser);
+router.any("/health", req -> Response.text("ok"));
+```
+
+`match(methods, uri, handler)` registers one route that accepts several methods (for example PUT and PATCH together).
+
+### Path parameters
+
+Segments like `{id}` capture a path piece into request attributes (also under `route.id`). Values are **URL-decoded**. Trailing slashes are normalized so `/users` and `/users/` resolve the same way.
+
+### Named routes
+
+`.name("home")` stores a reverse-routing key. Group name prefixes prepend automatically (`name = "api."` + `.name("me")` → `api.me`). Resolve with `router.route("api.me", mapOf())` to get the path string.
 
 ## Groups
 
-Kotlin DSL and Java fluent builders both apply prefix, name namespace, and middleware.
-
-## Method semantics
-
-- **HEAD** falls back to the matching **GET** route (body stripped by the kernel).
-- Path matches but method does not → **405** with `Allow`.
-- Automatic **OPTIONS** with `Allow` when no explicit OPTIONS route exists.
-- Trailing slashes are normalized; path parameters are URL-decoded.
-
-## Resources
+Groups share a prefix, name namespace, and middleware list:
 
 ```kotlin
-router.resource("posts", PostsController())
-// posts.index, posts.show, posts.store, posts.update, posts.destroy
+router.group(prefix = "/api", name = "api.", middleware = listOf(auth)) {
+    get("/me") { Response.json(mapOf("user" to currentUser(it))) }
+}
 ```
+
+```java
+router.prefix("/api").name("api.").middleware(auth).group(api -> {
+    api.get("/me", req -> Response.json(Map.of("user", currentUser(req))));
+});
+```
+
+Groups nest: inner prefixes and middleware append to the outer ones.
+
+## Resource-style registration
+
+`resource("posts", controller)` registers a conventional set of CRUD routes against a `ResourceController` (index, show, store, update, destroy) and names them `posts.index`, `posts.show`, and so on. Update accepts both PUT and PATCH.
+
+## Method semantics the kernel expects
+
+| Situation | Behavior |
+|-----------|----------|
+| **HEAD** request, only **GET** registered | Router matches the GET route; the kernel strips the body from the response |
+| Path matches a route, method does not | **405** with an `Allow` header listing permitted methods |
+| No path match | **404** |
+| **OPTIONS** with no explicit route | Automatic response with `Allow` |
+
+See [Middleware](../middleware/) for how global and route middleware wrap these outcomes, and [Exceptions](../exceptions/) for the JSON error envelope.

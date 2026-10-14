@@ -1,6 +1,30 @@
 ---
 title: Exceptions
-description: HttpException, JSON error envelope, and debug mode.
+description: How the HTTP kernel turns failures into JSON responses.
 ---
 
-`DefaultExceptionHandler` returns JSON `{"message": …}`. With `APP_DEBUG=true`, the exception class name is included. `HttpException` may carry response headers (e.g. `Allow` on 405). Validation failures use status **422**.
+When something goes wrong while handling a request, the kernel catches the throwable and asks an **`ExceptionHandler`** to turn it into a `Response`. The default handler always returns **JSON**.
+
+## Default envelope
+
+```json
+{ "message": "No route for GET /missing" }
+```
+
+If `APP_DEBUG` is true, the payload also includes the exception class name to speed up local diagnosis. Keep debug **off** in production so internals stay private.
+
+## Status codes you will see
+
+| Situation | Status | Notes |
+|-----------|--------|-------|
+| No matching path | 404 | Message describes method + path |
+| Path exists, method does not | 405 | Includes `Allow` listing valid methods |
+| Validation failure | 422 | Includes `errors` map; see [Validation](../validation/) |
+| Explicit `HttpException` | As set on the exception | May carry extra response headers |
+| Uncaught error | 500 | Generic message unless debug adds detail |
+
+`HttpException` is the type to throw when your own code wants a specific status and optional headers without writing a custom handler.
+
+## Custom handlers
+
+Register your own `ExceptionHandler` implementation with the kernel if you need HTML error pages, problem+json, or metrics on failures. The handler runs **inside** the global middleware pipeline, so outer middleware still observes the final error response.

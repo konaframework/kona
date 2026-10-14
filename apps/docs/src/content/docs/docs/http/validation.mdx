@@ -1,7 +1,11 @@
 ---
 title: Validation
-description: Laravel-shaped request rules; unknown rules fail closed.
+description: Declare rules on request input and return structured 422 errors on failure.
 ---
+
+**Validation** checks incoming data before your handler trusts it. You declare a map of field names to rule strings. If any rule fails, Kona throws a validation exception and the default exception handler responds with **422** and a JSON body that includes an `errors` object.
+
+## Validating a request
 
 ```kotlin
 request.validate(
@@ -9,12 +13,53 @@ request.validate(
         "email" to "required|email",
         "age" to "nullable|integer|min:18",
         "password" to "required|confirmed",
+        "role" to "required|in:admin,member",
     ),
 )
 ```
 
-Rules include: `required`, `nullable`, `bail`, `string`, `integer`, `numeric`, `boolean`, `email`, `url`, `array`, `list`, `min`, `max`, `size`, `between`, `in`, `confirmed`, `same`, `regex`.
+```java
+request.validate(Map.of(
+    "email", "required|email",
+    "age", "nullable|integer|min:18",
+    "password", "required|confirmed"
+));
+```
 
-- Unknown or malformed rules → validation error (fail closed).
-- `min` / `max` / `size` / `between` are type-aware (string length, number value, collection size).
-- Failures return **422** JSON with an `errors` map.
+You can also construct a `Validator` over a `Map<String, Any?>` if the data is not on the request yet. Prefer `Request.data()` when you need typed JSON values (booleans, arrays) instead of only string form fields.
+
+## Rule reference (current set)
+
+| Rule | Meaning |
+|------|---------|
+| `required` | Field present and non-blank |
+| `nullable` | Allow null/missing; other rules skipped when empty |
+| `bail` | Stop running further rules on this field after the first failure |
+| `string` / `integer` / `numeric` / `boolean` | Type checks (`boolean` also accepts `"true"` / `"false"` strings from forms) |
+| `email` / `url` | Format checks |
+| `array` / `list` | Value is a list-like structure |
+| `min` / `max` / `size` / `between` | **Type-aware**: string → length, number → numeric value, collection → element count |
+| `in:a,b,c` | Value must be one of the listed options |
+| `confirmed` / `confirmed:other` | Matches `field_confirmation` or the named sibling |
+| `same:other` | Must equal another field |
+| `regex:/pattern/flags` | Regular expression |
+
+Rules are separated with `|`. Unknown rule names and malformed parameters (for example `min:abc` or a bad regex) **fail closed**—they produce validation errors instead of being ignored.
+
+## Missing fields
+
+Only `required` (and friends that explicitly demand presence) fail when a field is absent or blank. A rule like `min:1` on a missing field does **not** fail by itself; combine with `required` when the field must exist.
+
+## Error shape
+
+Failed validation yields JSON roughly like:
+
+```json
+{
+  "message": "The email field is required. (and 1 more error)",
+  "errors": {
+    "email": ["The email field is required."],
+    "age": ["The age field must be at least 18."]
+  }
+}
+```

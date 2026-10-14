@@ -1,38 +1,55 @@
 ---
 title: Installation
-description: JDK, Gradle, and Maven coordinates for Kona.
+description: Install the JDK, resolve Kona modules, and prepare grind.
 ---
 
 ## Requirements
 
-- **JDK 21+** (Virtual Threads)
-- **Gradle** 8+ (wrapper included in `grind new` apps)
+- **JDK 21 or newer.** Kona’s HTTP server uses Virtual Threads. Older JDKs are not supported.
+- A way to run **Gradle** 8+ (the apps `grind new` creates include the Gradle wrapper, so you usually do not install Gradle globally).
+
+Confirm the toolchain:
+
+```bash
+java -version   # should report 21+
+```
 
 ## Maven coordinates
 
-Group: `dev.kona`. Modules introduced in M1:
+Kona publishes under the group `dev.kona`. Modules available today:
 
-| Artifact | Role |
-|----------|------|
-| `dev.kona:kona-core` | Application, container, config, env, providers |
-| `dev.kona:kona-http` | Router, kernel, middleware, validation, server |
+| Artifact | What it contains |
+|----------|------------------|
+| `dev.kona:kona-core` | `Application`, container, config, env, providers, `Kona` entry |
+| `dev.kona:kona-http` | Router, HTTP kernel, middleware, validation, embedded server |
 | `dev.kona:kona-grind` | CLI (`new`, `serve`, `make:controller`) |
-| `dev.kona:kona-bom` | Bill of materials |
+| `dev.kona:kona-bom` | Bill of materials to align versions |
 
-Until artifacts are published to Maven Central, generated apps resolve from `mavenLocal()` after you publish the monorepo modules, or via `-Pkona.home=/path/to/kona` / `KONA_HOME` for a composite include.
+Until Central publishing is routine for your workflow, the monorepo path is:
+
+1. Clone [konaframework/kona](https://github.com/konaframework/kona).
+2. Publish the modules you need into the local Maven repository:
 
 ```bash
-# From a Kona checkout
 ./gradlew :kona-core:publishToMavenLocal :kona-http:publishToMavenLocal
 ```
 
-## CLI entry
+Generated apps declare a dependency on `dev.kona:kona-http` (which pulls `kona-core`) and look in `mavenLocal()` then Maven Central. To develop against a checkout instead of published jars, pass Gradle property `-Pkona.home=/path/to/kona` or set environment variable `KONA_HOME` so the generated `settings.gradle.kts` can `includeBuild` that tree.
+
+## Installing grind
+
+From the Kona monorepo you can run grind via Gradle:
 
 ```bash
-# After installing grind on your PATH, or via the module application plugin:
-./gradlew :kona-grind:run --args="new my-app --lang=kotlin"
-cd my-app
-./grind serve
+./gradlew :kona-grind:run --args="--help"
 ```
 
-See [grind commands](../../grind/commands/) for details.
+Apps created with `grind new` document calling grind from that project. You can also install the `kona-grind` application distribution and put its `bin` directory on your `PATH` once you publish or build that module.
+
+## Environment files
+
+Kona loads a `.env` file from the application base path when present. **Process environment variables always win** over values in `.env`, so production secrets can be injected by the host without editing the file. Boolean-ish values for `APP_DEBUG` accept `true`/`false`, `1`/`0`, `yes`/`no`, and `on`/`off`. Debug defaults to **false** when unset.
+
+## Next
+
+Create a project with [Your first app](../first-app/), or jump to [grind commands](../../grind/commands/).

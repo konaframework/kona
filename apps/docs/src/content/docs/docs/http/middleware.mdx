@@ -1,15 +1,57 @@
 ---
 title: Middleware
-description: Global and route middleware; pipeline wraps routing and errors.
+description: Wrap requests with cross-cutting logic before and after handlers run.
 ---
 
-Global middleware wraps **routing and exception handling**. A 404 or handled exception still flows back through outer middleware “after” logic.
+**Middleware** is code that runs around a handler. Common uses: add a request ID header, reject unauthenticated calls, log timing, or transform the response. Each middleware receives the `Request` and a `next` handler. Calling `next` continues the pipeline; returning a `Response` without calling `next` stops it.
+
+## Global vs route middleware
+
+The **HTTP kernel** holds a list of **global** middleware. That list wraps **everything**: routing, the matched route’s middleware, the action, and exception handling. Practical consequence: a global middleware still runs for 404 and 405 responses, and it still sees the response produced by the exception handler.
+
+**Route** (and group) middleware run only after a route has been selected, around that route’s action.
+
+Order: outer global → … → inner global → route middleware → action. On the way out, middleware runs in reverse (each can inspect or replace the `Response`).
+
+## Configuring the kernel
 
 ```kotlin
 val kernel = HttpKernel(router, listOf(RequestIdMiddleware()))
-kernel.pushMiddleware(LoggingMiddleware())
+kernel.pushMiddleware(AccessLogMiddleware())
+kernel.prependMiddleware(ForceJsonMiddleware())
 ```
 
-Route / group middleware runs inside the global stack, around the action only.
+```java
+HttpKernel kernel = new HttpKernel(router, List.of(new RequestIdMiddleware()));
+kernel.pushMiddleware(new AccessLogMiddleware());
+```
 
-`Middleware` receives `next: Handler`. Java calls `next.handle(req)`; Kotlin may use `next(req)`.
+You can also replace the list with `setGlobalMiddleware`. Inspect with `globalMiddleware` / `hasMiddleware`.
+
+## Implementing middleware
+
+```kotlin
+class RequestIdMiddleware : Middleware {
+    override fun handle(request: Request, next: Handler): Response {
+        val id = request.header("X-Request-Id") ?: UUID.randomUUID().toString()
+        request.setAttribute("requestId", id)
+        val response = next(request)
+        return response.header("X-Request-Id", id)
+    }
+}
+```
+
+```java
+public final class RequestIdMiddleware implements Middleware {
+    @Override
+    public Response handle(Request request, Handler next) {
+        String id = Optional.ofNullable(request.header("X-Request-Id"))
+            .orElse(UUID.randomUUID().toString());
+        request.setAttribute("requestId", id);
+        Response response = next.handle(request);
+        return response.header("X-Request-Id", id);
+    }
+}
+```
+
+Attach route middleware with `.middleware(mw)` on a route or via group parameters.

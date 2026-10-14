@@ -1,21 +1,51 @@
 ---
 title: Config & env
-description: Nested dotted config, file load, and process-env-over-.env.
+description: Nested configuration, file loading, and environment variable precedence.
 ---
 
-## Env
+Configuration answers questions like “what is the app name?” and “is debug mode on?” without hard-coding those answers in every class. Kona splits that into **environment** (process / `.env`) and **config** (structured values, often loaded from files).
 
-`Env` loads `.env` then applies **real process environment** on top (process wins). `APP_DEBUG` defaults to **false**.
+## Environment (`Env`)
 
-## Config
+On startup, Kona can load a `.env` file from the application base path. Lines support quotes, optional `export` prefixes, and `#` comments.
 
-Nested maps with dotted keys:
+**Precedence:** values already present in the real process environment **override** `.env`. That way CI and production can inject secrets without committing them.
+
+`APP_DEBUG` defaults to **false** when unset. Accepted truthy forms include `true`, `1`, `yes`, and `on`.
+
+## Config object
+
+`Config` stores nested maps. You address values with **dotted keys**:
 
 ```kotlin
 config.set("app.name", "Demo")
-config.getString("app.name", "Kona")
-config.load(path.resolve("config/app.json")) // nested JSON object
-config.loadDirectory(path.resolve("config")) // file stem → top-level key
+config.set("app.debug", false)
+
+val name = config.getString("app.name", "Kona")
+val debug = config.getBoolean("app.debug", false)
 ```
 
-Supported files: `.properties` and JSON objects.
+```java
+config.set("app.name", "Demo");
+String name = config.getString("app.name", "Kona");
+boolean debug = config.getBoolean("app.debug", false);
+```
+
+- `get("app")` returns the nested map under `app` when present.
+- `has("app.name")` checks a dotted path.
+- `all()` returns a deep copy of the tree.
+- Typed getters: `getString`, `getInt`, `getBoolean`, each with nullable and default-taking overloads. Non-string values stringify via `toString()` when read as strings.
+
+## Loading files
+
+```kotlin
+config.load(basePath.resolve("config/app.properties"))
+config.load(basePath.resolve("config/app.json"))
+config.loadDirectory(basePath.resolve("config"))
+```
+
+- **`.properties`** — flat keys; dots become nesting when loaded.
+- **JSON** — root must be an object; nested objects map to nested config.
+- **`loadDirectory`** — each supported file becomes a top-level key named after the file stem (`app.json` → `app.*`).
+
+`Kona.create` loads `config/` automatically when the directory exists, before your builder `configure` callbacks run, so callbacks can override file defaults.

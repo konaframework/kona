@@ -1,37 +1,70 @@
 ---
 title: Kotlin and Java
-description: Kotlin-first internals with first-class Java call sites.
+description: Use the same Kona APIs from Kotlin and Java without second-class call sites.
 ---
 
-Kona is written in Kotlin. Public types use `@JvmStatic`, `@JvmOverloads`, and SAM interfaces (`Handler`, `Middleware`) so Java call sites stay natural.
+Kona’s implementation language is Kotlin. That does **not** mean Java apps are an afterthought. Public types expose `@JvmStatic` factories, `@JvmOverloads` constructors, and SAM interfaces so Java lambdas and method references work the way you expect.
 
-## Routing
-
-**Kotlin** — trailing lambdas:
-
-```kotlin
-router.get("/") { Response.text("ok") }
-router.group(prefix = "/api", middleware = listOf(auth)) {
-    get("/me") { Response.json(mapOf("ok" to true)) }
-}
-```
-
-**Java** — fluent groups:
-
-```java
-router.prefix("/api").name("api.").middleware(auth).group(api -> {
-    api.get("/me", req -> Response.json(Map.of("ok", true)));
-});
-```
+When these docs show both languages, the behavior is the same; only the call syntax differs.
 
 ## Handlers
+
+HTTP actions implement `Handler` — a single-abstract-method type: `handle(Request): Response`.
+
+**Kotlin** can use a trailing lambda anywhere a `Handler` is expected:
+
+```kotlin
+router.get("/ping") { request -> Response.text("pong") }
+```
+
+**Java** uses a lambda or method reference:
 
 ```java
 router.get("/ping", request -> Response.text("pong"));
 ```
 
-`Handler` is a `fun interface`; Java lambdas implement `handle(Request)`.
+## Route groups
+
+Groups apply a URL prefix, an optional name prefix for named routes, and middleware to every route registered inside the block.
+
+**Kotlin** — DSL receiver:
+
+```kotlin
+router.group(prefix = "/api", name = "api.", middleware = listOf(requireToken)) {
+    get("/me") { Response.json(mapOf("ok" to true)) }
+}
+```
+
+**Java** — fluent chain then `group(Consumer)`:
+
+```java
+router.prefix("/api").name("api.").middleware(requireToken).group(api -> {
+    api.get("/me", req -> Response.json(Map.of("ok", true)));
+});
+```
+
+There are also overloads such as `group(prefix, middleware, consumer)` if you prefer not to use the fluent builder.
+
+## Middleware
+
+`Middleware` receives the current `Request` and a `next` `Handler`. Call `next.handle(request)` (Java) or `next(request)` (Kotlin extension) to continue the pipeline. Returning without calling `next` short-circuits the chain.
+
+## Application builder
+
+```kotlin
+Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .configure { config -> config.set("app.name", "Demo") }
+    .boot()
+```
+
+```java
+Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .configure(config -> config.set("app.name", "Demo"))
+    .boot();
+```
 
 ## Samples
 
-Both languages ship regression samples under `samples/`. Law 8 of the project: every public-API milestone includes a Java path.
+`samples/hello-kotlin` and `samples/hello-java` in the monorepo exercise the same features side by side. Prefer those when you want a compiling reference for groups, middleware, and providers.

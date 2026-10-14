@@ -1,25 +1,83 @@
 ---
 title: Application & providers
-description: Boot order, Application.Builder, and ServiceProvider register/boot.
+description: How a Kona application boots, registers providers, and exposes the container.
 ---
 
-## Boot order
+An **`Application`** is the running instance of your project. It knows the **base path** on disk (where `.env`, `config/`, and usually your source roots live), owns a **service container**, holds **config**, and tracks **service providers**.
 
-Laravel-shaped: **every** provider `register` runs before **any** `boot`.
+## Lifecycle in plain language
 
-1. `Kona.create(...)` loads `.env`, seeds `app.*` config, and loads `config/` when present.
-2. `.providers(...)` / `.configure { }` queue providers and config mutations.
-3. `.boot()` (alias of `build()`) creates `Application`, applies config, registers all providers, then boots once.
+Think of boot as two phases:
 
-Providers registered during another provider’s `boot()` are also booted in the same pass. After the app is booted, late `register()` calls register and boot immediately.
+1. **Register** — each provider tells the container *how* to create services (bindings, singletons). Avoid reading other providers’ bindings here if those providers might not have registered yet.
+2. **Boot** — each provider runs startup logic: attach routes, read config, warm caches. By this point every provider has finished `register`.
 
-## Builder
+Kona enforces that order: **all** `register` calls complete before **any** `boot` call for the initial set of providers.
+
+If a provider registers *another* provider while `boot` is running, that nested provider is registered and then booted before boot finishes—so dynamic registration still gets a chance to start. After the application is already booted, calling `register` on a new provider registers it and boots it immediately.
+
+A second registration of the **same provider class** is ignored.
+
+## Creating an application
+
+### Builder (preferred)
 
 ```kotlin
 val app = Application.builder(basePath)
     .withProvider(HttpServiceProvider())
+    .withProviders(AppServiceProvider(), MetricsServiceProvider())
     .configure { it.set("app.name", "Demo") }
-    .boot()
+    .boot()   // alias: build()
 ```
 
-`Kona.create(args)` returns the same builder surface for Java and Kotlin.
+```java
+Application app = Application.builder(basePath)
+    .withProvider(new HttpServiceProvider())
+    .configure(config -> config.set("app.name", "Demo"))
+    .boot();
+```
+
+### `Kona.create`
+
+`Kona.create(args)`, `Kona.create(path)`, or `Kona.create()` returns the same builder style after loading environment and default config. `Kona.start(...)` remains available for a quick start when you register providers afterward; for new code, prefer listing providers on the builder so nothing boots early.
+
+## Writing a provider
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Greeter::class.java) { Greeter("hello") }
+    }
+
+    override fun boot(app: Application) {
+        val router = app.make(Router::class.java)
+        router.get("/") { Response.text(app.make(Greeter::class.java).greet()) }
+    }
+}
+```
+
+```java
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().singleton(Greeter.class, c -> new Greeter("hello"));
+    }
+
+    @Override
+    public void boot(Application app) {
+        Router router = app.make(Router.class);
+        router.get("/", req -> Response.text(app.make(Greeter.class).greet()));
+    }
+}
+```
+
+`HttpServiceProvider` (from `kona-http`) registers the router, JSON helpers, and related HTTP services so your app provider can resolve `Router` during `boot`.
+
+## Helpers on `Application`
+
+- `path("config", "app.json")` — resolve paths under the base directory
+- `make(Class)` / `resolve(Class)` — ask the container for a type
+- `getProvider(Class)` — retrieve a registered provider instance
+- `isBooted()` — whether the boot phase has completed
+
+See also [Container](../container/) and [Config & env](../config/).

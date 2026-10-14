@@ -36,4 +36,4 @@ Use Kona product names: `Kona`, `grind`, `steam`, `Extract`, `Crema`, `drip`. Ma
 
 ## Docs (concurrent)
 
-Public site: `apps/docs/` — Astro + Starlight + `@almasix/starlight-theme` (Shamar stack). Update guides/sidebar with each milestone’s public API; see `docs/governance/docs-site.md`.
+Public site: `apps/docs/` — Astro + Starlight + `@almasix/starlight-theme`. Update guides/sidebar with each milestone’s public API. Voice rules in `docs/governance/docs-site.md` and `.cursor/rules/kona-docs.mdc`: detailed for general programmers; no framework comparison culture after a brief intro nod.

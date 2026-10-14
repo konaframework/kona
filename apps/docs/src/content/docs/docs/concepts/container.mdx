@@ -1,22 +1,60 @@
 ---
 title: Container
-description: Bind, singleton, instance, resolve, and constructor autowiring.
+description: Bind services, resolve them by type, and use constructor autowiring safely.
 ---
 
-`Container` is thread-safe. `make(type)` and `resolve(type)` are the same:
+The **container** is a registry of how to create objects your application needs. Instead of calling `new` everywhere—or threading constructors manually through the whole app—you ask the container for a type and it returns an instance according to the bindings you registered.
 
-- If bound → factory (singletons shared under a lock).
-- If unbound → constructor autowiring.
+The container is **thread-safe**. Singletons are created at most once under a lock.
 
-## Autowiring
+## Binding styles
 
-- Prefer a public constructor annotated with `@Inject` (any annotation named `Inject`, including `dev.kona.core.Inject`).
-- Otherwise pick the greediest public constructor.
-- JDK / Kotlin / primitive parameters must be bound explicitly.
-- Cycles throw `CircularDependencyException` with the chain in the message.
+| Method | Meaning |
+|--------|---------|
+| `bind(type, factory)` | New instance from the factory on every resolve (unless you mark shared) |
+| `singleton(type, factory)` | One shared instance for the process |
+| `instance(type, object)` | Register an object that already exists |
+| `alias(name, abstract)` | Alternate string key for the same binding |
+| `bind(iface, implClass)` | Convenience: construct `implClass` when `iface` is requested |
+
+Factories receive the `Container` so they can resolve collaborators.
 
 ```kotlin
-container.singleton(Greeter::class.java) { Greeter("hi") }
-container.bind(Clock::class.java, SystemClock::class.java)
-val g = container.make(Greeter::class.java)
+container.singleton(Clock::class.java) { SystemClock() }
+container.bind(Notifier::class.java) { c -> EmailNotifier(c.make(Clock::class.java)) }
 ```
+
+```java
+container.singleton(Clock.class, c -> new SystemClock());
+container.bind(Notifier.class, c -> new EmailNotifier(c.make(Clock.class)));
+```
+
+## `make` and `resolve`
+
+For a given type, **`make` and `resolve` do the same thing**:
+
+1. If the type (or its alias) is bound, run that binding.
+2. Otherwise **autowire**: pick a public constructor and resolve each parameter from the container.
+
+### Constructor choice
+
+- If exactly one public constructor is annotated with `@Inject` (including `dev.kona.core.Inject`, or any annotation literally named `Inject`), that constructor wins.
+- Otherwise Kona picks the public constructor with the **most parameters**.
+- Synthetic Kotlin default-argument constructors are skipped.
+- Interfaces, abstract classes, and types with no public constructor cannot be autowired—you must bind them.
+- Multiple `@Inject` constructors are an error.
+
+Parameters whose types are JDK/Kotlin primitives or similar “leaf” types must be **bound explicitly**; the container will not invent a `String` or `Int` for you.
+
+### Cycles
+
+If A needs B and B needs A, resolution throws `CircularDependencyException` with the chain in the message (for example `A -> B -> A`). Break the cycle with a lazy collaborator, an interface, or by restructuring the graph.
+
+## Flush and self-registration
+
+`flush()` clears bindings, instances, and aliases, then re-registers the container on itself so it remains resolvable. Prefer flush only in tests.
+
+## When to bind vs autowire
+
+- **Bind** infrastructure and interfaces (`Router`, `DataSource`, ports).
+- **Autowire** ordinary application classes whose constructor parameters are already bound or autowirable types.

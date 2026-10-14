@@ -1,9 +1,11 @@
 ---
 title: new / serve / make
-description: grind new, grind serve, and grind make:controller.
+description: Reference for grind new, grind serve, and grind make:controller.
 ---
 
 ## `grind new`
+
+Create a new application directory with Gradle build files, wrapper scripts, `.env`, bootstrap, an app service provider, routes, and a welcome controller.
 
 ```bash
 grind new my-app --lang=kotlin
@@ -11,22 +13,43 @@ grind new my-app --lang=java
 grind new my-app --lang=kotlin --kona-version=0.1.0-SNAPSHOT
 ```
 
-Emits `settings.gradle.kts`, `build.gradle.kts`, Gradle wrapper, `.env`, bootstrap, providers, routes, and a welcome controller. Dependencies resolve from `mavenLocal()` / Maven Central; pass `-Pkona.home=…` or `KONA_HOME` to include a local Kona checkout.
+| Flag | Effect |
+|------|--------|
+| `--lang=kotlin\|java` | Which skeleton language to copy |
+| `--kona-version=…` | Version string stamped into the generated Gradle dependency |
+
+The generated build depends on `dev.kona:kona-http` and resolves from `mavenLocal()` and Maven Central. To wire a local Kona checkout during development, use `-Pkona.home=/path/to/kona` on Gradle invocations or set `KONA_HOME`; the generated settings file documents the `includeBuild` hook.
+
+`APP_NAME` in `.env` is set from the directory name you pass to `new`.
 
 ## `grind serve`
+
+Start the HTTP server for the application in the current (or nearest) Gradle project.
 
 ```bash
 grind serve
 grind serve --host=127.0.0.1 --port=8080
 grind serve --in-process --once
+grind serve --bootstrap=com.example.bootstrap.App
 ```
 
-Finds the nearest Gradle project and runs `./gradlew run` (or `gradle`). `--in-process` loads compiled classes via `AppLoader` and calls `bootstrap.App.create`.
+| Flag | Effect |
+|------|--------|
+| `--host` / `--port` | Override bind address (also settable via `.env` as `HOST` / `PORT`) |
+| `--in-process` | Load compiled classes and call `bootstrap.App.create` instead of `gradlew run` |
+| `--once` | With in-process mode, return after the server has started (tests) |
+| `--bootstrap=` | Fully qualified bootstrap class name |
+| `--base=` | Directory to search upward for a Gradle project |
+
+If grind cannot find `settings.gradle(.kts)` or `build.gradle(.kts)`, it exits with a message suggesting `grind new`. Default bind host is **127.0.0.1**.
+
+The default path shells out to `./gradlew run` so the app’s full dependency set is on the classpath. `--in-process` is faster for tests but only sees classes already compiled into `build/`.
 
 ## `grind make:controller`
 
 ```bash
 grind make:controller Post
+grind make:controller Blog/PostController
 ```
 
-Rejects path traversal and invalid class names. Writes under `app/Http/Controllers`.
+Writes a controller under `app/Http/Controllers` (language matches the project). Names are validated: path traversal and illegal class identifiers are rejected.

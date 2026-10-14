@@ -1,14 +1,16 @@
 ---
 title: grind
-description: Kona CLI — scaffold, serve, and generate code.
+description: Kona’s command-line tool for scaffolding, serving, and generating code.
 ---
 
-**grind** is Kona’s Artisan / `smith` equivalent. M1 ships:
+**grind** is the terminal entry point for day-to-day Kona work. You use it to create projects, start the HTTP server against a real app, and generate boilerplate such as controllers.
 
-- `grind new` — scaffold a Kotlin or Java Gradle app
-- `grind serve` — run the app in the current project
-- `grind make:controller` — generate a controller class
+Today grind ships with:
 
-Later milestones add `make:model`, `migrate`, `steam`, and more.
+- [`grind new`](./commands/#grind-new) — create a Kotlin or Java Gradle application
+- [`grind serve`](./commands/#grind-serve) — run that application
+- [`grind make:controller`](./commands/#grind-makecontroller) — add a controller class
 
-See [commands](./commands/).
+Later releases add more generators, database commands, and **steam** (an interactive shell inside a booted application).
+
+Run `grind --help` (or `./gradlew :kona-grind:run --args="--help"` from the framework repo) to see the installed commands on your build.
