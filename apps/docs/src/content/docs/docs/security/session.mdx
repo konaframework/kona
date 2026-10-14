@@ -1,6 +1,6 @@
 ---
 title: Session
-description: HTTP sessions with array, file, and cookie drivers.
+description: HTTP sessions with array, file, cookie, and Redis drivers.
 ---
 
 ## What a session is
@@ -15,7 +15,10 @@ Configure with `session.driver`:
 |--------|----------|
 | `array` / `memory` | In-process map (tests / single process) |
 | `file` | JSON files under `storage/framework/sessions` (or `session.files`) |
-| `cookie` | Base64 JSON payload in the session cookie (unsigned in M3 — encrypt later) |
+| `cookie` | Base64 JSON payload in the session cookie (unsigned — encrypt later) |
+| `redis` | Keys on a Redis connection (`session.connection_prefix`, default `kona_session:`) |
+
+For `redis`, register `RedisServiceProvider` **before** `SessionServiceProvider` so `SessionManager` can resolve a `RedisConnection` / `RedisManager` from the container.
 
 Other keys: `session.lifetime` (minutes), `session.cookie`, `session.path`, `session.secure`, `session.http_only`, `session.same_site`.
 

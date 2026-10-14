@@ -5,6 +5,11 @@ import dev.kona.filesystem.FilesystemAdapter
 import dev.kona.mail.LogTransport
 import dev.kona.mail.MailMessage
 import dev.kona.mail.Mailer
+import dev.kona.notifications.DatabaseChannel
+import dev.kona.notifications.LogChannel
+import dev.kona.notifications.Notifiable
+import dev.kona.notifications.Notification
+import dev.kona.notifications.NotificationSender
 import dev.kona.queue.Bus
 import dev.kona.queue.Job
 import dev.kona.queue.QueueManager
@@ -29,6 +34,23 @@ class FakeQueue {
     val bus = Bus(manager)
     fun dispatch(job: Job) = bus.dispatch(job)
     fun size(): Long = manager.connection().size()
+}
+
+/** Fake notifications using in-memory database + log channels. */
+class FakeNotification {
+    val database = DatabaseChannel()
+    val log = LogChannel()
+    val sender = NotificationSender()
+        .extend("database", database)
+        .extend("log", log)
+
+    fun send(notifiable: Notifiable, notification: Notification) {
+        sender.send(notifiable, notification)
+    }
+
+    fun assertSent(type: Class<out Notification>): Boolean =
+        database.all().any { it["type"] == type.name } ||
+            log.entries().any { it.contains("notify ${type.simpleName} ") }
 }
 
 /** In-memory filesystem fake. */

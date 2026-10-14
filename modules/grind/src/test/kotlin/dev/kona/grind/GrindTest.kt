@@ -50,6 +50,14 @@ class GrindTest {
         val bare = temp.resolve("bare")
         Files.createDirectories(bare)
         assertEquals(0, MakeControllerCommand().run(listOf("Bare", "--base=$bare")))
+        assertEquals(0, MakeControllerCommand().run(listOf("Order", "--base=$base", "--resource", "--lang=kotlin")))
+        val resourceKt = Files.readString(base.resolve("app/Http/Controllers/OrderController.kt"))
+        assertTrue(resourceKt.contains("fun store("))
+        assertTrue(resourceKt.contains("fun destroy("))
+        assertEquals(0, MakeControllerCommand().run(listOf("Invoice", "--base=$base", "--resource", "--lang=java")))
+        val resourceJava = Files.readString(base.resolve("app/Http/Controllers/InvoiceController.java"))
+        assertTrue(resourceJava.contains("store(Request"))
+        assertTrue(resourceJava.contains("destroy(Request"))
     }
 
     @Test

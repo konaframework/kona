@@ -47,5 +47,12 @@ class RepositoryTest {
         assertTrue(repo.forever("e", "v"))
         assertTrue(repo.forget("e"))
         assertTrue(repo.flush())
+
+        assertEquals(1L, repo.increment("n"))
+        assertEquals(3L, repo.increment("n", 2))
+        assertEquals(2L, repo.decrement("n"))
+        assertEquals(0L, repo.decrement("n", 2))
+        assertEquals(6L, Repository(ArrayCacheStore()).also { it.forever("s", "5") }.increment("s"))
+        assertEquals(1L, Repository(ArrayCacheStore()).also { it.forever("bad", "nope") }.increment("bad"))
     }
 }

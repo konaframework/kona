@@ -70,6 +70,23 @@ class Repository(
         forget(key)
         return value
     }
+
+    /** Increment a numeric cache value (Laravel `Cache::increment`). */
+    @JvmOverloads
+    fun increment(key: String, amount: Long = 1): Long {
+        val current = when (val value = get(key)) {
+            null -> 0L
+            is Number -> value.toLong()
+            else -> value.toString().toLongOrNull() ?: 0L
+        }
+        val next = current + amount
+        forever(key, next)
+        return next
+    }
+
+    /** Decrement a numeric cache value (Laravel `Cache::decrement`). */
+    @JvmOverloads
+    fun decrement(key: String, amount: Long = 1): Long = increment(key, -amount)
 }
 
 fun interface CacheCallback {

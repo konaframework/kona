@@ -188,13 +188,19 @@ In Kotlin, `host` defaults to `127.0.0.1` and `port` to `8080`. Java callers pas
 
 For each incoming exchange the server:
 
-1. Reads the method, the raw path, and the query string (parsed and percent-decoded).
+1. Reads the method, normalizes the path (collapses repeated `/`, drops a trailing `/`), and parses the query string (percent-decoded).
 2. Copies headers, keeping the first value of any repeated header.
 3. Reads the entire body into memory as a UTF-8 string.
 4. Calls `kernel.handle(request)`. The kernel converts every exception into a response, so a failing handler still produces a well-formed reply.
 5. Writes every response header, then the body as UTF-8 with an exact `Content-Length`. For `204` responses and `HEAD` requests, no body bytes are written.
 
 One server context is mounted at `/`, so every path reaches the kernel and the router decides what exists.
+
+### Adapter limits (JDK HTTP server)
+
+- A request-target of exactly `//` is rejected by the JDK before Kona runs (raw HTML `400`). Paths such as `/foo//bar` are normalized and handled normally.
+- Some status codes (notably **422**) may appear on the wire without a reason phrase — the JDK table omits them. The JSON/HTML body and status code are still correct.
+- Route parameters are available as `request.route("id")` (and as request attributes).
 
 ## Virtual Threads
 

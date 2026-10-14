@@ -75,7 +75,7 @@ class GrindApplication {
               ./grind list
               ./grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
                             [--in-process [--bootstrap=bootstrap.App] [--once]]
-              ./grind make:controller <Name> [--lang=kotlin|java] [--base=.]
+              ./grind make:controller <Name> [--resource] [--lang=kotlin|java] [--base=.]
               ./grind make:view <name> [--base=.]
               ./grind make:model <Name> [--migration] [--factory] [--seeder] [--all] [--lang=kotlin|java]
               ./grind make:migration <snake_name> [--create=table] [--table=table] [--lang=kotlin|java]

@@ -162,10 +162,8 @@ class Router {
         return if (parts.isEmpty()) "/" else parts.joinToString("/", prefix = "/")
     }
 
-    private fun displayPath(path: String): String {
-        val trimmed = path.trim('/')
-        return if (trimmed.isEmpty()) "/" else trimmed
-    }
+    private fun displayPath(path: String): String = HttpPaths.display(path).trim('/')
+        .ifEmpty { "/" }
 
     companion object {
         /** Laravel `Router::$verbs`. */
@@ -273,7 +271,7 @@ class Route @JvmOverloads constructor(
 
     /** Path-only match (trailing slash ignored, parameters percent-decoded); null when the path differs. */
     fun matchPath(path: String): Map<String, String>? {
-        val normalized = if (path.length > 1) path.trimEnd('/').ifEmpty { "/" } else path
+        val normalized = HttpPaths.normalize(path)
         val match = pattern.matchEntire(normalized) ?: return null
         val out = linkedMapOf<String, String>()
         for (index in paramNames.indices) {

@@ -1,5 +1,6 @@
 package dev.kona.session
 
+import dev.kona.core.Application
 import dev.kona.core.Config
 import dev.kona.http.Request
 import dev.kona.http.Response
@@ -44,6 +45,34 @@ class RedisSessionStoreTest {
             Request("GET", "/", headers = mapOf("Cookie" to "kona_session=${session.id}")),
         )
         assertEquals("v", again.get("k"))
+    }
+
+    @Test
+    fun sessionServiceProviderWiresRedisManager(@TempDir base: Path) {
+        val app = Application(base)
+        app.config.set("session.driver", "redis")
+        app.config.set("redis.client", "memory")
+        app.register(dev.kona.redis.RedisServiceProvider())
+        app.register(SessionServiceProvider())
+        app.boot()
+        val manager = app.resolve(SessionManager::class.java)
+        val store = manager.driver()
+        assertTrue(store is RedisSessionStore)
+        val session = manager.start(Request.get("/"))
+        session.put("x", "1")
+        val response = Response.text("ok")
+        manager.save(session, response)
+        assertTrue(response.cookies.isNotEmpty())
+    }
+
+    @Test
+    fun sessionServiceProviderWiresRedisConnection(@TempDir base: Path) {
+        val app = Application(base)
+        app.config.set("session.driver", "redis")
+        app.container.instance(dev.kona.redis.RedisConnection::class.java, InMemoryRedisConnection())
+        app.register(SessionServiceProvider())
+        app.boot()
+        assertTrue(app.resolve(SessionManager::class.java).driver() is RedisSessionStore)
     }
 
     @Test

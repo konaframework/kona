@@ -9,6 +9,7 @@ From this directory (the project root):
 ```bash
 ./grind serve
 ./grind make:controller Post
+./grind make:controller Post --resource
 ./gradlew run
 ```
 
@@ -20,6 +21,15 @@ Create more apps with the **global** `kona` CLI:
 kona new other-app --lang=java
 ```
 
+## Resolving Kona artifacts
+
+Depends on `dev.kona:kona-http` / `kona-grind` from **mavenLocal()** then Maven Central.
+Publish from a Kona checkout with `./gradlew publishToMavenLocal`, or composite-build with
+`KONA_HOME` / `-Pkona.home=/path/to/kona`. Without one of those, SNAPSHOT resolution fails.
+
+Generators such as `make:model` / `migrate` / `queue:*` need the matching module dependency
+and a service provider registered in `bootstrap/App.java` (see `AppServiceProvider` comments).
+
 ## Layout
 
 - `bootstrap/App.java` — boots Kona, registers providers and routes, starts HTTP
@@ -27,6 +37,3 @@ kona new other-app --lang=java
 - `app/Providers` — service providers
 - `routes/WebRoutes.java` — route definitions
 - `./grind` — app-local CLI
-
-Kona artifacts resolve from `mavenLocal()` / Maven Central. Against a local checkout:
-`-Pkona.home=/path/to/kona` or `KONA_HOME`.

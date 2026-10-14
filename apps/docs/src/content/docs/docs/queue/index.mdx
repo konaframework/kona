@@ -28,8 +28,15 @@ Register `QueueServiceProvider`. Configure `queue.default` and `queue.connection
 ./grind queue:flush
 ```
 
-Failed jobs are kept in `FailedJobProvider` (in-memory). Retries re-queue until `tries()` is exhausted.
+Failed jobs are kept in `FailedJobProvider` (in-memory until a durable store lands).  
+`./grind queue:retry` **re-queues** the payload (attempts reset) onto the original connection/queue, then forgets the failed row.
+
+Backoff uses `availableAt` on the payload: array/Redis/database drivers skip jobs until the delay elapses (workers are not blocked with `Thread.sleep`).
 
 ## Job contracts
 
-Optional `JobContract` methods: `tries()`, `backoffSeconds()`, `displayName()`. Register factories via `JobRegistry` when jobs must be restored across processes.
+Optional `JobContract` methods: `tries()`, `backoffSeconds()`, `displayName()`.
+
+Cross-process workers restore jobs by:
+1. A factory registered in `JobRegistry`, or
+2. A public no-arg constructor on the job class named by `jobKey`.

@@ -23,10 +23,19 @@ class ArrayQueue : Queue {
     }
 
     override fun pop(queue: String): QueuePayload? {
-        val raw = synchronized(deque(queue)) {
-            deque(queue).pollFirst()
-        } ?: return null
-        return JobRegistry.decode(raw)
+        val now = System.currentTimeMillis()
+        synchronized(deque(queue)) {
+            val d = deque(queue)
+            val iter = d.iterator()
+            while (iter.hasNext()) {
+                val payload = JobRegistry.decode(iter.next())
+                if (payload.isAvailable(now)) {
+                    iter.remove()
+                    return payload
+                }
+            }
+            return null
+        }
     }
 
     override fun size(queue: String): Long =
@@ -41,8 +50,9 @@ class ArrayQueue : Queue {
     }
 
     override fun release(payload: QueuePayload, queue: String, delaySeconds: Long) {
+        val next = payload.withDelay(delaySeconds)
         synchronized(deque(queue)) {
-            deque(queue).addLast(JobRegistry.encode(payload))
+            deque(queue).addLast(JobRegistry.encode(next))
         }
     }
 }

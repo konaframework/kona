@@ -78,5 +78,6 @@ class GrindQueueTest {
         assertEquals(0, grind("queue:work", "--base=$project", boot, "--max=0").first)
         assertEquals(0, grind("queue:work", "--base=$project", boot, "--max=nope").first)
         assertEquals(0, grind("queue:failed", "--base=$project", "--bootstrap=${FailedOnlyApp::class.java.name}").first)
+        assertEquals(1, grind("queue:retry", "x", "--base=$project", "--bootstrap=${FailedOnlyApp::class.java.name}").first)
     }
 }

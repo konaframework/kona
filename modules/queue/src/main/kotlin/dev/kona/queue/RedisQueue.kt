@@ -25,7 +25,10 @@ class RedisQueue(
         val listKey = listKey(queue)
         val list = readList(listKey)
         if (list.isEmpty()) return null
-        val raw = list.removeAt(0)
+        val now = System.currentTimeMillis()
+        val index = list.indexOfFirst { JobRegistry.decode(it).isAvailable(now) }
+        if (index < 0) return null
+        val raw = list.removeAt(index)
         writeList(listKey, list)
         return JobRegistry.decode(raw)
     }
@@ -37,7 +40,7 @@ class RedisQueue(
     }
 
     override fun release(payload: QueuePayload, queue: String, delaySeconds: Long) {
-        append(listKey(queue), JobRegistry.encode(payload))
+        append(listKey(queue), JobRegistry.encode(payload.withDelay(delaySeconds)))
     }
 
     private fun append(listKey: String, encoded: String) {

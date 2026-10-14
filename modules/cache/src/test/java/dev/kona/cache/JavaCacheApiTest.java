@@ -22,6 +22,10 @@ public class JavaCacheApiTest {
         assertEquals(2, repo.get("missing", 2));
         assertEquals(1, repo.remember("a", 60, () -> 99));
         assertEquals(5, repo.rememberForever("b", () -> 5));
+        assertEquals(1L, repo.increment("counter"));
+        assertEquals(0L, repo.decrement("counter"));
+        assertEquals(5L, repo.increment("counter", 5));
+        assertEquals(3L, repo.decrement("counter", 2));
 
         FileCacheStore files = new FileCacheStore(base.resolve("f"));
         files.forever("k", Map.of("n", 3));
