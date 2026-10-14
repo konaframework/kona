@@ -1,20 +1,188 @@
 ---
 title: Validation
-description: Laravel-shaped request rules; unknown rules fail closed.
+description: Declare rules for request input, get back only the validated fields, and return structured 422 errors on failure.
 ---
 
+**Validation** checks incoming data before your handler trusts it. You describe each field with a list of **rules** — short strings such as `required`, `email`, or `min:18`. Kona checks every field, collects human-readable error messages, and either hands you the validated data or throws a `ValidationException`. The default exception handler turns that exception into a **422 Unprocessable Content** response with a JSON `errors` object, so a typical handler needs no error-handling code at all.
+
+## Validating a request
+
+`Request.validate(rules)` takes a `Map<String, List<String>>`: each **field name** maps to a **list of rule strings**.
+
 ```kotlin
-request.validate(
-    mapOf(
-        "email" to "required|email",
-        "age" to "nullable|integer|min:18",
-        "password" to "required|confirmed",
-    ),
-)
+router.post("/users") { request ->
+    val input = request.validate(
+        mapOf(
+            "email" to listOf("required", "email"),
+            "age" to listOf("nullable", "integer", "min:18"),
+            "password" to listOf("required", "string", "min:8", "confirmed"),
+            "role" to listOf("required", "in:admin,member"),
+        ),
+    )
+    Response.json(users.create(input), 201)
+}
 ```
 
-Rules include: `required`, `nullable`, `bail`, `string`, `integer`, `numeric`, `boolean`, `email`, `url`, `array`, `list`, `min`, `max`, `size`, `between`, `in`, `confirmed`, `same`, `regex`.
+```java
+router.post("/users", request -> {
+    Map<String, Object> input = request.validate(Map.of(
+        "email", List.of("required", "email"),
+        "age", List.of("nullable", "integer", "min:18"),
+        "password", List.of("required", "string", "min:8", "confirmed"),
+        "role", List.of("required", "in:admin,member")
+    ));
+    return Response.json(users.create(input), 201);
+});
+```
 
-- Unknown or malformed rules → validation error (fail closed).
-- `min` / `max` / `size` / `between` are type-aware (string length, number value, collection size).
-- Failures return **422** JSON with an `errors` map.
+### Pipe-joined rules inside a list element
+
+Any list element may also contain several rules joined with `|`. Kona splits each element on `|` before running the rules, so these three declarations are identical:
+
+```kotlin
+"email" to listOf("required", "email")
+"email" to listOf("required|email")
+"email" to listOf("required|string", "email")
+```
+
+```java
+"email", List.of("required", "email")
+"email", List.of("required|email")
+"email", List.of("required|string", "email")
+```
+
+The one exception is `regex:`. An element that **starts with** `regex:` is never split, because `|` is meaningful inside a regular expression. Always give a regex rule its own list element: `listOf("required", "regex:/^(draft|published)$/")`.
+
+### What you get back
+
+On success, `validate` returns a `Map<String, Any?>` containing **only the fields that have rules and are present** in the input. Extra fields the client sent are dropped, and optional fields that were absent are not included. Use this map instead of reading the request again, so unvalidated input never leaks into your logic.
+
+On failure, it throws `ValidationException` and your handler stops at that line.
+
+## Where the data comes from
+
+`Request.validate` validates `request.data()` — see [Request & response](../request-response/#typed-json-with-data):
+
+- For **JSON** requests (`Content-Type` containing `application/json`), values keep their JSON types: numbers, booleans, `null`, lists, and maps. Query-string values are included too, and body values win on conflict.
+- For **form** and other requests, every value is a `String` taken from the query string and the URL-encoded body.
+
+This affects some rules. `integer`, `numeric`, and `boolean` accept suitable strings, so they work for form posts. `array` and `list` can only pass for JSON, because form values are always strings.
+
+## Validating any map with `Validator`
+
+When the data does not come straight from a request — a decoded message, a config block, a CSV row — build a `Validator` directly. `Validator.make` accepts either a `Map<String, Any?>` or a `Request`, with the same rule format.
+
+```kotlin
+val validator = Validator.make(
+    mapOf("name" to "Ada", "tags" to listOf("math", "engines")),
+    mapOf(
+        "name" to listOf("required", "string", "max:50"),
+        "tags" to listOf("array", "max:5"),
+    ),
+)
+
+if (validator.fails()) {
+    println(validator.errors())       // Map<String, List<String>>
+} else {
+    val clean = validator.validate()  // same result as Request.validate
+}
+```
+
+```java
+Validator validator = Validator.make(
+    Map.of("name", "Ada", "tags", List.of("math", "engines")),
+    Map.of(
+        "name", List.of("required", "string", "max:50"),
+        "tags", List.of("array", "max:5")
+    )
+);
+
+if (validator.fails()) {
+    System.out.println(validator.errors());      // Map<String, List<String>>
+} else {
+    Map<String, Object> clean = validator.validate();
+}
+```
+
+`passes()` is the opposite of `fails()`. Each call re-runs the rules from scratch, so the result always reflects the current data. `errors()` returns the messages from the most recent run. `validate()` runs the rules and either returns the validated map or throws `ValidationException`.
+
+## How rules run
+
+For each field, Kona works through the rules in the order you wrote them:
+
+1. **Missing or blank fields skip most rules.** If the field is absent, or is a string containing only whitespace, every rule except `required` is skipped. So `min:3` alone does not make a field mandatory — add `required` when it must be present.
+2. **`required` stops at the first failure.** If `required` fails, no other rules run for that field, so the client sees one clear message.
+3. **`nullable` lets `null` through.** A field that is present with the value `null` normally still runs its rules (and fails `string`, `integer`, and so on). With `nullable`, a `null` value skips them.
+4. **All other failures accumulate.** Without `bail`, every remaining rule runs and each failure adds a message. With `bail` anywhere in the field’s rules, the first failure ends that field.
+5. **Unknown or malformed rules fail closed.** A rule name Kona does not know adds `Unknown validation rule [name].` A known rule with a bad parameter — `min:abc`, `between:1`, a regex with an invalid pattern or flag — adds `Invalid validation rule [rule].` These errors appear even when the field is missing, so a typo cannot silently disable a check.
+
+Field names in messages have underscores replaced by spaces: `first_name` appears as “first name”.
+
+## Rule reference
+
+| Rule | Passes when | Error message |
+|------|-------------|---------------|
+| `required` | The field is present and not `null`, not a blank string, and not an empty list or map | `The email field is required.` |
+| `nullable` | Always; lets `null` skip the other rules | — |
+| `bail` | Always; stops the field at its first failure | — |
+| `string` | The value is a string | `The name field must be a string.` |
+| `integer` | A whole number, or a string of digits with an optional sign and no leading zeros (`"42"`, `"-7"`), within the 64-bit range | `The age field must be an integer.` |
+| `numeric` | A number, or a numeric string (`"3.14"`, `"1e3"`, `" 12 "`) | `The price field must be a number.` |
+| `boolean` | One of `true`, `false`, `1`, `0`, `"1"`, `"0"`, `"true"`, `"false"` | `The active field must be true or false.` |
+| `email` | A string shaped `local@domain.tld` with no spaces | `The email field must be a valid email address.` |
+| `url` | A string that parses as a URI with both a scheme and a host (`https://example.com`) | `The website field must be a valid URL.` |
+| `array` | A list or a map (JSON array or object) | `The tags field must be an array.` |
+| `list` | A list (JSON array) | `The tags field must be a list.` |
+| `min:n` | Size is at least `n` | `…must be at least 18.` / `…must be at least 8 characters.` / `…must have at least 1 items.` |
+| `max:n` | Size is at most `n` | `…must not be greater than 50 characters.` |
+| `size:n` | Size is exactly `n` | `…must be 4 characters.` |
+| `between:a,b` | Size is from `a` to `b`, inclusive | `…must be between 1 and 10.` |
+| `in:a,b,c` | The value (as text) is one of the listed options; for a list, every element must be | `The selected role is invalid.` |
+| `confirmed` | Equals the field named `<field>_confirmation` | `The password field confirmation does not match.` |
+| `confirmed:other` | Equals the field named `other` | same as above |
+| `same:other` | Equals the field named `other` | `The email field must match email again.` (for `same:email_again`) |
+| `regex:/pattern/flags` | The string contains a match for the pattern | `The code field format is invalid.` |
+
+### How size is measured
+
+`min`, `max`, `size`, and `between` decide what “size” means from the value itself:
+
+- **Numbers** (JSON numbers) are compared by value: `min:18` means 18 or more.
+- **Lists and maps** are compared by element count: `max:5` means at most five items.
+- **Strings** are compared by character count — unless the field also has `integer` or `numeric` and the string looks like a number, in which case it is compared by value. This is why `"age" to listOf("integer", "min:18")` works for a form field `age=21`.
+
+### `confirmed` and `same`
+
+Both compare values with ordinary equality, so types matter: the JSON number `1` does not equal the string `"1"`. For a password field, send `password` and `password_confirmation` with the same value.
+
+### `regex`
+
+Write the pattern between two identical delimiter characters (any non-alphanumeric character, usually `/`), followed by optional flags: `i` (ignore case), `m` (multiline), `s` (dot matches newlines), `x` (allow whitespace and comments), `u` (accepted, no effect). The rule passes when the pattern is found anywhere in the string, so anchor it with `^…$` to match the whole value. Non-string values fail.
+
+```kotlin
+"slug" to listOf("required", "regex:/^[a-z0-9-]+$/")
+"code" to listOf("required", "regex:/^[A-Z]{3}$/i")
+```
+
+```java
+"slug", List.of("required", "regex:/^[a-z0-9-]+$/"),
+"code", List.of("required", "regex:/^[A-Z]{3}$/i")
+```
+
+## The error response
+
+`ValidationException` exposes `errors` (Java: `getErrors()`), a map from field name to a list of messages. Fields appear in the iteration order of your rules map: declaration order for Kotlin `mapOf` or a Java `LinkedHashMap`, unspecified for Java `Map.of`. Its `message` summarizes them: the first message, plus `(and N more error)` or `(and N more errors)` when there are others.
+
+When the exception escapes your handler, the default exception handler responds with status **422** and:
+
+```json
+{
+  "message": "The email field is required. (and 1 more error)",
+  "errors": {
+    "email": ["The email field is required."],
+    "age": ["The age field must be at least 18."]
+  }
+}
+```
+
+This response passes through global middleware like any other. If you need a different shape, catch `ValidationException` in the handler, or install a custom `ExceptionHandler` — see [Exceptions](../exceptions/).

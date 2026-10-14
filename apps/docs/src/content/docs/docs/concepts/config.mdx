@@ -1,21 +1,226 @@
 ---
 title: Config & env
-description: Nested dotted config, file load, and process-env-over-.env.
+description: Where settings come from, the order they are applied in, the .env format, and the typed Config API.
 ---
 
-## Env
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`Env` loads `.env` then applies **real process environment** on top (process wins). `APP_DEBUG` defaults to **false**.
+Applications need settings that change between machines: the app's name, whether debug output is shown, which port to listen on, database credentials. Kona separates these into two layers:
 
-## Config
+- **Environment** (`dev.kona.core.Env`): flat string variables from the operating system, with an optional `.env` file for development. This is where machine-specific and secret values belong.
+- **Config** (`dev.kona.core.Config`): a structured tree of typed values, addressed with dotted keys such as `app.debug`. It is filled from environment-derived defaults, files in `config/`, and code.
 
-Nested maps with dotted keys:
+Your code should mostly read **config**. Environment variables are the raw input that seeds it.
+
+## Where values come from, in order
+
+When you boot with `Kona.create(...)`, Kona fills config in this order. A later step overwrites keys set by an earlier one.
+
+1. **`.env` is loaded** from the base path, if the file exists. Missing files are skipped silently.
+2. **Defaults are seeded** from the environment:
+
+   | Config key | Environment variable | Default when unset |
+   |------------|----------------------|--------------------|
+   | `app.name` | `APP_NAME` | `"Kona"` |
+   | `app.env` | `APP_ENV` | `"local"` |
+   | `app.debug` | `APP_DEBUG` (parsed as a boolean) | `false` |
+
+3. **Files in `config/`** are loaded, in alphabetical order.
+4. **Your `configure` callbacks** run, in the order you added them.
+
+So a file `config/app.json` containing `"name"` overrides `APP_NAME`, and a `configure { it.set("app.name", ...) }` overrides both. Applications built with `Application.builder` skip steps 1 to 3 and start with an empty config.
+
+Config is filled once, at startup. Editing `.env` or a config file while the app runs has no effect until restart.
+
+## Environment variables and `.env`
+
+`Env.get` checks the **real process environment first** and falls back to values loaded from `.env`. This precedence is deliberate: a deployment platform, CI job, or container can inject production values and secrets without the file being edited or even present.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
-config.set("app.name", "Demo")
-config.getString("app.name", "Kona")
-config.load(path.resolve("config/app.json")) // nested JSON object
-config.loadDirectory(path.resolve("config")) // file stem → top-level key
+val host = Env.getOrDefault("HOST", "127.0.0.1")
+val region = Env.get("REGION")                 // String? — null when unset
+val apiKey = Env.require("PAYMENTS_API_KEY")   // throws when unset
 ```
 
-Supported files: `.properties` and JSON objects.
+</TabItem>
+<TabItem label="Java">
+
+```java
+String host = Env.getOrDefault("HOST", "127.0.0.1");
+String region = Env.get("REGION", null);           // null when unset
+String apiKey = Env.require("PAYMENTS_API_KEY");   // throws when unset
+```
+
+</TabItem>
+</Tabs>
+
+| Method | Behavior |
+|--------|----------|
+| `get(key, default)` | Process env, then `.env`, then `default` (Kotlin may omit `default`; Java passes `null`) |
+| `getOrDefault(key, default)` | Same, with a non-null result |
+| `require(key)` | Same, but throws `IllegalStateException("Missing environment variable [KEY]")` when absent |
+| `load(path)` | Parse a `.env` file and remember its values (later loads overwrite earlier keys) |
+| `set(key, value)` | Set a fallback value in code; real process variables still win |
+| `clear()` | Forget loaded and set values; also done by `Kona.reset()` |
+
+`Env` is process-wide, not per application. Tests that boot several applications should call `Kona.reset()` between them.
+
+### `.env` file format
+
+```bash
+# Comments start with #
+APP_NAME=billing
+APP_DEBUG=on
+export PORT=9000               # an "export " prefix is allowed
+GREETING="Hello # not a comment"
+SINGLE='single quotes work too'
+EMPTY=
+```
+
+- One `KEY=value` per line. Whitespace around the key and value is trimmed.
+- Blank lines and lines starting with `#` are skipped, as are lines without `=` or with nothing before it.
+- In an **unquoted** value, ` #` (space then hash) starts a trailing comment. Inside single or double quotes, `#` is literal.
+- Surrounding quotes are removed. There is no variable interpolation, escape processing, or multi-line value support.
+
+### Boolean values
+
+`APP_DEBUG`, and anything you read with `getBoolean`, accepts these strings in any letter case:
+
+| True | False |
+|------|-------|
+| `true`, `1`, `yes`, `on` | `false`, `0`, `no`, `off`, empty string |
+
+Numbers count as true when non-zero. For `APP_DEBUG`, any other string (for example `maybe`) is treated as `false`. With `app.debug` on, the HTTP layer adds exception messages and class names to error responses; keep it off on public servers.
+
+## The `Config` API
+
+`Config` stores nested maps. A dotted key walks into the tree: `set("app.debug", true)` creates `{ "app": { "debug": true } }`, and `get("app")` returns the whole `app` map.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val config = app.config
+
+config.set("mail.host", "smtp.example.com")
+config.set("mail.port", 587)
+config.set("mail", mapOf("from" to "noreply@example.com"))   // replaces the mail subtree
+
+val name = config.getString("app.name", "Kona")
+val port = config.getInt("server.port", 8080)
+val debug = config.getBoolean("app.debug", false)
+val hasMail = config.has("mail.from")                // true
+val mail: Map<String, Any?>? = config.get("mail")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Config config = app.getConfig();
+
+config.set("mail.host", "smtp.example.com");
+config.set("mail.port", 587);
+config.set("mail", Map.of("from", "noreply@example.com"));   // replaces the mail subtree
+
+String name = config.getString("app.name", "Kona");
+int port = config.getInt("server.port", 8080);
+boolean debug = config.getBoolean("app.debug", false);
+boolean hasMail = config.has("mail.from");              // true
+Map<String, Object> mail = config.get("mail");
+```
+
+</TabItem>
+</Tabs>
+
+| Method | Returns |
+|--------|---------|
+| `set(key, value)` | Stores `value`, creating intermediate maps. Map values are copied into the tree. Setting below a non-map value replaces it with a map. |
+| `has(key)` | `true` if the full path exists, even when the stored value is `null` |
+| `get(key)` / `get(key, default)` | The raw value (or nested map), cast to the type you assign to; `default` only when the key is missing |
+| `getString(key)` / `getString(key, default)` | `toString()` of the value |
+| `getInt(key)` / `getInt(key, default)` | Numbers truncated to `Int`; numeric strings parsed; anything else counts as missing |
+| `getBoolean(key)` / `getBoolean(key, default)` | Using the boolean rules above; unrecognised strings count as missing |
+| `all()` | A deep copy of the whole tree, safe to modify |
+
+The single-argument typed getters return `null` (Kotlin `Int?`, Java `Integer`) when the key is missing or not convertible. The two-argument forms return the default instead, which is what you usually want. `get` performs an unchecked cast: assigning a string value to an `Integer` compiles but fails with `ClassCastException` when used, so prefer the typed getters for scalars.
+
+Reads and writes are synchronized, so config is safe to read from request threads. Treat it as read-only after boot anyway; it is meant for settings, not shared mutable state.
+
+## Config files
+
+Put `.json` or `.properties` files in `config/` under the base path. Each file becomes a top-level key named after the file name without its extension:
+
+```text
+config/
+  app.json          → app.*
+  database.json     → database.*
+  cache.properties  → cache.*
+```
+
+```json title="config/database.json"
+{
+  "url": "jdbc:postgresql://localhost/app",
+  "pool": { "size": 10, "timeoutSeconds": 30 }
+}
+```
+
+```properties title="config/cache.properties"
+driver=memory
+ttl.seconds=300
+```
+
+These produce `database.url`, `database.pool.size` (an integer), `cache.driver`, and `cache.ttl.seconds` (the string `"300"`; `getInt` parses it).
+
+- **JSON** files must have an object at the root. Nested objects become nested config; arrays become lists; numbers, booleans, and `null` keep their JSON types.
+- **`.properties`** values are always strings. Dots in property keys create nesting.
+- Files **merge** into existing keys rather than replacing whole subtrees, so `config/app.json` with only `"timezone"` keeps `app.name` and `app.debug`.
+- Only the `config/` directory itself is scanned, not subdirectories. Files with other extensions are ignored. If `config/` does not exist, nothing happens.
+- When `app.json` and `app.properties` both exist, `app.json` loads first and `app.properties` wins on conflicting keys.
+
+You can also load files yourself, for example from a `configure` callback:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Kona.create(args)
+    .configure { config ->
+        config.load(Path.of("/etc/billing/overrides.json"))          // merged at the root
+        config.load(Path.of("/etc/billing/limits.properties"), "limits") // merged under limits.*
+        config.loadMap("feature", mapOf("beta" to true))
+    }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Kona.create(args)
+    .configure(config -> {
+        config.load(Path.of("/etc/billing/overrides.json"));            // merged at the root
+        config.load(Path.of("/etc/billing/limits.properties"), "limits"); // merged under limits.*
+        config.loadMap("feature", Map.of("beta", true));
+    })
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+`loadDirectory(path)` does what Kona's bootstrap does for `config/`, for any directory you choose.
+
+## Failure modes
+
+- **Unsupported extension** passed to `load`: `IllegalArgumentException("Unsupported config file [...]; expected .properties or .json")`.
+- **Malformed JSON**, or a JSON file whose root is an array: the JSON parser's exception propagates and boot fails, naming the file position.
+- **Unreadable file**: the I/O exception propagates and boot fails.
+- **Missing required environment variable** read with `Env.require`: `IllegalStateException` naming the variable.
+
+All of these surface while the application boots, before it serves any request, so a misconfigured deployment fails fast rather than misbehaving later.
+
+See also [Application & providers](../application/) for where configuration fits in the boot sequence.

@@ -1,0 +1,34 @@
+---
+description: Public Kona docs voice — detailed, no Laravel/Almasix comparisons
+globs: apps/docs/**/*
+alwaysApply: false
+---
+
+# Kona public documentation
+
+Applies to `apps/docs/` (Starlight site). Full policy: [docs/governance/docs-site.md](docs/governance/docs-site.md).
+
+## Audience
+
+Write for programmers who know **general** languages and web concepts (HTTP, JSON, classes, dependency injection ideas) but may never have used PHP frameworks. **Explain Kona terms in full** the first time they appear. Do not assume prior knowledge of any particular framework’s vocabulary.
+
+## Depth
+
+Sections must be **detailed**: what the piece is for, how it fits the request/boot lifecycle, concrete Kotlin **and** Java examples where the API is public, and what happens on success and failure. Prefer teaching over skimpy reference stubs.
+
+## Independence (no comparison culture)
+
+Kona may give Laravel and Almasix a **brief nod once** in the introduction (inspiration). After that:
+
+- Do **not** compare features (“like X”, “Laravel’s Y”, “Eloquent-style”).
+- Do **not** use parallel naming tables or “Artisan / smith equivalent” phrasing in public docs.
+- Describe **Kona’s** APIs, names (`grind`, `Extract`, `Crema`, `drip`, `steam`), and behavior on their own terms.
+
+Internal architecture docs under `docs/architecture/` may still map components for agents; that mapping must not leak into the public site.
+
+## Checklist before merging docs
+
+- [ ] New terms defined without requiring another framework.
+- [ ] No comparison sentences or equivalence tables on the page.
+- [ ] Kotlin + Java call sites where the surface is public.
+- [ ] Sidebar updated if a new section was added.

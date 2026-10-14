@@ -1,43 +1,378 @@
 ---
 title: Your first app
-description: Scaffold with grind new, register routes, and serve.
+description: Scaffold a project with grind, tour every generated file, serve HTTP, and add your own service and route.
 ---
 
-## Scaffold
+import { Tabs, TabItem, FileTree } from '@astrojs/starlight/components';
+
+This walkthrough creates a small application, explains what each generated file does and when it runs, starts the HTTP server, and then extends the app with a service and a route of your own. It assumes you finished [Installation](../installation/): JDK 21+, the Kona artifacts in your local Maven repository, and `grind` on your `PATH`.
+
+## 1. Scaffold the project
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```bash
 grind new hello-kona --lang=kotlin
-# or: grind new hello-kona --lang=java
 cd hello-kona
 ```
 
-`grind new` emits a Gradle app with wrapper, `.env`, `bootstrap/App`, `AppServiceProvider`, a welcome controller, and routes.
-
-## Boot shape
-
-Providers **register** before any **boot**. Prefer the builder:
-
-```kotlin
-val app = Kona.create(args)
-    .providers(HttpServiceProvider(), AppServiceProvider())
-    .boot()
-```
-
-```java
-Application app = Kona.create(args)
-    .providers(new HttpServiceProvider(), new AppServiceProvider())
-    .boot();
-```
-
-## Serve
+</TabItem>
+<TabItem label="Java">
 
 ```bash
-./grind serve
-# defaults to 127.0.0.1 — set HOST/PORT in .env
+grind new hello-kona --lang=java
+cd hello-kona
 ```
 
-`grind serve` runs `./gradlew run` in the project root. For tests or an already-compiled classpath, `--in-process` loads `bootstrap.App`.
+</TabItem>
+</Tabs>
 
-## Samples in the monorepo
+`grind new` creates a directory named after its argument and fills it with a complete, self-contained Gradle project. `--lang` defaults to `kotlin` when omitted. The command stops with an error if the directory already exists, so it never overwrites your work. On success it prints:
 
-`samples/hello-kotlin` and `samples/hello-java` exercise providers, route groups, and middleware through the in-process `HttpKernel` without binding a port.
+```text
+Created Kona application at /home/you/hello-kona (kotlin)
+  cd hello-kona && grind serve
+```
+
+## 2. Tour the generated files
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+<FileTree>
+- hello-kona/
+  - .env
+  - .gitignore
+  - build.gradle.kts
+  - settings.gradle.kts
+  - gradlew
+  - gradlew.bat
+  - gradle/wrapper/
+  - README.md
+  - bootstrap/
+    - App.kt
+  - app/
+    - Http/Controllers/
+      - WelcomeController.kt
+    - Providers/
+      - AppServiceProvider.kt
+  - routes/
+    - web.kt
+  - config/
+  - resources/
+</FileTree>
+
+</TabItem>
+<TabItem label="Java">
+
+<FileTree>
+- hello-kona/
+  - .env
+  - .gitignore
+  - build.gradle.kts
+  - settings.gradle.kts
+  - gradlew
+  - gradlew.bat
+  - gradle/wrapper/
+  - README.md
+  - bootstrap/
+    - App.java
+  - app/
+    - Http/Controllers/
+      - WelcomeController.java
+    - Providers/
+      - AppServiceProvider.java
+  - routes/
+    - WebRoutes.java
+  - config/
+  - resources/
+</FileTree>
+
+</TabItem>
+</Tabs>
+
+| Path | What it is | When it matters |
+|------|-----------|-----------------|
+| `.env` | Development settings: `APP_NAME` (set to your directory name), `APP_ENV=local`, `APP_DEBUG=true`, `HOST`, `PORT` | Read once at startup |
+| `build.gradle.kts` | Dependency on `dev.kona:kona-http`, JDK 21 toolchain, source folders `app`, `bootstrap`, `routes`, and `mainClass = bootstrap.App` | Build time |
+| `settings.gradle.kts` | Project name, plus the optional `kona.home` / `KONA_HOME` hook for building against a Kona checkout | Build time |
+| `gradlew`, `gradle/wrapper/` | The Gradle wrapper, so the project builds without a global Gradle install | Build time |
+| `bootstrap/App` | The entry point. Boots Kona, registers routes, starts the server | Process start |
+| `app/Providers/AppServiceProvider` | Your service provider: the place to bind services and run startup code | Boot |
+| `routes/` | `WebRoutes`, a class that attaches URL patterns to handlers | Right after boot |
+| `app/Http/Controllers/WelcomeController` | A *controller*: a plain class whose methods handle requests | Per request |
+| `config/` | Empty. Any `.json` or `.properties` file you add here is loaded into config at startup | Process start |
+| `resources/` | Empty. Classpath resources for your app | Runtime |
+
+Notice that source files live in top-level folders (`app/`, `bootstrap/`, `routes/`) instead of `src/main/...`; the build file points Gradle at them. Package names follow the folders, for example `app.Providers` and `app.Http.Controllers`.
+
+### The bootstrap
+
+`bootstrap/App` is the most important file to understand. It has two entry points: `create` builds a fully booted application without opening a socket, and `main` calls `create` and then starts the server.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package bootstrap
+
+object App {
+    @JvmStatic
+    fun create(args: Array<String>): Application {
+        val app = Kona.create(args)
+            .providers(HttpServiceProvider(), AppServiceProvider())
+            .boot()
+        WebRoutes().register(app.resolve(Router::class.java))
+        return app
+    }
+
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val app = create(args)
+        val host = Env.getOrDefault("HOST", "127.0.0.1")
+        val port = Env.getOrDefault("PORT", "8080").toInt()
+        KonaHttpServer(app.resolve(HttpKernel::class.java), host, port).start()
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package bootstrap;
+
+public final class App {
+    public static Application create(String[] args) {
+        Application app = Kona.create(args)
+            .providers(new HttpServiceProvider(), new AppServiceProvider())
+            .boot();
+        new WebRoutes().register(app.resolve(Router.class));
+        return app;
+    }
+
+    public static void main(String[] args) {
+        Application app = create(args);
+        String host = Env.getOrDefault("HOST", "127.0.0.1");
+        int port = Integer.parseInt(Env.getOrDefault("PORT", "8080"));
+        new KonaHttpServer(app.resolve(HttpKernel.class), host, port).start();
+    }
+
+    private App() {
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+(Imports are omitted here; the generated file has them.) Step by step, `create` does this:
+
+1. **`Kona.create(args)`** picks the base path (a `--base=/dir` argument, otherwise the working directory) and returns a *builder*: an object that collects providers and configuration before anything starts.
+2. **`.providers(...)`** lists the service providers. `HttpServiceProvider` comes from `kona-http` and binds the `Router` and `HttpKernel` into the container. `AppServiceProvider` is yours.
+3. **`.boot()`** loads `.env` and `config/`, then calls `register` on every provider, then `boot` on every provider. It returns the booted `Application`.
+4. **`WebRoutes().register(...)`** resolves the router from the container and attaches the routes in `routes/`.
+
+`main` then reads `HOST` and `PORT` (defaulting to `127.0.0.1` and `8080`) and starts `KonaHttpServer`, which hands every request to the `HttpKernel`. The two-method split exists so that tests and `grind serve --in-process` can get a booted application without binding a port. In Kotlin, `@JvmStatic` makes `create` a real static method, which grind's in-process loader requires.
+
+### The provider, routes, and controller
+
+The generated `AppServiceProvider` is empty and ready for you. `routes` registers two routes: `GET /` handled by `WelcomeController.index`, and `GET /api/health` inside a **route group**. A group applies a URL prefix (`/api`) and a name prefix (`api.`) to every route declared inside it, so the health route's full path is `/api/health` and its name is `api.health`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class WebRoutes {
+    fun register(router: Router) {
+        val welcome = WelcomeController()
+        router.get("/") { welcome.index(it) }.name("welcome")
+        router.group(prefix = "/api", name = "api.") {
+            get("/health") { Response.json(mapOf("status" to "ok")) }.name("health")
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class WebRoutes {
+    public void register(Router router) {
+        WelcomeController welcome = new WelcomeController();
+        router.get("/", welcome::index).name("welcome");
+        router.prefix("/api").name("api.").group(api -> {
+            api.get("/health", request -> Response.json(Map.of("status", "ok"))).name("health");
+        });
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 3. Serve it
+
+```bash
+grind serve
+```
+
+grind looks for a Gradle build file (`settings.gradle.kts`, `settings.gradle`, `build.gradle.kts`, or `build.gradle`) in the current directory or any parent, and runs `./gradlew run` there (or `gradle run` if there is no wrapper). The first run downloads Gradle and compiles the app, so it takes a while. When the server is up you will see a log line:
+
+```text
+Kona server listening on http://127.0.0.1:8080
+```
+
+In another terminal:
+
+```bash
+curl -i http://127.0.0.1:8080/
+# HTTP/1.1 200 OK
+# Content-type: text/plain; charset=utf-8
+# Welcome to Kona
+
+curl http://127.0.0.1:8080/api/health
+# {"status":"ok"}
+
+curl -i http://127.0.0.1:8080/missing
+# HTTP/1.1 404 Not Found
+# {"message":"The route missing could not be found."}
+```
+
+Stop the server with **Ctrl+C**. You can also run `./gradlew run` directly; grind is a convenience wrapper.
+
+To use a different address, pass flags. grind forwards them to the app as the `HOST` and `PORT` environment variables, and because real environment variables take precedence over `.env`, the flags win:
+
+```bash
+grind serve --host=0.0.0.0 --port=9000
+```
+
+## 4. Add a service and a route
+
+Now make the app your own. You will add a `Greeter` service, bind it in the provider, and expose it at `GET /hello/{name}`. The `{name}` segment is a **route parameter**: whatever appears in that position of the URL is captured and stored on the request's attributes.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+// app/Providers/AppServiceProvider.kt
+package app.Providers
+
+import dev.kona.core.Application
+import dev.kona.core.ServiceProvider
+import dev.kona.http.Response
+import dev.kona.http.Router
+
+class Greeter(private val greeting: String) {
+    fun greet(name: String) = "$greeting, $name"
+}
+
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        val greeting = app.config.getString("app.greeting", "Hello")
+        app.container.singleton(Greeter::class.java) { Greeter(greeting) }
+    }
+
+    override fun boot(app: Application) {
+        val greeter = app.resolve(Greeter::class.java)
+        app.resolve(Router::class.java).get("/hello/{name}") { request ->
+            Response.json(mapOf("message" to greeter.greet(request.attributes["name"].toString())))
+        }.name("hello")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+// app/Providers/AppServiceProvider.java
+package app.Providers;
+
+import dev.kona.core.Application;
+import dev.kona.core.ServiceProvider;
+import dev.kona.http.Response;
+import dev.kona.http.Router;
+import java.util.Map;
+
+public class AppServiceProvider implements ServiceProvider {
+    public static final class Greeter {
+        private final String greeting;
+        public Greeter(String greeting) { this.greeting = greeting; }
+        public String greet(String name) { return greeting + ", " + name; }
+    }
+
+    @Override
+    public void register(Application app) {
+        String greeting = app.getConfig().getString("app.greeting", "Hello");
+        app.getContainer().singleton(Greeter.class, c -> new Greeter(greeting));
+    }
+
+    @Override
+    public void boot(Application app) {
+        Greeter greeter = app.resolve(Greeter.class);
+        app.resolve(Router.class).get("/hello/{name}", request ->
+            Response.json(Map.of("message", greeter.greet(String.valueOf(request.getAttribute("name")))))
+        ).name("hello");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Why split it this way? `register` only *describes* how to build a `Greeter`; it does not need anything else to exist yet. `boot` runs after every provider has registered, so the `Router` bound by `HttpServiceProvider` is guaranteed to be available. `singleton` means the container builds the `Greeter` once and hands back the same instance every time.
+
+The greeting comes from config so you can change it without recompiling. Create `config/app.json`:
+
+```json
+{ "greeting": "Welcome" }
+```
+
+Because the file is named `app.json`, its keys are loaded under `app.*`, giving `app.greeting = "Welcome"`. Restart and try it:
+
+```bash
+curl http://127.0.0.1:8080/hello/kona
+# {"message":"Welcome, kona"}
+```
+
+## 5. Generate a controller
+
+As an app grows, handlers move out of route definitions into controller classes. grind can create one:
+
+```bash
+grind make:controller User
+# Controller created: app/Http/Controllers/UserController.kt   (or .java)
+```
+
+The `Controller` suffix is added when missing. grind picks Kotlin or Java by checking whether `app/` already contains `.java` files; pass `--lang=java` or `--lang=kotlin` to choose explicitly. It refuses to overwrite an existing file. Wire the new class in `routes/` the same way `WelcomeController` is wired.
+
+## 6. Serving without Gradle
+
+```bash
+./gradlew classes
+grind serve --in-process
+```
+
+`--in-process` skips launching Gradle. grind loads your compiled classes from `build/classes/` and `build/resources/`, calls the static `bootstrap.App.create(String[])`, and starts the server itself. Startup is faster, but only Kona and your own classes are available. If your app depends on other libraries, use plain `grind serve`. Add `--once` to bind and immediately stop, which is useful in scripts that only check that the app boots. Use `--bootstrap=my.pkg.Main` if your bootstrap class has a different name.
+
+## When something goes wrong
+
+- **`Directory already exists`** from `grind new`: choose another name or remove the directory.
+- **`No Kona application found at …`** from `grind serve`: you are not inside the project; `cd` into it or pass `--base=path/to/app`.
+- **`java.net.BindException: Address already in use`**: another process holds the port. Use `--port=` or change `PORT` in `.env`.
+- **`No compiled classes under …/build`** with `--in-process`: run `./gradlew classes` first.
+- **`[bootstrap.App].create(String[]) must be static`**: in Kotlin, keep the `@JvmStatic` annotation on `create`.
+- **`No binding for […]`** or **`Unresolvable dependency`** at startup: a provider asked the container for something nobody bound. See [Container](../../concepts/container/) for how resolution works.
+
+## The repository samples
+
+The Kona repository contains `samples/hello-kotlin` and `samples/hello-java`. They boot an application *in process*, never open a socket, and call `HttpKernel.handle(request)` directly to exercise providers, route groups, and middleware. They double as the framework's regression tests, so they always compile against the current APIs.
+
+## Next
+
+- [Application & providers](../../concepts/application/): the boot sequence in depth
+- [Routing](../../http/routing/): URL patterns, groups, and named routes
+- [grind commands](../../grind/commands/): every flag of `new`, `serve`, and `make:controller`

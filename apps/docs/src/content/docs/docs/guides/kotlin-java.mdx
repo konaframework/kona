@@ -1,37 +1,236 @@
 ---
 title: Kotlin and Java
-description: Kotlin-first internals with first-class Java call sites.
+description: How the same Kona APIs look from Kotlin and Java, and the handful of places where the call syntax differs.
 ---
 
-Kona is written in Kotlin. Public types use `@JvmStatic`, `@JvmOverloads`, and SAM interfaces (`Handler`, `Middleware`) so Java call sites stay natural.
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-## Routing
+Kona is written in Kotlin, but Java applications are a first-class target. Every public API is shaped so that a Java call site reads naturally, and the Kona repository keeps a Java sample (`samples/hello-java`) next to the Kotlin one (`samples/hello-kotlin`) as part of its regression tests. When a page in these docs shows both languages, **the behavior is identical**; only the syntax differs.
 
-**Kotlin** — trailing lambdas:
+This page explains the conventions behind that, so you can predict how any Kona API looks from your language without hunting for an example.
+
+## How Kotlin APIs appear in Java
+
+Kotlin compiles to ordinary JVM classes. A few language features translate in predictable ways:
+
+| Kotlin declaration | What Kotlin code writes | What Java code writes |
+|--------------------|-------------------------|-----------------------|
+| Property `val container` | `app.container` | `app.getContainer()` |
+| Mutable property `var status` | `response.status = 201` | `response.setStatus(201)` |
+| `object Kona` with `@JvmStatic` members | `Kona.create(args)` | `Kona.create(args)` |
+| Nested class `Application.Builder` | `Application.Builder` | `Application.Builder` |
+| `fun interface Handler` | trailing lambda `{ request -> ... }` | lambda `request -> ...` or method reference |
+| Function type `(Container) -> T` | `{ c -> Greeter() }` | `c -> new Greeter()` |
+| Return type `T?` (nullable) | compiler forces a null check | may return `null`; check it yourself |
+
+Kona marks its entry points (`Kona`, `Env`, `Application.builder`, `Response.text`/`json`/`html`, `Request.get`/`post`, `Config.toBoolean`) with `@JvmStatic`, so Java calls them as plain static methods without a `.INSTANCE` or `.Companion` hop.
+
+## Booting an application
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
-router.get("/") { Response.text("ok") }
-router.group(prefix = "/api", middleware = listOf(auth)) {
-    get("/me") { Response.json(mapOf("ok" to true)) }
+val app: Application = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .configure { config -> config.set("app.name", "Demo") }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .configure(config -> config.set("app.name", "Demo"))
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+`configure` accepts a `java.util.function.Consumer<Config>`, so it takes a Java lambda directly and a Kotlin lambda through SAM conversion.
+
+## Writing a service provider
+
+`ServiceProvider` is an interface with `register(Application)` and `boot(Application)`. In Kotlin, `boot` has an empty default body, so a Kotlin provider may leave it out. **Java providers must implement both methods**: the Kotlin default is not compiled as a Java `default` method, so leave `boot` empty when you have nothing to do at boot time.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Clock::class.java) { SystemClock() }
+    }
+
+    override fun boot(app: Application) {
+        val router = app.resolve(Router::class.java)
+        router.get("/time") { Response.text(app.resolve(Clock::class.java).now().toString()) }
+    }
 }
 ```
 
-**Java** — fluent groups:
+</TabItem>
+<TabItem label="Java">
 
 ```java
-router.prefix("/api").name("api.").middleware(auth).group(api -> {
-    api.get("/me", req -> Response.json(Map.of("ok", true)));
-});
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().singleton(Clock.class, c -> new SystemClock());
+    }
+
+    @Override
+    public void boot(Application app) {
+        Router router = app.resolve(Router.class);
+        router.get("/time", request -> Response.text(app.resolve(Clock.class).now().toString()));
+    }
+}
 ```
+
+</TabItem>
+</Tabs>
+
+Types are always passed as `Class` objects: `Clock::class.java` in Kotlin, `Clock.class` in Java. There are no reified-generic shortcuts, so the same container call works identically in both languages.
 
 ## Handlers
 
-```java
-router.get("/ping", request -> Response.text("pong"));
+A **handler** is anything that turns a `Request` into a `Response`. `Handler` is a single-method interface, `handle(Request): Response`, so any lambda or method reference with that shape fits.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/ping") { request -> Response.text("pong") }
+
+val users = UserController()
+router.get("/users") { users.index(it) }
 ```
 
-`Handler` is a `fun interface`; Java lambdas implement `handle(Request)`.
+</TabItem>
+<TabItem label="Java">
 
-## Samples
+```java
+router.get("/ping", request -> Response.text("pong"));
 
-Both languages ship regression samples under `samples/`. Law 8 of the project: every public-API milestone includes a Java path.
+UserController users = new UserController();
+router.get("/users", users::index);
+```
+
+</TabItem>
+</Tabs>
+
+## Middleware and `next`
+
+**Middleware** is a function `handle(request, next)` that runs before a handler. Calling `next` passes the request further down the chain; returning without calling it ends the request early with your own response.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import dev.kona.http.invoke   // enables next(request)
+
+val requireToken = Middleware { request, next ->
+    if (request.header("X-Token") == "secret") next(request)
+    else Response.json(mapOf("error" to "unauthorized"), 401)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Middleware requireToken = (request, next) ->
+    "secret".equals(request.header("X-Token"))
+        ? next.handle(request)
+        : Response.json(Map.of("error", "unauthorized"), 401);
+```
+
+</TabItem>
+</Tabs>
+
+In Kotlin, `next(request)` is an operator extension declared in `dev.kona.http`; you must import `dev.kona.http.invoke` for it to compile. `next.handle(request)` works in both languages without any import.
+
+## Route groups
+
+A **route group** applies a URL prefix, a route-name prefix, and middleware to every route declared inside it. This is the one API with genuinely different shapes per language.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.", middleware = listOf(requireToken)) {
+    get("/me") { Response.json(mapOf("ok" to true)) }.name("me")   // GET /api/me, name "api.me"
+}
+
+// Or declare several routes with a receiver block:
+router.routes {
+    get("/") { Response.text("home") }
+    post("/contact") { Response.noContent() }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").middleware(requireToken).group(api -> {
+    api.get("/me", request -> Response.json(Map.of("ok", true))).name("me");
+});
+
+// Positional overloads, if you prefer:
+router.group("/api", List.of(requireToken), api -> { /* ... */ });
+router.group("/api", "api.", List.of(requireToken), api -> { /* ... */ });
+```
+
+</TabItem>
+</Tabs>
+
+The Kotlin `group(prefix =, name =, middleware =) { }` form uses named arguments and a receiver lambda, so it is hidden from Java. Java gets the fluent `prefix(...).name(...).middleware(...).group(Consumer<Router>)` chain and `Consumer` overloads instead. Both build exactly the same routes.
+
+## Default arguments
+
+Kotlin parameters can have default values. Where Kona adds `@JvmOverloads`, Java sees one overload per optional parameter: for example `Response.text(body)` and `Response.text(body, status)`, or `config.get(key)` and `config.get(key, default)`. A few functions do not have Java overloads, and Java must pass every argument:
+
+| Call | Kotlin | Java |
+|------|--------|------|
+| Environment lookup | `Env.get("KEY")` | `Env.get("KEY", null)`, or `Env.getOrDefault("KEY", "x")` |
+| Request input | `request.input("q")` | `request.input("q", null)` |
+| Named route URL | `router.route("home")` | `router.route("home", Map.of())` |
+
+If Java reports "method cannot be applied to given types" on a Kona call, a missing default argument is the usual reason.
+
+## Generic return types
+
+Calls that look things up by **string key** return a generic `T`, inferred from the variable you assign to:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val greeter: Greeter = app.container.make("greeter")
+val port: Int? = app.config.get("server.port")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Greeter greeter = app.getContainer().make("greeter");
+Integer port = app.getConfig().get("server.port");
+```
+
+</TabItem>
+</Tabs>
+
+The cast is unchecked: if the stored value has another type, you get a `ClassCastException` where you use it. Prefer the typed config getters (`getInt`, `getString`, `getBoolean`) and class-based container lookups (`make(Greeter.class)`) when you can.
+
+## Mixing both languages in one project
+
+A Kotlin project can contain Java classes and the other way round; Kona does not care which language a provider or controller was written in. The `grind new --lang=kotlin` build file sets Java source folders to empty, so to add Java files to a Kotlin-generated project, list your source folders in `sourceSets["main"].java.setSrcDirs(...)`. `grind make:controller` chooses `.java` as soon as `app/` contains any `.java` file; pass `--lang=` to override.
+
+## Reference samples
+
+`samples/hello-kotlin` and `samples/hello-java` in the Kona repository build the same application (a greeter service, route groups with token middleware, global middleware) and test it through `HttpKernel.handle`. When you want a compiling reference for either language, start there.

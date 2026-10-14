@@ -20,7 +20,7 @@ export default defineConfig({
     starlight({
       title: 'Kona',
       description:
-        'Kotlin-first, Java first-class web framework for the JVM — Laravel/Almasix-shaped DX.',
+        'Kotlin-first, Java first-class web framework for the JVM.',
       favicon: '/favicon.svg',
       logo: {
         light: './src/assets/kona-mark.svg',

@@ -1,25 +1,251 @@
 ---
 title: Application & providers
-description: Boot order, Application.Builder, and ServiceProvider register/boot.
+description: What a Kona Application is, how service providers plug features into it, and the exact order in which boot happens.
 ---
 
-## Boot order
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Laravel-shaped: **every** provider `register` runs before **any** `boot`.
+Every Kona program revolves around one object: the **application** (`dev.kona.core.Application`). This page explains what it holds, how **service providers** add features to it, and the precise sequence Kona follows from `Kona.create(args)` to a booted app that is ready to serve requests.
 
-1. `Kona.create(...)` loads `.env`, seeds `app.*` config, and loads `config/` when present.
-2. `.providers(...)` / `.configure { }` queue providers and config mutations.
-3. `.boot()` (alias of `build()`) creates `Application`, applies config, registers all providers, then boots once.
+## What an application holds
 
-Providers registered during another provider’s `boot()` are also booted in the same pass. After the app is booted, late `register()` calls register and boot immediately.
+An `Application` is a plain object you can create, inspect, and throw away (tests do this constantly). It holds four things:
 
-## Builder
+- **Base path** (`basePath`): the root directory of your project on disk. Kona looks for `.env` and `config/` here. `app.path("config", "app.json")` joins segments onto the base path and returns a `java.nio.file.Path`.
+- **Container** (`container`): the registry that knows how to build your services. See [Container](../container/).
+- **Config** (`config`): the dotted-key settings tree. See [Config & env](../config/).
+- **Providers**: the list of registered service providers, in registration order.
+
+When an application is constructed it registers itself in its own container, so any service can depend on it:
+
+| Lookup | Returns |
+|--------|---------|
+| `Application` class, or string key `"app"` | the application |
+| `Config` class, or string key `"config"` | its config |
+| `Container` class | the container itself |
+
+## Service providers
+
+A **service provider** is a class implementing `dev.kona.core.ServiceProvider`. It is the unit you use to plug a feature into an application: Kona's HTTP layer is a provider (`HttpServiceProvider`), and your own application code normally starts in an `AppServiceProvider`. A provider has two methods, and the split between them is the core idea of this page:
+
+- **`register(app)`** describes services. Bind types into the container, read config values, and nothing more. When `register` runs, other providers may not have registered yet, so do not *resolve* services that someone else provides.
+- **`boot(app)`** does startup work. It runs only after **every** provider has finished `register`, so everything is bound and you can resolve freely: attach routes, install middleware, warm caches, validate config.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
-val app = Application.builder(basePath)
-    .withProvider(HttpServiceProvider())
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Greeter::class.java) { Greeter("Hello") }
+    }
+
+    override fun boot(app: Application) {
+        val greeter = app.resolve(Greeter::class.java)
+        app.resolve(Router::class.java).get("/") { Response.text(greeter.greet("world")) }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().singleton(Greeter.class, c -> new Greeter("Hello"));
+    }
+
+    @Override
+    public void boot(Application app) {
+        Greeter greeter = app.resolve(Greeter.class);
+        app.resolve(Router.class).get("/", request -> Response.text(greeter.greet("world")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Here `boot` resolves `Router`, which `HttpServiceProvider` bound during *its* `register`. Because of the two-phase order, this works no matter whether `HttpServiceProvider` is listed before or after `AppServiceProvider`.
+
+In Kotlin, `boot` has an empty default and may be omitted. Java providers must implement both methods (an empty `boot` is fine).
+
+## Creating an application
+
+### With `Kona.create` (recommended)
+
+`Kona.create` returns an `Application.Builder` that also loads `.env`, default config, and `config/` files. It is what generated projects use.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
     .configure { it.set("app.name", "Demo") }
     .boot()
 ```
 
-`Kona.create(args)` returns the same builder surface for Java and Kotlin.
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .configure(config -> config.set("app.name", "Demo"))
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+The overloads choose the base path:
+
+| Call | Base path |
+|------|-----------|
+| `Kona.create(args)` | the value of the first `--base=/some/dir` argument, otherwise the current working directory |
+| `Kona.create(path)` | `path`, made absolute and normalized |
+| `Kona.create()` | the current working directory |
+
+Other arguments in `args` are ignored by Kona, so you can pass your own flags through.
+
+### With `Application.builder` (no bootstrap)
+
+`Application.builder()` and `Application.builder(path)` return the same builder **without** Kona's bootstrap step: no `.env` loading, no `app.*` defaults, no `config/` directory. Use it when you want full control, typically in unit tests.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Application.builder(Path.of("/srv/demo"))
+    .withProvider(HttpServiceProvider())
+    .withProviders(AppServiceProvider(), MetricsServiceProvider())
+    .configure { it.set("app.debug", true) }
+    .build()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Application.builder(Path.of("/srv/demo"))
+    .withProvider(new HttpServiceProvider())
+    .withProviders(new AppServiceProvider(), new MetricsServiceProvider())
+    .configure(config -> config.set("app.debug", true))
+    .build();
+```
+
+</TabItem>
+</Tabs>
+
+Builder methods, all chainable:
+
+- `basePath(path)`: change the base path (the no-argument builder starts at the working directory).
+- `withProvider(p)`, `withProviders(a, b, ...)`, `withProviders(iterable)`, `providers(a, b, ...)`: append providers. `providers` is a shorter alias of `withProviders`.
+- `configure(consumer)`: queue a callback that receives the `Config`. Several callbacks run in the order added.
+- `build()` / `boot()`: create, register, and boot. The two names are aliases.
+
+### By hand
+
+You can also drive an `Application` directly: `Application(basePath)`, then `register(...)` each provider, then `boot()`. The builder exists so that you cannot accidentally boot before all providers are listed, which is why it is the preferred form.
+
+## The boot sequence, exactly
+
+When you call `boot()` on a builder from `Kona.create`, these steps run in this order:
+
+1. A new `Application` is constructed and registers itself, its `Config`, and its `Container` in the container.
+2. **Bootstrap** (only with `Kona.create`): `.env` is loaded from the base path if present; `app.name`, `app.env`, and `app.debug` are set from `APP_NAME` (default `Kona`), `APP_ENV` (default `local`), and `APP_DEBUG` (default `false`); then every `.json` / `.properties` file in `config/` is merged in.
+3. Your **`configure`** callbacks run, in order. They see and can override everything from step 2.
+4. **Register phase**: each provider's `register` runs in list order.
+5. **Boot phase**: each provider's `boot` runs in registration order.
+6. The application is marked booted and logs `Kona application booted at <base path>`.
+7. With `Kona.create`, the application is remembered so `Kona.app()` can return it.
+
+### Edge cases the order handles
+
+- **Duplicate providers.** Registering a second provider of a class that is already registered is silently ignored: its `register` is never called. Identity is the exact class, not the instance.
+- **Providers registered during boot.** If a provider's `boot` registers another provider, the new one runs `register` immediately and is booted later in the same pass, before boot completes.
+- **Providers registered after boot.** Calling `app.register(provider)` on a booted application runs that provider's `register` and then its `boot` right away.
+- **Calling `boot()` twice** is harmless; the second call returns immediately.
+
+Registration and boot are synchronized, so concurrent calls from several threads cannot interleave phases.
+
+## Helpers on `Application`
+
+| Method | Purpose |
+|--------|---------|
+| `path(vararg segments)` | Resolve a path under the base path |
+| `resolve(Class)` / `make(Class)` | Ask the container for an instance (the two are identical) |
+| `register(provider)` / `registerAll(iterable)` | Add providers (see edge cases above) |
+| `getProvider(Class)` | The registered provider of that exact class, or `null` |
+| `providers()` | A snapshot list of registered providers |
+| `isBooted()` | Whether the boot phase has completed |
+| `container`, `config`, `basePath` | The owned objects (`getContainer()`, `getConfig()`, `getBasePath()` from Java) |
+
+## The `Kona` entry point
+
+`Kona` is a static entry point for application-wide access:
+
+- `Kona.create(...)`: return a bootstrapping builder, described above.
+- `Kona.start(args)` / `Kona.start(path)`: shorthand for `Kona.create(...).boot()` with no providers. Useful for scripts that only need config and env; register providers on the result if you need more.
+- `Kona.app()`: the application most recently booted through `Kona.create` or `Kona.start`. It throws `IllegalStateException("Kona has not been started…")` if none exists. Applications built with `Application.builder` are not tracked.
+- `Kona.reset()`: forget the current application and clear values loaded from `.env`. Call it between tests.
+
+Prefer passing the `Application` (or the services you need) explicitly; `Kona.app()` is a convenience for code that has no other way to reach it.
+
+## When boot fails
+
+Kona does not swallow errors during startup. Any exception from a provider's `register` or `boot`, from the container (for example `BindingException: No binding for [...]`), or from loading a config file propagates out of `build()`/`boot()` to your `main`. In that case the application is not marked booted and `Kona.app()` is not updated. Treat a failed boot as fatal: fix the cause and start a fresh process rather than calling `boot()` again on the same instance, which would re-run providers that already booted.
+
+## Testing an application
+
+Because `create` returns a booted application without opening a socket, tests can boot the real app against a temporary base path and exercise it in process:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppTest {
+    @TempDir lateinit var temp: Path
+
+    @AfterEach fun reset() = Kona.reset()
+
+    @Test fun boots() {
+        val app = Kona.create(arrayOf("--base=$temp"))
+            .providers(HttpServiceProvider(), AppServiceProvider())
+            .boot()
+        assertTrue(app.isBooted())
+        val response = app.resolve(HttpKernel::class.java).handle(Request.get("/"))
+        assertEquals(200, response.status)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+class AppTest {
+    @TempDir Path temp;
+
+    @AfterEach void reset() { Kona.reset(); }
+
+    @Test void boots() {
+        Application app = Kona.create(new String[] {"--base=" + temp})
+            .providers(new HttpServiceProvider(), new AppServiceProvider())
+            .boot();
+        assertTrue(app.isBooted());
+        Response response = app.resolve(HttpKernel.class).handle(Request.get("/"));
+        assertEquals(200, response.getStatus());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+The empty temporary directory means no `.env` and no `config/`, so the test sees only defaults and what the test itself configures.
+
+See also [Container](../container/) and [Config & env](../config/).
