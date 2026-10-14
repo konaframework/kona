@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M13 (M0–M12 complete).
+**Active milestone:** none — Almasix ledger through M13 complete (maintenance).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -126,9 +126,9 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Language support | M13 | pending |
-| Language server | M13 | pending |
-| Editor setup | M13 | pending |
+| Language support | M13 | done |
+| Language server | M13 | done |
+| Editor setup | M13 | done |
 
 ### Testing
 
@@ -475,22 +475,22 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M13 — Language support, LSP, editor setup
 
-**Status:** active  
+**Status:** done  
 
-**Branch:** `milestone/M13-ide-support` (may live partly in `ide-support` repo)
+**Branch:** `milestone/M13-ide-support` (in-repo `ide-support/` + `modules/lsp`)
 
 **Parity slice:** Language support, Language server, Editor setup for Crema / grind / Extract DSLs.
 
 ### Parity checklist
 
-- [ ] Language support (grammar / TextMate or tree-sitter for Crema)
-- [ ] Language server (diagnostics, completion for directives / routes as feasible)
-- [ ] Editor setup guides (VS Code / IntelliJ / Cursor)
-- [ ] Docs under Language / Editor
+- [x] Language support (grammar / TextMate or tree-sitter for Crema)
+- [x] Language server (diagnostics, completion for directives / routes as feasible)
+- [x] Editor setup guides (VS Code / IntelliJ / Cursor)
+- [x] Docs under Language / Editor
 
 ### In-scope modules
 
-`ide-support` repo and/or `modules/ide` packaging; public docs in `apps/docs/`
+`ide-support/crema`, `ide-support/vscode-crema`, `ide-support/intellij`; `modules/lsp` (`dev.kona:kona-lsp`); public docs in `apps/docs/` (Language / Editor)
 
 ---
 

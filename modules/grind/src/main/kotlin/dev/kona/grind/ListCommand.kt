@@ -37,6 +37,7 @@ class ListCommand {
             "schedule:list" to "List scheduled tasks",
             "steam" to "Interactive REPL",
             "assets:vite" to "Print Vite asset bundling setup help",
+            "ide:lsp" to "Print kona-lsp (Crema language server) setup help",
             "list" to "List grind commands",
             "help" to "Show usage",
         )

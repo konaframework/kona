@@ -1,0 +1,62 @@
+{
+  "name": "crema",
+  "displayName": "Crema (Kona)",
+  "description": "Crema template language support for Kona — syntax highlighting and kona-lsp.",
+  "version": "0.1.0",
+  "publisher": "konaframework",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:crema",
+    "onCommand:crema.lsp.showHelp"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "crema.lsp.showHelp",
+        "title": "Crema: Show kona-lsp setup help"
+      }
+    ],
+    "languages": [
+      {
+        "id": "crema",
+        "aliases": ["Crema", "crema"],
+        "extensions": [".crema.html", ".crema.kt"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "crema",
+        "scopeName": "text.html.crema",
+        "path": "./syntaxes/crema.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Crema",
+      "properties": {
+        "crema.lsp.javaPath": {
+          "type": "string",
+          "default": "java",
+          "description": "Path to the java executable used to launch kona-lsp."
+        },
+        "crema.lsp.jarPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the kona-lsp jar (with Main-Class). When empty, the extension does not start the language server."
+        },
+        "crema.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Start kona-lsp when opening Crema files (requires crema.lsp.jarPath)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "sync-grammar": "node ./scripts/sync-grammar.js"
+  }
+}

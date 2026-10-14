@@ -1,0 +1,45 @@
+---
+title: Language & editor support
+description: Highlight Crema templates and connect kona-lsp in your editor.
+---
+
+Kona ships **editor support** for Crema templates so you can edit `*.crema.html` and `*.crema.kt` with highlighting, completion for directives, and warnings for unknown `@name`s.
+
+## What you get
+
+| Piece | Location | Role |
+|-------|----------|------|
+| TextMate grammar | `ide-support/crema/` | Colors directives, echoes, comments |
+| Language server | `modules/lsp` (`dev.kona:kona-lsp`) | Completions + diagnostics over LSP stdio |
+| VS Code / Cursor extension | `ide-support/vscode-crema/` | Language contribution + setup help |
+| IntelliJ notes | `ide-support/intellij/` | TextMate bundle / file types |
+
+## Fastest path
+
+1. Open a Crema view in an editor that loads the grammar (see [VS Code & Cursor](/docs/language/vscode) or [IntelliJ](/docs/language/intellij)).
+2. Build the language server once:
+
+   ```bash
+   ./gradlew :kona-lsp:jar
+   ```
+
+3. Point your editor’s LSP client at:
+
+   ```bash
+   java -jar modules/lsp/build/libs/kona-lsp-*.jar
+   ```
+
+From an application project you can also print the same reminder without starting a server:
+
+```bash
+./grind ide:lsp
+```
+
+## Progressive guides
+
+1. [Crema grammar](/docs/language/grammar) — what is highlighted and how to sync the TextMate files.
+2. [Language server](/docs/language/lsp) — protocol surface, Kotlin/Java usage in tests, running the jar.
+3. [VS Code & Cursor](/docs/language/vscode) — install the extension stub and wire `crema.lsp.jarPath`.
+4. [IntelliJ](/docs/language/intellij) — TextMate bundles and file type patterns.
+
+Crema template behavior itself (layouts, `@foreach`, stacks) is documented under [Crema](/docs/crema).

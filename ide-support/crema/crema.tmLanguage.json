@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Crema",
+  "scopeName": "text.html.crema",
+  "fileTypes": ["crema.html", "crema.kt"],
+  "patterns": [
+    { "include": "#crema-comment" },
+    { "include": "#crema-echo-raw" },
+    { "include": "#crema-echo" },
+    { "include": "#crema-directive" },
+    { "include": "text.html.basic" }
+  ],
+  "repository": {
+    "crema-comment": {
+      "name": "comment.block.crema",
+      "begin": "\\{\\{--",
+      "end": "--\\}\\}"
+    },
+    "crema-echo": {
+      "name": "meta.echo.crema",
+      "begin": "\\{\\{",
+      "end": "\\}\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.echo.begin.crema" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.echo.end.crema" }
+      },
+      "patterns": [
+        {
+          "name": "variable.other.crema",
+          "match": "[A-Za-z_][A-Za-z0-9_.]*"
+        }
+      ]
+    },
+    "crema-echo-raw": {
+      "name": "meta.echo.raw.crema",
+      "begin": "\\{!!",
+      "end": "!!\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.echo.raw.begin.crema" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.echo.raw.end.crema" }
+      }
+    },
+    "crema-directive": {
+      "name": "meta.directive.crema",
+      "begin": "(@)(extends|section|endsection|show|yield|parent|stack|push|endpush|include|includeIf|includeWhen|if|else|endif|foreach|endforeach|slot|endslot|json|csrf)\\b",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.directive.crema" },
+        "2": { "name": "keyword.control.directive.crema" }
+      },
+      "end": "(?=\\s|$|\\n|\\{|\\}|@)",
+      "patterns": [
+        {
+          "name": "string.quoted.single.crema",
+          "begin": "'",
+          "end": "'"
+        },
+        {
+          "name": "string.quoted.double.crema",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "meta.directive.arguments.crema",
+          "begin": "\\(",
+          "end": "\\)",
+          "patterns": [
+            {
+              "name": "string.quoted.single.crema",
+              "begin": "'",
+              "end": "'"
+            },
+            {
+              "name": "string.quoted.double.crema",
+              "begin": "\"",
+              "end": "\""
+            },
+            {
+              "name": "variable.parameter.crema",
+              "match": "[A-Za-z_][A-Za-z0-9_]*"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

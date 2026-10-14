@@ -46,6 +46,7 @@ class GrindM8Test {
         assertEquals(0, capture { GrindApplication().run(arrayOf("list")) }.first)
         assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("schedule:run"))
         assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("assets:vite"))
+        assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("ide:lsp"))
         assertEquals("", capture { GrindApplication().run(arrayOf("list", "-q")) }.second.trim())
         assertEquals("", capture { GrindApplication().run(arrayOf("list", "--quiet")) }.second.trim())
         assertEquals(Verbosity.VERBOSE, GrindIO.fromOptions(mapOf("verbose" to "true")).verbosity)
@@ -57,6 +58,12 @@ class GrindM8Test {
         assertTrue(vite.second.contains("Vite asset bundling"))
         assertTrue(vite.second.contains("manifest.json"))
         assertEquals(0, AssetsViteCommand().run(emptyList()))
+
+        val lsp = capture { GrindApplication().run(arrayOf("ide:lsp")) }
+        assertEquals(0, lsp.first)
+        assertTrue(lsp.second.contains("kona-lsp"))
+        assertTrue(lsp.second.contains("java -jar"))
+        assertEquals(0, IdeLspCommand().run(emptyList()))
 
         val buf = ByteArrayOutputStream()
         val err = ByteArrayOutputStream()

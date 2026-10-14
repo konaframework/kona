@@ -43,6 +43,7 @@ class GrindApplication {
                 "schedule:list" -> ScheduleRunCommand(ScheduleRunCommand.Action.LIST).run(positional.drop(1) + flatten(options))
                 "steam" -> SteamCommand().run(positional.drop(1) + flatten(options))
                 "assets:vite" -> AssetsViteCommand().run(positional.drop(1) + flatten(options))
+                "ide:lsp" -> IdeLspCommand().run(positional.drop(1) + flatten(options))
                 "list" -> ListCommand().run(positional.drop(1) + flatten(options))
                 "new" -> {
                     io.error("Create applications with the global CLI: kona new <name>")
@@ -99,6 +100,7 @@ class GrindApplication {
               ./grind schedule:list
               ./grind steam [--bootstrap=bootstrap.App]
               ./grind assets:vite
+              ./grind ide:lsp
               ./grind help
 
             Database, queue, schedule, and steam commands boot the app in-process from build/classes
