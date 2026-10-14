@@ -11,7 +11,7 @@ Use **Auto** (Cursor Auto / `inherit`) for the parent agent and all subagents. D
 
 ## Continuous autopilot (locked)
 
-When running the long milestone session: after each milestone merges to `main`, **immediately** start the next — implement to full parity, write/rewrite docs, commit, PR with automerge — until remaining checklists are done. Do not pause between milestones for permission. Details: [continuous-autopilot.md](docs/governance/continuous-autopilot.md).
+When running the long milestone session: after each milestone merges to `main`, **immediately** start the next — implement to full parity, write/rewrite docs, commit, PR with automerge — until the **Almasix coverage ledger** in [MILESTONES.md](MILESTONES.md) is complete through **M13**. Do not pause between milestones for permission. Details: [continuous-autopilot.md](docs/governance/continuous-autopilot.md).
 
 ## Milestone laws (non-negotiable)
 

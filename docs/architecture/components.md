@@ -49,3 +49,7 @@ Directive-driven templating compiler. Core directives: `@extends`, `@section`, `
 ### `drip` (client / SDK)
 
 Fluent HTTP client for external APIs and frontend → Kona backend calls.
+
+### Reactive UI (Livewire / Conduit parity)
+
+Full-stack reactive components (M11). **Product name TBD** (coffee-themed); behavioral parity with Livewire / Conduit is locked in [MILESTONES.md](../../MILESTONES.md).

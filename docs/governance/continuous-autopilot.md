@@ -1,10 +1,10 @@
 # Continuous milestone autopilot (locked)
 
-Applies to the **next** long agent session and every successor until M5+ (and later exhausted milestones) are on `main`.
+Applies to the **next** long agent session and every successor until **M13** (and any later milestones listed in [MILESTONES.md](../../MILESTONES.md)) are on `main`. The Almasix parity coverage ledger in that file is the completion gate — do not stop at the old M5.
 
 ## Drill (do not pause)
 
-For each remaining coding milestone, in order:
+For each remaining coding milestone (M3 → M13), in order:
 
 1. Confirm the active milestone in [MILESTONES.md](../../MILESTONES.md); open/create `milestone/M…` from current `main`.
 2. Implement the slice **to exhaustion** — full Laravel / Almasix behavioral parity within the checklist (Law 2 + Law 5).
@@ -13,7 +13,7 @@ For each remaining coding milestone, in order:
 5. Commit on the milestone branch → open PR → wait for required CI → **enable automerge** (squash) → wait until merged to `main`.
 6. Update [MILESTONES.md](../../MILESTONES.md) (milestone **done**, next **active**) if not already done in the PR, then **immediately** start the next milestone. Do **not** stop to ask whether to continue.
 
-Repeat until every checklist item for M3, M4, M5 (and any unlocked M6+) is merged.
+Repeat until every row in the Almasix parity coverage ledger is **done** (through M13).
 
 ## Non-negotiable pauses (only)
 
