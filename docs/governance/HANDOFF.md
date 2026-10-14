@@ -25,7 +25,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Autopilot | Continuous M3→M13 **finished**; do not invent M14+ without a human |
 | Merge habit | Enable automerge, but **once required CI is green, squash-merge immediately** if automerge stalls — do not wait forever |
 | Post-M13 sweep | Full `test`+`koverVerify` green; `hello-kotlin`/`hello-java` demos green; fresh `kona new` **api** (Kotlin+Java), **crema**, **brew**, **inertia** kits compile + HTTP smoke; Brew `/brew/message` increment OK; Inertia `X-Inertia` JSON OK; ~1.8k req/s GET `/` on api kit (local curl loop). Kit serve regressions live in `GeneratedAppBuildTest`. |
-| Crema parity | Blade + Prism app-facing surface expanded on `fix/crema-blade-prism-parity` (`@elseif`, `@isset`/`@empty` blocks, `@while`, range/`C`-style `@for`, loop even/odd/depth/parent, `@auth`/`@guest`, `@can`/`@cannot`, `@switch`, `@includeUnless`/`@includeFirst`, `@once`, `@verbatim`, `@method`, `@asset`, `@lang`, `@vite`, `@error`, `@hasSection`/`@sectionMissing`, `@parent`, `<x-*>`). Docs under Crema sidebar + forms. Deferred: Vite manifest/hot, rich `<x-*>` attributes. |
+| Crema parity | Blade + Prism app-facing surface on `main` (PR #24). Deferred: Vite manifest/hot, rich `<x-*>` attributes. |
+| Extract parity | Eloquent-shaped deepen on `fix/extract-eloquent-parity`: `firstOrCreate`/`updateOrCreate`, upserts, `whereHas`/`withCount`, scopes/`when`, pivot `toggle`/`syncWithoutDetaching`/`wherePivot`, `chunk`, `withoutEvents`/`saveQuietly`, `replicate`/`touch`/`is`, accessor hooks, `ExtractCollection` helpers. Docs rewritten under Extract sidebar. Deferred: morph*/through relations, custom cast classes, cursor/simple pagination. |
 
 ## M13 IDE / language support summary (for reviewers)
 

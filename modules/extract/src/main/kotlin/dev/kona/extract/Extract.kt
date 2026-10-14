@@ -110,8 +110,9 @@ abstract class Extract<T : Extract<T>> {
 
     fun getAttribute(key: String): Any? {
         val raw = attributes[key]
-        val cast = effectiveCasts()[key] ?: return raw
-        return cast.get(raw)
+        val cast = effectiveCasts()[key]
+        val value = if (cast == null) raw else cast.get(raw)
+        return getMutatedAttribute(key, value)
     }
 
     /** Typed read: `val name: String? = user.attribute("name")`. */
@@ -119,10 +120,17 @@ abstract class Extract<T : Extract<T>> {
     fun <V> attribute(key: String): V? = getAttribute(key) as V?
 
     fun setAttribute(key: String, value: Any?): T {
+        val mutated = setMutatedAttribute(key, value)
         val cast = effectiveCasts()[key]
-        attributes[key] = if (cast == null) value else cast.set(value)
+        attributes[key] = if (cast == null) mutated else cast.set(mutated)
         return self()
     }
+
+    /** Hook after cast on read; override for accessors. */
+    protected open fun getMutatedAttribute(key: String, value: Any?): Any? = value
+
+    /** Hook before cast on write; override for mutators. */
+    protected open fun setMutatedAttribute(key: String, value: Any?): Any? = value
 
     fun hasAttribute(key: String): Boolean = attributes.containsKey(key)
 
@@ -235,6 +243,9 @@ abstract class Extract<T : Extract<T>> {
 
     fun update(attributes: Map<String, Any?>): Boolean = fill(attributes).save()
 
+    /** [save] with model events muted. */
+    fun saveQuietly(): Boolean = ModelDispatcher.withoutEvents { save() }
+
     /** Deletes the row (or trashes it for [SoftDeletes] models); false when not persisted. */
     fun delete(): Boolean {
         if (!persisted) {
@@ -249,6 +260,56 @@ abstract class Extract<T : Extract<T>> {
             persisted = false
         }
         ModelDispatcher.dispatch(ModelEvent.DELETED, this)
+        return true
+    }
+
+    /** [delete] with model events muted. */
+    fun deleteQuietly(): Boolean = ModelDispatcher.withoutEvents { delete() }
+
+    /**
+     * Unsaved clone of this model's attributes, excluding the primary key, timestamps,
+     * soft-delete column, and any [except] keys.
+     */
+    @JvmOverloads
+    fun replicate(except: Collection<String> = emptyList()): T {
+        val skip = linkedSetOf(primaryKey)
+        skip.addAll(except)
+        if (timestamps) {
+            skip += createdAtColumn
+            skip += updatedAtColumn
+        }
+        if (this is SoftDeletes) {
+            skip += deletedAtColumn
+        }
+        val copy = newInstance()
+        attributes.forEach { (key, value) ->
+            if (key !in skip) {
+                copy.attributes[key] = value
+            }
+        }
+        return copy
+    }
+
+    /** True when [other] is the same class and shares this model's non-null primary key. */
+    fun `is`(other: Extract<*>?): Boolean {
+        if (other == null || other.javaClass != javaClass) {
+            return false
+        }
+        val key = getKey() ?: return false
+        return Relation.normalizeKey(key) == Relation.normalizeKey(other.getKey())
+    }
+
+    fun isNot(other: Extract<*>?): Boolean = !`is`(other)
+
+    /** Bumps `updated_at` (when timestamps are enabled) and persists it; false when not persisted. */
+    fun touch(): Boolean {
+        if (!persisted || !timestamps) {
+            return false
+        }
+        val now = freshTimestamp()
+        attributes[updatedAtColumn] = now
+        keyQuery().update(mapOf(updatedAtColumn to now))
+        original = original + (updatedAtColumn to now)
         return true
     }
 
@@ -337,6 +398,28 @@ abstract class Extract<T : Extract<T>> {
     fun loadMissing(vararg relations: String): T {
         val missing = relations.filter { !relationLoaded(it.substringBefore('.')) }
         return load(*missing.toTypedArray())
+    }
+
+    /**
+     * Loads `{relation}_count` (or alias) attributes onto this model via a single keyed query.
+     * Supports `posts as published_posts_count` aliases.
+     */
+    fun loadCount(vararg relations: String): T {
+        if (!persisted || relations.isEmpty()) {
+            return self()
+        }
+        val counted = newQuery().where(primaryKey, getKey()).withCount(*relations).first() ?: return self()
+        for (spec in relations) {
+            val trimmed = spec.trim()
+            val match = COUNT_ALIAS.find(trimmed)
+            val alias = if (match == null) {
+                "${trimmed}_count"
+            } else {
+                trimmed.substring(match.range.last + 1).trim()
+            }
+            attributes[alias] = counted.getRawAttribute(alias)
+        }
+        return self()
     }
 
     // ---- relation definitions (call from a public no-arg method named after the relation) ----
@@ -558,6 +641,7 @@ abstract class Extract<T : Extract<T>> {
         private val Y_PLURAL = Regex("[^aeiou]y$")
         private val SIBILANT = Regex("(s|x|z|ch|sh)$")
         private val CAMEL = Regex("([a-z0-9])([A-Z])")
+        private val COUNT_ALIAS = Regex("\\s+as\\s+", RegexOption.IGNORE_CASE)
 
         /** Static helpers for a model class (Java: `Extract.of(User.class).find(1)`). */
         @JvmStatic

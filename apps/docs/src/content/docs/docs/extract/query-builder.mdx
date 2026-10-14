@@ -78,7 +78,11 @@ Operators are checked against an allow-list (`=`, `<`, `>`, `<=`, `>=`, `<>`, `!
 | `whereNull` / `whereNotNull` (and `or…` forms) | null checks |
 | `whereIn("id", listOf(1, 2))` / `whereNotIn` (and `or…` forms) | membership; an empty list matches nothing (`whereIn`) or everything (`whereNotIn`) |
 | `whereBetween("age", 18, 65)` | inclusive range |
+| `orWhereBetween` / `whereNotBetween` / `orWhereNotBetween` | between variants |
+| `whereColumn("a", "b")` / `whereColumn("a", ">", "b")` | compare two columns (no bindings) |
+| `orWhereColumn(…)` | column compare joined with `or` |
 | `whereRaw("lower(email) = ?", listOf(email))` / `orWhereRaw` | raw fragment with bindings |
+| `when(condition) { … }` / `unless(condition) { … }` | apply a nested consumer only when the condition holds |
 
 ## Joins, grouping, ordering, paging
 
@@ -86,6 +90,7 @@ Operators are checked against an allow-list (`=`, `<`, `>`, `<=`, `>=`, `<>`, `!
 DB.table("posts")
     .join("users", "users.id", "=", "posts.user_id")       // inner join
     .leftJoin("images", "images.post_id", "posts.id")      // operator defaults to "="
+    .rightJoin("authors", "authors.id", "posts.author_id")
     .select("posts.title", "users.name as author")
     .groupBy("posts.id", "users.name")
     .having("posts.votes", ">", 5)
@@ -108,6 +113,9 @@ DB.table("posts")
 | `count()`, `max(c)`, `min(c)`, `sum(c)`, `avg(c)` | aggregates (`count()` is a `Long`) |
 | `exists()` / `doesntExist()` | whether any row matches |
 | `paginate(perPage, page)` | a `Page` of rows plus totals (see [Models](../models/#pagination)) |
+| `chunk(size) { batch -> … }` | walks pages of `size` maps until exhausted |
+
+Always pair `chunk` with a stable `orderBy` so consecutive pages stay consistent.
 
 ## Writing
 
@@ -143,6 +151,31 @@ DB.table("sessions").truncate();
 </Tabs>
 
 Multi-row inserts take their column list from the first row; keys missing in later rows are written as `NULL`. `update` with an empty map does nothing and returns 0.
+
+### Upserts
+
+```kotlin
+DB.table("users").updateOrInsert(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada"),
+)
+
+DB.table("users").upsert(
+    listOf(
+        mapOf("email" to "a@example.com", "name" to "A", "votes" to 1),
+        mapOf("email" to "b@example.com", "name" to "B", "votes" to 2),
+    ),
+    uniqueBy = listOf("email"),
+    update = listOf("name", "votes"),
+)
+
+DB.table("users").insertOrIgnore(
+    listOf(mapOf("email" to "a@example.com", "name" to "A")),
+    uniqueBy = listOf("email"),
+)
+```
+
+These helpers are portable across JDBC drivers: each row is looked up by the unique columns, then updated or inserted. Put a unique index on those columns in production schemas.
 
 ## Errors
 

@@ -118,6 +118,39 @@ class BelongsToMany<R : Extract<R>>(
         return SyncResult(attached, detached)
     }
 
+    /** Attaches missing [ids] without detaching existing pivot rows. */
+    fun syncWithoutDetaching(ids: Collection<*>): SyncResult {
+        val wanted = ids.map { idOf(it) }
+        val currentKeys = pivotForParent().pluck(relatedPivotKey).map { normalizeKey(it) }.toSet()
+        val attached = wanted.filter { normalizeKey(it) !in currentKeys }.distinctBy { normalizeKey(it) }
+        if (attached.isNotEmpty()) {
+            attach(attached)
+        }
+        return SyncResult(attached, emptyList())
+    }
+
+    /** Attaches missing [ids] and detaches ones already present; returns both lists. */
+    fun toggle(ids: Collection<*>): SyncResult {
+        val wanted = ids.map { idOf(it) }.distinctBy { normalizeKey(it) }
+        val currentKeys = pivotForParent().pluck(relatedPivotKey).map { normalizeKey(it) }.toSet()
+        val detached = wanted.filter { normalizeKey(it) in currentKeys }
+        val attached = wanted.filter { normalizeKey(it) !in currentKeys }
+        detach(detached)
+        if (attached.isNotEmpty()) {
+            attach(attached)
+        }
+        return SyncResult(attached, detached)
+    }
+
+    fun wherePivot(column: String, value: Any?): BelongsToMany<R> =
+        apply { query.where(qualified(pivotTable, column), value) }
+
+    fun wherePivot(column: String, operator: String, value: Any?): BelongsToMany<R> =
+        apply { query.where(qualified(pivotTable, column), operator, value) }
+
+    fun wherePivotIn(column: String, values: Collection<*>): BelongsToMany<R> =
+        apply { query.whereIn(qualified(pivotTable, column), values) }
+
     /** Updates extra columns on one existing pivot row. */
     fun updateExistingPivot(id: Any, attributes: Map<String, Any?>): Int {
         val values = LinkedHashMap(attributes)

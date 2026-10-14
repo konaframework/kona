@@ -1,5 +1,8 @@
 package dev.kona.extract
 
+import dev.kona.extract.relations.EagerLoader
+import dev.kona.extract.relations.Relation
+
 /**
  * Collection helpers for lists of [Extract] models (Laravel Eloquent Collection shape).
  */
@@ -18,6 +21,9 @@ class ExtractCollection<T : Extract<T>>(
 
     fun last(): T? = items.lastOrNull()
 
+    fun find(id: Any?): T? =
+        items.firstOrNull { Relation.normalizeKey(it.getKey()) == Relation.normalizeKey(id) }
+
     fun pluck(attribute: String): List<Any?> = items.map { it.getAttribute(attribute) }
 
     fun modelKeys(): List<Any?> = items.mapNotNull { it.getKey() }
@@ -35,7 +41,22 @@ class ExtractCollection<T : Extract<T>>(
 
     fun load(vararg relations: String): ExtractCollection<T> {
         if (items.isNotEmpty()) {
-            dev.kona.extract.relations.EagerLoader.load(items, *relations)
+            EagerLoader.load(items, *relations)
+        }
+        return this
+    }
+
+    /** Loads only relations that are missing on at least one model in the collection. */
+    fun loadMissing(vararg relations: String): ExtractCollection<T> {
+        if (items.isEmpty() || relations.isEmpty()) {
+            return this
+        }
+        val missing = relations.filter { name ->
+            val top = name.substringBefore('.')
+            items.any { !it.relationLoaded(top) }
+        }
+        if (missing.isNotEmpty()) {
+            EagerLoader.load(items, *missing.toTypedArray())
         }
         return this
     }

@@ -125,10 +125,17 @@ class QueryBuilderTest {
         assertEquals("select * from \"users\" where 1 = 1", db.table("users").whereNotIn("name", emptyList<String>()).toSql())
 
         assertEquals(2L, db.table("users").whereBetween("age", 28, 36).count())
+        assertEquals(2L, db.table("users").where("age", 99).orWhereBetween("age", 28, 36).count())
+        assertEquals(2L, db.table("users").whereNotBetween("age", 28, 36).count())
+        assertEquals(4L, db.table("users").where("age", 99).orWhereNotBetween("age", 100, 200).count())
         assertEquals(1L, db.table("users").whereRaw("age > 40").count())
         assertEquals(1L, db.table("users").whereRaw("age > ?", listOf(40)).count())
         assertEquals(2L, db.table("users").whereRaw("age > ?", listOf(40)).orWhereRaw("age < 21").count())
         assertEquals(3L, db.table("users").whereRaw("age > ?", listOf(40)).orWhereRaw("age < ?", listOf(30)).count())
+        assertEquals(0L, db.table("users").whereColumn("name", "email").count())
+        assertEquals(4L, db.table("users").whereColumn("name", "!=", "email").orWhereColumn("id", "id").count())
+        assertEquals(2L, db.table("users").`when`(true) { it.where("name", "Ada") }.count())
+        assertEquals(4L, db.table("users").unless(true) { it.where("name", "Ada") }.count())
     }
 
     @Test
@@ -145,6 +152,8 @@ class QueryBuilderTest {
         assertEquals(3L, db.table("users").join("posts", "users.id", ">=", "posts.user_id").where("users.id", 2).count())
         assertEquals(5L, db.table("users").leftJoin("posts", "users.id", "posts.user_id").count())
         assertEquals(2L, db.table("users").leftJoin("posts", "users.id", "=", "posts.user_id").whereNull("posts.id").count())
+        assertEquals(3L, db.table("users").rightJoin("posts", "users.id", "posts.user_id").count())
+        assertEquals(3L, db.table("users").rightJoin("posts", "users.id", "=", "posts.user_id").whereNotNull("posts.id").count())
 
         assertThrows<IllegalArgumentException> { db.table("users").orderBy("name", "sideways") }
         assertEquals(listOf<Any?>("Linus", "Grace", "Ada", "Ada"), names(db.table("users").orderByDesc("name")))

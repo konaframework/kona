@@ -103,7 +103,7 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Extract: Getting Started (docs) | M2; rewrite toward simple-first ongoing | partial |
+| Extract: Getting Started (docs) | M2; Eloquent-depth rewrite (post-M13 parity) | done |
 | Relationships | M2 | done |
 | Mutators & Casts | M2 | done |
 | Serialization | M4 | done |

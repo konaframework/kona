@@ -214,6 +214,53 @@ EagerLoader.load(users, "posts")     // a list loaded elsewhere, still one query
 
 Asking for a name that is not a public no-argument method returning a relation throws `ExtractException` ("Call to undefined relationship").
 
+## Querying relationship existence
+
+Filter parents by whether related rows exist (translated to `EXISTS` / `NOT EXISTS` subqueries):
+
+| Call | Meaning |
+|------|---------|
+| `whereHas("posts")` / `has("posts")` | at least one related row |
+| `whereDoesntHave("posts")` / `doesntHave("posts")` | no related rows |
+| `orWhereHas` / `orWhereDoesntHave` | same checks joined with `or` |
+| `whereHas("posts") { it.where("published", true) }` | existence with extra constraints on the related query |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val authors = User.whereHas("posts") { it.where("published", true) }.get()
+val newcomers = User.doesntHave("posts").get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> authors = User.QUERY.whereHas("posts", q -> q.where("published", true)).get();
+List<User> newcomers = User.QUERY.doesntHave("posts").get();
+```
+
+</TabItem>
+</Tabs>
+
+Works for `hasOne` / `hasMany`, `belongsTo`, and `belongsToMany` (including the pivot join).
+
+## Counting related models
+
+`withCount("posts")` adds a `posts_count` attribute (a subquery) without loading the related rows. Use `relation as alias` for a custom attribute name:
+
+```kotlin
+val users = User.withCount("posts", "posts as published_posts_count").get()
+users[0]["posts_count"]
+users[0]["published_posts_count"]
+
+// After the fact:
+user.loadCount("posts", "roles")
+```
+
+Combine with `select("users.*")` (or let `withCount` ensure a table select) when you also project specific columns.
+
 ## Writing through relations
 
 ### hasOne / hasMany
@@ -269,7 +316,11 @@ user.roles().detach()                                        // remove all
 val result = user.roles().sync(listOf(1, 3))                 // exactly these
 result.attached   // [3]
 result.detached   // [2]
+user.roles().syncWithoutDetaching(listOf(4, 5))              // attach missing only
+user.roles().toggle(listOf(1, 6))                            // attach missing, detach present
 user.roles().updateExistingPivot(1, mapOf("granted_by" to 9))
+user.roles().wherePivot("granted_by", 7).get()               // filter via pivot columns
+user.roles().wherePivotIn("role_id", listOf(1, 2)).get()
 ```
 
 </TabItem>
@@ -283,7 +334,11 @@ user.roles().detach();
 SyncResult result = user.roles().sync(List.of(1, 3));
 result.getAttached();
 result.getDetached();
+user.roles().syncWithoutDetaching(List.of(4, 5));
+user.roles().toggle(List.of(1, 6));
 user.roles().updateExistingPivot(1, Map.of("granted_by", 9));
+user.roles().wherePivot("granted_by", 7).get();
+user.roles().wherePivotIn("role_id", List.of(1, 2)).get();
 ```
 
 </TabItem>
@@ -303,3 +358,7 @@ pivot["created_at"]
 ```
 
 Soft-deleted related rows are excluded from every relation unless the related query asks otherwise (`constrain { it.withTrashed() }`).
+
+:::note[Not in this surface yet]
+Polymorphic relations (`morphTo` / `morphMany` / …) and “through” relations (`hasManyThrough`) are not part of Extract yet. Use explicit foreign keys and the four relation types above, or a hand-built query, until those land.
+:::

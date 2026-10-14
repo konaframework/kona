@@ -57,7 +57,7 @@ export async function buildSidebar() {
         { label: 'Relations', slug: 'docs/extract/relations' },
         { label: 'Migrations', slug: 'docs/extract/migrations' },
         { label: 'Seeders & factories', slug: 'docs/extract/seeders-factories' },
-        { label: 'Serialization & events', slug: 'docs/extract/serialization-events' },
+        { label: 'Serialization, collections & events', slug: 'docs/extract/serialization-events' },
       ],
     },
     {
