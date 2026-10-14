@@ -15,14 +15,15 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M12 — Inertia, asset bundling, starter kits** on `main` |
-| In progress | **M13 — Language support, LSP, editor setup** on `milestone/M13-ide-support` — implementation complete locally; parent commits/PR |
-| Next / active after M13 merge | **none** — Almasix coverage ledger through **M13** is complete; maintenance / new numbered milestones only if a human opens them in `MILESTONES.md` |
+| Last merged milestone | **M13 — Language support, LSP, editor setup** on `main` (PR #21) |
+| Active | **none** — Almasix coverage ledger through **M13** is complete |
+| Next | Maintenance / new numbered milestones only if a human opens them in `MILESTONES.md` |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) Almasix coverage ledger → **complete through M13** |
 | Docs brand | Primary `#FF9A00`, accent `#286291` (`apps/docs/src/styles/custom.css`) |
 | Docs shape | Progressive guides; rewrite as features land. |
 | Models | **Auto only** unless the human names a model for that turn |
-| Autopilot | Continuous M3→M13 finished when M13 is on `main`; do not invent M14+ without a human |
+| Autopilot | Continuous M3→M13 **finished**; do not invent M14+ without a human |
+| Merge habit | Enable automerge, but **once required CI is green, squash-merge immediately** if automerge stalls — do not wait forever |
 
 ## M13 IDE / language support summary (for reviewers)
 

@@ -271,7 +271,7 @@ class LspServerTest {
         assertEquals(6, messages.size)
         assertTrue(messages[0].get("id").isNull)
         assertTrue(messages[4].path("result").path("ok").asBoolean())
-        assertEquals(LspServer.INTERNAL_ERROR, -32603)
+        assertEquals(2, messages[5].path("error").path("code").asInt())
     }
 
     @Test
