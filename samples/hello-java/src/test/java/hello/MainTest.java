@@ -73,6 +73,14 @@ class MainTest {
     }
 
     @Test
+    void brewDemo() {
+        List<String> lines = BrewDemo.run(new String[] {"--base=" + temp});
+        assertEquals("mount=true", lines.get(0));
+        assertEquals("increment=true", lines.get(1));
+        assertEquals("script=200", lines.get(2));
+    }
+
+    @Test
     void asyncDemo() {
         var result = AsyncDemo.run(temp);
         assertEquals("42", result.get("event"));

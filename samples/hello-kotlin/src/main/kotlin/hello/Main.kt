@@ -81,4 +81,5 @@ fun main(args: Array<String>) {
     SecurityDemo.run(args).forEach(::println)
     M9Demo.run().forEach(::println)
     M10Demo.run(args).forEach(::println)
+    BrewDemo.run(args).forEach(::println)
 }

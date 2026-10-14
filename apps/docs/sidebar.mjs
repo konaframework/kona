@@ -73,6 +73,15 @@ export async function buildSidebar() {
       ],
     },
     {
+      label: 'Brew',
+      items: [
+        { label: 'Getting started', slug: 'docs/brew' },
+        { label: 'Components', slug: 'docs/brew/components' },
+        { label: 'Events', slug: 'docs/brew/events' },
+        { label: 'Forms', slug: 'docs/brew/forms' },
+      ],
+    },
+    {
       label: 'Cache & Redis',
       items: [
         { label: 'Cache', slug: 'docs/cache' },

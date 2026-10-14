@@ -103,6 +103,7 @@ public final class Main {
         SecurityDemo.run(args).forEach(System.out::println);
         M9Demo.run().forEach(System.out::println);
         M10Demo.run(args).forEach(System.out::println);
+        BrewDemo.run(args).forEach(System.out::println);
     }
 
     private Main() {

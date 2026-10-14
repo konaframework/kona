@@ -1,0 +1,119 @@
+---
+title: Brew forms
+description: Sync inputs with component state using wire:model and submit actions.
+---
+
+Forms in Brew keep input values on the **server component** and refresh the fragment after sync or submit.
+
+## Model binding
+
+Bind an input to a public field:
+
+| Attribute | Example |
+|-----------|---------|
+| `data-brew-model` | `data-brew-model="email"` |
+| `wire:model` | `wire:model="email"` |
+
+```html
+<input type="email" data-brew-model="email" value="{{ email }}" />
+```
+
+On `change`, `brew.js` posts method `sync` with `{ "email": "<current value>" }`. Checkboxes send booleans.
+
+```kotlin
+class ProfileForm : Component() {
+    @JvmField
+    var email: String = ""
+
+    override fun render(): String = """
+        <input type="email" data-brew-model="email" value="$email" />
+        <p>Saved as: $email</p>
+    """.trimIndent()
+}
+```
+
+`Component.sync(values)` writes known public fields by default. Override it if you need validation or derived fields:
+
+```kotlin
+override fun sync(values: Map<String, Any?>) {
+    super.sync(values)
+    // e.g. normalize email
+}
+```
+
+## Submit
+
+| Attribute | Example |
+|-----------|---------|
+| `data-brew-submit` | `data-brew-submit="save"` on a `<form>` |
+| `wire:submit` | `wire:submit="save"` |
+
+```html
+<form data-brew-submit="save">
+  <input data-brew-model="email" value="$email" />
+  <button type="submit">Save</button>
+</form>
+```
+
+Submit:
+
+1. Collects all model fields in the component root  
+2. Posts them as `params` with `method: "save"`  
+3. Brew writes those params onto public fields (except `value`), then calls `save()`
+
+```kotlin
+fun save() {
+    // email already updated from params
+}
+```
+
+## Click + models together
+
+A `data-brew-click` also collects current model values so buttons can act on the latest inputs without a separate sync round-trip.
+
+## Full example
+
+```kotlin
+class Newsletter : Component() {
+    @JvmField var email: String = ""
+    @JvmField var status: String = ""
+
+    fun save() {
+        status = if (email.contains("@")) "ok" else "invalid"
+    }
+
+    override fun render(): String = """
+        <form data-brew-submit="save">
+          <input type="email" data-brew-model="email" value="$email" />
+          <button type="submit">Subscribe</button>
+        </form>
+        <p>$status</p>
+    """.trimIndent()
+}
+```
+
+```java
+public class Newsletter extends Component {
+    public String email = "";
+    public String status = "";
+
+    public void save() {
+        status = email.contains("@") ? "ok" : "invalid";
+    }
+
+    @Override
+    public String render() {
+        return "<form data-brew-submit=\"save\">"
+            + "<input type=\"email\" data-brew-model=\"email\" value=\"" + email + "\" />"
+            + "<button type=\"submit\">Subscribe</button></form>"
+            + "<p>" + status + "</p>";
+    }
+}
+```
+
+## Layout checklist
+
+1. Register `BrewServiceProvider` with HTTP  
+2. Include `BrewAssets.scriptTag()` (or `/brew/brew.js`) once per page  
+3. Mount components into the page HTML  
+4. Use public fields + public action methods only  

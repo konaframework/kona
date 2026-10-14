@@ -1,0 +1,104 @@
+---
+title: Brew components
+description: Component lifecycle, snapshots, rendering, and Crema integration.
+---
+
+A Brew **component** is a server-side class that holds state, handles actions, and returns an HTML fragment.
+
+## Lifecycle
+
+| Step | What happens |
+|------|----------------|
+| Register | `BrewManager.register("name") { Factory() }` stores a factory |
+| Mount | Factory creates an instance, optional `mount()`, then `render()` |
+| Snapshot | Public fields are JSON-encoded (Base64) into `data-brew` |
+| Update | Client posts name + snapshot + method; server restores, runs action, re-renders |
+
+```kotlin
+abstract class Component {
+    open fun mount() {}
+    abstract fun render(): String
+    open fun sync(values: Map<String, Any?>) { /* writes public fields */ }
+}
+```
+
+`mount()` runs on the **first** embed (`Brew.mount` / `BrewRenderer.render` with `callMount = true`). Subsequent HTTP updates restore state from the snapshot and **do not** call `mount()` again—keep `mount()` for one-time setup, not for resetting counters.
+
+## Snapshots
+
+The snapshot payload is:
+
+```json
+{ "name": "counter", "data": { "count": 1 }, "id": "brew-…" }
+```
+
+It is Base64-encoded into the root’s `data-brew` attribute. On each update the server:
+
+1. Decodes the snapshot  
+2. Creates a fresh instance from the registry  
+3. Writes `data` onto public fields  
+4. Invokes the action  
+5. Returns `{ "html", "snapshot", "id" }`
+
+Unknown component names, bad Base64/JSON, or unknown methods return HTTP **422** with `{ "error": "…" }`.
+
+## Rendering helpers
+
+```kotlin
+BrewRenderer.render("counter", component)
+BrewMorph.replace(previousHtml, nextHtml) // full fragment replace strategy
+```
+
+The browser replaces the component root’s `outerHTML` with the new `html` (morph-equivalent update). Focus on `data-brew-model` inputs is restored when possible.
+
+## Crema integration
+
+Inject `CremaEngine` into the component and render a view:
+
+```kotlin
+class CremaCounter(private val engine: CremaEngine) : Component() {
+    @JvmField var count: Int = 0
+    fun increment() { count++ }
+    override fun render(): String =
+        Brew.view(engine, "brew.counter", mapOf("count" to count))
+}
+```
+
+```crema
+{{-- resources/views/brew/counter.crema.html --}}
+<em>{{ count }}</em>
+<button data-brew-click="increment">+</button>
+```
+
+`Brew.view(engine, name)` / `Brew.view(engine, name, data)` is a thin helper over `CremaEngine.render`.
+
+## Embedding in pages
+
+From a controller or Crema layout data map:
+
+```kotlin
+mapOf(
+    "counter" to Brew.mount("counter"),
+    "brewScript" to BrewAssets.scriptTag(),
+)
+```
+
+```crema
+{!! counter !!}
+{!! brewScript !!}
+```
+
+Crema’s `{!! !!}` prints trusted HTML without escaping.
+
+## Java authoring
+
+```java
+public class Counter extends Component {
+    public int count = 0;
+    public void increment() { count++; }
+    @Override public String render() { return "<p>" + count + "</p>"; }
+}
+
+brew.register("counter", Counter::new);
+String html = Brew.mount("counter");
+```
