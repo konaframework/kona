@@ -1,0 +1,36 @@
+# Build
+.gradle/
+build/
+out/
+**/build/
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env
+.env
+.env.local
+*.log
+
+# Coverage / test
+.kover/
+coverage/
+**/jacoco/
+
+# Kotlin
+.kotlin/

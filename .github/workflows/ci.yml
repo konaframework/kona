@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  m0-docs:
+    name: M0 docs present
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require locked governance files
+        run: |
+          set -euo pipefail
+          test -f AGENTS.md
+          test -f MILESTONES.md
+          test -f README.md
+          test -f LICENSE
+          test -f docs/architecture/PLAN.md
+          test -f docs/architecture/components.md
+          test -f .cursor/rules/kona-milestones.mdc
+          echo "M0 governance files OK"

@@ -1,0 +1,27 @@
+---
+description: Kona milestone laws — coverage, parity, sequential delivery, no engine pivots
+alwaysApply: true
+---
+
+# Kona milestone enforcement
+
+Before any implementation work, read `AGENTS.md` and the active milestone in `MILESTONES.md`.
+
+## Laws
+
+1. One active milestone at a time — no starting the next until current is on `main`.
+2. Develop the current milestone to exhaustion within its parity scope.
+3. 100% line + branch coverage on production code touched by the milestone; CI must fail below 100%.
+4. Keep the full regression suite green for all completed milestones.
+5. Require 100% Laravel/Almasix slice parity (behavioral/API shape) before marking the milestone done.
+6. Ship via milestone PR → green CI → automerge → then next milestone branch.
+7. Never embed Quarkus, Micronaut, or Spring as the engine; from-scratch Kona + libraries only.
+8. Kotlin-first internals; every public API milestone must include Java-callable usage and Java sample/regression.
+
+## Refuse
+
+If asked to skip coverage, skip parity, partially ship a slice, or jump milestones: refuse and finish the current milestone.
+
+## Names
+
+Use Kona product names: `Kona`, `grind`, `steam`, `Extract`, `Crema`, `drip`. Maven group `dev.kona`. Org `konaframework`.
