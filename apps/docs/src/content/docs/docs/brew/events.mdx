@@ -1,0 +1,85 @@
+---
+title: Brew events
+description: Wire clicks and custom actions from the browser to public component methods.
+---
+
+Brew listens for declarative attributes on elements **inside** a component root (`[data-brew]`). When the user interacts, `brew.js` posts to `/brew/message` and swaps in the new HTML.
+
+## Click actions
+
+Use either attribute form:
+
+| Attribute | Example |
+|-----------|---------|
+| `data-brew-click` | `data-brew-click="increment"` |
+| `wire:click` | `wire:click="increment"` |
+
+```html
+<button data-brew-click="increment">+</button>
+<button wire:click="decrement">−</button>
+```
+
+The attribute value is the **public method name** on the component. Prefer no-arg methods for clicks:
+
+```kotlin
+fun increment() { count++ }
+```
+
+Before the method runs, Brew also copies any `data-brew-model` / `wire:model` field values from the DOM into public state (except the special `value` key used for string actions).
+
+## String and map actions
+
+Public methods may take:
+
+| Signature | Client `params` |
+|-----------|-----------------|
+| `fun save()` | ignored |
+| `fun apply(params: Map<String, Any?>)` | full params object |
+| `fun rename(value: String)` | `params["value"]`, or the first map value |
+
+```kotlin
+fun rename(value: String) { title = value }
+```
+
+```html
+<button data-brew-click="rename" …>
+```
+
+(For string args from custom JS, post `"params": { "value": "Ada" }`.)
+
+## Custom fetch (optional)
+
+```js
+fetch("/brew/message", {
+  method: "POST",
+  headers: { "Content-Type": "application/json", Accept: "application/json" },
+  body: JSON.stringify({
+    name: "counter",
+    snapshot: root.getAttribute("data-brew"),
+    method: "increment",
+    params: {},
+  }),
+}).then((r) => r.json());
+```
+
+## Errors
+
+| Situation | Result |
+|-----------|--------|
+| Unknown component | `422` `{ "error": "Unknown Brew component: …" }` |
+| Unknown method | `422` `{ "error": "Unknown Brew action: …" }` |
+| Bad snapshot / JSON | `422` with an error message |
+
+Action methods that throw become `422` as well (wrapped as a Brew error for non-`BrewException` causes).
+
+## Kotlin + Java
+
+```kotlin
+brew.update("counter", snapshot, "increment")
+brew.update("counter", snapshot, "rename", mapOf("value" to "Ada"))
+```
+
+```java
+brew.update("counter", snapshot, "increment");
+brew.update("counter", snapshot, "rename", Map.of("value", "Ada"));
+```

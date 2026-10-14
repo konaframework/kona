@@ -110,7 +110,7 @@ Canonical checklists and the **full Almasix menu coverage ledger** live in [`MIL
 | M8 | grind console, prompts, scheduling, packages, steam |
 | M9 | Testing harness, drip, processes, concurrency |
 | M10 | Broadcasting, search |
-| M11 | Reactive UI (Livewire / Conduit parity; product name TBD) |
+| M11 | Reactive UI — **Brew** (Livewire / Conduit parity) |
 | M12 | Inertia, asset bundling, starter kits |
 | M13 | Language support, LSP, editor setup |
 

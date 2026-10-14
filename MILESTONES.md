@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M11 (M0–M10 complete).
+**Active milestone:** M12 (M0–M11 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -77,7 +77,7 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Concurrency | M9 | implemented (checklist) |
 | Search | M10 | implemented (checklist) |
 | Package Development | M8 | done |
-| Livewire / Conduit-class reactive UI | M11 | pending |
+| Livewire / Conduit-class reactive UI | M11 | done |
 | Inertia | M12 | pending |
 | Starter Kits | M12 | pending |
 
@@ -432,30 +432,30 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M11 — Reactive UI (Livewire / Conduit parity)
 
-**Status:** active  
+**Status:** done
 **Branch:** `milestone/M11-reactive-ui`
 
 **Parity slice:** Something similar to Livewire or Conduit — full-stack reactive components on the JVM.
 
-**Product name:** TBD (coffee-themed); checklist is behavioral parity, not the final brand string.
+**Product name:** **Brew** (`kona-brew`, `dev.kona.brew`) — coffee-themed reactive server components.
 
 ### Parity checklist
 
-- [ ] Reactive component model (stateful server components, wireable actions)
-- [ ] DOM diff / morph or equivalent update strategy
-- [ ] Crema (or companion) integration
-- [ ] Kotlin + Java authoring paths
-- [ ] Docs: getting started → components → events → forms
+- [x] Reactive component model (stateful server components, wireable actions)
+- [x] DOM diff / morph or equivalent update strategy
+- [x] Crema (or companion) integration
+- [x] Kotlin + Java authoring paths
+- [x] Docs: getting started → components → events → forms
 
 ### In-scope modules
 
-New first-party module + Crema/HTTP integration
+`kona-brew` + Crema/HTTP integration
 
 ---
 
 ## M12 — Inertia, asset bundling, starter kits
 
-**Status:** blocked  
+**Status:** active
 **Branch:** `milestone/M12-inertia-assets-starters`
 
 **Parity slice:** Inertia, Asset Bundling, Starter Kits.

@@ -81,6 +81,15 @@ class MainTest {
     }
 
     @Test
+    fun brewDemo() {
+        val lines = BrewDemo.run(arrayOf("--base=$temp"))
+        assertEquals("mount=true", lines[0])
+        assertEquals("increment=true", lines[1])
+        assertEquals("crema=true", lines[2])
+        assertEquals("script=200", lines[3])
+    }
+
+    @Test
     fun asyncDemo() {
         val result = AsyncDemo.run(temp)
         assertEquals("42", result["event"])

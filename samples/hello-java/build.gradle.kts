@@ -31,6 +31,7 @@ dependencies {
     implementation(project(":kona-concurrency"))
     implementation(project(":kona-broadcasting"))
     implementation(project(":kona-search"))
+    implementation(project(":kona-brew"))
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

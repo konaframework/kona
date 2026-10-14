@@ -1,0 +1,114 @@
+---
+title: Getting started with Brew
+description: Build reactive server components with Brew and update the page without full reloads.
+---
+
+**Brew** is Kona’s reactive UI layer: stateful components live on the server, render HTML, and refresh in the browser when the user clicks or submits a form.
+
+(Brief nod: Brew sits in the same problem space as popular full-stack reactive component tools; this guide describes Brew on its own terms.)
+
+## What you get
+
+1. A **component class** with public state fields and public action methods.
+2. A **snapshot** of that state embedded in the HTML (`data-brew`).
+3. A small **client script** (`brew.js`) that posts actions to `/brew/message` and replaces the component’s root HTML.
+
+## Register the provider
+
+```kotlin
+app.register(HttpServiceProvider())
+app.register(BrewServiceProvider())
+app.boot()
+```
+
+```java
+app.register(new HttpServiceProvider());
+app.register(new BrewServiceProvider());
+app.boot();
+```
+
+`BrewServiceProvider` binds `BrewManager` and, when HTTP is present, registers:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/brew/message` | Run an action and return new HTML + snapshot |
+| `POST` | `/_brew/update` | Alias of `/brew/message` |
+| `GET` | `/brew/brew.js` | Client script |
+
+## Include the script
+
+In your layout (Crema or plain HTML):
+
+```html
+<script src="/brew/brew.js" defer></script>
+```
+
+Or emit the tag from Kotlin/Java:
+
+```kotlin
+BrewAssets.scriptTag() // <script src="/brew/brew.js" defer></script>
+```
+
+## Your first component
+
+```kotlin
+class Counter : Component() {
+    @JvmField
+    var count: Int = 0
+
+    fun increment() { count++ }
+    fun decrement() { count-- }
+
+    override fun render(): String = """
+        <p>Count: $count</p>
+        <button data-brew-click="increment">+</button>
+        <button data-brew-click="decrement">-</button>
+    """.trimIndent()
+}
+```
+
+```java
+public class Counter extends Component {
+    public int count = 0;
+
+    public void increment() { count++; }
+    public void decrement() { count--; }
+
+    @Override
+    public String render() {
+        return "<p>Count: " + count + "</p>"
+            + "<button data-brew-click=\"increment\">+</button>"
+            + "<button data-brew-click=\"decrement\">-</button>";
+    }
+}
+```
+
+State must be **public fields** (Java) or **`@JvmField`** properties (Kotlin). Action methods must be **public**.
+
+## Register and mount
+
+```kotlin
+val brew = app.resolve(BrewManager::class.java)
+brew.register("counter") { Counter() }
+
+val html = Brew.mount("counter")
+// embed html in a page / Crema layout
+```
+
+```java
+BrewManager brew = app.resolve(BrewManager.class);
+brew.register("counter", Counter::new);
+String html = Brew.mount("counter");
+```
+
+`Brew.mount` returns a root element like:
+
+```html
+<div data-brew="…" data-brew-name="counter" id="brew-…">…</div>
+```
+
+## Next steps
+
+- [Components](/docs/brew/components) — lifecycle, snapshots, Crema views
+- [Events](/docs/brew/events) — clicks and custom actions
+- [Forms](/docs/brew/forms) — `wire:model` / submit sync

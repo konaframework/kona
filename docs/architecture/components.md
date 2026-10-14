@@ -50,6 +50,6 @@ Directive-driven templating compiler. Core directives: `@extends`, `@section`, `
 
 Fluent HTTP client for external APIs and frontend → Kona backend calls.
 
-### Reactive UI (Livewire / Conduit parity)
+### Brew (reactive UI)
 
-Full-stack reactive components (M11). **Product name TBD** (coffee-themed); behavioral parity with Livewire / Conduit is locked in [MILESTONES.md](../../MILESTONES.md).
+Full-stack reactive server components (M11). Artifact `kona-brew`, package `dev.kona.brew`. Behavioral parity with Livewire / Conduit-class tools is locked in [MILESTONES.md](../../MILESTONES.md).

@@ -15,31 +15,29 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M10 — Broadcasting and search** (`main`, PR #16) |
-| Parity hardening | **M3–M10 parity round2** on `fix/m3-m10-parity-round2` (cookie encryption, lang files, collections, file failed jobs, testing/drip deepen, Crema docs split, Url helpers, make:middleware/request, websocket broadcast, package auto-discovery, notification file persistence). Do **not** start M11 until this merges. |
-| Next / active after merge | **M11 — Reactive UI** (`milestone/M11-reactive-ui`) |
+| Last merged milestone | **M10 — Broadcasting and search** (`main`, PR #16); parity round2 may also be on `main` (PR #18) |
+| In progress | **M11 — Brew (Reactive UI)** on `milestone/M11-reactive-ui` — implementation complete locally; parent commits/PR |
+| Next / active after M11 merge | **M12 — Inertia, asset bundling, starter kits** (`milestone/M12-inertia-assets-starters`) |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) Almasix coverage ledger → through **M13** |
 | Docs brand | Primary `#FF9A00`, accent `#286291` (`apps/docs/src/styles/custom.css`) |
 | Docs shape | Still low-level (providers, explicit wiring). Trajectory: Laravel-style progressive guides (simple first, dig deeper later). Rewrite as features land — do not freeze the current structure. |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Continuous M3→M13 (full Almasix menu); no pause between merges |
 
-## Repo facts
+## M11 Brew summary (for reviewers)
 
-- Org/repo: `konaframework/kona`
-- Maven group: `dev.kona`
-- JDK: 21+ (Virtual Threads); build: Gradle; docs: `apps/docs/` (Astro + Starlight + `@almasix/starlight-theme`)
-- Global CLI: `kona` (`modules/cli`); app-local: `./grind` (`modules/grind`)
-- ORM: `kona-extract` (`modules/extract`)
-- Samples: `samples/hello-kotlin`, `samples/hello-java`
-- CI: `.github/workflows/ci.yml` — tests + Kover 100% on in-scope modules; docs Pages: `.github/workflows/pages.yml`
+- Module: `modules/brew` → Maven `dev.kona:kona-brew`
+- Package: `dev.kona.brew` — `Component`, `BrewManager`, `BrewServiceProvider`, `Brew` facade, `brew.js`
+- HTTP: `POST /brew/message`, `GET /brew/brew.js`, alias `POST /_brew/update`
+- Docs: `apps/docs` sidebar group **Brew** (getting-started, components, events, forms)
+- Samples: `BrewDemo` in hello-kotlin / hello-java
 
 ## How to resume the continuous session
 
 ```text
 Read AGENTS.md, MILESTONES.md, and docs/governance/continuous-autopilot.md.
-If fix/m3-m10-parity-round2 (or a successor parity branch) is still open, finish that
-first — M11 is next only after merge. Otherwise active milestone is M11 — reactive UI.
+If milestone/M11-reactive-ui is not yet on main, finish that PR (commit → push → automerge).
+Otherwise active milestone is M12 — Inertia, asset bundling, starter kits.
 Run continuous autopilot: exhaust parity + 100% coverage + rewrite docs as needed →
 commit → PR → automerge → next milestone until the Almasix coverage ledger is fully done (through M13).
 Use Auto for all models. Never edit GitHub rulesets.
