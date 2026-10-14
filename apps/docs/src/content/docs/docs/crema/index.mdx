@@ -1,0 +1,96 @@
+---
+title: Crema views
+description: Render HTML with Crema templates — layouts, sections, loops, and components.
+---
+
+**Crema** is Kona’s server-side view engine. Templates live under `resources/views` as `*.crema.html` (or `*.crema.kt`) and use `@` directives plus `{{ }}` echoes.
+
+## Render a view
+
+Register `CremaServiceProvider`, then resolve `CremaEngine`:
+
+```kotlin
+val html = app.resolve(CremaEngine::class.java)
+    .render("home", mapOf("name" to "Ada"))
+return Response.html(html)
+```
+
+```java
+String html = app.resolve(CremaEngine.class)
+    .render("home", Map.of("name", "Ada"));
+return Response.html(html);
+```
+
+`Crema.view(engine, name, data)` builds an HTML `Response` in one call. `View.with(...)` accumulates data before `render()` / `toResponse()`.
+
+## Echoes
+
+- `{{ name }}` — HTML-escaped output  
+- `{!! html !!}` — raw HTML  
+- `@@` — literal `@`
+
+## Layouts
+
+```crema
+{{-- layouts/app.crema.html --}}
+<html>
+  <title>@yield('title', 'App')</title>
+  @yield('content')
+  @stack('scripts')
+</html>
+```
+
+```crema
+{{-- home.crema.html --}}
+@extends('layouts.app')
+@section('title', 'Home')
+@section('content')
+  Hello {{ name }}
+  @push('scripts')<script src="/app.js"></script>@endpush
+@endsection
+```
+
+Use `@parent` inside a section to merge with a parent section’s content.
+
+## Control flow
+
+```crema
+@if(ok) Yes @else No @endif
+@unless(ok) Hidden @endunless
+@foreach(items as item)
+  <li>{{ item }} ({{ loop.iteration }})</li>
+@endforeach
+@forelse(items as item)
+  {{ item }}
+@empty
+  None
+@endforelse
+```
+
+## Includes and components
+
+```crema
+@include('partials.nav')
+@includeIf('optional')
+@includeWhen(show, 'partials.banner')
+
+@component('alert')
+  @slot('title')Notice@endslot
+  Body text
+@endcomponent
+```
+
+## Scaffolding
+
+```bash
+./grind make:view home
+./grind make:view posts.show
+```
+
+Creates `resources/views/....crema.html`.
+
+## Config
+
+- Default path: `{basePath}/resources/views`  
+- Override: `view.path` in config  
+- App key for CSRF token in templates: pass `_token` in the data map for `@csrf`
