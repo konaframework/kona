@@ -1,0 +1,6 @@
+---
+title: Exceptions
+description: HttpException, JSON error envelope, and debug mode.
+---
+
+`DefaultExceptionHandler` returns JSON `{"message": …}`. With `APP_DEBUG=true`, the exception class name is included. `HttpException` may carry response headers (e.g. `Allow` on 405). Validation failures use status **422**.

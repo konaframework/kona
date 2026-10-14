@@ -1,0 +1,46 @@
+---
+/**
+ * Kona lockup for the Starlight header.
+ * Theme SiteTitle defaults to Almasix wordmark; override locally (same pattern as Shamar).
+ */
+const base = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+---
+
+<div class="site-title sl-flex">
+  <a class="site-title-mark" href={base} aria-label="Kona">
+    <img class="light:sl-hidden print:hidden" alt="Kona" src={`${base}branding/kona-mark-dark.svg`} width="120" height="40" />
+    <img class="dark:sl-hidden print:block" alt="" src={`${base}branding/kona-mark.svg`} width="120" height="40" />
+  </a>
+</div>
+
+<style>
+  @layer starlight.core {
+    .site-title {
+      align-items: flex-end;
+      gap: 0;
+      min-width: 0;
+      white-space: nowrap;
+    }
+    .site-title-mark {
+      display: inline-flex;
+      align-items: flex-end;
+      text-decoration: none;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+      line-height: 0;
+    }
+    .site-title-mark img {
+      display: block;
+      height: calc(var(--sl-nav-height) - 2 * var(--sl-nav-pad-y));
+      width: auto;
+      max-width: 8rem;
+      object-fit: contain;
+      object-position: 0 100%;
+      margin: 0;
+      padding: 0;
+    }
+  }
+</style>

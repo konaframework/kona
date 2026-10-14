@@ -1,0 +1,38 @@
+---
+title: Installation
+description: JDK, Gradle, and Maven coordinates for Kona.
+---
+
+## Requirements
+
+- **JDK 21+** (Virtual Threads)
+- **Gradle** 8+ (wrapper included in `grind new` apps)
+
+## Maven coordinates
+
+Group: `dev.kona`. Modules introduced in M1:
+
+| Artifact | Role |
+|----------|------|
+| `dev.kona:kona-core` | Application, container, config, env, providers |
+| `dev.kona:kona-http` | Router, kernel, middleware, validation, server |
+| `dev.kona:kona-grind` | CLI (`new`, `serve`, `make:controller`) |
+| `dev.kona:kona-bom` | Bill of materials |
+
+Until artifacts are published to Maven Central, generated apps resolve from `mavenLocal()` after you publish the monorepo modules, or via `-Pkona.home=/path/to/kona` / `KONA_HOME` for a composite include.
+
+```bash
+# From a Kona checkout
+./gradlew :kona-core:publishToMavenLocal :kona-http:publishToMavenLocal
+```
+
+## CLI entry
+
+```bash
+# After installing grind on your PATH, or via the module application plugin:
+./gradlew :kona-grind:run --args="new my-app --lang=kotlin"
+cd my-app
+./grind serve
+```
+
+See [grind commands](/docs/grind/commands/) for details.

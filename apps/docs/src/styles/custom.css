@@ -1,0 +1,9 @@
+/* Site-specific extras. Chrome (type, paper, code, header) comes from @almasix/starlight-theme. */
+
+:root {
+  --kona-brown: #6f4e37;
+}
+
+.kona-callout {
+  margin: 1.25rem 0;
+}

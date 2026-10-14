@@ -1,0 +1,32 @@
+---
+title: Introduction
+description: What Kona is — a Kotlin-first, Java first-class web framework shaped like Laravel and Almasix.
+---
+
+**Kona** is a full-stack web framework for the JVM. Internals are Kotlin; every public API is designed so Java apps are first-class. The DX follows Laravel and Almasix: application boot, service container, providers, HTTP kernel, routing, middleware, validation, and a CLI named **grind**.
+
+```text
+./grind | ./grind steam | Extract | *.crema.html | Kona.start(args)
+```
+
+| Kona | Laravel / Almasix | Role |
+|------|-------------------|------|
+| **Kona** | Laravel / Almasix core | Container, routing, boot |
+| **grind** | Artisan / `smith` | CLI |
+| **steam** | Tinker | REPL (`grind steam`) |
+| **Extract** | Eloquent | ActiveRecord ORM |
+| **Crema** | Blade / Prism | Templates |
+| **drip** | HTTP client | Fluent client |
+
+:::tip[From scratch]
+Kona composes libraries (Netty or JDK HTTP, HikariCP, Jackson, Lettuce, SLF4J). It does **not** embed Quarkus, Micronaut, or Spring under the hood.
+:::
+
+## Where you are
+
+Milestone **M1** (kernel + HTTP + grind) is on `main`. Later milestones add Extract, auth/session/cache, queues/mail/filesystem, then Crema, steam, and drip. Docs for each slice land **alongside** the code — same Astro + Starlight + Almasix theme stack used for [Shamar](https://shamar.dev).
+
+## Next
+
+- [Installation](/docs/guides/installation/)
+- [Your first app](/docs/guides/first-app/)

@@ -1,0 +1,22 @@
+---
+title: Container
+description: Bind, singleton, instance, resolve, and constructor autowiring.
+---
+
+`Container` is thread-safe. `make(type)` and `resolve(type)` are the same:
+
+- If bound → factory (singletons shared under a lock).
+- If unbound → constructor autowiring.
+
+## Autowiring
+
+- Prefer a public constructor annotated with `@Inject` (any annotation named `Inject`, including `dev.kona.core.Inject`).
+- Otherwise pick the greediest public constructor.
+- JDK / Kotlin / primitive parameters must be bound explicitly.
+- Cycles throw `CircularDependencyException` with the chain in the message.
+
+```kotlin
+container.singleton(Greeter::class.java) { Greeter("hi") }
+container.bind(Clock::class.java, SystemClock::class.java)
+val g = container.make(Greeter::class.java)
+```

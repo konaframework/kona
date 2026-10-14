@@ -1,0 +1,25 @@
+---
+title: Application & providers
+description: Boot order, Application.Builder, and ServiceProvider register/boot.
+---
+
+## Boot order
+
+Laravel-shaped: **every** provider `register` runs before **any** `boot`.
+
+1. `Kona.create(...)` loads `.env`, seeds `app.*` config, and loads `config/` when present.
+2. `.providers(...)` / `.configure { }` queue providers and config mutations.
+3. `.boot()` (alias of `build()`) creates `Application`, applies config, registers all providers, then boots once.
+
+Providers registered during another provider’s `boot()` are also booted in the same pass. After the app is booted, late `register()` calls register and boot immediately.
+
+## Builder
+
+```kotlin
+val app = Application.builder(basePath)
+    .withProvider(HttpServiceProvider())
+    .configure { it.set("app.name", "Demo") }
+    .boot()
+```
+
+`Kona.create(args)` returns the same builder surface for Java and Kotlin.
