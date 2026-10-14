@@ -42,3 +42,17 @@ tasks.register<JavaExec>("grind") {
         args(grindArgs.split(Regex("\\s+")).filter { it.isNotEmpty() })
     }
 }
+
+tasks.register("konaClasspath") {
+    group = "kona"
+    description = "Print runtime classpath for grind serve --in-process"
+    doLast {
+        val sep = System.getProperty("path.separator")
+        println(
+            sourceSets["main"].runtimeClasspath
+                .filter { it.exists() }
+                .joinToString(sep) { it.absolutePath },
+        )
+    }
+}
+

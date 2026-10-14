@@ -10,6 +10,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
 
+
 class GrindTest {
     @TempDir
     lateinit var temp: Path
@@ -225,6 +226,10 @@ class GrindTest {
         Files.createDirectories(base.resolve("build/classes/java/main"))
         Files.createDirectories(base.resolve("build/resources/main"))
         assertEquals(3, AppLoader(base).classpath().size)
+        val jar = temp.resolve("extra.jar")
+        Files.writeString(jar, "x")
+        val withRuntime = AppLoader(base, FixtureApp::class.java.name) { listOf(jar) }
+        assertEquals(4, withRuntime.classpath().size)
         val args = arrayOf("--base=$base")
         assertThrows(GrindException::class.java) { AppLoader(base).create(args) }
         assertThrows(GrindException::class.java) { AppLoader(base, NoCreateApp::class.java.name).create(args) }
@@ -234,6 +239,96 @@ class GrindTest {
             AppLoader(base, ThrowingApp::class.java.name).create(args)
         }
         assertEquals("boom 1", boom.message)
+    }
+
+    @Test
+    fun appLoaderParsesRuntimeClasspath() {
+        assertTrue(AppLoader.parseClasspathLine("").isEmpty())
+        assertTrue(AppLoader.parseClasspathLine("noise\nmore").isEmpty())
+        val a = temp.resolve("a.jar")
+        val b = temp.resolve("b.jar")
+        Files.writeString(a, "a")
+        Files.writeString(b, "b")
+        val sep = java.io.File.pathSeparator
+        val parsed = AppLoader.parseClasspathLine("ignore\n${a.toAbsolutePath()}$sep${b.toAbsolutePath()}\n")
+        assertEquals(listOf(a.toAbsolutePath(), b.toAbsolutePath()), parsed.map { it.toAbsolutePath() })
+        val missing = temp.resolve("missing.jar")
+        assertEquals(
+            1,
+            AppLoader.parseClasspathLine("${a.toAbsolutePath()}$sep${missing.toAbsolutePath()}").size,
+        )
+        val cache = temp.resolve("cp.txt")
+        Files.writeString(cache, "${a.toAbsolutePath()}$sep${b.toAbsolutePath()}")
+        assertEquals(2, AppLoader.parseClasspathFile(cache).size)
+        // Missing wrapper → empty runtime list
+        val bare = fixtureProject(temp.resolve("nort"))
+        assertTrue(AppLoader.gradleRuntimeClasspath(bare).isEmpty())
+
+        // Cached classpath file short-circuits Gradle
+        val cachedProj = fixtureProject(temp.resolve("cached"))
+        val cachedFile = cachedProj.resolve("build/kona-runtime.classpath")
+        Files.createDirectories(cachedFile.parent)
+        Files.writeString(cachedFile, a.toAbsolutePath().toString())
+        assertEquals(listOf(a.toAbsolutePath()), AppLoader.gradleRuntimeClasspath(cachedProj).map { it.toAbsolutePath() })
+
+        assertNull(AppLoader.resolveGradleWrapper(bare))
+        val batOnly = fixtureProject(temp.resolve("bat"))
+        val bat = batOnly.resolve("gradlew.bat")
+        Files.writeString(bat, "@echo off\n")
+        assertEquals(bat.toAbsolutePath(), AppLoader.resolveGradleWrapper(batOnly)?.toAbsolutePath())
+
+        // gradlew present but konaClasspath fails → empty
+        val failProj = fixtureProject(temp.resolve("failcp"))
+        val failWrap = failProj.resolve("gradlew")
+        Files.writeString(failWrap, "#!/bin/sh\nexit 1\n")
+        failWrap.toFile().setExecutable(true)
+        assertTrue(AppLoader.gradleRuntimeClasspath(failProj).isEmpty())
+
+        // exit 0 but no classpath line → empty, no cache write
+        val emptyProj = fixtureProject(temp.resolve("emptycp"))
+        val emptyWrap = emptyProj.resolve("gradlew")
+        Files.writeString(emptyWrap, "#!/bin/sh\necho nope\n")
+        emptyWrap.toFile().setExecutable(true)
+        assertTrue(AppLoader.gradleRuntimeClasspath(emptyProj).isEmpty())
+        AppLoader.writeClasspathCache(emptyProj.resolve("build/kona-runtime.classpath"), emptyList())
+
+        // ProcessBuilder start failure (empty command / non-directory working dir)
+        assertNull(AppLoader.startClasspathProcess(Path.of(""), temp.resolve("nort")))
+        val fileRoot = temp.resolve("not-a-dir")
+        Files.writeString(fileRoot, "x")
+        val anyWrap = temp.resolve("wrap.sh")
+        Files.writeString(anyWrap, "#!/bin/sh\n")
+        anyWrap.toFile().setExecutable(true)
+        assertNull(AppLoader.startClasspathProcess(anyWrap, fileRoot))
+
+        // starter returns null → empty classpath
+        val nullStarterProj = fixtureProject(temp.resolve("nullstarter"))
+        Files.writeString(nullStarterProj.resolve("gradlew"), "#!/bin/sh\n")
+        nullStarterProj.resolve("gradlew").toFile().setExecutable(true)
+        assertTrue(AppLoader.gradleRuntimeClasspath(nullStarterProj) { _, _ -> null }.isEmpty())
+
+        // cache write failure: build exists as a file
+        val badCache = temp.resolve("badcache-file")
+        Files.writeString(badCache, "x")
+        AppLoader.writeClasspathCache(badCache.resolve("child"), listOf(a))
+
+        // gradlew prints a classpath line → parsed + cached
+        val okProj = fixtureProject(temp.resolve("okcp"))
+        val okWrap = okProj.resolve("gradlew")
+        Files.writeString(
+            okWrap,
+            "#!/bin/sh\necho '${a.toAbsolutePath()}$sep${b.toAbsolutePath()}'\n",
+        )
+        okWrap.toFile().setExecutable(true)
+        val resolved = AppLoader.gradleRuntimeClasspath(okProj)
+        assertEquals(2, resolved.size)
+        assertTrue(Files.isRegularFile(okProj.resolve("build/kona-runtime.classpath")))
+
+        // empty path segments filtered
+        assertEquals(
+            1,
+            AppLoader.parseClasspathLine("${a.toAbsolutePath()}$sep$sep${missing.toAbsolutePath()}").size,
+        )
     }
 
     @Test

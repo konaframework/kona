@@ -62,6 +62,71 @@ class GeneratedAppBuildTest {
         assertServesInProcess(app)
     }
 
+    @Test
+    fun cremaKitServesHtmlWelcome() {
+        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
+        val app = temp.resolve("crema-kt")
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=crema")))
+        gradle(app, "classes")
+        val home = serveHome(app)
+        assertTrue(home.contains("<!DOCTYPE html>", ignoreCase = true), home)
+        assertTrue(home.contains("Welcome", ignoreCase = true), home)
+        assertEquals("{\"status\":\"ok\"}", servePath(app, "/api/health"))
+    }
+
+    @Test
+    fun brewKitServesComponentAndMessage() {
+        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
+        val app = temp.resolve("brew-kt")
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=brew")))
+        gradle(app, "classes")
+        val port = freePort()
+        var home = ""
+        var message = ""
+        val serve = ServeCommand(awaitShutdown = {
+            home = httpGet("http://127.0.0.1:$port/").body()
+            val snap =
+                Regex("""data-brew="([^"]+)"""").find(home)?.groupValues?.get(1)
+                    ?: error("missing data-brew in:\n$home")
+            message =
+                httpPostJson(
+                    "http://127.0.0.1:$port/brew/message",
+                    """{"name":"counter","snapshot":"$snap","method":"increment","params":{}}""",
+                ).body()
+        })
+        assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
+        assertTrue(home.contains("data-brew"), home)
+        assertTrue(home.contains("/brew/brew.js"), home)
+        assertTrue(message.contains("Count: 1"), message)
+    }
+
+    @Test
+    fun inertiaKitServesHtmlAndJsonVisit() {
+        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
+        val app = temp.resolve("inertia-kt")
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=inertia")))
+        gradle(app, "classes")
+        val port = freePort()
+        var home = ""
+        var json = ""
+        val serve = ServeCommand(awaitShutdown = {
+            home = httpGet("http://127.0.0.1:$port/").body()
+            json =
+                HttpClient.newHttpClient().send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port/"))
+                        .header("X-Inertia", "true")
+                        .header("X-Inertia-Version", "1")
+                        .GET()
+                        .build(),
+                    HttpResponse.BodyHandlers.ofString(),
+                ).body()
+        })
+        assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
+        assertTrue(home.contains("data-page"), home)
+        assertTrue(json.contains("Pages/Welcome"), json)
+        assertTrue(json.contains("Welcome to Kona Inertia"), json)
+    }
+
     private fun assertServesInProcess(app: Path) {
         val port = freePort()
         val bodies = mutableMapOf<String, String>()
@@ -72,6 +137,18 @@ class GeneratedAppBuildTest {
         assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
         assertEquals("Welcome to Kona", bodies["/"])
         assertEquals("{\"status\":\"ok\"}", bodies["/api/health"])
+    }
+
+    private fun serveHome(app: Path): String = servePath(app, "/")
+
+    private fun servePath(app: Path, path: String): String {
+        val port = freePort()
+        var body = ""
+        val serve = ServeCommand(awaitShutdown = {
+            body = httpGet("http://127.0.0.1:$port$path").body()
+        })
+        assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
+        return body
     }
 
     private fun gradle(app: Path, vararg tasks: String) {
@@ -104,6 +181,15 @@ class GeneratedAppBuildTest {
     private fun httpGet(url: String): HttpResponse<String> =
         HttpClient.newHttpClient().send(
             HttpRequest.newBuilder(URI.create(url)).GET().build(),
+            HttpResponse.BodyHandlers.ofString(),
+        )
+
+    private fun httpPostJson(url: String, json: String): HttpResponse<String> =
+        HttpClient.newHttpClient().send(
+            HttpRequest.newBuilder(URI.create(url))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build(),
             HttpResponse.BodyHandlers.ofString(),
         )
 

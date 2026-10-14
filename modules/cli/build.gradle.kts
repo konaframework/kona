@@ -45,8 +45,12 @@ tasks.test {
         ":kona-queue:publishToMavenLocal",
         ":kona-schedule:publishToMavenLocal",
         ":kona-grind:publishToMavenLocal",
+        ":kona-brew:publishToMavenLocal",
+        ":kona-inertia:publishToMavenLocal",
     )
     systemProperty("kona.repoRoot", rootDir.absolutePath)
+    // Generated kit apps resolve composite builds via KONA_HOME when present.
+    environment("KONA_HOME", rootDir.absolutePath)
 }
 
 kover {

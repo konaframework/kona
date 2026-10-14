@@ -24,6 +24,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Continuous M3→M13 **finished**; do not invent M14+ without a human |
 | Merge habit | Enable automerge, but **once required CI is green, squash-merge immediately** if automerge stalls — do not wait forever |
+| Post-M13 sweep | Full `test`+`koverVerify` green; `hello-kotlin`/`hello-java` demos green; fresh `kona new` **api** (Kotlin+Java), **crema**, **brew**, **inertia** kits compile + HTTP smoke; Brew `/brew/message` increment OK; Inertia `X-Inertia` JSON OK; ~1.8k req/s GET `/` on api kit (local curl loop). Kit serve regressions live in `GeneratedAppBuildTest`. |
 
 ## M13 IDE / language support summary (for reviewers)
 
