@@ -15,8 +15,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M2 — Extract** (`main`, PR #6) |
-| Next / active | **M3 — Session, auth, and security** (`milestone/M3-auth-session-security`) |
+| Last merged milestone | **M10 — Broadcasting and search** (`main`, PR #16) |
+| Next / active | **M11 — Reactive UI** (`milestone/M11-reactive-ui`) — paused for M3–M10 parity hardening when that branch is open |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) Almasix coverage ledger → through **M13** |
 | Docs brand | Primary `#FF9A00`, accent `#286291` (`apps/docs/src/styles/custom.css`) |
 | Docs shape | Still low-level (providers, explicit wiring). Trajectory: Laravel-style progressive guides (simple first, dig deeper later). Rewrite as features land — do not freeze the current structure. |
@@ -37,7 +37,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ```text
 Read AGENTS.md, MILESTONES.md, and docs/governance/continuous-autopilot.md.
-Active milestone is whatever MILESTONES.md says (expect M3 — session/auth/security).
+Active milestone is whatever MILESTONES.md says (expect M11 — reactive UI, unless a
+fix/m3-m10-parity-hardening branch is still open).
 Run continuous autopilot: exhaust parity + 100% coverage + rewrite docs as needed →
 commit → PR → automerge → next milestone until the Almasix coverage ledger is fully done (through M13).
 Use Auto for all models. Never edit GitHub rulesets.
@@ -50,6 +51,12 @@ export JAVA_HOME=…   # JDK 21+
 ./gradlew test koverVerify
 pnpm --filter @kona/docs build   # or: cd apps/docs && pnpm build
 ```
+
+## Fresh `kona new` apps
+
+Artifacts are `0.1.0-SNAPSHOT` from `mavenLocal()` unless `KONA_HOME` / `-Pkona.home` composite-builds a checkout.
+Publish with `./gradlew publishToMavenLocal` from this repo before expecting a scaffolded app to resolve deps.
+The skeleton only registers `HttpServiceProvider`; register Extract/Session/Auth/Queue/… providers when adopting those grind commands.
 
 ## Explicit wiring note (M2)
 

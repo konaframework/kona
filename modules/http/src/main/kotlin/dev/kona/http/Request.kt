@@ -41,6 +41,16 @@ class Request @JvmOverloads constructor(
     /** Laravel `$request->validate(...)`: validated data or [ValidationException]. */
     fun validate(rules: Map<String, List<String>>): Map<String, Any?> = Validator.make(this, rules).validate()
 
+    /**
+     * Route parameter bound by the router (Laravel `$request->route('id')`).
+     * Returns null when [key] was not in the matched route.
+     */
+    @JvmOverloads
+    fun route(key: String, default: String? = null): String? {
+        val value = attributes[key] ?: return default
+        return value.toString()
+    }
+
     fun form(): Map<String, String> {
         if (body.isBlank()) {
             return emptyMap()
@@ -48,6 +58,14 @@ class Request @JvmOverloads constructor(
         val contentType = header("Content-Type").orEmpty()
         if (contentType.contains("application/json", ignoreCase = true)) {
             return JsonSupport.parseFlat(body)
+        }
+        // Only treat as form when Content-Type is absent (classic POST) or explicitly form-urlencoded.
+        // text/plain and other types must not be parsed as key=value pairs.
+        if (contentType.isNotBlank() &&
+            !contentType.contains("application/x-www-form-urlencoded", ignoreCase = true) &&
+            !contentType.contains("multipart/form-data", ignoreCase = true)
+        ) {
+            return emptyMap()
         }
         return body.split('&')
             .filter { it.isNotBlank() }

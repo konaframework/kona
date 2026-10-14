@@ -25,9 +25,7 @@ class Worker @JvmOverloads constructor(
             } catch (ex: Exception) {
                 if (attempt.attempts < attempt.tries) {
                     log.warn("Job {} failed attempt {}: {}", attempt.displayName, attempt.attempts, ex.message)
-                    if (attempt.backoffSeconds > 0) {
-                        Thread.sleep(attempt.backoffSeconds * 1000)
-                    }
+                    // Delay via queue release (availableAt); do not block the worker thread.
                     queue.release(attempt, queueName, attempt.backoffSeconds)
                 } else {
                     log.error("Job {} failed permanently: {}", attempt.displayName, ex.message)

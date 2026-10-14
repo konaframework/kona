@@ -24,6 +24,13 @@ class Encrypter(
     private val secret = SecretKeySpec(keyBytes, "AES")
     private val random = SecureRandom()
 
+    /** Encrypt any JSON-serializable value (Laravel `encrypt($value)`). */
+    fun encrypt(value: Any?): String = encryptString(mapper.writeValueAsString(value))
+
+    /** Decrypt a payload previously produced by [encrypt] into [type]. */
+    fun <T : Any> decrypt(payload: String, type: Class<T>): T =
+        mapper.readValue(decryptString(payload), type)
+
     fun encryptString(value: String): String {
         val iv = ByteArray(IV_LENGTH).also { random.nextBytes(it) }
         val cipher = Cipher.getInstance(TRANSFORM)

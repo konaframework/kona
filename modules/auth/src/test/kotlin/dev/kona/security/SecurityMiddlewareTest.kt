@@ -19,6 +19,8 @@ class SecurityMiddlewareTest {
         val key = Encrypter.generateKey()
         val encrypter = Encrypter.fromBase64Key(key)
         val cipher = encrypter.encryptString("hello")
+        val mapCipher = encrypter.encrypt(mapOf("a" to 1))
+        assertEquals(1, (encrypter.decrypt(mapCipher, Map::class.java)["a"] as Number).toInt())
         assertEquals("hello", encrypter.decryptString(cipher))
 
         assertThrows(EncryptionException::class.java) { Encrypter(ByteArray(16)) }

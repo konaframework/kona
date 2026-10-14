@@ -16,6 +16,11 @@ import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
 
+/** Public no-arg job for cross-process [JobRegistry.create] reflection. */
+class RestorableTestJob : Job {
+    override fun handle() {}
+}
+
 class QueueTest {
     @AfterEach
     fun reset() {
@@ -109,6 +114,9 @@ class QueueTest {
         assertTrue(redis.size() >= 1)
         redis.clear()
         assertEquals(0, redis.size())
+        redis.release(JobRegistry.payloadFor(CountingJob(counter)).withDelay(3600), "default", 0)
+        assertNull(redis.pop())
+        redis.clear()
 
         val redisMgr = QueueManager(
             Config().also {
@@ -230,9 +238,24 @@ class QueueTest {
 
         val tiny = AtomicInteger()
         val backoffMgr = arrayManager()
-        (backoffMgr.connection() as ArrayQueue).push(FailingJob(1, tiny, backoff = 1))
+        (backoffMgr.connection() as ArrayQueue).push(FailingJob(1, tiny, backoff = 0))
         Worker(backoffMgr).run(maxJobs = 2)
         assertTrue(tiny.get() >= 2)
+
+        // Delayed release: job is not available until availableAt.
+        val delayed = arrayManager()
+        val delayedQueue = delayed.connection() as ArrayQueue
+        val payload = JobRegistry.payloadFor(CountingJob(AtomicInteger())).withDelay(60)
+        delayedQueue.release(payload, "default", 0) // already delayed via withDelay
+        assertNull(delayedQueue.pop("default"))
+        delayedQueue.release(payload.copy(availableAt = 0), "default", 0)
+        assertNotNull(delayedQueue.pop("default"))
+
+        // Cross-process style: restore via no-arg constructor when factory missing.
+        JobRegistry.clear()
+        assertThrows(IllegalStateException::class.java) { JobRegistry.create("dev.kona.queue.DoesNotExistJob") }
+        val restored = JobRegistry.create(RestorableTestJob::class.java.name)
+        assertTrue(restored is RestorableTestJob)
     }
 
     private fun arrayManager() =

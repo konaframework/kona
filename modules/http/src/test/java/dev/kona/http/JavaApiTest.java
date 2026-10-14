@@ -26,6 +26,10 @@ public class JavaApiTest {
         assertEquals(null, get.getAttribute("missing"));
         get.setAttribute("k", "v");
         assertEquals("v", get.getAttribute("k"));
+        get.setAttribute("id", "42");
+        assertEquals("42", get.route("id"));
+        assertEquals(null, get.route("missing"));
+        assertEquals("d", get.route("missing", "d"));
         Request post = Request.post("/y", "a=b");
         assertEquals("POST", post.getMethod());
 

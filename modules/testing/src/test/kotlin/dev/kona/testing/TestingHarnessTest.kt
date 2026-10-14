@@ -83,5 +83,30 @@ class TestingHarnessTest {
         assertFalse(storage.exists("dir/b.txt"))
         assertEquals("/a.txt", storage.url("a.txt"))
         assertEquals("a.txt", storage.path("a.txt"))
+
+        val notifications = FakeNotification()
+        val user = object : dev.kona.notifications.Notifiable {
+            override fun routeNotificationFor(channel: String): String? = "user-1"
+        }
+        notifications.send(user, WelcomeNotice())
+        assertTrue(notifications.assertSent(WelcomeNotice::class.java))
+        assertFalse(notifications.assertSent(UnusedNotice::class.java))
+        val logOnly = FakeNotification()
+        logOnly.send(user, LogNotice())
+        assertTrue(logOnly.assertSent(LogNotice::class.java))
+    }
+
+    class WelcomeNotice : dev.kona.notifications.Notification() {
+        override fun via(notifiable: dev.kona.notifications.Notifiable) = listOf("database", "log")
+        override fun toArray(notifiable: dev.kona.notifications.Notifiable) = mapOf("hi" to true)
+    }
+
+    class LogNotice : dev.kona.notifications.Notification() {
+        override fun via(notifiable: dev.kona.notifications.Notifiable) = listOf("log")
+        override fun toArray(notifiable: dev.kona.notifications.Notifiable) = mapOf("x" to 1)
+    }
+
+    class UnusedNotice : dev.kona.notifications.Notification() {
+        override fun via(notifiable: dev.kona.notifications.Notifiable) = listOf("database")
     }
 }

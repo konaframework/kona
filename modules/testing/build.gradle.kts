@@ -11,6 +11,7 @@ dependencies {
     api(project(":kona-extract"))
     api(project(":kona-mail"))
     api(project(":kona-queue"))
+    api(project(":kona-notifications"))
     api(project(":kona-filesystem"))
     api(project(":kona-grind"))
     api(libs.junit.jupiter)
