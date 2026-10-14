@@ -1,0 +1,30 @@
+---
+title: Events
+description: Listen for and dispatch application events.
+---
+
+Kona’s event bus is a small synchronous dispatcher. Register listeners (Kotlin lambdas or Java SAMs), then `dispatch` typed event objects.
+
+## Quick start
+
+```kotlin
+data class OrderShipped(val id: String)
+
+val bus = EventDispatcher()
+bus.listen(OrderShipped::class.java) { println(it.id) }
+bus.dispatch(OrderShipped("42"))
+```
+
+```java
+bus.listen(OrderShipped.class, event -> System.out.println(event.id));
+bus.dispatch(new OrderShipped("42"));
+```
+
+Register `EventServiceProvider` to bind `EventDispatcher` in the container.
+
+## API
+
+- `listen(Class, EventListener)` / Kotlin `listen { }`
+- `dispatch(event)`
+- `forget(Class)` / `flush()`
+- `hasListeners` / `listenerCount`

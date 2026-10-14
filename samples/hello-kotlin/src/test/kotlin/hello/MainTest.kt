@@ -79,4 +79,13 @@ class MainTest {
         assertTrue(result["file"]!!.contains("Hi Kona"))
         assertEquals("pong 1", result["memory"])
     }
+
+    @Test
+    fun asyncDemo() {
+        val result = AsyncDemo.run(temp)
+        assertEquals("42", result["event"])
+        assertEquals("1", result["jobs"])
+        assertEquals("1", result["mail"])
+        assertEquals("stored", result["file"])
+    }
 }

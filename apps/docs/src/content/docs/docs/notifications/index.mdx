@@ -1,0 +1,20 @@
+---
+title: Notifications
+description: Notify users over mail, database, and log channels.
+---
+
+Implement `Notifiable` (routing per channel) and `Notification` (`via`, `toMail`, `toArray`), then send through `NotificationSender`.
+
+## Quick start
+
+```kotlin
+class InvoicePaid : Notification() {
+    override fun via(notifiable: Notifiable) = listOf("mail", "database", "log")
+    override fun toMail(notifiable: Notifiable) = object : Mailable() { /* … */ }
+    override fun toArray(notifiable: Notifiable) = mapOf("status" to "paid")
+}
+
+app.resolve(NotificationSender::class.java).send(user, InvoicePaid())
+```
+
+Register `MailServiceProvider` then `NotificationServiceProvider`. Channels: `mail` (needs `Mailer`), `database` (in-memory rows), `log`.

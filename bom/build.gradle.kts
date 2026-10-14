@@ -17,6 +17,11 @@ dependencies {
         api(project(":kona-redis"))
         api(project(":kona-cache"))
         api(project(":kona-crema"))
+        api(project(":kona-events"))
+        api(project(":kona-queue"))
+        api(project(":kona-mail"))
+        api(project(":kona-notifications"))
+        api(project(":kona-filesystem"))
         api(project(":kona-grind"))
         api(project(":kona-cli"))
     }

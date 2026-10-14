@@ -13,6 +13,7 @@ dependencies {
     api(project(":kona-http"))
     api(project(":kona-extract"))
     api(project(":kona-crema"))
+    api(project(":kona-queue"))
     implementation(libs.logback.classic)
 
     testImplementation(libs.h2)

@@ -31,6 +31,10 @@ class GrindApplication {
                 "migrate:reset" -> MigrateCommand(MigrateCommand.Action.RESET).run(args.drop(1))
                 "migrate:status" -> MigrateCommand(MigrateCommand.Action.STATUS).run(args.drop(1))
                 "db:seed" -> SeedCommand().run(args.drop(1))
+                "queue:work" -> QueueWorkCommand().run(args.drop(1))
+                "queue:failed" -> QueueFailedCommand(QueueFailedCommand.Action.LIST).run(args.drop(1))
+                "queue:retry" -> QueueFailedCommand(QueueFailedCommand.Action.RETRY).run(args.drop(1))
+                "queue:flush" -> QueueFailedCommand(QueueFailedCommand.Action.FLUSH).run(args.drop(1))
                 "new" -> {
                     System.err.println("Create applications with the global CLI: kona new <name>")
                     System.err.println("grind is app-local — run ./grind serve from inside a project.")
@@ -70,10 +74,14 @@ class GrindApplication {
               ./grind migrate:reset
               ./grind migrate:status
               ./grind db:seed [--class=database.seeders.DatabaseSeeder]
+              ./grind queue:work [--connection=name] [--queue=name] [--max=N]
+              ./grind queue:failed
+              ./grind queue:retry <id>|--all
+              ./grind queue:flush
               ./grind help
 
-            Database commands boot the app in-process from build/classes (run ./gradlew classes first)
-            and use the MigrationRegistry bound in its container.
+            Database and queue commands boot the app in-process from build/classes (run ./gradlew classes first)
+            and use services bound in its container.
 
             Create a new application with:
               kona new <name> [--lang=kotlin|java]

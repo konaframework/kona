@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** M7 (M0–M6 complete).
+**Active milestone:** M8 (M0–M7 complete).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -59,10 +59,10 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Smith Console → `grind` depth + `steam` | M8 | pending |
 | Prompts | M8 | pending |
 | Task Scheduling | M8 | pending |
-| File Storage | M7 | pending |
-| Queues | M7 | pending |
-| Mail | M7 | pending |
-| Notifications | M7 | pending |
+| File Storage | M7 | done |
+| Queues | M7 | done |
+| Mail | M7 | done |
+| Notifications | M7 | done |
 | Collections | M4 | done |
 | Helpers | M4 | done |
 | Dates (Carbon/Chrono-class) | M4 | done |
@@ -70,7 +70,7 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Localization | M4 | done |
 | Cache | M4 | done |
 | Redis | M4 | done |
-| Events | M7 | pending |
+| Events | M7 | done |
 | Broadcasting | M10 | pending |
 | HTTP Client → `drip` | M9 | pending |
 | Processes | M9 | pending |
@@ -344,19 +344,19 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M7 — Queues, events, mail, notifications, filesystem
 
-**Status:** active  
+**Status:** done  
 **Branch:** `milestone/M7-queue-events-mail-fs`
 
 **Parity slice:** Queues, Events, Mail, Notifications, File Storage.
 
 ### Parity checklist
 
-- [ ] Events + listeners (SAM-friendly for Java)
-- [ ] Job dispatch, workers, retries, failed jobs
-- [ ] Mail (log + SMTP minimum; mailables)
-- [ ] Notifications (channels: mail + database/log minimum)
-- [ ] Filesystem disks (local + S3-compatible)
-- [ ] Docs for each surface
+- [x] Events + listeners (SAM-friendly for Java)
+- [x] Job dispatch, workers, retries, failed jobs
+- [x] Mail (log + SMTP minimum; mailables)
+- [x] Notifications (channels: mail + database/log minimum)
+- [x] Filesystem disks (local + S3-compatible)
+- [x] Docs for each surface
 
 ### In-scope modules
 
@@ -366,7 +366,7 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ## M8 — grind console, prompts, scheduling, packages
 
-**Status:** blocked  
+**Status:** active  
 **Branch:** `milestone/M8-grind-console-schedule`
 
 **Parity slice:** Smith Console depth, Prompts, Task Scheduling, Package Development, `steam` REPL.

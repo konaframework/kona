@@ -71,4 +71,13 @@ class MainTest {
         assertTrue(result.get("file").contains("Hi Kona"));
         assertEquals("pong 1", result.get("memory"));
     }
+
+    @Test
+    void asyncDemo() {
+        var result = AsyncDemo.run(temp);
+        assertEquals("42", result.get("event"));
+        assertEquals("1", result.get("jobs"));
+        assertEquals("1", result.get("mail"));
+        assertEquals("stored", result.get("file"));
+    }
 }
