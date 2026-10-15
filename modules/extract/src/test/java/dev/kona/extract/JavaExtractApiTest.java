@@ -2,6 +2,7 @@ package dev.kona.extract;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -203,6 +204,31 @@ public class JavaExtractApiTest {
         assertTrue(Member.QUERY.query().addSelect("name").selectRaw("age as years").distinct()
                 .groupBy("name").havingRaw("count(*) >= ?", List.of(1)).orHavingRaw("count(*) >= 1")
                 .havingRaw("count(*) >= 1").toSql().contains("distinct"));
+
+        class AdultsOnly implements Scope {
+            @Override
+            public void apply(ModelBuilder<?> builder) {
+                builder.where("age", ">=", 18);
+            }
+        }
+        Extract.addGlobalScope(Member.class, "named", b -> b.where("name", "Ada"));
+        Extract.addGlobalScope(Member.class, new AdultsOnly());
+        try {
+            assertTrue(Member.QUERY.hasGlobalScope("named"));
+            assertNotNull(Member.QUERY.getGlobalScope("named"));
+            assertTrue(Member.QUERY.getGlobalScopes().containsKey(AdultsOnly.class.getName()));
+            assertEquals(1L, Member.QUERY.query().count());
+            DB.table("users").insert(Map.of("name", "Kid", "age", 10));
+            assertEquals(1L, Member.QUERY.query().count());
+            assertEquals(2L, Member.QUERY.withoutGlobalScopes().count());
+            assertEquals(1L, Member.QUERY.withoutGlobalScopes(List.of(AdultsOnly.class.getName())).count());
+            assertEquals(1L, Member.QUERY.withoutGlobalScopesExcept(List.of("named")).count());
+            Member.QUERY.removeGlobalScope("named");
+            assertFalse(Member.QUERY.hasGlobalScope("named"));
+        } finally {
+            Member.QUERY.removeGlobalScope("named");
+            Member.QUERY.removeGlobalScope(AdultsOnly.class.getName());
+        }
     }
 
     @Test
