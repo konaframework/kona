@@ -40,7 +40,8 @@ class PathLayout(
 
     fun database(vararg segments: String): Path = join(langRoot.resolve("database"), segments)
 
-    fun config(vararg segments: String): Path = join(resources.resolve("config"), segments)
+    /** Executable config modules live under the language root (`src/main/kotlin/config`, …). */
+    fun config(vararg segments: String): Path = join(langRoot.resolve("config"), segments)
 
     fun resource(vararg segments: String): Path = join(resources, segments)
 

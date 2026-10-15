@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -81,12 +82,12 @@ class JavaCoreApiTest {
     }
 
     @Test
-    void configFileFromJava() throws Exception {
-        Path file = Files.createTempFile("kona-java", ".properties");
-        Files.writeString(file, "mail.driver=smtp\n");
+    void configFileFromJava() {
+        ConfigFile mail = ConfigFile.of("mail", () -> Map.of("driver", "smtp"));
         Config config = new Config();
-        config.load(file);
+        config.load(mail);
         assertEquals("smtp", config.getString("mail.driver"));
+        assertEquals("mail", mail.key());
     }
 
     @Test

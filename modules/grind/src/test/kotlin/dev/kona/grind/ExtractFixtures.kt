@@ -1,6 +1,8 @@
 package dev.kona.grind
 
 import dev.kona.core.Application
+import dev.kona.core.ConfigFile
+import dev.kona.core.Env
 import dev.kona.core.Kona
 import dev.kona.core.ServiceProvider
 import dev.kona.extract.DB
@@ -51,7 +53,26 @@ object ExtractFixtureApp {
 /** Migrations registered, but no Database binding: grind builds one from config. */
 object ConfigOnlyFixtureApp {
     @JvmStatic
-    fun create(args: Array<String>): Application = Kona.create(args).providers(MigrationsProvider()).boot()
+    fun create(args: Array<String>): Application =
+        Kona.create(args)
+            .configs(
+                ConfigFile.of("database") {
+                    val name = Env.getOrDefault("GRIND_DB", "grind_config")
+                    mapOf(
+                        "default" to "main",
+                        "connections" to mapOf(
+                            "main" to mapOf(
+                                "url" to "jdbc:h2:mem:$name;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
+                            ),
+                            "other" to mapOf(
+                                "url" to "jdbc:h2:mem:${name}_other;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
+                            ),
+                        ),
+                    )
+                },
+            )
+            .providers(MigrationsProvider())
+            .boot()
 }
 
 /** Empty registry bound as a singleton factory. */
@@ -78,13 +99,5 @@ class FixtureDatabaseSeeder : Seeder() {
 
 class NotASeeder
 
-internal fun databaseProject(dir: java.nio.file.Path, name: String): java.nio.file.Path {
-    val project = fixtureProject(dir)
-    java.nio.file.Files.createDirectories(project.resolve("config"))
-    java.nio.file.Files.writeString(
-        project.resolve("config/database.json"),
-        """{"default":"main","connections":{"main":{"url":"jdbc:h2:mem:$name;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"},""" +
-            """"other":{"url":"jdbc:h2:mem:${name}_other;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"}}}""",
-    )
-    return project
-}
+internal fun databaseProject(dir: java.nio.file.Path, name: String): java.nio.file.Path =
+    fixtureProject(dir, "GRIND_DB=$name\n")

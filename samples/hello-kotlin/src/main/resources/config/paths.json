@@ -1,6 +1,0 @@
-{
-  "langRoot": "src/main/kotlin",
-  "resources": "src/main/resources",
-  "storage": "storage",
-  "public": "src/main/resources/public"
-}

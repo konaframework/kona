@@ -1,6 +1,11 @@
 package bootstrap;
 
 import app.providers.AppServiceProvider;
+import config.Database;
+import config.Filesystems;
+import config.Http;
+import config.Paths;
+import config.Session;
 import dev.kona.auth.AuthServiceProvider;
 import dev.kona.core.Application;
 import dev.kona.core.Env;
@@ -23,6 +28,14 @@ import routes.WebRoutes;
 public final class App {
     public static Application create(String[] args) {
         Application app = Kona.create(args)
+            .configs(
+                new config.App(),
+                new Database(),
+                new Session(),
+                new Filesystems(),
+                new Http(),
+                new Paths()
+            )
             .providers(
                 new HttpServiceProvider(),
                 new ExtractServiceProvider(),

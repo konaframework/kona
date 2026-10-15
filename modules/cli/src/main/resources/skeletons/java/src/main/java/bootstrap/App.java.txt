@@ -1,6 +1,11 @@
 package bootstrap;
 
 import app.providers.AppServiceProvider;
+import config.Database;
+import config.Filesystems;
+import config.Http;
+import config.Paths;
+import config.Session;
 import dev.kona.auth.AuthServiceProvider;
 import dev.kona.core.Application;
 import dev.kona.core.Env;
@@ -20,11 +25,19 @@ import routes.ApiRoutes;
 import routes.WebRoutes;
 
 /**
- * Application entry. {@code grind serve --in-process} calls {@link #create}; {@code ./gradlew run} calls {@link #main}.
+ * Application entry. `grind serve --in-process` calls {@link #create}; `./gradlew run` calls {@link #main}.
  */
 public final class App {
     public static Application create(String[] args) {
         Application app = Kona.create(args)
+            .configs(
+                new config.App(),
+                new Database(),
+                new Session(),
+                new Filesystems(),
+                new Http(),
+                new Paths()
+            )
             .providers(
                 new HttpServiceProvider(),
                 new ExtractServiceProvider(),

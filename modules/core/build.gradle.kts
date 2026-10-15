@@ -8,8 +8,6 @@ plugins {
 dependencies {
     api(libs.slf4j.api)
     implementation(libs.logback.classic)
-    implementation(libs.jackson.databind)
-
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

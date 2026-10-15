@@ -43,8 +43,8 @@ class AppSmokeTest {
         val base = sampleBase()
         assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/bootstrap/Middleware.kt")))
         assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/routes/ApiRoutes.kt")))
-        assertTrue(Files.isRegularFile(base.resolve("src/main/resources/config/paths.json")))
-        assertTrue(Files.isRegularFile(base.resolve("src/main/resources/config/session.json")))
+        assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/config/Paths.kt")))
+        assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/config/Session.kt")))
         assertTrue(Files.isRegularFile(base.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(Files.isDirectory(base.resolve("storage")))
     }

@@ -127,6 +127,7 @@ class Application(
         private var basePath: Path = Path.of("").toAbsolutePath().normalize(),
     ) {
         private val providers = mutableListOf<ServiceProvider>()
+        private val configFiles = mutableListOf<ConfigFile>()
         private val configurers = mutableListOf<Consumer<Config>>()
         internal val bootstrappers = mutableListOf<(Application) -> Unit>()
         internal val onBooted = mutableListOf<(Application) -> Unit>()
@@ -151,6 +152,22 @@ class Application(
         /** Alias of [withProviders] for the `Kona.create(...).providers(...)` shape. */
         fun providers(vararg providers: ServiceProvider): Builder = withProviders(providers.asList())
 
+        /** Registers executable config modules (merged after `.env` / defaults, before [configure]). */
+        fun withConfig(file: ConfigFile): Builder {
+            configFiles.add(file)
+            return this
+        }
+
+        fun withConfigs(vararg files: ConfigFile): Builder = withConfigs(files.asList())
+
+        fun withConfigs(files: Iterable<ConfigFile>): Builder {
+            configFiles.addAll(files)
+            return this
+        }
+
+        /** Alias of [withConfigs] for the `Kona.create(...).configs(...)` shape. */
+        fun configs(vararg files: ConfigFile): Builder = withConfigs(files.asList())
+
         fun configure(configurer: Consumer<Config>): Builder {
             configurers.add(configurer)
             return this
@@ -162,10 +179,14 @@ class Application(
             return this
         }
 
-        /** Creates the application, applies config, registers every provider, then boots once. */
+        /**
+         * Creates the application, runs bootstrappers (`.env` + defaults), merges [ConfigFile]s,
+         * applies [configure] callbacks, registers every provider, then boots once.
+         */
         fun build(): Application {
             val app = Application(basePath)
             bootstrappers.forEach { it(app) }
+            configFiles.forEach { app.config.load(it) }
             configurers.forEach { it.accept(app.config) }
             app.refreshPathLayout()
             app.registerAll(providers)

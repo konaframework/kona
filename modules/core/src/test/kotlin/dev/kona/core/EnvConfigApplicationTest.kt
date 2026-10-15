@@ -141,39 +141,29 @@ class EnvConfigApplicationTest {
     }
 
     @Test
-    fun configFileLoading() {
-        val dir = Files.createTempDirectory("kona-config")
-        val props = dir.resolve("app.properties")
-        Files.writeString(props, "app.name=FromProps\napp.debug=true\nport=8080\n")
-        val json = dir.resolve("db.json")
-        Files.writeString(
-            json,
-            """{"default":"main","connections":{"main":{"host":"db","port":5432}},"replicas":["a","b"]}""",
-        )
-        Files.writeString(dir.resolve("notes.txt"), "ignored")
-        Files.createDirectory(dir.resolve("nested.json"))
-
+    fun configFileModules() {
+        Env.set("DB_HOST", "db.example")
+        val module = ConfigFile.of("database") {
+            mapOf(
+                "default" to "main",
+                "connections" to mapOf(
+                    "main" to mapOf(
+                        "host" to Env.getOrDefault("DB_HOST", "localhost"),
+                        "port" to 5432,
+                    ),
+                ),
+                "replicas" to listOf("a", "b"),
+            )
+        }
+        assertEquals("database", module.key())
         val cfg = Config()
-        cfg.load(props)
-        assertEquals("FromProps", cfg.getString("app.name"))
-        assertEquals(true, cfg.getBoolean("app.debug"))
-        assertEquals(8080, cfg.getInt("port"))
-
-        cfg.load(json, "database")
-        assertEquals("db", cfg.getString("database.connections.main.host"))
+        cfg.load(module)
+        assertEquals("db.example", cfg.getString("database.connections.main.host"))
         assertEquals(5432, cfg.getInt("database.connections.main.port"))
         assertEquals(listOf("a", "b"), cfg.get<List<String>>("database.replicas"))
 
-        assertThrows(IllegalArgumentException::class.java) { cfg.load(dir.resolve("notes.txt")) }
-
-        val fromDir = Config()
-        fromDir.loadDirectory(dir)
-        assertEquals("FromProps", fromDir.getString("app.app.name"))
-        assertEquals("main", fromDir.getString("db.default"))
-        assertFalse(fromDir.has("notes"))
-        assertFalse(fromDir.has("nested"))
-        fromDir.loadDirectory(dir.resolve("missing"))
-        fromDir.loadDirectory(props)
+        cfg.loadMap("feature", mapOf("beta" to true))
+        assertEquals(true, cfg.getBoolean("feature.beta"))
     }
 
     @Test
@@ -333,10 +323,16 @@ class EnvConfigApplicationTest {
     fun konaCreateBuilderShape() {
         val base = Files.createTempDirectory("kona-create")
         Files.writeString(base.resolve(".env"), "APP_DEBUG=yes\n")
-        Files.createDirectory(base.resolve("config"))
-        Files.writeString(base.resolve("config").resolve("services.json"), """{"mail":{"driver":"smtp"}}""")
         val events = mutableListOf<String>()
+        val services = object : ConfigFile {
+            override fun key(): String = "services"
+
+            override fun config(): Map<String, Any?> =
+                mapOf("mail" to mapOf("driver" to "smtp"))
+        }
         val app = Kona.create(base)
+            .configs(services)
+            .withConfig(ConfigFile.of("extra") { mapOf("ok" to true) })
             .providers(OrderProviderA(events), OrderProviderC(events))
             .configure { it.set("app.env", "testing") }
             .boot()
@@ -346,6 +342,7 @@ class EnvConfigApplicationTest {
         assertEquals("testing", app.config.getString("app.env"))
         assertEquals("Kona", app.config.getString("app.name"))
         assertEquals("smtp", app.config.getString("services.mail.driver"))
+        assertEquals(true, app.config.getBoolean("extra.ok"))
 
         Kona.reset()
         assertTrue(Kona.create(arrayOf("--base=$base")).build().isBooted())
