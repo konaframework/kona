@@ -25,6 +25,9 @@ class MorphPost : Extract<MorphPost>() {
 
     fun image(): MorphOne<MorphImage> = morphOne(MorphImage::class.java, "imageable")
 
+    fun tags(): MorphToMany<MorphTag> =
+        morphToMany(MorphTag::class.java, "taggable", "taggables", null, "tag_id")
+
     fun taggedComments(): MorphMany<MorphComment> =
         morphMany(MorphComment::class.java, "commentable", "commentable_type", "commentable_id", "id")
 
@@ -41,7 +44,24 @@ class MorphVideo : Extract<MorphVideo>() {
 
     fun comments(): MorphMany<MorphComment> = morphMany(MorphComment::class.java, "commentable")
 
+    fun tags(): MorphToMany<MorphTag> =
+        morphToMany(MorphTag::class.java, "taggable", "taggables", null, "tag_id")
+
     companion object : ExtractCompanion<MorphVideo>(MorphVideo::class.java)
+}
+
+class MorphTag : Extract<MorphTag>() {
+    override val table = "tags"
+    override val fillable = setOf("name")
+    override val timestamps = false
+
+    fun posts(): MorphToMany<MorphPost> =
+        morphedByMany(MorphPost::class.java, "taggable", "taggables", "tag_id", null)
+
+    fun videos(): MorphToMany<MorphVideo> =
+        morphedByMany(MorphVideo::class.java, "taggable", "taggables", "tag_id", null)
+
+    companion object : ExtractCompanion<MorphTag>(MorphTag::class.java)
 }
 
 class MorphComment : Extract<MorphComment>() {
@@ -98,6 +118,14 @@ class MorphRelationsTest {
                 string("url")
                 nullableMorphs("imageable")
             }
+            schema.create("tags") {
+                id()
+                string("name")
+            }
+            schema.create("taggables") {
+                bigInteger("tag_id")
+                morphs("taggable")
+            }
         }
     }
 
@@ -105,6 +133,68 @@ class MorphRelationsTest {
     fun tearDown() {
         Relation.clearMorphMap()
         Database.clearGlobal()
+    }
+
+    @Test
+    fun morphToManyAndMorphedByMany() {
+        val post = MorphPost.create(mapOf("title" to "Hello"))
+        val video = MorphVideo.create(mapOf("title" to "Clip"))
+        val kotlin = MorphTag.create(mapOf("name" to "kotlin"))
+        val java = MorphTag.create(mapOf("name" to "java"))
+
+        post.tags().attach(listOf(kotlin, java))
+        video.tags().attach(kotlin)
+
+        val postTags = post.tags().orderBy("name").get()
+        assertEquals(listOf("java", "kotlin"), postTags.map { it["name"] })
+        assertTrue(postTags.all { (it.getRelation("pivot") as Map<*, *>)["taggable_type"] == "posts" })
+
+        assertEquals(1, video.tags().count())
+        assertEquals(listOf("Hello"), kotlin.posts().get().map { it["title"] })
+        assertEquals(listOf("Clip"), kotlin.videos().get().map { it["title"] })
+        assertEquals(0, java.videos().count())
+
+        val eager = MorphPost.with("tags").find(post.getKey())!!
+        assertEquals(2, (eager.getRelation("tags") as List<*>).size)
+
+        assertEquals(1, post.tags().detach(java))
+        assertEquals(1L, post.tags().count())
+        assertEquals(1, post.tags().detach())
+        assertEquals(0L, post.tags().count())
+
+        val custom = post.morphToMany(MorphTag::class.java, "taggable", "taggables", "taggable_id", "tag_id", "id", "id")
+        custom.attach(java)
+        assertEquals(1L, custom.count())
+        assertEquals(1L, kotlin.videos().count())
+        post.tags().attach(kotlin)
+        assertEquals(1L, kotlin.posts().count())
+
+        // overload + unsaved-parent branches
+        assertEquals(0L, MorphPost().tags().count())
+        assertEquals("taggables", MorphPost().morphToMany(MorphTag::class.java, "taggable").pivotTable)
+        assertEquals("taggables", MorphPost().morphToMany(MorphTag::class.java, "taggable", "taggables").pivotTable)
+        assertEquals(
+            "tag_id",
+            MorphPost().morphToMany(MorphTag::class.java, "taggable", "taggables", "taggable_id", "tag_id").relatedPivotKey,
+        )
+        assertEquals("taggables", MorphTag().morphedByMany(MorphPost::class.java, "taggable").pivotTable)
+        assertEquals("taggables", MorphTag().morphedByMany(MorphPost::class.java, "taggable", "taggables").pivotTable)
+        assertEquals(
+            "taggable_id",
+            MorphTag().morphedByMany(MorphPost::class.java, "taggable", "taggables", "tag_id", "taggable_id").relatedPivotKey,
+        )
+        assertEquals(
+            "id",
+            MorphTag().morphedByMany(
+                MorphPost::class.java,
+                "taggable",
+                "taggables",
+                "tag_id",
+                "taggable_id",
+                "id",
+                "id",
+            ).parentKey,
+        )
     }
 
     @Test

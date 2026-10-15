@@ -1,6 +1,7 @@
 package dev.kona.extract.relations
 
 import dev.kona.extract.Extract
+import dev.kona.extract.QueryBuilder
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -188,4 +189,47 @@ class MorphTo(
         parent.setRelation(relationName, null)
         return parent
     }
+}
+
+/**
+ * Polymorphic many-to-many (`post.tags()` via `taggables` with `taggable_type` / `taggable_id`).
+ *
+ * [inverse] is true for [Extract.morphedByMany] (related model is the morph parent on the pivot).
+ */
+class MorphToMany<R : Extract<R>>(
+    parent: Extract<*>,
+    related: R,
+    pivotTable: String,
+    foreignPivotKey: String,
+    relatedPivotKey: String,
+    parentKey: String,
+    relatedKey: String,
+    val morphType: String,
+    val morphClass: String,
+) : BelongsToMany<R>(parent, related, pivotTable, foreignPivotKey, relatedPivotKey, parentKey, relatedKey) {
+    init {
+        withPivot(morphType)
+    }
+
+    override fun addConstraints(): Boolean {
+        if (!super.addConstraints()) {
+            return false
+        }
+        query.where(qualified(pivotTable, morphType), morphClass)
+        return true
+    }
+
+    override fun addEagerConstraints(models: List<Extract<*>>) {
+        super.addEagerConstraints(models)
+        query.where(qualified(pivotTable, morphType), morphClass)
+    }
+
+    override fun attach(ids: Collection<*>, attributes: Map<String, Any?>) {
+        val withMorph = LinkedHashMap(attributes)
+        withMorph.putIfAbsent(morphType, morphClass)
+        super.attach(ids, withMorph)
+    }
+
+    override fun pivotForParent(): QueryBuilder =
+        super.pivotForParent().where(morphType, morphClass)
 }
