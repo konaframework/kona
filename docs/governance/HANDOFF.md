@@ -38,6 +38,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 ### Notes
 
 - Strong M24 candidate: session auth middleware + Extract user provider + remember-cookie (web login).
+- **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
 
 ## Commands
 

@@ -15,6 +15,7 @@ dependencies {
     api(project(":kona-crema"))
     api(project(":kona-queue"))
     api(project(":kona-schedule"))
+    api(project(":kona-support"))
     implementation(libs.logback.classic)
     implementation(libs.kotlin.scripting.jsr223)
 

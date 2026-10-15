@@ -24,17 +24,18 @@ class ScheduleRunCommand(private val action: Action) {
                 Action.LIST -> {
                     val events = schedule.events()
                     if (events.isEmpty()) {
-                        io.writeln("No scheduled events.")
+                        io.info("No scheduled events.")
                     } else {
-                        events.forEach { io.writeln(it.name) }
+                        io.title("Scheduled events")
+                        events.forEach { io.twoColumn(it.name, "") }
                     }
                 }
                 Action.RUN -> {
                     val ran = schedule.runDue(LocalDateTime.now())
                     if (ran.isEmpty()) {
-                        io.writeln("No scheduled tasks were ready.")
+                        io.info("No scheduled tasks were ready.")
                     } else {
-                        ran.forEach { io.writeln("Running: $it") }
+                        ran.forEach { io.success("Running: $it") }
                     }
                     io.verbose("schedule:run finished with ${ran.size} task(s)")
                 }

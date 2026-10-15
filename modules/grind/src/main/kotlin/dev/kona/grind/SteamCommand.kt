@@ -22,7 +22,7 @@ class SteamCommand(
         val (_, options) = parseOptions(args)
         val io = GrindIO(out = output, verbosity = GrindIO.fromOptions(options).verbosity)
         MigrateCommand.withApplication(options) { app, loader ->
-            io.writeln("steam — Kona REPL (type :quit to exit)")
+            io.box("steam", listOf("Kona REPL — type :quit to exit"))
             val engine = createEngine(loader)
             engine?.put("app", app)
             val reader = BufferedReader(InputStreamReader(input))

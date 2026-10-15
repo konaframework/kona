@@ -3,7 +3,15 @@ title: Console depth
 description: Colored output, verbosity, prompts, list, and exit codes for grind.
 ---
 
-grind (and the global `kona` CLI) use Termwind-inspired console styling: brand colors (`#FF9A00` / `#286291`), success/info/warn/error markers, boxes, two-column lists, and progress bars via `GrindIO`.
+All Kona terminal CLIs share one Termwind-inspired console style: brand colors (`#FF9A00` / `#286291`), success/info/warn/error markers, boxes, two-column lists, and progress bars.
+
+| API | Where |
+| --- | --- |
+| `dev.kona.support.console.ConsoleIO` | Canonical implementation (`kona-support`) |
+| `GrindIO` | `./grind` — wraps `ConsoleIO` with `-q` / `-v` |
+| `ConsoleIO` | Global `kona` CLI |
+
+Do not print to the terminal with raw `println` in commands; use these APIs.
 
 | Env | Effect |
 | --- | --- |
