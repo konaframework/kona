@@ -2,17 +2,28 @@ package dev.kona.notifications
 
 import dev.kona.core.Application
 import dev.kona.core.ServiceProvider
+import dev.kona.extract.Database
 import dev.kona.mail.Mailer
+import dev.kona.queue.Bus
 import java.nio.file.Path
 
 class NotificationServiceProvider : ServiceProvider {
     override fun register(app: Application) {
+        app.container.singleton(NotificationStore::class.java) {
+            resolveStore(app)
+        }
         app.container.singleton(DatabaseChannel::class.java) {
-            DatabaseChannel(resolveDatabasePath(app))
+            DatabaseChannel(app.resolve(NotificationStore::class.java))
         }
         app.container.singleton(LogChannel::class.java) { LogChannel() }
         app.container.singleton(NotificationSender::class.java) { _ ->
-            val sender = NotificationSender()
+            val bus =
+                if (app.container.bound(Bus::class.java)) {
+                    app.resolve(Bus::class.java)
+                } else {
+                    null
+                }
+            val sender = NotificationSender(bus)
             sender.extend("database", app.resolve(DatabaseChannel::class.java))
             sender.extend("log", app.resolve(LogChannel::class.java))
             if (app.container.bound(Mailer::class.java)) {
@@ -23,6 +34,23 @@ class NotificationServiceProvider : ServiceProvider {
     }
 
     companion object {
+        /**
+         * `notifications.database.driver`: `database` (Extract), `file` / `json`, or `memory` (default).
+         * When driver is `database` and [Database] is bound, uses [DatabaseNotificationStore].
+         * `notifications.database.path` still selects JSON file persistence for the memory/file driver.
+         * `notifications.database.table` names the Extract table (default `notifications`).
+         */
+        fun resolveStore(app: Application): NotificationStore {
+            val driver = app.config.getString("notifications.database.driver", "memory").lowercase()
+            if (driver == "database" || driver == "extract") {
+                if (app.container.bound(Database::class.java)) {
+                    val table = app.config.getString("notifications.database.table", "notifications")
+                    return DatabaseNotificationStore(app.resolve(Database::class.java), table)
+                }
+            }
+            return MemoryNotificationStore(resolveDatabasePath(app))
+        }
+
         /** `notifications.database.path` — absolute or relative to the app base path; blank = in-memory only. */
         fun resolveDatabasePath(app: Application): Path? {
             val configured = app.config.getString("notifications.database.path", "").trim()

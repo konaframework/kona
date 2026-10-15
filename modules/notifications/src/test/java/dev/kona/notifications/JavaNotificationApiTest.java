@@ -63,5 +63,9 @@ public class JavaNotificationApiTest {
         sender.send(new Person("p@x.com"), new Hello());
         assertEquals(1, transport.messages().size());
         assertEquals(1, db.all().size());
+        assertEquals(1, db.unread("p@x.com").size());
+        NotificationRecord row = db.unread("p@x.com").get(0);
+        db.markAsRead(row.getId());
+        assertEquals(0, db.unread("p@x.com").size());
     }
 }

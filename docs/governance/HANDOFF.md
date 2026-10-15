@@ -16,37 +16,36 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M16 — Durable queues** on `main` (PR #31) |
-| Active | **M17 — Scaffold provider wiring + Redis session + signed cookies** — ready for PR (`milestone/M17-scaffold-session-cookies`) |
-| App layout | Strict JVM hybrid under `src/main` (M14). Extract morphs/through/casts/pagination (M15). Durable queues (M16). |
-| Next after M17 | Open explicitly after merge (notifications durability / Crema Vite / etc.) |
+| Last merged milestone | **M17 — Scaffold + session/cookies** on `main` (PR #34) |
+| Active | **M18 — Notifications durability** (`milestone/M18-notifications-durability`) |
+| App layout | Strict JVM hybrid under `src/main`. Extract, durable queues, scaffold providers (M14–M17). |
+| Next after M18 | Crema Vite manifest/hot (or next thin surface) |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
 | Models | **Auto only** unless the human names a model for that turn |
-| Autopilot | Continue deepen milestones after ledger M13; do not pause between merges |
+| Autopilot | Continue deepen milestones; do not pause between merges |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9). |
 
-### M17 focus
+### M18 focus
 
-Scaffold kits depend on + register Extract/Redis/Session/Auth/Queue/Schedule/Mail; `APP_KEY` + `session.json`; cookie HMAC when encryption off; Redis session via providers; StartSession + CSRF except `/api/*`.
+Extract-backed notification store, unread / mark-as-read, ShouldQueue via Bus, keep JSON/memory drivers.
 
 ### Recently merged
 
 | Work | PR |
 |------|-----|
+| M17 Scaffold + Redis session + signed cookies | #34 |
+| docs: brand marks + Kotlin/Java tabs | #33 |
 | M16 Durable queues | #31 |
-| docs: mark M16 done | #32 |
-| M15 Extract morphs / through / casts / pagination | #30 |
-| M14 complete app tree under `src/main` | #29 |
 
-## Known thin surfaces (after M16)
+## Known thin surfaces (after M17)
 
 | Area | Thinness |
 |------|----------|
-| Scaffold / session | In progress M17 |
-| Notifications / broadcast / search | In-memory / log-null / memory search |
+| Notifications | In progress M18 |
 | Crema | Vite manifest/hot, richer `<x-*>` |
+| Broadcast / search | In-process / memory engines |
 
 ## Sister project — Kona Idea
 
