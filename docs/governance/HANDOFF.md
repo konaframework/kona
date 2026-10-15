@@ -16,10 +16,10 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M17 — Scaffold + session/cookies** on `main` (PR #34) |
-| Active | **M18 — Notifications durability** (`milestone/M18-notifications-durability`) |
-| App layout | Strict JVM hybrid under `src/main`. Extract, durable queues, scaffold providers (M14–M17). |
-| Next after M18 | Crema Vite manifest/hot (or next thin surface) |
+| Last merged milestone | **M18 — Notifications durability** on `main` (PR #35) |
+| Active | **M19 — Crema Vite manifest / hot** (`milestone/M19-crema-vite`) — in progress |
+| App layout | Strict JVM hybrid under `src/main`. Scaffold providers (M17), durable notifications (M18). |
+| Next after M19 | Open explicitly after merge |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
 | Models | **Auto only** unless the human names a model for that turn |
@@ -27,33 +27,25 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9). |
 
-### M18 focus
+### M19 focus
 
-Extract-backed notification store, unread / mark-as-read, ShouldQueue via Bus, keep JSON/memory drivers.
+Move Vite `AssetManifest` into `kona-crema`; Crema `@vite` / `ViteTags` honor `public/hot` + manifest; Inertia keeps facade.
 
 ### Recently merged
 
 | Work | PR |
 |------|-----|
-| M17 Scaffold + Redis session + signed cookies | #34 |
+| M18 Notifications durability | #35 |
+| M17 Scaffold + session/cookies | #34 |
 | docs: brand marks + Kotlin/Java tabs | #33 |
-| M16 Durable queues | #31 |
 
-## Known thin surfaces (after M17)
+## Known thin surfaces
 
 | Area | Thinness |
 |------|----------|
-| Notifications | In progress M18 |
-| Crema | Vite manifest/hot, richer `<x-*>` |
+| Crema Vite | In progress M19 |
+| Crema | richer `<x-*>` |
 | Broadcast / search | In-process / memory engines |
-
-## Sister project — Kona Idea
-
-| | |
-|--|--|
-| Repo | https://github.com/konaframework/kona-idea |
-| Local clone | `/home/smaosa/Projects/kona-idea` |
-| Latest release | v0.1.0 |
 
 ## Commands
 

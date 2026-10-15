@@ -5,8 +5,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dev.kona.crema.CremaEngine
 import dev.kona.http.Request
 import dev.kona.http.Response
-import dev.kona.inertia.assets.Vite
-import dev.kona.inertia.assets.ViteException
+import dev.kona.crema.assets.Vite
+import dev.kona.crema.assets.ViteException
 import java.util.concurrent.ConcurrentHashMap
 
 /**

@@ -2,6 +2,8 @@ package dev.kona.crema
 
 import dev.kona.core.Application
 import dev.kona.core.ServiceProvider
+import dev.kona.crema.assets.AssetManifest
+import dev.kona.crema.assets.Vite
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -16,6 +18,22 @@ class CremaServiceProvider : ServiceProvider {
             }
             CremaEngine(FileViewFinder(root))
         }
+        app.container.singleton(AssetManifest::class.java) {
+            val configured = app.config.getString("vite.public_path")
+                ?: app.config.getString("inertia.public_path")
+            val publicPath =
+                if (configured != null) {
+                    val path = Path.of(configured)
+                    if (path.isAbsolute) path else app.basePath.resolve(path)
+                } else {
+                    app.basePath.resolve("public")
+                }
+            AssetManifest(publicPath)
+        }
+    }
+
+    override fun boot(app: Application) {
+        Vite.setManifest(app.resolve(AssetManifest::class.java))
     }
 
     companion object {

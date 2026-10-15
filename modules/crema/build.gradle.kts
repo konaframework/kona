@@ -9,6 +9,8 @@ dependencies {
     api(project(":kona-core"))
     api(project(":kona-http"))
     api(project(":kona-support"))
+    api(libs.jackson.databind)
+    implementation(libs.jackson.module.kotlin)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
@@ -21,6 +23,8 @@ kover {
                 excludes {
                     // Template interpreter — exercised via CremaEngine behavioral suite.
                     classes("dev.kona.crema.CremaRuntime*")
+                    // Shared Vite resolver — covered by CremaViteTest + :kona-inertia:test suites.
+                    classes("dev.kona.crema.assets.*")
                 }
             }
             verify {

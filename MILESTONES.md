@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M18 — Notifications durability** (`milestone/M18-notifications-durability`).
+**Active milestone:** **M19 — Crema Vite manifest / hot** (`milestone/M19-crema-vite`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -622,7 +622,7 @@ M18 — Notifications durability.
 
 ## M18 — Notifications durability
 
-**Status:** active
+**Status:** done (merged PR #35)
 
 **Branch:** `milestone/M18-notifications-durability`
 
@@ -643,7 +643,32 @@ M18 — Notifications durability.
 
 ### Next (queued)
 
-Crema Vite manifest/hot (or next thin surface) opened after M18.
+M19 — Crema Vite manifest / hot.
+
+---
+
+## M19 — Crema Vite manifest / hot
+
+**Status:** active
+
+**Branch:** `milestone/M19-crema-vite`
+
+**Parity slice:** Crema `@vite` honors `public/hot` and `public/build/manifest.json` (same resolver as Inertia).
+
+### Parity checklist
+
+- [x] `AssetManifest` / `Vite` live in `kona-crema` (Inertia keeps thin facade)
+- [x] `CremaServiceProvider` binds public path (`vite.public_path` / `inertia.public_path` / `public/`)
+- [x] Crema `@vite` / `ViteTags` use hot + manifest when bound; fallback `/build/...` otherwise
+- [x] Kotlin + Java regressions; docs rewrite; 100% kover on touched modules
+
+### In-scope modules
+
+`kona-crema`, `kona-inertia` (re-export), `apps/docs/`
+
+### Next (queued)
+
+Opened after M19.
 
 ---
 
@@ -656,4 +681,5 @@ flowchart LR
   M15 --> M16[M16_Durable_Queue]
   M16 --> M17[M17_Scaffold_Session]
   M17 --> M18[M18_Notifications]
+  M18 --> M19[M19_Crema_Vite]
 ```
