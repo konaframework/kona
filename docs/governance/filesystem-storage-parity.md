@@ -45,5 +45,5 @@ Durable audit of **kona-filesystem** against Laravel Storage / Flysystem behavio
 - [x] 100% line + branch Kover on verified production types (`LocalAdapter`, `ScopedAdapter`, `ReadOnlyAdapter`, …)
 - [x] Java regressions for new public API
 - [x] Docs under `apps/docs/` filesystem cluster
-- [ ] PR merged to `main` with automerge
+- [ ] PR merged to `main` with automerge — https://github.com/konaframework/kona/pull/67
 - [x] Never mutate GitHub rulesets
