@@ -205,6 +205,104 @@ class GrindTest {
     }
 
     @Test
+    fun managedProcessRunnerDestroysTreeOnInterrupt() {
+        val pidFile = temp.resolve("child.pid")
+        val started = temp.resolve("child.started")
+        val thread = Thread {
+            ProcessRunner.SYSTEM.run(
+                listOf(
+                    "sh",
+                    "-c",
+                    "echo $$ > '${pidFile.toAbsolutePath()}'; touch '${started.toAbsolutePath()}'; sleep 120",
+                ),
+                temp,
+                emptyMap(),
+            )
+        }
+        thread.start()
+        val deadline = System.currentTimeMillis() + 10_000
+        while (!Files.exists(started) && System.currentTimeMillis() < deadline) {
+            Thread.sleep(25)
+        }
+        assertTrue(Files.exists(started), "child should have started")
+        val childPid = Files.readString(pidFile).trim().toLong()
+        thread.interrupt()
+        thread.join(10_000)
+        assertTrue(!thread.isAlive, "serve waiter should finish after interrupt")
+        assertTrue(!ProcessHandle.of(childPid).map { it.isAlive }.orElse(false), "child tree must die")
+    }
+
+    @Test
+    fun managedProcessRunnerShutdownHookAndEdgeBranches() {
+        val destroyed = mutableListOf<Process>()
+        val hooks = mutableListOf<Thread>()
+        val runner = ManagedProcessRunner(
+            addShutdownHook = { hooks += it },
+            removeShutdownHook = { hooks.remove(it) },
+            destroyTree = {
+                destroyed += it
+                ProcessTrees.destroy(it)
+            },
+        )
+        assertEquals(0, runner.run(listOf("sh", "-c", "exit 0"), temp, emptyMap()))
+        assertTrue(hooks.isEmpty(), "hook removed after clean exit")
+        assertEquals(1, destroyed.size, "finally always destroys the process tree")
+
+        // Hook install fails while child already exited → return exitValue (0).
+        val hookFailDead = ManagedProcessRunner(
+            addShutdownHook = { throw IllegalStateException("shutting down") },
+            destroyTree = ProcessTrees::destroy,
+        )
+        assertEquals(0, hookFailDead.run(listOf("true"), temp, emptyMap()))
+
+        // Hook install fails while destroy leaves child alive → 143.
+        val hookFailAlive = ManagedProcessRunner(
+            addShutdownHook = { throw IllegalStateException("shutting down") },
+            destroyTree = { },
+        )
+        assertEquals(143, hookFailAlive.run(listOf("sh", "-c", "sleep 60"), temp, emptyMap()))
+
+        val removeFails = ManagedProcessRunner(
+            addShutdownHook = { },
+            removeShutdownHook = { throw IllegalStateException("already shutting down") },
+            destroyTree = ProcessTrees::destroy,
+        )
+        assertEquals(0, removeFails.run(listOf("true"), temp, emptyMap()))
+
+        // Interrupt while destroy leaves the child alive → wait times out → 143.
+        val stubborn = ManagedProcessRunner(
+            addShutdownHook = { },
+            removeShutdownHook = { },
+            destroyTree = { },
+        )
+        val code = intArrayOf(-1)
+        val waiter = Thread {
+            code[0] = stubborn.run(listOf("sh", "-c", "sleep 60"), temp, emptyMap())
+        }
+        waiter.start()
+        val startedAt = System.currentTimeMillis()
+        while (waiter.state == Thread.State.NEW && System.currentTimeMillis() - startedAt < 2_000) {
+            Thread.sleep(10)
+        }
+        Thread.sleep(150)
+        waiter.interrupt()
+        waiter.join(10_000)
+        assertTrue(!waiter.isAlive)
+        assertEquals(143, code[0])
+
+        val nested = ProcessBuilder("sh", "-c", "sleep 60").directory(temp.toFile()).start()
+        ProcessTrees.destroy(nested)
+        assertTrue(nested.waitFor(5, java.util.concurrent.TimeUnit.SECONDS))
+        assertTrue(!nested.isAlive)
+
+        ProcessHandle.current().descendants()
+            .filter { handle ->
+                handle.info().commandLine().orElse("").contains("sleep 60")
+            }
+            .forEach { it.destroyForcibly() }
+    }
+
+    @Test
     fun serveInProcessRunsBootstrapAndReadsDotEnv() {
         val port = freePort()
         val base = fixtureProject(temp.resolve("inproc"), "APP_NAME=Fixture\nHOST=127.0.0.1\nPORT=$port\n")

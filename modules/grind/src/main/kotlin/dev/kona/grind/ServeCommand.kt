@@ -104,15 +104,61 @@ fun interface ProcessRunner {
 
     companion object {
         @JvmField
-        val SYSTEM = ProcessRunner { command, workingDir, environment ->
-            val builder = ProcessBuilder(command).directory(workingDir.toFile()).inheritIO()
-            builder.environment().putAll(environment)
-            val process = try {
-                builder.start()
-            } catch (ex: IOException) {
-                throw GrindException("Failed to start ${command.first()}: ${ex.message}")
-            }
-            process.waitFor()
+        val SYSTEM: ProcessRunner = ManagedProcessRunner()
+    }
+}
+
+/**
+ * Runs a child process and tears down the whole process tree on Ctrl+C / JVM exit.
+ *
+ * Without this, `grind serve` → `./gradlew run` → app JVM can orphan the HTTP listener when
+ * SIGINT kills only the grind JVM (Address already in use on the next serve).
+ */
+internal class ManagedProcessRunner(
+    private val addShutdownHook: (Thread) -> Unit = { Runtime.getRuntime().addShutdownHook(it) },
+    private val removeShutdownHook: (Thread) -> Unit = { Runtime.getRuntime().removeShutdownHook(it) },
+    private val destroyTree: (Process) -> Unit = ProcessTrees::destroy,
+) : ProcessRunner {
+    override fun run(command: List<String>, workingDir: Path, environment: Map<String, String>): Int {
+        val builder = ProcessBuilder(command).directory(workingDir.toFile()).inheritIO()
+        builder.environment().putAll(environment)
+        val process = try {
+            builder.start()
+        } catch (ex: IOException) {
+            throw GrindException("Failed to start ${command.first()}: ${ex.message}")
         }
+        val shutdown = Thread({ destroyTree(process) }, "kona-grind-process-shutdown")
+        try {
+            addShutdownHook(shutdown)
+        } catch (_: IllegalStateException) {
+            destroyTree(process)
+            return if (process.isAlive) 143 else process.exitValue()
+        }
+        try {
+            return try {
+                process.waitFor()
+            } catch (_: InterruptedException) {
+                destroyTree(process)
+                process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
+                Thread.currentThread().interrupt()
+                if (process.isAlive) 143 else process.exitValue()
+            }
+        } finally {
+            try {
+                removeShutdownHook(shutdown)
+            } catch (_: IllegalStateException) {
+                // JVM is already shutting down — hook may still be running.
+            }
+            // Always tear down: safe if the child already exited, required if Ctrl+C left it alive.
+            destroyTree(process)
+        }
+    }
+}
+
+/** Kills [process] and every living descendant (Gradle wrapper → application JVM). */
+internal object ProcessTrees {
+    fun destroy(process: Process) {
+        process.descendants().forEach { it.destroyForcibly() }
+        process.destroyForcibly()
     }
 }
