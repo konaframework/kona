@@ -23,7 +23,7 @@ import dev.kona.security.ThrottleRequests
 
 val limiter = app.resolve(RateLimiter::class.java)
 limiter.forName("login") { request ->
-    RateLimit(maxAttempts = 5, decaySeconds = 60)
+    RateLimit.perMinute(5) // or RateLimit(5, 60)
 }
 
 val router = app.resolve(Router::class.java)
@@ -44,7 +44,7 @@ import dev.kona.security.ThrottleRequests;
 import java.util.List;
 
 RateLimiter limiter = app.resolve(RateLimiter.class);
-limiter.forName("login", request -> new RateLimit(5, 60));
+limiter.forName("login", request -> RateLimit.perMinute(5));
 
 Router router = app.resolve(Router.class);
 router.prefix("/auth")

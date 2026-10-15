@@ -23,7 +23,8 @@ class InMemoryUserProvider @JvmOverloads constructor(
 
     fun all(): List<Authenticatable> = byId.values.toList()
 
-    override fun retrieveById(identifier: Any): Authenticatable? = byId[identifier]
+    override fun retrieveById(identifier: Any): Authenticatable? =
+        byId[identifier] ?: byId.entries.firstOrNull { it.key.toString() == identifier.toString() }?.value
 
     override fun retrieveByCredentials(credentials: Map<String, Any?>): Authenticatable? {
         val loginKeys = credentials.keys.filter { it != passwordKey }
@@ -44,6 +45,20 @@ class InMemoryUserProvider @JvmOverloads constructor(
             return false
         }
         return hasher.check(plainValue.toString(), user.getAuthPassword())
+    }
+
+    override fun retrieveByToken(identifier: Any, token: String): Authenticatable? {
+        val user = retrieveById(identifier) ?: return null
+        val remember = user.getRememberToken()
+        if (remember.isNullOrBlank() || remember != token) {
+            return null
+        }
+        return user
+    }
+
+    override fun updateRememberToken(user: Authenticatable, token: String?) {
+        user.setRememberToken(token)
+        byId[user.getAuthIdentifier()] = user
     }
 
     private fun credentialValue(user: Authenticatable, key: String): Any? {
