@@ -40,6 +40,12 @@ class Response(
         return this
     }
 
+    /** Set multiple headers (Laravel `withHeaders`). */
+    fun withHeaders(values: Map<String, String>): Response {
+        headers.putAll(values)
+        return this
+    }
+
     fun cookie(cookie: Cookie): Response {
         cookies += cookie
         return this
