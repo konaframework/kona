@@ -89,6 +89,48 @@ class GrindTest {
         assertEquals(1, GrindApplication().run(arrayOf("make:request", "Bad-Name", "--base=$base")))
         assertTrue(ListCommand.COMMANDS.any { it.first == "make:middleware" })
         assertTrue(ListCommand.COMMANDS.any { it.first == "make:request" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "storage:link" })
+    }
+
+    @Test
+    fun storageLink() {
+        val base = temp.resolve("storage-proj")
+        Files.createDirectories(base.resolve("src/main/resources/public"))
+        assertEquals(0, StorageLinkCommand().run(listOf("--base=$base")))
+        val link = base.resolve("src/main/resources/public/storage")
+        assertTrue(Files.isSymbolicLink(link))
+        assertEquals(
+            base.resolve("storage/app/public").normalize(),
+            Files.readSymbolicLink(link).normalize(),
+        )
+        assertEquals(0, StorageLinkCommand().run(listOf("--base=$base")))
+        val conflict = temp.resolve("conflict-proj")
+        Files.createDirectories(conflict.resolve("src/main/resources/public"))
+        Files.writeString(conflict.resolve("src/main/resources/public/storage"), "file")
+        assertThrows(GrindException::class.java) {
+            StorageLinkCommand().run(listOf("--base=$conflict"))
+        }
+        val wrongLink = temp.resolve("wrong-link")
+        Files.createDirectories(wrongLink.resolve("src/main/resources/public"))
+        Files.createDirectories(wrongLink.resolve("storage/app/other"))
+        Files.createSymbolicLink(
+            wrongLink.resolve("src/main/resources/public/storage"),
+            wrongLink.resolve("storage/app/other"),
+        )
+        assertThrows(GrindException::class.java) {
+            StorageLinkCommand().run(listOf("--base=$wrongLink"))
+        }
+        val plain = temp.resolve("plain-public")
+        Files.createDirectories(plain)
+        assertEquals(0, StorageLinkCommand().run(listOf("--base=$plain")))
+        assertTrue(Files.isSymbolicLink(plain.resolve("public/storage")))
+        assertEquals(0, GrindApplication().run(arrayOf("storage:link", "--base=$base")))
+        val cwd = temp.resolve("cwd-link").toAbsolutePath()
+        Files.createDirectories(cwd)
+        assertEquals(0, StorageLinkCommand(cwd).run(emptyList()))
+        assertTrue(Files.isSymbolicLink(cwd.resolve("public/storage")))
+        // Default no-arg constructor (JvmOverloads) uses process CWD — just ensure it constructs.
+        assertTrue(StorageLinkCommand().javaClass.name.contains("StorageLinkCommand"))
     }
 
     @Test

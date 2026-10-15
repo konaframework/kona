@@ -10,6 +10,7 @@ import dev.kona.core.Env;
 import dev.kona.core.Kona;
 import dev.kona.crema.CremaServiceProvider;
 import dev.kona.extract.ExtractServiceProvider;
+import dev.kona.filesystem.FilesystemServiceProvider;
 import dev.kona.http.HttpKernel;
 import dev.kona.http.HttpServiceProvider;
 import dev.kona.http.KonaHttpServer;
@@ -28,6 +29,7 @@ public final class App {
             .providers(
                 new HttpServiceProvider(),
                 new ExtractServiceProvider(),
+                new FilesystemServiceProvider(),
                 new RedisServiceProvider(),
                 new SessionServiceProvider(),
                 new AuthServiceProvider(),

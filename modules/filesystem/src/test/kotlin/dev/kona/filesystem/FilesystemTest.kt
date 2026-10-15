@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
@@ -100,6 +101,29 @@ class FilesystemTest {
         assertTrue(FilesystemManager(Config().also { it.set("filesystems.default", "memory") }, base).disk() is S3Adapter)
         assertTrue(FilesystemManager(Config().also { it.set("filesystems.default", "local") }, base).disk() is LocalAdapter)
         assertTrue(FilesystemManager(Config().also { it.set("filesystems.default", "unknown") }, base).disk() is LocalAdapter)
+        val publicDisk = FilesystemManager(Config().also { it.set("filesystems.default", "public") }, base).disk()
+        assertTrue(publicDisk is LocalAdapter)
+        assertEquals("/storage/a.txt", publicDisk.url("a.txt"))
+        publicDisk.put("pub.txt", "p")
+        assertTrue(Files.exists(base.resolve("storage/app/public/pub.txt")))
+        val relative = FilesystemManager(
+            Config().also {
+                it.set("filesystems.default", "local")
+                it.set("filesystems.disks.local.driver", "local")
+                it.set("filesystems.disks.local.root", "rel-store")
+            },
+            base,
+        ).disk()
+        relative.put("r.txt", "rel")
+        assertTrue(Files.exists(base.resolve("rel-store/r.txt")))
+        val signed = FilesystemManager(Config(), base).temporaryUrl(
+            "x.txt",
+            30,
+            { url, exp -> "$url?e=$exp&sig=1" },
+            "public",
+        )
+        assertTrue(signed.startsWith("/storage/x.txt?"))
+        assertTrue(signed.contains("e=30"))
         assertThrows(IllegalStateException::class.java) {
             FilesystemManager(
                 Config().also {
