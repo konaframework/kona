@@ -110,6 +110,8 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Collections (Extract) | M4 | done |
 | Soft Deletes & Events | Soft deletes M2; model events M4 | done |
 
+Living deepen ledger (Eloquent + Database engines/grammars): [docs/governance/extract-eloquent-parity.md](docs/governance/extract-eloquent-parity.md).
+
 ### View layer (Crema)
 
 | Topic | Milestone | Status |
