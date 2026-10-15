@@ -16,8 +16,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M23 — Binary downloads & signed storage** on `main` (PR #42) |
-| Active | **M24 — Executable config** on `milestone/M24-executable-config` |
+| Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
+| Active | Open next deepen after M24 |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -30,6 +30,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
+| M24 Executable config | #53 |
 | M23 Binary downloads & signed storage | #42 |
 | M22 Multipart uploads | #40 |
 | M21 Web form round-trip | #39 |
@@ -37,7 +38,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ### Notes
 
-- M24 in flight: executable `ConfigFile` config (no JSON). After merge, strong M25 candidate: session auth middleware + Extract user provider + remember-cookie (web login).
+- Strong M25 candidate: session auth middleware + Extract user provider + remember-cookie (web login).
 - **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
 
 ## Commands
