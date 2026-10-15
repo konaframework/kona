@@ -8,7 +8,7 @@ Living audit of `dev.kona.extract` against Laravel Eloquent / query builder / da
 |------|--------|
 | Last audit | 2026-10-15 |
 | Last code on `main` (pre-batch) | PR #61 |
-| Active deepen | B1 shipping (ORM builder + DB grammar registry + connection docs) |
+| Active deepen | B1 in PR #65; next B2 (`whereDate*`, MySQL schema specialization) |
 
 ---
 
