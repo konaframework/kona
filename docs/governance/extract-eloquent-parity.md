@@ -4,11 +4,13 @@ Living audit of `dev.kona.extract` against Laravel Eloquent / query builder / da
 
 **Status:** `done` | `partial` | `missing`
 
+Reconciled with explore audits ([Audit Extract model CRUD](8bd4dec2-3a9a-4899-ac32-3dc0c84550d5), [Audit Extract queries relations](35501d27-4e78-42ac-8662-f43c3873b906)) after **PR #65** landed — those audits predated B1; stale “missing” for tap/locks/cursor/`isClean(key)`/model increment are closed.
+
 | Meta | Value |
 |------|--------|
-| Last audit | 2026-10-15 |
-| Last code on `main` (pre-batch) | PR #61 |
-| Active deepen | B1 in PR #65; next B2 (`whereDate*`, MySQL schema specialization) |
+| Last audit | 2026-10-15 (post-#65 reconcile) |
+| Last merged deepen | PR #65 (B1); B2 PR in flight |
+| Active deepen | **B3** — global scopes (after B2 merges) |
 
 ---
 
@@ -21,21 +23,21 @@ Living audit of `dev.kona.extract` against Laravel Eloquent / query builder / da
 3. **Identifier parity** — scaffold URLs include `DATABASE_TO_LOWER=TRUE` so quoted `"users"` matches unquoted `users` in hand-written SQL (H2 otherwise upper-cases unquoted names).
 4. **`DB_CLOSE_DELAY=-1`** on mem URLs keeps the DB alive for the JVM process (pool reconnects).
 
-**Decision:** **Keep H2 as the scaffold/default** for local demo and tests. Document PostgreSQL / MySQL as the **production** targets and make switching a first-class guide (`.env` + driver dependency). Do **not** silently change `kona new` to require a server database.
+**Decision:** **Keep H2 as the scaffold/default** for local demo and tests. Document PostgreSQL / MySQL as the **production** targets. Do **not** silently change `kona new` to require a server database.
 
-Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Database.*`, `TestDb.kt`.
+Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Database.*`, `TestDb.kt`. Guide: `apps/docs/.../extract/database.mdx`.
 
 ---
 
 ## Supported databases / grammars (today)
 
-| Engine | Query `Grammar` | Schema `SchemaGrammar` | Evidence | Notes |
-|--------|-----------------|------------------------|----------|-------|
-| **H2** | `Grammar.ANSI` via `forUrl` | `H2SchemaGrammar` (`TEXT` → `CHARACTER VARYING`) | `Grammar.kt`, `SchemaGrammar.kt`, `SchemaTest` | Scaffold + tests default |
-| **PostgreSQL** | `Grammar.ANSI` | `STANDARD` / `POSTGRES` alias | `forProduct("PostgreSQL")` → STANDARD | Production-ready quoting; DDL uses standard SQL |
-| **MySQL / MariaDB** | `Grammar.MYSQL` (backticks) | `STANDARD` + MYSQL identifiers | `Grammar.forUrl("jdbc:mysql:")` | No MySQL-specific ID/`AUTO_INCREMENT` grammar yet (**partial**) |
-| **SQLite** | `Grammar.ANSI` (URL not special-cased) | `STANDARD` | Same path as Postgres | Identity / type quirks not specialized (**partial**) |
-| **Other JDBC** | ANSI unless registered | STANDARD unless registered | `Grammar.registerUrlPrefix`, `SchemaGrammar.registerProduct` | Extension path (**done** in B1) |
+| Engine | Query `Grammar` | Schema `SchemaGrammar` | Notes |
+|--------|-----------------|------------------------|-------|
+| **H2** | ANSI | `H2SchemaGrammar` | Scaffold + tests |
+| **PostgreSQL** | ANSI | STANDARD / POSTGRES | Production-ready quoting |
+| **MySQL / MariaDB** | MYSQL backticks | STANDARD + MySQL identifiers | AUTO_INCREMENT DDL still **partial** |
+| **SQLite** | ANSI | STANDARD | No SQLite-specific DDL (**partial**) |
+| **Other JDBC** | `Grammar.registerUrlPrefix` | `SchemaGrammar.registerProduct` | Extension path **done** (#65) |
 
 ---
 
@@ -43,70 +45,51 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 
 | API | Status | Evidence |
 |-----|--------|----------|
-| `Database` named connections / pool / `close` / `disconnect` | **done** | `Database.kt` |
-| `Database.fromConfig` / `fromMap` / `DB_*` fallback | **done** | `Database.fromConfig`; env when `DB_URL` set |
-| `DB` facade (table/select/insert/update/delete/statement/transaction) | **done** | `DB.kt` |
-| Transactions (thread-bound connection) | **done** | `DatabaseConnection.transaction` |
-| `ConnectionConfig` map + env keys | **done** | `url`, `username`, `password`, `driver`, `pool_size`, `quote_identifiers` |
-| Custom `DataSource` + explicit `Grammar` | **done** | `addConnection(name, dataSource, grammar)` |
-| Query `Grammar` URL registry | **done** | `Grammar.registerUrlPrefix` (B1) |
-| Schema product registry | **done** | `SchemaGrammar.registerProduct` (B1) |
-| MySQL-specific DDL (AUTO_INCREMENT, etc.) | **partial** | Uses STANDARD types |
-| SQLite-specific DDL | **partial** | Uses STANDARD |
-| Multi-DB docs (configure each + add new) | **done** | `apps/docs/.../extract/database.mdx` (B1) |
+| Connections / `fromConfig` / `DB` / transactions | **done** | `Database.kt`, `DB.kt` |
+| Grammar + SchemaGrammar registries | **done** | #65 |
+| Multi-DB docs | **done** | `extract/database.mdx` |
+| MySQL / SQLite schema specialization | **partial** | STANDARD types |
 
 ---
 
 ## Model CRUD & attributes
 
-| API | Status | Evidence |
-|-----|--------|----------|
-| create/save/update/delete/soft/force/restore | **done** | `Extract`, `SoftDeletes` |
-| refresh/fresh/replicate/fill/forceFill | **done** | `Extract`; `EloquentParityTest` |
-| wasChanged/getChanges/isDirty/getDirty/getOriginal | **done** | `Extract` |
-| `isClean()` / `isClean(key)` | **done** | B1 |
-| touch/timestamps/custom PK/connectionName | **done** | `Extract` |
-| Model `increment` / `decrement` | **done** | B1 |
-| upsert/updateOrInsert/insertOrIgnore | **done** | QB + ModelBuilder |
-| firstOrNew/firstOrCreate/updateOrCreate/findOrNew | **done** | Companion + builder; findOrNew B1 |
-| truncate/destroy | **done** | #61 |
-| Casts / CastsAttributes / mutator hooks | **done** / **partial** | hooks; no magic `getFooAttribute` reflection |
-| appends/hidden/visible/toArray/toJson | **done** | `Extract` |
-| Model events via `ModelDispatcher` | **done** | `ModelEvent.kt` |
-| Observer classes | **missing** | — |
-| `push` (save + relations) | **missing** | — |
+| API | Status | Notes |
+|-----|--------|-------|
+| Core CRUD / soft deletes / refresh / replicate / fill | **done** | — |
+| Dirty tracking + `isClean(key)` + model increment | **done** | #65 |
+| Events via `ModelDispatcher` | **done** | No Observer classes yet |
+| Observer classes / `observe` | **missing** | B5 |
+| `push` / `withoutTimestamps` / `unguard` | **missing** | B6 / later |
+| Attribute magic `getFooAttribute` | **partial** | Hooks only |
 
 ---
 
 ## Queries
 
-| API | Status | Evidence |
-|-----|--------|----------|
-| where*/orWhere*/In/Null/Between/Column/Raw | **done** | QB; ModelBuilder orWhereNull/In* **done** B1 |
-| when/unless/tap | **done** | tap B1 |
-| Local `scope { }` | **done** | ModelBuilder |
-| Global scopes | **missing** | — |
-| Soft-delete scope | **done** | ModelBuilder.toBase |
-| order/limit/offset/chunk | **done** | — |
-| cursor/lazy/lazyById/chunkById | **done** | B1 |
-| aggregates/pluck/value/exists | **done** | — |
-| lockForUpdate/sharedLock | **done** | B1 (sharedLock SQL may fail on H2) |
-| paginate/simple/cursor | **done** | M15 |
-| whereDate*/havingRaw/union | **missing** | — |
+| API | Status | Notes |
+|-----|--------|-------|
+| where* / orWhere* / In / Null / Between / Column / Raw | **done** | ModelBuilder orWhereNull/In* #65 |
+| ModelBuilder `orWhereRaw` / `groupBy` / `having` / `selectRaw` / `addSelect` / `distinct` | **done** | B2 |
+| when / unless / tap / locks / cursor / lazy / chunkById | **done** | #65 |
+| `whereDate` / `Day` / `Month` / `Year` / `Time` (+ `or…`) | **done** | B2 (`cast` / `extract`) |
+| `havingRaw` / `orHaving` / `orHavingRaw` | **done** | B2 |
+| Global scopes | **missing** | B3 |
+| `union` / `crossJoin` | **missing** | later |
+| `pluck(column, key)` keyed | **partial** | column list only |
+| Native SQL upsert | **partial** | portable SELECT+UPDATE |
 
 ---
 
 ## Relations
 
-| API | Status | Evidence |
-|-----|--------|----------|
-| hasOne/hasMany/belongsTo/belongsToMany | **done** | — |
-| has*Through / morphOne/Many/To | **done** | M15 |
-| morphToMany / morphedByMany | **missing** | — |
-| with/load/loadMissing/withCount/Exists/Sum | **done** | — |
-| whereHas* / pivot attach/sync/… | **done** | — |
-| relation firstOrCreate/updateOrCreate | **done** | #61 |
-| withAvg/Max/Min | **missing** | — |
+| API | Status | Notes |
+|-----|--------|-------|
+| Core + through + morphOne/Many/To | **done** | M15 |
+| morphToMany / morphedByMany | **missing** | B4 |
+| MorphTo `whereHas` / existence | **missing** | correlate rejects MorphTo |
+| withAvg / withMax / withMin | **missing** | B6 |
+| BelongsToMany firstOrCreate | **missing** | HasOneOrMany only |
 
 ---
 
@@ -114,17 +97,16 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 
 | Batch | Scope | Status |
 |-------|--------|--------|
-| **B1** | ORM: orWhere*, tap, locks, cursor/lazy/chunkById, findOrNew, isClean(key), increment; DB: Grammar/SchemaGrammar registries; docs: database.mdx + ledger | **done** (this PR) |
-| **B2** | whereDate*; havingRaw; MySQL schema specialization | queued |
+| **B1** | Builder deepen + grammar registries + database docs | **done** (#65) |
+| **B2** | `whereDate*`; ModelBuilder select/group/having/orWhereRaw mirrors; `havingRaw`/`orHaving` | **done** (PR) |
 | **B3** | Global scopes | queued |
-| **B4** | morphToMany / morphedByMany | queued |
-| **B5** | Observer classes | queued |
-| **B6** | withAvg/Max/Min; push; sole | queued |
+| **B4** | morphToMany / morphedByMany (+ MorphTo whereHas if in scope) | queued |
+| **B5** | Observer class registration | queued |
+| **B6** | withAvg/Max/Min; push; sole; keyed pluck | queued |
 
 ---
 
 ## Docs
 
-- Public: `apps/docs/src/content/docs/docs/extract/database.mdx` (connections, env, engines, adding a DB)
-- Public: extract overview / query-builder / models (keep in sync)
+- Public: `apps/docs/.../extract/database.mdx`, query-builder, models, relations
 - Internal: this ledger

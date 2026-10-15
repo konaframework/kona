@@ -136,6 +136,57 @@ class QueryBuilder(val connection: DatabaseConnection) {
         return this
     }
 
+    /** Compare the date part of [column] (`cast(col as date)`). */
+    fun whereDate(column: String, value: Any?): QueryBuilder = whereDate(column, "=", value)
+
+    fun whereDate(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(AND, "date", column, operator, value)
+
+    fun orWhereDate(column: String, value: Any?): QueryBuilder = orWhereDate(column, "=", value)
+
+    fun orWhereDate(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(OR, "date", column, operator, value)
+
+    fun whereDay(column: String, value: Any?): QueryBuilder = whereDay(column, "=", value)
+
+    fun whereDay(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(AND, "day", column, operator, value)
+
+    fun orWhereDay(column: String, value: Any?): QueryBuilder = orWhereDay(column, "=", value)
+
+    fun orWhereDay(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(OR, "day", column, operator, value)
+
+    fun whereMonth(column: String, value: Any?): QueryBuilder = whereMonth(column, "=", value)
+
+    fun whereMonth(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(AND, "month", column, operator, value)
+
+    fun orWhereMonth(column: String, value: Any?): QueryBuilder = orWhereMonth(column, "=", value)
+
+    fun orWhereMonth(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(OR, "month", column, operator, value)
+
+    fun whereYear(column: String, value: Any?): QueryBuilder = whereYear(column, "=", value)
+
+    fun whereYear(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(AND, "year", column, operator, value)
+
+    fun orWhereYear(column: String, value: Any?): QueryBuilder = orWhereYear(column, "=", value)
+
+    fun orWhereYear(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(OR, "year", column, operator, value)
+
+    fun whereTime(column: String, value: Any?): QueryBuilder = whereTime(column, "=", value)
+
+    fun whereTime(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(AND, "time", column, operator, value)
+
+    fun orWhereTime(column: String, value: Any?): QueryBuilder = orWhereTime(column, "=", value)
+
+    fun orWhereTime(column: String, operator: String, value: Any?): QueryBuilder =
+        addDatePart(OR, "time", column, operator, value)
+
     /** Applies [callback] only when [condition] is true. */
     fun `when`(condition: Boolean, callback: Consumer<QueryBuilder>): QueryBuilder {
         if (condition) {
@@ -182,6 +233,23 @@ class QueryBuilder(val connection: DatabaseConnection) {
 
     fun having(column: String, operator: String, value: Any?): QueryBuilder {
         havings.add(Clause(AND, "${grammar.wrap(column)} ${operatorOf(operator)} ?", listOf(value)))
+        return this
+    }
+
+    fun orHaving(column: String, operator: String, value: Any?): QueryBuilder {
+        havings.add(Clause(OR, "${grammar.wrap(column)} ${operatorOf(operator)} ?", listOf(value)))
+        return this
+    }
+
+    @JvmOverloads
+    fun havingRaw(sql: String, bindings: List<Any?> = emptyList()): QueryBuilder {
+        havings.add(Clause(AND, sql, bindings))
+        return this
+    }
+
+    @JvmOverloads
+    fun orHavingRaw(sql: String, bindings: List<Any?> = emptyList()): QueryBuilder {
+        havings.add(Clause(OR, sql, bindings))
         return this
     }
 
@@ -593,6 +661,24 @@ class QueryBuilder(val connection: DatabaseConnection) {
             wheres.clear()
             wheres.add(group)
         }
+        return this
+    }
+
+    private fun addDatePart(
+        boolean: String,
+        part: String,
+        column: String,
+        operator: String,
+        value: Any?,
+    ): QueryBuilder {
+        val op = operatorOf(operator)
+        val wrapped = grammar.wrap(column)
+        val expression = when (part) {
+            "date" -> "cast($wrapped as date)"
+            "time" -> "cast($wrapped as time)"
+            else -> "extract($part from $wrapped)"
+        }
+        wheres.add(Clause(boolean, "$expression $op ?", listOf(value)))
         return this
     }
 
