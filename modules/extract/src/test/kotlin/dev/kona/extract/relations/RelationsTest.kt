@@ -65,6 +65,63 @@ class RelationsTest {
     }
 
     @Test
+    fun hasManyFirstOrCreateAndUpdateOrCreate() {
+        val ada = author("Ada")
+        val bob = author("Bob")
+        bob.books().create(mapOf("title" to "BobOnly"))
+
+        val draft = ada.books().firstOrNew(mapOf("title" to "Draft"))
+        assertFalse(draft.exists())
+        assertEquals(ada.getKey(), draft["author_id"])
+        assertEquals("Draft", draft["title"])
+
+        val created = ada.books().firstOrCreate(mapOf("title" to "Engines"), mapOf("title" to "Engines"))
+        assertTrue(created.exists())
+        assertEquals(ada.getKey(), created["author_id"])
+        assertEquals("Engines", created["title"])
+        assertEquals(created.getKey(), ada.books().firstOrCreate(mapOf("title" to "Engines")).getKey())
+        assertEquals(1L, ada.books().where("title", "Engines").count())
+        assertEquals(0L, bob.books().where("title", "Engines").count())
+
+        val oneArg = ada.books().firstOrCreate(mapOf("title" to "Letters"))
+        assertTrue(oneArg.exists())
+        assertEquals(ada.getKey(), oneArg["author_id"])
+
+        val updated = ada.books().updateOrCreate(mapOf("title" to "Engines"), mapOf("title" to "Engines v2"))
+        assertEquals(created.getKey(), updated.getKey())
+        assertEquals("Engines v2", updated["title"])
+
+        val brand = ada.books().updateOrCreate(mapOf("title" to "BrandNew"))
+        assertTrue(brand.exists())
+        assertEquals(ada.getKey(), brand["author_id"])
+        assertEquals("BrandNew", brand["title"])
+
+        val existingNew = ada.books().firstOrNew(mapOf("title" to "BrandNew"))
+        assertTrue(existingNew.exists())
+        assertEquals(brand.getKey(), existingNew.getKey())
+
+        assertThrows(IllegalStateException::class.java) {
+            Author().books().firstOrCreate(mapOf("title" to "x"))
+        }
+        assertThrows(IllegalStateException::class.java) {
+            Author().books().updateOrCreate(mapOf("title" to "x"))
+        }
+        assertThrows(IllegalStateException::class.java) {
+            Author().books().firstOrNew(mapOf("title" to "x"))
+        }
+
+        val profile = ada.profile().firstOrCreate(mapOf("bio" to "Hi"))
+        assertEquals("Hi", profile["bio"])
+        assertEquals(ada.getKey(), profile["author_id"])
+        assertEquals(profile.getKey(), ada.profile().firstOrCreate(mapOf("bio" to "Hi"), mapOf("bio" to "Nope")).getKey())
+        assertEquals(
+            profile.getKey(),
+            ada.profile().updateOrCreate(mapOf("bio" to "Hi"), mapOf("bio" to "Hello")).getKey(),
+        )
+        assertEquals("Hello", ada.profile().first()!!["bio"])
+    }
+
+    @Test
     fun hasOneAndAssociate() {
         val ada = author("Ada")
         assertNull(ada.profile().first())

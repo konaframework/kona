@@ -104,4 +104,9 @@ open class ExtractCompanion<T : Extract<T>>(
     fun destroy(vararg ids: Any): Int = destroy(ids.asList())
 
     fun destroy(ids: Collection<*>): Int = findMany(ids).count { it.delete() }
+
+    /** Empties this model's table (`TRUNCATE TABLE`). */
+    fun truncate() {
+        query().truncate()
+    }
 }

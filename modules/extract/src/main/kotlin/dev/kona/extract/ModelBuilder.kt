@@ -378,6 +378,11 @@ class ModelBuilder<T : Extract<T>> internal constructor(
     /** Permanently deletes matching rows (respecting the current trashed scope). */
     fun forceDelete(): Int = toBase().delete()
 
+    /** Empties the model's table (`TRUNCATE TABLE`). Ignores query constraints and soft-delete scopes. */
+    fun truncate() {
+        toBase().truncate()
+    }
+
     /** Clears `deleted_at` on matching rows (trashed included); 0 for models without [SoftDeletes]. */
     fun restore(): Int {
         val model = model

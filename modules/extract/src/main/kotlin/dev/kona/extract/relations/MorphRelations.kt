@@ -72,12 +72,8 @@ class MorphMany<R : Extract<R>>(
         models.forEach { it.setRelation(relation, grouped[keyOf(it)] ?: emptyList<R>()) }
     }
 
-    override fun create(attributes: Map<String, Any?>): R {
-        val model = make(attributes)
-        model.setAttribute(morphType, morphClass)
-        model.save()
-        return model
-    }
+    override fun make(attributes: Map<String, Any?>): R =
+        super.make(attributes).also { it.setAttribute(morphType, morphClass) }
 }
 
 /** Parent owns at most one polymorphic related row. */
@@ -109,12 +105,8 @@ class MorphOne<R : Extract<R>>(
         models.forEach { it.setRelation(relation, grouped[keyOf(it)]?.first()) }
     }
 
-    override fun create(attributes: Map<String, Any?>): R {
-        val model = make(attributes)
-        model.setAttribute(morphType, morphClass)
-        model.save()
-        return model
-    }
+    override fun make(attributes: Map<String, Any?>): R =
+        super.make(attributes).also { it.setAttribute(morphType, morphClass) }
 }
 
 /** Placeholder related model for [MorphTo]'s type parameter (never queried as a table). */

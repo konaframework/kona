@@ -228,6 +228,21 @@ class EloquentParityTest {
     }
 
     @Test
+    fun modelTruncateEmptiesTable() {
+        User.create(mapOf("name" to "Ada", "email" to "a@x", "age" to 36))
+        User.create(mapOf("name" to "Grace", "email" to "g@x", "age" to 45))
+        assertEquals(2L, User.count())
+
+        User.truncate()
+        assertEquals(0L, User.count())
+
+        User.create(mapOf("name" to "Ada", "email" to "a@x", "age" to 36))
+        assertEquals(1L, User.count())
+        User.query().truncate()
+        assertEquals(0L, User.count())
+    }
+
+    @Test
     fun extractReplicateIsTouchMutatorsAndQuiet() {
         ModelDispatcher.flush()
         val seen = mutableListOf<ModelEvent>()

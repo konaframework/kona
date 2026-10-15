@@ -121,6 +121,41 @@ class MorphRelationsTest {
     }
 
     @Test
+    fun morphManyFirstOrCreateSetsMorphType() {
+        val post = MorphPost.create(mapOf("title" to "Hello"))
+        val video = MorphVideo.create(mapOf("title" to "Clip"))
+        video.comments().create(mapOf("body" to "Video note"))
+
+        val draft = post.comments().firstOrNew(mapOf("body" to "Draft"))
+        assertFalse(draft.exists())
+        assertEquals("posts", draft.getAttribute("commentable_type"))
+        assertEquals(post.getKey(), draft.getAttribute("commentable_id"))
+
+        val created = post.comments().firstOrCreate(mapOf("body" to "Nice"))
+        assertTrue(created.exists())
+        assertEquals("posts", created.getAttribute("commentable_type"))
+        assertEquals(post.getKey(), created.getAttribute("commentable_id"))
+        assertEquals(created.getKey(), post.comments().firstOrCreate(mapOf("body" to "Nice")).getKey())
+        assertEquals(0L, video.comments().where("body", "Nice").count())
+
+        val updated = post.comments().updateOrCreate(mapOf("body" to "Nice"), mapOf("body" to "Nicer"))
+        assertEquals(created.getKey(), updated.getKey())
+        assertEquals("Nicer", updated["body"])
+
+        val image = post.image().firstOrCreate(mapOf("url" to "https://example.com/a.png"))
+        assertEquals("posts", image.getAttribute("imageable_type"))
+        assertEquals(post.getKey(), image.getAttribute("imageable_id"))
+        assertEquals(image.getKey(), post.image().firstOrCreate(mapOf("url" to "https://example.com/a.png")).getKey())
+        assertEquals(
+            image.getKey(),
+            post.image().updateOrCreate(
+                mapOf("url" to "https://example.com/a.png"),
+                mapOf("url" to "https://example.com/b.png"),
+            ).getKey(),
+        )
+    }
+
+    @Test
     fun morphOneAndMorphTo() {
         val post = MorphPost.create(mapOf("title" to "P"))
         post.image().create(mapOf("url" to "https://example.com/a.png"))

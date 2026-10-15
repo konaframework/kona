@@ -291,6 +291,12 @@ val post = user.posts().create(mapOf("title" to "Hello"))     // fill (fillable 
 val draft = user.posts().make(mapOf("title" to "Draft"))      // same, unsaved
 user.posts().save(Post().forceFill(mapOf("title" to "Imported")))
 user.posts().createMany(listOf(mapOf("title" to "A"), mapOf("title" to "B")))
+
+// Find under this relation's scope, or create / update linked to the parent:
+user.posts().firstOrCreate(mapOf("title" to "Hello"))
+user.posts().firstOrCreate(mapOf("slug" to "hello"), mapOf("title" to "Hello"))
+user.posts().updateOrCreate(mapOf("slug" to "hello"), mapOf("title" to "Hello again"))
+user.posts().firstOrNew(mapOf("title" to "Draft"))           // unsaved when missing
 ```
 
 </TabItem>
@@ -301,13 +307,18 @@ Post post = user.posts().create(Map.of("title", "Hello"));
 Post draft = user.posts().make(Map.of("title", "Draft"));
 user.posts().save(new Post().forceFill(Map.of("title", "Imported")));
 user.posts().createMany(List.of(Map.of("title", "A"), Map.of("title", "B")));
+
+user.posts().firstOrCreate(Map.of("title", "Hello"));
+user.posts().firstOrCreate(Map.of("slug", "hello"), Map.of("title", "Hello"));
+user.posts().updateOrCreate(Map.of("slug", "hello"), Map.of("title", "Hello again"));
+user.posts().firstOrNew(Map.of("title", "Draft"));
 ```
 
 </TabItem>
 </Tabs>
 
 
-These throw `IllegalStateException` when the parent has not been saved yet (it has no key to copy).
+These throw `IllegalStateException` when the parent has not been saved yet (it has no key to copy). `firstOrCreate` / `updateOrCreate` / `firstOrNew` search only among rows already linked to the parent (and set the foreign key — and morph type for polymorphic relations — when creating).
 
 ### belongsTo
 
