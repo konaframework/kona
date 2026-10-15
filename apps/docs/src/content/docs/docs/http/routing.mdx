@@ -1,34 +1,32 @@
 ---
 title: Routing
-description: Map URLs and HTTP methods to handlers, with path parameters, groups, named routes, and resource routes.
+description: Map URLs and HTTP methods to handlers and controllers — verbs, path parameters, resource routes, groups, middleware, and named URLs.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 The **router** decides which code runs for an incoming request. A **route** is one entry in the router: a set of HTTP methods, a path pattern such as `/users/{id}`, and a **handler** — a function that receives the `Request` and returns a `Response`. When a request arrives, the [HTTP kernel](../kernel-server/) asks the router for the first matching route, then runs that route’s middleware and handler.
 
-## Getting the router
+This page walks from the simplest route to the patterns used in a `kona new` app: route classes, controller methods, resource controllers, groups, and named URLs.
 
-`HttpServiceProvider` registers one shared `Router` in the application container. Resolve it after the application has booted — in a provider’s `boot` method, or right after `boot()` in your bootstrap code. Applications created by `kona new` do the latter and pass the router to a `WebRoutes` class:
+## Simplest route
+
+A handler is any function shaped `Request → Response`. In Kotlin that is usually a trailing lambda; in Java a lambda or method reference works the same way:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-val app = Kona.create(args)
-    .providers(HttpServiceProvider(), AppServiceProvider())
-    .boot()
-WebRoutes().register(app.resolve(Router::class.java))
+router.get("/") { Response.text("home") }
+router.post("/echo") { request -> Response.json(request.all()) }
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-Application app = Kona.create(args)
-    .providers(new HttpServiceProvider(), new AppServiceProvider())
-    .boot();
-new WebRoutes().register(app.resolve(Router.class));
+router.get("/", request -> Response.text("home"));
+router.post("/echo", request -> Response.json(request.all()));
 ```
 
 </TabItem>
@@ -36,15 +34,99 @@ new WebRoutes().register(app.resolve(Router.class));
 
 Register all routes **before** the server starts. The router is shared by every request thread and is not designed to be modified while serving traffic.
 
+## Getting the router
+
+`HttpServiceProvider` registers one shared `Router` in the application container. Resolve it after the application has booted — in a provider’s `boot` method, or right after `boot()` in your bootstrap code.
+
+Applications created by `kona new` do the latter and pass the router to two route tables: `WebRoutes` (browser / HTML) and `ApiRoutes` (JSON under `/api`):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), /* … */, AppServiceProvider())
+    .boot()
+WebRoutes().register(app.resolve(Router::class.java))
+ApiRoutes().register(app.resolve(Router::class.java))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), /* … */, new AppServiceProvider())
+    .boot();
+new WebRoutes().register(app.resolve(Router.class));
+new ApiRoutes().register(app.resolve(Router.class));
+```
+
+</TabItem>
+</Tabs>
+
+Keeping routes in classes keeps `bootstrap.App` small and makes it obvious where to add new endpoints.
+
+## Call a controller
+
+Most routes point at a **controller** method instead of an inline lambda. A controller is an ordinary class with methods that take a `Request` and return a `Response`. You do **not** have to extend `Controller` unless you want the shared `validate` helpers — see [Controllers](../controllers/).
+
+The default scaffold wires a welcome page like this:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package routes
+
+import app.http.controllers.WelcomeController
+import dev.kona.http.Router
+
+class WebRoutes {
+    fun register(router: Router) {
+        val welcome = WelcomeController()
+        router.get("/") { welcome.index(it) }.name("welcome")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package routes;
+
+import app.http.controllers.WelcomeController;
+import dev.kona.http.Router;
+
+public final class WebRoutes {
+    public void register(Router router) {
+        WelcomeController welcome = new WelcomeController();
+        router.get("/", welcome::index).name("welcome");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+What matters:
+
+1. **Instantiate** the controller (or resolve it from the container if you bind it there).
+2. **Bind** a method that accepts `Request` and returns `Response` — Kotlin `{ welcome.index(it) }`, Java `welcome::index`.
+3. Optionally **name** the route with `.name("…")` so you can build URLs later.
+
+Generate a stub with [`./grind make:controller Post`](../../grind/commands/#grind-makecontroller) (`--resource` adds CRUD method stubs). Put validation and response shaping in the controller; keep this file as the map from URL → action.
+
 ## Declaring routes
 
 There is one registration method per common HTTP method, plus two general forms:
 
 | Method | Matches |
 |--------|---------|
-| `get(uri, handler)` | `GET` (and `HEAD`, see below) |
+| `get(uri, handler)` | `GET` (and `HEAD` via fallback — see below) |
 | `post`, `put`, `patch`, `delete`, `options` | That single method |
-| `any(uri, handler)` | `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` (the list in `Router.VERBS`) |
+| `any(uri, handler)` | `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
 | `match(methods, uri, handler)` | Every method in `methods` (case-insensitive) |
 
 Each call returns the new `Route`, so you can chain `.name(...)` and `.middleware(...)`.
@@ -54,7 +136,7 @@ Each call returns the new `Route`, so you can chain `.name(...)` and `.middlewar
 
 ```kotlin
 router.get("/") { Response.text("home") }.name("home")
-router.post("/users") { request -> users.create(request) }
+router.post("/users") { users.store(it) }
 router.put("/users/{id}") { users.update(it) }
 router.delete("/users/{id}") { users.destroy(it) }
 router.match(listOf("PUT", "PATCH"), "/profile") { profile.update(it) }
@@ -66,7 +148,7 @@ router.any("/health") { Response.text("ok") }
 
 ```java
 router.get("/", request -> Response.text("home")).name("home");
-router.post("/users", users::create);
+router.post("/users", users::store);
 router.put("/users/{id}", users::update);
 router.delete("/users/{id}", users::destroy);
 router.match(List.of("PUT", "PATCH"), "/profile", profile::update);
@@ -75,8 +157,6 @@ router.any("/health", request -> Response.text("ok"));
 
 </TabItem>
 </Tabs>
-
-In Kotlin, `Handler` is a functional interface, so a trailing lambda works; `it` is the `Request`. In Java, any lambda or method reference shaped `Response method(Request)` works — including controller methods generated by [`grind make:controller`](../../grind/commands/#grind-makecontroller).
 
 ### Paths and matching order
 
@@ -118,89 +198,6 @@ router.get("/users/{id}/posts/{slug}", request -> {
 
 There are no optional parameters and no per-parameter patterns. Register a second route when a segment is optional, and check the format inside the handler (or with [validation](../validation/)).
 
-## Named routes
-
-`.name("…")` gives a route a name so you can build its URL later without hard-coding the path. `router.route(name, params)` returns the path with each `{key}` replaced by the matching value:
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-router.get("/users/{id}") { users.show(it) }.name("users.show")
-
-val url = router.route("users.show", mapOf("id" to "42"))   // "/users/42"
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-router.get("/users/{id}", users::show).name("users.show");
-
-String url = router.route("users.show", Map.of("id", "42"));  // "/users/42"
-```
-
-</TabItem>
-</Tabs>
-
-- Values are inserted as given — they are **not** percent-encoded. Encode them first if they can contain `/`, spaces, or other reserved characters.
-- Placeholders without a value stay in the output as `{key}`.
-- An unknown name throws `IllegalArgumentException("Route [name] not defined")`. If two routes share a name, the first one registered is used.
-
-## Groups
-
-A **group** applies shared settings to every route declared inside it:
-
-- **prefix** — prepended to each path (`/api` + `/me` → `/api/me`),
-- **name** — prepended to each route name (`api.` + `me` → `api.me`),
-- **middleware** — run before each route’s own middleware.
-
-### Kotlin
-
-The Kotlin `group` function takes named arguments and a block. Inside the block, `this` is the same router, so you call `get`, `post`, and so on directly:
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-router.group(prefix = "/api", name = "api.", middleware = listOf(Authenticate())) {
-    get("/me") { Response.json(mapOf("user" to it.getAttribute("user"))) }.name("me")
-
-    group(prefix = "/admin", name = "admin.", middleware = listOf(RequireAdmin())) {
-        get("/stats") { Response.json(stats()) }.name("stats")  // /api/admin/stats, "api.admin.stats"
-    }
-}
-```
-
-`router.routes { … }` is a small helper that runs a block with the router as `this`, useful for keeping route files tidy.
-
-### Java
-
-Java has two styles. Fluent attributes read like a sentence and end in `group(...)`:
-
-```java
-router.prefix("/api").name("api.").middleware(new Authenticate()).group(api -> {
-    api.get("/me", request -> Response.json(Map.of("user", request.getAttribute("user")))).name("me");
-
-    api.prefix("/admin").name("admin.").middleware(new RequireAdmin()).group(admin ->
-        admin.get("/stats", request -> Response.json(stats())).name("stats"));
-});
-```
-
-Or pass the settings positionally:
-
-```java
-router.group("/v1", v1 -> v1.get("/ping", request -> Response.text("pong")));
-router.group("/v2", List.of(new Authenticate()), v2 -> { /* ... */ });
-router.group("/v3", "v3.", List.of(new Authenticate()), v3 -> { /* ... */ });
-```
-
-`middleware(...)` on the fluent builder accepts either several middleware arguments or a `List`.
-
-### How nesting combines
-
-Inner groups add to outer ones: prefixes join with `/`, name prefixes concatenate, and middleware lists append (outer first). Group settings are captured when each route is registered, and they end when the group’s block returns. Middleware attached with `route.middleware(...)` runs **after** the group middleware.
-
 ## Resource routes
 
 A **resource** is a collection of records exposed over a conventional set of URLs. `resource(name, controller)` registers five routes against an object implementing `ResourceController`:
@@ -215,12 +212,20 @@ A **resource** is a collection of records exposed over a conventional set of URL
 
 The paths and names respect the surrounding group, so inside a group with prefix `/api` and name `api.`, you get `/api/posts` and `api.posts.index`. Pass the name **without** a leading slash.
 
+Implement every action yourself, or extend `BaseResourceController` and override only the ones you need — the rest throw `NotFoundException` (HTTP 404).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 class PostController : ResourceController {
     override fun index(request: Request) = Response.json(posts.all())
-    override fun show(request: Request) = Response.json(posts.find(request.getAttribute("id") as String))
-    override fun store(request: Request) = Response.json(posts.create(request.data()), 201)
-    override fun update(request: Request) = Response.json(posts.update(request.getAttribute("id") as String, request.data()))
+    override fun show(request: Request) =
+        Response.json(posts.find(request.getAttribute("id") as String))
+    override fun store(request: Request) =
+        Response.json(posts.create(request.data()), 201)
+    override fun update(request: Request) =
+        Response.json(posts.update(request.getAttribute("id") as String, request.data()))
     override fun destroy(request: Request): Response {
         posts.delete(request.getAttribute("id") as String)
         return Response.noContent()
@@ -228,6 +233,14 @@ class PostController : ResourceController {
 }
 
 router.resource("posts", PostController())
+
+// Partial resource — only list + create
+class NotesController : BaseResourceController() {
+    override fun index(request: Request) = Response.json(listOf<Any>())
+    override fun store(request: Request) = Response.json(mapOf("ok" to true), 201)
+}
+
+router.resource("notes", NotesController())
 ```
 
 </TabItem>
@@ -236,9 +249,15 @@ router.resource("posts", PostController())
 ```java
 public final class PostController implements ResourceController {
     @Override public Response index(Request request) { return Response.json(posts.all()); }
-    @Override public Response show(Request request) { return Response.json(posts.find((String) request.getAttribute("id"))); }
-    @Override public Response store(Request request) { return Response.json(posts.create(request.data()), 201); }
-    @Override public Response update(Request request) { return Response.json(posts.update((String) request.getAttribute("id"), request.data())); }
+    @Override public Response show(Request request) {
+        return Response.json(posts.find((String) request.getAttribute("id")));
+    }
+    @Override public Response store(Request request) {
+        return Response.json(posts.create(request.data()), 201);
+    }
+    @Override public Response update(Request request) {
+        return Response.json(posts.update((String) request.getAttribute("id"), request.data()));
+    }
     @Override public Response destroy(Request request) {
         posts.delete((String) request.getAttribute("id"));
         return Response.noContent();
@@ -246,10 +265,181 @@ public final class PostController implements ResourceController {
 }
 
 router.resource("posts", new PostController());
+
+public class NotesController extends BaseResourceController {
+    @Override public Response index(Request request) { return Response.json(List.of()); }
+    @Override public Response store(Request request) {
+        return Response.json(Map.of("ok", true), 201);
+    }
+}
+
+router.resource("notes", new NotesController());
 ```
 
 </TabItem>
 </Tabs>
+
+Details on validation inside resource actions live on [Controllers](../controllers/#resource-controllers).
+
+## Groups
+
+A **group** applies shared settings to every route declared inside it:
+
+- **prefix** — prepended to each path (`/api` + `/me` → `/api/me`),
+- **name** — prepended to each route name (`api.` + `me` → `api.me`),
+- **middleware** — run before each route’s own middleware.
+
+The scaffold’s `ApiRoutes` is a typical group:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.") {
+    get("/health") { Response.json(mapOf("status" to "ok")) }.name("health")
+    // Full path /api/health, name api.health
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").group(api -> {
+    api.get("/health", request -> Response.json(Map.of("status", "ok"))).name("health");
+});
+```
+
+</TabItem>
+</Tabs>
+
+### Nested groups and middleware
+
+Inner groups add to outer ones: prefixes join with `/`, name prefixes concatenate, and middleware lists append (outer first). Group settings are captured when each route is registered, and they end when the group’s block returns.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.", middleware = listOf(Authenticate())) {
+    get("/me") { Response.json(mapOf("user" to it.getAttribute("user"))) }.name("me")
+
+    group(prefix = "/admin", name = "admin.", middleware = listOf(RequireAdmin())) {
+        get("/stats") { Response.json(stats()) }.name("stats")
+        // /api/admin/stats, name api.admin.stats
+    }
+}
+```
+
+`router.routes { … }` is a small helper that runs a block with the router as `this`, useful for keeping route files tidy.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").middleware(new Authenticate()).group(api -> {
+    api.get("/me", request -> Response.json(Map.of("user", request.getAttribute("user")))).name("me");
+
+    api.prefix("/admin").name("admin.").middleware(new RequireAdmin()).group(admin ->
+        admin.get("/stats", request -> Response.json(stats())).name("stats"));
+});
+```
+
+Or pass settings positionally:
+
+```java
+router.group("/v1", v1 -> v1.get("/ping", request -> Response.text("pong")));
+router.group("/v2", List.of(new Authenticate()), v2 -> { /* ... */ });
+router.group("/v3", "v3.", List.of(new Authenticate()), v3 -> { /* ... */ });
+```
+
+`middleware(...)` on the fluent builder accepts either several middleware arguments or a `List`.
+
+</TabItem>
+</Tabs>
+
+## Middleware on a route
+
+Attach middleware to one route with `.middleware(...)`. Route middleware runs **after** any group middleware for that route.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.post("/webhooks/stripe") { stripe.handle(it) }
+    .middleware(VerifyStripeSignature())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.post("/webhooks/stripe", stripe::handle)
+    .middleware(new VerifyStripeSignature());
+```
+
+</TabItem>
+</Tabs>
+
+Global stacks (session, CSRF, and so on) are configured in `bootstrap.Middleware` and applied to the kernel — see [Middleware](../middleware/).
+
+## Named routes and URLs
+
+`.name("…")` gives a route a name so you can build its URL later without hard-coding the path. Group name prefixes apply automatically (`api.` + `health` → `api.health`).
+
+`router.route(name, params)` returns the **path** with each `{key}` replaced by the matching value:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/users/{id}") { users.show(it) }.name("users.show")
+
+val path = router.route("users.show", mapOf("id" to "42"))   // "/users/42"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/users/{id}", users::show).name("users.show");
+
+String path = router.route("users.show", Map.of("id", "42"));  // "/users/42"
+```
+
+</TabItem>
+</Tabs>
+
+- Values are inserted as given — they are **not** percent-encoded. Encode them first if they can contain `/`, spaces, or other reserved characters.
+- Placeholders without a value stay in the output as `{key}`.
+- An unknown name throws `IllegalArgumentException("Route [name] not defined")`. If two routes share a name, the first one registered is used.
+
+For absolute URLs, signed links, and the `Url` helpers, see [URL generation](../url-generation/).
+
+## Invokable controllers
+
+When a route has a single action, implement `InvokableController` and register it as a handler:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val ping = InvokableController { Response.text("pong") }
+router.get("/ping", ping.asHandler()).name("ping")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+InvokableController ping = request -> Response.text("pong");
+router.get("/ping", Controllers.asHandler(ping)).name("ping");
+```
+
+</TabItem>
+</Tabs>
+
+More patterns (form requests, `Controller.validate`) are on [Controllers](../controllers/#invokable-controllers).
 
 ## HEAD, OPTIONS, 404, and 405
 
@@ -259,8 +449,8 @@ The router answers several situations for you. These rules come from `Router.res
 |---------|--------------|
 | `HEAD /path`, and only `GET` is registered for it | The `GET` route runs (including its middleware). The kernel then clears the body; status and headers are kept. An explicit `HEAD` route, if registered, wins. |
 | `OPTIONS /path`, no route accepts `OPTIONS`, but the path exists | Automatic `200` with an empty body and an `Allow` header listing the methods registered for that path, in registration order, comma-separated (for example `GET,HEAD,POST`). Route middleware does **not** run. |
-| Path exists, method not registered | `MethodNotAllowedException` → **405** with JSON `{"message": "The POST method is not supported for route users. Supported methods: GET, HEAD."}` and header `Allow: GET, HEAD`. |
-| No route matches the path at all | `NotFoundException` → **404** with JSON `{"message": "The route users/42 could not be found."}`. |
+| Path exists, method not registered | `MethodNotAllowedException` → **405** with a JSON message and header `Allow: …`. |
+| No route matches the path at all | `NotFoundException` → **404** with a JSON message. |
 
 Any `GET` registration implies `HEAD` in the `Allow` list. The 404 and 405 responses are produced by the kernel’s exception handler, so **global** middleware still wraps them; route middleware never runs because no route was selected. See [Exceptions](../exceptions/) for the envelope format.
 
@@ -287,4 +477,11 @@ for (Route route : router.all()) {
 </TabItem>
 </Tabs>
 
-Next: [Middleware](../middleware/) wraps routes with shared behavior, and [Request & response](../request-response/) covers what handlers read and return.
+## Next steps
+
+- Organize actions in [Controllers](../controllers/) (validation, form requests, resource bases).
+- Wrap routes with [Middleware](../middleware/).
+- Read and write payloads in [Request & response](../request-response/).
+- Validate input in [Validation](../validation/).
+- Build absolute and signed links with [URL generation](../url-generation/).
+- See how the kernel selects a route in [Kernel & server](../kernel-server/).
