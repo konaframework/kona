@@ -42,20 +42,21 @@ class ScheduleRunCommand(private val action: Action) {
                     io.verbose("schedule:run finished with ${ran.size} task(s)")
                 }
                 Action.WORK -> {
-                    val maxTicks = options["max"]?.toIntOrNull()?.coerceAtLeast(1) ?: Int.MAX_VALUE
-                    val sleepSeconds = options["sleep"]?.toLongOrNull()?.coerceAtLeast(1) ?: 60L
+                    val maxTicks = workMaxTicks(options)
+                    val sleepSeconds = workSleepSeconds(options)
                     var ticks = 0
                     io.info("schedule:work started (sleep=${sleepSeconds}s)")
                     while (ticks < maxTicks) {
                         val ran = schedule.runDue(LocalDateTime.now())
                         ran.forEach { io.success("Running: $it") }
                         ticks += 1
-                        if (ticks >= maxTicks) break
-                        try {
-                            Thread.sleep(sleepSeconds * 1000)
-                        } catch (_: InterruptedException) {
-                            Thread.currentThread().interrupt()
-                            break
+                        if (ticks < maxTicks) {
+                            try {
+                                Thread.sleep(sleepSeconds * 1000)
+                            } catch (_: InterruptedException) {
+                                Thread.currentThread().interrupt()
+                                break
+                            }
                         }
                     }
                     io.verbose("schedule:work finished after $ticks tick(s)")
@@ -63,5 +64,13 @@ class ScheduleRunCommand(private val action: Action) {
             }
         }
         return 0
+    }
+
+    internal companion object {
+        fun workMaxTicks(options: Map<String, String>): Int =
+            options["max"]?.toIntOrNull()?.coerceAtLeast(1) ?: Int.MAX_VALUE
+
+        fun workSleepSeconds(options: Map<String, String>): Long =
+            options["sleep"]?.toLongOrNull()?.coerceAtLeast(1) ?: 60L
     }
 }
