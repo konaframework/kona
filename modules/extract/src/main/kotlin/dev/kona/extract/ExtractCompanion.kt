@@ -35,6 +35,9 @@ open class ExtractCompanion<T : Extract<T>>(
 
     fun findOrFail(id: Any?): T = query().findOrFail(id)
 
+    /** Matching [id], or a new unsaved instance with the primary key set to [id]. */
+    fun findOrNew(id: Any?): T = query().findOrNew(id)
+
     fun findMany(ids: Collection<*>): List<T> = query().findMany(ids)
 
     /** Fills (mass-assignment rules apply), saves, and returns a new model. */

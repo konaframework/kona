@@ -84,6 +84,8 @@ Operators are checked against an allow-list (`=`, `<`, `>`, `<=`, `>=`, `<>`, `!
 | `orWhereColumn(…)` | column compare joined with `or` |
 | `whereRaw("lower(email) = ?", listOf(email))` / `orWhereRaw` | raw fragment with bindings |
 | `when(condition) { … }` / `unless(condition) { … }` | apply a nested consumer only when the condition holds |
+| `tap { … }` | run a side-effect on the builder and keep chaining |
+| `orWhereNull` / `orWhereNotNull` / `orWhereIn` / `orWhereNotIn` | same as the `where…` forms, joined with `or` (also on model queries) |
 
 ## Joins, grouping, ordering, paging
 
@@ -117,8 +119,11 @@ DB.table("posts")
 | `simplePaginate(perPage, page)` | a `SimplePage` without a total count |
 | `cursorPaginate(perPage, cursor, column)` | a `CursorPage` ordered by `column` (default `id`) |
 | `chunk(size) { batch -> … }` | walks pages of `size` maps until exhausted |
+| `cursor()` / `lazy(chunkSize)` | lazy sequences of rows (batched under the hood) |
+| `chunkById(size) { … }` / `lazyById(chunkSize)` | advance with `where id > last` (safer for large tables) |
+| `lockForUpdate()` / `sharedLock()` / `withoutLock()` | append `for update` / `for share` on the select |
 
-Always pair `chunk` with a stable `orderBy` so consecutive pages stay consistent.
+Always pair `chunk` / `lazy` with a stable `orderBy` so consecutive pages stay consistent. Prefer `chunkById` / `lazyById` when rows may be inserted or deleted during the scan. `sharedLock()` needs a driver that accepts `FOR SHARE` (PostgreSQL); H2 may reject it at execute time even though `toSql()` includes the clause.
 
 ## Writing
 

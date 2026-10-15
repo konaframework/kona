@@ -5,6 +5,9 @@ package dev.kona.extract
  * only table / column names pass through [wrap].
  *
  * `users.id` → `"users"."id"`, `name as n` → `"name" as "n"`, `*` and `t.*` keep the star bare.
+ *
+ * Built-ins: [ANSI] (H2, PostgreSQL, SQLite), [MYSQL] (MySQL / MariaDB), [NONE].
+ * Register additional JDBC URL prefixes with [registerUrlPrefix] for custom databases.
  */
 class Grammar(
     private val open: String,
@@ -43,8 +46,43 @@ class Grammar(
         @JvmField
         val NONE = Grammar("", "")
 
+        private val urlPrefixes = linkedMapOf<String, Grammar>()
+
+        /**
+         * Registers a query [Grammar] for JDBC URLs starting with [jdbcPrefix]
+         * (for example `"jdbc:oracle:"`). Longest matching prefix wins over built-ins.
+         */
         @JvmStatic
-        fun forUrl(url: String): Grammar =
-            if (url.startsWith("jdbc:mysql:") || url.startsWith("jdbc:mariadb:")) MYSQL else ANSI
+        fun registerUrlPrefix(jdbcPrefix: String, grammar: Grammar) {
+            require(jdbcPrefix.isNotBlank()) { "JDBC URL prefix must not be blank" }
+            urlPrefixes[jdbcPrefix.lowercase()] = grammar
+        }
+
+        /** Clears all [registerUrlPrefix] registrations (tests / reboot). */
+        @JvmStatic
+        fun clearRegisteredUrlPrefixes() {
+            urlPrefixes.clear()
+        }
+
+        @JvmStatic
+        fun forUrl(url: String): Grammar {
+            val lower = url.lowercase()
+            var bestLen = -1
+            var best: Grammar? = null
+            for ((prefix, grammar) in urlPrefixes) {
+                if (!lower.startsWith(prefix)) {
+                    continue
+                }
+                if (prefix.length <= bestLen) {
+                    continue
+                }
+                bestLen = prefix.length
+                best = grammar
+            }
+            if (best != null) {
+                return best
+            }
+            return if (lower.startsWith("jdbc:mysql:") || lower.startsWith("jdbc:mariadb:")) MYSQL else ANSI
+        }
     }
 }

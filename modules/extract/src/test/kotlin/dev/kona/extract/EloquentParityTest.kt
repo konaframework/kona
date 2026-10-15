@@ -228,6 +228,162 @@ class EloquentParityTest {
     }
 
     @Test
+    fun locksTapCursorLazyFindOrNewIncrement() {
+        db.table("users").insert(
+            listOf(
+                mapOf("name" to "Ada", "email" to "a@x", "age" to 36),
+                mapOf("name" to "Grace", "email" to "g@x", "age" to 45),
+                mapOf("name" to "Linus", "email" to "l@x", "age" to 28),
+            ),
+        )
+
+        assertTrue(db.table("users").where("name", "Ada").lockForUpdate().toSql().endsWith(" for update"))
+        assertTrue(db.table("users").sharedLock().toSql().endsWith(" for share"))
+        assertFalse(db.table("users").lockForUpdate().withoutLock().toSql().contains(" for "))
+        assertEquals(1L, db.table("users").lockForUpdate().where("name", "Ada").count())
+        assertTrue(db.table("users").lockForUpdate().copy().toSql().contains(" for update"))
+
+        val tapped = mutableListOf<String>()
+        assertEquals(1L, db.table("users").tap { tapped += "qb" }.where("name", "Ada").count())
+        assertEquals(listOf("qb"), tapped)
+
+        assertEquals(
+            listOf("Ada", "Grace", "Linus"),
+            db.table("users").orderBy("id").cursor().map { it["name"] as String }.toList(),
+        )
+        assertEquals(
+            listOf("Ada", "Grace", "Linus"),
+            db.table("users").orderBy("id").lazy(2).map { it["name"] as String }.toList(),
+        )
+        assertEquals(3, db.table("users").orderBy("id").lazy().take(3).count())
+        // Exact page size then empty page (covers the empty-batch break after full pages).
+        assertEquals(3, db.table("users").orderBy("id").lazy(1).count())
+        assertEquals(
+            listOf("Ada", "Grace", "Linus"),
+            db.table("users").lazyById(2).map { it["name"] as String }.toList(),
+        )
+        assertEquals(3, db.table("users").lazyById().take(3).count())
+        assertEquals(3, db.table("users").lazyById(1).count())
+        val byId = mutableListOf<List<String>>()
+        db.table("users").chunkById(2) { rows -> byId += rows.map { it["name"] as String } }
+        assertEquals(listOf(listOf("Ada", "Grace"), listOf("Linus")), byId)
+        db.table("users").chunkById(2, "id") { rows -> byId += rows.map { it["name"] as String } }
+        assertThrows<IllegalArgumentException> { db.table("users").lazy(0).toList() }
+        assertThrows<IllegalArgumentException> { db.table("users").chunkById(0) { _ -> } }
+        assertThrows<IllegalArgumentException> { db.table("users").lazyById(0).toList() }
+        assertTrue(db.table("users").where("id", -1).lazy(2).toList().isEmpty())
+        assertTrue(db.table("users").where("id", -1).lazyById(2).toList().isEmpty())
+        val emptyChunks = mutableListOf<Int>()
+        db.table("users").where("id", -1).chunkById(2) { emptyChunks += it.size }
+        assertTrue(emptyChunks.isEmpty())
+        assertThrows<ExtractException> {
+            db.table("users").select("name").chunkById(1, "id") { }
+        }
+        assertThrows<ExtractException> {
+            db.table("users").select("name").lazyById(1, "id").toList()
+        }
+
+        assertEquals(0L, User.query().where("name", "x").orWhereNull("email").count())
+        assertEquals(3L, User.query().where("name", "x").orWhereNotNull("email").count())
+        assertEquals(2L, User.query().where("name", "Ada").orWhereIn("name", listOf("Grace")).count())
+        assertEquals(1L, User.query().where("name", "Ada").orWhereNotIn("name", listOf("Ada", "Grace", "Linus")).count())
+        val modelTap = mutableListOf<String>()
+        assertEquals(1, User.query().tap { modelTap += "mb" }.where("name", "Ada").get().size)
+        assertEquals(listOf("mb"), modelTap)
+        assertTrue(User.query().lockForUpdate().toSql().contains(" for update"))
+        assertTrue(
+            User.query().sharedLock().withoutLock().toSql().let {
+                !it.contains(" for update") && !it.contains(" for share")
+            },
+        )
+
+        assertEquals(
+            listOf("Ada", "Grace", "Linus"),
+            User.query().orderBy("id").cursor().map { it["name"] as String }.toList(),
+        )
+        assertEquals(
+            listOf("Ada", "Grace", "Linus"),
+            User.query().orderBy("id").lazy(2).map { it["name"] as String }.toList(),
+        )
+        assertEquals(3, User.query().orderBy("id").lazy().take(3).count())
+        assertEquals(3, User.query().orderBy("id").lazy(1).count())
+        val modelChunks = mutableListOf<Int>()
+        User.query().chunkById(2) { modelChunks += it.size }
+        assertEquals(listOf(2, 1), modelChunks)
+        User.query().chunkById(2, "id") { modelChunks += it.size }
+        assertEquals(
+            listOf("Ada", "Grace", "Linus"),
+            User.query().lazyById(2).map { it["name"] as String }.toList(),
+        )
+        assertEquals(3, User.query().lazyById().take(3).count())
+        assertEquals(3, User.query().lazyById(1).count())
+        assertEquals(3, User.query().lazyById(2, "id").take(3).count())
+        assertEquals(3, User.query().cursor().take(3).count())
+        assertThrows<IllegalArgumentException> { User.query().lazy(0).toList() }
+        assertThrows<IllegalArgumentException> { User.query().lazyById(0).toList() }
+        assertTrue(User.query().where("id", -1).lazy(2).toList().isEmpty())
+        assertTrue(User.query().where("id", -1).lazyById(2).toList().isEmpty())
+        assertThrows<ExtractException> {
+            User.query().select("name").lazyById(1, "id").toList()
+        }
+
+        val existing = User.findOrNew(1)
+        assertTrue(existing.exists())
+        assertEquals("Ada", existing["name"])
+        val neu = User.findOrNew(99)
+        assertFalse(neu.exists())
+        assertEquals(99L, (neu.getKey() as Number).toLong())
+        assertFalse(User.query().findOrNew(null).exists())
+
+        val ada = User.find(1)!!
+        assertTrue(ada.isClean("age"))
+        ada["age"] = 37
+        assertFalse(ada.isClean("age"))
+        ada.refresh()
+        assertEquals(1, ada.increment("age"))
+        assertEquals(37, ada["age"])
+        assertEquals(37, User.find(1)!!["age"])
+        assertEquals(1, ada.decrement("age", 2))
+        assertEquals(35, ada["age"])
+        assertEquals(0, User().increment("age"))
+        assertEquals(0, User().decrement("age"))
+
+        val longAge = User.create(mapOf("name" to "Long", "email" to "long@x", "age" to 1))
+        longAge.setAttribute("age", 1L)
+        assertEquals(1, longAge.increment("age", 2))
+        assertEquals(3L, longAge.getRawAttribute("age"))
+        val floatAge = User.create(mapOf("name" to "Float", "email" to "float@x", "age" to 1))
+        floatAge.setAttribute("age", 1.5f)
+        assertEquals(1, floatAge.increment("age", 0.5))
+        assertEquals(2.0f, floatAge.getRawAttribute("age"))
+        val doubleAge = User.create(mapOf("name" to "Double", "email" to "double@x", "age" to 1))
+        doubleAge.setAttribute("age", 1.0)
+        assertEquals(1, doubleAge.increment("age"))
+        assertEquals(2.0, doubleAge.getRawAttribute("age"))
+        val nullAge = User.create(mapOf("name" to "NullAge", "email" to "nullage@x"))
+        nullAge.setAttribute("age", null)
+        assertEquals(1, nullAge.increment("age", 5))
+        assertEquals(5.0, nullAge.getRawAttribute("age"))
+
+        val post = Post.create(mapOf("title" to "V", "votes" to 1))
+        assertEquals(1, post.increment("votes", 2))
+        assertEquals(3, post["votes"])
+        val noTs = VoteRow.create(mapOf("title" to "NT", "votes" to 4))
+        assertEquals(1, noTs.increment("votes"))
+        assertEquals(5, noTs["votes"])
+        assertEquals(1, noTs.decrement("votes", 2))
+        assertEquals(3, noTs["votes"])
+    }
+
+    class VoteRow : Extract<VoteRow>() {
+        override val table = "posts"
+        override val timestamps = false
+        override val fillable = setOf("title", "votes", "user_id")
+
+        companion object : ExtractCompanion<VoteRow>(VoteRow::class.java)
+    }
+
+    @Test
     fun modelTruncateEmptiesTable() {
         User.create(mapOf("name" to "Ada", "email" to "a@x", "age" to 36))
         User.create(mapOf("name" to "Grace", "email" to "g@x", "age" to 45))
