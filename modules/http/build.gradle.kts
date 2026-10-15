@@ -10,6 +10,9 @@ dependencies {
     api(project(":kona-filesystem"))
     api(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
+    implementation(libs.netty.codec.http)
+    implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-x86_64") })
+    implementation(variantOf(libs.netty.transport.native.epoll) { classifier("linux-aarch_64") })
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

@@ -9,6 +9,7 @@ hikaricp = "6.3.0"
 h2 = "2.3.232"
 bcrypt = "0.10.2"
 lettuce = "6.5.5.RELEASE"
+netty = "4.1.119.Final"
 
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -19,6 +20,8 @@ hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
 bcrypt = { module = "at.favre.lib:bcrypt", version.ref = "bcrypt" }
 lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
+netty-codec-http = { module = "io.netty:netty-codec-http", version.ref = "netty" }
+netty-transport-native-epoll = { module = "io.netty:netty-transport-native-epoll", version.ref = "netty" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 kotlin-scripting-jsr223 = { module = "org.jetbrains.kotlin:kotlin-scripting-jsr223", version.ref = "kotlin" }

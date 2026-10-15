@@ -1,6 +1,6 @@
 ---
 title: Kernel & server
-description: How HttpKernel turns a Request into a Response, and how KonaHttpServer serves it on Virtual Threads.
+description: How HttpKernel turns a Request into a Response, and how KonaHttpServer serves it with Netty and Virtual Threads.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -8,7 +8,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 Two classes sit between the network and your route handlers:
 
 - **`HttpKernel`** is the request pipeline. It takes a `Request`, runs global middleware, asks the router for a route, runs that route’s middleware and action, converts failures into error responses, and returns a `Response`. It knows nothing about sockets, so you can call it directly in tests.
-- **`KonaHttpServer`** is a thin network adapter. It listens on a host and port, turns each HTTP exchange into a `Request`, calls `kernel.handle(request)`, and writes the `Response` back. Each request runs on its own **virtual thread**.
+- **`KonaHttpServer`** is a thin network adapter over **Netty**. It listens on a host and port, turns each HTTP exchange into a `Request`, calls `kernel.handle(request)`, and writes the `Response` back. Netty owns the sockets (epoll on Linux when available, otherwise NIO); each request runs on its own **virtual thread**.
 
 This page walks through both, in the order a request experiences them.
 
@@ -245,7 +245,7 @@ public void register(Application app) {
 
 ## `KonaHttpServer`
 
-`KonaHttpServer` is built on the JDK’s built-in HTTP server (`com.sun.net.httpserver`), so Kona needs no extra web-server dependency. Create it with a kernel, a host, and a port:
+`KonaHttpServer` is built on **Netty** (`netty-codec-http`, with native epoll on Linux when the JVM can load it). Create it with a kernel, a host, and a port — the public API is unchanged for apps and `./grind serve`:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -270,8 +270,8 @@ In Kotlin, `host` defaults to `127.0.0.1` and `port` to `4000`. Java callers pas
 
 | Method | Behavior |
 |--------|----------|
-| `start()` | Binds the socket, starts accepting requests, and logs `Kona server listening on http://host:port`. Returns immediately; the server keeps the JVM alive. Calling it again while running does nothing. If the port is taken, it throws `java.net.BindException`. |
-| `stop(delaySeconds)` | Stops accepting connections, waits up to `delaySeconds` for in-flight exchanges, then shuts down. Kotlin may omit the argument (default `0`); Java passes it, for example `stop(0)`. |
+| `start()` | Binds the socket, starts accepting requests, and logs `Kona server listening on http://host:port`. Returns immediately; the server keeps the JVM alive. Calling it again while running does nothing. If the port is taken, it throws a bind failure (for example `java.net.BindException`). |
+| `stop(delaySeconds)` | Optionally sleeps `delaySeconds`, then closes the listen channel and shuts down Netty event loops and the virtual-thread executor. Kotlin may omit the argument (default `0`); Java passes it, for example `stop(0)`. |
 | `isRunning()` | `true` between `start()` and `stop()`. |
 | `port()` | The port passed to the constructor. |
 
@@ -281,16 +281,16 @@ For each incoming exchange the server:
 
 1. Reads the method, normalizes the path (collapses repeated `/`, drops a trailing `/`), and parses the query string (percent-decoded).
 2. Copies headers, keeping the first value of any repeated header.
-3. Reads the entire body into memory as a UTF-8 string.
-4. Calls `kernel.handle(request)`. The kernel converts every exception into a response, so a failing handler still produces a well-formed reply.
-5. Writes every response header, then the body as UTF-8 with an exact `Content-Length`. For `204` responses and `HEAD` requests, no body bytes are written.
+3. Reads the entire body into memory as raw bytes (`Request.bodyBytes`).
+4. Dispatches `kernel.handle(request)` on a **virtual thread**. The kernel converts every exception into a response, so a failing handler still produces a well-formed reply.
+5. Writes every response header (including repeated `Set-Cookie`), then the body with an exact `Content-Length`. For `204` responses and `HEAD` requests, no body bytes are written. Keep-alive is honored when the client asks for it.
 
-One server context is mounted at `/`, so every path reaches the kernel and the router decides what exists.
+HTTP keep-alive and pooled buffers are enabled by default. You can force the transport with the system property `kona.http.transport` (`auto`, `epoll`, or `nio`).
 
-### Adapter limits (JDK HTTP server)
+### Adapter notes
 
-- A request-target of exactly `//` is rejected by the JDK before Kona runs (raw HTML `400`). Paths such as `/foo//bar` are normalized and handled normally.
-- Some status codes (notably **422**) may appear on the wire without a reason phrase — the JDK table omits them. The JSON/HTML body and status code are still correct.
+- Paths such as `/foo//bar` are normalized and handled normally.
+- Status codes use Kona’s reason-phrase table when present (including **422 Unprocessable Entity**).
 - Route parameters are available as `request.route("id")` (and as request attributes).
 
 ## Virtual Threads

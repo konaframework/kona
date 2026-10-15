@@ -56,9 +56,12 @@ class HttpKernel @JvmOverloads constructor(
         val terminable = mutableListOf<TerminableMiddleware>()
         global.filterIsInstanceTo(terminable)
 
-        val pipeline = MiddlewarePipeline.pipe(global, Handler { dispatchToRouter(it, terminable) })
         val response = try {
-            pipeline(request)
+            if (global.isEmpty()) {
+                dispatchToRouter(request, terminable)
+            } else {
+                MiddlewarePipeline.pipe(global, Handler { dispatchToRouter(it, terminable) })(request)
+            }
         } catch (t: Throwable) {
             exceptionHandler.handle(request, t)
         }
