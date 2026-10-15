@@ -4,7 +4,7 @@ import dev.kona.support.console.ConsoleIO
 import kotlin.system.exitProcess
 
 /**
- * Global `kona` CLI — create applications. App-local work uses `./grind` inside the project.
+ * Global `kona` CLI — create applications, and optionally proxy to an app's `./grind`.
  */
 fun main(args: Array<String>) {
     exitProcess(KonaApplication().run(args))
@@ -20,6 +20,7 @@ class KonaApplication {
         return try {
             when (val command = args[0]) {
                 "new" -> NewCommand().run(args.drop(1))
+                "grind" -> GrindCommand().run(args.drop(1))
                 "version", "--version", "-V" -> {
                     val v = KonaVersions.load()
                     io.writeln("kona ${v.kona}")
@@ -42,10 +43,11 @@ class KonaApplication {
             "kona",
             listOf(
                 "Create JVM applications",
-                "Then use ./grind inside the app",
+                "Day-to-day work: ./grind or kona grind …",
             ),
         )
         io.twoColumn("new <name>", "[--lang=kotlin|java] [--kit=…]")
+        io.twoColumn("grind <command>", "Proxy to the nearest app's ./grind")
         io.twoColumn("version", "Print kona version")
         io.twoColumn("help", "Show this help")
         io.writeln()

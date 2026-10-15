@@ -3,7 +3,15 @@ title: serve / make
 description: Reference for ./grind serve, the make generators, and the database commands.
 ---
 
-All commands below assume you are in an application directory that contains `./grind` (created by `kona new`).
+All commands below assume you are in an application directory that contains `./grind` (created by `kona new`). From anywhere under that app you can also run the same commands through the global CLI:
+
+```bash
+kona grind serve
+kona grind migrate
+kona grind --help   # explains the proxy; other args are forwarded to ./grind
+```
+
+`kona grind` finds the nearest Gradle project (same walk as `./grind serve`), then runs that app’s `./grind` or `grind.bat` with your remaining arguments and exit code.
 
 ## `./grind serve`
 
