@@ -58,6 +58,12 @@ object Kona {
         config.set("app.debug", Config.toBoolean(Env.getOrDefault("APP_DEBUG", "false")) ?: false)
         config.set("app.url", Env.getOrDefault("APP_URL", "http://127.0.0.1:4000"))
         Env.get("APP_KEY")?.let { config.set("app.key", it) }
+        config.set(
+            "logging.to_file",
+            Config.toBoolean(Env.getOrDefault("LOG_TO_FILE", "true")) ?: true,
+        )
+        config.set("logging.file", Env.getOrDefault("LOG_FILE", FileLogging.DEFAULT_FILE_NAME))
+        config.set("logging.level", Env.getOrDefault("LOG_LEVEL", "info"))
         application.refreshPathLayout()
     }
 

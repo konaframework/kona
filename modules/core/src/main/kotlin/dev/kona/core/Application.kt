@@ -94,6 +94,7 @@ class Application(
         if (booted) {
             return this
         }
+        FileLogging.ensureConfigured(this)
         // Index loop: providers registered from another provider's boot() must also boot.
         var index = 0
         while (index < providers.size) {
