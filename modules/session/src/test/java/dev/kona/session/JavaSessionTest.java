@@ -43,6 +43,11 @@ public class JavaSessionTest {
         storeSession.start(false);
         storeSession.put("a", 1);
         assertEquals(1, storeSession.all().get("a"));
+        storeSession.flashInput(Map.of("email", "j@example.com"));
+        assertEquals("j@example.com", storeSession.old("email"));
+        assertEquals("j@example.com", storeSession.old("email", "x"));
+        storeSession.setPreviousUrl("/java");
+        assertEquals("/java", storeSession.previousUrl());
         storeSession.ageFlashData();
         storeSession.invalidate();
 

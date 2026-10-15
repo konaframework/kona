@@ -51,8 +51,10 @@ open class DefaultExceptionHandler @JvmOverloads constructor(
         val wantsHtml = wantsHtml(request)
         return when (throwable) {
             is ValidationException -> {
-                if (wantsHtml) {
-                    htmlError(422, throwable.message!!)
+                if (!request.expectsJson()) {
+                    Response.back(request)
+                        .withErrors(throwable.errors)
+                        .withInput(request.all())
                 } else {
                     Response.json(mapOf("message" to throwable.message, "errors" to throwable.errors), 422)
                 }

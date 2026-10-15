@@ -162,8 +162,18 @@ class HttpStackTest {
         assertFalse(DefaultExceptionHandler().handle(Request.get("/"), RuntimeException("secret")).body.contains("secret"))
         assertEquals(422, kernel.handle(Request.get("/hi").also { }).let {
             HttpKernel(router, exceptionHandler = DefaultExceptionHandler()).handle(Request.get("/hi"))
-            DefaultExceptionHandler().handle(Request.get("/"), ValidationException(mapOf("a" to listOf("b")))).status
+            DefaultExceptionHandler().handle(
+                Request("GET", "/", headers = mapOf("Accept" to "application/json")),
+                ValidationException(mapOf("a" to listOf("b"))),
+            ).status
         })
+        assertEquals(
+            302,
+            DefaultExceptionHandler().handle(
+                Request.get("/"),
+                ValidationException(mapOf("a" to listOf("b"))),
+            ).status,
+        )
         assertTrue(DefaultExceptionHandler(true).handle(Request.get("/"), RuntimeException("x")).body.contains("exception"))
     }
 

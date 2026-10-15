@@ -1,22 +1,24 @@
 package dev.kona.session
 
+import dev.kona.http.RequestSession
+
 /**
  * HTTP session (Laravel Session shape).
  *
  * Placed on the request under [StartSession.ATTRIBUTE] (`"session"`), matching
  * auth’s session attribute key so guards can resolve the same request attribute.
  */
-interface Session {
+interface Session : RequestSession {
     val id: String
 
-    fun get(key: String): Any?
+    override fun get(key: String): Any?
 
-    fun put(key: String, value: Any?): Session
+    override fun put(key: String, value: Any?): Session
 
     fun forget(key: String): Session
 
     /** Flash [value] for the next request only. */
-    fun flash(key: String, value: Any?): Session
+    override fun flash(key: String, value: Any?): Session
 
     /** Returns the value for [key] (or [default]) and removes it from the session. */
     fun pull(key: String, default: Any?): Any?
@@ -39,4 +41,14 @@ interface Session {
     fun ageFlashData(): Session
 
     fun has(key: String): Boolean = get(key) != null
+
+    override fun flashInput(input: Map<String, String>): Session
+
+    override fun old(key: String, default: String?): String?
+
+    override fun oldInput(): Map<String, String>
+
+    override fun previousUrl(): String?
+
+    override fun setPreviousUrl(url: String): Session
 }

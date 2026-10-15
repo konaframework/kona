@@ -49,6 +49,39 @@ class StoreSession @JvmOverloads constructor(
         return this
     }
 
+    override fun flashInput(input: Map<String, String>): Session {
+        flash(OLD_INPUT, LinkedHashMap(input))
+        return this
+    }
+
+    override fun old(key: String, default: String?): String? {
+        val bag = attributes[OLD_INPUT] as? Map<*, *> ?: return default
+        if (!bag.containsKey(key)) {
+            return default
+        }
+        val value = bag[key]
+        return if (value == null) default else value.toString()
+    }
+
+    override fun oldInput(): Map<String, String> {
+        val bag = attributes[OLD_INPUT] as? Map<*, *> ?: return emptyMap()
+        val out = linkedMapOf<String, String>()
+        for ((k, v) in bag.entries) {
+            out[k.toString()] = if (v == null) "" else v.toString()
+        }
+        return out
+    }
+
+    override fun previousUrl(): String? {
+        val value = attributes[PREVIOUS_URL] ?: return null
+        return value.toString()
+    }
+
+    override fun setPreviousUrl(url: String): Session {
+        put(PREVIOUS_URL, url)
+        return this
+    }
+
     override fun pull(key: String, default: Any?): Any? {
         if (!attributes.containsKey(key)) {
             return default
@@ -103,5 +136,8 @@ class StoreSession @JvmOverloads constructor(
     companion object {
         const val FLASH_NEW: String = "_flash.new"
         const val FLASH_OLD: String = "_flash.old"
+        const val OLD_INPUT: String = "_old_input"
+        const val PREVIOUS_URL: String = "_previous.url"
+        const val ERRORS: String = "errors"
     }
 }

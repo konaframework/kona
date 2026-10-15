@@ -1,11 +1,11 @@
 ---
 title: Validation
-description: Declare rules for request input, get back only the validated fields, and return structured 422 errors on failure.
+description: Declare rules for request input, get back only the validated fields, and return JSON 422 or redirect-back with flashed errors for web forms.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-**Validation** checks incoming data before your handler trusts it. You describe each field with a list of **rules** — short strings such as `required`, `email`, or `min:18`. Kona checks every field, collects human-readable error messages, and either hands you the validated data or throws a `ValidationException`. The default exception handler turns that exception into a **422 Unprocessable Content** response with a JSON `errors` object, so a typical handler needs no error-handling code at all.
+**Validation** checks incoming data before your handler trusts it. You describe each field with a list of **rules** — short strings such as `required`, `email`, or `min:18`. Kona checks every field, collects human-readable error messages, and either hands you the validated data or throws a `ValidationException`. The default exception handler turns that exception into either a **422** JSON envelope (when the client expects JSON) or a **redirect back** with flashed errors and old input (typical HTML form posts), so a typical handler needs no error-handling code at all.
 
 ## Validating a request
 
@@ -211,7 +211,11 @@ Write the pattern between two identical delimiter characters (any non-alphanumer
 
 `ValidationException` exposes `errors` (Java: `getErrors()`), a map from field name to a list of messages. Fields appear in the iteration order of your rules map: declaration order for Kotlin `mapOf` or a Java `LinkedHashMap`, unspecified for Java `Map.of`. Its `message` summarizes them: the first message, plus `(and N more error)` or `(and N more errors)` when there are others.
 
-When the exception escapes your handler, the default exception handler responds with status **422** and:
+When the exception escapes your handler, the default exception handler chooses a response from `request.expectsJson()`:
+
+### JSON clients (`expectsJson()` is true)
+
+Status **422** with:
 
 ```json
 {
@@ -222,5 +226,16 @@ When the exception escapes your handler, the default exception handler responds 
   }
 }
 ```
+
+`expectsJson()` is true when `Accept` prefers `application/json` without `text/html`, or when `Content-Type` is JSON.
+
+### Web / form clients (everything else)
+
+A **302** redirect to the previous URL (`session` `_previous.url`, else `Referer`, else `/`) with:
+
+- flashed `errors` (the validation map)
+- flashed `_old_input` from `request.all()`
+
+`StartSession` applies those pending flash bags when it saves. On the next GET, read them with `request.old("email")` / `session.old("email")` and `session.get("errors")`. See [Session](../../security/session/) and [Request & response](../request-response/#redirects).
 
 This response passes through global middleware like any other. If you need a different shape, catch `ValidationException` in the handler, or install a custom `ExceptionHandler` — see [Exceptions](../exceptions/).

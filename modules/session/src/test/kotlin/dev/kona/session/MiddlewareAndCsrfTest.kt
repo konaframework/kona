@@ -33,6 +33,112 @@ class MiddlewareAndCsrfTest {
     }
 
     @Test
+    fun startSessionSkipsRememberOnErrorOrRedirectAndKeepsQuery() {
+        val manager = SessionManager(Config(), base)
+        val mw = StartSession(manager)
+        val notFound = mw.handle(Request.get("/gone")) { Response.text("no", 404) }
+        assertEquals(404, notFound.status)
+        val early = mw.handle(Request.get("/early")) { Response.text("early", 199) }
+        assertEquals(199, early.status)
+
+        val redirectGet = mw.handle(Request.get("/bounce")) {
+            Response.redirect("/other")
+        }
+        assertEquals(302, redirectGet.status)
+
+        val withLocationHeader = mw.handle(Request.get("/weird")) {
+            Response.text("ok").header("Location", "/nope")
+        }
+        assertEquals(200, withLocationHeader.status)
+
+        val cookie = mw.handle(Request("GET", "/search", query = mapOf("q" to "kona"))) {
+            Response.html("results")
+        }.cookies.first().value
+        mw.handle(
+            Request("GET", "/next", headers = mapOf("Cookie" to "kona_session=$cookie")),
+        ) { req ->
+            assertEquals("/search?q=kona", req.session()?.previousUrl())
+            Response.text("ok")
+        }
+    }
+
+    @Test
+    fun startSessionAppliesRedirectFlashAndRemembersUrl() {
+        val manager = SessionManager(Config(), base)
+        val mw = StartSession(manager)
+        val cookie = mw.handle(Request.get("/contact")) { Response.html("<form>") }.cookies.first().value
+
+        val redirected = mw.handle(
+            Request(
+                "POST",
+                "/contact",
+                headers = mapOf("Cookie" to "kona_session=$cookie", "Accept" to "text/html"),
+                body = "email=bad",
+            ),
+        ) { req ->
+            Response.redirect("/elsewhere")
+                .with("status", "saved")
+                .withInput(req.all())
+                .withErrors(mapOf("email" to listOf("Invalid")))
+        }
+        assertEquals("/elsewhere", redirected.headers["Location"])
+
+        val next = mw.handle(
+            Request("GET", "/elsewhere", headers = mapOf("Cookie" to "kona_session=$cookie")),
+        ) { req ->
+            val session = req.session()!!
+            assertEquals("saved", session.get("status"))
+            assertEquals("bad", session.old("email"))
+            assertEquals("bad", req.old("email"))
+            @Suppress("UNCHECKED_CAST")
+            val errors = session.get(StoreSession.ERRORS) as Map<String, List<String>>
+            assertEquals(listOf("Invalid"), errors["email"])
+            assertEquals("/contact", session.previousUrl())
+            Response.text("ok")
+        }
+        assertEquals("ok", next.body)
+    }
+
+    @Test
+    fun validationRedirectBackUsesPreviousUrl() {
+        val manager = SessionManager(Config(), base)
+        val mw = StartSession(manager)
+        val cookie = mw.handle(Request.get("/form")) { Response.html("form") }.cookies.first().value
+
+        val kernel = dev.kona.http.HttpKernel(
+            dev.kona.http.Router().also { router ->
+                router.post("/form") { req ->
+                    req.validate(mapOf("email" to listOf("required", "email")))
+                    Response.redirect("/done")
+                }
+            },
+        )
+        kernel.pushMiddleware(mw)
+        val response = kernel.handle(
+            Request(
+                "POST",
+                "/form",
+                headers = mapOf(
+                    "Cookie" to "kona_session=$cookie",
+                    "Accept" to "text/html",
+                    "Content-Type" to "application/x-www-form-urlencoded",
+                ),
+                body = "email=not-an-email",
+            ),
+        )
+        assertEquals(302, response.status)
+        assertEquals("/form", response.headers["Location"])
+
+        mw.handle(
+            Request("GET", "/form", headers = mapOf("Cookie" to "kona_session=$cookie")),
+        ) { req ->
+            assertEquals("not-an-email", req.old("email"))
+            assertNotNull(req.session()?.get(StoreSession.ERRORS))
+            Response.html("form")
+        }
+    }
+
+    @Test
     fun verifyCsrfSkipsReadingAndExceptPaths() {
         val ok = Response.text("ok")
         val mw = VerifyCsrfToken(listOf("/webhooks", "/hooks/*"))

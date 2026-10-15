@@ -111,4 +111,35 @@ class StoreSessionTest {
         session.save(1)
         assertTrue(session.exists)
     }
+
+    @Test
+    fun oldInputAndPreviousUrl() {
+        val store = ArraySessionStore()
+        val session = StoreSession(SessionId.generate(), store).start(false)
+        assertNull(session.old("email"))
+        assertEquals("fallback", session.old("email", "fallback"))
+        assertTrue(session.oldInput().isEmpty())
+
+        session.flashInput(mapOf("email" to "a@b.c", "name" to "Ada"))
+        assertEquals("a@b.c", session.old("email"))
+        assertEquals("Ada", session.old("name", "x"))
+        assertEquals(mapOf("email" to "a@b.c", "name" to "Ada"), session.oldInput())
+        assertNull(session.old("missing"))
+
+        session.put(StoreSession.OLD_INPUT, mapOf("blank" to null, "ok" to "1", "num" to 7))
+        assertEquals("fallback", session.old("blank", "fallback"))
+        assertNull(session.old("blank", null))
+        assertEquals("7", session.old("num"))
+        assertEquals(mapOf("blank" to "", "ok" to "1", "num" to "7"), session.oldInput())
+
+        assertNull(session.previousUrl())
+        session.setPreviousUrl("/contact")
+        assertEquals("/contact", session.previousUrl())
+        session.flashInput(emptyMap())
+        assertTrue(session.oldInput().isEmpty())
+
+        session.put(StoreSession.OLD_INPUT, "not-a-map")
+        assertEquals("d", session.old("x", "d"))
+        assertTrue(session.oldInput().isEmpty())
+    }
 }

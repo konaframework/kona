@@ -20,6 +20,19 @@ public class JavaApiTest {
         assertTrue(Response.json(Map.of("a", 1)).getBody().contains("a"));
         assertEquals(201, Response.json(Map.of("a", 1), 201).getStatus());
         assertEquals(204, Response.noContent().getStatus());
+        Response redirect = Response.redirect("/home");
+        assertEquals(302, redirect.getStatus());
+        assertEquals("/home", redirect.getHeaders().get("Location"));
+        Response back = Response.back(new Request("GET", "/", Map.of("Referer", "/prev"), Map.of(), ""));
+        assertEquals("/prev", back.getHeaders().get("Location"));
+        assertEquals("ok", Response.redirect("/x").with("status", "ok").getSessionFlash().get("status"));
+        assertEquals(Map.of("n", "Ada"), Response.redirect("/").withInput(Map.of("n", "Ada")).getSessionOldInput());
+        assertEquals(
+            Map.of("n", List.of("bad")),
+            Response.redirect("/").withErrors(Map.of("n", List.of("bad"))).getSessionErrors()
+        );
+        assertFalse(Request.get("/").expectsJson());
+        assertTrue(new Request("GET", "/", Map.of("Accept", "application/json"), Map.of(), "").expectsJson());
 
         Request get = Request.get("/x");
         assertEquals("GET", get.getMethod());

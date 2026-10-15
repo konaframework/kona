@@ -38,9 +38,11 @@ Other keys: `session.lifetime` (minutes), `session.cookie`, `session.path`, `ses
 <TabItem label="Kotlin">
 
 ```kotlin
-val session = request.getAttribute(StartSession.ATTRIBUTE) as Session
+val session = request.session()!! // or getAttribute(StartSession.ATTRIBUTE) as Session
 session.put("user_id", 1)
 session.flash("status", "Saved")
+session.flashInput(mapOf("email" to "ada@example.com"))
+val email = request.old("email") // "ada@example.com" on the next request
 ```
 
 </TabItem>
@@ -50,9 +52,20 @@ session.flash("status", "Saved")
 Session session = (Session) request.getAttribute(StartSession.ATTRIBUTE);
 session.put("user_id", 1);
 session.flash("status", "Saved");
+session.flashInput(Map.of("email", "ada@example.com"));
+String email = request.old("email"); // next request
 ```
 
 </TabItem>
 </Tabs>
+
+### Redirect flash, old input, and previous URL
+
+`StartSession` also:
+
+1. Applies pending `Response.with` / `withInput` / `withErrors` bags before save (so `Response.redirect("/home").with("status", "Saved")` flashes for the next request).
+2. Records `_previous.url` on successful GET responses (used by `Response.back(request)` and validation redirect-back).
+
+Use `session.flashInput(...)`, `session.old("field")`, and `request.old("field")` to redisplay form values after a failed POST. Validation errors flash under the key `errors`.
 
 `kona new` registers `SessionServiceProvider` and wires `StartSession` plus `VerifyCsrfToken` (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`. Manual apps: register the provider, resolve `SessionManager`, and add `StartSession(manager)` to the kernel.
