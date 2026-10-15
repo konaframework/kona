@@ -5,17 +5,21 @@
 
 That plugin registers Crema as a first-class language (not TextMate), layers HTML
 highlighting under `@directives` / `{{ }}` / `{!! !!}` / `{{-- --}}`, offers
-directive completion, and ships a Grind run configuration.
+directive completion, recognizes the `kona new` scaffold tree, and ships Grind
+run configurations — including **Grind Serve** for the Netty HTTP adapter
+(default `http://127.0.0.1:4000`, virtual threads).
 
 | | |
 | --- | --- |
 | Plugin id | `dev.kona.idea` |
+| Current line | **v0.2.0** |
 | Releases | [kona-idea Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
-| Develop | clone `kona-idea` → `./gradlew runIde` / `buildPlugin` |
+| Develop | clone `kona-idea` → `./gradlew runIde` / `buildPlugin` (JDK 21+) |
 
 Install: **Settings → Plugins → ⚙ → Install Plugin from Disk…** → pick the zip → restart.
 
-Confirm `*.crema.html` / `*.crema.kt` open as language **Crema**.
+Confirm `*.crema.html` / `*.crema.kt` open as language **Crema**, then run
+**Grind Serve** against your app.
 
 ## Optional: TextMate (legacy)
 
@@ -42,3 +46,4 @@ Or `./grind ide:lsp` from an app. The plugin menu **Kona → Show kona-lsp Setup
 - Grammar sources: `ide-support/crema/`
 - VS Code / Cursor extension: `ide-support/vscode-crema/`
 - JVM module: `modules/lsp` (`dev.kona:kona-lsp`)
+- Public docs: `apps/docs` → Language → IntelliJ
