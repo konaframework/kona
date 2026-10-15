@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** None — open next deepen after M19.
+**Active milestone:** **M20 — Default web scaffold** (`milestone/M20-default-web-scaffold`) — checklist complete; ship via PR.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -668,7 +668,31 @@ M19 — Crema Vite manifest / hot.
 
 ### Next (queued)
 
-Opened after M19.
+M20 — Default web scaffold.
+
+---
+
+## M20 — Default web scaffold
+
+**Status:** active
+
+**Branch:** `milestone/M20-default-web-scaffold`
+
+**Parity slice:** `kona new` defaults to a **web** app (Crema welcome view, Welcome controller, `/` route); `--kit=api` remains an explicit opt-in.
+
+### Parity checklist
+
+- [x] Default kit is `web` (Crema + welcome view + `/` via WelcomeController); `crema` aliases `web`
+- [x] `--kit=api` keeps the JSON/text-only shape
+- [x] Generated-app / CLI regressions; samples + docs + HANDOFF; 100% kover on touched modules
+
+### In-scope modules
+
+`kona-cli` skeletons, `samples/hello-*`, `apps/docs/`
+
+### Next (queued)
+
+Opened after M20.
 
 ---
 
@@ -682,4 +706,5 @@ flowchart LR
   M16 --> M17[M17_Scaffold_Session]
   M17 --> M18[M18_Notifications]
   M18 --> M19[M19_Crema_Vite]
+  M19 --> M20[M20_Default_Web]
 ```

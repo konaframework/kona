@@ -45,7 +45,8 @@ class GeneratedAppBuildTest {
             0
         }
         assertEquals(0, ServeCommand(runner = runner).run(listOf("--base=$app", "--port=$port")))
-        assertEquals("Welcome to Kona", spawnedBody)
+        assertTrue(spawnedBody.contains("<!DOCTYPE html>", ignoreCase = true), spawnedBody)
+        assertTrue(spawnedBody.contains("Welcome", ignoreCase = true), spawnedBody)
 
         assertServesInProcess(app)
     }
@@ -135,7 +136,9 @@ class GeneratedAppBuildTest {
             bodies["/api/health"] = httpGet("http://127.0.0.1:$port/api/health").body()
         })
         assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
-        assertEquals("Welcome to Kona", bodies["/"])
+        val home = bodies["/"] ?: ""
+        assertTrue(home.contains("<!DOCTYPE html>", ignoreCase = true), home)
+        assertTrue(home.contains("Welcome", ignoreCase = true), home)
         assertEquals("{\"status\":\"ok\"}", bodies["/api/health"])
     }
 

@@ -5,6 +5,7 @@ import dev.kona.auth.AuthServiceProvider;
 import dev.kona.core.Application;
 import dev.kona.core.Env;
 import dev.kona.core.Kona;
+import dev.kona.crema.CremaServiceProvider;
 import dev.kona.extract.ExtractServiceProvider;
 import dev.kona.http.HttpKernel;
 import dev.kona.http.HttpServiceProvider;
@@ -18,9 +19,6 @@ import dev.kona.session.SessionServiceProvider;
 import routes.ApiRoutes;
 import routes.WebRoutes;
 
-/**
- * Application entry. {@code grind serve --in-process} calls {@link #create}; {@code ./gradlew run} calls {@link #main}.
- */
 public final class App {
     public static Application create(String[] args) {
         Application app = Kona.create(args)
@@ -33,6 +31,7 @@ public final class App {
                 new QueueServiceProvider(),
                 new ScheduleServiceProvider(),
                 new MailServiceProvider(),
+                new CremaServiceProvider(),
                 new AppServiceProvider()
             )
             .afterBoot(Middleware::configure)

@@ -16,9 +16,9 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M19 — Crema Vite manifest / hot** on `main` (PR #36) |
-| Active | None — open next deepen (e.g. Crema `<x-*>`, broadcast transport, search engine) |
-| App layout | Scaffold providers (M17), durable notifications (M18), Crema/Inertia shared Vite (M19) |
+| Last merged milestone | **M19 — Crema Vite** on `main` (PR #36) |
+| Active | **M20 — Default web scaffold** (`milestone/M20-default-web-scaffold`) |
+| App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
 | Models | **Auto only** unless the human names a model for that turn |
@@ -33,13 +33,6 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | M19 Crema Vite manifest / hot | #36 |
 | M18 Notifications durability | #35 |
 | M17 Scaffold + session/cookies | #34 |
-
-## Known thin surfaces
-
-| Area | Thinness |
-|------|----------|
-| Crema | richer `<x-*>` components |
-| Broadcast / search | In-process / memory engines |
 
 ## Commands
 
