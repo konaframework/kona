@@ -104,4 +104,4 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 | Date | Batch | Notes |
 |------|-------|-------|
 | 2026-10-15 | audit | Ledger created |
-| 2026-10-15 | batch1 | APIs + docs + grind flags |
+| 2026-10-15 | batch1 | PR #69 — delay/later, middleware, unique, chain, light batch, worker flags, schedule frequencies/mutex/work, Digging deeper docs |
