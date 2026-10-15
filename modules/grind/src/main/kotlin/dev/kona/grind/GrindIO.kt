@@ -76,6 +76,10 @@ class GrindIO(
         if (verbosity != Verbosity.QUIET) console.progress(current, total, label)
     }
 
+    fun table(headers: List<String>, rows: List<List<String>>) {
+        if (verbosity != Verbosity.QUIET) console.table(headers, rows)
+    }
+
     fun verbose(message: String) {
         if (verbosity == Verbosity.VERBOSE) {
             console.writeln(console.paint(ConsoleIO.DIM, message))

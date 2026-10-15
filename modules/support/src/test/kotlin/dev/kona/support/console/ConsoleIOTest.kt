@@ -85,4 +85,24 @@ class ConsoleIOTest {
         assertTrue(io.paint(ConsoleIO.RED, "x").contains("\u001B["))
         assertFalse(ConsoleIO(PrintStream(out), color = false).paint(ConsoleIO.RED, "x").contains("\u001B["))
     }
+
+    @Test
+    fun tableOutput() {
+        val out = ByteArrayOutputStream()
+        val io = ConsoleIO(PrintStream(out), color = false)
+        io.table(listOf("A", "BB"), listOf(listOf("1", "22"), listOf("xxx", "y")))
+        val rendered = out.toString()
+        assertTrue(rendered.contains("A"))
+        assertTrue(rendered.contains("BB"))
+        assertTrue(rendered.contains("xxx"))
+        assertThrows(IllegalArgumentException::class.java) {
+            io.table(emptyList(), emptyList())
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            io.table(listOf("A"), listOf(listOf("1", "2")))
+        }
+        val colored = ByteArrayOutputStream()
+        ConsoleIO(PrintStream(colored), color = true).table(listOf("H"), listOf(listOf("c")))
+        assertTrue(colored.toString().contains("H"))
+    }
 }

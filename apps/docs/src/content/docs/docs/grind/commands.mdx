@@ -32,12 +32,22 @@ kona grind --help   # explains the proxy; other args are forwarded to ./grind
 
 Default host is **127.0.0.1** and default port is **4000** (also in generated `.env`). If that port is already in use, grind asks whether to try the next one (4001, 4002, …). If no Gradle project is found, grind exits and tells you to run `kona new <name>`.
 
+## `./grind make:command`
+
+```bash
+./grind make:command SendDigest
+./grind make:command SendDigest --command=mail:digest --lang=java
+```
+
+Generates a `ConsoleCommand` under `app/console/commands/` and registers it in `META-INF/kona/commands`. Full guide: [Creating commands](../creating-commands/).
+
 ## `./grind make:controller`
 
 ```bash
 ./grind make:controller Post
 ./grind make:controller AccountController --lang=java
 ```
+
 
 Writes under `src/main/kotlin|java/app/http/controllers/`. Names cannot contain path separators; invalid identifiers are rejected. Language defaults from existing `.java` files under `src/main/java/`, or pass `--lang=`.
 
