@@ -26,13 +26,30 @@ Main Boot:         Kona.create(args).boot()
 
 ## Component specs (agent guidance)
 
+### Console / CLI output (locked)
+
+**All** terminal commands use Termwind-inspired styling via [`dev.kona.support.console.ConsoleIO`](../../modules/support/src/main/kotlin/dev/kona/support/console/ConsoleIO.kt):
+
+- Brand colors primary `#FF9A00`, accent `#286291`
+- Methods: `info` / `success` / `warn` / `error`, `title`, `box`, `twoColumn`, `progress`
+- Env: `NO_COLOR` (off), `FORCE_COLOR=1` (on), `FORCE_COLOR=0` (off), `TERM=dumb` (off)
+
+| Surface | Type |
+| --- | --- |
+| Shared API | `kona-support` → `ConsoleIO` |
+| `./grind` | `GrindIO` (wraps `ConsoleIO` + quiet/verbose) |
+| global `kona` | `ConsoleIO` directly |
+| `scripts/install.sh` | Same visual language (bash ANSI) |
+
+**Do not** use raw `println` / unstyled `System.out` for user-facing CLI output. New commands must go through `ConsoleIO` or `GrindIO`.
+
 ### `kona` (global CLI — `kona-cli`)
 
-Installed on the developer machine PATH. Primary command: `kona new --lang=kotlin|java`.
+Installed on the developer machine PATH. Primary command: `kona new --lang=kotlin|java`. Output via `ConsoleIO`.
 
 ### `grind` (app-local CLI — `kona-grind`)
 
-Shipped inside each generated application as `./grind`. Target commands: `./grind serve`, `./grind make:model`, `./grind make:controller`, `./grind make:migration`, `./grind migrate`, `./grind steam`. **Not** used to create new apps.
+Shipped inside each generated application as `./grind`. Target commands: `./grind serve`, `./grind make:model`, `./grind make:controller`, `./grind make:migration`, `./grind migrate`, `./grind steam`. **Not** used to create new apps. Output via `GrindIO` → `ConsoleIO`.
 
 ### `steam` (REPL)
 

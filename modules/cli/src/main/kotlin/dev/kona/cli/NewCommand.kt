@@ -1,5 +1,6 @@
 package dev.kona.cli
 
+import dev.kona.support.console.ConsoleIO
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -40,7 +41,7 @@ class NewCommand(
         copySkeleton(lang, target, variables, kit)
         target.resolve("grind").toFile().setExecutable(true)
         target.resolve("gradlew").toFile().setExecutable(true)
-        val io = CliIO()
+        val io = ConsoleIO()
         io.success("Created Kona application at $target ($lang, kit=$kit)")
         io.info("cd ${target.fileName}")
         io.info("./grind serve")
