@@ -13,7 +13,8 @@ class Request @JvmOverloads constructor(
     bodyBytes: ByteArray? = null,
 ) {
     val bodyBytes: ByteArray = bodyBytes ?: body.toByteArray(Charsets.UTF_8)
-    val body: String = body
+    /** UTF-8 view of the body (from [body] string or decoded [bodyBytes]). */
+    val body: String = if (body.isNotEmpty()) body else String(this.bodyBytes, Charsets.UTF_8)
 
     fun header(name: String): String? = header(name, null)
 
@@ -145,7 +146,7 @@ class Request @JvmOverloads constructor(
     @JvmOverloads
     fun cookie(name: String, default: String? = null): String? = cookies()[name] ?: default
 
-    private fun textBody(): String = if (body.isNotEmpty()) body else String(bodyBytes, Charsets.UTF_8)
+    private fun textBody(): String = body
 
     private fun isMultipart(): Boolean =
         header("Content-Type").orEmpty().contains("multipart/form-data", ignoreCase = true)
