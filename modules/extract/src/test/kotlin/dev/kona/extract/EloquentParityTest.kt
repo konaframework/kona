@@ -1,5 +1,11 @@
 package dev.kona.extract
 
+import java.sql.Date
+import java.sql.Time
+import java.sql.Timestamp
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -225,6 +231,92 @@ class EloquentParityTest {
         )
         assertEquals(1, User.query().insertOrIgnore(listOf(mapOf("email" to "z@x", "name" to "Z", "age" to 1)), listOf("email")))
         assertEquals(0, User.query().insertOrIgnore(listOf(mapOf("email" to "z@x", "name" to "Z2")), listOf("email")))
+    }
+
+    @Test
+    fun whereDateHavingAndModelBuilderMirrors() {
+        // Use modern civil dates — pre-1900 timestamps can shift under H2 cast(as time) TZ rules.
+        val adaBorn = Timestamp.valueOf(LocalDateTime.of(1990, 12, 10, 9, 30, 0))
+        val graceBorn = Timestamp.valueOf(LocalDateTime.of(2001, 12, 9, 14, 15, 0))
+        db.table("users").insert(
+            listOf(
+                mapOf("name" to "Ada", "email" to "a@d", "age" to 36, "born_at" to adaBorn),
+                mapOf("name" to "Grace", "email" to "g@d", "age" to 45, "born_at" to graceBorn),
+            ),
+        )
+        db.table("posts").insert(
+            listOf(
+                mapOf("user_id" to 1, "title" to "A1", "votes" to 10),
+                mapOf("user_id" to 1, "title" to "A2", "votes" to 5),
+                mapOf("user_id" to 2, "title" to "G1", "votes" to 20),
+            ),
+        )
+
+        assertTrue(db.table("users").whereDate("born_at", Date.valueOf(LocalDate.of(1990, 12, 10))).toSql().contains("cast("))
+        assertEquals(1L, db.table("users").whereDate("born_at", Date.valueOf(LocalDate.of(1990, 12, 10))).count())
+        assertEquals(1L, db.table("users").whereDate("born_at", ">", Date.valueOf(LocalDate.of(1995, 1, 1))).count())
+        assertEquals(2L, db.table("users").where("name", "x").orWhereDate("born_at", Date.valueOf(LocalDate.of(1990, 12, 10))).orWhereDate("born_at", "=", Date.valueOf(LocalDate.of(2001, 12, 9))).count())
+
+        assertEquals(1L, db.table("users").whereYear("born_at", 1990).count())
+        assertEquals(1L, db.table("users").whereYear("born_at", ">=", 2000).count())
+        assertEquals(2L, db.table("users").where("id", 0).orWhereYear("born_at", 1990).orWhereYear("born_at", "=", 2001).count())
+
+        assertEquals(2L, db.table("users").whereMonth("born_at", 12).count())
+        assertEquals(0L, db.table("users").whereMonth("born_at", "<", 6).count())
+        assertEquals(2L, db.table("users").where("id", 0).orWhereMonth("born_at", 12).orWhereMonth("born_at", "=", 12).count())
+
+        assertEquals(1L, db.table("users").whereDay("born_at", 10).count())
+        assertEquals(1L, db.table("users").whereDay("born_at", "!=", 10).count())
+        assertEquals(2L, db.table("users").where("id", 0).orWhereDay("born_at", 10).orWhereDay("born_at", "=", 9).count())
+
+        assertEquals(1L, db.table("users").whereTime("born_at", Time.valueOf(LocalTime.of(9, 30, 0))).count())
+        assertEquals(1L, db.table("users").whereTime("born_at", ">", Time.valueOf(LocalTime.of(12, 0, 0))).count())
+        assertEquals(2L, db.table("users").where("id", 0).orWhereTime("born_at", Time.valueOf(LocalTime.of(9, 30, 0))).orWhereTime("born_at", "=", Time.valueOf(LocalTime.of(14, 15, 0))).count())
+
+        val groupedSql = db.table("posts").select("user_id").selectRaw("sum(votes) as total").groupBy("user_id")
+            .having("total", ">", 10).orHaving("total", "=", 15).havingRaw("sum(votes) >= ?", listOf(15))
+            .orHavingRaw("sum(votes) = ?", listOf(15)).orderBy("user_id").toSql()
+        assertTrue(groupedSql.contains("group by"))
+        assertTrue(groupedSql.contains("having"))
+        assertEquals(
+            1,
+            db.table("posts").select("user_id").selectRaw("sum(votes) as total").groupBy("user_id")
+                .having("total", ">", 15).get().size,
+        )
+        assertTrue(db.table("posts").selectRaw("count(*) as c", emptyList()).toSql().contains("count(*)"))
+        assertTrue(db.table("users").distinct().select("name").toSql().startsWith("select distinct"))
+        // default @JvmOverloads bindings branches
+        assertTrue(db.table("posts").groupBy("user_id").havingRaw("count(*) >= 1").orHavingRaw("count(*) >= 1").toSql().contains("having"))
+
+        assertEquals(1L, User.query().whereDate("born_at", Date.valueOf(LocalDate.of(1990, 12, 10))).count())
+        assertEquals(1L, User.query().whereYear("born_at", 2001).orWhereMonth("born_at", 12).where("name", "Grace").count())
+        assertEquals(1, User.query().whereDay("born_at", 10).orWhereDay("born_at", 9).where("name", "Ada").get().size)
+        assertEquals(1L, User.query().whereTime("born_at", Time.valueOf(LocalTime.of(14, 15, 0))).count())
+        assertEquals(1L, User.query().orWhereDate("born_at", Date.valueOf(LocalDate.of(1990, 12, 10))).where("name", "Ada").count())
+        assertEquals(1L, User.query().orWhereYear("born_at", 1990).where("name", "Ada").count())
+        assertEquals(1L, User.query().orWhereMonth("born_at", 12).where("name", "Ada").count())
+        assertEquals(1L, User.query().orWhereTime("born_at", Time.valueOf(LocalTime.of(9, 30))).where("name", "Ada").count())
+        assertEquals(
+            1L,
+            User.query().where("name", "x").orWhereRaw("age = ?", listOf(36)).count(),
+        )
+        assertTrue(User.query().addSelect("name").selectRaw("age as years").selectRaw("name as label", emptyList()).distinct().toSql().contains("distinct"))
+        assertTrue(
+            User.query().groupBy("name").having("age", ">", 0).orHaving("age", "=", 36)
+                .havingRaw("count(*) >= ?", listOf(1)).orHavingRaw("count(*) = ?", listOf(1)).toSql().contains("having"),
+        )
+        assertTrue(User.query().where("name", "x").orWhereRaw("age > 0").groupBy("name").havingRaw("count(*) >= 1").orHavingRaw("count(*) >= 1").toSql().contains("having"))
+        assertEquals(1L, User.query().whereDate("born_at", "=", Date.valueOf(LocalDate.of(1990, 12, 10))).count())
+        assertEquals(1L, User.query().orWhereDate("born_at", "=", Date.valueOf(LocalDate.of(2001, 12, 9))).where("name", "Grace").count())
+        assertEquals(1L, User.query().whereDay("born_at", "=", 10).count())
+        assertEquals(1L, User.query().orWhereDay("born_at", "=", 9).where("name", "Grace").count())
+        assertEquals(2L, User.query().whereMonth("born_at", 12).count())
+        assertEquals(2L, User.query().whereMonth("born_at", "=", 12).count())
+        assertEquals(2L, User.query().orWhereMonth("born_at", "=", 12).count())
+        assertEquals(1L, User.query().whereYear("born_at", "=", 1990).count())
+        assertEquals(1L, User.query().orWhereYear("born_at", "=", 2001).where("name", "Grace").count())
+        assertEquals(1L, User.query().whereTime("born_at", "=", Time.valueOf(LocalTime.of(9, 30))).count())
+        assertEquals(1L, User.query().orWhereTime("born_at", "=", Time.valueOf(LocalTime.of(14, 15))).where("name", "Grace").count())
     }
 
     @Test

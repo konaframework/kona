@@ -9,7 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.kona.extract.relations.HasMany;
 import dev.kona.extract.relations.Relation;
 import dev.kona.extract.schema.SchemaGrammar;
+import java.sql.Date;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -179,6 +185,24 @@ public class JavaExtractApiTest {
         assertEquals(1, members.whereRaw("age > 1").orderBy("id").latest().oldest().get().size());
         assertEquals(15, Member.QUERY.query().paginate().getPerPage());
         assertEquals(15, Member.QUERY.paginate().getPerPage());
+
+        Timestamp born = Timestamp.valueOf(LocalDateTime.of(1990, 12, 10, 9, 30, 0));
+        DB.table("users").where("name", "Ada").update(Map.of("born_at", born));
+        assertTrue(users.copy().whereDate("born_at", Date.valueOf(LocalDate.of(1990, 12, 10))).toSql().contains("cast("));
+        assertEquals(1L, users.copy().whereDate("born_at", Date.valueOf(LocalDate.of(1990, 12, 10))).count());
+        assertEquals(1L, users.copy().whereYear("born_at", 1990).orWhereMonth("born_at", 12).count());
+        assertEquals(1L, users.copy().whereTime("born_at", Time.valueOf(LocalTime.of(9, 30, 0))).count());
+        assertTrue(users.copy().select("name").selectRaw("age as years").groupBy("name", "age")
+                .having("age", ">", 0).orHaving("age", "=", 36)
+                .havingRaw("count(*) >= ?", List.of(1)).orHavingRaw("count(*) = ?", List.of(1))
+                .toSql().contains("having"));
+        assertTrue(users.copy().groupBy("name").havingRaw("count(*) >= 1").orHavingRaw("count(*) >= 1").toSql().contains("having"));
+        assertEquals(1L, Member.QUERY.query().whereDate("born_at", Date.valueOf(LocalDate.of(1990, 12, 10))).count());
+        assertEquals(1L, Member.QUERY.query().where("name", "x").orWhereRaw("age = ?", List.of(36)).count());
+        assertEquals(1L, Member.QUERY.query().where("name", "x").orWhereRaw("age > 0").count());
+        assertTrue(Member.QUERY.query().addSelect("name").selectRaw("age as years").distinct()
+                .groupBy("name").havingRaw("count(*) >= ?", List.of(1)).orHavingRaw("count(*) >= 1")
+                .havingRaw("count(*) >= 1").toSql().contains("distinct"));
     }
 
     @Test
