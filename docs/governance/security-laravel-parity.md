@@ -73,7 +73,7 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 
 | Batch | PR | Summary |
 |-------|-----|---------|
-| 1 | _(pending)_ | Auth facade; once/validate/loginUsingId/viaRemember; remember cookie; Authenticate / RedirectIfAuthenticated / AuthenticateSession / Authorize; Gate any/none/before/discoverPolicy; PasswordRules; RateLimit factories; make:policy; security docs enrich |
+| 1 | [#66](https://github.com/konaframework/kona/pull/66) | Auth facade; once/validate/loginUsingId/viaRemember; remember cookie; Authenticate / RedirectIfAuthenticated / AuthenticateSession / Authorize; Gate any/none/before/discoverPolicy; PasswordRules; RateLimit factories; make:policy; security docs enrich |
 
 ## Deferrals
 
