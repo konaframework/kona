@@ -10,8 +10,10 @@ Kona’s security stack ships in two modules:
 
 ## Simple path
 
-1. Register `SessionServiceProvider` and `AuthServiceProvider`.
-2. Put `StartSession` (and usually `VerifyCsrfToken`) on the HTTP kernel.
+Apps from `kona new` already register session and auth providers and wire `StartSession` + CSRF in `bootstrap.Middleware`.
+
+1. Keep `SessionServiceProvider` and `AuthServiceProvider` on the bootstrap provider list (scaffolded by default).
+2. Keep `StartSession` and `VerifyCsrfToken` on the web stack (`/api/*` is CSRF-excepted).
 3. Use `AuthManager` / session attributes in controllers.
 
-Later pages dig into each piece. Prefer the simple path in new apps; wire providers explicitly until higher-level scaffolding lands.
+Later pages dig into each piece.

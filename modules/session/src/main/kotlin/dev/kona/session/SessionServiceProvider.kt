@@ -14,6 +14,8 @@ import dev.kona.redis.RedisManager
  * Cookie encryption: when `dev.kona.security.Encrypter` is bound, or when
  * `session.encrypt=true` and `app.key` is set, encrypt/decrypt lambdas are wired into
  * the cookie session driver. Soft-depends on `kona-auth` (resolved reflectively).
+ *
+ * When encryption is unavailable, cookie payloads are HMAC-signed with `app.key` when present.
  */
 class SessionServiceProvider : ServiceProvider {
     override fun register(app: Application) {
@@ -26,7 +28,8 @@ class SessionServiceProvider : ServiceProvider {
                 else -> null
             }
             val (encrypt, decrypt) = resolveCookieCodec(app)
-            SessionManager(app.config, app.basePath, redis, encrypt, decrypt)
+            val signKey = if (encrypt == null) resolveCookieSignKey(app) else null
+            SessionManager(app.config, app.basePath, redis, encrypt, decrypt, signKey)
         }
         app.container.alias("session.manager", SessionManager::class.java.name)
     }
@@ -68,6 +71,15 @@ class SessionServiceProvider : ServiceProvider {
                 // ClassNotFoundException when kona-auth is absent, or invalid app.key / reflective failures.
                 null to null
             }
+        }
+
+        /** HMAC key from `app.key` when encryption codecs are not in use. */
+        internal fun resolveCookieSignKey(app: Application): ByteArray? {
+            val key = app.config.getString("app.key")
+            if (key.isNullOrBlank()) {
+                return null
+            }
+            return CookieSigner.keyFromAppKey(key)
         }
     }
 }

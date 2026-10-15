@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap
  * - `session.encrypt` — when `true` (and an app key / Encrypter is available), cookie
  *   payloads are encrypted; [SessionServiceProvider] also wires encryption when an
  *   `Encrypter` is already bound in the container
+ *
+ * When encryption is off and `app.key` is set, cookie payloads are HMAC-signed instead.
  */
 class SessionManager @JvmOverloads constructor(
     private val config: Config,
@@ -28,6 +30,7 @@ class SessionManager @JvmOverloads constructor(
     private val redis: RedisConnection? = null,
     private val cookieEncrypt: ((String) -> String)? = null,
     private val cookieDecrypt: ((String) -> String)? = null,
+    private val cookieSignKey: ByteArray? = null,
 ) {
     private val stores = ConcurrentHashMap<String, SessionStore>()
 
@@ -121,6 +124,7 @@ class SessionManager @JvmOverloads constructor(
             "cookie" -> CookieSessionStore(
                 encrypt = cookieEncrypt,
                 decrypt = cookieDecrypt,
+                signKey = if (cookieEncrypt == null) cookieSignKey else null,
             )
             "file" -> FileSessionStore(filesPath())
             "redis" -> {

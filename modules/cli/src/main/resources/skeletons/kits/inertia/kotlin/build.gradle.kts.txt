@@ -14,6 +14,13 @@ repositories {
 dependencies {
     implementation("dev.kona:kona-http:{{konaVersion}}")
     implementation("dev.kona:kona-grind:{{konaVersion}}")
+    implementation("dev.kona:kona-extract:{{konaVersion}}")
+    implementation("dev.kona:kona-redis:{{konaVersion}}")
+    implementation("dev.kona:kona-session:{{konaVersion}}")
+    implementation("dev.kona:kona-auth:{{konaVersion}}")
+    implementation("dev.kona:kona-queue:{{konaVersion}}")
+    implementation("dev.kona:kona-schedule:{{konaVersion}}")
+    implementation("dev.kona:kona-mail:{{konaVersion}}")
     implementation("dev.kona:kona-crema:{{konaVersion}}")
     implementation("dev.kona:kona-inertia:{{konaVersion}}")
 }
@@ -50,4 +57,3 @@ tasks.register("konaClasspath") {
         )
     }
 }
-

@@ -17,12 +17,18 @@ Configure with `session.driver`:
 |--------|----------|
 | `array` / `memory` | In-process map (tests / single process) |
 | `file` | JSON files under `storage/framework/sessions` (or `session.files`) |
-| `cookie` | JSON payload in the session cookie (Base64 by default; encrypted when an Encrypter is wired) |
+| `cookie` | JSON payload in the session cookie (signed or encrypted when `app.key` is set) |
 | `redis` | Keys on a Redis connection (`session.connection_prefix`, default `kona_session:`) |
 
 For `redis`, register `RedisServiceProvider` **before** `SessionServiceProvider` so `SessionManager` can resolve a `RedisConnection` / `RedisManager` from the container.
 
-Cookie encryption: register `AuthServiceProvider` with a valid `app.key`, or set `session.encrypt=true` plus `app.key`. `SessionServiceProvider` then encrypts cookie payloads with `Encrypter` instead of storing raw Base64.
+### Cookie integrity
+
+Apps from `kona new` emit a random `APP_KEY` and default to `session.driver=cookie`. Cookie payloads are protected as follows:
+
+1. **Encrypted** when an `Encrypter` is bound (for example via `AuthServiceProvider` + `app.key`), or when `session.encrypt=true` plus `app.key`.
+2. **HMAC-signed** (`payload.mac`) when encryption is off but `app.key` is set.
+3. **Plain Base64** only when no key is available (tests / local experiments).
 
 Other keys: `session.lifetime` (minutes), `session.cookie`, `session.path`, `session.secure`, `session.http_only`, `session.same_site`, `session.encrypt`.
 
@@ -49,4 +55,4 @@ session.flash("status", "Saved");
 </TabItem>
 </Tabs>
 
-Register `SessionServiceProvider`, resolve `SessionManager`, and add `StartSession(manager)` to the kernel.
+`kona new` registers `SessionServiceProvider` and wires `StartSession` plus `VerifyCsrfToken` (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`. Manual apps: register the provider, resolve `SessionManager`, and add `StartSession(manager)` to the kernel.

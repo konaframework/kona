@@ -45,6 +45,7 @@ class AppSmokeTest {
         assertTrue(Files.isRegularFile(base.resolve("src/main/java/bootstrap/Middleware.java")));
         assertTrue(Files.isRegularFile(base.resolve("src/main/java/routes/ApiRoutes.java")));
         assertTrue(Files.isRegularFile(base.resolve("src/main/resources/config/paths.json")));
+        assertTrue(Files.isRegularFile(base.resolve("src/main/resources/config/session.json")));
         assertTrue(Files.isDirectory(base.resolve("storage")));
     }
 }

@@ -8,14 +8,16 @@ import java.util.function.Function
 /**
  * Cookie session driver: payload travels in the session cookie.
  *
- * By default the cookie value is URL-safe Base64(JSON). When [encrypt] / [decrypt]
- * are provided (typically AES via `dev.kona.security.Encrypter`), the cookie holds
- * the encrypted string instead of raw Base64 — preferred for production.
+ * Encoding priority:
+ * 1. [encrypt] / [decrypt] when provided (AES via Encrypter)
+ * 2. HMAC signing via [signKey] when encryption is off
+ * 3. Plain URL-safe Base64(JSON) (tests / no app key)
  */
 class CookieSessionStore @JvmOverloads constructor(
     private val mapper: ObjectMapper = jacksonObjectMapper(),
     private val encrypt: ((String) -> String)? = null,
     private val decrypt: ((String) -> String)? = null,
+    private val signKey: ByteArray? = null,
 ) : SessionStore {
     /** Java-friendly constructor taking [Function] codecs. */
     constructor(
@@ -26,6 +28,20 @@ class CookieSessionStore @JvmOverloads constructor(
         mapper,
         encrypt?.let { fn -> { s: String -> fn.apply(s) } },
         decrypt?.let { fn -> { s: String -> fn.apply(s) } },
+        null,
+    )
+
+    /** Java-friendly constructor with optional HMAC signing key. */
+    constructor(
+        mapper: ObjectMapper,
+        encrypt: Function<String, String>?,
+        decrypt: Function<String, String>?,
+        signKey: ByteArray?,
+    ) : this(
+        mapper,
+        encrypt?.let { fn -> { s: String -> fn.apply(s) } },
+        decrypt?.let { fn -> { s: String -> fn.apply(s) } },
+        signKey,
     )
 
     /** Inbound cookie payload for the current request (set by [SessionManager]). */
@@ -80,22 +96,28 @@ class CookieSessionStore @JvmOverloads constructor(
 
     private fun encodePayload(json: String): String {
         val encryptFn = encrypt
-        return if (encryptFn != null) {
-            encryptFn(json)
-        } else {
-            Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(json.toByteArray(Charsets.UTF_8))
+        if (encryptFn != null) {
+            return encryptFn(json)
         }
+        val key = signKey
+        if (key != null) {
+            return CookieSigner.sign(json, key)
+        }
+        return Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(json.toByteArray(Charsets.UTF_8))
     }
 
     private fun decodePayload(raw: String): String? {
-        val decryptFn = decrypt
         return try {
+            val decryptFn = decrypt
             if (decryptFn != null) {
-                decryptFn(raw)
-            } else {
-                String(Base64.getUrlDecoder().decode(raw), Charsets.UTF_8)
+                return decryptFn(raw)
             }
+            val key = signKey
+            if (key != null) {
+                return CookieSigner.unsign(raw, key)
+            }
+            String(Base64.getUrlDecoder().decode(raw), Charsets.UTF_8)
         } catch (_: Exception) {
             null
         }

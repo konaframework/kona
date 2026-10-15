@@ -33,17 +33,17 @@ Everything application-owned lives under `src/main` (plus project-root `storage/
 |------|------|
 | `./grind` | **App-local** CLI (serve, make:controller, …) |
 | `./gradlew` | Gradle wrapper — builds and runs the app |
-| `.env` / `.env.example` | `APP_NAME`, `APP_DEBUG`, `HOST`, `PORT`, … |
+| `.env` / `.env.example` | `APP_NAME`, `APP_KEY` (generated), `APP_DEBUG`, `HOST`, `PORT`, … |
 | `src/main/kotlin/bootstrap/App` (or `…/java/…`) | Boots Kona, registers providers, starts HTTP |
-| `src/main/…/bootstrap/Middleware` | HTTP middleware stacks + trust proxies/hosts |
+| `src/main/…/bootstrap/Middleware` | Session + CSRF (`/api/*` excepted); trust proxies/hosts |
 | `src/main/…/app/providers/` | Your service provider |
 | `src/main/…/app/http/controllers/` | Controllers |
 | `src/main/…/routes/WebRoutes` + `ApiRoutes` | Web and `/api` route tables |
-| `src/main/resources/config/` | JSON config (`app`, `http`, `paths`) |
+| `src/main/resources/config/` | JSON config (`app`, `http`, `paths`, `session`) |
 | `src/main/resources/views/` | Crema views (when you add the Crema kit) |
 | `src/main/resources/public/` | Public static files |
 | `storage/` | Writable runtime data (logs, framework cache) |
-| `build.gradle.kts` | Depends on `kona-http` and `kona-grind` |
+| `build.gradle.kts` | HTTP, grind, extract, redis, session, auth, queue, schedule, mail |
 
 `kona` itself is **not** copied into the project. Only `./grind` is local.
 

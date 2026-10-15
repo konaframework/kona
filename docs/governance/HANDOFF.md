@@ -17,9 +17,9 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M16 — Durable queues** on `main` (PR #31) |
-| Active | None — next deepen: scaffold provider wiring, then Redis session + signed cookies |
-| App layout | Strict JVM hybrid under `src/main` (M14). Extract morphs/through/casts/pagination (M15). |
-| Next after M16 | Scaffold provider wiring, Redis session + signed cookies |
+| Active | **M17 — Scaffold provider wiring + Redis session + signed cookies** — ready for PR (`milestone/M17-scaffold-session-cookies`) |
+| App layout | Strict JVM hybrid under `src/main` (M14). Extract morphs/through/casts/pagination (M15). Durable queues (M16). |
+| Next after M17 | Open explicitly after merge (notifications durability / Crema Vite / etc.) |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
 | Models | **Auto only** unless the human names a model for that turn |
@@ -27,24 +27,24 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9). |
 
-### M16 focus
+### M17 focus
 
-Cross-process job restore (payload body JSON), release delays, durable failed jobs, reliable `queue:retry`.
+Scaffold kits depend on + register Extract/Redis/Session/Auth/Queue/Schedule/Mail; `APP_KEY` + `session.json`; cookie HMAC when encryption off; Redis session via providers; StartSession + CSRF except `/api/*`.
 
 ### Recently merged
 
 | Work | PR |
 |------|-----|
+| M16 Durable queues | #31 |
+| docs: mark M16 done | #32 |
 | M15 Extract morphs / through / casts / pagination | #30 |
 | M14 complete app tree under `src/main` | #29 |
 
-## Known thin surfaces (after M15)
+## Known thin surfaces (after M16)
 
 | Area | Thinness |
 |------|----------|
-| Queue | M16: jobBody JSON + database failed_jobs; remaining: scaffold auto-wiring of QueueServiceProvider |
-| Scaffold / `kona new` | Kits may need manual provider/deps for queue/schedule/mail/session/auth |
-| Session / auth | Redis session injection; unsigned cookies |
+| Scaffold / session | In progress M17 |
 | Notifications / broadcast / search | In-memory / log-null / memory search |
 | Crema | Vite manifest/hot, richer `<x-*>` |
 

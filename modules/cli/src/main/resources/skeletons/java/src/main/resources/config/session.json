@@ -1,0 +1,9 @@
+{
+  "driver": "cookie",
+  "lifetime": 120,
+  "cookie": "kona_session",
+  "path": "/",
+  "encrypt": false,
+  "http_only": true,
+  "same_site": "Lax"
+}
