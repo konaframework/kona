@@ -236,6 +236,6 @@ A **302** redirect to the previous URL (`session` `_previous.url`, else `Referer
 - flashed `errors` (the validation map)
 - flashed `_old_input` from `request.all()`
 
-`StartSession` applies those pending flash bags when it saves. On the next GET, read them with `request.old("email")` / `session.old("email")` and `session.get("errors")`. See [Session](../../security/session/) and [Request & response](../request-response/#redirects).
+`StartSession` applies those pending flash bags when it saves. On the next GET, read them with `request.old("email")` / `session.old("email")` and `session.get("errors")`. See [Session](../../security/session/) and [Request & response](../request-response/).
 
 This response passes through global middleware like any other. If you need a different shape, catch `ValidationException` in the handler, or install a custom `ExceptionHandler` — see [Exceptions](../exceptions/).

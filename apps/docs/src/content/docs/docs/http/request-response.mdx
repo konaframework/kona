@@ -250,7 +250,7 @@ router.post("/save", request -> Response.redirect("/done").with("status", "Saved
 </TabItem>
 </Tabs>
 
-### Redirects {#redirects}
+### Redirects
 
 `Response.redirect("/path")` returns a redirect with a `Location` header. Chain flash helpers for the next request (applied by `StartSession`):
 
