@@ -167,16 +167,49 @@ Field names in messages have underscores replaced by spaces: `first_name` appear
 | `size:n` | Size is exactly `n` | `…must be 4 characters.` |
 | `between:a,b` | Size is from `a` to `b`, inclusive | `…must be between 1 and 10.` |
 | `in:a,b,c` | The value (as text) is one of the listed options; for a list, every element must be | `The selected role is invalid.` |
+| `not_in:a,b` | The value is not one of the listed options | `The selected role is invalid.` |
 | `confirmed` | Equals the field named `<field>_confirmation` | `The password field confirmation does not match.` |
 | `confirmed:other` | Equals the field named `other` | same as above |
 | `same:other` | Equals the field named `other` | `The email field must match email again.` (for `same:email_again`) |
+| `different:other` | Differs from the field named `other` | `The email field must be different from email again.` |
 | `regex:/pattern/flags` | The string contains a match for the pattern | `The code field format is invalid.` |
+| `not_regex:/pattern/flags` | The string does **not** contain a match | `The code field format is invalid.` |
 | `file` | Value is a valid `UploadedFile` | `The photo field must be a file.` |
 | `image` | Valid upload with an image MIME type or image extension | `The photo field must be an image.` |
 | `mimes:png,jpg` | Valid upload whose extension is listed | `The photo field must be a file of type: png, jpg.` |
 | `mimetypes:image/png` | Valid upload whose `Content-Type` is listed | `The photo field must be a file of type: image/png.` |
+| `filled` | If the field is present, it must not be empty | `The name field must have a value.` |
+| `present` | The field key must exist (even if empty) | `The name field must be present.` |
+| `sometimes` | Skip the whole field when it is absent | — |
+| `accepted` | `yes`, `on`, `1`, or `true` (case-insensitive) | `The terms field must be accepted.` |
+| `declined` | `no`, `off`, `0`, or `false` | `The marketing field must be declined.` |
+| `alpha` / `alpha_num` / `alpha_dash` | Letters only / letters+digits / letters+digits+`-`+`_` | `…must only contain letters.` |
+| `ascii` | ASCII characters only | `…must only contain ASCII characters.` |
+| `uuid` | A UUID string | `…must be a valid UUID.` |
+| `json` | A JSON object or array string | `…must be a valid JSON string.` |
+| `ip` / `ipv4` / `ipv6` | IP address (IPv4 uses a dotted-quad check; IPv6 via the JDK) | `…must be a valid IP address.` |
+| `timezone` | A JDK zone id such as `UTC` or `America/New_York` | `…must be a valid timezone.` |
+| `date` | Parses as an ISO local date / date-time | `…must be a valid date.` |
+| `date_format:Y-m-d` | Matches the format (PHP-style `Y m d H i s` or a Java `DateTimeFormatter` pattern) | `…must match the format Y-m-d.` |
+| `after:…` / `before:…` / `after_or_equal:…` / `before_or_equal:…` | Date comparison against another field or a date string | `…must be after start.` |
+| `starts_with:a,b` / `ends_with:a,b` | String prefix / suffix | `…must start with one of: a, b.` |
+| `digits:n` / `digits_between:a,b` | Digit string of exact / ranged length | `…must be 4 digits.` |
+| `lowercase` / `uppercase` | Entire string is lower / upper case | `…must be lowercase.` |
+| `distinct` | Array / list with no duplicate values | `…has duplicate values.` |
+| `required_if:field,value` | Required when another field equals `value` | `…is required when role is admin.` |
+| `required_unless:field,value` | Required unless another field equals `value` | `…is required unless role is admin.` |
+| `required_with:a,b` | Required when any listed field is non-empty | `…is required when name is present.` |
+| `required_without:a,b` | Required when any listed field is empty / missing | `…is required when name is not present.` |
+| `required_with_all:a,b` | Required when all listed fields are non-empty | `…is required when a / b are present.` |
+| `required_without_all:a,b` | Required when all listed fields are empty | `…is required when none of a / b are present.` |
+| `exists:table,column` | Row exists (needs an [`ExistenceChecker`](#exists-and-unique)) | `…is invalid.` |
+| `unique:table,column[,exceptId]` | No conflicting row (needs an `ExistenceChecker`) | `…has already been taken.` |
 
 For `UploadedFile` values, `min` / `max` / `size` / `between` measure **kilobytes** (Laravel-compatible), not characters.
+
+### `exists` and `unique`
+
+These rules need a database probe. Register one with `Validator.setExistenceChecker(checker)` — typically from an Extract-backed provider. Without a checker, the rule fails closed with a message that an `ExistenceChecker` is required, so a missing wire-up cannot silently pass.
 
 ### How size is measured
 

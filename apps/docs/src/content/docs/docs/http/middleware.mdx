@@ -240,6 +240,47 @@ The kernel catches exceptions in two places, and which one applies changes who c
 
 Global middleware therefore never receives an exception from `next` — it always receives a `Response`. See [Exceptions](../exceptions/) for the response format and [Kernel & server](../kernel-server/) for the full pipeline.
 
+## Terminable middleware
+
+Implement `TerminableMiddleware` when you need work **after** the response is fully produced (flush metrics, write access logs). The kernel calls `terminate(request, response)` for every terminable middleware that ran — global first, then route — in **reverse** order, after HEAD body stripping.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AccessLog : TerminableMiddleware {
+    override fun handle(request: Request, next: Handler): Response = next(request)
+
+    override fun terminate(request: Request, response: Response) {
+        Log.info("${request.method} ${request.path} → ${response.status}")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AccessLog implements TerminableMiddleware {
+    @Override
+    public Response handle(Request request, Handler next) {
+        return next.handle(request);
+    }
+
+    @Override
+    public void terminate(Request request, Response response) {
+        Log.info(request.getMethod() + " " + request.getPath() + " → " + response.getStatus());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Priority
+
+`HttpKernel.priority(PreferFirst.class, PreferSecond.class)` reorders the **global** middleware list so listed types run earlier (outermost). Unlisted middleware keep their relative order after the prioritized ones. Route middleware is not reordered by priority.
+
 ## Testing middleware
 
 `MiddlewarePipeline.pipe(middlewares, destination)` builds the same chain the kernel uses, which lets you test a middleware in isolation:

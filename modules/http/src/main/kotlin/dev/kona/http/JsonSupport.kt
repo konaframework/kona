@@ -39,4 +39,17 @@ internal object JsonSupport {
         }
         return result
     }
+
+    /** True when [json] parses as a JSON object or array. */
+    fun isJson(json: String): Boolean {
+        if (json.isBlank()) {
+            return false
+        }
+        return try {
+            val tree = mapper.readTree(json)
+            tree.isObject || tree.isArray
+        } catch (_: Exception) {
+            false
+        }
+    }
 }
