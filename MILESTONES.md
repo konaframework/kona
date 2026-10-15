@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M23 — Binary downloads & signed storage** (`milestone/M23-binary-downloads`).
+**Active milestone:** none — open next deepen after M23.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -723,7 +723,7 @@ M22 — Multipart uploads.
 
 ## M22 — Multipart uploads
 
-**Status:** active
+**Status:** done (merged PR #40)
 
 **Branch:** `milestone/M22-multipart-uploads`
 
@@ -748,7 +748,7 @@ M23 — Binary downloads & signed storage.
 
 ## M23 — Binary downloads & signed storage
 
-**Status:** active
+**Status:** done (merged PR #42)
 
 **Branch:** `milestone/M23-binary-downloads`
 

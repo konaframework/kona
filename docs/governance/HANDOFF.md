@@ -16,8 +16,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M22 — Multipart uploads** on `main` (PR #40) |
-| Active | **M23 — Binary downloads & signed storage** (`milestone/M23-binary-downloads`) |
+| Last merged milestone | **M23 — Binary downloads & signed storage** on `main` (PR #42) |
+| Active | Open next deepen after M23 |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -30,15 +30,14 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
+| M23 Binary downloads & signed storage | #42 |
 | M22 Multipart uploads | #40 |
 | M21 Web form round-trip | #39 |
 | M20 Default web scaffold | #38 |
-| M19 Crema Vite manifest / hot | #36 |
 
 ### Notes
 
-- Docs PR #41 (mark M22 done in HANDOFF) may still be open/blocked beside this milestone; M23 updates supersede that handoff text.
-- Strong M24 candidate after M23: session auth middleware + Extract user provider + remember-cookie (web login).
+- Strong M24 candidate: session auth middleware + Extract user provider + remember-cookie (web login).
 
 ## Commands
 
