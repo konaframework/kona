@@ -1,10 +1,14 @@
 package dev.kona.http
 
+import dev.kona.core.Application
 import java.util.function.Consumer
 
 /**
  * HTTP router with groups, prefixes, named routes, method-set routes, and resource-style registration.
  * Kotlin DSL via [routes] / [group]; Java fluent API via [prefix] / [name] / [middleware] + `group(Consumer)`.
+ *
+ * Controller actions (`Class` + method or `"Controller@method"`) resolve the controller from
+ * [application] on each request.
  */
 class Router {
     private val routes = mutableListOf<Route>()
@@ -12,21 +16,73 @@ class Router {
     private var namePrefix: String = ""
     private var groupMiddleware: List<Middleware> = emptyList()
 
+    /** Set by [HttpServiceProvider]; required for Class / `@` controller action overloads. */
+    @Volatile
+    var application: Application? = null
+
     fun get(uri: String, action: Handler): Route = add(listOf("GET"), uri, action)
+
+    fun get(uri: String, controller: Class<*>, method: String): Route =
+        get(uri, Controllers.action(requireApp(), controller, method))
+
+    fun get(uri: String, action: String): Route =
+        get(uri, Controllers.action(requireApp(), action))
 
     fun post(uri: String, action: Handler): Route = add(listOf("POST"), uri, action)
 
+    fun post(uri: String, controller: Class<*>, method: String): Route =
+        post(uri, Controllers.action(requireApp(), controller, method))
+
+    fun post(uri: String, action: String): Route =
+        post(uri, Controllers.action(requireApp(), action))
+
     fun put(uri: String, action: Handler): Route = add(listOf("PUT"), uri, action)
+
+    fun put(uri: String, controller: Class<*>, method: String): Route =
+        put(uri, Controllers.action(requireApp(), controller, method))
+
+    fun put(uri: String, action: String): Route =
+        put(uri, Controllers.action(requireApp(), action))
 
     fun patch(uri: String, action: Handler): Route = add(listOf("PATCH"), uri, action)
 
+    fun patch(uri: String, controller: Class<*>, method: String): Route =
+        patch(uri, Controllers.action(requireApp(), controller, method))
+
+    fun patch(uri: String, action: String): Route =
+        patch(uri, Controllers.action(requireApp(), action))
+
     fun delete(uri: String, action: Handler): Route = add(listOf("DELETE"), uri, action)
+
+    fun delete(uri: String, controller: Class<*>, method: String): Route =
+        delete(uri, Controllers.action(requireApp(), controller, method))
+
+    fun delete(uri: String, action: String): Route =
+        delete(uri, Controllers.action(requireApp(), action))
 
     fun options(uri: String, action: Handler): Route = add(listOf("OPTIONS"), uri, action)
 
+    fun options(uri: String, controller: Class<*>, method: String): Route =
+        options(uri, Controllers.action(requireApp(), controller, method))
+
+    fun options(uri: String, action: String): Route =
+        options(uri, Controllers.action(requireApp(), action))
+
     fun any(uri: String, action: Handler): Route = add(VERBS, uri, action)
 
+    fun any(uri: String, controller: Class<*>, method: String): Route =
+        any(uri, Controllers.action(requireApp(), controller, method))
+
+    fun any(uri: String, action: String): Route =
+        any(uri, Controllers.action(requireApp(), action))
+
     fun match(methods: Collection<String>, uri: String, action: Handler): Route = add(methods, uri, action)
+
+    fun match(methods: Collection<String>, uri: String, controller: Class<*>, method: String): Route =
+        match(methods, uri, Controllers.action(requireApp(), controller, method))
+
+    fun match(methods: Collection<String>, uri: String, action: String): Route =
+        match(methods, uri, Controllers.action(requireApp(), action))
 
     /** Kotlin DSL group; Java callers use the `Consumer<Router>` overloads or [prefix]/[name]/[middleware]. */
     @JvmSynthetic
@@ -68,20 +124,96 @@ class Router {
 
     fun middleware(vararg values: Middleware): RouteGroup = RouteGroup(this).middleware(*values)
 
-    /** Resource-style REST registration: index/show/store/update/destroy. */
-    fun resource(name: String, controller: ResourceController): Router {
-        get("/$name") { controller.index(it) }.name("$name.index")
-        get("/$name/{id}") { controller.show(it) }.name("$name.show")
-        post("/$name") { controller.store(it) }.name("$name.store")
-        match(listOf("PUT", "PATCH"), "/$name/{id}") { controller.update(it) }.name("$name.update")
-        delete("/$name/{id}") { controller.destroy(it) }.name("$name.destroy")
-        return this
-    }
+    /**
+     * Full resource registration (including HTML form routes `create` / `edit`):
+     * index, create, store, show, edit, update, destroy.
+     */
+    @JvmOverloads
+    fun resource(
+        name: String,
+        controller: ResourceController,
+        only: Collection<String>? = null,
+        except: Collection<String>? = null,
+    ): Router = registerResource(name, controller, RESOURCE_ACTIONS, only, except)
+
+    /** Resolve [type] from the application container, then [resource]. */
+    @JvmOverloads
+    fun resource(
+        name: String,
+        type: Class<out ResourceController>,
+        only: Collection<String>? = null,
+        except: Collection<String>? = null,
+    ): Router = resource(name, requireApp().make(type), only, except)
+
+    /**
+     * API resource registration (no `create` / `edit` form routes):
+     * index, store, show, update, destroy.
+     */
+    @JvmOverloads
+    fun apiResource(
+        name: String,
+        controller: ResourceController,
+        only: Collection<String>? = null,
+        except: Collection<String>? = null,
+    ): Router = registerResource(name, controller, API_RESOURCE_ACTIONS, only, except)
+
+    /** Resolve [type] from the application container, then [apiResource]. */
+    @JvmOverloads
+    fun apiResource(
+        name: String,
+        type: Class<out ResourceController>,
+        only: Collection<String>? = null,
+        except: Collection<String>? = null,
+    ): Router = apiResource(name, requireApp().make(type), only, except)
 
     fun routes(block: Router.() -> Unit): Router {
         block()
         return this
     }
+
+    private fun registerResource(
+        name: String,
+        controller: ResourceController,
+        actions: List<ResourceAction>,
+        only: Collection<String>?,
+        except: Collection<String>?,
+    ): Router {
+        val selected = filterActions(actions, only, except)
+        for (action in selected) {
+            val route = when (action.verb) {
+                ResourceVerb.GET -> get(action.uri(name)) { action.dispatch(controller, it) }
+                ResourceVerb.POST -> post(action.uri(name)) { action.dispatch(controller, it) }
+                ResourceVerb.MATCH_UPDATE ->
+                    match(listOf("PUT", "PATCH"), action.uri(name)) { action.dispatch(controller, it) }
+                ResourceVerb.DELETE -> delete(action.uri(name)) { action.dispatch(controller, it) }
+            }
+            route.name("$name.${action.name}")
+        }
+        return this
+    }
+
+    private fun filterActions(
+        actions: List<ResourceAction>,
+        only: Collection<String>?,
+        except: Collection<String>?,
+    ): List<ResourceAction> {
+        var selected = actions
+        if (only != null) {
+            val allow = only.map { it.lowercase() }.toSet()
+            selected = selected.filter { it.name in allow }
+        }
+        if (except != null) {
+            val deny = except.map { it.lowercase() }.toSet()
+            selected = selected.filter { it.name !in deny }
+        }
+        return selected
+    }
+
+    private fun requireApp(): Application =
+        application
+            ?: throw IllegalStateException(
+                "Router has no Application; use Controllers.action(app, …) or register routes after HttpServiceProvider boots",
+            )
 
     fun all(): List<Route> = routes.toList()
 
@@ -169,7 +301,40 @@ class Router {
         /** Laravel `Router::$verbs`. */
         @JvmField
         val VERBS: List<String> = listOf("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+
+        private val RESOURCE_ACTIONS = listOf(
+            ResourceAction("index", ResourceVerb.GET, false, ResourceController::index),
+            ResourceAction("create", ResourceVerb.GET, false, ResourceController::create, suffix = "/create"),
+            ResourceAction("store", ResourceVerb.POST, false, ResourceController::store),
+            ResourceAction("show", ResourceVerb.GET, true, ResourceController::show),
+            ResourceAction("edit", ResourceVerb.GET, true, ResourceController::edit, suffix = "/edit"),
+            ResourceAction("update", ResourceVerb.MATCH_UPDATE, true, ResourceController::update),
+            ResourceAction("destroy", ResourceVerb.DELETE, true, ResourceController::destroy),
+        )
+
+        private val API_RESOURCE_ACTIONS = listOf(
+            ResourceAction("index", ResourceVerb.GET, false, ResourceController::index),
+            ResourceAction("store", ResourceVerb.POST, false, ResourceController::store),
+            ResourceAction("show", ResourceVerb.GET, true, ResourceController::show),
+            ResourceAction("update", ResourceVerb.MATCH_UPDATE, true, ResourceController::update),
+            ResourceAction("destroy", ResourceVerb.DELETE, true, ResourceController::destroy),
+        )
     }
+}
+
+private enum class ResourceVerb { GET, POST, MATCH_UPDATE, DELETE }
+
+private class ResourceAction(
+    val name: String,
+    val verb: ResourceVerb,
+    private val withId: Boolean,
+    private val call: (ResourceController, Request) -> Response,
+    private val suffix: String = "",
+) {
+    fun uri(resource: String): String =
+        if (withId) "/$resource/{id}$suffix" else "/$resource$suffix"
+
+    fun dispatch(controller: ResourceController, request: Request): Response = call(controller, request)
 }
 
 /** Pending group attributes for the Java fluent API. */
@@ -298,8 +463,10 @@ class Route @JvmOverloads constructor(
 
 interface ResourceController {
     fun index(request: Request): Response
-    fun show(request: Request): Response
+    fun create(request: Request): Response
     fun store(request: Request): Response
+    fun show(request: Request): Response
+    fun edit(request: Request): Response
     fun update(request: Request): Response
     fun destroy(request: Request): Response
 }

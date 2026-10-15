@@ -95,6 +95,7 @@ class HttpPolishTest {
 
     @Test
     fun jsonResourcesAndCollections() {
+        JsonResource.flushState()
         class UserResource(private val id: Int, private val name: String) : JsonResource(name) {
             override fun toArray(request: Request): Map<String, Any?> =
                 mapOf("id" to id, "name" to name, "path" to request.path)
@@ -102,7 +103,10 @@ class HttpPolishTest {
 
         val request = Request.get("/users")
         val one = UserResource(1, "Ada")
-        assertEquals(mapOf("id" to 1, "name" to "Ada", "path" to "/users"), one.resolve(request))
+        assertEquals(
+            mapOf("data" to mapOf("id" to 1, "name" to "Ada", "path" to "/users")),
+            one.resolve(request),
+        )
         assertTrue(one.toResponse(request).body.contains("Ada"))
 
         val collection = JsonResource.collection(listOf(UserResource(1, "Ada"), UserResource(2, "Grace")))
@@ -111,10 +115,17 @@ class HttpPolishTest {
         assertEquals(2, (wrapped["data"] as List<*>).size)
         assertTrue(collection.toResponse(request).body.contains("Grace"))
 
-        val bare = ResourceCollection(listOf(UserResource(3, "Lin")), wrap = null).wrap(null)
+        val bare = ResourceCollection(listOf(UserResource(3, "Lin"))).wrap(null)
         assertTrue(bare.toArray(request) is List<*>)
         bare.wrap("users")
         assertTrue((bare.toArray(request) as Map<*, *>).containsKey("users"))
+
+        JsonResource.withoutWrapping()
+        assertEquals(mapOf("id" to 1, "name" to "Ada", "path" to "/users"), one.resolve(request))
+        assertEquals("data", run {
+            JsonResource.flushState()
+            JsonResource.wrapping()
+        })
     }
 
     @Test
@@ -160,7 +171,9 @@ class HttpPolishTest {
             override fun index(request: Request): Response = Response.text("index")
         }
         assertEquals("index", resource.index(Request.get("/")).body)
+        assertThrows(NotFoundException::class.java) { resource.create(Request.get("/")) }
         assertThrows(NotFoundException::class.java) { resource.show(Request.get("/")) }
+        assertThrows(NotFoundException::class.java) { resource.edit(Request.get("/")) }
         assertThrows(NotFoundException::class.java) { resource.store(Request.get("/")) }
         assertThrows(NotFoundException::class.java) { resource.update(Request.get("/")) }
         assertThrows(NotFoundException::class.java) { resource.destroy(Request.get("/")) }

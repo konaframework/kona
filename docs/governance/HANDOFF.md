@@ -17,7 +17,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
-| Active | Open next deepen after M24 |
+| Active | Deepen in flight: API Resources + controller action dispatch (`feat/http-resources-controller-actions`) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |

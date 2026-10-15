@@ -77,8 +77,10 @@ class HttpStackTest {
                 "posts",
                 object : ResourceController {
                     override fun index(request: Request) = Response.text("index")
-                    override fun show(request: Request) = Response.text("show:" + request.attributes["id"])
+                    override fun create(request: Request) = Response.text("create")
                     override fun store(request: Request) = Response.text("store")
+                    override fun show(request: Request) = Response.text("show:" + request.attributes["id"])
+                    override fun edit(request: Request) = Response.text("edit:" + request.attributes["id"])
                     override fun update(request: Request) = Response.text("update")
                     override fun destroy(request: Request) = Response.text("destroy")
                 },
@@ -98,7 +100,9 @@ class HttpStackTest {
         assertEquals(404, kernel.handle(Request.get("/missing")).status)
         assertEquals("1", kernel.handle(Request.get("/mw")).headers["X-MW"])
         assertEquals("index", kernel.handle(Request.get("/posts")).body)
+        assertEquals("create", kernel.handle(Request.get("/posts/create")).body)
         assertEquals("show:9", kernel.handle(Request.get("/posts/9")).body)
+        assertEquals("edit:9", kernel.handle(Request.get("/posts/9/edit")).body)
         assertEquals("store", kernel.handle(Request.post("/posts")).body)
         assertEquals("update", kernel.handle(Request("PUT", "/posts/1")).body)
         assertEquals("update", kernel.handle(Request("PATCH", "/posts/1")).body)

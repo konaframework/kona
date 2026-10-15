@@ -1,31 +1,40 @@
 ---
 title: API Resources
-description: Transform domain objects into stable JSON maps with JsonResource and ResourceCollection.
+description: Transform domain objects into stable JSON maps with JsonResource, conditional attributes, whenLoaded, and ResourceCollection.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 An **API resource** is a dedicated transformer between your domain object and the JSON map you send to clients. Keeping that mapping in one class avoids leaking internal fields and keeps list vs detail payloads consistent.
 
+Generate a stub with [`./grind make:resource User`](../../grind/commands/#grind-makeresource) (`--collection` adds a `collection` helper).
+
 ## Single resource
 
-Subclass `JsonResource` and implement `toArray`:
+Subclass `JsonResource` and implement `toArray`. By default `resolve` / `toResponse` wrap the map under a `"data"` key. Call `JsonResource.withoutWrapping()` (usually once at boot) to disable that, or `JsonResource.wrap("payload")` to rename it.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-class UserResource(private val id: Int, private val name: String) : JsonResource(name) {
+class UserResource(
+    private val id: Int,
+    private val name: String,
+    private val email: String?,
+    model: Any? = null,
+) : JsonResource(model) {
     override fun toArray(request: Request): Map<String, Any?> =
         mapOf(
             "id" to id,
             "name" to name,
-            "self" to request.path,
+            "email" to `when`(email != null, email),
+            "admin" to mergeWhen(request.header("X-Role") == "admin", mapOf("role" to "admin")),
+            "posts" to whenLoaded("posts"),
         )
 }
 
 router.get("/users/{id}") { request ->
-    UserResource(1, "Ada").toResponse(request)
+    UserResource(1, "Ada", "ada@example.com").toResponse(request)
 }
 ```
 
@@ -37,25 +46,38 @@ public class UserResource extends JsonResource {
     private final int id;
     private final String name;
 
-    public UserResource(int id, String name) {
-        super(name);
+    public UserResource(int id, String name, Object model) {
+        super(model);
         this.id = id;
         this.name = name;
     }
 
     @Override
     public Map<String, Object> toArray(Request request) {
-        return Map.of("id", id, "name", name, "self", request.getPath());
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", id);
+        data.put("name", name);
+        data.put("posts", whenLoaded("posts"));
+        return data;
     }
 }
 
-router.get("/users/{id}", request -> new UserResource(1, "Ada").toResponse(request));
+router.get("/users/{id}", request -> new UserResource(1, "Ada", null).toResponse(request));
 ```
 
 </TabItem>
 </Tabs>
 
-`toResponse` wraps `toArray` in `Response.json(...)`. Call `resolve(request)` when you need the map without building a response yet.
+### Conditional helpers
+
+| Helper | Behavior |
+|--------|----------|
+| `when(condition, value)` | Omit the key when the condition is false (`MissingValue`) |
+| `mergeWhen(condition, map)` | Flatten `map` into the parent when true |
+| `whenLoaded("relation")` | Include a relation only if the underlying model already loaded it (`relationLoaded` / `getRelation` — works with Extract models without a hard dependency) |
+| `additional(map)` / `with(request)` | Extra top-level keys beside the wrapped payload |
+
+`toResponse` wraps `resolve` in `Response.json(...)`. Call `resolve(request)` when you need the map without building a response yet.
 
 ## Collections
 
@@ -66,7 +88,7 @@ Wrap many resources with `JsonResource.collection(...)`. By default the payload 
 
 ```kotlin
 val payload = JsonResource.collection(
-    listOf(UserResource(1, "Ada"), UserResource(2, "Grace")),
+    listOf(UserResource(1, "Ada", null), UserResource(2, "Grace", null)),
 ).wrap("users").toResponse(request)
 ```
 
@@ -75,7 +97,7 @@ val payload = JsonResource.collection(
 
 ```java
 Response payload = JsonResource.collection(
-    List.of(new UserResource(1, "Ada"), new UserResource(2, "Grace"))
+    List.of(new UserResource(1, "Ada", null), new UserResource(2, "Grace", null))
 ).wrap("users").toResponse(request);
 ```
 
@@ -84,6 +106,14 @@ Response payload = JsonResource.collection(
 
 Pass `wrap(null)` for a bare JSON array.
 
-## Where resources fit
+## With API routes
 
-Typical flow: controller loads a model → builds a resource → returns `toResponse`. Pair resources with [Controllers](../controllers/) and named links from [URL generation](../url-generation/).
+Register an API resource controller, then return resources from actions:
+
+```kotlin
+router.group(prefix = "/api", name = "api.") {
+    apiResource("projects", ProjectApiController(app))
+}
+```
+
+Typical flow: controller loads a model (optionally with relations) → builds a resource → returns `toResponse`. Pair with [Controllers](../controllers/), [resource / apiResource routes](../routing/#resource-routes), and named links from [URL generation](../url-generation/).

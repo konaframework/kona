@@ -66,6 +66,28 @@ class GrindTest {
     }
 
     @Test
+    fun makeResource() {
+        val base = temp.resolve("res-proj")
+        Files.createDirectories(base.resolve("src/main/kotlin/app"))
+        assertEquals(0, MakeResourceCommand().run(listOf("User", "--base=$base", "--lang=kotlin")))
+        val kt = Files.readString(base.resolve("src/main/kotlin/app/http/resources/UserResource.kt"))
+        assertTrue(kt.contains("class UserResource"))
+        assertTrue(kt.contains("JsonResource"))
+        assertEquals(0, MakeResourceCommand().run(listOf("PostResource", "--base=$base", "--collection", "--lang=kotlin")))
+        val collectionKt = Files.readString(base.resolve("src/main/kotlin/app/http/resources/PostResource.kt"))
+        assertTrue(collectionKt.contains("fun collection("))
+        assertEquals(1, GrindApplication().run(arrayOf("make:resource", "User", "--base=$base", "--lang=kotlin")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:resource")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:resource", "Bad-Name", "--base=$base")))
+        assertEquals(0, MakeResourceCommand().run(listOf("Order", "--base=$base", "--lang=java")))
+        assertTrue(Files.exists(base.resolve("src/main/java/app/http/resources/OrderResource.java")))
+        assertEquals(0, MakeResourceCommand().run(listOf("Invoice", "--base=$base", "--collection", "--lang=java")))
+        val javaCollection = Files.readString(base.resolve("src/main/java/app/http/resources/InvoiceResource.java"))
+        assertTrue(javaCollection.contains("static ResourceCollection collection"))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:resource" })
+    }
+
+    @Test
     fun makeMiddlewareAndRequest() {
         val base = temp.resolve("mw-req")
         Files.createDirectories(base.resolve("src/main/kotlin/app"))

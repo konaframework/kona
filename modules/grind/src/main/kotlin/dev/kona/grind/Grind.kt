@@ -23,6 +23,7 @@ class GrindApplication {
             when (val command = positional[0]) {
                 "serve" -> ServeCommand().run(positional.drop(1) + flatten(options))
                 "make:controller" -> MakeControllerCommand().run(positional.drop(1) + flatten(options))
+                "make:resource" -> MakeResourceCommand().run(positional.drop(1) + flatten(options))
                 "make:middleware" -> MakeMiddlewareCommand().run(positional.drop(1) + flatten(options))
                 "make:request" -> MakeRequestCommand().run(positional.drop(1) + flatten(options))
                 "make:view" -> MakeViewCommand().run(positional.drop(1) + flatten(options))
@@ -83,6 +84,7 @@ class GrindApplication {
             "list" to "List commands",
             "serve" to "HTTP server [--host] [--port] [--in-process]",
             "make:controller" to "Generate controller [--resource]",
+            "make:resource" to "Generate API resource [--collection]",
             "make:middleware" to "Generate middleware",
             "make:request" to "Generate form request",
             "make:view" to "Generate Crema view",

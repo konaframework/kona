@@ -20,22 +20,15 @@ fun interface InvokableController {
     fun invoke(request: Request): Response
 }
 
-/** Adapts an [InvokableController] to a [Handler]. */
-fun InvokableController.asHandler(): Handler = Controllers.asHandler(this)
-
-/** Java-friendly controller helpers. */
-object Controllers {
-    @JvmStatic
-    fun asHandler(controller: InvokableController): Handler = Handler { controller.invoke(it) }
-}
-
 /**
  * Optional resource controller base that returns 404 for unimplemented actions.
  */
 abstract class BaseResourceController : Controller(), ResourceController {
     override fun index(request: Request): Response = notImplemented()
-    override fun show(request: Request): Response = notImplemented()
+    override fun create(request: Request): Response = notImplemented()
     override fun store(request: Request): Response = notImplemented()
+    override fun show(request: Request): Response = notImplemented()
+    override fun edit(request: Request): Response = notImplemented()
     override fun update(request: Request): Response = notImplemented()
     override fun destroy(request: Request): Response = notImplemented()
 

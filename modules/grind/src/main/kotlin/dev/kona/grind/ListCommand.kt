@@ -18,6 +18,7 @@ class ListCommand {
         val COMMANDS: List<Pair<String, String>> = listOf(
             "serve" to "Run the HTTP server",
             "make:controller" to "Generate a controller (--resource for CRUD stubs)",
+            "make:resource" to "Generate an API resource (--collection)",
             "make:middleware" to "Generate HTTP middleware",
             "make:request" to "Generate a form request",
             "make:view" to "Generate a Crema view",
