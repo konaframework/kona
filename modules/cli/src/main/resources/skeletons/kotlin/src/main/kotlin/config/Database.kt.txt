@@ -9,6 +9,7 @@ object Database : ConfigFile {
     override fun config(): Map<String, Any?> = mapOf<String, Any?>(
         "default" to Env.getOrDefault("DB_CONNECTION", "main"),
         "connections" to mapOf(
+            // Default H2 is zero-install for local demos; set DB_URL to PostgreSQL/MySQL in production.
             "main" to mapOf(
                 "url" to Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
                 "username" to Env.getOrDefault("DB_USERNAME", "sa"),
