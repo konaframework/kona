@@ -5,7 +5,7 @@ import dev.kona.core.ServiceProvider
 
 class HttpServiceProvider : ServiceProvider {
     override fun register(app: Application) {
-        app.container.singleton(Router::class.java) { Router() }
+        app.container.singleton(Router::class.java) { Router().also { it.application = app } }
         app.container.singleton(UrlGenerator::class.java) { c ->
             val router = c.resolve(Router::class.java)
             val root = app.config.getString("app.url") ?: ""

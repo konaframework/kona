@@ -43,6 +43,15 @@ Writes under `src/main/kotlin|java/app/http/controllers/`. Names cannot contain 
 
 Unlike `serve`, `make:controller` does not walk upward from nested folders unless you pass `--base=`.
 
+## `./grind make:resource`
+
+```bash
+./grind make:resource User
+./grind make:resource PostResource --collection --lang=java
+```
+
+Writes under `src/main/kotlin|java/app/http/resources/`. Names get a `Resource` suffix when missing. Pass `--collection` to include a static/companion `collection` helper that wraps items in `JsonResource.collection(...)`.
+
 ## Database commands
 
 These commands work with [Extract](../../extract/). Generators write source files; the others boot your application in-process.
