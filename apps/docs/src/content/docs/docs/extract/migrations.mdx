@@ -259,7 +259,7 @@ Rolling back a recorded migration that is no longer registered throws `Migration
 
 ## grind commands
 
-All commands run from the application directory. The database commands boot your application **in-process** from its compiled classes (`build/classes`), so run `./gradlew classes` after changing migrations. They use the `MigrationRegistry` bound in the container, plus the bound `Database` (from `ExtractServiceProvider`) or, when none is bound, a `Database` built from `config/database.json`.
+All commands run from the application directory. The database commands boot your application **in-process** from its compiled classes (`build/classes`), so run `./gradlew classes` after changing migrations. They use the `MigrationRegistry` bound in the container, plus the bound `Database` (from `ExtractServiceProvider`) or, when none is bound, a `Database` built from the `database` config section (your `config/Database` module).
 
 ```bash
 ./grind make:migration create_flights_table          # schema.create("flights") stub

@@ -31,7 +31,7 @@ class PathLayoutTest {
     fun helpersResolveUnderSrcMain() {
         val layout = PathLayout.detect(temp)
         assertEquals(temp.resolve("src/main/kotlin/app/http"), layout.app("http"))
-        assertEquals(temp.resolve("src/main/resources/config"), layout.config())
+        assertEquals(temp.resolve("src/main/kotlin/config"), layout.config())
         assertEquals(temp.resolve("src/main/resources/views/home"), layout.view("home"))
         assertEquals(temp.resolve("src/main/resources/public"), layout.publicPath())
         assertEquals(temp.resolve("storage/logs"), layout.storage("logs"))
@@ -41,28 +41,25 @@ class PathLayoutTest {
 
     @Test
     fun configOverridesAndApplicationHelpers() {
-        Files.createDirectories(temp.resolve("src/main/resources/config"))
-        Files.writeString(
-            temp.resolve("src/main/resources/config/paths.json"),
-            """
-            {
-              "langRoot": "src/main/java",
-              "resources": "custom/resources",
-              "storage": "var/storage",
-              "public": "custom/public"
-            }
-            """.trimIndent(),
-        )
         Files.writeString(temp.resolve(".env"), "APP_KEY=test-key\n")
+        val paths = ConfigFile.of("paths") {
+            mapOf(
+                "langRoot" to "src/main/java",
+                "resources" to "custom/resources",
+                "storage" to "var/storage",
+                "public" to "custom/public",
+            )
+        }
         val seen = AtomicReference<Application?>(null)
         val app = Kona.create(arrayOf("--base=$temp"))
+            .configs(paths)
             .afterBoot { seen.set(it) }
             .boot()
         assertSame(app, seen.get())
         assertSame(app.pathLayout, app.pathLayout)
         assertEquals(temp.resolve("src/main/java/app"), app.appPath())
         assertEquals(temp.resolve("var/storage/logs"), app.storagePath("logs"))
-        assertEquals(temp.resolve("custom/resources/config"), app.configPath())
+        assertEquals(temp.resolve("src/main/java/config"), app.configPath())
         assertEquals(temp.resolve("custom/public"), app.publicPath())
         assertEquals("test-key", app.config.getString("app.key"))
 

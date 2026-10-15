@@ -1,6 +1,12 @@
 package bootstrap
 
 import app.providers.AppServiceProvider
+import config.App as AppConfig
+import config.Database
+import config.Filesystems
+import config.Http
+import config.Paths
+import config.Session
 import dev.kona.auth.AuthServiceProvider
 import dev.kona.core.Application
 import dev.kona.core.Env
@@ -24,6 +30,7 @@ object App {
     @JvmStatic
     fun create(args: Array<String>): Application {
         val app = Kona.create(args)
+            .configs(AppConfig, Database, Session, Filesystems, Http, Paths)
             .providers(
                 HttpServiceProvider(),
                 ExtractServiceProvider(),

@@ -1,14 +1,10 @@
 package dev.kona.core
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.Properties
-
 /**
- * Dot-notation config repository (Laravel Config shape) backed by nested maps.
+ * Dot-notation config repository backed by nested maps.
  *
  * `set("app.debug", true)` creates `{app: {debug: true}}`; `get("app")` returns the nested map.
+ * Application settings come from executable [ConfigFile] modules and [Env], not from JSON files.
  */
 class Config {
     private val items = linkedMapOf<String, Any?>()
@@ -71,41 +67,9 @@ class Config {
         }
     }
 
-    /**
-     * Loads a `.properties` or `.json` (object root) file, merging under [prefix].
-     */
-    @JvmOverloads
-    fun load(path: Path, prefix: String = "") {
-        val name = path.fileName.toString()
-        when {
-            name.endsWith(".properties") -> {
-                val properties = Properties()
-                Files.newBufferedReader(path).use { properties.load(it) }
-                loadMap(prefix, properties.stringPropertyNames().sorted().associateWith { properties.getProperty(it) })
-            }
-            name.endsWith(".json") -> {
-                @Suppress("UNCHECKED_CAST")
-                val map = MAPPER.readValue(path.toFile(), Map::class.java) as Map<String, Any?>
-                loadMap(prefix, map)
-            }
-            else -> throw IllegalArgumentException("Unsupported config file [$path]; expected .properties or .json")
-        }
-    }
-
-    /**
-     * Loads every `.properties` / `.json` file in [directory], keyed by file name
-     * (`config/app.json` → `app.*`), like Laravel's config directory.
-     */
-    fun loadDirectory(directory: Path) {
-        if (!Files.isDirectory(directory)) {
-            return
-        }
-        Files.list(directory).use { stream ->
-            stream
-                .filter { Files.isRegularFile(it) && SUPPORTED.any { ext -> it.fileName.toString().endsWith(ext) } }
-                .sorted()
-                .forEach { load(it, it.fileName.toString().substringBeforeLast('.')) }
-        }
+    /** Merges a [ConfigFile] under its [ConfigFile.key]. */
+    fun load(file: ConfigFile) {
+        loadMap(file.key(), file.config())
     }
 
     private fun lookup(key: String): Any? {
@@ -145,10 +109,8 @@ class Config {
 
     companion object {
         private val MISSING = Any()
-        private val MAPPER = ObjectMapper()
-        private val SUPPORTED = listOf(".properties", ".json")
 
-        /** Laravel-style boolean coercion: true/1/yes/on and false/0/no/off/"" (case-insensitive). */
+        /** Boolean coercion: true/1/yes/on and false/0/no/off/"" (case-insensitive). */
         @JvmStatic
         fun toBoolean(value: Any?): Boolean? = when (value) {
             is Boolean -> value

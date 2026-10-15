@@ -153,8 +153,8 @@ class CliTest {
             "src/main/kotlin/app/http/controllers/WelcomeController.kt",
             "src/main/kotlin/routes/WebRoutes.kt",
             "src/main/kotlin/routes/ApiRoutes.kt",
-            "src/main/resources/config/app.json",
-            "src/main/resources/config/paths.json",
+            "src/main/kotlin/config/App.kt",
+            "src/main/kotlin/config/Paths.kt",
             "storage/logs/.gitkeep",
         ).forEach { assertTrue(Files.isRegularFile(kt.resolve(it)), it) }
         assertTrue(Files.isExecutable(kt.resolve("gradlew")))
@@ -165,8 +165,10 @@ class CliTest {
         val env = Files.readString(kt.resolve(".env"))
         assertTrue(env.contains("APP_NAME=appkt\n"))
         assertTrue(env.lineSequence().any { it.startsWith("APP_KEY=base64:") && it.length > "APP_KEY=base64:".length })
-        assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/config/session.json")))
-        assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/config/filesystems.json")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Session.kt")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Filesystems.kt")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Database.kt")))
+        assertTrue(Files.readString(kt.resolve("src/main/kotlin/bootstrap/App.kt")).contains(".configs("))
         assertTrue(Files.isRegularFile(kt.resolve("storage/app/public/.gitkeep")))
         val build = Files.readString(kt.resolve("build.gradle.kts"))
         assertTrue(build.contains("dev.kona:kona-http:${versions.kona}"))

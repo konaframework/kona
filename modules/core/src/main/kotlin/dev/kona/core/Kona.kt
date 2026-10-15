@@ -1,18 +1,20 @@
 package dev.kona.core
 
-import java.nio.file.Files
 import java.nio.file.Path
 
 /**
  * Framework entry facade.
  *
  * ```kotlin
- * Kona.create(args).providers(HttpServiceProvider()).configure { it.set("app.debug", true) }.boot()
+ * Kona.create(args)
+ *     .configs(config.App, config.Database)
+ *     .providers(HttpServiceProvider())
+ *     .configure { it.set("app.debug", true) }
+ *     .boot()
  * ```
  *
- * `create` loads `.env` and config from `src/main/resources/config` (fallback: top-level `config/`)
- * and seeds `app.*` defaults before user configurers run; every provider registers before any
- * provider boots.
+ * `create` loads `.env` and seeds `app.*` defaults; registered [ConfigFile] modules and
+ * `configure` callbacks merge next (see [Application.Builder.build]).
  */
 object Kona {
     @Volatile
@@ -56,12 +58,6 @@ object Kona {
         config.set("app.debug", Config.toBoolean(Env.getOrDefault("APP_DEBUG", "false")) ?: false)
         config.set("app.url", Env.getOrDefault("APP_URL", "http://127.0.0.1:4000"))
         Env.get("APP_KEY")?.let { config.set("app.key", it) }
-        val primary = application.configPath()
-        val legacy = application.path("config")
-        when {
-            Files.isDirectory(primary) -> config.loadDirectory(primary)
-            Files.isDirectory(legacy) -> config.loadDirectory(legacy)
-        }
         application.refreshPathLayout()
     }
 
