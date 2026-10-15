@@ -1,0 +1,360 @@
+/*
+ * Marketing landing at `/` — brand tokens shared with custom.css.
+ * Not loaded by Starlight docs chrome.
+ */
+
+:root {
+  --kona-primary: #ff9a00;
+  --kona-primary-soft: #ffb84d;
+  --kona-primary-deep: #cc7a00;
+  --kona-accent: #286291;
+  --kona-accent-soft: #4a8ab8;
+  --kona-accent-deep: #1c4668;
+  --kona-ink: #0f1419;
+  --kona-ink-soft: #2a3340;
+  --kona-mist: #f7f4ef;
+  --kona-paper: #ffffff;
+  --landing-font-display: 'Outfit', sans-serif;
+  --landing-font-body: 'IBM Plex Sans', sans-serif;
+  --landing-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body.landing {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--kona-ink);
+  font-family: var(--landing-font-body);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  background: var(--kona-mist);
+  -webkit-font-smoothing: antialiased;
+}
+
+.landing a {
+  color: var(--kona-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.landing a:hover {
+  color: var(--kona-accent-deep);
+}
+
+/* ——— Hero ——— */
+
+.landing-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(2rem, 5vw, 4rem) clamp(1.25rem, 4vw, 3.5rem);
+  overflow: hidden;
+  color: #f4f7fb;
+  background:
+    radial-gradient(ellipse 90% 70% at 15% 20%, rgba(255, 154, 0, 0.28), transparent 55%),
+    radial-gradient(ellipse 70% 60% at 85% 75%, rgba(40, 98, 145, 0.45), transparent 50%),
+    linear-gradient(155deg, #0b1622 0%, #132a3d 42%, #1a2030 100%);
+}
+
+.landing-hero::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  background:
+    repeating-linear-gradient(
+      -18deg,
+      transparent,
+      transparent 36px,
+      rgba(255, 255, 255, 0.015) 36px,
+      rgba(255, 255, 255, 0.015) 37px
+    );
+  animation: landing-drift 28s linear infinite;
+  pointer-events: none;
+}
+
+.landing-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 70% 30%, rgba(255, 154, 0, 0.12), transparent 40%),
+    radial-gradient(circle at 30% 80%, rgba(74, 138, 184, 0.18), transparent 45%);
+  animation: landing-glow 12s var(--landing-ease) infinite alternate;
+  pointer-events: none;
+}
+
+.landing-hero__inner {
+  width: min(42rem, 100%);
+  animation: landing-rise 0.9s var(--landing-ease) both;
+}
+
+.landing-hero__brand {
+  display: block;
+  width: min(14rem, 70vw);
+  height: auto;
+  margin: 0 0 1.75rem;
+}
+
+.landing-hero__title {
+  margin: 0 0 0.85rem;
+  font-family: var(--landing-font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 5.5vw, 3.15rem);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.landing-hero__lede {
+  margin: 0 0 2rem;
+  max-width: 28rem;
+  font-size: clamp(1.05rem, 2.2vw, 1.2rem);
+  line-height: 1.5;
+  color: rgba(244, 247, 251, 0.82);
+}
+
+.landing-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+}
+
+.landing-cta__primary,
+.landing-cta__secondary,
+.landing-cta__ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.35rem;
+  font-family: var(--landing-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition:
+    transform 0.2s var(--landing-ease),
+    background-color 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.landing-cta__primary {
+  background: var(--kona-primary);
+  color: var(--kona-ink);
+  box-shadow: 0 0 0 0 rgba(255, 154, 0, 0);
+}
+
+.landing-cta__primary:hover {
+  background: var(--kona-primary-soft);
+  color: var(--kona-ink);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(255, 154, 0, 0.28);
+}
+
+.landing-cta__secondary {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.landing-cta__secondary:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+
+.landing-cta__ghost {
+  color: rgba(244, 247, 251, 0.75);
+  padding-inline: 0.5rem;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+}
+
+.landing-cta__ghost:hover {
+  color: #fff;
+  text-decoration-color: var(--kona-primary);
+}
+
+/* ——— Features ——— */
+
+.landing-features {
+  padding: clamp(3.5rem, 8vw, 5.5rem) clamp(1.25rem, 4vw, 3.5rem);
+  background: var(--kona-paper);
+}
+
+.landing-features__inner {
+  width: min(52rem, 100%);
+  margin: 0 auto;
+}
+
+.landing-features__title {
+  margin: 0 0 0.5rem;
+  font-family: var(--landing-font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 3vw, 1.85rem);
+  letter-spacing: -0.02em;
+  color: var(--kona-ink);
+}
+
+.landing-features__lede {
+  margin: 0 0 2.25rem;
+  max-width: 32rem;
+  color: var(--kona-ink-soft);
+}
+
+.landing-feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1.75rem;
+}
+
+@media (min-width: 40rem) {
+  .landing-feature-list {
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem 2.5rem;
+  }
+}
+
+.landing-feature h3 {
+  margin: 0 0 0.35rem;
+  font-family: var(--landing-font-display);
+  font-weight: 650;
+  font-size: 1.1rem;
+  color: var(--kona-accent-deep);
+}
+
+.landing-feature p {
+  margin: 0;
+  color: var(--kona-ink-soft);
+  font-size: 0.98rem;
+}
+
+.landing-feature a {
+  font-weight: 500;
+}
+
+/* ——— Closing CTA ——— */
+
+.landing-close {
+  padding: clamp(3rem, 7vw, 4.5rem) clamp(1.25rem, 4vw, 3.5rem);
+  background:
+    linear-gradient(135deg, var(--kona-accent-deep) 0%, var(--kona-accent) 55%, #245a82 100%);
+  color: #f4f7fb;
+}
+
+.landing-close__inner {
+  width: min(40rem, 100%);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.landing-close__title {
+  margin: 0 0 0.65rem;
+  font-family: var(--landing-font-display);
+  font-weight: 700;
+  font-size: clamp(1.45rem, 3vw, 1.85rem);
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.landing-close__lede {
+  margin: 0 0 1.75rem;
+  color: rgba(244, 247, 251, 0.85);
+}
+
+.landing-close .landing-cta {
+  justify-content: center;
+}
+
+.landing-close .landing-cta__secondary {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* ——— Footer ——— */
+
+.landing-footer {
+  padding: 1.25rem clamp(1.25rem, 4vw, 3.5rem);
+  background: var(--kona-ink);
+  color: rgba(244, 247, 251, 0.55);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.landing-footer a {
+  color: var(--kona-primary-soft);
+}
+
+.landing-footer a:hover {
+  color: #fff;
+}
+
+/* ——— Motion ——— */
+
+@keyframes landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-4%, 3%, 0);
+  }
+}
+
+@keyframes landing-glow {
+  from {
+    opacity: 0.65;
+    transform: scale(1);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .landing-hero::before,
+  .landing-hero::after,
+  .landing-hero__inner {
+    animation: none;
+  }
+
+  .landing-cta__primary:hover,
+  .landing-cta__secondary:hover {
+    transform: none;
+  }
+}
