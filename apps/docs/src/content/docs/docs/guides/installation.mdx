@@ -7,10 +7,10 @@ Kona uses **two** command-line tools on purpose:
 
 | Tool | Where it lives | What it does |
 |------|----------------|--------------|
-| **`kona`** | On your PATH (global) | Creates new applications: `kona new my-app` |
+| **`kona`** | On your PATH (global) | Creates apps (`kona new`) and can proxy to grind (`kona grind …`) |
 | **`./grind`** | Inside each app created by `kona new` | Day-to-day work for *that* app: serve, generate controllers, … |
 
-You install `kona` once. Every project from `kona new` ships its own `./grind` (and `grind.bat` on Windows) — you do not install grind globally.
+You install `kona` once. Every project from `kona new` ships its own `./grind` (and `grind.bat` on Windows). Prefer `./grind` when you are already in the app directory; from a nested folder (or out of habit) you can also run `kona grind <command>` — it walks upward for a Gradle project and forwards the rest of the line to that app’s grind script.
 
 ## Happy path
 
@@ -25,11 +25,11 @@ curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/ins
 kona new my-app
 cd my-app
 
-# 4. Serve with the app-local CLI
+# 4. Serve with the app-local CLI (or: kona grind serve)
 ./grind serve
 ```
 
-Open `http://127.0.0.1:4000/`. That is the supported path: **install `kona` → `kona new` → `./grind serve`**.
+Open `http://127.0.0.1:4000/`. That is the supported path: **install `kona` → `kona new` → `./grind serve`** (equivalently `kona grind serve` from inside the app tree).
 
 ## 1. JDK 21+
 
