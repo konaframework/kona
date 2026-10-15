@@ -43,11 +43,30 @@ class MigrationsProvider : ServiceProvider {
     override fun boot(app: Application) = Unit
 }
 
+internal fun fixtureDatabaseConfig(): ConfigFile =
+    ConfigFile.of("database") {
+        val name = Env.getOrDefault("GRIND_DB", "grind_config")
+        mapOf(
+            "default" to "main",
+            "connections" to mapOf(
+                "main" to mapOf(
+                    "url" to "jdbc:h2:mem:$name;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
+                ),
+                "other" to mapOf(
+                    "url" to "jdbc:h2:mem:${name}_other;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
+                ),
+            ),
+        )
+    }
+
 /** Database bound by [ExtractServiceProvider]; migrations registered. */
 object ExtractFixtureApp {
     @JvmStatic
     fun create(args: Array<String>): Application =
-        Kona.create(args).providers(ExtractServiceProvider(), MigrationsProvider()).boot()
+        Kona.create(args)
+            .configs(fixtureDatabaseConfig())
+            .providers(ExtractServiceProvider(), MigrationsProvider())
+            .boot()
 }
 
 /** Migrations registered, but no Database binding: grind builds one from config. */
@@ -55,22 +74,7 @@ object ConfigOnlyFixtureApp {
     @JvmStatic
     fun create(args: Array<String>): Application =
         Kona.create(args)
-            .configs(
-                ConfigFile.of("database") {
-                    val name = Env.getOrDefault("GRIND_DB", "grind_config")
-                    mapOf(
-                        "default" to "main",
-                        "connections" to mapOf(
-                            "main" to mapOf(
-                                "url" to "jdbc:h2:mem:$name;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
-                            ),
-                            "other" to mapOf(
-                                "url" to "jdbc:h2:mem:${name}_other;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
-                            ),
-                        ),
-                    )
-                },
-            )
+            .configs(fixtureDatabaseConfig())
             .providers(MigrationsProvider())
             .boot()
 }
@@ -79,7 +83,10 @@ object ConfigOnlyFixtureApp {
 object EmptyRegistryApp {
     @JvmStatic
     fun create(args: Array<String>): Application {
-        val app = Kona.create(args).providers(ExtractServiceProvider()).boot()
+        val app = Kona.create(args)
+            .configs(fixtureDatabaseConfig())
+            .providers(ExtractServiceProvider())
+            .boot()
         app.container.singleton(MigrationRegistry::class.java) { MigrationRegistry() }
         return app
     }

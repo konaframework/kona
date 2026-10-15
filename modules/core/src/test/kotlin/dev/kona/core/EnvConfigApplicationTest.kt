@@ -332,6 +332,7 @@ class EnvConfigApplicationTest {
         }
         val app = Kona.create(base)
             .configs(services)
+            .withConfigs(ConfigFile.of("a") { mapOf("n" to 1) }, ConfigFile.of("b") { mapOf("n" to 2) })
             .withConfig(ConfigFile.of("extra") { mapOf("ok" to true) })
             .providers(OrderProviderA(events), OrderProviderC(events))
             .configure { it.set("app.env", "testing") }
@@ -343,6 +344,8 @@ class EnvConfigApplicationTest {
         assertEquals("Kona", app.config.getString("app.name"))
         assertEquals("smtp", app.config.getString("services.mail.driver"))
         assertEquals(true, app.config.getBoolean("extra.ok"))
+        assertEquals(1, app.config.getInt("a.n"))
+        assertEquals(2, app.config.getInt("b.n"))
 
         Kona.reset()
         assertTrue(Kona.create(arrayOf("--base=$base")).build().isBooted())

@@ -6,7 +6,7 @@ import dev.kona.core.Env
 object Filesystems : ConfigFile {
     override fun key(): String = "filesystems"
 
-    override fun config(): Map<String, Any?> = mapOf(
+    override fun config(): Map<String, Any?> = mapOf<String, Any?>(
         "default" to Env.getOrDefault("FILESYSTEM_DISK", "local"),
         "disks" to mapOf(
             "local" to mapOf(

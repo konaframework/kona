@@ -7,7 +7,7 @@ import dev.kona.core.Env
 object App : ConfigFile {
     override fun key(): String = "app"
 
-    override fun config(): Map<String, Any?> = mapOf(
+    override fun config(): Map<String, Any?> = mapOf<String, Any?>(
         "name" to Env.getOrDefault("APP_NAME", "hello-kotlin"),
         "env" to Env.getOrDefault("APP_ENV", "local"),
         "debug" to (Config.toBoolean(Env.getOrDefault("APP_DEBUG", "true")) ?: true),

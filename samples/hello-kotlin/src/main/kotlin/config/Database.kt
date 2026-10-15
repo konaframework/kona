@@ -6,7 +6,7 @@ import dev.kona.core.Env
 object Database : ConfigFile {
     override fun key(): String = "database"
 
-    override fun config(): Map<String, Any?> = mapOf(
+    override fun config(): Map<String, Any?> = mapOf<String, Any?>(
         "default" to Env.getOrDefault("DB_CONNECTION", "main"),
         "connections" to mapOf(
             "main" to mapOf(
