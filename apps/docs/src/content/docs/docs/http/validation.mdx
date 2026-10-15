@@ -171,6 +171,12 @@ Field names in messages have underscores replaced by spaces: `first_name` appear
 | `confirmed:other` | Equals the field named `other` | same as above |
 | `same:other` | Equals the field named `other` | `The email field must match email again.` (for `same:email_again`) |
 | `regex:/pattern/flags` | The string contains a match for the pattern | `The code field format is invalid.` |
+| `file` | Value is a valid `UploadedFile` | `The photo field must be a file.` |
+| `image` | Valid upload with an image MIME type or image extension | `The photo field must be an image.` |
+| `mimes:png,jpg` | Valid upload whose extension is listed | `The photo field must be a file of type: png, jpg.` |
+| `mimetypes:image/png` | Valid upload whose `Content-Type` is listed | `The photo field must be a file of type: image/png.` |
+
+For `UploadedFile` values, `min` / `max` / `size` / `between` measure **kilobytes** (Laravel-compatible), not characters.
 
 ### How size is measured
 

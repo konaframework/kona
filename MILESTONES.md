@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M21 — Web form round-trip** (`milestone/M21-web-form-roundtrip`).
+**Active milestone:** **M22 — Multipart uploads** (`milestone/M22-multipart-uploads`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -698,7 +698,7 @@ M21 — Web form round-trip.
 
 ## M21 — Web form round-trip
 
-**Status:** active
+**Status:** done (merged PR #39)
 
 **Branch:** `milestone/M21-web-form-roundtrip`
 
@@ -717,7 +717,32 @@ M21 — Web form round-trip.
 
 ### Next (queued)
 
-Opened after M21 (multipart uploads is a strong candidate).
+M22 — Multipart uploads.
+
+---
+
+## M22 — Multipart uploads
+
+**Status:** active
+
+**Branch:** `milestone/M22-multipart-uploads`
+
+**Parity slice:** Binary-safe request bodies, real `multipart/form-data` parsing, `UploadedFile` + `file`/`hasFile`/`store`, and file validation rules (`file`, `image`, `mimes`, `mimetypes`).
+
+### Parity checklist
+
+- [x] `Request.bodyBytes` + server reads raw bytes; multipart fields/files parsed (not URL-encoded)
+- [x] `UploadedFile` with `file` / `hasFile` / `allFiles` / `store` / `storeAs`
+- [x] Validation rules `file`, `image`, `mimes`, `mimetypes`; size rules measure kilobytes for uploads
+- [x] Kotlin + Java regressions; docs; 100% kover on touched modules (`MultipartParser` excluded — behavioral coverage)
+
+### In-scope modules
+
+`kona-http`, `kona-filesystem` (store target), `apps/docs/`
+
+### Next (queued)
+
+Opened after M22.
 
 ---
 
@@ -733,4 +758,5 @@ flowchart LR
   M18 --> M19[M19_Crema_Vite]
   M19 --> M20[M20_Default_Web]
   M20 --> M21[M21_Form_Roundtrip]
+  M21 --> M22[M22_Multipart]
 ```

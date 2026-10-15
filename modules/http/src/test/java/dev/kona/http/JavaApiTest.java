@@ -34,6 +34,27 @@ public class JavaApiTest {
         assertFalse(Request.get("/").expectsJson());
         assertTrue(new Request("GET", "/", Map.of("Accept", "application/json"), Map.of(), "").expectsJson());
 
+        byte[] multipart = (
+            "--bound\r\n" +
+            "Content-Disposition: form-data; name=\"note\"\r\n\r\n" +
+            "hi\r\n" +
+            "--bound\r\n" +
+            "Content-Disposition: form-data; name=\"doc\"; filename=\"a.txt\"\r\n" +
+            "Content-Type: text/plain\r\n\r\n" +
+            "body\r\n" +
+            "--bound--\r\n"
+        ).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Request upload = Request.post(
+            "/upload",
+            multipart,
+            Map.of("Content-Type", "multipart/form-data; boundary=bound")
+        );
+        assertEquals("hi", upload.form().get("note"));
+        assertTrue(upload.hasFile("doc"));
+        assertEquals("a.txt", upload.file("doc").getClientOriginalName());
+        assertFalse(upload.file("doc").hashName().isBlank());
+        assertTrue(upload.file("doc").hashName("bin").endsWith(".bin"));
+
         Request get = Request.get("/x");
         assertEquals("GET", get.getMethod());
         assertEquals(null, get.getAttribute("missing"));

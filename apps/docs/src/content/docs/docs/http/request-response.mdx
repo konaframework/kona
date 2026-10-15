@@ -22,10 +22,11 @@ When the embedded server (`KonaHttpServer`) receives a call, it builds a `Reques
 | `path` | The **raw** request path, without the query string, still percent-encoded (for example `/files/a%20b`) |
 | `headers` | One entry per header name; when a client repeats a header, only the **first** value is kept |
 | `query` | The query string parsed into `name → value`, percent-decoded; a repeated name keeps the **last** value, and `?flag` with no `=` becomes `flag → ""` |
-| `body` | The full request body read into memory and decoded as UTF-8 |
+| `bodyBytes` | Raw request body bytes (binary-safe) |
+| `body` | UTF-8 string view of the body (empty when the server only supplied bytes) |
 | `attributes` | Starts empty; the kernel adds route parameters, middleware can add anything |
 
-Because the request is fully read before your code runs, `body` is always a complete `String`. There is no streaming body API yet, so very large uploads are held in memory.
+The embedded server stores the wire body as **`bodyBytes`**. Text helpers (`form` for URL-encoded/JSON, logging) use a UTF-8 `body` string when you construct requests in tests. There is no streaming body API yet, so large uploads are held in memory.
 
 You can also build requests yourself, which is how most HTTP tests in Kona are written — you hand the request straight to the kernel without opening a socket:
 
@@ -102,9 +103,10 @@ The parsed query string, exactly as described in the table above. `request.query
 
 `form()` parses the **body** into a `Map<String, String>`:
 
-- An empty or whitespace-only body gives an empty map.
+- An empty body gives an empty map.
 - If the `Content-Type` header contains `application/json` (case-insensitive, so `application/json; charset=utf-8` counts), the body is read as a JSON object and **flattened to strings**: text values stay as-is, `null` becomes `""`, and numbers, booleans, arrays, and nested objects become their JSON text (`36`, `true`, `["a","b"]`). A JSON body that is not an object (for example a top-level array) gives an empty map.
-- For **any other content type**, the body is parsed as URL-encoded form data (`a=1&b=two`), with names and values percent-decoded. A repeated field keeps the last value. Multipart uploads are not parsed.
+- If the content type is `multipart/form-data`, **text fields** are parsed into the map; file parts are available via `file` / `hasFile` / `allFiles` (see below).
+- For URL-encoded forms (`application/x-www-form-urlencoded` or a missing content type), the body is parsed as `a=1&b=two`, with names and values percent-decoded. A repeated field keeps the last value.
 
 `form()` parses on every call; store the result in a local variable if you read it many times.
 
@@ -148,7 +150,19 @@ Map<String, String> everything = request.all();
 | `[...]` | `List` |
 | `{...}` | `Map` |
 
-When the request is JSON (same `Content-Type` check as above), `data()` returns the query string merged with the parsed body object, with body keys winning on conflict. For every other request, `data()` returns `all()`, so all values are strings.
+When the request is JSON (same `Content-Type` check as above), `data()` returns the query string merged with the parsed body object, with body keys winning on conflict. For multipart, `data()` merges query, text fields, and `UploadedFile` values under their field names. For other requests, `data()` returns `all()`, so all values are strings.
+
+### Uploaded files
+
+For `multipart/form-data`:
+
+| API | Meaning |
+|-----|---------|
+| `file(name)` | The `UploadedFile`, or null |
+| `hasFile(name)` | True when the file is present and valid (non-empty, no upload error) |
+| `allFiles()` | Map of field name → `UploadedFile` |
+
+`UploadedFile` exposes `clientOriginalName`, `clientMimeType`, `contents`, `size`, `extension()`, `hashName()`, and `store` / `storeAs` (writes through a `FilesystemAdapter`).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

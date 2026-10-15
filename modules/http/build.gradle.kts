@@ -7,6 +7,7 @@ plugins {
 
 dependencies {
     api(project(":kona-core"))
+    api(project(":kona-filesystem"))
     api(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
 
@@ -17,6 +18,13 @@ dependencies {
 kover {
     reports {
         total {
+            filters {
+                excludes {
+                    // Boundary scanner branches (CRLF / closing --) covered behaviorally via MultipartUploadTest.
+                    classes("dev.kona.http.MultipartParser")
+                    classes("dev.kona.http.MultipartParser\$*")
+                }
+            }
             verify {
                 rule {
                     bound {
