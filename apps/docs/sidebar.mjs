@@ -88,10 +88,6 @@ export async function buildSidebar() {
         { label: 'Encryption', slug: 'docs/security/encryption' },
         { label: 'CORS & security headers', slug: 'docs/security/cors-headers' },
         { label: 'Rate limiting', slug: 'docs/security/rate-limiting' },
-        {
-          label: 'Encryption, CORS & rate limit (combined)',
-          slug: 'docs/security/encryption-cors-rate-limit',
-        },
       ],
     },
     {

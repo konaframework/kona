@@ -133,9 +133,13 @@ Knowing *when* each piece runs makes the rest of the docs easier to follow.
 
 Steps 1 to 5 happen once. Step 7 happens for every request.
 
+## How these docs are organised
+
+The sidebar is a progressive path. Read **Getting started** first, then **The basics** (routing, controllers, validation, Crema views). When you need internals or background work, open **Digging deeper** (application, container, grind, events, queues, mail, cache, drip, and more). Branch into **Security**, **Database** (Extract), **Frontend** (Brew, Inertia, Vite), **Testing**, and **Packages & tooling** as your app needs them. The [documentation hub](../../) mirrors the same groups.
+
 ## The Kona toolbox
 
-Kona is organised into named components. Those marked available ship today; the rest are planned and will get their own guides when they land.
+Kona is organised into named components. Guides for each live under the sidebar groups above.
 
 | Name | Role | Status |
 |------|------|--------|
@@ -143,10 +147,10 @@ Kona is organised into named components. Those marked available ship today; the 
 | **Kona HTTP** | Router, middleware, HTTP kernel, validation, embedded server (`kona-http`) | Available |
 | **kona** | Global CLI: `kona new` (`kona-cli`) | Available |
 | **grind** | App-local CLI: `./grind serve`, `make:*`, `migrate`, `db:seed` (`kona-grind`) | Available |
-| **steam** | Interactive shell inside a booted application | Planned |
+| **steam** | Interactive shell inside a booted application (`kona-steam`) | Available |
 | **Extract** | Database connections, query builder, models, relations, migrations, seeders, factories (`kona-extract`) — see [Extract](../../extract/) | Available |
-| **Crema** | Server-side HTML templates | Planned |
-| **drip** | Outbound HTTP client | Planned |
+| **Crema** | Server-side HTML templates (`kona-crema`) — see [Crema](../../crema/) | Available |
+| **drip** | Outbound HTTP client (`kona-drip`) — see [drip](../../drip/) | Available |
 
 ## Design choices worth knowing up front
 
@@ -160,4 +164,5 @@ Kona is organised into named components. Those marked available ship today; the 
 - [Installation](../installation/): install global `kona`, then create an app.
 - [Your first app](../first-app/): `kona new`, then `./grind serve`.
 - [Kotlin and Java](../kotlin-java/): how the same APIs look from each language.
-- [Application & providers](../../concepts/application/): the boot sequence in depth.
+- [Routing](../../http/routing/): the first page in **The basics** — map URLs to handlers.
+- [Application & providers](../../concepts/application/): later, under **Digging deeper**, the boot sequence in depth.
