@@ -1,11 +1,11 @@
 ---
 title: Brew forms
-description: Bind inputs with wire:model and submit with wire:submit.
+description: Bind inputs, validate on the server, and show loading and dirty state.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Forms in Brew keep values on the **server component**. `wire:model` syncs inputs into public properties; `wire:submit` runs an action without a full page navigation.
+Forms in Brew keep values on the **server component**. `wire:model` syncs inputs into public properties; `wire:submit` runs an action without a full page navigation. Validation, form objects, and UI directives (`wire:loading`, `wire:dirty`, …) round out the slice.
 
 ## Model binding
 
@@ -16,61 +16,7 @@ Forms in Brew keep values on the **server component**. `wire:model` syncs inputs
 <select wire:model="country">…</select>
 ```
 
-Supported controls: text, textarea, checkbox (boolean or array), radio, select (single/multiple), number, date.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-class Profile : Component() {
-    var email = ""
-    var bio = ""
-    var agree = false
-    var country = "ke"
-
-    fun save() {
-        // persist…
-    }
-
-    override fun template() = """
-        <form wire:submit="save">
-            <input type="email" wire:model="email" />
-            <textarea wire:model="bio"></textarea>
-            <label><input type="checkbox" wire:model="agree" /> Agree</label>
-            <button type="submit">Save</button>
-        </form>
-    """.trimIndent()
-}
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-public class Profile extends Component {
-    public String email = "";
-    public String bio = "";
-    public boolean agree = false;
-    public String country = "ke";
-
-    public void save() { /* persist… */ }
-
-    @Override
-    public String template() {
-        return """
-            <form wire:submit="save">
-                <input type="email" wire:model="email" />
-                <textarea wire:model="bio"></textarea>
-                <label><input type="checkbox" wire:model="agree" /> Agree</label>
-                <button type="submit">Save</button>
-            </form>
-            """;
-    }
-}
-```
-
-</TabItem>
-</Tabs>
+Supported controls: text, textarea, checkbox (boolean or array), radio, select (single/multiple), number, date. Custom Alpine controls work when they declare `x-modelable` — `wire:model` binds through Alpine’s `x-model`.
 
 ## Modifiers
 
@@ -96,12 +42,6 @@ public class Profile extends Component {
 <input wire:model.debounce.500ms="search" />
 ```
 
-Nested paths:
-
-```html
-<input wire:model="todos.0.title" />
-```
-
 ## Submit
 
 ```html
@@ -110,18 +50,124 @@ Nested paths:
 </form>
 ```
 
-`wire:submit` implies `.prevent` so the browser does not navigate. Combine with live models for “type and save” UIs.
+`wire:submit` implies `.prevent`. While the request is in flight, Brew disables submit buttons / selects and marks text inputs read-only, then restores them when the response finishes.
 
-## Real-time hooks
+Confirm before running an action:
 
-Property writes from `wire:model` fire `updating` / `updated` / `updatedFoo` lifecycle hooks—use them for derived state or side effects while the user types. See [Lifecycle](/docs/brew/lifecycle/).
+```html
+<button wire:click="delete" wire:confirm="Delete this post?">Delete</button>
+<button wire:click="wipe" wire:confirm.prompt="Type DELETE|DELETE">Wipe</button>
+```
 
-## Validation (later guide)
+## Validation
 
-Server-side `Form` objects, `@Validate` / `rules()`, error bags, and `$errors` ship in a later Brew milestone. Until then, validate inside actions and surface messages as ordinary properties.
+Annotate properties with `@Validate` (or the `@Rule` alias), override `rules()` / `messages()` / `validationAttributes()`, and call `validate()` / `validateOnly()` from actions. Failures fill an `ErrorBag` that is persisted in `memo.errors`, exposed to Crema as `errors`, and available in JS as `$wire.$errors`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Profile : Component() {
+    @Validate("required", "email")
+    var email = ""
+
+    override fun rules() = mapOf(
+        "email" to listOf("required", "email", Rules.unique("users", "email").ignore(id).toString()),
+    )
+
+    fun save() {
+        validate()
+        // persist…
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            <input type="email" wire:model="email" />
+            @if(errors['email'])
+                <em>{{ errors['email'][0] }}</em>
+            @endif
+            <button type="submit">Save</button>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Profile extends Component {
+    @Validate({"required", "email"})
+    public String email = "";
+
+    @Override
+    public Map<String, List<String>> rules() {
+        return Map.of("email", List.of("required", "email"));
+    }
+
+    public void save() { validate(); }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input type="email" wire:model="email" />
+                <button type="submit">Save</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Real-time: properties with `@Validate(onUpdate = true)` (the default) re-validate when `wire:model` updates them. Use `onUpdate = false` to wait for an explicit `validate()` call.
+
+### Form objects
+
+Nest a `Form` subclass as a public property. Call `form.validate()`, `fill()`, `all()`, `only()`, `except()`, `reset()`, `pull()` — keys are local to the form (`title`), not `form.title`.
+
+### Error bag helpers
+
+| API | Role |
+|-----|------|
+| `addError` / `resetValidation` / `resetErrorBag` | Mutate the bag |
+| `getErrorBag` / `setErrorBag` | Replace / read |
+| `$wire.$errors.has` / `first` / `get` / `all` / `clear` | Browser-side MessageBag shape |
+
+`Brew.test(…).assertHasErrors("email").assertHasNoErrors("name")` covers the testing surface.
+
+## Loading, dirty, and offline UI
+
+```html
+<button wire:click="save">Save</button>
+<span wire:loading wire:target="save">Saving…</span>
+<span wire:dirty wire:target="title">Unsaved</span>
+<span wire:offline>You are offline</span>
+```
+
+- `wire:loading` (+ `.class` / `.attr` / `.remove` / `.delay.*` / display modifiers) toggles while a matching request is in flight. `wire:target` / `wire:target.except` scope it; requesting elements also get `data-loading="true"`.
+- `wire:dirty` reflects ephemeral vs server-confirmed state; `$wire.$dirty()` / `$wire.$dirty('title')` for expressions.
+- `wire:offline` follows the browser online/offline events.
+- `wire:poll.5s` / `.keep-alive` / `.visible` refreshes on an interval.
+
+## Show, text, bind, cloak, ref, transition
+
+```html
+<div wire:cloak>…</div>
+<div wire:show="open">…</div>
+<span wire:text="label"></span>
+<a wire:bind:href="url">Link</a>
+<input wire:ref="email" />
+<div wire:transition="panel">…</div>
+```
+
+`$wire.$refs.email` (or `$wire.$refs('email')`) returns the element. `@Transition(type = "forward")` on an action (or `$this.transition("forward")` / `skipTransition()`) emits `effects.transition` for the View Transitions API during morph.
 
 ## Next
 
 - [Actions](/docs/brew/actions/) — what submit calls  
 - [Properties](/docs/brew/properties/) — state helpers  
-- [JavaScript](/docs/brew/javascript/) — how live updates are bundled  
+- [JavaScript](/docs/brew/javascript/) — `$wire`, hooks, morph  
+- [Testing](/docs/brew/testing/) — `assertHasErrors`  
