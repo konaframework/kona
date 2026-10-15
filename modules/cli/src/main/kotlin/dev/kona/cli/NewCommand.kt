@@ -40,11 +40,34 @@ class NewCommand(
         copySkeleton(lang, target, variables, kit)
         target.resolve("grind").toFile().setExecutable(true)
         target.resolve("gradlew").toFile().setExecutable(true)
+        writeKonaHomeProperty(target)
         val io = CliIO()
         io.success("Created Kona application at $target ($lang, kit=$kit)")
         io.info("cd ${target.fileName}")
         io.info("./grind serve")
         return 0
+    }
+
+    /**
+     * Points the app at a local Kona checkout (`includeBuild`) when available so
+     * SNAPSHOT modules resolve without every transitive jar on Maven Central.
+     */
+    internal fun writeKonaHomeProperty(target: Path, home: Path? = resolveKonaHome()) {
+        if (home == null) {
+            return
+        }
+        val props = target.resolve("gradle.properties")
+        val line = "kona.home=${home.toAbsolutePath().normalize()}"
+        val existing = if (Files.isRegularFile(props)) Files.readString(props) else ""
+        val kept = existing.lineSequence().filterNot { it.startsWith("kona.home=") }.toList()
+        val body = kept.joinToString("\n").trimEnd()
+        val content =
+            if (body.isEmpty()) {
+                "# Local Kona framework checkout (set by kona new / installer)\n$line\n"
+            } else {
+                "$body\n\n# Local Kona framework checkout (set by kona new / installer)\n$line\n"
+            }
+        Files.writeString(props, content)
     }
 
     internal fun copySkeleton(
@@ -141,6 +164,36 @@ class NewCommand(
 
     companion object {
         private val KITS = listOf("web", "api", "crema", "inertia", "brew")
+
+        internal fun resolveKonaHome(
+            env: Map<String, String> = System.getenv(),
+            userHome: Path = Path.of(System.getProperty("user.home")),
+        ): Path? {
+            env["KONA_HOME"]?.takeIf { it.isNotBlank() }?.let { candidate ->
+                val path = Path.of(candidate).toAbsolutePath().normalize()
+                if (isKonaRoot(path)) return path
+            }
+            val xdg = env["XDG_CONFIG_HOME"]
+            val configHome =
+                if (xdg.isNullOrBlank()) {
+                    userHome.resolve(".config")
+                } else {
+                    Path.of(xdg)
+                }
+            val recorded = configHome.resolve("kona/home")
+            if (Files.isRegularFile(recorded)) {
+                val path = Path.of(Files.readString(recorded).trim()).toAbsolutePath().normalize()
+                if (isKonaRoot(path)) return path
+            }
+            val defaultSrc = userHome.resolve(".kona")
+            if (isKonaRoot(defaultSrc)) return defaultSrc
+            return null
+        }
+
+        internal fun isKonaRoot(path: Path): Boolean =
+            Files.isRegularFile(path.resolve("settings.gradle.kts")) &&
+                Files.isDirectory(path.resolve("modules/cli")) &&
+                Files.isExecutable(path.resolve("gradlew"))
 
         private val COMMON_FILES = listOf(
             "gitignore.txt",

@@ -62,8 +62,38 @@ ui_banner() {
   uiln ""
 }
 
-STEP_TOTAL=4
+STEP_TOTAL=5
 STEP_NUM=0
+
+# Modules apps resolve from mavenLocal() (transitive deps included).
+PUBLISH_TASKS=(
+  :kona-core:publishToMavenLocal
+  :kona-filesystem:publishToMavenLocal
+  :kona-support:publishToMavenLocal
+  :kona-http:publishToMavenLocal
+  :kona-extract:publishToMavenLocal
+  :kona-auth:publishToMavenLocal
+  :kona-session:publishToMavenLocal
+  :kona-redis:publishToMavenLocal
+  :kona-cache:publishToMavenLocal
+  :kona-crema:publishToMavenLocal
+  :kona-events:publishToMavenLocal
+  :kona-queue:publishToMavenLocal
+  :kona-mail:publishToMavenLocal
+  :kona-notifications:publishToMavenLocal
+  :kona-schedule:publishToMavenLocal
+  :kona-grind:publishToMavenLocal
+  :kona-drip:publishToMavenLocal
+  :kona-process:publishToMavenLocal
+  :kona-concurrency:publishToMavenLocal
+  :kona-testing:publishToMavenLocal
+  :kona-broadcasting:publishToMavenLocal
+  :kona-search:publishToMavenLocal
+  :kona-brew:publishToMavenLocal
+  :kona-inertia:publishToMavenLocal
+  :kona-lsp:publishToMavenLocal
+  :kona-cli:publishToMavenLocal
+)
 
 ui_bar() {
   local filled="$1" width="$2" i bar=""
@@ -257,31 +287,39 @@ sync_remote_source() {
   mv "$extracted" "$KONA_SRC"
 }
 
-install_cli() {
+publish_framework() {
   local root="$1"
-  local src="$root/modules/cli/build/install/kona"
-  local log dest
-
+  local log
   log=$(mktemp)
   (
     cd "$root"
-    ./gradlew -q :kona-cli:installDist
+    ./gradlew -q "${PUBLISH_TASKS[@]}"
   ) >"$log" 2>&1 &
-  if ! ui_spinner_wait $! "Building kona CLI with Gradle…"; then
-    ui_err "Gradle build failed"
-    uiln "${C_DIM}$(tail -n 40 "$log")${C_RESET}"
+  if ! ui_spinner_wait $! "Publishing framework jars to ~/.m2 (mavenLocal)…"; then
+    ui_err "publishToMavenLocal failed"
+    uiln "${C_DIM}$(tail -n 60 "$log")${C_RESET}"
     rm -f "$log"
     exit 1
   fi
   rm -f "$log"
-  ui_ok "CLI built"
+  ui_ok "Published to mavenLocal()"
+
+  # So `kona new` can wire includeBuild via gradle.properties.
+  mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/kona"
+  printf '%s\n' "$root" >"${XDG_CONFIG_HOME:-$HOME/.config}/kona/home"
+  ui_ok "Recorded Kona home → ${XDG_CONFIG_HOME:-$HOME/.config}/kona/home"
+}
+
+link_cli() {
+  local root="$1"
+  local src="$root/modules/cli/build/install/kona"
+  local dest
 
   if [[ ! -x "$src/bin/kona" ]]; then
     ui_err "Expected CLI at $src/bin/kona after installDist"
     exit 1
   fi
 
-  ui_step "Link binary"
   mkdir -p "$BIN_DIR"
   dest="$KONA_PREFIX/lib/kona"
   rm -rf "$dest"
@@ -317,7 +355,6 @@ main() {
   ui_step "Fetch source"
   local root
   root=$(resolve_root)
-  # Defense: never allow multi-line / status-tainted roots.
   root=$(printf '%s' "$root" | tr -d '\r' | tail -n1)
   if ! is_kona_root "$root"; then
     ui_err "Invalid Kona tree at: $root"
@@ -326,7 +363,26 @@ main() {
   ui_ok "$root"
 
   ui_step "Build CLI"
-  install_cli "$root"
+  local log
+  log=$(mktemp)
+  (
+    cd "$root"
+    ./gradlew -q :kona-cli:installDist
+  ) >"$log" 2>&1 &
+  if ! ui_spinner_wait $! "Building kona CLI with Gradle…"; then
+    ui_err "Gradle build failed"
+    uiln "${C_DIM}$(tail -n 40 "$log")${C_RESET}"
+    rm -f "$log"
+    exit 1
+  fi
+  rm -f "$log"
+  ui_ok "CLI built"
+
+  ui_step "Publish libraries"
+  publish_framework "$root"
+
+  ui_step "Link binary"
+  link_cli "$root"
 }
 
 main
