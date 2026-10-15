@@ -84,6 +84,7 @@ public class Post extends Extract<Post> {
 </TabItem>
 </Tabs>
 
+
 A constraint added inside the definition (like the `orderBy` above) applies every time the relation runs, lazily or eagerly.
 
 ### Key conventions
@@ -133,6 +134,7 @@ boolean any = user.roles().exists();
 </TabItem>
 </Tabs>
 
+
 Every relation supports `get()` (all rows, also for to-one relations), `first()`, `count()`, `exists()`, `getResults()` (the natural value: a list or a single model), and the constraint helpers `where`, `orderBy`, and `constrain { builder -> … }` for anything else on the related `ModelBuilder`.
 
 When the parent has no key yet (an unsaved model), relations return an empty list or `null` without querying.
@@ -175,6 +177,7 @@ User.QUERY.query().with("posts.comments").get();
 </TabItem>
 </Tabs>
 
+
 - Names are relation method names; dots load relations of the related models (`posts.comments`, `posts.user`).
 - After loading, each model has the relation stored: a list for to-many relations (empty when there are no rows) or a model / `null` for to-one relations. Read it with `getRelation(name)` or `getRelationValue(name)`; check with `relationLoaded(name)`.
 - `with` works with `get()`, `first()`, `find()`, `findMany()`, and `paginate()`.
@@ -206,6 +209,7 @@ List<User> users = User.QUERY.query()
 
 </TabItem>
 </Tabs>
+
 
 ### Loading onto models you already have
 
@@ -246,6 +250,7 @@ List<User> newcomers = User.QUERY.doesntHave("posts").get();
 
 </TabItem>
 </Tabs>
+
 
 Works for `hasOne` / `hasMany`, `belongsTo`, and `belongsToMany` (including the pivot join).
 
@@ -301,6 +306,7 @@ user.posts().createMany(List.of(Map.of("title", "A"), Map.of("title", "B")));
 </TabItem>
 </Tabs>
 
+
 These throw `IllegalStateException` when the parent has not been saved yet (it has no key to copy).
 
 ### belongsTo
@@ -354,6 +360,7 @@ user.roles().wherePivotIn("role_id", List.of(1, 2)).get();
 
 </TabItem>
 </Tabs>
+
 
 ### Pivot data
 

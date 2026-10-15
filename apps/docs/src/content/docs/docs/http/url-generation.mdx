@@ -3,9 +3,14 @@ title: URL generation
 description: Build absolute and named routes, and create signed URLs that the framework can verify.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 **URL generation** turns route names and paths into strings your app can put in JSON, redirects, emails, or HTML. Kona registers a singleton `UrlGenerator` when you boot with `HttpServiceProvider`.
 
 ## Resolve the generator
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val urls = app.resolve(UrlGenerator::class.java)
@@ -13,17 +18,26 @@ urls.setRoot("https://example.com")
 urls.setKey(app.config.getString("app.key", "kona-app-key"))
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 UrlGenerator urls = app.resolve(UrlGenerator.class);
 urls.setRoot("https://example.com");
 urls.setKey(app.config.getString("app.key", "kona-app-key"));
 ```
 
+</TabItem>
+</Tabs>
+
 `HttpServiceProvider` already applies `app.url` and `app.key` from config when those keys are set.
 
 ## Named routes
 
 Give routes a name, then generate paths (with optional parameters):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 router.get("/users/{id}") { ... }.name("users.show")
@@ -32,10 +46,16 @@ urls.route("users.show", mapOf("id" to "42"))
 // https://example.com/users/42  (when root is set)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 router.get("/users/{id}", request -> Response.text("ok")).name("users.show");
 urls.route("users.show", Map.of("id", "42"));
 ```
+
+</TabItem>
+</Tabs>
 
 `to(path)` joins a path onto the configured root. Absolute `http://` / `https://` strings pass through unchanged.
 
@@ -43,15 +63,24 @@ urls.route("users.show", Map.of("id", "42"));
 
 A **signed URL** includes an HMAC signature (and optionally an `expires` timestamp). Use it for one-time downloads, email confirmations, or any link that must not be tampered with:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val link = urls.signed("/downloads/report", expirationSeconds = 600)
 val named = urls.signedRoute("users.show", mapOf("id" to "42"), expirationSeconds = 120)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 String link = urls.signed("/downloads/report", 600L);
 String named = urls.signedRoute("users.show", Map.of("id", "42"), 120L);
 ```
+
+</TabItem>
+</Tabs>
 
 Verify incoming requests with `hasValidSignature(request)`. The check fails when the signature is missing, wrong, or the `expires` timestamp is in the past.
 

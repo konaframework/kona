@@ -3,9 +3,14 @@ title: Support utilities
 description: Collections, strings, dates, helpers, and localization.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 The `kona-support` module ships everyday helpers used across apps and the framework.
 
 ## Collections
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val names = collect(users).pluck("name").filter { it != null }
@@ -37,8 +42,14 @@ Lang.setTranslator(t)
 translate("hi", mapOf("name" to "Ada"))
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Translations.__("hi", Map.of("name", "Ada"));
 ```
+
+</TabItem>
+</Tabs>
 
 Register `SupportServiceProvider` to bind a shared `Translator`. If `lang.path` is set or `{base}/lang` exists, JSON and `key=value` files are loaded automatically (`lang/en.json`, `lang/en/messages.json`, `lang/en.properties`, and so on).

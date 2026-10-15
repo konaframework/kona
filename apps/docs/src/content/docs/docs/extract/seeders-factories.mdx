@@ -57,6 +57,7 @@ public class UserFactory extends Factory<User> {
 </TabItem>
 </Tabs>
 
+
 `./grind make:factory UserFactory` (or `./grind make:model User --factory`) writes this skeleton under `database/factories/`.
 
 ### Building models
@@ -87,6 +88,7 @@ Map<String, Object> attributes = new UserFactory().raw();
 
 </TabItem>
 </Tabs>
+
 
 Factories set attributes with `forceFill`, so `fillable` and `guarded` do not apply: the factory is trusted code.
 
@@ -128,6 +130,7 @@ new UserFactory()
 
 </TabItem>
 </Tabs>
+
 
 Because builder calls change the factory, create a new factory for an unrelated batch rather than reusing a configured one.
 
@@ -228,6 +231,7 @@ public class DatabaseSeeder extends Seeder {
 
 </TabItem>
 </Tabs>
+
 
 - `call(SomeSeeder::class.java, …)` builds each seeder through the **container** (the application's container when run by grind, or a fresh one), so seeder constructors can ask for services. It then runs the seeders in order.
 - `call(SomeSeeder(), …)` runs instances you created yourself.

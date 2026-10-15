@@ -57,6 +57,7 @@ public class User extends Extract<User> {
 </TabItem>
 </Tabs>
 
+
 `./grind make:model User` writes this skeleton for you under `src/main/…/app/models/` (see [Migrations](../migrations/#grind-commands)).
 
 ### Conventions you can override
@@ -105,6 +106,7 @@ User newest = User.QUERY.query().latest().first();
 </TabItem>
 </Tabs>
 
+
 `query()` returns a `ModelBuilder<T>`. It accepts the same constraints as the [query builder](../query-builder/) (`where`, `whereIn`, `orderBy`, `limit`, joins, …) but returns model instances instead of maps. Call `toBase()` to get the underlying `QueryBuilder`, or `toSql()` to see the generated SQL.
 
 ### Attributes
@@ -149,6 +151,7 @@ User.QUERY.destroy(4, 5, 6);
 
 </TabItem>
 </Tabs>
+
 
 `save()` inserts a new model or updates a loaded one. On insert, it reads back the generated key into `id`. On update, it writes only dirty attributes, and does nothing when there are none. When `timestamps` is on, it sets `updated_at` on every write and `created_at` on insert, unless you set them yourself.
 
@@ -243,6 +246,7 @@ post.forceDelete();
 </TabItem>
 </Tabs>
 
+
 Override `deletedAtColumn` to use another column name. Add the column in a migration with `softDeletes()`.
 
 ## Pagination
@@ -275,6 +279,7 @@ Response.json(page.toMap());
 
 </TabItem>
 </Tabs>
+
 
 Page numbers start at 1; values below 1 are treated as page 1.
 
@@ -348,6 +353,7 @@ Flight flight = Flight.QUERY.updateOrCreate(
 
 </TabItem>
 </Tabs>
+
 
 `wasRecentlyCreated()` is true only when the last `save()` inserted that instance (useful after `firstOrCreate`).
 

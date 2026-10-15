@@ -42,6 +42,7 @@ List<Map<String, Object>> rows = DB.table("users")
 </TabItem>
 </Tabs>
 
+
 The builder is **mutable**: each call changes the builder and returns it. Use `copy()` to branch a query without affecting the original.
 
 ## How values reach the database
@@ -151,6 +152,7 @@ DB.table("sessions").truncate();
 
 </TabItem>
 </Tabs>
+
 
 Multi-row inserts take their column list from the first row; keys missing in later rows are written as `NULL`. `update` with an empty map does nothing and returns 0.
 

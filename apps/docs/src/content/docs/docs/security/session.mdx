@@ -3,6 +3,8 @@ title: Session
 description: HTTP sessions with array, file, cookie, and Redis drivers.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 ## What a session is
 
 A session stores data across requests for one browser (or client) under a session id. Kona attaches the session to the request as attribute `"session"` via the `StartSession` middleware.
@@ -32,11 +34,17 @@ Other keys: `session.lifetime` (minutes), `session.cookie`, `session.path`, `ses
 
 ## Usage
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val session = request.getAttribute(StartSession.ATTRIBUTE) as Session
 session.put("user_id", 1)
 session.flash("status", "Saved")
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 Session session = (Session) request.getAttribute(StartSession.ATTRIBUTE);
@@ -44,4 +52,7 @@ session.put("user_id", 1);
 session.flash("status", "Saved");
 ```
 
-`kona new` registers `SessionServiceProvider` and wires `StartSession` plus `VerifyCsrfToken` (except `/api/*`) in `bootstrap.Middleware`. Manual apps: register the provider, resolve `SessionManager`, and add `StartSession(manager)` to the kernel.
+</TabItem>
+</Tabs>
+
+`kona new` registers `SessionServiceProvider` and wires `StartSession` plus `VerifyCsrfToken` (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`. Manual apps: register the provider, resolve `SessionManager`, and add `StartSession(manager)` to the kernel.

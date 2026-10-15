@@ -3,11 +3,16 @@ title: Rate limiting
 description: Define named limiters and throttle HTTP requests with Retry-After and X-RateLimit headers.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 **Rate limiting** caps how often a client may hit a route — login endpoints, public APIs, expensive reports. Kona’s `RateLimiter` tracks hits in memory by key; `ThrottleRequests` middleware turns a named limiter into HTTP responses with standard headers.
 
 Artifact: `dev.kona:kona-auth`. `AuthServiceProvider` registers a shared `RateLimiter`.
 
 ## Simplest path
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 import dev.kona.http.HttpKernel
@@ -29,6 +34,9 @@ router.routes {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 import dev.kona.security.RateLimit;
 import dev.kona.security.RateLimiter;
@@ -46,6 +54,9 @@ router.prefix("/auth")
     });
 ```
 
+</TabItem>
+</Tabs>
+
 When the limit is exceeded, the middleware throws `RateLimitExceededException` — HTTP **429** with a `Retry-After` header (seconds until the window resets).
 
 Successful responses gain:
@@ -57,6 +68,9 @@ Successful responses gain:
 
 Register limiters with `for` / `forName` (Java-friendly alias). Each registration is a callback `(Request) -> RateLimit` so limits can depend on path, user, or plan:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 limiter.forName("api") { request ->
     val userId = request.getAttribute("user")?.toString()
@@ -64,12 +78,18 @@ limiter.forName("api") { request ->
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 limiter.forName("api", request -> {
     Object user = request.getAttribute("user");
     return user != null ? new RateLimit(120, 60) : new RateLimit(30, 60);
 });
 ```
+
+</TabItem>
+</Tabs>
 
 `ThrottleRequests` builds the hit key as `{limiterName}:{clientKey}`. The default client key is:
 
@@ -80,11 +100,17 @@ limiter.forName("api", request -> {
 
 Override with a custom resolver:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 ThrottleRequests(limiter, "login") { req ->
     req.input("email") ?: req.header("X-Forwarded-For") ?: "unknown"
 }
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 new ThrottleRequests(limiter, "login", req -> {
@@ -95,7 +121,13 @@ new ThrottleRequests(limiter, "login", req -> {
 });
 ```
 
+</TabItem>
+</Tabs>
+
 ## Using the limiter without middleware
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val key = "reports:user-42"
@@ -107,6 +139,9 @@ if (!limiter.attempt(key, maxAttempts = 10, decaySeconds = 60)) {
 limiter.clear(key)  // reset after success, if desired
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 String key = "reports:user-42";
 if (!limiter.attempt(key, 10, 60)) {
@@ -114,6 +149,9 @@ if (!limiter.attempt(key, 10, 60)) {
 }
 limiter.clear(key);
 ```
+
+</TabItem>
+</Tabs>
 
 Other helpers: `hit`, `tooManyAttempts`, `retriesLeft`, `clearAll`.
 

@@ -3,11 +3,16 @@ title: API Resources
 description: Transform domain objects into stable JSON maps with JsonResource and ResourceCollection.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 An **API resource** is a dedicated transformer between your domain object and the JSON map you send to clients. Keeping that mapping in one class avoids leaking internal fields and keeps list vs detail payloads consistent.
 
 ## Single resource
 
 Subclass `JsonResource` and implement `toArray`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class UserResource(private val id: Int, private val name: String) : JsonResource(name) {
@@ -23,6 +28,9 @@ router.get("/users/{id}") { request ->
     UserResource(1, "Ada").toResponse(request)
 }
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 public class UserResource extends JsonResource {
@@ -44,11 +52,17 @@ public class UserResource extends JsonResource {
 router.get("/users/{id}", request -> new UserResource(1, "Ada").toResponse(request));
 ```
 
+</TabItem>
+</Tabs>
+
 `toResponse` wraps `toArray` in `Response.json(...)`. Call `resolve(request)` when you need the map without building a response yet.
 
 ## Collections
 
 Wrap many resources with `JsonResource.collection(...)`. By default the payload is `{ "data": [ ... ] }`. Change or remove the wrapper with `wrap`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val payload = JsonResource.collection(
@@ -56,11 +70,17 @@ val payload = JsonResource.collection(
 ).wrap("users").toResponse(request)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Response payload = JsonResource.collection(
     List.of(new UserResource(1, "Ada"), new UserResource(2, "Grace"))
 ).wrap("users").toResponse(request);
 ```
+
+</TabItem>
+</Tabs>
 
 Pass `wrap(null)` for a bare JSON array.
 
