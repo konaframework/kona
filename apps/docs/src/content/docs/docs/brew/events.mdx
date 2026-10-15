@@ -1,96 +1,58 @@
 ---
-title: Brew events
-description: Wire clicks and custom actions from the browser to public component methods.
+title: Brew browser events
+description: Listen to DOM and custom events with wire:* modifiers.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+Brew treats **browser events** as first-class triggers for actions. Use `wire:<event-name>` on any element. Component-to-component `dispatch` / `@On` and the JavaScript `Brew.dispatch*` helpers land in a later guide; this page covers what ships with the core runtime.
 
-Brew listens for declarative attributes on elements **inside** a component root (`[data-brew]`). When the user interacts, `brew.js` posts to `/brew/message` and swaps in the new HTML.
-
-## Click actions
-
-Use either attribute form:
-
-| Attribute | Example |
-|-----------|---------|
-| `data-brew-click` | `data-brew-click="increment"` |
-| `wire:click` | `wire:click="increment"` |
+## Click and friends
 
 ```html
-<button data-brew-click="increment">+</button>
-<button wire:click="decrement">−</button>
+<button wire:click="save">Save</button>
+<button wire:click.prevent="save">Save</button>
+<button wire:dblclick="edit">Edit</button>
 ```
 
-The attribute value is the **public method name** on the component. Prefer no-arg methods for clicks:
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-fun increment() { count++ }
-```
-
-Before the method runs, Brew also copies any `data-brew-model` / `wire:model` field values from the DOM into public state (except the special `value` key used for string actions).
-
-## String and map actions
-
-Public methods may take:
-
-| Signature | Client `params` |
-|-----------|-----------------|
-| `fun save()` | ignored |
-| `fun apply(params: Map<String, Any?>)` | full params object |
-| `fun rename(value: String)` | `params["value"]`, or the first map value |
-
-```kotlin
-fun rename(value: String) { title = value }
-```
+## Keyboard
 
 ```html
-<button data-brew-click="rename" …>
+<input wire:keydown.enter="search" />
+<input wire:keydown.shift.enter="newline" />
+<div wire:keydown.escape.window="close"></div>
 ```
 
-(For string args from custom JS, post `"params": { "value": "Ada" }`.)
+Key modifiers include `.enter`, `.escape`, `.space`, `.tab`, `.shift`, `.ctrl`, `.alt`, `.meta` / `.cmd`, arrow keys, `.page-up` / `.page-down`, and `.slash`.
 
-## Custom fetch (optional)
+## Scope and timing modifiers
 
-```js
-fetch("/brew/message", {
-  method: "POST",
-  headers: { "Content-Type": "application/json", Accept: "application/json" },
-  body: JSON.stringify({
-    name: "counter",
-    snapshot: root.getAttribute("data-brew"),
-    method: "increment",
-    params: {},
-  }),
-}).then((r) => r.json());
+| Modifier | Role |
+|----------|------|
+| `.window` / `.document` | Listen on window / document |
+| `.outside` | Fire when the event happens outside the element |
+| `.self` | Only when the event target is the element |
+| `.once` | Remove listener after first fire |
+| `.debounce.Xms` / `.throttle.Xms` | Rate-limit |
+| `.passive` / `.capture` | AddEventListener options |
+| `.camel` / `.dot` | Event name casing |
+
+## Custom / third-party events
+
+```html
+<div wire:trix-change="updated"></div>
+<div wire:custom-event="onCustom"></div>
 ```
 
-## Errors
+Any DOM event name works after `wire:`.
 
-| Situation | Result |
-|-----------|--------|
-| Unknown component | `422` `{ "error": "Unknown Brew component: …" }` |
-| Unknown method | `422` `{ "error": "Unknown Brew action: …" }` |
-| Bad snapshot / JSON | `422` with an error message |
+## Init
 
-Action methods that throw become `422` as well (wrapped as a Brew error for non-`BrewException` causes).
-
-## Kotlin + Java
-
-```kotlin
-brew.update("counter", snapshot, "increment")
-brew.update("counter", snapshot, "rename", mapOf("value" to "Ada"))
+```html
+<div wire:init="load">…</div>
 ```
 
-</TabItem>
-<TabItem label="Java">
+Runs once when the component element is initialized on the client.
 
-```java
-brew.update("counter", snapshot, "increment");
-brew.update("counter", snapshot, "rename", Map.of("value", "Ada"));
-```
+## Related
 
-</TabItem>
-</Tabs>
+- [Actions](/docs/brew/actions/) — full modifier list and magic actions  
+- [JavaScript](/docs/brew/javascript/) — `$wire.$on` / global dispatch arrive with the events milestone  

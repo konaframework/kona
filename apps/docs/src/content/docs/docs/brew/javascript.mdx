@@ -1,0 +1,105 @@
+---
+title: Brew JavaScript runtime
+description: $wire, Brew global API, hooks, morph, and error handling.
+---
+
+Brew’s client runtime is an ESM/IIFE bundle built on Alpine.js. The default script tag loads Alpine + Brew plugins and calls `Brew.start()` on `DOMContentLoaded`.
+
+## Globals
+
+After the script loads:
+
+```js
+window.Brew
+window.Alpine
+```
+
+Events:
+
+- `brew:init` — before start (register hooks/directives here)  
+- `brew:initialized` — after components are live  
+
+## Finding components
+
+```js
+Brew.find(id)
+Brew.first()
+Brew.getByName('counter')
+Brew.all()
+```
+
+## `$wire`
+
+Every component root exposes `$wire` through Alpine:
+
+| API | Role |
+|-----|------|
+| `$wire.prop` | Read / assign state |
+| `$wire.$get(path)` | Deep read |
+| `$wire.$set(path, value, live?)` | Deep set; `live` triggers a round-trip |
+| `$wire.$toggle(prop)` | Flip boolean |
+| `$wire.$call(method, …args)` | Invoke action |
+| `$wire.method(…args)` | Same as `$call` |
+| `$wire.$refresh()` | Re-render |
+| `$wire.$commit()` | Flush pending updates |
+| `$wire.$el` / `$wire.$id` | Root element / id |
+| `$wire.$watch(path, fn)` | Watch state |
+| `$wire.$hook(name, fn)` | Component-scoped hook |
+
+## Hooks
+
+```js
+document.addEventListener('brew:init', () => {
+  Brew.hook('commit', ({ component, respond }) => { /* … */ })
+  Brew.hook('request', ({ respond }) => { /* … */ })
+  Brew.hook('morph', ({ el, component }) => { /* … */ })
+  Brew.hook('morph.updating', ({ el, toEl, component }) => {})
+  Brew.hook('component.init', ({ component, cleanup }) => {})
+  Brew.hook('element.init', ({ el, component }) => {})
+  Brew.hook('effect', ({ component, effects }) => {})
+})
+```
+
+Morph sub-hooks: `morph.updated`, `morph.removing`, `morph.removed`, `morph.adding`, `morph.added`.
+
+## Custom directives
+
+```js
+Brew.directive('confirm', ({ el, directive, component, cleanup }) => {
+  // wire:confirm="…"
+})
+```
+
+## Morph behaviour
+
+- Keyed by `wire:key` and `wire:id`  
+- Respects `wire:ignore` / `wire:ignore.self` / `wire:ignore.children`  
+- `wire:replace` / `wire:replace.self` swaps instead of morphing  
+- Block markers from Crema keep loops/conditionals stable  
+
+## Errors
+
+| Response | Client behaviour |
+|----------|------------------|
+| 419 (expired / checksum) | Page-expired prompt to refresh |
+| 500 (when `app.debug`) | Debug modal with details |
+| Custom | `onError` / request hooks can short-circuit |
+
+## Manual ESM
+
+If you bundle Brew yourself, emit `@brewScriptConfig` (or set `window.brewScriptConfig`) and call `Brew.start()` after your Alpine setup. The default auto-start is skipped when script config is present.
+
+```js
+import { Brew } from '@konaframework/brew'
+Brew.start()
+```
+
+## Built-in directives (M1)
+
+`wire:click`, `wire:submit`, `wire:model` (+ modifiers), any `wire:<event>`, `wire:init`, `wire:ignore`, `wire:key`, plus magic actions. Loading/dirty/poll and related UX directives arrive in later guides.
+
+## Next
+
+- [Actions](/docs/brew/actions/) — server methods `$wire` calls  
+- [Forms](/docs/brew/forms/) — `wire:model` modifiers  
+- [Testing](/docs/brew/testing/) — server-side round-trips without a browser  

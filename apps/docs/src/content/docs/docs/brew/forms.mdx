@@ -1,98 +1,44 @@
 ---
 title: Brew forms
-description: Sync inputs with component state using wire:model and submit actions.
+description: Bind inputs with wire:model and submit with wire:submit.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Forms in Brew keep input values on the **server component** and refresh the fragment after sync or submit.
+Forms in Brew keep values on the **server component**. `wire:model` syncs inputs into public properties; `wire:submit` runs an action without a full page navigation.
 
 ## Model binding
 
-Bind an input to a public field:
-
-| Attribute | Example |
-|-----------|---------|
-| `data-brew-model` | `data-brew-model="email"` |
-| `wire:model` | `wire:model="email"` |
-
 ```html
-<input type="email" data-brew-model="email" value="{{ email }}" />
+<input type="text" wire:model="email" />
+<textarea wire:model="bio"></textarea>
+<input type="checkbox" wire:model="agree" />
+<select wire:model="country">…</select>
 ```
 
-On `change`, `brew.js` posts method `sync` with `{ "email": "<current value>" }`. Checkboxes send booleans.
+Supported controls: text, textarea, checkbox (boolean or array), radio, select (single/multiple), number, date.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-class ProfileForm : Component() {
-    @JvmField
-    var email: String = ""
-
-    override fun render(): String = """
-        <input type="email" data-brew-model="email" value="$email" />
-        <p>Saved as: $email</p>
-    """.trimIndent()
-}
-```
-
-`Component.sync(values)` writes known public fields by default. Override it if you need validation or derived fields:
-
-```kotlin
-override fun sync(values: Map<String, Any?>) {
-    super.sync(values)
-    // e.g. normalize email
-}
-```
-
-## Submit
-
-| Attribute | Example |
-|-----------|---------|
-| `data-brew-submit` | `data-brew-submit="save"` on a `<form>` |
-| `wire:submit` | `wire:submit="save"` |
-
-```html
-<form data-brew-submit="save">
-  <input data-brew-model="email" value="$email" />
-  <button type="submit">Save</button>
-</form>
-```
-
-Submit:
-
-1. Collects all model fields in the component root  
-2. Posts them as `params` with `method: "save"`  
-3. Brew writes those params onto public fields (except `value`), then calls `save()`
-
-```kotlin
-fun save() {
-    // email already updated from params
-}
-```
-
-## Click + models together
-
-A `data-brew-click` also collects current model values so buttons can act on the latest inputs without a separate sync round-trip.
-
-## Full example
-
-```kotlin
-class Newsletter : Component() {
-    @JvmField var email: String = ""
-    @JvmField var status: String = ""
+class Profile : Component() {
+    var email = ""
+    var bio = ""
+    var agree = false
+    var country = "ke"
 
     fun save() {
-        status = if (email.contains("@")) "ok" else "invalid"
+        // persist…
     }
 
-    override fun render(): String = """
-        <form data-brew-submit="save">
-          <input type="email" data-brew-model="email" value="$email" />
-          <button type="submit">Subscribe</button>
+    override fun template() = """
+        <form wire:submit="save">
+            <input type="email" wire:model="email" />
+            <textarea wire:model="bio"></textarea>
+            <label><input type="checkbox" wire:model="agree" /> Agree</label>
+            <button type="submit">Save</button>
         </form>
-        <p>$status</p>
     """.trimIndent()
 }
 ```
@@ -101,20 +47,24 @@ class Newsletter : Component() {
 <TabItem label="Java">
 
 ```java
-public class Newsletter extends Component {
+public class Profile extends Component {
     public String email = "";
-    public String status = "";
+    public String bio = "";
+    public boolean agree = false;
+    public String country = "ke";
 
-    public void save() {
-        status = email.contains("@") ? "ok" : "invalid";
-    }
+    public void save() { /* persist… */ }
 
     @Override
-    public String render() {
-        return "<form data-brew-submit=\"save\">"
-            + "<input type=\"email\" data-brew-model=\"email\" value=\"" + email + "\" />"
-            + "<button type=\"submit\">Subscribe</button></form>"
-            + "<p>" + status + "</p>";
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input type="email" wire:model="email" />
+                <textarea wire:model="bio"></textarea>
+                <label><input type="checkbox" wire:model="agree" /> Agree</label>
+                <button type="submit">Save</button>
+            </form>
+            """;
     }
 }
 ```
@@ -122,9 +72,56 @@ public class Newsletter extends Component {
 </TabItem>
 </Tabs>
 
-## Layout checklist
+## Modifiers
 
-1. Register `BrewServiceProvider` with HTTP  
-2. Include `BrewAssets.scriptTag()` (or `/brew/brew.js`) once per page  
-3. Mount components into the page HTML  
-4. Use public fields + public action methods only  
+| Modifier | Behaviour |
+|----------|-----------|
+| (default) | Sync on `change` / blur-equivalent deferral used by the runtime |
+| `.live` | Sync on every input event (coalesced on the request bus) |
+| `.blur` | Sync when the field blurs |
+| `.change` | Sync on `change` |
+| `.lazy` | Alias-style deferred sync |
+| `.debounce` / `.debounce.500ms` | Debounce updates |
+| `.throttle` / `.throttle.500ms` | Throttle updates |
+| `.number` | Cast to number |
+| `.boolean` | Cast to boolean |
+| `.fill` | Initial fill behaviour for certain controls |
+| `.self` | Only events from the element itself |
+| `.deep` | Deep watch for nested objects |
+
+```html
+<input wire:model.live="query" />
+<input wire:model.blur="email" />
+<input wire:model.number="age" />
+<input wire:model.debounce.500ms="search" />
+```
+
+Nested paths:
+
+```html
+<input wire:model="todos.0.title" />
+```
+
+## Submit
+
+```html
+<form wire:submit="save">
+    …
+</form>
+```
+
+`wire:submit` implies `.prevent` so the browser does not navigate. Combine with live models for “type and save” UIs.
+
+## Real-time hooks
+
+Property writes from `wire:model` fire `updating` / `updated` / `updatedFoo` lifecycle hooks—use them for derived state or side effects while the user types. See [Lifecycle](/docs/brew/lifecycle/).
+
+## Validation (later guide)
+
+Server-side `Form` objects, `@Validate` / `rules()`, error bags, and `$errors` ship in a later Brew milestone. Until then, validate inside actions and surface messages as ordinary properties.
+
+## Next
+
+- [Actions](/docs/brew/actions/) — what submit calls  
+- [Properties](/docs/brew/properties/) — state helpers  
+- [JavaScript](/docs/brew/javascript/) — how live updates are bundled  

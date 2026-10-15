@@ -40,6 +40,8 @@ class AppLoader(
         val urls = dirs.map { it.toUri().toURL() }.toTypedArray()
         val loader = URLClassLoader(urls, AppLoader::class.java.classLoader)
         classLoader = loader
+        // So Brew convention lookup / SPI discovery see app classes during boot and on this thread.
+        Thread.currentThread().contextClassLoader = loader
         val clazz = try {
             Class.forName(bootstrapClass, true, loader)
         } catch (ex: ClassNotFoundException) {

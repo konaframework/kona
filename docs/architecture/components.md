@@ -69,4 +69,8 @@ Fluent HTTP client for external APIs and frontend → Kona backend calls.
 
 ### Brew (reactive UI)
 
-Full-stack reactive server components (M11). Artifact `kona-brew`, package `dev.kona.brew`. Behavioral parity with Livewire / Conduit-class tools is locked in [MILESTONES.md](../../MILESTONES.md).
+Full-stack reactive server components. Lives in the separate repo
+[konaframework/kona-brew](https://github.com/konaframework/kona-brew) (`dev.kona:kona-brew`, package `dev.kona.brew`).
+Behavioral/API-shape parity with Livewire v4 is locked in that repo’s
+[livewire-v4-parity.md](https://github.com/konaframework/kona-brew/blob/main/docs/governance/livewire-v4-parity.md).
+Public guides: `apps/docs` → **Brew**. Starter kit: `kona new --kit=brew`.
