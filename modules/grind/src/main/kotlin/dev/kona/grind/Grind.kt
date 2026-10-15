@@ -1,6 +1,9 @@
 package dev.kona.grind
 
 import dev.kona.extract.ExtractException
+import java.net.URLClassLoader
+import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.system.exitProcess
 
 /**
@@ -11,18 +14,27 @@ fun main(args: Array<String>) {
     exitProcess(GrindApplication().run(args))
 }
 
-class GrindApplication {
+class GrindApplication
+@JvmOverloads
+constructor(
+    private val registry: CommandRegistry = CommandRegistry(),
+    private val basePath: Path = Path.of(".").toAbsolutePath().normalize(),
+    private val classLoader: ClassLoader = GrindApplication::class.java.classLoader,
+) {
     fun run(args: Array<String>): Int {
         val (positional, options) = parseOptions(args.toList())
         val io = GrindIO.fromOptions(options)
         if (positional.isEmpty() || positional[0] == "help" || positional[0] == "--help" || positional[0] == "-h") {
+            discoverCustomCommands(options)
             printHelp(io)
             return 0
         }
+        discoverCustomCommands(options)
         return try {
             when (val command = positional[0]) {
                 "serve" -> ServeCommand().run(positional.drop(1) + flatten(options))
                 "make:controller" -> MakeControllerCommand().run(positional.drop(1) + flatten(options))
+                "make:command" -> MakeCommandCommand().run(positional.drop(1) + flatten(options))
                 "make:resource" -> MakeResourceCommand().run(positional.drop(1) + flatten(options))
                 "make:middleware" -> MakeMiddlewareCommand().run(positional.drop(1) + flatten(options))
                 "make:request" -> MakeRequestCommand().run(positional.drop(1) + flatten(options))
@@ -47,17 +59,13 @@ class GrindApplication {
                 "storage:link" -> StorageLinkCommand().run(positional.drop(1) + flatten(options))
                 "key:generate" -> KeyGenerateCommand().run(positional.drop(1) + flatten(options))
                 "ide:lsp" -> IdeLspCommand().run(positional.drop(1) + flatten(options))
-                "list" -> ListCommand().run(positional.drop(1) + flatten(options))
+                "list" -> ListCommand(registry).run(positional.drop(1) + flatten(options))
                 "new" -> {
                     io.error("Create applications with the global CLI: kona new <name>")
                     io.warn("grind is app-local — run ./grind serve from inside a project.")
                     1
                 }
-                else -> {
-                    io.error("Unknown command: $command")
-                    printHelp(io)
-                    1
-                }
+                else -> runCustomOrUnknown(command, positional.drop(1) + flatten(options), io, options)
             }
         } catch (ex: GrindException) {
             io.error(ex.message ?: "grind error")
@@ -66,6 +74,33 @@ class GrindApplication {
             io.error(ex.message ?: "extract error")
             1
         }
+    }
+
+    private fun discoverCustomCommands(options: Map<String, String>) {
+        CommandDiscovery.registerAll(registry, classLoader)
+        val base = options["base"]?.let { Path.of(it).toAbsolutePath().normalize() } ?: basePath
+        val dirs = APP_OUTPUT_DIRS.map { base.resolve(it) }.filter { Files.isDirectory(it) }
+        if (dirs.isEmpty()) {
+            return
+        }
+        val loader = URLClassLoader(dirs.map { it.toUri().toURL() }.toTypedArray(), classLoader)
+        CommandDiscovery.registerAll(registry, loader)
+    }
+
+    private fun runCustomOrUnknown(
+        command: String,
+        args: List<String>,
+        io: GrindIO,
+        options: Map<String, String>,
+    ): Int {
+        val custom = registry.create(command)
+        if (custom != null) {
+            val base = options["base"]?.let { Path.of(it).toAbsolutePath().normalize() } ?: basePath
+            return CommandExecutor(base).run(custom, args)
+        }
+        io.error("Unknown command: $command")
+        printHelp(io)
+        return 1
     }
 
     private fun flatten(options: Map<String, String>): List<String> =
@@ -80,42 +115,24 @@ class GrindApplication {
             ),
         )
         io.title("Usage")
-        listOf(
-            "list" to "List commands",
-            "serve" to "HTTP server [--host] [--port] [--in-process]",
-            "make:controller" to "Generate controller [--resource]",
-            "make:resource" to "Generate API resource [--collection]",
-            "make:middleware" to "Generate middleware",
-            "make:request" to "Generate form request",
-            "make:view" to "Generate Crema view",
-            "make:model" to "Generate model [--migration|--factory|--seeder|--all]",
-            "make:migration" to "Generate migration",
-            "make:factory" to "Generate factory",
-            "make:seeder" to "Generate seeder",
-            "migrate" to "Run pending migrations",
-            "migrate:rollback" to "Rollback [--step=N]",
-            "migrate:reset" to "Reset all migrations",
-            "migrate:status" to "Show migration status",
-            "db:seed" to "Run seeders",
-            "queue:work" to "Process queued jobs",
-            "queue:failed" to "List failed jobs",
-            "queue:retry" to "Retry failed jobs",
-            "queue:flush" to "Clear failed jobs",
-            "schedule:run" to "Run due tasks",
-            "schedule:list" to "List scheduled tasks",
-            "steam" to "Interactive REPL",
-            "assets:vite" to "Vite setup help",
-            "storage:link" to "Link public/storage",
-            "key:generate" to "Set APP_KEY [--show] [--force]",
-            "ide:lsp" to "Crema LSP setup help",
-            "help" to "Show this help",
-        ).forEach { (cmd, summary) -> io.twoColumn(cmd, summary) }
+        (ListCommand.BUILTIN + registry.summaries()).distinctBy { it.first }.forEach { (cmd, summary) ->
+            io.twoColumn(cmd, summary)
+        }
         io.writeln()
         io.info("Create apps with: kona new <name> [--lang=kotlin|java] [--kit=…]")
+        io.info("Custom commands: grind make:command <Name>")
+    }
+
+    companion object {
+        private val APP_OUTPUT_DIRS = listOf(
+            "build/classes/kotlin/main",
+            "build/classes/java/main",
+            "build/resources/main",
+        )
     }
 }
 
-class GrindException(message: String) : RuntimeException(message)
+class GrindException(message: String?) : RuntimeException(message)
 
 internal fun parseOptions(args: List<String>): Pair<List<String>, Map<String, String>> {
     val positional = mutableListOf<String>()
@@ -124,6 +141,7 @@ internal fun parseOptions(args: List<String>): Pair<List<String>, Map<String, St
         when {
             arg == "-v" -> options["verbose"] = "true"
             arg == "-q" -> options["quiet"] = "true"
+            arg == "-h" -> options["help"] = "true"
             arg.startsWith("--") -> {
                 val body = arg.removePrefix("--")
                 val idx = body.indexOf('=')

@@ -1,22 +1,29 @@
 package dev.kona.grind
 
 /**
- * `grind list` — print available commands (console depth / help parity).
+ * `grind list` — print available commands (built-ins + registered custom commands).
  */
-class ListCommand {
+class ListCommand(
+    private val registry: CommandRegistry = CommandRegistry(),
+) {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
         val io = GrindIO.fromOptions(options)
         io.title("grind commands")
-        COMMANDS.forEach { (name, summary) ->
-            io.twoColumn(name, summary)
+        val seen = linkedSetOf<String>()
+        (BUILTIN + registry.summaries()).forEach { (name, summary) ->
+            if (seen.add(name)) {
+                io.twoColumn(name, summary)
+            }
         }
         return 0
     }
 
     companion object {
-        val COMMANDS: List<Pair<String, String>> = listOf(
+        /** Built-in grind commands shown in `list` / help. */
+        val BUILTIN: List<Pair<String, String>> = listOf(
             "serve" to "Run the HTTP server",
+            "make:command" to "Generate a console command",
             "make:controller" to "Generate a controller (--resource for CRUD stubs)",
             "make:resource" to "Generate an API resource (--collection)",
             "make:middleware" to "Generate HTTP middleware",
@@ -45,5 +52,8 @@ class ListCommand {
             "list" to "List grind commands",
             "help" to "Show usage",
         )
+
+        /** Alias for existing tests. */
+        val COMMANDS: List<Pair<String, String>> = BUILTIN
     }
 }
