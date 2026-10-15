@@ -234,6 +234,51 @@ class EloquentParityTest {
     }
 
     @Test
+    fun globalScopesApplyAndCanBeRemoved() {
+        class AdultScope : Scope {
+            override fun apply(builder: ModelBuilder<*>) {
+                builder.where("age", ">=", 18)
+            }
+        }
+        try {
+            User.addGlobalScope("named") { it.where("name", "Ada") }
+            User.addGlobalScope(AdultScope())
+            assertTrue(User.hasGlobalScope("named"))
+            assertNotNull(User.getGlobalScope("named"))
+            assertTrue(User.getGlobalScopes().containsKey(AdultScope::class.java.name))
+
+            db.table("users").insert(
+                listOf(
+                    mapOf("name" to "Ada", "email" to "a@g", "age" to 36),
+                    mapOf("name" to "Grace", "email" to "g@g", "age" to 45),
+                    mapOf("name" to "Kid", "email" to "k@g", "age" to 10),
+                ),
+            )
+            assertEquals(1L, User.query().count())
+            assertEquals(2L, User.withoutGlobalScope("named").count())
+            assertEquals(1L, User.withoutGlobalScope(AdultScope::class.java.name).count())
+            assertEquals(3L, User.withoutGlobalScopes().count())
+            assertEquals(1L, User.withoutGlobalScopes(listOf(AdultScope::class.java.name)).count())
+            assertEquals(1L, User.withoutGlobalScopesExcept(listOf("named")).count())
+            assertEquals(2L, User.query().withoutGlobalScopes(listOf("named")).count())
+            assertTrue(User.query().toSql().contains("age"))
+            User.removeGlobalScope("named")
+            assertFalse(User.hasGlobalScope("named"))
+            assertEquals(2L, User.query().count())
+        } finally {
+            GlobalScopes.clear(User::class.java)
+        }
+        // registry miss paths
+        assertFalse(GlobalScopes.has(Plain::class.java, "x"))
+        assertNull(GlobalScopes.get(Plain::class.java, "x"))
+        assertTrue(GlobalScopes.all(Plain::class.java).isEmpty())
+        GlobalScopes.remove(Plain::class.java, "x")
+        GlobalScopes.clear(Plain::class.java)
+        assertNull(User.getGlobalScope("missing"))
+        assertFalse(User.hasGlobalScope("missing"))
+    }
+
+    @Test
     fun whereDateHavingAndModelBuilderMirrors() {
         // Use modern civil dates — pre-1900 timestamps can shift under H2 cast(as time) TZ rules.
         val adaBorn = Timestamp.valueOf(LocalDateTime.of(1990, 12, 10, 9, 30, 0))

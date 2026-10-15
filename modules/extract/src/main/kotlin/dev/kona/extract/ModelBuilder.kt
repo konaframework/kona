@@ -23,6 +23,9 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 ) {
     private var trashed = Trashed.EXCLUDE
     private val eagerLoads = linkedMapOf<String, RelationConstraint?>()
+    private val removedGlobalScopes = linkedSetOf<String>()
+    private var withoutAllGlobalScopes = false
+    private var exceptGlobalScopes: Set<String>? = null
 
     // ---- eager loading ----
 
@@ -105,7 +108,27 @@ class ModelBuilder<T : Extract<T>> internal constructor(
         return this
     }
 
-    /** Underlying query with the soft-delete scope applied (a copy; safe to modify). */
+    /** Drops one registered global scope for this query only. */
+    fun withoutGlobalScope(name: String): ModelBuilder<T> = apply { removedGlobalScopes += name }
+
+    /** Drops every registered global scope for this query only. */
+    fun withoutGlobalScopes(): ModelBuilder<T> = apply {
+        withoutAllGlobalScopes = true
+        exceptGlobalScopes = null
+    }
+
+    /** Drops the named global scopes for this query only. */
+    fun withoutGlobalScopes(names: Collection<String>): ModelBuilder<T> = apply {
+        removedGlobalScopes.addAll(names)
+    }
+
+    /** Keeps only [names] among registered global scopes for this query. */
+    fun withoutGlobalScopesExcept(names: Collection<String>): ModelBuilder<T> = apply {
+        withoutAllGlobalScopes = false
+        exceptGlobalScopes = names.toSet()
+    }
+
+    /** Underlying query with soft-delete and global scopes applied (a copy; safe to modify). */
     fun toBase(): QueryBuilder {
         val base = query.copy()
         val model = model
@@ -114,7 +137,31 @@ class ModelBuilder<T : Extract<T>> internal constructor(
             base.groupWheres()
             if (trashed == Trashed.ONLY) base.whereNotNull(column) else base.whereNull(column)
         }
+        applyGlobalScopes(base)
         return base
+    }
+
+    private fun applyGlobalScopes(base: QueryBuilder) {
+        if (withoutAllGlobalScopes) {
+            return
+        }
+        val registered = GlobalScopes.all(model.javaClass)
+        if (registered.isEmpty()) {
+            return
+        }
+        val applicator = ModelBuilder(model, base).also {
+            it.withoutAllGlobalScopes = true
+            it.trashed = Trashed.INCLUDE
+        }
+        val except = exceptGlobalScopes
+        for ((name, scope) in registered) {
+            if (except != null) {
+                if (name !in except) continue
+            } else if (name in removedGlobalScopes) {
+                continue
+            }
+            scope.apply(applicator)
+        }
     }
 
     /** The unscoped underlying query, for constraints not mirrored on this class. */
