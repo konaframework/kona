@@ -118,6 +118,7 @@ class FakeBroadcast {
 class FakeStorage : FilesystemAdapter {
     private val files = linkedMapOf<String, ByteArray>()
     private val dirs = linkedSetOf<String>()
+    private val visibility = linkedMapOf<String, String>()
 
     override fun put(path: String, contents: ByteArray) {
         files[path] = contents.copyOf()
@@ -133,11 +134,17 @@ class FakeStorage : FilesystemAdapter {
 
     override fun exists(path: String): Boolean = files.containsKey(path) || dirs.contains(path)
 
-    override fun delete(path: String): Boolean = files.remove(path) != null
+    override fun missing(path: String): Boolean = !exists(path)
+
+    override fun delete(path: String): Boolean {
+        visibility.remove(path)
+        return files.remove(path) != null
+    }
 
     override fun copy(from: String, to: String): Boolean {
         val bytes = files[from] ?: return false
         files[to] = bytes.copyOf()
+        visibility[from]?.let { visibility[to] = it }
         return true
     }
 
@@ -151,14 +158,33 @@ class FakeStorage : FilesystemAdapter {
 
     override fun lastModified(path: String): Long = if (exists(path)) System.currentTimeMillis() else 0L
 
+    override fun mimeType(path: String): String? =
+        if (files.containsKey(path)) "application/octet-stream" else null
+
+    override fun checksum(path: String, algorithm: String): String? {
+        val bytes = files[path] ?: return null
+        val digest = java.security.MessageDigest.getInstance(algorithm).digest(bytes)
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
     override fun files(directory: String): List<String> {
         val prefix = if (directory.isEmpty()) "" else directory.trimEnd('/') + "/"
         return files.keys.filter { it.startsWith(prefix) && !it.removePrefix(prefix).contains('/') }
             .map { it.removePrefix(prefix) }
     }
 
+    override fun allFiles(directory: String): List<String> {
+        val prefix = if (directory.isEmpty()) "" else directory.trimEnd('/') + "/"
+        return files.keys.filter { it.startsWith(prefix) }.sorted()
+    }
+
     override fun directories(directory: String): List<String> = dirs.filter {
         if (directory.isEmpty()) !it.contains('/') else it.startsWith(directory.trimEnd('/') + "/")
+    }
+
+    override fun allDirectories(directory: String): List<String> {
+        val prefix = if (directory.isEmpty()) "" else directory.trimEnd('/') + "/"
+        return dirs.filter { if (prefix.isEmpty()) true else it.startsWith(prefix) }.sorted()
     }
 
     override fun makeDirectory(path: String): Boolean {
@@ -168,7 +194,10 @@ class FakeStorage : FilesystemAdapter {
 
     override fun deleteDirectory(path: String): Boolean {
         val prefix = path.trimEnd('/') + "/"
-        files.keys.filter { it.startsWith(prefix) }.toList().forEach { files.remove(it) }
+        files.keys.filter { it.startsWith(prefix) }.toList().forEach {
+            files.remove(it)
+            visibility.remove(it)
+        }
         dirs.remove(path.trimEnd('/'))
         return true
     }
@@ -176,4 +205,43 @@ class FakeStorage : FilesystemAdapter {
     override fun url(path: String): String = "/$path"
 
     override fun path(path: String): String = path
+
+    override fun append(path: String, data: String) {
+        val existing = files[path] ?: ByteArray(0)
+        put(path, existing + data.toByteArray())
+    }
+
+    override fun prepend(path: String, data: String) {
+        val existing = files[path] ?: ByteArray(0)
+        put(path, data.toByteArray() + existing)
+    }
+
+    override fun readStream(path: String): java.io.InputStream? =
+        files[path]?.let { java.io.ByteArrayInputStream(it.copyOf()) }
+
+    override fun writeStream(path: String, input: java.io.InputStream) {
+        put(path, input.readAllBytes())
+    }
+
+    override fun putFile(directory: String, source: java.nio.file.Path): String {
+        val name = java.util.UUID.randomUUID().toString()
+        return putFileAs(directory, source, name)
+    }
+
+    override fun putFileAs(directory: String, source: java.nio.file.Path, name: String): String {
+        val relative = if (directory.isEmpty()) name else "${directory.trimEnd('/')}/$name"
+        put(relative, java.nio.file.Files.readAllBytes(source))
+        return relative
+    }
+
+    override fun getVisibility(path: String): String = visibility[path] ?: "private"
+
+    override fun setVisibility(path: String, visibility: String) {
+        this.visibility[path] = visibility
+    }
+
+    override fun providesTemporaryUrls(): Boolean = false
+
+    override fun temporaryUrl(path: String, expirationSeconds: Long): String =
+        throw IllegalStateException("FakeStorage does not support temporary URLs.")
 }

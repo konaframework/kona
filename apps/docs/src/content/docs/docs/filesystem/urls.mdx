@@ -1,0 +1,59 @@
+---
+title: Public disk and URLs
+description: /storage serving, grind storage:link, and temporary signed URLs.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Public disk and `/storage`
+
+The **public** disk holds files browsers may fetch. Scaffolded apps prepend `ServePublicStorage` so `GET /storage/...` reads from that disk and returns a binary file response (see [Request & response](../http/request-response/)).
+
+Create the symlink static tooling expects:
+
+```bash
+./grind storage:link
+```
+
+That links `src/main/resources/public/storage` → `storage/app/public` (or `public/storage` when the resources public folder is absent).
+
+## Temporary URLs
+
+Register how temporary links are built (usually `UrlGenerator.signed`), then call `temporaryUrl`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+val urls = app.resolve(UrlGenerator::class.java)
+
+files.buildTemporaryUrlsUsing("public") { url, exp -> urls.signed(url, exp) }
+
+val link = files.temporaryUrl("avatars/a.png", 600, "public")
+// or pass a signer inline:
+val link2 = files.temporaryUrl("avatars/a.png", 600, { url, exp -> urls.signed(url, exp) }, "public")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+UrlGenerator urls = app.resolve(UrlGenerator.class);
+
+files.buildTemporaryUrlsUsing("public", (url, exp) -> urls.signed(url, exp));
+
+String link = files.temporaryUrl("avatars/a.png", 600L, "public");
+String link2 = files.temporaryUrl(
+    "avatars/a.png",
+    600L,
+    (url, exp) -> urls.signed(url, exp),
+    "public"
+);
+```
+
+</TabItem>
+</Tabs>
+
+`providesTemporaryUrls("public")` is true after a builder is registered (or the adapter itself was given one via `LocalAdapter.buildTemporaryUrlsUsing`). Protect download routes with `ValidateSignature` — see [URL generation](../http/url-generation/).
