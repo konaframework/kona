@@ -3,8 +3,8 @@ package dev.kona.inertia
 import dev.kona.core.Application
 import dev.kona.core.ServiceProvider
 import dev.kona.crema.CremaEngine
-import dev.kona.inertia.assets.AssetManifest
-import dev.kona.inertia.assets.Vite
+import dev.kona.crema.assets.AssetManifest
+import dev.kona.crema.assets.Vite
 import java.nio.file.Path
 
 /**
