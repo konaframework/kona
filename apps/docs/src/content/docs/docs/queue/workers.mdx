@@ -1,0 +1,49 @@
+---
+title: Workers
+description: grind queue:work options, timeouts, and daemon mode.
+---
+
+A **worker** pops payloads, restores jobs, runs middleware + `handle()`, and either acks success, releases for retry, or logs a failed job.
+
+```bash
+./grind queue:work
+./grind queue:work --connection=redis --queue=default
+./grind queue:work --once
+./grind queue:work --stop-when-empty --max=100
+./grind queue:work --daemon --sleep=3
+```
+
+## Flags
+
+| Flag | Meaning |
+|------|---------|
+| `--connection=` | Queue connection name |
+| `--queue=` | Queue name on that connection |
+| `--max=` | Stop after N successful process attempts |
+| `--once` | Process at most one job |
+| `--stop-when-empty` | Exit when the queue has no available jobs (default unless `--daemon` / `--sleep`) |
+| `--daemon` | Keep polling when empty |
+| `--sleep=` | Seconds to sleep when empty in daemon mode |
+| `--timeout=` | Per-job timeout in seconds (`0` disables) |
+| `--memory=` | Stop if used heap reaches this many MB (`0` disables) |
+| `--tries=` | Override job try count |
+| `--backoff=` | Override backoff seconds on retry |
+
+Programmatically:
+
+```kotlin
+Worker(
+    manager,
+    connectionName = "array",
+    queueName = "default",
+    options = WorkerOptions(once = true, timeoutSeconds = 30),
+).run()
+```
+
+## steam
+
+Boot the app with `./grind steam` and call `Bus` / `Worker` while developing. Prefer a dedicated `queue:work` process for real workloads.
+
+## Retries
+
+On exception, if attempts remain below `tries`, the worker `release`s the payload with `backoffSeconds` (via `availableAt`). Otherwise the failure is recorded — see [Failed jobs](/docs/queue/failed-jobs/).

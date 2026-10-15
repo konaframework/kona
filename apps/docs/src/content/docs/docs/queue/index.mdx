@@ -1,9 +1,19 @@
 ---
 title: Queues
-description: Dispatch jobs, run workers, and inspect failed jobs.
+description: Background jobs, workers, and failed-job recovery.
 ---
 
-Kona queues run background work with sync, in-memory, Redis, and database drivers. Jobs that implement `ShouldQueue` are pushed; everything else runs immediately through `Bus`.
+Queues let your app finish a request quickly and do heavier work moments later — send mail, resize images, call slow APIs — on a separate worker process.
+
+Register `QueueServiceProvider`, then dispatch jobs through `Bus`. Jobs that implement `ShouldQueue` are pushed onto a connection; everything else runs immediately.
+
+## Where to go next
+
+| Guide | Use when |
+|-------|----------|
+| [Jobs & dispatch](/docs/queue/jobs/) | Writing job classes, delay, chains, batches, middleware |
+| [Workers](/docs/queue/workers/) | Running `./grind queue:work` and worker options |
+| [Failed jobs](/docs/queue/failed-jobs/) | Listing, retrying, and durable failed storage |
 
 ## Quick start
 
@@ -14,39 +24,30 @@ class SendInvoice : Job, ShouldQueue {
 
 val bus = app.resolve(Bus::class.java)
 bus.dispatch(SendInvoice())
-Worker(app.resolve(QueueManager::class.java)).run(maxJobs = 10)
 ```
 
-Register `QueueServiceProvider`. Configure `queue.default` and `queue.connections.{name}.driver` (`sync`, `array`/`memory`, `redis`, `database`).
-
-## Workers and failed jobs
+```java
+Bus bus = app.resolve(Bus.class);
+bus.dispatch(new SendInvoice());
+```
 
 ```bash
-./grind queue:work [--connection=array] [--queue=default] [--max=100]
-./grind queue:failed
-./grind queue:retry <id>|--all
-./grind queue:flush
+./grind queue:work --connection=array --stop-when-empty
 ```
 
-Failed jobs default to an in-memory `FailedJobProvider`. For durability:
+## Connections
 
-| `queue.failed.driver` | Storage |
-|-----------------------|---------|
-| `memory` (default) | Process heap |
-| `file` | JSON array at `queue.failed.path` (default `storage/framework/failed_jobs.json`) |
-| `database` | `failed_jobs` table (`queue.failed.table`); needs Extract `Database` on the manager |
+Configure `queue.default` and `queue.connections.{name}.driver`:
 
-`./grind queue:retry` **re-queues** the payload (attempts reset) onto the original connection/queue, then forgets the failed row.
+| Driver | Role |
+|--------|------|
+| `sync` | Run inline on dispatch (delay ignored) |
+| `array` / `memory` | In-process queue for tests and local workers |
+| `redis` | Shared Redis list (needs `RedisManager`) |
+| `database` | `jobs` table (needs Extract `Database`) |
 
-Backoff uses `availableAt` on the payload: array/Redis/database drivers skip jobs until the delay elapses (workers are not blocked with `Thread.sleep`).
+Default queue name per connection: `queue.connections.{name}.queue` (fallback `default`).
 
-## Job contracts
+## steam
 
-Optional `JobContract` methods: `tries()`, `backoffSeconds()`, `displayName()`.
-
-Prefer **Jackson-serializable** jobs (public no-arg constructor + readable properties). Each payload stores a `jobBody` JSON snapshot so another process can restore the job without an in-memory factory:
-
-1. Same JVM: `JobRegistry` factory registered at push time (original instance).
-2. Other process: deserialize `jobBody` into the `jobKey` class.
-3. Fallback: public no-arg constructor on the `jobKey` class.
-
+From `./grind steam`, resolve `Bus` / `QueueManager` after boot and dispatch jobs interactively while a worker runs in another terminal.

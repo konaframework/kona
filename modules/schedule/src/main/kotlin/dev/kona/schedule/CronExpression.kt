@@ -2,7 +2,10 @@ package dev.kona.schedule
 
 import java.time.LocalDateTime
 
-// Minimal 5-field cron (min hour dom month dow). Supports *, numbers, and step patterns.
+/**
+ * Minimal 5-field cron (min hour dom month dow).
+ * Supports star, numbers, lists (1,15), ranges (1-5), and step patterns (every n).
+ */
 class CronExpression(expression: String) {
     private val fields: List<Field>
 
@@ -44,9 +47,25 @@ class CronExpression(expression: String) {
                     require(step > 0) { "Cron step must be positive" }
                     return Field(null, step, min)
                 }
+                if (raw.contains(",")) {
+                    val set = raw.split(",").map { parseAtom(it.trim(), min, max) }.toSet()
+                    return Field(set, null, min)
+                }
+                if (raw.contains("-")) {
+                    val parts = raw.split("-", limit = 2)
+                    require(parts.size == 2) { "Invalid cron range: $raw" }
+                    val start = parseAtom(parts[0], min, max)
+                    val end = parseAtom(parts[1], min, max)
+                    require(start <= end) { "Cron range start must be <= end: $raw" }
+                    return Field((start..end).toSet(), null, min)
+                }
+                return Field(setOf(parseAtom(raw, min, max)), null, min)
+            }
+
+            private fun parseAtom(raw: String, min: Int, max: Int): Int {
                 val value = raw.toInt()
                 require(value in min..max) { "Cron value $value out of range $min..$max" }
-                return Field(setOf(value), null, min)
+                return value
             }
         }
     }

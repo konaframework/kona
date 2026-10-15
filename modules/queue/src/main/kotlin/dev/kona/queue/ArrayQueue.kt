@@ -3,24 +3,26 @@ package dev.kona.queue
 import java.util.ArrayDeque
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * In-memory FIFO queue for tests and single-process workers.
- */
+/** In-memory FIFO queue for tests and single-process workers. */
 class ArrayQueue : Queue {
     private val queues = ConcurrentHashMap<String, ArrayDeque<String>>()
 
     private fun deque(queue: String): ArrayDeque<String> =
         queues.getOrPut(queue) { ArrayDeque() }
 
-    override fun push(job: Job, queue: String): String {
+    override fun push(job: Job, queue: String, delaySeconds: Long): String {
         val key = job.javaClass.name
         JobRegistry.register(key) { job }
-        val payload = JobRegistry.payloadFor(job, key)
+        val payload = JobRegistry.payloadFor(job, key).withDelay(delaySeconds)
         synchronized(deque(queue)) {
             deque(queue).addLast(JobRegistry.encode(payload))
         }
         return payload.id
     }
+
+    fun push(job: Job, queue: String): String = push(job, queue, 0)
+
+    fun push(job: Job): String = push(job, "default", 0)
 
     override fun pop(queue: String): QueuePayload? {
         val now = System.currentTimeMillis()
@@ -39,14 +41,10 @@ class ArrayQueue : Queue {
     }
 
     override fun size(queue: String): Long =
-        synchronized(deque(queue)) {
-            deque(queue).size.toLong()
-        }
+        synchronized(deque(queue)) { deque(queue).size.toLong() }
 
     override fun clear(queue: String) {
-        synchronized(deque(queue)) {
-            deque(queue).clear()
-        }
+        synchronized(deque(queue)) { deque(queue).clear() }
     }
 
     override fun release(payload: QueuePayload, queue: String, delaySeconds: Long) {
