@@ -48,7 +48,7 @@ object App {
     fun main(args: Array<String>) {
         val app = create(args)
         val host = Env.getOrDefault("HOST", "127.0.0.1")
-        val port = Env.getOrDefault("PORT", "8080").toInt()
+        val port = Env.getOrDefault("PORT", "4000").toInt()
         KonaHttpServer(app.resolve(HttpKernel::class.java), host, port).start()
     }
 }

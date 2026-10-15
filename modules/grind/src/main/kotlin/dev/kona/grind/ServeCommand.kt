@@ -1,6 +1,5 @@
 package dev.kona.grind
 
-import dev.kona.core.Env
 import dev.kona.core.Kona
 import dev.kona.http.HttpKernel
 import dev.kona.http.KonaHttpServer
@@ -13,15 +12,20 @@ import java.nio.file.Path
  *
  * Default: `./gradlew run` in the project root, so the app is compiled and started with its
  * own runtime classpath. `--host` / `--port` are forwarded as `HOST` / `PORT` (process env wins
- * over `.env`).
+ * over `.env`). Default port is [DEFAULT_SERVE_PORT] (4000). When the preferred port is taken,
+ * grind asks whether to try the next port.
  *
  * `--in-process`: boots the app inside grind from `build/classes` via [AppLoader]; HOST/PORT come
- * from the app's `.env` after load (default 127.0.0.1:8080). `--once` stops right after binding.
+ * from the app's `.env` after load. `--once` stops right after binding.
  */
-class ServeCommand(
+class ServeCommand
+@JvmOverloads
+constructor(
     private val awaitShutdown: (KonaHttpServer) -> Unit = { Thread.currentThread().join() },
     private val runner: ProcessRunner = ProcessRunner.SYSTEM,
     private val windows: Boolean = System.getProperty("os.name").startsWith("Windows"),
+    private val prompts: Prompts = Prompts(),
+    private val io: GrindIO = GrindIO(),
 ) {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
@@ -44,9 +48,11 @@ class ServeCommand(
     }
 
     private fun serveWithGradle(root: Path, options: Map<String, String>): Int {
-        val environment = linkedMapOf<String, String>()
-        options["host"]?.let { environment["HOST"] = it }
-        options["port"]?.let { environment["PORT"] = it }
+        val (host, port) = resolveBind(root, options)
+        val environment = linkedMapOf(
+            "HOST" to host,
+            "PORT" to port.toString(),
+        )
         return runner.run(gradleCommand(root), root, environment)
     }
 
@@ -54,9 +60,7 @@ class ServeCommand(
         Kona.reset()
         val app = AppLoader(root, options.getOrDefault("bootstrap", AppLoader.DEFAULT_BOOTSTRAP))
             .create(arrayOf("--base=$root"))
-        val host = options.getOrDefault("host", Env.getOrDefault("HOST", "127.0.0.1"))
-        val port = options.getOrDefault("port", Env.getOrDefault("PORT", "8080")).toInt()
-
+        val (host, port) = resolveBind(root, options)
         val server = KonaHttpServer(app.resolve(HttpKernel::class.java), host, port)
         server.start()
         try {
@@ -67,6 +71,12 @@ class ServeCommand(
             server.stop()
         }
         return 0
+    }
+
+    private fun resolveBind(root: Path, options: Map<String, String>): Pair<String, Int> {
+        val (host, preferred) = ServePorts.preferredHostPort(root, options)
+        val port = ServePorts.resolve(host, preferred, prompts, io)
+        return host to port
     }
 
     companion object {

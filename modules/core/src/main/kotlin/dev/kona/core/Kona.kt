@@ -54,7 +54,7 @@ object Kona {
         config.set("app.name", Env.getOrDefault("APP_NAME", "Kona"))
         config.set("app.env", Env.getOrDefault("APP_ENV", "local"))
         config.set("app.debug", Config.toBoolean(Env.getOrDefault("APP_DEBUG", "false")) ?: false)
-        config.set("app.url", Env.getOrDefault("APP_URL", "http://127.0.0.1:8080"))
+        config.set("app.url", Env.getOrDefault("APP_URL", "http://127.0.0.1:4000"))
         Env.get("APP_KEY")?.let { config.set("app.key", it) }
         val primary = application.configPath()
         val legacy = application.path("config")

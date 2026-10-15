@@ -51,7 +51,7 @@ public final class App {
     public static void main(String[] args) {
         Application app = create(args);
         String host = Env.getOrDefault("HOST", "127.0.0.1");
-        int port = Integer.parseInt(Env.getOrDefault("PORT", "8080"));
+        int port = Integer.parseInt(Env.getOrDefault("PORT", "4000"));
         new KonaHttpServer(app.resolve(HttpKernel.class), host, port).start();
     }
 
