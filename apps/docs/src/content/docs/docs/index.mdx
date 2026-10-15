@@ -3,12 +3,16 @@ title: Documentation
 description: Guides and reference for the Kona JVM web framework.
 template: splash
 hero:
-  tagline: Kotlin-first. Java first-class. Full-stack web apps on the JVM.
+  tagline: Guides and reference — from first install through HTTP, data, views, and grind.
   actions:
-    - text: Get started
-      link: guides/introduction/
+    - text: Installation
+      link: guides/installation/
       icon: right-arrow
       variant: primary
+    - text: Introduction
+      link: guides/introduction/
+      icon: document
+      variant: minimal
     - text: GitHub
       link: https://github.com/konaframework/kona
       icon: external
@@ -17,17 +21,19 @@ hero:
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-Kona is a web framework for the JVM. You boot an **application**, plug features in with **service providers**, look services up from a **container**, and answer HTTP requests with **routes** and **middleware**. The same APIs work from Kotlin and Java, and the **grind** command-line tool scaffolds and serves your project.
+This is the documentation hub for **Kona**. The marketing home lives at the site root; everything below is how to build with the framework.
+
+Kona boots an **application**, plugs features in with **service providers**, looks services up from a **container**, and answers HTTP with **routes** and **middleware**. The same APIs work from Kotlin and Java. The **grind** CLI scaffolds and serves your project.
 
 <CardGrid>
   <Card title="Start here" icon="rocket">
-    Read the [introduction](guides/introduction/) for the vocabulary and lifecycle, then follow [Installation](guides/installation/) and [Your first app](guides/first-app/).
+    [Installation](guides/installation/), then [Your first app](guides/first-app/). For vocabulary and lifecycle, read the [introduction](guides/introduction/).
   </Card>
   <Card title="Core concepts" icon="puzzle">
     How an [application boots](concepts/application/), how the [container](concepts/container/) builds services, and where [config and env](concepts/config/) values come from.
   </Card>
   <Card title="HTTP" icon="random">
-    [Routing](http/routing/), [middleware](http/middleware/), [validation](http/validation/), and [error responses](http/exceptions/).
+    [Routing](http/routing/), [controllers](http/controllers/), [middleware](http/middleware/), [validation](http/validation/), and [error responses](http/exceptions/).
   </Card>
   <Card title="grind" icon="seti:shell">
     Create, serve, and generate code with the [grind CLI](grind/).

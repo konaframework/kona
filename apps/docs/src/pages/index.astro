@@ -1,3 +1,121 @@
 ---
-return Astro.redirect(`${import.meta.env.BASE_URL}docs/guides/introduction/`);
+import '../styles/landing.css';
+
+const base = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
+const brandSrc = `${base}branding/kona-banner-dark.svg`;
+const docsHub = `${base}docs/`;
+const install = `${base}docs/guides/installation/`;
+const introduction = `${base}docs/guides/introduction/`;
+const routing = `${base}docs/http/routing/`;
+const extract = `${base}docs/extract/`;
+const crema = `${base}docs/crema/`;
+const grind = `${base}docs/grind/`;
+const github = 'https://github.com/konaframework/kona';
 ---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kona — Web framework for the JVM</title>
+    <meta
+      name="description"
+      content="Kotlin-first, Java first-class web framework for the JVM. Routes, Extract, Crema, and grind — build full-stack apps with one toolkit."
+    />
+    <meta name="theme-color" content="#FF9A00" />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="landing">
+    <main>
+      <section class="landing-hero" aria-label="Kona">
+        <div class="landing-hero__inner">
+          <img
+            class="landing-hero__brand"
+            src={brandSrc}
+            width="224"
+            height="79"
+            alt="Kona"
+          />
+          <h1 class="landing-hero__title">Web apps on the JVM, end to end.</h1>
+          <p class="landing-hero__lede">
+            Kotlin-first internals, Java first-class APIs — HTTP, data, views, and a CLI that scaffolds as you go.
+          </p>
+          <div class="landing-cta">
+            <a class="landing-cta__primary" href={install}>Get started</a>
+            <a class="landing-cta__secondary" href={introduction}>Introduction</a>
+            <a class="landing-cta__ghost" href={github} rel="noopener noreferrer">GitHub</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-features" aria-labelledby="landing-features-title">
+        <div class="landing-features__inner">
+          <h2 id="landing-features-title" class="landing-features__title">What you get</h2>
+          <p class="landing-features__lede">
+            One coherent toolkit from the first route to production. Start simple; dig deeper when you need to.
+          </p>
+          <ul class="landing-feature-list">
+            <li class="landing-feature">
+              <h3>Routes &amp; HTTP</h3>
+              <p>
+                Map URLs to handlers and controllers, group APIs, and name routes for URL generation.
+                <a href={routing}>Routing guide</a>
+              </p>
+            </li>
+            <li class="landing-feature">
+              <h3>Extract</h3>
+              <p>
+                Query and persist data with a fluent API that stays close to SQL.
+                <a href={extract}>Extract overview</a>
+              </p>
+            </li>
+            <li class="landing-feature">
+              <h3>Crema</h3>
+              <p>
+                Server-rendered views and assets that fit the same request lifecycle.
+                <a href={crema}>Crema overview</a>
+              </p>
+            </li>
+            <li class="landing-feature">
+              <h3>grind</h3>
+              <p>
+                Scaffold controllers, serve locally, and generate the pieces you need next.
+                <a href={grind}>grind CLI</a>
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="landing-close" aria-labelledby="landing-close-title">
+        <div class="landing-close__inner">
+          <h2 id="landing-close-title" class="landing-close__title">Open the docs</h2>
+          <p class="landing-close__lede">
+            Install the toolchain, create an app, and follow the guides from first request to full stack.
+          </p>
+          <div class="landing-cta">
+            <a class="landing-cta__primary" href={install}>Installation</a>
+            <a class="landing-cta__secondary" href={docsHub}>Documentation hub</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="landing-footer">
+      <p>
+        Maven group <code>dev.kona</code> · JDK 21+ ·
+        <a href={github} rel="noopener noreferrer">konaframework/kona</a>
+      </p>
+    </footer>
+  </body>
+</html>

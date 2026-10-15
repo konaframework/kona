@@ -9,6 +9,15 @@ Stack: **Astro + Starlight + `@almasix/starlight-theme`**, pnpm workspace, Cloud
 | `docs/quality/` | Milestone audits |
 | `docs/governance/` | Process locks (this file, rulesets) |
 
+### Site URL map
+
+| URL | Role |
+|-----|------|
+| `/` (`apps/docs/src/pages/index.astro`) | **Marketing landing** — brand-first Astro page (not Starlight chrome). Styles in `apps/docs/src/styles/landing.css`. |
+| `/docs/` (`src/content/docs/docs/index.mdx`) | **Documentation hub** — Starlight splash into guides and reference. |
+
+Respect `PUBLIC_BASE_PATH` (e.g. `/kona/` on GitHub Pages) for asset and CTA links on the landing page.
+
 Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) (globs `apps/docs/**`).
 
 ## Brand (locked)
