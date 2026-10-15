@@ -1,6 +1,6 @@
 ---
 title: grind
-description: The app-local CLI — serve and generate code inside a Kona project.
+description: The app-local CLI — serve, generate code, and run custom console commands.
 ---
 
 **grind** is the command-line tool that lives **inside each application**. After you `cd` into a project created by `kona new`, you run:
@@ -8,6 +8,8 @@ description: The app-local CLI — serve and generate code inside a Kona project
 ```bash
 ./grind serve
 ./grind make:controller Post
+./grind make:command SendDigest
+./grind list
 ./grind help
 ```
 
@@ -17,40 +19,27 @@ description: The app-local CLI — serve and generate code inside a Kona project
 kona new my-app
 ```
 
+From anywhere under an app you can also use the global proxy: `kona grind <args…>` — see [Running commands](./running-commands/#kona-grind-proxy).
+
 If you are browsing `samples/hello-kotlin` or `samples/hello-java` inside the Kona repository, those folders are monorepo modules and do **not** include `./grind`. Run them with `./gradlew :hello-kotlin:run` (or `:hello-java:run`) from the repo root, or create a real app with `kona new` to get grind. Details: [Installation](../guides/installation/#trying-the-repo-samples).
 
 ## Why two CLIs?
 
-- **`kona`** (global): rare, machine-wide — “make me a new project.”
-- **`./grind`** (per app): everyday — “run *this* app,” “add a controller *here*.”
+- **`kona`** (global): rare, machine-wide — “make me a new project,” or `kona grind` as a proxy.
+- **`./grind`** (per app): everyday — “run *this* app,” “add a controller *here*,” “run *my* console command.”
 
 The generated `./grind` script forwards to a Gradle `grind` task that puts `kona-grind` on the classpath for that project’s dependency versions.
 
-## Commands (today)
+## Learn the console
 
-| Command | Purpose |
-|---------|---------|
-| [`./grind serve`](./commands/#grind-serve) | Build and run the HTTP server |
-| [`./grind make:controller`](./commands/#grind-makecontroller) | Generate a controller class |
-| [`./grind make:resource`](./commands/#grind-makeresource) | Generate an API resource class |
-| [`./grind make:model`](./commands/#database-commands) | Generate an Extract model (optionally with migration, factory, seeder) |
-| [`./grind make:migration`](./commands/#database-commands) | Generate a migration |
-| [`./grind make:factory` / `make:seeder`](./commands/#database-commands) | Generate a factory or seeder |
-| [`./grind migrate`](./commands/#database-commands) | Run pending migrations (`migrate:rollback`, `migrate:reset`, `migrate:status`) |
-| [`./grind db:seed`](./commands/#database-commands) | Run a seeder |
-| `./grind schedule:run` / `schedule:list` | Run or list scheduled tasks |
-| `./grind steam` | Interactive REPL |
-| `./grind assets:vite` | Print Vite asset setup help |
-| [`./grind key:generate`](./commands/#grind-keygenerate) | Set `APP_KEY` in `.env` |
-| `./grind ide:lsp` | Print kona-lsp (Crema language server) setup help |
-| `./grind list` | List commands |
-| `./grind help` | Show usage |
+| Guide | Topic |
+|-------|-------|
+| [Creating commands](./creating-commands/) | `make:command`, signatures, discovery, isolation |
+| [Running commands](./running-commands/) | CLI flags, `list`/`help`, `Grind.call`, `kona grind` |
+| [Console IO & prompts](./console/) | `GrindIO`, tables, prompts, exit codes |
+| [Built-in commands](./commands/) | `serve`, `make:*`, migrate, queue, `key:generate`, … |
+| [steam](../steam/) | Interactive REPL |
 
-Global flags: `-v` / `--verbose`, `-q` / `--quiet`. See [Console depth](./console/).
+Global flags: `-v` / `--verbose`, `-q` / `--quiet`.
 
 If you type `./grind new …`, grind reminds you to use `kona new` instead.
-
-## Next
-
-- [Command reference](./commands/)  
-- [Installation](../guides/installation/) — install global `kona`  

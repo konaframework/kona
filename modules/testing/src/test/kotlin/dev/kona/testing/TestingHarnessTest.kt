@@ -72,9 +72,11 @@ class TestingHarnessTest {
         assertThrows(IllegalArgumentException::class.java) { http.get("/ping").assertJsonPath("missing.path", 1) }
 
         val console = ConsoleTester()
-        console.run("list").assertOk().assertSee("list")
+        console.run("list").assertOk().assertSee("list").assertExit(0).assertDontSee("___nope___")
         assertThrows(IllegalArgumentException::class.java) { console.run("list").assertSee("___nope___") }
         assertThrows(IllegalArgumentException::class.java) { ConsoleResult(1, "x").assertOk() }
+        assertThrows(IllegalArgumentException::class.java) { ConsoleResult(1, "x").assertExit(0) }
+        assertThrows(IllegalArgumentException::class.java) { ConsoleResult(0, "seen").assertDontSee("seen") }
 
         val database = Database().addConnection(
             "default",

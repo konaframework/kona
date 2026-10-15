@@ -91,6 +91,36 @@ class ConsoleIO(
         writeln("${paint(PRIMARY, bar)} ${paint(DIM, "$pct%")}$suffix")
     }
 
+    /**
+     * Print an aligned table. Column widths follow the widest cell per column
+     * (plain text length, ANSI stripped).
+     */
+    fun table(headers: List<String>, rows: List<List<String>>) {
+        require(headers.isNotEmpty()) { "headers must not be empty" }
+        val width = headers.size
+        val normalized = rows.map { row ->
+            require(row.size == width) { "row size ${row.size} != header size $width" }
+            row
+        }
+        val colWidths = IntArray(width) { col ->
+            var max = plainLength(headers[col])
+            normalized.forEach { row ->
+                val len = plainLength(row[col])
+                if (len > max) max = len
+            }
+            max
+        }
+        fun pad(cell: String, col: Int): String {
+            val pad = (colWidths[col] - plainLength(cell)).coerceAtLeast(0)
+            return cell + " ".repeat(pad)
+        }
+        writeln(headers.mapIndexed { i, h -> paint(PRIMARY + BOLD, pad(h, i)) }.joinToString("  "))
+        writeln(colWidths.joinToString("  ") { paint(DIM, "─".repeat(it)) })
+        normalized.forEach { row ->
+            writeln(row.mapIndexed { i, cell -> pad(cell, i) }.joinToString("  "))
+        }
+    }
+
     fun paint(codes: String, text: String): String =
         if (color) "$codes$text$RESET" else text
 

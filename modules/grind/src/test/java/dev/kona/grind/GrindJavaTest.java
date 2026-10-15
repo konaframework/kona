@@ -71,4 +71,31 @@ class GrindJavaTest {
         assertTrue(Files.readString(app.resolve(".env")).contains("APP_KEY=base64:"));
         assertEquals(0, new GrindApplication().run(new String[] {"key:generate", "--show"}));
     }
+
+    @Test
+    void consoleCommandFromJava() {
+        CommandRegistry registry = new CommandRegistry().register(JavaDemoCommand.class);
+        assertEquals(0, new CommandExecutor(temp).run(new JavaDemoCommand(), java.util.List.of("Ada")));
+        assertEquals(0, Grind.call("demo:java", java.util.List.of("Bea"), registry, temp));
+        assertEquals(0, MakeCommandCommand.DISCOVERY.equals("META-INF/kona/commands") ? 0 : 1);
+        assertEquals(0, new GrindApplication(registry, temp).run(new String[] {"demo:java", "Cia", "--help"}));
+    }
+
+    public static class JavaDemoCommand extends ConsoleCommand {
+        @Override
+        public String getSignature() {
+            return "demo:java {name}";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Java demo command";
+        }
+
+        @Override
+        public int handle() {
+            info("hello " + argumentOrFail("name"));
+            return SUCCESS;
+        }
+    }
 }
