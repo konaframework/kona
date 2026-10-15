@@ -1,5 +1,6 @@
 package dev.kona.cli
 
+import dev.kona.support.console.ConsoleIO
 import kotlin.system.exitProcess
 
 /**
@@ -11,7 +12,7 @@ fun main(args: Array<String>) {
 
 class KonaApplication {
     fun run(args: Array<String>): Int {
-        val io = CliIO()
+        val io = ConsoleIO()
         if (args.isEmpty() || args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
             printHelp(io)
             return 0
@@ -36,7 +37,7 @@ class KonaApplication {
         }
     }
 
-    private fun printHelp(io: CliIO) {
+    private fun printHelp(io: ConsoleIO) {
         io.box(
             "kona",
             listOf(

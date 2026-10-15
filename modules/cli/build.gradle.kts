@@ -11,6 +11,7 @@ application {
 }
 
 dependencies {
+    implementation(project(":kona-support"))
     implementation(libs.logback.classic)
 
     testImplementation(project(":kona-grind"))
