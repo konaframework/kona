@@ -3,6 +3,8 @@ title: Encryption
 description: Encrypt and decrypt strings with AES-256-GCM using the application key (app.key / APP_KEY).
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 **Encryption** turns sensitive strings into ciphertext that only your application can read, using a secret **application key**. Use it for cookie payloads, stored secrets, and any value that must remain opaque at rest or in transit through untrusted layers.
 
 Artifact: `dev.kona:kona-auth` (`dev.kona.security.Encrypter`). `AuthServiceProvider` binds an `Encrypter` when `app.key` is set.
@@ -18,6 +20,9 @@ The key is 32 raw bytes, usually stored as `base64:…` in config:
 
 Generate a key:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 import dev.kona.security.Encrypter
 
@@ -25,11 +30,20 @@ val key = Encrypter.generateKey()  // "base64:...."
 println(key)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 String key = Encrypter.generateKey();
 ```
 
+</TabItem>
+</Tabs>
+
 Put it in config before boot (or ensure `.env` / `config/` seeds `app.key`):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 .configure { it.set("app.key", Encrypter.generateKey()) }
@@ -47,15 +61,24 @@ val cipher = encrypter.encryptString("user@example.com")
 val plain = encrypter.decryptString(cipher)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Encrypter encrypter = app.resolve(Encrypter.class);
 String cipher = encrypter.encryptString("user@example.com");
 String plain = encrypter.decryptString(cipher);
 ```
 
+</TabItem>
+</Tabs>
+
 Algorithm: **AES-256-GCM**. The payload is Base64-encoded JSON with Base64 fields `iv`, `value`, and `tag`.
 
 ## Creating an encrypter manually
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val fromConfig = Encrypter.fromConfig(app.config)
@@ -63,11 +86,17 @@ val fromKey = Encrypter.fromBase64Key("base64:…")
 val fromBytes = Encrypter(ByteArray(32) /* exactly 32 bytes */)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Encrypter.fromConfig(app.getConfig());
 Encrypter.fromBase64Key("base64:…");
 new Encrypter(keyBytes); // length must be 32
 ```
+
+</TabItem>
+</Tabs>
 
 ## Failure modes
 

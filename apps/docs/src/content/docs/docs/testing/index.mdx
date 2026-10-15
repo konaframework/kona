@@ -3,9 +3,14 @@ title: Testing
 description: Boot applications and assert behavior in JUnit tests.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 **kona-testing** gives you a small harness for booting a Kona application inside JUnit and driving HTTP, grind, the database, and common fakes.
 
 ## Boot an app
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 @TempDir
@@ -14,10 +19,16 @@ lateinit var base: Path
 val app = TestApplication.create(base, HttpServiceProvider(), MyProvider())
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Path base = Files.createTempDirectory("app");
 Application app = TestApplication.create(base, new HttpServiceProvider(), new MyProvider());
 ```
+
+</TabItem>
+</Tabs>
 
 `TestApplication.create` passes `--base=…` into `Kona.create`, registers the providers you supply, and boots the application.
 

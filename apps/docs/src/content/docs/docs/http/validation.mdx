@@ -3,11 +3,16 @@ title: Validation
 description: Declare rules for request input, get back only the validated fields, and return structured 422 errors on failure.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 **Validation** checks incoming data before your handler trusts it. You describe each field with a list of **rules** — short strings such as `required`, `email`, or `min:18`. Kona checks every field, collects human-readable error messages, and either hands you the validated data or throws a `ValidationException`. The default exception handler turns that exception into a **422 Unprocessable Content** response with a JSON `errors` object, so a typical handler needs no error-handling code at all.
 
 ## Validating a request
 
 `Request.validate(rules)` takes a `Map<String, List<String>>`: each **field name** maps to a **list of rule strings**.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 router.post("/users") { request ->
@@ -23,6 +28,9 @@ router.post("/users") { request ->
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 router.post("/users", request -> {
     Map<String, Object> input = request.validate(Map.of(
@@ -35,9 +43,15 @@ router.post("/users", request -> {
 });
 ```
 
+</TabItem>
+</Tabs>
+
 ### Pipe-joined rules inside a list element
 
 Any list element may also contain several rules joined with `|`. Kona splits each element on `|` before running the rules, so these three declarations are identical:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 "email" to listOf("required", "email")
@@ -45,11 +59,17 @@ Any list element may also contain several rules joined with `|`. Kona splits eac
 "email" to listOf("required|string", "email")
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 "email", List.of("required", "email")
 "email", List.of("required|email")
 "email", List.of("required|string", "email")
 ```
+
+</TabItem>
+</Tabs>
 
 The one exception is `regex:`. An element that **starts with** `regex:` is never split, because `|` is meaningful inside a regular expression. Always give a regex rule its own list element: `listOf("required", "regex:/^(draft|published)$/")`.
 
@@ -72,6 +92,9 @@ This affects some rules. `integer`, `numeric`, and `boolean` accept suitable str
 
 When the data does not come straight from a request — a decoded message, a config block, a CSV row — build a `Validator` directly. `Validator.make` accepts either a `Map<String, Any?>` or a `Request`, with the same rule format.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val validator = Validator.make(
     mapOf("name" to "Ada", "tags" to listOf("math", "engines")),
@@ -88,6 +111,9 @@ if (validator.fails()) {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Validator validator = Validator.make(
     Map.of("name", "Ada", "tags", List.of("math", "engines")),
@@ -103,6 +129,9 @@ if (validator.fails()) {
     Map<String, Object> clean = validator.validate();
 }
 ```
+
+</TabItem>
+</Tabs>
 
 `passes()` is the opposite of `fails()`. Each call re-runs the rules from scratch, so the result always reflects the current data. `errors()` returns the messages from the most recent run. `validate()` runs the rules and either returns the validated map or throws `ValidationException`.
 
@@ -159,15 +188,24 @@ Both compare values with ordinary equality, so types matter: the JSON number `1`
 
 Write the pattern between two identical delimiter characters (any non-alphanumeric character, usually `/`), followed by optional flags: `i` (ignore case), `m` (multiline), `s` (dot matches newlines), `x` (allow whitespace and comments), `u` (accepted, no effect). The rule passes when the pattern is found anywhere in the string, so anchor it with `^…$` to match the whole value. Non-string values fail.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 "slug" to listOf("required", "regex:/^[a-z0-9-]+$/")
 "code" to listOf("required", "regex:/^[A-Z]{3}$/i")
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 "slug", List.of("required", "regex:/^[a-z0-9-]+$/"),
 "code", List.of("required", "regex:/^[A-Z]{3}$/i")
 ```
+
+</TabItem>
+</Tabs>
 
 ## The error response
 

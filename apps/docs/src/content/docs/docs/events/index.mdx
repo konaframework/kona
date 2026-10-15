@@ -3,9 +3,14 @@ title: Events
 description: Listen for and dispatch application events.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Kona’s event bus is a small synchronous dispatcher. Register listeners (Kotlin lambdas or Java SAMs), then `dispatch` typed event objects.
 
 ## Quick start
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 data class OrderShipped(val id: String)
@@ -15,10 +20,16 @@ bus.listen(OrderShipped::class.java) { println(it.id) }
 bus.dispatch(OrderShipped("42"))
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 bus.listen(OrderShipped.class, event -> System.out.println(event.id));
 bus.dispatch(new OrderShipped("42"));
 ```
+
+</TabItem>
+</Tabs>
 
 Register `EventServiceProvider` to bind `EventDispatcher` in the container.
 

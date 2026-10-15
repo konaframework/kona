@@ -50,6 +50,7 @@ Application app = Kona.create(args)
 </TabItem>
 </Tabs>
 
+
 `configure` accepts a `java.util.function.Consumer<Config>`, so it takes a Java lambda directly and a Kotlin lambda through SAM conversion.
 
 ## Writing a service provider
@@ -93,6 +94,7 @@ public final class AppServiceProvider implements ServiceProvider {
 </TabItem>
 </Tabs>
 
+
 Types are always passed as `Class` objects: `Clock::class.java` in Kotlin, `Clock.class` in Java. There are no reified-generic shortcuts, so the same container call works identically in both languages.
 
 ## Handlers
@@ -122,6 +124,7 @@ router.get("/users", users::index);
 </TabItem>
 </Tabs>
 
+
 ## Middleware and `next`
 
 **Middleware** is a function `handle(request, next)` that runs before a handler. Calling `next` passes the request further down the chain; returning without calling it ends the request early with your own response.
@@ -150,6 +153,7 @@ Middleware requireToken = (request, next) ->
 
 </TabItem>
 </Tabs>
+
 
 In Kotlin, `next(request)` is an operator extension declared in `dev.kona.http`; you must import `dev.kona.http.invoke` for it to compile. `next.handle(request)` works in both languages without any import.
 
@@ -188,6 +192,7 @@ router.group("/api", "api.", List.of(requireToken), api -> { /* ... */ });
 </TabItem>
 </Tabs>
 
+
 The Kotlin `group(prefix =, name =, middleware =) { }` form uses named arguments and a receiver lambda, so it is hidden from Java. Java gets the fluent `prefix(...).name(...).middleware(...).group(Consumer<Router>)` chain and `Consumer` overloads instead. Both build exactly the same routes.
 
 ## Default arguments
@@ -224,6 +229,7 @@ Integer port = app.getConfig().get("server.port");
 
 </TabItem>
 </Tabs>
+
 
 The cast is unchecked: if the stored value has another type, you get a `ClassCastException` where you use it. Prefer the typed config getters (`getInt`, `getString`, `getBoolean`) and class-based container lookups (`make(Greeter.class)`) when you can.
 

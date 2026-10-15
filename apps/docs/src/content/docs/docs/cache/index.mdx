@@ -3,9 +3,14 @@ title: Cache
 description: Array, file, and Redis cache stores in Kona.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Kona’s cache layer gives you a small, Laravel-shaped API for storing values by key with optional TTLs.
 
 ## Quick start
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val cache = CacheManager(config, basePath, redisManager).store()
@@ -14,11 +19,17 @@ val value = cache.get("answer")
 val computed = cache.remember("profile", 120) { loadProfile() }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Repository cache = new CacheManager(config, basePath, redisManager).store();
 cache.put("answer", 42, 60);
 Object value = cache.get("answer");
 ```
+
+</TabItem>
+</Tabs>
 
 ## Stores
 

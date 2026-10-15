@@ -102,6 +102,7 @@ Application app = Kona.create(args)
 </TabItem>
 </Tabs>
 
+
 Outside an application (in a script or a test) you can build the manager yourself and make it global:
 
 <Tabs syncKey="lang">
@@ -130,6 +131,7 @@ Database db = new Database()
 
 </TabItem>
 </Tabs>
+
 
 `Database` is `AutoCloseable`: `close()` shuts every open pool. A closed manager keeps its configuration and reopens pools on the next query.
 
@@ -172,6 +174,7 @@ DB.transaction(connection -> {
 
 </TabItem>
 </Tabs>
+
 
 A transaction commits when the block returns and rolls back when it throws (the exception is rethrown). Every statement issued on the same thread inside the block uses the transaction's connection, including model saves. Nested `transaction` calls join the outer one.
 

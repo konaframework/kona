@@ -3,6 +3,8 @@ title: Brew events
 description: Wire clicks and custom actions from the browser to public component methods.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Brew listens for declarative attributes on elements **inside** a component root (`[data-brew]`). When the user interacts, `brew.js` posts to `/brew/message` and swaps in the new HTML.
 
 ## Click actions
@@ -20,6 +22,9 @@ Use either attribute form:
 ```
 
 The attribute value is the **public method name** on the component. Prefer no-arg methods for clicks:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 fun increment() { count++ }
@@ -79,7 +84,13 @@ brew.update("counter", snapshot, "increment")
 brew.update("counter", snapshot, "rename", mapOf("value" to "Ada"))
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 brew.update("counter", snapshot, "increment");
 brew.update("counter", snapshot, "rename", Map.of("value", "Ada"));
 ```
+
+</TabItem>
+</Tabs>

@@ -70,6 +70,7 @@ c.singleton("greeter", container -> new Greeter("Hello"));
 </TabItem>
 </Tabs>
 
+
 | Method | Lifetime | Notes |
 |--------|----------|-------|
 | `bind(type, factory)` | new instance per resolve | `bind(type, factory, true)` makes it shared |
@@ -107,6 +108,7 @@ boolean known = app.getContainer().bound(Clock.class);   // true
 
 </TabItem>
 </Tabs>
+
 
 What happens depends on how you ask:
 
@@ -164,6 +166,7 @@ UserService users = app.resolve(UserService.class);
 </TabItem>
 </Tabs>
 
+
 ### Choosing a constructor with `@Inject`
 
 Mark the constructor the container should use with `dev.kona.core.Inject`. The container recognises any annotation whose simple name is `Inject`, so `jakarta.inject.Inject` and `javax.inject.Inject` also work if they are already on your classpath.
@@ -191,6 +194,7 @@ public final class ReportService {
 
 </TabItem>
 </Tabs>
+
 
 Without `@Inject`, the container would pick the two-parameter constructor and fail on `String`.
 
@@ -221,6 +225,7 @@ Clock clock = app.getContainer().make("clock");
 
 </TabItem>
 </Tabs>
+
 
 ## Errors
 
