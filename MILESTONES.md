@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M16 — Durable queues** (`milestone/M16-durable-queue`).
+**Active milestone:** none — open next deepen (scaffold provider wiring / Redis session) explicitly.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -571,7 +571,7 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 ## M16 — Durable queues
 
-**Status:** active (checklist complete — ship PR)
+**Status:** done (PR #31)
 
 **Branch:** `milestone/M16-durable-queue`
 
