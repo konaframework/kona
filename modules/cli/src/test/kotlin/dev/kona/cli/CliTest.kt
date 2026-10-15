@@ -28,6 +28,109 @@ class CliTest {
     }
 
     @Test
+    fun resolveAndWriteKonaHomeProperty() {
+        val fake = temp.resolve("kona-src")
+        Files.createDirectories(fake.resolve("modules/cli"))
+        Files.writeString(fake.resolve("settings.gradle.kts"), "rootProject.name = \"kona\"\n")
+        Files.writeString(fake.resolve("gradlew"), "#!/bin/sh\n")
+        fake.resolve("gradlew").toFile().setExecutable(true)
+
+        assertEquals(fake, NewCommand.resolveKonaHome(env = mapOf("KONA_HOME" to fake.toString()), userHome = temp))
+        assertTrue(NewCommand.isKonaRoot(fake))
+        assertFalse(NewCommand.isKonaRoot(temp.resolve("missing")))
+        assertFalse(
+            NewCommand.isKonaRoot(
+                temp.resolve("no-cli").also {
+                    Files.createDirectories(it)
+                    Files.writeString(it.resolve("settings.gradle.kts"), "x\n")
+                    Files.writeString(it.resolve("gradlew"), "#!/bin/sh\n")
+                    it.resolve("gradlew").toFile().setExecutable(true)
+                },
+            ),
+        )
+        assertFalse(
+            NewCommand.isKonaRoot(
+                temp.resolve("no-exec").also {
+                    Files.createDirectories(it.resolve("modules/cli"))
+                    Files.writeString(it.resolve("settings.gradle.kts"), "x\n")
+                    Files.writeString(it.resolve("gradlew"), "#!/bin/sh\n")
+                    it.resolve("gradlew").toFile().setExecutable(false)
+                },
+            ),
+        )
+
+        // Blank / invalid KONA_HOME falls through
+        assertEquals(
+            null,
+            NewCommand.resolveKonaHome(env = mapOf("KONA_HOME" to ""), userHome = temp.resolve("empty-home").also { Files.createDirectories(it) }),
+        )
+        assertEquals(
+            null,
+            NewCommand.resolveKonaHome(
+                env = mapOf("XDG_CONFIG_HOME" to ""),
+                userHome = temp.resolve("empty-home-xdg").also { Files.createDirectories(it) },
+            ),
+        )
+        assertEquals(
+            null,
+            NewCommand.resolveKonaHome(
+                env = mapOf("KONA_HOME" to temp.resolve("not-a-kona").toString()),
+                userHome = temp.resolve("empty-home-2").also { Files.createDirectories(it) },
+            ),
+        )
+
+        val config = temp.resolve("xdg")
+        Files.createDirectories(config.resolve("kona"))
+        Files.writeString(config.resolve("kona/home"), fake.toString() + "\n")
+        assertEquals(
+            fake,
+            NewCommand.resolveKonaHome(
+                env = mapOf("XDG_CONFIG_HOME" to config.toString()),
+                userHome = temp,
+            ),
+        )
+        // Invalid recorded path ignored
+        Files.writeString(config.resolve("kona/home"), temp.resolve("nope").toString())
+        assertEquals(
+            null,
+            NewCommand.resolveKonaHome(
+                env = mapOf("XDG_CONFIG_HOME" to config.toString()),
+                userHome = temp.resolve("empty-home-3").also { Files.createDirectories(it) },
+            ),
+        )
+
+        val defaultHome = temp.resolve("home")
+        val defaultKona = defaultHome.resolve(".kona")
+        Files.createDirectories(defaultKona.resolve("modules/cli"))
+        Files.writeString(defaultKona.resolve("settings.gradle.kts"), "rootProject.name = \"kona\"\n")
+        Files.writeString(defaultKona.resolve("gradlew"), "#!/bin/sh\n")
+        defaultKona.resolve("gradlew").toFile().setExecutable(true)
+        assertEquals(defaultKona, NewCommand.resolveKonaHome(env = emptyMap(), userHome = defaultHome))
+
+        val app = temp.resolve("wired-app")
+        Files.createDirectories(app)
+        NewCommand().writeKonaHomeProperty(app, null) // no-op
+        assertFalse(Files.exists(app.resolve("gradle.properties")))
+
+        NewCommand().writeKonaHomeProperty(app, fake)
+        assertTrue(Files.readString(app.resolve("gradle.properties")).contains("kona.home=$fake"))
+
+        // Replace existing kona.home line without trailing newline
+        Files.writeString(app.resolve("gradle.properties"), "foo=1\nkona.home=/old")
+        NewCommand().writeKonaHomeProperty(app, fake)
+        val replaced = Files.readString(app.resolve("gradle.properties"))
+        assertTrue(replaced.contains("kona.home=$fake"))
+        assertEquals(1, replaced.lines().count { it.startsWith("kona.home=") })
+
+        // Append onto empty file
+        val app2 = temp.resolve("wired-app-2")
+        Files.createDirectories(app2)
+        Files.writeString(app2.resolve("gradle.properties"), "")
+        NewCommand().writeKonaHomeProperty(app2, fake)
+        assertTrue(Files.readString(app2.resolve("gradle.properties")).startsWith("# Local Kona"))
+    }
+
+    @Test
     fun newKotlinEmitsGradleApp() {
         val kt = temp.resolve("appkt")
         assertEquals(0, NewCommand().run(listOf(kt.toString())))
