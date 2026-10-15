@@ -1,6 +1,7 @@
 package dev.kona.auth
 
 import dev.kona.auth.authorization.Gate
+
 import dev.kona.auth.hashing.HashManager
 import dev.kona.auth.passwords.PasswordBroker
 import dev.kona.auth.tokens.PersonalAccessTokenManager
@@ -33,7 +34,9 @@ class AuthServiceProviderTest {
         assertNotNull(app.make(RateLimiter::class.java))
         assertNotNull(app.make(Encrypter::class.java))
         assertTrue(Hash.check("a", Hash.make("a")))
+        assertNotNull(Auth.manager())
         Hash.clearManager()
+        Auth.clearManager()
     }
 
     @Test
@@ -54,5 +57,6 @@ class AuthServiceProviderTest {
             .boot()
         assertTrue(runCatching { bad.make(Encrypter::class.java) }.isFailure)
         Hash.clearManager()
+        Auth.clearManager()
     }
 }
