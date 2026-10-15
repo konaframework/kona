@@ -75,7 +75,16 @@ export async function buildSidebar() {
         },
         { label: 'Mail', slug: 'docs/mail' },
         { label: 'Notifications', slug: 'docs/notifications' },
-        { label: 'Filesystem', slug: 'docs/filesystem' },
+        {
+          label: 'Filesystem',
+          items: [
+            { label: 'Getting started', slug: 'docs/filesystem' },
+            { label: 'Configuration', slug: 'docs/filesystem/configuration' },
+            { label: 'File operations', slug: 'docs/filesystem/file-operations' },
+            { label: 'Public disk & URLs', slug: 'docs/filesystem/urls' },
+            { label: 'Testing', slug: 'docs/filesystem/testing' },
+          ],
+        },
         { label: 'Cache', slug: 'docs/cache' },
         { label: 'Redis', slug: 'docs/cache/redis' },
         { label: 'drip (HTTP client)', slug: 'docs/drip' },

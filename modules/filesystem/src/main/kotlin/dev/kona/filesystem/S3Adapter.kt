@@ -1,17 +1,21 @@
 package dev.kona.filesystem
 
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
+import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.TreeMap
 import java.util.concurrent.ConcurrentHashMap
+import java.util.function.BiFunction
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
@@ -29,7 +33,9 @@ class MemoryS3Client {
 
     fun delete(key: String): Boolean = objects.remove(key) != null
 
-    fun keys(prefix: String = ""): List<String> =
+    fun keys(): List<String> = keys("")
+
+    fun keys(prefix: String): List<String> =
         objects.keys.filter { it.startsWith(prefix) }.sorted()
 }
 
@@ -45,13 +51,25 @@ interface S3Client {
 
 /**
  * Adapter over an [S3Client] (memory or HTTP).
+ *
+ * [pathPrefix] is prepended to every object key (cloud root prefix).
  */
 class S3Adapter @JvmOverloads constructor(
     private val client: S3Client,
     private val bucket: String,
     private val urlPrefix: String = "",
+    private val pathPrefix: String = "",
     private val directories: MutableSet<String> = ConcurrentHashMap.newKeySet(),
 ) : FilesystemAdapter {
+    @Volatile
+    private var temporaryUrlBuilder: BiFunction<String, Long, String>? = null
+
+    private val visibility = ConcurrentHashMap<String, String>()
+
+    fun buildTemporaryUrlsUsing(builder: BiFunction<String, Long, String>) {
+        temporaryUrlBuilder = builder
+    }
+
     override fun put(path: String, contents: ByteArray) {
         val key = key(path)
         ensureParent(key)
@@ -66,13 +84,20 @@ class S3Adapter @JvmOverloads constructor(
 
     override fun getString(path: String): String? = get(path)?.toString(Charsets.UTF_8)
 
-    override fun exists(path: String): Boolean = client.getObject(key(path)) != null || directories.contains(key(path).trimEnd('/'))
+    override fun exists(path: String): Boolean =
+        client.getObject(key(path)) != null || directories.contains(key(path).trimEnd('/'))
 
-    override fun delete(path: String): Boolean = client.deleteObject(key(path))
+    override fun missing(path: String): Boolean = !exists(path)
+
+    override fun delete(path: String): Boolean {
+        visibility.remove(key(path))
+        return client.deleteObject(key(path))
+    }
 
     override fun copy(from: String, to: String): Boolean {
         val bytes = client.getObject(key(from)) ?: return false
         put(to, bytes)
+        visibility[key(from)]?.let { visibility[key(to)] = it }
         return true
     }
 
@@ -89,26 +114,65 @@ class S3Adapter @JvmOverloads constructor(
     override fun lastModified(path: String): Long =
         if (exists(path)) System.currentTimeMillis() else throw IllegalStateException("S3 object [$path] not found")
 
+    override fun mimeType(path: String): String? {
+        if (client.getObject(key(path)) == null) return null
+        return AdapterSupport.mimeFromPath(path)
+    }
+
+    override fun checksum(path: String, algorithm: String): String? {
+        val bytes = get(path) ?: return null
+        return AdapterSupport.checksum(bytes, algorithm)
+    }
+
     override fun files(directory: String): List<String> {
-        val prefix = prefix(directory)
+        val prefix = listPrefix(directory)
         return client.listKeys(prefix)
-            .filter { key ->
-                val rest = key.removePrefix(prefix)
+            .filter { objectKey ->
+                val rest = objectKey.removePrefix(prefix)
                 rest.isNotEmpty() && !rest.contains('/')
             }
             .map { it.removePrefix(prefix) }
     }
 
-    override fun directories(directory: String): List<String> {
-        val prefix = prefix(directory)
+    override fun allFiles(directory: String): List<String> {
+        val prefix = listPrefix(directory)
+        val base = if (directory.isBlank()) "" else directory.replace('\\', '/').trim('/') + "/"
         return client.listKeys(prefix)
-            .mapNotNull { key ->
-                val rest = key.removePrefix(prefix)
+            .map { base + it.removePrefix(prefix) }
+            .sorted()
+    }
+
+    override fun directories(directory: String): List<String> {
+        val prefix = listPrefix(directory)
+        return client.listKeys(prefix)
+            .mapNotNull { objectKey ->
+                val rest = objectKey.removePrefix(prefix)
                 val slash = rest.indexOf('/')
                 if (slash > 0) rest.substring(0, slash) else null
             }
             .distinct()
             .sorted()
+    }
+
+    override fun allDirectories(directory: String): List<String> {
+        val prefix = listPrefix(directory)
+        val base = if (directory.isBlank()) "" else directory.replace('\\', '/').trim('/') + "/"
+        val found = linkedSetOf<String>()
+        client.listKeys(prefix).forEach { objectKey ->
+            val rest = objectKey.removePrefix(prefix)
+            var idx = rest.indexOf('/')
+            while (idx > 0) {
+                found += base + rest.substring(0, idx)
+                idx = rest.indexOf('/', idx + 1)
+            }
+        }
+        for (dir in directories) {
+            if (!dir.startsWith(prefix.trimEnd('/')) && prefix.isNotEmpty()) continue
+            val relative = unprefixKey(dir)
+            if (relative.isEmpty()) continue
+            found += if (base.isEmpty()) relative else base + relative.removePrefix(base)
+        }
+        return found.sorted()
     }
 
     override fun makeDirectory(path: String): Boolean {
@@ -117,8 +181,11 @@ class S3Adapter @JvmOverloads constructor(
     }
 
     override fun deleteDirectory(path: String): Boolean {
-        val prefix = prefix(path)
-        client.listKeys(prefix).forEach { client.deleteObject(it) }
+        val prefix = listPrefix(path)
+        client.listKeys(prefix).forEach {
+            client.deleteObject(it)
+            visibility.remove(it)
+        }
         directories.remove(key(path).trimEnd('/'))
         return true
     }
@@ -126,7 +193,7 @@ class S3Adapter @JvmOverloads constructor(
     override fun url(path: String): String {
         val normalized = path.trimStart('/')
         return if (urlPrefix.isBlank()) {
-            "s3://$bucket/$normalized"
+            "s3://$bucket/${key(path)}"
         } else {
             "${urlPrefix.trimEnd('/')}/$normalized"
         }
@@ -134,11 +201,59 @@ class S3Adapter @JvmOverloads constructor(
 
     override fun path(path: String): String = "$bucket/${key(path)}"
 
-    private fun key(path: String): String = path.replace('\\', '/').trimStart('/')
+    override fun append(path: String, data: String) = AdapterSupport.append(this, path, data)
 
-    private fun prefix(directory: String): String {
-        val d = key(directory)
-        return if (d.isEmpty()) "" else "$d/"
+    override fun prepend(path: String, data: String) = AdapterSupport.prepend(this, path, data)
+
+    override fun readStream(path: String): InputStream? {
+        val bytes = get(path) ?: return null
+        return ByteArrayInputStream(bytes)
+    }
+
+    override fun writeStream(path: String, input: InputStream) {
+        AdapterSupport.writeStream(this, path, input)
+    }
+
+    override fun putFile(directory: String, source: Path): String =
+        AdapterSupport.putFile(this, directory, source)
+
+    override fun putFileAs(directory: String, source: Path, name: String): String =
+        AdapterSupport.putFileAs(this, directory, source, name)
+
+    override fun getVisibility(path: String): String =
+        visibility[key(path)] ?: Visibility.PRIVATE
+
+    override fun setVisibility(path: String, visibility: String) {
+        this.visibility[key(path)] = visibility
+    }
+
+    override fun providesTemporaryUrls(): Boolean = temporaryUrlBuilder != null
+
+    override fun temporaryUrl(path: String, expirationSeconds: Long): String {
+        val builder = temporaryUrlBuilder
+            ?: throw IllegalStateException("This disk does not support creating temporary URLs.")
+        return builder.apply(url(path), expirationSeconds)
+    }
+
+    private fun rootPrefix(): String {
+        val p = pathPrefix.replace('\\', '/').trim('/').trimEnd('/')
+        return if (p.isEmpty()) "" else "$p/"
+    }
+
+    private fun key(path: String): String {
+        val relative = path.replace('\\', '/').trimStart('/')
+        return rootPrefix() + relative
+    }
+
+    private fun unprefixKey(objectKey: String): String {
+        val root = rootPrefix()
+        return if (root.isEmpty()) objectKey else objectKey.removePrefix(root)
+    }
+
+    private fun listPrefix(directory: String): String {
+        val d = directory.replace('\\', '/').trimStart('/').trimEnd('/')
+        val relative = if (d.isEmpty()) "" else "$d/"
+        return rootPrefix() + relative
     }
 
     private fun ensureParent(key: String) {
@@ -252,7 +367,6 @@ class HttpS3Client @JvmOverloads constructor(
         val signature = hmacHex(signingKey, stringToSign)
         val authorization =
             "AWS4-HMAC-SHA256 Credential=$accessKey/$credentialScope, SignedHeaders=$signedHeaderNames, Signature=$signature"
-        // Java HttpClient forbids setting Host; include it only in the signature.
         val flat = mutableListOf<String>()
         headers.forEach { (k, v) ->
             if (k != "host") {

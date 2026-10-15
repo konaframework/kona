@@ -1,54 +1,25 @@
 ---
 title: Filesystem
-description: Local and S3-compatible storage disks, public URLs, and temporary signed links.
+description: Named disks, local and cloud storage, public URLs, streams, and temporary signed links.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`FilesystemManager` resolves named disks. Use `put` / `get` / `exists` / `delete` / `copy` / `move` / directory helpers.
+Kona stores files on **named disks**. A disk is a root (folder or cloud bucket) plus a small API: put and get bytes, list directories, build URLs, and more. Resolve disks through `FilesystemManager` after `FilesystemServiceProvider` is registered (`kona new` does this for you).
 
 ## Quick start
-
-```kotlin
-val disk = app.resolve(FilesystemManager::class.java).disk()
-disk.put("reports/q1.txt", "ok")
-val body = disk.getString("reports/q1.txt")
-```
-
-`kona new` registers `FilesystemServiceProvider` and ships `config/Filesystems` (executable config). Drivers:
-
-| Driver | Notes |
-| --- | --- |
-| `local` | Files under `filesystems.disks.local.root` (default `storage/app`) |
-| `public` | Local disk defaulting to `storage/app/public` with URL prefix `/storage` |
-| `memory` / `s3-memory` | In-process S3-shaped store |
-| `s3` | Path-style HTTP client with AWS SigV4 (`endpoint`, `bucket`, `key`, `secret`, `region`) |
-
-Relative `root` values resolve against the application base path.
-
-## Public disk and `/storage`
-
-The **public** disk is for files that browsers may fetch. Scaffolded apps prepend `ServePublicStorage` so `GET /storage/...` reads from that disk and returns a binary `Response.file`.
-
-Create the familiar symlink for static tooling with:
-
-```bash
-./grind storage:link
-```
-
-That links `src/main/resources/public/storage` → `storage/app/public` (or `public/storage` when the resources public folder is absent).
-
-## Temporary URLs
-
-Build a signed download link with `temporaryUrl` and `UrlGenerator.signed`:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 val files = app.resolve(FilesystemManager::class.java)
-val urls = app.resolve(UrlGenerator::class.java)
-val link = files.temporaryUrl("avatars/a.png", 600, { url, exp -> urls.signed(url, exp) }, "public")
+val disk = files.disk() // default disk from config
+
+disk.put("reports/q1.txt", "ok")
+val body = disk.getString("reports/q1.txt")
+val present = disk.exists("reports/q1.txt")
+val gone = disk.missing("reports/nope.txt")
 ```
 
 </TabItem>
@@ -56,16 +27,29 @@ val link = files.temporaryUrl("avatars/a.png", 600, { url, exp -> urls.signed(ur
 
 ```java
 FilesystemManager files = app.resolve(FilesystemManager.class);
-UrlGenerator urls = app.resolve(UrlGenerator.class);
-String link = files.temporaryUrl(
-    "avatars/a.png",
-    600L,
-    (url, exp) -> urls.signed(url, exp),
-    "public"
-);
+FilesystemAdapter disk = files.disk();
+
+disk.put("reports/q1.txt", "ok");
+String body = disk.getString("reports/q1.txt");
+boolean present = disk.exists("reports/q1.txt");
+boolean gone = disk.missing("reports/nope.txt");
 ```
 
 </TabItem>
 </Tabs>
 
-Protect the route with `ValidateSignature` (see [URL generation](../http/url-generation/)).
+Executable config lives in `config/Filesystems` (see [Config & env](../concepts/config/)). Relative `root` values resolve against the application base path.
+
+## Drivers at a glance
+
+| Driver | Role |
+| --- | --- |
+| `local` | Files under a directory (default `storage/app`) |
+| `public` | Local disk defaulting to `storage/app/public` with URL prefix `/storage` |
+| `scoped` | Path prefix over another disk |
+| `memory` / `s3-memory` | In-process S3-shaped store for tests |
+| `s3` | Path-style HTTP client with AWS SigV4 (`endpoint`, `bucket`, `key`, `secret`, `region`, optional `prefix`) |
+
+Any disk may set `read-only` / `read_only` to `true` to reject writes.
+
+Next: [configuration](./configuration/), [working with files](./file-operations/), [public disk & temporary URLs](./urls/), and [testing](./testing/).

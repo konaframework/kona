@@ -1,0 +1,66 @@
+---
+title: File operations
+description: Put, get, streams, directories, metadata, visibility, and putFile helpers.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Every disk implements `FilesystemAdapter`. The same methods work on local, scoped, memory, and S3 disks.
+
+## Reading and writing
+
+| Method | Behavior |
+| --- | --- |
+| `put(path, String\|ByteArray)` | Create or overwrite |
+| `get` / `getString` | Bytes or UTF-8 text; `null` if missing |
+| `exists` / `missing` | Presence checks |
+| `append` / `prepend` | Grow a text file at the end or start |
+| `delete` | Remove a file (`false` if absent) |
+| `copy` / `move` | Same-disk copy or rename |
+
+## Streams
+
+```kotlin
+disk.writeStream("big.bin", inputStream)
+disk.readStream("big.bin")?.use { /* ... */ }
+```
+
+`putFile` / `putFileAs` copy a `java.nio.file.Path` onto the disk (unique name or explicit name) and return the stored relative path:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val stored = disk.putFile("photos", Path.of("/tmp/shot.jpg"))
+val named = disk.putFileAs("photos", Path.of("/tmp/shot.jpg"), "hero.jpg")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String stored = disk.putFile("photos", Path.of("/tmp/shot.jpg"));
+String named = disk.putFileAs("photos", Path.of("/tmp/shot.jpg"), "hero.jpg");
+```
+
+</TabItem>
+</Tabs>
+
+## Directories
+
+- `files(dir)` — immediate children that are files  
+- `allFiles(dir)` — recursive file paths  
+- `directories(dir)` / `allDirectories(dir)` — directory listings  
+- `makeDirectory` / `deleteDirectory` — create or wipe a tree  
+
+## Metadata
+
+- `size` / `lastModified` — bytes and epoch millis  
+- `mimeType` — probed from content type / extension  
+- `checksum(path)` — SHA-256 hex by default; pass another algorithm name as the second argument  
+- `path` — absolute local path or `bucket/key` for S3  
+- `url` — public URL prefix + path  
+
+## Visibility
+
+`Visibility.PUBLIC` and `Visibility.PRIVATE` mark how a file should be treated for URL generation and cloud ACLs. Use `getVisibility` / `setVisibility` after store.
