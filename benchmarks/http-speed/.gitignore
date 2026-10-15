@@ -1,0 +1,14 @@
+bin/
+fastapi/.venv/
+fastapi/**/__pycache__/
+spring/.gradle/
+spring/build/
+kona/build/
+results/*_meas.json
+results/*.summary.txt
+results/*.log
+results/*.pid
+results/*-server.log
+!results/summary.json
+!results/summary.md
+!results/versions.txt

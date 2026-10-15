@@ -123,7 +123,7 @@ flowchart LR
 ## Architecture principles (summary)
 
 1. From-scratch core; library composition only.
-2. Netty + Virtual Threads.
+2. Netty + Virtual Threads (default `KonaHttpServer` adapter).
 3. Providers + facades; KSP where useful.
 4. Extract/Crema/drip first-party.
 5. Interop gate every coding milestone.

@@ -1,0 +1,13 @@
+date=2026-10-15T15:42:13Z
+host=Linux ICTS27 6.6.114.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Mon Dec  1 20:46:23 UTC 2025 x86_64 GNU/Linux
+cpus=24
+kona_commit=0c5c187
+jdk=openjdk version "21.0.12.1" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing) 
+python=Python 3.13.5
+fastapi=0.143.2
+uvicorn=0.54.0
+bombardier=bombardier version unspecified linux/amd64
+spring_boot=3.5.6
+duration=30s
+warmup=15s
+concurrencies=50 100 200

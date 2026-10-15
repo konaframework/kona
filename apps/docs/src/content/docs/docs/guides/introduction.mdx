@@ -128,7 +128,7 @@ Knowing *when* each piece runs makes the rest of the docs easier to follow.
 3. **Your configuration.** Any `.configure { ... }` callbacks you added run next, so they can override defaults and file values.
 4. **Register phase.** Each provider's `register` method runs, in the order you listed them. Providers only *describe* services here.
 5. **Boot phase.** After **every** provider has registered, each provider's `boot` method runs. This is where routes are attached and middleware is installed, because everything a provider might need is now bound.
-6. **Serving.** `KonaHttpServer` binds a socket and hands each incoming request to the HTTP kernel on its own virtual thread.
+6. **Serving.** `KonaHttpServer` binds a Netty socket and hands each incoming request to the HTTP kernel on its own virtual thread.
 7. **Per request.** The kernel runs global middleware, matches a route (answering `404 Not Found` or `405 Method Not Allowed` when nothing fits), runs route middleware and the handler, and turns exceptions into JSON error responses.
 
 Steps 1 to 5 happen once. Step 7 happens for every request.
@@ -155,7 +155,7 @@ Kona is organised into named components. Guides for each live under the sidebar 
 ## Design choices worth knowing up front
 
 - **JDK 21 or newer.** The embedded server runs each request on a *virtual thread*: a lightweight thread managed by the JVM. Handlers are plain blocking code; you do not need callbacks or coroutines to serve many concurrent requests.
-- **Compose, don't embed.** Kona is built from scratch on focused libraries (the JDK HTTP server, Jackson for JSON, SLF4J for logging). There is no larger framework running underneath it.
+- **Compose, don't embed.** Kona is built from scratch on focused libraries (Netty for HTTP, Jackson for JSON, SLF4J for logging). There is no larger framework running underneath it.
 - **Explicit wiring.** Services are bound in providers you can read. There is no classpath scanning: if a route exists, some provider or bootstrap code registered it.
 - **Kotlin-first, Java first-class.** Every public API has a natural Java call site, and every guide shows both languages. The [Kotlin and Java](../kotlin-java/) page covers the few places where the syntax differs.
 
