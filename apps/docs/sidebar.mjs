@@ -1,6 +1,11 @@
 /**
  * Starlight sidebar for Kona docs.
- * Expand groups as milestones land; keep guides ahead of reference.
+ *
+ * Progressive path (simple → deeper):
+ * Getting started → The basics → Digging deeper → Security → Database →
+ * Frontend → Testing → Packages & tooling.
+ *
+ * Prefer regrouping here over mass page moves so existing slugs stay stable.
  */
 export async function buildSidebar() {
   return [
@@ -14,15 +19,7 @@ export async function buildSidebar() {
       ],
     },
     {
-      label: 'Concepts',
-      items: [
-        { label: 'Application & providers', slug: 'docs/concepts/application' },
-        { label: 'Container', slug: 'docs/concepts/container' },
-        { label: 'Config & env', slug: 'docs/concepts/config' },
-      ],
-    },
-    {
-      label: 'HTTP',
+      label: 'The basics',
       items: [
         { label: 'Routing', slug: 'docs/http/routing' },
         { label: 'Controllers', slug: 'docs/http/controllers' },
@@ -31,14 +28,61 @@ export async function buildSidebar() {
         { label: 'Validation', slug: 'docs/http/validation' },
         { label: 'API Resources', slug: 'docs/http/api-resources' },
         { label: 'URL generation', slug: 'docs/http/url-generation' },
+        {
+          label: 'Crema (views)',
+          items: [
+            { label: 'Getting started', slug: 'docs/crema' },
+            { label: 'Rendering', slug: 'docs/crema/rendering' },
+            { label: 'Layouts', slug: 'docs/crema/layouts' },
+            { label: 'Control structures', slug: 'docs/crema/control-structures' },
+            { label: 'Includes', slug: 'docs/crema/includes' },
+            { label: 'Components', slug: 'docs/crema/components' },
+            { label: 'Stacks', slug: 'docs/crema/stacks' },
+            { label: 'Forms', slug: 'docs/crema/forms' },
+          ],
+        },
         { label: 'Exceptions', slug: 'docs/http/exceptions' },
         { label: 'Logging', slug: 'docs/http/logging' },
         { label: 'Kernel & server', slug: 'docs/http/kernel-server' },
       ],
     },
     {
+      label: 'Digging deeper',
+      items: [
+        { label: 'Application & providers', slug: 'docs/concepts/application' },
+        { label: 'Container', slug: 'docs/concepts/container' },
+        { label: 'Config & env', slug: 'docs/concepts/config' },
+        {
+          label: 'grind',
+          items: [
+            { label: 'Overview', slug: 'docs/grind' },
+            { label: 'Creating commands', slug: 'docs/grind/creating-commands' },
+            { label: 'Running commands', slug: 'docs/grind/running-commands' },
+            { label: 'Console IO & prompts', slug: 'docs/grind/console' },
+            { label: 'Built-in commands', slug: 'docs/grind/commands' },
+            { label: 'steam', slug: 'docs/steam' },
+          ],
+        },
+        { label: 'Events', slug: 'docs/events' },
+        { label: 'Queues', slug: 'docs/queue' },
+        { label: 'Mail', slug: 'docs/mail' },
+        { label: 'Notifications', slug: 'docs/notifications' },
+        { label: 'Filesystem', slug: 'docs/filesystem' },
+        { label: 'Cache', slug: 'docs/cache' },
+        { label: 'Redis', slug: 'docs/cache/redis' },
+        { label: 'drip (HTTP client)', slug: 'docs/drip' },
+        { label: 'Processes', slug: 'docs/processes' },
+        { label: 'Concurrency', slug: 'docs/concurrency' },
+        { label: 'Broadcasting', slug: 'docs/broadcasting' },
+        { label: 'Search', slug: 'docs/search' },
+        { label: 'Task scheduling', slug: 'docs/scheduling' },
+        { label: 'Support utilities', slug: 'docs/support' },
+      ],
+    },
+    {
       label: 'Security',
       items: [
+        { label: 'Overview', slug: 'docs/security' },
         { label: 'Session', slug: 'docs/security/session' },
         { label: 'Authentication', slug: 'docs/security/authentication' },
         { label: 'Authorization', slug: 'docs/security/authorization' },
@@ -49,106 +93,35 @@ export async function buildSidebar() {
       ],
     },
     {
-      label: 'Extract',
+      label: 'Database',
       items: [
-        { label: 'Overview', slug: 'docs/extract' },
+        { label: 'Extract overview', slug: 'docs/extract' },
         { label: 'Models', slug: 'docs/extract/models' },
         { label: 'Query builder', slug: 'docs/extract/query-builder' },
         { label: 'Relations', slug: 'docs/extract/relations' },
         { label: 'Migrations', slug: 'docs/extract/migrations' },
         { label: 'Seeders & factories', slug: 'docs/extract/seeders-factories' },
-        { label: 'Serialization, collections & events', slug: 'docs/extract/serialization-events' },
+        {
+          label: 'Serialization, collections & events',
+          slug: 'docs/extract/serialization-events',
+        },
       ],
     },
     {
-      label: 'Crema',
+      label: 'Frontend',
       items: [
-        { label: 'Getting started', slug: 'docs/crema' },
-        { label: 'Rendering', slug: 'docs/crema/rendering' },
-        { label: 'Layouts', slug: 'docs/crema/layouts' },
-        { label: 'Control structures', slug: 'docs/crema/control-structures' },
-        { label: 'Includes', slug: 'docs/crema/includes' },
-        { label: 'Components', slug: 'docs/crema/components' },
-        { label: 'Stacks', slug: 'docs/crema/stacks' },
-        { label: 'Forms', slug: 'docs/crema/forms' },
-      ],
-    },
-    {
-      label: 'Brew',
-      items: [
-        { label: 'Getting started', slug: 'docs/brew' },
-        { label: 'Components', slug: 'docs/brew/components' },
-        { label: 'Events', slug: 'docs/brew/events' },
-        { label: 'Forms', slug: 'docs/brew/forms' },
-      ],
-    },
-    {
-      label: 'Inertia & assets',
-      items: [
+        {
+          label: 'Brew',
+          items: [
+            { label: 'Getting started', slug: 'docs/brew' },
+            { label: 'Components', slug: 'docs/brew/components' },
+            { label: 'Events', slug: 'docs/brew/events' },
+            { label: 'Forms', slug: 'docs/brew/forms' },
+          ],
+        },
         { label: 'Inertia', slug: 'docs/inertia' },
         { label: 'Vite / asset bundling', slug: 'docs/assets/vite' },
         { label: 'Starter kits', slug: 'docs/starter-kits' },
-      ],
-    },
-    {
-      label: 'Language / Editor',
-      items: [
-        { label: 'Getting started', slug: 'docs/language' },
-        { label: 'Crema grammar', slug: 'docs/language/grammar' },
-        { label: 'Language server (LSP)', slug: 'docs/language/lsp' },
-        { label: 'VS Code & Cursor', slug: 'docs/language/vscode' },
-        { label: 'IntelliJ', slug: 'docs/language/intellij' },
-      ],
-    },
-    {
-      label: 'Cache & Redis',
-      items: [
-        { label: 'Cache', slug: 'docs/cache' },
-        { label: 'Redis', slug: 'docs/cache/redis' },
-      ],
-    },
-    {
-      label: 'Async & storage',
-      items: [
-        { label: 'Events', slug: 'docs/events' },
-        { label: 'Queues', slug: 'docs/queue' },
-        { label: 'Mail', slug: 'docs/mail' },
-        { label: 'Notifications', slug: 'docs/notifications' },
-        { label: 'Filesystem', slug: 'docs/filesystem' },
-      ],
-    },
-    {
-      label: 'Support',
-      items: [
-        { label: 'Utilities', slug: 'docs/support' },
-      ],
-    },
-    {
-      label: 'Security reference',
-      items: [
-        { label: 'Overview', slug: 'docs/security' },
-        { label: 'Encryption, CORS, rate limit', slug: 'docs/security/encryption-cors-rate-limit' },
-      ],
-    },
-    {
-      label: 'Digging deeper',
-      items: [
-        { label: 'grind overview', slug: 'docs/grind' },
-        { label: 'Creating commands', slug: 'docs/grind/creating-commands' },
-        { label: 'Running commands', slug: 'docs/grind/running-commands' },
-        { label: 'Console IO & prompts', slug: 'docs/grind/console' },
-        { label: 'Built-in commands', slug: 'docs/grind/commands' },
-        { label: 'steam', slug: 'docs/steam' },
-        { label: 'Task scheduling', slug: 'docs/scheduling' },
-        { label: 'Packages', slug: 'docs/packages' },
-      ],
-    },
-    {
-      label: 'HTTP client & jobs',
-      items: [
-        { label: 'drip (HTTP client)', slug: 'docs/drip' },
-        { label: 'Processes', slug: 'docs/processes' },
-        { label: 'Concurrency', slug: 'docs/concurrency' },
       ],
     },
     {
@@ -160,10 +133,19 @@ export async function buildSidebar() {
       ],
     },
     {
-      label: 'Realtime & search',
+      label: 'Packages & tooling',
       items: [
-        { label: 'Broadcasting', slug: 'docs/broadcasting' },
-        { label: 'Search', slug: 'docs/search' },
+        { label: 'Packages', slug: 'docs/packages' },
+        {
+          label: 'Language / editor',
+          items: [
+            { label: 'Getting started', slug: 'docs/language' },
+            { label: 'Crema grammar', slug: 'docs/language/grammar' },
+            { label: 'Language server (LSP)', slug: 'docs/language/lsp' },
+            { label: 'VS Code & Cursor', slug: 'docs/language/vscode' },
+            { label: 'IntelliJ', slug: 'docs/language/intellij' },
+          ],
+        },
       ],
     },
   ];
