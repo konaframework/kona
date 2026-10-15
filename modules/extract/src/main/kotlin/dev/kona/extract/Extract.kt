@@ -4,7 +4,13 @@ import dev.kona.extract.relations.BelongsTo
 import dev.kona.extract.relations.BelongsToMany
 import dev.kona.extract.relations.EagerLoader
 import dev.kona.extract.relations.HasMany
+import dev.kona.extract.relations.HasManyThrough
 import dev.kona.extract.relations.HasOne
+import dev.kona.extract.relations.HasOneThrough
+import dev.kona.extract.relations.MorphMany
+import dev.kona.extract.relations.MorphMap
+import dev.kona.extract.relations.MorphOne
+import dev.kona.extract.relations.MorphTo
 import dev.kona.extract.relations.Relation
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -15,7 +21,7 @@ import java.time.temporal.ChronoUnit
  * ```kotlin
  * class User : Extract<User>() {
  *     override val fillable = setOf("name", "email")
- *     override val casts = mapOf("admin" to CastType.BOOLEAN)
+ *     override val casts = mapOf("admin" to CastType.BOOLEAN, "money" to MoneyCast())
  *     companion object : ExtractCompanion<User>(User::class.java)
  * }
  * val ada = User.create(mapOf("name" to "Ada"))
@@ -60,7 +66,11 @@ abstract class Extract<T : Extract<T>> {
     open val guarded: Set<String>
         get() = setOf("*")
 
-    open val casts: Map<String, CastType>
+    /**
+     * Column → cast declarations. Values are [CastType] enums or [CastsAttributes] instances.
+     * Java overrides return `Map<String, Object>`.
+     */
+    open val casts: Map<String, Any>
         get() = emptyMap()
 
     /** Named connection on the global [Database]; null uses its default connection. */
@@ -84,6 +94,7 @@ abstract class Extract<T : Extract<T>> {
 
     private val attributes = linkedMapOf<String, Any?>()
     private var original: Map<String, Any?> = emptyMap()
+    private var changes: Map<String, Any?> = emptyMap()
     private val relations = linkedMapOf<String, Any?>()
     private var persisted = false
     private var recentlyCreated = false
@@ -110,8 +121,7 @@ abstract class Extract<T : Extract<T>> {
 
     fun getAttribute(key: String): Any? {
         val raw = attributes[key]
-        val cast = effectiveCasts()[key]
-        val value = if (cast == null) raw else cast.get(raw)
+        val value = applyCastGet(key, raw)
         return getMutatedAttribute(key, value)
     }
 
@@ -121,8 +131,7 @@ abstract class Extract<T : Extract<T>> {
 
     fun setAttribute(key: String, value: Any?): T {
         val mutated = setMutatedAttribute(key, value)
-        val cast = effectiveCasts()[key]
-        attributes[key] = if (cast == null) mutated else cast.set(mutated)
+        attributes[key] = applyCastSet(key, mutated)
         return self()
     }
 
@@ -157,9 +166,24 @@ abstract class Extract<T : Extract<T>> {
         return self()
     }
 
-    /** Declared [casts] plus `Instant` casts for timestamp and soft-delete columns. */
-    fun effectiveCasts(): Map<String, CastType> {
-        val result = linkedMapOf<String, CastType>()
+    /**
+     * Attributes that changed during the last successful [save] (empty before the first save,
+     * and after a no-op update when the model was already clean).
+     */
+    fun getChanges(): Map<String, Any?> = LinkedHashMap(changes)
+
+    /** True when the last [save] persisted at least one attribute change. */
+    fun wasChanged(): Boolean = changes.isNotEmpty()
+
+    /** True when [key] was among the attributes persisted by the last [save]. */
+    fun wasChanged(key: String): Boolean = changes.containsKey(key)
+
+    /**
+     * Declared [casts] plus `Instant` casts for timestamp and soft-delete columns.
+     * Values are [CastType] or [CastsAttributes].
+     */
+    fun effectiveCasts(): Map<String, Any> {
+        val result = linkedMapOf<String, Any>()
         if (timestamps) {
             result[createdAtColumn] = CastType.INSTANT
             result[updatedAtColumn] = CastType.INSTANT
@@ -170,6 +194,22 @@ abstract class Extract<T : Extract<T>> {
         result.putAll(casts)
         return result
     }
+
+    private fun applyCastGet(key: String, raw: Any?): Any? =
+        when (val cast = effectiveCasts()[key]) {
+            null -> raw
+            is CastType -> cast.get(raw)
+            is CastsAttributes -> cast.get(this, key, raw, attributes)
+            else -> throw ExtractException("Invalid cast for [$key]: ${cast.javaClass.name}")
+        }
+
+    private fun applyCastSet(key: String, value: Any?): Any? =
+        when (val cast = effectiveCasts()[key]) {
+            null -> value
+            is CastType -> cast.set(value)
+            is CastsAttributes -> cast.set(this, key, value, attributes)
+            else -> throw ExtractException("Invalid cast for [$key]: ${cast.javaClass.name}")
+        }
 
     // ---- mass assignment ----
 
@@ -208,6 +248,7 @@ abstract class Extract<T : Extract<T>> {
             ModelDispatcher.dispatch(ModelEvent.CREATING, this)
         } else {
             if (isClean()) {
+                changes = emptyMap()
                 ModelDispatcher.dispatch(ModelEvent.SAVED, this)
                 return true
             }
@@ -217,7 +258,9 @@ abstract class Extract<T : Extract<T>> {
             if (timestamps) {
                 touchTimestamps()
             }
-            keyQuery().update(getDirty())
+            val dirty = getDirty()
+            keyQuery().update(dirty)
+            changes = LinkedHashMap(dirty)
             ModelDispatcher.dispatch(ModelEvent.UPDATED, this)
         } else {
             if (timestamps) {
@@ -234,6 +277,7 @@ abstract class Extract<T : Extract<T>> {
             }
             persisted = true
             recentlyCreated = true
+            changes = LinkedHashMap(attributes)
             ModelDispatcher.dispatch(ModelEvent.CREATED, this)
         }
         syncOriginal()
@@ -409,17 +453,47 @@ abstract class Extract<T : Extract<T>> {
             return self()
         }
         val counted = newQuery().where(primaryKey, getKey()).withCount(*relations).first() ?: return self()
+        copyAggregateAliases(counted, relations) { name, alias -> alias ?: "${name}_count" }
+        return self()
+    }
+
+    /** Loads `{relation}_exists` (or alias) boolean attributes onto this model. */
+    fun loadExists(vararg relations: String): T {
+        if (!persisted || relations.isEmpty()) {
+            return self()
+        }
+        val loaded = newQuery().where(primaryKey, getKey()).withExists(*relations).first() ?: return self()
+        copyAggregateAliases(loaded, relations) { name, alias -> alias ?: "${name}_exists" }
+        return self()
+    }
+
+    /**
+     * Loads `{relation}_sum_{column}` (or alias) onto this model.
+     * [spec] is `relation:column` or `relation as alias:column`.
+     */
+    fun loadSum(spec: String): T {
+        if (!persisted) {
+            return self()
+        }
+        val loaded = newQuery().where(primaryKey, getKey()).withSum(spec).first() ?: return self()
+        val (_, alias, _) = parseSumSpec(spec)
+        attributes[alias] = loaded.getRawAttribute(alias)
+        return self()
+    }
+
+    private fun copyAggregateAliases(
+        source: T,
+        relations: Array<out String>,
+        aliasFor: (name: String, alias: String?) -> String,
+    ) {
         for (spec in relations) {
             val trimmed = spec.trim()
             val match = COUNT_ALIAS.find(trimmed)
-            val alias = if (match == null) {
-                "${trimmed}_count"
-            } else {
-                trimmed.substring(match.range.last + 1).trim()
-            }
-            attributes[alias] = counted.getRawAttribute(alias)
+            val name = if (match == null) trimmed else trimmed.substring(0, match.range.first).trim()
+            val alias = if (match == null) null else trimmed.substring(match.range.last + 1).trim()
+            val key = aliasFor(name, alias)
+            attributes[key] = source.getRawAttribute(key)
         }
-        return self()
     }
 
     // ---- relation definitions (call from a public no-arg method named after the relation) ----
@@ -483,6 +557,176 @@ abstract class Extract<T : Extract<T>> {
 
     /** `user_id` for a `User` keyed by `id`. */
     fun defaultForeignKey(): String = Relation.snake(javaClass.simpleName) + "_" + primaryKey
+
+    /** Morph alias for this model (`Relation.morphMap` entry or simple class name). */
+    open fun getMorphClass(): String = MorphMap.morphAlias(javaClass)
+
+    /**
+     * Polymorphic one-to-many: related rows store [name]_type / [name]_id pointing at this model.
+     * Defaults: `commentable` → `commentable_type` / `commentable_id`.
+     */
+    fun <R : Extract<R>> morphMany(related: Class<R>, name: String): MorphMany<R> =
+        morphMany(related, name, null, null, null)
+
+    fun <R : Extract<R>> morphMany(related: Class<R>, name: String, type: String?): MorphMany<R> =
+        morphMany(related, name, type, null, null)
+
+    fun <R : Extract<R>> morphMany(related: Class<R>, name: String, type: String?, id: String?): MorphMany<R> =
+        morphMany(related, name, type, id, null)
+
+    /** Polymorphic one-to-many: related rows store [name]_type / [name]_id pointing at this model. */
+    fun <R : Extract<R>> morphMany(
+        related: Class<R>,
+        name: String,
+        type: String?,
+        id: String?,
+        localKey: String?,
+    ): MorphMany<R> {
+        return MorphMany(
+            this,
+            instantiate(related),
+            id ?: "${name}_id",
+            type ?: "${name}_type",
+            getMorphClass(),
+            localKey ?: primaryKey,
+        )
+    }
+
+    fun <R : Extract<R>> morphOne(related: Class<R>, name: String): MorphOne<R> =
+        morphOne(related, name, null, null, null)
+
+    fun <R : Extract<R>> morphOne(related: Class<R>, name: String, type: String?): MorphOne<R> =
+        morphOne(related, name, type, null, null)
+
+    fun <R : Extract<R>> morphOne(related: Class<R>, name: String, type: String?, id: String?): MorphOne<R> =
+        morphOne(related, name, type, id, null)
+
+    /** Polymorphic one-to-one (same columns as [morphMany]). */
+    fun <R : Extract<R>> morphOne(
+        related: Class<R>,
+        name: String,
+        type: String?,
+        id: String?,
+        localKey: String?,
+    ): MorphOne<R> {
+        return MorphOne(
+            this,
+            instantiate(related),
+            id ?: "${name}_id",
+            type ?: "${name}_type",
+            getMorphClass(),
+            localKey ?: primaryKey,
+        )
+    }
+
+    fun morphTo(name: String): MorphTo = morphTo(name, null, null)
+
+    fun morphTo(name: String, type: String?): MorphTo = morphTo(name, type, null)
+
+    /** Inverse morph: this model holds `{name}_type` / `{name}_id` pointing at the owner. */
+    fun morphTo(name: String, type: String?, id: String?): MorphTo {
+        return MorphTo(
+            this,
+            type ?: "${name}_type",
+            id ?: "${name}_id",
+            name,
+        )
+    }
+
+    fun <R : Extract<R>, I : Extract<I>> hasManyThrough(related: Class<R>, through: Class<I>): HasManyThrough<R, I> =
+        hasManyThrough(related, through, null, null, null, null)
+
+    fun <R : Extract<R>, I : Extract<I>> hasManyThrough(
+        related: Class<R>,
+        through: Class<I>,
+        firstKey: String?,
+    ): HasManyThrough<R, I> = hasManyThrough(related, through, firstKey, null, null, null)
+
+    fun <R : Extract<R>, I : Extract<I>> hasManyThrough(
+        related: Class<R>,
+        through: Class<I>,
+        firstKey: String?,
+        secondKey: String?,
+    ): HasManyThrough<R, I> = hasManyThrough(related, through, firstKey, secondKey, null, null)
+
+    fun <R : Extract<R>, I : Extract<I>> hasManyThrough(
+        related: Class<R>,
+        through: Class<I>,
+        firstKey: String?,
+        secondKey: String?,
+        localKey: String?,
+    ): HasManyThrough<R, I> = hasManyThrough(related, through, firstKey, secondKey, localKey, null)
+
+    /**
+     * Distant one-to-many through an intermediate model
+     * (`User.hasManyThrough(Comment::class.java, Post::class.java)`).
+     */
+    fun <R : Extract<R>, I : Extract<I>> hasManyThrough(
+        related: Class<R>,
+        through: Class<I>,
+        firstKey: String?,
+        secondKey: String?,
+        localKey: String?,
+        secondLocalKey: String?,
+    ): HasManyThrough<R, I> {
+        val far = instantiate(related)
+        val mid = instantiate(through)
+        return HasManyThrough(
+            this,
+            far,
+            mid,
+            firstKey ?: defaultForeignKey(),
+            secondKey ?: mid.defaultForeignKey(),
+            localKey ?: primaryKey,
+            secondLocalKey ?: mid.primaryKey,
+        )
+    }
+
+    fun <R : Extract<R>, I : Extract<I>> hasOneThrough(related: Class<R>, through: Class<I>): HasOneThrough<R, I> =
+        hasOneThrough(related, through, null, null, null, null)
+
+    fun <R : Extract<R>, I : Extract<I>> hasOneThrough(
+        related: Class<R>,
+        through: Class<I>,
+        firstKey: String?,
+    ): HasOneThrough<R, I> = hasOneThrough(related, through, firstKey, null, null, null)
+
+    fun <R : Extract<R>, I : Extract<I>> hasOneThrough(
+        related: Class<R>,
+        through: Class<I>,
+        firstKey: String?,
+        secondKey: String?,
+    ): HasOneThrough<R, I> = hasOneThrough(related, through, firstKey, secondKey, null, null)
+
+    fun <R : Extract<R>, I : Extract<I>> hasOneThrough(
+        related: Class<R>,
+        through: Class<I>,
+        firstKey: String?,
+        secondKey: String?,
+        localKey: String?,
+    ): HasOneThrough<R, I> = hasOneThrough(related, through, firstKey, secondKey, localKey, null)
+
+    /** Distant one-to-one through an intermediate model. */
+    fun <R : Extract<R>, I : Extract<I>> hasOneThrough(
+        related: Class<R>,
+        through: Class<I>,
+        firstKey: String?,
+        secondKey: String?,
+        localKey: String?,
+        secondLocalKey: String?,
+    ): HasOneThrough<R, I> {
+        val far = instantiate(related)
+        val mid = instantiate(through)
+        return HasOneThrough(
+            this,
+            far,
+            mid,
+            firstKey ?: defaultForeignKey(),
+            secondKey ?: mid.defaultForeignKey(),
+            localKey ?: primaryKey,
+            secondLocalKey ?: mid.primaryKey,
+        )
+    }
 
     // ---- serialization ----
 
@@ -642,6 +886,29 @@ abstract class Extract<T : Extract<T>> {
         private val SIBILANT = Regex("(s|x|z|ch|sh)$")
         private val CAMEL = Regex("([a-z0-9])([A-Z])")
         private val COUNT_ALIAS = Regex("\\s+as\\s+", RegexOption.IGNORE_CASE)
+
+        /**
+         * Parses `relation:column` or `relation as alias:column` for [loadSum] / [ModelBuilder.withSum].
+         * Returns (relationName, selectAlias, column).
+         */
+        internal fun parseSumSpec(spec: String): Triple<String, String, String> {
+            val trimmed = spec.trim()
+            val colon = trimmed.lastIndexOf(':')
+            require(colon > 0) {
+                "withSum/loadSum expects \"relation:column\" or \"relation as alias:column\", got [$spec]"
+            }
+            val left = trimmed.substring(0, colon).trim()
+            val column = trimmed.substring(colon + 1).trim()
+            require(column.isNotEmpty()) { "withSum/loadSum column is empty in [$spec]" }
+            val match = COUNT_ALIAS.find(left)
+            return if (match == null) {
+                Triple(left, "${left}_sum_$column", column)
+            } else {
+                val name = left.substring(0, match.range.first).trim()
+                val alias = left.substring(match.range.last + 1).trim()
+                Triple(name, alias, column)
+            }
+        }
 
         /** Static helpers for a model class (Java: `Extract.of(User.class).find(1)`). */
         @JvmStatic

@@ -180,5 +180,24 @@ class SchemaTest {
         blueprint.dropColumn("a", "b")
         assertEquals(listOf("a", "b"), blueprint.dropColumns)
         assertEquals("deleted", blueprint.softDeletes("deleted").name)
+        val morphs = Blueprint("comments").apply {
+            morphs("commentable")
+            nullableMorphs("taggable")
+            uuidMorphs("owner")
+            morphs("named", "comments_named_idx")
+            nullableMorphs("soft", "comments_soft_idx")
+            uuidMorphs("uuid_named", "comments_uuid_idx")
+            // Explicit null indexName hits the full JVM overload body (closing braces).
+            morphs("explicit", null)
+            nullableMorphs("explicit_null", null)
+            uuidMorphs("explicit_uuid", null)
+        }
+        assertTrue(morphs.columns.any { it.name == "commentable_type" })
+        assertTrue(morphs.columns.any { it.name == "commentable_id" })
+        assertTrue(morphs.columns.first { it.name == "taggable_type" }.isNullable)
+        assertEquals(36, morphs.columns.first { it.name == "owner_id" }.length)
+        assertTrue(morphs.indexes.any { it.name == "comments_named_idx" })
+        assertTrue(morphs.indexes.any { it.name == "comments_soft_idx" })
+        assertTrue(morphs.indexes.any { it.name == "comments_uuid_idx" })
     }
 }

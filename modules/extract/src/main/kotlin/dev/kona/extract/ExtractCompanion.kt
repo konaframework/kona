@@ -23,6 +23,12 @@ open class ExtractCompanion<T : Extract<T>>(
 
     fun withCount(vararg relations: String): ModelBuilder<T> = query().withCount(*relations)
 
+    fun withExists(vararg relations: String): ModelBuilder<T> = query().withExists(*relations)
+
+    fun withSum(spec: String): ModelBuilder<T> = query().withSum(spec)
+
+    fun withSum(relation: String, column: String): ModelBuilder<T> = query().withSum(relation, column)
+
     fun first(): T? = query().first()
 
     fun find(id: Any?): T? = query().find(id)
@@ -82,6 +88,17 @@ open class ExtractCompanion<T : Extract<T>>(
 
     @JvmOverloads
     fun paginate(perPage: Int = newInstance().perPage, page: Int = 1): Page<T> = query().paginate(perPage, page)
+
+    @JvmOverloads
+    fun simplePaginate(perPage: Int = newInstance().perPage, page: Int = 1): SimplePage<T> =
+        query().simplePaginate(perPage, page)
+
+    @JvmOverloads
+    fun cursorPaginate(
+        perPage: Int = newInstance().perPage,
+        cursor: String? = null,
+        column: String = "id",
+    ): CursorPage<T> = query().cursorPaginate(perPage, cursor, column)
 
     /** Loads and deletes each model by key (soft-deleting where applicable); returns how many were deleted. */
     fun destroy(vararg ids: Any): Int = destroy(ids.asList())

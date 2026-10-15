@@ -68,7 +68,7 @@ abstract class Relation<R : Extract<R>, V>(
     /** Eager loads [relations] on the related models this relation returns. */
     fun with(vararg relations: String): Relation<R, V> = apply { query.with(*relations) }
 
-    internal fun eagerLoadOnto(models: List<Extract<*>>, name: String) {
+    internal open fun eagerLoadOnto(models: List<Extract<*>>, name: String) {
         addEagerConstraints(models)
         match(models, getEager(), name)
     }
@@ -86,5 +86,12 @@ abstract class Relation<R : Extract<R>, V>(
         /** `BlogPost` → `blog_post`. */
         @JvmStatic
         fun snake(className: String): String = Regex("([a-z0-9])([A-Z])").replace(className, "$1_$2").lowercase()
+
+        /** Register morph aliases (`Relation.morphMap(mapOf("posts" to Post::class.java))`). */
+        @JvmStatic
+        fun morphMap(map: Map<String, Class<out Extract<*>>>) = MorphMap.morphMap(map)
+
+        @JvmStatic
+        fun clearMorphMap() = MorphMap.clear()
     }
 }

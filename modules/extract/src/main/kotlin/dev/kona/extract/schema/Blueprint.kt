@@ -137,6 +137,41 @@ class Blueprint(val table: String) {
     @JvmOverloads
     fun softDeletes(name: String = "deleted_at"): ColumnDefinition = timestamp(name).nullable()
 
+    /**
+     * Polymorphic columns `{name}_type` (string) + `{name}_id` (bigint), matching Laravel `morphs`.
+     */
+    fun morphs(name: String) {
+        morphs(name, null)
+    }
+
+    fun morphs(name: String, indexName: String?) {
+        string("${name}_type")
+        foreignId("${name}_id")
+        index(listOf("${name}_type", "${name}_id"), indexName ?: "${table}_${name}_type_${name}_id_index")
+    }
+
+    /** Nullable variant of [morphs]. */
+    fun nullableMorphs(name: String) {
+        nullableMorphs(name, null)
+    }
+
+    fun nullableMorphs(name: String, indexName: String?) {
+        string("${name}_type").nullable()
+        foreignId("${name}_id").nullable()
+        index(listOf("${name}_type", "${name}_id"), indexName ?: "${table}_${name}_type_${name}_id_index")
+    }
+
+    /** UUID morph id (`string(36)`) plus type column. */
+    fun uuidMorphs(name: String) {
+        uuidMorphs(name, null)
+    }
+
+    fun uuidMorphs(name: String, indexName: String?) {
+        string("${name}_type")
+        string("${name}_id", 36)
+        index(listOf("${name}_type", "${name}_id"), indexName ?: "${table}_${name}_type_${name}_id_index")
+    }
+
     fun index(vararg columns: String): IndexDefinition = index(columns.toList(), null)
 
     fun index(columns: List<String>, name: String?): IndexDefinition = addIndex(columns, name, unique = false)

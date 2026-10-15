@@ -40,7 +40,7 @@ abstract class HasOneOrMany<R : Extract<R>, V>(
     }
 
     /** Fills (mass-assignment rules apply), links, and saves a new related model. */
-    fun create(attributes: Map<String, Any?>): R = make(attributes).also { it.save() }
+    open fun create(attributes: Map<String, Any?>): R = make(attributes).also { it.save() }
 
     private fun requireParentKey(): Any = parentKey
         ?: throw IllegalStateException("Parent [${parent.javaClass.simpleName}] has no [$localKey]; save it first")

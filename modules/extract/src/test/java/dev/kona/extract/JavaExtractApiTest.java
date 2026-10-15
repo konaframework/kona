@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.kona.extract.relations.HasMany;
+import dev.kona.extract.relations.Relation;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -30,7 +31,7 @@ public class JavaExtractApiTest {
         }
 
         @Override
-        public Map<String, CastType> getCasts() {
+        public Map<String, Object> getCasts() {
             return Map.of("age", CastType.INT, "settings", CastType.JSON);
         }
 
@@ -195,6 +196,20 @@ public class JavaExtractApiTest {
         List<Member> adults = Member.QUERY.query().where("age", ">", 30).orderBy("id").get();
         assertEquals(1, adults.size());
         Page<Member> page = Member.QUERY.paginate(10, 1);
+        assertEquals(15, DB.table("users").simplePaginate().getPerPage());
+        assertEquals(2, DB.table("users").simplePaginate(2).getPerPage());
+        assertEquals(15, DB.table("users").cursorPaginate().getPerPage());
+        assertEquals(2, DB.table("users").cursorPaginate(2).getPerPage());
+        assertEquals(2, DB.table("users").cursorPaginate(2, null).getPerPage());
+        assertEquals(1, Member.QUERY.simplePaginate().getData().size());
+        assertEquals(1, Member.QUERY.simplePaginate(2).getData().size());
+        assertEquals(15, Member.QUERY.query().cursorPaginate().getPerPage());
+        assertEquals(1, Member.QUERY.query().cursorPaginate(2).getData().size());
+        assertEquals(1, Member.QUERY.cursorPaginate(2, null, "id").getData().size());
+        assertEquals("1", CursorPage.decode(CursorPage.encode(1)));
+        assertEquals("null", CursorPage.decode(CursorPage.encode(null)));
+        Relation.morphMap(Map.of());
+        Relation.clearMorphMap();
         assertEquals(1, page.getData().size());
         assertNull(Member.QUERY.find(99));
         assertThrows(ModelNotFoundException.class, () -> Member.QUERY.findOrFail(99));
