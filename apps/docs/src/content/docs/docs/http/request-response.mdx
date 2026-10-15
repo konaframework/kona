@@ -112,8 +112,8 @@ The parsed query string, exactly as described in the table above. `request.query
 
 ### `input(key, default)` and `all()`
 
-- `input(key, default)` looks in the **query string first**, then in `form()`, and returns `default` when neither has the key.
-- `all()` merges both into one map. When a name exists in both, the **body value wins**.
+- `input(key, default)` reads from [`data()`](#typed-json-with-data) (query + body + any [`merge`](#merge-and-replace) overlay) and stringifies the value.
+- `all()` returns the same bag as strings (null values omitted).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -129,12 +129,41 @@ val everything: Map<String, String> = request.all()
 
 ```java
 String page = request.input("page", "1");
-String search = request.input("q", null);  // Java passes the default explicitly
+String search = request.input("q");        // one-arg overload; may be null
 Map<String, String> everything = request.all();
 ```
 
 </TabItem>
 </Tabs>
+
+### Only, except, presence helpers
+
+| API | Meaning |
+|-----|---------|
+| `only("a", "b")` | Subset of `data()` for the listed keys |
+| `except("a")` | `data()` without those keys |
+| `has("a")` | Key exists (including null) |
+| `filled("a")` | Key exists and is not empty |
+| `missing("a")` | Key is absent |
+| `whenHas` / `whenFilled` / `whenMissing` | Run a callback when the condition holds |
+
+### Boolean, date, bearer, IP, user agent
+
+| API | Meaning |
+|-----|---------|
+| `boolean("on")` | Truthy for `1` / `true` / `on` / `yes` (Java: `booleanValue`) |
+| `date("when")` | ISO local date / date-time → `LocalDate`, or null |
+| `bearerToken()` | Token from `Authorization: Bearer …` |
+| `ip()` | `kona.clientIp` after TrustProxies, else `kona.remoteAddr` |
+| `userAgent()` | `User-Agent` header |
+
+### Merge and replace
+
+`merge(map)` copies the current input bag (or natural input on first call) and overlays new values. `replace(map)` swaps the entire bag. Both affect `data()`, `input`, `validate`, and related helpers for the rest of the request.
+
+### `validate` and `safe`
+
+`validate(rules)` runs the [Validator](../validation/) and remembers the result. After a successful call, `safe()` returns that same map. Calling `safe()` before `validate` throws `IllegalStateException`.
 
 ## Typed JSON with `data()`
 
@@ -237,6 +266,8 @@ Static factories cover the common cases. Body factories set a `Content-Type` for
 `json` accepts any value the bundled Jackson serializer understands: maps, lists, strings, numbers, booleans, `null` (serialized as `null`), Kotlin data classes, Java records, and ordinary classes with getters.
 
 Binary factories set `bodyBytes()` so the embedded server writes the payload without UTF-8 re-encoding. Prefer them for PDFs, images, and anything that is not text.
+
+Chain `header(name, value)`, `withHeaders(map)`, `cookie(...)`, `withStatus`, and `withBody` / `withBodyBytes` on any response. Streaming response bodies are not shipped yet — large downloads still load into memory via `file` / `download` / `binary`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
