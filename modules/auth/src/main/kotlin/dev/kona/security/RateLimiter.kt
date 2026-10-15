@@ -13,7 +13,21 @@ import java.util.concurrent.atomic.AtomicInteger
 data class RateLimit @JvmOverloads constructor(
     val maxAttempts: Int,
     val decaySeconds: Int = 60,
-)
+) {
+    companion object {
+        @JvmStatic
+        fun perSecond(maxAttempts: Int): RateLimit = RateLimit(maxAttempts, 1)
+
+        @JvmStatic
+        fun perMinute(maxAttempts: Int): RateLimit = RateLimit(maxAttempts, 60)
+
+        @JvmStatic
+        fun perHour(maxAttempts: Int): RateLimit = RateLimit(maxAttempts, 3600)
+
+        @JvmStatic
+        fun perDay(maxAttempts: Int): RateLimit = RateLimit(maxAttempts, 86_400)
+    }
+}
 
 fun interface RateLimitCallback {
     fun limit(request: Request): RateLimit
