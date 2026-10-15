@@ -132,3 +132,45 @@ user.deleteQuietly();
 
 
 Call `ModelDispatcher.flush()` in tests to clear listeners between cases. Nested `withoutEvents` blocks nest safely (a depth counter).
+
+### Observer classes
+
+For model-scoped hooks, extend `ModelObserver` and register it once:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class UserObserver : ModelObserver<User>() {
+    override fun creating(model: User) {
+        model["email"] = model["email"].toString().lowercase()
+    }
+
+    override fun deleted(model: User) {
+        logger.info("removed user {}", model.getKey())
+    }
+}
+
+User.observe(UserObserver())
+// or Extract.observe(User::class.java, UserObserver())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class UserObserver extends ModelObserver<User> {
+    @Override
+    public void creating(User model) {
+        model.set("email", String.valueOf(model.get("email")).toLowerCase());
+    }
+}
+
+Extract.observe(User.class, new UserObserver());
+// or User.QUERY.observe(new UserObserver());
+```
+
+</TabItem>
+</Tabs>
+
+Observers only receive instances of their model type. Override any lifecycle method (`retrieved`, `creating`, `created`, `updating`, `updated`, `saving`, `saved`, `deleting`, `deleted`, `trashed`, `restoring`, `restored`, `forceDeleting`, `forceDeleted`). Under the hood they register on `ModelDispatcher`, so `flush()` / `withoutEvents` / `saveQuietly` apply the same way.

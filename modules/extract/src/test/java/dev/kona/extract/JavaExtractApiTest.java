@@ -205,6 +205,25 @@ public class JavaExtractApiTest {
                 .groupBy("name").havingRaw("count(*) >= ?", List.of(1)).orHavingRaw("count(*) >= 1")
                 .havingRaw("count(*) >= 1").toSql().contains("distinct"));
 
+        class MemberObserver extends ModelObserver<Member> {
+            boolean created;
+
+            @Override
+            public void created(Member model) {
+                created = true;
+            }
+        }
+        MemberObserver observer = new MemberObserver();
+        Extract.observe(Member.class, observer);
+        try {
+            Member obs = Member.QUERY.create(Map.of("name", "Obs", "age", 20));
+            assertTrue(observer.created);
+            Member.QUERY.observe(new MemberObserver());
+            obs.delete();
+        } finally {
+            ModelDispatcher.flush();
+        }
+
         class AdultsOnly implements Scope {
             @Override
             public void apply(ModelBuilder<?> builder) {

@@ -1052,6 +1052,12 @@ abstract class Extract<T : Extract<T>> {
             of(type).addGlobalScope(scope)
         }
 
+        /** Registers a [ModelObserver] for [type] (Java: `Extract.observe(User.class, new UserObserver())`). */
+        @JvmStatic
+        fun <T : Extract<T>> observe(type: Class<T>, observer: ModelObserver<T>) {
+            of(type).observe(observer)
+        }
+
         /** `BlogPost` → `blog_posts`, `Category` → `categories`, `Box` → `boxes`. */
         @JvmStatic
         fun tableNameFor(className: String): String {
