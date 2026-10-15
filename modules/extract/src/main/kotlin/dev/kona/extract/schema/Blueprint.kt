@@ -16,7 +16,7 @@ class ColumnDefinition internal constructor(
     private val blueprint: Blueprint,
     val name: String,
     val type: ColumnType,
-    val length: Int = 0,
+    val length: Int,
 ) {
     var isNullable: Boolean = false
         private set

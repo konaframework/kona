@@ -957,6 +957,18 @@ abstract class Extract<T : Extract<T>> {
         @JvmStatic
         fun <T : Extract<T>> of(type: Class<T>): ExtractCompanion<T> = ExtractCompanion(type)
 
+        /** Registers a named global scope on [type] (Java-friendly). */
+        @JvmStatic
+        fun <T : Extract<T>> addGlobalScope(type: Class<T>, name: String, scope: java.util.function.Consumer<ModelBuilder<T>>) {
+            of(type).addGlobalScope(name, scope)
+        }
+
+        /** Registers a [Scope] class instance on [type]. */
+        @JvmStatic
+        fun <T : Extract<T>> addGlobalScope(type: Class<T>, scope: Scope) {
+            of(type).addGlobalScope(scope)
+        }
+
         /** `BlogPost` → `blog_posts`, `Category` → `categories`, `Box` → `boxes`. */
         @JvmStatic
         fun tableNameFor(className: String): String {
