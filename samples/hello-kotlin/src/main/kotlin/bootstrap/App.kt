@@ -1,13 +1,20 @@
 package bootstrap
 
 import app.providers.AppServiceProvider
+import dev.kona.auth.AuthServiceProvider
 import dev.kona.core.Application
 import dev.kona.core.Env
 import dev.kona.core.Kona
+import dev.kona.extract.ExtractServiceProvider
 import dev.kona.http.HttpKernel
 import dev.kona.http.HttpServiceProvider
 import dev.kona.http.KonaHttpServer
 import dev.kona.http.Router
+import dev.kona.mail.MailServiceProvider
+import dev.kona.queue.QueueServiceProvider
+import dev.kona.redis.RedisServiceProvider
+import dev.kona.schedule.ScheduleServiceProvider
+import dev.kona.session.SessionServiceProvider
 import routes.ApiRoutes
 import routes.WebRoutes
 
@@ -18,7 +25,17 @@ object App {
     @JvmStatic
     fun create(args: Array<String>): Application {
         val app = Kona.create(args)
-            .providers(HttpServiceProvider(), AppServiceProvider())
+            .providers(
+                HttpServiceProvider(),
+                ExtractServiceProvider(),
+                RedisServiceProvider(),
+                SessionServiceProvider(),
+                AuthServiceProvider(),
+                QueueServiceProvider(),
+                ScheduleServiceProvider(),
+                MailServiceProvider(),
+                AppServiceProvider(),
+            )
             .afterBoot { Middleware.configure(it) }
             .boot()
         WebRoutes().register(app.resolve(Router::class.java))

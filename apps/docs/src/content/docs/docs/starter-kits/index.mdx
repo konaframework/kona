@@ -16,10 +16,12 @@ kona new my-app --kit=brew
 
 | Kit | Dependencies | What you get |
 |-----|--------------|--------------|
-| `api` (default) | `kona-http`, `kona-grind` | Minimal HTTP routes and JSON health check |
+| `api` (default) | HTTP + grind + extract/redis/session/auth/queue/schedule/mail | Minimal HTTP routes, JSON health check, session/CSRF wired |
 | `crema` | + `kona-crema` | Crema welcome view and `CremaServiceProvider` |
 | `inertia` | + `kona-crema`, `kona-inertia` | Inertia middleware, root shell, Vite stubs, example page props |
 | `brew` | + `kona-crema`, `kona-brew` | Sample Brew counter on `/` with `brew.js` |
+
+Every kit registers Extract, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; ships `config/session.json` (cookie driver); and applies `StartSession` + CSRF (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`.
 
 ## After scaffolding
 

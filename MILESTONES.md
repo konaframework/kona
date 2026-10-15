@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** none — open next deepen (scaffold provider wiring / Redis session) explicitly.
+**Active milestone:** **M17 — Scaffold provider wiring + Redis session + signed cookies** (`milestone/M17-scaffold-session-cookies`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -591,9 +591,32 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 `kona-queue`, `kona-grind` (queue commands), `apps/docs/`, samples/regressions
 
+---
+
+## M17 — Scaffold provider wiring + Redis session + signed cookies
+
+**Status:** active
+
+**Branch:** `milestone/M17-scaffold-session-cookies`
+
+**Parity slice:** Generated apps register the providers that match their dependencies (session, auth, extract, redis, queue, schedule, mail); cookie sessions are integrity-protected; Redis session driver works when Redis is bound; `kona new` emits `APP_KEY`.
+
+### Parity checklist
+
+- [x] `kona new` skeletons depend on + register Extract / Redis / Session / Auth / Queue / Schedule / Mail providers (api + kit overlays)
+- [x] Scaffold middleware wires `StartSession` (+ CSRF on web stack; `/api/*` and `/brew/*` excepted)
+- [x] `session.json` + `.env` `APP_KEY` generated on `kona new`
+- [x] Cookie session payloads HMAC-signed when encryption is off; Encrypter path unchanged when bound / `session.encrypt=true`
+- [x] Redis session driver resolves via `SessionServiceProvider` + `RedisServiceProvider` (regression)
+- [x] Kotlin + Java generated-app / unit regressions; docs + HANDOFF; 100% kover on touched modules
+
+### In-scope modules
+
+`kona-cli` skeletons, `kona-session`, `kona-auth` (key gen touch if needed), `apps/docs/`, samples as needed
+
 ### Next (queued)
 
-Scaffold provider wiring, Redis session + signed cookies (open explicitly after M16).
+Further deepen (notifications durability, Crema Vite, etc.) opened explicitly after M17.
 
 ---
 
@@ -604,4 +627,5 @@ flowchart LR
   M13[M13_IDE] --> M14[M14_App_Tree]
   M14 --> M15[M15_Extract_Model]
   M15 --> M16[M16_Durable_Queue]
+  M16 --> M17[M17_Scaffold_Session]
 ```

@@ -34,6 +34,7 @@ class NewCommand(
             "konaVersion" to options.getOrDefault("kona-version", versions.kona),
             "kotlinVersion" to versions.kotlin,
             "kit" to kit,
+            "appKey" to ScaffoldKeys.generateAppKey(),
         )
         Files.createDirectories(target)
         copySkeleton(lang, target, variables, kit)
@@ -167,6 +168,7 @@ class NewCommand(
                 "src/main/resources/config/app.json",
                 "src/main/resources/config/http.json",
                 "src/main/resources/config/paths.json",
+                "src/main/resources/config/session.json",
                 "src/main/resources/css/app.css",
                 "src/main/resources/js/app.js",
                 "src/main/resources/public/.gitkeep",

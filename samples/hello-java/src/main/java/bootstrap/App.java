@@ -1,13 +1,20 @@
 package bootstrap;
 
 import app.providers.AppServiceProvider;
+import dev.kona.auth.AuthServiceProvider;
 import dev.kona.core.Application;
 import dev.kona.core.Env;
 import dev.kona.core.Kona;
+import dev.kona.extract.ExtractServiceProvider;
 import dev.kona.http.HttpKernel;
 import dev.kona.http.HttpServiceProvider;
 import dev.kona.http.KonaHttpServer;
 import dev.kona.http.Router;
+import dev.kona.mail.MailServiceProvider;
+import dev.kona.queue.QueueServiceProvider;
+import dev.kona.redis.RedisServiceProvider;
+import dev.kona.schedule.ScheduleServiceProvider;
+import dev.kona.session.SessionServiceProvider;
 import routes.ApiRoutes;
 import routes.WebRoutes;
 
@@ -17,7 +24,17 @@ import routes.WebRoutes;
 public final class App {
     public static Application create(String[] args) {
         Application app = Kona.create(args)
-            .providers(new HttpServiceProvider(), new AppServiceProvider())
+            .providers(
+                new HttpServiceProvider(),
+                new ExtractServiceProvider(),
+                new RedisServiceProvider(),
+                new SessionServiceProvider(),
+                new AuthServiceProvider(),
+                new QueueServiceProvider(),
+                new ScheduleServiceProvider(),
+                new MailServiceProvider(),
+                new AppServiceProvider()
+            )
             .afterBoot(Middleware::configure)
             .boot();
         new WebRoutes().register(app.resolve(Router.class));
