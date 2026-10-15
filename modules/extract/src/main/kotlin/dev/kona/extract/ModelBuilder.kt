@@ -124,6 +124,14 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun select(vararg columns: String): ModelBuilder<T> = apply { query.select(*columns) }
 
+    fun addSelect(vararg columns: String): ModelBuilder<T> = apply { query.addSelect(*columns) }
+
+    @JvmOverloads
+    fun selectRaw(expression: String, bindings: List<Any?> = emptyList()): ModelBuilder<T> =
+        apply { query.selectRaw(expression, bindings) }
+
+    fun distinct(): ModelBuilder<T> = apply { query.distinct() }
+
     fun where(column: String, value: Any?): ModelBuilder<T> = apply { query.where(column, value) }
 
     fun where(column: String, operator: String, value: Any?): ModelBuilder<T> = apply { query.where(column, operator, value) }
@@ -175,6 +183,76 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     @JvmOverloads
     fun whereRaw(sql: String, bindings: List<Any?> = emptyList()): ModelBuilder<T> = apply { query.whereRaw(sql, bindings) }
+
+    @JvmOverloads
+    fun orWhereRaw(sql: String, bindings: List<Any?> = emptyList()): ModelBuilder<T> =
+        apply { query.orWhereRaw(sql, bindings) }
+
+    fun whereDate(column: String, value: Any?): ModelBuilder<T> = apply { query.whereDate(column, value) }
+
+    fun whereDate(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.whereDate(column, operator, value) }
+
+    fun orWhereDate(column: String, value: Any?): ModelBuilder<T> = apply { query.orWhereDate(column, value) }
+
+    fun orWhereDate(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.orWhereDate(column, operator, value) }
+
+    fun whereDay(column: String, value: Any?): ModelBuilder<T> = apply { query.whereDay(column, value) }
+
+    fun whereDay(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.whereDay(column, operator, value) }
+
+    fun orWhereDay(column: String, value: Any?): ModelBuilder<T> = apply { query.orWhereDay(column, value) }
+
+    fun orWhereDay(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.orWhereDay(column, operator, value) }
+
+    fun whereMonth(column: String, value: Any?): ModelBuilder<T> = apply { query.whereMonth(column, value) }
+
+    fun whereMonth(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.whereMonth(column, operator, value) }
+
+    fun orWhereMonth(column: String, value: Any?): ModelBuilder<T> = apply { query.orWhereMonth(column, value) }
+
+    fun orWhereMonth(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.orWhereMonth(column, operator, value) }
+
+    fun whereYear(column: String, value: Any?): ModelBuilder<T> = apply { query.whereYear(column, value) }
+
+    fun whereYear(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.whereYear(column, operator, value) }
+
+    fun orWhereYear(column: String, value: Any?): ModelBuilder<T> = apply { query.orWhereYear(column, value) }
+
+    fun orWhereYear(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.orWhereYear(column, operator, value) }
+
+    fun whereTime(column: String, value: Any?): ModelBuilder<T> = apply { query.whereTime(column, value) }
+
+    fun whereTime(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.whereTime(column, operator, value) }
+
+    fun orWhereTime(column: String, value: Any?): ModelBuilder<T> = apply { query.orWhereTime(column, value) }
+
+    fun orWhereTime(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.orWhereTime(column, operator, value) }
+
+    fun groupBy(vararg columns: String): ModelBuilder<T> = apply { query.groupBy(*columns) }
+
+    fun having(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.having(column, operator, value) }
+
+    fun orHaving(column: String, operator: String, value: Any?): ModelBuilder<T> =
+        apply { query.orHaving(column, operator, value) }
+
+    @JvmOverloads
+    fun havingRaw(sql: String, bindings: List<Any?> = emptyList()): ModelBuilder<T> =
+        apply { query.havingRaw(sql, bindings) }
+
+    @JvmOverloads
+    fun orHavingRaw(sql: String, bindings: List<Any?> = emptyList()): ModelBuilder<T> =
+        apply { query.orHavingRaw(sql, bindings) }
 
     fun join(table: String, first: String, operator: String, second: String): ModelBuilder<T> =
         apply { query.join(table, first, operator, second) }

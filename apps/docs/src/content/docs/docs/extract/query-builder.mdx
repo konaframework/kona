@@ -83,9 +83,16 @@ Operators are checked against an allow-list (`=`, `<`, `>`, `<=`, `>=`, `<>`, `!
 | `whereColumn("a", "b")` / `whereColumn("a", ">", "b")` | compare two columns (no bindings) |
 | `orWhereColumn(…)` | column compare joined with `or` |
 | `whereRaw("lower(email) = ?", listOf(email))` / `orWhereRaw` | raw fragment with bindings |
+| `whereDate("born_at", date)` / `whereDate(col, op, value)` | compare `cast(col as date)` (also `orWhereDate`) |
+| `whereDay` / `whereMonth` / `whereYear` | `extract(… from col)` against a number (and `or…` forms) |
+| `whereTime("born_at", time)` / `whereTime(col, op, value)` | compare `cast(col as time)` (also `orWhereTime`) |
 | `when(condition) { … }` / `unless(condition) { … }` | apply a nested consumer only when the condition holds |
 | `tap { … }` | run a side-effect on the builder and keep chaining |
 | `orWhereNull` / `orWhereNotNull` / `orWhereIn` / `orWhereNotIn` | same as the `where…` forms, joined with `or` (also on model queries) |
+
+Date helpers accept `java.sql.Date` / `java.time.LocalDate` (and strings the driver accepts). Time helpers accept `java.sql.Time` / `java.time.LocalTime`. Prefer modern civil dates in tests — some drivers apply historical time-zone rules when casting very old timestamps to `time`.
+
+These filters (and the select / group / having helpers below) are mirrored on `ModelBuilder`, so `User.query().whereDate(…).groupBy(…).having(…)` works without dropping to `getQuery()`.
 
 ## Joins, grouping, ordering, paging
 
@@ -97,10 +104,19 @@ DB.table("posts")
     .select("posts.title", "users.name as author")
     .groupBy("posts.id", "users.name")
     .having("posts.votes", ">", 5)
+    .orHaving("posts.votes", "=", 0)
+    .havingRaw("sum(posts.votes) > ?", listOf(10))
+    .orHavingRaw("count(*) = ?", listOf(1))
     .orderBy("posts.created_at", "desc")                   // or orderByDesc / latest / oldest
     .offset(20).limit(10)                                  // or skip / take / forPage(page, perPage)
     .get()
 ```
+
+| Call | Meaning |
+|------|---------|
+| `groupBy("user_id", "status")` | `group by` wrapped columns |
+| `having("total", ">", 10)` / `orHaving(…)` | having clause with a bound value |
+| `havingRaw("sum(votes) > ?", listOf(10))` / `orHavingRaw` | raw having fragment |
 
 `orderBy` accepts `asc` or `desc`. `latest()` and `oldest()` order by `created_at` unless you pass a column. A negative `limit` removes the limit.
 
