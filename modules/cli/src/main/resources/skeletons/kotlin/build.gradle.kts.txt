@@ -14,7 +14,7 @@ repositories {
 dependencies {
     implementation("dev.kona:kona-http:{{konaVersion}}")
     implementation("dev.kona:kona-grind:{{konaVersion}}")
-    // Uncomment as you adopt each slice (or keep grind's transitive jars only):
+    // Uncomment as you adopt each slice:
     // implementation("dev.kona:kona-extract:{{konaVersion}}")
     // implementation("dev.kona:kona-session:{{konaVersion}}")
     // implementation("dev.kona:kona-auth:{{konaVersion}}")
@@ -25,11 +25,7 @@ dependencies {
 
 kotlin {
     jvmToolchain(21)
-    sourceSets["main"].kotlin.setSrcDirs(listOf("app", "bootstrap", "database", "routes"))
 }
-
-sourceSets["main"].java.setSrcDirs(emptyList<String>())
-sourceSets["main"].resources.setSrcDirs(listOf("resources"))
 
 application {
     mainClass.set("bootstrap.App")

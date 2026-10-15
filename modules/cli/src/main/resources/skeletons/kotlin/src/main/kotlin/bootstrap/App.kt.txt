@@ -1,0 +1,36 @@
+package bootstrap
+
+import app.providers.AppServiceProvider
+import dev.kona.core.Application
+import dev.kona.core.Env
+import dev.kona.core.Kona
+import dev.kona.http.HttpKernel
+import dev.kona.http.HttpServiceProvider
+import dev.kona.http.KonaHttpServer
+import dev.kona.http.Router
+import routes.ApiRoutes
+import routes.WebRoutes
+
+/**
+ * Application entry. `grind serve --in-process` calls [create]; `./gradlew run` calls [main].
+ */
+object App {
+    @JvmStatic
+    fun create(args: Array<String>): Application {
+        val app = Kona.create(args)
+            .providers(HttpServiceProvider(), AppServiceProvider())
+            .afterBoot { Middleware.configure(it) }
+            .boot()
+        WebRoutes().register(app.resolve(Router::class.java))
+        ApiRoutes().register(app.resolve(Router::class.java))
+        return app
+    }
+
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val app = create(args)
+        val host = Env.getOrDefault("HOST", "127.0.0.1")
+        val port = Env.getOrDefault("PORT", "8080").toInt()
+        KonaHttpServer(app.resolve(HttpKernel::class.java), host, port).start()
+    }
+}

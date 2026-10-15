@@ -4,6 +4,7 @@ import dev.kona.http.Handler
 import dev.kona.http.Middleware
 import dev.kona.http.Request
 import dev.kona.http.Response
+import dev.kona.http.TrustProxies
 
 /**
  * HTTP throttle middleware using a named [RateLimiter] definition.
@@ -14,10 +15,15 @@ class ThrottleRequests @JvmOverloads constructor(
     private val rateLimiter: RateLimiter,
     private val limiterName: String,
     private val keyResolver: (Request) -> String = { req ->
-        req.header("X-Forwarded-For")
-            ?: req.header("X-Real-IP")
-            ?: req.getAttribute("ip")?.toString()
-            ?: "global"
+        val trusted = req.getAttribute(TrustProxies.CLIENT_IP)
+        when {
+            trusted != null -> trusted.toString()
+            else ->
+                req.header("X-Forwarded-For")
+                    ?: req.header("X-Real-IP")
+                    ?: req.getAttribute("ip")?.toString()
+                    ?: "global"
+        }
     },
 ) : Middleware {
     override fun handle(request: Request, next: Handler): Response {

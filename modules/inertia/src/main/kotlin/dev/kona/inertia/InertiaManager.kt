@@ -31,7 +31,7 @@ class InertiaManager(
 
     /** Vite entry points injected as `{!! vite !!}` in the Crema root view. */
     @Volatile
-    var viteEntries: List<String> = listOf("resources/js/app.js")
+    var viteEntries: List<String> = listOf("src/main/resources/js/app.js")
 
     private val sharedProps = ConcurrentHashMap<String, Any?>()
     private val requestShared = ThreadLocal.withInitial { linkedMapOf<String, Any?>() }

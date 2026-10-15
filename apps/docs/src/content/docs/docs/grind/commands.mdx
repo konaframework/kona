@@ -31,7 +31,7 @@ Default host is **127.0.0.1**. If no Gradle project is found, grind exits and te
 ./grind make:controller AccountController --lang=java
 ```
 
-Writes under `app/Http/Controllers`. Names cannot contain path separators; invalid identifiers are rejected. Language defaults from existing `.java` / `.kt` files under `app/`, or pass `--lang=`.
+Writes under `src/main/kotlin|java/app/http/controllers/`. Names cannot contain path separators; invalid identifiers are rejected. Language defaults from existing `.java` files under `src/main/java/`, or pass `--lang=`.
 
 Unlike `serve`, `make:controller` does not walk upward from nested folders unless you pass `--base=`.
 

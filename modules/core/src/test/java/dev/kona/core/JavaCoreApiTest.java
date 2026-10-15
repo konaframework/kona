@@ -112,5 +112,12 @@ class JavaCoreApiTest {
 
         assertTrue(Application.builder().build().isBooted());
         assertTrue(new Application.Builder().build().getBasePath().isAbsolute());
+
+        PathLayout layout = PathLayout.detect(base);
+        assertEquals(base.resolve("src/main/kotlin"), layout.getLangRoot());
+        assertEquals(PathLayout.KOTLIN_ROOT, PathLayout.detectLangRoot(base));
+        Application.builder(base)
+            .afterBoot(booted -> assertEquals(booted.appPath(), Paths.app()))
+            .boot();
     }
 }

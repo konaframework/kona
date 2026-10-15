@@ -14,7 +14,7 @@ Kona application (Kotlin) — **Crema** starter kit.
 
 - `dev.kona:kona-crema` dependency
 - `CremaServiceProvider` registered in `bootstrap/App.kt`
-- `resources/views/welcome.crema.html` rendered by `WelcomeController`
+- `src/main/resources/views/welcome.crema.html` rendered by `WelcomeController`
 
 ## Resolving Kona artifacts
 

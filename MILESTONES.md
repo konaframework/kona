@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** none — Almasix ledger through M13 complete (maintenance).
+**Active milestone:** **M14 — Complete app tree under `src/main`** (`milestone/M14-complete-app-tree`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -513,4 +513,44 @@ flowchart LR
   M12 --> M13[M13_IDE]
 ```
 
-After M13, further product work (Orbit-class admin, etc.) becomes new numbered milestones with the same DoD — do not start them until M13 is on `main` unless a human explicitly opens a new milestone section here first.
+After M13, further product work becomes new numbered milestones with the same DoD — opened explicitly by a human in this file.
+
+---
+
+## M14 — Complete app tree under `src/main`
+
+**Status:** active  
+
+**Branch:** `milestone/M14-complete-app-tree`
+
+**Parity slice:** Almasix-shaped application layout nested in JVM `src/main`, path helpers, bootstrap middleware configurator (trust proxies/hosts), complete `kona new` scaffolder + samples.
+
+### Parity checklist
+
+- [x] `PathLayout` + `appPath` / `storagePath` / `configPath` / `resourcePath` / `viewPath` / `publicPath` / `databasePath` / …
+- [x] Config load from `src/main/resources/config` (legacy `config/` fallback)
+- [x] Crema default views via `viewPath()`
+- [x] `TrustProxies` + `TrustHosts` + `HttpMiddleware` (alias / web / api / trust*)
+- [x] `kona new` emits full tree: `.env` + `.env.example`, `storage/`, `src/main/…` app/bootstrap/routes/database, resources (config/views/css/js/public/lang)
+- [x] `bootstrap/App` + `bootstrap/Middleware` (Almasix-shaped)
+- [x] hello-kotlin / hello-java re-scaffolded from that layout; HTTP smoke
+- [x] grind `make:*` aligned with path layout
+- [x] Docs + HANDOFF
+
+### In-scope modules
+
+`kona-core`, `kona-http`, `kona-crema` (view path), `kona-cli` skeletons, `kona-grind` generators, `samples/hello-*`, `apps/docs/`
+
+### Next (queued)
+
+**M15 — Extract / Model Laravel parity** — open immediately after M14 merges; exhaust Eloquent-shaped gaps.
+
+---
+
+## Sequence (extended)
+
+```mermaid
+flowchart LR
+  M13[M13_IDE] --> M14[M14_App_Tree]
+  M14 --> M15[M15_Extract_Model]
+```

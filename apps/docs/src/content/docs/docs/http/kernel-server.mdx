@@ -99,6 +99,32 @@ Response head = kernel.handle(new Request("HEAD", "/api/health"));
 assert head.getBody().isEmpty();
 ```
 
+## Bootstrap middleware (`HttpMiddleware`)
+
+Generated apps configure middleware from `bootstrap/Middleware` via `.afterBoot`:
+
+```kotlin
+HttpMiddleware()
+    .alias("mark") { RequestIdMiddleware() }
+    .web(prepend = listOf("mark"))
+    // .trustProxies(at = listOf("*"))
+    // .trustHosts(at = listOf("example.com", "*.example.com"))
+    .apply(app)
+```
+
+```java
+new HttpMiddleware()
+    .alias("mark", RequestIdMiddleware::new)
+    .web(List.of("mark"), List.of())
+    // .trustProxies(List.of("*"))
+    // .trustHosts(List.of("example.com", "*.example.com"))
+    .apply(app);
+```
+
+- **`trustProxies`** — when the immediate peer is trusted (or `*`), copy `X-Forwarded-*` / `X-Real-IP` onto request attributes (`kona.clientIp`, `kona.scheme`, `kona.host`, `kona.port`).
+- **`trustHosts`** — reject requests whose `Host` header is not in the allow-list (exact or `*.example.com`).
+- **`web` / `api`** — named stacks resolved from aliases; `apply` pushes trust middleware and the `web` stack onto the kernel. Use `apiStack()` when grouping API routes.
+
 ## Managing global middleware
 
 Global middleware is middleware that runs for **every** request, matched or not. The kernel exposes a small API for it:
@@ -215,7 +241,7 @@ A **virtual thread** is a lightweight thread managed by the JVM (JDK 21 and late
 
 ## `HOST` and `PORT`
 
-Applications created by `kona new` start the server in `bootstrap/App`’s `main` function, reading the bind address from the environment:
+Applications created by `kona new` start the server in `bootstrap.App`’s `main` function (`src/main/…/bootstrap/App`), reading the bind address from the environment:
 
 ```kotlin
 val host = Env.getOrDefault("HOST", "127.0.0.1")

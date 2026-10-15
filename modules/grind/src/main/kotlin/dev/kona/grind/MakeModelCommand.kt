@@ -6,8 +6,8 @@ import java.nio.file.Path
 /**
  * `grind make:model <Name> [--migration] [--factory] [--seeder] [--all] [--lang=kotlin|java]`.
  *
- * Writes `app/Models/<Name>`; the flags also write `database/migrations/Create<Table>Table`,
- * `database/factories/<Name>Factory`, and `database/seeders/<Name>Seeder`.
+ * Writes `src/main/.../app/models/<Name>`; flags also write migrations/factories/seeders
+ * under the same language root (`database.migrations`, etc.).
  */
 class MakeModelCommand {
     fun run(args: List<String>): Int {
@@ -20,7 +20,7 @@ class MakeModelCommand {
         val base = Names.base(options)
         val lang = Names.lang(base, options)
         val all = options["all"] == "true"
-        Names.write(base, "app/Models/$name.${Names.extension(lang)}", "Model", modelStub(name, lang))
+        Names.write(base, Names.sourceFile(lang, "app/models", name), "Model", modelStub(name, lang))
         if (all || options["migration"] == "true") {
             val table = Extract.tableNameFor(name)
             MakeMigrationCommand().write(base, "Create${Names.studly(table)}Table", lang, MakeMigrationCommand.Mode.CREATE, table)
@@ -36,7 +36,7 @@ class MakeModelCommand {
 
     private fun modelStub(name: String, lang: String): String = if (lang == "java") {
         lines(
-            "package app.Models;",
+            "package app.models;",
             "",
             "import dev.kona.extract.Extract;",
             "import dev.kona.extract.ExtractCompanion;",
@@ -53,7 +53,7 @@ class MakeModelCommand {
         )
     } else {
         lines(
-            "package app.Models",
+            "package app.models",
             "",
             "import dev.kona.extract.Extract",
             "import dev.kona.extract.ExtractCompanion",
@@ -67,7 +67,7 @@ class MakeModelCommand {
     }
 }
 
-/** `grind make:factory <Name>Factory [--model=Name] [--lang=kotlin|java]` → `database/factories/`. */
+/** `grind make:factory <Name>Factory [--model=Name] [--lang=kotlin|java]`. */
 class MakeFactoryCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
@@ -90,7 +90,7 @@ class MakeFactoryCommand {
                 lines(
                     "package database.factories;",
                     "",
-                    "import app.Models.$model;",
+                    "import app.models.$model;",
                     "import dev.kona.extract.factory.Factory;",
                     "import java.util.Map;",
                     "",
@@ -111,7 +111,7 @@ class MakeFactoryCommand {
                 lines(
                     "package database.factories",
                     "",
-                    "import app.Models.$model",
+                    "import app.models.$model",
                     "import dev.kona.extract.factory.Factory",
                     "",
                     "class $className : Factory<$model>($model::class.java) {",
@@ -121,12 +121,12 @@ class MakeFactoryCommand {
                     "}",
                 )
             }
-            Names.write(base, "database/factories/$className.${Names.extension(lang)}", "Factory", content)
+            Names.write(base, Names.sourceFile(lang, "database/factories", className), "Factory", content)
         }
     }
 }
 
-/** `grind make:seeder <Name>Seeder [--lang=kotlin|java]` → `database/seeders/`. */
+/** `grind make:seeder <Name>Seeder [--lang=kotlin|java]`. */
 class MakeSeederCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
@@ -168,7 +168,7 @@ class MakeSeederCommand {
                     "}",
                 )
             }
-            Names.write(base, "database/seeders/$className.${Names.extension(lang)}", "Seeder", content)
+            Names.write(base, Names.sourceFile(lang, "database/seeders", className), "Seeder", content)
         }
     }
 }

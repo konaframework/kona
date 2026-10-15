@@ -34,6 +34,7 @@ class CliTest {
         listOf(
             "README.md",
             ".env",
+            ".env.example",
             ".gitignore",
             "settings.gradle.kts",
             "build.gradle.kts",
@@ -43,14 +44,19 @@ class CliTest {
             "grind.bat",
             "gradle/wrapper/gradle-wrapper.jar",
             "gradle/wrapper/gradle-wrapper.properties",
-            "bootstrap/App.kt",
-            "app/Providers/AppServiceProvider.kt",
-            "app/Http/Controllers/WelcomeController.kt",
-            "routes/web.kt",
+            "src/main/kotlin/bootstrap/App.kt",
+            "src/main/kotlin/bootstrap/Middleware.kt",
+            "src/main/kotlin/app/providers/AppServiceProvider.kt",
+            "src/main/kotlin/app/http/controllers/WelcomeController.kt",
+            "src/main/kotlin/routes/WebRoutes.kt",
+            "src/main/kotlin/routes/ApiRoutes.kt",
+            "src/main/resources/config/app.json",
+            "src/main/resources/config/paths.json",
+            "storage/logs/.gitkeep",
         ).forEach { assertTrue(Files.isRegularFile(kt.resolve(it)), it) }
         assertTrue(Files.isExecutable(kt.resolve("gradlew")))
         assertTrue(Files.isExecutable(kt.resolve("grind")))
-        assertFalse(Files.exists(kt.resolve("routes/web.kt.txt")))
+        assertFalse(Files.exists(kt.resolve("src/main/kotlin/routes/WebRoutes.kt.txt")))
 
         val versions = KonaVersions.load()
         assertTrue(Files.readString(kt.resolve(".env")).contains("APP_NAME=appkt\n"))
@@ -118,8 +124,8 @@ class CliTest {
         val crema = temp.resolve("crema-app")
         assertEquals(0, NewCommand().run(listOf(crema.toString(), "--kit=crema")))
         assertTrue(Files.readString(crema.resolve("build.gradle.kts")).contains("kona-crema"))
-        assertTrue(Files.isRegularFile(crema.resolve("resources/views/welcome.crema.html")))
-        assertTrue(Files.readString(crema.resolve("bootstrap/App.kt")).contains("CremaServiceProvider"))
+        assertTrue(Files.isRegularFile(crema.resolve("src/main/resources/views/welcome.crema.html")))
+        assertTrue(Files.readString(crema.resolve("src/main/kotlin/bootstrap/App.kt")).contains("CremaServiceProvider"))
         assertTrue(Files.readString(crema.resolve("README.md")).contains("Crema"))
 
         val inertia = temp.resolve("inertia-app")
@@ -127,20 +133,20 @@ class CliTest {
         assertTrue(Files.readString(inertia.resolve("build.gradle.kts")).contains("kona-inertia"))
         assertTrue(Files.isRegularFile(inertia.resolve("package.json")))
         assertTrue(Files.isRegularFile(inertia.resolve("vite.config.js")))
-        assertTrue(Files.isRegularFile(inertia.resolve("resources/js/app.js")))
-        assertTrue(Files.isRegularFile(inertia.resolve("app/Http/Middleware/HandleInertia.kt")))
-        assertTrue(Files.readString(inertia.resolve("app/Http/Controllers/WelcomeController.kt")).contains("Inertia.render"))
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/app.js")))
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/kotlin/app/http/middleware/HandleInertia.kt")))
+        assertTrue(Files.readString(inertia.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt")).contains("Inertia.render"))
 
         val brew = temp.resolve("brew-app")
         assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew")))
         assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-brew"))
-        assertTrue(Files.isRegularFile(brew.resolve("app/Brew/Counter.kt")))
-        assertTrue(Files.readString(brew.resolve("bootstrap/App.kt")).contains("BrewServiceProvider"))
+        assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
+        assertTrue(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("BrewServiceProvider"))
 
         val javaInertia = temp.resolve("java-inertia")
         assertEquals(0, NewCommand().run(listOf(javaInertia.toString(), "--lang=java", "--kit=inertia")))
         assertTrue(Files.readString(javaInertia.resolve("build.gradle.kts")).contains("kona-inertia"))
-        assertTrue(Files.isRegularFile(javaInertia.resolve("app/Http/Middleware/HandleInertia.java")))
+        assertTrue(Files.isRegularFile(javaInertia.resolve("src/main/java/app/http/middleware/HandleInertia.java")))
 
         assertEquals(1, KonaApplication().run(arrayOf("new", temp.resolve("badkit").toString(), "--kit=nope")))
         assertThrows(KonaCliException::class.java) {

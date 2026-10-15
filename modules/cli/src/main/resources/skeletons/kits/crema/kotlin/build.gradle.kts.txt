@@ -19,11 +19,7 @@ dependencies {
 
 kotlin {
     jvmToolchain(21)
-    sourceSets["main"].kotlin.setSrcDirs(listOf("app", "bootstrap", "database", "routes"))
 }
-
-sourceSets["main"].java.setSrcDirs(emptyList<String>())
-sourceSets["main"].resources.setSrcDirs(listOf("resources"))
 
 application {
     mainClass.set("bootstrap.App")
