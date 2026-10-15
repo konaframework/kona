@@ -5,7 +5,8 @@ const base = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
 
-const brandSrc = `${base}branding/kona-banner-dark.svg`;
+const brandLight = `${base}branding/kona-banner.svg`;
+const brandDark = `${base}branding/kona-banner-dark.svg`;
 const docsHub = `${base}docs/`;
 const install = `${base}docs/guides/installation/`;
 const introduction = `${base}docs/guides/introduction/`;
@@ -27,6 +28,7 @@ const github = 'https://github.com/konaframework/kona';
       content="Kotlin-first, Java first-class web framework for the JVM. Routes, Extract, Crema, and grind — build full-stack apps with one toolkit."
     />
     <meta name="theme-color" content="#FF9A00" />
+    <meta name="color-scheme" content="dark light" />
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -34,14 +36,64 @@ const github = 'https://github.com/konaframework/kona';
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@600;700&display=swap"
       rel="stylesheet"
     />
+    {/* Match Starlight ThemeProvider — same key so docs + landing stay in sync. */}
+    <script is:inline>
+      (() => {
+        const stored =
+          typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+        const theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
   </head>
   <body class="landing">
+    <header class="landing-top">
+      <a class="landing-top__home" href={base} aria-label="Kona home">
+        <img class="landing-brand landing-brand--for-dark" src={brandDark} width="140" height="49" alt="" />
+        <img class="landing-brand landing-brand--for-light" src={brandLight} width="140" height="49" alt="" />
+      </a>
+      <div class="landing-top__actions">
+        <a class="landing-top__link" href={docsHub}>Docs</a>
+        <button
+          type="button"
+          class="landing-theme"
+          id="landing-theme-toggle"
+          aria-label="Toggle color theme"
+          title="Toggle color theme"
+        >
+          <span class="landing-theme__icon landing-theme__icon--moon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" />
+            </svg>
+          </span>
+          <span class="landing-theme__icon landing-theme__icon--sun" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+            </svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
     <main>
       <section class="landing-hero" aria-label="Kona">
         <div class="landing-hero__inner">
           <img
-            class="landing-hero__brand"
-            src={brandSrc}
+            class="landing-hero__brand landing-brand--for-dark"
+            src={brandDark}
+            width="224"
+            height="79"
+            alt="Kona"
+          />
+          <img
+            class="landing-hero__brand landing-brand--for-light"
+            src={brandLight}
             width="224"
             height="79"
             alt="Kona"
@@ -117,5 +169,47 @@ const github = 'https://github.com/konaframework/kona';
         <a href={github} rel="noopener noreferrer">konaframework/kona</a>
       </p>
     </footer>
+
+    <script is:inline>
+      (() => {
+        const storageKey = 'starlight-theme';
+        const root = document.documentElement;
+        const btn = document.getElementById('landing-theme-toggle');
+
+        function preferred() {
+          return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+
+        function loadStored() {
+          const v = localStorage.getItem(storageKey);
+          return v === 'light' || v === 'dark' ? v : null;
+        }
+
+        function apply(theme) {
+          root.dataset.theme = theme;
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'light' ? '#F0F4F8' : '#0B1622');
+          if (btn) {
+            btn.setAttribute(
+              'aria-label',
+              theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
+            );
+            btn.title = theme === 'light' ? 'Dark mode' : 'Light mode';
+          }
+        }
+
+        apply(loadStored() || preferred());
+
+        btn?.addEventListener('click', () => {
+          const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+          localStorage.setItem(storageKey, next);
+          apply(next);
+        });
+
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+          if (!loadStored()) apply(preferred());
+        });
+      })();
+    </script>
   </body>
 </html>

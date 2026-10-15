@@ -13,10 +13,10 @@ Stack: **Astro + Starlight + `@almasix/starlight-theme`**, pnpm workspace, Cloud
 
 | URL | Role |
 |-----|------|
-| `/` (`apps/docs/src/pages/index.astro`) | **Marketing landing** — brand-first Astro page (not Starlight chrome). Styles in `apps/docs/src/styles/landing.css`. |
+| `/` (`apps/docs/src/pages/index.astro`) | **Marketing landing** — brand-first Astro page (not Starlight chrome). Styles in `apps/docs/src/styles/landing.css`. Light + dark via `html[data-theme]`, synced with Starlight’s `localStorage` key `starlight-theme`. |
 | `/docs/` (`src/content/docs/docs/index.mdx`) | **Documentation hub** — Starlight splash into guides and reference. |
 
-Respect `PUBLIC_BASE_PATH` (e.g. `/kona/` on GitHub Pages) for asset and CTA links on the landing page.
+Respect `PUBLIC_BASE_PATH` (e.g. `/kona/` on GitHub Pages) for asset and CTA links on the landing page. Theme preference on `/` must match `/docs/` (same storage key; effective values `light` / `dark`).
 
 Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) (globs `apps/docs/**`).
 
