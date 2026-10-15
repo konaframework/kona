@@ -3,11 +3,16 @@ title: Getting started with Crema
 description: Render HTML views with Crema templates from Kotlin or Java.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 **Crema** is Kona’s server-side view engine. Templates live under `src/main/resources/views` as `*.crema.html` (or `*.crema.kt`) and use `@` directives plus `{{ }}` echoes. Crema was inspired by familiar server-side template menus; this guide describes Crema on its own terms.
 
 ## Render a view
 
 Register `CremaServiceProvider`, then resolve `CremaEngine`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val html = app.resolve(CremaEngine::class.java)
@@ -15,11 +20,17 @@ val html = app.resolve(CremaEngine::class.java)
 return Response.html(html)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 String html = app.resolve(CremaEngine.class)
     .render("home", Map.of("name", "Ada"));
 return Response.html(html);
 ```
+
+</TabItem>
+</Tabs>
 
 `Crema.view(engine, name, data)` builds an HTML `Response` in one call. `View.with(...)` accumulates data before `render()` / `toResponse()`.
 

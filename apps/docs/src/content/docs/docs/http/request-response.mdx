@@ -3,6 +3,8 @@ title: Request & response
 description: Read headers, query strings, form fields, and JSON from a Request, and build text, HTML, JSON, or empty Responses.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Every piece of HTTP code in Kona works with two small classes from the `dev.kona.http` package:
 
 - **`Request`** — an immutable snapshot of what the client sent: method, path, headers, query string, and body. It also carries a mutable **attributes** map that Kona and your middleware use to pass values along (route parameters live there).
@@ -27,6 +29,9 @@ Because the request is fully read before your code runs, `body` is always a comp
 
 You can also build requests yourself, which is how most HTTP tests in Kona are written — you hand the request straight to the kernel without opening a socket:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val get = Request.get("/users/42")
 val form = Request.post("/login", "email=ada%40example.com&password=secret")
@@ -37,6 +42,9 @@ val json = Request(
     body = """{"name":"Ada","age":36}""",
 )
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 Request get = Request.get("/users/42");
@@ -50,6 +58,9 @@ Request json = new Request(
 );
 ```
 
+</TabItem>
+</Tabs>
+
 The constructor’s trailing parameters are optional in both languages: Java can call `new Request("DELETE", "/users/42")` and stop there. `Request.post` takes the body as a second argument; Kotlin may omit it, Java passes it explicitly (use `""` for an empty body).
 
 In Java, the fields are read through getters: `getMethod()`, `getPath()`, `getHeaders()`, `getQuery()`, `getBody()`, `getAttributes()`.
@@ -58,15 +69,24 @@ In Java, the fields are read through getters: `getMethod()`, `getPath()`, `getHe
 
 Use `header(name)` to read a header. The lookup is **case-insensitive**, so `header("content-type")` and `header("Content-Type")` return the same value. A second overload supplies a default when the header is absent.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val agent = request.header("User-Agent")              // String? — null when missing
 val accept = request.header("Accept", "*/*")          // falls back to "*/*"
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 String agent = request.header("User-Agent");           // may be null
 String accept = request.header("Accept", "*/*");
 ```
+
+</TabItem>
+</Tabs>
 
 Prefer `header(...)` over reading the `headers` map directly. The map keeps the names exactly as the server delivered them, and map lookups are case-sensitive.
 
@@ -93,17 +113,26 @@ The parsed query string, exactly as described in the table above. `request.query
 - `input(key, default)` looks in the **query string first**, then in `form()`, and returns `default` when neither has the key.
 - `all()` merges both into one map. When a name exists in both, the **body value wins**.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val page = request.input("page", "1")
 val search = request.input("q")            // default is null
 val everything: Map<String, String> = request.all()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 String page = request.input("page", "1");
 String search = request.input("q", null);  // Java passes the default explicitly
 Map<String, String> everything = request.all();
 ```
+
+</TabItem>
+</Tabs>
 
 ## Typed JSON with `data()`
 
@@ -121,17 +150,26 @@ Map<String, String> everything = request.all();
 
 When the request is JSON (same `Content-Type` check as above), `data()` returns the query string merged with the parsed body object, with body keys winning on conflict. For every other request, `data()` returns `all()`, so all values are strings.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val payload = request.data()
 val tags = payload["tags"] as? List<*> ?: emptyList<Any>()
 val active = payload["active"] == true
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Map<String, Object> payload = request.data();
 Object tags = payload.get("tags");         // a java.util.List for a JSON array
 boolean active = Boolean.TRUE.equals(payload.get("active"));
 ```
+
+</TabItem>
+</Tabs>
 
 [Validation](../validation/) reads input through `data()`, which is why rules such as `boolean`, `array`, and `integer` behave correctly for JSON bodies.
 
@@ -143,15 +181,24 @@ If the body is labelled JSON but is not valid JSON, `form()`, `input()`, `all()`
 
 `attributes` is a mutable map that lives for exactly one request. It is the standard place for one stage of the pipeline to hand data to a later one: an authentication middleware stores the current user, a handler reads it.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 request.setAttribute("user", currentUser)  // returns the Request, so calls chain
 val user = request.getAttribute("user") as User?
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 request.setAttribute("user", currentUser);
 User user = (User) request.getAttribute("user");
 ```
+
+</TabItem>
+</Tabs>
 
 The kernel writes **route parameters** here before your handler runs. For a route `/users/{id}` and the path `/users/42`, both `getAttribute("id")` and `getAttribute("route.id")` return `"42"` (always a `String`). Use the `route.` form when a plain name could collide with something your middleware stores.
 
@@ -170,6 +217,9 @@ Four static factories cover the common cases. Each sets a `Content-Type` header 
 
 `json` accepts any value the bundled Jackson serializer understands: maps, lists, strings, numbers, booleans, `null` (serialized as `null`), Kotlin data classes, Java records, and ordinary classes with getters.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 data class UserView(val id: Int, val name: String)
 
@@ -179,6 +229,9 @@ router.get("/users/{id}") { Response.json(UserView(42, "Ada")) }
 router.post("/users") { Response.json(mapOf("id" to 43), 201) }
 router.delete("/users/{id}") { Response.noContent() }
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 record UserView(int id, String name) {}
@@ -190,6 +243,9 @@ router.post("/users", request -> Response.json(Map.of("id", 43), 201));
 router.delete("/users/{id}", request -> Response.noContent());
 ```
 
+</TabItem>
+</Tabs>
+
 ### Adjusting a response
 
 `Response` has three public, mutable parts: `status`, `body`, and `headers`. The fluent helpers each change one part and return the same object:
@@ -198,6 +254,9 @@ router.delete("/users/{id}", request -> Response.noContent());
 - `withStatus(code)` changes the status.
 - `withBody(content)` replaces the body.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 return Response.json(mapOf("ok" to true))
     .withStatus(202)
@@ -205,12 +264,18 @@ return Response.json(mapOf("ok" to true))
     .header("Cache-Control", "no-store")
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 return Response.json(Map.of("ok", true))
     .withStatus(202)
     .header("Location", "/jobs/7")
     .header("Cache-Control", "no-store");
 ```
+
+</TabItem>
+</Tabs>
 
 The no-argument constructor (`Response()` / `new Response()`) gives status `200`, an empty body, and a `text/plain` content type; it is handy when middleware builds a response from scratch. In Java, `getStatus()`/`setStatus(...)`, `getBody()`/`setBody(...)`, and `getHeaders()` expose the same fields.
 

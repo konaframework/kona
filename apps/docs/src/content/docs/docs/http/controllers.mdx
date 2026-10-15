@@ -3,11 +3,16 @@ title: Controllers
 description: Organize HTTP handlers into controller classes, invokable actions, resource controllers, and form-request validation.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 A **controller** is a class that groups related HTTP actions. Instead of putting every route closure in a service provider, you point routes at controller methods. Controllers keep validation, authorization, and response shaping next to each other.
 
 ## Base controller
 
 Extend `Controller` when you want the shared `validate` helpers:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class NotesController : Controller() {
@@ -20,6 +25,9 @@ class NotesController : Controller() {
 router.post("/notes") { notes.store(it) }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 public class NotesController extends Controller {
     public Response store(Request request) {
@@ -31,11 +39,17 @@ public class NotesController extends Controller {
 router.post("/notes", notes::store);
 ```
 
+</TabItem>
+</Tabs>
+
 `validate` throws `ValidationException` (HTTP 422) when rules fail — the same path as `request.validate(...)`.
 
 ## Form requests
 
 A **form request** is a small object that owns validation rules (and optional authorization) for one action:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class StoreNoteRequest : FormRequest() {
@@ -54,6 +68,9 @@ class NotesController : Controller() {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 public class StoreNoteRequest extends FormRequest {
     @Override
@@ -68,25 +85,40 @@ public class StoreNoteRequest extends FormRequest {
 }
 ```
 
+</TabItem>
+</Tabs>
+
 If `authorize` returns `false`, Kona throws `HttpException` with status **403**. Otherwise the rules run through the validator.
 
 ## Invokable controllers
 
 When a route has a single action, implement `InvokableController` and register `asHandler()`:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val ping = InvokableController { Response.text("pong") }
 router.get("/ping", ping.asHandler()).name("ping")
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 InvokableController ping = request -> Response.text("pong");
 router.get("/ping", Controllers.asHandler(ping)).name("ping");
 ```
 
+</TabItem>
+</Tabs>
+
 ## Resource controllers
 
 `Router.resource(name, controller)` wires the conventional REST map onto a `ResourceController` (`index`, `show`, `store`, `update`, `destroy`). Extend `BaseResourceController` when you only need some of those actions — unimplemented ones throw `NotFoundException`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class NotesController : BaseResourceController() {
@@ -99,6 +131,9 @@ class NotesController : BaseResourceController() {
 
 router.resource("notes", NotesController())
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 public class NotesController extends BaseResourceController {
@@ -115,6 +150,9 @@ public class NotesController extends BaseResourceController {
 
 router.resource("notes", new NotesController());
 ```
+
+</TabItem>
+</Tabs>
 
 ## Next steps
 

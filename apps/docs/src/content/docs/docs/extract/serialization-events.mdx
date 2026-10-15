@@ -62,6 +62,7 @@ Response.json(user.toMap());
 </TabItem>
 </Tabs>
 
+
 Loaded relations appear under their relation names. Soft-deleted timestamps and other cast columns use their cast Java types in the map (for example `Instant`).
 
 ## Collections
@@ -128,5 +129,6 @@ user.deleteQuietly();
 
 </TabItem>
 </Tabs>
+
 
 Call `ModelDispatcher.flush()` in tests to clear listeners between cases. Nested `withoutEvents` blocks nest safely (a depth counter).

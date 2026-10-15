@@ -3,9 +3,14 @@ title: Logging
 description: Write structured application logs through channels, shared context, and the Log facade.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Kona’s `Log` facade sits on top of SLF4J. Use it from HTTP handlers, jobs, and boot code without wiring a logger by hand.
 
 ## Levels
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Log.info("Application started")
@@ -15,6 +20,9 @@ Log.error("Payment failed")
 Log.error("Payment failed", exception)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Log.info("Application started");
 Log.debug("Resolved route home");
@@ -23,9 +31,15 @@ Log.error("Payment failed");
 Log.error("Payment failed", exception);
 ```
 
+</TabItem>
+</Tabs>
+
 ## Channels
 
 A **channel** is a named SLF4J logger. Separate noisy domains (`orders`, `billing`) from the default `kona` channel:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Log.channel("orders").info("Order placed")
@@ -33,17 +47,26 @@ Log.setDefaultChannel("api")
 Log.info("uses the api channel")
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Log.channel("orders").info("Order placed");
 Log.setDefaultChannel("api");
 Log.info("uses the api channel");
 ```
 
+</TabItem>
+</Tabs>
+
 `Log.stack("a", "b")` returns a channel for the first name (a convenience when you already think in “stack” terms).
 
 ## Shared context
 
 Attach request-scoped fields once; every subsequent message on a channel includes them until you flush:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Log.shareContext(mapOf("requestId" to "r-1", "userId" to 42))
@@ -54,12 +77,18 @@ Log.channel("orders").with(mapOf("orderId" to 9)).info("charged")
 Log.flushSharedContext()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Log.shareContext(Map.of("requestId", "r-1", "userId", 42));
 Log.info("Handling checkout");
 Log.channel("orders").with(Map.of("orderId", 9)).info("charged");
 Log.flushSharedContext();
 ```
+
+</TabItem>
+</Tabs>
 
 `withContext` merges values and returns the default channel for chaining. Prefer flushing at the end of each HTTP request (for example in middleware) so context does not leak across virtual threads.
 

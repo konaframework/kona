@@ -3,6 +3,8 @@ title: Brew forms
 description: Sync inputs with component state using wire:model and submit actions.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Forms in Brew keep input values on the **server component** and refresh the fragment after sync or submit.
 
 ## Model binding
@@ -19,6 +21,9 @@ Bind an input to a public field:
 ```
 
 On `change`, `brew.js` posts method `sync` with `{ "email": "<current value>" }`. Checkboxes send booleans.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class ProfileForm : Component() {
@@ -92,6 +97,9 @@ class Newsletter : Component() {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 public class Newsletter extends Component {
     public String email = "";
@@ -110,6 +118,9 @@ public class Newsletter extends Component {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 ## Layout checklist
 

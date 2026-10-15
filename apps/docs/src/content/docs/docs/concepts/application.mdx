@@ -69,6 +69,7 @@ public final class AppServiceProvider implements ServiceProvider {
 </TabItem>
 </Tabs>
 
+
 Here `boot` resolves `Router`, which `HttpServiceProvider` bound during *its* `register`. Because of the two-phase order, this works no matter whether `HttpServiceProvider` is listed before or after `AppServiceProvider`.
 
 In Kotlin, `boot` has an empty default and may be omitted. Java providers must implement both methods (an empty `boot` is fine).
@@ -101,6 +102,7 @@ Application app = Kona.create(args)
 
 </TabItem>
 </Tabs>
+
 
 The overloads choose the base path:
 
@@ -140,6 +142,7 @@ Application app = Application.builder(Path.of("/srv/demo"))
 
 </TabItem>
 </Tabs>
+
 
 Builder methods, all chainable:
 
@@ -246,6 +249,7 @@ class AppTest {
 
 </TabItem>
 </Tabs>
+
 
 The empty temporary directory means no `.env` and no `config/`, so the test sees only defaults and what the test itself configures.
 

@@ -51,3 +51,8 @@ a:not(.sl-link-button):hover {
   border-left: 3px solid var(--kona-primary);
   padding-left: 1rem;
 }
+
+/* Keep inactive Starlight tab panels hidden (unlayered so it wins over theme CSS). */
+starlight-tabs [role='tabpanel'][hidden] {
+  display: none;
+}

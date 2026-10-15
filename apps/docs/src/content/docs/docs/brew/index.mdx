@@ -3,6 +3,8 @@ title: Getting started with Brew
 description: Build reactive server components with Brew and update the page without full reloads.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 **Brew** is Kona’s reactive UI layer: stateful components live on the server, render HTML, and refresh in the browser when the user clicks or submits a form.
 
 (Brief nod: Brew sits in the same problem space as popular full-stack reactive component tools; this guide describes Brew on its own terms.)
@@ -15,17 +17,26 @@ description: Build reactive server components with Brew and update the page with
 
 ## Register the provider
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 app.register(HttpServiceProvider())
 app.register(BrewServiceProvider())
 app.boot()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 app.register(new HttpServiceProvider());
 app.register(new BrewServiceProvider());
 app.boot();
 ```
+
+</TabItem>
+</Tabs>
 
 `BrewServiceProvider` binds `BrewManager` and, when HTTP is present, registers:
 
@@ -44,6 +55,9 @@ In your layout (Crema or plain HTML):
 ```
 
 Or emit the tag from Kotlin/Java:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 BrewAssets.scriptTag() // <script src="/brew/brew.js" defer></script>
@@ -67,6 +81,9 @@ class Counter : Component() {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 public class Counter extends Component {
     public int count = 0;
@@ -83,9 +100,15 @@ public class Counter extends Component {
 }
 ```
 
+</TabItem>
+</Tabs>
+
 State must be **public fields** (Java) or **`@JvmField`** properties (Kotlin). Action methods must be **public**.
 
 ## Register and mount
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val brew = app.resolve(BrewManager::class.java)
@@ -95,11 +118,17 @@ val html = Brew.mount("counter")
 // embed html in a page / Crema layout
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 BrewManager brew = app.resolve(BrewManager.class);
 brew.register("counter", Counter::new);
 String html = Brew.mount("counter");
 ```
+
+</TabItem>
+</Tabs>
 
 `Brew.mount` returns a root element like:
 

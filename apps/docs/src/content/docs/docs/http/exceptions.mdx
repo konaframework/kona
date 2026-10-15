@@ -3,7 +3,12 @@ title: Exceptions
 description: How the HTTP kernel turns failures into JSON error responses, how to throw HTTP errors, and how to install your own handler.
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Handlers fail: a record does not exist, a client is not allowed in, input is invalid, or a bug throws an unexpected exception. In Kona you usually **throw** in those situations instead of building an error response by hand. The [HTTP kernel](../kernel-server/) catches the exception and gives it to an **exception handler** — an object implementing `ExceptionHandler` — whose only job is to turn the exception into a `Response`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 fun interface ExceptionHandler {
@@ -30,6 +35,9 @@ router.get("/posts/{id}") { request ->
 throw HttpException(429, "Too many requests.", mapOf("Retry-After" to "30"))
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 router.get("/posts/{id}", request -> {
     Post post = posts.find((String) request.getAttribute("id"));
@@ -44,6 +52,9 @@ router.get("/posts/{id}", request -> {
 
 throw new HttpException(429, "Too many requests.", Map.of("Retry-After", "30"));
 ```
+
+</TabItem>
+</Tabs>
 
 Kona ships these types in `dev.kona.http`:
 
@@ -102,6 +113,9 @@ JSON responses from the default handler use `Content-Type: application/json; cha
 
 Without writing a full custom handler, you can attach callbacks on `DefaultExceptionHandler`:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val handler = DefaultExceptionHandler(debug = true)
     .report { throwable -> metrics.increment("http.exceptions") }
@@ -114,6 +128,9 @@ val handler = DefaultExceptionHandler(debug = true)
     }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 DefaultExceptionHandler handler = new DefaultExceptionHandler(true)
     .report(throwable -> metrics.increment("http.exceptions"))
@@ -124,6 +141,9 @@ DefaultExceptionHandler handler = new DefaultExceptionHandler(true)
         return null;
     });
 ```
+
+</TabItem>
+</Tabs>
 
 `report` runs first. When you set it, the default `Log.error` path for unexpected failures is skipped — your callback owns reporting. `render` may return a `Response` or `null` to keep the built-in JSON/HTML envelopes.
 
@@ -158,6 +178,9 @@ For `HEAD` requests the kernel removes the body from error responses too, keepin
 
 Write your own `ExceptionHandler` when you need a different error format — HTML pages for a browser site, a different JSON shape for an API, or metrics on every failure. A common pattern is to handle the cases you care about and **delegate** everything else to the default handler:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 class HtmlErrorHandler(debug: Boolean) : ExceptionHandler {
     private val fallback = DefaultExceptionHandler(debug)
@@ -171,6 +194,9 @@ class HtmlErrorHandler(debug: Boolean) : ExceptionHandler {
     }
 }
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 public final class HtmlErrorHandler implements ExceptionHandler {
@@ -191,11 +217,17 @@ public final class HtmlErrorHandler implements ExceptionHandler {
 }
 ```
 
+</TabItem>
+</Tabs>
+
 An exception handler must **always return a response and never throw**. It is the last line of defence; an exception escaping it leaves the client without a reply.
 
 ### Installing it
 
 Pass the handler as the third argument when you construct an `HttpKernel`. To replace the kernel that `HttpServiceProvider` registers, rebind `HttpKernel` from the `register` method of a provider listed after `HttpServiceProvider`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class AppServiceProvider : ServiceProvider {
@@ -208,6 +240,9 @@ class AppServiceProvider : ServiceProvider {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 public class AppServiceProvider implements ServiceProvider {
     @Override
@@ -218,5 +253,8 @@ public class AppServiceProvider implements ServiceProvider {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 `ExceptionHandler` is a functional interface, so a lambda works as well when the logic is short.

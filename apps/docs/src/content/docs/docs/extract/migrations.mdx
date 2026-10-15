@@ -80,6 +80,7 @@ public class CreatePostsTable implements Migration {
 </TabItem>
 </Tabs>
 
+
 In Kotlin, the block passed to `create` and `table` has the table definition (a `Blueprint`) as its receiver, so you call `id()` directly. In Java, the lambda receives the `Blueprint` as a parameter (`table -> table.id()`).
 
 Two methods have different names in Java because their Kotlin names are Java keywords: `boolean(name)` is `bool(name)`, and the `default(value)` modifier is `withDefault(value)`.
@@ -211,6 +212,7 @@ public class AppServiceProvider implements ServiceProvider {
 </TabItem>
 </Tabs>
 
+
 ### The Migrator
 
 `Migrator` applies and reverts registry entries on one connection. `Migrator.using` borrows a connection for the duration of a block:
@@ -249,6 +251,7 @@ Migrator.using(db.connection(), registry, migrator -> {
 
 </TabItem>
 </Tabs>
+
 
 Each migration runs in its own transaction together with its `extract_migrations` record. When `up` or `down` throws, the transaction rolls back and a `MigrationException` names the failing migration; the migrations before it stay applied. (Some databases, H2 among them, commit DDL statements immediately, so a half-finished `up` may leave partial changes there.)
 

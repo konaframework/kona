@@ -57,6 +57,7 @@ String apiKey = Env.require("PAYMENTS_API_KEY");   // throws when unset
 </TabItem>
 </Tabs>
 
+
 | Method | Behavior |
 |--------|----------|
 | `get(key, default)` | Process env, then `.env`, then `default` (Kotlin may omit `default`; Java passes `null`) |
@@ -136,6 +137,7 @@ Map<String, Object> mail = config.get("mail");
 </TabItem>
 </Tabs>
 
+
 | Method | Returns |
 |--------|---------|
 | `set(key, value)` | Stores `value`, creating intermediate maps. Map values are copied into the tree. Setting below a non-map value replaces it with a map. |
@@ -211,6 +213,7 @@ Kona.create(args)
 
 </TabItem>
 </Tabs>
+
 
 `loadDirectory(path)` does what Kona's bootstrap does for `config/`, for any directory you choose.
 
