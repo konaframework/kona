@@ -58,4 +58,17 @@ class GrindJavaTest {
         assertEquals(SeedCommand.DEFAULT_SEEDER, "database.seeders.DatabaseSeeder");
         assertEquals(MigrateCommand.Action.ROLLBACK, MigrateCommand.Action.valueOf("ROLLBACK"));
     }
+
+    @Test
+    void keyGenerateFromJava() throws Exception {
+        Path app = temp.resolve("keyapp");
+        Files.createDirectories(app);
+        Files.writeString(app.resolve("settings.gradle.kts"), "rootProject.name = \"keyapp\"\n");
+        Files.writeString(app.resolve(".env"), "APP_KEY=\n");
+        String shown = KeyGenerateCommand.generateAppKey();
+        assertTrue(shown.startsWith("base64:"));
+        assertEquals(0, new KeyGenerateCommand(app).run(List.of("--base=" + app)));
+        assertTrue(Files.readString(app.resolve(".env")).contains("APP_KEY=base64:"));
+        assertEquals(0, new GrindApplication().run(new String[] {"key:generate", "--show"}));
+    }
 }

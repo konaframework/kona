@@ -44,6 +44,7 @@ class GrindApplication {
                 "steam" -> SteamCommand().run(positional.drop(1) + flatten(options))
                 "assets:vite" -> AssetsViteCommand().run(positional.drop(1) + flatten(options))
                 "storage:link" -> StorageLinkCommand().run(positional.drop(1) + flatten(options))
+                "key:generate" -> KeyGenerateCommand().run(positional.drop(1) + flatten(options))
                 "ide:lsp" -> IdeLspCommand().run(positional.drop(1) + flatten(options))
                 "list" -> ListCommand().run(positional.drop(1) + flatten(options))
                 "new" -> {
@@ -103,6 +104,7 @@ class GrindApplication {
             "steam" to "Interactive REPL",
             "assets:vite" to "Vite setup help",
             "storage:link" to "Link public/storage",
+            "key:generate" to "Set APP_KEY [--show] [--force]",
             "ide:lsp" to "Crema LSP setup help",
             "help" to "Show this help",
         ).forEach { (cmd, summary) -> io.twoColumn(cmd, summary) }

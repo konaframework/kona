@@ -183,9 +183,14 @@ class GrindTest {
         assertEquals(app, calls[0].second)
         assertEquals(mapOf("HOST" to "0.0.0.0", "PORT" to "9000"), calls[0].third)
 
-        assertEquals(7, serve.run(listOf("--base=$app")))
+        // Preferred defaults come from ServePorts (do not require port 4000 to be free on the host).
+        val (defaultHost, defaultPort) = ServePorts.preferredHostPort(app, emptyMap())
+        assertEquals("127.0.0.1", defaultHost)
+        assertEquals(DEFAULT_SERVE_PORT, defaultPort)
+        val freePort = (29100..29200).first { ServePorts.isAvailable("127.0.0.1", it) }
+        assertEquals(7, serve.run(listOf("--base=$app", "--port=$freePort")))
         assertEquals("127.0.0.1", calls[1].third["HOST"])
-        assertEquals(DEFAULT_SERVE_PORT.toString(), calls[1].third["PORT"])
+        assertEquals(freePort.toString(), calls[1].third["PORT"])
 
         assertEquals(listOf(app.resolve("gradlew.bat").toString(), "run"), ServeCommand(windows = true).gradleCommand(app))
         val noWrapper = fixtureProject(temp.resolve("nowrapper"))

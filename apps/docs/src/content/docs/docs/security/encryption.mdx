@@ -18,7 +18,19 @@ The key is 32 raw bytes, usually stored as `base64:…` in config:
 | Config `app.key` | Read by `Encrypter.fromConfig` / `AuthServiceProvider` |
 | Environment | Commonly mirrored as `APP_KEY` into that config key in your bootstrap |
 
-Generate a key:
+### Generate with grind (recommended for apps)
+
+From your application directory:
+
+```bash
+./grind key:generate          # write APP_KEY into .env
+./grind key:generate --show   # print a key without writing
+./grind key:generate --force  # overwrite in production without prompting
+```
+
+`kona new` already embeds a random `APP_KEY` in the generated `.env`. Use `key:generate` when you copied `.env.example` by hand, rotated a key, or need to print a key for a secrets manager (`--show`). Full flag behavior: [grind key:generate](../../grind/commands/#grind-keygenerate).
+
+### Generate in code
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -27,7 +39,6 @@ Generate a key:
 import dev.kona.security.Encrypter
 
 val key = Encrypter.generateKey()  // "base64:...."
-println(key)
 ```
 
 </TabItem>
@@ -49,9 +60,22 @@ Put it in config before boot (or ensure `.env` / `config/` seeds `app.key`):
 .configure { it.set("app.key", Encrypter.generateKey()) }
 ```
 
-Never commit real production keys. Rotate carefully — ciphertext encrypted with the old key will not decrypt after rotation unless you re-encrypt.
+</TabItem>
+<TabItem label="Java">
+
+```java
+app.configure(config -> config.set("app.key", Encrypter.generateKey()));
+```
+
+</TabItem>
+</Tabs>
+
+Never commit real production keys. Rotate carefully — ciphertext encrypted with the old key will not decrypt after rotation unless you re-encrypt. Use `./grind key:generate` (with `--force` in production) when rotating the key stored in `.env`.
 
 ## Encrypt and decrypt
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val encrypter = app.resolve(Encrypter::class.java)
