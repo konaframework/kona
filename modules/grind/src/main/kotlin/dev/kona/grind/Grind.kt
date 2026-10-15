@@ -48,7 +48,7 @@ class GrindApplication {
                 "list" -> ListCommand().run(positional.drop(1) + flatten(options))
                 "new" -> {
                     io.error("Create applications with the global CLI: kona new <name>")
-                    io.error("grind is app-local — run ./grind serve from inside a project.")
+                    io.warn("grind is app-local — run ./grind serve from inside a project.")
                     1
                 }
                 else -> {
@@ -70,48 +70,44 @@ class GrindApplication {
         options.map { (k, v) -> if (v == "true") "--$k" else "--$k=$v" }
 
     private fun printHelp(io: GrindIO) {
-        io.writeln(
-            """
-            grind — Kona app CLI (run from your project root)
-
-            Global options: --verbose|-v  --quiet|-q
-
-            Usage:
-              ./grind list
-              ./grind serve [--host=127.0.0.1] [--port=8080] [--base=.]
-                            [--in-process [--bootstrap=bootstrap.App] [--once]]
-              ./grind make:controller <Name> [--resource] [--lang=kotlin|java] [--base=.]
-              ./grind make:middleware <Name> [--lang=kotlin|java] [--base=.]
-              ./grind make:request <Name> [--lang=kotlin|java] [--base=.]
-              ./grind make:view <name> [--base=.]
-              ./grind make:model <Name> [--migration] [--factory] [--seeder] [--all] [--lang=kotlin|java]
-              ./grind make:migration <snake_name> [--create=table] [--table=table] [--lang=kotlin|java]
-              ./grind make:factory <Name>Factory [--model=Name] [--lang=kotlin|java]
-              ./grind make:seeder <Name>Seeder [--lang=kotlin|java]
-              ./grind migrate [--database=name] [--bootstrap=bootstrap.App]
-              ./grind migrate:rollback [--step=1]
-              ./grind migrate:reset
-              ./grind migrate:status
-              ./grind db:seed [--class=database.seeders.DatabaseSeeder]
-              ./grind queue:work [--connection=name] [--queue=name] [--max=N]
-              ./grind queue:failed
-              ./grind queue:retry <id>|--all
-              ./grind queue:flush
-              ./grind schedule:run
-              ./grind schedule:list
-              ./grind steam [--bootstrap=bootstrap.App]
-              ./grind assets:vite
-              ./grind storage:link [--base=.]
-              ./grind ide:lsp
-              ./grind help
-
-            Database, queue, schedule, and steam commands boot the app in-process from build/classes
-            (run ./gradlew classes first) and use services bound in its container.
-
-            Create a new application with:
-              kona new <name> [--lang=kotlin|java] [--kit=api|crema|inertia|brew]
-            """.trimIndent(),
+        io.box(
+            "grind",
+            listOf(
+                "Kona app CLI — run from your project root",
+                "Global: --verbose|-v  --quiet|-q",
+            ),
         )
+        io.title("Usage")
+        listOf(
+            "list" to "List commands",
+            "serve" to "HTTP server [--host] [--port] [--in-process]",
+            "make:controller" to "Generate controller [--resource]",
+            "make:middleware" to "Generate middleware",
+            "make:request" to "Generate form request",
+            "make:view" to "Generate Crema view",
+            "make:model" to "Generate model [--migration|--factory|--seeder|--all]",
+            "make:migration" to "Generate migration",
+            "make:factory" to "Generate factory",
+            "make:seeder" to "Generate seeder",
+            "migrate" to "Run pending migrations",
+            "migrate:rollback" to "Rollback [--step=N]",
+            "migrate:reset" to "Reset all migrations",
+            "migrate:status" to "Show migration status",
+            "db:seed" to "Run seeders",
+            "queue:work" to "Process queued jobs",
+            "queue:failed" to "List failed jobs",
+            "queue:retry" to "Retry failed jobs",
+            "queue:flush" to "Clear failed jobs",
+            "schedule:run" to "Run due tasks",
+            "schedule:list" to "List scheduled tasks",
+            "steam" to "Interactive REPL",
+            "assets:vite" to "Vite setup help",
+            "storage:link" to "Link public/storage",
+            "ide:lsp" to "Crema LSP setup help",
+            "help" to "Show this help",
+        ).forEach { (cmd, summary) -> io.twoColumn(cmd, summary) }
+        io.writeln()
+        io.info("Create apps with: kona new <name> [--lang=kotlin|java] [--kit=…]")
     }
 }
 

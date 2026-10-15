@@ -64,7 +64,7 @@ internal object Names {
         }
         Files.createDirectories(dest.parent)
         Files.writeString(dest, content)
-        println("$kind created: $relative")
+        GrindIO(color = GrindIO.detectColor()).success("$kind created: $relative")
     }
 }
 

@@ -47,12 +47,7 @@ The installer and generated apps use the Gradle wrapper; you do not need a separ
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-That script:
-
-1. Checks for JDK 21+
-2. Syncs Kona source into `~/.kona` (override with `KONA_SRC`)
-3. Runs `./gradlew :kona-cli:installDist`
-4. Installs a copy under `~/.local/lib/kona` and symlinks `~/.local/bin/kona` (override prefix with `KONA_PREFIX`)
+That script prints a colored step progress (JDK → fetch → build → link), syncs source into `~/.kona` (override with `KONA_SRC`), builds `:kona-cli:installDist`, then installs under `~/.local/lib/kona` with a symlink at `~/.local/bin/kona` (override prefix with `KONA_PREFIX`). Set `NO_COLOR=1` to disable ANSI styling.
 
 Ensure `~/.local/bin` is on your `PATH`, then check:
 

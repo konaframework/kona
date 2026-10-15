@@ -9,6 +9,7 @@ import dev.kona.extract.seeding.Seeder
 class SeedCommand {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
+        val io = GrindIO.fromOptions(options)
         val name = options.getOrDefault("class", DEFAULT_SEEDER)
         MigrateCommand.withApplication(options) { app, loader ->
             val type = try {
@@ -22,10 +23,10 @@ class SeedCommand {
             MigrateCommand.withDatabase(app) { database ->
                 database.setAsGlobal()
                 val seeder = Seeder.instantiate(type.asSubclass(Seeder::class.java), app.container)
-                println("Seeding: ${type.simpleName}")
+                io.info("Seeding: ${type.simpleName}")
                 seeder.run()
-                seeder.called.forEach { println("Seeding: $it") }
-                println("Database seeding completed successfully.")
+                seeder.called.forEach { io.info("Seeding: $it") }
+                io.success("Database seeding completed successfully.")
             }
         }
         return 0

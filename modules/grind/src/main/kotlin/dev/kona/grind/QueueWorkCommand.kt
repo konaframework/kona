@@ -9,6 +9,7 @@ import dev.kona.queue.Worker
 class QueueWorkCommand {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
+        val io = GrindIO.fromOptions(options)
         MigrateCommand.withApplication(options) { app, _ ->
             if (!app.container.bound(QueueManager::class.java)) {
                 throw GrindException(
@@ -21,7 +22,7 @@ class QueueWorkCommand {
             val queue = options["queue"] ?: manager.defaultQueue(connection)
             val max = parseMax(options["max"])
             val processed = Worker(manager, connection, queue).run(max)
-            println("Processed $processed job(s).")
+            io.success("Processed $processed job(s).")
         }
         return 0
     }

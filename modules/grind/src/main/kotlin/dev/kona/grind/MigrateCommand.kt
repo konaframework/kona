@@ -18,6 +18,7 @@ class MigrateCommand(private val action: Action) {
 
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
+        val io = GrindIO.fromOptions(options)
         withApplication(options) { app, _ ->
             val registry = if (app.container.bound(MigrationRegistry::class.java)) {
                 app.resolve(MigrationRegistry::class.java)
@@ -30,37 +31,45 @@ class MigrateCommand(private val action: Action) {
             withDatabase(app) { database ->
                 val name = options["database"]
                 val connection = if (name == null) database.connection() else database.connection(name)
-                Migrator.using(connection, registry) { migrator -> execute(migrator, options) }
+                Migrator.using(connection, registry) { migrator -> execute(migrator, options, io) }
             }
         }
         return 0
     }
 
-    private fun execute(migrator: Migrator, options: Map<String, String>) {
+    private fun execute(migrator: Migrator, options: Map<String, String>, io: GrindIO) {
         when (action) {
-            Action.MIGRATE -> report(migrator.migrate(), "Migrated", "Nothing to migrate.")
+            Action.MIGRATE -> report(io, migrator.migrate(), "Migrated", "Nothing to migrate.")
             Action.ROLLBACK -> {
                 val steps = options["step"]?.let {
                     it.toIntOrNull()?.takeIf { n -> n > 0 } ?: throw GrindException("--step must be a positive integer")
                 } ?: 1
-                report(migrator.rollback(steps), "Rolled back", "Nothing to rollback.")
+                report(io, migrator.rollback(steps), "Rolled back", "Nothing to rollback.")
             }
-            Action.RESET -> report(migrator.reset(), "Rolled back", "Nothing to rollback.")
+            Action.RESET -> report(io, migrator.reset(), "Rolled back", "Nothing to rollback.")
             Action.STATUS -> {
                 val status = migrator.status()
                 if (status.isEmpty()) {
-                    println("No migrations registered.")
+                    io.warn("No migrations registered.")
                 }
-                status.forEach { println("%-8s %-6s %s".format(if (it.ran) "Ran" else "Pending", it.batch ?: "", it.name)) }
+                status.forEach {
+                    val state = if (it.ran) "Ran" else "Pending"
+                    io.twoColumn(
+                        "%-8s %-6s".format(state, it.batch ?: "").trimEnd(),
+                        it.name,
+                        width = 16,
+                    )
+                }
             }
         }
     }
 
-    private fun report(names: List<String>, verb: String, empty: String) {
+    private fun report(io: GrindIO, names: List<String>, verb: String, empty: String) {
         if (names.isEmpty()) {
-            println(empty)
+            io.info(empty)
+            return
         }
-        names.forEach { println("$verb: $it") }
+        names.forEach { io.success("$verb: $it") }
     }
 
     companion object {

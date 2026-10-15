@@ -40,9 +40,10 @@ class NewCommand(
         copySkeleton(lang, target, variables, kit)
         target.resolve("grind").toFile().setExecutable(true)
         target.resolve("gradlew").toFile().setExecutable(true)
-        println("Created Kona application at $target ($lang, kit=$kit)")
-        println("  cd ${target.fileName}")
-        println("  ./grind serve")
+        val io = CliIO()
+        io.success("Created Kona application at $target ($lang, kit=$kit)")
+        io.info("cd ${target.fileName}")
+        io.info("./grind serve")
         return 0
     }
 

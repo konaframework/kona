@@ -30,7 +30,7 @@ class MakeMigrationCommand {
             "Migration",
             if (lang == "java") javaStub(className, mode, table) else kotlinStub(className, mode, table),
         )
-        println("Register it: MigrationRegistry().add($className())")
+        GrindIO(color = GrindIO.detectColor()).info("Register it: MigrationRegistry().add($className())")
     }
 
     internal enum class Mode { CREATE, ALTER, BLANK }

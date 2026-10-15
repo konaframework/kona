@@ -13,22 +13,23 @@ class QueueFailedCommand(private val action: Action) {
 
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
+        val io = GrindIO.fromOptions(options)
         MigrateCommand.withApplication(options) { app, _ ->
             when (action) {
                 Action.LIST -> {
                     val failed = failedProvider(app)
                     val jobs = failed.all()
                     if (jobs.isEmpty()) {
-                        println("No failed jobs.")
+                        io.info("No failed jobs.")
                     } else {
                         jobs.forEach {
-                            println("${it.id}  ${it.queue}  ${it.payload.displayName}  ${it.exception}")
+                            io.twoColumn(it.id, "${it.queue}  ${it.payload.displayName}  ${it.exception}", width = 12)
                         }
                     }
                 }
                 Action.FLUSH -> {
                     failedProvider(app).flush()
-                    println("Failed jobs cleared.")
+                    io.success("Failed jobs cleared.")
                 }
                 Action.RETRY -> {
                     val manager = queueManager(app)
@@ -47,7 +48,7 @@ class QueueFailedCommand(private val action: Action) {
                         manager.connection(job.connection).release(reset, job.queue, 0)
                         failed.forget(job.id)
                     }
-                    println("Retried ${targets.size} failed job(s).")
+                    io.success("Retried ${targets.size} failed job(s).")
                 }
             }
         }

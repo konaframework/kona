@@ -7,8 +7,9 @@ class ListCommand {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
         val io = GrindIO.fromOptions(options)
+        io.title("grind commands")
         COMMANDS.forEach { (name, summary) ->
-            io.writeln("%-22s %s".format(name, summary))
+            io.twoColumn(name, summary)
         }
         return 0
     }
