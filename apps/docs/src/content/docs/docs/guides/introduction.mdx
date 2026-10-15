@@ -15,7 +15,7 @@ You should already be comfortable with a programming language, with classes and 
 
 ## A complete Kona app
 
-Before the vocabulary, here is a complete program. It starts Kona, registers one service, defines one route, and listens on port 8080.
+Before the vocabulary, here is a complete program. It starts Kona, registers one service, defines one route, and listens on port 4000.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -51,7 +51,7 @@ fun main(args: Array<String>) {
     val app = Kona.create(args)
         .providers(HttpServiceProvider(), AppServiceProvider())
         .boot()
-    KonaHttpServer(app.resolve(HttpKernel::class.java), "127.0.0.1", 8080).start()
+    KonaHttpServer(app.resolve(HttpKernel::class.java), "127.0.0.1", 4000).start()
 }
 ```
 
@@ -94,7 +94,7 @@ public final class Main {
         Application app = Kona.create(args)
             .providers(new HttpServiceProvider(), new AppServiceProvider())
             .boot();
-        new KonaHttpServer(app.resolve(HttpKernel.class), "127.0.0.1", 8080).start();
+        new KonaHttpServer(app.resolve(HttpKernel.class), "127.0.0.1", 4000).start();
     }
 }
 ```

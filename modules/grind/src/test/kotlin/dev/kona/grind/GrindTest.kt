@@ -184,7 +184,8 @@ class GrindTest {
         assertEquals(mapOf("HOST" to "0.0.0.0", "PORT" to "9000"), calls[0].third)
 
         assertEquals(7, serve.run(listOf("--base=$app")))
-        assertEquals(emptyMap<String, String>(), calls[1].third)
+        assertEquals("127.0.0.1", calls[1].third["HOST"])
+        assertEquals(DEFAULT_SERVE_PORT.toString(), calls[1].third["PORT"])
 
         assertEquals(listOf(app.resolve("gradlew.bat").toString(), "run"), ServeCommand(windows = true).gradleCommand(app))
         val noWrapper = fixtureProject(temp.resolve("nowrapper"))
@@ -225,12 +226,31 @@ class GrindTest {
     }
 
     @Test
-    fun serveInProcessPortFromDotEnvIsUsed() {
+    fun serveInProcessPortBusyOffersNextOrAborts() {
         java.net.ServerSocket(0, 50, java.net.InetAddress.getByName("127.0.0.1")).use { occupied ->
-            val base = fixtureProject(temp.resolve("occupied"), "PORT=${occupied.localPort}\n")
-            assertThrows(java.net.BindException::class.java) {
-                ServeCommand().run(listOf("--base=$base", "--in-process", "--once", "--bootstrap=${FixtureApp::class.java.name}"))
+            val port = occupied.localPort
+            val next = port + 1
+            val base = fixtureProject(temp.resolve("occupied"), "HOST=127.0.0.1\nPORT=$port\n")
+            val out = java.io.ByteArrayOutputStream()
+            assertThrows(GrindException::class.java) {
+                ServeCommand(
+                    prompts = Prompts(java.io.ByteArrayInputStream("n\n".toByteArray()), java.io.PrintStream(out), color = false),
+                    io = GrindIO(java.io.PrintStream(out), color = false),
+                ).run(listOf("--base=$base", "--in-process", "--once", "--bootstrap=${FixtureApp::class.java.name}"))
             }
+            var body = ""
+            assertEquals(
+                0,
+                ServeCommand(
+                    awaitShutdown = { server ->
+                        assertEquals(next, server.port())
+                        body = httpGet("http://127.0.0.1:$next/fixture").body()
+                    },
+                    prompts = Prompts(java.io.ByteArrayInputStream("y\n".toByteArray()), java.io.PrintStream(out), color = false),
+                    io = GrindIO(java.io.PrintStream(out), color = false),
+                ).run(listOf("--base=$base", "--in-process", "--bootstrap=${FixtureApp::class.java.name}")),
+            )
+            assertEquals("fixture:Kona", body)
         }
     }
 

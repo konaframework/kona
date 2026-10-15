@@ -9,7 +9,7 @@ All commands below assume you are in an application directory that contains `./g
 
 ```bash
 ./grind serve
-./grind serve --host=127.0.0.1 --port=8080
+./grind serve --host=127.0.0.1 --port=4000
 ./grind serve --in-process --once
 ./grind serve --in-process --bootstrap=bootstrap.App
 ```
@@ -22,7 +22,7 @@ All commands below assume you are in an application directory that contains `./g
 | `--bootstrap=` | Bootstrap class (in-process only) |
 | `--base=` | Directory to search upward for the Gradle project |
 
-Default host is **127.0.0.1**. If no Gradle project is found, grind exits and tells you to run `kona new <name>`.
+Default host is **127.0.0.1** and default port is **4000** (also in generated `.env`). If that port is already in use, grind asks whether to try the next one (4001, 4002, …). If no Gradle project is found, grind exits and tells you to run `kona new <name>`.
 
 ## `./grind make:controller`
 

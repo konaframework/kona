@@ -251,7 +251,7 @@ public void register(Application app) {
 <TabItem label="Kotlin">
 
 ```kotlin
-val server = KonaHttpServer(kernel, host = "127.0.0.1", port = 8080)
+val server = KonaHttpServer(kernel, host = "127.0.0.1", port = 4000)
 server.start()
 ```
 
@@ -259,14 +259,14 @@ server.start()
 <TabItem label="Java">
 
 ```java
-KonaHttpServer server = new KonaHttpServer(kernel, "127.0.0.1", 8080);
+KonaHttpServer server = new KonaHttpServer(kernel, "127.0.0.1", 4000);
 server.start();
 ```
 
 </TabItem>
 </Tabs>
 
-In Kotlin, `host` defaults to `127.0.0.1` and `port` to `8080`. Java callers pass all three arguments.
+In Kotlin, `host` defaults to `127.0.0.1` and `port` to `4000`. Java callers pass all three arguments.
 
 | Method | Behavior |
 |--------|----------|
@@ -313,7 +313,7 @@ Applications created by `kona new` start the server in `bootstrap.App`’s `main
 
 ```kotlin
 val host = Env.getOrDefault("HOST", "127.0.0.1")
-val port = Env.getOrDefault("PORT", "8080").toInt()
+val port = Env.getOrDefault("PORT", "4000").toInt()
 KonaHttpServer(app.resolve(HttpKernel::class.java), host, port).start()
 ```
 
@@ -322,14 +322,14 @@ KonaHttpServer(app.resolve(HttpKernel::class.java), host, port).start()
 
 ```java
 String host = Env.getOrDefault("HOST", "127.0.0.1");
-int port = Integer.parseInt(Env.getOrDefault("PORT", "8080"));
+int port = Integer.parseInt(Env.getOrDefault("PORT", "4000"));
 new KonaHttpServer(app.resolve(HttpKernel.class), host, port).start();
 ```
 
 </TabItem>
 </Tabs>
 
-`Env` checks the **process environment first**, then the `.env` file in the application’s base path, then the default. The generated `.env` contains `HOST=127.0.0.1` and `PORT=8080`.
+`Env` checks the **process environment first**, then the `.env` file in the application’s base path, then the default. The generated `.env` contains `HOST=127.0.0.1` and `PORT=4000`.
 
 - `127.0.0.1` accepts connections from the same machine only, which is the safe default for development.
 - Set `HOST=0.0.0.0` to accept connections on every network interface, for example inside a container.
