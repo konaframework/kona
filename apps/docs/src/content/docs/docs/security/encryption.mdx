@@ -138,4 +138,6 @@ new Encrypter(keyBytes); // length must be 32
 - Values you would not want readable in logs, cookies, or database columns
 - Session cookie payloads when using the cookie session driver in non-local environments (combine with [session](../session/) configuration)
 
-Do **not** use encryption as a substitute for password hashing. Passwords belong with [Hash / bcrypt](../authentication/#password-hashing).
+For JSON-serializable values use `encrypt(value)` / `decrypt(payload, MyType::class.java)` (Jackson). Prefer `encryptString` / `decryptString` for raw strings.
+
+Do **not** use encryption as a substitute for password hashing. Passwords belong with [Hash / bcrypt](../authentication/#hashing).
