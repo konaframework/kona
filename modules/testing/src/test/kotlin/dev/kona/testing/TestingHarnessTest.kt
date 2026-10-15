@@ -8,6 +8,7 @@ import dev.kona.http.Router
 import dev.kona.mail.MailMessage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -125,6 +126,44 @@ class TestingHarnessTest {
         assertFalse(storage.exists("dir/b.txt"))
         assertEquals("/a.txt", storage.url("a.txt"))
         assertEquals("a.txt", storage.path("a.txt"))
+        assertTrue(storage.missing("gone"))
+        assertFalse(storage.missing("a.txt"))
+        assertEquals("application/octet-stream", storage.mimeType("a.txt"))
+        assertEquals(null, storage.mimeType("gone"))
+        assertNotNull(storage.checksum("a.txt", "SHA-256"))
+        assertEquals(null, storage.checksum("gone", "SHA-256"))
+        assertTrue(storage.allFiles("").contains("a.txt"))
+        assertTrue(storage.allDirectories("").contains("nested"))
+        assertTrue(storage.allDirectories("nested").any { it.contains("deep") })
+        storage.append("a.txt", "!")
+        assertEquals("hello!", storage.getString("a.txt"))
+        storage.append("new-append.txt", "only")
+        assertEquals("only", storage.getString("new-append.txt"))
+        storage.prepend("a.txt", ">")
+        assertEquals(">hello!", storage.getString("a.txt"))
+        storage.prepend("new-prepend.txt", "first")
+        assertEquals("first", storage.getString("new-prepend.txt"))
+        storage.put("nested/x.txt", "n")
+        assertTrue(storage.allFiles("nested").any { it.endsWith("x.txt") })
+        assertTrue(storage.files("nested").contains("x.txt"))
+        assertTrue(storage.files("nested/").contains("x.txt"))
+        storage.readStream("a.txt")!!.use { assertTrue(it.readAllBytes().isNotEmpty()) }
+        assertEquals(null, storage.readStream("gone"))
+        storage.writeStream("stream.txt", java.io.ByteArrayInputStream("s".toByteArray()))
+        assertEquals("s", storage.getString("stream.txt"))
+        val tmpFile = base.resolve("upload.bin")
+        java.nio.file.Files.writeString(tmpFile, "blob")
+        val uploaded = storage.putFile("uploads", tmpFile)
+        assertTrue(storage.exists(uploaded))
+        assertEquals("uploads/named.bin", storage.putFileAs("uploads", tmpFile, "named.bin"))
+        assertEquals("root.bin", storage.putFileAs("", tmpFile, "root.bin"))
+        storage.setVisibility("a.txt", "public")
+        assertEquals("public", storage.getVisibility("a.txt"))
+        assertEquals("private", storage.getVisibility("unset.txt"))
+        assertFalse(storage.providesTemporaryUrls())
+        assertThrows(IllegalStateException::class.java) { storage.temporaryUrl("a.txt", 60) }
+        storage.copy("a.txt", "vis-copy.txt")
+        assertEquals("public", storage.getVisibility("vis-copy.txt"))
 
         val notifications = FakeNotification()
         val user = object : dev.kona.notifications.Notifiable {
