@@ -16,6 +16,7 @@ You define a relation as a **public method with no parameters**, named after the
 | `belongsTo` | we hold the other table's key | post → user | `R?` |
 | `belongsToMany` | a third (pivot) table holds both keys | user ↔ roles | `List<R>` |
 | `morphMany` / `morphOne` | related rows store `{name}_type` + `{name}_id` | post → comments | `List<R>` / `R?` |
+| `morphToMany` / `morphedByMany` | pivot stores `{name}_type` + `{name}_id` + related key | post ↔ tags | `List<R>` |
 | `morphTo` | this row stores type + id of the owner | comment → post/video | `Extract<*>?` |
 | `hasManyThrough` / `hasOneThrough` | distant rows via an intermediate table | user → comments via posts | `List<R>` / `R?` |
 
@@ -417,6 +418,27 @@ comment.commentable().associate(post)
 ```
 
 Without a morph map entry, Extract uses the model's simple class name (and can resolve a fully-qualified class name stored in the type column).
+
+### morphToMany / morphedByMany
+
+Polymorphic many-to-many uses a pivot with `{name}_id`, `{name}_type`, and the related foreign key (default table name is the plural of `{name}`):
+
+```kotlin
+class Post : Extract<Post>() {
+    fun tags(): MorphToMany<Tag> = morphToMany(Tag::class.java, "taggable")
+}
+
+class Tag : Extract<Tag>() {
+    fun posts(): MorphToMany<Post> = morphedByMany(Post::class.java, "taggable")
+    fun videos(): MorphToMany<Video> = morphedByMany(Video::class.java, "taggable")
+}
+
+// taggables(tag_id, taggable_id, taggable_type)
+post.tags().attach(listOf(kotlinTag, javaTag))
+tag.posts().get()
+```
+
+`attach` / `detach` / `sync` / `withPivot` / `withTimestamps` behave like `belongsToMany`, and every pivot write includes the morph type. Eager load with `Post.with("tags")`.
 
 ## Through relations
 

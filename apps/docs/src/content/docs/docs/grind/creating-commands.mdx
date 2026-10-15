@@ -1,0 +1,139 @@
+---
+title: Creating commands
+description: Write custom grind commands with signatures, handle(), and discovery.
+---
+
+**grind** is the app-local CLI. Besides built-ins like `serve` and `migrate`, you can add your own commands as classes that extend `ConsoleCommand`.
+
+## Generate a command
+
+```bash
+./grind make:command SendDigest
+./grind make:command SendDigest --command=mail:digest
+./grind make:command SendDigest --lang=java
+```
+
+That writes a class under `app/console/commands/` and appends its fully qualified name to `src/main/resources/META-INF/kona/commands` so grind can discover it after you compile (`./gradlew classes`).
+
+| Flag | Effect |
+|------|--------|
+| *(name)* | Class name; `Command` is appended when missing |
+| `--command=` | Signature name (default `app:kebab-case-of-class`) |
+| `--lang=kotlin\|java` | Source language (same default rules as other `make:*` commands) |
+| `--base=` | App root when not run from the project directory |
+
+## Anatomy
+
+Every custom command declares a **signature**, an optional **description**, and a **`handle()`** method that returns an exit code.
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs>
+<TabItem label="Kotlin">
+
+```kotlin
+package app.console.commands
+
+import dev.kona.grind.ConsoleCommand
+
+class SendDigestCommand : ConsoleCommand() {
+    override val signature: String = "mail:digest {user} {--queue=default}"
+
+    override val description: String = "Send the daily digest"
+
+    override fun handle(): Int {
+        val user = argumentOrFail("user")
+        val queue = option("queue", "default")
+        info("Queueing digest for $user on $queue")
+        return SUCCESS
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.console.commands;
+
+import dev.kona.grind.ConsoleCommand;
+
+public class SendDigestCommand extends ConsoleCommand {
+    @Override
+    public String getSignature() {
+        return "mail:digest {user} {--queue=default}";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Send the daily digest";
+    }
+
+    @Override
+    public int handle() {
+        String user = argumentOrFail("user");
+        String queue = option("queue", "default");
+        info("Queueing digest for " + user + " on " + queue);
+        return SUCCESS;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Exit codes: use `ConsoleCommand.SUCCESS` (`0`) or `FAILURE` (`1`). Any non-zero value fails the process for scripts and CI.
+
+## Signature shape
+
+The signature starts with the command name, then braced tokens:
+
+| Token | Meaning |
+|-------|---------|
+| `{user}` | Required argument |
+| `{user?}` | Optional argument |
+| `{files*}` | Remaining arguments as a list |
+| `{--force}` | Boolean flag (`--force`) |
+| `{--queue=}` | Option that takes a value |
+| `{--queue=default}` | Option with a default value |
+| `{--queue= : The queue name}` | Option plus help text (` : ` separator) |
+
+Inside `handle()`:
+
+| Helper | Returns |
+|--------|---------|
+| `argument("name")` | `String?` |
+| `argumentOrFail("name")` | `String` or throws |
+| `arguments("name")` | `List<String>` for `*` args |
+| `option("name")` / `option("name", default)` | Option value |
+| `optionBool("name")` | True for `true` / `1` / `yes` |
+| `hasOption("name")` | Whether the option was present |
+
+## Registration and discovery
+
+1. **Auto-discovery** — lines in `META-INF/kona/commands` (one FQCN per line; `#` comments allowed). `make:command` maintains this file.
+2. **Compiled app outputs** — grind also reads `build/classes/**` and `build/resources/main` under `--base` (or the current app root), so run `./gradlew classes` after adding a command.
+3. **Programmatic** — register factories on a `CommandRegistry` and pass it into `GrindApplication` or `Grind.call` (useful in tests).
+
+```kotlin
+val registry = CommandRegistry().register(SendDigestCommand::class.java)
+Grind.call("mail:digest", listOf("42"), registry)
+```
+
+## Isolation
+
+Set `isolatable = true` (Kotlin) / override `getIsolatable()` to return `true` (Java) when only one process should run the command at a time. Passing `--isolated` then takes a file lock under `storage/framework/grind/`. If another process holds the lock, grind exits `0` without running `handle()` (safe for cron overlap).
+
+```kotlin
+override val isolatable: Boolean = true
+```
+
+```bash
+./grind mail:digest 42 --isolated
+```
+
+## Next
+
+- [Running commands](../running-commands/) — CLI flags, `list`, `help`, `Grind.call`, `kona grind`
+- [Console IO & prompts](../console/) — `info`, `table`, `Prompts`, verbosity
+- [Task scheduling](../../scheduling/) — run commands on a schedule with `schedule:run`

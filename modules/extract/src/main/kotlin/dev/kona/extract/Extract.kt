@@ -11,6 +11,7 @@ import dev.kona.extract.relations.MorphMany
 import dev.kona.extract.relations.MorphMap
 import dev.kona.extract.relations.MorphOne
 import dev.kona.extract.relations.MorphTo
+import dev.kona.extract.relations.MorphToMany
 import dev.kona.extract.relations.Relation
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -673,6 +674,88 @@ abstract class Extract<T : Extract<T>> {
             type ?: "${name}_type",
             id ?: "${name}_id",
             name,
+        )
+    }
+
+    /**
+     * Polymorphic many-to-many: pivot holds `{name}_type` / `{name}_id` for this model and
+     * [related]'s foreign key (e.g. `tag_id`). Default pivot table is the plural of [name].
+     */
+    fun <R : Extract<R>> morphToMany(related: Class<R>, name: String): MorphToMany<R> =
+        morphToMany(related, name, null, null, null, null, null)
+
+    fun <R : Extract<R>> morphToMany(related: Class<R>, name: String, table: String?): MorphToMany<R> =
+        morphToMany(related, name, table, null, null, null, null)
+
+    fun <R : Extract<R>> morphToMany(
+        related: Class<R>,
+        name: String,
+        table: String?,
+        foreignPivotKey: String?,
+        relatedPivotKey: String?,
+    ): MorphToMany<R> = morphToMany(related, name, table, foreignPivotKey, relatedPivotKey, null, null)
+
+    fun <R : Extract<R>> morphToMany(
+        related: Class<R>,
+        name: String,
+        table: String?,
+        foreignPivotKey: String?,
+        relatedPivotKey: String?,
+        parentKey: String?,
+        relatedKey: String?,
+    ): MorphToMany<R> {
+        val other = instantiate(related)
+        return MorphToMany(
+            this,
+            other,
+            table ?: Relation.snake(name) + "s",
+            foreignPivotKey ?: "${name}_id",
+            relatedPivotKey ?: other.defaultForeignKey(),
+            parentKey ?: primaryKey,
+            relatedKey ?: other.primaryKey,
+            "${name}_type",
+            getMorphClass(),
+        )
+    }
+
+    /**
+     * Inverse of [morphToMany]: this model is the related side (`Tag.posts()` via `taggables`).
+     * Pivot columns: [related]'s morph keys + this model's foreign key.
+     */
+    fun <R : Extract<R>> morphedByMany(related: Class<R>, name: String): MorphToMany<R> =
+        morphedByMany(related, name, null, null, null, null, null)
+
+    fun <R : Extract<R>> morphedByMany(related: Class<R>, name: String, table: String?): MorphToMany<R> =
+        morphedByMany(related, name, table, null, null, null, null)
+
+    fun <R : Extract<R>> morphedByMany(
+        related: Class<R>,
+        name: String,
+        table: String?,
+        foreignPivotKey: String?,
+        relatedPivotKey: String?,
+    ): MorphToMany<R> = morphedByMany(related, name, table, foreignPivotKey, relatedPivotKey, null, null)
+
+    fun <R : Extract<R>> morphedByMany(
+        related: Class<R>,
+        name: String,
+        table: String?,
+        foreignPivotKey: String?,
+        relatedPivotKey: String?,
+        parentKey: String?,
+        relatedKey: String?,
+    ): MorphToMany<R> {
+        val owner = instantiate(related)
+        return MorphToMany(
+            this,
+            owner,
+            table ?: Relation.snake(name) + "s",
+            foreignPivotKey ?: defaultForeignKey(),
+            relatedPivotKey ?: "${name}_id",
+            parentKey ?: primaryKey,
+            relatedKey ?: owner.primaryKey,
+            "${name}_type",
+            MorphMap.morphAlias(related),
         )
     }
 

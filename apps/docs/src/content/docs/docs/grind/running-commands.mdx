@@ -1,0 +1,102 @@
+---
+title: Running commands
+description: Invoke grind from the shell, kona grind proxy, and application code.
+---
+
+## From the project
+
+```bash
+./grind list
+./grind mail:digest 42 --queue=high
+./grind mail:digest --help
+./grind -v schedule:run
+./grind -q list
+```
+
+| Flag | Effect |
+|------|--------|
+| `-v` / `--verbose` | Verbose diagnostics (`GrindIO.verbose`) |
+| `-q` / `--quiet` | Suppress normal stdout (errors still print) |
+| `--help` / `-h` | On a custom command: print signature help |
+| `--base=` | App root when not in the project directory |
+| `--isolated` | With isolatable commands: single-process lock |
+
+Exit code **0** means success. **1** (and other non-zero values) means failure — missing args, unknown command, generator conflicts, and so on.
+
+## list and help
+
+```bash
+./grind list
+./grind help
+./grind          # same as help
+```
+
+`list` shows built-ins and every discovered custom command. Global `help` prints the same catalog in a boxed layout.
+
+For one custom command:
+
+```bash
+./grind mail:digest --help
+```
+
+## `kona grind` proxy
+
+When you are not already in the app directory, the global CLI can forward to the nearest project’s `./grind` (or `grind.bat` on Windows):
+
+```bash
+kona grind serve
+kona grind migrate
+kona grind mail:digest 42
+kona grind --help
+```
+
+`kona grind` walks upward from the current directory until it finds a Gradle settings/build script, then runs that app’s grind script with your remaining arguments and exit code. Prefer `./grind` when you are already inside the app.
+
+See [Installation](../../guides/installation/) for installing the global `kona` CLI.
+
+## Calling commands from code
+
+Use `Grind.call` to run a command name with argument tokens (the same strings you would type after the command name on the CLI):
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<Tabs>
+<TabItem label="Kotlin">
+
+```kotlin
+import dev.kona.grind.Grind
+
+val code = Grind.call("mail:digest", listOf("42", "--queue=default"), registry)
+val quiet = Grind.callSilently("schedule:run", listOf("--base=$root"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import dev.kona.grind.Grind;
+import java.util.List;
+
+int code = Grind.call("mail:digest", List.of("42", "--queue=default"), registry);
+int quiet = Grind.callSilently("schedule:run", List.of("--base=" + root));
+```
+
+</TabItem>
+</Tabs>
+
+`callSilently` suppresses stdout while still allowing stderr errors. Built-in names fall through to `GrindApplication`; custom names resolve from the optional `CommandRegistry` and `META-INF/kona/commands` on the given class loader.
+
+## Scheduling
+
+Register work on the application `Schedule`, then run due tasks with:
+
+```bash
+./grind schedule:run
+./grind schedule:list
+```
+
+Custom grind commands are ordinary processes: point a scheduled callback at a shell invocation of `./grind your:command`, or call `Grind.call` from code the scheduler already runs. Full guide: [Task scheduling](../../scheduling/).
+
+## Testing
+
+Capture stdout and exit codes with `ConsoleTester` — see [HTTP & console tests](../../testing/http-console/#console-grind).

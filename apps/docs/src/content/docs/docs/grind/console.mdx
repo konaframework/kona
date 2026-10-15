@@ -1,15 +1,15 @@
 ---
-title: Console depth
-description: Colored output, verbosity, prompts, list, and exit codes for grind.
+title: Console IO & prompts
+description: GrindIO, ConsoleIO, tables, progress, prompts, verbosity, and exit codes.
 ---
 
-All Kona terminal CLIs share one Termwind-inspired console style: brand colors (`#FF9A00` / `#286291`), success/info/warn/error markers, boxes, two-column lists, and progress bars.
+All Kona terminal CLIs share one Termwind-inspired console style: brand colors (`#FF9A00` / `#286291`), success/info/warn/error markers, boxes, two-column lists, tables, and progress bars.
 
 | API | Where |
 | --- | --- |
 | `dev.kona.support.console.ConsoleIO` | Canonical implementation (`kona-support`) |
 | `GrindIO` | `./grind` — wraps `ConsoleIO` with `-q` / `-v` |
-| `ConsoleIO` | Global `kona` CLI |
+| Helpers on `ConsoleCommand` | `info`, `success`, `warn`, `error`, `table`, `progress`, … |
 
 Do not print to the terminal with raw `println` in commands; use these APIs.
 
@@ -24,21 +24,31 @@ Do not print to the terminal with raw `println` in commands; use these APIs.
 | Flag | Effect |
 | --- | --- |
 | `-v` / `--verbose` | Extra diagnostics from commands that use `GrindIO.verbose` |
-| `-q` / `--quiet` | Suppress normal stdout (`list`, schedule messages, …) |
+| `-q` / `--quiet` | Suppress normal stdout (`list`, schedule messages, …). Errors still print. |
 
-Exit code `0` means success; `1` means usage errors, missing projects, or unbound services.
+## Output helpers
 
-## list
+Inside a `ConsoleCommand`, prefer the helpers (they respect quiet/verbose via the bound `GrindIO`):
 
-```bash
-./grind list
+```kotlin
+info("Working…")
+success("Done")
+warn("Slow path")
+error("Could not connect")
+title("Report")
+table(
+    listOf("id", "email"),
+    listOf(listOf("1", "ada@example.com"), listOf("2", "bea@example.com")),
+)
+progress(3, 10, "users")
+verbose("only with -v")
 ```
 
-Prints every grind command in a two-column, colored summary.
+`ConsoleIO.table` / `GrindIO.table` align columns by plain-text width (ANSI codes ignored for padding).
 
 ## Prompts
 
-Use `Prompts` inside custom commands (injectable streams for tests):
+Use `Prompts` for interactive input (injectable streams keep tests non-interactive):
 
 ```kotlin
 val prompts = Prompts()
@@ -46,3 +56,24 @@ val name = prompts.ask("Name", default = "Kona")
 val ok = prompts.confirm("Continue?")
 val pick = prompts.choice("Driver", listOf("array", "redis"))
 ```
+
+| Method | Behavior |
+|--------|----------|
+| `ask` | Free text; empty line uses `default` when set |
+| `confirm` | `y`/`yes` vs default `Y/n` or `y/N` |
+| `choice` | Numbered list; accepts index or case-insensitive label |
+
+## Exit codes
+
+| Code | Constant | Meaning |
+|------|----------|---------|
+| `0` | `ConsoleCommand.SUCCESS` | Success (also used when `--isolated` skips a busy command) |
+| `1` | `ConsoleCommand.FAILURE` | Usage errors, missing projects, failed generators, unbound services |
+
+Scripts and CI should treat any non-zero exit as failure.
+
+## Related
+
+- [Creating commands](../creating-commands/)
+- [Running commands](../running-commands/)
+- [HTTP & console tests](../../testing/http-console/)
