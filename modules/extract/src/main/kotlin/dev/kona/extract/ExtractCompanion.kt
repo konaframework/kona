@@ -16,6 +16,41 @@ open class ExtractCompanion<T : Extract<T>>(
 
     fun query(): ModelBuilder<T> = newInstance().newQuery()
 
+    /**
+     * Registers a named global scope applied to every [query] for this model.
+     * Call from the companion `init` block (Kotlin) or once at app boot (Java).
+     */
+    fun addGlobalScope(name: String, scope: Consumer<ModelBuilder<T>>): ExtractCompanion<T> = apply {
+        GlobalScopes.add(modelClass, name, Scope { builder ->
+            @Suppress("UNCHECKED_CAST")
+            scope.accept(builder as ModelBuilder<T>)
+        })
+    }
+
+    /** Registers a [Scope] instance; the identifier is the scope's concrete class name. */
+    fun addGlobalScope(scope: Scope): ExtractCompanion<T> = apply {
+        GlobalScopes.add(modelClass, scope)
+    }
+
+    fun hasGlobalScope(name: String): Boolean = GlobalScopes.has(modelClass, name)
+
+    fun getGlobalScope(name: String): Scope? = GlobalScopes.get(modelClass, name)
+
+    fun getGlobalScopes(): Map<String, Scope> = GlobalScopes.all(modelClass)
+
+    fun removeGlobalScope(name: String): ExtractCompanion<T> = apply {
+        GlobalScopes.remove(modelClass, name)
+    }
+
+    fun withoutGlobalScope(name: String): ModelBuilder<T> = query().withoutGlobalScope(name)
+
+    fun withoutGlobalScopes(): ModelBuilder<T> = query().withoutGlobalScopes()
+
+    fun withoutGlobalScopes(names: Collection<String>): ModelBuilder<T> = query().withoutGlobalScopes(names)
+
+    fun withoutGlobalScopesExcept(names: Collection<String>): ModelBuilder<T> =
+        query().withoutGlobalScopesExcept(names)
+
     fun all(): List<T> = query().get()
 
     /** Query that eager loads [relations] (`User.with("posts").get()`). */
