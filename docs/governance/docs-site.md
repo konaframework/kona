@@ -39,13 +39,15 @@ CSS: `apps/docs/src/styles/custom.css` (`--kona-primary`, `--kona-accent`).
 
 4. **Progressive path (trajectory).** Today’s public site still leans on low-level application wiring (explicit providers, registries). That is honest for the current API, but it is **not** the end state. As scaffolding and conventions land, **rewrite** guides so newcomers start with the simple path and only dig into providers/container internals later — developer-friendly progressive disclosure, not a disjoint dump of every knob on page one.
 
+   **Sidebar IA (public):** group pages in progressive sections — *Getting started* → *The basics* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Testing* → *Packages & tooling* — in `apps/docs/sidebar.mjs`. Prefer regrouping the sidebar over mass file moves so slugs stay stable.
+
 5. **Internal vs public.** Component maps that exist for agents under `docs/architecture/` stay out of the public site unless rewritten in Kona-only language.
 
 ## Concurrent with milestones
 
 Public guides for a milestone’s API surface are written **or rewritten** **in the same wave** as the code. Do not defer docs; do not treat early low-level pages as frozen.
 
-- Expand `apps/docs/sidebar.mjs` and `src/content/docs/` when new APIs land.
+- Expand `apps/docs/sidebar.mjs` (into the progressive groups above) and `src/content/docs/` when new APIs land.
 - Kotlin and Java examples on public API pages.
 - `pnpm --filter @kona/docs build` (or `cd apps/docs && pnpm build`) before merging docs-touching PRs.
 
