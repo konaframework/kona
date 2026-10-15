@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * I/O uses Netty (epoll on Linux when available, otherwise NIO). Each request is handled on a
  * virtual thread so application code may block freely.
  */
-class KonaHttpServer(
+class KonaHttpServer @JvmOverloads constructor(
     private val kernel: HttpKernel,
     private val host: String = "127.0.0.1",
     private val port: Int = 4000,
