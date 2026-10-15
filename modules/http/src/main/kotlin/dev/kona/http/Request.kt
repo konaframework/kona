@@ -86,6 +86,31 @@ class Request @JvmOverloads constructor(
 
     fun getAttribute(key: String): Any? = attributes[key]
 
+    /** Session attached by `StartSession` (attribute `"session"`), if present. */
+    fun session(): RequestSession? = getAttribute(SESSION_ATTRIBUTE) as? RequestSession
+
+    /** Flashed old input for [key], or [default] when absent. */
+    @JvmOverloads
+    fun old(key: String, default: String? = null): String? = session()?.old(key, default) ?: default
+
+    /**
+     * Whether the client expects a JSON error envelope (Laravel `$request->expectsJson()`).
+     * Form posts and HTML Accept lists return false so validation can redirect back.
+     */
+    fun expectsJson(): Boolean {
+        val accept = header("Accept").orEmpty()
+        if (accept.contains("application/json", ignoreCase = true) &&
+            !accept.contains("text/html", ignoreCase = true)
+        ) {
+            return true
+        }
+        val contentType = header("Content-Type").orEmpty()
+        if (contentType.contains("application/json", ignoreCase = true)) {
+            return true
+        }
+        return false
+    }
+
     /** Parsed `Cookie` header name→value map (empty when absent). */
     fun cookies(): Map<String, String> = Cookie.parseHeader(header("Cookie"))
 
@@ -96,6 +121,9 @@ class Request @JvmOverloads constructor(
         java.net.URLDecoder.decode(value, Charsets.UTF_8)
 
     companion object {
+        /** Request attribute key used by `StartSession` (`"session"`). */
+        const val SESSION_ATTRIBUTE: String = "session"
+
         @JvmStatic
         fun get(path: String): Request = Request("GET", path)
 

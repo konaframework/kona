@@ -229,9 +229,20 @@ class KernelRouterTest {
             DefaultExceptionHandler(true).handle(request, RuntimeException("x")).body,
         )
         assertEquals("""{"message":"Server Error"}""", handler.handle(request, RuntimeException("x")).body)
-        val validation = handler.handle(request, ValidationException(mapOf("a" to listOf("A bad."))))
+        val validation = handler.handle(
+            Request("GET", "/", headers = mapOf("Accept" to "application/json")),
+            ValidationException(mapOf("a" to listOf("A bad."))),
+        )
         assertEquals(422, validation.status)
         assertEquals("""{"message":"A bad.","errors":{"a":["A bad."]}}""", validation.body)
+        val redirected = handler.handle(
+            Request("POST", "/form", headers = mapOf("Accept" to "text/html", "Referer" to "/form"), body = "a=1"),
+            ValidationException(mapOf("a" to listOf("A bad."))),
+        )
+        assertEquals(302, redirected.status)
+        assertEquals("/form", redirected.headers["Location"])
+        assertEquals(mapOf("a" to listOf("A bad.")), redirected.sessionErrors)
+        assertEquals(mapOf("a" to "1"), redirected.sessionOldInput)
         assertEquals(emptyMap<String, String>(), HttpException(400, "bad").headers)
     }
 }

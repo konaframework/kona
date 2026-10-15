@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M20 — Default web scaffold** (`milestone/M20-default-web-scaffold`) — checklist complete; ship via PR.
+**Active milestone:** **M21 — Web form round-trip** (`milestone/M21-web-form-roundtrip`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -674,7 +674,7 @@ M20 — Default web scaffold.
 
 ## M20 — Default web scaffold
 
-**Status:** active
+**Status:** done (merged PR #38)
 
 **Branch:** `milestone/M20-default-web-scaffold`
 
@@ -692,7 +692,32 @@ M20 — Default web scaffold.
 
 ### Next (queued)
 
-Opened after M20.
+M21 — Web form round-trip.
+
+---
+
+## M21 — Web form round-trip
+
+**Status:** active
+
+**Branch:** `milestone/M21-web-form-roundtrip`
+
+**Parity slice:** Laravel/Almasix redirect helpers + session old input + validation redirect-back so the default Crema web app can round-trip HTML forms (POST → redirect → flash/errors → redisplay).
+
+### Parity checklist
+
+- [x] `Response.redirect` / `Response.back` with `with` / `withInput` / `withErrors` flash-on-redirect
+- [x] Session `_old_input` / `flashInput` + `old()`; `Request.old()` / `Request.session()`; previous URL tracking
+- [x] HTML/form `ValidationException` path redirects back with flashed errors + old input (JSON keeps 422)
+- [x] Kotlin + Java regressions; docs rewrite; 100% kover on touched modules
+
+### In-scope modules
+
+`kona-http`, `kona-session`, `apps/docs/`
+
+### Next (queued)
+
+Opened after M21 (multipart uploads is a strong candidate).
 
 ---
 
@@ -707,4 +732,5 @@ flowchart LR
   M17 --> M18[M18_Notifications]
   M18 --> M19[M19_Crema_Vite]
   M19 --> M20[M20_Default_Web]
+  M20 --> M21[M21_Form_Roundtrip]
 ```

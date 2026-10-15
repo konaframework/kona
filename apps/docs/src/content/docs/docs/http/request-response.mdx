@@ -1,6 +1,6 @@
 ---
 title: Request & response
-description: Read headers, query strings, form fields, and JSON from a Request, and build text, HTML, JSON, or empty Responses.
+description: Read headers, query strings, form fields, and JSON from a Request, and build text, HTML, JSON, redirect, or empty Responses.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -206,14 +206,16 @@ The kernel writes **route parameters** here before your handler runs. For a rout
 
 ### Factories
 
-Four static factories cover the common cases. Each sets a `Content-Type` header for you; the first three accept an optional status code (default `200`).
+Static factories cover the common cases. Body factories set a `Content-Type` for you; the first three accept an optional status code (default `200`).
 
-| Factory | Body | `Content-Type` |
+| Factory | Body | `Content-Type` / notes |
 |---------|------|----------------|
 | `Response.text(body, status)` | The string as given | `text/plain; charset=utf-8` |
 | `Response.html(body, status)` | The string as given | `text/html; charset=utf-8` |
 | `Response.json(payload, status)` | `payload` serialized to JSON | `application/json; charset=utf-8` |
 | `Response.noContent()` | Empty, status `204` | `text/plain; charset=utf-8` (no body is sent) |
+| `Response.redirect(to, status)` | Empty, status `302` by default | Sets `Location` |
+| `Response.back(request, fallback, status)` | Empty redirect | Previous URL → `Referer` → `fallback` |
 
 `json` accepts any value the bundled Jackson serializer understands: maps, lists, strings, numbers, booleans, `null` (serialized as `null`), Kotlin data classes, Java records, and ordinary classes with getters.
 
@@ -228,6 +230,7 @@ router.get("/page") { Response.html("<h1>Welcome</h1>") }
 router.get("/users/{id}") { Response.json(UserView(42, "Ada")) }
 router.post("/users") { Response.json(mapOf("id" to 43), 201) }
 router.delete("/users/{id}") { Response.noContent() }
+router.post("/save") { Response.redirect("/done").with("status", "Saved") }
 ```
 
 </TabItem>
@@ -241,10 +244,21 @@ router.get("/page", request -> Response.html("<h1>Welcome</h1>"));
 router.get("/users/{id}", request -> Response.json(new UserView(42, "Ada")));
 router.post("/users", request -> Response.json(Map.of("id", 43), 201));
 router.delete("/users/{id}", request -> Response.noContent());
+router.post("/save", request -> Response.redirect("/done").with("status", "Saved"));
 ```
 
 </TabItem>
 </Tabs>
+
+### Redirects
+
+`Response.redirect("/path")` returns a redirect with a `Location` header. Chain flash helpers for the next request (applied by `StartSession`):
+
+- `with(key, value)` — flash a value
+- `withInput(map)` — flash `_old_input` for form redisplay (`request.old("field")`)
+- `withErrors(map)` — flash validation `errors`
+
+`Response.back(request)` targets the session’s previous URL (recorded on successful GETs), then the `Referer` header, then `/`.
 
 ### Adjusting a response
 

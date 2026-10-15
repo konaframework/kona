@@ -193,8 +193,9 @@ class HttpPolishTest {
             htmlReq,
             ValidationException(mapOf("a" to listOf("b"))),
         )
-        assertEquals(422, htmlValidation.status)
-        assertTrue(htmlValidation.body.contains("422"))
+        assertEquals(302, htmlValidation.status)
+        assertEquals("/", htmlValidation.headers["Location"])
+        assertEquals(mapOf("a" to listOf("b")), htmlValidation.sessionErrors)
 
         val htmlHttp = DefaultExceptionHandler().handle(htmlReq, HttpException(403, "nope"))
         assertEquals(403, htmlHttp.status)
