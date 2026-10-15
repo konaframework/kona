@@ -4,22 +4,24 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dev.kona.redis.RedisConnection
 
-/**
- * Redis-backed queue using get/set list encoding (works with memory and Lettuce clients).
- */
+/** Redis-backed queue using get/set list encoding. */
 class RedisQueue(
     private val redis: RedisConnection,
     private val prefix: String = "kona_queues:",
 ) : Queue {
     private val mapper = jacksonObjectMapper()
 
-    override fun push(job: Job, queue: String): String {
+    override fun push(job: Job, queue: String, delaySeconds: Long): String {
         val key = job.javaClass.name
         JobRegistry.register(key) { job }
-        val payload = JobRegistry.payloadFor(job, key)
+        val payload = JobRegistry.payloadFor(job, key).withDelay(delaySeconds)
         append(listKey(queue), JobRegistry.encode(payload))
         return payload.id
     }
+
+    fun push(job: Job, queue: String): String = push(job, queue, 0)
+
+    fun push(job: Job): String = push(job, "default", 0)
 
     override fun pop(queue: String): QueuePayload? {
         val listKey = listKey(queue)
@@ -57,10 +59,7 @@ class RedisQueue(
     }
 
     private fun writeList(key: String, list: List<String>) {
-        if (list.isEmpty()) {
-            redis.del(key)
-        } else {
-            redis.set(key, mapper.writeValueAsString(list))
-        }
+        if (list.isEmpty()) redis.del(key)
+        else redis.set(key, mapper.writeValueAsString(list))
     }
 }

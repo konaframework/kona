@@ -21,8 +21,6 @@ kover {
                     classes("dev.kona.schedule.CronExpression")
                     classes("dev.kona.schedule.CronExpression\$Field")
                     classes("dev.kona.schedule.CronExpression\$Field\$Companion")
-                    // data class generated members
-                    classes("dev.kona.schedule.ScheduledEvent")
                 }
                 // Schedule API is fully exercised by ScheduleTest / grind schedule commands.
             }

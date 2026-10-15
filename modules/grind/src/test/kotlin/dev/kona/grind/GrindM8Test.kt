@@ -150,8 +150,12 @@ class GrindM8Test {
         val project = fixtureProject(temp.resolve("sched"))
         val boot = "--bootstrap=${ScheduleFixtureApp::class.java.name}"
         val emptyBoot = "--bootstrap=${EmptyScheduleApp::class.java.name}"
-        assertEquals(0, capture { GrindApplication().run(arrayOf("schedule:list", "--base=$project", boot)) }.first)
-        assertTrue(capture { GrindApplication().run(arrayOf("schedule:list", "--base=$project", boot)) }.second.contains("tick"))
+        val listed = capture { GrindApplication().run(arrayOf("schedule:list", "--base=$project", boot)) }
+        assertEquals(0, listed.first)
+        assertTrue(listed.second.contains("tick"))
+        assertTrue(listed.second.contains("no-overlap"))
+        assertTrue(listed.second.contains("one-server"))
+        assertTrue(listed.second.contains("background"))
         assertTrue(
             capture { GrindApplication().run(arrayOf("schedule:list", "--base=$project", emptyBoot)) }
                 .second.contains("No scheduled"),
@@ -161,6 +165,28 @@ class GrindM8Test {
             capture { GrindApplication().run(arrayOf("schedule:run", "--base=$project", emptyBoot)) }
                 .second.contains("No scheduled tasks"),
         )
+        assertEquals(
+            0,
+            capture {
+                GrindApplication().run(arrayOf("schedule:work", "--base=$project", boot, "--max=2", "--sleep=1", "-v"))
+            }.first,
+        )
+        assertEquals(Int.MAX_VALUE, ScheduleRunCommand.workMaxTicks(emptyMap()))
+        assertEquals(3, ScheduleRunCommand.workMaxTicks(mapOf("max" to "3")))
+        assertEquals(1, ScheduleRunCommand.workMaxTicks(mapOf("max" to "0")))
+        assertEquals(Int.MAX_VALUE, ScheduleRunCommand.workMaxTicks(mapOf("max" to "nope")))
+        assertEquals(60L, ScheduleRunCommand.workSleepSeconds(emptyMap()))
+        assertEquals(60L, ScheduleRunCommand.workSleepSeconds(mapOf("sleep" to "bad")))
+        assertEquals(1L, ScheduleRunCommand.workSleepSeconds(mapOf("sleep" to "0")))
+        assertEquals(2L, ScheduleRunCommand.workSleepSeconds(mapOf("sleep" to "2")))
+        val workThread = Thread {
+            GrindApplication().run(arrayOf("schedule:work", "--base=$project", boot, "--sleep=1"))
+        }
+        workThread.start()
+        Thread.sleep(200)
+        workThread.interrupt()
+        workThread.join(8000)
+        assertFalse(workThread.isAlive)
         assertEquals(1, GrindApplication().run(arrayOf("schedule:list", "--base=$project", "--bootstrap=${NoQueueApp::class.java.name}")))
 
         val steamIn = ByteArrayInputStream("config(\"app.name\")\n1+2\napp\nbad!!\n:quit\n".toByteArray())
@@ -192,7 +218,12 @@ object ScheduleFixtureApp {
             .configure { it.set("app.name", "Fixture") }
             .providers(ScheduleServiceProvider())
             .boot()
-        app.resolve(Schedule::class.java).everyMinute("tick") { }
+        app.resolve(Schedule::class.java).apply {
+            everyMinute("tick") { }
+            everyMinute("locked") { }.withoutOverlapping()
+            everyMinute("server") { }.onOneServer()
+            everyMinute("bg") { }.runInBackground()
+        }
         return app
     }
 }

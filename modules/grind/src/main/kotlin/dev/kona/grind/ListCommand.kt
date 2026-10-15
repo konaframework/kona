@@ -45,6 +45,7 @@ class ListCommand(
             "queue:flush" to "Clear failed jobs",
             "schedule:run" to "Run due scheduled tasks",
             "schedule:list" to "List scheduled tasks",
+            "schedule:work" to "Run the scheduler in a loop",
             "steam" to "Interactive REPL",
             "assets:vite" to "Print Vite asset bundling setup help",
             "storage:link" to "Symlink public/storage to storage/app/public",
