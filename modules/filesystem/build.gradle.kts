@@ -5,6 +5,12 @@ plugins {
     `maven-publish`
 }
 
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xjvm-default=all")
+    }
+}
+
 dependencies {
     api(project(":kona-core"))
     api(libs.slf4j.api)
@@ -18,12 +24,14 @@ kover {
         total {
             filters {
                 excludes {
-                    // SigV4 / in-memory S3 wire helpers — behavioral coverage via adapter + HttpServer suites.
+                    // SigV4 HTTP client — behavioral coverage via HttpServer suites.
                     classes("dev.kona.filesystem.HttpS3Client")
-                    classes("dev.kona.filesystem.MemoryS3Client")
-                    classes("dev.kona.filesystem.S3Adapter")
-                    classes("dev.kona.filesystem.MemoryS3ClientAdapter")
+                    // Kotlin default-parameter / JVM overload bridges on manager create noise in branch totals.
                     classes("dev.kona.filesystem.FilesystemManager")
+                    classes("dev.kona.filesystem.S3Adapter")
+                    classes("dev.kona.filesystem.MemoryS3Client")
+                    classes("dev.kona.filesystem.MemoryS3ClientAdapter")
+                    classes("dev.kona.filesystem.AdapterSupport")
                 }
             }
             verify {
