@@ -4,6 +4,7 @@ import dev.kona.http.Handler
 import dev.kona.http.Middleware
 import dev.kona.http.Request
 import dev.kona.http.Response
+import dev.kona.http.TrustProxies
 
 /**
  * HTTP throttle middleware using a named [RateLimiter] definition.

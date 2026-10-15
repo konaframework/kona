@@ -2,6 +2,7 @@ package dev.kona.security
 
 import dev.kona.http.Request
 import dev.kona.http.Response
+import dev.kona.http.TrustProxies
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -193,6 +194,15 @@ class SecurityMiddlewareTest {
         limiter.clearAll()
         val byRealIp = ThrottleRequests(limiter.also { it.forName("r") { RateLimit(1) } }, "r")
         byRealIp.handle(Request("GET", "/", headers = mapOf("X-Real-IP" to "8.8.8.8"))) { Response.text("a") }
+        limiter.clearAll()
+        val byClientIp = ThrottleRequests(limiter.also { it.forName("c") { RateLimit(1) } }, "c")
+        val trusted = Request.get("/").also { it.setAttribute(TrustProxies.CLIENT_IP, "203.0.113.1") }
+        byClientIp.handle(trusted) { Response.text("a") }
+        assertThrows(RateLimitExceededException::class.java) {
+            byClientIp.handle(
+                Request.get("/").also { it.setAttribute(TrustProxies.CLIENT_IP, "203.0.113.1") },
+            ) { Response.text("a") }
+        }
         ThrottleRequests(limiter.also { it.clearAll(); it.forName("g") { RateLimit(1) } }, "g")
             .handle(Request.get("/")) { Response.text("g") }
     }
