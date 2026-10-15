@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fair HTTP speed comparison: Kona vs Spring Boot vs FastAPI
+# Fair HTTP speed comparison: Kona vs Spring Boot vs FastAPI vs Laravel
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -14,6 +14,7 @@ ENDPOINTS=(/ping /json)
 KONA_PORT=4000
 SPRING_PORT=4001
 FASTAPI_PORT=4002
+LARAVEL_PORT=4003
 
 mkdir -p "$RESULTS"
 
@@ -45,6 +46,9 @@ import fastapi, uvicorn
 print(f"fastapi={fastapi.__version__}")
 print(f"uvicorn={uvicorn.__version__}")
 PY
+    echo "php=$(php -v | head -1)"
+    echo "laravel=$(cd "$ROOT/laravel" && php artisan --version 2>/dev/null | tr -s ' ')"
+    echo "laravel_serve=php artisan serve (PHP built-in server, single-threaded)"
     echo "bombardier=$("$BIN" --version 2>&1 | head -1)"
     echo "spring_boot=3.5.6"
     echo "duration=$DURATION"
@@ -84,6 +88,20 @@ start_fastapi() {
   wait_http "http://127.0.0.1:$FASTAPI_PORT/ping" "FastAPI" 60
 }
 
+start_laravel() {
+  log "Starting Laravel (artisan serve) on :$LARAVEL_PORT"
+  (
+    cd "$ROOT/laravel"
+    # Production-ish: cached config/routes; no debug. Single-threaded PHP built-in server
+    # (same fairness note as FastAPI --workers 1). Octane not used.
+    php artisan config:cache >/dev/null
+    php artisan route:cache >/dev/null
+    php artisan serve --host=127.0.0.1 --port="$LARAVEL_PORT" --no-reload
+  ) >"$RESULTS/laravel-server.log" 2>&1 &
+  echo $! >"$RESULTS/laravel.pid"
+  wait_http "http://127.0.0.1:$LARAVEL_PORT/ping" "Laravel" 60
+}
+
 stop_pidfile() {
   local pf="$1"
   if [[ -f "$pf" ]]; then
@@ -101,7 +119,8 @@ cleanup() {
   stop_pidfile "$RESULTS/kona.pid"
   stop_pidfile "$RESULTS/spring.pid"
   stop_pidfile "$RESULTS/fastapi.pid"
-  for port in "$KONA_PORT" "$SPRING_PORT" "$FASTAPI_PORT"; do
+  stop_pidfile "$RESULTS/laravel.pid"
+  for port in "$KONA_PORT" "$SPRING_PORT" "$FASTAPI_PORT" "$LARAVEL_PORT"; do
     fuser -k "${port}/tcp" 2>/dev/null || true
   done
 }
@@ -146,8 +165,12 @@ PY
 
 main() {
   [[ -x "$BIN" ]] || { echo "missing bombardier at $BIN"; exit 1; }
+  [[ -d "$ROOT/laravel/vendor" ]] || {
+    echo "missing Laravel vendor — run: (cd laravel && composer install)"
+    exit 1
+  }
   # Clear stale listeners
-  for port in "$KONA_PORT" "$SPRING_PORT" "$FASTAPI_PORT"; do
+  for port in "$KONA_PORT" "$SPRING_PORT" "$FASTAPI_PORT" "$LARAVEL_PORT"; do
     fuser -k "${port}/tcp" 2>/dev/null || true
   done
   sleep 1
@@ -178,6 +201,12 @@ main() {
   bench_framework fastapi "$FASTAPI_PORT"
   stop_pidfile "$RESULTS/fastapi.pid"
   fuser -k "${FASTAPI_PORT}/tcp" 2>/dev/null || true
+  sleep 2
+
+  start_laravel
+  bench_framework laravel "$LARAVEL_PORT"
+  stop_pidfile "$RESULTS/laravel.pid"
+  fuser -k "${LARAVEL_PORT}/tcp" 2>/dev/null || true
 
   log "Parsing results"
   "$ROOT/fastapi/.venv/bin/python" "$ROOT/parse_results.py"

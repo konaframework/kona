@@ -41,7 +41,7 @@ def parse_json(path: Path) -> dict | None:
 def main() -> None:
     rows = []
     for path in sorted(RESULTS.glob("*_meas.json")):
-        m = re.match(r"(kona|spring|fastapi)_(ping|json)_c(\d+)_meas\.json", path.name)
+        m = re.match(r"(kona|spring|fastapi|laravel)_(ping|json)_c(\d+)_meas\.json", path.name)
         if not m:
             continue
         parsed = parse_json(path)

@@ -4,6 +4,15 @@ fastapi/**/__pycache__/
 spring/.gradle/
 spring/build/
 kona/build/
+laravel/vendor/
+laravel/node_modules/
+laravel/.env
+laravel/storage/framework/**
+laravel/storage/logs/**
+laravel/bootstrap/cache/*.php
+!laravel/storage/framework/.gitignore
+!laravel/storage/logs/.gitignore
+!laravel/bootstrap/cache/.gitignore
 results/*_meas.json
 results/*.summary.txt
 results/*.log
