@@ -94,6 +94,7 @@ export async function buildSidebar() {
       label: 'Database',
       items: [
         { label: 'Extract overview', slug: 'docs/extract' },
+        { label: 'Database connections', slug: 'docs/extract/database' },
         { label: 'Models', slug: 'docs/extract/models' },
         { label: 'Query builder', slug: 'docs/extract/query-builder' },
         { label: 'Relations', slug: 'docs/extract/relations' },

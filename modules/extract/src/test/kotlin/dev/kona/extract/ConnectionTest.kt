@@ -27,6 +27,7 @@ class ConnectionTest {
     fun reset() {
         Database.clearGlobal()
         Env.clear()
+        Grammar.clearRegisteredUrlPrefixes()
     }
 
     @Test
@@ -42,6 +43,26 @@ class ConnectionTest {
         assertSame(Grammar.MYSQL, Grammar.forUrl("jdbc:mysql://h/db"))
         assertSame(Grammar.MYSQL, Grammar.forUrl("jdbc:mariadb://h/db"))
         assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:h2:mem:x"))
+        assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:postgresql://h/db"))
+        assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:sqlite:file.db"))
+
+        val brackets = Grammar("[", "]")
+        // Longest registered first → shorter matches hit prefix.length <= bestLen.
+        Grammar.registerUrlPrefix("jdbc:example:cloud:", Grammar.NONE)
+        Grammar.registerUrlPrefix("jdbc:example:", brackets)
+        Grammar.registerUrlPrefix("jdbc:ex:", Grammar.ANSI)
+        assertSame(Grammar.NONE, Grammar.forUrl("jdbc:example:cloud:x"))
+        assertSame(brackets, Grammar.forUrl("jdbc:example://host/db"))
+        assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:h2:mem:other"))
+        Grammar.clearRegisteredUrlPrefixes()
+        // Re-register shorter first then longer to also cover length > bestLen updates.
+        Grammar.registerUrlPrefix("jdbc:ex:", Grammar.ANSI)
+        Grammar.registerUrlPrefix("jdbc:example:", brackets)
+        assertSame(brackets, Grammar.forUrl("jdbc:example://z"))
+        Grammar.clearRegisteredUrlPrefixes()
+        assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:example://host/db"))
+        assertThrows<IllegalArgumentException> { Grammar.registerUrlPrefix("  ", Grammar.ANSI) }
+        assertThrows<IllegalArgumentException> { Grammar.registerUrlPrefix("", Grammar.ANSI) }
     }
 
     @Test

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.kona.extract.relations.HasMany;
 import dev.kona.extract.relations.Relation;
+import dev.kona.extract.schema.SchemaGrammar;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -271,6 +272,27 @@ public class JavaExtractApiTest {
         Member copy = ada.replicate();
         assertFalse(copy.exists());
         assertNull(copy.getKey());
+
+        Member foundOrNew = Member.QUERY.findOrNew(ada.getKey());
+        assertTrue(foundOrNew.exists());
+        Member missing = Member.QUERY.findOrNew(9_999L);
+        assertFalse(missing.exists());
+        assertEquals(9_999L, ((Number) missing.getKey()).longValue());
+        assertTrue(ada.isClean("age"));
+        assertEquals(1, ada.increment("age"));
+        assertEquals(37, ada.get("age"));
+        assertEquals(1, ada.decrement("age"));
+        assertEquals(36, ada.get("age"));
+        assertTrue(Member.QUERY.query().tap(q -> q.where("email", "ada@j.io")).lockForUpdate().toSql().contains(" for update"));
+        assertTrue(Member.QUERY.query().orderBy("id").lazy(10).iterator().hasNext());
+        assertTrue(DB.table("users").orderBy("id").cursor().iterator().hasNext());
+        assertTrue(DB.table("users").sharedLock().toSql().contains(" for share"));
+        Grammar.registerUrlPrefix("jdbc:javaexample:", Grammar.NONE);
+        assertEquals(Grammar.NONE, Grammar.forUrl("jdbc:javaexample://x"));
+        Grammar.clearRegisteredUrlPrefixes();
+        SchemaGrammar.registerProduct("JavaExample", ids -> new SchemaGrammar(ids));
+        assertEquals("\"t\"", SchemaGrammar.forProduct("JavaExample").wrap("t"));
+        SchemaGrammar.clearRegisteredProducts();
     }
 
     @Test
