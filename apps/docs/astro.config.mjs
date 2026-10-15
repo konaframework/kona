@@ -8,7 +8,7 @@ import { buildSidebar } from './sidebar.mjs';
 const base = process.env.PUBLIC_BASE_PATH || '/';
 const site = process.env.PUBLIC_SITE_URL || 'https://konaframework.dev';
 const ogImage = new URL('og.png', site.endsWith('/') ? site : `${site}/`).href;
-const ogImageAlt = 'Kona — Kotlin-first web framework for the JVM';
+const ogImageAlt = 'Kona — Laravel-inspired, batteries-included web framework for the JVM';
 const sidebar = await buildSidebar();
 
 // https://astro.build/config
@@ -20,7 +20,7 @@ export default defineConfig({
     starlight({
       title: 'Kona',
       description:
-        'Kotlin-first, Java first-class web framework for the JVM.',
+        'Laravel-inspired, batteries-included web framework for the JVM. Kotlin-first, Java first-class.',
       favicon: '/favicon.svg',
       logo: {
         light: './src/assets/kona-mark.svg',

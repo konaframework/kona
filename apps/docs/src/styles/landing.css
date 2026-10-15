@@ -122,9 +122,9 @@ html[data-theme='light'] .landing-brand--for-light {
 /* ——— Top bar ——— */
 
 .landing-top {
-  position: absolute;
+  position: sticky;
+  top: 0;
   z-index: 5;
-  inset: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -133,6 +133,12 @@ html[data-theme='light'] .landing-brand--for-light {
   background: var(--landing-top-bg);
   border-bottom: 1px solid var(--landing-top-border);
   backdrop-filter: blur(10px);
+}
+
+.landing-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .landing-top__home {
@@ -156,12 +162,12 @@ html[data-theme='light'] .landing-brand--for-light {
   font-family: var(--landing-font-display);
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--landing-hero-muted) !important;
+  color: var(--landing-ink-soft) !important;
   text-decoration: none !important;
 }
 
 .landing-top__link:hover {
-  color: var(--landing-hero-fg) !important;
+  color: var(--landing-ink) !important;
 }
 
 .landing-theme {
@@ -174,7 +180,7 @@ html[data-theme='light'] .landing-brand--for-light {
   border-radius: 0.4rem;
   border: 1px solid var(--landing-theme-btn-border);
   background: var(--landing-theme-btn-bg);
-  color: var(--landing-hero-fg);
+  color: var(--landing-ink);
   cursor: pointer;
   transition:
     background-color 0.2s ease,
@@ -199,16 +205,12 @@ html[data-theme='light'] .landing-theme__icon--sun {
   display: block;
 }
 
-/* ——— Hero ——— */
+/* ——— Hero (boxed section, same rhythm as features / close) ——— */
 
 .landing-hero {
   position: relative;
   isolation: isolate;
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: clamp(5.5rem, 12vw, 7rem) clamp(1.25rem, 4vw, 3.5rem) clamp(2rem, 5vw, 4rem);
+  padding: clamp(3.5rem, 8vw, 5.5rem) clamp(1.25rem, 4vw, 3.5rem);
   overflow: hidden;
   color: var(--landing-hero-fg);
   background: var(--landing-hero-bg);
@@ -218,7 +220,7 @@ html[data-theme='light'] .landing-theme__icon--sun {
   content: '';
   position: absolute;
   inset: -20%;
-  z-index: -1;
+  z-index: 0;
   background:
     repeating-linear-gradient(
       -18deg,
@@ -235,7 +237,7 @@ html[data-theme='light'] .landing-theme__icon--sun {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   background:
     radial-gradient(circle at 70% 30%, rgba(255, 154, 0, 0.12), transparent 40%),
     radial-gradient(circle at 30% 80%, rgba(74, 138, 184, 0.16), transparent 45%);
@@ -244,7 +246,10 @@ html[data-theme='light'] .landing-theme__icon--sun {
 }
 
 .landing-hero__inner {
-  width: min(42rem, 100%);
+  position: relative;
+  z-index: 1;
+  width: min(52rem, 100%);
+  margin: 0 auto;
   animation: landing-rise 0.9s var(--landing-ease) both;
 }
 
