@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** none — open next deepen after M23.
+**Active milestone:** M24 — Executable config (in progress).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -770,7 +770,36 @@ M23 — Binary downloads & signed storage.
 
 ### Next (queued)
 
-Opened after M23.
+M24 — Executable config.
+
+---
+
+## M24 — Executable config
+
+**Status:** in progress
+
+**Branch:** `milestone/M24-executable-config`
+
+**Parity slice:** Fully adopt executable config modules (Kotlin/Java) that call `Env` and merge into dotted `Config`. Remove JSON/properties config file loading from scaffolds, samples, and the framework boot path.
+
+### Parity checklist
+
+- [x] `ConfigFile` public API (`key()` + `config()`) + `ConfigFile.of` + `Config.load(ConfigFile)`
+- [x] `Application.Builder.configs` / `withConfig(s)` merge after `.env` defaults, before `configure`
+- [x] Remove `Config.load(Path)` / `loadDirectory` JSON+properties loading
+- [x] `PathLayout.config()` → language-root `config/`; `paths.*` via `config/Paths`
+- [x] `kona new` Kotlin+Java(+kits) skeletons: `config/*.kt|java`, no `resources/config/*.json`
+- [x] Samples hello-kotlin / hello-java migrated; grind fixtures use `ConfigFile` + Env
+- [x] Docs rewrite (`concepts/config.mdx` + related guides); Java-callable path
+- [ ] 100% kover on touched modules; PR + automerge
+
+### In-scope modules
+
+`kona-core`, `kona-cli` (skeletons), `kona-grind` (fixtures), `apps/docs/`, samples
+
+### Next (queued)
+
+Opened after M24 (session auth candidate or next deepen).
 
 ---
 
@@ -788,4 +817,5 @@ flowchart LR
   M20 --> M21[M21_Form_Roundtrip]
   M21 --> M22[M22_Multipart]
   M22 --> M23[M23_Binary_Downloads]
+  M23 --> M24[M24_Executable_Config]
 ```

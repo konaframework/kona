@@ -30,24 +30,28 @@ Extract has five layers. Each is usable on its own, and each builds on the one b
 
 ## Configuring the database
 
-Applications usually configure connections in `config/database.json`. Kona loads every file in `config/` at boot, under a key named after the file, so this file becomes the `database` section:
+Applications usually configure connections in `config/Database` (an executable `ConfigFile` registered from `bootstrap.App`). That module becomes the `database` section:
 
-```json
-{
-  "default": "main",
-  "connections": {
-    "main": {
-      "url": "jdbc:h2:file:./storage/app;DATABASE_TO_LOWER=TRUE",
-      "username": "sa",
-      "password": "",
-      "pool_size": 10
-    },
-    "reports": {
-      "url": "jdbc:postgresql://localhost/reports",
-      "username": "reporter",
-      "password": "secret"
-    }
-  }
+```kotlin title="config/Database.kt"
+object Database : ConfigFile {
+    override fun key(): String = "database"
+
+    override fun config(): Map<String, Any?> = mapOf(
+        "default" to "main",
+        "connections" to mapOf(
+            "main" to mapOf(
+                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/app;DATABASE_TO_LOWER=TRUE"),
+                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+                "pool_size" to 10,
+            ),
+            "reports" to mapOf(
+                "url" to "jdbc:postgresql://localhost/reports",
+                "username" to "reporter",
+                "password" to "secret",
+            ),
+        ),
+    )
 }
 ```
 

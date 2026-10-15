@@ -124,7 +124,7 @@ A request to `GET /hello/kona` returns `{"message":"Hello, kona"}`. The rest of 
 Knowing *when* each piece runs makes the rest of the docs easier to follow.
 
 1. **Process start.** Your `main` calls `Kona.create(args)`. Kona decides the base path: the value of a `--base=/some/dir` argument if you passed one, otherwise the current working directory.
-2. **Bootstrap.** When you call `.boot()` on the builder, Kona creates the `Application`, loads `.env` from the base path (if the file exists), seeds `app.name`, `app.env`, and `app.debug` from the environment, and loads every `.json` and `.properties` file in `config/`.
+2. **Bootstrap.** When you call `.boot()` on the builder, Kona creates the `Application`, loads `.env` from the base path (if the file exists), seeds `app.name`, `app.env`, and `app.debug` from the environment, merges registered executable `ConfigFile` modules, then runs your `configure` callbacks.
 3. **Your configuration.** Any `.configure { ... }` callbacks you added run next, so they can override defaults and file values.
 4. **Register phase.** Each provider's `register` method runs, in the order you listed them. Providers only *describe* services here.
 5. **Boot phase.** After **every** provider has registered, each provider's `boot` method runs. This is where routes are attached and middleware is installed, because everything a provider might need is now bound.

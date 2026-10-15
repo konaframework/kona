@@ -58,7 +58,7 @@ The migrate and seed commands:
 1. find the project at or above `--base` (default: current directory);
 2. load `build/classes` and call `create(String[])` on the bootstrap class (`--bootstrap=`, default `bootstrap.App`), so run `./gradlew classes` first;
 3. use the `MigrationRegistry` bound in the application container (they stop with a message when none is bound);
-4. use the container's `Database` (registered by `ExtractServiceProvider`), or build one from `config/database.json`; `--database=name` selects a named connection.
+4. use the container's `Database` (registered by `ExtractServiceProvider`), or build one from the `database` config section; `--database=name` selects a named connection.
 
 Errors (unknown connection, a failing migration, a missing seeder class) print a message and exit with status 1. See [Migrations](../../extract/migrations/) and [Seeders & factories](../../extract/seeders-factories/) for the APIs behind these commands.
 

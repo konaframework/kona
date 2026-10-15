@@ -160,7 +160,7 @@ You can also drive an `Application` directly: `Application(basePath)`, then `reg
 When you call `boot()` on a builder from `Kona.create`, these steps run in this order:
 
 1. A new `Application` is constructed and registers itself, its `Config`, and its `Container` in the container.
-2. **Bootstrap** (only with `Kona.create`): `.env` is loaded from the base path if present; `app.name`, `app.env`, and `app.debug` are set from `APP_NAME` (default `Kona`), `APP_ENV` (default `local`), and `APP_DEBUG` (default `false`); then every `.json` / `.properties` file in `config/` is merged in.
+2. **Bootstrap** (only with `Kona.create`): `.env` is loaded from the base path if present; `app.name`, `app.env`, and `app.debug` are set from `APP_NAME` (default `Kona`), `APP_ENV` (default `local`), and `APP_DEBUG` (default `false`); then registered `ConfigFile` modules merge under their keys.
 3. Your **`configure`** callbacks run, in order. They see and can override everything from step 2.
 4. **Register phase**: each provider's `register` runs in list order.
 5. **Boot phase**: each provider's `boot` runs in registration order.
