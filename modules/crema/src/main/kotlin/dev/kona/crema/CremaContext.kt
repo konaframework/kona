@@ -46,6 +46,18 @@ class CremaContext(
     }
 
     fun stack(name: String): String = stacks.getOrPut(name) { mutableListOf() }.joinToString("")
+
+    companion object {
+        /**
+         * Context flag: when truthy, conditional and loop blocks are wrapped in
+         * `<!--[if BLOCK]><![endif]-->` … `<!--[if ENDBLOCK]><![endif]-->` so DOM morphing can
+         * tell structural blocks apart (skipped when the block sits inside an HTML tag).
+         */
+        const val MORPH_MARKERS: String = "__crema_morph_markers"
+
+        const val BLOCK_START: String = "<!--[if BLOCK]><![endif]-->"
+        const val BLOCK_END: String = "<!--[if ENDBLOCK]><![endif]-->"
+    }
 }
 
 class SectionBuffer {

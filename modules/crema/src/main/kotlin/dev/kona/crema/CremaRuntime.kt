@@ -7,8 +7,15 @@ import dev.kona.support.lang.Lang
  * Crema template runtime — directives and echoes for `*.crema.html`.
  * Kept in one file so the behavioral suite can drive coverage of the interpreter.
  */
-internal class CremaRuntime(private val finder: ViewFinder) {
+internal class CremaRuntime(
+    private val finder: ViewFinder,
+    private val extensions: CremaExtensions = CremaExtensions(),
+) : CremaEvaluator {
     private val jsonMapper = ObjectMapper()
+
+    override fun evaluate(expression: String, context: CremaContext): Any? = eval(expression, context)
+
+    override fun expandSource(source: String, context: CremaContext): String = expand(source, context)
 
     fun render(name: String, data: Map<String, Any?>): String =
         renderSource(finder.get(name), CremaContext().merge(data))
@@ -65,7 +72,8 @@ internal class CremaRuntime(private val finder: ViewFinder) {
 
     private fun expand(source: String, context: CremaContext): String {
         val (withoutVerbatim, verbatimSlots) = extractVerbatim(source)
-        var text = expandBlocks(withoutVerbatim, context)
+        val stash = mutableListOf<String>()
+        val text = expandBlocks(withoutVerbatim, context, stash)
         val out = StringBuilder()
         var i = 0
         while (i < text.length) {
@@ -92,11 +100,36 @@ internal class CremaRuntime(private val finder: ViewFinder) {
                 }
             }
         }
-        return restoreVerbatim(out.toString(), verbatimSlots)
+        return restoreVerbatim(restoreStash(out.toString(), stash), verbatimSlots)
     }
 
-    private fun expandBlocks(source: String, context: CremaContext): String {
-        var text = source
+    /** Rendered fragments are parked behind placeholders so later passes never re-interpret their output. */
+    private fun park(stash: MutableList<String>, rendered: String): String {
+        stash += rendered
+        return "$STASH_PREFIX${stash.lastIndex}$STASH_SUFFIX"
+    }
+
+    private fun restoreStash(source: String, stash: List<String>): String {
+        if (stash.isEmpty()) return source
+        val out = StringBuilder(source.length)
+        var i = 0
+        while (i < source.length) {
+            val start = source.indexOf(STASH_PREFIX, i)
+            if (start < 0) {
+                out.append(source, i, source.length)
+                break
+            }
+            out.append(source, i, start)
+            val end = source.indexOf(STASH_SUFFIX, start)
+            val idx = source.substring(start + STASH_PREFIX.length, end).toInt()
+            out.append(stash[idx])
+            i = end + STASH_SUFFIX.length
+        }
+        return out.toString()
+    }
+
+    private fun expandBlocks(source: String, context: CremaContext, stash: MutableList<String>): String {
+        var text = expandStructural(source, context, stash)
         text = replaceDirective(text, "@csrf") {
             val token = context.get("_token")?.toString()
                 ?: context.get("csrf_token")?.toString()
@@ -112,21 +145,383 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         text = replaceYield(text, context)
         text = replaceInclude(text, context)
         text = replaceOnce(text, context)
-        text = replaceAuthGuest(text, context)
-        text = replaceCan(text, context)
-        text = replaceIssetEmpty(text, context)
-        text = replaceError(text, context)
-        text = replaceHasSection(text, context)
-        text = replaceSwitch(text, context)
-        text = replaceIf(text, context)
-        text = replaceUnless(text, context)
-        text = replaceWhile(text, context)
-        text = replaceForeach(text, context)
-        text = replaceForelse(text, context)
         text = replaceComponent(text, context)
         text = replaceXComponents(text, context)
+        text = replaceTags(text, context, stash)
+        text = replaceInlineDirectives(text, context, stash)
         text = replaceStack(text, context)
         return text
+    }
+
+    // ---- Structural blocks (outermost first, so inner blocks see loop variables) ----
+
+    private fun expandStructural(source: String, context: CremaContext, stash: MutableList<String>): String {
+        if (source.indexOf('@') < 0) return source
+        val out = StringBuilder(source.length)
+        var rest = source
+        while (true) {
+            val found = nextStructural(rest) ?: break
+            val (start, word, end) = found
+            out.append(rest, 0, start)
+            val segment = rest.substring(start, end)
+            val rendered = evalStructural(word, segment, context)
+            val wrap = word !in extensions.blockNames() &&
+                truthy(context.get(CremaContext.MORPH_MARKERS)) &&
+                !insideTag(out)
+            out.append(
+                park(
+                    stash,
+                    if (wrap) CremaContext.BLOCK_START + rendered + CremaContext.BLOCK_END else rendered,
+                ),
+            )
+            rest = rest.substring(end)
+        }
+        out.append(rest)
+        return out.toString()
+    }
+
+    private fun insideTag(before: CharSequence): Boolean {
+        val lt = before.lastIndexOf('<')
+        return lt >= 0 && before.lastIndexOf('>') < lt
+    }
+
+    private fun CharSequence.lastIndexOf(ch: Char): Int {
+        for (i in length - 1 downTo 0) if (this[i] == ch) return i
+        return -1
+    }
+
+    /** Earliest structural directive: (start, word, endExclusive). */
+    private fun nextStructural(text: String): Triple<Int, String, Int>? {
+        var i = 0
+        while (true) {
+            val at = text.indexOf('@', i)
+            if (at < 0 || at + 1 >= text.length) return null
+            if (text[at + 1] == '@') {
+                i = at + 2
+                continue
+            }
+            var j = at + 1
+            while (j < text.length && text[j].isLetterOrDigit()) j++
+            val word = text.substring(at + 1, j)
+            if (word in STRUCTURAL || word in extensions.blockNames()) {
+                val end = blockEnd(text, at, word)
+                if (end != null) return Triple(at, word, end)
+            }
+            i = j.coerceAtLeast(at + 1)
+        }
+    }
+
+    private fun closerFor(word: String): String =
+        if (word == "if" || word == "hasSection" || word == "sectionMissing") "@endif" else "@end$word"
+
+    /** Index after the matching closer, or null when this `@word` is not a directive use (e.g. no parens). */
+    private fun blockEnd(text: String, start: Int, word: String): Int? {
+        val open = "@$word"
+        val close = closerFor(word)
+        var j = start + open.length
+        while (j < text.length && (text[j] == ' ' || text[j] == '\t')) j++
+        val hasParen = j < text.length && text[j] == '('
+        val bodyStart = when {
+            hasParen -> (readParens(text, j) ?: error("Unclosed ( in $open")).second + 1
+            word in NO_ARG_BLOCKS || word in extensions.blockNames() -> start + open.length
+            else -> return null
+        }
+        val end = if (close == "@endif") {
+            findMatchingEndif(text, bodyStart)
+        } else {
+            findMatchingClose(text, bodyStart, open, close, requireParen = word == "empty")
+        }
+        require(end >= 0) { "Missing $close" }
+        return end + close.length
+    }
+
+    private fun evalStructural(word: String, segment: String, context: CremaContext): String {
+        val open = "@$word"
+        val close = closerFor(word)
+        var bodyStart = open.length
+        while (bodyStart < segment.length && (segment[bodyStart] == ' ' || segment[bodyStart] == '\t')) bodyStart++
+        var arg = ""
+        if (bodyStart < segment.length && segment[bodyStart] == '(') {
+            val (a, closeParen) = readParens(segment, bodyStart)!!
+            arg = a
+            bodyStart = closeParen + 1
+        } else {
+            bodyStart = open.length
+        }
+        val body = segment.substring(bodyStart, segment.length - close.length)
+        val custom = extensions.blockFor(word)
+        if (custom != null) {
+            return custom.render(CremaDirectiveCall(word, arg.trim(), body, context, this))
+        }
+        return when (word) {
+            "if" -> evalIfBlock(arg, body, context)
+            "unless" -> if (!truthy(eval(arg, context))) expand(body, context) else ""
+            "isset" -> if (resolve(arg.trim().removePrefix("$"), context) != null) expand(body, context) else ""
+            "empty" -> if (!truthy(eval(arg, context))) expand(body, context) else ""
+            "auth" -> if (isAuthenticated(context)) expand(body, context) else ""
+            "guest" -> if (!isAuthenticated(context)) expand(body, context) else ""
+            "can" -> if (can(unquote(arg), context)) expand(body, context) else ""
+            "cannot" -> if (!can(unquote(arg), context)) expand(body, context) else ""
+            "error" -> if (hasError(unquote(arg), context)) expand(body, context) else ""
+            "hasSection" -> if (context.hasSection(unquote(arg))) expand(body, context) else ""
+            "sectionMissing" -> if (!context.hasSection(unquote(arg))) expand(body, context) else ""
+            "switch" -> evalSwitchBody(body, eval(arg, context), context)
+            "foreach", "each" -> {
+                val kv = LOOP_KEY_VALUE_HEADER.matchEntire(arg.trim())
+                if (kv != null) {
+                    return renderKeyedLoop(eval(kv.groupValues[1], context), kv.groupValues[2], kv.groupValues[3], body, context)
+                }
+                val m = LOOP_AS_HEADER.matchEntire(arg.trim()) ?: error("Invalid $open header: $arg")
+                renderLoop(eval(m.groupValues[1], context), m.groupValues[2], body, context)
+            }
+            "for" -> renderForHeader(arg.trim(), body, context)
+            "forelse" -> evalForelse(arg, body, context)
+            else -> evalWhile(arg, body, context)
+        }
+    }
+
+    private fun unquote(arg: String): String = arg.trim().removeSurrounding("'").removeSurrounding("\"")
+
+    private fun hasError(field: String, context: CremaContext): Boolean {
+        val errors = context.get("errors") as? Map<*, *> ?: return false
+        return when (val v = errors[field]) {
+            null -> false
+            is Collection<*> -> v.isNotEmpty()
+            is CharSequence -> v.isNotEmpty()
+            else -> true
+        }
+    }
+
+    /** `@foreach($items as $key => $value)`: map entries, or index → item for lists. */
+    private fun renderKeyedLoop(value: Any?, keyName: String, itemName: String, body: String, context: CremaContext): String {
+        val pairs: List<Pair<Any?, Any?>> = if (value is Map<*, *>) {
+            value.entries.map { it.key to it.value }
+        } else {
+            iterate(value).mapIndexed { idx, item -> idx to item }
+        }
+        val parent = parentLoop(context)
+        val depth = ((parent?.get("depth") as? Number)?.toInt() ?: 0) + 1
+        return buildString {
+            pairs.forEachIndexed { idx, (key, item) ->
+                val child = context.child(
+                    mapOf(keyName to key, itemName to item, "loop" to loopMap(idx, pairs.size, depth, parent)),
+                )
+                append(expand(body, child))
+            }
+        }
+    }
+
+    private fun evalWhile(cond: String, body: String, context: CremaContext): String =
+        buildString {
+            var iteration = 0
+            while (iteration < MAX_WHILE) {
+                val loop = loopMap(iteration, MAX_WHILE, depth = 1, parent = parentLoop(context))
+                val child = context.child(mapOf("loop" to loop))
+                if (!truthy(eval(cond, child))) break
+                append(expand(body, child))
+                iteration++
+            }
+        }
+
+    private fun evalForelse(header: String, block: String, context: CremaContext): String {
+        val m = LOOP_AS_HEADER.matchEntire(header.trim()) ?: error("Invalid @forelse header: $header")
+        val emptyAt = findForelseEmpty(block)
+        require(emptyAt >= 0) { "Missing @empty in @forelse" }
+        val body = block.substring(0, emptyAt)
+        val empty = block.substring(emptyAt + "@empty".length)
+        val items = iterate(eval(m.groupValues[1], context))
+        return if (items.isEmpty()) expand(empty, context) else renderLoopItems(items, m.groupValues[2], body, context)
+    }
+
+    // ---- Extension tags and inline directives ----
+
+    private fun replaceTags(source: String, context: CremaContext, stash: MutableList<String>): String {
+        var text = source
+        for (prefix in extensions.tagPrefixes()) {
+            text = replaceTagPrefix(text, prefix, context, stash)
+        }
+        return text
+    }
+
+    private fun replaceTagPrefix(source: String, prefix: String, context: CremaContext, stash: MutableList<String>): String {
+        val opener = "<$prefix:"
+        if (!source.contains(opener)) return source
+        val handler = extensions.tagFor(prefix)!!
+        val out = StringBuilder(source.length)
+        var i = 0
+        while (true) {
+            val start = source.indexOf(opener, i)
+            if (start < 0) {
+                out.append(source, i, source.length)
+                break
+            }
+            out.append(source, i, start)
+            val parsed = parseTagOpen(source, start + opener.length)
+            if (parsed == null || parsed.name == "slot") {
+                out.append(opener)
+                i = start + opener.length
+                continue
+            }
+            var body = ""
+            var next = parsed.end
+            if (!parsed.selfClosing) {
+                val closeAt = findTagClose(source, parsed.end, prefix, parsed.name)
+                require(closeAt >= 0) { "Missing </$prefix:${parsed.name}>" }
+                body = source.substring(parsed.end, closeAt)
+                next = closeAt + "</$prefix:${parsed.name}>".length
+            }
+            val (slot, slots) = splitSlots(body, prefix, context)
+            val tag = CremaTag(
+                prefix,
+                parsed.name,
+                tagAttributes(parsed.attributes, context),
+                slot,
+                slots,
+                parsed.selfClosing,
+                context,
+                this,
+            )
+            out.append(park(stash, handler.render(tag)))
+            i = next
+        }
+        return out.toString()
+    }
+
+    private class ParsedTag(val name: String, val attributes: String, val selfClosing: Boolean, val end: Int)
+
+    private fun parseTagOpen(text: String, nameStart: Int): ParsedTag? {
+        var j = nameStart
+        while (j < text.length && (text[j].isLetterOrDigit() || text[j] in "-_.")) j++
+        if (j == nameStart) return null
+        val name = text.substring(nameStart, j)
+        var quote: Char? = null
+        var k = j
+        while (k < text.length) {
+            val ch = text[k]
+            val q = quote
+            if (q != null) {
+                if (ch == q) quote = null
+            } else if (ch == '"' || ch == '\'') {
+                quote = ch
+            } else if (ch == '>') {
+                val selfClosing = text[k - 1] == '/'
+                val attrEnd = if (selfClosing) k - 1 else k
+                return ParsedTag(name, text.substring(j, attrEnd), selfClosing, k + 1)
+            }
+            k++
+        }
+        return null
+    }
+
+    private fun findTagClose(text: String, from: Int, prefix: String, name: String): Int {
+        val open = "<$prefix:$name"
+        val close = "</$prefix:$name>"
+        var depth = 0
+        var i = from
+        while (true) {
+            val nextOpen = indexOfTagOpen(text, open, i)
+            val nextClose = text.indexOf(close, i)
+            if (nextClose < 0) return -1
+            if (nextOpen in 0 until nextClose) {
+                val parsed = parseTagOpen(text, nextOpen + prefix.length + 2)!!
+                if (!parsed.selfClosing) depth++
+                i = parsed.end
+                continue
+            }
+            if (depth == 0) return nextClose
+            depth--
+            i = nextClose + close.length
+        }
+    }
+
+    private fun indexOfTagOpen(text: String, open: String, from: Int): Int {
+        var i = from
+        while (true) {
+            val idx = text.indexOf(open, i)
+            if (idx < 0) return -1
+            val after = idx + open.length
+            if (after < text.length && (text[after].isWhitespace() || text[after] == '>' || text[after] == '/')) {
+                return idx
+            }
+            i = after
+        }
+    }
+
+    private fun splitSlots(body: String, prefix: String, context: CremaContext): Pair<String, Map<String, String>> {
+        if (body.isEmpty()) return "" to emptyMap()
+        val slots = linkedMapOf<String, String>()
+        var rest = body
+        for (pattern in listOf(slotPattern(prefix), X_SLOT_NAMED, X_SLOT_COLON)) {
+            rest = pattern.replace(rest) { m ->
+                slots[m.groupValues[1]] = expand(m.groupValues[2], context)
+                ""
+            }
+        }
+        return expand(rest, context).trim() to slots
+    }
+
+    private fun slotPattern(prefix: String): Regex =
+        Regex("""<${Regex.escape(prefix)}:slot\s+name=["']([^"']+)["']\s*>([\s\S]*?)</${Regex.escape(prefix)}:slot>""")
+
+    private fun tagAttributes(raw: String, context: CremaContext): Map<String, Any?> {
+        val attrs = linkedMapOf<String, Any?>()
+        for (m in TAG_ATTRIBUTE.findAll(raw)) {
+            val key = m.groupValues[1]
+            val value = when {
+                m.groups[2] != null -> m.groupValues[2]
+                m.groups[3] != null -> m.groupValues[3]
+                else -> null
+            }
+            when {
+                key.startsWith("::") -> attrs[key.substring(1)] = value ?: ""
+                key.startsWith(":$") -> attrs[key.substring(2)] = eval(key.substring(1), context)
+                key.startsWith(":") -> attrs[key.substring(1)] = if (value == null) true else eval(value, context)
+                value == null -> attrs[key] = true
+                else -> attrs[key] = expand(value, context)
+            }
+        }
+        return attrs
+    }
+
+    private fun replaceInlineDirectives(source: String, context: CremaContext, stash: MutableList<String>): String {
+        val names = extensions.directiveNames()
+        if (names.isEmpty() || source.indexOf('@') < 0) return source
+        val out = StringBuilder(source.length)
+        var i = 0
+        while (i < source.length) {
+            val at = source.indexOf('@', i)
+            if (at < 0) {
+                out.append(source, i, source.length)
+                break
+            }
+            out.append(source, i, at)
+            if (at + 1 < source.length && source[at + 1] == '@') {
+                out.append("@@")
+                i = at + 2
+                continue
+            }
+            var j = at + 1
+            while (j < source.length && source[j].isLetterOrDigit()) j++
+            val word = source.substring(at + 1, j)
+            val handler = if (word in names) extensions.directiveFor(word) else null
+            if (handler == null) {
+                out.append('@')
+                i = at + 1
+                continue
+            }
+            var expression = ""
+            var next = j
+            var k = j
+            while (k < source.length && (source[k] == ' ' || source[k] == '\t')) k++
+            if (k < source.length && source[k] == '(') {
+                val (expr, closeParen) = readParens(source, k) ?: error("Unclosed ( in @$word")
+                expression = expr.trim()
+                next = closeParen + 1
+            }
+            out.append(park(stash, handler.render(CremaDirectiveCall(word, expression, "", context, this))))
+            i = next
+        }
+        return out.toString()
     }
 
     private fun extractVerbatim(source: String): Pair<String, List<String>> {
@@ -281,15 +676,6 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         return text
     }
 
-    private fun replaceAuthGuest(source: String, context: CremaContext): String {
-        var text = replacePairedBlock(source, "@auth", "@endauth") { body ->
-            if (isAuthenticated(context)) expand(body, context) else ""
-        }
-        text = replacePairedBlock(text, "@guest", "@endguest") { body ->
-            if (!isAuthenticated(context)) expand(body, context) else ""
-        }
-        return text
-    }
 
     private fun isAuthenticated(context: CremaContext): Boolean {
         val flag = context.get("__authenticated")
@@ -299,15 +685,6 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         return false
     }
 
-    private fun replaceCan(source: String, context: CremaContext): String {
-        var text = replaceArgBlock(source, "@can", "@endcan") { ability, body ->
-            if (can(ability, context)) expand(body, context) else ""
-        }
-        text = replaceArgBlock(text, "@cannot", "@endcannot") { ability, body ->
-            if (!can(ability, context)) expand(body, context) else ""
-        }
-        return text
-    }
 
     private fun can(ability: String, context: CremaContext): Boolean {
         val abilities = context.get("__abilities")
@@ -327,84 +704,10 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         return false
     }
 
-    private fun replaceIssetEmpty(source: String, context: CremaContext): String {
-        var text = replaceArgBlock(source, "@isset", "@endisset") { expr, body ->
-            if (resolve(expr.trim().removePrefix("$"), context) != null) expand(body, context) else ""
-        }
-        text = replaceArgBlock(text, "@empty", "@endempty") { expr, body ->
-            if (!truthy(eval(expr, context))) expand(body, context) else ""
-        }
-        return text
-    }
 
-    private fun replaceError(source: String, context: CremaContext): String =
-        replaceArgBlock(source, "@error", "@enderror") { field, body ->
-            val errors = context.get("errors")
-            val has =
-                when (errors) {
-                    is Map<*, *> -> {
-                        val v = errors[field]
-                        when (v) {
-                            null -> false
-                            is Collection<*> -> v.isNotEmpty()
-                            is CharSequence -> v.isNotEmpty()
-                            else -> true
-                        }
-                    }
-                    else -> false
-                }
-            if (has) expand(body, context) else ""
-        }
 
-    private fun replaceHasSection(source: String, context: CremaContext): String {
-        var text = replaceNamedIf(source, "@hasSection", context) { name -> context.hasSection(name) }
-        text = replaceNamedIf(text, "@sectionMissing", context) { name -> !context.hasSection(name) }
-        return text
-    }
 
-    /** `@hasSection('name')…@endif` / `@sectionMissing('name')…@endif` */
-    private fun replaceNamedIf(
-        source: String,
-        tag: String,
-        context: CremaContext,
-        predicate: (String) -> Boolean,
-    ): String {
-        var text = source
-        while (true) {
-            val start = text.indexOf(tag)
-            if (start < 0) break
-            val openParen = text.indexOf('(', start + tag.length)
-            require(openParen >= 0) { "Missing ( after $tag" }
-            val (arg, closeParen) = readParens(text, openParen) ?: error("Unclosed ( in $tag")
-            val name = arg.trim().removeSurrounding("'").removeSurrounding("\"")
-            val bodyStart = closeParen + 1
-            val end = findMatchingEndif(text, bodyStart)
-            require(end >= 0) { "Missing @endif for $tag" }
-            val body = text.substring(bodyStart, end)
-            val replacement = if (predicate(name)) expand(body, context) else ""
-            text = text.replaceRange(start, end + "@endif".length, replacement)
-        }
-        return text
-    }
 
-    private fun replaceSwitch(source: String, context: CremaContext): String {
-        var text = source
-        while (true) {
-            val start = text.indexOf("@switch")
-            if (start < 0) break
-            val openParen = text.indexOf('(', start + "@switch".length)
-            require(openParen >= 0) { "Missing ( after @switch" }
-            val (expr, closeParen) = readParens(text, openParen) ?: error("Unclosed ( in @switch")
-            val bodyStart = closeParen + 1
-            val end = text.indexOf("@endswitch", bodyStart)
-            require(end >= 0) { "Missing @endswitch" }
-            val body = text.substring(bodyStart, end)
-            val switchValue = eval(expr, context)
-            val replacement = evalSwitchBody(body, switchValue, context)
-            text = text.replaceRange(start, end + "@endswitch".length, replacement)
-        }
-        return text
-    }
 
     private fun evalSwitchBody(body: String, switchValue: Any?, context: CremaContext): String {
         var i = 0
@@ -449,32 +752,6 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         return best
     }
 
-    private fun replaceIf(source: String, context: CremaContext): String {
-        var text = source
-        while (true) {
-            val start = text.indexOf("@if")
-            if (start < 0) break
-            // avoid matching @ifdef-style; require '(' soon after
-            if (start + 3 < text.length && text[start + 3].isLetterOrDigit()) {
-                // false positive inside something else — skip
-                text = text.replaceRange(start, start + 3, "\u0000if")
-                continue
-            }
-            val openParen = text.indexOf('(', start + 3)
-            if (openParen < 0 || openParen > start + 8) {
-                text = text.replaceRange(start, start + 3, "\u0000if")
-                continue
-            }
-            val (cond, closeParen) = readParens(text, openParen) ?: error("Unclosed ( in @if")
-            val bodyStart = closeParen + 1
-            val end = findMatchingEndif(text, bodyStart)
-            require(end >= 0) { "Missing @endif" }
-            val block = text.substring(bodyStart, end)
-            val replacement = evalIfBlock(cond, block, context)
-            text = text.replaceRange(start, end + "@endif".length, replacement)
-        }
-        return text.replace("\u0000if", "@if")
-    }
 
     private fun evalIfBlock(firstCond: String, block: String, context: CremaContext): String {
         data class Branch(val cond: String?, val body: String)
@@ -552,42 +829,8 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         return -1
     }
 
-    private fun replaceUnless(source: String, context: CremaContext): String =
-        replaceArgBlock(source, "@unless", "@endunless") { cond, body ->
-            if (!truthy(eval(cond, context))) expand(body, context) else ""
-        }
 
-    private fun replaceWhile(source: String, context: CremaContext): String =
-        replaceArgBlock(source, "@while", "@endwhile") { cond, body ->
-            buildString {
-                var iteration = 0
-                while (iteration < MAX_WHILE) {
-                    val loop = loopMap(iteration, MAX_WHILE, depth = 1, parent = parentLoop(context))
-                    val child = context.child(mapOf("loop" to loop))
-                    if (!truthy(eval(cond, child))) break
-                    append(expand(body, child))
-                    iteration++
-                }
-            }
-        }
 
-    private fun replaceForeach(source: String, context: CremaContext): String {
-        var text = source
-        text = replaceNestedLoop(text, "@foreach", "@endforeach", context) { header, body, ctx ->
-            val m = LOOP_AS_HEADER.matchEntire(header.trim())
-                ?: error("Invalid @foreach header: $header")
-            renderLoop(eval(m.groupValues[1], ctx), m.groupValues[2], body, ctx)
-        }
-        text = replaceNestedLoop(text, "@each", "@endeach", context) { header, body, ctx ->
-            val m = LOOP_AS_HEADER.matchEntire(header.trim())
-                ?: error("Invalid @each header: $header")
-            renderLoop(eval(m.groupValues[1], ctx), m.groupValues[2], body, ctx)
-        }
-        text = replaceNestedLoop(text, "@for", "@endfor", context) { header, body, ctx ->
-            renderForHeader(header.trim(), body, ctx)
-        }
-        return text
-    }
 
     private fun renderForHeader(header: String, body: String, context: CremaContext): String {
         FOR_IN_HEADER.matchEntire(header)?.let { m ->
@@ -604,44 +847,20 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         error("Invalid @for header: $header")
     }
 
-    private fun replaceNestedLoop(
-        source: String,
+
+
+    private fun findMatchingClose(
+        text: String,
+        from: Int,
         open: String,
         close: String,
-        context: CremaContext,
-        transform: (header: String, body: String, context: CremaContext) -> String,
-    ): String {
-        var text = source
-        while (true) {
-            val start = findDirective(text, open, 0) ?: break
-            val openParen = text.indexOf('(', start + open.length)
-            require(openParen >= 0) { "Missing ( after $open" }
-            val (header, closeParen) = readParens(text, openParen) ?: error("Unclosed ( in $open")
-            val bodyStart = closeParen + 1
-            val end = findMatchingClose(text, bodyStart, open, close)
-            require(end >= 0) { "Missing $close" }
-            val body = text.substring(bodyStart, end)
-            text = text.replaceRange(start, end + close.length, transform(header, body, context))
-        }
-        return text
-    }
-
-    private fun findDirective(text: String, tag: String, from: Int): Int? {
-        var i = from
-        while (true) {
-            val idx = text.indexOf(tag, i)
-            if (idx < 0) return null
-            if (isDirectiveAt(text, idx, tag)) return idx
-            i = idx + tag.length
-        }
-    }
-
-    private fun findMatchingClose(text: String, from: Int, open: String, close: String): Int {
+        requireParen: Boolean = false,
+    ): Int {
         var depth = 0
         var i = from
         while (i < text.length) {
             when {
-                isDirectiveAt(text, i, open) -> {
+                isDirectiveAt(text, i, open) && (!requireParen || text.startsWith("(", i + open.length)) -> {
                     depth++
                     i += open.length
                 }
@@ -671,34 +890,6 @@ internal class CremaRuntime(private val finder: ViewFinder) {
             else -> error("Expected number, got $this")
         }
 
-    private fun replaceForelse(source: String, context: CremaContext): String {
-        var text = source
-        while (true) {
-            val start = findDirective(text, "@forelse", 0) ?: break
-            val openParen = text.indexOf('(', start + "@forelse".length)
-            require(openParen >= 0) { "Missing ( after @forelse" }
-            val (header, closeParen) = readParens(text, openParen) ?: error("Unclosed ( in @forelse")
-            val m = LOOP_AS_HEADER.matchEntire(header.trim())
-                ?: error("Invalid @forelse header: $header")
-            val bodyStart = closeParen + 1
-            val end = findMatchingClose(text, bodyStart, "@forelse", "@endforelse")
-            require(end >= 0) { "Missing @endforelse" }
-            val block = text.substring(bodyStart, end)
-            val emptyAt = findForelseEmpty(block)
-            require(emptyAt >= 0) { "Missing @empty in @forelse" }
-            val body = block.substring(0, emptyAt)
-            val empty = block.substring(emptyAt + "@empty".length)
-            val items = iterate(eval(m.groupValues[1], context))
-            val replacement =
-                if (items.isEmpty()) {
-                    expand(empty, context)
-                } else {
-                    renderLoopItems(items, m.groupValues[2], body, context)
-                }
-            text = text.replaceRange(start, end + "@endforelse".length, replacement)
-        }
-        return text
-    }
 
     private fun findForelseEmpty(block: String): Int {
         var depth = 0
@@ -812,65 +1003,7 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         return text
     }
 
-    private fun replacePairedBlock(
-        source: String,
-        open: String,
-        close: String,
-        transform: (String) -> String,
-    ): String {
-        var text = source
-        while (true) {
-            val start = text.indexOf(open)
-            if (start < 0) break
-            if (start + open.length < text.length && text[start + open.length].isLetterOrDigit()) {
-                text = text.replaceRange(start, start + open.length, "\u0000" + open.drop(1))
-                continue
-            }
-            val bodyStart = start + open.length
-            val end = text.indexOf(close, bodyStart)
-            require(end >= 0) { "Missing $close" }
-            val body = text.substring(bodyStart, end)
-            text = text.replaceRange(start, end + close.length, transform(body))
-        }
-        return text.replace("\u0000", "@")
-    }
 
-    private fun replaceArgBlock(
-        source: String,
-        open: String,
-        close: String,
-        transform: (arg: String, body: String) -> String,
-    ): String {
-        var text = source
-        while (true) {
-            val start = text.indexOf(open)
-            if (start < 0) break
-            if (start + open.length < text.length && text[start + open.length].isLetterOrDigit()) {
-                text = text.replaceRange(start, start + open.length, "\u0000" + open.drop(1))
-                continue
-            }
-            var j = start + open.length
-            while (j < text.length && text[j].isWhitespace()) j++
-            if (j >= text.length || text[j] != '(') {
-                // e.g. forelse `@empty` without args — skip
-                text = text.replaceRange(start, start + open.length, "\u0000" + open.drop(1))
-                continue
-            }
-            val (arg, closeParen) = readParens(text, j) ?: error("Unclosed ( in $open")
-            val bodyStart = closeParen + 1
-            val end = text.indexOf(close, bodyStart)
-            require(end >= 0) { "Missing $close" }
-            val body = text.substring(bodyStart, end)
-            val ability =
-                if (open == "@can" || open == "@cannot" || open == "@error") {
-                    arg.trim().removeSurrounding("'").removeSurrounding("\"")
-                } else {
-                    arg
-                }
-            text = text.replaceRange(start, end + close.length, transform(ability, body))
-        }
-        return text.replace("\u0000", "@")
-    }
 
     private fun readParens(text: String, openParen: Int): Pair<String, Int>? {
         if (openParen >= text.length || text[openParen] != '(') return null
@@ -948,21 +1081,29 @@ internal class CremaRuntime(private val finder: ViewFinder) {
 
     private fun resolve(path: String, context: CremaContext): Any? {
         val parts = path.trim().split('.')
-        var current: Any? = context.get(parts[0])
+        var current: Any? = unwrap(context.get(parts[0]))
         for (part in parts.drop(1)) {
             current = when (current) {
                 null -> return null
-                is Map<*, *> -> current[part]
-                else -> {
-                    val getter = current.javaClass.methods.firstOrNull {
-                        it.parameterCount == 0 &&
-                            it.name.equals("get${part.replaceFirstChar { c -> c.uppercaseChar() }}", true)
-                    }
-                    getter?.invoke(current)
-                }
+                is Map<*, *> -> unwrap(current[part])
+                else -> unwrap(member(current, part))
             }
         }
         return current
+    }
+
+    private fun unwrap(value: Any?): Any? = if (value is CremaLazy) value.get() else value
+
+    /** `getX()` / `isX()` getter, then a zero-arg method named [part], then a public field. */
+    private fun member(target: Any, part: String): Any? {
+        val cap = part.replaceFirstChar { c -> c.uppercaseChar() }
+        val methods = target.javaClass.methods
+        val method = methods.firstOrNull { it.parameterCount == 0 && it.name.equals("get$cap", true) }
+            ?: methods.firstOrNull { it.parameterCount == 0 && it.name == "is$cap" }
+            ?: methods.firstOrNull { it.parameterCount == 0 && it.name == part }
+        if (method != null) return method.invoke(target)
+        val field = target.javaClass.fields.firstOrNull { it.name == part } ?: return null
+        return field.get(target)
     }
 
     private fun iterate(value: Any?): List<Any?> = when (value) {
@@ -993,6 +1134,16 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         const val MAX_WHILE = 10_000
         const val VERBATIM_PREFIX = "\uE000VERBATIM:"
         const val VERBATIM_SUFFIX = "\uE001"
+        const val STASH_PREFIX = "\uE002"
+        const val STASH_SUFFIX = "\uE003"
+        val STRUCTURAL = setOf(
+            "foreach", "forelse", "for", "each", "while", "if", "unless", "switch", "isset", "empty",
+            "auth", "guest", "can", "cannot", "error", "hasSection", "sectionMissing",
+        )
+        val NO_ARG_BLOCKS = setOf("auth", "guest")
+        val X_SLOT_NAMED = Regex("""<x-slot\s+name=["']([^"']+)["']\s*>([\s\S]*?)</x-slot>""")
+        val X_SLOT_COLON = Regex("""<x-slot:([a-zA-Z0-9_\-]+)\s*>([\s\S]*?)</x-slot(?::\1)?>""")
+        val TAG_ATTRIBUTE = Regex("""([:@a-zA-Z_$][\w:.\-$]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'))?""")
 
         val COMMENT = Regex("""\{\{--[\s\S]*?--\}\}""")
         val EXTENDS = Regex("""@extends\(\s*'([^']+)'\s*\)""")
@@ -1011,9 +1162,10 @@ internal class CremaRuntime(private val finder: ViewFinder) {
         val LANG = Regex("""@lang\(\s*'([^']+)'\s*(?:,\s*([^)]+))?\)""")
         val VITE_SINGLE = Regex("""@vite\(\s*'([^']+)'\s*\)""")
         val VITE_LIST = Regex("""@vite\(\s*\[([^\]]*)\]\s*\)""")
-        val LOOP_AS_HEADER = Regex("""(.+?)\s+as\s+(\w+)""")
-        val FOR_IN_HEADER = Regex("""(\w+)\s+in\s+(.+)""")
-        val FOR_C_HEADER = Regex("""(\w+)\s*=\s*([^;]+);\s*\w+\s*<\s*([^;]+);\s*\w+\+\+""")
+        val LOOP_AS_HEADER = Regex("""(.+?)\s+as\s+\$?(\w+)""")
+        val LOOP_KEY_VALUE_HEADER = Regex("""(.+?)\s+as\s+\$?(\w+)\s*=>\s*\$?(\w+)""")
+        val FOR_IN_HEADER = Regex("""\$?(\w+)\s+in\s+(.+)""")
+        val FOR_C_HEADER = Regex("""\$?(\w+)\s*=\s*([^;]+);\s*\$?\w+\s*<\s*([^;]+);\s*\$?\w+\+\+""")
         val PUSH = Regex("""@push\(\s*'([^']+)'\s*\)([\s\S]*?)@endpush""")
         val PREPEND = Regex("""@prepend\(\s*'([^']+)'\s*\)([\s\S]*?)@endprepend""")
         val COMPONENT = Regex("""@component\(\s*'([^']+)'\s*\)([\s\S]*?)@endcomponent""")
