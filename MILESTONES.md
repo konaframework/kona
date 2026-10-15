@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M15 — Extract / Model Laravel parity** (`milestone/M15-extract-model-parity`).
+**Active milestone:** **M16 — Durable queues** (`milestone/M16-durable-queue`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -60,7 +60,7 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Prompts | M8 | done |
 | Task Scheduling | M8 | done |
 | File Storage | M7 | done |
-| Queues | M7 | done |
+| Queues | M7; durable deepen M16 | done |
 | Mail | M7 | done |
 | Notifications | M7 | done |
 | Collections | M4 | done |
@@ -545,7 +545,7 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 ## M15 — Extract / Model Laravel parity
 
-**Status:** active (checklist complete — ship PR)
+**Status:** done (PR #30)
 
 **Branch:** `milestone/M15-extract-model-parity`
 
@@ -567,9 +567,33 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 `kona-extract`, samples/regression paths, `apps/docs/`
 
+---
+
+## M16 — Durable queues
+
+**Status:** active (checklist complete — ship PR)
+
+**Branch:** `milestone/M16-durable-queue`
+
+**Parity slice:** Make queue jobs survive process boundaries and deepen failed-job / retry behavior left thin after M7 — serializable payloads, durable failed storage, release delay correctness, grind `queue:retry` re-dispatch.
+
+### Parity checklist
+
+- [x] Job payload carries serializable job body (cross-process / cross-worker restore without in-process `JobRegistry` factory)
+- [x] `JobRegistry.create` restores from payload body + class; Kotlin + Java job samples
+- [x] Release delay honored on array / database / redis drivers (`availableAt`)
+- [x] Durable failed-job driver (file verified; database failed_jobs when Extract available)
+- [x] `grind queue:retry` re-dispatches payloads (not forget-only); flush/list stay green
+- [x] Worker backoff uses job `backoffSeconds` via release (no thread sleep)
+- [x] Docs (`apps/docs/` queues) + HANDOFF; 100% kover on touched queue/grind modules
+
+### In-scope modules
+
+`kona-queue`, `kona-grind` (queue commands), `apps/docs/`, samples/regressions
+
 ### Next (queued)
 
-Maintenance / further deepen milestones opened explicitly after M15.
+Scaffold provider wiring, Redis session + signed cookies (open explicitly after M16).
 
 ---
 
@@ -579,4 +603,5 @@ Maintenance / further deepen milestones opened explicitly after M15.
 flowchart LR
   M13[M13_IDE] --> M14[M14_App_Tree]
   M14 --> M15[M15_Extract_Model]
+  M15 --> M16[M16_Durable_Queue]
 ```

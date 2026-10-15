@@ -21,6 +21,19 @@ class RestorableTestJob : Job {
     override fun handle() {}
 }
 
+/** Jackson-friendly job whose fields survive encode/decode without an in-process factory. */
+class DurableTokenJob : Job {
+    var token: String = ""
+
+    override fun handle() {
+        SEEN.add(token)
+    }
+
+    companion object {
+        val SEEN = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    }
+}
+
 class QueueTest {
     @AfterEach
     fun reset() {
@@ -256,6 +269,32 @@ class QueueTest {
         assertThrows(IllegalStateException::class.java) { JobRegistry.create("dev.kona.queue.DoesNotExistJob") }
         val restored = JobRegistry.create(RestorableTestJob::class.java.name)
         assertTrue(restored is RestorableTestJob)
+
+        // Durable body: push, clear factories, worker restores from jobBody JSON.
+        DurableTokenJob.SEEN.clear()
+        val durableMgr = arrayManager()
+        val durableQueue = durableMgr.connection() as ArrayQueue
+        val job = DurableTokenJob().also { it.token = "alpha" }
+        durableQueue.push(job)
+        JobRegistry.clear()
+        assertEquals(1, Worker(durableMgr).run(maxJobs = 1))
+        assertTrue(DurableTokenJob.SEEN.contains("alpha"))
+        val encoded = JobRegistry.payloadFor(DurableTokenJob().also { it.token = "beta" })
+        assertNotNull(encoded.jobBody)
+        JobRegistry.clear()
+        JobRegistry.create(encoded).handle()
+        assertTrue(DurableTokenJob.SEEN.contains("beta"))
+
+        // jobBody serialize failure → null body; corrupt body falls back to no-arg ctor.
+        class BoomJob : Job {
+            fun getExplode(): String = throw RuntimeException("nope")
+            override fun handle() = Unit
+        }
+        val boomPayload = JobRegistry.payloadFor(BoomJob())
+        assertNull(boomPayload.jobBody)
+        JobRegistry.clear()
+        val badBody = encoded.copy(jobKey = RestorableTestJob::class.java.name, jobBody = "{not-json")
+        assertTrue(JobRegistry.create(badBody) is RestorableTestJob)
     }
 
     private fun arrayManager() =
