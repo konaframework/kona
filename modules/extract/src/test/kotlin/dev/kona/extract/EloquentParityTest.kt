@@ -536,6 +536,66 @@ class EloquentParityTest {
     }
 
     @Test
+    fun modelObserverReceivesTypedLifecycleHooks() {
+        ModelDispatcher.flush()
+        val hits = mutableListOf<String>()
+        class CountingObserver : ModelObserver<User>() {
+            override fun retrieved(model: User) { hits += "retrieved" }
+            override fun creating(model: User) { hits += "creating" }
+            override fun created(model: User) { hits += "created" }
+            override fun updating(model: User) { hits += "updating" }
+            override fun updated(model: User) { hits += "updated" }
+            override fun saving(model: User) { hits += "saving" }
+            override fun saved(model: User) { hits += "saved" }
+            override fun deleting(model: User) { hits += "deleting" }
+            override fun deleted(model: User) { hits += "deleted" }
+        }
+        class SoftObserver : ModelObserver<Post>() {
+            override fun trashed(model: Post) { hits += "trashed" }
+            override fun restoring(model: Post) { hits += "restoring" }
+            override fun restored(model: Post) { hits += "restored" }
+            override fun forceDeleting(model: Post) { hits += "forceDeleting" }
+            override fun forceDeleted(model: Post) { hits += "forceDeleted" }
+        }
+        try {
+            User.observe(CountingObserver())
+            Extract.observe(Post::class.java, SoftObserver())
+            val user = User.create(mapOf("name" to "Ada", "email" to "a@o", "age" to 36))
+            User.find(user.getKey())
+            user["age"] = 37
+            user.save()
+            user.delete()
+            assertTrue(hits.containsAll(listOf("creating", "created", "saving", "saved", "retrieved", "updating", "updated", "deleting", "deleted")))
+
+            hits.clear()
+            val post = Post.create(mapOf("title" to "Obs"))
+            post.delete()
+            post.restore()
+            post.forceDelete()
+            assertTrue(hits.containsAll(listOf("trashed", "restoring", "restored", "forceDeleting", "forceDeleted")))
+
+            // empty defaults remain callable
+            val empty = ModelObserver<User>()
+            empty.retrieved(user)
+            empty.creating(user)
+            empty.created(user)
+            empty.updating(user)
+            empty.updated(user)
+            empty.saving(user)
+            empty.saved(user)
+            empty.deleting(user)
+            empty.deleted(user)
+            empty.forceDeleting(user)
+            empty.forceDeleted(user)
+            empty.restoring(user)
+            empty.restored(user)
+            empty.trashed(user)
+        } finally {
+            ModelDispatcher.flush()
+        }
+    }
+
+    @Test
     fun extractReplicateIsTouchMutatorsAndQuiet() {
         ModelDispatcher.flush()
         val seen = mutableListOf<ModelEvent>()

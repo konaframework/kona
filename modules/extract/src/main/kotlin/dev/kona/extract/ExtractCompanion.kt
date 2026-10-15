@@ -16,6 +16,11 @@ open class ExtractCompanion<T : Extract<T>>(
 
     fun query(): ModelBuilder<T> = newInstance().newQuery()
 
+    /** Registers a [ModelObserver] for this model class (Eloquent `Model::observe`). */
+    fun observe(observer: ModelObserver<T>): ExtractCompanion<T> = apply {
+        registerObserver(modelClass, observer)
+    }
+
     /**
      * Registers a named global scope applied to every [query] for this model.
      * Call from the companion `init` block (Kotlin) or once at app boot (Java).

@@ -9,8 +9,8 @@ Reconciled with explore audits ([Audit Extract model CRUD](8bd4dec2-3a9a-4899-ac
 | Meta | Value |
 |------|--------|
 | Last audit | 2026-10-15 (post-#65 reconcile) |
-| Last merged deepen | PR #71 (B3) |
-| Active deepen | **B4** — morphToMany / morphedByMany (shipping) |
+| Last merged deepen | PR #73 (B4) |
+| Active deepen | **B5** — Observer classes (shipping) |
 
 ---
 
@@ -58,8 +58,8 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 |-----|--------|-------|
 | Core CRUD / soft deletes / refresh / replicate / fill | **done** | — |
 | Dirty tracking + `isClean(key)` + model increment | **done** | #65 |
-| Events via `ModelDispatcher` | **done** | No Observer classes yet |
-| Observer classes / `observe` | **missing** | B5 |
+| Events via `ModelDispatcher` | **done** | — |
+| Observer classes / `observe` | **done** | B5 — `ModelObserver` + `observe` |
 | `push` / `withoutTimestamps` / `unguard` | **missing** | B6 / later |
 | Attribute magic `getFooAttribute` | **partial** | Hooks only |
 
@@ -100,8 +100,8 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 | **B1** | Builder deepen + grammar registries + database docs | **done** (#65) |
 | **B2** | `whereDate*`; ModelBuilder select/group/having/orWhereRaw mirrors; `havingRaw`/`orHaving` | **done** (#70) |
 | **B3** | Global scopes | **done** (#71) |
-| **B4** | morphToMany / morphedByMany (+ MorphTo whereHas if in scope) | **shipping** |
-| **B5** | Observer class registration | queued |
+| **B4** | morphToMany / morphedByMany (+ MorphTo whereHas if in scope) | **done** (#73) |
+| **B5** | Observer class registration | **shipping** |
 | **B6** | withAvg/Max/Min; push; sole; keyed pluck | queued |
 
 ---
