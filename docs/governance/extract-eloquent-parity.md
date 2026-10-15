@@ -9,8 +9,8 @@ Reconciled with explore audits ([Audit Extract model CRUD](8bd4dec2-3a9a-4899-ac
 | Meta | Value |
 |------|--------|
 | Last audit | 2026-10-15 (post-#65 reconcile) |
-| Last merged deepen | PR #65 (B1); B2 PR in flight |
-| Active deepen | **B3** — global scopes (after B2 merges) |
+| Last merged deepen | PR #70 (B2) |
+| Active deepen | **B4** — morphToMany / morphedByMany (after B3 merges) |
 
 ---
 
@@ -74,7 +74,7 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 | when / unless / tap / locks / cursor / lazy / chunkById | **done** | #65 |
 | `whereDate` / `Day` / `Month` / `Year` / `Time` (+ `or…`) | **done** | B2 (`cast` / `extract`) |
 | `havingRaw` / `orHaving` / `orHavingRaw` | **done** | B2 |
-| Global scopes | **missing** | B3 |
+| Global scopes | **done** | B3 — `Scope` + `addGlobalScope` / `withoutGlobalScope(s)` |
 | `union` / `crossJoin` | **missing** | later |
 | `pluck(column, key)` keyed | **partial** | column list only |
 | Native SQL upsert | **partial** | portable SELECT+UPDATE |
@@ -98,8 +98,8 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 | Batch | Scope | Status |
 |-------|--------|--------|
 | **B1** | Builder deepen + grammar registries + database docs | **done** (#65) |
-| **B2** | `whereDate*`; ModelBuilder select/group/having/orWhereRaw mirrors; `havingRaw`/`orHaving` | **done** (PR) |
-| **B3** | Global scopes | queued |
+| **B2** | `whereDate*`; ModelBuilder select/group/having/orWhereRaw mirrors; `havingRaw`/`orHaving` | **done** (#70) |
+| **B3** | Global scopes | **done** (PR) |
 | **B4** | morphToMany / morphedByMany (+ MorphTo whereHas if in scope) | queued |
 | **B5** | Observer class registration | queued |
 | **B6** | withAvg/Max/Min; push; sole; keyed pluck | queued |
