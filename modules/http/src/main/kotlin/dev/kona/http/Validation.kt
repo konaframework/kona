@@ -1,18 +1,30 @@
 package dev.kona.http
 
+import java.net.InetAddress
 import java.net.URI
 import java.net.URISyntaxException
+import java.net.UnknownHostException
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.util.UUID
 
 /**
  * Request validation (Laravel Validator shape).
  *
- * Rules: `required`, `nullable`, `bail`, `string`, `integer`, `numeric`, `boolean`, `email`, `url`, `array`,
- * `list`, `min:n`, `max:n`, `size:n`, `between:a,b`, `in:a,b`, `confirmed[:field]`, `same:field`,
- * `regex:/pattern/flags`. Rules may be pipe-joined (`"required|email"`) except `regex`.
+ * Rules may be pipe-joined (`"required|email"`) except `regex` / `not_regex` / `date_format` when the
+ * parameter contains `|`.
  *
- * Like Laravel, only `required` runs for missing or blank fields; `nullable` skips the rest for null values.
- * `min`/`max`/`size`/`between` measure numbers by value (strings too under `numeric`/`integer`), collections by
- * item count, and everything else by character length. Unknown rules and malformed parameters fail closed.
+ * Like Laravel, only implicit rules (`required`, `filled`, `present`, `required_*`, …) run for missing
+ * or blank fields; `nullable` skips the rest for null values; `sometimes` skips the field when absent.
+ * `min`/`max`/`size`/`between` measure numbers by value (strings too under `numeric`/`integer`), collections
+ * by item count, files by kilobytes, and everything else by character length. Unknown rules and malformed
+ * parameters fail closed.
+ *
+ * DB-aware `unique` / `exists` use [ExistenceChecker] when registered; without a checker they fail closed
+ * with a clear message (no Extract dependency in `kona-http`).
  */
 class Validator(
     private val data: Map<String, Any?>,
@@ -45,8 +57,14 @@ class Validator(
         val names = parsed.map { it.name }.toSet()
         val present = data.containsKey(field)
         val value = data[field]
-        val context = Context(field, value, "numeric" in names || "integer" in names, data)
+        if ("sometimes" in names && !present) {
+            return
+        }
+        val context = Context(field, value, "numeric" in names || "integer" in names || "digits" in names, data)
         for (rule in parsed) {
+            if (rule.name == "sometimes" || rule.name == "nullable" || rule.name == "bail") {
+                continue
+            }
             val factory = CHECKS[rule.name]
             if (factory == null) {
                 add(field, "Unknown validation rule [${rule.raw}].")
@@ -58,13 +76,13 @@ class Validator(
                 add(field, "Invalid validation rule [${rule.raw}].")
                 continue
             }
-            val implicit = rule.name == "required"
+            val implicit = rule.name in IMPLICIT
             if (!implicit && !validatable(present, value, "nullable" in names)) {
                 continue
             }
             val message = check(context) ?: continue
             add(field, message)
-            if (implicit || "bail" in names) {
+            if (rule.name == "required" || "bail" in names) {
                 return
             }
         }
@@ -105,12 +123,34 @@ class Validator(
         private val NUMBER = Regex("^\\s*[+-]?(\\d+(\\.\\d*)?|\\.\\d+)([eE][+-]?\\d+)?\\s*$")
         private val INTEGER = Regex("^[+-]?(0|[1-9]\\d*)$")
         private val BOOLEANS: Set<Any> = setOf(true, false, 0, 1, "0", "1", "true", "false")
+        private val ACCEPTED = setOf("yes", "on", "1", "true")
+        private val DECLINED = setOf("no", "off", "0", "false")
+        private val ALPHA = Regex("^[\\p{L}]+$")
+        private val ALPHA_NUM = Regex("^[\\p{L}\\p{N}]+$")
+        private val ALPHA_DASH = Regex("^[\\p{L}\\p{N}_-]+$")
+        private val ASCII = Regex("^[\\x00-\\x7F]*$")
+        private val DIGITS = Regex("^\\d+$")
+        private val IPV4 = Regex(
+            "^((25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$",
+        )
         private val REGEX_FLAGS: Map<Char, Set<RegexOption>> = mapOf(
             'i' to setOf(RegexOption.IGNORE_CASE),
             'm' to setOf(RegexOption.MULTILINE),
             's' to setOf(RegexOption.DOT_MATCHES_ALL),
             'x' to setOf(RegexOption.COMMENTS),
             'u' to emptySet(),
+        )
+
+        private val IMPLICIT = setOf(
+            "required",
+            "filled",
+            "present",
+            "required_if",
+            "required_unless",
+            "required_with",
+            "required_without",
+            "required_with_all",
+            "required_without_all",
         )
 
         private val MIN = mapOf(
@@ -138,11 +178,42 @@ class Validator(
             Kind.FILE to "must be between :a and :b kilobytes.",
         )
 
+        @Volatile
+        private var existenceChecker: ExistenceChecker? = null
+
+        /** Register a DB existence/unique checker (optional; typically wired by Extract). */
+        @JvmStatic
+        fun setExistenceChecker(checker: ExistenceChecker?) {
+            existenceChecker = checker
+        }
+
+        @JvmStatic
+        fun existenceChecker(): ExistenceChecker? = existenceChecker
+
         /** Rule name → parameter parser (throws [IllegalArgumentException] when malformed) → check. */
         private val CHECKS: Map<String, (String?) -> (Context) -> String?> = mapOf(
             "required" to { _ -> { c -> fail(isEmptyValue(c.value), c, "is required.") } },
+            "filled" to { _ ->
+                { c ->
+                    if (!c.data.containsKey(c.field)) {
+                        null
+                    } else {
+                        fail(isEmptyValue(c.value), c, "must have a value.")
+                    }
+                }
+            },
+            "present" to { _ ->
+                { c ->
+                    if (c.data.containsKey(c.field)) {
+                        null
+                    } else {
+                        "The ${c.label} field must be present."
+                    }
+                }
+            },
             "nullable" to { _ -> { _ -> null } },
             "bail" to { _ -> { _ -> null } },
+            "sometimes" to { _ -> { _ -> null } },
             "string" to { _ -> { c -> fail(c.value !is String, c, "must be a string.") } },
             "integer" to { _ -> { c -> fail(!isInteger(c.value), c, "must be an integer.") } },
             "numeric" to { _ -> { c -> fail(!isNumeric(c.value), c, "must be a number.") } },
@@ -177,6 +248,10 @@ class Validator(
                 val allowed = required(p).split(',').toSet()
                 check { c -> if (inSet(c.value, allowed)) null else "The selected ${c.label} is invalid." }
             },
+            "not_in" to { p ->
+                val denied = required(p).split(',').toSet()
+                check { c -> if (!inSet(c.value, denied)) null else "The selected ${c.label} is invalid." }
+            },
             "confirmed" to { p ->
                 { c ->
                     val other = c.data[p ?: "${c.field}_confirmation"]
@@ -187,9 +262,17 @@ class Validator(
                 val other = required(p)
                 check { c -> fail(c.data[other] != c.value, c, "must match ${label(other)}.") }
             },
+            "different" to { p ->
+                val other = required(p)
+                check { c -> fail(c.data[other] == c.value, c, "must be different from ${label(other)}.") }
+            },
             "regex" to { p ->
                 val pattern = pcre(required(p))
                 check { c -> fail(!(c.value is String && pattern.containsMatchIn(c.value)), c, "format is invalid.") }
+            },
+            "not_regex" to { p ->
+                val pattern = pcre(required(p))
+                check { c -> fail(c.value is String && pattern.containsMatchIn(c.value), c, "format is invalid.") }
             },
             "file" to { _ ->
                 { c ->
@@ -211,6 +294,233 @@ class Validator(
             },
             "mimes" to { p -> fileTypeRule(p, useMime = false) },
             "mimetypes" to { p -> fileTypeRule(p, useMime = true) },
+            "accepted" to { _ ->
+                { c ->
+                    if (c.value == null) {
+                        fail(true, c, "must be accepted.")
+                    } else {
+                        fail(c.value.toString().trim().lowercase() !in ACCEPTED, c, "must be accepted.")
+                    }
+                }
+            },
+            "declined" to { _ ->
+                { c ->
+                    if (c.value == null) {
+                        fail(true, c, "must be declined.")
+                    } else {
+                        fail(c.value.toString().trim().lowercase() !in DECLINED, c, "must be declined.")
+                    }
+                }
+            },
+            "alpha" to { _ ->
+                { c -> fail(!(c.value is String && ALPHA.matches(c.value)), c, "must only contain letters.") }
+            },
+            "alpha_num" to { _ ->
+                { c ->
+                    fail(
+                        !(c.value is String && ALPHA_NUM.matches(c.value)),
+                        c,
+                        "must only contain letters and numbers.",
+                    )
+                }
+            },
+            "alpha_dash" to { _ ->
+                { c ->
+                    fail(
+                        !(c.value is String && ALPHA_DASH.matches(c.value)),
+                        c,
+                        "must only contain letters, numbers, dashes, and underscores.",
+                    )
+                }
+            },
+            "ascii" to { _ ->
+                { c -> fail(!(c.value is String && ASCII.matches(c.value)), c, "must only contain ASCII characters.") }
+            },
+            "uuid" to { _ ->
+                { c ->
+                    fail(!isUuid(c.value), c, "must be a valid UUID.")
+                }
+            },
+            "json" to { _ ->
+                { c -> fail(!isJson(c.value), c, "must be a valid JSON string.") }
+            },
+            "ip" to { _ -> { c -> fail(!isIp(c.value, v4 = true, v6 = true), c, "must be a valid IP address.") } },
+            "ipv4" to { _ -> { c -> fail(!isIp(c.value, v4 = true, v6 = false), c, "must be a valid IPv4 address.") } },
+            "ipv6" to { _ -> { c -> fail(!isIp(c.value, v4 = false, v6 = true), c, "must be a valid IPv6 address.") } },
+            "timezone" to { _ ->
+                { c ->
+                    if (c.value == null) {
+                        fail(true, c, "must be a valid timezone.")
+                    } else {
+                        fail(!ZoneId.getAvailableZoneIds().contains(c.value.toString()), c, "must be a valid timezone.")
+                    }
+                }
+            },
+            "date" to { _ ->
+                { c -> fail(parseDate(c.value) == null, c, "must be a valid date.") }
+            },
+            "date_format" to { p ->
+                val formatter = dateFormatter(required(p))
+                check { c ->
+                    val text = c.value as? String
+                    fail(text == null || !matchesFormat(text, formatter), c, "must match the format ${required(p)}.")
+                }
+            },
+            "after" to { p -> dateCompare(required(p), exclusive = true, after = true) },
+            "after_or_equal" to { p -> dateCompare(required(p), exclusive = false, after = true) },
+            "before" to { p -> dateCompare(required(p), exclusive = true, after = false) },
+            "before_or_equal" to { p -> dateCompare(required(p), exclusive = false, after = false) },
+            "starts_with" to { p ->
+                val prefixes = required(p).split(',')
+                check { c ->
+                    if (c.value == null) {
+                        fail(true, c, "must start with one of: ${prefixes.joinToString(", ")}.")
+                    } else {
+                        val text = c.value.toString()
+                        fail(prefixes.none { text.startsWith(it) }, c, "must start with one of: ${prefixes.joinToString(", ")}.")
+                    }
+                }
+            },
+            "ends_with" to { p ->
+                val suffixes = required(p).split(',')
+                check { c ->
+                    if (c.value == null) {
+                        fail(true, c, "must end with one of: ${suffixes.joinToString(", ")}.")
+                    } else {
+                        val text = c.value.toString()
+                        fail(suffixes.none { text.endsWith(it) }, c, "must end with one of: ${suffixes.joinToString(", ")}.")
+                    }
+                }
+            },
+            "digits" to { p ->
+                val len = required(p).trim().toInt()
+                check { c ->
+                    if (c.value == null) {
+                        fail(true, c, "must be $len digits.")
+                    } else {
+                        val text = c.value.toString().trim()
+                        fail(!DIGITS.matches(text) || text.length != len, c, "must be $len digits.")
+                    }
+                }
+            },
+            "digits_between" to { p ->
+                val parts = required(p).split(',')
+                require(parts.size == 2)
+                val low = parts[0].trim().toInt()
+                val high = parts[1].trim().toInt()
+                check { c ->
+                    if (c.value == null) {
+                        fail(true, c, "must be between $low and $high digits.")
+                    } else {
+                        val text = c.value.toString().trim()
+                        fail(!DIGITS.matches(text) || text.length !in low..high, c, "must be between $low and $high digits.")
+                    }
+                }
+            },
+            "lowercase" to { _ ->
+                { c ->
+                    val text = c.value as? String
+                    fail(text == null || text != text.lowercase(), c, "must be lowercase.")
+                }
+            },
+            "uppercase" to { _ ->
+                { c ->
+                    val text = c.value as? String
+                    fail(text == null || text != text.uppercase(), c, "must be uppercase.")
+                }
+            },
+            "distinct" to { _ ->
+                { c ->
+                    val items = when (val v = c.value) {
+                        is Collection<*> -> v
+                        is Array<*> -> v.toList()
+                        else -> null
+                    }
+                    if (items == null) {
+                        fail(true, c, "must be an array.")
+                    } else {
+                        fail(items.size != items.toSet().size, c, "has duplicate values.")
+                    }
+                }
+            },
+            "required_if" to { p ->
+                val parts = required(p).split(',', limit = 2)
+                require(parts.size == 2)
+                val other = parts[0]
+                val expected = parts[1]
+                check { c ->
+                    if (!fieldEquals(c.data, other, expected)) {
+                        null
+                    } else if (isEmptyValue(c.value)) {
+                        fail(true, c, "is required when $other is $expected.")
+                    } else {
+                        null
+                    }
+                }
+            },
+            "required_unless" to { p ->
+                val parts = required(p).split(',', limit = 2)
+                require(parts.size == 2)
+                val other = parts[0]
+                val expected = parts[1]
+                check { c ->
+                    if (fieldEquals(c.data, other, expected)) {
+                        null
+                    } else if (isEmptyValue(c.value)) {
+                        fail(true, c, "is required unless $other is $expected.")
+                    } else {
+                        null
+                    }
+                }
+            },
+            "required_with" to { p ->
+                val others = required(p).split(',')
+                check { c ->
+                    val trigger = others.any { !isEmptyValue(c.data[it]) }
+                    if (trigger && isEmptyValue(c.value)) {
+                        fail(true, c, "is required when ${others.joinToString(" / ")} is present.")
+                    } else {
+                        null
+                    }
+                }
+            },
+            "required_without" to { p ->
+                val others = required(p).split(',')
+                check { c ->
+                    val missingOther = others.any { isEmptyValue(c.data[it]) }
+                    if (!missingOther) {
+                        null
+                    } else if (isEmptyValue(c.value)) {
+                        fail(true, c, "is required when ${others.joinToString(" / ")} is not present.")
+                    } else {
+                        null
+                    }
+                }
+            },
+            "required_with_all" to { p ->
+                val others = required(p).split(',')
+                check { c ->
+                    val allPresent = others.all { !isEmptyValue(c.data[it]) }
+                    if (allPresent && isEmptyValue(c.value)) {
+                        fail(true, c, "is required when ${others.joinToString(" / ")} are present.")
+                    } else {
+                        null
+                    }
+                }
+            },
+            "required_without_all" to { p ->
+                val others = required(p).split(',')
+                check { c ->
+                    val allMissing = others.all { isEmptyValue(c.data[it]) }
+                    if (allMissing && isEmptyValue(c.value)) {
+                        fail(true, c, "is required when none of ${others.joinToString(" / ")} are present.")
+                    } else {
+                        null
+                    }
+                }
+            },
+            "exists" to { p -> existenceRule(p, unique = false) },
+            "unique" to { p -> existenceRule(p, unique = true) },
         )
 
         @JvmStatic
@@ -224,7 +534,11 @@ class Validator(
         private fun check(body: (Context) -> String?): (Context) -> String? = body
 
         private fun split(rule: String): List<String> =
-            if (rule.startsWith("regex:")) listOf(rule) else rule.split('|')
+            if (rule.startsWith("regex:") || rule.startsWith("not_regex:")) {
+                listOf(rule)
+            } else {
+                rule.split('|')
+            }
 
         private fun label(field: String): String = field.replace('_', ' ')
 
@@ -350,6 +664,149 @@ class Validator(
             return value.toString() in allowed
         }
 
+        private fun isUuid(value: Any?): Boolean {
+            if (value !is String) {
+                return false
+            }
+            return try {
+                UUID.fromString(value)
+                true
+            } catch (_: IllegalArgumentException) {
+                false
+            }
+        }
+
+        private fun isJson(value: Any?): Boolean = value is String && JsonSupport.isJson(value)
+
+        private fun fieldEquals(data: Map<String, Any?>, field: String, expected: String): Boolean {
+            if (!data.containsKey(field)) {
+                return false
+            }
+            val value = data[field]
+            if (value == null) {
+                return expected == "null"
+            }
+            return value.toString() == expected
+        }
+
+        private fun isIp(value: Any?, v4: Boolean, v6: Boolean): Boolean {
+            if (value !is String) {
+                return false
+            }
+            if (value.contains(':')) {
+                if (!v6) {
+                    return false
+                }
+                return try {
+                    InetAddress.getByName(value) is java.net.Inet6Address
+                } catch (_: UnknownHostException) {
+                    false
+                }
+            }
+            if (!v4) {
+                return false
+            }
+            return IPV4.matches(value)
+        }
+
+        private fun parseDate(value: Any?): LocalDate? {
+            when (value) {
+                is LocalDate -> return value
+                is LocalDateTime -> return value.toLocalDate()
+                null -> return null
+            }
+            val text = value.toString().trim()
+            if (text.isEmpty()) {
+                return null
+            }
+            return Request.tryParseDate(text)
+        }
+
+        private fun dateFormatter(phpOrJava: String): DateTimeFormatter {
+            val pattern = phpDateToJava(phpOrJava)
+            return DateTimeFormatter.ofPattern(pattern)
+        }
+
+        /**
+         * Map common PHP `date()` tokens (Laravel `date_format`) to Java patterns.
+         * Detect PHP style via `Y` (4-digit year) or `i` (minutes) — tokens Java patterns do not use the same way.
+         */
+        private fun phpDateToJava(format: String): String {
+            if (!format.contains('Y') && !format.contains('i')) {
+                return format
+            }
+            val sb = StringBuilder()
+            for (ch in format) {
+                when (ch) {
+                    'Y' -> sb.append("yyyy")
+                    'y' -> sb.append("yy")
+                    'm' -> sb.append("MM")
+                    'd' -> sb.append("dd")
+                    'H' -> sb.append("HH")
+                    'i' -> sb.append("mm")
+                    's' -> sb.append("ss")
+                    else -> sb.append(ch)
+                }
+            }
+            return sb.toString()
+        }
+
+        private fun matchesFormat(text: String, formatter: DateTimeFormatter): Boolean {
+            return try {
+                formatter.parse(text)
+                true
+            } catch (_: DateTimeParseException) {
+                false
+            }
+        }
+
+        private fun dateCompare(otherOrDate: String, exclusive: Boolean, after: Boolean): (Context) -> String? =
+            check { c ->
+                val left = parseDate(c.value) ?: return@check fail(true, c, "must be a valid date.")
+                val right = parseDate(c.data[otherOrDate] ?: otherOrDate)
+                    ?: return@check fail(true, c, "must be a valid date.")
+                val cmp = left.compareTo(right)
+                val ok = dateOrderOk(cmp, after, exclusive)
+                val word = dateOrderWord(after, exclusive)
+                fail(!ok, c, "must be $word $otherOrDate.")
+            }
+
+        private fun dateOrderOk(cmp: Int, after: Boolean, exclusive: Boolean): Boolean =
+            if (after) {
+                if (exclusive) cmp > 0 else cmp >= 0
+            } else {
+                if (exclusive) cmp < 0 else cmp <= 0
+            }
+
+        private fun dateOrderWord(after: Boolean, exclusive: Boolean): String =
+            if (after) {
+                if (exclusive) "after" else "on or after"
+            } else {
+                if (exclusive) "before" else "on or before"
+            }
+
+        private fun existenceRule(param: String?, unique: Boolean): (Context) -> String? {
+            val parts = required(param).split(',')
+            val table = parts[0].trim()
+            val columnPart = if (parts.size > 1) parts[1].trim() else ""
+            val column = columnPart.ifEmpty { null }
+            val exceptPart = if (parts.size > 2) parts[2].trim() else ""
+            val except = exceptPart.ifEmpty { null }
+            return check { c ->
+                val checker = existenceChecker
+                if (checker == null) {
+                    return@check "The ${c.label} field ${if (unique) "unique" else "exists"} rule requires an ExistenceChecker."
+                }
+                val col = column ?: c.field
+                val found = checker.exists(table, col, c.value, except)
+                if (unique) {
+                    fail(found, c, "has already been taken.")
+                } else {
+                    fail(!found, c, "is invalid.")
+                }
+            }
+        }
+
         /** PCRE-style `/pattern/flags` (any non-alphanumeric delimiter), as Laravel's `regex` rule expects. */
         private fun pcre(param: String): Regex {
             val delimiter = param[0]
@@ -362,6 +819,21 @@ class Validator(
             return Regex(param.substring(1, end), options)
         }
     }
+}
+
+/**
+ * Optional DB probe for `exists` / `unique` validation rules.
+ * Implement with Extract (or any store) and register via [Validator.setExistenceChecker].
+ */
+fun interface ExistenceChecker {
+    /**
+     * @param table table or collection name from the rule
+     * @param column column name (defaults to the field name when omitted in the rule)
+     * @param value candidate value
+     * @param exceptId optional id to ignore (unique:table,column,exceptId)
+     * @return true when a matching row exists
+     */
+    fun exists(table: String, column: String, value: Any?, exceptId: String?): Boolean
 }
 
 class ValidationException(
