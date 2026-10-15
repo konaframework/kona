@@ -15,6 +15,13 @@ fun interface GateUserResolver {
 }
 
 /**
+ * Global before callback. Return `null` to continue; `true`/`false` to allow/deny.
+ */
+fun interface GateBeforeCallback {
+    fun before(user: Authenticatable?, ability: String, arguments: Array<out Any?>): Boolean?
+}
+
+/**
  * Model policy registered via [Gate.policy].
  */
 interface Policy {
@@ -33,6 +40,7 @@ interface Policy {
 class Gate {
     private val abilities = linkedMapOf<String, GateCallback>()
     private val policies = linkedMapOf<Class<*>, Policy>()
+    private val befores = mutableListOf<GateBeforeCallback>()
     private var userResolver: GateUserResolver = GateUserResolver { null }
 
     fun define(ability: String, callback: GateCallback): Gate {
@@ -42,6 +50,11 @@ class Gate {
 
     fun policy(modelClass: Class<*>, policy: Policy): Gate {
         policies[modelClass] = policy
+        return this
+    }
+
+    fun before(callback: GateBeforeCallback): Gate {
+        befores += callback
         return this
     }
 
@@ -63,6 +76,20 @@ class Gate {
     fun denies(user: Authenticatable?, ability: String, vararg arguments: Any?): Boolean =
         !allows(user, ability, *arguments)
 
+    /** True when any listed ability is allowed. */
+    fun any(abilities: Collection<String>, vararg arguments: Any?): Boolean =
+        any(userResolver.resolve(), abilities, *arguments)
+
+    fun any(user: Authenticatable?, abilities: Collection<String>, vararg arguments: Any?): Boolean =
+        abilities.any { allows(user, it, *arguments) }
+
+    /** True when none of the listed abilities are allowed. */
+    fun none(abilities: Collection<String>, vararg arguments: Any?): Boolean =
+        none(userResolver.resolve(), abilities, *arguments)
+
+    fun none(user: Authenticatable?, abilities: Collection<String>, vararg arguments: Any?): Boolean =
+        abilities.none { allows(user, it, *arguments) }
+
     fun authorize(ability: String, vararg arguments: Any?) {
         authorize(userResolver.resolve(), ability, *arguments)
     }
@@ -82,7 +109,30 @@ class Gate {
         return policies.entries.firstOrNull { it.key.isAssignableFrom(modelClass) }?.value
     }
 
+    /**
+     * Registers a policy by conventional name `{SimpleName}Policy` under [policyPackage]
+     * when the class exists and implements [Policy]. Returns true when registered.
+     */
+    fun discoverPolicy(modelClass: Class<*>, policyPackage: String): Boolean {
+        val simple = modelClass.simpleName + "Policy"
+        val fqn = "$policyPackage.$simple"
+        return try {
+            @Suppress("UNCHECKED_CAST")
+            val policyClass = Class.forName(fqn) as Class<out Policy>
+            val instance = policyClass.getDeclaredConstructor().newInstance()
+            policy(modelClass, instance)
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        } catch (_: ReflectiveOperationException) {
+            false
+        }
+    }
+
     internal fun inspect(user: Authenticatable?, ability: String, arguments: Array<out Any?>): Boolean {
+        for (before in befores) {
+            before.before(user, ability, arguments)?.let { return it }
+        }
         val model = arguments.firstOrNull()
         if (model != null) {
             val policy = getPolicyFor(model)
@@ -108,6 +158,12 @@ class GateInspector(
 
     fun denies(ability: String, vararg arguments: Any?): Boolean =
         gate.denies(user, ability, *arguments)
+
+    fun any(abilities: Collection<String>, vararg arguments: Any?): Boolean =
+        gate.any(user, abilities, *arguments)
+
+    fun none(abilities: Collection<String>, vararg arguments: Any?): Boolean =
+        gate.none(user, abilities, *arguments)
 
     fun authorize(ability: String, vararg arguments: Any?) {
         gate.authorize(user, ability, *arguments)

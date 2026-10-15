@@ -16,6 +16,8 @@ data class PersonalAccessToken(
 ) {
     fun can(ability: String): Boolean =
         abilities.contains("*") || abilities.contains(ability)
+
+    fun cant(ability: String): Boolean = !can(ability)
 }
 
 /**

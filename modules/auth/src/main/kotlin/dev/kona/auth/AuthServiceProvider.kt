@@ -34,6 +34,7 @@ class AuthServiceProvider : ServiceProvider {
         auth.extend("web", SessionGuard("web", users))
         app.container.instance(AuthManager::class.java, auth)
         app.container.alias("auth", AuthManager::class.java.name)
+        Auth.setManager(auth)
 
         val tokens = PersonalAccessTokenManager(
             repository = InMemoryPersonalAccessTokenRepository(),

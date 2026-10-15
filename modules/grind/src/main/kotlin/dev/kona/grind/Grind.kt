@@ -37,6 +37,7 @@ constructor(
                 "make:command" -> MakeCommandCommand().run(positional.drop(1) + flatten(options))
                 "make:resource" -> MakeResourceCommand().run(positional.drop(1) + flatten(options))
                 "make:middleware" -> MakeMiddlewareCommand().run(positional.drop(1) + flatten(options))
+                "make:policy" -> MakePolicyCommand().run(positional.drop(1) + flatten(options))
                 "make:request" -> MakeRequestCommand().run(positional.drop(1) + flatten(options))
                 "make:view" -> MakeViewCommand().run(positional.drop(1) + flatten(options))
                 "make:model" -> MakeModelCommand().run(positional.drop(1) + flatten(options))
