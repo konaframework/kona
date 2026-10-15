@@ -16,10 +16,9 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M18 — Notifications durability** on `main` (PR #35) |
-| Active | **M19 — Crema Vite manifest / hot** (`milestone/M19-crema-vite`) — in progress |
-| App layout | Strict JVM hybrid under `src/main`. Scaffold providers (M17), durable notifications (M18). |
-| Next after M19 | Open explicitly after merge |
+| Last merged milestone | **M19 — Crema Vite manifest / hot** on `main` (PR #36) |
+| Active | None — open next deepen (e.g. Crema `<x-*>`, broadcast transport, search engine) |
+| App layout | Scaffold providers (M17), durable notifications (M18), Crema/Inertia shared Vite (M19) |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
 | Models | **Auto only** unless the human names a model for that turn |
@@ -27,24 +26,19 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9). |
 
-### M19 focus
-
-Move Vite `AssetManifest` into `kona-crema`; Crema `@vite` / `ViteTags` honor `public/hot` + manifest; Inertia keeps facade.
-
 ### Recently merged
 
 | Work | PR |
 |------|-----|
+| M19 Crema Vite manifest / hot | #36 |
 | M18 Notifications durability | #35 |
 | M17 Scaffold + session/cookies | #34 |
-| docs: brand marks + Kotlin/Java tabs | #33 |
 
 ## Known thin surfaces
 
 | Area | Thinness |
 |------|----------|
-| Crema Vite | In progress M19 |
-| Crema | richer `<x-*>` |
+| Crema | richer `<x-*>` components |
 | Broadcast / search | In-process / memory engines |
 
 ## Commands
