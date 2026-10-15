@@ -36,7 +36,7 @@ Durable audit of **grind** / `ConsoleIO` against Laravel Artisan Console and Alm
 - [x] 100% Kover on touched production modules (`kona-support`, `kona-grind`, `kona-testing`)
 - [x] Java regression for custom commands (`GrindJavaTest.consoleCommandFromJava`)
 - [x] Docs under Digging Deeper / grind Console cluster
-- [ ] PR merged with automerge
+- [ ] PR merged with automerge — https://github.com/konaframework/kona/pull/64 (automerge enabled)
 
 ## Public doc paths
 
