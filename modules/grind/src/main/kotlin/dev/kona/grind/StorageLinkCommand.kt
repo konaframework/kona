@@ -26,13 +26,13 @@ class StorageLinkCommand @JvmOverloads constructor(
         val link = linkParent.resolve("storage")
         if (Files.exists(link)) {
             if (Files.isSymbolicLink(link) && Files.readSymbolicLink(link).normalize() == target.normalize()) {
-                io.writeln("The [public/storage] link already exists.")
+                io.info("The [public/storage] link already exists.")
                 return 0
             }
             throw GrindException("The [$link] path already exists.")
         }
         Files.createSymbolicLink(link, target)
-        io.writeln("The [$link] link has been connected to [$target].")
+        io.success("The [$link] link has been connected to [$target].")
         return 0
     }
 

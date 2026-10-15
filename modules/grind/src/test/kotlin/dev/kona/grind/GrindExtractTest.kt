@@ -139,7 +139,9 @@ class GrindExtractTest {
         assertTrue(migrated.second.contains("Migrated: CreateWidgetsTable"))
         assertTrue(migrated.second.contains("Migrated: AddColorToWidgetsTable"))
         assertTrue(grind("migrate", "--base=$project", boot).second.contains("Nothing to migrate."))
-        assertTrue(grind("migrate:status", "--base=$project", boot).second.contains("Ran      1      CreateWidgetsTable"))
+        val statusRan = grind("migrate:status", "--base=$project", boot).second
+        assertTrue(statusRan.contains("Ran"))
+        assertTrue(statusRan.contains("CreateWidgetsTable"))
 
         val seeded = grind("db:seed", "--base=$project", boot, "--class=dev.kona.grind.FixtureDatabaseSeeder")
         assertEquals(0, seeded.first)

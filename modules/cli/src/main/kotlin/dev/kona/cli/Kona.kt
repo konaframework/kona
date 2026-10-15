@@ -11,8 +11,9 @@ fun main(args: Array<String>) {
 
 class KonaApplication {
     fun run(args: Array<String>): Int {
+        val io = CliIO()
         if (args.isEmpty() || args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
-            printHelp()
+            printHelp(io)
             return 0
         }
         return try {
@@ -20,44 +21,34 @@ class KonaApplication {
                 "new" -> NewCommand().run(args.drop(1))
                 "version", "--version", "-V" -> {
                     val v = KonaVersions.load()
-                    println("kona ${v.kona}")
+                    io.writeln("kona ${v.kona}")
                     0
                 }
                 else -> {
-                    System.err.println("Unknown command: $command")
-                    printHelp()
+                    io.error("Unknown command: $command")
+                    printHelp(io)
                     1
                 }
             }
         } catch (ex: KonaCliException) {
-            System.err.println(ex.message)
+            io.error(ex.message!!)
             1
         }
     }
 
-    private fun printHelp() {
-        println(
-            """
-            Kona — create JVM applications
-
-            Usage:
-              kona new <name> [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] [--kona-version=x.y.z]
-              kona version
-              kona help
-
-            Kits (--kit / --preset):
-              web       HTML welcome with Crema (default)
-              api       HTTP-only API-style app (no Crema)
-              crema     Alias of web
-              inertia   Inertia + Crema + Vite stubs
-              brew      Brew reactive UI + Crema
-
-            After creating an app, work inside it with the local ./grind CLI:
-              cd <name>
-              ./grind serve
-              ./grind make:controller Post
-            """.trimIndent(),
+    private fun printHelp(io: CliIO) {
+        io.box(
+            "kona",
+            listOf(
+                "Create JVM applications",
+                "Then use ./grind inside the app",
+            ),
         )
+        io.twoColumn("new <name>", "[--lang=kotlin|java] [--kit=…]")
+        io.twoColumn("version", "Print kona version")
+        io.twoColumn("help", "Show this help")
+        io.writeln()
+        io.info("Kits: web (default), api, crema, inertia, brew")
     }
 }
 
