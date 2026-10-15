@@ -1,9 +1,9 @@
 ---
 title: IntelliJ
-description: Install the native Kona Idea plugin for Crema, Grind, and scaffold-aware tooling in IntelliJ IDEA.
+description: Install the native Kona Idea plugin for Crema in IntelliJ IDEA.
 ---
 
-IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.com/konaframework/kona-idea) — the same approach as other first-class JetBrains language plugins. Crema is a real file type with an HTML-layered highlighter, not a TextMate bundle. From **0.2.0** onward the plugin also understands the `kona new` app tree and runs **Grind Serve** against the Netty HTTP adapter.
+IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.com/konaframework/kona-idea) — the same approach as other first-class JetBrains language plugins. Crema is a real file type with an HTML-layered highlighter, completion, and navigation. There is **no language server** in the IntelliJ path.
 
 | | |
 | --- | --- |
@@ -11,50 +11,47 @@ IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.
 | Plugin id | `dev.kona.idea` |
 | Releases | [GitHub Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
 | Products | IntelliJ IDEA Community and Ultimate (2024.2+) |
-| Current line | **v0.2.0** |
+| Current line | **v0.3.0** |
 
 Installing, updating, or removing the plugin requires an IDE restart.
 
 ## Install
 
-1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.2.0**), or build locally with `./gradlew buildPlugin`.
+1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.3.0**).
 2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** and choose the zip.
 3. Restart when prompted.
-4. Open a Kona app (create one with `kona new demo` if needed). Confirm:
-   - Crema views under `src/main/resources/views/….crema.html` (or `*.crema.kt`) open as language **Crema**
-   - Canonical folders (`bootstrap`, `routes`, `app`, `config`, `database`, `views`, `storage`) show the Kona icon
-   - A **Grind Serve** run configuration is available (or add **Run → Edit Configurations → Grind**)
+4. Open a Crema view (`src/main/resources/views/….crema.html` or `*.crema.kt`). Confirm the language chip shows **Crema** (not HTML).
+5. Open the **Kona** tool window on the **right** side of the IDE for grind shortcuts and docs links.
 
 ## What you get
 
-### Crema
-
 - Native Crema lexer: HTML colors plus `@directives`, `{{ }}`, `{!! !!}`, `{{-- --}}`
-- Directive completion (Ctrl+Space on `@…`)
+- **`@` directive completion** — type `@` in a Crema view (autopopup); also **Ctrl+Space**
 - Warnings for unknown `@name` tokens (emails like `hi@example.com` are ignored)
 - `{{` auto-closes as `{{  }}` with the caret in the middle
-- **New → Crema View**
+- **View name autocomplete** in `Crema.view`, `Brew.view`, `engine.make` / `render`, `@extends`, `@include`, and similar call sites
+- **Go to view file:** place the caret on a view name string and use **Ctrl+B** or **Ctrl+Click** (macOS: **⌘B** / **⌘Click**). Same as Navigate → Declaration.
+- **DB column completion** from Extract migrations and, when `.env` has a reachable `DB_URL`, from JDBC metadata
+- **Kona** tool window (RIGHT): `./grind serve`, migrate, queue/schedule, New Crema View, help, docs
+- Official Kona brand icons on the tool window, Crema files, scaffold folders, and Grind run configs
+- **Grind** run configuration type for `./grind …` (Netty serve, default port `4000`)
+- **Kona** menu: layout, routing, Maven modules, view navigation help
 
-### Project layout
+## View navigation shortcuts
 
-The plugin detects apps shaped like the `kona new` / grind scaffolds:
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Go to Declaration (open the Crema file) | **Ctrl+B** or Ctrl+Click | **⌘B** or ⌘Click |
+| Basic completion (view name / `@` directive) | Ctrl+Space | Ctrl+Space |
 
-- `src/main/{kotlin|java}/bootstrap`, `app`, `routes`, `config`, `database`
-- `src/main/resources/views`, `public`, `lang`
-- `storage/`, app-local `./grind`, and `dev.kona:*` dependencies
+## DB column sources
 
-### Grind + HTTP (Netty)
+Column suggestions merge two sources when available:
 
-- **Grind** run configuration type for `./grind …` (arguments are persisted)
-- Host and port fields for `serve` (defaults `127.0.0.1` / **4000**)
-- Opening a detected Kona app can auto-create **Grind Serve**
-- `./grind serve` starts **KonaHttpServer** — a **Netty** adapter that handles each request on a **virtual thread**
+1. **Migrations** — parses `schema.create` / `schema.table` stubs under `src/main/{kotlin|java}/database/migrations` (`id()`, `string("…")`, `timestamps()`, `morphs`, `dropColumn`, …).
+2. **JDBC** — reads `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and optional `DB_DRIVER` from the project `.env` and, if a driver can connect, loads columns from `DatabaseMetaData`.
 
-### Templates and help
-
-- Live templates such as `kroute` / `jroute` (typed Router handlers), `kextract`, `kauth`, `kdisk`, `kqueue`, `kschedule`, `kcrema`
-- File templates for controllers, Crema views, and WebRoutes that use **typed instance / method-reference handlers** (not `Controller@method` strings)
-- **Kona** menu: project layout help, routing help, Maven `dev.kona` modules, and optional kona-lsp setup
+Use them in Extract / query call sites such as `where("…")`, `select("…")`, and `orderBy("…")`.
 
 ## Develop the plugin
 
@@ -66,15 +63,8 @@ cd kona-idea
 ./gradlew runIde        # sandboxed IntelliJ with the plugin loaded
 ```
 
-JDK 21+. Keep `CremaDirectives` in the plugin in sync with `modules/lsp` `CremaDirectives` in this repository when you add template directives. Agent resume notes for the plugin live in that repo’s [`HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
+Keep `CremaDirectives` in the plugin aligned with Crema’s directive set in this repository when you add template directives. Agent resume notes for the plugin live in that repo’s [`HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
 
-## Optional: TextMate or LSP only
+## Other editors
 
-If you cannot install the zip, see the legacy TextMate notes in `ide-support/intellij/README.md`. For a stdio language server used by other tooling:
-
-```bash
-./gradlew :kona-lsp:jar
-java -jar modules/lsp/build/libs/kona-lsp-*.jar
-```
-
-Details: [Language server](/docs/language/lsp).
+For VS Code / Cursor or a stdio language server used by other tooling, see [Language server](/docs/language/lsp) and [VS Code & Cursor](/docs/language/vscode). IntelliJ should use the native plugin above — not an LSP client.

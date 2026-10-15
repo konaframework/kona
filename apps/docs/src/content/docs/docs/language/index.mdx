@@ -12,7 +12,7 @@ Kona ships **editor support** for Crema templates so you can edit `*.crema.html`
 | TextMate grammar | `ide-support/crema/` | Shared scopes for VS Code / Cursor |
 | Language server | `modules/lsp` (`dev.kona:kona-lsp`) | Completions + diagnostics over LSP stdio |
 | VS Code / Cursor extension | `ide-support/vscode-crema/` | Language contribution + setup help |
-| IntelliJ native plugin | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) | Crema file type, HTML-layered highlighter, Grind configs |
+| IntelliJ native plugin | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) | Crema file type, `@`/view/DB completion, tool window, Grind (no LSP) |
 
 ## Fastest path
 
@@ -46,7 +46,7 @@ From an application project you can also print the same reminder without startin
 1. [Crema grammar](/docs/language/grammar) — what is highlighted and how to sync the TextMate files.
 2. [Language server](/docs/language/lsp) — protocol surface, Kotlin/Java usage in tests, running the jar.
 3. [VS Code & Cursor](/docs/language/vscode) — install the extension stub and wire `crema.lsp.jarPath`.
-4. [IntelliJ](/docs/language/intellij) — native Kona Idea plugin (preferred) and optional LSP help.
+4. [IntelliJ](/docs/language/intellij) — native Kona Idea plugin (no LSP; preferred for IntelliJ).
 
 Crema template behavior itself (layouts, `@foreach`, stacks) is documented under [Crema](/docs/crema).
 
