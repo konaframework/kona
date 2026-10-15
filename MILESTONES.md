@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M19 — Crema Vite manifest / hot** (`milestone/M19-crema-vite`).
+**Active milestone:** None — open next deepen after M19.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -649,7 +649,7 @@ M19 — Crema Vite manifest / hot.
 
 ## M19 — Crema Vite manifest / hot
 
-**Status:** active
+**Status:** done (merged PR #36)
 
 **Branch:** `milestone/M19-crema-vite`
 
