@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M22 — Multipart uploads** (`milestone/M22-multipart-uploads`).
+**Active milestone:** **M23 — Binary downloads & signed storage** (`milestone/M23-binary-downloads`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -742,7 +742,35 @@ M22 — Multipart uploads.
 
 ### Next (queued)
 
-Opened after M22.
+M23 — Binary downloads & signed storage.
+
+---
+
+## M23 — Binary downloads & signed storage
+
+**Status:** active
+
+**Branch:** `milestone/M23-binary-downloads`
+
+**Parity slice:** Close the M22 upload→store loop for Crema web apps — binary-safe HTTP responses (`download` / `file`), `ValidateSignature` middleware, public disk serving under `/storage`, and scaffold `FilesystemServiceProvider` wiring.
+
+### Parity checklist
+
+- [x] `Response.bodyBytes` + `Response.binary` / `file` / `download` (bytes + `Path`)
+- [x] `KonaHttpServer` writes raw response bytes (no UTF-8 corruption)
+- [x] `ValidateSignature` middleware over `UrlGenerator.hasValidSignature`
+- [x] Public disk defaults (`storage/app/public`, URL `/storage`) + relative root resolution
+- [x] `ServePublicStorage` + `grind storage:link`; `FilesystemServiceProvider` on `kona new`
+- [x] `FilesystemManager.temporaryUrl` (signer callback)
+- [x] Kotlin + Java regressions; docs rewrite; 100% kover on touched modules
+
+### In-scope modules
+
+`kona-http`, `kona-filesystem`, `kona-cli` (skeletons), `kona-grind` (`storage:link`), `apps/docs/`, samples
+
+### Next (queued)
+
+Opened after M23.
 
 ---
 
@@ -759,4 +787,5 @@ flowchart LR
   M19 --> M20[M20_Default_Web]
   M20 --> M21[M21_Form_Roundtrip]
   M21 --> M22[M22_Multipart]
+  M22 --> M23[M23_Binary_Downloads]
 ```

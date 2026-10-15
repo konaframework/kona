@@ -169,6 +169,7 @@ class NewCommand(
                 "src/main/resources/config/http.json",
                 "src/main/resources/config/paths.json",
                 "src/main/resources/config/session.json",
+                "src/main/resources/config/filesystems.json",
                 "src/main/resources/css/app.css",
                 "src/main/resources/js/app.js",
                 "src/main/resources/public/.gitkeep",
@@ -180,6 +181,7 @@ class NewCommand(
                 "$root/database/factories/.gitkeep",
                 "$root/database/seeders/.gitkeep",
                 "storage/app/.gitkeep",
+                "storage/app/public/.gitkeep",
                 "storage/framework/.gitkeep",
                 "storage/logs/.gitkeep",
             )

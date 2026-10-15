@@ -58,7 +58,7 @@ class KonaHttpServer(
         response.cookies.forEach { cookie ->
             exchange.responseHeaders.add("Set-Cookie", cookie.toSetCookieHeader())
         }
-        val bytes = response.body.toByteArray(Charsets.UTF_8)
+        val bytes = response.bodyBytes()
         if (head || response.status == 204) {
             exchange.sendResponseHeaders(response.status, -1)
             exchange.responseBody.close()

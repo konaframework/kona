@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 public class JavaApiTest {
     @Test
-    void staticFactoriesAndValidator() {
+    void staticFactoriesAndValidator() throws Exception {
         assertEquals("ok", Response.text("ok").getBody());
         assertEquals(201, Response.text("ok", 201).getStatus());
         assertEquals("h", Response.html("h").getBody());
@@ -20,6 +20,43 @@ public class JavaApiTest {
         assertTrue(Response.json(Map.of("a", 1)).getBody().contains("a"));
         assertEquals(201, Response.json(Map.of("a", 1), 201).getStatus());
         assertEquals(204, Response.noContent().getStatus());
+        byte[] png = new byte[] {1, 2, 3};
+        Response download = Response.download(png, "a.png");
+        assertEquals("image/png", download.getHeaders().get("Content-Type"));
+        assertTrue(download.getHeaders().get("Content-Disposition").contains("attachment"));
+        assertEquals(3, download.bodyBytes().length);
+        Response inline = Response.file(png, "image/png", "a.png");
+        assertTrue(inline.getHeaders().get("Content-Disposition").startsWith("inline"));
+        Response binary = Response.binary(png, "application/octet-stream");
+        assertEquals(3, binary.bodyBytes().length);
+        assertEquals("application/octet-stream", Response.binary(png).getHeaders().get("Content-Type"));
+        java.nio.file.Path tmp = java.nio.file.Files.createTempDirectory("kona-serve");
+        assertEquals(
+            "ServePublicStorage",
+            new ServePublicStorage(new dev.kona.filesystem.LocalAdapter(tmp)).getClass().getSimpleName()
+        );
+        java.nio.file.Path onDisk = tmp.resolve("doc.pdf");
+        java.nio.file.Files.write(onDisk, new byte[] {9, 9});
+        assertTrue(Response.file(onDisk, "application/pdf", "doc.pdf").getHeaders().get("Content-Disposition").contains("doc.pdf"));
+        assertEquals(200, Response.file(onDisk, null, null, 200).getStatus());
+        assertTrue(Response.download(onDisk, "out.pdf", "application/pdf").getHeaders().get("Content-Disposition").contains("out.pdf"));
+        assertEquals(200, Response.download(onDisk, null, null, 200).getStatus());
+        Router signedRouter = new Router();
+        UrlGenerator urls = new UrlGenerator(signedRouter).setKey("java-dl");
+        String signed = urls.signed("/dl", 60L);
+        String query = signed.substring(signed.indexOf('?') + 1);
+        java.util.LinkedHashMap<String, String> params = new java.util.LinkedHashMap<>();
+        for (String part : query.split("&")) {
+            int eq = part.indexOf('=');
+            params.put(part.substring(0, eq), java.net.URLDecoder.decode(part.substring(eq + 1), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        assertEquals(
+            "ok",
+            new ValidateSignature(urls).handle(new Request("GET", "/dl", Map.of(), params, ""), r -> Response.text("ok")).getBody()
+        );
+        assertThrows(HttpException.class, () ->
+            new ValidateSignature(urls).handle(Request.get("/dl"), r -> Response.text("x"))
+        );
         Response redirect = Response.redirect("/home");
         assertEquals(302, redirect.getStatus());
         assertEquals("/home", redirect.getHeaders().get("Location"));
