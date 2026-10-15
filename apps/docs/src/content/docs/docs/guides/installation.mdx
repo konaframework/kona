@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install the global kona CLI, then create apps and use ./grind inside each project.
+description: Install the global kona CLI from source, create apps with kona new, and use ./grind inside each project.
 ---
 
 Kona uses **two** command-line tools on purpose:
@@ -8,9 +8,29 @@ Kona uses **two** command-line tools on purpose:
 | Tool | Where it lives | What it does |
 |------|----------------|--------------|
 | **`kona`** | On your PATH (global) | Creates new applications: `kona new my-app` |
-| **`./grind`** | Inside each app | Day-to-day work for *that* app: serve, generate controllers, … |
+| **`./grind`** | Inside each app created by `kona new` | Day-to-day work for *that* app: serve, generate controllers, … |
 
-You install `kona` once. Every new project ships its own `./grind` script — you do not install grind globally.
+You install `kona` once. Every project from `kona new` ships its own `./grind` (and `grind.bat` on Windows) — you do not install grind globally.
+
+## Happy path (exact commands)
+
+```bash
+# 1. Clone the framework (needed today to install the CLI)
+git clone https://github.com/konaframework/kona.git
+cd kona
+
+# 2. Install global `kona` onto ~/.local/bin
+./scripts/install-kona.sh
+
+# 3. Create an application (any empty parent directory is fine)
+kona new my-app
+cd my-app
+
+# 4. Serve with the app-local CLI
+./grind serve
+```
+
+Open `http://127.0.0.1:8080/`. That is the supported path today: **install `kona` from source → `kona new` → `./grind serve`**.
 
 ## 1. JDK 21+
 
@@ -18,11 +38,17 @@ You install `kona` once. Every new project ships its own `./grind` script — yo
 java -version   # must report 21 or newer
 ```
 
+Gradle is bootstrapped by the project wrappers (`./gradlew`); you do not need a separate Gradle install.
+
 ## 2. Install the global `kona` CLI
 
-From a clone of [konaframework/kona](https://github.com/konaframework/kona):
+### What works today
+
+The only supported install is **from a clone of this repository**:
 
 ```bash
+git clone https://github.com/konaframework/kona.git
+cd kona
 ./scripts/install-kona.sh
 ```
 
@@ -40,8 +66,12 @@ kona help
 
 You only need this when you want a newer `kona` from source. Creating apps afterward does not require the Kona git checkout on your PATH.
 
+### What is not available yet
+
+There is **no** turnkey `kona` install via npm, Homebrew, SDKMAN, a standalone GitHub Release binary, or a “download and run” Maven Central launcher. Framework libraries publish under the `dev.kona` Maven group for *applications* to depend on; that is separate from putting the `kona` CLI on your PATH. Until packaged installers land, use `./scripts/install-kona.sh`.
+
 :::tip[Package managers later]
-Published installers (Homebrew, SDKMAN, …) will wrap the same binary. Until then, the script above is the supported path.
+Published installers (Homebrew, SDKMAN, …) will wrap the same binary built by `:kona-cli:installDist`. The script above is the supported path until those exist.
 :::
 
 ## 3. Create an application
@@ -51,6 +81,14 @@ kona new my-app                 # Kotlin (default)
 kona new my-app --lang=java
 ```
 
+`kona new` writes a self-contained Gradle app that already includes:
+
+- `./grind` / `grind.bat` — app-local CLI
+- `./gradlew` / `gradlew.bat` — Gradle wrapper
+- `src/main/…` layout, `.env`, and starter kit files
+
+You should see a hint ending with `./grind serve`.
+
 ## 4. Work inside the app with `./grind`
 
 ```bash
@@ -59,11 +97,27 @@ cd my-app
 ./grind make:controller Post
 ```
 
-That is the whole happy path: **install `kona` once → `kona new` → `cd` → `./grind …`**.
+`./grind` is a thin script that runs the project’s Gradle `grind` task with `kona-grind` on the classpath. It is **not** the same binary as global `kona`, and it is **not** something you copy from the Kona monorepo by hand.
+
+## Trying the repo samples
+
+The checked-in apps under `samples/hello-kotlin` and `samples/hello-java` are **monorepo Gradle modules** used for regression and layout reference. They intentionally:
+
+- do **not** ship `./grind` or their own `./gradlew`
+- depend on sibling `project(":kona-…")` modules instead of Maven coordinates
+- are run from the **Kona repository root**
+
+```bash
+# from the Kona checkout root
+./gradlew :hello-kotlin:run
+./gradlew :hello-java:run
+```
+
+To experience the product path (`./grind serve`, generators, a standalone wrapper), use `kona new` as above. Do not expect `./grind` inside `samples/` — those directories are not full scaffolds.
 
 ## Optional: local Kona sources while developing the framework
 
-Generated apps depend on `dev.kona:kona-http` and `dev.kona:kona-grind` from `mavenLocal()` / Maven Central. If you are changing Kona itself:
+Generated apps depend on `dev.kona:kona-http`, `dev.kona:kona-grind`, and related artifacts from `mavenLocal()` / Maven Central. If you are changing Kona itself:
 
 ```bash
 # from the Kona checkout
