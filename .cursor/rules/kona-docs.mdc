@@ -35,4 +35,4 @@ Internal architecture docs under `docs/architecture/` may still map components f
 - [ ] New terms defined without requiring another framework.
 - [ ] No comparison sentences or equivalence tables on the page.
 - [ ] Kotlin + Java call sites where the surface is public.
-- [ ] Sidebar updated if a new section was added.
+- [ ] Sidebar updated if a new section was added — place it in the progressive group (*Getting started* → *The basics* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Testing* → *Packages & tooling*).

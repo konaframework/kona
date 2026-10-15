@@ -1,0 +1,252 @@
+---
+title: Database connections
+description: Configure JDBC connections, choose an engine, set .env keys, and register grammars for a new database.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Extract talks to relational databases through **JDBC**. A **connection** is a named pool (HikariCP) plus identifier-quoting rules. Models, the query builder, and the `DB` facade all use the **global** `Database` manager that `ExtractServiceProvider` builds from your `database` config.
+
+This page covers configuration depth: every env key, each supported engine, production vs local defaults, and how to plug in a database Extract does not specialize yet.
+
+## How configuration is loaded
+
+1. Your app registers a `ConfigFile` whose `key()` is `"database"` (scaffold: `config/Database.kt` or `config/Database.java`).
+2. `ExtractServiceProvider` calls `Database.fromConfig(app.config)`, binds the manager in the container (`Database` and alias `db`), and on boot calls `setAsGlobal()`.
+3. If the `database` section has **no** connections and `DB_URL` is set in the environment (or `.env`), Extract builds a single connection from `DB_*` variables.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+object Database : ConfigFile {
+    override fun key(): String = "database"
+
+    override fun config(): Map<String, Any?> = mapOf(
+        "default" to "main",
+        "connections" to mapOf(
+            "main" to mapOf(
+                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
+                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+                "pool_size" to Env.getOrDefault("DB_POOL_SIZE", "10").toInt(),
+                "quote_identifiers" to true,
+            ),
+        ),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class Database implements ConfigFile {
+    @Override
+    public String key() {
+        return "database";
+    }
+
+    @Override
+    public Map<String, Object> config() {
+        Map<String, Object> main = new LinkedHashMap<>();
+        main.put("url", Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"));
+        main.put("username", Env.getOrDefault("DB_USERNAME", "sa"));
+        main.put("password", Env.getOrDefault("DB_PASSWORD", ""));
+        main.put("pool_size", 10);
+        Map<String, Object> connections = Map.of("main", main);
+        return Map.of("default", "main", "connections", connections);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Connection map keys
+
+| Key | Env equivalent | Meaning |
+|-----|----------------|---------|
+| `url` | `DB_URL` | JDBC URL (required) |
+| `username` | `DB_USERNAME` | Login user |
+| `password` | `DB_PASSWORD` | Login password |
+| `driver` | `DB_DRIVER` | Driver class when the JAR does not auto-register |
+| `pool_size` / `poolSize` | `DB_POOL_SIZE` | Hikari max pool size (default `10`) |
+| `quote_identifiers` / `quoteIdentifiers` | `DB_QUOTE_IDENTIFIERS` | Quote table/column names (default `true`) |
+
+`database.default` may be a **connection name** (`"main"`) or, rarely, an **inline connection map** (treated as the `default` connection).
+
+## Why new apps default to H2
+
+`kona new` scaffolds an in-memory H2 URL so a fresh app runs **without installing a database server**. That default is intentional for demos, tutorials, and tests:
+
+- Only the H2 JAR is required on the classpath.
+- `DATABASE_TO_LOWER=TRUE` keeps quoted identifiers (`"users"`) aligned with unquoted SQL (`users`).
+- `DB_CLOSE_DELAY=-1` keeps a mem database alive for the whole JVM process.
+
+**Production apps should point `DB_URL` at PostgreSQL or MySQL/MariaDB** (or another JDBC engine you register). Leave H2 for local smoke tests unless you deliberately ship an embedded file database.
+
+## Engines Extract understands today
+
+| Engine | Typical JDBC URL | Identifier quoting | Schema DDL specialization |
+|--------|------------------|--------------------|---------------------------|
+| **H2** | `jdbc:h2:mem:…` or `jdbc:h2:file:…` | ANSI `"…"` | Yes — `TEXT` → `CHARACTER VARYING` |
+| **PostgreSQL** | `jdbc:postgresql://host/db` | ANSI `"…"` | Standard SQL (`SchemaGrammar.STANDARD`) |
+| **MySQL / MariaDB** | `jdbc:mysql://…` / `jdbc:mariadb://…` | Backticks `` `…` `` | Standard SQL types + MySQL quoting |
+| **SQLite** | `jdbc:sqlite:file.db` | ANSI `"…"` | Standard SQL (no SQLite-specific grammar yet) |
+
+Add the driver dependency yourself, for example:
+
+```kotlin
+dependencies {
+    runtimeOnly("com.h2database:h2:2.3.232")
+    runtimeOnly("org.postgresql:postgresql:42.7.4")
+    runtimeOnly("com.mysql:mysql-connector-j:9.1.0")
+}
+```
+
+### Example: PostgreSQL in `.env`
+
+```bash
+DB_URL=jdbc:postgresql://localhost:5432/kona
+DB_USERNAME=kona
+DB_PASSWORD=secret
+DB_POOL_SIZE=10
+```
+
+Keep `config/Database` reading those keys; switch the scaffold default only in env for that machine or deploy.
+
+### Example: MySQL
+
+```bash
+DB_URL=jdbc:mysql://localhost:3306/kona?useSSL=false&allowPublicKeyRetrieval=true
+DB_USERNAME=kona
+DB_PASSWORD=secret
+```
+
+Extract selects backtick quoting automatically from the `jdbc:mysql:` / `jdbc:mariadb:` URL prefix.
+
+### Example: H2 file (persist local data)
+
+```bash
+DB_URL=jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE
+DB_USERNAME=sa
+DB_PASSWORD=
+```
+
+## Using connections in code
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import dev.kona.extract.DB
+import dev.kona.extract.Database
+
+DB.table("users").where("active", true).get()
+
+DB.transaction { connection ->
+    connection.table("accounts").where("id", 1).decrement("balance", 50)
+    connection.table("accounts").where("id", 2).increment("balance", 50)
+}
+
+Database.global().connection("reports").table("facts").count()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import dev.kona.extract.DB;
+import dev.kona.extract.Database;
+
+DB.table("users").where("active", true).get();
+
+DB.transaction(connection -> {
+    connection.table("accounts").where("id", 1).decrement("balance", 50);
+    connection.table("accounts").where("id", 2).increment("balance", 50);
+    return null;
+});
+
+Database.global().connection("reports").table("facts").count();
+```
+
+</TabItem>
+</Tabs>
+
+Models use the global default connection unless the model overrides `connectionName`.
+
+Outside an app (scripts, tests), build a manager and call `setAsGlobal()`:
+
+```kotlin
+Database()
+    .addConnection("default", ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
+    .setAsGlobal()
+```
+
+You can also pass an existing `javax.sql.DataSource` and an explicit `Grammar`:
+
+```kotlin
+database.addConnection("raw", myDataSource, Grammar.ANSI)
+```
+
+## Adding a database Extract does not specialize
+
+Extract needs two pieces that can differ by engine:
+
+1. **Query identifier quoting** (`Grammar`) — how table/column names are wrapped in generated SQL.
+2. **Schema DDL** (`SchemaGrammar`) — how migrations compile `id()`, `text()`, indexes, and so on.
+
+### 1. Register query quoting for a JDBC URL prefix
+
+```kotlin
+import dev.kona.extract.Grammar
+
+// Example: double-bracket style for a fictional driver
+val brackets = Grammar("[", "]")
+Grammar.registerUrlPrefix("jdbc:example:", brackets)
+
+// Later cleanup in tests:
+// Grammar.clearRegisteredUrlPrefixes()
+```
+
+`Grammar.forUrl(url)` picks the **longest** registered prefix, then falls back to MySQL/MariaDB backticks or ANSI quotes.
+
+### 2. Register schema DDL for a JDBC product name
+
+The product name is whatever `DatabaseMetaData.getDatabaseProductName()` returns (for example `"PostgreSQL"`, `"H2"`, `"MySQL"`).
+
+```kotlin
+import dev.kona.extract.schema.SchemaGrammar
+
+class ExampleSchemaGrammar(identifiers: Grammar) : SchemaGrammar(identifiers) {
+    override fun type(column: ColumnDefinition): String =
+        if (column.type == ColumnType.ID) "BIGINT PRIMARY KEY" else super.type(column)
+}
+
+SchemaGrammar.registerProduct("ExampleDB") { identifiers -> ExampleSchemaGrammar(identifiers) }
+```
+
+`Migrator` and `Schema` call `SchemaGrammar.forProduct(productName, connection.grammar)`, so registrations apply automatically once the driver reports that product name.
+
+### 3. Checklist when introducing a new engine
+
+1. Add the JDBC driver to the app’s Gradle dependencies.
+2. Set `DB_URL` / credentials (or a named entry under `database.connections`).
+3. If quoting differs from ANSI/MySQL, call `Grammar.registerUrlPrefix` early in boot (a service provider `register` method).
+4. If DDL differs (identity columns, text types, drop-index syntax), subclass `SchemaGrammar` and `registerProduct`.
+5. Run migrations against a real instance of that engine; adjust the subclass until `Schema` / `Migrator` tests (or your app migrations) pass.
+6. Optionally pass a custom `SchemaGrammar` into `Migrator(…, grammar)` for one-off tooling.
+
+## Transactions and pools
+
+- `DB.transaction { … }` / `connection.transaction { … }` binds one JDBC connection to the current thread for the duration of the block; nested work on that connection joins the same transaction.
+- Pools open **lazily** on first use. `Database.close()` closes open pools; configuration remains so the next query can reconnect.
+- `disconnect(name)` closes one named pool without forgetting its config.
+
+## Related guides
+
+- [Extract overview](./) — layers and vocabulary
+- [Query builder](./query-builder/) — fluent SQL
+- [Migrations](./migrations/) — schema DSL and `./grind migrate`
+- [Models](./models/) — active-record models on top of connections

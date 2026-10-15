@@ -26,6 +26,7 @@ class SchemaTest {
     @AfterEach
     fun close() {
         connection.close()
+        SchemaGrammar.clearRegisteredProducts()
     }
 
     @Test
@@ -41,6 +42,23 @@ class SchemaTest {
         assertFalse(mysqlQuoted is H2SchemaGrammar)
         assertEquals("`t`", mysqlQuoted.wrap("t"))
         assertSame(Grammar.ANSI, SchemaGrammar().identifiers)
+
+        class CustomGrammar(identifiers: Grammar) : SchemaGrammar(identifiers) {
+            override fun type(column: ColumnDefinition): String =
+                if (column.type == ColumnType.ID) "BIGINT PRIMARY KEY" else super.type(column)
+        }
+        SchemaGrammar.registerProduct("ExampleDB") { CustomGrammar(it) }
+        val registered = SchemaGrammar.forProduct("ExampleDB", Grammar.MYSQL)
+        assertTrue(registered is CustomGrammar)
+        assertEquals("`x`", registered.wrap("x"))
+        SchemaGrammar.clearRegisteredProducts()
+        assertFalse(SchemaGrammar.forProduct("ExampleDB") is CustomGrammar)
+        assertThrows(IllegalArgumentException::class.java) {
+            SchemaGrammar.registerProduct("  ") { SchemaGrammar(it) }
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SchemaGrammar.registerProduct("") { SchemaGrammar(it) }
+        }
     }
 
     @Test

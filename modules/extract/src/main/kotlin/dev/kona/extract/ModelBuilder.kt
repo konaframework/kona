@@ -138,11 +138,19 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun whereNull(column: String): ModelBuilder<T> = apply { query.whereNull(column) }
 
+    fun orWhereNull(column: String): ModelBuilder<T> = apply { query.orWhereNull(column) }
+
     fun whereNotNull(column: String): ModelBuilder<T> = apply { query.whereNotNull(column) }
+
+    fun orWhereNotNull(column: String): ModelBuilder<T> = apply { query.orWhereNotNull(column) }
 
     fun whereIn(column: String, values: Collection<*>): ModelBuilder<T> = apply { query.whereIn(column, values) }
 
+    fun orWhereIn(column: String, values: Collection<*>): ModelBuilder<T> = apply { query.orWhereIn(column, values) }
+
     fun whereNotIn(column: String, values: Collection<*>): ModelBuilder<T> = apply { query.whereNotIn(column, values) }
+
+    fun orWhereNotIn(column: String, values: Collection<*>): ModelBuilder<T> = apply { query.orWhereNotIn(column, values) }
 
     fun whereBetween(column: String, from: Any?, to: Any?): ModelBuilder<T> = apply { query.whereBetween(column, from, to) }
 
@@ -207,11 +215,23 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun unless(condition: Boolean, callback: Consumer<ModelBuilder<T>>): ModelBuilder<T> = `when`(!condition, callback)
 
+    /** Runs [callback] with this builder and returns this (side-effect helper). */
+    fun tap(callback: Consumer<ModelBuilder<T>>): ModelBuilder<T> {
+        callback.accept(this)
+        return this
+    }
+
     /** Runs [callback] against this builder (named scope helper). */
     fun scope(callback: Consumer<ModelBuilder<T>>): ModelBuilder<T> {
         callback.accept(this)
         return this
     }
+
+    fun lockForUpdate(): ModelBuilder<T> = apply { query.lockForUpdate() }
+
+    fun sharedLock(): ModelBuilder<T> = apply { query.sharedLock() }
+
+    fun withoutLock(): ModelBuilder<T> = apply { query.withoutLock() }
 
     // ---- relation existence ----
 
@@ -286,6 +306,16 @@ class ModelBuilder<T : Extract<T>> internal constructor(
 
     fun findOrFail(id: Any?): T = find(id) ?: throw ModelNotFoundException(model.javaClass, listOf(id))
 
+    /** Matching [id], or a new unsaved instance with the primary key set to [id]. */
+    fun findOrNew(id: Any?): T {
+        find(id)?.let { return it }
+        val instance = model.newInstance()
+        if (id != null) {
+            instance.setAttribute(model.primaryKey, id)
+        }
+        return instance
+    }
+
     fun findMany(ids: Collection<*>): List<T> = whereIn(qualifiedKey(), ids).get()
 
     fun value(column: String): Any? = toBase().value(column)
@@ -339,6 +369,76 @@ class ModelBuilder<T : Extract<T>> internal constructor(
                 break
             }
             page += 1
+        }
+    }
+
+    /** Lazy sequence of models (see [QueryBuilder.cursor]). */
+    fun cursor(): Sequence<T> = lazy(100)
+
+    /** [lazy] with a default page size of 1000. */
+    fun lazy(): Sequence<T> = lazy(1000)
+
+    /** Lazy sequence of models fetched in pages of [chunkSize]. */
+    fun lazy(chunkSize: Int): Sequence<T> {
+        require(chunkSize >= 1) { "Lazy chunk size must be at least 1, got $chunkSize" }
+        return sequence {
+            var page = 1
+            while (true) {
+                val models = eagerLoadRelations(hydrate(toBase().forPage(page, chunkSize).get()))
+                if (models.isEmpty()) {
+                    break
+                }
+                for (item in models) {
+                    yield(item)
+                }
+                if (models.size < chunkSize) {
+                    break
+                }
+                page += 1
+            }
+        }
+    }
+
+    /** Chunks by the model's primary key (see [QueryBuilder.chunkById]). */
+    fun chunkById(count: Int, consumer: Consumer<List<T>>): Unit =
+        chunkById(count, model.primaryKey, consumer)
+
+    /** Chunks by ascending [column] using `where column > last` (see [QueryBuilder.chunkById]). */
+    fun chunkById(count: Int, column: String, consumer: Consumer<List<T>>) {
+        toBase().chunkById(count, column) { rows ->
+            consumer.accept(eagerLoadRelations(hydrate(rows)))
+        }
+    }
+
+    /** [lazyById] with page size 1000 on the primary key. */
+    fun lazyById(): Sequence<T> = lazyById(1000, model.primaryKey)
+
+    /** [lazyById] on the primary key. */
+    fun lazyById(chunkSize: Int): Sequence<T> = lazyById(chunkSize, model.primaryKey)
+
+    /** Lazy models via [chunkById] semantics. */
+    fun lazyById(chunkSize: Int, column: String): Sequence<T> {
+        require(chunkSize >= 1) { "Lazy chunk size must be at least 1, got $chunkSize" }
+        return sequence {
+            var lastId: Any? = null
+            while (true) {
+                val batch = toBase().withoutLock().copy().clearOrders().orderBy(column)
+                if (lastId != null) {
+                    batch.where(column, ">", lastId)
+                }
+                val models = eagerLoadRelations(hydrate(batch.limit(chunkSize).get()))
+                if (models.isEmpty()) {
+                    break
+                }
+                for (item in models) {
+                    yield(item)
+                }
+                lastId = models.last().getRawAttribute(column)
+                    ?: throw ExtractException("lazyById: last model missing column [$column]")
+                if (models.size < chunkSize) {
+                    break
+                }
+            }
         }
     }
 
