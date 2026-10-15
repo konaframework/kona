@@ -13,8 +13,9 @@ import java.util.concurrent.ConcurrentHashMap
  * - `queue.connections.{name}.driver` — `sync`, `array`/`memory`, `redis`, `database`
  * - `queue.connections.{name}.queue` — default queue name
  * - `queue.prefix` — redis key prefix
- * - `queue.failed.driver` — `memory` (default) or `file`
+ * - `queue.failed.driver` — `memory` (default), `file`, or `database`
  * - `queue.failed.path` — file path when driver is `file` (default `storage/framework/failed_jobs.json`)
+ * - `queue.failed.table` — table when driver is `database` (default `failed_jobs`)
  */
 class QueueManager(
     private val config: Config,
@@ -82,6 +83,13 @@ class QueueManager(
         val driver = (config.getString("queue.failed.driver") ?: "memory").lowercase()
         return when (driver) {
             "file" -> FileFailedJobProvider(failedPath())
+            "database" -> {
+                if (database == null) {
+                    throw IllegalStateException("Database failed jobs require a Database")
+                }
+                val table = config.getString("queue.failed.table", "failed_jobs")
+                DatabaseFailedJobProvider(database.connection(), table)
+            }
             else -> FailedJobProvider()
         }
     }

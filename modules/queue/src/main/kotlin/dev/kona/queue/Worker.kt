@@ -21,7 +21,7 @@ class Worker @JvmOverloads constructor(
             processed += 1
             val attempt = payload.withAttempt(payload.attempts + 1)
             try {
-                JobRegistry.create(attempt.jobKey).handle()
+                JobRegistry.create(attempt).handle()
             } catch (ex: Exception) {
                 if (attempt.attempts < attempt.tries) {
                     log.warn("Job {} failed attempt {}: {}", attempt.displayName, attempt.attempts, ex.message)

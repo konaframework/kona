@@ -28,7 +28,13 @@ Register `QueueServiceProvider`. Configure `queue.default` and `queue.connection
 ./grind queue:flush
 ```
 
-Failed jobs default to an in-memory `FailedJobProvider`. Set `queue.failed.driver=file` and optionally `queue.failed.path` (default `storage/framework/failed_jobs.json`) to persist a JSON array on disk so retries survive process restart.
+Failed jobs default to an in-memory `FailedJobProvider`. For durability:
+
+| `queue.failed.driver` | Storage |
+|-----------------------|---------|
+| `memory` (default) | Process heap |
+| `file` | JSON array at `queue.failed.path` (default `storage/framework/failed_jobs.json`) |
+| `database` | `failed_jobs` table (`queue.failed.table`); needs Extract `Database` on the manager |
 
 `./grind queue:retry` **re-queues** the payload (attempts reset) onto the original connection/queue, then forgets the failed row.
 
@@ -38,6 +44,8 @@ Backoff uses `availableAt` on the payload: array/Redis/database drivers skip job
 
 Optional `JobContract` methods: `tries()`, `backoffSeconds()`, `displayName()`.
 
-Cross-process workers restore jobs by:
-1. A factory registered in `JobRegistry`, or
-2. A public no-arg constructor on the job class named by `jobKey`.
+Prefer **Jackson-serializable** jobs (public no-arg constructor + readable properties). Each payload stores a `jobBody` JSON snapshot so another process can restore the job without an in-memory factory:
+
+1. Same JVM: `JobRegistry` factory registered at push time (original instance).
+2. Other process: deserialize `jobBody` into the `jobKey` class.
+3. Fallback: public no-arg constructor on the `jobKey` class.
