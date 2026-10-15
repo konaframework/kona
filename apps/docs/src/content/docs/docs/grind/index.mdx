@@ -11,11 +11,13 @@ description: The app-local CLI — serve and generate code inside a Kona project
 ./grind help
 ```
 
-There is no global grind install. Creating applications is always:
+`kona new` writes `./grind` (and `grind.bat`) into the project root. There is no global grind install. Creating applications is always:
 
 ```bash
 kona new my-app
 ```
+
+If you are browsing `samples/hello-kotlin` or `samples/hello-java` inside the Kona repository, those folders are monorepo modules and do **not** include `./grind`. Run them with `./gradlew :hello-kotlin:run` (or `:hello-java:run`) from the repo root, or create a real app with `kona new` to get grind. Details: [Installation](../guides/installation/#trying-the-repo-samples).
 
 ## Why two CLIs?
 

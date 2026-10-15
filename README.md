@@ -23,10 +23,12 @@ kona new my-app | cd my-app && ./grind | ./grind steam | Extract | *.crema.html
 ```
 
 ```bash
-./scripts/install-kona.sh   # global `kona` on ~/.local/bin
+./scripts/install-kona.sh   # global `kona` on ~/.local/bin (from-source install today)
 kona new my-app
-cd my-app && ./grind serve
+cd my-app && ./grind serve  # ./grind is created by kona new — not present under samples/
 ```
+
+Repo samples (`samples/hello-*`) are monorepo modules: run `./gradlew :hello-kotlin:run` / `:hello-java:run` from this root.
 
 ## Status
 

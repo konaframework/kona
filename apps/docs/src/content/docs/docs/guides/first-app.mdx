@@ -6,7 +6,7 @@ description: Create an app with kona new, explore the src/main layout, and serve
 ## Prerequisites
 
 - JDK 21+
-- Global `kona` on your PATH ([Installation](../installation/))
+- Global `kona` on your PATH ([Installation](../installation/) — today: `./scripts/install-kona.sh` from a Kona clone)
 
 ## Create the project
 
@@ -25,14 +25,16 @@ Created Kona application at …/hello-kona (kotlin, kit=web)
   ./grind serve
 ```
 
+That `./grind` file is part of the scaffold. If you opened `samples/hello-*` in the Kona git checkout instead, you will **not** find `./grind` there — those are monorepo modules; see [Installation → Trying the repo samples](../installation/#trying-the-repo-samples).
+
 ## What you got
 
 Everything application-owned lives under `src/main` (plus project-root `storage/` and `.env`):
 
 | Path | Role |
 |------|------|
-| `./grind` | **App-local** CLI (serve, make:controller, …) |
-| `./gradlew` | Gradle wrapper — builds and runs the app |
+| `./grind` / `grind.bat` | **App-local** CLI (serve, make:controller, …) — written by `kona new` |
+| `./gradlew` / `gradlew.bat` | Gradle wrapper — builds and runs the app |
 | `.env` / `.env.example` | `APP_NAME`, `APP_KEY` (generated), `APP_DEBUG`, `HOST`, `PORT`, … |
 | `src/main/kotlin/bootstrap/App` (or `…/java/…`) | Boots Kona, registers providers, starts HTTP |
 | `src/main/…/bootstrap/Middleware` | Session + CSRF (`/api/*` excepted); trust proxies/hosts |
@@ -45,7 +47,7 @@ Everything application-owned lives under `src/main` (plus project-root `storage/
 | `storage/` | Writable runtime data (logs, framework cache) |
 | `build.gradle.kts` | HTTP, grind, extract, redis, session, auth, queue, schedule, mail, crema |
 
-`kona` itself is **not** copied into the project. Only `./grind` is local.
+`kona` itself is **not** copied into the project. Only `./grind` (plus the Gradle wrapper and app sources) is local.
 
 ### Path helpers
 
