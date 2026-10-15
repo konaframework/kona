@@ -7,6 +7,27 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Kona’s `Log` facade sits on top of SLF4J. Use it from HTTP handlers, jobs, and boot code without wiring a logger by hand.
 
+## Where logs go
+
+When an application boots, Kona attaches a daily rolling file appender to the root logger:
+
+- **File:** `storage/logs/kona.log` (relative to the app base path)
+- **Console:** whatever Logback already configured (defaults or your own `logback.xml`) stays in place
+
+Scaffolded apps already include `storage/logs/` (with `.gitkeep`). After `./grind serve` or any boot that calls `Log` / framework loggers, you should see lines in `storage/logs/kona.log`.
+
+| Setting | Config key | Env | Default |
+| --- | --- | --- | --- |
+| Write to file | `logging.to_file` | `LOG_TO_FILE` | `true` |
+| File name | `logging.file` | `LOG_FILE` | `kona.log` (under `storage/logs` unless absolute) |
+| Root level | `logging.level` | `LOG_LEVEL` | `info` |
+
+`Kona.create` seeds those config keys from the environment before providers boot. You can still override them in a `ConfigFile` or `.configure { }` callback. Set `LOG_TO_FILE=false` (or `logging.to_file=false`) when you only want the console.
+
+Rolled history uses `kona.yyyy-MM-dd.log` beside the active file (14 days retained).
+
+For advanced layouts, filters, or extra appenders, add a `src/main/resources/logback.xml`. Kona only adds (or refreshes) the `KONA_FILE` appender; it does not replace your console configuration.
+
 ## Levels
 
 <Tabs syncKey="lang">

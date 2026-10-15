@@ -14,6 +14,7 @@ import java.nio.file.Path
 class EnvConfigApplicationTest {
     @AfterEach
     fun cleanup() {
+        FileLogging.resetForTests()
         Kona.reset()
         Env.clear()
     }
@@ -290,10 +291,17 @@ class EnvConfigApplicationTest {
         assertTrue(app.isBooted())
         assertEquals(base, app.basePath)
 
-        val cwd = Application.builder().boot()
+        val cwd = Application.builder()
+            .configure { it.set("logging.to_file", false) }
+            .boot()
         assertTrue(cwd.isBooted())
         assertEquals(Path.of("").toAbsolutePath().normalize(), cwd.basePath)
-        assertTrue(Application.Builder().build().basePath.isAbsolute)
+        assertTrue(
+            Application.Builder()
+                .configure { it.set("logging.to_file", false) }
+                .build()
+                .basePath.isAbsolute,
+        )
     }
 
     @Test
@@ -309,7 +317,9 @@ class EnvConfigApplicationTest {
         val app2 = Kona.start(base)
         assertEquals(app2.basePath, base.toAbsolutePath().normalize())
         Kona.reset()
-        val cwdApp = Kona.start(emptyArray())
+        val cwdApp = Kona.create(emptyArray())
+            .configure { it.set("logging.to_file", false) }
+            .boot()
         assertTrue(cwdApp.basePath.isAbsolute)
         assertEquals(false, cwdApp.config.get<Boolean>("app.debug"))
         Log.info("i")
@@ -349,6 +359,11 @@ class EnvConfigApplicationTest {
 
         Kona.reset()
         assertTrue(Kona.create(arrayOf("--base=$base")).build().isBooted())
-        assertTrue(Kona.create().build().basePath.isAbsolute)
+        assertTrue(
+            Kona.create()
+                .configure { it.set("logging.to_file", false) }
+                .build()
+                .basePath.isAbsolute,
+        )
     }
 }
