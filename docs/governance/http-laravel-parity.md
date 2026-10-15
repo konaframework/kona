@@ -107,7 +107,7 @@ Durable deepen tracker for `kona-http` (and middleware-linked session CSRF only 
 
 | Batch | Scope | PR |
 |-------|-------|-----|
-| B1 | Ledger + Request helpers + validation rules + Response.withHeaders + terminable/priority + docs + tests | TBD |
+| B1 | Ledger + Request helpers + validation rules + Response.withHeaders + terminable/priority + docs + tests | https://github.com/konaframework/kona/pull/68 |
 
 ## Close criteria
 
