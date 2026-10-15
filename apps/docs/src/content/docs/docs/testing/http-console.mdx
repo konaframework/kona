@@ -32,7 +32,16 @@ Register routes in a provider `boot` method (or after boot) before calling the c
 ConsoleTester()
     .run("list")
     .assertOk()
+    .assertExit(0)
     .assertSee("schedule:run")
+    .assertDontSee("missing-command")
 ```
 
-Pass the same flags you would on the CLI (`--base=…`, `--bootstrap=…`, `-q`, and so on).
+| Method | Behavior |
+|--------|----------|
+| `assertOk()` | Exit code `0` |
+| `assertExit(code)` | Exact exit code |
+| `assertSee(text)` | Stdout contains substring |
+| `assertDontSee(text)` | Stdout does not contain substring |
+
+Pass the same flags you would on the CLI (`--base=…`, `--bootstrap=…`, `-q`, and so on). For custom commands, compile the app first so discovery can see `META-INF/kona/commands`. See [Creating commands](../../grind/creating-commands/) and [Running commands](../../grind/running-commands/).

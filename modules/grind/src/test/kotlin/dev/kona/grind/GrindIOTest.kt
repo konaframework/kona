@@ -66,4 +66,15 @@ class GrindIOTest {
         assertTrue(out.toString().contains("50%"))
         assertTrue(out.toString().contains("sub"))
     }
+
+    @Test
+    fun tableRespectsQuiet() {
+        val out = ByteArrayOutputStream()
+        val quiet = GrindIO(PrintStream(out), verbosity = Verbosity.QUIET, color = false)
+        quiet.table(listOf("A"), listOf(listOf("1")))
+        assertEquals("", out.toString())
+        val normal = GrindIO(PrintStream(out), color = false)
+        normal.table(listOf("A"), listOf(listOf("1")))
+        assertTrue(out.toString().contains("A"))
+    }
 }
