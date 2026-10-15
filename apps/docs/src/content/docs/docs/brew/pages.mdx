@@ -1,0 +1,58 @@
+---
+title: Pages, navigate & URL
+description: Full-page Brew components, layouts, wire:navigate, query string, session, and pagination.
+---
+
+Full-page Brew components render inside a layout and can drive the URL bar, session, and SPA navigation.
+
+## Full-page routes
+
+```kotlin
+Brew.route(router, "/posts", "posts-page")
+```
+
+Mount params come from route attributes and the query string. Annotate the page with `@Layout` / `@Title`, or call `layout()` / `title()` / `BrewView.layout().title().slot(...)`.
+
+## Navigate
+
+```html
+<a href="/posts" wire:navigate>Posts</a>
+<a href="/posts" wire:navigate.hover>Prefetch</a>
+<a href="/posts" wire:current.exact>Here</a>
+```
+
+- `Brew.navigate(url)` and `brew:navigate` / `brew:navigating` / `brew:navigated` events
+- `@persist('key')` keeps DOM across visits
+- Progress bar + view transitions via `brew.navigate.*` config
+- `disableBackButtonCache()` opts out of bfcache
+
+## URL & session
+
+```kotlin
+@field:Url(`as` = "q", keep = true, history = true)
+var search = ""
+
+@field:Session(key = "posts.filter")
+var filter = "all"
+
+fun queryString() = mapOf("sort" to sort)
+```
+
+Effects `url` and `title` update the address bar and document title after each request. Testing: `withQueryParams(...)`.
+
+## Pagination
+
+Extend `Paginates` / implement `WithPagination`:
+
+```kotlin
+class PostsPage : Paginates() {
+    fun results() = paginate(items, 15)
+}
+```
+
+`previousPage` / `nextPage` / `gotoPage` / `resetPage`, Tailwind or Bootstrap link themes, and optional `withoutUrlPagination`.
+
+## Next
+
+- [Nesting](/docs/brew/nesting/) — children, islands, lazy
+- [Testing](/docs/brew/testing/) — `assertSeeBrew`, query params
