@@ -1,6 +1,6 @@
 # {{appName}}
 
-Kona application (Kotlin) — **Crema** starter kit.
+Kona application (Kotlin) — **web** starter kit (Crema views).
 
 ## Everyday commands
 
@@ -14,7 +14,8 @@ Kona application (Kotlin) — **Crema** starter kit.
 
 - `dev.kona:kona-crema` dependency
 - `CremaServiceProvider` registered in `bootstrap/App.kt`
-- `src/main/resources/views/welcome.crema.html` rendered by `WelcomeController`
+- `WelcomeController` on `/` rendering `src/main/resources/views/welcome.crema.html`
+- JSON health check at `/api/health`
 
 ## Resolving Kona artifacts
 

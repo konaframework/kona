@@ -6,7 +6,7 @@ import java.nio.file.Path
 /**
  * `kona new <name>` — scaffolds a self-contained Gradle application with a local `./grind` CLI.
  *
- * Kits (`--kit` / `--preset`): `api` (default), `crema`, `inertia`, `brew`.
+ * Kits (`--kit` / `--preset`): `web` (default), `api`, `crema` (alias of `web`), `inertia`, `brew`.
  */
 class NewCommand(
     private val versions: KonaVersions = KonaVersions.load(),
@@ -15,13 +15,13 @@ class NewCommand(
         val (positional, options) = parseOptions(args)
         val name = positional.firstOrNull()
             ?: throw KonaCliException(
-                "Usage: kona new <name> [--lang=kotlin|java] [--kit=api|crema|inertia|brew] [--kona-version=x.y.z]",
+                "Usage: kona new <name> [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] [--kona-version=x.y.z]",
             )
         val lang = options["lang"] ?: "kotlin"
         if (lang !in SKELETONS) {
             throw KonaCliException("--lang must be kotlin or java")
         }
-        val kit = (options["kit"] ?: options["preset"] ?: "api").lowercase()
+        val kit = (options["kit"] ?: options["preset"] ?: "web").lowercase()
         if (kit !in KITS) {
             throw KonaCliException("--kit/--preset must be one of: ${KITS.joinToString(", ")}")
         }
@@ -50,7 +50,7 @@ class NewCommand(
         lang: String,
         target: Path,
         variables: Map<String, String>,
-        kit: String = "api",
+        kit: String = "web",
     ) {
         val files = SKELETONS[lang] ?: throw KonaCliException("Unknown skeleton: $lang")
         COMMON_FILES.forEach { copyResource("skeletons/common/$it", target.resolve(destination(it)), variables) }
@@ -82,9 +82,9 @@ class NewCommand(
     internal fun applyKit(lang: String, kit: String, target: Path, variables: Map<String, String>) {
         when (kit) {
             "api" -> {
-                // Base skeleton is the API kit.
+                // Base skeleton without Crema (JSON health + plain-text welcome).
             }
-            "crema" -> overlayKit("crema", lang, target, variables)
+            "web", "crema" -> overlayKit("crema", lang, target, variables)
             "inertia" -> {
                 overlayKit("crema", lang, target, variables)
                 overlayKit("inertia", lang, target, variables)
@@ -139,7 +139,7 @@ class NewCommand(
         }
 
     companion object {
-        private val KITS = listOf("api", "crema", "inertia", "brew")
+        private val KITS = listOf("web", "api", "crema", "inertia", "brew")
 
         private val COMMON_FILES = listOf(
             "gitignore.txt",

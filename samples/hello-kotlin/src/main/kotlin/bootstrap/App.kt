@@ -5,6 +5,7 @@ import dev.kona.auth.AuthServiceProvider
 import dev.kona.core.Application
 import dev.kona.core.Env
 import dev.kona.core.Kona
+import dev.kona.crema.CremaServiceProvider
 import dev.kona.extract.ExtractServiceProvider
 import dev.kona.http.HttpKernel
 import dev.kona.http.HttpServiceProvider
@@ -18,9 +19,6 @@ import dev.kona.session.SessionServiceProvider
 import routes.ApiRoutes
 import routes.WebRoutes
 
-/**
- * Application entry. `grind serve --in-process` calls [create]; `./gradlew run` calls [main].
- */
 object App {
     @JvmStatic
     fun create(args: Array<String>): Application {
@@ -34,6 +32,7 @@ object App {
                 QueueServiceProvider(),
                 ScheduleServiceProvider(),
                 MailServiceProvider(),
+                CremaServiceProvider(),
                 AppServiceProvider(),
             )
             .afterBoot { Middleware.configure(it) }

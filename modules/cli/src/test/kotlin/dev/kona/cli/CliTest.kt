@@ -74,9 +74,16 @@ class CliTest {
         assertTrue(appKt.contains("SessionServiceProvider"))
         assertTrue(appKt.contains("AuthServiceProvider"))
         assertTrue(appKt.contains("QueueServiceProvider"))
+        assertTrue(appKt.contains("CremaServiceProvider"))
         val middleware = Files.readString(kt.resolve("src/main/kotlin/bootstrap/Middleware.kt"))
         assertTrue(middleware.contains("StartSession"))
         assertTrue(middleware.contains("VerifyCsrfToken"))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/welcome.crema.html")))
+        assertTrue(
+            Files.readString(kt.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
+                .contains("crema.render(\"welcome\""),
+        )
+        assertTrue(Files.readString(kt.resolve("build.gradle.kts")).contains("kona-crema"))
         assertNoPlaceholders(kt)
         assertTrue(ScaffoldKeys.generateAppKey().startsWith("base64:"))
 
@@ -101,7 +108,14 @@ class CliTest {
         val build = Files.readString(j.resolve("build.gradle.kts"))
         assertTrue(build.contains("dev.kona:kona-http:9.9.9"))
         assertTrue(build.contains("dev.kona:kona-grind:9.9.9"))
+        assertTrue(build.contains("dev.kona:kona-crema:9.9.9"))
         assertFalse(build.contains("kotlin(\"jvm\")"))
+        assertTrue(Files.isRegularFile(j.resolve("src/main/resources/views/welcome.crema.html")))
+        assertTrue(
+            Files.readString(j.resolve("src/main/java/app/http/controllers/WelcomeController.java"))
+                .contains("crema.render(\"welcome\""),
+        )
+        assertTrue(Files.readString(j.resolve("src/main/java/bootstrap/App.java")).contains("CremaServiceProvider"))
         assertNoPlaceholders(j)
     }
 
@@ -175,12 +189,23 @@ class CliTest {
         NewCommand().overlayKit("missing-kit", "kotlin", emptyOverlay, emptyMap())
         NewCommand().overlayKit("crema", "ruby", emptyOverlay, emptyMap())
         assertEquals(0, NewCommand().run(listOf(temp.resolve("api-explicit").toString(), "--kit=api")))
+        val apiApp = temp.resolve("api-explicit")
+        assertFalse(Files.readString(apiApp.resolve("build.gradle.kts")).contains("kona-crema"))
+        assertFalse(Files.exists(apiApp.resolve("src/main/resources/views/welcome.crema.html")))
+
+        val webExplicit = temp.resolve("web-explicit")
+        assertEquals(0, NewCommand().run(listOf(webExplicit.toString(), "--kit=web")))
+        assertTrue(Files.isRegularFile(webExplicit.resolve("src/main/resources/views/welcome.crema.html")))
     }
 
     private fun assertNoPlaceholders(root: Path) {
+        val scaffoldTokens = listOf("{{appName}}", "{{konaVersion}}", "{{kotlinVersion}}", "{{kit}}", "{{appKey}}")
         Files.walk(root).use { stream ->
-            stream.filter { Files.isRegularFile(it) && !it.toString().endsWith(".jar") }.forEach {
-                assertFalse(Files.readString(it).contains("{{"), "placeholder left in $it")
+            stream.filter { Files.isRegularFile(it) && !it.toString().endsWith(".jar") }.forEach { file ->
+                val text = Files.readString(file)
+                scaffoldTokens.forEach { token ->
+                    assertFalse(text.contains(token), "placeholder $token left in $file")
+                }
             }
         }
     }

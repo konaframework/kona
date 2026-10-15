@@ -1,10 +1,14 @@
 package app.http.controllers;
 
+import dev.kona.core.Kona;
+import dev.kona.crema.CremaEngine;
 import dev.kona.http.Request;
 import dev.kona.http.Response;
+import java.util.Map;
 
 public class WelcomeController {
     public Response index(Request request) {
-        return Response.text("Welcome to Kona");
+        CremaEngine crema = Kona.app().resolve(CremaEngine.class);
+        return Response.html(crema.render("welcome", Map.of("name", "Kona")));
     }
 }

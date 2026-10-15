@@ -8,7 +8,6 @@ import dev.kona.http.Request;
 import dev.kona.http.Response;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,35 +16,40 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AppSmokeTest {
-    @TempDir
-    Path temp;
-
     @AfterEach
     void reset() {
         Kona.reset();
     }
 
+    private Path sampleBase() {
+        Path sample = Path.of("samples/hello-java").toAbsolutePath().normalize();
+        return Files.isDirectory(Path.of("src/main/java/bootstrap"))
+            ? Path.of("").toAbsolutePath().normalize()
+            : sample;
+    }
+
     @Test
     void welcomeAndHealth() {
-        Application app = App.create(new String[]{"--base=" + temp});
+        Path base = sampleBase();
+        Application app = App.create(new String[]{"--base=" + base});
         HttpKernel kernel = app.resolve(HttpKernel.class);
         Response home = kernel.handle(Request.get("/"));
         Response health = kernel.handle(Request.get("/api/health"));
         assertEquals(200, home.getStatus());
-        assertEquals("Welcome to Kona", home.getBody());
+        assertTrue(home.getBody().toLowerCase().contains("<!doctype html>"), home.getBody());
+        assertTrue(home.getBody().toLowerCase().contains("welcome"), home.getBody());
         assertEquals(200, health.getStatus());
         assertEquals("{\"status\":\"ok\"}", health.getBody());
     }
 
     @Test
     void sampleTreeUsesSrcMainLayout() {
-        Path base = Files.isDirectory(Path.of("src/main/java/bootstrap"))
-            ? Path.of("").toAbsolutePath().normalize()
-            : Path.of("samples/hello-java").toAbsolutePath().normalize();
+        Path base = sampleBase();
         assertTrue(Files.isRegularFile(base.resolve("src/main/java/bootstrap/Middleware.java")));
         assertTrue(Files.isRegularFile(base.resolve("src/main/java/routes/ApiRoutes.java")));
         assertTrue(Files.isRegularFile(base.resolve("src/main/resources/config/paths.json")));
         assertTrue(Files.isRegularFile(base.resolve("src/main/resources/config/session.json")));
+        assertTrue(Files.isRegularFile(base.resolve("src/main/resources/views/welcome.crema.html")));
         assertTrue(Files.isDirectory(base.resolve("storage")));
     }
 }

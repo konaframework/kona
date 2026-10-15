@@ -41,13 +41,14 @@ class KonaApplication {
             Kona — create JVM applications
 
             Usage:
-              kona new <name> [--lang=kotlin|java] [--kit=api|crema|inertia|brew] [--kona-version=x.y.z]
+              kona new <name> [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] [--kona-version=x.y.z]
               kona version
               kona help
 
             Kits (--kit / --preset):
-              api       HTTP-only API-style app (default)
-              crema     HTML views with Crema
+              web       HTML welcome with Crema (default)
+              api       HTTP-only API-style app (no Crema)
+              crema     Alias of web
               inertia   Inertia + Crema + Vite stubs
               brew      Brew reactive UI + Crema
 

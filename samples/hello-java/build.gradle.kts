@@ -17,6 +17,7 @@ dependencies {
     implementation(project(":kona-queue"))
     implementation(project(":kona-schedule"))
     implementation(project(":kona-mail"))
+    implementation(project(":kona-crema"))
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

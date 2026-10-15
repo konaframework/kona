@@ -1,10 +1,10 @@
 # {{appName}}
 
-Kona application (Java) — **Crema** starter kit.
+Kona application (Java) — **web** starter kit (Crema views).
 
 ```bash
 ./grind serve
 ./gradlew run
 ```
 
-Includes `kona-crema`, `CremaServiceProvider`, and `src/main/resources/views/welcome.crema.html`.
+Includes `kona-crema`, `CremaServiceProvider`, `WelcomeController` on `/`, and `src/main/resources/views/welcome.crema.html`.
