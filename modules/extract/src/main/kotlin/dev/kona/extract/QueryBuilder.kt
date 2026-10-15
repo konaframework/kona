@@ -256,6 +256,39 @@ class QueryBuilder(val connection: DatabaseConnection) {
         return Page(copy().forPage(current, perPage).get(), total, perPage, current)
     }
 
+    /** Page without a total count (fetches `perPage + 1` to detect more pages). */
+    @JvmOverloads
+    fun simplePaginate(perPage: Int = 15, page: Int = 1): SimplePage<Map<String, Any?>> {
+        require(perPage >= 1) { "perPage must be at least 1, got $perPage" }
+        val current = maxOf(page, 1)
+        val rows = copy().offset((current - 1) * perPage).limit(perPage + 1).get()
+        val hasMore = rows.size > perPage
+        return SimplePage(rows.take(perPage), perPage, current, hasMore)
+    }
+
+    /**
+     * Cursor pagination ordered by [column] ascending.
+     * Pass [cursor] from a previous [CursorPage.nextCursor] to continue.
+     */
+    @JvmOverloads
+    fun cursorPaginate(
+        perPage: Int = 15,
+        cursor: String? = null,
+        column: String = "id",
+    ): CursorPage<Map<String, Any?>> {
+        require(perPage >= 1) { "perPage must be at least 1, got $perPage" }
+        val q = copy().orderBy(column)
+        if (cursor != null) {
+            q.where(column, ">", CursorPage.decode(cursor))
+        }
+        val rows = q.limit(perPage + 1).get()
+        val hasMore = rows.size > perPage
+        val page = rows.take(perPage)
+        val next = if (hasMore) CursorPage.encode(page.last()[column]) else null
+        val prev = if (cursor != null && page.isNotEmpty()) CursorPage.encode(page.first()[column]) else null
+        return CursorPage(page, perPage, next, prev)
+    }
+
     // ---- writes ----
 
     fun insert(values: Map<String, Any?>): Boolean = insert(listOf(values))

@@ -16,34 +16,37 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M13 — Language support, LSP, editor setup** on `main` (PR #21) |
-| Active | **M14 — Complete app tree under `src/main`** (`milestone/M14-complete-app-tree`) — parity checklist complete; ship PR → automerge → open **M15 Extract / Model** |
-| App layout | **Strict JVM hybrid under `src/main`:** `src/main/{kotlin\|java}/` + `src/main/resources/` + project-root `storage/` + `.env` / `.env.example`. Lowercase packages (`app.http.controllers`, `bootstrap`, `routes`). `PathLayout` / `Paths` helpers. `bootstrap/Middleware` + `HttpMiddleware` (trust proxies/hosts). Kits: api/crema/inertia/brew. |
-| Next after M14 merges | **M15 — Extract / Model Laravel parity** |
+| Last merged milestone | **M14 — Complete app tree under `src/main`** on `main` (PR #29) |
+| Active | **M15 — Extract / Model Laravel parity** (`milestone/M15-extract-model-parity`) — parity checklist complete; ship PR → automerge |
+| App layout | **Strict JVM hybrid under `src/main`:** `src/main/{kotlin\|java}/` + `src/main/resources/` + project-root `storage/` + `.env` / `.env.example`. Lowercase packages. `PathLayout` / `Paths`. Kits: api/crema/inertia/brew. |
+| Next after M15 merges | Further deepen / maintenance milestones (queue, session durability, scaffold provider wiring) — open explicitly |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` (`apps/docs/src/styles/custom.css`) |
 | Docs shape | Progressive guides; rewrite as features land. |
 | Models | **Auto only** unless the human names a model for that turn |
-| Autopilot | Continuous through Almasix ledger; after M14 merges, start M15 immediately |
+| Autopilot | Continuous through Almasix ledger; after M15 merges, continue deepen queue |
 | Merge habit | Enable automerge; **once required CI is green, squash-merge immediately** if automerge stalls. PRs that only touch `docs/governance` may skip **Build site** — touch `apps/docs/` so that required check runs. |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9). |
 
-### M14 deliverables (this branch)
+### M15 deliverables (this branch)
 
-- `PathLayout` + `Application` path helpers + `Paths` facade; config from `src/main/resources/config`
-- `TrustProxies` / `TrustHosts` / `HttpMiddleware`; Crema `viewPath()` defaults
-- Full `kona new` skeletons + kits under `src/main`; samples re-scaffolded
-- grind `make:*` → `src/main/…/app/http/…`; docs (first-app, application, config, kernel-server)
+- Schema `morphs` / `nullableMorphs` / `uuidMorphs`
+- `MorphTo` / `MorphMany` / `MorphOne` + `Relation.morphMap`
+- `HasManyThrough` / `HasOneThrough`
+- Custom `CastsAttributes`; `casts` accepts `CastType` or custom casts
+- `simplePaginate` + `cursorPaginate` (`SimplePage` / `CursorPage`)
+- `withExists` / `withSum` + `loadExists` / `loadSum`; `wasChanged` / `getChanges`
+- Extract docs + Kotlin/Java regressions; samples remain `src/main` tree from M14
 
-### Recently merged (post-M13)
+### Recently merged
 
 | Work | PR / location |
 |------|----------------|
+| M14 complete app tree under `src/main` | PR #29 |
 | Post-M13 kit classpath + serve regressions | PR #23 |
 | Crema Blade/Prism app-facing directives + docs | PR #24 |
 | Extract Eloquent-shaped deepen + docs | PR #25 |
 | Docs → native IntelliJ plugin | PR #26 |
-| HANDOFF thin-surface audit notes | PR #27 |
 | Native IntelliJ plugin (separate repo) | [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea) `v0.1.0` |
 
 ## Known thin surfaces (ledger “done”, deepen later)
@@ -57,9 +60,9 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Cache / Redis / support | No cache locks/tags/increment; Redis client surface minimal; no lang-file loader |
 | Events / mail | Sync bus only; SMTP minimal (no attachments / queued mailables) |
 | Testing / drip | HTTP client get+postJson; fakes incomplete; drip no patch/multipart |
-| Crema / Extract | Deepen landed #24/#25 — remaining: morphs/through, Vite manifest/hot, rich `<x-*>` |
+| Crema | Vite manifest/hot, richer `<x-*>` still thin |
 
-**Preferred deepen order** after M14: **M15 Extract/Model**, then durable queue, scaffold provider wiring, Redis session + signed cookies.
+**Preferred deepen order** after M15: durable queue, scaffold provider wiring, Redis session + signed cookies.
 
 ## Sister project — Kona Idea
 
@@ -70,7 +73,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Plugin id | `dev.kona.idea` |
 | Latest release | [v0.1.0](https://github.com/konaframework/kona-idea/releases/tag/v0.1.0) (`kona-idea-0.1.0.zip`) |
 | Handoff | [HANDOFF.md](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md) in that repo |
-| Follow-up | Remake plugin assumptions for complete `src/main` tree / path helpers after M14 merges |
+| Follow-up | Remake plugin assumptions for complete `src/main` tree / path helpers after M14 |
 
 When adding Crema directives in `modules/lsp` / `CremaRuntime`, update `dev.kona.idea.CremaDirectives` in kona-idea and cut a patch release.
 

@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M14 — Complete app tree under `src/main`** (`milestone/M14-complete-app-tree`).
+**Active milestone:** **M15 — Extract / Model Laravel parity** (`milestone/M15-extract-model-parity`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -104,8 +104,8 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Topic | Milestone | Status |
 |-------|-----------|--------|
 | Extract: Getting Started (docs) | M2; Eloquent-depth rewrite (post-M13 parity) | done |
-| Relationships | M2 | done |
-| Mutators & Casts | M2 | done |
+| Relationships | M2; morphs / through M15 | done |
+| Mutators & Casts | M2; `CastsAttributes` M15 | done |
 | Serialization | M4 | done |
 | Collections (Extract) | M4 | done |
 | Soft Deletes & Events | Soft deletes M2; model events M4 | done |
@@ -519,7 +519,7 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 ## M14 — Complete app tree under `src/main`
 
-**Status:** active  
+**Status:** done (merged to `main`, PR #29)
 
 **Branch:** `milestone/M14-complete-app-tree`
 
@@ -541,9 +541,35 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 `kona-core`, `kona-http`, `kona-crema` (view path), `kona-cli` skeletons, `kona-grind` generators, `samples/hello-*`, `apps/docs/`
 
+---
+
+## M15 — Extract / Model Laravel parity
+
+**Status:** active (checklist complete — ship PR)
+
+**Branch:** `milestone/M15-extract-model-parity`
+
+**Parity slice:** Exhaust Eloquent-shaped gaps deferred after M2/M5/PR #25 — morph relations, through relations, custom cast classes, cursor / simple pagination, and remaining Model/Builder surface needed for Almasix/Laravel parity.
+
+### Parity checklist
+
+- [x] Schema `morphs` / `nullableMorphs` / `uuidMorphs`
+- [x] MorphTo / MorphMany / MorphOne (+ `Relation.morphMap`)
+- [x] HasManyThrough / HasOneThrough
+- [x] Custom cast classes (`CastsAttributes`)
+- [x] `simplePaginate` + `cursorPaginate`
+- [x] `withExists` / `withSum` (and load* variants) where needed for parity
+- [x] `wasChanged` / `getChanges` after save
+- [x] Kotlin + Java samples/regressions for new APIs
+- [x] Docs (`apps/docs/` Extract guides) + HANDOFF
+
+### In-scope modules
+
+`kona-extract`, samples/regression paths, `apps/docs/`
+
 ### Next (queued)
 
-**M15 — Extract / Model Laravel parity** — open immediately after M14 merges; exhaust Eloquent-shaped gaps.
+Maintenance / further deepen milestones opened explicitly after M15.
 
 ---
 

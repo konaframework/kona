@@ -3,7 +3,11 @@ package dev.kona.extract
 import dev.kona.extract.relations.BelongsTo
 import dev.kona.extract.relations.BelongsToMany
 import dev.kona.extract.relations.EagerLoader
+import dev.kona.extract.relations.HasManyThrough
 import dev.kona.extract.relations.HasOneOrMany
+import dev.kona.extract.relations.HasOneThrough
+import dev.kona.extract.relations.MorphMany
+import dev.kona.extract.relations.MorphOne
 import dev.kona.extract.relations.Relation
 import dev.kona.extract.relations.RelationConstraint
 import java.util.function.Consumer
@@ -46,11 +50,50 @@ class ModelBuilder<T : Extract<T>> internal constructor(
         for (spec in relations) {
             val (name, alias) = parseRelationAlias(spec)
             val countAlias = alias ?: "${name}_count"
-            val subquery = existenceQuery(name, null, forCount = true)
+            val subquery = existenceQuery(name, null, Aggregate.COUNT)
             query.selectRaw("(${subquery.toSql()}) as ${grammar.wrap(countAlias)}", subquery.getBindings())
         }
         return this
     }
+
+    /**
+     * Adds a `{relation}_exists` (or alias) boolean select subquery for each name.
+     * Supports `posts as has_posts` aliases.
+     */
+    fun withExists(vararg relations: String): ModelBuilder<T> {
+        if (!query.hasSelectColumns()) {
+            query.select("${model.table}.*")
+        }
+        val grammar = model.connection().grammar
+        for (spec in relations) {
+            val (name, alias) = parseRelationAlias(spec)
+            val existsAlias = alias ?: "${name}_exists"
+            val subquery = existenceQuery(name, null, Aggregate.EXISTS)
+            query.selectRaw(
+                "case when exists (${subquery.toSql()}) then 1 else 0 end as ${grammar.wrap(existsAlias)}",
+                subquery.getBindings(),
+            )
+        }
+        return this
+    }
+
+    /**
+     * Adds a `{relation}_sum_{column}` (or alias) select subquery.
+     * [spec] is `relation:column` or `relation as alias:column`.
+     */
+    fun withSum(spec: String): ModelBuilder<T> {
+        if (!query.hasSelectColumns()) {
+            query.select("${model.table}.*")
+        }
+        val grammar = model.connection().grammar
+        val (name, alias, column) = Extract.parseSumSpec(spec)
+        val subquery = existenceQuery(name, null, Aggregate.SUM, column)
+        query.selectRaw("(${subquery.toSql()}) as ${grammar.wrap(alias)}", subquery.getBindings())
+        return this
+    }
+
+    /** Convenience overload: `withSum("posts", "votes")` → alias `posts_sum_votes`. */
+    fun withSum(relation: String, column: String): ModelBuilder<T> = withSum("$relation:$column")
 
     fun withTrashed(): ModelBuilder<T> {
         trashed = Trashed.INCLUDE
@@ -267,6 +310,20 @@ class ModelBuilder<T : Extract<T>> internal constructor(
     fun paginate(perPage: Int = model.perPage, page: Int = 1): Page<T> =
         toBase().paginate(perPage, page).map { model.newFromBuilder(it) }.also { eagerLoadRelations(it.data) }
 
+    @JvmOverloads
+    fun simplePaginate(perPage: Int = model.perPage, page: Int = 1): SimplePage<T> =
+        toBase().simplePaginate(perPage, page).map { model.newFromBuilder(it) }.also { eagerLoadRelations(it.data) }
+
+    @JvmOverloads
+    fun cursorPaginate(
+        perPage: Int = model.perPage,
+        cursor: String? = null,
+        column: String = "id",
+    ): CursorPage<T> =
+        toBase().cursorPaginate(perPage, cursor, column)
+            .map { model.newFromBuilder(it) }
+            .also { eagerLoadRelations(it.data) }
+
     fun hydrate(rows: List<Map<String, Any?>>): List<T> = rows.map { model.newFromBuilder(it) }
 
     fun chunk(count: Int, consumer: Consumer<List<T>>) {
@@ -341,7 +398,7 @@ class ModelBuilder<T : Extract<T>> internal constructor(
         constraint: Consumer<ModelBuilder<*>>?,
         negate: Boolean,
     ): ModelBuilder<T> {
-        val subquery = existenceQuery(relation, constraint, forCount = false)
+        val subquery = existenceQuery(relation, constraint, Aggregate.EXISTS)
         val sql = if (negate) "not exists (${subquery.toSql()})" else "exists (${subquery.toSql()})"
         if (boolean == AND) {
             query.whereRaw(sql, subquery.getBindings())
@@ -354,22 +411,42 @@ class ModelBuilder<T : Extract<T>> internal constructor(
     private fun existenceQuery(
         relation: String,
         constraint: Consumer<ModelBuilder<*>>?,
-        forCount: Boolean,
+        aggregate: Aggregate,
+        sumColumn: String? = null,
     ): QueryBuilder {
         val rel = EagerLoader.relationOf(model, relation)
         @Suppress("UNCHECKED_CAST")
         constraint?.accept(rel.query as ModelBuilder<*>)
         val base = rel.query.toBase()
         correlate(base, rel)
-        return if (forCount) {
-            base.resetForAggregate().selectRaw("count(*)")
-        } else {
-            base.resetForAggregate().selectRaw("1")
+        val reset = base.resetForAggregate()
+        return when (aggregate) {
+            Aggregate.COUNT -> reset.selectRaw("count(*)")
+            Aggregate.EXISTS -> reset.selectRaw("1")
+            Aggregate.SUM -> {
+                val column = sumColumn ?: throw ExtractException("withSum requires a column")
+                val wrapped = model.connection().grammar.wrap("${rel.related.table}.$column")
+                reset.selectRaw("coalesce(sum($wrapped), 0)")
+            }
         }
     }
 
     private fun correlate(base: QueryBuilder, rel: Relation<*, *>) {
         when (rel) {
+            is MorphMany<*> -> {
+                base.whereColumn(
+                    "${rel.related.table}.${rel.foreignKey}",
+                    "${model.table}.${rel.localKey}",
+                )
+                base.where("${rel.related.table}.${rel.morphType}", rel.morphClass)
+            }
+            is MorphOne<*> -> {
+                base.whereColumn(
+                    "${rel.related.table}.${rel.foreignKey}",
+                    "${model.table}.${rel.localKey}",
+                )
+                base.where("${rel.related.table}.${rel.morphType}", rel.morphClass)
+            }
             is HasOneOrMany<*, *> ->
                 base.whereColumn(
                     "${rel.related.table}.${rel.foreignKey}",
@@ -385,6 +462,30 @@ class ModelBuilder<T : Extract<T>> internal constructor(
                     "${rel.pivotTable}.${rel.foreignPivotKey}",
                     "${model.table}.${rel.parentKey}",
                 )
+            is HasManyThrough<*, *> -> {
+                base.join(
+                    rel.through.table,
+                    "${rel.through.table}.${rel.secondLocalKey}",
+                    "=",
+                    "${rel.related.table}.${rel.secondKey}",
+                )
+                base.whereColumn(
+                    "${rel.through.table}.${rel.firstKey}",
+                    "${model.table}.${rel.localKey}",
+                )
+            }
+            is HasOneThrough<*, *> -> {
+                base.join(
+                    rel.through.table,
+                    "${rel.through.table}.${rel.secondLocalKey}",
+                    "=",
+                    "${rel.related.table}.${rel.secondKey}",
+                )
+                base.whereColumn(
+                    "${rel.through.table}.${rel.firstKey}",
+                    "${model.table}.${rel.localKey}",
+                )
+            }
             else ->
                 throw ExtractException(
                     "Relationship [${rel.javaClass.name}] does not support whereHas / withCount.",
@@ -395,6 +496,8 @@ class ModelBuilder<T : Extract<T>> internal constructor(
     private fun qualifiedKey(): String = "${model.table}.${model.primaryKey}"
 
     private enum class Trashed { EXCLUDE, INCLUDE, ONLY }
+
+    private enum class Aggregate { COUNT, EXISTS, SUM }
 
     private companion object {
         const val AND = "and"

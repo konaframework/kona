@@ -112,6 +112,7 @@ Two methods have different names in Java because their Kotlin names are Java key
 | `foreignId(name)` | `BIGINT` | a key pointing at another table; chain `constrained()` |
 | `timestamps()` | `created_at`, `updated_at` | both nullable |
 | `softDeletes()` | `deleted_at` | nullable, used by [soft deletes](../models/#soft-deletes) |
+| `morphs(name)` / `nullableMorphs` / `uuidMorphs` | `{name}_type` + `{name}_id` (+ index) | polymorphic columns; see [Relations](../relations/#polymorphic-relations) |
 
 Columns are `NOT NULL` unless you call a modifier:
 

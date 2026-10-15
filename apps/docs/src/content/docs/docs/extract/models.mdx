@@ -48,7 +48,7 @@ public class User extends Extract<User> {
     }
 
     @Override
-    public Map<String, CastType> getCasts() {
+    public Map<String, Object> getCasts() {
         return Map.of("admin", CastType.BOOLEAN, "settings", CastType.JSON);
     }
 }
@@ -57,7 +57,7 @@ public class User extends Extract<User> {
 </TabItem>
 </Tabs>
 
-`./grind make:model User` writes this skeleton for you under `app/Models/` (see [Migrations](../migrations/#grind-commands)).
+`./grind make:model User` writes this skeleton for you under `src/main/…/app/models/` (see [Migrations](../migrations/#grind-commands)).
 
 ### Conventions you can override
 
@@ -72,9 +72,9 @@ Every convention is an open property (a getter in Java) on `Extract`:
 | `createdAtColumn` / `updatedAtColumn` | `created_at` / `updated_at` | Timestamp column names |
 | `fillable` | empty | Keys `fill` may set |
 | `guarded` | `*` | Keys `fill` refuses (`*` guards everything not fillable) |
-| `casts` | empty | Column → `CastType` conversions |
+| `casts` | empty | Column → `CastType` or `CastsAttributes` |
 | `connectionName` | `null` (default connection) | Named connection to use |
-| `perPage` | `15` | Page size for `paginate()` |
+| `perPage` | `15` | Page size for `paginate()` / `simplePaginate()` / `cursorPaginate()` |
 
 ## Reading rows
 
@@ -160,7 +160,7 @@ User.QUERY.destroy(4, 5, 6);
 
 ## Casts
 
-A cast converts a stored column value into a convenient type on read. Declare casts in `casts`:
+A cast converts a stored column value into a convenient type on read. Declare casts in `casts` as either a built-in `CastType` or a custom `CastsAttributes` class:
 
 | `CastType` | Read as |
 |------------|---------|
@@ -172,6 +172,31 @@ A cast converts a stored column value into a convenient type on read. Declare ca
 | `INSTANT` | `java.time.Instant` |
 
 Timestamp columns (and `deleted_at` on soft-deleting models) are cast to `Instant` automatically.
+
+### Custom casts
+
+Implement `CastsAttributes` when you need domain types (money in cents, value objects, encrypted blobs):
+
+```kotlin
+class CentsCast : CastsAttributes {
+    override fun get(model: Extract<*>, key: String, value: Any?, attributes: Map<String, Any?>): Any? {
+        if (value == null) return null
+        val cents = (value as Number).toLong()
+        return cents / 100.0
+    }
+
+    override fun set(model: Extract<*>, key: String, value: Any?, attributes: Map<String, Any?>): Any? {
+        if (value == null) return null
+        return Math.round((value as Number).toDouble() * 100)
+    }
+}
+
+class Product : Extract<Product>() {
+    override val casts = mapOf("price" to CentsCast())
+}
+```
+
+Java overrides return `Map<String, Object>` from `getCasts()` so both enums and cast instances fit.
 
 ## Soft deletes
 
@@ -252,6 +277,36 @@ Response.json(page.toMap());
 </Tabs>
 
 Page numbers start at 1; values below 1 are treated as page 1.
+
+### Simple and cursor pagination
+
+When you do not need a total count, `simplePaginate` fetches `perPage + 1` rows and exposes `hasMorePages()`:
+
+```kotlin
+val page = User.query().orderBy("id").simplePaginate(20, 1)
+page.hasMorePages()
+page.toMap()   // data, per_page, current_page, has_more
+```
+
+`cursorPaginate` walks an ordered column with opaque cursors (no offset drift on inserts):
+
+```kotlin
+val first = User.cursorPaginate(20)
+val next = User.cursorPaginate(20, first.nextCursor)
+// CursorPage: data, per_page, next_cursor, prev_cursor
+```
+
+## Dirty tracking after save
+
+`isDirty` / `getDirty` describe changes since the last load. After a successful `save()`, use `wasChanged` / `getChanges` for what that save persisted:
+
+```kotlin
+user["name"] = "Ada"
+user.save()
+user.wasChanged("name")   // true
+user.getChanges()         // map of persisted attributes
+user.save()               // no-op when clean → wasChanged() is false
+```
 
 ## Retrieving or creating
 

@@ -1,6 +1,6 @@
 ---
 title: Relations
-description: Link Extract models with hasOne, hasMany, belongsTo, and belongsToMany; load them lazily or eagerly without N+1 queries.
+description: Link Extract models with hasOne, hasMany, belongsTo, belongsToMany, morphs, and through relations; load them lazily or eagerly without N+1 queries.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
@@ -15,6 +15,9 @@ You define a relation as a **public method with no parameters**, named after the
 | `hasMany` | the other table holds our key, many rows | user → posts | `List<R>` |
 | `belongsTo` | we hold the other table's key | post → user | `R?` |
 | `belongsToMany` | a third (pivot) table holds both keys | user ↔ roles | `List<R>` |
+| `morphMany` / `morphOne` | related rows store `{name}_type` + `{name}_id` | post → comments | `List<R>` / `R?` |
+| `morphTo` | this row stores type + id of the owner | comment → post/video | `Extract<*>?` |
+| `hasManyThrough` / `hasOneThrough` | distant rows via an intermediate table | user → comments via posts | `List<R>` / `R?` |
 
 ## Defining relations
 
@@ -246,7 +249,7 @@ List<User> newcomers = User.QUERY.doesntHave("posts").get();
 
 Works for `hasOne` / `hasMany`, `belongsTo`, and `belongsToMany` (including the pivot join).
 
-## Counting related models
+## Counting, existence, and sums
 
 `withCount("posts")` adds a `posts_count` attribute (a subquery) without loading the related rows. Use `relation as alias` for a custom attribute name:
 
@@ -259,7 +262,15 @@ users[0]["published_posts_count"]
 user.loadCount("posts", "roles")
 ```
 
-Combine with `select("users.*")` (or let `withCount` ensure a table select) when you also project specific columns.
+`withExists("posts")` adds a boolean-ish `posts_exists` column (`1` / `0`). `withSum("posts", "votes")` (or `withSum("posts as total:votes")`) adds `posts_sum_votes`. Matching loaders: `loadExists`, `loadSum("posts:votes")`.
+
+```kotlin
+val authors = Author.withExists("books").withSum("books", "votes").get()
+author.loadExists("books")
+author.loadSum("books as total_votes:votes")
+```
+
+Combine with `select("users.*")` (or let these helpers ensure a table select) when you also project specific columns.
 
 ## Writing through relations
 
@@ -359,6 +370,51 @@ pivot["created_at"]
 
 Soft-deleted related rows are excluded from every relation unless the related query asks otherwise (`constrain { it.withTrashed() }`).
 
-:::note[Not in this surface yet]
-Polymorphic relations (`morphTo` / `morphMany` / …) and “through” relations (`hasManyThrough`) are not part of Extract yet. Use explicit foreign keys and the four relation types above, or a hand-built query, until those land.
-:::
+## Polymorphic relations
+
+When one table can belong to several parent types (comments on posts *or* videos), store `{name}_type` and `{name}_id` on the child. Schema helpers `morphs`, `nullableMorphs`, and `uuidMorphs` create those columns (and an index).
+
+Register short aliases with `Relation.morphMap` so the type column stays stable:
+
+```kotlin
+Relation.morphMap(
+    mapOf(
+        "posts" to Post::class.java,
+        "videos" to Video::class.java,
+    ),
+)
+
+class Post : Extract<Post>() {
+    fun comments(): MorphMany<Comment> = morphMany(Comment::class.java, "commentable")
+    fun image(): MorphOne<Image> = morphOne(Image::class.java, "imageable")
+}
+
+class Comment : Extract<Comment>() {
+    fun commentable(): MorphTo = morphTo("commentable")
+}
+
+post.comments().create(mapOf("body" to "Nice"))
+comment.commentable().getResults()   // Post or Video
+comment.commentable().associate(post)
+```
+
+Without a morph map entry, Extract uses the model's simple class name (and can resolve a fully-qualified class name stored in the type column).
+
+## Through relations
+
+`hasManyThrough` / `hasOneThrough` reach a distant table through an intermediate model (user → posts → comments):
+
+```kotlin
+class User : Extract<User>() {
+    fun comments(): HasManyThrough<Comment, Post> =
+        hasManyThrough(Comment::class.java, Post::class.java, "user_id", "post_id")
+
+    fun firstComment(): HasOneThrough<Comment, Post> =
+        hasOneThrough(Comment::class.java, Post::class.java, "user_id", "post_id")
+}
+
+user.comments().get()
+User.with("comments").get()
+```
+
+Default foreign keys follow `{snake_class}_id` on each side; pass explicit keys when your schema uses shorter names.
