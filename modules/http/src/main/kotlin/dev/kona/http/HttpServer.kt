@@ -49,8 +49,8 @@ class KonaHttpServer(
         val path = HttpPaths.fromUriParts(uri.rawPath, uri.path)
         val query = parseQuery(uri.rawQuery)
         val headers = HeaderMaps.from(exchange.requestHeaders)
-        val body = exchange.requestBody.readBytes().toString(Charsets.UTF_8)
-        return Request(method, path, headers, query, body)
+        val bodyBytes = exchange.requestBody.readBytes()
+        return Request(method, path, headers, query, body = "", bodyBytes = bodyBytes)
     }
 
     private fun writeResponse(exchange: HttpExchange, response: Response, head: Boolean) {

@@ -98,7 +98,7 @@ class Validator(
         val label: String = label(field)
     }
 
-    private enum class Kind { NUMERIC, STRING, ARRAY }
+    private enum class Kind { NUMERIC, STRING, ARRAY, FILE }
 
     companion object {
         private val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
@@ -117,21 +117,25 @@ class Validator(
             Kind.NUMERIC to "must be at least :a.",
             Kind.STRING to "must be at least :a characters.",
             Kind.ARRAY to "must have at least :a items.",
+            Kind.FILE to "must be at least :a kilobytes.",
         )
         private val MAX = mapOf(
             Kind.NUMERIC to "must not be greater than :a.",
             Kind.STRING to "must not be greater than :a characters.",
             Kind.ARRAY to "must not have more than :a items.",
+            Kind.FILE to "must not be greater than :a kilobytes.",
         )
         private val SIZE = mapOf(
             Kind.NUMERIC to "must be :a.",
             Kind.STRING to "must be :a characters.",
             Kind.ARRAY to "must contain :a items.",
+            Kind.FILE to "must be :a kilobytes.",
         )
         private val BETWEEN = mapOf(
             Kind.NUMERIC to "must be between :a and :b.",
             Kind.STRING to "must be between :a and :b characters.",
             Kind.ARRAY to "must have between :a and :b items.",
+            Kind.FILE to "must be between :a and :b kilobytes.",
         )
 
         /** Rule name → parameter parser (throws [IllegalArgumentException] when malformed) → check. */
@@ -187,6 +191,26 @@ class Validator(
                 val pattern = pcre(required(p))
                 check { c -> fail(!(c.value is String && pattern.containsMatchIn(c.value)), c, "format is invalid.") }
             },
+            "file" to { _ ->
+                { c ->
+                    val uploaded = c.value as? UploadedFile
+                    fail(uploaded == null || !uploaded.isValid(), c, "must be a file.")
+                }
+            },
+            "image" to { _ ->
+                { c ->
+                    val uploaded = c.value
+                    if (uploaded !is UploadedFile) {
+                        fail(true, c, "must be an image.")
+                    } else if (!uploaded.isValid()) {
+                        fail(true, c, "must be an image.")
+                    } else {
+                        fail(!isImage(uploaded), c, "must be an image.")
+                    }
+                }
+            },
+            "mimes" to { p -> fileTypeRule(p, useMime = false) },
+            "mimetypes" to { p -> fileTypeRule(p, useMime = true) },
         )
 
         @JvmStatic
@@ -231,6 +255,7 @@ class Validator(
         private fun measure(c: Context): Pair<Double, Kind> {
             return when (val v = c.value) {
                 is Number -> v.toDouble() to Kind.NUMERIC
+                is UploadedFile -> (v.size / 1024.0) to Kind.FILE
                 is Collection<*> -> v.size.toDouble() to Kind.ARRAY
                 is Map<*, *> -> v.size.toDouble() to Kind.ARRAY
                 is Array<*> -> v.size.toDouble() to Kind.ARRAY
@@ -248,10 +273,45 @@ class Validator(
         private fun isEmptyValue(value: Any?): Boolean = when (value) {
             null -> true
             is String -> value.isBlank()
+            is UploadedFile -> value.isEmpty()
             is Collection<*> -> value.isEmpty()
             is Map<*, *> -> value.isEmpty()
             is Array<*> -> value.isEmpty()
             else -> false
+        }
+
+        private fun isImage(file: UploadedFile): Boolean {
+            val mime = file.clientMimeType?.lowercase().orEmpty()
+            if (mime.startsWith("image/")) {
+                return true
+            }
+            return file.extension() in setOf("jpg", "jpeg", "png", "gif", "bmp", "webp", "svg")
+        }
+
+        private fun fileTypeRule(param: String?, useMime: Boolean): (Context) -> String? {
+            val parts = required(param).split(',')
+            val allowed = linkedSetOf<String>()
+            for (part in parts) {
+                val token = part.trim().lowercase()
+                if (token.isNotEmpty()) {
+                    allowed.add(token)
+                }
+            }
+            val sep = ", "
+            val types = allowed.joinToString(sep)
+            return check { c ->
+                val uploaded = c.value as? UploadedFile
+                if (uploaded == null || !uploaded.isValid()) {
+                    fail(true, c, "must be a file of type: $types.")
+                } else {
+                    val token = if (useMime) {
+                        uploaded.clientMimeType?.lowercase()
+                    } else {
+                        uploaded.extension()
+                    }
+                    fail(token == null || !allowed.contains(token), c, "must be a file of type: $types.")
+                }
+            }
         }
 
         private fun isInteger(value: Any?): Boolean {

@@ -8,9 +8,14 @@ class Request @JvmOverloads constructor(
     val path: String,
     val headers: Map<String, String> = emptyMap(),
     val query: Map<String, String> = emptyMap(),
-    val body: String = "",
+    body: String = "",
     val attributes: MutableMap<String, Any?> = mutableMapOf(),
+    bodyBytes: ByteArray? = null,
 ) {
+    val bodyBytes: ByteArray = bodyBytes ?: body.toByteArray(Charsets.UTF_8)
+    /** UTF-8 view of the body (from [body] string or decoded [bodyBytes]). */
+    val body: String = if (body.isNotEmpty()) body else String(this.bodyBytes, Charsets.UTF_8)
+
     fun header(name: String): String? = header(name, null)
 
     fun header(name: String, default: String?): String? {
@@ -33,7 +38,15 @@ class Request @JvmOverloads constructor(
     /** Query + body with natural JSON types (arrays, numbers, booleans, null) for validation. */
     fun data(): Map<String, Any?> {
         if (header("Content-Type").orEmpty().contains("application/json", ignoreCase = true)) {
-            return query + JsonSupport.parseObject(body)
+            return query + JsonSupport.parseObject(textBody())
+        }
+        if (isMultipart()) {
+            val parsed = multipart()
+            val merged = linkedMapOf<String, Any?>()
+            merged.putAll(query)
+            merged.putAll(parsed.fields)
+            merged.putAll(parsed.files)
+            return merged
         }
         return all()
     }
@@ -52,22 +65,28 @@ class Request @JvmOverloads constructor(
     }
 
     fun form(): Map<String, String> {
-        if (body.isBlank()) {
-            return emptyMap()
-        }
         val contentType = header("Content-Type").orEmpty()
         if (contentType.contains("application/json", ignoreCase = true)) {
-            return JsonSupport.parseFlat(body)
+            val text = textBody()
+            if (text.isBlank()) {
+                return emptyMap()
+            }
+            return JsonSupport.parseFlat(text)
+        }
+        if (isMultipart()) {
+            return multipart().fields
+        }
+        val text = textBody()
+        if (text.isBlank()) {
+            return emptyMap()
         }
         // Only treat as form when Content-Type is absent (classic POST) or explicitly form-urlencoded.
-        // text/plain and other types must not be parsed as key=value pairs.
         if (contentType.isNotBlank() &&
-            !contentType.contains("application/x-www-form-urlencoded", ignoreCase = true) &&
-            !contentType.contains("multipart/form-data", ignoreCase = true)
+            !contentType.contains("application/x-www-form-urlencoded", ignoreCase = true)
         ) {
             return emptyMap()
         }
-        return body.split('&')
+        return text.split('&')
             .filter { it.isNotBlank() }
             .associate { pair ->
                 val idx = pair.indexOf('=')
@@ -78,6 +97,16 @@ class Request @JvmOverloads constructor(
                 }
             }
     }
+
+    fun file(key: String): UploadedFile? = allFiles()[key]
+
+    fun hasFile(key: String): Boolean {
+        val file = file(key) ?: return false
+        return file.isValid()
+    }
+
+    fun allFiles(): Map<String, UploadedFile> =
+        if (isMultipart()) multipart().files else emptyMap()
 
     fun setAttribute(key: String, value: Any?): Request {
         attributes[key] = value
@@ -117,6 +146,16 @@ class Request @JvmOverloads constructor(
     @JvmOverloads
     fun cookie(name: String, default: String? = null): String? = cookies()[name] ?: default
 
+    private fun textBody(): String = body
+
+    private fun isMultipart(): Boolean =
+        header("Content-Type").orEmpty().contains("multipart/form-data", ignoreCase = true)
+
+    private fun multipart(): MultipartParser.Result {
+        val contentType = header("Content-Type") ?: "multipart/form-data"
+        return MultipartParser.parse(bodyBytes, contentType)
+    }
+
     private fun decode(value: String): String =
         java.net.URLDecoder.decode(value, Charsets.UTF_8)
 
@@ -130,5 +169,9 @@ class Request @JvmOverloads constructor(
         @JvmStatic
         @JvmOverloads
         fun post(path: String, body: String = ""): Request = Request("POST", path, body = body)
+
+        @JvmStatic
+        fun post(path: String, bodyBytes: ByteArray, headers: Map<String, String>): Request =
+            Request("POST", path, headers = headers, bodyBytes = bodyBytes)
     }
 }

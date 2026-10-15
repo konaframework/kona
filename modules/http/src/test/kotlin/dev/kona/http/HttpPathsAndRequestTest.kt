@@ -48,11 +48,16 @@ class HttpPathsAndRequestTest {
         )
         assertEquals("x", form.form()["title"])
 
-        val multipart = Request(
-            "POST",
+        val multipartBody = (
+            "------x\r\n" +
+                "Content-Disposition: form-data; name=\"title\"\r\n\r\n" +
+                "z\r\n" +
+                "------x--\r\n"
+            ).toByteArray(Charsets.UTF_8)
+        val multipart = Request.post(
             "/",
-            headers = mapOf("Content-Type" to "multipart/form-data; boundary=x"),
-            body = "title=z",
+            multipartBody,
+            mapOf("Content-Type" to "multipart/form-data; boundary=----x"),
         )
         assertEquals("z", multipart.form()["title"])
 

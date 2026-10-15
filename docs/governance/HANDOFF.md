@@ -16,8 +16,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M20 — Default web scaffold** on `main` (PR #38) |
-| Active | **M21 — Web form round-trip** (`milestone/M21-web-form-roundtrip`) |
+| Last merged milestone | **M21 — Web form round-trip** on `main` (PR #39) |
+| Active | **M22 — Multipart uploads** (`milestone/M22-multipart-uploads`) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -30,9 +30,9 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
+| M21 Web form round-trip | #39 |
 | M20 Default web scaffold | #38 |
 | M19 Crema Vite manifest / hot | #36 |
-| M18 Notifications durability | #35 |
 
 ## Commands
 
