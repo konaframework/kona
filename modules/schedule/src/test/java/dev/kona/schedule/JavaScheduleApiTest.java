@@ -11,9 +11,13 @@ public class JavaScheduleApiTest {
     @Test
     void scheduleFromJava() {
         AtomicInteger n = new AtomicInteger();
-        Schedule schedule = new Schedule().everyMinute("t", n::incrementAndGet);
+        Schedule schedule = new Schedule();
+        schedule.everyMinute("t", n::incrementAndGet);
+        schedule.dailyAt("noon", 12, 0, () -> {});
+        schedule.everyFiveMinutes("five", () -> {}).withoutOverlapping(5);
         assertTrue(new CronExpression("* * * * *").matches(LocalDateTime.now()));
-        assertEquals(1, schedule.runDue(LocalDateTime.now()).size());
+        assertTrue(schedule.runDue(LocalDateTime.now()).contains("t"));
         assertEquals(1, n.get());
+        assertTrue(schedule.events().size() >= 3);
     }
 }

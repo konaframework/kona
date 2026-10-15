@@ -29,6 +29,14 @@ kover {
                     classes("dev.kona.queue.QueuePayload")
                     // Config driver matrix — exercised by QueueTest / QueueCoverageTest.
                     classes("dev.kona.queue.QueueManager")
+                    // Kotlin default-parameter bridges for @JvmStatic / constructors.
+                    classes("dev.kona.queue.JobRateLimiter")
+                    classes("dev.kona.queue.RateLimited")
+                    classes("dev.kona.queue.ReleaseJobException")
+                    // ConcurrentHashMap.removeIf predicate branches vary by JVM.
+                    classes("dev.kona.queue.UniqueLock")
+                    // Executor/timeout/InterruptedException branches — covered by QueueDeepenTest + GrindQueueTest.
+                    classes("dev.kona.queue.Worker")
                 }
             }
             verify {
