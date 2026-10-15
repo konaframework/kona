@@ -161,6 +161,8 @@ abstract class Extract<T : Extract<T>> {
 
     fun isClean(): Boolean = !isDirty()
 
+    fun isClean(key: String): Boolean = !isDirty(key)
+
     fun syncOriginal(): T {
         original = LinkedHashMap(attributes)
         return self()
@@ -356,6 +358,47 @@ abstract class Extract<T : Extract<T>> {
         original = original + (updatedAtColumn to now)
         return true
     }
+
+
+    /**
+     * Atomically increments [column] by [amount] in the database and on this instance.
+     * Returns rows affected (0 when not persisted).
+     */
+    @JvmOverloads
+    fun increment(column: String, amount: Number = 1): Int {
+        if (!persisted) {
+            return 0
+        }
+        val affected = keyQuery().increment(column, amount)
+        val current = attributes[column]
+        val next = when (current) {
+            is Number -> current.toDouble() + amount.toDouble()
+            else -> amount.toDouble()
+        }
+        attributes[column] = coerceIncrementResult(current, next)
+        if (timestamps) {
+            val now = freshTimestamp()
+            attributes[updatedAtColumn] = now
+            keyQuery().update(mapOf(updatedAtColumn to now))
+            original = original + (column to attributes[column]) + (updatedAtColumn to now)
+        } else {
+            original = original + (column to attributes[column])
+        }
+        return affected
+    }
+
+    /** Atomically decrements [column] by [amount] (see [increment]). */
+    @JvmOverloads
+    fun decrement(column: String, amount: Number = 1): Int = increment(column, -amount.toDouble())
+
+    private fun coerceIncrementResult(previous: Any?, next: Double): Any =
+        when (previous) {
+            is Int -> next.toInt()
+            is Long -> next.toLong()
+            is Float -> next.toFloat()
+            is Double -> next
+            else -> next
+        }
 
     /** Re-reads this row (including trashed rows) as a new instance; null when not persisted or gone. */
     fun fresh(): T? {

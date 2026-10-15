@@ -25,6 +25,7 @@ class GrindApplication {
                 "make:controller" -> MakeControllerCommand().run(positional.drop(1) + flatten(options))
                 "make:resource" -> MakeResourceCommand().run(positional.drop(1) + flatten(options))
                 "make:middleware" -> MakeMiddlewareCommand().run(positional.drop(1) + flatten(options))
+                "make:policy" -> MakePolicyCommand().run(positional.drop(1) + flatten(options))
                 "make:request" -> MakeRequestCommand().run(positional.drop(1) + flatten(options))
                 "make:view" -> MakeViewCommand().run(positional.drop(1) + flatten(options))
                 "make:model" -> MakeModelCommand().run(positional.drop(1) + flatten(options))
@@ -87,6 +88,7 @@ class GrindApplication {
             "make:controller" to "Generate controller [--resource]",
             "make:resource" to "Generate API resource [--collection]",
             "make:middleware" to "Generate middleware",
+            "make:policy" to "Generate authorization policy",
             "make:request" to "Generate form request",
             "make:view" to "Generate Crema view",
             "make:model" to "Generate model [--migration|--factory|--seeder|--all]",

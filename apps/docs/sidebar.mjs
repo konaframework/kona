@@ -96,16 +96,13 @@ export async function buildSidebar() {
         { label: 'Encryption', slug: 'docs/security/encryption' },
         { label: 'CORS & security headers', slug: 'docs/security/cors-headers' },
         { label: 'Rate limiting', slug: 'docs/security/rate-limiting' },
-        {
-          label: 'Encryption, CORS & rate limit (combined)',
-          slug: 'docs/security/encryption-cors-rate-limit',
-        },
       ],
     },
     {
       label: 'Database',
       items: [
         { label: 'Extract overview', slug: 'docs/extract' },
+        { label: 'Database connections', slug: 'docs/extract/database' },
         { label: 'Models', slug: 'docs/extract/models' },
         { label: 'Query builder', slug: 'docs/extract/query-builder' },
         { label: 'Relations', slug: 'docs/extract/relations' },

@@ -25,6 +25,8 @@ class QueryBuilder(val connection: DatabaseConnection) {
     private val orders = mutableListOf<String>()
     private var limit: Int? = null
     private var offset: Int? = null
+    /** Appended after limit/offset: ` for update` or ` for share` (empty when unlocked). */
+    private var lock: String = ""
 
     fun from(table: String): QueryBuilder {
         from = grammar.wrap(table)
@@ -145,6 +147,12 @@ class QueryBuilder(val connection: DatabaseConnection) {
     /** Applies [callback] only when [condition] is false. */
     fun unless(condition: Boolean, callback: Consumer<QueryBuilder>): QueryBuilder = `when`(!condition, callback)
 
+    /** Runs [callback] with this builder and returns this (side-effect helper). */
+    fun tap(callback: Consumer<QueryBuilder>): QueryBuilder {
+        callback.accept(this)
+        return this
+    }
+
     // ---- joins ----
 
     fun join(table: String, first: String, operator: String, second: String): QueryBuilder =
@@ -209,6 +217,24 @@ class QueryBuilder(val connection: DatabaseConnection) {
     fun skip(value: Int): QueryBuilder = offset(value)
 
     fun forPage(page: Int, perPage: Int): QueryBuilder = offset((page - 1) * perPage).limit(perPage)
+
+    /** Row lock for the select: `… for update` (exclusive). */
+    fun lockForUpdate(): QueryBuilder {
+        lock = " for update"
+        return this
+    }
+
+    /** Shared row lock for the select: `… for share` (PostgreSQL; driver may reject on H2/SQLite). */
+    fun sharedLock(): QueryBuilder {
+        lock = " for share"
+        return this
+    }
+
+    /** Clears any [lockForUpdate] / [sharedLock] clause. */
+    fun withoutLock(): QueryBuilder {
+        lock = ""
+        return this
+    }
 
     // ---- reads ----
 
@@ -425,6 +451,110 @@ class QueryBuilder(val connection: DatabaseConnection) {
         }
     }
 
+    /**
+     * Lazy sequence of rows (internal batches of 100 via limit/offset).
+     * Prefer [lazyById] / [chunkById] for large tables.
+     */
+    fun cursor(): Sequence<Map<String, Any?>> = lazy(100)
+
+    /** [lazy] with a default page size of 1000. */
+    fun lazy(): Sequence<Map<String, Any?>> = lazy(1000)
+
+    /**
+     * Lazy sequence of individual rows, fetched in pages of [chunkSize].
+     * Pair with a stable `orderBy` so pages stay consistent.
+     */
+    fun lazy(chunkSize: Int): Sequence<Map<String, Any?>> {
+        require(chunkSize >= 1) { "Lazy chunk size must be at least 1, got $chunkSize" }
+        return sequence {
+            var page = 1
+            while (true) {
+                val rows = copy().forPage(page, chunkSize).get()
+                if (rows.isEmpty()) {
+                    break
+                }
+                for (row in rows) {
+                    yield(row)
+                }
+                if (rows.size < chunkSize) {
+                    break
+                }
+                page += 1
+            }
+        }
+    }
+
+    /** [chunkById] on the primary-key-style column `id`. */
+    fun chunkById(count: Int, consumer: Consumer<List<Map<String, Any?>>>): Unit =
+        chunkById(count, "id", consumer)
+
+    /**
+     * Like [chunk], but advances with `where column > lastId` so inserts/deletes mid-scan
+     * do not skip or duplicate rows. Requires an ordered comparable [column].
+     * [consumer] is last so Kotlin can use a trailing lambda.
+     */
+    fun chunkById(
+        count: Int,
+        column: String,
+        consumer: Consumer<List<Map<String, Any?>>>,
+    ) {
+        require(count >= 1) { "Chunk size must be at least 1, got $count" }
+        var lastId: Any? = null
+        while (true) {
+            val batch = copy().withoutLock().clearOrders().orderBy(column)
+            if (lastId != null) {
+                batch.where(column, ">", lastId)
+            }
+            val rows = batch.limit(count).get()
+            if (rows.isEmpty()) {
+                break
+            }
+            consumer.accept(rows)
+            lastId = rows.last()[column]
+                ?: throw ExtractException("chunkById: last row missing column [$column]")
+            if (rows.size < count) {
+                break
+            }
+        }
+    }
+
+    /** [lazyById] with page size 1000 on column `id`. */
+    fun lazyById(): Sequence<Map<String, Any?>> = lazyById(1000, "id")
+
+    /** [lazyById] on column `id`. */
+    fun lazyById(chunkSize: Int): Sequence<Map<String, Any?>> = lazyById(chunkSize, "id")
+
+    /** Lazy rows via [chunkById] semantics (keyed by [column]). */
+    fun lazyById(chunkSize: Int, column: String): Sequence<Map<String, Any?>> {
+        require(chunkSize >= 1) { "Lazy chunk size must be at least 1, got $chunkSize" }
+        return sequence {
+            var lastId: Any? = null
+            while (true) {
+                val batch = copy().withoutLock().clearOrders().orderBy(column)
+                if (lastId != null) {
+                    batch.where(column, ">", lastId)
+                }
+                val rows = batch.limit(chunkSize).get()
+                if (rows.isEmpty()) {
+                    break
+                }
+                for (row in rows) {
+                    yield(row)
+                }
+                lastId = rows.last()[column]
+                    ?: throw ExtractException("lazyById: last row missing column [$column]")
+                if (rows.size < chunkSize) {
+                    break
+                }
+            }
+        }
+    }
+
+    internal fun clearOrders(): QueryBuilder {
+        orders.clear()
+        return this
+    }
+
     // ---- debugging ----
 
     fun toSql(): String {
@@ -452,6 +582,7 @@ class QueryBuilder(val connection: DatabaseConnection) {
         copy.orders.addAll(orders)
         copy.limit = limit
         copy.offset = offset
+        copy.lock = lock
         return copy
     }
 
@@ -525,6 +656,7 @@ class QueryBuilder(val connection: DatabaseConnection) {
         orders.clear()
         limit = null
         offset = null
+        lock = ""
         return this
     }
 
@@ -555,6 +687,7 @@ class QueryBuilder(val connection: DatabaseConnection) {
         }
         limit?.let { sql.append(" limit ").append(it) }
         offset?.let { sql.append(" offset ").append(it) }
+        sql.append(lock)
         return sql.toString()
     }
 

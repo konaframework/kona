@@ -73,6 +73,32 @@ class AuthManager {
 
     fun user(): Authenticatable? = guard().user()
 
+    fun validate(credentials: Map<String, Any?>): Boolean = guard().validate(credentials)
+
+    @JvmOverloads
+    fun loginUsingId(id: Any, remember: Boolean = false): Authenticatable? =
+        guard().loginUsingId(id, remember)
+
+    fun once(credentials: Map<String, Any?>): Boolean = guard().once(credentials)
+
+    fun onceUsingId(id: Any): Boolean = guard().onceUsingId(id)
+
+    fun viaRemember(): Boolean = guard().viaRemember()
+
+    /** True when any of [names] (or the default guard when empty) is authenticated. */
+    fun checkAny(vararg names: String): Boolean {
+        if (names.isEmpty()) {
+            return check()
+        }
+        return names.any { name ->
+            try {
+                guard(name).check()
+            } catch (_: IllegalArgumentException) {
+                false
+            }
+        }
+    }
+
     private fun propagateRequest() {
         val current = request
         if (current == null) {

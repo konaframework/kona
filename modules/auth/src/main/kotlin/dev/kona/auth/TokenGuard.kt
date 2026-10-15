@@ -33,21 +33,35 @@ class TokenGuard(
     }
 
     override fun attempt(credentials: Map<String, Any?>, remember: Boolean): Boolean {
-        val raw = credentials["token"]
-        if (raw == null) {
-            return false
-        }
-        val token = raw.toString()
-        val found = tokens.findToken(token)
-        if (found == null) {
-            return false
-        }
-        val candidate = users.retrieveById(found.tokenableId)
-        if (candidate == null) {
-            return false
-        }
-        login(candidate, remember)
-        accessToken = found
+        val candidate = resolveFromCredentials(credentials) ?: return false
+        login(candidate.first, remember)
+        accessToken = candidate.second
+        return true
+    }
+
+    override fun validate(credentials: Map<String, Any?>): Boolean =
+        resolveFromCredentials(credentials) != null
+
+    override fun loginUsingId(id: Any, remember: Boolean): Authenticatable? {
+        val found = users.retrieveById(id) ?: return null
+        login(found, remember)
+        return found
+    }
+
+    override fun once(credentials: Map<String, Any?>): Boolean {
+        val candidate = resolveFromCredentials(credentials) ?: return false
+        this.user = candidate.first
+        this.accessToken = candidate.second
+        this.resolved = true
+        request?.setAttribute(SessionGuard.USER_ATTRIBUTE, candidate.first)
+        return true
+    }
+
+    override fun onceUsingId(id: Any): Boolean {
+        val found = users.retrieveById(id) ?: return false
+        this.user = found
+        this.resolved = true
+        request?.setAttribute(SessionGuard.USER_ATTRIBUTE, found)
         return true
     }
 
@@ -107,6 +121,13 @@ class TokenGuard(
         req.setAttribute(SessionGuard.USER_ATTRIBUTE, found)
         req.setAttribute(TOKEN_ATTRIBUTE, token)
         return found
+    }
+
+    private fun resolveFromCredentials(credentials: Map<String, Any?>): Pair<Authenticatable, PersonalAccessToken>? {
+        val raw = credentials["token"] ?: return null
+        val found = tokens.findToken(raw.toString()) ?: return null
+        val candidate = users.retrieveById(found.tokenableId) ?: return null
+        return candidate to found
     }
 
     companion object {

@@ -1,10 +1,16 @@
 package dev.kona.extract.schema
 
 import dev.kona.extract.Grammar
+import java.util.concurrent.ConcurrentHashMap
+import java.util.function.Function
 
 /**
  * Turns a [Blueprint] into DDL statements. The base class emits standard SQL that both H2 and
  * PostgreSQL accept; subclasses override only the types or statements that differ.
+ *
+ * Built-ins: [H2] (TEXT → `CHARACTER VARYING`), [STANDARD] / [POSTGRES] (ANSI DDL).
+ * MySQL / MariaDB / SQLite currently use [STANDARD] with the connection's identifier [Grammar]
+ * (backticks for MySQL). Register product-specific DDL with [registerProduct].
  */
 open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Grammar.ANSI) {
     open fun wrap(identifier: String): String = identifiers.wrap(identifier)
@@ -89,13 +95,35 @@ open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Gr
         @JvmField
         val POSTGRES: SchemaGrammar = STANDARD
 
+        private val products = ConcurrentHashMap<String, Function<Grammar, SchemaGrammar>>()
+
+        /**
+         * Registers a schema grammar factory for a JDBC product name
+         * (`DatabaseMetaData.getDatabaseProductName()`, compared case-insensitively).
+         * Example: `SchemaGrammar.registerProduct("Oracle") { OracleSchemaGrammar(it) }`.
+         */
+        @JvmStatic
+        fun registerProduct(product: String, factory: Function<Grammar, SchemaGrammar>) {
+            require(product.isNotBlank()) { "Database product name must not be blank" }
+            products[product.lowercase()] = factory
+        }
+
+        /** Clears all [registerProduct] registrations (tests / reboot). */
+        @JvmStatic
+        fun clearRegisteredProducts() {
+            products.clear()
+        }
+
         /**
          * Picks a grammar from a JDBC `DatabaseMetaData.getDatabaseProductName()` value; [identifiers]
          * should match the connection's query [Grammar] so DDL and queries name tables the same way.
+         *
+         * Order: [registerProduct] → H2 specialization → [STANDARD] (with [identifiers] when not ANSI).
          */
         @JvmStatic
         @JvmOverloads
         fun forProduct(product: String, identifiers: Grammar = Grammar.ANSI): SchemaGrammar {
+            products[product.lowercase()]?.let { return it.apply(identifiers) }
             val h2 = product.equals("H2", ignoreCase = true)
             if (identifiers === Grammar.ANSI) {
                 return if (h2) H2 else STANDARD
