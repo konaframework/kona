@@ -1,7 +1,6 @@
 package app.http.controllers
 
 import dev.kona.brew.Brew
-import dev.kona.brew.BrewAssets
 import dev.kona.http.Request
 import dev.kona.http.Response
 
@@ -14,7 +13,6 @@ class WelcomeController {
               <head>
                 <meta charset="utf-8" />
                 <title>Brew</title>
-                ${BrewAssets.scriptTag()}
               </head>
               <body>
                 <h1>Welcome to Kona Brew</h1>

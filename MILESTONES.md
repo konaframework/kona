@@ -439,7 +439,8 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 **Parity slice:** Something similar to Livewire or Conduit — full-stack reactive components on the JVM.
 
-**Product name:** **Brew** (`kona-brew`, `dev.kona.brew`) — coffee-themed reactive server components.
+**Product name:** **Brew** (`dev.kona:kona-brew`, package `dev.kona.brew`) — coffee-themed reactive server components.
+External repo: [konaframework/kona-brew](https://github.com/konaframework/kona-brew) (Livewire v4 parity program M1–M7).
 
 ### Parity checklist
 

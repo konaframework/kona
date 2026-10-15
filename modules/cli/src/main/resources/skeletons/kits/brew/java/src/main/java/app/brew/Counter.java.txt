@@ -1,13 +1,13 @@
 package app.brew;
 
-import dev.kona.brew.Brew;
 import dev.kona.brew.Component;
-import dev.kona.core.Kona;
-import dev.kona.crema.CremaEngine;
-import java.util.Map;
 
 public class Counter extends Component {
     public int count = 0;
+
+    public void mount(int start) {
+        count = start;
+    }
 
     public void increment() {
         count++;
@@ -18,8 +18,13 @@ public class Counter extends Component {
     }
 
     @Override
-    public String render() {
-        CremaEngine crema = Kona.app().resolve(CremaEngine.class);
-        return Brew.view(crema, "brew-counter", Map.of("count", count));
+    public String template() {
+        return """
+            <div>
+                <p>Count: {{ count }}</p>
+                <button type="button" wire:click="decrement">-</button>
+                <button type="button" wire:click="increment">+</button>
+            </div>
+            """;
     }
 }

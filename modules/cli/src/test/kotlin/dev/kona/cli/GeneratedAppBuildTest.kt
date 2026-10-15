@@ -1,5 +1,6 @@
 package dev.kona.cli
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import dev.kona.grind.GrindApplication
 import dev.kona.grind.ProcessRunner
 import dev.kona.grind.ServeCommand
@@ -22,6 +23,8 @@ import java.util.concurrent.TimeUnit
 class GeneratedAppBuildTest {
     @TempDir
     lateinit var temp: Path
+
+    private val json = ObjectMapper()
 
     @Test
     fun kotlinAppBuildsAndServes() {
@@ -76,29 +79,55 @@ class GeneratedAppBuildTest {
     }
 
     @Test
-    fun brewKitServesComponentAndMessage() {
+    fun brewKitServesComponentAndUpdate() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
+        assumeTrue(konaBrewPublished(), "publish kona-brew to mavenLocal (see konaframework/kona-brew)")
         val app = temp.resolve("brew-kt")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=brew")))
         gradle(app, "classes")
         val port = freePort()
         var home = ""
-        var message = ""
+        var updateBody = ""
         val serve = ServeCommand(awaitShutdown = {
-            home = httpGet("http://127.0.0.1:$port/").body()
-            val snap =
-                Regex("""data-brew="([^"]+)"""").find(home)?.groupValues?.get(1)
-                    ?: error("missing data-brew in:\n$home")
-            message =
+            val homeResponse = httpGet("http://127.0.0.1:$port/")
+            home = homeResponse.body()
+            val cookie = homeResponse.headers().allValues("set-cookie")
+                .joinToString("; ") { it.substringBefore(';') }
+            val snap = attr(home, "wire:snapshot")
+                ?: error("missing wire:snapshot in:\n$home")
+            val csrf = attr(home, "data-csrf") ?: ""
+            val payload = mapOf(
+                "_token" to csrf,
+                "components" to listOf(
+                    mapOf(
+                        "snapshot" to snap,
+                        "updates" to emptyMap<String, Any>(),
+                        "calls" to listOf(
+                            mapOf(
+                                "path" to "",
+                                "method" to "increment",
+                                "params" to emptyList<Any>(),
+                                "metadata" to emptyMap<String, Any>(),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+            updateBody =
                 httpPostJson(
-                    "http://127.0.0.1:$port/brew/message",
-                    """{"name":"counter","snapshot":"$snap","method":"increment","params":{}}""",
+                    "http://127.0.0.1:$port/brew/update",
+                    json.writeValueAsString(payload),
+                    mapOf("X-Brew" to "1", "Cookie" to cookie),
                 ).body()
         })
         assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
-        assertTrue(home.contains("data-brew"), home)
-        assertTrue(home.contains("/brew/brew.js"), home)
-        assertTrue(message.contains("Count: 1"), message)
+        assertTrue(home.contains("wire:snapshot"), home)
+        assertTrue(home.contains("wire:name=\"counter\""), home)
+        assertTrue(Regex("""/brew/brew(\.min)?\.js""").containsMatchIn(home), home)
+        assertTrue(home.contains("Count: 0"), home)
+        val component = json.readTree(updateBody)["components"][0]
+        assertEquals(1, json.readTree(component["snapshot"].asText())["data"]["count"].asInt(), updateBody)
+        assertTrue(component["effects"]["html"].asText().contains("Count: 1"), updateBody)
     }
 
     @Test
@@ -109,10 +138,10 @@ class GeneratedAppBuildTest {
         gradle(app, "classes")
         val port = freePort()
         var home = ""
-        var json = ""
+        var jsonBody = ""
         val serve = ServeCommand(awaitShutdown = {
             home = httpGet("http://127.0.0.1:$port/").body()
-            json =
+            jsonBody =
                 HttpClient.newHttpClient().send(
                     HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port/"))
                         .header("X-Inertia", "true")
@@ -124,8 +153,8 @@ class GeneratedAppBuildTest {
         })
         assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
         assertTrue(home.contains("data-page"), home)
-        assertTrue(json.contains("Pages/Welcome"), json)
-        assertTrue(json.contains("Welcome to Kona Inertia"), json)
+        assertTrue(jsonBody.contains("Pages/Welcome"), jsonBody)
+        assertTrue(jsonBody.contains("Welcome to Kona Inertia"), jsonBody)
     }
 
     private fun assertServesInProcess(app: Path) {
@@ -187,14 +216,33 @@ class GeneratedAppBuildTest {
             HttpResponse.BodyHandlers.ofString(),
         )
 
-    private fun httpPostJson(url: String, json: String): HttpResponse<String> =
-        HttpClient.newHttpClient().send(
-            HttpRequest.newBuilder(URI.create(url))
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(json))
-                .build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
+    private fun httpPostJson(url: String, body: String, headers: Map<String, String> = emptyMap()): HttpResponse<String> {
+        val builder = HttpRequest.newBuilder(URI.create(url))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+        headers.forEach { (k, v) -> if (v.isNotEmpty()) builder.header(k, v) }
+        return HttpClient.newHttpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString())
+    }
+
+    private fun attr(html: String, name: String): String? {
+        val marker = "$name=\""
+        val start = html.indexOf(marker)
+        if (start < 0) return null
+        val from = start + marker.length
+        val end = html.indexOf('"', from)
+        if (end < 0) return null
+        return html.substring(from, end)
+            .replace("&quot;", "\"")
+            .replace("&#039;", "'")
+            .replace("&amp;", "&")
+    }
+
+    private fun konaBrewPublished(): Boolean {
+        val home = System.getProperty("user.home")
+        val base = Path.of(home, ".m2", "repository", "dev", "kona", "kona-brew")
+        if (!Files.isDirectory(base)) return false
+        return Files.walk(base).use { stream -> stream.anyMatch { it.fileName.toString().endsWith(".jar") } }
+    }
 
     private fun freePort(): Int = java.net.ServerSocket(0).use { it.localPort }
 }

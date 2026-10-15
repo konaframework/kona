@@ -9,7 +9,7 @@ import config.Http
 import config.Paths
 import config.Session
 import dev.kona.auth.AuthServiceProvider
-import dev.kona.brew.BrewManager
+import dev.kona.brew.Brew
 import dev.kona.brew.BrewServiceProvider
 import dev.kona.core.Application
 import dev.kona.core.Env
@@ -50,7 +50,8 @@ object App {
             )
             .afterBoot { Middleware.configure(it) }
             .boot()
-        app.resolve(BrewManager::class.java).register("counter") { Counter() }
+        // Pin the sample counter; other app.brew.* classes resolve via brew.class_namespace.
+        Brew.component(Counter::class.java)
         WebRoutes().register(app.resolve(Router::class.java))
         ApiRoutes().register(app.resolve(Router::class.java))
         return app

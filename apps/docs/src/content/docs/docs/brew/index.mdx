@@ -1,83 +1,150 @@
 ---
 title: Getting started with Brew
-description: Build reactive server components with Brew and update the page without full reloads.
+description: Install Brew, write your first reactive component, and wire it into a Kona app.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-**Brew** is Kona’s reactive UI layer: stateful components live on the server, render HTML, and refresh in the browser when the user clicks or submits a form.
+**Brew** is Kona’s reactive server-component layer. You write a class with public state and actions, render HTML with Crema, and Brew keeps the browser in sync over a small JSON protocol—without a full page reload.
 
 (Brief nod: Brew sits in the same problem space as popular full-stack reactive component tools; this guide describes Brew on its own terms.)
 
 ## What you get
 
-1. A **component class** with public state fields and public action methods.
-2. A **snapshot** of that state embedded in the HTML (`data-brew`).
-3. A small **client script** (`brew.js`) that posts actions to `/brew/message` and replaces the component’s root HTML.
+1. A **component class** — public fields are state; public methods are actions the browser can call.
+2. A **snapshot** on the root HTML element (`wire:snapshot`, `wire:effects`, `wire:id`, `wire:name`).
+3. A **client runtime** (`/brew/brew.min.js`) that posts to `POST /brew/update` and morphs the new HTML into place.
+
+## Install
+
+Brew ships as the separate artifact `dev.kona:kona-brew`. Add it next to your other Kona dependencies:
+
+```kotlin
+dependencies {
+    implementation("dev.kona:kona-http:0.1.0-SNAPSHOT")
+    implementation("dev.kona:kona-session:0.1.0-SNAPSHOT")
+    implementation("dev.kona:kona-crema:0.1.0-SNAPSHOT")
+    implementation("dev.kona:kona-brew:0.1.0-SNAPSHOT")
+}
+```
+
+Until Central publishes are live, publish both repos to Maven local:
+
+```bash
+# From a Kona checkout
+./gradlew publishToMavenLocal -x test
+
+# From a kona-brew checkout
+./gradlew :kona-brew:publishToMavenLocal
+```
+
+Or scaffold with the brew starter kit:
+
+```bash
+kona new my-app --kit=brew
+```
 
 ## Register the provider
+
+Register HTTP, session, Crema, and Brew. Session + CSRF matter because update requests carry `_token`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-app.register(HttpServiceProvider())
-app.register(BrewServiceProvider())
-app.boot()
+Kona.create(args)
+    .configure {
+        it.set("app.key", Env.getOrDefault("APP_KEY", "change-me"))
+        it.set("session.driver", "cookie")
+    }
+    .providers(
+        HttpServiceProvider(),
+        SessionServiceProvider(),
+        CremaServiceProvider(),
+        BrewServiceProvider(),
+    )
+    .afterBoot { app ->
+        HttpMiddleware()
+            .alias("start.session") { StartSession(app.resolve(SessionManager::class.java)) }
+            .alias("csrf") { VerifyCsrfToken() }
+            .web(listOf("start.session", "csrf"))
+            .apply(app)
+    }
+    .boot()
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-app.register(new HttpServiceProvider());
-app.register(new BrewServiceProvider());
-app.boot();
+Kona.create(args)
+    .configure(c -> {
+        c.set("app.key", Env.getOrDefault("APP_KEY", "change-me"));
+        c.set("session.driver", "cookie");
+    })
+    .providers(
+        new HttpServiceProvider(),
+        new SessionServiceProvider(),
+        new CremaServiceProvider(),
+        new BrewServiceProvider()
+    )
+    .afterBoot(app -> {
+        new HttpMiddleware()
+            .alias("start.session", () -> new StartSession(app.resolve(SessionManager.class)))
+            .alias("csrf", VerifyCsrfToken::new)
+            .web(List.of("start.session", "csrf"))
+            .apply(app);
+    })
+    .boot();
 ```
 
 </TabItem>
 </Tabs>
 
-`BrewServiceProvider` binds `BrewManager` and, when HTTP is present, registers:
+`BrewServiceProvider` binds `BrewManager`, discovers components under `app.brew` by default, registers:
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `POST` | `/brew/message` | Run an action and return new HTML + snapshot |
-| `POST` | `/_brew/update` | Alias of `/brew/message` |
-| `GET` | `/brew/brew.js` | Client script |
+| `POST` | `/brew/update` | Apply property updates + action calls; return new snapshots and HTML |
+| `GET` | `/brew/brew.js` | Readable client bundle |
+| `GET` | `/brew/brew.min.js` | Minified bundle (+ `.map`) |
 
-## Include the script
+When `brew.inject_assets` is true (default), Brew injects styles and the script tag into full HTML responses that do not already include `@brewScripts`.
 
-In your layout (Crema or plain HTML):
+## Your first component
 
-```html
-<script src="/brew/brew.js" defer></script>
-```
-
-Or emit the tag from Kotlin/Java:
+Put classes in `app.brew` (or configure `brew.class_namespace`). A single-file component keeps the Crema template inline:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-BrewAssets.scriptTag() // <script src="/brew/brew.js" defer></script>
-```
+package app.brew
 
-## Your first component
+import dev.kona.brew.Component
 
-```kotlin
 class Counter : Component() {
-    @JvmField
-    var count: Int = 0
+    var count = 0
 
-    fun increment() { count++ }
-    fun decrement() { count-- }
+    fun mount(start: Int = 0) {
+        count = start
+    }
 
-    override fun render(): String = """
-        <p>Count: $count</p>
-        <button data-brew-click="increment">+</button>
-        <button data-brew-click="decrement">-</button>
+    fun increment() {
+        count++
+    }
+
+    override fun template() = """
+        <div>
+            <button wire:click="decrement">-</button>
+            <span>{{ count }}</span>
+            <button wire:click="increment">+</button>
+        </div>
     """.trimIndent()
+
+    fun decrement() {
+        count--
+    }
 }
 ```
 
@@ -85,17 +152,34 @@ class Counter : Component() {
 <TabItem label="Java">
 
 ```java
+package app.brew;
+
+import dev.kona.brew.Component;
+
 public class Counter extends Component {
     public int count = 0;
 
-    public void increment() { count++; }
-    public void decrement() { count--; }
+    public void mount(int start) {
+        count = start;
+    }
+
+    public void increment() {
+        count++;
+    }
+
+    public void decrement() {
+        count--;
+    }
 
     @Override
-    public String render() {
-        return "<p>Count: " + count + "</p>"
-            + "<button data-brew-click=\"increment\">+</button>"
-            + "<button data-brew-click=\"decrement\">-</button>";
+    public String template() {
+        return """
+            <div>
+                <button wire:click="decrement">-</button>
+                <span>{{ count }}</span>
+                <button wire:click="increment">+</button>
+            </div>
+            """;
     }
 }
 ```
@@ -103,41 +187,72 @@ public class Counter extends Component {
 </TabItem>
 </Tabs>
 
-State must be **public fields** (Java) or **`@JvmField`** properties (Kotlin). Action methods must be **public**.
+## Embed it in a page
 
-## Register and mount
+Use the Crema tag or the `@brew` directive. Attributes become mount parameters / initial props (`:start="3"` → `mount(start = 3)`).
 
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
+```crema
+{{-- views/welcome.crema.html --}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Welcome</title>
+</head>
+<body>
+    <h1>Welcome</h1>
+    <brew:counter :start="3" />
+    {{-- or: @brew('counter', ['start' => 3]) --}}
+</body>
+</html>
+```
+
+You can also mount from Kotlin/Java and paste the HTML:
 
 ```kotlin
-val brew = app.resolve(BrewManager::class.java)
-brew.register("counter") { Counter() }
-
-val html = Brew.mount("counter")
-// embed html in a page / Crema layout
+val html = Brew.mount("counter", mapOf("start" to 3))
 ```
 
-</TabItem>
-<TabItem label="Java">
+## Scaffold with grind
 
-```java
-BrewManager brew = app.resolve(BrewManager.class);
-brew.register("counter", Counter::new);
-String html = Brew.mount("counter");
+```bash
+./grind make:brew counter
+./grind make:brew todos --class          # class + views/brew/todos.crema.html
+./grind make:brew posts.create --test    # + a Brew.test scaffold
 ```
 
-</TabItem>
-</Tabs>
+## Config keys (M1)
 
-`Brew.mount` returns a root element like:
+| Key | Default | Role |
+|-----|---------|------|
+| `app.key` | — | HMAC key for snapshot checksums |
+| `brew.class_namespace` | `app.brew` | Package roots for `<brew:name />` resolution |
+| `brew.path` | `/brew` | Base path for update + script routes |
+| `brew.view_prefix` | `brew` | Convention view prefix (`views/brew/<name>.crema.html`) |
+| `brew.inject_assets` | `true` | Auto-inject styles/scripts into HTML responses |
+| `brew.inject_morph_markers` | `true` | Wrap loops/conditionals for keyed morph |
+| `brew.csrf` | `true` | Require CSRF token on updates when a session exists |
+| `brew.payload.max_size` | `1_048_576` | Max request body bytes (`0` disables) |
+| `brew.payload.max_components` | `20` | Max components per update |
+| `brew.payload.max_calls` | `50` | Max method calls per component |
+| `brew.payload.max_nesting_depth` | `10` | Max dot-path depth for `wire:model` updates |
 
-```html
-<div data-brew="…" data-brew-name="counter" id="brew-…">…</div>
-```
+## What happens on a click
+
+1. The browser finds the component root (`wire:id`) and reads `wire:snapshot`.
+2. It `POST`s `{ _token, components: [{ snapshot, updates, calls }] }` to `/brew/update` with the `X-Brew` header.
+3. The server verifies CSRF + checksum, restores state, runs the action, re-renders, and returns `{ components: [{ snapshot, effects }], assets }`.
+4. The client morphs `effects.html` into the DOM (keyed by `wire:key` / `wire:id`).
+
+Corrupt checksums or locked-property writes fail the request (HTTP 419-class errors). Missing components or unknown actions raise Brew exceptions.
 
 ## Next steps
 
-- [Components](/docs/brew/components) — lifecycle, snapshots, Crema views
-- [Events](/docs/brew/events) — clicks and custom actions
-- [Forms](/docs/brew/forms) — `wire:model` / submit sync
+- [Components](/docs/brew/components/) — registration, discovery, class vs single-file
+- [Properties](/docs/brew/properties/) — public state, `fill` / `reset`, locked & computed
+- [Actions](/docs/brew/actions/) — `wire:click`, `$wire`, magic actions
+- [Templates](/docs/brew/templates/) — Crema views, `@brewStyles` / `@brewScripts`
+- [Lifecycle](/docs/brew/lifecycle/) — `mount`, `boot`, `updatedFoo`, …
+- [JavaScript](/docs/brew/javascript/) — `$wire`, hooks, morph
+- [Testing](/docs/brew/testing/) — `Brew.test(...)`
+- [Forms](/docs/brew/forms/) — `wire:model` and `wire:submit`

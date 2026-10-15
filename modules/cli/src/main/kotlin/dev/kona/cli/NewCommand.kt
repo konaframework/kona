@@ -259,9 +259,8 @@ class NewCommand(
                 "src/main/resources/views/app.crema.html",
                 "public/.gitkeep",
             ),
-            "brew" to listOf(
-                "src/main/resources/views/brew-counter.crema.html",
-            ),
+            // Inline-template Counter; no shared Crema view overlay.
+            "brew" to emptyList(),
         )
 
         private val KIT_LANG = mapOf(
