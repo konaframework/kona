@@ -201,6 +201,58 @@ class Product : Extract<Product>() {
 
 Java overrides return `Map<String, Object>` from `getCasts()` so both enums and cast instances fit.
 
+## Global scopes
+
+A **global scope** is a constraint applied to every query for a model — for example “only active rows.” Register scopes on the companion (Kotlin `init`) or once at boot (Java). Soft deletes stay separate (`withTrashed` / `onlyTrashed`); global scopes stack on top.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class User : Extract<User>() {
+    companion object : ExtractCompanion<User>(User::class.java) {
+        init {
+            addGlobalScope("active") { it.where("admin", true) }
+            addGlobalScope(AncientScope()) // identifier = class name
+        }
+    }
+}
+
+class AncientScope : Scope {
+    override fun apply(builder: ModelBuilder<*>) {
+        builder.where("age", ">", 100)
+    }
+}
+
+User.all()                                      // admin = true and age > 100
+User.withoutGlobalScope("active").get()         // drops only "active"
+User.withoutGlobalScopes().get()                // no global scopes
+User.withoutGlobalScopes(listOf("active")).get()
+User.withoutGlobalScopesExcept(listOf("active")).get() // only "active" remains
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Member extends Extract<Member> {
+    public static final ExtractCompanion<Member> QUERY = Extract.of(Member.class);
+
+    static {
+        Extract.addGlobalScope(Member.class, "active", b -> b.where("admin", true));
+    }
+}
+
+Member.QUERY.all();
+Member.QUERY.withoutGlobalScope("active").get();
+Member.QUERY.withoutGlobalScopes().get();
+```
+
+</TabItem>
+</Tabs>
+
+`hasGlobalScope` / `getGlobalScope` / `getGlobalScopes` inspect the registry. `removeGlobalScope` unregisters a scope for the whole process (not just one query).
+
 ## Soft deletes
 
 A **soft delete** marks a row as deleted by setting a `deleted_at` timestamp instead of removing it, so it can be restored. Implement the `SoftDeletes` interface:
