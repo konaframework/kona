@@ -56,8 +56,10 @@ export async function buildSidebar() {
           label: 'grind',
           items: [
             { label: 'Overview', slug: 'docs/grind' },
-            { label: 'new / serve / make', slug: 'docs/grind/commands' },
-            { label: 'Console depth', slug: 'docs/grind/console' },
+            { label: 'Creating commands', slug: 'docs/grind/creating-commands' },
+            { label: 'Running commands', slug: 'docs/grind/running-commands' },
+            { label: 'Console IO & prompts', slug: 'docs/grind/console' },
+            { label: 'Built-in commands', slug: 'docs/grind/commands' },
             { label: 'steam', slug: 'docs/steam' },
           ],
         },

@@ -27,8 +27,18 @@ data class ConsoleResult(val exitCode: Int, val output: String) {
         return this
     }
 
+    fun assertExit(code: Int): ConsoleResult {
+        require(exitCode == code) { "Expected exit $code but was $exitCode: $output" }
+        return this
+    }
+
     fun assertSee(text: String): ConsoleResult {
         require(output.contains(text)) { "Output missing [$text]: $output" }
+        return this
+    }
+
+    fun assertDontSee(text: String): ConsoleResult {
+        require(!output.contains(text)) { "Output unexpectedly contains [$text]: $output" }
         return this
     }
 }
