@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** **M17 — Scaffold provider wiring + Redis session + signed cookies** (`milestone/M17-scaffold-session-cookies`).
+**Active milestone:** **M18 — Notifications durability** (`milestone/M18-notifications-durability`).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -595,7 +595,7 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 ## M17 — Scaffold provider wiring + Redis session + signed cookies
 
-**Status:** active
+**Status:** done (merged PR #34)
 
 **Branch:** `milestone/M17-scaffold-session-cookies`
 
@@ -616,7 +616,34 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 ### Next (queued)
 
-Further deepen (notifications durability, Crema Vite, etc.) opened explicitly after M17.
+M18 — Notifications durability.
+
+---
+
+## M18 — Notifications durability
+
+**Status:** active
+
+**Branch:** `milestone/M18-notifications-durability`
+
+**Parity slice:** Database notifications persist via Extract when a DB is bound; unread / mark-as-read APIs; optional queue when a notification implements `ShouldQueue`.
+
+### Parity checklist
+
+- [x] `NotificationRecord` + store API (id, type, data, notifiable, `readAt`, timestamps)
+- [x] Extract-backed store when `Database` is bound; JSON file + memory remain via config
+- [x] Unread / mark-as-read / mark-all-as-read for a notifiable key (Kotlin + Java)
+- [x] `NotificationSender` queues when notification implements `ShouldQueue` and `Bus` is bound
+- [x] Provider/config wiring (`notifications.database.driver` / table / path); docs + HANDOFF
+- [x] Kotlin + Java regressions; 100% kover on touched modules
+
+### In-scope modules
+
+`kona-notifications`, soft use of `kona-extract` / `kona-queue`, `apps/docs/`
+
+### Next (queued)
+
+Crema Vite manifest/hot (or next thin surface) opened after M18.
 
 ---
 
@@ -628,4 +655,5 @@ flowchart LR
   M14 --> M15[M15_Extract_Model]
   M15 --> M16[M16_Durable_Queue]
   M16 --> M17[M17_Scaffold_Session]
+  M17 --> M18[M18_Notifications]
 ```

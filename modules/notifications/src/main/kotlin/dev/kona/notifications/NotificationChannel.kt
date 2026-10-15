@@ -2,10 +2,8 @@ package dev.kona.notifications
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import dev.kona.mail.Mailer
 import org.slf4j.LoggerFactory
-import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -26,58 +24,48 @@ class MailChannel(
 }
 
 /**
- * Persists notification arrays in memory, optionally mirrored to a JSON file so rows survive restart.
+ * Persists notifications through a [NotificationStore].
  *
- * Pass a [path] (or set `notifications.database.path` via [NotificationServiceProvider]) for file-backed storage.
- * Omit [path] for the default in-memory-only channel.
+ * Construct with a [Path] for JSON-file memory store, omit for in-memory only, or pass an explicit [store]
+ * (for example [DatabaseNotificationStore] when Extract is bound).
  */
 class DatabaseChannel @JvmOverloads constructor(
-    private val path: Path? = null,
-    private val mapper: ObjectMapper = jacksonObjectMapper(),
+    private val store: NotificationStore = MemoryNotificationStore(),
 ) : NotificationChannel {
-    private val rows = CopyOnWriteArrayList<Map<String, Any?>>()
+    /** JSON-file / in-memory convenience constructor (legacy shape). */
+    constructor(
+        path: Path?,
+        mapper: ObjectMapper = jacksonObjectMapper(),
+    ) : this(MemoryNotificationStore(path, mapper))
 
-    init {
-        load()
-    }
+    fun store(): NotificationStore = store
 
-    fun all(): List<Map<String, Any?>> = rows.toList()
+    /** Legacy map rows (includes `id` / `read_at` when present). */
+    fun all(): List<Map<String, Any?>> = store.all().map { it.toMap() }
+
+    fun records(): List<NotificationRecord> = store.all()
+
+    fun forNotifiable(notifiable: String): List<NotificationRecord> = store.forNotifiable(notifiable)
+
+    fun unread(notifiable: String): List<NotificationRecord> = store.unread(notifiable)
+
+    fun markAsRead(id: String): NotificationRecord? = store.markAsRead(id)
+
+    fun markAllAsRead(notifiable: String): Int = store.markAllAsRead(notifiable)
 
     fun clear() {
-        rows.clear()
-        persist()
+        store.clear()
     }
 
     override fun send(notifiable: Notifiable, notification: Notification) {
-        rows += mapOf(
-            "notifiable" to (notifiable.routeNotificationFor("database") ?: notifiable.toString()),
-            "type" to notification.javaClass.name,
-            "data" to notification.toArray(notifiable),
+        val key = notifiable.routeNotificationFor("database") ?: notifiable.toString()
+        store.add(
+            NotificationRecord.create(
+                notifiable = key,
+                type = notification.javaClass.name,
+                data = notification.toArray(notifiable),
+            ),
         )
-        persist()
-    }
-
-    private fun persist() {
-        val target = path ?: return
-        val parent = target.parent
-        if (parent != null) {
-            Files.createDirectories(parent)
-        }
-        Files.writeString(target, mapper.writerWithDefaultPrettyPrinter().writeValueAsString(rows.toList()))
-    }
-
-    private fun load() {
-        val target = path ?: return
-        if (!Files.exists(target) || Files.size(target) == 0L) {
-            return
-        }
-        try {
-            val loaded: List<Map<String, Any?>> = mapper.readValue(Files.readString(target))
-            rows.clear()
-            rows.addAll(loaded)
-        } catch (_: Exception) {
-            rows.clear()
-        }
     }
 }
 
