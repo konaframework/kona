@@ -161,6 +161,12 @@ class GrindM8Test {
             capture { GrindApplication().run(arrayOf("schedule:run", "--base=$project", emptyBoot)) }
                 .second.contains("No scheduled tasks"),
         )
+        assertEquals(
+            0,
+            capture {
+                GrindApplication().run(arrayOf("schedule:work", "--base=$project", boot, "--max=1", "--sleep=1", "-v"))
+            }.first,
+        )
         assertEquals(1, GrindApplication().run(arrayOf("schedule:list", "--base=$project", "--bootstrap=${NoQueueApp::class.java.name}")))
 
         val steamIn = ByteArrayInputStream("config(\"app.name\")\n1+2\napp\nbad!!\n:quit\n".toByteArray())

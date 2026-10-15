@@ -26,13 +26,17 @@ class DatabaseQueue(
         )
     }
 
-    override fun push(job: Job, queue: String): String {
+    override fun push(job: Job, queue: String, delaySeconds: Long): String {
         val key = job.javaClass.name
         JobRegistry.register(key) { job }
         val payload = JobRegistry.payloadFor(job, key)
-        release(payload, queue, 0)
+        release(payload, queue, delaySeconds)
         return payload.id
     }
+
+    fun push(job: Job, queue: String): String = push(job, queue, 0)
+
+    fun push(job: Job): String = push(job, "default", 0)
 
     override fun release(payload: QueuePayload, queue: String, delaySeconds: Long) {
         val now = System.currentTimeMillis()

@@ -42,6 +42,7 @@ class GrindApplication {
                 "queue:flush" -> QueueFailedCommand(QueueFailedCommand.Action.FLUSH).run(positional.drop(1) + flatten(options))
                 "schedule:run" -> ScheduleRunCommand(ScheduleRunCommand.Action.RUN).run(positional.drop(1) + flatten(options))
                 "schedule:list" -> ScheduleRunCommand(ScheduleRunCommand.Action.LIST).run(positional.drop(1) + flatten(options))
+                "schedule:work" -> ScheduleRunCommand(ScheduleRunCommand.Action.WORK).run(positional.drop(1) + flatten(options))
                 "steam" -> SteamCommand().run(positional.drop(1) + flatten(options))
                 "assets:vite" -> AssetsViteCommand().run(positional.drop(1) + flatten(options))
                 "storage:link" -> StorageLinkCommand().run(positional.drop(1) + flatten(options))
@@ -103,6 +104,7 @@ class GrindApplication {
             "queue:flush" to "Clear failed jobs",
             "schedule:run" to "Run due tasks",
             "schedule:list" to "List scheduled tasks",
+            "schedule:work" to "Run scheduler every minute",
             "steam" to "Interactive REPL",
             "assets:vite" to "Vite setup help",
             "storage:link" to "Link public/storage",

@@ -62,7 +62,15 @@ export async function buildSidebar() {
           ],
         },
         { label: 'Events', slug: 'docs/events' },
-        { label: 'Queues', slug: 'docs/queue' },
+        {
+          label: 'Queues',
+          items: [
+            { label: 'Overview', slug: 'docs/queue' },
+            { label: 'Jobs & dispatch', slug: 'docs/queue/jobs' },
+            { label: 'Workers', slug: 'docs/queue/workers' },
+            { label: 'Failed jobs', slug: 'docs/queue/failed-jobs' },
+          ],
+        },
         { label: 'Mail', slug: 'docs/mail' },
         { label: 'Notifications', slug: 'docs/notifications' },
         { label: 'Filesystem', slug: 'docs/filesystem' },
