@@ -1,7 +1,7 @@
 package dev.kona.grind
 
 /**
- * `grind make:request <Name> [--lang=kotlin|java]` → form-request stub under `app/Http/Requests/`.
+ * `grind make:request <Name> [--lang=kotlin|java]` → form-request stub under `app.http.requests`.
  */
 class MakeRequestCommand {
     fun run(args: List<String>): Int {
@@ -14,14 +14,14 @@ class MakeRequestCommand {
         val simple = if (name.endsWith("Request")) name else name + "Request"
         val base = Names.base(options)
         val lang = Names.lang(base, options)
-        val relative = "app/Http/Requests/$simple.${Names.extension(lang)}"
+        val relative = Names.sourceFile(lang, "app/http/requests", simple)
         Names.write(base, relative, "Form request", requestStub(simple, lang))
         return 0
     }
 
     private fun requestStub(name: String, lang: String): String = if (lang == "java") {
         lines(
-            "package app.Http.Requests;",
+            "package app.http.requests;",
             "",
             "import dev.kona.http.FormRequest;",
             "import java.util.List;",
@@ -36,7 +36,7 @@ class MakeRequestCommand {
         )
     } else {
         lines(
-            "package app.Http.Requests",
+            "package app.http.requests",
             "",
             "import dev.kona.http.FormRequest",
             "",

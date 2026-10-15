@@ -1,0 +1,9 @@
+package app.http.middleware
+
+import dev.kona.http.Request
+import dev.kona.inertia.HandleInertiaRequests
+
+class HandleInertia : HandleInertiaRequests() {
+    override fun share(request: Request): Map<String, Any?> =
+        mapOf("appName" to "{{appName}}")
+}

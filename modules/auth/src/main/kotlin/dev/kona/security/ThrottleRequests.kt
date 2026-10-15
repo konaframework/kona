@@ -14,7 +14,8 @@ class ThrottleRequests @JvmOverloads constructor(
     private val rateLimiter: RateLimiter,
     private val limiterName: String,
     private val keyResolver: (Request) -> String = { req ->
-        req.header("X-Forwarded-For")
+        req.getAttribute(TrustProxies.CLIENT_IP)?.toString()
+            ?: req.header("X-Forwarded-For")
             ?: req.header("X-Real-IP")
             ?: req.getAttribute("ip")?.toString()
             ?: "global"

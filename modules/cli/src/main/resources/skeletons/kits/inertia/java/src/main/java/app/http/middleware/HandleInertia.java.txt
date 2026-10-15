@@ -1,0 +1,12 @@
+package app.http.middleware;
+
+import dev.kona.http.Request;
+import dev.kona.inertia.HandleInertiaRequests;
+import java.util.Map;
+
+public class HandleInertia extends HandleInertiaRequests {
+    @Override
+    public Map<String, Object> share(Request request) {
+        return Map.of("appName", "{{appName}}");
+    }
+}

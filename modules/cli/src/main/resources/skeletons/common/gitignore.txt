@@ -3,4 +3,9 @@ build/
 .kotlin/
 .idea/
 *.iml
+.env
 .env.local
+storage/logs/*
+!storage/logs/.gitkeep
+storage/framework/*
+!storage/framework/.gitkeep

@@ -54,7 +54,25 @@ class NewCommand(
         val files = SKELETONS[lang] ?: throw KonaCliException("Unknown skeleton: $lang")
         COMMON_FILES.forEach { copyResource("skeletons/common/$it", target.resolve(destination(it)), variables) }
         files.forEach { copyResource("skeletons/$lang/$it", target.resolve(destination(it)), variables) }
-        listOf("app/Http/Controllers", "app/Providers", "config", "resources", "routes").forEach {
+        val langRoot = if (lang == "java") "src/main/java" else "src/main/kotlin"
+        listOf(
+            "$langRoot/app/http/controllers",
+            "$langRoot/app/http/middleware",
+            "$langRoot/app/providers",
+            "$langRoot/app/models",
+            "$langRoot/routes",
+            "$langRoot/database/migrations",
+            "$langRoot/database/factories",
+            "$langRoot/database/seeders",
+            "src/main/resources/config",
+            "src/main/resources/views",
+            "src/main/resources/public",
+            "src/main/resources/lang",
+            "storage/app",
+            "storage/framework",
+            "storage/logs",
+            "src/test/${if (lang == "java") "java" else "kotlin"}",
+        ).forEach {
             Files.createDirectories(target.resolve(it))
         }
         applyKit(lang, kit, target, variables)
@@ -105,9 +123,18 @@ class NewCommand(
         when (relative) {
             "gitignore.txt" -> ".gitignore"
             "env.txt" -> ".env"
+            "env.example.txt" -> ".env.example"
             "grind.txt" -> "grind"
             "grind.bat.txt" -> "grind.bat"
-            else -> relative.removeSuffix(".txt")
+            else ->
+                if (relative.endsWith(".kt.txt") ||
+                    relative.endsWith(".java.txt") ||
+                    relative.endsWith(".kts.txt")
+                ) {
+                    relative.removeSuffix(".txt")
+                } else {
+                    relative
+                }
         }
 
     companion object {
@@ -123,42 +150,57 @@ class NewCommand(
             "grind.bat.txt",
         )
 
+        private fun baseFiles(lang: String, ext: String): List<String> {
+            val root = if (lang == "java") "src/main/java" else "src/main/kotlin"
+            return listOf(
+                "README.md",
+                "env.txt",
+                "env.example.txt",
+                "settings.gradle.kts.txt",
+                "build.gradle.kts.txt",
+                "$root/bootstrap/App.$ext.txt",
+                "$root/bootstrap/Middleware.$ext.txt",
+                "$root/app/providers/AppServiceProvider.$ext.txt",
+                "$root/app/http/controllers/WelcomeController.$ext.txt",
+                "$root/routes/WebRoutes.$ext.txt",
+                "$root/routes/ApiRoutes.$ext.txt",
+                "src/main/resources/config/app.json",
+                "src/main/resources/config/http.json",
+                "src/main/resources/config/paths.json",
+                "src/main/resources/css/app.css",
+                "src/main/resources/js/app.js",
+                "src/main/resources/public/.gitkeep",
+                "src/main/resources/public/robots.txt",
+                "src/main/resources/lang/.gitkeep",
+                "$root/app/http/middleware/.gitkeep",
+                "$root/app/models/.gitkeep",
+                "$root/database/migrations/.gitkeep",
+                "$root/database/factories/.gitkeep",
+                "$root/database/seeders/.gitkeep",
+                "storage/app/.gitkeep",
+                "storage/framework/.gitkeep",
+                "storage/logs/.gitkeep",
+            )
+        }
+
         private val SKELETONS = mapOf(
-            "kotlin" to listOf(
-                "README.md",
-                "env.txt",
-                "settings.gradle.kts.txt",
-                "build.gradle.kts.txt",
-                "bootstrap/App.kt.txt",
-                "app/Providers/AppServiceProvider.kt.txt",
-                "app/Http/Controllers/WelcomeController.kt.txt",
-                "routes/web.kt.txt",
-            ),
-            "java" to listOf(
-                "README.md",
-                "env.txt",
-                "settings.gradle.kts.txt",
-                "build.gradle.kts.txt",
-                "bootstrap/App.java.txt",
-                "app/Providers/AppServiceProvider.java.txt",
-                "app/Http/Controllers/WelcomeController.java.txt",
-                "routes/WebRoutes.java.txt",
-            ),
+            "kotlin" to baseFiles("kotlin", "kt"),
+            "java" to baseFiles("java", "java"),
         )
 
         private val KIT_COMMON = mapOf(
             "crema" to listOf(
-                "resources/views/welcome.crema.html",
+                "src/main/resources/views/welcome.crema.html",
             ),
             "inertia" to listOf(
                 "package.json",
                 "vite.config.js",
-                "resources/js/app.js",
-                "resources/views/app.crema.html",
+                "src/main/resources/js/app.js",
+                "src/main/resources/views/app.crema.html",
                 "public/.gitkeep",
             ),
             "brew" to listOf(
-                "resources/views/brew-counter.crema.html",
+                "src/main/resources/views/brew-counter.crema.html",
             ),
         )
 
@@ -166,50 +208,50 @@ class NewCommand(
             "crema" to mapOf(
                 "kotlin" to listOf(
                     "build.gradle.kts.txt",
-                    "bootstrap/App.kt.txt",
-                    "app/Http/Controllers/WelcomeController.kt.txt",
+                    "src/main/kotlin/bootstrap/App.kt.txt",
+                    "src/main/kotlin/app/http/controllers/WelcomeController.kt.txt",
                     "README.md",
                 ),
                 "java" to listOf(
                     "build.gradle.kts.txt",
-                    "bootstrap/App.java.txt",
-                    "app/Http/Controllers/WelcomeController.java.txt",
+                    "src/main/java/bootstrap/App.java.txt",
+                    "src/main/java/app/http/controllers/WelcomeController.java.txt",
                     "README.md",
                 ),
             ),
             "inertia" to mapOf(
                 "kotlin" to listOf(
                     "build.gradle.kts.txt",
-                    "bootstrap/App.kt.txt",
-                    "app/Http/Controllers/WelcomeController.kt.txt",
-                    "app/Http/Middleware/HandleInertia.kt.txt",
-                    "routes/web.kt.txt",
+                    "src/main/kotlin/bootstrap/App.kt.txt",
+                    "src/main/kotlin/app/http/controllers/WelcomeController.kt.txt",
+                    "src/main/kotlin/app/http/middleware/HandleInertia.kt.txt",
+                    "src/main/kotlin/routes/WebRoutes.kt.txt",
                     "README.md",
                 ),
                 "java" to listOf(
                     "build.gradle.kts.txt",
-                    "bootstrap/App.java.txt",
-                    "app/Http/Controllers/WelcomeController.java.txt",
-                    "app/Http/Middleware/HandleInertia.java.txt",
-                    "routes/WebRoutes.java.txt",
+                    "src/main/java/bootstrap/App.java.txt",
+                    "src/main/java/app/http/controllers/WelcomeController.java.txt",
+                    "src/main/java/app/http/middleware/HandleInertia.java.txt",
+                    "src/main/java/routes/WebRoutes.java.txt",
                     "README.md",
                 ),
             ),
             "brew" to mapOf(
                 "kotlin" to listOf(
                     "build.gradle.kts.txt",
-                    "bootstrap/App.kt.txt",
-                    "app/Http/Controllers/WelcomeController.kt.txt",
-                    "app/Brew/Counter.kt.txt",
-                    "routes/web.kt.txt",
+                    "src/main/kotlin/bootstrap/App.kt.txt",
+                    "src/main/kotlin/app/http/controllers/WelcomeController.kt.txt",
+                    "src/main/kotlin/app/brew/Counter.kt.txt",
+                    "src/main/kotlin/routes/WebRoutes.kt.txt",
                     "README.md",
                 ),
                 "java" to listOf(
                     "build.gradle.kts.txt",
-                    "bootstrap/App.java.txt",
-                    "app/Http/Controllers/WelcomeController.java.txt",
-                    "app/Brew/Counter.java.txt",
-                    "routes/WebRoutes.java.txt",
+                    "src/main/java/bootstrap/App.java.txt",
+                    "src/main/java/app/http/controllers/WelcomeController.java.txt",
+                    "src/main/java/app/brew/Counter.java.txt",
+                    "src/main/java/routes/WebRoutes.java.txt",
                     "README.md",
                 ),
             ),

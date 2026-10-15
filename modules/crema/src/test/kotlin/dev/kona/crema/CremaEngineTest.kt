@@ -245,6 +245,34 @@ class CremaEngineTest {
         custom.register(CremaServiceProvider())
         custom.boot()
         assertEquals("Post", custom.resolve(CremaEngine::class.java).render("posts.show"))
+
+        val jvmRoot = temp.resolve("jvm-app")
+        val jvmViews = jvmRoot.resolve("src/main/resources/views")
+        Files.createDirectories(jvmViews)
+        Files.writeString(jvmViews.resolve("hi.crema.html"), "Hi {{ name }}")
+        assertEquals(jvmViews, CremaServiceProvider.resolveDefaultViews(jvmRoot))
+        val jvmApp = Application(jvmRoot)
+        jvmApp.register(CremaServiceProvider())
+        jvmApp.boot()
+        assertEquals("Hi Ada", jvmApp.resolve(CremaEngine::class.java).render("hi", mapOf("name" to "Ada")))
+
+        val buildOnly = temp.resolve("build-only")
+        val buildViews = buildOnly.resolve("build/resources/main/views")
+        Files.createDirectories(buildViews)
+        Files.writeString(buildViews.resolve("built.crema.html"), "Built")
+        assertEquals(buildViews, CremaServiceProvider.resolveDefaultViews(buildOnly))
+
+        val empty = temp.resolve("empty-app").also { Files.createDirectories(it) }
+        assertEquals(empty.resolve("src/main/resources/views"), CremaServiceProvider.resolveDefaultViews(empty))
+        assertEquals(
+            empty.resolve("src/main/resources/views"),
+            CremaServiceProvider.resolveDefaultViews(Application(empty)),
+        )
+
+        val legacyOnly = temp.resolve("legacy-views")
+        val legacyViews = legacyOnly.resolve("resources/views")
+        Files.createDirectories(legacyViews)
+        assertEquals(legacyViews, CremaServiceProvider.resolveDefaultViews(legacyOnly))
     }
 
     @Test

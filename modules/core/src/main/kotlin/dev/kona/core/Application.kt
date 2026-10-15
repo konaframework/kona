@@ -22,6 +22,11 @@ class Application(
     @Volatile
     private var booted = false
 
+    @Volatile
+    private var layout: PathLayout = PathLayout.detect(basePath)
+
+    val pathLayout: PathLayout get() = layout
+
     init {
         container.instance(Application::class.java, this)
         container.instance(Config::class.java, config)
@@ -36,6 +41,34 @@ class Application(
         }
         return result
     }
+
+    /** Recompute [pathLayout] from current [config] (`paths.*` overrides). */
+    fun refreshPathLayout(): PathLayout {
+        layout = PathLayout.detect(basePath, config)
+        return layout
+    }
+
+    fun basePath(vararg segments: String): Path = path(*segments)
+
+    fun appPath(vararg segments: String): Path = layout.app(*segments)
+
+    fun bootstrapPath(vararg segments: String): Path = layout.bootstrap(*segments)
+
+    fun routesPath(vararg segments: String): Path = layout.routes(*segments)
+
+    fun databasePath(vararg segments: String): Path = layout.database(*segments)
+
+    fun configPath(vararg segments: String): Path = layout.config(*segments)
+
+    fun resourcePath(vararg segments: String): Path = layout.resource(*segments)
+
+    fun viewPath(vararg segments: String): Path = layout.view(*segments)
+
+    fun publicPath(vararg segments: String): Path = layout.publicPath(*segments)
+
+    fun langPath(vararg segments: String): Path = layout.lang(*segments)
+
+    fun storagePath(vararg segments: String): Path = layout.storage(*segments)
 
     /** Registers [provider]; a second provider of an already-registered class is ignored (Laravel shape). */
     @Synchronized
@@ -123,11 +156,18 @@ class Application(
             return this
         }
 
+        /** Runs after providers have booted (e.g. register HTTP middleware stacks). */
+        fun afterBoot(action: Consumer<Application>): Builder {
+            onBooted.add { action.accept(it) }
+            return this
+        }
+
         /** Creates the application, applies config, registers every provider, then boots once. */
         fun build(): Application {
             val app = Application(basePath)
             bootstrappers.forEach { it(app) }
             configurers.forEach { it.accept(app.config) }
+            app.refreshPathLayout()
             app.registerAll(providers)
             app.boot()
             onBooted.forEach { it(app) }

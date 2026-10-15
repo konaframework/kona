@@ -8,7 +8,7 @@ export default defineConfig({
     emptyOutDir: true,
     manifest: true,
     rollupOptions: {
-      input: resolve('resources/js/app.js'),
+      input: resolve('src/main/resources/js/app.js'),
     },
   },
   server: {

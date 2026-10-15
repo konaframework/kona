@@ -1,5 +1,6 @@
 package dev.kona.core
 
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -9,8 +10,9 @@ import java.nio.file.Path
  * Kona.create(args).providers(HttpServiceProvider()).configure { it.set("app.debug", true) }.boot()
  * ```
  *
- * `create` loads `.env` and the `config/` directory from the base path and seeds `app.*`
- * defaults before user configurers run; every provider registers before any provider boots.
+ * `create` loads `.env` and config from `src/main/resources/config` (fallback: top-level `config/`)
+ * and seeds `app.*` defaults before user configurers run; every provider registers before any
+ * provider boots.
  */
 object Kona {
     @Volatile
@@ -52,7 +54,15 @@ object Kona {
         config.set("app.name", Env.getOrDefault("APP_NAME", "Kona"))
         config.set("app.env", Env.getOrDefault("APP_ENV", "local"))
         config.set("app.debug", Config.toBoolean(Env.getOrDefault("APP_DEBUG", "false")) ?: false)
-        config.loadDirectory(application.path("config"))
+        config.set("app.url", Env.getOrDefault("APP_URL", "http://127.0.0.1:8080"))
+        Env.get("APP_KEY")?.let { config.set("app.key", it) }
+        val primary = application.configPath()
+        val legacy = application.path("config")
+        when {
+            Files.isDirectory(primary) -> config.loadDirectory(primary)
+            Files.isDirectory(legacy) -> config.loadDirectory(legacy)
+        }
+        application.refreshPathLayout()
     }
 
     private fun resolveBasePath(args: Array<String>): Path {

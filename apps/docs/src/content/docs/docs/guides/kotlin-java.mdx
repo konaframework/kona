@@ -229,8 +229,8 @@ The cast is unchecked: if the stored value has another type, you get a `ClassCas
 
 ## Mixing both languages in one project
 
-A Kotlin project can contain Java classes and the other way round; Kona does not care which language a provider or controller was written in. The `kona new --lang=kotlin` build file sets Java source folders to empty, so to add Java files to a Kotlin-generated project, list your source folders in `sourceSets["main"].java.setSrcDirs(...)`. `grind make:controller` chooses `.java` as soon as `app/` contains any `.java` file; pass `--lang=` to override.
+A Kotlin project can contain Java classes and the other way round; Kona does not care which language a provider or controller was written in. Scaffolds use standard `src/main/kotlin` and `src/main/java` roots, so you can add the other language’s sources beside the first. `grind make:controller` chooses `.java` as soon as any `.java` file exists under `src/main/java/`; pass `--lang=` to override.
 
 ## Reference samples
 
-`samples/hello-kotlin` and `samples/hello-java` in the Kona repository build the same application (a greeter service, route groups with token middleware, global middleware) and test it through `HttpKernel.handle`. When you want a compiling reference for either language, start there.
+`samples/hello-kotlin` and `samples/hello-java` in the Kona repository are thin api-shaped apps (same layout as `kona new`) with HTTP smoke tests for `/` and `/api/health`. Starter kits (`crema`, `brew`, `inertia`) are covered by `kona new` regressions in the CLI test suite.

@@ -23,9 +23,6 @@ java {
     }
 }
 
-sourceSets["main"].java.setSrcDirs(listOf("app", "bootstrap", "database", "routes"))
-sourceSets["main"].resources.setSrcDirs(listOf("resources"))
-
 application {
     mainClass.set("bootstrap.App")
 }

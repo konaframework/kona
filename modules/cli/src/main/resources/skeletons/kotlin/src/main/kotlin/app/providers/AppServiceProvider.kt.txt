@@ -1,0 +1,14 @@
+package app.providers
+
+import dev.kona.core.Application
+import dev.kona.core.ServiceProvider
+
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        // Bind application services into app.container here.
+    }
+
+    override fun boot(app: Application) {
+        // Runs after every provider has registered.
+    }
+}

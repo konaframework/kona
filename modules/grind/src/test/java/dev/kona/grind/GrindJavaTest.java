@@ -23,7 +23,7 @@ class GrindJavaTest {
         Files.writeString(app.resolve("gradlew"), "#!/bin/sh\n");
         app.resolve("gradlew").toFile().setExecutable(true);
 
-        Path nested = app.resolve("app/Http/Controllers");
+        Path nested = app.resolve("src/main/java/app/http/controllers");
         Files.createDirectories(nested);
         assertEquals(app, ServeCommand.findProjectRoot(nested));
         assertNull(ServeCommand.findProjectRoot(temp));
@@ -39,12 +39,13 @@ class GrindJavaTest {
     @Test
     void extractGeneratorsFromJava() throws Exception {
         Path app = temp.resolve("javamodels");
-        Files.createDirectories(app.resolve("app"));
-        Files.writeString(app.resolve("app/Existing.java"), "class Existing {}");
+        Files.createDirectories(app.resolve("src/main/java/app"));
+        Files.writeString(app.resolve("src/main/java/app/Existing.java"), "class Existing {}");
         assertEquals(0, new MakeModelCommand().run(List.of("Flight", "--migration", "--factory", "--base=" + app)));
-        assertTrue(Files.readString(app.resolve("app/Models/Flight.java")).contains("extends Extract<Flight>"));
-        assertTrue(Files.exists(app.resolve("database/migrations/CreateFlightsTable.java")));
-        assertTrue(Files.exists(app.resolve("database/factories/FlightFactory.java")));
+        assertTrue(
+                Files.readString(app.resolve("src/main/java/app/models/Flight.java")).contains("extends Extract<Flight>"));
+        assertTrue(Files.exists(app.resolve("src/main/java/database/migrations/CreateFlightsTable.java")));
+        assertTrue(Files.exists(app.resolve("src/main/java/database/factories/FlightFactory.java")));
         assertEquals(0, new MakeMigrationCommand().run(List.of("add_gate_to_flights_table", "--base=" + app)));
         assertEquals(0, new MakeSeederCommand().run(List.of("DatabaseSeeder", "--base=" + app)));
         assertEquals(0, new MakeFactoryCommand().run(List.of("Pilot", "--base=" + app)));

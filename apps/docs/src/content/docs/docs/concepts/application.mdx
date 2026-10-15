@@ -11,7 +11,8 @@ Every Kona program revolves around one object: the **application** (`dev.kona.co
 
 An `Application` is a plain object you can create, inspect, and throw away (tests do this constantly). It holds four things:
 
-- **Base path** (`basePath`): the root directory of your project on disk. Kona looks for `.env` and `config/` here. `app.path("config", "app.json")` joins segments onto the base path and returns a `java.nio.file.Path`.
+- **Base path** (`basePath`): the root directory of your project on disk. Kona looks for `.env` here. `app.path(...)` joins segments onto the base path and returns a `java.nio.file.Path`.
+- **Path layout**: Almasix-shaped directories under `src/main` — `appPath`, `bootstrapPath`, `routesPath`, `databasePath`, `configPath`, `resourcePath`, `viewPath`, `publicPath`, `langPath`, `storagePath`. The `Paths` facade mirrors these after boot (`Paths.config()`, `Paths.storage("logs")`, …). Overrides live in `paths.*` config keys.
 - **Container** (`container`): the registry that knows how to build your services. See [Container](../container/).
 - **Config** (`config`): the dotted-key settings tree. See [Config & env](../config/).
 - **Providers**: the list of registered service providers, in registration order.
@@ -76,7 +77,7 @@ In Kotlin, `boot` has an empty default and may be omitted. Java providers must i
 
 ### With `Kona.create` (recommended)
 
-`Kona.create` returns an `Application.Builder` that also loads `.env`, default config, and `config/` files. It is what generated projects use.
+`Kona.create` returns an `Application.Builder` that also loads `.env`, default config, and JSON files from `src/main/resources/config` (falling back to a top-level `config/` directory). It is what generated projects use. Use `.afterBoot { … }` to register HTTP middleware stacks after providers have booted.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

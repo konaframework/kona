@@ -1,8 +1,5 @@
 package dev.kona.grind
 
-import java.nio.file.Files
-import java.nio.file.Path
-
 class MakeControllerCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
@@ -14,43 +11,19 @@ class MakeControllerCommand {
             throw GrindException("Invalid controller name [$name]: expected a class name like UserController")
         }
         val simple = if (name.endsWith("Controller")) name else name + "Controller"
-        val base = Path.of(options.getOrDefault("base", ".")).toAbsolutePath().normalize()
-        val lang = options.getOrDefault("lang", detectLang(base))
+        val base = Names.base(options)
+        val lang = Names.lang(base, options)
         val resource = options["resource"] == "true"
-        val relative = if (lang == "java") {
-            "app/Http/Controllers/$simple.java"
-        } else {
-            "app/Http/Controllers/$simple.kt"
-        }
-        val dest = base.resolve(relative)
-        if (Files.exists(dest)) {
-            throw GrindException("Controller already exists: $dest")
-        }
-        Files.createDirectories(dest.parent)
-        Files.writeString(dest, controllerStub(simple, lang, resource))
-        println("Controller created: $relative")
+        val relative = Names.sourceFile(lang, "app/http/controllers", simple)
+        Names.write(base, relative, "Controller", controllerStub(simple, lang, resource))
         return 0
-    }
-
-    private fun detectLang(base: Path): String {
-        val appDir = base.resolve("app")
-        if (!Files.isDirectory(appDir)) {
-            return "kotlin"
-        }
-        Files.walk(appDir).use { stream ->
-            val hasJava = stream.anyMatch { it.toString().endsWith(".java") }
-            if (hasJava) {
-                return "java"
-            }
-        }
-        return "kotlin"
     }
 
     private fun controllerStub(name: String, lang: String, resource: Boolean): String {
         if (lang == "java") {
             return if (resource) {
                 """
-                    package app.Http.Controllers;
+                    package app.http.controllers;
 
                     import dev.kona.http.Request;
                     import dev.kona.http.Response;
@@ -87,7 +60,7 @@ class MakeControllerCommand {
                 """.trimIndent() + "\n"
             } else {
                 """
-                    package app.Http.Controllers;
+                    package app.http.controllers;
 
                     import dev.kona.http.Request;
                     import dev.kona.http.Response;
@@ -102,7 +75,7 @@ class MakeControllerCommand {
         }
         return if (resource) {
             """
-                package app.Http.Controllers
+                package app.http.controllers
 
                 import dev.kona.http.Request
                 import dev.kona.http.Response
@@ -129,7 +102,7 @@ class MakeControllerCommand {
             """.trimIndent() + "\n"
         } else {
             """
-                package app.Http.Controllers
+                package app.http.controllers
 
                 import dev.kona.http.Request
                 import dev.kona.http.Response

@@ -3,8 +3,9 @@ package dev.kona.grind
 /**
  * `grind make:migration <snake_name> [--create=table] [--table=table] [--lang=kotlin|java]`.
  *
- * Writes `database/migrations/<StudlyName>`. The table is inferred from the name when no flag is
- * given: `create_users_table` creates `users`; `add_role_to_users_table` alters `users`.
+ * Writes `src/main/{kotlin|java}/database/migrations/<StudlyName>`. The table is inferred from
+ * the name when no flag is given: `create_users_table` creates `users`;
+ * `add_role_to_users_table` alters `users`.
  */
 class MakeMigrationCommand {
     fun run(args: List<String>): Int {
@@ -25,7 +26,7 @@ class MakeMigrationCommand {
     internal fun write(base: java.nio.file.Path, className: String, lang: String, mode: Mode, table: String?) {
         Names.write(
             base,
-            "database/migrations/$className.${Names.extension(lang)}",
+            Names.sourceFile(lang, "database/migrations", className),
             "Migration",
             if (lang == "java") javaStub(className, mode, table) else kotlinStub(className, mode, table),
         )

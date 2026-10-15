@@ -1,6 +1,6 @@
 ---
 title: Your first app
-description: Create an app with kona new, explore the layout, and serve it with ./grind.
+description: Create an app with kona new, explore the src/main layout, and serve it with ./grind.
 ---
 
 ## Prerequisites
@@ -15,30 +15,51 @@ kona new hello-kona
 cd hello-kona
 ```
 
-Use `--lang=java` for a Java skeleton. `kona new` refuses to overwrite an existing directory.
+Use `--lang=java` for a Java skeleton. Optional kits: `--kit=crema`, `--kit=inertia`, `--kit=brew` (default is `api`). `kona new` refuses to overwrite an existing directory.
 
 You should see something like:
 
 ```text
-Created Kona application at …/hello-kona (kotlin)
+Created Kona application at …/hello-kona (kotlin, kit=api)
   cd hello-kona
   ./grind serve
 ```
 
 ## What you got
 
+Everything application-owned lives under `src/main` (plus project-root `storage/` and `.env`):
+
 | Path | Role |
 |------|------|
-| `./grind` | **App-local** CLI (serve, make:controller) |
+| `./grind` | **App-local** CLI (serve, make:controller, …) |
 | `./gradlew` | Gradle wrapper — builds and runs the app |
-| `bootstrap/App` | Boots Kona, registers providers, starts HTTP |
-| `app/Providers/` | Your service provider |
-| `app/Http/Controllers/` | Controllers |
-| `routes/` | Route table |
-| `.env` | `APP_NAME`, `APP_DEBUG`, `HOST`, `PORT` |
+| `.env` / `.env.example` | `APP_NAME`, `APP_DEBUG`, `HOST`, `PORT`, … |
+| `src/main/kotlin/bootstrap/App` (or `…/java/…`) | Boots Kona, registers providers, starts HTTP |
+| `src/main/…/bootstrap/Middleware` | HTTP middleware stacks + trust proxies/hosts |
+| `src/main/…/app/providers/` | Your service provider |
+| `src/main/…/app/http/controllers/` | Controllers |
+| `src/main/…/routes/WebRoutes` + `ApiRoutes` | Web and `/api` route tables |
+| `src/main/resources/config/` | JSON config (`app`, `http`, `paths`) |
+| `src/main/resources/views/` | Crema views (when you add the Crema kit) |
+| `src/main/resources/public/` | Public static files |
+| `storage/` | Writable runtime data (logs, framework cache) |
 | `build.gradle.kts` | Depends on `kona-http` and `kona-grind` |
 
 `kona` itself is **not** copied into the project. Only `./grind` is local.
+
+### Path helpers
+
+After boot, resolve directories with `Application` helpers or the `Paths` facade:
+
+```kotlin
+app.appPath("http", "controllers")
+app.storagePath("logs")
+app.configPath()
+Paths.view("welcome")
+Paths.publicDir()
+```
+
+Defaults follow the tree above; override with `paths.*` keys in `src/main/resources/config/paths.json`.
 
 ## Serve
 
@@ -50,13 +71,15 @@ Open `http://127.0.0.1:8080/` (or the `HOST`/`PORT` from `.env`). Stop with Ctrl
 
 Under the hood, `./grind serve` runs `./gradlew run` so the app compiles with its own dependencies. For tests you can use `./grind serve --in-process` after `./gradlew classes`.
 
+The default welcome response is plain text `Welcome to Kona`; `/api/health` returns JSON `{"status":"ok"}`.
+
 ## Add a controller
 
 ```bash
 ./grind make:controller Post
 ```
 
-Then register a route in `routes/` that uses it.
+Then register a route in `src/main/…/routes/` that uses it. Generators write under `src/main/kotlin|java/app/…`.
 
 ## Create another app later
 

@@ -277,7 +277,7 @@ class InertiaTest {
         Files.createDirectories(temp.resolve("public/build"))
         Files.writeString(
             temp.resolve("public/build/manifest.json"),
-            """{"resources/js/app.js":{"file":"assets/app.js","css":["assets/app.css"],"isEntry":true},"entry2.js":{"file":"assets/e2.js","isEntry":true}}""",
+            """{"src/main/resources/js/app.js":{"file":"assets/app.js","css":["assets/app.css"],"isEntry":true},"entry2.js":{"file":"assets/e2.js","isEntry":true}}""",
         )
         Vite.setManifest(AssetManifest(temp.resolve("public")))
         val manager = InertiaManager()

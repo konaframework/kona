@@ -58,7 +58,7 @@ class GeneratedAppBuildTest {
         assertEquals(0, GrindApplication().run(arrayOf("make:controller", "Post", "--base=$app")))
         gradle(app, "classes")
         assertTrue(Files.isRegularFile(app.resolve("build/classes/java/main/bootstrap/App.class")))
-        assertTrue(Files.isRegularFile(app.resolve("build/classes/java/main/app/Http/Controllers/PostController.class")))
+        assertTrue(Files.isRegularFile(app.resolve("build/classes/java/main/app/http/controllers/PostController.class")))
         assertServesInProcess(app)
     }
 

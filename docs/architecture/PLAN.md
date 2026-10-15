@@ -87,7 +87,7 @@ kona/
 ├── docs/architecture/PLAN.md
 ├── modules/   # core, http, extract, crema, drip, grind, …
 ├── skeletons/ # kotlin/, java/
-├── samples/   # hello-kotlin/, hello-java/, bench/
+├── samples/   # hello-kotlin/, hello-java/ — checked-in api-shaped apps (src/main/…); kits via `kona new`
 └── .github/workflows/
 ```
 

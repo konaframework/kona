@@ -8,7 +8,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 Applications need settings that change between machines: the app's name, whether debug output is shown, which port to listen on, database credentials. Kona separates these into two layers:
 
 - **Environment** (`dev.kona.core.Env`): flat string variables from the operating system, with an optional `.env` file for development. This is where machine-specific and secret values belong.
-- **Config** (`dev.kona.core.Config`): a structured tree of typed values, addressed with dotted keys such as `app.debug`. It is filled from environment-derived defaults, files in `config/`, and code.
+- **Config** (`dev.kona.core.Config`): a structured tree of typed values, addressed with dotted keys such as `app.debug`. It is filled from environment-derived defaults, files in `src/main/resources/config/` (legacy fallback: top-level `config/`), and code.
 
 Your code should mostly read **config**. Environment variables are the raw input that seeds it.
 
@@ -25,10 +25,10 @@ When you boot with `Kona.create(...)`, Kona fills config in this order. A later 
    | `app.env` | `APP_ENV` | `"local"` |
    | `app.debug` | `APP_DEBUG` (parsed as a boolean) | `false` |
 
-3. **Files in `config/`** are loaded, in alphabetical order.
+3. **Files in `src/main/resources/config/`** are loaded, in alphabetical order (if that directory is missing, a top-level `config/` is tried). Path overrides in `paths.json` are applied after load via `refreshPathLayout()`.
 4. **Your `configure` callbacks** run, in the order you added them.
 
-So a file `config/app.json` containing `"name"` overrides `APP_NAME`, and a `configure { it.set("app.name", ...) }` overrides both. Applications built with `Application.builder` skip steps 1 to 3 and start with an empty config.
+So a file `src/main/resources/config/app.json` containing `"name"` overrides `APP_NAME`, and a `configure { it.set("app.name", ...) }` overrides both. Applications built with `Application.builder` skip steps 1 to 3 and start with an empty config.
 
 Config is filled once, at startup. Editing `.env` or a config file while the app runs has no effect until restart.
 

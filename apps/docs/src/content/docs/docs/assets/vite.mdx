@@ -18,27 +18,27 @@ public/
 ## Emit tags
 
 ```kotlin
-Vite.tags("resources/js/app.js")
+Vite.tags("src/main/resources/js/app.js")
 // production:
 // <link rel="stylesheet" href="/build/assets/app.css">
 // <script type="module" src="/build/assets/app.js"></script>
 ```
 
 ```java
-Vite.tags("resources/js/app.js");
+Vite.tags("src/main/resources/js/app.js");
 ```
 
 When `public/hot` exists (contents like `http://127.0.0.1:5173`), tags point at the Vite server instead:
 
 ```html
 <script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
-<script type="module" src="http://127.0.0.1:5173/resources/js/app.js"></script>
+<script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
 ```
 
 Resolve a single URL:
 
 ```kotlin
-Vite.asset("resources/js/app.js") // /build/assets/… or hot URL
+Vite.asset("src/main/resources/js/app.js") // /build/assets/… or hot URL
 ```
 
 `InertiaServiceProvider` binds `AssetManifest` to `inertia.public_path` (default `<base>/public`) and sets the `Vite` facade.
@@ -66,4 +66,4 @@ Point Vite’s `build.outDir` at `public/build` and enable `build.manifest: true
 
 ## Inertia root view
 
-With `inertia.root_view` set, the HTML shell receives a `vite` string you can print with `{!! vite !!}`. Default entry: `resources/js/app.js` (`InertiaManager.viteEntries`).
+With `inertia.root_view` set, the HTML shell receives a `vite` string you can print with `{!! vite !!}`. Default entry: `src/main/resources/js/app.js` (`InertiaManager.viteEntries`).

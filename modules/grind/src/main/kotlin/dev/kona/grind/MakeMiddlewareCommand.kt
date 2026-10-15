@@ -1,7 +1,7 @@
 package dev.kona.grind
 
 /**
- * `grind make:middleware <Name> [--lang=kotlin|java]` → `app/Http/Middleware/`.
+ * `grind make:middleware <Name> [--lang=kotlin|java]` → `src/main/.../app/http/middleware/`.
  */
 class MakeMiddlewareCommand {
     fun run(args: List<String>): Int {
@@ -14,14 +14,14 @@ class MakeMiddlewareCommand {
         val simple = if (name.endsWith("Middleware")) name else name + "Middleware"
         val base = Names.base(options)
         val lang = Names.lang(base, options)
-        val relative = "app/Http/Middleware/$simple.${Names.extension(lang)}"
+        val relative = Names.sourceFile(lang, "app/http/middleware", simple)
         Names.write(base, relative, "Middleware", middlewareStub(simple, lang))
         return 0
     }
 
     private fun middlewareStub(name: String, lang: String): String = if (lang == "java") {
         lines(
-            "package app.Http.Middleware;",
+            "package app.http.middleware;",
             "",
             "import dev.kona.http.Handler;",
             "import dev.kona.http.Middleware;",
@@ -37,7 +37,7 @@ class MakeMiddlewareCommand {
         )
     } else {
         lines(
-            "package app.Http.Middleware",
+            "package app.http.middleware",
             "",
             "import dev.kona.http.Handler",
             "import dev.kona.http.Middleware",
