@@ -192,5 +192,7 @@ class JavaRelationsMigrationsTest {
         assertNotNull(Seeder.instantiate(TeamSeeder.class, new Container()));
         assertEquals("tag_team", Relation.snake("TagTeam"));
         assertEquals(7L, Relation.normalizeKey(7));
+        assertEquals("taggables", created.morphToMany(Tag.class, "taggable").getPivotTable());
+        assertEquals("taggables", tag.morphedByMany(Team.class, "taggable", "taggables").getPivotTable());
     }
 }

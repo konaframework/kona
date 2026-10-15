@@ -9,8 +9,8 @@ Reconciled with explore audits ([Audit Extract model CRUD](8bd4dec2-3a9a-4899-ac
 | Meta | Value |
 |------|--------|
 | Last audit | 2026-10-15 (post-#65 reconcile) |
-| Last merged deepen | PR #70 (B2) |
-| Active deepen | **B4** — morphToMany / morphedByMany (after B3 merges) |
+| Last merged deepen | PR #71 (B3) |
+| Active deepen | **B4** — morphToMany / morphedByMany (shipping) |
 
 ---
 
@@ -86,7 +86,7 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 | API | Status | Notes |
 |-----|--------|-------|
 | Core + through + morphOne/Many/To | **done** | M15 |
-| morphToMany / morphedByMany | **missing** | B4 |
+| morphToMany / morphedByMany | **done** | B4 |
 | MorphTo `whereHas` / existence | **missing** | correlate rejects MorphTo |
 | withAvg / withMax / withMin | **missing** | B6 |
 | BelongsToMany firstOrCreate | **missing** | HasOneOrMany only |
@@ -99,8 +99,8 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 |-------|--------|--------|
 | **B1** | Builder deepen + grammar registries + database docs | **done** (#65) |
 | **B2** | `whereDate*`; ModelBuilder select/group/having/orWhereRaw mirrors; `havingRaw`/`orHaving` | **done** (#70) |
-| **B3** | Global scopes | **done** (PR) |
-| **B4** | morphToMany / morphedByMany (+ MorphTo whereHas if in scope) | queued |
+| **B3** | Global scopes | **done** (#71) |
+| **B4** | morphToMany / morphedByMany (+ MorphTo whereHas if in scope) | **shipping** |
 | **B5** | Observer class registration | queued |
 | **B6** | withAvg/Max/Min; push; sole; keyed pluck | queued |
 

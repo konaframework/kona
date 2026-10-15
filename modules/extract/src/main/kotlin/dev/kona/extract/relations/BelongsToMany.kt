@@ -12,7 +12,7 @@ data class SyncResult(val attached: List<Any?>, val detached: List<Any?>)
  * `role_user(user_id, role_id)`. Each returned model carries its pivot row as the `pivot`
  * relation (a `Map<String, Any?>` of the pivot keys plus [withPivot] columns).
  */
-class BelongsToMany<R : Extract<R>>(
+open class BelongsToMany<R : Extract<R>>(
     parent: Extract<*>,
     related: R,
     val pivotTable: String,
@@ -41,13 +41,13 @@ class BelongsToMany<R : Extract<R>>(
 
     override fun getResults(): List<R> = get()
 
-    override fun addConstraints(): Boolean {
+    open override fun addConstraints(): Boolean {
         val key = parent.getRawAttribute(parentKey) ?: return false
         query.where(qualified(pivotTable, foreignPivotKey), key)
         return true
     }
 
-    override fun addEagerConstraints(models: List<Extract<*>>) {
+    open override fun addEagerConstraints(models: List<Extract<*>>) {
         query.whereIn(qualified(pivotTable, foreignPivotKey), keys(models, parentKey))
     }
 
@@ -73,7 +73,7 @@ class BelongsToMany<R : Extract<R>>(
 
     /** Inserts pivot rows linking the parent to [ids] (keys or [R] models), with extra [attributes]. */
     @JvmOverloads
-    fun attach(ids: Collection<*>, attributes: Map<String, Any?> = emptyMap()) {
+    open fun attach(ids: Collection<*>, attributes: Map<String, Any?> = emptyMap()) {
         val key = requireParentKey()
         val rows = ids.map { id ->
             val row = linkedMapOf<String, Any?>(foreignPivotKey to key, relatedPivotKey to idOf(id))
@@ -91,7 +91,7 @@ class BelongsToMany<R : Extract<R>>(
     fun attach(id: Any): Unit = attach(listOf(id))
 
     /** Removes pivot rows for [ids]; returns how many were deleted. */
-    fun detach(ids: Collection<*>): Int {
+    open fun detach(ids: Collection<*>): Int {
         if (ids.isEmpty()) {
             return 0
         }
@@ -101,7 +101,7 @@ class BelongsToMany<R : Extract<R>>(
     fun detach(id: Any): Int = detach(listOf(id))
 
     /** Removes every pivot row of the parent. */
-    fun detach(): Int = pivotForParent().delete()
+    open fun detach(): Int = pivotForParent().delete()
 
     /** Makes the parent linked to exactly [ids]: attaches missing ones, detaches the rest. */
     fun sync(ids: Collection<*>): SyncResult {
@@ -160,13 +160,13 @@ class BelongsToMany<R : Extract<R>>(
         return pivotForParent().where(relatedPivotKey, idOf(id)).update(values)
     }
 
-    private fun pivot(): QueryBuilder = parent.connection().table(pivotTable)
+    protected fun pivot(): QueryBuilder = parent.connection().table(pivotTable)
 
-    private fun pivotForParent(): QueryBuilder = pivot().where(foreignPivotKey, requireParentKey())
+    protected open fun pivotForParent(): QueryBuilder = pivot().where(foreignPivotKey, requireParentKey())
 
-    private fun idOf(id: Any?): Any? = if (id is Extract<*>) id.getRawAttribute(relatedKey) else id
+    protected fun idOf(id: Any?): Any? = if (id is Extract<*>) id.getRawAttribute(relatedKey) else id
 
-    private fun requireParentKey(): Any = parent.getRawAttribute(parentKey)
+    protected fun requireParentKey(): Any = parent.getRawAttribute(parentKey)
         ?: throw IllegalStateException("Parent [${parent.javaClass.simpleName}] has no [$parentKey]; save it first")
 
     @Suppress("UNCHECKED_CAST")
