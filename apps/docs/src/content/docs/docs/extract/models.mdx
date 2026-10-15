@@ -107,7 +107,7 @@ User newest = User.QUERY.query().latest().first();
 </Tabs>
 
 
-`query()` returns a `ModelBuilder<T>`. It accepts the same constraints as the [query builder](../query-builder/) (`where`, `whereIn`, `orderBy`, `limit`, joins, …) but returns model instances instead of maps. Call `toBase()` to get the underlying `QueryBuilder`, or `toSql()` to see the generated SQL.
+`query()` returns a `ModelBuilder<T>`. It accepts the same constraints as the [query builder](../query-builder/) (`where`, `whereIn`, `whereDate` / `whereYear` / …, `orWhereRaw`, `select` / `selectRaw` / `distinct`, `groupBy` / `having` / `havingRaw`, `orderBy`, `limit`, joins, …) but returns model instances instead of maps. Call `toBase()` (or `getQuery()`) to get the underlying `QueryBuilder`, or `toSql()` to see the generated SQL.
 
 ### Attributes
 
