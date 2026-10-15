@@ -34,6 +34,11 @@ class GrindJavaTest {
 
         assertEquals(1, new GrindApplication().run(new String[] {"new", "x"}));
         assertTrue(new GrindApplication().run(new String[] {"help"}) == 0);
+
+        Path linkBase = temp.resolve("linkapp");
+        Files.createDirectories(linkBase.resolve("src/main/resources/public"));
+        assertEquals(0, new StorageLinkCommand().run(List.of("--base=" + linkBase)));
+        assertTrue(Files.isSymbolicLink(linkBase.resolve("src/main/resources/public/storage")));
     }
 
     @Test

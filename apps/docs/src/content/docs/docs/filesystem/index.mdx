@@ -1,7 +1,9 @@
 ---
 title: Filesystem
-description: Local and S3-compatible storage disks.
+description: Local and S3-compatible storage disks, public URLs, and temporary signed links.
 ---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 `FilesystemManager` resolves named disks. Use `put` / `get` / `exists` / `delete` / `copy` / `move` / directory helpers.
 
@@ -13,10 +15,57 @@ disk.put("reports/q1.txt", "ok")
 val body = disk.getString("reports/q1.txt")
 ```
 
-Register `FilesystemServiceProvider`. Drivers:
+`kona new` registers `FilesystemServiceProvider` and ships `config/filesystems.json`. Drivers:
 
 | Driver | Notes |
 | --- | --- |
 | `local` | Files under `filesystems.disks.local.root` (default `storage/app`) |
+| `public` | Local disk defaulting to `storage/app/public` with URL prefix `/storage` |
 | `memory` / `s3-memory` | In-process S3-shaped store |
 | `s3` | Path-style HTTP client with AWS SigV4 (`endpoint`, `bucket`, `key`, `secret`, `region`) |
+
+Relative `root` values resolve against the application base path.
+
+## Public disk and `/storage`
+
+The **public** disk is for files that browsers may fetch. Scaffolded apps prepend `ServePublicStorage` so `GET /storage/...` reads from that disk and returns a binary `Response.file`.
+
+Create the familiar symlink for static tooling with:
+
+```bash
+./grind storage:link
+```
+
+That links `src/main/resources/public/storage` → `storage/app/public` (or `public/storage` when the resources public folder is absent).
+
+## Temporary URLs
+
+Build a signed download link with `temporaryUrl` and `UrlGenerator.signed`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+val urls = app.resolve(UrlGenerator::class.java)
+val link = files.temporaryUrl("avatars/a.png", 600, { url, exp -> urls.signed(url, exp) }, "public")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+UrlGenerator urls = app.resolve(UrlGenerator.class);
+String link = files.temporaryUrl(
+    "avatars/a.png",
+    600L,
+    (url, exp) -> urls.signed(url, exp),
+    "public"
+);
+```
+
+</TabItem>
+</Tabs>
+
+Protect the route with `ValidateSignature` (see [URL generation](../http/url-generation/)).

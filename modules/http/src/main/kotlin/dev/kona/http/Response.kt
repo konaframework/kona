@@ -1,5 +1,8 @@
 package dev.kona.http
 
+import java.nio.file.Files
+import java.nio.file.Path
+
 /**
  * HTTP response (Laravel Response shape).
  *
@@ -8,13 +11,18 @@ package dev.kona.http
  *
  * [sessionFlash], [sessionOldInput], and [sessionErrors] are applied by
  * `StartSession` before the session is saved (redirect `with` / `withInput` / `withErrors`).
+ *
+ * Binary payloads use [bodyBytes]; text factories keep UTF-8 [body] and derive bytes on write.
  */
 class Response(
     var status: Int = 200,
     var body: String = "",
     val headers: MutableMap<String, String> = linkedMapOf("Content-Type" to "text/plain; charset=utf-8"),
     val cookies: MutableList<Cookie> = mutableListOf(),
+    bodyBytes: ByteArray? = null,
 ) {
+    private var binaryBody: ByteArray? = bodyBytes
+
     /** Pending flash key→value pairs applied on the next request. */
     val sessionFlash: MutableMap<String, Any?> = linkedMapOf()
 
@@ -23,6 +31,9 @@ class Response(
 
     /** Pending validation errors flashed as `errors`. */
     var sessionErrors: Map<String, List<String>>? = null
+
+    /** Wire body bytes (binary when set; otherwise UTF-8 of [body]). */
+    fun bodyBytes(): ByteArray = binaryBody ?: body.toByteArray(Charsets.UTF_8)
 
     fun header(name: String, value: String): Response {
         headers[name] = value
@@ -64,6 +75,13 @@ class Response(
 
     fun withBody(content: String): Response {
         body = content
+        binaryBody = null
+        return this
+    }
+
+    fun withBodyBytes(bytes: ByteArray): Response {
+        binaryBody = bytes
+        body = ""
         return this
     }
 
@@ -125,6 +143,88 @@ class Response(
                 ?: request.header("Referer")
                 ?: fallback
             return redirect(target, status)
+        }
+
+        /** Raw binary body with [contentType]. */
+        @JvmStatic
+        @JvmOverloads
+        fun binary(
+            bytes: ByteArray,
+            contentType: String = "application/octet-stream",
+            status: Int = 200,
+        ): Response =
+            Response(
+                status = status,
+                body = "",
+                headers = linkedMapOf("Content-Type" to contentType),
+                bodyBytes = bytes,
+            )
+
+        /**
+         * Inline file response (Laravel `Response::file` shape).
+         * Sets `Content-Disposition: inline` when [filename] is provided.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun file(
+            bytes: ByteArray,
+            contentType: String? = null,
+            filename: String? = null,
+            status: Int = 200,
+        ): Response {
+            val type = contentType ?: filename?.let { MimeTypes.guess(it) } ?: "application/octet-stream"
+            val response = binary(bytes, type, status)
+            if (filename != null) {
+                response.header("Content-Disposition", contentDisposition("inline", filename))
+            }
+            return response
+        }
+
+        /** Inline file from a filesystem [path]. */
+        @JvmStatic
+        @JvmOverloads
+        fun file(
+            path: Path,
+            contentType: String? = null,
+            filename: String? = null,
+            status: Int = 200,
+        ): Response {
+            val name = filename ?: path.fileName.toString()
+            return file(Files.readAllBytes(path), contentType, name, status)
+        }
+
+        /**
+         * Attachment download (Laravel `Response::download` shape).
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun download(
+            bytes: ByteArray,
+            filename: String,
+            contentType: String? = null,
+            status: Int = 200,
+        ): Response {
+            val type = contentType ?: MimeTypes.guess(filename)
+            return binary(bytes, type, status)
+                .header("Content-Disposition", contentDisposition("attachment", filename))
+        }
+
+        /** Attachment download from a filesystem [path]. */
+        @JvmStatic
+        @JvmOverloads
+        fun download(
+            path: Path,
+            filename: String? = null,
+            contentType: String? = null,
+            status: Int = 200,
+        ): Response {
+            val name = filename ?: path.fileName.toString()
+            return download(Files.readAllBytes(path), name, contentType, status)
+        }
+
+        private fun contentDisposition(type: String, filename: String): String {
+            val safe = filename.replace("\"", "")
+            return "$type; filename=\"$safe\""
         }
     }
 }
