@@ -67,7 +67,7 @@ Durable deepen tracker for `kona-http` (and middleware-linked session CSRF only 
 | Base `Controller` + `FormRequest` | done | |
 | Invokable | done | |
 | Resource / API resource | done | |
-| `Controllers.action` DI via Application | done | |
+| Typed controller registration (instance + method ref / lambda) | done | Class / `@method` string overloads removed |
 | Middleware on controller | **deferred** | |
 
 ## Validation rules

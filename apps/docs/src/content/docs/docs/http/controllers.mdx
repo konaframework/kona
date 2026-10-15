@@ -44,28 +44,7 @@ public final class WebRoutes {
 </TabItem>
 </Tabs>
 
-**Optional concise form:** pass a `Class` + method name, or a `"fully.qualified.Controller@method"` string. The router resolves the controller from the application container on each request (or falls back to an `Application` / no-arg constructor). Prefer this when you want a shorter route table; prefer the typed style above for day-to-day app code.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-router.get("/projects", ProjectController::class.java, "index")
-router.post("/projects", "app.http.controllers.ProjectController@store")
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-router.get("/projects", ProjectController.class, "index");
-router.post("/projects", "app.http.controllers.ProjectController@store");
-```
-
-</TabItem>
-</Tabs>
-
-Both styles stay first-class — handler lambdas are unchanged. Details and more verbs live on [Routing](../routing/#controller-actions).
+Inline handler lambdas work the same way when you do not need a controller class. Details and more verbs live on [Routing](../routing/#call-a-controller).
 
 Generate stubs with [`./grind make:controller Name`](../../grind/commands/#grind-makecontroller). Use `--resource` when you want REST method stubs ready for [`router.resource(...)`](../routing/#resource-routes) / [`router.apiResource(...)`](../routing/#api-resource-routes).
 
