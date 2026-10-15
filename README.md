@@ -23,7 +23,7 @@ kona new my-app | cd my-app && ./grind | ./grind steam | Extract | *.crema.html
 ```
 
 ```bash
-./scripts/install-kona.sh   # global `kona` on ~/.local/bin (from-source install today)
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 kona new my-app
 cd my-app && ./grind serve  # ./grind is created by kona new — not present under samples/
 ```

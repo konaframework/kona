@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install the global kona CLI from source, create apps with kona new, and use ./grind inside each project.
+description: Install the global kona CLI with a one-line curl installer, create apps with kona new, and use ./grind inside each project.
 ---
 
 Kona uses **two** command-line tools on purpose:
@@ -12,17 +12,16 @@ Kona uses **two** command-line tools on purpose:
 
 You install `kona` once. Every project from `kona new` ships its own `./grind` (and `grind.bat` on Windows) — you do not install grind globally.
 
-## Happy path (exact commands)
+## Happy path
 
 ```bash
-# 1. Clone the framework (needed today to install the CLI)
-git clone https://github.com/konaframework/kona.git
-cd kona
+# 1. JDK 21+ on your PATH
+java -version
 
-# 2. Install global `kona` onto ~/.local/bin
-./scripts/install-kona.sh
+# 2. Install the global `kona` CLI (fetches source, builds, links ~/.local/bin/kona)
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 
-# 3. Create an application (any empty parent directory is fine)
+# 3. Create an application
 kona new my-app
 cd my-app
 
@@ -30,7 +29,7 @@ cd my-app
 ./grind serve
 ```
 
-Open `http://127.0.0.1:8080/`. That is the supported path today: **install `kona` from source → `kona new` → `./grind serve`**.
+Open `http://127.0.0.1:8080/`. That is the supported path: **install `kona` → `kona new` → `./grind serve`**.
 
 ## 1. JDK 21+
 
@@ -38,41 +37,62 @@ Open `http://127.0.0.1:8080/`. That is the supported path today: **install `kona
 java -version   # must report 21 or newer
 ```
 
-Gradle is bootstrapped by the project wrappers (`./gradlew`); you do not need a separate Gradle install.
+The installer and generated apps use the Gradle wrapper; you do not need a separate Gradle install.
 
 ## 2. Install the global `kona` CLI
 
-### What works today
-
-The only supported install is **from a clone of this repository**:
+### Recommended: curl installer
 
 ```bash
-git clone https://github.com/konaframework/kona.git
-cd kona
-./scripts/install-kona.sh
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-That builds the CLI and links `~/.local/bin/kona` (override with `KONA_PREFIX=/somewhere`). Ensure `~/.local/bin` is on your `PATH`, then check:
+That script:
+
+1. Checks for JDK 21+
+2. Syncs Kona source into `~/.kona` (override with `KONA_SRC`)
+3. Runs `./gradlew :kona-cli:installDist`
+4. Installs a copy under `~/.local/lib/kona` and symlinks `~/.local/bin/kona` (override prefix with `KONA_PREFIX`)
+
+Ensure `~/.local/bin` is on your `PATH`, then check:
 
 ```bash
 kona version
 kona help
 ```
 
-### What the installer does
+Re-run the same curl command (or `~/.kona/scripts/install.sh`) to update.
 
-1. Runs `./gradlew :kona-cli:installDist`
-2. Symlinks the `kona` binary into `$KONA_PREFIX/bin` (default `~/.local/bin`)
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `KONA_SRC` | `~/.kona` | Where source is cloned / updated |
+| `KONA_PREFIX` | `~/.local` | Where `bin/kona` and `lib/kona` are installed |
+| `KONA_REF` | `main` | Git branch or tag to install |
+| `KONA_REPO` | `https://github.com/konaframework/kona.git` | Clone URL |
 
-You only need this when you want a newer `kona` from source. Creating apps afterward does not require the Kona git checkout on your PATH.
+Example — install a specific ref into a custom prefix:
 
-### What is not available yet
+```bash
+KONA_REF=main KONA_PREFIX=$HOME/.local \
+  curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+```
 
-There is **no** turnkey `kona` install via npm, Homebrew, SDKMAN, a standalone GitHub Release binary, or a “download and run” Maven Central launcher. Framework libraries publish under the `dev.kona` Maven group for *applications* to depend on; that is separate from putting the `kona` CLI on your PATH. Until packaged installers land, use `./scripts/install-kona.sh`.
-
-:::tip[Package managers later]
-Published installers (Homebrew, SDKMAN, …) will wrap the same binary built by `:kona-cli:installDist`. The script above is the supported path until those exist.
+:::note[What about package managers?]
+Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. The curl installer is the supported path. Framework libraries still publish under the `dev.kona` Maven group for *applications* to depend on — that is separate from putting the `kona` CLI on your PATH.
 :::
+
+### Framework contributors (local checkout)
+
+If you already have the repository cloned and are hacking on Kona itself:
+
+```bash
+git clone https://github.com/konaframework/kona.git
+cd kona
+./scripts/install.sh --local
+# or: ./scripts/install-kona.sh
+```
+
+`--local` builds from that tree and does not fetch into `~/.kona`.
 
 ## 3. Create an application
 

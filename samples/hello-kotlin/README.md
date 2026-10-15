@@ -26,8 +26,7 @@ From the Kona **repository root** (not from this directory alone):
 Install the global CLI and scaffold a standalone app:
 
 ```bash
-# from the Kona checkout
-./scripts/install-kona.sh
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 kona new my-app
 cd my-app
 ./grind serve
