@@ -53,26 +53,21 @@ public class JavaControllerDispatchTest {
     Path temp;
 
     @Test
-    void classAndStringActionsPlusApiResource() {
+    void typedActionsPlusApiResource() {
         Application app = new Application(temp);
         app.register(new HttpServiceProvider());
         app.boot();
         Router router = app.resolve(Router.class);
 
-        // IDE-friendly: instantiate + method reference (recommended)
         NotesController notes = new NotesController();
         router.get("/typed", notes::index);
+        router.post("/typed", notes::store);
 
-        // Concise: Class + method / Controller@method
-        router.get("/class", NotesController.class, "index");
-        router.post("/class", NotesController.class.getName() + "@store");
-
-        router.apiResource("notes", NotesApiController.class);
+        router.apiResource("notes", new NotesApiController());
 
         HttpKernel kernel = app.resolve(HttpKernel.class);
         assertEquals("notes", kernel.handle(Request.get("/typed")).getBody());
-        assertEquals("notes", kernel.handle(Request.get("/class")).getBody());
-        assertEquals("stored", kernel.handle(Request.post("/class")).getBody());
+        assertEquals("stored", kernel.handle(Request.post("/typed")).getBody());
 
         Response list = kernel.handle(Request.get("/notes"));
         assertTrue(list.getBody().contains("n1"));

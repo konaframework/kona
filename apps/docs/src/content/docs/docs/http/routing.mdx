@@ -110,42 +110,13 @@ public final class WebRoutes {
 </TabItem>
 </Tabs>
 
-What matters for the **recommended** style:
+What matters for this style:
 
 1. **Instantiate** the controller (pass `Application` when the controller needs it).
 2. **Bind** a method that accepts `Request` and returns `Response` — Kotlin `{ welcome.index(it) }`, Java `welcome::index` — so the IDE autocompletes and type-checks the action.
 3. Optionally **name** the route with `.name("…")` so you can build URLs later.
 
 Generate a stub with [`./grind make:controller Post`](../../grind/commands/#grind-makecontroller) (`--resource` adds CRUD method stubs). Put validation and response shaping in the controller; keep this file as the map from URL → action.
-
-## Controller actions (concise alternative)
-
-When you prefer a shorter route table, every verb also accepts a controller `Class` + method name, or a `"pkg.Controller@method"` string. The router uses the bound `Application` (set by `HttpServiceProvider`) to resolve the controller on each request.
-
-Use this as an **optional** form. For application code, keep the typed instantiate + lambda / method-reference style above — autocomplete and navigate-to-definition stay clearer.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-router.get("/projects", ProjectController::class.java, "index")
-router.post("/projects", "app.http.controllers.ProjectController@store")
-router.delete("/projects/{id}", ProjectController::class.java, "destroy")
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-router.get("/projects", ProjectController.class, "index");
-router.post("/projects", "app.http.controllers.ProjectController@store");
-router.delete("/projects/{id}", ProjectController.class, "destroy");
-```
-
-</TabItem>
-</Tabs>
-
-You can also build a `Handler` yourself with `Controllers.action(app, type, "index")` when the router was created without an application.
 
 ## Declaring routes
 
@@ -253,7 +224,7 @@ A **resource** is a collection of records exposed over a conventional set of URL
 | `PUT`, `PATCH` | `/posts/{id}` | `update` | `posts.update` |
 | `DELETE` | `/posts/{id}` | `destroy` | `posts.destroy` |
 
-Both accept optional `only` / `except` collections of action names, and a `Class` overload that resolves the controller from the application container.
+Both accept optional `only` / `except` collections of action names. Pass an **instance** of your `ResourceController` (construct it yourself, or resolve it from the container and pass the instance).
 
 The paths and names respect the surrounding group, so inside a group with prefix `/api` and name `api.`, you get `/api/posts` and `api.posts.index`. Pass the name **without** a leading slash.
 
@@ -279,7 +250,7 @@ class PostController : BaseResourceController() {
 
 router.resource("posts", PostController())
 router.apiResource("posts", PostController())
-router.apiResource("notes", NotesController::class.java, only = listOf("index", "show"))
+router.apiResource("notes", NotesController(), only = listOf("index", "show"))
 ```
 
 </TabItem>
@@ -305,7 +276,7 @@ public class PostController extends BaseResourceController {
 
 router.resource("posts", new PostController());
 router.apiResource("posts", new PostController());
-router.apiResource("notes", NotesController.class, List.of("index", "show"), null);
+router.apiResource("notes", new NotesController(), List.of("index", "show"), null);
 ```
 
 </TabItem>
