@@ -16,8 +16,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Item | Value |
 |------|--------|
-| Last merged milestone | **M15 — Extract / Model Laravel parity** on `main` (PR #30) |
-| Active | **M16 — Durable queues** (`milestone/M16-durable-queue`) — checklist complete; ship PR → automerge |
+| Last merged milestone | **M16 — Durable queues** on `main` (PR #31) |
+| Active | None — next deepen: scaffold provider wiring, then Redis session + signed cookies |
 | App layout | Strict JVM hybrid under `src/main` (M14). Extract morphs/through/casts/pagination (M15). |
 | Next after M16 | Scaffold provider wiring, Redis session + signed cookies |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
