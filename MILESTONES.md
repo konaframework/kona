@@ -791,7 +791,7 @@ M24 — Executable config.
 - [x] `kona new` Kotlin+Java(+kits) skeletons: `config/*.kt|java`, no `resources/config/*.json`
 - [x] Samples hello-kotlin / hello-java migrated; grind fixtures use `ConfigFile` + Env
 - [x] Docs rewrite (`concepts/config.mdx` + related guides); Java-callable path
-- [ ] 100% kover on touched modules; PR + automerge
+- [x] 100% kover on touched modules; PR + automerge
 
 ### In-scope modules
 
