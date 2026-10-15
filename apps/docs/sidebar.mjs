@@ -138,6 +138,7 @@ export async function buildSidebar() {
             { label: 'Templates', slug: 'docs/brew/templates' },
             { label: 'Lifecycle', slug: 'docs/brew/lifecycle' },
             { label: 'Forms', slug: 'docs/brew/forms' },
+            { label: 'Nesting, islands & lazy', slug: 'docs/brew/nesting' },
             { label: 'Browser events', slug: 'docs/brew/events' },
             { label: 'JavaScript', slug: 'docs/brew/javascript' },
             { label: 'Testing', slug: 'docs/brew/testing' },
