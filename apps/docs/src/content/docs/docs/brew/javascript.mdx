@@ -45,6 +45,9 @@ Every component root exposes `$wire` through Alpine:
 | `$wire.$el` / `$wire.$id` | Root element / id |
 | `$wire.$watch(path, fn)` | Watch state |
 | `$wire.$hook(name, fn)` | Component-scoped hook |
+| `$wire.$errors` | Validation bag (`has` / `first` / `get` / `all` / `clear`) |
+| `$wire.$refs` / `$wire.$refs(name)` | Elements marked `wire:ref` |
+| `$wire.$dirty(path?)` | Whether ephemeral state diverges from the last server snapshot |
 
 ## Hooks
 
@@ -65,16 +68,21 @@ Morph sub-hooks: `morph.updated`, `morph.removing`, `morph.removed`, `morph.addi
 ## Custom directives
 
 ```js
-Brew.directive('confirm', ({ el, directive, component, cleanup }) => {
-  // wire:confirm="…"
+Brew.directive('tooltip', ({ el, directive, component, cleanup }) => {
+  // wire:tooltip="…"
 })
 ```
+
+Built-in directives include `wire:model`, `wire:loading`, `wire:dirty`, `wire:confirm`, `wire:poll`,
+`wire:offline`, `wire:cloak`, `wire:show`, `wire:text`, `wire:bind:*`, `wire:transition`, `wire:ref`,
+`wire:ignore`, `wire:replace`, `wire:init`, and any other `wire:<event>` as an Alpine listener.
 
 ## Morph behaviour
 
 - Keyed by `wire:key` and `wire:id`  
 - Respects `wire:ignore` / `wire:ignore.self` / `wire:ignore.children`  
 - `wire:replace` / `wire:replace.self` swaps instead of morphing  
+- `wire:transition` + `effects.transition` participate in the View Transitions API when available  
 - Block markers from Crema keep loops/conditionals stable  
 
 ## Errors
