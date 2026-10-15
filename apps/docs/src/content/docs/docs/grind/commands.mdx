@@ -70,6 +70,42 @@ The migrate and seed commands:
 
 Errors (unknown connection, a failing migration, a missing seeder class) print a message and exit with status 1. See [Migrations](../../extract/migrations/) and [Seeders & factories](../../extract/seeders-factories/) for the APIs behind these commands.
 
+## `./grind key:generate`
+
+```bash
+./grind key:generate
+./grind key:generate --show
+./grind key:generate --force
+./grind key:generate --base=/path/to/app
+```
+
+Sets a cryptographically random **application key** in the project `.env` as `APP_KEY=base64:…` (32 raw bytes, Base64-encoded). That value is what encryption, signed cookies, and related features read as `app.key`.
+
+| Flag | Effect |
+|------|--------|
+| *(none)* | Generate a key and write it to `.env` |
+| `--show` | Print a new key to the terminal and **do not** modify files |
+| `--force` | Allow overwriting an existing key when `APP_ENV=production` |
+| `--base=` | Directory to search upward for the Gradle project (same walk as `serve`) |
+
+### What happens on a normal run
+
+1. Grind finds the application root at or above `--base` (default: current directory).
+2. If `.env` is missing but `.env.example` exists, grind copies `.env.example` → `.env` first.
+3. A new `base64:…` key is generated (same format as `kona new`).
+4. The `APP_KEY=…` line in `.env` is replaced. If that line is missing, grind exits with an error.
+5. On success: `Application key set successfully.`
+
+### Existing keys and production
+
+- If `APP_KEY` is **empty**, grind writes the new key with no extra prompt.
+- If `APP_KEY` is **already set** and the environment is **not** production (`APP_ENV` from the process environment, or from `.env` when unset in the process), grind overwrites the key.
+- If `APP_KEY` is already set and `APP_ENV=production`, grind warns and asks for confirmation. Decline (or a non-interactive “no”) cancels the command. Pass `--force` to skip the prompt.
+
+`--show` always prints a fresh key and never touches `.env`, regardless of production or an existing key.
+
+Rotate carefully: ciphertext and signed cookie payloads produced with the old key will not verify after you change `APP_KEY`. See [Encryption](../../security/encryption/).
+
 ## Not a grind command: creating apps
 
 ```bash
