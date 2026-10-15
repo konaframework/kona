@@ -272,4 +272,30 @@ public class JavaExtractApiTest {
         assertFalse(copy.exists());
         assertNull(copy.getKey());
     }
+
+    @Test
+    void relationFirstOrCreateAndModelTruncateFromJava() {
+        Member ada = Member.QUERY.create(Map.of("name", "Ada", "email", "rel@j.io", "age", 36));
+        Article created = ada.posts().firstOrCreate(Map.of("title", "Hello"));
+        assertTrue(created.exists());
+        assertEquals(ada.getKey(), created.get("user_id"));
+        assertEquals(created.getKey(), ada.posts().firstOrCreate(Map.of("title", "Hello"), Map.of("title", "Nope")).getKey());
+
+        Article updated = ada.posts().updateOrCreate(Map.of("title", "Hello"), Map.of("title", "Hello2"));
+        assertEquals(created.getKey(), updated.getKey());
+        assertEquals("Hello2", updated.get("title"));
+
+        Article brand = ada.posts().updateOrCreate(Map.of("title", "Brand"));
+        assertTrue(brand.exists());
+        assertEquals(ada.getKey(), brand.get("user_id"));
+        assertEquals("Brand", brand.get("title"));
+
+        Article neu = ada.posts().firstOrNew(Map.of("title", "Draft"));
+        assertFalse(neu.exists());
+        assertEquals(ada.getKey(), neu.get("user_id"));
+
+        assertEquals(1L, Member.QUERY.count());
+        Member.QUERY.truncate();
+        assertEquals(0L, Member.QUERY.count());
+    }
 }

@@ -448,3 +448,26 @@ Each chunk runs a page query (`forPage`). Always `orderBy` a stable column so pa
 ## Quiet persistence
 
 `saveQuietly()` and `deleteQuietly()` persist without firing [model events](../serialization-events/#lifecycle-events). For a whole block of work, use `ModelDispatcher.withoutEvents { … }`.
+
+## Truncating a model's table
+
+`User.truncate()` (or `User.query().truncate()`) runs `TRUNCATE TABLE` on the model's table and removes every row. It ignores query constraints and soft-delete scopes — use it when you want an empty table, not a filtered delete.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+User.truncate()
+User.query().truncate()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User.QUERY.truncate();
+User.QUERY.query().truncate();
+```
+
+</TabItem>
+</Tabs>

@@ -30,6 +30,12 @@ abstract class Relation<R : Extract<R>, V>(
 
     private fun constrained(): Boolean = constrained ?: addConstraints().also { constrained = it }
 
+    /**
+     * Applies parent constraints to [query] once.
+     * Returns false when the parent cannot constrain (for example, it has no key yet).
+     */
+    protected fun ensureConstraints(): Boolean = constrained()
+
     /** Every related row of [parent] (to-one relations included). */
     fun get(): List<R> = if (constrained()) getEager() else emptyList()
 

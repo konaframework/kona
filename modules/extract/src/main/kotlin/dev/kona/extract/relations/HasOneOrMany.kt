@@ -30,7 +30,8 @@ abstract class HasOneOrMany<R : Extract<R>, V>(
     protected fun keyOf(model: Extract<*>): Any? = normalizeKey(model.getRawAttribute(localKey))
 
     /** A new, unsaved related model with [foreignKey] set to the parent's key. */
-    fun make(attributes: Map<String, Any?>): R = related.newInstance(attributes).setAttribute(foreignKey, requireParentKey())
+    open fun make(attributes: Map<String, Any?>): R =
+        related.newInstance(attributes).setAttribute(foreignKey, requireParentKey())
 
     /** Saves [model] after pointing its [foreignKey] at the parent. */
     fun save(model: R): R {
@@ -41,6 +42,48 @@ abstract class HasOneOrMany<R : Extract<R>, V>(
 
     /** Fills (mass-assignment rules apply), links, and saves a new related model. */
     open fun create(attributes: Map<String, Any?>): R = make(attributes).also { it.save() }
+
+    /**
+     * First related row matching [attributes] under this relation's scope, or a new unsaved
+     * instance filled with [attributes] (foreign key already set).
+     */
+    fun firstOrNew(attributes: Map<String, Any?>): R {
+        requireParentKey()
+        ensureConstraints()
+        attributes.forEach { (column, value) -> query.where(column, value) }
+        return query.first() ?: make(attributes)
+    }
+
+    /**
+     * First related row matching [attributes], or creates one from [attributes] + [values]
+     * (foreign key set automatically).
+     */
+    @JvmOverloads
+    fun firstOrCreate(attributes: Map<String, Any?>, values: Map<String, Any?> = emptyMap()): R {
+        requireParentKey()
+        ensureConstraints()
+        attributes.forEach { (column, value) -> query.where(column, value) }
+        query.first()?.let { return it }
+        return create(LinkedHashMap(attributes).also { it.putAll(values) })
+    }
+
+    /**
+     * Updates the first related row matching [attributes] with [values], or creates
+     * `attributes + values` linked to the parent.
+     */
+    @JvmOverloads
+    fun updateOrCreate(attributes: Map<String, Any?>, values: Map<String, Any?> = emptyMap()): R {
+        requireParentKey()
+        ensureConstraints()
+        attributes.forEach { (column, value) -> query.where(column, value) }
+        val found = query.first()
+        if (found != null) {
+            found.fill(values)
+            found.save()
+            return found
+        }
+        return create(LinkedHashMap(attributes).also { it.putAll(values) })
+    }
 
     private fun requireParentKey(): Any = parentKey
         ?: throw IllegalStateException("Parent [${parent.javaClass.simpleName}] has no [$localKey]; save it first")
