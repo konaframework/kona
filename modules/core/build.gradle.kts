@@ -18,6 +18,7 @@ kover {
             filters {
                 excludes {
                     classes("dev.kona.core.internal.*")
+                    annotatedBy("dev.kona.core.KoverExclude")
                 }
             }
             verify {

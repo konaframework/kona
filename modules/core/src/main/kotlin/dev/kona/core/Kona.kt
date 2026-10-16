@@ -46,6 +46,7 @@ object Kona {
 
     @JvmStatic
     fun reset() {
+        Log.unbind()
         app = null
         Env.clear()
     }
@@ -64,6 +65,7 @@ object Kona {
         )
         config.set("logging.file", Env.getOrDefault("LOG_FILE", FileLogging.DEFAULT_FILE_NAME))
         config.set("logging.level", Env.getOrDefault("LOG_LEVEL", "info"))
+        LogManager.seedDefaults(config)
         application.refreshPathLayout()
     }
 
