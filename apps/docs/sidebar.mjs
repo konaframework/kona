@@ -129,25 +129,7 @@ export async function buildSidebar() {
     {
       label: 'Frontend',
       items: [
-        {
-          label: 'Brew',
-          items: [
-            { label: 'Getting started', slug: 'docs/brew' },
-            { label: 'Components', slug: 'docs/brew/components' },
-            { label: 'Properties', slug: 'docs/brew/properties' },
-            { label: 'Actions', slug: 'docs/brew/actions' },
-            { label: 'Templates', slug: 'docs/brew/templates' },
-            { label: 'Lifecycle', slug: 'docs/brew/lifecycle' },
-            { label: 'Forms', slug: 'docs/brew/forms' },
-            { label: 'Nesting, islands & lazy', slug: 'docs/brew/nesting' },
-            { label: 'Pages, navigate & URL', slug: 'docs/brew/pages' },
-            { label: 'File uploads & platform', slug: 'docs/brew/uploads' },
-            { label: 'DX commands & tooling', slug: 'docs/brew/dx' },
-            { label: 'Browser events', slug: 'docs/brew/events' },
-            { label: 'JavaScript', slug: 'docs/brew/javascript' },
-            { label: 'Testing', slug: 'docs/brew/testing' },
-          ],
-        },
+        { label: 'Brew', slug: 'docs/brew' },
         { label: 'Inertia', slug: 'docs/inertia' },
         { label: 'Vite / asset bundling', slug: 'docs/assets/vite' },
         { label: 'Starter kits', slug: 'docs/starter-kits' },
