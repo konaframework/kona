@@ -64,7 +64,14 @@ export async function buildSidebar() {
             { label: 'steam', slug: 'docs/steam' },
           ],
         },
-        { label: 'Events', slug: 'docs/events' },
+        {
+          label: 'Events',
+          items: [
+            { label: 'Overview', slug: 'docs/events' },
+            { label: 'Dispatching & listeners', slug: 'docs/events/dispatching' },
+            { label: 'Testing', slug: 'docs/events/testing' },
+          ],
+        },
         {
           label: 'Queues',
           items: [
