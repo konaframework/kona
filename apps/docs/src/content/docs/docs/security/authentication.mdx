@@ -5,7 +5,7 @@ description: Guards, the Auth facade, remember cookies, middleware, hashing, pas
 
 Authentication answers: *who is this request?* Kona ships session guards for browsers, bearer-token guards for APIs, password hashing, reset brokers, and middleware that gate routes.
 
-`AuthServiceProvider` registers hashing, an in-memory user provider, `web` + `api` guards, the password broker, personal access tokens, and the `Auth` facade.
+`AuthServiceProvider` registers hashing, an in-memory user provider (swap in `CadenceUserProvider` for Cadence models), `web` + `api` guards, the password broker, personal access tokens, and the `Auth` facade.
 
 ## Simple path
 
@@ -66,7 +66,34 @@ When `login` / `attempt` is called with `remember = true`:
 
 On a later visit with no session id, `SessionGuard` recalls the user from the cookie and `viaRemember()` returns true. Logout clears the token and queues a forgetting cookie.
 
-`UserProvider.retrieveByToken` / `updateRememberToken` power this; `InMemoryUserProvider` implements both.
+`UserProvider.retrieveByToken` / `updateRememberToken` power this; `InMemoryUserProvider` and `CadenceUserProvider` both implement them.
+
+### Cadence user provider
+
+For apps whose users live in Cadence models, register `CadenceUserProvider` instead of (or alongside) the in-memory provider. The model must implement `Authenticatable` and expose credential columns (typically `email` + `password`) plus optional `remember_token`:
+
+```kotlin
+class User : Cadence<User>(), Authenticatable {
+    override val fillable = setOf("email", "password", "remember_token")
+    companion object : CadenceCompanion<User>(User::class.java)
+    override fun getAuthIdentifier(): Any = getAttribute("id")!!
+    override fun getAuthPassword(): String = getAttribute("password")?.toString() ?: ""
+    override fun getRememberToken(): String? = getAttribute("remember_token")?.toString()
+    override fun setRememberToken(token: String?) { setAttribute("remember_token", token) }
+}
+
+val users = CadenceUserProvider(User::class.java, Hash.manager().driver())
+auth.provider("users", users)
+auth.extend("web", SessionGuard("web", users))
+```
+
+```java
+CadenceUserProvider<User> users = new CadenceUserProvider<>(User.class, Hash.manager().driver());
+auth.provider("users", users);
+auth.extend("web", new SessionGuard("web", users));
+```
+
+Credential keys other than the password key become equality filters on the model query. Remember-token updates call `save()` on the model.
 
 ## Middleware
 
@@ -92,11 +119,13 @@ Hash.check("secret", hash)
 Hash.needsRehash(hash)
 ```
 
-**Bcrypt** is the default (`hash.rounds`, default 10). Passwords longer than 72 bytes are truncated to bcrypt’s limit. Register another `Hasher` with `HashManager.extend` when you need a different algorithm.
+**Bcrypt** is the default (`hash.driver=bcrypt`, `hash.rounds` default 10). Passwords longer than 72 bytes are truncated to bcrypt’s limit.
+
+**Argon2id** is registered as `argon2` / `argon2id`. Switch the default with `hash.driver=argon2` (optional `hash.argon2.memory`, `hash.argon2.iterations`, `hash.argon2.parallelism`). Register another `Hasher` with `HashManager.extend` when you need a custom algorithm.
 
 ## Password resets
 
-`PasswordBroker` issues in-memory reset tokens and applies resets through a callback:
+`PasswordBroker` issues reset tokens through a `PasswordResetTokenRepository` and applies resets through a callback. The default store is in-memory (`auth.passwords.driver=array`). For durable tokens that survive restarts, set `auth.passwords.driver=database` (optional `auth.passwords.table`) and ensure `Database` is registered before `AuthServiceProvider`.
 
 ```kotlin
 val token = broker.createToken(mapOf("email" to email))
@@ -105,10 +134,14 @@ val result = broker.reset(mapOf("email" to email, "token" to token, "password" t
 }
 ```
 
+You can also construct `PasswordBroker(..., tokens = DatabasePasswordResetTokenRepository(connection))` explicitly.
+
 For form validation rule lists, use `PasswordRules.min(8)` / `PasswordRules.confirmed()` with the HTTP validator (see [Validation](/docs/http/validation/)).
 
 ## API tokens
 
 `PersonalAccessTokenManager.create(user, name, abilities)` returns a plain-text token once (`id|secret`) and stores a SHA-256 hash. Check abilities with `token.can("read")` / `token.cant("write")`.
+
+The default repository is in-memory (`auth.tokens.driver=array`). Set `auth.tokens.driver=database` (optional `auth.tokens.table`) for JDBC-backed tokens, or pass `DatabasePersonalAccessTokenRepository` when constructing the manager.
 
 Authenticate with bearer tokens via `TokenGuard` or `AuthenticateWithToken` middleware.

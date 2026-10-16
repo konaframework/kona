@@ -3,6 +3,7 @@ package dev.kona.auth
 import dev.kona.auth.authorization.Gate
 import dev.kona.auth.hashing.BcryptHasher
 import dev.kona.auth.passwords.HasPasswordEmail
+import dev.kona.auth.passwords.InMemoryPasswordResetTokenRepository
 import dev.kona.auth.passwords.PasswordBroker
 import dev.kona.auth.passwords.PasswordResetCallback
 import dev.kona.auth.passwords.PasswordResetResult
@@ -177,8 +178,8 @@ class BranchExhaustionTest {
         val token2 = broker.createToken(mapOf("email" to "m@e.c"))!!
         val expiredClock = Clock.fixed(Instant.parse("2020-01-01T02:00:00Z"), ZoneOffset.UTC)
         val broker2 = PasswordBroker(mailUsers, hasher, expire = Duration.ofMinutes(1), clock = expiredClock)
-        // copy token into broker2 via create on same map - use shared tokens map
-        val shared = java.util.concurrent.ConcurrentHashMap<String, PasswordBroker.ResetRecord>()
+        // Shared repository so expiry can be observed across broker clocks.
+        val shared = InMemoryPasswordResetTokenRepository()
         val b1 = PasswordBroker(mailUsers, hasher, Duration.ofMinutes(1), clock, shared)
         val t3 = b1.createToken(mapOf("email" to "m@e.c"))!!
         assertTrue(b1.tokenValid("m@e.c", t3))
@@ -192,6 +193,8 @@ class BranchExhaustionTest {
         )
         b1.deleteToken("m@e.c")
         b1.clear()
+        assertNotNull(token2)
+        assertNotNull(broker2)
 
         // Gate assignable policy
         open class Animal

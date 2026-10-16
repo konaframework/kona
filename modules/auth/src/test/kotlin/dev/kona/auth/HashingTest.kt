@@ -1,5 +1,6 @@
 package dev.kona.auth
 
+import dev.kona.auth.hashing.Argon2Hasher
 import dev.kona.auth.hashing.BcryptHasher
 import dev.kona.auth.hashing.HashManager
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -30,10 +31,12 @@ class HashingTest {
 
     @Test
     fun hashManagerDriversAndFacade() {
-        val manager = HashManager(defaultRounds = 4)
+        val manager = HashManager(defaultRounds = 4, argon2Memory = 16, argon2Iterations = 1, argon2Parallelism = 1)
         assertEquals("bcrypt", manager.getDefaultDriver())
         assertTrue(manager.check("x", manager.make("x")))
         assertFalse(manager.needsRehash(manager.make("x")))
+        assertTrue(manager.driver("argon2") is Argon2Hasher)
+        assertTrue(manager.driver("argon2id").check("z", manager.driver("argon2id").make("z")))
 
         val custom = BcryptHasher(5)
         manager.extend("slow", custom)
