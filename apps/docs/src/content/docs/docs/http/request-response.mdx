@@ -260,6 +260,7 @@ Static factories cover the common cases. Body factories set a `Content-Type` for
 | `Response.redirect(to, status)` | Empty, status `302` by default | Sets `Location` |
 | `Response.back(request, fallback, status)` | Empty redirect | Previous URL → `Referer` → `fallback` |
 | `Response.binary(bytes, contentType, status)` | Raw bytes | Defaults to `application/octet-stream` |
+| `Response.stream(writer, contentType, status)` | Bytes produced by writing to an `OutputStream` (buffered in memory for adapters) | Defaults to `application/octet-stream` |
 | `Response.file(bytes|path, …)` | Inline file bytes | Optional `Content-Disposition: inline` |
 | `Response.download(bytes|path, filename, …)` | Attachment bytes | `Content-Disposition: attachment` |
 
@@ -267,7 +268,7 @@ Static factories cover the common cases. Body factories set a `Content-Type` for
 
 Binary factories set `bodyBytes()` so the embedded server writes the payload without UTF-8 re-encoding. Prefer them for PDFs, images, and anything that is not text.
 
-Chain `header(name, value)`, `withHeaders(map)`, `cookie(...)`, `withStatus`, and `withBody` / `withBodyBytes` on any response. Streaming response bodies are not shipped yet — large downloads still load into memory via `file` / `download` / `binary`.
+Chain `header(name, value)`, `withHeaders(map)`, `cookie(...)`, `withStatus`, and `withBody` / `withBodyBytes` on any response. `Response.stream` lets app code write incrementally to an `OutputStream`; the result is buffered so every server adapter can emit a complete body today.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

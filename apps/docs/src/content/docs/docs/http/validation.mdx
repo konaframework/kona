@@ -183,9 +183,20 @@ Field names in messages have underscores replaced by spaces: `first_name` appear
 | `sometimes` | Skip the whole field when it is absent | — |
 | `accepted` | `yes`, `on`, `1`, or `true` (case-insensitive) | `The terms field must be accepted.` |
 | `declined` | `no`, `off`, `0`, or `false` | `The marketing field must be declined.` |
+| `accepted_if:field,value` | Must be accepted when another field equals `value` | `…must be accepted when role is admin.` |
+| `declined_if:field,value` | Must be declined when another field equals `value` | `…must be declined when role is admin.` |
+| `prohibited` | Field must be missing or empty | `…is prohibited.` |
+| `prohibited_if:field,value` | Prohibited when another field equals `value` | `…is prohibited when role is admin.` |
+| `prohibited_unless:field,value` | Prohibited unless another field equals `value` | `…is prohibited unless role is admin.` |
+| `prohibits:a,b` | When this field is present, listed fields must be empty | `…prohibits a / b from being present.` |
+| `exclude` | Drop the field from validated output (always) | — |
+| `exclude_if` / `exclude_unless` / `exclude_with` / `exclude_without` | Conditionally omit the field from validated output | — |
+| `current_password` | Matches the authenticated user’s password via `Validator.setCurrentPasswordChecker` | `…is incorrect.` |
 | `alpha` / `alpha_num` / `alpha_dash` | Letters only / letters+digits / letters+digits+`-`+`_` | `…must only contain letters.` |
 | `ascii` | ASCII characters only | `…must only contain ASCII characters.` |
 | `uuid` | A UUID string | `…must be a valid UUID.` |
+| `ulid` | A 26-character ULID string | `…must be a valid ULID.` |
+| `mac_address` | MAC (`aa:bb:…`, `aa-bb-…`, or `aabb.ccdd.eeff`) | `…must be a valid MAC address.` |
 | `json` | A JSON object or array string | `…must be a valid JSON string.` |
 | `ip` / `ipv4` / `ipv6` | IP address (IPv4 uses a dotted-quad check; IPv6 via the JDK) | `…must be a valid IP address.` |
 | `timezone` | A JDK zone id such as `UTC` or `America/New_York` | `…must be a valid timezone.` |
