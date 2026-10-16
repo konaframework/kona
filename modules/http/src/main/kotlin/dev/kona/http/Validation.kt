@@ -31,6 +31,7 @@ class Validator(
     private val rules: Map<String, List<String>>,
 ) {
     private val errors = linkedMapOf<String, MutableList<String>>()
+    private val excluded = linkedSetOf<String>()
 
     fun fails(): Boolean {
         runRules()
@@ -45,11 +46,12 @@ class Validator(
         if (fails()) {
             throw ValidationException(errors())
         }
-        return data.filterKeys { rules.containsKey(it) }
+        return data.filterKeys { rules.containsKey(it) && it !in excluded }
     }
 
     private fun runRules() {
         errors.clear()
+        excluded.clear()
         rules.forEach { (field, fieldRules) -> validateField(field, fieldRules.flatMap(::split).map(::ParsedRule)) }
     }
 
@@ -62,6 +64,19 @@ class Validator(
         }
         val context = Context(field, value, "numeric" in names || "integer" in names || "digits" in names, data)
         for (rule in parsed) {
+            if (rule.name in EXCLUDE_RULES) {
+                val exclude = try {
+                    shouldExclude(rule, context)
+                } catch (_: IllegalArgumentException) {
+                    add(field, "Invalid validation rule [${rule.raw}].")
+                    continue
+                }
+                if (exclude) {
+                    excluded.add(field)
+                    return
+                }
+                continue
+            }
             if (rule.name == "sometimes" || rule.name == "nullable" || rule.name == "bail") {
                 continue
             }
@@ -130,15 +145,36 @@ class Validator(
         private val ALPHA_DASH = Regex("^[\\p{L}\\p{N}_-]+$")
         private val ASCII = Regex("^[\\x00-\\x7F]*$")
         private val DIGITS = Regex("^\\d+$")
+        private val ULID = Regex("^[0-7][0-9A-HJKMNP-TV-Z]{25}$", RegexOption.IGNORE_CASE)
+        private val MAC = Regex(
+            "^([0-9A-Fa-f]{2}([-:])){5}([0-9A-Fa-f]{2})$|^([0-9A-Fa-f]{4}\\.){2}([0-9A-Fa-f]{4})$",
+        )
         private val IPV4 = Regex(
             "^((25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$",
         )
+
+        @Volatile
+        private var currentPasswordChecker: CurrentPasswordChecker? = null
+
+        /** Register a checker for the `current_password` rule (typically wired to the auth hasher). */
+        @JvmStatic
+        fun setCurrentPasswordChecker(checker: CurrentPasswordChecker?) {
+            currentPasswordChecker = checker
+        }
         private val REGEX_FLAGS: Map<Char, Set<RegexOption>> = mapOf(
             'i' to setOf(RegexOption.IGNORE_CASE),
             'm' to setOf(RegexOption.MULTILINE),
             's' to setOf(RegexOption.DOT_MATCHES_ALL),
             'x' to setOf(RegexOption.COMMENTS),
             'u' to emptySet(),
+        )
+
+        private val EXCLUDE_RULES = setOf(
+            "exclude",
+            "exclude_if",
+            "exclude_unless",
+            "exclude_with",
+            "exclude_without",
         )
 
         private val IMPLICIT = setOf(
@@ -151,6 +187,13 @@ class Validator(
             "required_without",
             "required_with_all",
             "required_without_all",
+            "prohibited",
+            "prohibited_if",
+            "prohibited_unless",
+            "prohibits",
+            "accepted_if",
+            "declined_if",
+            "current_password",
         )
 
         private val MIN = mapOf(
@@ -521,6 +564,91 @@ class Validator(
             },
             "exists" to { p -> existenceRule(p, unique = false) },
             "unique" to { p -> existenceRule(p, unique = true) },
+            "ulid" to { _ -> { c -> fail(!isUlid(c.value), c, "must be a valid ULID.") } },
+            "mac_address" to { _ ->
+                { c -> fail(!isMacAddress(c.value), c, "must be a valid MAC address.") }
+            },
+            "prohibited" to { _ ->
+                { c ->
+                    fail(!isEmptyValue(c.value), c, "is prohibited.")
+                }
+            },
+            "prohibited_if" to { p ->
+                val (other, expected) = otherAndExpected(p)
+                check { c ->
+                    if (!fieldEquals(c.data, other, expected)) {
+                        null
+                    } else {
+                        fail(!isEmptyValue(c.value), c, "is prohibited when $other is $expected.")
+                    }
+                }
+            },
+            "prohibited_unless" to { p ->
+                val (other, expected) = otherAndExpected(p)
+                check { c ->
+                    if (fieldEquals(c.data, other, expected)) {
+                        null
+                    } else {
+                        fail(!isEmptyValue(c.value), c, "is prohibited unless $other is $expected.")
+                    }
+                }
+            },
+            "prohibits" to { p ->
+                val others = required(p).split(',')
+                check { c ->
+                    if (isEmptyValue(c.value)) {
+                        null
+                    } else if (others.any { !isEmptyValue(c.data[it]) }) {
+                        fail(true, c, "prohibits ${others.joinToString(" / ")} from being present.")
+                    } else {
+                        null
+                    }
+                }
+            },
+            "accepted_if" to { p ->
+                val (other, expected) = otherAndExpected(p)
+                check { c ->
+                    if (!fieldEquals(c.data, other, expected)) {
+                        null
+                    } else if (c.value == null) {
+                        fail(true, c, "must be accepted when $other is $expected.")
+                    } else {
+                        fail(
+                            c.value.toString().trim().lowercase() !in ACCEPTED,
+                            c,
+                            "must be accepted when $other is $expected.",
+                        )
+                    }
+                }
+            },
+            "declined_if" to { p ->
+                val (other, expected) = otherAndExpected(p)
+                check { c ->
+                    if (!fieldEquals(c.data, other, expected)) {
+                        null
+                    } else if (c.value == null) {
+                        fail(true, c, "must be declined when $other is $expected.")
+                    } else {
+                        fail(
+                            c.value.toString().trim().lowercase() !in DECLINED,
+                            c,
+                            "must be declined when $other is $expected.",
+                        )
+                    }
+                }
+            },
+            "current_password" to { _ ->
+                check { c ->
+                    val checker = currentPasswordChecker
+                    if (checker == null) {
+                        return@check "The ${c.label} field current_password rule requires a CurrentPasswordChecker."
+                    }
+                    if (c.value == null) {
+                        return@check fail(true, c, "is incorrect.")
+                    }
+                    fail(!checker.check(c.value.toString()), c, "is incorrect.")
+                }
+            },
         )
 
         @JvmStatic
@@ -532,6 +660,43 @@ class Validator(
             Validator(request.data(), rules)
 
         private fun check(body: (Context) -> String?): (Context) -> String? = body
+
+        private fun shouldExclude(rule: ParsedRule, context: Context): Boolean {
+            if (rule.name == "exclude") {
+                return true
+            }
+            if (rule.name == "exclude_if") {
+                val (other, expected) = otherAndExpected(rule.param)
+                return fieldEquals(context.data, other, expected)
+            }
+            if (rule.name == "exclude_unless") {
+                val (other, expected) = otherAndExpected(rule.param)
+                return !fieldEquals(context.data, other, expected)
+            }
+            if (rule.name == "exclude_with") {
+                val others = required(rule.param).split(',')
+                return others.any { !isEmptyValue(context.data[it]) }
+            }
+            // exclude_without
+            val others = required(rule.param).split(',')
+            return others.any { isEmptyValue(context.data[it]) }
+        }
+
+        /** Parses `other,expected` rule parameters (comma required). */
+        private fun otherAndExpected(param: String?): Pair<String, String> {
+            val raw = required(param)
+            val comma = raw.indexOf(',')
+            if (comma <= 0 || comma >= raw.length - 1) {
+                throw IllegalArgumentException("expected other,value")
+            }
+            return raw.substring(0, comma) to raw.substring(comma + 1)
+        }
+
+        private fun isUlid(value: Any?): Boolean =
+            value is String && value.length == 26 && ULID.matches(value)
+
+        private fun isMacAddress(value: Any?): Boolean =
+            value is String && MAC.matches(value.trim())
 
         private fun split(rule: String): List<String> =
             if (rule.startsWith("regex:") || rule.startsWith("not_regex:")) {
@@ -834,6 +999,11 @@ fun interface ExistenceChecker {
      * @return true when a matching row exists
      */
     fun exists(table: String, column: String, value: Any?, exceptId: String?): Boolean
+}
+
+/** Optional probe for the `current_password` rule (plain password → matches authenticated user). */
+fun interface CurrentPasswordChecker {
+    fun check(plainPassword: String): Boolean
 }
 
 class ValidationException(

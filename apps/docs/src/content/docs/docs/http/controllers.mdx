@@ -48,6 +48,23 @@ Inline handler lambdas work the same way when you do not need a controller class
 
 Generate stubs with [`./grind make:controller Name`](../../grind/commands/#grind-makecontroller). Use `--resource` when you want REST method stubs ready for [`router.resource(...)`](../routing/#resource-routes) / [`router.apiResource(...)`](../routing/#api-resource-routes).
 
+## Controller middleware
+
+Register middleware on a `Controller` subclass (typically in `init` / the constructor). Use `only` / `except` to limit which action names receive it. When you register routes, wrap the handler with `controller.action("methodName", handler)` so that middleware runs. `router.resource` / `apiResource` apply controller middleware automatically for `Controller` instances.
+
+```kotlin
+class ProjectController : Controller() {
+    init {
+        middleware(Authenticate(auth))
+        middleware(Authorize("update", Project::class.java), only = listOf("update"))
+    }
+
+    fun show(request: Request): Response = Response.json(/* … */)
+}
+
+router.get("/projects/{id}", projects.action("show") { projects.show(it) })
+```
+
 ## Base controller
 
 Extend `Controller` when you want the shared `validate` helpers:
