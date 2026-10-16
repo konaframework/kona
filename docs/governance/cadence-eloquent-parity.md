@@ -7,8 +7,8 @@ Living audit of `dev.kona.cadence` against Laravel Eloquent / query builder / da
 | Meta | Value |
 |------|--------|
 | Last audit | 2026-10-16 (B6) |
-| Last merged deepen | PR #85 (Extract → Cadence rename) |
-| Active deepen | **B6** shipping — withAvg/Max/Min, push, sole, keyed pluck, union/crossJoin, MorphTo whereHas, BelongsToMany firstOrCreate, accessors, native upsert, MySQL/SQLite DDL |
+| Last merged deepen | PR #87 (B6 Eloquent parity) |
+| Active deepen | **none** — B1–B6 closed; next deepen is Security / HTTP / Queues / Support |
 
 ---
 
@@ -101,7 +101,7 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Data
 | **B3** | Global scopes | **done** (#71) |
 | **B4** | morphToMany / morphedByMany | **done** (#73) |
 | **B5** | Observer class registration | **done** (pre-rename) |
-| **B6** | withAvg/Max/Min; push; sole; keyed pluck; union/crossJoin; MorphTo whereHas; BelongsToMany firstOrCreate; accessors; native upsert; MySQL/SQLite DDL | **shipping** |
+| **B6** | withAvg/Max/Min; push; sole; keyed pluck; union/crossJoin; MorphTo whereHas; BelongsToMany firstOrCreate; accessors; native upsert; MySQL/SQLite DDL | **done** (#87) |
 
 ---
 

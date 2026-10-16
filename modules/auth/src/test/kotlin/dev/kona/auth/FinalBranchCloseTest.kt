@@ -1,6 +1,7 @@
 package dev.kona.auth
 
 import dev.kona.auth.hashing.BcryptHasher
+import dev.kona.auth.passwords.InMemoryPasswordResetTokenRepository
 import dev.kona.auth.passwords.PasswordBroker
 import dev.kona.auth.passwords.PasswordResetResult
 import dev.kona.auth.session.SessionAttributes
@@ -361,13 +362,13 @@ class FinalBranchCloseTest {
 
         val fixed = Clock.fixed(Instant.parse("2020-01-01T00:00:00Z"), ZoneOffset.UTC)
         val lateClock = Clock.fixed(Instant.parse("2020-01-01T00:00:05Z"), ZoneOffset.UTC)
-        val shared = java.util.concurrent.ConcurrentHashMap<String, PasswordBroker.ResetRecord>()
+        val shared = InMemoryPasswordResetTokenRepository()
         val early = PasswordBroker(brokerUsers, hasher, Duration.ofSeconds(1), fixed, shared)
         val expiredTok = early.createToken(mapOf("id" to 42))!!
         val late = PasswordBroker(brokerUsers, hasher, Duration.ofSeconds(1), lateClock, shared)
         assertFalse(late.tokenValid("42", expiredTok))
 
-        val shared3 = java.util.concurrent.ConcurrentHashMap<String, PasswordBroker.ResetRecord>()
+        val shared3 = InMemoryPasswordResetTokenRepository()
         val early3 = PasswordBroker(brokerUsers, hasher, Duration.ofSeconds(1), fixed, shared3)
         val plainExpired = early3.createToken(mapOf("id" to 42))!!
         val late3 = PasswordBroker(brokerUsers, hasher, Duration.ofSeconds(1), lateClock, shared3)

@@ -4,13 +4,13 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 
 **Status legend:** `done` | `partial` | `missing`
 
-**Ownership:** This deepen owns `modules/auth`, `modules/session` (session/CSRF only), Security docs, and `grind make:policy`. Does **not** own HTTP Request/Response/Validation, Cadence, or other grind commands.
+**Ownership:** This deepen owns `modules/auth`, `modules/session` (session/CSRF only), Security docs, and `grind make:policy`. Does **not** own HTTP Request/Response/Validation, Cadence ORM internals, or other grind commands.
 
 | Meta | Value |
 |------|--------|
-| Last audit | 2026-10-15 |
-| Baseline on `main` | M3 (#9); M17 session scaffold; M21 form round-trip; docs IA #62 |
-| Active deepen | Batch 1 closed (PR pending) |
+| Last audit | 2026-10-16 |
+| Baseline on `main` | M3 (#9); M17 session scaffold; M21 form round-trip; docs IA #62; Batch 1 #66 |
+| Active deepen | Batch 2 — CadenceUserProvider + durable stores + Argon2 |
 
 ---
 
@@ -25,7 +25,7 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 | `Auth` facade | **done** | Batch 1 |
 | Middleware `Authenticate` / `RedirectIfAuthenticated` / `AuthenticateSession` | **done** | Batch 1 |
 | Intended URL | **done** | `Authenticate.INTENDED_KEY` |
-| Cadence `UserProvider` | **missing** | Deferred (Cadence deepen) |
+| Cadence `UserProvider` | **done** | Batch 2 `CadenceUserProvider` |
 
 ## 2. Authorization
 
@@ -51,7 +51,9 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 |-----|--------|----------|
 | Encrypter + APP_KEY | **done** | `Encrypter` |
 | Hash make/check/needsRehash | **done** | `Hash` / `BcryptHasher` |
-| Password broker | **done** | `PasswordBroker` |
+| Argon2id hasher | **done** | Batch 2 `Argon2Hasher` (`argon2` / `argon2id`) |
+| Password broker | **done** | `PasswordBroker` + `PasswordResetTokenRepository` |
+| Durable password-reset DB store | **done** | Batch 2 `DatabasePasswordResetTokenRepository` |
 | `PasswordRules` helper | **done** | Batch 1 |
 
 ## 5. Tokens / rate limit / headers
@@ -59,6 +61,7 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 | API | Status | Evidence |
 |-----|--------|----------|
 | PAT + `can` / `cant` | **done** | Batch 1 `cant` |
+| Durable PAT DB store | **done** | Batch 2 `DatabasePersonalAccessTokenRepository` |
 | Throttle + named limiters | **done** | + `RateLimit.perMinute` factories |
 | Security headers / CORS | **done** | Middleware |
 
@@ -66,17 +69,16 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 
 | Page | Status |
 |------|--------|
-| security/* guides | **enrich** Batch 1 |
-| Sidebar Security group | **done** (#62); merge duplicate reference |
+| security/* guides | **done** Batch 2 authentication enrich |
+| Sidebar Security group | **done** (#62) |
 
 ## Closed batches
 
 | Batch | PR | Summary |
 |-------|-----|---------|
 | 1 | [#66](https://github.com/konaframework/kona/pull/66) | Auth facade; once/validate/loginUsingId/viaRemember; remember cookie; Authenticate / RedirectIfAuthenticated / AuthenticateSession / Authorize; Gate any/none/before/discoverPolicy; PasswordRules; RateLimit factories; make:policy; security docs enrich |
+| 2 | shipping | CadenceUserProvider; PasswordResetTokenRepository + Database store; DatabasePersonalAccessTokenRepository; Argon2Hasher; config drivers; docs |
 
 ## Deferrals
 
-- Durable password-reset / PAT DB stores
-- Cadence-backed `UserProvider`
-- Argon2 hasher (optional)
+- None remaining in Security deepen scope.

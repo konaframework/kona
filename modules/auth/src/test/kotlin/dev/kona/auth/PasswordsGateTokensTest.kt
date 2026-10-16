@@ -4,6 +4,7 @@ import dev.kona.auth.authorization.AuthorizationException
 import dev.kona.auth.authorization.Gate
 import dev.kona.auth.authorization.Policy
 import dev.kona.auth.hashing.BcryptHasher
+import dev.kona.auth.passwords.InMemoryPasswordResetTokenRepository
 import dev.kona.auth.passwords.PasswordBroker
 import dev.kona.auth.passwords.PasswordResetCallback
 import dev.kona.auth.passwords.PasswordResetResult
@@ -23,7 +24,6 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
-import java.util.concurrent.ConcurrentHashMap
 
 class PasswordsGateTokensTest {
     private val hasher = BcryptHasher(4)
@@ -68,13 +68,15 @@ class PasswordsGateTokensTest {
         assertFalse(broker.tokenValid("a@b.c", token))
         assertTrue(hasher.check("new", current.getAuthPassword()))
 
-        val store = ConcurrentHashMap<String, PasswordBroker.ResetRecord>()
+        val store = InMemoryPasswordResetTokenRepository()
         val plain = "plain-token-value"
-        store["a@b.c"] = PasswordBroker.ResetRecord(
-            email = "a@b.c",
-            tokenHash = hasher.make(plain),
-            userId = 1,
-            createdAt = Instant.parse("2020-01-01T00:00:00Z"),
+        store.save(
+            PasswordBroker.ResetRecord(
+                email = "a@b.c",
+                tokenHash = hasher.make(plain),
+                userId = 1,
+                createdAt = Instant.parse("2020-01-01T00:00:00Z"),
+            ),
         )
         val expired = PasswordBroker(
             users,
@@ -84,11 +86,13 @@ class PasswordsGateTokensTest {
             store,
         )
         assertFalse(expired.tokenValid("a@b.c", plain))
-        store["a@b.c"] = PasswordBroker.ResetRecord(
-            email = "a@b.c",
-            tokenHash = hasher.make(plain),
-            userId = 1,
-            createdAt = Instant.parse("2020-01-01T00:00:00Z"),
+        store.save(
+            PasswordBroker.ResetRecord(
+                email = "a@b.c",
+                tokenHash = hasher.make(plain),
+                userId = 1,
+                createdAt = Instant.parse("2020-01-01T00:00:00Z"),
+            ),
         )
         assertEquals(
             PasswordResetResult.EXPIRED_TOKEN,
@@ -104,12 +108,14 @@ class PasswordsGateTokensTest {
         idBroker.clear()
 
         // INVALID_USER when token ok but user removed
-        val goneStore = ConcurrentHashMap<String, PasswordBroker.ResetRecord>()
-        goneStore["gone@x"] = PasswordBroker.ResetRecord(
-            email = "gone@x",
-            tokenHash = hasher.make("t"),
-            userId = 999,
-            createdAt = Instant.now(),
+        val goneStore = InMemoryPasswordResetTokenRepository()
+        goneStore.save(
+            PasswordBroker.ResetRecord(
+                email = "gone@x",
+                tokenHash = hasher.make("t"),
+                userId = 999,
+                createdAt = Instant.now(),
+            ),
         )
         val goneBroker = PasswordBroker(users, hasher, tokens = goneStore)
         assertEquals(

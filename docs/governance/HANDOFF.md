@@ -17,10 +17,11 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
-| Cadence rename | **done** on `main` (#85); brew cutover #9 |
-| Active | Cadence B6 deepen (withAvg/Max/Min, push, sole, keyed pluck, union/crossJoin, MorphTo whereHas, BelongsToMany firstOrCreate, accessors, native upsert, MySQL/SQLite DDL) |
-| Next after B6 | Security deepen (CadenceUserProvider, durable password-reset/PAT stores, Argon2); then HTTP niche validation; full queue batches; Collections/Helpers audit |
-| Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B5 done; B6 shipping |
+| Cadence rename | **done** on `main` (#85); B6 Eloquent deepen **done** (#87) |
+| Active | Security deepen Batch 2 (CadenceUserProvider, durable reset/PAT, Argon2) — shipping |
+| Next after Security | HTTP niche validation rules; full queue batches (`then`/`catch` + DB repo); Collections/Helpers audit |
+| Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B6 **done** |
+| Security ledger | [security-laravel-parity.md](security-laravel-parity.md) — Batch 2 shipping |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -33,20 +34,19 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
+| Cadence B6 Eloquent parity | #87 |
+| Docs Crema guides + named slots | #86 |
 | Extract → Cadence rename | #85 |
-| Brew Cadence cutover | kona-brew #9 |
-| Docs Crema guides | #86 |
+| Brew cutover + M1 docs | #79 |
 | Cadence B4 morphToMany | #73 |
 | Cadence B3 global scopes | #71 |
-| Cadence B2 whereDate* | #70 |
-| Cadence B1 builder + DB docs | #65 |
 | M24 Executable config | #53 |
 
 ### Notes
 
-- Strong next: CadenceUserProvider + session auth wiring; durable password-reset / PAT DB stores.
+- Cadence B6 closed on `main`. Do **not** revive Extract names.
 - **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
-- Do **not** revive Extract names.
+- Brew Livewire parity lives in `kona-brew` — do not expand Brew here.
 
 ## Commands
 
