@@ -108,16 +108,26 @@ class Router {
     ): Router {
         val selected = filterActions(actions, only, except)
         for (action in selected) {
+            val handler = resourceHandler(controller, action)
             val route = when (action.verb) {
-                ResourceVerb.GET -> get(action.uri(name)) { action.dispatch(controller, it) }
-                ResourceVerb.POST -> post(action.uri(name)) { action.dispatch(controller, it) }
+                ResourceVerb.GET -> get(action.uri(name), handler)
+                ResourceVerb.POST -> post(action.uri(name), handler)
                 ResourceVerb.MATCH_UPDATE ->
-                    match(listOf("PUT", "PATCH"), action.uri(name)) { action.dispatch(controller, it) }
-                ResourceVerb.DELETE -> delete(action.uri(name)) { action.dispatch(controller, it) }
+                    match(listOf("PUT", "PATCH"), action.uri(name), handler)
+                ResourceVerb.DELETE -> delete(action.uri(name), handler)
             }
             route.name("$name.${action.name}")
         }
         return this
+    }
+
+    private fun resourceHandler(controller: ResourceController, action: ResourceAction): Handler {
+        val dispatch = Handler { request -> action.dispatch(controller, request) }
+        return if (controller is Controller) {
+            controller.action(action.name, dispatch)
+        } else {
+            dispatch
+        }
     }
 
     private fun filterActions(

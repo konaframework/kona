@@ -3,9 +3,9 @@
 Durable deepen tracker for `kona-http` (and middleware-linked session CSRF only when already in HTTP scope).  
 **Do not edit** `modules/cadence` or `modules/grind` from this workstream.
 
-**Branch:** `feat/http-laravel-parity`  
-**Status:** B1 ready for PR  
-**Updated:** 2026-10-15
+**Branch:** `feat/http-niche-validation`  
+**Status:** B2 shipping  
+**Updated:** 2026-10-16
 
 ## Laws
 
@@ -20,95 +20,65 @@ Durable deepen tracker for `kona-http` (and middleware-linked session CSRF only 
 
 | API | Status | Notes |
 |-----|--------|-------|
-| `input` / `all` / `form` / `query` | done | |
-| `data()` typed JSON + multipart | done | |
-| `validate` | done | |
-| `route` | done | |
-| `file` / `hasFile` / `allFiles` | done | |
-| `expectsJson` / `old` / `session` / cookies | done | |
-| `only` / `except` | **done** | |
-| `boolean` / `booleanValue` (Java) | **done** | |
-| `date` | **done** | |
-| `bearerToken` | **done** | |
-| `ip` / `userAgent` | **done** | |
-| `merge` / `replace` | **done** | |
-| `has` / `filled` / `missing` | **done** | |
-| `whenHas` / `whenFilled` / `whenMissing` | **done** | |
-| `safe` | **done** | after successful `validate` |
+| Core helpers (input/all/validate/…/safe) | **done** | B1 |
+| `only` / `except` / `boolean` / `date` / `bearerToken` / `ip` / `userAgent` / `merge` / `replace` / `has` / `filled` / `missing` / `when*` | **done** | B1 |
 
 ## Response
 
 | API | Status | Notes |
 |-----|--------|-------|
-| `text` / `html` / `json` / `noContent` | done | |
-| `redirect` / `back` | done | |
-| `download` / `file` / `binary` | done | M23 |
-| `cookie` / `with` / `withInput` / `withErrors` | done | |
-| `withHeaders` | **done** | |
-| `stream` | **deferred** | in-memory body; documented |
-| fluent `header` / `withStatus` / `withBody` | done | |
+| Core factories + `withHeaders` | **done** | B1 |
+| `stream` | **done** | B2 — buffered `OutputStream` callback |
 
 ## Middleware
 
 | API | Status | Notes |
 |-----|--------|-------|
-| Pipeline `pipe` | done | |
-| Route + group middleware | done | |
-| Aliases + `web` / `api` stacks (`HttpMiddleware`) | done | |
-| Trust proxies / hosts | done | |
-| Terminable middleware | **done** | |
-| Priority ordering | **done** | global kernel sort |
-| Controller `$middleware` property | **deferred** | next batch if needed |
+| Pipeline / aliases / terminable / priority | **done** | B1 |
+| Controller middleware (`middleware` / `only` / `except` / `action`) | **done** | B2; resource routes auto-apply |
 
 ## Controllers
 
 | API | Status | Notes |
 |-----|--------|-------|
-| Base `Controller` + `FormRequest` | done | |
-| Invokable | done | |
-| Resource / API resource | done | |
-| Typed controller registration (instance + method ref / lambda) | done | Class / `@method` string overloads removed |
-| Middleware on controller | **deferred** | |
+| Base / FormRequest / invokable / resource / typed registration | **done** | |
+| Middleware on controller | **done** | B2 |
 
 ## Validation rules
 
-### Implemented (baseline + B1)
+### Implemented
 
-`required`, `nullable`, `bail`, `sometimes`, `string`, `integer`, `numeric`, `boolean`, `email`, `url`, `array`, `list`, `min`, `max`, `size`, `between`, `in`, `not_in`, `confirmed`, `same`, `different`, `regex`, `not_regex`, `file`, `image`, `mimes`, `mimetypes`, `filled`, `present`, `accepted`, `declined`, `alpha`, `alpha_num`, `alpha_dash`, `ascii`, `uuid`, `json`, `ip`, `ipv4`, `ipv6`, `timezone`, `date`, `date_format`, `after`, `before`, `after_or_equal`, `before_or_equal`, `starts_with`, `ends_with`, `digits`, `digits_between`, `lowercase`, `uppercase`, `distinct`, `required_if`, `required_unless`, `required_with`, `required_without`, `required_with_all`, `required_without_all`, `exists`, `unique`
+Baseline + B1 rules, plus B2 niche:
 
-**Counts:** ~24 baseline → **+34 added in B1** → **~58 total**.  
-**Still missing (common Laravel):** niche rules (`prohibited*`, `exclude*`, `accepted_if`, `declined_if`, `mac_address`, `ulid`, `current_password`, …) — track in later batches.
+`prohibited`, `prohibited_if`, `prohibited_unless`, `prohibits`, `exclude`, `exclude_if`, `exclude_unless`, `exclude_with`, `exclude_without`, `accepted_if`, `declined_if`, `ulid`, `mac_address`, `current_password` (+ `CurrentPasswordChecker`)
 
 ### DB-aware
 
 | Rule | Status | Notes |
 |------|--------|-------|
-| `unique` / `exists` | **done (API)** | `ExistenceChecker` pluggable; Cadence wiring later |
+| `unique` / `exists` | **done (API)** | `ExistenceChecker` pluggable |
 
 ## Exception rendering
 
 | Behavior | Status |
 |----------|--------|
-| ValidationException → JSON 422 when `expectsJson` | done |
-| ValidationException → redirect back + flash | done |
-| HttpException JSON vs HTML | done |
-| report / render callbacks | done |
+| ValidationException / HttpException JSON vs HTML / report-render | **done** |
 
 ## Docs (`apps/docs`)
 
 | Page | Status |
 |------|--------|
-| `http/request-response.mdx` | **updated** |
-| `http/validation.mdx` | **updated** |
-| `http/middleware.mdx` | **updated** |
-| Sidebar / Basics IA | HTTP already under **The basics** (progressive IA) |
+| `http/validation.mdx` | **updated** B2 |
+| `http/request-response.mdx` | **updated** B2 stream |
+| `http/controllers.mdx` | **updated** B2 middleware |
 
 ## PR batches
 
 | Batch | Scope | PR |
 |-------|-------|-----|
-| B1 | Ledger + Request helpers + validation rules + Response.withHeaders + terminable/priority + docs + tests | https://github.com/konaframework/kona/pull/68 |
+| B1 | Request helpers + validation rules + Response.withHeaders + terminable/priority + docs | #68 |
+| B2 | Niche validation + stream + controller middleware + docs | shipping |
 
 ## Close criteria
 
-B1 rows **done** or **deferred** with reason; CI green; automerge to `main`.
+B2 rows **done**; CI green; automerge to `main`.

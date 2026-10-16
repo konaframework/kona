@@ -1,7 +1,10 @@
 package dev.kona.http
 
+import java.io.ByteArrayOutputStream
+import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.function.Consumer
 
 /**
  * HTTP response (Laravel Response shape).
@@ -13,6 +16,7 @@ import java.nio.file.Path
  * `StartSession` before the session is saved (redirect `with` / `withInput` / `withErrors`).
  *
  * Binary payloads use [bodyBytes]; text factories keep UTF-8 [body] and derive bytes on write.
+ * [stream] buffers the callback into memory so every server adapter can serve it today.
  */
 class Response(
     var status: Int = 200,
@@ -165,6 +169,23 @@ class Response(
                 headers = linkedMapOf("Content-Type" to contentType),
                 bodyBytes = bytes,
             )
+
+        /**
+         * Stream-shaped response: [writer] receives an [OutputStream] and may write incrementally.
+         * The result is buffered in memory so sync adapters can emit a complete body
+         * (Laravel `stream` shape for app code; wire chunking can land later).
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun stream(
+            writer: Consumer<OutputStream>,
+            contentType: String = "application/octet-stream",
+            status: Int = 200,
+        ): Response {
+            val buffer = ByteArrayOutputStream()
+            writer.accept(buffer)
+            return binary(buffer.toByteArray(), contentType, status)
+        }
 
         /**
          * Inline file response (Laravel `Response::file` shape).
