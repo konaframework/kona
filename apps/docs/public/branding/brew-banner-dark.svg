@@ -1,50 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 248 120" fill="none" role="img" aria-label="Brew">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 230 100" fill="none" role="img" aria-label="Brew">
   <title>Brew</title>
-  <!-- Wordmark: cup+b lockup + Outfit-weight rew. Transparent background. -->
-  
-  <defs>
-    <linearGradient id="copperBody-bd" x1="14" y1="14" x2="64" y2="108" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#E8B078"/>
-      <stop offset="0.4" stop-color="#D48C46"/>
-      <stop offset="1" stop-color="#A85528"/>
-    </linearGradient>
-    <linearGradient id="copperB-bd" x1="70" y1="12" x2="102" y2="110" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#E8B078"/>
-      <stop offset="0.45" stop-color="#D48C46"/>
-      <stop offset="1" stop-color="#8F4A20"/>
-    </linearGradient>
-    <linearGradient id="rim-bd" x1="16" y1="16" x2="62" y2="40" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F0C090"/>
-      <stop offset="1" stop-color="#BA622A"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Cylindrical mug (three-quarter rim) -->
-  <path fill="url(#copperBody-bd)" d="M16 32C16 22 28 16 40 16C52 16 64 22 64 32L61 96C61 104 52 110 40 110C28 110 19 104 19 96Z"/>
-  <ellipse cx="40" cy="32" rx="24" ry="9" fill="url(#rim-bd)"/>
-  <ellipse cx="40" cy="32" rx="17.5" ry="6" fill="#2A1C12"/>
-
-  <!-- Cream braces printed ON the mug body -->
-  <g fill="none" stroke="#FAEDCD" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M30 52C25.8 52 24.5 56.5 24.5 61C24.5 65.5 25.8 70 30 70"/>
-    <path d="M50 52C54.2 52 55.5 56.5 55.5 61C55.5 65.5 54.2 70 50 70"/>
+  <g fill="#D48C46">
+    <path d="
+      M54 5
+      H65
+      V84
+      C65 90.6 59.6 95 53 95
+      H36
+      C29.4 95 24 90.6 24 84
+      V38
+      H54
+      V5Z"/>
+    <path fill-rule="evenodd" d="
+      M24 44
+      C9 44 7 54 7 65
+      C7 76 9 86 24 86
+      V78.5
+      C15.5 78.5 15.5 72 15.5 65
+      C15.5 58 15.5 51.5 24 51.5
+      V44Z"/>
+    <path fill-rule="evenodd" d="
+      M65 44
+      C80 44 82 54 82 65
+      C82 76 80 86 65 86
+      V78.5
+      C73.5 78.5 73.5 72 73.5 65
+      C73.5 58 73.5 51.5 65 51.5
+      V44Z"/>
   </g>
-
-  <!--
-    Lowercase b integrated with cup:
-    - Stem to the right of the mug
-    - Bowl curves left and joins mug wall at x≈61 (real handle attachment)
-    - evenodd counter = handle opening
-    - leftward foot at stem base
-  -->
-  <path fill="url(#copperB-bd)" fill-rule="evenodd" d="M76 14H92V110H76V102H64V94H76V74C76 74 70 76 61 68C54 62 54 46 61 40C70 32 76 34 76 34V14ZM76 42C76 42 68 44 64 50C61 54 61 60 64 64C68 70 76 68 76 68V42Z"/>
-
-  <g fill="#E5A869">
-  <!-- r -->
-  <path d="M102 110V52h12.5v11.2c3.8-7.2 9.6-11.5 18.2-11.5v13.2c-7.4.2-18.2 3.6-18.2 14.2V110z"/>
-  <!-- e -->
-  <path d="M142.5 81.5h39.5c-.8-14.5-9.8-31.5-20.8-31.5-14.2 0-22.5 12.2-22.5 30.2 0 18.2 10.2 31.8 26.2 31.8 10.2 0 18.2-5.8 22.2-14.2l-11-7.5c-2.2 4.2-6.2 7.5-11.5 7.5-9.5 0-14.8-7.8-14.8-16.3zm6.2-10.2c1.8-8.2 6.2-14.2 12.5-14.2 6.2 0 10.2 5.8 10.5 14.2z"/>
-  <!-- w -->
-  <path d="M194 52h14.2l8.5 42.5 8.8-42.5H240l-13.5 58H210l-7.8-34.5L194.2 110H178z"/>
-</g>
+  <ellipse cx="39.5" cy="41.5" rx="12" ry="5.2" fill="#100C09"/>
+  <rect x="32.5" y="51" width="14" height="30" rx="2.4" fill="#FAEDCD"/>
+  <g fill="none" stroke="#100C09" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M36 58C34 58 33.2 61.5 33.2 66C33.2 70.5 34 74 36 74"/>
+    <path d="M43 58C45 58 45.8 61.5 45.8 66C45.8 70.5 45 74 43 74"/>
+  </g>
+  <g fill="#D48C46">
+    <path d="M98 95V40h11.5v11c3.4-7.2 8.8-11.5 16.8-11.5v12.5c-7.4.2-16.8 3.6-16.8 13.8V95z"/>
+    <path d="M136 70h36.5c-.7-13.5-9-29-19.2-29-13 0-20.6 11.5-20.6 28.5 0 17 9.4 30 24.2 30 9.4 0 16.8-5.4 20.6-13.4l-10.2-6.8c-2.1 4-5.8 7-10.6 7-8.8 0-13.8-7.4-13.8-15.2zm5.8-9.6c1.7-7.6 5.8-13.2 11.6-13.2s9.6 5.4 9.8 13.2z"/>
+    <path d="M184 40h13.2l8 40 8.2-40H230l-12.6 55h-15.4l-7.2-32.5L187.6 95H170z"/>
+  </g>
 </svg>
