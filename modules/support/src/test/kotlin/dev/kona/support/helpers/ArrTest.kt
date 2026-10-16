@@ -60,4 +60,58 @@ class ArrTest {
             Arr.flatten(listOf(1, listOf(2, arrayOf(3, 4)), 5)),
         )
     }
+
+    @Test
+    fun forgetPluckDot() {
+        val map = linkedMapOf<String, Any?>(
+            "a" to 1,
+            "nested" to linkedMapOf<String, Any?>("b" to 2, "c" to 3),
+        )
+        Arr.forget(map, "a")
+        assertFalse(Arr.has(map, "a"))
+        Arr.forget(map, "nested.b")
+        assertFalse(Arr.has(map, "nested.b"))
+        assertTrue(Arr.has(map, "nested.c"))
+        Arr.forget(map, "nested.missing.x")
+        Arr.forget(map, "gone")
+        // Nested scalar → mid-path is not a Map.
+        Arr.forget(linkedMapOf<String, Any?>("a" to "scalar"), "a.b.c")
+        // Nested Map that is not a MutableMap (delegation).
+        val readOnlyNest =
+            object : Map<String, Any?> by mapOf("x" to 1) {}
+        val frozen = linkedMapOf<String, Any?>("nest" to readOnlyNest)
+        Arr.forget(frozen, "nest.x")
+        assertEquals(1, Arr.get(frozen, "nest.x"))
+        // Mid-path missing for longer dots.
+        Arr.forget(linkedMapOf("a" to linkedMapOf<String, Any?>("b" to 1)), "a.missing.z")
+        // UOE path: Map that implements MutableMap but rejects remove.
+        val stubborn =
+            linkedMapOf<String, Any?>(
+                "nest" to
+                    object : LinkedHashMap<String, Any?>() {
+                        init {
+                            put("x", 1)
+                        }
+
+                        override fun remove(key: String): Any? = throw UnsupportedOperationException()
+                    },
+            )
+        Arr.forget(stubborn, "nest.x")
+
+        val rows: List<Map<String, Any?>> =
+            listOf(
+                mapOf("id" to 1, "name" to "a"),
+                mapOf("id" to 2, "name" to "b"),
+                mapOf("name" to "no-id"),
+            )
+        @Suppress("UNCHECKED_CAST")
+        assertEquals(listOf("a", "b", "no-id"), Arr.pluck(rows, "name") as List<*>)
+        @Suppress("UNCHECKED_CAST")
+        assertEquals(mapOf(1 to "a", 2 to "b"), Arr.pluck(rows, "name", "id") as Map<*, *>)
+
+        assertEquals(
+            mapOf("user.name" to "Ada", "user.age" to 1, "x" to 2),
+            Arr.dot(mapOf("user" to mapOf("name" to "Ada", "age" to 1), "x" to 2)),
+        )
+    }
 }

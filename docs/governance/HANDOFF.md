@@ -17,14 +17,12 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
-| Cadence rename | **done** on `main` (#85); brew cutover #9 |
-| Cadence B6 | **done** on `main` (#87) |
-| Security deepen | **done** on `main` (#88) — CadenceUserProvider, durable reset/PAT, Argon2 |
-| HTTP niche validation | **shipping** (#89, automerge) — niche rules, stream, controller middleware |
-| Queue full batches | **shipping** — then/catch/finally, DB `job_batches`, QueueEvents |
-| Active next | Collections/Helpers/Str/Date gap close (support ledger) |
-| Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B6 done |
+| Cadence / Security / HTTP | **done** on `main` (#85–#89) |
+| Queue full batches | **done** on `main` (#90) — then/catch/finally, `job_batches`, QueueEvents |
+| Active | Support Collections/Arr/Str/Date deepen — shipping (#91) |
+| Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B6 **done** |
 | Queue ledger | [queue-schedule-laravel-parity.md](queue-schedule-laravel-parity.md) — full batches closed |
+| Support ledger | [support-laravel-parity.md](support-laravel-parity.md) — Collection deepen |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -37,6 +35,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
+| Queue full batches then/catch/finally + DB repository | #90 |
+| HTTP niche validation / stream / controller middleware | #89 |
 | Security CadenceUserProvider + Argon2 | #88 |
 | Cadence B6 Eloquent parity | #87 |
 | Extract → Cadence rename | #85 |
@@ -50,7 +50,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ### Notes
 
-- Strong next after queue PR merges: Support Collections/Helpers audit to exhaustion.
+- Active: Support Collections/Helpers/Str/Date deepen (#91) to exhaustion.
 - **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
 - Do **not** revive Extract names. Ignore Brew (kona-brew docs already merged).
 

@@ -153,10 +153,207 @@ class Collection<T> private constructor(
         return grouped.mapValues { Collection(it.value) }
     }
 
+    @JvmOverloads
     fun implode(separator: String, transform: (T) -> CharSequence = { it.toString() }): String =
         items.joinToString(separator, transform = transform)
 
+    /** Alias for [implode]. */
+    @JvmOverloads
+    fun join(separator: String, transform: (T) -> CharSequence = { it.toString() }): String =
+        implode(separator, transform)
+
     fun toList(): List<T> = items.toList()
+
+    fun reject(predicate: (T) -> Boolean): Collection<T> =
+        Collection(items.filterNot(predicate))
+
+    fun first(predicate: (T) -> Boolean): T? = items.firstOrNull(predicate)
+
+    fun last(predicate: (T) -> Boolean): T? = items.lastOrNull(predicate)
+
+    /** Filter map-like items where [key] equals [value]. */
+    fun where(key: String, value: Any?): Collection<T> =
+        filter { item -> mapValue(item, key) == value }
+
+    fun firstWhere(key: String, value: Any?): T? = where(key, value).first()
+
+    fun merge(other: Iterable<T>): Collection<T> =
+        Collection(items + other)
+
+    fun concat(other: Iterable<T>): Collection<T> = merge(other)
+
+    /** One-level flatten when items are iterables or nested collections. */
+    @Suppress("UNCHECKED_CAST")
+    fun collapse(): Collection<Any?> {
+        val out = mutableListOf<Any?>()
+        for (item in items) {
+            when (item) {
+                is Collection<*> -> out.addAll(item.toList())
+                is Iterable<*> -> out.addAll(item)
+                is Array<*> -> out.addAll(item)
+                else -> out.add(item)
+            }
+        }
+        return Collection(out)
+    }
+
+    /** Recursive flatten of nested iterables. */
+    fun flatten(): Collection<Any?> = Collection(flattenItems(items))
+
+    fun partition(predicate: (T) -> Boolean): List<Collection<T>> {
+        val pass = mutableListOf<T>()
+        val fail = mutableListOf<T>()
+        for (item in items) {
+            if (predicate(item)) pass.add(item) else fail.add(item)
+        }
+        return listOf(Collection(pass), Collection(fail))
+    }
+
+    fun <K> keyBy(keySelector: (T) -> K): Map<K, T> {
+        val out = linkedMapOf<K, T>()
+        for (item in items) {
+            out[keySelector(item)] = item
+        }
+        return out
+    }
+
+    /** Pluck values keyed by another map field. */
+    fun pluck(valueKey: String, keyedBy: String): Map<Any?, Any?> {
+        val out = linkedMapOf<Any?, Any?>()
+        for (item in items) {
+            val key = mapValue(item, keyedBy) ?: continue
+            out[key] = mapValue(item, valueKey)
+        }
+        return out
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun min(): T? {
+        if (items.isEmpty()) return null
+        return (items as List<Comparable<Any>>).minOrNull() as T?
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun max(): T? {
+        if (items.isEmpty()) return null
+        return (items as List<Comparable<Any>>).maxOrNull() as T?
+    }
+
+    fun every(predicate: (T) -> Boolean): Boolean = items.all(predicate)
+
+    fun pop(): T? = if (items.isEmpty()) null else items.removeAt(items.lastIndex)
+
+    fun shift(): T? = if (items.isEmpty()) null else items.removeAt(0)
+
+    fun prepend(item: T): Collection<T> {
+        items.add(0, item)
+        return this
+    }
+
+    @JvmOverloads
+    fun slice(start: Int, length: Int? = null): Collection<T> {
+        if (items.isEmpty()) return empty()
+        val from = start.coerceAtLeast(0).coerceAtMost(items.size)
+        val to =
+            if (length == null) {
+                items.size
+            } else {
+                (from + length.coerceAtLeast(0)).coerceAtMost(items.size)
+            }
+        return Collection(items.subList(from, to).toList())
+    }
+
+    fun tap(callback: (Collection<T>) -> Unit): Collection<T> {
+        callback(this)
+        return this
+    }
+
+    fun whenEmpty(block: (Collection<T>) -> Unit): Collection<T> = `when`(items.isEmpty(), block)
+
+    fun whenNotEmpty(block: (Collection<T>) -> Unit): Collection<T> = `when`(items.isNotEmpty(), block)
+
+    fun forget(index: Int): Collection<T> {
+        if (index in items.indices) {
+            items.removeAt(index)
+        }
+        return this
+    }
+
+    fun search(item: T): Int? {
+        val idx = items.indexOf(item)
+        return if (idx < 0) null else idx
+    }
+
+    fun sole(): T {
+        if (items.isEmpty()) {
+            throw NoSuchElementException("Item not found.")
+        }
+        if (items.size > 1) {
+            throw IllegalStateException("Multiple items found.")
+        }
+        return items[0]
+    }
+
+    fun sole(predicate: (T) -> Boolean): T = filter(predicate).sole()
+
+    @JvmOverloads
+    fun nth(step: Int, offset: Int = 0): Collection<T> {
+        require(step > 0) { "Step must be positive" }
+        val out = mutableListOf<T>()
+        var i = offset.coerceAtLeast(0)
+        while (i < items.size) {
+            out.add(items[i])
+            i += step
+        }
+        return Collection(out)
+    }
+
+    fun sum(selector: (T) -> Number): Double {
+        var total = 0.0
+        for (item in items) {
+            total += selector(item).toDouble()
+        }
+        return total
+    }
+
+    fun diff(other: Iterable<T>): Collection<T> {
+        val set = other.toSet()
+        return Collection(items.filter { it !in set })
+    }
+
+    fun intersect(other: Iterable<T>): Collection<T> {
+        val set = other.toSet()
+        return Collection(items.filter { it in set })
+    }
+
+    fun <K, V> mapWithKeys(transform: (T) -> Pair<K, V>): Map<K, V> {
+        val out = linkedMapOf<K, V>()
+        for (item in items) {
+            val (k, v) = transform(item)
+            out[k] = v
+        }
+        return out
+    }
+
+    fun <K> countBy(keySelector: (T) -> K): Map<K, Int> {
+        val out = linkedMapOf<K, Int>()
+        for (item in items) {
+            val key = keySelector(item)
+            out[key] = (out[key] ?: 0) + 1
+        }
+        return out
+    }
+
+    fun pad(size: Int, value: T): Collection<T> {
+        if (size <= items.size) {
+            return Collection(items.take(size))
+        }
+        val out = items.toMutableList()
+        while (out.size < size) {
+            out.add(value)
+        }
+        return Collection(out)
+    }
 
     override fun iterator(): Iterator<T> = items.iterator()
 
@@ -176,6 +373,42 @@ class Collection<T> private constructor(
 
         @JvmStatic
         fun <T> empty(): Collection<T> = Collection()
+
+        @JvmStatic
+        fun <T> times(count: Int, factory: (Int) -> T): Collection<T> {
+            require(count >= 0) { "Count must be non-negative" }
+            return Collection((0 until count).map(factory))
+        }
+
+        @JvmStatic
+        @Suppress("UNCHECKED_CAST")
+        fun <T> wrap(value: Any?): Collection<T> =
+            when (value) {
+                null -> empty()
+                is Collection<*> -> value as Collection<T>
+                is Iterable<*> -> of(value as Iterable<T>)
+                is Array<*> -> of(value.toList() as List<T>)
+                else -> make(value as T)
+            }
+
+        private fun mapValue(item: Any?, key: String): Any? =
+            when (item) {
+                is Map<*, *> -> item[key]
+                else -> null
+            }
+
+        private fun flattenItems(source: Iterable<*>): List<Any?> {
+            val out = mutableListOf<Any?>()
+            for (item in source) {
+                when (item) {
+                    is Collection<*> -> out.addAll(flattenItems(item.toList()))
+                    is Iterable<*> -> out.addAll(flattenItems(item))
+                    is Array<*> -> out.addAll(flattenItems(item.toList()))
+                    else -> out.add(item)
+                }
+            }
+            return out
+        }
     }
 }
 

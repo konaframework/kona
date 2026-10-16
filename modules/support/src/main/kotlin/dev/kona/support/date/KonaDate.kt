@@ -33,6 +33,14 @@ class KonaDate private constructor(
 
     fun addDays(days: Long): KonaDate = KonaDate(instant.plus(days, ChronoUnit.DAYS), zone)
 
+    fun addWeeks(weeks: Long): KonaDate = addDays(weeks * 7)
+
+    fun addMonths(months: Long): KonaDate =
+        KonaDate(toLocalDateTime().plusMonths(months).atZone(zone).toInstant(), zone)
+
+    fun addYears(years: Long): KonaDate =
+        KonaDate(toLocalDateTime().plusYears(years).atZone(zone).toInstant(), zone)
+
     fun subSeconds(seconds: Long): KonaDate = addSeconds(-seconds)
 
     fun subMinutes(minutes: Long): KonaDate = addMinutes(-minutes)
@@ -41,9 +49,30 @@ class KonaDate private constructor(
 
     fun subDays(days: Long): KonaDate = addDays(-days)
 
+    fun subWeeks(weeks: Long): KonaDate = addWeeks(-weeks)
+
+    fun subMonths(months: Long): KonaDate = addMonths(-months)
+
+    fun subYears(years: Long): KonaDate = addYears(-years)
+
+    fun startOfDay(): KonaDate {
+        val start = toLocalDate().atStartOfDay(zone).toInstant()
+        return KonaDate(start, zone)
+    }
+
+    fun endOfDay(): KonaDate {
+        val end = toLocalDate().atTime(23, 59, 59, 999_000_000).atZone(zone).toInstant()
+        return KonaDate(end, zone)
+    }
+
+    fun setTimezone(zone: ZoneId): KonaDate = KonaDate(instant, zone)
+
     fun isBefore(other: KonaDate): Boolean = instant.isBefore(other.instant)
 
     fun isAfter(other: KonaDate): Boolean = instant.isAfter(other.instant)
+
+    fun isSameDay(other: KonaDate): Boolean =
+        toLocalDate() == LocalDate.ofInstant(other.instant, zone)
 
     fun isPast(clock: Clock = Clock.systemUTC()): Boolean = instant.isBefore(Instant.now(clock))
 
@@ -51,6 +80,9 @@ class KonaDate private constructor(
 
     fun diffInSeconds(other: KonaDate): Long =
         Duration.between(other.instant, instant).seconds
+
+    fun diffInDays(other: KonaDate): Long =
+        ChronoUnit.DAYS.between(other.toLocalDate(), toLocalDate())
 
     fun format(pattern: String): String =
         DateTimeFormatter.ofPattern(pattern).withZone(zone).format(instant)
