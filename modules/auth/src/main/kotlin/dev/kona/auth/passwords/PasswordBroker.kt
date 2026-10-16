@@ -8,20 +8,23 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.util.Base64
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Password reset broker with in-memory token store (Laravel PasswordBroker shape).
- * File/DB stores land in later milestones.
+ * Password reset broker (Laravel PasswordBroker shape).
+ *
+ * Defaults to an in-memory [PasswordResetTokenRepository]; pass
+ * [DatabasePasswordResetTokenRepository] for durable tokens.
  */
 class PasswordBroker @JvmOverloads constructor(
     private val users: UserProvider,
     private val hasher: Hasher,
     private val expire: Duration = Duration.ofMinutes(60),
     private val clock: Clock = Clock.systemUTC(),
-    private val tokens: MutableMap<String, ResetRecord> = ConcurrentHashMap(),
+    private val tokens: PasswordResetTokenRepository = InMemoryPasswordResetTokenRepository(),
 ) {
     private val random = SecureRandom()
+
+    fun repository(): PasswordResetTokenRepository = tokens
 
     /**
      * Creates a reset token for the user matching [credentials] (typically email).
@@ -44,23 +47,25 @@ class PasswordBroker @JvmOverloads constructor(
             }
             else -> user.getAuthIdentifier().toString()
         }
-        tokens[email] = ResetRecord(
-            email = email,
-            tokenHash = hasher.make(plain),
-            userId = user.getAuthIdentifier(),
-            createdAt = Instant.now(clock),
+        tokens.save(
+            ResetRecord(
+                email = email,
+                tokenHash = hasher.make(plain),
+                userId = user.getAuthIdentifier(),
+                createdAt = Instant.now(clock),
+            ),
         )
         return plain
     }
 
     /** Validates [token] for [email] without consuming it. */
     fun tokenValid(email: String, token: String): Boolean {
-        val record = tokens[email]
+        val record = tokens.find(email)
         if (record == null) {
             return false
         }
         if (isExpired(record)) {
-            tokens.remove(email)
+            tokens.delete(email)
             return false
         }
         return hasher.check(token, record.tokenHash)
@@ -90,12 +95,12 @@ class PasswordBroker @JvmOverloads constructor(
         }
         val password = passwordValue.toString()
 
-        val record = tokens[email]
+        val record = tokens.find(email)
         if (record == null) {
             return PasswordResetResult.INVALID_TOKEN
         }
         if (isExpired(record)) {
-            tokens.remove(email)
+            tokens.delete(email)
             return PasswordResetResult.EXPIRED_TOKEN
         }
         if (!hasher.check(token, record.tokenHash)) {
@@ -106,12 +111,12 @@ class PasswordBroker @JvmOverloads constructor(
             return PasswordResetResult.INVALID_USER
         }
         callback.reset(user, password)
-        tokens.remove(email)
+        tokens.delete(email)
         return PasswordResetResult.RESET
     }
 
     fun deleteToken(email: String) {
-        tokens.remove(email)
+        tokens.delete(email)
     }
 
     fun clear() {
