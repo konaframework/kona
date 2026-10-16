@@ -38,6 +38,7 @@ kover {
                     classes("dev.kona.grind.PackageDiscovery")
                     // Top-level command router — exercised by GrindTest / GrindM8Test suites.
                     classes("dev.kona.grind.GrindApplication")
+                    annotatedBy("dev.kona.support.KoverExclude")
                 }
             }
             verify {

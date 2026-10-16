@@ -22,6 +22,7 @@ class ListCommand(
     companion object {
         /** Built-in grind commands shown in `list` / help. */
         val BUILTIN: List<Pair<String, String>> = listOf(
+            "install" to "Add a package dependency and register providers",
             "serve" to "Run the HTTP server",
             "make:command" to "Generate a console command",
             "make:controller" to "Generate a controller (--resource for CRUD stubs)",
