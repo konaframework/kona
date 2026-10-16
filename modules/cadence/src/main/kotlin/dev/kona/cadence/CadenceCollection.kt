@@ -26,6 +26,15 @@ class CadenceCollection<T : Cadence<T>>(
 
     fun pluck(attribute: String): List<Any?> = items.map { it.getAttribute(attribute) }
 
+    /** Keyed pluck: map of [key] attribute → [attribute] value. */
+    fun pluck(attribute: String, key: String): Map<Any?, Any?> {
+        val result = linkedMapOf<Any?, Any?>()
+        for (item in items) {
+            result[item.getAttribute(key)] = item.getAttribute(attribute)
+        }
+        return result
+    }
+
     fun modelKeys(): List<Any?> = items.mapNotNull { it.getKey() }
 
     fun toArray(): List<Map<String, Any?>> = items.map { it.toArray() }

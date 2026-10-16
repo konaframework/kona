@@ -69,7 +69,21 @@ open class CadenceCompanion<T : Cadence<T>>(
 
     fun withSum(relation: String, column: String): ModelBuilder<T> = query().withSum(relation, column)
 
+    fun withAvg(spec: String): ModelBuilder<T> = query().withAvg(spec)
+
+    fun withAvg(relation: String, column: String): ModelBuilder<T> = query().withAvg(relation, column)
+
+    fun withMax(spec: String): ModelBuilder<T> = query().withMax(spec)
+
+    fun withMax(relation: String, column: String): ModelBuilder<T> = query().withMax(relation, column)
+
+    fun withMin(spec: String): ModelBuilder<T> = query().withMin(spec)
+
+    fun withMin(relation: String, column: String): ModelBuilder<T> = query().withMin(relation, column)
+
     fun first(): T? = query().first()
+
+    fun sole(): T = query().sole()
 
     fun find(id: Any?): T? = query().find(id)
 

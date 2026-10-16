@@ -7,7 +7,9 @@ import dev.kona.cadence.relations.HasManyThrough
 import dev.kona.cadence.relations.HasOneOrMany
 import dev.kona.cadence.relations.HasOneThrough
 import dev.kona.cadence.relations.MorphMany
+import dev.kona.cadence.relations.MorphMap
 import dev.kona.cadence.relations.MorphOne
+import dev.kona.cadence.relations.MorphTo
 import dev.kona.cadence.relations.Relation
 import dev.kona.cadence.relations.RelationConstraint
 import java.util.function.Consumer
@@ -97,6 +99,33 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
 
     /** Convenience overload: `withSum("posts", "votes")` → alias `posts_sum_votes`. */
     fun withSum(relation: String, column: String): ModelBuilder<T> = withSum("$relation:$column")
+
+    /** Adds `{relation}_avg_{column}` (or alias) select subquery. Spec: `relation:column` or `relation as alias:column`. */
+    fun withAvg(spec: String): ModelBuilder<T> = withAggregate(Aggregate.AVG, spec)
+
+    fun withAvg(relation: String, column: String): ModelBuilder<T> = withAvg("$relation:$column")
+
+    /** Adds `{relation}_max_{column}` (or alias) select subquery. */
+    fun withMax(spec: String): ModelBuilder<T> = withAggregate(Aggregate.MAX, spec)
+
+    fun withMax(relation: String, column: String): ModelBuilder<T> = withMax("$relation:$column")
+
+    /** Adds `{relation}_min_{column}` (or alias) select subquery. */
+    fun withMin(spec: String): ModelBuilder<T> = withAggregate(Aggregate.MIN, spec)
+
+    fun withMin(relation: String, column: String): ModelBuilder<T> = withMin("$relation:$column")
+
+    private fun withAggregate(kind: Aggregate, spec: String): ModelBuilder<T> {
+        if (!query.hasSelectColumns()) {
+            query.select("${model.table}.*")
+        }
+        val grammar = model.connection().grammar
+        val fn = kind.name.lowercase()
+        val (name, alias, column) = Cadence.parseAggregateSpec(fn, spec)
+        val subquery = existenceQuery(name, null, kind, column)
+        query.selectRaw("(${subquery.toSql()}) as ${grammar.wrap(alias)}", subquery.getBindings())
+        return this
+    }
 
     fun withTrashed(): ModelBuilder<T> {
         trashed = Trashed.INCLUDE
@@ -391,6 +420,19 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
 
     fun firstOrFail(): T = first() ?: throw ModelNotFoundException(model.javaClass)
 
+    /**
+     * Exactly one matching model. Throws [ModelNotFoundException] when none match and
+     * [MultipleRecordsFoundException] when more than one matches.
+     */
+    fun sole(): T {
+        val rows = limit(2).get()
+        return when (rows.size) {
+            0 -> throw ModelNotFoundException(model.javaClass)
+            1 -> rows[0]
+            else -> throw MultipleRecordsFoundException(model.javaClass, rows.size)
+        }
+    }
+
     /** First matching [attributes], or a new unsaved instance filled with them. */
     fun firstOrNew(attributes: Map<String, Any?>): T {
         attributes.forEach { (column, value) -> where(column, value) }
@@ -446,6 +488,15 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
     fun value(column: String): Any? = toBase().value(column)
 
     fun pluck(column: String): List<Any?> = toBase().pluck(column)
+
+    /** Keyed pluck: map of [key] → [column] (Laravel `pluck('name', 'id')`). */
+    fun pluck(column: String, key: String): Map<Any?, Any?> = toBase().pluck(column, key)
+
+    fun union(other: QueryBuilder): ModelBuilder<T> = apply { query.union(other) }
+
+    fun unionAll(other: QueryBuilder): ModelBuilder<T> = apply { query.unionAll(other) }
+
+    fun crossJoin(table: String): ModelBuilder<T> = apply { this.query.crossJoin(table) }
 
     fun count(): Long = toBase().count()
 
@@ -628,12 +679,61 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
         constraint: Consumer<ModelBuilder<*>>?,
         negate: Boolean,
     ): ModelBuilder<T> {
+        val rel = EagerLoader.relationOf(model, relation)
+        if (rel is MorphTo) {
+            return addMorphToHas(boolean, rel, constraint, negate)
+        }
         val subquery = existenceQuery(relation, constraint, Aggregate.EXISTS)
         val sql = if (negate) "not exists (${subquery.toSql()})" else "exists (${subquery.toSql()})"
         if (boolean == AND) {
             query.whereRaw(sql, subquery.getBindings())
         } else {
             query.orWhereRaw(sql, subquery.getBindings())
+        }
+        return this
+    }
+
+    /**
+     * MorphTo existence: OR across registered [MorphMap] types (Laravel `whereHas` / `whereHasMorph`).
+     * Requires at least one morph alias registration.
+     */
+    private fun addMorphToHas(
+        boolean: String,
+        rel: MorphTo,
+        constraint: Consumer<ModelBuilder<*>>?,
+        negate: Boolean,
+    ): ModelBuilder<T> {
+        val entries = MorphMap.entries()
+        if (entries.isEmpty()) {
+            throw CadenceException(
+                "MorphTo [${rel.relationName}] whereHas requires MorphMap registrations " +
+                    "(MorphMap.morphMap(...)) so candidate types are known.",
+            )
+        }
+        val parts = mutableListOf<String>()
+        val bindings = mutableListOf<Any?>()
+        for ((alias, type) in entries) {
+            @Suppress("UNCHECKED_CAST")
+            val instance = Cadence.instantiate(type as Class<Cadence<*>>)
+            val relatedQuery = instance.newQuery()
+            @Suppress("UNCHECKED_CAST")
+            constraint?.accept(relatedQuery as ModelBuilder<*>)
+            val base = relatedQuery.toBase()
+            base.whereColumn(
+                "${instance.table}.${instance.primaryKey}",
+                "${model.table}.${rel.idColumn}",
+            )
+            base.where("${model.table}.${rel.typeColumn}", alias)
+            val reset = base.resetForAggregate().selectRaw("1")
+            parts += "exists (${reset.toSql()})"
+            bindings.addAll(reset.getBindings())
+        }
+        val combined = parts.joinToString(" or ")
+        val sql = if (negate) "not ($combined)" else "($combined)"
+        if (boolean == AND) {
+            query.whereRaw(sql, bindings)
+        } else {
+            query.orWhereRaw(sql, bindings)
         }
         return this
     }
@@ -650,13 +750,25 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
         val base = rel.query.toBase()
         correlate(base, rel)
         val reset = base.resetForAggregate()
+        val grammar = model.connection().grammar
         return when (aggregate) {
             Aggregate.COUNT -> reset.selectRaw("count(*)")
             Aggregate.EXISTS -> reset.selectRaw("1")
             Aggregate.SUM -> {
-                val column = sumColumn ?: throw CadenceException("withSum requires a column")
-                val wrapped = model.connection().grammar.wrap("${rel.related.table}.$column")
+                val wrapped = grammar.wrap("${rel.related.table}.${sumColumn!!}")
                 reset.selectRaw("coalesce(sum($wrapped), 0)")
+            }
+            Aggregate.AVG -> {
+                val wrapped = grammar.wrap("${rel.related.table}.${sumColumn!!}")
+                reset.selectRaw("avg($wrapped)")
+            }
+            Aggregate.MAX -> {
+                val wrapped = grammar.wrap("${rel.related.table}.${sumColumn!!}")
+                reset.selectRaw("max($wrapped)")
+            }
+            Aggregate.MIN -> {
+                val wrapped = grammar.wrap("${rel.related.table}.${sumColumn!!}")
+                reset.selectRaw("min($wrapped)")
             }
         }
     }
@@ -677,6 +789,10 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
                 )
                 base.where("${rel.related.table}.${rel.morphType}", rel.morphClass)
             }
+            is MorphTo ->
+                throw CadenceException(
+                    "MorphTo uses whereHas MorphMap expansion; withCount/withSum are not supported on MorphTo.",
+                )
             is HasOneOrMany<*, *> ->
                 base.whereColumn(
                     "${rel.related.table}.${rel.foreignKey}",
@@ -727,7 +843,7 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
 
     private enum class Trashed { EXCLUDE, INCLUDE, ONLY }
 
-    private enum class Aggregate { COUNT, EXISTS, SUM }
+    private enum class Aggregate { COUNT, EXISTS, SUM, AVG, MAX, MIN }
 
     private companion object {
         const val AND = "and"

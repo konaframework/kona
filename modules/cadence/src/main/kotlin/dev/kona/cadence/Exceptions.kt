@@ -15,13 +15,19 @@ class QueryException(
     cause: SQLException,
 ) : CadenceException("${cause.message} (SQL: $sql)", cause)
 
-/** Raised by `findOrFail` / `firstOrFail` when no row matches. */
+/** Raised by `findOrFail` / `firstOrFail` / `sole` when no row matches. */
 class ModelNotFoundException(
     val model: Class<*>,
     val ids: List<Any?> = emptyList(),
 ) : CadenceException(
     "No query results for model [${model.name}]" + if (ids.isEmpty()) "" else " " + ids.joinToString(", "),
 )
+
+/** Raised by `sole` when more than one row matches. */
+class MultipleRecordsFoundException(
+    val model: Class<*>,
+    val count: Int,
+) : CadenceException("Query returned $count results for model [${model.name}]; expected exactly one.")
 
 /** Raised by `fill` when a key is not mass-assignable on a totally guarded model. */
 class MassAssignmentException(

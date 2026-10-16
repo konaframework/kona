@@ -8,9 +8,9 @@ import java.util.function.Function
  * Turns a [Blueprint] into DDL statements. The base class emits standard SQL that both H2 and
  * PostgreSQL accept; subclasses override only the types or statements that differ.
  *
- * Built-ins: [H2] (TEXT → `CHARACTER VARYING`), [STANDARD] / [POSTGRES] (ANSI DDL).
- * MySQL / MariaDB / SQLite currently use [STANDARD] with the connection's identifier [Grammar]
- * (backticks for MySQL). Register product-specific DDL with [registerProduct].
+ * Built-ins: [H2] (TEXT → `CHARACTER VARYING`), [STANDARD] / [POSTGRES] (ANSI DDL),
+ * [MYSQL] (`AUTO_INCREMENT`), [SQLITE] (`INTEGER PRIMARY KEY AUTOINCREMENT`).
+ * Register further product-specific DDL with [registerProduct].
  */
 open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Grammar.ANSI) {
     open fun wrap(identifier: String): String = identifiers.wrap(identifier)
@@ -95,6 +95,12 @@ open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Gr
         @JvmField
         val POSTGRES: SchemaGrammar = STANDARD
 
+        @JvmField
+        val MYSQL: SchemaGrammar = MySqlSchemaGrammar()
+
+        @JvmField
+        val SQLITE: SchemaGrammar = SqliteSchemaGrammar()
+
         private val products = ConcurrentHashMap<String, Function<Grammar, SchemaGrammar>>()
 
         /**
@@ -124,11 +130,24 @@ open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Gr
         @JvmOverloads
         fun forProduct(product: String, identifiers: Grammar = Grammar.ANSI): SchemaGrammar {
             products[product.lowercase()]?.let { return it.apply(identifiers) }
-            val h2 = product.equals("H2", ignoreCase = true)
+            val lower = product.lowercase()
+            val h2 = lower == "h2"
+            val mysql = lower.contains("mysql") || lower.contains("mariadb")
+            val sqlite = lower.contains("sqlite")
             if (identifiers === Grammar.ANSI) {
-                return if (h2) H2 else STANDARD
+                return when {
+                    h2 -> H2
+                    mysql -> MYSQL
+                    sqlite -> SQLITE
+                    else -> STANDARD
+                }
             }
-            return if (h2) H2SchemaGrammar(identifiers) else SchemaGrammar(identifiers)
+            return when {
+                h2 -> H2SchemaGrammar(identifiers)
+                mysql -> MySqlSchemaGrammar(identifiers)
+                sqlite -> SqliteSchemaGrammar(identifiers)
+                else -> SchemaGrammar(identifiers)
+            }
         }
     }
 }
@@ -137,4 +156,31 @@ open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Gr
 class H2SchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.ANSI) : SchemaGrammar(identifiers) {
     override fun type(column: ColumnDefinition): String =
         if (column.type == ColumnType.TEXT) "CHARACTER VARYING" else super.type(column)
+}
+
+/** MySQL / MariaDB: `BIGINT AUTO_INCREMENT PRIMARY KEY` for [ColumnType.ID]. */
+class MySqlSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.MYSQL) : SchemaGrammar(identifiers) {
+    override fun type(column: ColumnDefinition): String = when (column.type) {
+        ColumnType.ID -> "BIGINT AUTO_INCREMENT PRIMARY KEY"
+        ColumnType.BOOLEAN -> "TINYINT(1)"
+        ColumnType.TIMESTAMP -> "TIMESTAMP"
+        else -> super.type(column)
+    }
+
+    override fun literal(value: Any?): String = when (value) {
+        is Boolean -> if (value) "1" else "0"
+        else -> super.literal(value)
+    }
+}
+
+/** SQLite: `INTEGER PRIMARY KEY AUTOINCREMENT` for [ColumnType.ID]. */
+class SqliteSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.ANSI) : SchemaGrammar(identifiers) {
+    override fun type(column: ColumnDefinition): String = when (column.type) {
+        ColumnType.ID -> "INTEGER PRIMARY KEY AUTOINCREMENT"
+        ColumnType.BOOLEAN -> "INTEGER"
+        else -> super.type(column)
+    }
+
+    override fun compileDropIndex(table: String, index: String): String =
+        "DROP INDEX IF EXISTS " + wrap(index)
 }

@@ -42,6 +42,10 @@ object MorphMap {
             null
         }
     }
+
+    /** Snapshot of registered alias → class entries (for MorphTo whereHas). */
+    @JvmStatic
+    fun entries(): Map<String, Class<out Cadence<*>>> = LinkedHashMap(aliasToClass)
 }
 
 /** Parent owns many polymorphic related rows (`comments` on Post/Video). */

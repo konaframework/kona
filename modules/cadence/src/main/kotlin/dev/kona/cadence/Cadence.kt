@@ -121,6 +121,7 @@ abstract class Cadence<T : Cadence<T>> {
     }
 
     fun getAttribute(key: String): Any? {
+        invokeAccessor(key)?.let { return it }
         val raw = attributes[key]
         val value = applyCastGet(key, raw)
         return getMutatedAttribute(key, value)
@@ -131,6 +132,9 @@ abstract class Cadence<T : Cadence<T>> {
     fun <V> attribute(key: String): V? = getAttribute(key) as V?
 
     fun setAttribute(key: String, value: Any?): T {
+        if (invokeMutator(key, value)) {
+            return self()
+        }
         val mutated = setMutatedAttribute(key, value)
         attributes[key] = applyCastSet(key, mutated)
         return self()
@@ -142,9 +146,61 @@ abstract class Cadence<T : Cadence<T>> {
     /** Hook before cast on write; override for mutators. */
     protected open fun setMutatedAttribute(key: String, value: Any?): Any? = value
 
+    /**
+     * Reflective Laravel-style accessor: `getFooBarAttribute()` for key `foo_bar` / `fooBar`.
+     * Returns null when no matching public no-arg method exists.
+     */
+    private fun invokeAccessor(key: String): Any? {
+        val method = javaClass.methods.firstOrNull {
+            it.name == accessorName(key) && it.parameterCount == 0
+        } ?: return null
+        method.isAccessible = true
+        return method.invoke(this)
+    }
+
+    /**
+     * Reflective Laravel-style mutator: `setFooBarAttribute(value)` for key `foo_bar` / `fooBar`.
+     * Returns true when a mutator handled the write (caller should not write raw attributes).
+     */
+    private fun invokeMutator(key: String, value: Any?): Boolean {
+        val method = javaClass.methods.firstOrNull {
+            it.name == mutatorName(key) && it.parameterCount == 1
+        } ?: return false
+        method.isAccessible = true
+        method.invoke(this, value)
+        return true
+    }
+
+    private fun accessorName(key: String): String = "get" + studly(key) + "Attribute"
+
+    private fun mutatorName(key: String): String = "set" + studly(key) + "Attribute"
+
+    private fun studly(key: String): String {
+        val out = StringBuilder()
+        for (part in key.split('_', '-', ' ')) {
+            if (part.isEmpty()) {
+                continue
+            }
+            out.append(part[0].uppercaseChar())
+            if (part.length > 1) {
+                out.append(part.substring(1))
+            }
+        }
+        return out.toString()
+    }
+
     fun hasAttribute(key: String): Boolean = attributes.containsKey(key)
 
     fun getRawAttribute(key: String): Any? = attributes[key]
+
+    /**
+     * Writes [value] into the attributes map without casts or mutators.
+     * Use inside `setFooAttribute` implementations (Laravel `$this->attributes['foo'] = …`).
+     */
+    fun setRawAttribute(key: String, value: Any?): T {
+        attributes[key] = value
+        return self()
+    }
 
     fun getAttributes(): Map<String, Any?> = LinkedHashMap(attributes)
 
@@ -235,11 +291,12 @@ abstract class Cadence<T : Cadence<T>> {
         return self()
     }
 
-    fun isFillable(key: String): Boolean = key in fillable || (fillable.isEmpty() && !isGuarded(key))
+    fun isFillable(key: String): Boolean =
+        isUnguarded() || key in fillable || (fillable.isEmpty() && !isGuarded(key))
 
-    fun isGuarded(key: String): Boolean = "*" in guarded || key in guarded
+    fun isGuarded(key: String): Boolean = !isUnguarded() && ("*" in guarded || key in guarded)
 
-    fun isTotallyGuarded(): Boolean = fillable.isEmpty() && "*" in guarded
+    fun isTotallyGuarded(): Boolean = !isUnguarded() && fillable.isEmpty() && "*" in guarded
 
     // ---- persistence ----
 
@@ -258,7 +315,7 @@ abstract class Cadence<T : Cadence<T>> {
             ModelDispatcher.dispatch(ModelEvent.UPDATING, this)
         }
         if (persisted) {
-            if (timestamps) {
+            if (timestamps && !isIgnoringTimestamps()) {
                 touchTimestamps()
             }
             val dirty = getDirty()
@@ -266,7 +323,7 @@ abstract class Cadence<T : Cadence<T>> {
             changes = LinkedHashMap(dirty)
             ModelDispatcher.dispatch(ModelEvent.UPDATED, this)
         } else {
-            if (timestamps) {
+            if (timestamps && !isIgnoringTimestamps()) {
                 touchTimestamps()
             }
             val query = connection().table(table)
@@ -523,6 +580,39 @@ abstract class Cadence<T : Cadence<T>> {
         val (_, alias, _) = parseSumSpec(spec)
         attributes[alias] = loaded.getRawAttribute(alias)
         return self()
+    }
+
+    /** Loads `{relation}_avg_{column}` (or alias) onto this model. */
+    fun loadAvg(spec: String): T = loadAggregate("avg", spec) { withAvg(it) }
+
+    fun loadMax(spec: String): T = loadAggregate("max", spec) { withMax(it) }
+
+    fun loadMin(spec: String): T = loadAggregate("min", spec) { withMin(it) }
+
+    private fun loadAggregate(fn: String, spec: String, withFn: ModelBuilder<T>.(String) -> ModelBuilder<T>): T {
+        if (!persisted) {
+            return self()
+        }
+        val loaded = newQuery().where(primaryKey, getKey()).withFn(spec).first() ?: return self()
+        val (_, alias, _) = parseAggregateSpec(fn, spec)
+        attributes[alias] = loaded.getRawAttribute(alias)
+        return self()
+    }
+
+    /**
+     * Saves this model and recursively [push]es every loaded relation that is a model or
+     * collection of models (Eloquent `push()`).
+     */
+    fun push(): Boolean {
+        save()
+        for ((_, value) in relations) {
+            when (value) {
+                is Cadence<*> -> value.push()
+                is Collection<*> -> value.filterIsInstance<Cadence<*>>().forEach { it.push() }
+                else -> Unit
+            }
+        }
+        return true
     }
 
     private fun copyAggregateAliases(
@@ -908,8 +998,11 @@ abstract class Cadence<T : Cadence<T>> {
         return base
     }
 
-    /** Override to resolve appended attributes (`getFullNameAttribute` shape). */
-    open fun getAppendedAttribute(key: String): Any? = null
+    /**
+     * Resolves appended attributes. Default uses reflective `get{Name}Attribute()` when present;
+     * override for custom virtual attributes.
+     */
+    open fun getAppendedAttribute(key: String): Any? = invokeAccessor(key)
 
     /**
      * Cast attribute values plus loaded relations (models rendered recursively),
@@ -1017,24 +1110,83 @@ abstract class Cadence<T : Cadence<T>> {
          * Parses `relation:column` or `relation as alias:column` for [loadSum] / [ModelBuilder.withSum].
          * Returns (relationName, selectAlias, column).
          */
-        internal fun parseSumSpec(spec: String): Triple<String, String, String> {
+        internal fun parseSumSpec(spec: String): Triple<String, String, String> =
+            parseAggregateSpec("sum", spec)
+
+        /**
+         * Parses aggregate specs for withSum/withAvg/withMax/withMin.
+         * [fn] is the aggregate name used in the default alias (`posts_avg_votes`).
+         */
+        internal fun parseAggregateSpec(fn: String, spec: String): Triple<String, String, String> {
             val trimmed = spec.trim()
             val colon = trimmed.lastIndexOf(':')
+            val label = "with" + fn.substring(0, 1).uppercase() + fn.substring(1)
             require(colon > 0) {
-                "withSum/loadSum expects \"relation:column\" or \"relation as alias:column\", got [$spec]"
+                "$label expects \"relation:column\" or \"relation as alias:column\", got [$spec]"
             }
             val left = trimmed.substring(0, colon).trim()
             val column = trimmed.substring(colon + 1).trim()
-            require(column.isNotEmpty()) { "withSum/loadSum column is empty in [$spec]" }
+            require(column.isNotEmpty()) { "$label column is empty in [$spec]" }
             val match = COUNT_ALIAS.find(left)
             return if (match == null) {
-                Triple(left, "${left}_sum_$column", column)
+                Triple(left, "${left}_${fn}_$column", column)
             } else {
                 val name = left.substring(0, match.range.first).trim()
                 val alias = left.substring(match.range.last + 1).trim()
                 Triple(name, alias, column)
             }
         }
+
+        private val unguardedFlag = ThreadLocal.withInitial { false }
+        private val ignoringTimestampsFlag = ThreadLocal.withInitial { false }
+
+        /** Temporarily allows mass assignment of all attributes (Eloquent `Model::unguard`). */
+        @JvmStatic
+        fun unguard() {
+            unguardedFlag.set(true)
+        }
+
+        /** Restores mass-assignment guarding after [unguard]. */
+        @JvmStatic
+        fun reguard() {
+            unguardedFlag.set(false)
+        }
+
+        @JvmStatic
+        fun isUnguarded(): Boolean = unguardedFlag.get()
+
+        /** Runs [block] with mass assignment unguarded, then restores the prior state. */
+        @JvmStatic
+        fun <R> unguarded(block: java.util.function.Supplier<R>): R = runUnguarded { block.get() }
+
+        /** Kotlin-friendly unguarded block. */
+        fun <R> runUnguarded(block: () -> R): R {
+            val previous = unguardedFlag.get()
+            unguardedFlag.set(true)
+            return try {
+                block()
+            } finally {
+                unguardedFlag.set(previous)
+            }
+        }
+
+        /** Runs [block] without touching `created_at` / `updated_at` on save. */
+        @JvmStatic
+        fun <R> withoutTimestamps(block: java.util.function.Supplier<R>): R = runWithoutTimestamps { block.get() }
+
+        /** Kotlin-friendly withoutTimestamps block. */
+        fun <R> runWithoutTimestamps(block: () -> R): R {
+            val previous = ignoringTimestampsFlag.get()
+            ignoringTimestampsFlag.set(true)
+            return try {
+                block()
+            } finally {
+                ignoringTimestampsFlag.set(previous)
+            }
+        }
+
+        @JvmStatic
+        fun isIgnoringTimestamps(): Boolean = ignoringTimestampsFlag.get()
 
         /** Static helpers for a model class (Java: `Cadence.of(User.class).find(1)`). */
         @JvmStatic

@@ -14,6 +14,10 @@ import java.util.function.Consumer
 class QueryBuilder(val connection: DatabaseConnection) {
     private val grammar: Grammar get() = connection.grammar
 
+    /** Test hook: force [nativeUpsert] to compile SQL for this JDBC product name. */
+    @JvmField
+    internal var upsertProductOverride: String? = null
+
     private var from: String? = null
     private var distinct = false
     private val columns = mutableListOf<String>()
@@ -23,6 +27,7 @@ class QueryBuilder(val connection: DatabaseConnection) {
     private val groups = mutableListOf<String>()
     private val havings = mutableListOf<Clause>()
     private val orders = mutableListOf<String>()
+    private val unions = mutableListOf<UnionClause>()
     private var limit: Int? = null
     private var offset: Int? = null
     /** Appended after limit/offset: ` for update` or ` for share` (empty when unlocked). */
@@ -221,6 +226,27 @@ class QueryBuilder(val connection: DatabaseConnection) {
 
     fun rightJoin(table: String, first: String, second: String): QueryBuilder = rightJoin(table, first, "=", second)
 
+    /** Cartesian product join (`CROSS JOIN table`). */
+    fun crossJoin(table: String): QueryBuilder {
+        joins.add("cross join ${grammar.wrap(table)}")
+        return this
+    }
+
+    /**
+     * Appends `UNION` with [query]'s select. Both sides must be compatible column lists.
+     * Order / limit / offset on this builder apply to the combined result.
+     */
+    fun union(query: QueryBuilder): QueryBuilder {
+        unions.add(UnionClause(all = false, query = query.copy()))
+        return this
+    }
+
+    /** Like [union] but keeps duplicate rows (`UNION ALL`). */
+    fun unionAll(query: QueryBuilder): QueryBuilder {
+        unions.add(UnionClause(all = true, query = query.copy()))
+        return this
+    }
+
     /** True when at least one select column / expression has been set (not the default `*`). */
     fun hasSelectColumns(): Boolean = columns.isNotEmpty()
 
@@ -310,6 +336,20 @@ class QueryBuilder(val connection: DatabaseConnection) {
 
     fun first(): Map<String, Any?>? = copy().limit(1).get().firstOrNull()
 
+    /**
+     * Exactly one row, or throws [CadenceException] when zero or many match
+     * (map-level sole; prefer [ModelBuilder.sole] for models).
+     */
+    fun sole(): Map<String, Any?> {
+        val tableLabel = from ?: "?"
+        val rows = copy().limit(2).get()
+        return when (rows.size) {
+            0 -> throw CadenceException("No query results for table [$tableLabel]")
+            1 -> rows[0]
+            else -> throw CadenceException("Query returned ${rows.size} results for table [$tableLabel]; expected exactly one.")
+        }
+    }
+
     @JvmOverloads
     fun find(id: Any?, column: String = "id"): Map<String, Any?>? = copy().where(column, id).first()
 
@@ -317,6 +357,25 @@ class QueryBuilder(val connection: DatabaseConnection) {
     fun value(column: String): Any? = copy().select(column).first()?.let { it.values.first() }
 
     fun pluck(column: String): List<Any?> = copy().select(column).get().map { it.values.first() }
+
+    /**
+     * Keyed pluck: map of [key] column → [column] value (last row wins on duplicate keys).
+     * Laravel `pluck('name', 'id')` shape.
+     */
+    fun pluck(column: String, key: String): Map<Any?, Any?> {
+        val probe = copy()
+        if (!probe.hasSelectColumns()) {
+            probe.select(key, column)
+        }
+        val rows = probe.get()
+        val result = linkedMapOf<Any?, Any?>()
+        for (row in rows) {
+            val keyValue = if (row.containsKey(key)) row[key] else row.values.firstOrNull()
+            val value = if (row.containsKey(column)) row[column] else row.values.lastOrNull()
+            result[keyValue] = value
+        }
+        return result
+    }
 
     fun count(): Long {
         if (groups.isEmpty() && !distinct) {
@@ -461,6 +520,7 @@ class QueryBuilder(val connection: DatabaseConnection) {
             return 0
         }
         require(uniqueBy.isNotEmpty()) { "upsert requires at least one uniqueBy column" }
+        nativeUpsert(rows, uniqueBy, update)?.let { return it }
         var affected = 0
         for (row in rows) {
             val matcher = copy()
@@ -479,6 +539,36 @@ class QueryBuilder(val connection: DatabaseConnection) {
             }
         }
         return affected
+    }
+
+    /**
+     * Dialect-specific multi-row upsert when the driver supports it; null → portable path.
+     * MySQL / MariaDB: `ON DUPLICATE KEY UPDATE`. PostgreSQL / H2: `ON CONFLICT … DO UPDATE`.
+     */
+    private fun nativeUpsert(
+        rows: List<Map<String, Any?>>,
+        uniqueBy: Collection<String>,
+        update: Collection<String>?,
+    ): Int? {
+        val columns = rows.first().keys.toList()
+        if (columns.isEmpty()) {
+            return 0
+        }
+        if (!NativeUpsert.rowsHaveUniformKeys(rows)) {
+            return null
+        }
+        val updateCols = (update ?: columns.filter { it !in uniqueBy }).toList()
+        val product = upsertProductOverride
+            ?: connection.withConnection { it.metaData.databaseProductName.lowercase() }
+        val table = requireTable()
+        val sql = NativeUpsert.compileSql(product, grammar, table, columns, uniqueBy.toList(), updateCols, rows.size)
+            ?: return null
+        val bindings = rows.flatMap { row -> columns.map { row[it] } }
+        return try {
+            connection.update(sql, bindings)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     /** Inserts each row only when no existing row matches [uniqueBy]; returns how many were inserted. */
@@ -631,10 +721,26 @@ class QueryBuilder(val connection: DatabaseConnection) {
             head.append("distinct ")
         }
         head.append(if (columns.isEmpty()) "*" else columns.joinToString(", "))
-        return head.toString() + tail()
+        val base = head.toString() + tailWithoutOrderLimit()
+        if (unions.isEmpty()) {
+            return base + orderLimitLock()
+        }
+        val sql = StringBuilder(base)
+        for (union in unions) {
+            sql.append(if (union.all) " union all " else " union ")
+            sql.append(union.query.toSqlWithoutUnionsOrderLimit())
+        }
+        sql.append(orderLimitLock())
+        return sql.toString()
     }
 
-    fun getBindings(): List<Any?> = selectBindings + bindingsOf(wheres) + bindingsOf(havings)
+    fun getBindings(): List<Any?> {
+        val base = selectBindings + bindingsOf(wheres) + bindingsOf(havings)
+        if (unions.isEmpty()) {
+            return base
+        }
+        return base + unions.flatMap { it.query.getBindings() }
+    }
 
     /** Independent copy; changes to either builder do not affect the other. */
     fun copy(): QueryBuilder {
@@ -648,6 +754,7 @@ class QueryBuilder(val connection: DatabaseConnection) {
         copy.groups.addAll(groups)
         copy.havings.addAll(havings)
         copy.orders.addAll(orders)
+        copy.unions.addAll(unions.map { UnionClause(it.all, it.query.copy()) })
         copy.limit = limit
         copy.offset = offset
         copy.lock = lock
@@ -760,7 +867,9 @@ class QueryBuilder(val connection: DatabaseConnection) {
         return connection.update(sql, sets.map { it.second } + bindingsOf(wheres))
     }
 
-    private fun tail(): String {
+    private fun tail(): String = tailWithoutOrderLimit() + orderLimitLock()
+
+    private fun tailWithoutOrderLimit(): String {
         val sql = StringBuilder(" from ").append(requireTable())
         joins.forEach { sql.append(' ').append(it) }
         sql.append(clauses(" where ", wheres))
@@ -768,6 +877,11 @@ class QueryBuilder(val connection: DatabaseConnection) {
             sql.append(" group by ").append(groups.joinToString(", "))
         }
         sql.append(clauses(" having ", havings))
+        return sql.toString()
+    }
+
+    private fun orderLimitLock(): String {
+        val sql = StringBuilder()
         if (orders.isNotEmpty()) {
             sql.append(" order by ").append(orders.joinToString(", "))
         }
@@ -775,6 +889,16 @@ class QueryBuilder(val connection: DatabaseConnection) {
         offset?.let { sql.append(" offset ").append(it) }
         sql.append(lock)
         return sql.toString()
+    }
+
+    /** Select SQL without nested unions / order / limit (used as a union arm). */
+    private fun toSqlWithoutUnionsOrderLimit(): String {
+        val head = StringBuilder("select ")
+        if (distinct) {
+            head.append("distinct ")
+        }
+        head.append(if (columns.isEmpty()) "*" else columns.joinToString(", "))
+        return head.toString() + tailWithoutOrderLimit()
     }
 
     private fun requireTable(): String = from ?: throw CadenceException("No table set on query; call from(table) first.")
@@ -791,15 +915,18 @@ class QueryBuilder(val connection: DatabaseConnection) {
 
     private class Clause(val boolean: String, val sql: String, val bindings: List<Any?>)
 
-    private companion object {
-        const val AND = "and"
-        const val OR = "or"
-        val OPERATORS = setOf("=", "<", ">", "<=", ">=", "<>", "!=", "like", "not like", "ilike", "not ilike")
+    private class UnionClause(val all: Boolean, val query: QueryBuilder)
 
-        fun operatorOf(operator: String): String {
+    companion object {
+        private const val AND = "and"
+        private const val OR = "or"
+        private val OPERATORS = setOf("=", "<", ">", "<=", ">=", "<>", "!=", "like", "not like", "ilike", "not ilike")
+
+        private fun operatorOf(operator: String): String {
             val op = operator.trim().lowercase()
             require(op in OPERATORS) { "Illegal operator [$operator]" }
             return op
         }
+
     }
 }
