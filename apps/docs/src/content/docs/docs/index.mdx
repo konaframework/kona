@@ -25,14 +25,17 @@ This is the documentation hub for **Kona**. The marketing home lives at the site
 
 Kona boots an **application**, plugs features in with **service providers**, looks services up from a **container**, and answers HTTP with **routes** and **middleware**. The same APIs work from Kotlin and Java. The **grind** CLI scaffolds and serves your project.
 
-Use the sidebar in order when you are new: **Getting started** → **The basics** → **Digging deeper**, then branch into **Security**, **Database**, **Frontend**, **Testing**, and **Packages & tooling** as you need them.
+Use the sidebar in order when you are new: **Getting started** → **The basics** → **Crema**, then **Digging deeper**, and branch into **Security**, **Database**, **Frontend**, **Testing**, and **Packages & tooling** as you need them.
 
 <CardGrid>
   <Card title="Getting started" icon="rocket">
     [Introduction](guides/introduction/), [Installation](guides/installation/), [Your first app](guides/first-app/), and [Kotlin and Java](guides/kotlin-java/).
   </Card>
   <Card title="The basics" icon="document">
-    Everyday request work: [routing](http/routing/), [controllers](http/controllers/), [middleware](http/middleware/), [validation](http/validation/), [Crema views](crema/), [exceptions](http/exceptions/), and [logging](http/logging/).
+    Everyday request work: [routing](http/routing/), [controllers](http/controllers/), [middleware](http/middleware/), [validation](http/validation/), [exceptions](http/exceptions/), and [logging](http/logging/).
+  </Card>
+  <Card title="Crema" icon="open-book">
+    Server-side views: [getting started](crema/), [rendering](crema/rendering/), [layouts](crema/layouts/), [components & slots](crema/components/), [stacks](crema/stacks/), and the [directive reference](crema/directives/).
   </Card>
   <Card title="Digging deeper" icon="puzzle">
     How the [application](concepts/application/) and [container](concepts/container/) fit together, plus [grind](grind/), [events](events/), [queues](queue/), [mail](mail/), [cache](cache/), [drip](drip/), and [scheduling](scheduling/).
@@ -41,7 +44,7 @@ Use the sidebar in order when you are new: **Getting started** → **The basics*
     [Overview](security/), then [session](security/session/), [authentication](security/authentication/), [authorization](security/authorization/), [CSRF](security/csrf/), encryption, CORS, and rate limiting.
   </Card>
   <Card title="Database" icon="seti:db">
-    **Cadence** — [overview](extract/), [models](extract/models/), [query builder](extract/query-builder/), [relations](extract/relations/), [migrations](extract/migrations/), and [seeders](extract/seeders-factories/).
+    **Cadence** — [overview](cadence/), [models](cadence/models/), [query builder](cadence/query-builder/), [relations](cadence/relations/), [migrations](cadence/migrations/), and [seeders](cadence/seeders-factories/).
   </Card>
   <Card title="Frontend" icon="seti:html">
     [Brew](brew/) reactive UI, [Inertia](inertia/), [Vite / assets](assets/vite/), and [starter kits](starter-kits/).

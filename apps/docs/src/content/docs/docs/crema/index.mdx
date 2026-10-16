@@ -1,38 +1,35 @@
 ---
 title: Getting started with Crema
-description: Render HTML views with Crema templates from Kotlin or Java.
+description: Render HTML views with Crema templates from Kotlin or Java controllers.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-**Crema** is Kona’s server-side view engine. Templates live under `src/main/resources/views` as `*.crema.html` (or `*.crema.kt`) and use `@` directives plus `{{ }}` echoes. Crema was inspired by familiar server-side template menus; this guide describes Crema on its own terms.
+**Crema** is Kona’s server-side view engine. You write templates under `src/main/resources/views`, pass a data map from a controller, and Crema expands `@` directives and `{{ }}` echoes into HTML. Templates use the extensions `*.crema.html` or `*.crema.kt` (plain text with the same directive syntax).
 
-## Render a view
+Crema was inspired by familiar server-side template menus; everything after this sentence describes Crema on its own terms.
 
-Register `CremaServiceProvider`, then resolve `CremaEngine`:
+## What a view is
 
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
+A **view** is a named template plus the data used to render it. The name is dotted (`home`, `posts.show`) and maps to a file path under the views root (`home.crema.html`, `posts/show.crema.html`). The [CremaEngine](#render-from-a-controller) resolves that name, expands the template, and returns a string (or an HTML `Response`).
 
-```kotlin
-val html = app.resolve(CremaEngine::class.java)
-    .render("home", mapOf("name" to "Ada"))
-return Response.html(html)
+Typical request path:
+
+1. A route hits a controller method.
+2. The controller resolves `CremaEngine` from the application container.
+3. It calls `render("welcome", mapOf(...))` (or `make` / `Crema.view`).
+4. Crema loads the template, runs directives, escapes echoes, and returns HTML.
+
+## Scaffolding
+
+`kona new` (default **web** kit) already registers `CremaServiceProvider` and ships a welcome view. Add more templates with grind:
+
+```bash
+./grind make:view home
+./grind make:view posts.show
 ```
 
-</TabItem>
-<TabItem label="Java">
-
-```java
-String html = app.resolve(CremaEngine.class)
-    .render("home", Map.of("name", "Ada"));
-return Response.html(html);
-```
-
-</TabItem>
-</Tabs>
-
-`Crema.view(engine, name, data)` builds an HTML `Response` in one call. `View.with(...)` accumulates data before `render()` / `toResponse()`.
+That creates `src/main/resources/views/home.crema.html` and `src/main/resources/views/posts/show.crema.html`.
 
 ## Minimal template
 
@@ -41,14 +38,115 @@ return Response.html(html);
 <h1>Hello {{ name }}</h1>
 ```
 
-## Scaffolding
+`{{ name }}` prints the `name` entry from the data map with HTML escaping. Missing or null values become an empty string.
 
-```bash
-./grind make:view home
-./grind make:view posts.show
+## Render from a controller
+
+Register `CremaServiceProvider` (the web scaffold does this), boot the app, then resolve `CremaEngine`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import dev.kona.crema.CremaEngine
+import dev.kona.http.Request
+import dev.kona.http.Response
+import dev.kona.Kona
+
+class WelcomeController {
+    fun index(request: Request): Response {
+        val crema = Kona.app().resolve(CremaEngine::class.java)
+        return Response.html(
+            crema.render("welcome", mapOf("name" to "Kona")),
+        )
+    }
+}
 ```
 
-Creates `src/main/resources/views/....crema.html`.
+</TabItem>
+<TabItem label="Java">
+
+```java
+import dev.kona.Kona;
+import dev.kona.crema.CremaEngine;
+import dev.kona.http.Request;
+import dev.kona.http.Response;
+import java.util.Map;
+
+public final class WelcomeController {
+    public Response index(Request request) {
+        CremaEngine crema = Kona.app().resolve(CremaEngine.class);
+        return Response.html(
+            crema.render("welcome", Map.of("name", "Kona"))
+        );
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Accumulate data with `View`
+
+`make` returns a `View` you can enrich before rendering:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val html = crema.make("posts.show")
+    .with("post", post)
+    .with(mapOf("title" to post.title))
+    .render()
+return Response.html(html)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String html = crema.make("posts.show")
+    .with("post", post)
+    .with(Map.of("title", post.getTitle()))
+    .render();
+return Response.html(html);
+```
+
+</TabItem>
+</Tabs>
+
+`View.toResponse(status)` builds an HTML `Response` in one step. `Crema.view(engine, name, data, status)` does the same statically.
+
+### Check whether a view exists
+
+```kotlin
+if (crema.exists("optional.banner")) {
+    // …
+}
+```
+
+## View paths and config
+
+| Setting | Behavior |
+|---------|----------|
+| Default root | `{basePath}/src/main/resources/views` |
+| Fallbacks | `build/resources/main/views`, then legacy `resources/views` |
+| Override | Config key `view.path` (absolute or app-relative path) |
+
+Dotted names become path segments: `mail.orders.shipped` → `mail/orders/shipped.crema.html`. Crema tries `.crema.html` first, then `.crema.kt`.
+
+## Data the engine looks for
+
+Some directives read conventional keys from the same data map (or a child context). You pass them from the controller or middleware:
+
+| Key | Used by |
+|-----|---------|
+| `_token` / `csrf_token` | `@csrf` |
+| `asset_url` / `assetUrl` | `@asset` base prefix |
+| `__authenticated`, `auth_user`, `user` | `@auth` / `@guest` |
+| `__abilities` or `can` | `@can` / `@cannot` |
+| `errors` | `@error('field')` |
+| `lang` | `@lang` overrides before `Lang.get` |
 
 ## Directive menu
 
@@ -62,26 +160,23 @@ Creates `src/main/resources/views/....crema.html`.
 | Loops | `@while`, `@foreach` / `@each` / `@for`, `@forelse`, `loop.*` |
 | Auth | `@auth`, `@guest`, `@can`, `@cannot` |
 | Switch | `@switch` / `@case` / `@break` / `@default` / `@endswitch` |
-| Components | `@component` / `@slot`, `<x-*>` |
+| Components | `@component` / `@slot`, `<x-*>`, `<x-slot>` |
 | Helpers | `@json`, `@csrf`, `@method`, `@asset`, `@lang`, `@vite`, `@error` |
 
-## Config
+Full tables: [Directive reference](/docs/crema/directives/).
 
-- Default path: `{basePath}/src/main/resources/views` (falls back to `build/resources/main/views`, then legacy `resources/views`)
-- Override: `view.path` in config
-- CSRF: pass `_token` or `csrf_token` in the data map for `@csrf`
-- Assets: optional `asset_url` / `assetUrl` base for `@asset`
-- Auth helpers: pass `__authenticated`, `auth_user`, or `user` for `@auth` / `@guest`
-- Abilities: pass `__abilities` (set/list/map) or a `can` map for `@can` / `@cannot`
-- Validation errors: pass an `errors` map for `@error`
-- Translations: wire `Lang` via support, or pass a `lang` map in the view data
+## Related surfaces
+
+- **[Brew](/docs/brew/)** — reactive components that render Crema templates and keep the browser in sync.
+- **[Inertia](/docs/inertia/)** — optional root Crema view that hosts a client-side page app.
+- **[Vite / assets](/docs/assets/vite/)** — bundling; Crema’s `@vite` helper emits thin script/link tags.
 
 ## Next steps
 
-- [Rendering](/docs/crema/rendering) — echoes, `@json`, `@lang`, `@vite`, escaping
-- [Layouts](/docs/crema/layouts) — `@extends`, `@section`, `@yield`, `@parent`, `@hasSection`
-- [Control structures](/docs/crema/control-structures) — conditionals, loops, auth, switch
-- [Includes](/docs/crema/includes) — partials, `@once`, `@verbatim`
-- [Components](/docs/crema/components) — `@component` / `@slot` and `<x-*>` tags
-- [Stacks](/docs/crema/stacks) — `@push` / `@stack` for scripts and styles
-- [Forms](/docs/crema/forms) — `@csrf`, `@method`, `@asset`, `@error`
+- [Rendering & data](/docs/crema/rendering/) — echoes, escaping, expressions, `@json`, `@lang`
+- [Layouts & inheritance](/docs/crema/layouts/) — `@extends`, sections, `@yield`, `@parent`
+- [Components & slots](/docs/crema/components/) — reusable views, named slots, `<x-*>` tags
+- [Control structures](/docs/crema/control-structures/) — conditionals, loops, auth
+- [Includes & partials](/docs/crema/includes/) — shared fragments
+- [Stacks](/docs/crema/stacks/) — scripts and styles
+- [Forms](/docs/crema/forms/) — CSRF, method spoofing, field errors

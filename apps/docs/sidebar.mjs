@@ -2,7 +2,7 @@
  * Starlight sidebar for Kona docs.
  *
  * Progressive path (simple → deeper):
- * Getting started → The basics → Digging deeper → Security → Database →
+ * Getting started → The basics → Crema → Digging deeper → Security → Database →
  * Frontend → Testing → Packages & tooling.
  *
  * Prefer regrouping here over mass page moves so existing slugs stay stable.
@@ -28,22 +28,23 @@ export async function buildSidebar() {
         { label: 'Validation', slug: 'docs/http/validation' },
         { label: 'API Resources', slug: 'docs/http/api-resources' },
         { label: 'URL generation', slug: 'docs/http/url-generation' },
-        {
-          label: 'Crema (views)',
-          items: [
-            { label: 'Getting started', slug: 'docs/crema' },
-            { label: 'Rendering', slug: 'docs/crema/rendering' },
-            { label: 'Layouts', slug: 'docs/crema/layouts' },
-            { label: 'Control structures', slug: 'docs/crema/control-structures' },
-            { label: 'Includes', slug: 'docs/crema/includes' },
-            { label: 'Components', slug: 'docs/crema/components' },
-            { label: 'Stacks', slug: 'docs/crema/stacks' },
-            { label: 'Forms', slug: 'docs/crema/forms' },
-          ],
-        },
         { label: 'Exceptions', slug: 'docs/http/exceptions' },
         { label: 'Logging', slug: 'docs/http/logging' },
         { label: 'Kernel & server', slug: 'docs/http/kernel-server' },
+      ],
+    },
+    {
+      label: 'Crema',
+      items: [
+        { label: 'Getting started', slug: 'docs/crema' },
+        { label: 'Rendering & data', slug: 'docs/crema/rendering' },
+        { label: 'Layouts & inheritance', slug: 'docs/crema/layouts' },
+        { label: 'Control structures', slug: 'docs/crema/control-structures' },
+        { label: 'Includes & partials', slug: 'docs/crema/includes' },
+        { label: 'Components & slots', slug: 'docs/crema/components' },
+        { label: 'Stacks', slug: 'docs/crema/stacks' },
+        { label: 'Forms', slug: 'docs/crema/forms' },
+        { label: 'Directive reference', slug: 'docs/crema/directives' },
       ],
     },
     {
