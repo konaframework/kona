@@ -28,5 +28,16 @@ class QueueServiceProvider : ServiceProvider {
         app.container.singleton(FailedJobProvider::class.java) { _ ->
             app.resolve(QueueManager::class.java).failed
         }
+        val batchDriver = app.config.getString("queue.batch.driver", "array")
+        if (batchDriver == "database" && app.container.bound(Database::class.java)) {
+            val table = app.config.getString("queue.batch.table", "job_batches")
+            val repo = DatabaseBatchRepository(app.resolve(Database::class.java).connection(), table)
+            BatchRepositories.set(repo)
+            app.container.instance(BatchRepository::class.java, repo)
+        } else {
+            val repo = InMemoryBatchRepository()
+            BatchRepositories.set(repo)
+            app.container.instance(BatchRepository::class.java, repo)
+        }
     }
 }

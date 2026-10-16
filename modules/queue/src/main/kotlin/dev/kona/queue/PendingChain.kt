@@ -31,19 +31,3 @@ class ChainedJob(
         bus.dispatch(this, WorkerContext.connection(), WorkerContext.queue())
     }
 }
-
-/** Light batch: dispatch many jobs and return their payload ids. */
-class PendingBatch(
-    private val bus: Bus,
-    private val jobs: List<Job>,
-) {
-    @JvmOverloads
-    fun dispatch(connection: String? = null, queue: String? = null): Batch {
-        val ids = jobs.map { bus.dispatch(it, connection, queue) }
-        return Batch(ids)
-    }
-}
-
-data class Batch(val ids: List<String>) {
-    fun size(): Int = ids.size
-}
