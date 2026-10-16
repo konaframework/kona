@@ -89,7 +89,6 @@ PUBLISH_TASKS=(
   :kona-testing:publishToMavenLocal
   :kona-broadcasting:publishToMavenLocal
   :kona-search:publishToMavenLocal
-  :kona-inertia:publishToMavenLocal
   :kona-lsp:publishToMavenLocal
   :kona-cli:publishToMavenLocal
 )

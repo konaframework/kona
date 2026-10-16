@@ -31,7 +31,7 @@ dependencies {
         api(project(":kona-testing"))
         api(project(":kona-broadcasting"))
         api(project(":kona-search"))
-        api(project(":kona-inertia"))
+        // kona-inertia lives in https://github.com/konaframework/kona-inertia (Maven: dev.kona:kona-inertia)
         api(project(":kona-lsp"))
         // kona-brew lives in https://github.com/konaframework/kona-brew (Maven: dev.kona:kona-brew)
     }
