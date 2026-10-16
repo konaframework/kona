@@ -190,7 +190,7 @@ class CliTest {
         assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(
             Files.readString(kt.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
-                .contains("crema.render(\"welcome\""),
+                .contains("view(\"welcome\""),
         )
         assertTrue(Files.readString(kt.resolve("build.gradle.kts")).contains("kona-crema"))
         assertNoPlaceholders(kt)
@@ -222,7 +222,7 @@ class CliTest {
         assertTrue(Files.isRegularFile(j.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(
             Files.readString(j.resolve("src/main/java/app/http/controllers/WelcomeController.java"))
-                .contains("crema.render(\"welcome\""),
+                .contains("Views.make(\"welcome\""),
         )
         assertTrue(Files.readString(j.resolve("src/main/java/bootstrap/App.java")).contains("CremaServiceProvider"))
         assertNoPlaceholders(j)
