@@ -140,6 +140,8 @@ export async function buildSidebar() {
             { label: 'Forms', slug: 'docs/brew/forms' },
             { label: 'Nesting, islands & lazy', slug: 'docs/brew/nesting' },
             { label: 'Pages, navigate & URL', slug: 'docs/brew/pages' },
+            { label: 'File uploads & platform', slug: 'docs/brew/uploads' },
+            { label: 'DX commands & tooling', slug: 'docs/brew/dx' },
             { label: 'Browser events', slug: 'docs/brew/events' },
             { label: 'JavaScript', slug: 'docs/brew/javascript' },
             { label: 'Testing', slug: 'docs/brew/testing' },
