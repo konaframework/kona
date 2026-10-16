@@ -1,39 +1,88 @@
 package dev.kona.core
 
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.slf4j.MDC
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Logging facade with channels, levels, and contextual data (Laravel Log deepen).
+ * Logging facade with channels, drivers, levels, and shared context.
+ *
+ * When a [LogManager] is bound (normally during [Application.boot]), named channels
+ * resolve from `logging.channels.*` config. Without a manager, channels fall back to
+ * named SLF4J loggers.
  */
 object Log {
-    private val channels = ConcurrentHashMap<String, Logger>()
-    private val context = ConcurrentHashMap<String, Any?>()
-    private var defaultChannel: String = "kona"
+    private val fallbackChannels = ConcurrentHashMap<String, LogChannel>()
+    /** Synchronized map so null context values are allowed (CHM rejects nulls). */
+    private val context = Collections.synchronizedMap(LinkedHashMap<String, Any?>())
+
+    @Volatile
+    private var manager: LogManager? = null
+
+    @Volatile
+    private var defaultOverride: String? = null
 
     @JvmStatic
-    fun channel(name: String): LogChannel {
-        val logger = channels.getOrPut(name) { LoggerFactory.getLogger(name) }
-        return LogChannel(logger)
+    fun bind(manager: LogManager) {
+        this.manager = manager
     }
 
     @JvmStatic
-    fun stack(vararg names: String): LogChannel = channel(names.firstOrNull() ?: defaultChannel)
+    fun unbind() {
+        manager?.flush()
+        manager = null
+        fallbackChannels.clear()
+        defaultOverride = null
+        flushSharedContext()
+    }
+
+    @JvmStatic
+    fun manager(): LogManager? = manager
+
+    @JvmStatic
+    fun channel(name: String): LogChannel {
+        manager?.let { return it.channel(name) }
+        return fallbackChannels.getOrPut(name) {
+            NamedLogChannel(LoggerFactory.getLogger(name))
+        }
+    }
+
+    /** Default channel (`logging.default`, or [setDefaultChannel] override). */
+    @JvmStatic
+    fun channel(): LogChannel = channel(defaultChannel())
+
+    /**
+     * Log to every named channel. With a [LogManager], builds a real fan-out stack.
+     * Without a manager (or with no names), uses the default channel.
+     */
+    @JvmStatic
+    fun stack(vararg names: String): LogChannel {
+        manager?.let { return it.stack(*names) }
+        if (names.isEmpty()) {
+            return channel()
+        }
+        return StackLogChannel(names.map { channel(it) }, ignoreExceptions = false)
+    }
 
     @JvmStatic
     fun withContext(values: Map<String, Any?>): LogChannel {
-        context.putAll(values)
-        return channel(defaultChannel)
+        shareContext(values)
+        return channel()
     }
 
     @JvmStatic
     fun shareContext(values: Map<String, Any?>) {
         context.putAll(values)
+        values.forEach { (key, value) ->
+            val rendered = if (value == null) "null" else value.toString()
+            MDC.put(key, rendered)
+        }
     }
 
     @JvmStatic
     fun flushSharedContext() {
+        context.keys.forEach { MDC.remove(it) }
         context.clear()
     }
 
@@ -41,49 +90,121 @@ object Log {
     fun sharedContext(): Map<String, Any?> = LinkedHashMap(context)
 
     @JvmStatic
-    fun info(message: String) = channel(defaultChannel).info(message)
-
-    @JvmStatic
-    fun debug(message: String) = channel(defaultChannel).debug(message)
-
-    @JvmStatic
-    fun warn(message: String) = channel(defaultChannel).warn(message)
-
-    @JvmStatic
-    fun error(message: String) = channel(defaultChannel).error(message)
-
-    @JvmStatic
-    fun error(message: String, throwable: Throwable) = channel(defaultChannel).error(message, throwable)
+    fun defaultChannel(): String =
+        defaultOverride
+            ?: manager?.defaultChannel()
+            ?: "stack"
 
     @JvmStatic
     fun setDefaultChannel(name: String) {
-        defaultChannel = name
+        defaultOverride = name
+    }
+
+    @JvmStatic
+    fun emergency(message: String) = write(LogLevel.EMERGENCY, message, null)
+
+    @JvmStatic
+    fun alert(message: String) = write(LogLevel.ALERT, message, null)
+
+    @JvmStatic
+    fun critical(message: String) = write(LogLevel.CRITICAL, message, null)
+
+    @JvmStatic
+    fun error(message: String) = write(LogLevel.ERROR, message, null)
+
+    @JvmStatic
+    fun error(message: String, throwable: Throwable) = write(LogLevel.ERROR, message, throwable)
+
+    @JvmStatic
+    fun warning(message: String) = write(LogLevel.WARNING, message, null)
+
+    @JvmStatic
+    fun warn(message: String) = warning(message)
+
+    @JvmStatic
+    fun notice(message: String) = write(LogLevel.NOTICE, message, null)
+
+    @JvmStatic
+    fun info(message: String) = write(LogLevel.INFO, message, null)
+
+    @JvmStatic
+    fun debug(message: String) = write(LogLevel.DEBUG, message, null)
+
+    @JvmStatic
+    fun log(level: String, message: String) = write(LogLevel.parse(level), message, null)
+
+    @JvmStatic
+    fun log(level: LogLevel, message: String) = write(level, message, null)
+
+    private fun write(level: LogLevel, message: String, throwable: Throwable?) {
+        val mgr = manager
+        try {
+            channel().write(level, message, throwable)
+        } catch (ex: Exception) {
+            mgr?.writeEmergency(message, ex) ?: throw ex
+        }
     }
 }
 
-class LogChannel internal constructor(
-    private val logger: Logger,
-) {
-    fun info(message: String) = logger.info(format(message))
+/** PSR-3-shaped severity levels mapped onto SLF4J. */
+enum class LogLevel {
+    EMERGENCY,
+    ALERT,
+    CRITICAL,
+    ERROR,
+    WARNING,
+    NOTICE,
+    INFO,
+    DEBUG,
+    ;
 
-    fun debug(message: String) = logger.debug(format(message))
+    companion object {
+        @JvmStatic
+        @KoverExclude
+        fun parse(raw: String): LogLevel = LogLevels.parse(raw)
+    }
+}
 
-    fun warn(message: String) = logger.warn(format(message))
+/**
+ * A writable log destination (configured channel, stack, or SLF4J fallback).
+ */
+abstract class LogChannel {
+    fun emergency(message: String) = write(LogLevel.EMERGENCY, message, null)
 
-    fun error(message: String) = logger.error(format(message))
+    fun alert(message: String) = write(LogLevel.ALERT, message, null)
 
-    fun error(message: String, throwable: Throwable) = logger.error(format(message), throwable)
+    fun critical(message: String) = write(LogLevel.CRITICAL, message, null)
+
+    fun error(message: String) = write(LogLevel.ERROR, message, null)
+
+    fun error(message: String, throwable: Throwable) = write(LogLevel.ERROR, message, throwable)
+
+    fun warning(message: String) = write(LogLevel.WARNING, message, null)
+
+    fun warn(message: String) = warning(message)
+
+    fun notice(message: String) = write(LogLevel.NOTICE, message, null)
+
+    fun info(message: String) = write(LogLevel.INFO, message, null)
+
+    fun debug(message: String) = write(LogLevel.DEBUG, message, null)
+
+    fun log(level: String, message: String) = write(LogLevel.parse(level), message, null)
+
+    fun log(level: LogLevel, message: String) = write(level, message, null)
 
     fun with(values: Map<String, Any?>): LogChannel {
         Log.shareContext(values)
         return this
     }
 
-    private fun format(message: String): String {
+    protected fun format(message: String): String {
         val shared = Log.sharedContext()
         if (shared.isEmpty()) {
             return message
         }
         return "$message $shared"
     }
+
+    abstract fun write(level: LogLevel, message: String, throwable: Throwable?)
 }
