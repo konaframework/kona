@@ -26,7 +26,7 @@ Kona may give Laravel and Almasix a **brief nod once** in the introduction (insp
 
 - Do **not** compare features (“like X”, “Laravel’s Y”, “Eloquent-style”).
 - Do **not** use parallel naming tables or “Artisan / smith equivalent” phrasing in public docs.
-- Describe **Kona’s** APIs, names (`grind`, `Extract`, `Crema`, `drip`, `steam`), and behavior on their own terms.
+- Describe **Kona’s** APIs, names (`grind`, `Cadence`, `Crema`, `drip`, `steam`), and behavior on their own terms.
 
 Internal architecture docs under `docs/architecture/` may still map components for agents; that mapping must not leak into the public site.
 

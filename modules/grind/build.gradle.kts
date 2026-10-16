@@ -11,7 +11,7 @@ application {
 
 dependencies {
     api(project(":kona-http"))
-    api(project(":kona-extract"))
+    api(project(":kona-cadence"))
     api(project(":kona-crema"))
     api(project(":kona-queue"))
     api(project(":kona-schedule"))

@@ -2,9 +2,9 @@ package dev.kona.grind
 
 import dev.kona.core.Application
 import dev.kona.core.Kona
-import dev.kona.extract.Database
-import dev.kona.extract.migrations.MigrationRegistry
-import dev.kona.extract.migrations.Migrator
+import dev.kona.cadence.Database
+import dev.kona.cadence.migrations.MigrationRegistry
+import dev.kona.cadence.migrations.Migrator
 
 /**
  * `grind migrate`, `migrate:rollback [--step=N]`, `migrate:reset`, `migrate:status`.

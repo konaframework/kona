@@ -209,7 +209,7 @@ For `UploadedFile` values, `min` / `max` / `size` / `between` measure **kilobyte
 
 ### `exists` and `unique`
 
-These rules need a database probe. Register one with `Validator.setExistenceChecker(checker)` — typically from an Extract-backed provider. Without a checker, the rule fails closed with a message that an `ExistenceChecker` is required, so a missing wire-up cannot silently pass.
+These rules need a database probe. Register one with `Validator.setExistenceChecker(checker)` — typically from an Cadence-backed provider. Without a checker, the rule fails closed with a message that an `ExistenceChecker` is required, so a missing wire-up cannot silently pass.
 
 ### How size is measured
 

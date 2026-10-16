@@ -14,12 +14,12 @@
 | **kona** (CLI) | `laravel` new | Global: create apps |
 | **grind** | Artisan / `smith` | App-local CLI (`./grind`) |
 | **steam** | Tinker | REPL (`grind steam`) |
-| **Extract** | Eloquent | ActiveRecord ORM |
+| **Cadence** | Eloquent | ActiveRecord ORM |
 | **Crema** | Blade / Prism | Templates |
 | **drip** | HTTP client | Fluent client/SDK |
 
 ```text
-kona new my-app | cd my-app && ./grind | ./grind steam | Extract | *.crema.html
+kona new my-app | cd my-app && ./grind | ./grind steam | Cadence | *.crema.html
 ```
 
 ```bash
@@ -32,7 +32,7 @@ Repo samples (`samples/hello-*`) are monorepo modules: run `./gradlew :hello-kot
 
 ## Status
 
-**M0–M1** on `main`. Active coding milestone: **M2 Extract**. Public docs ship concurrently from `apps/docs/`.
+**M0–M1** on `main`. Active coding milestone: **M2 Cadence**. Public docs ship concurrently from `apps/docs/`.
 
 ```bash
 pnpm install

@@ -42,12 +42,12 @@ Register `MailServiceProvider` then `NotificationServiceProvider`. Channels: `ma
 |---------------------------------|----------|
 | `memory` (default) | In-process store; optional JSON file via `notifications.database.path` |
 | `file` / `json` | Same as memory with a path when configured |
-| `database` / `extract` | Extract table (default `notifications`) when `Database` is bound |
+| `database` / `cadence` | Cadence table (default `notifications`) when `Database` is bound |
 
 ```kotlin
 app.config.set("notifications.database.driver", "database")
 app.config.set("notifications.database.table", "notifications")
-app.register(ExtractServiceProvider())
+app.register(CadenceServiceProvider())
 app.register(NotificationServiceProvider())
 ```
 

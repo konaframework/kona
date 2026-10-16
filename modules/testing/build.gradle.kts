@@ -8,7 +8,7 @@ plugins {
 dependencies {
     api(project(":kona-core"))
     api(project(":kona-http"))
-    api(project(":kona-extract"))
+    api(project(":kona-cadence"))
     api(project(":kona-mail"))
     api(project(":kona-queue"))
     api(project(":kona-notifications"))

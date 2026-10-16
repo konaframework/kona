@@ -46,7 +46,7 @@ abstract class JsonResource(
 
     /**
      * Include a relationship when it is already loaded on [resource].
-     * Detects Extract-style models via `relationLoaded` / `getRelation` (no hard Extract dependency).
+     * Detects Cadence-style models via `relationLoaded` / `getRelation` (no hard Cadence dependency).
      *
      * When [value] is omitted, the loaded relation itself is returned.
      */

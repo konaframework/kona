@@ -1,6 +1,6 @@
 package dev.kona.grind
 
-import dev.kona.extract.ExtractException
+import dev.kona.cadence.CadenceException
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
@@ -72,8 +72,8 @@ constructor(
         } catch (ex: GrindException) {
             io.error(ex.message ?: "grind error")
             1
-        } catch (ex: ExtractException) {
-            io.error(ex.message ?: "extract error")
+        } catch (ex: CadenceException) {
+            io.error(ex.message ?: "cadence error")
             1
         }
     }

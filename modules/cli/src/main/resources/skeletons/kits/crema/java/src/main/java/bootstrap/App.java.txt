@@ -11,7 +11,7 @@ import dev.kona.core.Application;
 import dev.kona.core.Env;
 import dev.kona.core.Kona;
 import dev.kona.crema.CremaServiceProvider;
-import dev.kona.extract.ExtractServiceProvider;
+import dev.kona.cadence.CadenceServiceProvider;
 import dev.kona.filesystem.FilesystemServiceProvider;
 import dev.kona.http.HttpKernel;
 import dev.kona.http.HttpServiceProvider;
@@ -38,7 +38,7 @@ public final class App {
             )
             .providers(
                 new HttpServiceProvider(),
-                new ExtractServiceProvider(),
+                new CadenceServiceProvider(),
                 new FilesystemServiceProvider(),
                 new RedisServiceProvider(),
                 new SessionServiceProvider(),

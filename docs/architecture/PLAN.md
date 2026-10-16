@@ -27,7 +27,7 @@ These rules are product law. They will live in-repo so every agent and human mus
 | [`.cursor/rules/kona-milestones.mdc`](../../.cursor/rules/kona-milestones.mdc) | `alwaysApply: true` Cursor rule mirroring the same laws |
 | [`MILESTONES.md`](../../MILESTONES.md) | Ordered milestones, status, parity checklists, Definition of Done |
 | [`PLAN.md`](PLAN.md) | This architectural plan (canonical copy in repo) |
-| [`components.md`](components.md) | Kona ↔ Laravel/Almasix component map (grind, Extract, Crema, …) |
+| [`components.md`](components.md) | Kona ↔ Laravel/Almasix component map (grind, Cadence, Crema, …) |
 | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | From M1 onward: test + 100% coverage gate + regression; automerge on green milestone PRs |
 
 Agents must read `AGENTS.md` + current milestone section in `MILESTONES.md` before writing code. If a request would skip coverage, skip parity, or start the next milestone early — **refuse and finish the current milestone**.
@@ -56,12 +56,12 @@ Benchmark Spring Boot / Quarkus as competitors only.
 | **Kona** | Laravel / Almasix core | Container, routing, boot (`Kona.start(args)`) |
 | **grind** | Artisan / `smith` | CLI |
 | **steam** | Tinker | REPL (`grind steam`) |
-| **Extract** | Eloquent / Almasix ORM | ActiveRecord ORM + migrations |
+| **Cadence** | Eloquent / Almasix ORM | ActiveRecord ORM + migrations |
 | **Crema** | Blade / Prism | Templates `*.crema.html` / `*.crema.kt` |
 | **drip** | HTTP client | Fluent client/SDK |
 
 ```text
-./grind | ./grind steam | Extract | Crema views | Kona.start(args)
+./grind | ./grind steam | Cadence | Crema views | Kona.start(args)
 ```
 
 ## Language policy
@@ -101,9 +101,9 @@ Canonical checklists and the **full Almasix menu coverage ledger** live in [`MIL
 |---|--------|
 | M0 | Plan + rules lock |
 | M1 | Kernel + HTTP + grind (routing, requests, middleware, validation, …) |
-| M2 | Extract ORM + DB (query builder, migrations, seeders, factories, …) |
+| M2 | Cadence ORM + DB (query builder, migrations, seeders, factories, …) |
 | M3 | Session, auth, hashing, passwords, authorization, CSRF, CORS, rate limit, encryption, API tokens |
-| M4 | Cache, Redis, Collections, Helpers, Dates, Strings, Localization, Extract serialization/events |
+| M4 | Cache, Redis, Collections, Helpers, Dates, Strings, Localization, Cadence serialization/events |
 | M5 | URL generation, API Resources, controllers/logging/errors deepen |
 | M6 | Crema views (full view menu) |
 | M7 | Queues, events, mail, notifications, filesystem |
@@ -125,7 +125,7 @@ flowchart LR
 1. From-scratch core; library composition only.
 2. Netty + Virtual Threads (default `KonaHttpServer` adapter).
 3. Providers + facades; KSP where useful.
-4. Extract/Crema/drip first-party.
+4. Cadence/Crema/drip first-party.
 5. Interop gate every coding milestone.
 6. Milestone rules above override convenience.
 

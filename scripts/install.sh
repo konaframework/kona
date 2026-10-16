@@ -71,7 +71,7 @@ PUBLISH_TASKS=(
   :kona-filesystem:publishToMavenLocal
   :kona-support:publishToMavenLocal
   :kona-http:publishToMavenLocal
-  :kona-extract:publishToMavenLocal
+  :kona-cadence:publishToMavenLocal
   :kona-auth:publishToMavenLocal
   :kona-session:publishToMavenLocal
   :kona-redis:publishToMavenLocal
