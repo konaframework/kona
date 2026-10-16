@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kover)
     `java-library`
-    `maven-publish`
 }
 
 kotlin {
@@ -50,11 +49,3 @@ kover {
     }
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            artifactId = "kona-filesystem"
-        }
-    }
-}

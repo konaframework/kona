@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kover)
     `java-library`
-    `maven-publish`
 }
 
 dependencies {
@@ -31,11 +30,3 @@ kover {
     }
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            artifactId = "kona-events"
-        }
-    }
-}

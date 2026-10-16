@@ -67,6 +67,7 @@ STEP_NUM=0
 
 # Modules apps resolve from mavenLocal() (transitive deps included).
 PUBLISH_TASKS=(
+  :bom:publishToMavenLocal
   :kona-core:publishToMavenLocal
   :kona-filesystem:publishToMavenLocal
   :kona-support:publishToMavenLocal
