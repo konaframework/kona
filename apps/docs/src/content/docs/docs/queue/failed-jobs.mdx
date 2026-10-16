@@ -20,6 +20,6 @@ When a job exhausts its tries, the worker logs it through `FailedJobProvider`.
 |-----------------------|---------|
 | `memory` (default) | Process heap |
 | `file` | JSON at `queue.failed.path` (default `storage/framework/failed_jobs.json`) |
-| `database` | `failed_jobs` table (`queue.failed.table`); needs Extract `Database` |
+| `database` | `failed_jobs` table (`queue.failed.table`); needs Cadence `Database` |
 
 Use `file` or `database` whenever retries must survive a worker restart.

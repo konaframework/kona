@@ -117,7 +117,7 @@ A request to `GET /hello/kona` returns `{"message":"Hello, kona"}`. The rest of 
 - **HTTP kernel** (`dev.kona.http.HttpKernel`): The single entry point that turns a `Request` into a `Response`: it runs global middleware, asks the router for a matching route, runs that route's middleware and handler, and converts any thrown exception into an error response.
 - **kona** (global CLI): creates applications — `kona new my-app`.
 - **grind** (app-local CLI): lives in each project as `./grind` — `./grind serve`, `./grind make:controller`, `./grind migrate`.
-- **Extract** (`dev.kona.extract`): the database layer — connections, a query builder, models, relations, and migrations. See [Extract overview](../../extract/).
+- **Cadence** (`dev.kona.cadence`): the database layer — connections, a query builder, models, relations, and migrations. See [Cadence overview](../../cadence/).
 
 ## The lifecycle, start to finish
 
@@ -135,7 +135,7 @@ Steps 1 to 5 happen once. Step 7 happens for every request.
 
 ## How these docs are organised
 
-The sidebar is a progressive path. Read **Getting started** first, then **The basics** (routing, controllers, validation, Crema views). When you need internals or background work, open **Digging deeper** (application, container, grind, events, queues, mail, cache, drip, and more). Branch into **Security**, **Database** (Extract), **Frontend** (Brew, Inertia, Vite), **Testing**, and **Packages & tooling** as your app needs them. The [documentation hub](../../) mirrors the same groups.
+The sidebar is a progressive path. Read **Getting started** first, then **The basics** (routing, controllers, validation, Crema views). When you need internals or background work, open **Digging deeper** (application, container, grind, events, queues, mail, cache, drip, and more). Branch into **Security**, **Database** (Cadence), **Frontend** (Brew, Inertia, Vite), **Testing**, and **Packages & tooling** as your app needs them. The [documentation hub](../../) mirrors the same groups.
 
 ## The Kona toolbox
 
@@ -148,7 +148,7 @@ Kona is organised into named components. Guides for each live under the sidebar 
 | **kona** | Global CLI: `kona new` (`kona-cli`) | Available |
 | **grind** | App-local CLI: `./grind serve`, `make:*`, `migrate`, `db:seed` (`kona-grind`) | Available |
 | **steam** | Interactive shell inside a booted application (`kona-steam`) | Available |
-| **Extract** | Database connections, query builder, models, relations, migrations, seeders, factories (`kona-extract`) — see [Extract](../../extract/) | Available |
+| **Cadence** | Database connections, query builder, models, relations, migrations, seeders, factories (`kona-cadence`) — see [Cadence](../../cadence/) | Available |
 | **Crema** | Server-side HTML templates (`kona-crema`) — see [Crema](../../crema/) | Available |
 | **drip** | Outbound HTTP client (`kona-drip`) — see [drip](../../drip/) | Available |
 

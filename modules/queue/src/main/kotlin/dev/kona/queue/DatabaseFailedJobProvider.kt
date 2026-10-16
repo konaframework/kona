@@ -2,7 +2,7 @@ package dev.kona.queue
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dev.kona.extract.DatabaseConnection
+import dev.kona.cadence.DatabaseConnection
 
 /**
  * Persists failed jobs in a `failed_jobs` table (Laravel shape) so retries survive restart.

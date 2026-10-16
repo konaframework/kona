@@ -44,7 +44,7 @@ Configure `queue.default` and `queue.connections.{name}.driver`:
 | `sync` | Run inline on dispatch (delay ignored) |
 | `array` / `memory` | In-process queue for tests and local workers |
 | `redis` | Shared Redis list (needs `RedisManager`) |
-| `database` | `jobs` table (needs Extract `Database`) |
+| `database` | `jobs` table (needs Cadence `Database`) |
 
 Default queue name per connection: `queue.connections.{name}.queue` (fallback `default`).
 

@@ -1,7 +1,7 @@
 package dev.kona.queue
 
 import dev.kona.core.Config
-import dev.kona.extract.Database
+import dev.kona.cadence.Database
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows

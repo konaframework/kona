@@ -54,8 +54,8 @@ class MakeMigrationCommand {
         return lines(
             "package database.migrations",
             "",
-            "import dev.kona.extract.migrations.Migration",
-            "import dev.kona.extract.schema.Schema",
+            "import dev.kona.cadence.migrations.Migration",
+            "import dev.kona.cadence.schema.Schema",
             "",
             "class $className : Migration {",
             "    override fun up(schema: Schema) {",
@@ -73,8 +73,8 @@ class MakeMigrationCommand {
         return lines(
             "package database.migrations;",
             "",
-            "import dev.kona.extract.migrations.Migration;",
-            "import dev.kona.extract.schema.Schema;",
+            "import dev.kona.cadence.migrations.Migration;",
+            "import dev.kona.cadence.schema.Schema;",
             "",
             "public class $className implements Migration {",
             "    @Override",

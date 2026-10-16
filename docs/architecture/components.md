@@ -10,7 +10,7 @@ Kona is a full-stack, developer-friendly web framework for the Java/Kotlin ecosy
 | **`kona` CLI** | `laravel` installer | — | Global CLI to create applications (`kona new`) |
 | **grind** | Artisan | `smith` | **App-local** CLI (`./grind`) for serve, generators, migrate, steam |
 | **steam** | Tinker | (REPL) | Interactive REPL in bootstrapped app context |
-| **Extract** | Eloquent | Almasix ORM | ActiveRecord ORM, query builder, relationships, migrations |
+| **Cadence** | Eloquent | Almasix ORM | ActiveRecord ORM, query builder, relationships, migrations |
 | **Crema** | Blade / Prism | Prism | Server-side templates with layouts, directives, components |
 | **drip** | Axios / HTTP client | HTTP client | Fluent HTTP client/SDK |
 
@@ -20,7 +20,7 @@ Kona is a full-stack, developer-friendly web framework for the Java/Kotlin ecosy
 Global installer:  kona new my-app
 App CLI:           ./grind | ./grind steam
 View Files:        *.crema.html (or *.crema.kt)
-Model Base:        Extract
+Model Base:        Cadence
 Main Boot:         Kona.create(args).boot()
 ```
 
@@ -55,9 +55,9 @@ Shipped inside each generated application as `./grind`. Target commands: `./grin
 
 Integrated into `grind`. Evaluates Kotlin/Java expressions inside the bootstrapped application context.
 
-### `Extract` (ORM)
+### `Cadence` (ORM)
 
-ActiveRecord with companion / static query helpers. Fluent builder: `Extract.where()`, `Extract.find()`, `hasMany()`, `belongsTo()`, and related Eloquent-class APIs.
+ActiveRecord with companion / static query helpers. Fluent builder: `Cadence.where()`, `Cadence.find()`, `hasMany()`, `belongsTo()`, and related Eloquent-class APIs.
 
 ### `Crema` (views)
 

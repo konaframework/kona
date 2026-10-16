@@ -4,7 +4,7 @@ Durable audit of **kona-filesystem** against Laravel Storage / Flysystem behavio
 
 **Branch / work:** `feat/filesystem-storage-parity`  
 **Worktree:** `/home/smaosa/kona-fs-parity` (isolated from concurrent agents)  
-**Stay out of:** `modules/http`, `modules/extract`, `modules/grind` (except tiny filesystem-only `make:` if needed), `modules/auth`, session  
+**Stay out of:** `modules/http`, `modules/cadence`, `modules/grind` (except tiny filesystem-only `make:` if needed), `modules/auth`, session  
 **Modules in scope:** `kona-filesystem`, `kona-testing` (`FakeStorage` only as interface sync), `apps/docs/` (filesystem guides + sidebar)  
 **HTTP cross-links only:** `ServePublicStorage`, signed downloads — already M23; document, do not deepen HTTP here.
 

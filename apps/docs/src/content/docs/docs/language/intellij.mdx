@@ -31,7 +31,7 @@ Installing, updating, or removing the plugin requires an IDE restart.
 - `{{` auto-closes as `{{  }}` with the caret in the middle
 - **View name autocomplete** in `Crema.view`, `Brew.view`, `engine.make` / `render`, `@extends`, `@include`, and similar call sites
 - **Go to view file:** place the caret on a view name string and use **Ctrl+B** or **Ctrl+Click** (macOS: **⌘B** / **⌘Click**). Same as Navigate → Declaration.
-- **DB column completion** from Extract migrations and, when `.env` has a reachable `DB_URL`, from JDBC metadata
+- **DB column completion** from Cadence migrations and, when `.env` has a reachable `DB_URL`, from JDBC metadata
 - **Kona** tool window (RIGHT): `./grind serve`, migrate, queue/schedule, New Crema View, help, docs
 - Official Kona brand icons on the tool window, Crema files, scaffold folders, and Grind run configs
 - **Grind** run configuration type for `./grind …` (Netty serve, default port `4000`)
@@ -51,7 +51,7 @@ Column suggestions merge two sources when available:
 1. **Migrations** — parses `schema.create` / `schema.table` stubs under `src/main/{kotlin|java}/database/migrations` (`id()`, `string("…")`, `timestamps()`, `morphs`, `dropColumn`, …).
 2. **JDBC** — reads `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and optional `DB_DRIVER` from the project `.env` and, if a driver can connect, loads columns from `DatabaseMetaData`.
 
-Use them in Extract / query call sites such as `where("…")`, `select("…")`, and `orderBy("…")`.
+Use them in Cadence / query call sites such as `where("…")`, `select("…")`, and `orderBy("…")`.
 
 ## Develop the plugin
 

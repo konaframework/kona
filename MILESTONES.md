@@ -99,18 +99,18 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Seeding | M2 | done |
 | Factories | M2 | done |
 
-### Extract ORM
+### Cadence ORM
 
 | Topic | Milestone | Status |
 |-------|-----------|--------|
-| Extract: Getting Started (docs) | M2; Eloquent-depth rewrite (post-M13 parity) | done |
+| Cadence: Getting Started (docs) | M2; Eloquent-depth rewrite (post-M13 parity) | done |
 | Relationships | M2; morphs / through M15 | done |
 | Mutators & Casts | M2; `CastsAttributes` M15 | done |
 | Serialization | M4 | done |
-| Collections (Extract) | M4 | done |
+| Collections (Cadence) | M4 | done |
 | Soft Deletes & Events | Soft deletes M2; model events M4 | done |
 
-Living deepen ledger (Eloquent + Database engines/grammars): [docs/governance/extract-eloquent-parity.md](docs/governance/extract-eloquent-parity.md).
+Living deepen ledger (Eloquent + Database engines/grammars): [docs/governance/cadence-eloquent-parity.md](docs/governance/cadence-eloquent-parity.md).
 
 ### View layer (Crema)
 
@@ -207,7 +207,7 @@ Controllers (resource/API depth) → M5; Error Handling / Logging channels → M
 
 ---
 
-## M2 — Extract
+## M2 — Cadence
 
 **Status:** done  
 **Branch:** `milestone/M2-extract` (merged)
@@ -231,11 +231,11 @@ Controllers (resource/API depth) → M5; Error Handling / Logging channels → M
 
 ### In-scope modules
 
-`kona-extract`, `kona-grind` (database commands)
+`kona-cadence`, `kona-grind` (database commands)
 
 ### Deferred deepen (tracked elsewhere)
 
-Extract Serialization, Extract Collections, Soft-delete / model **events** → M4. Getting Started docs rewrite (simple-first) continues with later waves.
+Cadence Serialization, Cadence Collections, Soft-delete / model **events** → M4. Getting Started docs rewrite (simple-first) continues with later waves.
 
 ---
 
@@ -270,12 +270,12 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 
 ---
 
-## M4 — Cache, Redis, support utilities, Extract deepen
+## M4 — Cache, Redis, support utilities, Cadence deepen
 
 **Status:** done  
 **Branch:** `milestone/M4-cache-redis-support`
 
-**Parity slice:** Cache, Redis, Collections, Helpers, Dates, Strings, Localization + Extract Serialization / Collections / model events.
+**Parity slice:** Cache, Redis, Collections, Helpers, Dates, Strings, Localization + Cadence Serialization / Collections / model events.
 
 ### Parity checklist
 
@@ -286,14 +286,14 @@ Extract Serialization, Extract Collections, Soft-delete / model **events** → M
 - [x] Dates (Carbon/Chrono-class fluent date/time API)
 - [x] Strings (fluent string helpers)
 - [x] Localization (lang files, `__()` / translator, locale switching)
-- [x] Extract: attribute / model serialization (toArray / toJson / hidden / visible / appends)
-- [x] Extract: model Collections helpers
-- [x] Extract: Soft Deletes **events** + model lifecycle events (creating/created/…)
-- [x] Docs for Cache, Redis, Support, Localization, Extract serialization/events
+- [x] Cadence: attribute / model serialization (toArray / toJson / hidden / visible / appends)
+- [x] Cadence: model Collections helpers
+- [x] Cadence: Soft Deletes **events** + model lifecycle events (creating/created/…)
+- [x] Docs for Cache, Redis, Support, Localization, Cadence serialization/events
 
 ### In-scope modules
 
-`kona-cache`, `kona-redis`, `kona-support` (collections/helpers/dates/strings), `kona-extract` (deepen), localization package as appropriate
+`kona-cache`, `kona-redis`, `kona-support` (collections/helpers/dates/strings), `kona-cadence` (deepen), localization package as appropriate
 
 ---
 
@@ -482,7 +482,7 @@ External repo: [konaframework/kona-brew](https://github.com/konaframework/kona-b
 
 **Branch:** `milestone/M13-ide-support` (in-repo `ide-support/` + `modules/lsp`)
 
-**Parity slice:** Language support, Language server, Editor setup for Crema / grind / Extract DSLs.
+**Parity slice:** Language support, Language server, Editor setup for Crema / grind / Cadence DSLs.
 
 ### Parity checklist
 
@@ -546,7 +546,7 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 ---
 
-## M15 — Extract / Model Laravel parity
+## M15 — Cadence / Model Laravel parity
 
 **Status:** done (PR #30)
 
@@ -564,11 +564,11 @@ After M13, further product work becomes new numbered milestones with the same Do
 - [x] `withExists` / `withSum` (and load* variants) where needed for parity
 - [x] `wasChanged` / `getChanges` after save
 - [x] Kotlin + Java samples/regressions for new APIs
-- [x] Docs (`apps/docs/` Extract guides) + HANDOFF
+- [x] Docs (`apps/docs/` Cadence guides) + HANDOFF
 
 ### In-scope modules
 
-`kona-extract`, samples/regression paths, `apps/docs/`
+`kona-cadence`, samples/regression paths, `apps/docs/`
 
 ---
 
@@ -585,7 +585,7 @@ After M13, further product work becomes new numbered milestones with the same Do
 - [x] Job payload carries serializable job body (cross-process / cross-worker restore without in-process `JobRegistry` factory)
 - [x] `JobRegistry.create` restores from payload body + class; Kotlin + Java job samples
 - [x] Release delay honored on array / database / redis drivers (`availableAt`)
-- [x] Durable failed-job driver (file verified; database failed_jobs when Extract available)
+- [x] Durable failed-job driver (file verified; database failed_jobs when Cadence available)
 - [x] `grind queue:retry` re-dispatches payloads (not forget-only); flush/list stay green
 - [x] Worker backoff uses job `backoffSeconds` via release (no thread sleep)
 - [x] Docs (`apps/docs/` queues) + HANDOFF; 100% kover on touched queue/grind modules
@@ -606,7 +606,7 @@ After M13, further product work becomes new numbered milestones with the same Do
 
 ### Parity checklist
 
-- [x] `kona new` skeletons depend on + register Extract / Redis / Session / Auth / Queue / Schedule / Mail providers (api + kit overlays)
+- [x] `kona new` skeletons depend on + register Cadence / Redis / Session / Auth / Queue / Schedule / Mail providers (api + kit overlays)
 - [x] Scaffold middleware wires `StartSession` (+ CSRF on web stack; `/api/*` and `/brew/*` excepted)
 - [x] `session.json` + `.env` `APP_KEY` generated on `kona new`
 - [x] Cookie session payloads HMAC-signed when encryption is off; Encrypter path unchanged when bound / `session.encrypt=true`
@@ -629,12 +629,12 @@ M18 — Notifications durability.
 
 **Branch:** `milestone/M18-notifications-durability`
 
-**Parity slice:** Database notifications persist via Extract when a DB is bound; unread / mark-as-read APIs; optional queue when a notification implements `ShouldQueue`.
+**Parity slice:** Database notifications persist via Cadence when a DB is bound; unread / mark-as-read APIs; optional queue when a notification implements `ShouldQueue`.
 
 ### Parity checklist
 
 - [x] `NotificationRecord` + store API (id, type, data, notifiable, `readAt`, timestamps)
-- [x] Extract-backed store when `Database` is bound; JSON file + memory remain via config
+- [x] Cadence-backed store when `Database` is bound; JSON file + memory remain via config
 - [x] Unread / mark-as-read / mark-all-as-read for a notifiable key (Kotlin + Java)
 - [x] `NotificationSender` queues when notification implements `ShouldQueue` and `Bus` is bound
 - [x] Provider/config wiring (`notifications.database.driver` / table / path); docs + HANDOFF
@@ -642,7 +642,7 @@ M18 — Notifications durability.
 
 ### In-scope modules
 
-`kona-notifications`, soft use of `kona-extract` / `kona-queue`, `apps/docs/`
+`kona-notifications`, soft use of `kona-cadence` / `kona-queue`, `apps/docs/`
 
 ### Next (queued)
 
@@ -802,7 +802,7 @@ M24 — Executable config.
 
 ### Next (queued)
 
-Opened after M24. Strong candidate: session auth middleware + Extract user provider + remember-cookie.
+Opened after M24. Strong candidate: session auth middleware + Cadence user provider + remember-cookie.
 
 ---
 

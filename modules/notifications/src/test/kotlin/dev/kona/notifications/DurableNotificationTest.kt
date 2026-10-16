@@ -1,9 +1,9 @@
 package dev.kona.notifications
 
 import dev.kona.core.Application
-import dev.kona.extract.ConnectionConfig
-import dev.kona.extract.Database
-import dev.kona.extract.ExtractServiceProvider
+import dev.kona.cadence.ConnectionConfig
+import dev.kona.cadence.Database
+import dev.kona.cadence.CadenceServiceProvider
 import dev.kona.queue.Bus
 import dev.kona.queue.QueueServiceProvider
 import dev.kona.queue.ShouldQueue
@@ -81,7 +81,7 @@ class DurableNotificationTest {
                     "jdbc:h2:mem:notif-provider-${UUID.randomUUID()};MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
                 )
             }
-            .withProviders(ExtractServiceProvider(), NotificationServiceProvider())
+            .withProviders(CadenceServiceProvider(), NotificationServiceProvider())
             .boot()
 
         val channel = app.resolve(DatabaseChannel::class.java)
