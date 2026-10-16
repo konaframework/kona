@@ -54,7 +54,7 @@ export async function buildSidebar() {
         { label: 'Container', slug: 'docs/concepts/container' },
         { label: 'Config & env', slug: 'docs/concepts/config' },
         {
-          label: 'grind',
+          label: 'Grind Console',
           items: [
             { label: 'Overview', slug: 'docs/grind' },
             { label: 'Creating commands', slug: 'docs/grind/creating-commands' },
