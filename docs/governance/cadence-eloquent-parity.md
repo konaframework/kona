@@ -8,7 +8,7 @@ Living audit of `dev.kona.cadence` against Laravel Eloquent / query builder / da
 |------|--------|
 | Last audit | 2026-10-16 (B6) |
 | Last merged deepen | PR #87 (B6 Eloquent parity) |
-| Active deepen | **none** — B1–B6 closed; next deepen is Security / HTTP / Queues / Support |
+| Active deepen | **none** — B1–B6 closed; Security/HTTP/Queues/Support deepen ledgers closed (#88–#91) |
 
 ---
 

@@ -3,8 +3,8 @@
 Durable deepen tracker for `kona-http` (and middleware-linked session CSRF only when already in HTTP scope).  
 **Do not edit** `modules/cadence` or `modules/grind` from this workstream.
 
-**Branch:** `feat/http-niche-validation`  
-**Status:** B2 shipping  
+**Branch:** `feat/http-niche-validation` (merged #89)  
+**Status:** B2 **closed**  
 **Updated:** 2026-10-16
 
 ## Laws
@@ -77,8 +77,8 @@ Baseline + B1 rules, plus B2 niche:
 | Batch | Scope | PR |
 |-------|-------|-----|
 | B1 | Request helpers + validation rules + Response.withHeaders + terminable/priority + docs | #68 |
-| B2 | Niche validation + stream + controller middleware + docs | shipping |
+| B2 | Niche validation + stream + controller middleware + docs | [#89](https://github.com/konaframework/kona/pull/89) |
 
 ## Close criteria
 
-B2 rows **done**; CI green; automerge to `main`.
+B2 **closed** on `main` (#89).
