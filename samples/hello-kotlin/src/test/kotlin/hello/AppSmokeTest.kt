@@ -1,9 +1,9 @@
 package hello
 
 import bootstrap.App
-import dev.kona.core.Kona
-import dev.kona.http.HttpKernel
-import dev.kona.http.Request
+import io.konaframework.core.Kona
+import io.konaframework.http.HttpKernel
+import io.konaframework.http.Request
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue

@@ -1,7 +1,7 @@
 package app.http.middleware
 
-import dev.kona.http.Request
-import dev.kona.inertia.HandleInertiaRequests
+import io.konaframework.http.Request
+import io.konaframework.inertia.HandleInertiaRequests
 
 class HandleInertia : HandleInertiaRequests() {
     override fun share(request: Request): Map<String, Any?> =

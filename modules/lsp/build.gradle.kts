@@ -8,7 +8,7 @@ plugins {
 
 application {
     applicationName = "kona-lsp"
-    mainClass.set("dev.kona.lsp.LspKt")
+    mainClass.set("io.konaframework.lsp.LspKt")
 }
 
 dependencies {
@@ -21,7 +21,7 @@ dependencies {
 
 tasks.jar {
     manifest {
-        attributes["Main-Class"] = "dev.kona.lsp.LspKt"
+        attributes["Main-Class"] = "io.konaframework.lsp.LspKt"
     }
 }
 
@@ -31,7 +31,7 @@ kover {
             filters {
                 excludes {
                     // Process entrypoint only — LspServer is fully covered via injected streams.
-                    classes("dev.kona.lsp.LspKt")
+                    classes("io.konaframework.lsp.LspKt")
                 }
             }
             verify {

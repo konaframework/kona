@@ -25,13 +25,13 @@ kover {
             filters {
                 excludes {
                     // SigV4 HTTP client — behavioral coverage via HttpServer suites.
-                    classes("dev.kona.filesystem.HttpS3Client")
+                    classes("io.konaframework.filesystem.HttpS3Client")
                     // Kotlin default-parameter / JVM overload bridges on manager create noise in branch totals.
-                    classes("dev.kona.filesystem.FilesystemManager")
-                    classes("dev.kona.filesystem.S3Adapter")
-                    classes("dev.kona.filesystem.MemoryS3Client")
-                    classes("dev.kona.filesystem.MemoryS3ClientAdapter")
-                    classes("dev.kona.filesystem.AdapterSupport")
+                    classes("io.konaframework.filesystem.FilesystemManager")
+                    classes("io.konaframework.filesystem.S3Adapter")
+                    classes("io.konaframework.filesystem.MemoryS3Client")
+                    classes("io.konaframework.filesystem.MemoryS3ClientAdapter")
+                    classes("io.konaframework.filesystem.AdapterSupport")
                 }
             }
             verify {

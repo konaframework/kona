@@ -5,7 +5,7 @@ description: What a Kona Application is, how service providers plug features int
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Every Kona program revolves around one object: the **application** (`dev.kona.core.Application`). This page explains what it holds, how **service providers** add features to it, and the precise sequence Kona follows from `Kona.create(args)` to a booted app that is ready to serve requests.
+Every Kona program revolves around one object: the **application** (`io.konaframework.core.Application`). This page explains what it holds, how **service providers** add features to it, and the precise sequence Kona follows from `Kona.create(args)` to a booted app that is ready to serve requests.
 
 ## What an application holds
 
@@ -27,7 +27,7 @@ When an application is constructed it registers itself in its own container, so 
 
 ## Service providers
 
-A **service provider** is a class implementing `dev.kona.core.ServiceProvider`. It is the unit you use to plug a feature into an application: Kona's HTTP layer is a provider (`HttpServiceProvider`), and your own application code normally starts in an `AppServiceProvider`. A provider has two methods, and the split between them is the core idea of this page:
+A **service provider** is a class implementing `io.konaframework.core.ServiceProvider`. It is the unit you use to plug a feature into an application: Kona's HTTP layer is a provider (`HttpServiceProvider`), and your own application code normally starts in an `AppServiceProvider`. A provider has two methods, and the split between them is the core idea of this page:
 
 - **`register(app)`** describes services. Bind types into the container, read config values, and nothing more. When `register` runs, other providers may not have registered yet, so do not *resolve* services that someone else provides.
 - **`boot(app)`** does startup work. It runs only after **every** provider has finished `register`, so everything is bound and you can resolve freely: attach routes, install middleware, warm caches, validate config.

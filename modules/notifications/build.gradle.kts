@@ -25,7 +25,7 @@ kover {
             filters {
                 excludes {
                     // Data-class / companion factory closing-brace instrumentation noise (behavior covered in DurableNotificationTest).
-                    classes("dev.kona.notifications.NotificationRecord")
+                    classes("io.konaframework.notifications.NotificationRecord")
                 }
             }
             verify {

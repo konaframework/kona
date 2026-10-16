@@ -1,7 +1,7 @@
 package app.http.resources
 
-import dev.kona.http.JsonResource
-import dev.kona.http.Request
+import io.konaframework.http.JsonResource
+import io.konaframework.http.Request
 
 /** Tiny demo resource for `/api/pings`. */
 class PingResource(

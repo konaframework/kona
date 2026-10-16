@@ -1,0 +1,15 @@
+package io.konaframework.filesystem
+
+import io.konaframework.core.Application
+import io.konaframework.core.ServiceProvider
+
+class FilesystemServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(FilesystemManager::class.java) {
+            FilesystemManager(app.config, app.basePath)
+        }
+        app.container.singleton(FilesystemAdapter::class.java) {
+            app.resolve(FilesystemManager::class.java).disk()
+        }
+    }
+}

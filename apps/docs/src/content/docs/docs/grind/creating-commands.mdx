@@ -5,7 +5,7 @@ description: Write ConsoleCommand classes — signatures, discovery, isolation, 
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Besides built-ins like `serve` and `migrate`, Grind Console runs **custom commands**: classes that extend `dev.kona.grind.ConsoleCommand`. You declare a **signature**, an optional **description**, and a **`handle()`** method that returns an exit code. Grind binds CLI tokens to that signature, then calls `handle()`.
+Besides built-ins like `serve` and `migrate`, Grind Console runs **custom commands**: classes that extend `io.konaframework.grind.ConsoleCommand`. You declare a **signature**, an optional **description**, and a **`handle()`** method that returns an exit code. Grind binds CLI tokens to that signature, then calls `handle()`.
 
 ## Generate a command
 
@@ -45,7 +45,7 @@ Every custom command declares a **signature**, an optional **description**, and 
 ```kotlin
 package app.console.commands
 
-import dev.kona.grind.ConsoleCommand
+import io.konaframework.grind.ConsoleCommand
 
 class SendDigestCommand : ConsoleCommand() {
     override val signature: String = "mail:digest {user} {--queue=default}"
@@ -67,7 +67,7 @@ class SendDigestCommand : ConsoleCommand() {
 ```java
 package app.console.commands;
 
-import dev.kona.grind.ConsoleCommand;
+import io.konaframework.grind.ConsoleCommand;
 
 public class SendDigestCommand extends ConsoleCommand {
     @Override

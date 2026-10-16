@@ -1,6 +1,6 @@
 package app.brew
 
-import dev.kona.brew.Component
+import io.konaframework.brew.Component
 
 class Counter : Component() {
     var count = 0

@@ -1,13 +1,13 @@
 package bootstrap;
 
-import dev.kona.core.Application;
-import dev.kona.filesystem.FilesystemManager;
-import dev.kona.http.HttpKernel;
-import dev.kona.http.HttpMiddleware;
-import dev.kona.http.ServePublicStorage;
-import dev.kona.session.SessionManager;
-import dev.kona.session.StartSession;
-import dev.kona.session.VerifyCsrfToken;
+import io.konaframework.core.Application;
+import io.konaframework.filesystem.FilesystemManager;
+import io.konaframework.http.HttpKernel;
+import io.konaframework.http.HttpMiddleware;
+import io.konaframework.http.ServePublicStorage;
+import io.konaframework.session.SessionManager;
+import io.konaframework.session.StartSession;
+import io.konaframework.session.VerifyCsrfToken;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -24,8 +24,8 @@ public final class Middleware {
         app.resolve(HttpKernel.class)
             .prependMiddleware(new ServePublicStorage(files.disk("public")));
         new HttpMiddleware()
-            .alias("start.session", (Supplier<dev.kona.http.Middleware>) () -> new StartSession(sessions))
-            .alias("csrf", (Supplier<dev.kona.http.Middleware>) () -> new VerifyCsrfToken(List.of("/api/*", "/brew/*")))
+            .alias("start.session", (Supplier<io.konaframework.http.Middleware>) () -> new StartSession(sessions))
+            .alias("csrf", (Supplier<io.konaframework.http.Middleware>) () -> new VerifyCsrfToken(List.of("/api/*", "/brew/*")))
             .web(List.of("start.session", "csrf"))
             // Behind a load balancer / ingress:
             // .trustProxies(java.util.List.of("*"))

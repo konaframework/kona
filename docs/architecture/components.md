@@ -28,7 +28,7 @@ Main Boot:         Kona.create(args).boot()
 
 ### Console / CLI output (locked)
 
-**All** terminal commands use Termwind-inspired styling via [`dev.kona.support.console.ConsoleIO`](../../modules/support/src/main/kotlin/dev/kona/support/console/ConsoleIO.kt):
+**All** terminal commands use Termwind-inspired styling via [`io.konaframework.support.console.ConsoleIO`](../../modules/support/src/main/kotlin/io/konaframework/support/console/ConsoleIO.kt):
 
 - Brand colors primary `#FF9A00`, accent `#286291`
 - Methods: `info` / `success` / `warn` / `error`, `title`, `box`, `twoColumn`, `progress`
@@ -70,10 +70,10 @@ Fluent HTTP client for external APIs and frontend → Kona backend calls.
 ### Brew (reactive UI)
 
 Full-stack reactive server components. Lives in the separate repo
-[konaframework/kona-brew](https://github.com/konaframework/kona-brew) (`dev.kona:kona-brew`, package `dev.kona.brew`).
+[konaframework/kona-brew](https://github.com/konaframework/kona-brew) (`io.konaframework:kona-brew`, package `io.konaframework.brew`).
 Behavioral/API-shape parity with Livewire v4 is locked in that repo’s
 [livewire-v4-parity.md](https://github.com/konaframework/kona-brew/blob/main/docs/governance/livewire-v4-parity.md).
 
 
-**Inertia** lives in [konaframework/kona-inertia](https://github.com/konaframework/kona-inertia) (`dev.kona:kona-inertia`, package `dev.kona.inertia`). Docs: https://konaframework.github.io/kona-inertia/.
+**Inertia** lives in [konaframework/kona-inertia](https://github.com/konaframework/kona-inertia) (`io.konaframework:kona-inertia`, package `io.konaframework.inertia`). Docs: https://konaframework.github.io/kona-inertia/.
 Public guides: `apps/docs` → **Brew**. Starter kit: `kona new --kit=brew`.

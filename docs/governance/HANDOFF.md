@@ -4,7 +4,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ## Purpose
 
-**Kona** is a from-scratch JVM web framework (`dev.kona`): Kotlin-first internals, Java first-class public API, Virtual Threads, Netty HTTP, Cadence ORM, Crema templates, Grind Console, drip HTTP client, steam scheduler. Org: [konaframework](https://github.com/konaframework). Public docs: https://konaframework.github.io/kona/
+**Kona** is a from-scratch JVM web framework (`io.konaframework`): Kotlin-first internals, Java first-class public API, Virtual Threads, Netty HTTP, Cadence ORM, Crema templates, Grind Console, drip HTTP client, steam scheduler. Org: [konaframework](https://github.com/konaframework). Public docs: https://konaframework.github.io/kona/
 
 ## Read first (in order)
 
@@ -14,7 +14,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 4. [docs-site.md](docs-site.md) + [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) — public docs voice (feature-guide depth; Getting Started stays simple).
 5. [docs/architecture/PLAN.md](../architecture/PLAN.md) and [components.md](../architecture/components.md) — product map.
 6. [github-rulesets.md](github-rulesets.md) — **never** mutate rulesets (Law 9).
-7. Sister IDE repo: [`konaframework/kona-idea` → `HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
+7. [publishing.md](publishing.md) — Maven Local today; Maven Central prerequisites and blockers for `io.konaframework`.
+8. Sister IDE repo: [`konaframework/kona-idea` → `HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
 
 ## Sibling product repos (this session)
 
@@ -106,6 +107,7 @@ cd apps/docs && npm ci && npm run dev
 
 # Publish for sibling packages (Brew / Inertia CI pattern)
 ./gradlew publishToMavenLocal -x test
+# Full maintainer guide (Central blockers, order, versions): docs/governance/publishing.md
 ```
 
 Key paths: `modules/` (framework), `apps/docs/` (public site), `docs/governance/` (laws + handoff), `.cursor/rules/kona-*.mdc`.
@@ -116,6 +118,7 @@ Key paths: `modules/` (framework), `apps/docs/` (public site), `docs/governance/
 2. Pick the next **deepen** slice from remaining Almasix ledger “implemented (checklist)” rows or human-requested gaps — one milestone branch at a time.
 3. Keep sibling Brew/Inertia work in their repos; only touch Kona for install/starter/brief link-out.
 4. Optionally sync Brew marks into Kona branding assets if the brief Brew page should show the espresso mark (see untracked `brew-*.svg` note above).
+5. **Maven Central:** only `publishToMavenLocal` is wired — see [publishing.md](publishing.md). Do not public-publish until namespace, signing, POM metadata, and credentials exist.
 
 ## Do not
 

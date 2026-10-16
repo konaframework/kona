@@ -1,8 +1,8 @@
 package app.http.controllers
 
-import dev.kona.crema.view
-import dev.kona.http.Request
-import dev.kona.http.Response
+import io.konaframework.crema.view
+import io.konaframework.http.Request
+import io.konaframework.http.Response
 
 class WelcomeController {
     fun index(request: Request): Response =

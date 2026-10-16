@@ -31,11 +31,11 @@ fun interface Middleware {
 This middleware ensures every response carries an `X-Request-Id` header, reusing the client’s ID when it sent one and storing it in the request attributes so handlers can log it.
 
 ```kotlin
-import dev.kona.http.Handler
-import dev.kona.http.Middleware
-import dev.kona.http.Request
-import dev.kona.http.Response
-import dev.kona.http.invoke
+import io.konaframework.http.Handler
+import io.konaframework.http.Middleware
+import io.konaframework.http.Request
+import io.konaframework.http.Response
+import io.konaframework.http.invoke
 import java.util.UUID
 
 class RequestIdMiddleware : Middleware {
@@ -52,10 +52,10 @@ class RequestIdMiddleware : Middleware {
 <TabItem label="Java">
 
 ```java
-import dev.kona.http.Handler;
-import dev.kona.http.Middleware;
-import dev.kona.http.Request;
-import dev.kona.http.Response;
+import io.konaframework.http.Handler;
+import io.konaframework.http.Middleware;
+import io.konaframework.http.Request;
+import io.konaframework.http.Response;
 import java.util.UUID;
 
 public final class RequestIdMiddleware implements Middleware {
@@ -72,7 +72,7 @@ public final class RequestIdMiddleware implements Middleware {
 </TabItem>
 </Tabs>
 
-In Kotlin, `next(request)` is shorthand for `next.handle(request)`; it needs `import dev.kona.http.invoke` when your file is in another package. Both spellings do the same thing.
+In Kotlin, `next(request)` is shorthand for `next.handle(request)`; it needs `import io.konaframework.http.invoke` when your file is in another package. Both spellings do the same thing.
 
 ### A short-circuiting middleware
 

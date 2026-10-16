@@ -1,6 +1,6 @@
 # Cadence ↔ Eloquent / Database parity ledger
 
-Living audit of `dev.kona.cadence` against Laravel Eloquent / query builder / database layer (and Almasix ORM where named). Prefer Almasix shape when both exist.
+Living audit of `io.konaframework.cadence` against Laravel Eloquent / query builder / database layer (and Almasix ORM where named). Prefer Almasix shape when both exist.
 
 **Status:** `done` | `partial` | `missing`
 

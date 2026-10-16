@@ -31,13 +31,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Resolve sister repo refs
+        id: sisters
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          resolve() {
+            local repo="$1"
+            if [ -n "${HEAD_REF}" ] && git ls-remote --exit-code --heads "https://github.com/${repo}.git" "${HEAD_REF}" >/dev/null 2>&1; then
+              echo "${HEAD_REF}"
+            else
+              echo "main"
+            fi
+          }
+          echo "brew=$(resolve konaframework/kona-brew)" >> "$GITHUB_OUTPUT"
+          echo "inertia=$(resolve konaframework/kona-inertia)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           repository: konaframework/kona-brew
+          ref: ${{ steps.sisters.outputs.brew }}
           path: .kona-brew
       - uses: actions/checkout@v4
         with:
           repository: konaframework/kona-inertia
+          ref: ${{ steps.sisters.outputs.inertia }}
           path: .kona-inertia
       - uses: actions/setup-java@v4
         with:
@@ -54,6 +72,8 @@ jobs:
         working-directory: .kona-inertia
         run: ./gradlew :kona-inertia:publishToMavenLocal -x test --no-configuration-cache
       - name: Unit tests with Kover verification
-        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify test
+        # --rerun-tasks: package/group renames invalidate Kover's relationship to cached
+        # test outputs from main; UP-TO-DATE hits produce false coverage gaps on CI.
+        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify test --rerun-tasks --no-build-cache
       - name: Sample apps (HTTP smoke)
         run: ./gradlew :hello-kotlin:test :hello-java:test

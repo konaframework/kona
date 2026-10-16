@@ -7,7 +7,7 @@ plugins {
 
 application {
     applicationName = "kona"
-    mainClass.set("dev.kona.cli.KonaKt")
+    mainClass.set("io.konaframework.cli.KonaKt")
 }
 
 dependencies {
@@ -25,7 +25,7 @@ val kotlinVersion = libs.versions.kotlin.get()
 tasks.processResources {
     inputs.property("konaVersion", konaVersion)
     inputs.property("kotlinVersion", kotlinVersion)
-    filesMatching("dev/kona/cli/kona.properties") {
+    filesMatching("io/konaframework/cli/kona.properties") {
         expand("konaVersion" to konaVersion, "kotlinVersion" to kotlinVersion)
     }
     from(rootProject.file("gradle/wrapper")) {
@@ -60,8 +60,8 @@ kover {
         total {
             filters {
                 excludes {
-                    classes("dev.kona.cli.KonaKt")
-                    annotatedBy("dev.kona.support.KoverExclude")
+                    classes("io.konaframework.cli.KonaKt")
+                    annotatedBy("io.konaframework.support.KoverExclude")
                 }
             }
             verify {

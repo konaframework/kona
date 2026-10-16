@@ -1,8 +1,8 @@
 package app.http.controllers;
 
-import dev.kona.crema.Views;
-import dev.kona.http.Request;
-import dev.kona.http.Response;
+import io.konaframework.crema.Views;
+import io.konaframework.http.Request;
+import io.konaframework.http.Response;
 import java.util.Map;
 
 public class WelcomeController {
