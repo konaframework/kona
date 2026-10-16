@@ -35,6 +35,8 @@ class SchemaTest {
         assertSame(SchemaGrammar.STANDARD, SchemaGrammar.forProduct("PostgreSQL"))
         assertSame(SchemaGrammar.STANDARD, SchemaGrammar.POSTGRES)
         assertSame(SchemaGrammar.H2, SchemaGrammar.forProduct("h2"))
+        assertTrue(SchemaGrammar.forProduct("MySQL") is MySqlSchemaGrammar)
+        assertTrue(SchemaGrammar.forProduct("SQLite") is SqliteSchemaGrammar)
         val bare = SchemaGrammar.forProduct("H2", Grammar.NONE)
         assertTrue(bare is H2SchemaGrammar)
         assertEquals("users", bare.wrap("users"))

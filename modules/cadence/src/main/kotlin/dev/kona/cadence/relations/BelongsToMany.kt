@@ -151,6 +151,27 @@ open class BelongsToMany<R : Cadence<R>>(
     fun wherePivotIn(column: String, values: Collection<*>): BelongsToMany<R> =
         apply { query.whereIn(qualified(pivotTable, column), values) }
 
+    /**
+     * First related model matching [attributes] (already attached), or creates one from
+     * [attributes] + [values], attaches it, and returns it (Eloquent `BelongsToMany::firstOrCreate`).
+     */
+    fun firstOrCreate(attributes: Map<String, Any?>): R = firstOrCreate(attributes, emptyMap())
+
+    fun firstOrCreate(attributes: Map<String, Any?>, values: Map<String, Any?>): R {
+        requireParentKey()
+        ensureConstraints()
+        attributes.forEach { (column, value) -> query.where(column, value) }
+        val existing = query.first()
+        if (existing != null) {
+            return existing
+        }
+        val created = related.newInstance()
+        created.fill(LinkedHashMap(attributes).also { it.putAll(values) })
+        created.save()
+        attach(created)
+        return created
+    }
+
     /** Updates extra columns on one existing pivot row. */
     fun updateExistingPivot(id: Any, attributes: Map<String, Any?>): Int {
         val values = LinkedHashMap(attributes)

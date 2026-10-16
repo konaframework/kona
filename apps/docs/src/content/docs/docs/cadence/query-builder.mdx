@@ -129,6 +129,9 @@ DB.table("posts")
 | `find(id)` | row whose `id` (or the given column) matches, or `null` |
 | `value("email")` | one column of the first row |
 | `pluck("email")` | one column of every row |
+| `pluck("name", "id")` | keyed map of `id` → `name` |
+| `sole()` | exactly one row, or throw |
+| `union` / `unionAll` / `crossJoin` | combine queries / cartesian join |
 | `count()`, `max(c)`, `min(c)`, `sum(c)`, `avg(c)` | aggregates (`count()` is a `Long`) |
 | `exists()` / `doesntExist()` | whether any row matches |
 | `paginate(perPage, page)` | a `Page` of rows plus totals (see [Models](../models/#pagination)) |

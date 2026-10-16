@@ -17,8 +17,10 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
-| Active | Cadence/Database deepen (**B5** observers after B4 merges); see [cadence-eloquent-parity.md](cadence-eloquent-parity.md) |
-| Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B3 done (#65/#70/#71); B4 morphToMany shipping; H2 default kept |
+| Cadence rename | **done** on `main` (#85); brew cutover #9 |
+| Active | Cadence B6 deepen (withAvg/Max/Min, push, sole, keyed pluck, union/crossJoin, MorphTo whereHas, BelongsToMany firstOrCreate, accessors, native upsert, MySQL/SQLite DDL) |
+| Next after B6 | Security deepen (CadenceUserProvider, durable password-reset/PAT stores, Argon2); then HTTP niche validation; full queue batches; Collections/Helpers audit |
+| Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B5 done; B6 shipping |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -31,19 +33,20 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
+| Extract → Cadence rename | #85 |
+| Brew Cadence cutover | kona-brew #9 |
+| Docs Crema guides | #86 |
+| Cadence B4 morphToMany | #73 |
 | Cadence B3 global scopes | #71 |
-| Cadence B2 whereDate* + ModelBuilder mirrors | #70 |
+| Cadence B2 whereDate* | #70 |
 | Cadence B1 builder + DB docs | #65 |
 | M24 Executable config | #53 |
-| M23 Binary downloads & signed storage | #42 |
-| M22 Multipart uploads | #40 |
-| M21 Web form round-trip | #39 |
-| M20 Default web scaffold | #38 |
 
 ### Notes
 
-- Strong M25 candidate: session auth middleware + Cadence user provider + remember-cookie (web login).
+- Strong next: CadenceUserProvider + session auth wiring; durable password-reset / PAT DB stores.
 - **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
+- Do **not** revive Extract names.
 
 ## Commands
 

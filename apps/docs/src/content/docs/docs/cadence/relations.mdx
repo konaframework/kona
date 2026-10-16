@@ -268,13 +268,26 @@ users[0]["published_posts_count"]
 user.loadCount("posts", "roles")
 ```
 
-`withExists("posts")` adds a boolean-ish `posts_exists` column (`1` / `0`). `withSum("posts", "votes")` (or `withSum("posts as total:votes")`) adds `posts_sum_votes`. Matching loaders: `loadExists`, `loadSum("posts:votes")`.
+`withExists("posts")` adds a boolean-ish `posts_exists` column (`1` / `0`). Aggregate helpers share the same `relation:column` / `relation as alias:column` shape:
+
+| Helper | Default alias | Loader |
+|--------|---------------|--------|
+| `withSum("posts", "votes")` | `posts_sum_votes` | `loadSum` |
+| `withAvg("posts", "votes")` | `posts_avg_votes` | `loadAvg` |
+| `withMax` / `withMin` | `posts_max_votes` / `posts_min_votes` | `loadMax` / `loadMin` |
 
 ```kotlin
-val authors = Author.withExists("books").withSum("books", "votes").get()
+val authors = Author.withExists("books")
+    .withSum("books", "votes")
+    .withAvg("books", "votes")
+    .withMax("books", "votes")
+    .get()
 author.loadExists("books")
 author.loadSum("books as total_votes:votes")
+author.loadAvg("books:votes")
 ```
+
+MorphTo existence (`comment.whereHas("commentable")`) ORs across registered `MorphMap` aliases. BelongsToMany supports `firstOrCreate(attributes, values)` (find attached related row, or create + attach).
 
 Combine with `select("users.*")` (or let these helpers ensure a table select) when you also project specific columns.
 
