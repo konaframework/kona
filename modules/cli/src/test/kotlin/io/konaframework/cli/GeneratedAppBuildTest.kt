@@ -240,14 +240,14 @@ class GeneratedAppBuildTest {
 
     private fun konaBrewPublished(): Boolean {
         val home = System.getProperty("user.home")
-        val base = Path.of(home, ".m2", "repository", "dev", "kona", "kona-brew")
+        val base = Path.of(home, ".m2", "repository", "io", "konaframework", "kona-brew")
         if (!Files.isDirectory(base)) return false
         return Files.walk(base).use { stream -> stream.anyMatch { it.fileName.toString().endsWith(".jar") } }
     }
 
     private fun konaInertiaPublished(): Boolean {
         val home = System.getProperty("user.home")
-        val base = Path.of(home, ".m2", "repository", "dev", "kona", "kona-inertia")
+        val base = Path.of(home, ".m2", "repository", "io", "konaframework", "kona-inertia")
         if (!Files.isDirectory(base)) return false
         return Files.walk(base).use { stream -> stream.anyMatch { it.fileName.toString().endsWith(".jar") } }
     }
