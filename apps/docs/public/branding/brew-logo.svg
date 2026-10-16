@@ -1,21 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 109.1 109.1" fill="none" role="img" aria-label="Brew">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Brew">
   <title>Brew</title>
-  <!-- Cup+b: minimal gap, wall-clipped handle, co-terminating L -->
+  <!-- Cup + integrated b (bowl = handle). Transparent background. -->
+  
   <defs>
-    <clipPath id="brewHandleClip"><path d="M44 26L41.7 49L62 49L62 26Z"/></clipPath>
+    <linearGradient id="copperBody-l" x1="14" y1="14" x2="64" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8B078"/>
+      <stop offset="0.4" stop-color="#D48C46"/>
+      <stop offset="1" stop-color="#A85528"/>
+    </linearGradient>
+    <linearGradient id="copperB-l" x1="70" y1="12" x2="102" y2="110" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8B078"/>
+      <stop offset="0.45" stop-color="#D48C46"/>
+      <stop offset="1" stop-color="#8F4A20"/>
+    </linearGradient>
+    <linearGradient id="rim-l" x1="16" y1="16" x2="62" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F0C090"/>
+      <stop offset="1" stop-color="#BA622A"/>
+    </linearGradient>
   </defs>
-  <g transform="translate(-20.30,3.58) scale(1.5814)">
-    <path fill="#D48C46" d="M16 30h28l-2.2 14.5c-.35 2.3-2.3 4-4.6 4H22.8c-2.3 0-4.25-1.7-4.6-4L16 30z"/>
-    <path fill="#BA622A" d="M16 28h28v3.2H16z"/>
-    <g clip-path="url(#brewHandleClip)">
-      <path fill="none" stroke="#E5A869" stroke-width="3.25" stroke-linecap="butt" stroke-linejoin="miter"
-            d="M41.46 33.55C51.57 33.90 50.57 40.50 40.16 42.10"/>
-    </g>
-    <path fill="none" stroke="#BA622A" stroke-width="3.4" stroke-linecap="butt" stroke-linejoin="round"
-          d="M24 26c-2.2 0-2.8-1.4-2.8-2.8 0-2.4-2-2.8-3-2.8 1 0 3-.4 3-2.8C21.2 16 21.8 14.4 24 14.4"/>
-    <path fill="none" stroke="#BA622A" stroke-width="3.4" stroke-linecap="butt" stroke-linejoin="round"
-          d="M36 26c2.2 0 2.8-1.4 2.8-2.8 0-2.4 2-2.8 3-2.8-1 0-3-.4-3-2.8C40.8 16 40.2 14.4 36 14.4"/>
+
+  <!-- Cylindrical mug (three-quarter rim) -->
+  <path fill="url(#copperBody-l)" d="M16 32C16 22 28 16 40 16C52 16 64 22 64 32L61 96C61 104 52 110 40 110C28 110 19 104 19 96Z"/>
+  <ellipse cx="40" cy="32" rx="24" ry="9" fill="url(#rim-l)"/>
+  <ellipse cx="40" cy="32" rx="17.5" ry="6" fill="#2A1C12"/>
+
+  <!-- Cream braces printed ON the mug body -->
+  <g fill="none" stroke="#FAEDCD" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 52C25.8 52 24.5 56.5 24.5 61C24.5 65.5 25.8 70 30 70"/>
+    <path d="M50 52C54.2 52 55.5 56.5 55.5 61C55.5 65.5 54.2 70 50 70"/>
   </g>
-  <path fill="#BA622A" d="M86.23 81.02Q82.99 81.02 80.12 79.77Q77.26 78.52 75.28 76.42Q73.29 74.32 72.70 71.83V51.82Q73.29 49.33 75.28 47.41Q77.26 45.50 80.12 44.43Q82.99 43.37 86.23 43.37Q91.59 43.37 95.61 45.76Q99.61 48.14 101.85 52.41Q104.09 56.68 104.09 62.19Q104.09 67.70 101.85 71.94Q99.61 76.17 95.61 78.58Q91.59 81.02 86.23 81.02ZM63.94 80.28V26.46H78.37V53.01L76.01 61.76L77.99 70.57V80.28ZM83.58 68.36Q85.35 68.36 86.71 67.57Q88.06 66.76 88.84 65.36Q89.61 63.96 89.61 62.19Q89.61 60.42 88.84 59.03Q88.06 57.63 86.67 56.82Q85.27 56.01 83.51 56.01Q81.74 56.01 80.39 56.82Q79.03 57.63 78.29 58.99Q77.56 60.35 77.56 62.19Q77.56 64.03 78.33 65.43Q79.10 66.83 80.46 67.60Q81.82 68.36 83.58 68.36Z"/>
-  <path fill="#BA622A" d="M5.01 80.28H63.94v5.47H5.01Z"/>
+
+  <!--
+    Lowercase b integrated with cup:
+    - Stem to the right of the mug
+    - Bowl curves left and joins mug wall at x≈61 (real handle attachment)
+    - evenodd counter = handle opening
+    - leftward foot at stem base
+  -->
+  <path fill="url(#copperB-l)" fill-rule="evenodd" d="M76 14H92V110H76V102H64V94H76V74C76 74 70 76 61 68C54 62 54 46 61 40C70 32 76 34 76 34V14ZM76 42C76 42 68 44 64 50C61 54 61 60 64 64C68 70 76 68 76 68V42Z"/>
+
 </svg>
