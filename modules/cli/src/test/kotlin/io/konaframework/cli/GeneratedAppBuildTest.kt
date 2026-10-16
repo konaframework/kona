@@ -101,11 +101,11 @@ class GeneratedAppBuildTest {
                 "components" to listOf(
                     mapOf(
                         "snapshot" to snap,
-                        "updates" to emptyMap<String, Any>(),
+                        "updates" to mapOf("draft" to "Pull espresso"),
                         "calls" to listOf(
                             mapOf(
                                 "path" to "",
-                                "method" to "increment",
+                                "method" to "add",
                                 "params" to emptyList<Any>(),
                                 "metadata" to emptyMap<String, Any>(),
                             ),
@@ -122,12 +122,14 @@ class GeneratedAppBuildTest {
         })
         assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
         assertTrue(home.contains("wire:snapshot"), home)
-        assertTrue(home.contains("wire:name=\"counter\""), home)
+        assertTrue(home.contains("wire:name=\"todos\""), home)
         assertTrue(Regex("""/brew/brew(\.min)?\.js""").containsMatchIn(home), home)
-        assertTrue(home.contains("Count: 0"), home)
+        assertTrue(home.contains("Grind the beans"), home)
+        assertTrue(home.contains("1 left") || home.contains("(1 left)"), home)
         val component = json.readTree(updateBody)["components"][0]
-        assertEquals(1, json.readTree(component["snapshot"].asText())["data"]["count"].asInt(), updateBody)
-        assertTrue(component["effects"]["html"].asText().contains("Count: 1"), updateBody)
+        val html = component["effects"]["html"].asText()
+        assertTrue(html.contains("Pull espresso"), updateBody)
+        assertTrue(html.contains("2 left") || html.contains("(2 left)"), updateBody)
     }
 
     @Test

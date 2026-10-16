@@ -1,22 +1,12 @@
 package app.http.controllers;
 
-import io.konaframework.brew.Brew;
+import io.konaframework.crema.Views;
 import io.konaframework.http.Request;
 import io.konaframework.http.Response;
+import java.util.Map;
 
 public class WelcomeController {
     public Response index(Request request) {
-        String body = "<!DOCTYPE html>\n"
-            + "<html lang=\"en\">\n"
-            + "  <head>\n"
-            + "    <meta charset=\"utf-8\" />\n"
-            + "    <title>Brew</title>\n"
-            + "  </head>\n"
-            + "  <body>\n"
-            + "    <h1>Welcome to Kona Brew</h1>\n"
-            + "    " + Brew.mount("counter") + "\n"
-            + "  </body>\n"
-            + "</html>\n";
-        return Response.html(body);
+        return Views.make("welcome", Map.of("title", "Kona Brew")).toResponse();
     }
 }

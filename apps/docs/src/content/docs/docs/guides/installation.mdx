@@ -47,7 +47,7 @@ The installer and generated apps use the Gradle wrapper; you do not need a separ
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-That script prints a colored step progress (JDK → fetch → build CLI → publish libraries → link), syncs source into `~/.kona` (override with `KONA_SRC`), builds `:kona-cli:installDist`, **publishes all `io.konaframework` jars to `~/.m2` (`mavenLocal`)**, then installs under `~/.local/lib/kona` with a symlink at `~/.local/bin/kona` (override prefix with `KONA_PREFIX`). It also records the checkout path in `~/.config/kona/home` so `kona new` can set `kona.home` on new apps (`includeBuild`). Set `NO_COLOR=1` to disable ANSI styling.
+That script prints a colored step progress (JDK → fetch → build CLI → publish libraries → publish sister packages → link), syncs source into `~/.kona` (override with `KONA_SRC`), builds `:kona-cli:installDist`, **publishes all core `io.konaframework` jars to `~/.m2` (`mavenLocal`)**, then publishes sister packages **kona-brew** / **kona-inertia** when a checkout is found (sibling dirs, `KONA_BREW_SRC` / `KONA_INERTIA_SRC`, or clones under `~/.kona-brew` / `~/.kona-inertia`). It installs under `~/.local/lib/kona` with a symlink at `~/.local/bin/kona` (override prefix with `KONA_PREFIX`), records the checkout path in `~/.config/kona/home` so `kona new` can set `kona.home` on new apps (`includeBuild`), and removes obsolete vendored `modules/brew` / `modules/inertia` trees that would poison that composite build. Set `NO_COLOR=1` to disable ANSI styling.
 
 :::important[Why publish?]
 Generated apps depend on `io.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` / Maven Central. Those SNAPSHOT jars are not on Central yet — the installer must publish them locally so `./grind serve` can resolve transitive modules such as `kona-filesystem` and `kona-support`.
@@ -68,6 +68,8 @@ Re-run the same curl command (or `~/.kona/scripts/install.sh`) to update.
 | `KONA_PREFIX` | `~/.local` | Where `bin/kona` and `lib/kona` are installed |
 | `KONA_REF` | `main` | Git branch or tag to install |
 | `KONA_REPO` | `https://github.com/konaframework/kona.git` | Clone URL |
+| `KONA_BREW_SRC` | sibling `../kona-brew` or `~/.kona-brew` | Optional Brew checkout to publish |
+| `KONA_INERTIA_SRC` | sibling `../kona-inertia` or `~/.kona-inertia` | Optional Inertia checkout to publish |
 
 Example — install a specific ref into a custom prefix:
 
