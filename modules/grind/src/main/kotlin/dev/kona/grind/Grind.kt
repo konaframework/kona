@@ -61,6 +61,7 @@ constructor(
                 "storage:link" -> StorageLinkCommand().run(positional.drop(1) + flatten(options))
                 "key:generate" -> KeyGenerateCommand().run(positional.drop(1) + flatten(options))
                 "ide:lsp" -> IdeLspCommand().run(positional.drop(1) + flatten(options))
+                "install" -> InstallCommand(basePath).run(positional.drop(1) + flatten(options))
                 "list" -> ListCommand(registry).run(positional.drop(1) + flatten(options))
                 "new" -> {
                     io.error("Create applications with the global CLI: kona new <name>")
