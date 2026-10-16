@@ -1,7 +1,11 @@
 ---
 title: Running commands
-description: Invoke grind from the shell, kona grind proxy, and application code.
+description: Invoke Grind Console from the shell, kona grind proxy, Grind.call, and the scheduler.
 ---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Grind Console accepts the same shape of input whether you type it in a terminal, forward it through `kona grind`, or call `Grind.call` from application code or tests.
 
 ## From the project
 
@@ -11,37 +15,52 @@ description: Invoke grind from the shell, kona grind proxy, and application code
 ./grind mail:digest --help
 ./grind -v schedule:run
 ./grind -q list
+./grind --base=/path/to/app list
 ```
 
 | Flag | Effect |
 |------|--------|
 | `-v` / `--verbose` | Verbose diagnostics (`GrindIO.verbose`) |
 | `-q` / `--quiet` | Suppress normal stdout (errors still print) |
-| `--help` / `-h` | On a custom command: print signature help |
-| `--base=` | App root when not in the project directory |
-| `--isolated` | With isolatable commands: single-process lock |
+| `--help` / `-h` | Empty argv / global help, or on a **custom** command: print signature help |
+| `--base=` | App root for discovery / loaders (and many built-ins) |
+| `--bootstrap=` | Bootstrap class for in-process boots (default `bootstrap.App`) |
+| `--isolated` | With isolatable custom commands: single-process lock |
 
-Exit code **0** means success. **1** (and other non-zero values) means failure — missing args, unknown command, generator conflicts, and so on.
+Option parsing rules (`parseOptions`):
 
-## list and help
+- `-v`, `-q`, `-h` set `verbose`, `quiet`, and `help`.
+- `--name` sets `name=true`.
+- `--name=value` sets `name` to `value`.
+- Anything else is positional.
+
+Exit code **0** means success. **1** (and other non-zero values) means failure — missing args, unknown command, generator conflicts, Cadence errors surfaced as grind errors, and so on. Unknown built-in-style names print an error, show the help catalog, and exit `1`.
+
+### Empty argv and help
+
+```bash
+./grind
+./grind help
+./grind --help
+./grind -h
+```
+
+These discover custom commands, print the boxed “grind” usage catalog (built-ins + discovered customs), and exit `0`.
+
+## `list` and per-command help
 
 ```bash
 ./grind list
-./grind help
-./grind          # same as help
-```
-
-`list` shows built-ins and every discovered custom command. Global `help` prints the same catalog in a boxed layout.
-
-For one custom command:
-
-```bash
 ./grind mail:digest --help
 ```
 
+`list` prints a two-column catalog: built-in names from `ListCommand.BUILTIN`, then registered custom commands (description, or signature when description is empty). Duplicate names are shown once.
+
+For one **custom** command, `--help` / `-h` prints a box with the name/description, the rendered signature, and argument/option help lines — then exits `0` without running `handle()`. Built-in commands generally use their own usage/`GrindException` messages rather than the custom-command help renderer.
+
 ## `kona grind` proxy
 
-When you are not already in the app directory, the global CLI can forward to the nearest project’s `./grind` (or `grind.bat` on Windows):
+When you are not already invoking `./grind` directly, the global CLI can forward to the nearest project’s grind script:
 
 ```bash
 kona grind serve
@@ -50,53 +69,112 @@ kona grind mail:digest 42
 kona grind --help
 ```
 
-`kona grind` walks upward from the current directory until it finds a Gradle settings/build script, then runs that app’s grind script with your remaining arguments and exit code. Prefer `./grind` when you are already inside the app.
+Behavior (`dev.kona.cli.GrindCommand`):
+
+1. Walk upward from the current directory until a Gradle settings/build script is found (same markers as `serve`).
+2. Require `./grind` or `grind.bat` in that root (apps from `kona new`).
+3. Run that script with your remaining arguments and propagate the exit code.
+
+If no Gradle project is found, or the project has no grind script (for example a monorepo sample), the proxy fails with a clear error pointing at `kona new`. Prefer `./grind` when you are already inside the app.
 
 See [Installation](../../guides/installation/) for installing the global `kona` CLI.
 
 ## Calling commands from code
 
-Use `Grind.call` to run a command name with argument tokens (the same strings you would type after the command name on the CLI):
+Use `dev.kona.grind.Grind` to run a command name with argument tokens (the same strings you would type after the command name on the CLI):
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
-
-<Tabs>
+<Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
+import dev.kona.grind.CommandRegistry
 import dev.kona.grind.Grind
+
+val registry = CommandRegistry().register(SendDigestCommand::class.java)
 
 val code = Grind.call("mail:digest", listOf("42", "--queue=default"), registry)
 val quiet = Grind.callSilently("schedule:run", listOf("--base=$root"))
+val listed = Grind.call("list")
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
+import dev.kona.grind.CommandRegistry;
 import dev.kona.grind.Grind;
 import java.util.List;
 
+CommandRegistry registry = new CommandRegistry().register(SendDigestCommand.class);
+
 int code = Grind.call("mail:digest", List.of("42", "--queue=default"), registry);
 int quiet = Grind.callSilently("schedule:run", List.of("--base=" + root));
+int listed = Grind.call("list");
 ```
 
 </TabItem>
 </Tabs>
 
-`callSilently` suppresses stdout while still allowing stderr errors. Built-in names fall through to `GrindApplication`; custom names resolve from the optional `CommandRegistry` and `META-INF/kona/commands` on the given class loader.
+### `Grind.call` resolution
 
-## Scheduling
+Overloads accept combinations of `name`, `args`, optional `CommandRegistry`, `basePath`, and `ClassLoader` (all `@JvmStatic`).
 
-Register work on the application `Schedule`, then run due tasks with:
+1. Merge the optional registry with `CommandDiscovery.registerAll` on the given loader.
+2. If the merged registry **has** the name, run it through `CommandExecutor` (custom-command path: signature bind, `--help`, `--isolated`).
+3. Otherwise fall through to `GrindApplication.run(name + args)` so **built-ins** (`serve`, `migrate`, `list`, …) still work.
+
+`callSilently` temporarily replaces `System.out` with a buffer so normal stdout is suppressed; **stderr** still surfaces errors from `GrindIO.error` / `ConsoleIO.error`.
+
+Default `basePath` is the current working directory (absolute, normalized). Default loader is `Grind`’s class loader.
+
+## Scheduling hooks
+
+Register work on the application `Schedule`, then run due tasks with Grind Console:
 
 ```bash
 ./grind schedule:run
 ./grind schedule:list
+./grind schedule:work --sleep=60 --max=1
 ```
 
-Custom grind commands are ordinary processes: point a scheduled callback at a shell invocation of `./grind your:command`, or call `Grind.call` from code the scheduler already runs. Full guide: [Task scheduling](../../scheduling/).
+Those commands boot the app in-process (via the same loader path as migrate) and require `ScheduleServiceProvider` so a `Schedule` is bound.
+
+Custom Grind Console commands are ordinary processes: point a scheduled callback at a shell invocation of `./grind your:command`, or call `Grind.call` from code the scheduler already runs. For isolatable cron-style commands, combine schedule with `--isolated`.
+
+Full guide: [Task scheduling](../../scheduling/).
 
 ## Testing
 
-Capture stdout and exit codes with `ConsoleTester` — see [HTTP & console tests](../../testing/http-console/#console-grind).
+Capture stdout and exit codes with `ConsoleTester`:
+
+```kotlin
+ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertSee("schedule:run")
+```
+
+See [HTTP & console tests](../../testing/http-console/#console-grind). For custom commands, compile the app first so discovery can see `META-INF/kona/commands` and `build/classes`.
+
+## Lifecycle cheat sheet
+
+| Step | What runs |
+|------|-----------|
+| Parse argv | Positionals + options map; build `GrindIO.fromOptions` |
+| Discover | `CommandDiscovery` on grind’s loader + optional app `build/` outputs |
+| Dispatch | Built-in `when` branches, else `CommandRegistry.create` + `CommandExecutor` |
+| Custom bind | Signature → `CommandInput`; optional isolation lock |
+| Finish | Exit code from built-in `run` / `handle()` / help / errors |
+
+## Pitfalls
+
+- **Wrong directory** — many generators use `--base` as-is; `serve` / `key:generate` / `kona grind` walk upward to a Gradle root.
+- **Silent stdout ≠ silent errors** — `-q` and `callSilently` do not hide `error(...)`.
+- **Registry-only names in `Grind.call`** — if you pass a registry **without** putting the command on the class loader’s `META-INF`, that is fine; if you rely only on `META-INF`, ensure the loader can see resources.
+- **Built-in vs custom help** — `--help` on a custom command is rich; on many built-ins you get usage via exceptions or dedicated output instead.
+
+## Next
+
+- [Creating commands](../creating-commands/)
+- [Console IO & prompts](../console/)
+- [Built-in commands](../commands/)
