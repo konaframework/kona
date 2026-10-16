@@ -34,6 +34,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: konaframework/kona-brew
+          ref: feat/cadence-rename
           path: .kona-brew
       - uses: actions/setup-java@v4
         with:
