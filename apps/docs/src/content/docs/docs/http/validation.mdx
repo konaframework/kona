@@ -289,3 +289,35 @@ A **302** redirect to the previous URL (`session` `_previous.url`, else `Referer
 `StartSession` applies those pending flash bags when it saves. On the next GET, read them with `request.old("email")` / `session.old("email")` and `session.get("errors")`. See [Session](../../security/session/) and [Request & response](../request-response/).
 
 This response passes through global middleware like any other. If you need a different shape, catch `ValidationException` in the handler, or install a custom `ExceptionHandler` — see [Exceptions](../exceptions/).
+
+## Form requests and controllers
+
+Controllers can call `validate(request, rules)` or `validate(request, formRequest)`. A `FormRequest` owns `rules()` and optional `authorize(request)` — see [Controllers → Form requests](../controllers/#form-requests). Unauthorized form requests throw `HttpException(403)` before rules run.
+
+You can also call `request.validate(rules)` or `Validator.make(request, rules).validate()` directly from a handler.
+
+## Pitfalls and FAQ
+
+**Why didn’t `min:3` make the field required?**  
+Absent/blank fields skip most rules. Add `required`.
+
+**Why does `array` fail on a form post?**  
+Form values are strings. Send JSON for list/map rules.
+
+**Why did an unknown rule fail a missing field?**  
+Unknown/malformed rules fail closed even when the field is absent, so typos cannot disable checks.
+
+**Do I need a database for `exists` / `unique`?**  
+Yes — register `Validator.setExistenceChecker(...)`. Without it, those rules fail closed.
+
+## What is not available today
+
+- Nested `dot.notation` rule expansion for deep JSON objects as a first-class DSL beyond flat keys
+- Custom rule classes registered globally (use imperative checks in the handler for exotic cases)
+- Automatic FormRequest injection from method signatures
+
+## Next steps
+
+- Controller helpers in [Controllers](../controllers/).
+- Error envelopes in [Exceptions](../exceptions/).
+- Flash redisplay in [Request & response](../request-response/) and [Crema forms](../../crema/forms/).

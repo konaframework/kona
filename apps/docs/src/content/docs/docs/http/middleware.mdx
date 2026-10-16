@@ -305,3 +305,95 @@ assert response.getHeaders().containsKey("X-Request-Id");
 
 </TabItem>
 </Tabs>
+
+## Bootstrap with `HttpMiddleware`
+
+Apps from `kona new` configure middleware in `bootstrap.Middleware.configure(app)`. That helper uses `HttpMiddleware` — a registrar for **aliases**, the **`web`** stack (pushed onto the global kernel), an optional **`api`** stack (for route groups), and optional **trust** middleware.
+
+Typical scaffold (simplified):
+
+```kotlin
+object Middleware {
+    @JvmStatic
+    fun configure(app: Application) {
+        val sessions = app.resolve(SessionManager::class.java)
+        val files = app.resolve(FilesystemManager::class.java)
+        app.resolve(HttpKernel::class.java)
+            .prependMiddleware(ServePublicStorage(files.disk("public")))
+        HttpMiddleware()
+            .alias("start.session") { StartSession(sessions) }
+            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/brew/*")) }
+            .web(listOf("start.session", "csrf"))
+            // .trustProxies(at = listOf("*"))
+            // .trustHosts(at = listOf("example.com", "*.example.com"))
+            .apply(app)
+    }
+}
+```
+
+| Method | Role |
+|--------|------|
+| `alias(name, factory)` | Register a named middleware supplier |
+| `web(prepend, append)` / `api(...)` | Replace the named stack with alias names |
+| `webStack()` / `apiStack()` | Resolve aliases to middleware instances |
+| `trustProxies(at, headers)` | Prepend `TrustProxies` on `apply` |
+| `trustHosts(at)` | Prepend `TrustHosts` on `apply` |
+| `apply(app)` | Prepend trust middleware, push `web` stack onto `HttpKernel`, bind this registrar in the container |
+
+The **`api` stack is not applied globally** — resolve `apiStack()` and pass it to a route group when you want session-less JSON middleware of your own design.
+
+Generate a stub with [`./grind make:middleware Name`](../../grind/commands/#grind-makemiddleware).
+
+## Built-in middleware worth knowing
+
+| Type | Module | Role |
+|------|--------|------|
+| `StartSession` | session | Load/save session; flash; previous URL |
+| `VerifyCsrfToken` | session | Reject forged form posts; `except` path patterns |
+| `ServePublicStorage` | http | Serve public disk files under `/storage/...` |
+| `TrustProxies` | http | Copy `X-Forwarded-*` / `X-Real-IP` onto request attributes when the peer is trusted |
+| `TrustHosts` | http | Reject unknown `Host` headers with **400** |
+| `ValidateSignature` | http | Require a valid signed query string ([URL generation](../url-generation/)) |
+| `CorsMiddleware` | auth/security | CORS headers |
+| `SecurityHeadersMiddleware` | auth/security | Security response headers |
+
+`TrustProxies` sets attributes such as `kona.clientIp`, `kona.scheme`, `kona.host`, `kona.port`. `Request.ip()` reads `kona.clientIp` then `kona.remoteAddr`. See [Security](../../security/) guides for CSRF and session detail.
+
+## API reference (middleware)
+
+| Type | Role |
+|------|------|
+| `Middleware` | `handle(request, next): Response` |
+| `TerminableMiddleware` | Plus `terminate(request, response)` after the response is produced |
+| `MiddlewarePipeline.pipe` | Build a chain for tests or custom dispatch |
+| `MiddlewarePipeline.sortByPriority` | Reorder by type list |
+| `HttpKernel` push/prepend/set/priority | Global stack control |
+| `HttpMiddleware` | Alias + web/api + trust bootstrap |
+
+## Pitfalls and FAQ
+
+**Why doesn’t my route middleware run on 404?**  
+No route was selected. Use global middleware for access logs that must see misses.
+
+**Why is my middleware running twice?**  
+`pushMiddleware` skips duplicates by `equals`; lambdas are never equal to a previous lambda. Prefer named classes.
+
+**Can I attach middleware by string alias on a route?**  
+Not today on `Route.middleware(...)` — pass instances. Aliases are for `HttpMiddleware` stacks.
+
+**Does method spoofing (`_method`) live here?**  
+No. Crema can emit a hidden `_method` field in HTML, but the kernel does not rewrite the HTTP method from that field today — see [Crema forms](../../crema/forms/#method-spoofing).
+
+## What is not available today
+
+- String middleware aliases on individual `Route.middleware("auth")` calls
+- Automatic `_method` override middleware
+- Middleware groups beyond what you build with `HttpMiddleware` + route `group(...)`
+- Coroutine / reactive middleware APIs (handlers are blocking on virtual threads)
+
+## Next steps
+
+- Attach middleware on routes and groups in [Routing](../routing/).
+- Protect signed links with [URL generation](../url-generation/).
+- Understand catch points in [Exceptions](../exceptions/).
+- Session and CSRF in [Security](../../security/).

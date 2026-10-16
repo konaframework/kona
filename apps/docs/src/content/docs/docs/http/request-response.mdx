@@ -245,6 +245,38 @@ User user = (User) request.getAttribute("user");
 
 The kernel writes **route parameters** here before your handler runs. For a route `/users/{id}` and the path `/users/42`, both `getAttribute("id")` and `getAttribute("route.id")` return `"42"` (always a `String`). Use the `route.` form when a plain name could collide with something your middleware stores.
 
+
+
+## Route parameters (`request.route`)
+
+After the router matches a path, the kernel stores each `{param}` on the request under both `param` and `route.param`. Prefer the dedicated helper:
+
+| API | Behavior |
+|-----|----------|
+| `route(key)` | String value or `null` |
+| `route(key, default)` | String value or default |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val id = request.route("id")!!
+val slug = request.route("slug", "home")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String id = request.route("id");
+String slug = request.route("slug", "home");
+```
+
+</TabItem>
+</Tabs>
+
+Values are always strings from the path. Details and encoding rules: [Routing → Path parameters](../routing/#path-parameters).
+
 ## Building a `Response`
 
 ### Factories
@@ -352,6 +384,69 @@ Two details about response headers:
 - Header names in a `Response` are stored **exactly as written**. To replace the content type set by a factory, use the same spelling, `Content-Type`; a different spelling such as `content-type` adds a second entry instead.
 - A response holds **one value per header name**. Calling `header("Set-Cookie", …)` twice keeps only the second value.
 
+
+
+## Cookies
+
+Read cookies from the `Cookie` request header:
+
+| API | Behavior |
+|-----|----------|
+| `cookies()` | Map of name → value |
+| `cookie(name)` / `cookie(name, default)` | Single cookie |
+
+On the response side, chain `cookie(Cookie)` or `cookie(name, value, …)` with path, domain, maxAge, secure, httpOnly, and sameSite options. See the `Cookie` type in `dev.kona.http`.
+
+
+
+## Session, old input, and JSON expectation
+
+| API | Behavior |
+|-----|----------|
+| `session()` | `RequestSession` from attribute `"session"` when `StartSession` ran |
+| `old(key)` / `old(key, default)` | Flashed old input for form redisplay |
+| `expectsJson()` | True when `Accept` prefers JSON without HTML, or `Content-Type` is JSON — drives validation error shape |
+
+Flash helpers on redirects (`with`, `withInput`, `withErrors`) are applied when the session saves — see [Validation](../validation/#the-error-response) and [Session](../../security/session/).
+
 ## What the server does with your response
 
 After the kernel returns, the server writes every header, then the body encoded as UTF-8 with a matching `Content-Length`. For `204 No Content` responses and for `HEAD` requests, no body is sent at all. See [Kernel & server](../kernel-server/) for the full sequence.
+
+## API reference (high level)
+
+### `Request`
+
+Construction: `Request(...)`, `Request.get(path)`, `Request.post(path, body)`.
+
+Reading: `header`, `query`, `form`, `input`, `all`, `data`, `only`/`except`, `has`/`filled`/`missing`, `whenHas`/`whenFilled`/`whenMissing`, `boolean`, `date`, `bearerToken`, `ip`, `userAgent`, `route`, `file`/`hasFile`/`allFiles`, `cookies`/`cookie`, `session`/`old`, `expectsJson`, `validate`/`safe`, `merge`/`replace`, attributes.
+
+### `Response`
+
+Factories: `text`, `html`, `json`, `noContent`, `redirect`, `back`, `binary`, `file`, `download`.
+
+Mutators: `header`, `withHeaders`, `cookie`, `withStatus`, `withBody`, `withBodyBytes`, `with`, `withInput`, `withErrors`.
+
+## Pitfalls and FAQ
+
+**Why is `input("id")` empty but the path has an id?**  
+Path parameters are attributes (`route("id")`), not form/query input.
+
+**Why do I get 500 on bad JSON?**  
+Malformed JSON throws from the parser; the default handler treats it as an unexpected error. Catch it yourself for a 400.
+
+**Can I stream a large file?**  
+Not yet — `file` / `download` / `binary` load bytes in memory.
+
+## What is not available today
+
+- Streaming request or response bodies
+- Multi-value headers on `Request` (first wins) or `Response` (one value per name)
+- Automatic `_method` override from form bodies
+- Content negotiation beyond what you implement in handlers
+
+## Next steps
+
+- Map URLs in [Routing](../routing/).
+- Validate with [Validation](../validation/).
+- Handle failures in [Exceptions](../exceptions/).

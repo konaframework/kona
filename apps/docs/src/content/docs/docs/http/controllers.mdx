@@ -1,17 +1,27 @@
 ---
 title: Controllers
-description: Organize HTTP handlers into controller classes, invokable actions, resource controllers, and form-request validation.
+description: Organize HTTP handlers into controller classes, invokable actions, resource controllers, form-request validation, and grind stubs.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A **controller** is a class that groups related HTTP actions. Instead of putting every route closure in a service provider, you point routes at controller methods. Controllers keep validation, authorization, and response shaping next to each other.
+A **controller** is a class that groups related HTTP actions. Instead of putting every route closure in one file, you point routes at controller methods. Controllers keep validation, authorization, and response shaping next to each other.
 
-How you **register** those methods on the router (including `WebRoutes`, groups, and `resource()`) is covered in [Routing](../routing/). This page focuses on what lives *inside* the controller class.
+How you **register** those methods on the router (including `WebRoutes`, groups, and `resource()`) is covered in [Routing](../routing/). This page focuses on what lives *inside* the controller class and the public types that support it: `Controller`, `FormRequest`, `InvokableController`, `ResourceController`, and `BaseResourceController`.
+
+## What a controller does
+
+On each matched request, the [HTTP kernel](../kernel-server/) runs global middleware, resolves the route, binds path parameters onto the `Request`, runs route middleware, then calls the route’s `Handler`. A controller method *is* that handler when you bind it from a route table:
+
+```text
+Request → global middleware → route match → route middleware → controller method → Response
+```
+
+A controller method always takes a `Request` and returns a `Response`. There is no separate “action signature” API, no automatic constructor injection into controllers, and no attribute/annotation routing — you construct the controller yourself and bind methods explicitly.
 
 ## Wire from routes
 
-**Recommended (IDE-friendly):** instantiate the controller in `WebRoutes.register`, then bind a lambda or method reference. The IDE can autocomplete method names, jump to the action, and flag typos at compile time.
+**Recommended (IDE-friendly):** instantiate the controller in `WebRoutes.register` (or `ApiRoutes`), then bind a lambda or method reference. The IDE can autocomplete method names, jump to the action, and flag typos at compile time.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -21,6 +31,8 @@ class WebRoutes(private val app: Application) {
     fun register(router: Router) {
         val projects = ProjectController(app)
         router.get("/projects") { projects.index(it) }.name("projects.index")
+        router.post("/projects") { projects.store(it) }.name("projects.store")
+        router.get("/projects/{id}") { projects.show(it) }.name("projects.show")
     }
 }
 ```
@@ -37,6 +49,8 @@ public final class WebRoutes {
     public void register(Router router) {
         ProjectController projects = new ProjectController(app);
         router.get("/projects", projects::index).name("projects.index");
+        router.post("/projects", projects::store).name("projects.store");
+        router.get("/projects/{id}", projects::show).name("projects.show");
     }
 }
 ```
@@ -46,28 +60,66 @@ public final class WebRoutes {
 
 Inline handler lambdas work the same way when you do not need a controller class. Details and more verbs live on [Routing](../routing/#call-a-controller).
 
-Generate stubs with [`./grind make:controller Name`](../../grind/commands/#grind-makecontroller). Use `--resource` when you want REST method stubs ready for [`router.resource(...)`](../routing/#resource-routes) / [`router.apiResource(...)`](../routing/#api-resource-routes).
+### Passing dependencies
 
-## Controller middleware
+Controllers are ordinary classes. Pass what they need in the constructor — `Application`, a repository, a Cadence model helper, config values from boot:
 
-Register middleware on a `Controller` subclass (typically in `init` / the constructor). Use `only` / `except` to limit which action names receive it. When you register routes, wrap the handler with `controller.action("methodName", handler)` so that middleware runs. `router.resource` / `apiResource` apply controller middleware automatically for `Controller` instances.
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
-class ProjectController : Controller() {
-    init {
-        middleware(Authenticate(auth))
-        middleware(Authorize("update", Project::class.java), only = listOf("update"))
-    }
+class ProjectController(private val app: Application) {
+    private val db = app.resolve(DatabaseManager::class.java)
 
-    fun show(request: Request): Response = Response.json(/* … */)
+    fun index(request: Request): Response =
+        Response.json(db.table("projects").get())
 }
-
-router.get("/projects/{id}", projects.action("show") { projects.show(it) })
 ```
 
-## Base controller
+</TabItem>
+<TabItem label="Java">
 
-Extend `Controller` when you want the shared `validate` helpers:
+```java
+public class ProjectController {
+    private final DatabaseManager db;
+
+    public ProjectController(Application app) {
+        this.db = app.resolve(DatabaseManager.class);
+    }
+
+    public Response index(Request request) {
+        return Response.json(db.table("projects").get());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Resolve heavy dependencies once when you construct the controller in the route table (or once in a provider), not on every request inside the action, unless the dependency is request-scoped.
+
+## Generate a stub with grind
+
+[`./grind make:controller Name`](../../grind/commands/#grind-makecontroller) writes `app/http/controllers/<Name>Controller` (Kotlin or Java via `--lang`).
+
+| Flag | Effect |
+|------|--------|
+| *(none)* | Single `index` method returning a text stub |
+| `--resource` | CRUD stubs: `index`, `create`, `store`, `show`, `edit`, `update`, `destroy` — ready for [`router.resource`](../routing/#resource-routes) / [`apiResource`](../routing/#api-resource-routes) |
+| `--lang=kotlin\|java` | Language (defaults from the app layout) |
+
+Generated resource stubs read the path id with `request.route("id")`. They do **not** extend `Controller` or `BaseResourceController` — add those bases yourself when you want `validate` helpers or default 404s for unimplemented actions.
+
+## Plain controllers vs `Controller`
+
+You do **not** have to extend `Controller`. Any class with `Request → Response` methods works as a route target.
+
+Extend `Controller` when you want the protected `validate` helpers:
+
+| Method | Behavior |
+|--------|----------|
+| `validate(request, rules)` | Delegates to `request.validate(rules)` — returns validated map or throws `ValidationException` |
+| `validate(request, formRequest)` | Runs `formRequest.validate(request)` — authorize first, then rules |
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -100,11 +152,53 @@ router.post("/notes", notes::store);
 </TabItem>
 </Tabs>
 
-`validate` throws `ValidationException` (HTTP 422) when rules fail — the same path as `request.validate(...)`.
+`validate` throws `ValidationException` (HTTP 422 / redirect-back) when rules fail — the same path as `request.validate(...)`. Full rule list: [Validation](../validation/).
+
+After a successful `request.validate(...)` (or the controller helper that calls it), `request.safe()` returns the same validated map. Calling `safe()` before a successful validate throws `IllegalStateException`.
+
+## Reading route parameters and input
+
+Path parameters are on the request after routing. Prefer `request.route("id")`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun show(request: Request): Response {
+    val id = request.route("id")!!
+    val project = projects.find(id) ?: throw NotFoundException("Project not found.")
+    return Response.json(project)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public Response show(Request request) {
+    String id = request.route("id");
+    Project project = projects.find(id);
+    if (project == null) {
+        throw new NotFoundException("Project not found.");
+    }
+    return Response.json(project);
+}
+```
+
+</TabItem>
+</Tabs>
+
+For body and query input, use `request.data()`, `request.input(...)`, or validate first — see [Request & response](../request-response/).
 
 ## Form requests
 
-A **form request** is a small object that owns validation rules (and optional authorization) for one action:
+A **form request** is a small object that owns validation rules (and optional authorization) for one action. Extend `FormRequest`:
+
+| Member | Role |
+|--------|------|
+| `rules()` | Abstract — map of field → rule strings |
+| `authorize(request)` | Optional; defaults to `true`. Return `false` to reject |
+| `validate(request)` | If unauthorized → `HttpException(403, "This action is unauthorized.")`; else `Validator.make(request, rules()).validate()` |
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -141,16 +235,24 @@ public class StoreNoteRequest extends FormRequest {
         return "secret".equals(request.header("X-Token"));
     }
 }
+
+public class NotesController extends Controller {
+    public Response store(Request request) {
+        return Response.json(validate(request, new StoreNoteRequest()), 201);
+    }
+}
 ```
 
 </TabItem>
 </Tabs>
 
-If `authorize` returns `false`, Kona throws `HttpException` with status **403**. Otherwise the rules run through the validator.
+You can also call `StoreNoteRequest().validate(request)` without extending `Controller`. Authorization failures are **403**, not 422. Validation failures still become `ValidationException`.
+
+There is no automatic form-request resolution from route signatures — you construct and run the form request yourself inside the action.
 
 ## Invokable controllers
 
-When a route has a single action, implement `InvokableController` and register it with [`asHandler()` / `Controllers.asHandler`](../routing/#invokable-controllers):
+When a route has a single action, implement `InvokableController` (`invoke(Request): Response`) and register it as a handler:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -158,6 +260,12 @@ When a route has a single action, implement `InvokableController` and register i
 ```kotlin
 val ping = InvokableController { Response.text("pong") }
 router.get("/ping", ping.asHandler()).name("ping")
+
+class HealthCheck : InvokableController {
+    override fun invoke(request: Request): Response =
+        Response.json(mapOf("status" to "ok"))
+}
+router.get("/health", HealthCheck().asHandler()).name("health")
 ```
 
 </TabItem>
@@ -166,28 +274,53 @@ router.get("/ping", ping.asHandler()).name("ping")
 ```java
 InvokableController ping = request -> Response.text("pong");
 router.get("/ping", Controllers.asHandler(ping)).name("ping");
+
+public final class HealthCheck implements InvokableController {
+    @Override
+    public Response invoke(Request request) {
+        return Response.json(Map.of("status", "ok"));
+    }
+}
+router.get("/health", Controllers.asHandler(new HealthCheck())).name("health");
 ```
 
 </TabItem>
 </Tabs>
 
+`Controllers.asHandler` / Kotlin `asHandler()` adapts the invokable to a `Handler` for the router.
+
 ## Resource controllers
 
-[`Router.resource(name, controller)`](../routing/#resource-routes) wires the full REST map (including `create` / `edit`) onto a `ResourceController`. Prefer [`apiResource`](../routing/#api-resource-routes) for JSON APIs (no form routes). Extend `BaseResourceController` when you only need some actions — unimplemented ones throw `NotFoundException`:
+[`Router.resource(name, controller)`](../routing/#resource-routes) wires the full REST map (including HTML `create` / `edit`) onto a `ResourceController`. Prefer [`apiResource`](../routing/#api-resource-routes) for JSON APIs (no form routes).
+
+`ResourceController` is an interface with seven methods: `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`. Extend `BaseResourceController` when you only need some actions — unimplemented ones throw `NotFoundException` (HTTP 404).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 class NotesController : BaseResourceController() {
-    override fun index(request: Request): Response = Response.json(listOf<Any>())
+    override fun index(request: Request): Response = Response.json(notes.all())
+
+    override fun show(request: Request): Response {
+        val note = notes.find(request.route("id")!!)
+            ?: throw NotFoundException()
+        return Response.json(note)
+    }
+
     override fun store(request: Request): Response {
         val data = validate(request, StoreNoteRequest())
-        return Response.json(data, 201)
+        return Response.json(notes.create(data), 201)
+    }
+
+    override fun destroy(request: Request): Response {
+        notes.delete(request.route("id")!!)
+        return Response.noContent()
     }
 }
 
 router.apiResource("notes", NotesController())
+router.apiResource("notes", NotesController(), only = listOf("index", "show"))
 ```
 
 </TabItem>
@@ -197,24 +330,155 @@ router.apiResource("notes", NotesController())
 public class NotesController extends BaseResourceController {
     @Override
     public Response index(Request request) {
-        return Response.json(List.of());
+        return Response.json(notes.all());
+    }
+
+    @Override
+    public Response show(Request request) {
+        Note note = notes.find(request.route("id"));
+        if (note == null) throw new NotFoundException();
+        return Response.json(note);
     }
 
     @Override
     public Response store(Request request) {
-        return Response.json(validate(request, new StoreNoteRequest()), 201);
+        return Response.json(notes.create(validate(request, new StoreNoteRequest())), 201);
+    }
+
+    @Override
+    public Response destroy(Request request) {
+        notes.delete(request.route("id"));
+        return Response.noContent();
     }
 }
 
 router.apiResource("notes", new NotesController());
+router.apiResource("notes", new NotesController(), List.of("index", "show"), null);
 ```
 
 </TabItem>
 </Tabs>
 
+`BaseResourceController` extends `Controller`, so `validate` is available. Pair JSON payloads with [API Resources](../api-resources/). Filtering with `only` / `except` and the `/resource/create` caveat for `apiResource` are documented under [Routing](../routing/#resource-routes).
+
+## Returning responses
+
+Controllers return the same factories as any handler — `Response.json`, `html`, `text`, `redirect`, `back`, `noContent`, `download`, and so on. See [Request & response](../request-response/#building-a-response).
+
+Common patterns:
+
+```kotlin
+fun store(request: Request): Response {
+    val data = validate(request, StoreNoteRequest())
+    val note = notes.create(data)
+    return Response.redirect(route("notes.show", mapOf("id" to note.id)))
+        .with("status", "Created")
+}
+
+fun destroy(request: Request): Response {
+    notes.delete(request.route("id")!!)
+    return Response.noContent()
+}
+```
+
+Throw `NotFoundException`, `HttpException`, or `ValidationException` instead of building error envelopes by hand — see [Exceptions](../exceptions/).
+
+## Common use cases
+
+### Thin API controller with validation
+
+```kotlin
+class UserApiController : Controller() {
+    fun store(request: Request): Response {
+        val data = validate(request, mapOf(
+            "email" to listOf("required", "email"),
+            "name" to listOf("required", "string", "max:100"),
+        ))
+        return Response.json(users.create(data), 201)
+    }
+}
+```
+
+### HTML form update with redirect-back on failure
+
+Validation failures for non-JSON clients redirect back with flashed errors (default exception handler). On success, redirect to a named route:
+
+```kotlin
+fun update(request: Request): Response {
+    val data = validate(request, UpdatePostRequest())
+    posts.update(request.route("id")!!, data)
+    return Response.redirect(route("posts.show", mapOf("id" to request.route("id")!!)))
+}
+```
+
+### Single-action download
+
+```kotlin
+class ReportDownload(private val reports: ReportService) : InvokableController {
+    override fun invoke(request: Request): Response =
+        Response.download(reports.pdf(), "report.pdf")
+}
+router.get("/reports/latest", ReportDownload(reports).asHandler())
+    .middleware(Authenticate())
+```
+
+## API reference
+
+### `Controller`
+
+Open class. Protected: `validate(Request, Map)`, `validate(Request, FormRequest)`.
+
+### `FormRequest`
+
+Abstract. `rules()`, optional `authorize(Request)`, `validate(Request)`.
+
+### `InvokableController`
+
+Functional interface: `invoke(Request): Response`. Adapt with `asHandler()` / `Controllers.asHandler`.
+
+### `ResourceController`
+
+Interface: `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`.
+
+### `BaseResourceController`
+
+Abstract class extending `Controller` and implementing `ResourceController`. Default implementations throw `NotFoundException()`.
+
+### `Controllers`
+
+`Controllers.asHandler(InvokableController): Handler`.
+
+## Pitfalls and FAQ
+
+**Do I need to extend `Controller`?**  
+No. Extend it only for the `validate` helpers (or extend `BaseResourceController` for resource defaults).
+
+**Why isn’t my controller constructed from the container automatically?**  
+Kona does not auto-resolve controllers from route class references. Instantiate them in the route table (or a factory you control).
+
+**Can I put middleware on the controller class?**  
+Not as a class annotation. Attach middleware on the route or group — see [Middleware](../middleware/) and [Routing](../routing/#middleware-on-a-route).
+
+**Generated `--resource` stubs don’t implement `ResourceController`.**  
+They use matching method names. For `router.resource(...)`, either implement the interface / extend `BaseResourceController`, or keep binding methods one-by-one.
+
+**Where do validation errors go?**  
+JSON clients get 422; HTML form clients get redirect-back with flashed errors — [Validation](../validation/#the-error-response).
+
+## What is not available today
+
+- Annotation / attribute-based controller routing
+- Automatic constructor injection of controllers from the router
+- Controller-level middleware attributes
+- Invokable registration without `asHandler` / `Controllers.asHandler`
+- Form-request type hints that auto-run before the action
+
 ## Next steps
 
 - Register routes, groups, and resources in [Routing](../routing/).
+- Wrap controllers with [Middleware](../middleware/).
+- Read and write payloads in [Request & response](../request-response/).
+- Declare rules in [Validation](../validation/).
 - Shape JSON with [API Resources](../api-resources/).
 - Build links with [URL generation](../url-generation/).
 - Tune failure pages in [Exceptions](../exceptions/).
