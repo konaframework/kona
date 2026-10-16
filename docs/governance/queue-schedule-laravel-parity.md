@@ -8,9 +8,9 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 
 | Meta | Value |
 |------|--------|
-| Last audit | 2026-10-15 |
-| Baseline on `main` | M7 queues; M8 scheduling; M16 durable queues; progressive Digging deeper IA (#62) |
-| Active deepen | Batch 1 — delay, middleware, unique, chain, worker flags, schedule frequencies/mutex/work, docs |
+| Last audit | 2026-10-16 |
+| Baseline on `main` | M7 queues; M8 scheduling; M16 durable queues; progressive Digging deeper IA (#62); batch1 (#69) |
+| Active deepen | **closed** — full batches (then/catch/finally, DB repo, events) |
 
 ---
 
@@ -24,9 +24,11 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 | Delay / `later` on dispatch | **done** | `Bus.later` + `Queue.push(..., delaySeconds)` |
 | Named queue on push | **done** | `Queue.push` |
 | Job chains | **done** | `PendingChain` / `ChainedJob` |
-| Job batches (`Bus::batch`) | **partial** | Light `PendingBatch` / `Batch` (ids only) |
+| Job batches (`Bus::batch`) | **done** | `PendingBatch` / `Batch` — then/catch/finally, allowFailures, cancel, progress |
+| Batch repository (memory + database) | **done** | `InMemoryBatchRepository` / `DatabaseBatchRepository` (`job_batches`) |
+| Queue domain events | **done** | `QueueEvents` + batch/job event types |
 | Serializable durable payload | **done** | M16 `jobBody` + `JobRegistry` |
-| Java-callable jobs | **done** | `JavaDurableJobTest` / `JavaQueueDeepenTest` |
+| Java-callable jobs | **done** | `JavaDurableJobTest` / `JavaQueueDeepenTest` / `JavaBatchFullTest` |
 
 ## 2. Workers (`grind queue:work` / steam)
 
@@ -41,6 +43,7 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 | `--tries` / `--backoff` overrides | **done** | `WorkerOptions` |
 | `--sleep` + idle cycles | **done** | daemon loop |
 | Backoff via `availableAt` | **done** | M16 |
+| Batch success/failure hooks | **done** | `Worker` → `Batch.recordSuccess` / `recordFailure` |
 
 ## 3. Failed jobs
 
@@ -54,7 +57,7 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 
 | Driver | Status | Evidence |
 |--------|--------|----------|
-| sync | **done** | `SyncQueue` (delay ignored) |
+| sync | **done** | `SyncQueue` (delay ignored; batch-aware) |
 | array / memory | **done** | `ArrayQueue` |
 | redis | **done** | `RedisQueue` |
 | database | **done** | `DatabaseQueue` |
@@ -85,17 +88,16 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 
 | Page | Status | Notes |
 |------|--------|-------|
-| Digging deeper → Queues | **done** | jobs / workers / failed |
+| Digging deeper → Queues | **done** | jobs (full batches) / workers / failed |
 | Digging deeper → Task scheduling | **done** | enriched |
 
-## 8. Deferred
+## 8. Deferred (intentional)
 
 | Item | Why |
 |------|-----|
-| Full batch then/catch + DB batch repository | Later deepen |
-| Horizon / metrics | Out of scope |
+| Horizon / metrics dashboard | Out of scope for framework core |
 | Cron day-name tokens | Numeric DOW enough |
-| Queue domain events | Optional later |
+| Cross-process then/catch callbacks | Callbacks remain in-process; durable rows track counts only |
 
 ---
 
@@ -105,3 +107,4 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 |------|-------|-------|
 | 2026-10-15 | audit | Ledger created |
 | 2026-10-15 | batch1 | PR #69 — delay/later, middleware, unique, chain, light batch, worker flags, schedule frequencies/mutex/work, Digging deeper docs |
+| 2026-10-16 | full-batches | then/catch/finally, allowFailures, DatabaseBatchRepository, QueueEvents, sync/worker batch hooks, Java + Kotlin regressions, docs |

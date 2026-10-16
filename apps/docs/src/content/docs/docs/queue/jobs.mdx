@@ -43,15 +43,57 @@ bus.chain(ReserveStock(), ChargeCard(), SendReceipt()).dispatch()
 
 Workers bind a `WorkerContext` so the chain can continue across pops. Keep chain steps serializable if workers run in other processes.
 
-## Batches (light)
+## Batches
+
+Dispatch a set of jobs, then run callbacks when the set finishes. Workers record success/failure against the batch as each job completes.
 
 ```kotlin
-val batch = bus.batch(JobA(), JobB(), JobC()).dispatch()
-batch.ids   // payload ids
+val batch = bus.batch(JobA(), JobB(), JobC())
+    .name("fulfill-order")
+    .allowFailures() // optional: finish even if some jobs fail
+    .then { b -> /* all done (or allowed failures) */ }
+    .catch { b, err -> /* cancelled or hard failure */ }
+    .finally { b -> /* always */ }
+    .dispatch()
+
+batch.id
 batch.size()
+batch.progress() // 0.0 … 100.0
+batch.pendingJobs()
+batch.failedJobIds()
+batch.cancel()   // stop tracking; runs catch/finally
 ```
 
-This light batch dispatches all jobs up front and returns ids. Richer then/catch batch repositories may land in a later deepen.
+```java
+Batch batch = bus.batch(new JobA(), new JobB())
+    .name("fulfill-order")
+    .allowFailures()
+    .then(b -> { })
+    .onFinally(b -> { })
+    .dispatch();
+```
+
+### Batch repository
+
+By default batches live in memory (`InMemoryBatchRepository`). For durable counts across workers, set:
+
+```
+queue.batch.driver=database
+queue.batch.table=job_batches
+```
+
+`QueueServiceProvider` creates a `job_batches` table (Cadence `Database` required) and wires `DatabaseBatchRepository`. Callbacks (`then` / `catch` / `finally`) stay in-process on the dispatching JVM; durable rows track totals, pending, failures, and finished/cancelled flags.
+
+### Queue events
+
+Optional process-wide hooks via `QueueEvents.setDispatcher`:
+
+| Event | When |
+|-------|------|
+| `BatchDispatched` | Batch stored and jobs pushed |
+| `BatchJobSucceeded` / `BatchJobFailed` | Per-job outcome |
+| `BatchFinished` | Batch completed or cancelled |
+| `JobQueued` / `JobProcessed` / `JobFailed` | Individual job lifecycle |
 
 ## Middleware
 

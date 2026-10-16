@@ -11,17 +11,17 @@ class RedisQueue(
 ) : Queue {
     private val mapper = jacksonObjectMapper()
 
-    override fun push(job: Job, queue: String, delaySeconds: Long): String {
+    override fun push(job: Job, queue: String, delaySeconds: Long, batchId: String?): String {
         val key = job.javaClass.name
         JobRegistry.register(key) { job }
-        val payload = JobRegistry.payloadFor(job, key).withDelay(delaySeconds)
+        val payload = JobRegistry.payloadFor(job, key, batchId).withDelay(delaySeconds)
         append(listKey(queue), JobRegistry.encode(payload))
         return payload.id
     }
 
-    fun push(job: Job, queue: String): String = push(job, queue, 0)
+    fun push(job: Job, queue: String): String = push(job, queue, 0, null)
 
-    fun push(job: Job): String = push(job, "default", 0)
+    fun push(job: Job): String = push(job, "default", 0, null)
 
     override fun pop(queue: String): QueuePayload? {
         val listKey = listKey(queue)

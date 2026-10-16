@@ -13,15 +13,24 @@ class Bus(
         connection: String? = null,
         queue: String? = null,
         delaySeconds: Long = 0,
+        batchId: String? = null,
     ): String {
         if (job !is ShouldQueue) {
+            val payload = JobRegistry.payloadFor(job).withBatchId(batchId)
             JobPipeline.run(job)
-            return JobRegistry.payloadFor(job).id
+            if (batchId != null) {
+                BatchRepositories.get().find(batchId)?.recordSuccess(payload.id)
+            }
+            QueueEvents.fire(JobQueued(payload.id, connection, queue, batchId))
+            QueueEvents.fire(JobProcessed(payload.id, connection ?: "sync", queue ?: "sync"))
+            return payload.id
         }
         val name = connection ?: manager.defaultConnection()
         val q = manager.connection(name)
         val queueName = queue ?: manager.defaultQueue(name)
-        return q.push(job, queueName, delaySeconds)
+        val id = q.push(job, queueName, delaySeconds, batchId)
+        QueueEvents.fire(JobQueued(id, name, queueName, batchId))
+        return id
     }
 
     @JvmOverloads
