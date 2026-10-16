@@ -26,12 +26,12 @@ You define a relation as a **public method with no parameters**, named after the
 <TabItem label="Kotlin">
 
 ```kotlin
-import dev.kona.cadence.Cadence
-import dev.kona.cadence.CadenceCompanion
-import dev.kona.cadence.relations.BelongsTo
-import dev.kona.cadence.relations.BelongsToMany
-import dev.kona.cadence.relations.HasMany
-import dev.kona.cadence.relations.HasOne
+import io.konaframework.cadence.Cadence
+import io.konaframework.cadence.CadenceCompanion
+import io.konaframework.cadence.relations.BelongsTo
+import io.konaframework.cadence.relations.BelongsToMany
+import io.konaframework.cadence.relations.HasMany
+import io.konaframework.cadence.relations.HasOne
 
 class User : Cadence<User>() {
     fun profile(): HasOne<Profile> = hasOne(Profile::class.java)
@@ -55,12 +55,12 @@ class Post : Cadence<Post>() {
 <TabItem label="Java">
 
 ```java
-import dev.kona.cadence.Cadence;
-import dev.kona.cadence.CadenceCompanion;
-import dev.kona.cadence.relations.BelongsTo;
-import dev.kona.cadence.relations.BelongsToMany;
-import dev.kona.cadence.relations.HasMany;
-import dev.kona.cadence.relations.HasOne;
+import io.konaframework.cadence.Cadence;
+import io.konaframework.cadence.CadenceCompanion;
+import io.konaframework.cadence.relations.BelongsTo;
+import io.konaframework.cadence.relations.BelongsToMany;
+import io.konaframework.cadence.relations.HasMany;
+import io.konaframework.cadence.relations.HasOne;
 
 public class User extends Cadence<User> {
     public static final CadenceCompanion<User> QUERY = Cadence.of(User.class);
@@ -192,7 +192,7 @@ Pass a `RelationConstraint` to filter or sort what is loaded:
 <TabItem label="Kotlin">
 
 ```kotlin
-import dev.kona.cadence.relations.RelationConstraint
+import io.konaframework.cadence.relations.RelationConstraint
 
 val users = User.query()
     .with("posts", RelationConstraint { it.where("published", true).orderBy("created_at", "desc") })

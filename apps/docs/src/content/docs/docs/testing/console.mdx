@@ -7,7 +7,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 `ConsoleTester` runs **grind** in-process, captures **stdout**, and returns a `ConsoleResult` you can assert on. Use it for built-in commands (`list`, `schedule:run`, …) and for your app’s discovered commands.
 
-Package: `dev.kona.testing`. For how commands are authored and discovered, see [Creating commands](../../grind/creating-commands/) and [Running commands](../../grind/running-commands/).
+Package: `io.konaframework.testing`. For how commands are authored and discovered, see [Creating commands](../../grind/creating-commands/) and [Running commands](../../grind/running-commands/).
 
 ## Run a command
 
@@ -106,7 +106,7 @@ If discovery cannot see the command, grind exits non-zero; `assertOk()` fails wi
 
 ## `Grind.call` vs `ConsoleTester`
 
-`dev.kona.grind.Grind` offers programmatic entry points used from application code **and** tests:
+`io.konaframework.grind.Grind` offers programmatic entry points used from application code **and** tests:
 
 | API | Captures stdout? | Typical use |
 |-----|------------------|-------------|

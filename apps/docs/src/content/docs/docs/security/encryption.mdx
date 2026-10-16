@@ -7,7 +7,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 **Encryption** turns sensitive strings into ciphertext that only your application can read, using a secret **application key**. Use it for cookie payloads, stored secrets, and any value that must remain opaque at rest or in transit through untrusted layers.
 
-Artifact: `dev.kona:kona-auth` (`dev.kona.security.Encrypter`). `AuthServiceProvider` binds an `Encrypter` when `app.key` is set.
+Artifact: `io.konaframework:kona-auth` (`io.konaframework.security.Encrypter`). `AuthServiceProvider` binds an `Encrypter` when `app.key` is set.
 
 ## Application key
 
@@ -36,7 +36,7 @@ From your application directory:
 <TabItem label="Kotlin">
 
 ```kotlin
-import dev.kona.security.Encrypter
+import io.konaframework.security.Encrypter
 
 val key = Encrypter.generateKey()  // "base64:...."
 ```

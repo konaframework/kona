@@ -1,8 +1,8 @@
 package app.http.controllers;
 
-import dev.kona.brew.Brew;
-import dev.kona.http.Request;
-import dev.kona.http.Response;
+import io.konaframework.brew.Brew;
+import io.konaframework.http.Request;
+import io.konaframework.http.Response;
 
 public class WelcomeController {
     public Response index(Request request) {

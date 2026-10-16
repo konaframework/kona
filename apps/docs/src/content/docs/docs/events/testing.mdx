@@ -8,7 +8,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 Two approaches cover most cases:
 
 1. **Unit-test a listener** against a real `EventDispatcher` (or call `handle` directly).
-2. **Record what your code dispatched** with `dev.kona.testing.FakeEvent`.
+2. **Record what your code dispatched** with `io.konaframework.testing.FakeEvent`.
 
 Broader testing setup lives under [Testing](/docs/testing/) and [Database & fakes](/docs/testing/database-fakes/).
 
@@ -29,7 +29,7 @@ Broader testing setup lives under [Testing](/docs/testing/) and [Database & fake
 ### Kotlin
 
 ```kotlin
-import dev.kona.testing.FakeEvent
+import io.konaframework.testing.FakeEvent
 
 data class OrderPlaced(val id: String)
 
@@ -52,7 +52,7 @@ assert(!events.dispatcher.hasListeners(OrderPlaced::class.java))
 ### Java
 
 ```java
-import dev.kona.testing.FakeEvent;
+import io.konaframework.testing.FakeEvent;
 
 FakeEvent events = new FakeEvent();
 events.dispatcher.listen(OrderPlaced.class, event -> { /* … */ });
@@ -164,4 +164,4 @@ assertEquals(listOf("a", "b"), order)
 | Assert listener count after production `dispatch` | Use `dispatcher.listenerCount` / `hasListeners`, or capture in listeners |
 | Replace a global `Event::fake()` facade | Not shipped — construct `FakeEvent` in the test |
 
-Dependency: `dev.kona:kona-testing` (pulls in `kona-events`).
+Dependency: `io.konaframework:kona-testing` (pulls in `kona-events`).

@@ -5,7 +5,7 @@ description: Build SQL queries fluently with bound parameters — selects, filte
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-The **query builder** (`dev.kona.cadence.QueryBuilder`) assembles one SQL statement from method calls. It works on plain tables and returns rows as `Map<String, Any?>` (column name → value). Models use the same builder underneath, so everything here also works after `User.query()`.
+The **query builder** (`io.konaframework.cadence.QueryBuilder`) assembles one SQL statement from method calls. It works on plain tables and returns rows as `Map<String, Any?>` (column name → value). Models use the same builder underneath, so everything here also works after `User.query()`.
 
 Start a query from the `DB` facade, a `Database`, or a `DatabaseConnection`:
 
@@ -13,7 +13,7 @@ Start a query from the `DB` facade, a `Database`, or a `DatabaseConnection`:
 <TabItem label="Kotlin">
 
 ```kotlin
-import dev.kona.cadence.DB
+import io.konaframework.cadence.DB
 
 val rows: List<Map<String, Any?>> = DB.table("users")
     .where("votes", ">", 100)
@@ -27,7 +27,7 @@ val rows: List<Map<String, Any?>> = DB.table("users")
 <TabItem label="Java">
 
 ```java
-import dev.kona.cadence.DB;
+import io.konaframework.cadence.DB;
 import java.util.List;
 import java.util.Map;
 

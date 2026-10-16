@@ -11,7 +11,7 @@ Cadence records which migrations have run in a table called `extract_migrations`
 
 ## Writing a migration
 
-A migration implements `dev.kona.cadence.migrations.Migration` with two methods. `up` applies the change; `down` reverses exactly what `up` did. Both receive a `Schema`, which runs DDL (table-definition SQL) on the migration's connection.
+A migration implements `io.konaframework.cadence.migrations.Migration` with two methods. `up` applies the change; `down` reverses exactly what `up` did. Both receive a `Schema`, which runs DDL (table-definition SQL) on the migration's connection.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -19,8 +19,8 @@ A migration implements `dev.kona.cadence.migrations.Migration` with two methods.
 ```kotlin
 package database.migrations
 
-import dev.kona.cadence.migrations.Migration
-import dev.kona.cadence.schema.Schema
+import io.konaframework.cadence.migrations.Migration
+import io.konaframework.cadence.schema.Schema
 
 class CreatePostsTable : Migration {
     override fun up(schema: Schema) {
@@ -50,8 +50,8 @@ class CreatePostsTable : Migration {
 ```java
 package database.migrations;
 
-import dev.kona.cadence.migrations.Migration;
-import dev.kona.cadence.schema.Schema;
+import io.konaframework.cadence.migrations.Migration;
+import io.konaframework.cadence.schema.Schema;
 
 public class CreatePostsTable implements Migration {
     @Override
@@ -175,7 +175,7 @@ Bind the registry in a service provider so tools such as `./grind migrate` can f
 ```kotlin
 import database.migrations.CreatePostsTable
 import database.migrations.CreateUsersTable
-import dev.kona.cadence.migrations.MigrationRegistry
+import io.konaframework.cadence.migrations.MigrationRegistry
 
 class AppServiceProvider : ServiceProvider {
     override fun register(app: Application) {
@@ -195,7 +195,7 @@ class AppServiceProvider : ServiceProvider {
 ```java
 import database.migrations.CreatePostsTable;
 import database.migrations.CreateUsersTable;
-import dev.kona.cadence.migrations.MigrationRegistry;
+import io.konaframework.cadence.migrations.MigrationRegistry;
 
 public class AppServiceProvider implements ServiceProvider {
     @Override
@@ -221,7 +221,7 @@ public class AppServiceProvider implements ServiceProvider {
 <TabItem label="Kotlin">
 
 ```kotlin
-import dev.kona.cadence.migrations.Migrator
+import io.konaframework.cadence.migrations.Migrator
 
 val ran = Migrator.using(db.connection(), registry) { it.migrate() }       // names that ran
 Migrator.using(db.connection(), registry) { migrator ->
@@ -237,7 +237,7 @@ Migrator.using(db.connection(), registry) { migrator ->
 <TabItem label="Java">
 
 ```java
-import dev.kona.cadence.migrations.Migrator;
+import io.konaframework.cadence.migrations.Migrator;
 
 List<String> ran = Migrator.using(db.connection(), registry, Migrator::migrate);
 Migrator.using(db.connection(), registry, migrator -> {

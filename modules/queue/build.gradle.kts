@@ -24,19 +24,19 @@ kover {
             filters {
                 excludes {
                     // JDBC queue adapter — covered by H2 behavioral suites; column-label branches vary by driver.
-                    classes("dev.kona.queue.DatabaseQueue")
+                    classes("io.konaframework.queue.DatabaseQueue")
                     // Jackson DTO with generated copy/component bridges.
-                    classes("dev.kona.queue.QueuePayload")
+                    classes("io.konaframework.queue.QueuePayload")
                     // Config driver matrix — exercised by QueueTest / QueueCoverageTest.
-                    classes("dev.kona.queue.QueueManager")
+                    classes("io.konaframework.queue.QueueManager")
                     // Kotlin default-parameter bridges for @JvmStatic / constructors.
-                    classes("dev.kona.queue.JobRateLimiter")
-                    classes("dev.kona.queue.RateLimited")
-                    classes("dev.kona.queue.ReleaseJobException")
+                    classes("io.konaframework.queue.JobRateLimiter")
+                    classes("io.konaframework.queue.RateLimited")
+                    classes("io.konaframework.queue.ReleaseJobException")
                     // ConcurrentHashMap.removeIf predicate branches vary by JVM.
-                    classes("dev.kona.queue.UniqueLock")
+                    classes("io.konaframework.queue.UniqueLock")
                     // Executor/timeout/InterruptedException branches — covered by QueueDeepenTest + GrindQueueTest.
-                    classes("dev.kona.queue.Worker")
+                    classes("io.konaframework.queue.Worker")
                 }
             }
             verify {

@@ -1,13 +1,13 @@
 package bootstrap
 
-import dev.kona.core.Application
-import dev.kona.filesystem.FilesystemManager
-import dev.kona.http.HttpKernel
-import dev.kona.http.HttpMiddleware
-import dev.kona.http.ServePublicStorage
-import dev.kona.session.SessionManager
-import dev.kona.session.StartSession
-import dev.kona.session.VerifyCsrfToken
+import io.konaframework.core.Application
+import io.konaframework.filesystem.FilesystemManager
+import io.konaframework.http.HttpKernel
+import io.konaframework.http.HttpMiddleware
+import io.konaframework.http.ServePublicStorage
+import io.konaframework.session.SessionManager
+import io.konaframework.session.StartSession
+import io.konaframework.session.VerifyCsrfToken
 
 /**
  * HTTP middleware registration (Almasix / Laravel bootstrap shape).

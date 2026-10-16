@@ -4,7 +4,7 @@ plugins {
 }
 
 allprojects {
-    group = "dev.kona"
+    group = "io.konaframework"
     version = providers.gradleProperty("kona.version").get()
 
     repositories {

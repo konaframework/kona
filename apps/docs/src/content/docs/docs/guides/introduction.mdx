@@ -21,14 +21,14 @@ Before the vocabulary, here is a complete program. It starts Kona, registers one
 <TabItem label="Kotlin">
 
 ```kotlin
-import dev.kona.core.Application
-import dev.kona.core.Kona
-import dev.kona.core.ServiceProvider
-import dev.kona.http.HttpKernel
-import dev.kona.http.HttpServiceProvider
-import dev.kona.http.KonaHttpServer
-import dev.kona.http.Response
-import dev.kona.http.Router
+import io.konaframework.core.Application
+import io.konaframework.core.Kona
+import io.konaframework.core.ServiceProvider
+import io.konaframework.http.HttpKernel
+import io.konaframework.http.HttpServiceProvider
+import io.konaframework.http.KonaHttpServer
+import io.konaframework.http.Response
+import io.konaframework.http.Router
 
 class Greeter(private val greeting: String) {
     fun greet(name: String) = "$greeting, $name"
@@ -59,14 +59,14 @@ fun main(args: Array<String>) {
 <TabItem label="Java">
 
 ```java
-import dev.kona.core.Application;
-import dev.kona.core.Kona;
-import dev.kona.core.ServiceProvider;
-import dev.kona.http.HttpKernel;
-import dev.kona.http.HttpServiceProvider;
-import dev.kona.http.KonaHttpServer;
-import dev.kona.http.Response;
-import dev.kona.http.Router;
+import io.konaframework.core.Application;
+import io.konaframework.core.Kona;
+import io.konaframework.core.ServiceProvider;
+import io.konaframework.http.HttpKernel;
+import io.konaframework.http.HttpServiceProvider;
+import io.konaframework.http.KonaHttpServer;
+import io.konaframework.http.Response;
+import io.konaframework.http.Router;
 import java.util.Map;
 
 public final class Main {
@@ -107,17 +107,17 @@ A request to `GET /hello/kona` returns `{"message":"Hello, kona"}`. The rest of 
 
 ## Vocabulary
 
-- **Application** (`dev.kona.core.Application`): The object that represents your running project. It knows its **base path** (the directory that holds `.env`, `config/`, and usually your sources), owns a container and a config store, and keeps the list of service providers. There is normally one per process. See [Application & providers](../../concepts/application/).
-- **Service provider** (`dev.kona.core.ServiceProvider`): A small class with two methods, `register` and `boot`, that plugs a feature into the application. `register` describes how to build services; `boot` runs startup work once every provider has registered. Kona's own HTTP layer arrives as `HttpServiceProvider`; your code typically lives in an `AppServiceProvider`.
-- **Container** (`dev.kona.core.Container`): A registry that knows how to create objects. You *bind* a type to a factory ("to make a `Greeter`, call this lambda"), then *resolve* the type wherever you need it. The container can also build ordinary classes on its own by calling their constructor and resolving each parameter. See [Container](../../concepts/container/).
-- **Config** (`dev.kona.core.Config`): A tree of settings addressed with dotted keys such as `app.name` or `database.pool.size`. Values come from built-in defaults, files in `config/`, and code. See [Config & env](../../concepts/config/).
-- **Env** (`dev.kona.core.Env`): Read access to environment variables, with an optional `.env` file as a fallback. Real process variables always take precedence over the file.
-- **Router** (`dev.kona.http.Router`): Maps an HTTP method plus a URL pattern (for example `GET /hello/{name}`) to a **handler**: a function that takes a `Request` and returns a `Response`.
-- **Middleware** (`dev.kona.http.Middleware`): A function that sits in front of a handler. It receives the request and a `next` handler, and may change the request, change the response, or answer immediately without calling `next` (for example, rejecting a request with `401`).
-- **HTTP kernel** (`dev.kona.http.HttpKernel`): The single entry point that turns a `Request` into a `Response`: it runs global middleware, asks the router for a matching route, runs that route's middleware and handler, and converts any thrown exception into an error response.
+- **Application** (`io.konaframework.core.Application`): The object that represents your running project. It knows its **base path** (the directory that holds `.env`, `config/`, and usually your sources), owns a container and a config store, and keeps the list of service providers. There is normally one per process. See [Application & providers](../../concepts/application/).
+- **Service provider** (`io.konaframework.core.ServiceProvider`): A small class with two methods, `register` and `boot`, that plugs a feature into the application. `register` describes how to build services; `boot` runs startup work once every provider has registered. Kona's own HTTP layer arrives as `HttpServiceProvider`; your code typically lives in an `AppServiceProvider`.
+- **Container** (`io.konaframework.core.Container`): A registry that knows how to create objects. You *bind* a type to a factory ("to make a `Greeter`, call this lambda"), then *resolve* the type wherever you need it. The container can also build ordinary classes on its own by calling their constructor and resolving each parameter. See [Container](../../concepts/container/).
+- **Config** (`io.konaframework.core.Config`): A tree of settings addressed with dotted keys such as `app.name` or `database.pool.size`. Values come from built-in defaults, files in `config/`, and code. See [Config & env](../../concepts/config/).
+- **Env** (`io.konaframework.core.Env`): Read access to environment variables, with an optional `.env` file as a fallback. Real process variables always take precedence over the file.
+- **Router** (`io.konaframework.http.Router`): Maps an HTTP method plus a URL pattern (for example `GET /hello/{name}`) to a **handler**: a function that takes a `Request` and returns a `Response`.
+- **Middleware** (`io.konaframework.http.Middleware`): A function that sits in front of a handler. It receives the request and a `next` handler, and may change the request, change the response, or answer immediately without calling `next` (for example, rejecting a request with `401`).
+- **HTTP kernel** (`io.konaframework.http.HttpKernel`): The single entry point that turns a `Request` into a `Response`: it runs global middleware, asks the router for a matching route, runs that route's middleware and handler, and converts any thrown exception into an error response.
 - **kona** (global CLI): creates applications — `kona new my-app`.
 - **grind** (app-local CLI): lives in each project as `./grind` — `./grind serve`, `./grind make:controller`, `./grind migrate`.
-- **Cadence** (`dev.kona.cadence`): the database layer — connections, a query builder, models, relations, and migrations. See [Cadence overview](../../cadence/).
+- **Cadence** (`io.konaframework.cadence`): the database layer — connections, a query builder, models, relations, and migrations. See [Cadence overview](../../cadence/).
 
 ## The lifecycle, start to finish
 

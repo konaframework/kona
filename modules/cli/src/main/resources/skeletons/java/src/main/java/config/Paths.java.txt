@@ -1,6 +1,6 @@
 package config;
 
-import dev.kona.core.ConfigFile;
+import io.konaframework.core.ConfigFile;
 import java.util.Map;
 
 public final class Paths implements ConfigFile {

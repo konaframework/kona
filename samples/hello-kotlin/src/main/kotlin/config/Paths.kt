@@ -1,6 +1,6 @@
 package config
 
-import dev.kona.core.ConfigFile
+import io.konaframework.core.ConfigFile
 
 object Paths : ConfigFile {
     override fun key(): String = "paths"

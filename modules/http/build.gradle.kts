@@ -24,8 +24,8 @@ kover {
             filters {
                 excludes {
                     // Boundary scanner branches (CRLF / closing --) covered behaviorally via MultipartUploadTest.
-                    classes("dev.kona.http.MultipartParser")
-                    classes("dev.kona.http.MultipartParser\$*")
+                    classes("io.konaframework.http.MultipartParser")
+                    classes("io.konaframework.http.MultipartParser\$*")
                 }
             }
             verify {

@@ -29,22 +29,22 @@ kona install com.example:widget:1.2.3
 | Flag | Role |
 | --- | --- |
 | `--base=…` | App root (default: walk up from cwd looking for `build.gradle(.kts)`) |
-| `--version=…` | Override when the alias/coordinate omits a version (default: detect a `dev.kona:…:version` already in the build file, else the CLI’s bundled Kona version) |
+| `--version=…` | Override when the alias/coordinate omits a version (default: detect a `io.konaframework:…:version` already in the build file, else the CLI’s bundled Kona version) |
 
 ## Catalog aliases
 
 | Alias | Artifact | Auto-registered provider |
 | --- | --- | --- |
-| `brew` | `dev.kona:kona-brew` | `BrewServiceProvider` |
-| `inertia` | `dev.kona:kona-inertia` | `InertiaServiceProvider` |
-| `crema` | `dev.kona:kona-crema` | `CremaServiceProvider` |
-| `filesystem` | `dev.kona:kona-filesystem` | `FilesystemServiceProvider` |
-| `search` | `dev.kona:kona-search` | `SearchServiceProvider` |
-| `broadcasting` | `dev.kona:kona-broadcasting` | `BroadcastServiceProvider` |
-| `notifications` | `dev.kona:kona-notifications` | `NotificationServiceProvider` |
-| `drip` | `dev.kona:kona-drip` | — |
-| `concurrency` | `dev.kona:kona-concurrency` | — |
-| `testing` | `dev.kona:kona-testing` | — |
+| `brew` | `io.konaframework:kona-brew` | `BrewServiceProvider` |
+| `inertia` | `io.konaframework:kona-inertia` | `InertiaServiceProvider` |
+| `crema` | `io.konaframework:kona-crema` | `CremaServiceProvider` |
+| `filesystem` | `io.konaframework:kona-filesystem` | `FilesystemServiceProvider` |
+| `search` | `io.konaframework:kona-search` | `SearchServiceProvider` |
+| `broadcasting` | `io.konaframework:kona-broadcasting` | `BroadcastServiceProvider` |
+| `notifications` | `io.konaframework:kona-notifications` | `NotificationServiceProvider` |
+| `drip` | `io.konaframework:kona-drip` | — |
+| `concurrency` | `io.konaframework:kona-concurrency` | — |
+| `testing` | `io.konaframework:kona-testing` | — |
 
 Unknown short names fail with a message listing the aliases. Coordinates that match a catalog artifact still receive that artifact’s providers.
 
@@ -54,4 +54,4 @@ Refresh Gradle / rebuild so the new dependency is on the classpath. Providers li
 
 ## Programmatic API
 
-The same steps are available from Kotlin/Java as `PackageInstaller.install(projectRoot, spec, defaultVersion)` in `dev.kona.support.packages` (used by the CLI implementations).
+The same steps are available from Kotlin/Java as `PackageInstaller.install(projectRoot, spec, defaultVersion)` in `io.konaframework.support.packages` (used by the CLI implementations).

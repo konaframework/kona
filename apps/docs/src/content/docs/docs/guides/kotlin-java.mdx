@@ -133,7 +133,7 @@ router.get("/users", users::index);
 <TabItem label="Kotlin">
 
 ```kotlin
-import dev.kona.http.invoke   // enables next(request)
+import io.konaframework.http.invoke   // enables next(request)
 
 val requireToken = Middleware { request, next ->
     if (request.header("X-Token") == "secret") next(request)
@@ -155,7 +155,7 @@ Middleware requireToken = (request, next) ->
 </Tabs>
 
 
-In Kotlin, `next(request)` is an operator extension declared in `dev.kona.http`; you must import `dev.kona.http.invoke` for it to compile. `next.handle(request)` works in both languages without any import.
+In Kotlin, `next(request)` is an operator extension declared in `io.konaframework.http`; you must import `io.konaframework.http.invoke` for it to compile. `next.handle(request)` works in both languages without any import.
 
 ## Route groups
 

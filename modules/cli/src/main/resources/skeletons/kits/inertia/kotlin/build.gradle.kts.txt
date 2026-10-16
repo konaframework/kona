@@ -12,17 +12,17 @@ repositories {
 }
 
 dependencies {
-    implementation("dev.kona:kona-http:{{konaVersion}}")
-    implementation("dev.kona:kona-grind:{{konaVersion}}")
-    implementation("dev.kona:kona-cadence:{{konaVersion}}")
-    implementation("dev.kona:kona-redis:{{konaVersion}}")
-    implementation("dev.kona:kona-session:{{konaVersion}}")
-    implementation("dev.kona:kona-auth:{{konaVersion}}")
-    implementation("dev.kona:kona-queue:{{konaVersion}}")
-    implementation("dev.kona:kona-schedule:{{konaVersion}}")
-    implementation("dev.kona:kona-mail:{{konaVersion}}")
-    implementation("dev.kona:kona-crema:{{konaVersion}}")
-    implementation("dev.kona:kona-inertia:{{konaVersion}}")
+    implementation("io.konaframework:kona-http:{{konaVersion}}")
+    implementation("io.konaframework:kona-grind:{{konaVersion}}")
+    implementation("io.konaframework:kona-cadence:{{konaVersion}}")
+    implementation("io.konaframework:kona-redis:{{konaVersion}}")
+    implementation("io.konaframework:kona-session:{{konaVersion}}")
+    implementation("io.konaframework:kona-auth:{{konaVersion}}")
+    implementation("io.konaframework:kona-queue:{{konaVersion}}")
+    implementation("io.konaframework:kona-schedule:{{konaVersion}}")
+    implementation("io.konaframework:kona-mail:{{konaVersion}}")
+    implementation("io.konaframework:kona-crema:{{konaVersion}}")
+    implementation("io.konaframework:kona-inertia:{{konaVersion}}")
 }
 
 kotlin {
@@ -37,7 +37,7 @@ tasks.register<JavaExec>("grind") {
     group = "kona"
     description = "App-local grind CLI (serve, make:controller, …)"
     classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("dev.kona.grind.GrindKt")
+    mainClass.set("io.konaframework.grind.GrindKt")
     standardInput = System.`in`
     val grindArgs = project.findProperty("grindArgs") as String?
     if (!grindArgs.isNullOrBlank()) {

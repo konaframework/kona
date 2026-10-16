@@ -1,7 +1,7 @@
 package routes;
 
-import dev.kona.http.Response;
-import dev.kona.http.Router;
+import io.konaframework.http.Response;
+import io.konaframework.http.Router;
 import java.util.Map;
 
 public class ApiRoutes {

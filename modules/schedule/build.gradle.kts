@@ -18,9 +18,9 @@ kover {
             filters {
                 excludes {
                     // Nested cron field parser — covered by CronExpression behavioral assertions.
-                    classes("dev.kona.schedule.CronExpression")
-                    classes("dev.kona.schedule.CronExpression\$Field")
-                    classes("dev.kona.schedule.CronExpression\$Field\$Companion")
+                    classes("io.konaframework.schedule.CronExpression")
+                    classes("io.konaframework.schedule.CronExpression\$Field")
+                    classes("io.konaframework.schedule.CronExpression\$Field\$Companion")
                 }
                 // Schedule API is fully exercised by ScheduleTest / grind schedule commands.
             }

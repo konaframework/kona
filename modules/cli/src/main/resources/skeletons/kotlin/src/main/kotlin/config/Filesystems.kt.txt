@@ -1,7 +1,7 @@
 package config
 
-import dev.kona.core.ConfigFile
-import dev.kona.core.Env
+import io.konaframework.core.ConfigFile
+import io.konaframework.core.Env
 
 object Filesystems : ConfigFile {
     override fun key(): String = "filesystems"

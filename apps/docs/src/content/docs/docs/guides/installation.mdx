@@ -47,10 +47,10 @@ The installer and generated apps use the Gradle wrapper; you do not need a separ
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-That script prints a colored step progress (JDK → fetch → build CLI → publish libraries → link), syncs source into `~/.kona` (override with `KONA_SRC`), builds `:kona-cli:installDist`, **publishes all `dev.kona` jars to `~/.m2` (`mavenLocal`)**, then installs under `~/.local/lib/kona` with a symlink at `~/.local/bin/kona` (override prefix with `KONA_PREFIX`). It also records the checkout path in `~/.config/kona/home` so `kona new` can set `kona.home` on new apps (`includeBuild`). Set `NO_COLOR=1` to disable ANSI styling.
+That script prints a colored step progress (JDK → fetch → build CLI → publish libraries → link), syncs source into `~/.kona` (override with `KONA_SRC`), builds `:kona-cli:installDist`, **publishes all `io.konaframework` jars to `~/.m2` (`mavenLocal`)**, then installs under `~/.local/lib/kona` with a symlink at `~/.local/bin/kona` (override prefix with `KONA_PREFIX`). It also records the checkout path in `~/.config/kona/home` so `kona new` can set `kona.home` on new apps (`includeBuild`). Set `NO_COLOR=1` to disable ANSI styling.
 
 :::important[Why publish?]
-Generated apps depend on `dev.kona:…:0.1.0-SNAPSHOT` from `mavenLocal()` / Maven Central. Those SNAPSHOT jars are not on Central yet — the installer must publish them locally so `./grind serve` can resolve transitive modules such as `kona-filesystem` and `kona-support`.
+Generated apps depend on `io.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` / Maven Central. Those SNAPSHOT jars are not on Central yet — the installer must publish them locally so `./grind serve` can resolve transitive modules such as `kona-filesystem` and `kona-support`.
 :::
 
 Ensure `~/.local/bin` is on your `PATH`, then check:
@@ -77,7 +77,7 @@ KONA_REF=main KONA_PREFIX=$HOME/.local \
 ```
 
 :::note[What about package managers?]
-Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. The curl installer is the supported path. Framework libraries still publish under the `dev.kona` Maven group for *applications* to depend on — that is separate from putting the `kona` CLI on your PATH.
+Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. The curl installer is the supported path. Framework libraries still publish under the `io.konaframework` Maven group for *applications* to depend on — that is separate from putting the `kona` CLI on your PATH.
 :::
 
 ### Framework contributors (local checkout)
@@ -136,7 +136,7 @@ To experience the product path (`./grind serve`, generators, a standalone wrappe
 
 ## Optional: local Kona sources while developing the framework
 
-Generated apps depend on `dev.kona:kona-http`, `dev.kona:kona-grind`, and related artifacts from `mavenLocal()` / Maven Central. If you are changing Kona itself:
+Generated apps depend on `io.konaframework:kona-http`, `io.konaframework:kona-grind`, and related artifacts from `mavenLocal()` / Maven Central. If you are changing Kona itself:
 
 ```bash
 # from the Kona checkout

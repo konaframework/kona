@@ -1,10 +1,10 @@
 package app.http.controllers
 
 import app.http.resources.PingResource
-import dev.kona.http.BaseResourceController
-import dev.kona.http.JsonResource
-import dev.kona.http.Request
-import dev.kona.http.Response
+import io.konaframework.http.BaseResourceController
+import io.konaframework.http.JsonResource
+import io.konaframework.http.Request
+import io.konaframework.http.Response
 
 /** Demo API resource controller for `router.apiResource("pings", …)`. */
 class PingApiController : BaseResourceController() {

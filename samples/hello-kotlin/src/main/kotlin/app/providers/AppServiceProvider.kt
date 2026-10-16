@@ -1,7 +1,7 @@
 package app.providers
 
-import dev.kona.core.Application
-import dev.kona.core.ServiceProvider
+import io.konaframework.core.Application
+import io.konaframework.core.ServiceProvider
 
 class AppServiceProvider : ServiceProvider {
     override fun register(app: Application) {
