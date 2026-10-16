@@ -4,7 +4,7 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 
 **Status legend:** `done` | `partial` | `missing`
 
-**Ownership:** This deepen owns `modules/auth`, `modules/session` (session/CSRF only), Security docs, and `grind make:policy`. Does **not** own HTTP Request/Response/Validation, Extract, or other grind commands.
+**Ownership:** This deepen owns `modules/auth`, `modules/session` (session/CSRF only), Security docs, and `grind make:policy`. Does **not** own HTTP Request/Response/Validation, Cadence, or other grind commands.
 
 | Meta | Value |
 |------|--------|
@@ -25,7 +25,7 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 | `Auth` facade | **done** | Batch 1 |
 | Middleware `Authenticate` / `RedirectIfAuthenticated` / `AuthenticateSession` | **done** | Batch 1 |
 | Intended URL | **done** | `Authenticate.INTENDED_KEY` |
-| Extract `UserProvider` | **missing** | Deferred (Extract deepen) |
+| Cadence `UserProvider` | **missing** | Deferred (Cadence deepen) |
 
 ## 2. Authorization
 
@@ -78,5 +78,5 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 ## Deferrals
 
 - Durable password-reset / PAT DB stores
-- Extract-backed `UserProvider`
+- Cadence-backed `UserProvider`
 - Argon2 hasher (optional)

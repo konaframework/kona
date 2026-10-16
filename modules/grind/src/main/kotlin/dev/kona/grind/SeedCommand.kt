@@ -1,6 +1,6 @@
 package dev.kona.grind
 
-import dev.kona.extract.seeding.Seeder
+import dev.kona.cadence.seeding.Seeder
 
 /**
  * `grind db:seed [--class=database.seeders.DatabaseSeeder]` — boots the app in-process, makes its
@@ -18,7 +18,7 @@ class SeedCommand {
                 throw GrindException("Seeder class [$name] not found — compile the app first (./gradlew classes)")
             }
             if (!Seeder::class.java.isAssignableFrom(type)) {
-                throw GrindException("[$name] does not extend dev.kona.extract.seeding.Seeder")
+                throw GrindException("[$name] does not extend dev.kona.cadence.seeding.Seeder")
             }
             MigrateCommand.withDatabase(app) { database ->
                 database.setAsGlobal()

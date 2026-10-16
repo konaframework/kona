@@ -32,7 +32,7 @@ Agents must not request `admin:org` or repository Administration scopes for the 
 
 ## Names
 
-Use Kona product names: `Kona`, `grind`, `steam`, `Extract`, `Crema`, `drip`. Maven group `dev.kona`. Org `konaframework`.
+Use Kona product names: `Kona`, `grind`, `steam`, `Cadence`, `Crema`, `drip`. Maven group `dev.kona`. Org `konaframework`.
 
 ## Docs (concurrent)
 

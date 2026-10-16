@@ -1,6 +1,6 @@
 package dev.kona.grind
 
-import dev.kona.extract.Extract
+import dev.kona.cadence.Cadence
 import java.nio.file.Path
 
 /**
@@ -22,7 +22,7 @@ class MakeModelCommand {
         val all = options["all"] == "true"
         Names.write(base, Names.sourceFile(lang, "app/models", name), "Model", modelStub(name, lang))
         if (all || options["migration"] == "true") {
-            val table = Extract.tableNameFor(name)
+            val table = Cadence.tableNameFor(name)
             MakeMigrationCommand().write(base, "Create${Names.studly(table)}Table", lang, MakeMigrationCommand.Mode.CREATE, table)
         }
         if (all || options["factory"] == "true") {
@@ -38,12 +38,12 @@ class MakeModelCommand {
         lines(
             "package app.models;",
             "",
-            "import dev.kona.extract.Extract;",
-            "import dev.kona.extract.ExtractCompanion;",
+            "import dev.kona.cadence.Cadence;",
+            "import dev.kona.cadence.CadenceCompanion;",
             "import java.util.Set;",
             "",
-            "public class $name extends Extract<$name> {",
-            "    public static final ExtractCompanion<$name> QUERY = Extract.of($name.class);",
+            "public class $name extends Cadence<$name> {",
+            "    public static final CadenceCompanion<$name> QUERY = Cadence.of($name.class);",
             "",
             "    @Override",
             "    public Set<String> getFillable() {",
@@ -55,13 +55,13 @@ class MakeModelCommand {
         lines(
             "package app.models",
             "",
-            "import dev.kona.extract.Extract",
-            "import dev.kona.extract.ExtractCompanion",
+            "import dev.kona.cadence.Cadence",
+            "import dev.kona.cadence.CadenceCompanion",
             "",
-            "class $name : Extract<$name>() {",
+            "class $name : Cadence<$name>() {",
             "    override val fillable = setOf<String>()",
             "",
-            "    companion object : ExtractCompanion<$name>($name::class.java)",
+            "    companion object : CadenceCompanion<$name>($name::class.java)",
             "}",
         )
     }
@@ -91,7 +91,7 @@ class MakeFactoryCommand {
                     "package database.factories;",
                     "",
                     "import app.models.$model;",
-                    "import dev.kona.extract.factory.Factory;",
+                    "import dev.kona.cadence.factory.Factory;",
                     "import java.util.Map;",
                     "",
                     "public class $className extends Factory<$model> {",
@@ -112,7 +112,7 @@ class MakeFactoryCommand {
                     "package database.factories",
                     "",
                     "import app.models.$model",
-                    "import dev.kona.extract.factory.Factory",
+                    "import dev.kona.cadence.factory.Factory",
                     "",
                     "class $className : Factory<$model>($model::class.java) {",
                     "    override fun definition(): Map<String, Any?> = mapOf(",
@@ -146,7 +146,7 @@ class MakeSeederCommand {
                 lines(
                     "package database.seeders;",
                     "",
-                    "import dev.kona.extract.seeding.Seeder;",
+                    "import dev.kona.cadence.seeding.Seeder;",
                     "",
                     "public class $className extends Seeder {",
                     "    @Override",
@@ -159,7 +159,7 @@ class MakeSeederCommand {
                 lines(
                     "package database.seeders",
                     "",
-                    "import dev.kona.extract.seeding.Seeder",
+                    "import dev.kona.cadence.seeding.Seeder",
                     "",
                     "class $className : Seeder() {",
                     "    override fun run() {",

@@ -2,7 +2,7 @@ package dev.kona.notifications
 
 import dev.kona.core.Application
 import dev.kona.core.ServiceProvider
-import dev.kona.extract.Database
+import dev.kona.cadence.Database
 import dev.kona.mail.Mailer
 import dev.kona.queue.Bus
 import java.nio.file.Path
@@ -35,10 +35,10 @@ class NotificationServiceProvider : ServiceProvider {
 
     companion object {
         /**
-         * `notifications.database.driver`: `database` (Extract), `file` / `json`, or `memory` (default).
+         * `notifications.database.driver`: `database` (Cadence), `file` / `json`, or `memory` (default).
          * When driver is `database` and [Database] is bound, uses [DatabaseNotificationStore].
          * `notifications.database.path` still selects JSON file persistence for the memory/file driver.
-         * `notifications.database.table` names the Extract table (default `notifications`).
+         * `notifications.database.table` names the Cadence table (default `notifications`).
          */
         fun resolveStore(app: Application): NotificationStore {
             val driver = app.config.getString("notifications.database.driver", "memory").lowercase()

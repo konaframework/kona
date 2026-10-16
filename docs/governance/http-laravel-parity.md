@@ -1,7 +1,7 @@
 # HTTP Laravel / Almasix parity ledger
 
 Durable deepen tracker for `kona-http` (and middleware-linked session CSRF only when already in HTTP scope).  
-**Do not edit** `modules/extract` or `modules/grind` from this workstream.
+**Do not edit** `modules/cadence` or `modules/grind` from this workstream.
 
 **Branch:** `feat/http-laravel-parity`  
 **Status:** B1 ready for PR  
@@ -83,7 +83,7 @@ Durable deepen tracker for `kona-http` (and middleware-linked session CSRF only 
 
 | Rule | Status | Notes |
 |------|--------|-------|
-| `unique` / `exists` | **done (API)** | `ExistenceChecker` pluggable; Extract wiring later |
+| `unique` / `exists` | **done (API)** | `ExistenceChecker` pluggable; Cadence wiring later |
 
 ## Exception rendering
 

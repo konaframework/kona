@@ -74,7 +74,7 @@ router.get("/users/{id}", request -> new UserResource(1, "Ada", null).toResponse
 |--------|----------|
 | `when(condition, value)` | Omit the key when the condition is false (`MissingValue`) |
 | `mergeWhen(condition, map)` | Flatten `map` into the parent when true |
-| `whenLoaded("relation")` | Include a relation only if the underlying model already loaded it (`relationLoaded` / `getRelation` — works with Extract models without a hard dependency) |
+| `whenLoaded("relation")` | Include a relation only if the underlying model already loaded it (`relationLoaded` / `getRelation` — works with Cadence models without a hard dependency) |
 | `additional(map)` / `with(request)` | Extra top-level keys beside the wrapped payload |
 
 `toResponse` wraps `resolve` in `Response.json(...)`. Call `resolve(request)` when you need the map without building a response yet.

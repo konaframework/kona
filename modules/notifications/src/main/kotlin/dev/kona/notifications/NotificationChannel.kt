@@ -27,7 +27,7 @@ class MailChannel(
  * Persists notifications through a [NotificationStore].
  *
  * Construct with a [Path] for JSON-file memory store, omit for in-memory only, or pass an explicit [store]
- * (for example [DatabaseNotificationStore] when Extract is bound).
+ * (for example [DatabaseNotificationStore] when Cadence is bound).
  */
 class DatabaseChannel @JvmOverloads constructor(
     private val store: NotificationStore = MemoryNotificationStore(),

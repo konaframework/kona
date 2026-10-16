@@ -30,7 +30,7 @@ class ListCommand(
             "make:policy" to "Generate an authorization policy",
             "make:request" to "Generate a form request",
             "make:view" to "Generate a Crema view",
-            "make:model" to "Generate an Extract model",
+            "make:model" to "Generate a Cadence model",
             "make:migration" to "Generate a migration",
             "make:factory" to "Generate a factory",
             "make:seeder" to "Generate a seeder",

@@ -4,7 +4,7 @@ Durable audit of **grind** / `ConsoleIO` against Laravel Artisan Console and Alm
 
 **Branch / work:** `feat/grind-console-parity`  
 **Worktree:** `/home/smaosa/kona-grind-console`  
-**Stay out of:** `modules/extract`  
+**Stay out of:** `modules/cadence`  
 **Modules in scope:** `kona-grind`, `kona-cli` (proxy), `kona-support` (`ConsoleIO`), `kona-testing` (console tests), `apps/docs/`
 
 ## Surface matrix

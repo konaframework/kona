@@ -10,7 +10,7 @@ dependencies {
     constraints {
         api(project(":kona-core"))
         api(project(":kona-http"))
-        api(project(":kona-extract"))
+        api(project(":kona-cadence"))
         api(project(":kona-auth"))
         api(project(":kona-session"))
         api(project(":kona-support"))

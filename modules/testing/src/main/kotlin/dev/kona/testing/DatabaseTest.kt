@@ -1,6 +1,6 @@
 package dev.kona.testing
 
-import dev.kona.extract.Database
+import dev.kona.cadence.Database
 import java.util.function.Function
 
 /**

@@ -17,8 +17,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
-| Active | Extract/Database deepen (**B5** observers after B4 merges); see [extract-eloquent-parity.md](extract-eloquent-parity.md) |
-| Extract ledger | [extract-eloquent-parity.md](extract-eloquent-parity.md) — B1–B3 done (#65/#70/#71); B4 morphToMany shipping; H2 default kept |
+| Active | Cadence/Database deepen (**B5** observers after B4 merges); see [cadence-eloquent-parity.md](cadence-eloquent-parity.md) |
+| Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B3 done (#65/#70/#71); B4 morphToMany shipping; H2 default kept |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -31,9 +31,9 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
-| Extract B3 global scopes | #71 |
-| Extract B2 whereDate* + ModelBuilder mirrors | #70 |
-| Extract B1 builder + DB docs | #65 |
+| Cadence B3 global scopes | #71 |
+| Cadence B2 whereDate* + ModelBuilder mirrors | #70 |
+| Cadence B1 builder + DB docs | #65 |
 | M24 Executable config | #53 |
 | M23 Binary downloads & signed storage | #42 |
 | M22 Multipart uploads | #40 |
@@ -42,7 +42,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ### Notes
 
-- Strong M25 candidate: session auth middleware + Extract user provider + remember-cookie (web login).
+- Strong M25 candidate: session auth middleware + Cadence user provider + remember-cookie (web login).
 - **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
 
 ## Commands

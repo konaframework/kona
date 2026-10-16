@@ -1,0 +1,207 @@
+---
+title: Query builder
+description: Build SQL queries fluently with bound parameters — selects, filters, joins, aggregates, and writes.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The **query builder** (`dev.kona.cadence.QueryBuilder`) assembles one SQL statement from method calls. It works on plain tables and returns rows as `Map<String, Any?>` (column name → value). Models use the same builder underneath, so everything here also works after `User.query()`.
+
+Start a query from the `DB` facade, a `Database`, or a `DatabaseConnection`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import dev.kona.cadence.DB
+
+val rows: List<Map<String, Any?>> = DB.table("users")
+    .where("votes", ">", 100)
+    .orWhere { it.where("name", "Ada").whereNotNull("email") }
+    .orderBy("name")
+    .limit(10)
+    .get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import dev.kona.cadence.DB;
+import java.util.List;
+import java.util.Map;
+
+List<Map<String, Object>> rows = DB.table("users")
+    .where("votes", ">", 100)
+    .orWhere(q -> q.where("name", "Ada").whereNotNull("email"))
+    .orderBy("name")
+    .limit(10)
+    .get();
+```
+
+</TabItem>
+</Tabs>
+
+
+The builder is **mutable**: each call changes the builder and returns it. Use `copy()` to branch a query without affecting the original.
+
+## How values reach the database
+
+Values are never pasted into the SQL text. The builder writes a `?` placeholder and sends the value as a JDBC parameter; only table and column names appear in the SQL, quoted by the connection's grammar (`"users"."id"`). `toSql()` shows the statement and `getBindings()` shows the values:
+
+```kotlin
+val query = DB.table("users").where("email", "ada@example.com")
+query.toSql()        // select * from "users" where "email" = ?
+query.getBindings()  // [ada@example.com]
+```
+
+Operators are checked against an allow-list (`=`, `<`, `>`, `<=`, `>=`, `<>`, `!=`, `like`, `not like`, `ilike`, `not ilike`); anything else throws `IllegalArgumentException`.
+
+## Selecting columns
+
+| Call | SQL |
+|------|-----|
+| `select("id", "name")` | `select "id", "name"` (replaces earlier columns) |
+| `addSelect("email")` | adds a column |
+| `select("users.name as author")` | `"users"."name" as "author"` |
+| `selectRaw("count(*) as total")` | raw expression; optional bindings list |
+| `distinct()` | `select distinct` |
+
+## Filtering
+
+| Call | Meaning |
+|------|---------|
+| `where("name", "Ada")` | `name = ?` |
+| `where("votes", ">=", 10)` | any allowed operator |
+| `where("deleted_at", null)` | becomes `is null` (`!=` / `<>` with null become `is not null`) |
+| `where { … }` / `orWhere { … }` | parenthesized group |
+| `orWhere(column, value)` / `orWhere(column, op, value)` | joined with `or` |
+| `whereNull` / `whereNotNull` (and `or…` forms) | null checks |
+| `whereIn("id", listOf(1, 2))` / `whereNotIn` (and `or…` forms) | membership; an empty list matches nothing (`whereIn`) or everything (`whereNotIn`) |
+| `whereBetween("age", 18, 65)` | inclusive range |
+| `orWhereBetween` / `whereNotBetween` / `orWhereNotBetween` | between variants |
+| `whereColumn("a", "b")` / `whereColumn("a", ">", "b")` | compare two columns (no bindings) |
+| `orWhereColumn(…)` | column compare joined with `or` |
+| `whereRaw("lower(email) = ?", listOf(email))` / `orWhereRaw` | raw fragment with bindings |
+| `whereDate("born_at", date)` / `whereDate(col, op, value)` | compare `cast(col as date)` (also `orWhereDate`) |
+| `whereDay` / `whereMonth` / `whereYear` | `extract(… from col)` against a number (and `or…` forms) |
+| `whereTime("born_at", time)` / `whereTime(col, op, value)` | compare `cast(col as time)` (also `orWhereTime`) |
+| `when(condition) { … }` / `unless(condition) { … }` | apply a nested consumer only when the condition holds |
+| `tap { … }` | run a side-effect on the builder and keep chaining |
+| `orWhereNull` / `orWhereNotNull` / `orWhereIn` / `orWhereNotIn` | same as the `where…` forms, joined with `or` (also on model queries) |
+
+Date helpers accept `java.sql.Date` / `java.time.LocalDate` (and strings the driver accepts). Time helpers accept `java.sql.Time` / `java.time.LocalTime`. Prefer modern civil dates in tests — some drivers apply historical time-zone rules when casting very old timestamps to `time`.
+
+These filters (and the select / group / having helpers below) are mirrored on `ModelBuilder`, so `User.query().whereDate(…).groupBy(…).having(…)` works without dropping to `getQuery()`.
+
+## Joins, grouping, ordering, paging
+
+```kotlin
+DB.table("posts")
+    .join("users", "users.id", "=", "posts.user_id")       // inner join
+    .leftJoin("images", "images.post_id", "posts.id")      // operator defaults to "="
+    .rightJoin("authors", "authors.id", "posts.author_id")
+    .select("posts.title", "users.name as author")
+    .groupBy("posts.id", "users.name")
+    .having("posts.votes", ">", 5)
+    .orHaving("posts.votes", "=", 0)
+    .havingRaw("sum(posts.votes) > ?", listOf(10))
+    .orHavingRaw("count(*) = ?", listOf(1))
+    .orderBy("posts.created_at", "desc")                   // or orderByDesc / latest / oldest
+    .offset(20).limit(10)                                  // or skip / take / forPage(page, perPage)
+    .get()
+```
+
+| Call | Meaning |
+|------|---------|
+| `groupBy("user_id", "status")` | `group by` wrapped columns |
+| `having("total", ">", 10)` / `orHaving(…)` | having clause with a bound value |
+| `havingRaw("sum(votes) > ?", listOf(10))` / `orHavingRaw` | raw having fragment |
+
+`orderBy` accepts `asc` or `desc`. `latest()` and `oldest()` order by `created_at` unless you pass a column. A negative `limit` removes the limit.
+
+## Reading results
+
+| Call | Returns |
+|------|---------|
+| `get()` | every row |
+| `first()` | first row or `null` |
+| `find(id)` | row whose `id` (or the given column) matches, or `null` |
+| `value("email")` | one column of the first row |
+| `pluck("email")` | one column of every row |
+| `count()`, `max(c)`, `min(c)`, `sum(c)`, `avg(c)` | aggregates (`count()` is a `Long`) |
+| `exists()` / `doesntExist()` | whether any row matches |
+| `paginate(perPage, page)` | a `Page` of rows plus totals (see [Models](../models/#pagination)) |
+| `simplePaginate(perPage, page)` | a `SimplePage` without a total count |
+| `cursorPaginate(perPage, cursor, column)` | a `CursorPage` ordered by `column` (default `id`) |
+| `chunk(size) { batch -> … }` | walks pages of `size` maps until exhausted |
+| `cursor()` / `lazy(chunkSize)` | lazy sequences of rows (batched under the hood) |
+| `chunkById(size) { … }` / `lazyById(chunkSize)` | advance with `where id > last` (safer for large tables) |
+| `lockForUpdate()` / `sharedLock()` / `withoutLock()` | append `for update` / `for share` on the select |
+
+Always pair `chunk` / `lazy` with a stable `orderBy` so consecutive pages stay consistent. Prefer `chunkById` / `lazyById` when rows may be inserted or deleted during the scan. `sharedLock()` needs a driver that accepts `FOR SHARE` (PostgreSQL); H2 may reject it at execute time even though `toSql()` includes the clause.
+
+## Writing
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DB.table("users").insert(mapOf("name" to "Ada", "email" to "ada@example.com"))
+DB.table("users").insert(listOf(mapOf("name" to "Bob"), mapOf("name" to "Cy")))  // multi-row
+val id = DB.table("users").insertGetId(mapOf("name" to "Dee"))
+
+DB.table("users").where("id", id).update(mapOf("name" to "Dee Dee"))   // rows changed
+DB.table("users").where("id", id).increment("votes")                 // or increment("votes", 5)
+DB.table("users").where("votes", "<", 0).delete()
+DB.table("sessions").truncate()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DB.table("users").insert(Map.of("name", "Ada", "email", "ada@example.com"));
+DB.table("users").insert(List.of(Map.of("name", "Bob"), Map.of("name", "Cy")));
+Object id = DB.table("users").insertGetId(Map.of("name", "Dee"));
+
+DB.table("users").where("id", id).update(Map.of("name", "Dee Dee"));
+DB.table("users").where("id", id).increment("votes");
+DB.table("users").where("votes", "<", 0).delete();
+DB.table("sessions").truncate();
+```
+
+</TabItem>
+</Tabs>
+
+
+Multi-row inserts take their column list from the first row; keys missing in later rows are written as `NULL`. `update` with an empty map does nothing and returns 0.
+
+### Upserts
+
+```kotlin
+DB.table("users").updateOrInsert(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada"),
+)
+
+DB.table("users").upsert(
+    listOf(
+        mapOf("email" to "a@example.com", "name" to "A", "votes" to 1),
+        mapOf("email" to "b@example.com", "name" to "B", "votes" to 2),
+    ),
+    uniqueBy = listOf("email"),
+    update = listOf("name", "votes"),
+)
+
+DB.table("users").insertOrIgnore(
+    listOf(mapOf("email" to "a@example.com", "name" to "A")),
+    uniqueBy = listOf("email"),
+)
+```
+
+These helpers are portable across JDBC drivers: each row is looked up by the unique columns, then updated or inserted. Put a unique index on those columns in production schemas.
+
+## Errors
+
+A statement the database rejects throws `QueryException` with the driver's message, the SQL, and the bindings. Building a query without a table (`DB.connection().query().get()`) throws `CadenceException`.

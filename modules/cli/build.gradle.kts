@@ -40,7 +40,7 @@ tasks.test {
     dependsOn(
         ":kona-core:publishToMavenLocal",
         ":kona-http:publishToMavenLocal",
-        ":kona-extract:publishToMavenLocal",
+        ":kona-cadence:publishToMavenLocal",
         ":kona-crema:publishToMavenLocal",
         ":kona-redis:publishToMavenLocal",
         ":kona-session:publishToMavenLocal",

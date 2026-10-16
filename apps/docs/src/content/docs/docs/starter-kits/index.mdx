@@ -22,7 +22,7 @@ kona new my-app --kit=brew
 | `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite stubs, example page props |
 | `brew` | + `kona-brew` (external repo) | Sample Brew counter on `/` (`wire:*`, `/brew/update`) |
 
-Every kit registers Extract, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; ships `config/Session` (cookie driver) among the executable config modules; and applies `StartSession` + CSRF (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`.
+Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; ships `config/Session` (cookie driver) among the executable config modules; and applies `StartSession` + CSRF (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`.
 
 ## After scaffolding
 

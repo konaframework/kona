@@ -1,6 +1,6 @@
 package dev.kona.queue
 
-import dev.kona.extract.DatabaseConnection
+import dev.kona.cadence.DatabaseConnection
 
 /**
  * Database-backed queue using a `jobs` table.

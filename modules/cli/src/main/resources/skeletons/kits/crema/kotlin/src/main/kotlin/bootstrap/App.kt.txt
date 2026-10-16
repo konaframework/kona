@@ -12,7 +12,7 @@ import dev.kona.core.Application
 import dev.kona.core.Env
 import dev.kona.core.Kona
 import dev.kona.crema.CremaServiceProvider
-import dev.kona.extract.ExtractServiceProvider
+import dev.kona.cadence.CadenceServiceProvider
 import dev.kona.filesystem.FilesystemServiceProvider
 import dev.kona.http.HttpKernel
 import dev.kona.http.HttpServiceProvider
@@ -33,7 +33,7 @@ object App {
             .configs(AppConfig, Database, Session, Filesystems, Http, Paths)
             .providers(
                 HttpServiceProvider(),
-                ExtractServiceProvider(),
+                CadenceServiceProvider(),
                 FilesystemServiceProvider(),
                 RedisServiceProvider(),
                 SessionServiceProvider(),

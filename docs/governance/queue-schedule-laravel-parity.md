@@ -4,7 +4,7 @@ Living audit of `kona-queue`, `kona-schedule`, and grind `queue:*` / `schedule:*
 
 **Status legend:** `done` | `partial` | `missing` | `deferred`
 
-**Ownership:** This deepen owns `modules/queue`, `modules/schedule`, grind queue/schedule commands, and Digging Deeper docs for Queues + Scheduling. Does **not** own Extract, HTTP, auth, or filesystem (except tiny doc cross-links).
+**Ownership:** This deepen owns `modules/queue`, `modules/schedule`, grind queue/schedule commands, and Digging Deeper docs for Queues + Scheduling. Does **not** own Cadence, HTTP, auth, or filesystem (except tiny doc cross-links).
 
 | Meta | Value |
 |------|--------|

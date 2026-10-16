@@ -2,7 +2,7 @@ package dev.kona.queue
 
 import dev.kona.core.Application
 import dev.kona.core.ServiceProvider
-import dev.kona.extract.Database
+import dev.kona.cadence.Database
 import dev.kona.redis.RedisManager
 
 class QueueServiceProvider : ServiceProvider {

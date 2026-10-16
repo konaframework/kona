@@ -10,7 +10,7 @@ application {
 dependencies {
     implementation(project(":kona-http"))
     implementation(project(":kona-grind"))
-    implementation(project(":kona-extract"))
+    implementation(project(":kona-cadence"))
     implementation(project(":kona-redis"))
     implementation(project(":kona-session"))
     implementation(project(":kona-auth"))

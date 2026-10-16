@@ -8,7 +8,7 @@ plugins {
 dependencies {
     api(project(":kona-core"))
     api(project(":kona-redis"))
-    api(project(":kona-extract"))
+    api(project(":kona-cadence"))
     implementation(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
     api(libs.slf4j.api)

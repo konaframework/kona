@@ -24,7 +24,7 @@ import java.util.UUID
  * parameters fail closed.
  *
  * DB-aware `unique` / `exists` use [ExistenceChecker] when registered; without a checker they fail closed
- * with a clear message (no Extract dependency in `kona-http`).
+ * with a clear message (no Cadence dependency in `kona-http`).
  */
 class Validator(
     private val data: Map<String, Any?>,
@@ -181,7 +181,7 @@ class Validator(
         @Volatile
         private var existenceChecker: ExistenceChecker? = null
 
-        /** Register a DB existence/unique checker (optional; typically wired by Extract). */
+        /** Register a DB existence/unique checker (optional; typically wired by Cadence). */
         @JvmStatic
         fun setExistenceChecker(checker: ExistenceChecker?) {
             existenceChecker = checker
@@ -823,7 +823,7 @@ class Validator(
 
 /**
  * Optional DB probe for `exists` / `unique` validation rules.
- * Implement with Extract (or any store) and register via [Validator.setExistenceChecker].
+ * Implement with Cadence (or any store) and register via [Validator.setExistenceChecker].
  */
 fun interface ExistenceChecker {
     /**

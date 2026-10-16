@@ -1,7 +1,7 @@
 package dev.kona.testing
 
-import dev.kona.extract.ConnectionConfig
-import dev.kona.extract.Database
+import dev.kona.cadence.ConnectionConfig
+import dev.kona.cadence.Database
 import dev.kona.http.HttpServiceProvider
 import dev.kona.http.Response
 import dev.kona.http.Router
