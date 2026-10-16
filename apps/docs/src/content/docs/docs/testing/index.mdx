@@ -1,13 +1,23 @@
 ---
 title: Testing
-description: Boot applications and assert behavior in JUnit tests.
+description: Boot Kona apps in JUnit — HTTP, console, database helpers, and fakes.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-**kona-testing** gives you a small harness for booting a Kona application inside JUnit and driving HTTP, grind, the database, and common fakes.
+**kona-testing** is the test harness for Kona applications. It boots a real `Application` under a temporary base path, then drives HTTP, grind, the database, and in-memory fakes without opening sockets or touching production services.
 
-## Boot an app
+Add it as a test dependency:
+
+```kotlin
+dependencies {
+    testImplementation("dev.kona:kona-testing:${konaVersion}")
+}
+```
+
+## Boot an application
+
+`TestApplication.create(base, *providers)` is a thin wrapper around `Kona.create("--base=…").providers(…).boot()`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -16,7 +26,11 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 @TempDir
 lateinit var base: Path
 
-val app = TestApplication.create(base, HttpServiceProvider(), MyProvider())
+val app = TestApplication.create(
+    base,
+    HttpServiceProvider(),
+    MyAppProvider(),
+)
 ```
 
 </TabItem>
@@ -24,17 +38,26 @@ val app = TestApplication.create(base, HttpServiceProvider(), MyProvider())
 
 ```java
 Path base = Files.createTempDirectory("app");
-Application app = TestApplication.create(base, new HttpServiceProvider(), new MyProvider());
+Application app = TestApplication.create(
+    base,
+    new HttpServiceProvider(),
+    new MyAppProvider()
+);
 ```
 
 </TabItem>
 </Tabs>
 
-`TestApplication.create` passes `--base=…` into `Kona.create`, registers the providers you supply, and boots the application.
+Register routes, bindings, and middleware in the providers you pass (or after boot). Tear down is usually “throw away the temp directory” — prefer fresh bases over reusing long-lived apps across tests.
 
 ## What to assert next
 
-- [HTTP & console](./http-console/) — in-process requests and grind capture
-- [Database & fakes](./database-fakes/) — transactional helpers and mail/queue/storage fakes
+| Guide | Surface |
+| --- | --- |
+| [HTTP tests](./http-console/) | `HttpTestClient` / `TestResponse` |
+| [Console tests](./console/) | `ConsoleTester` / `ConsoleResult` |
+| [Database & fakes](./database-fakes/) | `DatabaseTest`, `FakeMail`, `FakeQueue`, `FakeEvent`, … |
 
-Add `kona-testing` as a `testImplementation` dependency in your app module.
+## Java sample
+
+`modules/testing` ships `JavaTestingApiTest` — the same APIs are `@JvmStatic` / Java-callable. Prefer Kotlin examples above; call the identical types from Java when your app tests are Java-first.
