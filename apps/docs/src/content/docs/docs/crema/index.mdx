@@ -11,14 +11,13 @@ Crema was inspired by familiar server-side template menus; everything after this
 
 ## What a view is
 
-A **view** is a named template plus the data used to render it. The name is dotted (`home`, `posts.show`) and maps to a file path under the views root (`home.crema.html`, `posts/show.crema.html`). The [CremaEngine](#render-from-a-controller) resolves that name, expands the template, and returns a string (or an HTML `Response`).
+A **view** is a named template plus the data used to render it. The name is dotted (`home`, `posts.show`) and maps to a file path under the views root (`home.crema.html`, `posts/show.crema.html`). After boot, the [view helper](/docs/crema/view-helper/) resolves that name through the app-bound engine and returns a `View` (or an HTML `Response`).
 
 Typical request path:
 
 1. A route hits a controller method.
-2. The controller resolves `CremaEngine` from the application container.
-3. It calls `render("welcome", mapOf(...))` (or `make` / `Crema.view`).
-4. Crema loads the template, runs directives, escapes echoes, and returns HTML.
+2. The controller calls `view("welcome", …)` (Kotlin) or `Views.make("welcome", …)` (Java).
+3. Crema loads the template, runs directives, escapes echoes, and returns HTML via `toResponse()`.
 
 ## Scaffolding
 
@@ -42,24 +41,19 @@ That creates `src/main/resources/views/home.crema.html` and `src/main/resources/
 
 ## Render from a controller
 
-Register `CremaServiceProvider` (the web scaffold does this), boot the app, then resolve `CremaEngine`:
+Register `CremaServiceProvider` (the web scaffold does this) and boot the app. Then use the view helper:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-import dev.kona.crema.CremaEngine
+import dev.kona.crema.view
 import dev.kona.http.Request
 import dev.kona.http.Response
-import dev.kona.Kona
 
 class WelcomeController {
-    fun index(request: Request): Response {
-        val crema = Kona.app().resolve(CremaEngine::class.java)
-        return Response.html(
-            crema.render("welcome", mapOf("name" to "Kona")),
-        )
-    }
+    fun index(request: Request): Response =
+        view("welcome", mapOf("name" to "Kona")).toResponse()
 }
 ```
 
@@ -67,18 +61,14 @@ class WelcomeController {
 <TabItem label="Java">
 
 ```java
-import dev.kona.Kona;
-import dev.kona.crema.CremaEngine;
+import dev.kona.crema.Views;
 import dev.kona.http.Request;
 import dev.kona.http.Response;
 import java.util.Map;
 
 public final class WelcomeController {
     public Response index(Request request) {
-        CremaEngine crema = Kona.app().resolve(CremaEngine.class);
-        return Response.html(
-            crema.render("welcome", Map.of("name", "Kona"))
-        );
+        return Views.make("welcome", Map.of("name", "Kona")).toResponse();
     }
 }
 ```
@@ -86,44 +76,7 @@ public final class WelcomeController {
 </TabItem>
 </Tabs>
 
-### Accumulate data with `View`
-
-`make` returns a `View` you can enrich before rendering:
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-val html = crema.make("posts.show")
-    .with("post", post)
-    .with(mapOf("title" to post.title))
-    .render()
-return Response.html(html)
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-String html = crema.make("posts.show")
-    .with("post", post)
-    .with(Map.of("title", post.getTitle()))
-    .render();
-return Response.html(html);
-```
-
-</TabItem>
-</Tabs>
-
-`View.toResponse(status)` builds an HTML `Response` in one step. `Crema.view(engine, name, data, status)` does the same statically.
-
-### Check whether a view exists
-
-```kotlin
-if (crema.exists("optional.banner")) {
-    // …
-}
-```
+Full factory API (share, `first`, existence, Java/Kotlin tables): [View helper](/docs/crema/view-helper/).
 
 ## View paths and config
 
@@ -173,6 +126,7 @@ Full tables: [Directive reference](/docs/crema/directives/).
 
 ## Next steps
 
+- [View helper](/docs/crema/view-helper/) — `view()` / `Views`, share, `first`, responses
 - [Rendering & data](/docs/crema/rendering/) — echoes, escaping, expressions, `@json`, `@lang`
 - [Layouts & inheritance](/docs/crema/layouts/) — `@extends`, sections, `@yield`, `@parent`
 - [Components & slots](/docs/crema/components/) — reusable views, named slots, `<x-*>` tags

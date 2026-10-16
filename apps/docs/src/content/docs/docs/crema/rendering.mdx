@@ -5,7 +5,7 @@ description: Echoes, escaping, raw HTML, expressions, JSON, language strings, an
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Crema evaluates expressions against the data map you pass to `render` (and nested maps, lists, and bean-style getters). This page covers how values become HTML — escaped or raw — and the helpers that turn data into JSON, URLs, and translation strings.
+Crema evaluates expressions against the data map you pass to `view` / `render` (and nested maps, lists, and bean-style getters). This page covers how values become HTML — escaped or raw — and the helpers that turn data into JSON, URLs, and translation strings. For making views from controllers, see the [View helper](/docs/crema/view-helper/).
 
 ## Passing data
 
@@ -15,28 +15,28 @@ Every render starts with a `Map<String, Any?>` (Kotlin) or `Map<String, ?>` (Jav
 <TabItem label="Kotlin">
 
 ```kotlin
-crema.render(
+view(
     "posts.show",
     mapOf(
         "title" to "Hello",
         "post" to post,
         "tags" to listOf("kona", "jvm"),
     ),
-)
+).render()
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-crema.render(
+Views.make(
     "posts.show",
     Map.of(
         "title", "Hello",
         "post", post,
         "tags", List.of("kona", "jvm")
     )
-);
+).render();
 ```
 
 </TabItem>
