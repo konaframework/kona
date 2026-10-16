@@ -19,7 +19,7 @@ kona new my-app --kit=brew
 | `web` (default) | HTTP + grind + extract/redis/session/auth/queue/schedule/mail + **crema** | Welcome **view**, `WelcomeController`, `/` route, JSON `/api/health`, session/CSRF |
 | `crema` | same as `web` | Alias of `web` (kept for older docs/scripts) |
 | `api` | without Crema | Plain-text `/` welcome + JSON health (no view engine) |
-| `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite stubs, example page props |
+| `inertia` | + `kona-inertia` (external repo) | Inertia middleware, root shell, Vite stubs, example page props |
 | `brew` | + `kona-brew` (external repo) | Sample Brew counter on `/` (`wire:*`, `/brew/update`) |
 
 Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; ships `config/Session` (cookie driver) among the executable config modules; and applies `StartSession` + CSRF (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`.
@@ -41,7 +41,7 @@ npm run dev    # or npm run build
 ./grind assets:vite
 ```
 
-Artifacts resolve from **mavenLocal()** then Maven Central. From a Kona checkout run `./gradlew publishToMavenLocal`, or set `KONA_HOME` / `-Pkona.home` for a composite build. The **brew** kit also needs `dev.kona:kona-brew` published from [kona-brew](https://github.com/konaframework/kona-brew) (`./gradlew :kona-brew:publishToMavenLocal`). Full Brew guides: [Brew documentation](https://konaframework.github.io/kona-brew/).
+Artifacts resolve from **mavenLocal()** then Maven Central. From a Kona checkout run `./gradlew publishToMavenLocal`, or set `KONA_HOME` / `-Pkona.home` for a composite build. The **brew** kit also needs `dev.kona:kona-brew` published from [kona-brew](https://github.com/konaframework/kona-brew) (`./gradlew :kona-brew:publishToMavenLocal`). The **inertia** kit needs `dev.kona:kona-inertia` from [kona-inertia](https://github.com/konaframework/kona-inertia). Full guides: [Brew documentation](https://konaframework.github.io/kona-brew/), [Inertia documentation](https://konaframework.github.io/kona-inertia/).
 
 ## Kotlin and Java
 

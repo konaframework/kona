@@ -35,6 +35,10 @@ jobs:
         with:
           repository: konaframework/kona-brew
           path: .kona-brew
+      - uses: actions/checkout@v4
+        with:
+          repository: konaframework/kona-inertia
+          path: .kona-inertia
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -46,7 +50,10 @@ jobs:
       - name: Publish kona-brew to Maven local (external repo)
         working-directory: .kona-brew
         run: ./gradlew :kona-brew:publishToMavenLocal -x test --no-configuration-cache
+      - name: Publish kona-inertia to Maven local (external repo)
+        working-directory: .kona-inertia
+        run: ./gradlew :kona-inertia:publishToMavenLocal -x test --no-configuration-cache
       - name: Unit tests with Kover verification
-        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-inertia:koverVerify :kona-lsp:koverVerify test
+        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify test
       - name: Sample apps (HTTP smoke)
         run: ./gradlew :hello-kotlin:test :hello-java:test

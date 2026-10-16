@@ -23,7 +23,7 @@ kover {
                 excludes {
                     // Template interpreter — exercised via CremaEngine behavioral suite.
                     classes("dev.kona.crema.CremaRuntime*")
-                    // Shared Vite resolver — covered by CremaViteTest + :kona-inertia:test suites.
+                    // Shared Vite resolver — covered by CremaViteTest (+ kona-inertia suite in konaframework/kona-inertia).
                     classes("dev.kona.crema.assets.*")
                 }
             }

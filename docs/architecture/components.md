@@ -73,4 +73,7 @@ Full-stack reactive server components. Lives in the separate repo
 [konaframework/kona-brew](https://github.com/konaframework/kona-brew) (`dev.kona:kona-brew`, package `dev.kona.brew`).
 Behavioral/API-shape parity with Livewire v4 is locked in that repo’s
 [livewire-v4-parity.md](https://github.com/konaframework/kona-brew/blob/main/docs/governance/livewire-v4-parity.md).
+
+
+**Inertia** lives in [konaframework/kona-inertia](https://github.com/konaframework/kona-inertia) (`dev.kona:kona-inertia`, package `dev.kona.inertia`). Docs: https://konaframework.github.io/kona-inertia/.
 Public guides: `apps/docs` → **Brew**. Starter kit: `kona new --kit=brew`.

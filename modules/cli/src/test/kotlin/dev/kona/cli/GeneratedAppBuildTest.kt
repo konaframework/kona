@@ -133,6 +133,7 @@ class GeneratedAppBuildTest {
     @Test
     fun inertiaKitServesHtmlAndJsonVisit() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
+        assumeTrue(konaInertiaPublished(), "publish kona-inertia to mavenLocal (see konaframework/kona-inertia)")
         val app = temp.resolve("inertia-kt")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=inertia")))
         gradle(app, "classes")
@@ -240,6 +241,13 @@ class GeneratedAppBuildTest {
     private fun konaBrewPublished(): Boolean {
         val home = System.getProperty("user.home")
         val base = Path.of(home, ".m2", "repository", "dev", "kona", "kona-brew")
+        if (!Files.isDirectory(base)) return false
+        return Files.walk(base).use { stream -> stream.anyMatch { it.fileName.toString().endsWith(".jar") } }
+    }
+
+    private fun konaInertiaPublished(): Boolean {
+        val home = System.getProperty("user.home")
+        val base = Path.of(home, ".m2", "repository", "dev", "kona", "kona-inertia")
         if (!Files.isDirectory(base)) return false
         return Files.walk(base).use { stream -> stream.anyMatch { it.fileName.toString().endsWith(".jar") } }
     }

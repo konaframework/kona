@@ -51,6 +51,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 - Lazy collections / higher-order proxies
 - Full Carbon locale / human-diff surface
 - Brew (lives in kona-brew; ignore here)
+- Inertia (lives in kona-inertia; ignore here)
 
 ### Notes
 
