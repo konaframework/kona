@@ -62,6 +62,7 @@ kover {
             filters {
                 excludes {
                     classes("dev.kona.cli.KonaKt")
+                    annotatedBy("dev.kona.support.KoverExclude")
                 }
             }
             verify {

@@ -24,6 +24,11 @@ dependencies {
 kover {
     reports {
         total {
+            filters {
+                excludes {
+                    annotatedBy("dev.kona.support.KoverExclude")
+                }
+            }
             verify {
                 rule {
                     bound {

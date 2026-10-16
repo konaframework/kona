@@ -154,7 +154,13 @@ export async function buildSidebar() {
     {
       label: 'Packages & tooling',
       items: [
-        { label: 'Packages', slug: 'docs/packages' },
+        {
+          label: 'Packages',
+          items: [
+            { label: 'Package development', slug: 'docs/packages' },
+            { label: 'Installing packages', slug: 'docs/packages/install' },
+          ],
+        },
         {
           label: 'Language / editor',
           items: [
