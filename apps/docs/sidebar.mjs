@@ -37,6 +37,7 @@ export async function buildSidebar() {
       label: 'Crema',
       items: [
         { label: 'Getting started', slug: 'docs/crema' },
+        { label: 'View helper', slug: 'docs/crema/view-helper' },
         { label: 'Rendering & data', slug: 'docs/crema/rendering' },
         { label: 'Layouts & inheritance', slug: 'docs/crema/layouts' },
         { label: 'Control structures', slug: 'docs/crema/control-structures' },
