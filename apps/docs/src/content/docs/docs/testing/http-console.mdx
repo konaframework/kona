@@ -1,47 +1,97 @@
 ---
-title: HTTP & console tests
-description: In-process HTTP client and grind console capture.
+title: HTTP tests
+description: In-process HttpTestClient — verbs, JSON bodies, and response assertions.
 ---
 
-## HTTP
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`HttpTestClient` resolves `HttpKernel` from the booted app and runs requests without opening a socket.
+`HttpTestClient` resolves `HttpKernel` from a booted app and runs requests **in-process** (no listen socket).
+
+## Create a client
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val http = HttpTestClient(app)
 http.get("/ping").assertOk().assertJsonContains("ok")
-http.postJson("/users", mapOf("name" to "Ada")).assertStatus(201)
 ```
 
-Available assertions:
+</TabItem>
+<TabItem label="Java">
 
-| Method | Behavior |
-|--------|----------|
-| `assertStatus(code)` | Exact status |
-| `assertOk()` | Status `200` |
-| `assertJsonContains(fragment)` | Body contains the substring |
-| `status()` / `body()` | Raw values for custom asserts |
+```java
+HttpTestClient http = new HttpTestClient(app);
+http.get("/ping").assertOk().assertJsonContains("ok");
+```
 
-Register routes in a provider `boot` method (or after boot) before calling the client.
+</TabItem>
+</Tabs>
 
-## Console (grind)
+Register routes before calling the client (provider `boot`, or after `TestApplication.create`).
 
-`ConsoleTester` runs grind and captures stdout:
+## Verbs
+
+| Method | Notes |
+| --- | --- |
+| `get(uri)` / `get(uri, headers)` | Empty body |
+| `postJson(uri, body)` / `postJson(uri, body, headers)` | Serializes `body` with Jackson; sets `Content-Type: application/json` |
+| `put(uri)` / `put(uri, body)` / `put(uri, body, headers)` | Raw string body |
+| `putJson(uri, body)` / `putJson(…, headers)` | JSON encode |
+| `patch(uri)` / `patch(uri, body)` / `patch(…, headers)` | Raw string body |
+| `patchJson(uri, body)` / `patchJson(…, headers)` | JSON encode |
+| `delete(uri)` / `delete(uri, headers)` | Empty body |
+
+Headers maps are plain `Map<String, String>`. Query strings belong in the `uri`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
-ConsoleTester()
-    .run("list")
+http.postJson("/users", mapOf("name" to "Ada"))
+    .assertStatus(201)
+    .assertJsonPath("user.name", "Ada")
+
+http.putJson("/users/1", mapOf("name" to "Ada Lovelace"), mapOf("X-Request-Id" to "r-1"))
     .assertOk()
-    .assertExit(0)
-    .assertSee("schedule:run")
-    .assertDontSee("missing-command")
+
+http.delete("/users/1").assertStatus(204)
 ```
 
-| Method | Behavior |
-|--------|----------|
-| `assertOk()` | Exit code `0` |
-| `assertExit(code)` | Exact exit code |
-| `assertSee(text)` | Stdout contains substring |
-| `assertDontSee(text)` | Stdout does not contain substring |
+</TabItem>
+<TabItem label="Java">
 
-Pass the same flags you would on the CLI (`--base=…`, `--bootstrap=…`, `-q`, and so on). For custom commands, compile the app first so discovery can see `META-INF/kona/commands`. See [Creating commands](../../grind/creating-commands/) and [Running commands](../../grind/running-commands/).
+```java
+http.postJson("/users", Map.of("name", "Ada"))
+    .assertStatus(201)
+    .assertJsonPath("user.name", "Ada");
+
+http.putJson("/users/1", Map.of("name", "Ada Lovelace"), Map.of("X-Request-Id", "r-1"))
+    .assertOk();
+
+http.delete("/users/1").assertStatus(204);
+```
+
+</TabItem>
+</Tabs>
+
+## Response assertions
+
+Every verb returns a `TestResponse` (fluent — assertions return `this`).
+
+| Method | Behavior |
+| --- | --- |
+| `status()` / `body()` | Raw values for custom asserts |
+| `assertStatus(code)` | Exact status; throws if mismatched |
+| `assertOk()` | Status `200` |
+| `assertJsonContains(fragment)` | Body string contains substring |
+| `assertJsonPath(path, expected)` | Dotted JSON path (`user.name`) equals `expected` |
+| `assertJson(path, expected)` | Alias for `assertJsonPath` |
+
+Path segments are split on `.`. Missing segments fail the assertion. Numbers compare by double equality (so `1` and `1.0` match). `null` JSON nodes compare to Kotlin/Java `null`.
+
+## Edge cases
+
+- The client does **not** follow redirects; assert the first response.
+- Middleware on the kernel runs normally — CSRF, session, and auth behave as in production when those providers are registered.
+- Bodies for non-JSON `put`/`patch` are raw strings; encode your own payload when needed.

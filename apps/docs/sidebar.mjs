@@ -147,7 +147,8 @@ export async function buildSidebar() {
       label: 'Testing',
       items: [
         { label: 'Getting started', slug: 'docs/testing' },
-        { label: 'HTTP & console', slug: 'docs/testing/http-console' },
+        { label: 'HTTP tests', slug: 'docs/testing/http-console' },
+        { label: 'Console tests', slug: 'docs/testing/console' },
         { label: 'Database & fakes', slug: 'docs/testing/database-fakes' },
       ],
     },
