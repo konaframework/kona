@@ -258,3 +258,30 @@ public class AppServiceProvider implements ServiceProvider {
 </Tabs>
 
 `ExceptionHandler` is a functional interface, so a lambda works as well when the logic is short.
+
+## HTML vs JSON selection
+
+`DefaultExceptionHandler` uses a small `Accept` check: if `Accept` contains `text/html` and does **not** also contain `application/json`, you get the HTML error page. Otherwise JSON. Validation failures use `request.expectsJson()` instead (JSON `Accept`/`Content-Type` → 422 JSON; else redirect-back).
+
+## Pitfalls and FAQ
+
+**Why is my custom message missing in production?**  
+Non-`HttpException` failures show `"Server Error"` when `app.debug` is false. `HttpException` messages are always used.
+
+**Why don’t global middleware see an error from another global middleware?**  
+That catch happens outside the pipeline — see [Where exceptions are caught](#where-exceptions-are-caught).
+
+**Can the handler throw?**  
+It must not. Always return a `Response`.
+
+## What is not available today
+
+- Built-in HTML error *templates* beyond the small default page
+- Per-status view mapping in the default handler
+- Exception reporting channels beyond `Log.error` / your `report` callback
+
+## Next steps
+
+- Validation errors: [Validation](../validation/).
+- Middleware catch semantics: [Middleware](../middleware/#where-exceptions-go).
+- Kernel pipeline: [Kernel & server](../kernel-server/).

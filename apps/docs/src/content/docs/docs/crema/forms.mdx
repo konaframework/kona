@@ -56,9 +56,9 @@ Output shape:
 
 If neither key is present, the value attribute is empty — the form will fail CSRF checks until you pass a real token.
 
-## Method spoofing
+## Method spoofing (`@method`)
 
-HTML forms only support `GET` and `POST`. Use `@method` to send other verbs your router understands:
+HTML forms in browsers only submit as `GET` or `POST`. Crema’s `@method` directive emits a hidden field so templates can *declare* the intended verb:
 
 ```crema
 <form method="post" action="/posts/{{ post.id }}">
@@ -74,7 +74,17 @@ Emits:
 <input type="hidden" name="_method" value="PUT">
 ```
 
-Common values: `PUT`, `PATCH`, `DELETE`. The HTTP kernel reads `_method` on POST bodies when method spoofing is enabled.
+Common values: `PUT`, `PATCH`, `DELETE`.
+
+:::caution[Runtime behavior today]
+The HTTP kernel and router match the **actual** request method from the transport (`POST` for a normal form submit). They do **not** currently rewrite the method from the `_method` body field. A form that posts with `@method('PUT')` still arrives as `POST` unless the client sends a real `PUT`/`PATCH`/`DELETE` (for example via JavaScript `fetch`).
+
+Until method override ships in the HTTP stack, pick one of these patterns:
+
+1. **Register a `POST` route** for the form action (for example `router.post("/posts/{id}", …)` or a dedicated `/posts/{id}/update` path), and keep `@method` only as documentation in the template — or omit `@method` until override exists.
+2. **Use JavaScript** (or an API client) that issues the real HTTP verb your [route](../../http/routing/) expects.
+3. Keep `@method` in templates for forward compatibility with Crema’s HTML helpers, knowing the hidden field is ignored by routing today.
+:::
 
 ## Field errors
 
@@ -183,8 +193,21 @@ Resolves to `/css/app.css` by default, or prefixes `asset_url` / `assetUrl` from
 
 Labels and messages often use `@lang` — see [Rendering](/docs/crema/rendering/#lang).
 
+
+## Pitfalls and FAQ
+
+**Why does my `@method('PUT')` form 405?**  
+The request is still `POST`. Register a POST route or send a real PUT — see [Method spoofing](#method-spoofing-method).
+
+**Why is the CSRF field empty?**  
+Pass `_token` or `csrf_token` in the view data (session middleware usually supplies it).
+
+**How do I show old input after validation redirect?**  
+Use flashed old input from the session (`request.old("email")`) when rendering the form again — [Validation](../../http/validation/).
+
 ## Related
 
 - [CSRF protection](/docs/security/csrf/)
 - [Validation](/docs/http/validation/)
 - [Session](/docs/security/session/)
+- [Routing](/docs/http/routing/)
