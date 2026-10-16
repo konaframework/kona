@@ -33,6 +33,7 @@ class CremaServiceProvider : ServiceProvider {
     }
 
     override fun boot(app: Application) {
+        Views.setEngine(app.resolve(CremaEngine::class.java))
         Vite.setManifest(app.resolve(AssetManifest::class.java))
     }
 

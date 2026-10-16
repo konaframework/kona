@@ -37,6 +37,7 @@ export async function buildSidebar() {
       label: 'Crema',
       items: [
         { label: 'Getting started', slug: 'docs/crema' },
+        { label: 'View helper', slug: 'docs/crema/view-helper' },
         { label: 'Rendering & data', slug: 'docs/crema/rendering' },
         { label: 'Layouts & inheritance', slug: 'docs/crema/layouts' },
         { label: 'Control structures', slug: 'docs/crema/control-structures' },
@@ -64,7 +65,14 @@ export async function buildSidebar() {
             { label: 'steam', slug: 'docs/steam' },
           ],
         },
-        { label: 'Events', slug: 'docs/events' },
+        {
+          label: 'Events',
+          items: [
+            { label: 'Overview', slug: 'docs/events' },
+            { label: 'Dispatching & listeners', slug: 'docs/events/dispatching' },
+            { label: 'Testing', slug: 'docs/events/testing' },
+          ],
+        },
         {
           label: 'Queues',
           items: [

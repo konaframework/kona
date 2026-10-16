@@ -3,8 +3,15 @@ package dev.kona.crema
 import java.nio.file.Files
 import java.nio.file.Path
 
+/**
+ * Canonical view name: path separators become dots (`posts/show` → `posts.show`).
+ * Leading/trailing dots and slashes are trimmed.
+ */
+fun normalizeViewName(name: String): String =
+    name.trim().trim('/').trim('.').replace('/', '.')
+
 fun interface ViewFinder {
-    /** Resolve a dotted view name (e.g. `home` or `posts.show`) to template source. */
+    /** Resolve a dotted (or slash) view name (e.g. `home` or `posts.show`) to template source. */
     fun get(name: String): String
 }
 
@@ -19,7 +26,8 @@ class FileViewFinder(
         this(listOf(path), extensions)
 
     override fun get(name: String): String {
-        val relative = name.replace('.', '/')
+        val canonical = normalizeViewName(name)
+        val relative = canonical.replace('.', '/')
         for (root in paths) {
             for (ext in extensions) {
                 val file = root.resolve(relative + ext)
@@ -28,7 +36,7 @@ class FileViewFinder(
                 }
             }
         }
-        throw ViewNotFoundException(name)
+        throw ViewNotFoundException(canonical)
     }
 }
 
@@ -37,12 +45,14 @@ class MapViewFinder(
     private val templates: MutableMap<String, String> = linkedMapOf(),
 ) : ViewFinder {
     fun put(name: String, source: String): MapViewFinder {
-        templates[name] = source
+        templates[normalizeViewName(name)] = source
         return this
     }
 
-    override fun get(name: String): String =
-        templates[name] ?: throw ViewNotFoundException(name)
+    override fun get(name: String): String {
+        val canonical = normalizeViewName(name)
+        return templates[canonical] ?: throw ViewNotFoundException(canonical)
+    }
 }
 
 class ViewNotFoundException(name: String) :
