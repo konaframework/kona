@@ -17,12 +17,13 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
-| Cadence / Security / HTTP | **done** on `main` (#85–#89) |
-| Queue full batches | **done** on `main` (#90) — then/catch/finally, `job_batches`, QueueEvents |
-| Active | Support Collections/Arr/Str/Date deepen — shipping (#91) |
-| Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B6 **done** |
-| Queue ledger | [queue-schedule-laravel-parity.md](queue-schedule-laravel-parity.md) — full batches closed |
-| Support ledger | [support-laravel-parity.md](support-laravel-parity.md) — Collection deepen |
+| Cadence B6 | **done** (#87) |
+| Security deepen | **done** (#88) |
+| HTTP niche validation | **done** (#89) |
+| Queue full batches | **done** (#90) |
+| Support Collections/Arr/Str/Date | **done** (#91) |
+| Active | Scan remaining ledgers for intentional deferrals only; next deepen TBD from Almasix ledger gaps |
+| Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support — deepen batches closed |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -35,24 +36,26 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
-| Queue full batches then/catch/finally + DB repository | #90 |
+| Support Collections/Arr/Str/Date deepen | #91 |
+| Queue full batches | #90 |
 | HTTP niche validation / stream / controller middleware | #89 |
 | Security CadenceUserProvider + Argon2 | #88 |
 | Cadence B6 Eloquent parity | #87 |
+| Docs Crema guides + named slots | #86 |
 | Extract → Cadence rename | #85 |
-| Brew Cadence cutover | kona-brew #9 |
-| Docs Crema guides | #86 |
-| Cadence B4 morphToMany | #73 |
-| Cadence B3 global scopes | #71 |
-| Cadence B2 whereDate* | #70 |
-| Cadence B1 builder + DB docs | #65 |
-| M24 Executable config | #53 |
+
+### Intentional deferrals (do not reopen without mandate)
+
+- Horizon / queue metrics dashboard
+- Cross-process batch `then`/`catch` callbacks (durable counts only)
+- Lazy collections / higher-order proxies
+- Full Carbon locale / human-diff surface
+- Brew (lives in kona-brew; ignore here)
 
 ### Notes
 
-- Active: Support Collections/Helpers/Str/Date deepen (#91) to exhaustion.
+- Do **not** revive Extract names.
 - **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
-- Do **not** revive Extract names. Ignore Brew (kona-brew docs already merged).
 
 ## Commands
 

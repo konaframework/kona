@@ -10,7 +10,7 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 |------|--------|
 | Last audit | 2026-10-16 |
 | Baseline on `main` | M3 (#9); M17 session scaffold; M21 form round-trip; docs IA #62; Batch 1 #66 |
-| Active deepen | Batch 2 — CadenceUserProvider + durable stores + Argon2 |
+| Active deepen | **closed** — Batch 2 merged (#88) |
 
 ---
 
@@ -77,7 +77,7 @@ Living audit of `kona-auth` + `kona-session` against Laravel Auth / Session / En
 | Batch | PR | Summary |
 |-------|-----|---------|
 | 1 | [#66](https://github.com/konaframework/kona/pull/66) | Auth facade; once/validate/loginUsingId/viaRemember; remember cookie; Authenticate / RedirectIfAuthenticated / AuthenticateSession / Authorize; Gate any/none/before/discoverPolicy; PasswordRules; RateLimit factories; make:policy; security docs enrich |
-| 2 | shipping | CadenceUserProvider; PasswordResetTokenRepository + Database store; DatabasePersonalAccessTokenRepository; Argon2Hasher; config drivers; docs |
+| 2 | [#88](https://github.com/konaframework/kona/pull/88) | CadenceUserProvider; PasswordResetTokenRepository + Database store; DatabasePersonalAccessTokenRepository; Argon2Hasher; config drivers; docs |
 
 ## Deferrals
 
