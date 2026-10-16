@@ -4,7 +4,7 @@ package dev.kona.queue
  * Named queue connection (Laravel Queue contract subset).
  */
 interface Queue {
-    fun push(job: Job, queue: String = "default", delaySeconds: Long = 0): String
+    fun push(job: Job, queue: String = "default", delaySeconds: Long = 0, batchId: String? = null): String
 
     fun pop(queue: String = "default"): QueuePayload?
 

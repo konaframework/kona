@@ -21,6 +21,8 @@ data class QueuePayload(
      * without an in-process [JobRegistry] factory.
      */
     val jobBody: String? = null,
+    /** Optional [Batch] id when this job was dispatched via [PendingBatch]. */
+    val batchId: String? = null,
 ) {
     fun withAttempt(next: Int): QueuePayload = copy(attempts = next)
 
@@ -31,6 +33,8 @@ data class QueuePayload(
         } else {
             copy(availableAt = System.currentTimeMillis() + delaySeconds * 1000)
         }
+
+    fun withBatchId(id: String?): QueuePayload = copy(batchId = id)
 
     fun isAvailable(now: Long = System.currentTimeMillis()): Boolean = availableAt <= now
 }
@@ -87,9 +91,10 @@ object JobRegistry {
 
     fun decode(json: String): QueuePayload = mapper.readValue(json, QueuePayload::class.java)
 
-    fun payloadFor(job: Job): QueuePayload = payloadFor(job, job.javaClass.name)
+    fun payloadFor(job: Job): QueuePayload = payloadFor(job, job.javaClass.name, null)
 
-    fun payloadFor(job: Job, jobKey: String): QueuePayload {
+    @JvmOverloads
+    fun payloadFor(job: Job, jobKey: String, batchId: String? = null): QueuePayload {
         val contract = job as? JobContract
         val displayName = if (contract != null) contract.displayName() else job.javaClass.name
         val tries = if (contract != null) contract.tries() else 3
@@ -107,6 +112,7 @@ object JobRegistry {
             attempts = 0,
             jobKey = jobKey,
             jobBody = body,
+            batchId = batchId,
         )
     }
 }

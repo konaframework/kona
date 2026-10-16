@@ -18,10 +18,10 @@ Paste this file (or its path) into a new chat so another agent can continue with
 |------|--------|
 | Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
 | Cadence / Security / HTTP | **done** on `main` (#85–#89) |
-| Queue full batches | **shipping** (#90) — then/catch/finally, `job_batches`, QueueEvents |
-| Active | Support Collections/Arr/Str/Date deepen — shipping |
+| Queue full batches | **done** on `main` (#90) — then/catch/finally, `job_batches`, QueueEvents |
+| Active | Support Collections/Arr/Str/Date deepen — shipping (#91) |
 | Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B6 **done** |
-| Queue ledger | [queue-schedule-laravel-parity.md](queue-schedule-laravel-parity.md) — full batches closed (with #90) |
+| Queue ledger | [queue-schedule-laravel-parity.md](queue-schedule-laravel-parity.md) — full batches closed |
 | Support ledger | [support-laravel-parity.md](support-laravel-parity.md) — Collection deepen |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
@@ -35,19 +35,24 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
+| Queue full batches then/catch/finally + DB repository | #90 |
 | HTTP niche validation / stream / controller middleware | #89 |
 | Security CadenceUserProvider + Argon2 | #88 |
 | Cadence B6 Eloquent parity | #87 |
-| Docs Crema guides + named slots | #86 |
 | Extract → Cadence rename | #85 |
-| Brew cutover + M1 docs | #79 |
+| Brew Cadence cutover | kona-brew #9 |
+| Docs Crema guides | #86 |
 | Cadence B4 morphToMany | #73 |
+| Cadence B3 global scopes | #71 |
+| Cadence B2 whereDate* | #70 |
+| Cadence B1 builder + DB docs | #65 |
 | M24 Executable config | #53 |
 
 ### Notes
 
-- Ignore Brew (kona-brew docs merged). Do **not** revive Extract names.
+- Active: Support Collections/Helpers/Str/Date deepen (#91) to exhaustion.
 - **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
+- Do **not** revive Extract names. Ignore Brew (kona-brew docs already merged).
 
 ## Commands
 

@@ -65,6 +65,8 @@ class Worker @JvmOverloads constructor(
         }
         try {
             runWithTimeout(job)
+            attempt.batchId?.let { BatchRepositories.get().find(it)?.recordSuccess(attempt.id) }
+            QueueEvents.fire(JobProcessed(attempt.id, connectionName, queueName))
         } catch (ex: ReleaseJobException) {
             log.info("Job {} released: {}", attempt.displayName, ex.message)
             queue.release(attempt, queueName, ex.delaySeconds)
@@ -75,6 +77,8 @@ class Worker @JvmOverloads constructor(
             } else {
                 log.error("Job {} failed permanently: {}", attempt.displayName, ex.message)
                 manager.failed.log(connectionName, queueName, attempt, ex)
+                attempt.batchId?.let { BatchRepositories.get().find(it)?.recordFailure(attempt.id, ex) }
+                QueueEvents.fire(JobFailed(attempt.id, connectionName, queueName, ex.message))
             }
         } finally {
             if (acquiredUnique) {
