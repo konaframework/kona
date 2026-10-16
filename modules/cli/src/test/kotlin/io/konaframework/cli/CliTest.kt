@@ -106,6 +106,25 @@ class CliTest {
         Files.writeString(defaultKona.resolve("gradlew"), "#!/bin/sh\n")
         defaultKona.resolve("gradlew").toFile().setExecutable(true)
         assertEquals(defaultKona, NewCommand.resolveKonaHome(env = emptyMap(), userHome = defaultHome))
+        assertTrue(NewCommand.isUsableKonaHome(defaultKona))
+
+        // Vendored Brew without template() is rejected (includeBuild would poison kona-brew).
+        val staleBrew = temp.resolve("stale-brew-home")
+        Files.createDirectories(staleBrew.resolve("modules/cli"))
+        Files.createDirectories(staleBrew.resolve("modules/brew/src/main/kotlin/dev/kona/brew"))
+        Files.writeString(staleBrew.resolve("settings.gradle.kts"), "rootProject.name = \"kona\"\n")
+        Files.writeString(staleBrew.resolve("gradlew"), "#!/bin/sh\n")
+        staleBrew.resolve("gradlew").toFile().setExecutable(true)
+        Files.writeString(
+            staleBrew.resolve("modules/brew/src/main/kotlin/dev/kona/brew/Component.kt"),
+            "abstract class Component {\n    abstract fun render(): String\n}\n",
+        )
+        assertTrue(NewCommand.isKonaRoot(staleBrew))
+        assertFalse(NewCommand.isUsableKonaHome(staleBrew))
+        assertEquals(
+            null,
+            NewCommand.resolveKonaHome(env = mapOf("KONA_HOME" to staleBrew.toString()), userHome = temp),
+        )
 
         val app = temp.resolve("wired-app")
         Files.createDirectories(app)
@@ -278,7 +297,12 @@ class CliTest {
         assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew")))
         assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-brew"))
         assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
+        assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Todos.kt")))
+        assertTrue(Files.isRegularFile(brew.resolve("src/main/resources/views/brew/todos.crema.html")))
+        assertTrue(Files.readString(brew.resolve("src/main/resources/views/welcome.crema.html")).contains("brew:todos"))
         assertTrue(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("BrewServiceProvider"))
+        assertTrue(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("Todos::class.java"))
+        assertTrue(Files.readString(brew.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt")).contains("view(\"welcome\""))
 
         val javaInertia = temp.resolve("java-inertia")
         assertEquals(0, NewCommand().run(listOf(javaInertia.toString(), "--lang=java", "--kit=inertia")))
