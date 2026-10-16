@@ -991,8 +991,9 @@ internal class CremaRuntime(
             val name = m.groupValues[1].replace('/', '.')
             val body = m.groupValues[2]
             val view = if (name.startsWith("components.")) name else "components.$name"
+            val (slot, slots) = splitSlots(body, "x", context)
             runCatching {
-                render(view, context.child(mapOf("slot" to expand(body, context))))
+                render(view, context.child(mapOf("slot" to slot) + slots))
             }.getOrDefault("")
         }
         text = X_SELF_CLOSING.replace(text) { m ->

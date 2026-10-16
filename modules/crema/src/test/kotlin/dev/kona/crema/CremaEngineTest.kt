@@ -91,6 +91,14 @@ class CremaEngineTest {
             "verbatim" to "@verbatim{{ not }}@if(x)@endverbatim",
             "components.alert" to "[{{ slot }}]",
             "x-comp" to "<x-alert>Hi</x-alert><x-alert />",
+            "components.card" to "<h>{{ title }}</h><b>{{ slot }}</b><f>{{ footer }}</f>",
+            "x-slots" to """
+                <x-card>
+                  <x-slot name="title">Notice</x-slot>
+                  Body
+                  <x-slot:footer>Bye</x-slot:footer>
+                </x-card>
+            """.trimIndent(),
         )
 
         assertEquals("one", crema.render("elseif", mapOf("n" to 1)).trim())
@@ -158,6 +166,10 @@ class CremaEngineTest {
         assertEquals("", crema.render("error", mapOf("errors" to emptyMap<String, String>())))
         assertEquals("{{ not }}@if(x)", crema.render("verbatim"))
         assertEquals("[Hi][]", crema.render("x-comp").replace(Regex("\\s+"), ""))
+        assertEquals(
+            "<h>Notice</h><b>Body</b><f>Bye</f>",
+            crema.render("x-slots").replace(Regex("\\s+"), ""),
+        )
         assertEquals(
             """<script type="module" src="/build/resources/js/app.js"></script>""",
             ViteTags.tag("resources/js/app.js"),
