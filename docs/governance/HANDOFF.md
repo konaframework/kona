@@ -17,11 +17,12 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Item | Value |
 |------|--------|
 | Last merged milestone | **M24 — Executable config** on `main` (PR #53) |
-| Cadence rename | **done** on `main` (#85); B6 Eloquent deepen **done** (#87) |
-| Active | Security deepen Batch 2 (CadenceUserProvider, durable reset/PAT, Argon2) — shipping |
-| Next after Security | HTTP niche validation rules; full queue batches (`then`/`catch` + DB repo); Collections/Helpers audit |
+| Cadence / Security / HTTP | **done** on `main` (#85–#89) |
+| Queue full batches | **shipping** (#90) — then/catch/finally, `job_batches`, QueueEvents |
+| Active | Support Collections/Arr/Str/Date deepen — shipping |
 | Cadence ledger | [cadence-eloquent-parity.md](cadence-eloquent-parity.md) — B1–B6 **done** |
-| Security ledger | [security-laravel-parity.md](security-laravel-parity.md) — Batch 2 shipping |
+| Queue ledger | [queue-schedule-laravel-parity.md](queue-schedule-laravel-parity.md) — full batches closed (with #90) |
+| Support ledger | [support-laravel-parity.md](support-laravel-parity.md) — Collection deepen |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` opt-in |
 | Full parity map | [MILESTONES.md](../../MILESTONES.md) |
 | Docs brand | Primary `#FF9A00`, accent `#286291` |
@@ -34,19 +35,19 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Work | PR |
 |------|-----|
+| HTTP niche validation / stream / controller middleware | #89 |
+| Security CadenceUserProvider + Argon2 | #88 |
 | Cadence B6 Eloquent parity | #87 |
 | Docs Crema guides + named slots | #86 |
 | Extract → Cadence rename | #85 |
 | Brew cutover + M1 docs | #79 |
 | Cadence B4 morphToMany | #73 |
-| Cadence B3 global scopes | #71 |
 | M24 Executable config | #53 |
 
 ### Notes
 
-- Cadence B6 closed on `main`. Do **not** revive Extract names.
+- Ignore Brew (kona-brew docs merged). Do **not** revive Extract names.
 - **CLI lock:** all terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`.
-- Brew Livewire parity lives in `kona-brew` — do not expand Brew here.
 
 ## Commands
 

@@ -63,4 +63,22 @@ class KonaDateTest {
             KonaDate.ofInstant(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.ofHours(1)),
         )
     }
+
+    @Test
+    fun deepenCalendarBoundaries() {
+        val d = KonaDate.ofInstant(Instant.parse("2024-01-15T12:30:00Z"), ZoneOffset.UTC)
+        assertEquals("2024-01-15T00:00:00Z", d.startOfDay().toIso8601String())
+        assertTrue(d.endOfDay().toLocalDateTime().hour == 23)
+        assertEquals("2024-01-22", d.addWeeks(1).toDateString())
+        assertEquals("2024-02-15", d.addMonths(1).toDateString())
+        assertEquals("2025-01-15", d.addYears(1).toDateString())
+        assertEquals("2024-01-08", d.subWeeks(1).toDateString())
+        assertEquals("2023-12-15", d.subMonths(1).toDateString())
+        assertEquals("2023-01-15", d.subYears(1).toDateString())
+        assertEquals(1, d.diffInDays(d.subDays(1)))
+        assertTrue(d.isSameDay(d.addHours(1)))
+        assertFalse(d.isSameDay(d.addDays(1)))
+        val shifted = d.setTimezone(ZoneOffset.ofHours(2))
+        assertEquals("2024-01-15 14:30:00", shifted.toDateTimeString())
+    }
 }

@@ -79,4 +79,34 @@ class StrTest {
         assertEquals("/path", Str.of("/path").start("/").toString())
         assertEquals("Hello World", Str.of("hello world").title().toString())
     }
+
+    @Test
+    fun deepenSegmentsMaskPad() {
+        assertEquals("a/b", Str.beforeLast("a/b/c", "/"))
+        assertEquals("a/b/c", Str.beforeLast("a/b/c", "|"))
+        assertEquals("c", Str.afterLast("a/b/c", "/"))
+        assertEquals("a/b/c", Str.afterLast("a/b/c", "|"))
+        assertEquals("mid", Str.between("[mid]", "[", "]"))
+        assertEquals("Hello World", Str.headline("hello_world"))
+        assertEquals("ab***f", Str.mask("abcdef", "*", 2, 3))
+        assertEquals("abcdef", Str.mask("abcdef", "*", 10, 2))
+        assertEquals("abcdef", Str.mask("abcdef", "", 0, 2))
+        assertEquals("", Str.mask("", "*", 0, 1))
+        assertEquals("******", Str.mask("abcdef", "*"))
+        assertEquals(3, Str.length("abc"))
+        assertEquals("bcd", Str.substr("abcd", 1, 3))
+        assertEquals("cd", Str.substr("abcd", -2))
+        assertEquals("abcd", Str.substr("abcd", 0))
+        assertEquals("", Str.substr("abcd", 0, 0))
+        assertEquals("aaa", Str.repeat("a", 3))
+        assertEquals("", Str.repeat("a", 0))
+        assertEquals("00ab", Str.padLeft("ab", 4, "0"))
+        assertEquals("ab", Str.padLeft("ab", 2, "0"))
+        assertEquals("ab", Str.padLeft("ab", 4, ""))
+        assertEquals("ab00", Str.padRight("ab", 4, "0"))
+        assertEquals("ab", Str.padRight("ab", 1, "0"))
+        assertEquals("ab", Str.padRight("ab", 4, ""))
+        assertEquals("  ab", Str.padLeft("ab", 4))
+        assertEquals("ab  ", Str.padRight("ab", 4))
+    }
 }

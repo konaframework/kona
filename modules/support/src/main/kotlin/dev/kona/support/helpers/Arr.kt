@@ -105,4 +105,55 @@ object Arr {
         }
         return result
     }
+
+    @JvmStatic
+    fun forget(array: MutableMap<String, Any?>, key: String): MutableMap<String, Any?> {
+        if (!key.contains('.')) {
+            array.remove(key)
+            return array
+        }
+        val parts = key.split('.')
+        var current: Any? = array
+        for (i in 0 until parts.lastIndex) {
+            current = (current as? Map<*, *>)?.get(parts[i]) ?: return array
+        }
+        val parent = current as? MutableMap<*, *> ?: return array
+        try {
+            @Suppress("UNCHECKED_CAST")
+            (parent as MutableMap<String, Any?>).remove(parts.last())
+        } catch (_: UnsupportedOperationException) {
+            return array
+        }
+        return array
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    fun pluck(array: Iterable<Map<String, Any?>>, value: String, key: String? = null): Any {
+        if (key == null) {
+            return array.map { get(it, value) }
+        }
+        val out = linkedMapOf<Any?, Any?>()
+        for (row in array) {
+            val k = get(row, key) ?: continue
+            out[k] = get(row, value)
+        }
+        return out
+    }
+
+    /** Flatten a nested map into dot notation keys. */
+    @JvmStatic
+    fun dot(array: Map<String, Any?>, prepend: String = ""): Map<String, Any?> {
+        val out = linkedMapOf<String, Any?>()
+        for ((k, v) in array) {
+            val key = if (prepend.isEmpty()) k else "$prepend.$k"
+            if (v is Map<*, *>) {
+                @Suppress("UNCHECKED_CAST")
+                out.putAll(dot(v as Map<String, Any?>, key))
+            } else {
+                out[key] = v
+            }
+        }
+        return out
+    }
 }

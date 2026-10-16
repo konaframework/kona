@@ -9,29 +9,77 @@ The `kona-support` module ships everyday helpers used across apps and the framew
 
 ## Collections
 
+`Collection` wraps a list with a fluent Laravel-shaped API. Create one with `collect(...)`, `Collection.make(...)`, or `Collection.of(...)`.
+
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-val names = collect(users).pluck("name").filter { it != null }
+val names = collect(users)
+    .where("active", true)
+    .pluck("name")
+    .filter { it != null }
+    .join(", ")
+
+collect(1, 2, 3, 4)
+    .reject { it % 2 == 0 }
+    .partition { it > 1 }
+
+Collection.times(3) { "row-$it" }
+Collection.wrap(listOf(1, 2)).merge(listOf(3))
 ```
 
-`Collection` wraps a list with `map`, `flatMap`, `filter`, `reduce`, `chunk`, `sum`, `avg`, `when` / `unless`, `pluck`, `groupBy`, `sortBy`, `unique`, and more. Java: `Collection.make(...)` / `Collection.of(...)`.
+Useful methods include `map`, `flatMap`, `filter`, `reject`, `where` / `firstWhere`, `reduce`, `chunk`, `collapse`, `flatten`, `sum` / `avg` / `min` / `max`, `keyBy`, keyed `pluck`, `groupBy`, `partition`, `sortBy`, `unique`, `sole`, `diff` / `intersect`, `mapWithKeys`, `countBy`, `slice` / `nth` / `pad`, `pop` / `shift` / `prepend`, and `when` / `unless` / `whenEmpty`.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Collection<Integer> nums = Collection.make(1, 2, 3, 4);
+nums.reject(n -> n % 2 == 0).toList();
+Collection.times(2, i -> i);
+Collection.wrap(List.of(1, 2)).join("-");
+```
+
+</TabItem>
+</Tabs>
 
 ## Strings
 
 ```kotlin
 Str.slug("Hello World")          // hello-world
 Str.of("hello_world").camel()    // helloWorld
+Str.headline("hello_world")      // Hello World
+Str.mask("5551234", "*", 0, 3)   // ***1234
+Str.beforeLast("a/b/c", "/")     // a/b
+Str.padLeft("7", 3, "0")         // 007
 ```
+
+`Stringable` from `Str.of(...)` chains the same transforms (`lower`, `snake`, `slug`, `limit`, `append`, `finish`, …).
 
 ## Dates
 
-`KonaDate` is a fluent Instant wrapper: `now()`, `parse()`, `addDays()`, `toDateString()`, `isPast()`, `diffInSeconds()`.
+`KonaDate` is a fluent Instant wrapper:
+
+```kotlin
+val d = KonaDate.parse("2024-01-15T12:30:00Z")
+d.addMonths(1).startOfDay().toDateString()
+d.diffInDays(d.subDays(2))
+d.isSameDay(d.addHours(3))
+```
+
+Also: `addWeeks` / `addYears`, `endOfDay`, `setTimezone`, `isPast` / `isFuture`, `toDateTimeString`.
 
 ## Arrays / maps
 
-`Arr.get`, `Arr.set`, `Arr.has`, `Arr.only`, `Arr.except`, `Arr.wrap`, and `Arr.flatten` work with nested dotted keys (`user.name`).
+`Arr.get`, `Arr.set`, `Arr.has`, `Arr.forget`, `Arr.only`, `Arr.except`, `Arr.wrap`, `Arr.flatten`, `Arr.pluck`, and `Arr.dot` work with nested dotted keys (`user.name`).
+
+```kotlin
+val row = linkedMapOf<String, Any?>()
+Arr.set(row, "user.name", "Ada")
+Arr.forget(row, "user.name")
+Arr.dot(mapOf("user" to mapOf("age" to 1))) // user.age → 1
+```
 
 ## Localization
 
@@ -42,14 +90,8 @@ Lang.setTranslator(t)
 translate("hi", mapOf("name" to "Ada"))
 ```
 
-</TabItem>
-<TabItem label="Java">
-
 ```java
 Translations.__("hi", Map.of("name", "Ada"));
 ```
-
-</TabItem>
-</Tabs>
 
 Register `SupportServiceProvider` to bind a shared `Translator`. If `lang.path` is set or `{base}/lang` exists, JSON and `key=value` files are loaded automatically (`lang/en.json`, `lang/en/messages.json`, `lang/en.properties`, and so on).

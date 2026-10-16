@@ -92,6 +92,90 @@ object Str {
     }
 
     @JvmStatic
+    fun beforeLast(value: String, search: String): String {
+        val index = value.lastIndexOf(search)
+        return if (index < 0) value else value.substring(0, index)
+    }
+
+    @JvmStatic
+    fun afterLast(value: String, search: String): String {
+        val index = value.lastIndexOf(search)
+        return if (index < 0) value else value.substring(index + search.length)
+    }
+
+    @JvmStatic
+    fun between(value: String, from: String, to: String): String {
+        val afterFrom = after(value, from)
+        return before(afterFrom, to)
+    }
+
+    @JvmStatic
+    fun headline(value: String): String =
+        title(snake(value, " ").replace('_', ' ').replace('-', ' '))
+
+    @JvmStatic
+    @JvmOverloads
+    fun mask(value: String, character: String = "*", index: Int = 0, length: Int? = null): String {
+        if (value.isEmpty() || character.isEmpty()) {
+            return value
+        }
+        val start = index.coerceAtLeast(0).coerceAtMost(value.length)
+        val end =
+            if (length == null) {
+                value.length
+            } else {
+                (start + length.coerceAtLeast(0)).coerceAtMost(value.length)
+            }
+        if (start >= end) {
+            return value
+        }
+        val ch = character.first()
+        return value.substring(0, start) + ch.toString().repeat(end - start) + value.substring(end)
+    }
+
+    @JvmStatic
+    fun length(value: String): Int = value.length
+
+    @JvmStatic
+    @JvmOverloads
+    fun substr(value: String, start: Int, length: Int? = null): String {
+        val from =
+            when {
+                start >= 0 -> start.coerceAtMost(value.length)
+                else -> (value.length + start).coerceAtLeast(0)
+            }
+        return if (length == null) {
+            value.substring(from)
+        } else {
+            value.substring(from, (from + length.coerceAtLeast(0)).coerceAtMost(value.length))
+        }
+    }
+
+    @JvmStatic
+    fun repeat(value: String, times: Int): String =
+        if (times <= 0) "" else value.repeat(times)
+
+    @JvmStatic
+    fun padLeft(value: String, length: Int, pad: String = " "): String {
+        if (value.length >= length || pad.isEmpty()) {
+            return value
+        }
+        val need = length - value.length
+        val filler = pad.repeat((need / pad.length) + 1).take(need)
+        return filler + value
+    }
+
+    @JvmStatic
+    fun padRight(value: String, length: Int, pad: String = " "): String {
+        if (value.length >= length || pad.isEmpty()) {
+            return value
+        }
+        val need = length - value.length
+        val filler = pad.repeat((need / pad.length) + 1).take(need)
+        return value + filler
+    }
+
+    @JvmStatic
     fun replace(search: String, replace: String, subject: String): String =
         subject.replace(search, replace)
 
