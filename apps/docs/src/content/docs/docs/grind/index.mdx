@@ -1,9 +1,9 @@
 ---
-title: grind
-description: The app-local CLI — serve, generate code, and run custom console commands.
+title: Grind Console
+description: The app-local console — ./grind serve, generators, custom commands, scheduling hooks, and steam.
 ---
 
-**grind** is the command-line tool that lives **inside each application**. After you `cd` into a project created by `kona new`, you run:
+**Grind Console** is Kona’s in-app command line. After you create a project with `kona new` and `cd` into it, almost every day-to-day task goes through the local script:
 
 ```bash
 ./grind serve
@@ -13,33 +13,65 @@ description: The app-local CLI — serve, generate code, and run custom console 
 ./grind help
 ```
 
-`kona new` writes `./grind` (and `grind.bat`) into the project root. There is no global grind install. Creating applications is always:
+`kona new` writes `./grind` (and `grind.bat` on Windows) into the project root. There is no separate global grind install. Creating applications is always:
 
 ```bash
 kona new my-app
 ```
 
-From anywhere under an app you can also use the global proxy: `kona grind <args…>` — see [Running commands](./running-commands/#kona-grind-proxy).
+From anywhere under an app tree you can also use the global proxy: `kona grind <args…>` — see [Running commands](./running-commands/#kona-grind-proxy).
 
-If you are browsing `samples/hello-kotlin` or `samples/hello-java` inside the Kona repository, those folders are monorepo modules and do **not** include `./grind`. Run them with `./gradlew :hello-kotlin:run` (or `:hello-java:run`) from the repo root, or create a real app with `kona new` to get grind. Details: [Installation](../guides/installation/#trying-the-repo-samples).
+If you are browsing `samples/hello-kotlin` or `samples/hello-java` inside the Kona repository, those folders are monorepo modules and do **not** include `./grind`. Run them with `./gradlew :hello-kotlin:run` (or `:hello-java:run`) from the repo root, or create a real app with `kona new` to get Grind Console. Details: [Installation](../guides/installation/#trying-the-repo-samples).
+
+## What Grind Console is
+
+Grind Console is the product name for the console surface. The **CLI binary** you type is still `./grind` (or `kona grind …`). Behind that script:
+
+1. Gradle runs a `grind` task with `kona-grind` on the classpath for **this** project’s dependency versions.
+2. `GrindApplication` parses arguments, builds a `GrindIO` (quiet/verbose), discovers custom commands, and dispatches built-ins or your `ConsoleCommand` classes.
+3. Custom commands bind signature tokens to input, then run `handle()` and return an exit code.
+
+Built-ins (serve, migrate, queue, schedule, generators, …) are wired inside `GrindApplication`. Custom commands are discovered from `META-INF/kona/commands` and from compiled app outputs under `build/`.
 
 ## Why two CLIs?
 
-- **`kona`** (global): rare, machine-wide — “make me a new project,” or `kona grind` as a proxy.
-- **`./grind`** (per app): everyday — “run *this* app,” “add a controller *here*,” “run *my* console command.”
+| Tool | Scope | Typical use |
+|------|--------|-------------|
+| **`kona`** (global) | Machine-wide | `kona new`, or `kona grind` as a proxy into an app |
+| **`./grind`** (per app) | One project | Serve, generate code, migrate, queue, schedule, your commands |
 
-The generated `./grind` script forwards to a Gradle `grind` task that puts `kona-grind` on the classpath for that project’s dependency versions.
+If you type `./grind new …`, Grind Console reminds you to use `kona new` instead and exits with status `1`.
 
 ## Learn the console
 
 | Guide | Topic |
 |-------|-------|
-| [Creating commands](./creating-commands/) | `make:command`, signatures, discovery, isolation |
-| [Running commands](./running-commands/) | CLI flags, `list`/`help`, `Grind.call`, `kona grind` |
-| [Console IO & prompts](./console/) | `GrindIO`, tables, prompts, exit codes |
-| [Built-in commands](./commands/) | `serve`, `make:*`, migrate, queue, `key:generate`, … |
-| [steam](../steam/) | Interactive REPL |
+| [Creating commands](./creating-commands/) | `make:command`, signatures, discovery, isolation, pitfalls |
+| [Running commands](./running-commands/) | CLI flags, `list`/`help`, `Grind.call`, `kona grind`, scheduling |
+| [Console IO & prompts](./console/) | `ConsoleIO`, `GrindIO`, tables, prompts, exit codes |
+| [Built-in commands](./commands/) | Catalog of every shipped `./grind` command |
+| [steam](../steam/) | Interactive REPL (`./grind steam`) |
 
-Global flags: `-v` / `--verbose`, `-q` / `--quiet`.
+Testing Grind Console with `ConsoleTester` lives under [HTTP & console tests](../testing/http-console/#console-grind).
 
-If you type `./grind new …`, grind reminds you to use `kona new` instead.
+## Global flags
+
+These apply to the whole Grind Console process (and to custom commands that use the bound `GrindIO`):
+
+| Flag | Effect |
+|------|--------|
+| `-v` / `--verbose` | Verbose diagnostics (`GrindIO.verbose`) |
+| `-q` / `--quiet` | Suppress normal stdout; errors still print on stderr |
+
+Other common flags (`--base=`, `--bootstrap=`, `--help`, `--isolated`) are documented where they apply — see [Running commands](./running-commands/) and [Creating commands](./creating-commands/).
+
+## Not available today
+
+Document only what ships. Gaps you should not expect from Grind Console yet:
+
+- No `make:brew` (or other Brew generators) in the `kona-grind` dispatcher — Brew scaffolding, if any, is separate from this catalog.
+- Custom commands do **not** receive an injected `Application` automatically; boot the app yourself (or call APIs that already have a container) when you need services.
+- There is no interactive command “wizard” beyond `Prompts`, and no command middleware / event bus for console runs.
+- Built-in help for generators is usage strings and `./grind list` summaries — there is no separate man-page system.
+
+Prefer omitting unshipped features over documenting them as current.
