@@ -94,7 +94,12 @@ class Application(
         if (booted) {
             return this
         }
+        LogManager.seedDefaults(config)
         FileLogging.ensureConfigured(this)
+        val logManager = LogManager(this)
+        container.instance(LogManager::class.java, logManager)
+        container.instance("log", logManager)
+        Log.bind(logManager)
         // Index loop: providers registered from another provider's boot() must also boot.
         var index = 0
         while (index < providers.size) {
