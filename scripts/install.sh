@@ -51,8 +51,8 @@ if [[ "$ui_color" -eq 1 ]]; then
   C_YELLOW=$'\033[33m'
   C_BLUE=$'\033[34m'
   C_CYAN=$'\033[36m'
-  C_PRIMARY=$'\033[38;2;255;154;0m'   # #FF9A00
-  C_ACCENT=$'\033[38;2;40;98;145m'    # #286291
+  C_PRIMARY=$'\033[38;2;111;78;55m'   # Mocha #6F4E37
+  C_ACCENT=$'\033[38;2;61;41;20m'     # Deep espresso #3D2914
 else
   C_RESET=; C_BOLD=; C_DIM=; C_RED=; C_GREEN=; C_YELLOW=; C_BLUE=; C_CYAN=; C_PRIMARY=; C_ACCENT=
 fi

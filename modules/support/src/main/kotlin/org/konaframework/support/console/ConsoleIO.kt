@@ -6,7 +6,7 @@ import java.io.PrintStream
  * Canonical Termwind-inspired console IO for **all** Kona terminal CLIs
  * (`kona`, `./grind`, installers that shell out, future commands).
  *
- * Brand colors: primary `#FF9A00`, accent `#286291`.
+ * Brand colors: primary Mocha `#6F4E37`, accent deep espresso `#3D2914`.
  * Honors `NO_COLOR`, `FORCE_COLOR` (`0` disables), and `TERM=dumb`.
  */
 class ConsoleIO(
@@ -135,8 +135,8 @@ class ConsoleIO(
         const val GREEN = "\u001B[32m"
         const val YELLOW = "\u001B[33m"
         const val CYAN = "\u001B[36m"
-        const val PRIMARY = "\u001B[38;2;255;154;0m"
-        const val ACCENT = "\u001B[38;2;40;98;145m"
+        const val PRIMARY = "\u001B[38;2;111;78;55m"
+        const val ACCENT = "\u001B[38;2;61;41;20m"
         private val ANSI_REGEX = Regex("\u001B\\[[0-9;]*m")
 
         fun detectColor(env: Map<String, String> = System.getenv()): Boolean {
