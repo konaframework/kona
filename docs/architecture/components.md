@@ -30,7 +30,7 @@ Main Boot:         Kona.create(args).boot()
 
 **All** terminal commands use Termwind-inspired styling via [`org.konaframework.support.console.ConsoleIO`](../../modules/support/src/main/kotlin/org/konaframework/support/console/ConsoleIO.kt):
 
-- Brand colors primary `#FF9A00`, accent `#286291`
+- Brand colors primary Mocha `#6F4E37` (dark: espresso roast `#A67C52`), accent deep espresso `#3D2914` (dark: soft cream `#E8D4B8`)
 - Methods: `info` / `success` / `warn` / `error`, `title`, `box`, `twoColumn`, `progress`
 - Env: `NO_COLOR` (off), `FORCE_COLOR=1` (on), `FORCE_COLOR=0` (off), `TERM=dumb` (off)
 

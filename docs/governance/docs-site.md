@@ -22,12 +22,20 @@ Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) 
 
 ## Brand (locked)
 
-| Token | Hex |
-|-------|-----|
-| Primary | `#FF9A00` |
-| Accent | `#286291` |
+Coffee palette shared with Brew (Mocha / espresso roast). Dark headings use soft cream, not pure white.
 
-CSS: `apps/docs/src/styles/custom.css` (`--kona-primary`, `--kona-accent`).
+| Token | Light | Dark |
+|-------|-------|------|
+| Primary | Mocha `#6F4E37` | Espresso roast `#A67C52` |
+| Primary soft | `#8B6B4F` | `#C4A574` |
+| Primary deep | `#4A3423` | `#8B6340` |
+| Accent | Deep espresso `#3D2914` | Soft cream `#E8D4B8` |
+| Accent soft | `#5C4033` | `#F0E6D6` |
+| Accent deep | `#2A1C10` | `#D4B896` |
+| Surface | Cream `#FAF6F0` | Espresso `#1A120C` |
+| Heading | `#2A1C10` | Soft cream `#E8D4B8` |
+
+CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). Mark: Bean-K in `apps/docs/public/branding/`.
 
 ## Voice and depth (locked)
 
