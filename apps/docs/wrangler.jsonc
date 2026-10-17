@@ -8,6 +8,8 @@
   //   Build command:    pnpm install --frozen-lockfile && pnpm docs:build
   //   Deploy command:   npx wrangler deploy
   //                     (reads repo-root wrangler.jsonc → apps/docs/dist)
+  //   NEVER:            npx wrangler pages deploy … --project-name=kona
+  //                     (Pages API → auth 10000 on this Workers project)
   //   Preview command:  npx wrangler preview
   //                     (requires "previews": {} in wrangler.jsonc)
   //   Build vars:       PUBLIC_SITE_URL=https://docs.konaframework.org
@@ -17,7 +19,7 @@
   //
   // This file is for local `cd apps/docs && pnpm cf:deploy`.
   // Workers Builds uses the repo-root wrangler.jsonc (same name + assets).
-  // Use `wrangler deploy`, NOT `wrangler pages deploy`.
+  // Workers Assets only — no pages_build_output_dir.
   // See docs/governance/docs-site.md
   "name": "kona",
   "compatibility_date": "2026-08-01",

@@ -6,14 +6,15 @@ name: Cloudflare Pages
 #   Cloudflare Dashboard → Workers & Pages → project "kona" → Settings → Builds
 #   Framework preset: None (not Astro)
 #   Root: / · Build: pnpm install --frozen-lockfile && pnpm docs:build
-#   Deploy: npx wrangler deploy  (root wrangler.jsonc → apps/docs/dist)
+#   Deploy: npx wrangler deploy  (ONLY — never "wrangler pages deploy" / --project-name)
+#   Root wrangler.jsonc → apps/docs/dist (Workers Assets, not classic Pages)
 #   NODE_VERSION=22 · PUBLIC_SITE_URL / PUBLIC_BASE_PATH
-#   Do NOT use npm ci; do NOT use wrangler pages deploy (Workers Assets, not Pages).
+#   Do NOT use npm ci; do NOT use wrangler pages deploy (auth 10000 on Workers project).
 #   Details: docs/governance/docs-site.md
 #   Custom domain docs.konaframework.org. No CLOUDFLARE_* secrets required for Path A.
 #
 # Optional harden (this workflow's deploy step):
-#   CLOUDFLARE_API_TOKEN   — API token with Cloudflare Pages Edit
+#   CLOUDFLARE_API_TOKEN   — API token with Account → Workers Scripts → Edit
 #   CLOUDFLARE_ACCOUNT_ID  — Cloudflare account id
 # When unset, this workflow still builds docs on main (smoke) and skips Wrangler deploy.
 
