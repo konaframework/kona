@@ -6,9 +6,12 @@ class MakeViewCommand {
         if (positional.isEmpty()) {
             throw GrindException("Usage: grind make:view <name>")
         }
-        val name = positional.first()
+        // Accept dotted (`brew.todos`) or nested path (`brew/todos`) forms.
+        val name = positional.first().replace('/', '.')
         if (!VIEW_NAME.matches(name)) {
-            throw GrindException("Invalid view name [$name]: use dotted names like home or posts.show")
+            throw GrindException(
+                "Invalid view name [${positional.first()}]: use dotted or nested names like home, posts.show, or brew/todos",
+            )
         }
         val base = Names.base(options)
         val relative = Names.viewFile(name)

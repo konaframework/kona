@@ -1,25 +1,10 @@
 package app.http.controllers
 
-import io.konaframework.brew.Brew
+import io.konaframework.crema.view
 import io.konaframework.http.Request
 import io.konaframework.http.Response
 
 class WelcomeController {
-    fun index(request: Request): Response {
-        val body =
-            """
-            <!DOCTYPE html>
-            <html lang="en">
-              <head>
-                <meta charset="utf-8" />
-                <title>Brew</title>
-              </head>
-              <body>
-                <h1>Welcome to Kona Brew</h1>
-                ${Brew.mount("counter")}
-              </body>
-            </html>
-            """.trimIndent()
-        return Response.html(body)
-    }
+    fun index(request: Request): Response =
+        view("welcome", mapOf("title" to "Kona Brew")).toResponse()
 }

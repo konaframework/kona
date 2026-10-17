@@ -1,0 +1,26 @@
+package app.brew
+
+import io.konaframework.brew.Component
+import io.konaframework.brew.Computed
+
+data class Todo(var title: String = "", var done: Boolean = false)
+
+/** Class-based Brew component; markup lives in `views/brew/todos.crema.html`. */
+class Todos : Component() {
+    var draft = ""
+    var items = mutableListOf(Todo("Grind the beans"), Todo("Steam the milk", done = true))
+
+    fun add() {
+        val title = draft.trim()
+        if (title.isEmpty()) return
+        items.add(Todo(title))
+        draft = ""
+    }
+
+    fun remove(index: Int) {
+        items.removeAt(index)
+    }
+
+    @Computed
+    fun remaining(): Int = items.count { !it.done }
+}

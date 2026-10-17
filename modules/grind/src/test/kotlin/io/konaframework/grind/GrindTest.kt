@@ -173,6 +173,8 @@ class GrindTest {
         assertTrue(Files.exists(base.resolve("src/main/resources/views/home.crema.html")))
         assertEquals(0, MakeViewCommand().run(listOf("posts.show", "--base=$base")))
         assertTrue(Files.exists(base.resolve("src/main/resources/views/posts/show.crema.html")))
+        assertEquals(0, MakeViewCommand().run(listOf("brew/todos", "--base=$base")))
+        assertTrue(Files.exists(base.resolve("src/main/resources/views/brew/todos.crema.html")))
         assertEquals(1, GrindApplication().run(arrayOf("make:view", "home", "--base=$base")))
         assertEquals(1, GrindApplication().run(arrayOf("make:view")))
         assertEquals(1, GrindApplication().run(arrayOf("make:view", "Bad-Name", "--base=$base")))

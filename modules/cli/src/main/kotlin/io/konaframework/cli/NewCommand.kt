@@ -172,7 +172,7 @@ class NewCommand(
         ): Path? {
             env["KONA_HOME"]?.takeIf { it.isNotBlank() }?.let { candidate ->
                 val path = Path.of(candidate).toAbsolutePath().normalize()
-                if (isKonaRoot(path)) return path
+                if (isUsableKonaHome(path)) return path
             }
             val xdg = env["XDG_CONFIG_HOME"]
             val configHome =
@@ -184,10 +184,10 @@ class NewCommand(
             val recorded = configHome.resolve("kona/home")
             if (Files.isRegularFile(recorded)) {
                 val path = Path.of(Files.readString(recorded).trim()).toAbsolutePath().normalize()
-                if (isKonaRoot(path)) return path
+                if (isUsableKonaHome(path)) return path
             }
             val defaultSrc = userHome.resolve(".kona")
-            if (isKonaRoot(defaultSrc)) return defaultSrc
+            if (isUsableKonaHome(defaultSrc)) return defaultSrc
             return null
         }
 
@@ -196,6 +196,20 @@ class NewCommand(
                 Files.isDirectory(path.resolve("modules/cli")) &&
                 Files.isExecutable(path.resolve("gradlew"))
 
+        /**
+         * Rejects checkouts that still vendor a pre-extraction Brew under `modules/brew`
+         * without the current `template()` API — `includeBuild` would substitute that
+         * stale module over mavenLocal `kona-brew` and break `--kit=brew` scaffolds.
+         */
+        internal fun isUsableKonaHome(path: Path): Boolean {
+            if (!isKonaRoot(path)) return false
+            // Pre-rename (dev.kona) or current (io.konaframework) layout under a leftover modules/brew.
+            val brewComponent = listOf(
+                path.resolve("modules/brew/src/main/kotlin/io/konaframework/brew/Component.kt"),
+                path.resolve("modules/brew/src/main/kotlin/dev/kona/brew/Component.kt"),
+            ).firstOrNull { Files.isRegularFile(it) } ?: return true
+            return Files.readString(brewComponent).contains("fun template")
+        }
         private val COMMON_FILES = listOf(
             "gitignore.txt",
             "gradlew",
@@ -259,8 +273,11 @@ class NewCommand(
                 "src/main/resources/views/app.crema.html",
                 "public/.gitkeep",
             ),
-            // Inline-template Counter; no shared Crema view overlay.
-            "brew" to emptyList(),
+            // Overwrites crema welcome; ships class-based Todos view + demo page.
+            "brew" to listOf(
+                "src/main/resources/views/welcome.crema.html",
+                "src/main/resources/views/brew/todos.crema.html",
+            ),
         )
 
         private val KIT_LANG = mapOf(
@@ -302,6 +319,7 @@ class NewCommand(
                     "src/main/kotlin/bootstrap/App.kt.txt",
                     "src/main/kotlin/app/http/controllers/WelcomeController.kt.txt",
                     "src/main/kotlin/app/brew/Counter.kt.txt",
+                    "src/main/kotlin/app/brew/Todos.kt.txt",
                     "src/main/kotlin/routes/WebRoutes.kt.txt",
                     "README.md",
                 ),
@@ -310,6 +328,7 @@ class NewCommand(
                     "src/main/java/bootstrap/App.java.txt",
                     "src/main/java/app/http/controllers/WelcomeController.java.txt",
                     "src/main/java/app/brew/Counter.java.txt",
+                    "src/main/java/app/brew/Todos.java.txt",
                     "src/main/java/routes/WebRoutes.java.txt",
                     "README.md",
                 ),

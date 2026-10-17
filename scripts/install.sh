@@ -9,20 +9,27 @@
 #   ./scripts/install.sh --local
 #
 # Env:
-#   KONA_SRC     Source tree (default: ~/.kona) when not using --local
-#   KONA_PREFIX  Install prefix for bin/kona (default: ~/.local)
-#   KONA_REF     Git ref / branch / tag to sync (default: main)
-#   KONA_REPO    Git remote URL (default: https://github.com/konaframework/kona.git)
-#   NO_COLOR     Set to disable ANSI colors
-#   FORCE_COLOR  Set to force ANSI colors
+#   KONA_SRC         Source tree (default: ~/.kona) when not using --local
+#   KONA_PREFIX      Install prefix for bin/kona (default: ~/.local)
+#   KONA_REF         Git ref / branch / tag to sync (default: main)
+#   KONA_REPO        Git remote URL (default: https://github.com/konaframework/kona.git)
+#   KONA_BREW_SRC    Optional kona-brew checkout (default: sibling ../kona-brew or ~/.kona-brew)
+#   KONA_INERTIA_SRC Optional kona-inertia checkout (default: sibling ../kona-inertia or ~/.kona-inertia)
+#   KONA_BREW_REPO   Clone URL for brew when missing (default: github.com/konaframework/kona-brew.git)
+#   KONA_INERTIA_REPO Clone URL for inertia when missing
+#   NO_COLOR         Set to disable ANSI colors
+#   FORCE_COLOR      Set to force ANSI colors
 set -euo pipefail
 
 KONA_REPO="${KONA_REPO:-https://github.com/konaframework/kona.git}"
 KONA_REF="${KONA_REF:-main}"
 KONA_SRC="${KONA_SRC:-$HOME/.kona}"
 KONA_PREFIX="${KONA_PREFIX:-$HOME/.local}"
+KONA_BREW_REPO="${KONA_BREW_REPO:-https://github.com/konaframework/kona-brew.git}"
+KONA_INERTIA_REPO="${KONA_INERTIA_REPO:-https://github.com/konaframework/kona-inertia.git}"
 BIN_DIR="$KONA_PREFIX/bin"
 USE_LOCAL=0
+STEP_TOTAL=6
 
 # ——— UI (all human status → stderr so $(…) never captures it) ———
 
@@ -62,7 +69,6 @@ ui_banner() {
   uiln ""
 }
 
-STEP_TOTAL=5
 STEP_NUM=0
 
 # Modules apps resolve from mavenLocal() (transitive deps included).
@@ -143,7 +149,9 @@ Usage: install.sh [--local] [--help]
   --local   Build from the repository that contains this script (no fetch).
   --help    Show this help.
 
-Environment: KONA_SRC, KONA_PREFIX, KONA_REF, KONA_REPO, NO_COLOR, FORCE_COLOR
+Environment: KONA_SRC, KONA_PREFIX, KONA_REF, KONA_REPO,
+  KONA_BREW_SRC, KONA_INERTIA_SRC, KONA_BREW_REPO, KONA_INERTIA_REPO,
+  NO_COLOR, FORCE_COLOR
 EOF
 }
 
@@ -286,6 +294,111 @@ sync_remote_source() {
   mv "$extracted" "$KONA_SRC"
 }
 
+# Brew/Inertia live in sister repos. Old monorepo checkouts may still have
+# modules/brew or modules/inertia; those poison includeBuild with a stale API.
+prune_obsolete_vendored_modules() {
+  local root="$1"
+  local settings="$root/settings.gradle.kts"
+  local brew_component=""
+  [[ -f "$settings" ]] || return 0
+  for candidate in \
+    "$root/modules/brew/src/main/kotlin/io/konaframework/brew/Component.kt" \
+    "$root/modules/brew/src/main/kotlin/dev/kona/brew/Component.kt"
+  do
+    if [[ -f "$candidate" ]]; then
+      brew_component="$candidate"
+      break
+    fi
+  done
+  # API-stale vendored Brew (no template()) poisons includeBuild over mavenLocal kona-brew.
+  if [[ -n "$brew_component" ]] && ! grep -q 'fun template' "$brew_component"; then
+    ui_warn "Removing API-stale vendored modules/brew (use mavenLocal kona-brew)"
+    rm -rf "$root/modules/brew"
+  fi
+  if [[ -d "$root/modules/brew" ]] && ! grep -qE 'modules/brew|projectDir = file\("modules/brew"\)' "$settings"; then
+    ui_warn "Removing obsolete vendored modules/brew (use konaframework/kona-brew)"
+    rm -rf "$root/modules/brew"
+  fi
+  if [[ -d "$root/modules/inertia" ]] && ! grep -qE 'modules/inertia|projectDir = file\("modules/inertia"\)' "$settings"; then
+    ui_warn "Removing obsolete vendored modules/inertia (use konaframework/kona-inertia)"
+    rm -rf "$root/modules/inertia"
+  fi
+  if grep -q 'include("kona-brew")' "$settings" && [[ ! -d "$root/modules/brew" ]]; then
+    ui_warn "settings.gradle.kts still references kona-brew but modules/brew is gone — re-run install to sync main"
+  fi
+}
+
+is_sister_root() {
+  local root="$1" marker="$2"
+  [[ -n "$root" && -f "$root/settings.gradle.kts" && -x "$root/gradlew" && -d "$root/$marker" ]]
+}
+
+# Resolve a sister package checkout: env override → sibling of Kona root → ~/.kona-* → shallow clone.
+resolve_sister_src() {
+  local env_var="$1" default_home="$2" sibling_name="$3" marker="$4" repo="$5"
+  local candidate parent
+  candidate="${!env_var:-}"
+  if [[ -n "$candidate" ]]; then
+    if is_sister_root "$candidate" "$marker"; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+    ui_warn "$env_var is set but not a valid $sibling_name tree: $candidate"
+  fi
+  parent="$(CDPATH= cd -- "$KONA_ROOT/.." && pwd)"
+  candidate="$parent/$sibling_name"
+  if is_sister_root "$candidate" "$marker"; then
+    printf '%s\n' "$candidate"
+    return
+  fi
+  candidate="$default_home"
+  if is_sister_root "$candidate" "$marker"; then
+    printf '%s\n' "$candidate"
+    return
+  fi
+  if command -v git >/dev/null 2>&1; then
+    ui_info "Cloning ${C_BOLD}$sibling_name${C_RESET} into ${C_BOLD}$candidate${C_RESET}"
+    mkdir -p "$(dirname -- "$candidate")"
+    if [[ -e "$candidate" && ! -d "$candidate/.git" ]]; then
+      rm -rf "$candidate"
+    fi
+    if [[ ! -d "$candidate/.git" ]]; then
+      git clone --depth 1 --branch "$KONA_REF" "$repo" "$candidate" >&2 || \
+        git clone --depth 1 "$repo" "$candidate" >&2
+    else
+      git -C "$candidate" fetch --depth 1 origin "$KONA_REF" >&2 || true
+      git -C "$candidate" checkout -q FETCH_HEAD 2>/dev/null || true
+    fi
+    if is_sister_root "$candidate" "$marker"; then
+      printf '%s\n' "$candidate"
+      return
+    fi
+  fi
+  printf '\n'
+}
+
+publish_sister() {
+  local label="$1" root="$2" task="$3"
+  if [[ -z "$root" ]]; then
+    ui_warn "Skipping $label (no checkout; set KONA_BREW_SRC / KONA_INERTIA_SRC or clone next to Kona)"
+    return 0
+  fi
+  local log
+  log=$(mktemp)
+  (
+    cd "$root"
+    ./gradlew -q "$task"
+  ) >"$log" 2>&1 &
+  if ! ui_spinner_wait $! "Publishing $label to mavenLocal…"; then
+    ui_warn "$label publish failed (brew/inertia kits need a manual publish)"
+    uiln "${C_DIM}$(tail -n 40 "$log")${C_RESET}"
+    rm -f "$log"
+    return 0
+  fi
+  rm -f "$log"
+  ui_ok "$label → mavenLocal() ($root)"
+}
+
 publish_framework() {
   local root="$1"
   local log
@@ -307,6 +420,16 @@ publish_framework() {
   mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/kona"
   printf '%s\n' "$root" >"${XDG_CONFIG_HOME:-$HOME/.config}/kona/home"
   ui_ok "Recorded Kona home → ${XDG_CONFIG_HOME:-$HOME/.config}/kona/home"
+}
+
+publish_sister_packages() {
+  local brew_src inertia_src
+  brew_src=$(resolve_sister_src KONA_BREW_SRC "$HOME/.kona-brew" "kona-brew" "brew" "$KONA_BREW_REPO")
+  brew_src=$(printf '%s' "$brew_src" | tr -d '\r' | tail -n1)
+  inertia_src=$(resolve_sister_src KONA_INERTIA_SRC "$HOME/.kona-inertia" "kona-inertia" "inertia" "$KONA_INERTIA_REPO")
+  inertia_src=$(printf '%s' "$inertia_src" | tr -d '\r' | tail -n1)
+  publish_sister "kona-brew" "$brew_src" ":kona-brew:publishToMavenLocal"
+  publish_sister "kona-inertia" "$inertia_src" ":kona-inertia:publishToMavenLocal"
 }
 
 link_cli() {
@@ -359,6 +482,8 @@ main() {
     ui_err "Invalid Kona tree at: $root"
     exit 1
   fi
+  KONA_ROOT="$root"
+  prune_obsolete_vendored_modules "$root"
   ui_ok "$root"
 
   ui_step "Build CLI"
@@ -379,6 +504,9 @@ main() {
 
   ui_step "Publish libraries"
   publish_framework "$root"
+
+  ui_step "Publish sister packages"
+  publish_sister_packages
 
   ui_step "Link binary"
   link_cli "$root"

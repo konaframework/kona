@@ -1,6 +1,7 @@
 package bootstrap
 
 import app.brew.Counter
+import app.brew.Todos
 import app.providers.AppServiceProvider
 import config.App as AppConfig
 import config.Database
@@ -50,8 +51,9 @@ object App {
             )
             .afterBoot { Middleware.configure(it) }
             .boot()
-        // Pin the sample counter; other app.brew.* classes resolve via brew.class_namespace.
+        // Pin sample components; other app.brew.* classes resolve via brew.class_namespace.
         Brew.component(Counter::class.java)
+        Brew.component(Todos::class.java)
         WebRoutes().register(app.resolve(Router::class.java))
         ApiRoutes().register(app.resolve(Router::class.java))
         return app

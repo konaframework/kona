@@ -80,8 +80,9 @@ Other `~/kona-*` directories (bench, netty, logging worktrees, etc.) are **not**
 - Cross-process batch `then`/`catch` callbacks (durable counts only)
 - Lazy collections / higher-order proxies
 - Full Carbon locale / human-diff surface
-- Brew implementation (lives in **kona-brew**; Kona keeps brief + starter/install wiring)
+- Brew implementation (lives in **kona-brew**; Kona keeps brief + starter/install wiring). Kit ships reactive Todos; installer publishes sister packages and skips API-stale vendored `modules/brew`.
 - Inertia implementation (lives in **kona-inertia**; Kona keeps brief + `--kit=inertia` skeletons)
+- `make:migration` auto-register into `MigrationRegistry` (generator still prints a manual bind hint)
 
 ### Notes
 
