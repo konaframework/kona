@@ -1,7 +1,8 @@
 {
   "$schema": "./apps/docs/node_modules/wrangler/config-schema.json",
   // Repo-root Wrangler config for Workers Builds (root directory = /).
-  // Default deploy command `npx wrangler deploy` reads this file.
+  // Deploy: `npx wrangler deploy` ONLY — never `wrangler pages deploy` / --project-name.
+  // Workers Assets (`assets.directory`); no pages_build_output_dir.
   // Local app-scoped deploy: cd apps/docs && pnpm cf:deploy
   // See docs/governance/docs-site.md and apps/docs/wrangler.jsonc
   "name": "kona",
