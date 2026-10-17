@@ -1,8 +1,8 @@
 package config;
 
-import io.konaframework.core.Config;
-import io.konaframework.core.ConfigFile;
-import io.konaframework.core.Env;
+import org.konaframework.core.Config;
+import org.konaframework.core.ConfigFile;
+import org.konaframework.core.Env;
 import java.util.LinkedHashMap;
 import java.util.Map;
 

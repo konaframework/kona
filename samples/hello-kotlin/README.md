@@ -32,4 +32,4 @@ cd my-app
 ./grind serve
 ```
 
-See the public [Installation](https://konaframework.dev/docs/guides/installation/) guide.
+See the public [Installation](https://docs.konaframework.org/docs/guides/installation/) guide.

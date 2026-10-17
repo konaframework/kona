@@ -1,9 +1,9 @@
-import io.konaframework.core.Kona
-import io.konaframework.http.HttpKernel
-import io.konaframework.http.HttpServiceProvider
-import io.konaframework.http.KonaHttpServer
-import io.konaframework.http.Response
-import io.konaframework.http.Router
+import org.konaframework.core.Kona
+import org.konaframework.http.HttpKernel
+import org.konaframework.http.HttpServiceProvider
+import org.konaframework.http.KonaHttpServer
+import org.konaframework.http.Response
+import org.konaframework.http.Router
 
 /**
  * Minimal pure-HTTP bench app — no session, CSRF, auth, or ORM.

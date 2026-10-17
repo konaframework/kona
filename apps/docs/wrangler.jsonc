@@ -1,11 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Cloudflare Workers (static assets) — konaframework.dev
-  "name": "kona",
+  // Cloudflare Pages — https://docs.konaframework.org
+  "name": "kona-docs",
   "compatibility_date": "2026-08-01",
-  "preview_urls": true,
-  "previews": {},
-  "assets": {
-    "directory": "./dist"
-  }
+  "pages_build_output_dir": "./dist"
 }

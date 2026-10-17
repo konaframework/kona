@@ -30,7 +30,7 @@ Or copy/symlink `ide-support/vscode-crema` into your extensions folder and reloa
    ./gradlew :kona-lsp:jar
    ```
 
-   The jar is under `modules/lsp/build/libs/` (Main-Class `io.konaframework.lsp.LspKt`).  
+   The jar is under `modules/lsp/build/libs/` (Main-Class `org.konaframework.lsp.LspKt`).  
    Or use the application distribution: `./gradlew :kona-lsp:installDist` and run `modules/lsp/build/install/kona-lsp/bin/kona-lsp`.
 
 2. In VS Code / Cursor settings:

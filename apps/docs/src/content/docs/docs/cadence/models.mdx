@@ -17,9 +17,9 @@ A model extends `Cadence<T>`, passing its own class as `T`, and must have a no-a
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.cadence.CastType
-import io.konaframework.cadence.Cadence
-import io.konaframework.cadence.CadenceCompanion
+import org.konaframework.cadence.CastType
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.CadenceCompanion
 
 class User : Cadence<User>() {
     override val fillable = setOf("name", "email", "admin")
@@ -33,9 +33,9 @@ class User : Cadence<User>() {
 <TabItem label="Java">
 
 ```java
-import io.konaframework.cadence.CastType;
-import io.konaframework.cadence.Cadence;
-import io.konaframework.cadence.CadenceCompanion;
+import org.konaframework.cadence.CastType;
+import org.konaframework.cadence.Cadence;
+import org.konaframework.cadence.CadenceCompanion;
 import java.util.Map;
 import java.util.Set;
 
@@ -263,7 +263,7 @@ A **soft delete** marks a row as deleted by setting a `deleted_at` timestamp ins
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.cadence.SoftDeletes
+import org.konaframework.cadence.SoftDeletes
 
 class Post : Cadence<Post>(), SoftDeletes {
     companion object : CadenceCompanion<Post>(Post::class.java)
@@ -282,7 +282,7 @@ post.forceDelete()               // removes the row
 <TabItem label="Java">
 
 ```java
-import io.konaframework.cadence.SoftDeletes;
+import org.konaframework.cadence.SoftDeletes;
 
 public class Post extends Cadence<Post> implements SoftDeletes {
     public static final CadenceCompanion<Post> QUERY = Cadence.of(Post.class);

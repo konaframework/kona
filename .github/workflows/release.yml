@@ -9,7 +9,7 @@ on:
 
 jobs:
   publish:
-    name: Publish io.konaframework
+    name: Publish org.konaframework
     runs-on: ubuntu-latest
     permissions:
       contents: read

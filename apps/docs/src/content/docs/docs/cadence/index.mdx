@@ -5,7 +5,7 @@ description: What Cadence is, how it connects to your database, and how its piec
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-**Cadence** is Kona's database layer. It lets you read and write rows in a relational database (H2, PostgreSQL, and other JDBC databases) without writing SQL by hand for everyday work, while still letting you drop down to SQL when you need it. It ships as the `io.konaframework:kona-cadence` artifact.
+**Cadence** is Kona's database layer. It lets you read and write rows in a relational database (H2, PostgreSQL, and other JDBC databases) without writing SQL by hand for everyday work, while still letting you drop down to SQL when you need it. It ships as the `org.konaframework:kona-cadence` artifact.
 
 Cadence has five layers. Each is usable on its own, and each builds on the one before it.
 
@@ -82,9 +82,9 @@ Cadence quotes table and column names (`"users"`), which makes them case-sensiti
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.core.Kona
-import io.konaframework.cadence.CadenceServiceProvider
-import io.konaframework.http.HttpServiceProvider
+import org.konaframework.core.Kona
+import org.konaframework.cadence.CadenceServiceProvider
+import org.konaframework.http.HttpServiceProvider
 
 val app = Kona.create(args)
     .providers(HttpServiceProvider(), CadenceServiceProvider(), AppServiceProvider())
@@ -95,10 +95,10 @@ val app = Kona.create(args)
 <TabItem label="Java">
 
 ```java
-import io.konaframework.core.Application;
-import io.konaframework.core.Kona;
-import io.konaframework.cadence.CadenceServiceProvider;
-import io.konaframework.http.HttpServiceProvider;
+import org.konaframework.core.Application;
+import org.konaframework.core.Kona;
+import org.konaframework.cadence.CadenceServiceProvider;
+import org.konaframework.http.HttpServiceProvider;
 
 Application app = Kona.create(args)
     .providers(new HttpServiceProvider(), new CadenceServiceProvider(), new AppServiceProvider())
@@ -115,8 +115,8 @@ Outside an application (in a script or a test) you can build the manager yoursel
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.cadence.ConnectionConfig
-import io.konaframework.cadence.Database
+import org.konaframework.cadence.ConnectionConfig
+import org.konaframework.cadence.Database
 
 val db = Database()
     .addConnection("default", ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
@@ -127,8 +127,8 @@ val db = Database()
 <TabItem label="Java">
 
 ```java
-import io.konaframework.cadence.ConnectionConfig;
-import io.konaframework.cadence.Database;
+import org.konaframework.cadence.ConnectionConfig;
+import org.konaframework.cadence.Database;
 
 Database db = new Database()
     .addConnection("default", new ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
@@ -149,7 +149,7 @@ The `DB` facade runs statements on the global database's default connection. Pas
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.cadence.DB
+import org.konaframework.cadence.DB
 
 val admins = DB.select("select * from users where admin = ?", listOf(true))
 DB.update("update users set active = ? where id = ?", listOf(false, 7))
@@ -164,7 +164,7 @@ DB.transaction { connection ->
 <TabItem label="Java">
 
 ```java
-import io.konaframework.cadence.DB;
+import org.konaframework.cadence.DB;
 import java.util.List;
 import java.util.Map;
 

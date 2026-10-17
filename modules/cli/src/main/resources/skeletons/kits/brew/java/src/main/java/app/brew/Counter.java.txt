@@ -1,6 +1,6 @@
 package app.brew;
 
-import io.konaframework.brew.Component;
+import org.konaframework.brew.Component;
 
 public class Counter extends Component {
     public int count = 0;

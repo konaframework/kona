@@ -5,7 +5,7 @@ description: Read headers, query strings, form fields, and JSON from a Request, 
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Every piece of HTTP code in Kona works with two small classes from the `io.konaframework.http` package:
+Every piece of HTTP code in Kona works with two small classes from the `org.konaframework.http` package:
 
 - **`Request`** — an immutable snapshot of what the client sent: method, path, headers, query string, and body. It also carries a mutable **attributes** map that Kona and your middleware use to pass values along (route parameters live there).
 - **`Response`** — what you send back: a status code, a string body, and a map of headers. Responses are mutable and chainable, so middleware can adjust them on the way out.
@@ -395,7 +395,7 @@ Read cookies from the `Cookie` request header:
 | `cookies()` | Map of name → value |
 | `cookie(name)` / `cookie(name, default)` | Single cookie |
 
-On the response side, chain `cookie(Cookie)` or `cookie(name, value, …)` with path, domain, maxAge, secure, httpOnly, and sameSite options. See the `Cookie` type in `io.konaframework.http`.
+On the response side, chain `cookie(Cookie)` or `cookie(name, value, …)` with path, domain, maxAge, secure, httpOnly, and sameSite options. See the `Cookie` type in `org.konaframework.http`.
 
 
 

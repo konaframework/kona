@@ -21,9 +21,9 @@ kover {
             filters {
                 excludes {
                     // Template interpreter — exercised via CremaEngine behavioral suite.
-                    classes("io.konaframework.crema.CremaRuntime*")
+                    classes("org.konaframework.crema.CremaRuntime*")
                     // Shared Vite resolver — covered by CremaViteTest (+ kona-inertia suite in konaframework/kona-inertia).
-                    classes("io.konaframework.crema.assets.*")
+                    classes("org.konaframework.crema.assets.*")
                 }
             }
             verify {

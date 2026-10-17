@@ -1,6 +1,6 @@
 package config
 
-import io.konaframework.core.ConfigFile
+import org.konaframework.core.ConfigFile
 
 object Http : ConfigFile {
     override fun key(): String = "http"

@@ -439,7 +439,7 @@ Cadence Serialization, Cadence Collections, Soft-delete / model **events** → M
 
 **Parity slice:** Something similar to Livewire or Conduit — full-stack reactive components on the JVM.
 
-**Product name:** **Brew** (`io.konaframework:kona-brew`, package `io.konaframework.brew`) — coffee-themed reactive server components.
+**Product name:** **Brew** (`org.konaframework:kona-brew`, package `org.konaframework.brew`) — coffee-themed reactive server components.
 External repo: [konaframework/kona-brew](https://github.com/konaframework/kona-brew) (Livewire v4 parity program M1–M7).
 
 ### Parity checklist
@@ -493,7 +493,7 @@ External repo: [konaframework/kona-brew](https://github.com/konaframework/kona-b
 
 ### In-scope modules
 
-`ide-support/crema`, `ide-support/vscode-crema`, `ide-support/intellij`; `modules/lsp` (`io.konaframework:kona-lsp`); public docs in `apps/docs/` (Language / Editor)
+`ide-support/crema`, `ide-support/vscode-crema`, `ide-support/intellij`; `modules/lsp` (`org.konaframework:kona-lsp`); public docs in `apps/docs/` (Language / Editor)
 
 ---
 

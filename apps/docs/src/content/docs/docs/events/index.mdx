@@ -7,7 +7,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 An **event** is a typed message your application publishes when something meaningful happens — an order shipped, a user registered, a payment failed. A **listener** is code that runs when that message is published. Kona’s event bus (`EventDispatcher`) is a **synchronous, in-process** registry: listeners for a given event class run immediately, on the same thread, in registration order.
 
-This section covers the full shipped surface in `io.konaframework.events` (`kona-events`): defining events, registering listeners, dispatching, clearing listeners, container wiring via `EventServiceProvider`, and testing with `FakeEvent`. Features that are **not** in Kona today are listed under [Not available today](#not-available-today).
+This section covers the full shipped surface in `org.konaframework.events` (`kona-events`): defining events, registering listeners, dispatching, clearing listeners, container wiring via `EventServiceProvider`, and testing with `FakeEvent`. Features that are **not** in Kona today are listed under [Not available today](#not-available-today).
 
 | Guide | Use when |
 |-------|----------|
@@ -38,8 +38,8 @@ There is no queue hop, no separate worker process, and no automatic discovery of
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.events.EventDispatcher
-import io.konaframework.events.EventListener
+import org.konaframework.events.EventDispatcher
+import org.konaframework.events.EventListener
 
 data class OrderShipped(val id: String)
 
@@ -66,8 +66,8 @@ bus.dispatch(OrderShipped("42"))
 <TabItem label="Java">
 
 ```java
-import io.konaframework.events.EventDispatcher;
-import io.konaframework.events.EventListener;
+import org.konaframework.events.EventDispatcher;
+import org.konaframework.events.EventListener;
 
 public final class OrderShipped {
     public final String id;
@@ -96,7 +96,7 @@ bus.dispatch(new OrderShipped("42"));
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.events.EventServiceProvider
+import org.konaframework.events.EventServiceProvider
 
 val app = Kona.create(args)
     .providers(
@@ -114,7 +114,7 @@ val events = app.resolve(EventDispatcher::class.java)
 <TabItem label="Java">
 
 ```java
-import io.konaframework.events.EventServiceProvider;
+import org.konaframework.events.EventServiceProvider;
 
 Application app = Kona.create(args)
     .providers(
@@ -174,7 +174,7 @@ You may also construct `EventDispatcher()` yourself in tests or small tools with
 
 ## Maven / Gradle
 
-Artifact: `io.konaframework:kona-events` (included in the Kona BOM). Package: `io.konaframework.events`.
+Artifact: `org.konaframework:kona-events` (included in the Kona BOM). Package: `org.konaframework.events`.
 
 | Type | Role |
 |------|------|

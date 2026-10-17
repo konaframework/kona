@@ -36,6 +36,6 @@ files.set("photos", new FakeStorage());
 
 ## `FakeStorage`
 
-`io.konaframework.testing.FakeStorage` is an in-memory `FilesystemAdapter` for unit tests that should not touch the filesystem. It implements the full adapter surface (streams, `putFile`, visibility, checksum, recursive listings). It does **not** support `temporaryUrl` — use `files.fake(...)` or `buildTemporaryUrlsUsing` when your code under test builds signed links.
+`org.konaframework.testing.FakeStorage` is an in-memory `FilesystemAdapter` for unit tests that should not touch the filesystem. It implements the full adapter surface (streams, `putFile`, visibility, checksum, recursive listings). It does **not** support `temporaryUrl` — use `files.fake(...)` or `buildTemporaryUrlsUsing` when your code under test builds signed links.
 
 See also [Database & fakes](../testing/database-fakes/).

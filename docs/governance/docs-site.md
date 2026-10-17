@@ -1,10 +1,10 @@
 # Public documentation site
 
-Stack: **Astro + Starlight + `@almasix/starlight-theme`**, pnpm workspace, Cloudflare Workers static assets (`wrangler`), GitHub Pages project site.
+Stack: **Astro + Starlight + `@almasix/starlight-theme`**, pnpm workspace, **Cloudflare Pages** (primary at `*.konaframework.org`), GitHub Pages project sites as a secondary mirror.
 
 | Path | Role |
 |------|------|
-| `apps/docs/` | Public Starlight site → [konaframework.dev](https://konaframework.dev) and [konaframework.github.io/kona](https://konaframework.github.io/kona/) |
+| `apps/docs/` | Public Starlight site → [docs.konaframework.org](https://docs.konaframework.org) (Cloudflare Pages). Mirror: [konaframework.github.io/kona](https://konaframework.github.io/kona/) |
 | `docs/architecture/` | In-repo architecture / agent plan (not the public site) |
 | `docs/quality/` | Milestone audits |
 | `docs/governance/` | Process locks (this file, rulesets) |
@@ -60,14 +60,47 @@ Public guides for a milestone’s API surface are written **or rewritten** **in 
 
 ## Deploy
 
-**Cloudflare (konaframework.dev):**
+### Hostnames (locked)
+
+| Host | Repo | Cloudflare Pages project |
+|------|------|--------------------------|
+| [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`) | `kona-docs` |
+| [brew.konaframework.org](https://brew.konaframework.org) | `konaframework/kona-brew` | `kona-brew-docs` |
+| [inertia.konaframework.org](https://inertia.konaframework.org) | `konaframework/kona-inertia` | `kona-inertia-docs` |
+
+Production builds use `PUBLIC_SITE_URL` = that host and `PUBLIC_BASE_PATH=/` (apex path, not a GitHub project subpath).
+
+### Cloudflare Pages (primary)
+
+Workflow: [`.github/workflows/cloudflare-pages.yml`](../../.github/workflows/cloudflare-pages.yml) — builds on `main` docs changes and deploys with Wrangler when secrets exist.
+
+**GitHub Actions secrets** (same names on each docs-publishing repo; human creates values — agents must not invent tokens):
+
+| Secret | Purpose |
+|--------|---------|
+| `CLOUDFLARE_API_TOKEN` | API token with **Account → Cloudflare Pages → Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account id (dashboard sidebar / Workers & Pages) |
+
+**Human setup once per site:**
+
+1. Cloudflare account linked to the `konaframework.org` zone (DNS already verified for the org domain).
+2. Create Pages project (`kona-docs` / `kona-brew-docs` / `kona-inertia-docs`) — empty/direct upload is fine; CI deploys artifacts.
+3. Custom domain on the project: `docs.` / `brew.` / `inertia.` → CNAME to the Pages `*.pages.dev` hostname Cloudflare shows.
+4. Add the two secrets above to the GitHub repo.
+5. Re-run the Cloudflare Pages workflow (or push a docs change).
+
+Local:
 
 ```bash
-pnpm pages:build
-pnpm --filter @kona/docs cf:deploy
+pnpm pages:cf          # build for docs.konaframework.org
+pnpm --filter @kona/docs cf:deploy   # wrangler pages deploy (needs `wrangler login` or token env)
 ```
 
-**GitHub Pages (konaframework.github.io/kona):** workflow [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml) builds with `PUBLIC_BASE_PATH=/kona/` on pushes to `main` that touch docs. Enable **Settings → Pages → Source: GitHub Actions** once per repo (human; agents must not change rulesets).
+Config: `apps/docs/wrangler.jsonc` (`pages_build_output_dir: ./dist`). Optional `public/_headers` ships with the static build.
+
+### GitHub Pages (secondary mirror)
+
+Workflow [`.github/workflows/pages.yml`](../../.github/workflows/pages.yml) still publishes to `konaframework.github.io/kona` with `PUBLIC_BASE_PATH=/kona/`. Enable **Settings → Pages → Source: GitHub Actions** once per repo (human; agents must not change rulesets).
 
 ```bash
 pnpm pages:gh   # local parity build for the /kona/ base path

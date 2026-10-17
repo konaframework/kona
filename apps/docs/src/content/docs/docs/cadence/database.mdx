@@ -140,8 +140,8 @@ DB_PASSWORD=
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.cadence.DB
-import io.konaframework.cadence.Database
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.Database
 
 DB.table("users").where("active", true).get()
 
@@ -157,8 +157,8 @@ Database.global().connection("reports").table("facts").count()
 <TabItem label="Java">
 
 ```java
-import io.konaframework.cadence.DB;
-import io.konaframework.cadence.Database;
+import org.konaframework.cadence.DB;
+import org.konaframework.cadence.Database;
 
 DB.table("users").where("active", true).get();
 
@@ -200,7 +200,7 @@ Cadence needs two pieces that can differ by engine:
 ### 1. Register query quoting for a JDBC URL prefix
 
 ```kotlin
-import io.konaframework.cadence.Grammar
+import org.konaframework.cadence.Grammar
 
 // Example: double-bracket style for a fictional driver
 val brackets = Grammar("[", "]")
@@ -217,7 +217,7 @@ Grammar.registerUrlPrefix("jdbc:example:", brackets)
 The product name is whatever `DatabaseMetaData.getDatabaseProductName()` returns (for example `"PostgreSQL"`, `"H2"`, `"MySQL"`).
 
 ```kotlin
-import io.konaframework.cadence.schema.SchemaGrammar
+import org.konaframework.cadence.schema.SchemaGrammar
 
 class ExampleSchemaGrammar(identifiers: Grammar) : SchemaGrammar(identifiers) {
     override fun type(column: ColumnDefinition): String =

@@ -7,7 +7,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 **Rate limiting** caps how often a client may hit a route — login endpoints, public APIs, expensive reports. Kona’s `RateLimiter` tracks hits in memory by key; `ThrottleRequests` middleware turns a named limiter into HTTP responses with standard headers.
 
-Artifact: `io.konaframework:kona-auth`. `AuthServiceProvider` registers a shared `RateLimiter`.
+Artifact: `org.konaframework:kona-auth`. `AuthServiceProvider` registers a shared `RateLimiter`.
 
 ## Simplest path
 
@@ -15,11 +15,11 @@ Artifact: `io.konaframework:kona-auth`. `AuthServiceProvider` registers a shared
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.http.HttpKernel
-import io.konaframework.http.Router
-import io.konaframework.security.RateLimit
-import io.konaframework.security.RateLimiter
-import io.konaframework.security.ThrottleRequests
+import org.konaframework.http.HttpKernel
+import org.konaframework.http.Router
+import org.konaframework.security.RateLimit
+import org.konaframework.security.RateLimiter
+import org.konaframework.security.ThrottleRequests
 
 val limiter = app.resolve(RateLimiter::class.java)
 limiter.forName("login") { request ->
@@ -38,9 +38,9 @@ router.routes {
 <TabItem label="Java">
 
 ```java
-import io.konaframework.security.RateLimit;
-import io.konaframework.security.RateLimiter;
-import io.konaframework.security.ThrottleRequests;
+import org.konaframework.security.RateLimit;
+import org.konaframework.security.RateLimiter;
+import org.konaframework.security.ThrottleRequests;
 import java.util.List;
 
 RateLimiter limiter = app.resolve(RateLimiter.class);

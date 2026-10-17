@@ -5,7 +5,7 @@ description: Bind services, resolve them by type or key, and understand construc
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-The **container** (`io.konaframework.core.Container`) is a registry of *how to create* the objects your application needs. Instead of constructing services by hand and threading them through every constructor in your app, you tell the container once how a type is made (a **binding**), and then ask the container for that type wherever you need it (**resolving**). The container also builds ordinary classes on its own by reading their constructor, which is called **autowiring**.
+The **container** (`org.konaframework.core.Container`) is a registry of *how to create* the objects your application needs. Instead of constructing services by hand and threading them through every constructor in your app, you tell the container once how a type is made (a **binding**), and then ask the container for that type wherever you need it (**resolving**). The container also builds ordinary classes on its own by reading their constructor, which is called **autowiring**.
 
 Every `Application` owns one container, available as `app.container` in Kotlin and `app.getContainer()` in Java. Bindings are normally added in a provider's `register` method and resolved in `boot` or at request time.
 
@@ -169,7 +169,7 @@ UserService users = app.resolve(UserService.class);
 
 ### Choosing a constructor with `@Inject`
 
-Mark the constructor the container should use with `io.konaframework.core.Inject`. The container recognises any annotation whose simple name is `Inject`, so `jakarta.inject.Inject` and `javax.inject.Inject` also work if they are already on your classpath.
+Mark the constructor the container should use with `org.konaframework.core.Inject`. The container recognises any annotation whose simple name is `Inject`, so `jakarta.inject.Inject` and `javax.inject.Inject` also work if they are already on your classpath.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -229,7 +229,7 @@ Clock clock = app.getContainer().make("clock");
 
 ## Errors
 
-All resolution failures throw `io.konaframework.core.BindingException` (an unchecked exception), with a message naming the type:
+All resolution failures throw `org.konaframework.core.BindingException` (an unchecked exception), with a message naming the type:
 
 | Message | Cause | Fix |
 |---------|-------|-----|

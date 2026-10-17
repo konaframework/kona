@@ -25,7 +25,7 @@ kover {
         total {
             filters {
                 excludes {
-                    annotatedBy("io.konaframework.support.KoverExclude")
+                    annotatedBy("org.konaframework.support.KoverExclude")
                 }
             }
             verify {

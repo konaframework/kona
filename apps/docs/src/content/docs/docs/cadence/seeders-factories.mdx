@@ -9,7 +9,7 @@ A fresh database is empty. **Seeders** put data into it: reference data your app
 
 ## Factories
 
-A factory extends `io.konaframework.cadence.factory.Factory<M>` and implements `definition()`, which returns the default attributes for one model. The protected `index` property counts the models this factory has built (starting at 0); use it to make values unique.
+A factory extends `org.konaframework.cadence.factory.Factory<M>` and implements `definition()`, which returns the default attributes for one model. The protected `index` property counts the models this factory has built (starting at 0); use it to make values unique.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -18,7 +18,7 @@ A factory extends `io.konaframework.cadence.factory.Factory<M>` and implements `
 package database.factories
 
 import app.Models.User
-import io.konaframework.cadence.factory.Factory
+import org.konaframework.cadence.factory.Factory
 
 class UserFactory : Factory<User>(User::class.java) {
     override fun definition(): Map<String, Any?> = mapOf(
@@ -36,7 +36,7 @@ class UserFactory : Factory<User>(User::class.java) {
 package database.factories;
 
 import app.Models.User;
-import io.konaframework.cadence.factory.Factory;
+import org.konaframework.cadence.factory.Factory;
 import java.util.Map;
 
 public class UserFactory extends Factory<User> {
@@ -164,7 +164,7 @@ users.count(2).createMany();
 
 ## Seeders
 
-A seeder extends `io.konaframework.cadence.seeding.Seeder` and implements `run()`. A root seeder, conventionally `database.seeders.DatabaseSeeder`, calls the others with `call` so they run in a known order.
+A seeder extends `org.konaframework.cadence.seeding.Seeder` and implements `run()`. A root seeder, conventionally `database.seeders.DatabaseSeeder`, calls the others with `call` so they run in a known order.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -173,8 +173,8 @@ A seeder extends `io.konaframework.cadence.seeding.Seeder` and implements `run()
 package database.seeders
 
 import database.factories.UserFactory
-import io.konaframework.cadence.DB
-import io.konaframework.cadence.seeding.Seeder
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.seeding.Seeder
 
 class RoleSeeder : Seeder() {
     override fun run() {
@@ -202,8 +202,8 @@ class DatabaseSeeder : Seeder() {
 package database.seeders;
 
 import database.factories.UserFactory;
-import io.konaframework.cadence.DB;
-import io.konaframework.cadence.seeding.Seeder;
+import org.konaframework.cadence.DB;
+import org.konaframework.cadence.seeding.Seeder;
 import java.util.List;
 import java.util.Map;
 

@@ -4,7 +4,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ## Purpose
 
-**Kona** is a from-scratch JVM web framework (`io.konaframework`): Kotlin-first internals, Java first-class public API, Virtual Threads, Netty HTTP, Cadence ORM, Crema templates, Grind Console, drip HTTP client, steam scheduler. Org: [konaframework](https://github.com/konaframework). Public docs: https://konaframework.github.io/kona/
+**Kona** is a from-scratch JVM web framework (`org.konaframework`): Kotlin-first internals, Java first-class public API, Virtual Threads, Netty HTTP, Cadence ORM, Crema templates, Grind Console, drip HTTP client, steam scheduler. Org: [konaframework](https://github.com/konaframework). Public docs: https://docs.konaframework.org/
 
 ## Read first (in order)
 
@@ -14,15 +14,15 @@ Paste this file (or its path) into a new chat so another agent can continue with
 4. [docs-site.md](docs-site.md) + [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) — public docs voice (feature-guide depth; Getting Started stays simple).
 5. [docs/architecture/PLAN.md](../architecture/PLAN.md) and [components.md](../architecture/components.md) — product map.
 6. [github-rulesets.md](github-rulesets.md) — **never** mutate rulesets (Law 9).
-7. [publishing.md](publishing.md) — Maven Local today; Maven Central prerequisites and blockers for `io.konaframework`.
+7. [publishing.md](publishing.md) — Maven Local today; Maven Central prerequisites and blockers for `org.konaframework`.
 8. Sister IDE repo: [`konaframework/kona-idea` → `HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
 
 ## Sibling product repos (this session)
 
 | Repo | Path (sibling) | Docs | Handoff |
 |------|----------------|------|---------|
-| Brew (Livewire v4 parity) | `/home/smaosa/kona-brew` | https://konaframework.github.io/kona-brew/ | `docs/governance/HANDOFF.md` |
-| Inertia | `/home/smaosa/kona-inertia` | https://konaframework.github.io/kona-inertia/ | `docs/governance/HANDOFF.md` |
+| Brew (Livewire v4 parity) | `/home/smaosa/kona-brew` | https://brew.konaframework.org/ | `docs/governance/HANDOFF.md` |
+| Inertia | `/home/smaosa/kona-inertia` | https://inertia.konaframework.org/ | `docs/governance/HANDOFF.md` |
 
 Do **not** put handoff in `~/hello-kona` — throwaway `kona new` sample only.
 

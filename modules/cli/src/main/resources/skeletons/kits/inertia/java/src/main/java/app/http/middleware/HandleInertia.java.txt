@@ -1,7 +1,7 @@
 package app.http.middleware;
 
-import io.konaframework.http.Request;
-import io.konaframework.inertia.HandleInertiaRequests;
+import org.konaframework.http.Request;
+import org.konaframework.inertia.HandleInertiaRequests;
 import java.util.Map;
 
 public class HandleInertia extends HandleInertiaRequests {
