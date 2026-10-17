@@ -22,7 +22,7 @@ Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) 
 
 ## Brand (locked)
 
-Coffee palette shared with Brew (caramel / latte). Dark headings use soft cream, not pure white. Light accent is warm brown `#74453F` (~7.3:1 on cream) for links, feature headings, and secondary emphasis; primary deep `#9A5812` remains for caramel shade steps. Buttons on caramel fills use espresso `#1A120C` text. Body/heading ink stays deep espresso for long-form readability.
+Coffee palette shared with Brew and Inertia (caramel / latte). Dark headings use soft cream, not pure white. Light accent is warm brown `#74453F` (~7.3:1 on cream) for links, feature headings, and secondary emphasis; primary deep `#9A5812` remains for caramel shade steps. Buttons on caramel fills use espresso `#1A120C` text. Body/heading ink stays deep espresso for long-form readability.
 
 | Token | Light | Dark |
 |-------|-------|------|
@@ -35,7 +35,7 @@ Coffee palette shared with Brew (caramel / latte). Dark headings use soft cream,
 | Surface | Cream `#FAF6F0` | Espresso `#1A120C` |
 | Heading | `#2A1C10` | Soft cream `#E8D4B8` |
 
-CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). Mark: Outfit wordmark in `apps/docs/public/branding/` — primary on K + underline only; "ona" black (light) / white (dark). Accent is CSS/theme only — not a logo recolor.
+CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). Mark: Outfit wordmark in `apps/docs/public/branding/` — primary on K + underline only; "ona" black (light) / white (dark). Accent is CSS/theme only — not a logo recolor. Sister product mirrors also live under `apps/docs/public/branding/`: `brew-*` and `inertia-*` (logo / banner / mark, light + dark) for cross-site reference.
 
 ## Voice and depth (locked)
 
