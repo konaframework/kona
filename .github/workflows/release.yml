@@ -1,7 +1,9 @@
 name: Publish to Maven Central
 
 # Tag-triggered release only. Never publishes SNAPSHOT from main pushes.
-# Prerequisites (repo secrets): see docs/governance/publishing.md
+# Auth today: Central Portal user token + GPG (see docs/governance/publishing.md).
+# Maven Central Trusted Publishing (OIDC) is not GA yet — do not add id-token exchange
+# until Sonatype + vanniktech document a supported path.
 on:
   push:
     tags:
@@ -11,6 +13,8 @@ jobs:
   publish:
     name: Publish org.konaframework
     runs-on: ubuntu-latest
+    # Optional harden: add `environment: maven-central` here after creating that
+    # Environment in repo settings and moving the four secrets onto it.
     permissions:
       contents: read
     steps:
@@ -21,7 +25,7 @@ jobs:
           java-version: "21"
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Require Central + signing secrets
+      - name: Require Central Portal token + GPG signing secrets
         env:
           MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
@@ -37,7 +41,8 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "Configure secrets documented in docs/governance/publishing.md before tagging a release."
+            echo "Configure Portal token + GPG secrets documented in docs/governance/publishing.md"
+            echo "before tagging a release. (OIDC Trusted Publishing is not available for Central yet.)"
             exit 1
           fi
       - name: Publish to Maven Central
