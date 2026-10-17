@@ -97,14 +97,14 @@ No `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in GitHub. Cloudflare clones
    |---------|--------|
    | Root directory | `/` (repo root — **required**; do not set `apps/docs`) |
    | Build command | `pnpm install --frozen-lockfile && pnpm docs:build` |
-   | Deploy command | `npx wrangler deploy --config apps/docs/wrangler.jsonc` |
-   | Preview command | `npx wrangler deploy --config apps/docs/wrangler.jsonc` |
+   | Deploy command | `npx wrangler deploy` (reads root `wrangler.jsonc` → `apps/docs/dist`) |
+   | Preview command | `npx wrangler deploy` |
    | Environment / build variables | `PUBLIC_SITE_URL=https://docs.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
    | Optional | `PNPM_VERSION=9.15.0` (matches root `packageManager`; Corepack also reads that field) |
 
    **Wrong (build):** `npm ci && npm run build` — no `package-lock.json` in this monorepo.
 
-   **Wrong (deploy):** `npx wrangler pages deploy …` or default `npx wrangler deploy` **without** `--config apps/docs/wrangler.jsonc` — Workers Builds will fail with *Missing entry-point to Worker script or to assets directory* because the Wrangler config lives under `apps/docs/` and must use Workers `assets.directory` (not Pages `pages_build_output_dir`). GitHub check name: **Workers Builds: kona**.
+   **Wrong (deploy):** `npx wrangler pages deploy …` — this project is Workers Assets, not Pages. Also avoid a Pages-style `pages_build_output_dir` in Wrangler; use `"assets": { "directory": "…" }`. Without a root `wrangler.jsonc` pointing at `apps/docs/dist`, default `npx wrangler deploy` fails with *Missing entry-point to Worker script or to assets directory*. GitHub check name: **Workers Builds: kona**.
 
 5. Custom domain: `docs.konaframework.org` on the Worker (Workers & Pages → `kona` → Custom domains). Sister hosts `brew.` / `inertia.` stay on their own projects.
 6. Push to `main` (or **Retry build** from the Cloudflare dashboard after saving settings).
@@ -132,7 +132,7 @@ pnpm pages:cf          # build for docs.konaframework.org
 pnpm --filter @kona/docs cf:deploy   # wrangler deploy (needs `wrangler login` or token env)
 ```
 
-Config: `apps/docs/wrangler.jsonc` (`assets.directory: ./dist`). Optional `public/_headers` ships with the static build.
+Config: root [`wrangler.jsonc`](../../wrangler.jsonc) (`assets.directory: ./apps/docs/dist`) for Workers Builds; [`apps/docs/wrangler.jsonc`](../../apps/docs/wrangler.jsonc) for local app-scoped deploy. Optional `public/_headers` ships with the static build.
 
 ### GitHub Pages (secondary mirror)
 

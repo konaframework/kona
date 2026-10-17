@@ -6,7 +6,7 @@ name: Cloudflare Pages
 #   Cloudflare Dashboard → Workers & Pages → project "kona" → Settings → Builds
 #   Framework preset: None (not Astro)
 #   Root: / · Build: pnpm install --frozen-lockfile && pnpm docs:build
-#   Deploy: npx wrangler deploy --config apps/docs/wrangler.jsonc
+#   Deploy: npx wrangler deploy  (root wrangler.jsonc → apps/docs/dist)
 #   NODE_VERSION=22 · PUBLIC_SITE_URL / PUBLIC_BASE_PATH
 #   Do NOT use npm ci; do NOT use wrangler pages deploy (Workers Assets, not Pages).
 #   Details: docs/governance/docs-site.md
@@ -22,6 +22,7 @@ on:
     branches: [main]
     paths:
       - 'apps/docs/**'
+      - 'wrangler.jsonc'
       - 'package.json'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'

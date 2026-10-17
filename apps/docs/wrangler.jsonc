@@ -6,15 +6,17 @@
   // Dashboard → Settings → Builds (Framework preset: None):
   //   Root directory:   /
   //   Build command:    pnpm install --frozen-lockfile && pnpm docs:build
-  //   Deploy command:   npx wrangler deploy --config apps/docs/wrangler.jsonc
-  //   Preview command:  npx wrangler deploy --config apps/docs/wrangler.jsonc
+  //   Deploy command:   npx wrangler deploy
+  //                     (reads repo-root wrangler.jsonc → apps/docs/dist)
+  //   Preview command:  npx wrangler deploy
   //   Build vars:       PUBLIC_SITE_URL=https://docs.konaframework.org
   //                     PUBLIC_BASE_PATH=/
   //                     NODE_VERSION=22
   //                     PNPM_VERSION=9.15.0  (optional)
   //
-  // This is a static Astro site on Workers Assets — use `wrangler deploy`,
-  // NOT `wrangler pages deploy`. Do NOT set pages_build_output_dir.
+  // This file is for local `cd apps/docs && pnpm cf:deploy`.
+  // Workers Builds uses the repo-root wrangler.jsonc (same name + assets).
+  // Use `wrangler deploy`, NOT `wrangler pages deploy`.
   // See docs/governance/docs-site.md
   "name": "kona",
   "compatibility_date": "2026-08-01",
