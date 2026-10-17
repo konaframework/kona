@@ -37,7 +37,7 @@ Other `~/kona-*` directories (bench, netty, logging worktrees, etc.) are **not**
 | Active milestone | **none** — scan Almasix ledger / intentional deferrals; open next deepen only with a clear checklist |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Brew starter via package |
-| Docs brand | Primary `#FF9A00`, accent `#286291` |
+| Docs brand | Mocha `#6F4E37` / roast `#A67C52`; cream headings `#E8D4B8` |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Continue deepen / docs exhaustion; do not pause between merges |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |

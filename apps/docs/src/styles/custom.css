@@ -1,16 +1,20 @@
 /*
- * Kona brand — primary #FF9A00, complementary accent #286291.
- * Overrides @almasix/starlight-theme oranges for the whole site.
+ * Kona brand — coffee palette (aligned with Brew).
+ * Light primary Mocha #6F4E37; dark primary espresso roast #A67C52.
+ * Dark headings use soft cream #E8D4B8 (not pure white).
  */
 
 :root {
-  --kona-primary: #ff9a00;
-  --kona-primary-soft: #ffb84d;
-  --kona-primary-deep: #cc7a00;
-  --kona-accent: #286291;
-  --kona-accent-soft: #4a8ab8;
-  --kona-accent-deep: #1c4668;
-  --kona-glow: rgba(255, 154, 0, 0.22);
+  --kona-primary: #a67c52;
+  --kona-primary-soft: #c4a574;
+  --kona-primary-deep: #8b6340;
+  --kona-accent: #e8d4b8;
+  --kona-accent-soft: #f0e6d6;
+  --kona-accent-deep: #d4b896;
+  --kona-cream: #e8d4b8;
+  --kona-surface: #1a120c;
+  --kona-surface-raised: #241810;
+  --kona-glow: rgba(166, 124, 82, 0.28);
 
   --almasix-orange: var(--kona-primary);
   --almasix-orange-soft: var(--kona-primary-soft);
@@ -20,20 +24,47 @@
   --almasix-glow: var(--kona-glow);
 
   /* Dark mode (default :root in the Almasix theme) */
-  --sl-color-accent-low: #3d2a00;
+  --sl-color-accent-low: #2a1c10;
   --sl-color-accent: var(--kona-primary-soft);
-  --sl-color-accent-high: #ffe0a8;
+  --sl-color-accent-high: var(--kona-cream);
   --sl-color-text-accent: var(--kona-primary-soft);
+  --sl-color-bg: var(--kona-surface);
+  --sl-color-bg-nav: var(--kona-surface-raised);
+  --sl-color-bg-sidebar: var(--kona-surface);
+  --sl-color-hairline: rgba(232, 212, 184, 0.12);
+  --sl-color-text: rgba(232, 212, 184, 0.82);
+  --sl-color-text-heading: var(--kona-cream);
+  --sl-color-white: var(--kona-cream);
+  --sl-color-gray-1: #f0e6d6;
+  --sl-color-gray-2: #e8d4b8;
+  --sl-color-gray-3: #d4b896;
 }
 
 :root[data-theme='light'] {
-  --sl-color-accent-low: #fff0d6;
+  --kona-primary: #6f4e37;
+  --kona-primary-soft: #8b6b4f;
+  --kona-primary-deep: #4a3423;
+  --kona-accent: #3d2914;
+  --kona-accent-soft: #5c4033;
+  --kona-accent-deep: #2a1c10;
+  --kona-cream: #faf6f0;
+  --kona-surface: #faf6f0;
+  --kona-surface-raised: #f5ede3;
+  --kona-glow: rgba(111, 78, 55, 0.18);
+
+  --sl-color-accent-low: #f0e6d6;
   --sl-color-accent: var(--kona-primary);
   --sl-color-accent-high: var(--kona-primary-deep);
   --sl-color-text-accent: var(--kona-primary-deep);
+  --sl-color-bg: var(--kona-surface);
+  --sl-color-bg-nav: var(--kona-surface-raised);
+  --sl-color-bg-sidebar: var(--kona-surface);
+  --sl-color-hairline: rgba(61, 41, 20, 0.12);
+  --sl-color-text: #3d2914;
+  --sl-color-text-heading: #2a1c10;
 }
 
-/* Links and secondary emphasis use the complementary blue */
+/* Links and secondary emphasis use espresso / cream accents */
 :root {
   --sl-color-bg-accent: var(--kona-primary);
 }
