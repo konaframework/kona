@@ -5,7 +5,7 @@ description: Server-driven single-page frontends — brief overview and link to 
 
 **Inertia** for Kona lets your JVM app return a **page object** — component name plus props — that a JavaScript client hydrates. The first visit is a normal HTML document; later navigations send the `X-Inertia` header and receive JSON.
 
-Inertia ships as a separate artifact (`org.konaframework:kona-inertia`) from the [kona-inertia](https://github.com/konaframework/kona-inertia) repository. Scaffold with `kona new my-app --kit=inertia`, or add the dependency (and provider) with `kona install inertia`.
+Inertia ships as a separate artifact (`org.konaframework:kona-inertia`) from the [kona-inertia](https://github.com/konaframework/kona-inertia) repository. Scaffold with `kona new my-app --kit=inertia`, or add the dependency (and provider) with `./grind install inertia` (or `kona grind install inertia`).
 
 **[Inertia documentation →](https://inertia.konaframework.org/)**
 

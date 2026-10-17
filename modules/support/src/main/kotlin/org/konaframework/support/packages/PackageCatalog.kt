@@ -1,7 +1,7 @@
 package org.konaframework.support.packages
 
 /**
- * First-party short-name map for `kona install` / `grind install`.
+ * First-party short-name map for `./grind install` / `kona grind install`.
  *
  * Generic Maven coordinates (`group:artifact` or `group:artifact:version`) are also accepted
  * without an entry here. Known [providers] are written to the app's

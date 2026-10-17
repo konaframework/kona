@@ -6,7 +6,8 @@ import org.konaframework.support.packages.PackageInstaller
 import java.nio.file.Path
 
 /**
- * `./grind install <package>` — same as `kona install`, scoped to the app root.
+ * `./grind install <package>` (also `kona grind install <package>`) — add a Maven
+ * dependency and register service providers for the app.
  *
  * Package mutation coverage: `PackageInstallerTest`. This class is a GrindIO façade.
  */
@@ -18,7 +19,7 @@ class InstallCommand(
         val (positional, options) = parseOptions(args)
         val io = GrindIO.fromOptions(options)
         if (positional.isEmpty()) {
-            io.error("Usage: ./grind install <package>")
+            io.error("Usage: ./grind install <package>  (or: kona grind install <package>)")
             io.info("Packages: ${PackageCatalog.aliases().joinToString(", ")}")
             io.info("Or: group:artifact[:version]")
             return 1
