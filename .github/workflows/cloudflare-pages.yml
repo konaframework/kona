@@ -1,10 +1,17 @@
 name: Cloudflare Pages
 
 # Primary docs host: https://docs.konaframework.org
-# Requires repo secrets (human-configured; do not invent values):
+#
+# First publish (no GitHub secrets required):
+#   Prefer Cloudflare Dashboard → Workers & Pages → Create → Connect to Git
+#   for konaframework/kona, root/apps/docs build (see docs/governance/docs-site.md).
+#   Custom domain docs.konaframework.org on that project. Cloudflare pulls from GitHub;
+#   no CLOUDFLARE_* secrets in this repo.
+#
+# Optional harden (this workflow's deploy step):
 #   CLOUDFLARE_API_TOKEN   — API token with Cloudflare Pages Edit
 #   CLOUDFLARE_ACCOUNT_ID  — Cloudflare account id
-# Create Pages project "kona-docs" and attach custom domain docs.konaframework.org.
+# When unset, this workflow still builds docs on main (smoke) and skips Wrangler deploy.
 
 on:
   push:
@@ -50,7 +57,7 @@ jobs:
           PUBLIC_BASE_PATH: /
         run: pnpm docs:build
 
-      - name: Require Cloudflare secrets
+      - name: Check optional Cloudflare secrets
         id: cf
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -59,12 +66,12 @@ jobs:
           set -euo pipefail
           if [ -z "${CLOUDFLARE_API_TOKEN}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — build only. See docs/governance/docs-site.md"
+            echo "::notice::No CLOUDFLARE_* GitHub secrets — build-only. Deploy via Cloudflare Git integration or dashboard; see docs/governance/docs-site.md"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy to Cloudflare Pages
+      - name: Deploy to Cloudflare Pages (Wrangler)
         if: steps.cf.outputs.configured == 'true'
         uses: cloudflare/wrangler-action@v3
         with:

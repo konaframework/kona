@@ -108,7 +108,7 @@ cd apps/docs && npm ci && npm run dev
 
 # Publish for sibling packages (Brew / Inertia CI pattern)
 ./gradlew publishToMavenLocal -x test
-# Full maintainer guide (Central blockers, order, versions): docs/governance/publishing.md
+# Full maintainer guide (verified namespace → first 0.1.0): docs/governance/publishing.md
 ```
 
 Key paths: `modules/` (framework), `apps/docs/` (public site), `docs/governance/` (laws + handoff), `.cursor/rules/kona-*.mdc`.
@@ -119,7 +119,7 @@ Key paths: `modules/` (framework), `apps/docs/` (public site), `docs/governance/
 2. Pick the next **deepen** slice from remaining Almasix ledger “implemented (checklist)” rows or human-requested gaps — one milestone branch at a time.
 3. Keep sibling Brew/Inertia work in their repos; only touch Kona for install/starter/brief link-out.
 4. Optionally sync Brew marks into Kona branding assets if the brief Brew page should show the espresso mark (see untracked `brew-*.svg` note above).
-5. **Maven Central:** Gradle Central Portal plumbing + `release.yml` are wired — see [publishing.md](publishing.md). Public release still needs namespace claim, GH secrets, GPG, and a non-SNAPSHOT tag (`v0.1.0`); do not invent a Central success without credentials.
+5. **Maven Central:** Namespace `org.konaframework` is **verified**. Gradle + `release.yml` are wired — see [publishing.md](publishing.md) (“Namespace verified — next steps”). Still need Portal token + GPG secrets, non-SNAPSHOT `0.1.0` tag, and Portal **Publish**. Trusted Publishing (OIDC) is **not GA** for Central yet — first release uses token + GPG.
 
 ## Do not
 

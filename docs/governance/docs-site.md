@@ -80,22 +80,39 @@ Production builds use `PUBLIC_SITE_URL` = that host and `PUBLIC_BASE_PATH=/` (ap
 
 ### Cloudflare Pages (primary)
 
-Workflow: [`.github/workflows/cloudflare-pages.yml`](../../.github/workflows/cloudflare-pages.yml) — builds on `main` docs changes and deploys with Wrangler when secrets exist.
+**First publish does not require GitHub secrets.** Prefer Cloudflare’s Git integration (or a dashboard Direct Upload) so `docs.konaframework.org` goes live, then optionally harden with Wrangler secrets later.
 
-**GitHub Actions secrets** (same names on each docs-publishing repo; human creates values — agents must not invent tokens):
+#### Path A — Cloudflare Git integration (recommended for first publish)
+
+No `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in GitHub. Cloudflare clones and builds from the repo.
+
+1. Cloudflare account on the `konaframework.org` zone.
+2. **Workers & Pages → Create → Connect to Git** → `konaframework/kona` (repeat for brew / inertia with their repos).
+3. Project name: `kona-docs` (brew: `kona-brew-docs`, inertia: `kona-inertia-docs`).
+4. Build settings for `kona` (pnpm workspace):
+
+   | Setting | Value |
+   |---------|--------|
+   | Root directory | `/` (repo root) or follow CF’s monorepo docs if you pin `apps/docs` |
+   | Build command | `pnpm install --frozen-lockfile && pnpm docs:build` |
+   | Build output directory | `apps/docs/dist` |
+   | Env vars | `PUBLIC_SITE_URL=https://docs.konaframework.org`, `PUBLIC_BASE_PATH=/` |
+
+5. Custom domain: `docs.` / `brew.` / `inertia.` → CNAME to the `*.pages.dev` host Cloudflare shows.
+6. Push to `main` (or redeploy from the Cloudflare dashboard).
+
+Sister repos: same pattern with their docs app paths and hostnames from the table above.
+
+#### Path B — optional Wrangler from GitHub Actions (harden later)
+
+Workflow: [`.github/workflows/cloudflare-pages.yml`](../../.github/workflows/cloudflare-pages.yml) — on `main` docs changes it **always builds** (smoke). It **deploys with Wrangler only when** the secrets below exist; otherwise it exits the deploy step cleanly (build-only notice). Harmless alongside Path A if you keep both, or use Path B alone with Direct Upload / empty project.
 
 | Secret | Purpose |
 |--------|---------|
 | `CLOUDFLARE_API_TOKEN` | API token with **Account → Cloudflare Pages → Edit** |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account id (dashboard sidebar / Workers & Pages) |
 
-**Human setup once per site:**
-
-1. Cloudflare account linked to the `konaframework.org` zone (DNS already verified for the org domain).
-2. Create Pages project (`kona-docs` / `kona-brew-docs` / `kona-inertia-docs`) — empty/direct upload is fine; CI deploys artifacts.
-3. Custom domain on the project: `docs.` / `brew.` / `inertia.` → CNAME to the Pages `*.pages.dev` hostname Cloudflare shows.
-4. Add the two secrets above to the GitHub repo.
-5. Re-run the Cloudflare Pages workflow (or push a docs change).
+If using Path B without Path A: create an empty/direct-upload Pages project named `kona-docs`, attach the custom domain, add the two secrets, re-run the workflow.
 
 Local:
 
