@@ -72,6 +72,9 @@ jobs:
         working-directory: .kona-inertia
         run: ./gradlew :kona-inertia:publishToMavenLocal -x test --no-configuration-cache
       - name: Unit tests with Kover verification
-        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify test
+        # --rerun-tasks/--no-build-cache: switching every kona-* module to vanniktech
+        # publish invalidates Kover's relationship to cached test outputs from main;
+        # UP-TO-DATE hits produce false coverage gaps on CI (same class as #106/#107).
+        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify test --rerun-tasks --no-build-cache
       - name: Sample apps (HTTP smoke)
         run: ./gradlew :hello-kotlin:test :hello-java:test

@@ -3,7 +3,6 @@ plugins {
     alias(libs.plugins.kover)
     application
     `java-library`
-    `maven-publish`
 }
 
 application {
@@ -50,11 +49,3 @@ kover {
     }
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            artifactId = "kona-lsp"
-        }
-    }
-}

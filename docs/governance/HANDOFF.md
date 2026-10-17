@@ -119,7 +119,7 @@ Key paths: `modules/` (framework), `apps/docs/` (public site), `docs/governance/
 2. Pick the next **deepen** slice from remaining Almasix ledger “implemented (checklist)” rows or human-requested gaps — one milestone branch at a time.
 3. Keep sibling Brew/Inertia work in their repos; only touch Kona for install/starter/brief link-out.
 4. Optionally sync Brew marks into Kona branding assets if the brief Brew page should show the espresso mark (see untracked `brew-*.svg` note above).
-5. **Maven Central:** only `publishToMavenLocal` is wired — see [publishing.md](publishing.md). Do not public-publish until namespace, signing, POM metadata, and credentials exist.
+5. **Maven Central:** Gradle Central Portal plumbing + `release.yml` are wired — see [publishing.md](publishing.md). Public release still needs namespace claim, GH secrets, GPG, and a non-SNAPSHOT tag (`v0.1.0`); do not invent a Central success without credentials.
 
 ## Do not
 

@@ -1,0 +1,60 @@
+name: Publish to Maven Central
+
+# Tag-triggered release only. Never publishes SNAPSHOT from main pushes.
+# Prerequisites (repo secrets): see docs/governance/publishing.md
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    name: Publish io.konaframework
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Require Central + signing secrets
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in MAVEN_CENTRAL_USERNAME MAVEN_CENTRAL_PASSWORD SIGNING_KEY SIGNING_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "Missing secret: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Configure secrets documented in docs/governance/publishing.md before tagging a release."
+            exit 1
+          fi
+      - name: Publish to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_IN_MEMORY_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_IN_MEMORY_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          # Expect tag vX.Y.Z matching a non-SNAPSHOT kona.version on the tagged commit.
+          version=$(grep -E '^kona\.version=' gradle.properties | cut -d= -f2)
+          case "$version" in
+            *-SNAPSHOT)
+              echo "Refusing to publish SNAPSHOT version '$version' from a release tag."
+              echo "Bump kona.version to a release (e.g. 0.1.0) on the tag commit first."
+              exit 1
+              ;;
+          esac
+          ./gradlew publishToMavenCentral --no-configuration-cache -x test

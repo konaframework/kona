@@ -1,6 +1,7 @@
 [versions]
 kotlin = "2.1.20"
 kover = "0.9.1"
+maven-publish = "0.34.0"
 junit = "5.12.2"
 slf4j = "2.0.17"
 logback = "1.5.18"
@@ -31,3 +32,4 @@ kotlin-scripting-jsr223 = { module = "org.jetbrains.kotlin:kotlin-scripting-jsr2
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
+maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "maven-publish" }
