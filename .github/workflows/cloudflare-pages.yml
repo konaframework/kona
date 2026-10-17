@@ -6,9 +6,9 @@ name: Cloudflare Pages
 #   Cloudflare Dashboard → Workers & Pages → project "kona" → Settings → Builds
 #   Framework preset: None (not Astro)
 #   Root: / · Build: pnpm install --frozen-lockfile && pnpm docs:build
-#   Deploy: npx wrangler pages deploy apps/docs/dist --project-name=kona
+#   Deploy: npx wrangler deploy --config apps/docs/wrangler.jsonc
 #   NODE_VERSION=22 · PUBLIC_SITE_URL / PUBLIC_BASE_PATH
-#   Do NOT use npm ci (no package-lock.json; monorepo uses pnpm-lock.yaml).
+#   Do NOT use npm ci; do NOT use wrangler pages deploy (Workers Assets, not Pages).
 #   Details: docs/governance/docs-site.md
 #   Custom domain docs.konaframework.org. No CLOUDFLARE_* secrets required for Path A.
 #
@@ -75,11 +75,11 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy to Cloudflare Pages (Wrangler)
+      - name: Deploy to Cloudflare Workers (static assets)
         if: steps.cf.outputs.configured == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/docs
-          command: pages deploy dist --project-name=kona
+          command: deploy
