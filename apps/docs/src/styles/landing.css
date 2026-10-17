@@ -47,9 +47,10 @@
   --kona-primary: #df8723;
   --kona-primary-soft: #e9a055;
   --kona-primary-deep: #9a5812;
-  --kona-accent: #3d2914;
-  --kona-accent-soft: #5c4033;
-  --kona-accent-deep: #2a1c10;
+  --kona-accent: #74453f;
+  --kona-accent-soft: #8b5a52;
+  --kona-accent-deep: #5a322e;
+  /* Body ink stays espresso; accent tokens are warm brown #74453F */
   --landing-ink: #2a1c10;
   --landing-ink-soft: #3d2914;
   --landing-ink-muted: #5c4033;
@@ -64,8 +65,8 @@
   --landing-hero-stripe: rgba(61, 41, 20, 0.04);
   --landing-cta-secondary-border: rgba(61, 41, 20, 0.28);
   --landing-cta-secondary-hover: rgba(223, 135, 35, 0.1);
-  --landing-cta-secondary-fg: var(--kona-accent-deep);
-  --landing-feature-heading: var(--kona-accent-deep);
+  --landing-cta-secondary-fg: var(--kona-accent);
+  --landing-feature-heading: var(--kona-accent);
   --landing-close-bg:
     linear-gradient(135deg, #4a3423 0%, #9a5812 50%, #df8723 100%);
   --landing-link: var(--kona-accent);
