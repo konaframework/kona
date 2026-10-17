@@ -1,7 +1,17 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Cloudflare Pages — https://docs.konaframework.org
-  "name": "kona",
+  // Cloudflare Pages project: kona-docs → https://docs.konaframework.org
+  //
+  // Git integration (dashboard) — do NOT use the Astro/npm preset:
+  //   Root directory:           /   (repo root; pnpm workspace)
+  //   Build command:            pnpm install --frozen-lockfile && pnpm docs:build
+  //   Build output directory:   apps/docs/dist
+  //   Env: PUBLIC_SITE_URL=https://docs.konaframework.org
+  //        PUBLIC_BASE_PATH=/
+  //        NODE_VERSION=22
+  //        PNPM_VERSION=9.15.0   (optional; matches root packageManager)
+  // See docs/governance/docs-site.md
+  "name": "kona-docs",
   "compatibility_date": "2026-08-01",
   "pages_build_output_dir": "./dist"
 }

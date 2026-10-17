@@ -3,10 +3,13 @@ name: Cloudflare Pages
 # Primary docs host: https://docs.konaframework.org
 #
 # First publish (no GitHub secrets required):
-#   Prefer Cloudflare Dashboard → Workers & Pages → Create → Connect to Git
-#   for konaframework/kona, root/apps/docs build (see docs/governance/docs-site.md).
-#   Custom domain docs.konaframework.org on that project. Cloudflare pulls from GitHub;
-#   no CLOUDFLARE_* secrets in this repo.
+#   Cloudflare Dashboard → Workers & Pages → Connect to Git → konaframework/kona
+#   Project: kona-docs · Framework preset: None (not Astro)
+#   Root: / · Build: pnpm install --frozen-lockfile && pnpm docs:build
+#   Output: apps/docs/dist · NODE_VERSION=22 · PUBLIC_SITE_URL / PUBLIC_BASE_PATH
+#   Do NOT use npm ci (no package-lock.json; monorepo uses pnpm-lock.yaml).
+#   Details: docs/governance/docs-site.md
+#   Custom domain docs.konaframework.org. No CLOUDFLARE_* secrets required for Path A.
 #
 # Optional harden (this workflow's deploy step):
 #   CLOUDFLARE_API_TOKEN   — API token with Cloudflare Pages Edit
