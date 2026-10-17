@@ -20,7 +20,11 @@ class KonaApplication {
         return try {
             when (val command = args[0]) {
                 "new" -> NewCommand().run(args.drop(1))
-                "install" -> InstallCommand().run(args.drop(1))
+                "install" -> {
+                    // Install lives on grind only — keep a clear redirect for old muscle memory.
+                    io.error("Use: kona grind install <package> (or ./grind install inside the app)")
+                    1
+                }
                 "grind" -> GrindCommand().run(args.drop(1))
                 "version", "--version", "-V" -> {
                     val v = KonaVersions.load()
@@ -48,12 +52,12 @@ class KonaApplication {
             ),
         )
         io.twoColumn("new <name>", "[--lang=kotlin|java] [--kit=…]")
-        io.twoColumn("install <package>", "Add Maven dep + register providers")
         io.twoColumn("grind <command>", "Proxy to the nearest app's ./grind")
         io.twoColumn("version", "Print kona version")
         io.twoColumn("help", "Show this help")
         io.writeln()
         io.info("Kits: web (default), api, crema, inertia, brew")
+        io.info("Packages: kona grind install <alias>  (or ./grind install)")
     }
 }
 

@@ -1,11 +1,13 @@
 ---
 title: Installing packages
-description: kona install / grind install — Maven dependency plus auto-registered providers.
+description: ./grind install / kona grind install — Maven dependency plus auto-registered providers.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Use **`kona install`** (or **`./grind install`** inside an app) to add a first-party or Maven package without hand-editing `build.gradle.kts` and without forgetting the service provider.
+Use **`./grind install`** inside an app (or **`kona grind install`** from anywhere under the app tree) to add a first-party or Maven package without hand-editing `build.gradle.kts` and without forgetting the service provider.
+
+There is no top-level `kona install` — package install is a Grind Console command. The global CLI only proxies: `kona grind install …`.
 
 ## What it does
 
@@ -16,20 +18,20 @@ Use **`kona install`** (or **`./grind install`** inside an app) to add a first-p
 ## Usage
 
 ```bash
-# From an app created with kona new
-kona install inertia
-kona install brew --version=0.1.0-SNAPSHOT
-kona install com.example:widget:1.2.3
+# Inside an app created with kona new
+./grind install inertia
+./grind install brew --version=0.1.0-SNAPSHOT
+./grind install com.example:widget:1.2.3
 
-# App-local
-./grind install filesystem
-./grind install drip --base=/path/to/app
+# From anywhere under the app tree (global proxy)
+kona grind install filesystem
+kona grind install drip --base=/path/to/app
 ```
 
 | Flag | Role |
 | --- | --- |
-| `--base=…` | App root (default: walk up from cwd looking for `build.gradle(.kts)`) |
-| `--version=…` | Override when the alias/coordinate omits a version (default: detect a `org.konaframework:…:version` already in the build file, else the CLI’s bundled Kona version) |
+| `--base=…` | App root (default: the grind project root / cwd for `./grind`) |
+| `--version=…` | Override when the alias/coordinate omits a version (default: detect a `org.konaframework:…:version` already in the build file, else a SNAPSHOT / bundled default) |
 
 ## Catalog aliases
 
@@ -54,4 +56,4 @@ Refresh Gradle / rebuild so the new dependency is on the classpath. Providers li
 
 ## Programmatic API
 
-The same steps are available from Kotlin/Java as `PackageInstaller.install(projectRoot, spec, defaultVersion)` in `org.konaframework.support.packages` (used by the CLI implementations).
+The same steps are available from Kotlin/Java as `PackageInstaller.install(projectRoot, spec, defaultVersion)` in `org.konaframework.support.packages` (used by the grind command).

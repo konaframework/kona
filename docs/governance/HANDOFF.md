@@ -48,7 +48,7 @@ Other `~/kona-*` directories (bench, netty, logging worktrees, etc.) are **not**
 | Work | PR |
 |------|-----|
 | Extract `kona-inertia` + brief docs link-out | [#101](https://github.com/konaframework/kona/pull/101) |
-| `kona install [PACKAGE]` + provider registration | [#100](https://github.com/konaframework/kona/pull/100) |
+| `./grind install` / `kona grind install` + provider registration | [#100](https://github.com/konaframework/kona/pull/100); top-level `kona install` removed |
 | Exhaust Testing section | [#99](https://github.com/konaframework/kona/pull/99) |
 | Logging drivers (stack, daily, …) + exhaustive docs | [#98](https://github.com/konaframework/kona/pull/98) |
 | Expand Grind Console guides | [#97](https://github.com/konaframework/kona/pull/97) |
@@ -66,7 +66,7 @@ Other `~/kona-*` directories (bench, netty, logging worktrees, etc.) are **not**
 
 ### Done vs in-flight (honest)
 
-**Done on `main`:** logging drivers, `view()` / Views, Grind Console docs rename/expansion, Events section, Testing section, Brew brief link-out, `kona install`, Inertia extracted to sibling repo (#101). Continuous autopilot + Auto model locks remain in AGENTS / rules.
+**Done on `main`:** logging drivers, `view()` / Views, Grind Console docs rename/expansion, Events section, Testing section, Brew brief link-out, `./grind install` / `kona grind install`, Inertia extracted to sibling repo (#101). Continuous autopilot + Auto model locks remain in AGENTS / rules.
 
 **In-flight / local only (do not assume merged):**
 

@@ -46,7 +46,7 @@ object ProviderManifestEditor {
         if (added.isEmpty()) {
             return Result(path, added = emptyList(), alreadyPresent = already)
         }
-        val header = "# Managed by kona install / grind install — package service providers\n"
+        val header = "# Managed by grind install / kona grind install — package service providers\n"
         val body = existing.joinToString("\n", postfix = "\n")
         Files.writeString(path, header + body)
         return Result(path, added = added, alreadyPresent = already)

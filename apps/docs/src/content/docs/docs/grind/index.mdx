@@ -37,8 +37,8 @@ Built-ins (serve, migrate, queue, schedule, generators, …) are wired inside `G
 
 | Tool | Scope | Typical use |
 |------|--------|-------------|
-| **`kona`** (global) | Machine-wide | `kona new`, or `kona grind` as a proxy into an app |
-| **`./grind`** (per app) | One project | Serve, generate code, migrate, queue, schedule, your commands |
+| **`kona`** (global) | Machine-wide | `kona new`, or `kona grind` as a proxy into an app (`kona grind install …`, `serve`, …) |
+| **`./grind`** (per app) | One project | Serve, install packages, generate code, migrate, queue, schedule, your commands |
 
 If you type `./grind new …`, Grind Console reminds you to use `kona new` instead and exits with status `1`.
 
