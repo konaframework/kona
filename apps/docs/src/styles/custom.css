@@ -1,7 +1,8 @@
 /*
  * Kona brand — coffee palette (aligned with Brew).
- * Light primary caramel #DF8723 (text uses deep #9A5812); dark primary latte #C9A57B.
- * Dark headings use soft cream #E8D4B8 (not pure white).
+ * Light primary caramel #DF8723; light accent warm brown #74453F (~7.3:1 on cream).
+ * Dark primary latte #C9A57B; dark headings soft cream #E8D4B8 (not pure white).
+ * Caramel fills keep espresso #1A120C button text.
  */
 
 :root {
@@ -44,9 +45,9 @@
   --kona-primary: #df8723;
   --kona-primary-soft: #e9a055;
   --kona-primary-deep: #9a5812;
-  --kona-accent: #3d2914;
-  --kona-accent-soft: #5c4033;
-  --kona-accent-deep: #2a1c10;
+  --kona-accent: #74453f;
+  --kona-accent-soft: #8b5a52;
+  --kona-accent-deep: #5a322e;
   --kona-cream: #faf6f0;
   --kona-surface: #faf6f0;
   --kona-surface-raised: #f5ede3;
@@ -54,17 +55,18 @@
 
   --sl-color-accent-low: #f0e6d6;
   --sl-color-accent: var(--kona-primary);
-  --sl-color-accent-high: var(--kona-primary-deep);
-  --sl-color-text-accent: var(--kona-primary-deep);
+  --sl-color-accent-high: var(--kona-accent);
+  --sl-color-text-accent: var(--kona-accent);
   --sl-color-bg: var(--kona-surface);
   --sl-color-bg-nav: var(--kona-surface-raised);
   --sl-color-bg-sidebar: var(--kona-surface);
   --sl-color-hairline: rgba(61, 41, 20, 0.12);
+  /* Body / heading ink stays deep espresso for long-form readability */
   --sl-color-text: #3d2914;
   --sl-color-text-heading: #2a1c10;
 }
 
-/* Links and secondary emphasis use espresso / cream accents */
+/* Links and secondary emphasis use warm-brown / cream accents */
 :root {
   --sl-color-bg-accent: var(--kona-primary);
 }

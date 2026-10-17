@@ -22,20 +22,20 @@ Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) 
 
 ## Brand (locked)
 
-Coffee palette shared with Brew (caramel / latte). Dark headings use soft cream, not pure white. Light-mode primary is too light for small text on cream, so links and accent text use primary deep `#9A5812`; buttons on caramel use espresso `#1A120C` text.
+Coffee palette shared with Brew (caramel / latte). Dark headings use soft cream, not pure white. Light accent is warm brown `#74453F` (~7.3:1 on cream) for links, feature headings, and secondary emphasis; primary deep `#9A5812` remains for caramel shade steps. Buttons on caramel fills use espresso `#1A120C` text. Body/heading ink stays deep espresso for long-form readability.
 
 | Token | Light | Dark |
 |-------|-------|------|
 | Primary | Caramel `#DF8723` | Latte `#C9A57B` |
 | Primary soft | `#E9A055` | `#DCC09A` |
 | Primary deep | `#9A5812` | `#A67C52` |
-| Accent | Deep espresso `#3D2914` | Soft cream `#E8D4B8` |
-| Accent soft | `#5C4033` | `#F0E6D6` |
-| Accent deep | `#2A1C10` | `#D4B896` |
+| Accent | Warm brown `#74453F` | Soft cream `#E8D4B8` |
+| Accent soft | `#8B5A52` | `#F0E6D6` |
+| Accent deep | `#5A322E` | `#D4B896` |
 | Surface | Cream `#FAF6F0` | Espresso `#1A120C` |
 | Heading | `#2A1C10` | Soft cream `#E8D4B8` |
 
-CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). Mark: Outfit wordmark in `apps/docs/public/branding/` — primary on K + underline only; "ona" black (light) / white (dark).
+CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). Mark: Outfit wordmark in `apps/docs/public/branding/` — primary on K + underline only; "ona" black (light) / white (dark). Accent is CSS/theme only — not a logo recolor.
 
 ## Voice and depth (locked)
 
