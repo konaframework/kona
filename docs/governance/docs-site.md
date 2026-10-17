@@ -97,10 +97,14 @@ No `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in GitHub. Cloudflare clones
    |---------|--------|
    | Root directory | `/` (repo root — **required**; do not set `apps/docs`) |
    | Build command | `pnpm install --frozen-lockfile && pnpm docs:build` |
-   | Deploy command | `npx wrangler deploy` (reads root `wrangler.jsonc` → `apps/docs/dist`) |
-   | Preview command | `npx wrangler deploy` |
+   | **Deploy command** (production) | `npx wrangler deploy` (reads root `wrangler.jsonc` → `apps/docs/dist`) |
+   | Preview / non-production deploy | Prefer `npx wrangler deploy` if the dashboard allows it. If Cloudflare forces `npx wrangler preview`, that works only when Wrangler has `"previews": {}` (already in root and `apps/docs` configs). |
    | Environment / build variables | `PUBLIC_SITE_URL=https://docs.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
    | Optional | `PNPM_VERSION=9.15.0` (matches root `packageManager`; Corepack also reads that field) |
+
+   **Production path (recommended):** Deploy command = `npx wrangler deploy`. That keeps Workers Assets (`"assets": { "directory": "…" }`) and ships to the production Worker.
+
+   **If the dashboard runs `npx wrangler preview`:** Wrangler errors with *Your Wrangler configuration is missing a `previews` block* unless the config includes `"previews": {}`. Both [`wrangler.jsonc`](../../wrangler.jsonc) and [`apps/docs/wrangler.jsonc`](../../apps/docs/wrangler.jsonc) include that block so preview and production paths work.
 
    **Wrong (build):** `npm ci && npm run build` — no `package-lock.json` in this monorepo.
 
