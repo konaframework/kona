@@ -70,40 +70,40 @@ Public guides for a milestone’s API surface are written **or rewritten** **in 
 
 ### Hostnames (locked)
 
-| Host | Repo | Cloudflare Pages project |
-|------|------|--------------------------|
-| [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`) | `kona-docs` |
+| Host | Repo | Cloudflare project |
+|------|------|--------------------|
+| [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`) | `kona` |
 | [brew.konaframework.org](https://brew.konaframework.org) | `konaframework/kona-brew` | `kona-brew-docs` |
 | [inertia.konaframework.org](https://inertia.konaframework.org) | `konaframework/kona-inertia` | `kona-inertia-docs` |
 
 Production builds use `PUBLIC_SITE_URL` = that host and `PUBLIC_BASE_PATH=/` (apex path, not a GitHub project subpath).
 
-### Cloudflare Pages (primary)
+### Cloudflare Pages / Workers Builds (primary)
 
-**First publish does not require GitHub secrets.** Prefer Cloudflare’s Git integration (or a dashboard Direct Upload) so `docs.konaframework.org` goes live, then optionally harden with Wrangler secrets later.
+**First publish does not require GitHub secrets.** Prefer Cloudflare’s Git integration (Workers Builds or Pages Connect to Git) so `docs.konaframework.org` goes live, then optionally harden with Wrangler secrets later.
 
 #### Path A — Cloudflare Git integration (recommended for first publish)
 
 No `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in GitHub. Cloudflare clones and builds from the repo.
 
 1. Cloudflare account on the `konaframework.org` zone.
-2. **Workers & Pages → Create → Connect to Git** → `konaframework/kona` (repeat for brew / inertia with their repos).
-3. Project name: `kona-docs` (brew: `kona-brew-docs`, inertia: `kona-inertia-docs`).
-4. **Framework preset: None** (do **not** pick Astro — that preset injects `npm ci` / `npm run build`).
-5. Build settings for `kona` (**pnpm** workspace at repo root — lockfile is `pnpm-lock.yaml`; there is **no** `package-lock.json`):
+2. **Workers & Pages →** project **`kona`** → **Settings → Builds** (or Create → Connect to Git → `konaframework/kona`).
+3. **Framework preset: None** (do **not** pick Astro — that preset injects `npm ci` / `npm run build`).
+4. Build settings for `kona` (**pnpm** workspace at repo root — lockfile is `pnpm-lock.yaml`; there is **no** `package-lock.json`):
 
    | Setting | Value |
    |---------|--------|
    | Root directory | `/` (repo root — **required**; do not set `apps/docs`) |
    | Build command | `pnpm install --frozen-lockfile && pnpm docs:build` |
-   | Build output directory | `apps/docs/dist` |
-   | Environment variables | `PUBLIC_SITE_URL=https://docs.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
+   | Deploy command (Workers Builds) | `npx wrangler pages deploy apps/docs/dist --project-name=kona` |
+   | Build output directory (Pages UI) | `apps/docs/dist` |
+   | Environment / build variables | `PUBLIC_SITE_URL=https://docs.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
    | Optional | `PNPM_VERSION=9.15.0` (matches root `packageManager`; Corepack also reads that field) |
 
-   **Wrong (will fail):** `npm ci && npm run build` — `npm ci` needs a `package-lock.json`, which this monorepo does not have. Cloudflare may still show a pnpm “resolved …” install from detecting `pnpm-lock.yaml`, then fail when the build command runs `npm ci`.
+   **Wrong (will fail):** `npm ci && npm run build` — `npm ci` needs a `package-lock.json`, which this monorepo does not have. Cloudflare may still show a pnpm “resolved …” install from detecting `pnpm-lock.yaml`, then fail when the build command runs `npm ci`. GitHub check name: **Workers Builds: kona**.
 
-6. Custom domain: `docs.` / `brew.` / `inertia.` → CNAME to the `*.pages.dev` host Cloudflare shows.
-7. Push to `main` (or redeploy from the Cloudflare dashboard).
+5. Custom domain: `docs.` / `brew.` / `inertia.` → CNAME to the `*.pages.dev` host Cloudflare shows.
+6. Push to `main` (or **Retry build** from the Cloudflare dashboard after saving settings).
 
 Sister repos (**npm**, not pnpm) — see their READMEs / `docs/governance/docs-site.md`:
 
@@ -121,7 +121,7 @@ Workflow: [`.github/workflows/cloudflare-pages.yml`](../../.github/workflows/clo
 | `CLOUDFLARE_API_TOKEN` | API token with **Account → Cloudflare Pages → Edit** |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account id (dashboard sidebar / Workers & Pages) |
 
-If using Path B without Path A: create an empty/direct-upload Pages project named `kona-docs`, attach the custom domain, add the two secrets, re-run the workflow.
+If using Path B without Path A: create an empty/direct-upload Pages project named `kona`, attach the custom domain, add the two secrets, re-run the workflow.
 
 Local:
 

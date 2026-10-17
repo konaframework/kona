@@ -3,10 +3,11 @@ name: Cloudflare Pages
 # Primary docs host: https://docs.konaframework.org
 #
 # First publish (no GitHub secrets required):
-#   Cloudflare Dashboard → Workers & Pages → Connect to Git → konaframework/kona
-#   Project: kona-docs · Framework preset: None (not Astro)
+#   Cloudflare Dashboard → Workers & Pages → project "kona" → Settings → Builds
+#   Framework preset: None (not Astro)
 #   Root: / · Build: pnpm install --frozen-lockfile && pnpm docs:build
-#   Output: apps/docs/dist · NODE_VERSION=22 · PUBLIC_SITE_URL / PUBLIC_BASE_PATH
+#   Deploy: npx wrangler pages deploy apps/docs/dist --project-name=kona
+#   NODE_VERSION=22 · PUBLIC_SITE_URL / PUBLIC_BASE_PATH
 #   Do NOT use npm ci (no package-lock.json; monorepo uses pnpm-lock.yaml).
 #   Details: docs/governance/docs-site.md
 #   Custom domain docs.konaframework.org. No CLOUDFLARE_* secrets required for Path A.
@@ -81,4 +82,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/docs
-          command: pages deploy dist --project-name=kona-docs
+          command: pages deploy dist --project-name=kona

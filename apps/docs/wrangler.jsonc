@@ -1,17 +1,20 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Cloudflare Pages project: kona-docs → https://docs.konaframework.org
+  // Cloudflare project name: kona → https://docs.konaframework.org
+  // (Workers Builds check appears as "Workers Builds: kona")
   //
-  // Git integration (dashboard) — do NOT use the Astro/npm preset:
-  //   Root directory:           /   (repo root; pnpm workspace)
-  //   Build command:            pnpm install --frozen-lockfile && pnpm docs:build
-  //   Build output directory:   apps/docs/dist
+  // Dashboard → Settings → Builds — do NOT use the Astro/npm preset:
+  //   Root directory:   /   (repo root; pnpm workspace — required)
+  //   Build command:    pnpm install --frozen-lockfile && pnpm docs:build
+  //   Deploy command:   npx wrangler pages deploy apps/docs/dist --project-name=kona
+  //   Build output dir (Pages UI): apps/docs/dist
   //   Env: PUBLIC_SITE_URL=https://docs.konaframework.org
   //        PUBLIC_BASE_PATH=/
   //        NODE_VERSION=22
   //        PNPM_VERSION=9.15.0   (optional; matches root packageManager)
+  // Wrong: npm ci && npm run build (no package-lock.json in this monorepo)
   // See docs/governance/docs-site.md
-  "name": "kona-docs",
+  "name": "kona",
   "compatibility_date": "2026-08-01",
   "pages_build_output_dir": "./dist"
 }
