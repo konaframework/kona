@@ -36,7 +36,7 @@ Use Kona product names: `Kona`, `grind`, `steam`, `Cadence`, `Crema`, `drip`. Ma
 
 ## Docs (concurrent)
 
-Public site: `apps/docs/` — Astro + Starlight + `@almasix/starlight-theme`. Brand: Mocha `#6F4E37` / espresso roast `#A67C52` (coffee palette; dark headings `#E8D4B8`). Update or rewrite guides/sidebar with each milestone’s public API. Voice rules in `docs/governance/docs-site.md` and `.cursor/rules/kona-docs.mdc`: detailed, progressive simple-first trajectory; no framework comparison culture after a brief intro nod.
+Public site: `apps/docs/` — Astro + Starlight + `@almasix/starlight-theme`. Brand: light espresso roast `#A67C52` / dark latte `#C9A57B` (coffee palette; dark headings `#E8D4B8`). Update or rewrite guides/sidebar with each milestone’s public API. Voice rules in `docs/governance/docs-site.md` and `.cursor/rules/kona-docs.mdc`: detailed, progressive simple-first trajectory; no framework comparison culture after a brief intro nod.
 
 ## Continuous autopilot + Auto
 

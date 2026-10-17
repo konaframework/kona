@@ -22,20 +22,20 @@ Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) 
 
 ## Brand (locked)
 
-Coffee palette shared with Brew (Mocha / espresso roast). Dark headings use soft cream, not pure white.
+Coffee palette (espresso roast / latte). Dark headings use soft cream, not pure white.
 
 | Token | Light | Dark |
 |-------|-------|------|
-| Primary | Mocha `#6F4E37` | Espresso roast `#A67C52` |
-| Primary soft | `#8B6B4F` | `#C4A574` |
-| Primary deep | `#4A3423` | `#8B6340` |
+| Primary | Espresso roast `#A67C52` | Latte `#C9A57B` |
+| Primary soft | `#B8916A` | `#DCC09A` |
+| Primary deep | `#8B6340` | `#A67C52` |
 | Accent | Deep espresso `#3D2914` | Soft cream `#E8D4B8` |
 | Accent soft | `#5C4033` | `#F0E6D6` |
 | Accent deep | `#2A1C10` | `#D4B896` |
 | Surface | Cream `#FAF6F0` | Espresso `#1A120C` |
 | Heading | `#2A1C10` | Soft cream `#E8D4B8` |
 
-CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). Mark: Bean-K in `apps/docs/public/branding/`.
+CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). Mark: Outfit wordmark in `apps/docs/public/branding/` — primary on K + underline only; "ona" black (light) / white (dark).
 
 ## Voice and depth (locked)
 

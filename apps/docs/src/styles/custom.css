@@ -1,20 +1,20 @@
 /*
  * Kona brand — coffee palette (aligned with Brew).
- * Light primary Mocha #6F4E37; dark primary espresso roast #A67C52.
+ * Light primary espresso roast #A67C52; dark primary latte #C9A57B.
  * Dark headings use soft cream #E8D4B8 (not pure white).
  */
 
 :root {
-  --kona-primary: #a67c52;
-  --kona-primary-soft: #c4a574;
-  --kona-primary-deep: #8b6340;
+  --kona-primary: #c9a57b;
+  --kona-primary-soft: #dcc09a;
+  --kona-primary-deep: #a67c52;
   --kona-accent: #e8d4b8;
   --kona-accent-soft: #f0e6d6;
   --kona-accent-deep: #d4b896;
   --kona-cream: #e8d4b8;
   --kona-surface: #1a120c;
   --kona-surface-raised: #241810;
-  --kona-glow: rgba(166, 124, 82, 0.28);
+  --kona-glow: rgba(201, 165, 123, 0.28);
 
   --almasix-orange: var(--kona-primary);
   --almasix-orange-soft: var(--kona-primary-soft);
@@ -41,16 +41,16 @@
 }
 
 :root[data-theme='light'] {
-  --kona-primary: #6f4e37;
-  --kona-primary-soft: #8b6b4f;
-  --kona-primary-deep: #4a3423;
+  --kona-primary: #a67c52;
+  --kona-primary-soft: #b8916a;
+  --kona-primary-deep: #8b6340;
   --kona-accent: #3d2914;
   --kona-accent-soft: #5c4033;
   --kona-accent-deep: #2a1c10;
   --kona-cream: #faf6f0;
   --kona-surface: #faf6f0;
   --kona-surface-raised: #f5ede3;
-  --kona-glow: rgba(111, 78, 55, 0.18);
+  --kona-glow: rgba(166, 124, 82, 0.2);
 
   --sl-color-accent-low: #f0e6d6;
   --sl-color-accent: var(--kona-primary);

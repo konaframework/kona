@@ -33,7 +33,7 @@ Prefer teaching over skimpy reference stubs. Prefer omitting an unshipped featur
 
 ## Progressive path
 
-Lead with the simplest successful path a new app author can follow (**Getting Started** stays that path). Defer provider registries, container internals, and other low-level wiring to later sections or “going deeper” pages as higher-level conventions appear. Early docs may still document explicit wiring honestly — **rewrite** toward simple-first as the framework grows. Brand CSS: light primary Mocha `#6F4E37`, dark primary espresso roast `#A67C52`, dark headings soft cream `#E8D4B8` (see `docs/governance/docs-site.md`).
+Lead with the simplest successful path a new app author can follow (**Getting Started** stays that path). Defer provider registries, container internals, and other low-level wiring to later sections or “going deeper” pages as higher-level conventions appear. Early docs may still document explicit wiring honestly — **rewrite** toward simple-first as the framework grows. Brand CSS: light primary espresso roast `#A67C52`, dark primary latte `#C9A57B`, dark headings soft cream `#E8D4B8` (see `docs/governance/docs-site.md`).
 
 ## Independence (no comparison culture)
 
