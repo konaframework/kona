@@ -1,8 +1,8 @@
 package app.http.controllers
 
-import io.konaframework.http.Request
-import io.konaframework.http.Response
-import io.konaframework.inertia.Inertia
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import org.konaframework.inertia.Inertia
 
 class WelcomeController {
     fun index(request: Request): Response =

@@ -302,7 +302,7 @@ prune_obsolete_vendored_modules() {
   local brew_component=""
   [[ -f "$settings" ]] || return 0
   for candidate in \
-    "$root/modules/brew/src/main/kotlin/io/konaframework/brew/Component.kt" \
+    "$root/modules/brew/src/main/kotlin/org/konaframework/brew/Component.kt" \
     "$root/modules/brew/src/main/kotlin/dev/kona/brew/Component.kt"
   do
     if [[ -f "$candidate" ]]; then

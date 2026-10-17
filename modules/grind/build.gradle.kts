@@ -5,7 +5,7 @@ plugins {
 }
 
 application {
-    mainClass.set("io.konaframework.grind.GrindKt")
+    mainClass.set("org.konaframework.grind.GrindKt")
 }
 
 dependencies {
@@ -28,16 +28,16 @@ kover {
         total {
             filters {
                 excludes {
-                    classes("io.konaframework.grind.GrindKt")
+                    classes("org.konaframework.grind.GrindKt")
                     // ScriptEngine wiring varies by JDK/classpath; fallback paths covered in GrindM8Test.
-                    classes("io.konaframework.grind.SteamCommand")
+                    classes("org.konaframework.grind.SteamCommand")
                     // Interactive prompt matrix — covered by GrindM8Test stream fixtures.
-                    classes("io.konaframework.grind.Prompts")
+                    classes("org.konaframework.grind.Prompts")
                     // ClassLoader resource enumeration — covered by GrindM8Test.
-                    classes("io.konaframework.grind.PackageDiscovery")
+                    classes("org.konaframework.grind.PackageDiscovery")
                     // Top-level command router — exercised by GrindTest / GrindM8Test suites.
-                    classes("io.konaframework.grind.GrindApplication")
-                    annotatedBy("io.konaframework.support.KoverExclude")
+                    classes("org.konaframework.grind.GrindApplication")
+                    annotatedBy("org.konaframework.support.KoverExclude")
                 }
             }
             verify {

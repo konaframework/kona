@@ -1,11 +1,11 @@
 package hello;
 
 import bootstrap.App;
-import io.konaframework.core.Application;
-import io.konaframework.core.Kona;
-import io.konaframework.http.HttpKernel;
-import io.konaframework.http.Request;
-import io.konaframework.http.Response;
+import org.konaframework.core.Application;
+import org.konaframework.core.Kona;
+import org.konaframework.http.HttpKernel;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 

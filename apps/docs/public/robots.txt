@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://konaframework.dev/sitemap-index.xml
+Sitemap: https://docs.konaframework.org/sitemap-index.xml

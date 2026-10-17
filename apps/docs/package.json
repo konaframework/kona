@@ -9,8 +9,8 @@
     "start": "astro dev --port 4321",
     "build": "astro build",
     "preview": "astro preview --port 4321",
-    "cf:deploy": "wrangler deploy",
-    "cf:preview": "wrangler preview",
+    "cf:deploy": "wrangler pages deploy dist --project-name=kona-docs",
+    "cf:preview": "wrangler pages deploy dist --project-name=kona-docs --branch=preview",
     "astro": "astro"
   },
   "dependencies": {

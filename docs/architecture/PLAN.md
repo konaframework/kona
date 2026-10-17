@@ -2,7 +2,7 @@
 
 Product naming and component map: [components.md](components.md).
 
-GitHub org **`konaframework`** is ready. Primary repo: [`konaframework/kona`](https://github.com/konaframework/kona). Site: **konaframework.dev**. Maven: **`io.konaframework`**.
+GitHub org **`konaframework`** is ready. Primary repo: [`konaframework/kona`](https://github.com/konaframework/kona). Site: **docs.konaframework.org**. Maven: **`org.konaframework`**.
 
 ---
 
@@ -73,11 +73,11 @@ Benchmark Spring Boot / Quarkus as competitors only.
 | Public API | Java + Kotlin |
 | Concurrency | Virtual Threads |
 | Build | Gradle KTS, JVM 21+, multi-module |
-| GroupId | `io.konaframework` |
+| GroupId | `org.konaframework` |
 
 ## GitHub layout
 
-Org **`konaframework`**. Monorepo **`kona`**. Later: `kona-app`, `docs`, `ide-support`, `website` → konaframework.dev.
+Org **`konaframework`**. Monorepo **`kona`**. Later: `kona-app`, `docs`, `ide-support`, `website` → docs.konaframework.org.
 
 ```text
 kona/

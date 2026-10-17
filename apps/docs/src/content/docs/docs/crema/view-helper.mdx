@@ -28,9 +28,9 @@ If you call `view` before boot (or without registering Crema), you get `IllegalS
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.crema.view
-import io.konaframework.http.Request
-import io.konaframework.http.Response
+import org.konaframework.crema.view
+import org.konaframework.http.Request
+import org.konaframework.http.Response
 
 class WelcomeController {
     fun index(request: Request): Response =
@@ -42,9 +42,9 @@ class WelcomeController {
 <TabItem label="Java">
 
 ```java
-import io.konaframework.crema.Views;
-import io.konaframework.http.Request;
-import io.konaframework.http.Response;
+import org.konaframework.crema.Views;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
 import java.util.Map;
 
 public final class WelcomeController {

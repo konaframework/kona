@@ -1,7 +1,7 @@
 package app.providers;
 
-import io.konaframework.core.Application;
-import io.konaframework.core.ServiceProvider;
+import org.konaframework.core.Application;
+import org.konaframework.core.ServiceProvider;
 
 public class AppServiceProvider implements ServiceProvider {
     @Override

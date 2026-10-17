@@ -1,6 +1,6 @@
 package config;
 
-import io.konaframework.core.ConfigFile;
+import org.konaframework.core.ConfigFile;
 import java.util.List;
 import java.util.Map;
 

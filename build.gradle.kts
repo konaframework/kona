@@ -10,7 +10,7 @@ plugins {
 }
 
 allprojects {
-    group = "io.konaframework"
+    group = "org.konaframework"
     version = providers.gradleProperty("kona.version").get()
 
     repositories {
@@ -69,7 +69,7 @@ fun Project.configureKonaBomPublishing() {
         configure(JavaPlatform())
         configureKonaPom(
             displayName = "Kona BOM",
-            description = "Bill of Materials for io.konaframework artifacts",
+            description = "Bill of Materials for org.konaframework artifacts",
         )
         configureCentralAndSigning(project)
     }
@@ -79,7 +79,7 @@ fun MavenPublishBaseExtension.configureKonaPom(displayName: String, description:
     pom {
         name.set(displayName)
         this.description.set(description)
-        url.set("https://github.com/konaframework/kona")
+        url.set("https://konaframework.org")
         inceptionYear.set("2025")
         licenses {
             license {
@@ -92,7 +92,7 @@ fun MavenPublishBaseExtension.configureKonaPom(displayName: String, description:
             developer {
                 id.set("konaframework")
                 name.set("Kona Framework contributors")
-                url.set("https://github.com/konaframework")
+                url.set("https://konaframework.org")
             }
         }
         scm {

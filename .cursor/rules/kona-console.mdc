@@ -8,8 +8,8 @@ alwaysApply: false
 
 User-facing terminal output for `kona`, `./grind`, and any future CLI must use **Termwind-inspired** styling:
 
-- Canonical type: `io.konaframework.support.console.ConsoleIO` (`kona-support`)
-- grind: `io.konaframework.grind.GrindIO` (wraps `ConsoleIO` + quiet/verbose)
+- Canonical type: `org.konaframework.support.console.ConsoleIO` (`kona-support`)
+- grind: `org.konaframework.grind.GrindIO` (wraps `ConsoleIO` + quiet/verbose)
 - Brand: primary `#FF9A00`, accent `#286291`
 - Env: `NO_COLOR`, `FORCE_COLOR` (`0` = off), `TERM=dumb`
 

@@ -9,10 +9,10 @@ All Kona terminal CLIs share one Termwind-inspired console style: brand colors (
 
 | API | Module | Role |
 | --- | --- | --- |
-| `io.konaframework.support.console.ConsoleIO` | `kona-support` | Canonical implementation |
-| `io.konaframework.grind.GrindIO` | `kona-grind` | Wraps `ConsoleIO` with quiet / verbose filtering |
+| `org.konaframework.support.console.ConsoleIO` | `kona-support` | Canonical implementation |
+| `org.konaframework.grind.GrindIO` | `kona-grind` | Wraps `ConsoleIO` with quiet / verbose filtering |
 | Helpers on `ConsoleCommand` | `kona-grind` | `info`, `success`, `warn`, `error`, `table`, `progress`, … |
-| `io.konaframework.grind.Prompts` | `kona-grind` | Interactive ask / confirm / choice |
+| `org.konaframework.grind.Prompts` | `kona-grind` | Interactive ask / confirm / choice |
 
 Do **not** print user-facing output with raw `println` / unstyled `System.out` in commands; use these APIs.
 

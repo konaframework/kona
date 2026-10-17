@@ -1,8 +1,8 @@
 package routes
 
 import app.http.controllers.PingApiController
-import io.konaframework.http.Response
-import io.konaframework.http.Router
+import org.konaframework.http.Response
+import org.konaframework.http.Router
 
 class ApiRoutes {
     fun register(router: Router) {

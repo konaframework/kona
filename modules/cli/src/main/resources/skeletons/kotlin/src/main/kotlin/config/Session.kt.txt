@@ -1,8 +1,8 @@
 package config
 
-import io.konaframework.core.Config
-import io.konaframework.core.ConfigFile
-import io.konaframework.core.Env
+import org.konaframework.core.Config
+import org.konaframework.core.ConfigFile
+import org.konaframework.core.Env
 
 object Session : ConfigFile {
     override fun key(): String = "session"

@@ -11,7 +11,7 @@ run configurations — including **Grind Serve** for the Netty HTTP adapter
 
 | | |
 | --- | --- |
-| Plugin id | `io.konaframework.idea` |
+| Plugin id | `org.konaframework.idea` |
 | Current line | **v0.2.0** |
 | Releases | [kona-idea Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
 | Develop | clone `kona-idea` → `./gradlew runIde` / `buildPlugin` (JDK 21+) |
@@ -45,5 +45,5 @@ Or `./grind ide:lsp` from an app. The plugin menu **Kona → Show kona-lsp Setup
 - Native plugin: https://github.com/konaframework/kona-idea
 - Grammar sources: `ide-support/crema/`
 - VS Code / Cursor extension: `ide-support/vscode-crema/`
-- JVM module: `modules/lsp` (`io.konaframework:kona-lsp`)
+- JVM module: `modules/lsp` (`org.konaframework:kona-lsp`)
 - Public docs: `apps/docs` → Language → IntelliJ

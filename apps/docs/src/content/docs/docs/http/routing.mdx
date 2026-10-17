@@ -93,7 +93,7 @@ The default scaffold wires a welcome page like this:
 package routes
 
 import app.http.controllers.WelcomeController
-import io.konaframework.http.Router
+import org.konaframework.http.Router
 
 class WebRoutes {
     fun register(router: Router) {
@@ -110,7 +110,7 @@ class WebRoutes {
 package routes;
 
 import app.http.controllers.WelcomeController;
-import io.konaframework.http.Router;
+import org.konaframework.http.Router;
 
 public final class WebRoutes {
     public void register(Router router) {
@@ -612,7 +612,7 @@ There is no built-in `route:list` grind command today; use `router.all()` in tes
 
 ## Testing routes
 
-Use `HttpTestClient` from `io.konaframework:kona-testing` against a booted application. It resolves `HttpKernel` and runs requests in-process (no socket):
+Use `HttpTestClient` from `org.konaframework:kona-testing` against a booted application. It resolves `HttpKernel` and runs requests in-process (no socket):
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

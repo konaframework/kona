@@ -69,7 +69,7 @@ kona grind mail:digest 42
 kona grind --help
 ```
 
-Behavior (`io.konaframework.cli.GrindCommand`):
+Behavior (`org.konaframework.cli.GrindCommand`):
 
 1. Walk upward from the current directory until a Gradle settings/build script is found (same markers as `serve`).
 2. Require `./grind` or `grind.bat` in that root (apps from `kona new`).
@@ -81,14 +81,14 @@ See [Installation](../../guides/installation/) for installing the global `kona` 
 
 ## Calling commands from code
 
-Use `io.konaframework.grind.Grind` to run a command name with argument tokens (the same strings you would type after the command name on the CLI):
+Use `org.konaframework.grind.Grind` to run a command name with argument tokens (the same strings you would type after the command name on the CLI):
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-import io.konaframework.grind.CommandRegistry
-import io.konaframework.grind.Grind
+import org.konaframework.grind.CommandRegistry
+import org.konaframework.grind.Grind
 
 val registry = CommandRegistry().register(SendDigestCommand::class.java)
 
@@ -101,8 +101,8 @@ val listed = Grind.call("list")
 <TabItem label="Java">
 
 ```java
-import io.konaframework.grind.CommandRegistry;
-import io.konaframework.grind.Grind;
+import org.konaframework.grind.CommandRegistry;
+import org.konaframework.grind.Grind;
 import java.util.List;
 
 CommandRegistry registry = new CommandRegistry().register(SendDigestCommand.class);

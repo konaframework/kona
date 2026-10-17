@@ -12,7 +12,7 @@ Kona application (Kotlin) — **web** starter kit (Crema views).
 
 ## What this kit includes
 
-- `io.konaframework:kona-crema` dependency
+- `org.konaframework:kona-crema` dependency
 - `CremaServiceProvider` registered in `bootstrap/App.kt`
 - `WelcomeController` on `/` rendering `src/main/resources/views/welcome.crema.html`
 - JSON health check at `/api/health`

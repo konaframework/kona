@@ -1,25 +1,25 @@
-# Publishing `io.konaframework` artifacts
+# Publishing `org.konaframework` artifacts
 
-How maintainers publish Kona framework jars (and sister packages) for consumption. **Intended destination:** [Maven Central](https://central.sonatype.com/) under groupId `io.konaframework`.
+How maintainers publish Kona framework jars (and sister packages) for consumption. **Intended destination:** [Maven Central](https://central.sonatype.com/) under groupId `org.konaframework`.
 
 **Gradle plumbing (this repo):** shared `com.vanniktech.maven.publish` convention in the root `build.gradle.kts` — POM metadata, sources jar, empty javadoc jar (Kotlin), optional GPG signing, Central Portal publisher, and `:bom` (`kona-bom`). **Local / CI still use** `publishToMavenLocal`. **Public Central release** still needs namespace claim, Portal token, GPG key, non-SNAPSHOT version, and a human-triggered tag.
 
-Public install docs may still say generated apps resolve `io.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` until the first non-SNAPSHOT train lands on Central.
+Public install docs may still say generated apps resolve `org.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` until the first non-SNAPSHOT train lands on Central.
 
 ## Repos and coordinates
 
 | Repo | Path (typical) | Version property | Publishable artifact(s) |
 |------|----------------|------------------|-------------------------|
 | [konaframework/kona](https://github.com/konaframework/kona) | `~/kona` | `kona.version` in `gradle.properties` | All `modules/*` named `kona-*` + `:bom` → `kona-bom` |
-| [konaframework/kona-brew](https://github.com/konaframework/kona-brew) | `~/kona-brew` | `brew.version` | `io.konaframework:kona-brew` (`brew/`) |
-| [konaframework/kona-inertia](https://github.com/konaframework/kona-inertia) | `~/kona-inertia` | `inertia.version` | `io.konaframework:kona-inertia` (`inertia/`) |
+| [konaframework/kona-brew](https://github.com/konaframework/kona-brew) | `~/kona-brew` | `brew.version` | `org.konaframework:kona-brew` (`brew/`) |
+| [konaframework/kona-inertia](https://github.com/konaframework/kona-inertia) | `~/kona-inertia` | `inertia.version` | `org.konaframework:kona-inertia` (`inertia/`) |
 
-- **GroupId:** `io.konaframework` (set in each repo’s root `build.gradle.kts` `allprojects`).
+- **GroupId:** `org.konaframework` (set in each repo’s root `build.gradle.kts` `allprojects`).
 - **Current development version (all three):** `0.1.0-SNAPSHOT` (also mirrored as `kona.version` / catalog `kona` in brew & inertia).
 - **First public release target:** `0.1.0` (drop `-SNAPSHOT` on the release tag commit).
 - **Not published:** samples (`hello-*`, `brew-sample-*`, `inertia-sample-*`), benchmarks, docs apps.
 
-As of the last research pass, [Maven Central search](https://search.maven.org/solrsearch/select?q=g:io.konaframework) returned **zero** `io.konaframework` artifacts until a successful release. GitHub Packages is unused.
+As of the last research pass, [Maven Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) returned **zero** `org.konaframework` artifacts until a successful release. GitHub Packages is unused.
 
 ## What is configured today
 
@@ -27,7 +27,7 @@ As of the last research pass, [Maven Central search](https://search.maven.org/so
 
 Root `build.gradle.kts` applies [`com.vanniktech.maven.publish` 0.34.0](https://vanniktech.github.io/gradle-maven-publish-plugin/) to every `kona-*` Kotlin module and to `:bom`:
 
-- Coordinates: `io.konaframework:<project.name>:<kona.version>` (`kona-bom` for the BOM)
+- Coordinates: `org.konaframework:<project.name>:<kona.version>` (`kona-bom` for the BOM)
 - POM: name, description, URL, Apache-2.0 license, developers, SCM → `github.com/konaframework/kona`
 - Artifacts: main jar + sources jar + empty javadoc jar (Kotlin)
 - `publishToMavenCentral(automaticRelease = false)` — Central Portal (not legacy OSSRH)
@@ -57,7 +57,7 @@ Sister repos mirror the same pattern for `:kona-brew` / `:kona-inertia`.
 
 ## Artifact inventory (`kona`)
 
-All at `io.konaframework:<artifactId>:<kona.version>`:
+All at `org.konaframework:<artifactId>:<kona.version>`:
 
 | Project | artifactId |
 |---------|------------|
@@ -100,7 +100,7 @@ Sister repos (after Kona is available from Maven Local or Central):
 
 1. **Sonatype Central Portal account** for the `konaframework` org / maintainers  
    - Register at [central.sonatype.com](https://central.sonatype.com/).  
-   - Claim / verify namespace **`io.konaframework`** (DNS or GitHub proof as Sonatype requires).
+   - Claim / verify namespace **`org.konaframework`** (DNS TXT on **konaframework.org** or GitHub proof as Sonatype requires).
 2. **GPG signing key** for releases  
    - Generate or reuse an org key; publish the public key to a keyserver (e.g. `keys.openpgp.org`).  
    - Keep the private key out of the repo (CI secret or local agent).
@@ -163,10 +163,10 @@ cd ~/kona && ./gradlew publishToMavenLocal -x test
 cd ~/kona-brew && ./gradlew :kona-brew:publishToMavenLocal -x test
 cd ~/kona-inertia && ./gradlew :kona-inertia:publishToMavenLocal -x test
 
-ls ~/.m2/repository/io/konaframework/kona-core/0.1.0-SNAPSHOT/
-ls ~/.m2/repository/io/konaframework/kona-bom/0.1.0-SNAPSHOT/
-ls ~/.m2/repository/io/konaframework/kona-brew/0.1.0-SNAPSHOT/
-ls ~/.m2/repository/io/konaframework/kona-inertia/0.1.0-SNAPSHOT/
+ls ~/.m2/repository/org/konaframework/kona-core/0.1.0-SNAPSHOT/
+ls ~/.m2/repository/org/konaframework/kona-bom/0.1.0-SNAPSHOT/
+ls ~/.m2/repository/org/konaframework/kona-brew/0.1.0-SNAPSHOT/
+ls ~/.m2/repository/org/konaframework/kona-inertia/0.1.0-SNAPSHOT/
 ```
 
 ### E. Real remote publish
@@ -182,7 +182,7 @@ Or push tag `v0.1.0` and let `.github/workflows/release.yml` run.
 
 **Do not run a public Central publish** until:
 
-1. Namespace `io.konaframework` is verified on the Central Portal.
+1. Namespace `org.konaframework` is verified on the Central Portal.
 2. Signing + Portal credentials exist (local or CI secrets above).
 3. Version is a non-SNAPSHOT release version on the tagged commit.
 4. A human explicitly asks to execute the release.
@@ -191,11 +191,11 @@ Or push tag `v0.1.0` and let `.github/workflows/release.yml` run.
 
 Gradle and the release workflow are in place; the following are **not** done in-repo:
 
-1. Claim **`io.konaframework`** on [central.sonatype.com](https://central.sonatype.com/) (DNS TXT or GitHub verification).
+1. Claim **`org.konaframework`** on [central.sonatype.com](https://central.sonatype.com/) (DNS TXT or GitHub verification).
 2. Generate a Portal user token; add the four GitHub secrets listed above to `kona`, `kona-brew`, and `kona-inertia`.
 3. Create/export a GPG key; put the armored private key in `SIGNING_IN_MEMORY_KEY` and passphrase in `SIGNING_IN_MEMORY_KEY_PASSWORD`; publish the public key to a keyserver.
 4. On a release branch/commit: set `kona.version=0.1.0` (and sister versions), open PRs, merge, tag `v0.1.0` on each repo in order **kona → brew → inertia**.
-5. Confirm artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:io.konaframework) / Portal deployments UI.
+5. Confirm artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) / Portal deployments UI.
 6. Update public install docs to drop the “must publish locally” requirement for released versions.
 
 ## Blockers (current environment)
@@ -205,7 +205,7 @@ Gradle and the release workflow are in place; the following are **not** done in-
 | Shared publish convention (POM / sources / javadoc / Central / signing hook) | **Implemented** in Gradle |
 | `:bom` Maven publication (`kona-bom`) | **Implemented** |
 | Tag `release.yml` workflow | **Implemented** (needs secrets) |
-| Namespace `io.konaframework` claimed on Central | **Human** |
+| Namespace `org.konaframework` claimed on Central | **Human** |
 | Portal / signing credentials in env, `~/.gradle`, or GH secrets | **Missing** in agent environment |
 | Non-SNAPSHOT version on a release tag | Still `0.1.0-SNAPSHOT` on `main` |
 | Artifacts actually on Maven Central | **Not published** until humans complete the steps above |
@@ -217,12 +217,12 @@ Gradle and the release workflow are in place; the following are **not** done in-
 | Destination | Intended? | Works today? |
 |-------------|-----------|--------------|
 | `mavenLocal` (`~/.m2`) | Yes — primary for SNAPSHOT / install / CI | **Yes** |
-| Maven Central | Yes — public releases (`io.konaframework`) | **Plumbing yes; credentials/namespace no** |
+| Maven Central | Yes — public releases (`org.konaframework`) | **Plumbing yes; credentials/namespace no** |
 | GitHub Packages | Optional / not specified in PLAN | **No** (not configured) |
 
 ## Related docs
 
 - [HANDOFF.md](HANDOFF.md) — session resume; links here for publish commands
 - [apps/docs … installation](../../apps/docs/src/content/docs/docs/guides/installation.mdx) — end-user install + mavenLocal note
-- [PLAN.md](../architecture/PLAN.md) — groupId `io.konaframework`
+- [PLAN.md](../architecture/PLAN.md) — groupId `org.konaframework`
 - Sister READMEs: `kona-brew`, `kona-inertia` — local publish prerequisites

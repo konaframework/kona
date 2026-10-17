@@ -7,8 +7,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Applications need settings that change between machines: the app's name, whether debug output is shown, which port to listen on, database credentials. Kona separates these into two layers:
 
-- **Environment** (`io.konaframework.core.Env`): flat string variables from the operating system, with an optional `.env` file for development. This is where machine-specific and secret values belong.
-- **Config** (`io.konaframework.core.Config`): a structured tree of typed values, addressed with dotted keys such as `app.debug`. It is filled from environment-derived defaults, **executable config modules** under `config/`, and optional `configure` callbacks.
+- **Environment** (`org.konaframework.core.Env`): flat string variables from the operating system, with an optional `.env` file for development. This is where machine-specific and secret values belong.
+- **Config** (`org.konaframework.core.Config`): a structured tree of typed values, addressed with dotted keys such as `app.debug`. It is filled from environment-derived defaults, **executable config modules** under `config/`, and optional `configure` callbacks.
 
 Your code should mostly read **config**. Environment variables are the raw input that seeds it.
 
@@ -48,7 +48,7 @@ src/main/kotlin/config/
   Paths.kt        → key "paths"
 ```
 
-Each module implements `io.konaframework.core.ConfigFile` with two methods:
+Each module implements `org.konaframework.core.ConfigFile` with two methods:
 
 - `key()` — top-level config key (usually the file stem in lowercase: `App` → `"app"`).
 - `config()` — nested map of values for that key. Call `Env` here for machine-specific values.
@@ -68,8 +68,8 @@ Kona.create(args)
 ```kotlin title="config/Database.kt"
 package config
 
-import io.konaframework.core.ConfigFile
-import io.konaframework.core.Env
+import org.konaframework.core.ConfigFile
+import org.konaframework.core.Env
 
 object Database : ConfigFile {
     override fun key(): String = "database"
@@ -107,8 +107,8 @@ Kona.create(args)
 ```java title="config/Database.java"
 package config;
 
-import io.konaframework.core.ConfigFile;
-import io.konaframework.core.Env;
+import org.konaframework.core.ConfigFile;
+import org.konaframework.core.Env;
 import java.util.LinkedHashMap;
 import java.util.Map;
 

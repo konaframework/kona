@@ -2,8 +2,8 @@
 
 **Kona** is a full-stack, developer-friendly web framework for the JVM (Kotlin-first, first-class Java support), inspired by Laravel and Almasix.
 
-- **Site:** [konaframework.dev](https://konaframework.dev) · Pages: [konaframework.github.io/kona](https://konaframework.github.io/kona/) (Astro + Starlight + `@almasix/starlight-theme` in `apps/docs/`)
-- **Maven group:** `io.konaframework`
+- **Site:** [docs.konaframework.org](https://docs.konaframework.org) · Mirror: [konaframework.github.io/kona](https://konaframework.github.io/kona/) (Astro + Starlight + `@almasix/starlight-theme` in `apps/docs/`)
+- **Maven group:** `org.konaframework`
 - **Org:** [konaframework](https://github.com/konaframework)
 
 ## Named components

@@ -1,7 +1,7 @@
 package routes;
 
 import app.http.controllers.WelcomeController;
-import io.konaframework.http.Router;
+import org.konaframework.http.Router;
 
 public class WebRoutes {
     public void register(Router router) {

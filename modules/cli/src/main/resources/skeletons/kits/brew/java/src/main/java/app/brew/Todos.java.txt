@@ -1,7 +1,7 @@
 package app.brew;
 
-import io.konaframework.brew.Component;
-import io.konaframework.brew.Computed;
+import org.konaframework.brew.Component;
+import org.konaframework.brew.Computed;
 import java.util.ArrayList;
 import java.util.List;
 

@@ -18,7 +18,7 @@ kover {
             filters {
                 excludes {
                     // Boolean factory constants confuse JaCoCo branch maps on companion one-liners.
-                    classes("io.konaframework.broadcasting.Channel")
+                    classes("org.konaframework.broadcasting.Channel")
                 }
             }
             verify {

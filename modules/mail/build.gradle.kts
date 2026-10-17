@@ -18,11 +18,11 @@ kover {
             filters {
                 excludes {
                     // Minimal SMTP wire client — exercised by fake-socket suites; exclude like CremaRuntime.
-                    classes("io.konaframework.mail.SmtpTransport")
+                    classes("org.konaframework.mail.SmtpTransport")
                     // Default-arg constructor bridges for Java interop value holders.
-                    classes("io.konaframework.mail.Content")
-                    classes("io.konaframework.mail.Envelope")
-                    classes("io.konaframework.mail.Address")
+                    classes("org.konaframework.mail.Content")
+                    classes("org.konaframework.mail.Envelope")
+                    classes("org.konaframework.mail.Address")
                 }
             }
             verify {
