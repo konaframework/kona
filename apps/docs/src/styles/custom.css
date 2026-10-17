@@ -1,6 +1,6 @@
 /*
  * Kona brand — coffee palette (aligned with Brew).
- * Light primary espresso roast #A67C52; dark primary latte #C9A57B.
+ * Light primary caramel #DF8723 (text uses deep #9A5812); dark primary latte #C9A57B.
  * Dark headings use soft cream #E8D4B8 (not pure white).
  */
 
@@ -41,16 +41,16 @@
 }
 
 :root[data-theme='light'] {
-  --kona-primary: #a67c52;
-  --kona-primary-soft: #b8916a;
-  --kona-primary-deep: #8b6340;
+  --kona-primary: #df8723;
+  --kona-primary-soft: #e9a055;
+  --kona-primary-deep: #9a5812;
   --kona-accent: #3d2914;
   --kona-accent-soft: #5c4033;
   --kona-accent-deep: #2a1c10;
   --kona-cream: #faf6f0;
   --kona-surface: #faf6f0;
   --kona-surface-raised: #f5ede3;
-  --kona-glow: rgba(166, 124, 82, 0.2);
+  --kona-glow: rgba(223, 135, 35, 0.2);
 
   --sl-color-accent-low: #f0e6d6;
   --sl-color-accent: var(--kona-primary);
@@ -75,6 +75,10 @@ a:not(.sl-link-button):hover {
 
 :root[data-theme='light'] a:not(.sl-link-button):hover {
   color: var(--kona-accent);
+}
+
+:root[data-theme='light'] .sl-link-button.primary {
+  color: #1a120c;
 }
 
 .kona-callout {
