@@ -1,0 +1,13 @@
+{
+  "$schema": "./apps/docs/node_modules/wrangler/config-schema.json",
+  // Repo-root Wrangler config for Workers Builds (root directory = /).
+  // Default deploy command `npx wrangler deploy` reads this file.
+  // Local app-scoped deploy: cd apps/docs && pnpm cf:deploy
+  // See docs/governance/docs-site.md and apps/docs/wrangler.jsonc
+  "name": "kona",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "./apps/docs/dist",
+    "not_found_handling": "404-page"
+  }
+}

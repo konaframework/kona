@@ -3,10 +3,14 @@ name: Cloudflare Pages
 # Primary docs host: https://docs.konaframework.org
 #
 # First publish (no GitHub secrets required):
-#   Prefer Cloudflare Dashboard → Workers & Pages → Create → Connect to Git
-#   for konaframework/kona, root/apps/docs build (see docs/governance/docs-site.md).
-#   Custom domain docs.konaframework.org on that project. Cloudflare pulls from GitHub;
-#   no CLOUDFLARE_* secrets in this repo.
+#   Cloudflare Dashboard → Workers & Pages → project "kona" → Settings → Builds
+#   Framework preset: None (not Astro)
+#   Root: / · Build: pnpm install --frozen-lockfile && pnpm docs:build
+#   Deploy: npx wrangler deploy  (root wrangler.jsonc → apps/docs/dist)
+#   NODE_VERSION=22 · PUBLIC_SITE_URL / PUBLIC_BASE_PATH
+#   Do NOT use npm ci; do NOT use wrangler pages deploy (Workers Assets, not Pages).
+#   Details: docs/governance/docs-site.md
+#   Custom domain docs.konaframework.org. No CLOUDFLARE_* secrets required for Path A.
 #
 # Optional harden (this workflow's deploy step):
 #   CLOUDFLARE_API_TOKEN   — API token with Cloudflare Pages Edit
@@ -18,6 +22,7 @@ on:
     branches: [main]
     paths:
       - 'apps/docs/**'
+      - 'wrangler.jsonc'
       - 'package.json'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'
@@ -71,11 +76,11 @@ jobs:
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy to Cloudflare Pages (Wrangler)
+      - name: Deploy to Cloudflare Workers (static assets)
         if: steps.cf.outputs.configured == 'true'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/docs
-          command: pages deploy dist --project-name=kona-docs
+          command: deploy

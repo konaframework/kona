@@ -103,8 +103,9 @@ git fetch origin && git checkout main && git pull
 ./gradlew :kona-cli:run --args='new demo --lang=kotlin'
 # or global CLI after install: kona new demo --lang=kotlin
 
-# Docs site (local)
-cd apps/docs && npm ci && npm run dev
+# Docs site (local) — pnpm workspace (not npm ci)
+pnpm install --frozen-lockfile && pnpm docs:dev
+# Cloudflare Pages: pnpm install --frozen-lockfile && pnpm docs:build (root `/`; see docs/governance/docs-site.md)
 
 # Publish for sibling packages (Brew / Inertia CI pattern)
 ./gradlew publishToMavenLocal -x test

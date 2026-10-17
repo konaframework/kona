@@ -1,7 +1,27 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  // Cloudflare Pages — https://docs.konaframework.org
+  // Cloudflare Workers + static assets → https://docs.konaframework.org
+  // GitHub check: "Workers Builds: kona"
+  //
+  // Dashboard → Settings → Builds (Framework preset: None):
+  //   Root directory:   /
+  //   Build command:    pnpm install --frozen-lockfile && pnpm docs:build
+  //   Deploy command:   npx wrangler deploy
+  //                     (reads repo-root wrangler.jsonc → apps/docs/dist)
+  //   Preview command:  npx wrangler deploy
+  //   Build vars:       PUBLIC_SITE_URL=https://docs.konaframework.org
+  //                     PUBLIC_BASE_PATH=/
+  //                     NODE_VERSION=22
+  //                     PNPM_VERSION=9.15.0  (optional)
+  //
+  // This file is for local `cd apps/docs && pnpm cf:deploy`.
+  // Workers Builds uses the repo-root wrangler.jsonc (same name + assets).
+  // Use `wrangler deploy`, NOT `wrangler pages deploy`.
+  // See docs/governance/docs-site.md
   "name": "kona",
   "compatibility_date": "2026-08-01",
-  "pages_build_output_dir": "./dist"
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
 }

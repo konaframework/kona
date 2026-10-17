@@ -70,58 +70,69 @@ Public guides for a milestone’s API surface are written **or rewritten** **in 
 
 ### Hostnames (locked)
 
-| Host | Repo | Cloudflare Pages project |
-|------|------|--------------------------|
-| [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`) | `kona-docs` |
+| Host | Repo | Cloudflare project |
+|------|------|--------------------|
+| [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`) | `kona` |
 | [brew.konaframework.org](https://brew.konaframework.org) | `konaframework/kona-brew` | `kona-brew-docs` |
 | [inertia.konaframework.org](https://inertia.konaframework.org) | `konaframework/kona-inertia` | `kona-inertia-docs` |
 
 Production builds use `PUBLIC_SITE_URL` = that host and `PUBLIC_BASE_PATH=/` (apex path, not a GitHub project subpath).
 
-### Cloudflare Pages (primary)
+### Cloudflare Workers Builds (primary)
 
-**First publish does not require GitHub secrets.** Prefer Cloudflare’s Git integration (or a dashboard Direct Upload) so `docs.konaframework.org` goes live, then optionally harden with Wrangler secrets later.
+**First publish does not require GitHub secrets.** Prefer Cloudflare’s Git integration (Workers Builds) so `docs.konaframework.org` goes live, then optionally harden with Wrangler secrets later.
 
-#### Path A — Cloudflare Git integration (recommended for first publish)
+Kona docs is a **static Astro site on Workers Assets** (not classic Pages). Config uses `"assets": { "directory": "./dist" }` and deploys with **`wrangler deploy`**. Do **not** use `pages_build_output_dir` or `wrangler pages deploy` for this project.
+
+#### Path A — Workers Builds Git integration (recommended for first publish)
 
 No `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in GitHub. Cloudflare clones and builds from the repo.
 
 1. Cloudflare account on the `konaframework.org` zone.
-2. **Workers & Pages → Create → Connect to Git** → `konaframework/kona` (repeat for brew / inertia with their repos).
-3. Project name: `kona-docs` (brew: `kona-brew-docs`, inertia: `kona-inertia-docs`).
-4. Build settings for `kona` (pnpm workspace):
+2. **Workers & Pages →** project **`kona`** → **Settings → Builds** (or Create → Connect to Git → `konaframework/kona`).
+3. **Framework preset: None** (do **not** pick Astro — that preset injects `npm ci` / `npm run build`).
+4. Build settings for `kona` (**pnpm** workspace at repo root — lockfile is `pnpm-lock.yaml`; there is **no** `package-lock.json`):
 
    | Setting | Value |
    |---------|--------|
-   | Root directory | `/` (repo root) or follow CF’s monorepo docs if you pin `apps/docs` |
+   | Root directory | `/` (repo root — **required**; do not set `apps/docs`) |
    | Build command | `pnpm install --frozen-lockfile && pnpm docs:build` |
-   | Build output directory | `apps/docs/dist` |
-   | Env vars | `PUBLIC_SITE_URL=https://docs.konaframework.org`, `PUBLIC_BASE_PATH=/` |
+   | Deploy command | `npx wrangler deploy` (reads root `wrangler.jsonc` → `apps/docs/dist`) |
+   | Preview command | `npx wrangler deploy` |
+   | Environment / build variables | `PUBLIC_SITE_URL=https://docs.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
+   | Optional | `PNPM_VERSION=9.15.0` (matches root `packageManager`; Corepack also reads that field) |
 
-5. Custom domain: `docs.` / `brew.` / `inertia.` → CNAME to the `*.pages.dev` host Cloudflare shows.
-6. Push to `main` (or redeploy from the Cloudflare dashboard).
+   **Wrong (build):** `npm ci && npm run build` — no `package-lock.json` in this monorepo.
 
-Sister repos: same pattern with their docs app paths and hostnames from the table above.
+   **Wrong (deploy):** `npx wrangler pages deploy …` — this project is Workers Assets, not Pages. Also avoid a Pages-style `pages_build_output_dir` in Wrangler; use `"assets": { "directory": "…" }`. Without a root `wrangler.jsonc` pointing at `apps/docs/dist`, default `npx wrangler deploy` fails with *Missing entry-point to Worker script or to assets directory*. GitHub check name: **Workers Builds: kona**.
+
+5. Custom domain: `docs.konaframework.org` on the Worker (Workers & Pages → `kona` → Custom domains). Sister hosts `brew.` / `inertia.` stay on their own projects.
+6. Push to `main` (or **Retry build** from the Cloudflare dashboard after saving settings).
+
+Sister repos (**npm** + classic Pages-style wrangler) — see their READMEs / `docs/governance/docs-site.md`:
+
+| Repo | Root directory | Build command | Output / deploy |
+|------|----------------|---------------|-----------------|
+| `kona-brew` | `apps/docs` | `npm ci && npm run build` | `dist` (+ Pages/`wrangler pages deploy` as configured) |
+| `kona-inertia` | `apps/docs` | `npm ci && npm run build` | `dist` (+ Pages/`wrangler pages deploy` as configured) |
 
 #### Path B — optional Wrangler from GitHub Actions (harden later)
 
-Workflow: [`.github/workflows/cloudflare-pages.yml`](../../.github/workflows/cloudflare-pages.yml) — on `main` docs changes it **always builds** (smoke). It **deploys with Wrangler only when** the secrets below exist; otherwise it exits the deploy step cleanly (build-only notice). Harmless alongside Path A if you keep both, or use Path B alone with Direct Upload / empty project.
+Workflow: [`.github/workflows/cloudflare-pages.yml`](../../.github/workflows/cloudflare-pages.yml) — on `main` docs changes it **always builds** (smoke). It **deploys with Wrangler only when** the secrets below exist; otherwise it exits the deploy step cleanly (build-only notice). Harmless alongside Path A if you keep both.
 
 | Secret | Purpose |
 |--------|---------|
-| `CLOUDFLARE_API_TOKEN` | API token with **Account → Cloudflare Pages → Edit** |
+| `CLOUDFLARE_API_TOKEN` | API token with **Account → Workers Scripts → Edit** (and related Workers permissions) |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account id (dashboard sidebar / Workers & Pages) |
-
-If using Path B without Path A: create an empty/direct-upload Pages project named `kona-docs`, attach the custom domain, add the two secrets, re-run the workflow.
 
 Local:
 
 ```bash
 pnpm pages:cf          # build for docs.konaframework.org
-pnpm --filter @kona/docs cf:deploy   # wrangler pages deploy (needs `wrangler login` or token env)
+pnpm --filter @kona/docs cf:deploy   # wrangler deploy (needs `wrangler login` or token env)
 ```
 
-Config: `apps/docs/wrangler.jsonc` (`pages_build_output_dir: ./dist`). Optional `public/_headers` ships with the static build.
+Config: root [`wrangler.jsonc`](../../wrangler.jsonc) (`assets.directory: ./apps/docs/dist`) for Workers Builds; [`apps/docs/wrangler.jsonc`](../../apps/docs/wrangler.jsonc) for local app-scoped deploy. Optional `public/_headers` ships with the static build.
 
 ### GitHub Pages (secondary mirror)
 
