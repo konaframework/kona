@@ -23,8 +23,8 @@ export default defineConfig({
         'Laravel-inspired, batteries-included web framework for the JVM. Kotlin-first, Java first-class.',
       favicon: '/favicon.svg',
       logo: {
-        light: './src/assets/kona-mark.svg',
-        dark: './src/assets/kona-mark-dark.svg',
+        light: './src/assets/kona-logo.svg',
+        dark: './src/assets/kona-logo-dark.svg',
         alt: 'Kona',
         replacesTitle: true,
       },
