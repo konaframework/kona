@@ -7,6 +7,12 @@ import java.util.Map;
 
 public class WelcomeController {
     public Response index(Request request) {
-        return Inertia.render("Pages/Welcome", Map.of("message", "Welcome to Kona Inertia"));
+        return Inertia.render(
+            "Pages/Welcome",
+            Map.of(
+                "title", "Welcome",
+                "message", "Welcome to Kona Inertia"
+            )
+        );
     }
 }
