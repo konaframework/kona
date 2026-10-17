@@ -9,6 +9,9 @@ import java.nio.file.Path
  * `./grind install <package>` (also `kona grind install <package>`) — add a Maven
  * dependency and register service providers for the app.
  *
+ * When the package is `inertia` / `kona-inertia`, runs [InertiaFrontendSetup] unless
+ * `--frontend=none`.
+ *
  * Package mutation coverage: `PackageInstallerTest`. This class is a GrindIO façade.
  */
 @org.konaframework.support.KoverExclude
@@ -22,6 +25,7 @@ class InstallCommand(
             io.error("Usage: ./grind install <package>  (or: kona grind install <package>)")
             io.info("Packages: ${PackageCatalog.aliases().joinToString(", ")}")
             io.info("Or: group:artifact[:version]")
+            io.info("Inertia: --frontend=vue|react|svelte|none  --no-interactive")
             return 1
         }
         val root =
@@ -43,6 +47,17 @@ class InstallCommand(
                 io.success("Registered providers: ${providers.added.joinToString(", ")}")
             }
             io.warn("Refresh Gradle / rebuild so the dependency is on the classpath.")
+            if (isInertiaPackage(result.resolved.artifact)) {
+                InertiaFrontendSetup(
+                    root,
+                    io,
+                    Prompts(),
+                    consoleAvailable = System.console() != null,
+                ).run(
+                    stackFlag = options["frontend"],
+                    noInteractive = options.containsKey("no-interactive"),
+                )
+            }
             0
         } catch (ex: IllegalArgumentException) {
             io.error(ex.message ?: "install failed")
@@ -52,4 +67,7 @@ class InstallCommand(
             1
         }
     }
+
+    private fun isInertiaPackage(artifact: String): Boolean =
+        artifact.equals("kona-inertia", ignoreCase = true)
 }

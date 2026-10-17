@@ -32,6 +32,10 @@ kona grind install drip --base=/path/to/app
 | --- | --- |
 | `--base=…` | App root (default: the grind project root / cwd for `./grind`) |
 | `--version=…` | Override when the alias/coordinate omits a version (default: detect a `org.konaframework:…:version` already in the build file, else a SNAPSHOT / bundled default) |
+| `--frontend=…` | **Inertia only:** `vue`, `react`, `svelte`, or `none` — scaffold Vite + adapter (interactive if omitted and a TTY is present; default Vue when non-interactive) |
+| `--no-interactive` | **Inertia only:** never prompt for `--frontend` |
+
+After `./grind install inertia`, follow the printed npm / middleware checklist, or the full guide on [Inertia installation](https://inertia.konaframework.org/guides/installation/).
 
 ## Catalog aliases
 
