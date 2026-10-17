@@ -44,9 +44,9 @@
 }
 
 :root[data-theme='light'] {
-  --kona-primary: #a67c52;
-  --kona-primary-soft: #b8916a;
-  --kona-primary-deep: #8b6340;
+  --kona-primary: #df8723;
+  --kona-primary-soft: #e9a055;
+  --kona-primary-deep: #9a5812;
   --kona-accent: #3d2914;
   --kona-accent-soft: #5c4033;
   --kona-accent-deep: #2a1c10;
@@ -58,16 +58,16 @@
   --landing-hero-fg: #2a1c10;
   --landing-hero-muted: #3d2914;
   --landing-hero-bg:
-    radial-gradient(ellipse 85% 65% at 12% 18%, rgba(166, 124, 82, 0.22), transparent 55%),
-    radial-gradient(ellipse 75% 55% at 88% 70%, rgba(201, 165, 123, 0.18), transparent 52%),
+    radial-gradient(ellipse 85% 65% at 12% 18%, rgba(223, 135, 35, 0.2), transparent 55%),
+    radial-gradient(ellipse 75% 55% at 88% 70%, rgba(201, 165, 123, 0.2), transparent 52%),
     linear-gradient(160deg, #f0e6d6 0%, #faf6f0 48%, #e8d4b8 100%);
   --landing-hero-stripe: rgba(61, 41, 20, 0.04);
   --landing-cta-secondary-border: rgba(61, 41, 20, 0.28);
-  --landing-cta-secondary-hover: rgba(166, 124, 82, 0.1);
+  --landing-cta-secondary-hover: rgba(223, 135, 35, 0.1);
   --landing-cta-secondary-fg: var(--kona-accent-deep);
   --landing-feature-heading: var(--kona-accent-deep);
   --landing-close-bg:
-    linear-gradient(135deg, #4a3423 0%, #8b6340 50%, #a67c52 100%);
+    linear-gradient(135deg, #4a3423 0%, #9a5812 50%, #df8723 100%);
   --landing-link: var(--kona-accent);
   --landing-link-hover: var(--kona-accent-deep);
   --landing-top-bg: rgba(250, 246, 240, 0.78);
@@ -75,7 +75,7 @@
   --landing-theme-btn-bg: rgba(42, 28, 16, 0.05);
   --landing-theme-btn-border: rgba(42, 28, 16, 0.14);
   --landing-cta-primary-fg: #1a120c;
-  --landing-cta-glow: rgba(166, 124, 82, 0.28);
+  --landing-cta-glow: rgba(223, 135, 35, 0.3);
 }
 
 *,

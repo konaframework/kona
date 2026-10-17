@@ -22,13 +22,13 @@ Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) 
 
 ## Brand (locked)
 
-Coffee palette (espresso roast / latte). Dark headings use soft cream, not pure white.
+Coffee palette shared with Brew (caramel / latte). Dark headings use soft cream, not pure white. Light-mode primary is too light for small text on cream, so links and accent text use primary deep `#9A5812`; buttons on caramel use espresso `#1A120C` text.
 
 | Token | Light | Dark |
 |-------|-------|------|
-| Primary | Espresso roast `#A67C52` | Latte `#C9A57B` |
-| Primary soft | `#B8916A` | `#DCC09A` |
-| Primary deep | `#8B6340` | `#A67C52` |
+| Primary | Caramel `#DF8723` | Latte `#C9A57B` |
+| Primary soft | `#E9A055` | `#DCC09A` |
+| Primary deep | `#9A5812` | `#A67C52` |
 | Accent | Deep espresso `#3D2914` | Soft cream `#E8D4B8` |
 | Accent soft | `#5C4033` | `#F0E6D6` |
 | Accent deep | `#2A1C10` | `#D4B896` |
