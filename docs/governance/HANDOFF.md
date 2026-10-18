@@ -19,13 +19,13 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 ## In-repo Brew / Inertia (remonorepo)
 
-| Product | Module | Docs app | Public site |
-|---------|--------|----------|-------------|
-| Brew | `modules/brew` → `:kona-brew` | `apps/brew-docs` | https://brew.konaframework.org/ |
-| Inertia | `modules/inertia` → `:kona-inertia` | `apps/inertia-docs` | https://inertia.konaframework.org/ |
+| Product | Module | Docs | Public URL |
+|---------|--------|------|------------|
+| Brew | `modules/brew` → `:kona-brew` | `apps/docs` (Frontend → Brew) | https://docs.konaframework.org/docs/brew/ |
+| Inertia | `modules/inertia` → `:kona-inertia` | `apps/docs` (Frontend → Inertia) | https://docs.konaframework.org/docs/inertia/ |
 | Brew JS | `js/brew/` | — | bundled into `kona-brew` resources |
 
-**Archived** (do not publish from; delete later): `konaframework/kona-brew`, `konaframework/kona-inertia`. Local checkouts `~/kona-brew` / `~/kona-inertia` are historical only.
+Stub only: `apps/brew-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
@@ -71,7 +71,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 **Done on `main`:** logging drivers, `view()` / Views, Grind Console docs, Events / Testing sections, Brew/Inertia brief link-outs, `./grind install` / `kona grind install`, first `0.1.0` release train tagged on kona (#134). Continuous autopilot + Auto model locks remain in AGENTS / rules.
 
-**Remonorepo done (#138):** Brew + Inertia are in-tree (`modules/brew`, `modules/inertia`, samples, `apps/brew-docs`, `apps/inertia-docs`, `js/brew`). Sister repos archived. **Human Cloudflare follow-up:** point `kona-brew-docs` / `kona-inertia-docs` Workers Builds at `konaframework/kona` with root `apps/brew-docs` / `apps/inertia-docs`.
+**Remonorepo done (#138):** Brew + Inertia are in-tree (`modules/brew`, `modules/inertia`, samples, `js/brew`). Docs unified into `apps/docs` (Frontend → Brew / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/brew/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-brew-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
 **0.1.1 release ready — human tags `v0.1.1` after merge** (release PR; do not tag from agents). First train that includes in-tree brew/inertia on Central.
 
@@ -87,7 +87,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 - Do **not** revive Extract names — ORM is **Cadence**.
 - **CLI lock:** user-facing terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`. No raw `println`.
-- Brew and Inertia exhaustive guides stay on separate Starlight sites (`apps/brew-docs`, `apps/inertia-docs`); Kona `apps/docs` keeps brief link-outs.
+- Brew and Inertia exhaustive guides live under `apps/docs` sidebar **Frontend → Brew / Inertia** (not separate sites).
 
 ## How to continue
 
@@ -102,21 +102,19 @@ git fetch origin && git checkout main && git pull
 ./gradlew :kona-cli:run --args='new demo --lang=kotlin'
 # or global CLI after install: kona new demo --lang=kotlin
 
-# Docs sites (local)
-pnpm install --frozen-lockfile && pnpm docs:dev          # apps/docs
-(cd apps/brew-docs && npm ci && npm run dev)             # brew
-(cd apps/inertia-docs && npm ci && npm run dev)          # inertia
+# Docs (local)
+pnpm install --frozen-lockfile && pnpm docs:dev          # apps/docs (includes Brew + Inertia)
 
 # Publish all jars incl. brew/inertia
 ./gradlew publishToMavenLocal -x test
 # Full maintainer guide: docs/governance/publishing.md
 ```
 
-Key paths: `modules/` (framework), `apps/docs|brew-docs|inertia-docs/`, `js/brew/`, `docs/governance/`, `.cursor/rules/kona-*.mdc`.
+Key paths: `modules/` (framework), `apps/docs/`, `js/brew/`, `docs/governance/`, `.cursor/rules/kona-*.mdc`.
 
 ## Open gaps / next priorities
 
-1. Cloudflare dashboard root-path update for brew/inertia Workers Builds (see docs-site.md).
+1. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
 2. Confirm no conflicting open PRs.
 3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time.
 4. **Maven Central — 0.1.1 release ready — human tags `v0.1.1` after merge**

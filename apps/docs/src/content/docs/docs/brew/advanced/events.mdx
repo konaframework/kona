@@ -1,0 +1,206 @@
+---
+title: Events
+description: Server dispatch, @On listeners, browser wire:* events, and Alpine ↔ Brew event bridges.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Brew has three related event surfaces:
+
+1. **Browser DOM events** — `wire:click`, `wire:keydown.enter`, custom `wire:trix-change`, …
+2. **Component events** — `dispatch(...)` on the server, `@On` / `listeners()` on the receiver
+3. **JavaScript / Alpine** — `Brew.dispatch`, `$wire.$dispatch`, `x-on:….window`
+
+They share names on purpose: a server `dispatch('saved')` becomes a browser `CustomEvent` that Alpine and other components can hear.
+
+## Browser events (`wire:*`)
+
+Use `wire:<event-name>` on any element to call a server action:
+
+```html
+<button wire:click="save">Save</button>
+<button wire:click.prevent="save">Save</button>
+<button wire:dblclick="edit">Edit</button>
+<input wire:keydown.enter="search" />
+<input wire:keydown.shift.enter="newline" />
+<div wire:keydown.escape.window="close"></div>
+<div wire:trix-change="updated"></div>
+<div wire:init="load">…</div>
+```
+
+Key modifiers include `.enter`, `.escape`, `.space`, `.tab`, `.shift`, `.ctrl`, `.alt`, `.meta` / `.cmd`, arrow keys, `.page-up` / `.page-down`, and `.slash`.
+
+| Modifier | Role |
+|----------|------|
+| `.window` / `.document` | Listen on window / document |
+| `.outside` | Fire when the event happens outside the element |
+| `.self` | Only when the event target is the element |
+| `.once` | Remove listener after first fire |
+| `.debounce.Xms` / `.throttle.Xms` | Rate-limit |
+| `.passive` / `.capture` | `addEventListener` options |
+| `.camel` / `.dot` | Event name casing |
+
+Any DOM event name works after `wire:`. See [Actions](/docs/brew/essentials/actions/) for magic actions and confirm dialogs.
+
+## Dispatch from the server
+
+Queue a browser event from an action:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun save() {
+    // …
+    dispatch("post-saved", "id" to postId)
+}
+
+fun notifySelf() {
+    dispatch("refresh-ui").self()
+}
+
+fun notifyChild() {
+    dispatch("filter-changed", "q" to query).to("search-panel")
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public void save() {
+    // …
+    dispatch("post-saved", Map.of("id", postId));
+}
+
+public void notifySelf() {
+    dispatch("refresh-ui").self();
+}
+
+public void notifyChild() {
+    dispatch("filter-changed", Map.of("q", query)).to("search-panel");
+}
+```
+
+</TabItem>
+</Tabs>
+
+Fluent delivery:
+
+| Method | Effect |
+|--------|--------|
+| `to("name")` / `to(Class)` / `component("name")` | Target a component by name |
+| `self()` | Only this component |
+| `ref("name")` | Target a `wire:ref` |
+| `el("selector")` | Target a CSS selector |
+
+Serialized into `effects.dispatches` and delivered by the client after morph.
+
+## Listen with `@On` and `listeners()`
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.brew.On
+
+class Feed : Component() {
+    @On("post-saved")
+    fun onSaved(id: Long) { /* … */ }
+
+    @On("post-updated.{post.id}")
+    fun onThisPost() { /* dynamic placeholder from state */ }
+
+    override fun listeners() = mapOf(
+        "legacy-event" to "onLegacy",
+    )
+
+    fun onLegacy() { /* … */ }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.brew.On;
+
+public class Feed extends Component {
+    @On("post-saved")
+    public void onSaved(long id) { /* … */ }
+
+    @On("post-updated.{post.id}")
+    public void onThisPost() { /* … */ }
+
+    @Override
+    public Map<String, String> listeners() {
+        return Map.of("legacy-event", "onLegacy");
+    }
+
+    public void onLegacy() { /* … */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+On mount, Brew dehydrates listener names into `effects.listeners` so the client can route events. Placeholders like `{post.id}` are resolved from component properties.
+
+## Nested child listeners
+
+Listen for a child’s event on the parent tag:
+
+```html
+<brew:editor @post-saved="refreshList" />
+```
+
+The parent method runs when the child dispatches `post-saved`.
+
+## JavaScript and Alpine
+
+```js
+// Global
+Brew.on('saved', (e) => console.log(e))
+Brew.dispatch('saved', { id: 1 })
+Brew.dispatchTo('counter', 'bump', {})
+
+// From Alpine / $wire
+$wire.$on('saved', () => {})
+$wire.$dispatch('saved', { id: 1 })
+$wire.$dispatchSelf('refresh-ui')
+$wire.$dispatchTo('search-panel', 'filter-changed', { q: 'brew' })
+$wire.$dispatchRef('panel', 'close')
+$wire.$dispatchEl('#toast', 'show', { text: 'Done' })
+```
+
+Alpine hears Brew events as window `CustomEvent`s:
+
+```html
+<div x-data x-on:post-saved.window="toast = $event.detail">
+  …
+</div>
+```
+
+Template helpers `$dispatch` / `$dispatchTo` / `$dispatchSelf` are available in Alpine expressions inside a component root.
+
+## Echo / broadcasting
+
+`@On("echo:channel,Event")`, `echo-private:`, and `echo-presence:` integrate with Kona’s broadcasting adapter when Echo is present on the page. See the Kona broadcasting docs for channel setup; Brew only wires the listener names into the component.
+
+## Testing
+
+```kotlin
+Brew.test("feed")
+    .call("save")
+    .assertDispatched("post-saved")
+    .assertDispatched("post-saved") { params -> params["id"] == 42L }
+    .assertNotDispatched("deleted")
+```
+
+You can also `dispatch(...)` into a testable instance to exercise `@On` handlers without a browser.
+
+## Next
+
+- [Nesting](/docs/brew/advanced/nesting/) — parent/child event wiring
+- [Alpine.js coupling](/docs/brew/js/alpine/) — `$wire` and `x-on`
+- [JavaScript runtime](/docs/brew/js/runtime/) — hooks and interceptors

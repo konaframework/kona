@@ -1,0 +1,55 @@
+---
+title: Introduction
+description: What Brew is, when to use it, and how it fits in a Kona application.
+---
+
+**Brew** is Kona’s reactive server-component product. You write a class with public state and actions, render HTML with Crema, and Brew keeps the browser in sync over a small JSON protocol—without a full page reload for every interaction.
+
+(Brief nod: Brew occupies the same problem space as popular full-stack reactive component tools. The rest of this site describes Brew on its own terms.)
+
+## When to use Brew
+
+Use Brew when you want:
+
+- **Server-owned state** — form drafts, filters, pagination, and UI toggles live on the JVM.
+- **Incremental HTML updates** — the client morphs returned HTML into the existing DOM.
+- **Kotlin and Java equally** — the same component model, with first-class Java samples and tests.
+- **Tight Crema integration** — templates, layouts, and directives stay in one stack with Kona.
+
+Prefer a JSON API + SPA when the UI is almost entirely client-driven and the server is only a data plane. Prefer plain Kona controllers + Crema when interactions are rare and full page responses are enough.
+
+## What you get
+
+1. A **component class** — public fields are state; public methods are actions the browser can call.
+2. A **snapshot** on the root HTML element (`wire:snapshot`, `wire:effects`, `wire:id`, `wire:name`).
+3. A **client runtime** that posts to `POST /brew/update` and morphs the new HTML into place.
+4. A **bundled Alpine.js** runtime — Brew ships Alpine 3.x plus plugins; you do not install Alpine separately for the default script tag.
+
+## How a click works
+
+1. The browser finds the component root (`wire:id`) and reads `wire:snapshot`.
+2. It `POST`s `{ _token, components: [{ snapshot, updates, calls }] }` to `/brew/update` with the `X-Brew` header.
+3. The server verifies CSRF + checksum, restores state, runs the action, re-renders, and returns `{ components: [{ snapshot, effects }], assets }`.
+4. The client morphs `effects.html` into the DOM (keyed by `wire:key` / `wire:id`).
+
+Corrupt checksums or locked-property writes fail the request. Missing components or unknown actions raise Brew exceptions.
+
+## Relationship to Kona
+
+Brew ships as `org.konaframework:kona-brew` from the Kona monorepo (`modules/brew`). It depends on Kona HTTP, session, Crema, and related modules. Framework guides for routing, Crema, and grind live elsewhere in this documentation site.
+
+## Install in one command
+
+```bash
+./grind install brew
+# or: kona grind install brew
+# or: kona new my-app --kit=brew
+```
+
+Details: [Installation](/docs/brew/guides/installation/).
+
+## Next
+
+- [Requirements](/docs/brew/guides/requirements/) — JDK, Kona, Node
+- [Installation](/docs/brew/guides/installation/) — `./grind install brew`, kit, and optional manual setup
+- [Your first component](/docs/brew/guides/first-component/) — Kotlin + Java walkthrough

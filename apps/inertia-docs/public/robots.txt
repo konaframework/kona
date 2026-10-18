@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://inertia.konaframework.org/sitemap-index.xml

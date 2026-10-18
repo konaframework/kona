@@ -35,7 +35,7 @@ Coffee palette shared with Brew and Inertia (caramel / latte). Dark headings use
 | Surface | Cream `#FAF6F0` | Espresso `#1A120C` |
 | Heading | `#2A1C10` | Soft cream `#E8D4B8` |
 
-CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). Mark: Outfit wordmark in `apps/docs/public/branding/` — primary on K + underline only; "ona" black (light) / white (dark). Accent is CSS/theme only — not a logo recolor. Sister product mirrors also live under `apps/docs/public/branding/`: `brew-*` and `inertia-*` (logo / banner / mark, light + dark) for cross-site reference.
+CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--kona-accent`, cream/espresso surfaces). **Square mark:** brew mug paths verbatim as `kona-logo.svg` (caramel `#DF8723` light; cream/white fill dark — same `d`). **Banner:** compose `[mark] · kona` monochrome (espresso on light, white on dark) — do not reshape mark paths. Accent is CSS/theme only. Sister product mirrors under `apps/docs/public/branding/`: `brew-*` and `inertia-*` for reference.
 
 ## Voice and depth (locked)
 
@@ -73,10 +73,17 @@ Public guides for a milestone’s API surface are written **or rewritten** **in 
 | Host | Repo path | Cloudflare project |
 |------|-----------|--------------------|
 | [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`, pnpm) | `kona` |
-| [brew.konaframework.org](https://brew.konaframework.org) | `konaframework/kona` (`apps/brew-docs`, npm) | `kona-brew-docs` |
-| [inertia.konaframework.org](https://inertia.konaframework.org) | `konaframework/kona` (`apps/inertia-docs`, npm) | `kona-inertia-docs` |
 
-Production builds use `PUBLIC_SITE_URL` = that host and `PUBLIC_BASE_PATH=/` (apex path, not a GitHub project subpath).
+Brew and Inertia guides live **inside** this site:
+
+| Section | Canonical path |
+|---------|----------------|
+| Brew | [docs.konaframework.org/docs/brew/](https://docs.konaframework.org/docs/brew/) |
+| Inertia | [docs.konaframework.org/docs/inertia/](https://docs.konaframework.org/docs/inertia/) |
+
+Stub READMEs only: `apps/brew-docs/`, `apps/inertia-docs/` (no separate Starlight builds).
+
+Production builds use `PUBLIC_SITE_URL=https://docs.konaframework.org` and `PUBLIC_BASE_PATH=/` (apex path, not a GitHub project subpath).
 
 ### Cloudflare Workers Builds (primary)
 
@@ -124,17 +131,23 @@ No `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in GitHub. Cloudflare clones
 
    **Wrong (deploy):** any `npx wrangler pages deploy …` / `--project-name=kona` — see **Do not use** above. Without a root `wrangler.jsonc` pointing at `apps/docs/dist`, bare `npx wrangler deploy` fails with *Missing entry-point to Worker script or to assets directory*.
 
-5. Custom domain: `docs.konaframework.org` on the Worker (Workers & Pages → `kona` → Custom domains). Brew / Inertia hosts stay on their own Workers projects (`kona-brew-docs` / `kona-inertia-docs`) but now build from **this** monorepo.
+5. Custom domain: `docs.konaframework.org` on the Worker (Workers & Pages → `kona` → Custom domains).
 6. **Save** Build settings, then **Retry build** (or push to `main`). Settings-only — no need to wait for a repo merge if the Deploy command was the only wrong field.
 
-Brew / Inertia docs (separate Cloudflare Workers projects; **npm**, not pnpm — do **not** copy Kona’s pnpm build onto these):
+#### Human Cloudflare follow-up — retire Brew / Inertia hosts
 
-| Project | Root directory | Build command | Deploy | Build vars |
-|---------|----------------|---------------|--------|------------|
-| `kona-brew-docs` | `apps/brew-docs` | `npm ci && npm run build` | `npx wrangler deploy` | `PUBLIC_SITE_URL=https://brew.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
-| `kona-inertia-docs` | `apps/inertia-docs` | `npm ci && npm run build` | `npx wrangler deploy` | `PUBLIC_SITE_URL=https://inertia.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
+Separate Workers `kona-brew-docs` / `kona-inertia-docs` and hosts `brew.konaframework.org` / `inertia.konaframework.org` are **deprecated**. Content ships only from `apps/docs`.
 
-**Human follow-up after remonorepo:** in the Cloudflare dashboard, reconnect each Worker’s Git source from the archived sister repo to `konaframework/kona` and set Root directory to `apps/brew-docs` / `apps/inertia-docs` (was `apps/docs` on the sister).
+Suggested redirects (Cloudflare Bulk Redirects, Worker routes, or DNS + Worker):
+
+| From | To |
+|------|----|
+| `https://brew.konaframework.org/` | `https://docs.konaframework.org/docs/brew/` |
+| `https://brew.konaframework.org/*` | `https://docs.konaframework.org/docs/brew/:splat` (or map old paths under `/guides/…` → `/docs/brew/guides/…`, `/essentials/…` → `/docs/brew/essentials/…`, etc.) |
+| `https://inertia.konaframework.org/` | `https://docs.konaframework.org/docs/inertia/` |
+| `https://inertia.konaframework.org/*` | `https://docs.konaframework.org/docs/inertia/:splat` (same prefix mapping) |
+
+Then disable or delete Workers Builds for `kona-brew-docs` / `kona-inertia-docs` (do **not** change GitHub rulesets).
 
 #### Path B — optional Wrangler from GitHub Actions (harden later)
 
