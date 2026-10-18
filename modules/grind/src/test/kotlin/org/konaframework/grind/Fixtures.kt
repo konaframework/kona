@@ -45,6 +45,26 @@ internal fun httpGet(url: String): HttpResponse<String> =
 
 internal fun freePort(): Int = java.net.ServerSocket(0).use { it.localPort }
 
+/**
+ * Opens a listening socket whose local port is busy and whose immediate successor is free,
+ * so port-bump tests do not flake when `port + 1` is already taken on the runner.
+ */
+internal fun occupyPortWithFreeSuccessor(
+    host: String = "127.0.0.1",
+    attempts: Int = 64,
+): java.net.ServerSocket {
+    val bindHost = java.net.InetAddress.getByName(host)
+    repeat(attempts) {
+        val occupied = java.net.ServerSocket(0, 50, bindHost)
+        val next = occupied.localPort + 1
+        if (next <= 65535 && ServePorts.isAvailable(host, next)) {
+            return occupied
+        }
+        occupied.close()
+    }
+    error("could not find an occupied port with a free successor on $host")
+}
+
 /** Minimal Gradle project with an (empty) compiled-classes dir so [AppLoader] falls back to the test classpath. */
 internal fun fixtureProject(dir: java.nio.file.Path, env: String = ""): java.nio.file.Path {
     java.nio.file.Files.createDirectories(dir.resolve("build/classes/kotlin/main"))

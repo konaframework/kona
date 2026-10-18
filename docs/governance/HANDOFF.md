@@ -25,7 +25,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Inertia | `modules/inertia` → `:kona-inertia` | `apps/inertia-docs` | https://inertia.konaframework.org/ |
 | Brew JS | `js/brew/` | — | bundled into `kona-brew` resources |
 
-To archive after remonorepo merges (do not publish from; delete later): `konaframework/kona-brew`, `konaframework/kona-inertia`. Local checkouts `~/kona-brew` / `~/kona-inertia` are historical only.
+**Archived** (do not publish from; delete later): `konaframework/kona-brew`, `konaframework/kona-inertia`. Local checkouts `~/kona-brew` / `~/kona-inertia` are historical only.
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
@@ -48,7 +48,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 | Work | PR |
 |------|-----|
-| Remonorepo Brew + Inertia into `modules/{brew,inertia}` | (open remonorepo PR — supersedes #137) |
+| Remonorepo Brew + Inertia into `modules/{brew,inertia}` | [#138](https://github.com/konaframework/kona/pull/138) (landed; supersedes #137 approach) |
 | Handoff / publishing Central notes | [#135](https://github.com/konaframework/kona/pull/135) |
 | Extract `kona-inertia` + brief docs link-out | [#101](https://github.com/konaframework/kona/pull/101) |
 | `./grind install` / `kona grind install` + provider registration | [#100](https://github.com/konaframework/kona/pull/100); top-level `kona install` removed |
@@ -71,7 +71,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 **Done on `main`:** logging drivers, `view()` / Views, Grind Console docs, Events / Testing sections, Brew/Inertia brief link-outs, `./grind install` / `kona grind install`, first `0.1.0` release train tagged on kona (#134). Continuous autopilot + Auto model locks remain in AGENTS / rules.
 
-**Remonorepo (in progress / this handoff):** Brew + Inertia return to this monorepo (`modules/brew`, `modules/inertia`, samples, `apps/brew-docs`, `apps/inertia-docs`, `js/brew`). Close obsolete #137 (decouple-sister-ci) as superseded. Archive sister GitHub repos after remonorepo lands. **Human Cloudflare follow-up:** point `kona-brew-docs` / `kona-inertia-docs` Workers Builds at `konaframework/kona` with root `apps/brew-docs` / `apps/inertia-docs`.
+**Remonorepo done (#138):** Brew + Inertia are in-tree (`modules/brew`, `modules/inertia`, samples, `apps/brew-docs`, `apps/inertia-docs`, `js/brew`). Sister repos archived. **Human Cloudflare follow-up:** point `kona-brew-docs` / `kona-inertia-docs` Workers Builds at `konaframework/kona` with root `apps/brew-docs` / `apps/inertia-docs`.
 
 ### Intentional deferrals (do not reopen without mandate)
 
@@ -114,8 +114,8 @@ Key paths: `modules/` (framework), `apps/docs|brew-docs|inertia-docs/`, `js/brew
 
 ## Open gaps / next priorities
 
-1. Land remonorepo PR → archive sister repos → Cloudflare dashboard root-path update (see docs-site.md).
-2. Confirm no conflicting open PRs; #137 closed as superseded.
+1. Cloudflare dashboard root-path update for brew/inertia Workers Builds (see docs-site.md).
+2. Confirm no conflicting open PRs.
 3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time.
 4. **Maven Central (first 0.1.0 train — 2026-10-18):**
    - **kona** tag `v0.1.0` release workflow uploaded; **Human blocker:** Portal **Publish** when `VALIDATED`.

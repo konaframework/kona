@@ -364,7 +364,7 @@ class GrindTest {
 
     @Test
     fun serveInProcessPortBusyOffersNextOrAborts() {
-        java.net.ServerSocket(0, 50, java.net.InetAddress.getByName("127.0.0.1")).use { occupied ->
+        occupyPortWithFreeSuccessor().use { occupied ->
             val port = occupied.localPort
             val next = port + 1
             val base = fixtureProject(temp.resolve("occupied"), "HOST=127.0.0.1\nPORT=$port\n")
