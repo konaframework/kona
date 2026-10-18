@@ -54,7 +54,7 @@ CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--k
 
 5. **Progressive path (trajectory).** Today’s public site still leans on low-level application wiring (explicit providers, registries). That is honest for the current API, but it is **not** the end state. As scaffolding and conventions land, **rewrite** guides so newcomers start with the simple path (*Getting started*) and only dig into providers/container internals later — developer-friendly progressive disclosure, not a disjoint dump of every knob on page one.
 
-   **Sidebar IA (public):** group pages in progressive sections — *Getting started* → *The basics* → *Crema* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Testing* → *Packages & tooling* — in `apps/docs/sidebar.mjs`. Prefer regrouping the sidebar over mass file moves so slugs stay stable.
+   **Sidebar IA (public):** group pages in progressive sections — *Getting started* → *The basics* → *Crema* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Brew* → *Inertia* → *Testing* → *Packages & tooling* — in `apps/docs/sidebar.mjs`. Brew and Inertia are top-level groups (not nested under Frontend). Prefer regrouping the sidebar over mass file moves so slugs stay stable.
 
 6. **Internal vs public.** Component maps that exist for agents under `docs/architecture/` stay out of the public site unless rewritten in Kona-only language.
 
