@@ -2,6 +2,7 @@ name: Publish to Maven Central
 
 # Tag-triggered release only. Never publishes SNAPSHOT from main pushes.
 # Auth today: Central Portal user token + GPG (see docs/governance/publishing.md).
+# Secrets live on the GitHub Environment `maven-central` (not repo-level).
 # Maven Central Trusted Publishing (OIDC) is not GA yet — do not add id-token exchange
 # until Sonatype + vanniktech document a supported path.
 on:
@@ -13,8 +14,7 @@ jobs:
   publish:
     name: Publish org.konaframework
     runs-on: ubuntu-latest
-    # Optional harden: add `environment: maven-central` here after creating that
-    # Environment in repo settings and moving the four secrets onto it.
+    environment: maven-central
     permissions:
       contents: read
     steps:
@@ -41,8 +41,9 @@ jobs:
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "Configure Portal token + GPG secrets documented in docs/governance/publishing.md"
-            echo "before tagging a release. (OIDC Trusted Publishing is not available for Central yet.)"
+            echo "Add Portal token + GPG secrets to the GitHub Environment 'maven-central'"
+            echo "(Settings → Environments → maven-central). See docs/governance/publishing.md"
+            echo "OIDC Trusted Publishing is not available for Central yet."
             exit 1
           fi
       - name: Publish to Maven Central
