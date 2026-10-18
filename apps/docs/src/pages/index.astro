@@ -7,6 +7,8 @@ const base = import.meta.env.BASE_URL.endsWith('/')
 
 const brandLight = `${base}branding/kona-banner.svg`;
 const brandDark = `${base}branding/kona-banner-dark.svg`;
+const logoLight = `${base}branding/kona-logo.svg`;
+const logoDark = `${base}branding/kona-logo-dark.svg`;
 const docsHub = `${base}docs/`;
 const install = `${base}docs/guides/installation/`;
 const introduction = `${base}docs/guides/introduction/`;
@@ -25,15 +27,15 @@ const github = 'https://github.com/konaframework/kona';
     <title>Kona — Batteries-included web framework for the JVM</title>
     <meta
       name="description"
-      content="Laravel-inspired, batteries-included web framework for the JVM. Kotlin-first, Java first-class — HTTP, Cadence, Crema, grind, and more in one toolkit."
+      content="Batteries-included web framework for the JVM. Kotlin-first, Java first-class — HTTP, Cadence, Crema, grind, and more in one toolkit."
     />
     <meta name="theme-color" content="#DF8723" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="color-scheme" content="light dark" />
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Outfit:wght@600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
     {/* Match Starlight ThemeProvider — same key so docs + landing stay in sync. */}
@@ -54,11 +56,12 @@ const github = 'https://github.com/konaframework/kona';
   <body class="landing">
     <header class="landing-top">
       <a class="landing-top__home" href={base} aria-label="Kona home">
-        <img class="landing-brand landing-brand--for-dark" src={brandDark} width="140" height="49" alt="" />
-        <img class="landing-brand landing-brand--for-light" src={brandLight} width="140" height="49" alt="" />
+        <img class="landing-brand landing-brand--for-dark" src={brandDark} width="158" height="42" alt="" />
+        <img class="landing-brand landing-brand--for-light" src={brandLight} width="158" height="42" alt="" />
       </a>
       <div class="landing-top__actions">
         <a class="landing-top__link" href={docsHub}>Docs</a>
+        <a class="landing-top__link" href={github} rel="noopener noreferrer">GitHub</a>
         <button
           type="button"
           class="landing-theme"
@@ -83,30 +86,39 @@ const github = 'https://github.com/konaframework/kona';
 
     <main class="landing-main">
       <section class="landing-hero" aria-label="Kona">
+        <div class="landing-hero__glow" aria-hidden="true"></div>
+        <div class="landing-hero__grain" aria-hidden="true"></div>
         <div class="landing-hero__inner">
-          <img
-            class="landing-hero__brand landing-brand--for-dark"
-            src={brandDark}
-            width="224"
-            height="79"
-            alt="Kona"
-          />
-          <img
-            class="landing-hero__brand landing-brand--for-light"
-            src={brandLight}
-            width="224"
-            height="79"
-            alt="Kona"
-          />
-          <h1 class="landing-hero__title">Batteries-included web apps on the JVM.</h1>
-          <p class="landing-hero__lede">
-            A Laravel-inspired, Kotlin-first framework with Java first-class APIs — routing, data, views,
-            sessions, queues, and a CLI that scaffolds as you go. One toolkit, not a pile of plugins.
-          </p>
-          <div class="landing-cta">
-            <a class="landing-cta__primary" href={install}>Get started</a>
-            <a class="landing-cta__secondary" href={introduction}>Introduction</a>
-            <a class="landing-cta__ghost" href={github} rel="noopener noreferrer">GitHub</a>
+          <div class="landing-hero__copy">
+            <img
+              class="landing-hero__brand landing-brand--for-dark"
+              src={brandDark}
+              width="232"
+              height="62"
+              alt="Kona"
+            />
+            <img
+              class="landing-hero__brand landing-brand--for-light"
+              src={brandLight}
+              width="232"
+              height="62"
+              alt="Kona"
+            />
+            <p class="landing-hero__eyebrow">For the JVM</p>
+            <h1 class="landing-hero__title">Batteries-included web apps.</h1>
+            <p class="landing-hero__lede">
+              Kotlin-first, Java first-class — routing, Cadence, Crema, sessions, queues, and grind in
+              one toolkit. Start with a route; dig deeper when you need to.
+            </p>
+            <div class="landing-cta">
+              <a class="landing-cta__primary" href={install}>Get started</a>
+              <a class="landing-cta__secondary" href={docsHub}>Read the docs</a>
+              <a class="landing-cta__ghost" href={github} rel="noopener noreferrer">GitHub</a>
+            </div>
+          </div>
+          <div class="landing-hero__visual" aria-hidden="true">
+            <img class="landing-hero__logo landing-brand--for-light" src={logoLight} width="220" height="220" alt="" />
+            <img class="landing-hero__logo landing-brand--for-dark" src={logoDark} width="220" height="220" alt="" />
           </div>
         </div>
       </section>
@@ -158,7 +170,7 @@ const github = 'https://github.com/konaframework/kona';
           </p>
           <div class="landing-cta">
             <a class="landing-cta__primary" href={install}>Installation</a>
-            <a class="landing-cta__secondary" href={docsHub}>Documentation hub</a>
+            <a class="landing-cta__secondary" href={introduction}>Introduction</a>
           </div>
         </div>
       </section>
@@ -189,7 +201,7 @@ const github = 'https://github.com/konaframework/kona';
         function apply(theme) {
           root.dataset.theme = theme;
           const meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute('content', theme === 'light' ? '#F0F4F8' : '#0B1622');
+          if (meta) meta.setAttribute('content', theme === 'light' ? '#DF8723' : '#C9A57B');
           if (btn) {
             btn.setAttribute(
               'aria-label',
