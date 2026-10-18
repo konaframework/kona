@@ -1,0 +1,133 @@
+---
+title: Brew properties
+description: Public state, bulk helpers, locked fields, and computed values.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Properties** are the public state Brew dehydrates into the snapshot and rehydrates on every update. Only members declared on your subclass count—base `Component` members are never state.
+
+## Declaring state
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Profile : Component() {
+    var name = ""
+    var age = 0
+    var tags = mutableListOf<String>()
+}
+```
+
+Prefer `var` with a backing field. Private / protected members are invisible to the browser.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Profile extends Component {
+    public String name = "";
+    public int age = 0;
+    public List<String> tags = new ArrayList<>();
+}
+```
+
+Public fields (or public getter/setter pairs Brew can see) become state.
+
+</TabItem>
+</Tabs>
+
+## Supported types
+
+Scalars, lists/maps/sets, enums, `java.time` types, `BigDecimal` / `BigInteger`, `UUID`, data classes / DTOs, and objects implementing `Wireable` (`toBrew` / `fromBrew`). Nested paths such as `todos.0.title` work through synthesizers.
+
+Wrong types from the client raise a property-type mismatch (request rejected). Locked or unknown properties are refused.
+
+## Bulk helpers
+
+| Method | Behaviour |
+|--------|-----------|
+| `fill(map)` | Assign known keys; ignore unknown |
+| `reset()` / `reset("a", "b")` | Restore initial values (fresh instance) |
+| `resetExcept("keep")` | Reset everything else |
+| `pull("title")` | Return value and reset |
+| `pull("a", "b")` | Return map and reset those keys |
+| `only("a", "b")` | Snapshot subset |
+| `all()` | Full public state map |
+
+```kotlin
+fun clearForm() {
+    reset("name", "email")
+}
+
+fun importDraft(data: Map<String, Any?>) {
+    fill(data)
+}
+```
+
+## Locked properties
+
+Mark fields the browser must not write:
+
+```kotlin
+@Locked
+var userId = 0
+```
+
+```java
+@Locked
+public int userId = 0;
+```
+
+Client updates to a locked property throw `CannotUpdateLockedPropertyException`.
+
+## Computed properties
+
+Memoized derived values from a zero-arg public method:
+
+```kotlin
+@Computed
+fun remaining(): Int = items.count { !it.done }
+```
+
+Templates read them as normal data (`{{ remaining }}`). Options:
+
+| Parameter | Role |
+|-----------|------|
+| `persist` | Cache across requests for this instance |
+| `cache` | Cache across all instances of the class |
+| `seconds` | TTL (default 3600) |
+| `key` | Explicit cache key when `cache` is true |
+| `tags` | Informational tags for tag-aware stores |
+
+Forget a memoized value:
+
+```kotlin
+forgetComputed("remaining")
+```
+
+Or read explicitly: `computed<Int>("remaining")`.
+
+## From JavaScript
+
+```js
+$wire.count          // read
+$wire.count = 5      // queue an update
+$wire.$set('count', 5, true)  // set + live round-trip
+$wire.$get('todos.0.title')
+$wire.$toggle('open')
+```
+
+## Security notes
+
+- Only **public** subclass properties are state.
+- Only **public** subclass methods (not `render` / lifecycle / `mount`) are callable actions.
+- Snapshots are checksummed with `app.key`; tampering fails verification.
+- Hydration uses an allow-list security policy for synthesizable classes.
+
+## Next
+
+- [Actions](/docs/brew/essentials/actions/) — methods and `$wire`
+- [Lifecycle](/docs/brew/essentials/lifecycle/) — `updatedFoo` hooks when properties change
+- [Forms](/docs/brew/essentials/forms/) — bind inputs with `wire:model`

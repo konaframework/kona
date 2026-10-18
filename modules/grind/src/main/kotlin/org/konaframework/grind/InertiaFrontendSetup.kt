@@ -146,7 +146,7 @@ class InertiaFrontendSetup(
         io.info("• Config: inertia.root_view=app, inertia.version=…")
         io.info("• Push HandleInertiaRequests (or kit HandleInertia) after boot")
         io.info("• Render with Inertia.render(\"Pages/Welcome\", props)")
-        io.info("Full guide: https://inertia.konaframework.org/guides/installation/")
+        io.info("Full guide: https://docs.konaframework.org/docs/inertia/guides/installation/")
     }
 
     companion object {

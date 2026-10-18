@@ -1,14 +1,17 @@
 ---
 title: Brew
-description: Brief overview of Brew — Kona’s reactive server components — with a link to the full Brew docs.
+description: Reactive server components for Kona — overview and guides.
 ---
 
 **Brew** is Kona’s reactive server-component layer. You write Kotlin or Java classes with public state and actions, render HTML with [Crema](/docs/crema/), and Brew keeps the browser in sync over a small JSON protocol—without a full page reload.
 
-Brew ships as `org.konaframework:kona-brew` from the Kona monorepo (`modules/brew`). Scaffold with `kona new my-app --kit=brew`, or add the dependency next to your other Kona modules.
+Brew ships as `org.konaframework:kona-brew` from the Kona monorepo (`modules/brew`). Scaffold with `kona new my-app --kit=brew`, or add the dependency with `./grind install brew` (or `kona grind install brew`).
 
-## Full documentation
+## Guides in this section
 
-Guides for components, properties, actions, forms, nesting, uploads, JavaScript, testing, and more live on the Brew docs site:
+Start here, then dig into essentials, nesting, JavaScript, testing, and examples:
 
-**[Brew documentation →](https://brew.konaframework.org/)**
+- [Introduction](/docs/brew/guides/introduction/) — what Brew is and when to use it
+- [Installation](/docs/brew/guides/installation/) — add Brew to a Kona app
+- [Your first component](/docs/brew/guides/first-component/) — Kotlin + Java walkthrough
+- [Components](/docs/brew/essentials/components/) — discovery, class + view, registration
