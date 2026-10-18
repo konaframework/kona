@@ -4,24 +4,42 @@ How maintainers publish Kona framework jars (including Brew and Inertia) for con
 
 **Gradle plumbing (this repo):** shared `com.vanniktech.maven.publish` convention in the root `build.gradle.kts` — POM metadata, sources jar, empty javadoc jar (Kotlin), optional GPG signing, Central Portal publisher, and `:bom` (`kona-bom`). **Local / CI still use** `publishToMavenLocal`. **Public Central release** needs a Portal user token, GPG key, non-SNAPSHOT version, and a human-triggered tag (see checklist below).
 
-Public install docs may still say generated apps resolve `org.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` until the first non-SNAPSHOT train lands on Central.
+Public install docs may still say generated apps resolve `org.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` until a non-SNAPSHOT train is published on Central.
 
-## Namespace verified — next steps (first Central release)
+## Next release — `0.1.1` (monorepo train)
 
-**Status:** namespace **`org.konaframework`** is verified on the Central Publisher Portal. Gradle + tag workflow are on `main`. Artifacts are **not** on Central until a human completes the steps below.
+**Status:** release branch / PR sets `kona.version=0.1.1` (non-SNAPSHOT). Human tags **`v0.1.1`** after merge. **Do not** tag or publish from sister repos (archived).
 
-Do these in order:
+### Human checklist (after merge to `main`)
 
-1. **GPG signing key** (required by Central for every release artifact)  
-   - Generate or reuse an org key; publish the **public** key to a keyserver (e.g. `keys.openpgp.org`).  
-   - Export the armored private key for CI: `gpg --export-secret-keys --armor <key-id>`.
-2. **Central Portal user token** (not your login password)  
-   - Portal → [User tokens](https://central.sonatype.com/usertoken) → Generate User Token.  
-   - Note the token **username** and **password** once (they are not recoverable after the modal closes).
-3. **GitHub Environment `maven-central`** on `konaframework/kona`  
-   (`Settings → Environments → maven-central`).  
-   `release.yml` jobs set `environment: maven-central`, so the four secrets must be
-   **Environment secrets** on that environment (not only repository secrets):
+1. **Tag the merge commit only** (one-repo train — no sister tags):
+
+   ```bash
+   git fetch origin && git checkout main && git pull
+   git tag v0.1.1 <merge-sha>   # squash-merge SHA on main
+   git push origin v0.1.1
+   ```
+
+2. Wait for `.github/workflows/release.yml` (tag `v*`) → `publishToMavenCentral` on Environment `maven-central`.
+3. **Portal Publish** — open [Deployments](https://central.sonatype.com/publishing/deployments). When status is `VALIDATED`, click **Publish** (`automaticRelease=false` on purpose; upload alone does **not** release).
+4. Confirm on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (allow ~10–30 minutes after Publish).
+5. **Bump development version** on `main` to `0.1.2-SNAPSHOT` (separate PR after publish — **not** part of the release PR).
+6. **Usage / File Count** — org hit Central **File Count** monthly limit (grace through **2026-11-17**). Check [Usage Center](https://central.sonatype.com/); if still tight, email `central-support@sonatype.com` for a higher limit. See [Reducing Publishing Usage](https://central.sonatype.org/publish/reducing-publishing-usage/).
+
+### File-count mitigations (this stack)
+
+- Required per module: jar + pom + sources + javadoc + `.asc` signatures (keep).
+- Optional reduction (Sonatype / vanniktech): skip checksums of `.asc` and drop unused `sha256`/`sha512` checksums. That lands in **vanniktech `0.37+`**, which needs **Gradle 9** — this repo is still Gradle **8.14** / plugin **0.34.0**, so those defaults are **not** enabled yet. Prefer Usage Center + limit increase for `0.1.1`; schedule Gradle 9 + plugin bump later.
+
+## Namespace verified — first Central cut (`0.1.0`)
+
+**Status:** namespace **`org.konaframework`** is verified. Tag `v0.1.0` was pushed; release workflow uploaded once. Remonorepo of Brew + Inertia landed **after** that tag — they ship in **`0.1.1`**.
+
+Prerequisites (still required for every release):
+
+1. **GPG signing key** — public key on a keyserver; armored private key in CI.
+2. **Central Portal user token** — [User tokens](https://central.sonatype.com/usertoken).
+3. **GitHub Environment `maven-central`** on `konaframework/kona` with:
 
    | Secret | Value |
    |--------|--------|
@@ -29,19 +47,6 @@ Do these in order:
    | `MAVEN_CENTRAL_PASSWORD` | Portal token password |
    | `SIGNING_IN_MEMORY_KEY` | Full armored private key (`-----BEGIN PGP PRIVATE KEY BLOCK-----` …) |
    | `SIGNING_IN_MEMORY_KEY_PASSWORD` | Key passphrase (empty string secret if none) |
-
-   Optional: add required reviewers on the environment before the publish job runs.
-4. **Release version commit**  
-   - On a release branch: set `kona.version=0.1.0` in `gradle.properties` (drop `-SNAPSHOT`).  
-   - Open PR → green CI → merge to `main`.
-5. **Tag** `v0.1.0` on that merge commit (`git tag v0.1.0 <sha> && git push origin v0.1.0`).  
-   - `.github/workflows/release.yml` runs `publishToMavenCentral` (refuses SNAPSHOT).
-6. **Portal UI — Publish**  
-   - Open [Deployments](https://central.sonatype.com/publishing/deployments).  
-   - When the deployment is `VALIDATED`, click **Publish** (`automaticRelease` is `false` on purpose for the first train).  
-   - Wait ~10–30 minutes; confirm on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework).
-7. **Bump development version** back to `0.1.1-SNAPSHOT` on `main` (one train — brew/inertia ship with the same tag).
-8. **Docs** — drop “must publish locally” for released coordinates in public install guides.
 
 ### Trusted Publishing (OIDC) — not available yet for Central
 
@@ -52,12 +57,10 @@ Do these in order:
 | Official Central auth today | [Portal user token](https://central.sonatype.org/publish/generate-portal-token/) + **GPG-signed** artifacts |
 | vanniktech `0.34.x` | Expects `mavenCentralUsername` / `mavenCentralPassword` (+ in-memory signing key) |
 | GitHub Actions OIDC → Central | **Not generally available** in Sonatype’s public docs as of this writing; do not invent an unverified OIDC bridge |
-| First release path | Portal token + GPG secrets (steps 1–6 above) |
-| After first publish | Prefer shorter-lived Portal tokens; watch Sonatype / vanniktech for Trusted Publishing / OIDC; when GA, wire `permissions: id-token: write` and drop long-lived `MAVEN_CENTRAL_*` |
+| Release path | Portal token + GPG secrets |
+| After publish | Prefer shorter-lived Portal tokens; watch Sonatype / vanniktech for Trusted Publishing / OIDC |
 
-Do **not** block the first `0.1.0` train waiting for OIDC. Publish with tokens, then migrate when Central ships a supported trusted-publisher flow.
-
-**Cloudflare note:** “first publish, then harden” for **docs hosting** is separate — see [docs-site.md](docs-site.md) (Cloudflare GitHub integration / dashboard without `CLOUDFLARE_*` GitHub secrets, optional Wrangler secrets later). That is not Maven Trusted Publishing.
+**Cloudflare note:** docs hosting is separate — see [docs-site.md](docs-site.md). That is not Maven Trusted Publishing.
 
 ## Repo and coordinates
 
@@ -66,11 +69,9 @@ Do **not** block the first `0.1.0` train waiting for OIDC. Publish with tokens, 
 | [konaframework/kona](https://github.com/konaframework/kona) | `~/kona` | `kona.version` in `gradle.properties` | All `modules/*` named `kona-*` (including `modules/brew` → `kona-brew`, `modules/inertia` → `kona-inertia`) + `:bom` → `kona-bom` |
 
 - **GroupId:** `org.konaframework` (root `build.gradle.kts` `allprojects`).
-- **Version train:** one `kona.version` for every artifact (including brew/inertia).
+- **Version train:** one `kona.version` for every artifact (including brew/inertia). **Monorepo only** — no sister-repo tags.
 - **Not published:** samples (`hello-*`, `brew-sample-*`, `inertia-sample-*`), benchmarks, docs apps, `js/brew`.
 - Archived sister repos `kona-brew` / `kona-inertia` are no longer publish sources.
-
-As of the last research pass, [Maven Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) returned **zero** `org.konaframework` artifacts until a successful release. GitHub Packages is unused.
 
 ## What is configured today
 
@@ -81,10 +82,10 @@ Root `build.gradle.kts` applies [`com.vanniktech.maven.publish` 0.34.0](https://
 - Coordinates: `org.konaframework:<project.name>:<kona.version>` (`kona-bom` for the BOM)
 - POM: name, description, URL, Apache-2.0 license, developers, SCM → `github.com/konaframework/kona`
 - Artifacts: main jar + sources jar + empty javadoc jar (Kotlin)
-- `publishToMavenCentral(automaticRelease = false)` — Central Portal (not legacy OSSRH)
+- `publishToMavenCentral(automaticRelease = false)` — Central Portal (not legacy OSSRH); human **Publish** in Portal after `VALIDATED`
 - `signAllPublications()` **only when** `signingInMemoryKey` / `signing.keyId` (or `ORG_GRADLE_PROJECT_*` equivalents) are present — so `publishToMavenLocal` keeps working without GPG
 
-`:kona-brew` and `:kona-inertia` use the same convention (they are `kona-*` Kotlin modules).
+`:kona-brew` and `:kona-inertia` use the same convention (they are `kona-*` Kotlin modules). `:bom` constrains both.
 
 ### Tasks
 
@@ -99,11 +100,11 @@ Root `build.gradle.kts` applies [`com.vanniktech.maven.publish` 0.34.0](https://
 | Workflow | Behavior |
 |----------|----------|
 | `.github/workflows/ci.yml` | `publishToMavenLocal` (all `kona-*` including brew/inertia) → Kover on every production module → sample smokes (`hello-*`, `brew-sample-*`, `inertia-sample-*`) + Brew JS Vitest job |
-| `.github/workflows/release.yml` | On `v*` tags: `environment: maven-central`; refuse SNAPSHOT; `publishToMavenCentral` for the whole train |
+| `.github/workflows/release.yml` | On `v*` tags: `environment: maven-central`; refuse SNAPSHOT; `publishToMavenCentral` for the **whole** train (one Gradle invocation) |
 
 ### Installer / day-to-day path
 
-`scripts/install.sh` publishes all in-tree modules (including `:kona-brew` / `:kona-inertia`) to Maven Local in one Gradle invocation.
+`scripts/install.sh` publishes all in-tree modules (including `:kona-brew` / `:kona-inertia`) to Maven Local in one Gradle invocation. It may clone **this** monorepo for bootstrap; it does **not** need sister-repo clones.
 
 ## Artifact inventory (`kona`)
 
@@ -147,7 +148,7 @@ All at `org.konaframework:<artifactId>:<kona.version>`:
 2. **GPG signing key** — still required for first and subsequent releases.  
 3. **Portal user token** — `mavenCentralUsername` / `mavenCentralPassword` (or `ORG_GRADLE_PROJECT_*`).  
 4. **Signing material** — in-memory key preferred for CI (`signingInMemoryKey` + optional password).  
-5. **GitHub Actions secrets** — table in [Namespace verified — next steps](#namespace-verified--next-steps-first-central-release).
+5. **GitHub Actions secrets** — Environment **`maven-central`** table above.
 
 Do **not** commit tokens, GPG private keys, or `gradle.properties` with secrets.
 
@@ -155,14 +156,16 @@ Do **not** commit tokens, GPG private keys, or `gradle.properties` with secrets.
 
 | Kind | Version shape | Notes |
 |------|---------------|--------|
-| Local / CI / install.sh | `0.1.0-SNAPSHOT` | Current default; overwritable in `~/.m2` |
-| First public release | `0.1.0` | Must **not** be SNAPSHOT for a release tag |
+| Local / CI / install.sh | `0.1.2-SNAPSHOT` (after 0.1.1 publish) | Overwritable in `~/.m2` |
+| Public release (this cut) | `0.1.1` | Must **not** be SNAPSHOT on the tagged commit |
+| Prior cut | `0.1.0` | Tagged; brew/inertia were not in-tree yet |
+
 ### C. Module publish order
 
 ```bash
 cd /path/to/kona
 ./gradlew publishToMavenLocal -x test   # or publishToMavenCentral for a real release
-# Includes :kona-brew and :kona-inertia
+# Includes :kona-brew and :kona-inertia (and :bom constraints)
 ```
 
 ### D. Local dry-run (safe — do this anytime)
@@ -170,10 +173,10 @@ cd /path/to/kona
 ```bash
 cd ~/kona && ./gradlew publishToMavenLocal -x test
 
-ls ~/.m2/repository/org/konaframework/kona-core/0.1.0/
-ls ~/.m2/repository/org/konaframework/kona-bom/0.1.0/
-ls ~/.m2/repository/org/konaframework/kona-brew/0.1.0/
-ls ~/.m2/repository/org/konaframework/kona-inertia/0.1.0/
+ls ~/.m2/repository/org/konaframework/kona-core/0.1.1/
+ls ~/.m2/repository/org/konaframework/kona-bom/0.1.1/
+ls ~/.m2/repository/org/konaframework/kona-brew/0.1.1/
+ls ~/.m2/repository/org/konaframework/kona-inertia/0.1.1/
 ```
 
 ### E. Real remote publish
@@ -184,39 +187,39 @@ cd ~/kona
 ./gradlew publishToMavenCentral --no-configuration-cache -x test
 ```
 
-Or push tag `v0.1.0` and let `.github/workflows/release.yml` run.
+Or push tag `v0.1.1` and let `.github/workflows/release.yml` run.
 
 **Do not run a public Central publish** until:
 
 1. Namespace `org.konaframework` is verified (done).
 2. Signing + Portal token exist (local or CI secrets).
 3. Version is a non-SNAPSHOT release version on the tagged commit.
-4. A human explicitly asks to execute the release.
+4. A human explicitly tags / asks to execute the release.
 
 ## Human steps still required
 
-Gradle and the release workflow are in place; the following are **not** done in-repo:
-
 1. ~~Claim `org.konaframework`~~ — **done** (verified on Portal).
-2. Generate a Portal user token; add the four secrets to Environment **`maven-central`** on `kona`.
-3. Create/export a GPG key; put the armored private key in `SIGNING_IN_MEMORY_KEY` on that environment; publish the public key to a keyserver.
-4. Release PR: non-SNAPSHOT version → merge → tag `v*` → Portal **Publish** → bump to next `-SNAPSHOT`.
-5. Confirm artifacts on Central search / Portal deployments UI.
-6. Update public install docs to drop the “must publish locally” requirement for released versions.
+2. Portal token + GPG secrets on Environment **`maven-central`** (done for `0.1.0` upload; keep current).
+3. Release PR `0.1.1` → merge → human tag `v0.1.1` → workflow upload → Portal **Publish** when `VALIDATED` → bump `main` to `0.1.2-SNAPSHOT`.
+4. Confirm artifacts on Central search / Portal deployments UI.
+5. Update public install docs to drop the “must publish locally” requirement for released versions.
+6. Watch File Count / Usage Center; request a higher limit if needed before grace ends (2026-11-17).
 7. When Sonatype ships Trusted Publishing / OIDC for Central and vanniktech supports it: rewire `release.yml` and drop long-lived Portal passwords.
+8. Later: Gradle 9 + vanniktech ≥0.37 for default signature-checksum exclusion (file-count reduction).
 
 ## Blockers (current environment)
 
 | Blocker | Status |
 |---------|--------|
 | Shared publish convention (POM / sources / javadoc / Central / signing hook) | **Implemented** in Gradle |
-| `:bom` Maven publication (`kona-bom`) | **Implemented** |
-| Tag `release.yml` workflow | **Implemented** (needs secrets) |
+| `:bom` Maven publication (`kona-bom`) incl. brew/inertia constraints | **Implemented** |
+| Tag `release.yml` workflow (whole monorepo train) | **Implemented** |
 | Namespace `org.konaframework` claimed on Central | **Verified** (human) |
-| Portal / signing credentials on Environment `maven-central` | **Human** — create env secrets on `kona` |
-| Maven Central Trusted Publishing (OIDC) | **Not GA** — first release uses Portal token + GPG |
-| Non-SNAPSHOT `0.1.0` on release train | Set in release PRs; tag after merge |
-| Artifacts actually on Maven Central | **Not published** until tag + Portal **Publish** |
+| Portal / signing credentials on Environment `maven-central` | **Human** — env secrets on `kona` |
+| Maven Central Trusted Publishing (OIDC) | **Not GA** — releases use Portal token + GPG |
+| Non-SNAPSHOT `0.1.1` on release train | Set in release PR; human tags `v0.1.1` after merge |
+| Artifacts actually on Maven Central | **Human** tag + Portal **Publish** |
+| File Count monthly limit | **Grace until 2026-11-17**; check Usage Center / request higher limit |
 
 **Not blocked:** local dry-run via `publishToMavenLocal` (Gradle, CI, and `install.sh`).
 
@@ -225,7 +228,7 @@ Gradle and the release workflow are in place; the following are **not** done in-
 | Destination | Intended? | Works today? |
 |-------------|-----------|--------------|
 | `mavenLocal` (`~/.m2`) | Yes — primary for SNAPSHOT / install / CI | **Yes** |
-| Maven Central | Yes — public releases (`org.konaframework`) | **Plumbing yes; token + GPG + tag no** |
+| Maven Central | Yes — public releases (`org.konaframework`) | **Plumbing yes; human tag + Portal Publish** |
 | GitHub Packages | Optional / not specified in PLAN | **No** (not configured) |
 
 ## Related docs
