@@ -48,7 +48,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 | Work | PR |
 |------|-----|
-| Remonorepo Brew + Inertia into `modules/{brew,inertia}` | (open remonorepo PR — supersedes #137) |
+| Remonorepo Brew + Inertia into `modules/{brew,inertia}` | [#138](https://github.com/konaframework/kona/pull/138) (reverts #137 sister-CI decoupling) |
 | Handoff / publishing Central notes | [#135](https://github.com/konaframework/kona/pull/135) |
 | Extract `kona-inertia` + brief docs link-out | [#101](https://github.com/konaframework/kona/pull/101) |
 | `./grind install` / `kona grind install` + provider registration | [#100](https://github.com/konaframework/kona/pull/100); top-level `kona install` removed |
