@@ -73,6 +73,8 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 **Remonorepo done (#138):** Brew + Inertia are in-tree (`modules/brew`, `modules/inertia`, samples, `apps/brew-docs`, `apps/inertia-docs`, `js/brew`). Sister repos archived. **Human Cloudflare follow-up:** point `kona-brew-docs` / `kona-inertia-docs` Workers Builds at `konaframework/kona` with root `apps/brew-docs` / `apps/inertia-docs`.
 
+**0.1.1 release ready — human tags `v0.1.1` after merge** (release PR; do not tag from agents). First train that includes in-tree brew/inertia on Central.
+
 ### Intentional deferrals (do not reopen without mandate)
 
 - Horizon / queue metrics dashboard
@@ -117,10 +119,13 @@ Key paths: `modules/` (framework), `apps/docs|brew-docs|inertia-docs/`, `js/brew
 1. Cloudflare dashboard root-path update for brew/inertia Workers Builds (see docs-site.md).
 2. Confirm no conflicting open PRs.
 3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time.
-4. **Maven Central (first 0.1.0 train — 2026-10-18):**
-   - **kona** tag `v0.1.0` release workflow uploaded; **Human blocker:** Portal **Publish** when `VALIDATED`.
-   - After remonorepo, brew/inertia publish with the **same** kona tag train (no separate sister tags).
-   - Trusted Publishing (OIDC) still **not GA** — token + GPG.
+4. **Maven Central — 0.1.1 release ready — human tags `v0.1.1` after merge**
+   - Release PR sets `kona.version=0.1.1` (non-SNAPSHOT). Brew + Inertia ship in this train (remonorepo `#138`).
+   - **Human after merge:** `git tag v0.1.1 <merge-sha> && git push origin v0.1.1` → wait for `release.yml` → Portal **Publish** when `VALIDATED` (`automaticRelease=false`).
+   - **Do not** create sister-repo tags (archived). After publish: bump `main` to `0.1.2-SNAPSHOT` (separate PR).
+   - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
+   - Prior `v0.1.0` uploaded once; Trusted Publishing (OIDC) still **not GA** — token + GPG.
+   - Full checklist: [publishing.md](publishing.md).
 
 ## Do not
 
