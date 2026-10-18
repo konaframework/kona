@@ -103,13 +103,15 @@ Sister repos mirror the same pattern for `:kona-brew` / `:kona-inertia`.
 
 | Workflow | Behavior |
 |----------|----------|
-| `kona` `.github/workflows/ci.yml` | Sister checkouts → `publishToMavenLocal` → brew/inertia local publish → tests |
+| `kona` `.github/workflows/ci.yml` | Publishes **Kona only** to `mavenLocal`, then runs tests + Kover. Does **not** check out or publish `kona-brew` / `kona-inertia` — sisters are not required by this repo |
 | `kona` `.github/workflows/release.yml` | On `v*` tags: `environment: maven-central`; refuse SNAPSHOT; `publishToMavenCentral` with Portal token + GPG |
-| `kona-brew` / `kona-inertia` | Same local CI pattern; release workflows mirror tag publish after Kona |
+| `kona-brew` / `kona-inertia` | Check out matching Kona → `publishToMavenLocal` → sister tests/samples + Kover; release workflows mirror tag publish after Kona |
+
+Brew / Inertia kit HTTP smoke (component update, Inertia HTML + `X-Inertia` JSON) lives in the sister sample suites, not in `kona` CI.
 
 ### Installer / day-to-day path
 
-`scripts/install.sh` publishes core modules (including `:bom`) then sister packages to Maven Local — same destination as CI.
+`scripts/install.sh` publishes core modules (including `:bom`) then, when sister checkouts exist, publishes those packages to Maven Local. That local convenience path is **not** mirrored by `kona` CI.
 
 ## Artifact inventory (`kona`)
 
