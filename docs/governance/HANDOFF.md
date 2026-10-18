@@ -120,7 +120,12 @@ Key paths: `modules/` (framework), `apps/docs/` (public site), `docs/governance/
 2. Pick the next **deepen** slice from remaining Almasix ledger “implemented (checklist)” rows or human-requested gaps — one milestone branch at a time.
 3. Keep sibling Brew/Inertia work in their repos; only touch Kona for install/starter/brief link-out.
 4. Optionally sync Brew marks into Kona branding assets if the brief Brew page should show the espresso mark (see untracked `brew-*.svg` note above).
-5. **Maven Central:** Namespace `org.konaframework` is **verified**. Gradle + `release.yml` are wired — see [publishing.md](publishing.md) (“Namespace verified — next steps”). Still need Portal token + GPG secrets, non-SNAPSHOT `0.1.0` tag, and Portal **Publish**. Trusted Publishing (OIDC) is **not GA** for Central yet — first release uses token + GPG.
+5. **Maven Central (first 0.1.0 train — 2026-10-18):**
+   - Release PRs merged: kona [#134](https://github.com/konaframework/kona/pull/134), brew [#38](https://github.com/konaframework/kona-brew/pull/38), inertia [#12](https://github.com/konaframework/kona-inertia/pull/12). All three `main` at non-SNAPSHOT `0.1.0`.
+   - **kona** tag `v0.1.0` → `54799a6f99d660e00939412153876c1d7f806553`. Release workflow **passed**: https://github.com/konaframework/kona/actions/runs/39142366005 (`publishToMavenCentral` uploaded; `automaticRelease=false`).
+   - **Human blocker:** open [Portal Deployments](https://central.sonatype.com/publishing/deployments), wait for `VALIDATED`, click **Publish**. repo1 / search still empty until then.
+   - **kona-brew / kona-inertia:** `maven-central` Environment exists but has **zero** secrets (kona has all four). Do **not** tag sisters until (1) Portal Publish makes kona `0.1.0` resolvable from Central and (2) the same four secrets are copied onto each sister’s `maven-central` Environment. Then tag brew → inertia, Portal Publish each, then bump all three to `0.1.1-SNAPSHOT`.
+   - Trusted Publishing (OIDC) still **not GA** — token + GPG.
 
 ## Do not
 
