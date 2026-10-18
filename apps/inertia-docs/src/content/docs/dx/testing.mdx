@@ -1,0 +1,39 @@
+---
+title: Testing
+description: Unit and sample tests, coverage gate, and reset helpers.
+---
+
+## Library tests
+
+```bash
+./gradlew :kona-inertia:test :kona-inertia:koverVerify
+```
+
+CI enforces **100% line and branch** coverage on production code.
+
+## Patterns
+
+```kotlin
+@AfterEach
+fun tearDown() {
+    Inertia.reset()
+    Vite.reset()
+    Kona.reset()
+}
+```
+
+Drive the kernel:
+
+```kotlin
+val app = Kona.create(arrayOf("--base=$temp"))
+    .providers(HttpServiceProvider(), InertiaServiceProvider())
+    .boot()
+app.resolve(HttpKernel::class.java).pushMiddleware(HandleInertiaRequests())
+val response = app.resolve(HttpKernel::class.java).handle(
+    Request("GET", "/", headers = mapOf("X-Inertia" to "true")),
+)
+```
+
+## Samples
+
+`:inertia-sample-kotlin:test` and `:inertia-sample-java:test` exercise HTML + JSON visits with shared props.

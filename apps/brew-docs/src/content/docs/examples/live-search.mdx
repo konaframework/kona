@@ -1,0 +1,129 @@
+---
+title: Example — Live search
+description: Debounced wire:model.live search list with computed results and keyed morph.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A classic Brew flow: type in a search box, wait a short debounce, and re-render a filtered list without a full page reload.
+
+## Component
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.brew
+
+import org.konaframework.brew.Component
+import org.konaframework.brew.Computed
+
+class Search : Component() {
+    var query = ""
+
+    @Computed
+    fun results(): List<String> =
+        BEANS.filter { query.isBlank() || it.contains(query.trim(), ignoreCase = true) }
+
+    override fun template() = """
+        <div class="card">
+            <h2>Search beans</h2>
+            <input
+                type="search"
+                wire:model.live.debounce.300ms="query"
+                placeholder="Try 'kona'"
+            >
+            <ul>
+            @foreach(results as bean)
+                <li wire:key="{{ bean }}">{{ bean }}</li>
+            @endforeach
+            </ul>
+            <p wire:loading wire:target="query">Searching…</p>
+        </div>
+    """.trimIndent()
+
+    companion object {
+        val BEANS = listOf(
+            "Kona Extra Fancy",
+            "Kona Peaberry",
+            "Ethiopia Yirgacheffe",
+            "Colombia Supremo",
+            "Sumatra Mandheling",
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.brew;
+
+import org.konaframework.brew.Component;
+import org.konaframework.brew.Computed;
+import java.util.List;
+
+public class Search extends Component {
+    public String query = "";
+
+    @Computed
+    public List<String> results() {
+        String q = query == null ? "" : query.trim();
+        return BEANS.stream()
+            .filter(bean -> q.isEmpty() || bean.toLowerCase().contains(q.toLowerCase()))
+            .toList();
+    }
+
+    @Override
+    public String template() {
+        return """
+            <div class="card">
+                <h2>Search beans</h2>
+                <input type="search" wire:model.live.debounce.300ms="query" placeholder="Try 'kona'">
+                <ul>
+                @foreach(results as bean)
+                    <li wire:key="{{ bean }}">{{ bean }}</li>
+                @endforeach
+                </ul>
+            </div>
+            """;
+    }
+
+    private static final List<String> BEANS = List.of(
+        "Kona Extra Fancy",
+        "Kona Peaberry",
+        "Ethiopia Yirgacheffe",
+        "Colombia Supremo",
+        "Sumatra Mandheling"
+    );
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Why this works
+
+1. `wire:model.live.debounce.300ms` updates `query` on the server 300ms after typing stops.
+2. `@Computed` `results()` recalculates on each request from current state.
+3. `wire:key` on each `<li>` keeps the morph stable when the list shrinks or grows.
+4. Optional `wire:loading` + `wire:target="query"` shows feedback during the round-trip.
+
+Embed with `<brew:search />` on any Crema page that already loads `@brewScripts`.
+
+## Test
+
+```kotlin
+Brew.test("search")
+    .set("query", "kona")
+    .assertSee("Kona Extra Fancy")
+    .assertSee("Kona Peaberry")
+    .assertDontSee("Colombia Supremo")
+```
+
+## Next
+
+- [Forms & validation](/essentials/forms/) — more `wire:model` modifiers
+- [Properties](/essentials/properties/) — `@Computed`
+- [Example — Counter](/examples/counter/) — simpler action-driven UI

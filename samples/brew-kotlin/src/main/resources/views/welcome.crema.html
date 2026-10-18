@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ title }}</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; color: #1f2933; }
+        .card { border: 1px solid #e4e7eb; border-radius: .5rem; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+        h1 { color: #286291; }
+        button { background: #FF9A00; border: 0; border-radius: .25rem; padding: .25rem .6rem; cursor: pointer; }
+        output { display: inline-block; min-width: 2rem; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>{{ title }}</h1>
+
+    <brew:counter :start="3" />
+
+    <brew:todos />
+
+    @brew('search')
+
+    <brew:dashboard />
+</body>
+</html>

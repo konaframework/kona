@@ -1,0 +1,44 @@
+name: Inertia docs
+
+# https://inertia.konaframework.org — Astro site in apps/inertia-docs (npm, not pnpm)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/inertia-docs/**'
+      - '.github/workflows/inertia-docs.yml'
+      - '.github/workflows/inertia-docs-cloudflare.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/inertia-docs/**'
+      - '.github/workflows/inertia-docs.yml'
+      - '.github/workflows/inertia-docs-cloudflare.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: inertia-docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Inertia docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/inertia-docs/package-lock.json
+      - name: Install dependencies
+        working-directory: apps/inertia-docs
+        run: npm ci
+      - name: Build site
+        working-directory: apps/inertia-docs
+        env:
+          PUBLIC_SITE_URL: https://inertia.konaframework.org
+          PUBLIC_BASE_PATH: /
+        run: npm run build

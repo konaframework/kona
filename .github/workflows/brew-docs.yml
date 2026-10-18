@@ -1,0 +1,44 @@
+name: Brew docs
+
+# https://brew.konaframework.org — Astro site in apps/brew-docs (npm, not pnpm)
+
+on:
+  pull_request:
+    paths:
+      - 'apps/brew-docs/**'
+      - '.github/workflows/brew-docs.yml'
+      - '.github/workflows/brew-docs-cloudflare.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/brew-docs/**'
+      - '.github/workflows/brew-docs.yml'
+      - '.github/workflows/brew-docs-cloudflare.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: brew-docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Brew docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/brew-docs/package-lock.json
+      - name: Install dependencies
+        working-directory: apps/brew-docs
+        run: npm ci
+      - name: Build site
+        working-directory: apps/brew-docs
+        env:
+          PUBLIC_SITE_URL: https://brew.konaframework.org
+          PUBLIC_BASE_PATH: /
+        run: npm run build

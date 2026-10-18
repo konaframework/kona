@@ -1,2 +1,3 @@
 packages:
-  - 'apps/*'
+  # Main docs site only (pnpm). Brew/Inertia docs under apps/*-docs use npm + package-lock.json.
+  - 'apps/docs'

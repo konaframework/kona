@@ -1,0 +1,73 @@
+---
+title: grind commands
+description: make:brew flags, brew:convert, publish, stubs, layout, and IDE notes.
+---
+
+Brew registers grind commands when `BrewServiceProvider` is booted. Run them from your app root with `./grind`.
+
+## `make:brew`
+
+Scaffold a component:
+
+```bash
+./grind make:brew counter
+./grind make:brew posts.create-post
+./grind make:brew pages::Dashboard --class --test
+./grind make:brew Avatar --mfc --emoji
+./grind make:brew Counter --lang=java
+./grind make:brew Counter --force
+```
+
+| Flag | Effect |
+|------|--------|
+| *(default)* | Single-file component (`sfc`) unless `brew.make.type` says otherwise |
+| `--class` | Class + separate Crema view |
+| `--mfc` | Multi-file component assets |
+| `--test` | Generate a companion test |
+| `--emoji` | Prefix the view leaf with ⚡ |
+| `--lang=kotlin\|java` | Language (auto-detected from project layout when omitted) |
+| `--base=` | Project root (default `.`) |
+| `--force` | Overwrite existing files |
+
+Names may use dots (`posts.create-post`), studly (`CreatePost`), or namespaces (`pages::dashboard`, `admin::…`).
+
+Default type comes from config key `brew.make.type` (`sfc` | `class` | `mfc`).
+
+## Stubs
+
+```bash
+./grind brew:stubs
+```
+
+Publishes stub files under `stubs/brew/`. After that, `make:brew` prefers those stubs when present so you can customize class/view/test skeletons for your team.
+
+## Convert between shapes
+
+```bash
+./grind brew:convert src/main/kotlin/app/brew/Counter.kt --to=class
+./grind brew:convert … --to=sfc
+./grind brew:convert … --to=mfc
+```
+
+## Publish config & layout
+
+```bash
+./grind brew:publish --config
+./grind brew:layout
+```
+
+`brew:publish` writes Brew config into your app’s config tree. `brew:layout` scaffolds a Crema layout that already includes `@brewStyles` / `@brewScripts`.
+
+## Testing from grind-generated tests
+
+When you pass `--test`, the stub wires a `Brew.test("…")` example. Expand it as you add actions — see [Testing](/dx/testing/).
+
+## IDE / LSP
+
+Kona Idea and language servers can complete `<brew:…>` tags and `wire:*` attributes. The contract lives in the Brew repo: [`docs/governance/lsp-contract.md`](https://github.com/konaframework/kona-brew/blob/main/docs/governance/lsp-contract.md).
+
+## Next
+
+- [Installation](/guides/installation/) — register Brew before grind picks up commands
+- [Your first component](/guides/first-component/) — walkthrough after scaffolding
+- [Testing](/dx/testing/) — `Brew.test` API

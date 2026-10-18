@@ -17,18 +17,19 @@ Paste this file (or its path) into a new chat so another agent can continue with
 7. [publishing.md](publishing.md) — Maven Local today; Maven Central prerequisites and blockers for `org.konaframework`.
 8. Sister IDE repo: [`konaframework/kona-idea` → `HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
 
-## Sibling product repos (this session)
+## In-repo Brew / Inertia (remonorepo)
 
-| Repo | Path (sibling) | Docs | Handoff |
-|------|----------------|------|---------|
-| Brew (Livewire v4 parity) | `/home/smaosa/kona-brew` | https://brew.konaframework.org/ | `docs/governance/HANDOFF.md` |
-| Inertia | `/home/smaosa/kona-inertia` | https://inertia.konaframework.org/ | `docs/governance/HANDOFF.md` |
+| Product | Module | Docs app | Public site |
+|---------|--------|----------|-------------|
+| Brew | `modules/brew` → `:kona-brew` | `apps/brew-docs` | https://brew.konaframework.org/ |
+| Inertia | `modules/inertia` → `:kona-inertia` | `apps/inertia-docs` | https://inertia.konaframework.org/ |
+| Brew JS | `js/brew/` | — | bundled into `kona-brew` resources |
 
-Do **not** put handoff in `~/hello-kona` — throwaway `kona new` sample only.
+To archive after remonorepo merges (do not publish from; delete later): `konaframework/kona-brew`, `konaframework/kona-inertia`. Local checkouts `~/kona-brew` / `~/kona-inertia` are historical only.
 
-Other `~/kona-*` directories (bench, netty, logging worktrees, etc.) are **not** product repos unless they have a real git remote under `konaframework`.
+Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
-## Where we are (2026-10-16)
+## Where we are (2026-10-18)
 
 | Item | Value |
 |------|--------|
@@ -47,6 +48,8 @@ Other `~/kona-*` directories (bench, netty, logging worktrees, etc.) are **not**
 
 | Work | PR |
 |------|-----|
+| Remonorepo Brew + Inertia into `modules/{brew,inertia}` | (open remonorepo PR — supersedes #137) |
+| Handoff / publishing Central notes | [#135](https://github.com/konaframework/kona/pull/135) |
 | Extract `kona-inertia` + brief docs link-out | [#101](https://github.com/konaframework/kona/pull/101) |
 | `./grind install` / `kona grind install` + provider registration | [#100](https://github.com/konaframework/kona/pull/100); top-level `kona install` removed |
 | Exhaust Testing section | [#99](https://github.com/konaframework/kona/pull/99) |
@@ -66,13 +69,9 @@ Other `~/kona-*` directories (bench, netty, logging worktrees, etc.) are **not**
 
 ### Done vs in-flight (honest)
 
-**Done on `main`:** logging drivers, `view()` / Views, Grind Console docs rename/expansion, Events section, Testing section, Brew brief link-out, `./grind install` / `kona grind install`, Inertia extracted to sibling repo (#101). Continuous autopilot + Auto model locks remain in AGENTS / rules.
+**Done on `main`:** logging drivers, `view()` / Views, Grind Console docs, Events / Testing sections, Brew/Inertia brief link-outs, `./grind install` / `kona grind install`, first `0.1.0` release train tagged on kona (#134). Continuous autopilot + Auto model locks remain in AGENTS / rules.
 
-**In-flight / local only (do not assume merged):**
-
-- Untracked Brew logo/banner/mark SVGs under `apps/docs/public/branding/brew-*.svg` may appear in a dirty workspace (copied while Brew branding iterated). **Not on `main`.** Either discard or land a tiny docs PR that syncs marks with Brew if the link-out page needs them — do not mix into unrelated PRs.
-- Further Kona docs exhaustion (Routing and other Basics) may still be running as parallel agents; check `gh pr list` before starting duplicate work.
-- `~/hello-kona` recreate/`kona new` smoke tests are throwaway — ignore for product handoff.
+**Remonorepo (in progress / this handoff):** Brew + Inertia return to this monorepo (`modules/brew`, `modules/inertia`, samples, `apps/brew-docs`, `apps/inertia-docs`, `js/brew`). Close obsolete #137 (decouple-sister-ci) as superseded. Archive sister GitHub repos after remonorepo lands. **Human Cloudflare follow-up:** point `kona-brew-docs` / `kona-inertia-docs` Workers Builds at `konaframework/kona` with root `apps/brew-docs` / `apps/inertia-docs`.
 
 ### Intentional deferrals (do not reopen without mandate)
 
@@ -80,15 +79,13 @@ Other `~/kona-*` directories (bench, netty, logging worktrees, etc.) are **not**
 - Cross-process batch `then`/`catch` callbacks (durable counts only)
 - Lazy collections / higher-order proxies
 - Full Carbon locale / human-diff surface
-- Brew implementation (lives in **kona-brew**; Kona keeps brief + starter/install wiring). Kit ships reactive Todos; installer publishes sister packages and skips API-stale vendored `modules/brew`.
-- Inertia implementation (lives in **kona-inertia**; Kona keeps brief + `--kit=inertia` skeletons)
 - `make:migration` auto-register into `MigrationRegistry` (generator still prints a manual bind hint)
 
 ### Notes
 
 - Do **not** revive Extract names — ORM is **Cadence**.
 - **CLI lock:** user-facing terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`. No raw `println`.
-- Brew and Inertia exhaustive guides live on their own docs sites; Kona pages are brief link-outs only.
+- Brew and Inertia exhaustive guides stay on separate Starlight sites (`apps/brew-docs`, `apps/inertia-docs`); Kona `apps/docs` keeps brief link-outs.
 
 ## How to continue
 
@@ -103,28 +100,26 @@ git fetch origin && git checkout main && git pull
 ./gradlew :kona-cli:run --args='new demo --lang=kotlin'
 # or global CLI after install: kona new demo --lang=kotlin
 
-# Docs site (local) — pnpm workspace (not npm ci)
-pnpm install --frozen-lockfile && pnpm docs:dev
-# Cloudflare Pages: pnpm install --frozen-lockfile && pnpm docs:build (root `/`; see docs/governance/docs-site.md)
+# Docs sites (local)
+pnpm install --frozen-lockfile && pnpm docs:dev          # apps/docs
+(cd apps/brew-docs && npm ci && npm run dev)             # brew
+(cd apps/inertia-docs && npm ci && npm run dev)          # inertia
 
-# Publish for sibling packages (Brew / Inertia CI pattern)
+# Publish all jars incl. brew/inertia
 ./gradlew publishToMavenLocal -x test
-# Full maintainer guide (verified namespace → first 0.1.0): docs/governance/publishing.md
+# Full maintainer guide: docs/governance/publishing.md
 ```
 
-Key paths: `modules/` (framework), `apps/docs/` (public site), `docs/governance/` (laws + handoff), `.cursor/rules/kona-*.mdc`.
+Key paths: `modules/` (framework), `apps/docs|brew-docs|inertia-docs/`, `js/brew/`, `docs/governance/`, `.cursor/rules/kona-*.mdc`.
 
 ## Open gaps / next priorities
 
-1. Confirm no open PRs; if docs-exhaustion PRs exist, finish those first.
-2. Pick the next **deepen** slice from remaining Almasix ledger “implemented (checklist)” rows or human-requested gaps — one milestone branch at a time.
-3. Keep sibling Brew/Inertia work in their repos; only touch Kona for install/starter/brief link-out.
-4. Optionally sync Brew marks into Kona branding assets if the brief Brew page should show the espresso mark (see untracked `brew-*.svg` note above).
-5. **Maven Central (first 0.1.0 train — 2026-10-18):**
-   - Release PRs merged: kona [#134](https://github.com/konaframework/kona/pull/134), brew [#38](https://github.com/konaframework/kona-brew/pull/38), inertia [#12](https://github.com/konaframework/kona-inertia/pull/12). All three `main` at non-SNAPSHOT `0.1.0`.
-   - **kona** tag `v0.1.0` → `54799a6f99d660e00939412153876c1d7f806553`. Release workflow **passed**: https://github.com/konaframework/kona/actions/runs/39142366005 (`publishToMavenCentral` uploaded; `automaticRelease=false`).
-   - **Human blocker:** open [Portal Deployments](https://central.sonatype.com/publishing/deployments), wait for `VALIDATED`, click **Publish**. repo1 / search still empty until then.
-   - **kona-brew / kona-inertia:** `maven-central` Environment exists but has **zero** secrets (kona has all four). Do **not** tag sisters until (1) Portal Publish makes kona `0.1.0` resolvable from Central and (2) the same four secrets are copied onto each sister’s `maven-central` Environment. Then tag brew → inertia, Portal Publish each, then bump all three to `0.1.1-SNAPSHOT`.
+1. Land remonorepo PR → archive sister repos → Cloudflare dashboard root-path update (see docs-site.md).
+2. Confirm no conflicting open PRs; #137 closed as superseded.
+3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time.
+4. **Maven Central (first 0.1.0 train — 2026-10-18):**
+   - **kona** tag `v0.1.0` release workflow uploaded; **Human blocker:** Portal **Publish** when `VALIDATED`.
+   - After remonorepo, brew/inertia publish with the **same** kona tag train (no separate sister tags).
    - Trusted Publishing (OIDC) still **not GA** — token + GPG.
 
 ## Do not

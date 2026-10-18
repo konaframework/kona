@@ -197,9 +197,9 @@ class NewCommand(
                 Files.isExecutable(path.resolve("gradlew"))
 
         /**
-         * Rejects checkouts that still vendor a pre-extraction Brew under `modules/brew`
-         * without the current `template()` API — `includeBuild` would substitute that
-         * stale module over mavenLocal `kona-brew` and break `--kit=brew` scaffolds.
+         * Rejects checkouts whose `modules/brew` lacks the current `template()` API —
+         * `includeBuild` would substitute that stale module and break `--kit=brew` scaffolds.
+         * In-tree Brew with `template()` is the supported remonorepo layout.
          */
         internal fun isUsableKonaHome(path: Path): Boolean {
             if (!isKonaRoot(path)) return false

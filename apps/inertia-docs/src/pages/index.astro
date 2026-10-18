@@ -1,0 +1,227 @@
+---
+import '../styles/landing.css';
+
+const base = import.meta.env.BASE_URL.endsWith('/')
+  ? import.meta.env.BASE_URL
+  : `${import.meta.env.BASE_URL}/`;
+
+const brandLight = `${base}branding/inertia-banner.svg`;
+const brandDark = `${base}branding/inertia-banner-dark.svg`;
+const logoLight = `${base}branding/inertia-logo.svg`;
+const logoDark = `${base}branding/inertia-logo-dark.svg`;
+const docsHub = `${base}guides/introduction/`;
+const install = `${base}guides/installation/`;
+const rendering = `${base}essentials/rendering/`;
+const github = 'https://github.com/konaframework/kona-inertia';
+const konaDocs = 'https://docs.konaframework.org/';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inertia for Kona — Server-driven page props</title>
+    <meta
+      name="description"
+      content="Inertia for Kona — serve modern single-page frontends with server-driven page props. Kotlin-first, Java first-class."
+    />
+    <meta name="theme-color" content="#DF8723" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <script is:inline>
+      (() => {
+        const stored =
+          typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+        const theme =
+          stored === 'light' || stored === 'dark'
+            ? stored
+            : window.matchMedia('(prefers-color-scheme: light)').matches
+              ? 'light'
+              : 'dark';
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+  </head>
+  <body class="landing">
+    <header class="landing-top">
+      <a class="landing-top__home" href={base} aria-label="Inertia home">
+        <img class="landing-brand landing-brand--for-dark" src={brandDark} width="160" height="51" alt="" />
+        <img class="landing-brand landing-brand--for-light" src={brandLight} width="160" height="51" alt="" />
+      </a>
+      <div class="landing-top__actions">
+        <a class="landing-top__link" href={docsHub}>Docs</a>
+        <a class="landing-top__link" href={github} rel="noopener noreferrer">GitHub</a>
+        <button
+          type="button"
+          class="landing-theme"
+          id="landing-theme-toggle"
+          aria-label="Toggle color theme"
+          title="Toggle color theme"
+        >
+          <span class="landing-theme__icon landing-theme__icon--moon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" />
+            </svg>
+          </span>
+          <span class="landing-theme__icon landing-theme__icon--sun" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+            </svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
+    <main class="landing-main">
+      <section class="landing-hero" aria-label="Inertia for Kona">
+        <div class="landing-hero__glow" aria-hidden="true"></div>
+        <div class="landing-hero__grain" aria-hidden="true"></div>
+        <div class="landing-hero__inner">
+          <div class="landing-hero__copy">
+            <img
+              class="landing-hero__brand landing-brand--for-dark"
+              src={brandDark}
+              width="280"
+              height="89"
+              alt="Inertia"
+            />
+            <img
+              class="landing-hero__brand landing-brand--for-light"
+              src={brandLight}
+              width="280"
+              height="89"
+              alt="Inertia"
+            />
+            <p class="landing-hero__eyebrow">For the Kona framework</p>
+            <h1 class="landing-hero__title">Server-driven page props.</h1>
+            <p class="landing-hero__lede">
+              Return an Inertia page object from Kotlin or Java — component name plus props — and let the
+              client hydrate. First visit is HTML; later navigations stay on the same document. Add it with{' '}
+              <code>./grind install inertia</code> (interactive Vue / React / Svelte scaffold).
+            </p>
+            <div class="landing-cta">
+              <a class="landing-cta__primary" href={install}>./grind install inertia</a>
+              <a class="landing-cta__secondary" href={docsHub}>Read the docs</a>
+              <a class="landing-cta__ghost" href={konaDocs} rel="noopener noreferrer">Kona docs</a>
+            </div>
+          </div>
+          <div class="landing-hero__visual" aria-hidden="true">
+            <img class="landing-hero__logo landing-brand--for-light" src={logoLight} width="200" height="200" alt="" />
+            <img class="landing-hero__logo landing-brand--for-dark" src={logoDark} width="200" height="200" alt="" />
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-features" aria-labelledby="landing-features-title">
+        <div class="landing-features__inner">
+          <h2 id="landing-features-title" class="landing-features__title">What you get</h2>
+          <p class="landing-features__lede">
+            Modern frontends without building a separate API — page props from the server, hydration in the
+            browser.
+          </p>
+          <ul class="landing-feature-list">
+            <li class="landing-feature">
+              <h3>Page objects</h3>
+              <p>
+                Render a component name plus props; shared data and deferred props stay on the server path.
+                <a href={rendering}>Rendering guide</a>
+              </p>
+            </li>
+            <li class="landing-feature">
+              <h3>Inertia protocol</h3>
+              <p>
+                First visit is a full HTML document; <code>X-Inertia</code> requests receive JSON page
+                payloads for client navigations.
+                <a href={docsHub}>Introduction</a>
+              </p>
+            </li>
+            <li class="landing-feature">
+              <h3>Kotlin &amp; Java</h3>
+              <p>
+                First-class APIs for both languages on the same artifact:
+                <code>org.konaframework:kona-inertia</code>.
+              </p>
+            </li>
+            <li class="landing-feature">
+              <h3>Versioning &amp; redirects</h3>
+              <p>
+                Asset versioning, external redirects, and location responses so the client and server stay
+                aligned.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="landing-close" aria-labelledby="landing-close-title">
+        <div class="landing-close__inner">
+          <h2 id="landing-close-title" class="landing-close__title">Open the Inertia docs</h2>
+          <p class="landing-close__lede">
+            Install the dependency, wire the middleware, and ship your first Inertia page on Kona.
+          </p>
+          <div class="landing-cta">
+            <a class="landing-cta__primary" href={install}>./grind install inertia</a>
+            <a class="landing-cta__secondary" href={docsHub}>Documentation</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="landing-footer">
+      <p>
+        Part of the <a href={konaDocs}>Kona</a> ecosystem ·
+        <a href={github} rel="noopener noreferrer">konaframework/kona-inertia</a>
+      </p>
+    </footer>
+
+    <script is:inline>
+      (() => {
+        const storageKey = 'starlight-theme';
+        const root = document.documentElement;
+        const btn = document.getElementById('landing-theme-toggle');
+
+        function preferred() {
+          return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+
+        function loadStored() {
+          const v = localStorage.getItem(storageKey);
+          return v === 'light' || v === 'dark' ? v : null;
+        }
+
+        function apply(theme) {
+          root.dataset.theme = theme;
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'light' ? '#DF8723' : '#C9A57B');
+          if (btn) {
+            btn.setAttribute(
+              'aria-label',
+              theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme',
+            );
+            btn.title = theme === 'light' ? 'Dark mode' : 'Light mode';
+          }
+        }
+
+        apply(loadStored() || preferred());
+
+        btn?.addEventListener('click', () => {
+          const next = root.dataset.theme === 'light' ? 'dark' : 'light';
+          localStorage.setItem(storageKey, next);
+          apply(next);
+        });
+
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+          if (!loadStored()) apply(preferred());
+        });
+      })();
+    </script>
+  </body>
+</html>

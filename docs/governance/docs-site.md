@@ -70,11 +70,11 @@ Public guides for a milestone’s API surface are written **or rewritten** **in 
 
 ### Hostnames (locked)
 
-| Host | Repo | Cloudflare project |
-|------|------|--------------------|
-| [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`) | `kona` |
-| [brew.konaframework.org](https://brew.konaframework.org) | `konaframework/kona-brew` | `kona-brew-docs` |
-| [inertia.konaframework.org](https://inertia.konaframework.org) | `konaframework/kona-inertia` | `kona-inertia-docs` |
+| Host | Repo path | Cloudflare project |
+|------|-----------|--------------------|
+| [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`, pnpm) | `kona` |
+| [brew.konaframework.org](https://brew.konaframework.org) | `konaframework/kona` (`apps/brew-docs`, npm) | `kona-brew-docs` |
+| [inertia.konaframework.org](https://inertia.konaframework.org) | `konaframework/kona` (`apps/inertia-docs`, npm) | `kona-inertia-docs` |
 
 Production builds use `PUBLIC_SITE_URL` = that host and `PUBLIC_BASE_PATH=/` (apex path, not a GitHub project subpath).
 
@@ -124,15 +124,17 @@ No `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in GitHub. Cloudflare clones
 
    **Wrong (deploy):** any `npx wrangler pages deploy …` / `--project-name=kona` — see **Do not use** above. Without a root `wrangler.jsonc` pointing at `apps/docs/dist`, bare `npx wrangler deploy` fails with *Missing entry-point to Worker script or to assets directory*.
 
-5. Custom domain: `docs.konaframework.org` on the Worker (Workers & Pages → `kona` → Custom domains). Sister hosts `brew.` / `inertia.` stay on their own projects.
+5. Custom domain: `docs.konaframework.org` on the Worker (Workers & Pages → `kona` → Custom domains). Brew / Inertia hosts stay on their own Workers projects (`kona-brew-docs` / `kona-inertia-docs`) but now build from **this** monorepo.
 6. **Save** Build settings, then **Retry build** (or push to `main`). Settings-only — no need to wait for a repo merge if the Deploy command was the only wrong field.
 
-Sister repos (separate Cloudflare projects; follow each repo’s own wrangler mode — do **not** copy their Pages commands onto `kona`):
+Brew / Inertia docs (separate Cloudflare Workers projects; **npm**, not pnpm — do **not** copy Kona’s pnpm build onto these):
 
-| Repo | Root directory | Build command | Notes |
-|------|----------------|---------------|-------|
-| `kona-brew` | `apps/docs` | `npm ci && npm run build` | Own project; see that repo’s deploy docs |
-| `kona-inertia` | `apps/docs` | `npm ci && npm run build` | Own project; see that repo’s deploy docs |
+| Project | Root directory | Build command | Deploy | Build vars |
+|---------|----------------|---------------|--------|------------|
+| `kona-brew-docs` | `apps/brew-docs` | `npm ci && npm run build` | `npx wrangler deploy` | `PUBLIC_SITE_URL=https://brew.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
+| `kona-inertia-docs` | `apps/inertia-docs` | `npm ci && npm run build` | `npx wrangler deploy` | `PUBLIC_SITE_URL=https://inertia.konaframework.org`, `PUBLIC_BASE_PATH=/`, `NODE_VERSION=22` |
+
+**Human follow-up after remonorepo:** in the Cloudflare dashboard, reconnect each Worker’s Git source from the archived sister repo to `konaframework/kona` and set Root directory to `apps/brew-docs` / `apps/inertia-docs` (was `apps/docs` on the sister).
 
 #### Path B — optional Wrangler from GitHub Actions (harden later)
 

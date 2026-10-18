@@ -1,0 +1,117 @@
+/*
+ * Inertia brand — coffee palette (shared with Kona / Brew).
+ * Light primary caramel #DF8723; light accent warm brown #74453F (~7.3:1 on cream).
+ * Dark primary latte #C9A57B; dark headings soft cream #E8D4B8 (not pure white).
+ * Caramel fills keep espresso #1A120C button text.
+ * Overrides @almasix/starlight-theme oranges for Inertia surfaces.
+ * Outfit is the UI font (reinforced; Almasix theme already loads it).
+ * Code blocks: Monokai via expressiveCode in astro.config.mjs.
+ */
+
+:root {
+  --inertia-caramel: #df8723;
+  --inertia-caramel-soft: #e9a055;
+  --inertia-caramel-deep: #9a5812;
+  --inertia-latte: #c9a57b;
+  --inertia-latte-soft: #dcc09a;
+  --inertia-latte-deep: #a67c52;
+  --inertia-accent: #e8d4b8;
+  --inertia-accent-soft: #f0e6d6;
+  --inertia-accent-deep: #d4b896;
+  --inertia-cream: #e8d4b8;
+  --inertia-surface: #1a120c;
+  --inertia-surface-raised: #241810;
+  --inertia-primary: var(--inertia-latte);
+  --inertia-primary-soft: var(--inertia-latte-soft);
+  --inertia-primary-deep: var(--inertia-latte-deep);
+  --inertia-glow: rgba(201, 165, 123, 0.28);
+
+  --sl-font: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --almasix-orange: var(--inertia-primary);
+  --almasix-orange-soft: var(--inertia-primary-soft);
+  --almasix-orange-deep: var(--inertia-primary-deep);
+  --almasix-blue: var(--inertia-accent-deep);
+  --almasix-blue-bright: var(--inertia-accent-soft);
+  --almasix-glow: var(--inertia-glow);
+
+  --sl-color-accent-low: #2a1c10;
+  --sl-color-accent: var(--inertia-primary-soft);
+  --sl-color-accent-high: var(--inertia-cream);
+  --sl-color-text-accent: var(--inertia-primary-soft);
+  --sl-color-bg-accent: var(--inertia-primary);
+  --sl-color-bg: var(--inertia-surface);
+  --sl-color-bg-nav: var(--inertia-surface-raised);
+  --sl-color-bg-sidebar: var(--inertia-surface);
+  --sl-color-hairline: rgba(232, 212, 184, 0.12);
+  --sl-color-text: rgba(232, 212, 184, 0.82);
+  --sl-color-text-heading: var(--inertia-cream);
+  --sl-color-white: var(--inertia-cream);
+  --sl-color-gray-1: #f0e6d6;
+  --sl-color-gray-2: #e8d4b8;
+  --sl-color-gray-3: #d4b896;
+}
+
+:root[data-theme='light'] {
+  --inertia-primary: var(--inertia-caramel);
+  --inertia-primary-soft: var(--inertia-caramel-soft);
+  --inertia-primary-deep: var(--inertia-caramel-deep);
+  --inertia-accent: #74453f;
+  --inertia-accent-soft: #8b5a52;
+  --inertia-accent-deep: #5a322e;
+  --inertia-cream: #faf6f0;
+  --inertia-surface: #faf6f0;
+  --inertia-surface-raised: #f5ede3;
+  --inertia-glow: rgba(223, 135, 35, 0.2);
+
+  --sl-color-accent-low: #f0e6d6;
+  --sl-color-accent: var(--inertia-primary);
+  --sl-color-accent-high: var(--inertia-accent);
+  --sl-color-text-accent: var(--inertia-accent);
+  --sl-color-bg-accent: var(--inertia-primary);
+  --sl-color-bg: var(--inertia-surface);
+  --sl-color-bg-nav: var(--inertia-surface-raised);
+  --sl-color-bg-sidebar: var(--inertia-surface);
+  --sl-color-hairline: rgba(61, 41, 20, 0.12);
+  --sl-color-text: #3d2914;
+  --sl-color-text-heading: #2a1c10;
+}
+
+:root:not([data-theme='light']) body {
+  background-image:
+    radial-gradient(1100px 520px at 8% -12%, var(--inertia-glow), transparent 55%),
+    radial-gradient(800px 420px at 100% 0%, rgba(232, 212, 184, 0.06), transparent 50%);
+  background-attachment: fixed;
+}
+
+a:not(.sl-link-button):hover {
+  color: var(--inertia-accent-soft);
+}
+
+:root[data-theme='light'] a:not(.sl-link-button):hover {
+  color: var(--inertia-accent);
+}
+
+:root[data-theme='light'] nav.sidebar a[aria-current='page'],
+:root[data-theme='light'] .sidebar-content a[aria-current='page'],
+:root[data-theme='light'] starlight-toc li a[aria-current='true'] {
+  color: var(--inertia-accent) !important;
+}
+
+.hero .actions a.sl-link-button:not([data-variant='minimal']).primary,
+.hero .actions a.sl-link-button.primary,
+a.sl-link-button.primary {
+  background: linear-gradient(135deg, var(--inertia-primary-soft) 0%, var(--inertia-primary) 100%);
+  color: #1a120c !important;
+}
+
+.inertia-callout {
+  margin: 1.25rem 0;
+  border-left: 3px solid var(--inertia-primary);
+  padding-left: 1rem;
+}
+
+starlight-tabs [role='tabpanel'][hidden] {
+  display: none;
+}
