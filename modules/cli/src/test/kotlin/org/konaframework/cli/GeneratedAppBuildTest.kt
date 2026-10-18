@@ -1,6 +1,5 @@
 package org.konaframework.cli
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.konaframework.grind.GrindApplication
 import org.konaframework.grind.ProcessRunner
 import org.konaframework.grind.ServeCommand
@@ -19,12 +18,14 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Golden path: `kona new` → Gradle build → `grind serve` / in-process HTTP.
+ *
+ * Brew / Inertia kit HTTP smoke lives in the sister repos (`kona-brew`, `kona-inertia`);
+ * this suite only exercises kits that resolve from Kona artifacts alone.
+ * [CliTest] still asserts that brew/inertia scaffolds emit the correct Maven coordinates.
  */
 class GeneratedAppBuildTest {
     @TempDir
     lateinit var temp: Path
-
-    private val json = ObjectMapper()
 
     @Test
     fun kotlinAppBuildsAndServes() {
@@ -76,88 +77,6 @@ class GeneratedAppBuildTest {
         assertTrue(home.contains("<!DOCTYPE html>", ignoreCase = true), home)
         assertTrue(home.contains("Welcome", ignoreCase = true), home)
         assertEquals("{\"status\":\"ok\"}", servePath(app, "/api/health"))
-    }
-
-    @Test
-    fun brewKitServesComponentAndUpdate() {
-        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
-        assumeTrue(konaBrewPublished(), "publish kona-brew to mavenLocal (see konaframework/kona-brew)")
-        val app = temp.resolve("brew-kt")
-        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=brew")))
-        gradle(app, "classes")
-        val port = freePort()
-        var home = ""
-        var updateBody = ""
-        val serve = ServeCommand(awaitShutdown = {
-            val homeResponse = httpGet("http://127.0.0.1:$port/")
-            home = homeResponse.body()
-            val cookie = homeResponse.headers().allValues("set-cookie")
-                .joinToString("; ") { it.substringBefore(';') }
-            val snap = attr(home, "wire:snapshot")
-                ?: error("missing wire:snapshot in:\n$home")
-            val csrf = attr(home, "data-csrf") ?: ""
-            val payload = mapOf(
-                "_token" to csrf,
-                "components" to listOf(
-                    mapOf(
-                        "snapshot" to snap,
-                        "updates" to mapOf("draft" to "Pull espresso"),
-                        "calls" to listOf(
-                            mapOf(
-                                "path" to "",
-                                "method" to "add",
-                                "params" to emptyList<Any>(),
-                                "metadata" to emptyMap<String, Any>(),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-            updateBody =
-                httpPostJson(
-                    "http://127.0.0.1:$port/brew/update",
-                    json.writeValueAsString(payload),
-                    mapOf("X-Brew" to "1", "Cookie" to cookie),
-                ).body()
-        })
-        assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
-        assertTrue(home.contains("wire:snapshot"), home)
-        assertTrue(home.contains("wire:name=\"todos\""), home)
-        assertTrue(Regex("""/brew/brew(\.min)?\.js""").containsMatchIn(home), home)
-        assertTrue(home.contains("Grind the beans"), home)
-        assertTrue(home.contains("1 left") || home.contains("(1 left)"), home)
-        val component = json.readTree(updateBody)["components"][0]
-        val html = component["effects"]["html"].asText()
-        assertTrue(html.contains("Pull espresso"), updateBody)
-        assertTrue(html.contains("2 left") || html.contains("(2 left)"), updateBody)
-    }
-
-    @Test
-    fun inertiaKitServesHtmlAndJsonVisit() {
-        assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
-        assumeTrue(konaInertiaPublished(), "publish kona-inertia to mavenLocal (see konaframework/kona-inertia)")
-        val app = temp.resolve("inertia-kt")
-        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=inertia")))
-        gradle(app, "classes")
-        val port = freePort()
-        var home = ""
-        var jsonBody = ""
-        val serve = ServeCommand(awaitShutdown = {
-            home = httpGet("http://127.0.0.1:$port/").body()
-            jsonBody =
-                HttpClient.newHttpClient().send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port/"))
-                        .header("X-Inertia", "true")
-                        .header("X-Inertia-Version", "1")
-                        .GET()
-                        .build(),
-                    HttpResponse.BodyHandlers.ofString(),
-                ).body()
-        })
-        assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
-        assertTrue(home.contains("data-page"), home)
-        assertTrue(jsonBody.contains("Pages/Welcome"), jsonBody)
-        assertTrue(jsonBody.contains("Welcome to Kona Inertia"), jsonBody)
     }
 
     private fun assertServesInProcess(app: Path) {
@@ -218,41 +137,6 @@ class GeneratedAppBuildTest {
             HttpRequest.newBuilder(URI.create(url)).GET().build(),
             HttpResponse.BodyHandlers.ofString(),
         )
-
-    private fun httpPostJson(url: String, body: String, headers: Map<String, String> = emptyMap()): HttpResponse<String> {
-        val builder = HttpRequest.newBuilder(URI.create(url))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-        headers.forEach { (k, v) -> if (v.isNotEmpty()) builder.header(k, v) }
-        return HttpClient.newHttpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString())
-    }
-
-    private fun attr(html: String, name: String): String? {
-        val marker = "$name=\""
-        val start = html.indexOf(marker)
-        if (start < 0) return null
-        val from = start + marker.length
-        val end = html.indexOf('"', from)
-        if (end < 0) return null
-        return html.substring(from, end)
-            .replace("&quot;", "\"")
-            .replace("&#039;", "'")
-            .replace("&amp;", "&")
-    }
-
-    private fun konaBrewPublished(): Boolean {
-        val home = System.getProperty("user.home")
-        val base = Path.of(home, ".m2", "repository", "org", "konaframework", "kona-brew")
-        if (!Files.isDirectory(base)) return false
-        return Files.walk(base).use { stream -> stream.anyMatch { it.fileName.toString().endsWith(".jar") } }
-    }
-
-    private fun konaInertiaPublished(): Boolean {
-        val home = System.getProperty("user.home")
-        val base = Path.of(home, ".m2", "repository", "org", "konaframework", "kona-inertia")
-        if (!Files.isDirectory(base)) return false
-        return Files.walk(base).use { stream -> stream.anyMatch { it.fileName.toString().endsWith(".jar") } }
-    }
 
     private fun freePort(): Int = java.net.ServerSocket(0).use { it.localPort }
 }
