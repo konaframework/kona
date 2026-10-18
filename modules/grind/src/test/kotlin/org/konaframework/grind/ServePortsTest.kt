@@ -78,7 +78,7 @@ class ServePortsTest {
             )
         }
 
-        ServerSocket(0, 50, java.net.InetAddress.getByName("127.0.0.1")).use { occupied ->
+        occupyPortWithFreeSuccessor().use { occupied ->
             val port = occupied.localPort
             assertFalse(ServePorts.isAvailable("127.0.0.1", port))
             val next = port + 1
