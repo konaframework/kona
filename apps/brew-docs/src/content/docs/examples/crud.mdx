@@ -1,0 +1,110 @@
+---
+title: Example — Full-page list
+description: Full-page Brew component with URL query, pagination-shaped list, and wire:navigate.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A posts index page: search in the query string, inline create, delete with confirm.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@Layout("layouts.app")
+@Title("Posts")
+class PostsPage : Component() {
+    @field:Url(`as` = "q", keep = true, history = true)
+    var search = ""
+
+    var draft = ""
+    var items = mutableListOf("Ship docs", "Wire uploads")
+
+    fun filtered(): List<String> =
+        if (search.isBlank()) items
+        else items.filter { it.contains(search, ignoreCase = true) }
+
+    fun add() {
+        if (draft.isNotBlank()) {
+            items.add(0, draft.trim())
+            draft = ""
+        }
+    }
+
+    fun remove(index: Int) {
+        if (index in items.indices) items.removeAt(index)
+    }
+
+    override fun template() = """
+        <div>
+            <input type="search" wire:model.live.debounce.300ms="search" placeholder="Filter…" />
+
+            <form wire:submit="add">
+                <input wire:model="draft" placeholder="New post title" />
+                <button type="submit">Add</button>
+            </form>
+
+            <ul>
+                @foreach(filtered() as item)
+                    <li wire:key="post-{{ loop.index }}">
+                        {{ item }}
+                        <button
+                            type="button"
+                            wire:click="remove({{ loop.index }})"
+                            wire:confirm="Delete this post?"
+                        >Delete</button>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Layout("layouts.app")
+@Title("Posts")
+public class PostsPage extends Component {
+    @Url(as = "q", keep = true, history = true)
+    public String search = "";
+
+    public String draft = "";
+    public List<String> items = new ArrayList<>(List.of("Ship docs", "Wire uploads"));
+
+    public List<String> filtered() {
+        if (search == null || search.isBlank()) return items;
+        String q = search.toLowerCase();
+        return items.stream().filter(i -> i.toLowerCase().contains(q)).toList();
+    }
+
+    public void add() {
+        if (draft != null && !draft.isBlank()) {
+            items.add(0, draft.trim());
+            draft = "";
+        }
+    }
+
+    public void remove(int index) {
+        if (index >= 0 && index < items.size()) items.remove(index);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Route + navigate links
+
+```kotlin
+Brew.route(router, "/posts", "posts-page")
+```
+
+```crema
+<a href="/posts" wire:navigate>Posts</a>
+<a href="/posts" wire:current.exact>Posts</a>
+```
+
+For Cadence-backed pagination, extend `Paginates` / `WithPagination` — see [Pages, navigate & URL](/advanced/pages/).

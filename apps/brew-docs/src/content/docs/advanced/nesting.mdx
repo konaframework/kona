@@ -1,0 +1,149 @@
+---
+title: Nesting, islands & lazy
+description: Nest Brew components, slots, reactive props, islands, teleport, and lazy loading.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Brew components nest like any other Crema tag. Children keep their own snapshots; the parent records them under `memo.children` so later requests can skip re-rendering unchanged children.
+
+## Nesting a child
+
+```crema
+{{-- parent template --}}
+<div>
+    <brew:panel wire:key="main" title="Main" class="card" />
+    <brew:dynamic-component :is="childName" />
+</div>
+```
+
+- `wire:key` / `key` gives a stable identity in loops.
+- Extra HTML attributes that are not props are forwarded onto the child's root as `data-brew-attr-*` and exposed as an `attributes` bag in the view.
+- `<brew:dynamic-component :is="…" />` (or `:component`) picks the child name at render time.
+- A component may nest itself — stop the recursion with a depth (or similar) guard in `template()`.
+
+## Reactive & modelable props
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Panel : Component() {
+    @field:Reactive
+    var title: String = ""
+
+    @field:Modelable
+    var value: String = ""
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Panel extends Component {
+    @Reactive public String title = "";
+    @Modelable public String value = "";
+}
+```
+
+</TabItem>
+</Tabs>
+
+- `@Reactive` — parent re-pushes the prop whenever the parent re-renders (`memo.props`).
+- `@Modelable` — marks the property the parent binds with `wire:model` on the child tag (`memo.bindings`).
+
+## Slots
+
+```crema
+<brew:card>
+    <brew:slot name="footer">Save</brew:slot>
+    Body content
+</brew:card>
+```
+
+Inside the child:
+
+```crema
+<div>
+    {{ slots.get('default') }}
+    @if(slots.has('footer'))
+        <footer>{{ slots.get('footer') }}</footer>
+    @endif
+</div>
+```
+
+`slots` is a `SlotBag` with `has`, `get`, `default()`, and `all()`.
+
+## Listening for child events
+
+Put `@event-name="method"` on the child tag. When the child `dispatch`es that event, Brew calls the parent's method:
+
+```crema
+<brew:panel @saved="onPanelSaved" />
+```
+
+```kotlin
+fun onPanelSaved(label: String = "") { heard = label }
+```
+
+## `$parent`
+
+From JS: `$wire.$parent.save()`. From the server / `wire:click`: `$parent` magic action forwards to the parent component (`$parent`, then the method name and args).
+
+Inside Kotlin/Java: `parent()` returns the enclosing component while nested (also available after mount via the stored parent reference).
+
+## Lazy & defer
+
+```kotlin
+@Lazy(bundle = true)
+class Heavy : Component() {
+    override fun placeholder() = "<em>Loading…</em>"
+}
+```
+
+- `@Lazy` / `lazy` mount param — placeholder until the element intersects the viewport.
+- `@Defer` / `defer` — load after the first paint (microtask).
+- `bundle = true` — group lazy loads (`memo.lazyBundle`).
+- `@placeholder('…')` / `BrewConfig.lazyPlaceholder` — default markup.
+- `Brew.withoutLazyLoading { … }` — mount eagerly in tests.
+
+## Islands
+
+```crema
+@island('stats')
+    <p>{{ count }}</p>
+@endisland
+
+<button wire:click.island.stats.append="add">Add</button>
+```
+
+- Named or anonymous (`@island` → `default`).
+- Meta flags in the expression: `lazy`, `defer`, `always`, `skip`.
+- JS: `$wire.$island('stats', 'append'|'prepend'|'morph')` and the `.island` click modifier.
+- Polling inside an island uses the same `wire:poll` directive as anywhere else.
+
+## Teleport
+
+```crema
+@teleport('body')
+    <aside>Portaled</aside>
+@endteleport
+```
+
+Renders a `<template wire:teleport="selector">`; the JS runtime moves the contents to `document.querySelector(selector)`.
+
+## Isolate
+
+```kotlin
+@Isolate
+class ChatPane : Component()
+```
+
+Isolated children skip request bundling with their siblings (`memo.isolate`).
+
+## Next
+
+- [Components](/essentials/components/) — registration and discovery
+- [Events](/advanced/events/) — `dispatch`, `@On`, JS listeners
+- [JavaScript](/js/runtime/) — `$wire` API

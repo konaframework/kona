@@ -37,9 +37,18 @@ coverage/
 # Kotlin
 .kotlin/
 
-# Docs site (pnpm / Astro)
+# Docs sites (pnpm / Astro for kona; npm for brew/inertia)
 node_modules/
 apps/docs/dist/
 apps/docs/.astro/
 apps/docs/.wrangler/
+apps/brew-docs/dist/
+apps/brew-docs/.astro/
+apps/brew-docs/.wrangler/
+apps/inertia-docs/dist/
+apps/inertia-docs/.astro/
+apps/inertia-docs/.wrangler/
+js/brew/dist/
+js/brew/coverage/
+js/brew/test-results/
 *.tsbuildinfo

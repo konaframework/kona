@@ -1,0 +1,98 @@
+---
+title: Frontend clients
+description: How Kona’s Inertia scaffold mounts Vue, React, or Svelte against the server page object.
+---
+
+Kona’s Inertia package is **server-side**. The browser app is the official Inertia.js client for your UI framework. After `./grind install inertia` (or the inertia kit), you have a Vite app that calls `createInertiaApp` and resolves page components under `src/main/resources/js/Pages/`.
+
+For adapter APIs (forms, links, routers, events), use the upstream docs: **[inertiajs.com](https://inertiajs.com/)**.
+
+## Mount contract
+
+On the first visit, Kona returns HTML whose root element looks like:
+
+```html
+<div id="app" data-page="{&quot;component&quot;:&quot;Pages/Welcome&quot;,&quot;props&quot;:{…},…}"></div>
+```
+
+The client:
+
+1. Reads `#app` and `data-page`.
+2. Resolves the component name to a module (e.g. `./Pages/Welcome.vue`).
+3. Hydrates props into that component.
+4. On later visits, sends `X-Inertia: true` and swaps pages from JSON instead of full documents.
+
+Your `resolve` function must understand the same naming convention you pass to `Inertia.render` on the server (`Pages/Welcome` → `Pages/Welcome.vue` / `.jsx` / `.svelte`).
+
+## Vue 3 (default scaffold)
+
+Entry `src/main/resources/js/app.js`:
+
+```js
+import { createApp, h } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+
+createInertiaApp({
+  resolve: (name) => {
+    const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
+    const page = pages[`./Pages/${name}.vue`];
+    if (!page) throw new Error(`Inertia page not found: Pages/${name}.vue`);
+    return page;
+  },
+  setup({ el, App, props, plugin }) {
+    createApp({ render: () => h(App, props) }).use(plugin).mount(el);
+  },
+});
+```
+
+Page components use `<script setup>` and declare props that match the server map.
+
+## React
+
+Entry `src/main/resources/js/app.jsx` — set server `viteEntries` to that path (see [Installation](../installation/#2-server-configuration)).
+
+```jsx
+import { createInertiaApp } from '@inertiajs/react';
+import { createRoot } from 'react-dom/client';
+
+createInertiaApp({
+  resolve: (name) => {
+    const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
+    const page = pages[`./Pages/${name}.jsx`];
+    if (!page) throw new Error(`Inertia page not found: Pages/${name}.jsx`);
+    return page;
+  },
+  setup({ el, App, props }) {
+    createRoot(el).render(<App {...props} />);
+  },
+});
+```
+
+## Svelte
+
+Entry `src/main/resources/js/app.js` with `@inertiajs/svelte` and `mount` from `svelte`. Page files use `.svelte` under `Pages/`.
+
+## Vite workflow
+
+| Mode | Command | Server reads |
+|------|---------|----------------|
+| Development | `npm run dev` | `public/hot` (dev server URL) |
+| Production | `npm run build` | `public/build/manifest.json` |
+
+`{!! vite !!}` in the root Crema view expands to the correct tags via Crema’s `AssetManifest` (bound by `InertiaServiceProvider`). Details: [Vite & assets](../../advanced/vite/).
+
+## Changing stack later
+
+Re-run:
+
+```bash
+./grind install inertia --frontend=react
+```
+
+This refreshes `package.json`, Vite config, and entry/page stubs. It does **not** remove the old UI framework packages from `node_modules` until you edit `package.json` and reinstall. Prefer committing the intended lockfile after switching.
+
+## Upstream links
+
+- [Client-side setup](https://inertiajs.com/client-side-setup)
+- [The protocol](https://inertiajs.com/the-protocol)
+- [Responses](https://inertiajs.com/responses) (conceptual; Kona builds the JSON/HTML shapes)

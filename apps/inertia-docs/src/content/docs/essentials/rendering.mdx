@@ -1,0 +1,81 @@
+---
+title: Rendering pages
+description: Inertia.render overloads, page props, and the InertiaPage shape.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Facade API
+
+| Call | Behavior |
+|------|----------|
+| `Inertia.render(component)` | Props empty; uses current request from middleware |
+| `Inertia.render(component, props)` | Same with props map |
+| `Inertia.render(request, component)` | Explicit request |
+| `Inertia.render(request, component, props)` | Explicit request + props |
+
+Without middleware (or `manager.setRequest`), calls that omit `request` throw `InertiaException`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Inertia.render("Pages/Users/Index", mapOf(
+    "users" to listOf(mapOf("id" to 1, "name" to "Ada")),
+))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Inertia.render("Pages/Users/Index", Map.of(
+    "users", List.of(Map.of("id", 1, "name", "Ada"))
+));
+```
+
+</TabItem>
+</Tabs>
+
+## Page object
+
+`InertiaPage` fields serialized to JSON / `data-page`:
+
+| Field | Meaning |
+|-------|---------|
+| `component` | Client component name (e.g. `Pages/Home`) |
+| `props` | Merged shared + request-shared + local props |
+| `url` | `request.path` |
+| `version` | Manager version, or `null` when empty |
+
+Prop merge order: **global shared** → **per-request shared** (middleware) → **local props** (wins on key clash).
+
+## Component naming
+
+The `component` string is opaque to Kona — it is echoed to the client. By convention the kit and `./grind install` scaffolds use `Pages/Name` and resolve files under `src/main/resources/js/Pages/Name.{vue,jsx,svelte}`. Keep server and client naming in lockstep or the browser will throw “page not found”.
+
+## When HTML vs JSON is chosen
+
+| Condition | Body |
+|-----------|------|
+| No `X-Inertia` request header | HTML root shell (`root_view` / `root_html`) with `data-page` |
+| `X-Inertia: true` and version OK | JSON page object |
+| `X-Inertia: true` and version mismatch | `409` (see [Asset versioning](../../advanced/versioning/)) |
+
+You do not pick the mode in the controller — call `Inertia.render` the same way for both; middleware + manager select the representation.
+
+## Lazy / missing request
+
+```kotlin
+// Throws if middleware has not set the current request:
+Inertia.render("Pages/Home")
+
+// Explicit request (tests, unusual pipelines):
+Inertia.render(request, "Pages/Home", mapOf("ok" to true))
+```
+
+## Next
+
+- [Requests & responses](../requests-responses/)
+- [Shared data](../shared-data/)
+- [Your first page](../../guides/first-page/)

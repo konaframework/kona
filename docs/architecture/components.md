@@ -69,11 +69,10 @@ Fluent HTTP client for external APIs and frontend → Kona backend calls.
 
 ### Brew (reactive UI)
 
-Full-stack reactive server components. Lives in the separate repo
-[konaframework/kona-brew](https://github.com/konaframework/kona-brew) (`org.konaframework:kona-brew`, package `org.konaframework.brew`).
-Behavioral/API-shape parity with Livewire v4 is locked in that repo’s
-[livewire-v4-parity.md](https://github.com/konaframework/kona-brew/blob/main/docs/governance/livewire-v4-parity.md).
+Full-stack reactive server components in this monorepo: `modules/brew` → Maven `org.konaframework:kona-brew` (package `org.konaframework.brew`). JS runtime: `js/brew/`. Docs site: `apps/brew-docs` → https://brew.konaframework.org/. Livewire v4 parity ledger: [livewire-v4-parity.md](../governance/livewire-v4-parity.md). Starter: `kona new --kit=brew`.
 
+### Inertia
 
-**Inertia** lives in [konaframework/kona-inertia](https://github.com/konaframework/kona-inertia) (`org.konaframework:kona-inertia`, package `org.konaframework.inertia`). Docs: https://inertia.konaframework.org/.
-Public guides: `apps/docs` → **Brew**. Starter kit: `kona new --kit=brew`.
+SPA adapter in this monorepo: `modules/inertia` → Maven `org.konaframework:kona-inertia` (package `org.konaframework.inertia`). Docs site: `apps/inertia-docs` → https://inertia.konaframework.org/. Starter: `kona new --kit=inertia`.
+
+Sister GitHub repos `konaframework/kona-brew` and `konaframework/kona-inertia` are archived after remonorepo (source of truth is this repo).

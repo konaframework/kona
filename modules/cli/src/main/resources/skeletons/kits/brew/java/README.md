@@ -7,11 +7,6 @@ Kona application (Java) — **Brew** starter kit.
 ./gradlew run
 ```
 
-Includes `kona-brew` (from [konaframework/kona-brew](https://github.com/konaframework/kona-brew)) + `kona-crema`, sample `Todos` (welcome demo) and `Counter` components under `app.brew`, and Crema views under `src/main/resources/views/`.
+Includes `org.konaframework:kona-brew` + `kona-crema`, sample `Todos` (welcome demo) and `Counter` components under `app.brew`, and Crema views under `src/main/resources/views/`.
 
-The installer publishes `kona-brew` to Maven local when a sister checkout is available (`KONA_BREW_SRC` or `../kona-brew`). Otherwise:
-
-```bash
-# from a kona-brew checkout
-./gradlew :kona-brew:publishToMavenLocal
-```
+After installing the global CLI (`scripts/install.sh` or `./scripts/install.sh --local`), Brew is published to Maven Local with the rest of Kona.

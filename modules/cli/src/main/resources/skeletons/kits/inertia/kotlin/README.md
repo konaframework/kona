@@ -8,4 +8,6 @@ npm run dev
 ./grind serve
 ```
 
-Includes `kona-inertia` (from [konaframework/kona-inertia](https://github.com/konaframework/kona-inertia)) + `kona-crema`, Vite entry at `src/main/resources/js/app.js`, and `HandleInertia` middleware.
+Includes `org.konaframework:kona-inertia` + `kona-crema`, Vite entry at `src/main/resources/js/app.js`, and `HandleInertia` middleware.
+
+After installing the global CLI (`scripts/install.sh` or `./scripts/install.sh --local`), Inertia is published to Maven Local with the rest of Kona.

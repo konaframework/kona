@@ -1,0 +1,47 @@
+---
+title: Starter kit
+description: What kona new --kit=inertia generates and how it relates to grind install.
+---
+
+```bash
+kona new my-app --kit=inertia
+kona new my-app --kit=inertia --lang=java
+```
+
+The kit is owned by the Kona CLI repository. It overlays the same pieces [Installation](../../guides/installation/) describes for a working app.
+
+## Layout
+
+| Area | Contents |
+|------|----------|
+| Gradle | `org.konaframework:kona-inertia` (+ Crema, HTTP, session, …) |
+| Boot | `InertiaServiceProvider`, `inertia.root_view` / `inertia.version` |
+| Middleware | `HandleInertia` pushed after boot |
+| HTTP | Welcome controller → `Inertia.render("Pages/Welcome", …)` |
+| Crema | `views/app.crema.html` with `{!! vite !!}` and `{!! pageAttr !!}` |
+| Frontend | Vue 3 + Vite (`package.json`, `vite.config.js`, `js/app.js`, `Pages/Welcome.vue`) |
+
+## Run
+
+```bash
+npm install
+npm run dev
+./grind serve
+```
+
+## vs `./grind install inertia`
+
+| | Kit (`kona new --kit=inertia`) | `./grind install inertia` |
+|--|-------------------------------|---------------------------|
+| New app scaffold | Yes | No — targets an existing app |
+| Maven + provider | Yes | Yes |
+| Frontend | Vue 3 by default | Interactive Vue / React / Svelte / skip |
+| Routes / Welcome controller | Yes | No — add your own render call |
+| Middleware class | Kit `HandleInertia` wrapper | You push `HandleInertiaRequests` (or your subclass) |
+
+Publish order before the first Gradle build of a generated app (until Central has your version):
+
+1. Kona → `publishToMavenLocal`
+2. This repo → `:kona-inertia:publishToMavenLocal`
+
+See also [Kona starter kits](https://docs.konaframework.org/docs/starter-kits/).

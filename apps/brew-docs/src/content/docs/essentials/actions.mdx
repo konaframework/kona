@@ -1,0 +1,139 @@
+---
+title: Brew actions
+description: Call server methods from the browser with wire:click, wire:submit, and $wire.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+An **action** is a public method on your component. The browser invokes it with `wire:click`, other `wire:*` events, `wire:submit`, or `$wire.method()` from Alpine.
+
+## Basic click
+
+```html
+<button wire:click="increment">+</button>
+<button wire:click="add(5)">+5</button>
+<button wire:click="save('draft', true)">Save</button>
+```
+
+Parameters are JSON-encoded and passed positionally. Trailing parameters can be resolved from the Kona container (dependency injection).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun increment() { count++ }
+
+fun add(amount: Int) { count += amount }
+
+fun save(label: String, notify: Boolean) { /* … */ }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public void increment() { count++; }
+
+public void add(int amount) { count += amount; }
+
+public void save(String label, boolean notify) { /* … */ }
+```
+
+</TabItem>
+</Tabs>
+
+## Return values
+
+Return a value and read it from JavaScript:
+
+```kotlin
+fun doubled(): Int = count * 2
+```
+
+```html
+<button x-data x-on:click="alert(await $wire.doubled())">Doubled?</button>
+```
+
+Returns travel in `effects.returns`.
+
+## Renderless actions
+
+Skip the HTML re-render when you only need to mutate state or return a value:
+
+```kotlin
+@Renderless
+fun clearQuietly() {
+    count = 0
+}
+```
+
+Or call `skipRender()` / `renderless()` inside the method. `forceRender()` makes later skip calls no-ops for that request. The `.renderless` event modifier does the same from the template.
+
+## Magic actions
+
+| Call | Effect |
+|------|--------|
+| `$set('count', 1)` | Set a property |
+| `$toggle('open')` | Flip a boolean |
+| `$refresh` | Re-render without a named method |
+| `$event` | Access the DOM event from Alpine |
+
+```html
+<button wire:click="$set('count', 0)">Reset</button>
+<button wire:click="$toggle('open')">Toggle</button>
+<button wire:click="$refresh">Refresh</button>
+```
+
+## Any DOM event
+
+`wire:<event>` works for native and custom events:
+
+```html
+<input wire:keydown.enter="search" />
+<div wire:click.outside="close"></div>
+<input wire:trix-change="updated" />
+```
+
+### Key modifiers
+
+`.enter`, `.escape`, `.space`, `.tab`, `.shift`, `.ctrl`, `.alt`, `.meta` / `.cmd`, `.up` / `.down` / `.left` / `.right`, `.page-up` / `.page-down`, `.slash`, and combinations like `.shift.enter`.
+
+### Event modifiers
+
+`.prevent`, `.stop`, `.window`, `.document`, `.outside`, `.once`, `.self`, `.camel`, `.dot`, `.passive`, `.capture`, `.debounce` / `.debounce.500ms`, `.throttle` / `.throttle.500ms`.
+
+## Forms
+
+```html
+<form wire:submit="save">
+    <input wire:model="email" />
+    <button type="submit">Save</button>
+</form>
+```
+
+`wire:submit` implies `.prevent`. See [Forms](/essentials/forms/) for `wire:model` modifiers.
+
+## From Alpine / `$wire`
+
+```js
+await $wire.save()
+await $wire.$call('add', 5)
+await $wire.$refresh()
+await $wire.$commit()
+```
+
+`$wire` also exposes `$el`, `$id`, `$watch`, and `$hook`.
+
+## Request bundling
+
+Interactions queue per component. Live `wire:model` updates coalesce; actions interrupt or queue according to Brew’s request bus so rapid clicks do not race the morph.
+
+## What cannot be called
+
+Protected/private methods, `render` / `template`, and lifecycle hooks (`mount`, `boot`, `updatedFoo`, …) are not browser-callable. Attempts raise method-not-found or lifecycle-guard errors.
+
+## Next
+
+- [Forms](/essentials/forms/) — model binding details
+- [JavaScript](/js/runtime/) — global `Brew` API and hooks
+- [Lifecycle](/essentials/lifecycle/) — hooks around actions and updates

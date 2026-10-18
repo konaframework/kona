@@ -1,0 +1,118 @@
+---
+title: Pages, navigate & URL
+description: Full-page Brew components, layouts, wire:navigate, query string, session, and pagination.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Full-page Brew components render inside a Crema layout and can drive the URL bar, session, and SPA-style navigation.
+
+## Full-page routes
+
+Register a page component on a path:
+
+```kotlin
+Brew.route(router, "/posts", "posts-page")
+```
+
+Mount parameters come from route attributes and the query string. Annotate the page with `@Layout` / `@Title`, or build the view programmatically:
+
+```kotlin
+override fun render() = BrewView.layout("layouts.app").title("Posts").slot {
+    // …
+}
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@Layout("layouts.app")
+@Title("Dashboard")
+class Dashboard : Component() {
+    var greeting = "Hello"
+
+    fun mount() { /* route + query params available */ }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Layout("layouts.app")
+@Title("Dashboard")
+public class Dashboard extends Component {
+    public String greeting = "Hello";
+
+    public void mount() { /* … */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Navigate
+
+Prefetch and swap pages without a full browser reload:
+
+```html
+<a href="/posts" wire:navigate>Posts</a>
+<a href="/posts" wire:navigate.hover>Prefetch on hover</a>
+<a href="/posts" wire:current.exact>Here</a>
+<a href="/posts#list" wire:navigate:scroll>Keep scroll region</a>
+```
+
+| API | Role |
+|-----|------|
+| `Brew.navigate(url)` | Programmatic visit |
+| `brew:navigate` / `brew:navigating` / `brew:navigated` | Document events around a visit |
+| `@persist('key')` | Keep DOM across visits |
+| `wire:current` (+ `.exact`, `.strict`) | Mark active links (`data-current`) |
+| Progress + view transitions | Configured via `brew.navigate.*` |
+| `disableBackButtonCache()` | Opt out of bfcache |
+
+## URL & session
+
+Bind properties to the query string or session:
+
+```kotlin
+@field:Url(`as` = "q", keep = true, history = true)
+var search = ""
+
+@field:Session(key = "posts.filter")
+var filter = "all"
+
+fun queryString() = mapOf("sort" to sort)
+```
+
+After each request, `effects.url` and `effects.title` update the address bar and document title. In tests, use `withQueryParams(...)`.
+
+## Pagination
+
+Extend `Paginates` / implement `WithPagination`:
+
+```kotlin
+class PostsPage : Paginates() {
+    fun results() = paginate(items, 15)
+}
+```
+
+Helpers: `previousPage`, `nextPage`, `gotoPage`, `resetPage`. Link themes include Tailwind and Bootstrap variants. Use `withoutUrlPagination` when page state should stay off the query string.
+
+## Redirects with navigate
+
+```kotlin
+fun create() {
+    // …
+    redirect("/posts/$id", navigate = true)
+}
+```
+
+`navigate = true` uses the SPA visit path instead of a full document load.
+
+## Next
+
+- [Nesting](/advanced/nesting/) — children, islands, lazy
+- [Example — Full-page list](/examples/crud/) — worked CRUD-ish page
+- [Testing](/dx/testing/) — `assertSeeBrew`, query params

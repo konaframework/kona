@@ -22,9 +22,12 @@ jobs:
           test -f docs/architecture/PLAN.md
           test -f docs/architecture/components.md
           test -f docs/governance/github-rulesets.md
+          test -f docs/governance/livewire-v4-parity.md
           test -f docs/quality/M1-architecture-review.md
           test -f docs/quality/M1-parity-audit.md
           test -f .cursor/rules/kona-milestones.mdc
+          test -d modules/brew
+          test -d modules/inertia
 
   test:
     name: Test + 100% coverage
@@ -37,13 +40,35 @@ jobs:
           java-version: "21"
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-      # Publish Kona jars only — sister packages (kona-brew / kona-inertia) are tested in their own repos.
       - name: Publish Kona artifacts to Maven local
         run: ./gradlew publishToMavenLocal -x test --no-configuration-cache
       - name: Unit tests with Kover verification
         # --rerun-tasks/--no-build-cache: package/group renames and publish-plugin churn
         # invalidate Kover's relationship to cached test outputs from main;
         # UP-TO-DATE hits produce false coverage gaps on CI (same class as #106/#107).
-        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify test --rerun-tasks --no-build-cache
+        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify :kona-brew:koverVerify :kona-inertia:koverVerify test --rerun-tasks --no-build-cache
       - name: Sample apps (HTTP smoke)
-        run: ./gradlew :hello-kotlin:test :hello-java:test
+        run: ./gradlew :hello-kotlin:test :hello-java:test :brew-sample-kotlin:test :brew-sample-java:test :inertia-sample-kotlin:test :inertia-sample-java:test
+
+  brew-js:
+    name: Brew JS runtime (100% Vitest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: js/brew
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: js/brew/package-lock.json
+      - run: npm ci
+      - name: Unit + DOM tests with 100% coverage
+        run: npm run coverage
+      - name: Committed bundles match sources
+        run: npm run check:bundle
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Playwright smoke
+        run: npm run playwright
