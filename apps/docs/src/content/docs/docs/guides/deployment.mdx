@@ -362,17 +362,17 @@ This check is **liveness-oriented** (process up and kernel answering). It does n
 
 | Path / URL | Behavior today |
 |------------|----------------|
-| `src/main/resources/public/` | Web root for Vite/build tooling and files such as `robots.txt`. **Arbitrary files here are not automatically served by a catch-all static middleware** on the embedded server. |
+| `src/main/resources/public/` (`paths.public`) | Scaffold `Middleware` prepends **`ServePublicDirectory`**: a `GET`/`HEAD` under this tree (for example `/branding/kona-logo.svg`, `/robots.txt`) is served from disk. Path escapes (`..`) and symlinks are rejected. |
 | `GET /storage/...` | Served by `ServePublicStorage` from the **public** filesystem disk (see [Public disk and URLs](../../filesystem/urls/)). |
 | `./grind storage:link` | Symlinks `public/storage` → `storage/app/public` for tooling that expects a static tree. |
 | Frontend kits (Vite / Inertia / Brew) | Production builds write under `public/build/` (manifest). Run your kit’s `npm run build` (or equivalent) **before** or **during** deploy so the JVM host has those files. |
 
 Common production split:
 
-1. **App JVM** handles dynamic routes and `/storage/...`.
+1. **App JVM** handles dynamic routes, `paths.public` files via `ServePublicDirectory`, and `/storage/...`.
 2. **Reverse proxy** optionally serves immutable hashed assets from `public/build` directly (faster, fewer hops), and proxies everything else to Kona.
 
-If you only proxy to Kona, ensure built assets exist on disk at the paths your views reference, and add routes or proxy rules for any extra static files you need.
+Keep the process working directory (or `--base=`) pointed at the app root so `paths.public` resolves to the same tree you built. If the proxy already serves `public/build`, you can leave those requests off the JVM.
 
 ## Deploy checklist
 
