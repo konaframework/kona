@@ -6,25 +6,22 @@ How maintainers publish Kona framework jars (including Brew and Inertia) for con
 
 Public install docs may still say generated apps resolve `org.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` until a non-SNAPSHOT train is published on Central.
 
-## Next release — `0.1.1` (monorepo train)
+## Last release — `0.1.1` (monorepo train)
 
-**Status:** release branch / PR sets `kona.version=0.1.1` (non-SNAPSHOT). Human tags **`v0.1.1`** after merge. **Do not** tag or publish from sister repos (archived).
+**Status:** **shipped.** Tag `v0.1.1` → `release.yml` uploaded; Portal **Publish** completed. Includes in-tree Brew + Inertia (remonorepo `#138`). **Do not** re-tag or republish `0.1.1`. Sister repos remain archived (no tags from them).
 
-### Human checklist (after merge to `main`)
+### Post-publish checklist (remaining / next train)
 
-1. **Tag the merge commit only** (one-repo train — no sister tags):
+1. Confirm artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (`kona-core`, `kona-bom`, `kona-brew`, `kona-inertia`, …).
+2. **Bump development version** on `main` to `0.1.2-SNAPSHOT` when starting the next coding train (separate PR — not required for docs-only commits while `kona.version` stays `0.1.1`).
+3. **Usage / File Count** — org hit Central **File Count** monthly limit (grace through **2026-11-17**). Check [Usage Center](https://central.sonatype.com/); if still tight, email `central-support@sonatype.com` for a higher limit. See [Reducing Publishing Usage](https://central.sonatype.org/publish/reducing-publishing-usage/).
 
-   ```bash
-   git fetch origin && git checkout main && git pull
-   git tag v0.1.1 <merge-sha>   # squash-merge SHA on main
-   git push origin v0.1.1
-   ```
+### Cut a later release (template)
 
-2. Wait for `.github/workflows/release.yml` (tag `v*`) → `publishToMavenCentral` on Environment `maven-central`.
-3. **Portal Publish** — open [Deployments](https://central.sonatype.com/publishing/deployments). When status is `VALIDATED`, click **Publish** (`automaticRelease=false` on purpose; upload alone does **not** release).
-4. Confirm on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (allow ~10–30 minutes after Publish).
-5. **Bump development version** on `main` to `0.1.2-SNAPSHOT` (separate PR after publish — **not** part of the release PR).
-6. **Usage / File Count** — org hit Central **File Count** monthly limit (grace through **2026-11-17**). Check [Usage Center](https://central.sonatype.com/); if still tight, email `central-support@sonatype.com` for a higher limit. See [Reducing Publishing Usage](https://central.sonatype.org/publish/reducing-publishing-usage/).
+1. Release PR: set non-SNAPSHOT `kona.version` (e.g. `0.1.2`), notes, merge to `main`.
+2. Human tags: `git tag v0.1.2 <merge-sha> && git push origin v0.1.2`.
+3. Wait for `.github/workflows/release.yml` → Environment `maven-central`.
+4. Portal **Publish** when `VALIDATED` (`automaticRelease=false`).
 
 ### File-count mitigations (this stack)
 
@@ -156,8 +153,8 @@ Do **not** commit tokens, GPG private keys, or `gradle.properties` with secrets.
 
 | Kind | Version shape | Notes |
 |------|---------------|--------|
-| Local / CI / install.sh | `0.1.2-SNAPSHOT` (after 0.1.1 publish) | Overwritable in `~/.m2` |
-| Public release (this cut) | `0.1.1` | Must **not** be SNAPSHOT on the tagged commit |
+| Local / CI / install.sh | `0.1.2-SNAPSHOT` (when next train starts) | Overwritable in `~/.m2`; `main` may still pin `0.1.1` until then |
+| Public release (last cut) | `0.1.1` | Tagged `v0.1.1`; on Central |
 | Prior cut | `0.1.0` | Tagged; brew/inertia were not in-tree yet |
 
 ### C. Module publish order
@@ -187,7 +184,7 @@ cd ~/kona
 ./gradlew publishToMavenCentral --no-configuration-cache -x test
 ```
 
-Or push tag `v0.1.1` and let `.github/workflows/release.yml` run.
+Or push a new version tag (e.g. `v0.1.2`) and let `.github/workflows/release.yml` run.
 
 **Do not run a public Central publish** until:
 
@@ -200,9 +197,9 @@ Or push tag `v0.1.1` and let `.github/workflows/release.yml` run.
 
 1. ~~Claim `org.konaframework`~~ — **done** (verified on Portal).
 2. Portal token + GPG secrets on Environment **`maven-central`** (done for `0.1.0` upload; keep current).
-3. Release PR `0.1.1` → merge → human tag `v0.1.1` → workflow upload → Portal **Publish** when `VALIDATED` → bump `main` to `0.1.2-SNAPSHOT`.
-4. Confirm artifacts on Central search / Portal deployments UI.
-5. Update public install docs to drop the “must publish locally” requirement for released versions.
+3. ~~Release PR `0.1.1` → tag → upload → Portal Publish~~ — **done** (`v0.1.1` on Central).
+4. Confirm artifacts stay visible on Central search / Portal deployments UI.
+5. Optional: bump `main` to `0.1.2-SNAPSHOT` when starting the next coding train; keep public install docs on released versions.
 6. Watch File Count / Usage Center; request a higher limit if needed before grace ends (2026-11-17).
 7. When Sonatype ships Trusted Publishing / OIDC for Central and vanniktech supports it: rewire `release.yml` and drop long-lived Portal passwords.
 8. Later: Gradle 9 + vanniktech ≥0.37 for default signature-checksum exclusion (file-count reduction).
@@ -217,8 +214,8 @@ Or push tag `v0.1.1` and let `.github/workflows/release.yml` run.
 | Namespace `org.konaframework` claimed on Central | **Verified** (human) |
 | Portal / signing credentials on Environment `maven-central` | **Human** — env secrets on `kona` |
 | Maven Central Trusted Publishing (OIDC) | **Not GA** — releases use Portal token + GPG |
-| Non-SNAPSHOT `0.1.1` on release train | Set in release PR; human tags `v0.1.1` after merge |
-| Artifacts actually on Maven Central | **Human** tag + Portal **Publish** |
+| Non-SNAPSHOT `0.1.1` on release train | **Done** — tagged `v0.1.1` |
+| Artifacts actually on Maven Central | **Done** for `0.1.0` / `0.1.1` (Portal Publish) |
 | File Count monthly limit | **Grace until 2026-11-17**; check Usage Center / request higher limit |
 
 **Not blocked:** local dry-run via `publishToMavenLocal` (Gradle, CI, and `install.sh`).
