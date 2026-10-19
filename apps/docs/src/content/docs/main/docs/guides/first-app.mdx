@@ -79,6 +79,8 @@ Web kits ship a Cadence `User` model, `CreateUsersTable` migration, and a demo s
 
 Open `http://127.0.0.1:4000/` (or the `HOST`/`PORT` from `.env`). Stop with Ctrl+C.
 
+With `APP_DEBUG=true` (scaffold default), the terminal shows each request — method, path, status, and duration — as you hit the app. See [Logging](../../http/logging/#request-access-lines-local-serve).
+
 Under the hood, `./grind serve` runs `./gradlew run` so the app compiles with its own dependencies. For tests you can use `./grind serve --in-process` after `./gradlew classes`.
 
 The branded landing page is HTML from `welcome.crema.html` (via `WelcomeController` on `/`). Sign in at `/login` with the demo user **`demo@kona.test`** / **`password`**, then open `/dashboard`. `/api/health` returns JSON `{"status":"ok"}`. `/api/users` and `/api/users/{id}` list or show users (password fields are hidden).
@@ -106,6 +108,7 @@ cd shop
 
 ## Next
 
+- [Deployment](../deployment/) — build artifacts, production env, reverse proxy (not `./grind serve`)  
 - [Application & providers](../../concepts/application/)  
 - [Routing](../../http/routing/)  
 - [grind commands](../../grind/commands/)  

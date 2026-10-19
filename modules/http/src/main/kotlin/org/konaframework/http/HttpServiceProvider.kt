@@ -18,4 +18,16 @@ class HttpServiceProvider : ServiceProvider {
             HttpKernel(router, exceptionHandler = DefaultExceptionHandler(debug))
         }
     }
+
+    override fun boot(app: Application) {
+        if (!RequestLogging.enabled(app)) {
+            return
+        }
+        val kernel = app.resolve(HttpKernel::class.java)
+        if (kernel.globalMiddleware.any { it is LogRequests }) {
+            return
+        }
+        // Outermost so the access line sees final status (including 404/500 from the kernel).
+        kernel.prependMiddleware(LogRequests())
+    }
 }

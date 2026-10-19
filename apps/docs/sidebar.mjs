@@ -45,6 +45,15 @@ export async function buildSidebar() {
           },
           slug: 'docs/guides/kotlin-java',
         },
+        {
+          label: 'Deployment',
+          translations: {
+            es: 'Despliegue',
+            fr: 'Déploiement',
+            'zh-CN': '部署',
+          },
+          slug: 'docs/guides/deployment',
+        },
       ],
     },
     {

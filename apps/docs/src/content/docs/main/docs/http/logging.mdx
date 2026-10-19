@@ -230,6 +230,24 @@ Log.flushSharedContext();
 
 If writing to the default channel throws while a `LogManager` is bound, `Log` calls `LogManager.writeEmergency`. That appends a timestamped line to `logging.channels.emergency.path` (else `logging.file`, else `kona.log`). If even that fails, the message goes to `System.err`.
 
+## Request access lines (local serve)
+
+When `APP_DEBUG=true` (the scaffold default) — or when you set `LOG_REQUESTS=true` / config `logging.requests=true` — `HttpServiceProvider` prepends **`LogRequests`** onto the global kernel. Each request prints a Termwind-styled line to the terminal:
+
+```text
+GET     /  200  3ms
+```
+
+…and mirrors the same plain text through `Log.info` into your log stack (usually `storage/logs/kona.log`). Status colors: green (2xx), cyan (3xx), yellow (4xx), red (5xx and other).
+
+| Setting | Config key | Env | Default |
+| --- | --- | --- | --- |
+| Request access lines | `logging.requests` | `LOG_REQUESTS` | follows `app.debug` when unset |
+
+Set `LOG_REQUESTS=false` to silence the console access lines even with debug on. This applies to both `./grind serve` (Gradle `run`) and in-process serve — the middleware lives in the HTTP kernel, not only in grind.
+
+`KonaHttpServer` also prints a listening banner with `ConsoleIO` when the bind succeeds. Unexpected Netty/handler failures go through `Log.error`.
+
 ## Errors and the HTTP stack
 
 `DefaultExceptionHandler` logs unexpected failures through `Log.error` unless you install a custom `report` callback — see [Exceptions](../exceptions/).

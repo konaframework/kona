@@ -330,6 +330,33 @@ class EnvConfigApplicationTest {
     }
 
     @Test
+    fun konaBootstrapSeedsLoggingRequestsFromEnv() {
+        val enabledBase = Files.createTempDirectory("kona-log-requests-on")
+        Files.writeString(enabledBase.resolve(".env"), "LOG_REQUESTS=true\n")
+        val enabled = Kona.start(enabledBase)
+        assertEquals(true, enabled.config.getBoolean("logging.requests"))
+        Kona.reset()
+
+        val disabledBase = Files.createTempDirectory("kona-log-requests-off")
+        Files.writeString(disabledBase.resolve(".env"), "LOG_REQUESTS=no\n")
+        val disabled = Kona.start(disabledBase)
+        assertEquals(false, disabled.config.getBoolean("logging.requests"))
+        Kona.reset()
+
+        val garbageBase = Files.createTempDirectory("kona-log-requests-garbage")
+        Files.writeString(garbageBase.resolve(".env"), "LOG_REQUESTS=maybe\n")
+        val garbage = Kona.start(garbageBase)
+        assertNull(garbage.config.getBoolean("logging.requests"))
+        Kona.reset()
+
+        val unsetBase = Files.createTempDirectory("kona-log-requests-unset")
+        Files.writeString(unsetBase.resolve(".env"), "APP_NAME=NoLogRequests\n")
+        val unset = Kona.start(unsetBase)
+        assertNull(unset.config.getBoolean("logging.requests"))
+        Kona.reset()
+    }
+
+    @Test
     fun konaCreateBuilderShape() {
         val base = Files.createTempDirectory("kona-create")
         Files.writeString(base.resolve(".env"), "APP_DEBUG=yes\n")

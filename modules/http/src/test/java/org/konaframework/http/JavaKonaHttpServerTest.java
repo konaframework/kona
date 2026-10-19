@@ -20,5 +20,15 @@ public class JavaKonaHttpServerTest {
         assertNotNull(new KonaHttpServer(kernel, "127.0.0.1", 0));
         assertNotNull(new KonaHttpServer(kernel, "127.0.0.1", 0, 1024));
         assertNotNull(new KonaHttpServer(kernel, "127.0.0.1", 0, 1024, "nio"));
+        assertNotNull(
+            new KonaHttpServer(
+                kernel,
+                "127.0.0.1",
+                0,
+                1024,
+                "nio",
+                new org.konaframework.support.console.ConsoleIO()
+            )
+        );
     }
 }
