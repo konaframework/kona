@@ -39,7 +39,7 @@ private val CONFIG = """
         "inject_morph_markers" to true,
         "csrf" to true,
         "csp_safe" to false,
-        "make" to mapOf("type" to "sfc"),
+        "make" to mapOf("type" to "class"),
         "lazy_placeholder" to null,
         "render_on_redirect" to false,
         "legacy_model_binding" to false,

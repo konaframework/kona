@@ -11,17 +11,20 @@ Scaffold a component:
 
 ```bash
 ./grind make:brew counter
-./grind make:brew posts.create-post
-./grind make:brew pages::Dashboard --class --test
+./grind make:brew posts.create-post --test
+./grind make:brew pages::Dashboard --inline
 ./grind make:brew Avatar --mfc --emoji
 ./grind make:brew Counter --lang=java
 ./grind make:brew Counter --force
 ```
 
+The default scaffold is an **empty class** plus a Crema view containing a random funny inspirational quote in a `<p>` tag.
+
 | Flag | Effect |
 |------|--------|
-| *(default)* | Single-file component (`sfc`) unless `brew.make.type` says otherwise |
-| `--class` | Class + separate Crema view |
+| *(default)* | Class + separate Crema view (`class`) unless `brew.make.type` says otherwise |
+| `--inline` | Single-file component with `template()` (`sfc`) |
+| `--class` | Class + separate Crema view (same as the default) |
 | `--mfc` | Multi-file component assets |
 | `--test` | Generate a companion test |
 | `--emoji` | Prefix the view leaf with ⚡ |
@@ -31,7 +34,7 @@ Scaffold a component:
 
 Names may use dots (`posts.create-post`), studly (`CreatePost`), or namespaces (`pages::dashboard`, `admin::…`).
 
-Default type comes from config key `brew.make.type` (`sfc` | `class` | `mfc`).
+Default type comes from config key `brew.make.type` (`class` | `sfc` | `mfc`).
 
 ## Stubs
 

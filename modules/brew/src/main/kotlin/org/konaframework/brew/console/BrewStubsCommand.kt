@@ -54,18 +54,7 @@ private val STUB_KT = """
     import org.konaframework.brew.Component
 
     class {{class}} : Component() {
-        var count = 0
-
-        fun increment() {
-            count++
-        }
-
-        override fun template() = ""${'"'}
-            <div>
-                <span>{{ count }}</span>
-                <button wire:click="increment">+</button>
-            </div>
-        ""${'"'}
+        override fun render() = view("{{view}}")
     }
 """.trimIndent() + "\n"
 
@@ -75,29 +64,15 @@ private val STUB_JAVA = """
     import org.konaframework.brew.Component;
 
     public class {{class}} extends Component {
-        public int count = 0;
-
-        public void increment() {
-            count++;
-        }
-
         @Override
-        public String template() {
-            return ""${'"'}
-                <div>
-                    <span>{{ count }}</span>
-                    <button wire:click="increment">+</button>
-                </div>
-                ""${'"'};
+        public Object render() {
+            return view("{{view}}");
         }
     }
 """.trimIndent() + "\n"
 
 private val STUB_VIEW = """
-    <div>
-        <span>{{ count }}</span>
-        <button wire:click="increment">+</button>
-    </div>
+    <p>{{quote}}</p>
 """.trimIndent() + "\n"
 
 private val STUB_TEST_KT = """
@@ -109,7 +84,7 @@ private val STUB_TEST_KT = """
     class {{class}}Test {
         @Test
         fun renders() {
-            Brew.test("{{name}}").assertSet("count", 0).call("increment").assertSet("count", 1)
+            Brew.test("{{name}}").assertSee("<p>")
         }
     }
 """.trimIndent() + "\n"
@@ -123,7 +98,7 @@ private val STUB_TEST_JAVA = """
     class {{class}}Test {
         @Test
         void renders() {
-            Brew.test({{class}}.class).assertSet("count", 0).call("increment").assertSet("count", 1);
+            Brew.test({{class}}.class).assertSee("<p>");
         }
     }
 """.trimIndent() + "\n"

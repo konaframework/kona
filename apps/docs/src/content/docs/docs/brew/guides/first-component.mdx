@@ -12,7 +12,10 @@ This walkthrough assumes Brew is [installed](/docs/brew/guides/installation/) an
 ```bash
 ./grind make:brew counter
 # or: ./grind make:brew counter --lang=java
+# single-file instead: ./grind make:brew counter --inline
 ```
+
+By default that creates an empty `Counter` class and `views/brew/counter.crema.html` with a short quote in a `<p>` tag. Replace the view (and add state/actions on the class) as you build — or hand-write the counter below.
 
 Put classes in `app.brew` (or configure `brew.class_namespace`).
 

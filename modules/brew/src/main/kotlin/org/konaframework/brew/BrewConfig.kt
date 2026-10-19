@@ -36,8 +36,8 @@ class BrewConfig @JvmOverloads constructor(
     val scriptNonce: String? = null,
     /** Default lazy-load placeholder HTML (`brew.lazy_placeholder`). */
     val lazyPlaceholder: String? = null,
-    /** Default `make:brew` type: `sfc`, `class`, or `mfc` (`brew.make.type`). */
-    val makeType: String = "sfc",
+    /** Default `make:brew` type: `class`, `sfc`, or `mfc` (`brew.make.type`). */
+    val makeType: String = "class",
     /** Re-render after redirect effects (`brew.render_on_redirect`). */
     val renderOnRedirect: Boolean = false,
     /** Legacy model binding mode (`brew.legacy_model_binding`). */
@@ -94,7 +94,7 @@ class BrewConfig @JvmOverloads constructor(
                 assetUrl = config.getString("brew.asset_url"),
                 scriptNonce = config.getString("brew.nonce"),
                 lazyPlaceholder = config.getString("brew.lazy_placeholder"),
-                makeType = config.getString("brew.make.type", "sfc"),
+                makeType = config.getString("brew.make.type", "class"),
                 renderOnRedirect = config.getBoolean("brew.render_on_redirect", false),
                 legacyModelBinding = config.getBoolean("brew.legacy_model_binding", false),
                 smartWireKeys = config.getBoolean("brew.smart_wire_keys", true),
