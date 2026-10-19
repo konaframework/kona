@@ -18,6 +18,8 @@ dependencies {
     implementation(project(":kona-schedule"))
     implementation(project(":kona-mail"))
     implementation(project(":kona-crema"))
+    // Matches default H2 URL in config/Database (zero-install local demos).
+    runtimeOnly(libs.h2)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

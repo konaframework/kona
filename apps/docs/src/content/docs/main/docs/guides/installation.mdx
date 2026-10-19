@@ -117,6 +117,8 @@ dependencies {
     implementation("org.konaframework:kona-http:0.1.1")
     implementation("org.konaframework:kona-grind:0.1.1")
     // … other org.konaframework modules for your kit
+    // Matches default H2 URL in config/Database:
+    runtimeOnly("com.h2database:h2:2.3.232")
 }
 ```
 

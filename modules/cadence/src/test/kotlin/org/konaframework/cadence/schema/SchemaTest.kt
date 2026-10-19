@@ -47,11 +47,14 @@ class SchemaTest {
     @Test
     fun detectsH2Grammar() {
         assertSame(SchemaGrammar.H2, schema.grammar)
-        assertSame(SchemaGrammar.STANDARD, SchemaGrammar.forProduct("PostgreSQL"))
-        assertSame(SchemaGrammar.STANDARD, SchemaGrammar.POSTGRES)
+        assertSame(SchemaGrammar.POSTGRES, SchemaGrammar.forProduct("PostgreSQL"))
+        assertTrue(SchemaGrammar.POSTGRES is PostgresSchemaGrammar)
         assertSame(SchemaGrammar.H2, SchemaGrammar.forProduct("h2"))
         assertTrue(SchemaGrammar.forProduct("MySQL") is MySqlSchemaGrammar)
+        assertTrue(SchemaGrammar.forProduct("MariaDB") is MariaDbSchemaGrammar)
         assertTrue(SchemaGrammar.forProduct("SQLite") is SqliteSchemaGrammar)
+        assertTrue(SchemaGrammar.forProduct("Oracle") is OracleSchemaGrammar)
+        assertTrue(SchemaGrammar.forProduct("Microsoft SQL Server") is SqlServerSchemaGrammar)
         val bare = SchemaGrammar.forProduct("H2", Grammar.NONE)
         assertTrue(bare is H2SchemaGrammar)
         assertEquals("users", bare.wrap("users"))

@@ -5,11 +5,10 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.function.Function
 
 /**
- * Turns a [Blueprint] into DDL statements. The base class emits standard SQL that both H2 and
- * PostgreSQL accept; subclasses override only the types or statements that differ.
+ * Turns a [Blueprint] into DDL statements. The base class emits standard SQL that H2 and
+ * PostgreSQL accept; engine subclasses override types and statements that differ.
  *
- * Built-ins: [H2] (TEXT → `CHARACTER VARYING`), [STANDARD] / [POSTGRES] (ANSI DDL),
- * [MYSQL] (`AUTO_INCREMENT`), [SQLITE] (`INTEGER PRIMARY KEY AUTOINCREMENT`).
+ * Built-ins: [H2], [STANDARD], [POSTGRES], [MYSQL], [MARIADB], [SQLITE], [ORACLE], [SQLSERVER].
  * Register further product-specific DDL with [registerProduct].
  */
 open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Grammar.ANSI) {
@@ -95,20 +94,29 @@ open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Gr
         val H2: SchemaGrammar = H2SchemaGrammar()
 
         @JvmField
-        val POSTGRES: SchemaGrammar = STANDARD
+        val POSTGRES: SchemaGrammar = PostgresSchemaGrammar()
 
         @JvmField
         val MYSQL: SchemaGrammar = MySqlSchemaGrammar()
 
         @JvmField
+        val MARIADB: SchemaGrammar = MariaDbSchemaGrammar()
+
+        @JvmField
         val SQLITE: SchemaGrammar = SqliteSchemaGrammar()
+
+        @JvmField
+        val ORACLE: SchemaGrammar = OracleSchemaGrammar()
+
+        @JvmField
+        val SQLSERVER: SchemaGrammar = SqlServerSchemaGrammar()
 
         private val products = ConcurrentHashMap<String, Function<Grammar, SchemaGrammar>>()
 
         /**
          * Registers a schema grammar factory for a JDBC product name
          * (`DatabaseMetaData.getDatabaseProductName()`, compared case-insensitively).
-         * Example: `SchemaGrammar.registerProduct("Oracle") { OracleSchemaGrammar(it) }`.
+         * Example: `SchemaGrammar.registerProduct("CustomDB") { CustomSchemaGrammar(it) }`.
          */
         @JvmStatic
         fun registerProduct(product: String, factory: Function<Grammar, SchemaGrammar>) {
@@ -126,30 +134,39 @@ open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Gr
          * Picks a grammar from a JDBC `DatabaseMetaData.getDatabaseProductName()` value; [identifiers]
          * should match the connection's query [Grammar] so DDL and queries name tables the same way.
          *
-         * Order: [registerProduct] → H2 specialization → [STANDARD] (with [identifiers] when not ANSI).
+         * Order: [registerProduct] → built-in product match → [STANDARD] (with [identifiers] when not ANSI).
          */
         @JvmStatic
         @JvmOverloads
         fun forProduct(product: String, identifiers: Grammar = Grammar.ANSI): SchemaGrammar {
             products[product.lowercase()]?.let { return it.apply(identifiers) }
             val lower = product.lowercase()
-            val h2 = lower == "h2"
-            val mysql = lower.contains("mysql") || lower.contains("mariadb")
-            val sqlite = lower.contains("sqlite")
             if (identifiers === Grammar.ANSI) {
-                return when {
-                    h2 -> H2
-                    mysql -> MYSQL
-                    sqlite -> SQLITE
-                    else -> STANDARD
-                }
+                return singletonFor(lower) ?: STANDARD
             }
-            return when {
-                h2 -> H2SchemaGrammar(identifiers)
-                mysql -> MySqlSchemaGrammar(identifiers)
-                sqlite -> SqliteSchemaGrammar(identifiers)
-                else -> SchemaGrammar(identifiers)
-            }
+            return instantiate(lower, identifiers)
+        }
+
+        private fun singletonFor(lower: String): SchemaGrammar? = when {
+            lower == "h2" -> H2
+            lower.contains("mariadb") -> MARIADB
+            lower.contains("mysql") -> MYSQL
+            lower.contains("sqlite") -> SQLITE
+            lower.contains("postgres") -> POSTGRES
+            lower.contains("oracle") -> ORACLE
+            lower.contains("microsoft") || lower.contains("sql server") -> SQLSERVER
+            else -> null
+        }
+
+        private fun instantiate(lower: String, identifiers: Grammar): SchemaGrammar = when {
+            lower == "h2" -> H2SchemaGrammar(identifiers)
+            lower.contains("mariadb") -> MariaDbSchemaGrammar(identifiers)
+            lower.contains("mysql") -> MySqlSchemaGrammar(identifiers)
+            lower.contains("sqlite") -> SqliteSchemaGrammar(identifiers)
+            lower.contains("postgres") -> PostgresSchemaGrammar(identifiers)
+            lower.contains("oracle") -> OracleSchemaGrammar(identifiers)
+            lower.contains("microsoft") || lower.contains("sql server") -> SqlServerSchemaGrammar(identifiers)
+            else -> SchemaGrammar(identifiers)
         }
     }
 }
@@ -162,8 +179,20 @@ class H2SchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.A
     }
 }
 
-/** MySQL / MariaDB: `BIGINT AUTO_INCREMENT PRIMARY KEY` for [ColumnType.ID]. */
-class MySqlSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.MYSQL) : SchemaGrammar(identifiers) {
+/** PostgreSQL: identity IDs, `JSONB`, `DROP INDEX IF EXISTS`. */
+class PostgresSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.ANSI) : SchemaGrammar(identifiers) {
+    override fun type(column: ColumnDefinition): String = when (column.type) {
+        ColumnType.ID -> "BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY"
+        ColumnType.JSON -> "JSONB"
+        else -> super.type(column)
+    }
+
+    override fun compileDropIndex(table: String, index: String): String =
+        "DROP INDEX IF EXISTS " + wrap(index)
+}
+
+/** MySQL: `BIGINT AUTO_INCREMENT PRIMARY KEY`, backticks, `DROP INDEX … ON table`. */
+open class MySqlSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.MYSQL) : SchemaGrammar(identifiers) {
     override fun type(column: ColumnDefinition): String = when (column.type) {
         ColumnType.ID -> "BIGINT AUTO_INCREMENT PRIMARY KEY"
         ColumnType.LONG_TEXT -> "LONGTEXT"
@@ -177,9 +206,25 @@ class MySqlSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Gramma
         is Boolean -> if (value) "1" else "0"
         else -> super.literal(value)
     }
+
+    override fun compileDropIndex(table: String, index: String): String =
+        "DROP INDEX " + wrap(index) + " ON " + wrap(table)
+
+    override fun compileRename(from: String, to: String): String =
+        "RENAME TABLE " + wrap(from) + " TO " + wrap(to)
 }
 
-/** SQLite: `INTEGER PRIMARY KEY AUTOINCREMENT` for [ColumnType.ID]. */
+/**
+ * MariaDB: same DDL as MySQL for Cadence's column set; distinct class so product detection
+ * and future engine-specific overrides stay separate.
+ */
+class MariaDbSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.MYSQL) :
+    MySqlSchemaGrammar(identifiers)
+
+/**
+ * SQLite: `INTEGER PRIMARY KEY AUTOINCREMENT`. Alter supports ADD COLUMN / indexes;
+ * DROP COLUMN requires SQLite 3.35+. Complex rebuilds are out of scope — see docs.
+ */
 class SqliteSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.ANSI) : SchemaGrammar(identifiers) {
     override fun type(column: ColumnDefinition): String = when (column.type) {
         ColumnType.ID -> "INTEGER PRIMARY KEY AUTOINCREMENT"
@@ -188,6 +233,78 @@ class SqliteSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Gramm
         else -> super.type(column)
     }
 
+    override fun literal(value: Any?): String = when (value) {
+        is Boolean -> if (value) "1" else "0"
+        else -> super.literal(value)
+    }
+
     override fun compileDropIndex(table: String, index: String): String =
         "DROP INDEX IF EXISTS " + wrap(index)
+
+    /**
+     * SQLite cannot add foreign keys or freely reshape tables in one ALTER.
+     * Emits ADD COLUMN / DROP COLUMN / index DDL only (no FK-on-alter).
+     */
+    override fun compileAlter(blueprint: Blueprint): List<String> {
+        val table = wrap(blueprint.table)
+        return blueprint.dropIndexes.map { compileDropIndex(blueprint.table, it) } +
+            blueprint.dropColumns.map { "ALTER TABLE $table DROP COLUMN ${wrap(it)}" } +
+            blueprint.columns.map { "ALTER TABLE $table ADD COLUMN ${column(it)}" } +
+            blueprint.indexes.map { createIndex(blueprint.table, it) }
+    }
+}
+
+/** Oracle: `VARCHAR2`, identity, `NUMBER(1)` booleans, PL/SQL drop-if-exists. */
+class OracleSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.ANSI) : SchemaGrammar(identifiers) {
+    override fun type(column: ColumnDefinition): String = when (column.type) {
+        ColumnType.ID -> "NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY"
+        ColumnType.STRING -> "VARCHAR2(${column.length})"
+        ColumnType.TEXT, ColumnType.LONG_TEXT, ColumnType.JSON -> "CLOB"
+        ColumnType.INTEGER -> "NUMBER(10)"
+        ColumnType.BIG_INTEGER -> "NUMBER(19)"
+        ColumnType.BOOLEAN -> "NUMBER(1)"
+        ColumnType.TIMESTAMP -> "TIMESTAMP"
+    }
+
+    override fun literal(value: Any?): String = when (value) {
+        is Boolean -> if (value) "1" else "0"
+        else -> super.literal(value)
+    }
+
+    override fun compileDropIndex(table: String, index: String): String = "DROP INDEX " + wrap(index)
+
+    override fun compileDropIfExists(table: String): String {
+        val name = wrap(table)
+        return "BEGIN EXECUTE IMMEDIATE 'DROP TABLE $name'; " +
+            "EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF; END;"
+    }
+
+    override fun compileRename(from: String, to: String): String =
+        "ALTER TABLE " + wrap(from) + " RENAME TO " + wrap(to)
+}
+
+/** SQL Server: `IDENTITY`, `NVARCHAR`, bracket identifiers, `DROP INDEX … ON table`. */
+class SqlServerSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.SQLSERVER) : SchemaGrammar(identifiers) {
+    override fun type(column: ColumnDefinition): String = when (column.type) {
+        ColumnType.ID -> "BIGINT IDENTITY(1,1) PRIMARY KEY"
+        ColumnType.STRING -> "NVARCHAR(${column.length})"
+        ColumnType.TEXT, ColumnType.LONG_TEXT, ColumnType.JSON -> "NVARCHAR(MAX)"
+        ColumnType.INTEGER -> "INT"
+        ColumnType.BIG_INTEGER -> "BIGINT"
+        ColumnType.BOOLEAN -> "BIT"
+        ColumnType.TIMESTAMP -> "DATETIME2"
+    }
+
+    override fun literal(value: Any?): String = when (value) {
+        is Boolean -> if (value) "1" else "0"
+        else -> super.literal(value)
+    }
+
+    override fun compileDropIndex(table: String, index: String): String =
+        "DROP INDEX " + wrap(index) + " ON " + wrap(table)
+
+    override fun compileRename(from: String, to: String): String =
+        "EXEC sp_rename '" + from.replace("'", "''") + "', '" + to.replace("'", "''") + "'"
+
+    override fun compileDropIfExists(table: String): String = "DROP TABLE IF EXISTS " + wrap(table)
 }

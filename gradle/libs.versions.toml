@@ -8,6 +8,13 @@ logback = "1.5.18"
 jackson = "2.18.3"
 hikaricp = "6.3.0"
 h2 = "2.3.232"
+sqlite-jdbc = "3.49.1.0"
+postgresql = "42.7.5"
+mysql = "9.2.0"
+mariadb = "3.5.2"
+mssql = "12.8.1.jre11"
+ojdbc = "23.7.0.25.01"
+testcontainers = "1.20.6"
 bcrypt = "0.10.2"
 password4j = "1.8.2"
 lettuce = "6.5.5.RELEASE"
@@ -20,6 +27,19 @@ jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", ver
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite-jdbc" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+mysql-connector-j = { module = "com.mysql:mysql-connector-j", version.ref = "mysql" }
+mariadb-java-client = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb" }
+mssql-jdbc = { module = "com.microsoft.sqlserver:mssql-jdbc", version.ref = "mssql" }
+ojdbc11 = { module = "com.oracle.database.jdbc:ojdbc11", version.ref = "ojdbc" }
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers-junit-jupiter = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+testcontainers-postgresql = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
+testcontainers-mysql = { module = "org.testcontainers:mysql", version.ref = "testcontainers" }
+testcontainers-mariadb = { module = "org.testcontainers:mariadb", version.ref = "testcontainers" }
+testcontainers-mssqlserver = { module = "org.testcontainers:mssqlserver", version.ref = "testcontainers" }
+testcontainers-oracle-xe = { module = "org.testcontainers:oracle-xe", version.ref = "testcontainers" }
 bcrypt = { module = "at.favre.lib:bcrypt", version.ref = "bcrypt" }
 password4j = { module = "com.password4j:password4j", version.ref = "password4j" }
 lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }

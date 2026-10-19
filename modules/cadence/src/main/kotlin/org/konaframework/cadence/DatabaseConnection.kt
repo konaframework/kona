@@ -62,10 +62,13 @@ class DatabaseConnection @JvmOverloads constructor(
     @JvmOverloads
     fun insert(sql: String, bindings: List<Any?> = emptyList()): Boolean = statement(sql, bindings)
 
-    /** Executes an insert and returns the first generated key, or null when the driver reports none. */
+    /**
+     * Executes an insert and returns the first generated key, or null when the driver reports none.
+     * [keyColumn] is used on engines (Oracle) that require named generated-key columns.
+     */
     @JvmOverloads
-    fun insertGetId(sql: String, bindings: List<Any?> = emptyList()): Any? =
-        run(sql, bindings, generatedKeys = true) { statement ->
+    fun insertGetId(sql: String, bindings: List<Any?> = emptyList(), keyColumn: String = "id"): Any? =
+        run(sql, bindings, generatedKeys = true, keyColumn = keyColumn) { statement ->
             statement.executeUpdate()
             statement.generatedKeys.use { keys -> if (keys.next()) keys.getObject(1) else null }
         }
@@ -124,13 +127,19 @@ class DatabaseConnection @JvmOverloads constructor(
         sql: String,
         bindings: List<Any?>,
         generatedKeys: Boolean = false,
+        keyColumn: String = "id",
         action: (PreparedStatement) -> R,
     ): R {
         log.debug("[{}] {} {}", name, sql, bindings)
         return withConnection { connection ->
             try {
                 val statement = if (generatedKeys) {
-                    connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+                    val named = grammar.generatedKeyColumns(keyColumn)
+                    if (named != null) {
+                        connection.prepareStatement(sql, named)
+                    } else {
+                        connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)
+                    }
                 } else {
                     connection.prepareStatement(sql)
                 }
@@ -147,11 +156,12 @@ class DatabaseConnection @JvmOverloads constructor(
     private fun bind(statement: PreparedStatement, bindings: List<Any?>) {
         bindings.forEachIndexed { index, value ->
             val position = index + 1
-            when (value) {
+            val bound = grammar.bindValue(value)
+            when (bound) {
                 null -> statement.setNull(position, Types.NULL)
-                is Instant -> statement.setTimestamp(position, Timestamp.from(value))
-                is Enum<*> -> statement.setString(position, value.name)
-                else -> statement.setObject(position, value)
+                is Instant -> statement.setTimestamp(position, Timestamp.from(bound))
+                is Enum<*> -> statement.setString(position, bound.name)
+                else -> statement.setObject(position, bound)
             }
         }
     }

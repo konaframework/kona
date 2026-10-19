@@ -22,7 +22,9 @@ class CliJavaTest {
 
         Path app = temp.resolve("javaapp");
         assertEquals(0, new KonaApplication().run(new String[] {"new", app.toString(), "--lang=java"}));
-        assertTrue(Files.readString(app.resolve("build.gradle.kts")).contains("org.konaframework:kona-http:" + versions.getKona()));
+        String build = Files.readString(app.resolve("build.gradle.kts"));
+        assertTrue(build.contains("org.konaframework:kona-http:" + versions.getKona()));
+        assertTrue(build.contains("com.h2database:h2"));
         assertTrue(Files.isRegularFile(app.resolve("grind")));
     }
 

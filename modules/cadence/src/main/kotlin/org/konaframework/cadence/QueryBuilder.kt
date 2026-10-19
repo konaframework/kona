@@ -19,6 +19,8 @@ class QueryBuilder(val connection: DatabaseConnection) {
     internal var upsertProductOverride: String? = null
 
     private var from: String? = null
+    /** Raw table name before wrapping (for SQLite sequence reset / truncate helpers). */
+    private var fromRaw: String? = null
     private var distinct = false
     private val columns = mutableListOf<String>()
     private val selectBindings = mutableListOf<Any?>()
@@ -30,10 +32,10 @@ class QueryBuilder(val connection: DatabaseConnection) {
     private val unions = mutableListOf<UnionClause>()
     private var limit: Int? = null
     private var offset: Int? = null
-    /** Appended after limit/offset: ` for update` or ` for share` (empty when unlocked). */
-    private var lock: String = ""
+    private var lockMode: LockMode = LockMode.NONE
 
     fun from(table: String): QueryBuilder {
+        fromRaw = table
         from = grammar.wrap(table)
         return this
     }
@@ -312,21 +314,21 @@ class QueryBuilder(val connection: DatabaseConnection) {
 
     fun forPage(page: Int, perPage: Int): QueryBuilder = offset((page - 1) * perPage).limit(perPage)
 
-    /** Row lock for the select: `… for update` (exclusive). */
+    /** Row lock for the select: exclusive (` for update` or engine equivalent). */
     fun lockForUpdate(): QueryBuilder {
-        lock = " for update"
+        lockMode = LockMode.UPDATE
         return this
     }
 
-    /** Shared row lock for the select: `… for share` (PostgreSQL; driver may reject on H2/SQLite). */
+    /** Shared row lock (` for share` / ` lock in share mode` / SQL Server hint; no-op on SQLite). */
     fun sharedLock(): QueryBuilder {
-        lock = " for share"
+        lockMode = LockMode.SHARED
         return this
     }
 
     /** Clears any [lockForUpdate] / [sharedLock] clause. */
     fun withoutLock(): QueryBuilder {
-        lock = ""
+        lockMode = LockMode.NONE
         return this
     }
 
@@ -458,7 +460,7 @@ class QueryBuilder(val connection: DatabaseConnection) {
     /** Inserts one row and returns the generated key (null when the driver reports none). */
     fun insertGetId(values: Map<String, Any?>): Any? {
         val columns = values.keys.toList()
-        return connection.insertGetId(compileInsert(columns, 1), columns.map { values[it] })
+        return connection.insertGetId(compileInsert(columns, 1), columns.map { values[it] }, insertKeyHint(columns))
     }
 
     fun update(values: Map<String, Any?>): Int {
@@ -479,7 +481,21 @@ class QueryBuilder(val connection: DatabaseConnection) {
     fun delete(): Int = connection.delete("delete from ${requireTable()}" + clauses(" where ", wheres), bindingsOf(wheres))
 
     fun truncate() {
-        connection.statement("truncate table ${requireTable()}")
+        for (sql in grammar.compileTruncate(requireTable())) {
+            connection.statement(sql)
+        }
+        resetIdentitySequence()
+    }
+
+    /** SQLite AUTOINCREMENT counter reset when `sqlite_sequence` exists. */
+    private fun resetIdentitySequence() {
+        val reset = grammar.compileSequenceReset() ?: return
+        val raw = fromRaw ?: return
+        val sequenceExists = connection.select(grammar.compileSequenceTableExists()).isNotEmpty()
+        if (!sequenceExists) {
+            return
+        }
+        connection.statement(reset, listOf(raw))
     }
 
     /**
@@ -543,7 +559,8 @@ class QueryBuilder(val connection: DatabaseConnection) {
 
     /**
      * Dialect-specific multi-row upsert when the driver supports it; null → portable path.
-     * MySQL / MariaDB: `ON DUPLICATE KEY UPDATE`. PostgreSQL / H2: `ON CONFLICT … DO UPDATE`.
+     * MySQL / MariaDB: `ON DUPLICATE KEY UPDATE`. PostgreSQL / SQLite / H2: `ON CONFLICT`.
+     * Oracle / SQL Server: `MERGE`.
      */
     private fun nativeUpsert(
         rows: List<Map<String, Any?>>,
@@ -716,12 +733,9 @@ class QueryBuilder(val connection: DatabaseConnection) {
     // ---- debugging ----
 
     fun toSql(): String {
-        val head = StringBuilder("select ")
-        if (distinct) {
-            head.append("distinct ")
-        }
-        head.append(if (columns.isEmpty()) "*" else columns.joinToString(", "))
-        val base = head.toString() + tailWithoutOrderLimit()
+        val cols = if (columns.isEmpty()) "*" else columns.joinToString(", ")
+        val head = grammar.compileSelectHead(distinct, cols, limit, offset, unions.isNotEmpty())
+        val base = head + tailWithoutOrderLimit()
         if (unions.isEmpty()) {
             return base + orderLimitLock()
         }
@@ -755,9 +769,11 @@ class QueryBuilder(val connection: DatabaseConnection) {
         copy.havings.addAll(havings)
         copy.orders.addAll(orders)
         copy.unions.addAll(unions.map { UnionClause(it.all, it.query.copy()) })
+        copy.fromRaw = fromRaw
         copy.limit = limit
         copy.offset = offset
-        copy.lock = lock
+        copy.lockMode = lockMode
+        copy.upsertProductOverride = upsertProductOverride
         return copy
     }
 
@@ -780,12 +796,8 @@ class QueryBuilder(val connection: DatabaseConnection) {
     ): QueryBuilder {
         val op = operatorOf(operator)
         val wrapped = grammar.wrap(column)
-        val expression = when (part) {
-            "date" -> "cast($wrapped as date)"
-            "time" -> "cast($wrapped as time)"
-            else -> "extract($part from $wrapped)"
-        }
-        wheres.add(Clause(boolean, "$expression $op ?", listOf(value)))
+        val expression = grammar.compileDatePart(part, wrapped)
+        wheres.add(Clause(boolean, "$expression $op ?", listOf(grammar.datePartValue(part, value))))
         return this
     }
 
@@ -849,14 +861,14 @@ class QueryBuilder(val connection: DatabaseConnection) {
         orders.clear()
         limit = null
         offset = null
-        lock = ""
+        lockMode = LockMode.NONE
         return this
     }
 
     private fun compileInsert(columns: List<String>, rows: Int): String {
         val table = requireTable()
         if (columns.isEmpty()) {
-            return "insert into $table default values"
+            return grammar.compileInsertDefaults(table)
         }
         val row = columns.joinToString(", ", "(", ")") { "?" }
         return "insert into $table (${grammar.columnize(columns)}) values " + List(rows) { row }.joinToString(", ")
@@ -870,7 +882,7 @@ class QueryBuilder(val connection: DatabaseConnection) {
     private fun tail(): String = tailWithoutOrderLimit() + orderLimitLock()
 
     private fun tailWithoutOrderLimit(): String {
-        val sql = StringBuilder(" from ").append(requireTable())
+        val sql = StringBuilder(" from ").append(fromWithLockHints())
         joins.forEach { sql.append(' ').append(it) }
         sql.append(clauses(" where ", wheres))
         if (groups.isNotEmpty()) {
@@ -880,28 +892,24 @@ class QueryBuilder(val connection: DatabaseConnection) {
         return sql.toString()
     }
 
-    private fun orderLimitLock(): String {
-        val sql = StringBuilder()
-        if (orders.isNotEmpty()) {
-            sql.append(" order by ").append(orders.joinToString(", "))
-        }
-        limit?.let { sql.append(" limit ").append(it) }
-        offset?.let { sql.append(" offset ").append(it) }
-        sql.append(lock)
-        return sql.toString()
-    }
+    private fun orderLimitLock(): String =
+        grammar.compileOrderLimit(orders, limit, offset, unions.isNotEmpty()) + grammar.compileLock(lockMode)
 
     /** Select SQL without nested unions / order / limit (used as a union arm). */
     private fun toSqlWithoutUnionsOrderLimit(): String {
-        val head = StringBuilder("select ")
-        if (distinct) {
-            head.append("distinct ")
-        }
-        head.append(if (columns.isEmpty()) "*" else columns.joinToString(", "))
-        return head.toString() + tailWithoutOrderLimit()
+        val cols = if (columns.isEmpty()) "*" else columns.joinToString(", ")
+        return grammar.compileSelectHead(distinct, cols, limit = null, offset = null, hasUnions = true) +
+            tailWithoutOrderLimit()
     }
 
     private fun requireTable(): String = from ?: throw CadenceException("No table set on query; call from(table) first.")
+
+    /** `FROM` target including SQL Server lock hints when [lockMode] is set. */
+    private fun fromWithLockHints(): String {
+        val table = requireTable()
+        val hint = grammar.compileTableLock(lockMode)
+        return if (hint.isEmpty()) table else table + hint
+    }
 
     private fun clauses(keyword: String, clauses: List<Clause>): String =
         if (clauses.isEmpty()) "" else keyword + body(clauses)
@@ -921,6 +929,10 @@ class QueryBuilder(val connection: DatabaseConnection) {
         private const val AND = "and"
         private const val OR = "or"
         private val OPERATORS = setOf("=", "<", ">", "<=", ">=", "<>", "!=", "like", "not like", "ilike", "not ilike")
+
+        /** Column requested for JDBC generated keys (`id` / `ID` / default). */
+        internal fun insertKeyHint(columns: Collection<String>): String =
+            columns.firstOrNull { it.equals("id", ignoreCase = true) } ?: "id"
 
         private fun operatorOf(operator: String): String {
             val op = operator.trim().lowercase()

@@ -41,10 +41,13 @@ class ConnectionTest {
         assertEquals("users.id as k", Grammar.NONE.wrap("users.id as k"))
         assertEquals("\"a\", \"b\"", Grammar.ANSI.columnize(listOf("a", "b")))
         assertSame(Grammar.MYSQL, Grammar.forUrl("jdbc:mysql://h/db"))
-        assertSame(Grammar.MYSQL, Grammar.forUrl("jdbc:mariadb://h/db"))
-        assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:h2:mem:x"))
-        assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:postgresql://h/db"))
-        assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:sqlite:file.db"))
+        assertSame(Grammar.MARIADB, Grammar.forUrl("jdbc:mariadb://h/db"))
+        assertSame(Grammar.H2, Grammar.forUrl("jdbc:h2:mem:x"))
+        assertSame(Grammar.POSTGRES, Grammar.forUrl("jdbc:postgresql://h/db"))
+        assertSame(Grammar.SQLITE, Grammar.forUrl("jdbc:sqlite:file.db"))
+        assertSame(Grammar.ORACLE, Grammar.forUrl("jdbc:oracle:thin:@//h/db"))
+        assertSame(Grammar.SQLSERVER, Grammar.forUrl("jdbc:sqlserver://h;databaseName=db"))
+        assertSame(Grammar.SQLSERVER, Grammar.forUrl("jdbc:microsoft:sqlserver://h"))
 
         val brackets = Grammar("[", "]")
         // Longest registered first → shorter matches hit prefix.length <= bestLen.
@@ -53,7 +56,7 @@ class ConnectionTest {
         Grammar.registerUrlPrefix("jdbc:ex:", Grammar.ANSI)
         assertSame(Grammar.NONE, Grammar.forUrl("jdbc:example:cloud:x"))
         assertSame(brackets, Grammar.forUrl("jdbc:example://host/db"))
-        assertSame(Grammar.ANSI, Grammar.forUrl("jdbc:h2:mem:other"))
+        assertSame(Grammar.H2, Grammar.forUrl("jdbc:h2:mem:other"))
         Grammar.clearRegisteredUrlPrefixes()
         // Re-register shorter first then longer to also cover length > bestLen updates.
         Grammar.registerUrlPrefix("jdbc:ex:", Grammar.ANSI)
@@ -73,8 +76,10 @@ class ConnectionTest {
         assertNull(defaults.driver)
         assertEquals(ConnectionConfig.DEFAULT_POOL_SIZE, defaults.poolSize)
         assertTrue(defaults.quoteIdentifiers)
-        assertSame(Grammar.ANSI, defaults.grammar())
-        assertSame(Grammar.NONE, ConnectionConfig("jdbc:h2:mem:a", quoteIdentifiers = false).grammar())
+        assertSame(Grammar.H2, defaults.grammar())
+        val unquoted = ConnectionConfig("jdbc:h2:mem:a", quoteIdentifiers = false).grammar()
+        assertEquals(Dialect.H2, unquoted.dialect)
+        assertEquals("users", unquoted.wrap("users"))
         assertThrows<IllegalArgumentException> { ConnectionConfig("jdbc:h2:mem:a", poolSize = 0) }
 
         val full = ConnectionConfig.fromMap(

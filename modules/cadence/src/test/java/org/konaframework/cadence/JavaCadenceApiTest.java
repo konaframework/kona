@@ -355,7 +355,9 @@ public class JavaCadenceApiTest {
         assertTrue(Member.QUERY.query().tap(q -> q.where("email", "ada@j.io")).lockForUpdate().toSql().contains(" for update"));
         assertTrue(Member.QUERY.query().orderBy("id").lazy(10).iterator().hasNext());
         assertTrue(DB.table("users").orderBy("id").cursor().iterator().hasNext());
-        assertTrue(DB.table("users").sharedLock().toSql().contains(" for share"));
+        // H2 has no shared row lock; PostgreSQL emits ` for share`.
+        assertFalse(DB.table("users").sharedLock().toSql().contains(" for share"));
+        assertEquals(" for share", Grammar.POSTGRES.compileLock(LockMode.SHARED));
         Grammar.registerUrlPrefix("jdbc:javaexample:", Grammar.NONE);
         assertEquals(Grammar.NONE, Grammar.forUrl("jdbc:javaexample://x"));
         Grammar.clearRegisteredUrlPrefixes();

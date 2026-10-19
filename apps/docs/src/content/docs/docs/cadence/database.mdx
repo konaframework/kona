@@ -1,67 +1,19 @@
 ---
 title: Database connections
-description: Configure JDBC connections, choose an engine, set .env keys, and register grammars for a new database.
+description: Configure JDBC connections for H2, SQLite, MySQL, MariaDB, PostgreSQL, Oracle, and SQL Server; env keys; kona new --database; dialects and drivers.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Cadence talks to relational databases through **JDBC**. A **connection** is a named pool (HikariCP) plus identifier-quoting rules. Models, the query builder, and the `DB` facade all use the **global** `Database` manager that `CadenceServiceProvider` builds from your `database` config.
+Cadence talks to relational databases through **JDBC**. A **connection** is a named pool (HikariCP) plus identifier-quoting and query-dialect rules. Models, the query builder, and the `DB` facade all use the **global** `Database` manager that `CadenceServiceProvider` builds from your `database` config.
 
-This page covers configuration depth: every env key, each supported engine, production vs local defaults, and how to plug in a database Cadence does not specialize yet.
+This page covers configuration depth: every env key, each first-party engine, production vs local defaults, scaffold named connections, and how to plug in a database Cadence does not specialize yet.
 
 ## How configuration is loaded
 
 1. Your app registers a `ConfigFile` whose `key()` is `"database"` (scaffold: `config/Database.kt` or `config/Database.java`).
 2. `CadenceServiceProvider` calls `Database.fromConfig(app.config)`, binds the manager in the container (`Database` and alias `db`), and on boot calls `setAsGlobal()`.
 3. If the `database` section has **no** connections and `DB_URL` is set in the environment (or `.env`), Cadence builds a single connection from `DB_*` variables.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-object Database : ConfigFile {
-    override fun key(): String = "database"
-
-    override fun config(): Map<String, Any?> = mapOf(
-        "default" to "main",
-        "connections" to mapOf(
-            "main" to mapOf(
-                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
-                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
-                "password" to Env.getOrDefault("DB_PASSWORD", ""),
-                "pool_size" to Env.getOrDefault("DB_POOL_SIZE", "10").toInt(),
-                "quote_identifiers" to true,
-            ),
-        ),
-    )
-}
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-public final class Database implements ConfigFile {
-    @Override
-    public String key() {
-        return "database";
-    }
-
-    @Override
-    public Map<String, Object> config() {
-        Map<String, Object> main = new LinkedHashMap<>();
-        main.put("url", Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"));
-        main.put("username", Env.getOrDefault("DB_USERNAME", "sa"));
-        main.put("password", Env.getOrDefault("DB_PASSWORD", ""));
-        main.put("pool_size", 10);
-        Map<String, Object> connections = Map.of("main", main);
-        return Map.of("default", "main", "connections", connections);
-    }
-}
-```
-
-</TabItem>
-</Tabs>
 
 ### Connection map keys
 
@@ -74,64 +26,83 @@ public final class Database implements ConfigFile {
 | `pool_size` / `poolSize` | `DB_POOL_SIZE` | Hikari max pool size (default `10`) |
 | `quote_identifiers` / `quoteIdentifiers` | `DB_QUOTE_IDENTIFIERS` | Quote table/column names (default `true`) |
 
-`database.default` may be a **connection name** (`"main"`) or, rarely, an **inline connection map** (treated as the `default` connection).
+`database.default` may be a **connection name** (`"main"`, `"pgsql"`, …) selected by `DB_CONNECTION`, or rarely an **inline connection map**.
+
+Helper env keys used by the scaffolded named connections (when you do not set a full `DB_URL`):
+
+| Key | Used by |
+|-----|---------|
+| `DB_HOST` | mysql, mariadb, pgsql, sqlsrv, oracle |
+| `DB_PORT` | same |
+| `DB_DATABASE` | database / service name |
 
 ## Why new apps default to H2
 
-`kona new` scaffolds an in-memory H2 URL so a fresh app runs **without installing a database server**. That default is intentional for demos, tutorials, and tests:
+`kona new` scaffolds an in-memory H2 URL **and** puts the H2 JDBC driver on the classpath (`runtimeOnly("com.h2database:h2:2.3.232")`) so a fresh app runs **without installing a database server**:
 
-- Only the H2 JAR is required on the classpath.
+- The scaffold already ships the H2 JAR; you do not need to add it by hand for the default URL.
 - `DATABASE_TO_LOWER=TRUE` keeps quoted identifiers (`"users"`) aligned with unquoted SQL (`users`).
 - `DB_CLOSE_DELAY=-1` keeps a mem database alive for the whole JVM process.
 
-**Production apps should point `DB_URL` at PostgreSQL or MySQL/MariaDB** (or another JDBC engine you register). Leave H2 for local smoke tests unless you deliberately ship an embedded file database.
+**Production apps should point `DB_CONNECTION` / `DB_URL` at PostgreSQL, MySQL/MariaDB, or another first-party engine.** Leave H2 for local smoke tests unless you deliberately ship an embedded file database.
 
-## Engines Cadence understands today
+## First-party engines
 
-| Engine | Typical JDBC URL | Identifier quoting | Schema DDL specialization |
-|--------|------------------|--------------------|---------------------------|
-| **H2** | `jdbc:h2:mem:…` or `jdbc:h2:file:…` | ANSI `"…"` | Yes — `TEXT` → `CHARACTER VARYING` |
-| **PostgreSQL** | `jdbc:postgresql://host/db` | ANSI `"…"` | Standard SQL (`SchemaGrammar.STANDARD`) |
-| **MySQL / MariaDB** | `jdbc:mysql://…` / `jdbc:mariadb://…` | Backticks `` `…` `` | Standard SQL types + MySQL quoting |
-| **SQLite** | `jdbc:sqlite:file.db` | ANSI `"…"` | Standard SQL (no SQLite-specific grammar yet) |
+Cadence ships dedicated query dialects and schema grammars for these engines. **By default** that means dialects, named scaffold connections, BOM coordinates, and `kona new --database=` — not every JDBC JAR on every app classpath.
 
-Add the driver dependency yourself, for example:
+| Engine | Connection name | Typical JDBC URL | Quoting | Schema notes |
+|--------|-----------------|------------------|---------|--------------|
+| **H2** | `main` / `h2` | `jdbc:h2:mem:…` or `jdbc:h2:file:…` | `"…"` | `TEXT` → `CHARACTER VARYING` |
+| **SQLite** | `sqlite` | `jdbc:sqlite:…` | `"…"` | `INTEGER PRIMARY KEY AUTOINCREMENT`; alter is ADD/DROP column + indexes only |
+| **MySQL** | `mysql` | `jdbc:mysql://…` | `` `…` `` | `AUTO_INCREMENT`, `LONGTEXT`, `TINYINT(1)` |
+| **MariaDB** | `mariadb` | `jdbc:mariadb://…` | `` `…` `` | Same DDL family as MySQL; distinct product detection |
+| **PostgreSQL** | `pgsql` | `jdbc:postgresql://…` | `"…"` | Identity IDs, `JSONB`, `DROP INDEX IF EXISTS` |
+| **Oracle** | `oracle` | `jdbc:oracle:thin:@//…` | `"…"` | `VARCHAR2`, identity, `NUMBER(1)`, PL/SQL drop-if-exists |
+| **SQL Server** | `sqlsrv` | `jdbc:sqlserver://…` | `[…]` | `IDENTITY`, `NVARCHAR`, `DROP INDEX … ON table`, `OFFSET/FETCH` |
+
+Query dialects also cover limit/offset (including SQL Server / Oracle `OFFSET … FETCH`), locks (`FOR UPDATE` / share / SQL Server table hints), date-part helpers, native upsert (`ON CONFLICT`, `ON DUPLICATE KEY`, `MERGE`), and generated-key / returning strategies where the driver supports them.
+
+### Choosing an engine with `kona new`
+
+```bash
+kona new shop --database=pgsql
+kona new shop --database=mysql --lang=java
+kona new shop --database=sqlite
+```
+
+Accepted values: `h2` (default), `sqlite`, `mysql`, `mariadb`, `pgsql` (aliases: `postgres`, `postgresql`, `pg`), `sqlsrv` (aliases: `sqlserver`, `mssql`), `oracle`.
+
+The flag sets `DB_CONNECTION` to that named map, writes a sensible `DB_URL` for non-H2 engines, and adds the matching `runtimeOnly` JDBC coordinate next to H2. H2 remains on the classpath so you can switch back locally without editing Gradle.
+
+### Scaffold named connections
+
+Generated `config/Database` includes maps for `main`, `h2`, `sqlite`, `mysql`, `mariadb`, `pgsql`, `sqlsrv`, and `oracle`. Switch with env only:
+
+```bash
+DB_CONNECTION=pgsql
+DB_URL=jdbc:postgresql://127.0.0.1:5432/kona
+DB_USERNAME=kona
+DB_PASSWORD=secret
+```
+
+Or rely on host/port/database helpers without a full URL (see the generated config file).
+
+### Driver coordinates
+
+Recommended versions are pinned in the version catalog / `kona-bom`. Examples:
 
 ```kotlin
 dependencies {
+    // Always present from kona new (zero-install default):
     runtimeOnly("com.h2database:h2:2.3.232")
-    runtimeOnly("org.postgresql:postgresql:42.7.4")
-    runtimeOnly("com.mysql:mysql-connector-j:9.1.0")
+    // Added automatically by --database=…, or add by hand:
+    runtimeOnly("org.postgresql:postgresql:42.7.5")
+    runtimeOnly("com.mysql:mysql-connector-j:9.2.0")
+    runtimeOnly("org.mariadb.jdbc:mariadb-java-client:3.5.2")
+    runtimeOnly("org.xerial:sqlite-jdbc:3.49.1.0")
+    runtimeOnly("com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11")
+    runtimeOnly("com.oracle.database.jdbc:ojdbc11:23.7.0.25.01")
 }
-```
-
-### Example: PostgreSQL in `.env`
-
-```bash
-DB_URL=jdbc:postgresql://localhost:5432/kona
-DB_USERNAME=kona
-DB_PASSWORD=secret
-DB_POOL_SIZE=10
-```
-
-Keep `config/Database` reading those keys; switch the scaffold default only in env for that machine or deploy.
-
-### Example: MySQL
-
-```bash
-DB_URL=jdbc:mysql://localhost:3306/kona?useSSL=false&allowPublicKeyRetrieval=true
-DB_USERNAME=kona
-DB_PASSWORD=secret
-```
-
-Cadence selects backtick quoting automatically from the `jdbc:mysql:` / `jdbc:mariadb:` URL prefix.
-
-### Example: H2 file (persist local data)
-
-```bash
-DB_URL=jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE
-DB_USERNAME=sa
-DB_PASSWORD=
 ```
 
 ## Using connections in code
@@ -150,7 +121,7 @@ DB.transaction { connection ->
     connection.table("accounts").where("id", 2).increment("balance", 50)
 }
 
-Database.global().connection("reports").table("facts").count()
+Database.global().connection("pgsql").table("facts").count()
 ```
 
 </TabItem>
@@ -168,7 +139,7 @@ DB.transaction(connection -> {
     return null;
 });
 
-Database.global().connection("reports").table("facts").count();
+Database.global().connection("pgsql").table("facts").count();
 ```
 
 </TabItem>
@@ -187,60 +158,23 @@ Database()
 You can also pass an existing `javax.sql.DataSource` and an explicit `Grammar`:
 
 ```kotlin
-database.addConnection("raw", myDataSource, Grammar.ANSI)
+database.addConnection("raw", myDataSource, Grammar.POSTGRES)
 ```
+
+## SQLite alter limits
+
+SQLite cannot freely reshape tables the way server engines can. Cadence’s SQLite schema grammar emits **ADD COLUMN**, **DROP COLUMN** (SQLite 3.35+), and index DDL on alter; it does **not** rewrite foreign keys onto an existing table in one `ALTER`. Prefer create-time constraints for SQLite, or rebuild the table in a custom migration when you need a full reshape.
 
 ## Adding a database Cadence does not specialize
 
-Cadence needs two pieces that can differ by engine:
+1. **Query identifier quoting** (`Grammar`) — register a URL prefix with `Grammar.registerUrlPrefix`.
+2. **Schema DDL** (`SchemaGrammar`) — subclass and `SchemaGrammar.registerProduct` for the JDBC product name.
 
-1. **Query identifier quoting** (`Grammar`) — how table/column names are wrapped in generated SQL.
-2. **Schema DDL** (`SchemaGrammar`) — how migrations compile `id()`, `text()`, indexes, and so on.
-
-### 1. Register query quoting for a JDBC URL prefix
-
-```kotlin
-import org.konaframework.cadence.Grammar
-
-// Example: double-bracket style for a fictional driver
-val brackets = Grammar("[", "]")
-Grammar.registerUrlPrefix("jdbc:example:", brackets)
-
-// Later cleanup in tests:
-// Grammar.clearRegisteredUrlPrefixes()
-```
-
-`Grammar.forUrl(url)` picks the **longest** registered prefix, then falls back to MySQL/MariaDB backticks or ANSI quotes.
-
-### 2. Register schema DDL for a JDBC product name
-
-The product name is whatever `DatabaseMetaData.getDatabaseProductName()` returns (for example `"PostgreSQL"`, `"H2"`, `"MySQL"`).
-
-```kotlin
-import org.konaframework.cadence.schema.SchemaGrammar
-
-class ExampleSchemaGrammar(identifiers: Grammar) : SchemaGrammar(identifiers) {
-    override fun type(column: ColumnDefinition): String =
-        if (column.type == ColumnType.ID) "BIGINT PRIMARY KEY" else super.type(column)
-}
-
-SchemaGrammar.registerProduct("ExampleDB") { identifiers -> ExampleSchemaGrammar(identifiers) }
-```
-
-`Migrator` and `Schema` call `SchemaGrammar.forProduct(productName, connection.grammar)`, so registrations apply automatically once the driver reports that product name.
-
-### 3. Checklist when introducing a new engine
-
-1. Add the JDBC driver to the app’s Gradle dependencies.
-2. Set `DB_URL` / credentials (or a named entry under `database.connections`).
-3. If quoting differs from ANSI/MySQL, call `Grammar.registerUrlPrefix` early in boot (a service provider `register` method).
-4. If DDL differs (identity columns, text types, drop-index syntax), subclass `SchemaGrammar` and `registerProduct`.
-5. Run migrations against a real instance of that engine; adjust the subclass until `Schema` / `Migrator` tests (or your app migrations) pass.
-6. Optionally pass a custom `SchemaGrammar` into `Migrator(…, grammar)` for one-off tooling.
+`Grammar.forUrl` / `SchemaGrammar.forProduct` pick built-ins first, then registrations. Longest URL prefix wins.
 
 ## Transactions and pools
 
-- `DB.transaction { … }` / `connection.transaction { … }` binds one JDBC connection to the current thread for the duration of the block; nested work on that connection joins the same transaction.
+- `DB.transaction { … }` binds one JDBC connection to the current thread; nested work joins the same transaction.
 - Pools open **lazily** on first use. `Database.close()` closes open pools; configuration remains so the next query can reconnect.
 - `disconnect(name)` closes one named pool without forgetting its config.
 

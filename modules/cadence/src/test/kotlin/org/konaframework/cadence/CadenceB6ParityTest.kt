@@ -7,6 +7,7 @@ import org.konaframework.cadence.relations.MorphMap
 import org.konaframework.cadence.relations.MorphTo
 import org.konaframework.cadence.relations.Relation
 import org.konaframework.cadence.schema.Blueprint
+import org.konaframework.cadence.schema.MariaDbSchemaGrammar
 import org.konaframework.cadence.schema.MySqlSchemaGrammar
 import org.konaframework.cadence.schema.Schema
 import org.konaframework.cadence.schema.SchemaGrammar
@@ -365,7 +366,7 @@ class CadenceB6ParityTest {
     @Test
     fun mysqlAndSqliteSchemaGrammars() {
         assertTrue(SchemaGrammar.forProduct("MySQL") is MySqlSchemaGrammar)
-        assertTrue(SchemaGrammar.forProduct("MariaDB") is MySqlSchemaGrammar)
+        assertTrue(SchemaGrammar.forProduct("MariaDB") is MariaDbSchemaGrammar)
         assertTrue(SchemaGrammar.forProduct("SQLite") is SqliteSchemaGrammar)
         assertSame(SchemaGrammar.MYSQL, SchemaGrammar.forProduct("mysql"))
         assertSame(SchemaGrammar.SQLITE, SchemaGrammar.forProduct("sqlite"))
@@ -451,7 +452,7 @@ class CadenceB6ParityTest {
         )
         assertFalse(NativeUpsert.rowsHaveUniformKeys(emptyList()))
 
-        // Oracle dialect → native compile null → portable path.
+        // Oracle MERGE against H2 → native execute fails → portable path.
         val oracle = Database.global().table("votes")
         oracle.upsertProductOverride = "Oracle"
         assertEquals(
@@ -498,21 +499,21 @@ class CadenceB6ParityTest {
             2,
         )!!
         assertTrue(mysqlNoUpdate.contains("on duplicate key update"))
-        assertNull(
+        assertTrue(
             NativeUpsert.compileSql(
                 "Oracle",
-                Grammar.ANSI,
+                Grammar.ORACLE,
                 "votes",
+                listOf("email", "name"),
                 listOf("email"),
-                listOf("email"),
-                listOf("email"),
+                listOf("name"),
                 1,
-            ),
+            )!!.contains("merge into"),
         )
         assertNotNull(
             NativeUpsert.compileSql(
                 "PostgreSQL",
-                Grammar.ANSI,
+                Grammar.POSTGRES,
                 "votes",
                 listOf("email", "name"),
                 listOf("email"),
@@ -520,12 +521,23 @@ class CadenceB6ParityTest {
                 1,
             ),
         )
-        // Cover empty-updateCols postgres/h2 arm.
+        // Cover empty-updateCols postgres/sqlite arm.
+        assertTrue(
+            NativeUpsert.compileSql(
+                "SQLite",
+                Grammar.SQLITE,
+                "votes",
+                listOf("email", "name"),
+                listOf("email"),
+                emptyList(),
+                1,
+            )!!.contains("do nothing"),
+        )
         assertTrue(
             NativeUpsert.compileSql(
                 "H2",
-                Grammar.ANSI,
-                "votes",
+                Grammar.H2,
+                "upserts",
                 listOf("email", "name"),
                 listOf("email"),
                 emptyList(),
