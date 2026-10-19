@@ -1,0 +1,80 @@
+---
+title: Asset bundling with Vite
+description: Emit script and stylesheet tags from a Vite manifest or the Vite dev server.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona’s **Vite helper** lives in `kona-crema` (`org.konaframework.crema.assets`) and is shared with Inertia (`org.konaframework.inertia.assets` remains a thin facade). It reads the standard Vite build output and optional hot file so Crema `@vite` directives and Inertia shells emit the right tags in development and production.
+
+## Layout on disk
+
+```text
+public/
+  hot                 # optional: full URL of the Vite dev server
+  build/
+    manifest.json     # Vite manifest (npm run build)
+    assets/…
+```
+
+## Emit tags
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Vite.tags("src/main/resources/js/app.js")
+// production:
+// <link rel="stylesheet" href="/build/assets/app.css">
+// <script type="module" src="/build/assets/app.js"></script>
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Vite.tags("src/main/resources/js/app.js");
+```
+
+</TabItem>
+</Tabs>
+
+When `public/hot` exists (contents like `http://127.0.0.1:5173`), tags point at the Vite server instead:
+
+```html
+<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
+<script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
+```
+
+Resolve a single URL:
+
+```kotlin
+Vite.asset("src/main/resources/js/app.js") // /build/assets/… or hot URL
+```
+
+`CremaServiceProvider` and `InertiaServiceProvider` bind `AssetManifest` to `vite.public_path` / `inertia.public_path` (default `<base>/public`) and set the `Vite` facade. Crema `@vite('…')` uses that resolver when bound, otherwise falls back to `/build/…` paths.
+
+## grind help
+
+```bash
+./grind assets:vite
+```
+
+Prints the same setup checklist (no processes are started).
+
+## Typical frontend scripts
+
+```json
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  }
+}
+```
+
+Point Vite’s `build.outDir` at `public/build` and enable `build.manifest: true`. The Inertia starter kit (`kona new … --kit=inertia`) includes `package.json` and `vite.config.js` stubs.
+
+## Inertia root view
+
+With `inertia.root_view` set, the HTML shell receives a `vite` string you can print with `{!! vite !!}`. Default entry: `src/main/resources/js/app.js` (`InertiaManager.viteEntries`).

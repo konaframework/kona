@@ -1,0 +1,53 @@
+---
+title: Introduction
+description: What Inertia for Kona is, when to use it, and how it fits in an application.
+---
+
+**Inertia** for Kona lets your JVM app return a **page object** — a component name plus props — that a JavaScript client hydrates. The first visit is a normal HTML document. Later navigations send the `X-Inertia` header and receive JSON instead of a full page reload.
+
+You keep routing, controllers, auth, and validation on the server. The browser mounts a client framework (Vue, React, Svelte, or anything that can read the page object) and swaps pages when Inertia navigates.
+
+## What ships in this package
+
+| Piece | Role |
+|-------|------|
+| `Inertia` facade | Java-callable statics: `render`, `share`, `version`, `location` |
+| `InertiaManager` | Builds HTML shells and JSON page responses |
+| `HandleInertiaRequests` | Middleware: per-request shared props, version checks, response headers |
+| `InertiaServiceProvider` | Binds manager + Vite `AssetManifest` |
+| `org.konaframework.inertia.assets.Vite` | Thin facade over Crema’s Vite resolver |
+
+Artifact: `org.konaframework:kona-inertia` on Maven Central.
+
+## When to use it
+
+Use Inertia when you want a modern SPA UX without writing a separate JSON API for every screen. Controllers return page props; the client renders named components.
+
+If you prefer reactive **server** components without a JS SPA stack, see [Brew](/docs/brew/) instead. For classic HTML templates, use [Crema](/docs/crema/).
+
+## Protocol at a glance
+
+1. **First visit** (no `X-Inertia`) → HTML shell with `data-page='…json…'` on `#app`.
+2. **Inertia visit** (`X-Inertia: true`) → JSON `{ component, props, url, version }` plus `X-Inertia` / `X-Inertia-Version`.
+3. **Version mismatch** → `409` so the client can hard-reload assets.
+4. **External redirect** via `Inertia.location` → `409` + `X-Inertia-Location` for Inertia clients; ordinary browsers get `302`.
+
+## Install in one command
+
+```bash
+./grind install inertia
+# interactive frontend: Vue / React / Svelte
+# or greenfield:
+kona new my-app --kit=inertia
+```
+
+That path covers the Maven artifact **and** a Vite client scaffold. Walkthrough: [Installation](../installation/).
+
+Client protocol and adapters: [inertiajs.com](https://inertiajs.com/).
+
+## Next steps
+
+- [Requirements](../requirements/)
+- [Installation](../installation/) — end-to-end until the first page works
+- [Your first page](../first-page/)
+- [Frontend clients](../frontend/)

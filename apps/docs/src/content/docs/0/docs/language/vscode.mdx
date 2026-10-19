@@ -1,0 +1,59 @@
+---
+title: VS Code & Cursor
+description: Install the Crema extension stub and connect kona-lsp.
+---
+
+The **Crema (Kona)** extension under `ide-support/vscode-crema/` contributes the Crema language id, TextMate grammar, and settings keys for the language server jar.
+
+## Install for local development
+
+```bash
+# VS Code
+code --install-extension ide-support/vscode-crema
+
+# Cursor
+cursor --install-extension ide-support/vscode-crema
+```
+
+Reload the window, then open any `*.crema.html` file — highlighting should activate without further setup. The grammar also highlights known Brew `wire:*` attributes (`wire:model`, `wire:click`, …).
+
+With **kona-lsp** attached, completions and diagnostics cover Crema `@` directives and Brew `wire:*` attributes (same surface as [IntelliJ](/docs/language/intellij) for Brew markup). Inertia apps that use Crema layouts benefit from the same Crema/LSP path; page-component completion stays on the IntelliJ plugin today.
+
+Command palette: **Crema: Show kona-lsp setup help** prints build/run lines to an output channel.
+
+## Settings
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `crema.lsp.enabled` | `true` | Reserved for clients that auto-start the server |
+| `crema.lsp.javaPath` | `java` | JDK launcher |
+| `crema.lsp.jarPath` | `""` | Absolute path to the kona-lsp jar |
+
+Example `settings.json`:
+
+```json
+{
+  "crema.lsp.javaPath": "java",
+  "crema.lsp.jarPath": "/home/you/kona/modules/lsp/build/libs/kona-lsp-0.1.1.jar"
+}
+```
+
+Build the jar first: `./gradlew :kona-lsp:jar`.
+
+## Wiring a full LSP client
+
+The stub extension registers language support and help; for live completion and diagnostics, configure an LSP client (for example `vscode-languageclient`) with:
+
+```text
+java -jar /absolute/path/to/kona-lsp.jar
+```
+
+stdio transport, document selector language `crema`. See [Language server](/docs/language/lsp) for the protocol surface.
+
+## Sync grammar after edits
+
+```bash
+cd ide-support/vscode-crema && node scripts/sync-grammar.js
+```
+
+Canonical grammar sources remain in `ide-support/crema/`.

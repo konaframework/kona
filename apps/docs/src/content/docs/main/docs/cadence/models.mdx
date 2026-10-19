@@ -1,0 +1,527 @@
+---
+title: Models
+description: Define Cadence models, read and write rows, cast attributes, soft-delete rows, and paginate results.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A **model** is a class that represents one database table. Each instance holds one row: its **attributes** are the row's columns, keyed by column name. Models know how to find rows, insert new ones, update changed columns, and delete themselves. This style is sometimes called *active record*: the object that holds the data also knows how to persist it.
+
+Models read the **global** database (see [Cadence overview](../)), so register `CadenceServiceProvider` or call `Database.setAsGlobal()` before using them.
+
+## Defining a model
+
+A model extends `Cadence<T>`, passing its own class as `T`, and must have a no-argument constructor. Kotlin models usually add a companion object so that `User.find(1)` reads naturally; Java models keep a static `CadenceCompanion` field.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.CastType
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.CadenceCompanion
+
+class User : Cadence<User>() {
+    override val fillable = setOf("name", "email", "admin")
+    override val casts = mapOf("admin" to CastType.BOOLEAN, "settings" to CastType.JSON)
+
+    companion object : CadenceCompanion<User>(User::class.java)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.CastType;
+import org.konaframework.cadence.Cadence;
+import org.konaframework.cadence.CadenceCompanion;
+import java.util.Map;
+import java.util.Set;
+
+public class User extends Cadence<User> {
+    public static final CadenceCompanion<User> QUERY = Cadence.of(User.class);
+
+    @Override
+    public Set<String> getFillable() {
+        return Set.of("name", "email", "admin");
+    }
+
+    @Override
+    public Map<String, Object> getCasts() {
+        return Map.of("admin", CastType.BOOLEAN, "settings", CastType.JSON);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+`./grind make:model User` writes this skeleton for you under `src/main/…/app/models/` (see [Migrations](../migrations/#grind-commands)).
+
+### Conventions you can override
+
+Every convention is an open property (a getter in Java) on `Cadence`:
+
+| Property | Default | Meaning |
+|----------|---------|---------|
+| `table` | snake-case plural of the class name (`BlogPost` → `blog_posts`, `Category` → `categories`) | Table name |
+| `primaryKey` | `id` | Primary key column |
+| `incrementing` | `true` | Read the generated key back after insert |
+| `timestamps` | `true` | Maintain `created_at` / `updated_at` |
+| `createdAtColumn` / `updatedAtColumn` | `created_at` / `updated_at` | Timestamp column names |
+| `fillable` | empty | Keys `fill` may set |
+| `guarded` | `*` | Keys `fill` refuses (`*` guards everything not fillable) |
+| `casts` | empty | Column → `CastType` or `CastsAttributes` |
+| `connectionName` | `null` (default connection) | Named connection to use |
+| `perPage` | `15` | Page size for `paginate()` / `simplePaginate()` / `cursorPaginate()` |
+
+## Reading rows
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val all: List<User> = User.all()
+val ada: User? = User.find(1)
+val sure: User = User.findOrFail(1)          // ModelNotFoundException when missing
+val some: List<User> = User.findMany(listOf(1, 2, 3))
+val admins = User.where("admin", true).orderBy("name").get()
+val newest = User.query().latest().first()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> all = User.QUERY.all();
+User ada = User.QUERY.find(1);
+User sure = User.QUERY.findOrFail(1);
+List<User> some = User.QUERY.findMany(List.of(1, 2, 3));
+List<User> admins = User.QUERY.where("admin", true).orderBy("name").get();
+User newest = User.QUERY.query().latest().first();
+```
+
+</TabItem>
+</Tabs>
+
+
+`query()` returns a `ModelBuilder<T>`. It accepts the same constraints as the [query builder](../query-builder/) (`where`, `whereIn`, `whereDate` / `whereYear` / …, `orWhereRaw`, `select` / `selectRaw` / `distinct`, `groupBy` / `having` / `havingRaw`, `orderBy`, `limit`, joins, …) but returns model instances instead of maps. Call `toBase()` (or `getQuery()`) to get the underlying `QueryBuilder`, or `toSql()` to see the generated SQL.
+
+### Attributes
+
+Read attributes with `getAttribute("name")`, the Kotlin index operator `user["name"]`, or the typed `user.attribute<String>("name")`. Set them with `setAttribute` or `user["name"] = "Ada"`. Reads apply casts; `getRawAttribute` returns the stored value untouched.
+
+Cadence also resolves Laravel-style magic methods: `getFullNameAttribute()` for reads and `setFullNameAttribute(value)` for writes (use `setRawAttribute` inside mutators). `push()` saves the model and recursively saves loaded related models. `Cadence.unguard()` / `reguard()` / `runUnguarded { … }` and `Cadence.runWithoutTimestamps { … }` mirror Eloquent mass-assignment and timestamp controls. `sole()` returns exactly one model or throws `ModelNotFoundException` / `MultipleRecordsFoundException`.
+
+A model remembers the values it was loaded with. `isDirty()` / `getDirty()` report attributes changed since then, `getOriginal()` returns the loaded values, and `toMap()` renders cast attributes plus loaded relations, ready for `Response.json(...)`.
+
+## Writing rows
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.create(mapOf("name" to "Ada", "email" to "ada@example.com"))  // insert
+
+user["name"] = "Ada Lovelace"
+user.save()                                   // update of the changed column only
+
+user.update(mapOf("admin" to true))           // fill + save
+user.delete()
+
+User.where("admin", false).update(mapOf("active" to false))   // mass update
+User.destroy(4, 5, 6)                                          // load and delete each
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.create(Map.of("name", "Ada", "email", "ada@example.com"));
+
+user.setAttribute("name", "Ada Lovelace");
+user.save();
+
+user.update(Map.of("admin", true));
+user.delete();
+
+User.QUERY.where("admin", false).update(Map.of("active", false));
+User.QUERY.destroy(4, 5, 6);
+```
+
+</TabItem>
+</Tabs>
+
+
+`save()` inserts a new model or updates a loaded one. On insert, it reads back the generated key into `id`. On update, it writes only dirty attributes, and does nothing when there are none. When `timestamps` is on, it sets `updated_at` on every write and `created_at` on insert, unless you set them yourself.
+
+`fresh()` returns a newly loaded copy of the row; `refresh()` reloads the current instance in place.
+
+### Mass assignment
+
+`create`, `fill`, and `update` take a map of attributes. To stop a request body from setting columns you did not intend (`admin`, `id`), they only accept keys listed in `fillable`. With the default `guarded = setOf("*")` and an empty `fillable`, any key throws `MassAssignmentException`. Use `forceFill` when you deliberately want to set every key, for example from trusted code.
+
+## Casts
+
+A cast converts a stored column value into a convenient type on read. Declare casts in `casts` as either a built-in `CastType` or a custom `CastsAttributes` class:
+
+| `CastType` | Read as |
+|------------|---------|
+| `INT`, `LONG`, `DOUBLE` | `Int`, `Long`, `Double` |
+| `BOOLEAN` | `Boolean` (accepts `1`/`0`, `"true"`/`"false"`) |
+| `STRING` | `String` |
+| `JSON` | `Map` or `List` from JSON text; maps and lists are written back as JSON |
+| `DATETIME` | `java.time.LocalDateTime` |
+| `INSTANT` | `java.time.Instant` |
+
+Timestamp columns (and `deleted_at` on soft-deleting models) are cast to `Instant` automatically.
+
+### Custom casts
+
+Implement `CastsAttributes` when you need domain types (money in cents, value objects, encrypted blobs):
+
+```kotlin
+class CentsCast : CastsAttributes {
+    override fun get(model: Cadence<*>, key: String, value: Any?, attributes: Map<String, Any?>): Any? {
+        if (value == null) return null
+        val cents = (value as Number).toLong()
+        return cents / 100.0
+    }
+
+    override fun set(model: Cadence<*>, key: String, value: Any?, attributes: Map<String, Any?>): Any? {
+        if (value == null) return null
+        return Math.round((value as Number).toDouble() * 100)
+    }
+}
+
+class Product : Cadence<Product>() {
+    override val casts = mapOf("price" to CentsCast())
+}
+```
+
+Java overrides return `Map<String, Object>` from `getCasts()` so both enums and cast instances fit.
+
+## Global scopes
+
+A **global scope** is a constraint applied to every query for a model — for example “only active rows.” Register scopes on the companion (Kotlin `init`) or once at boot (Java). Soft deletes stay separate (`withTrashed` / `onlyTrashed`); global scopes stack on top.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class User : Cadence<User>() {
+    companion object : CadenceCompanion<User>(User::class.java) {
+        init {
+            addGlobalScope("active") { it.where("admin", true) }
+            addGlobalScope(AncientScope()) // identifier = class name
+        }
+    }
+}
+
+class AncientScope : Scope {
+    override fun apply(builder: ModelBuilder<*>) {
+        builder.where("age", ">", 100)
+    }
+}
+
+User.all()                                      // admin = true and age > 100
+User.withoutGlobalScope("active").get()         // drops only "active"
+User.withoutGlobalScopes().get()                // no global scopes
+User.withoutGlobalScopes(listOf("active")).get()
+User.withoutGlobalScopesExcept(listOf("active")).get() // only "active" remains
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Member extends Cadence<Member> {
+    public static final CadenceCompanion<Member> QUERY = Cadence.of(Member.class);
+
+    static {
+        Cadence.addGlobalScope(Member.class, "active", b -> b.where("admin", true));
+    }
+}
+
+Member.QUERY.all();
+Member.QUERY.withoutGlobalScope("active").get();
+Member.QUERY.withoutGlobalScopes().get();
+```
+
+</TabItem>
+</Tabs>
+
+`hasGlobalScope` / `getGlobalScope` / `getGlobalScopes` inspect the registry. `removeGlobalScope` unregisters a scope for the whole process (not just one query).
+
+## Soft deletes
+
+A **soft delete** marks a row as deleted by setting a `deleted_at` timestamp instead of removing it, so it can be restored. Implement the `SoftDeletes` interface:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.SoftDeletes
+
+class Post : Cadence<Post>(), SoftDeletes {
+    companion object : CadenceCompanion<Post>(Post::class.java)
+}
+
+post.delete()                    // sets deleted_at
+post.trashed()                   // true
+Post.all()                       // excludes trashed rows
+Post.withTrashed().get()         // includes them
+Post.onlyTrashed().get()         // only them
+post.restore()                   // clears deleted_at
+post.forceDelete()               // removes the row
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.SoftDeletes;
+
+public class Post extends Cadence<Post> implements SoftDeletes {
+    public static final CadenceCompanion<Post> QUERY = Cadence.of(Post.class);
+}
+
+post.delete();
+post.trashed();
+Post.QUERY.all();
+Post.QUERY.withTrashed().get();
+Post.QUERY.onlyTrashed().get();
+post.restore();
+post.forceDelete();
+```
+
+</TabItem>
+</Tabs>
+
+
+Override `deletedAtColumn` to use another column name. Add the column in a migration with `softDeletes()`.
+
+## Pagination
+
+`paginate(perPage, page)` runs a count query plus one page query and returns a `Page<T>`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val page = User.query().orderBy("name").paginate(20, request.query["page"]?.toIntOrNull() ?: 1)
+page.data          // List<User> for this page
+page.total         // total rows
+page.lastPage      // last page number (at least 1)
+page.hasMorePages()
+Response.json(page.toMap())   // {"data":[…],"total":…,"per_page":20,"current_page":…,"last_page":…}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Page<User> page = User.QUERY.query().orderBy("name").paginate(20, 1);
+page.getData();
+page.getTotal();
+page.getLastPage();
+page.hasMorePages();
+Response.json(page.toMap());
+```
+
+</TabItem>
+</Tabs>
+
+
+Page numbers start at 1; values below 1 are treated as page 1.
+
+### Simple and cursor pagination
+
+When you do not need a total count, `simplePaginate` fetches `perPage + 1` rows and exposes `hasMorePages()`:
+
+```kotlin
+val page = User.query().orderBy("id").simplePaginate(20, 1)
+page.hasMorePages()
+page.toMap()   // data, per_page, current_page, has_more
+```
+
+`cursorPaginate` walks an ordered column with opaque cursors (no offset drift on inserts):
+
+```kotlin
+val first = User.cursorPaginate(20)
+val next = User.cursorPaginate(20, first.nextCursor)
+// CursorPage: data, per_page, next_cursor, prev_cursor
+```
+
+## Dirty tracking after save
+
+`isDirty` / `getDirty` describe changes since the last load. After a successful `save()`, use `wasChanged` / `getChanges` for what that save persisted:
+
+```kotlin
+user["name"] = "Ada"
+user.save()
+user.wasChanged("name")   // true
+user.getChanges()         // map of persisted attributes
+user.save()               // no-op when clean → wasChanged() is false
+```
+
+## Retrieving or creating
+
+When you want “find this row, or make one” in a single call:
+
+| Call | Behavior |
+|------|----------|
+| `firstOrNew(attributes)` | Returns the first match, or a new **unsaved** model filled with `attributes` |
+| `firstOrCreate(attributes, values)` | Returns the first match, or **creates** a row from `attributes` merged with optional `values` |
+| `updateOrCreate(attributes, values)` | Updates the first match with `values`, or creates `attributes + values` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.firstOrCreate(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada"),
+)
+val flight = Flight.updateOrCreate(
+    mapOf("departure" to "OAK", "destination" to "SDY"),
+    mapOf("price" to 99, "discounted" to true),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.firstOrCreate(
+    Map.of("email", "ada@example.com"),
+    Map.of("name", "Ada")
+);
+Flight flight = Flight.QUERY.updateOrCreate(
+    Map.of("departure", "OAK", "destination", "SDY"),
+    Map.of("price", 99, "discounted", true)
+);
+```
+
+</TabItem>
+</Tabs>
+
+
+`wasRecentlyCreated()` is true only when the last `save()` inserted that instance (useful after `firstOrCreate`).
+
+## Upserts and insert-or-ignore
+
+On the model query (or the table [query builder](../query-builder/#upserts)):
+
+```kotlin
+User.query().upsert(
+    listOf(
+        mapOf("email" to "a@example.com", "name" to "A"),
+        mapOf("email" to "b@example.com", "name" to "B"),
+    ),
+    uniqueBy = listOf("email"),
+    update = listOf("name"),
+)
+
+User.query().updateOrInsert(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada Lovelace"),
+)
+
+User.query().insertOrIgnore(
+    listOf(mapOf("email" to "ada@example.com", "name" to "Ada")),
+    uniqueBy = listOf("email"),
+)
+```
+
+`upsert` walks each row: when a row matching `uniqueBy` exists it updates the listed columns (or every non-unique column when `update` is omitted); otherwise it inserts. Prefer a unique index on those columns in the schema so concurrent writers do not race.
+
+## Query scopes
+
+Reusable filters are ordinary methods on your companion (or static helpers in Java) that return a `ModelBuilder`:
+
+```kotlin
+class User : Cadence<User>() {
+    companion object : CadenceCompanion<User>(User::class.java) {
+        fun admins(): ModelBuilder<User> = query().where("admin", true)
+        fun named(name: String): ModelBuilder<User> = query().where("name", name)
+    }
+}
+
+User.admins().orderBy("name").get()
+```
+
+Inline scopes use `scope { … }` or conditional `when` / `unless`:
+
+```kotlin
+User.query()
+    .scope { it.where("active", true) }
+    .when(onlyAdmins) { it.where("admin", true) }
+    .unless(includeBanned) { it.where("banned", false) }
+    .get()
+```
+
+## Accessors and mutators
+
+Override `getMutatedAttribute` (after casts on read) and `setMutatedAttribute` (before casts on write) to transform values:
+
+```kotlin
+class User : Cadence<User>() {
+    override fun getMutatedAttribute(key: String, value: Any?): Any? =
+        if (key == "name" && value is String) value.uppercase() else value
+
+    override fun setMutatedAttribute(key: String, value: Any?): Any? =
+        if (key == "email" && value is String) value.lowercase() else value
+}
+```
+
+Virtual fields for serialization still use `appends` + `getAppendedAttribute` — see [Serialization & events](../serialization-events/).
+
+## Replicating, touching, and comparing
+
+```kotlin
+val copy = user.replicate()                    // unsaved clone without id / timestamps
+val draft = user.replicate(setOf("email"))     // also skip email
+user.touch()                                   // bump updated_at and persist
+user.`is`(other)                               // same class + same non-null primary key
+user.isNot(other)
+```
+
+## Chunking large result sets
+
+```kotlin
+User.query().orderBy("id").chunk(200) { batch ->
+    batch.forEach { process(it) }
+}
+```
+
+Each chunk runs a page query (`forPage`). Always `orderBy` a stable column so pages do not skip or repeat rows under concurrent writes.
+
+## Quiet persistence
+
+`saveQuietly()` and `deleteQuietly()` persist without firing [model events](../serialization-events/#lifecycle-events). For a whole block of work, use `ModelDispatcher.withoutEvents { … }`.
+
+## Truncating a model's table
+
+`User.truncate()` (or `User.query().truncate()`) runs `TRUNCATE TABLE` on the model's table and removes every row. It ignores query constraints and soft-delete scopes — use it when you want an empty table, not a filtered delete.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+User.truncate()
+User.query().truncate()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User.QUERY.truncate();
+User.QUERY.query().truncate();
+```
+
+</TabItem>
+</Tabs>

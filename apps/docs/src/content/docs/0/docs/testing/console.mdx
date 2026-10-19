@@ -1,0 +1,142 @@
+---
+title: Console tests
+description: Run grind with ConsoleTester — capture exit codes and stdout, assertSee / assertDontSee.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ConsoleTester` runs **grind** in-process, captures **stdout**, and returns a `ConsoleResult` you can assert on. Use it for built-in commands (`list`, `schedule:run`, …) and for your app’s discovered commands.
+
+Package: `org.konaframework.testing`. For how commands are authored and discovered, see [Creating commands](../../grind/creating-commands/) and [Running commands](../../grind/running-commands/).
+
+## Run a command
+
+`run(vararg args: String)` builds `GrindApplication().run(args)`, redirects `System.out` into a buffer for the duration of the call, then restores the original stream.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val result = ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertExit(0)
+    .assertSee("schedule:run")
+    .assertDontSee("missing-command")
+
+println(result.exitCode)
+println(result.output)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ConsoleResult result = new ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertExit(0)
+    .assertSee("schedule:run")
+    .assertDontSee("missing-command");
+
+result.getExitCode(); // or .getOutput() via Kotlin data-class accessors from Java: exitCode / output
+```
+
+</TabItem>
+</Tabs>
+
+`ConsoleResult` is a Kotlin `data class` with properties `exitCode: Int` and `output: String`. From Java those are `getExitCode()` / `getOutput()` (or Kotlin property accessors depending on your tooling).
+
+## Pass the same flags as the CLI
+
+Anything you would pass after `./grind` can be passed to `run`:
+
+```kotlin
+ConsoleTester().run(
+    "db:migrate",
+    "--base=$base",
+    "--bootstrap=bootstrap.App",
+    "-q",
+)
+```
+
+Common flags:
+
+| Flag | Role |
+|------|------|
+| `--base=…` | Application root (same idea as `TestApplication`’s temp dir) |
+| `--bootstrap=…` | Bootstrap class that boots the app for commands that need it |
+| `-q` / quiet | Quieter grind output (still captured in `output` if printed) |
+
+Point `--base` at a real or temp app tree when the command reads config, `.env`, or compiled classes under that root.
+
+## Assertions
+
+All assertion methods return `ConsoleResult` for chaining. Failures throw `IllegalArgumentException`.
+
+| Method | Behavior |
+|--------|----------|
+| `assertOk()` | `exitCode == 0` |
+| `assertExit(code)` | Exact exit code |
+| `assertSee(text)` | `output` contains the substring |
+| `assertDontSee(text)` | `output` does **not** contain the substring |
+
+```kotlin
+ConsoleTester().run("list").assertOk()
+ConsoleResult(1, "usage error").assertExit(1).assertSee("usage")
+```
+
+There is no `assertExactOutput`, regex helper, or structured table parser today — use `output` with your own checks when needed.
+
+## Custom app commands
+
+Grind discovers commands from `META-INF/kona/commands` (and related discovery). For custom commands to appear under `list` or to be runnable by name:
+
+1. Compile the app (or test module) so the command index is on the classpath.
+2. Pass `--base` / `--bootstrap` as your production entry does when the command needs a booted application.
+
+```kotlin
+ConsoleTester()
+    .run("app:report", "--base=$base")
+    .assertOk()
+    .assertSee("Report complete")
+```
+
+If discovery cannot see the command, grind exits non-zero; `assertOk()` fails with the captured stdout in the message.
+
+## `Grind.call` vs `ConsoleTester`
+
+`org.konaframework.grind.Grind` offers programmatic entry points used from application code **and** tests:
+
+| API | Captures stdout? | Typical use |
+|-----|------------------|-------------|
+| `ConsoleTester().run(…)` | Yes (full buffer on `ConsoleResult`) | Assert on printed text |
+| `Grind.call(name, args, …)` | No (prints normally) | Invoke a command for side effects |
+| `Grind.callSilently(name, args, …)` | Suppresses stdout (not returned) | Side effects without noise |
+
+Prefer `ConsoleTester` when the assertion **is** the console output. Prefer `Grind.call` / `callSilently` when you only care about exit code or database/file side effects and already have other asserts. See [Running commands](../../grind/running-commands/).
+
+## Edge cases
+
+**Stderr.** Only `System.out` is redirected. Messages written to `System.err` are **not** in `output` and are not asserted by `assertSee`.
+
+**Parallel tests.** Redirecting `System.out` is process-global. Avoid running multiple `ConsoleTester` calls concurrently in the same JVM without isolation; serialize console tests or use a single-threaded test worker for this class.
+
+**ANSI / styling.** Grind uses Termwind-style `ConsoleIO` / `GrindIO`. Captured `output` may include ANSI escape sequences depending on `NO_COLOR` / `FORCE_COLOR` / `TERM`. Prefer asserting on stable substrings (command names, plain messages) rather than full colored lines. Setting `NO_COLOR=1` in the test environment can make snapshots easier.
+
+**Interactive prompts.** Commands that read from stdin are not driven by `ConsoleTester` today. There is no fake input stream helper on this class.
+
+## What is not available today
+
+- Stderr capture or combined out+err buffers
+- Stdin / prompt scripting
+- Regex or line-oriented assertion helpers
+- Automatic `--base` from `TestApplication` (pass paths yourself)
+- A dedicated grind `test` command that runs JUnit (use Gradle / your IDE)
+
+## Next steps
+
+- [HTTP tests](../http-console/) — in-process requests
+- [Creating commands](../../grind/creating-commands/) — command classes and discovery
+- [Console IO & prompts](../../grind/console/) — `GrindIO` styling
+- [Database & fakes](../database-fakes/) — swap collaborators when a command sends mail or queues jobs

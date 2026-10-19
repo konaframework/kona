@@ -1,0 +1,208 @@
+---
+title: Cadence overview
+description: What Cadence is, how it connects to your database, and how its pieces fit together.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Cadence** is Kona's database layer. It lets you read and write rows in a relational database (H2, PostgreSQL, and other JDBC databases) without writing SQL by hand for everyday work, while still letting you drop down to SQL when you need it. It ships as the `org.konaframework:kona-cadence` artifact.
+
+Cadence has five layers. Each is usable on its own, and each builds on the one before it.
+
+| Layer | What it gives you | Main types |
+|-------|-------------------|------------|
+| Connections | Named, pooled JDBC connections and transactions | `Database`, `DatabaseConnection`, `DB` |
+| Query builder | Fluent `select` / `insert` / `update` / `delete` with bound parameters | `QueryBuilder` |
+| Models | One class per table; each instance is one row | `Cadence<T>`, `CadenceCompanion<T>` |
+| Relations | Links between models, loaded lazily or eagerly | `HasOne`, `HasMany`, `BelongsTo`, `BelongsToMany` |
+| Schema tooling | Migrations, seeders, and factories | `Schema`, `Migration`, `Migrator`, `Seeder`, `Factory` |
+
+## Vocabulary
+
+- **Connection**: A named way to reach one database: a JDBC URL, optional credentials, and a pool size. The connection called `default` is used unless you ask for another.
+- **Pool**: A small set of open database connections that are reused between queries. Opening a JDBC connection is slow, so Cadence keeps a pool per named connection and lends connections out for each statement. Pools open lazily, on the first query.
+- **Binding**: A value sent to the database separately from the SQL text, in place of a `?` marker. Cadence never pastes values into SQL strings; every value is a binding. This prevents SQL injection.
+- **Model**: A Kotlin or Java class that extends `Cadence<T>` and represents one table. An instance of the class is one row; its *attributes* are the row's columns.
+- **Relation**: A method on a model that describes how its rows connect to another model's rows, for example "a user has many posts".
+- **Eager loading**: Loading a relation for a whole list of models up front, with one extra query per relation, instead of one query per model.
+- **Migration**: A class that changes the database structure (create a table, add a column) and knows how to undo that change.
+- **Seeder** and **factory**: Code that fills tables with data, for development and tests.
+
+## Configuring the database
+
+Applications usually configure connections in `config/Database` (an executable `ConfigFile` registered from `bootstrap.App`). That module becomes the `database` section:
+
+```kotlin title="config/Database.kt"
+object Database : ConfigFile {
+    override fun key(): String = "database"
+
+    override fun config(): Map<String, Any?> = mapOf(
+        "default" to "main",
+        "connections" to mapOf(
+            "main" to mapOf(
+                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/app;DATABASE_TO_LOWER=TRUE"),
+                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+                "pool_size" to 10,
+            ),
+            "reports" to mapOf(
+                "url" to "jdbc:postgresql://localhost/reports",
+                "username" to "reporter",
+                "password" to "secret",
+            ),
+        ),
+    )
+}
+```
+
+| Key | Meaning | Default |
+|-----|---------|---------|
+| `default` | Name of the connection used when none is given | `default` |
+| `connections.<name>.url` | JDBC URL (required) | — |
+| `connections.<name>.username` / `password` | Credentials | none |
+| `connections.<name>.driver` | JDBC driver class, when the driver does not register itself | auto |
+| `connections.<name>.pool_size` | Maximum open connections in the pool | `10` |
+| `connections.<name>.quote_identifiers` | Quote table and column names in generated SQL | `true` |
+
+When the `database` section defines no connections, Cadence falls back to environment variables (or `.env`): `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DRIVER`, `DB_POOL_SIZE`, and `DB_QUOTE_IDENTIFIERS`.
+
+Add the JDBC driver for your database to your build, for example `runtimeOnly("com.h2database:h2:2.3.232")` or `runtimeOnly("org.postgresql:postgresql:42.7.4")`.
+
+:::note[H2 and letter case]
+Cadence quotes table and column names (`"users"`), which makes them case-sensitive. H2 upper-cases unquoted names by default, so add `DATABASE_TO_LOWER=TRUE` to H2 URLs. With that flag, raw SQL you write by hand (`select * from users`) and the SQL Cadence generates refer to the same tables.
+:::
+
+`kona new` defaults to in-memory H2 so a fresh app runs without installing a database server. For production, point `DB_URL` at PostgreSQL or MySQL. Full engine matrix, env keys, and how to register a new JDBC database: [Database connections](./database/).
+
+## Registering Cadence in an application
+
+`CadenceServiceProvider` builds a `Database` from the `database` config section, binds it in the container as a singleton (also under the alias `db`), and, during the boot phase, makes it the **global** database that models and the `DB` facade use.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.core.Kona
+import org.konaframework.cadence.CadenceServiceProvider
+import org.konaframework.http.HttpServiceProvider
+
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), CadenceServiceProvider(), AppServiceProvider())
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.core.Application;
+import org.konaframework.core.Kona;
+import org.konaframework.cadence.CadenceServiceProvider;
+import org.konaframework.http.HttpServiceProvider;
+
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new CadenceServiceProvider(), new AppServiceProvider())
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+
+Outside an application (in a script or a test) you can build the manager yourself and make it global:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.ConnectionConfig
+import org.konaframework.cadence.Database
+
+val db = Database()
+    .addConnection("default", ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
+    .setAsGlobal()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.ConnectionConfig;
+import org.konaframework.cadence.Database;
+
+Database db = new Database()
+    .addConnection("default", new ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
+    .setAsGlobal();
+```
+
+</TabItem>
+</Tabs>
+
+
+`Database` is `AutoCloseable`: `close()` shuts every open pool. A closed manager keeps its configuration and reopens pools on the next query.
+
+## Raw SQL and transactions
+
+The `DB` facade runs statements on the global database's default connection. Pass values as a bindings list; each `?` takes the next value.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.DB
+
+val admins = DB.select("select * from users where admin = ?", listOf(true))
+DB.update("update users set active = ? where id = ?", listOf(false, 7))
+
+DB.transaction { connection ->
+    connection.table("accounts").where("id", 1).decrement("balance", 50)
+    connection.table("accounts").where("id", 2).increment("balance", 50)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.DB;
+import java.util.List;
+import java.util.Map;
+
+List<Map<String, Object>> admins = DB.select("select * from users where admin = ?", List.of(true));
+DB.update("update users set active = ? where id = ?", List.of(false, 7));
+
+DB.transaction(connection -> {
+    connection.table("accounts").where("id", 1).decrement("balance", 50);
+    connection.table("accounts").where("id", 2).increment("balance", 50);
+    return null;
+});
+```
+
+</TabItem>
+</Tabs>
+
+
+A transaction commits when the block returns and rolls back when it throws (the exception is rethrown). Every statement issued on the same thread inside the block uses the transaction's connection, including model saves. Nested `transaction` calls join the outer one.
+
+Failed statements throw `QueryException`, which carries the SQL (`sql`) and the bindings (`bindings`) for debugging. All Cadence errors extend `CadenceException`.
+
+## Feature menu
+
+| Topic | Where |
+|-------|--------|
+| Models, CRUD, casts, soft deletes, pagination | [Models](../models/) |
+| Retrieve-or-create, upserts, scopes, mutators, chunking | [Models](../models/#retrieving-or-creating) |
+| Fluent SQL without models | [Query builder](../query-builder/) |
+| Relations, morphs, through, eager loads, `withCount` / `withExists` / `withSum` / `withAvg` / `withMax` / `withMin`, pivots | [Relations](../relations/) |
+| `toArray` / JSON, collections, lifecycle events | [Serialization & events](../serialization-events/) |
+| Schema changes | [Migrations](../migrations/) |
+| Seed data and factories | [Seeders & factories](../seeders-factories/) |
+
+## Where to go next
+
+- [Models](../models/) — define a model, read and write rows, casts, soft deletes, pagination, scopes.
+- [Query builder](../query-builder/) — every clause, aggregate, upsert, and write operation.
+- [Relations](../relations/) — links between models, existence filters, counts, eager loading.
+- [Serialization & events](../serialization-events/) — maps/JSON, collections, lifecycle hooks.
+- [Migrations](../migrations/) — the schema DSL, the migrator, and `./grind migrate`.
+- [Seeders & factories](../seeders-factories/) — generating data for development and tests.

@@ -1,0 +1,88 @@
+---
+title: Broadcasting
+description: Broadcast events to named channels.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Broadcasting** pushes application events to named channels so listeners (in-process websocket subscribers, tests, or a future network driver) can react.
+
+## Register
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+app.register(BroadcastServiceProvider())
+```
+
+Config keys:
+
+| Key | Meaning |
+|-----|---------|
+| `broadcasting.default` | Connection name (default `log`) |
+| `broadcasting.connections.{name}.driver` | `log`, `null` / `none`, or `websocket` / `ws` |
+
+## ShouldBroadcast events
+
+```kotlin
+class OrderShipped : ShouldBroadcast {
+    override fun broadcastOn() = listOf(Channel.publicChannel("orders"))
+    override fun broadcastAs() = "order.shipped"
+    override fun broadcastWith() = mapOf("id" to 42)
+}
+
+Broadcast.event(OrderShipped())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Broadcast.event(new OrderShipped());
+```
+
+</TabItem>
+</Tabs>
+
+## Ad-hoc broadcasts
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Broadcast.to(Channel.publicChannel("orders"), Channel.privateOf("user.1"))
+    .event("order.shipped", mapOf("id" to 42))
+```
+
+## Drivers
+
+| Driver | Behavior |
+|--------|----------|
+| `log` | Stores payloads in memory (`Broadcast.manager().log().messages()`) — ideal for tests |
+| `null` / `none` | No-op |
+| `websocket` / `ws` | In-process fan-out to registered connection handlers (`WebsocketBroadcaster`) |
+
+### Websocket (in-process)
+
+`WebsocketBroadcaster` keeps a channel → listener map. Subscribe locally, then broadcast; each distinct connection receives the payload once even if it listens on multiple matching channels. There is no network socket in this release — the driver is the websocket *shape* (subscribe + fan-out) for tests and Java callers, ready to wrap a Netty endpoint later.
+
+```kotlin
+val ws = Broadcast.manager().websocket()
+ws.subscribe("orders") { channels, event, payload ->
+    // deliver to a client connection
+}
+app.config.set("broadcasting.default", "websocket")
+Broadcast.event(OrderShipped())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+WebsocketBroadcaster ws = Broadcast.manager().websocket();
+ws.subscribe("orders", (channels, event, payload) -> { /* … */ });
+```
+
+</TabItem>
+</Tabs>

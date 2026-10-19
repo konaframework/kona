@@ -1,0 +1,237 @@
+---
+title: Components & slots
+description: Reusable Crema components with default slots, named slots, @component, and x-tags.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Components** are views rendered as widgets: you pass a body (the **default slot**) and optionally **named slots**, and the component template prints them with `{{ slot }}` and `{{ title }}` (or whatever names you choose). Crema supports three call styles that all share the same slot model:
+
+1. `@component` / `@slot` directives
+2. `<x-name>` HTML-like tags with `<x-slot>`
+3. Prefixed extension tags (for example Brew’s `<brew:…>`) with `<x-slot>` or `<prefix:slot>`
+
+## Define a component
+
+A component is a normal view. By convention, put reusable ones under `views/components/`:
+
+```crema
+{{-- views/components/alert.crema.html — or alert.crema.html at the views root --}}
+<div class="alert alert-{{ type }}">
+  @isset(title)
+    <strong class="alert-title">{{ title }}</strong>
+  @endisset
+  <div class="alert-body">{{ slot }}</div>
+  @isset(footer)
+    <div class="alert-footer">{{ footer }}</div>
+  @endisset
+</div>
+```
+
+| Data key | Source |
+|----------|--------|
+| `slot` | Default (unnamed) body content |
+| Any other name | A **named slot** with that name (`title`, `footer`, …) |
+
+Named slots become ordinary keys in the component’s child context — use them with `{{ title }}`, `@isset(title)`, and so on. Parent view data is still visible unless a slot name shadows it.
+
+## `@component` and `@slot`
+
+```crema
+@component('alert')
+  @slot('title')Notice@endslot
+  Body text goes in the default slot.
+  @slot('footer')Thanks@endslot
+@endcomponent
+```
+
+- `@component('view.name')…@endcomponent` renders that view name (here `alert` → `alert.crema.html`).
+- `@slot('name')…@endslot` captures a named slot; anything left in the component body (after removing named slots) is the default `slot`.
+- Slot bodies are expanded in the **caller** context (they see the parent’s `name`, `user`, loop variables, …), then passed into the component.
+
+### Default slot only
+
+```crema
+@component('components.box')
+  Just the body.
+@endcomponent
+```
+
+```crema
+{{-- views/components/box.crema.html --}}
+<section class="box">{{ slot }}</section>
+```
+
+### Multiple named slots
+
+```crema
+@component('components.card')
+  @slot('title')
+    <h2>{{ post.title }}</h2>
+  @endslot
+
+  <p>{{ post.excerpt }}</p>
+
+  @slot('actions')
+    <a href="/posts/{{ post.id }}">Read</a>
+  @endslot
+@endcomponent
+```
+
+```crema
+{{-- views/components/card.crema.html --}}
+<article class="card">
+  <header>{{ title }}</header>
+  <div class="card-body">{{ slot }}</div>
+  <footer>{{ actions }}</footer>
+</article>
+```
+
+## `<x-*>` tags
+
+As a lightweight alternative, Crema resolves HTML-like tags to views under the `components.` prefix:
+
+```crema
+<x-alert>Hi</x-alert>
+<x-alert />
+```
+
+| Tag | View name |
+|-----|-----------|
+| `<x-alert>` | `components.alert` |
+| `<x-inputs.button>` | `components.inputs.button` |
+| `<x-inputs/button>` | `components.inputs.button` (slash → dot) |
+
+Missing component views render as an empty string (no exception). Self-closing tags pass an empty default slot.
+
+### Named slots with `<x-slot>`
+
+Named slots work on `<x-*>` tags the same way as `@slot`:
+
+```crema
+<x-card>
+  <x-slot name="title">Notice</x-slot>
+
+  Body copy in the default slot.
+
+  <x-slot:footer>Bye</x-slot:footer>
+</x-card>
+```
+
+Two equivalent forms:
+
+| Syntax | Slot name |
+|--------|-----------|
+| `<x-slot name="title">…</x-slot>` | `title` |
+| `<x-slot:footer>…</x-slot:footer>` | `footer` |
+
+You can also close the colon form as `</x-slot>` (optional name on the closer).
+
+```crema
+{{-- views/components/card.crema.html --}}
+<div class="card">
+  <h2>{{ title }}</h2>
+  <div>{{ slot }}</div>
+  <footer>{{ footer }}</footer>
+</div>
+```
+
+Rendered output for the example above: title `Notice`, default slot `Body copy…`, footer `Bye`.
+
+### Nested components
+
+Default and named slots may contain other components:
+
+```crema
+<x-panel>
+  <x-slot name="heading">Dashboard</x-slot>
+  <x-alert>
+    <x-slot name="title">Heads up</x-slot>
+    Save your work.
+  </x-alert>
+</x-panel>
+```
+
+## Prefixed tags (extensions)
+
+Packages can register tag prefixes on `CremaEngine` (Brew registers `brew`). Those tags receive a default `slot` string and a `slots` map of named slots. Callers fill named slots with:
+
+```crema
+<brew:card title="Stats">
+  <x-slot name="header">Overview</x-slot>
+  Main body
+  <brew:slot name="footer">Updated just now</brew:slot>
+</brew:card>
+```
+
+Supported named-slot shapes inside a prefixed tag:
+
+| Shape | Example |
+|-------|---------|
+| Prefixed slot | `<brew:slot name="footer">…</brew:slot>` |
+| `x-slot` name attribute | `<x-slot name="header">…</x-slot>` |
+| `x-slot:` colon name | `<x-slot:side>…</x-slot:side>` |
+
+Attributes on prefixed tags (`:count="3"`, `title="…"`) are parsed and passed to the tag handler — see [Brew](/docs/brew/) for the Brew-specific surface. Built-in `<x-*>` view components currently use slots only (attributes on the opening `<x-alert …>` tag are not mapped into the view data).
+
+## Choosing a style
+
+| Style | Best for |
+|-------|----------|
+| `@component` / `@slot` | Explicit view names, heavy named-slot markup |
+| `<x-*>` / `<x-slot>` | Short call sites that mirror HTML |
+| Prefixed tags | Package-owned components with attribute binding (Brew, etc.) |
+
+All three end up rendering a view (or handler) with `slot` + named keys. Prefer one style per app for consistency.
+
+## From a controller
+
+Components are template-side only — controllers still render a page view; that page embeds components:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+return Response.html(
+    crema.render(
+        "posts.show",
+        mapOf("post" to post, "flash" to flashMessage),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+return Response.html(
+    crema.render(
+        "posts.show",
+        Map.of("post", post, "flash", flashMessage)
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+{{-- views/posts/show.crema.html --}}
+@extends('layouts.app')
+@section('content')
+  @isset(flash)
+    <x-alert>
+      <x-slot name="title">Saved</x-slot>
+      {{ flash }}
+    </x-alert>
+  @endisset
+  <h1>{{ post.title }}</h1>
+@endsection
+```
+
+## Related
+
+- [Includes & partials](/docs/crema/includes/) — simpler shared chunks without slots
+- [Layouts](/docs/crema/layouts/) — page-level inheritance
+- [Brew](/docs/brew/) — reactive components on top of Crema
+- [Directive reference](/docs/crema/directives/)

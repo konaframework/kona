@@ -53,7 +53,7 @@ const github = 'https://github.com/konaframework/kona';
       })();
     </script>
   </head>
-  <body class="landing">
+  <body class="landing" data-base={base}>
     <header class="landing-top">
       <a class="landing-top__home" href={base} aria-label="Kona home">
         <img class="landing-brand landing-brand--for-dark" src={brandDark} width="158" height="42" alt="" />
@@ -188,6 +188,7 @@ const github = 'https://github.com/konaframework/kona';
         const storageKey = 'starlight-theme';
         const root = document.documentElement;
         const btn = document.getElementById('landing-theme-toggle');
+        const siteBase = document.body.getAttribute('data-base') || '/';
 
         function preferred() {
           return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -222,6 +223,24 @@ const github = 'https://github.com/konaframework/kona';
         window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
           if (!loadStored()) apply(preferred());
         });
+
+        // Language-aware docs CTAs: es / fr / zh → locale-prefixed docs paths.
+        const lang = (navigator.language || 'en').toLowerCase();
+        let locale = '';
+        if (lang.startsWith('es')) locale = 'es';
+        else if (lang.startsWith('fr')) locale = 'fr';
+        else if (lang.startsWith('zh')) locale = 'zh-cn';
+        if (locale) {
+          root.lang = locale === 'zh-cn' ? 'zh-CN' : locale;
+          const needle = siteBase + 'docs/';
+          const withLocale = siteBase + locale + '/docs/';
+          document.querySelectorAll('a[href]').forEach((a) => {
+            const href = a.getAttribute('href');
+            if (!href || href.indexOf(needle) !== 0) return;
+            if (href.indexOf(withLocale) === 0) return;
+            a.setAttribute('href', withLocale + href.slice(needle.length));
+          });
+        }
       })();
     </script>
   </body>

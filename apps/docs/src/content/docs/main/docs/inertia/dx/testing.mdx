@@ -1,0 +1,41 @@
+---
+title: Testing
+description: How to test Inertia pages in your app, plus contributor notes for the library.
+---
+
+## In your application
+
+Use Kona’s [testing](/docs/testing/) helpers to drive the HTTP kernel. Reset Inertia (and Vite / the container) between tests when you share static state:
+
+```kotlin
+@AfterEach
+fun tearDown() {
+    Inertia.reset()
+    Vite.reset()
+    Kona.reset()
+}
+```
+
+Drive the kernel:
+
+```kotlin
+val app = Kona.create(arrayOf("--base=$temp"))
+    .providers(HttpServiceProvider(), InertiaServiceProvider())
+    .boot()
+app.resolve(HttpKernel::class.java).pushMiddleware(HandleInertiaRequests())
+val response = app.resolve(HttpKernel::class.java).handle(
+    Request("GET", "/", headers = mapOf("X-Inertia" to "true")),
+)
+```
+
+Assert on status, `X-Inertia` headers, and the JSON page object (`component`, `props`, `url`, `version`).
+
+## Contributing to `kona-inertia` (optional)
+
+Framework contributors working in the [Kona repository](https://github.com/konaframework/kona) can run the library suite and coverage gate from the repo root:
+
+```bash
+./gradlew :kona-inertia:test :kona-inertia:koverVerify
+```
+
+Application projects do not need those module tasks — depend on `org.konaframework:kona-inertia` from Maven Central and test your own routes and pages as above.

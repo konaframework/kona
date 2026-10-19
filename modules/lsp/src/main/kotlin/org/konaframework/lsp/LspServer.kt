@@ -10,7 +10,8 @@ import java.io.OutputStream
  * Minimal Crema language server over LSP JSON-RPC (stdio).
  *
  * Supports initialize / initialized / shutdown / exit, document sync,
- * completion for Crema directives, and publishDiagnostics for unknown `@name`s.
+ * completion for Crema directives and Brew `wire:*` attributes, and
+ * publishDiagnostics for unknown `@name`s / `wire:*` attributes.
  */
 class LspServer {
     private val documents = linkedMapOf<String, String>()
@@ -212,7 +213,7 @@ class LspServer {
         caps.set<ObjectNode>(
             "completionProvider",
             transport.objectNode().apply {
-                putArray("triggerCharacters").add("@")
+                putArray("triggerCharacters").add("@").add(":").add(".")
                 put("resolveProvider", false)
             },
         )

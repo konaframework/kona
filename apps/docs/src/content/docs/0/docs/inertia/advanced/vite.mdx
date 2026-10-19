@@ -1,0 +1,29 @@
+---
+title: Vite & assets
+description: AssetManifest binding, hot file, production manifest, and the inertia.assets.Vite facade.
+---
+
+## Shared with Crema
+
+Implementation lives in `org.konaframework.crema.assets`. Inertia re-exports a facade at `org.konaframework.inertia.assets` so older imports keep working:
+
+```kotlin
+import org.konaframework.inertia.assets.Vite
+import org.konaframework.inertia.assets.AssetManifest
+```
+
+`InertiaServiceProvider` binds `AssetManifest` to `inertia.public_path` (or `<base>/public`) and calls `Vite.setManifest` on boot.
+
+## Development (`public/hot`)
+
+If `public/hot` contains a base URL (for example `http://127.0.0.1:5173`), tags point at the Vite dev server (`/@vite/client` + entry URL).
+
+## Production (`public/build/manifest.json`)
+
+Standard Vite manifest: entries resolve to `/build/…` script and stylesheet tags.
+
+## In the root view
+
+`{!! vite !!}` prints tags for `InertiaManager.viteEntries`. Missing manifest / unset facade yields empty tags on HTML shells (exceptions are swallowed in the shell path so first visits still render).
+
+Facade helpers throw `ViteException` when you call `Vite.tags` / `Vite.asset` without a bound manifest — useful in tests.

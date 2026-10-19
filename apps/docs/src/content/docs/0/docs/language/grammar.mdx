@@ -1,0 +1,53 @@
+---
+title: Crema grammar
+description: TextMate grammar and language configuration for Crema templates.
+---
+
+Crema templates are HTML (or Kotlin-flavored) files with **directives** (`@extends`, `@section`, …), **echoes** (`{{ name }}`), **raw echoes** (`{!! html !!}`), and **comments** (`{{-- note --}}`).
+
+The grammar lives in the Kona repository so every editor can share one definition.
+
+## Files
+
+| Path | Purpose |
+|------|---------|
+| `ide-support/crema/crema.tmLanguage.json` | TextMate grammar (`scopeName`: `text.html.crema`) |
+| `ide-support/crema/language-configuration.json` | Block comments, brackets, folding markers |
+| `ide-support/crema/README.md` | Short packaging notes |
+
+Recognized directive keywords in the grammar match the built-in set used by **kona-lsp** (including `@extends`, `@section`, `@endsection`, `@show`, `@yield`, `@parent`, `@stack`, `@push`, `@endpush`, `@include`, `@includeIf`, `@includeWhen`, `@if`, `@else`, `@endif`, `@foreach`, `@endforeach`, `@slot`, `@endslot`, `@json`, `@csrf`).
+
+## File extensions
+
+- `*.crema.html` — typical Crema views under `src/main/resources/views/`
+- `*.crema.kt` — optional Kotlin-flavored Crema sources
+
+Editors associate both with language id `crema` via the [VS Code / Cursor extension](/docs/language/vscode).
+
+## Sync into the VS Code extension
+
+The extension copies the grammar into its own tree:
+
+```bash
+cd ide-support/vscode-crema
+node scripts/sync-grammar.js
+```
+
+Edit the canonical files under `ide-support/crema/`, then sync before packaging the extension.
+
+## Example snippet
+
+```html
+{{-- Layout home page --}}
+@extends('layouts.app')
+@section('title', 'Home')
+@section('content')
+  <h1>{{ title }}</h1>
+  @foreach(items as item)
+    <li>{{ item }}</li>
+  @endforeach
+  @csrf
+@endsection
+```
+
+Highlighting is cosmetic only — the Crema runtime still parses and renders templates on the server. For unknown directive names while typing, use the [language server](/docs/language/lsp).

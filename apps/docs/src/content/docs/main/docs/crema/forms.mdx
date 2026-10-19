@@ -1,0 +1,213 @@
+---
+title: Forms
+description: CSRF tokens, method spoofing, validation errors, and asset helpers in Crema templates.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Crema ships a small set of form helpers that read values from the view data map. Pair them with [CSRF middleware](/docs/security/csrf/) and [validation](/docs/http/validation/) on the request side.
+
+## CSRF
+
+```crema
+<form method="post" action="/posts">
+  @csrf
+  <input name="title" value="{{ title }}">
+  <button type="submit">Save</button>
+</form>
+```
+
+`@csrf` renders a hidden `_token` input. Pass the token as `_token` or `csrf_token` in the data map (session middleware typically exposes it):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "posts.create",
+    mapOf(
+        "_token" to csrfToken,
+        "title" to "",
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "posts.create",
+    Map.of(
+        "_token", csrfToken,
+        "title", ""
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+Output shape:
+
+```html
+<input type="hidden" name="_token" value="…">
+```
+
+If neither key is present, the value attribute is empty — the form will fail CSRF checks until you pass a real token.
+
+## Method spoofing (`@method`)
+
+HTML forms in browsers only submit as `GET` or `POST`. Crema’s `@method` directive emits a hidden field so templates can *declare* the intended verb:
+
+```crema
+<form method="post" action="/posts/{{ post.id }}">
+  @csrf
+  @method('PUT')
+  …
+</form>
+```
+
+Emits:
+
+```html
+<input type="hidden" name="_method" value="PUT">
+```
+
+Common values: `PUT`, `PATCH`, `DELETE`.
+
+:::caution[Runtime behavior today]
+The HTTP kernel and router match the **actual** request method from the transport (`POST` for a normal form submit). They do **not** currently rewrite the method from the `_method` body field. A form that posts with `@method('PUT')` still arrives as `POST` unless the client sends a real `PUT`/`PATCH`/`DELETE` (for example via JavaScript `fetch`).
+
+Until method override ships in the HTTP stack, pick one of these patterns:
+
+1. **Register a `POST` route** for the form action (for example `router.post("/posts/{id}", …)` or a dedicated `/posts/{id}/update` path), and keep `@method` only as documentation in the template — or omit `@method` until override exists.
+2. **Use JavaScript** (or an API client) that issues the real HTTP verb your [route](../../http/routing/) expects.
+3. Keep `@method` in templates for forward compatibility with Crema’s HTML helpers, knowing the hidden field is ignored by routing today.
+:::
+
+## Field errors
+
+```crema
+<label>
+  Email
+  <input name="email" value="{{ email }}">
+</label>
+@error('email')
+  <p class="error">{{ errors.email }}</p>
+@enderror
+```
+
+The body renders when the view data contains an `errors` map with a non-empty value for that field:
+
+| `errors['email']` value | `@error('email')` body |
+|-------------------------|------------------------|
+| Missing / `null` | Skipped |
+| Empty string or empty collection | Skipped |
+| Non-empty string / collection | Rendered |
+| Any other non-null value | Rendered |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "auth.login",
+    mapOf(
+        "_token" to token,
+        "email" to submittedEmail,
+        "errors" to mapOf("email" to "Required"),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "auth.login",
+    Map.of(
+        "_token", token,
+        "email", submittedEmail,
+        "errors", Map.of("email", "Required")
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+When validation returns multiple messages per field, pass a list and print them in a loop:
+
+```crema
+@error('email')
+  <ul>
+    @foreach(errors.email as message)
+      <li>{{ message }}</li>
+    @endforeach
+  </ul>
+@enderror
+```
+
+## Full form example
+
+```crema
+@extends('layouts.app')
+@section('content')
+  <h1>Edit post</h1>
+  <form method="post" action="/posts/{{ post.id }}">
+    @csrf
+    @method('PUT')
+
+    <label>
+      Title
+      <input name="title" value="{{ post.title }}">
+    </label>
+    @error('title')
+      <p class="error">{{ errors.title }}</p>
+    @enderror
+
+    <label>
+      Body
+      <textarea name="body">{{ post.body }}</textarea>
+    </label>
+    @error('body')
+      <p class="error">{{ errors.body }}</p>
+    @enderror
+
+    <button type="submit">Update</button>
+  </form>
+@endsection
+```
+
+## Asset URLs in forms and layouts
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+Resolves to `/css/app.css` by default, or prefixes `asset_url` / `assetUrl` from the view data when set (CDN base). See [Rendering](/docs/crema/rendering/#asset).
+
+## Language strings
+
+Labels and messages often use `@lang` — see [Rendering](/docs/crema/rendering/#lang).
+
+
+## Pitfalls and FAQ
+
+**Why does my `@method('PUT')` form 405?**  
+The request is still `POST`. Register a POST route or send a real PUT — see [Method spoofing](#method-spoofing-method).
+
+**Why is the CSRF field empty?**  
+Pass `_token` or `csrf_token` in the view data (session middleware usually supplies it).
+
+**How do I show old input after validation redirect?**  
+Use flashed old input from the session (`request.old("email")`) when rendering the form again — [Validation](../../http/validation/).
+
+## Related
+
+- [CSRF protection](/docs/security/csrf/)
+- [Validation](/docs/http/validation/)
+- [Session](/docs/security/session/)
+- [Routing](/docs/http/routing/)

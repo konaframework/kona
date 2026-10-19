@@ -1,0 +1,63 @@
+---
+title: Testing
+description: Boot Kona apps in JUnit — HTTP, console, database helpers, and fakes.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**kona-testing** is the test harness for Kona applications. It boots a real `Application` under a temporary base path, then drives HTTP, grind, the database, and in-memory fakes without opening sockets or touching production services.
+
+Add it as a test dependency:
+
+```kotlin
+dependencies {
+    testImplementation("org.konaframework:kona-testing:${konaVersion}")
+}
+```
+
+## Boot an application
+
+`TestApplication.create(base, *providers)` is a thin wrapper around `Kona.create("--base=…").providers(…).boot()`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@TempDir
+lateinit var base: Path
+
+val app = TestApplication.create(
+    base,
+    HttpServiceProvider(),
+    MyAppProvider(),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Path base = Files.createTempDirectory("app");
+Application app = TestApplication.create(
+    base,
+    new HttpServiceProvider(),
+    new MyAppProvider()
+);
+```
+
+</TabItem>
+</Tabs>
+
+Register routes, bindings, and middleware in the providers you pass (or after boot). Tear down is usually “throw away the temp directory” — prefer fresh bases over reusing long-lived apps across tests.
+
+## What to assert next
+
+| Guide | Surface |
+| --- | --- |
+| [HTTP tests](./http-console/) | `HttpTestClient` / `TestResponse` |
+| [Console tests](./console/) | `ConsoleTester` / `ConsoleResult` |
+| [Database & fakes](./database-fakes/) | `DatabaseTest`, `FakeMail`, `FakeQueue`, `FakeEvent`, … |
+
+## Java sample
+
+`modules/testing` ships `JavaTestingApiTest` — the same APIs are `@JvmStatic` / Java-callable. Prefer Kotlin examples above; call the identical types from Java when your app tests are Java-first.

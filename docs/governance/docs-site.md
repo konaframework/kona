@@ -16,9 +16,39 @@ Stack: **Astro + Starlight + `@almasix/starlight-theme`**, pnpm workspace, **Clo
 | `/` (`apps/docs/src/pages/index.astro`) | **Marketing landing** — brand-first Astro page (not Starlight chrome). Styles in `apps/docs/src/styles/landing.css`. Light + dark via `html[data-theme]`, synced with Starlight’s `localStorage` key `starlight-theme`. |
 | `/docs/` (`src/content/docs/docs/index.mdx`) | **Documentation hub** — Starlight splash into guides and reference. |
 
-Respect `PUBLIC_BASE_PATH` (e.g. `/kona/` on GitHub Pages) for asset and CTA links on the landing page. Theme preference on `/` must match `/docs/` (same storage key; effective values `light` / `dark`).
+Respect `PUBLIC_BASE_PATH` (e.g. `/kona/` on GitHub Pages) for asset and CTA links on the landing page. Theme preference on `/` must match `/docs/` (same storage key; effective values `light` / `dark`). The landing page rewrites `/docs/…` CTAs to locale-prefixed paths (`/es/docs/…`, `/fr/docs/…`, `/zh-cn/docs/…`) when `navigator.language` matches.
 
 Cursor rule: [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) (globs `apps/docs/**`).
+
+## Versions (`starlight-versions`)
+
+Plugin: [`starlight-versions`](https://starlight-versions.vercel.app/) in `apps/docs/astro.config.mjs`.
+
+| UI label | Role | Content |
+|----------|------|---------|
+| **latest** (default / current) | Stable docs tip of release line | `src/content/docs/` (root English + locale trees) |
+| **main** | Tip / development archive | `src/content/docs/main/` + `src/content/versions/main.json` |
+| **0** | Major `0.x` archive | `src/content/docs/0/` + `src/content/versions/0.json` |
+
+Seed archives with `cd apps/docs && node scripts/seed-versions.mjs` (plugin allows only one *new* version per build). Version picker is injected via almasixTheme `headerExtras` → `src/components/VersionSelect.astro` (theme already owns `ThemeSelect`).
+
+Collection: `versions` loader in `src/content.config.ts`. Sidebar stays in `sidebar.mjs`; archived copies store a snapshot in each `versions/*.json`.
+
+## Internationalization
+
+Root locale is **English** (no `/en/` prefix). Additional locales: **`es`**, **`fr`**, **`zh-cn`** (`lang: zh-CN`).
+
+- UI strings: `src/content/i18n/{es,fr,zh-CN}.json` (Starlight + starlight-versions keys).
+- Translated content today: Getting started **Introduction** + **Installation** under `src/content/docs/{es,fr,zh-cn}/docs/guides/`. Other pages fall back to English with Starlight’s untranslated notice.
+- Sidebar Getting started labels carry `translations` for those locales.
+
+## GitHub header chip
+
+`@almasix/starlight-theme` fetches stars / forks / latest release **at build time** (SSR placeholder; may show `—` when the API is rate-limited).
+
+Client hydrate: `public/scripts/gh-chip-hydrate.js` is injected via Starlight `head` and refreshes `.gh-chip` from `api.github.com` with **sessionStorage** cache (**10 minutes**). Keep the SSR markup; do not remove the theme’s build-time fetch.
+
+Optional Worker proxy `/api/github-stats` is **not** wired yet (docs Worker is assets-only today). Prefer the client script unless a Worker `main` entry is added later.
 
 ## Brand (locked)
 

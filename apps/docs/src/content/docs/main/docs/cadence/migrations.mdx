@@ -1,0 +1,282 @@
+---
+title: Migrations
+description: Describe tables with the schema DSL, version database changes as migrations, and run them with the Migrator or ./grind migrate.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A **migration** is a small class that changes the structure of the database (create a table, add a column, add an index) and can undo that change. Keeping every structural change in a migration means any copy of the application (a teammate's laptop, CI, production) can build the same schema by running the migrations in order.
+
+Cadence records which migrations have run in a table called `extract_migrations`, together with a **batch** number. Every `migrate` run that applies something opens a new batch; `rollback` undoes the most recent batch.
+
+## Writing a migration
+
+A migration implements `org.konaframework.cadence.migrations.Migration` with two methods. `up` applies the change; `down` reverses exactly what `up` did. Both receive a `Schema`, which runs DDL (table-definition SQL) on the migration's connection.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package database.migrations
+
+import org.konaframework.cadence.migrations.Migration
+import org.konaframework.cadence.schema.Schema
+
+class CreatePostsTable : Migration {
+    override fun up(schema: Schema) {
+        schema.create("posts") {
+            id()
+            foreignId("user_id").constrained().cascadeOnDelete()
+            string("title", 200)
+            text("body").nullable()
+            boolean("published").default(false)
+            integer("votes").default(0)
+            timestamp("published_at").nullable()
+            timestamps()
+            softDeletes()
+            index("user_id", "published")
+        }
+    }
+
+    override fun down(schema: Schema) {
+        schema.dropIfExists("posts")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package database.migrations;
+
+import org.konaframework.cadence.migrations.Migration;
+import org.konaframework.cadence.schema.Schema;
+
+public class CreatePostsTable implements Migration {
+    @Override
+    public void up(Schema schema) {
+        schema.create("posts", table -> {
+            table.id();
+            table.foreignId("user_id").constrained().cascadeOnDelete();
+            table.string("title", 200);
+            table.text("body").nullable();
+            table.bool("published").withDefault(false);
+            table.integer("votes").withDefault(0);
+            table.timestamp("published_at").nullable();
+            table.timestamps();
+            table.softDeletes();
+            table.index("user_id", "published");
+        });
+    }
+
+    @Override
+    public void down(Schema schema) {
+        schema.dropIfExists("posts");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+In Kotlin, the block passed to `create` and `table` has the table definition (a `Blueprint`) as its receiver, so you call `id()` directly. In Java, the lambda receives the `Blueprint` as a parameter (`table -> table.id()`).
+
+Two methods have different names in Java because their Kotlin names are Java keywords: `boolean(name)` is `bool(name)`, and the `default(value)` modifier is `withDefault(value)`.
+
+## The schema DSL
+
+### Table operations
+
+| Call | Effect |
+|------|--------|
+| `create(table) { … }` | `CREATE TABLE` with the columns, foreign keys, and indexes defined in the block |
+| `table(table) { … }` | alters an existing table: add columns, foreign keys, and indexes; drop columns and indexes |
+| `drop(table)` | `DROP TABLE` (fails when it does not exist) |
+| `dropIfExists(table)` | `DROP TABLE IF EXISTS` |
+| `rename(from, to)` | renames a table |
+| `hasTable(table)` / `hasColumn(table, column)` | checks the current schema |
+| `execute(listOf(sql, …))` | runs raw statements |
+
+### Column types
+
+| Method | SQL type | Notes |
+|--------|----------|-------|
+| `id()` / `id("key")` | `BIGINT` identity primary key | auto-incrementing |
+| `string(name)` / `string(name, length)` | `VARCHAR(255)` / `VARCHAR(length)` | length must be positive |
+| `text(name)` | `TEXT` (`CHARACTER VARYING` on H2) | long text |
+| `integer(name)` | `INTEGER` | |
+| `bigInteger(name)` | `BIGINT` | |
+| `boolean(name)` (Java: `bool`) | `BOOLEAN` | |
+| `timestamp(name)` | `TIMESTAMP` | |
+| `foreignId(name)` | `BIGINT` | a key pointing at another table; chain `constrained()` |
+| `timestamps()` | `created_at`, `updated_at` | both nullable |
+| `softDeletes()` | `deleted_at` | nullable, used by [soft deletes](../models/#soft-deletes) |
+| `morphs(name)` / `nullableMorphs` / `uuidMorphs` | `{name}_type` + `{name}_id` (+ index) | polymorphic columns; see [Relations](../relations/#polymorphic-relations) |
+
+Columns are `NOT NULL` unless you call a modifier:
+
+| Modifier | Effect |
+|----------|--------|
+| `nullable()` | allows `NULL` (`nullable(false)` undoes it) |
+| `default(value)` (Java: `withDefault`) | `DEFAULT` literal: strings are quoted, booleans become `TRUE`/`FALSE`, `null` becomes `NULL` |
+| `useCurrent()` | `DEFAULT CURRENT_TIMESTAMP` |
+| `unique()` | adds a unique index on the column |
+| `index()` | adds a plain index on the column |
+
+### Indexes
+
+```kotlin
+index("email")                                   // users_email_index
+index(listOf("user_id", "created_at"), "posts_timeline")
+unique("email")                                  // users_email_unique
+unique("team_id", "number")                      // composite
+dropIndex("users_email_index")                   // inside table(...)
+```
+
+Generated index names are `<table>_<columns>_index` or `<table>_<columns>_unique`.
+
+### Foreign keys
+
+```kotlin
+foreignId("user_id").constrained()                    // references users(id)
+foreignId("editor_id").nullable().constrained("users").nullOnDelete()
+foreign("owner_id").references("id").on("owners").onDelete("restrict").onUpdate("cascade")
+```
+
+`constrained()` guesses the table from the column name: `user_id` references `users`. Actions are `cascade`, `set null`, `restrict`, and `no action`; `cascadeOnDelete()` and `nullOnDelete()` are shortcuts. Constraints are named `<table>_<column>_foreign`.
+
+### Altering tables
+
+```kotlin
+schema.table("users") {
+    string("nickname").nullable()
+    foreignId("team_id").nullable().constrained()
+    dropColumn("legacy_flag")
+}
+```
+
+Within one `table` call, Cadence drops indexes first, then drops columns, then adds columns, foreign keys, and indexes.
+
+### SQL dialects
+
+The schema DSL generates standard SQL that H2 and PostgreSQL both accept. The `Schema` picks a `SchemaGrammar` from the JDBC driver's product name; `SchemaGrammar.H2` adjusts the few types that differ. Identifier quoting follows the connection, so `quote_identifiers = false` applies to DDL as well.
+
+## Registering and running migrations
+
+Migrations run in the order you register them in a `MigrationRegistry`. Each one is recorded under its class's simple name, or under a name you choose with `add(name, migration)`. Registration is explicit: Kona does not scan the classpath for migrations.
+
+Bind the registry in a service provider so tools such as `./grind migrate` can find it:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import database.migrations.CreatePostsTable
+import database.migrations.CreateUsersTable
+import org.konaframework.cadence.migrations.MigrationRegistry
+
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.instance(
+            MigrationRegistry::class.java,
+            MigrationRegistry(CreateUsersTable(), CreatePostsTable()),
+        )
+    }
+
+    override fun boot(app: Application) = Unit
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import database.migrations.CreatePostsTable;
+import database.migrations.CreateUsersTable;
+import org.konaframework.cadence.migrations.MigrationRegistry;
+
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().instance(MigrationRegistry.class,
+            new MigrationRegistry(new CreateUsersTable(), new CreatePostsTable()));
+    }
+
+    @Override
+    public void boot(Application app) {}
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+### The Migrator
+
+`Migrator` applies and reverts registry entries on one connection. `Migrator.using` borrows a connection for the duration of a block:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.migrations.Migrator
+
+val ran = Migrator.using(db.connection(), registry) { it.migrate() }       // names that ran
+Migrator.using(db.connection(), registry) { migrator ->
+    migrator.pending()        // not run yet, in order
+    migrator.status()         // List<MigrationStatus(name, batch)>; status.ran is true when batch != null
+    migrator.rollback()       // undo the last batch
+    migrator.rollback(3)      // undo the last three batches
+    migrator.reset()          // undo everything
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.migrations.Migrator;
+
+List<String> ran = Migrator.using(db.connection(), registry, Migrator::migrate);
+Migrator.using(db.connection(), registry, migrator -> {
+    migrator.pending();
+    migrator.status();
+    migrator.rollback();
+    migrator.rollback(3);
+    return migrator.reset();
+});
+```
+
+</TabItem>
+</Tabs>
+
+
+Each migration runs in its own transaction together with its `extract_migrations` record. When `up` or `down` throws, the transaction rolls back and a `MigrationException` names the failing migration; the migrations before it stay applied. (Some databases, H2 among them, commit DDL statements immediately, so a half-finished `up` may leave partial changes there.)
+
+Rolling back a recorded migration that is no longer registered throws `MigrationException("Migration not found: …")`.
+
+## grind commands
+
+All commands run from the application directory. The database commands boot your application **in-process** from its compiled classes (`build/classes`), so run `./gradlew classes` after changing migrations. They use the `MigrationRegistry` bound in the container, plus the bound `Database` (from `CadenceServiceProvider`) or, when none is bound, a `Database` built from the `database` config section (your `config/Database` module).
+
+```bash
+./grind make:migration create_flights_table          # schema.create("flights") stub
+./grind make:migration add_gate_to_flights_table     # schema.table("flights") stub
+./grind make:migration backfill_data                 # empty up/down
+./grind make:migration seats --create=seats          # explicit create
+./grind make:migration widen_seats --table=seats     # explicit alter
+
+./grind migrate                          # run pending migrations as a new batch
+./grind migrate:status                   # Ran/Pending, batch, name
+./grind migrate:rollback                 # undo the last batch
+./grind migrate:rollback --step=2        # undo the last two batches
+./grind migrate:reset                    # undo everything
+./grind migrate --database=reports       # a named connection
+./grind migrate --bootstrap=bootstrap.App
+```
+
+`make:migration` takes a snake_case name, writes `database/migrations/<StudlyName>.kt` (or `.java`, chosen by `--lang=` or by existing `.java` files under `app/`), and prints the line to add to your registry. It refuses to overwrite an existing file.
+
+`./grind make:model Flight --migration` creates the model and a `CreateFlightsTable` migration together; see [Seeders & factories](../seeders-factories/) for `--factory` and `--seeder`.

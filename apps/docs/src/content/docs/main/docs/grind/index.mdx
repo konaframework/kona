@@ -1,0 +1,77 @@
+---
+title: Grind Console
+description: The app-local console — ./grind serve, generators, custom commands, scheduling hooks, and steam.
+---
+
+**Grind Console** is Kona’s in-app command line. After you create a project with `kona new` and `cd` into it, almost every day-to-day task goes through the local script:
+
+```bash
+./grind serve
+./grind make:controller Post
+./grind make:command SendDigest
+./grind list
+./grind help
+```
+
+`kona new` writes `./grind` (and `grind.bat` on Windows) into the project root. There is no separate global grind install. Creating applications is always:
+
+```bash
+kona new my-app
+```
+
+From anywhere under an app tree you can also use the global proxy: `kona grind <args…>` — see [Running commands](./running-commands/#kona-grind-proxy).
+
+Framework contributors browsing `samples/hello-kotlin` or `samples/hello-java` inside the Kona repository will not find `./grind` there — those are repo sample modules. Run them with `./gradlew :hello-kotlin:run` (or `:hello-java:run`) from the repo root, or create a real app with `kona new` to get Grind Console. Details: [Installation → Contributing](../guides/installation/#contributing-to-kona-optional).
+
+## What Grind Console is
+
+Grind Console is the product name for the console surface. The **CLI binary** you type is still `./grind` (or `kona grind …`). Behind that script:
+
+1. Gradle runs a `grind` task with `kona-grind` on the classpath for **this** project’s dependency versions.
+2. `GrindApplication` parses arguments, builds a `GrindIO` (quiet/verbose), discovers custom commands, and dispatches built-ins or your `ConsoleCommand` classes.
+3. Custom commands bind signature tokens to input, then run `handle()` and return an exit code.
+
+Built-ins (serve, migrate, queue, schedule, generators, …) are wired inside `GrindApplication`. Custom commands are discovered from `META-INF/kona/commands` and from compiled app outputs under `build/`.
+
+## Why two CLIs?
+
+| Tool | Scope | Typical use |
+|------|--------|-------------|
+| **`kona`** (global) | Machine-wide | `kona new`, or `kona grind` as a proxy into an app (`kona grind install …`, `serve`, …) |
+| **`./grind`** (per app) | One project | Serve, install packages, generate code, migrate, queue, schedule, your commands |
+
+If you type `./grind new …`, Grind Console reminds you to use `kona new` instead and exits with status `1`.
+
+## Learn the console
+
+| Guide | Topic |
+|-------|-------|
+| [Creating commands](./creating-commands/) | `make:command`, signatures, discovery, isolation, pitfalls |
+| [Running commands](./running-commands/) | CLI flags, `list`/`help`, `Grind.call`, `kona grind`, scheduling |
+| [Console IO & prompts](./console/) | `ConsoleIO`, `GrindIO`, tables, prompts, exit codes |
+| [Built-in commands](./commands/) | Catalog of every shipped `./grind` command |
+| [steam](../steam/) | Interactive REPL (`./grind steam`) |
+
+Testing Grind Console with `ConsoleTester` lives under [HTTP & console tests](../testing/http-console/#console-grind).
+
+## Global flags
+
+These apply to the whole Grind Console process (and to custom commands that use the bound `GrindIO`):
+
+| Flag | Effect |
+|------|--------|
+| `-v` / `--verbose` | Verbose diagnostics (`GrindIO.verbose`) |
+| `-q` / `--quiet` | Suppress normal stdout; errors still print on stderr |
+
+Other common flags (`--base=`, `--bootstrap=`, `--help`, `--isolated`) are documented where they apply — see [Running commands](./running-commands/) and [Creating commands](./creating-commands/).
+
+## Not available today
+
+Document only what ships. Gaps you should not expect from Grind Console yet:
+
+- No `make:brew` (or other Brew generators) in the `kona-grind` dispatcher — Brew scaffolding, if any, is separate from this catalog.
+- Custom commands do **not** receive an injected `Application` automatically; boot the app yourself (or call APIs that already have a container) when you need services.
+- There is no interactive command “wizard” beyond `Prompts`, and no command middleware / event bus for console runs.
+- Built-in help for generators is usage strings and `./grind list` summaries — there is no separate man-page system.
+
+Prefer omitting unshipped features over documenting them as current.

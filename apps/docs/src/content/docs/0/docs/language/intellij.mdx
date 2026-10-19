@@ -1,0 +1,71 @@
+---
+title: IntelliJ
+description: Install the native Kona Idea plugin for Crema in IntelliJ IDEA.
+---
+
+IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.com/konaframework/kona-idea) — the same approach as other first-class JetBrains language plugins. Crema is a real file type with an HTML-layered highlighter, completion, and navigation. There is **no language server** in the IntelliJ path.
+
+| | |
+| --- | --- |
+| Repository | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) |
+| Plugin id | `org.konaframework.idea` |
+| Releases | [GitHub Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
+| Products | IntelliJ IDEA Community and Ultimate (2024.2+) |
+| Current line | **v0.3.0** |
+
+Installing, updating, or removing the plugin requires an IDE restart.
+
+## Install
+
+1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.3.0**).
+2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** and choose the zip.
+3. Restart when prompted.
+4. Open a Crema view (`src/main/resources/views/….crema.html` or `*.crema.kt`). Confirm the language chip shows **Crema** (not HTML).
+5. Open the **Kona** tool window on the **right** side of the IDE for grind shortcuts and docs links.
+
+## What you get
+
+- Native Crema lexer: HTML colors plus `@directives`, `{{ }}`, `{!! !!}`, `{{-- --}}`
+- **`@` directive completion** — type `@` in a Crema view (autopopup); also **Ctrl+Space**
+- **Brew `wire:*` attribute completion** — type `wire:` on HTML tags (`wire:model`, `wire:click`, `wire:submit`, …); weak warnings for unknown `wire:*` names
+- Warnings for unknown `@name` tokens (emails like `hi@example.com` are ignored)
+- `{{` auto-closes as `{{  }}` with the caret in the middle
+- **View name autocomplete** in `Crema.view`, `Brew.view`, `engine.make` / `render`, `@extends`, `@include`, and similar call sites
+- **Go to view file:** place the caret on a view name string and use **Ctrl+B** or **Ctrl+Click** (macOS: **⌘B** / **⌘Click**). Same as Navigate → Declaration.
+- **DB column completion** from Cadence migrations and, when `.env` has a reachable `DB_URL`, from JDBC metadata
+- **Kona** tool window (RIGHT): `./grind serve`, migrate, queue/schedule, New Crema View, help, docs
+- Official Kona brand icons on the tool window, Crema files, scaffold folders, and Grind run configs
+- **Grind** run configuration type for `./grind …` (Netty serve, default port `4000`)
+- **Kona** menu: layout, routing, Maven modules, view navigation help
+
+## View navigation shortcuts
+
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Go to Declaration (open the Crema file) | **Ctrl+B** or Ctrl+Click | **⌘B** or ⌘Click |
+| Basic completion (view name / `@` directive) | Ctrl+Space | Ctrl+Space |
+
+## DB column sources
+
+Column suggestions merge two sources when available:
+
+1. **Migrations** — parses `schema.create` / `schema.table` stubs under `src/main/{kotlin|java}/database/migrations` (`id()`, `string("…")`, `timestamps()`, `morphs`, `dropColumn`, …).
+2. **JDBC** — reads `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, and optional `DB_DRIVER` from the project `.env` and, if a driver can connect, loads columns from `DatabaseMetaData`.
+
+Use them in Cadence / query call sites such as `where("…")`, `select("…")`, and `orderBy("…")`.
+
+## Develop the plugin
+
+```bash
+git clone https://github.com/konaframework/kona-idea.git
+cd kona-idea
+./gradlew test
+./gradlew buildPlugin   # → build/distributions/*.zip
+./gradlew runIde        # sandboxed IntelliJ with the plugin loaded
+```
+
+Keep `CremaDirectives` in the plugin aligned with Crema’s directive set in this repository when you add template directives. Agent resume notes for the plugin live in that repo’s [`HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
+
+## Other editors
+
+For VS Code / Cursor or a stdio language server used by other tooling, see [Language server](/docs/language/lsp) and [VS Code & Cursor](/docs/language/vscode). IntelliJ should use the native plugin above — not an LSP client.
