@@ -247,6 +247,73 @@ class GrindCadenceTest {
     }
 
     @Test
+    fun migrateSeedRunsSeederInSameProcess() {
+        val project = databaseProject(temp.resolve("seed_flag"), "grind_seed_flag")
+        val boot = "--bootstrap=org.konaframework.grind.CadenceFixtureApp"
+        val (code, out) = grind(
+            "migrate",
+            "--seed",
+            "--base=$project",
+            boot,
+            "--class=org.konaframework.grind.FixtureDatabaseSeeder",
+        )
+        assertEquals(0, code)
+        assertTrue(out.contains("Migrated: CreateWidgetsTable"))
+        assertTrue(out.contains("Seeding: FixtureDatabaseSeeder"))
+        assertTrue(out.contains("Seeding: WidgetSeeder"))
+        assertTrue(out.contains("Database seeding completed successfully."))
+        assertEquals(1L, Database.global().table("widgets").count())
+
+        // --seeder alias (same process) after reset
+        grind("migrate:reset", "--base=$project", boot)
+        val aliased = grind(
+            "migrate",
+            "--seeder",
+            "--base=$project",
+            boot,
+            "--class=org.konaframework.grind.WidgetSeeder",
+        )
+        assertEquals(0, aliased.first)
+        assertTrue(aliased.second.contains("Seeding: WidgetSeeder"))
+        assertEquals(1L, Database.global().table("widgets").count())
+
+        // Rollback / status must not seed
+        grind("migrate:reset", "--base=$project", boot)
+        grind("migrate", "--base=$project", boot)
+        val rolled = grind("migrate:rollback", "--seed", "--base=$project", boot)
+        assertFalse(rolled.second.contains("Seeding:"))
+        assertTrue(MigrateCommand.wantsSeed(mapOf("seed" to "true")))
+        assertTrue(MigrateCommand.wantsSeed(mapOf("seeder" to "1")))
+        assertTrue(MigrateCommand.wantsSeed(mapOf("seeder" to "")))
+        assertTrue(MigrateCommand.wantsSeed(mapOf("seeder" to "yes")))
+        assertFalse(MigrateCommand.wantsSeed(mapOf("seeder" to "false")))
+        assertFalse(MigrateCommand.wantsSeed(emptyMap()))
+    }
+
+    @Test
+    fun migrateSeedWithFileH2SurvivesSeparateProcessOpen() {
+        val dbDir = temp.resolve("file_h2_db")
+        Files.createDirectories(dbDir)
+        val url = "jdbc:h2:file:${dbDir.resolve("kona").toAbsolutePath()};DATABASE_TO_LOWER=TRUE"
+        val project = fixtureProject(temp.resolve("file_seed"), "GRIND_DB_URL=$url\n")
+        val boot = "--bootstrap=org.konaframework.grind.FileH2FixtureApp"
+        val (code, out) = grind(
+            "migrate",
+            "--seed",
+            "--base=$project",
+            boot,
+            "--class=org.konaframework.grind.WidgetSeeder",
+        )
+        assertEquals(0, code)
+        assertTrue(out.contains("Migrated: CreateWidgetsTable"))
+        assertTrue(out.contains("Seeding: WidgetSeeder"))
+        Database.clearGlobal()
+        Database().addConnection("check", ConnectionConfig(url)).use {
+            assertEquals(1L, it.connection("check").table("widgets").count())
+        }
+    }
+
+    @Test
     fun databaseCommandErrors() {
         val project = databaseProject(temp.resolve("errors"), "grind_errors")
         val empty = temp.resolve("nothing")

@@ -19,7 +19,8 @@ object DatabaseEngines {
         Engine(
             name = "h2",
             connectionKey = "h2",
-            defaultUrl = "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
+            // File DB so migrate / seed / serve share data across JVM processes; AUTO_SERVER for concurrent access.
+            defaultUrl = "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE",
             defaultUsername = "sa",
             defaultPassword = "",
             runtimeDependency = null,

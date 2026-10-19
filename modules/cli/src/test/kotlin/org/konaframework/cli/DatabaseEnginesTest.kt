@@ -26,6 +26,8 @@ class DatabaseEnginesTest {
         assertThrows<KonaCliException> { DatabaseEngines.resolve("mongo") }
         assertThrows<KonaCliException> { DatabaseEngines.require("mongo") }
         assertTrue(DatabaseEngines.names().containsAll(listOf("h2", "sqlite", "mysql", "mariadb", "pgsql", "sqlsrv", "oracle")))
+        assertTrue(DatabaseEngines.require("h2").defaultUrl.contains("jdbc:h2:file:./storage/database/kona"))
+        assertTrue(DatabaseEngines.require("h2").defaultUrl.contains("AUTO_SERVER=TRUE"))
     }
 
     @Test

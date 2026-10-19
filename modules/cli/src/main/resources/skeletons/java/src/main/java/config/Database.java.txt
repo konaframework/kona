@@ -15,12 +15,12 @@ public final class Database implements ConfigFile {
     public Map<String, Object> config() {
         Map<String, Object> connections = new LinkedHashMap<>();
         connections.put("main", connection(
-            Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
+            Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"),
             Env.getOrDefault("DB_USERNAME", "sa"),
             Env.getOrDefault("DB_PASSWORD", "")
         ));
         connections.put("h2", connection(
-            Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
+            Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"),
             Env.getOrDefault("DB_USERNAME", "sa"),
             Env.getOrDefault("DB_PASSWORD", "")
         ));

@@ -158,6 +158,7 @@ class NewCommand(
             "storage/app",
             "storage/framework",
             "storage/logs",
+            "storage/database",
             "src/test/${if (lang == "java") "java" else "kotlin"}",
         ).forEach {
             Files.createDirectories(target.resolve(it))
@@ -318,6 +319,7 @@ class NewCommand(
                 "storage/app/public/.gitkeep",
                 "storage/framework/.gitkeep",
                 "storage/logs/.gitkeep",
+                "storage/database/.gitkeep",
             )
         }
 

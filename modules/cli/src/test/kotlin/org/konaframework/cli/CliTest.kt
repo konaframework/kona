@@ -175,6 +175,7 @@ class CliTest {
             "src/main/kotlin/config/App.kt",
             "src/main/kotlin/config/Paths.kt",
             "storage/logs/.gitkeep",
+            "storage/database/.gitkeep",
         ).forEach { assertTrue(Files.isRegularFile(kt.resolve(it)), it) }
         assertTrue(Files.isExecutable(kt.resolve("gradlew")))
         assertTrue(Files.isExecutable(kt.resolve("grind")))
@@ -187,6 +188,11 @@ class CliTest {
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Session.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Filesystems.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Database.kt")))
+        assertTrue(
+            Files.readString(kt.resolve("src/main/kotlin/config/Database.kt"))
+                .contains("jdbc:h2:file:./storage/database/kona"),
+        )
+        assertTrue(Files.readString(kt.resolve(".gitignore")).contains("storage/database/*"))
         assertTrue(Files.readString(kt.resolve("src/main/kotlin/bootstrap/App.kt")).contains(".configs("))
         assertTrue(Files.isRegularFile(kt.resolve("storage/app/public/.gitkeep")))
         val build = Files.readString(kt.resolve("build.gradle.kts"))

@@ -14,7 +14,7 @@ public final class Database implements ConfigFile {
     @Override
     public Map<String, Object> config() {
         Map<String, Object> main = new LinkedHashMap<>();
-        main.put("url", Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"));
+        main.put("url", Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"));
         main.put("username", Env.getOrDefault("DB_USERNAME", "sa"));
         main.put("password", Env.getOrDefault("DB_PASSWORD", ""));
 

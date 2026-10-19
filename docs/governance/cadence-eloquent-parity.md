@@ -17,13 +17,14 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 **Why H2 is the `kona new` / sample default today**
 
 1. **Zero install** — no local Postgres/MySQL daemon for `kona new` demos and CI unit tests.
-2. **In-process JDBC** — `jdbc:h2:mem:…` and file URLs work with only the H2 JAR on the classpath.
+2. **In-process JDBC** — file and mem URLs work with only the H2 JAR on the classpath.
 3. **Identifier parity** — scaffold URLs include `DATABASE_TO_LOWER=TRUE` so quoted `"users"` matches unquoted `users` in hand-written SQL (H2 otherwise upper-cases unquoted names).
-4. **`DB_CLOSE_DELAY=-1`** on mem URLs keeps the DB alive for the JVM process (pool reconnects).
+4. **File default for apps** — scaffolds and samples use `jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE` so `./grind migrate`, `./grind db:seed`, and `./grind serve` share one database across JVM processes. `AUTO_SERVER=TRUE` lets concurrent grind/serve sessions open the same file without exclusive-lock failures.
+5. **Mem for tests only** — unit/integration fixtures may still use `jdbc:h2:mem:…;DB_CLOSE_DELAY=-1;…` for ephemeral DBs that must die with the test JVM. Mem is **not** the app scaffold default (each `./grind` would otherwise see an empty database).
 
-**Decision:** **Keep H2 as the scaffold/default** for local demo and tests. Document PostgreSQL / MySQL as the **production** targets. Do **not** silently change `kona new` to require a server database.
+**Decision:** **Keep H2 as the scaffold/default** for local demo (file) and tests (mem OK). Document PostgreSQL / MySQL as the **production** targets. Do **not** silently change `kona new` to require a server database.
 
-**Classpath fix:** `kona new` skeletons include `runtimeOnly("com.h2database:h2:2.3.232")`. Optional `kona new --database=<engine>` selects a named connection and adds that engine’s JDBC driver.
+**Classpath fix:** `kona new` skeletons include `runtimeOnly("com.h2database:h2:2.3.232")`. Optional `kona new --database=<engine>` selects a named connection and adds that engine’s JDBC driver. Scaffolds create `storage/database/.gitkeep` and gitignore H2 files (`*.mv.db`, `storage/database/*`).
 
 Evidence: `modules/cli/.../config/Database.kt.txt`, skeletons, `DatabaseEngines`, samples. Guide: `apps/docs/.../cadence/database.mdx`.
 

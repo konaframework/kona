@@ -72,10 +72,11 @@ Defaults follow the tree above; override with `paths.*` keys in `config/Paths` (
 Web kits ship a Cadence `User` model, `CreateUsersTable` migration, and a demo seeder:
 
 ```bash
-./grind migrate
-./grind db:seed
+./grind migrate --seed
 ./grind serve
 ```
+
+(Or `./grind migrate` then `./grind db:seed` — the scaffold default is a **file** H2 database under `storage/database/`, so both processes share the same data.)
 
 Open `http://127.0.0.1:4000/` (or the `HOST`/`PORT` from `.env`). Stop with Ctrl+C.
 

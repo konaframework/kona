@@ -10,7 +10,7 @@ object Database : ConfigFile {
         "default" to Env.getOrDefault("DB_CONNECTION", "main"),
         "connections" to mapOf(
             "main" to mapOf(
-                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
+                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"),
                 "username" to Env.getOrDefault("DB_USERNAME", "sa"),
                 "password" to Env.getOrDefault("DB_PASSWORD", ""),
             ),

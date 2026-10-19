@@ -9,3 +9,7 @@ storage/logs/*
 !storage/logs/.gitkeep
 storage/framework/*
 !storage/framework/.gitkeep
+storage/database/*
+!storage/database/.gitkeep
+*.mv.db
+*.trace.db

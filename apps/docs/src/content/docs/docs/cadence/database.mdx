@@ -36,15 +36,23 @@ Helper env keys used by the scaffolded named connections (when you do not set a 
 | `DB_PORT` | same |
 | `DB_DATABASE` | database / service name |
 
-## Why new apps default to H2
+## Why new apps default to H2 (file, not mem)
 
-`kona new` scaffolds an in-memory H2 URL **and** puts the H2 JDBC driver on the classpath (`runtimeOnly("com.h2database:h2:2.3.232")`) so a fresh app runs **without installing a database server**:
+`kona new` scaffolds a **file** H2 URL **and** puts the H2 JDBC driver on the classpath (`runtimeOnly("com.h2database:h2:2.3.232")`) so a fresh app runs **without installing a database server**:
+
+```text
+jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+```
 
 - The scaffold already ships the H2 JAR; you do not need to add it by hand for the default URL.
 - `DATABASE_TO_LOWER=TRUE` keeps quoted identifiers (`"users"`) aligned with unquoted SQL (`users`).
-- `DB_CLOSE_DELAY=-1` keeps a mem database alive for the whole JVM process.
+- **`file:`** stores the database under `storage/database/` so each `./grind` process (migrate, seed, serve) sees the same tables and rows. An in-memory URL (`jdbc:h2:mem:…`) only lives for **one** JVM — migrate in one process, then `db:seed` in another, would open an empty database.
+- **`AUTO_SERVER=TRUE`** lets `./grind serve` and another grind command open the same file without exclusive lock errors.
+- Scaffolds create `storage/database/.gitkeep` and gitignore `*.mv.db` / `storage/database/*` (keeping the gitkeep).
 
-**Production apps should point `DB_CONNECTION` / `DB_URL` at PostgreSQL, MySQL/MariaDB, or another first-party engine.** Leave H2 for local smoke tests unless you deliberately ship an embedded file database.
+**Use `jdbc:h2:mem:…;DB_CLOSE_DELAY=-1;…` in unit tests** when you want an ephemeral database that disappears with the test JVM. Do not use mem as the app default.
+
+**Production apps should point `DB_CONNECTION` / `DB_URL` at PostgreSQL, MySQL/MariaDB, or another first-party engine.** Keep file H2 for local demos unless you deliberately ship an embedded file database.
 
 ## First-party engines
 
@@ -52,7 +60,7 @@ Cadence ships dedicated query dialects and schema grammars for these engines. **
 
 | Engine | Connection name | Typical JDBC URL | Quoting | Schema notes |
 |--------|-----------------|------------------|---------|--------------|
-| **H2** | `main` / `h2` | `jdbc:h2:mem:…` or `jdbc:h2:file:…` | `"…"` | `TEXT` → `CHARACTER VARYING` |
+| **H2** | `main` / `h2` | `jdbc:h2:file:…` (scaffold); `jdbc:h2:mem:…` (tests) | `"…"` | `TEXT` → `CHARACTER VARYING` |
 | **SQLite** | `sqlite` | `jdbc:sqlite:…` | `"…"` | `INTEGER PRIMARY KEY AUTOINCREMENT`; alter is ADD/DROP column + indexes only |
 | **MySQL** | `mysql` | `jdbc:mysql://…` | `` `…` `` | `AUTO_INCREMENT`, `LONGTEXT`, `TINYINT(1)` |
 | **MariaDB** | `mariadb` | `jdbc:mariadb://…` | `` `…` `` | Same DDL family as MySQL; distinct product detection |
