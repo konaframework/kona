@@ -78,9 +78,9 @@ public final class Database implements ConfigFile {
 
 ## Why new apps default to H2
 
-`kona new` scaffolds an in-memory H2 URL so a fresh app runs **without installing a database server**. That default is intentional for demos, tutorials, and tests:
+`kona new` scaffolds an in-memory H2 URL **and** puts the H2 JDBC driver on the classpath (`runtimeOnly("com.h2database:h2:2.3.232")`) so a fresh app runs **without installing a database server**. That default is intentional for demos, tutorials, and tests:
 
-- Only the H2 JAR is required on the classpath.
+- The scaffold already ships the H2 JAR; you do not need to add it by hand for the default URL.
 - `DATABASE_TO_LOWER=TRUE` keeps quoted identifiers (`"users"`) aligned with unquoted SQL (`users`).
 - `DB_CLOSE_DELAY=-1` keeps a mem database alive for the whole JVM process.
 
@@ -95,10 +95,11 @@ public final class Database implements ConfigFile {
 | **MySQL / MariaDB** | `jdbc:mysql://…` / `jdbc:mariadb://…` | Backticks `` `…` `` | Standard SQL types + MySQL quoting |
 | **SQLite** | `jdbc:sqlite:file.db` | ANSI `"…"` | Standard SQL (no SQLite-specific grammar yet) |
 
-Add the driver dependency yourself, for example:
+When you switch engines, add that engine’s JDBC driver yourself. H2 is already present from `kona new`; examples for other engines:
 
 ```kotlin
 dependencies {
+    // Scaffolded by kona new (keep when using the default H2 URL):
     runtimeOnly("com.h2database:h2:2.3.232")
     runtimeOnly("org.postgresql:postgresql:42.7.4")
     runtimeOnly("com.mysql:mysql-connector-j:9.1.0")
