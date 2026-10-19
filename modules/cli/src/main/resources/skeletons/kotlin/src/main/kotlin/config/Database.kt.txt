@@ -21,7 +21,7 @@ object Database : ConfigFile {
                 "password" to Env.getOrDefault("DB_PASSWORD", ""),
             ),
             "sqlite" to mapOf(
-                "url" to Env.getOrDefault("DB_URL", "jdbc:sqlite:database/database.sqlite"),
+                "url" to Env.getOrDefault("DB_URL", "jdbc:sqlite:storage/database/database.sqlite"),
                 "username" to Env.getOrDefault("DB_USERNAME", ""),
                 "password" to Env.getOrDefault("DB_PASSWORD", ""),
             ),

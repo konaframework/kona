@@ -25,7 +25,7 @@ public final class Database implements ConfigFile {
             Env.getOrDefault("DB_PASSWORD", "")
         ));
         connections.put("sqlite", connection(
-            Env.getOrDefault("DB_URL", "jdbc:sqlite:database/database.sqlite"),
+            Env.getOrDefault("DB_URL", "jdbc:sqlite:storage/database/database.sqlite"),
             Env.getOrDefault("DB_USERNAME", ""),
             Env.getOrDefault("DB_PASSWORD", "")
         ));
