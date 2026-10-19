@@ -1,0 +1,54 @@
+package app.http.controllers;
+
+import org.konaframework.auth.Auth;
+import org.konaframework.auth.middleware.Authenticate;
+import org.konaframework.core.Env;
+import org.konaframework.crema.Views;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import org.konaframework.session.Csrf;
+import org.konaframework.session.Session;
+import org.konaframework.session.StoreSession;
+
+import java.util.List;
+import java.util.Map;
+
+public class LoginController {
+    public Response show(Request request) {
+        Session session = (Session) request.session();
+        @SuppressWarnings("unchecked")
+        Map<String, List<String>> errors = (Map<String, List<String>>) session.get(StoreSession.ERRORS);
+        String error = "";
+        if (errors != null && errors.get("email") != null && !errors.get("email").isEmpty()) {
+            error = errors.get("email").get(0);
+        }
+        String email = request.old("email", "");
+        return Views.make(
+            "login",
+            Map.of(
+                "name", Env.getOrDefault("APP_NAME", "Kona"),
+                "_token", Csrf.token(session),
+                "email", email == null ? "" : email,
+                "error", error
+            )
+        ).toResponse();
+    }
+
+    public Response store(Request request) {
+        String email = request.input("email") == null ? "" : request.input("email").toString();
+        String password = request.input("password") == null ? "" : request.input("password").toString();
+        Auth.setRequest(request);
+        if (!Auth.attempt(Map.of("email", email, "password", password))) {
+            return Response.redirect("/login", 302)
+                .withErrors(Map.of("email", List.of("These credentials do not match our records.")))
+                .withInput(Map.of("email", email));
+        }
+        return Response.redirect(Authenticate.pullIntended(request, "/dashboard"), 302);
+    }
+
+    public Response destroy(Request request) {
+        Auth.setRequest(request);
+        Auth.logout();
+        return Response.redirect("/", 302);
+    }
+}

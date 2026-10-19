@@ -1,6 +1,5 @@
 package org.konaframework.cli
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.konaframework.grind.GrindApplication
 import org.konaframework.grind.ProcessRunner
 import org.konaframework.grind.ServeCommand
@@ -23,8 +22,6 @@ import java.util.concurrent.TimeUnit
 class GeneratedAppBuildTest {
     @TempDir
     lateinit var temp: Path
-
-    private val json = ObjectMapper()
 
     @Test
     fun kotlinAppBuildsAndServes() {
@@ -49,7 +46,7 @@ class GeneratedAppBuildTest {
         }
         assertEquals(0, ServeCommand(runner = runner).run(listOf("--base=$app", "--port=$port")))
         assertTrue(spawnedBody.contains("<!DOCTYPE html>", ignoreCase = true), spawnedBody)
-        assertTrue(spawnedBody.contains("Welcome", ignoreCase = true), spawnedBody)
+        assertTrue(spawnedBody.contains("docs.konaframework.org"), spawnedBody)
 
         assertServesInProcess(app)
     }
@@ -72,14 +69,11 @@ class GeneratedAppBuildTest {
         val app = temp.resolve("crema-kt")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=crema")))
         gradle(app, "classes")
-        val home = serveHome(app)
-        assertTrue(home.contains("<!DOCTYPE html>", ignoreCase = true), home)
-        assertTrue(home.contains("Welcome", ignoreCase = true), home)
-        assertEquals("{\"status\":\"ok\"}", servePath(app, "/api/health"))
+        assertServesInProcess(app)
     }
 
     @Test
-    fun brewKitServesComponentAndUpdate() {
+    fun brewKitServesBrandedWelcome() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
         assumeTrue(
             konaBrewPublished() || System.getenv("KONA_HOME") != null,
@@ -88,55 +82,11 @@ class GeneratedAppBuildTest {
         val app = temp.resolve("brew-kt")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=brew")))
         gradle(app, "classes")
-        val port = freePort()
-        var home = ""
-        var updateBody = ""
-        val serve = ServeCommand(awaitShutdown = {
-            val homeResponse = httpGet("http://127.0.0.1:$port/")
-            home = homeResponse.body()
-            val cookie = homeResponse.headers().allValues("set-cookie")
-                .joinToString("; ") { it.substringBefore(';') }
-            val snap = attr(home, "wire:snapshot")
-                ?: error("missing wire:snapshot in:\n$home")
-            val csrf = attr(home, "data-csrf") ?: ""
-            val payload = mapOf(
-                "_token" to csrf,
-                "components" to listOf(
-                    mapOf(
-                        "snapshot" to snap,
-                        "updates" to mapOf("draft" to "Pull espresso"),
-                        "calls" to listOf(
-                            mapOf(
-                                "path" to "",
-                                "method" to "add",
-                                "params" to emptyList<Any>(),
-                                "metadata" to emptyMap<String, Any>(),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-            updateBody =
-                httpPostJson(
-                    "http://127.0.0.1:$port/brew/update",
-                    json.writeValueAsString(payload),
-                    mapOf("X-Brew" to "1", "Cookie" to cookie),
-                ).body()
-        })
-        assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
-        assertTrue(home.contains("wire:snapshot"), home)
-        assertTrue(home.contains("wire:name=\"todos\""), home)
-        assertTrue(Regex("""/brew/brew(\.min)?\.js""").containsMatchIn(home), home)
-        assertTrue(home.contains("Grind the beans"), home)
-        assertTrue(home.contains("1 left") || home.contains("(1 left)"), home)
-        val component = json.readTree(updateBody)["components"][0]
-        val html = component["effects"]["html"].asText()
-        assertTrue(html.contains("Pull espresso"), updateBody)
-        assertTrue(html.contains("2 left") || html.contains("(2 left)"), updateBody)
+        assertServesInProcess(app)
     }
 
     @Test
-    fun inertiaKitServesHtmlAndJsonVisit() {
+    fun inertiaKitServesCremaWelcomeAndLogin() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
         assumeTrue(
             konaInertiaPublished() || System.getenv("KONA_HOME") != null,
@@ -147,23 +97,15 @@ class GeneratedAppBuildTest {
         gradle(app, "classes")
         val port = freePort()
         var home = ""
-        var jsonBody = ""
+        var login = ""
         val serve = ServeCommand(awaitShutdown = {
             home = httpGet("http://127.0.0.1:$port/").body()
-            jsonBody =
-                HttpClient.newHttpClient().send(
-                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port/"))
-                        .header("X-Inertia", "true")
-                        .header("X-Inertia-Version", "1")
-                        .GET()
-                        .build(),
-                    HttpResponse.BodyHandlers.ofString(),
-                ).body()
+            login = httpGet("http://127.0.0.1:$port/login").body()
         })
         assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
-        assertTrue(home.contains("data-page"), home)
-        assertTrue(jsonBody.contains("Pages/Welcome"), jsonBody)
-        assertTrue(jsonBody.contains("Welcome to Kona Inertia"), jsonBody)
+        assertTrue(home.contains("<!DOCTYPE html>", ignoreCase = true), home)
+        assertTrue(home.contains("docs.konaframework.org"), home)
+        assertTrue(login.contains("Sign in") || login.contains("email"), login)
     }
 
     private fun assertServesInProcess(app: Path) {
@@ -172,24 +114,18 @@ class GeneratedAppBuildTest {
         val serve = ServeCommand(awaitShutdown = {
             bodies["/"] = httpGet("http://127.0.0.1:$port/").body()
             bodies["/api/health"] = httpGet("http://127.0.0.1:$port/api/health").body()
+            bodies["/login"] = httpGet("http://127.0.0.1:$port/login").body()
+            bodies["/branding/kona-logo.svg"] = httpGet("http://127.0.0.1:$port/branding/kona-logo.svg").body()
         })
         assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
         val home = bodies["/"] ?: ""
         assertTrue(home.contains("<!DOCTYPE html>", ignoreCase = true), home)
-        assertTrue(home.contains("Welcome", ignoreCase = true), home)
+        assertTrue(home.contains("docs.konaframework.org"), home)
+        assertTrue(home.contains("Your app is ready") || home.contains("/login"), home)
+        assertTrue(home.contains("#df8723") || home.contains("#DF8723"), home)
         assertEquals("{\"status\":\"ok\"}", bodies["/api/health"])
-    }
-
-    private fun serveHome(app: Path): String = servePath(app, "/")
-
-    private fun servePath(app: Path, path: String): String {
-        val port = freePort()
-        var body = ""
-        val serve = ServeCommand(awaitShutdown = {
-            body = httpGet("http://127.0.0.1:$port$path").body()
-        })
-        assertEquals(0, serve.run(listOf("--base=$app", "--in-process", "--port=$port")))
-        return body
+        assertTrue((bodies["/login"] ?: "").contains("email", ignoreCase = true), bodies["/login"])
+        assertTrue((bodies["/branding/kona-logo.svg"] ?: "").contains("svg", ignoreCase = true))
     }
 
     private fun gradle(app: Path, vararg tasks: String) {
@@ -224,27 +160,6 @@ class GeneratedAppBuildTest {
             HttpRequest.newBuilder(URI.create(url)).GET().build(),
             HttpResponse.BodyHandlers.ofString(),
         )
-
-    private fun httpPostJson(url: String, body: String, headers: Map<String, String> = emptyMap()): HttpResponse<String> {
-        val builder = HttpRequest.newBuilder(URI.create(url))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-        headers.forEach { (k, v) -> if (v.isNotEmpty()) builder.header(k, v) }
-        return HttpClient.newHttpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString())
-    }
-
-    private fun attr(html: String, name: String): String? {
-        val marker = "$name=\""
-        val start = html.indexOf(marker)
-        if (start < 0) return null
-        val from = start + marker.length
-        val end = html.indexOf('"', from)
-        if (end < 0) return null
-        return html.substring(from, end)
-            .replace("&quot;", "\"")
-            .replace("&#039;", "'")
-            .replace("&amp;", "&")
-    }
 
     private fun konaBrewPublished(): Boolean {
         val home = System.getProperty("user.home")

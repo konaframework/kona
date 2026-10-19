@@ -1,12 +1,16 @@
 package routes
 
+import app.http.controllers.api.UserController
 import org.konaframework.http.Response
 import org.konaframework.http.Router
 
 class ApiRoutes {
     fun register(router: Router) {
+        val users = UserController()
         router.group(prefix = "/api", name = "api.") {
             get("/health") { Response.json(mapOf("status" to "ok")) }.name("health")
+            get("/users") { users.index(it) }.name("users.index")
+            get("/users/{id}") { users.show(it) }.name("users.show")
         }
     }
 }
