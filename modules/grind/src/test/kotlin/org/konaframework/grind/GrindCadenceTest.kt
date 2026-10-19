@@ -44,11 +44,17 @@ class GrindCadenceTest {
     fun makeMigrationInfersCreateAlterAndBlank() {
         val base = temp.resolve("app")
         Files.createDirectories(base)
-        assertEquals(0, grind("make:migration", "create_flights_table", "--base=$base", "--lang=kotlin").first)
+        val (created, createOut) = grind("make:migration", "create_flights_table", "--base=$base", "--lang=kotlin")
+        assertEquals(0, created)
+        assertTrue(createOut.contains("Registered in META-INF/kona/migrations"))
         val create = read(base, "src/main/kotlin/database/migrations/CreateFlightsTable.kt")
         assertTrue(create.contains("class CreateFlightsTable : Migration"))
         assertTrue(create.contains("        schema.create(\"flights\") {\n            id()\n            timestamps()\n        }\n"))
         assertTrue(create.contains("schema.dropIfExists(\"flights\")"))
+        assertTrue(
+            read(base, "src/main/resources/META-INF/kona/migrations")
+                .contains("database.migrations.CreateFlightsTable"),
+        )
 
         grind("make:migration", "add_gate_to_flights_table", "--base=$base", "--lang=kotlin")
         assertTrue(read(base, "src/main/kotlin/database/migrations/AddGateToFlightsTable.kt").contains("schema.table(\"flights\") {"))
@@ -66,6 +72,23 @@ class GrindCadenceTest {
         val (code, out) = grind("make:migration", "create_flights_table", "--base=$base", "--lang=kotlin")
         assertEquals(1, code)
         assertEquals("", out)
+
+        // appendDiscovery early-return: source gone, meta line kept → recreate skips re-register
+        val meta = base.resolve("src/main/resources/META-INF/kona/migrations")
+        Files.delete(base.resolve("src/main/kotlin/database/migrations/CreateFlightsTable.kt"))
+        val (recreated, recreateOut) = grind("make:migration", "create_flights_table", "--base=$base", "--lang=kotlin")
+        assertEquals(0, recreated)
+        assertFalse(recreateOut.contains("Registered in META-INF/kona/migrations"))
+        assertEquals(
+            1,
+            Files.readString(meta).lineSequence().count { it.trim() == "database.migrations.CreateFlightsTable" },
+        )
+
+        // meta without trailing newline → prefix "\n" before next FQCN
+        Files.writeString(meta, Files.readString(meta).trimEnd())
+        assertEquals(0, grind("make:migration", "create_gates_table", "--base=$base", "--lang=kotlin").first)
+        assertTrue(Files.readString(meta).contains("database.migrations.CreateGatesTable"))
+
         assertEquals(1, grind("make:migration").first)
         assertEquals(1, grind("make:migration", "Bad-Name", "--base=$base").first)
         assertEquals(1, grind("make:migration", "../evil", "--base=$base").first)
@@ -82,6 +105,13 @@ class GrindCadenceTest {
         assertTrue(read(base, "src/main/kotlin/database/migrations/CreateBlogPostsTable.kt").contains("schema.create(\"blog_posts\")"))
         assertTrue(read(base, "src/main/kotlin/database/factories/BlogPostFactory.kt").contains("class BlogPostFactory : Factory<BlogPost>(BlogPost::class.java)"))
         assertTrue(read(base, "src/main/kotlin/database/seeders/BlogPostSeeder.kt").contains("class BlogPostSeeder : Seeder()"))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/controllers/BlogPostController.kt")))
+        assertTrue(read(base, "src/main/kotlin/app/http/controllers/BlogPostController.kt").contains("fun index"))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/policies/BlogPostPolicy.kt")))
+        assertTrue(
+            read(base, "src/main/resources/META-INF/kona/migrations")
+                .contains("database.migrations.CreateBlogPostsTable"),
+        )
 
         grind("make:model", "Category", "--migration", "--base=$base")
         assertTrue(Files.exists(base.resolve("src/main/kotlin/database/migrations/CreateCategoriesTable.kt")))
@@ -91,6 +121,20 @@ class GrindCadenceTest {
         grind("make:model", "Plain", "--seeder", "--base=$base")
         assertTrue(Files.exists(base.resolve("src/main/kotlin/database/seeders/PlainSeeder.kt")))
 
+        grind("make:model", "Ticket", "-mcr", "--base=$base")
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/database/migrations/CreateTicketsTable.kt")))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/controllers/TicketController.kt")))
+        assertTrue(read(base, "src/main/kotlin/app/http/controllers/TicketController.kt").contains("fun store"))
+
+        grind("make:model", "Note", "-c", "--base=$base")
+        val noteController = read(base, "src/main/kotlin/app/http/controllers/NoteController.kt")
+        assertTrue(noteController.contains("fun index"))
+        assertFalse(noteController.contains("fun store"))
+
+        grind("make:model", "Article", "--policy", "--base=$base")
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/policies/ArticlePolicy.kt")))
+        assertTrue(read(base, "src/main/kotlin/app/policies/ArticlePolicy.kt").contains("import app.models.Article"))
+
         val javaBase = temp.resolve("java")
         Files.createDirectories(javaBase.resolve("src/main/java/app"))
         Files.writeString(javaBase.resolve("src/main/java/app/Existing.java"), "class Existing {}")
@@ -99,6 +143,8 @@ class GrindCadenceTest {
         assertTrue(read(javaBase, "src/main/java/database/migrations/CreateFlightsTable.java").contains("implements Migration"))
         assertTrue(read(javaBase, "src/main/java/database/factories/FlightFactory.java").contains("super(Flight.class);"))
         assertTrue(read(javaBase, "src/main/java/database/seeders/FlightSeeder.java").contains("public class FlightSeeder extends Seeder"))
+        assertTrue(Files.exists(javaBase.resolve("src/main/java/app/http/controllers/FlightController.java")))
+        assertTrue(Files.exists(javaBase.resolve("src/main/java/app/policies/FlightPolicy.java")))
 
         assertEquals(1, grind("make:model", "Flight", "--base=$javaBase").first)
         assertEquals(1, grind("make:model").first)
@@ -199,5 +245,22 @@ class GrindCadenceTest {
         val (code, out) = grind("migrate:status", "--base=$project", "--bootstrap=org.konaframework.grind.EmptyRegistryApp")
         assertEquals(0, code)
         assertTrue(out.contains("No migrations registered."))
+    }
+
+    @Test
+    fun resolveRegistryDiscoversMetaInfWhenUnbound() {
+        val root = temp.resolve("discover")
+        val meta = root.resolve("META-INF/kona")
+        Files.createDirectories(meta)
+        Files.writeString(meta.resolve("migrations"), CreateWidgetsTable::class.java.name + "\n")
+        val loader = java.net.URLClassLoader(arrayOf(root.toUri().toURL()), javaClass.classLoader)
+        val app = org.konaframework.core.Application.builder(root).build()
+        val registry = MigrateCommand.resolveRegistry(app, loader)
+        assertEquals(listOf("CreateWidgetsTable"), registry.names)
+
+        val emptyLoader = java.net.URLClassLoader(arrayOf(temp.resolve("empty-meta").also { Files.createDirectories(it) }.toUri().toURL()), javaClass.classLoader)
+        assertThrows(GrindException::class.java) {
+            MigrateCommand.resolveRegistry(org.konaframework.core.Application.builder(temp.resolve("empty-app")).build(), emptyLoader)
+        }
     }
 }

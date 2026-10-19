@@ -142,9 +142,6 @@ internal fun parseOptions(args: List<String>): Pair<List<String>, Map<String, St
     val options = linkedMapOf<String, String>()
     args.forEach { arg ->
         when {
-            arg == "-v" -> options["verbose"] = "true"
-            arg == "-q" -> options["quiet"] = "true"
-            arg == "-h" -> options["help"] = "true"
             arg.startsWith("--") -> {
                 val body = arg.removePrefix("--")
                 val idx = body.indexOf('=')
@@ -152,6 +149,27 @@ internal fun parseOptions(args: List<String>): Pair<List<String>, Map<String, St
                     options[body] = "true"
                 } else {
                     options[body.substring(0, idx)] = body.substring(idx + 1)
+                }
+                // Laravel aliases: --seed → seeder
+                if (options.containsKey("seed") && !options.containsKey("seeder")) {
+                    options["seeder"] = options.getValue("seed")
+                }
+            }
+            // Short / clustered Laravel-style flags: -m, -mcr, -a, -v, …
+            arg.startsWith("-") && arg.length > 1 -> {
+                for (c in arg.removePrefix("-")) {
+                    when (c) {
+                        'v' -> options["verbose"] = "true"
+                        'q' -> options["quiet"] = "true"
+                        'h' -> options["help"] = "true"
+                        'm' -> options["migration"] = "true"
+                        'f' -> options["factory"] = "true"
+                        's' -> options["seeder"] = "true"
+                        'c' -> options["controller"] = "true"
+                        'r' -> options["resource"] = "true"
+                        'p' -> options["policy"] = "true"
+                        'a' -> options["all"] = "true"
+                    }
                 }
             }
             else -> positional += arg

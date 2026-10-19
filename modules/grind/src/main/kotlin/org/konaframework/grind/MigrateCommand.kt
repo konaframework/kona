@@ -3,6 +3,7 @@ package org.konaframework.grind
 import org.konaframework.core.Application
 import org.konaframework.core.Kona
 import org.konaframework.cadence.Database
+import org.konaframework.cadence.migrations.MigrationDiscovery
 import org.konaframework.cadence.migrations.MigrationRegistry
 import org.konaframework.cadence.migrations.Migrator
 
@@ -10,8 +11,8 @@ import org.konaframework.cadence.migrations.Migrator
  * `grind migrate`, `migrate:rollback [--step=N]`, `migrate:reset`, `migrate:status`.
  *
  * Boots the application in-process (from `build/classes`, via `--bootstrap=bootstrap.App`), then
- * uses the [MigrationRegistry] bound in its container and its [Database] — the bound instance, or
- * one built from the `database` config section. `--database=name` picks a named connection.
+ * uses the [MigrationRegistry] bound in its container, or migrations discovered from
+ * `META-INF/kona/migrations`, plus its [Database]. `--database=name` picks a named connection.
  */
 class MigrateCommand(private val action: Action) {
     enum class Action { MIGRATE, ROLLBACK, RESET, STATUS }
@@ -19,15 +20,8 @@ class MigrateCommand(private val action: Action) {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
         val io = GrindIO.fromOptions(options)
-        withApplication(options) { app, _ ->
-            val registry = if (app.container.bound(MigrationRegistry::class.java)) {
-                app.resolve(MigrationRegistry::class.java)
-            } else {
-                throw GrindException(
-                    "No migrations registered: bind a MigrationRegistry in a service provider " +
-                        "(app.container.instance(MigrationRegistry::class.java, MigrationRegistry(...)))",
-                )
-            }
+        withApplication(options) { app, loader ->
+            val registry = resolveRegistry(app, loader)
             withDatabase(app) { database ->
                 val name = options["database"]
                 val connection = if (name == null) database.connection() else database.connection(name)
@@ -73,6 +67,20 @@ class MigrateCommand(private val action: Action) {
     }
 
     companion object {
+        internal fun resolveRegistry(app: Application, loader: ClassLoader): MigrationRegistry {
+            if (app.container.bound(MigrationRegistry::class.java)) {
+                return app.resolve(MigrationRegistry::class.java)
+            }
+            val discovered = MigrationDiscovery.loadRegistry(loader)
+            if (discovered.names.isEmpty()) {
+                throw GrindException(
+                    "No migrations registered. Run grind make:migration (auto-registers in " +
+                        "${MigrationDiscovery.RESOURCE}), or bind a MigrationRegistry in a service provider.",
+                )
+            }
+            return discovered
+        }
+
         /** Boots the app found at or above `--base` in-process and hands it to [block]. */
         internal fun withApplication(options: Map<String, String>, block: (Application, ClassLoader) -> Unit) {
             val start = Names.base(options)

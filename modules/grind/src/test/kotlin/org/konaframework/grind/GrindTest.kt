@@ -213,7 +213,10 @@ class GrindTest {
 
         val serve = ServeCommand(runner = runner, windows = false)
         assertEquals(7, serve.run(listOf("--base=${app.resolve("routes/nested")}", "--host=0.0.0.0", "--port=9000")))
-        assertEquals(listOf(app.resolve("gradlew").toString(), "run"), calls[0].first)
+        assertEquals(
+            listOf(app.resolve("gradlew").toString(), "--quiet", "--console=plain", "run"),
+            calls[0].first,
+        )
         assertEquals(app, calls[0].second)
         assertEquals(mapOf("HOST" to "0.0.0.0", "PORT" to "9000"), calls[0].third)
 
@@ -226,9 +229,15 @@ class GrindTest {
         assertEquals("127.0.0.1", calls[1].third["HOST"])
         assertEquals(freePort.toString(), calls[1].third["PORT"])
 
-        assertEquals(listOf(app.resolve("gradlew.bat").toString(), "run"), ServeCommand(windows = true).gradleCommand(app))
+        assertEquals(
+            listOf(app.resolve("gradlew.bat").toString(), "--quiet", "--console=plain", "run"),
+            ServeCommand(windows = true).gradleCommand(app),
+        )
         val noWrapper = fixtureProject(temp.resolve("nowrapper"))
-        assertEquals(listOf("gradle", "run"), ServeCommand(windows = false).gradleCommand(noWrapper))
+        assertEquals(
+            listOf("gradle", "--quiet", "--console=plain", "run"),
+            ServeCommand(windows = false).gradleCommand(noWrapper),
+        )
     }
 
     @Test
@@ -540,6 +549,18 @@ class GrindTest {
         assertEquals(listOf("a"), pos)
         assertEquals("true", opt["flag"])
         assertEquals("v", opt["k"])
+
+        val (_, short) = parseOptions(listOf("Post", "-mcr", "--seed"))
+        assertEquals("true", short["migration"])
+        assertEquals("true", short["controller"])
+        assertEquals("true", short["resource"])
+        assertEquals("true", short["seeder"])
+
+        val (_, all) = parseOptions(listOf("-a", "-fsp"))
+        assertEquals("true", all["all"])
+        assertEquals("true", all["factory"])
+        assertEquals("true", all["seeder"])
+        assertEquals("true", all["policy"])
     }
 
     private fun stubGradleApp(dir: Path): Path {

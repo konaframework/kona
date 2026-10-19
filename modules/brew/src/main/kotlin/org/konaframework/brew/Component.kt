@@ -38,7 +38,14 @@ abstract class Component {
     /** Rendering hook: return a [BrewView] / HTML string, or `null` to use [template] or the convention view. */
     open fun render(): Any? = null
 
-    /** Inline Crema source for single-file components. Kotlin raw strings: write `{{ count }}` (the `$` is optional). */
+    /**
+     * Inline Crema source for single-file components. Kotlin raw strings: write `{{ count }}`
+     * (the `$` is optional).
+     *
+     * For IDE highlighting, put `// language=Crema` on the line above the string (IntelliJ /
+     * Kona Idea), or keep markup in `views/brew/<name>.crema.html`. See [CremaTemplate].
+     */
+    @CremaTemplate
     open fun template(): String? = null
 
     /** Crema view `name` with optional [data] (`view('livewire.x', [...])`). */

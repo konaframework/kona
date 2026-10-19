@@ -13,6 +13,24 @@ Brew renders HTML through **Crema**. Each component must produce a **single root
 
 Inside templates, public properties and `@Computed` methods are in scope as Crema data.
 
+### IDE support for inline `template()`
+
+Crema highlighting in IntelliJ IDEA (Kona plugin) and VS Code (vscode-crema) works best on `*.crema.html` files. For Brew single-file components, put an IntelliJ language comment above the string — the same idea as Laravel's `<<<'BLADE'` heredoc:
+
+```kotlin
+override fun template(): String =
+    // language=Crema
+    """
+        <div>
+            <p>Count: {{ count }}</p>
+            <button type="button" wire:click="decrement">-</button>
+            <button type="button" wire:click="increment">+</button>
+        </div>
+    """.trimIndent()
+```
+
+`Component.template()` is also marked with `@CremaTemplate` so IDE plugins can inject Crema into that return value automatically when supported.
+
 ## Tags and directives
 
 | Surface | Example |

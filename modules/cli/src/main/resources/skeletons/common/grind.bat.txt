@@ -1,8 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
+rem Quiet Gradle — only grind (Termwind) output should appear.
 if "%~1"=="" (
-  call gradlew.bat -q grind
+  call gradlew.bat --quiet --console=plain grind
 ) else (
-  call gradlew.bat -q grind -PgrindArgs="%*"
+  call gradlew.bat --quiet --console=plain grind -PgrindArgs="%*"
 )

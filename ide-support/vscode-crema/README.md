@@ -22,6 +22,22 @@ Or copy/symlink `ide-support/vscode-crema` into your extensions folder and reloa
 - TextMate grammar (directives, Brew `wire:*` attributes, `{{ }}`, `{!! !!}`, `{{-- --}}`)
 - Language configuration (comments, folding)
 
+### Inline Brew `template()` strings
+
+Prefer a `views/brew/<name>.crema.html` file for full language support. For single-file
+components, IntelliJ IDEA with the Kona plugin understands:
+
+```kotlin
+override fun template(): String =
+    // language=Crema
+    """
+        <div>{{ count }}</div>
+    """.trimIndent()
+```
+
+That is the Crema equivalent of Laravel's `<<<'BLADE'` heredoc. `Component.template()` is
+also annotated `@CremaTemplate` for automatic injection when the IDE supports it.
+
 ## Language server (kona-lsp)
 
 1. Build the jar from the Kona repo:

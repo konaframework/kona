@@ -5,6 +5,8 @@ enum class ColumnType {
     ID,
     STRING,
     TEXT,
+    LONG_TEXT,
+    JSON,
     INTEGER,
     BIG_INTEGER,
     BOOLEAN,
@@ -113,6 +115,12 @@ class Blueprint(val table: String) {
     }
 
     fun text(name: String): ColumnDefinition = add(name, ColumnType.TEXT)
+
+    /** Unbounded long text (`LONGTEXT` on MySQL; `TEXT` elsewhere). */
+    fun longText(name: String): ColumnDefinition = add(name, ColumnType.LONG_TEXT)
+
+    /** JSON document column (`JSON` on MySQL/Postgres; `TEXT` / `CHARACTER VARYING` elsewhere). */
+    fun json(name: String): ColumnDefinition = add(name, ColumnType.JSON)
 
     fun integer(name: String): ColumnDefinition = add(name, ColumnType.INTEGER)
 

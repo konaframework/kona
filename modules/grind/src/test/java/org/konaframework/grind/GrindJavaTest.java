@@ -29,7 +29,10 @@ class GrindJavaTest {
         assertNull(ServeCommand.findProjectRoot(temp));
 
         ProcessRunner runner =
-                (command, dir, env) -> command.equals(List.of(app.resolve("gradlew").toString(), "run")) ? 0 : 1;
+                (command, dir, env) -> command.equals(
+                                List.of(app.resolve("gradlew").toString(), "--quiet", "--console=plain", "run"))
+                        ? 0
+                        : 1;
         assertEquals(0, new ServeCommand(server -> kotlin.Unit.INSTANCE, runner, false).run(List.of("--base=" + app)));
 
         assertEquals(1, new GrindApplication().run(new String[] {"new", "x"}));

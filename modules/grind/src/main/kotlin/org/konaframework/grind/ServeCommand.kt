@@ -44,7 +44,8 @@ constructor(
     internal fun gradleCommand(root: Path): List<String> {
         val wrapper = root.resolve(if (windows) "gradlew.bat" else "gradlew")
         val gradle = if (Files.isRegularFile(wrapper)) wrapper.toString() else "gradle"
-        return listOf(gradle, "run")
+        // Quiet Gradle so Termwind grind banners are not drowned by build lifecycle noise.
+        return listOf(gradle, "--quiet", "--console=plain", "run")
     }
 
     private fun serveWithGradle(root: Path, options: Map<String, String>): Int {
