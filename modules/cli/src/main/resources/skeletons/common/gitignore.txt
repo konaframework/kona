@@ -11,5 +11,8 @@ storage/framework/*
 !storage/framework/.gitkeep
 storage/database/*
 !storage/database/.gitkeep
+# Default SQLite file (project-root database/, not src/.../database)
+/database/*.sqlite
+/database/*.sqlite-*
 *.mv.db
 *.trace.db

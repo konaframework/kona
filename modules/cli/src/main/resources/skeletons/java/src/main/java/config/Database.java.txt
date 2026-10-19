@@ -71,7 +71,7 @@ public final class Database implements ConfigFile {
         ));
 
         Map<String, Object> values = new LinkedHashMap<>();
-        // DB_CONNECTION selects which named map above is the default (h2 for zero-install demos).
+        // DB_CONNECTION selects which named map above is the default (sqlite for zero-install demos).
         values.put("default", Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"));
         values.put("connections", connections);
         return values;

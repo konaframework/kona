@@ -179,14 +179,14 @@ Scaffold `config/Database` reads:
 
 | Variable | Default when unset |
 |----------|--------------------|
-| `DB_CONNECTION` | `main` |
-| `DB_URL` | file H2 (`jdbc:h2:file:./storage/database/kona;…;AUTO_SERVER=TRUE`) |
-| `DB_USERNAME` | `sa` |
+| `DB_CONNECTION` | `sqlite` |
+| `DB_URL` | SQLite file (`jdbc:sqlite:database/database.sqlite`) |
+| `DB_USERNAME` | empty (SQLite) |
 | `DB_PASSWORD` | empty |
 
-Local scaffolds use **file** H2 so migrate, seed, and serve share data across processes. In-memory H2 (`jdbc:h2:mem:…`) is fine for unit tests only — each JVM gets an empty DB.
+Local scaffolds use **SQLite** at `database/database.sqlite` so migrate, seed, and serve share data across processes. Use `kona new --database=h2` for file H2. In-memory H2 (`jdbc:h2:mem:…`) is fine for unit tests only.
 
-**Do not rely on H2 for production data.** Point `DB_URL` at PostgreSQL, MySQL, or another supported JDBC URL, set credentials, and run migrations as part of deploy:
+**Do not rely on SQLite or H2 for production data.** Point `DB_URL` at PostgreSQL, MySQL, or another supported JDBC URL, set credentials, and run migrations as part of deploy:
 
 ```bash
 export DB_URL='jdbc:postgresql://db.internal:5432/kona'

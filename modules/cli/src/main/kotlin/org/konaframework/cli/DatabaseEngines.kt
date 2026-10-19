@@ -11,11 +11,25 @@ object DatabaseEngines {
         val defaultUrl: String,
         val defaultUsername: String,
         val defaultPassword: String,
-        /** Gradle `runtimeOnly("…")` coordinate, or null when H2 is already on every skeleton. */
+        /**
+         * Gradle `runtimeOnly("…")` coordinate, or null when the driver is already on every
+         * skeleton (SQLite is the zero-install `kona new` default).
+         */
         val runtimeDependency: String?,
     )
 
+    /** Engine used when `kona new` omits `--database=`. */
+    const val DEFAULT_NAME: String = "sqlite"
+
     val ALL: List<Engine> = listOf(
+        Engine(
+            name = "sqlite",
+            connectionKey = "sqlite",
+            defaultUrl = "jdbc:sqlite:database/database.sqlite",
+            defaultUsername = "",
+            defaultPassword = "",
+            runtimeDependency = null,
+        ),
         Engine(
             name = "h2",
             connectionKey = "h2",
@@ -23,15 +37,7 @@ object DatabaseEngines {
             defaultUrl = "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE",
             defaultUsername = "sa",
             defaultPassword = "",
-            runtimeDependency = null,
-        ),
-        Engine(
-            name = "sqlite",
-            connectionKey = "sqlite",
-            defaultUrl = "jdbc:sqlite:database/database.sqlite",
-            defaultUsername = "",
-            defaultPassword = "",
-            runtimeDependency = "org.xerial:sqlite-jdbc:3.49.1.0",
+            runtimeDependency = "com.h2database:h2:2.3.232",
         ),
         Engine(
             name = "mysql",

@@ -7,7 +7,7 @@ object Database : ConfigFile {
     override fun key(): String = "database"
 
     override fun config(): Map<String, Any?> = mapOf<String, Any?>(
-        // DB_CONNECTION selects which named map below is the default (h2 for zero-install demos).
+        // DB_CONNECTION selects which named map below is the default (sqlite for zero-install demos).
         "default" to Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"),
         "connections" to mapOf(
             "main" to mapOf(

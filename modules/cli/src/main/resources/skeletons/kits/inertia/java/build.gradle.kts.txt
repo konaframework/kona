@@ -23,8 +23,8 @@ dependencies {
     implementation("org.konaframework:kona-mail:{{konaVersion}}")
     implementation("org.konaframework:kona-crema:{{konaVersion}}")
     implementation("org.konaframework:kona-inertia:{{konaVersion}}")
-    // Matches default H2 URL in config/Database (zero-install local demos).
-    runtimeOnly("com.h2database:h2:2.3.232")
+    // Matches default SQLite URL in config/Database (zero-install local demos).
+    runtimeOnly("org.xerial:sqlite-jdbc:3.49.1.0")
 }
 
 java {
