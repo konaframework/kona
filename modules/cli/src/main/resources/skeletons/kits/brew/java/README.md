@@ -8,8 +8,22 @@ Kona application (Java) — **Brew** starter kit.
 ./grind serve
 ```
 
-Includes `org.konaframework:kona-brew` and `kona-crema`, plus the same branded landing, session login, dashboard, and `User` model as the Crema kit.
+Includes `org.konaframework:kona-brew` and `kona-crema`, the branded landing / login / dashboard,
+and a sample `app.brew.Counter` mounted on welcome as `<brew:counter />`.
 
-## Adding a Brew component
+## Adding another Brew component
 
-Create a class under `app.brew` that extends `org.konaframework.brew.Component`, implement `template()`, register it with `Brew.register(Hello.class)` in `bootstrap.App`, then embed it in a Crema view (`<brew:hello />` or `wire:name="hello"`).
+```bash
+./grind make:brew Hello --lang=java
+```
+
+That writes `app/brew/Hello.java`. Classes under `app.brew` resolve automatically — no manual
+registration. Embed in a Crema view:
+
+```crema
+<brew:hello />
+{{-- or --}}
+@brew('hello')
+```
+
+See https://docs.konaframework.org/docs/brew/

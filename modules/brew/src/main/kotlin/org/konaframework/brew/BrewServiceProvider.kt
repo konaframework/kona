@@ -23,6 +23,11 @@ class BrewServiceProvider : ServiceProvider {
     override fun boot(app: Application) {
         val brew = app.resolve(BrewManager::class.java)
         Brew.setManager(brew)
+        // Always attach the app Crema engine so `<brew:…>` / `@brew` work even if BrewManager was
+        // constructed before CremaEngine was first resolved (or constructed with views=null).
+        if (app.container.bound(CremaEngine::class.java)) {
+            brew.setViews(app.resolve(CremaEngine::class.java))
+        }
         // Capture the app classloader (set by AppLoader / the creating thread) before request VTs spawn.
         Thread.currentThread().contextClassLoader?.let { brew.registry.classLoader = it }
         brew.config.classNamespaces.forEach { brew.registry.addLocation(it) }

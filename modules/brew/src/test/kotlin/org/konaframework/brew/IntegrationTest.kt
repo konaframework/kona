@@ -196,6 +196,23 @@ class IntegrationTest {
     }
 
     @Test
+    fun `service provider attaches Crema tags when BrewManager started without views`(@TempDir dir: Path) {
+        val app = Application(dir)
+        app.config.set("app.key", "provider-key")
+        app.register(HttpServiceProvider()).register(CremaServiceProvider())
+        // Simulate a BrewManager constructed with views=null (Crema unbound at factory time).
+        app.container.singleton(BrewManager::class.java) {
+            BrewManager(BrewConfig.from(app.config), null, app.container)
+        }
+        BrewServiceProvider().boot(app)
+        assertTrue(app.resolve(CremaEngine::class.java).extensions.hasTag("brew"))
+        val engine = app.resolve(CremaEngine::class.java)
+        app.resolve(BrewManager::class.java).component("counter", Counter::class.java)
+        val html = engine.renderSource("<brew:counter />", CremaContext())
+        assertTrue(html.contains("wire:name=\"counter\""), html)
+    }
+
+    @Test
     fun `service provider wires routes, middleware, facade and discovery`(@TempDir dir: Path) {
         val app = Application(dir)
         app.config.set("app.key", "provider-key")

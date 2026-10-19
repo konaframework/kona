@@ -127,12 +127,29 @@ internal object BrewCrema {
     }
 
     private fun resolveTagName(tag: CremaTag): String {
-        if (tag.name != "dynamic-component" && tag.name != "is") return tag.name
-        val fromIs = tag.attributes["is"]?.toString()
-        if (fromIs != null) return fromIs
-        val fromComponent = tag.attributes["component"]?.toString()
-        if (fromComponent != null) return fromComponent
-        error("<brew:dynamic-component> requires :is or :component")
+        val raw = when {
+            tag.name != "dynamic-component" && tag.name != "is" -> tag.name
+            else -> {
+                val fromIs = tag.attributes["is"]?.toString()
+                val fromComponent = tag.attributes["component"]?.toString()
+                fromIs ?: fromComponent
+                    ?: error("<brew:dynamic-component> requires :is or :component")
+            }
+        }
+        // `<brew:Counter />` and `<brew:counter />` both resolve the `counter` registration.
+        return normalizeComponentName(raw)
+    }
+
+    /** PascalCase / camelCase leaf → kebab-case (Livewire-style), dotted segments preserved. */
+    internal fun normalizeComponentName(name: String): String {
+        if (name.contains("::")) {
+            val ns = name.substringBefore("::")
+            val local = name.substringAfter("::")
+            return "$ns::${normalizeComponentName(local)}"
+        }
+        return name.split('.').joinToString(".") { segment ->
+            if (segment.any { it.isUpperCase() }) ComponentRegistry.kebab(segment) else segment
+        }
     }
 
     private val KEBAB = Regex("-+([a-zA-Z0-9])")
