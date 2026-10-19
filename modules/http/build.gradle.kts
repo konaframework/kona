@@ -7,6 +7,7 @@ plugins {
 dependencies {
     api(project(":kona-core"))
     api(project(":kona-filesystem"))
+    api(project(":kona-support"))
     api(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
     implementation(libs.netty.codec.http)

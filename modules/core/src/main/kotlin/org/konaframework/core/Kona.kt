@@ -65,6 +65,9 @@ object Kona {
         )
         config.set("logging.file", Env.getOrDefault("LOG_FILE", FileLogging.DEFAULT_FILE_NAME))
         config.set("logging.level", Env.getOrDefault("LOG_LEVEL", "info"))
+        Env.get("LOG_REQUESTS")?.let { raw ->
+            Config.toBoolean(raw)?.let { config.set("logging.requests", it) }
+        }
         LogManager.seedDefaults(config)
         application.refreshPathLayout()
     }
