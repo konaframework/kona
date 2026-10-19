@@ -116,6 +116,37 @@ class BinaryDownloadTest {
             "next",
             ServePublicStorage(disk, "/files").handle(Request.get("/storage/x")) { Response.text("next") }.body,
         )
+
+        val publicRoot = base.resolve("app-public")
+        java.nio.file.Files.createDirectories(publicRoot.resolve("branding"))
+        java.nio.file.Files.writeString(publicRoot.resolve("branding/kona-logo.svg"), "<svg/>")
+        val publicMw = ServePublicDirectory(publicRoot)
+        val logo = publicMw.handle(Request.get("/branding/kona-logo.svg")) { Response.text("next") }
+        assertArrayEquals("<svg/>".toByteArray(), logo.bodyBytes())
+        assertEquals("image/svg+xml", logo.headers["Content-Type"])
+        assertArrayEquals(
+            "<svg/>".toByteArray(),
+            publicMw.handle(Request("HEAD", "/branding/kona-logo.svg")) { Response.text("next") }.bodyBytes(),
+        )
+        assertEquals("next", publicMw.handle(Request.get("/missing.txt")) { Response.text("next") }.body)
+        assertEquals("next", publicMw.handle(Request.post("/branding/kona-logo.svg")) { Response.text("next") }.body)
+        assertEquals("next", publicMw.handle(Request.get("/")) { Response.text("next") }.body)
+        // `..` after normalize escapes the root → fall through.
+        assertEquals("next", publicMw.handle(Request.get("/../escape")) { Response.text("next") }.body)
+        // Nested `..` that still lands under root is served.
+        assertArrayEquals(
+            "<svg/>".toByteArray(),
+            publicMw.handle(Request.get("/branding/../branding/kona-logo.svg")) { Response.text("next") }.bodyBytes(),
+        )
+        // Symlink whose real path escapes the public root.
+        val outside = base.resolve("secret.txt")
+        java.nio.file.Files.writeString(outside, "nope")
+        val link = publicRoot.resolve("leak.txt")
+        runCatching {
+            java.nio.file.Files.createSymbolicLink(link, outside)
+        }.onSuccess {
+            assertEquals("next", publicMw.handle(Request.get("/leak.txt")) { Response.text("next") }.body)
+        }
     }
 
     @Test

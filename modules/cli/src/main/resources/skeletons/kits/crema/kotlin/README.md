@@ -5,6 +5,8 @@ Kona application (Kotlin) — **web** starter kit (Crema views).
 ## Everyday commands
 
 ```bash
+./grind migrate
+./grind db:seed
 ./grind serve
 ./grind make:view home
 ./gradlew run
@@ -13,6 +15,8 @@ Kona application (Kotlin) — **web** starter kit (Crema views).
 ## What this kit includes
 
 - `org.konaframework:kona-crema` dependency (Maven Central)
-- `CremaServiceProvider` registered in `bootstrap/App.kt`
-- `WelcomeController` on `/` rendering `src/main/resources/views/welcome.crema.html`
+- Branded landing at `/` (`welcome.crema.html`)
+- Session login at `/login` and dashboard at `/dashboard`
+- Cadence `User` model, `CreateUsersTable` migration, and demo seeder (`demo@kona.test` / `password`)
+- JSON users API: `GET /api/users`, `GET /api/users/{id}`
 - JSON health check at `/api/health`

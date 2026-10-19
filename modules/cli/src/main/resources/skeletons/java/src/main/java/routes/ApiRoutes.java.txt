@@ -1,13 +1,18 @@
 package routes;
 
+import app.http.controllers.api.UserController;
 import org.konaframework.http.Response;
 import org.konaframework.http.Router;
+
 import java.util.Map;
 
 public class ApiRoutes {
     public void register(Router router) {
-        router.prefix("/api").name("api.").group(api -> {
+        UserController users = new UserController();
+        router.group("/api", "api.", java.util.List.of(), api -> {
             api.get("/health", request -> Response.json(Map.of("status", "ok"))).name("health");
+            api.get("/users", users::index).name("users.index");
+            api.get("/users/{id}", users::show).name("users.show");
         });
     }
 }

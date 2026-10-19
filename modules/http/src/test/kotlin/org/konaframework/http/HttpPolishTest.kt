@@ -201,6 +201,9 @@ class HttpPolishTest {
         assertTrue(html.headers["Content-Type"]!!.contains("text/html"))
         assertTrue(html.body.contains("&lt;x&gt;"))
         assertFalse(html.body.contains("<x>"))
+        assertTrue(html.body.contains("#DF8723"))
+        assertTrue(html.body.contains("https://docs.konaframework.org/"))
+        assertTrue(html.body.contains("Kona docs"))
 
         val htmlValidation = DefaultExceptionHandler().handle(
             htmlReq,
@@ -213,10 +216,17 @@ class HttpPolishTest {
         val htmlHttp = DefaultExceptionHandler().handle(htmlReq, HttpException(403, "nope"))
         assertEquals(403, htmlHttp.status)
         assertTrue(htmlHttp.body.contains("nope"))
+        assertTrue(htmlHttp.body.contains("#DF8723"))
+
+        val htmlUnknown = DefaultExceptionHandler().handle(htmlReq, HttpException(599, "weird"))
+        assertEquals(599, htmlUnknown.status)
+        assertTrue(htmlUnknown.body.contains("Error"))
+        assertTrue(htmlUnknown.body.contains("weird"))
 
         val htmlServer = DefaultExceptionHandler(false).handle(htmlReq, RuntimeException("secret"))
         assertTrue(htmlServer.body.contains("Server Error"))
         assertFalse(htmlServer.body.contains("secret"))
+        assertTrue(htmlServer.body.contains("docs.konaframework.org"))
 
         val htmlDebug = DefaultExceptionHandler(true).handle(htmlReq, RuntimeException("boom"))
         assertTrue(htmlDebug.body.contains("boom"))
