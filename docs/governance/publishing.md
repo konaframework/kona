@@ -6,22 +6,25 @@ How maintainers publish Kona framework jars (including Brew and Inertia) for con
 
 Public install docs may still say generated apps resolve `org.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` until a non-SNAPSHOT train is published on Central.
 
-## Last release — `0.1.1` (monorepo train)
+## Last published release — `0.1.1` (monorepo train)
 
 **Status:** **shipped.** Tag `v0.1.1` → `release.yml` uploaded; Portal **Publish** completed. Includes in-tree Brew + Inertia (remonorepo `#138`). **Do not** re-tag or republish `0.1.1`. Sister repos remain archived (no tags from them).
 
-### Post-publish checklist (remaining / next train)
+## Current train — `0.2.0` (not tagged yet)
 
-1. Confirm artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (`kona-core`, `kona-bom`, `kona-brew`, `kona-inertia`, …).
-2. **Bump development version** on `main` to `0.1.2-SNAPSHOT` when starting the next coding train (separate PR — not required for docs-only commits while `kona.version` stays `0.1.1`).
-3. **Usage / File Count** — org hit Central **File Count** monthly limit (grace through **2026-11-17**). Check [Usage Center](https://central.sonatype.com/); if still tight, email `central-support@sonatype.com` for a higher limit. See [Reducing Publishing Usage](https://central.sonatype.org/publish/reducing-publishing-usage/).
+**Status:** `kona.version=0.2.0` on `main` for local / mavenLocal / `install.sh`. **No** `v0.2.0` tag and **not** on Maven Central until an explicit release cut.
 
-### Cut a later release (template)
+### When ready to ship `0.2.0`
 
-1. Release PR: set non-SNAPSHOT `kona.version` (e.g. `0.1.2`), notes, merge to `main`.
-2. Human tags: `git tag v0.1.2 <merge-sha> && git push origin v0.1.2`.
+1. Confirm `main` is green and release notes are ready.
+2. Human tags: `git tag v0.2.0 <merge-sha> && git push origin v0.2.0`.
 3. Wait for `.github/workflows/release.yml` → Environment `maven-central`.
 4. Portal **Publish** when `VALIDATED` (`automaticRelease=false`).
+
+### Other follow-ups
+
+1. Confirm `0.1.1` artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (`kona-core`, `kona-bom`, `kona-brew`, `kona-inertia`, …).
+2. **Usage / File Count** — org hit Central **File Count** monthly limit (grace through **2026-11-17**). Check [Usage Center](https://central.sonatype.com/); if still tight, email `central-support@sonatype.com` for a higher limit. See [Reducing Publishing Usage](https://central.sonatype.org/publish/reducing-publishing-usage/).
 
 ### File-count mitigations (this stack)
 
@@ -153,7 +156,7 @@ Do **not** commit tokens, GPG private keys, or `gradle.properties` with secrets.
 
 | Kind | Version shape | Notes |
 |------|---------------|--------|
-| Local / CI / install.sh | `0.1.2-SNAPSHOT` (when next train starts) | Overwritable in `~/.m2`; `main` may still pin `0.1.1` until then |
+| Local / CI / install.sh | `0.2.0` | Overwritable in `~/.m2`; not tagged yet |
 | Public release (last cut) | `0.1.1` | Tagged `v0.1.1`; on Central |
 | Prior cut | `0.1.0` | Tagged; brew/inertia were not in-tree yet |
 
@@ -170,10 +173,10 @@ cd /path/to/kona
 ```bash
 cd ~/kona && ./gradlew publishToMavenLocal -x test
 
-ls ~/.m2/repository/org/konaframework/kona-core/0.1.1/
-ls ~/.m2/repository/org/konaframework/kona-bom/0.1.1/
-ls ~/.m2/repository/org/konaframework/kona-brew/0.1.1/
-ls ~/.m2/repository/org/konaframework/kona-inertia/0.1.1/
+ls ~/.m2/repository/org/konaframework/kona-core/0.2.0/
+ls ~/.m2/repository/org/konaframework/kona-bom/0.2.0/
+ls ~/.m2/repository/org/konaframework/kona-brew/0.2.0/
+ls ~/.m2/repository/org/konaframework/kona-inertia/0.2.0/
 ```
 
 ### E. Real remote publish
@@ -184,7 +187,7 @@ cd ~/kona
 ./gradlew publishToMavenCentral --no-configuration-cache -x test
 ```
 
-Or push a new version tag (e.g. `v0.1.2`) and let `.github/workflows/release.yml` run.
+Or push a new version tag (e.g. `v0.2.0` when ready) and let `.github/workflows/release.yml` run.
 
 **Do not run a public Central publish** until:
 
@@ -199,7 +202,7 @@ Or push a new version tag (e.g. `v0.1.2`) and let `.github/workflows/release.yml
 2. Portal token + GPG secrets on Environment **`maven-central`** (done for `0.1.0` upload; keep current).
 3. ~~Release PR `0.1.1` → tag → upload → Portal Publish~~ — **done** (`v0.1.1` on Central).
 4. Confirm artifacts stay visible on Central search / Portal deployments UI.
-5. Optional: bump `main` to `0.1.2-SNAPSHOT` when starting the next coding train; keep public install docs on released versions.
+5. **`kona.version=0.2.0` is on `main` but not tagged** — keep public install docs on `0.1.1` until `v0.2.0` ships.
 6. Watch File Count / Usage Center; request a higher limit if needed before grace ends (2026-11-17).
 7. When Sonatype ships Trusted Publishing / OIDC for Central and vanniktech supports it: rewire `release.yml` and drop long-lived Portal passwords.
 8. Later: Gradle 9 + vanniktech ≥0.37 for default signature-checksum exclusion (file-count reduction).
