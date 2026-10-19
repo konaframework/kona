@@ -26,9 +26,10 @@ Plugin: [`starlight-versions`](https://starlight-versions.vercel.app/) in `apps/
 
 | UI label | Role | Content |
 |----------|------|---------|
-| **latest** (default / current) | Stable docs tip of release line | `src/content/docs/` (root English + locale trees) |
-| **main** | Tip / development archive | `src/content/docs/main/` + `src/content/versions/main.json` |
-| **0** | Major `0.x` archive | `src/content/docs/0/` + `src/content/versions/0.json` |
+| **`{major}.x (Latest)`** (default / current) | Published release line — same docs as the current `kona.version` major (e.g. `0.1.1` → **0.x (Latest)**). Unversioned URLs. | `src/content/docs/` (root English + locale trees) |
+| **Dev** (`main` slug) | In-progress tip archive | `src/content/docs/main/` + `src/content/versions/main.json` |
+
+Do **not** add a separate picker entry named “latest”. Latest *is* the current major line. When a new major ships, freeze the prior major under its slug (e.g. `0`), keep current labeled `{newMajor}.x (Latest)`, and re-seed.
 
 Seed archives with `cd apps/docs && node scripts/seed-versions.mjs` (plugin allows only one *new* version per build). Version picker is injected via almasixTheme `headerExtras` → `src/components/VersionSelect.astro` (theme already owns `ThemeSelect`).
 

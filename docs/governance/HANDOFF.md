@@ -39,7 +39,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Brew starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
-| Docs versions | `starlight-versions`: **latest** (current), **main** (tip archive), **0** (major archive) |
+| Docs versions | `starlight-versions`: **`{major}.x (Latest)`** (default current from `kona.version`), **Dev** (`main` tip archive) |
 | Docs i18n | Root English; locales `es` / `fr` / `zh-cn` (Introduction + Installation translated; else EN fallback) |
 | LSP | `kona-lsp` completes Crema `@` + Brew `wire:*` (IDEA-aligned list) |
 | Models | **Auto only** unless the human names a model for that turn |

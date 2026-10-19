@@ -1,7 +1,10 @@
 /**
- * Pre-create starlight-versions archives for `0` and `main`.
- * The plugin only archives one *new* version per build; seeding both dirs
- * (plus versions/*.json) lets a single build succeed with both configured.
+ * Pre-create starlight-versions archives listed in VERSION_SLUGS.
+ * The plugin only archives one *new* version per build; seeding dirs
+ * (plus versions/*.json) lets a build succeed with those slugs configured.
+ *
+ * Default archive: `main` (Dev tip). When freezing a prior major (e.g. after
+ * 1.0 ships), add that major slug here and in astro.config.mjs, then re-run.
  *
  * Run from apps/docs: `node scripts/seed-versions.mjs`
  */
@@ -13,8 +16,9 @@ import { buildSidebar } from '../sidebar.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const docsDir = join(root, 'src/content/docs');
 const versionsDir = join(root, 'src/content/versions');
-const VERSION_SLUGS = ['0', 'main'];
-const SKIP = new Set(['0', 'main', 'es', 'fr', 'zh-cn']);
+/** Dev tip archive. Add frozen majors (e.g. `'0'`) when a new major becomes Latest. */
+const VERSION_SLUGS = ['main'];
+const SKIP = new Set(['main', 'es', 'fr', 'zh-cn']);
 
 const sidebar = await buildSidebar();
 

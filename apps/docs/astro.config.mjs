@@ -1,4 +1,7 @@
 // @ts-check
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import almasixTheme from '@almasix/starlight-theme';
@@ -11,6 +14,17 @@ const site = process.env.PUBLIC_SITE_URL || 'https://docs.konaframework.org';
 const ogImage = new URL('og.png', site.endsWith('/') ? site : `${site}/`).href;
 const ogImageAlt = 'Kona — Laravel-inspired, batteries-included web framework for the JVM';
 const sidebar = await buildSidebar();
+
+/** Major release line from repo `kona.version` (e.g. 0.1.1 → `0.x`). */
+function releaseLineLabel() {
+  const gradleProps = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), '../../gradle.properties'),
+    'utf8',
+  );
+  const version = gradleProps.match(/^kona\.version=(.+)$/m)?.[1]?.trim() ?? '0.0.0';
+  const major = version.split('.')[0] || '0';
+  return `${major}.x (Latest)`;
+}
 
 // https://astro.build/config
 export default defineConfig({
@@ -62,15 +76,13 @@ export default defineConfig({
           lightbox: false,
           headerExtras: './src/components/VersionSelect.astro',
         }),
-        // Archives: only one *new* slug per build — seed `0` then `main` via scripts/seed-versions.mjs
+        // Current (default, unversioned URLs) = published release line.
+        // Archive `main` = in-progress tip. Seed with scripts/seed-versions.mjs
         starlightVersions({
           current: {
-            label: 'latest',
+            label: releaseLineLabel(),
           },
-          versions: [
-            { slug: 'main', label: 'main' },
-            { slug: '0', label: '0' },
-          ],
+          versions: [{ slug: 'main', label: 'Dev' }],
         }),
       ],
       customCss: ['./src/styles/custom.css'],
