@@ -20,7 +20,7 @@ There is no top-level `kona install` — package install is a Grind Console comm
 ```bash
 # Inside an app created with kona new
 ./grind install inertia
-./grind install brew --version=0.1.0-SNAPSHOT
+./grind install brew --version=0.1.1
 ./grind install com.example:widget:1.2.3
 
 # From anywhere under the app tree (global proxy)
@@ -31,7 +31,7 @@ kona grind install drip --base=/path/to/app
 | Flag | Role |
 | --- | --- |
 | `--base=…` | App root (default: the grind project root / cwd for `./grind`) |
-| `--version=…` | Override when the alias/coordinate omits a version (default: detect a `org.konaframework:…:version` already in the build file, else a SNAPSHOT / bundled default) |
+| `--version=…` | Override when the alias/coordinate omits a version (default: detect a `org.konaframework:…:version` already in the build file, else the CLI’s bundled Kona version) |
 | `--frontend=…` | **Inertia only:** `vue`, `react`, `svelte`, or `none` — scaffold Vite + adapter (interactive if omitted and a TTY is present; default Vue when non-interactive) |
 | `--no-interactive` | **Inertia only:** never prompt for `--frontend` |
 

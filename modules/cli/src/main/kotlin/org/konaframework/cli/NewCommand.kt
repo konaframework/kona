@@ -51,7 +51,8 @@ class NewCommand(
 
     /**
      * Points the app at a local Kona checkout (`includeBuild`) when available so
-     * SNAPSHOT modules resolve without every transitive jar on Maven Central.
+     * framework contributors can pick up unpublished modules without republishing.
+     * Generated apps resolve released coordinates from Maven Central by default.
      */
     internal fun writeKonaHomeProperty(target: Path, home: Path? = resolveKonaHome()) {
         if (home == null) {
