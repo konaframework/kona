@@ -24,7 +24,14 @@ class ConnectionConfig @JvmOverloads constructor(
         require(poolSize >= 1) { "Database pool size must be at least 1, got $poolSize" }
     }
 
-    fun grammar(): Grammar = if (quoteIdentifiers) Grammar.forUrl(url) else Grammar.NONE
+    /**
+     * Identifier + query dialect for this URL. When [quoteIdentifiers] is false, returns the same
+     * dialect with quoting disabled via [Grammar.unquoted].
+     */
+    fun grammar(): Grammar {
+        val quoted = Grammar.forUrl(url)
+        return if (quoteIdentifiers) quoted else quoted.unquoted()
+    }
 
     internal fun createDataSource(name: String): HikariDataSource {
         val hikari = HikariConfig()

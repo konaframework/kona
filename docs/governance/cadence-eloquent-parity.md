@@ -6,9 +6,9 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 
 | Meta | Value |
 |------|--------|
-| Last audit | 2026-10-19 (M25 open) |
+| Last audit | 2026-10-19 (M25 complete) |
 | Last merged deepen | PR #87 (B6 Eloquent parity) |
-| Active deepen | **M25 — First-class database engines** (SQLite, MariaDB, MySQL, PostgreSQL, Oracle, SQL Server + H2 default) |
+| Active deepen | **none** — M25 first-class database engines exhausted (awaiting merge) |
 
 ---
 
@@ -23,20 +23,23 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 
 **Decision:** **Keep H2 as the scaffold/default** for local demo and tests. Document PostgreSQL / MySQL as the **production** targets. Do **not** silently change `kona new` to require a server database.
 
-**Classpath fix:** `kona new` skeletons now include `runtimeOnly("com.h2database:h2:2.3.232")` so `./grind migrate` works out of the box against the default H2 URL (SQLite remains a supported engine, not the new-app default).
+**Classpath fix:** `kona new` skeletons include `runtimeOnly("com.h2database:h2:2.3.232")`. Optional `kona new --database=<engine>` selects a named connection and adds that engine’s JDBC driver.
 
-Evidence: `modules/cli/.../config/Database.kt.txt`, `modules/cli/.../skeletons/**/build.gradle.kts.txt`, `samples/hello-*/config/Database.*`, `TestDb.kt`. Guide: `apps/docs/.../cadence/database.mdx`.
+Evidence: `modules/cli/.../config/Database.kt.txt`, skeletons, `DatabaseEngines`, samples. Guide: `apps/docs/.../cadence/database.mdx`.
 
 ---
 
-## Supported databases / grammars (today)
+## Supported databases / grammars (M25)
 
 | Engine | Query `Grammar` | Schema `SchemaGrammar` | Notes |
 |--------|-----------------|------------------------|-------|
-| **H2** | ANSI | `H2SchemaGrammar` | Scaffold + tests |
-| **PostgreSQL** | ANSI | STANDARD / POSTGRES | Production-ready quoting |
-| **MySQL / MariaDB** | MYSQL backticks | `MySqlSchemaGrammar` (`AUTO_INCREMENT`) | **done** (B6) |
-| **SQLite** | ANSI | `SqliteSchemaGrammar` (`AUTOINCREMENT`) | **done** (B6) |
+| **H2** | `Grammar.H2` | `H2SchemaGrammar` | Scaffold + tests; upsert `ON CONFLICT` |
+| **PostgreSQL** | `Grammar.POSTGRES` | `PostgresSchemaGrammar` | Identity, JSONB |
+| **MySQL** | `Grammar.MYSQL` | `MySqlSchemaGrammar` | `AUTO_INCREMENT`, backticks |
+| **MariaDB** | `Grammar.MARIADB` | `MariaDbSchemaGrammar` | Distinct product; shared MySQL DDL family |
+| **SQLite** | `Grammar.SQLITE` | `SqliteSchemaGrammar` | `AUTOINCREMENT`; documented alter limits |
+| **Oracle** | `Grammar.ORACLE` | `OracleSchemaGrammar` | `VARCHAR2`, MERGE upsert, identity |
+| **SQL Server** | `Grammar.SQLSERVER` | `SqlServerSchemaGrammar` | Brackets, `OFFSET/FETCH`, MERGE |
 | **Other JDBC** | `Grammar.registerUrlPrefix` | `SchemaGrammar.registerProduct` | Extension path **done** (#65) |
 
 ---
@@ -46,9 +49,9 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `modules/cli/.../skeletons/*
 | API | Status | Evidence |
 |-----|--------|----------|
 | Connections / `fromConfig` / `DB` / transactions | **done** | `Database.kt`, `DB.kt` |
-| Grammar + SchemaGrammar registries | **done** | #65 |
-| Multi-DB docs | **done** | `cadence/database.mdx` |
-| MySQL / SQLite schema specialization | **done** | B6 `MySqlSchemaGrammar` / `SqliteSchemaGrammar` |
+| Grammar + SchemaGrammar registries | **done** | M25 + #65 |
+| Multi-DB docs | **done** | `cadence/database.mdx` (M25 rewrite) |
+| Per-engine schema specialization | **done** | M25 |
 
 ---
 
@@ -71,14 +74,14 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `modules/cli/.../skeletons/*
 |-----|--------|-------|
 | where* / orWhere* / In / Null / Between / Column / Raw | **done** | ModelBuilder orWhereNull/In* #65 |
 | ModelBuilder `orWhereRaw` / `groupBy` / `having` / `selectRaw` / `addSelect` / `distinct` | **done** | B2 |
-| when / unless / tap / locks / cursor / lazy / chunkById | **done** | #65 |
-| `whereDate` / `Day` / `Month` / `Year` / `Time` (+ `or…`) | **done** | B2 (`cast` / `cadence`) |
+| when / unless / tap / locks / cursor / lazy / chunkById | **done** | #65 + M25 dialect locks |
+| `whereDate` / `Day` / `Month` / `Year` / `Time` (+ `or…`) | **done** | B2 + M25 per-engine date SQL |
 | `havingRaw` / `orHaving` / `orHavingRaw` | **done** | B2 |
 | Global scopes | **done** | B3 — `Scope` + `addGlobalScope` / `withoutGlobalScope(s)` |
 | `union` / `unionAll` / `crossJoin` | **done** | B6 |
 | `pluck(column, key)` keyed | **done** | B6 QueryBuilder + ModelBuilder + CadenceCollection |
 | `sole` | **done** | B6 (+ `MultipleRecordsFoundException`) |
-| Native SQL upsert | **done** | B6 `ON CONFLICT` / `ON DUPLICATE KEY` + portable fallback |
+| Native SQL upsert | **done** | M25: `ON CONFLICT` / `ON DUPLICATE KEY` / `MERGE` + portable fallback |
 
 ---
 
@@ -104,6 +107,7 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, `modules/cli/.../skeletons/*
 | **B4** | morphToMany / morphedByMany | **done** (#73) |
 | **B5** | Observer class registration | **done** (pre-rename) |
 | **B6** | withAvg/Max/Min; push; sole; keyed pluck; union/crossJoin; MorphTo whereHas; BelongsToMany firstOrCreate; accessors; native upsert; MySQL/SQLite DDL | **done** (#87) |
+| **M25** | First-class engines (SQLite, MariaDB, MySQL, PostgreSQL, Oracle, SQL Server + H2 default) | **done** (this PR) |
 
 ---
 

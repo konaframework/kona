@@ -375,7 +375,9 @@ class EloquentParityTest {
         )
 
         assertTrue(db.table("users").where("name", "Ada").lockForUpdate().toSql().endsWith(" for update"))
-        assertTrue(db.table("users").sharedLock().toSql().endsWith(" for share"))
+        // H2 has no shared row lock; PostgreSQL emits ` for share`.
+        assertFalse(db.table("users").sharedLock().toSql().contains(" for share"))
+        assertEquals(" for share", Grammar.POSTGRES.compileLock(LockMode.SHARED))
         assertFalse(db.table("users").lockForUpdate().withoutLock().toSql().contains(" for "))
         assertEquals(1L, db.table("users").lockForUpdate().where("name", "Ada").count())
         assertTrue(db.table("users").lockForUpdate().copy().toSql().contains(" for update"))

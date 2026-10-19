@@ -7,12 +7,62 @@ object Database : ConfigFile {
     override fun key(): String = "database"
 
     override fun config(): Map<String, Any?> = mapOf<String, Any?>(
-        "default" to Env.getOrDefault("DB_CONNECTION", "main"),
+        // DB_CONNECTION selects which named map below is the default (h2 for zero-install demos).
+        "default" to Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"),
         "connections" to mapOf(
-            // Default H2 is zero-install for local demos; set DB_URL to PostgreSQL/MySQL in production.
             "main" to mapOf(
                 "url" to Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
                 "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+            "h2" to mapOf(
+                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:mem:kona;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
+                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+            "sqlite" to mapOf(
+                "url" to Env.getOrDefault("DB_URL", "jdbc:sqlite:database/database.sqlite"),
+                "username" to Env.getOrDefault("DB_USERNAME", ""),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+            "mysql" to mapOf(
+                "url" to Env.getOrDefault(
+                    "DB_URL",
+                    "jdbc:mysql://${Env.getOrDefault("DB_HOST", "127.0.0.1")}:${Env.getOrDefault("DB_PORT", "3306")}/${Env.getOrDefault("DB_DATABASE", "kona")}",
+                ),
+                "username" to Env.getOrDefault("DB_USERNAME", "root"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+            "mariadb" to mapOf(
+                "url" to Env.getOrDefault(
+                    "DB_URL",
+                    "jdbc:mariadb://${Env.getOrDefault("DB_HOST", "127.0.0.1")}:${Env.getOrDefault("DB_PORT", "3306")}/${Env.getOrDefault("DB_DATABASE", "kona")}",
+                ),
+                "username" to Env.getOrDefault("DB_USERNAME", "root"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+            "pgsql" to mapOf(
+                "url" to Env.getOrDefault(
+                    "DB_URL",
+                    "jdbc:postgresql://${Env.getOrDefault("DB_HOST", "127.0.0.1")}:${Env.getOrDefault("DB_PORT", "5432")}/${Env.getOrDefault("DB_DATABASE", "kona")}",
+                ),
+                "username" to Env.getOrDefault("DB_USERNAME", "kona"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+            "sqlsrv" to mapOf(
+                "url" to Env.getOrDefault(
+                    "DB_URL",
+                    "jdbc:sqlserver://${Env.getOrDefault("DB_HOST", "127.0.0.1")}:${Env.getOrDefault("DB_PORT", "1433")};databaseName=${Env.getOrDefault("DB_DATABASE", "kona")};encrypt=false",
+                ),
+                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+            "oracle" to mapOf(
+                "url" to Env.getOrDefault(
+                    "DB_URL",
+                    "jdbc:oracle:thin:@//${Env.getOrDefault("DB_HOST", "127.0.0.1")}:${Env.getOrDefault("DB_PORT", "1521")}/${Env.getOrDefault("DB_DATABASE", "FREEPDB1")}",
+                ),
+                "username" to Env.getOrDefault("DB_USERNAME", "kona"),
                 "password" to Env.getOrDefault("DB_PASSWORD", ""),
             ),
         ),

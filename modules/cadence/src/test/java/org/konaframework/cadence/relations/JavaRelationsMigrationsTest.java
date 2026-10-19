@@ -170,7 +170,7 @@ class JavaRelationsMigrationsTest {
         try (Connection jdbc = DriverManager.getConnection("jdbc:h2:mem:java_overloads;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")) {
             Schema schema = new Schema(jdbc);
             assertSame(SchemaGrammar.H2, schema.getGrammar());
-            assertSame(SchemaGrammar.STANDARD, SchemaGrammar.forProduct("PostgreSQL"));
+            assertSame(SchemaGrammar.POSTGRES, SchemaGrammar.forProduct("PostgreSQL"));
             assertSame(SchemaGrammar.H2, SchemaGrammar.Companion.forProduct("H2"));
             assertInstanceOf(H2SchemaGrammar.class, SchemaGrammar.forProduct("H2", Grammar.NONE));
 

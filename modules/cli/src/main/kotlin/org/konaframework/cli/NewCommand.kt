@@ -16,7 +16,7 @@ class NewCommand(
         val (positional, options) = parseOptions(args)
         val name = positional.firstOrNull()
             ?: throw KonaCliException(
-                "Usage: kona new <name> [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] [--kona-version=x.y.z]",
+                "Usage: kona new <name> [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] [--kona-version=x.y.z]",
             )
         val lang = options["lang"] ?: "kotlin"
         if (lang !in SKELETONS) {
@@ -26,27 +26,87 @@ class NewCommand(
         if (kit !in KITS) {
             throw KonaCliException("--kit/--preset must be one of: ${KITS.joinToString(", ")}")
         }
+        val database =
+            if (options.containsKey("database")) {
+                DatabaseEngines.resolve(options.getValue("database"))
+            } else {
+                DatabaseEngines.require("h2")
+            }
         val target = Path.of(name).toAbsolutePath().normalize()
         if (Files.exists(target)) {
             throw KonaCliException("Directory already exists: $target")
         }
+        val dbConnection = if (database.name == "h2") "main" else database.connectionKey
         val variables = mapOf(
             "appName" to target.fileName.toString(),
             "konaVersion" to options.getOrDefault("kona-version", versions.kona),
             "kotlinVersion" to versions.kotlin,
             "kit" to kit,
             "appKey" to ScaffoldKeys.generateAppKey(),
+            "dbConnection" to dbConnection,
         )
         Files.createDirectories(target)
         copySkeleton(lang, target, variables, kit)
+        applyDatabaseSelection(target, database, dbConnection)
         target.resolve("grind").toFile().setExecutable(true)
         target.resolve("gradlew").toFile().setExecutable(true)
         writeKonaHomeProperty(target)
         val io = ConsoleIO()
-        io.success("Created Kona application at $target ($lang, kit=$kit)")
+        io.success("Created Kona application at $target ($lang, kit=$kit, database=${database.name})")
         io.info("cd ${target.fileName}")
         io.info("./grind serve")
         return 0
+    }
+
+    /**
+     * Sets `DB_CONNECTION` / optional `DB_URL` in `.env` files and adds the engine's JDBC
+     * `runtimeOnly` coordinate when it is not the H2 zero-install default (already on every skeleton).
+     */
+    internal fun applyDatabaseSelection(
+        target: Path,
+        engine: DatabaseEngines.Engine,
+        dbConnection: String,
+    ) {
+        listOf(".env", ".env.example").forEach { name ->
+            val path = target.resolve(name)
+            if (!Files.isRegularFile(path)) {
+                return@forEach
+            }
+            var text = Files.readString(path)
+            if (!text.contains("DB_CONNECTION=")) {
+                text = text.trimEnd() + "\n\nDB_CONNECTION=$dbConnection\n"
+            } else {
+                text = text.replace(Regex("(?m)^DB_CONNECTION=.*$"), "DB_CONNECTION=$dbConnection")
+            }
+            if (engine.name != "h2") {
+                if (!Regex("(?m)^DB_URL=").containsMatchIn(text)) {
+                    text = text.trimEnd() + "\nDB_URL=${engine.defaultUrl}\n"
+                } else {
+                    text = text.replace(Regex("(?m)^DB_URL=.*$"), "DB_URL=${engine.defaultUrl}")
+                }
+            }
+            Files.writeString(path, text)
+        }
+        val dep = engine.runtimeDependency ?: return
+        val build = target.resolve("build.gradle.kts")
+        if (!Files.isRegularFile(build)) {
+            return
+        }
+        var gradle = Files.readString(build)
+        if (gradle.contains(dep)) {
+            return
+        }
+        val marker = "runtimeOnly(\"com.h2database:h2:2.3.232\")"
+        val insertion = "$marker\n    // Selected by kona new --database=${engine.name}\n    runtimeOnly(\"$dep\")"
+        gradle = if (gradle.contains(marker)) {
+            gradle.replace(marker, insertion)
+        } else {
+            gradle.replace(
+                Regex("dependencies \\{"),
+                "dependencies {\n    runtimeOnly(\"$dep\")",
+            )
+        }
+        Files.writeString(build, gradle)
     }
 
     /**

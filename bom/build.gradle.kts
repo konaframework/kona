@@ -34,5 +34,14 @@ dependencies {
         api(project(":kona-inertia"))
         api(project(":kona-lsp"))
         api(project(":kona-brew"))
+
+        // Recommended JDBC drivers for first-party Cadence engines (M25).
+        api(libs.h2)
+        api(libs.sqlite.jdbc)
+        api(libs.postgresql)
+        api(libs.mysql.connector.j)
+        api(libs.mariadb.java.client)
+        api(libs.mssql.jdbc)
+        api(libs.ojdbc11)
     }
 }
