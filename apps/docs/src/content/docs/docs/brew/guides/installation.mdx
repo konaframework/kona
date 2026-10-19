@@ -32,8 +32,8 @@ Then refresh Gradle and rebuild:
 Pin a version when you need to:
 
 ```bash
-./grind install brew --version=0.1.0
-# or: kona grind install brew --version=0.1.0
+./grind install brew --version=0.1.1
+# or: kona grind install brew --version=0.1.1
 ```
 
 See the full package installer docs on Kona: [Installing packages](/docs/packages/install/).
@@ -114,11 +114,15 @@ When you manage the layout yourself:
 Only if you are not using `./grind install` / the kit:
 
 ```kotlin
+repositories {
+    mavenCentral()
+}
+
 dependencies {
-    implementation("org.konaframework:kona-http:0.1.0")
-    implementation("org.konaframework:kona-session:0.1.0")
-    implementation("org.konaframework:kona-crema:0.1.0")
-    implementation("org.konaframework:kona-brew:0.1.0")
+    implementation("org.konaframework:kona-http:0.1.1")
+    implementation("org.konaframework:kona-session:0.1.1")
+    implementation("org.konaframework:kona-crema:0.1.1")
+    implementation("org.konaframework:kona-brew:0.1.1")
 }
 ```
 
@@ -179,7 +183,7 @@ Kona.create(args)
 
 `BrewServiceProvider` binds `BrewManager`, discovers components under `app.brew` by default, and registers `POST /brew/update` plus the `/brew/brew.js` script routes.
 
-Until Maven Central publishes are live for your version line, publish from this monorepo (`./gradlew publishToMavenLocal` or `./gradlew :kona-brew:publishToMavenLocal`), or use SNAPSHOT coordinates that resolve from `mavenLocal()`.
+Artifacts resolve from **Maven Central** by default (`org.konaframework:kona-brew:0.1.1` and matching companions).
 
 ## Next
 

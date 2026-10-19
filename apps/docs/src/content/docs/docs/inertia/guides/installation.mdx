@@ -52,16 +52,7 @@ npm run dev          # terminal 1 — Vite on :5173, writes public/hot
 
 Open `http://127.0.0.1:4000/`. You should see the Welcome page. In DevTools → Network, a full document load has no `X-Inertia` header; after client-side navigation (once you add links), requests include `X-Inertia: true` and receive JSON.
 
-Until artifacts are on Maven Central for your version line, publish once:
-
-```bash
-# From the Kona monorepo root
-./gradlew :kona-inertia:publishToMavenLocal
-# or publish the full set:
-./gradlew publishToMavenLocal -x test
-```
-
-Generated apps resolve `org.konaframework` from **mavenLocal()** then Central.
+Generated apps resolve `org.konaframework` (including `kona-inertia`) from **Maven Central**.
 
 ---
 
@@ -317,10 +308,14 @@ Deeper client topics (forms, partial reloads, deferred props, when available in 
 ## Path C — Manual Gradle (optional)
 
 ```kotlin
+repositories {
+    mavenCentral()
+}
+
 dependencies {
-    implementation("org.konaframework:kona-http:0.1.0")
-    implementation("org.konaframework:kona-crema:0.1.0")
-    implementation("org.konaframework:kona-inertia:0.1.0")
+    implementation("org.konaframework:kona-http:0.1.1")
+    implementation("org.konaframework:kona-crema:0.1.1")
+    implementation("org.konaframework:kona-inertia:0.1.1")
 }
 ```
 

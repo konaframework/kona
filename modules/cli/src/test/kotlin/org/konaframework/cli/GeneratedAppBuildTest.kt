@@ -81,7 +81,10 @@ class GeneratedAppBuildTest {
     @Test
     fun brewKitServesComponentAndUpdate() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
-        assumeTrue(konaBrewPublished(), "publish kona-brew to mavenLocal (./gradlew :kona-brew:publishToMavenLocal)")
+        assumeTrue(
+            konaBrewPublished() || System.getenv("KONA_HOME") != null,
+            "need kona-brew on Maven Central / mavenLocal, or KONA_HOME for includeBuild",
+        )
         val app = temp.resolve("brew-kt")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=brew")))
         gradle(app, "classes")
@@ -135,7 +138,10 @@ class GeneratedAppBuildTest {
     @Test
     fun inertiaKitServesHtmlAndJsonVisit() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
-        assumeTrue(konaInertiaPublished(), "publish kona-inertia to mavenLocal (./gradlew :kona-inertia:publishToMavenLocal)")
+        assumeTrue(
+            konaInertiaPublished() || System.getenv("KONA_HOME") != null,
+            "need kona-inertia on Maven Central / mavenLocal, or KONA_HOME for includeBuild",
+        )
         val app = temp.resolve("inertia-kt")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=inertia")))
         gradle(app, "classes")

@@ -18,7 +18,7 @@ You install `kona` once. Every project from `kona new` ships its own `./grind` (
 # 1. JDK 21+ on your PATH
 java -version
 
-# 2. Install the global `kona` CLI (fetches source, builds, links ~/.local/bin/kona)
+# 2. Install the global `kona` CLI
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 
 # 3. Create an application
@@ -30,6 +30,8 @@ cd my-app
 ```
 
 Open `http://127.0.0.1:4000/`. That is the supported path: **install `kona` → `kona new` → `./grind serve`** (equivalently `kona grind serve` from inside the app tree).
+
+Generated apps resolve `org.konaframework` libraries from **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** (current line: **0.1.1**). You do not need a Kona source checkout to build or run an application.
 
 ## 1. JDK 21+
 
@@ -47,13 +49,7 @@ The installer and generated apps use the Gradle wrapper; you do not need a separ
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-That script prints a colored step progress (JDK → fetch → build CLI → publish libraries → publish sister packages → link), syncs source into `~/.kona` (override with `KONA_SRC`), builds `:kona-cli:installDist`, **publishes all core `org.konaframework` jars to `~/.m2` (`mavenLocal`)**, then publishes sister packages **kona-brew** / **kona-inertia** when a checkout is found (sibling dirs, `KONA_BREW_SRC` / `KONA_INERTIA_SRC`, or clones under `~/.kona-brew` / `~/.kona-inertia`). It installs under `~/.local/lib/kona` with a symlink at `~/.local/bin/kona` (override prefix with `KONA_PREFIX`), records the checkout path in `~/.config/kona/home` so `kona new` can set `kona.home` on new apps (`includeBuild`), and removes obsolete vendored `modules/brew` / `modules/inertia` trees that would poison that composite build. Set `NO_COLOR=1` to disable ANSI styling.
-
-:::important[Why publish?]
-Generated apps depend on `org.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` / Maven Central. Those SNAPSHOT jars are not on Central yet — the installer must publish them locally so `./grind serve` can resolve transitive modules such as `kona-filesystem` and `kona-support`.
-:::
-
-Ensure `~/.local/bin` is on your `PATH`, then check:
+The script installs the global **`kona`** CLI: it fetches the Kona source (into `~/.kona` by default), builds the CLI, and links `~/.local/bin/kona` (override the install prefix with `KONA_PREFIX`). Ensure `~/.local/bin` is on your `PATH`, then check:
 
 ```bash
 kona version
@@ -68,8 +64,6 @@ Re-run the same curl command (or `~/.kona/scripts/install.sh`) to update.
 | `KONA_PREFIX` | `~/.local` | Where `bin/kona` and `lib/kona` are installed |
 | `KONA_REF` | `main` | Git branch or tag to install |
 | `KONA_REPO` | `https://github.com/konaframework/kona.git` | Clone URL |
-| `KONA_BREW_SRC` | sibling `../kona-brew` or `~/.kona-brew` | Optional Brew checkout to publish |
-| `KONA_INERTIA_SRC` | sibling `../kona-inertia` or `~/.kona-inertia` | Optional Inertia checkout to publish |
 
 Example — install a specific ref into a custom prefix:
 
@@ -79,21 +73,8 @@ KONA_REF=main KONA_PREFIX=$HOME/.local \
 ```
 
 :::note[What about package managers?]
-Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. The curl installer is the supported path. Framework libraries still publish under the `org.konaframework` Maven group for *applications* to depend on — that is separate from putting the `kona` CLI on your PATH.
+Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. The curl installer is the supported path. Application dependencies still come from Maven Central under the `org.konaframework` group — that is separate from putting the `kona` CLI on your PATH.
 :::
-
-### Framework contributors (local checkout)
-
-If you already have the repository cloned and are hacking on Kona itself:
-
-```bash
-git clone https://github.com/konaframework/kona.git
-cd kona
-./scripts/install.sh --local
-# or: ./scripts/install-kona.sh
-```
-
-`--local` builds from that tree and does not fetch into `~/.kona`.
 
 ## 3. Create an application
 
@@ -107,8 +88,11 @@ kona new my-app --lang=java
 - `./grind` / `grind.bat` — app-local CLI
 - `./gradlew` / `gradlew.bat` — Gradle wrapper
 - `src/main/…` layout, `.env`, and starter kit files
+- Dependencies on `org.konaframework:…:0.1.1` from Maven Central
 
 You should see a hint ending with `./grind serve`.
+
+Pin another release with `--kona-version=x.y.z` if you need to.
 
 ## 4. Work inside the app with `./grind`
 
@@ -118,43 +102,71 @@ cd my-app
 ./grind make:controller Post
 ```
 
-`./grind` is a thin script that runs the project’s Gradle `grind` task with `kona-grind` on the classpath. It is **not** the same binary as global `kona`, and it is **not** something you copy from the Kona monorepo by hand.
+`./grind` is a thin script that runs the project’s Gradle `grind` task with `kona-grind` on the classpath. It is **not** the same binary as global `kona`.
 
-## Trying the repo samples
+## Dependencies in your app
 
-The checked-in apps under `samples/hello-kotlin` and `samples/hello-java` are **monorepo Gradle modules** used for regression and layout reference. They intentionally:
+Generated `build.gradle.kts` files look like a normal Gradle app:
 
-- do **not** ship `./grind` or their own `./gradlew`
-- depend on sibling `project(":kona-…")` modules instead of Maven coordinates
-- are run from the **Kona repository root**
+```kotlin
+repositories {
+    mavenCentral()
+}
 
-```bash
-# from the Kona checkout root
-./gradlew :hello-kotlin:run
-./gradlew :hello-java:run
+dependencies {
+    implementation("org.konaframework:kona-http:0.1.1")
+    implementation("org.konaframework:kona-grind:0.1.1")
+    // … other org.konaframework modules for your kit
+}
 ```
 
-To experience the product path (`./grind serve`, generators, a standalone wrapper), use `kona new` as above. Do not expect `./grind` inside `samples/` — those directories are not full scaffolds.
-
-## Optional: local Kona sources while developing the framework
-
-Generated apps depend on `org.konaframework:kona-http`, `org.konaframework:kona-grind`, and related artifacts from `mavenLocal()` / Maven Central. If you are changing Kona itself:
-
-```bash
-# from the Kona checkout
-./gradlew :kona-core:publishToMavenLocal :kona-http:publishToMavenLocal :kona-grind:publishToMavenLocal
-```
-
-Or point the app at a checkout:
-
-```bash
-./gradlew run -Pkona.home=/path/to/kona
-# or: export KONA_HOME=/path/to/kona
-```
-
-You do **not** need these steps just to try Kona after a normal `kona new`.
+Add packages later with [`./grind install`](../../packages/install/) (for example `./grind install brew` or `./grind install inertia`).
 
 ## Next
 
 - [Your first app](../first-app/) — walk through what `kona new` creates  
+- [Starter kits](../../starter-kits/) — `web`, `api`, `inertia`, `brew`  
 - [grind](../../grind/) — app-local commands in detail  
+
+---
+
+## Contributing to Kona (optional)
+
+This section is for **framework contributors**, not application developers.
+
+### Local CLI from a checkout
+
+```bash
+git clone https://github.com/konaframework/kona.git
+cd kona
+./scripts/install.sh --local
+# or: ./scripts/install-kona.sh
+```
+
+`--local` builds the CLI from that tree and does not fetch into `~/.kona`.
+
+### Repo samples
+
+The checked-in apps under `samples/hello-kotlin` and `samples/hello-java` are Gradle modules inside the Kona repository (regression and layout reference). They do **not** ship `./grind` or a standalone wrapper — run them from the repository root:
+
+```bash
+./gradlew :hello-kotlin:run
+./gradlew :hello-java:run
+```
+
+To experience the product path (`./grind serve`, generators, Maven Central coordinates), use `kona new` as above.
+
+### Developing against a local framework checkout
+
+If you are changing Kona itself and want an app to pick up unpublished modules:
+
+```bash
+# from the Kona checkout — optional local publish
+./gradlew publishToMavenLocal -x test
+
+# or point the app at the checkout
+./gradlew run -Pkona.home=/path/to/kona
+# or: export KONA_HOME=/path/to/kona
+```
+
+You do **not** need these steps to try Kona after a normal `kona new`.
