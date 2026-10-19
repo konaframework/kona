@@ -8,7 +8,7 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 |------|--------|
 | Last audit | 2026-10-19 (M25 complete) |
 | Last merged deepen | PR #87 (B6 Eloquent parity) |
-| Active deepen | **none** — M25 first-class database engines exhausted (awaiting merge) |
+| Active deepen | **none** — M25 first-class database engines merged (#161) |
 
 ---
 
@@ -107,7 +107,7 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, skeletons, `DatabaseEngines`
 | **B4** | morphToMany / morphedByMany | **done** (#73) |
 | **B5** | Observer class registration | **done** (pre-rename) |
 | **B6** | withAvg/Max/Min; push; sole; keyed pluck; union/crossJoin; MorphTo whereHas; BelongsToMany firstOrCreate; accessors; native upsert; MySQL/SQLite DDL | **done** (#87) |
-| **M25** | First-class engines (SQLite, MariaDB, MySQL, PostgreSQL, Oracle, SQL Server + H2 default) | **done** (this PR) |
+| **M25** | First-class engines (SQLite, MariaDB, MySQL, PostgreSQL, Oracle, SQL Server + H2 default) | **done** (#161) |
 
 ---
 

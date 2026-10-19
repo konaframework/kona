@@ -34,8 +34,8 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Item | Value |
 |------|--------|
 | Default branch | `main` — green; never push directly |
-| Last milestone coding | **M25 — First-class database engines** (`milestone/M25-database-engines`, PR pending) |
-| Active milestone | **M25** checklist exhausted — merge then continue autopilot |
+| Last milestone coding | **M25 — First-class database engines** (merged PR #161) |
+| Active milestone | **none** — open next deepen with a clear checklist |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Brew starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
