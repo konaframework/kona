@@ -77,7 +77,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 **Remonorepo done (#138):** Brew + Inertia are in-tree (`modules/brew`, `modules/inertia`, samples, `js/brew`). Docs unified into `apps/docs` (Frontend → Brew / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/brew/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-brew-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
-**0.1.1 release ready — human tags `v0.1.1` after merge** (release PR; do not tag from agents). First train that includes in-tree brew/inertia on Central.
+**Last framework release:** **`v0.1.1`** on Maven Central (tag + `release.yml` succeeded; includes in-tree brew/inertia). `main` still pins `kona.version=0.1.1` — next train bumps to `0.1.2-SNAPSHOT` (or a non-SNAPSHOT cut) only when product changes warrant it. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
 ### Intentional deferrals (do not reopen without mandate)
 
@@ -121,13 +121,10 @@ Key paths: `modules/` (framework), `apps/docs/`, `js/brew/`, `docs/governance/`,
 1. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
 2. Confirm no conflicting open PRs.
 3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time.
-4. **Maven Central — 0.1.1 release ready — human tags `v0.1.1` after merge**
-   - Release PR sets `kona.version=0.1.1` (non-SNAPSHOT). Brew + Inertia ship in this train (remonorepo `#138`).
-   - **Human after merge:** `git tag v0.1.1 <merge-sha> && git push origin v0.1.1` → wait for `release.yml` → Portal **Publish** when `VALIDATED` (`automaticRelease=false`).
-   - **Do not** create sister-repo tags (archived). After publish: bump `main` to `0.1.2-SNAPSHOT` (separate PR).
+4. **Maven Central — `v0.1.1` shipped** (do not re-tag). Optional follow-ups:
+   - Bump `main` to `0.1.2-SNAPSHOT` when starting the next development train (separate PR; not required for docs-only work).
    - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
-   - Prior `v0.1.0` uploaded once; Trusted Publishing (OIDC) still **not GA** — token + GPG.
-   - Full checklist: [publishing.md](publishing.md).
+   - Trusted Publishing (OIDC) still **not GA** — token + GPG. Full checklist: [publishing.md](publishing.md).
 
 ## Do not
 
