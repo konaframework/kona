@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
-# App-local grind — run from the project root.
+# App-local grind — Termwind-styled CLI. Gradle stays quiet; only grind output shows.
 set -euo pipefail
 DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 cd "$DIR"
+
+# Quiet Gradle: no lifecycle banner / UP-TO-DATE spam. Failures still exit non-zero.
+GRADLE=(./gradlew --quiet --console=plain -Dorg.gradle.console=plain)
+
 if [[ $# -eq 0 ]]; then
-  exec ./gradlew -q grind
+  exec "${GRADLE[@]}" grind
 fi
-exec ./gradlew -q grind -PgrindArgs="$*"
+
+# Capture Gradle's own stderr/lifecycle separately would also hide grind output when JavaExec
+# inherits IO — so we rely on --quiet and let the JVM process talk directly to the terminal.
+exec "${GRADLE[@]}" grind -PgrindArgs="$*"

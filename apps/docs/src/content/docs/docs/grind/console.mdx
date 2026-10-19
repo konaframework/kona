@@ -16,6 +16,10 @@ All Kona terminal CLIs share one Termwind-inspired console style: brand colors (
 
 Do **not** print user-facing output with raw `println` / unstyled `System.out` in commands; use these APIs.
 
+The app-local `./grind` launcher runs Gradle with `--quiet --console=plain` so build lifecycle
+noise does not bury Termwind command output. Prefer `./grind serve --in-process` when you
+already have compiled classes and want to skip an extra Gradle `run` spawn.
+
 ## Color environment
 
 `ConsoleIO.detectColor` (also used by `GrindIO.detectColor`):

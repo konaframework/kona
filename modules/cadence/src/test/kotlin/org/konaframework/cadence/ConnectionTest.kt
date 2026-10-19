@@ -305,6 +305,48 @@ class ConnectionTest {
         assertSame(database, Database.global())
         assertSame(database, app.container.resolve<Database>("db"))
         assertEquals(1, DB.select("select 1 as one").size)
+        // Auto-bound empty registry from META-INF discovery when none was registered.
+        assertTrue(app.container.bound(org.konaframework.cadence.migrations.MigrationRegistry::class.java))
+        assertTrue(
+            app.make(org.konaframework.cadence.migrations.MigrationRegistry::class.java).names.isEmpty(),
+        )
         database.close()
+    }
+
+    @Test
+    fun serviceProviderKeepsExplicitMigrationRegistry(@TempDir dir: Path) {
+        val url = TestDb.url()
+        val custom = org.konaframework.cadence.migrations.MigrationRegistry()
+        val app = Application.builder(dir)
+            .configure { it.set("database.connections.default.url", url) }
+            .withProvider(object : org.konaframework.core.ServiceProvider {
+                override fun register(app: org.konaframework.core.Application) {
+                    app.container.instance(
+                        org.konaframework.cadence.migrations.MigrationRegistry::class.java,
+                        custom,
+                    )
+                }
+
+                override fun boot(app: org.konaframework.core.Application) = Unit
+            })
+            .withProvider(CadenceServiceProvider())
+            .build()
+        assertSame(custom, app.make(org.konaframework.cadence.migrations.MigrationRegistry::class.java))
+        app.make(Database::class.java).close()
+    }
+
+    @Test
+    fun migrationClassLoaderFallsBackWhenContextNull() {
+        val previous = Thread.currentThread().contextClassLoader
+        try {
+            Thread.currentThread().contextClassLoader = null
+            assertSame(
+                CadenceServiceProvider::class.java.classLoader,
+                CadenceServiceProvider.migrationClassLoader(),
+            )
+        } finally {
+            Thread.currentThread().contextClassLoader = previous
+        }
+        assertSame(previous, CadenceServiceProvider.migrationClassLoader())
     }
 }

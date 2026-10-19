@@ -1,11 +1,15 @@
 package org.konaframework.grind
 
+import org.konaframework.cadence.migrations.MigrationDiscovery
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
+
 /**
  * `grind make:migration <snake_name> [--create=table] [--table=table] [--lang=kotlin|java]`.
  *
- * Writes `src/main/{kotlin|java}/database/migrations/<StudlyName>`. The table is inferred from
- * the name when no flag is given: `create_users_table` creates `users`;
- * `add_role_to_users_table` alters `users`.
+ * Writes `src/main/{kotlin|java}/database/migrations/<StudlyName>` and appends the FQCN to
+ * `META-INF/kona/migrations` so `./grind migrate` picks it up automatically.
  */
 class MakeMigrationCommand {
     fun run(args: List<String>): Int {
@@ -23,14 +27,14 @@ class MakeMigrationCommand {
         return 0
     }
 
-    internal fun write(base: java.nio.file.Path, className: String, lang: String, mode: Mode, table: String?) {
+    internal fun write(base: Path, className: String, lang: String, mode: Mode, table: String?) {
         Names.write(
             base,
             Names.sourceFile(lang, "database/migrations", className),
             "Migration",
             if (lang == "java") javaStub(className, mode, table) else kotlinStub(className, mode, table),
         )
-        GrindIO(color = GrindIO.detectColor()).info("Register it: MigrationRegistry().add($className())")
+        appendDiscovery(base, "database.migrations.$className")
     }
 
     internal enum class Mode { CREATE, ALTER, BLANK }
@@ -41,6 +45,24 @@ class MakeMigrationCommand {
         CREATE.matchEntire(name)?.let { return Mode.CREATE to it.groupValues[1] }
         ALTER.find(name)?.let { return Mode.ALTER to it.groupValues[1] }
         return Mode.BLANK to null
+    }
+
+    private fun appendDiscovery(base: Path, fqcn: String) {
+        val meta = base.resolve("src/main/resources/${MigrationDiscovery.RESOURCE}")
+        Files.createDirectories(meta.parent)
+        val existing = if (Files.isRegularFile(meta)) Files.readString(meta) else ""
+        if (existing.lineSequence().any { it.trim() == fqcn }) {
+            return
+        }
+        val prefix = if (existing.isNotEmpty() && !existing.endsWith("\n")) "\n" else ""
+        Files.writeString(
+            meta,
+            existing + prefix + fqcn + "\n",
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING,
+        )
+        GrindIO(color = GrindIO.detectColor()).info("Registered in ${MigrationDiscovery.RESOURCE}")
     }
 
     private fun kotlinStub(className: String, mode: Mode, table: String?): String {

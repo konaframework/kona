@@ -6,7 +6,8 @@ import org.konaframework.core.ServiceProvider;
 public class AppServiceProvider implements ServiceProvider {
     @Override
     public void register(Application app) {
-        // Bind application services into app.getContainer() here.
+        // Bind application services here.
+        // Migrations from grind make:migration are auto-loaded via META-INF/kona/migrations.
     }
 
     @Override

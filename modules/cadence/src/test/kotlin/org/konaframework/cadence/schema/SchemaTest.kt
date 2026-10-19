@@ -30,6 +30,21 @@ class SchemaTest {
     }
 
     @Test
+    fun longTextAndJsonMapPerDialect() {
+        val col = Blueprint("t")
+        val longText = col.longText("body")
+        val json = col.json("payload")
+        assertEquals("TEXT", SchemaGrammar.STANDARD.type(longText))
+        assertEquals("JSON", SchemaGrammar.STANDARD.type(json))
+        assertEquals("LONGTEXT", SchemaGrammar.MYSQL.type(longText))
+        assertEquals("JSON", SchemaGrammar.MYSQL.type(json))
+        assertEquals("CHARACTER VARYING", SchemaGrammar.H2.type(longText))
+        assertEquals("CHARACTER VARYING", SchemaGrammar.H2.type(json))
+        assertEquals("TEXT", SchemaGrammar.SQLITE.type(longText))
+        assertEquals("TEXT", SchemaGrammar.SQLITE.type(json))
+    }
+
+    @Test
     fun detectsH2Grammar() {
         assertSame(SchemaGrammar.H2, schema.grammar)
         assertSame(SchemaGrammar.STANDARD, SchemaGrammar.forProduct("PostgreSQL"))
@@ -70,6 +85,8 @@ class SchemaTest {
             string("email", 120).unique()
             string("name").index()
             text("bio").nullable()
+            longText("essay").nullable()
+            json("meta").nullable()
             integer("age").default(18)
             bigInteger("visits").default(0L)
             boolean("active").default(true)

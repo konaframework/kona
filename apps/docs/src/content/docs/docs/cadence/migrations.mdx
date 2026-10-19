@@ -105,7 +105,9 @@ Two methods have different names in Java because their Kotlin names are Java key
 |--------|----------|-------|
 | `id()` / `id("key")` | `BIGINT` identity primary key | auto-incrementing |
 | `string(name)` / `string(name, length)` | `VARCHAR(255)` / `VARCHAR(length)` | length must be positive |
-| `text(name)` | `TEXT` (`CHARACTER VARYING` on H2) | long text |
+| `text(name)` | `TEXT` (`CHARACTER VARYING` on H2) | text |
+| `longText(name)` | `LONGTEXT` on MySQL; `TEXT` elsewhere (`CHARACTER VARYING` on H2) | unbounded text |
+| `json(name)` | `JSON` on MySQL/Postgres; `TEXT` on SQLite; `CHARACTER VARYING` on H2 | JSON documents |
 | `integer(name)` | `INTEGER` | |
 | `bigInteger(name)` | `BIGINT` | |
 | `boolean(name)` (Java: `bool`) | `BOOLEAN` | |
@@ -165,9 +167,9 @@ The schema DSL generates standard SQL that H2 and PostgreSQL both accept. The `S
 
 ## Registering and running migrations
 
-Migrations run in the order you register them in a `MigrationRegistry`. Each one is recorded under its class's simple name, or under a name you choose with `add(name, migration)`. Registration is explicit: Kona does not scan the classpath for migrations.
+`grind make:migration` and `make:model -m` append each new class to `src/main/resources/META-INF/kona/migrations` (one fully qualified class name per line, in order). `CadenceServiceProvider` loads that file into a `MigrationRegistry` when the app has not bound one itself, so `./grind migrate` runs new migrations without a manual bind.
 
-Bind the registry in a service provider so tools such as `./grind migrate` can find it:
+You can still bind a registry explicitly when you need a custom order or hand-written entries:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

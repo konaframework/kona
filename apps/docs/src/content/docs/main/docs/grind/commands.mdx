@@ -68,8 +68,8 @@ These commands work with [Cadence](../../cadence/). Generators write source file
 
 | Command | Writes / does |
 |---------|---------------|
-| `./grind make:model <Name> [--migration] [--factory] [--seeder] [--all]` | `app/Models/<Name>`; flags add `database/migrations/Create<Table>Table`, `database/factories/<Name>Factory`, `database/seeders/<Name>Seeder` |
-| `./grind make:migration <snake_name> [--create=table] [--table=table]` | `database/migrations/<StudlyName>`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
+| `./grind make:model <Name> [-mcrfspa]` | `app/models/<Name>`; short flags match Laravel: `-m` migration, `-c` controller, `-r` resource controller, `-f` factory, `-s` seeder, `-p` policy, `-a` / `--all` all of those |
+| `./grind make:migration <snake_name> [--create=table] [--table=table]` | `database/migrations/<StudlyName>` and appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
 | `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
 | `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
 | `./grind migrate` | Runs pending migrations as one new batch |
@@ -84,7 +84,7 @@ The migrate and seed commands:
 
 1. find the project at or above `--base` (default: current directory);
 2. load `build/classes` and call `create(String[])` on the bootstrap class (`--bootstrap=`, default `bootstrap.App`), so run `./gradlew classes` first;
-3. use the `MigrationRegistry` bound in the application container (they stop with a message when none is bound);
+3. use the `MigrationRegistry` bound in the application container, or migrations listed in `META-INF/kona/migrations` (written by `make:migration`);
 4. use the container's `Database` (registered by `CadenceServiceProvider`), or build one from the `database` config section; `--database=name` selects a named connection.
 
 Errors (unknown connection, a failing migration, a missing seeder class) print a message and exit with status 1. See [Migrations](../../cadence/migrations/) and [Seeders & factories](../../cadence/seeders-factories/) for the APIs behind these commands.

@@ -4,16 +4,20 @@ import org.konaframework.cadence.Cadence
 import java.nio.file.Path
 
 /**
- * `grind make:model <Name> [--migration] [--factory] [--seeder] [--all] [--lang=kotlin|java]`.
+ * `grind make:model <Name> [-m|-c|-r|-f|-s|-p|-a] [--migration] [--controller] [--resource]
+ * [--factory] [--seeder|--seed] [--policy] [--all] [--lang=kotlin|java]`.
  *
- * Writes `src/main/.../app/models/<Name>`; flags also write migrations/factories/seeders
- * under the same language root (`database.migrations`, etc.).
+ * Companion generators match Laravel `make:model` flags. `--all` / `-a` creates migration,
+ * factory, seeder, resource controller, and policy.
  */
 class MakeModelCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
         if (positional.isEmpty()) {
-            throw GrindException("Usage: grind make:model <Name> [--migration] [--factory] [--seeder] [--all]")
+            throw GrindException(
+                "Usage: grind make:model <Name> [-mcrfspa] [--migration] [--controller] [--resource] " +
+                    "[--factory] [--seeder] [--policy] [--all]",
+            )
         }
         val name = positional.first()
         Names.requireClassName("model", name)
@@ -21,15 +25,46 @@ class MakeModelCommand {
         val lang = Names.lang(base, options)
         val all = options["all"] == "true"
         Names.write(base, Names.sourceFile(lang, "app/models", name), "Model", modelStub(name, lang))
+
         if (all || options["migration"] == "true") {
             val table = Cadence.tableNameFor(name)
-            MakeMigrationCommand().write(base, "Create${Names.studly(table)}Table", lang, MakeMigrationCommand.Mode.CREATE, table)
+            MakeMigrationCommand().write(
+                base,
+                "Create${Names.studly(table)}Table",
+                lang,
+                MakeMigrationCommand.Mode.CREATE,
+                table,
+            )
         }
         if (all || options["factory"] == "true") {
             MakeFactoryCommand.write(base, name + "Factory", name, lang)
         }
         if (all || options["seeder"] == "true") {
             MakeSeederCommand.write(base, name + "Seeder", lang)
+        }
+
+        val wantController = all || options["controller"] == "true" || options["resource"] == "true"
+        val wantResource = all || options["resource"] == "true"
+        if (wantController) {
+            val controllerArgs = mutableListOf(
+                "${name}Controller",
+                "--base=${base.toAbsolutePath()}",
+                "--lang=$lang",
+            )
+            if (wantResource) {
+                controllerArgs += "--resource"
+            }
+            MakeControllerCommand().run(controllerArgs)
+        }
+        if (all || options["policy"] == "true") {
+            MakePolicyCommand().run(
+                listOf(
+                    "${name}Policy",
+                    "--model=$name",
+                    "--base=${base.toAbsolutePath()}",
+                    "--lang=$lang",
+                ),
+            )
         }
         return 0
     }
