@@ -64,6 +64,41 @@ class GrindTest {
         val resourceJava = Files.readString(base.resolve("src/main/java/app/http/controllers/InvoiceController.java"))
         assertTrue(resourceJava.contains("store(Request"))
         assertTrue(resourceJava.contains("destroy(Request"))
+        assertEquals(0, MakeControllerCommand().run(listOf("ApiThing", "--base=$base", "--api", "--lang=kotlin")))
+        val apiCtrl = Files.readString(base.resolve("src/main/kotlin/app/http/controllers/ApiThingController.kt"))
+        assertTrue(apiCtrl.contains("fun store"))
+        assertFalse(apiCtrl.contains("fun create"))
+        assertEquals(
+            0,
+            MakeControllerCommand().run(
+                listOf("Post", "--base=$base", "--resource", "--requests", "--model=Post", "--lang=kotlin"),
+            ),
+        )
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/requests/StorePostRequest.kt")))
+        assertTrue(
+            Files.readString(base.resolve("src/main/kotlin/app/http/controllers/PostController.kt"))
+                .contains("StorePostRequest"),
+        )
+        assertEquals(
+            0,
+            MakeControllerCommand().run(
+                listOf("Sku", "--base=$base", "--api", "--requests", "--model=Sku", "--lang=java"),
+            ),
+        )
+        val sku = Files.readString(base.resolve("src/main/java/app/http/controllers/SkuController.java"))
+        assertTrue(sku.contains("store(StoreSkuRequest"))
+        assertFalse(sku.contains("create(Request"))
+        assertTrue(Files.exists(base.resolve("src/main/java/app/http/requests/UpdateSkuRequest.java")))
+        assertEquals(
+            0,
+            MakeControllerCommand().run(
+                listOf("Book", "--base=$base", "--resource", "--requests", "--model=Book", "--lang=java"),
+            ),
+        )
+        val book = Files.readString(base.resolve("src/main/java/app/http/controllers/BookController.java"))
+        assertTrue(book.contains("create(Request"))
+        assertTrue(book.contains("store(StoreBookRequest"))
+        assertTrue(book.contains("update(UpdateBookRequest"))
     }
 
     @Test
@@ -621,6 +656,13 @@ class GrindTest {
         assertEquals("true", all["factory"])
         assertEquals("true", all["seeder"])
         assertEquals("true", all["policy"])
+
+        val (_, requests) = parseOptions(listOf("Post", "-mcrR", "--api"))
+        assertEquals("true", requests["migration"])
+        assertEquals("true", requests["controller"])
+        assertEquals("true", requests["resource"])
+        assertEquals("true", requests["requests"])
+        assertEquals("true", requests["api"])
     }
 
     private fun stubGradleApp(dir: Path): Path {

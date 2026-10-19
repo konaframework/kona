@@ -169,6 +169,7 @@ internal fun parseOptions(args: List<String>): Pair<List<String>, Map<String, St
                         'r' -> options["resource"] = "true"
                         'p' -> options["policy"] = "true"
                         'a' -> options["all"] = "true"
+                        'R' -> options["requests"] = "true"
                     }
                 }
             }
