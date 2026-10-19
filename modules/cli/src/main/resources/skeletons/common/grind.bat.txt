@@ -1,9 +1,9 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-rem Quiet Gradle — only grind (Termwind) output should appear.
+rem Quiet + plain Gradle — no lifecycle spam / stuck ~83%% progress while serve runs.
 if "%~1"=="" (
-  call gradlew.bat --quiet --console=plain grind
+  call gradlew.bat --quiet --console=plain -Dorg.gradle.console=plain grind
 ) else (
-  call gradlew.bat --quiet --console=plain grind -PgrindArgs="%*"
+  call gradlew.bat --quiet --console=plain -Dorg.gradle.console=plain grind -PgrindArgs="%*"
 )

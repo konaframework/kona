@@ -1,0 +1,32 @@
+package routes
+
+import app.http.controllers.DashboardController
+import app.http.controllers.LoginController
+import app.http.controllers.WelcomeController
+import org.konaframework.auth.Auth
+import org.konaframework.auth.middleware.Authenticate
+import org.konaframework.auth.middleware.RedirectIfAuthenticated
+import org.konaframework.http.Router
+
+class WebRoutes {
+    fun register(router: Router) {
+        val welcome = WelcomeController()
+        val login = LoginController()
+        val dashboard = DashboardController()
+        val auth = Auth.manager()
+
+        router.get("/") { welcome.index(it) }.name("welcome")
+        router.get("/login") { login.show(it) }
+            .middleware(RedirectIfAuthenticated(auth, "/dashboard"))
+            .name("login")
+        router.post("/login") { login.store(it) }
+            .middleware(RedirectIfAuthenticated(auth, "/dashboard"))
+            .name("login.store")
+        router.post("/logout") { login.destroy(it) }
+            .middleware(Authenticate(auth))
+            .name("logout")
+        router.get("/dashboard") { dashboard.index(it) }
+            .middleware(Authenticate(auth))
+            .name("dashboard")
+    }
+}

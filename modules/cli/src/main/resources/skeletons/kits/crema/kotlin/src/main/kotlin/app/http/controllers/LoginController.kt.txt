@@ -1,0 +1,46 @@
+package app.http.controllers
+
+import org.konaframework.auth.Auth
+import org.konaframework.auth.middleware.Authenticate
+import org.konaframework.core.Env
+import org.konaframework.crema.view
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import org.konaframework.session.Csrf
+import org.konaframework.session.Session
+import org.konaframework.session.StoreSession
+
+class LoginController {
+    fun show(request: Request): Response {
+        val session = request.session() as Session
+        @Suppress("UNCHECKED_CAST")
+        val errors = session.get(StoreSession.ERRORS) as? Map<String, List<String>>
+        return view(
+            "login",
+            mapOf(
+                "name" to Env.getOrDefault("APP_NAME", "Kona"),
+                "_token" to Csrf.token(session),
+                "email" to (request.old("email") ?: ""),
+                "error" to (errors?.get("email")?.firstOrNull() ?: ""),
+            ),
+        ).toResponse()
+    }
+
+    fun store(request: Request): Response {
+        val email = request.input("email")?.toString().orEmpty()
+        val password = request.input("password")?.toString().orEmpty()
+        Auth.setRequest(request)
+        if (!Auth.attempt(mapOf("email" to email, "password" to password))) {
+            return Response.redirect("/login", 302)
+                .withErrors(mapOf("email" to listOf("These credentials do not match our records.")))
+                .withInput(mapOf("email" to email))
+        }
+        return Response.redirect(Authenticate.pullIntended(request, "/dashboard"), 302)
+    }
+
+    fun destroy(request: Request): Response {
+        Auth.setRequest(request)
+        Auth.logout()
+        return Response.redirect("/", 302)
+    }
+}

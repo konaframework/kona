@@ -1,5 +1,10 @@
 package app.providers
 
+import app.models.User
+import org.konaframework.auth.AuthManager
+import org.konaframework.auth.CadenceUserProvider
+import org.konaframework.auth.SessionGuard
+import org.konaframework.auth.hashing.HashManager
 import org.konaframework.core.Application
 import org.konaframework.core.ServiceProvider
 
@@ -10,6 +15,10 @@ class AppServiceProvider : ServiceProvider {
     }
 
     override fun boot(app: Application) {
-        // Runs after every provider has registered.
+        val auth = app.resolve(AuthManager::class.java)
+        val hasher = app.resolve(HashManager::class.java).driver()
+        val users = CadenceUserProvider(User::class.java, hasher)
+        auth.provider("users", users)
+        auth.extend("web", SessionGuard("web", users))
     }
 }

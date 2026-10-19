@@ -1,0 +1,56 @@
+package app.models;
+
+import org.konaframework.auth.Authenticatable;
+import org.konaframework.auth.HasCredentials;
+import org.konaframework.auth.HasEmail;
+import org.konaframework.cadence.Cadence;
+import org.konaframework.cadence.CadenceCompanion;
+
+import java.util.Set;
+
+public class User extends Cadence<User> implements Authenticatable, HasCredentials, HasEmail {
+    public static final CadenceCompanion<User> QUERY = Cadence.of(User.class);
+
+    @Override
+    public Set<String> getFillable() {
+        return Set.of("name", "email", "password", "remember_token");
+    }
+
+    @Override
+    public Set<String> getHidden() {
+        return Set.of("password", "remember_token");
+    }
+
+    @Override
+    public Object getAuthIdentifier() {
+        return getAttribute("id");
+    }
+
+    @Override
+    public String getAuthPassword() {
+        Object password = getAttribute("password");
+        return password == null ? "" : password.toString();
+    }
+
+    @Override
+    public String getRememberToken() {
+        Object token = getAttribute("remember_token");
+        return token == null ? null : token.toString();
+    }
+
+    @Override
+    public void setRememberToken(String token) {
+        setAttribute("remember_token", token);
+    }
+
+    @Override
+    public Object getCredential(String key) {
+        return getAttribute(key);
+    }
+
+    @Override
+    public String getEmail() {
+        Object email = getAttribute("email");
+        return email == null ? null : email.toString();
+    }
+}

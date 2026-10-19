@@ -1,0 +1,23 @@
+package database.seeders;
+
+import app.models.User;
+import org.konaframework.auth.Hash;
+import org.konaframework.cadence.seeding.Seeder;
+
+import java.util.Map;
+
+public class DatabaseSeeder extends Seeder {
+    @Override
+    public void run() {
+        if (User.QUERY.query().where("email", "demo@kona.test").exists()) {
+            return;
+        }
+        User.QUERY.create(
+            Map.of(
+                "name", "Demo User",
+                "email", "demo@kona.test",
+                "password", Hash.make("password")
+            )
+        );
+    }
+}

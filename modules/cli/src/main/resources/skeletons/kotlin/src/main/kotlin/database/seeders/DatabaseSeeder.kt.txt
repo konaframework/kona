@@ -1,0 +1,20 @@
+package database.seeders
+
+import app.models.User
+import org.konaframework.auth.Hash
+import org.konaframework.cadence.seeding.Seeder
+
+class DatabaseSeeder : Seeder() {
+    override fun run() {
+        if (User.query().where("email", "demo@kona.test").exists()) {
+            return
+        }
+        User.create(
+            mapOf(
+                "name" to "Demo User",
+                "email" to "demo@kona.test",
+                "password" to Hash.make("password"),
+            ),
+        )
+    }
+}

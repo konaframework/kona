@@ -233,6 +233,10 @@ class NewCommand(
                 "$root/bootstrap/Middleware.$ext.txt",
                 "$root/app/providers/AppServiceProvider.$ext.txt",
                 "$root/app/http/controllers/WelcomeController.$ext.txt",
+                "$root/app/http/controllers/api/UserController.$ext.txt",
+                "$root/app/models/User.$ext.txt",
+                "$root/database/migrations/CreateUsersTable.$ext.txt",
+                "$root/database/seeders/DatabaseSeeder.$ext.txt",
                 "$root/routes/WebRoutes.$ext.txt",
                 "$root/routes/ApiRoutes.$ext.txt",
                 "$root/config/App.$ext.txt",
@@ -245,12 +249,11 @@ class NewCommand(
                 "src/main/resources/js/app.js",
                 "src/main/resources/public/.gitkeep",
                 "src/main/resources/public/robots.txt",
+                "src/main/resources/public/branding/kona-logo.svg",
+                "src/main/resources/META-INF/kona/migrations",
                 "src/main/resources/lang/.gitkeep",
                 "$root/app/http/middleware/.gitkeep",
-                "$root/app/models/.gitkeep",
-                "$root/database/migrations/.gitkeep",
                 "$root/database/factories/.gitkeep",
-                "$root/database/seeders/.gitkeep",
                 "storage/app/.gitkeep",
                 "storage/app/public/.gitkeep",
                 "storage/framework/.gitkeep",
@@ -266,6 +269,8 @@ class NewCommand(
         private val KIT_COMMON = mapOf(
             "crema" to listOf(
                 "src/main/resources/views/welcome.crema.html",
+                "src/main/resources/views/login.crema.html",
+                "src/main/resources/views/dashboard.crema.html",
             ),
             "inertia" to listOf(
                 "package.json",
@@ -274,11 +279,8 @@ class NewCommand(
                 "src/main/resources/views/app.crema.html",
                 "public/.gitkeep",
             ),
-            // Overwrites crema welcome; ships class-based Todos view + demo page.
-            "brew" to listOf(
-                "src/main/resources/views/welcome.crema.html",
-                "src/main/resources/views/brew/todos.crema.html",
-            ),
+            // Brew adds kona-brew + App wiring; Crema overlay already ships landing/login/dashboard.
+            "brew" to emptyList(),
         )
 
         private val KIT_LANG = mapOf(
@@ -287,21 +289,8 @@ class NewCommand(
                     "build.gradle.kts.txt",
                     "src/main/kotlin/bootstrap/App.kt.txt",
                     "src/main/kotlin/app/http/controllers/WelcomeController.kt.txt",
-                    "README.md",
-                ),
-                "java" to listOf(
-                    "build.gradle.kts.txt",
-                    "src/main/java/bootstrap/App.java.txt",
-                    "src/main/java/app/http/controllers/WelcomeController.java.txt",
-                    "README.md",
-                ),
-            ),
-            "inertia" to mapOf(
-                "kotlin" to listOf(
-                    "build.gradle.kts.txt",
-                    "src/main/kotlin/bootstrap/App.kt.txt",
-                    "src/main/kotlin/app/http/controllers/WelcomeController.kt.txt",
-                    "src/main/kotlin/app/http/middleware/HandleInertia.kt.txt",
+                    "src/main/kotlin/app/http/controllers/LoginController.kt.txt",
+                    "src/main/kotlin/app/http/controllers/DashboardController.kt.txt",
                     "src/main/kotlin/routes/WebRoutes.kt.txt",
                     "README.md",
                 ),
@@ -309,6 +298,23 @@ class NewCommand(
                     "build.gradle.kts.txt",
                     "src/main/java/bootstrap/App.java.txt",
                     "src/main/java/app/http/controllers/WelcomeController.java.txt",
+                    "src/main/java/app/http/controllers/LoginController.java.txt",
+                    "src/main/java/app/http/controllers/DashboardController.java.txt",
+                    "src/main/java/routes/WebRoutes.java.txt",
+                    "README.md",
+                ),
+            ),
+            "inertia" to mapOf(
+                "kotlin" to listOf(
+                    "build.gradle.kts.txt",
+                    "src/main/kotlin/bootstrap/App.kt.txt",
+                    "src/main/kotlin/app/http/middleware/HandleInertia.kt.txt",
+                    "src/main/kotlin/routes/WebRoutes.kt.txt",
+                    "README.md",
+                ),
+                "java" to listOf(
+                    "build.gradle.kts.txt",
+                    "src/main/java/bootstrap/App.java.txt",
                     "src/main/java/app/http/middleware/HandleInertia.java.txt",
                     "src/main/java/routes/WebRoutes.java.txt",
                     "README.md",
@@ -318,19 +324,11 @@ class NewCommand(
                 "kotlin" to listOf(
                     "build.gradle.kts.txt",
                     "src/main/kotlin/bootstrap/App.kt.txt",
-                    "src/main/kotlin/app/http/controllers/WelcomeController.kt.txt",
-                    "src/main/kotlin/app/brew/Counter.kt.txt",
-                    "src/main/kotlin/app/brew/Todos.kt.txt",
-                    "src/main/kotlin/routes/WebRoutes.kt.txt",
                     "README.md",
                 ),
                 "java" to listOf(
                     "build.gradle.kts.txt",
                     "src/main/java/bootstrap/App.java.txt",
-                    "src/main/java/app/http/controllers/WelcomeController.java.txt",
-                    "src/main/java/app/brew/Counter.java.txt",
-                    "src/main/java/app/brew/Todos.java.txt",
-                    "src/main/java/routes/WebRoutes.java.txt",
                     "README.md",
                 ),
             ),

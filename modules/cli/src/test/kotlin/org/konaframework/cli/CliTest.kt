@@ -206,10 +206,31 @@ class CliTest {
         assertTrue(middleware.contains("StartSession"))
         assertTrue(middleware.contains("VerifyCsrfToken"))
         assertTrue(middleware.contains("ServePublicStorage"))
+        assertTrue(middleware.contains("ServePublicDirectory"))
+        assertTrue(middleware.contains("alias(\"auth\""))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/welcome.crema.html")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/login.crema.html")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/dashboard.crema.html")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/public/branding/kona-logo.svg")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/app/models/User.kt")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/database/migrations/CreateUsersTable.kt")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/database/seeders/DatabaseSeeder.kt")))
+        assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/app/http/controllers/api/UserController.kt")))
+        assertTrue(
+            Files.readString(kt.resolve("src/main/resources/META-INF/kona/migrations"))
+                .contains("database.migrations.CreateUsersTable"),
+        )
+        assertTrue(
+            Files.readString(kt.resolve("src/main/resources/views/welcome.crema.html"))
+                .contains("docs.konaframework.org"),
+        )
         assertTrue(
             Files.readString(kt.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
-                .contains("view(\"welcome\""),
+                .contains("\"welcome\""),
+        )
+        assertTrue(
+            Files.readString(kt.resolve("src/main/kotlin/app/providers/AppServiceProvider.kt"))
+                .contains("CadenceUserProvider"),
         )
         assertTrue(Files.readString(kt.resolve("build.gradle.kts")).contains("kona-crema"))
         assertNoPlaceholders(kt)
@@ -239,9 +260,16 @@ class CliTest {
         assertTrue(build.contains("org.konaframework:kona-crema:9.9.9"))
         assertFalse(build.contains("kotlin(\"jvm\")"))
         assertTrue(Files.isRegularFile(j.resolve("src/main/resources/views/welcome.crema.html")))
+        assertTrue(Files.isRegularFile(j.resolve("src/main/resources/views/login.crema.html")))
+        assertTrue(Files.isRegularFile(j.resolve("src/main/java/app/models/User.java")))
+        assertTrue(Files.isRegularFile(j.resolve("src/main/resources/public/branding/kona-logo.svg")))
         assertTrue(
             Files.readString(j.resolve("src/main/java/app/http/controllers/WelcomeController.java"))
-                .contains("Views.make(\"welcome\""),
+                .contains("\"welcome\""),
+        )
+        assertTrue(
+            Files.readString(j.resolve("src/main/java/app/providers/AppServiceProvider.java"))
+                .contains("CadenceUserProvider"),
         )
         assertTrue(Files.readString(j.resolve("src/main/java/bootstrap/App.java")).contains("CremaServiceProvider"))
         assertNoPlaceholders(j)
@@ -291,18 +319,33 @@ class CliTest {
         assertTrue(Files.isRegularFile(inertia.resolve("vite.config.js")))
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/app.js")))
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/kotlin/app/http/middleware/HandleInertia.kt")))
-        assertTrue(Files.readString(inertia.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt")).contains("Inertia.render"))
+        assertTrue(
+            Files.readString(inertia.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
+                .contains("\"welcome\""),
+        )
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/views/login.crema.html")))
+        assertTrue(
+            Files.readString(inertia.resolve("src/main/kotlin/routes/WebRoutes.kt")).contains("/dashboard"),
+        )
 
         val brew = temp.resolve("brew-app")
         assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew")))
         assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-brew"))
-        assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
-        assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Todos.kt")))
-        assertTrue(Files.isRegularFile(brew.resolve("src/main/resources/views/brew/todos.crema.html")))
-        assertTrue(Files.readString(brew.resolve("src/main/resources/views/welcome.crema.html")).contains("brew:todos"))
+        assertFalse(Files.exists(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
+        assertFalse(Files.exists(brew.resolve("src/main/kotlin/app/brew/Todos.kt")))
+        assertFalse(Files.exists(brew.resolve("src/main/resources/views/brew/todos.crema.html")))
+        assertTrue(
+            Files.readString(brew.resolve("src/main/resources/views/welcome.crema.html"))
+                .contains("docs.konaframework.org"),
+        )
         assertTrue(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("BrewServiceProvider"))
-        assertTrue(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("Todos::class.java"))
-        assertTrue(Files.readString(brew.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt")).contains("view(\"welcome\""))
+        assertFalse(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("Todos::class.java"))
+        assertTrue(
+            Files.readString(brew.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
+                .contains("\"welcome\""),
+        )
+        assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/models/User.kt")))
+        assertTrue(Files.isRegularFile(brew.resolve("src/main/resources/views/login.crema.html")))
 
         val javaInertia = temp.resolve("java-inertia")
         assertEquals(0, NewCommand().run(listOf(javaInertia.toString(), "--lang=java", "--kit=inertia")))
@@ -325,10 +368,19 @@ class CliTest {
         val apiApp = temp.resolve("api-explicit")
         assertFalse(Files.readString(apiApp.resolve("build.gradle.kts")).contains("kona-crema"))
         assertFalse(Files.exists(apiApp.resolve("src/main/resources/views/welcome.crema.html")))
+        assertTrue(Files.isRegularFile(apiApp.resolve("src/main/kotlin/app/models/User.kt")))
+        assertTrue(Files.isRegularFile(apiApp.resolve("src/main/kotlin/app/http/controllers/api/UserController.kt")))
+        assertTrue(
+            Files.readString(apiApp.resolve("src/main/kotlin/routes/ApiRoutes.kt")).contains("/users"),
+        )
 
         val webExplicit = temp.resolve("web-explicit")
         assertEquals(0, NewCommand().run(listOf(webExplicit.toString(), "--kit=web")))
         assertTrue(Files.isRegularFile(webExplicit.resolve("src/main/resources/views/welcome.crema.html")))
+        assertTrue(Files.isRegularFile(webExplicit.resolve("src/main/resources/views/dashboard.crema.html")))
+        assertTrue(
+            Files.readString(webExplicit.resolve("src/main/kotlin/routes/WebRoutes.kt")).contains("/login"),
+        )
     }
 
     private fun assertNoPlaceholders(root: Path) {
