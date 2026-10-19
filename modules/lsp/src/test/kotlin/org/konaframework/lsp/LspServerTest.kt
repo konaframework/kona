@@ -20,6 +20,11 @@ class LspServerTest {
         assertEquals("kona-lsp", init.path("result").path("serverInfo").path("name").asText())
         assertTrue(init.path("result").path("capabilities").has("completionProvider"))
         assertTrue(init.path("result").path("capabilities").has("diagnosticProvider"))
+        val triggers =
+            init.path("result").path("capabilities").path("completionProvider").path("triggerCharacters")
+        assertTrue(triggers.toString().contains("@"))
+        assertTrue(triggers.toString().contains(":"))
+        assertTrue(triggers.toString().contains("."))
         val shutdown = messages.first { it.has("id") && it.get("id").asInt() == 2 }
         assertTrue(shutdown.has("result"))
         assertTrue(shutdown.get("result").isNull)
@@ -56,7 +61,7 @@ class LspServerTest {
         doc.put("uri", "file:///tmp/x.crema.html")
         doc.put("languageId", "crema")
         doc.put("version", 1)
-        doc.put("text", "@extends('a')\n@notARealDirective\n")
+        doc.put("text", "@extends('a')\n@notARealDirective\n<button wire:cli")
         openParams.set<com.fasterxml.jackson.databind.JsonNode>("textDocument", doc)
 
         val completionParams = LspTestSupport.mapper.createObjectNode()
@@ -68,6 +73,13 @@ class LspServerTest {
         pos.put("character", 1)
         completionParams.set<com.fasterxml.jackson.databind.JsonNode>("position", pos)
 
+        val wireCompletionParams = LspTestSupport.mapper.createObjectNode()
+        wireCompletionParams.set<com.fasterxml.jackson.databind.JsonNode>("textDocument", td)
+        val wirePos = LspTestSupport.mapper.createObjectNode()
+        wirePos.put("line", 2)
+        wirePos.put("character", 14) // end of "wire:cli"
+        wireCompletionParams.set<com.fasterxml.jackson.databind.JsonNode>("position", wirePos)
+
         val diagParams = LspTestSupport.mapper.createObjectNode()
         diagParams.set<com.fasterxml.jackson.databind.JsonNode>("textDocument", td)
 
@@ -77,7 +89,8 @@ class LspServerTest {
                 LspTestSupport.notification("textDocument/didOpen", openParams),
                 LspTestSupport.request(2, "textDocument/completion", completionParams),
                 LspTestSupport.request(3, "textDocument/diagnostic", diagParams),
-                LspTestSupport.request(4, "shutdown"),
+                LspTestSupport.request(4, "textDocument/completion", wireCompletionParams),
+                LspTestSupport.request(5, "shutdown"),
                 LspTestSupport.notification("exit"),
             )
         assertEquals(0, code)
@@ -93,6 +106,8 @@ class LspServerTest {
         val pull = messages.first { it.has("id") && it.get("id").asInt() == 3 }
         assertEquals("full", pull.path("result").path("kind").asText())
         assertTrue(pull.path("result").path("items").size() >= 1)
+        val wireCompletion = messages.first { it.has("id") && it.get("id").asInt() == 4 }
+        assertTrue(wireCompletion.path("result").path("items").toString().contains("wire:click"))
     }
 
     @Test

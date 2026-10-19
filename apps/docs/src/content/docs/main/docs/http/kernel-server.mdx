@@ -1,0 +1,336 @@
+---
+title: Kernel & server
+description: How HttpKernel turns a Request into a Response, and how KonaHttpServer serves it with Netty and Virtual Threads.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Two classes sit between the network and your route handlers:
+
+- **`HttpKernel`** is the request pipeline. It takes a `Request`, runs global middleware, asks the router for a route, runs that route’s middleware and action, converts failures into error responses, and returns a `Response`. It knows nothing about sockets, so you can call it directly in tests.
+- **`KonaHttpServer`** is a thin network adapter over **Netty**. It listens on a host and port, turns each HTTP exchange into a `Request`, calls `kernel.handle(request)`, and writes the `Response` back. Netty owns the sockets (epoll on Linux when available, otherwise NIO); each request runs on its own **virtual thread**.
+
+This page walks through both, in the order a request experiences them.
+
+## Where the kernel comes from
+
+`HttpServiceProvider` (in `kona-http`) registers two **singletons** in the application container — objects created once and shared by everyone who asks for them:
+
+- a `Router`, and
+- an `HttpKernel` built from that router, with no global middleware and a `DefaultExceptionHandler` whose debug mode follows the `app.debug` config value (seeded from `APP_DEBUG` in `.env`).
+
+Once the application has booted, resolve them from the container:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .boot()
+
+val router = app.resolve(Router::class.java)
+val kernel = app.resolve(HttpKernel::class.java)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .boot();
+
+Router router = app.resolve(Router.class);
+HttpKernel kernel = app.resolve(HttpKernel.class);
+```
+
+</TabItem>
+</Tabs>
+
+You can also construct a kernel yourself. All parameters after the router are optional:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val kernel = HttpKernel(
+    router,
+    globalMiddleware = listOf(RequestIdMiddleware()),
+    exceptionHandler = DefaultExceptionHandler(debug = false),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+HttpKernel kernel = new HttpKernel(router);
+HttpKernel withMiddleware = new HttpKernel(router, List.of(new RequestIdMiddleware()));
+HttpKernel custom = new HttpKernel(router, List.of(), new DefaultExceptionHandler(false));
+```
+
+</TabItem>
+</Tabs>
+
+## The pipeline, step by step
+
+`kernel.handle(request)` performs these steps for every request:
+
+1. **Snapshot global middleware.** The kernel reads its current global middleware list once. Changes made while the request is in flight affect only later requests.
+2. **Run global middleware, outermost first.** The first middleware in the list wraps all the others. Each one may inspect the request, call `next` to continue, and inspect or replace the response on the way back. See [Middleware](../middleware/).
+3. **Resolve a route.** At the centre of the global chain the kernel calls `router.resolve(method, path)`:
+   - The first registered route whose methods and path match wins.
+   - `HEAD` falls back to a matching `GET` route.
+   - If the path exists only under other methods, `OPTIONS` is answered automatically (status `200`, an empty body, and an `Allow` header such as `GET,HEAD,POST`).
+   - Otherwise the router throws `MethodNotAllowedException` (**405**, with an `Allow` header) or `NotFoundException` (**404**).
+4. **Expose route parameters.** Each `{name}` captured from the path is written into the request attributes twice: as `name` and as `route.name`.
+5. **Run route middleware, then the action.** Group middleware runs first, then middleware attached to the route itself, then the route’s handler.
+6. **Convert failures inside routing.** Anything thrown in steps 3–5 (404, 405, validation errors, your own exceptions) is passed to the kernel’s `ExceptionHandler`, which returns a normal `Response`. That response then travels back **out through the global middleware**, so a logging or header-adding middleware sees 404s, 405s, 422s, and 500s just like successful responses.
+7. **Convert failures in global middleware.** If a global middleware itself throws, the kernel catches it at the outermost level and asks the same exception handler for a response. In this case no global middleware observes the result, because the chain has already unwound.
+8. **Strip the body for `HEAD`.** If the request method is `HEAD`, the kernel sets the response body to `""` while keeping the status and headers. This applies to error responses as well.
+
+```text
+Request
+  └─ global middleware 1 ─┐
+       └─ global middleware 2 ─┐
+            └─ router.resolve ── route middleware ── action
+            ◄─ (exceptions here become responses via ExceptionHandler)
+       ◄─ global middleware 2 sees the response
+  ◄─ global middleware 1 sees the response
+Response  (body cleared for HEAD)
+```
+
+Because the whole pipeline is plain method calls, you can exercise it without a network:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val response = kernel.handle(Request.get("/api/health"))
+check(response.status == 200)
+
+val head = kernel.handle(Request("HEAD", "/api/health"))
+check(head.body.isEmpty())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Response response = kernel.handle(Request.get("/api/health"));
+assert response.getStatus() == 200;
+
+Response head = kernel.handle(new Request("HEAD", "/api/health"));
+assert head.getBody().isEmpty();
+```
+
+</TabItem>
+</Tabs>
+
+## Bootstrap middleware (`HttpMiddleware`)
+
+Generated apps configure middleware from `bootstrap/Middleware` via `.afterBoot`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+HttpMiddleware()
+    .alias("mark") { RequestIdMiddleware() }
+    .web(prepend = listOf("mark"))
+    // .trustProxies(at = listOf("*"))
+    // .trustHosts(at = listOf("example.com", "*.example.com"))
+    .apply(app)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new HttpMiddleware()
+    .alias("mark", RequestIdMiddleware::new)
+    .web(List.of("mark"), List.of())
+    // .trustProxies(List.of("*"))
+    // .trustHosts(List.of("example.com", "*.example.com"))
+    .apply(app);
+```
+
+</TabItem>
+</Tabs>
+
+- **`trustProxies`** — when the immediate peer is trusted (or `*`), copy `X-Forwarded-*` / `X-Real-IP` onto request attributes (`kona.clientIp`, `kona.scheme`, `kona.host`, `kona.port`).
+- **`trustHosts`** — reject requests whose `Host` header is not in the allow-list (exact or `*.example.com`).
+- **`web` / `api`** — named stacks resolved from aliases; `apply` pushes trust middleware and the `web` stack onto the kernel. Use `apiStack()` when grouping API routes.
+
+## Managing global middleware
+
+Global middleware is middleware that runs for **every** request, matched or not. The kernel exposes a small API for it:
+
+| Method | Effect |
+|--------|--------|
+| `pushMiddleware(mw)` | Append to the end (innermost position). Ignored if `mw` is already in the list. |
+| `prependMiddleware(mw)` | Insert at the front (outermost position). Ignored if already present. |
+| `setGlobalMiddleware(list)` | Replace the whole list. |
+| `hasMiddleware(mw)` | `true` when `mw` is in the list. |
+| `globalMiddleware` | The current list (Java: `getGlobalMiddleware()`). |
+
+All of them return the kernel, so calls chain. The usual place to configure the shared kernel is a service provider’s `boot` method, which runs after `HttpServiceProvider` has registered the kernel:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {}
+
+    override fun boot(app: Application) {
+        app.resolve(HttpKernel::class.java)
+            .prependMiddleware(RequestIdMiddleware())
+            .pushMiddleware(AccessLogMiddleware())
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {}
+
+    @Override
+    public void boot(Application app) {
+        app.resolve(HttpKernel.class)
+            .prependMiddleware(new RequestIdMiddleware())
+            .pushMiddleware(new AccessLogMiddleware());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Replacing the exception handler
+
+`HttpServiceProvider` always builds its kernel with `DefaultExceptionHandler`. To use your own `ExceptionHandler`, rebind `HttpKernel` in a provider that is registered **after** `HttpServiceProvider` (later bindings replace earlier ones):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun register(app: Application) {
+    app.container.singleton(HttpKernel::class.java) { c ->
+        HttpKernel(c.resolve(Router::class.java), exceptionHandler = HtmlErrorHandler())
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override
+public void register(Application app) {
+    app.getContainer().singleton(HttpKernel.class, c ->
+        new HttpKernel(c.resolve(Router.class), List.of(), new HtmlErrorHandler()));
+}
+```
+
+</TabItem>
+</Tabs>
+
+[Exceptions](../exceptions/) describes the default handler’s JSON format and how to write your own.
+
+## `KonaHttpServer`
+
+`KonaHttpServer` is built on **Netty** (`netty-codec-http`, with native epoll on Linux when the JVM can load it). Create it with a kernel, a host, and a port — the public API is unchanged for apps and `./grind serve`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val server = KonaHttpServer(kernel, host = "127.0.0.1", port = 4000)
+server.start()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KonaHttpServer server = new KonaHttpServer(kernel, "127.0.0.1", 4000);
+server.start();
+```
+
+</TabItem>
+</Tabs>
+
+In Kotlin, `host` defaults to `127.0.0.1` and `port` to `4000`. Java callers pass all three arguments.
+
+| Method | Behavior |
+|--------|----------|
+| `start()` | Binds the socket, starts accepting requests, and logs `Kona server listening on http://host:port`. Returns immediately; the server keeps the JVM alive. Calling it again while running does nothing. If the port is taken, it throws a bind failure (for example `java.net.BindException`). |
+| `stop(delaySeconds)` | Optionally sleeps `delaySeconds`, then closes the listen channel and shuts down Netty event loops and the virtual-thread executor. Kotlin may omit the argument (default `0`); Java passes it, for example `stop(0)`. |
+| `isRunning()` | `true` between `start()` and `stop()`. |
+| `port()` | The port passed to the constructor. |
+
+### What happens per request
+
+For each incoming exchange the server:
+
+1. Reads the method, normalizes the path (collapses repeated `/`, drops a trailing `/`), and parses the query string (percent-decoded).
+2. Copies headers, keeping the first value of any repeated header.
+3. Reads the entire body into memory as raw bytes (`Request.bodyBytes`).
+4. Dispatches `kernel.handle(request)` on a **virtual thread**. The kernel converts every exception into a response, so a failing handler still produces a well-formed reply.
+5. Writes every response header (including repeated `Set-Cookie`), then the body with an exact `Content-Length`. For `204` responses and `HEAD` requests, no body bytes are written. Keep-alive is honored when the client asks for it.
+
+HTTP keep-alive and pooled buffers are enabled by default. You can force the transport with the system property `kona.http.transport` (`auto`, `epoll`, or `nio`).
+
+### Adapter notes
+
+- Paths such as `/foo//bar` are normalized and handled normally.
+- Status codes use Kona’s reason-phrase table when present (including **422 Unprocessable Entity**).
+- Route parameters are available as `request.route("id")` (and as request attributes).
+
+## Virtual Threads
+
+A **virtual thread** is a lightweight thread managed by the JVM (JDK 21 and later) rather than by the operating system. Creating one is cheap, and when it blocks on I/O — a database query, an outbound HTTP call, a file read — the JVM parks it and reuses the underlying OS thread for other work.
+
+`KonaHttpServer` runs each request on a **new virtual thread** (`Executors.newVirtualThreadPerTaskExecutor()`). For you, that means:
+
+- **Write ordinary blocking code.** Call JDBC, read files, or wait on an HTTP client directly in your handler. There is no callback or async API to learn, and a slow request does not hold back the others.
+- **One request, one thread.** Everything that happens for a request — global middleware, route middleware, your action — runs on the same thread, start to finish. Thread-local values set at the beginning of a request are visible until it ends.
+- **Shared objects must be thread-safe.** The router, the kernel, and your singletons are used by many requests at once. Register routes and middleware during boot, before `start()`, and avoid mutating them afterwards. Keep per-request state on the `Request` (attributes) or in local variables.
+- **Do not pool virtual threads.** They are meant to be created per task; limit concurrency to a scarce resource with a semaphore or a connection pool instead.
+
+## `HOST` and `PORT`
+
+Applications created by `kona new` start the server in `bootstrap.App`’s `main` function (`src/main/…/bootstrap/App`), reading the bind address from the environment:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val host = Env.getOrDefault("HOST", "127.0.0.1")
+val port = Env.getOrDefault("PORT", "4000").toInt()
+KonaHttpServer(app.resolve(HttpKernel::class.java), host, port).start()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String host = Env.getOrDefault("HOST", "127.0.0.1");
+int port = Integer.parseInt(Env.getOrDefault("PORT", "4000"));
+new KonaHttpServer(app.resolve(HttpKernel.class), host, port).start();
+```
+
+</TabItem>
+</Tabs>
+
+`Env` checks the **process environment first**, then the `.env` file in the application’s base path, then the default. The generated `.env` contains `HOST=127.0.0.1` and `PORT=4000`.
+
+- `127.0.0.1` accepts connections from the same machine only, which is the safe default for development.
+- Set `HOST=0.0.0.0` to accept connections on every network interface, for example inside a container.
+- `grind serve --host=… --port=…` sets `HOST` and `PORT` for the application process, overriding `.env` for that run. See [grind commands](../../grind/commands/#grind-serve).

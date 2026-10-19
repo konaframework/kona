@@ -3,6 +3,7 @@ package org.konaframework.lsp
 /**
  * Lightweight Crema scan for completions and unknown-directive diagnostics.
  * Not a full parser — enough for editor feedback on `*.crema.html` / `*.crema.kt`.
+ * Also offers Brew `wire:*` attribute completions and unknown-attribute warnings.
  */
 object CremaAnalyzer {
     private val DIRECTIVE =
@@ -51,16 +52,37 @@ object CremaAnalyzer {
                     )
             }
         }
+        BrewWirePatterns.findUnknown(withoutComments).forEach { hit ->
+            val start = offsetToPosition(text, hit.start)
+            val end = offsetToPosition(text, hit.end)
+            out +=
+                Diagnostic(
+                    range = Range(start, end),
+                    message = "Unknown Brew attribute ${hit.name}",
+                    source = "brew",
+                )
+        }
         return out
     }
 
     /**
-     * Completions at a caret. When the caret is in/after `@name`, filters by prefix;
-     * otherwise returns the full directive list (editors filter client-side).
+     * Completions at a caret. Prefer Brew `wire:*` when typing an attribute;
+     * otherwise Crema `@` directives (filtered by prefix when inside `@name`).
      */
     @JvmStatic
     fun completions(text: String, line: Int, character: Int): List<CompletionItem> {
         val offset = positionToOffset(text, line, character)
+        val wirePrefix = BrewWirePatterns.attributePrefixAt(text, offset)
+        if (wirePrefix != null) {
+            return BrewWireAttributes.completionsForPrefix(wirePrefix).map { label ->
+                CompletionItem(
+                    label = label,
+                    kind = 5, // Field
+                    detail = "Brew wire",
+                    insertText = label,
+                )
+            }
+        }
         val context = directiveContextAt(text, offset)
         val names =
             if (context == null) {

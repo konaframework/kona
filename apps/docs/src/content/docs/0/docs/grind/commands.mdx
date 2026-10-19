@@ -1,0 +1,134 @@
+---
+title: serve / make
+description: Reference for ./grind serve, the make generators, and the database commands.
+---
+
+All commands below assume you are in an application directory that contains `./grind` (created by `kona new`). From anywhere under that app you can also run the same commands through the global CLI:
+
+```bash
+kona grind serve
+kona grind migrate
+kona grind --help   # explains the proxy; other args are forwarded to ./grind
+```
+
+`kona grind` finds the nearest Gradle project (same walk as `./grind serve`), then runs that app’s `./grind` or `grind.bat` with your remaining arguments and exit code.
+
+## `./grind serve`
+
+```bash
+./grind serve
+./grind serve --host=127.0.0.1 --port=4000
+./grind serve --in-process --once
+./grind serve --in-process --bootstrap=bootstrap.App
+```
+
+| Flag | Effect |
+|------|--------|
+| `--host` / `--port` | Bind address (also via `.env` as `HOST` / `PORT`) |
+| `--in-process` | Load compiled classes and call `bootstrap.App.create` instead of `gradlew run` |
+| `--once` | With in-process mode, return after the server starts |
+| `--bootstrap=` | Bootstrap class (in-process only) |
+| `--base=` | Directory to search upward for the Gradle project |
+
+Default host is **127.0.0.1** and default port is **4000** (also in generated `.env`). If that port is already in use, grind asks whether to try the next one (4001, 4002, …). If no Gradle project is found, grind exits and tells you to run `kona new <name>`.
+
+## `./grind make:command`
+
+```bash
+./grind make:command SendDigest
+./grind make:command SendDigest --command=mail:digest --lang=java
+```
+
+Generates a `ConsoleCommand` under `app/console/commands/` and registers it in `META-INF/kona/commands`. Full guide: [Creating commands](../creating-commands/).
+
+## `./grind make:controller`
+
+```bash
+./grind make:controller Post
+./grind make:controller AccountController --lang=java
+```
+
+
+Writes under `src/main/kotlin|java/app/http/controllers/`. Names cannot contain path separators; invalid identifiers are rejected. Language defaults from existing `.java` files under `src/main/java/`, or pass `--lang=`.
+
+Unlike `serve`, `make:controller` does not walk upward from nested folders unless you pass `--base=`.
+
+## `./grind make:resource`
+
+```bash
+./grind make:resource User
+./grind make:resource PostResource --collection --lang=java
+```
+
+Writes under `src/main/kotlin|java/app/http/resources/`. Names get a `Resource` suffix when missing. Pass `--collection` to include a static/companion `collection` helper that wraps items in `JsonResource.collection(...)`.
+
+## Database commands
+
+These commands work with [Cadence](../../cadence/). Generators write source files; the others boot your application in-process.
+
+| Command | Writes / does |
+|---------|---------------|
+| `./grind make:model <Name> [--migration] [--factory] [--seeder] [--all]` | `app/Models/<Name>`; flags add `database/migrations/Create<Table>Table`, `database/factories/<Name>Factory`, `database/seeders/<Name>Seeder` |
+| `./grind make:migration <snake_name> [--create=table] [--table=table]` | `database/migrations/<StudlyName>`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
+| `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
+| `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
+| `./grind migrate` | Runs pending migrations as one new batch |
+| `./grind migrate:rollback [--step=N]` | Reverts the last `N` batches (default 1) |
+| `./grind migrate:reset` | Reverts every migration |
+| `./grind migrate:status` | Lists each registered migration as `Ran` (with its batch) or `Pending` |
+| `./grind db:seed [--class=…]` | Runs a seeder (default `database.seeders.DatabaseSeeder`) |
+
+All generators accept `--lang=kotlin|java` (default: Java when `app/` already has `.java` files) and `--base=`, and never overwrite an existing file.
+
+The migrate and seed commands:
+
+1. find the project at or above `--base` (default: current directory);
+2. load `build/classes` and call `create(String[])` on the bootstrap class (`--bootstrap=`, default `bootstrap.App`), so run `./gradlew classes` first;
+3. use the `MigrationRegistry` bound in the application container (they stop with a message when none is bound);
+4. use the container's `Database` (registered by `CadenceServiceProvider`), or build one from the `database` config section; `--database=name` selects a named connection.
+
+Errors (unknown connection, a failing migration, a missing seeder class) print a message and exit with status 1. See [Migrations](../../cadence/migrations/) and [Seeders & factories](../../cadence/seeders-factories/) for the APIs behind these commands.
+
+## `./grind key:generate`
+
+```bash
+./grind key:generate
+./grind key:generate --show
+./grind key:generate --force
+./grind key:generate --base=/path/to/app
+```
+
+Sets a cryptographically random **application key** in the project `.env` as `APP_KEY=base64:…` (32 raw bytes, Base64-encoded). That value is what encryption, signed cookies, and related features read as `app.key`.
+
+| Flag | Effect |
+|------|--------|
+| *(none)* | Generate a key and write it to `.env` |
+| `--show` | Print a new key to the terminal and **do not** modify files |
+| `--force` | Allow overwriting an existing key when `APP_ENV=production` |
+| `--base=` | Directory to search upward for the Gradle project (same walk as `serve`) |
+
+### What happens on a normal run
+
+1. Grind finds the application root at or above `--base` (default: current directory).
+2. If `.env` is missing but `.env.example` exists, grind copies `.env.example` → `.env` first.
+3. A new `base64:…` key is generated (same format as `kona new`).
+4. The `APP_KEY=…` line in `.env` is replaced. If that line is missing, grind exits with an error.
+5. On success: `Application key set successfully.`
+
+### Existing keys and production
+
+- If `APP_KEY` is **empty**, grind writes the new key with no extra prompt.
+- If `APP_KEY` is **already set** and the environment is **not** production (`APP_ENV` from the process environment, or from `.env` when unset in the process), grind overwrites the key.
+- If `APP_KEY` is already set and `APP_ENV=production`, grind warns and asks for confirmation. Decline (or a non-interactive “no”) cancels the command. Pass `--force` to skip the prompt.
+
+`--show` always prints a fresh key and never touches `.env`, regardless of production or an existing key.
+
+Rotate carefully: ciphertext and signed cookie payloads produced with the old key will not verify after you change `APP_KEY`. See [Encryption](../../security/encryption/).
+
+## Not a grind command: creating apps
+
+```bash
+kona new my-app --lang=kotlin
+```
+
+See [Installation](../guides/installation/).

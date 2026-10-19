@@ -1,0 +1,122 @@
+---
+title: Database & fakes
+description: Transactional DB helpers and in-memory fakes for mail, queue, events, cache, broadcast, and storage.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Database helpers
+
+`DatabaseTest` wraps Cadence connections for tests.
+
+| API | Behavior |
+| --- | --- |
+| `transactional(database, block)` | Runs `block` inside `database.connection().transaction(…)` and returns the block result |
+| `refresh(database, tables)` | `DELETE FROM` each listed table name (order matters for FKs) |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DatabaseTest.transactional(database) { db ->
+    // inserts that roll back when the transaction ends without commit
+    db
+}
+
+DatabaseTest.refresh(database, listOf("password_reset_tokens", "users"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DatabaseTest.transactional(database, db -> {
+    return null;
+});
+
+DatabaseTest.refresh(database, List.of("password_reset_tokens", "users"));
+```
+
+</TabItem>
+</Tabs>
+
+`refresh` issues raw `DELETE FROM $table` statements — only pass trusted table identifiers.
+
+## Fakes
+
+Each fake owns an in-memory (or log-backed) collaborator you can assert against. They are plain constructors — bind them into the container in your test provider when the production code resolves the real type.
+
+### FakeMail
+
+`LogTransport` + `Mailer`. `messages()` returns captured `MailMessage`s.
+
+```kotlin
+val mail = FakeMail()
+mail.mailer.send(MailMessage().to("a@b.c").subject("Hi"))
+assertEquals(1, mail.messages().size)
+```
+
+### FakeQueue
+
+Array-driver `QueueManager` + `Bus`. `dispatch(job)` and `size()` inspect the connection.
+
+```kotlin
+val queue = FakeQueue()
+queue.dispatch(MyJob())
+assertEquals(1L, queue.size())
+```
+
+### FakeNotification
+
+In-memory `DatabaseChannel` + `LogChannel` behind `NotificationSender`. `assertSent(type)` is true if either channel recorded that notification class.
+
+```kotlin
+val notifications = FakeNotification()
+notifications.send(user, WelcomeNotification())
+assertTrue(notifications.assertSent(WelcomeNotification::class.java))
+```
+
+### FakeEvent
+
+Wraps `EventDispatcher` and records every `dispatch` argument. `assertDispatched(type)`, `events()`, `clear()`.
+
+```kotlin
+val events = FakeEvent()
+events.dispatch(OrderPlaced(id = 1))
+assertTrue(events.assertDispatched(OrderPlaced::class.java))
+events.clear()
+```
+
+### FakeCache
+
+`ArrayCacheStore` + `Repository`. Mirrors `get` / `put` / `forever` / `forget` / `flush` / `has`.
+
+```kotlin
+val cache = FakeCache()
+cache.put("k", "v", 60)
+assertEquals("v", cache.get("k"))
+```
+
+### FakeBroadcast
+
+Log-driver `BroadcastManager`. `broadcast(event)`, `messages()`, `clear()`.
+
+```kotlin
+val broadcast = FakeBroadcast()
+broadcast.broadcast(OrderShipped())
+assertTrue(broadcast.messages().isNotEmpty())
+```
+
+### FakeStorage
+
+Full in-memory `FilesystemAdapter`: put/get/exists/delete/copy/move, directories, visibility, streams, `putFile` / `putFileAs`. Temporary URLs throw `IllegalStateException` (`providesTemporaryUrls()` is `false`).
+
+```kotlin
+val disk = FakeStorage()
+disk.put("a.txt", "hello")
+assertEquals("hello", disk.getString("a.txt"))
+```
+
+## Choosing a fake vs the real driver
+
+Prefer fakes when the unit under test should not touch Redis, SMTP, or the filesystem. Prefer a real SQLite/H2 Cadence connection (with `DatabaseTest.transactional`) when you are asserting SQL behavior itself.

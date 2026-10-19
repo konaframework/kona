@@ -8,9 +8,14 @@
     { "include": "#crema-echo-raw" },
     { "include": "#crema-echo" },
     { "include": "#crema-directive" },
+    { "include": "#brew-wire" },
     { "include": "text.html.basic" }
   ],
   "repository": {
+    "brew-wire": {
+      "name": "entity.other.attribute-name.brew.wire.crema",
+      "match": "\\b(wire:(?:model|click|submit|loading|target|ignore|key|dirty|offline|confirm|poll|init|show|transition)(?:\\.[A-Za-z0-9_-]+)*\\b)"
+    },
     "crema-comment": {
       "name": "comment.block.crema",
       "begin": "\\{\\{--",

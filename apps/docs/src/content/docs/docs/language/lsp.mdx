@@ -14,10 +14,14 @@ Maven coordinates: `org.konaframework:kona-lsp` (module `modules/lsp`, package `
 | `initialize` / `initialized` | Advertise full document sync, completion (trigger `@`), diagnostic provider |
 | `shutdown` / `exit` | Clean teardown (exit code `0` after shutdown) |
 | `textDocument/didOpen` / `didChange` / `didClose` | Track buffer text; `publishDiagnostics` on open/change |
-| `textDocument/completion` | Suggest built-in Crema directives |
-| `textDocument/diagnostic` | Pull-model report of unknown `@directive` names |
+| `textDocument/completion` | Suggest built-in Crema directives and Brew `wire:*` attributes |
+| `textDocument/diagnostic` | Pull-model report of unknown `@directive` names and unknown `wire:*` attributes |
 
-Comments `{{-- … --}}` are ignored when scanning for directives so examples inside comments do not warn.
+Comments `{{-- … --}}` are ignored when scanning for directives and `wire:*` attributes so examples inside comments do not warn.
+
+### Brew `wire:*` (Crema HTML)
+
+Inside an open HTML tag, typing `wire:` (or a stem like `wi`) offers the same Brew attribute list as the IntelliJ plugin: `wire:model`, `wire:click`, `wire:submit`, `wire:loading`, `wire:target`, `wire:ignore`, `wire:key`, `wire:dirty`, `wire:offline`, `wire:confirm`, `wire:poll`, `wire:init`, `wire:show`, `wire:transition`, plus common modifiers (`.live`, `.prevent`, …). Unknown `wire:*` names produce a warning. Trigger characters include `@`, `:`, and `.`.
 
 ## Run it
 

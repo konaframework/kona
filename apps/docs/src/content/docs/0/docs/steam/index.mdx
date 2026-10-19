@@ -1,0 +1,19 @@
+---
+title: steam
+description: Interactive REPL inside a bootstrapped Kona app.
+---
+
+`steam` is grind’s REPL (Tinker-class). It boots your application in-process and evaluates expressions.
+
+```bash
+./gradlew classes
+./grind steam [--bootstrap=bootstrap.App]
+```
+
+When the Kotlin scripting engine is on the classpath, `app` is bound into the engine. Otherwise steam accepts:
+
+- `config("some.key")`
+- `app`
+- simple integer arithmetic (`1+2*3` left-to-right)
+
+Type `:quit` to exit.

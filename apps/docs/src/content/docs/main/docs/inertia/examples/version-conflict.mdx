@@ -1,0 +1,19 @@
+---
+title: Version conflict
+description: Force a 409 when the client asset version is stale.
+---
+
+```kotlin
+Inertia.version("server")
+// middleware installed…
+
+val response = kernel.handle(
+    Request("GET", "/", headers = mapOf(
+        "X-Inertia" to "true",
+        "X-Inertia-Version" to "client",
+    )),
+)
+// status 409, X-Inertia: true, X-Inertia-Version: server
+```
+
+Clients treat `409` as a signal to perform a full page reload.

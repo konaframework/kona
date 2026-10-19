@@ -1,0 +1,45 @@
+---
+title: Requirements
+description: JDK, Kona version, Node, and tooling needed to run and develop Brew.
+---
+
+## Runtime (applications)
+
+| Requirement | Version / note |
+|-------------|----------------|
+| **JDK** | 21+ (virtual threads; same as Kona) |
+| **Kona** | Matching release of `kona-http`, `kona-session`, `kona-crema`, and related modules from Maven Central (current line: **0.1.1**) |
+| **Brew** | `org.konaframework:kona-brew` |
+| **Browser** | Modern evergreen browsers; Alpine 3.x APIs |
+
+Session + CSRF are required for update requests that carry `_token`. Cookie or server session drivers both work when wired through Kona’s session provider.
+
+## Development (framework contributors)
+
+| Tool | When you need it |
+|------|------------------|
+| **JDK 21** | Always — library + samples |
+| **Node 22** | Only to work on the JS runtime under `js/brew/` (Vitest, esbuild, Playwright) |
+| **Gradle** | Wrapper included (`./gradlew`) in the Kona repository |
+
+You do **not** need Node to *use* Brew in an application. The client bundles (`brew.min.js`, `brew.js`, `brew.esm.js`, `brew.csp.min.js`) ship inside the `kona-brew` jar and are served by the framework.
+
+## Alpine.js
+
+Brew **bundles** Alpine.js `3.17.x` and these plugins inside the default runtime:
+
+- morph, intersect, collapse, focus, persist, anchor, mask, sort, resize
+
+`window.Alpine` and `window.Brew` are both set when `/brew/brew.min.js` loads. See [Alpine.js coupling](/docs/brew/js/alpine/) for coexistence rules and `$wire`.
+
+## Optional
+
+| Piece | Role |
+|-------|------|
+| **Vite / asset pipeline** | Only if you custom-bundle Brew ESM instead of the served script |
+| **Playwright** | Browser smoke tests for Brew’s JS runtime (in the Kona repository) |
+| **Kona Idea / LSP** | Completions for `<brew:…>` and `wire:*` (see [Language](/docs/language/) and the [kona-idea](https://github.com/konaframework/kona-idea) project) |
+
+## Next
+
+- [Installation](/docs/brew/guides/installation/) — add Brew to a Kona project

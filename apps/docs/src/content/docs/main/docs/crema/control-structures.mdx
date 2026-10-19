@@ -1,0 +1,220 @@
+---
+title: Control structures
+description: Conditionals, loops, auth, abilities, switch, and loop metadata in Crema templates.
+---
+
+Crema’s structural directives branch and repeat template regions. Outer blocks expand first so inner blocks see loop variables and child context.
+
+## Truthiness
+
+Expressions in `@if`, `@unless`, `@empty`, `@includeWhen`, and similar treat a value as **truthy** unless it is:
+
+- `null`
+- `false`
+- a number equal to `0`
+- an empty string
+- an empty collection, map, or array
+
+Everything else (including non-empty strings, objects, and non-zero numbers) is truthy.
+
+## Conditionals
+
+```crema
+@if(n == 1)
+  One
+@elseif(n == 2)
+  Two
+@else
+  Other
+@endif
+
+@unless(ok)
+  Hidden when ok is truthy
+@endunless
+
+@isset(name)
+  Name is present (non-null)
+@endisset
+
+@empty(items)
+  No items (not truthy)
+@endempty
+```
+
+| Directive | Closer | Meaning |
+|-----------|--------|---------|
+| `@if(expr)` | `@endif` | Body when truthy; supports `@elseif` / `@else` |
+| `@unless(expr)` | `@endunless` | Body when not truthy |
+| `@isset(name)` | `@endisset` | Body when resolved value is non-null |
+| `@empty(expr)` | `@endempty` | Body when value is not truthy |
+
+Nested `@if` blocks match the correct `@endif`. `@hasSection` / `@sectionMissing` also close with `@endif` — see [Layouts](/docs/crema/layouts/).
+
+### Edge cases
+
+```crema
+@if(0)never@endif
+@if('')never@endif
+@if(nil)never@endif
+@if(items)has items@endif
+```
+
+Compare with care: `==` and friends stringify both sides after evaluating, except numeric comparisons for `<` / `>` / `<=` / `>=` when both sides are numbers.
+
+## `@while`
+
+```crema
+@while(loop.iteration <= n)
+  {{ loop.iteration }}
+@endwhile
+```
+
+Each pass injects a `loop` map into a child context **before** evaluating the condition, so the first check already sees `loop.iteration == 1`. Hard cap: **10 000** iterations.
+
+## `@foreach` / `@each` / `@for`
+
+### Collection form
+
+```crema
+@foreach(items as item)
+  <li>{{ item }} ({{ loop.iteration }})</li>
+@endforeach
+```
+
+`@each` / `@endeach` and `@for(items as item)…@endfor` behave the same. Leading `$` on the item name is optional (`as $item`).
+
+### Keyed form
+
+```crema
+@foreach(map as key => value)
+  {{ key }}={{ value }}
+@endforeach
+```
+
+For a `Map`, `key` / `value` are each entry. For a list (or other iterable), `key` is the zero-based index and `value` is the element.
+
+### Range and C-style `@for`
+
+```crema
+@for(i in 0..2)
+  {{ i }}
+@endfor
+
+@for(i = 0; i < n; i++)
+  {{ i }}
+@endfor
+```
+
+`0..2` is **inclusive**. The C-style form uses a strict `<` upper bound (`i = 0; i < n; i++`).
+
+### Scalars and weird values
+
+| Value passed to `@foreach` | Iteration |
+|----------------------------|-----------|
+| `null` | Zero iterations |
+| Collection / array / `IntRange` | Elements |
+| `CharSequence` | Characters |
+| Any other single value | One iteration with that value |
+
+## Loop metadata
+
+Every loop iteration sets a `loop` map in the child context:
+
+| Key | Meaning |
+|-----|---------|
+| `index` | Zero-based index |
+| `iteration` | One-based index |
+| `first` / `last` | Booleans |
+| `count` | Total size for this loop |
+| `remaining` | Items after this one |
+| `even` / `odd` | Based on zero-based index |
+| `depth` | Nesting depth (`1` at the outermost loop) |
+| `parent` | Outer loop map when nested, else null |
+
+```crema
+@foreach(outer as o)
+  @foreach(inner as i)
+    depth={{ loop.depth }} parent={{ loop.parent.iteration }}
+  @endforeach
+@endforeach
+```
+
+## `@forelse`
+
+Like `@foreach`, but requires an `@empty` branch when the collection has no items:
+
+```crema
+@forelse(items as item)
+  {{ item }}
+@empty
+  <p>None</p>
+@endforelse
+```
+
+Nested `@forelse` blocks match the correct `@empty` / `@endforelse`. The empty branch does not receive loop metadata for a “current” item.
+
+## Auth and guest
+
+```crema
+@auth
+  Signed in
+@endauth
+
+@guest
+  Please sign in
+@endguest
+```
+
+A visitor is treated as authenticated when the view data has any of:
+
+- `__authenticated` truthy
+- `auth_user` non-null
+- `user` non-null
+
+Pass these from middleware or the controller after your auth layer runs. See [Authentication](/docs/security/authentication/).
+
+## Abilities
+
+```crema
+@can('edit')
+  <button>Edit</button>
+@endcan
+
+@cannot('edit')
+  <span>Read-only</span>
+@endcannot
+```
+
+Crema checks, in order:
+
+1. `__abilities` as a `Set` / `List` containing the ability string, or a `Map` whose value for that key is truthy
+2. A `can` map in the data (`can['edit']` truthy)
+
+Wire real policies via [Authorization](/docs/security/authorization/); these directives only read the map you provide to the view.
+
+## `@switch`
+
+```crema
+@switch(status)
+@case(1)
+  Open
+  @break
+@case(2)
+  Closed
+  @break
+@default
+  Unknown
+@endswitch
+```
+
+Cases compare **stringified** values (`"1"` matches `1`). `@break` stops the active arm; without it, fall-through into the next arm’s text is possible until the next `@case` / `@default` / end. `@default` runs when no case matched.
+
+## Field errors
+
+`@error('field')…@enderror` is documented with forms — see [Forms](/docs/crema/forms/#field-errors).
+
+## Next
+
+- [Includes & partials](/docs/crema/includes/)
+- [Components & slots](/docs/crema/components/)
+- [Directive reference](/docs/crema/directives/)

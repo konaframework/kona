@@ -1,0 +1,26 @@
+---
+title: Package development
+description: Discover service providers from META-INF/kona/providers; install packages with ./grind install.
+---
+
+To **add** a package to an existing app (dependency + providers), see [Installing packages](./install/).
+
+Reusable Kona packages expose service providers through a classpath resource:
+
+```
+META-INF/kona/providers
+```
+
+One fully-qualified `ServiceProvider` class name per line (`#` comments allowed).
+
+```kotlin
+PackageDiscovery.registerAll(app)
+// or
+PackageDiscovery.loadProviders(classLoader).forEach { app.register(it) }
+```
+
+## Automatic discovery with grind
+
+When you boot an app through `AppLoader` (for example `grind serve --in-process`), grind checks the app classloader for `META-INF/kona/providers`. If that file exists and lists providers, `PackageDiscovery.registerAll` runs after `bootstrap.App.create` returns. Providers already registered by the bootstrap are skipped (same class is registered only once).
+
+Place the file under your app’s `src/main/resources/META-INF/kona/providers` so it lands on `build/resources/main` after compile. Manual bootstrap apps can still call `PackageDiscovery.registerAll(app)` themselves.

@@ -1,0 +1,48 @@
+---
+title: Starter kits
+description: Choose an application preset when you run kona new.
+---
+
+`kona new` scaffolds a Gradle app with a local `./grind` CLI. The default kit is **`web`**. Use **`--kit`** (alias **`--preset`**) to pick another shape.
+
+```bash
+kona new my-app
+kona new my-app --kit=api
+kona new my-app --kit=inertia --lang=java
+kona new my-app --kit=brew
+```
+
+## Kits
+
+| Kit | Dependencies | What you get |
+|-----|--------------|--------------|
+| `web` (default) | HTTP + grind + extract/redis/session/auth/queue/schedule/mail + **crema** | Welcome **view**, `WelcomeController`, `/` route, JSON `/api/health`, session/CSRF |
+| `crema` | same as `web` | Alias of `web` (kept for older docs/scripts) |
+| `api` | without Crema | Plain-text `/` welcome + JSON health (no view engine) |
+| `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite stubs, example page props |
+| `brew` | + `kona-brew` | Reactive **Todos** demo on `/` plus sample `Counter` (`wire:*`, `/brew/update`) |
+
+Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; ships `config/Session` (cookie driver) among the executable config modules; and applies `StartSession` + CSRF (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`.
+
+## After scaffolding
+
+```bash
+cd my-app
+./grind serve
+```
+
+Open `/` for the welcome page and `/api/health` for JSON.
+
+For Inertia frontends:
+
+```bash
+npm install
+npm run dev    # or npm run build
+./grind assets:vite
+```
+
+Generated apps resolve `org.konaframework` artifacts from **Maven Central** (default line **0.1.1**). Full guides: [Brew](/docs/brew/), [Inertia](/docs/inertia/).
+
+## Kotlin and Java
+
+Every kit has Kotlin and Java skeletons (`--lang=kotlin|java`). Controllers, providers, and routes match the language you choose; shared assets (views, `package.json`) are language-neutral.

@@ -11,15 +11,49 @@ export async function buildSidebar() {
   return [
     {
       label: 'Getting started',
+      translations: {
+        es: 'Primeros pasos',
+        fr: 'Premiers pas',
+        'zh-CN': '入门',
+      },
       items: [
-        { label: 'Introduction', slug: 'docs/guides/introduction' },
-        { label: 'Installation', slug: 'docs/guides/installation' },
-        { label: 'Your first app', slug: 'docs/guides/first-app' },
-        { label: 'Kotlin and Java', slug: 'docs/guides/kotlin-java' },
+        {
+          label: 'Introduction',
+          translations: { es: 'Introducción', fr: 'Introduction', 'zh-CN': '简介' },
+          slug: 'docs/guides/introduction',
+        },
+        {
+          label: 'Installation',
+          translations: { es: 'Instalación', fr: 'Installation', 'zh-CN': '安装' },
+          slug: 'docs/guides/installation',
+        },
+        {
+          label: 'Your first app',
+          translations: {
+            es: 'Tu primera app',
+            fr: 'Votre première app',
+            'zh-CN': '第一个应用',
+          },
+          slug: 'docs/guides/first-app',
+        },
+        {
+          label: 'Kotlin and Java',
+          translations: {
+            es: 'Kotlin y Java',
+            fr: 'Kotlin et Java',
+            'zh-CN': 'Kotlin 与 Java',
+          },
+          slug: 'docs/guides/kotlin-java',
+        },
       ],
     },
     {
       label: 'The basics',
+      translations: {
+        es: 'Lo esencial',
+        fr: 'Les bases',
+        'zh-CN': '基础',
+      },
       items: [
         { label: 'Routing', slug: 'docs/http/routing' },
         { label: 'Controllers', slug: 'docs/http/controllers' },

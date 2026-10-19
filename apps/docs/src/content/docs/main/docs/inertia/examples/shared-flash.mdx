@@ -1,0 +1,19 @@
+---
+title: Shared flash props
+description: Combine global share, middleware share, and local overrides.
+---
+
+```kotlin
+Inertia.share("appName", "Kona")
+Inertia.share(mapOf("flash" to "ok"))
+
+class HandleInertia : HandleInertiaRequests() {
+    override fun share(request: Request) = mapOf("path" to request.path)
+}
+
+router.get("/x") {
+    Inertia.render("Pages/X", mapOf("local" to true, "flash" to "override"))
+}
+```
+
+Resulting props: `appName=Kona`, `path=/x`, `local=true`, `flash=override` (local wins).

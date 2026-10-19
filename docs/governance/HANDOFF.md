@@ -29,7 +29,7 @@ Stub only: `apps/brew-docs/README.md`, `apps/inertia-docs/README.md`. **Archived
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
-## Where we are (2026-10-18)
+## Where we are (2026-10-19)
 
 | Item | Value |
 |------|--------|
@@ -39,6 +39,9 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Brew starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
+| Docs versions | `starlight-versions`: **latest** (current), **main** (tip archive), **0** (major archive) |
+| Docs i18n | Root English; locales `es` / `fr` / `zh-cn` (Introduction + Installation translated; else EN fallback) |
+| LSP | `kona-lsp` completes Crema `@` + Brew `wire:*` (IDEA-aligned list) |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Continue deepen / docs exhaustion; do not pause between merges |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
@@ -48,6 +51,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 | Work | PR |
 |------|-----|
+| Docs versions + i18n + LSP `wire:*` + GH chip hydrate | *(this PR — `feat/docs-ide-i18n-versions`)* |
 | Remonorepo Brew + Inertia into `modules/{brew,inertia}` | [#138](https://github.com/konaframework/kona/pull/138) (landed; supersedes #137 approach) |
 | Handoff / publishing Central notes | [#135](https://github.com/konaframework/kona/pull/135) |
 | Extract `kona-inertia` + brief docs link-out | [#101](https://github.com/konaframework/kona/pull/101) |

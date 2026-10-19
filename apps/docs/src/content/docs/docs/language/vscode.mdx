@@ -15,7 +15,9 @@ code --install-extension ide-support/vscode-crema
 cursor --install-extension ide-support/vscode-crema
 ```
 
-Reload the window, then open any `*.crema.html` file — highlighting should activate without further setup.
+Reload the window, then open any `*.crema.html` file — highlighting should activate without further setup. The grammar also highlights known Brew `wire:*` attributes (`wire:model`, `wire:click`, …).
+
+With **kona-lsp** attached, completions and diagnostics cover Crema `@` directives and Brew `wire:*` attributes (same surface as [IntelliJ](/docs/language/intellij) for Brew markup). Inertia apps that use Crema layouts benefit from the same Crema/LSP path; page-component completion stays on the IntelliJ plugin today.
 
 Command palette: **Crema: Show kona-lsp setup help** prints build/run lines to an output channel.
 

@@ -1,0 +1,167 @@
+---
+title: Testing events
+description: Record and assert dispatches with FakeEvent; unit-test listeners against a plain EventDispatcher.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Two approaches cover most cases:
+
+1. **Unit-test a listener** against a real `EventDispatcher` (or call `handle` directly).
+2. **Record what your code dispatched** with `org.konaframework.testing.FakeEvent`.
+
+Broader testing setup lives under [Testing](/docs/testing/) and [Database & fakes](/docs/testing/database-fakes/).
+
+## FakeEvent
+
+`FakeEvent` wraps an `EventDispatcher` and records every object passed to its own `dispatch` method. Listeners registered on `fake.dispatcher` still run when you call `fake.dispatch`.
+
+| API | Role |
+|-----|------|
+| `dispatcher` | Underlying `EventDispatcher` — register listeners here |
+| `dispatch(Any)` | Append to the recording list, then call `dispatcher.dispatch` |
+| `events(): List<Any>` | Snapshot of recorded payloads (copy) |
+| `assertDispatched(Class<*>): Boolean` | `true` if any recorded event is an instance of that class |
+| `clear()` | Clear recordings **and** `dispatcher.flush()` |
+
+`assertDispatched` uses `Class.isInstance`, so it matches subclasses of the type you pass. The real bus’s listener matching remains exact-class only; this assertion is only about the recording list.
+
+### Kotlin
+
+```kotlin
+import org.konaframework.testing.FakeEvent
+
+data class OrderPlaced(val id: String)
+
+val events = FakeEvent()
+var heard = false
+
+events.dispatcher.listen(OrderPlaced::class.java) { heard = true }
+
+events.dispatch(OrderPlaced("o1"))
+
+assert(heard)
+assert(events.assertDispatched(OrderPlaced::class.java))
+assertEquals(1, events.events().size)
+
+events.clear()
+assert(events.events().isEmpty())
+assert(!events.dispatcher.hasListeners(OrderPlaced::class.java))
+```
+
+### Java
+
+```java
+import org.konaframework.testing.FakeEvent;
+
+FakeEvent events = new FakeEvent();
+events.dispatcher.listen(OrderPlaced.class, event -> { /* … */ });
+events.dispatch(new OrderPlaced("o1"));
+assertTrue(events.assertDispatched(OrderPlaced.class));
+assertEquals(1, events.events().size());
+events.clear();
+```
+
+## Asserting what production code published
+
+`FakeEvent.dispatch` records payloads. Production code that resolves `EventDispatcher` and calls `dispatch` on **that** instance does **not** go through `FakeEvent.dispatch`, so `assertDispatched` stays empty unless the test itself publishes via `fake.dispatch`.
+
+Prefer registering a capturing listener on the same bus the app uses:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val bus = app.resolve(EventDispatcher::class.java)
+val seen = mutableListOf<Any>()
+bus.listen(OrderPlaced::class.java) { seen += it }
+
+app.resolve(CheckoutService::class.java).placeOrder(/* … */)
+
+assertEquals(listOf(OrderPlaced("o1")), seen)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+EventDispatcher bus = app.resolve(EventDispatcher.class);
+List<Object> seen = new ArrayList<>();
+bus.listen(OrderPlaced.class, seen::add);
+
+app.resolve(CheckoutService.class).placeOrder(/* … */);
+
+assertEquals(List.of(new OrderPlaced("o1")), seen);
+```
+
+</TabItem>
+</Tabs>
+
+Or inject a fresh `EventDispatcher` into the unit under test:
+
+```kotlin
+val bus = EventDispatcher()
+val seen = mutableListOf<Any>()
+bus.listen(OrderPlaced::class.java) { seen += it }
+
+val service = CheckoutService(bus)
+service.placeOrder(/* … */)
+
+assertEquals(listOf(OrderPlaced("o1")), seen)
+```
+
+Use `FakeEvent` when **the test** (or a harness) is the publisher and you want a recording list plus optional listeners:
+
+```kotlin
+val fake = FakeEvent()
+fake.dispatcher.listen(OrderPlaced::class.java) { /* side effect under test */ }
+fake.dispatch(OrderPlaced("o1"))
+assertTrue(fake.assertDispatched(OrderPlaced::class.java))
+```
+
+## Testing a listener in isolation
+
+Call `handle` without the bus:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val listener = SendWelcomeEmail(mailer)
+listener.handle(UserRegistered(1, "a@b.c"))
+assertEquals(1, mailer.sentCount)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SendWelcomeEmail listener = new SendWelcomeEmail(mailer);
+listener.handle(new UserRegistered(1, "a@b.c"));
+assertEquals(1, mailer.sentCount());
+```
+
+</TabItem>
+</Tabs>
+
+## Testing registration order
+
+```kotlin
+val bus = EventDispatcher()
+val order = mutableListOf<String>()
+bus.listen(Ping::class.java) { order += "a" }
+bus.listen(Ping::class.java) { order += "b" }
+bus.dispatch(Ping())
+assertEquals(listOf("a", "b"), order)
+```
+
+## What FakeEvent does not do
+
+| Expectation | Reality |
+|-------------|---------|
+| Queue the event | Still synchronous — same as `EventDispatcher` |
+| Fake Cadence model events | Use `ModelDispatcher.flush()` / `withoutEvents` — see [Cadence events](/docs/cadence/serialization-events/#lifecycle-events) |
+| Assert listener count after production `dispatch` | Use `dispatcher.listenerCount` / `hasListeners`, or capture in listeners |
+| Replace a global `Event::fake()` facade | Not shipped — construct `FakeEvent` in the test |
+
+Dependency: `org.konaframework:kona-testing` (pulls in `kona-events`).

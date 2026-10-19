@@ -1,0 +1,128 @@
+---
+title: Directive reference
+description: Reference tables for every built-in Crema directive, echo, and component tag.
+---
+
+Quick lookup for Crema syntax. For explanations and full examples, follow the “Guide” links.
+
+## Echoes and comments
+
+| Syntax | Purpose | Guide |
+|--------|---------|-------|
+| `{{ expr }}` | Escaped output | [Rendering](/docs/crema/rendering/) |
+| `{!! expr !!}` | Raw HTML output | [Rendering](/docs/crema/rendering/) |
+| `@@` | Literal `@` | [Rendering](/docs/crema/rendering/) |
+| `{{-- … --}}` | Comment (stripped) | [Rendering](/docs/crema/rendering/) |
+
+## Layouts and sections
+
+| Directive | Closer / notes | Guide |
+|-----------|----------------|-------|
+| `@extends('layout')` | Child declares parent layout | [Layouts](/docs/crema/layouts/) |
+| `@section('name', 'text')` | Inline section | [Layouts](/docs/crema/layouts/) |
+| `@section('name')` | Block section | `@endsection` or `@show` |
+| `@endsection` | End block section (store raw) | [Layouts](/docs/crema/layouts/) |
+| `@show` | End section and expand immediately | [Layouts](/docs/crema/layouts/) |
+| `@yield('name')` | Print section | Optional default: `@yield('n', 'default')` |
+| `@parent` | Insert parent section buffer | Inside a child `@section` |
+| `@hasSection('name')` | Body if section defined | Closes with `@endif` |
+| `@sectionMissing('name')` | Body if section missing | Closes with `@endif` |
+
+## Stacks
+
+| Directive | Closer | Guide |
+|-----------|--------|-------|
+| `@push('name')` | `@endpush` | [Stacks](/docs/crema/stacks/) |
+| `@prepend('name')` | `@endprepend` | [Stacks](/docs/crema/stacks/) |
+| `@stack('name')` | — | [Stacks](/docs/crema/stacks/) |
+
+## Includes and raw regions
+
+| Directive | Notes | Guide |
+|-----------|-------|-------|
+| `@include('name')` | Required; throws if missing | [Includes](/docs/crema/includes/) |
+| `@includeIf('name')` | Skip if missing | [Includes](/docs/crema/includes/) |
+| `@includeWhen(expr, 'name')` | When truthy | [Includes](/docs/crema/includes/) |
+| `@includeUnless(expr, 'name')` | When not truthy | [Includes](/docs/crema/includes/) |
+| `@includeFirst(['a', 'b'])` | First resolvable name | [Includes](/docs/crema/includes/) |
+| `@once` | `@endonce` — once per render | [Includes](/docs/crema/includes/) |
+| `@verbatim` | `@endverbatim` — no processing | [Includes](/docs/crema/includes/) |
+
+## Conditionals
+
+| Directive | Closer | Guide |
+|-----------|--------|-------|
+| `@if(expr)` | `@endif` (`@elseif` / `@else` optional) | [Control structures](/docs/crema/control-structures/) |
+| `@unless(expr)` | `@endunless` | [Control structures](/docs/crema/control-structures/) |
+| `@isset(name)` | `@endisset` | [Control structures](/docs/crema/control-structures/) |
+| `@empty(expr)` | `@endempty` | [Control structures](/docs/crema/control-structures/) |
+
+## Loops
+
+| Directive | Closer | Notes | Guide |
+|-----------|--------|-------|-------|
+| `@foreach(items as item)` | `@endforeach` | Also `as key => value` | [Control structures](/docs/crema/control-structures/) |
+| `@each(items as item)` | `@endeach` | Alias of foreach | [Control structures](/docs/crema/control-structures/) |
+| `@for(…)` | `@endfor` | Collection, `i in a..b`, or C-style | [Control structures](/docs/crema/control-structures/) |
+| `@forelse(items as item)` | `@endforelse` | Requires `@empty` branch | [Control structures](/docs/crema/control-structures/) |
+| `@while(expr)` | `@endwhile` | Cap 10 000; injects `loop` | [Control structures](/docs/crema/control-structures/) |
+
+### `loop` keys
+
+`index`, `iteration`, `first`, `last`, `count`, `remaining`, `even`, `odd`, `depth`, `parent` — see [Loop metadata](/docs/crema/control-structures/#loop-metadata).
+
+## Auth and abilities
+
+| Directive | Closer | Data keys | Guide |
+|-----------|--------|-----------|-------|
+| `@auth` | `@endauth` | `__authenticated`, `auth_user`, `user` | [Control structures](/docs/crema/control-structures/) |
+| `@guest` | `@endguest` | Same as `@auth` (inverted) | [Control structures](/docs/crema/control-structures/) |
+| `@can('ability')` | `@endcan` | `__abilities`, `can` | [Control structures](/docs/crema/control-structures/) |
+| `@cannot('ability')` | `@endcannot` | Same as `@can` (inverted) | [Control structures](/docs/crema/control-structures/) |
+
+## Switch
+
+| Directive | Notes | Guide |
+|-----------|-------|-------|
+| `@switch(expr)` | Opens switch | `@endswitch` |
+| `@case(expr)` | Stringified equality | [Control structures](/docs/crema/control-structures/) |
+| `@break` | Stop active arm | [Control structures](/docs/crema/control-structures/) |
+| `@default` | When no case matched | [Control structures](/docs/crema/control-structures/) |
+
+## Components and slots
+
+| Syntax | Purpose | Guide |
+|--------|---------|-------|
+| `@component('name')…@endcomponent` | Render a view as a component | [Components](/docs/crema/components/) |
+| `@slot('name')…@endslot` | Named slot inside `@component` | [Components](/docs/crema/components/) |
+| `<x-name>…</x-name>` | Render `components.name` | [Components](/docs/crema/components/) |
+| `<x-name />` | Empty default slot | [Components](/docs/crema/components/) |
+| `<x-slot name="n">…</x-slot>` | Named slot for `<x-*>` or prefixed tags | [Components](/docs/crema/components/) |
+| `<x-slot:n>…</x-slot:n>` | Colon-name form | [Components](/docs/crema/components/) |
+| `<prefix:slot name="n">…` | Named slot for extension tags | [Components](/docs/crema/components/) |
+
+Inside the component view: `{{ slot }}` (default) and `{{ name }}` for each named slot.
+
+## Forms and helpers
+
+| Directive | Purpose | Guide |
+|-----------|---------|-------|
+| `@csrf` | Hidden `_token` input | [Forms](/docs/crema/forms/) |
+| `@method('VERB')` | Hidden `_method` input | [Forms](/docs/crema/forms/) |
+| `@error('field')` | `@enderror` when `errors` has field | [Forms](/docs/crema/forms/) |
+| `@asset('path')` | Public asset URL | [Rendering](/docs/crema/rendering/) |
+| `@json($expr)` | JSON encode | [Rendering](/docs/crema/rendering/) |
+| `@lang('key')` | Translation | Optional replace map |
+| `@vite('entry')` | Script/link tags under `/build` | List form supported |
+
+## Custom extensions
+
+Apps and packages can register more syntax on `CremaEngine`:
+
+| API | Shape |
+|-----|-------|
+| `directive(name) { … }` | `@name` / `@name(args)` |
+| `blockDirective(name) { … }` | `@name…@endname` |
+| `tag(prefix) { … }` | `<prefix:name>…` |
+
+Brew uses these for `@brew` and `<brew:…>`. See [Brew](/docs/brew/).

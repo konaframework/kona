@@ -1,0 +1,101 @@
+---
+title: Stacks
+description: Push and prepend scripts and styles onto named stacks from child views and partials.
+---
+
+**Stacks** collect HTML fragments from child views, includes, and components, then print them where a layout calls `@stack`. Typical use: every page pushes page-specific scripts; the layout yields them once before `</body>`.
+
+## Push and prepend
+
+```crema
+@push('scripts')
+  <script src="/app.js"></script>
+@endpush
+
+@prepend('scripts')
+  <script src="/vendor.js"></script>
+@endprepend
+```
+
+| Directive | Effect |
+|-----------|--------|
+| `@push('name')…@endpush` | Append fragment to the end of the stack |
+| `@prepend('name')…@endprepend` | Insert fragment at the front of the stack |
+
+Bodies are expanded when pushed (echoes and nested directives run in the current context). The push/prepend directives themselves emit nothing at the call site — they only fill the stack.
+
+## Render the stack
+
+In the layout (or any ancestor that should print the collected fragments):
+
+```crema
+@stack('scripts')
+@stack('styles')
+```
+
+Order when both push and prepend are used: **all prepended fragments first** (each prepend inserts at index 0, so later prepends appear before earlier ones), then **pushed fragments in registration order**.
+
+Example:
+
+```crema
+@prepend('scripts')A@endprepend
+@push('scripts')B@endpush
+@prepend('scripts')C@endprepend
+@stack('scripts')
+{{-- → CAB --}}
+```
+
+## Layout pattern
+
+```crema
+{{-- layouts/app.crema.html --}}
+<html>
+  <head>
+    @stack('styles')
+  </head>
+  <body>
+    @yield('content')
+    @stack('scripts')
+  </body>
+</html>
+```
+
+```crema
+{{-- posts/show.crema.html --}}
+@extends('layouts.app')
+@section('content')
+  <article>…</article>
+@endsection
+@push('styles')
+  <link rel="stylesheet" href="/posts.css">
+@endpush
+@push('scripts')
+  <script src="/posts-show.js"></script>
+@endpush
+```
+
+Pushes may live inside `@section` blocks or beside them; both are collected before the parent layout renders.
+
+## Partials and components
+
+Includes and components share the same stack maps for the render. A `@push` inside `@include('partials.chart')` still appears in the layout’s `@stack`. That makes it easy for a partial to register its own assets once, especially combined with [`@once`](/docs/crema/includes/#once):
+
+```crema
+{{-- partials/chart.crema.html --}}
+@once
+  @push('scripts')
+    <script src="/chart-lib.js"></script>
+  @endpush
+@endonce
+<div class="chart" data-id="{{ id }}"></div>
+```
+
+## Empty stacks
+
+`@stack('missing')` prints an empty string when nothing was pushed. You do not need to declare stacks in advance.
+
+## Related
+
+- [Layouts](/docs/crema/layouts/) — where stacks usually live
+- [Rendering](/docs/crema/rendering/#vite) — `@vite` for bundled entrypoints
+- [Forms](/docs/crema/forms/) — CSRF and method helpers often sit near forms, not in stacks

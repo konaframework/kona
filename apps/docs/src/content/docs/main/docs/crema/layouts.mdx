@@ -1,0 +1,120 @@
+---
+title: Layouts & inheritance
+description: Build page layouts with @extends, @section, @yield, @parent, @show, and section checks.
+---
+
+Layouts let child views fill named regions of a shared shell — document chrome, admin frame, mail wrapper, and so on. A child declares `@extends('layouts.app')`, fills sections, and Crema renders the parent with those sections available to `@yield`.
+
+## Parent layout
+
+```crema
+{{-- views/layouts/app.crema.html --}}
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>@yield('title', 'App')</title>
+    @stack('styles')
+  </head>
+  <body>
+    @hasSection('sidebar')
+      <aside>@yield('sidebar')</aside>
+    @endif
+    @sectionMissing('sidebar')
+      <aside>Default sidebar</aside>
+    @endif
+
+    <main>@yield('content')</main>
+
+    @stack('scripts')
+  </body>
+</html>
+```
+
+### `@yield`
+
+`@yield('name')` prints the section named `name`. A second quoted argument is the default when the child did not define the section:
+
+```crema
+@yield('title', 'Untitled')
+@yield('content')
+```
+
+If the section exists, its body is expanded in the current context (echoes and nested directives run when the section is yielded). If it is missing and no default is given, Crema emits nothing.
+
+### Section presence
+
+| Directive | Body runs when… |
+|-----------|-----------------|
+| `@hasSection('name')…@endif` | The section was defined for this render |
+| `@sectionMissing('name')…@endif` | The section was not defined |
+
+These share `@endif` with ordinary `@if` blocks and nest correctly.
+
+## Child view
+
+```crema
+{{-- views/home.crema.html --}}
+@extends('layouts.app')
+
+@section('title', 'Home')
+
+@section('content')
+  <h1>Hello {{ name }}</h1>
+@endsection
+
+@push('scripts')
+  <script src="/home.js"></script>
+@endpush
+```
+
+Rules of thumb:
+
+1. Put `@extends('…')` in the child (single-quoted layout name).
+2. Define every region the layout expects (`content`, `title`, …).
+3. Optionally `@push` / `@prepend` into stacks the layout yields with `@stack`.
+
+When a child extends a layout, Crema first collects the child’s sections and stack pushes, then renders the parent. Content outside `@section` / `@push` in an extending child is discarded after collection.
+
+## Section forms
+
+| Form | Syntax | Notes |
+|------|--------|-------|
+| Inline | `@section('title', 'Home')` | Short string only (single-quoted) |
+| Block | `@section('content') … @endsection` | Body stored raw; expanded when yielded |
+| Immediate show | `@section('s') … @show` | Body expanded immediately, then stored |
+
+```crema
+@section('title', 'Home')
+
+@section('content')
+  <p>Long markup here.</p>
+@endsection
+
+@section('notice')
+  Visible {{ now }} and also stored
+@show
+```
+
+## `@parent`
+
+When a child redefines a section that a parent template already filled, use `@parent` inside the child section to keep the earlier text:
+
+```crema
+{{-- parent filled section content with PARENT --}}
+@section('content')
+  CHILD @parent MORE
+@endsection
+{{-- @yield('content') → CHILD PARENT MORE --}}
+```
+
+Crema keeps the earlier section body as a parent buffer and replaces `@parent` when the section is rendered. If the child section is blank but a parent buffer exists, the parent buffer is used as-is.
+
+## Inheritance chain
+
+Layouts can themselves `@extends` another layout. Each level collects sections into the shared render context; inner (child) definitions override or wrap outer ones via `@parent`. Stacks are shared for the whole render — pushes from any level appear where the outermost layout calls `@stack`.
+
+## Related
+
+- [Stacks](/docs/crema/stacks/) — `@push`, `@prepend`, `@stack`
+- [Includes & partials](/docs/crema/includes/) — smaller reusable fragments without full inheritance
+- [Components & slots](/docs/crema/components/) — reusable widgets with named slots

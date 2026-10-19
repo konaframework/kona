@@ -1,0 +1,73 @@
+---
+title: Filesystem configuration
+description: Disk drivers, scoped prefixes, read-only disks, and cloud client settings.
+---
+
+Define disks under the `filesystems` config key (scaffold: `config/Filesystems`).
+
+## Default disk
+
+```kotlin
+"default" to Env.getOrDefault("FILESYSTEM_DISK", "local"),
+```
+
+`FilesystemManager.disk()` uses that name. Pass an explicit name to `disk("public")` when you need another root.
+
+## Local and public
+
+```kotlin
+"local" to mapOf(
+    "driver" to "local",
+    "root" to "storage/app",
+),
+"public" to mapOf(
+    "driver" to "local",
+    "root" to "storage/app/public",
+    "url" to "/storage",
+),
+```
+
+If you omit `root` / `url` for a disk named `public`, Kona still defaults to `storage/app/public` and `/storage`.
+
+## Scoped disks
+
+A scoped disk forwards every path to a parent disk under a fixed prefix:
+
+```kotlin
+"avatars" to mapOf(
+    "driver" to "scoped",
+    "disk" to "public",
+    "prefix" to "avatars",
+),
+```
+
+`disk("avatars").put("ada.png", bytes)` stores `avatars/ada.png` on the `public` disk.
+
+## Read-only disks
+
+```kotlin
+"archive" to mapOf(
+    "driver" to "local",
+    "root" to "storage/archive",
+    "read-only" to true,
+),
+```
+
+Writes (`put`, `delete`, `append`, …) throw `UnsupportedOperationException`. Reads still work.
+
+## S3-compatible cloud
+
+```kotlin
+"s3" to mapOf(
+    "driver" to "s3",
+    "endpoint" to Env.get("AWS_ENDPOINT"),
+    "bucket" to Env.getOrDefault("AWS_BUCKET", "kona"),
+    "key" to Env.getOrDefault("AWS_ACCESS_KEY_ID", ""),
+    "secret" to Env.getOrDefault("AWS_SECRET_ACCESS_KEY", ""),
+    "region" to Env.getOrDefault("AWS_DEFAULT_REGION", "us-east-1"),
+    "url" to Env.getOrDefault("AWS_URL", ""),
+    "prefix" to Env.getOrDefault("AWS_ROOT_PREFIX", ""),
+),
+```
+
+`prefix` is prepended to every object key (tenant or environment root). For in-process fakes use `memory` / `s3-memory` with the same `bucket` / `url` / `prefix` knobs.

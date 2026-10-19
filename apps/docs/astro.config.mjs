@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import almasixTheme from '@almasix/starlight-theme';
+import starlightVersions from 'starlight-versions';
 import { buildSidebar } from './sidebar.mjs';
 
 // Production: https://docs.konaframework.org (PUBLIC_BASE_PATH=/). GH Pages mirror uses PUBLIC_BASE_PATH=/kona/
@@ -28,6 +29,25 @@ export default defineConfig({
         alt: 'Kona',
         replacesTitle: true,
       },
+      defaultLocale: 'root',
+      locales: {
+        root: {
+          label: 'English',
+          lang: 'en',
+        },
+        es: {
+          label: 'Español',
+          lang: 'es',
+        },
+        fr: {
+          label: 'Français',
+          lang: 'fr',
+        },
+        'zh-cn': {
+          label: '简体中文',
+          lang: 'zh-CN',
+        },
+      },
       social: [
         {
           icon: 'github',
@@ -36,9 +56,21 @@ export default defineConfig({
         },
       ],
       plugins: [
+        // Theme first (owns Header / ThemeSelect). Version select via headerExtras.
         almasixTheme({
           github: 'konaframework/kona',
           lightbox: false,
+          headerExtras: './src/components/VersionSelect.astro',
+        }),
+        // Archives: only one *new* slug per build — seed `0` then `main` via scripts/seed-versions.mjs
+        starlightVersions({
+          current: {
+            label: 'latest',
+          },
+          versions: [
+            { slug: 'main', label: 'main' },
+            { slug: '0', label: '0' },
+          ],
         }),
       ],
       customCss: ['./src/styles/custom.css'],
@@ -82,6 +114,13 @@ export default defineConfig({
           attrs: {
             name: 'twitter:image',
             content: ogImage,
+          },
+        },
+        {
+          tag: 'script',
+          attrs: {
+            src: `${base === '/' ? '' : base.replace(/\/$/, '')}/scripts/gh-chip-hydrate.js`,
+            defer: true,
           },
         },
       ],

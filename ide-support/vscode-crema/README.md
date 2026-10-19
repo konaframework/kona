@@ -19,7 +19,7 @@ Or copy/symlink `ide-support/vscode-crema` into your extensions folder and reloa
 ## Language features (no LSP required)
 
 - File associations: `*.crema.html`, `*.crema.kt`
-- TextMate grammar (directives, `{{ }}`, `{!! !!}`, `{{-- --}}`)
+- TextMate grammar (directives, Brew `wire:*` attributes, `{{ }}`, `{!! !!}`, `{{-- --}}`)
 - Language configuration (comments, folding)
 
 ## Language server (kona-lsp)

@@ -1,0 +1,22 @@
+---
+title: CSRF protection
+description: VerifyCsrfToken middleware and token helpers.
+---
+
+## Middleware
+
+Add `VerifyCsrfToken` after `StartSession`. Safe methods (`GET`, `HEAD`, `OPTIONS`, `TRACE`) skip the check. Other methods must send the session token as:
+
+- form/input `_token`, or
+- header `X-CSRF-TOKEN`, or
+- header `X-XSRF-TOKEN`
+
+Failures throw `TokenMismatchException` (HTTP **419**).
+
+## Tokens
+
+```kotlin
+val token = Csrf.token(session)
+```
+
+Exclude paths with `VerifyCsrfToken(except = listOf("/stripe/*", "/exact"))`.
