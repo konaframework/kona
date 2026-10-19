@@ -141,6 +141,44 @@ class ServePortsTest {
     }
 
     @Test
+    fun localUrlMapsWildcardBindToLoopback() {
+        assertTrue(ServePorts.isWildcardBind("0.0.0.0"))
+        assertTrue(ServePorts.isWildcardBind("::"))
+        assertTrue(ServePorts.isWildcardBind("[::]"))
+        assertFalse(ServePorts.isWildcardBind("127.0.0.1"))
+        assertEquals("http://localhost:4000", ServePorts.localUrl("127.0.0.1", 4000))
+        assertEquals("http://localhost:9000", ServePorts.localUrl("0.0.0.0", 9000))
+        assertEquals("http://localhost:4000", ServePorts.localUrl("::", 4000))
+        assertEquals("http://10.0.0.2:8080", ServePorts.localUrl("10.0.0.2", 8080))
+        assertTrue(ServePorts.isBridgeOrContainerIface("docker0"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("cni0"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("podman0"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("br-0c10a6f068bd"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("vethabc123"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("docker_gwbridge"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("br0"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("virbr0"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("lxcbr0"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("flannel.1"))
+        assertTrue(ServePorts.isBridgeOrContainerIface("cni-podman0"))
+        assertFalse(ServePorts.isBridgeOrContainerIface("eth0"))
+        assertEquals(0, ServePorts.ifacePreference("eth0"))
+        assertEquals(0, ServePorts.ifacePreference("enp0s3"))
+        assertEquals(1, ServePorts.ifacePreference("wlan0"))
+        assertEquals(1, ServePorts.ifacePreference("wlp2s0"))
+        assertEquals(10, ServePorts.ifacePreference("tun0"))
+        // Prefer eth0 over Docker bridges when present on this host
+        val lan = ServePorts.lanAddress()
+        if (lan != null) {
+            assertFalse(lan == "172.19.0.1", "must not advertise Docker bridge gateway")
+            assertFalse(lan == "172.18.0.1", "must not advertise docker0")
+        }
+        assertTrue(ServePorts.isWsl(mapOf("WSL_DISTRO_NAME" to "Ubuntu")))
+        assertTrue(ServePorts.isWsl(mapOf("WSL_INTEROP" to "/run/WSL/1_interop")))
+        ServePorts.isWsl(emptyMap())
+    }
+
+    @Test
     fun resolveAtMaxPortWhenOccupiedThrows() {
         val out = ByteArrayOutputStream()
         val socket =

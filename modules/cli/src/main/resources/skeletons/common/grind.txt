@@ -4,7 +4,7 @@ set -euo pipefail
 DIR=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 cd "$DIR"
 
-# Quiet Gradle: no lifecycle banner / UP-TO-DATE spam. Failures still exit non-zero.
+# Quiet + plain: no lifecycle spam / stuck ~83% progress while `run` (serve) lives.
 GRADLE=(./gradlew --quiet --console=plain -Dorg.gradle.console=plain)
 
 if [[ $# -eq 0 ]]; then
