@@ -2,44 +2,21 @@ package org.konaframework.grind
 
 import org.konaframework.core.Application
 import org.konaframework.core.ServiceProvider
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import org.konaframework.core.PackageDiscovery as CorePackageDiscovery
 
 /**
  * Discovers reusable packages via `META-INF/kona/providers` (one FQCN per line).
+ *
+ * Delegates to [org.konaframework.core.PackageDiscovery] — [Application.boot] also
+ * registers these automatically for forked app processes.
  */
 object PackageDiscovery {
-    const val RESOURCE = "META-INF/kona/providers"
+    const val RESOURCE = CorePackageDiscovery.RESOURCE
 
-    fun providerNames(loader: ClassLoader): List<String> {
-        val names = linkedSetOf<String>()
-        val resources = loader.getResources(RESOURCE)
-        while (resources.hasMoreElements()) {
-            resources.nextElement().openStream().use { stream ->
-                BufferedReader(InputStreamReader(stream)).use { reader ->
-                    reader.lineSequence()
-                        .map { it.trim() }
-                        .filter { it.isNotEmpty() && !it.startsWith("#") }
-                        .forEach { names += it }
-                }
-            }
-        }
-        return names.toList()
-    }
+    fun providerNames(loader: ClassLoader): List<String> = CorePackageDiscovery.providerNames(loader)
 
-    fun loadProviders(loader: ClassLoader): List<ServiceProvider> =
-        providerNames(loader).map { name ->
-            val type = Class.forName(name, true, loader)
-            require(ServiceProvider::class.java.isAssignableFrom(type)) {
-                "Package provider [$name] must implement ServiceProvider"
-            }
-            @Suppress("UNCHECKED_CAST")
-            (type as Class<out ServiceProvider>).getDeclaredConstructor().newInstance()
-        }
+    fun loadProviders(loader: ClassLoader): List<ServiceProvider> = CorePackageDiscovery.loadProviders(loader)
 
-    fun registerAll(app: Application, loader: ClassLoader = app.javaClass.classLoader): List<String> {
-        val names = providerNames(loader)
-        loadProviders(loader).forEach { app.register(it) }
-        return names
-    }
+    fun registerAll(app: Application, loader: ClassLoader = app.javaClass.classLoader): List<String> =
+        CorePackageDiscovery.registerAll(app, loader)
 }

@@ -100,6 +100,9 @@ class Application(
         container.instance(LogManager::class.java, logManager)
         container.instance("log", logManager)
         Log.bind(logManager)
+        // Package providers from META-INF/kona/providers (./grind install) — register before boot loop.
+        val loader = Thread.currentThread().contextClassLoader ?: javaClass.classLoader
+        PackageDiscovery.registerAll(this, loader)
         // Index loop: providers registered from another provider's boot() must also boot.
         var index = 0
         while (index < providers.size) {
