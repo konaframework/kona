@@ -8,7 +8,7 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 |------|--------|
 | Last audit | 2026-10-19 (M25 complete) |
 | Last merged deepen | PR #87 (B6 Eloquent parity) |
-| Active deepen | **none** — M25 first-class database engines exhausted (awaiting merge) |
+| Active deepen | **none** — M25 first-class database engines merged (#161) |
 
 ---
 
