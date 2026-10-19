@@ -8,28 +8,22 @@ Kona application (Kotlin) — **Brew** starter kit.
 ./grind serve
 ```
 
-Includes `org.konaframework:kona-brew` and `kona-crema`, plus the same branded landing, session login, dashboard, and `User` model as the Crema kit.
+Includes `org.konaframework:kona-brew` and `kona-crema`, the branded landing / login / dashboard,
+and a sample `app.brew.Counter` mounted on welcome as `<brew:counter />`.
 
-## Adding a Brew component
+## Adding another Brew component
 
-```kotlin
-// app/brew/Hello.kt
-package app.brew
-
-import org.konaframework.brew.Component
-import org.konaframework.brew.template
-
-class Hello : Component() {
-    var name: String = "world"
-
-    override fun template() = template {
-        """
-        <div>
-          <h1>Hello, {{ name }}</h1>
-        </div>
-        """.trimIndent()
-    }
-}
+```bash
+./grind make:brew Hello
 ```
 
-Register it in `bootstrap.App` with `Brew.register(Hello::class.java)`, then embed with `<brew:hello />` (or `wire:name="hello"`) in a Crema view.
+That writes `app/brew/Hello.kt`. Classes under `app.brew` resolve automatically — no manual
+registration. Embed in a Crema view:
+
+```crema
+<brew:hello />
+{{-- or --}}
+@brew('hello')
+```
+
+See https://docs.konaframework.org/docs/brew/

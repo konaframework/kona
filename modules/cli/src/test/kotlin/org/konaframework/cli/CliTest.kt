@@ -331,13 +331,14 @@ class CliTest {
         val brew = temp.resolve("brew-app")
         assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew")))
         assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-brew"))
-        assertFalse(Files.exists(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
+        assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
         assertFalse(Files.exists(brew.resolve("src/main/kotlin/app/brew/Todos.kt")))
         assertFalse(Files.exists(brew.resolve("src/main/resources/views/brew/todos.crema.html")))
-        assertTrue(
-            Files.readString(brew.resolve("src/main/resources/views/welcome.crema.html"))
-                .contains("docs.konaframework.org"),
-        )
+        val brewWelcome = Files.readString(brew.resolve("src/main/resources/views/welcome.crema.html"))
+        assertTrue(brewWelcome.contains("<brew:counter"), brewWelcome)
+        assertTrue(brewWelcome.contains("docs.konaframework.org"), brewWelcome)
+        // Tip text must not be the only mention — require a live tag, not an HTML-escaped example.
+        assertFalse(brewWelcome.contains("&lt;brew:counter"), brewWelcome)
         assertTrue(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("BrewServiceProvider"))
         assertFalse(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("Todos::class.java"))
         assertTrue(
@@ -346,6 +347,14 @@ class CliTest {
         )
         assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/models/User.kt")))
         assertTrue(Files.isRegularFile(brew.resolve("src/main/resources/views/login.crema.html")))
+
+        val brewJava = temp.resolve("brew-java-app")
+        assertEquals(0, NewCommand().run(listOf(brewJava.toString(), "--kit=brew", "--lang=java")))
+        assertTrue(Files.isRegularFile(brewJava.resolve("src/main/java/app/brew/Counter.java")))
+        assertTrue(
+            Files.readString(brewJava.resolve("src/main/resources/views/welcome.crema.html"))
+                .contains("<brew:counter"),
+        )
 
         val javaInertia = temp.resolve("java-inertia")
         assertEquals(0, NewCommand().run(listOf(javaInertia.toString(), "--lang=java", "--kit=inertia")))
