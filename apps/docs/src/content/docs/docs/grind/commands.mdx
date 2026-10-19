@@ -32,6 +32,8 @@ kona grind --help   # explains the proxy; other args are forwarded to ./grind
 
 Default host is **127.0.0.1** and default port is **4000** (also in generated `.env`). If that port is already in use, grind asks whether to try the next one (4001, 4002, …). If no Gradle project is found, grind exits and tells you to run `kona new <name>`.
 
+`./grind serve` is for **local development**. For production, start `bootstrap.App` via `installDist` / `distZip` (or an equivalent JVM launch) — see [Deployment](../../guides/deployment/).
+
 ## `./grind make:command`
 
 ```bash
