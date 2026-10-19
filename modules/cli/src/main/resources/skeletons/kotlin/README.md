@@ -25,3 +25,7 @@ Path helpers: `app.appPath()`, `app.storagePath()`, `Paths.config()`, …
 ```
 
 Demo login (web kits): `demo@kona.test` / `password` after migrate + seed.
+
+## Production
+
+Do not use `./grind serve` as the production process. Build with `./gradlew installDist` (or `distZip`) and run `build/install/<app>/bin/<app>` with `APP_ENV=production` and `APP_DEBUG=false`. See the public docs guide **Deployment**.
