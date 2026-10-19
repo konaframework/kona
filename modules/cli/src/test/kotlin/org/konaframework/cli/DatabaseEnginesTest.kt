@@ -26,6 +26,12 @@ class DatabaseEnginesTest {
         assertThrows<KonaCliException> { DatabaseEngines.resolve("mongo") }
         assertThrows<KonaCliException> { DatabaseEngines.require("mongo") }
         assertTrue(DatabaseEngines.names().containsAll(listOf("h2", "sqlite", "mysql", "mariadb", "pgsql", "sqlsrv", "oracle")))
+        assertEquals("sqlite", DatabaseEngines.DEFAULT_NAME)
+        assertTrue(DatabaseEngines.require("sqlite").defaultUrl.contains("jdbc:sqlite:database/database.sqlite"))
+        assertTrue(DatabaseEngines.require("h2").defaultUrl.contains("jdbc:h2:file:./storage/database/kona"))
+        assertTrue(DatabaseEngines.require("h2").defaultUrl.contains("AUTO_SERVER=TRUE"))
+        assertEquals(null, DatabaseEngines.require("sqlite").runtimeDependency)
+        assertTrue(DatabaseEngines.require("h2").runtimeDependency!!.contains("com.h2database:h2"))
     }
 
     @Test
@@ -36,7 +42,7 @@ class DatabaseEnginesTest {
         assertTrue(env.contains("DB_CONNECTION=pgsql"))
         assertTrue(env.contains("jdbc:postgresql://"))
         val gradle = Files.readString(app.resolve("build.gradle.kts"))
-        assertTrue(gradle.contains("com.h2database:h2"))
+        assertTrue(gradle.contains("org.xerial:sqlite-jdbc"))
         assertTrue(gradle.contains("org.postgresql:postgresql"))
         val database = Files.readString(app.resolve("src/main/kotlin/config/Database.kt"))
         assertTrue(database.contains("\"pgsql\""))
@@ -45,24 +51,34 @@ class DatabaseEnginesTest {
     }
 
     @Test
-    fun defaultDatabaseKeepsMainConnection() {
-        val app = temp.resolve("h2-app")
+    fun defaultDatabaseIsSqlite() {
+        val app = temp.resolve("sqlite-app")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=java", "--kit=api")))
         val database = Files.readString(app.resolve("src/main/java/config/Database.java"))
-        assertTrue(database.contains("DB_CONNECTION\", \"main\""))
+        assertTrue(database.contains("DB_CONNECTION\", \"sqlite\""))
         assertTrue(database.contains("\"sqlite\""))
         assertTrue(database.contains("\"oracle\""))
+        val env = Files.readString(app.resolve(".env"))
+        assertTrue(env.contains("DB_CONNECTION=sqlite"))
+        assertTrue(env.contains("jdbc:sqlite:database/database.sqlite"))
         val gradle = Files.readString(app.resolve("build.gradle.kts"))
-        assertTrue(gradle.contains("com.h2database:h2"))
+        assertTrue(gradle.contains("org.xerial:sqlite-jdbc"))
         assertTrue(!gradle.contains("org.postgresql:postgresql"))
+        assertTrue(Files.isRegularFile(app.resolve("database/.gitkeep")))
+        assertTrue(Files.readString(app.resolve(".gitignore")).contains("/database/*.sqlite"))
     }
 
     @Test
     fun explicitH2DatabaseFlag() {
         val app = temp.resolve("h2-flag")
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=api", "--database=h2")))
-        assertTrue(Files.readString(app.resolve(".env")).contains("DB_CONNECTION=main"))
-        assertTrue(!Files.readString(app.resolve("build.gradle.kts")).contains("org.postgresql:postgresql"))
+        val env = Files.readString(app.resolve(".env"))
+        assertTrue(env.contains("DB_CONNECTION=main"))
+        assertTrue(env.contains("jdbc:h2:file:"))
+        val gradle = Files.readString(app.resolve("build.gradle.kts"))
+        assertTrue(gradle.contains("org.xerial:sqlite-jdbc"))
+        assertTrue(gradle.contains("com.h2database:h2"))
+        assertTrue(!gradle.contains("org.postgresql:postgresql"))
     }
 
     @Test
@@ -82,7 +98,7 @@ class DatabaseEnginesTest {
         Files.writeString(withEnv.resolve(".env.example"), "APP_NAME=x\nDB_URL=jdbc:old\n")
         Files.writeString(
             withEnv.resolve("build.gradle.kts"),
-            "dependencies {\n    runtimeOnly(\"com.h2database:h2:2.3.232\")\n}\n",
+            "dependencies {\n    runtimeOnly(\"org.xerial:sqlite-jdbc:3.49.1.0\")\n}\n",
         )
         cmd.applyDatabaseSelection(withEnv, engine, "mysql")
         assertTrue(Files.readString(withEnv.resolve(".env")).contains("DB_CONNECTION=mysql"))

@@ -175,6 +175,8 @@ class CliTest {
             "src/main/kotlin/config/App.kt",
             "src/main/kotlin/config/Paths.kt",
             "storage/logs/.gitkeep",
+            "storage/database/.gitkeep",
+            "database/.gitkeep",
         ).forEach { assertTrue(Files.isRegularFile(kt.resolve(it)), it) }
         assertTrue(Files.isExecutable(kt.resolve("gradlew")))
         assertTrue(Files.isExecutable(kt.resolve("grind")))
@@ -187,6 +189,11 @@ class CliTest {
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Session.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Filesystems.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Database.kt")))
+        assertTrue(
+            Files.readString(kt.resolve("src/main/kotlin/config/Database.kt"))
+                .contains("jdbc:sqlite:database/database.sqlite"),
+        )
+        assertTrue(Files.readString(kt.resolve(".gitignore")).contains("/database/*.sqlite"))
         assertTrue(Files.readString(kt.resolve("src/main/kotlin/bootstrap/App.kt")).contains(".configs("))
         assertTrue(Files.isRegularFile(kt.resolve("storage/app/public/.gitkeep")))
         val build = Files.readString(kt.resolve("build.gradle.kts"))
@@ -195,8 +202,9 @@ class CliTest {
         assertTrue(build.contains("org.konaframework:kona-session:${versions.kona}"))
         assertTrue(build.contains("org.konaframework:kona-auth:${versions.kona}"))
         assertTrue(build.contains("org.konaframework:kona-queue:${versions.kona}"))
-        assertTrue(build.contains("com.h2database:h2"))
+        assertTrue(build.contains("org.xerial:sqlite-jdbc"))
         assertTrue(build.contains("tasks.register<JavaExec>(\"grind\")"))
+        assertTrue(Files.readString(kt.resolve(".env")).contains("DB_CONNECTION=sqlite"))
         val appKt = Files.readString(kt.resolve("src/main/kotlin/bootstrap/App.kt"))
         assertTrue(appKt.contains("SessionServiceProvider"))
         assertTrue(appKt.contains("FilesystemServiceProvider"))
@@ -259,7 +267,7 @@ class CliTest {
         assertTrue(build.contains("org.konaframework:kona-http:9.9.9"))
         assertTrue(build.contains("org.konaframework:kona-grind:9.9.9"))
         assertTrue(build.contains("org.konaframework:kona-crema:9.9.9"))
-        assertTrue(build.contains("com.h2database:h2"))
+        assertTrue(build.contains("org.xerial:sqlite-jdbc"))
         assertFalse(build.contains("kotlin(\"jvm\")"))
         assertTrue(Files.isRegularFile(j.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(Files.isRegularFile(j.resolve("src/main/resources/views/login.crema.html")))
@@ -310,7 +318,7 @@ class CliTest {
         val crema = temp.resolve("crema-app")
         assertEquals(0, NewCommand().run(listOf(crema.toString(), "--kit=crema")))
         assertTrue(Files.readString(crema.resolve("build.gradle.kts")).contains("kona-crema"))
-        assertTrue(Files.readString(crema.resolve("build.gradle.kts")).contains("com.h2database:h2"))
+        assertTrue(Files.readString(crema.resolve("build.gradle.kts")).contains("org.xerial:sqlite-jdbc"))
         assertTrue(Files.isRegularFile(crema.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(Files.readString(crema.resolve("src/main/kotlin/bootstrap/App.kt")).contains("CremaServiceProvider"))
         assertTrue(Files.readString(crema.resolve("README.md")).contains("Crema"))
@@ -318,7 +326,7 @@ class CliTest {
         val inertia = temp.resolve("inertia-app")
         assertEquals(0, NewCommand().run(listOf(inertia.toString(), "--preset=inertia", "--lang=kotlin")))
         assertTrue(Files.readString(inertia.resolve("build.gradle.kts")).contains("kona-inertia"))
-        assertTrue(Files.readString(inertia.resolve("build.gradle.kts")).contains("com.h2database:h2"))
+        assertTrue(Files.readString(inertia.resolve("build.gradle.kts")).contains("org.xerial:sqlite-jdbc"))
         assertTrue(Files.isRegularFile(inertia.resolve("package.json")))
         assertTrue(Files.isRegularFile(inertia.resolve("vite.config.js")))
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/app.js")))
@@ -335,7 +343,7 @@ class CliTest {
         val brew = temp.resolve("brew-app")
         assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew")))
         assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-brew"))
-        assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("com.h2database:h2"))
+        assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("org.xerial:sqlite-jdbc"))
         assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
         assertFalse(Files.exists(brew.resolve("src/main/kotlin/app/brew/Todos.kt")))
         assertFalse(Files.exists(brew.resolve("src/main/resources/views/brew/todos.crema.html")))

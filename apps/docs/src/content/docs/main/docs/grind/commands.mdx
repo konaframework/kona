@@ -84,7 +84,7 @@ These commands work with [Cadence](../../cadence/). Generators write source file
 | `./grind make:migration <snake_name> [--create=table] [--table=table]` | `database/migrations/<StudlyName>` and appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
 | `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
 | `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
-| `./grind migrate` | Runs pending migrations as one new batch |
+| `./grind migrate [--seed] [--class=…]` | Runs pending migrations as one new batch; with `--seed` / `--seeder`, also runs a seeder in the same process |
 | `./grind migrate:rollback [--step=N]` | Reverts the last `N` batches (default 1) |
 | `./grind migrate:reset` | Reverts every migration |
 | `./grind migrate:status` | Lists each registered migration as `Ran` (with its batch) or `Pending` |

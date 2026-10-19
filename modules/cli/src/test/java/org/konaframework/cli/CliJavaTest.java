@@ -24,7 +24,7 @@ class CliJavaTest {
         assertEquals(0, new KonaApplication().run(new String[] {"new", app.toString(), "--lang=java"}));
         String build = Files.readString(app.resolve("build.gradle.kts"));
         assertTrue(build.contains("org.konaframework:kona-http:" + versions.getKona()));
-        assertTrue(build.contains("com.h2database:h2"));
+        assertTrue(build.contains("org.xerial:sqlite-jdbc"));
         assertTrue(Files.isRegularFile(app.resolve("grind")));
     }
 

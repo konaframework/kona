@@ -45,12 +45,14 @@ class MigrationsProvider : ServiceProvider {
 
 internal fun fixtureDatabaseConfig(): ConfigFile =
     ConfigFile.of("database") {
+        val fileUrl = Env.get("GRIND_DB_URL")
         val name = Env.getOrDefault("GRIND_DB", "grind_config")
+        val mainUrl = fileUrl ?: "jdbc:h2:mem:$name;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
         mapOf(
             "default" to "main",
             "connections" to mapOf(
                 "main" to mapOf(
-                    "url" to "jdbc:h2:mem:$name;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
+                    "url" to mainUrl,
                 ),
                 "other" to mapOf(
                     "url" to "jdbc:h2:mem:${name}_other;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
@@ -77,6 +79,13 @@ object ConfigOnlyFixtureApp {
             .configs(fixtureDatabaseConfig())
             .providers(MigrationsProvider())
             .boot()
+}
+
+/** Same as [CadenceFixtureApp] but honors `GRIND_DB_URL` for file-H2 cross-process checks. */
+object FileH2FixtureApp {
+    @JvmStatic
+    fun create(args: Array<String>): Application =
+        CadenceFixtureApp.create(args)
 }
 
 /** Empty registry bound as a singleton factory. */

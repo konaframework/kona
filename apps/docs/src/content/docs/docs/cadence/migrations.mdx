@@ -271,6 +271,8 @@ All commands run from the application directory. The database commands boot your
 ./grind make:migration widen_seats --table=seats     # explicit alter
 
 ./grind migrate                          # run pending migrations as a new batch
+./grind migrate --seed                   # migrate, then seed in the same process
+./grind migrate --seed --class=database.seeders.UserSeeder
 ./grind migrate:status                   # Ran/Pending, batch, name
 ./grind migrate:rollback                 # undo the last batch
 ./grind migrate:rollback --step=2        # undo the last two batches

@@ -1,5 +1,7 @@
 package org.konaframework.grind
 
+import org.konaframework.core.Application
+import org.konaframework.cadence.Database
 import org.konaframework.cadence.seeding.Seeder
 
 /**
@@ -12,6 +14,27 @@ class SeedCommand {
         val io = GrindIO.fromOptions(options)
         val name = options.getOrDefault("class", DEFAULT_SEEDER)
         MigrateCommand.withApplication(options) { app, loader ->
+            MigrateCommand.withDatabase(app) { database ->
+                runSeeder(app, loader, name, io, database)
+            }
+        }
+        return 0
+    }
+
+    companion object {
+        const val DEFAULT_SEEDER = "database.seeders.DatabaseSeeder"
+
+        /**
+         * Resolve [name] on [loader], bind [database] as global, run the seeder through the app
+         * container, and print progress. Shared by `db:seed` and `migrate --seed`.
+         */
+        internal fun runSeeder(
+            app: Application,
+            loader: ClassLoader,
+            name: String,
+            io: GrindIO,
+            database: Database,
+        ) {
             val type = try {
                 Class.forName(name, true, loader)
             } catch (ex: ClassNotFoundException) {
@@ -20,19 +43,12 @@ class SeedCommand {
             if (!Seeder::class.java.isAssignableFrom(type)) {
                 throw GrindException("[$name] does not extend org.konaframework.cadence.seeding.Seeder")
             }
-            MigrateCommand.withDatabase(app) { database ->
-                database.setAsGlobal()
-                val seeder = Seeder.instantiate(type.asSubclass(Seeder::class.java), app.container)
-                io.info("Seeding: ${type.simpleName}")
-                seeder.run()
-                seeder.called.forEach { io.info("Seeding: $it") }
-                io.success("Database seeding completed successfully.")
-            }
+            database.setAsGlobal()
+            val seeder = Seeder.instantiate(type.asSubclass(Seeder::class.java), app.container)
+            io.info("Seeding: ${type.simpleName}")
+            seeder.run()
+            seeder.called.forEach { io.info("Seeding: $it") }
+            io.success("Database seeding completed successfully.")
         }
-        return 0
-    }
-
-    companion object {
-        const val DEFAULT_SEEDER = "database.seeders.DatabaseSeeder"
     }
 }

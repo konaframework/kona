@@ -30,12 +30,13 @@ class NewCommand(
             if (options.containsKey("database")) {
                 DatabaseEngines.resolve(options.getValue("database"))
             } else {
-                DatabaseEngines.require("h2")
+                DatabaseEngines.require(DatabaseEngines.DEFAULT_NAME)
             }
         val target = Path.of(name).toAbsolutePath().normalize()
         if (Files.exists(target)) {
             throw KonaCliException("Directory already exists: $target")
         }
+        // H2 keeps the scaffold alias `main` (same URL as `h2`); everyone else uses the engine key.
         val dbConnection = if (database.name == "h2") "main" else database.connectionKey
         val variables = mapOf(
             "appName" to target.fileName.toString(),
@@ -59,8 +60,9 @@ class NewCommand(
     }
 
     /**
-     * Sets `DB_CONNECTION` / optional `DB_URL` in `.env` files and adds the engine's JDBC
-     * `runtimeOnly` coordinate when it is not the H2 zero-install default (already on every skeleton).
+     * Sets `DB_CONNECTION` / `DB_URL` in `.env` files and adds the engine's JDBC
+     * `runtimeOnly` coordinate when it is not the SQLite zero-install default
+     * (already on every skeleton).
      */
     internal fun applyDatabaseSelection(
         target: Path,
@@ -78,12 +80,10 @@ class NewCommand(
             } else {
                 text = text.replace(Regex("(?m)^DB_CONNECTION=.*$"), "DB_CONNECTION=$dbConnection")
             }
-            if (engine.name != "h2") {
-                if (!Regex("(?m)^DB_URL=").containsMatchIn(text)) {
-                    text = text.trimEnd() + "\nDB_URL=${engine.defaultUrl}\n"
-                } else {
-                    text = text.replace(Regex("(?m)^DB_URL=.*$"), "DB_URL=${engine.defaultUrl}")
-                }
+            if (!Regex("(?m)^DB_URL=").containsMatchIn(text)) {
+                text = text.trimEnd() + "\nDB_URL=${engine.defaultUrl}\n"
+            } else {
+                text = text.replace(Regex("(?m)^DB_URL=.*$"), "DB_URL=${engine.defaultUrl}")
             }
             Files.writeString(path, text)
         }
@@ -96,7 +96,7 @@ class NewCommand(
         if (gradle.contains(dep)) {
             return
         }
-        val marker = "runtimeOnly(\"com.h2database:h2:2.3.232\")"
+        val marker = "runtimeOnly(\"org.xerial:sqlite-jdbc:3.49.1.0\")"
         val insertion = "$marker\n    // Selected by kona new --database=${engine.name}\n    runtimeOnly(\"$dep\")"
         gradle = if (gradle.contains(marker)) {
             gradle.replace(marker, insertion)
@@ -158,6 +158,9 @@ class NewCommand(
             "storage/app",
             "storage/framework",
             "storage/logs",
+            "storage/database",
+            // Project-root SQLite file lives here (not under src/.../database package).
+            "database",
             "src/test/${if (lang == "java") "java" else "kotlin"}",
         ).forEach {
             Files.createDirectories(target.resolve(it))
@@ -318,6 +321,8 @@ class NewCommand(
                 "storage/app/public/.gitkeep",
                 "storage/framework/.gitkeep",
                 "storage/logs/.gitkeep",
+                "storage/database/.gitkeep",
+                "database/.gitkeep",
             )
         }
 

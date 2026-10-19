@@ -12,20 +12,20 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 
 ---
 
-## H2 as scaffold default (decision)
+## SQLite as scaffold default (decision)
 
-**Why H2 is the `kona new` / sample default today**
+**Why SQLite is the `kona new` default**
 
-1. **Zero install** — no local Postgres/MySQL daemon for `kona new` demos and CI unit tests.
-2. **In-process JDBC** — `jdbc:h2:mem:…` and file URLs work with only the H2 JAR on the classpath.
-3. **Identifier parity** — scaffold URLs include `DATABASE_TO_LOWER=TRUE` so quoted `"users"` matches unquoted `users` in hand-written SQL (H2 otherwise upper-cases unquoted names).
-4. **`DB_CLOSE_DELAY=-1`** on mem URLs keeps the DB alive for the JVM process (pool reconnects).
+1. **Zero install** — no local Postgres/MySQL/H2 daemon; one file on disk.
+2. **Survives `./grind` processes** — `jdbc:sqlite:database/database.sqlite` is shared by migrate, seed, and serve (unlike `jdbc:h2:mem:…`, which dies with each JVM).
+3. **Familiar layout** — project-root `database/database.sqlite` (gitignored); package code stays under `src/.../database/` for migrations/seeders.
+4. **H2 remains first-class** — `kona new --database=h2` (file + `AUTO_SERVER`) and mem URLs in the Cadence **test** suite.
 
-**Decision:** **Keep H2 as the scaffold/default** for local demo and tests. Document PostgreSQL / MySQL as the **production** targets. Do **not** silently change `kona new` to require a server database.
+**Decision:** **SQLite file is the scaffold/default** for local demos. H2 stays for tests and optional `--database=h2`. Document PostgreSQL / MySQL / MariaDB / SQL Server / Oracle as production (or heavier) targets.
 
-**Classpath fix:** `kona new` skeletons include `runtimeOnly("com.h2database:h2:2.3.232")`. Optional `kona new --database=<engine>` selects a named connection and adds that engine’s JDBC driver.
+**Classpath:** skeletons include `runtimeOnly("org.xerial:sqlite-jdbc:…")`. `kona new --database=<engine>` sets `DB_CONNECTION` / `DB_URL` and adds that engine’s JDBC driver when needed.
 
-Evidence: `modules/cli/.../config/Database.kt.txt`, skeletons, `DatabaseEngines`, samples. Guide: `apps/docs/.../cadence/database.mdx`.
+Evidence: `DatabaseEngines.DEFAULT_NAME`, skeletons, `apps/docs/.../cadence/database.mdx`.
 
 ---
 
@@ -33,11 +33,11 @@ Evidence: `modules/cli/.../config/Database.kt.txt`, skeletons, `DatabaseEngines`
 
 | Engine | Query `Grammar` | Schema `SchemaGrammar` | Notes |
 |--------|-----------------|------------------------|-------|
-| **H2** | `Grammar.H2` | `H2SchemaGrammar` | Scaffold + tests; upsert `ON CONFLICT` |
+| **SQLite** | `Grammar.SQLITE` | `SqliteSchemaGrammar` | Scaffold default (`database/database.sqlite`); alter limits documented |
+| **H2** | `Grammar.H2` | `H2SchemaGrammar` | Tests + `--database=h2`; upsert `ON CONFLICT` |
 | **PostgreSQL** | `Grammar.POSTGRES` | `PostgresSchemaGrammar` | Identity, JSONB |
 | **MySQL** | `Grammar.MYSQL` | `MySqlSchemaGrammar` | `AUTO_INCREMENT`, backticks |
 | **MariaDB** | `Grammar.MARIADB` | `MariaDbSchemaGrammar` | Distinct product; shared MySQL DDL family |
-| **SQLite** | `Grammar.SQLITE` | `SqliteSchemaGrammar` | `AUTOINCREMENT`; documented alter limits |
 | **Oracle** | `Grammar.ORACLE` | `OracleSchemaGrammar` | `VARCHAR2`, MERGE upsert, identity |
 | **SQL Server** | `Grammar.SQLSERVER` | `SqlServerSchemaGrammar` | Brackets, `OFFSET/FETCH`, MERGE |
 | **Other JDBC** | `Grammar.registerUrlPrefix` | `SchemaGrammar.registerProduct` | Extension path **done** (#65) |

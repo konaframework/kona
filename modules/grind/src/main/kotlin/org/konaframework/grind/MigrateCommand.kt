@@ -8,11 +8,15 @@ import org.konaframework.cadence.migrations.MigrationRegistry
 import org.konaframework.cadence.migrations.Migrator
 
 /**
- * `grind migrate`, `migrate:rollback [--step=N]`, `migrate:reset`, `migrate:status`.
+ * `grind migrate [--seed] [--class=…]`, `migrate:rollback [--step=N]`, `migrate:reset`,
+ * `migrate:status`.
  *
  * Boots the application in-process (from `build/classes`, via `--bootstrap=bootstrap.App`), then
  * uses the [MigrationRegistry] bound in its container, or migrations discovered from
  * `META-INF/kona/migrations`, plus its [Database]. `--database=name` picks a named connection.
+ *
+ * With `--seed` / `--seeder` on [Action.MIGRATE] only, runs seeders in the same process before the
+ * database is closed (so in-memory and file H2 both see migrated tables).
  */
 class MigrateCommand(private val action: Action) {
     enum class Action { MIGRATE, ROLLBACK, RESET, STATUS }
@@ -26,6 +30,10 @@ class MigrateCommand(private val action: Action) {
                 val name = options["database"]
                 val connection = if (name == null) database.connection() else database.connection(name)
                 Migrator.using(connection, registry) { migrator -> execute(migrator, options, io) }
+                if (action == Action.MIGRATE && wantsSeed(options)) {
+                    val seeder = options.getOrDefault("class", SeedCommand.DEFAULT_SEEDER)
+                    SeedCommand.runSeeder(app, loader, seeder, io, database)
+                }
             }
         }
         return 0
@@ -67,6 +75,15 @@ class MigrateCommand(private val action: Action) {
     }
 
     companion object {
+        /** True when `--seed` / `--seeder` (or short `-s`) is present and truthy. */
+        internal fun wantsSeed(options: Map<String, String>): Boolean {
+            val value = options["seeder"] ?: options["seed"] ?: return false
+            return value.isEmpty() ||
+                value.equals("true", ignoreCase = true) ||
+                value == "1" ||
+                value.equals("yes", ignoreCase = true)
+        }
+
         internal fun resolveRegistry(app: Application, loader: ClassLoader): MigrationRegistry {
             if (app.container.bound(MigrationRegistry::class.java)) {
                 return app.resolve(MigrationRegistry::class.java)

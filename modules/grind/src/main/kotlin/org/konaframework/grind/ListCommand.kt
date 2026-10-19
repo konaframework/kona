@@ -35,7 +35,7 @@ class ListCommand(
             "make:migration" to "Generate a migration (auto-registers)",
             "make:factory" to "Generate a factory",
             "make:seeder" to "Generate a seeder",
-            "migrate" to "Run pending migrations",
+            "migrate" to "Run pending migrations (--seed)",
             "migrate:rollback" to "Rollback migrations",
             "migrate:reset" to "Reset all migrations",
             "migrate:status" to "Show migration status",
