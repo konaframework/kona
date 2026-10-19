@@ -211,14 +211,25 @@ class GrindTest {
         val app = stubGradleApp(temp.resolve("spawned"))
         Files.createDirectories(app.resolve("routes/nested"))
 
-        val serve = ServeCommand(runner = runner, windows = false)
+        val out = java.io.ByteArrayOutputStream()
+        val serve = ServeCommand(runner = runner, windows = false, io = GrindIO(java.io.PrintStream(out), color = false))
         assertEquals(7, serve.run(listOf("--base=${app.resolve("routes/nested")}", "--host=0.0.0.0", "--port=9000")))
         assertEquals(
-            listOf(app.resolve("gradlew").toString(), "--quiet", "--console=plain", "run"),
+            listOf(
+                app.resolve("gradlew").toString(),
+                "--quiet",
+                "--console=plain",
+                "-Dorg.gradle.console=plain",
+                "run",
+            ),
             calls[0].first,
         )
         assertEquals(app, calls[0].second)
         assertEquals(mapOf("HOST" to "0.0.0.0", "PORT" to "9000"), calls[0].third)
+        val banner = out.toString()
+        assertTrue(banner.contains("grind serve"), banner)
+        assertTrue(banner.contains("http://localhost:9000"), banner)
+        assertTrue(banner.contains("Bind     0.0.0.0:9000"), banner)
 
         // Preferred defaults come from ServePorts (do not require port 4000 to be free on the host).
         val (defaultHost, defaultPort) = ServePorts.preferredHostPort(app, emptyMap())
@@ -228,16 +239,37 @@ class GrindTest {
         assertEquals(7, serve.run(listOf("--base=$app", "--port=$freePort")))
         assertEquals("127.0.0.1", calls[1].third["HOST"])
         assertEquals(freePort.toString(), calls[1].third["PORT"])
+        assertTrue(out.toString().contains("http://localhost:$freePort"), out.toString())
 
         assertEquals(
-            listOf(app.resolve("gradlew.bat").toString(), "--quiet", "--console=plain", "run"),
+            listOf(
+                app.resolve("gradlew.bat").toString(),
+                "--quiet",
+                "--console=plain",
+                "-Dorg.gradle.console=plain",
+                "run",
+            ),
             ServeCommand(windows = true).gradleCommand(app),
         )
         val noWrapper = fixtureProject(temp.resolve("nowrapper"))
         assertEquals(
-            listOf("gradle", "--quiet", "--console=plain", "run"),
+            listOf("gradle", "--quiet", "--console=plain", "-Dorg.gradle.console=plain", "run"),
             ServeCommand(windows = false).gradleCommand(noWrapper),
         )
+    }
+
+    @Test
+    fun serveAnnounceReadyVsStarting() {
+        val out = java.io.ByteArrayOutputStream()
+        val serve = ServeCommand(io = GrindIO(java.io.PrintStream(out), color = false))
+        serve.announce("127.0.0.1", 4000, ready = false)
+        val starting = out.toString()
+        assertTrue(starting.contains("Building and starting"), starting)
+        assertTrue(starting.contains("http://localhost:4000"), starting)
+        out.reset()
+        serve.announce("127.0.0.1", 4000, ready = true)
+        val ready = out.toString()
+        assertTrue(ready.contains("Server ready at http://localhost:4000"), ready)
     }
 
     @Test
@@ -355,12 +387,17 @@ class GrindTest {
         val port = freePort()
         val base = fixtureProject(temp.resolve("inproc"), "APP_NAME=Fixture\nHOST=127.0.0.1\nPORT=$port\n")
         var body = ""
-        val serve = ServeCommand(awaitShutdown = { server ->
-            assertTrue(server.isRunning())
-            body = httpGet("http://127.0.0.1:$port/fixture").body()
-        })
+        val out = java.io.ByteArrayOutputStream()
+        val serve = ServeCommand(
+            awaitShutdown = { server ->
+                assertTrue(server.isRunning())
+                body = httpGet("http://127.0.0.1:$port/fixture").body()
+            },
+            io = GrindIO(java.io.PrintStream(out), color = false),
+        )
         assertEquals(0, serve.run(listOf("--base=$base", "--in-process", "--bootstrap=${FixtureApp::class.java.name}")))
         assertEquals("fixture:Fixture", body)
+        assertTrue(out.toString().contains("Server ready at http://localhost:$port"), out.toString())
 
         val port2 = freePort()
         assertEquals(
