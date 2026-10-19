@@ -366,4 +366,25 @@ class EnvConfigApplicationTest {
                 .basePath.isAbsolute,
         )
     }
+
+    @Test
+    fun konaSeedsLogRequestsFromEnv() {
+        val on = Files.createTempDirectory("kona-log-req-on")
+        Files.writeString(on.resolve(".env"), "LOG_REQUESTS=true\n")
+        val enabled = Kona.create(on).configure { it.set("logging.to_file", false) }.boot()
+        assertEquals(true, enabled.config.getBoolean("logging.requests"))
+        Kona.reset()
+
+        val off = Files.createTempDirectory("kona-log-req-off")
+        Files.writeString(off.resolve(".env"), "LOG_REQUESTS=false\n")
+        val disabled = Kona.create(off).configure { it.set("logging.to_file", false) }.boot()
+        assertEquals(false, disabled.config.getBoolean("logging.requests"))
+        Kona.reset()
+
+        val junk = Files.createTempDirectory("kona-log-req-junk")
+        Files.writeString(junk.resolve(".env"), "LOG_REQUESTS=maybe\n")
+        val ignored = Kona.create(junk).configure { it.set("logging.to_file", false) }.boot()
+        assertEquals(null, ignored.config.getBoolean("logging.requests"))
+        Kona.reset()
+    }
 }
