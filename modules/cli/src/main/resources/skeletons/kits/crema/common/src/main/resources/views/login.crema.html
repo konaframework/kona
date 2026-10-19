@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sign in · {{ name }}</title>
+    <style>
+      :root { --caramel:#DF8723; --accent:#74453F; --ink:#2A1A12; --bg:#FAF6F0; }
+      *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:ui-sans-serif,system-ui,sans-serif;color:var(--ink);
+        background:radial-gradient(900px 480px at 10% -10%,rgba(223,135,35,.2),transparent 55%),var(--bg)}
+      .shell{max-width:24rem;margin:0 auto;padding:3.5rem 1.25rem}
+      .brand{display:flex;align-items:center;gap:.75rem;margin-bottom:1.75rem}
+      .brand img{width:2.75rem;height:2.75rem}
+      h1{margin:0 0 .35rem;font-size:1.75rem;color:var(--accent)}
+      .sub{margin:0 0 1.5rem;opacity:.85}
+      label{display:block;font-size:.9rem;font-weight:600;margin:0 0 .35rem}
+      input{width:100%;padding:.7rem .8rem;border:1px solid #d8c4a8;border-radius:.5rem;margin-bottom:1rem;font:inherit}
+      button{width:100%;padding:.75rem;border:0;border-radius:.55rem;background:var(--caramel);color:#fff;font-weight:700;cursor:pointer}
+      button:hover{filter:brightness(1.05)}
+      .err{background:#fde8e4;color:#8a2f24;padding:.75rem .9rem;border-radius:.5rem;margin-bottom:1rem;font-size:.95rem}
+      .back{display:inline-block;margin-top:1.25rem;color:var(--caramel);text-decoration:none}
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="brand">
+        <img src="/branding/kona-logo.svg" alt="Kona" width="44" height="44" />
+        <strong>{{ name }}</strong>
+      </div>
+      <h1>Sign in</h1>
+      <p class="sub">Use the demo account from the welcome page, or your own seeded user.</p>
+      @if(error)
+        <div class="err">{{ error }}</div>
+      @endif
+      <form method="post" action="/login">
+        @csrf
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" value="{{ email }}" required autocomplete="username" />
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required autocomplete="current-password" />
+        <button type="submit">Sign in</button>
+      </form>
+      <a class="back" href="/">← Back home</a>
+    </div>
+  </body>
+</html>

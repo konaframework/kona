@@ -1,7 +1,9 @@
 package org.konaframework.grind
 
 import java.io.IOException
+import java.net.Inet4Address
 import java.net.InetSocketAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.nio.file.Files
 import java.nio.file.Path
@@ -13,6 +15,88 @@ const val DEFAULT_SERVE_PORT = 4000
  * Port availability + interactive bump when the preferred port is taken.
  */
 object ServePorts {
+    /** True when [host] listens on all interfaces (`0.0.0.0` / IPv6 any). */
+    fun isWildcardBind(host: String): Boolean =
+        host == "0.0.0.0" || host == "::" || host == "[::]"
+
+    /**
+     * Browser-facing URL for [host]:[port]. Wildcard binds (`0.0.0.0`) map to `localhost`
+     * (works with WSL localhost forwarding and native loopback).
+     */
+    fun localUrl(host: String, port: Int): String {
+        val display = when {
+            isWildcardBind(host) || host == "127.0.0.1" -> "localhost"
+            else -> host
+        }
+        return "http://$display:$port"
+    }
+
+    /**
+     * Best non-loopback IPv4 for a “Network” URL when binding `0.0.0.0`.
+     * Skips Docker/bridge (`docker0`, `br-*`, `veth*`) so WSL does not advertise
+     * `172.19.0.1`-style bridge gateways that hang in a Windows browser.
+     */
+    fun lanAddress(): String? {
+        return try {
+            NetworkInterface.getNetworkInterfaces().toList()
+                .asSequence()
+                .filter { iface ->
+                    iface.isUp && !iface.isLoopback && !isBridgeOrContainerIface(iface.name)
+                }
+                .flatMap { iface ->
+                    iface.inetAddresses.toList().asSequence()
+                        .filterIsInstance<Inet4Address>()
+                        .filter { !it.isLoopbackAddress }
+                        .map { iface.name to it.hostAddress }
+                }
+                .sortedBy { (name, _) -> ifacePreference(name) }
+                .map { it.second }
+                .firstOrNull()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** Docker / CNI / libvirt bridges — not useful as a public “Network” URL. */
+    internal fun isBridgeOrContainerIface(name: String): Boolean {
+        val n = name.lowercase()
+        return n == "docker0" ||
+            n == "cni0" ||
+            n == "podman0" ||
+            n.startsWith("br-") ||
+            n.startsWith("veth") ||
+            n.startsWith("docker") ||
+            n.startsWith("br0") ||
+            n.startsWith("virbr") ||
+            n.startsWith("lxc") ||
+            n.startsWith("flannel") ||
+            n.startsWith("cni-")
+    }
+
+    /** Lower score = preferred (`eth0` / `en*` before random NICs). */
+    internal fun ifacePreference(name: String): Int {
+        val n = name.lowercase()
+        return when {
+            n == "eth0" || n.startsWith("en") -> 0
+            // `wlan*` is covered by the `wl` prefix (do not add a redundant `wlan` check).
+            n.startsWith("wl") -> 1
+            else -> 10
+        }
+    }
+
+    /** True when running under Windows Subsystem for Linux. */
+    fun isWsl(env: Map<String, String> = System.getenv()): Boolean {
+        if (env.containsKey("WSL_DISTRO_NAME") || env.containsKey("WSL_INTEROP")) {
+            return true
+        }
+        return try {
+            // Single marker: WSL kernels advertise "microsoft" in /proc/version.
+            Files.readString(Path.of("/proc/version")).contains("microsoft", ignoreCase = true)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun isAvailable(host: String, port: Int): Boolean =
         try {
             ServerSocket().use { socket ->

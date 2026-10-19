@@ -15,6 +15,10 @@ import java.nio.file.Path
  * over `.env`). Default port is [DEFAULT_SERVE_PORT] (4000). When the preferred port is taken,
  * grind asks whether to try the next port.
  *
+ * Before starting, prints a Termwind box with the local URL so the bind address is obvious.
+ * Gradle is forced to `--console=plain` so the forever-running `run` task does not leave a
+ * stuck ~83% progress bar in the terminal.
+ *
  * `--in-process`: boots the app inside grind from `build/classes` via [AppLoader]; HOST/PORT come
  * from the app's `.env` after load. `--once` stops right after binding.
  */
@@ -44,12 +48,13 @@ constructor(
     internal fun gradleCommand(root: Path): List<String> {
         val wrapper = root.resolve(if (windows) "gradlew.bat" else "gradlew")
         val gradle = if (Files.isRegularFile(wrapper)) wrapper.toString() else "gradle"
-        // Quiet Gradle so Termwind grind banners are not drowned by build lifecycle noise.
-        return listOf(gradle, "--quiet", "--console=plain", "run")
+        // Quiet + plain: no lifecycle spam and no rich progress bar stuck at ~83% while `run` lives.
+        return listOf(gradle, "--quiet", "--console=plain", "-Dorg.gradle.console=plain", "run")
     }
 
     private fun serveWithGradle(root: Path, options: Map<String, String>): Int {
         val (host, port) = resolveBind(root, options)
+        announce(host, port, ready = false)
         val environment = linkedMapOf(
             "HOST" to host,
             "PORT" to port.toString(),
@@ -64,6 +69,7 @@ constructor(
         val (host, port) = resolveBind(root, options)
         val server = KonaHttpServer(app.resolve(HttpKernel::class.java), host, port)
         server.start()
+        announce(host, port, ready = true)
         try {
             if (options["once"] != "true") {
                 awaitShutdown(server)
@@ -72,6 +78,40 @@ constructor(
             server.stop()
         }
         return 0
+    }
+
+    /** Termwind serve card: always show the URL developers will open in a browser. */
+    internal fun announce(
+        host: String,
+        port: Int,
+        ready: Boolean,
+        lanIp: String? = ServePorts.lanAddress(),
+        wsl: Boolean = ServePorts.isWsl(),
+    ) {
+        val local = ServePorts.localUrl(host, port)
+        val lan = lanIp?.let { "http://$it:$port" }
+        val lines = buildList {
+            add("Local    $local")
+            if (ServePorts.isWildcardBind(host) && lan != null && lan != local) {
+                add("Network  $lan")
+            }
+            if (ServePorts.isWildcardBind(host)) {
+                add("Bind     $host:$port")
+            }
+            add("Stop     Ctrl+C")
+        }
+        io.box("grind serve", lines)
+        if (wsl && !ServePorts.isWildcardBind(host)) {
+            io.warn(
+                "WSL tip: if Windows cannot open $local, set HOST=0.0.0.0 in .env and restart.",
+            )
+        }
+        // Prefer localhost — WSL localhost forwarding / native loopback. Network is secondary.
+        if (ready) {
+            io.success("Server ready at $local")
+        } else {
+            io.info("Building and starting… open $local when ready")
+        }
     }
 
     private fun resolveBind(root: Path, options: Map<String, String>): Pair<String, Int> {

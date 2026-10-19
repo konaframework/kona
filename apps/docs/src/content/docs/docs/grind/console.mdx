@@ -16,8 +16,11 @@ All Kona terminal CLIs share one Termwind-inspired console style: brand colors (
 
 Do **not** print user-facing output with raw `println` / unstyled `System.out` in commands; use these APIs.
 
-The app-local `./grind` launcher runs Gradle with `--quiet --console=plain` so build lifecycle
-noise does not bury Termwind command output. Prefer `./grind serve --in-process` when you
+The app-local `./grind` launcher (and `grind serve`’s nested `gradlew run`) use
+`--quiet --console=plain -Dorg.gradle.console=plain` so build lifecycle noise and Gradle’s
+rich progress bar do not bury Termwind output. Without plain console, `run` can look “stuck”
+around 83% for the whole time the HTTP server is up — that percentage is normal Gradle task
+progress for a long-lived process, not a hang. Prefer `./grind serve --in-process` when you
 already have compiled classes and want to skip an extra Gradle `run` spawn.
 
 ## Color environment

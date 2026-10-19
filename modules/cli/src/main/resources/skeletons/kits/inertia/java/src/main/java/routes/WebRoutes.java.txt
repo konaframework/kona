@@ -1,11 +1,34 @@
 package routes;
 
+import app.http.controllers.DashboardController;
+import app.http.controllers.LoginController;
 import app.http.controllers.WelcomeController;
+import org.konaframework.auth.Auth;
+import org.konaframework.auth.middleware.Authenticate;
+import org.konaframework.auth.middleware.RedirectIfAuthenticated;
 import org.konaframework.http.Router;
 
 public class WebRoutes {
     public void register(Router router) {
         WelcomeController welcome = new WelcomeController();
+        LoginController login = new LoginController();
+        DashboardController dashboard = new DashboardController();
+        var auth = Auth.manager();
+
+        // Landing / login / dashboard use Crema HTML in this starter so auth works
+        // without a JS login page. Add Inertia pages as you grow.
         router.get("/", welcome::index).name("welcome");
+        router.get("/login", login::show)
+            .middleware(new RedirectIfAuthenticated(auth, "/dashboard"))
+            .name("login");
+        router.post("/login", login::store)
+            .middleware(new RedirectIfAuthenticated(auth, "/dashboard"))
+            .name("login.store");
+        router.post("/logout", login::destroy)
+            .middleware(new Authenticate(auth))
+            .name("logout");
+        router.get("/dashboard", dashboard::index)
+            .middleware(new Authenticate(auth))
+            .name("dashboard");
     }
 }

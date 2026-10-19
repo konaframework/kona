@@ -1,7 +1,5 @@
 package bootstrap
 
-import app.brew.Counter
-import app.brew.Todos
 import app.providers.AppServiceProvider
 import config.App as AppConfig
 import config.Database
@@ -10,7 +8,6 @@ import config.Http
 import config.Paths
 import config.Session
 import org.konaframework.auth.AuthServiceProvider
-import org.konaframework.brew.Brew
 import org.konaframework.brew.BrewServiceProvider
 import org.konaframework.core.Application
 import org.konaframework.core.Env
@@ -51,9 +48,6 @@ object App {
             )
             .afterBoot { Middleware.configure(it) }
             .boot()
-        // Pin sample components; other app.brew.* classes resolve via brew.class_namespace.
-        Brew.component(Counter::class.java)
-        Brew.component(Todos::class.java)
         WebRoutes().register(app.resolve(Router::class.java))
         ApiRoutes().register(app.resolve(Router::class.java))
         return app

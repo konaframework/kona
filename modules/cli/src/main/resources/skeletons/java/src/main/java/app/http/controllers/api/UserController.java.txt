@@ -1,0 +1,28 @@
+package app.http.controllers.api;
+
+import app.models.User;
+import org.konaframework.http.NotFoundException;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class UserController {
+    public Response index(Request request) {
+        List<?> users = User.QUERY.all().stream().map(User::toArray).collect(Collectors.toList());
+        return Response.json(users);
+    }
+
+    public Response show(Request request) {
+        String id = request.route("id");
+        if (id == null) {
+            throw new NotFoundException("User not found");
+        }
+        User user = User.QUERY.find(id);
+        if (user == null) {
+            throw new NotFoundException("User not found");
+        }
+        return Response.json(user.toArray());
+    }
+}
