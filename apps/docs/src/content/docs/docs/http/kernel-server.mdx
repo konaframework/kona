@@ -8,7 +8,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 Two classes sit between the network and your route handlers:
 
 - **`HttpKernel`** is the request pipeline. It takes a `Request`, runs global middleware, asks the router for a route, runs that route’s middleware and action, converts failures into error responses, and returns a `Response`. It knows nothing about sockets, so you can call it directly in tests.
-- **`KonaHttpServer`** is a thin network adapter over **Netty**. It listens on a host and port, turns each HTTP exchange into a `Request`, calls `kernel.handle(request)`, and writes the `Response` back. Netty owns the sockets (epoll on Linux when available, otherwise NIO); each request runs on its own **virtual thread**.
+- **`KonaHttpServer`** is a thin network adapter over **Netty**. It listens on a host and port, turns each HTTP exchange into a `Request`, calls `kernel.handle(request)`, and writes the `Response` back. Netty owns the sockets (epoll on Linux when available, otherwise NIO); each request runs on its own **virtual thread**. On a successful bind it prints a listening banner via `ConsoleIO` (and `Log.info`).
 
 This page walks through both, in the order a request experiences them.
 
@@ -17,7 +17,7 @@ This page walks through both, in the order a request experiences them.
 `HttpServiceProvider` (in `kona-http`) registers two **singletons** in the application container — objects created once and shared by everyone who asks for them:
 
 - a `Router`, and
-- an `HttpKernel` built from that router, with no global middleware and a `DefaultExceptionHandler` whose debug mode follows the `app.debug` config value (seeded from `APP_DEBUG` in `.env`).
+- an `HttpKernel` built from that router, with a `DefaultExceptionHandler` whose debug mode follows the `app.debug` config value (seeded from `APP_DEBUG` in `.env`). On boot, when request logging is enabled (`APP_DEBUG` / `LOG_REQUESTS`), the provider also prepends `LogRequests` — see [Logging](../logging/#request-access-lines-local-serve).
 
 Once the application has booted, resolve them from the container:
 

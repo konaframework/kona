@@ -72,6 +72,8 @@ Defaults follow the tree above; override with `paths.*` keys in `config/Paths` (
 
 Open `http://127.0.0.1:4000/` (or the `HOST`/`PORT` from `.env`). Stop with Ctrl+C.
 
+With `APP_DEBUG=true` (scaffold default), the terminal shows each request — method, path, status, and duration — as you hit the app. See [Logging](../../http/logging/#request-access-lines-local-serve).
+
 Under the hood, `./grind serve` runs `./gradlew run` so the app compiles with its own dependencies. For tests you can use `./grind serve --in-process` after `./gradlew classes`.
 
 The default welcome page is HTML from `welcome.crema.html` (via `WelcomeController` on `/`). `/api/health` returns JSON `{"status":"ok"}`.

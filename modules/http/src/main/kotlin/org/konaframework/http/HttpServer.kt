@@ -1,6 +1,7 @@
 package org.konaframework.http
 
 import org.konaframework.core.Log
+import org.konaframework.support.console.ConsoleIO
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.buffer.PooledByteBufAllocator
 import io.netty.channel.Channel
@@ -36,6 +37,7 @@ class KonaHttpServer @JvmOverloads constructor(
     private val port: Int = 4000,
     private val maxContentLength: Int = DEFAULT_MAX_CONTENT_LENGTH,
     private val transportPreference: String? = System.getProperty("kona.http.transport"),
+    private val console: ConsoleIO = ConsoleIO(),
 ) {
     private val running = AtomicBoolean(false)
     private var bossGroup: EventLoopGroup? = null
@@ -81,7 +83,9 @@ class KonaHttpServer @JvmOverloads constructor(
             bossGroup = boss
             workerGroup = workers
             requestExecutor = executor
-            Log.info("Kona server listening on http://$host:$port")
+            val url = "http://$host:$port"
+            Log.info("Kona server listening on $url")
+            console.info("Kona server listening on $url")
         } catch (t: Throwable) {
             running.set(false)
             executor.close()
@@ -145,7 +149,8 @@ internal class KonaNettyHandler(
                 val response = kernel.handle(request)
                 val netty = NettyHttpBridge.toResponse(response, head, keepAlive)
                 writeResponse(ctx, netty, keepAlive)
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                Log.error("Unhandled server error", t)
                 writeError(ctx)
             } finally {
                 ReferenceCountUtil.release(msg)
@@ -154,6 +159,7 @@ internal class KonaNettyHandler(
     }
 
     override fun exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+        Log.error("HTTP channel error", cause)
         ctx.close()
     }
 
