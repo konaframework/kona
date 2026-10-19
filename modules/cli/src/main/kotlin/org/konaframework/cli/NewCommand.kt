@@ -279,8 +279,10 @@ class NewCommand(
                 "src/main/resources/views/app.crema.html",
                 "public/.gitkeep",
             ),
-            // Brew adds kona-brew + App wiring; Crema overlay already ships landing/login/dashboard.
-            "brew" to emptyList(),
+            // Brew overlays Crema landing with a live `<brew:counter />` demo (+ Counter class via KIT_LANG).
+            "brew" to listOf(
+                "src/main/resources/views/welcome.crema.html",
+            ),
         )
 
         private val KIT_LANG = mapOf(
@@ -324,11 +326,13 @@ class NewCommand(
                 "kotlin" to listOf(
                     "build.gradle.kts.txt",
                     "src/main/kotlin/bootstrap/App.kt.txt",
+                    "src/main/kotlin/app/brew/Counter.kt.txt",
                     "README.md",
                 ),
                 "java" to listOf(
                     "build.gradle.kts.txt",
                     "src/main/java/bootstrap/App.java.txt",
+                    "src/main/java/app/brew/Counter.java.txt",
                     "README.md",
                 ),
             ),

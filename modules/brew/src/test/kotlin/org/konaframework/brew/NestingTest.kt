@@ -2,6 +2,10 @@ package org.konaframework.brew
 
 import org.konaframework.brew.features.SlotBag
 import org.konaframework.brew.features.SupportNesting
+import org.konaframework.brew.fixtures.Counter
+import org.konaframework.crema.CremaContext
+import org.konaframework.crema.CremaEngine
+import org.konaframework.crema.MapViewFinder
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -214,6 +218,24 @@ class NestingTest {
         assertEquals("x", org.konaframework.brew.view.HtmlRoot.rootTagName("<x\t>"))
         assertEquals("y", org.konaframework.brew.view.HtmlRoot.rootTagName("<y\n>"))
         assertEquals("z", org.konaframework.brew.view.HtmlRoot.rootTagName("<z\r>"))
+    }
+
+    @Test
+    fun `normalizeComponentName kebabs PascalCase leaves`() {
+        assertEquals("counter", BrewCrema.normalizeComponentName("Counter"))
+        assertEquals("counter", BrewCrema.normalizeComponentName("counter"))
+        assertEquals("todo-list", BrewCrema.normalizeComponentName("TodoList"))
+        assertEquals("posts.create-post", BrewCrema.normalizeComponentName("posts.CreatePost"))
+        assertEquals("admin::user-list", BrewCrema.normalizeComponentName("admin::UserList"))
+    }
+
+    @Test
+    fun `pascalCase brew tag resolves kebab registration`() {
+        val engine = CremaEngine(MapViewFinder())
+        BrewManager(BrewConfig(key = "k"), engine).component("counter", Counter::class.java)
+        val html = engine.renderSource("<brew:Counter />", CremaContext())
+        assertTrue(html.contains("wire:name=\"counter\""), html)
+        assertFalse(html.contains("<brew:Counter"), html)
     }
 
     @Test

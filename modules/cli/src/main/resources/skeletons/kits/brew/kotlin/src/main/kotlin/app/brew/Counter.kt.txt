@@ -1,0 +1,28 @@
+package app.brew
+
+import org.konaframework.brew.Component
+
+/** Sample single-file Brew component. Mounted from welcome as `<brew:counter />`. */
+class Counter : Component() {
+    var count = 0
+
+    fun mount(start: Int = 0) {
+        count = start
+    }
+
+    fun increment() {
+        count++
+    }
+
+    fun decrement() {
+        count--
+    }
+
+    override fun template() = """
+        <div class="brew-demo">
+            <p>Count: <strong>{{ count }}</strong></p>
+            <button type="button" wire:click="decrement" aria-label="Decrement">−</button>
+            <button type="button" wire:click="increment" aria-label="Increment">+</button>
+        </div>
+    """.trimIndent()
+}
