@@ -27,7 +27,7 @@ class DatabaseEnginesTest {
         assertThrows<KonaCliException> { DatabaseEngines.require("mongo") }
         assertTrue(DatabaseEngines.names().containsAll(listOf("h2", "sqlite", "mysql", "mariadb", "pgsql", "sqlsrv", "oracle")))
         assertEquals("sqlite", DatabaseEngines.DEFAULT_NAME)
-        assertTrue(DatabaseEngines.require("sqlite").defaultUrl.contains("jdbc:sqlite:database/database.sqlite"))
+        assertTrue(DatabaseEngines.require("sqlite").defaultUrl.contains("jdbc:sqlite:storage/database/database.sqlite"))
         assertTrue(DatabaseEngines.require("h2").defaultUrl.contains("jdbc:h2:file:./storage/database/kona"))
         assertTrue(DatabaseEngines.require("h2").defaultUrl.contains("AUTO_SERVER=TRUE"))
         assertEquals(null, DatabaseEngines.require("sqlite").runtimeDependency)
@@ -60,12 +60,12 @@ class DatabaseEnginesTest {
         assertTrue(database.contains("\"oracle\""))
         val env = Files.readString(app.resolve(".env"))
         assertTrue(env.contains("DB_CONNECTION=sqlite"))
-        assertTrue(env.contains("jdbc:sqlite:database/database.sqlite"))
+        assertTrue(env.contains("jdbc:sqlite:storage/database/database.sqlite"))
         val gradle = Files.readString(app.resolve("build.gradle.kts"))
         assertTrue(gradle.contains("org.xerial:sqlite-jdbc"))
         assertTrue(!gradle.contains("org.postgresql:postgresql"))
-        assertTrue(Files.isRegularFile(app.resolve("database/.gitkeep")))
-        assertTrue(Files.readString(app.resolve(".gitignore")).contains("/database/*.sqlite"))
+        assertTrue(Files.isRegularFile(app.resolve("storage/database/.gitkeep")))
+        assertTrue(Files.readString(app.resolve(".gitignore")).contains("storage/database/*"))
     }
 
     @Test

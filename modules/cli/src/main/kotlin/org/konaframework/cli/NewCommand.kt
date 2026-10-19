@@ -159,8 +159,6 @@ class NewCommand(
             "storage/framework",
             "storage/logs",
             "storage/database",
-            // Project-root SQLite file lives here (not under src/.../database package).
-            "database",
             "src/test/${if (lang == "java") "java" else "kotlin"}",
         ).forEach {
             Files.createDirectories(target.resolve(it))
@@ -322,7 +320,6 @@ class NewCommand(
                 "storage/framework/.gitkeep",
                 "storage/logs/.gitkeep",
                 "storage/database/.gitkeep",
-                "database/.gitkeep",
             )
         }
 

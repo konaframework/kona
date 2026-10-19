@@ -41,12 +41,12 @@ Helper env keys used by the scaffolded named connections (when you do not set a 
 `kona new` sets `DB_CONNECTION=sqlite` and puts the SQLite JDBC driver on the classpath (`runtimeOnly("org.xerial:sqlite-jdbc:…")`) so a fresh app runs **without installing a database server**:
 
 ```text
-jdbc:sqlite:database/database.sqlite
+jdbc:sqlite:storage/database/database.sqlite
 ```
 
-- The file lives at project-root **`database/database.sqlite`** (not under `src/.../database`, which holds migrations and seeders).
+- The file lives at **`storage/database/database.sqlite`** (not under `src/.../database`, which holds migrations and seeders).
 - Each `./grind` process (migrate, seed, serve) opens the same file, so schema and seed data persist across commands.
-- Scaffolds create `database/.gitkeep` and gitignore `/database/*.sqlite`.
+- Scaffolds create `storage/database/.gitkeep`; `storage/database/*` is gitignored (SQLite file included).
 
 Use `kona new --database=h2` for file H2 (`storage/database/kona` + `AUTO_SERVER`). Use `jdbc:h2:mem:…` only in **unit tests**.
 
@@ -58,7 +58,7 @@ Cadence ships dedicated query dialects and schema grammars for these engines. **
 
 | Engine | Connection name | Typical JDBC URL | Quoting | Schema notes |
 |--------|-----------------|------------------|---------|--------------|
-| **SQLite** | `sqlite` | `jdbc:sqlite:database/database.sqlite` (scaffold default) | `"…"` | `INTEGER PRIMARY KEY AUTOINCREMENT`; alter is ADD/DROP column + indexes only |
+| **SQLite** | `sqlite` | `jdbc:sqlite:storage/database/database.sqlite` (scaffold default) | `"…"` | `INTEGER PRIMARY KEY AUTOINCREMENT`; alter is ADD/DROP column + indexes only |
 | **H2** | `main` / `h2` | `jdbc:h2:file:…` (`--database=h2`); `jdbc:h2:mem:…` (tests) | `"…"` | `TEXT` → `CHARACTER VARYING` |
 | **MySQL** | `mysql` | `jdbc:mysql://…` | `` `…` `` | `AUTO_INCREMENT`, `LONGTEXT`, `TINYINT(1)` |
 | **MariaDB** | `mariadb` | `jdbc:mariadb://…` | `` `…` `` | Same DDL family as MySQL; distinct product detection |

@@ -25,7 +25,7 @@ object DatabaseEngines {
         Engine(
             name = "sqlite",
             connectionKey = "sqlite",
-            defaultUrl = "jdbc:sqlite:database/database.sqlite",
+            defaultUrl = "jdbc:sqlite:storage/database/database.sqlite",
             defaultUsername = "",
             defaultPassword = "",
             runtimeDependency = null,

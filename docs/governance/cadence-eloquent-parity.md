@@ -17,8 +17,8 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 **Why SQLite is the `kona new` default**
 
 1. **Zero install** — no local Postgres/MySQL/H2 daemon; one file on disk.
-2. **Survives `./grind` processes** — `jdbc:sqlite:database/database.sqlite` is shared by migrate, seed, and serve (unlike `jdbc:h2:mem:…`, which dies with each JVM).
-3. **Familiar layout** — project-root `database/database.sqlite` (gitignored); package code stays under `src/.../database/` for migrations/seeders.
+2. **Survives `./grind` processes** — `jdbc:sqlite:storage/database/database.sqlite` is shared by migrate, seed, and serve (unlike `jdbc:h2:mem:…`, which dies with each JVM).
+3. **Familiar layout** — SQLite file at `storage/database/database.sqlite` (gitignored with other storage DB files); migrations/seeders stay under `src/.../database/`.
 4. **H2 remains first-class** — `kona new --database=h2` (file + `AUTO_SERVER`) and mem URLs in the Cadence **test** suite.
 
 **Decision:** **SQLite file is the scaffold/default** for local demos. H2 stays for tests and optional `--database=h2`. Document PostgreSQL / MySQL / MariaDB / SQL Server / Oracle as production (or heavier) targets.
@@ -33,7 +33,7 @@ Evidence: `DatabaseEngines.DEFAULT_NAME`, skeletons, `apps/docs/.../cadence/data
 
 | Engine | Query `Grammar` | Schema `SchemaGrammar` | Notes |
 |--------|-----------------|------------------------|-------|
-| **SQLite** | `Grammar.SQLITE` | `SqliteSchemaGrammar` | Scaffold default (`database/database.sqlite`); alter limits documented |
+| **SQLite** | `Grammar.SQLITE` | `SqliteSchemaGrammar` | Scaffold default (`storage/database/database.sqlite`); alter limits documented |
 | **H2** | `Grammar.H2` | `H2SchemaGrammar` | Tests + `--database=h2`; upsert `ON CONFLICT` |
 | **PostgreSQL** | `Grammar.POSTGRES` | `PostgresSchemaGrammar` | Identity, JSONB |
 | **MySQL** | `Grammar.MYSQL` | `MySqlSchemaGrammar` | `AUTO_INCREMENT`, backticks |
