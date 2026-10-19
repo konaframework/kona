@@ -1,0 +1,43 @@
+package app.http.controllers;
+
+import app.models.User;
+import org.konaframework.auth.Auth;
+import org.konaframework.auth.Authenticatable;
+import org.konaframework.core.Env;
+import org.konaframework.crema.Views;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import org.konaframework.session.Csrf;
+import org.konaframework.session.Session;
+
+import java.util.Map;
+
+public class DashboardController {
+    public Response index(Request request) {
+        Auth.setRequest(request);
+        Authenticatable authUser = Auth.user();
+        User user = authUser instanceof User ? (User) authUser : null;
+        Session session = (Session) request.session();
+        String userName = "User";
+        String userEmail = "";
+        if (user != null) {
+            Object name = user.getAttribute("name");
+            if (name != null) {
+                userName = name.toString();
+            }
+            String email = user.getEmail();
+            if (email != null) {
+                userEmail = email;
+            }
+        }
+        return Views.make(
+            "dashboard",
+            Map.of(
+                "name", Env.getOrDefault("APP_NAME", "Kona"),
+                "_token", Csrf.token(session),
+                "userName", userName,
+                "userEmail", userEmail
+            )
+        ).toResponse();
+    }
+}

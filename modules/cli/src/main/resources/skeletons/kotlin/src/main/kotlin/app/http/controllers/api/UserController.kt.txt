@@ -1,0 +1,17 @@
+package app.http.controllers.api
+
+import app.models.User
+import org.konaframework.http.NotFoundException
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+
+class UserController {
+    fun index(request: Request): Response =
+        Response.json(User.all().map { it.toArray() })
+
+    fun show(request: Request): Response {
+        val id = request.route("id") ?: throw NotFoundException("User not found")
+        val user = User.find(id) ?: throw NotFoundException("User not found")
+        return Response.json(user.toArray())
+    }
+}

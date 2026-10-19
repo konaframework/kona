@@ -1,0 +1,28 @@
+package app.models
+
+import org.konaframework.auth.Authenticatable
+import org.konaframework.auth.HasCredentials
+import org.konaframework.auth.HasEmail
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.CadenceCompanion
+
+class User : Cadence<User>(), Authenticatable, HasCredentials, HasEmail {
+    override val fillable = setOf("name", "email", "password", "remember_token")
+    override val hidden = setOf("password", "remember_token")
+
+    companion object : CadenceCompanion<User>(User::class.java)
+
+    override fun getAuthIdentifier(): Any = getAttribute("id")!!
+
+    override fun getAuthPassword(): String = getAttribute("password")?.toString() ?: ""
+
+    override fun getRememberToken(): String? = getAttribute("remember_token")?.toString()
+
+    override fun setRememberToken(token: String?) {
+        setAttribute("remember_token", token)
+    }
+
+    override fun getCredential(key: String): Any? = getAttribute(key)
+
+    override fun getEmail(): String? = getAttribute("email")?.toString()
+}

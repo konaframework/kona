@@ -1,9 +1,13 @@
 package bootstrap
 
+import org.konaframework.auth.AuthManager
+import org.konaframework.auth.middleware.Authenticate
+import org.konaframework.auth.middleware.RedirectIfAuthenticated
 import org.konaframework.core.Application
 import org.konaframework.filesystem.FilesystemManager
 import org.konaframework.http.HttpKernel
 import org.konaframework.http.HttpMiddleware
+import org.konaframework.http.ServePublicDirectory
 import org.konaframework.http.ServePublicStorage
 import org.konaframework.session.SessionManager
 import org.konaframework.session.StartSession
@@ -14,17 +18,25 @@ import org.konaframework.session.VerifyCsrfToken
  *
  * Web stack: session + CSRF (API routes under /api are CSRF-excepted).
  * Public disk files are served under the /storage URL prefix before the web stack.
+ * App static assets (logo, etc.) come from `paths.public` via [ServePublicDirectory].
  */
 object Middleware {
     @JvmStatic
     fun configure(app: Application) {
         val sessions = app.resolve(SessionManager::class.java)
         val files = app.resolve(FilesystemManager::class.java)
+        val auth = app.resolve(AuthManager::class.java)
+        val publicRoot = app.basePath.resolve(
+            app.config.getString("paths.public") ?: "src/main/resources/public",
+        )
         app.resolve(HttpKernel::class.java)
             .prependMiddleware(ServePublicStorage(files.disk("public")))
+            .prependMiddleware(ServePublicDirectory(publicRoot))
         HttpMiddleware()
             .alias("start.session") { StartSession(sessions) }
             .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/brew/*")) }
+            .alias("auth") { Authenticate(auth) }
+            .alias("guest") { RedirectIfAuthenticated(auth, "/dashboard") }
             .web(listOf("start.session", "csrf"))
             // Behind a load balancer / ingress:
             // .trustProxies(at = listOf("*"))

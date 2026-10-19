@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard · {{ name }}</title>
+    <style>
+      :root { --caramel:#DF8723; --accent:#74453F; --ink:#2A1A12; --bg:#FAF6F0; }
+      *{box-sizing:border-box}body{margin:0;min-height:100vh;font-family:ui-sans-serif,system-ui,sans-serif;color:var(--ink);
+        background:radial-gradient(800px 420px at 90% 0%,rgba(201,165,123,.35),transparent 50%),var(--bg)}
+      header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.25rem 1.5rem;border-bottom:1px solid #ead9c2;background:rgba(255,255,255,.55)}
+      .brand{display:flex;align-items:center;gap:.65rem;font-weight:700;color:var(--accent);text-decoration:none}
+      .brand img{width:2.25rem;height:2.25rem}
+      main{max-width:40rem;margin:0 auto;padding:2.5rem 1.5rem}
+      h1{margin:0 0 .75rem;color:var(--accent)}
+      .card{padding:1.25rem 1.35rem;border-radius:.75rem;background:#fff;border:1px solid #ead9c2}
+      .card p{margin:.35rem 0;line-height:1.5}
+      form{display:inline}
+      button{margin-top:1.25rem;padding:.65rem 1rem;border:0;border-radius:.5rem;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+      a.docs{color:var(--caramel)}
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">
+        <img src="/branding/kona-logo.svg" alt="" width="36" height="36" />
+        {{ name }}
+      </a>
+      <a class="docs" href="https://docs.konaframework.org/">Docs</a>
+    </header>
+    <main>
+      <h1>Dashboard</h1>
+      <div class="card">
+        <p>Signed in as <strong>{{ userName }}</strong></p>
+        <p>{{ userEmail }}</p>
+      </div>
+      <form method="post" action="/logout">
+        @csrf
+        <button type="submit">Sign out</button>
+      </form>
+    </main>
+  </body>
+</html>
