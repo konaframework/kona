@@ -1,6 +1,7 @@
 package org.konaframework.grind
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -262,14 +263,36 @@ class GrindTest {
     fun serveAnnounceReadyVsStarting() {
         val out = java.io.ByteArrayOutputStream()
         val serve = ServeCommand(io = GrindIO(java.io.PrintStream(out), color = false))
-        serve.announce("127.0.0.1", 4000, ready = false)
+        serve.announce("127.0.0.1", 4000, ready = false, lanIp = null, wsl = false)
         val starting = out.toString()
         assertTrue(starting.contains("Building and starting"), starting)
         assertTrue(starting.contains("http://localhost:4000"), starting)
+        assertFalse(starting.contains("WSL tip"), starting)
+        assertFalse(starting.contains("Network"), starting)
         out.reset()
-        serve.announce("127.0.0.1", 4000, ready = true)
+        serve.announce("127.0.0.1", 4000, ready = true, lanIp = null, wsl = true)
         val ready = out.toString()
         assertTrue(ready.contains("Server ready at http://localhost:4000"), ready)
+        assertTrue(ready.contains("WSL tip"), ready)
+        out.reset()
+        // Wildcard + LAN: Network + Bind lines
+        serve.announce("0.0.0.0", 9000, ready = false, lanIp = "10.0.0.5", wsl = false)
+        val network = out.toString()
+        assertTrue(network.contains("Network  http://10.0.0.5:9000"), network)
+        assertTrue(network.contains("Bind     0.0.0.0:9000"), network)
+        assertFalse(network.contains("WSL tip"), network)
+        out.reset()
+        // Wildcard without LAN: Bind only (no Network)
+        serve.announce("0.0.0.0", 9000, ready = true, lanIp = null, wsl = true)
+        val noLan = out.toString()
+        assertTrue(noLan.contains("Bind     0.0.0.0:9000"), noLan)
+        assertFalse(noLan.contains("Network"), noLan)
+        assertFalse(noLan.contains("WSL tip"), noLan) // wildcard bind → no WSL tip
+        out.reset()
+        // LAN equals local URL → do not duplicate Network line
+        serve.announce("0.0.0.0", 4000, ready = false, lanIp = "localhost", wsl = false)
+        val same = out.toString()
+        assertFalse(same.contains("Network"), same)
     }
 
     @Test

@@ -81,9 +81,14 @@ constructor(
     }
 
     /** Termwind serve card: always show the URL developers will open in a browser. */
-    internal fun announce(host: String, port: Int, ready: Boolean) {
+    internal fun announce(
+        host: String,
+        port: Int,
+        ready: Boolean,
+        lanIp: String? = ServePorts.lanAddress(),
+        wsl: Boolean = ServePorts.isWsl(),
+    ) {
         val local = ServePorts.localUrl(host, port)
-        val lanIp = ServePorts.lanAddress()
         val lan = lanIp?.let { "http://$it:$port" }
         val lines = buildList {
             add("Local    $local")
@@ -96,7 +101,7 @@ constructor(
             add("Stop     Ctrl+C")
         }
         io.box("grind serve", lines)
-        if (ServePorts.isWsl() && !ServePorts.isWildcardBind(host)) {
+        if (wsl && !ServePorts.isWildcardBind(host)) {
             io.warn(
                 "WSL tip: if Windows cannot open $local, set HOST=0.0.0.0 in .env and restart.",
             )

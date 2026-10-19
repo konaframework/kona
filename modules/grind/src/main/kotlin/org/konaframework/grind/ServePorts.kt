@@ -78,7 +78,8 @@ object ServePorts {
         val n = name.lowercase()
         return when {
             n == "eth0" || n.startsWith("en") -> 0
-            n.startsWith("wl") || n.startsWith("wlan") -> 1
+            // `wlan*` is covered by the `wl` prefix (do not add a redundant `wlan` check).
+            n.startsWith("wl") -> 1
             else -> 10
         }
     }
@@ -89,8 +90,8 @@ object ServePorts {
             return true
         }
         return try {
-            Files.exists(Path.of("/proc/sys/fs/binfmt_misc/WSLInterop")) ||
-                Files.readString(Path.of("/proc/version")).contains("microsoft", ignoreCase = true)
+            // Single marker: WSL kernels advertise "microsoft" in /proc/version.
+            Files.readString(Path.of("/proc/version")).contains("microsoft", ignoreCase = true)
         } catch (_: Exception) {
             false
         }
