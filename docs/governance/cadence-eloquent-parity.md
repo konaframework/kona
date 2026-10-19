@@ -6,9 +6,9 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 
 | Meta | Value |
 |------|--------|
-| Last audit | 2026-10-16 (B6) |
+| Last audit | 2026-10-19 (M25 open) |
 | Last merged deepen | PR #87 (B6 Eloquent parity) |
-| Active deepen | **none** — B1–B6 closed; Security/HTTP/Queues/Support deepen ledgers closed (#88–#91) |
+| Active deepen | **M25 — First-class database engines** (SQLite, MariaDB, MySQL, PostgreSQL, Oracle, SQL Server + H2 default) |
 
 ---
 
@@ -23,7 +23,9 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 
 **Decision:** **Keep H2 as the scaffold/default** for local demo and tests. Document PostgreSQL / MySQL as the **production** targets. Do **not** silently change `kona new` to require a server database.
 
-Evidence: `modules/cli/.../config/Database.kt.txt`, `samples/hello-*/config/Database.*`, `TestDb.kt`. Guide: `apps/docs/.../cadence/database.mdx`.
+**Classpath fix:** `kona new` skeletons now include `runtimeOnly("com.h2database:h2:2.3.232")` so `./grind migrate` works out of the box against the default H2 URL (SQLite remains a supported engine, not the new-app default).
+
+Evidence: `modules/cli/.../config/Database.kt.txt`, `modules/cli/.../skeletons/**/build.gradle.kts.txt`, `samples/hello-*/config/Database.*`, `TestDb.kt`. Guide: `apps/docs/.../cadence/database.mdx`.
 
 ---
 

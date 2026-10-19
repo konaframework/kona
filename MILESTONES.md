@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** none — open next deepen after M24.
+**Active milestone:** [M25 — First-class database engines](#m25--first-class-database-engines).
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -802,7 +802,68 @@ M24 — Executable config.
 
 ### Next (queued)
 
-Opened after M24. Strong candidate: session auth middleware + Cadence user provider + remember-cookie.
+**M25 — First-class database engines** (active).
+
+---
+
+## M25 — First-class database engines
+
+**Status:** active
+
+**Branch:** `milestone/M25-database-engines`
+
+**Parity slice:** First-party Cadence support for **SQLite, MariaDB, MySQL, PostgreSQL, Oracle Database, and Microsoft SQL Server**, with H2 retained as the zero-install scaffold default. Behavioral/API parity with Laravel’s supported relational engines (plus Oracle as a first-party Kona engine). Exhaust dialect-sensitive query/schema/upsert/pagination paths; ship scaffold connection maps, driver coordinates, docs, Java+Kotlin paths, and 100% coverage on touched production code.
+
+### Parity checklist
+
+#### Engines & registries
+- [ ] Built-in query `Grammar` URL detection: `jdbc:sqlite:`, `jdbc:mysql:`, `jdbc:mariadb:`, `jdbc:postgresql:`, `jdbc:oracle:`, `jdbc:sqlserver:` / `jdbc:microsoft:sqlserver:` (plus existing H2/MySQL)
+- [ ] Built-in `SchemaGrammar` product detection for each engine (dedicated classes — not only `STANDARD` for Postgres / missing Oracle & SQL Server)
+- [ ] MariaDB distinct from MySQL where DDL/SQL differs; shared path where identical
+- [ ] H2 remains scaffold **runtime** default; do not force a server DB for `kona new`
+
+#### Schema DDL (per engine)
+- [ ] Column types: ID/identity/serial/autoincrement, string/text/longText, json, boolean, integer/bigint, timestamp/defaults — correct per engine
+- [ ] Indexes / unique / foreign keys / drop index / rename / dropIfExists — dialect-correct SQL
+- [ ] SQLite alter limitations documented + safe compile path (or multi-step where required)
+- [ ] Oracle: identity/sequences, `VARCHAR2`, quoting (`"`), `DROP INDEX`, rename
+- [ ] SQL Server: `IDENTITY`, `NVARCHAR`/`VARCHAR`, bracket quoting `[…]`, drop index `ON table`
+
+#### Query builder dialects
+- [ ] Limit/offset (and SQL Server / Oracle `OFFSET…FETCH` / equivalent)
+- [ ] `lockForUpdate` / shared lock (or documented no-op / equivalent per engine)
+- [ ] Native upsert: MySQL/MariaDB `ON DUPLICATE KEY`; PostgreSQL/SQLite/H2 `ON CONFLICT`; Oracle/SQL Server `MERGE` (portable fallback remains)
+- [ ] Boolean / date-part helpers (`whereDate` family) emit engine-safe SQL
+- [ ] `insertGetId` / returning strategy where the driver supports it
+
+#### Scaffold, CLI, BOM
+- [ ] `config/Database` (Kotlin + Java skeletons + kits): named connections for `sqlite`, `mysql`, `mariadb`, `pgsql`, `sqlsrv`, `oracle`, `h2`/`main`; `DB_CONNECTION` selects default
+- [ ] Env keys documented (`DB_CONNECTION`, `DB_URL`, host/port/database helpers as needed)
+- [ ] `runtimeOnly` H2 on all `kona new` skeletons (fix missing-driver migrate bug); commented or selectable coords for other engines
+- [ ] Optional `kona new --database=<engine>` (or equivalent) sets default connection + adds that engine’s JDBC driver dep
+- [ ] `kona-bom` (or catalog) pins recommended JDBC driver versions for all six + H2
+- [ ] Samples / grind fixtures remain H2 for CI speed unless Testcontainers job covers others
+
+#### Tests & coverage
+- [ ] Unit tests compile/assert dialect SQL for **every** engine (schema + upsert + limit/lock + grammar URL)
+- [ ] Integration: Testcontainers (or equivalent) for PostgreSQL + MySQL/MariaDB + SQL Server where CI allows; SQLite file/mem in-process; Oracle via Testcontainers **or** documented skip with compile-level coverage if image unavailable
+- [ ] Java-callable regression path for connection config + migrate/seed smoke
+- [ ] 100% line + branch Kover on production code touched by M25; full suite green
+
+#### Docs & governance
+- [ ] Rewrite `apps/docs/.../cadence/database.mdx` (and related) — thorough per-engine guides; progressive simple-first; no framework-comparison culture after intro nod
+- [ ] Sync versioned docs copies (`docs/` + `main/docs/` as project convention)
+- [ ] Update `docs/governance/cadence-eloquent-parity.md` engines table + active deepen → done
+- [ ] Update `HANDOFF.md` / this checklist to 100% before merge
+- [ ] Milestone PR → green CI → automerge; **do not tag a release** unless a human asks
+
+### In-scope modules
+
+`kona-cadence` (primary), `kona-cli` (skeletons / `kona new`), `kona-bom` / version catalog, `kona-grind` (fixtures if needed), `apps/docs/`, samples as needed, governance ledgers
+
+### Out of scope (defer)
+
+MongoDB / non-JDBC stores; changing the zero-install default away from H2; embedding Quarkus/Micronaut/Spring; GitHub ruleset changes (Law 9).
 
 ---
 
@@ -821,4 +882,5 @@ flowchart LR
   M21 --> M22[M22_Multipart]
   M22 --> M23[M23_Binary_Downloads]
   M23 --> M24[M24_Executable_Config]
+  M24 --> M25[M25_DB_Engines]
 ```
