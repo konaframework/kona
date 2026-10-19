@@ -50,10 +50,18 @@ Generates a `ConsoleCommand` under `app/console/commands/` and registers it in `
 ```bash
 ./grind make:controller Post
 ./grind make:controller AccountController --lang=java
+./grind make:controller Post --resource
+./grind make:controller Post --api --requests --model=Post
 ```
 
-
 Writes under `src/main/kotlin|java/app/http/controllers/`. Names cannot contain path separators; invalid identifiers are rejected. Language defaults from existing `.java` files under `src/main/java/`, or pass `--lang=`.
+
+| Flag | Effect |
+|------|--------|
+| `--resource` | CRUD stubs: `index` / `create` / `store` / `show` / `edit` / `update` / `destroy` |
+| `--api` | Same as resource but omits `create` / `edit` (API-style) |
+| `--requests` | Also writes `Store{Model}Request` / `Update{Model}Request` and type-hints `store` / `update` |
+| `--model=Name` | Model name used for form-request class names (defaults from the controller name) |
 
 Unlike `serve`, `make:controller` does not walk upward from nested folders unless you pass `--base=`.
 
@@ -72,7 +80,7 @@ These commands work with [Cadence](../../cadence/). Generators write source file
 
 | Command | Writes / does |
 |---------|---------------|
-| `./grind make:model <Name> [-mcrfspa]` | `app/models/<Name>`; short flags match Laravel: `-m` migration, `-c` controller, `-r` resource controller, `-f` factory, `-s` seeder, `-p` policy, `-a` / `--all` all of those |
+| `./grind make:model <Name> [-mcrfspaR]` | `app/models/<Name>`; short flags: `-m` migration, `-c` controller, `-r` resource controller, `-f` factory, `-s` seeder, `-p` policy, `-R` / `--requests` Store/Update form requests, `--api` API resource controller (no create/edit), `-a` / `--all` migration + factory + seeder + resource controller + requests + policy |
 | `./grind make:migration <snake_name> [--create=table] [--table=table]` | `database/migrations/<StudlyName>` and appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
 | `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
 | `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |

@@ -79,7 +79,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 **Last framework release:** **`v0.1.1`** on Maven Central (tag + `release.yml` succeeded; includes in-tree brew/inertia). `main` still pins `kona.version=0.1.1` — next train bumps to `0.1.2-SNAPSHOT` (or a non-SNAPSHOT cut) only when product changes warrant it. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
-**In flight:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Brew parity — `make:model` `-mcrfspa` companions, `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher, `@CremaTemplate` / IDE raw-string support. Branch `fix/issue-150-grind-cadence-parity`.
+**Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Brew parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Brew templates.
 
 ### Intentional deferrals (do not reopen without mandate)
 
@@ -88,6 +88,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 - Lazy collections / higher-order proxies
 - Full Carbon locale / human-diff surface
 - ~~`make:migration` auto-register into `MigrationRegistry`~~ — done (`META-INF/kona/migrations` + `MigrationDiscovery`; see #150)
+- Pivot / morph-pivot `make:model` stubs — defer until Cadence pivot model surface is first-class
 
 ### Notes
 

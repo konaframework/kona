@@ -106,7 +106,12 @@ class GrindCadenceTest {
         assertTrue(read(base, "src/main/kotlin/database/factories/BlogPostFactory.kt").contains("class BlogPostFactory : Factory<BlogPost>(BlogPost::class.java)"))
         assertTrue(read(base, "src/main/kotlin/database/seeders/BlogPostSeeder.kt").contains("class BlogPostSeeder : Seeder()"))
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/controllers/BlogPostController.kt")))
-        assertTrue(read(base, "src/main/kotlin/app/http/controllers/BlogPostController.kt").contains("fun index"))
+        val blogController = read(base, "src/main/kotlin/app/http/controllers/BlogPostController.kt")
+        assertTrue(blogController.contains("fun index"))
+        assertTrue(blogController.contains("fun create"))
+        assertTrue(blogController.contains("StoreBlogPostRequest"))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/requests/StoreBlogPostRequest.kt")))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/requests/UpdateBlogPostRequest.kt")))
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/policies/BlogPostPolicy.kt")))
         assertTrue(
             read(base, "src/main/resources/META-INF/kona/migrations")
@@ -131,9 +136,26 @@ class GrindCadenceTest {
         assertTrue(noteController.contains("fun index"))
         assertFalse(noteController.contains("fun store"))
 
+        // --resource alone (no -c) still creates a resource controller
+        grind("make:model", "Shelf", "--resource", "--base=$base")
+        assertTrue(read(base, "src/main/kotlin/app/http/controllers/ShelfController.kt").contains("fun store"))
+
         grind("make:model", "Article", "--policy", "--base=$base")
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/policies/ArticlePolicy.kt")))
         assertTrue(read(base, "src/main/kotlin/app/policies/ArticlePolicy.kt").contains("import app.models.Article"))
+
+        grind("make:model", "Widget", "--api", "--requests", "--base=$base")
+        val widgetController = read(base, "src/main/kotlin/app/http/controllers/WidgetController.kt")
+        assertTrue(widgetController.contains("fun store(request: StoreWidgetRequest)"))
+        assertTrue(widgetController.contains("fun update(request: UpdateWidgetRequest)"))
+        assertFalse(widgetController.contains("fun create"))
+        assertFalse(widgetController.contains("fun edit"))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/requests/StoreWidgetRequest.kt")))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/requests/UpdateWidgetRequest.kt")))
+
+        grind("make:model", "Tag", "-R", "--base=$base")
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/requests/StoreTagRequest.kt")))
+        assertTrue(read(base, "src/main/kotlin/app/http/controllers/TagController.kt").contains("fun index"))
 
         val javaBase = temp.resolve("java")
         Files.createDirectories(javaBase.resolve("src/main/java/app"))
@@ -144,6 +166,8 @@ class GrindCadenceTest {
         assertTrue(read(javaBase, "src/main/java/database/factories/FlightFactory.java").contains("super(Flight.class);"))
         assertTrue(read(javaBase, "src/main/java/database/seeders/FlightSeeder.java").contains("public class FlightSeeder extends Seeder"))
         assertTrue(Files.exists(javaBase.resolve("src/main/java/app/http/controllers/FlightController.java")))
+        assertTrue(read(javaBase, "src/main/java/app/http/controllers/FlightController.java").contains("StoreFlightRequest"))
+        assertTrue(Files.exists(javaBase.resolve("src/main/java/app/http/requests/StoreFlightRequest.java")))
         assertTrue(Files.exists(javaBase.resolve("src/main/java/app/policies/FlightPolicy.java")))
 
         assertEquals(1, grind("make:model", "Flight", "--base=$javaBase").first)

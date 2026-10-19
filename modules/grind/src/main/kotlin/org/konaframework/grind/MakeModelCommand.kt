@@ -4,19 +4,19 @@ import org.konaframework.cadence.Cadence
 import java.nio.file.Path
 
 /**
- * `grind make:model <Name> [-m|-c|-r|-f|-s|-p|-a] [--migration] [--controller] [--resource]
- * [--factory] [--seeder|--seed] [--policy] [--all] [--lang=kotlin|java]`.
+ * `grind make:model <Name> [-m|-c|-r|-f|-s|-p|-a|-R] [--migration] [--controller] [--resource]
+ * [--api] [--requests] [--factory] [--seeder|--seed] [--policy] [--all] [--lang=kotlin|java]`.
  *
  * Companion generators match Laravel `make:model` flags. `--all` / `-a` creates migration,
- * factory, seeder, resource controller, and policy.
+ * factory, seeder, resource controller, form requests, and policy.
  */
 class MakeModelCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
         if (positional.isEmpty()) {
             throw GrindException(
-                "Usage: grind make:model <Name> [-mcrfspa] [--migration] [--controller] [--resource] " +
-                    "[--factory] [--seeder] [--policy] [--all]",
+                "Usage: grind make:model <Name> [-mcrfspaR] [--migration] [--controller] [--resource] " +
+                    "[--api] [--requests] [--factory] [--seeder] [--policy] [--all]",
             )
         }
         val name = positional.first()
@@ -43,16 +43,24 @@ class MakeModelCommand {
             MakeSeederCommand.write(base, name + "Seeder", lang)
         }
 
-        val wantController = all || options["controller"] == "true" || options["resource"] == "true"
-        val wantResource = all || options["resource"] == "true"
+        val wantApi = options["api"] == "true"
+        val wantRequests = all || options["requests"] == "true"
+        val wantController =
+            all || options["controller"] == "true" || options["resource"] == "true" || wantApi || wantRequests
+        val wantResource = all || options["resource"] == "true" || wantApi
         if (wantController) {
             val controllerArgs = mutableListOf(
                 "${name}Controller",
                 "--base=${base.toAbsolutePath()}",
                 "--lang=$lang",
+                "--model=$name",
             )
-            if (wantResource) {
-                controllerArgs += "--resource"
+            when {
+                wantApi -> controllerArgs += "--api"
+                wantResource -> controllerArgs += "--resource"
+            }
+            if (wantRequests) {
+                controllerArgs += "--requests"
             }
             MakeControllerCommand().run(controllerArgs)
         }
