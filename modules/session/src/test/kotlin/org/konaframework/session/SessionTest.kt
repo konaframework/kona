@@ -317,6 +317,21 @@ class SessionTest {
         assertTrue(header.contains("Path=/app"))
         assertTrue(header.contains("Max-Age=1800"))
 
+        config.set("session.domain", "example.test")
+        config.set("session.expire_on_close", true)
+        val mExpire = SessionManager.fromConfig(config, base)
+        val rExpire = Response.text("ok")
+        mExpire.save(mExpire.start(Request.get("/")), rExpire)
+        val expireHeader = rExpire.cookies[0].toSetCookieHeader()
+        assertTrue(expireHeader.contains("Domain=example.test"), expireHeader)
+        assertFalse(expireHeader.contains("Max-Age="), expireHeader)
+
+        config.set("session.domain", "  ")
+        val mBlankDomain = SessionManager.fromConfig(config, base)
+        val rBlank = Response.text("ok")
+        mBlankDomain.save(mBlankDomain.start(Request.get("/")), rBlank)
+        assertFalse(rBlank.cookies[0].toSetCookieHeader().contains("Domain="))
+
         config.set("session.same_site", "None")
         manager.forgetDriver("array")
         val m2 = SessionManager.fromConfig(config, base)

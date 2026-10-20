@@ -63,6 +63,11 @@ public class JavaSupportApiTest {
         KonaDate.now(ZoneOffset.UTC);
         KonaDate.today();
         KonaDate.today(ZoneOffset.UTC);
+        KonaDate.setDefaultTimezone(ZoneOffset.UTC);
+        assertEquals(ZoneOffset.UTC, KonaDate.defaultTimezone());
+        KonaDate.resetDefaultTimezone();
+        Lang.setFallback("en");
+        assertEquals("en", Lang.getFallback());
 
         Collection<Integer> mutable = Collection.make(1);
         mutable.put(0, 7);

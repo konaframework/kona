@@ -197,8 +197,28 @@ class GrindTest {
         Files.createDirectories(cwd)
         assertEquals(0, StorageLinkCommand(cwd).run(emptyList()))
         assertTrue(Files.isSymbolicLink(cwd.resolve("public/storage")))
-        // Default no-arg constructor (JvmOverloads) uses process CWD — just ensure it constructs.
         assertTrue(StorageLinkCommand().javaClass.name.contains("StorageLinkCommand"))
+    }
+
+    @Test
+    fun downAndUp() {
+        val base = temp.resolve("maint")
+        assertEquals(0, DownCommand().run(listOf("--base=$base")))
+        assertTrue(Files.isRegularFile(base.resolve("storage/framework/down")))
+        assertEquals(0, UpCommand().run(listOf("--base=$base")))
+        assertFalse(Files.exists(base.resolve("storage/framework/down")))
+        assertEquals(0, UpCommand().run(listOf("--base=$base")))
+        val cwd = temp.resolve("maint-cwd").toAbsolutePath()
+        Files.createDirectories(cwd)
+        assertEquals(0, DownCommand(cwd).run(emptyList()))
+        assertTrue(Files.isRegularFile(cwd.resolve("storage/framework/down")))
+        assertEquals(0, UpCommand(cwd).run(emptyList()))
+        assertEquals(0, GrindApplication().run(arrayOf("down", "--base=$base")))
+        assertEquals(0, GrindApplication().run(arrayOf("up", "--base=$base")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "down" && it.second.contains("maintenance") })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "up" })
+        DownCommand::class.java.getDeclaredConstructor().newInstance()
+        UpCommand::class.java.getDeclaredConstructor().newInstance()
     }
 
     @Test

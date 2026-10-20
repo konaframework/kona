@@ -5,6 +5,12 @@ import org.konaframework.core.Env;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Database configuration ({@code config/database.php} shape).
+ *
+ * <p>{@code default} is the connection name Cadence uses unless a query names another.
+ * Each entry under {@code connections} is a JDBC URL plus credentials.
+ */
 public final class Database implements ConfigFile {
     @Override
     public String key() {
@@ -13,6 +19,18 @@ public final class Database implements ConfigFile {
 
     @Override
     public Map<String, Object> config() {
+        /*
+        |--------------------------------------------------------------------------
+        | Database Connections
+        |--------------------------------------------------------------------------
+        |
+        | Below are all of the database connections defined for your application.
+        | An example configuration is provided for each database system which
+        | is supported by Kona. You're free to add / remove connections.
+        |
+        | Supported: sqlite, h2/main, mysql, mariadb, pgsql, sqlsrv, oracle
+        |
+        */
         Map<String, Object> connections = new LinkedHashMap<>();
         connections.put("main", connection(
             Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"),
@@ -71,7 +89,15 @@ public final class Database implements ConfigFile {
         ));
 
         Map<String, Object> values = new LinkedHashMap<>();
-        // DB_CONNECTION selects which named map above is the default (sqlite for zero-install demos).
+        /*
+        |--------------------------------------------------------------------------
+        | Default Database Connection Name
+        |--------------------------------------------------------------------------
+        |
+        | Here you may specify which of the database connections below you wish
+        | to use as your default connection for database operations.
+        |
+        */
         values.put("default", Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"));
         values.put("connections", connections);
         return values;

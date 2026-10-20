@@ -4,14 +4,129 @@ import org.konaframework.core.Config
 import org.konaframework.core.ConfigFile
 import org.konaframework.core.Env
 
+/**
+ * Application configuration (`config/app.php` shape).
+ *
+ * Values are read from the environment so each machine can differ without
+ * changing this file. Prefer `app.config.getString("app.name")` in application
+ * code rather than calling [Env] directly.
+ */
 object App : ConfigFile {
     override fun key(): String = "app"
 
-    override fun config(): Map<String, Any?> = mapOf<String, Any?>(
+    override fun config(): Map<String, Any?> = mapOf(
+        /*
+        |--------------------------------------------------------------------------
+        | Application Name
+        |--------------------------------------------------------------------------
+        |
+        | This value is the name of your application, which will be used when the
+        | framework needs to place the application's name in a notification or
+        | other UI elements where an application name needs to be displayed.
+        |
+        */
         "name" to Env.getOrDefault("APP_NAME", "hello-kotlin"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Application Environment
+        |--------------------------------------------------------------------------
+        |
+        | This value determines the "environment" your application is currently
+        | running in. This may determine how you prefer to configure various
+        | services the application utilizes. Set this in your ".env" file.
+        |
+        */
         "env" to Env.getOrDefault("APP_ENV", "local"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Application Debug Mode
+        |--------------------------------------------------------------------------
+        |
+        | When your application is in debug mode, detailed error messages with
+        | stack traces will be shown on every error that occurs within your
+        | application. If disabled, a simple generic error page is shown.
+        |
+        */
         "debug" to (Config.toBoolean(Env.getOrDefault("APP_DEBUG", "true")) ?: true),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Application URL
+        |--------------------------------------------------------------------------
+        |
+        | This URL is used by grind and the URL generator when building absolute
+        | links. You should set this to the root of the application.
+        |
+        */
         "url" to Env.getOrDefault("APP_URL", "http://127.0.0.1:4000"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Application Timezone
+        |--------------------------------------------------------------------------
+        |
+        | Here you may specify the default timezone for your application, which
+        | will be used by date helpers ([org.konaframework.support.date.KonaDate]).
+        | The timezone is set to "UTC" by default as it is suitable for most
+        | use cases.
+        |
+        */
+        "timezone" to Env.getOrDefault("APP_TIMEZONE", "UTC"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Application Locale Configuration
+        |--------------------------------------------------------------------------
+        |
+        | The application locale determines the default locale that will be used
+        | by Kona's translation / localization methods. This option can be
+        | set to any locale for which you plan to have translation strings.
+        |
+        */
+        "locale" to Env.getOrDefault("APP_LOCALE", "en"),
+
+        "fallback_locale" to Env.getOrDefault("APP_FALLBACK_LOCALE", "en"),
+
+        "faker_locale" to Env.getOrDefault("APP_FAKER_LOCALE", "en_US"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Encryption Key
+        |--------------------------------------------------------------------------
+        |
+        | This key is utilized by Kona's encryption services and should be set
+        | to a random 32-byte value encoded as base64:… (`./grind key:generate`).
+        | You should do this prior to deploying the application.
+        |
+        | Cipher is AES-256-GCM (payload shape matches Laravel's encrypter JSON).
+        | `previous_keys` are tried on decrypt after a key rotation.
+        |
+        */
+        "cipher" to Env.getOrDefault("APP_CIPHER", "AES-256-GCM"),
+
         "key" to Env.get("APP_KEY"),
+
+        "previous_keys" to Env.csv("APP_PREVIOUS_KEYS"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Maintenance Mode Driver
+        |--------------------------------------------------------------------------
+        |
+        | These configuration options determine the driver used to determine and
+        | manage Kona's "maintenance mode" status. The "file" driver writes
+        | storage/framework/down (`./grind down` / `./grind up`). The "cache"
+        | driver will allow maintenance mode to be controlled across multiple
+        | machines when a cache store is configured.
+        |
+        | Supported drivers: "file", "cache"
+        |
+        */
+        "maintenance" to mapOf(
+            "driver" to Env.getOrDefault("APP_MAINTENANCE_DRIVER", "file"),
+            "store" to Env.getOrDefault("APP_MAINTENANCE_STORE", "database"),
+        ),
     )
 }

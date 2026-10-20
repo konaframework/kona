@@ -3,12 +3,43 @@ package config
 import org.konaframework.core.ConfigFile
 import org.konaframework.core.Env
 
+/**
+ * Database configuration (`config/database.php` shape).
+ *
+ * `default` is the connection name Cadence uses unless a query names another.
+ * Each entry under `connections` is a JDBC URL plus credentials. Override with
+ * `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`, or pick a named engine via
+ * `DB_CONNECTION` (`kona new --database=…`).
+ */
 object Database : ConfigFile {
     override fun key(): String = "database"
 
-    override fun config(): Map<String, Any?> = mapOf<String, Any?>(
-        // DB_CONNECTION selects which named map below is the default (sqlite for zero-install demos).
+    override fun config(): Map<String, Any?> = mapOf(
+        /*
+        |--------------------------------------------------------------------------
+        | Default Database Connection Name
+        |--------------------------------------------------------------------------
+        |
+        | Here you may specify which of the database connections below you wish
+        | to use as your default connection for database operations. This is
+        | the connection which will be utilized unless another connection
+        | is explicitly specified when you execute a query / statement.
+        |
+        */
         "default" to Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Database Connections
+        |--------------------------------------------------------------------------
+        |
+        | Below are all of the database connections defined for your application.
+        | An example configuration is provided for each database system which
+        | is supported by Kona. You're free to add / remove connections.
+        |
+        | Supported: sqlite, h2/main, mysql, mariadb, pgsql, sqlsrv, oracle
+        |
+        */
         "connections" to mapOf(
             "main" to mapOf(
                 "url" to Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"),
