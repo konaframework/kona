@@ -3,6 +3,7 @@ package org.konaframework.grind
 import org.konaframework.core.Kona
 import org.konaframework.cadence.ConnectionConfig
 import org.konaframework.cadence.Database
+import org.konaframework.cadence.schema.Schema
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -424,11 +425,145 @@ class GrindCadenceTest {
     }
 
     @Test
+    fun freshRefreshWipeShowTableAndDump() {
+        val project = databaseProject(temp.resolve("fresh"), "grind_fresh")
+        val boot = "--bootstrap=org.konaframework.grind.CadenceFixtureApp"
+        assertEquals(0, grind("migrate", "--base=$project", boot).first)
+        Database.global().table("widgets").insert(mapOf("name" to "keep"))
+        assertEquals(1L, Database.global().table("widgets").count())
+
+        val fresh = grind("migrate:fresh", "--base=$project", boot)
+        assertEquals(0, fresh.first)
+        assertTrue(fresh.second.contains("Dropping all tables."))
+        assertTrue(fresh.second.contains("Dropped all tables successfully."))
+        assertTrue(fresh.second.contains("Running migrations."))
+        assertTrue(fresh.second.contains("CreateWidgetsTable"))
+        assertTrue(fresh.second.contains("DONE"))
+        assertEquals(0L, Database.global().table("widgets").count())
+
+        val seeded = grind(
+            "migrate:fresh",
+            "--seed",
+            "--drop-views",
+            "--drop-types",
+            "--base=$project",
+            boot,
+            "--class=org.konaframework.grind.WidgetSeeder",
+        )
+        assertEquals(0, seeded.first)
+        assertTrue(seeded.second.contains("Seeding: WidgetSeeder"))
+        assertEquals(1L, Database.global().table("widgets").count())
+
+        grind("migrate", "--base=$project", boot)
+        assertEquals(
+            0,
+            grind("db:seed", "--seeder=org.konaframework.grind.WidgetSeeder", "--base=$project", boot).first,
+        )
+        val namedSeeder = grind(
+            "migrate:fresh",
+            "--seeder=org.konaframework.grind.WidgetSeeder",
+            "--base=$project",
+            boot,
+        )
+        assertEquals(0, namedSeeder.first)
+        assertTrue(namedSeeder.second.contains("Seeding: WidgetSeeder"))
+
+        val refresh = grind("migrate:refresh", "--base=$project", boot)
+        assertEquals(0, refresh.first)
+        assertTrue(refresh.second.contains("Refreshing the database."))
+        assertTrue(refresh.second.contains("CreateWidgetsTable"))
+        val refreshStep = grind("migrate:refresh", "--step=1", "--seed", "--base=$project", boot, "--class=org.konaframework.grind.WidgetSeeder")
+        assertEquals(0, refreshStep.first)
+        assertTrue(refreshStep.second.contains("Seeding: WidgetSeeder"))
+
+        val install = grind("migrate:install", "--base=$project", boot)
+        assertEquals(0, install.first)
+        assertTrue(install.second.contains("Migration table created successfully."))
+
+        assertEquals(0, grind("db:show", "--database=other", "--verbose", "--base=$project", boot).first)
+        val show = grind("db:show", "--base=$project", boot)
+        assertEquals(0, show.first)
+        assertTrue(show.second.contains("Connection"))
+        assertTrue(show.second.contains("H2") || show.second.contains("Driver"))
+        assertTrue(show.second.contains("widgets"))
+
+        val table = grind("db:table", "widgets", "--base=$project", boot)
+        assertEquals(0, table.first)
+        assertTrue(table.second.contains("name") || table.second.contains("NAME"))
+        assertEquals(1, grind("db:table", "--base=$project", boot).first)
+        assertEquals(1, grind("db:table", "   ", "--base=$project", boot).first)
+        assertEquals(1, grind("db:table", "missing", "--base=$project", boot).first)
+
+        val dump = grind("schema:dump", "--base=$project", boot)
+        assertEquals(0, dump.first)
+        assertTrue(dump.second.contains("Schema dumped to database/schema.sql"))
+        val sql = Files.readString(project.resolve("database/schema.sql"))
+        assertTrue(sql.contains("CREATE TABLE"))
+        val custom = grind("schema:dump", "--path=tmp/out.sql", "--base=$project", boot)
+        assertEquals(0, custom.first)
+        assertTrue(Files.readString(project.resolve("tmp/out.sql")).contains("CREATE TABLE"))
+
+        val wiped = grind("db:wipe", "--drop-views", "--base=$project", boot)
+        assertEquals(0, wiped.first)
+        assertTrue(wiped.second.contains("Dropped all tables successfully."))
+        val widgetsGone = Database.global().connection().withConnection { jdbc ->
+            Schema(jdbc).hasTable("widgets")
+        }
+        assertFalse(widgetsGone)
+        val emptyShow = grind("db:show", "--base=$project", boot)
+        assertEquals(0, emptyShow.first)
+        val emptyDump = grind("schema:dump", "--path=database/empty.sql", "--base=$project", boot)
+        assertEquals(0, emptyDump.first)
+        assertEquals("", Files.readString(project.resolve("database/empty.sql")))
+
+        assertEquals(0, grind("migrate:fresh", "--database=other", "--base=$project", boot).first)
+        assertEquals(1, grind("migrate:fresh", "--database=missing", "--base=$project", boot).first)
+
+        val prod = "--bootstrap=org.konaframework.grind.ProductionCadenceApp"
+        assertEquals(1, grind("migrate:fresh", "--base=$project", prod).first)
+        assertEquals(0, grind("migrate:fresh", "--force", "--base=$project", prod).first)
+        assertEquals(0, grind("migrate:status", "--base=$project", prod).first)
+
+        assertTrue(MigrateCommand.wantsSeed(mapOf("seeder" to "org.foo.Bar")))
+        assertEquals("org.foo.Bar", MigrateCommand.seederClass(mapOf("seeder" to "org.foo.Bar")))
+        assertEquals(SeedCommand.DEFAULT_SEEDER, MigrateCommand.seederClass(mapOf("seed" to "true")))
+        assertFalse(MigrateCommand.wantsFlag(emptyMap(), "drop-views"))
+        assertTrue(MigrateCommand.wantsFlag(mapOf("drop-views" to "true"), "drop-views"))
+        assertFalse(MigrateCommand.flagEnabled(null))
+        assertFalse(MigrateCommand.flagEnabled("no"))
+        assertFalse(MigrateCommand.flagEnabled("0"))
+        assertFalse(MigrateCommand.wantsSeed(mapOf("seeder" to "0")))
+        assertFalse(MigrateCommand.wantsSeed(mapOf("seeder" to "no")))
+        assertEquals(SeedCommand.DEFAULT_SEEDER, MigrateCommand.seederClass(mapOf("seeder" to "true")))
+        assertEquals(SeedCommand.DEFAULT_SEEDER, MigrateCommand.seederClass(mapOf("seeder" to "yes")))
+        assertEquals(SeedCommand.DEFAULT_SEEDER, MigrateCommand.seederClass(mapOf("seeder" to "1")))
+        assertEquals(SeedCommand.DEFAULT_SEEDER, MigrateCommand.seederClass(mapOf("seeder" to "")))
+        assertEquals(MigrateCommand.Action.FRESH, MigrateCommand.Action.valueOf("FRESH"))
+        assertEquals(MigrateCommand.Action.REFRESH, MigrateCommand.Action.valueOf("REFRESH"))
+        assertEquals(MigrateCommand.Action.INSTALL, MigrateCommand.Action.valueOf("INSTALL"))
+        assertEquals(MigrateCommand.Action.WIPE, MigrateCommand.Action.valueOf("WIPE"))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "migrate:fresh" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "db:wipe" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "db:show" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "schema:dump" })
+        assertEquals(DatabaseInspectCommand.DEFAULT_DUMP_PATH, "database/schema.sql")
+        assertEquals(DatabaseInspectCommand.Action.SHOW, DatabaseInspectCommand.Action.valueOf("SHOW"))
+    }
+
+    @Test
     fun statusWithNoMigrations() {
         val project = databaseProject(temp.resolve("none"), "grind_none")
         val (code, out) = grind("migrate:status", "--base=$project", "--bootstrap=org.konaframework.grind.EmptyRegistryApp")
         assertEquals(0, code)
         assertTrue(out.contains("No migrations registered."))
+        val installed = grind("migrate:install", "--base=$project", "--bootstrap=org.konaframework.grind.EmptyRegistryApp")
+        assertEquals(0, installed.first)
+        assertTrue(installed.second.contains("Migration table created successfully."))
+        assertEquals(0, grind("db:wipe", "--base=$project", "--bootstrap=org.konaframework.grind.EmptyRegistryApp").first)
+        assertEquals(0, grind("schema:dump", "--path=", "--base=$project", "--bootstrap=org.konaframework.grind.EmptyRegistryApp").first)
+        val emptyFresh = grind("migrate:fresh", "--base=$project", "--bootstrap=org.konaframework.grind.EmptyRegistryApp")
+        assertEquals(0, emptyFresh.first)
+        assertTrue(emptyFresh.second.contains("Nothing to migrate."))
     }
 
     @Test

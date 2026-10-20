@@ -53,6 +53,7 @@ constructor(
         io.title("Examples")
         io.twoColumn("kona grind serve", "Start the HTTP server")
         io.twoColumn("kona grind migrate", "Run pending migrations (--seed)")
+        io.twoColumn("kona grind migrate:fresh", "Drop all tables and re-run migrations")
         io.twoColumn("kona grind install <pkg>", "Add a Maven package + providers")
         io.twoColumn("kona grind <command>", "Any other ./grind command")
         io.writeln()

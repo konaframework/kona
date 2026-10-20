@@ -83,6 +83,46 @@ class Migrator @JvmOverloads constructor(
     @JvmOverloads
     fun reset(events: MigrationEvents? = null): List<String> = revert(ran().reversed(), events)
 
+    /**
+     * Drops all user tables (and optionally views / user types) on this connection.
+     * The migrations bookkeeping table is dropped with the rest.
+     */
+    @JvmOverloads
+    fun wipe(dropViews: Boolean = false, dropTypes: Boolean = false): List<String> {
+        val views = if (dropViews) schema.dropAllViews() else emptyList()
+        val types = if (dropTypes) schema.dropAllTypes() else emptyList()
+        val tables = schema.dropAllTables()
+        return views + types + tables
+    }
+
+    /**
+     * Drops all tables then runs every migration. Use [dropViews] / [dropTypes] to also drop
+     * views and user-defined types (PostgreSQL enums) when the engine supports them.
+     */
+    @JvmOverloads
+    fun fresh(
+        events: MigrationEvents? = null,
+        dropViews: Boolean = false,
+        dropTypes: Boolean = false,
+    ): List<String> {
+        wipe(dropViews, dropTypes)
+        return migrate(events)
+    }
+
+    /**
+     * Rolls migrations back then runs them again. [steps] `0` (default) resets every batch;
+     * a positive value rolls back that many batches, then migrates.
+     */
+    @JvmOverloads
+    fun refresh(steps: Int = 0, events: MigrationEvents? = null): List<String> {
+        if (steps > 0) {
+            rollback(steps, events)
+        } else {
+            reset(events)
+        }
+        return migrate(events)
+    }
+
     private fun revert(names: List<String>, events: MigrationEvents?): List<String> {
         names.forEach { name ->
             val migration = registry[name] ?: throw MigrationException("Migration not found: $name")

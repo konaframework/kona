@@ -88,6 +88,16 @@ object FileH2FixtureApp {
         CadenceFixtureApp.create(args)
 }
 
+/** Same as [CadenceFixtureApp] with `app.env=production` for `--force` checks. */
+object ProductionCadenceApp {
+    @JvmStatic
+    fun create(args: Array<String>): Application {
+        val app = CadenceFixtureApp.create(args)
+        app.config.set("app.env", "production")
+        return app
+    }
+}
+
 /** Empty registry bound as a singleton factory. */
 object EmptyRegistryApp {
     @JvmStatic

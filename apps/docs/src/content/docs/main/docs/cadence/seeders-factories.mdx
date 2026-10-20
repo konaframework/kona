@@ -253,10 +253,13 @@ Seeders and the factories they use write through the global database, so the dat
 ./grind db:seed --class=database.seeders.UserSeeder
 ./grind migrate --seed                           # migrate, then seed before closing the DB
 ./grind migrate --seed --class=database.seeders.UserSeeder
+./grind migrate --seeder=database.seeders.UserSeeder
+./grind migrate:fresh --seed
+./grind migrate:refresh --seed
 ```
 
 `db:seed` boots the application in-process from its compiled classes (run `./gradlew classes` first), makes its database global, resolves the seeder through the application container, runs it, and prints each seeder it ran. It fails with a message when the class is missing or does not extend `Seeder`.
 
-`migrate --seed` (alias `--seeder`) runs the same seeder path **after** a successful migrate, **in the same process** and before the database is closed — so tables from the migration batch are visible even on ephemeral connections. Optional `--class=` selects the seeder (default `database.seeders.DatabaseSeeder`). Rollback, reset, and status never seed.
+`migrate --seed` (alias `--seeder` or `--seeder=Class`) runs the same seeder path **after** a successful migrate, **in the same process** and before the database is closed — so tables from the migration batch are visible even on ephemeral connections. Optional `--class=` selects the seeder (default `database.seeders.DatabaseSeeder`). `migrate:fresh --seed` and `migrate:refresh --seed` do the same after they rebuild the schema. Rollback, reset, status, and wipe never seed.
 
 New applications created by `kona new` compile the `database/` directory along with `app/`, so generated migrations, factories, and seeders are part of the build.
