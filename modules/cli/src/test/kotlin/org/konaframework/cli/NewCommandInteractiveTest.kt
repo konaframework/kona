@@ -19,16 +19,16 @@ class NewCommandInteractiveTest {
 
     private fun command(
         input: String,
-        interactive: Boolean = true,
         windows: Boolean = false,
         runner: GrindProcessRunner = GrindProcessRunner { _, _ -> 0 },
         versions: KonaVersions = KonaVersions("0.0.0-test", "2.0.0"),
+        prompts: InstallerPrompts? = null,
     ): Pair<NewCommand, ByteArrayOutputStream> {
         val out = ByteArrayOutputStream()
         val stream = PrintStream(out)
         val io = ConsoleIO(stream, stream, color = false)
-        val prompts = InstallerPrompts(ByteArrayInputStream(input.toByteArray()), stream, color = false)
-        val cmd = NewCommand(versions, io, prompts, runner, interactive, windows)
+        val used = prompts ?: InstallerPrompts(ByteArrayInputStream(input.toByteArray()), stream, color = false)
+        val cmd = NewCommand(versions, io, used, runner, windows)
         return cmd to out
     }
 
@@ -39,17 +39,14 @@ class NewCommandInteractiveTest {
         assertEquals("Hello World", titleCaseFolder("hello.world"))
         assertEquals("Demo", titleCaseFolder("demo"))
         assertEquals("HTML Kit", titleCaseFolder("HTML-kit"))
-        assertFalse(NewCommand.defaultInteractive(null))
-        assertTrue(NewCommand.defaultInteractive("tty"))
-        assertFalse(NewCommand.defaultInteractive())
         assertFalse(NewCommand.defaultWindows("Linux"))
         assertTrue(NewCommand.defaultWindows("Windows 11"))
         assertFalse(NewCommand.defaultWindows(null))
         NewCommand.defaultWindows()
-        assertFalse(wantsInteraction(mapOf("no-interaction" to "true"), true))
-        assertFalse(wantsInteraction(mapOf("no-interactive" to "true"), true))
-        assertTrue(wantsInteraction(emptyMap(), true))
-        assertFalse(wantsInteraction(emptyMap(), false))
+        assertFalse(wantsInteraction(mapOf("no-interaction" to "true")))
+        assertFalse(wantsInteraction(mapOf("no-interactive" to "true")))
+        // CI / missing TTY must not imply --no-interaction (Cursor, direnv, and some shells export CI).
+        assertTrue(wantsInteraction(emptyMap()))
         assertEquals(null, triState(emptyMap(), "migrate"))
         assertEquals(false, triState(mapOf("no-migrate" to "true"), "migrate"))
         assertEquals(false, triState(mapOf("migrate" to "false"), "migrate"))
@@ -105,24 +102,138 @@ class NewCommandInteractiveTest {
     }
 
     @Test
-    fun nonInteractiveWithoutNameThrows() {
-        val (cmd, _) = command("", interactive = false)
-        val ex = assertThrows<KonaCliException> { cmd.run(emptyList()) }
+    fun noInteractionWithoutNameThrowsUsage() {
+        val (cmd, _) = command("")
+        val ex = assertThrows<KonaCliException> { cmd.run(listOf("--no-interaction")) }
         assertTrue(ex.message!!.contains("Usage: kona new"))
-        assertTrue(ex.message!!.contains("interactive installer"))
+        assertTrue(ex.message!!.contains("--no-interaction"))
+        val out = ByteArrayOutputStream()
+        val stream = PrintStream(out)
+        val io = ConsoleIO(stream, stream, color = false)
+        val prompts = InstallerPrompts(ByteArrayInputStream(ByteArray(0)), stream, color = false)
+        val planEx =
+            assertThrows<KonaCliException> {
+                resolveNewPlan(emptyList(), mapOf("no-interaction" to "true"), false, prompts, io)
+            }
+        assertTrue(planEx.message!!.contains("Usage: kona new"))
     }
 
     @Test
     fun noInteractionFlagSkipsPromptsOnTty() {
         val app = temp.resolve("flagged")
-        val (cmd, out) = command("this-would-hang\n", interactive = true)
+        val (cmd, out) = command("this-would-hang\n")
         assertEquals(0, cmd.run(listOf(app.toString(), "--no-interaction")))
         assertTrue(Files.isRegularFile(app.resolve("build.gradle.kts")))
         assertTrue(Files.readString(app.resolve(".env")).contains("APP_NAME=flagged"))
         assertFalse(out.toString().contains("Where should we create"))
         val app2 = temp.resolve("flagged2")
-        assertEquals(0, command("", interactive = true).first.run(listOf(app2.toString(), "--no-interactive")))
+        assertEquals(0, command("").first.run(listOf(app2.toString(), "--no-interactive")))
         assertTrue(Files.isRegularFile(app2.resolve("grind")))
+    }
+
+    @Test
+    fun positionalNameStillPromptsRemainingSteps() {
+        val dest = temp.resolve("app-seven")
+        val recording = RecordingPrompts("\n".repeat(16))
+        val (cmd, out) = command("", prompts = recording)
+        // argv `new app-seven` — directory is positional; remaining steps must still call Prompts.
+        assertEquals(
+            0,
+            KonaApplication(ConsoleIO(PrintStream(out), PrintStream(out), false), cmd)
+                .run(arrayOf("new", dest.toString())),
+        )
+        assertEquals("app-seven", dest.fileName.toString())
+        assertFalse(recording.asked.any { it.contains("Where should we create") })
+        assertTrue(recording.asked.any { it == "App name" })
+        assertTrue(recording.choices.contains("Language"))
+        assertTrue(recording.choices.contains("What are we brewing?"))
+        assertTrue(recording.choices.contains("CSS"))
+        assertTrue(recording.choices.contains("Database"))
+        assertTrue(recording.confirms.any { it.startsWith("Install dependencies") })
+        assertTrue(recording.confirms.any { it.startsWith("Run initial migrations") })
+        assertTrue(recording.confirms.any { it.startsWith("Run database seeders") })
+        assertTrue(Files.isRegularFile(dest.resolve("build.gradle.kts")))
+        val text = out.toString()
+        assertTrue(text.contains("Let's brew an app"))
+        assertFalse(text.contains("Where should we create the app?"))
+    }
+
+    @Test
+    fun konaNewWithNoArgsIsInteractive() {
+        val dest = temp.resolve("zero-arg-app")
+        val recording = RecordingPrompts(dest.toString() + "\n" + "\n".repeat(16))
+        val (cmd, out) = command("", prompts = recording)
+        assertEquals(0, KonaApplication(ConsoleIO(PrintStream(out), PrintStream(out), false), cmd).run(arrayOf("new")))
+        assertTrue(recording.asked.any { it.contains("Where should we create") })
+        assertTrue(recording.choices.contains("Language"))
+        assertTrue(recording.choices.contains("What are we brewing?"))
+        assertTrue(recording.choices.contains("CSS"))
+        assertTrue(recording.choices.contains("Database"))
+        assertTrue(recording.confirms.any { it.startsWith("Install dependencies") })
+        assertTrue(Files.isRegularFile(dest.resolve("settings.gradle.kts")))
+        assertFalse(out.toString().contains("Usage: kona new <name>"))
+        assertFalse(out.toString().contains("Usage: kona new"))
+    }
+
+    @Test
+    fun ciEnvDoesNotSkipPrompts() {
+        val previous = System.getenv("CI")
+        assertTrue(wantsInteraction(emptyMap()), "CI=$previous must not change skip rules")
+        val dest = temp.resolve("from-ci")
+        val recording = RecordingPrompts("\n".repeat(16))
+        val (cmd, _) = command("", prompts = recording)
+        assertEquals(0, cmd.run(listOf(dest.toString())))
+        assertTrue(recording.choices.contains("Language"))
+        assertTrue(recording.choices.contains("What are we brewing?"))
+    }
+
+    @Test
+    fun unreadableStdinErrorsInsteadOfScaffolding() {
+        val dest = temp.resolve("eof-app")
+        val (cmd, _) = command("")
+        val ex = assertThrows<KonaCliException> { cmd.run(listOf(dest.toString())) }
+        assertEquals(STDIN_UNREADABLE, ex.message)
+        assertFalse(Files.exists(dest))
+        val boom =
+            object : java.io.InputStream() {
+                override fun read(): Int = throw java.io.IOException("closed")
+            }
+        val ioOut = ByteArrayOutputStream()
+        val stream = PrintStream(ioOut)
+        val failing =
+            NewCommand(
+                KonaVersions("0.0.0-test", "2.0.0"),
+                ConsoleIO(stream, stream, false),
+                InstallerPrompts(boom, stream, false),
+            )
+        val ex2 = assertThrows<KonaCliException> { failing.run(listOf(temp.resolve("io-app").toString())) }
+        assertEquals(STDIN_UNREADABLE, ex2.message)
+        assertFalse(Files.exists(temp.resolve("io-app")))
+    }
+
+    @Test
+    fun newHelpPrintsVersionAndSkipRules() {
+        val out = ByteArrayOutputStream()
+        val stream = PrintStream(out)
+        val io = ConsoleIO(stream, stream, color = false)
+        val versions = KonaVersions("0.2.0", "2.2.0", "v0.1.1-9-gabcdef")
+        assertEquals(0, NewCommand(versions, io).run(listOf("--help")))
+        val text = out.toString()
+        assertTrue(text.contains("kona 0.2.0 (v0.1.1-9-gabcdef)"))
+        assertTrue(text.contains(NEW_USAGE))
+        assertTrue(text.contains("--no-interaction"))
+        assertTrue(text.contains("Directory set"))
+        assertFalse(text.contains("kona new <name>"))
+        assertEquals(0, NewCommand(versions, io).run(listOf("-h")))
+        assertEquals(0, NewCommand(versions, io).run(listOf("--h")))
+        printNewHelp(io)
+        assertEquals("kona 0.2.0", KonaVersions("0.2.0", "2.2.0").display())
+        assertEquals("kona 0.2.0", KonaVersions("0.2.0", "2.2.0", "").display())
+        assertEquals("kona 0.2.0", KonaVersions("0.2.0", "2.2.0", "0.2.0").display())
+        val loaded = KonaVersions.load()
+        assertTrue(loaded.display().startsWith("kona ${loaded.kona}"))
+        assertEquals("1.2.3", KonaVersions.load("org/konaframework/cli/kona-no-revision.properties").revision)
+        assertEquals("1.2.3", KonaVersions.load("org/konaframework/cli/kona-blank-revision.properties").revision)
     }
 
     @Test
@@ -134,7 +245,7 @@ class NewCommandInteractiveTest {
             assertEquals(app, dir)
             0
         }
-        val (cmd, out) = command("\n".repeat(16), interactive = true, runner = runner)
+        val (cmd, out) = command("\n".repeat(16), runner = runner)
         assertEquals(0, cmd.run(listOf(app.toString())))
         assertTrue(Files.readString(app.resolve(".env")).contains("APP_NAME=My App"))
         assertTrue(Files.isRegularFile(app.resolve("package.json")))
@@ -156,7 +267,7 @@ class NewCommandInteractiveTest {
     @Test
     fun interactiveAbortWritesNothing() {
         val app = temp.resolve("nope-app")
-        val (cmd, out) = command("\n".repeat(8) + "n\n", interactive = true)
+        val (cmd, out) = command("\n".repeat(8) + "n\n")
         assertEquals(1, cmd.run(listOf(app.toString())))
         assertFalse(Files.exists(app))
         assertTrue(out.toString().contains("Nothing was written."))
@@ -166,7 +277,7 @@ class NewCommandInteractiveTest {
     fun interactiveAsksDirectoryWhenNameOmitted() {
         val dest = temp.resolve("brewed")
         val answers = dest.toString() + "\n" + "\n".repeat(16)
-        val (cmd, _) = command(answers, interactive = true, runner = GrindProcessRunner { _, _ -> 1 })
+        val (cmd, _) = command(answers, runner = GrindProcessRunner { _, _ -> 1 })
         assertEquals(0, cmd.run(emptyList()))
         assertTrue(Files.isRegularFile(dest.resolve("settings.gradle.kts")))
     }
@@ -174,7 +285,7 @@ class NewCommandInteractiveTest {
     @Test
     fun flagsSkipMatchingPrompts() {
         val app = temp.resolve("java-inertia")
-        val (cmd, out) = command("this-is-not-read\n", interactive = true)
+        val (cmd, out) = command("this-is-not-read\n")
         assertEquals(
             0,
             cmd.run(
@@ -208,7 +319,7 @@ class NewCommandInteractiveTest {
     @Test
     fun apiKitSkipsCssAndFrontend() {
         val app = temp.resolve("api-only")
-        val (cmd, _) = command("\n".repeat(12), interactive = true, runner = GrindProcessRunner { _, _ -> 0 })
+        val (cmd, _) = command("\n".repeat(12), runner = GrindProcessRunner { _, _ -> 0 })
         assertEquals(0, cmd.run(listOf(app.toString(), "--kit=api", "--no-install-deps", "--no-migrate", "--no-seed")))
         assertFalse(Files.exists(app.resolve("src/main/resources/views/welcome.crema.html")))
         assertFalse(Files.exists(app.resolve("package.json")))
@@ -219,7 +330,7 @@ class NewCommandInteractiveTest {
         val cremaBs = temp.resolve("crema-bs")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(listOf(cremaBs.toString(), "--kit=web", "--css=bootstrap", "--no-interaction")),
+            NewCommand().run(listOf(cremaBs.toString(), "--kit=web", "--css=bootstrap", "--no-interaction")),
         )
         assertTrue(Files.readString(cremaBs.resolve("package.json")).contains("bootstrap"))
         assertTrue(Files.readString(cremaBs.resolve("src/main/resources/views/login.crema.html")).contains("form-control"))
@@ -228,7 +339,7 @@ class NewCommandInteractiveTest {
         val brewTw = temp.resolve("brew-tw")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(listOf(brewTw.toString(), "--kit=brew", "--css=tailwind")),
+            NewCommand().run(listOf(brewTw.toString(), "--kit=brew", "--css=tailwind", "--no-interaction")),
         )
         val brewWelcome = Files.readString(brewTw.resolve("src/main/resources/views/welcome.crema.html"))
         assertTrue(brewWelcome.contains("<brew:counter"))
@@ -238,8 +349,8 @@ class NewCommandInteractiveTest {
         val svelte = temp.resolve("svelte-app")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
-                listOf(svelte.toString(), "--kit=inertia", "--frontend=svelte", "--css=custom"),
+            NewCommand().run(
+                listOf(svelte.toString(), "--kit=inertia", "--frontend=svelte", "--css=custom", "--no-interaction"),
             ),
         )
         assertTrue(Files.isRegularFile(svelte.resolve("src/main/resources/js/Pages/Welcome.svelte")))
@@ -248,8 +359,8 @@ class NewCommandInteractiveTest {
         val vueTw = temp.resolve("vue-tw")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
-                listOf(vueTw.toString(), "--kit=inertia", "--frontend=vue", "--css=tailwind"),
+            NewCommand().run(
+                listOf(vueTw.toString(), "--kit=inertia", "--frontend=vue", "--css=tailwind", "--no-interaction"),
             ),
         )
         assertTrue(Files.readString(vueTw.resolve("src/main/resources/js/Pages/Welcome.vue")).contains("bg-foam"))
@@ -258,8 +369,8 @@ class NewCommandInteractiveTest {
         val reactCustom = temp.resolve("react-custom")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
-                listOf(reactCustom.toString(), "--preset=inertia", "--frontend=react", "--css=custom"),
+            NewCommand().run(
+                listOf(reactCustom.toString(), "--preset=inertia", "--frontend=react", "--css=custom", "--no-interaction"),
             ),
         )
         assertTrue(Files.readString(reactCustom.resolve("src/main/resources/js/Pages/Welcome.jsx")).contains("system-ui"))
@@ -267,8 +378,8 @@ class NewCommandInteractiveTest {
         val vueBs = temp.resolve("vue-bs")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
-                listOf(vueBs.toString(), "--kit=inertia", "--frontend=vue", "--css=bootstrap"),
+            NewCommand().run(
+                listOf(vueBs.toString(), "--kit=inertia", "--frontend=vue", "--css=bootstrap", "--no-interaction"),
             ),
         )
         assertTrue(Files.readString(vueBs.resolve("src/main/resources/js/Pages/Welcome.vue")).contains("container py-5"))
@@ -276,8 +387,8 @@ class NewCommandInteractiveTest {
         val reactTw = temp.resolve("react-tw")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
-                listOf(reactTw.toString(), "--kit=inertia", "--frontend=react", "--css=tailwind"),
+            NewCommand().run(
+                listOf(reactTw.toString(), "--kit=inertia", "--frontend=react", "--css=tailwind", "--no-interaction"),
             ),
         )
         assertTrue(Files.readString(reactTw.resolve("src/main/resources/js/Pages/Welcome.jsx")).contains("bg-foam"))
@@ -285,8 +396,8 @@ class NewCommandInteractiveTest {
         val svelteTw = temp.resolve("svelte-tw")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
-                listOf(svelteTw.toString(), "--kit=inertia", "--frontend=svelte", "--css=tailwind"),
+            NewCommand().run(
+                listOf(svelteTw.toString(), "--kit=inertia", "--frontend=svelte", "--css=tailwind", "--no-interaction"),
             ),
         )
         assertTrue(Files.readString(svelteTw.resolve("src/main/resources/js/Pages/Welcome.svelte")).contains("bg-foam"))
@@ -294,8 +405,8 @@ class NewCommandInteractiveTest {
         val svelteBs = temp.resolve("svelte-bs")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
-                listOf(svelteBs.toString(), "--kit=inertia", "--frontend=svelte", "--css=bootstrap"),
+            NewCommand().run(
+                listOf(svelteBs.toString(), "--kit=inertia", "--frontend=svelte", "--css=bootstrap", "--no-interaction"),
             ),
         )
         assertTrue(Files.readString(svelteBs.resolve("src/main/resources/js/Pages/Welcome.svelte")).contains("display-6"))
@@ -322,7 +433,6 @@ class NewCommandInteractiveTest {
         val fail = NewCommand(
             io = io,
             runner = GrindProcessRunner { _, _ -> 7 },
-            interactive = false,
             windows = true,
         )
         val db = DatabaseEngines.require("sqlite")
@@ -345,7 +455,6 @@ class NewCommandInteractiveTest {
                 assertTrue(command[0].endsWith("gradlew.bat") || command[0].endsWith("grind.bat") || command[0] == "pnpm")
                 0
             },
-            interactive = false,
             windows = true,
         )
         winOk.runPostCreate(
@@ -360,13 +469,11 @@ class NewCommandInteractiveTest {
         val throwsCli = NewCommand(
             io = ConsoleIO(PrintStream(ByteArrayOutputStream()), PrintStream(ByteArrayOutputStream()), false),
             runner = GrindProcessRunner { _, _ -> throw KonaCliException("boom") },
-            interactive = false,
         )
         assertEquals(-1, throwsCli.runQuiet(listOf("nope"), app))
         val throwsOther = NewCommand(
             io = ConsoleIO(PrintStream(ByteArrayOutputStream()), PrintStream(ByteArrayOutputStream()), false),
             runner = GrindProcessRunner { _, _ -> throw IllegalStateException("nope") },
-            interactive = false,
         )
         assertEquals(-1, throwsOther.runQuiet(listOf("nope"), app))
     }
@@ -377,7 +484,6 @@ class NewCommandInteractiveTest {
         val seen = mutableListOf<List<String>>()
         val (cmd, out) = command(
             "",
-            interactive = false,
             runner = GrindProcessRunner { command, _ ->
                 seen += command
                 0
@@ -385,7 +491,7 @@ class NewCommandInteractiveTest {
         )
         assertEquals(
             0,
-            cmd.run(listOf(app.toString(), "--kit=api", "--install-deps", "--migrate", "--seed")),
+            cmd.run(listOf(app.toString(), "--kit=api", "--install-deps", "--migrate", "--seed", "--no-interaction")),
         )
         assertTrue(seen.any { it.any { part -> part.endsWith("gradlew") } })
         assertFalse(seen.any { it.contains("npm") })
@@ -398,13 +504,14 @@ class NewCommandInteractiveTest {
         val app = temp.resolve("named")
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
+            NewCommand().run(
                 listOf(
                     app.toString(),
                     "--app-name=Cafe",
                     "--install-deps=false",
                     "--migrate=no",
                     "--seed=0",
+                    "--no-interaction",
                 ),
             ),
         )
@@ -414,15 +521,15 @@ class NewCommandInteractiveTest {
     @Test
     fun invalidFrontendWithInertia() {
         assertThrows<KonaCliException> {
-            NewCommand(interactive = false).run(listOf(temp.resolve("bad-fe").toString(), "--kit=inertia", "--frontend=ember"))
+            NewCommand().run(listOf(temp.resolve("bad-fe").toString(), "--kit=inertia", "--frontend=ember", "--no-interaction"))
         }
         assertThrows<KonaCliException> {
-            NewCommand(interactive = false).run(listOf(temp.resolve("bad-css").toString(), "--css=bulma"))
+            NewCommand().run(listOf(temp.resolve("bad-css").toString(), "--css=bulma", "--no-interaction"))
         }
         assertEquals(
             0,
-            NewCommand(interactive = false).run(
-                listOf(temp.resolve("api-css-ignored").toString(), "--kit=api", "--css=tailwind", "--frontend=vue"),
+            NewCommand().run(
+                listOf(temp.resolve("api-css-ignored").toString(), "--kit=api", "--css=tailwind", "--frontend=vue", "--no-interaction"),
             ),
         )
         assertFalse(Files.exists(temp.resolve("api-css-ignored/package.json")))
@@ -433,7 +540,7 @@ class NewCommandInteractiveTest {
         val app = temp.resolve("in-fe")
         // name, language, frontend 3=Svelte, css default Tailwind, db, install/migrate/seed no, confirm
         val input = "\n3\n\n\nn\nn\nn\n\n"
-        val (cmd, _) = command(input, interactive = true)
+        val (cmd, _) = command(input)
         assertEquals(0, cmd.run(listOf(app.toString(), "--kit=inertia", "--name=Spa")))
         assertTrue(Files.isRegularFile(app.resolve("src/main/resources/js/Pages/Welcome.svelte")))
         assertTrue(Files.readString(app.resolve(".env")).contains("APP_NAME=Spa"))
@@ -444,10 +551,32 @@ class NewCommandInteractiveTest {
         val app = temp.resolve("jb")
         // app name default, language 2=Java, stack 3=Brew, css 2=Bootstrap, db default, install/migrate/seed no, confirm yes
         val input = "\n2\n3\n2\n\nn\nn\nn\n\n"
-        val (cmd, _) = command(input, interactive = true)
+        val (cmd, _) = command(input)
         assertEquals(0, cmd.run(listOf(app.toString())))
         assertTrue(Files.isRegularFile(app.resolve("src/main/java/app/brew/Counter.java")))
         assertTrue(Files.readString(app.resolve("package.json")).contains("bootstrap"))
         assertTrue(Files.readString(app.resolve("src/main/resources/views/welcome.crema.html")).contains("<brew:counter"))
+    }
+}
+
+private class RecordingPrompts(input: String) :
+    InstallerPrompts(ByteArrayInputStream(input.toByteArray()), PrintStream(ByteArrayOutputStream()), false) {
+    val asked = mutableListOf<String>()
+    val choices = mutableListOf<String>()
+    val confirms = mutableListOf<String>()
+
+    override fun ask(question: String, default: String?): String {
+        asked += question
+        return super.ask(question, default)
+    }
+
+    override fun choice(question: String, options: List<String>, defaultIndex: Int): String {
+        choices += question
+        return super.choice(question, options, defaultIndex)
+    }
+
+    override fun confirm(question: String, default: Boolean): Boolean {
+        confirms += question
+        return super.confirm(question, default)
     }
 }

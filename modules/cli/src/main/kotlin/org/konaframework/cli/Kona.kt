@@ -10,16 +10,20 @@ fun main(args: Array<String>) {
     exitProcess(KonaApplication().run(args))
 }
 
-class KonaApplication {
+class KonaApplication
+@JvmOverloads
+constructor(
+    private val io: ConsoleIO = ConsoleIO(),
+    private val newCommand: NewCommand = NewCommand(io = io),
+) {
     fun run(args: Array<String>): Int {
-        val io = ConsoleIO()
         if (args.isEmpty() || args[0] == "help" || args[0] == "--help" || args[0] == "-h") {
             printHelp(io)
             return 0
         }
         return try {
             when (val command = args[0]) {
-                "new" -> NewCommand().run(args.drop(1))
+                "new" -> newCommand.run(args.drop(1))
                 "install" -> {
                     // Install lives on grind only — keep a clear redirect for old muscle memory.
                     io.error("Use: kona grind install <package> (or ./grind install inside the app)")
@@ -27,8 +31,7 @@ class KonaApplication {
                 }
                 "grind" -> GrindCommand().run(args.drop(1))
                 "version", "--version", "-V" -> {
-                    val v = KonaVersions.load()
-                    io.writeln("kona ${v.kona}")
+                    io.writeln(KonaVersions.load().display())
                     0
                 }
                 else -> {
@@ -44,22 +47,25 @@ class KonaApplication {
     }
 
     private fun printHelp(io: ConsoleIO) {
+        val versions = KonaVersions.load()
         io.intro("kona")
         io.box(
-            "kona",
+            versions.display(),
             listOf(
                 "Create JVM applications",
                 "Day-to-day work: ./grind or kona grind …",
             ),
         )
         io.title("Commands")
-        io.twoColumn("new [name]", "Interactive installer, or pass flags to skip prompts")
+        io.twoColumn("new [name]", "Interactive installer (a name skips only the directory)")
+        io.twoColumn("new --help", "Installer flags, skip rules, and version")
         io.twoColumn("grind <command>", "Proxy to the nearest app's ./grind")
-        io.twoColumn("version", "Print kona version")
+        io.twoColumn("version", "Print kona version (and git describe when built from git)")
         io.twoColumn("help", "Show this help")
         io.writeln()
         io.info("Kits: web (default), api, crema, inertia, brew")
-        io.info("new flags: --lang --kit --css --frontend --name --database --install-deps --migrate --seed --no-interaction")
+        io.info(NEW_USAGE)
+        io.info("Scripts: kona new my-app --no-interaction  (CI=true does not skip prompts)")
         io.info("Packages: kona grind install <alias>  (or ./grind install)")
         io.outro("https://docs.konaframework.org")
     }

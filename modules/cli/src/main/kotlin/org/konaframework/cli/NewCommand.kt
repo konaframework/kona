@@ -7,7 +7,9 @@ import java.nio.file.Path
 /**
  * `kona new [name]` — scaffolds a self-contained Gradle application with a local `./grind` CLI.
  *
- * Interactive when run on a TTY with no `--no-interaction`. Flags skip the matching prompt.
+ * Always interactive unless `--no-interaction` / `--no-interactive`. A positional directory
+ * skips **only** the directory question; language, kit, CSS, database, install, migrate, and
+ * seed are still asked. `CI` and missing `System.console()` do not skip prompts.
  * Kits (`--kit` / `--preset`): `web` (default), `api`, `crema` (alias of `web`), `inertia`, `brew`.
  */
 class NewCommand
@@ -17,12 +19,15 @@ constructor(
     private val io: ConsoleIO = ConsoleIO(),
     private val prompts: InstallerPrompts = InstallerPrompts(),
     private val runner: GrindProcessRunner = GrindProcessRunner.SYSTEM,
-    private val interactive: Boolean = defaultInteractive(),
     private val windows: Boolean = defaultWindows(),
 ) {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
-        val canPrompt = wantsInteraction(options, interactive)
+        if (options.containsKey("help") || options.containsKey("h") || positional.contains("-h")) {
+            printNewHelp(io, versions)
+            return 0
+        }
+        val canPrompt = wantsInteraction(options)
         val plan = resolveNewPlan(positional, options, canPrompt, prompts, io) ?: return 1
         val target = plan.directory
         if (Files.exists(target)) {
@@ -294,8 +299,6 @@ constructor(
         }
 
     companion object {
-        internal fun defaultInteractive(console: Any? = System.console()): Boolean = console != null
-
         internal fun defaultWindows(osName: String? = System.getProperty("os.name")): Boolean =
             (osName ?: "").startsWith("Windows")
 
@@ -483,7 +486,20 @@ constructor(
 }
 
 /** Versions stamped into `kona.properties` at build time. */
-data class KonaVersions(val kona: String, val kotlin: String) {
+data class KonaVersions
+@JvmOverloads
+constructor(
+    val kona: String,
+    val kotlin: String,
+    val revision: String = kona,
+) {
+    fun display(): String =
+        if (revision.isBlank() || revision == kona) {
+            "kona $kona"
+        } else {
+            "kona $kona ($revision)"
+        }
+
     companion object {
         @JvmStatic
         @JvmOverloads
@@ -492,10 +508,34 @@ data class KonaVersions(val kona: String, val kotlin: String) {
                 ?: throw KonaCliException("Missing kona version resource: $resource")
             val props = java.util.Properties()
             stream.use { props.load(it) }
+            val kona = props.getProperty("konaVersion")
+            val revision = props.getProperty("konaRevision")?.trim().orEmpty().ifEmpty { kona }
             return KonaVersions(
-                kona = props.getProperty("konaVersion"),
+                kona = kona,
                 kotlin = props.getProperty("kotlinVersion"),
+                revision = revision,
             )
         }
     }
+}
+
+internal fun printNewHelp(io: ConsoleIO, versions: KonaVersions = KonaVersions.load()) {
+    io.intro("kona new")
+    io.box(
+        versions.display(),
+        listOf(
+            "Interactive installer. A name skips only the directory question.",
+            "Scripts: pass --no-interaction (CI=true does not skip prompts).",
+        ),
+    )
+    io.title("Usage")
+    io.info(NEW_USAGE)
+    io.twoColumn("kona new", "Ask every question")
+    io.twoColumn("kona new my-app", "Directory set; still asks lang / kit / CSS / db / …")
+    io.twoColumn("kona new my-app --no-interaction", "Silent defaults (kotlin, web, sqlite)")
+    io.writeln()
+    io.title("Skip one step")
+    io.info("--lang --kit/--preset --css --frontend --name --database --install-deps --migrate --seed")
+    io.info("Aliases: --no-interactive (same as --no-interaction); --no-install-deps --no-migrate --no-seed")
+    io.outro("https://docs.konaframework.org/docs/starter-kits/")
 }

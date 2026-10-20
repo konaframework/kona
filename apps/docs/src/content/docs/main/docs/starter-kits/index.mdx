@@ -3,11 +3,12 @@ title: Starter kits
 description: Interactive kona new installer, kits, CSS, and Inertia adapters.
 ---
 
-`kona new` scaffolds a Gradle app with a local `./grind` CLI. Run it **with no arguments in a real terminal** and it walks you through the stack. Pass flags (or `--no-interaction`) to skip any step.
+`kona new` scaffolds a Gradle app with a local `./grind` CLI. With **no arguments** it asks every question. A directory name skips **only** the directory question — language, kit, CSS, database, install, migrate, and seed are still asked. Pass a flag to skip that step. Scripts use `--no-interaction` for silent defaults (`CI=true` does **not** skip prompts).
 
 ```bash
-kona new                          # interactive installer
-kona new my-app                   # directory set; remaining prompts if the terminal can ask
+kona new                          # ask every question
+kona new my-app                   # directory set; still asks lang / kit / CSS / db / …
+kona new my-app --no-interaction  # silent defaults (kotlin, web, sqlite)
 kona new my-app --kit=api --lang=java --no-interaction
 kona new my-app --kit=inertia --frontend=react --css=tailwind
 kona new my-app --kit=brew --css=bootstrap --install-deps --migrate --seed
@@ -17,7 +18,7 @@ The default kit (when you skip the stack prompt) is **`web`** — Crema views. N
 
 ## Interactive order
 
-On a TTY, without `--no-interaction`, `kona new` asks only for values you did not already pass:
+Without `--no-interaction`, `kona new` asks only for values you did not already pass:
 
 1. **Where should we create the app?** — default `kona-app` (skipped if you pass a directory)
 2. **App name** — `APP_NAME` in `.env`; default is Title Case of the folder (`my-app` → `My App`)
@@ -31,7 +32,7 @@ On a TTY, without `--no-interaction`, `kona new` asks only for values you did no
 10. **Run database seeders?**
 11. **Summary card** — then confirm before any files are written
 
-CI, pipes, and `--no-interaction` never wait on stdin. Missing name in that mode prints usage and exits.
+`--no-interaction` / `--no-interactive` never wait on stdin (no directory uses the default folder `kona-app`). Closed or unreadable stdin prints an error instead of scaffolding. `CI=true` is **not** treated as `--no-interaction`.
 
 ## Flags that skip a step
 

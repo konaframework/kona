@@ -37,7 +37,7 @@ constructor(
         val root = findProjectRoot(start)
             ?: throw GrindException(
                 "No Kona application found at $start (expected settings.gradle.kts or build.gradle.kts). " +
-                    "Create one with: kona new <name>",
+                    "Create one with: kona new",
             )
         if (options["in-process"] == "true") {
             return serveInProcess(root, options)

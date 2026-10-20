@@ -79,12 +79,13 @@ Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. 
 ## 3. Create an application
 
 ```bash
-kona new                        # interactive installer (TTY)
-kona new my-app                 # Kotlin, web kit (non-interactive default)
-kona new my-app --lang=java
+kona new                        # interactive installer (asks directory first)
+kona new my-app                 # directory set; still asks kit / lang / CSS / db / …
+kona new my-app --no-interaction
+kona new my-app --lang=java --no-interaction
 ```
 
-In a terminal, `kona new` with no arguments asks for directory, app name, language, stack (API / Crema / Brew / Inertia), CSS, database, then offers to install dependencies and run migrations/seeders. A summary card appears before anything is written. Flags skip the matching question; `--no-interaction` uses defaults and never waits. Details: [Starter kits](../../starter-kits/).
+`kona new` with no arguments always asks for directory, app name, language, stack (API / Crema / Brew / Inertia), CSS, database, then offers to install dependencies and run migrations/seeders. A summary card appears before anything is written. Flags skip only the matching question. `--no-interaction` uses defaults and never waits — required for scripts (`CI=true` does not skip). Details: [Starter kits](../../starter-kits/). Check `kona version` / `kona new --help` after `./scripts/install.sh --local` so you are not on a stale binary.
 
 `kona new` writes a self-contained Gradle app that already includes:
 
@@ -149,7 +150,7 @@ cd kona
 # or: ./scripts/install-kona.sh
 ```
 
-`--local` builds the CLI from that tree and does not fetch into `~/.kona`.
+`--local` builds and links `~/.local/bin/kona` from **that tree** (not a published 0.2.0 wrapper). Then `kona version` prints the stamped version plus `git describe`. If `command -v kona` points elsewhere, that other binary is stale.
 
 ### Repo samples
 

@@ -104,12 +104,21 @@ internal fun titleCaseFolder(raw: String): String {
     }
 }
 
-internal fun wantsInteraction(options: Map<String, String>, tty: Boolean): Boolean {
-    if (options.containsKey("no-interaction") || options.containsKey("no-interactive")) {
-        return false
-    }
-    return tty
-}
+internal const val STDIN_UNREADABLE =
+    "Cannot read stdin. Pass flags for each step, or use --no-interaction for defaults."
+
+internal const val NEW_USAGE =
+    "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] " +
+        "[--css=tailwind|bootstrap|custom] [--frontend=vue|react|svelte] " +
+        "[--name=…] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] " +
+        "[--install-deps] [--migrate] [--seed] [--no-interaction] [--kona-version=x.y.z]"
+
+/**
+ * Full skip only for `--no-interaction` / `--no-interactive`.
+ * `CI`, missing `System.console()`, and a positional directory do **not** skip the rest.
+ */
+internal fun wantsInteraction(options: Map<String, String>): Boolean =
+    !options.containsKey("no-interaction") && !options.containsKey("no-interactive")
 
 internal fun triState(options: Map<String, String>, name: String): Boolean? {
     if (options.containsKey("no-$name")) {
@@ -161,15 +170,6 @@ internal fun resolveNewPlan(
     prompts: InstallerPrompts,
     io: ConsoleIO,
 ): NewPlan? {
-    if (!canPrompt && positional.isEmpty()) {
-        throw KonaCliException(
-            "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] " +
-                "[--css=tailwind|bootstrap|custom] [--frontend=vue|react|svelte] " +
-                "[--name=…] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] " +
-                "[--install-deps] [--migrate] [--seed] [--no-interaction] [--kona-version=x.y.z]\n" +
-                "Run kona new in a terminal (no flags) for the interactive installer.",
-        )
-    }
     if (canPrompt) {
         io.intro("kona new")
         io.box(
@@ -181,8 +181,11 @@ internal fun resolveNewPlan(
         )
     }
     val directoryRaw =
-        positional.firstOrNull()
-            ?: prompts.ask("Where should we create the app?", "kona-app")
+        when {
+            positional.isNotEmpty() -> positional.first()
+            canPrompt -> prompts.ask("Where should we create the app?", "kona-app")
+            else -> "kona-app"
+        }
     val directory = Path.of(directoryRaw).toAbsolutePath().normalize()
     val folder = directory.fileName.toString()
     val named = options["name"] ?: options["app-name"]

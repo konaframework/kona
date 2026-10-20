@@ -37,7 +37,7 @@ constructor(
         val root = ServeCommand.findProjectRoot(start)
             ?: throw GrindException(
                 "No Kona application found at $start (expected settings.gradle.kts or build.gradle.kts). " +
-                    "Create one with: kona new <name>",
+                    "Create one with: kona new",
             )
         val envFile = ensureEnvFile(root, io)
         val currentKey = ServePorts.readDotEnv(envFile)["APP_KEY"].orEmpty()

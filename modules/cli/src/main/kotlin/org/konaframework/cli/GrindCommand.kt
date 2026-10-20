@@ -28,14 +28,14 @@ constructor(
             ?: throw KonaCliException(
                 "No Kona application found at $startDir " +
                     "(expected settings.gradle.kts or build.gradle.kts). " +
-                    "Run from a Kona app or create one with: kona new <name>",
+                    "Run from a Kona app or create one with: kona new",
             )
         val scriptName = if (windows) "grind.bat" else "grind"
         val script = root.resolve(scriptName)
         if (!Files.isRegularFile(script)) {
             throw KonaCliException(
                 "Found a Gradle project at $root but no $scriptName. " +
-                    "Run from a Kona app created with kona new, or use: kona new <name>",
+                    "Run from a Kona app created with kona new, or use: kona new",
             )
         }
         return runner.run(listOf(script.toString()) + args, root)
