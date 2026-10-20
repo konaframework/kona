@@ -246,8 +246,25 @@ class GrindTest {
         val stamped = Names.parseMigrationInput("M2026_10_20_141530_create_gates_table")
         assertEquals("2026_10_20_141530", stamped.timestamp)
         assertEquals("CreateGatesTable", stamped.descriptive)
+        assertEquals("create_gates_table", stamped.snake)
+        val pascal = Names.parseMigrationInput("AddStatusToUsersTable")
+        assertEquals("AddStatusToUsersTable", pascal.descriptive)
+        assertEquals("add_status_to_users_table", pascal.snake)
         assertEquals(0, MakeMigrationCommand().run(listOf("create_widgets_table", "--base=$base", "--lang=kotlin")))
         assertEquals(0, MakeMigrationCommand().run(listOf("add_name_to_widgets_table", "--base=$base", "--lang=kotlin")))
+        val migrations = base.resolve("src/main/kotlin/database/migrations")
+        assertTrue(
+            Files.list(migrations).use { stream ->
+                stream.anyMatch { it.fileName.toString().endsWith("_create_widgets_table.kt") }
+            },
+        )
+        Files.createDirectories(temp.resolve("empty-mig/src/main/kotlin/database/migrations"))
+        assertEquals(
+            0,
+            MakeMigrationCommand().run(
+                listOf("CreateEmptyDirTable", "--base=${temp.resolve("empty-mig")}", "--lang=kotlin"),
+            ),
+        )
     }
 
     @Test

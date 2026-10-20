@@ -158,4 +158,28 @@ class MigratorTest {
             migrator.migrate(),
         )
     }
+
+    @Test
+    fun registrySortsAnnotatedFileStems() {
+        val registry = MigrationRegistry(NamedLater(), NamedUsers())
+        assertEquals(
+            listOf(
+                "2000_01_01_000000_create_users_table",
+                "2026_10_20_120000_create_posts_table",
+            ),
+            registry.names,
+        )
+    }
+}
+
+@MigrationName("2026_10_20_120000_create_posts_table")
+class NamedLater : Migration {
+    override fun up(schema: Schema) = Unit
+    override fun down(schema: Schema) = Unit
+}
+
+@MigrationName("2000_01_01_000000_create_users_table")
+class NamedUsers : Migration {
+    override fun up(schema: Schema) = Unit
+    override fun down(schema: Schema) = Unit
 }

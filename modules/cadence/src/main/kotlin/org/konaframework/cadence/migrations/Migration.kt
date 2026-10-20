@@ -11,10 +11,10 @@ interface Migration {
 }
 
 /**
- * The ordered list of an application's migrations. Timestamped class names
- * (`M{yyyy_MM_dd_HHmmss}_…`) run in timestamp order; names without a stamp keep
- * registration order and run first. Each name (the class simple name unless given)
- * is what [Migrator] records once it has run.
+ * The ordered list of an application's migrations. Timestamped names
+ * (`yyyy_MM_dd_HHmmss_snake_name` file stems, or legacy `M{stamp}_Class` names)
+ * run in timestamp order; names without a stamp keep registration order and run
+ * first. Each name is what [Migrator] records once it has run.
  */
 class MigrationRegistry() {
     private val entries = linkedMapOf<String, Migration>()
@@ -23,7 +23,7 @@ class MigrationRegistry() {
         migrations.forEach { add(it) }
     }
 
-    fun add(migration: Migration): MigrationRegistry = add(migration.javaClass.simpleName, migration)
+    fun add(migration: Migration): MigrationRegistry = add(MigrationOrder.recordedName(migration), migration)
 
     fun add(name: String, migration: Migration): MigrationRegistry = apply {
         require(name.isNotBlank()) { "Migration name must not be blank" }

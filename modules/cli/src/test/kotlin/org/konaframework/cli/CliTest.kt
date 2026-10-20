@@ -237,7 +237,16 @@ class CliTest {
         assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/dashboard.crema.html")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/public/branding/kona-logo.svg")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/app/models/User.kt")))
-        assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/database/migrations/CreateUsersTable.kt")))
+        assertTrue(
+            Files.isRegularFile(
+                kt.resolve("src/main/kotlin/database/migrations/2000_01_01_000000_create_users_table.kt"),
+            ),
+        )
+        val usersKt = Files.readString(
+            kt.resolve("src/main/kotlin/database/migrations/2000_01_01_000000_create_users_table.kt"),
+        )
+        assertTrue(usersKt.contains("@MigrationName(\"2000_01_01_000000_create_users_table\")"))
+        assertTrue(usersKt.contains("class CreateUsersTable : Migration"))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/database/seeders/DatabaseSeeder.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/app/http/controllers/api/UserController.kt")))
         assertTrue(
@@ -287,6 +296,12 @@ class CliTest {
         assertTrue(Files.isRegularFile(j.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(Files.isRegularFile(j.resolve("src/main/resources/views/login.crema.html")))
         assertTrue(Files.isRegularFile(j.resolve("src/main/java/app/models/User.java")))
+        val usersJava = Files.readString(
+            j.resolve("src/main/java/database/migrations/2000_01_01_000000_create_users_table.java"),
+        )
+        assertTrue(usersJava.contains("@MigrationName(\"2000_01_01_000000_create_users_table\")"))
+        assertTrue(usersJava.contains("class CreateUsersTable implements Migration"))
+        assertFalse(usersJava.contains("public class CreateUsersTable"))
         assertTrue(Files.isRegularFile(j.resolve("src/main/resources/public/branding/kona-logo.svg")))
         assertTrue(
             Files.readString(j.resolve("src/main/java/app/http/controllers/WelcomeController.java"))

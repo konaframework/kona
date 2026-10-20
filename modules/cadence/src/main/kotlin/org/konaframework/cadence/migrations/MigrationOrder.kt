@@ -9,17 +9,27 @@ import java.time.temporal.ChronoUnit
 /**
  * Timestamped migration identity.
  *
- * JVM class names cannot start with a digit, so generated classes are
- * `M{yyyy_MM_dd_HHmmss}_{DescriptiveName}` (UTC). [Migrator] records that
- * simple name. Discovery and the registry sort by the timestamp so run order
- * does not depend on how lines happen to be listed in `META-INF/kona/migrations`.
+ * **Files** are `{yyyy_MM_dd_HHmmss}_{snake_name}` (UTC), e.g.
+ * `2026_10_20_153950_add_status_to_users_table.kt`. **Classes** stay PascalCase
+ * (`AddStatusToUsersTable`) — JVM types cannot start with a digit, and underscores
+ * in a class name trip IDE inspections. [Migrator] records the file stem
+ * ([MigrationName] on generated classes).
  *
- * Classes without a timestamp keep their registration order and run before
- * timestamped ones (so existing `CreateUsersTable` scaffolds stay first).
+ * Legacy `M{stamp}_{DescriptiveName}` class names are still recognized for apps
+ * generated before this layout. Names without a stamp keep registration order
+ * and run before timestamped ones.
  */
 object MigrationOrder {
+    /** Scaffold `create_users_table` file prefix so it always runs first among timestamped migrations. */
+    const val DEFAULT_USERS_TIMESTAMP: String = "2000_01_01_000000"
+
     const val CLASS_PREFIX: String = "M"
 
+    /** `2026_10_20_153950_add_status_to_users_table` (file stem / recorded name). */
+    @JvmField
+    val FILE_STEM: Regex = Regex("""^(\d{4}_\d{2}_\d{2}_\d{6})_(.+)$""")
+
+    /** Legacy `M2026_10_20_153950_AddStatusToUsersTable`. */
     @JvmField
     val CLASS_NAME: Regex = Regex("""^M(\d{4}_\d{2}_\d{2}_\d{6})_(.+)$""")
 
@@ -39,15 +49,32 @@ object MigrationOrder {
     @JvmOverloads
     fun format(clock: Clock = Clock.systemUTC()): String = format(clock.instant())
 
+    /** Timestamped snake_case file stem (no class prefix). */
+    @JvmStatic
+    fun fileStem(timestamp: String, snake: String): String = "${timestamp}_$snake"
+
+    /** Legacy JVM class name; prefer [fileStem] + a PascalCase type. */
     @JvmStatic
     fun className(timestamp: String, descriptive: String): String = "${CLASS_PREFIX}${timestamp}_$descriptive"
 
-    /** Timestamp from a simple name or FQCN, or null when the class is untimestamped. */
+    /** Name [Migrator] stores: `@MigrationName` when present, otherwise the simple class name. */
+    @JvmStatic
+    fun recordedName(migration: Migration): String {
+        val type = migration.javaClass
+        val annotated = type.getAnnotation(MigrationName::class.java)
+        if (annotated != null) {
+            return annotated.value
+        }
+        return type.simpleName.substringAfterLast('$')
+    }
+
+    /** Timestamp from a file stem, legacy `M{stamp}_` class, or FQCN; null when untimestamped. */
     @JvmStatic
     fun timestampOf(name: String): String? {
         val simple = name.substringAfterLast('.').substringAfterLast('$')
-        val match = CLASS_NAME.matchEntire(simple) ?: return null
-        return match.groupValues[1]
+        FILE_STEM.matchEntire(simple)?.let { return it.groupValues[1] }
+        val legacy = CLASS_NAME.matchEntire(simple) ?: return null
+        return legacy.groupValues[1]
     }
 
     /**

@@ -15,6 +15,7 @@ import org.konaframework.cadence.Cadence;
 import org.konaframework.cadence.CadenceCompanion;
 import org.konaframework.cadence.factory.Factory;
 import org.konaframework.cadence.migrations.Migration;
+import org.konaframework.cadence.migrations.MigrationName;
 import org.konaframework.cadence.migrations.MigrationOrder;
 import org.konaframework.cadence.migrations.MigrationRegistry;
 import org.konaframework.cadence.migrations.Migrator;
@@ -200,10 +201,39 @@ class JavaRelationsMigrationsTest {
         assertEquals("2026_10_20_141530", MigrationOrder.format(Instant.parse("2026-10-20T14:15:30Z")));
         assertEquals("M2026_10_20_110000_A", MigrationOrder.className("2026_10_20_110000", "A"));
         assertEquals(
+            "2026_10_20_153950_add_status_to_users_table",
+            MigrationOrder.fileStem("2026_10_20_153950", "add_status_to_users_table")
+        );
+        assertEquals("2000_01_01_000000", MigrationOrder.DEFAULT_USERS_TIMESTAMP);
+        assertEquals(
             List.of("CreateUsersTable", "M2026_10_20_110000_A", "M2026_10_20_120000_B"),
             MigrationOrder.sort(List.of("M2026_10_20_120000_B", "CreateUsersTable", "M2026_10_20_110000_A"))
         );
+        assertEquals(
+            List.of("2000_01_01_000000_create_users_table", "2026_10_20_153950_add_status_to_users_table"),
+            MigrationOrder.sort(List.of(
+                "2026_10_20_153950_add_status_to_users_table",
+                "2000_01_01_000000_create_users_table"
+            ))
+        );
         assertEquals("2026_10_20_110000", MigrationOrder.timestampOf("database.migrations.M2026_10_20_110000_A"));
+        assertEquals(
+            "2026_10_20_153950",
+            MigrationOrder.timestampOf("2026_10_20_153950_add_status_to_users_table")
+        );
         assertEquals(Instant.parse("2026-10-20T14:15:30Z"), MigrationOrder.parse("2026_10_20_141530"));
+        assertEquals(
+            "2026_10_20_090000_package_private",
+            MigrationOrder.recordedName(new JavaNamedMigration())
+        );
     }
+}
+
+@MigrationName("2026_10_20_090000_package_private")
+class JavaNamedMigration implements Migration {
+    @Override
+    public void up(Schema schema) {}
+
+    @Override
+    public void down(Schema schema) {}
 }
