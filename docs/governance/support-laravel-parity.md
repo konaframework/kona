@@ -53,6 +53,7 @@ Living audit of `kona-support` Collections, `Arr`, `Str` / `Stringable`, and `Ko
 | add/sub weeks/months/years | **done** | deepen |
 | `startOfDay` / `endOfDay` / `setTimezone` | **done** | deepen |
 | `isSameDay` / `diffInDays` | **done** | deepen |
+| ISO-8601 JSON (`Instant` / `KonaDate` / java.time) | **done** | HTTP `JsonSupport` + `Json` mapper |
 | Full Carbon locale/human diff | **deferred** | intentional |
 
 ## 5. Public docs

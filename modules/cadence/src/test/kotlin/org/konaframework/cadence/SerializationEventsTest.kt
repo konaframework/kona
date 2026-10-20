@@ -55,6 +55,22 @@ class SerializationEventsTest {
     }
 
     @Test
+    fun timestampsAndDatetimeCastsRoundTripAsIsoJson() {
+        val ada = org.konaframework.cadence.User.create(mapOf("name" to "Ada", "email" to "a@b.c"))
+        val created = ada["created_at"] as java.time.Instant
+        val json = ada.toJson()
+        assertTrue(json.contains("\"created_at\":\"$created\""))
+        assertTrue(json.contains("\"updated_at\":\"$created\""))
+        val listJson = org.konaframework.support.json.Json.stringify(listOf(ada.toArray()))
+        assertTrue(listJson.startsWith("["))
+        assertTrue(listJson.contains("\"created_at\":\"$created\""))
+
+        val born = java.time.LocalDateTime.of(2024, 1, 2, 3, 4, 5)
+        ada["born_at"] = born
+        assertTrue(ada.toJson().contains("\"born_at\":\"2024-01-02T03:04:05\""))
+    }
+
+    @Test
     fun visibleOnlySerialization() {
         val model = VisibleUser()
         model.forceFill(mapOf("name" to "X", "email" to "e@x"))

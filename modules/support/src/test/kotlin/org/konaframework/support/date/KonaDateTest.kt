@@ -9,8 +9,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 
 class KonaDateTest {
     private val fixed = Clock.fixed(Instant.parse("2024-06-15T12:00:00Z"), ZoneOffset.UTC)
@@ -101,5 +105,47 @@ class KonaDateTest {
         KonaDate.setDefaultTimezone(ZoneId.of("Africa/Nairobi"))
         assertEquals(ZoneId.of("Africa/Nairobi"), KonaDate.defaultTimezone())
         assertEquals(3, KonaDate.parse("2024-01-02T00:00:00Z").toLocalDateTime().hour)
+    }
+
+    @Test
+    fun parseFormatsFactoriesTimezoneAndIso() {
+        val utc = ZoneOffset.UTC
+        val offset = KonaDate.parse("2024-01-02T03:04:05+02:00", utc)
+        assertEquals(Instant.parse("2024-01-02T01:04:05Z"), offset.toInstant())
+
+        val zoned = KonaDate.parse("2024-01-02T03:04:05+01:00[Europe/Paris]")
+        assertEquals(Instant.parse("2024-01-02T02:04:05Z"), zoned.toInstant())
+
+        val day = KonaDate.parse("2024-01-02", utc)
+        assertEquals("2024-01-02T00:00:00Z", day.toIso())
+        assertEquals(utc, day.timezone())
+
+        org.junit.jupiter.api.Assertions.assertThrows(java.time.format.DateTimeParseException::class.java) {
+            KonaDate.parse("not-a-date")
+        }
+
+        val local = LocalDateTime.of(2024, 6, 15, 12, 0)
+        assertEquals("2024-06-15T12:00:00Z", KonaDate.ofLocalDateTime(local).toIso8601String())
+        assertEquals(
+            "2024-06-15T10:00:00Z",
+            KonaDate.ofLocalDateTime(local, ZoneOffset.ofHours(2)).toIso8601String(),
+        )
+        assertEquals("2024-06-15T00:00:00Z", KonaDate.ofLocalDate(LocalDate.of(2024, 6, 15)).toIso())
+        assertEquals(
+            "2024-06-14T22:00:00Z",
+            KonaDate.ofLocalDate(LocalDate.of(2024, 6, 15), ZoneOffset.ofHours(2)).toIso(),
+        )
+        assertEquals(
+            "2024-06-15T12:00:00Z",
+            KonaDate.ofZonedDateTime(ZonedDateTime.of(local, utc)).toIso(),
+        )
+        assertEquals(
+            "2024-06-15T10:00:00Z",
+            KonaDate.ofOffsetDateTime(OffsetDateTime.of(local, ZoneOffset.ofHours(2))).toIso(),
+        )
+        assertEquals(
+            ZoneOffset.ofHours(2),
+            KonaDate.ofOffsetDateTime(OffsetDateTime.of(local, ZoneOffset.ofHours(2))).timezone(),
+        )
     }
 }

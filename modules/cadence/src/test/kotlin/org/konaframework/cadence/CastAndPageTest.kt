@@ -14,6 +14,7 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.util.Date
 
 class CastAndPageTest {
@@ -65,6 +66,10 @@ class CastAndPageTest {
         assertEquals(Instant.parse("2024-01-02T00:00:00Z"), CastType.INSTANT.get(OffsetDateTime.of(2024, 1, 2, 0, 0, 0, 0, ZoneOffset.UTC)))
         assertEquals(Instant.parse("2024-01-02T03:04:05Z"), CastType.INSTANT.get(" 2024-01-02T03:04:05Z "))
         assertEquals(instant, CastType.INSTANT.get("2024-01-02T03:04:05"))
+        val kona = org.konaframework.support.date.KonaDate.ofInstant(instant, ZoneOffset.UTC)
+        assertEquals(instant, CastType.INSTANT.get(kona))
+        assertEquals(local, CastType.DATETIME.get(kona))
+        assertEquals(instant, CastType.INSTANT.get(ZonedDateTime.ofInstant(instant, zone)))
         val midnight = LocalDate.of(2024, 1, 2).atStartOfDay(zone).toInstant()
         assertEquals(midnight, CastType.INSTANT.get(LocalDate.of(2024, 1, 2)))
         assertEquals(midnight, CastType.INSTANT.get(java.sql.Date.valueOf(LocalDate.of(2024, 1, 2))))

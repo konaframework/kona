@@ -257,6 +257,10 @@ public class JavaCadenceApiTest {
     void modelsFromJava() {
         Member ada = Member.QUERY.create(Map.of("name", "Ada", "age", "36", "settings", Map.of("k", "v")));
         assertTrue(ada.exists());
+        String json = ada.toJson();
+        assertTrue(json.contains("\"created_at\":\""));
+        assertTrue(json.contains("T"));
+        assertTrue(json.contains("Z"));
         Member found = Member.QUERY.findOrFail(ada.getKey());
         assertEquals(36, found.get("age"));
         assertEquals(Map.of("k", "v"), found.get("settings"));
