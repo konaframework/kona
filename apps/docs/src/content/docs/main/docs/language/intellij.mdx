@@ -11,13 +11,13 @@ IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.
 | Plugin id | `org.konaframework.idea` |
 | Releases | [GitHub Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
 | Products | IntelliJ IDEA Community and Ultimate (2024.2+) |
-| Current line | **v0.5.17** |
+| Current line | **v0.5.18** |
 
 Installing, updating, or removing the plugin requires an IDE restart.
 
 ## Install
 
-1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.5.17**).
+1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.5.18**).
 2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** and choose the zip.
 3. Restart when prompted.
 4. Open a Crema view (`src/main/resources/views/….crema.html` or `*.crema.kt`). Confirm the language chip shows **Crema** (not HTML).
@@ -32,6 +32,7 @@ Installing, updating, or removing the plugin requires an IDE restart.
 - **Brew `wire:*` attribute completion** — type `wire:` on HTML tags (`wire:model`, `wire:click`, `wire:submit`, …); weak warnings for unknown `wire:*` names
 - Warnings for unknown `@name` tokens (emails like `hi@example.com` are ignored)
 - `{{` auto-closes as `{{  }}` with the caret in the middle
+- **Reformat Code** — **Ctrl+Alt+L** (macOS: **⌥⌘L**) formats Crema views with the same rules as HTML (**Settings → Editor → Code Style → HTML** for indent size, tabs vs spaces, and attribute wrapping). `@directives`, `{{ }}`, `{!! !!}`, and `{{-- --}}` stay intact.
 - **View name autocomplete** in `Crema.view`, `Brew.view`, `engine.make` / `render`, `@extends`, `@include`, and similar call sites
 - **Go to view file:** place the caret on a view name string and use **Ctrl+B** or **Ctrl+Click** (macOS: **⌘B** / **⌘Click**). Same as Navigate → Declaration.
 - **DB column completion** from Cadence migrations and, when `.env` has a reachable `DB_URL`, from JDBC metadata
@@ -46,6 +47,7 @@ Installing, updating, or removing the plugin requires an IDE restart.
 | --- | --- | --- |
 | Go to Declaration (open the Crema file) | **Ctrl+B** or Ctrl+Click | **⌘B** or ⌘Click |
 | Basic completion (view name / `@` directive) | Ctrl+Space | Ctrl+Space |
+| Reformat Code (HTML rules) | **Ctrl+Alt+L** | **⌥⌘L** |
 
 ## DB column sources
 
