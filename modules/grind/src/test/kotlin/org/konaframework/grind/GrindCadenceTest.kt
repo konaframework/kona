@@ -285,11 +285,14 @@ class GrindCadenceTest {
 
         val migrated = grind("migrate", "--base=$project", boot)
         assertEquals(0, migrated.first)
-        assertTrue(migrated.second.contains("Migrated: CreateWidgetsTable"))
-        assertTrue(migrated.second.contains("Migrated: AddColorToWidgetsTable"))
+        assertTrue(migrated.second.contains("Running migrations."))
+        assertTrue(migrated.second.contains("CreateWidgetsTable"))
+        assertTrue(migrated.second.contains("AddColorToWidgetsTable"))
+        assertTrue(migrated.second.contains("DONE"))
         assertTrue(grind("migrate", "--base=$project", boot).second.contains("Nothing to migrate."))
         val statusRan = grind("migrate:status", "--base=$project", boot).second
         assertTrue(statusRan.contains("Ran"))
+        assertTrue(statusRan.contains("Batch"))
         assertTrue(statusRan.contains("CreateWidgetsTable"))
 
         val seeded = grind("db:seed", "--base=$project", boot, "--class=org.konaframework.grind.FixtureDatabaseSeeder")
@@ -302,14 +305,18 @@ class GrindCadenceTest {
         assertEquals(1, grind("migrate:rollback", "--base=$project", boot, "--step=0").first)
         assertEquals(1, grind("migrate:rollback", "--base=$project", boot, "--step=x").first)
         val rolled = grind("migrate:rollback", "--base=$project", boot, "--step=1")
-        assertTrue(rolled.second.contains("Rolled back: AddColorToWidgetsTable"))
-        assertTrue(rolled.second.contains("Rolled back: CreateWidgetsTable"))
+        assertTrue(rolled.second.contains("Rolling back migrations."))
+        assertTrue(rolled.second.contains("AddColorToWidgetsTable"))
+        assertTrue(rolled.second.contains("CreateWidgetsTable"))
+        assertTrue(rolled.second.contains("DONE"))
         assertTrue(grind("migrate:rollback", "--base=$project", boot).second.contains("Nothing to rollback."))
         grind("migrate", "--base=$project", boot)
-        assertTrue(grind("migrate:reset", "--base=$project", boot).second.contains("Rolled back: CreateWidgetsTable"))
+        val resetOut = grind("migrate:reset", "--base=$project", boot).second
+        assertTrue(resetOut.contains("CreateWidgetsTable"))
+        assertTrue(resetOut.contains("DONE"))
         assertTrue(grind("migrate:reset", "--base=$project", boot).second.contains("Nothing to rollback."))
 
-        assertTrue(grind("migrate", "--base=$project", boot, "--database=other").second.contains("Migrated: CreateWidgetsTable"))
+        assertTrue(grind("migrate", "--base=$project", boot, "--database=other").second.contains("CreateWidgetsTable"))
         assertEquals(1, grind("migrate", "--base=$project", boot, "--database=missing").first)
     }
 
@@ -317,8 +324,13 @@ class GrindCadenceTest {
     fun migrateBuildsDatabaseFromConfigWhenUnbound() {
         val project = databaseProject(temp.resolve("config"), "grind_config")
         val boot = "--bootstrap=org.konaframework.grind.ConfigOnlyFixtureApp"
-        assertTrue(grind("migrate", "--base=$project", boot).second.contains("Migrated: CreateWidgetsTable"))
-        val seeded = grind("db:seed", "--base=$project", boot, "--class=org.konaframework.grind.WidgetSeeder")
+        val migrated = grind("migrate", "--base=$project", boot, "--verbose")
+        assertTrue(migrated.second.contains("CreateWidgetsTable"))
+        assertTrue(migrated.second.contains("DONE"))
+        val quiet = grind("migrate", "--base=$project", boot, "--quiet")
+        assertEquals(0, quiet.first)
+        assertFalse(quiet.second.contains("DONE"))
+        val seeded = grind("db:seed", "--base=$project", boot, "--class=org.konaframework.grind.WidgetSeeder", "-v")
         assertEquals(0, seeded.first)
         Database().addConnection("check", ConnectionConfig("jdbc:h2:mem:grind_config;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE")).use {
             assertEquals(1L, it.connection("check").table("widgets").count())
@@ -337,7 +349,9 @@ class GrindCadenceTest {
             "--class=org.konaframework.grind.FixtureDatabaseSeeder",
         )
         assertEquals(0, code)
-        assertTrue(out.contains("Migrated: CreateWidgetsTable"))
+        assertTrue(out.contains("CreateWidgetsTable"))
+        assertTrue(out.contains("DONE"))
+        assertTrue(out.contains("Seeding database."))
         assertTrue(out.contains("Seeding: FixtureDatabaseSeeder"))
         assertTrue(out.contains("Seeding: WidgetSeeder"))
         assertTrue(out.contains("Database seeding completed successfully."))
@@ -384,7 +398,7 @@ class GrindCadenceTest {
             "--class=org.konaframework.grind.WidgetSeeder",
         )
         assertEquals(0, code)
-        assertTrue(out.contains("Migrated: CreateWidgetsTable"))
+        assertTrue(out.contains("CreateWidgetsTable"))
         assertTrue(out.contains("Seeding: WidgetSeeder"))
         Database.clearGlobal()
         Database().addConnection("check", ConnectionConfig(url)).use {

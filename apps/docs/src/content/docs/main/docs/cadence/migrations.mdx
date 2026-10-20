@@ -255,6 +255,7 @@ public class AppServiceProvider implements ServiceProvider {
 
 ```kotlin
 import org.konaframework.cadence.migrations.Migrator
+import org.konaframework.cadence.migrations.MigrationEvents
 
 val ran = Migrator.using(db.connection(), registry) { it.migrate() }       // names that ran
 Migrator.using(db.connection(), registry) { migrator ->
@@ -263,6 +264,9 @@ Migrator.using(db.connection(), registry) { migrator ->
     migrator.rollback()       // undo the last batch
     migrator.rollback(3)      // undo the last three batches
     migrator.reset()          // undo everything
+    migrator.migrate(object : MigrationEvents {                           // optional start/finish callbacks
+        override fun finished(name: String, millis: Long) = Unit
+    })
 }
 ```
 
@@ -271,6 +275,7 @@ Migrator.using(db.connection(), registry) { migrator ->
 
 ```java
 import org.konaframework.cadence.migrations.Migrator;
+import org.konaframework.cadence.migrations.MigrationEvents;
 
 List<String> ran = Migrator.using(db.connection(), registry, Migrator::migrate);
 Migrator.using(db.connection(), registry, migrator -> {
@@ -278,6 +283,9 @@ Migrator.using(db.connection(), registry, migrator -> {
     migrator.status();
     migrator.rollback();
     migrator.rollback(3);
+    migrator.migrate(new MigrationEvents() {
+        @Override public void finished(String name, long millis) {}
+    });
     return migrator.reset();
 });
 ```
@@ -304,7 +312,7 @@ All commands run from the application directory. The database commands boot your
 # optional: supply the stamp yourself
 ./grind make:migration 2026_10_20_141530_create_gates_table
 
-./grind migrate                          # run pending migrations as a new batch
+./grind migrate                          # run pending migrations as a new batch (dotted DONE rows)
 ./grind migrate --seed                   # migrate, then seed in the same process
 ./grind migrate --seed --class=database.seeders.UserSeeder
 ./grind migrate:status                   # Ran/Pending, batch, name
@@ -314,6 +322,8 @@ All commands run from the application directory. The database commands boot your
 ./grind migrate --database=reports       # a named connection
 ./grind migrate --bootstrap=bootstrap.App
 ```
+
+`./grind migrate` prints an info header, then one dotted row per migration (`name …… 12ms DONE`). Pool dumps and SQL traces stay in `storage/logs`; pass `--verbose` to print them on the console as well.
 
 `make:migration` accepts snake_case or PascalCase (and an optional `{stamp}_` / `M{stamp}_` prefix if you need a specific second). It writes `database/migrations/{yyyy_MM_dd_HHmmss}_{snake_name}.kt` (or `.java`, chosen by `--lang=` or by existing `.java` files under `app/`) with a PascalCase class and `@MigrationName`, then appends the class to `META-INF/kona/migrations`. It refuses to overwrite an existing file (bumps the stamp by one second) and refuses a second class with the same PascalCase name.
 

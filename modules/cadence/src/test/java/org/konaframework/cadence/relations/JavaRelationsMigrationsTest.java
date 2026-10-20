@@ -17,6 +17,7 @@ import org.konaframework.cadence.factory.Factory;
 import org.konaframework.cadence.migrations.Migration;
 import org.konaframework.cadence.migrations.MigrationName;
 import org.konaframework.cadence.migrations.MigrationOrder;
+import org.konaframework.cadence.migrations.MigrationEvents;
 import org.konaframework.cadence.migrations.MigrationRegistry;
 import org.konaframework.cadence.migrations.Migrator;
 import org.konaframework.cadence.schema.H2SchemaGrammar;
@@ -178,6 +179,25 @@ class JavaRelationsMigrationsTest {
             assertInstanceOf(H2SchemaGrammar.class, SchemaGrammar.forProduct("H2", Grammar.NONE));
 
             Migrator migrator = new Migrator(jdbc, new MigrationRegistry(new CreateTeams()), SchemaGrammar.H2);
+            java.util.ArrayList<String> started = new java.util.ArrayList<>();
+            MigrationEvents events = new MigrationEvents() {
+                @Override
+                public void starting(String name) {
+                    started.add(name);
+                }
+
+                @Override
+                public void finished(String name, long millis) {
+                    started.add(name + ":" + millis);
+                }
+            };
+            assertEquals(List.of("CreateTeams"), migrator.migrate(events));
+            assertEquals("CreateTeams", started.get(0));
+            assertTrue(started.get(1).startsWith("CreateTeams:"));
+            assertEquals(List.of(), migrator.migrate(new MigrationEvents() {}));
+            assertEquals(List.of("CreateTeams"), migrator.rollback(1, events));
+            assertEquals(List.of("CreateTeams"), migrator.migrate(new MigrationEvents() {}));
+            assertEquals(List.of("CreateTeams"), migrator.reset(new MigrationEvents() {}));
             assertEquals(List.of("CreateTeams"), migrator.migrate());
         }
 

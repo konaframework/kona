@@ -60,8 +60,10 @@ These apply to the whole Grind Console process (and to custom commands that use 
 
 | Flag | Effect |
 |------|--------|
-| `-v` / `--verbose` | Verbose diagnostics (`GrindIO.verbose`) |
+| `-v` / `--verbose` | Verbose diagnostics (`GrindIO.verbose`) **and** library logs (Hikari, SQL, boot) on the console |
 | `-q` / `--quiet` | Suppress normal stdout; errors still print on stderr |
+
+Without `--verbose`, grind detaches Logback console appenders so pool dumps and SQL traces stay in `storage/logs` instead of burying `taskLine` / `info` output. File logging is unchanged.
 
 Other common flags (`--base=`, `--bootstrap=`, `--help`, `--isolated`) are documented where they apply — see [Running commands](./running-commands/) and [Creating commands](./creating-commands/).
 

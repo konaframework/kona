@@ -75,6 +75,7 @@ console.table(
     listOf("id", "email"),
     listOf(listOf("1", "ada@example.com"), listOf("2", "bea@example.com")),
 )
+console.taskLine("2000_01_01_000000_create_users_table", "DONE", 12)
 ```
 
 | Method | Behavior |
@@ -90,8 +91,11 @@ console.table(
 | `box(title, lines)` | Framed block; content width clamped roughly 24–56 |
 | `progress(current, total, label="")` | 28-cell bar + percent; `total` must be `> 0`; `current` clamped to `[0, total]` |
 | `table(headers, rows)` | Aligned columns by **plain** text width (ANSI stripped); headers non-empty; each row must match header width |
+| `taskLine(name, status, millis=null, ok=true)` | Dotted row (`name …… 12ms DONE`); green status when `ok`, red otherwise; duration omitted when `millis` is null |
 | `paint(codes, text)` | Apply ANSI when color is on |
 | `plainLength(text)` | Length with ANSI sequences removed |
+
+`ConsoleIO.formatDuration(millis)` renders `<1000` as `12ms` and longer runs as `1.23s`. Rows align to `ConsoleIO.TASK_WIDTH` (72).
 
 Public ANSI constants on `ConsoleIO`: `RESET`, `BOLD`, `DIM`, `RED`, `GREEN`, `YELLOW`, `CYAN`, `PRIMARY`, `ACCENT`.
 
@@ -105,6 +109,7 @@ io.verbose("only with -v")
 io.subtitle("Detail")
 io.twoColumn("left", "right")
 io.box("Title", listOf("line"))
+io.taskLine("create_users_table", "DONE", 12)
 ```
 
 Inside a `ConsoleCommand`, prefer the bound helpers (they use the runner’s `GrindIO`):

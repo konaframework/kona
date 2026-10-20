@@ -1,12 +1,16 @@
 package org.konaframework.grind;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -89,6 +93,24 @@ class GrindJavaTest {
         assertEquals(0, Grind.call("demo:java", java.util.List.of("Bea"), registry, temp));
         assertEquals(0, MakeCommandCommand.DISCOVERY.equals("META-INF/kona/commands") ? 0 : 1);
         assertEquals(0, new GrindApplication(registry, temp).run(new String[] {"demo:java", "Cia", "--help"}));
+    }
+
+    @Test
+    void quietConsoleAndTaskLineFromJava() {
+        assertFalse(GrindLogging.wantsVerbose(Map.of()));
+        assertTrue(GrindLogging.wantsVerbose(Map.of("verbose", "true")));
+        assertTrue(GrindLogging.wantsVerbose(Map.of("v", "true")));
+        GrindLogging.hushConsole(true);
+        GrindLogging.hushConsole(false, "not-a-logger");
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        GrindIO io = new GrindIO(new PrintStream(out), new PrintStream(out), Verbosity.NORMAL, false);
+        io.taskLine("create_users_table", "DONE", 12L, true);
+        io.taskLine("WidgetSeeder", "DONE", 4L);
+        io.taskLine("DatabaseSeeder", "DONE");
+        assertTrue(out.toString().contains("create_users_table"));
+        assertTrue(out.toString().contains("DONE"));
+        assertTrue(out.toString().contains("12ms"));
+        assertEquals("Ran", io.paint("x", "Ran"));
     }
 
     public static class JavaDemoCommand extends ConsoleCommand {

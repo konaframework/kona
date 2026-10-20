@@ -12,6 +12,7 @@ class SeedCommand {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
         val io = GrindIO.fromOptions(options)
+        GrindLogging.hushConsole(io.verbosity == Verbosity.VERBOSE)
         val name = options.getOrDefault("class", DEFAULT_SEEDER)
         MigrateCommand.withApplication(options) { app, loader ->
             MigrateCommand.withDatabase(app) { database ->
@@ -45,9 +46,16 @@ class SeedCommand {
             }
             database.setAsGlobal()
             val seeder = Seeder.instantiate(type.asSubclass(Seeder::class.java), app.container)
+            io.info("Seeding database.")
             io.info("Seeding: ${type.simpleName}")
+            val started = System.nanoTime()
             seeder.run()
-            seeder.called.forEach { io.info("Seeding: $it") }
+            val millis = (System.nanoTime() - started) / 1_000_000
+            io.taskLine(type.simpleName, "DONE", millis, ok = true)
+            seeder.called.forEach { nested ->
+                io.info("Seeding: $nested")
+                io.taskLine(nested, "DONE")
+            }
             io.success("Database seeding completed successfully.")
         }
     }

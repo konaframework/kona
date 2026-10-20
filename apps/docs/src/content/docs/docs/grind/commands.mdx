@@ -84,10 +84,10 @@ These commands work with [Cadence](../../cadence/). Generators write source file
 | `./grind make:migration <name> [--create=table] [--table=table]` | File `database/migrations/{yyyy_MM_dd_HHmmss}_{snake_name}` with PascalCase class (snake_case or PascalCase input); appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
 | `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
 | `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
-| `./grind migrate [--seed] [--class=…]` | Runs pending migrations as one new batch; with `--seed` / `--seeder`, also runs a seeder in the same process |
+| `./grind migrate [--seed] [--class=…]` | Runs pending migrations as one new batch (dotted `DONE` rows); with `--seed` / `--seeder`, also runs a seeder in the same process |
 | `./grind migrate:rollback [--step=N]` | Reverts the last `N` batches (default 1) |
 | `./grind migrate:reset` | Reverts every migration |
-| `./grind migrate:status` | Lists each registered migration as `Ran` (with its batch) or `Pending` |
+| `./grind migrate:status` | Table of `Ran` / `Pending`, batch, and migration name |
 | `./grind db:seed [--class=…]` | Runs a seeder (default `database.seeders.DatabaseSeeder`) |
 
 All generators accept `--lang=kotlin|java` (default: Java when `app/` already has `.java` files) and `--base=`, and never overwrite an existing file.
@@ -98,6 +98,8 @@ The migrate and seed commands:
 2. load `build/classes` and call `create(String[])` on the bootstrap class (`--bootstrap=`, default `bootstrap.App`), so run `./gradlew classes` first;
 3. use the `MigrationRegistry` bound in the application container, or migrations listed in `META-INF/kona/migrations` (written by `make:migration`);
 4. use the container's `Database` (registered by `CadenceServiceProvider`), or build one from the `database` config section; `--database=name` selects a named connection.
+
+Stdout is the grind console only: an info line (`Running migrations.` / `Nothing to migrate.` / `Seeding database.`), then one dotted row per migration or seeder (`2000_01_01_000000_create_users_table ........ 12ms DONE`). `migrate:status` prints a **Status** / **Batch** / **Migration** table (`Ran` in green, `Pending` in yellow). Connection-pool dumps, SQL traces, and boot logs stay on the `single` file channel under `storage/logs`. Pass `--verbose` (`-v`) to also print those logs on the console.
 
 Errors (unknown connection, a failing migration, a missing seeder class) print a message and exit with status 1. See [Migrations](../../cadence/migrations/) and [Seeders & factories](../../cadence/seeders-factories/) for the APIs behind these commands.
 
