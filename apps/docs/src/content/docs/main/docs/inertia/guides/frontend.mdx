@@ -72,6 +72,20 @@ createInertiaApp({
 
 Entry `src/main/resources/js/app.js` with `@inertiajs/svelte` and `mount` from `svelte`. Page files use `.svelte` under `Pages/`.
 
+## TypeScript
+
+Pass `--typescript` or `--ts` to `kona new --kit=inertia`. JavaScript stays the default (`--javascript` / `--js`, and any non-interactive run that omits the flag).
+
+| Adapter | Entry | Page |
+|---------|-------|------|
+| Vue | `src/main/resources/js/app.ts` | `Pages/Welcome.vue` with `<script setup lang="ts">` |
+| React | `src/main/resources/js/app.tsx` | `Pages/Welcome.tsx` |
+| Svelte | `src/main/resources/js/app.ts` | `Pages/Welcome.svelte` with `<script lang="ts">` |
+
+The kit also writes `tsconfig.json`, `typescript` in `devDependencies`, and `env.d.ts` (Vue) or `vite-env.d.ts` (React and Svelte). Vue adds `vue-tsc`. Svelte adds `svelte.config.js` so Vite can preprocess TypeScript in `.svelte` files. `npm run build` compiles the entry; `npm run typecheck` runs the checker.
+
+`viteEntries` uses the TypeScript filename (`app.ts` or `app.tsx`), which is also the Vite input, so the manifest key and `{!! vite !!}` look up the same path. Production files still land in `public/build`.
+
 ## Vite workflow
 
 | Mode | Command | What the shell requests |

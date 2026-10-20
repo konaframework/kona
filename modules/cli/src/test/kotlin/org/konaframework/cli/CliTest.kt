@@ -378,6 +378,11 @@ class CliTest {
         assertTrue(Files.isRegularFile(inertia.resolve("vite.config.js")))
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/app.js")))
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/Pages/Welcome.vue")))
+        assertFalse(Files.exists(inertia.resolve("tsconfig.json")))
+        assertFalse(Files.readString(inertia.resolve("package.json")).contains("typescript"))
+        assertTrue(Files.readString(inertia.resolve("src/main/kotlin/bootstrap/App.kt")).contains("src/main/resources/js/app.js"))
+        assertTrue(Files.isRegularFile(inertia.resolve("public/branding/kona-logo.svg")))
+        assertFalse(Files.exists(inertia.resolve("src/main/resources/public")))
         assertTrue(
             Files.readString(inertia.resolve("src/main/kotlin/bootstrap/App.kt")).contains("viteEntries"),
         )

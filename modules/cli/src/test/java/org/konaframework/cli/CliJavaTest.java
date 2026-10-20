@@ -1,6 +1,7 @@
 package org.konaframework.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,6 +47,37 @@ class CliJavaTest {
                     }));
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/app.jsx")));
         assertTrue(Files.readString(inertia.resolve("src/main/java/bootstrap/App.java")).contains("app.jsx"));
+        assertFalse(Files.exists(inertia.resolve("tsconfig.json")));
+
+        Path typed = temp.resolve("javats");
+        assertEquals(
+            0,
+            new KonaApplication()
+                .run(
+                    new String[] {
+                        "new",
+                        typed.toString(),
+                        "--lang=java",
+                        "--kit=inertia",
+                        "--frontend=react",
+                        "--css=bootstrap",
+                        "--javascript",
+                        "--ts",
+                        "--no-interaction"
+                    }));
+        assertTrue(Files.isRegularFile(typed.resolve("src/main/resources/js/app.tsx")));
+        assertTrue(Files.isRegularFile(typed.resolve("src/main/resources/js/Pages/Welcome.tsx")));
+        assertTrue(Files.readString(typed.resolve("package.json")).contains("typescript"));
+        assertTrue(Files.readString(typed.resolve("package.json")).contains("@types/react"));
+        assertTrue(Files.readString(typed.resolve("tsconfig.json")).contains("react-jsx"));
+        assertTrue(Files.readString(typed.resolve("vite.config.js")).contains("public/build"));
+        assertTrue(Files.readString(typed.resolve("vite.config.js")).contains("app.tsx"));
+        assertTrue(
+            Files.readString(typed.resolve("src/main/java/bootstrap/App.java"))
+                .contains("src/main/resources/js/app.tsx"));
+        assertFalse(Files.exists(typed.resolve("src/main/resources/js/app.jsx")));
+        assertFalse(Files.exists(typed.resolve("src/main/resources/public")));
+        assertTrue(Files.isRegularFile(typed.resolve("public/robots.txt")));
     }
 
     @Test

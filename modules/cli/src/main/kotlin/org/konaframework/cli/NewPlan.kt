@@ -15,6 +15,7 @@ internal data class NewPlan(
     val installDeps: Boolean,
     val migrate: Boolean,
     val seed: Boolean,
+    val script: String = "js",
 ) {
     val stackLabel: String
         get() {
@@ -36,7 +37,8 @@ internal data class NewPlan(
                 "bootstrap" -> "Bootstrap"
                 else -> "custom CSS"
             }
-            return "$kitPart · $cssPart"
+            val label = "$kitPart · $cssPart"
+            return if (kit == "inertia" && script == "ts") "$label · TypeScript" else label
         }
 }
 
@@ -56,6 +58,10 @@ internal object NewStacks {
     const val FE_REACT = "React"
     const val FE_SVELTE = "Svelte"
     val FRONTENDS = listOf(FE_VUE, FE_REACT, FE_SVELTE)
+
+    const val SCRIPT_JS = "JavaScript"
+    const val SCRIPT_TS = "TypeScript"
+    val SCRIPTS = listOf(SCRIPT_JS, SCRIPT_TS)
 
     const val LANG_KOTLIN = "Kotlin"
     const val LANG_JAVA = "Java"
@@ -85,6 +91,8 @@ internal object NewStacks {
             else -> "vue"
         }
 
+    fun scriptId(label: String): String = if (label == SCRIPT_TS) "ts" else "js"
+
     fun langId(label: String): String = if (label == LANG_JAVA) "java" else "kotlin"
 }
 
@@ -110,6 +118,7 @@ internal const val STDIN_UNREADABLE =
 internal const val NEW_USAGE =
     "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] " +
         "[--css=tailwind|bootstrap|custom] [--frontend=vue|react|svelte] " +
+        "[--typescript|--javascript] " +
         "[--name=…] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] " +
         "[--install-deps] [--migrate] [--seed] [--no-interaction] [--kona-version=x.y.z]"
 
@@ -162,6 +171,28 @@ internal fun parseFrontendFlag(raw: String): String {
     }
     return id
 }
+
+/**
+ * Inertia frontend script from `--typescript`/`--ts` and `--javascript`/`--js`.
+ * Later flags win. `=false`, `=0`, and `=no` invert that flag.
+ * Returns null when neither family was passed.
+ */
+internal fun frontendScriptChoice(options: Map<String, String>): String? {
+    var choice: String? = null
+    for ((key, raw) in options) {
+        val enabled = flagOn(raw)
+        when (key) {
+            "typescript" -> choice = if (enabled) "ts" else "js"
+            "ts" -> choice = if (enabled) "ts" else "js"
+            "javascript" -> choice = if (enabled) "js" else "ts"
+            "js" -> choice = if (enabled) "js" else "ts"
+            else -> Unit
+        }
+    }
+    return choice
+}
+
+internal fun flagOn(raw: String): Boolean = raw.lowercase() !in setOf("false", "0", "no")
 
 internal fun resolveNewPlan(
     positional: List<String>,
@@ -221,6 +252,14 @@ internal fun resolveNewPlan(
             canPrompt -> NewStacks.frontendId(prompts.choice("Inertia adapter", NewStacks.FRONTENDS, defaultIndex = 0))
             else -> "vue"
         }
+    val scriptFlag = frontendScriptChoice(options)
+    val script =
+        when {
+            kit != "inertia" -> "js"
+            scriptFlag != null -> scriptFlag
+            canPrompt -> NewStacks.scriptId(prompts.choice("Frontend language", NewStacks.SCRIPTS, defaultIndex = 0))
+            else -> "js"
+        }
     val cssFlag = options["css"]?.let { parseCssFlag(it) }
     val css =
         when {
@@ -256,21 +295,25 @@ internal fun resolveNewPlan(
         installDeps = installDeps,
         migrate = migrate,
         seed = seed,
+        script = script,
     )
     if (canPrompt) {
         io.writeln()
         io.box(
             "Ready to write",
-            listOf(
-                "App        ${plan.appName}",
-                "Path       ${plan.directory}",
-                "Language   ${plan.lang}",
-                "Stack      ${plan.stackLabel}",
-                "Database   ${plan.database.name}",
-                "Install    ${if (plan.installDeps) "yes" else "skip"}",
-                "Migrate    ${if (plan.migrate) "yes" else "skip"}",
-                "Seed       ${if (plan.seed) "yes" else "skip"}",
-            ),
+            buildList {
+                add("App        ${plan.appName}")
+                add("Path       ${plan.directory}")
+                add("Language   ${plan.lang}")
+                add("Stack      ${plan.stackLabel}")
+                if (plan.kit == "inertia") {
+                    add("Frontend   ${if (plan.script == "ts") "TypeScript" else "JavaScript"}")
+                }
+                add("Database   ${plan.database.name}")
+                add("Install    ${if (plan.installDeps) "yes" else "skip"}")
+                add("Migrate    ${if (plan.migrate) "yes" else "skip"}")
+                add("Seed       ${if (plan.seed) "yes" else "skip"}")
+            },
         )
         if (!prompts.confirm("Create the application?", true)) {
             io.warn("Nothing was written.")
