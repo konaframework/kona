@@ -51,10 +51,11 @@ object Paths : ConfigFile {
         | Public directory
         |--------------------------------------------------------------------------
         |
-        | Static files served by ServePublicDirectory (logo, favicon, robots.txt).
-        | `./grind storage:link` also places a symlink here for the public disk.
+        | HTTP document root served by ServePublicDirectory (logo, favicon, robots.txt,
+        | and Vite output under `public/build`). `./grind storage:link` places the
+        | public-disk symlink here.
         |
         */
-        "public" to "src/main/resources/public",
+        "public" to "public",
     )
 }

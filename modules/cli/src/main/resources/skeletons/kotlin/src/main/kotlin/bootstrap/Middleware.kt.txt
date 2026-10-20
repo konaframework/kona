@@ -27,7 +27,7 @@ object Middleware {
         val files = app.resolve(FilesystemManager::class.java)
         val auth = app.resolve(AuthManager::class.java)
         val publicRoot = app.basePath.resolve(
-            app.config.getString("paths.public") ?: "src/main/resources/public",
+            app.config.getString("paths.public") ?: "public",
         )
         app.resolve(HttpKernel::class.java)
             .prependMiddleware(ServePublicStorage(files.disk("public")))

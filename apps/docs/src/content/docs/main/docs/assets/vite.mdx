@@ -58,7 +58,7 @@ Vite.asset("src/main/resources/js/app.js")
 // prod:   /build/assets/app-<hash>.js
 ```
 
-`CremaServiceProvider` and `InertiaServiceProvider` bind `AssetManifest` to `vite.public_path`, or else `inertia.public_path` (default `<base>/public`), and set the `Vite` facade. They also serve that directory over HTTP, so `/build/assets/…` is reachable even when `paths.public` is `src/main/resources/public` (logos and `robots.txt`).
+`CremaServiceProvider` and `InertiaServiceProvider` bind `AssetManifest` to `vite.public_path`, or else `inertia.public_path` (default `<base>/public`, the same directory as `paths.public`), and set the `Vite` facade. They also serve that directory over HTTP, so `/branding/…`, `/robots.txt`, and `/build/assets/…` come from one web root. Source files such as `src/main/resources/js/app.js` stay off that tree.
 
 Crema `@vite('…')` uses the same resolver when the facade is bound. If there is no hot file and no manifest, it falls back to `/build/<entry>`. That fallback is only a placeholder — start the dev server or run a production build before expecting the browser to load the entry. Inertia shells (`{!! vite !!}`) leave the tag slot empty in that case instead of emitting the placeholder.
 

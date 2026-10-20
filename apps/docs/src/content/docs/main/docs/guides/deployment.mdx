@@ -74,7 +74,7 @@ build/install/<app-name>/
   lib/                    # app JAR + dependencies
 ```
 
-Run it with the **project root as the working directory** so `.env`, `storage/`, and `src/main/resources/public` resolve the same way as in development:
+Run it with the **project root as the working directory** so `.env`, `storage/`, and `public/` resolve the same way as in development:
 
 ```bash
 # example: kona new hello-kona
@@ -364,10 +364,10 @@ This check is **liveness-oriented** (process up and kernel answering). It does n
 
 | Path / URL | Behavior today |
 |------------|----------------|
-| `src/main/resources/public/` (`paths.public`) | Scaffold `Middleware` prepends **`ServePublicDirectory`**: a `GET`/`HEAD` under this tree (for example `/branding/kona-logo.svg`, `/robots.txt`) is served from disk. Path escapes (`..`) and symlinks are rejected. |
+| `public/` (`paths.public`, default) | Scaffold `Middleware` prepends **`ServePublicDirectory`**: a `GET`/`HEAD` under this tree (for example `/branding/kona-logo.svg`, `/robots.txt`, `/build/assets/…`) is served from disk. Path escapes (`..`) and symlinks are rejected. |
 | `GET /storage/...` | Served by `ServePublicStorage` from the **public** filesystem disk (see [Public disk and URLs](../../filesystem/urls/)). |
 | `./grind storage:link` | Symlinks `public/storage` → `storage/app/public` for tooling that expects a static tree. |
-| Frontend kits (Vite / Inertia / Brew) | Production builds write under `public/build/` (`manifest.json` or `.vite/manifest.json`, plus `assets/<hash>.*`). The browser requests `/build/assets/<hash>.js`, not the source path. `CremaServiceProvider` / `InertiaServiceProvider` serve the project `public/` directory, so those files answer on the JVM even when `paths.public` points at `src/main/resources/public`. Run `npm run build` **before** or **during** deploy. Do not ship `public/hot` — that file selects the dev server. |
+| Frontend kits (Vite / Inertia / Brew) | Production builds write under `public/build/` (`manifest.json` or `.vite/manifest.json`, plus `assets/<hash>.*`). The browser requests `/build/assets/<hash>.js`, not the source path under `src/main/resources/js`. Run `npm run build` **before** or **during** deploy. Do not ship `public/hot` — that file selects the dev server. |
 
 Common production split:
 

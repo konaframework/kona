@@ -199,7 +199,7 @@ There is **no** JSON or `.properties` config directory loading. Settings live in
 
 ### Paths
 
-`PathLayout` still honors `paths.langRoot`, `paths.resources`, `paths.storage`, and `paths.public`. Ship them from `config/Paths` (or omit the module and keep framework defaults). `Application.configPath()` / `Paths.config()` resolve to the language-root `config/` directory (for example `src/main/kotlin/config`), not `src/main/resources/config`.
+`PathLayout` still honors `paths.langRoot`, `paths.resources`, `paths.storage`, and `paths.public`. The default public directory is project-root `public/` (the HTTP document root). Ship overrides from `config/Paths` (or omit the module and keep framework defaults). `Application.configPath()` / `Paths.config()` resolve to the language-root `config/` directory (for example `src/main/kotlin/config`), not `src/main/resources/config`.
 
 ## Environment variables and `.env`
 

@@ -48,9 +48,9 @@ class CremaServiceProvider : ServiceProvider {
         }
 
         /**
-         * Serves Vite's `public/build` tree (hashed assets) from the project public directory.
-         * Scaffold apps keep logos under `paths.public` (`src/main/resources/public`); this extra
-         * root is what makes `/build/assets/…` reachable without a reverse proxy.
+         * Serves the project `public/` directory (logos, `robots.txt`, and Vite `public/build`).
+         * That directory is also `paths.public` by default. Apps that override `paths.public`
+         * still get hashed `/build/assets/…` from this root.
          */
         @JvmStatic
         fun ensureViteAssetsServed(app: Application) {

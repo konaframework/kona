@@ -13,13 +13,14 @@ dependencies {
 
 kover {
     reports {
-        total {
-            filters {
-                excludes {
-                    classes("org.konaframework.core.internal.*")
-                    annotatedBy("org.konaframework.core.KoverExclude")
-                }
+        // Common filters only. `total { filters }` replaces this block on Kover 0.9.
+        filters {
+            excludes {
+                classes("org.konaframework.core.internal.*")
+                annotatedBy("org.konaframework.core.KoverExclude")
             }
+        }
+        total {
             verify {
                 rule {
                     bound {

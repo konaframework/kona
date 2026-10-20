@@ -53,7 +53,7 @@ public final class Filesystems implements ConfigFile {
         disks.put("memory", memory);
 
         Map<String, Object> links = new LinkedHashMap<>();
-        links.put("src/main/resources/public/storage", "storage/app/public");
+        links.put("public/storage", "storage/app/public");
 
         Map<String, Object> values = new LinkedHashMap<>();
         /*

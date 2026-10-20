@@ -30,7 +30,7 @@ public final class Middleware {
         AuthManager auth = app.resolve(AuthManager.class);
         String publicRel = app.getConfig().getString("paths.public");
         if (publicRel == null || publicRel.isBlank()) {
-            publicRel = "src/main/resources/public";
+            publicRel = "public";
         }
         app.resolve(HttpKernel.class)
             .prependMiddleware(new ServePublicStorage(files.disk("public")))

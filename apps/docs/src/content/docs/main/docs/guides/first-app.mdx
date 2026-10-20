@@ -52,7 +52,7 @@ Everything application-owned lives under `src/main` (plus project-root `storage/
 | `src/main/…/routes/WebRoutes` + `ApiRoutes` | Web (`/`, `/login`, `/dashboard`) and `/api` route tables |
 | `src/main/resources/config/` | JSON config (`app`, `http`, `paths`, `session`) |
 | `src/main/resources/views/` | Crema views (`welcome`, `login`, `dashboard` on web kits) |
-| `src/main/resources/public/` | Public static files (`branding/kona-logo.svg`) |
+| `public/` | HTTP document root (`branding/kona-logo.svg`, Vite `public/build`) |
 | `storage/` | Writable runtime data (logs, framework cache) |
 | `build.gradle.kts` | HTTP, grind, extract, redis, session, auth, queue, schedule, mail, crema |
 
