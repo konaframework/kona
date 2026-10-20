@@ -43,10 +43,10 @@ constructor(
             "kit" to plan.kit,
             "appKey" to ScaffoldKeys.generateAppKey(),
             "dbConnection" to dbConnection,
-            "viteEntry" to ScaffoldFrontends.viteEntry(plan.frontend),
+            "viteEntry" to ScaffoldFrontends.viteEntry(plan.frontend, plan.script),
         )
         Files.createDirectories(target)
-        copySkeleton(plan.lang, target, variables, plan.kit, plan.css, plan.frontend)
+        copySkeleton(plan.lang, target, variables, plan.kit, plan.css, plan.frontend, plan.script)
         applyDatabaseSelection(target, database, dbConnection)
         target.resolve("grind").toFile().setExecutable(true)
         target.resolve("gradlew").toFile().setExecutable(true)
@@ -209,6 +209,7 @@ constructor(
         kit: String = "web",
         css: String = "custom",
         frontend: String = "vue",
+        script: String = "js",
     ) {
         val files = SKELETONS[lang] ?: throw KonaCliException("Unknown skeleton: $lang")
         COMMON_FILES.forEach { copyResource("skeletons/common/$it", target.resolve(destination(it)), variables) }
@@ -236,7 +237,7 @@ constructor(
             Files.createDirectories(target.resolve(it))
         }
         applyKit(lang, kit, target, variables)
-        ScaffoldFrontends.apply(target, kit, css, frontend)
+        ScaffoldFrontends.apply(target, kit, css, frontend, script)
     }
 
     internal fun applyKit(lang: String, kit: String, target: Path, variables: Map<String, String>) {
@@ -348,6 +349,9 @@ constructor(
         }
         private val COMMON_FILES = listOf(
             "gitignore.txt",
+            "public/.gitkeep",
+            "public/robots.txt",
+            "public/branding/kona-logo.svg",
             "gradlew",
             "gradlew.bat",
             "gradle/wrapper/gradle-wrapper.jar",
@@ -391,9 +395,6 @@ constructor(
                 "$root/config/Paths.$ext.txt",
                 "src/main/resources/css/app.css",
                 "src/main/resources/js/app.js",
-                "public/.gitkeep",
-                "public/robots.txt",
-                "public/branding/kona-logo.svg",
                 "src/main/resources/META-INF/kona/migrations",
                 "src/main/resources/lang/.gitkeep",
                 "$root/app/http/middleware/.gitkeep",
@@ -535,7 +536,8 @@ internal fun printNewHelp(io: ConsoleIO, versions: KonaVersions = KonaVersions.l
     io.twoColumn("kona new my-app --no-interaction", "Silent defaults (kotlin, web, sqlite)")
     io.writeln()
     io.title("Skip one step")
-    io.info("--lang --kit/--preset --css --frontend --name --database --install-deps --migrate --seed")
+    io.info("--lang --kit/--preset --css --frontend --typescript/--ts --javascript/--js --name --database --install-deps --migrate --seed")
+    io.info("Inertia only: --typescript/--ts or --javascript/--js. If both are passed, the last flag wins.")
     io.info("Aliases: --no-interactive (same as --no-interaction); --no-install-deps --no-migrate --no-seed")
     io.outro("https://docs.konaframework.org/docs/starter-kits/")
 }

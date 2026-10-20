@@ -141,7 +141,7 @@ Set these before or while registering providers (kit apps already do):
 
 Details: [Configuration](../../essentials/configuration/).
 
-**React note:** the scaffold entry is `app.jsx`. Point Vite tags at it:
+**React note:** the JavaScript scaffold entry is `app.jsx`. Point Vite tags at it:
 
 ```kotlin
 .afterBoot { app ->
@@ -149,7 +149,9 @@ Details: [Configuration](../../essentials/configuration/).
 }
 ```
 
-(Default `viteEntries` is `src/main/resources/js/app.js`, which matches Vue/Svelte.)
+(Default `viteEntries` is `src/main/resources/js/app.js`, which matches Vue/Svelte JavaScript.)
+
+**TypeScript:** `kona new --kit=inertia --typescript` (alias `--ts`) writes `app.ts` for Vue and Svelte, or `app.tsx` for React, and sets `viteEntries` to that same path. `--javascript` / `--js` keeps the JavaScript files. The last of those flags wins. Vite still emits `public/build`; the source file stays under `src/main/resources/js/`.
 
 ### 3. Register middleware
 

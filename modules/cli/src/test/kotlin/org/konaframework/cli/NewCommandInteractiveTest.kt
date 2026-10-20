@@ -73,6 +73,32 @@ class NewCommandInteractiveTest {
         assertEquals("vue", NewStacks.frontendId(NewStacks.FE_VUE))
         assertEquals("java", NewStacks.langId(NewStacks.LANG_JAVA))
         assertEquals("kotlin", NewStacks.langId(NewStacks.LANG_KOTLIN))
+        assertEquals("ts", NewStacks.scriptId(NewStacks.SCRIPT_TS))
+        assertEquals("js", NewStacks.scriptId(NewStacks.SCRIPT_JS))
+        assertEquals("js", NewStacks.scriptId("other"))
+        assertEquals(null, frontendScriptChoice(emptyMap()))
+        assertEquals(null, frontendScriptChoice(mapOf("kit" to "inertia")))
+        assertEquals("ts", frontendScriptChoice(mapOf("typescript" to "true")))
+        assertEquals("ts", frontendScriptChoice(mapOf("ts" to "yes")))
+        assertEquals("js", frontendScriptChoice(mapOf("javascript" to "true")))
+        assertEquals("js", frontendScriptChoice(mapOf("js" to "true")))
+        assertEquals("js", frontendScriptChoice(mapOf("typescript" to "false")))
+        assertEquals("js", frontendScriptChoice(mapOf("ts" to "0")))
+        assertEquals("js", frontendScriptChoice(mapOf("typescript" to "no")))
+        assertEquals("ts", frontendScriptChoice(mapOf("javascript" to "false")))
+        assertEquals("ts", frontendScriptChoice(mapOf("js" to "NO")))
+        assertEquals("ts", frontendScriptChoice(linkedMapOf("javascript" to "true", "typescript" to "true")))
+        assertEquals("js", frontendScriptChoice(linkedMapOf("ts" to "true", "js" to "true")))
+        assertEquals(
+            "ts",
+            frontendScriptChoice(linkedMapOf("typescript" to "false", "javascript" to "false")),
+        )
+        assertTrue(flagOn("true"))
+        assertTrue(flagOn("TRUE"))
+        assertFalse(flagOn("false"))
+        assertFalse(flagOn("0"))
+        assertFalse(flagOn("no"))
+        assertFalse(flagOn("NO"))
         assertThrows<KonaCliException> { parseCssFlag("bulma") }
         assertThrows<KonaCliException> { parseFrontendFlag("angular") }
         assertThrows<KonaCliException> { parseKitFlag("rails") }
@@ -90,6 +116,10 @@ class NewCommandInteractiveTest {
         assertEquals(
             "Inertia · React · Bootstrap",
             NewPlan(temp, "A", "kotlin", "inertia", "bootstrap", "react", db, false, false, false).stackLabel,
+        )
+        assertEquals(
+            "Inertia · React · Bootstrap · TypeScript",
+            NewPlan(temp, "A", "kotlin", "inertia", "bootstrap", "react", db, false, false, false, "ts").stackLabel,
         )
         assertEquals(
             "Inertia · custom CSS",
@@ -294,6 +324,7 @@ class NewCommandInteractiveTest {
                     "--lang=java",
                     "--kit=inertia",
                     "--frontend=react",
+                    "--javascript",
                     "--css=bootstrap",
                     "--name=Hello Cafe",
                     "--database=sqlite",
@@ -311,6 +342,8 @@ class NewCommandInteractiveTest {
         assertTrue(Files.readString(app.resolve("src/main/java/bootstrap/App.java")).contains("app.jsx"))
         assertFalse(out.toString().contains("What are we brewing?"))
         assertFalse(out.toString().contains("Inertia adapter"))
+        assertFalse(out.toString().contains("Frontend language"))
+        assertTrue(out.toString().contains("Frontend   JavaScript"))
         assertTrue(out.toString().contains("Ready to write"))
         assertTrue(out.toString().contains("npm install && npm run dev"))
         assertTrue(out.toString().contains("./grind migrate --seed"))
@@ -419,6 +452,10 @@ class NewCommandInteractiveTest {
         assertEquals("src/main/resources/js/app.js", ScaffoldFrontends.viteEntry("vue"))
         assertEquals("src/main/resources/js/app.jsx", ScaffoldFrontends.viteEntry("react"))
         assertEquals("src/main/resources/js/app.js", ScaffoldFrontends.viteEntry(""))
+        assertEquals("src/main/resources/js/app.ts", ScaffoldFrontends.viteEntry("vue", "ts"))
+        assertEquals("src/main/resources/js/app.ts", ScaffoldFrontends.viteEntry("", "ts"))
+        assertEquals("src/main/resources/js/app.tsx", ScaffoldFrontends.viteEntry("react", "ts"))
+        assertFalse(Files.readString(vueTw.resolve("package.json")).contains("typescript"))
     }
 
     @Test
@@ -538,12 +575,218 @@ class NewCommandInteractiveTest {
     @Test
     fun interactiveInertiaFrontendPrompt() {
         val app = temp.resolve("in-fe")
-        // name, language, frontend 3=Svelte, css default Tailwind, db, install/migrate/seed no, confirm
-        val input = "\n3\n\n\nn\nn\nn\n\n"
-        val (cmd, _) = command(input)
+        // language, adapter 3=Svelte, script default JavaScript, css, db, install/migrate/seed no, confirm
+        val input = "\n3\n\n\n\nn\nn\nn\n\n"
+        val (cmd, out) = command(input)
         assertEquals(0, cmd.run(listOf(app.toString(), "--kit=inertia", "--name=Spa")))
         assertTrue(Files.isRegularFile(app.resolve("src/main/resources/js/Pages/Welcome.svelte")))
+        assertTrue(Files.isRegularFile(app.resolve("src/main/resources/js/app.js")))
+        assertFalse(Files.exists(app.resolve("tsconfig.json")))
+        assertTrue(out.toString().contains("Frontend language"))
+        assertTrue(out.toString().contains("Frontend   JavaScript"))
         assertTrue(Files.readString(app.resolve(".env")).contains("APP_NAME=Spa"))
+    }
+
+    @Test
+    fun interactiveInertiaTypescriptPrompt() {
+        val app = temp.resolve("in-ts")
+        // language default, script 2=TypeScript, confirm. Adapter, css, db, and post-steps are flagged.
+        val input = "\n2\n\n"
+        val (cmd, out) = command(input)
+        assertEquals(
+            0,
+            cmd.run(
+                listOf(
+                    app.toString(),
+                    "--kit=inertia",
+                    "--frontend=vue",
+                    "--css=tailwind",
+                    "--name=Typed",
+                    "--database=sqlite",
+                    "--no-install-deps",
+                    "--no-migrate",
+                    "--no-seed",
+                ),
+            ),
+        )
+        val text = out.toString()
+        assertTrue(text.contains("Frontend language"))
+        assertFalse(text.contains("Inertia adapter"))
+        assertTrue(text.contains("Frontend   TypeScript"))
+        assertTrue(text.contains("TypeScript"))
+        assertTrue(Files.readString(app.resolve("src/main/resources/js/app.ts")).contains("DefineComponent"))
+        assertTrue(Files.readString(app.resolve("src/main/resources/js/app.ts")).contains("app.css"))
+        assertFalse(Files.exists(app.resolve("src/main/resources/js/app.js")))
+        assertTrue(Files.readString(app.resolve("src/main/resources/js/Pages/Welcome.vue")).contains("lang=\"ts\""))
+        assertTrue(Files.readString(app.resolve("src/main/resources/js/Pages/Welcome.vue")).contains("withDefaults"))
+        assertTrue(Files.readString(app.resolve("package.json")).contains("vue-tsc"))
+        assertTrue(Files.readString(app.resolve("package.json")).contains("\"typecheck\": \"vue-tsc --noEmit\""))
+        assertTrue(Files.readString(app.resolve("vite.config.js")).contains("app.ts"))
+        assertTrue(Files.readString(app.resolve("vite.config.js")).contains("public/build"))
+        assertTrue(Files.readString(app.resolve("tsconfig.json")).contains("env.d.ts"))
+        assertTrue(Files.readString(app.resolve("env.d.ts")).contains("*.vue"))
+        assertTrue(Files.readString(app.resolve("src/main/resources/views/welcome.crema.html")).contains("app.ts"))
+        assertTrue(Files.readString(app.resolve("src/main/kotlin/bootstrap/App.kt")).contains("src/main/resources/js/app.ts"))
+        assertTrue(Files.isRegularFile(app.resolve("public/branding/kona-logo.svg")))
+        assertFalse(Files.exists(app.resolve("src/main/resources/public")))
+    }
+
+    @Test
+    fun typescriptFlagWritesRealEntriesAndLastWins() {
+        val vueBs = temp.resolve("vue-bs-ts")
+        assertEquals(
+            0,
+            NewCommand().run(
+                listOf(vueBs.toString(), "--kit=inertia", "--frontend=vue", "--css=bootstrap", "--typescript", "--no-interaction"),
+            ),
+        )
+        assertTrue(Files.readString(vueBs.resolve("src/main/resources/js/Pages/Welcome.vue")).contains("container py-5"))
+        assertTrue(Files.readString(vueBs.resolve("src/main/resources/js/Pages/Welcome.vue")).contains("lang=\"ts\""))
+        assertTrue(Files.readString(vueBs.resolve("src/main/kotlin/bootstrap/App.kt")).contains("app.ts"))
+
+        val reactCustom = temp.resolve("react-custom-ts")
+        assertEquals(
+            0,
+            NewCommand().run(
+                listOf(
+                    reactCustom.toString(),
+                    "--kit=inertia",
+                    "--frontend=react",
+                    "--css=custom",
+                    "--js",
+                    "--ts",
+                    "--no-interaction",
+                ),
+            ),
+        )
+        val reactApp = Files.readString(reactCustom.resolve("src/main/resources/js/app.tsx"))
+        assertTrue(reactApp.contains("Pages/**/*.tsx"))
+        assertFalse(reactApp.contains("app.css"))
+        assertTrue(Files.readString(reactCustom.resolve("src/main/resources/js/Pages/Welcome.tsx")).contains("WelcomeProps"))
+        assertTrue(Files.readString(reactCustom.resolve("src/main/resources/js/Pages/Welcome.tsx")).contains("system-ui"))
+        assertTrue(Files.readString(reactCustom.resolve("package.json")).contains("@types/react"))
+        assertTrue(Files.readString(reactCustom.resolve("package.json")).contains("\"typecheck\": \"tsc --noEmit\""))
+        assertTrue(Files.readString(reactCustom.resolve("vite-env.d.ts")).contains("vite/client"))
+        assertTrue(Files.readString(reactCustom.resolve("tsconfig.json")).contains("react-jsx"))
+        assertFalse(Files.exists(reactCustom.resolve("src/main/resources/js/app.js")))
+        assertFalse(Files.exists(reactCustom.resolve("src/main/resources/js/app.jsx")))
+        assertTrue(
+            Files.readString(reactCustom.resolve("src/main/kotlin/bootstrap/App.kt")).contains("src/main/resources/js/app.tsx"),
+        )
+
+        val reactTw = temp.resolve("react-tw-ts")
+        assertEquals(
+            0,
+            NewCommand().run(
+                listOf(
+                    reactTw.toString(),
+                    "--lang=java",
+                    "--kit=inertia",
+                    "--frontend=react",
+                    "--css=tailwind",
+                    "--typescript=false",
+                    "--javascript=false",
+                    "--no-interaction",
+                ),
+            ),
+        )
+        assertTrue(Files.readString(reactTw.resolve("src/main/resources/js/Pages/Welcome.tsx")).contains("bg-foam"))
+        assertTrue(Files.readString(reactTw.resolve("src/main/resources/js/app.tsx")).contains("app.css"))
+        assertTrue(Files.readString(reactTw.resolve("src/main/resources/views/welcome.crema.html")).contains("app.tsx"))
+        assertTrue(Files.readString(reactTw.resolve("src/main/java/bootstrap/App.java")).contains("src/main/resources/js/app.tsx"))
+
+        val svelteBs = temp.resolve("svelte-bs-ts")
+        assertEquals(
+            0,
+            NewCommand().run(
+                listOf(svelteBs.toString(), "--kit=inertia", "--frontend=svelte", "--css=bootstrap", "--ts", "--no-interaction"),
+            ),
+        )
+        val sveltePage = Files.readString(svelteBs.resolve("src/main/resources/js/Pages/Welcome.svelte"))
+        assertTrue(sveltePage.contains("lang=\"ts\""))
+        assertTrue(sveltePage.contains("display-6"))
+        assertTrue(sveltePage.contains("title?: string"))
+        assertTrue(Files.readString(svelteBs.resolve("src/main/resources/js/app.ts")).contains("app.css"))
+        assertTrue(Files.readString(svelteBs.resolve("svelte.config.js")).contains("vitePreprocess"))
+        assertTrue(Files.readString(svelteBs.resolve("tsconfig.json")).contains("svelte"))
+        assertFalse(Files.exists(svelteBs.resolve("src/main/resources/js/app.js")))
+
+        val svelteCustom = temp.resolve("svelte-custom-ts")
+        assertEquals(
+            0,
+            NewCommand().run(
+                listOf(
+                    svelteCustom.toString(),
+                    "--kit=inertia",
+                    "--frontend=svelte",
+                    "--css=custom",
+                    "--typescript",
+                    "--javascript",
+                    "--no-interaction",
+                ),
+            ),
+        )
+        assertTrue(Files.isRegularFile(svelteCustom.resolve("src/main/resources/js/app.js")))
+        assertFalse(Files.exists(svelteCustom.resolve("tsconfig.json")))
+        assertFalse(Files.readString(svelteCustom.resolve("src/main/resources/js/Pages/Welcome.svelte")).contains("lang=\"ts\""))
+
+        val api = temp.resolve("api-ignores-ts")
+        assertEquals(
+            0,
+            NewCommand().run(listOf(api.toString(), "--kit=api", "--typescript", "--no-interaction")),
+        )
+        assertFalse(Files.exists(api.resolve("tsconfig.json")))
+        assertFalse(Files.exists(api.resolve("package.json")))
+
+        val brew = temp.resolve("brew-ignores-ts")
+        assertEquals(
+            0,
+            NewCommand().run(listOf(brew.toString(), "--kit=brew", "--css=tailwind", "--ts", "--no-interaction")),
+        )
+        assertTrue(Files.readString(brew.resolve("src/main/resources/js/app.js")).contains("app.css"))
+        assertFalse(Files.exists(brew.resolve("tsconfig.json")))
+        assertTrue(Files.readString(brew.resolve("src/main/resources/views/welcome.crema.html")).contains("app.js"))
+
+        val web = temp.resolve("web-ignores-ts")
+        assertEquals(
+            0,
+            NewCommand().run(listOf(web.toString(), "--kit=web", "--css=custom", "--typescript", "--no-interaction")),
+        )
+        assertFalse(Files.exists(web.resolve("package.json")))
+        assertFalse(Files.exists(web.resolve("tsconfig.json")))
+
+        val seeded = temp.resolve("seeded-react").also { Files.createDirectories(it.resolve("src/main/resources/js")) }
+        Files.writeString(seeded.resolve("src/main/resources/js/app.js"), "old")
+        Files.writeString(seeded.resolve("src/main/resources/js/app.jsx"), "old")
+        ScaffoldFrontends.apply(seeded, "inertia", "custom", "react", "ts")
+        assertFalse(Files.exists(seeded.resolve("src/main/resources/js/app.js")))
+        assertFalse(Files.exists(seeded.resolve("src/main/resources/js/app.jsx")))
+        assertTrue(Files.isRegularFile(seeded.resolve("src/main/resources/js/app.tsx")))
+
+        val fresh = temp.resolve("fresh-vue-ts").also { Files.createDirectories(it) }
+        ScaffoldFrontends.apply(fresh, "inertia", "tailwind", "vue", "ts")
+        assertTrue(Files.isRegularFile(fresh.resolve("src/main/resources/js/app.ts")))
+        assertFalse(Files.exists(fresh.resolve("src/main/resources/js/app.js")))
+
+        val vueCustom = temp.resolve("vue-custom-direct").also { Files.createDirectories(it) }
+        ScaffoldFrontends.apply(vueCustom, "inertia", "custom", "vue", "ts")
+        assertFalse(Files.readString(vueCustom.resolve("src/main/resources/js/app.ts")).contains("app.css"))
+        assertTrue(Files.readString(vueCustom.resolve("src/main/resources/js/Pages/Welcome.vue")).contains("lang=\"ts\""))
+
+        val svelteCustomDirect = temp.resolve("svelte-custom-direct").also { Files.createDirectories(it) }
+        ScaffoldFrontends.apply(svelteCustomDirect, "inertia", "custom", "svelte", "ts")
+        assertFalse(Files.readString(svelteCustomDirect.resolve("src/main/resources/js/app.ts")).contains("app.css"))
+        assertTrue(Files.readString(svelteCustomDirect.resolve("src/main/resources/js/Pages/Welcome.svelte")).contains("lang=\"ts\""))
+
+        val svelteTw = temp.resolve("svelte-tw-direct").also { Files.createDirectories(it) }
+        ScaffoldFrontends.apply(svelteTw, "inertia", "tailwind", "svelte", "ts")
+        assertTrue(Files.readString(svelteTw.resolve("src/main/resources/js/Pages/Welcome.svelte")).contains("bg-foam"))
+        assertTrue(Files.readString(svelteTw.resolve("src/main/resources/js/app.ts")).contains("app.css"))
+
+        val reactBs = temp.resolve("react-bs-direct").also { Files.createDirectories(it) }
+        ScaffoldFrontends.apply(reactBs, "inertia", "bootstrap", "react", "ts")
+        assertTrue(Files.readString(reactBs.resolve("src/main/resources/js/Pages/Welcome.tsx")).contains("display-6"))
+        assertTrue(Files.readString(reactBs.resolve("src/main/resources/js/app.tsx")).contains("app.css"))
     }
 
     @Test

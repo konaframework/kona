@@ -11,6 +11,7 @@ kona new my-app                   # directory set; still asks lang / kit / CSS /
 kona new my-app --no-interaction  # silent defaults (kotlin, web, sqlite)
 kona new my-app --kit=api --lang=java --no-interaction
 kona new my-app --kit=inertia --frontend=react --css=tailwind
+kona new my-app --kit=inertia --frontend=vue --typescript
 kona new my-app --kit=brew --css=bootstrap --install-deps --migrate --seed
 ```
 
@@ -25,12 +26,13 @@ Without `--no-interaction`, `kona new` asks only for values you did not already 
 3. **Language** — Kotlin (default) or Java
 4. **What are we brewing?** — API only, Crema, Brew, or Inertia
 5. **Inertia adapter** — Vue, React, or Svelte (Inertia only)
-6. **CSS** — Tailwind, Bootstrap, or custom (skipped for API)
-7. **Database** — sqlite (default), h2, mysql, mariadb, pgsql, sqlsrv, oracle
-8. **Install dependencies now?** — Gradle wrapper, plus `npm` or `pnpm` when `package.json` exists
-9. **Run initial migrations?**
-10. **Run database seeders?**
-11. **Summary card** — then confirm before any files are written
+6. **Frontend language** — JavaScript (default) or TypeScript (Inertia only; skipped when `--typescript` / `--ts` or `--javascript` / `--js` is set)
+7. **CSS** — Tailwind, Bootstrap, or custom (skipped for API)
+8. **Database** — sqlite (default), h2, mysql, mariadb, pgsql, sqlsrv, oracle
+9. **Install dependencies now?** — Gradle wrapper, plus `npm` or `pnpm` when `package.json` exists
+10. **Run initial migrations?**
+11. **Run database seeders?**
+12. **Summary card** — then confirm before any files are written
 
 Full non-interactive defaults only with `--no-interaction` or `--no-interactive`. Scripts should pass that flag; **`CI=true` does not skip prompts.** With `--no-interaction` and no directory, the default folder is `kona-app`.
 
@@ -45,6 +47,8 @@ If stdin is not readable (closed pipe, EOF) and you did not opt out, Kona prints
 | `--lang=kotlin\|java` | Language |
 | `--kit=` / `--preset=` | Stack (`web`, `api`, `crema`, `inertia`, `brew`) |
 | `--frontend=vue\|react\|svelte` | Inertia adapter |
+| `--typescript` / `--ts` | Inertia frontend language → TypeScript |
+| `--javascript` / `--js` | Inertia frontend language → JavaScript |
 | `--css=tailwind\|bootstrap\|custom` | CSS (`tw`, `bs`, `none` / `vanilla` / `plain` aliases) |
 | `--database=` | Database engine |
 | `--install-deps` / `--no-install-deps` | Gradle + npm/pnpm offer |
@@ -78,17 +82,41 @@ Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail pro
 | `tailwind` | `package.json` + Vite + Tailwind v4 (`@tailwindcss/vite`), `css/app.css` with the coffee `@theme`, Crema views (or Inertia pages) using utilities, `@vite('src/main/resources/js/app.js')` |
 | `bootstrap` | Vite + Bootstrap 5, Crema/Inertia markup using Bootstrap classes |
 
-Crema and Brew with Tailwind or Bootstrap add `src/main/resources/js/app.js` that imports the CSS. Inertia adapters import the same file from `app.js` / `app.jsx`.
+Crema and Brew with Tailwind or Bootstrap add `src/main/resources/js/app.js` that imports the CSS. Inertia adapters import the same file from `app.js` / `app.jsx` (or `app.ts` / `app.tsx` when you opt into TypeScript).
+
+The web root is the project directory `public/` (`paths.public`). Logos and `robots.txt` live there. Vite’s production build writes `public/build`. Source entries stay under `src/main/resources/js/`. `kona new` does not create `src/main/resources/public`.
 
 Serve CSS in development with Vite running (`npm run dev`) alongside `./grind serve`. Production: `npm run build` writes `public/build`.
 
 ## Inertia adapters
 
-| `--frontend` | Entry | Packages |
-|--------------|-------|----------|
-| `vue` (default) | `src/main/resources/js/app.js` | `@inertiajs/vue3` |
-| `react` | `src/main/resources/js/app.jsx` (also set on `InertiaManager.viteEntries`) | `@inertiajs/react` |
-| `svelte` | `src/main/resources/js/app.js` | `@inertiajs/svelte` |
+| `--frontend` | JavaScript entry (default) | TypeScript entry | Packages |
+|--------------|----------------------------|------------------|----------|
+| `vue` (default) | `src/main/resources/js/app.js` | `src/main/resources/js/app.ts` | `@inertiajs/vue3` |
+| `react` | `src/main/resources/js/app.jsx` | `src/main/resources/js/app.tsx` | `@inertiajs/react` |
+| `svelte` | `src/main/resources/js/app.js` | `src/main/resources/js/app.ts` | `@inertiajs/svelte` |
+
+The same path is the Vite `rollupOptions.input` and `InertiaManager.viteEntries`, so the manifest key matches the tag `{!! vite !!}` prints.
+
+### Frontend language
+
+JavaScript is the default. Non-interactive `kona new my-app --kit=inertia --no-interaction` stays JavaScript.
+
+| Flag | Effect |
+|------|--------|
+| `--typescript` or `--ts` | TypeScript entry, `tsconfig.json`, and `typescript` in `devDependencies` |
+| `--javascript` or `--js` | Force JavaScript |
+| Both | The **last** flag on the command line wins. `--typescript=false` selects JavaScript; `--javascript=false` selects TypeScript |
+
+API, Crema, and Brew ignore these flags and do not ask. Only Inertia shows **Frontend language** (after the adapter prompt).
+
+TypeScript scaffolds:
+
+- **Vue** — `app.ts`, `<script setup lang="ts">` on `Pages/Welcome.vue`, `env.d.ts`, `vue-tsc`, script `typecheck`
+- **React** — `app.tsx` and `Pages/Welcome.tsx`, `vite-env.d.ts`, `@types/react`, `@types/react-dom`
+- **Svelte** — `app.ts`, `<script lang="ts">` on `Pages/Welcome.svelte`, `vite-env.d.ts`, `svelte.config.js` with `vitePreprocess` so `npm run build` can compile the page
+
+`npm run build` is still Vite. `npm run typecheck` runs `vue-tsc` (Vue) or `tsc` (React and Svelte).
 
 Landing, login, and dashboard still ship as **Crema HTML** so session auth works before you add more Inertia pages. `js/Pages/Welcome.*` is the client page to grow from.
 

@@ -8,56 +8,75 @@ import java.nio.file.Path
  * menu item writes a working pipeline (Vite + Tailwind / Bootstrap / custom), not a stub.
  */
 internal object ScaffoldFrontends {
-    fun apply(target: Path, kit: String, css: String, frontend: String) {
+    fun apply(target: Path, kit: String, css: String, frontend: String, script: String = "js") {
         if (kit == "api") {
             return
         }
         if (kit == "inertia") {
             val adapter = if (frontend.isEmpty()) "vue" else frontend
-            writeInertia(target, adapter, css)
+            writeInertia(target, adapter, css, script)
         } else if (css != "custom") {
             writeViteCss(target, css)
             writeCremaViews(target, css, brew = kit == "brew")
         }
     }
 
-    fun writeInertia(target: Path, frontend: String, css: String) {
+    fun writeInertia(target: Path, frontend: String, css: String, script: String) {
+        val ts = script == "ts"
         val adapterPlugin = when (frontend) {
             "react" -> AdapterPlugin(
                 importLine = "import react from '@vitejs/plugin-react';",
                 call = "react()",
-                entry = "src/main/resources/js/app.jsx",
+                entry = if (ts) "src/main/resources/js/app.tsx" else "src/main/resources/js/app.jsx",
             )
             "svelte" -> AdapterPlugin(
                 importLine = "import { svelte } from '@sveltejs/vite-plugin-svelte';",
                 call = "svelte()",
-                entry = "src/main/resources/js/app.js",
+                entry = if (ts) "src/main/resources/js/app.ts" else "src/main/resources/js/app.js",
             )
             else -> AdapterPlugin(
                 importLine = "import vue from '@vitejs/plugin-vue';",
                 call = "vue()",
-                entry = "src/main/resources/js/app.js",
+                entry = if (ts) "src/main/resources/js/app.ts" else "src/main/resources/js/app.js",
             )
         }
-        writePackageJson(target, frontend, css)
+        writePackageJson(target, frontend, css, script)
         writeViteConfig(target, css, listOf(adapterPlugin))
         writeCssFile(target, css)
         when (frontend) {
             "react" -> {
-                put(target, adapterPlugin.entry, reactAppJsx(css))
-                put(target, "src/main/resources/js/Pages/Welcome.jsx", reactWelcome(css))
+                put(target, adapterPlugin.entry, if (ts) reactAppTsx(css) else reactAppJsx(css))
+                val page = if (ts) "src/main/resources/js/Pages/Welcome.tsx" else "src/main/resources/js/Pages/Welcome.jsx"
+                put(target, page, if (ts) reactWelcomeTs(css) else reactWelcome(css))
             }
             "svelte" -> {
-                put(target, adapterPlugin.entry, svelteAppJs(css))
-                put(target, "src/main/resources/js/Pages/Welcome.svelte", svelteWelcome(css))
+                put(target, adapterPlugin.entry, if (ts) svelteAppTs(css) else svelteAppJs(css))
+                put(target, "src/main/resources/js/Pages/Welcome.svelte", svelteWelcome(css, script))
             }
             else -> {
-                put(target, adapterPlugin.entry, vueAppJs(css))
-                put(target, "src/main/resources/js/Pages/Welcome.vue", vueWelcome(css))
+                put(target, adapterPlugin.entry, if (ts) vueAppTs(css) else vueAppJs(css))
+                put(target, "src/main/resources/js/Pages/Welcome.vue", vueWelcome(css, script))
+            }
+        }
+        if (ts) {
+            // Kit overlay always drops app.js. TypeScript replaces that entry; the manifest key is the .ts/.tsx path.
+            deleteIfExists(target, "src/main/resources/js/app.js")
+            if (frontend == "react") {
+                deleteIfExists(target, "src/main/resources/js/app.jsx")
+            }
+            put(target, "tsconfig.json", tsconfig(frontend))
+            if (frontend == "vue") {
+                put(target, "env.d.ts", vueEnvDts)
+            } else {
+                put(target, "vite-env.d.ts", viteEnvDts)
+            }
+            if (frontend == "svelte") {
+                put(target, "svelte.config.js", svelteConfigJs)
             }
         }
         if (css != "custom") {
-            writeCremaViews(target, css, brew = false)
+            val cremaEntry = if (ts) adapterPlugin.entry else "src/main/resources/js/app.js"
+            writeCremaViews(target, css, brew = false, viteEntry = cremaEntry)
         }
     }
 
@@ -68,17 +87,28 @@ internal object ScaffoldFrontends {
         put(target, "src/main/resources/js/app.js", "import '../css/app.css';\n")
     }
 
-    fun writeCremaViews(target: Path, css: String, brew: Boolean) {
-        put(target, "src/main/resources/views/welcome.crema.html", cremaWelcome(css, brew))
-        put(target, "src/main/resources/views/login.crema.html", cremaLogin(css))
-        put(target, "src/main/resources/views/dashboard.crema.html", cremaDashboard(css))
+    fun writeCremaViews(
+        target: Path,
+        css: String,
+        brew: Boolean,
+        viteEntry: String = "src/main/resources/js/app.js",
+    ) {
+        val tag = "@vite('$viteEntry')"
+        put(target, "src/main/resources/views/welcome.crema.html", cremaWelcome(css, brew, tag))
+        put(target, "src/main/resources/views/login.crema.html", cremaLogin(css, tag))
+        put(target, "src/main/resources/views/dashboard.crema.html", cremaDashboard(css, tag))
     }
 
-    fun viteEntry(frontend: String): String =
-        if (frontend == "react") "src/main/resources/js/app.jsx" else "src/main/resources/js/app.js"
+    fun viteEntry(frontend: String, script: String = "js"): String {
+        val ts = script == "ts"
+        return when (frontend) {
+            "react" -> if (ts) "src/main/resources/js/app.tsx" else "src/main/resources/js/app.jsx"
+            else -> if (ts) "src/main/resources/js/app.ts" else "src/main/resources/js/app.js"
+        }
+    }
 
-    private fun writePackageJson(target: Path, frontend: String, css: String) {
-        put(target, "package.json", packageJson(frontend, css))
+    private fun writePackageJson(target: Path, frontend: String, css: String, script: String = "js") {
+        put(target, "package.json", packageJson(frontend, css, script))
     }
 
     private fun writeViteConfig(target: Path, css: String, adapters: List<AdapterPlugin>) {
@@ -196,7 +226,7 @@ internal object ScaffoldFrontends {
         put(target, "src/main/resources/css/app.css", body)
     }
 
-    private fun packageJson(frontend: String, css: String): String {
+    private fun packageJson(frontend: String, css: String, script: String): String {
         val dependencies = linkedMapOf<String, String>()
         val dev = linkedMapOf("vite" to "^6.0.0")
         when (frontend) {
@@ -224,6 +254,23 @@ internal object ScaffoldFrontends {
             }
             "bootstrap" -> dependencies["bootstrap"] = "^5.3.3"
         }
+        if (script == "ts") {
+            dev["typescript"] = "^5.7.0"
+            when (frontend) {
+                "vue" -> dev["vue-tsc"] = "^2.2.0"
+                "react" -> {
+                    dev["@types/react"] = "^19.0.0"
+                    dev["@types/react-dom"] = "^19.0.0"
+                }
+            }
+        }
+        val typecheck = if (script != "ts") {
+            ""
+        } else if (frontend == "vue") {
+            ",\n                \"typecheck\": \"vue-tsc --noEmit\""
+        } else {
+            ",\n                \"typecheck\": \"tsc --noEmit\""
+        }
         fun mapJson(map: Map<String, String>): String {
             if (map.isEmpty()) return "{}"
             return map.entries.joinToString(",\n    ", "{\n    ", "\n  }") { (k, v) -> "\"$k\": \"$v\"" }
@@ -234,7 +281,7 @@ internal object ScaffoldFrontends {
               "type": "module",
               "scripts": {
                 "dev": "vite",
-                "build": "vite build"
+                "build": "vite build"$typecheck
               },
               "dependencies": ${mapJson(dependencies)},
               "devDependencies": ${mapJson(dev)}
@@ -308,7 +355,20 @@ internal object ScaffoldFrontends {
         """.trimIndent() + "\n"
     }
 
-    private fun vueWelcome(css: String): String =
+    private fun vueWelcome(css: String, script: String): String {
+        val js = vueWelcomeMarkup(css)
+        if (script != "ts") {
+            return js
+        }
+        return js
+            .replace("<script setup>", "<script setup lang=\"ts\">")
+            .replace(
+                "defineProps({\n  title: { type: String, default: 'Welcome' },\n  message: { type: String, default: '' },\n});",
+                "withDefaults(defineProps<{\n  title?: string;\n  message?: string;\n}>(), {\n  title: 'Welcome',\n  message: '',\n});",
+            )
+    }
+
+    private fun vueWelcomeMarkup(css: String): String =
         when (css) {
             "tailwind" ->
                 """
@@ -411,7 +471,18 @@ internal object ScaffoldFrontends {
                 """.trimIndent() + "\n"
         }
 
-    private fun svelteWelcome(css: String): String =
+    private fun svelteWelcome(css: String, script: String): String {
+        val js = svelteWelcomeMarkup(css)
+        if (script != "ts") {
+            return js
+        }
+        return js.replace(
+            "<script>\n  let { title = 'Welcome', message = '' } = \$props();\n</script>",
+            "<script lang=\"ts\">\n  let { title = 'Welcome', message = '' }: { title?: string; message?: string } = \$props();\n</script>",
+        )
+    }
+
+    private fun svelteWelcomeMarkup(css: String): String =
         when (css) {
             "tailwind" ->
                 """
@@ -461,9 +532,7 @@ internal object ScaffoldFrontends {
                 """.trimIndent() + "\n"
         }
 
-    private val viteTag = "@vite('src/main/resources/js/app.js')"
-
-    private fun cremaWelcome(css: String, brew: Boolean): String {
+    private fun cremaWelcome(css: String, brew: Boolean, viteTag: String): String {
         val title = if (brew) "Your Brew app is ready." else "Your app is ready."
         val lede = if (brew) {
             "Crema views, Cadence models, session auth, and Brew reactive components on one page."
@@ -564,7 +633,7 @@ internal object ScaffoldFrontends {
         }
     }
 
-    private fun cremaLogin(css: String): String =
+    private fun cremaLogin(css: String, viteTag: String): String =
         when (css) {
             "tailwind" ->
                 """
@@ -640,7 +709,7 @@ internal object ScaffoldFrontends {
                 """.trimIndent() + "\n"
         }
 
-    private fun cremaDashboard(css: String): String =
+    private fun cremaDashboard(css: String, viteTag: String): String =
         when (css) {
             "tailwind" ->
                 """
@@ -709,6 +778,192 @@ internal object ScaffoldFrontends {
                 </html>
                 """.trimIndent() + "\n"
         }
+
+    private fun vueAppTs(css: String): String {
+        val cssLine = if (css == "custom") "" else "import '../css/app.css';\n"
+        return cssLine + """
+            import { createApp, h, type DefineComponent } from 'vue';
+            import { createInertiaApp } from '@inertiajs/vue3';
+
+            createInertiaApp({
+              resolve: (name) => {
+                const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true });
+                const page = pages[`./Pages/${'$'}{name}.vue`];
+                if (!page) {
+                  throw new Error(`Inertia page not found: Pages/${'$'}{name}.vue`);
+                }
+                return page;
+              },
+              setup({ el, App, props, plugin }) {
+                createApp({ render: () => h(App, props) }).use(plugin).mount(el);
+              },
+            });
+        """.trimIndent() + "\n"
+    }
+
+    private fun reactAppTsx(css: String): String {
+        val cssLine = if (css == "custom") "" else "import '../css/app.css';\n"
+        return cssLine + """
+            import { createInertiaApp } from '@inertiajs/react';
+            import { createRoot } from 'react-dom/client';
+            import type { ReactNode } from 'react';
+
+            createInertiaApp({
+              resolve: (name) => {
+                const pages = import.meta.glob<{ default: (props: Record<string, unknown>) => ReactNode }>(
+                  './Pages/**/*.tsx',
+                  { eager: true },
+                );
+                const page = pages[`./Pages/${'$'}{name}.tsx`];
+                if (!page) {
+                  throw new Error(`Inertia page not found: Pages/${'$'}{name}.tsx`);
+                }
+                return page;
+              },
+              setup({ el, App, props }) {
+                if (!el) {
+                  throw new Error('Missing Inertia root element');
+                }
+                createRoot(el).render(<App {...props} />);
+              },
+            });
+        """.trimIndent() + "\n"
+    }
+
+    private fun reactWelcomeTs(css: String): String {
+        val body = when (css) {
+            "tailwind" ->
+                """
+                <main className="min-h-screen bg-foam text-ink p-8 max-w-xl">
+                  <h1 className="text-3xl font-bold text-accent">{title}</h1>
+                  {message ? <p className="mt-4 opacity-90">{message}</p> : null}
+                  <p className="mt-8 text-sm">
+                    <a className="text-caramel" href="https://docs.konaframework.org/">docs.konaframework.org</a>
+                  </p>
+                </main>
+                """.trimIndent()
+            "bootstrap" ->
+                """
+                <main className="container py-5">
+                  <h1 className="display-6">{title}</h1>
+                  {message ? <p className="lead">{message}</p> : null}
+                  <p className="mt-4">
+                    <a href="https://docs.konaframework.org/">docs.konaframework.org</a>
+                  </p>
+                </main>
+                """.trimIndent()
+            else ->
+                """
+                <main style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '40rem' }}>
+                  <h1>{title}</h1>
+                  {message ? <p>{message}</p> : null}
+                  <p><a href="https://docs.konaframework.org/">docs.konaframework.org</a></p>
+                </main>
+                """.trimIndent()
+        }
+        val header = """
+            type WelcomeProps = {
+              title?: string;
+              message?: string;
+            };
+
+            export default function Welcome({ title = 'Welcome', message = '' }: WelcomeProps) {
+              return (
+        """.trimIndent()
+        val footer = """
+              );
+            }
+        """.trimIndent()
+        return header + "\n" + body.prependIndent("    ") + "\n" + footer + "\n"
+    }
+
+    private fun svelteAppTs(css: String): String {
+        val cssLine = if (css == "custom") "" else "import '../css/app.css';\n"
+        return cssLine + """
+            import { createInertiaApp } from '@inertiajs/svelte';
+            import { mount, type Component } from 'svelte';
+
+            createInertiaApp({
+              resolve: (name) => {
+                const pages = import.meta.glob<Component<{ title?: string; message?: string }>>('./Pages/**/*.svelte', { eager: true });
+                const page = pages[`./Pages/${'$'}{name}.svelte`];
+                if (!page) {
+                  throw new Error(`Inertia page not found: Pages/${'$'}{name}.svelte`);
+                }
+                return page;
+              },
+              setup({ el, App, props }) {
+                if (!el) {
+                  throw new Error('Missing Inertia root element');
+                }
+                mount(App, { target: el, props });
+              },
+            });
+        """.trimIndent() + "\n"
+    }
+
+    private fun tsconfig(frontend: String): String {
+        val jsx = when (frontend) {
+            "react" -> "\n                \"jsx\": \"react-jsx\","
+            "vue" -> "\n                \"jsx\": \"preserve\","
+            else -> ""
+        }
+        val types = if (frontend == "svelte") "[\"vite/client\", \"svelte\"]" else "[\"vite/client\"]"
+        val extra = when (frontend) {
+            "vue" -> "\"env.d.ts\", \"src/main/resources/js/**/*.ts\", \"src/main/resources/js/**/*.vue\""
+            "react" -> "\"vite-env.d.ts\", \"src/main/resources/js/**/*.ts\", \"src/main/resources/js/**/*.tsx\""
+            else -> "\"vite-env.d.ts\", \"src/main/resources/js/**/*.ts\", \"src/main/resources/js/**/*.svelte\""
+        }
+        return """
+            {
+              "compilerOptions": {
+                "target": "ES2022",
+                "module": "ESNext",
+                "moduleResolution": "bundler",
+                "strict": true,$jsx
+                "isolatedModules": true,
+                "esModuleInterop": true,
+                "lib": ["ES2022", "DOM", "DOM.Iterable"],
+                "skipLibCheck": true,
+                "noEmit": true,
+                "types": $types
+              },
+              "include": [$extra]
+            }
+        """.trimIndent() + "\n"
+    }
+
+    private val vueEnvDts =
+        """
+        /// <reference types="vite/client" />
+
+        declare module '*.vue' {
+          import type { DefineComponent } from 'vue';
+          const component: DefineComponent<object, object, unknown>;
+          export default component;
+        }
+        """.trimIndent() + "\n"
+
+    private val viteEnvDts =
+        """
+        /// <reference types="vite/client" />
+        """.trimIndent() + "\n"
+
+    private val svelteConfigJs =
+        """
+        import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+
+        export default {
+          preprocess: vitePreprocess(),
+        };
+        """.trimIndent() + "\n"
+
+    private fun deleteIfExists(target: Path, relative: String) {
+        val path = target.resolve(relative)
+        if (Files.isRegularFile(path)) {
+            Files.delete(path)
+        }
+    }
 
     private fun put(target: Path, relative: String, content: String) {
         val path = target.resolve(relative)

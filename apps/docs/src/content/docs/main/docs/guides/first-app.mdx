@@ -16,7 +16,7 @@ kona new hello-kona --no-interaction
 cd hello-kona
 ```
 
-Use `--lang=java` for a Java skeleton. The default kit is **`web`** (Crema welcome view). Other kits: `--kit=api`, `--kit=inertia`, `--kit=brew`. CSS: `--css=tailwind|bootstrap|custom`. Inertia adapters: `--frontend=vue|react|svelte`. Each flag skips only that step. `kona new` with no arguments is the interactive installer; it refuses to overwrite an existing directory.
+Use `--lang=java` for a Java skeleton. The default kit is **`web`** (Crema welcome view). Other kits: `--kit=api`, `--kit=inertia`, `--kit=brew`. CSS: `--css=tailwind|bootstrap|custom`. Inertia adapters: `--frontend=vue|react|svelte`. Inertia frontends are JavaScript unless you pass `--typescript` (or `--ts`). Each flag skips only that step. `kona new` with no arguments is the interactive installer; it refuses to overwrite an existing directory.
 
 You should see something like:
 
@@ -35,7 +35,7 @@ That `./grind` file is part of the scaffold. `kona grind …` is a global conven
 
 ## What you got
 
-Everything application-owned lives under `src/main` (plus project-root `storage/` and `.env`):
+Everything application-owned lives under `src/main` (plus project-root `public/`, `storage/`, and `.env`):
 
 | Path | Role |
 |------|------|
@@ -52,7 +52,7 @@ Everything application-owned lives under `src/main` (plus project-root `storage/
 | `src/main/…/routes/WebRoutes` + `ApiRoutes` | Web (`/`, `/login`, `/dashboard`) and `/api` route tables |
 | `src/main/resources/config/` | JSON config (`app`, `http`, `paths`, `session`) |
 | `src/main/resources/views/` | Crema views (`welcome`, `login`, `dashboard` on web kits) |
-| `public/` | HTTP document root (`branding/kona-logo.svg`, Vite `public/build`) |
+| `public/` | HTTP document root (`branding/kona-logo.svg`, `robots.txt`, Vite `public/build`) |
 | `storage/` | Writable runtime data (logs, framework cache) |
 | `build.gradle.kts` | HTTP, grind, extract, redis, session, auth, queue, schedule, mail, crema |
 
