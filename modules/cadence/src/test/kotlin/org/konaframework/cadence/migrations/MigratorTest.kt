@@ -125,4 +125,37 @@ class MigratorTest {
         assertNull(registry["nope"])
         assertFalse(MigrationStatus("x", null).ran)
     }
+
+    @Test
+    fun registrySortsTimestampedNames() {
+        val later = object : Migration {
+            override fun up(schema: Schema) = Unit
+            override fun down(schema: Schema) = Unit
+        }
+        val earlier = object : Migration {
+            override fun up(schema: Schema) = Unit
+            override fun down(schema: Schema) = Unit
+        }
+        val registry = MigrationRegistry()
+            .add("M2026_10_20_120000_Later", later)
+            .add("CreateUsersTable", CreateUsersTable())
+            .add("M2026_10_20_110000_Earlier", earlier)
+        assertEquals(
+            listOf(
+                "CreateUsersTable",
+                "M2026_10_20_110000_Earlier",
+                "M2026_10_20_120000_Later",
+            ),
+            registry.names,
+        )
+        val migrator = Migrator(connection, registry)
+        assertEquals(
+            listOf("CreateUsersTable", "M2026_10_20_110000_Earlier", "M2026_10_20_120000_Later"),
+            migrator.pending(),
+        )
+        assertEquals(
+            listOf("CreateUsersTable", "M2026_10_20_110000_Earlier", "M2026_10_20_120000_Later"),
+            migrator.migrate(),
+        )
+    }
 }

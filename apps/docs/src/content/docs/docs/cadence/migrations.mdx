@@ -7,7 +7,21 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 A **migration** is a small class that changes the structure of the database (create a table, add a column, add an index) and can undo that change. Keeping every structural change in a migration means any copy of the application (a teammate's laptop, CI, production) can build the same schema by running the migrations in order.
 
+## Run order
+
 Cadence records which migrations have run in a table called `extract_migrations`, together with a **batch** number. Every `migrate` run that applies something opens a new batch; `rollback` undoes the most recent batch.
+
+`./grind make:migration` names each new class with a UTC timestamp so the JVM class is a legal identifier and so run order does not depend on how lines happen to be listed in `META-INF/kona/migrations`:
+
+```text
+M2026_10_20_141530_CreateFlightsTable
+│ └ yyyy_MM_dd_HHmmss (UTC)  └ descriptive name
+└ prefix so the class does not start with a digit
+```
+
+`./grind migrate` sorts timestamped classes by that stamp. Two migrations generated in the same second get consecutive seconds (`…141530…`, then `…141531…`). Classes **without** a stamp (the `CreateUsersTable` scaffold from `kona new`, or a hand-written class) keep the order they were registered and run **before** timestamped ones.
+
+You can still bind a `MigrationRegistry` yourself. Timestamped names in that registry are sorted the same way; untimestamped names keep insertion order.
 
 ## Writing a migration
 
@@ -167,7 +181,7 @@ The schema DSL generates standard SQL that H2 and PostgreSQL both accept. The `S
 
 ## Registering and running migrations
 
-`grind make:migration` and `make:model -m` append each new class to `src/main/resources/META-INF/kona/migrations` (one fully qualified class name per line, in order). `CadenceServiceProvider` loads that file into a `MigrationRegistry` when the app has not bound one itself, so `./grind migrate` runs new migrations without a manual bind.
+`grind make:migration` and `make:model -m` append each new class to `src/main/resources/META-INF/kona/migrations` (one fully qualified class name per line). `CadenceServiceProvider` loads that file into a `MigrationRegistry` when the app has not bound one itself, then sorts timestamped names as described above, so `./grind migrate` runs new migrations without a manual bind.
 
 You can still bind a registry explicitly when you need a custom order or hand-written entries:
 
@@ -264,11 +278,14 @@ Rolling back a recorded migration that is no longer registered throws `Migration
 All commands run from the application directory. The database commands boot your application **in-process** from its compiled classes (`build/classes`), so run `./gradlew classes` after changing migrations. They use the `MigrationRegistry` bound in the container, plus the bound `Database` (from `CadenceServiceProvider`) or, when none is bound, a `Database` built from the `database` config section (your `config/Database` module).
 
 ```bash
-./grind make:migration create_flights_table          # schema.create("flights") stub
+./grind make:migration create_flights_table          # snake_case; schema.create("flights") stub
+./grind make:migration CreateFlightsTable            # same, PascalCase
 ./grind make:migration add_gate_to_flights_table     # schema.table("flights") stub
 ./grind make:migration backfill_data                 # empty up/down
 ./grind make:migration seats --create=seats          # explicit create
 ./grind make:migration widen_seats --table=seats     # explicit alter
+# optional: supply the stamp yourself
+./grind make:migration 2026_10_20_141530_create_gates_table
 
 ./grind migrate                          # run pending migrations as a new batch
 ./grind migrate --seed                   # migrate, then seed in the same process
@@ -281,6 +298,6 @@ All commands run from the application directory. The database commands boot your
 ./grind migrate --bootstrap=bootstrap.App
 ```
 
-`make:migration` takes a snake_case name, writes `database/migrations/<StudlyName>.kt` (or `.java`, chosen by `--lang=` or by existing `.java` files under `app/`), and prints the line to add to your registry. It refuses to overwrite an existing file.
+`make:migration` accepts snake_case or PascalCase (and an optional `M{stamp}_` / `{stamp}_` prefix). It writes `database/migrations/M{yyyy_MM_dd_HHmmss}_{DescriptiveName}.kt` (or `.java`, chosen by `--lang=` or by existing `.java` files under `app/`) and appends the class to `META-INF/kona/migrations`. It refuses to overwrite an existing file; a second generate in the same second bumps the stamp by one second.
 
-`./grind make:model Flight --migration` creates the model and a `CreateFlightsTable` migration together; see [Seeders & factories](../seeders-factories/) for `--factory` and `--seeder`.
+`./grind make:model Flight --migration` creates the model and a timestamped `CreateFlightsTable` migration together; see [Seeders & factories](../seeders-factories/) for `--factory` and `--seeder`.

@@ -15,6 +15,7 @@ import org.konaframework.cadence.Cadence;
 import org.konaframework.cadence.CadenceCompanion;
 import org.konaframework.cadence.factory.Factory;
 import org.konaframework.cadence.migrations.Migration;
+import org.konaframework.cadence.migrations.MigrationOrder;
 import org.konaframework.cadence.migrations.MigrationRegistry;
 import org.konaframework.cadence.migrations.Migrator;
 import org.konaframework.cadence.schema.H2SchemaGrammar;
@@ -23,6 +24,7 @@ import org.konaframework.cadence.schema.SchemaGrammar;
 import org.konaframework.cadence.seeding.Seeder;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -194,5 +196,14 @@ class JavaRelationsMigrationsTest {
         assertEquals(7L, Relation.normalizeKey(7));
         assertEquals("taggables", created.morphToMany(Tag.class, "taggable").getPivotTable());
         assertEquals("taggables", tag.morphedByMany(Team.class, "taggable", "taggables").getPivotTable());
+
+        assertEquals("2026_10_20_141530", MigrationOrder.format(Instant.parse("2026-10-20T14:15:30Z")));
+        assertEquals("M2026_10_20_110000_A", MigrationOrder.className("2026_10_20_110000", "A"));
+        assertEquals(
+            List.of("CreateUsersTable", "M2026_10_20_110000_A", "M2026_10_20_120000_B"),
+            MigrationOrder.sort(List.of("M2026_10_20_120000_B", "CreateUsersTable", "M2026_10_20_110000_A"))
+        );
+        assertEquals("2026_10_20_110000", MigrationOrder.timestampOf("database.migrations.M2026_10_20_110000_A"));
+        assertEquals(Instant.parse("2026-10-20T14:15:30Z"), MigrationOrder.parse("2026_10_20_141530"));
     }
 }

@@ -1,5 +1,6 @@
 package org.konaframework.grind
 
+import org.konaframework.cadence.migrations.MigrationOrder
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -13,10 +14,38 @@ internal object Names {
         }
     }
 
-    fun requireSnakeName(kind: String, name: String) {
-        if (!SNAKE_NAME.matches(name)) {
-            throw GrindException("Invalid $kind name [$name]: expected snake_case like create_users_table")
+    /**
+     * Accepts `create_flights_table`, `CreateFlightsTable`, optional `M{stamp}_` /
+     * `{stamp}_` prefixes. Rejects path segments and punctuation.
+     */
+    fun parseMigrationInput(raw: String): MigrationName {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty() || trimmed.contains('/') || trimmed.contains('\\') || trimmed.contains("..")) {
+            throw GrindException("Invalid migration name [$raw]: expected snake_case or PascalCase")
         }
+        val prefixed = MigrationOrder.INPUT_PREFIX.matchEntire(trimmed)
+        val stamp = if (prefixed == null) null else prefixed.groupValues[1]
+        val rest = if (prefixed == null) trimmed else prefixed.groupValues[2]
+        if (!SNAKE_NAME.matches(rest) && !CLASS_NAME.matches(rest)) {
+            throw GrindException(
+                "Invalid migration name [$raw]: expected snake_case like create_users_table " +
+                    "or PascalCase like CreateUsersTable",
+            )
+        }
+        val snake = snake(rest)
+        val descriptive = if (rest.first().isUpperCase()) rest else studly(snake)
+        return MigrationName(stamp, descriptive, snake)
+    }
+
+    /** PascalCase / camelCase / snake_case → snake_case. */
+    fun snake(name: String): String {
+        if (SNAKE_NAME.matches(name)) {
+            return name
+        }
+        return name
+            .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
+            .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1_$2")
+            .lowercase()
     }
 
     /** `create_users_table` → `CreateUsersTable`. */
@@ -67,5 +96,12 @@ internal object Names {
         GrindIO(color = GrindIO.detectColor()).success("$kind created: $relative")
     }
 }
+
+/** Parsed `make:migration` argument. [timestamp] is present when the user supplied a stamp. */
+internal data class MigrationName(
+    val timestamp: String?,
+    val descriptive: String,
+    val snake: String,
+)
 
 internal fun lines(vararg lines: String): String = lines.joinToString("") { it + "\n" }
