@@ -18,6 +18,8 @@ import java.util.concurrent.ConcurrentHashMap
  * - `session.path` — cookie path (default `/`)
  * - `session.files` — file store directory (default `{base}/storage/framework/sessions`)
  * - `session.secure` / `session.http_only` / `session.same_site` — cookie flags
+ * - `session.domain` — cookie Domain attribute (omitted when blank)
+ * - `session.expire_on_close` — when `true`, the cookie is a browser-session cookie (no Max-Age)
  * - `session.encrypt` — when `true` (and an app key / Encrypter is available), cookie
  *   payloads are encrypted; [SessionServiceProvider] also wires encryption when an
  *   `Encrypter` is already bound in the container
@@ -81,17 +83,24 @@ class SessionManager @JvmOverloads constructor(
             is CookieSessionStore -> store.outboundPayload
             else -> session.id
         }
-        val maxAge = if (value.isEmpty()) 0L else minutes.toLong().coerceAtLeast(0) * 60L
+        val expireOnClose = config.getBoolean("session.expire_on_close", false)
+        val maxAge = when {
+            value.isEmpty() -> 0L
+            expireOnClose -> null
+            else -> minutes.toLong().coerceAtLeast(0) * 60L
+        }
         val sameSite = when ((config.getString("session.same_site") ?: "Lax").lowercase()) {
             "strict" -> Cookie.SameSite.Strict
             "none" -> Cookie.SameSite.None
             else -> Cookie.SameSite.Lax
         }
+        val domain = config.getString("session.domain")?.takeIf { it.isNotBlank() }
         response.cookie(
             name = cookieName(),
             value = value,
             maxAgeSeconds = maxAge,
             path = cookiePath(),
+            domain = domain,
             secure = config.getBoolean("session.secure", false),
             httpOnly = config.getBoolean("session.http_only", true),
             sameSite = sameSite,

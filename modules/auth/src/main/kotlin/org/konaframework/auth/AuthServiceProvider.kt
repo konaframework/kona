@@ -27,6 +27,7 @@ import org.konaframework.security.RateLimiter
  * Optional config:
  * - `hash.driver` — `bcrypt` (default) or `argon2` / `argon2id`
  * - `auth.passwords.driver` — `array` (default) or `database` (needs [Database])
+ * - `auth.passwords.table` — reset-token table; falls back to `auth.passwords.users.table`
  * - `auth.tokens.driver` — `array` (default) or `database` (needs [Database])
  *
  * Wire [CadenceUserProvider] in app bootstrap when authenticating Cadence models.
@@ -86,6 +87,14 @@ class AuthServiceProvider : ServiceProvider {
         registerEncrypter(app)
     }
 
+    private fun passwordResetTable(app: Application): String {
+        val top = app.config.getString("auth.passwords.table")
+        if (!top.isNullOrBlank()) {
+            return top
+        }
+        return app.config.getString("auth.passwords.users.table", "password_reset_tokens")
+    }
+
     override fun boot(app: Application) {
         // Encrypter may be absent until app.key is configured; Hash is already set in register.
     }
@@ -93,7 +102,7 @@ class AuthServiceProvider : ServiceProvider {
     private fun resolvePasswordRepository(app: Application): PasswordResetTokenRepository {
         val driver = app.config.getString("auth.passwords.driver", "array")
         if (driver == "database" && app.container.bound(Database::class.java)) {
-            val table = app.config.getString("auth.passwords.table", "password_reset_tokens")
+            val table = passwordResetTable(app)
             return DatabasePasswordResetTokenRepository(
                 app.resolve(Database::class.java).connection(),
                 table,

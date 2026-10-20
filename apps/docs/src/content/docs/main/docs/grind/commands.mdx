@@ -81,7 +81,7 @@ These commands work with [Cadence](../../cadence/). Generators write source file
 | Command | Writes / does |
 |---------|---------------|
 | `./grind make:model <Name> [-mcrfspaR]` | `app/models/<Name>`; short flags: `-m` migration, `-c` controller, `-r` resource controller, `-f` factory, `-s` seeder, `-p` policy, `-R` / `--requests` Store/Update form requests, `--api` API resource controller (no create/edit), `-a` / `--all` migration + factory + seeder + resource controller + requests + policy |
-| `./grind make:migration <snake_name> [--create=table] [--table=table]` | `database/migrations/<StudlyName>` and appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
+| `./grind make:migration <name> [--create=table] [--table=table]` | Timestamped `database/migrations/M{yyyy_MM_dd_HHmmss}_{DescriptiveName}` (snake_case or PascalCase names); appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
 | `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
 | `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
 | `./grind migrate [--seed] [--class=…]` | Runs pending migrations as one new batch; with `--seed` / `--seeder`, also runs a seeder in the same process |
@@ -100,6 +100,16 @@ The migrate and seed commands:
 4. use the container's `Database` (registered by `CadenceServiceProvider`), or build one from the `database` config section; `--database=name` selects a named connection.
 
 Errors (unknown connection, a failing migration, a missing seeder class) print a message and exit with status 1. See [Migrations](../../cadence/migrations/) and [Seeders & factories](../../cadence/seeders-factories/) for the APIs behind these commands.
+
+## `./grind down` / `./grind up`
+
+```bash
+./grind down
+./grind up
+./grind down --base=/path/to/app
+```
+
+Maintenance mode. `down` writes `storage/framework/down`; HTTP requests then receive **503 Service Unavailable** until `up` removes the file. The `file` driver is selected by `app.maintenance.driver` in `config/App`.
 
 ## `./grind key:generate`
 

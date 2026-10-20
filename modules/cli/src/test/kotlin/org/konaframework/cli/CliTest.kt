@@ -184,10 +184,22 @@ class CliTest {
         val versions = KonaVersions.load()
         val env = Files.readString(kt.resolve(".env"))
         assertTrue(env.contains("APP_NAME=appkt\n"))
+        assertTrue(env.contains("APP_TIMEZONE=UTC"))
+        assertTrue(env.contains("APP_LOCALE=en"))
         assertTrue(env.lineSequence().any { it.startsWith("APP_KEY=base64:") && it.length > "APP_KEY=base64:".length })
+        val appConfig = Files.readString(kt.resolve("src/main/kotlin/config/App.kt"))
+        assertTrue(appConfig.contains("Application Name"))
+        assertTrue(appConfig.contains("previous_keys"))
+        assertTrue(appConfig.contains("maintenance"))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Session.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Filesystems.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Database.kt")))
+        listOf(
+            "Redis.kt", "Cache.kt", "Queue.kt", "Mail.kt", "Logging.kt",
+            "Auth.kt", "Hash.kt", "Broadcasting.kt", "Services.kt",
+        ).forEach { name ->
+            assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/$name")), name)
+        }
         assertTrue(
             Files.readString(kt.resolve("src/main/kotlin/config/Database.kt"))
                 .contains("jdbc:sqlite:storage/database/database.sqlite"),
@@ -199,16 +211,20 @@ class CliTest {
         assertTrue(build.contains("org.konaframework:kona-http:${versions.kona}"))
         assertTrue(build.contains("org.konaframework:kona-grind:${versions.kona}"))
         assertTrue(build.contains("org.konaframework:kona-session:${versions.kona}"))
+        assertTrue(build.contains("org.konaframework:kona-cache:${versions.kona}"))
         assertTrue(build.contains("org.konaframework:kona-auth:${versions.kona}"))
         assertTrue(build.contains("org.konaframework:kona-queue:${versions.kona}"))
+        assertTrue(build.contains("org.konaframework:kona-broadcasting:${versions.kona}"))
         assertTrue(build.contains("org.xerial:sqlite-jdbc"))
         assertTrue(build.contains("tasks.register<JavaExec>(\"grind\")"))
         assertTrue(Files.readString(kt.resolve(".env")).contains("DB_CONNECTION=sqlite"))
         val appKt = Files.readString(kt.resolve("src/main/kotlin/bootstrap/App.kt"))
         assertTrue(appKt.contains("SessionServiceProvider"))
         assertTrue(appKt.contains("FilesystemServiceProvider"))
+        assertTrue(appKt.contains("CacheServiceProvider"))
         assertTrue(appKt.contains("AuthServiceProvider"))
         assertTrue(appKt.contains("QueueServiceProvider"))
+        assertTrue(appKt.contains("BroadcastServiceProvider"))
         assertTrue(appKt.contains("CremaServiceProvider"))
         val middleware = Files.readString(kt.resolve("src/main/kotlin/bootstrap/Middleware.kt"))
         assertTrue(middleware.contains("StartSession"))
@@ -281,6 +297,18 @@ class CliTest {
                 .contains("CadenceUserProvider"),
         )
         assertTrue(Files.readString(j.resolve("src/main/java/bootstrap/App.java")).contains("CremaServiceProvider"))
+        val javaApp = Files.readString(j.resolve("src/main/java/config/App.java"))
+        assertTrue(javaApp.contains("Application Name"))
+        assertTrue(javaApp.contains("previous_keys"))
+        listOf(
+            "Redis.java", "Cache.java", "Queue.java", "Mail.java", "Logging.java",
+            "Auth.java", "Hash.java", "Broadcasting.java", "Services.java",
+        ).forEach { name ->
+            assertTrue(Files.isRegularFile(j.resolve("src/main/java/config/$name")), name)
+        }
+        assertTrue(build.contains("org.konaframework:kona-cache:9.9.9"))
+        assertTrue(build.contains("org.konaframework:kona-broadcasting:9.9.9"))
+        assertTrue(Files.readString(j.resolve("src/main/java/bootstrap/App.java")).contains("CacheServiceProvider"))
         assertNoPlaceholders(j)
     }
 

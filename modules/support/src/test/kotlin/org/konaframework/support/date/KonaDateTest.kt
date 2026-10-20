@@ -1,16 +1,24 @@
 package org.konaframework.support.date
 
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 import java.time.ZoneOffset
 
 class KonaDateTest {
     private val fixed = Clock.fixed(Instant.parse("2024-06-15T12:00:00Z"), ZoneOffset.UTC)
+
+    @AfterEach
+    fun resetZone() {
+        KonaDate.resetDefaultTimezone()
+    }
 
     @Test
     fun arithmeticComparisonsAndFormat() {
@@ -80,5 +88,18 @@ class KonaDateTest {
         assertFalse(d.isSameDay(d.addDays(1)))
         val shifted = d.setTimezone(ZoneOffset.ofHours(2))
         assertEquals("2024-01-15 14:30:00", shifted.toDateTimeString())
+    }
+
+    @Test
+    fun defaultTimezoneUsedByFactories() {
+        assertEquals(ZoneOffset.UTC, KonaDate.defaultTimezone())
+        KonaDate.setDefaultTimezone(ZoneId.of("UTC"))
+        assertNotNull(KonaDate.now())
+        assertEquals("2024-01-01", KonaDate.ofInstant(Instant.parse("2024-01-01T00:00:00Z")).toDateString())
+        assertEquals("2024-01-02", KonaDate.parse("2024-01-02T03:04:05Z").toDateString())
+        assertEquals(0, KonaDate.today().toLocalDateTime().hour)
+        KonaDate.setDefaultTimezone(ZoneId.of("Africa/Nairobi"))
+        assertEquals(ZoneId.of("Africa/Nairobi"), KonaDate.defaultTimezone())
+        assertEquals(3, KonaDate.parse("2024-01-02T00:00:00Z").toLocalDateTime().hour)
     }
 }

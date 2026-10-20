@@ -57,7 +57,9 @@ class GrindJavaTest {
         assertEquals(0, new MakeModelCommand().run(List.of("Flight", "--migration", "--factory", "--base=" + app)));
         assertTrue(
                 Files.readString(app.resolve("src/main/java/app/models/Flight.java")).contains("extends Cadence<Flight>"));
-        assertTrue(Files.exists(app.resolve("src/main/java/database/migrations/CreateFlightsTable.java")));
+        try (var migrations = Files.list(app.resolve("src/main/java/database/migrations"))) {
+            assertTrue(migrations.anyMatch(path -> path.getFileName().toString().endsWith("_CreateFlightsTable.java")));
+        }
         assertTrue(Files.exists(app.resolve("src/main/java/database/factories/FlightFactory.java")));
         assertEquals(0, new MakeMigrationCommand().run(List.of("add_gate_to_flights_table", "--base=" + app)));
         assertEquals(0, new MakeSeederCommand().run(List.of("DatabaseSeeder", "--base=" + app)));

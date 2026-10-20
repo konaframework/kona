@@ -186,7 +186,9 @@ class TrustAndHttpMiddlewareTest {
         app.register(HttpServiceProvider())
         app.boot()
         mw.apply(app)
-        assertEquals(2, app.resolve(HttpKernel::class.java).globalMiddleware.size)
+        val global = app.resolve(HttpKernel::class.java).globalMiddleware
+        assertTrue(global.any { it is PreventRequestsDuringMaintenance })
+        assertEquals(3, global.size)
     }
 
     @Test

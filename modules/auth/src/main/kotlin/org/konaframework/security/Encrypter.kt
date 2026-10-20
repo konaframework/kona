@@ -15,13 +15,17 @@ import javax.crypto.spec.SecretKeySpec
  * AES-256-GCM string encrypter (Laravel Encrypter shape) keyed by APP_KEY / `app.key`.
  *
  * Payload is base64(JSON `{iv,value,tag}`) where iv/value/tag are base64 fields.
+ * When `app.previous_keys` is set, [decryptString] also tries those keys after the current one.
  */
-class Encrypter(
+class Encrypter @JvmOverloads constructor(
     key: ByteArray,
     private val mapper: ObjectMapper = ObjectMapper(),
+    previousKeys: List<ByteArray> = emptyList(),
 ) {
     private val keyBytes: ByteArray = normalizeKey(key)
-    private val secret = SecretKeySpec(keyBytes, "AES")
+    private val secrets: List<SecretKeySpec> =
+        (listOf(keyBytes) + previousKeys.map { normalizeKey(it) }).map { SecretKeySpec(it, "AES") }
+    private val secret = secrets.first()
     private val random = SecureRandom()
 
     /** Encrypt any JSON-serializable value (Laravel `encrypt($value)`). */
@@ -47,6 +51,18 @@ class Encrypter(
     }
 
     fun decryptString(payload: String): String {
+        var last = EncryptionException("Could not decrypt the data.")
+        for (candidate in secrets) {
+            try {
+                return decryptWith(candidate, payload)
+            } catch (ex: EncryptionException) {
+                last = ex
+            }
+        }
+        throw last
+    }
+
+    private fun decryptWith(secret: SecretKeySpec, payload: String): String {
         try {
             val json = String(Base64.getDecoder().decode(payload), StandardCharsets.UTF_8)
             val node = mapper.readTree(json) as? ObjectNode
@@ -72,6 +88,7 @@ class Encrypter(
     }
 
     companion object {
+        const val CIPHER: String = "AES-256-GCM"
         private const val TRANSFORM = "AES/GCM/NoPadding"
         private const val IV_LENGTH = 12
         private const val TAG_BITS = 128
@@ -80,28 +97,47 @@ class Encrypter(
 
         @JvmStatic
         fun fromBase64Key(key: String): Encrypter {
-            val trimmed = key.removePrefix("base64:")
-            val decoded = try {
-                Base64.getDecoder().decode(trimmed)
-            } catch (ex: IllegalArgumentException) {
-                throw EncryptionException("Unsupported cipher or incorrect key length.", ex)
-            }
-            return Encrypter(decoded)
+            return Encrypter(decodeKey(key))
         }
 
         @JvmStatic
         fun fromConfig(config: Config): Encrypter {
+            val cipher = config.getString("app.cipher", CIPHER)
+            if (cipher.isNotBlank() && !cipher.equals(CIPHER, ignoreCase = true)) {
+                throw EncryptionException("Unsupported cipher [$cipher]; Kona uses $CIPHER.")
+            }
             val key = config.getString("app.key")
             if (key == null) {
                 throw EncryptionException("No application encryption key has been specified.")
             }
-            return fromBase64Key(key)
+            val previous = previousKeyStrings(config).map { decodeKey(it) }
+            return Encrypter(decodeKey(key), previousKeys = previous)
         }
 
         @JvmStatic
         fun generateKey(): String {
             val bytes = ByteArray(KEY_LENGTH).also { SecureRandom().nextBytes(it) }
             return "base64:" + Base64.getEncoder().encodeToString(bytes)
+        }
+
+        internal fun previousKeyStrings(config: Config): List<String> {
+            val raw = config.get<Any>("app.previous_keys") ?: return emptyList()
+            val parts: List<String> = when (raw) {
+                is Collection<*> -> raw.map { it?.toString().orEmpty() }
+                is Array<*> -> raw.map { it?.toString().orEmpty() }
+                is String -> raw.split(',')
+                else -> listOf(raw.toString())
+            }
+            return parts.map { it.trim() }.filter { it.isNotEmpty() }
+        }
+
+        private fun decodeKey(key: String): ByteArray {
+            val trimmed = key.removePrefix("base64:")
+            return try {
+                Base64.getDecoder().decode(trimmed)
+            } catch (ex: IllegalArgumentException) {
+                throw EncryptionException("Unsupported cipher or incorrect key length.", ex)
+            }
         }
 
         private fun normalizeKey(key: ByteArray): ByteArray {

@@ -58,7 +58,15 @@ object Kona {
         config.set("app.env", Env.getOrDefault("APP_ENV", "local"))
         config.set("app.debug", Config.toBoolean(Env.getOrDefault("APP_DEBUG", "false")) ?: false)
         config.set("app.url", Env.getOrDefault("APP_URL", "http://127.0.0.1:4000"))
+        config.set("app.timezone", Env.getOrDefault("APP_TIMEZONE", "UTC"))
+        config.set("app.locale", Env.getOrDefault("APP_LOCALE", "en"))
+        config.set("app.fallback_locale", Env.getOrDefault("APP_FALLBACK_LOCALE", "en"))
+        config.set("app.faker_locale", Env.getOrDefault("APP_FAKER_LOCALE", "en_US"))
+        config.set("app.cipher", Env.getOrDefault("APP_CIPHER", "AES-256-GCM"))
         Env.get("APP_KEY")?.let { config.set("app.key", it) }
+        config.set("app.previous_keys", Env.csv("APP_PREVIOUS_KEYS"))
+        config.set("app.maintenance.driver", Env.getOrDefault("APP_MAINTENANCE_DRIVER", "file"))
+        config.set("app.maintenance.store", Env.getOrDefault("APP_MAINTENANCE_STORE", "database"))
         config.set(
             "logging.to_file",
             Config.toBoolean(Env.getOrDefault("LOG_TO_FILE", "true")) ?: true,

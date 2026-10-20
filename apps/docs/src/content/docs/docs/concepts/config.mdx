@@ -25,7 +25,15 @@ When you boot with `Kona.create(...)`, Kona fills config in this order. A later 
    | `app.env` | `APP_ENV` | `"local"` |
    | `app.debug` | `APP_DEBUG` (parsed as a boolean) | `false` |
    | `app.url` | `APP_URL` | `"http://127.0.0.1:4000"` |
+   | `app.timezone` | `APP_TIMEZONE` | `"UTC"` |
+   | `app.locale` | `APP_LOCALE` | `"en"` |
+   | `app.fallback_locale` | `APP_FALLBACK_LOCALE` | `"en"` |
+   | `app.faker_locale` | `APP_FAKER_LOCALE` | `"en_US"` |
+   | `app.cipher` | `APP_CIPHER` | `"AES-256-GCM"` |
    | `app.key` | `APP_KEY` | unset unless present |
+   | `app.previous_keys` | `APP_PREVIOUS_KEYS` (comma-separated) | empty list |
+   | `app.maintenance.driver` | `APP_MAINTENANCE_DRIVER` | `"file"` |
+   | `app.maintenance.store` | `APP_MAINTENANCE_STORE` | `"database"` |
 
 3. **Registered `ConfigFile` modules** merge in registration order. Each module returns a map that lands under its key (`app`, `database`, `session`, …). Modules may call `Env.get` / `Env.getOrDefault` while building that map. Path overrides from a `paths` module are applied when the layout refreshes after this step.
 4. **Your `configure` callbacks** run, in the order you added them.
@@ -34,19 +42,50 @@ So a `config.App` module that sets `"name"` from `APP_NAME` can refine the seede
 
 Config is filled once, at startup. Editing `.env` or a config module's source while the app runs has no effect until restart (and recompile for modules).
 
+`kona new` writes these modules with section comments that explain what each key is for, which environment variable feeds it, and which drivers or values are valid. Read `config/App.kt` (or `config/App.java`) first — name, environment, debug, URL, timezone, locales, encryption, and maintenance mode are all documented there. The other modules cover database connections, Redis, HTTP sessions, cache stores, filesystem disks, queues, mailers, log channels, authentication, hashing, broadcasting, and third-party service credentials.
+
 ## Executable config modules
 
 Put Kotlin or Java classes in the language root `config/` package (next to `app/`, `bootstrap/`, `routes/`):
 
 ```text
 src/main/kotlin/config/
-  App.kt          → key "app"
-  Database.kt     → key "database"
-  Session.kt      → key "session"
-  Filesystems.kt  → key "filesystems"
-  Http.kt         → key "http"
-  Paths.kt        → key "paths"
+  App.kt           → key "app"
+  Database.kt      → key "database"
+  Redis.kt         → key "redis"
+  Session.kt       → key "session"
+  Cache.kt         → key "cache"
+  Filesystems.kt   → key "filesystems"
+  Queue.kt         → key "queue"
+  Mail.kt          → key "mail"
+  Logging.kt       → key "logging"
+  Auth.kt          → key "auth"
+  Hash.kt          → key "hash"
+  Broadcasting.kt  → key "broadcasting"
+  Services.kt      → key "services"
+  Http.kt          → key "http"
+  Paths.kt         → key "paths"
 ```
+
+| Module | Config key | What it controls |
+|--------|------------|------------------|
+| `App` | `app` | Name, environment, debug, URL, timezone, locales, encryption key, maintenance |
+| `Database` | `database` | Default connection, JDBC URLs/credentials, migration table name |
+| `Redis` | `redis` | Client (`memory` or `lettuce`) and named connections (`default`, `cache`) |
+| `Session` | `session` | Driver, lifetime, cookie flags, Redis prefix, lottery |
+| `Cache` | `cache` | Default store, `array` / `file` / `redis` stores, key prefix |
+| `Filesystems` | `filesystems` | Default disk, `local` / `public` / `s3` / `memory` disks, `storage:link` map |
+| `Queue` | `queue` | Default connection, backends, batching, failed-job store |
+| `Mail` | `mail` | Default mailer, SMTP/log/array mailers, global from address |
+| `Logging` | `logging` | Default channel, stack/single/daily/stderr/syslog/null channels |
+| `Auth` | `auth` | Guards, user providers, password-reset brokers, personal-access tokens |
+| `Hash` | `hash` | Bcrypt / Argon2 driver and cost parameters |
+| `Broadcasting` | `broadcasting` | Default broadcaster and websocket/log/null connections |
+| `Services` | `services` | Third-party credentials (SES, Postmark, Resend, Slack) for app code |
+| `Http` | `http` | HTTP kernel settings |
+| `Paths` | `paths` | Language, resource, storage, and public roots |
+
+Redis lives at the top-level `redis.*` key (not nested under `database`). Cache and queue connections that say `connection = "cache"` refer to `redis.connections.cache`.
 
 Each module implements `org.konaframework.core.ConfigFile` with two methods:
 
@@ -60,7 +99,11 @@ Register them explicitly from `bootstrap.App` (reliable and easy to test):
 
 ```kotlin
 Kona.create(args)
-    .configs(config.App, config.Database, config.Session, config.Filesystems, config.Http, config.Paths)
+    .configs(
+        config.App, config.Database, config.Redis, config.Session, config.Cache,
+        config.Filesystems, config.Queue, config.Mail, config.Logging, config.Auth,
+        config.Hash, config.Broadcasting, config.Services, config.Http, config.Paths,
+    )
     .providers(/* ... */)
     .boot()
 ```
@@ -95,8 +138,17 @@ Kona.create(args)
     .configs(
         new config.App(),
         new config.Database(),
+        new config.Redis(),
         new config.Session(),
+        new config.Cache(),
         new config.Filesystems(),
+        new config.Queue(),
+        new config.Mail(),
+        new config.Logging(),
+        new config.Auth(),
+        new config.Hash(),
+        new config.Broadcasting(),
+        new config.Services(),
         new config.Http(),
         new config.Paths()
     )

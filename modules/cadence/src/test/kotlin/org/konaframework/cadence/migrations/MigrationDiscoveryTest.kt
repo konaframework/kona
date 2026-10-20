@@ -37,6 +37,33 @@ class MigrationDiscoveryTest {
     }
 
     @Test
+    fun sortsTimestampedClassNamesRegardlessOfFileOrder() {
+        val meta = temp.resolve("META-INF/kona")
+        Files.createDirectories(meta)
+        Files.writeString(
+            meta.resolve("migrations"),
+            """
+            ${M2026_10_20_120000_Later::class.java.name}
+            ${DemoFirst::class.java.name}
+            ${M2026_10_20_110000_Earlier::class.java.name}
+            """.trimIndent() + "\n",
+        )
+        val loader = URLClassLoader(arrayOf(temp.toUri().toURL()), javaClass.classLoader)
+        assertEquals(
+            listOf(
+                DemoFirst::class.java.name,
+                M2026_10_20_110000_Earlier::class.java.name,
+                M2026_10_20_120000_Later::class.java.name,
+            ),
+            MigrationDiscovery.classNames(loader),
+        )
+        assertEquals(
+            listOf("DemoFirst", "M2026_10_20_110000_Earlier", "M2026_10_20_120000_Later"),
+            MigrationDiscovery.loadRegistry(loader).names,
+        )
+    }
+
+    @Test
     fun rejectsNonMigrationClasses() {
         val meta = temp.resolve("META-INF/kona")
         Files.createDirectories(meta)
@@ -60,6 +87,16 @@ class MigrationDiscoveryTest {
     }
 
     class DemoSecond : Migration {
+        override fun up(schema: Schema) {}
+        override fun down(schema: Schema) {}
+    }
+
+    class M2026_10_20_120000_Later : Migration {
+        override fun up(schema: Schema) {}
+        override fun down(schema: Schema) {}
+    }
+
+    class M2026_10_20_110000_Earlier : Migration {
         override fun up(schema: Schema) {}
         override fun down(schema: Schema) {}
     }

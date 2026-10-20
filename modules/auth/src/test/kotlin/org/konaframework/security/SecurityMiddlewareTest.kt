@@ -45,6 +45,49 @@ class SecurityMiddlewareTest {
         assertThrows(EncryptionException::class.java) { Encrypter.fromConfig(config) }
         config.set("app.key", key)
         assertEquals("secret", Encrypter.fromConfig(config).decryptString(Encrypter.fromConfig(config).encryptString("secret")))
+
+        config.set("app.cipher", "AES-256-CBC")
+        assertThrows(EncryptionException::class.java) { Encrypter.fromConfig(config) }
+        config.set("app.cipher", "")
+        assertEquals("ok", Encrypter.fromConfig(config).decryptString(Encrypter.fromConfig(config).encryptString("ok")))
+        config.set("app.cipher", Encrypter.CIPHER)
+
+        val previous = Encrypter.generateKey()
+        val old = Encrypter.fromBase64Key(previous)
+        val payload = old.encryptString("rotated")
+        val current = Encrypter.generateKey()
+        config.set("app.key", current)
+        config.set("app.previous_keys", listOf(previous))
+        assertEquals("rotated", Encrypter.fromConfig(config).decryptString(payload))
+        config.set("app.previous_keys", previous)
+        assertEquals("rotated", Encrypter.fromConfig(config).decryptString(payload))
+        config.set("app.previous_keys", arrayOf(previous, "  "))
+        assertEquals("rotated", Encrypter.fromConfig(config).decryptString(payload))
+        config.set("app.previous_keys", 12)
+        assertEquals(listOf("12"), Encrypter.previousKeyStrings(config))
+        config.set("app.previous_keys", listOf("  ", null, previous))
+        assertEquals(listOf(previous), Encrypter.previousKeyStrings(config))
+        config.set("app.previous_keys", listOf("", "  "))
+        assertEquals(emptyList<String>(), Encrypter.previousKeyStrings(config))
+        config.set("app.previous_keys", arrayOf(null, "", "  "))
+        assertEquals(emptyList<String>(), Encrypter.previousKeyStrings(config))
+        config.set("app.previous_keys", ", ,")
+        assertEquals(emptyList<String>(), Encrypter.previousKeyStrings(config))
+        config.set("app.previous_keys", object : Any() {
+            override fun toString(): String = "  "
+        })
+        assertEquals(emptyList<String>(), Encrypter.previousKeyStrings(config))
+        val missing = org.konaframework.core.Config()
+        assertEquals(emptyList<String>(), Encrypter.previousKeyStrings(missing))
+        val mapperCtor = Encrypter(
+            java.util.Base64.getDecoder().decode(current.removePrefix("base64:")),
+            com.fasterxml.jackson.databind.ObjectMapper(),
+        )
+        assertEquals("two-arg", mapperCtor.decryptString(mapperCtor.encryptString("two-arg")))
+        val fresh = Encrypter.generateKey()
+        assertThrows(EncryptionException::class.java) {
+            Encrypter.fromBase64Key(fresh).decryptString(payload)
+        }
     }
 
     @Test

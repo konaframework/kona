@@ -56,6 +56,11 @@ class EnvConfigApplicationTest {
         Env.set("CUSTOM", "1")
         assertEquals("1", Env.require("CUSTOM"))
         assertThrows(IllegalStateException::class.java) { Env.require("MISSING_REQUIRED") }
+
+        Env.set("APP_PREVIOUS_KEYS", " alpha, ,beta, ")
+        assertEquals(listOf("alpha", "beta"), Env.csv("APP_PREVIOUS_KEYS"))
+        assertEquals(emptyList<String>(), Env.csv("MISSING_CSV"))
+        assertEquals(listOf("one"), Env.csv("MISSING_CSV", "one"))
     }
 
     @Test
@@ -311,6 +316,14 @@ class EnvConfigApplicationTest {
         val app = Kona.start(arrayOf("--base=$base"))
         assertEquals("TestApp", app.config.getString("app.name"))
         assertEquals(false, app.config.get<Boolean>("app.debug"))
+        assertEquals("UTC", app.config.getString("app.timezone"))
+        assertEquals("en", app.config.getString("app.locale"))
+        assertEquals("en", app.config.getString("app.fallback_locale"))
+        assertEquals("en_US", app.config.getString("app.faker_locale"))
+        assertEquals("AES-256-GCM", app.config.getString("app.cipher"))
+        assertEquals("file", app.config.getString("app.maintenance.driver"))
+        assertEquals("database", app.config.getString("app.maintenance.store"))
+        assertEquals(emptyList<String>(), app.config.get<List<String>>("app.previous_keys"))
         assertEquals(app, Kona.app())
         Kona.reset()
         assertThrows(IllegalStateException::class.java) { Kona.app() }
@@ -327,6 +340,33 @@ class EnvConfigApplicationTest {
         Log.warn("w")
         Log.error("e")
         Log.error("e2", RuntimeException("x"))
+    }
+
+    @Test
+    fun konaBootstrapSeedsLocaleTimezonePreviousKeysFromEnv() {
+        val base = Files.createTempDirectory("kona-app-keys")
+        Files.writeString(
+            base.resolve(".env"),
+            """
+            APP_TIMEZONE=Europe/Nairobi
+            APP_LOCALE=sw
+            APP_FALLBACK_LOCALE=en
+            APP_FAKER_LOCALE=sw_KE
+            APP_PREVIOUS_KEYS=old-one, old-two
+            APP_MAINTENANCE_DRIVER=cache
+            APP_MAINTENANCE_STORE=redis
+            APP_CIPHER=AES-256-GCM
+            """.trimIndent(),
+        )
+        val app = Kona.start(base)
+        assertEquals("Europe/Nairobi", app.config.getString("app.timezone"))
+        assertEquals("sw", app.config.getString("app.locale"))
+        assertEquals("en", app.config.getString("app.fallback_locale"))
+        assertEquals("sw_KE", app.config.getString("app.faker_locale"))
+        assertEquals(listOf("old-one", "old-two"), app.config.get<List<String>>("app.previous_keys"))
+        assertEquals("cache", app.config.getString("app.maintenance.driver"))
+        assertEquals("redis", app.config.getString("app.maintenance.store"))
+        assertEquals("AES-256-GCM", app.config.getString("app.cipher"))
     }
 
     @Test

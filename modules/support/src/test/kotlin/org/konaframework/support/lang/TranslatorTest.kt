@@ -57,5 +57,7 @@ class TranslatorTest {
         assertEquals("X 2", Lang.get("x", mapOf("v" to 2), "en"))
         Lang.setLocale("en")
         assertEquals("en", Lang.getLocale())
+        Lang.setFallback("es")
+        assertEquals("es", Lang.getFallback())
     }
 }

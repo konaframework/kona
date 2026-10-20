@@ -1,0 +1,96 @@
+package config
+
+import org.konaframework.core.ConfigFile
+import org.konaframework.core.Env
+
+/**
+ * Queue connections (`config/queue.php` shape).
+ *
+ * Supported drivers: `sync`, `array` / `memory`, `database`, `redis`.
+ */
+object Queue : ConfigFile {
+    override fun key(): String = "queue"
+
+    override fun config(): Map<String, Any?> = mapOf(
+        /*
+        |--------------------------------------------------------------------------
+        | Default Queue Connection Name
+        |--------------------------------------------------------------------------
+        |
+        | Kona's queue supports several backends via a single API. The default
+        | connection is defined below. `sync` runs jobs immediately in-process.
+        |
+        */
+        "default" to Env.getOrDefault("QUEUE_CONNECTION", "sync"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Queue Connections
+        |--------------------------------------------------------------------------
+        |
+        | Here you may configure the connection options for every queue backend
+        | used by your application. An example configuration is provided for
+        | each backend supported by Kona.
+        |
+        | Drivers: "sync", "array", "memory", "database", "redis"
+        |
+        */
+        "connections" to mapOf(
+            "sync" to mapOf(
+                "driver" to "sync",
+            ),
+            "array" to mapOf(
+                "driver" to "array",
+            ),
+            "database" to mapOf(
+                "driver" to "database",
+                "table" to Env.getOrDefault("DB_QUEUE_TABLE", "jobs"),
+                "queue" to Env.getOrDefault("DB_QUEUE", "default"),
+                "retry_after" to (Env.getOrDefault("DB_QUEUE_RETRY_AFTER", "90").toIntOrNull() ?: 90),
+            ),
+            "redis" to mapOf(
+                "driver" to "redis",
+                "connection" to Env.getOrDefault("REDIS_QUEUE_CONNECTION", "default"),
+                "queue" to Env.getOrDefault("REDIS_QUEUE", "default"),
+                "retry_after" to (Env.getOrDefault("REDIS_QUEUE_RETRY_AFTER", "90").toIntOrNull() ?: 90),
+            ),
+        ),
+
+        "prefix" to Env.getOrDefault("QUEUE_PREFIX", "kona_queues:"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Job Batching
+        |--------------------------------------------------------------------------
+        |
+        | The following options configure the table that stores job batching
+        | information (`queue.batch.*` is what the QueueServiceProvider reads).
+        |
+        */
+        "batching" to mapOf(
+            "database" to Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"),
+            "table" to Env.getOrDefault("QUEUE_BATCH_TABLE", "job_batches"),
+        ),
+        "batch" to mapOf(
+            "driver" to Env.getOrDefault("QUEUE_BATCH_DRIVER", "array"),
+            "table" to Env.getOrDefault("QUEUE_BATCH_TABLE", "job_batches"),
+        ),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Failed Queue Jobs
+        |--------------------------------------------------------------------------
+        |
+        | These options configure how failed jobs are stored.
+        |
+        | Supported drivers: "memory", "file", "database"
+        |
+        */
+        "failed" to mapOf(
+            "driver" to Env.getOrDefault("QUEUE_FAILED_DRIVER", "memory"),
+            "database" to Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"),
+            "table" to Env.getOrDefault("QUEUE_FAILED_TABLE", "failed_jobs"),
+            "path" to Env.getOrDefault("QUEUE_FAILED_PATH", "storage/framework/failed_jobs.json"),
+        ),
+    )
+}

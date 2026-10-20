@@ -121,4 +121,12 @@ object Lang {
 
     @JvmStatic
     fun getLocale(): String = translator.getLocale()
+
+    @JvmStatic
+    fun setFallback(fallback: String) {
+        translator.setFallback(fallback)
+    }
+
+    @JvmStatic
+    fun getFallback(): String = translator.getFallback()
 }

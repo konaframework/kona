@@ -113,6 +113,11 @@ public class JavaAuthApiTest {
         String key = Encrypter.generateKey();
         Encrypter encrypter = Encrypter.fromBase64Key(key);
         assertEquals("payload", encrypter.decryptString(encrypter.encryptString("payload")));
+        byte[] raw = java.util.Base64.getDecoder().decode(key.substring("base64:".length()));
+        Encrypter twoArg = new Encrypter(raw, new com.fasterxml.jackson.databind.ObjectMapper());
+        assertEquals("hi", twoArg.decryptString(twoArg.encryptString("hi")));
+        Encrypter threeArg = new Encrypter(raw, new com.fasterxml.jackson.databind.ObjectMapper(), List.of());
+        assertEquals("x", threeArg.decryptString(threeArg.encryptString("x")));
 
         Response headers = new SecurityHeadersMiddleware().handle(Request.get("/"), r -> Response.text("h"));
         assertEquals("nosniff", headers.getHeaders().get("X-Content-Type-Options"));

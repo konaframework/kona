@@ -55,6 +55,15 @@ object Env {
     @JvmStatic
     fun getOrDefault(key: String, default: String): String = get(key) ?: default
 
+    /**
+     * Comma-separated list from [key] (Laravel `explode(',', env(...))` shape).
+     * Empty segments after trim are dropped.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun csv(key: String, default: String = ""): List<String> =
+        getOrDefault(key, default).split(',').map { it.trim() }.filter { it.isNotEmpty() }
+
     @JvmStatic
     fun require(key: String): String =
         get(key) ?: throw IllegalStateException("Missing environment variable [$key]")

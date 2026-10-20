@@ -20,10 +20,13 @@ class HttpServiceProvider : ServiceProvider {
     }
 
     override fun boot(app: Application) {
+        val kernel = app.resolve(HttpKernel::class.java)
+        if (kernel.globalMiddleware.none { it is PreventRequestsDuringMaintenance }) {
+            kernel.prependMiddleware(PreventRequestsDuringMaintenance(app))
+        }
         if (!RequestLogging.enabled(app)) {
             return
         }
-        val kernel = app.resolve(HttpKernel::class.java)
         if (kernel.globalMiddleware.any { it is LogRequests }) {
             return
         }
