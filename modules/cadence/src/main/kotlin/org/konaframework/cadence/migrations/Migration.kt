@@ -11,8 +11,10 @@ interface Migration {
 }
 
 /**
- * The ordered list of an application's migrations. Order of registration is the order they run;
- * each name (the class simple name unless given) is what [Migrator] records once it has run.
+ * The ordered list of an application's migrations. Timestamped class names
+ * (`M{yyyy_MM_dd_HHmmss}_…`) run in timestamp order; names without a stamp keep
+ * registration order and run first. Each name (the class simple name unless given)
+ * is what [Migrator] records once it has run.
  */
 class MigrationRegistry() {
     private val entries = linkedMapOf<String, Migration>()
@@ -29,7 +31,7 @@ class MigrationRegistry() {
         entries[name] = migration
     }
 
-    val names: List<String> get() = entries.keys.toList()
+    val names: List<String> get() = MigrationOrder.sort(entries.keys.toList())
 
     operator fun get(name: String): Migration? = entries[name]
 }

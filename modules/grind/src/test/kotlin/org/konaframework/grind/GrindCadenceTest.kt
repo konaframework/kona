@@ -40,6 +40,20 @@ class GrindCadenceTest {
 
     private fun read(base: Path, relative: String): String = Files.readString(base.resolve(relative))
 
+    private fun migrationFile(base: Path, descriptive: String, lang: String = "kotlin"): Path {
+        val dir = base.resolve(Names.languageRoot(lang)).resolve("database/migrations")
+        val ext = Names.extension(lang)
+        val match = Files.list(dir).use { stream ->
+            stream.filter { path ->
+                val name = path.fileName.toString()
+                name == "$descriptive.$ext" || name.endsWith("_$descriptive.$ext")
+            }.findFirst().orElseThrow {
+                IllegalStateException("No migration *$descriptive.$ext under $dir")
+            }
+        }
+        return match
+    }
+
     @Test
     fun makeMigrationInfersCreateAlterAndBlank() {
         val base = temp.resolve("app")
@@ -47,51 +61,87 @@ class GrindCadenceTest {
         val (created, createOut) = grind("make:migration", "create_flights_table", "--base=$base", "--lang=kotlin")
         assertEquals(0, created)
         assertTrue(createOut.contains("Registered in META-INF/kona/migrations"))
-        val create = read(base, "src/main/kotlin/database/migrations/CreateFlightsTable.kt")
-        assertTrue(create.contains("class CreateFlightsTable : Migration"))
+        val createFile = migrationFile(base, "CreateFlightsTable")
+        assertTrue(createFile.fileName.toString().startsWith("M20"))
+        val create = Files.readString(createFile)
+        assertTrue(create.contains("class ${createFile.fileName.toString().removeSuffix(".kt")} : Migration"))
         assertTrue(create.contains("        schema.create(\"flights\") {\n            id()\n            timestamps()\n        }\n"))
         assertTrue(create.contains("schema.dropIfExists(\"flights\")"))
-        assertTrue(
-            read(base, "src/main/resources/META-INF/kona/migrations")
-                .contains("database.migrations.CreateFlightsTable"),
-        )
+        val createFqcn = "database.migrations.${createFile.fileName.toString().removeSuffix(".kt")}"
+        assertTrue(read(base, "src/main/resources/META-INF/kona/migrations").contains(createFqcn))
 
-        grind("make:migration", "add_gate_to_flights_table", "--base=$base", "--lang=kotlin")
-        assertTrue(read(base, "src/main/kotlin/database/migrations/AddGateToFlightsTable.kt").contains("schema.table(\"flights\") {"))
+        grind("make:migration", "AddGateToFlightsTable", "--base=$base", "--lang=kotlin")
+        assertTrue(Files.readString(migrationFile(base, "AddGateToFlightsTable")).contains("schema.table(\"flights\") {"))
         grind("make:migration", "tweak_things", "--base=$base", "--lang=kotlin")
-        assertTrue(read(base, "src/main/kotlin/database/migrations/TweakThings.kt").contains("// schema.create(\"table\") { id() }"))
+        assertTrue(Files.readString(migrationFile(base, "TweakThings")).contains("// schema.create(\"table\") { id() }"))
         grind("make:migration", "seats", "--create=seats", "--base=$base", "--lang=java")
-        val javaCreate = read(base, "src/main/java/database/migrations/Seats.java")
-        assertTrue(javaCreate.contains("public class Seats implements Migration"))
+        val javaCreate = Files.readString(migrationFile(base, "Seats", "java"))
+        assertTrue(javaCreate.contains("implements Migration"))
         assertTrue(javaCreate.contains("        schema.create(\"seats\", table -> {\n            table.id();"))
         grind("make:migration", "widen_seats", "--table=seats", "--base=$base", "--lang=java")
-        assertTrue(read(base, "src/main/java/database/migrations/WidenSeats.java").contains("schema.table(\"seats\", table -> {"))
+        assertTrue(Files.readString(migrationFile(base, "WidenSeats", "java")).contains("schema.table(\"seats\", table -> {"))
         grind("make:migration", "noop_java", "--base=$base", "--lang=java")
-        assertTrue(read(base, "src/main/java/database/migrations/NoopJava.java").contains("// schema.dropIfExists(\"table\");"))
+        assertTrue(Files.readString(migrationFile(base, "NoopJava", "java")).contains("// schema.dropIfExists(\"table\");"))
 
-        val (code, out) = grind("make:migration", "create_flights_table", "--base=$base", "--lang=kotlin")
-        assertEquals(1, code)
-        assertEquals("", out)
-
-        // appendDiscovery early-return: source gone, meta line kept → recreate skips re-register
-        val meta = base.resolve("src/main/resources/META-INF/kona/migrations")
-        Files.delete(base.resolve("src/main/kotlin/database/migrations/CreateFlightsTable.kt"))
-        val (recreated, recreateOut) = grind("make:migration", "create_flights_table", "--base=$base", "--lang=kotlin")
-        assertEquals(0, recreated)
-        assertFalse(recreateOut.contains("Registered in META-INF/kona/migrations"))
+        val clock = java.time.Clock.fixed(java.time.Instant.parse("2026-10-20T14:15:30Z"), java.time.ZoneOffset.UTC)
+        val stamped = temp.resolve("stamped")
+        Files.createDirectories(stamped)
         assertEquals(
-            1,
-            Files.readString(meta).lineSequence().count { it.trim() == "database.migrations.CreateFlightsTable" },
+            0,
+            MakeMigrationCommand(clock).run(listOf("CreateFlightsTable", "--base=$stamped", "--lang=kotlin")),
+        )
+        val stampedName = "M2026_10_20_141530_CreateFlightsTable"
+        assertTrue(Files.isRegularFile(stamped.resolve("src/main/kotlin/database/migrations/$stampedName.kt")))
+        assertEquals(
+            0,
+            MakeMigrationCommand(clock).run(listOf("create_flights_table", "--base=$stamped", "--lang=kotlin")),
+        )
+        assertTrue(
+            Files.isRegularFile(
+                stamped.resolve("src/main/kotlin/database/migrations/M2026_10_20_141531_CreateFlightsTable.kt"),
+            ),
+        )
+        assertEquals(
+            0,
+            MakeMigrationCommand(clock).run(
+                listOf("2026_10_20_141540_create_gates_table", "--base=$stamped", "--lang=kotlin"),
+            ),
+        )
+        assertTrue(
+            Files.isRegularFile(
+                stamped.resolve("src/main/kotlin/database/migrations/M2026_10_20_141540_CreateGatesTable.kt"),
+            ),
         )
 
-        // meta without trailing newline → prefix "\n" before next FQCN
+        val meta = stamped.resolve("src/main/resources/META-INF/kona/migrations")
+        Files.delete(stamped.resolve("src/main/kotlin/database/migrations/$stampedName.kt"))
+        val recreateOut = capture {
+            MakeMigrationCommand(clock).run(listOf("CreateFlightsTable", "--base=$stamped", "--lang=kotlin"))
+        }
+        assertEquals(0, recreateOut.first)
+        assertFalse(recreateOut.second.contains("Registered in META-INF/kona/migrations"))
+        assertEquals(
+            1,
+            Files.readString(meta).lineSequence().count { it.trim() == "database.migrations.$stampedName" },
+        )
+
         Files.writeString(meta, Files.readString(meta).trimEnd())
-        assertEquals(0, grind("make:migration", "create_gates_table", "--base=$base", "--lang=kotlin").first)
-        assertTrue(Files.readString(meta).contains("database.migrations.CreateGatesTable"))
+        assertEquals(
+            0,
+            MakeMigrationCommand(clock).run(listOf("M2026_10_20_141550_CreateAirportsTable", "--base=$stamped", "--lang=kotlin")),
+        )
+        assertTrue(Files.readString(meta).contains("database.migrations.M2026_10_20_141550_CreateAirportsTable"))
 
         assertEquals(1, grind("make:migration").first)
         assertEquals(1, grind("make:migration", "Bad-Name", "--base=$base").first)
+        assertEquals(1, grind("make:migration", "foo/bar", "--base=$base").first)
         assertEquals(1, grind("make:migration", "../evil", "--base=$base").first)
+        assertEquals(1, grind("make:migration", "..evil", "--base=$base").first)
+        assertEquals(1, grind("make:migration", "foo\\bar", "--base=$base").first)
+        assertEquals(1, grind("make:migration", "", "--base=$base").first)
+        assertEquals(1, grind("make:migration", "2026_13_01_000000_create_x_table", "--base=$base").first)
+        assertEquals(0, grind("make:migration", "createFlightsTable", "--base=$base", "--lang=kotlin").first)
+        assertTrue(Files.exists(migrationFile(base, "CreateFlightsTable")))
     }
 
     @Test
@@ -102,7 +152,7 @@ class GrindCadenceTest {
         assertEquals(0, code)
         assertTrue(out.contains("Model created: src/main/kotlin/app/models/BlogPost.kt"))
         assertTrue(read(base, "src/main/kotlin/app/models/BlogPost.kt").contains("companion object : CadenceCompanion<BlogPost>(BlogPost::class.java)"))
-        assertTrue(read(base, "src/main/kotlin/database/migrations/CreateBlogPostsTable.kt").contains("schema.create(\"blog_posts\")"))
+        assertTrue(Files.readString(migrationFile(base, "CreateBlogPostsTable")).contains("schema.create(\"blog_posts\")"))
         assertTrue(read(base, "src/main/kotlin/database/factories/BlogPostFactory.kt").contains("class BlogPostFactory : Factory<BlogPost>(BlogPost::class.java)"))
         assertTrue(read(base, "src/main/kotlin/database/seeders/BlogPostSeeder.kt").contains("class BlogPostSeeder : Seeder()"))
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/controllers/BlogPostController.kt")))
@@ -115,11 +165,11 @@ class GrindCadenceTest {
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/policies/BlogPostPolicy.kt")))
         assertTrue(
             read(base, "src/main/resources/META-INF/kona/migrations")
-                .contains("database.migrations.CreateBlogPostsTable"),
+                .contains("CreateBlogPostsTable"),
         )
 
         grind("make:model", "Category", "--migration", "--base=$base")
-        assertTrue(Files.exists(base.resolve("src/main/kotlin/database/migrations/CreateCategoriesTable.kt")))
+        assertTrue(Files.exists(migrationFile(base, "CreateCategoriesTable")))
         assertFalse(Files.exists(base.resolve("src/main/kotlin/database/factories/CategoryFactory.kt")))
         grind("make:model", "Box", "--factory", "--base=$base")
         assertTrue(Files.exists(base.resolve("src/main/kotlin/database/factories/BoxFactory.kt")))
@@ -127,7 +177,7 @@ class GrindCadenceTest {
         assertTrue(Files.exists(base.resolve("src/main/kotlin/database/seeders/PlainSeeder.kt")))
 
         grind("make:model", "Ticket", "-mcr", "--base=$base")
-        assertTrue(Files.exists(base.resolve("src/main/kotlin/database/migrations/CreateTicketsTable.kt")))
+        assertTrue(Files.exists(migrationFile(base, "CreateTicketsTable")))
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/controllers/TicketController.kt")))
         assertTrue(read(base, "src/main/kotlin/app/http/controllers/TicketController.kt").contains("fun store"))
 
@@ -162,7 +212,7 @@ class GrindCadenceTest {
         Files.writeString(javaBase.resolve("src/main/java/app/Existing.java"), "class Existing {}")
         grind("make:model", "Flight", "--all", "--base=$javaBase")
         assertTrue(read(javaBase, "src/main/java/app/models/Flight.java").contains("public static final CadenceCompanion<Flight> QUERY = Cadence.of(Flight.class);"))
-        assertTrue(read(javaBase, "src/main/java/database/migrations/CreateFlightsTable.java").contains("implements Migration"))
+        assertTrue(Files.readString(migrationFile(javaBase, "CreateFlightsTable", "java")).contains("implements Migration"))
         assertTrue(read(javaBase, "src/main/java/database/factories/FlightFactory.java").contains("super(Flight.class);"))
         assertTrue(read(javaBase, "src/main/java/database/seeders/FlightSeeder.java").contains("public class FlightSeeder extends Seeder"))
         assertTrue(Files.exists(javaBase.resolve("src/main/java/app/http/controllers/FlightController.java")))

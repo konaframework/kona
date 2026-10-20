@@ -4,10 +4,12 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 /**
- * Discovers migrations via `META-INF/kona/migrations` (one FQCN per line, registration order).
+ * Discovers migrations via `META-INF/kona/migrations` (one FQCN per line).
  *
  * `grind make:migration` / `make:model -m` append each new class here so
  * `./grind migrate` runs them without a manual [MigrationRegistry] bind.
+ * Loaded names are sorted by [MigrationOrder] so timestamped classes run in
+ * stamp order even when the file's line order is scrambled.
  */
 object MigrationDiscovery {
     const val RESOURCE: String = "META-INF/kona/migrations"
@@ -25,7 +27,7 @@ object MigrationDiscovery {
                 }
             }
         }
-        return names.toList()
+        return MigrationOrder.sort(names.toList())
     }
 
     fun loadMigrations(loader: ClassLoader): List<Migration> =

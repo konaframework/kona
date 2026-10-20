@@ -81,7 +81,7 @@ These commands work with [Cadence](../../cadence/). Generators write source file
 | Command | Writes / does |
 |---------|---------------|
 | `./grind make:model <Name> [-mcrfspaR]` | `app/models/<Name>`; short flags: `-m` migration, `-c` controller, `-r` resource controller, `-f` factory, `-s` seeder, `-p` policy, `-R` / `--requests` Store/Update form requests, `--api` API resource controller (no create/edit), `-a` / `--all` migration + factory + seeder + resource controller + requests + policy |
-| `./grind make:migration <snake_name> [--create=table] [--table=table]` | `database/migrations/<StudlyName>` and appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
+| `./grind make:migration <name> [--create=table] [--table=table]` | Timestamped `database/migrations/M{yyyy_MM_dd_HHmmss}_{DescriptiveName}` (snake_case or PascalCase names); appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
 | `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
 | `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
 | `./grind migrate [--seed] [--class=…]` | Runs pending migrations as one new batch; with `--seed` / `--seeder`, also runs a seeder in the same process |
