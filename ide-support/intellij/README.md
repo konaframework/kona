@@ -18,8 +18,9 @@ run configurations — including **Grind Serve** for the Netty HTTP adapter
 
 Install: **Settings → Plugins → ⚙ → Install Plugin from Disk…** → pick the zip → restart.
 
-Confirm `*.crema.html` / `*.crema.kt` open as language **Crema**, then run
-**Grind Serve** against your app.
+Confirm `*.crema.html` / `*.crema.kt` open as language **Crema**. Inline Brew
+`template()` / `inline(` strings use `@CremaTemplate` and `// language=Crema`.
+Then run **Grind Serve** against your app.
 
 ## Optional: TextMate (legacy)
 

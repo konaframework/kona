@@ -27,6 +27,7 @@ function activate(context) {
       'Run:    ' + java + ' -jar ' + jar,
       '',
       'Point your editor LSP client at that command (stdio).',
+      'Document languages: crema, java, kotlin (inline template() strings).',
       'Settings: crema.lsp.javaPath, crema.lsp.jarPath',
       'Also: ./grind ide:lsp',
     ];

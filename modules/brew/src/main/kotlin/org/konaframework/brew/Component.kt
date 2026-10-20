@@ -54,7 +54,8 @@ abstract class Component {
 
     /** Inline Crema [source] with optional [data]. */
     @JvmOverloads
-    protected fun inline(source: String, data: Map<String, Any?> = emptyMap()): BrewView = BrewView.inline(source, data)
+    protected fun inline(@CremaTemplate source: String, data: Map<String, Any?> = emptyMap()): BrewView =
+        BrewView.inline(source, data)
 
     /** Skip rendering for this request (`$this->skipRender()`); optional replacement [html]. Ignored after [forceRender]. */
     @JvmOverloads

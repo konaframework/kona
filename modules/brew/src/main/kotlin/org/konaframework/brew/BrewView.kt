@@ -58,7 +58,8 @@ class BrewView private constructor(
 
         @JvmStatic
         @JvmOverloads
-        fun inline(source: String, data: Map<String, Any?> = emptyMap()): BrewView = BrewView(null, source, null, data)
+        fun inline(@CremaTemplate source: String, data: Map<String, Any?> = emptyMap()): BrewView =
+            BrewView(null, source, null, data)
 
         @JvmStatic
         fun raw(html: String): BrewView = BrewView(null, null, html, emptyMap())

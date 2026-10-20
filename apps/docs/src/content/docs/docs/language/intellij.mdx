@@ -26,7 +26,8 @@ Installing, updating, or removing the plugin requires an IDE restart.
 ## What you get
 
 - Native Crema lexer: HTML colors plus `@directives`, `{{ }}`, `{!! !!}`, `{{-- --}}`
-- **`@` directive completion** — type `@` in a Crema view (autopopup); also **Ctrl+Space**
+- **Inline Brew strings** — `Component.template()`, `Component.inline(source)`, and `BrewView.inline(source)` are marked `@CremaTemplate`; `// language=Crema` on the previous line also injects Crema into a Java/Kotlin string
+- **`@` directive completion** — type `@` in a Crema view or an injected `template()` string (autopopup); also **Ctrl+Space**
 - **Brew `wire:*` attribute completion** — type `wire:` on HTML tags (`wire:model`, `wire:click`, `wire:submit`, …); weak warnings for unknown `wire:*` names
 - Warnings for unknown `@name` tokens (emails like `hi@example.com` are ignored)
 - `{{` auto-closes as `{{  }}` with the caret in the middle

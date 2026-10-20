@@ -8,7 +8,8 @@ package org.konaframework.brew
  * `<<<'BLADE'` heredoc for Blade.
  *
  * Prefer a separate `views/brew/….crema.html` when the template is large; use
- * this for Brew single-file [Component.template] strings.
+ * this for Brew single-file [Component.template] strings and [Component.inline] /
+ * [BrewView.inline] source arguments.
  *
  * Example:
  * ```kotlin
