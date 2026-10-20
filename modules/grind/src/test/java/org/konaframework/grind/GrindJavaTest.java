@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import org.konaframework.core.Kona;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -94,6 +95,30 @@ class GrindJavaTest {
         assertEquals(0, new KeyGenerateCommand(app).run(List.of("--base=" + app)));
         assertTrue(Files.readString(app.resolve(".env")).contains("APP_KEY=base64:"));
         assertEquals(0, new GrindApplication().run(new String[] {"key:generate", "--show"}));
+    }
+
+    @Test
+    void routeCommandsFromJava() throws Exception {
+        Path app = temp.resolve("routed");
+        Files.createDirectories(app.resolve("build/classes/kotlin/main"));
+        Files.writeString(app.resolve("settings.gradle.kts"), "rootProject.name = \"routed\"\n");
+        String boot = "--bootstrap=org.konaframework.grind.FixtureApp";
+        assertEquals(
+                0,
+                new RouteCommand(RouteCommand.Action.LIST)
+                        .run(List.of("--base=" + app, boot, "--json")));
+        assertEquals(
+                0,
+                new GrindApplication()
+                        .run(new String[] {"route:list", "--base=" + app, boot, "--quiet"}));
+        assertEquals(0, new RouteCommand(RouteCommand.Action.CACHE).run(List.of("--base=" + app, boot)));
+        assertTrue(Files.isRegularFile(app.resolve(RouteCommand.DEFAULT_CACHE_PATH)));
+        assertEquals(0, new RouteCommand(RouteCommand.Action.CLEAR).run(List.of("--base=" + app)));
+        assertEquals(RouteCommand.Action.LIST, RouteCommand.Action.valueOf("LIST"));
+        assertEquals(RouteCommand.Action.CACHE, RouteCommand.Action.valueOf("CACHE"));
+        assertEquals(RouteCommand.Action.CLEAR, RouteCommand.Action.valueOf("CLEAR"));
+        assertEquals("bootstrap/cache/routes.json", RouteCommand.DEFAULT_CACHE_PATH);
+        Kona.reset();
     }
 
     @Test

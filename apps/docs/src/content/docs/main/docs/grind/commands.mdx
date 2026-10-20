@@ -1,12 +1,13 @@
 ---
 title: serve / make
-description: Reference for ./grind serve, the make generators, and the database commands.
+description: Reference for ./grind serve, route:list, the make generators, and the database commands.
 ---
 
 All commands below assume you are in an application directory that contains `./grind` (created by `kona new`). From anywhere under that app you can also run the same commands through the global CLI:
 
 ```bash
 kona grind serve
+kona grind route:list
 kona grind migrate
 kona grind --help   # explains the proxy; other args are forwarded to ./grind
 ```
@@ -35,6 +36,58 @@ Default host is **127.0.0.1** and default port is **4000** (also in generated `.
 On start, grind prints a Termwind box with the local URL (for example `http://127.0.0.1:4000`) and how to stop (`Ctrl+C`). Gradle runs with `--quiet --console=plain` so you do not see a forever-stuck build progress bar while the server is running.
 
 `./grind serve` is for **local development**. For production, start `bootstrap.App` via `installDist` / `distZip` (or an equivalent JVM launch) — see [Deployment](../../guides/deployment/).
+
+## `./grind route:list` {#grind-routelist}
+
+```bash
+./grind route:list
+./grind route:list --json
+./grind route:list --method=GET --name=users --path=/api
+./grind route:list --compact
+./grind route:list --columns=method,uri,name --sort=uri --reverse
+```
+
+Boots the application in-process (same as migrate: find the project, load `build/classes`, call `bootstrap.App.create`) and prints every route registered on the shared `Router`. Run `./gradlew classes` first so the compiled app is on the classpath.
+
+The table columns are **Method**, **URI**, **Name**, **Action**, and **Middleware**. Methods are joined with `|` when a route accepts more than one (for example `PUT|PATCH`). Named handler classes show their fully qualified name; Kotlin/Java lambdas show as `Closure`. Route middleware classes show their simple names, comma-separated; lambda middleware shows as `Closure`. Unnamed routes leave the name cell blank.
+
+A footer reports `Showing N route(s)`. When nothing is registered: `Your application doesn't have any routes.` When filters remove everything: `Your application doesn't have any routes matching the given criteria.` Both still exit `0`.
+
+| Flag | Effect |
+|------|--------|
+| `--json` | Print a JSON array (keys `method`, `uri`, `name`, `action`, `middleware`, `vendor`) instead of the table. `name` is `null` when the route has no name. |
+| `--method=` | Keep routes that declare this verb (comma-separated). Case-insensitive. `HEAD` also matches `GET` routes, because the router falls back that way. |
+| `--name=` | Keep routes whose name contains this substring (comma-separated, case-insensitive). Unnamed routes never match. |
+| `--path=` | Keep routes whose URI contains this substring (comma-separated, case-sensitive). |
+| `--except-path=` | Drop routes whose URI contains any of these substrings (comma-separated). |
+| `--except-vendor` | Drop routes whose handler class lives under `org.konaframework.` (framework packages). App handlers such as `app.http.ShowUser` stay. Lambdas compiled inside a framework class are treated as vendor. |
+| `--only-vendor` | Keep only those vendor handlers. Combined with `--except-vendor`, the table is empty. |
+| `--reverse` | Reverse the sort order. |
+| `--sort=` | Sort by `method`, `uri` (default), `name`, `action`, or `middleware`. Unknown values exit `1`. |
+| `--columns=` | Comma-separated subset of `method`, `uri`, `name`, `action`, `middleware`. Unknown values exit `1`. |
+| `--compact` | Shorthand for `--columns=method,uri,action,middleware`. |
+| `--bootstrap=` / `--base=` | Same meaning as `serve --in-process`. |
+
+`--json` ignores `--columns` / `--compact` and always emits the full object shape. `--quiet` suppresses the table and the JSON.
+
+If `HttpServiceProvider` was never registered, grind exits `1` with `No Router bound`.
+
+See [Routing](../../http/routing/#listing-routes-with-grind) for how the table maps onto `Router` / `Route`.
+
+## `./grind route:cache` / `./grind route:clear` {#grind-routecache}
+
+```bash
+./grind route:cache
+./grind route:clear
+```
+
+`route:cache` boots the app, then writes a pretty-printed JSON snapshot of the live table to `bootstrap/cache/routes.json` (creates `bootstrap/cache/` as needed). Success: `Routes cached successfully.`
+
+HTTP dispatch does **not** read this file. Route registration already lives in compiled Kotlin/Java (providers and `WebRoutes` / `ApiRoutes`). The snapshot is for inspection, CI, and editor tooling.
+
+`route:clear` deletes `bootstrap/cache/routes.json` if it exists and always prints `Route cache cleared successfully.` It does not boot the application. Missing file is still a successful clear.
+
+Both commands require a Kona app at or above `--base=` (same project walk as `serve`).
 
 ## `./grind make:command`
 

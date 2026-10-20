@@ -26,6 +26,9 @@ class ListCommand(
         val BUILTIN: List<Pair<String, String>> = listOf(
             "install" to "Add a package dependency and register providers",
             "serve" to "Run the HTTP server",
+            "route:list" to "List registered routes [--json] [--method=] [--name=] [--path=]",
+            "route:cache" to "Write a JSON snapshot of registered routes",
+            "route:clear" to "Remove the route cache file",
             "make:command" to "Generate a console command",
             "make:controller" to "Generate a controller (--resource / --api / --requests)",
             "make:resource" to "Generate an API resource (--collection)",
