@@ -64,8 +64,11 @@ constructor(
 
     private fun serveInProcess(root: Path, options: Map<String, String>): Int {
         Kona.reset()
+        val verbose = GrindLogging.wantsVerbose(options)
+        GrindLogging.hushConsole(verbose)
         val app = AppLoader(root, options.getOrDefault("bootstrap", AppLoader.DEFAULT_BOOTSTRAP))
             .create(arrayOf("--base=$root"))
+        GrindLogging.hushConsole(verbose)
         val (host, port) = resolveBind(root, options)
         val server = KonaHttpServer(app.resolve(HttpKernel::class.java), host, port)
         server.start()

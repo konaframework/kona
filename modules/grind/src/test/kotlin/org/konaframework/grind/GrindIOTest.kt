@@ -25,6 +25,7 @@ class GrindIOTest {
         io.line("hidden")
         io.write("x")
         io.writeln()
+        io.taskLine("hidden", "DONE", 1)
         io.error("shown")
         assertEquals("", out.toString())
         assertTrue(err.toString().contains("shown"))
@@ -76,5 +77,13 @@ class GrindIOTest {
         val normal = GrindIO(PrintStream(out), color = false)
         normal.table(listOf("A"), listOf(listOf("1")))
         assertTrue(out.toString().contains("A"))
+        normal.taskLine("create_widgets_table", "DONE", 8)
+        normal.taskLine("WidgetSeeder", "DONE")
+        assertTrue(out.toString().contains("create_widgets_table"))
+        assertTrue(out.toString().contains("DONE"))
+        assertTrue(out.toString().contains("8ms"))
+        assertEquals("x", normal.paint(org.konaframework.support.console.ConsoleIO.GREEN, "x"))
+        val painted = GrindIO(PrintStream(out), color = true)
+        assertTrue(painted.paint(org.konaframework.support.console.ConsoleIO.GREEN, "Ran").contains("\u001B["))
     }
 }

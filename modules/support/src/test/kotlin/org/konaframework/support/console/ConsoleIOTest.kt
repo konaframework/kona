@@ -1,5 +1,6 @@
 package org.konaframework.support.console
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -104,5 +105,35 @@ class ConsoleIOTest {
         val colored = ByteArrayOutputStream()
         ConsoleIO(PrintStream(colored), color = true).table(listOf("H"), listOf(listOf("c")))
         assertTrue(colored.toString().contains("H"))
+    }
+
+    @Test
+    fun taskLineDurationsAndFail() {
+        val out = ByteArrayOutputStream()
+        val io = ConsoleIO(PrintStream(out), color = false)
+        io.taskLine("create_users_table", "DONE", 12)
+        io.taskLine("seeders", "DONE")
+        io.taskLine("x", "FAIL", 0, ok = false)
+        io.taskLine("n", "DONE", -3)
+        io.taskLine("slow", "DONE", 1000)
+        io.taskLine("slower", "DONE", 1234)
+        io.taskLine("A".repeat(80), "DONE", 1)
+        val text = out.toString()
+        assertTrue(text.contains("create_users_table"))
+        assertTrue(text.contains("12ms"))
+        assertTrue(text.contains("DONE"))
+        assertTrue(text.contains("FAIL"))
+        assertTrue(text.contains("0ms"))
+        assertTrue(text.contains("1.00s"))
+        assertTrue(text.contains("1.23s"))
+        assertTrue(text.contains("seeders"))
+        assertEquals("12ms", ConsoleIO.formatDuration(12))
+        assertEquals("1.00s", ConsoleIO.formatDuration(1000))
+        assertEquals("1.23s", ConsoleIO.formatDuration(1234))
+        assertEquals("0ms", ConsoleIO.formatDuration(-1))
+        val colored = ByteArrayOutputStream()
+        ConsoleIO(PrintStream(colored), color = true).taskLine("m", "DONE", 4, ok = true)
+        ConsoleIO(PrintStream(colored), color = true).taskLine("m", "FAIL", 4, ok = false)
+        assertTrue(colored.toString().contains("\u001B["))
     }
 }

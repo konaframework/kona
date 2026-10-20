@@ -95,6 +95,33 @@ class MigratorTest {
     }
 
     @Test
+    fun migrateNotifiesEvents() {
+        val migrator = Migrator(connection, MigrationRegistry(CreateUsersTable()))
+        val starts = mutableListOf<String>()
+        val finishes = mutableListOf<String>()
+        val events = object : MigrationEvents {
+            override fun starting(name: String) {
+                starts += name
+            }
+
+            override fun finished(name: String, millis: Long) {
+                finishes += name
+                assertTrue(millis >= 0)
+            }
+        }
+        assertEquals(listOf("CreateUsersTable"), migrator.migrate(events))
+        assertEquals(listOf("CreateUsersTable"), starts)
+        assertEquals(listOf("CreateUsersTable"), finishes)
+        assertEquals(emptyList<String>(), migrator.migrate(object : MigrationEvents {}))
+        starts.clear()
+        finishes.clear()
+        assertEquals(listOf("CreateUsersTable"), migrator.rollback(1, events))
+        assertEquals(listOf("CreateUsersTable"), starts)
+        migrator.migrate(object : MigrationEvents {})
+        assertEquals(listOf("CreateUsersTable"), migrator.reset(object : MigrationEvents {}))
+    }
+
+    @Test
     fun failedMigrationRollsBackAndReportsName() {
         val registry = MigrationRegistry().add("broken", object : Migration {
             override fun up(schema: Schema) = schema.execute(listOf("CREATE TABLE \"oops\" (bad syntax"))

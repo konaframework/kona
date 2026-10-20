@@ -10,6 +10,13 @@ interface Migration {
     fun down(schema: Schema)
 }
 
+/** Start/finish of each migration [Migrator] applies or reverts. Used by grind for console timing. */
+interface MigrationEvents {
+    fun starting(name: String) {}
+
+    fun finished(name: String, millis: Long) {}
+}
+
 /**
  * The ordered list of an application's migrations. Timestamped names
  * (`yyyy_MM_dd_HHmmss_snake_name` file stems, or legacy `M{stamp}_Class` names)

@@ -121,6 +121,21 @@ class ConsoleIO(
         }
     }
 
+    /**
+     * One migration/seeder row: name, dotted fill, optional duration, then a colored status
+     * (`DONE` / `FAIL`). Width is [TASK_WIDTH] columns so a batch lines up like a table.
+     */
+    @JvmOverloads
+    fun taskLine(name: String, status: String, millis: Long? = null, ok: Boolean = true) {
+        val duration = if (millis == null) "" else " ${formatDuration(millis.coerceAtLeast(0))}"
+        val used = 2 + plainLength(name) + 1 + duration.length + 1 + status.length
+        val dots = ".".repeat((TASK_WIDTH - used).coerceAtLeast(1))
+        val paintedStatus = paint(if (ok) GREEN else RED, status)
+        val paintedDots = paint(DIM, dots)
+        val paintedDuration = if (duration.isEmpty()) "" else paint(DIM, duration)
+        writeln("  $name $paintedDots$paintedDuration $paintedStatus")
+    }
+
     fun paint(codes: String, text: String): String =
         if (color) "$codes$text$RESET" else text
 
@@ -137,7 +152,19 @@ class ConsoleIO(
         const val CYAN = "\u001B[36m"
         const val PRIMARY = "\u001B[38;2;111;78;55m"
         const val ACCENT = "\u001B[38;2;61;41;20m"
+        const val TASK_WIDTH = 72
         private val ANSI_REGEX = Regex("\u001B\\[[0-9;]*m")
+
+        @JvmStatic
+        fun formatDuration(millis: Long): String {
+            val clamped = millis.coerceAtLeast(0)
+            if (clamped < 1000L) {
+                return "${clamped}ms"
+            }
+            val whole = clamped / 1000L
+            val hundredths = ((clamped % 1000L) / 10L).toInt()
+            return "$whole.${hundredths.toString().padStart(2, '0')}s"
+        }
 
         fun detectColor(env: Map<String, String> = System.getenv()): Boolean {
             if (env.containsKey("NO_COLOR")) return false

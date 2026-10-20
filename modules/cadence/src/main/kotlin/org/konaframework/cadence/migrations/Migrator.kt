@@ -46,21 +46,24 @@ class Migrator @JvmOverloads constructor(
     }
 
     /** Runs every pending migration in one new batch; returns the names that ran. */
-    fun migrate(): List<String> {
+    @JvmOverloads
+    fun migrate(events: MigrationEvents? = null): List<String> {
         val pending = pending()
         if (pending.isEmpty()) {
             return emptyList()
         }
         val batch = (records().map { it.second }.maxOrNull() ?: 0) + 1
         pending.forEach { name ->
-            transaction(name) {
-                registry[name]!!.up(schema)
-                connection.prepareStatement(
-                    "INSERT INTO $quotedTable (${wrap("migration")}, ${wrap("batch")}) VALUES (?, ?)",
-                ).use { statement ->
-                    statement.setString(1, name)
-                    statement.setInt(2, batch)
-                    statement.executeUpdate()
+            runStep(name, events) {
+                transaction(name) {
+                    registry[name]!!.up(schema)
+                    connection.prepareStatement(
+                        "INSERT INTO $quotedTable (${wrap("migration")}, ${wrap("batch")}) VALUES (?, ?)",
+                    ).use { statement ->
+                        statement.setString(1, name)
+                        statement.setInt(2, batch)
+                        statement.executeUpdate()
+                    }
                 }
             }
         }
@@ -69,28 +72,38 @@ class Migrator @JvmOverloads constructor(
 
     /** Reverts the last [steps] batches, newest migration first; returns the names reverted. */
     @JvmOverloads
-    fun rollback(steps: Int = 1): List<String> {
+    fun rollback(steps: Int = 1, events: MigrationEvents? = null): List<String> {
         require(steps > 0) { "Rollback steps must be positive" }
         val records = records()
         val batches = records.map { it.second }.distinct().sortedDescending().take(steps).toSet()
-        return revert(records.filter { it.second in batches }.map { it.first }.reversed())
+        return revert(records.filter { it.second in batches }.map { it.first }.reversed(), events)
     }
 
     /** Reverts every migration that has run. */
-    fun reset(): List<String> = revert(ran().reversed())
+    @JvmOverloads
+    fun reset(events: MigrationEvents? = null): List<String> = revert(ran().reversed(), events)
 
-    private fun revert(names: List<String>): List<String> {
+    private fun revert(names: List<String>, events: MigrationEvents?): List<String> {
         names.forEach { name ->
             val migration = registry[name] ?: throw MigrationException("Migration not found: $name")
-            transaction(name) {
-                migration.down(schema)
-                connection.prepareStatement("DELETE FROM $quotedTable WHERE ${wrap("migration")} = ?").use {
-                    it.setString(1, name)
-                    it.executeUpdate()
+            runStep(name, events) {
+                transaction(name) {
+                    migration.down(schema)
+                    connection.prepareStatement("DELETE FROM $quotedTable WHERE ${wrap("migration")} = ?").use {
+                        it.setString(1, name)
+                        it.executeUpdate()
+                    }
                 }
             }
         }
         return names
+    }
+
+    private fun runStep(name: String, events: MigrationEvents?, block: () -> Unit) {
+        events?.starting(name)
+        val started = System.nanoTime()
+        block()
+        events?.finished(name, (System.nanoTime() - started) / 1_000_000)
     }
 
     private fun records(): List<Pair<String, Int>> {

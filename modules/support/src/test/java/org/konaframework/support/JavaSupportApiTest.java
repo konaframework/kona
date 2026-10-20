@@ -10,7 +10,10 @@ import org.konaframework.support.date.KonaDate;
 import org.konaframework.support.helpers.Arr;
 import org.konaframework.support.lang.Lang;
 import org.konaframework.support.lang.Translator;
+import org.konaframework.support.console.ConsoleIO;
 import org.konaframework.support.str.Str;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -79,5 +82,15 @@ public class JavaSupportApiTest {
         assertEquals("Hello World", Str.title("hello   world"));
         Translator twoArg = new Translator("fr", "en");
         assertEquals("fr", twoArg.getLocale());
+
+        ByteArrayOutputStream consoleOut = new ByteArrayOutputStream();
+        ConsoleIO console = new ConsoleIO(new PrintStream(consoleOut), new PrintStream(consoleOut), false);
+        console.taskLine("create_users_table", "DONE", 12L, true);
+        console.taskLine("seeders", "DONE", 3L);
+        console.taskLine("nested", "DONE");
+        assertTrue(consoleOut.toString().contains("create_users_table"));
+        assertEquals("12ms", ConsoleIO.formatDuration(12L));
+        assertEquals("1.23s", ConsoleIO.formatDuration(1234L));
+        assertEquals(72, ConsoleIO.TASK_WIDTH);
     }
 }

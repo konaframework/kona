@@ -6,6 +6,7 @@ import org.konaframework.cadence.Database
 import org.konaframework.cadence.migrations.MigrationDiscovery
 import org.konaframework.cadence.migrations.MigrationRegistry
 import org.konaframework.cadence.migrations.Migrator
+import org.konaframework.support.console.ConsoleIO
 
 /**
  * `grind migrate [--seed] [--class=…]`, `migrate:rollback [--step=N]`, `migrate:reset`,
@@ -24,6 +25,7 @@ class MigrateCommand(private val action: Action) {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
         val io = GrindIO.fromOptions(options)
+        GrindLogging.hushConsole(io.verbosity == Verbosity.VERBOSE)
         withApplication(options) { app, loader ->
             val registry = resolveRegistry(app, loader)
             withDatabase(app) { database ->
@@ -40,38 +42,55 @@ class MigrateCommand(private val action: Action) {
     }
 
     private fun execute(migrator: Migrator, options: Map<String, String>, io: GrindIO) {
+        val events = GrindMigrationEvents(io)
         when (action) {
-            Action.MIGRATE -> report(io, migrator.migrate(), "Migrated", "Nothing to migrate.")
+            Action.MIGRATE -> {
+                if (migrator.pending().isEmpty()) {
+                    io.info("Nothing to migrate.")
+                } else {
+                    io.info("Running migrations.")
+                    migrator.migrate(events)
+                }
+            }
             Action.ROLLBACK -> {
                 val steps = options["step"]?.let {
                     it.toIntOrNull()?.takeIf { n -> n > 0 } ?: throw GrindException("--step must be a positive integer")
                 } ?: 1
-                report(io, migrator.rollback(steps), "Rolled back", "Nothing to rollback.")
-            }
-            Action.RESET -> report(io, migrator.reset(), "Rolled back", "Nothing to rollback.")
-            Action.STATUS -> {
-                val status = migrator.status()
-                if (status.isEmpty()) {
-                    io.warn("No migrations registered.")
-                }
-                status.forEach {
-                    val state = if (it.ran) "Ran" else "Pending"
-                    io.twoColumn(
-                        "%-8s %-6s".format(state, it.batch ?: "").trimEnd(),
-                        it.name,
-                        width = 16,
-                    )
+                if (migrator.ran().isEmpty()) {
+                    io.info("Nothing to rollback.")
+                } else {
+                    io.info("Rolling back migrations.")
+                    migrator.rollback(steps, events)
                 }
             }
+            Action.RESET -> {
+                if (migrator.ran().isEmpty()) {
+                    io.info("Nothing to rollback.")
+                } else {
+                    io.info("Rolling back migrations.")
+                    migrator.reset(events)
+                }
+            }
+            Action.STATUS -> printStatus(migrator, io)
         }
     }
 
-    private fun report(io: GrindIO, names: List<String>, verb: String, empty: String) {
-        if (names.isEmpty()) {
-            io.info(empty)
+    private fun printStatus(migrator: Migrator, io: GrindIO) {
+        val status = migrator.status()
+        if (status.isEmpty()) {
+            io.warn("No migrations registered.")
             return
         }
-        names.forEach { io.success("$verb: $it") }
+        io.title("Migration status")
+        io.table(
+            listOf("Status", "Batch", "Migration"),
+            status.map { row ->
+                val state = if (row.ran) io.paint(ConsoleIO.GREEN, "Ran") else io.paint(ConsoleIO.YELLOW, "Pending")
+                val batch = row.batch
+                val batchLabel = if (batch == null) "—" else batch.toString()
+                listOf(state, batchLabel, row.name)
+            },
+        )
     }
 
     companion object {
@@ -104,8 +123,11 @@ class MigrateCommand(private val action: Action) {
             val root = ServeCommand.findProjectRoot(start)
                 ?: throw GrindException("No Kona application found at $start. Create one with: kona new <name>")
             Kona.reset()
+            val verbose = GrindLogging.wantsVerbose(options)
+            GrindLogging.hushConsole(verbose)
             val loader = AppLoader(root, options.getOrDefault("bootstrap", AppLoader.DEFAULT_BOOTSTRAP))
             val app = loader.create(arrayOf("--base=$root"))
+            GrindLogging.hushConsole(verbose)
             block(app, loader.classLoader!!)
         }
 

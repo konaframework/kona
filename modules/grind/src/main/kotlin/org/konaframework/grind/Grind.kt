@@ -24,6 +24,7 @@ constructor(
     fun run(args: Array<String>): Int {
         val (positional, options) = parseOptions(args.toList())
         val io = GrindIO.fromOptions(options)
+        GrindLogging.hushConsole(io.verbosity == Verbosity.VERBOSE)
         if (positional.isEmpty() || positional[0] == "help" || positional[0] == "--help" || positional[0] == "-h") {
             discoverCustomCommands(options)
             printHelp(io)

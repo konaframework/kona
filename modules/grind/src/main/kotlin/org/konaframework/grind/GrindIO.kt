@@ -80,6 +80,13 @@ class GrindIO(
         if (verbosity != Verbosity.QUIET) console.table(headers, rows)
     }
 
+    @JvmOverloads
+    fun taskLine(name: String, status: String, millis: Long? = null, ok: Boolean = true) {
+        if (verbosity != Verbosity.QUIET) console.taskLine(name, status, millis, ok)
+    }
+
+    fun paint(codes: String, text: String): String = console.paint(codes, text)
+
     fun verbose(message: String) {
         if (verbosity == Verbosity.VERBOSE) {
             console.writeln(console.paint(ConsoleIO.DIM, message))
