@@ -111,6 +111,62 @@ class ConnectionTest {
         assertEquals(2, env.poolSize)
         val lookup = ConnectionConfig.fromEnv(Function<String, String?> { if (it == "DB_URL") "jdbc:h2:mem:d" else null })
         assertEquals("jdbc:h2:mem:d", lookup.url)
+
+        assertNull(ConnectionConfig.fromMap(mapOf("url" to "jdbc:h2:mem:e", "driver" to "  ")).driver)
+        assertEquals("sqlite", ConnectionConfig.fromMap(mapOf("url" to "jdbc:sqlite:x", "driver" to " sqlite ")).driver)
+    }
+
+    @Test
+    fun jdbcDriverClassNameMapsEngineAliases() {
+        assertNull(ConnectionConfig("jdbc:h2:mem:a").jdbcDriverClassName())
+        assertNull(ConnectionConfig("jdbc:h2:mem:a", driver = "  ").jdbcDriverClassName())
+        assertNull(ConnectionConfig("jdbc:h2:mem:a", driver = "unknown").jdbcDriverClassName())
+        assertEquals("org.h2.Driver", ConnectionConfig("jdbc:h2:mem:a", driver = "org.h2.Driver").jdbcDriverClassName())
+        assertEquals("org.sqlite.JDBC", ConnectionConfig("jdbc:sqlite:x", driver = "sqlite").jdbcDriverClassName())
+        assertEquals("org.h2.Driver", ConnectionConfig("jdbc:h2:mem:a", driver = "H2").jdbcDriverClassName())
+        assertEquals("com.mysql.cj.jdbc.Driver", ConnectionConfig("jdbc:mysql://h/db", driver = "mysql").jdbcDriverClassName())
+        assertEquals("org.mariadb.jdbc.Driver", ConnectionConfig("jdbc:mariadb://h/db", driver = "mariadb").jdbcDriverClassName())
+        assertEquals("org.postgresql.Driver", ConnectionConfig("jdbc:postgresql://h/db", driver = "pgsql").jdbcDriverClassName())
+        assertEquals("org.postgresql.Driver", ConnectionConfig("jdbc:postgresql://h/db", driver = "postgres").jdbcDriverClassName())
+        assertEquals("org.postgresql.Driver", ConnectionConfig("jdbc:postgresql://h/db", driver = "postgresql").jdbcDriverClassName())
+        assertEquals("org.postgresql.Driver", ConnectionConfig("jdbc:postgresql://h/db", driver = "pg").jdbcDriverClassName())
+        assertEquals(
+            "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            ConnectionConfig("jdbc:sqlserver://h", driver = "sqlsrv").jdbcDriverClassName(),
+        )
+        assertEquals(
+            "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            ConnectionConfig("jdbc:sqlserver://h", driver = "sqlserver").jdbcDriverClassName(),
+        )
+        assertEquals(
+            "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            ConnectionConfig("jdbc:sqlserver://h", driver = "mssql").jdbcDriverClassName(),
+        )
+        assertEquals("oracle.jdbc.OracleDriver", ConnectionConfig("jdbc:oracle:thin:@//h/x", driver = "oracle").jdbcDriverClassName())
+    }
+
+    @Test
+    fun engineAliasOpensPooledConnection() {
+        val sqlite = Database().addConnection(
+            "default",
+            ConnectionConfig("jdbc:sqlite::memory:", driver = "sqlite", poolSize = 1),
+        )
+        assertEquals(1, sqlite.connection().select("select 1 as one").size)
+        sqlite.close()
+
+        val h2 = Database().addConnection(
+            "default",
+            ConnectionConfig(TestDb.url(), "sa", "", driver = "h2", poolSize = 1),
+        )
+        assertEquals(1, h2.connection().select("select 1 as one").size)
+        h2.close()
+
+        val inferred = Database().addConnection(
+            "default",
+            ConnectionConfig(TestDb.url(), "sa", "", driver = "not-a-class", poolSize = 1),
+        )
+        assertEquals(1, inferred.connection().select("select 1 as one").size)
+        inferred.close()
     }
 
     @Test

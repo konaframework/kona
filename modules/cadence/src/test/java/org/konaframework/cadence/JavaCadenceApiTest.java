@@ -136,6 +136,9 @@ public class JavaCadenceApiTest {
         assertEquals("u", new ConnectionConfig("jdbc:h2:mem:o2", "u").getUsername());
         assertEquals("p", new ConnectionConfig("jdbc:h2:mem:o3", "u", "p").getPassword());
         assertEquals("d", new ConnectionConfig("jdbc:h2:mem:o4", "u", "p", "d").getDriver());
+        assertNull(new ConnectionConfig("jdbc:h2:mem:o4", "u", "p", "d").jdbcDriverClassName());
+        assertEquals("org.sqlite.JDBC", new ConnectionConfig("jdbc:sqlite:x", null, null, "sqlite").jdbcDriverClassName());
+        assertEquals("org.h2.Driver", new ConnectionConfig("jdbc:h2:mem:o4", "u", "p", "org.h2.Driver").jdbcDriverClassName());
         assertEquals(3, new ConnectionConfig("jdbc:h2:mem:o5", "u", "p", null, 3).getPoolSize());
         assertFalse(new ConnectionConfig("jdbc:h2:mem:o6", "u", "p", null, 3, false).getQuoteIdentifiers());
         assertEquals(Database.DEFAULT, new Database().getDefaultConnection());

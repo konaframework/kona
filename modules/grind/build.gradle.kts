@@ -25,19 +25,34 @@ dependencies {
 
 kover {
     reports {
-        // Common filters: koverCachedVerify has dropped `total { filters }` on CI
-        // for this module (HTTP/core still verify). Inner `$*` matches http's MultipartParser.
+        // Common filters only. `total { filters }` *replaces* this block (Kover 0.9);
+        // when koverCachedVerify drops the variant filters on CI the replacement is empty
+        // and verification runs unfiltered (~94.89% branches / ~98.49% lines).
+        // Inner `$*` matches http's MultipartParser pattern.
         filters {
             excludes {
-                excludedGrindKoverClasses()
+                classes(
+                    "org.konaframework.grind.GrindKt",
+                    "org.konaframework.grind.GrindKt\$*",
+                    // ScriptEngine wiring varies by JDK/classpath; fallback paths covered in GrindM8Test.
+                    "org.konaframework.grind.SteamCommand",
+                    "org.konaframework.grind.SteamCommand\$*",
+                    // Interactive prompt matrix — covered by GrindM8Test stream fixtures.
+                    "org.konaframework.grind.Prompts",
+                    "org.konaframework.grind.Prompts\$*",
+                    // ClassLoader resource enumeration — covered by GrindM8Test.
+                    "org.konaframework.grind.PackageDiscovery",
+                    "org.konaframework.grind.PackageDiscovery\$*",
+                    // Top-level command router — exercised by GrindTest / GrindM8Test suites.
+                    "org.konaframework.grind.GrindApplication",
+                    "org.konaframework.grind.GrindApplication\$*",
+                    "org.konaframework.grind.InstallCommand",
+                    "org.konaframework.grind.InstallCommand\$*",
+                )
+                annotatedBy("org.konaframework.support.KoverExclude")
             }
         }
         total {
-            filters {
-                excludes {
-                    excludedGrindKoverClasses()
-                }
-            }
             verify {
                 rule {
                     bound {
@@ -52,28 +67,6 @@ kover {
             }
         }
     }
-}
-
-fun kotlinx.kover.gradle.plugin.dsl.KoverReportFilter.excludedGrindKoverClasses() {
-    classes(
-        "org.konaframework.grind.GrindKt",
-        "org.konaframework.grind.GrindKt\$*",
-        // ScriptEngine wiring varies by JDK/classpath; fallback paths covered in GrindM8Test.
-        "org.konaframework.grind.SteamCommand",
-        "org.konaframework.grind.SteamCommand\$*",
-        // Interactive prompt matrix — covered by GrindM8Test stream fixtures.
-        "org.konaframework.grind.Prompts",
-        "org.konaframework.grind.Prompts\$*",
-        // ClassLoader resource enumeration — covered by GrindM8Test.
-        "org.konaframework.grind.PackageDiscovery",
-        "org.konaframework.grind.PackageDiscovery\$*",
-        // Top-level command router — exercised by GrindTest / GrindM8Test suites.
-        "org.konaframework.grind.GrindApplication",
-        "org.konaframework.grind.GrindApplication\$*",
-        "org.konaframework.grind.InstallCommand",
-        "org.konaframework.grind.InstallCommand\$*",
-    )
-    annotatedBy("org.konaframework.support.KoverExclude")
 }
 
 // koverCachedVerify is @CacheableTask; a stale unfiltered result (~94% branches) has

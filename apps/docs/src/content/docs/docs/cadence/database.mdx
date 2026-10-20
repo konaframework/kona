@@ -22,7 +22,7 @@ This page covers configuration depth: every env key, each first-party engine, pr
 | `url` | `DB_URL` | JDBC URL (required) |
 | `username` | `DB_USERNAME` | Login user |
 | `password` | `DB_PASSWORD` | Login password |
-| `driver` | `DB_DRIVER` | Driver class when the JAR does not auto-register |
+| `driver` | `DB_DRIVER` | Engine alias (`sqlite`, `h2`, `mysql`, `mariadb`, `pgsql`, `sqlsrv`, `oracle`) or a JDBC class (`org.sqlite.JDBC`). The scaffold uses aliases; Cadence maps them before opening the pool. Omit or leave blank to let Hikari load the driver from the JDBC URL. |
 | `pool_size` / `poolSize` | `DB_POOL_SIZE` | Hikari max pool size (default `10`) |
 | `quote_identifiers` / `quoteIdentifiers` | `DB_QUOTE_IDENTIFIERS` | Quote table/column names (default `true`) |
 

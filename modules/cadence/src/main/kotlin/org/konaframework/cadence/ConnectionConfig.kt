@@ -6,7 +6,12 @@ import org.konaframework.core.Config
 import java.util.function.Function
 
 /**
- * One named JDBC connection: url, optional credentials / driver class, and pool size.
+ * One named JDBC connection: url, optional credentials / driver, and pool size.
+ *
+ * [driver] may be a JDBC class (`org.sqlite.JDBC`) or an engine alias (`sqlite`, `h2`, `mysql`,
+ * `mariadb`, `pgsql`, `sqlsrv`, `oracle`). Aliases are what the `kona new` scaffold writes;
+ * Hikari receives the resolved class name. Blank / unknown aliases are omitted so Hikari can
+ * load the driver from the JDBC URL.
  *
  * Map keys (config files): `url`, `username`, `password`, `driver`, `pool_size` (or `poolSize`),
  * `quote_identifiers` (or `quoteIdentifiers`, default true).
@@ -39,11 +44,28 @@ class ConnectionConfig @JvmOverloads constructor(
         hikari.jdbcUrl = url
         hikari.username = username
         hikari.password = password
-        if (driver != null) {
-            hikari.driverClassName = driver
+        val jdbcClass = jdbcDriverClassName()
+        if (jdbcClass != null) {
+            hikari.driverClassName = jdbcClass
         }
         hikari.maximumPoolSize = poolSize
         return HikariDataSource(hikari)
+    }
+
+    /**
+     * JDBC class Hikari should load, or null to infer from [url].
+     * Engine aliases from the scaffold (`sqlite`, `pgsql`, …) map to first-party driver classes.
+     */
+    fun jdbcDriverClassName(): String? {
+        val configured = driver ?: return null
+        val raw = configured.trim()
+        if (raw.isEmpty()) {
+            return null
+        }
+        if (raw.contains('.')) {
+            return raw
+        }
+        return ENGINE_DRIVERS[raw.lowercase()]
     }
 
     override fun toString(): String =
@@ -52,6 +74,21 @@ class ConnectionConfig @JvmOverloads constructor(
     companion object {
         const val DEFAULT_POOL_SIZE = 10
 
+        private val ENGINE_DRIVERS: Map<String, String> = mapOf(
+            "sqlite" to "org.sqlite.JDBC",
+            "h2" to "org.h2.Driver",
+            "mysql" to "com.mysql.cj.jdbc.Driver",
+            "mariadb" to "org.mariadb.jdbc.Driver",
+            "pgsql" to "org.postgresql.Driver",
+            "postgres" to "org.postgresql.Driver",
+            "postgresql" to "org.postgresql.Driver",
+            "pg" to "org.postgresql.Driver",
+            "sqlsrv" to "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            "sqlserver" to "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            "mssql" to "com.microsoft.sqlserver.jdbc.SQLServerDriver",
+            "oracle" to "oracle.jdbc.OracleDriver",
+        )
+
         @JvmStatic
         fun fromMap(map: Map<String, *>): ConnectionConfig {
             val url = map["url"] ?: throw CadenceException("Database connection is missing [url]")
@@ -59,7 +96,7 @@ class ConnectionConfig @JvmOverloads constructor(
                 url = url.toString(),
                 username = map["username"]?.toString(),
                 password = map["password"]?.toString(),
-                driver = map["driver"]?.toString(),
+                driver = driverOf(map["driver"]),
                 poolSize = intOf(map["pool_size"] ?: map["poolSize"]) ?: DEFAULT_POOL_SIZE,
                 quoteIdentifiers = Config.toBoolean(map["quote_identifiers"] ?: map["quoteIdentifiers"]) ?: true,
             )
@@ -80,6 +117,14 @@ class ConnectionConfig @JvmOverloads constructor(
 
         @JvmStatic
         fun fromEnv(env: Map<String, String?>): ConnectionConfig = fromEnv(Function<String, String?> { env[it] })
+
+        private fun driverOf(value: Any?): String? {
+            if (value == null) {
+                return null
+            }
+            val raw = value.toString().trim()
+            return if (raw.isEmpty()) null else raw
+        }
 
         private fun intOf(value: Any?): Int? = when (value) {
             is Number -> value.toInt()
