@@ -15,9 +15,11 @@ code --install-extension ide-support/vscode-crema
 cursor --install-extension ide-support/vscode-crema
 ```
 
-Reload the window, then open any `*.crema.html` file — highlighting should activate without further setup. The grammar also highlights known Brew `wire:*` attributes (`wire:model`, `wire:click`, …).
+Reload the window (`Developer: Reload Window`), then open any `*.crema.html` file — highlighting should activate without further setup. The grammar also highlights known Brew `wire:*` attributes (`wire:model`, `wire:click`, …).
 
-With **kona-lsp** attached, completions and diagnostics cover Crema `@` directives and Brew `wire:*` attributes (same surface as [IntelliJ](/docs/language/intellij) for Brew markup). Inertia apps that use Crema layouts benefit from the same Crema/LSP path; page-component completion stays on the IntelliJ plugin today.
+Inline Brew markup in Java and Kotlin is highlighted too: `template()` text blocks, `inline(` string arguments, and strings preceded by `// language=Crema` or `/* language=Crema */`. That is the path you use when editing `samples/brew-java/.../Counter.java` (and the Kotlin equivalent) without a separate `.crema.html` file.
+
+With **kona-lsp** attached to **`crema`**, **`java`**, and **`kotlin`** documents, completions and diagnostics cover Crema `@` directives, Brew `wire:*` attributes, and (inside `{{ }}`) public members of the enclosing component class. Inertia apps that use Crema layouts benefit from the same Crema/LSP path; page-component completion stays on the IntelliJ plugin today.
 
 Command palette: **Crema: Show kona-lsp setup help** prints build/run lines to an output channel.
 
@@ -48,7 +50,9 @@ The stub extension registers language support and help; for live completion and 
 java -jar /absolute/path/to/kona-lsp.jar
 ```
 
-stdio transport, document selector language `crema`. See [Language server](/docs/language/lsp) for the protocol surface.
+stdio transport. Document selector languages: `crema`, `java`, `kotlin`. See [Language server](/docs/language/lsp) for the protocol surface.
+
+Point the client at Java and Kotlin buffers as well as `*.crema.html`. kona-lsp ignores ordinary Java/Kotlin code: it only scans inline Crema ranges, so `@Override` in a Java file is not treated as a Crema directive.
 
 ## Sync grammar after edits
 

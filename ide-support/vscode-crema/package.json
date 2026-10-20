@@ -2,7 +2,7 @@
   "name": "crema",
   "displayName": "Crema (Kona)",
   "description": "Crema template language support for Kona — syntax highlighting, Brew wire:* attributes, and kona-lsp.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "konaframework",
   "engines": {
     "vscode": "^1.85.0"
@@ -11,6 +11,8 @@
   "main": "./extension.js",
   "activationEvents": [
     "onLanguage:crema",
+    "onLanguage:java",
+    "onLanguage:kotlin",
     "onCommand:crema.lsp.showHelp"
   ],
   "contributes": {
@@ -33,6 +35,19 @@
         "language": "crema",
         "scopeName": "text.html.crema",
         "path": "./syntaxes/crema.tmLanguage.json"
+      },
+      {
+        "scopeName": "text.html.crema.injection",
+        "path": "./syntaxes/crema.injection.tmLanguage.json",
+        "injectTo": ["source.java", "source.kotlin"],
+        "embeddedLanguages": {
+          "meta.embedded.block.crema": "crema"
+        }
+      },
+      {
+        "scopeName": "text.html.crema.string-tokens",
+        "path": "./syntaxes/crema.string-tokens.tmLanguage.json",
+        "injectTo": ["source.java", "source.kotlin"]
       }
     ],
     "configuration": {
@@ -51,7 +66,7 @@
         "crema.lsp.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Start kona-lsp when opening Crema files (requires crema.lsp.jarPath)."
+          "description": "Start kona-lsp when opening Crema, Java, or Kotlin files (requires crema.lsp.jarPath)."
         }
       }
     }

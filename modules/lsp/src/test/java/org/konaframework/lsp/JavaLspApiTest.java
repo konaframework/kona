@@ -28,6 +28,35 @@ class JavaLspApiTest {
         List<CremaAnalyzer.CompletionItem> items =
                 CremaAnalyzer.completions("@js", 0, 3);
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("@json")));
+
+        String javaSrc =
+                "public class Counter {\n"
+                        + "  public int count = 0;\n"
+                        + "  public String template() { return \"<div>{{ cou @csrf</div>\"; }\n"
+                        + "}\n";
+        List<InlineCremaRanges.Range> ranges = InlineCremaRanges.find(javaSrc);
+        assertFalse(ranges.isEmpty());
+        int offset = javaSrc.indexOf("{{ cou") + 6;
+        int line = 0;
+        int column = 0;
+        for (int i = 0; i < offset; i++) {
+            if (javaSrc.charAt(i) == '\n') {
+                line++;
+                column = 0;
+            } else {
+                column++;
+            }
+        }
+        List<CremaAnalyzer.CompletionItem> hostItems =
+                HostDocument.completions(javaSrc, "java", "file:///Counter.java", line, column);
+        assertTrue(
+                hostItems.stream().anyMatch(i -> i.getLabel().equals("count")),
+                hostItems.toString());
+        List<CremaAnalyzer.Diagnostic> hostDiags =
+                HostDocument.diagnostics(javaSrc, "java", "file:///Counter.java");
+        assertTrue(hostDiags.isEmpty() || hostDiags.get(0).getMessage() != null);
+        assertEquals("java", HostDocument.languageId("", "file:///Counter.java"));
+        assertFalse(HostMembers.members(javaSrc, javaSrc.indexOf("count")).isEmpty());
     }
 
     @Test

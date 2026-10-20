@@ -14,7 +14,7 @@ class IdeLspCommand {
                 "Build: ./gradlew :kona-lsp:jar",
                 "Run:   java -jar modules/lsp/build/libs/kona-lsp-*.jar",
                 "Or:    ./gradlew :kona-lsp:installDist && …/bin/kona-lsp",
-                "VS Code: ide-support/vscode-crema",
+                "VS Code: ide-support/vscode-crema (Crema + Java/Kotlin inline templates)",
                 "Docs: /docs/language/",
             ),
         )

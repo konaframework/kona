@@ -17,6 +17,13 @@ import org.konaframework.core.Config;
 import org.konaframework.crema.CremaEngine;
 import org.konaframework.crema.MapViewFinder;
 import org.konaframework.http.Router;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -78,5 +85,39 @@ class JavaApiTest {
         assertEquals(String.class, Synth.rawClass(String.class));
         assertTrue(Synthesizers.isScalar("x"));
         assertFalse(Synthesizers.isTuple("x"));
+    }
+
+    @Test
+    void cremaTemplateAnnotatesInlineSourceParameters() throws Exception {
+        Target target = CremaTemplate.class.getAnnotation(Target.class);
+        assertTrue(Arrays.asList(target.value()).contains(ElementType.PARAMETER));
+        assertTrue(Arrays.asList(target.value()).contains(ElementType.METHOD));
+        assertEquals(
+                RetentionPolicy.SOURCE,
+                CremaTemplate.class.getAnnotation(Retention.class).value());
+
+        String component = readBrewSource("Component.kt");
+        assertTrue(component.contains("@CremaTemplate"));
+        assertTrue(component.contains("fun template()"));
+        assertTrue(
+                component.contains("fun inline(@CremaTemplate source: String"),
+                component);
+        String view = readBrewSource("BrewView.kt");
+        assertTrue(
+                view.contains("fun inline(@CremaTemplate source: String"),
+                view);
+    }
+
+    private static String readBrewSource(String name) throws Exception {
+        Path[] candidates = {
+            Path.of("src/main/kotlin/org/konaframework/brew", name),
+            Path.of("modules/brew/src/main/kotlin/org/konaframework/brew", name),
+        };
+        for (Path path : candidates) {
+            if (Files.isRegularFile(path)) {
+                return Files.readString(path);
+            }
+        }
+        throw new AssertionError("missing Brew source " + name);
     }
 }

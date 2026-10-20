@@ -157,4 +157,18 @@ class CremaAnalyzerTest {
         assertEquals(multiline.length, CremaAnalyzer.positionToOffset(multiline, 10, 0))
         assertEquals(CremaAnalyzer.Position(0, 0), CremaAnalyzer.offsetToPosition("", 5))
     }
+
+    @Test
+    fun echoPrefixInsideMustache() {
+        assertNull(CremaAnalyzer.echoPrefixAt("hello", 3))
+        assertNull(CremaAnalyzer.echoPrefixAt("{{ done }} x", 12))
+        assertEquals("", CremaAnalyzer.echoPrefixAt("{{", 2))
+        assertEquals("co", CremaAnalyzer.echoPrefixAt("{{ co", 5))
+        assertEquals("a_b", CremaAnalyzer.echoPrefixAt("{{ a_b", 6))
+        assertEquals("count", CremaAnalyzer.echoPrefixAt("{{ count }}", 8))
+        assertEquals("x", CremaAnalyzer.echoPrefixAt("{!! x", 5))
+        assertNull(CremaAnalyzer.echoPrefixAt("{!! x !!} y", 11))
+        assertNull(CremaAnalyzer.echoPrefixAt("", 0))
+        assertNull(CremaAnalyzer.echoPrefixAt("{{", 0))
+    }
 }

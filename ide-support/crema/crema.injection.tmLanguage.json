@@ -1,0 +1,136 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Crema in Java/Kotlin strings",
+  "scopeName": "text.html.crema.injection",
+  "injectionSelector": "L:source.java -comment, L:source.kotlin -comment",
+  "patterns": [
+    { "include": "#language-comment-triple" },
+    { "include": "#language-comment-double" },
+    { "include": "#inline-triple" },
+    { "include": "#inline-double" },
+    { "include": "#template-assign-triple" },
+    { "include": "#template-assign-double" },
+    { "include": "#template-return-triple" },
+    { "include": "#template-return-double" }
+  ],
+  "repository": {
+    "language-comment-triple": {
+      "begin": "(?i)((?://|/\\*)\\s*language\\s*=\\s*Crema\\b[^\\n]*(?:\\*/)?)(?:\\s*\\n\\s*|\\s+)(?:return\\s+)?(\"\"\")",
+      "end": "\"\"\"",
+      "contentName": "meta.embedded.block.crema",
+      "beginCaptures": {
+        "1": { "name": "comment.line.crema-injection" },
+        "2": { "name": "punctuation.definition.string.begin.crema.injection" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.crema.injection" }
+      },
+      "patterns": [
+        { "include": "text.html.crema" }
+      ]
+    },
+    "language-comment-double": {
+      "begin": "(?i)((?://|/\\*)\\s*language\\s*=\\s*Crema\\b[^\\n]*(?:\\*/)?)(?:\\s*\\n\\s*|\\s+)(?:return\\s+)?(\")",
+      "end": "\"",
+      "contentName": "meta.embedded.block.crema",
+      "beginCaptures": {
+        "1": { "name": "comment.line.crema-injection" },
+        "2": { "name": "punctuation.definition.string.begin.crema.injection" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.crema.injection" }
+      },
+      "patterns": [
+        { "match": "\\\\.", "name": "constant.character.escape.crema.injection" },
+        { "include": "text.html.crema" }
+      ]
+    },
+    "inline-triple": {
+      "begin": "(?<=\\binline\\s*\\(\\s*)(\"\"\")",
+      "end": "\"\"\"",
+      "contentName": "meta.embedded.block.crema",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.crema.injection" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.crema.injection" }
+      },
+      "patterns": [
+        { "include": "text.html.crema" }
+      ]
+    },
+    "inline-double": {
+      "begin": "(?<=\\binline\\s*\\(\\s*)(\")",
+      "end": "\"",
+      "contentName": "meta.embedded.block.crema",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.crema.injection" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.crema.injection" }
+      },
+      "patterns": [
+        { "match": "\\\\.", "name": "constant.character.escape.crema.injection" },
+        { "include": "text.html.crema" }
+      ]
+    },
+    "template-assign-triple": {
+      "begin": "(?<=\\btemplate\\s*\\(\\s*\\)(?:\\s*:\\s*[A-Za-z0-9_?.<>, \\[\\]]+)?\\s*=\\s*)(\"\"\")",
+      "end": "\"\"\"",
+      "contentName": "meta.embedded.block.crema",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.crema.injection" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.crema.injection" }
+      },
+      "patterns": [
+        { "include": "text.html.crema" }
+      ]
+    },
+    "template-assign-double": {
+      "begin": "(?<=\\btemplate\\s*\\(\\s*\\)(?:\\s*:\\s*[A-Za-z0-9_?.<>, \\[\\]]+)?\\s*=\\s*)(\")",
+      "end": "\"",
+      "contentName": "meta.embedded.block.crema",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.crema.injection" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.crema.injection" }
+      },
+      "patterns": [
+        { "match": "\\\\.", "name": "constant.character.escape.crema.injection" },
+        { "include": "text.html.crema" }
+      ]
+    },
+    "template-return-triple": {
+      "begin": "(?<=\\btemplate\\s*\\(\\s*\\)[\\s\\S]{0,400}?\\breturn\\s+)(\"\"\")",
+      "end": "\"\"\"",
+      "contentName": "meta.embedded.block.crema",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.crema.injection" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.crema.injection" }
+      },
+      "patterns": [
+        { "include": "text.html.crema" }
+      ]
+    },
+    "template-return-double": {
+      "begin": "(?<=\\btemplate\\s*\\(\\s*\\)[\\s\\S]{0,400}?\\breturn\\s+)(\")",
+      "end": "\"",
+      "contentName": "meta.embedded.block.crema",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.string.begin.crema.injection" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.crema.injection" }
+      },
+      "patterns": [
+        { "match": "\\\\.", "name": "constant.character.escape.crema.injection" },
+        { "include": "text.html.crema" }
+      ]
+    }
+  }
+}
