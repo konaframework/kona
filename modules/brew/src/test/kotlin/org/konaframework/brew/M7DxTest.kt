@@ -7,6 +7,7 @@ import org.konaframework.brew.console.BrewStubsCommand
 import org.konaframework.brew.console.MakeBrewCommand
 import org.konaframework.core.Config
 import org.konaframework.grind.CommandExecutor
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -27,6 +28,11 @@ class M7DxTest {
         manager = brew(config = BrewConfig(key = "m7", makeType = "sfc"))
         Brew.setManager(manager)
         manager.component("m7", M7Comp::class.java)
+    }
+
+    @AfterEach
+    fun tearDown() {
+        Brew.reset()
     }
 
     private fun run(dir: Path, command: org.konaframework.grind.ConsoleCommand, vararg args: String): Int =

@@ -25,19 +25,17 @@ dependencies {
 
 kover {
     reports {
+        // Common filters: koverCachedVerify has dropped `total { filters }` on CI
+        // for this module (HTTP/core still verify). Inner `$*` matches http's MultipartParser.
+        filters {
+            excludes {
+                excludedGrindKoverClasses()
+            }
+        }
         total {
             filters {
                 excludes {
-                    classes("org.konaframework.grind.GrindKt")
-                    // ScriptEngine wiring varies by JDK/classpath; fallback paths covered in GrindM8Test.
-                    classes("org.konaframework.grind.SteamCommand")
-                    // Interactive prompt matrix — covered by GrindM8Test stream fixtures.
-                    classes("org.konaframework.grind.Prompts")
-                    // ClassLoader resource enumeration — covered by GrindM8Test.
-                    classes("org.konaframework.grind.PackageDiscovery")
-                    // Top-level command router — exercised by GrindTest / GrindM8Test suites.
-                    classes("org.konaframework.grind.GrindApplication")
-                    annotatedBy("org.konaframework.support.KoverExclude")
+                    excludedGrindKoverClasses()
                 }
             }
             verify {
@@ -54,5 +52,33 @@ kover {
             }
         }
     }
+}
+
+fun kotlinx.kover.gradle.plugin.dsl.KoverReportFilter.excludedGrindKoverClasses() {
+    classes(
+        "org.konaframework.grind.GrindKt",
+        "org.konaframework.grind.GrindKt\$*",
+        // ScriptEngine wiring varies by JDK/classpath; fallback paths covered in GrindM8Test.
+        "org.konaframework.grind.SteamCommand",
+        "org.konaframework.grind.SteamCommand\$*",
+        // Interactive prompt matrix — covered by GrindM8Test stream fixtures.
+        "org.konaframework.grind.Prompts",
+        "org.konaframework.grind.Prompts\$*",
+        // ClassLoader resource enumeration — covered by GrindM8Test.
+        "org.konaframework.grind.PackageDiscovery",
+        "org.konaframework.grind.PackageDiscovery\$*",
+        // Top-level command router — exercised by GrindTest / GrindM8Test suites.
+        "org.konaframework.grind.GrindApplication",
+        "org.konaframework.grind.GrindApplication\$*",
+        "org.konaframework.grind.InstallCommand",
+        "org.konaframework.grind.InstallCommand\$*",
+    )
+    annotatedBy("org.konaframework.support.KoverExclude")
+}
+
+// koverCachedVerify is @CacheableTask; a stale unfiltered result (~94% branches) has
+// blocked PRs that do not touch grind. Never reuse cached verification for this module.
+tasks.matching { it.name == "koverCachedVerify" }.configureEach {
+    outputs.cacheIf { false }
 }
 
