@@ -367,7 +367,7 @@ This check is **liveness-oriented** (process up and kernel answering). It does n
 | `src/main/resources/public/` (`paths.public`) | Scaffold `Middleware` prepends **`ServePublicDirectory`**: a `GET`/`HEAD` under this tree (for example `/branding/kona-logo.svg`, `/robots.txt`) is served from disk. Path escapes (`..`) and symlinks are rejected. |
 | `GET /storage/...` | Served by `ServePublicStorage` from the **public** filesystem disk (see [Public disk and URLs](../../filesystem/urls/)). |
 | `./grind storage:link` | Symlinks `public/storage` → `storage/app/public` for tooling that expects a static tree. |
-| Frontend kits (Vite / Inertia / Brew) | Production builds write under `public/build/` (manifest). Run your kit’s `npm run build` (or equivalent) **before** or **during** deploy so the JVM host has those files. |
+| Frontend kits (Vite / Inertia / Brew) | Production builds write under `public/build/` (`manifest.json` or `.vite/manifest.json`, plus `assets/<hash>.*`). The browser requests `/build/assets/<hash>.js`, not the source path. `CremaServiceProvider` / `InertiaServiceProvider` serve the project `public/` directory, so those files answer on the JVM even when `paths.public` points at `src/main/resources/public`. Run `npm run build` **before** or **during** deploy. Do not ship `public/hot` — that file selects the dev server. |
 
 Common production split:
 

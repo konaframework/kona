@@ -17,15 +17,14 @@ dependencies {
 
 kover {
     reports {
-        total {
-            filters {
-                excludes {
-                    // Template interpreter — exercised via CremaEngine behavioral suite.
-                    classes("org.konaframework.crema.CremaRuntime*")
-                    // Shared Vite resolver — covered by CremaViteTest (+ :kona-inertia suite).
-                    classes("org.konaframework.crema.assets.*")
-                }
+        // Common filters only. `total { filters }` replaces this block on Kover 0.9.
+        filters {
+            excludes {
+                // Template interpreter — exercised via CremaEngine behavioral suite.
+                classes("org.konaframework.crema.CremaRuntime*")
             }
+        }
+        total {
             verify {
                 rule {
                     bound {

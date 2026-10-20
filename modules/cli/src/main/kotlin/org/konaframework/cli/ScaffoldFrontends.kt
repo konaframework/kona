@@ -96,32 +96,72 @@ internal object ScaffoldFrontends {
             adapters[0].entry
         }
         val importBlock = if (pluginImports.isEmpty()) "" else pluginImports.joinToString("\n") + "\n"
-        val pluginsJs = pluginCalls.joinToString(", ")
+        val pluginsJs = (listOf("konaHotFile()", "konaHotFileBuild()") + pluginCalls).joinToString(", ")
         put(
             target,
             "vite.config.js",
             """
             import { defineConfig } from 'vite';
             import { resolve } from 'node:path';
-            $importBlock
+            import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+            $importBlock${viteHotPlugins()}
             export default defineConfig({
               plugins: [$pluginsJs],
               publicDir: false,
               build: {
                 outDir: 'public/build',
                 emptyOutDir: true,
-                manifest: true,
+                manifest: 'manifest.json',
                 rollupOptions: {
                   input: resolve('$entry'),
                 },
               },
               server: {
-                origin: 'http://127.0.0.1:5173',
+                host: '127.0.0.1',
+                port: 5173,
               },
             });
             """.trimIndent() + "\n",
         )
     }
+
+    /** Dev server writes `public/hot`; production build removes it and emits `public/build/manifest.json`. */
+    private fun viteHotPlugins(): String =
+        """
+        function konaHotFile() {
+          const hotFile = resolve('public/hot');
+          const remove = () => {
+            try { unlinkSync(hotFile); } catch { /* absent */ }
+          };
+          return {
+            name: 'kona-hot-file',
+            apply: 'serve',
+            configureServer(server) {
+              const httpServer = server.httpServer;
+              if (!httpServer) return;
+              httpServer.once('listening', () => {
+                const address = httpServer.address();
+                const port = address && typeof address === 'object' ? address.port : 5173;
+                let host = server.config.server.host;
+                if (!host || host === true || host === '0.0.0.0' || host === '::') host = '127.0.0.1';
+                const protocol = server.config.server.https ? 'https' : 'http';
+                mkdirSync(resolve('public'), { recursive: true });
+                writeFileSync(hotFile, protocol + '://' + host + ':' + port);
+              });
+              httpServer.on('close', remove);
+            },
+          };
+        }
+        function konaHotFileBuild() {
+          return {
+            name: 'kona-hot-file-build',
+            apply: 'build',
+            buildStart() {
+              try { unlinkSync(resolve('public/hot')); } catch { /* absent */ }
+            },
+          };
+        }
+        """.trimIndent() + "\n"
 
     private fun writeCssFile(target: Path, css: String) {
         val body = when (css) {

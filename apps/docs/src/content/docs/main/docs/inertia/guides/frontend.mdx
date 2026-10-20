@@ -74,10 +74,10 @@ Entry `src/main/resources/js/app.js` with `@inertiajs/svelte` and `mount` from `
 
 ## Vite workflow
 
-| Mode | Command | Server reads |
+| Mode | Command | What the shell requests |
 |------|---------|----------------|
-| Development | `npm run dev` | `public/hot` (dev server URL) |
-| Production | `npm run build` | `public/build/manifest.json` |
+| Development | `npm run dev` | `public/hot` origin + entry, e.g. `http://127.0.0.1:5173/src/main/resources/js/app.js` and `/@vite/client` |
+| Production | `npm run build` | `/build/assets/<hash>.js` (and CSS) from `public/build/manifest.json` or `public/build/.vite/manifest.json` |
 
 `{!! vite !!}` in the root Crema view expands to the correct tags via Crema’s `AssetManifest` (bound by `InertiaServiceProvider`). Details: [Vite & assets](../../advanced/vite/).
 

@@ -11,10 +11,12 @@ Kona’s **Vite helper** lives in `kona-crema` (`org.konaframework.crema.assets`
 
 ```text
 public/
-  hot                 # optional: full URL of the Vite dev server
+  hot                         # dev only: full URL of the Vite dev server
   build/
-    manifest.json     # Vite manifest (npm run build)
-    assets/…
+    manifest.json             # preferred (scaffold sets build.manifest to this name)
+    .vite/manifest.json       # Vite’s default location when manifest is just `true`
+    assets/app-<hash>.js
+    assets/app-<hash>.css
 ```
 
 ## Emit tags
@@ -24,9 +26,9 @@ public/
 
 ```kotlin
 Vite.tags("src/main/resources/js/app.js")
-// production:
-// <link rel="stylesheet" href="/build/assets/app.css">
-// <script type="module" src="/build/assets/app.js"></script>
+// production (names come from the manifest `file` / `css` fields):
+// <link rel="stylesheet" href="/build/assets/app-<hash>.css">
+// <script type="module" src="/build/assets/app-<hash>.js"></script>
 ```
 
 </TabItem>
@@ -39,20 +41,26 @@ Vite.tags("src/main/resources/js/app.js");
 </TabItem>
 </Tabs>
 
-When `public/hot` exists (contents like `http://127.0.0.1:5173`), tags point at the Vite server instead:
+When `public/hot` exists (contents like `http://127.0.0.1:5173`), tags point at the Vite dev server. The entry URL is the dev-server origin plus the entry path Vite serves (the path relative to the Vite project root — for the Inertia kit, `src/main/resources/js/app.js`):
 
 ```html
 <script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
 <script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
 ```
 
+A `.css` entry becomes a stylesheet link on that same origin. Kona does **not** request `/build/` plus the source path (`/build/src/main/resources/js/app.js` is not an asset URL).
+
 Resolve a single URL:
 
 ```kotlin
-Vite.asset("src/main/resources/js/app.js") // /build/assets/… or hot URL
+Vite.asset("src/main/resources/js/app.js")
+// dev:    http://127.0.0.1:5173/src/main/resources/js/app.js
+// prod:   /build/assets/app-<hash>.js
 ```
 
-`CremaServiceProvider` and `InertiaServiceProvider` bind `AssetManifest` to `vite.public_path` / `inertia.public_path` (default `<base>/public`) and set the `Vite` facade. Crema `@vite('…')` uses that resolver when bound, otherwise falls back to `/build/…` paths.
+`CremaServiceProvider` and `InertiaServiceProvider` bind `AssetManifest` to `vite.public_path`, or else `inertia.public_path` (default `<base>/public`), and set the `Vite` facade. They also serve that directory over HTTP, so `/build/assets/…` is reachable even when `paths.public` is `src/main/resources/public` (logos and `robots.txt`).
+
+Crema `@vite('…')` uses the same resolver when the facade is bound. If there is no hot file and no manifest, it falls back to `/build/<entry>`. That fallback is only a placeholder — start the dev server or run a production build before expecting the browser to load the entry. Inertia shells (`{!! vite !!}`) leave the tag slot empty in that case instead of emitting the placeholder.
 
 ## grind help
 
@@ -73,7 +81,12 @@ Prints the same setup checklist (no processes are started).
 }
 ```
 
-Point Vite’s `build.outDir` at `public/build` and enable `build.manifest: true`. The Inertia starter kit (`kona new … --kit=inertia`) includes `package.json` and `vite.config.js` stubs.
+Point Vite’s `build.outDir` at `public/build` and set `build.manifest` to `'manifest.json'` (a bare `true` writes `public/build/.vite/manifest.json`, which Kona also reads). The dev server should write `public/hot` with its origin (for example `http://127.0.0.1:5173`) and delete that file on exit; a production build should delete a stale hot file so the manifest is used. The Inertia starter kit (`kona new … --kit=inertia`) and `./grind install inertia` include a `vite.config.js` that does this.
+
+```bash
+npm run dev     # public/hot → dev-server script URLs
+npm run build   # public/build/manifest.json → /build/assets/<hash>.*
+```
 
 ## Inertia root view
 

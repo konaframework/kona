@@ -198,14 +198,19 @@ Leading slashes on the path argument are trimmed before joining.
 
 ## `@vite`
 
-`@vite('resources/js/app.js')` emits a script (or link) tag pointing at `/build/...`. Lists are supported:
+`@vite('src/main/resources/js/app.js')` emits the script and stylesheet tags for that entry. Lists are supported:
 
 ```crema
-@vite('resources/js/app.js')
-@vite(['resources/js/app.js', 'resources/css/app.css'])
+@vite('src/main/resources/js/app.js')
+@vite(['src/main/resources/js/app.js', 'src/main/resources/css/app.css'])
 ```
 
-`.css` entries become `<link rel="stylesheet">`; everything else becomes `<script type="module">`. This helper is intentionally thin — it does not read a Vite manifest. For hot-reload and manifest resolution, see [Vite / asset bundling](/docs/assets/vite/) and [Inertia](/docs/inertia/).
+When `CremaServiceProvider` has bound the Vite manifest:
+
+- **`public/hot`** (dev server origin) → Vite client plus the entry URL on that origin, for example `http://127.0.0.1:5173/src/main/resources/js/app.js`.
+- **Manifest** (`public/build/manifest.json` or `public/build/.vite/manifest.json`) → hashed files such as `/build/assets/app-<hash>.js` and matching CSS.
+
+`.css` entries become `<link rel="stylesheet">`; other entries become `<script type="module">`. Without a hot file or manifest, the directive falls back to `/build/<entry>`. That placeholder is not the file Vite serves — run `npm run dev` or `npm run build` first. See [Vite / asset bundling](/docs/assets/vite/) and [Inertia](/docs/inertia/).
 
 ## Edge cases
 

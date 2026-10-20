@@ -7,7 +7,10 @@ import org.konaframework.crema.assets.ViteException
  * Vite tag helper for Crema `@vite(...)` directives.
  *
  * When [Vite.setManifest] / [CremaServiceProvider] has bound an [org.konaframework.crema.assets.AssetManifest],
- * tags honor `public/hot` and `public/build/manifest.json`. Otherwise falls back to `/build/...` paths.
+ * tags honor `public/hot` and the Vite manifest (`public/build/manifest.json` or
+ * `public/build/.vite/manifest.json`). Otherwise falls back to `/build/...` paths. That fallback is not
+ * a dev-server or hashed production URL — prefer the bound manifest so source paths are not requested
+ * under `/build/`.
  */
 object ViteTags {
     @JvmStatic

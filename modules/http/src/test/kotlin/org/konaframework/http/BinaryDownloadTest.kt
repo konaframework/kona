@@ -15,6 +15,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -147,6 +148,19 @@ class BinaryDownloadTest {
         }.onSuccess {
             assertEquals("next", publicMw.handle(Request.get("/leak.txt")) { Response.text("next") }.body)
         }
+
+        val vitePublic = base.resolve("vite-public")
+        Files.createDirectories(vitePublic.resolve("build/assets"))
+        Files.writeString(vitePublic.resolve("build/assets/app-Ab12.js"), "console.log('spa')")
+        val both = ServePublicDirectory(listOf(publicRoot, vitePublic))
+        assertTrue(both.serves(publicRoot))
+        assertTrue(both.serves(vitePublic))
+        assertFalse(both.serves(base.resolve("missing-root")))
+        val hashed = both.handle(Request.get("/build/assets/app-Ab12.js")) { Response.text("next") }
+        assertEquals("console.log('spa')", hashed.bodyBytes().toString(StandardCharsets.UTF_8))
+        assertEquals("text/javascript; charset=utf-8", hashed.headers["Content-Type"])
+        assertEquals("next", both.handle(Request.get("/build/src/main/resources/js/app.js")) { Response.text("next") }.body)
+        assertEquals("next", both.handle(Request.get("/../escape")) { Response.text("next") }.body)
     }
 
     @Test
