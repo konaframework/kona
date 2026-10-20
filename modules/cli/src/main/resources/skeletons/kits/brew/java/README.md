@@ -8,8 +8,9 @@ Kona application (Java) — **Brew** starter kit.
 ./grind serve
 ```
 
-Includes `org.konaframework:kona-brew` and `kona-crema`, the branded landing / login / dashboard,
-and a sample `app.brew.Counter` mounted on welcome as `<brew:counter />`.
+Includes `org.konaframework:kona-brew` and `kona-crema`, the branded landing / login / dashboard
+(Tailwind or Bootstrap via `kona new --css=`), and a sample `app.brew.Counter` mounted on welcome
+as `<brew:counter />`.
 
 ## Adding another Brew component
 

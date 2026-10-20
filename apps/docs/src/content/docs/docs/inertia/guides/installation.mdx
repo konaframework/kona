@@ -27,8 +27,8 @@ Paths A and B are the supported “no-brainer” routes. Path C is at the end.
 
 ```bash
 kona new my-app --kit=inertia
-# Java:
-kona new my-app --kit=inertia --lang=java
+# Java + React + Tailwind:
+kona new my-app --kit=inertia --lang=java --frontend=react --css=tailwind
 cd my-app
 ```
 
@@ -39,8 +39,8 @@ The kit includes:
 - Config `inertia.root_view=app`, `inertia.version=1`
 - Crema root shell `src/main/resources/views/app.crema.html`
 - `HandleInertia` middleware pushed after boot
-- Welcome route that calls `Inertia.render("Pages/Welcome", …)`
-- **Vue 3** Vite app (`package.json`, `vite.config.js`, `js/app.js`, `js/Pages/Welcome.vue`)
+- Crema welcome / login / dashboard (session auth without a JS login page)
+- Vite app: **Vue 3** by default, or `--frontend=react|svelte`; CSS via `--css=tailwind|bootstrap|custom`
 
 ### Run it
 

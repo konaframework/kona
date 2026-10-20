@@ -60,13 +60,14 @@ tasks.test {
 
 kover {
     reports {
-        total {
-            filters {
-                excludes {
-                    classes("org.konaframework.cli.KonaKt")
-                    annotatedBy("org.konaframework.support.KoverExclude")
-                }
+        // Common filters only. `total { filters }` *replaces* this block (Kover 0.9).
+        filters {
+            excludes {
+                classes("org.konaframework.cli.KonaKt")
+                annotatedBy("org.konaframework.support.KoverExclude")
             }
+        }
+        total {
             verify {
                 rule {
                     bound {

@@ -79,9 +79,12 @@ Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. 
 ## 3. Create an application
 
 ```bash
-kona new my-app                 # Kotlin (default)
+kona new                        # interactive installer (TTY)
+kona new my-app                 # Kotlin, web kit (non-interactive default)
 kona new my-app --lang=java
 ```
+
+In a terminal, `kona new` with no arguments asks for directory, app name, language, stack (API / Crema / Brew / Inertia), CSS, database, then offers to install dependencies and run migrations/seeders. A summary card appears before anything is written. Flags skip the matching question; `--no-interaction` uses defaults and never waits. Details: [Starter kits](../../starter-kits/).
 
 `kona new` writes a self-contained Gradle app that already includes:
 
@@ -90,7 +93,7 @@ kona new my-app --lang=java
 - `src/main/…` layout, `.env`, and starter kit files
 - Dependencies on `org.konaframework:…:0.1.1` from Maven Central
 
-You should see a hint ending with `./grind serve`.
+You should see a **DONE** chip and next steps ending with `./grind serve`.
 
 Pin another release with `--kona-version=x.y.z` if you need to.
 

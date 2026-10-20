@@ -5,68 +5,124 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * `kona new <name>` — scaffolds a self-contained Gradle application with a local `./grind` CLI.
+ * `kona new [name]` — scaffolds a self-contained Gradle application with a local `./grind` CLI.
  *
+ * Interactive when run on a TTY with no `--no-interaction`. Flags skip the matching prompt.
  * Kits (`--kit` / `--preset`): `web` (default), `api`, `crema` (alias of `web`), `inertia`, `brew`.
  */
-class NewCommand(
+class NewCommand
+@JvmOverloads
+constructor(
     private val versions: KonaVersions = KonaVersions.load(),
+    private val io: ConsoleIO = ConsoleIO(),
+    private val prompts: InstallerPrompts = InstallerPrompts(),
+    private val runner: GrindProcessRunner = GrindProcessRunner.SYSTEM,
+    private val interactive: Boolean = defaultInteractive(),
+    private val windows: Boolean = defaultWindows(),
 ) {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
-        val name = positional.firstOrNull()
-            ?: throw KonaCliException(
-                "Usage: kona new <name> [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] [--kona-version=x.y.z]",
-            )
-        val lang = options["lang"] ?: "kotlin"
-        if (lang !in SKELETONS) {
-            throw KonaCliException("--lang must be kotlin or java")
-        }
-        val kit = (options["kit"] ?: options["preset"] ?: "web").lowercase()
-        if (kit !in KITS) {
-            throw KonaCliException("--kit/--preset must be one of: ${KITS.joinToString(", ")}")
-        }
-        val database =
-            if (options.containsKey("database")) {
-                DatabaseEngines.resolve(options.getValue("database"))
-            } else {
-                DatabaseEngines.require(DatabaseEngines.DEFAULT_NAME)
-            }
-        val target = Path.of(name).toAbsolutePath().normalize()
+        val canPrompt = wantsInteraction(options, interactive)
+        val plan = resolveNewPlan(positional, options, canPrompt, prompts, io) ?: return 1
+        val target = plan.directory
         if (Files.exists(target)) {
             throw KonaCliException("Directory already exists: $target")
         }
+        val database = plan.database
         // H2 keeps the scaffold alias `main` (same URL as `h2`); everyone else uses the engine key.
         val dbConnection = if (database.name == "h2") "main" else database.connectionKey
         val variables = mapOf(
-            "appName" to target.fileName.toString(),
+            "appName" to plan.appName,
             "konaVersion" to options.getOrDefault("kona-version", versions.kona),
             "kotlinVersion" to versions.kotlin,
-            "kit" to kit,
+            "kit" to plan.kit,
             "appKey" to ScaffoldKeys.generateAppKey(),
             "dbConnection" to dbConnection,
+            "viteEntry" to ScaffoldFrontends.viteEntry(plan.frontend),
         )
         Files.createDirectories(target)
-        copySkeleton(lang, target, variables, kit)
+        copySkeleton(plan.lang, target, variables, plan.kit, plan.css, plan.frontend)
         applyDatabaseSelection(target, database, dbConnection)
         target.resolve("grind").toFile().setExecutable(true)
         target.resolve("gradlew").toFile().setExecutable(true)
         writeKonaHomeProperty(target)
-        val io = ConsoleIO()
-        io.intro("kona")
+        if (!canPrompt) {
+            io.intro("kona new")
+        }
         io.success("Application created successfully.")
         io.twoColumn("Path", target.toString(), 12)
-        io.twoColumn("Language", lang, 12)
-        io.twoColumn("Kit", kit, 12)
+        io.twoColumn("Language", plan.lang, 12)
+        io.twoColumn("Stack", plan.stackLabel, 12)
         io.twoColumn("Database", database.name, 12)
+        runPostCreate(target, plan)
         io.writeln()
         io.subtitle("Next steps")
         io.twoColumn("cd", target.fileName.toString(), 12)
+        if (Files.isRegularFile(target.resolve("package.json"))) {
+            io.twoColumn("frontend", "npm install && npm run dev", 12)
+        }
         io.twoColumn("serve", "./grind serve", 12)
-        io.twoColumn("migrate", "./grind migrate --seed", 12)
-        io.outro("Build something great.")
+        if (!plan.migrate) {
+            io.twoColumn("migrate", "./grind migrate --seed", 12)
+        }
+        io.outro("Pour a cup — then ./grind serve.")
         return 0
     }
+
+    internal fun runPostCreate(target: Path, plan: NewPlan) {
+        if (plan.installDeps) {
+            val gradle = target.resolve(if (windows) "gradlew.bat" else "gradlew").toString()
+            val gradleCode = runQuiet(listOf(gradle, "--no-daemon", "help", "-q"), target)
+            if (gradleCode == 0) {
+                io.success("Gradle wrapper ready.")
+            } else {
+                io.warn("Gradle dependencies skipped (wrapper exited $gradleCode).")
+            }
+            if (Files.isRegularFile(target.resolve("package.json"))) {
+                val js = jsInstallCommand(target)
+                val jsCode = runQuiet(js, target)
+                if (jsCode == 0) {
+                    io.success("Frontend packages installed (${js.first()}).")
+                } else {
+                    io.warn("Frontend install skipped (${js.first()} exited $jsCode).")
+                }
+            }
+        }
+        if (plan.migrate) {
+            val grind = target.resolve(if (windows) "grind.bat" else "grind").toString()
+            val code = runQuiet(listOf(grind, "migrate"), target)
+            if (code == 0) {
+                io.success("Migrations applied.")
+            } else {
+                io.warn("Migrations skipped (no database, or grind migrate failed).")
+            }
+        }
+        if (plan.seed) {
+            val grind = target.resolve(if (windows) "grind.bat" else "grind").toString()
+            val code = runQuiet(listOf(grind, "db:seed"), target)
+            if (code == 0) {
+                io.success("Database seeded.")
+            } else {
+                io.warn("Seeders skipped (no database, or grind db:seed failed).")
+            }
+        }
+    }
+
+    internal fun jsInstallCommand(target: Path): List<String> =
+        if (Files.isRegularFile(target.resolve("pnpm-lock.yaml"))) {
+            listOf("pnpm", "install")
+        } else {
+            listOf("npm", "install")
+        }
+
+    internal fun runQuiet(command: List<String>, dir: Path): Int =
+        try {
+            runner.run(command, dir)
+        } catch (_: KonaCliException) {
+            -1
+        } catch (_: Exception) {
+            -1
+        }
 
     /**
      * Sets `DB_CONNECTION` / `DB_URL` in `.env` files and adds the engine's JDBC
@@ -146,6 +202,8 @@ class NewCommand(
         target: Path,
         variables: Map<String, String>,
         kit: String = "web",
+        css: String = "custom",
+        frontend: String = "vue",
     ) {
         val files = SKELETONS[lang] ?: throw KonaCliException("Unknown skeleton: $lang")
         COMMON_FILES.forEach { copyResource("skeletons/common/$it", target.resolve(destination(it)), variables) }
@@ -173,6 +231,7 @@ class NewCommand(
             Files.createDirectories(target.resolve(it))
         }
         applyKit(lang, kit, target, variables)
+        ScaffoldFrontends.apply(target, kit, css, frontend)
     }
 
     internal fun applyKit(lang: String, kit: String, target: Path, variables: Map<String, String>) {
@@ -235,7 +294,10 @@ class NewCommand(
         }
 
     companion object {
-        private val KITS = listOf("web", "api", "crema", "inertia", "brew")
+        internal fun defaultInteractive(console: Any? = System.console()): Boolean = console != null
+
+        internal fun defaultWindows(osName: String? = System.getProperty("os.name")): Boolean =
+            (osName ?: "").startsWith("Windows")
 
         internal fun resolveKonaHome(
             env: Map<String, String> = System.getenv(),

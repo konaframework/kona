@@ -30,6 +30,7 @@ import org.konaframework.http.HttpKernel
 import org.konaframework.http.HttpServiceProvider
 import org.konaframework.http.KonaHttpServer
 import org.konaframework.http.Router
+import org.konaframework.inertia.InertiaManager
 import org.konaframework.inertia.InertiaServiceProvider
 import org.konaframework.mail.MailServiceProvider
 import org.konaframework.queue.QueueServiceProvider
@@ -70,6 +71,7 @@ object App {
             .afterBoot { application ->
                 Middleware.configure(application)
                 application.resolve(HttpKernel::class.java).pushMiddleware(HandleInertia())
+                application.resolve(InertiaManager::class.java).viteEntries = listOf("{{viteEntry}}")
             }
             .boot()
         WebRoutes().register(app.resolve(Router::class.java))
