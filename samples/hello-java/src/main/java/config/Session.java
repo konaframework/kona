@@ -5,6 +5,7 @@ import org.konaframework.core.ConfigFile;
 import org.konaframework.core.Env;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -79,6 +80,54 @@ public final class Session implements ConfigFile {
 
         /*
         |--------------------------------------------------------------------------
+        | Session Database Connection
+        |--------------------------------------------------------------------------
+        |
+        | When using the "database" or "redis" session drivers, you may specify a
+        | connection that should be used to manage these sessions. This should
+        | correspond to a connection in your Redis configuration.
+        |
+        */
+        values.put("connection", Env.get("SESSION_CONNECTION", null));
+        values.put("connection_prefix", Env.getOrDefault("SESSION_CONNECTION_PREFIX", "kona_session:"));
+
+        /*
+        |--------------------------------------------------------------------------
+        | Session Cache Store
+        |--------------------------------------------------------------------------
+        |
+        | When using a cache-backed session driver, you may define the cache store
+        | that should be used to store the session data between requests.
+        |
+        */
+        values.put("store", Env.get("SESSION_STORE", null));
+
+        /*
+        |--------------------------------------------------------------------------
+        | Session Cache Table
+        |--------------------------------------------------------------------------
+        |
+        | When using the "database" session driver, you may specify the table we
+        | should use to manage the sessions. Of course, a sensible default is
+        | provided for you; however, you're welcome to change this as needed.
+        |
+        */
+        values.put("table", Env.getOrDefault("SESSION_TABLE", "sessions"));
+
+        /*
+        |--------------------------------------------------------------------------
+        | Session Sweeping Lottery
+        |--------------------------------------------------------------------------
+        |
+        | Some session drivers must manually sweep their storage location to get
+        | rid of old sessions from storage. Here are the chances that it will
+        | happen on a given request. By default, the odds are 2 out of 100.
+        |
+        */
+        values.put("lottery", List.of(envInt("SESSION_LOTTERY_ODDS", 2), envInt("SESSION_LOTTERY_MAX", 100)));
+
+        /*
+        |--------------------------------------------------------------------------
         | Session Cookie
         |--------------------------------------------------------------------------
         |
@@ -92,6 +141,15 @@ public final class Session implements ConfigFile {
         values.put("secure", Boolean.TRUE.equals(Config.toBoolean(Env.getOrDefault("SESSION_SECURE_COOKIE", "false"))));
         values.put("http_only", Boolean.TRUE.equals(Config.toBoolean(Env.getOrDefault("SESSION_HTTP_ONLY", "true"))));
         values.put("same_site", Env.getOrDefault("SESSION_SAME_SITE", "Lax"));
+        values.put("partitioned", Boolean.TRUE.equals(Config.toBoolean(Env.getOrDefault("SESSION_PARTITIONED_COOKIE", "false"))));
         return values;
+    }
+
+    private static int envInt(String key, int fallback) {
+        try {
+            return Integer.parseInt(Env.getOrDefault(key, Integer.toString(fallback)).trim());
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 }

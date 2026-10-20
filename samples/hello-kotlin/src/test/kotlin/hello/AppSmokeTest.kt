@@ -45,6 +45,9 @@ class AppSmokeTest {
         assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/routes/ApiRoutes.kt")))
         assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/config/Paths.kt")))
         assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/config/Session.kt")))
+        assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/config/Cache.kt")))
+        assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/config/Auth.kt")))
+        assertTrue(Files.isRegularFile(base.resolve("src/main/kotlin/config/Redis.kt")))
         assertTrue(Files.isRegularFile(base.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(Files.isDirectory(base.resolve("storage")))
     }

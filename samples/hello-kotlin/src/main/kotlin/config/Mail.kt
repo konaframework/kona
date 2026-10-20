@@ -1,0 +1,71 @@
+package config
+
+import org.konaframework.core.ConfigFile
+import org.konaframework.core.Env
+
+/**
+ * Mailers (`config/mail.php` shape).
+ *
+ * Supported transports: `log` / `array`, `smtp`.
+ */
+object Mail : ConfigFile {
+    override fun key(): String = "mail"
+
+    override fun config(): Map<String, Any?> = mapOf(
+        /*
+        |--------------------------------------------------------------------------
+        | Default Mailer
+        |--------------------------------------------------------------------------
+        |
+        | This option controls the default mailer that is used to send all email
+        | messages unless another mailer is explicitly specified when sending
+        | the message. All additional mailers can be configured below.
+        |
+        */
+        "default" to Env.getOrDefault("MAIL_MAILER", "log"),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Mailer Configurations
+        |--------------------------------------------------------------------------
+        |
+        | Here you may configure all of the mailers used by your application plus
+        | their respective settings. The `log` transport writes messages through
+        | the application logger (handy in local). Switch to `smtp` to deliver.
+        |
+        | Supported: "smtp", "log", "array"
+        |
+        */
+        "mailers" to mapOf(
+            "smtp" to mapOf(
+                "transport" to "smtp",
+                "host" to Env.getOrDefault("MAIL_HOST", "127.0.0.1"),
+                "port" to (Env.getOrDefault("MAIL_PORT", "587").toIntOrNull() ?: 587),
+                "username" to Env.get("MAIL_USERNAME"),
+                "password" to Env.get("MAIL_PASSWORD"),
+            ),
+            "log" to mapOf(
+                "transport" to "log",
+                "channel" to Env.get("MAIL_LOG_CHANNEL"),
+            ),
+            "array" to mapOf(
+                "transport" to "array",
+            ),
+        ),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Global "From" Address
+        |--------------------------------------------------------------------------
+        |
+        | You may wish for all emails sent by your application to be sent from
+        | the same address. Here you may specify a name and address that is
+        | used globally for all emails that are sent by your application.
+        |
+        */
+        "from" to mapOf(
+            "address" to Env.getOrDefault("MAIL_FROM_ADDRESS", "hello@example.com"),
+            "name" to Env.getOrDefault("MAIL_FROM_NAME", Env.getOrDefault("APP_NAME", "hello-kotlin")),
+        ),
+    )
+}
