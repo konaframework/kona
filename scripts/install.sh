@@ -142,7 +142,14 @@ usage() {
   cat <<'EOF'
 Usage: install.sh [--local] [--help]
 
-  --local   Build from the repository that contains this script (no fetch).
+  --local   Build and link the global `kona` binary from THIS checkout
+            (the tree that contains scripts/install.sh). Does not fetch
+            ~/.kona or published 0.2.0 jars. After this:
+              ./scripts/install.sh --local
+              kona version          # includes git describe
+              kona new --help
+              kona new app-seven    # still prompts lang/kit/css/db/…
+
   --help    Show this help.
 
 Environment: KONA_SRC, KONA_PREFIX, KONA_REF, KONA_REPO,
@@ -347,6 +354,8 @@ link_cli() {
   rm -rf "$dest"
   mkdir -p "$(dirname -- "$dest")"
   cp -a "$src" "$dest"
+  # Always replace a previous file or symlink (version-unchanged 0.2.0 installs still overwrite).
+  rm -f "$BIN_DIR/kona"
   ln -sfn "$dest/bin/kona" "$BIN_DIR/kona"
   ui_ok "$BIN_DIR/kona"
 
@@ -358,12 +367,22 @@ link_cli() {
 
   uiln ""
   uiln "  ${C_GREEN}${C_BOLD}Installed${C_RESET}  ${C_PRIMARY}$BIN_DIR/kona${C_RESET}"
+  ui_ok "Built from $root"
+  local on_path
+  on_path=$(command -v kona 2>/dev/null || true)
+  if [[ -n "$on_path" ]]; then
+    ui_info "PATH kona → $on_path"
+    if [[ "$on_path" != "$BIN_DIR/kona" ]]; then
+      ui_warn "PATH resolves a different kona than $BIN_DIR/kona — that binary may be stale."
+    fi
+  fi
   ui "  ${C_DIM}"
   "$BIN_DIR/kona" version >&2 || true
   ui "${C_RESET}"
   uiln ""
   uiln "  ${C_BOLD}Next${C_RESET}"
-  uiln "    ${C_PRIMARY}kona new${C_RESET}"
+  uiln "    ${C_PRIMARY}kona new my-app${C_RESET}  ${C_DIM}# still asks kit / lang / css / db${C_RESET}"
+  uiln "    ${C_DIM}kona new my-app --no-interaction   # silent defaults${C_RESET}"
   uiln "    ${C_DIM}cd my-app && ./grind serve${C_RESET}"
   uiln ""
 }
@@ -384,14 +403,18 @@ main() {
   fi
   KONA_ROOT="$root"
   prune_stale_brew_module "$root"
-  ui_ok "$root"
+  if [[ "$USE_LOCAL" -eq 1 ]]; then
+    ui_ok "Local checkout (no fetch) → $root"
+  else
+    ui_ok "$root"
+  fi
 
   ui_step "Build CLI"
   local log
   log=$(mktemp)
   (
     cd "$root"
-    ./gradlew -q :kona-cli:installDist
+    ./gradlew --rerun-tasks -q :kona-cli:installDist
   ) >"$log" 2>&1 &
   if ! ui_spinner_wait $! "Building kona CLI with Gradle…"; then
     ui_err "Gradle build failed"

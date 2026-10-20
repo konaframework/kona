@@ -94,6 +94,7 @@ class CliJavaTest {
     @Test
     void newCommandOverloadsFromJava() {
         KonaVersions versions = new KonaVersions("0.0.0-test", "2.0.0");
+        new KonaVersions("0.0.0-test", "2.0.0", "abc123");
         org.konaframework.support.console.ConsoleIO io =
                 new org.konaframework.support.console.ConsoleIO();
         InstallerPrompts prompts = new InstallerPrompts();
@@ -104,29 +105,57 @@ class CliJavaTest {
         new NewCommand(versions, io, prompts);
         new NewCommand(versions, io, prompts, runner);
         new NewCommand(versions, io, prompts, runner, false);
-        new NewCommand(versions, io, prompts, runner, false, false);
-        new NewCommand(
-            versions, io, prompts, runner, true, false, java.util.Map.of());
+        new KonaApplication();
+        new KonaApplication(io);
+        new KonaApplication(io, new NewCommand(versions, io, prompts, runner, false));
+        assertTrue(versions.display().startsWith("kona "));
     }
 
     @Test
-    void unreadableStdinErrorsFromJava() {
-        Path dest = temp.resolve("from-java");
+    void positionalDirectoryStillPromptsFromJava() {
+        Path dest = temp.resolve("app-seven");
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        java.io.PrintStream stream = new java.io.PrintStream(out);
+        String answers = "\n".repeat(16);
+        InstallerPrompts prompts =
+                new InstallerPrompts(new java.io.ByteArrayInputStream(answers.getBytes()), stream, false);
+        org.konaframework.support.console.ConsoleIO io =
+                new org.konaframework.support.console.ConsoleIO(stream, stream, false);
         NewCommand cmd =
-            new NewCommand(
-                new KonaVersions("0.0.0-test", "2.0.0"),
-                new org.konaframework.support.console.ConsoleIO(),
-                new InstallerPrompts(
-                    new java.io.ByteArrayInputStream(new byte[0]),
-                    new java.io.PrintStream(new java.io.ByteArrayOutputStream()),
-                    false),
-                (command, dir) -> 0,
-                true,
-                false,
-                java.util.Map.of());
+                new NewCommand(
+                        new KonaVersions("0.0.0-test", "2.0.0"),
+                        io,
+                        prompts,
+                        (command, dir) -> 0,
+                        false);
+        assertEquals(0, new KonaApplication(io, cmd).run(new String[] {"new", dest.toString()}));
+        String text = out.toString();
+        assertTrue(text.contains("Language"));
+        assertTrue(text.contains("What are we brewing?"));
+        assertTrue(text.contains("CSS"));
+        assertTrue(text.contains("Database"));
+        assertTrue(text.contains("Install dependencies"));
+        assertTrue(text.contains("Run initial migrations"));
+        assertTrue(text.contains("Run database seeders"));
+        org.junit.jupiter.api.Assertions.assertFalse(text.contains("Where should we create the app?"));
+        assertTrue(Files.isRegularFile(dest.resolve("build.gradle.kts")));
+    }
+
+    @Test
+    void unreadableStdinFromJava() {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        java.io.PrintStream stream = new java.io.PrintStream(out);
+        InstallerPrompts prompts =
+                new InstallerPrompts(new java.io.ByteArrayInputStream(new byte[0]), stream, false);
+        org.konaframework.support.console.ConsoleIO io =
+                new org.konaframework.support.console.ConsoleIO(stream, stream, false);
+        NewCommand cmd = new NewCommand(new KonaVersions("0.0.0-test", "2.0.0"), io, prompts);
         KonaCliException ex =
-            assertThrows(KonaCliException.class, () -> cmd.run(java.util.List.of(dest.toString())));
+                assertThrows(
+                        KonaCliException.class,
+                        () -> cmd.run(java.util.List.of(temp.resolve("eof-java").toString())));
         assertTrue(ex.getMessage().contains("Cannot read stdin"));
         assertTrue(ex.getMessage().contains("--no-interaction"));
+        org.junit.jupiter.api.Assertions.assertFalse(Files.exists(temp.resolve("eof-java")));
     }
 }

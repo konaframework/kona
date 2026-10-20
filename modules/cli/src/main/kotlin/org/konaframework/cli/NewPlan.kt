@@ -107,32 +107,18 @@ internal fun titleCaseFolder(raw: String): String {
 internal const val STDIN_UNREADABLE =
     "Cannot read stdin. Pass flags for each step, or use --no-interaction for defaults."
 
-internal fun isCi(env: Map<String, String>): Boolean {
-    val raw = env["CI"] ?: return false
-    return raw.equals("true", ignoreCase = true) || raw == "1"
-}
+internal const val NEW_USAGE =
+    "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] " +
+        "[--css=tailwind|bootstrap|custom] [--frontend=vue|react|svelte] " +
+        "[--name=…] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] " +
+        "[--install-deps] [--migrate] [--seed] [--no-interaction] [--kona-version=x.y.z]"
 
 /**
- * Prompt unless the caller opted out. Missing TTY / `System.console()` is ignored —
- * prompts read stdin. Full skip: `--no-interaction`, `--no-interactive`, `--yes`, or `CI=true`.
+ * Full skip only for `--no-interaction` / `--no-interactive`.
+ * `CI`, missing `System.console()`, and a positional directory do **not** skip the rest.
  */
-internal fun wantsInteraction(
-    options: Map<String, String>,
-    env: Map<String, String> = emptyMap(),
-    interactive: Boolean = true,
-): Boolean {
-    if (
-        options.containsKey("no-interaction") ||
-        options.containsKey("no-interactive") ||
-        options.containsKey("yes")
-    ) {
-        return false
-    }
-    if (isCi(env)) {
-        return false
-    }
-    return interactive
-}
+internal fun wantsInteraction(options: Map<String, String>): Boolean =
+    !options.containsKey("no-interaction") && !options.containsKey("no-interactive")
 
 internal fun triState(options: Map<String, String>, name: String): Boolean? {
     if (options.containsKey("no-$name")) {
@@ -186,11 +172,7 @@ internal fun resolveNewPlan(
 ): NewPlan? {
     if (!canPrompt && positional.isEmpty()) {
         throw KonaCliException(
-            "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] " +
-                "[--css=tailwind|bootstrap|custom] [--frontend=vue|react|svelte] " +
-                "[--name=…] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] " +
-                "[--install-deps] [--migrate] [--seed] [--no-interaction] [--yes] [--kona-version=x.y.z]\n" +
-                "Run kona new with no flags for the interactive installer. Scripts and CI: --no-interaction.",
+            "$NEW_USAGE\nA directory argument skips only that question. Scripts: --no-interaction.",
         )
     }
     if (canPrompt) {

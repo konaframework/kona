@@ -24,6 +24,8 @@ class CliTest {
         assertEquals(0, app.run(arrayOf("version")))
         assertEquals(0, app.run(arrayOf("--version")))
         assertEquals(0, app.run(arrayOf("-V")))
+        assertEquals(0, app.run(arrayOf("new", "--help")))
+        assertEquals(0, app.run(arrayOf("new", "-h")))
         assertEquals(1, app.run(arrayOf("nope")))
     }
 
@@ -279,7 +281,7 @@ class CliTest {
 
         assertEquals(1, KonaApplication().run(arrayOf("new", kt.toString(), "--lang=kotlin", "--no-interaction")))
         assertEquals(1, KonaApplication().run(arrayOf("new", temp.resolve("x2").toString(), "--lang=ruby", "--no-interaction")))
-        assertEquals(1, KonaApplication().run(arrayOf("new", "--no-interaction")))
+        assertEquals(0, KonaApplication().run(arrayOf("new", "--help")))
     }
 
     @Test
@@ -420,10 +422,7 @@ class CliTest {
         assertTrue(Files.readString(javaInertia.resolve("build.gradle.kts")).contains("kona-inertia"))
         assertTrue(Files.isRegularFile(javaInertia.resolve("src/main/java/app/http/middleware/HandleInertia.java")))
 
-        assertEquals(
-            1,
-            KonaApplication().run(arrayOf("new", temp.resolve("badkit").toString(), "--kit=nope", "--no-interaction")),
-        )
+        assertEquals(1, KonaApplication().run(arrayOf("new", temp.resolve("badkit").toString(), "--kit=nope", "--no-interaction")))
         assertThrows(KonaCliException::class.java) {
             NewCommand().run(listOf(temp.resolve("x").toString(), "--preset=rails", "--no-interaction"))
         }

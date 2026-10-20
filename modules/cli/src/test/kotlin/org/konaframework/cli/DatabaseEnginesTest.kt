@@ -37,10 +37,7 @@ class DatabaseEnginesTest {
     @Test
     fun konaNewDatabaseFlagAddsDriverAndConnection() {
         val app = temp.resolve("pg-app")
-        assertEquals(
-            0,
-            NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=api", "--database=pgsql", "--no-interaction")),
-        )
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=api", "--database=pgsql", "--no-interaction")))
         val env = Files.readString(app.resolve(".env"))
         assertTrue(env.contains("DB_CONNECTION=pgsql"))
         assertTrue(env.contains("jdbc:postgresql://"))
@@ -74,10 +71,7 @@ class DatabaseEnginesTest {
     @Test
     fun explicitH2DatabaseFlag() {
         val app = temp.resolve("h2-flag")
-        assertEquals(
-            0,
-            NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=api", "--database=h2", "--no-interaction")),
-        )
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=api", "--database=h2", "--no-interaction")))
         val env = Files.readString(app.resolve(".env"))
         assertTrue(env.contains("DB_CONNECTION=main"))
         assertTrue(env.contains("jdbc:h2:file:"))

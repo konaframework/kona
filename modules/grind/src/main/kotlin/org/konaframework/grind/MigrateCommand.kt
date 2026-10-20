@@ -200,7 +200,7 @@ class MigrateCommand(private val action: Action) {
         internal fun withApplication(options: Map<String, String>, block: (Application, ClassLoader) -> Unit) {
             val start = Names.base(options)
             val root = ServeCommand.findProjectRoot(start)
-                ?: throw GrindException("No Kona application found at $start. Create one with: kona new <name>")
+                ?: throw GrindException("No Kona application found at $start. Create one with: kona new")
             Kona.reset()
             val verbose = GrindLogging.wantsVerbose(options)
             GrindLogging.hushConsole(verbose)

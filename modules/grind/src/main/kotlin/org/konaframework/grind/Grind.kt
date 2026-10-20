@@ -74,7 +74,7 @@ constructor(
                 "install" -> InstallCommand(basePath).run(positional.drop(1) + flatten(options))
                 "list" -> ListCommand(registry).run(positional.drop(1) + flatten(options))
                 "new" -> {
-                    io.error("Create applications with the global CLI: kona new <name>")
+                    io.error("Create applications with the global CLI: kona new")
                     io.warn("grind is app-local — run ./grind serve from inside a project.")
                     1
                 }
@@ -133,7 +133,7 @@ constructor(
             io.twoColumn(cmd, summary)
         }
         io.writeln()
-        io.info("Create apps with: kona new <name> [--lang=kotlin|java] [--kit=…]")
+        io.info("Create apps with: kona new [name] [--lang=kotlin|java] [--kit=…]")
         io.info("Custom commands: grind make:command <Name>")
         io.outro("https://docs.konaframework.org/docs/grind/")
     }

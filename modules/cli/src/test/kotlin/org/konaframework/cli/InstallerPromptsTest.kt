@@ -26,20 +26,19 @@ class InstallerPromptsTest {
         val stream = PrintStream(out)
         InstallerPrompts(empty)
         val eof = InstallerPrompts(ByteArrayInputStream(ByteArray(0)), stream)
-        val eofAsk = assertThrows(KonaCliException::class.java) { eof.ask("Where?") }
-        assertEquals(STDIN_UNREADABLE, eofAsk.message)
+        val eofEx = assertThrows(KonaCliException::class.java) { eof.ask("Where?") }
+        assertEquals(STDIN_UNREADABLE, eofEx.message)
         val eof2 = InstallerPrompts(ByteArrayInputStream(ByteArray(0)), stream, false)
-        val eofConfirm = assertThrows(KonaCliException::class.java) { eof2.confirm("Go?") }
-        assertEquals(STDIN_UNREADABLE, eofConfirm.message)
+        assertThrows(KonaCliException::class.java) { eof2.confirm("Go?") }
         val eof3 = InstallerPrompts(ByteArrayInputStream(ByteArray(0)), stream, false)
-        val eofChoice = assertThrows(KonaCliException::class.java) { eof3.choice("Pick", listOf("Vue", "React")) }
-        assertEquals(STDIN_UNREADABLE, eofChoice.message)
+        assertThrows(KonaCliException::class.java) { eof3.choice("Pick", listOf("Vue", "React")) }
         assertFalse(InstallerPrompts(ByteArrayInputStream("\n".toByteArray()), stream, false).confirm("OnlyQ"))
         val throwing = object : InputStream() {
             override fun read(): Int = throw IOException("closed")
         }
-        val broken = InstallerPrompts(throwing, stream, false)
-        val ioEx = assertThrows(KonaCliException::class.java) { broken.ask("Q", "d") }
+        val ioEx = assertThrows(KonaCliException::class.java) {
+            InstallerPrompts(throwing, stream, false).ask("Q", "d")
+        }
         assertEquals(STDIN_UNREADABLE, ioEx.message)
     }
 

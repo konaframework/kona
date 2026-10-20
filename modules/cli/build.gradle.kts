@@ -20,12 +20,18 @@ dependencies {
 
 val konaVersion = project.version.toString()
 val kotlinVersion = libs.versions.kotlin.get()
+val konaRevision = gitDescribe(rootDir, konaVersion)
 
 tasks.processResources {
     inputs.property("konaVersion", konaVersion)
     inputs.property("kotlinVersion", kotlinVersion)
+    inputs.property("konaRevision", konaRevision)
     filesMatching("org/konaframework/cli/kona.properties") {
-        expand("konaVersion" to konaVersion, "kotlinVersion" to kotlinVersion)
+        expand(
+            "konaVersion" to konaVersion,
+            "kotlinVersion" to kotlinVersion,
+            "konaRevision" to konaRevision,
+        )
     }
     from(rootProject.file("gradle/wrapper")) {
         into("skeletons/common/gradle/wrapper")
@@ -83,4 +89,18 @@ kover {
         }
     }
 }
+
+private fun gitDescribe(repo: java.io.File, fallback: String): String =
+    try {
+        val process =
+            ProcessBuilder("git", "describe", "--always", "--dirty", "--tags")
+                .directory(repo)
+                .redirectErrorStream(true)
+                .start()
+        val text = process.inputStream.bufferedReader().readText().trim()
+        val code = process.waitFor()
+        if (code == 0 && text.isNotEmpty() && !text.startsWith("fatal")) text else fallback
+    } catch (_: Exception) {
+        fallback
+    }
 
