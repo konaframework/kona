@@ -5,13 +5,13 @@ description: ConsoleIO, GrindIO, Verbosity, tables, progress, Prompts, color env
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-All Kona terminal CLIs share one Termwind-inspired console style: brand colors (Mocha `#6F4E37` / deep espresso `#3D2914`), success/info/warn/error markers, boxes, two-column lists, tables, and progress bars.
+All Kona terminal CLIs share one Termwind-inspired console style: caramel badges (`INFO` / `DONE` / `WARN` / `ERROR`), dim `┌┐└┘` prompt frames with a cyan `›` pointer, intro/outro bars, boxes, two-column lists, tables, and dotted task lines. Brand colors: light caramel `#DF8723`, accent `#74453F`.
 
 | API | Module | Role |
 | --- | --- | --- |
 | `org.konaframework.support.console.ConsoleIO` | `kona-support` | Canonical implementation |
 | `org.konaframework.grind.GrindIO` | `kona-grind` | Wraps `ConsoleIO` with quiet / verbose filtering |
-| Helpers on `ConsoleCommand` | `kona-grind` | `info`, `success`, `warn`, `error`, `table`, `progress`, … |
+| Helpers on `ConsoleCommand` | `kona-grind` | `info`, `success`, `warn`, `error`, `intro`, `outro`, `note`, `table`, `progress`, … |
 | `org.konaframework.grind.Prompts` | `kona-grind` | Interactive ask / confirm / choice |
 
 Do **not** print user-facing output with raw `println` / unstyled `System.out` in commands; use these APIs.
@@ -52,7 +52,7 @@ Quiet wins if both quiet and verbose keys appear (checked first).
 
 | Method | Quiet | Normal | Verbose |
 |--------|-------|--------|---------|
-| `writeln` / `write` / `line` / `info` / `success` / `warn` / `title` / `subtitle` / `twoColumn` / `box` / `progress` / `table` | suppressed | prints | prints |
+| `writeln` / `write` / `line` / `info` / `success` / `warn` / `title` / `subtitle` / `twoColumn` / `box` / `progress` / `table` / `intro` / `outro` / `note` / `promptFrame` / `taskLine` | suppressed | prints | prints |
 | `error` | **always prints** (stderr) | prints | prints |
 | `verbose` | suppressed | suppressed | prints (dim) |
 
@@ -76,19 +76,27 @@ console.table(
     listOf(listOf("1", "ada@example.com"), listOf("2", "bea@example.com")),
 )
 console.taskLine("2000_01_01_000000_create_users_table", "DONE", 12)
+console.intro("grind")
+console.note("Running migrations.", "INFO")
+console.outro("Done.")
 ```
 
 | Method | Behavior |
 |--------|----------|
 | `writeln` / `write` / `line` | Raw stdout (still subject to GrindIO quiet when wrapped) |
-| `info` | Cyan `ℹ` marker + message |
-| `success` | Green `✓` |
-| `warn` | Yellow `!` |
-| `error` | Red `✗` on **stderr** |
-| `title` | Bold primary heading + dim underline (max 48) |
-| `subtitle` | Accent-colored line |
-| `twoColumn(left, right, width=22)` | Primary bold left column + dim right |
-| `box(title, lines)` | Framed block; content width clamped roughly 24–56 |
+| `info` | Green ` INFO ` chip + message |
+| `success` | Green ` DONE ` chip + message |
+| `warn` | Yellow ` WARN ` chip + message |
+| `error` | Red ` ERROR ` chip on **stderr** |
+| `intro(title)` | Dim top bar `┌ title ────┐` |
+| `outro(message)` | Dim bottom bar `└ message ─┘` |
+| `note(message, label="NOTE")` | Boxed labeled remark (`INFO` / `WARN` / `ERROR` / `NOTE`) |
+| `promptFrame(label, body, pointerLine=-1)` | Prompt box; cyan `›` on `pointerLine` |
+| `promptSubmitted(label, value)` | Prompt box with the chosen value in green |
+| `title` | Bold green heading + dim underline (max 48) |
+| `subtitle` | Cyan line |
+| `twoColumn(left, right, width=22)` | Cyan bold left column + dim right |
+| `box(title, lines)` | Dim `┌┐└┘` frame; content width clamped roughly 24–56 |
 | `progress(current, total, label="")` | 28-cell bar + percent; `total` must be `> 0`; `current` clamped to `[0, total]` |
 | `table(headers, rows)` | Aligned columns by **plain** text width (ANSI stripped); headers non-empty; each row must match header width |
 | `taskLine(name, status, millis=null, ok=true)` | Dotted row (`name …… 12ms DONE`); green status when `ok`, red otherwise; duration omitted when `millis` is null |
@@ -97,7 +105,7 @@ console.taskLine("2000_01_01_000000_create_users_table", "DONE", 12)
 
 `ConsoleIO.formatDuration(millis)` renders `<1000` as `12ms` and longer runs as `1.23s`. Rows align to `ConsoleIO.TASK_WIDTH` (72).
 
-Public ANSI constants on `ConsoleIO`: `RESET`, `BOLD`, `DIM`, `RED`, `GREEN`, `YELLOW`, `CYAN`, `PRIMARY`, `ACCENT`.
+Public ANSI constants on `ConsoleIO`: `RESET`, `BOLD`, `DIM`, `RED`, `GREEN`, `YELLOW`, `CYAN`, `PRIMARY`, `ACCENT`, `GRAY`, `WHITE`, `BLACK`, `BG_GREEN`, `BG_YELLOW`, `BG_RED`, `BG_CYAN`. `PROMPT_WIDTH` is 50.
 
 ## `GrindIO` surface
 
@@ -110,6 +118,8 @@ io.subtitle("Detail")
 io.twoColumn("left", "right")
 io.box("Title", listOf("line"))
 io.taskLine("create_users_table", "DONE", 12)
+io.intro("grind")
+io.outro("Done.")
 ```
 
 Inside a `ConsoleCommand`, prefer the bound helpers (they use the runner’s `GrindIO`):
@@ -131,7 +141,7 @@ progress(3, 10, "users")
 verbose("only with -v")
 ```
 
-`ConsoleCommand.progress` has overloads with and without a label. There is **no** `box` / `twoColumn` / `subtitle` helper on `ConsoleCommand` itself — use `io.box(...)` / `io.twoColumn(...)` / `io.subtitle(...)` when you need them.
+`ConsoleCommand.progress` has overloads with and without a label. `intro` / `outro` / `note` are on `ConsoleCommand`. There is still **no** `box` / `twoColumn` / `subtitle` helper on `ConsoleCommand` itself — use `io.box(...)` / `io.twoColumn(...)` / `io.subtitle(...)` when you need them.
 
 ## Prompts
 
@@ -162,11 +172,11 @@ String pick = prompts.choice("Driver", List.of("array", "redis"), 0);
 
 | Method | Behavior |
 |--------|----------|
-| `ask(question, default=null)` | Free text; empty line uses `default` when set; otherwise returns empty string |
-| `confirm(question, default=false)` | Hint `Y/n` or `y/N`; empty → default; `y` / `yes` → true |
-| `choice(question, options, defaultIndex=0)` | Numbered list; empty → default; accepts 1-based index or case-insensitive label; invalid input → default |
+| `ask(question, default=null)` | Boxed question; empty line uses `default` when set; otherwise returns empty string; then reprints a green submitted value |
+| `confirm(question, default=false)` | Boxed `Yes` / `No` with `›` on the default; empty → default; `y` / `yes` / `1` → true; `n` / `no` / `2` → false |
+| `choice(question, options, defaultIndex=0)` | Boxed options with `›` on the default; empty → default; accepts 1-based index or case-insensitive label; invalid input → default |
 
-`choice` requires a non-empty options list and a `defaultIndex` in range. Styling uses `ConsoleIO` primary/accent/dim paints on the prompt streams you inject (default: `System.in` / `System.out`).
+`choice` requires a non-empty options list and a `defaultIndex` in range. Frames go to the prompt output stream you inject (default: `System.out`).
 
 Built-ins such as `serve` (port conflict) and `key:generate` (production overwrite) use `Prompts` internally.
 

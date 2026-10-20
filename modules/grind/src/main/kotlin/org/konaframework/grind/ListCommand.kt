@@ -9,13 +9,15 @@ class ListCommand(
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
         val io = GrindIO.fromOptions(options)
-        io.title("grind commands")
+        io.intro("grind")
+        io.title("Available commands")
         val seen = linkedSetOf<String>()
         (BUILTIN + registry.summaries()).forEach { (name, summary) ->
             if (seen.add(name)) {
                 io.twoColumn(name, summary)
             }
         }
+        io.outro("grind <command> --help")
         return 0
     }
 

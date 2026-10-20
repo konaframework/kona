@@ -103,6 +103,7 @@ constructor(
             }
             add("Stop     Ctrl+C")
         }
+        io.intro("grind serve")
         io.box("grind serve", lines)
         if (wsl && !ServePorts.isWildcardBind(host)) {
             io.warn(
@@ -115,6 +116,7 @@ constructor(
         } else {
             io.info("Building and starting… open $local when ready")
         }
+        io.outro(local)
     }
 
     private fun resolveBind(root: Path, options: Map<String, String>): Pair<String, Int> {

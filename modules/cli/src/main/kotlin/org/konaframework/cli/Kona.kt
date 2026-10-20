@@ -44,6 +44,7 @@ class KonaApplication {
     }
 
     private fun printHelp(io: ConsoleIO) {
+        io.intro("kona")
         io.box(
             "kona",
             listOf(
@@ -51,13 +52,15 @@ class KonaApplication {
                 "Day-to-day work: ./grind or kona grind …",
             ),
         )
-        io.twoColumn("new <name>", "[--lang=kotlin|java] [--kit=…]")
+        io.title("Commands")
+        io.twoColumn("new <name>", "[--lang=kotlin|java] [--kit=…] [--database=…]")
         io.twoColumn("grind <command>", "Proxy to the nearest app's ./grind")
         io.twoColumn("version", "Print kona version")
         io.twoColumn("help", "Show this help")
         io.writeln()
         io.info("Kits: web (default), api, crema, inertia, brew")
         io.info("Packages: kona grind install <alias>  (or ./grind install)")
+        io.outro("https://docs.konaframework.org")
     }
 }
 

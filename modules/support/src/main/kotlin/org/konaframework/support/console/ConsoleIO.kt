@@ -6,7 +6,8 @@ import java.io.PrintStream
  * Canonical Termwind-inspired console IO for **all** Kona terminal CLIs
  * (`kona`, `./grind`, installers that shell out, future commands).
  *
- * Brand colors: primary Mocha `#6F4E37`, accent deep espresso `#3D2914`.
+ * Brand colors: light caramel `#DF8723`, accent `#74453F`. Prompt frames use dim
+ * `┌┐└┘` boxes and a cyan `›` pointer.
  * Honors `NO_COLOR`, `FORCE_COLOR` (`0` disables), and `TERM=dumb`.
  */
 class ConsoleIO(
@@ -25,34 +26,60 @@ class ConsoleIO(
     fun line(message: String = "") = writeln(message)
 
     fun info(message: String) {
-        writeln("${paint(CYAN, "ℹ")}  $message")
+        badge("INFO", message, BG_GREEN, WHITE)
     }
 
     fun success(message: String) {
-        writeln("${paint(GREEN, "✓")}  $message")
+        badge("DONE", message, BG_GREEN, WHITE)
     }
 
     fun warn(message: String) {
-        writeln("${paint(YELLOW, "!")}  $message")
+        badge("WARN", message, BG_YELLOW, BLACK)
     }
 
     fun error(message: String) {
-        err.println("${paint(RED, "✗")}  $message")
+        err.println(badgeLine("ERROR", message, BG_RED, WHITE))
+    }
+
+    /** Open a session with a dim top bar and bold title. */
+    fun intro(title: String) {
+        writeln()
+        bar("┌", title, GREEN + BOLD)
+        writeln()
+    }
+
+    /** Close a session with a dim bottom bar. */
+    fun outro(message: String) {
+        writeln()
+        bar("└", message, DIM)
+        writeln()
+    }
+
+    /** Boxed labeled remark (`INFO` / `WARN` / `ERROR` / `NOTE`). */
+    @JvmOverloads
+    fun note(message: String, label: String = "NOTE") {
+        val color = when (label.uppercase()) {
+            "WARN", "WARNING" -> YELLOW
+            "ERROR" -> RED
+            "INFO", "DONE", "SUCCESS" -> GREEN
+            else -> CYAN
+        }
+        promptFrame(label.uppercase(), listOf(message), pointerLine = -1, accent = color)
     }
 
     fun title(message: String) {
         writeln()
-        writeln(paint(BOLD + PRIMARY, message))
+        writeln(paint(BOLD + GREEN, message))
         writeln(paint(DIM, "─".repeat(message.length.coerceAtMost(48))))
     }
 
     fun subtitle(message: String) {
-        writeln(paint(ACCENT, message))
+        writeln(paint(CYAN, message))
     }
 
     fun twoColumn(left: String, right: String, width: Int = 22) {
         val padded = left.padEnd(width)
-        writeln("${paint(PRIMARY + BOLD, padded)} ${paint(DIM, right)}")
+        writeln("  ${paint(CYAN + BOLD, padded)} ${paint(DIM, right)}")
     }
 
     fun box(title: String, lines: List<String>) {
@@ -68,15 +95,40 @@ class ConsoleIO(
             raw > 56 -> 56
             else -> raw
         }
-        val heading = title.take(contentWidth)
-        val top = "╭─ $heading " + "─".repeat((contentWidth - heading.length - 1).coerceAtLeast(0)) + "╮"
-        val bottom = "╰" + "─".repeat(contentWidth + 2) + "╯"
-        writeln(paint(PRIMARY + BOLD, top))
-        lines.forEach { line ->
-            val pad = (contentWidth - plainLength(line)).coerceAtLeast(0)
-            writeln("${paint(PRIMARY, "│")} ${line}${" ".repeat(pad)} ${paint(PRIMARY, "│")}")
+        frame(title, lines, contentWidth, pointerLine = -1, accent = GREEN)
+    }
+
+    /**
+     * Input frame: dim `┌ ┐ └ ┘` box, optional cyan `›` on [pointerLine].
+     */
+    @JvmOverloads
+    fun promptFrame(
+        label: String,
+        body: List<String>,
+        pointerLine: Int = -1,
+        accent: String = CYAN,
+        width: Int = PROMPT_WIDTH,
+    ) {
+        val rows = if (body.isEmpty()) listOf("") else body
+        var raw = plainLength(label) + 1
+        rows.forEachIndexed { index, line ->
+            val pointer = if (index == pointerLine) 2 else 0
+            val len = pointer + plainLength(line)
+            if (len > raw) {
+                raw = len
+            }
         }
-        writeln(paint(PRIMARY + BOLD, bottom))
+        val contentWidth = when {
+            raw < width -> width
+            raw > 72 -> 72
+            else -> raw
+        }
+        frame(label, rows, contentWidth, pointerLine, accent)
+    }
+
+    /** Submitted prompt: green value inside the same frame. */
+    fun promptSubmitted(label: String, value: String) {
+        promptFrame(label, listOf(paint(GREEN, value)), pointerLine = -1, accent = GREEN)
     }
 
     /** Single-line progress bar; [current] is clamped to `[0, total]`. */
@@ -136,6 +188,44 @@ class ConsoleIO(
         writeln("  $name $paintedDots$paintedDuration $paintedStatus")
     }
 
+    private fun badge(label: String, message: String, bg: String, fg: String) {
+        writeln(badgeLine(label, message, bg, fg))
+    }
+
+    private fun badgeLine(label: String, message: String, bg: String, fg: String): String =
+        "  ${paint(bg + fg + BOLD, " $label ")} $message"
+
+    private fun bar(corner: String, title: String, titleColor: String) {
+        val heading = title.take(48)
+        val fill = (PROMPT_WIDTH - heading.length - 1).coerceAtLeast(0)
+        writeln(
+            " ${paint(DIM, "$corner ")}" +
+                paint(titleColor, heading) +
+                paint(DIM, " " + "─".repeat(fill) + if (corner == "┌") "┐" else "┘"),
+        )
+    }
+
+    private fun frame(
+        title: String,
+        lines: List<String>,
+        contentWidth: Int,
+        pointerLine: Int,
+        accent: String,
+    ) {
+        val heading = title.take(contentWidth)
+        val dashes = (contentWidth - heading.length - 1).coerceAtLeast(0)
+        writeln(
+            paint(DIM, " ┌ ") + paint(accent, heading) + paint(DIM, " " + "─".repeat(dashes) + "┐"),
+        )
+        lines.forEachIndexed { index, line ->
+            val marker = if (index == pointerLine) paint(CYAN + BOLD, "› ") else "  "
+            val body = marker + line
+            val pad = (contentWidth - plainLength(body)).coerceAtLeast(0)
+            writeln(paint(DIM, " │") + " $body${" ".repeat(pad)} " + paint(DIM, "│"))
+        }
+        writeln(paint(DIM, " └" + "─".repeat(contentWidth + 2) + "┘"))
+    }
+
     fun paint(codes: String, text: String): String =
         if (color) "$codes$text$RESET" else text
 
@@ -150,9 +240,17 @@ class ConsoleIO(
         const val GREEN = "\u001B[32m"
         const val YELLOW = "\u001B[33m"
         const val CYAN = "\u001B[36m"
-        const val PRIMARY = "\u001B[38;2;111;78;55m"
-        const val ACCENT = "\u001B[38;2;61;41;20m"
+        const val PRIMARY = "\u001B[38;2;223;135;35m"
+        const val ACCENT = "\u001B[38;2;116;69;63m"
+        const val GRAY = "\u001B[90m"
+        const val WHITE = "\u001B[97m"
+        const val BLACK = "\u001B[30m"
+        const val BG_GREEN = "\u001B[42m"
+        const val BG_YELLOW = "\u001B[43m"
+        const val BG_RED = "\u001B[41m"
+        const val BG_CYAN = "\u001B[46m"
         const val TASK_WIDTH = 72
+        const val PROMPT_WIDTH = 50
         private val ANSI_REGEX = Regex("\u001B\\[[0-9;]*m")
 
         @JvmStatic

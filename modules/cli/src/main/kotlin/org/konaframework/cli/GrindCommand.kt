@@ -42,6 +42,7 @@ constructor(
     }
 
     private fun printHelp() {
+        io.intro("kona grind")
         io.box(
             "kona grind",
             listOf(
@@ -49,12 +50,14 @@ constructor(
                 "Finds the nearest Gradle project and forwards your arguments",
             ),
         )
+        io.title("Examples")
         io.twoColumn("kona grind serve", "Start the HTTP server")
         io.twoColumn("kona grind migrate", "Run pending migrations (--seed)")
         io.twoColumn("kona grind install <pkg>", "Add a Maven package + providers")
         io.twoColumn("kona grind <command>", "Any other ./grind command")
         io.writeln()
         io.info("Prefer ./grind when you are already inside the app directory.")
+        io.outro("Same commands as ./grind, from anywhere under the app.")
     }
 
     companion object {

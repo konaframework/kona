@@ -88,7 +88,18 @@ public class JavaSupportApiTest {
         console.taskLine("create_users_table", "DONE", 12L, true);
         console.taskLine("seeders", "DONE", 3L);
         console.taskLine("nested", "DONE");
+        console.intro("kona");
+        console.outro("done");
+        console.note("hello");
+        console.note("warn", "WARN");
+        console.promptFrame("Name", List.of(""));
+        console.promptFrame("Name", List.of("Ada"), 0);
+        console.promptFrame("Name", List.of("Ada"), 0, ConsoleIO.CYAN);
+        console.promptFrame("Name", List.of("Ada"), 0, ConsoleIO.CYAN, ConsoleIO.PROMPT_WIDTH);
+        console.promptSubmitted("Name", "Ada");
         assertTrue(consoleOut.toString().contains("create_users_table"));
+        assertTrue(consoleOut.toString().contains("kona"));
+        assertTrue(consoleOut.toString().contains("Ada"));
         assertEquals("12ms", ConsoleIO.formatDuration(12L));
         assertEquals("1.23s", ConsoleIO.formatDuration(1234L));
         assertEquals(72, ConsoleIO.TASK_WIDTH);
