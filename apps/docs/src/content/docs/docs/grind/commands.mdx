@@ -58,9 +58,9 @@ Writes under `src/main/kotlin|java/app/http/controllers/`. Names cannot contain 
 
 | Flag | Effect |
 |------|--------|
-| `--resource` | CRUD stubs: `index` / `create` / `store` / `show` / `edit` / `update` / `destroy` |
-| `--api` | Same as resource but omits `create` / `edit` (API-style) |
-| `--requests` | Also writes `Store{Model}Request` / `Update{Model}Request` and type-hints `store` / `update` |
+| `--resource` | `BaseResourceController` subclass with `index` / `create` / `store` / `show` / `edit` / `update` / `destroy` — pass the instance to `router.resource` |
+| `--api` | Same subclass, but no `create` / `edit` overrides (the base returns 404). Use with `router.apiResource` |
+| `--requests` | Also writes `Store{Model}Request` / `Update{Model}Request`; `store` / `update` call `validate(request, …)` (signatures stay `Request` so they match `ResourceController`) |
 | `--model=Name` | Model name used for form-request class names (defaults from the controller name) |
 
 Unlike `serve`, `make:controller` does not walk upward from nested folders unless you pass `--base=`.
@@ -80,7 +80,7 @@ These commands work with [Cadence](../../cadence/). Generators write source file
 
 | Command | Writes / does |
 |---------|---------------|
-| `./grind make:model <Name> [-mcrfspaR]` | `app/models/<Name>`; short flags: `-m` migration, `-c` controller, `-r` resource controller, `-f` factory, `-s` seeder, `-p` policy, `-R` / `--requests` Store/Update form requests, `--api` API resource controller (no create/edit), `-a` / `--all` migration + factory + seeder + resource controller + requests + policy |
+| `./grind make:model <Name> [-mcrfspaR]` | `app/models/<Name>`; short flags: `-m` migration, `-c` plain controller, `-r` `BaseResourceController` subclass, `-f` factory, `-s` seeder, `-p` policy, `-R` / `--requests` Store/Update form requests, `--api` API resource controller (no create/edit overrides), `-a` / `--all` migration + factory + seeder + resource controller + requests + policy |
 | `./grind make:migration <name> [--create=table] [--table=table]` | File `database/migrations/{yyyy_MM_dd_HHmmss}_{snake_name}` with PascalCase class (snake_case or PascalCase input); appends the class to `META-INF/kona/migrations`; `create_x_table` creates `x`, `…_to_x_table` alters `x` |
 | `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
 | `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |

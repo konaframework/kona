@@ -105,10 +105,11 @@ Resolve heavy dependencies once when you construct the controller in the route t
 | Flag | Effect |
 |------|--------|
 | *(none)* | Single `index` method returning a text stub |
-| `--resource` | CRUD stubs: `index`, `create`, `store`, `show`, `edit`, `update`, `destroy` — ready for [`router.resource`](../routing/#resource-routes) / [`apiResource`](../routing/#api-resource-routes) |
+| `--resource` | `BaseResourceController` subclass with `index`, `create`, `store`, `show`, `edit`, `update`, `destroy` — pass the instance to [`router.resource`](../routing/#resource-routes) |
+| `--api` | Same subclass without `create` / `edit` overrides (404 from the base). Use with [`apiResource`](../routing/#api-resource-routes) |
 | `--lang=kotlin\|java` | Language (defaults from the app layout) |
 
-Generated resource stubs read the path id with `request.route("id")`. They do **not** extend `Controller` or `BaseResourceController` — add those bases yourself when you want `validate` helpers or default 404s for unimplemented actions.
+Generated resource stubs **extend `BaseResourceController`** (which extends `Controller` and implements `ResourceController`). Path ids use `request.route("id")`. `make:model -r` / `--resource` / `--api` / `--all` go through the same generator. A plain `./grind make:controller Post` or `make:model -c` (without `-r`) still writes a POJO with a single `index` method.
 
 ## Plain controllers vs `Controller`
 
@@ -458,9 +459,6 @@ Kona does not auto-resolve controllers from route class references. Instantiate 
 
 **Can I put middleware on the controller class?**  
 Not as a class annotation. Attach middleware on the route or group — see [Middleware](../middleware/) and [Routing](../routing/#middleware-on-a-route).
-
-**Generated `--resource` stubs don’t implement `ResourceController`.**  
-They use matching method names. For `router.resource(...)`, either implement the interface / extend `BaseResourceController`, or keep binding methods one-by-one.
 
 **Where do validation errors go?**  
 JSON clients get 422; HTML form clients get redirect-back with flashed errors — [Validation](../validation/#the-error-response).

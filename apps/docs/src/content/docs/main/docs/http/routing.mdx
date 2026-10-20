@@ -129,7 +129,7 @@ What matters for this style:
 2. **Bind** a method that accepts `Request` and returns `Response` — Kotlin `{ welcome.index(it) }`, Java `welcome::index` — so the IDE autocompletes and type-checks the action.
 3. Optionally **name** the route with `.name("…")` so you can build URLs later.
 
-Generate a stub with [`./grind make:controller Post`](../../grind/commands/#grind-makecontroller) (`--resource` adds CRUD method stubs). Put validation and response shaping in the controller; keep route files as the map from URL → action.
+Generate a stub with [`./grind make:controller Post`](../../grind/commands/#grind-makecontroller) (`--resource` writes a `BaseResourceController` subclass). Put validation and response shaping in the controller; keep route files as the map from URL → action.
 
 ## Declaring routes (HTTP verbs)
 
