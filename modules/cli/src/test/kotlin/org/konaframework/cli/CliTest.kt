@@ -237,7 +237,9 @@ class CliTest {
         assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/login.crema.html")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/views/dashboard.crema.html")))
-        assertTrue(Files.isRegularFile(kt.resolve("src/main/resources/public/branding/kona-logo.svg")))
+        assertTrue(Files.isRegularFile(kt.resolve("public/branding/kona-logo.svg")))
+        assertFalse(Files.exists(kt.resolve("src/main/resources/public")))
+        assertTrue(middleware.contains("?: \"public\""))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/app/models/User.kt")))
         assertTrue(
             Files.isRegularFile(
@@ -304,7 +306,8 @@ class CliTest {
         assertTrue(usersJava.contains("@MigrationName(\"2000_01_01_000000_create_users_table\")"))
         assertTrue(usersJava.contains("class CreateUsersTable implements Migration"))
         assertFalse(usersJava.contains("public class CreateUsersTable"))
-        assertTrue(Files.isRegularFile(j.resolve("src/main/resources/public/branding/kona-logo.svg")))
+        assertTrue(Files.isRegularFile(j.resolve("public/branding/kona-logo.svg")))
+        assertFalse(Files.exists(j.resolve("src/main/resources/public")))
         assertTrue(
             Files.readString(j.resolve("src/main/java/app/http/controllers/WelcomeController.java"))
                 .contains("\"welcome\""),

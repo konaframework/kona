@@ -45,7 +45,7 @@ public final class Paths implements ConfigFile {
         | Public directory
         |--------------------------------------------------------------------------
         */
-        values.put("public", "src/main/resources/public");
+        values.put("public", "public");
         return values;
     }
 }

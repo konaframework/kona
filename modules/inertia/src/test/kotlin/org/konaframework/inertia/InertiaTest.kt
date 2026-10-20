@@ -343,6 +343,49 @@ class InertiaTest {
         assertEquals("/build/assets/a.js", Vite.asset("a.js"))
     }
 
+    @Test
+    fun spaShellUsesDevServerOrHashedBuild() {
+        val public = temp.resolve("public")
+        Files.createDirectories(public)
+        val entry = "src/main/resources/js/app.js"
+        Files.writeString(public.resolve("hot"), "http://127.0.0.1:5173\n")
+        Vite.setManifest(AssetManifest(public))
+        val manager = InertiaManager()
+        manager.rootView = "app"
+        manager.cremaEngine = CremaEngine(
+            MapViewFinder().put("app", "<head>{!! vite !!}</head>"),
+        )
+        Inertia.setManager(manager)
+        val dev = manager.render(Request.get("/"), "Pages/Welcome").body
+        assertTrue(dev.contains("http://127.0.0.1:5173/@vite/client"), dev)
+        assertTrue(dev.contains("http://127.0.0.1:5173/$entry"), dev)
+        assertFalse(dev.contains("/build/$entry"), dev)
+
+        Files.delete(public.resolve("hot"))
+        Files.createDirectories(public.resolve("build/.vite"))
+        Files.writeString(
+            public.resolve("build/.vite/manifest.json"),
+            """{"$entry":{"file":"assets/app-Ab12.js","css":["assets/app-Cd34.css"],"isEntry":true}}""",
+        )
+        val prod = manager.render(Request.get("/"), "Pages/Welcome").body
+        assertTrue(prod.contains("/build/assets/app-Ab12.js"), prod)
+        assertTrue(prod.contains("/build/assets/app-Cd34.css"), prod)
+        assertFalse(prod.contains("/build/$entry"), prod)
+
+        val asset = public.resolve("build/assets/app-Ab12.js")
+        Files.createDirectories(asset.parent)
+        Files.writeString(asset, "console.log('spa')")
+        val app = Application(temp)
+        app.register(HttpServiceProvider())
+        app.register(InertiaServiceProvider())
+        app.boot()
+        val kernel = app.resolve(HttpKernel::class.java)
+        val served = kernel.handle(Request.get("/build/assets/app-Ab12.js"))
+        assertEquals(200, served.status)
+        assertEquals("console.log('spa')", String(served.bodyBytes(), Charsets.UTF_8))
+        assertEquals(404, kernel.handle(Request.get("/build/$entry")).status)
+    }
+
     private fun boot(): Application =
         Kona.create(arrayOf("--base=$temp"))
             .providers(HttpServiceProvider(), InertiaServiceProvider())

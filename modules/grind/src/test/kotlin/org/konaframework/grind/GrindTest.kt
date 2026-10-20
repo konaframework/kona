@@ -163,9 +163,9 @@ class GrindTest {
     @Test
     fun storageLink() {
         val base = temp.resolve("storage-proj")
-        Files.createDirectories(base.resolve("src/main/resources/public"))
+        Files.createDirectories(base.resolve("public"))
         assertEquals(0, StorageLinkCommand().run(listOf("--base=$base")))
-        val link = base.resolve("src/main/resources/public/storage")
+        val link = base.resolve("public/storage")
         assertTrue(Files.isSymbolicLink(link))
         assertEquals(
             base.resolve("storage/app/public").normalize(),
@@ -173,16 +173,16 @@ class GrindTest {
         )
         assertEquals(0, StorageLinkCommand().run(listOf("--base=$base")))
         val conflict = temp.resolve("conflict-proj")
-        Files.createDirectories(conflict.resolve("src/main/resources/public"))
-        Files.writeString(conflict.resolve("src/main/resources/public/storage"), "file")
+        Files.createDirectories(conflict.resolve("public"))
+        Files.writeString(conflict.resolve("public/storage"), "file")
         assertThrows(GrindException::class.java) {
             StorageLinkCommand().run(listOf("--base=$conflict"))
         }
         val wrongLink = temp.resolve("wrong-link")
-        Files.createDirectories(wrongLink.resolve("src/main/resources/public"))
+        Files.createDirectories(wrongLink.resolve("public"))
         Files.createDirectories(wrongLink.resolve("storage/app/other"))
         Files.createSymbolicLink(
-            wrongLink.resolve("src/main/resources/public/storage"),
+            wrongLink.resolve("public/storage"),
             wrongLink.resolve("storage/app/other"),
         )
         assertThrows(GrindException::class.java) {
@@ -197,6 +197,16 @@ class GrindTest {
         Files.createDirectories(cwd)
         assertEquals(0, StorageLinkCommand(cwd).run(emptyList()))
         assertTrue(Files.isSymbolicLink(cwd.resolve("public/storage")))
+        val legacy = temp.resolve("legacy-public")
+        Files.createDirectories(legacy.resolve("src/main/resources/public"))
+        assertEquals(0, StorageLinkCommand().run(listOf("--base=$legacy")))
+        assertTrue(Files.isSymbolicLink(legacy.resolve("src/main/resources/public/storage")))
+        val both = temp.resolve("both-public")
+        Files.createDirectories(both.resolve("public"))
+        Files.createDirectories(both.resolve("src/main/resources/public"))
+        assertEquals(0, StorageLinkCommand().run(listOf("--base=$both")))
+        assertTrue(Files.isSymbolicLink(both.resolve("public/storage")))
+        assertFalse(Files.exists(both.resolve("src/main/resources/public/storage")))
         assertTrue(StorageLinkCommand().javaClass.name.contains("StorageLinkCommand"))
     }
 

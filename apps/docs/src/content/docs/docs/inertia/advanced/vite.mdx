@@ -12,18 +12,37 @@ import org.konaframework.inertia.assets.Vite
 import org.konaframework.inertia.assets.AssetManifest
 ```
 
-`InertiaServiceProvider` binds `AssetManifest` to `inertia.public_path` (or `<base>/public`) and calls `Vite.setManifest` on boot.
+`InertiaServiceProvider` binds `AssetManifest` to `vite.public_path` or `inertia.public_path` (default `<base>/public`) and calls `Vite.setManifest` on boot. It also serves that directory, so a hashed file under `public/build/assets/` answers `GET /build/assets/…`.
 
 ## Development (`public/hot`)
 
-If `public/hot` contains a base URL (for example `http://127.0.0.1:5173`), tags point at the Vite dev server (`/@vite/client` + entry URL).
+If `public/hot` contains a base URL (for example `http://127.0.0.1:5173`), the shell includes the Vite client and the entry module on that origin:
 
-## Production (`public/build/manifest.json`)
+```html
+<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
+<script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
+```
 
-Standard Vite manifest: entries resolve to `/build/…` script and stylesheet tags.
+The path after the origin is the Vite entry (`InertiaManager.viteEntries`), not a file under Kona’s `/build/` directory. The scaffold `vite.config.js` writes `public/hot` while `npm run dev` is running and removes it when the dev server stops.
+
+## Production (manifest)
+
+Kona reads the first file that exists:
+
+1. `public/build/manifest.json`
+2. `public/build/.vite/manifest.json` (Vite’s default when `build.manifest` is `true`)
+
+Each entry’s `file` and `css` values become URLs under `/build/`:
+
+```html
+<link rel="stylesheet" href="/build/assets/app-<hash>.css">
+<script type="module" src="/build/assets/app-<hash>.js"></script>
+```
+
+The source path is never prefixed with `/build/`. `GET /build/src/main/resources/js/app.js` is not a valid asset URL and is not what the shell emits when the hot file or manifest is present.
 
 ## In the root view
 
-`{!! vite !!}` prints tags for `InertiaManager.viteEntries`. Missing manifest / unset facade yields empty tags on HTML shells (exceptions are swallowed in the shell path so first visits still render).
+`{!! vite !!}` prints tags for `InertiaManager.viteEntries`. Missing hot file and missing manifest yield empty tags on HTML shells (exceptions are swallowed in the shell path so first visits still render).
 
 Facade helpers throw `ViteException` when you call `Vite.tags` / `Vite.asset` without a bound manifest — useful in tests.

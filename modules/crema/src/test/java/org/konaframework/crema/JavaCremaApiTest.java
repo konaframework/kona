@@ -4,15 +4,30 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.konaframework.core.Application;
 import org.konaframework.http.Response;
 import org.konaframework.support.lang.Lang;
 import org.konaframework.support.lang.Translator;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class JavaCremaApiTest {
+    @TempDir
+    Path temp;
+
+    @Test
+    void vitePublicHelpersFromJava() {
+        Application app = new Application(temp);
+        app.getConfig().set("vite.public_path", "webroot");
+        Path resolved = CremaServiceProvider.resolveVitePublic(app);
+        assertTrue(resolved.endsWith("webroot"));
+        CremaServiceProvider.ensureViteAssetsServed(app);
+    }
+
     @Test
     void renderAndRespondFromJava() {
         MapViewFinder finder = new MapViewFinder();

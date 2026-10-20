@@ -8,7 +8,7 @@ Kona application (Kotlin) — complete Almasix-shaped tree under `src/main`.
 - `src/main/kotlin/app` — providers, HTTP, models (`User`)
 - `src/main/kotlin/routes` — web + api
 - `src/main/kotlin/database` — migrations + seeders
-- `src/main/resources/public/branding` — Kona logo
+- `public/branding` — Kona logo (HTTP document root; Vite writes `public/build`)
 - `storage/` — writable runtime data
 - `.env` / `.env.example` — environment
 

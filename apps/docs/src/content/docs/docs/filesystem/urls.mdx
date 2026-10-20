@@ -15,7 +15,7 @@ Create the symlink static tooling expects:
 ./grind storage:link
 ```
 
-That links `src/main/resources/public/storage` → `storage/app/public` (or `public/storage` when the resources public folder is absent).
+That links `public/storage` → `storage/app/public`. If the project has no `public/` directory yet but still has an older `src/main/resources/public` folder, the link is created there instead.
 
 ## Temporary URLs
 

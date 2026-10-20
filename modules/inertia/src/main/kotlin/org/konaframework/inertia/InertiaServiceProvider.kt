@@ -3,9 +3,9 @@ package org.konaframework.inertia
 import org.konaframework.core.Application
 import org.konaframework.core.ServiceProvider
 import org.konaframework.crema.CremaEngine
+import org.konaframework.crema.CremaServiceProvider
 import org.konaframework.crema.assets.AssetManifest
 import org.konaframework.crema.assets.Vite
-import java.nio.file.Path
 
 /**
  * Binds [InertiaManager] and [AssetManifest] / [Vite].
@@ -13,7 +13,7 @@ import java.nio.file.Path
  * Config keys (optional):
  * - `inertia.root_view` — Crema view name for the HTML shell
  * - `inertia.version` — asset version string (`X-Inertia-Version`)
- * - `inertia.public_path` — directory containing `build/manifest.json` and optional `hot`
+ * - `inertia.public_path` — directory containing `hot` and `build/` (also `vite.public_path`; default `<base>/public`)
  */
 class InertiaServiceProvider : ServiceProvider {
     override fun register(app: Application) {
@@ -21,13 +21,7 @@ class InertiaServiceProvider : ServiceProvider {
             InertiaManager().also { configure(app, it) }
         }
         app.container.singleton(AssetManifest::class.java) {
-            val configured = app.config.getString("inertia.public_path")
-            val publicPath = if (configured != null) {
-                Path.of(configured)
-            } else {
-                app.basePath.resolve("public")
-            }
-            AssetManifest(publicPath)
+            AssetManifest(CremaServiceProvider.resolveVitePublic(app))
         }
     }
 
@@ -40,6 +34,7 @@ class InertiaServiceProvider : ServiceProvider {
         }
         val assets = app.resolve(AssetManifest::class.java)
         Vite.setManifest(assets)
+        CremaServiceProvider.ensureViteAssetsServed(app)
     }
 
     private fun configure(app: Application, inertia: InertiaManager) {

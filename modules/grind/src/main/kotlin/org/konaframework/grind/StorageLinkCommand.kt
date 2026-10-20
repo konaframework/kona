@@ -6,7 +6,8 @@ import java.nio.file.Path
 /**
  * `grind storage:link` — symlink `public/storage` → `storage/app/public` (Laravel shape).
  *
- * Prefers `src/main/resources/public` (scaffold web root); falls back to `public/`.
+ * The web root is project `public/`. A leftover `src/main/resources/public` is used only when
+ * `public/` does not exist yet.
  */
 class StorageLinkCommand @JvmOverloads constructor(
     private val workingDirectory: Path = Path.of(".").toAbsolutePath().normalize(),
@@ -37,10 +38,14 @@ class StorageLinkCommand @JvmOverloads constructor(
     }
 
     private fun resolvePublicDir(base: Path): Path {
-        val resourcesPublic = base.resolve("src/main/resources/public")
-        if (Files.isDirectory(resourcesPublic)) {
-            return resourcesPublic
+        val rootPublic = base.resolve("public")
+        if (Files.isDirectory(rootPublic)) {
+            return rootPublic
         }
-        return base.resolve("public")
+        val legacy = base.resolve("src/main/resources/public")
+        if (Files.isDirectory(legacy)) {
+            return legacy
+        }
+        return rootPublic
     }
 }

@@ -78,7 +78,7 @@ object Filesystems : ConfigFile {
         |
         */
         "links" to mapOf(
-            "src/main/resources/public/storage" to "storage/app/public",
+            "public/storage" to "storage/app/public",
         ),
     )
 }

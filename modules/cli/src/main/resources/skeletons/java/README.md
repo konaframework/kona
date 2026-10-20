@@ -8,7 +8,7 @@ Kona application (Java) — complete Almasix-shaped tree under `src/main`.
 - `src/main/java/app` — providers, HTTP, models (`User`)
 - `src/main/java/routes` — web + api
 - `src/main/java/database` — migrations + seeders
-- `src/main/resources/public/branding` — Kona logo
+- `public/branding` — Kona logo (HTTP document root; Vite writes `public/build`)
 - `storage/` — writable runtime data
 - `.env` / `.env.example` — environment
 

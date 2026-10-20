@@ -33,7 +33,7 @@ class PathLayoutTest {
         assertEquals(temp.resolve("src/main/kotlin/app/http"), layout.app("http"))
         assertEquals(temp.resolve("src/main/kotlin/config"), layout.config())
         assertEquals(temp.resolve("src/main/resources/views/home"), layout.view("home"))
-        assertEquals(temp.resolve("src/main/resources/public"), layout.publicPath())
+        assertEquals(temp.resolve("public"), layout.publicPath())
         assertEquals(temp.resolve("storage/logs"), layout.storage("logs"))
         assertEquals(temp.resolve("src/main/resources/lang/en"), layout.lang("en"))
         assertEquals(layout.app("http"), layout.join(layout.langRoot.resolve("app"), arrayOf("http", "")))

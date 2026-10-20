@@ -10,7 +10,7 @@ import java.nio.file.Path
  * - language root: `src/main/kotlin` or `src/main/java` (detected)
  * - resources: `src/main/resources`
  * - storage: project-root `storage/`
- * - public: `src/main/resources/public`
+ * - public: project-root `public/` (HTTP document root; Vite writes `public/build`)
  *
  * Overrides via config keys `paths.langRoot`, `paths.resources`, `paths.storage`, `paths.public`
  * (relative to [base]).
@@ -56,7 +56,7 @@ class PathLayout(
     companion object {
         const val DEFAULT_RESOURCES = "src/main/resources"
         const val DEFAULT_STORAGE = "storage"
-        const val DEFAULT_PUBLIC = "src/main/resources/public"
+        const val DEFAULT_PUBLIC = "public"
         const val KOTLIN_ROOT = "src/main/kotlin"
         const val JAVA_ROOT = "src/main/java"
 

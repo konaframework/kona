@@ -328,7 +328,8 @@ Register `InertiaServiceProvider`, push middleware, add the root view, then eith
 | Symptom | Likely cause |
 |---------|----------------|
 | `InertiaException` / no manager | Provider not registered or middleware before boot |
-| Empty `{!! vite !!}` | No `public/hot` and no `public/build/manifest.json` |
+| Empty `{!! vite !!}` | No `public/hot` and no manifest at `public/build/manifest.json` or `public/build/.vite/manifest.json` |
+| `GET /build/src/main/resources/js/app.js` 404 | Tags fell back to `/build/` + the source path. Start `npm run dev` (writes `public/hot`) or `npm run build`, then reload. Dev scripts come from the Vite origin; production scripts are `/build/assets/<hash>.js` |
 | Blank page, console error “page not found” | Component name ≠ file under `js/Pages/` |
 | Always full HTML on XHR | Missing `HandleInertiaRequests` or client not sending `X-Inertia` |
 | Persistent `409` | Client `X-Inertia-Version` ≠ server `inertia.version` |
