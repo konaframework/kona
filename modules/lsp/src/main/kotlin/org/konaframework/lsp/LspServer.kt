@@ -14,7 +14,9 @@ import java.io.OutputStream
  * publishDiagnostics for unknown `@name`s / `wire:*` attributes.
  */
 class LspServer {
-    private val documents = linkedMapOf<String, String>()
+    private data class OpenDocument(val text: String, val languageId: String)
+
+    private val documents = linkedMapOf<String, OpenDocument>()
     private var shutdownRequested = false
 
     /**
@@ -96,7 +98,7 @@ class LspServer {
                 if (!hasRequestId(id)) {
                     return
                 }
-                transport.writeResponse(id, diagnosticReport(transport, documentText(params)))
+                transport.writeResponse(id, diagnosticReport(transport, params))
             }
             else -> {
                 if (hasRequestId(id)) {
@@ -116,8 +118,9 @@ class LspServer {
             return
         }
         val text = doc.path("text").asText("")
-        documents[uri] = text
-        publishDiagnostics(transport, uri, text)
+        val languageId = doc.path("languageId").asText("")
+        documents[uri] = OpenDocument(text, languageId)
+        publishDiagnostics(transport, uri, text, languageId)
     }
 
     private fun didChange(transport: JsonRpcTransport, params: JsonNode?) {
@@ -137,10 +140,17 @@ class LspServer {
         }
         val last = changes[changes.size() - 1]
         val previous = documents[uri]
-        val fallback = previous ?: ""
-        val text = last.path("text").asText(fallback)
-        documents[uri] = text
-        publishDiagnostics(transport, uri, text)
+        val text: String
+        val languageId: String
+        if (previous == null) {
+            text = last.path("text").asText("")
+            languageId = ""
+        } else {
+            text = last.path("text").asText(previous.text)
+            languageId = previous.languageId
+        }
+        documents[uri] = OpenDocument(text, languageId)
+        publishDiagnostics(transport, uri, text, languageId)
     }
 
     private fun didClose(transport: JsonRpcTransport, params: JsonNode?) {
@@ -152,24 +162,12 @@ class LspServer {
             return
         }
         documents.remove(uri)
-        publishDiagnostics(transport, uri, "")
+        publishDiagnostics(transport, uri, "", "")
     }
 
     private fun textDocumentUri(params: JsonNode): String {
         val doc = params.get("textDocument") ?: return ""
         return doc.path("uri").asText("")
-    }
-
-    private fun documentText(params: JsonNode?): String {
-        if (params == null) {
-            return ""
-        }
-        val uri = textDocumentUri(params)
-        val stored = documents[uri]
-        if (stored == null) {
-            return ""
-        }
-        return stored
     }
 
     private fun completionResult(transport: JsonRpcTransport, params: JsonNode?): ObjectNode {
@@ -192,8 +190,19 @@ class LspServer {
             }
         }
         val stored = documents[uri]
-        val text = stored ?: ""
-        return completionItemsNode(transport, CremaAnalyzer.completions(text, line, character))
+        val text: String
+        val languageId: String
+        if (stored == null) {
+            text = ""
+            languageId = ""
+        } else {
+            text = stored.text
+            languageId = stored.languageId
+        }
+        return completionItemsNode(
+            transport,
+            HostDocument.completions(text, languageId, uri, line, character),
+        )
     }
 
     private fun hasRequestId(id: JsonNode?): Boolean {
@@ -213,7 +222,7 @@ class LspServer {
         caps.set<ObjectNode>(
             "completionProvider",
             transport.objectNode().apply {
-                putArray("triggerCharacters").add("@").add(":").add(".")
+                putArray("triggerCharacters").add("@").add(":").add(".").add("{")
                 put("resolveProvider", false)
             },
         )
@@ -253,21 +262,42 @@ class LspServer {
         return result
     }
 
-    private fun diagnosticReport(transport: JsonRpcTransport, text: String): ObjectNode {
+    private fun diagnosticReport(transport: JsonRpcTransport, params: JsonNode?): ObjectNode {
+        val uri: String
+        if (params == null) {
+            uri = ""
+        } else {
+            uri = textDocumentUri(params)
+        }
+        val stored = documents[uri]
+        val text: String
+        val languageId: String
+        if (stored == null) {
+            text = ""
+            languageId = ""
+        } else {
+            text = stored.text
+            languageId = stored.languageId
+        }
         val result = transport.objectNode()
         result.put("kind", "full")
         val arr = result.putArray("items")
-        CremaAnalyzer.diagnostics(text).forEach { d ->
+        HostDocument.diagnostics(text, languageId, uri).forEach { d ->
             arr.add(diagnosticNode(transport, d))
         }
         return result
     }
 
-    private fun publishDiagnostics(transport: JsonRpcTransport, uri: String, text: String) {
+    private fun publishDiagnostics(
+        transport: JsonRpcTransport,
+        uri: String,
+        text: String,
+        languageId: String,
+    ) {
         val params = transport.objectNode()
         params.put("uri", uri)
         val arr = params.putArray("diagnostics")
-        CremaAnalyzer.diagnostics(text).forEach { d ->
+        HostDocument.diagnostics(text, languageId, uri).forEach { d ->
             arr.add(diagnosticNode(transport, d))
         }
         transport.writeNotification("textDocument/publishDiagnostics", params)

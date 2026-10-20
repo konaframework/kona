@@ -83,11 +83,19 @@ class JavaComponentTest {
         }
     }
 
+    public static class InlineOnly extends Component {
+        @Override
+        public Object render() {
+            return inline("<p>java-inline</p>");
+        }
+    }
+
     private BrewManager manager() {
         MapViewFinder views = new MapViewFinder().put("brew.view-backed", "<p>{{ label }} {{ count }}</p>");
         return new BrewManager(new BrewConfig("java-key"), new CremaEngine(views), null)
             .component("todo-list", TodoList.class)
-            .component(ViewBacked.class);
+            .component(ViewBacked.class)
+            .component(InlineOnly.class);
     }
 
     @AfterEach
@@ -133,5 +141,6 @@ class JavaComponentTest {
         assertTrue(html.contains("<p wire:snapshot="));
         assertTrue(html.contains("Java 1"));
         Brew.test(ViewBacked.class).assertViewIs("brew.view-backed").assertViewHas("label", "Java");
+        Brew.test(InlineOnly.class).assertSee("java-inline");
     }
 }

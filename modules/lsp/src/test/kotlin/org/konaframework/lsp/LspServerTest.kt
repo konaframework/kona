@@ -25,6 +25,7 @@ class LspServerTest {
         assertTrue(triggers.toString().contains("@"))
         assertTrue(triggers.toString().contains(":"))
         assertTrue(triggers.toString().contains("."))
+        assertTrue(triggers.toString().contains("{"))
         val shutdown = messages.first { it.has("id") && it.get("id").asInt() == 2 }
         assertTrue(shutdown.has("result"))
         assertTrue(shutdown.get("result").isNull)
@@ -483,6 +484,81 @@ class LspServerTest {
             0,
             messages.count { it.path("method").asText() == "textDocument/publishDiagnostics" },
         )
+    }
+
+    @Test
+    fun javaHostDocumentCompletionsAndDiagnostics() {
+        val q = "\"\"\""
+        val java =
+            """
+            public class Counter {
+                public int count = 0;
+                public String template() {
+                    return $q
+            <div>{{ count }}</div>
+            @csrf @nope
+            <button wire:cli
+            $q;
+                }
+            }
+            """.trimIndent()
+        val uri = "file:///Counter.java"
+        val openParams = LspTestSupport.mapper.createObjectNode()
+        val doc = LspTestSupport.mapper.createObjectNode()
+        doc.put("uri", uri)
+        doc.put("languageId", "java")
+        doc.put("version", 1)
+        doc.put("text", java)
+        openParams.set<com.fasterxml.jackson.databind.JsonNode>("textDocument", doc)
+
+        val atCsrf = java.indexOf("@csrf") + 1
+        val atPos = CremaAnalyzer.offsetToPosition(java, atCsrf)
+        val completionParams = LspTestSupport.mapper.createObjectNode()
+        completionParams.set<com.fasterxml.jackson.databind.JsonNode>(
+            "textDocument",
+            LspTestSupport.mapper.createObjectNode().put("uri", uri),
+        )
+        completionParams.set<com.fasterxml.jackson.databind.JsonNode>(
+            "position",
+            LspTestSupport.mapper.createObjectNode().put("line", atPos.line).put("character", atPos.character),
+        )
+
+        val outsideParams = LspTestSupport.mapper.createObjectNode()
+        outsideParams.set<com.fasterxml.jackson.databind.JsonNode>(
+            "textDocument",
+            LspTestSupport.mapper.createObjectNode().put("uri", uri),
+        )
+        outsideParams.set<com.fasterxml.jackson.databind.JsonNode>(
+            "position",
+            LspTestSupport.mapper.createObjectNode().put("line", 0).put("character", 0),
+        )
+
+        val diagParams = LspTestSupport.mapper.createObjectNode()
+        diagParams.set<com.fasterxml.jackson.databind.JsonNode>(
+            "textDocument",
+            LspTestSupport.mapper.createObjectNode().put("uri", uri),
+        )
+
+        val (code, messages) =
+            LspTestSupport.runSession(
+                LspTestSupport.request(1, "initialize", LspTestSupport.initializeParams()),
+                LspTestSupport.notification("textDocument/didOpen", openParams),
+                LspTestSupport.request(2, "textDocument/completion", completionParams),
+                LspTestSupport.request(3, "textDocument/completion", outsideParams),
+                LspTestSupport.request(4, "textDocument/diagnostic", diagParams),
+                LspTestSupport.request(5, "shutdown"),
+                LspTestSupport.notification("exit"),
+            )
+        assertEquals(0, code)
+        val published =
+            messages.first { it.path("method").asText() == "textDocument/publishDiagnostics" }
+        assertTrue(published.path("params").path("diagnostics").toString().contains("nope"))
+        val completion = messages.first { it.has("id") && it.get("id").asInt() == 2 }
+        assertTrue(completion.path("result").path("items").toString().contains("@csrf"))
+        val outside = messages.first { it.has("id") && it.get("id").asInt() == 3 }
+        assertEquals(0, outside.path("result").path("items").size())
+        val pull = messages.first { it.has("id") && it.get("id").asInt() == 4 }
+        assertTrue(pull.path("result").path("items").toString().contains("nope"))
     }
 
     @Test

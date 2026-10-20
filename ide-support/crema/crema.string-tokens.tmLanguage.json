@@ -1,0 +1,13 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Crema tokens in Java/Kotlin text blocks",
+  "scopeName": "text.html.crema.string-tokens",
+  "injectionSelector": "L:string.quoted.triple, L:string.quoted.triple.java, L:string.quoted.triple.kotlin, L:string.quoted.other.java, L:string.quoted.triple.literal.kotlin",
+  "patterns": [
+    { "include": "text.html.crema#crema-comment" },
+    { "include": "text.html.crema#crema-echo-raw" },
+    { "include": "text.html.crema#crema-echo" },
+    { "include": "text.html.crema#crema-directive" },
+    { "include": "text.html.crema#brew-wire" }
+  ]
+}

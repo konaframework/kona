@@ -15,7 +15,11 @@ Inside templates, public properties and `@Computed` methods are in scope as Crem
 
 ### IDE support for inline `template()`
 
-Crema highlighting in IntelliJ IDEA (Kona plugin) and VS Code (vscode-crema) works best on `*.crema.html` files. For Brew single-file components, put an IntelliJ language comment above the string — the same idea as Laravel's `<<<'BLADE'` heredoc:
+Crema highlighting and completion work on `*.crema.html` files and **inside inline strings**.
+
+**IntelliJ IDEA** (Kona Idea plugin) injects Crema into `Component.template()`, into the `source` parameter of `Component.inline` / `BrewView.inline` (`@CremaTemplate`), and into any string preceded by `// language=Crema`.
+
+**Cursor / VS Code** (vscode-crema extension): TextMate injections color Crema inside Java/Kotlin `template()` text blocks, `inline(` arguments, and `language=Crema` strings. Attach **kona-lsp** with document languages `crema`, `java`, and `kotlin` for `@` directive, `wire:*`, and `{{` member completion in those same ranges. Reload the window after installing or updating the extension.
 
 ```kotlin
 override fun template(): String =
@@ -29,7 +33,7 @@ override fun template(): String =
     """.trimIndent()
 ```
 
-`Component.template()` is also marked with `@CremaTemplate` so IDE plugins can inject Crema into that return value automatically when supported.
+Java text blocks work the same way — see `samples/brew-java` `Counter.template()`. You do not need the language comment when the method is `template()` or the call is `inline(`.
 
 ## Tags and directives
 

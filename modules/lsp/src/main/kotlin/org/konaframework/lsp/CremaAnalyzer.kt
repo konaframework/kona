@@ -99,6 +99,52 @@ object CremaAnalyzer {
 
     data class DirectiveContext(val prefix: String)
 
+    /**
+     * When the caret is inside `{{ … }}` or `{!! … !!}`, returns the identifier
+     * prefix being typed (may be empty).
+     */
+    @JvmStatic
+    fun echoPrefixAt(text: String, offset: Int): String? {
+        val cap = offset.coerceIn(0, text.length)
+        val openEcho = lastUnclosed(text, cap, "{{", "}}")
+        val openRaw = lastUnclosed(text, cap, "{!!", "!!}")
+        val open = listOfNotNull(openEcho, openRaw).maxOrNull() ?: return null
+        val contentStart = if (text.startsWith("{!!", open)) open + 3 else open + 2
+        var i = cap - 1
+        while (i >= contentStart) {
+            val ch = text[i]
+            if (ch.isLetterOrDigit()) {
+                i--
+                continue
+            }
+            if (ch == '_') {
+                i--
+                continue
+            }
+            break
+        }
+        return text.substring(i + 1, cap)
+    }
+
+    private fun lastUnclosed(text: String, offset: Int, open: String, close: String): Int? {
+        var i = 0
+        var last: Int? = null
+        while (i < offset) {
+            if (text.startsWith(open, i)) {
+                last = i
+                i += open.length
+                continue
+            }
+            if (text.startsWith(close, i)) {
+                last = null
+                i += close.length
+                continue
+            }
+            i++
+        }
+        return last
+    }
+
     /** When the caret is inside `@…`, returns the typed name prefix (may be empty). */
     internal fun directiveContextAt(text: String, offset: Int): DirectiveContext? {
         if (offset <= 0) {
