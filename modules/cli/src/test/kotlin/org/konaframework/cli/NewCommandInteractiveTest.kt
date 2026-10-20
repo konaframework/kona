@@ -136,7 +136,7 @@ class NewCommandInteractiveTest {
         val dest = temp.resolve("app-seven")
         val recording = RecordingPrompts("\n".repeat(16))
         val (cmd, out) = command("", prompts = recording)
-        // argv `new app-seven` — directory is positional; remaining steps must still call Prompts.
+        // argv `new app-seven` (absolute in tests so we do not write into the repo).
         assertEquals(
             0,
             KonaApplication(ConsoleIO(PrintStream(out), PrintStream(out), false), cmd)

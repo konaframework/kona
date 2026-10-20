@@ -170,6 +170,11 @@ internal fun resolveNewPlan(
     prompts: InstallerPrompts,
     io: ConsoleIO,
 ): NewPlan? {
+    if (!canPrompt && positional.isEmpty()) {
+        throw KonaCliException(
+            "$NEW_USAGE\nA directory argument skips only that question. Scripts: --no-interaction.",
+        )
+    }
     if (canPrompt) {
         io.intro("kona new")
         io.box(
@@ -181,11 +186,8 @@ internal fun resolveNewPlan(
         )
     }
     val directoryRaw =
-        when {
-            positional.isNotEmpty() -> positional.first()
-            canPrompt -> prompts.ask("Where should we create the app?", "kona-app")
-            else -> "kona-app"
-        }
+        positional.firstOrNull()
+            ?: prompts.ask("Where should we create the app?", "kona-app")
     val directory = Path.of(directoryRaw).toAbsolutePath().normalize()
     val folder = directory.fileName.toString()
     val named = options["name"] ?: options["app-name"]
