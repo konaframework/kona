@@ -43,7 +43,10 @@ class GrindJavaTest {
                                         "run"))
                         ? 0
                         : 1;
-        assertEquals(0, new ServeCommand(server -> kotlin.Unit.INSTANCE, runner, false).run(List.of("--base=" + app)));
+        assertEquals(
+                0,
+                new ServeCommand(server -> kotlin.Unit.INSTANCE, runner, false)
+                        .run(List.of("--base=" + app, "--no-watch")));
 
         assertEquals(1, new GrindApplication().run(new String[] {"new", "x"}));
         assertTrue(new GrindApplication().run(new String[] {"help"}) == 0);
@@ -52,6 +55,53 @@ class GrindJavaTest {
         Files.createDirectories(linkBase.resolve("public"));
         assertEquals(0, new StorageLinkCommand().run(List.of("--base=" + linkBase)));
         assertTrue(Files.isSymbolicLink(linkBase.resolve("public/storage")));
+    }
+
+    @Test
+    void serveWatchFromJava() throws Exception {
+        Path base = temp.resolve("jwatch");
+        Files.createDirectories(base.resolve("build/classes/kotlin/main"));
+        Files.writeString(base.resolve("settings.gradle.kts"), "rootProject.name = \"jwatch\"\n");
+        int port;
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+            port = socket.getLocalPort();
+        }
+        Files.writeString(base.resolve(".env"), "HOST=127.0.0.1\nPORT=" + port + "\n");
+        java.util.concurrent.atomic.AtomicInteger compiles = new java.util.concurrent.atomic.AtomicInteger();
+        SourceWatcher watcher =
+                (roots, onChange) -> {
+                    onChange.invoke(List.of(Path.of("Counter.kt")));
+                    return () -> {};
+                };
+        ProjectCompiler compiler =
+                root -> {
+                    compiles.incrementAndGet();
+                    return new CompileResult(0, "");
+                };
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        int code =
+                new ServeCommand(
+                                server -> {
+                                    assertTrue(server.isRunning());
+                                    return kotlin.Unit.INSTANCE;
+                                },
+                                (command, dir, env) -> 0,
+                                false,
+                                new Prompts(),
+                                new GrindIO(new PrintStream(out), new PrintStream(out), Verbosity.NORMAL, false),
+                                watcher,
+                                compiler)
+                        .run(
+                                List.of(
+                                        "--base=" + base,
+                                        "--watch",
+                                        "--bootstrap=" + FixtureApp.class.getName()));
+        assertEquals(0, code);
+        assertEquals(1, compiles.get());
+        assertTrue(out.toString().contains("Reloaded"));
+        CompileResult defaults = new CompileResult(7);
+        assertEquals(7, defaults.getExitCode());
+        assertEquals("", defaults.getOutput());
     }
 
     @Test

@@ -66,6 +66,17 @@ class AppLoader(
         }
     }
 
+    /** Closes the child [URLClassLoader] so reloaded app classes can be collected. */
+    fun close() {
+        val loader = classLoader ?: return
+        classLoader = null
+        val current = Thread.currentThread()
+        if (current.contextClassLoader === loader) {
+            current.contextClassLoader = javaClass.classLoader
+        }
+        (loader as URLClassLoader).close()
+    }
+
     /**
      * When `META-INF/kona/providers` is present on [loader], registers each listed
      * [org.konaframework.core.ServiceProvider] onto [app] (idempotent if already registered).

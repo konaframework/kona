@@ -312,7 +312,7 @@ class GrindTest {
 
         val out = java.io.ByteArrayOutputStream()
         val serve = ServeCommand(runner = runner, windows = false, io = GrindIO(java.io.PrintStream(out), color = false))
-        assertEquals(7, serve.run(listOf("--base=${app.resolve("routes/nested")}", "--host=0.0.0.0", "--port=9000")))
+        assertEquals(7, serve.run(listOf("--base=${app.resolve("routes/nested")}", "--no-watch", "--host=0.0.0.0", "--port=9000")))
         assertEquals(
             listOf(
                 app.resolve("gradlew").toString(),
@@ -335,7 +335,7 @@ class GrindTest {
         assertEquals("127.0.0.1", defaultHost)
         assertEquals(DEFAULT_SERVE_PORT, defaultPort)
         val freePort = (29100..29200).first { ServePorts.isAvailable("127.0.0.1", it) }
-        assertEquals(7, serve.run(listOf("--base=$app", "--port=$freePort")))
+        assertEquals(7, serve.run(listOf("--base=$app", "--no-watch", "--port=$freePort")))
         assertEquals("127.0.0.1", calls[1].third["HOST"])
         assertEquals(freePort.toString(), calls[1].third["PORT"])
         assertTrue(out.toString().contains("http://localhost:$freePort"), out.toString())
@@ -391,6 +391,10 @@ class GrindTest {
         serve.announce("0.0.0.0", 4000, ready = false, lanIp = "localhost", wsl = false)
         val same = out.toString()
         assertFalse(same.contains("Network"), same)
+        out.reset()
+        serve.announce("127.0.0.1", 4000, ready = true, lanIp = null, wsl = false, watching = true)
+        val watching = out.toString()
+        assertTrue(watching.contains("Reload   save .kt"), watching)
     }
 
     @Test
@@ -726,6 +730,9 @@ class GrindTest {
         assertEquals("true", requests["resource"])
         assertEquals("true", requests["requests"])
         assertEquals("true", requests["api"])
+
+        val (_, watch) = parseOptions(listOf("serve", "-w"))
+        assertEquals("true", watch["watch"])
     }
 
     private fun stubGradleApp(dir: Path): Path {

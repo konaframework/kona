@@ -17,7 +17,7 @@ If you are still learning the framework locally, finish [Your first app](../firs
 |-------|------|
 | **Entry class** | `bootstrap.App` — `main` boots the application and starts `KonaHttpServer` |
 | **HTTP server** | Embedded Netty (`KonaHttpServer`), bound to `HOST` / `PORT` |
-| **Dev launcher** | `./grind serve` → `./gradlew run` (convenient locally; **not** the production process) |
+| **Dev launcher** | `./grind serve` (watch / soft reload locally; **not** the production process) |
 | **Prod launcher** | The same `main`, started via Gradle `run`, `installDist` / `distZip`, or an equivalent JVM command |
 | **Config** | Process environment (and optional `.env` on the server), plus executable `config/*` modules |
 | **Edge** | Reverse proxy or platform ingress terminates TLS and forwards to the app port |
@@ -30,7 +30,7 @@ Internet → reverse proxy (TLS) → 127.0.0.1:PORT → KonaHttpServer → HttpK
 
 `./grind serve` is a **development wrapper**. It:
 
-- Invokes `./gradlew --quiet run` so Gradle is on the critical path for every restart
+- Watches sources and recompiles in a development JVM (or `--no-watch` spawns `./gradlew run`)
 - Forwards `--host` / `--port` and may **prompt** interactively when the preferred port is taken
 - Exists so day-to-day coding stays one command
 

@@ -20,7 +20,7 @@ public class JavaKonaHttpServerTest {
         assertNotNull(new KonaHttpServer(kernel, "127.0.0.1", 0));
         assertNotNull(new KonaHttpServer(kernel, "127.0.0.1", 0, 1024));
         assertNotNull(new KonaHttpServer(kernel, "127.0.0.1", 0, 1024, "nio"));
-        assertNotNull(
+        KonaHttpServer server =
             new KonaHttpServer(
                 kernel,
                 "127.0.0.1",
@@ -28,7 +28,10 @@ public class JavaKonaHttpServerTest {
                 1024,
                 "nio",
                 new org.konaframework.support.console.ConsoleIO()
-            )
-        );
+            );
+        assertNotNull(server);
+        HttpKernel next = new HttpKernel(new Router());
+        server.replaceKernel(next);
+        org.junit.jupiter.api.Assertions.assertEquals(next, server.kernel());
     }
 }

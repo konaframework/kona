@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Netty HTTP adapter + Virtual Threads. Thin adapter kept fully unit-testable via [HttpKernel].
@@ -32,18 +33,30 @@ import java.util.concurrent.atomic.AtomicBoolean
  * virtual thread so application code may block freely.
  */
 class KonaHttpServer @JvmOverloads constructor(
-    private val kernel: HttpKernel,
+    kernel: HttpKernel,
     private val host: String = "127.0.0.1",
     private val port: Int = 4000,
     private val maxContentLength: Int = DEFAULT_MAX_CONTENT_LENGTH,
     private val transportPreference: String? = System.getProperty("kona.http.transport"),
     private val console: ConsoleIO = ConsoleIO(),
 ) {
+    private val kernelRef = AtomicReference(kernel)
     private val running = AtomicBoolean(false)
     private var bossGroup: EventLoopGroup? = null
     private var workerGroup: EventLoopGroup? = null
     private var channel: Channel? = null
     private var requestExecutor: ExecutorService? = null
+
+    /** Current kernel; [replaceKernel] swaps it without restarting Netty. */
+    fun kernel(): HttpKernel = kernelRef.get()
+
+    /**
+     * Soft-reload hook: keep event loops and keep-alive connections, but dispatch new
+     * requests through [next]. Existing in-flight work still finishes on the previous kernel.
+     */
+    fun replaceKernel(next: HttpKernel) {
+        kernelRef.set(next)
+    }
 
     fun start() {
         if (!running.compareAndSet(false, true)) {
@@ -74,7 +87,7 @@ class KonaHttpServer @JvmOverloads constructor(
                                 .addLast(HttpResponseEncoder())
                                 .addLast(HttpServerExpectContinueHandler())
                                 .addLast(HttpObjectAggregator(maxContentLength))
-                                .addLast(KonaNettyHandler(kernel, executor))
+                                .addLast(KonaNettyHandler(kernelRef.get(), executor, kernelRef::get))
                         }
                     },
                 )
@@ -126,8 +139,9 @@ class KonaHttpServer @JvmOverloads constructor(
 }
 
 internal class KonaNettyHandler(
-    private val kernel: HttpKernel,
+    kernel: HttpKernel,
     private val executor: ExecutorService,
+    private val resolveKernel: () -> HttpKernel = { kernel },
 ) : SimpleChannelInboundHandler<FullHttpRequest>(false) {
     override fun channelRead0(ctx: ChannelHandlerContext, msg: FullHttpRequest) {
         if (!msg.decoderResult().isSuccess) {
@@ -146,7 +160,7 @@ internal class KonaNettyHandler(
         executor.execute {
             try {
                 val request = NettyHttpBridge.toRequest(msg)
-                val response = kernel.handle(request)
+                val response = resolveKernel().handle(request)
                 val netty = NettyHttpBridge.toResponse(response, head, keepAlive)
                 writeResponse(ctx, netty, keepAlive)
             } catch (t: Throwable) {

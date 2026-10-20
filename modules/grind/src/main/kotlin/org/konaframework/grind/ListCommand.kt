@@ -25,7 +25,7 @@ class ListCommand(
         /** Built-in grind commands shown in `list` / help. */
         val BUILTIN: List<Pair<String, String>> = listOf(
             "install" to "Add a package dependency and register providers",
-            "serve" to "Run the HTTP server",
+            "serve" to "Run the HTTP server (watch; --no-watch for Gradle run)",
             "route:list" to "List registered routes [--json] [--method=] [--name=] [--path=]",
             "route:cache" to "Write a JSON snapshot of registered routes",
             "route:clear" to "Remove the route cache file",
