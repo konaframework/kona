@@ -113,6 +113,7 @@ constructor(
         options.map { (k, v) -> if (v == "true") "--$k" else "--$k=$v" }
 
     private fun printHelp(io: GrindIO) {
+        io.intro("grind")
         io.box(
             "grind",
             listOf(
@@ -120,13 +121,14 @@ constructor(
                 "Global: --verbose|-v  --quiet|-q",
             ),
         )
-        io.title("Usage")
+        io.title("Available commands")
         (ListCommand.BUILTIN + registry.summaries()).distinctBy { it.first }.forEach { (cmd, summary) ->
             io.twoColumn(cmd, summary)
         }
         io.writeln()
         io.info("Create apps with: kona new <name> [--lang=kotlin|java] [--kit=…]")
         io.info("Custom commands: grind make:command <Name>")
+        io.outro("https://docs.konaframework.org/docs/grind/")
     }
 
     companion object {

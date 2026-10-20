@@ -53,9 +53,18 @@ class NewCommand(
         target.resolve("gradlew").toFile().setExecutable(true)
         writeKonaHomeProperty(target)
         val io = ConsoleIO()
-        io.success("Created Kona application at $target ($lang, kit=$kit, database=${database.name})")
-        io.info("cd ${target.fileName}")
-        io.info("./grind serve")
+        io.intro("kona")
+        io.success("Application created successfully.")
+        io.twoColumn("Path", target.toString(), 12)
+        io.twoColumn("Language", lang, 12)
+        io.twoColumn("Kit", kit, 12)
+        io.twoColumn("Database", database.name, 12)
+        io.writeln()
+        io.subtitle("Next steps")
+        io.twoColumn("cd", target.fileName.toString(), 12)
+        io.twoColumn("serve", "./grind serve", 12)
+        io.twoColumn("migrate", "./grind migrate --seed", 12)
+        io.outro("Build something great.")
         return 0
     }
 

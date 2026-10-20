@@ -38,6 +38,7 @@ class CommandExecutor(
 
     private fun printCommandHelp(io: GrindIO, signature: CommandSignature) {
         val heading = if (signature.description.isEmpty()) signature.name else signature.description
+        io.intro("grind")
         io.box(signature.name, listOf(heading))
         io.title("Signature")
         val rendered = buildString {

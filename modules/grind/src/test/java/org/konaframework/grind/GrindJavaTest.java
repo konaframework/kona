@@ -107,7 +107,15 @@ class GrindJavaTest {
         io.taskLine("create_users_table", "DONE", 12L, true);
         io.taskLine("WidgetSeeder", "DONE", 4L);
         io.taskLine("DatabaseSeeder", "DONE");
+        io.intro("grind");
+        io.outro("bye");
+        io.note("n");
+        io.note("w", "WARN");
+        io.promptFrame("Q", List.of("a"));
+        io.promptFrame("Q", List.of("a"), 0);
+        io.promptSubmitted("Q", "a");
         assertTrue(out.toString().contains("create_users_table"));
+        assertTrue(out.toString().contains("grind"));
         assertTrue(out.toString().contains("DONE"));
         assertTrue(out.toString().contains("12ms"));
         assertEquals("Ran", io.paint("x", "Ran"));
@@ -126,6 +134,10 @@ class GrindJavaTest {
 
         @Override
         public int handle() {
+            intro("demo");
+            note("hello " + argumentOrFail("name"));
+            note("next", "INFO");
+            outro("ok");
             info("hello " + argumentOrFail("name"));
             return SUCCESS;
         }

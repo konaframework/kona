@@ -62,6 +62,14 @@ abstract class ConsoleCommand {
 
     fun title(message: String) = io.title(message)
 
+    fun intro(title: String) = io.intro(title)
+
+    fun outro(message: String) = io.outro(message)
+
+    fun note(message: String) = io.note(message)
+
+    fun note(message: String, label: String) = io.note(message, label)
+
     fun table(headers: List<String>, rows: List<List<String>>) = io.table(headers, rows)
 
     fun progress(current: Int, total: Int) = io.progress(current, total, "")

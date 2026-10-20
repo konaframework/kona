@@ -72,6 +72,34 @@ class GrindIO(
         if (verbosity != Verbosity.QUIET) console.box(title, lines)
     }
 
+    fun intro(title: String) {
+        if (verbosity != Verbosity.QUIET) console.intro(title)
+    }
+
+    fun outro(message: String) {
+        if (verbosity != Verbosity.QUIET) console.outro(message)
+    }
+
+    @JvmOverloads
+    fun note(message: String, label: String = "NOTE") {
+        if (verbosity != Verbosity.QUIET) console.note(message, label)
+    }
+
+    @JvmOverloads
+    fun promptFrame(
+        label: String,
+        body: List<String>,
+        pointerLine: Int = -1,
+        accent: String = ConsoleIO.CYAN,
+        width: Int = ConsoleIO.PROMPT_WIDTH,
+    ) {
+        if (verbosity != Verbosity.QUIET) console.promptFrame(label, body, pointerLine, accent, width)
+    }
+
+    fun promptSubmitted(label: String, value: String) {
+        if (verbosity != Verbosity.QUIET) console.promptSubmitted(label, value)
+    }
+
     fun progress(current: Int, total: Int, label: String = "") {
         if (verbosity != Verbosity.QUIET) console.progress(current, total, label)
     }
