@@ -58,14 +58,17 @@ class GrindTest {
         assertTrue(Files.exists(emptyJavaRoot.resolve("src/main/kotlin/app/http/controllers/EmptyJavaController.kt")))
         assertEquals(0, MakeControllerCommand().run(listOf("Order", "--base=$base", "--resource", "--lang=kotlin")))
         val resourceKt = Files.readString(base.resolve("src/main/kotlin/app/http/controllers/OrderController.kt"))
-        assertTrue(resourceKt.contains("fun store("))
-        assertTrue(resourceKt.contains("fun destroy("))
+        assertTrue(resourceKt.contains("class OrderController : BaseResourceController()"))
+        assertTrue(resourceKt.contains("override fun store("))
+        assertTrue(resourceKt.contains("override fun destroy("))
         assertEquals(0, MakeControllerCommand().run(listOf("Invoice", "--base=$base", "--resource", "--lang=java")))
         val resourceJava = Files.readString(base.resolve("src/main/java/app/http/controllers/InvoiceController.java"))
-        assertTrue(resourceJava.contains("store(Request"))
-        assertTrue(resourceJava.contains("destroy(Request"))
+        assertTrue(resourceJava.contains("extends BaseResourceController"))
+        assertTrue(resourceJava.contains("public Response store(Request"))
+        assertTrue(resourceJava.contains("public Response destroy(Request"))
         assertEquals(0, MakeControllerCommand().run(listOf("ApiThing", "--base=$base", "--api", "--lang=kotlin")))
         val apiCtrl = Files.readString(base.resolve("src/main/kotlin/app/http/controllers/ApiThingController.kt"))
+        assertTrue(apiCtrl.contains("class ApiThingController : BaseResourceController()"))
         assertTrue(apiCtrl.contains("fun store"))
         assertFalse(apiCtrl.contains("fun create"))
         assertEquals(
@@ -75,10 +78,10 @@ class GrindTest {
             ),
         )
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/http/requests/StorePostRequest.kt")))
-        assertTrue(
-            Files.readString(base.resolve("src/main/kotlin/app/http/controllers/PostController.kt"))
-                .contains("StorePostRequest"),
-        )
+        val postCtrl = Files.readString(base.resolve("src/main/kotlin/app/http/controllers/PostController.kt"))
+        assertTrue(postCtrl.contains("class PostController : BaseResourceController()"))
+        assertTrue(postCtrl.contains("validate(request, StorePostRequest())"))
+        assertTrue(postCtrl.contains("validate(request, UpdatePostRequest())"))
         assertEquals(
             0,
             MakeControllerCommand().run(
@@ -86,7 +89,9 @@ class GrindTest {
             ),
         )
         val sku = Files.readString(base.resolve("src/main/java/app/http/controllers/SkuController.java"))
-        assertTrue(sku.contains("store(StoreSkuRequest"))
+        assertTrue(sku.contains("extends BaseResourceController"))
+        assertTrue(sku.contains("validate(request, new StoreSkuRequest())"))
+        assertTrue(sku.contains("validate(request, new UpdateSkuRequest())"))
         assertFalse(sku.contains("create(Request"))
         assertTrue(Files.exists(base.resolve("src/main/java/app/http/requests/UpdateSkuRequest.java")))
         assertEquals(
@@ -96,9 +101,10 @@ class GrindTest {
             ),
         )
         val book = Files.readString(base.resolve("src/main/java/app/http/controllers/BookController.java"))
+        assertTrue(book.contains("extends BaseResourceController"))
         assertTrue(book.contains("create(Request"))
-        assertTrue(book.contains("store(StoreBookRequest"))
-        assertTrue(book.contains("update(UpdateBookRequest"))
+        assertTrue(book.contains("validate(request, new StoreBookRequest())"))
+        assertTrue(book.contains("validate(request, new UpdateBookRequest())"))
     }
 
     @Test

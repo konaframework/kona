@@ -66,6 +66,10 @@ class GrindJavaTest {
             assertTrue(migrations.anyMatch(path -> path.getFileName().toString().endsWith("_create_flights_table.java")));
         }
         assertTrue(Files.exists(app.resolve("src/main/java/database/factories/FlightFactory.java")));
+        assertEquals(0, new MakeControllerCommand().run(List.of("Order", "--resource", "--lang=java", "--base=" + app)));
+        assertTrue(
+                Files.readString(app.resolve("src/main/java/app/http/controllers/OrderController.java"))
+                        .contains("extends BaseResourceController"));
         assertEquals(0, new MakeMigrationCommand().run(List.of("add_gate_to_flights_table", "--base=" + app)));
         assertEquals(0, new MakeSeederCommand().run(List.of("DatabaseSeeder", "--base=" + app)));
         assertEquals(0, new MakeFactoryCommand().run(List.of("Pilot", "--base=" + app)));

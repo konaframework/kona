@@ -3,8 +3,10 @@ package org.konaframework.grind
 /**
  * `grind make:controller <Name> [--resource] [--api] [--requests] [--model=Name] [--lang=kotlin|java]`.
  *
- * `--api` writes an API resource controller (index/store/show/update/destroy — no create/edit).
- * `--requests` writes `Store{Model}Request` / `Update{Model}Request` and type-hints `store` / `update`.
+ * `--resource` / `--api` write a [org.konaframework.http.BaseResourceController] subclass so the
+ * stub can be passed to `router.resource` / `apiResource`. `--api` omits `create` / `edit`
+ * overrides (the base returns 404). `--requests` writes `Store{Model}Request` /
+ * `Update{Model}Request` and calls `validate` from `store` / `update`.
  */
 class MakeControllerCommand {
     fun run(args: List<String>): Int {
@@ -83,11 +85,10 @@ class MakeControllerCommand {
     }
 
     private fun kotlinResource(name: String, api: Boolean, requests: Boolean, model: String): String {
-        val storeParam = if (requests) "request: Store${model}Request" else "request: Request"
-        val updateParam = if (requests) "request: Update${model}Request" else "request: Request"
         val parts = mutableListOf(
             "package app.http.controllers",
             "",
+            "import org.konaframework.http.BaseResourceController",
             "import org.konaframework.http.Request",
             "import org.konaframework.http.Response",
         )
@@ -96,38 +97,66 @@ class MakeControllerCommand {
             parts += "import app.http.requests.Update${model}Request"
         }
         parts += ""
-        parts += "class $name {"
-        parts += "    fun index(request: Request): Response = Response.text(\"$name@index\")"
+        parts += "class $name : BaseResourceController() {"
+        parts += "    override fun index(request: Request): Response = Response.text(\"$name@index\")"
         if (!api) {
             parts += ""
-            parts += "    fun create(request: Request): Response = Response.text(\"$name@create\")"
+            parts += "    override fun create(request: Request): Response = Response.text(\"$name@create\")"
         }
         parts += ""
-        parts += "    fun store($storeParam): Response = Response.text(\"$name@store\")"
+        parts.addAll(kotlinMutator(name, "store", requests, "Store${model}Request", withId = false))
         parts += ""
-        parts += "    fun show(request: Request): Response ="
+        parts += "    override fun show(request: Request): Response ="
         parts += "        Response.text(\"$name@show:\" + request.route(\"id\"))"
         if (!api) {
             parts += ""
-            parts += "    fun edit(request: Request): Response ="
+            parts += "    override fun edit(request: Request): Response ="
             parts += "        Response.text(\"$name@edit:\" + request.route(\"id\"))"
         }
         parts += ""
-        parts += "    fun update($updateParam): Response ="
-        parts += "        Response.text(\"$name@update:\" + request.route(\"id\"))"
+        parts.addAll(kotlinMutator(name, "update", requests, "Update${model}Request", withId = true))
         parts += ""
-        parts += "    fun destroy(request: Request): Response ="
+        parts += "    override fun destroy(request: Request): Response ="
         parts += "        Response.text(\"$name@destroy:\" + request.route(\"id\"))"
         parts += "}"
         return lines(*parts.toTypedArray())
     }
 
+    private fun kotlinMutator(
+        name: String,
+        action: String,
+        requests: Boolean,
+        form: String,
+        withId: Boolean,
+    ): List<String> {
+        val text = if (withId) {
+            "Response.text(\"$name@$action:\" + request.route(\"id\"))"
+        } else {
+            "Response.text(\"$name@$action\")"
+        }
+        if (!requests) {
+            return if (withId) {
+                listOf(
+                    "    override fun $action(request: Request): Response =",
+                    "        $text",
+                )
+            } else {
+                listOf("    override fun $action(request: Request): Response = $text")
+            }
+        }
+        return listOf(
+            "    override fun $action(request: Request): Response {",
+            "        validate(request, $form())",
+            "        return $text",
+            "    }",
+        )
+    }
+
     private fun javaResource(name: String, api: Boolean, requests: Boolean, model: String): String {
-        val storeType = if (requests) "Store${model}Request" else "Request"
-        val updateType = if (requests) "Update${model}Request" else "Request"
         val parts = mutableListOf(
             "package app.http.controllers;",
             "",
+            "import org.konaframework.http.BaseResourceController;",
             "import org.konaframework.http.Request;",
             "import org.konaframework.http.Response;",
         )
@@ -136,40 +165,49 @@ class MakeControllerCommand {
             parts += "import app.http.requests.Update${model}Request;"
         }
         parts += ""
-        parts += "public class $name {"
-        parts += "    public Response index(Request request) {"
-        parts += "        return Response.text(\"$name@index\");"
-        parts += "    }"
+        parts += "public class $name extends BaseResourceController {"
+        parts.addAll(javaAction(name, "index", form = "", withId = false))
         if (!api) {
             parts += ""
-            parts += "    public Response create(Request request) {"
-            parts += "        return Response.text(\"$name@create\");"
-            parts += "    }"
+            parts.addAll(javaAction(name, "create", form = "", withId = false))
         }
         parts += ""
-        parts += "    public Response store($storeType request) {"
-        parts += "        return Response.text(\"$name@store\");"
-        parts += "    }"
+        parts.addAll(javaAction(name, "store", if (requests) "Store${model}Request" else "", withId = false))
         parts += ""
-        parts += "    public Response show(Request request) {"
-        parts += "        return Response.text(\"$name@show:\" + request.route(\"id\"));"
-        parts += "    }"
+        parts.addAll(javaAction(name, "show", form = "", withId = true))
         if (!api) {
             parts += ""
-            parts += "    public Response edit(Request request) {"
-            parts += "        return Response.text(\"$name@edit:\" + request.route(\"id\"));"
-            parts += "    }"
+            parts.addAll(javaAction(name, "edit", form = "", withId = true))
         }
         parts += ""
-        parts += "    public Response update($updateType request) {"
-        parts += "        return Response.text(\"$name@update:\" + request.route(\"id\"));"
-        parts += "    }"
+        parts.addAll(javaAction(name, "update", if (requests) "Update${model}Request" else "", withId = true))
         parts += ""
-        parts += "    public Response destroy(Request request) {"
-        parts += "        return Response.text(\"$name@destroy:\" + request.route(\"id\"));"
-        parts += "    }"
+        parts.addAll(javaAction(name, "destroy", form = "", withId = true))
         parts += "}"
         return lines(*parts.toTypedArray())
+    }
+
+    private fun javaAction(
+        name: String,
+        action: String,
+        form: String,
+        withId: Boolean,
+    ): List<String> {
+        val text = if (withId) {
+            "Response.text(\"$name@$action:\" + request.route(\"id\"))"
+        } else {
+            "Response.text(\"$name@$action\")"
+        }
+        val body = mutableListOf(
+            "    @Override",
+            "    public Response $action(Request request) {",
+        )
+        if (form.isNotEmpty()) {
+            body += "        validate(request, new $form());"
+        }
+        body += "        return $text;"
+        body += "    }"
+        return body
     }
 }
 
