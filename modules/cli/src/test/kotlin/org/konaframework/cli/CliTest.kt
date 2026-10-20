@@ -372,6 +372,10 @@ class CliTest {
         assertTrue(Files.isRegularFile(inertia.resolve("package.json")))
         assertTrue(Files.isRegularFile(inertia.resolve("vite.config.js")))
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/app.js")))
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/Pages/Welcome.vue")))
+        assertTrue(
+            Files.readString(inertia.resolve("src/main/kotlin/bootstrap/App.kt")).contains("viteEntries"),
+        )
         assertTrue(Files.isRegularFile(inertia.resolve("src/main/kotlin/app/http/middleware/HandleInertia.kt")))
         assertTrue(
             Files.readString(inertia.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
@@ -448,7 +452,14 @@ class CliTest {
     }
 
     private fun assertNoPlaceholders(root: Path) {
-        val scaffoldTokens = listOf("{{appName}}", "{{konaVersion}}", "{{kotlinVersion}}", "{{kit}}", "{{appKey}}")
+        val scaffoldTokens = listOf(
+            "{{appName}}",
+            "{{konaVersion}}",
+            "{{kotlinVersion}}",
+            "{{kit}}",
+            "{{appKey}}",
+            "{{viteEntry}}",
+        )
         Files.walk(root).use { stream ->
             stream.filter { Files.isRegularFile(it) && !it.toString().endsWith(".jar") }.forEach { file ->
                 val text = Files.readString(file)

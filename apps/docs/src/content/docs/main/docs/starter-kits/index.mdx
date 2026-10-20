@@ -1,48 +1,102 @@
 ---
 title: Starter kits
-description: Choose an application preset when you run kona new.
+description: Interactive kona new installer, kits, CSS, and Inertia adapters.
 ---
 
-`kona new` scaffolds a Gradle app with a local `./grind` CLI. The default kit is **`web`**. Use **`--kit`** (alias **`--preset`**) to pick another shape.
+`kona new` scaffolds a Gradle app with a local `./grind` CLI. Run it **with no arguments in a real terminal** and it walks you through the stack. Pass flags (or `--no-interaction`) to skip any step.
 
 ```bash
-kona new my-app
-kona new my-app --kit=api
-kona new my-app --kit=inertia --lang=java
-kona new my-app --kit=brew
+kona new                          # interactive installer
+kona new my-app                   # directory set; remaining prompts if the terminal can ask
+kona new my-app --kit=api --lang=java --no-interaction
+kona new my-app --kit=inertia --frontend=react --css=tailwind
+kona new my-app --kit=brew --css=bootstrap --install-deps --migrate --seed
 ```
+
+The default kit (when you skip the stack prompt) is **`web`** — Crema views. Non-interactive CSS stays **custom** (inline styles, no npm) so a first `./grind serve` works with zero JavaScript toolchain. The interactive CSS prompt defaults to **Tailwind CSS**.
+
+## Interactive order
+
+On a TTY, without `--no-interaction`, `kona new` asks only for values you did not already pass:
+
+1. **Where should we create the app?** — default `kona-app` (skipped if you pass a directory)
+2. **App name** — `APP_NAME` in `.env`; default is Title Case of the folder (`my-app` → `My App`)
+3. **Language** — Kotlin (default) or Java
+4. **What are we brewing?** — API only, Crema, Brew, or Inertia
+5. **Inertia adapter** — Vue, React, or Svelte (Inertia only)
+6. **CSS** — Tailwind, Bootstrap, or custom (skipped for API)
+7. **Database** — sqlite (default), h2, mysql, mariadb, pgsql, sqlsrv, oracle
+8. **Install dependencies now?** — Gradle wrapper, plus `npm` or `pnpm` when `package.json` exists
+9. **Run initial migrations?**
+10. **Run database seeders?**
+11. **Summary card** — then confirm before any files are written
+
+CI, pipes, and `--no-interaction` never wait on stdin. Missing name in that mode prints usage and exits.
+
+## Flags that skip a step
+
+| Flag | Skips |
+|------|--------|
+| Directory argument | “Where should we create the app?” |
+| `--name=` / `--app-name=` | App name (`APP_NAME`) |
+| `--lang=kotlin\|java` | Language |
+| `--kit=` / `--preset=` | Stack (`web`, `api`, `crema`, `inertia`, `brew`) |
+| `--frontend=vue\|react\|svelte` | Inertia adapter |
+| `--css=tailwind\|bootstrap\|custom` | CSS (`tw`, `bs`, `none` / `vanilla` / `plain` aliases) |
+| `--database=` | Database engine |
+| `--install-deps` / `--no-install-deps` | Gradle + npm/pnpm offer |
+| `--migrate` / `--no-migrate` | Initial migrations |
+| `--seed` / `--no-seed` | Seeders |
+| `--no-interaction` / `--no-interactive` | Every prompt; use defaults |
+
+`--install-deps=false`, `--migrate=no`, and `--seed=0` are the same as the `--no-*` forms.
+
+After a **DONE** chip, the outro lists `cd`, `./grind serve`, and (when you skipped migrate) `./grind migrate --seed`. Kits with a JS app also print `npm install && npm run dev`.
 
 ## Kits
 
 | Kit | Dependencies | What you get |
 |-----|--------------|--------------|
-| `web` (default) | HTTP + grind + extract/redis/session/auth/queue/schedule/mail + **crema** | Welcome **view**, `WelcomeController`, `/` route, JSON `/api/health`, session/CSRF |
-| `crema` | same as `web` | Alias of `web` (kept for older docs/scripts) |
-| `api` | without Crema | Plain-text `/` welcome + JSON health (no view engine) |
-| `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite stubs, example page props |
-| `brew` | + `kona-brew` | Reactive **Todos** demo on `/` plus sample `Counter` (`wire:*`, `/brew/update`) |
+| `web` (default) | HTTP + grind + session/auth/queue/… + **crema** | Welcome view, login, dashboard, JSON `/api/health` |
+| `crema` | same as `web` | Alias of `web` |
+| `api` | without Crema | Plain-text `/` welcome + JSON health (no CSS pipeline) |
+| `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite + Vue/React/Svelte, Crema login/dashboard |
+| `brew` | + `kona-brew` | Crema landing with a live `<brew:counter />` plus login/dashboard |
 
-Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; ships `config/Session` (cookie driver) among the executable config modules; and applies `StartSession` + CSRF (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`.
+Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; and applies `StartSession` + CSRF (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`.
 
-## After scaffolding
+## CSS
 
-```bash
-cd my-app
-./grind serve
-```
+`--css` (and the CSS prompt) compose on the kit. They write a **real** Vite pipeline, not a stub:
 
-Open `/` for the welcome page and `/api/health` for JSON.
+| Value | What is written |
+|-------|-----------------|
+| `custom` (non-interactive default) | Existing branded inline styles on Crema views; Inertia welcome pages use inline styles. No extra npm unless the kit already has a JS app (Inertia). |
+| `tailwind` | `package.json` + Vite + Tailwind v4 (`@tailwindcss/vite`), `css/app.css` with the coffee `@theme`, Crema views (or Inertia pages) using utilities, `@vite('src/main/resources/js/app.js')` |
+| `bootstrap` | Vite + Bootstrap 5, Crema/Inertia markup using Bootstrap classes |
 
-For Inertia frontends:
+Crema and Brew with Tailwind or Bootstrap add `src/main/resources/js/app.js` that imports the CSS. Inertia adapters import the same file from `app.js` / `app.jsx`.
 
-```bash
-npm install
-npm run dev    # or npm run build
-./grind assets:vite
-```
+Serve CSS in development with Vite running (`npm run dev`) alongside `./grind serve`. Production: `npm run build` writes `public/build`.
 
-Generated apps resolve `org.konaframework` artifacts from **Maven Central** (default line **0.1.1**). Full guides: [Brew](/docs/brew/), [Inertia](/docs/inertia/).
+## Inertia adapters
+
+| `--frontend` | Entry | Packages |
+|--------------|-------|----------|
+| `vue` (default) | `src/main/resources/js/app.js` | `@inertiajs/vue3` |
+| `react` | `src/main/resources/js/app.jsx` (also set on `InertiaManager.viteEntries`) | `@inertiajs/react` |
+| `svelte` | `src/main/resources/js/app.js` | `@inertiajs/svelte` |
+
+Landing, login, and dashboard still ship as **Crema HTML** so session auth works before you add more Inertia pages. `js/Pages/Welcome.*` is the client page to grow from.
+
+## Install, migrate, seed
+
+When you accept (or pass `--install-deps`), `kona new` runs `./gradlew --no-daemon help -q` in the new app and, if `package.json` exists, `npm install` (or `pnpm install` when `pnpm-lock.yaml` is present). Failures print a WARN chip and continue.
+
+`--migrate` runs `./grind migrate`. `--seed` runs `./grind db:seed`. If there is no database, or grind fails, the installer skips that step instead of aborting. The default engine is **sqlite** (`storage/database/database.sqlite`) so migrate/seed can succeed locally without a server.
 
 ## Kotlin and Java
 
 Every kit has Kotlin and Java skeletons (`--lang=kotlin|java`). Controllers, providers, and routes match the language you choose; shared assets (views, `package.json`) are language-neutral.
+
+Generated apps resolve `org.konaframework` artifacts from **Maven Central**. Full guides: [Brew](/docs/brew/), [Inertia](/docs/inertia/), [Vite](/docs/assets/vite/).

@@ -9,6 +9,6 @@ npm install && npm run dev
 ./grind serve
 ```
 
-Includes `org.konaframework:kona-inertia` + `kona-crema` from Maven Central.
+Includes `org.konaframework:kona-inertia` + `kona-crema` from Maven Central, a Vite app (`--frontend=vue|react|svelte`, `--css=tailwind|bootstrap|custom`).
 
 Landing, login, and dashboard ship as **Crema HTML** in this starter so session auth works before you add Inertia pages.

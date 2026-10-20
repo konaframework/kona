@@ -26,6 +26,23 @@ class CliJavaTest {
         assertTrue(build.contains("org.konaframework:kona-http:" + versions.getKona()));
         assertTrue(build.contains("org.xerial:sqlite-jdbc"));
         assertTrue(Files.isRegularFile(app.resolve("grind")));
+
+        Path inertia = temp.resolve("javainertia");
+        assertEquals(
+            0,
+            new KonaApplication()
+                .run(
+                    new String[] {
+                        "new",
+                        inertia.toString(),
+                        "--lang=java",
+                        "--kit=inertia",
+                        "--frontend=react",
+                        "--css=custom",
+                        "--no-interaction"
+                    }));
+        assertTrue(Files.isRegularFile(inertia.resolve("src/main/resources/js/app.jsx")));
+        assertTrue(Files.readString(inertia.resolve("src/main/java/bootstrap/App.java")).contains("app.jsx"));
     }
 
     @Test
@@ -54,5 +71,36 @@ class CliJavaTest {
         assertEquals(app, GrindCommand.findProjectRoot(app.resolve("nested")));
         // 3-arg @JvmOverloads ctor (defaults ConsoleIO) — must be invoked from Java for kover
         assertEquals(0, new GrindCommand(GrindProcessRunner.SYSTEM, false, app).run(java.util.List.of("--help")));
+    }
+
+    @Test
+    void installerPromptOverloadsFromJava() {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        java.io.PrintStream stream = new java.io.PrintStream(out);
+        InstallerPrompts prompts =
+                new InstallerPrompts(
+                        new java.io.ByteArrayInputStream("\n\n\n\n\n\n".getBytes()), stream, false);
+        prompts.ask("Q");
+        prompts.ask("Q", "d");
+        prompts.confirm("Q");
+        prompts.confirm("Q", true);
+        prompts.choice("Q", java.util.List.of("A", "B"));
+        prompts.choice("Q", java.util.List.of("A", "B"), 1);
+    }
+
+    @Test
+    void newCommandOverloadsFromJava() {
+        KonaVersions versions = new KonaVersions("0.0.0-test", "2.0.0");
+        org.konaframework.support.console.ConsoleIO io =
+                new org.konaframework.support.console.ConsoleIO();
+        InstallerPrompts prompts = new InstallerPrompts();
+        GrindProcessRunner runner = GrindProcessRunner.SYSTEM;
+        new NewCommand();
+        new NewCommand(versions);
+        new NewCommand(versions, io);
+        new NewCommand(versions, io, prompts);
+        new NewCommand(versions, io, prompts, runner);
+        new NewCommand(versions, io, prompts, runner, false);
+        new NewCommand(versions, io, prompts, runner, false, false);
     }
 }
