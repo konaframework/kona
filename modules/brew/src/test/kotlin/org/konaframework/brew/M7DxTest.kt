@@ -7,6 +7,7 @@ import org.konaframework.brew.console.BrewStubsCommand
 import org.konaframework.brew.console.MakeBrewCommand
 import org.konaframework.core.Config
 import org.konaframework.grind.CommandExecutor
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -27,6 +28,11 @@ class M7DxTest {
         manager = brew(config = BrewConfig(key = "m7", makeType = "sfc"))
         Brew.setManager(manager)
         manager.component("m7", M7Comp::class.java)
+    }
+
+    @AfterEach
+    fun tearDown() {
+        Brew.reset()
     }
 
     private fun run(dir: Path, command: org.konaframework.grind.ConsoleCommand, vararg args: String): Int =
@@ -62,13 +68,15 @@ class M7DxTest {
         Brew.setManager(typed)
         assertEquals(0, run(dir, MakeBrewCommand(), "Configured"))
         assertTrue(Files.exists(dir.resolve("src/main/resources/views/brew/configured.crema.html")))
-        // invalid makeType falls back to sfc
+        // invalid makeType falls back to class
         Brew.setManager(brew(config = BrewConfig(key = "t", makeType = "nope")))
-        assertEquals(0, run(dir, MakeBrewCommand(), "FallbackSfc", "--force"))
-        assertTrue(Files.readString(dir.resolve("src/main/kotlin/app/brew/FallbackSfc.kt")).contains("template()"))
-        // no manager → sfc
+        assertEquals(0, run(dir, MakeBrewCommand(), "FallbackClass", "--force"))
+        assertTrue(Files.readString(dir.resolve("src/main/kotlin/app/brew/FallbackClass.kt")).contains("render()"))
+        assertTrue(Files.exists(dir.resolve("src/main/resources/views/brew/fallback-class.crema.html")))
+        // no manager → class
         Brew.reset()
         assertEquals(0, run(dir, MakeBrewCommand(), "NoMgr", "--force"))
+        assertTrue(Files.exists(dir.resolve("src/main/resources/views/brew/no-mgr.crema.html")))
         Brew.setManager(manager)
 
         // Java stubs (SFC-shaped stub + --class → fallback) and matching stub

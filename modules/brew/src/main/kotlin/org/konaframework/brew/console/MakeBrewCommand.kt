@@ -5,21 +5,24 @@ import org.konaframework.brew.ComponentRegistry
 import org.konaframework.grind.ConsoleCommand
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.random.Random
 
 /**
  * `./grind make:brew posts.create-post` — scaffolds a component (`make:livewire`).
  *
- * Default type comes from `brew.make.type` (`sfc` | `class` | `mfc`). Flags: `--class`, `--mfc`,
+ * Default type comes from `brew.make.type` (`class` | `sfc` | `mfc`). Flags: `--inline`
+ * (single-file `template()`), `--class` (separate Crema view — the default), `--mfc`,
  * `--test`, `--emoji`, `--lang`, namespaces (`pages::`, `admin::`).
  *
- * Names that look like a todo list (`Todos`, `todo-list`, …) get a todos-shaped stub (class + Crema
- * view by default). Other names keep the counter-shaped stub unless `--class` / `--mfc` is set.
+ * Default scaffold is an empty component class plus a Crema view with a random funny
+ * inspirational quote. Names that look like a todo list (`Todos`, `todo-list`, …) still
+ * get the todos-shaped stub (class + Crema view).
  */
 class MakeBrewCommand : ConsoleCommand() {
     override val signature: String =
         "make:brew {name : Component name (posts.create-post, CreatePost, pages::dashboard)} " +
-            "{--class : Separate Crema view file} {--mfc : Multi-file component assets} " +
-            "{--test : Generate a test} {--emoji : Prefix the view name with ⚡} " +
+            "{--inline : Single-file component with template()} {--class : Separate Crema view file} " +
+            "{--mfc : Multi-file component assets} {--test : Generate a test} {--emoji : Prefix the view name with ⚡} " +
             "{--lang= : kotlin or java} {--base= : Project root} {--force : Overwrite existing files}"
 
     override val description: String = "Create a new Brew component"
@@ -55,16 +58,21 @@ class MakeBrewCommand : ConsoleCommand() {
         } else {
             "brew.$viewLeaf"
         }
+        val quote = FUNNY_QUOTES.random(Random.Default)
         val ext = if (lang == "java") "java" else "kt"
         val root = if (lang == "java") "src/main/java" else "src/main/kotlin"
         val classRel = "$root/${pkg.replace('.', '/')}/$className.$ext"
         val files = linkedMapOf(
-            classRel to componentSource(base, lang, pkg, className, separate, viewName, shape),
+            classRel to componentSource(base, lang, pkg, className, separate, viewName, shape, quote),
         )
         if (separate) {
-            val viewStub = if (shape == StubShape.TODOS) TODOS_VIEW else VIEW
+            val viewStub = if (shape == StubShape.TODOS) TODOS_VIEW else quoteView(quote)
             files["src/main/resources/views/${viewName.replace('.', '/')}.crema.html"] =
-                BrewStubsCommand.load(base, if (shape == StubShape.TODOS) "todos.view.crema.html.stub" else "view.crema.html.stub", viewStub)
+                BrewStubsCommand.load(
+                    base,
+                    if (shape == StubShape.TODOS) "todos.view.crema.html.stub" else "view.crema.html.stub",
+                    viewStub,
+                ).replace("{{quote}}", quote)
         }
         if (optionBool("test")) {
             val testRoot = if (lang == "java") "src/test/java" else "src/test/kotlin"
@@ -75,6 +83,7 @@ class MakeBrewCommand : ConsoleCommand() {
                     .replace("{{package}}", pkg)
                     .replace("{{class}}", className)
                     .replace("{{name}}", name)
+                    .replace("{{quote}}", quote)
         }
         val force = optionBool("force")
         for ((relative, _) in files) {
@@ -102,13 +111,14 @@ class MakeBrewCommand : ConsoleCommand() {
 
     private fun resolveType(): String {
         if (optionBool("mfc")) return "mfc"
+        if (optionBool("inline")) return "sfc"
         if (optionBool("class")) return "class"
         val configured = try {
             Brew.manager().config.makeType.lowercase()
         } catch (_: Exception) {
-            "sfc"
+            "class"
         }
-        return if (configured in setOf("sfc", "class", "mfc")) configured else "sfc"
+        return if (configured in setOf("sfc", "class", "mfc")) configured else "class"
     }
 
     private fun normalize(raw: String): String {
@@ -130,6 +140,7 @@ class MakeBrewCommand : ConsoleCommand() {
         separate: Boolean,
         view: String,
         shape: StubShape,
+        quote: String,
     ): String {
         val stubName = when {
             shape == StubShape.TODOS && lang == "java" -> "todos.component.java.stub"
@@ -137,11 +148,12 @@ class MakeBrewCommand : ConsoleCommand() {
             lang == "java" -> "component.java.stub"
             else -> "component.kt.stub"
         }
-        val fallback = defaultComponent(lang, pkg, name, separate, view, shape)
+        val fallback = defaultComponent(lang, pkg, name, separate, view, shape, quote)
         val loaded = BrewStubsCommand.load(base, stubName, fallback)
             .replace("{{package}}", pkg)
             .replace("{{class}}", name)
             .replace("{{view}}", view)
+            .replace("{{quote}}", quote)
         // Prefer the stub when its shape matches the requested type; otherwise use the generated default.
         val stubOk = if (separate) "render()" in loaded || "Todo" in loaded else "template()" in loaded
         return if (stubOk) loaded else fallback
@@ -154,13 +166,21 @@ class MakeBrewCommand : ConsoleCommand() {
         separate: Boolean,
         view: String,
         shape: StubShape,
+        quote: String,
     ): String =
         when (shape) {
             StubShape.TODOS -> todosComponent(lang, pkg, name, separate, view)
-            StubShape.COUNTER -> counterComponent(lang, pkg, name, separate, view)
+            StubShape.EMPTY -> emptyComponent(lang, pkg, name, separate, view, quote)
         }
 
-    private fun counterComponent(lang: String, pkg: String, name: String, separate: Boolean, view: String): String =
+    private fun emptyComponent(
+        lang: String,
+        pkg: String,
+        name: String,
+        separate: Boolean,
+        view: String,
+        quote: String,
+    ): String =
         if (lang == "java") {
             if (separate) {
                 """
@@ -169,12 +189,6 @@ class MakeBrewCommand : ConsoleCommand() {
                 import org.konaframework.brew.Component;
 
                 public class $name extends Component {
-                    public int count = 0;
-
-                    public void increment() {
-                        count++;
-                    }
-
                     @Override
                     public Object render() {
                         return view("$view");
@@ -188,19 +202,10 @@ class MakeBrewCommand : ConsoleCommand() {
                 import org.konaframework.brew.Component;
 
                 public class $name extends Component {
-                    public int count = 0;
-
-                    public void increment() {
-                        count++;
-                    }
-
                     @Override
                     public String template() {
                         return ""${'"'}
-                            <div>
-                                <span>{{ count }}</span>
-                                <button wire:click="increment">+</button>
-                            </div>
+                            <p>$quote</p>
                             ""${'"'};
                     }
                 }
@@ -213,12 +218,6 @@ class MakeBrewCommand : ConsoleCommand() {
             import org.konaframework.brew.Component
 
             class $name : Component() {
-                var count = 0
-
-                fun increment() {
-                    count++
-                }
-
                 override fun render() = view("$view")
             }
             """.trimIndent() + "\n"
@@ -229,17 +228,8 @@ class MakeBrewCommand : ConsoleCommand() {
             import org.konaframework.brew.Component
 
             class $name : Component() {
-                var count = 0
-
-                fun increment() {
-                    count++
-                }
-
                 override fun template() = ""${'"'}
-                    <div>
-                        <span>{{ count }}</span>
-                        <button wire:click="increment">+</button>
-                    </div>
+                    <p>$quote</p>
                 ""${'"'}
             }
             """.trimIndent() + "\n"
@@ -377,7 +367,7 @@ class MakeBrewCommand : ConsoleCommand() {
             class ${name}Test {
                 @Test
                 void renders() {
-                    Brew.test($name.class).assertSet("count", 0).call("increment").assertSet("count", 1);
+                    Brew.test($name.class).assertSee("<p>");
                 }
             }
             """.trimIndent() + "\n"
@@ -391,31 +381,26 @@ class MakeBrewCommand : ConsoleCommand() {
             class ${name}Test {
                 @Test
                 fun renders() {
-                    Brew.test("$component").assertSet("count", 0).call("increment").assertSet("count", 1)
+                    Brew.test("$component").assertSee("<p>")
                 }
             }
             """.trimIndent() + "\n"
         }
 }
 
-private enum class StubShape { COUNTER, TODOS }
+private enum class StubShape { EMPTY, TODOS }
 
 private fun stubShape(@Suppress("UNUSED_PARAMETER") className: String, normalizedName: String): StubShape {
     // Normalized leaf only — PascalCase names are kebab'd before this runs (`Todos` → `todos`).
     val leaf = normalizedName.substringAfterLast('.').substringAfterLast("::").lowercase().replace('-', '_')
-    return if (leaf in TODOS_LEAVES) StubShape.TODOS else StubShape.COUNTER
+    return if (leaf in TODOS_LEAVES) StubShape.TODOS else StubShape.EMPTY
 }
+
+private fun quoteView(quote: String): String = "<p>$quote</p>\n"
 
 private val TODOS_LEAVES = setOf("todos", "todo", "todo_list", "todolist")
 
 private val NAME = Regex("^([a-z][a-z0-9-]*::)?[A-Za-z][A-Za-z0-9-]*(\\.[A-Za-z][A-Za-z0-9-]*)*$")
-
-private val VIEW = """
-    <div>
-        <span>{{ count }}</span>
-        <button wire:click="increment">+</button>
-    </div>
-""".trimIndent() + "\n"
 
 private val TODOS_VIEW = """
     <section class="card">
@@ -437,3 +422,22 @@ private val TODOS_VIEW = """
         </ul>
     </section>
 """.trimIndent() + "\n"
+
+/** Funny “inspirational” lines for empty component scaffolds. */
+internal val FUNNY_QUOTES = listOf(
+    "Ship early. Debug in production. (Just kidding—please don't.)",
+    "The best commit message is the one you write before the code.",
+    "May your builds be green and your coffee stronger than your dependencies.",
+    "Refactor fearlessly. Rename carefully. Comment rarely.",
+    "Today's bug is tomorrow's undocumented feature.",
+    "Keep calm and clear the Gradle cache.",
+    "Write code as if the next maintainer knows where you live.",
+    "Perfect is the enemy of merged.",
+    "If it compiles, ship it. If it doesn't, ship it anyway and blame the types.",
+    "Your future self called: they want fewer TODOs and more tests.",
+    "Inspiration is a green CI badge at 4pm on a Friday.",
+    "Be the change you want to see in the stack trace.",
+    "Measure twice, deploy once, roll back thrice.",
+    "There is no cloud—just someone else's computer with better snacks.",
+    "Null is not nothing. Nothing is nothing. Null is a surprise.",
+)
