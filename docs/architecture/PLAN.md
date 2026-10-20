@@ -45,9 +45,7 @@ Agents must read `AGENTS.md` + current milestone section in `MILESTONES.md` befo
 
 ## Decision: from-scratch Kona core (not Quarkus or Micronaut under the hood)
 
-**Build Kona from scratch; compose libraries** (Netty, HikariCP, Jackson/kotlinx.serialization, Lettuce, SLF4J). Steal *ideas* (KSP build-time indexes), never embed Quarkus/Micronaut/Spring.
-
-Benchmark Spring Boot / Quarkus as competitors only.
+**Build Kona from scratch; compose libraries** (Netty, HikariCP, Jackson/kotlinx.serialization, Lettuce, SLF4J). Steal *ideas* (KSP build-time indexes), never embed Quarkus/Micronaut/Spring. Do not vendor competitor applications (Laravel, Spring Boot, FastAPI, …) in this repository.
 
 ## Branding and core component map
 

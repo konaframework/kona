@@ -70,7 +70,7 @@ Prerequisites (still required for every release):
 
 - **GroupId:** `org.konaframework` (root `build.gradle.kts` `allprojects`).
 - **Version train:** one `kona.version` for every artifact (including brew/inertia). **Monorepo only** — no sister-repo tags.
-- **Not published:** samples (`hello-*`, `brew-sample-*`, `inertia-sample-*`), benchmarks, docs apps, `js/brew`.
+- **Not published:** samples (`hello-*`, `brew-sample-*`, `inertia-sample-*`), docs apps, `js/brew`.
 - Archived sister repos `kona-brew` / `kona-inertia` are no longer publish sources.
 
 ## What is configured today
