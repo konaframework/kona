@@ -7,7 +7,7 @@ import java.io.PrintStream
  * (`kona`, `./grind`, installers that shell out, future commands).
  *
  * Brand colors: light caramel `#DF8723`, accent `#74453F`. Prompt frames use dim
- * `┌┐└┘` boxes and a cyan `›` pointer.
+ * `┌┐└┘` boxes (label on the top border) and a cyan `›` pointer.
  * Honors `NO_COLOR`, `FORCE_COLOR` (`0` disables), and `TERM=dumb`.
  */
 class ConsoleIO(
@@ -95,11 +95,13 @@ class ConsoleIO(
             raw > 56 -> 56
             else -> raw
         }
-        frame(title, lines, contentWidth, pointerLine = -1, accent = GREEN)
+        writeFrame(title, lines, contentWidth, pointerLine = -1, accent = GREEN, pointerPrefix = false)
     }
 
     /**
-     * Input frame: dim `┌ ┐ └ ┘` box, optional cyan `›` on [pointerLine].
+     * Input frame: dim `┌ ┐ └ ┘` box with [label] on the top border, optional cyan `›`
+     * on [pointerLine]. When [pointerPrefix] is false the value sits flush in the box
+     * (text input). Width is [width] unless the contents need more (capped at 80).
      */
     @JvmOverloads
     fun promptFrame(
@@ -108,27 +110,44 @@ class ConsoleIO(
         pointerLine: Int = -1,
         accent: String = CYAN,
         width: Int = PROMPT_WIDTH,
+        pointerPrefix: Boolean = true,
     ) {
+        promptFrameLines(label, body, pointerLine, accent, width, pointerPrefix).forEach { writeln(it) }
+    }
+
+    /**
+     * Same as [promptFrame] but returns the box lines (no trailing newline) so TTY
+     * widgets can redraw in place.
+     */
+    @JvmOverloads
+    fun promptFrameLines(
+        label: String,
+        body: List<String>,
+        pointerLine: Int = -1,
+        accent: String = CYAN,
+        width: Int = PROMPT_WIDTH,
+        pointerPrefix: Boolean = true,
+    ): List<String> {
         val rows = if (body.isEmpty()) listOf("") else body
-        var raw = plainLength(label) + 1
-        rows.forEachIndexed { index, line ->
-            val pointer = if (index == pointerLine) 2 else 0
-            val len = pointer + plainLength(line)
+        var raw = plainLength(label)
+        val prefix = if (pointerPrefix) 2 else 0
+        rows.forEach { line ->
+            val len = prefix + plainLength(line)
             if (len > raw) {
                 raw = len
             }
         }
         val contentWidth = when {
             raw < width -> width
-            raw > 72 -> 72
+            raw > 80 -> 80
             else -> raw
         }
-        frame(label, rows, contentWidth, pointerLine, accent)
+        return frameLines(label, rows, contentWidth, pointerLine, accent, pointerPrefix)
     }
 
     /** Submitted prompt: green value inside the same frame. */
     fun promptSubmitted(label: String, value: String) {
-        promptFrame(label, listOf(paint(GREEN, value)), pointerLine = -1, accent = GREEN)
+        promptFrame(label, listOf(paint(GREEN, value)), pointerLine = -1, accent = GREEN, pointerPrefix = false)
     }
 
     /** Single-line progress bar; [current] is clamped to `[0, total]`. */
@@ -205,25 +224,47 @@ class ConsoleIO(
         )
     }
 
-    private fun frame(
+    private fun writeFrame(
         title: String,
         lines: List<String>,
         contentWidth: Int,
         pointerLine: Int,
         accent: String,
+        pointerPrefix: Boolean,
     ) {
+        frameLines(title, lines, contentWidth, pointerLine, accent, pointerPrefix).forEach { writeln(it) }
+    }
+
+    private fun frameLines(
+        title: String,
+        lines: List<String>,
+        contentWidth: Int,
+        pointerLine: Int,
+        accent: String,
+        pointerPrefix: Boolean,
+    ): List<String> {
         val heading = title.take(contentWidth)
-        val dashes = (contentWidth - heading.length - 1).coerceAtLeast(0)
-        writeln(
-            paint(DIM, " ┌ ") + paint(accent, heading) + paint(DIM, " " + "─".repeat(dashes) + "┐"),
-        )
-        lines.forEachIndexed { index, line ->
-            val marker = if (index == pointerLine) paint(CYAN + BOLD, "› ") else "  "
-            val body = marker + line
-            val pad = (contentWidth - plainLength(body)).coerceAtLeast(0)
-            writeln(paint(DIM, " │") + " $body${" ".repeat(pad)} " + paint(DIM, "│"))
+        val dashes = (contentWidth - heading.length).coerceAtLeast(0)
+        val out = ArrayList<String>(lines.size + 2)
+        out.add(paint(DIM, " ┌ ") + paint(accent, heading) + paint(DIM, " " + "─".repeat(dashes) + "┐"))
+        if (lines.isEmpty()) {
+            val pad = contentWidth.coerceAtLeast(0)
+            out.add(paint(DIM, " │") + " ${" ".repeat(pad)} " + paint(DIM, "│"))
+        } else {
+            lines.forEachIndexed { index, line ->
+                val marker =
+                    when {
+                        !pointerPrefix -> ""
+                        index == pointerLine -> paint(CYAN + BOLD, "› ")
+                        else -> "  "
+                    }
+                val body = marker + line
+                val pad = (contentWidth - plainLength(body)).coerceAtLeast(0)
+                out.add(paint(DIM, " │") + " $body${" ".repeat(pad)} " + paint(DIM, "│"))
+            }
         }
-        writeln(paint(DIM, " └" + "─".repeat(contentWidth + 2) + "┘"))
+        out.add(paint(DIM, " └" + "─".repeat(contentWidth + 2) + "┘"))
+        return out
     }
 
     fun paint(codes: String, text: String): String =
@@ -250,7 +291,7 @@ class ConsoleIO(
         const val BG_RED = "\u001B[41m"
         const val BG_CYAN = "\u001B[46m"
         const val TASK_WIDTH = 72
-        const val PROMPT_WIDTH = 50
+        const val PROMPT_WIDTH = 60
         private val ANSI_REGEX = Regex("\u001B\\[[0-9;]*m")
 
         @JvmStatic

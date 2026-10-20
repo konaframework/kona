@@ -1,5 +1,6 @@
 package org.konaframework.cli
 
+import org.konaframework.support.console.ConsolePrompts
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -83,5 +84,33 @@ class InstallerPromptsTest {
         assertThrows(IllegalArgumentException::class.java) { p.choice("X", emptyList()) }
         assertThrows(IllegalArgumentException::class.java) { p.choice("X", options, 9) }
         assertThrows(IllegalArgumentException::class.java) { p.choice("X", options, -1) }
+    }
+
+    @Test
+    fun interruptFromWidgetBecomesCliException() {
+        val out = ByteArrayOutputStream()
+        val inner =
+            ConsolePrompts.forTest(
+                ByteArrayInputStream(byteArrayOf(0x03)),
+                PrintStream(out),
+                widgets = true,
+            )
+        val p = InstallerPrompts(inner)
+        val ex = assertThrows(KonaCliException::class.java) { p.ask("Name") }
+        assertEquals("Cancelled.", ex.message)
+        val innerChoice =
+            ConsolePrompts.forTest(
+                ByteArrayInputStream(byteArrayOf(0x03)),
+                PrintStream(out),
+                widgets = true,
+            )
+        assertThrows(KonaCliException::class.java) { InstallerPrompts(innerChoice).choice("P", listOf("a", "b")) }
+        val innerConfirm =
+            ConsolePrompts.forTest(
+                ByteArrayInputStream(byteArrayOf(0x03)),
+                PrintStream(out),
+                widgets = true,
+            )
+        assertThrows(KonaCliException::class.java) { InstallerPrompts(innerConfirm).confirm("Go?") }
     }
 }
