@@ -13,8 +13,10 @@ class SeedCommand {
         val (_, options) = parseOptions(args)
         val io = GrindIO.fromOptions(options)
         GrindLogging.hushConsole(io.verbosity == Verbosity.VERBOSE)
-        val name = options.getOrDefault("class", DEFAULT_SEEDER)
+        val named = MigrateCommand.seederClass(options)
+        val name = if (named != null) named else options.getOrDefault("class", DEFAULT_SEEDER)
         MigrateCommand.withApplication(options) { app, loader ->
+            MigrateCommand.confirmProduction(app, options)
             MigrateCommand.withDatabase(app) { database ->
                 runSeeder(app, loader, name, io, database)
             }

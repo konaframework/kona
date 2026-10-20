@@ -69,8 +69,18 @@ class GrindJavaTest {
         assertEquals(0, new MakeSeederCommand().run(List.of("DatabaseSeeder", "--base=" + app)));
         assertEquals(0, new MakeFactoryCommand().run(List.of("Pilot", "--base=" + app)));
         assertEquals(1, new GrindApplication().run(new String[] {"migrate", "--base=" + temp.resolve("missing")}));
+        assertEquals(1, new GrindApplication().run(new String[] {"migrate:fresh", "--base=" + temp.resolve("missing")}));
+        assertEquals(1, new GrindApplication().run(new String[] {"db:wipe", "--base=" + temp.resolve("missing")}));
+        assertEquals(1, new GrindApplication().run(new String[] {"db:show", "--base=" + temp.resolve("missing")}));
         assertEquals(SeedCommand.DEFAULT_SEEDER, "database.seeders.DatabaseSeeder");
         assertEquals(MigrateCommand.Action.ROLLBACK, MigrateCommand.Action.valueOf("ROLLBACK"));
+        assertEquals(MigrateCommand.Action.FRESH, MigrateCommand.Action.valueOf("FRESH"));
+        assertEquals(MigrateCommand.Action.REFRESH, MigrateCommand.Action.valueOf("REFRESH"));
+        assertEquals(MigrateCommand.Action.INSTALL, MigrateCommand.Action.valueOf("INSTALL"));
+        assertEquals(MigrateCommand.Action.WIPE, MigrateCommand.Action.valueOf("WIPE"));
+        assertEquals(DatabaseInspectCommand.Action.DUMP, DatabaseInspectCommand.Action.valueOf("DUMP"));
+        assertEquals(DatabaseInspectCommand.Action.TABLE, DatabaseInspectCommand.Action.valueOf("TABLE"));
+        assertEquals("database/schema.sql", DatabaseInspectCommand.DEFAULT_DUMP_PATH);
     }
 
     @Test
