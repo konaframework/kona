@@ -185,6 +185,7 @@ internal fun parseOptions(args: List<String>): Pair<List<String>, Map<String, St
                         'p' -> options["policy"] = "true"
                         'a' -> options["all"] = "true"
                         'R' -> options["requests"] = "true"
+                        'w' -> options["watch"] = "true"
                     }
                 }
             }

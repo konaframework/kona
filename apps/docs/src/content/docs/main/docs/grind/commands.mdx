@@ -19,6 +19,7 @@ kona grind --help   # explains the proxy; other args are forwarded to ./grind
 ```bash
 ./grind serve
 ./grind serve --host=127.0.0.1 --port=4000
+./grind serve --no-watch
 ./grind serve --in-process --once
 ./grind serve --in-process --bootstrap=bootstrap.App
 ```
@@ -26,14 +27,31 @@ kona grind --help   # explains the proxy; other args are forwarded to ./grind
 | Flag | Effect |
 |------|--------|
 | `--host` / `--port` | Bind address (also via `.env` as `HOST` / `PORT`) |
-| `--in-process` | Load compiled classes and call `bootstrap.App.create` instead of `gradlew run` |
-| `--once` | With in-process mode, return after the server starts |
-| `--bootstrap=` | Bootstrap class (in-process only) |
+| `--watch` / `-w` | Soft reload (this is the default): keep Netty bound, recompile, swap app classes |
+| `--no-watch` | Spawn `./gradlew run` instead (child JVM; a restart is a full process replacement) |
+| `--in-process` | Boot once from `build/classes` without watching |
+| `--once` | Return after the server binds (disables watch) |
+| `--bootstrap=` | Bootstrap class (in-process / watch) |
 | `--base=` | Directory to search upward for the Gradle project |
 
 Default host is **127.0.0.1** and default port is **4000** (also in generated `.env`). If that port is already in use, grind asks whether to try the next one (4001, 4002, …). If no Gradle project is found, grind exits and tells you to run `kona new`.
 
-On start, grind prints a Termwind box with the local URL (for example `http://127.0.0.1:4000`) and how to stop (`Ctrl+C`). Gradle runs with `--quiet --console=plain` so you do not see a forever-stuck build progress bar while the server is running.
+On start, grind prints a Termwind box with the local URL (for example `http://127.0.0.1:4000`) and how to stop (`Ctrl+C`). Incremental compiles use `--quiet --console=plain` so Gradle noise does not bury Termwind output.
+
+### Soft reload (default)
+
+`./grind serve` is a **watch** server:
+
+1. If `build/classes` is empty, grind runs `./gradlew classes` once.
+2. It boots `bootstrap.App` inside the grind JVM (`AppLoader` + a child `URLClassLoader`) and starts `KonaHttpServer`.
+3. It polls `src/main` (and `.env`) for Kotlin, Java, Crema, and common resource changes. Editor swap files (`*~`, `*.swp`) are ignored.
+4. After a quiet debounce it runs incremental `./gradlew classes`. **Netty stays bound** — event loops and keep-alive connections are not torn down.
+5. On a successful compile, grind boots a new application, calls `KonaHttpServer.replaceKernel`, then closes the previous classloader and any bound Cadence `Database` pools.
+6. If compile or boot fails, the previous kernel keeps answering requests and grind prints the error.
+
+That is a **soft** reload: one Netty process, one live app classloader at a time, no Java agent, no second application JVM. Brew inline `template()` blocks live on the component class, so a save that recompiles that class is enough — you do not restart the server. Crema view files under `src/main/resources` are included in the same watch.
+
+`--in-process` still exists for scripts and tests that want a single boot with no poller. `--no-watch` is the old `gradlew run` child-process path.
 
 `./grind serve` is for **local development**. For production, start `bootstrap.App` via `installDist` / `distZip` (or an equivalent JVM launch) — see [Deployment](../../guides/deployment/).
 

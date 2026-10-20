@@ -44,7 +44,7 @@ class GeneratedAppBuildTest {
             }
             0
         }
-        assertEquals(0, ServeCommand(runner = runner).run(listOf("--base=$app", "--port=$port")))
+        assertEquals(0, ServeCommand(runner = runner).run(listOf("--base=$app", "--no-watch", "--port=$port")))
         assertTrue(spawnedBody.contains("<!DOCTYPE html>", ignoreCase = true), spawnedBody)
         assertTrue(spawnedBody.contains("docs.konaframework.org"), spawnedBody)
 

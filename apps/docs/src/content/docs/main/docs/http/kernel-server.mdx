@@ -274,6 +274,8 @@ In Kotlin, `host` defaults to `127.0.0.1` and `port` to `4000`. Java callers pas
 | `stop(delaySeconds)` | Optionally sleeps `delaySeconds`, then closes the listen channel and shuts down Netty event loops and the virtual-thread executor. Kotlin may omit the argument (default `0`); Java passes it, for example `stop(0)`. |
 | `isRunning()` | `true` between `start()` and `stop()`. |
 | `port()` | The port passed to the constructor. |
+| `kernel()` | The kernel currently dispatching requests. |
+| `replaceKernel(next)` | Swap the kernel without stopping Netty. `./grind serve` uses this for soft reload so keep-alive connections pick up new routes and compiled classes on the next request. |
 
 ### What happens per request
 

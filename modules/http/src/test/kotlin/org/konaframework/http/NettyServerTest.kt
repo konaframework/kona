@@ -56,6 +56,35 @@ class NettyServerTest {
     }
 
     @Test
+    fun replaceKernelServesNewRoutesOnKeepAlive() {
+        val first = Router().also { it.get("/ping") { Response.text("one") } }
+        val second = Router().also { it.get("/ping") { Response.text("two") } }
+        val free = java.net.ServerSocket(0).use { it.localPort }
+        val server =
+            KonaHttpServer(
+                HttpKernel(first),
+                "127.0.0.1",
+                free,
+                transportPreference = "nio",
+            )
+        server.start()
+        try {
+            assertEquals(server.kernel(), server.kernel())
+            val client = HttpClient.newHttpClient()
+            fun ping(): String =
+                client.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:$free/ping")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString(),
+                ).body()
+            assertEquals("one", ping())
+            server.replaceKernel(HttpKernel(second))
+            assertEquals("two", ping())
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
     fun bindFailureCleansUp() {
         val blocker = java.net.ServerSocket(0)
         try {

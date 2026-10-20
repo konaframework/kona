@@ -87,7 +87,7 @@ Open `http://127.0.0.1:4000/` (or the `HOST`/`PORT` from `.env`). Stop with Ctrl
 
 With `APP_DEBUG=true` (scaffold default), the terminal shows each request — method, path, status, and duration — as you hit the app. See [Logging](../../http/logging/#request-access-lines-local-serve).
 
-Under the hood, `./grind serve` runs `./gradlew run` so the app compiles with its own dependencies. For tests you can use `./grind serve --in-process` after `./gradlew classes`.
+`./grind serve` watches `src/main` and reloads compiled Kotlin/Java (including Brew `template()` classes) without restarting the HTTP server. Pass `--no-watch` if you want a child `./gradlew run` instead.
 
 The branded landing page is HTML from `welcome.crema.html` (via `WelcomeController` on `/`). Sign in at `/login` with the demo user **`demo@kona.test`** / **`password`**, then open `/dashboard`. `/api/health` returns JSON `{"status":"ok"}`. `/api/users` and `/api/users/{id}` list or show users (password fields are hidden).
 

@@ -8,19 +8,16 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * `grind serve` — runs the Kona application found at (or above) `--base` (Artisan `serve` shape).
+ * `grind serve` — runs the Kona application found at (or above) `--base`.
  *
- * Default: `./gradlew run` in the project root, so the app is compiled and started with its
- * own runtime classpath. `--host` / `--port` are forwarded as `HOST` / `PORT` (process env wins
- * over `.env`). Default port is [DEFAULT_SERVE_PORT] (4000). When the preferred port is taken,
- * grind asks whether to try the next port.
+ * Default: **watch** — boot in-process, keep Netty up, and on `src/main` changes run incremental
+ * `gradlew classes` then swap the app [java.net.URLClassLoader] / HTTP kernel (soft reload).
+ * `--no-watch` restores `./gradlew run` (child JVM, full restart). `--in-process` boots once
+ * without watching. `--once` returns after bind.
  *
- * Before starting, prints a Termwind box with the local URL so the bind address is obvious.
- * Gradle is forced to `--console=plain` so the forever-running `run` task does not leave a
- * stuck ~83% progress bar in the terminal.
- *
- * `--in-process`: boots the app inside grind from `build/classes` via [AppLoader]; HOST/PORT come
- * from the app's `.env` after load. `--once` stops right after binding.
+ * `--host` / `--port` are forwarded as `HOST` / `PORT` (process env wins over `.env`).
+ * Default port is [DEFAULT_SERVE_PORT] (4000). When the preferred port is taken, grind asks
+ * whether to try the next port.
  */
 class ServeCommand
 @JvmOverloads
@@ -30,6 +27,8 @@ constructor(
     private val windows: Boolean = System.getProperty("os.name").startsWith("Windows"),
     private val prompts: Prompts = Prompts(),
     private val io: GrindIO = GrindIO(),
+    private val watcher: SourceWatcher = SourcePoller(),
+    private val compiler: ProjectCompiler = GradleClassesCompiler(windows),
 ) {
     fun run(args: List<String>): Int {
         val (_, options) = parseOptions(args)
@@ -39,18 +38,17 @@ constructor(
                 "No Kona application found at $start (expected settings.gradle.kts or build.gradle.kts). " +
                     "Create one with: kona new",
             )
+        if (ServeWatch.wantsWatch(options)) {
+            return serveWatching(root, options)
+        }
         if (options["in-process"] == "true") {
             return serveInProcess(root, options)
         }
         return serveWithGradle(root, options)
     }
 
-    internal fun gradleCommand(root: Path): List<String> {
-        val wrapper = root.resolve(if (windows) "gradlew.bat" else "gradlew")
-        val gradle = if (Files.isRegularFile(wrapper)) wrapper.toString() else "gradle"
-        // Quiet + plain: no lifecycle spam and no rich progress bar stuck at ~83% while `run` lives.
-        return listOf(gradle, "--quiet", "--console=plain", "-Dorg.gradle.console=plain", "run")
-    }
+    internal fun gradleCommand(root: Path, task: String = "run"): List<String> =
+        GradleInvocation.command(root, task, windows)
 
     private fun serveWithGradle(root: Path, options: Map<String, String>): Int {
         val (host, port) = resolveBind(root, options)
@@ -83,6 +81,55 @@ constructor(
         return 0
     }
 
+    private fun serveWatching(root: Path, options: Map<String, String>): Int {
+        ServeWatch.ensureClasses(root, compiler)
+        val verbose = GrindLogging.wantsVerbose(options)
+        GrindLogging.hushConsole(verbose)
+        val booted = ServeWatch.boot(root, options)
+        var loader = booted.first
+        var app = booted.second
+        GrindLogging.hushConsole(verbose)
+        val (host, port) = resolveBind(root, options)
+        val server = KonaHttpServer(app.resolve(HttpKernel::class.java), host, port)
+        server.start()
+        announce(host, port, ready = true, watching = true)
+        io.info("Watching src/main — save a .kt, .java, or .crema file to reload")
+        val watch = watcher.start(SourceSnapshot.roots(root)) { paths ->
+            val file = paths.firstOrNull()?.fileName
+            val label = if (file == null) "files" else file.toString()
+            io.info("Changed $label — recompiling")
+            val result = compiler.compile(root)
+            if (result.exitCode != 0) {
+                io.error("Compile failed — still serving previous classes")
+                val detail = result.output.trim()
+                if (detail.isNotEmpty()) {
+                    io.error(detail.takeLast(4000))
+                }
+                return@start
+            }
+            try {
+                GrindLogging.hushConsole(verbose)
+                val reloaded = ServeWatch.reload(root, options, server, app, loader)
+                loader = reloaded.first
+                app = reloaded.second
+                GrindLogging.hushConsole(verbose)
+                io.success("Reloaded")
+            } catch (ex: Exception) {
+                io.error("Reload failed — still serving previous classes")
+                io.error(ex.message ?: ex.javaClass.simpleName)
+            }
+        }
+        try {
+            awaitShutdown(server)
+        } finally {
+            ServeWatch.closeQuietly(watch)
+            server.stop()
+            ServeWatch.dispose(app, loader)
+            Kona.reset()
+        }
+        return 0
+    }
+
     /** Termwind serve card: always show the URL developers will open in a browser. */
     internal fun announce(
         host: String,
@@ -90,6 +137,7 @@ constructor(
         ready: Boolean,
         lanIp: String? = ServePorts.lanAddress(),
         wsl: Boolean = ServePorts.isWsl(),
+        watching: Boolean = false,
     ) {
         val local = ServePorts.localUrl(host, port)
         val lan = lanIp?.let { "http://$it:$port" }
@@ -100,6 +148,9 @@ constructor(
             }
             if (ServePorts.isWildcardBind(host)) {
                 add("Bind     $host:$port")
+            }
+            if (watching) {
+                add("Reload   save .kt / .java / .crema")
             }
             add("Stop     Ctrl+C")
         }
