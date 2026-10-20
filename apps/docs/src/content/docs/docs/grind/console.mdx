@@ -91,7 +91,8 @@ console.outro("Done.")
 | `intro(title)` | Dim top bar `┌ title ────┐` |
 | `outro(message)` | Dim bottom bar `└ message ─┘` |
 | `note(message, label="NOTE")` | Boxed labeled remark (`INFO` / `WARN` / `ERROR` / `NOTE`) |
-| `promptFrame(label, body, pointerLine=-1)` | Prompt box; cyan `›` on `pointerLine` |
+| `promptFrame(label, body, pointerLine=-1, …)` | Prompt box; cyan `›` on `pointerLine`; `pointerPrefix=false` for flush text values |
+| `promptFrameLines(…)` | Same box as `promptFrame`, returned as lines for in-place TTY redraw |
 | `promptSubmitted(label, value)` | Prompt box with the chosen value in green |
 | `title` | Bold green heading + dim underline (max 48) |
 | `subtitle` | Cyan line |
@@ -105,7 +106,7 @@ console.outro("Done.")
 
 `ConsoleIO.formatDuration(millis)` renders `<1000` as `12ms` and longer runs as `1.23s`. Rows align to `ConsoleIO.TASK_WIDTH` (72).
 
-Public ANSI constants on `ConsoleIO`: `RESET`, `BOLD`, `DIM`, `RED`, `GREEN`, `YELLOW`, `CYAN`, `PRIMARY`, `ACCENT`, `GRAY`, `WHITE`, `BLACK`, `BG_GREEN`, `BG_YELLOW`, `BG_RED`, `BG_CYAN`. `PROMPT_WIDTH` is 50.
+Public ANSI constants on `ConsoleIO`: `RESET`, `BOLD`, `DIM`, `RED`, `GREEN`, `YELLOW`, `CYAN`, `PRIMARY`, `ACCENT`, `GRAY`, `WHITE`, `BLACK`, `BG_GREEN`, `BG_YELLOW`, `BG_RED`, `BG_CYAN`. `PROMPT_WIDTH` is 60.
 
 ## `GrindIO` surface
 
@@ -145,7 +146,16 @@ verbose("only with -v")
 
 ## Prompts
 
-Use `Prompts` for interactive input. Injectable streams keep tests non-interactive:
+Use `Prompts` (grind) or `org.konaframework.support.console.ConsolePrompts` (shared) for interactive input. On a real TTY they are **boxed widgets**, not line-based `readLine`:
+
+- Dim `┌ ┐ └ ┘ │ ─` frame, label on the top border (`┌ App name ───┐`), inner value padded to a consistent width (about 60 columns, or terminal width minus 4).
+- **Text (`ask`):** the caret sits **inside** the box on the value row. Backspace, Left/Right, Home/End, and UTF-8 characters edit that value. Enter submits; the live box is replaced in place with the same frame and a **green** value (no second stacked copy).
+- **Select (`choice`) / confirm:** cyan `›` marks the current row. **Up/Down** (and `k`/`j`) move the pointer; Enter submits. Confirm also accepts `y`/`n`/`1`/`2`. The pointer wraps at the ends of the list.
+- **Ctrl+C** restores the terminal and cancels.
+
+`kona new` uses the same widgets. Scripts and CI skip them with `--no-interaction` (or `--yes` / `CI=true`).
+
+When stdin is **not** a TTY — pipes, Gradle test `ByteArrayInputStream`, `KONA_LINE_PROMPTS=1` — the same methods fall back to one-line answers (`readLine`). Empty line uses `default`; `choice` still accepts a 1-based index or a case-insensitive label.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -170,15 +180,15 @@ String pick = prompts.choice("Driver", List.of("array", "redis"), 0);
 </TabItem>
 </Tabs>
 
-| Method | Behavior |
-|--------|----------|
-| `ask(question, default=null)` | Boxed question; empty line uses `default` when set; otherwise returns empty string; then reprints a green submitted value |
-| `confirm(question, default=false)` | Boxed `Yes` / `No` with `›` on the default; empty → default; `y` / `yes` / `1` → true; `n` / `no` / `2` → false |
-| `choice(question, options, defaultIndex=0)` | Boxed options with `›` on the default; empty → default; accepts 1-based index or case-insensitive label; invalid input → default |
+| Method | TTY widget | Line fallback (pipes / tests / `--no-interaction` callers) |
+|--------|------------|--------------------------------------------------------------|
+| `ask(question, default=null)` | Caret in the box; Enter submits the buffer (initialized to `default`) | Empty line uses `default` when set; otherwise empty string |
+| `confirm(question, default=false)` | `›` on Yes/No; arrows toggle; `y`/`n` submit | Empty → default; `y`/`yes`/`1` → true; `n`/`no`/`2` → false |
+| `choice(question, options, defaultIndex=0)` | `›` + highlight; arrows wrap; digit `1`… submits | Empty → default; 1-based index or case-insensitive label; invalid → default |
 
-`choice` requires a non-empty options list and a `defaultIndex` in range. Frames go to the prompt output stream you inject (default: `System.out`).
+`choice` requires a non-empty options list and a `defaultIndex` in range. Frames go to the prompt output stream you inject (default: `System.out`). `ConsoleIO.PROMPT_WIDTH` is 60.
 
-Built-ins such as `serve` (port conflict) and `key:generate` (production overwrite) use `Prompts` internally.
+Built-ins such as `serve` (port conflict) and `key:generate` (production overwrite) use `Prompts` internally. The installer (`kona new`) uses `InstallerPrompts` with the same look.
 
 ## Exit codes
 

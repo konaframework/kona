@@ -1,93 +1,41 @@
 package org.konaframework.cli
 
 import org.konaframework.support.console.ConsoleIO
-import java.io.BufferedReader
-import java.io.IOException
+import org.konaframework.support.console.ConsolePrompts
+import org.konaframework.support.console.PromptEofException
+import org.konaframework.support.console.PromptInterruptedException
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.io.PrintStream
 
 /**
- * Interactive prompts for `kona new`: dim `┌┐└┘` frames, cyan `›` pointer, green submitted value.
- * Same visual language as grind [org.konaframework.grind.Prompts]. Injectable streams keep tests
- * non-blocking. Open so tests can record which questions ran.
+ * Interactive prompts for `kona new`: boxed TTY widgets (same look as grind
+ * [org.konaframework.grind.Prompts]). Injectable streams keep tests non-blocking
+ * and use the line-based fallback. Open so tests can record which questions ran.
  */
-open class InstallerPrompts
-@JvmOverloads
-constructor(
-    private val input: InputStream = System.`in`,
-    private val output: PrintStream = System.out,
-    private val color: Boolean = ConsoleIO.detectColor(),
-) {
-    private val reader = BufferedReader(InputStreamReader(input))
-    private val style = ConsoleIO(output, output, color)
+open class InstallerPrompts internal constructor(private val inner: ConsolePrompts) {
+    @JvmOverloads
+    constructor(
+        input: InputStream = System.`in`,
+        output: PrintStream = System.out,
+        color: Boolean = ConsoleIO.detectColor(),
+    ) : this(ConsolePrompts(input, output, color, eofThrows = true))
 
     @JvmOverloads
-    open fun ask(question: String, default: String? = null): String {
-        val preview = if (default.isNullOrEmpty()) "" else style.paint(ConsoleIO.DIM, default)
-        style.promptFrame(question, listOf(preview))
-        output.flush()
-        val line = readLineOrThrow()
-        val answer = if (line.isEmpty() && default != null) default else line
-        style.promptSubmitted(question, answer)
-        return answer
-    }
+    open fun ask(question: String, default: String? = null): String = wrap { inner.ask(question, default) }
 
     @JvmOverloads
-    open fun confirm(question: String, default: Boolean = false): Boolean {
-        val options = listOf("Yes", "No")
-        val pointer = if (default) 0 else 1
-        style.promptFrame(question, options, pointerLine = pointer)
-        output.flush()
-        val line = readLineOrThrow().lowercase()
-        val yes = when {
-            line.isEmpty() -> default
-            line == "y" || line == "yes" || line == "1" -> true
-            line == "n" || line == "no" || line == "2" -> false
-            else -> default
-        }
-        style.promptSubmitted(question, if (yes) "Yes" else "No")
-        return yes
-    }
+    open fun confirm(question: String, default: Boolean = false): Boolean = wrap { inner.confirm(question, default) }
 
     @JvmOverloads
-    open fun choice(question: String, options: List<String>, defaultIndex: Int = 0): String {
-        if (options.isEmpty()) {
-            throw IllegalArgumentException("choice requires options")
-        }
-        if (defaultIndex < 0 || defaultIndex >= options.size) {
-            throw IllegalArgumentException("defaultIndex out of range")
-        }
-        style.promptFrame(question, options, pointerLine = defaultIndex)
-        output.flush()
-        val line = readLineOrThrow()
-        val picked = when {
-            line.isEmpty() -> options[defaultIndex]
-            else -> {
-                val asInt = line.toIntOrNull()
-                when {
-                    asInt != null && asInt in 1..options.size -> options[asInt - 1]
-                    else -> options.firstOrNull { it.equals(line, ignoreCase = true) } ?: options[defaultIndex]
-                }
-            }
-        }
-        style.promptSubmitted(question, picked)
-        return picked
-    }
+    open fun choice(question: String, options: List<String>, defaultIndex: Int = 0): String =
+        wrap { inner.choice(question, options, defaultIndex) }
 
-    /**
-     * Empty Enter is a valid default. EOF / a closed pipe is not — never scaffold from silence.
-     */
-    private fun readLineOrThrow(): String {
-        val raw =
-            try {
-                reader.readLine()
-            } catch (_: IOException) {
-                throw KonaCliException(STDIN_UNREADABLE)
-            }
-        if (raw == null) {
+    private fun <T> wrap(block: () -> T): T =
+        try {
+            block()
+        } catch (_: PromptEofException) {
             throw KonaCliException(STDIN_UNREADABLE)
+        } catch (_: PromptInterruptedException) {
+            throw KonaCliException("Cancelled.")
         }
-        return raw.trim()
-    }
 }

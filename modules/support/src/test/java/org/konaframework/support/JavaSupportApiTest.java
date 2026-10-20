@@ -11,6 +11,8 @@ import org.konaframework.support.helpers.Arr;
 import org.konaframework.support.lang.Lang;
 import org.konaframework.support.lang.Translator;
 import org.konaframework.support.console.ConsoleIO;
+import org.konaframework.support.console.ConsolePrompts;
+import org.konaframework.support.console.Tty;
 import org.konaframework.support.str.Str;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -96,6 +98,12 @@ public class JavaSupportApiTest {
         console.promptFrame("Name", List.of("Ada"), 0);
         console.promptFrame("Name", List.of("Ada"), 0, ConsoleIO.CYAN);
         console.promptFrame("Name", List.of("Ada"), 0, ConsoleIO.CYAN, ConsoleIO.PROMPT_WIDTH);
+        console.promptFrame("Name", List.of("Ada"), -1, ConsoleIO.CYAN, ConsoleIO.PROMPT_WIDTH, false);
+        console.promptFrameLines("Name", List.of("Ada"));
+        console.promptFrameLines("Name", List.of("Ada"), 0);
+        console.promptFrameLines("Name", List.of("Ada"), 0, ConsoleIO.CYAN);
+        console.promptFrameLines("Name", List.of("Ada"), 0, ConsoleIO.CYAN, ConsoleIO.PROMPT_WIDTH);
+        console.promptFrameLines("Name", List.of("Ada"), -1, ConsoleIO.CYAN, ConsoleIO.PROMPT_WIDTH, false);
         console.promptSubmitted("Name", "Ada");
         assertTrue(consoleOut.toString().contains("create_users_table"));
         assertTrue(consoleOut.toString().contains("kona"));
@@ -103,5 +111,26 @@ public class JavaSupportApiTest {
         assertEquals("12ms", ConsoleIO.formatDuration(12L));
         assertEquals("1.23s", ConsoleIO.formatDuration(1234L));
         assertEquals(72, ConsoleIO.TASK_WIDTH);
+        assertEquals(60, ConsoleIO.PROMPT_WIDTH);
+
+        java.io.ByteArrayInputStream in = new java.io.ByteArrayInputStream("Ada\n\ny\n1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        java.io.ByteArrayOutputStream promptOut = new java.io.ByteArrayOutputStream();
+        java.io.PrintStream stream = new java.io.PrintStream(promptOut);
+        ConsolePrompts prompts = new ConsolePrompts(in, stream, false, false);
+        assertEquals("Ada", prompts.ask("Name"));
+        assertEquals("Kona", prompts.ask("Name", "Kona"));
+        assertTrue(prompts.confirm("Ok?", false));
+        assertEquals("array", prompts.choice("Driver", List.of("array", "redis"), 0));
+        new ConsolePrompts();
+        new ConsolePrompts(in);
+        new ConsolePrompts(in, stream);
+        new ConsolePrompts(in, stream, false);
+        ConsolePrompts.forTest(in, stream);
+        ConsolePrompts.forTest(in, stream, false);
+        ConsolePrompts.forTest(in, stream, false, false);
+        ConsolePrompts.forTest(in, stream, false, false, false);
+        assertFalse(Tty.shouldUseWidgets(in));
+        assertEquals(60, Tty.promptContentWidth(0));
+        assertEquals(76, Tty.promptContentWidth(80));
     }
 }

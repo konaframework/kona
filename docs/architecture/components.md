@@ -41,6 +41,8 @@ Main Boot:         Kona.create(args).boot()
 | global `kona` | `ConsoleIO` directly |
 | `scripts/install.sh` | Same visual language (bash ANSI) |
 
+Interactive `ask` / `confirm` / `choice` live in `ConsolePrompts` (`kona-support`) and are wrapped by grind `Prompts` and `kona new` `InstallerPrompts`. On a TTY they enable POSIX raw mode (`stty -echo -icanon`), decode arrow keys, keep the caret inside the box, and replace the live widget in place on submit. Injected streams and non-TTY stdin stay line-based.
+
 **Do not** use raw `println` / unstyled `System.out` for user-facing CLI output. New commands must go through `ConsoleIO` or `GrindIO`.
 
 ### `kona` (global CLI — `kona-cli`)

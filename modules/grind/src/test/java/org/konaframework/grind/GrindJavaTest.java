@@ -124,6 +124,18 @@ class GrindJavaTest {
         io.promptFrame("Q", List.of("a"));
         io.promptFrame("Q", List.of("a"), 0);
         io.promptSubmitted("Q", "a");
+        Prompts prompts =
+                new Prompts(
+                        new java.io.ByteArrayInputStream("Ada\n\ny\n2\n".getBytes()),
+                        new PrintStream(out),
+                        false);
+        assertEquals("Ada", prompts.ask("Name"));
+        assertEquals("Kona", prompts.ask("Name", "Kona"));
+        assertTrue(prompts.confirm("Ok?", false));
+        assertEquals("redis", prompts.choice("Driver", List.of("array", "redis"), 0));
+        new Prompts();
+        new Prompts(new java.io.ByteArrayInputStream(new byte[0]));
+        new Prompts(new java.io.ByteArrayInputStream(new byte[0]), new PrintStream(out));
         assertTrue(out.toString().contains("create_users_table"));
         assertTrue(out.toString().contains("grind"));
         assertTrue(out.toString().contains("DONE"));
