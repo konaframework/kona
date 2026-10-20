@@ -363,7 +363,7 @@ link_cli() {
   ui "${C_RESET}"
   uiln ""
   uiln "  ${C_BOLD}Next${C_RESET}"
-  uiln "    ${C_PRIMARY}kona new my-app${C_RESET}"
+  uiln "    ${C_PRIMARY}kona new${C_RESET}"
   uiln "    ${C_DIM}cd my-app && ./grind serve${C_RESET}"
   uiln ""
 }

@@ -2,6 +2,7 @@ package org.konaframework.cli
 
 import org.konaframework.support.console.ConsoleIO
 import java.io.BufferedReader
+import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.PrintStream
@@ -26,8 +27,7 @@ constructor(
         val preview = if (default.isNullOrEmpty()) "" else style.paint(ConsoleIO.DIM, default)
         style.promptFrame(question, listOf(preview))
         output.flush()
-        val raw = reader.readLine()
-        val line = if (raw == null) "" else raw.trim()
+        val line = readLineOrThrow()
         val answer = if (line.isEmpty() && default != null) default else line
         style.promptSubmitted(question, answer)
         return answer
@@ -39,8 +39,7 @@ constructor(
         val pointer = if (default) 0 else 1
         style.promptFrame(question, options, pointerLine = pointer)
         output.flush()
-        val raw = reader.readLine()
-        val line = if (raw == null) "" else raw.trim().lowercase()
+        val line = readLineOrThrow().lowercase()
         val yes = when {
             line.isEmpty() -> default
             line == "y" || line == "yes" || line == "1" -> true
@@ -61,8 +60,7 @@ constructor(
         }
         style.promptFrame(question, options, pointerLine = defaultIndex)
         output.flush()
-        val raw = reader.readLine()
-        val line = if (raw == null) "" else raw.trim()
+        val line = readLineOrThrow()
         val picked = when {
             line.isEmpty() -> options[defaultIndex]
             else -> {
@@ -75,5 +73,21 @@ constructor(
         }
         style.promptSubmitted(question, picked)
         return picked
+    }
+
+    /**
+     * Empty Enter is a valid default. EOF / a closed pipe is not — never scaffold from silence.
+     */
+    private fun readLineOrThrow(): String {
+        val raw =
+            try {
+                reader.readLine()
+            } catch (_: IOException) {
+                throw KonaCliException(STDIN_UNREADABLE)
+            }
+        if (raw == null) {
+            throw KonaCliException(STDIN_UNREADABLE)
+        }
+        return raw.trim()
     }
 }
