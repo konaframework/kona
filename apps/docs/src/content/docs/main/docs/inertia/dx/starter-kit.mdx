@@ -6,9 +6,12 @@ description: What kona new --kit=inertia generates and how it relates to grind i
 ```bash
 kona new my-app --kit=inertia
 kona new my-app --kit=inertia --lang=java --frontend=react --css=tailwind
+kona new my-app --kit=inertia --frontend=vue --typescript
 ```
 
 The kit overlays the same pieces [Installation](../../guides/installation/) describes for a working app. Dependencies resolve from **Maven Central**. `--frontend=vue|react|svelte` (default Vue) and `--css=tailwind|bootstrap|custom` write a real Vite app — see [Starter kits](/docs/starter-kits/).
+
+JavaScript is the default frontend language. `--typescript` or `--ts` opts in (Vue `app.ts`, React `app.tsx`, Svelte `app.ts`). `--javascript` or `--js` forces JavaScript. If both families are passed, the last flag wins. API, Crema, and Brew ignore the flag. Non-interactive `kona new my-app --kit=inertia --no-interaction` stays JavaScript.
 
 ## Layout
 
@@ -19,7 +22,8 @@ The kit overlays the same pieces [Installation](../../guides/installation/) desc
 | Middleware | `HandleInertia` pushed after boot |
 | HTTP | Crema welcome / login / dashboard so session auth works on day one |
 | Crema | `views/app.crema.html` with `{!! vite !!}` and `{!! pageAttr !!}` |
-| Frontend | Vue 3, React, or Svelte + Vite (`package.json`, `vite.config.js`, `Pages/Welcome.*`) |
+| Frontend | Vue 3, React, or Svelte + Vite (`package.json`, `vite.config.js`, `Pages/Welcome.*`). JavaScript by default; `--typescript` writes `app.ts` / `app.tsx`, `tsconfig.json`, and a `typecheck` script |
+| Public | Project-root `public/` (logo, `robots.txt`). Vite production output is `public/build` |
 
 ## Run
 

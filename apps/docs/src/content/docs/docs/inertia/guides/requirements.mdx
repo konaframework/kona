@@ -13,7 +13,7 @@ description: JDK, Node, and companion Kona modules needed for Inertia.
 
 ## Frontend (your app)
 
-Inertia itself does not bundle Vue/React/Svelte. Your app’s `package.json` should add an Inertia adapter (for example `@inertiajs/vue3`) and Vite. The **inertia** starter kit drops Vite stubs and a JS entry under `src/main/resources/js/app.js`.
+Inertia itself does not bundle Vue/React/Svelte. Your app’s `package.json` should add an Inertia adapter (for example `@inertiajs/vue3`) and Vite. The **inertia** starter kit drops a Vite app whose entry is `src/main/resources/js/app.js` (Vue and Svelte) or `app.jsx` (React). Pass `--typescript` for `app.ts` / `app.tsx` plus `tsconfig.json`. The web root those builds emit into is project-root `public/build`.
 
 ## Docs site
 
