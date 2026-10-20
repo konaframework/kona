@@ -25,7 +25,15 @@ When you boot with `Kona.create(...)`, Kona fills config in this order. A later 
    | `app.env` | `APP_ENV` | `"local"` |
    | `app.debug` | `APP_DEBUG` (parsed as a boolean) | `false` |
    | `app.url` | `APP_URL` | `"http://127.0.0.1:4000"` |
+   | `app.timezone` | `APP_TIMEZONE` | `"UTC"` |
+   | `app.locale` | `APP_LOCALE` | `"en"` |
+   | `app.fallback_locale` | `APP_FALLBACK_LOCALE` | `"en"` |
+   | `app.faker_locale` | `APP_FAKER_LOCALE` | `"en_US"` |
+   | `app.cipher` | `APP_CIPHER` | `"AES-256-GCM"` |
    | `app.key` | `APP_KEY` | unset unless present |
+   | `app.previous_keys` | `APP_PREVIOUS_KEYS` (comma-separated) | empty list |
+   | `app.maintenance.driver` | `APP_MAINTENANCE_DRIVER` | `"file"` |
+   | `app.maintenance.store` | `APP_MAINTENANCE_STORE` | `"database"` |
 
 3. **Registered `ConfigFile` modules** merge in registration order. Each module returns a map that lands under its key (`app`, `database`, `session`, …). Modules may call `Env.get` / `Env.getOrDefault` while building that map. Path overrides from a `paths` module are applied when the layout refreshes after this step.
 4. **Your `configure` callbacks** run, in the order you added them.
@@ -33,6 +41,8 @@ When you boot with `Kona.create(...)`, Kona fills config in this order. A later 
 So a `config.App` module that sets `"name"` from `APP_NAME` can refine the seeded default, and a `configure { it.set("app.name", ...) }` overrides both. Applications built with `Application.builder` (without `Kona.create`) skip steps 1 to 2 unless you register the same bootstrappers yourself; they still merge any `.configs(...)` you add.
 
 Config is filled once, at startup. Editing `.env` or a config module's source while the app runs has no effect until restart (and recompile for modules).
+
+`kona new` writes these modules with section comments that explain what each key is for, which environment variable feeds it, and which drivers or values are valid. Read `config/App.kt` (or `config/App.java`) first — name, environment, debug, URL, timezone, locales, encryption, and maintenance mode are all documented there.
 
 ## Executable config modules
 

@@ -50,6 +50,8 @@ class ListCommand(
             "steam" to "Interactive REPL",
             "assets:vite" to "Print Vite asset bundling setup help",
             "storage:link" to "Symlink public/storage to storage/app/public",
+            "down" to "Put the application into maintenance mode",
+            "up" to "Bring the application out of maintenance mode",
             "key:generate" to "Set the application key (APP_KEY) [--show] [--force]",
             "ide:lsp" to "Print kona-lsp (Crema language server) setup help",
             "list" to "List grind commands",

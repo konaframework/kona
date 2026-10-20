@@ -4,6 +4,8 @@ import org.konaframework.core.Application
 import org.konaframework.support.lang.Lang
 import org.konaframework.support.lang.Translator
 import org.konaframework.support.lang.translate
+import org.konaframework.support.date.KonaDate
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
@@ -11,8 +13,14 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.ZoneId
 
 class SupportServiceProviderTest {
+    @AfterEach
+    fun resetDate() {
+        KonaDate.resetDefaultTimezone()
+    }
+
     @Test
     fun registersTranslatorAndWiresLang(@TempDir base: Path) {
         val app = Application(base)
@@ -61,5 +69,41 @@ class SupportServiceProviderTest {
             .withProvider(SupportServiceProvider())
             .boot()
         assertNull(SupportServiceProvider.resolveLangPath(missing))
+    }
+
+    @Test
+    fun seedsLocaleAndTimezoneFromAppConfig(@TempDir base: Path) {
+        val app = Application.builder(base)
+            .configure {
+                it.set("app.locale", "fr")
+                it.set("app.fallback_locale", "es")
+                it.set("app.timezone", "Africa/Nairobi")
+            }
+            .withProvider(SupportServiceProvider())
+            .boot()
+        val translator = app.resolve(Translator::class.java)
+        assertEquals("fr", translator.getLocale())
+        assertEquals("es", translator.getFallback())
+        assertEquals("fr", Lang.getLocale())
+        assertEquals("es", Lang.getFallback())
+        assertEquals(ZoneId.of("Africa/Nairobi"), KonaDate.defaultTimezone())
+
+        Application.builder(base)
+            .configure {
+                it.set("app.locale", "  ")
+                it.set("app.fallback_locale", "")
+                it.set("app.timezone", "Not/AZone")
+            }
+            .withProvider(SupportServiceProvider())
+            .boot()
+        assertEquals("en", Lang.getLocale())
+        assertEquals("en", Lang.getFallback())
+        assertEquals(ZoneId.of("UTC"), KonaDate.defaultTimezone())
+
+        Application.builder(base)
+            .configure { it.set("app.timezone", "   ") }
+            .withProvider(SupportServiceProvider())
+            .boot()
+        assertEquals(ZoneId.of("UTC"), KonaDate.defaultTimezone())
     }
 }

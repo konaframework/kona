@@ -103,8 +103,27 @@ class KonaDate private constructor(
     override fun toString(): String = toIso8601String()
 
     companion object {
+        @Volatile
+        private var defaultZone: ZoneId = ZoneOffset.UTC
+
+        /** Default zone used by [now], [today], [parse], and [ofInstant] overloads without a zone. */
         @JvmStatic
-        fun now(): KonaDate = now(ZoneOffset.UTC)
+        fun defaultTimezone(): ZoneId = defaultZone
+
+        /** Set the process default timezone (`app.timezone` / `APP_TIMEZONE`). */
+        @JvmStatic
+        fun setDefaultTimezone(zone: ZoneId) {
+            defaultZone = zone
+        }
+
+        /** Restore UTC (tests). */
+        @JvmStatic
+        fun resetDefaultTimezone() {
+            defaultZone = ZoneOffset.UTC
+        }
+
+        @JvmStatic
+        fun now(): KonaDate = now(defaultZone)
 
         @JvmStatic
         fun now(zone: ZoneId): KonaDate = now(zone, Clock.system(zone))
@@ -114,14 +133,14 @@ class KonaDate private constructor(
             KonaDate(Instant.now(clock), zone)
 
         @JvmStatic
-        fun ofInstant(instant: Instant): KonaDate = ofInstant(instant, ZoneOffset.UTC)
+        fun ofInstant(instant: Instant): KonaDate = ofInstant(instant, defaultZone)
 
         @JvmStatic
         fun ofInstant(instant: Instant, zone: ZoneId): KonaDate =
             KonaDate(instant, zone)
 
         @JvmStatic
-        fun parse(text: String): KonaDate = parse(text, ZoneOffset.UTC)
+        fun parse(text: String): KonaDate = parse(text, defaultZone)
 
         @JvmStatic
         fun parse(text: String, zone: ZoneId): KonaDate {
@@ -132,7 +151,7 @@ class KonaDate private constructor(
         }
 
         @JvmStatic
-        fun today(): KonaDate = today(ZoneOffset.UTC)
+        fun today(): KonaDate = today(defaultZone)
 
         @JvmStatic
         fun today(zone: ZoneId): KonaDate {

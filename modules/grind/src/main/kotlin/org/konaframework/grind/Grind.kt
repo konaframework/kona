@@ -59,6 +59,8 @@ constructor(
                 "steam" -> SteamCommand().run(positional.drop(1) + flatten(options))
                 "assets:vite" -> AssetsViteCommand().run(positional.drop(1) + flatten(options))
                 "storage:link" -> StorageLinkCommand().run(positional.drop(1) + flatten(options))
+                "down" -> DownCommand().run(positional.drop(1) + flatten(options))
+                "up" -> UpCommand().run(positional.drop(1) + flatten(options))
                 "key:generate" -> KeyGenerateCommand().run(positional.drop(1) + flatten(options))
                 "ide:lsp" -> IdeLspCommand().run(positional.drop(1) + flatten(options))
                 "install" -> InstallCommand(basePath).run(positional.drop(1) + flatten(options))

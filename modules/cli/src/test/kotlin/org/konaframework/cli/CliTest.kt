@@ -184,7 +184,13 @@ class CliTest {
         val versions = KonaVersions.load()
         val env = Files.readString(kt.resolve(".env"))
         assertTrue(env.contains("APP_NAME=appkt\n"))
+        assertTrue(env.contains("APP_TIMEZONE=UTC"))
+        assertTrue(env.contains("APP_LOCALE=en"))
         assertTrue(env.lineSequence().any { it.startsWith("APP_KEY=base64:") && it.length > "APP_KEY=base64:".length })
+        val appConfig = Files.readString(kt.resolve("src/main/kotlin/config/App.kt"))
+        assertTrue(appConfig.contains("Application Name"))
+        assertTrue(appConfig.contains("previous_keys"))
+        assertTrue(appConfig.contains("maintenance"))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Session.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Filesystems.kt")))
         assertTrue(Files.isRegularFile(kt.resolve("src/main/kotlin/config/Database.kt")))
@@ -281,6 +287,9 @@ class CliTest {
                 .contains("CadenceUserProvider"),
         )
         assertTrue(Files.readString(j.resolve("src/main/java/bootstrap/App.java")).contains("CremaServiceProvider"))
+        val javaApp = Files.readString(j.resolve("src/main/java/config/App.java"))
+        assertTrue(javaApp.contains("Application Name"))
+        assertTrue(javaApp.contains("previous_keys"))
         assertNoPlaceholders(j)
     }
 
