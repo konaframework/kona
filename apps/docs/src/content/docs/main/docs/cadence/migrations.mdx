@@ -264,6 +264,11 @@ Migrator.using(db.connection(), registry) { migrator ->
     migrator.rollback()       // undo the last batch
     migrator.rollback(3)      // undo the last three batches
     migrator.reset()          // undo everything
+    migrator.fresh()          // drop all tables, then migrate
+    migrator.refresh()        // reset, then migrate
+    migrator.refresh(1)       // rollback one batch, then migrate
+    migrator.wipe()           // drop all tables (optional dropViews / dropTypes)
+    migrator.schema.dump()    // CREATE TABLE SQL from JDBC metadata
     migrator.migrate(object : MigrationEvents {                           // optional start/finish callbacks
         override fun finished(name: String, millis: Long) = Unit
     })
@@ -283,6 +288,10 @@ Migrator.using(db.connection(), registry, migrator -> {
     migrator.status();
     migrator.rollback();
     migrator.rollback(3);
+    migrator.fresh();
+    migrator.refresh();
+    migrator.wipe(true, false);
+    migrator.getSchema().dump();
     migrator.migrate(new MigrationEvents() {
         @Override public void finished(String name, long millis) {}
     });
@@ -315,10 +324,20 @@ All commands run from the application directory. The database commands boot your
 ./grind migrate                          # run pending migrations as a new batch (dotted DONE rows)
 ./grind migrate --seed                   # migrate, then seed in the same process
 ./grind migrate --seed --class=database.seeders.UserSeeder
+./grind migrate --seeder=database.seeders.UserSeeder
+./grind migrate:fresh                    # drop all tables, then migrate
+./grind migrate:fresh --seed --drop-views
+./grind migrate:refresh                  # reset, then migrate
+./grind migrate:refresh --step=1
 ./grind migrate:status                   # Ran/Pending, batch, name
 ./grind migrate:rollback                 # undo the last batch
 ./grind migrate:rollback --step=2        # undo the last two batches
 ./grind migrate:reset                    # undo everything
+./grind migrate:install                  # create extract_migrations if missing
+./grind db:wipe                          # drop all tables
+./grind db:show                          # connection + tables
+./grind db:table widgets                 # columns for one table
+./grind schema:dump                      # write database/schema.sql
 ./grind migrate --database=reports       # a named connection
 ./grind migrate --bootstrap=bootstrap.App
 ```

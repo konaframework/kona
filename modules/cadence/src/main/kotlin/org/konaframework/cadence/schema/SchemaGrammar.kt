@@ -84,7 +84,43 @@ open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Gr
 
     open fun compileDropIfExists(table: String): String = "DROP TABLE IF EXISTS " + wrap(table)
 
+    open fun compileDropViewIfExists(view: String): String = "DROP VIEW IF EXISTS " + wrap(view)
+
+    open fun compileDropTypeIfExists(type: String): String = "DROP TYPE IF EXISTS " + wrap(type)
+
     open fun compileRename(from: String, to: String): String = "ALTER TABLE " + wrap(from) + " RENAME TO " + wrap(to)
+
+    /** `SET FOREIGN_KEY_CHECKS=0` / `PRAGMA foreign_keys=OFF` style, or null when unused. */
+    open fun compileDisableForeignKeyConstraints(): String? = null
+
+    open fun compileEnableForeignKeyConstraints(): String? = null
+
+    /**
+     * Engine-specific bulk drop (PostgreSQL `CASCADE`, MySQL multi-table). Null means
+     * [Schema.dropAllTables] issues one `DROP TABLE IF EXISTS` per table.
+     */
+    open fun compileDropAllTables(tables: List<String>): List<String>? = null
+
+    /** SQL that lists user-defined type names (PostgreSQL enums), or null when unsupported. */
+    open fun listUserTypesSql(): String? = null
+
+    open fun supportsDropTypes(): Boolean = listUserTypesSql() != null
+
+    /** Extra statements after dropping tables (SQLite `DELETE FROM sqlite_sequence`). */
+    open fun compileResetSequences(): List<String> = emptyList()
+
+    /** True for engine catalogs that must not be wiped (`INFORMATION_SCHEMA`, `pg_catalog`, …). */
+    open fun skipSchema(name: String?): Boolean {
+        if (name.isNullOrEmpty()) {
+            return false
+        }
+        val upper = name.uppercase()
+        return upper == "INFORMATION_SCHEMA" || upper == "SYS" || upper == "PG_CATALOG" ||
+            upper.startsWith("PG_TOAST")
+    }
+
+    /** True for bookkeeping tables that must survive a wipe (`sqlite_sequence`). */
+    open fun skipTable(name: String): Boolean = false
 
     companion object {
         @JvmField
@@ -177,6 +213,13 @@ class H2SchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Grammar.A
         ColumnType.TEXT, ColumnType.LONG_TEXT, ColumnType.JSON -> "CHARACTER VARYING"
         else -> super.type(column)
     }
+
+    override fun compileDisableForeignKeyConstraints(): String = "SET REFERENTIAL_INTEGRITY FALSE"
+
+    override fun compileEnableForeignKeyConstraints(): String = "SET REFERENTIAL_INTEGRITY TRUE"
+
+    override fun compileDropAllTables(tables: List<String>): List<String> =
+        listOf("DROP TABLE IF EXISTS " + tables.joinToString(", ") { wrap(it) } + " CASCADE")
 }
 
 /** PostgreSQL: identity IDs, `JSONB`, `DROP INDEX IF EXISTS`. */
@@ -189,6 +232,14 @@ class PostgresSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Gra
 
     override fun compileDropIndex(table: String, index: String): String =
         "DROP INDEX IF EXISTS " + wrap(index)
+
+    override fun compileDropAllTables(tables: List<String>): List<String> =
+        listOf("DROP TABLE IF EXISTS " + tables.joinToString(", ") { wrap(it) } + " CASCADE")
+
+    override fun listUserTypesSql(): String =
+        "SELECT t.typname FROM pg_catalog.pg_type t " +
+            "JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace " +
+            "WHERE t.typtype = 'e' AND n.nspname = current_schema()"
 }
 
 /** MySQL: `BIGINT AUTO_INCREMENT PRIMARY KEY`, backticks, `DROP INDEX … ON table`. */
@@ -212,6 +263,13 @@ open class MySqlSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = G
 
     override fun compileRename(from: String, to: String): String =
         "RENAME TABLE " + wrap(from) + " TO " + wrap(to)
+
+    override fun compileDisableForeignKeyConstraints(): String = "SET FOREIGN_KEY_CHECKS=0"
+
+    override fun compileEnableForeignKeyConstraints(): String = "SET FOREIGN_KEY_CHECKS=1"
+
+    override fun compileDropAllTables(tables: List<String>): List<String> =
+        listOf("DROP TABLE IF EXISTS " + tables.joinToString(", ") { wrap(it) })
 }
 
 /**
@@ -252,6 +310,14 @@ class SqliteSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Gramm
             blueprint.columns.map { "ALTER TABLE $table ADD COLUMN ${column(it)}" } +
             blueprint.indexes.map { createIndex(blueprint.table, it) }
     }
+
+    override fun skipTable(name: String): Boolean = name.startsWith("sqlite_", ignoreCase = true)
+
+    override fun compileDisableForeignKeyConstraints(): String = "PRAGMA foreign_keys = OFF"
+
+    override fun compileEnableForeignKeyConstraints(): String = "PRAGMA foreign_keys = ON"
+
+    override fun compileResetSequences(): List<String> = listOf("DELETE FROM sqlite_sequence")
 }
 
 /** Oracle: `VARCHAR2`, identity, `NUMBER(1)` booleans, PL/SQL drop-if-exists. */
@@ -281,6 +347,9 @@ class OracleSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Gramm
 
     override fun compileRename(from: String, to: String): String =
         "ALTER TABLE " + wrap(from) + " RENAME TO " + wrap(to)
+
+    override fun compileDropAllTables(tables: List<String>): List<String> =
+        tables.map { "DROP TABLE " + wrap(it) + " CASCADE CONSTRAINTS" }
 }
 
 /** SQL Server: `IDENTITY`, `NVARCHAR`, bracket identifiers, `DROP INDEX … ON table`. */
@@ -307,4 +376,10 @@ class SqlServerSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Gr
         "EXEC sp_rename '" + from.replace("'", "''") + "', '" + to.replace("'", "''") + "'"
 
     override fun compileDropIfExists(table: String): String = "DROP TABLE IF EXISTS " + wrap(table)
+
+    override fun compileDisableForeignKeyConstraints(): String =
+        "EXEC sp_MSforeachtable 'ALTER TABLE ? NOCHECK CONSTRAINT ALL'"
+
+    override fun compileEnableForeignKeyConstraints(): String =
+        "EXEC sp_MSforeachtable 'ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL'"
 }

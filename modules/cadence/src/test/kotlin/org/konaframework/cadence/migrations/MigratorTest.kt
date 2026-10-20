@@ -92,6 +92,24 @@ class MigratorTest {
         assertEquals(listOf("2026_add_flag", "CreatePostsTable", "CreateUsersTable"), migrator.reset())
         assertFalse(migrator.schema.hasTable("users"))
         assertThrows(IllegalArgumentException::class.java) { migrator.rollback(0) }
+
+        assertEquals(listOf("CreateUsersTable", "CreatePostsTable", "2026_add_flag"), migrator.fresh())
+        assertTrue(migrator.schema.hasTable("users"))
+        assertTrue(migrator.schema.hasTable("posts"))
+        assertEquals(listOf("CreateUsersTable", "CreatePostsTable", "2026_add_flag"), migrator.refresh())
+        assertTrue(migrator.schema.hasTable("users"))
+        assertEquals(listOf("CreateUsersTable", "CreatePostsTable", "2026_add_flag"), migrator.refresh(1))
+        val wiped = migrator.wipe(dropViews = true, dropTypes = true)
+        assertTrue(
+            wiped.any {
+                it.equals("users", ignoreCase = true) ||
+                    it.equals("posts", ignoreCase = true) ||
+                    it.equals("extract_migrations", ignoreCase = true)
+            },
+        )
+        assertFalse(migrator.schema.hasTable("users"))
+        assertEquals(emptyList<String>(), migrator.wipe())
+        assertEquals(listOf("CreateUsersTable", "CreatePostsTable", "2026_add_flag"), migrator.fresh(null, true, false))
     }
 
     @Test

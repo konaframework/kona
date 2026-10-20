@@ -199,6 +199,18 @@ class JavaRelationsMigrationsTest {
             assertEquals(List.of("CreateTeams"), migrator.migrate(new MigrationEvents() {}));
             assertEquals(List.of("CreateTeams"), migrator.reset(new MigrationEvents() {}));
             assertEquals(List.of("CreateTeams"), migrator.migrate());
+            assertFalse(migrator.getSchema().tables().isEmpty());
+            assertTrue(migrator.fresh().contains("CreateTeams"));
+            assertTrue(migrator.refresh().contains("CreateTeams"));
+            assertTrue(migrator.refresh(1).contains("CreateTeams"));
+            java.util.List<String> wiped = migrator.wipe();
+            assertTrue(wiped.contains("teams") || wiped.contains("TEAMS") || !migrator.getSchema().hasTable("teams"));
+            assertTrue(migrator.fresh(null, true, true).contains("CreateTeams"));
+            assertFalse(migrator.getSchema().dump().isBlank());
+            assertFalse(migrator.getSchema().columns("teams").isEmpty());
+            org.konaframework.cadence.schema.SchemaColumn id = migrator.getSchema().columns("teams").get(0);
+            assertNotNull(id.getName());
+            assertNotNull(id.typeLabel());
         }
 
         Factory<Team> teams = Factory.of(Team.class, () -> Map.of("name", "Team"));
