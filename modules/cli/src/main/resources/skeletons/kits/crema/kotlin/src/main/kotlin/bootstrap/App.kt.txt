@@ -2,12 +2,23 @@ package bootstrap
 
 import app.providers.AppServiceProvider
 import config.App as AppConfig
+import config.Auth
+import config.Broadcasting
+import config.Cache
 import config.Database
 import config.Filesystems
+import config.Hash
 import config.Http
+import config.Logging
+import config.Mail
 import config.Paths
+import config.Queue
+import config.Redis
+import config.Services
 import config.Session
 import org.konaframework.auth.AuthServiceProvider
+import org.konaframework.broadcasting.BroadcastServiceProvider
+import org.konaframework.cache.CacheServiceProvider
 import org.konaframework.core.Application
 import org.konaframework.core.Env
 import org.konaframework.core.Kona
@@ -30,17 +41,22 @@ object App {
     @JvmStatic
     fun create(args: Array<String>): Application {
         val app = Kona.create(args)
-            .configs(AppConfig, Database, Session, Filesystems, Http, Paths)
+            .configs(
+                AppConfig, Database, Redis, Session, Cache, Filesystems, Queue, Mail,
+                Logging, Auth, Hash, Broadcasting, Services, Http, Paths,
+            )
             .providers(
                 HttpServiceProvider(),
                 CadenceServiceProvider(),
                 FilesystemServiceProvider(),
                 RedisServiceProvider(),
+                CacheServiceProvider(),
                 SessionServiceProvider(),
                 AuthServiceProvider(),
                 QueueServiceProvider(),
                 ScheduleServiceProvider(),
                 MailServiceProvider(),
+                BroadcastServiceProvider(),
                 CremaServiceProvider(),
                 AppServiceProvider(),
             )

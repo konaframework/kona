@@ -49,6 +49,9 @@ class AppSmokeTest {
         assertTrue(Files.isRegularFile(base.resolve("src/main/java/routes/ApiRoutes.java")));
         assertTrue(Files.isRegularFile(base.resolve("src/main/java/config/Paths.java")));
         assertTrue(Files.isRegularFile(base.resolve("src/main/java/config/Session.java")));
+        assertTrue(Files.isRegularFile(base.resolve("src/main/java/config/Cache.java")));
+        assertTrue(Files.isRegularFile(base.resolve("src/main/java/config/Auth.java")));
+        assertTrue(Files.isRegularFile(base.resolve("src/main/java/config/Redis.java")));
         assertTrue(Files.isRegularFile(base.resolve("src/main/resources/views/welcome.crema.html")));
         assertTrue(Files.isDirectory(base.resolve("storage")));
     }

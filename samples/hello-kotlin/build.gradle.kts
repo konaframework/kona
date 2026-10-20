@@ -12,11 +12,13 @@ dependencies {
     implementation(project(":kona-grind"))
     implementation(project(":kona-cadence"))
     implementation(project(":kona-redis"))
+    implementation(project(":kona-cache"))
     implementation(project(":kona-session"))
     implementation(project(":kona-auth"))
     implementation(project(":kona-queue"))
     implementation(project(":kona-schedule"))
     implementation(project(":kona-mail"))
+    implementation(project(":kona-broadcasting"))
     implementation(project(":kona-crema"))
     // Matches default H2 URL in config/Database (zero-install local demos).
     runtimeOnly(libs.h2)

@@ -69,6 +69,58 @@ object Session : ConfigFile {
 
             /*
             |--------------------------------------------------------------------------
+            | Session Database Connection
+            |--------------------------------------------------------------------------
+            |
+            | When using the "database" or "redis" session drivers, you may specify a
+            | connection that should be used to manage these sessions. This should
+            | correspond to a connection in your Redis configuration.
+            |
+            */
+            "connection" to Env.get("SESSION_CONNECTION"),
+
+            "connection_prefix" to Env.getOrDefault("SESSION_CONNECTION_PREFIX", "kona_session:"),
+
+            /*
+            |--------------------------------------------------------------------------
+            | Session Cache Store
+            |--------------------------------------------------------------------------
+            |
+            | When using a cache-backed session driver, you may define the cache store
+            | that should be used to store the session data between requests.
+            |
+            */
+            "store" to Env.get("SESSION_STORE"),
+
+            /*
+            |--------------------------------------------------------------------------
+            | Session Cache Table
+            |--------------------------------------------------------------------------
+            |
+            | When using the "database" session driver, you may specify the table we
+            | should use to manage the sessions. Of course, a sensible default is
+            | provided for you; however, you're welcome to change this as needed.
+            |
+            */
+            "table" to Env.getOrDefault("SESSION_TABLE", "sessions"),
+
+            /*
+            |--------------------------------------------------------------------------
+            | Session Sweeping Lottery
+            |--------------------------------------------------------------------------
+            |
+            | Some session drivers must manually sweep their storage location to get
+            | rid of old sessions from storage. Here are the chances that it will
+            | happen on a given request. By default, the odds are 2 out of 100.
+            |
+            */
+            "lottery" to listOf(
+                Env.getOrDefault("SESSION_LOTTERY_ODDS", "2").toIntOrNull() ?: 2,
+                Env.getOrDefault("SESSION_LOTTERY_MAX", "100").toIntOrNull() ?: 100,
+            ),
+
+            /*
+            |--------------------------------------------------------------------------
             | Session Cookie
             |--------------------------------------------------------------------------
             |
@@ -87,6 +139,8 @@ object Session : ConfigFile {
             "http_only" to (Config.toBoolean(Env.getOrDefault("SESSION_HTTP_ONLY", "true")) ?: true),
 
             "same_site" to Env.getOrDefault("SESSION_SAME_SITE", "Lax"),
+
+            "partitioned" to (Config.toBoolean(Env.getOrDefault("SESSION_PARTITIONED_COOKIE", "false")) ?: false),
         )
     }
 }

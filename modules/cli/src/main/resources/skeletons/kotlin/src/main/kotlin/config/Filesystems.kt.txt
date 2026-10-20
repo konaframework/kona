@@ -34,19 +34,36 @@ object Filesystems : ConfigFile {
         | may even configure multiple disks for the same driver. Examples for
         | most supported storage drivers are configured here for reference.
         |
-        | Supported drivers: "local"
+        | Supported drivers: "local", "s3", "memory"
         |
         */
         "disks" to mapOf(
             "local" to mapOf(
                 "driver" to "local",
                 "root" to "storage/app",
+                "throw" to false,
             ),
             "public" to mapOf(
                 "driver" to "local",
                 "root" to "storage/app/public",
                 "url" to "/storage",
                 "visibility" to "public",
+                "throw" to false,
+            ),
+            "s3" to mapOf(
+                "driver" to "s3",
+                "key" to Env.get("AWS_ACCESS_KEY_ID"),
+                "secret" to Env.get("AWS_SECRET_ACCESS_KEY"),
+                "region" to Env.getOrDefault("AWS_DEFAULT_REGION", "us-east-1"),
+                "bucket" to Env.get("AWS_BUCKET"),
+                "url" to Env.get("AWS_URL"),
+                "endpoint" to Env.get("AWS_ENDPOINT"),
+                "prefix" to Env.getOrDefault("AWS_PREFIX", ""),
+                "throw" to false,
+            ),
+            "memory" to mapOf(
+                "driver" to "memory",
+                "bucket" to Env.getOrDefault("FILESYSTEM_MEMORY_BUCKET", "kona"),
             ),
         ),
 
