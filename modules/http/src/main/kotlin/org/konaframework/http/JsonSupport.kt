@@ -1,10 +1,10 @@
 package org.konaframework.http
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import org.konaframework.support.json.Json
 
 internal object JsonSupport {
-    private val mapper: ObjectMapper = jacksonObjectMapper()
+    private val mapper: ObjectMapper = Json.mapper
 
     fun stringify(value: Any?): String = mapper.writeValueAsString(value)
 

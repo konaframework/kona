@@ -1,12 +1,14 @@
 package org.konaframework.cadence
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.konaframework.core.Config
+import org.konaframework.support.date.KonaDate
+import org.konaframework.support.json.Json
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeParseException
 
 /**
@@ -55,7 +57,7 @@ enum class CastType {
         if (this == JSON && value != null && value !is String) MAPPER.writeValueAsString(value) else value
 }
 
-private val MAPPER = ObjectMapper()
+private val MAPPER = Json.mapper
 
 private fun number(value: Any): Double = when (value) {
     is Boolean -> if (value) 1.0 else 0.0
@@ -64,11 +66,13 @@ private fun number(value: Any): Double = when (value) {
 
 private fun instant(value: Any): Instant = when (value) {
     is Instant -> value
+    is KonaDate -> value.toInstant()
     is java.sql.Date -> value.toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant()
     is java.util.Date -> value.toInstant()
     is LocalDate -> value.atStartOfDay(ZoneId.systemDefault()).toInstant()
     is LocalDateTime -> value.atZone(ZoneId.systemDefault()).toInstant()
     is OffsetDateTime -> value.toInstant()
+    is ZonedDateTime -> value.toInstant()
     is String -> parseInstant(value.trim())
     else -> throw CadenceException("Cannot cast [$value] (${value.javaClass.name}) to a date-time")
 }

@@ -63,7 +63,13 @@ Response.json(user.toMap());
 </Tabs>
 
 
-Loaded relations appear under their relation names. Soft-deleted timestamps and other cast columns use their cast Java types in the map (for example `Instant`).
+Loaded relations appear under their relation names. Soft-deleted timestamps and other cast columns use their cast Java types in the map (for example `Instant` for `created_at` / `updated_at`, `LocalDateTime` for `datetime` casts). You can assign a [`KonaDate`](../../support/#dates) to those columns; Cadence stores the underlying `Instant`.
+
+`toJson()` (and `Response.json(model.toArray())`) writes those values as ISO-8601 strings, so `GET /api/users` does not dump a raw Java Time object:
+
+```json
+{"id":1,"name":"Ada","created_at":"2024-06-15T12:00:00Z","updated_at":"2024-06-15T12:00:00Z"}
+```
 
 ## Collections
 

@@ -13,6 +13,7 @@ kotlin {
 
 dependencies {
     api(project(":kona-core"))
+    implementation(project(":kona-support"))
     api(libs.slf4j.api)
     implementation(libs.hikaricp)
     implementation(libs.jackson.databind)

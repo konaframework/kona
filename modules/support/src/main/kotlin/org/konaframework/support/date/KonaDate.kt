@@ -1,23 +1,31 @@
 package org.konaframework.support.date
 
+import com.fasterxml.jackson.annotation.JsonCreator
+import com.fasterxml.jackson.annotation.JsonValue
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 
 /**
- * Fluent date/time wrapper (Carbon-class API shape) over [Instant].
+ * Fluent date/time wrapper over [Instant]. JSON encodes as an ISO-8601 string.
  */
 class KonaDate private constructor(
     private val instant: Instant,
     private val zone: ZoneId,
 ) {
     fun toInstant(): Instant = instant
+
+    /** Zone used for local calendar arithmetic and [format]. */
+    fun timezone(): ZoneId = zone
 
     fun toLocalDateTime(): LocalDateTime = LocalDateTime.ofInstant(instant, zone)
 
@@ -91,7 +99,11 @@ class KonaDate private constructor(
 
     fun toDateTimeString(): String = format("yyyy-MM-dd HH:mm:ss")
 
+    @JsonValue
     fun toIso8601String(): String = instant.toString()
+
+    /** Alias of [toIso8601String]. */
+    fun toIso(): String = toIso8601String()
 
     fun copy(): KonaDate = KonaDate(instant, zone)
 
@@ -140,15 +152,58 @@ class KonaDate private constructor(
             KonaDate(instant, zone)
 
         @JvmStatic
+        @JsonCreator
         fun parse(text: String): KonaDate = parse(text, defaultZone)
 
         @JvmStatic
         fun parse(text: String, zone: ZoneId): KonaDate {
-            val instant = runCatching { Instant.parse(text) }.getOrElse {
-                LocalDateTime.parse(text.replace(' ', 'T')).toInstant(ZoneOffset.UTC)
+            val trimmed = text.trim()
+            val instant = try {
+                Instant.parse(trimmed)
+            } catch (_: DateTimeParseException) {
+                try {
+                    OffsetDateTime.parse(trimmed).toInstant()
+                } catch (_: DateTimeParseException) {
+                    try {
+                        ZonedDateTime.parse(trimmed).toInstant()
+                    } catch (_: DateTimeParseException) {
+                        try {
+                            LocalDateTime.parse(trimmed.replace(' ', 'T')).toInstant(ZoneOffset.UTC)
+                        } catch (_: DateTimeParseException) {
+                            try {
+                                LocalDate.parse(trimmed).atStartOfDay(zone).toInstant()
+                            } catch (_: DateTimeParseException) {
+                                throw DateTimeParseException("Cannot parse KonaDate: $trimmed", trimmed, 0)
+                            }
+                        }
+                    }
+                }
             }
             return KonaDate(instant, zone)
         }
+
+        @JvmStatic
+        fun ofLocalDateTime(dateTime: LocalDateTime): KonaDate =
+            ofLocalDateTime(dateTime, defaultZone)
+
+        @JvmStatic
+        fun ofLocalDateTime(dateTime: LocalDateTime, zone: ZoneId): KonaDate =
+            KonaDate(dateTime.atZone(zone).toInstant(), zone)
+
+        @JvmStatic
+        fun ofLocalDate(date: LocalDate): KonaDate = ofLocalDate(date, defaultZone)
+
+        @JvmStatic
+        fun ofLocalDate(date: LocalDate, zone: ZoneId): KonaDate =
+            KonaDate(date.atStartOfDay(zone).toInstant(), zone)
+
+        @JvmStatic
+        fun ofZonedDateTime(dateTime: ZonedDateTime): KonaDate =
+            KonaDate(dateTime.toInstant(), dateTime.zone)
+
+        @JvmStatic
+        fun ofOffsetDateTime(dateTime: OffsetDateTime): KonaDate =
+            KonaDate(dateTime.toInstant(), dateTime.offset)
 
         @JvmStatic
         fun today(): KonaDate = today(defaultZone)

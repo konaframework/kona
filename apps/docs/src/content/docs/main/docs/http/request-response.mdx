@@ -298,6 +298,14 @@ Static factories cover the common cases. Body factories set a `Content-Type` for
 
 `json` accepts any value the bundled Jackson serializer understands: maps, lists, strings, numbers, booleans, `null` (serialized as `null`), Kotlin data classes, Java records, and ordinary classes with getters.
 
+Date and time values serialize as **ISO-8601 strings**, not epoch numbers. That includes `java.time.Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, `ZonedDateTime`, and [`KonaDate`](../../support/#dates). Cadence timestamps (`created_at` / `updated_at`) are `Instant` values, so a typical users index looks like:
+
+```json
+[{"id":1,"name":"Ada","created_at":"2024-06-15T12:00:00Z"}]
+```
+
+Scaffolded `GET /api/users` returns `User.all().map { it.toArray() }` through `Response.json`, so those timestamp fields encode the same way. Use [`KonaDate.parse`](../../support/#dates) / `KonaDate.ofInstant` when you need arithmetic, formatting, or a timezone on a value from JSON or Cadence.
+
 Binary factories set `bodyBytes()` so the embedded server writes the payload without UTF-8 re-encoding. Prefer them for PDFs, images, and anything that is not text.
 
 Chain `header(name, value)`, `withHeaders(map)`, `cookie(...)`, `withStatus`, and `withBody` / `withBodyBytes` on any response. `Response.stream` lets app code write incrementally to an `OutputStream`; the result is buffered so every server adapter can emit a complete body today.

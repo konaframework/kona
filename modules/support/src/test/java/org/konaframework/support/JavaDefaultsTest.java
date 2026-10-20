@@ -24,6 +24,16 @@ public class JavaDefaultsTest {
         assertNotNull(KonaDate.parse("2024-06-01T00:00:00Z", ZoneOffset.UTC));
         assertNotNull(KonaDate.parse("2024-06-01 00:00:00"));
         assertNotNull(KonaDate.parse("2024-06-01 00:00:00", ZoneOffset.ofHours(1)));
+        assertNotNull(KonaDate.parse("2024-06-01T00:00:00+02:00"));
+        assertNotNull(KonaDate.parse("2024-06-01"));
+        assertEquals("2024-06-01T00:00:00Z", KonaDate.parse("2024-06-01T00:00:00Z").toIso());
+        assertEquals(ZoneOffset.UTC, KonaDate.parse("2024-06-01T00:00:00Z").timezone());
+        assertNotNull(KonaDate.ofLocalDateTime(java.time.LocalDateTime.of(2024, 6, 1, 0, 0)));
+        assertNotNull(KonaDate.ofLocalDateTime(java.time.LocalDateTime.of(2024, 6, 1, 0, 0), ZoneOffset.UTC));
+        assertNotNull(KonaDate.ofLocalDate(java.time.LocalDate.of(2024, 6, 1)));
+        assertNotNull(KonaDate.ofLocalDate(java.time.LocalDate.of(2024, 6, 1), ZoneOffset.UTC));
+        assertNotNull(KonaDate.ofZonedDateTime(java.time.ZonedDateTime.parse("2024-06-01T00:00:00Z")));
+        assertNotNull(KonaDate.ofOffsetDateTime(java.time.OffsetDateTime.parse("2024-06-01T00:00:00Z")));
 
         Translator t = new Translator("en");
         t.addLines("en", Map.of("solo", "only"));

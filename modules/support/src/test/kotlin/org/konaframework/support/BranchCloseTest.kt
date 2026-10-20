@@ -36,6 +36,10 @@ class BranchCloseTest {
         assertNotNull(KonaDate.parse("2024-01-01T00:00:00Z"))
         assertNotNull(KonaDate.parse("2024-01-01T00:00:00Z", ZoneOffset.UTC))
         assertNotNull(KonaDate.parse("2024-01-01 00:00:00", ZoneOffset.ofHours(2)))
+        assertNotNull(KonaDate.parse("2024-01-01T00:00:00+02:00"))
+        assertNotNull(KonaDate.parse("2024-01-01"))
+        assertNotNull(KonaDate.ofLocalDateTime(java.time.LocalDateTime.of(2024, 1, 1, 0, 0)))
+        assertNotNull(KonaDate.ofLocalDate(java.time.LocalDate.of(2024, 1, 1)))
 
         assertEquals("Hello", Str.title("hello"))
         assertEquals("Hello", Str.title(" hello "))

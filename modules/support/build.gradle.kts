@@ -14,6 +14,7 @@ dependencies {
     api(project(":kona-core"))
     api(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
+    implementation(libs.jackson.datatype.jsr310)
     api(libs.slf4j.api)
 
     testImplementation(libs.junit.jupiter)

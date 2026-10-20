@@ -13,6 +13,7 @@ import org.konaframework.cadence.relations.MorphOne
 import org.konaframework.cadence.relations.MorphTo
 import org.konaframework.cadence.relations.MorphToMany
 import org.konaframework.cadence.relations.Relation
+import org.konaframework.support.json.Json
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -1036,11 +1037,8 @@ abstract class Cadence<T : Cadence<T>> {
         return result
     }
 
-    /** JSON serialization of [toArray]. */
-    open fun toJson(): String {
-        val mapper = com.fasterxml.jackson.databind.ObjectMapper()
-        return mapper.writeValueAsString(toArray())
-    }
+    /** JSON serialization of [toArray] (ISO-8601 strings for timestamps and other Java Time values). */
+    open fun toJson(): String = Json.stringify(toArray())
 
     private fun shouldSerialize(key: String, visibleKeys: Set<String>, hiddenKeys: Set<String>): Boolean {
         if (visibleKeys.isNotEmpty()) {

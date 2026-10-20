@@ -59,16 +59,50 @@ Str.padLeft("7", 3, "0")         // 007
 
 ## Dates
 
-`KonaDate` is a fluent Instant wrapper:
+`KonaDate` is the fluent date/time type in `kona-support`. It wraps a UTC `Instant` plus a zone used for calendar math and formatting. JSON (`Response.json`, Cadence `toJson`, `org.konaframework.support.json.Json.stringify`) encodes a `KonaDate` as an ISO-8601 string — the same shape used for `Instant` and the other `java.time` types.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val d = KonaDate.parse("2024-01-15T12:30:00Z")
 d.addMonths(1).startOfDay().toDateString()
 d.diffInDays(d.subDays(2))
 d.isSameDay(d.addHours(3))
+d.timezone()
+d.toIso()                 // 2024-01-15T12:30:00Z
+d.setTimezone(ZoneId.of("Africa/Nairobi")).toDateTimeString()
+
+KonaDate.now()
+KonaDate.today()
+KonaDate.ofInstant(user["created_at"] as Instant)
+KonaDate.parse("2024-01-15 12:30:00")
+KonaDate.parse("2024-01-15")
+KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15))
 ```
 
-Also: `addWeeks` / `addYears`, `endOfDay`, `setTimezone`, `isPast` / `isFuture`, `toDateTimeString`.
+</TabItem>
+<TabItem label="Java">
+
+```java
+KonaDate d = KonaDate.parse("2024-01-15T12:30:00Z");
+d.addMonths(1).startOfDay().toDateString();
+d.toIso();
+d.timezone();
+KonaDate.ofInstant((Instant) user.get("created_at"));
+KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15), ZoneOffset.UTC);
+```
+
+</TabItem>
+</Tabs>
+
+Parse accepts ISO instants (`…Z`), offset and zoned strings, `yyyy-MM-dd HH:mm:ss` / `T` local datetimes (read as UTC), and calendar dates. Arithmetic: `add` / `sub` seconds, minutes, hours, days, weeks, months, years. Boundaries: `startOfDay` / `endOfDay`. Comparisons: `isBefore` / `isAfter` / `isSameDay` / `isPast` / `isFuture`. Format: `format(pattern)`, `toDateString`, `toDateTimeString`, `toIso` / `toIso8601String`.
+
+HTTP JSON example:
+
+```json
+{"created_at":"2024-01-15T12:30:00Z"}
+```
 
 ## Arrays / maps
 
