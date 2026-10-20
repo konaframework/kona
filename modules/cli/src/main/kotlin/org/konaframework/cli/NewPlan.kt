@@ -104,11 +104,34 @@ internal fun titleCaseFolder(raw: String): String {
     }
 }
 
-internal fun wantsInteraction(options: Map<String, String>, tty: Boolean): Boolean {
-    if (options.containsKey("no-interaction") || options.containsKey("no-interactive")) {
+internal const val STDIN_UNREADABLE =
+    "Cannot read stdin. Pass flags for each step, or use --no-interaction for defaults."
+
+internal fun isCi(env: Map<String, String>): Boolean {
+    val raw = env["CI"] ?: return false
+    return raw.equals("true", ignoreCase = true) || raw == "1"
+}
+
+/**
+ * Prompt unless the caller opted out. Missing TTY / `System.console()` is ignored —
+ * prompts read stdin. Full skip: `--no-interaction`, `--no-interactive`, `--yes`, or `CI=true`.
+ */
+internal fun wantsInteraction(
+    options: Map<String, String>,
+    env: Map<String, String> = emptyMap(),
+    interactive: Boolean = true,
+): Boolean {
+    if (
+        options.containsKey("no-interaction") ||
+        options.containsKey("no-interactive") ||
+        options.containsKey("yes")
+    ) {
         return false
     }
-    return tty
+    if (isCi(env)) {
+        return false
+    }
+    return interactive
 }
 
 internal fun triState(options: Map<String, String>, name: String): Boolean? {
@@ -166,8 +189,8 @@ internal fun resolveNewPlan(
             "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] " +
                 "[--css=tailwind|bootstrap|custom] [--frontend=vue|react|svelte] " +
                 "[--name=…] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] " +
-                "[--install-deps] [--migrate] [--seed] [--no-interaction] [--kona-version=x.y.z]\n" +
-                "Run kona new in a terminal (no flags) for the interactive installer.",
+                "[--install-deps] [--migrate] [--seed] [--no-interaction] [--yes] [--kona-version=x.y.z]\n" +
+                "Run kona new with no flags for the interactive installer. Scripts and CI: --no-interaction.",
         )
     }
     if (canPrompt) {

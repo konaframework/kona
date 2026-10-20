@@ -3,11 +3,11 @@ title: Starter kits
 description: Interactive kona new installer, kits, CSS, and Inertia adapters.
 ---
 
-`kona new` scaffolds a Gradle app with a local `./grind` CLI. Run it **with no arguments in a real terminal** and it walks you through the stack. Pass flags (or `--no-interaction`) to skip any step.
+`kona new` scaffolds a Gradle app with a local `./grind` CLI. Run it **with no arguments** and it always walks you through the stack (boxed prompts). Pass a flag to skip that step only. `--no-interaction` (scripts) is the full skip.
 
 ```bash
-kona new                          # interactive installer
-kona new my-app                   # directory set; remaining prompts if the terminal can ask
+kona new                          # interactive installer — always prompts
+kona new my-app                   # directory set; remaining prompts
 kona new my-app --kit=api --lang=java --no-interaction
 kona new my-app --kit=inertia --frontend=react --css=tailwind
 kona new my-app --kit=brew --css=bootstrap --install-deps --migrate --seed
@@ -17,7 +17,7 @@ The default kit (when you skip the stack prompt) is **`web`** — Crema views. N
 
 ## Interactive order
 
-On a TTY, without `--no-interaction`, `kona new` asks only for values you did not already pass:
+Without `--no-interaction`, `kona new` asks only for values you did not already pass. IDE terminals and Gradle wrappers still prompt — answers are read from stdin:
 
 1. **Where should we create the app?** — default `kona-app` (skipped if you pass a directory)
 2. **App name** — `APP_NAME` in `.env`; default is Title Case of the folder (`my-app` → `My App`)
@@ -31,7 +31,9 @@ On a TTY, without `--no-interaction`, `kona new` asks only for values you did no
 10. **Run database seeders?**
 11. **Summary card** — then confirm before any files are written
 
-CI, pipes, and `--no-interaction` never wait on stdin. Missing name in that mode prints usage and exits.
+Full non-interactive defaults only when you pass `--no-interaction`, `--no-interactive`, or `--yes`, or when the environment has `CI=true` (GitHub Actions sets this). Missing directory in that mode prints usage and exits.
+
+If stdin is not readable (closed pipe, EOF) and you did not opt out, Kona prints an **ERROR** telling you to pass flags or `--no-interaction` — it does not silently scaffold.
 
 ## Flags that skip a step
 
@@ -47,7 +49,8 @@ CI, pipes, and `--no-interaction` never wait on stdin. Missing name in that mode
 | `--install-deps` / `--no-install-deps` | Gradle + npm/pnpm offer |
 | `--migrate` / `--no-migrate` | Initial migrations |
 | `--seed` / `--no-seed` | Seeders |
-| `--no-interaction` / `--no-interactive` | Every prompt; use defaults |
+| `--no-interaction` / `--no-interactive` / `--yes` | Every prompt; use defaults |
+| `CI=true` | Same as `--no-interaction` (GitHub Actions) |
 
 `--install-deps=false`, `--migrate=no`, and `--seed=0` are the same as the `--no-*` forms.
 

@@ -79,12 +79,12 @@ Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. 
 ## 3. Create an application
 
 ```bash
-kona new                        # interactive installer (TTY)
-kona new my-app                 # Kotlin, web kit (non-interactive default)
-kona new my-app --lang=java
+kona new                        # interactive installer (always prompts)
+kona new my-app                 # directory set; remaining prompts
+kona new my-app --lang=java --no-interaction
 ```
 
-In a terminal, `kona new` with no arguments asks for directory, app name, language, stack (API / Crema / Brew / Inertia), CSS, database, then offers to install dependencies and run migrations/seeders. A summary card appears before anything is written. Flags skip the matching question; `--no-interaction` uses defaults and never waits. Details: [Starter kits](../../starter-kits/).
+`kona new` with no arguments always asks for directory, app name, language, stack (API / Crema / Brew / Inertia), CSS, database, then offers to install dependencies and run migrations/seeders. A summary card appears before anything is written. Flags skip only the matching question. `--no-interaction` (or `CI=true`) uses defaults and never waits — required for scripts. Details: [Starter kits](../../starter-kits/).
 
 `kona new` writes a self-contained Gradle app that already includes:
 

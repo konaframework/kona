@@ -152,7 +152,7 @@ class CliTest {
     @Test
     fun newKotlinEmitsGradleApp() {
         val kt = temp.resolve("appkt")
-        assertEquals(0, NewCommand().run(listOf(kt.toString())))
+        assertEquals(0, NewCommand().run(listOf(kt.toString(), "--no-interaction")))
         listOf(
             "README.md",
             ".env",
@@ -277,15 +277,15 @@ class CliTest {
             )
         }
 
-        assertEquals(1, KonaApplication().run(arrayOf("new", kt.toString(), "--lang=kotlin")))
-        assertEquals(1, KonaApplication().run(arrayOf("new", temp.resolve("x2").toString(), "--lang=ruby")))
-        assertEquals(1, KonaApplication().run(arrayOf("new")))
+        assertEquals(1, KonaApplication().run(arrayOf("new", kt.toString(), "--lang=kotlin", "--no-interaction")))
+        assertEquals(1, KonaApplication().run(arrayOf("new", temp.resolve("x2").toString(), "--lang=ruby", "--no-interaction")))
+        assertEquals(1, KonaApplication().run(arrayOf("new", "--no-interaction")))
     }
 
     @Test
     fun newJavaEmitsGradleApp() {
         val j = temp.resolve("appjava")
-        assertEquals(0, NewCommand().run(listOf(j.toString(), "--lang=java", "--kona-version=9.9.9")))
+        assertEquals(0, NewCommand().run(listOf(j.toString(), "--lang=java", "--kona-version=9.9.9", "--no-interaction")))
         assertTrue(Files.isRegularFile(j.resolve("grind")))
         val build = Files.readString(j.resolve("build.gradle.kts"))
         assertTrue(build.contains("org.konaframework:kona-http:9.9.9"))
@@ -330,7 +330,7 @@ class CliTest {
     @Test
     fun skeletonAndVersionErrors() {
         assertThrows(KonaCliException::class.java) {
-            NewCommand().run(listOf(temp.resolve("x").toString(), "--lang=ruby"))
+            NewCommand().run(listOf(temp.resolve("x").toString(), "--lang=ruby", "--no-interaction"))
         }
         val target = temp.resolve("broken")
         Files.createDirectories(target)
@@ -343,7 +343,7 @@ class CliTest {
         assertThrows(KonaCliException::class.java) { KonaVersions.load("org/konaframework/cli/missing.properties") }
         val custom = NewCommand(KonaVersions("1.2.3", "2.0.0"))
         val app = temp.resolve("custom")
-        assertEquals(0, custom.run(listOf(app.toString())))
+        assertEquals(0, custom.run(listOf(app.toString(), "--no-interaction")))
         assertTrue(Files.readString(app.resolve("build.gradle.kts")).contains("kona-http:1.2.3"))
     }
 
@@ -358,7 +358,7 @@ class CliTest {
     @Test
     fun starterKitsOverlayFiles() {
         val crema = temp.resolve("crema-app")
-        assertEquals(0, NewCommand().run(listOf(crema.toString(), "--kit=crema")))
+        assertEquals(0, NewCommand().run(listOf(crema.toString(), "--kit=crema", "--no-interaction")))
         assertTrue(Files.readString(crema.resolve("build.gradle.kts")).contains("kona-crema"))
         assertTrue(Files.readString(crema.resolve("build.gradle.kts")).contains("org.xerial:sqlite-jdbc"))
         assertTrue(Files.isRegularFile(crema.resolve("src/main/resources/views/welcome.crema.html")))
@@ -366,7 +366,7 @@ class CliTest {
         assertTrue(Files.readString(crema.resolve("README.md")).contains("Crema"))
 
         val inertia = temp.resolve("inertia-app")
-        assertEquals(0, NewCommand().run(listOf(inertia.toString(), "--preset=inertia", "--lang=kotlin")))
+        assertEquals(0, NewCommand().run(listOf(inertia.toString(), "--preset=inertia", "--lang=kotlin", "--no-interaction")))
         assertTrue(Files.readString(inertia.resolve("build.gradle.kts")).contains("kona-inertia"))
         assertTrue(Files.readString(inertia.resolve("build.gradle.kts")).contains("org.xerial:sqlite-jdbc"))
         assertTrue(Files.isRegularFile(inertia.resolve("package.json")))
@@ -387,7 +387,7 @@ class CliTest {
         )
 
         val brew = temp.resolve("brew-app")
-        assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew")))
+        assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew", "--no-interaction")))
         assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-brew"))
         assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("org.xerial:sqlite-jdbc"))
         assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
@@ -408,7 +408,7 @@ class CliTest {
         assertTrue(Files.isRegularFile(brew.resolve("src/main/resources/views/login.crema.html")))
 
         val brewJava = temp.resolve("brew-java-app")
-        assertEquals(0, NewCommand().run(listOf(brewJava.toString(), "--kit=brew", "--lang=java")))
+        assertEquals(0, NewCommand().run(listOf(brewJava.toString(), "--kit=brew", "--lang=java", "--no-interaction")))
         assertTrue(Files.isRegularFile(brewJava.resolve("src/main/java/app/brew/Counter.java")))
         assertTrue(
             Files.readString(brewJava.resolve("src/main/resources/views/welcome.crema.html"))
@@ -416,13 +416,16 @@ class CliTest {
         )
 
         val javaInertia = temp.resolve("java-inertia")
-        assertEquals(0, NewCommand().run(listOf(javaInertia.toString(), "--lang=java", "--kit=inertia")))
+        assertEquals(0, NewCommand().run(listOf(javaInertia.toString(), "--lang=java", "--kit=inertia", "--no-interaction")))
         assertTrue(Files.readString(javaInertia.resolve("build.gradle.kts")).contains("kona-inertia"))
         assertTrue(Files.isRegularFile(javaInertia.resolve("src/main/java/app/http/middleware/HandleInertia.java")))
 
-        assertEquals(1, KonaApplication().run(arrayOf("new", temp.resolve("badkit").toString(), "--kit=nope")))
+        assertEquals(
+            1,
+            KonaApplication().run(arrayOf("new", temp.resolve("badkit").toString(), "--kit=nope", "--no-interaction")),
+        )
         assertThrows(KonaCliException::class.java) {
-            NewCommand().run(listOf(temp.resolve("x").toString(), "--preset=rails"))
+            NewCommand().run(listOf(temp.resolve("x").toString(), "--preset=rails", "--no-interaction"))
         }
         assertThrows(KonaCliException::class.java) {
             NewCommand().applyKit("kotlin", "nope", temp.resolve("z"), emptyMap())
@@ -432,7 +435,7 @@ class CliTest {
         Files.createDirectories(emptyOverlay)
         NewCommand().overlayKit("missing-kit", "kotlin", emptyOverlay, emptyMap())
         NewCommand().overlayKit("crema", "ruby", emptyOverlay, emptyMap())
-        assertEquals(0, NewCommand().run(listOf(temp.resolve("api-explicit").toString(), "--kit=api")))
+        assertEquals(0, NewCommand().run(listOf(temp.resolve("api-explicit").toString(), "--kit=api", "--no-interaction")))
         val apiApp = temp.resolve("api-explicit")
         assertFalse(Files.readString(apiApp.resolve("build.gradle.kts")).contains("kona-crema"))
         assertFalse(Files.exists(apiApp.resolve("src/main/resources/views/welcome.crema.html")))
@@ -443,7 +446,7 @@ class CliTest {
         )
 
         val webExplicit = temp.resolve("web-explicit")
-        assertEquals(0, NewCommand().run(listOf(webExplicit.toString(), "--kit=web")))
+        assertEquals(0, NewCommand().run(listOf(webExplicit.toString(), "--kit=web", "--no-interaction")))
         assertTrue(Files.isRegularFile(webExplicit.resolve("src/main/resources/views/welcome.crema.html")))
         assertTrue(Files.isRegularFile(webExplicit.resolve("src/main/resources/views/dashboard.crema.html")))
         assertTrue(

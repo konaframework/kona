@@ -27,7 +27,7 @@ class GeneratedAppBuildTest {
     fun kotlinAppBuildsAndServes() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
         val app = temp.resolve("hello-kt")
-        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin")))
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--no-interaction")))
 
         val port = freePort()
         var spawnedBody = ""
@@ -55,7 +55,7 @@ class GeneratedAppBuildTest {
     fun javaAppBuildsAndServes() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
         val app = temp.resolve("hello-java")
-        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=java")))
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=java", "--no-interaction")))
         assertEquals(0, GrindApplication().run(arrayOf("make:controller", "Post", "--base=$app")))
         gradle(app, "classes")
         assertTrue(Files.isRegularFile(app.resolve("build/classes/java/main/bootstrap/App.class")))
@@ -67,7 +67,7 @@ class GeneratedAppBuildTest {
     fun cremaKitServesHtmlWelcome() {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
         val app = temp.resolve("crema-kt")
-        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=crema")))
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=crema", "--no-interaction")))
         gradle(app, "classes")
         assertServesInProcess(app)
     }
@@ -80,7 +80,7 @@ class GeneratedAppBuildTest {
             "need kona-brew on Maven Central / mavenLocal, or KONA_HOME for includeBuild",
         )
         val app = temp.resolve("brew-kt")
-        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=brew")))
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=brew", "--no-interaction")))
         gradle(app, "classes")
         assertServesInProcess(app)
     }
@@ -93,7 +93,7 @@ class GeneratedAppBuildTest {
             "need kona-inertia on Maven Central / mavenLocal, or KONA_HOME for includeBuild",
         )
         val app = temp.resolve("inertia-kt")
-        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=inertia")))
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=inertia", "--no-interaction")))
         gradle(app, "classes")
         val port = freePort()
         var home = ""

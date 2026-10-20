@@ -21,7 +21,10 @@ class CliJavaTest {
         assertThrows(KonaCliException.class, () -> KonaVersions.load("org/konaframework/cli/absent.properties"));
 
         Path app = temp.resolve("javaapp");
-        assertEquals(0, new KonaApplication().run(new String[] {"new", app.toString(), "--lang=java"}));
+        assertEquals(
+            0,
+            new KonaApplication()
+                .run(new String[] {"new", app.toString(), "--lang=java", "--no-interaction"}));
         String build = Files.readString(app.resolve("build.gradle.kts"));
         assertTrue(build.contains("org.konaframework:kona-http:" + versions.getKona()));
         assertTrue(build.contains("org.xerial:sqlite-jdbc"));
@@ -102,5 +105,28 @@ class CliJavaTest {
         new NewCommand(versions, io, prompts, runner);
         new NewCommand(versions, io, prompts, runner, false);
         new NewCommand(versions, io, prompts, runner, false, false);
+        new NewCommand(
+            versions, io, prompts, runner, true, false, java.util.Map.of());
+    }
+
+    @Test
+    void unreadableStdinErrorsFromJava() {
+        Path dest = temp.resolve("from-java");
+        NewCommand cmd =
+            new NewCommand(
+                new KonaVersions("0.0.0-test", "2.0.0"),
+                new org.konaframework.support.console.ConsoleIO(),
+                new InstallerPrompts(
+                    new java.io.ByteArrayInputStream(new byte[0]),
+                    new java.io.PrintStream(new java.io.ByteArrayOutputStream()),
+                    false),
+                (command, dir) -> 0,
+                true,
+                false,
+                java.util.Map.of());
+        KonaCliException ex =
+            assertThrows(KonaCliException.class, () -> cmd.run(java.util.List.of(dest.toString())));
+        assertTrue(ex.getMessage().contains("Cannot read stdin"));
+        assertTrue(ex.getMessage().contains("--no-interaction"));
     }
 }

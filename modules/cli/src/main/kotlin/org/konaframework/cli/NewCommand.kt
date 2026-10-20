@@ -7,8 +7,10 @@ import java.nio.file.Path
 /**
  * `kona new [name]` — scaffolds a self-contained Gradle application with a local `./grind` CLI.
  *
- * Interactive when run on a TTY with no `--no-interaction`. Flags skip the matching prompt.
- * Kits (`--kit` / `--preset`): `web` (default), `api`, `crema` (alias of `web`), `inertia`, `brew`.
+ * Always interactive unless `--no-interaction` / `--no-interactive` / `--yes` or `CI=true`.
+ * Missing `System.console()` is **not** treated as non-interactive (IDE terminals, Gradle
+ * launchers). Flags skip only the matching prompt. Kits (`--kit` / `--preset`): `web`
+ * (default), `api`, `crema` (alias of `web`), `inertia`, `brew`.
  */
 class NewCommand
 @JvmOverloads
@@ -17,12 +19,13 @@ constructor(
     private val io: ConsoleIO = ConsoleIO(),
     private val prompts: InstallerPrompts = InstallerPrompts(),
     private val runner: GrindProcessRunner = GrindProcessRunner.SYSTEM,
-    private val interactive: Boolean = defaultInteractive(),
+    private val interactive: Boolean = true,
     private val windows: Boolean = defaultWindows(),
+    private val env: Map<String, String> = System.getenv(),
 ) {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
-        val canPrompt = wantsInteraction(options, interactive)
+        val canPrompt = wantsInteraction(options, env, interactive)
         val plan = resolveNewPlan(positional, options, canPrompt, prompts, io) ?: return 1
         val target = plan.directory
         if (Files.exists(target)) {
@@ -294,8 +297,6 @@ constructor(
         }
 
     companion object {
-        internal fun defaultInteractive(console: Any? = System.console()): Boolean = console != null
-
         internal fun defaultWindows(osName: String? = System.getProperty("os.name")): Boolean =
             (osName ?: "").startsWith("Windows")
 

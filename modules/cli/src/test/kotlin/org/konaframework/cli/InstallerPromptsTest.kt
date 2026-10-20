@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
 import java.io.PrintStream
 
 class InstallerPromptsTest {
@@ -24,11 +26,21 @@ class InstallerPromptsTest {
         val stream = PrintStream(out)
         InstallerPrompts(empty)
         val eof = InstallerPrompts(ByteArrayInputStream(ByteArray(0)), stream)
-        assertEquals("", eof.ask("Where?"))
+        val eofAsk = assertThrows(KonaCliException::class.java) { eof.ask("Where?") }
+        assertEquals(STDIN_UNREADABLE, eofAsk.message)
         val eof2 = InstallerPrompts(ByteArrayInputStream(ByteArray(0)), stream, false)
-        assertFalse(eof2.confirm("Go?"))
-        assertEquals("Vue", eof2.choice("Pick", listOf("Vue", "React")))
+        val eofConfirm = assertThrows(KonaCliException::class.java) { eof2.confirm("Go?") }
+        assertEquals(STDIN_UNREADABLE, eofConfirm.message)
+        val eof3 = InstallerPrompts(ByteArrayInputStream(ByteArray(0)), stream, false)
+        val eofChoice = assertThrows(KonaCliException::class.java) { eof3.choice("Pick", listOf("Vue", "React")) }
+        assertEquals(STDIN_UNREADABLE, eofChoice.message)
         assertFalse(InstallerPrompts(ByteArrayInputStream("\n".toByteArray()), stream, false).confirm("OnlyQ"))
+        val throwing = object : InputStream() {
+            override fun read(): Int = throw IOException("closed")
+        }
+        val broken = InstallerPrompts(throwing, stream, false)
+        val ioEx = assertThrows(KonaCliException::class.java) { broken.ask("Q", "d") }
+        assertEquals(STDIN_UNREADABLE, ioEx.message)
     }
 
     @Test

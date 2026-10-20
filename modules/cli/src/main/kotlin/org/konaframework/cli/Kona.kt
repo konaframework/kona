@@ -53,13 +53,13 @@ class KonaApplication {
             ),
         )
         io.title("Commands")
-        io.twoColumn("new [name]", "Interactive installer, or pass flags to skip prompts")
+        io.twoColumn("new [name]", "Interactive installer (no args always prompts)")
         io.twoColumn("grind <command>", "Proxy to the nearest app's ./grind")
         io.twoColumn("version", "Print kona version")
         io.twoColumn("help", "Show this help")
         io.writeln()
         io.info("Kits: web (default), api, crema, inertia, brew")
-        io.info("new flags: --lang --kit --css --frontend --name --database --install-deps --migrate --seed --no-interaction")
+        io.info("new flags: --lang --kit --css --frontend --name --database --install-deps --migrate --seed --no-interaction --yes")
         io.info("Packages: kona grind install <alias>  (or ./grind install)")
         io.outro("https://docs.konaframework.org")
     }
