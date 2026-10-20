@@ -42,7 +42,7 @@ Everything application-owned lives under `src/main` (plus project-root `storage/
 | `src/main/…/app/providers/` | Your service provider |
 | `src/main/…/app/http/controllers/` | Controllers (`Welcome`, `Login`, `Dashboard`, `api/User`) |
 | `src/main/…/app/models/User` | Cadence user (session auth + JSON API) |
-| `src/main/…/database/migrations/` | `CreateUsersTable` (listed in `META-INF/kona/migrations`) |
+| `src/main/…/database/migrations/` | `2000_01_01_000000_create_users_table` (class `CreateUsersTable`, listed in `META-INF/kona/migrations`) |
 | `src/main/…/database/seeders/DatabaseSeeder` | Demo user for local login |
 | `src/main/…/routes/WebRoutes` + `ApiRoutes` | Web (`/`, `/login`, `/dashboard`) and `/api` route tables |
 | `src/main/resources/config/` | JSON config (`app`, `http`, `paths`, `session`) |
@@ -69,7 +69,7 @@ Defaults follow the tree above; override with `paths.*` keys in `config/Paths` (
 
 ## Migrate, seed, and serve
 
-Web kits ship a Cadence `User` model, `CreateUsersTable` migration, and a demo seeder:
+Web kits ship a Cadence `User` model, a `2000_01_01_000000_create_users_table` migration (class `CreateUsersTable`), and a demo seeder:
 
 ```bash
 ./grind migrate --seed

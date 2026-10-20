@@ -296,7 +296,7 @@ class NewCommand(
                 "$root/app/http/controllers/WelcomeController.$ext.txt",
                 "$root/app/http/controllers/api/UserController.$ext.txt",
                 "$root/app/models/User.$ext.txt",
-                "$root/database/migrations/CreateUsersTable.$ext.txt",
+                "$root/database/migrations/2000_01_01_000000_create_users_table.$ext.txt",
                 "$root/database/seeders/DatabaseSeeder.$ext.txt",
                 "$root/routes/WebRoutes.$ext.txt",
                 "$root/routes/ApiRoutes.$ext.txt",

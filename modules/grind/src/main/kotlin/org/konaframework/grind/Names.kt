@@ -33,8 +33,7 @@ internal object Names {
             )
         }
         val snake = snake(rest)
-        val descriptive = if (rest.first().isUpperCase()) rest else studly(snake)
-        return MigrationName(stamp, descriptive, snake)
+        return MigrationName(stamp, studly(snake), snake)
     }
 
     /** PascalCase / camelCase / snake_case → snake_case. */

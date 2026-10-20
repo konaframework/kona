@@ -13,11 +13,13 @@ import java.time.temporal.ChronoUnit
 /**
  * `grind make:migration <name> [--create=table] [--table=table] [--lang=kotlin|java]`.
  *
- * [name] may be snake_case (`create_flights_table`) or PascalCase (`CreateFlightsTable`),
- * optionally prefixed with a UTC stamp (`2026_10_20_141530_…` or `M2026_10_20_141530_…`).
+ * [name] may be snake_case (`create_flights_table`) or PascalCase (`CreateFlightsTable`).
+ * You do not type a timestamp — grind prefixes the **file** with UTC `yyyy_MM_dd_HHmmss`.
+ * The JVM **class** stays PascalCase (`CreateFlightsTable`) so editors do not flag
+ * underscores. Optional `{stamp}_` / `M{stamp}_` prefixes are still accepted.
  *
- * Writes `database/migrations/M{yyyy_MM_dd_HHmmss}_{DescriptiveName}` and appends the FQCN to
- * `META-INF/kona/migrations`. The stamp is the run order [Migrator] uses.
+ * Writes `database/migrations/{stamp}_{snake_name}` and appends the class FQCN to
+ * `META-INF/kona/migrations`. The file stem is the run order [org.konaframework.cadence.migrations.Migrator] uses.
  */
 class MakeMigrationCommand @JvmOverloads constructor(
     private val clock: Clock = Clock.systemUTC(),
@@ -31,38 +33,57 @@ class MakeMigrationCommand @JvmOverloads constructor(
         val base = Names.base(options)
         val lang = Names.lang(base, options)
         val (mode, table) = plan(parsed.snake, options)
-        val className = nextClassName(base, lang, parsed.descriptive, parsed.timestamp)
-        write(base, className, lang, mode, table)
+        write(base, parsed.descriptive, lang, mode, table, parsed.snake, parsed.timestamp)
         return 0
     }
 
-    internal fun write(base: Path, className: String, lang: String, mode: Mode, table: String?) {
-        val resolved = if (MigrationOrder.timestampOf(className) != null) {
-            className
-        } else {
-            nextClassName(base, lang, className, null)
+    internal fun write(
+        base: Path,
+        className: String,
+        lang: String,
+        mode: Mode,
+        table: String?,
+        snake: String = Names.snake(className),
+        startTimestamp: String? = null,
+    ) {
+        if (classDefined(base, lang, className)) {
+            throw GrindException("Migration class $className already exists")
         }
+        val stem = nextFileStem(base, lang, snake, startTimestamp)
         Names.write(
             base,
-            Names.sourceFile(lang, "database/migrations", resolved),
+            Names.sourceFile(lang, "database/migrations", stem),
             "Migration",
-            if (lang == "java") javaStub(resolved, mode, table) else kotlinStub(resolved, mode, table),
+            if (lang == "java") javaStub(className, stem, mode, table) else kotlinStub(className, stem, mode, table),
         )
-        appendDiscovery(base, "database.migrations.$resolved")
+        appendDiscovery(base, "database.migrations.$className")
     }
 
     internal enum class Mode { CREATE, ALTER, BLANK }
 
-    internal fun nextClassName(base: Path, lang: String, descriptive: String, startTimestamp: String?): String {
+    internal fun nextFileStem(base: Path, lang: String, snake: String, startTimestamp: String?): String {
         var instant = startInstant(startTimestamp)
         val destDir = base.resolve(Names.languageRoot(lang)).resolve("database/migrations")
         while (true) {
-            val className = MigrationOrder.className(MigrationOrder.format(instant), descriptive)
-            val dest = destDir.resolve("${className}.${Names.extension(lang)}")
+            val stem = MigrationOrder.fileStem(MigrationOrder.format(instant), snake)
+            val dest = destDir.resolve("${stem}.${Names.extension(lang)}")
             if (!Files.exists(dest)) {
-                return className
+                return stem
             }
             instant = instant.plusSeconds(1)
+        }
+    }
+
+    private fun classDefined(base: Path, lang: String, className: String): Boolean {
+        val dir = base.resolve(Names.languageRoot(lang)).resolve("database/migrations")
+        if (!Files.isDirectory(dir)) {
+            return false
+        }
+        val pattern = Regex("""(?:public\s+|internal\s+)?class\s+${Regex.escape(className)}\b""")
+        Files.list(dir).use { stream ->
+            return stream
+                .filter { it.fileName.toString().endsWith(".${Names.extension(lang)}") }
+                .anyMatch { pattern.containsMatchIn(Files.readString(it)) }
         }
     }
 
@@ -103,7 +124,7 @@ class MakeMigrationCommand @JvmOverloads constructor(
         GrindIO(color = GrindIO.detectColor()).info("Registered in ${MigrationDiscovery.RESOURCE}")
     }
 
-    private fun kotlinStub(className: String, mode: Mode, table: String?): String {
+    private fun kotlinStub(className: String, stem: String, mode: Mode, table: String?): String {
         val (up, down) = when (mode) {
             Mode.CREATE -> listOf("schema.create(\"$table\") {", "    id()", "    timestamps()", "}") to
                 listOf("schema.dropIfExists(\"$table\")")
@@ -115,14 +136,16 @@ class MakeMigrationCommand @JvmOverloads constructor(
             "package database.migrations",
             "",
             "import org.konaframework.cadence.migrations.Migration",
+            "import org.konaframework.cadence.migrations.MigrationName",
             "import org.konaframework.cadence.schema.Schema",
             "",
+            "@MigrationName(\"$stem\")",
             "class $className : Migration {",
             "    override fun up(schema: Schema) {",
         ) + body(up) + lines("    }", "", "    override fun down(schema: Schema) {") + body(down) + lines("    }", "}")
     }
 
-    private fun javaStub(className: String, mode: Mode, table: String?): String {
+    private fun javaStub(className: String, stem: String, mode: Mode, table: String?): String {
         val (up, down) = when (mode) {
             Mode.CREATE -> listOf("schema.create(\"$table\", table -> {", "    table.id();", "    table.timestamps();", "});") to
                 listOf("schema.dropIfExists(\"$table\");")
@@ -134,9 +157,11 @@ class MakeMigrationCommand @JvmOverloads constructor(
             "package database.migrations;",
             "",
             "import org.konaframework.cadence.migrations.Migration;",
+            "import org.konaframework.cadence.migrations.MigrationName;",
             "import org.konaframework.cadence.schema.Schema;",
             "",
-            "public class $className implements Migration {",
+            "@MigrationName(\"$stem\")",
+            "class $className implements Migration {",
             "    @Override",
             "    public void up(Schema schema) {",
         ) + body(up) + lines("    }", "", "    @Override", "    public void down(Schema schema) {") + body(down) +

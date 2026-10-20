@@ -8,8 +8,9 @@ import java.io.InputStreamReader
  *
  * `grind make:migration` / `make:model -m` append each new class here so
  * `./grind migrate` runs them without a manual [MigrationRegistry] bind.
- * Loaded names are sorted by [MigrationOrder] so timestamped classes run in
- * stamp order even when the file's line order is scrambled.
+ * [MigrationRegistry] sorts by [MigrationOrder] using each class's
+ * [MigrationName] (file stem) or legacy timestamped class name, so run order
+ * does not depend on how lines happen to be listed here.
  */
 object MigrationDiscovery {
     const val RESOURCE: String = "META-INF/kona/migrations"
@@ -30,15 +31,22 @@ object MigrationDiscovery {
         return MigrationOrder.sort(names.toList())
     }
 
-    fun loadMigrations(loader: ClassLoader): List<Migration> =
-        classNames(loader).map { name ->
-            val type = Class.forName(name, true, loader)
-            require(Migration::class.java.isAssignableFrom(type)) {
-                "Migration [$name] must implement Migration"
-            }
-            @Suppress("UNCHECKED_CAST")
-            (type as Class<out Migration>).getDeclaredConstructor().newInstance()
+    fun loadMigrations(loader: ClassLoader): List<Migration> {
+        val loaded = classNames(loader).map { name -> instantiate(name, loader) }
+        val byName = loaded.associateBy { MigrationOrder.recordedName(it) }
+        return MigrationOrder.sort(byName.keys.toList()).map { byName.getValue(it) }
+    }
+
+    internal fun instantiate(name: String, loader: ClassLoader): Migration {
+        val type = Class.forName(name, true, loader)
+        require(Migration::class.java.isAssignableFrom(type)) {
+            "Migration [$name] must implement Migration"
         }
+        val constructor = type.getDeclaredConstructor()
+        constructor.trySetAccessible()
+        @Suppress("UNCHECKED_CAST")
+        return (constructor.newInstance() as Migration)
+    }
 
     fun loadRegistry(loader: ClassLoader): MigrationRegistry {
         val registry = MigrationRegistry()

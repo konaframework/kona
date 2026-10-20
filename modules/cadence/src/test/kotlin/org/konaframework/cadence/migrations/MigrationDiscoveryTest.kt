@@ -64,6 +64,43 @@ class MigrationDiscoveryTest {
     }
 
     @Test
+    fun sortsAnnotatedFileStemsAndLoadsPackagePrivateJava() {
+        val meta = temp.resolve("META-INF/kona")
+        Files.createDirectories(meta)
+        Files.writeString(
+            meta.resolve("migrations"),
+            """
+            ${AnnotatedLater::class.java.name}
+            org.konaframework.cadence.migrations.hidden.PackagePrivateMigration
+            ${AnnotatedEarlier::class.java.name}
+            """.trimIndent() + "\n",
+        )
+        val loader = URLClassLoader(arrayOf(temp.toUri().toURL()), javaClass.classLoader)
+        assertEquals(
+            listOf(
+                "2026_10_20_090000_package_private",
+                "2026_10_20_110000_create_flights_table",
+                "2026_10_20_120000_create_posts_table",
+            ),
+            MigrationDiscovery.loadRegistry(loader).names,
+        )
+        val loaded = MigrationDiscovery.loadMigrations(loader)
+        assertEquals(
+            listOf(
+                "2026_10_20_090000_package_private",
+                "2026_10_20_110000_create_flights_table",
+                "2026_10_20_120000_create_posts_table",
+            ),
+            loaded.map { MigrationOrder.recordedName(it) },
+        )
+        val javaMigration = MigrationDiscovery.instantiate(
+            "org.konaframework.cadence.migrations.hidden.PackagePrivateMigration",
+            javaClass.classLoader,
+        )
+        assertEquals("2026_10_20_090000_package_private", MigrationOrder.recordedName(javaMigration))
+    }
+
+    @Test
     fun rejectsNonMigrationClasses() {
         val meta = temp.resolve("META-INF/kona")
         Files.createDirectories(meta)
@@ -97,6 +134,18 @@ class MigrationDiscoveryTest {
     }
 
     class M2026_10_20_110000_Earlier : Migration {
+        override fun up(schema: Schema) {}
+        override fun down(schema: Schema) {}
+    }
+
+    @MigrationName("2026_10_20_120000_create_posts_table")
+    class AnnotatedLater : Migration {
+        override fun up(schema: Schema) {}
+        override fun down(schema: Schema) {}
+    }
+
+    @MigrationName("2026_10_20_110000_create_flights_table")
+    class AnnotatedEarlier : Migration {
         override fun up(schema: Schema) {}
         override fun down(schema: Schema) {}
     }
