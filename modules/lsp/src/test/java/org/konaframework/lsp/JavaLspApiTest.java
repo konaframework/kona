@@ -29,6 +29,15 @@ class JavaLspApiTest {
                 CremaAnalyzer.completions("@js", 0, 3);
         assertTrue(items.stream().anyMatch(i -> i.getLabel().equals("@json")));
 
+        assertTrue(
+                CremaEchoCatalog.completions("ur").stream()
+                        .anyMatch(i -> i.getName().equals("url")));
+        List<CremaAnalyzer.CompletionItem> echoItems =
+                CremaAnalyzer.completions("{{ ur", 0, 5);
+        assertEquals(1, echoItems.size());
+        assertEquals("url", echoItems.get(0).getLabel());
+        assertEquals("url('')", echoItems.get(0).getInsertText());
+
         String javaSrc =
                 "public class Counter {\n"
                         + "  public int count = 0;\n"

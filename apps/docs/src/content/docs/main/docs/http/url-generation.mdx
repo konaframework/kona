@@ -186,6 +186,18 @@ router.get("/downloads/report", request -> Response.download(reportBytes, "repor
 | `Url.route(name, params)` | Absolute/rooted named URL |
 | `Url.to(path)` / `Url.url(path)` | Join path onto root |
 | Kotlin `route(...)` / `url(...)` | Top-level wrappers |
+| Crema `{{ url(path) }}` / `{{ route(name) }}` / `{{ asset(path) }}` | Same generators, evaluated in the view |
+
+## In Crema views
+
+Every in-app `href`, `src`, and `action` in a Crema template goes through `url()`, `route()`, or `asset()`. Hardcoded `src="/branding/kona-logo.svg"` ignores `APP_URL` and always hits the host root. Starters from `kona new` already emit:
+
+```crema
+<img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+<a href="{{ url('/login') }}">Log in</a>
+```
+
+`url(path)` calls `Url.url` when a generator is installed (the HTTP kernel does this on boot). Without a generator it still emits a rooted path so the markup is valid in tests. Full helper table: [Rendering & data](/docs/crema/rendering/#echo-helpers). IntelliJ completes `url` inside `{{ }}` — see [IntelliJ](/docs/language/intellij/).
 
 ## Common use cases
 

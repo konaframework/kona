@@ -41,7 +41,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
 | Docs versions | `starlight-versions`: **`{major}.x (Latest)`** (default current from `kona.version`), **Dev** (`main` tip archive) |
 | Docs i18n | Root English; locales `es` / `fr` / `zh-cn` (Introduction + Installation translated; else EN fallback) |
-| LSP | `kona-lsp` completes Crema `@` + Brew `wire:*` (IDEA-aligned list) |
+| LSP | `kona-lsp` completes Crema `@`, Brew `wire:*`, and echo helpers inside `{{ }}` (IDEA-aligned `CremaEchoCatalog`) |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Continue deepen / docs exhaustion; do not pause between merges |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |

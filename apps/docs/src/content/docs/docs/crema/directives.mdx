@@ -11,6 +11,10 @@ Quick lookup for Crema syntax. For explanations and full examples, follow the â€
 |--------|---------|-------|
 | `{{ expr }}` | Escaped output | [Rendering](/docs/crema/rendering/) |
 | `{!! expr !!}` | Raw HTML output | [Rendering](/docs/crema/rendering/) |
+| `{{ url(path) }}` / `{{ route(name) }}` / `{{ asset(path) }}` | App / named / public URLs | [Rendering](/docs/crema/rendering/#echo-helpers) |
+| `{{ csrf_token() }}` / `{{ old(key) }}` | CSRF token / flashed input | [Rendering](/docs/crema/rendering/#echo-helpers) |
+| `{{ env(key) }}` / `{{ config(key) }}` | Environment / config | [Rendering](/docs/crema/rendering/#echo-helpers) |
+| `{{ trans(key) }}` / `{{ __(key) }}` / `{{ lang(key) }}` | Translation | [Rendering](/docs/crema/rendering/#echo-helpers) |
 | `@@` | Literal `@` | [Rendering](/docs/crema/rendering/) |
 | `{{-- â€¦ --}}` | Comment (stripped) | [Rendering](/docs/crema/rendering/) |
 

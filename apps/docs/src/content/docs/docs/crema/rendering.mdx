@@ -93,7 +93,7 @@ Echoes and most directive arguments accept a small expression language:
 | Literals | `true`, `false`, `null` / `nil`, `42`, `3.5`, `'string'`, `"string"` |
 | Comparisons | `==`, `!=`, `<`, `>`, `<=`, `>=` (numbers compare numerically; otherwise stringified) |
 | Logic | `and`, `or`, `not …`, `!…` |
-| Helpers | `isset(name)`, `empty(name)` |
+| Helpers | `isset(name)`, `empty(name)`, `url(path)`, `route(name)`, `asset(path)`, `csrf_token()`, `old(key)`, `env(key)`, `config(key)`, `trans(key)` / `__(key)` / `lang(key)` |
 | Paths | `user.name`, `errors.email` |
 
 ```crema
@@ -109,7 +109,44 @@ Echoes and most directive arguments accept a small expression language:
 
 `isset(path)` is true when the resolved value is non-null. `empty(path)` is true when the value is not truthy (see [truthiness](/docs/crema/control-structures/#truthiness)).
 
-There is no arbitrary code execution in templates — only this expression subset and property access.
+There is no arbitrary code execution in templates — only this expression subset, the echo helpers below, and property access.
+
+## Echo helpers
+
+Call these by name inside `{{ }}` or `{!! !!}`. Arguments are ordinary Crema expressions (string literals, paths, nested helper calls). IntelliJ and kona-lsp complete the full list as you type.
+
+Write **every** in-app URL through `url(...)` (or `route(...)` / `asset(...)`). A hardcoded `src="/branding/kona-logo.svg"` always hits the host root and ignores `APP_URL`. `kona new` starters already use the helper:
+
+```crema
+<img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+<a href="{{ url('/login') }}">Log in</a>
+<form method="post" action="{{ url('/logout') }}">
+```
+
+| Helper | Result |
+|--------|--------|
+| `url(path)` | Join `path` onto the app root (`Url.url` / `APP_URL`). Absolute `http://` / `https://` values pass through. Missing generator → a rooted path (`/branding/…`). Empty path → `/`. |
+| `route(name)` | Named route URL (`Url.route`). Unknown name or missing generator → a rooted path from the name. Empty name → empty string. |
+| `asset(path)` | Public asset URL. Leading slashes are trimmed. Prefix with `asset_url` or `assetUrl` in the data map for a CDN; otherwise `/path`. |
+| `csrf_token()` | Session CSRF token from `_token` or `csrf_token` in the data map. |
+| `old(key)` / `old(key, default)` | Flashed old input from `old`, `_old_input`, or `oldInput`. |
+| `env(key)` / `env(key, default)` | Environment value (`Env.get`). |
+| `config(key)` | Config value from the booted application (`Kona.app().config`). Missing app or key → empty when echoed. |
+| `trans(key)` / `__(key)` / `lang(key)` | Translation string (`Lang.get`). `lang` prefers a `lang` map in the view data when present. Optional second argument is a replacement map (`:name` placeholders). |
+
+Conventional variables the engine (or your controller) may put in the data map, also offered in completion: `errors`, `user`, `auth_user`, `_token`, `asset_url`, `slot`, and `loop` / `loop.index` / `loop.iteration` / `loop.first` / `loop.last` / `loop.even` / `loop.odd` / `loop.count` / `loop.remaining` / `loop.depth` / `loop.parent`. See [Loop metadata](/docs/crema/control-structures/#loop-metadata).
+
+```crema
+{{ url('/dashboard') }}
+{{ route('login') }}
+{{ asset('css/app.css') }}
+{{ csrf_token() }}
+<input value="{{ old('email') }}" />
+{{ config('app.name') }}
+{{ trans('messages.welcome') }}
+```
+
+The `@asset`, `@csrf`, `@lang`, and `@json` **directives** remain available; use the echo helpers when the value belongs in an attribute or mixed markup. See [URL generation](/docs/http/url-generation/) for `Url` / `route()` / `url()` in Kotlin and Java.
 
 ## `@json`
 
