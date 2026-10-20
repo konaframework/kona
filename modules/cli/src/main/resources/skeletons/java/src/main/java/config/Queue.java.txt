@@ -1,0 +1,120 @@
+package config;
+
+import org.konaframework.core.ConfigFile;
+import org.konaframework.core.Env;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * Queue connections ({@code config/queue.php} shape).
+ *
+ * <p>Supported drivers: {@code sync}, {@code array} / {@code memory}, {@code database}, {@code redis}.
+ */
+public final class Queue implements ConfigFile {
+    @Override
+    public String key() {
+        return "queue";
+    }
+
+    @Override
+    public Map<String, Object> config() {
+        Map<String, Object> sync = new LinkedHashMap<>();
+        sync.put("driver", "sync");
+
+        Map<String, Object> array = new LinkedHashMap<>();
+        array.put("driver", "array");
+
+        Map<String, Object> database = new LinkedHashMap<>();
+        database.put("driver", "database");
+        database.put("table", Env.getOrDefault("DB_QUEUE_TABLE", "jobs"));
+        database.put("queue", Env.getOrDefault("DB_QUEUE", "default"));
+        database.put("retry_after", envInt("DB_QUEUE_RETRY_AFTER", 90));
+
+        Map<String, Object> redis = new LinkedHashMap<>();
+        redis.put("driver", "redis");
+        redis.put("connection", Env.getOrDefault("REDIS_QUEUE_CONNECTION", "default"));
+        redis.put("queue", Env.getOrDefault("REDIS_QUEUE", "default"));
+        redis.put("retry_after", envInt("REDIS_QUEUE_RETRY_AFTER", 90));
+
+        Map<String, Object> connections = new LinkedHashMap<>();
+        connections.put("sync", sync);
+        connections.put("array", array);
+        connections.put("database", database);
+        connections.put("redis", redis);
+
+        Map<String, Object> batching = new LinkedHashMap<>();
+        batching.put("database", Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"));
+        batching.put("table", Env.getOrDefault("QUEUE_BATCH_TABLE", "job_batches"));
+
+        Map<String, Object> batch = new LinkedHashMap<>();
+        batch.put("driver", Env.getOrDefault("QUEUE_BATCH_DRIVER", "array"));
+        batch.put("table", Env.getOrDefault("QUEUE_BATCH_TABLE", "job_batches"));
+
+        Map<String, Object> failed = new LinkedHashMap<>();
+        failed.put("driver", Env.getOrDefault("QUEUE_FAILED_DRIVER", "memory"));
+        failed.put("database", Env.getOrDefault("DB_CONNECTION", "{{dbConnection}}"));
+        failed.put("table", Env.getOrDefault("QUEUE_FAILED_TABLE", "failed_jobs"));
+        failed.put("path", Env.getOrDefault("QUEUE_FAILED_PATH", "storage/framework/failed_jobs.json"));
+
+        Map<String, Object> values = new LinkedHashMap<>();
+        /*
+        |--------------------------------------------------------------------------
+        | Default Queue Connection Name
+        |--------------------------------------------------------------------------
+        |
+        | Kona's queue supports several backends via a single API. The default
+        | connection is defined below. `sync` runs jobs immediately in-process.
+        |
+        */
+        values.put("default", Env.getOrDefault("QUEUE_CONNECTION", "sync"));
+
+        /*
+        |--------------------------------------------------------------------------
+        | Queue Connections
+        |--------------------------------------------------------------------------
+        |
+        | Here you may configure the connection options for every queue backend
+        | used by your application. An example configuration is provided for
+        | each backend supported by Kona.
+        |
+        | Drivers: "sync", "array", "memory", "database", "redis"
+        |
+        */
+        values.put("connections", connections);
+        values.put("prefix", Env.getOrDefault("QUEUE_PREFIX", "kona_queues:"));
+
+        /*
+        |--------------------------------------------------------------------------
+        | Job Batching
+        |--------------------------------------------------------------------------
+        |
+        | The following options configure the table that stores job batching
+        | information (`queue.batch.*` is what the QueueServiceProvider reads).
+        |
+        */
+        values.put("batching", batching);
+        values.put("batch", batch);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Failed Queue Jobs
+        |--------------------------------------------------------------------------
+        |
+        | These options configure how failed jobs are stored.
+        |
+        | Supported drivers: "memory", "file", "database"
+        |
+        */
+        values.put("failed", failed);
+        return values;
+    }
+
+    private static int envInt(String key, int fallback) {
+        try {
+            return Integer.parseInt(Env.getOrDefault(key, Integer.toString(fallback)).trim());
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+}

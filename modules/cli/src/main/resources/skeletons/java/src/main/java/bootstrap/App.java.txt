@@ -1,12 +1,23 @@
 package bootstrap;
 
 import app.providers.AppServiceProvider;
+import config.Auth;
+import config.Broadcasting;
+import config.Cache;
 import config.Database;
 import config.Filesystems;
+import config.Hash;
 import config.Http;
+import config.Logging;
+import config.Mail;
 import config.Paths;
+import config.Queue;
+import config.Redis;
+import config.Services;
 import config.Session;
 import org.konaframework.auth.AuthServiceProvider;
+import org.konaframework.broadcasting.BroadcastServiceProvider;
+import org.konaframework.cache.CacheServiceProvider;
 import org.konaframework.core.Application;
 import org.konaframework.core.Env;
 import org.konaframework.core.Kona;
@@ -33,8 +44,17 @@ public final class App {
             .configs(
                 new config.App(),
                 new Database(),
+                new Redis(),
                 new Session(),
+                new Cache(),
                 new Filesystems(),
+                new Queue(),
+                new Mail(),
+                new Logging(),
+                new Auth(),
+                new Hash(),
+                new Broadcasting(),
+                new Services(),
                 new Http(),
                 new Paths()
             )
@@ -43,11 +63,13 @@ public final class App {
                 new CadenceServiceProvider(),
                 new FilesystemServiceProvider(),
                 new RedisServiceProvider(),
+                new CacheServiceProvider(),
                 new SessionServiceProvider(),
                 new AuthServiceProvider(),
                 new QueueServiceProvider(),
                 new ScheduleServiceProvider(),
                 new MailServiceProvider(),
+                new BroadcastServiceProvider(),
                 new AppServiceProvider()
             )
             .afterBoot(Middleware::configure)
