@@ -51,6 +51,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 | Work | PR |
 |------|-----|
+| Grind `route:list` / `route:cache` / `route:clear` | *(this PR — `feat/grind-route-commands`)* |
 | Docs versions + i18n + LSP `wire:*` + GH chip hydrate | *(this PR — `feat/docs-ide-i18n-versions`)* |
 | Remonorepo Brew + Inertia into `modules/{brew,inertia}` | [#138](https://github.com/konaframework/kona/pull/138) (landed; supersedes #137 approach) |
 | Handoff / publishing Central notes | [#135](https://github.com/konaframework/kona/pull/135) |

@@ -121,7 +121,7 @@ Overloads accept combinations of `name`, `args`, optional `CommandRegistry`, `ba
 
 1. Merge the optional registry with `CommandDiscovery.registerAll` on the given loader.
 2. If the merged registry **has** the name, run it through `CommandExecutor` (custom-command path: signature bind, `--help`, `--isolated`).
-3. Otherwise fall through to `GrindApplication.run(name + args)` so **built-ins** (`serve`, `migrate`, `list`, …) still work.
+3. Otherwise fall through to `GrindApplication.run(name + args)` so **built-ins** (`serve`, `route:list`, `migrate`, `list`, …) still work.
 
 `callSilently` temporarily replaces `System.out` with a buffer so normal stdout is suppressed; **stderr** still surfaces errors from `GrindIO.error` / `ConsoleIO.error`.
 

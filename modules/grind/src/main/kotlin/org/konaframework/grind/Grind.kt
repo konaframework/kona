@@ -34,6 +34,9 @@ constructor(
         return try {
             when (val command = positional[0]) {
                 "serve" -> ServeCommand().run(positional.drop(1) + flatten(options))
+                "route:list" -> RouteCommand(RouteCommand.Action.LIST).run(positional.drop(1) + flatten(options))
+                "route:cache" -> RouteCommand(RouteCommand.Action.CACHE).run(positional.drop(1) + flatten(options))
+                "route:clear" -> RouteCommand(RouteCommand.Action.CLEAR).run(positional.drop(1) + flatten(options))
                 "make:controller" -> MakeControllerCommand().run(positional.drop(1) + flatten(options))
                 "make:command" -> MakeCommandCommand().run(positional.drop(1) + flatten(options))
                 "make:resource" -> MakeResourceCommand().run(positional.drop(1) + flatten(options))

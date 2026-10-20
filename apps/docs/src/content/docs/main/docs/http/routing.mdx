@@ -575,7 +575,7 @@ Global middleware still wraps 404 and 405 responses; **route** middleware never 
 | `router.allowedMethods(path)` | Methods registered for that path (`GET` implies `HEAD` in the list) |
 | `router.route(name, params)` | Build a path from a named route |
 
-Each `Route` exposes `methods`, `method` (first declared), `uri`, `name`, `middleware`, plus `match` / `matchPath` / `uriFor` for advanced use. `MatchResult` is a data class: `route` + `parameters`.
+Each `Route` exposes `methods`, `method` (first declared), `uri`, `name`, `middleware`, plus `match` / `matchPath` / `uriFor` for advanced use. `MatchResult` is a data class: `route` + `parameters`. The grind commands below read this same list.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -608,7 +608,26 @@ if (match != null) {
 </TabItem>
 </Tabs>
 
-There is no built-in `route:list` grind command today; use `router.all()` in tests or a small custom command if you need a table dump.
+## Listing routes with grind {#listing-routes-with-grind}
+
+From an application directory (after `./gradlew classes`):
+
+```bash
+./grind route:list
+./grind route:list --json
+./grind route:list --method=GET --name=users
+./grind route:list --path=/api --except-path=/api/internal
+./grind route:cache
+./grind route:clear
+```
+
+`route:list` boots your app in-process and prints the live `Router` as a table: **Method**, **URI**, **Name**, **Action**, **Middleware**. Lambdas show as `Closure`; named `Handler` classes show their fully qualified name. `GET` routes list as `GET` (HEAD still matches them at runtime — see the table above). Multi-method routes such as resource `update` print `PUT|PATCH`.
+
+Useful filters: `--method=`, `--name=`, `--path=`, `--except-path=`, `--except-vendor`, `--only-vendor`, `--compact`, `--columns=`, `--sort=`, `--reverse`, `--json`. Full flag reference: [Built-in commands — route:list](../../grind/commands/#grind-routelist).
+
+`route:cache` writes `bootstrap/cache/routes.json` (a snapshot of that table). The HTTP kernel does not load the file; compiled route registration already runs on every boot. `route:clear` deletes the snapshot.
+
+If grind cannot find a Gradle project, or the booted app has no `Router` in the container, the command exits `1`. Zero matching routes is still exit `0` (a warning, or `[]` with `--json`).
 
 ## Testing routes
 
@@ -762,7 +781,6 @@ Documented here so you do not hunt for missing APIs:
 - `fallback()` / catch-all registration helpers
 - `redirect()` / `view()` route macros (use handler responses instead)
 - Automatic `_method` override for form posts (Crema can emit the field; routing ignores it — [Crema forms](../../crema/forms/#method-spoofing))
-- Built-in `route:list` grind command
 
 ## Next steps
 
