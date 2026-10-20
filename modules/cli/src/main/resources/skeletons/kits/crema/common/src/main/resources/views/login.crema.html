@@ -24,7 +24,7 @@
   <body>
     <div class="shell">
       <div class="brand">
-        <img src="/branding/kona-logo.svg" alt="Kona" width="44" height="44" />
+        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="44" height="44" />
         <strong>{{ name }}</strong>
       </div>
       <h1>Sign in</h1>
@@ -32,7 +32,7 @@
       @if(error)
         <div class="err">{{ error }}</div>
       @endif
-      <form method="post" action="/login">
+      <form method="post" action="{{ url('/login') }}">
         @csrf
         <label for="email">Email</label>
         <input id="email" name="email" type="email" value="{{ email }}" required autocomplete="username" />
@@ -40,7 +40,7 @@
         <input id="password" name="password" type="password" required autocomplete="current-password" />
         <button type="submit">Sign in</button>
       </form>
-      <a class="back" href="/">← Back home</a>
+      <a class="back" href="{{ url('/') }}">← Back home</a>
     </div>
   </body>
 </html>

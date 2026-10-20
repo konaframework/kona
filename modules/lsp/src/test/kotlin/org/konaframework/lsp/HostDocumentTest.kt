@@ -49,7 +49,7 @@ class HostDocumentTest {
         val members =
             HostDocument.completions(src, "java", uri, echoPos.line, echoPos.character)
         assertTrue(members.any { it.label == "count" }, members.toString())
-        assertTrue(members.all { it.detail == "Brew member" })
+        assertTrue(members.filter { it.detail == "Brew member" }.any { it.label == "count" })
 
         val outside = HostDocument.completions(src, "java", uri, 0, 0)
         assertTrue(outside.isEmpty())
@@ -71,9 +71,13 @@ class HostDocumentTest {
 
     @Test
     fun wholeFileEchoMembersAndEmptyFallback() {
-        val crema = "<div>{{ cou }}</div>"
-        val items = HostDocument.completions(crema, "crema", "file:///x.crema.html", 0, 9)
-        assertTrue(items.any { it.label.startsWith("@") } || items.isEmpty() || items.any { it.detail == "Brew member" })
+        val crema = "<div>{{  }}</div>"
+        val echoAt = crema.indexOf("{{ ") + 3
+        val echoPos = CremaAnalyzer.offsetToPosition(crema, echoAt)
+        val items =
+            HostDocument.completions(crema, "crema", "file:///x.crema.html", echoPos.line, echoPos.character)
+        assertTrue(items.any { it.label == "url" }, items.toString())
+        assertTrue(items.any { it.label == "loop.index" }, items.toString())
         val javaNoMembers =
             """
             public class Empty {

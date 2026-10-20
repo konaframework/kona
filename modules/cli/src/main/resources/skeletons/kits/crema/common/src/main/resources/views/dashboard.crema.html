@@ -22,8 +22,8 @@
   </head>
   <body>
     <header>
-      <a class="brand" href="/">
-        <img src="/branding/kona-logo.svg" alt="" width="36" height="36" />
+      <a class="brand" href="{{ url('/') }}">
+        <img src="{{ url('/branding/kona-logo.svg') }}" alt="" width="36" height="36" />
         {{ name }}
       </a>
       <a class="docs" href="https://docs.konaframework.org/">Docs</a>
@@ -34,7 +34,7 @@
         <p>Signed in as <strong>{{ userName }}</strong></p>
         <p>{{ userEmail }}</p>
       </div>
-      <form method="post" action="/logout">
+      <form method="post" action="{{ url('/logout') }}">
         @csrf
         <button type="submit">Sign out</button>
       </form>

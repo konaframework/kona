@@ -165,10 +165,32 @@ class CremaAnalyzerTest {
         assertEquals("", CremaAnalyzer.echoPrefixAt("{{", 2))
         assertEquals("co", CremaAnalyzer.echoPrefixAt("{{ co", 5))
         assertEquals("a_b", CremaAnalyzer.echoPrefixAt("{{ a_b", 6))
+        assertEquals("\$u", CremaAnalyzer.echoPrefixAt("{{ \$u", 5))
         assertEquals("count", CremaAnalyzer.echoPrefixAt("{{ count }}", 8))
         assertEquals("x", CremaAnalyzer.echoPrefixAt("{!! x", 5))
         assertNull(CremaAnalyzer.echoPrefixAt("{!! x !!} y", 11))
         assertNull(CremaAnalyzer.echoPrefixAt("", 0))
         assertNull(CremaAnalyzer.echoPrefixAt("{{", 0))
+    }
+
+    @Test
+    fun echoCompletionsOfferUrlHelper() {
+        val empty = CremaAnalyzer.completions("{{ ", 0, 3)
+        assertTrue(empty.any { it.label == "url" }, empty.toString())
+        assertTrue(empty.any { it.label == "loop.index" }, empty.toString())
+        assertTrue(empty.none { it.label.startsWith("@") }, empty.toString())
+        val typed = CremaAnalyzer.completions("{{ ur", 0, 5)
+        assertEquals(listOf("url"), typed.map { it.label })
+        assertEquals("url('')", typed.first().insertText)
+        assertEquals("url(path) · Crema helper", typed.first().detail)
+        val none = CremaAnalyzer.completions("{{ zzz", 0, 6)
+        assertTrue(none.isEmpty(), none.toString())
+        val loop = CremaAnalyzer.completions("{{ loop.", 0, 8)
+        assertTrue(loop.any { it.label == "loop.index" }, loop.toString())
+        assertTrue(loop.any { it.label == "loop.remaining" }, loop.toString())
+        assertTrue(CremaEchoCatalog.completions("").any { it.name == "csrf_token" })
+        assertTrue(CremaEchoCatalog.HELPERS.all { it.helper })
+        assertTrue(CremaEchoCatalog.VARIABLES.none { it.helper })
+        assertEquals("loop.", CremaAnalyzer.echoPrefixAt("{{ loop.", 8))
     }
 }

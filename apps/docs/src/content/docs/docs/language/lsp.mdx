@@ -16,7 +16,7 @@ Maven coordinates: `org.konaframework:kona-lsp` (module `modules/lsp`, package `
 | `initialize` / `initialized` | Advertise full document sync, completion (trigger `@`), diagnostic provider |
 | `shutdown` / `exit` | Clean teardown (exit code `0` after shutdown) |
 | `textDocument/didOpen` / `didChange` / `didClose` | Track buffer text; `publishDiagnostics` on open/change |
-| `textDocument/completion` | Suggest built-in Crema directives, Brew `wire:*` attributes, and (inside `{{ }}` in a host class) public fields/methods |
+| `textDocument/completion` | Suggest built-in Crema directives, Brew `wire:*` attributes, echo helpers/variables inside `{{ }}` (`url`, `route`, `asset`, `csrf_token`, `old`, `env`, `config`, `trans`, `lang`, `loop.index`, …), and (inside `{{ }}` in a host class) public fields/methods |
 | `textDocument/diagnostic` | Pull-model report of unknown `@directive` names and unknown `wire:*` attributes (mapped into inline strings on Java/Kotlin) |
 
 Comments `{{-- … --}}` are ignored when scanning for directives and `wire:*` attributes so examples inside comments do not warn.
@@ -25,7 +25,9 @@ Comments `{{-- … --}}` are ignored when scanning for directives and `wire:*` a
 
 Inside an open HTML tag, typing `wire:` (or a stem like `wi`) offers the same Brew attribute list as the IntelliJ plugin: `wire:model`, `wire:click`, `wire:submit`, `wire:loading`, `wire:target`, `wire:ignore`, `wire:key`, `wire:dirty`, `wire:offline`, `wire:confirm`, `wire:poll`, `wire:init`, `wire:show`, `wire:transition`, plus common modifiers (`.live`, `.prevent`, …). Unknown `wire:*` names produce a warning. Trigger characters include `@`, `:`, `.`, and `{`.
 
-When the caret is inside `{{ … }}` of an inline `template()` string, kona-lsp also suggests public properties and methods scanned from the enclosing class source (no full Java type resolver — inherited members from `Component` appear only if they are written in that file).
+When the caret is inside `{{ … }}` of a Crema view, kona-lsp suggests every Crema echo helper and conventional variable (`CremaEchoCatalog`, kept in sync with `CremaHelpers` and the IntelliJ plugin). On an inline `template()` string it also suggests public properties and methods scanned from the enclosing class source (no full Java type resolver — inherited members from `Component` appear only if they are written in that file). Helper names from the catalog still appear beside those members.
+
+`CremaEchoCatalog.completions(prefix)` / `CremaHelpers.completions(prefix)` expose the same names for tests and tooling.
 
 ## Run it
 

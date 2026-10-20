@@ -11,13 +11,13 @@ IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.
 | Plugin id | `org.konaframework.idea` |
 | Releases | [GitHub Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
 | Products | IntelliJ IDEA Community and Ultimate (2024.2+) |
-| Current line | **v0.3.0** |
+| Current line | **v0.5.17** |
 
 Installing, updating, or removing the plugin requires an IDE restart.
 
 ## Install
 
-1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.3.0**).
+1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.5.17**).
 2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** and choose the zip.
 3. Restart when prompted.
 4. Open a Crema view (`src/main/resources/views/….crema.html` or `*.crema.kt`). Confirm the language chip shows **Crema** (not HTML).
@@ -28,6 +28,7 @@ Installing, updating, or removing the plugin requires an IDE restart.
 - Native Crema lexer: HTML colors plus `@directives`, `{{ }}`, `{!! !!}`, `{{-- --}}`
 - **Inline Brew strings** — `Component.template()`, `Component.inline(source)`, and `BrewView.inline(source)` are marked `@CremaTemplate`; `// language=Crema` on the previous line also injects Crema into a Java/Kotlin string
 - **`@` directive completion** — type `@` in a Crema view or an injected `template()` string (autopopup); also **Ctrl+Space**
+- **Echo helper completion** — inside `{{ }}` / `{!! !!}`, type `url` (or `route`, `asset`, `csrf_token`, `old`, `env`, `config`, `trans`, `lang`, `isset`, `empty`, `errors`, `loop.index`, …) to complete every Kona helper and conventional view variable. Selecting `url` inserts `url('')` with the caret between the quotes. Completes on welcome / login / dashboard views, not only Brew components.
 - **Brew `wire:*` attribute completion** — type `wire:` on HTML tags (`wire:model`, `wire:click`, `wire:submit`, …); weak warnings for unknown `wire:*` names
 - Warnings for unknown `@name` tokens (emails like `hi@example.com` are ignored)
 - `{{` auto-closes as `{{  }}` with the caret in the middle
@@ -65,7 +66,7 @@ cd kona-idea
 ./gradlew runIde        # sandboxed IntelliJ with the plugin loaded
 ```
 
-Keep `CremaDirectives` in the plugin aligned with Crema’s directive set in this repository when you add template directives. Agent resume notes for the plugin live in that repo’s [`HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
+Keep `CremaDirectives` and `CremaEchoCatalog` in the plugin aligned with Crema’s directive set and `CremaHelpers` in this repository when you add template directives or echo helpers. Agent resume notes for the plugin live in that repo’s [`HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
 
 ## Other editors
 

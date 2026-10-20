@@ -67,7 +67,8 @@ object CremaAnalyzer {
 
     /**
      * Completions at a caret. Prefer Brew `wire:*` when typing an attribute;
-     * otherwise Crema `@` directives (filtered by prefix when inside `@name`).
+     * otherwise echo helpers/variables inside `{{ }}` / `{!! !!}`; otherwise
+     * Crema `@` directives (filtered by prefix when inside `@name`).
      */
     @JvmStatic
     fun completions(text: String, line: Int, character: Int): List<CompletionItem> {
@@ -80,6 +81,17 @@ object CremaAnalyzer {
                     kind = 5, // Field
                     detail = "Brew wire",
                     insertText = label,
+                )
+            }
+        }
+        val echoPrefix = echoPrefixAt(text, offset)
+        if (echoPrefix != null) {
+            return CremaEchoCatalog.completions(echoPrefix).map { item ->
+                CompletionItem(
+                    label = item.name,
+                    kind = if (item.helper) 3 else 6,
+                    detail = item.detail,
+                    insertText = item.insertText,
                 )
             }
         }
@@ -113,11 +125,7 @@ object CremaAnalyzer {
         var i = cap - 1
         while (i >= contentStart) {
             val ch = text[i]
-            if (ch.isLetterOrDigit()) {
-                i--
-                continue
-            }
-            if (ch == '_') {
+            if (ch.isLetterOrDigit() || ch == '_' || ch == '.' || ch == '$') {
                 i--
                 continue
             }

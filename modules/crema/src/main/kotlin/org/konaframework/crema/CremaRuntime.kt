@@ -1070,6 +1070,12 @@ internal class CremaRuntime(
                 }
             }
         }
+        CremaHelpers.parseCall(expr)?.let { (name, inner) ->
+            if (CremaHelpers.isCallable(name)) {
+                val args = CremaArguments.split(inner).map { eval(it, context) }
+                return CremaHelpers.call(name, args, context)
+            }
+        }
         return resolve(expr, context)
     }
 

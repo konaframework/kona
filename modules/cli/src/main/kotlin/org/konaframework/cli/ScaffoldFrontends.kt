@@ -569,14 +569,14 @@ internal object ScaffoldFrontends {
                   <body class="min-h-screen bg-foam text-ink">
                     <div class="max-w-xl mx-auto px-6 py-14">
                       <div class="flex items-center gap-3 mb-10">
-                        <img src="/branding/kona-logo.svg" alt="Kona" width="52" height="52" />
+                        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
                         <span class="font-bold tracking-wide text-accent">{{ name }}</span>
                       </div>
                       <h1 class="text-4xl font-bold text-accent mb-4">$title</h1>
                       <p class="text-lg opacity-90 mb-8">$lede</p>
                       <div class="flex flex-wrap gap-3 mb-10">
-                        <a class="px-4 py-3 rounded-lg bg-caramel text-white font-semibold" href="/login">Sign in</a>
-                        <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="/dashboard">Dashboard</a>
+                        <a class="px-4 py-3 rounded-lg bg-caramel text-white font-semibold" href="{{ url('/login') }}">Sign in</a>
+                        <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="{{ url('/dashboard') }}">Dashboard</a>
                         <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="$docsHref">$docsLabel</a>
                       </div>
                       $brewBlock
@@ -605,14 +605,14 @@ internal object ScaffoldFrontends {
                   <body>
                     <div class="container py-5" style="max-width: 40rem;">
                       <div class="d-flex align-items-center gap-3 mb-4">
-                        <img src="/branding/kona-logo.svg" alt="Kona" width="52" height="52" />
+                        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
                         <strong>{{ name }}</strong>
                       </div>
                       <h1 class="display-6">$title</h1>
                       <p class="lead">$lede</p>
                       <div class="d-flex flex-wrap gap-2 mb-4">
-                        <a class="btn btn-primary" href="/login">Sign in</a>
-                        <a class="btn btn-outline-secondary" href="/dashboard">Dashboard</a>
+                        <a class="btn btn-primary" href="{{ url('/login') }}">Sign in</a>
+                        <a class="btn btn-outline-secondary" href="{{ url('/dashboard') }}">Dashboard</a>
                         <a class="btn btn-outline-secondary" href="$docsHref">$docsLabel</a>
                       </div>
                       $brewBlock
@@ -648,7 +648,7 @@ internal object ScaffoldFrontends {
                   <body class="min-h-screen bg-foam text-ink">
                     <div class="max-w-sm mx-auto px-5 py-14">
                       <div class="flex items-center gap-3 mb-8">
-                        <img src="/branding/kona-logo.svg" alt="Kona" width="44" height="44" />
+                        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="44" height="44" />
                         <strong>{{ name }}</strong>
                       </div>
                       <h1 class="text-2xl font-bold text-accent mb-1">Sign in</h1>
@@ -656,7 +656,7 @@ internal object ScaffoldFrontends {
                       @if(error)
                         <div class="bg-red-100 text-red-800 p-3 rounded-lg mb-4">{{ error }}</div>
                       @endif
-                      <form method="post" action="/login">
+                      <form method="post" action="{{ url('/login') }}">
                         @csrf
                         <label class="block text-sm font-semibold mb-1" for="email">Email</label>
                         <input class="w-full mb-4 p-2 border border-latte rounded-lg" id="email" name="email" type="email" value="{{ email }}" required autocomplete="username" />
@@ -664,7 +664,7 @@ internal object ScaffoldFrontends {
                         <input class="w-full mb-4 p-2 border border-latte rounded-lg" id="password" name="password" type="password" required autocomplete="current-password" />
                         <button class="w-full py-3 rounded-lg bg-caramel text-white font-bold" type="submit">Sign in</button>
                       </form>
-                      <a class="inline-block mt-5 text-caramel" href="/">← Back home</a>
+                      <a class="inline-block mt-5 text-caramel" href="{{ url('/') }}">← Back home</a>
                     </div>
                   </body>
                 </html>
@@ -682,7 +682,7 @@ internal object ScaffoldFrontends {
                   <body>
                     <div class="container py-5" style="max-width: 24rem;">
                       <div class="d-flex align-items-center gap-2 mb-4">
-                        <img src="/branding/kona-logo.svg" alt="Kona" width="44" height="44" />
+                        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="44" height="44" />
                         <strong>{{ name }}</strong>
                       </div>
                       <h1 class="h3">Sign in</h1>
@@ -690,7 +690,7 @@ internal object ScaffoldFrontends {
                       @if(error)
                         <div class="alert alert-danger">{{ error }}</div>
                       @endif
-                      <form method="post" action="/login">
+                      <form method="post" action="{{ url('/login') }}">
                         @csrf
                         <div class="mb-3">
                           <label class="form-label" for="email">Email</label>
@@ -702,7 +702,7 @@ internal object ScaffoldFrontends {
                         </div>
                         <button class="btn btn-primary w-100" type="submit">Sign in</button>
                       </form>
-                      <a class="d-inline-block mt-3" href="/">← Back home</a>
+                      <a class="d-inline-block mt-3" href="{{ url('/') }}">← Back home</a>
                     </div>
                   </body>
                 </html>
@@ -723,8 +723,8 @@ internal object ScaffoldFrontends {
                   </head>
                   <body class="min-h-screen bg-foam text-ink">
                     <header class="flex items-center justify-between gap-4 px-6 py-4 border-b border-latte bg-white/60">
-                      <a class="flex items-center gap-2 font-bold text-accent" href="/">
-                        <img src="/branding/kona-logo.svg" alt="" width="36" height="36" />
+                      <a class="flex items-center gap-2 font-bold text-accent" href="{{ url('/') }}">
+                        <img src="{{ url('/branding/kona-logo.svg') }}" alt="" width="36" height="36" />
                         {{ name }}
                       </a>
                       <a class="text-caramel" href="https://docs.konaframework.org/">Docs</a>
@@ -735,7 +735,7 @@ internal object ScaffoldFrontends {
                         <p>Signed in as <strong>{{ userName }}</strong></p>
                         <p>{{ userEmail }}</p>
                       </div>
-                      <form method="post" action="/logout">
+                      <form method="post" action="{{ url('/logout') }}">
                         @csrf
                         <button class="px-4 py-2 rounded-lg bg-accent text-white font-semibold" type="submit">Sign out</button>
                       </form>
@@ -755,8 +755,8 @@ internal object ScaffoldFrontends {
                   </head>
                   <body>
                     <header class="d-flex align-items-center justify-content-between px-4 py-3 border-bottom bg-white">
-                      <a class="d-flex align-items-center gap-2 text-decoration-none fw-bold" href="/">
-                        <img src="/branding/kona-logo.svg" alt="" width="36" height="36" />
+                      <a class="d-flex align-items-center gap-2 text-decoration-none fw-bold" href="{{ url('/') }}">
+                        <img src="{{ url('/branding/kona-logo.svg') }}" alt="" width="36" height="36" />
                         {{ name }}
                       </a>
                       <a href="https://docs.konaframework.org/">Docs</a>
@@ -769,7 +769,7 @@ internal object ScaffoldFrontends {
                           <p>{{ userEmail }}</p>
                         </div>
                       </div>
-                      <form method="post" action="/logout">
+                      <form method="post" action="{{ url('/logout') }}">
                         @csrf
                         <button class="btn btn-dark" type="submit">Sign out</button>
                       </form>

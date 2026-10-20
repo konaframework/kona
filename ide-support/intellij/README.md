@@ -5,14 +5,15 @@
 
 That plugin registers Crema as a first-class language (not TextMate), layers HTML
 highlighting under `@directives` / `{{ }}` / `{!! !!}` / `{{-- --}}`, offers
-directive completion, recognizes the `kona new` scaffold tree, and ships Grind
+directive and echo-helper completion (`url`, `route`, `asset`, … inside
+`{{ }}`), recognizes the `kona new` scaffold tree, and ships Grind
 run configurations — including **Grind Serve** for the Netty HTTP adapter
 (default `http://127.0.0.1:4000`, virtual threads).
 
 | | |
 | --- | --- |
 | Plugin id | `org.konaframework.idea` |
-| Current line | **v0.2.0** |
+| Current line | **v0.5.17** |
 | Releases | [kona-idea Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
 | Develop | clone `kona-idea` → `./gradlew runIde` / `buildPlugin` (JDK 21+) |
 

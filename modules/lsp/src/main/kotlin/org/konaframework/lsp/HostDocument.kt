@@ -85,19 +85,22 @@ object HostDocument {
         if (members.isEmpty()) {
             return items
         }
-        return members.map { member ->
-            CremaAnalyzer.CompletionItem(
-                label = member.name,
-                kind =
-                    if (member.method) {
-                        2
-                    } else {
-                        6
-                    },
-                detail = "Brew member",
-                insertText = member.name,
-            )
-        }
+        val memberItems =
+            members.map { member ->
+                CremaAnalyzer.CompletionItem(
+                    label = member.name,
+                    kind =
+                        if (member.method) {
+                            2
+                        } else {
+                            6
+                        },
+                    detail = "Brew member",
+                    insertText = member.name,
+                )
+            }
+        val seen = memberItems.map { it.label }.toSet()
+        return memberItems + items.filter { it.label !in seen }
     }
 
     private fun remap(

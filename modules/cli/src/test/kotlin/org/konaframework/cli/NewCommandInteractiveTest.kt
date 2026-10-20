@@ -366,8 +366,13 @@ class NewCommandInteractiveTest {
             NewCommand().run(listOf(cremaBs.toString(), "--kit=web", "--css=bootstrap", "--no-interaction")),
         )
         assertTrue(Files.readString(cremaBs.resolve("package.json")).contains("bootstrap"))
-        assertTrue(Files.readString(cremaBs.resolve("src/main/resources/views/login.crema.html")).contains("form-control"))
-        assertTrue(Files.readString(cremaBs.resolve("src/main/resources/views/dashboard.crema.html")).contains("card-body"))
+        val cremaLogin = Files.readString(cremaBs.resolve("src/main/resources/views/login.crema.html"))
+        assertTrue(cremaLogin.contains("form-control"))
+        assertTrue(cremaLogin.contains("url('/branding/kona-logo.svg')"), cremaLogin)
+        assertTrue(cremaLogin.contains("url('/login')"), cremaLogin)
+        val cremaDash = Files.readString(cremaBs.resolve("src/main/resources/views/dashboard.crema.html"))
+        assertTrue(cremaDash.contains("card-body"))
+        assertTrue(cremaDash.contains("url('/')"), cremaDash)
 
         val brewTw = temp.resolve("brew-tw")
         assertEquals(
@@ -377,6 +382,7 @@ class NewCommandInteractiveTest {
         val brewWelcome = Files.readString(brewTw.resolve("src/main/resources/views/welcome.crema.html"))
         assertTrue(brewWelcome.contains("<brew:counter"))
         assertTrue(brewWelcome.contains("@vite"))
+        assertTrue(brewWelcome.contains("url('/branding/kona-logo.svg')"), brewWelcome)
         assertTrue(Files.readString(brewTw.resolve("src/main/resources/js/app.js")).contains("app.css"))
 
         val svelte = temp.resolve("svelte-app")

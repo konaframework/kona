@@ -59,7 +59,7 @@
   <body>
     <div class="shell">
       <div class="brand">
-        <img src="/branding/kona-logo.svg" alt="Kona" width="52" height="52" />
+        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
         <span>{{ name }}</span>
       </div>
       <h1>Your app is ready.</h1>
@@ -68,8 +68,8 @@
         Edit this page or jump into the dashboard after signing in.
       </p>
       <div class="actions">
-        <a class="btn btn-primary" href="/login">Sign in</a>
-        <a class="btn btn-ghost" href="/dashboard">Dashboard</a>
+        <a class="btn btn-primary" href="{{ url('/login') }}">Sign in</a>
+        <a class="btn btn-ghost" href="{{ url('/dashboard') }}">Dashboard</a>
         <a class="btn btn-ghost" href="https://docs.konaframework.org/">Docs</a>
       </div>
       <div class="meta">
