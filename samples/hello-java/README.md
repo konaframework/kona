@@ -26,6 +26,7 @@ From the Kona **repository root** (not from this directory alone):
 Install the global CLI and scaffold a standalone app:
 
 ```bash
+# Latest Maven Central kona-cli (not git main).
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 kona new my-app --lang=java
 cd my-app

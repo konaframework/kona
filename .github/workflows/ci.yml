@@ -28,6 +28,7 @@ jobs:
           test -f .cursor/rules/kona-milestones.mdc
           test -d modules/brew
           test -d modules/inertia
+          bash scripts/install_test.sh
 
   test:
     name: Test + 100% coverage
