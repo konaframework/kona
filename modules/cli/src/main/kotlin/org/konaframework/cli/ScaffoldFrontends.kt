@@ -1,5 +1,7 @@
 package org.konaframework.cli
 
+import org.konaframework.support.json.PrettyJson
+import org.konaframework.support.text.SourceBlocks
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -125,16 +127,15 @@ internal object ScaffoldFrontends {
         } else {
             adapters[0].entry
         }
-        val importBlock = if (pluginImports.isEmpty()) "" else pluginImports.joinToString("\n") + "\n"
+        val imports = buildString {
+            appendLine("import { defineConfig } from 'vite';")
+            appendLine("import { resolve } from 'node:path';")
+            appendLine("import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';")
+            pluginImports.forEach { appendLine(it) }
+        }
         val pluginsJs = (listOf("konaHotFile()", "konaHotFileBuild()") + pluginCalls).joinToString(", ")
-        put(
-            target,
-            "vite.config.js",
+        val config =
             """
-            import { defineConfig } from 'vite';
-            import { resolve } from 'node:path';
-            import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
-            $importBlock${viteHotPlugins()}
             export default defineConfig({
               plugins: [$pluginsJs],
               publicDir: false,
@@ -151,8 +152,8 @@ internal object ScaffoldFrontends {
                 port: 5173,
               },
             });
-            """.trimIndent() + "\n",
-        )
+            """.trimIndent()
+        put(target, "vite.config.js", SourceBlocks.join(imports, viteHotPlugins(), config))
     }
 
     /** Dev server writes `public/hot`; production build removes it and emits `public/build/manifest.json`. */
@@ -264,29 +265,19 @@ internal object ScaffoldFrontends {
                 }
             }
         }
-        val typecheck = if (script != "ts") {
-            ""
-        } else if (frontend == "vue") {
-            ",\n                \"typecheck\": \"vue-tsc --noEmit\""
-        } else {
-            ",\n                \"typecheck\": \"tsc --noEmit\""
+        val scripts = linkedMapOf("dev" to "vite", "build" to "vite build")
+        if (script == "ts") {
+            scripts["typecheck"] = if (frontend == "vue") "vue-tsc --noEmit" else "tsc --noEmit"
         }
-        fun mapJson(map: Map<String, String>): String {
-            if (map.isEmpty()) return "{}"
-            return map.entries.joinToString(",\n    ", "{\n    ", "\n  }") { (k, v) -> "\"$k\": \"$v\"" }
-        }
-        return """
-            {
-              "private": true,
-              "type": "module",
-              "scripts": {
-                "dev": "vite",
-                "build": "vite build"$typecheck
-              },
-              "dependencies": ${mapJson(dependencies)},
-              "devDependencies": ${mapJson(dev)}
-            }
-        """.trimIndent() + "\n"
+        return PrettyJson.stringify(
+            linkedMapOf(
+                "private" to true,
+                "type" to "module",
+                "scripts" to scripts,
+                "dependencies" to dependencies,
+                "devDependencies" to dev,
+            ),
+        )
     }
 
     private fun vueAppJs(css: String): String {
@@ -539,98 +530,101 @@ internal object ScaffoldFrontends {
         } else {
             "A batteries-included JVM web app with Crema views, Cadence models, and session auth."
         }
-        val brewBlock = if (!brew) {
-            ""
-        } else {
-            """
-            <section class="brew-card card mb-4 p-4 border rounded">
-              <h2>Brew sample — <code>app.brew.Counter</code></h2>
-              <brew:counter :start="0" />
-              <p class="hint text-muted mt-3">
-                Edit <code>app/brew/Counter.kt</code> (or <code>.java</code>), or scaffold more with
-                <code>./grind make:brew Todos --class</code> and embed <code>&lt;brew:todos /&gt;</code>.
-              </p>
-            </section>
-            """.trimIndent()
-        }
+        val brewMarkup =
+            if (!brew) {
+                null
+            } else {
+                """
+                <section class="brew-card card mb-4 p-4 border rounded">
+                  <h2>Brew sample — <code>app.brew.Counter</code></h2>
+                  <brew:counter :start="0" />
+                  <p class="hint text-muted mt-3">
+                    Edit <code>app/brew/Counter.kt</code> (or <code>.java</code>), or scaffold more with
+                    <code>./grind make:brew Todos --class</code> and embed <code>&lt;brew:todos /&gt;</code>.
+                  </p>
+                </section>
+                """
+            }
         val docsHref = if (brew) "https://docs.konaframework.org/docs/brew/" else "https://docs.konaframework.org/"
         val docsLabel = if (brew) "Brew docs" else "Docs"
-        return when (css) {
-            "tailwind" ->
-                """
-                <!DOCTYPE html>
-                <html lang="en">
-                  <head>
-                    <meta charset="utf-8" />
-                    <meta name="viewport" content="width=device-width, initial-scale=1" />
-                    <title>{{ name }}</title>
-                    $viteTag
-                  </head>
-                  <body class="min-h-screen bg-foam text-ink">
-                    <div class="max-w-xl mx-auto px-6 py-14">
-                      <div class="flex items-center gap-3 mb-10">
-                        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
-                        <span class="font-bold tracking-wide text-accent">{{ name }}</span>
-                      </div>
-                      <h1 class="text-4xl font-bold text-accent mb-4">$title</h1>
-                      <p class="text-lg opacity-90 mb-8">$lede</p>
-                      <div class="flex flex-wrap gap-3 mb-10">
-                        <a class="px-4 py-3 rounded-lg bg-caramel text-white font-semibold" href="{{ url('/login') }}">Sign in</a>
-                        <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="{{ url('/dashboard') }}">Dashboard</a>
-                        <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="$docsHref">$docsLabel</a>
-                      </div>
-                      $brewBlock
-                      <div class="p-4 rounded-xl bg-white/60 border border-latte text-sm">
-                        <p>Demo user after <code class="text-caramel">./grind migrate</code> and <code class="text-caramel">./grind db:seed</code>:</p>
-                        <p><code class="text-caramel">demo@kona.test</code> / <code class="text-caramel">password</code></p>
-                        <p>JSON users API: <code class="text-caramel">GET /api/users</code></p>
-                      </div>
-                      <footer class="mt-10 text-sm text-accent/70">
-                        Built with <a class="text-caramel" href="https://docs.konaframework.org/">Kona</a>
-                      </footer>
-                    </div>
-                  </body>
-                </html>
-                """.trimIndent() + "\n"
-            else ->
-                """
-                <!DOCTYPE html>
-                <html lang="en">
-                  <head>
-                    <meta charset="utf-8" />
-                    <meta name="viewport" content="width=device-width, initial-scale=1" />
-                    <title>{{ name }}</title>
-                    $viteTag
-                  </head>
-                  <body>
-                    <div class="container py-5" style="max-width: 40rem;">
-                      <div class="d-flex align-items-center gap-3 mb-4">
-                        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
-                        <strong>{{ name }}</strong>
-                      </div>
-                      <h1 class="display-6">$title</h1>
-                      <p class="lead">$lede</p>
-                      <div class="d-flex flex-wrap gap-2 mb-4">
-                        <a class="btn btn-primary" href="{{ url('/login') }}">Sign in</a>
-                        <a class="btn btn-outline-secondary" href="{{ url('/dashboard') }}">Dashboard</a>
-                        <a class="btn btn-outline-secondary" href="$docsHref">$docsLabel</a>
-                      </div>
-                      $brewBlock
-                      <div class="card">
-                        <div class="card-body">
-                          <p>Demo user after <code>./grind migrate</code> and <code>./grind db:seed</code>:</p>
-                          <p><code>demo@kona.test</code> / <code>password</code></p>
-                          <p>JSON users API: <code>GET /api/users</code></p>
+        val html =
+            when (css) {
+                "tailwind" ->
+                    """
+                    <!DOCTYPE html>
+                    <html lang="en">
+                      <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1" />
+                        <title>{{ name }}</title>
+                        $viteTag
+                      </head>
+                      <body class="min-h-screen bg-foam text-ink">
+                        <div class="max-w-xl mx-auto px-6 py-14">
+                          <div class="flex items-center gap-3 mb-10">
+                            <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+                            <span class="font-bold tracking-wide text-accent">{{ name }}</span>
+                          </div>
+                          <h1 class="text-4xl font-bold text-accent mb-4">$title</h1>
+                          <p class="text-lg opacity-90 mb-8">$lede</p>
+                          <div class="flex flex-wrap gap-3 mb-10">
+                            <a class="px-4 py-3 rounded-lg bg-caramel text-white font-semibold" href="{{ url('/login') }}">Sign in</a>
+                            <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="{{ url('/dashboard') }}">Dashboard</a>
+                            <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="$docsHref">$docsLabel</a>
+                          </div>
+                          __BREW__
+                          <div class="p-4 rounded-xl bg-white/60 border border-latte text-sm">
+                            <p>Demo user after <code class="text-caramel">./grind migrate</code> and <code class="text-caramel">./grind db:seed</code>:</p>
+                            <p><code class="text-caramel">demo@kona.test</code> / <code class="text-caramel">password</code></p>
+                            <p>JSON users API: <code class="text-caramel">GET /api/users</code></p>
+                          </div>
+                          <footer class="mt-10 text-sm text-accent/70">
+                            Built with <a class="text-caramel" href="https://docs.konaframework.org/">Kona</a>
+                          </footer>
                         </div>
-                      </div>
-                      <p class="mt-4 text-muted">
-                        Built with <a href="https://docs.konaframework.org/">Kona</a>
-                      </p>
-                    </div>
-                  </body>
-                </html>
-                """.trimIndent() + "\n"
-        }
+                      </body>
+                    </html>
+                    """.trimIndent() + "\n"
+                else ->
+                    """
+                    <!DOCTYPE html>
+                    <html lang="en">
+                      <head>
+                        <meta charset="utf-8" />
+                        <meta name="viewport" content="width=device-width, initial-scale=1" />
+                        <title>{{ name }}</title>
+                        $viteTag
+                      </head>
+                      <body>
+                        <div class="container py-5" style="max-width: 40rem;">
+                          <div class="d-flex align-items-center gap-3 mb-4">
+                            <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+                            <strong>{{ name }}</strong>
+                          </div>
+                          <h1 class="display-6">$title</h1>
+                          <p class="lead">$lede</p>
+                          <div class="d-flex flex-wrap gap-2 mb-4">
+                            <a class="btn btn-primary" href="{{ url('/login') }}">Sign in</a>
+                            <a class="btn btn-outline-secondary" href="{{ url('/dashboard') }}">Dashboard</a>
+                            <a class="btn btn-outline-secondary" href="$docsHref">$docsLabel</a>
+                          </div>
+                          __BREW__
+                          <div class="card">
+                            <div class="card-body">
+                              <p>Demo user after <code>./grind migrate</code> and <code>./grind db:seed</code>:</p>
+                              <p><code>demo@kona.test</code> / <code>password</code></p>
+                              <p>JSON users API: <code>GET /api/users</code></p>
+                            </div>
+                          </div>
+                          <p class="mt-4 text-muted">
+                            Built with <a href="https://docs.konaframework.org/">Kona</a>
+                          </p>
+                        </div>
+                      </body>
+                    </html>
+                    """.trimIndent() + "\n"
+            }
+        return SourceBlocks.replaceLine(html, "__BREW__", brewMarkup)
     }
 
     private fun cremaLogin(css: String, viteTag: String): String =
@@ -903,34 +897,42 @@ internal object ScaffoldFrontends {
     }
 
     private fun tsconfig(frontend: String): String {
-        val jsx = when (frontend) {
-            "react" -> "\n                \"jsx\": \"react-jsx\","
-            "vue" -> "\n                \"jsx\": \"preserve\","
-            else -> ""
+        val compiler = linkedMapOf<String, Any?>(
+            "target" to "ES2022",
+            "module" to "ESNext",
+            "moduleResolution" to "bundler",
+            "strict" to true,
+        )
+        when (frontend) {
+            "react" -> compiler["jsx"] = "react-jsx"
+            "vue" -> compiler["jsx"] = "preserve"
         }
-        val types = if (frontend == "svelte") "[\"vite/client\", \"svelte\"]" else "[\"vite/client\"]"
-        val extra = when (frontend) {
-            "vue" -> "\"env.d.ts\", \"src/main/resources/js/**/*.ts\", \"src/main/resources/js/**/*.vue\""
-            "react" -> "\"vite-env.d.ts\", \"src/main/resources/js/**/*.ts\", \"src/main/resources/js/**/*.tsx\""
-            else -> "\"vite-env.d.ts\", \"src/main/resources/js/**/*.ts\", \"src/main/resources/js/**/*.svelte\""
-        }
-        return """
-            {
-              "compilerOptions": {
-                "target": "ES2022",
-                "module": "ESNext",
-                "moduleResolution": "bundler",
-                "strict": true,$jsx
-                "isolatedModules": true,
-                "esModuleInterop": true,
-                "lib": ["ES2022", "DOM", "DOM.Iterable"],
-                "skipLibCheck": true,
-                "noEmit": true,
-                "types": $types
-              },
-              "include": [$extra]
+        compiler["isolatedModules"] = true
+        compiler["esModuleInterop"] = true
+        compiler["lib"] = listOf("ES2022", "DOM", "DOM.Iterable")
+        compiler["skipLibCheck"] = true
+        compiler["noEmit"] = true
+        compiler["types"] =
+            if (frontend == "svelte") {
+                listOf("vite/client", "svelte")
+            } else {
+                listOf("vite/client")
             }
-        """.trimIndent() + "\n"
+        val include =
+            when (frontend) {
+                "vue" ->
+                    listOf("env.d.ts", "src/main/resources/js/**/*.ts", "src/main/resources/js/**/*.vue")
+                "react" ->
+                    listOf("vite-env.d.ts", "src/main/resources/js/**/*.ts", "src/main/resources/js/**/*.tsx")
+                else ->
+                    listOf("vite-env.d.ts", "src/main/resources/js/**/*.ts", "src/main/resources/js/**/*.svelte")
+            }
+        return PrettyJson.stringify(
+            linkedMapOf(
+                "compilerOptions" to compiler,
+                "include" to include,
+            ),
+        )
     }
 
     private val vueEnvDts =

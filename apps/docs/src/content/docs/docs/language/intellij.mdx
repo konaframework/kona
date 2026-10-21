@@ -11,13 +11,13 @@ IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.
 | Plugin id | `org.konaframework.idea` |
 | Releases | [GitHub Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
 | Products | IntelliJ IDEA Community and Ultimate (2024.2+) |
-| Current line | **v0.5.18** |
+| Current line | **v0.5.20** |
 
 Installing, updating, or removing the plugin requires an IDE restart.
 
 ## Install
 
-1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.5.18**).
+1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.5.20**).
 2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** and choose the zip.
 3. Restart when prompted.
 4. Open a Crema view (`src/main/resources/views/….crema.html` or `*.crema.kt`). Confirm the language chip shows **Crema** (not HTML).
@@ -37,6 +37,7 @@ Installing, updating, or removing the plugin requires an IDE restart.
 - **Go to view file:** place the caret on a view name string and use **Ctrl+B** or **Ctrl+Click** (macOS: **⌘B** / **⌘Click**). Same as Navigate → Declaration.
 - **DB column completion** from Cadence migrations and, when `.env` has a reachable `DB_URL`, from JDBC metadata
 - **Kona** tool window (RIGHT): `./grind serve`, migrate, queue/schedule, New Crema View, help, docs
+- **Kona Project View** — default Project tool window pane for Kona apps. Folders: `app`, `routes`, `resources`, project-root `public`. Root files when they exist: `./grind`, `.env`, `README.md`, `package.json`, lockfiles, `tsconfig.json`, `vite.config.js`, and related Vite / Svelte config
 - Official Kona brand icons on the tool window, Crema files, scaffold folders, and Grind run configs
 - **Grind** run configuration type for `./grind …` (Netty serve, default port `4000`)
 - **Kona** menu: layout, routing, Maven modules, view navigation help
