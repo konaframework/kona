@@ -78,7 +78,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 **Remonorepo done (#138):** Brew + Inertia are in-tree (`modules/brew`, `modules/inertia`, samples, `js/brew`). Docs unified into `apps/docs` (Frontend → Brew / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/brew/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-brew-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
-**Last published release:** **`v0.1.1`** on Maven Central. **`kona.version` on `main` is `0.2.0`** (version bump only — **not tagged / not on Central yet**). Do not push `v0.2.0` until a deliberate release PR + `release.yml`. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
+**Last published release:** **`v0.2.0`** on Maven Central. **`kona.version` on `main` is `0.2.1`** (version bump only — **not tagged / not on Central yet**). Do not push `v0.2.1` until a deliberate release PR + `release.yml`. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
 **Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Brew parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Brew templates.
 
@@ -127,8 +127,7 @@ Key paths: `modules/` (framework), `apps/docs/`, `js/brew/`, `docs/governance/`,
 1. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
 2. Confirm no conflicting open PRs.
 3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time.
-4. **Maven Central — `v0.1.1` shipped** (do not re-tag). **`0.2.0` version bump on `main` — do not tag until release cut.** Optional follow-ups:
-   - Bump `main` to `0.1.2-SNAPSHOT` when starting the next development train (separate PR; not required for docs-only work).
+4. **Maven Central — `v0.2.0` shipped** (do not re-tag). **`0.2.1` version bump on `main` — do not tag until release cut.** Optional follow-ups:
    - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
    - Trusted Publishing (OIDC) still **not GA** — token + GPG. Full checklist: [publishing.md](publishing.md).
 
