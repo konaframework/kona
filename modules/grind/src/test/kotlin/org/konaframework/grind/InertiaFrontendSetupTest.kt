@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.konaframework.support.json.Json
+import org.konaframework.support.json.PrettyJson
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
@@ -54,11 +56,16 @@ class InertiaFrontendSetupTest {
         val (s, _) = setup()
         val files = s.writeScaffold(InertiaFrontendSetup.Stack.VUE)
         assertTrue(files.contains("package.json"))
-        assertTrue(Files.readString(root.resolve("package.json")).contains("@inertiajs/vue3"))
+        val packageJson = Files.readString(root.resolve("package.json"))
+        assertTrue(packageJson.contains("@inertiajs/vue3"))
+        assertEquals(PrettyJson.stringify(Json.mapper.readValue(packageJson, Any::class.java)), packageJson)
         val viteConfig = Files.readString(root.resolve("vite.config.js"))
         assertTrue(viteConfig.contains("plugin-vue"))
         assertTrue(viteConfig.contains("kona-hot-file"))
         assertTrue(viteConfig.contains("manifest: 'manifest.json'"))
+        assertTrue(viteConfig.startsWith("import "))
+        assertTrue(viteConfig.contains("\nfunction konaHotFile()"))
+        assertFalse(viteConfig.contains("            import "))
         assertTrue(Files.isRegularFile(root.resolve("src/main/resources/js/app.js")))
         assertTrue(Files.isRegularFile(root.resolve("src/main/resources/js/Pages/Welcome.vue")))
         assertTrue(Files.isRegularFile(root.resolve("src/main/resources/views/app.crema.html")))
