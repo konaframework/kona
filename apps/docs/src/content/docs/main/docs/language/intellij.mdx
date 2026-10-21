@@ -11,13 +11,13 @@ IntelliJ IDEA uses a **native** JetBrains plugin — [kona-idea](https://github.
 | Plugin id | `org.konaframework.idea` |
 | Releases | [GitHub Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
 | Products | IntelliJ IDEA Community and Ultimate (2024.2+) |
-| Current line | **v0.5.21** |
+| Current line | **v0.5.22** |
 
 Installing, updating, or removing the plugin requires an IDE restart.
 
 ## Install
 
-1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.5.21**).
+1. Download the latest `kona-idea-*.zip` from [Releases](https://github.com/konaframework/kona-idea/releases) (current line: **v0.5.22**).
 2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** and choose the zip.
 3. Restart when prompted.
 4. Open a Crema view (`src/main/resources/views/….crema.html` or `*.crema.kt`). Confirm the language chip shows **Crema** (not HTML).
@@ -35,7 +35,7 @@ Installing, updating, or removing the plugin requires an IDE restart.
 - **Reformat Code** — **Ctrl+Alt+L** (macOS: **⌥⌘L**) formats Crema views with the same rules as HTML (**Settings → Editor → Code Style → HTML** for indent size, tabs vs spaces, and attribute wrapping). `@directives`, `{{ }}`, `{!! !!}`, and `{{-- --}}` stay intact.
 - **View name autocomplete** in `Crema.view`, `Brew.view`, `engine.make` / `render`, `@extends`, `@include`, and similar call sites
 - **Go to view file:** place the caret on a view name string and use **Ctrl+B** or **Ctrl+Click** (macOS: **⌘B** / **⌘Click**). Same as Navigate → Declaration.
-- **Cadence model + DB column completion** — `user.` / `getAttribute("…")` / `get("…")` / `user["…"]` complete columns from the `kona new` users migration (and JDBC when `.env` can connect). Works inside the model (`this.` / bare `getAttribute("`), and from Java `User.QUERY.find` / `User.QUERY.where("…")`. `User.where("…")` is scoped to that model’s table. Kona items sort first without hiding the catalog.
+- **Cadence model + DB column completion** — `user.` / `getAttribute("…")` / `user?.getAttribute("…")` / `get("…")` / `user["…"]` complete columns from the `kona new` users migration (and JDBC when `.env` can connect). Works in `DashboardController` (`Auth.user() as? User` next to `request.session() as Session`), inside the model (`this.` / bare `getAttribute("`), and from Java `User.QUERY.find` / `User.QUERY.where("…")`. `User.where("…")` is scoped to that model’s table. Kona items sort first without hiding the catalog.
 - **Kona** tool window (RIGHT): `./grind serve`, migrate, queue/schedule, New Crema View, help, docs
 - **Kona Project View** — default Project tool window pane for Kona apps. Folders: `app`, `routes`, `resources`, project-root `public`. Root files when they exist: `./grind`, `.env`, `README.md`, `package.json`, lockfiles, `tsconfig.json`, `vite.config.js`, and related Vite / Svelte config
 - Official Kona brand icons on the tool window, Crema files, scaffold folders, and Grind run configs
@@ -57,7 +57,7 @@ Column suggestions merge two sources when available:
 1. **Migrations** — parses `schema.create` / `schema.table` stubs under `src/main/{kotlin|java}/database/migrations` (`id()`, `string("…")`, `json("…")`, `longText("…")`, `timestamps()`, `morphs`, `dropColumn`, …). Models live in `app/models` from `kona new`.
 2. **JDBC** — reads `DB_URL` (or infers a file URL from `DB_CONNECTION=sqlite` / `h2`), `DB_USERNAME`, `DB_PASSWORD`, and optional `DB_DRIVER` from the project `.env`. Relative SQLite and H2 paths are resolved against the app root (the IDE working directory is not the project). Drivers that are not on the plugin classpath load from `build/kona-runtime.classpath` (written by grind / `konaClasspath`).
 
-Use them on a model instance (`user.`, `this.`, `user.getAttribute("…")`, `user.get("…")`) and in Cadence / query call sites such as `where("…")`, `User.QUERY.where("…")`, `select("…")`, and `orderBy("…")`.
+Use them on a model instance (`user.`, `this.`, `user.getAttribute("…")`, `user?.getAttribute("…")`, `user.get("…")`) and in Cadence / query call sites such as `where("…")`, `User.QUERY.where("…")`, `select("…")`, and `orderBy("…")`.
 
 ## Develop the plugin
 
