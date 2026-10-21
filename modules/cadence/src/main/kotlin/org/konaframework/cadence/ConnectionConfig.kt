@@ -44,12 +44,19 @@ class ConnectionConfig @JvmOverloads constructor(
         hikari.jdbcUrl = url
         hikari.username = username
         hikari.password = password
-        val jdbcClass = jdbcDriverClassName()
-        if (jdbcClass != null) {
-            hikari.driverClassName = jdbcClass
-        }
         hikari.maximumPoolSize = poolSize
-        return HikariDataSource(hikari)
+        val jdbcClass = jdbcDriverClassName()
+        try {
+            if (jdbcClass != null) {
+                hikari.driverClassName = jdbcClass
+            }
+            return HikariDataSource(hikari)
+        } catch (ex: RuntimeException) {
+            if (!JdbcDrivers.isDriverLoadFailure(ex)) {
+                throw ex
+            }
+            throw JdbcDrivers.missingDriver(jdbcClass, driver, url, ex)
+        }
     }
 
     /**
@@ -65,7 +72,7 @@ class ConnectionConfig @JvmOverloads constructor(
         if (raw.contains('.')) {
             return raw
         }
-        return ENGINE_DRIVERS[raw.lowercase()]
+        return JdbcDrivers.className(raw)
     }
 
     override fun toString(): String =
@@ -73,21 +80,6 @@ class ConnectionConfig @JvmOverloads constructor(
 
     companion object {
         const val DEFAULT_POOL_SIZE = 10
-
-        private val ENGINE_DRIVERS: Map<String, String> = mapOf(
-            "sqlite" to "org.sqlite.JDBC",
-            "h2" to "org.h2.Driver",
-            "mysql" to "com.mysql.cj.jdbc.Driver",
-            "mariadb" to "org.mariadb.jdbc.Driver",
-            "pgsql" to "org.postgresql.Driver",
-            "postgres" to "org.postgresql.Driver",
-            "postgresql" to "org.postgresql.Driver",
-            "pg" to "org.postgresql.Driver",
-            "sqlsrv" to "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-            "sqlserver" to "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-            "mssql" to "com.microsoft.sqlserver.jdbc.SQLServerDriver",
-            "oracle" to "oracle.jdbc.OracleDriver",
-        )
 
         @JvmStatic
         fun fromMap(map: Map<String, *>): ConnectionConfig {

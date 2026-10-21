@@ -146,6 +146,92 @@ class ConnectionTest {
     }
 
     @Test
+    fun missingJdbcDriverIsCadenceExceptionWithGradleLine() {
+        val missing =
+            Database().addConnection(
+                "default",
+                ConnectionConfig(
+                    "jdbc:postgresql://127.0.0.1:1/kona",
+                    driver = "org.konaframework.NoSuchJdbcDriver",
+                    poolSize = 1,
+                ),
+            )
+        val ex = assertThrows<CadenceException> { missing.connection() }
+        assertTrue(ex.message!!.contains("org.konaframework.NoSuchJdbcDriver"))
+        assertTrue(ex.message!!.contains("runtimeOnly(\"org.postgresql:postgresql:42.7.5\")"))
+        missing.close()
+
+        val unknown =
+            Database().addConnection(
+                "default",
+                ConnectionConfig("jdbc:example://localhost/db", driver = "com.example.NoDriver", poolSize = 1),
+            )
+        val unknownEx = assertThrows<CadenceException> { unknown.connection() }
+        assertTrue(unknownEx.message!!.contains("Add the matching JDBC JAR"))
+        unknown.close()
+
+        val inferred =
+            Database().addConnection(
+                "default",
+                ConnectionConfig("jdbc:notarealdb://localhost/kona", poolSize = 1),
+            )
+        val inferredEx = assertThrows<CadenceException> { inferred.connection() }
+        assertTrue(inferredEx.message!!.contains("JDBC driver"))
+        inferred.close()
+
+        val poolInit =
+            Database().addConnection(
+                "default",
+                ConnectionConfig("jdbc:h2:tcp://127.0.0.1:1/nope", "sa", "", driver = "org.h2.Driver", poolSize = 1),
+            )
+        val poolEx = assertThrows<RuntimeException> { poolInit.connection() }
+        assertFalse(poolEx.message.orEmpty().contains("runtimeOnly("))
+        poolInit.close()
+    }
+
+    @Test
+    fun jdbcDriversCoordinatesAndFailureHints() {
+        assertEquals("org.postgresql.Driver", JdbcDrivers.className("PGSQL"))
+        assertEquals("org.postgresql.Driver", JdbcDrivers.className("postgres"))
+        assertNull(JdbcDrivers.className("cockroach"))
+        assertEquals("org.postgresql:postgresql:42.7.5", JdbcDrivers.gradleCoordinate("pgsql"))
+        assertEquals("org.postgresql:postgresql:42.7.5", JdbcDrivers.gradleCoordinate(jdbcClass = "org.postgresql.Driver"))
+        assertEquals("org.postgresql:postgresql:42.7.5", JdbcDrivers.gradleCoordinate(url = "jdbc:postgresql://h/db"))
+        assertEquals("com.h2database:h2:2.3.232", JdbcDrivers.gradleCoordinate(url = "jdbc:h2:mem:x"))
+        assertNull(JdbcDrivers.gradleCoordinate(url = "jdbc:unknown://h"))
+        assertNull(JdbcDrivers.gradleCoordinate())
+        assertEquals(
+            "org.mariadb.jdbc:mariadb-java-client:3.5.2",
+            JdbcDrivers.gradleCoordinate("maria"),
+        )
+        assertEquals(
+            "com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11",
+            JdbcDrivers.gradleCoordinate("mssql"),
+        )
+        assertTrue(JdbcDrivers.isDriverLoadFailure(ClassNotFoundException("x")))
+        assertTrue(JdbcDrivers.isDriverLoadFailure(NoClassDefFoundError("x")))
+        assertTrue(JdbcDrivers.isDriverLoadFailure(RuntimeException("Failed to get driver instance")))
+        assertTrue(JdbcDrivers.isDriverLoadFailure(RuntimeException("Failed to find driver for url")))
+        assertTrue(JdbcDrivers.isDriverLoadFailure(RuntimeException("wrap", ClassNotFoundException("org.x"))))
+        assertFalse(JdbcDrivers.isDriverLoadFailure(RuntimeException("pool exhausted")))
+        val unknown = JdbcDrivers.missingDriver(null, null, null)
+        assertTrue(unknown.message!!.contains("(unknown)"))
+        val fromClass = JdbcDrivers.missingDriver("org.postgresql.Driver")
+        assertTrue(fromClass.message!!.contains("engine [pgsql]"))
+        val blankClass = JdbcDrivers.missingDriver("  ", "pgsql")
+        assertTrue(blankClass.message!!.contains("engine [pgsql]"))
+        val aliasOnly = JdbcDrivers.missingDriver(null, "h2")
+        assertTrue(aliasOnly.message!!.contains("engine [h2]"))
+        val urlOnly = JdbcDrivers.missingDriver(null, null, "jdbc:postgresql://h/db")
+        assertTrue(urlOnly.message!!.contains("jdbc:postgresql://h/db"))
+        assertTrue(urlOnly.message!!.contains("org.postgresql:postgresql:42.7.5"))
+        val configuredClass = JdbcDrivers.missingDriver(null, "org.postgresql.Driver")
+        assertTrue(configuredClass.message!!.contains("engine [pgsql]"))
+        assertFalse(JdbcDrivers.isDriverLoadFailure(RuntimeException(null as String?)))
+        assertFalse(JdbcDrivers.isDriverLoadFailure(RuntimeException(null as String?, RuntimeException("pool"))))
+    }
+
+    @Test
     fun engineAliasOpensPooledConnection() {
         val sqlite = Database().addConnection(
             "default",
