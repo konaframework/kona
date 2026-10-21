@@ -13,7 +13,7 @@ run configurations — including **Grind Serve** for the Netty HTTP adapter
 | | |
 | --- | --- |
 | Plugin id | `org.konaframework.idea` |
-| Current line | **v0.5.18** |
+| Current line | **v0.5.19** |
 | Releases | [kona-idea Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
 | Develop | clone `kona-idea` → `./gradlew runIde` / `buildPlugin` (JDK 21+) |
 
