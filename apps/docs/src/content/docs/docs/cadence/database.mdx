@@ -82,7 +82,7 @@ The flag sets `DB_CONNECTION` and `DB_URL`, and adds the matching `runtimeOnly` 
 
 ### Scaffold named connections
 
-Generated `config/Database` includes maps for `main`, `h2`, `sqlite`, `mysql`, `mariadb`, `pgsql`, `sqlsrv`, and `oracle`. Switch with env only:
+Generated `config/Database` includes maps for `main`, `h2`, `sqlite`, `mysql`, `mariadb`, `pgsql`, `sqlsrv`, and `oracle`. Switch with env **and** put that engine’s JDBC JAR on the classpath. `kona new --database=pgsql` does both. Changing only `DB_CONNECTION` after a SQLite scaffold does not — Cadence then fails with a `runtimeOnly("org.postgresql:postgresql:…")` line you can paste into `build.gradle.kts`, then re-run `./grind migrate`.
 
 ```bash
 DB_CONNECTION=pgsql
@@ -91,7 +91,7 @@ DB_USERNAME=kona
 DB_PASSWORD=secret
 ```
 
-Or rely on host/port/database helpers without a full URL (see the generated config file).
+Or rely on host/port/database helpers without a full URL (see the generated config file). After adding the `runtimeOnly` coordinate, Gradle picks it up on the next `./grind` (the `konaClasspath` task).
 
 ### Driver coordinates
 

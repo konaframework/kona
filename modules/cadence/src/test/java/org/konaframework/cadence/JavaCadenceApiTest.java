@@ -398,4 +398,23 @@ public class JavaCadenceApiTest {
         Member.QUERY.truncate();
         assertEquals(0L, Member.QUERY.count());
     }
+
+    @Test
+    void jdbcDriversAreCallableFromJava() {
+        assertEquals("org.postgresql.Driver", JdbcDrivers.className("pgsql"));
+        assertEquals("org.postgresql:postgresql:42.7.5", JdbcDrivers.gradleCoordinate("pgsql"));
+        assertNull(JdbcDrivers.gradleCoordinate(null, null, null));
+        assertNull(JdbcDrivers.gradleCoordinate("unknown", "com.example.NoDriver", null));
+        CadenceException missing =
+            JdbcDrivers.missingDriver("org.postgresql.Driver", "pgsql", "jdbc:postgresql://127.0.0.1/kona", null);
+        assertTrue(missing.getMessage().contains("runtimeOnly(\"org.postgresql:postgresql:42.7.5\")"));
+        Database db = new Database();
+        db.addConnection(
+            "default",
+            new ConnectionConfig("jdbc:postgresql://127.0.0.1:1/kona", null, null, "org.kona.MissingDriver", 1, true)
+        );
+        CadenceException opened = assertThrows(CadenceException.class, db::connection);
+        assertTrue(opened.getMessage().contains("org.kona.MissingDriver"));
+        db.close();
+    }
 }
