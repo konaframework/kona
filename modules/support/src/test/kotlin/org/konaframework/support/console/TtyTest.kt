@@ -21,6 +21,40 @@ class TtyTest {
         assertTrue(Tty.shouldUseWidgets(same, same, mapOf(Tty.LINE_PROMPTS_ENV to "false"), tty))
         assertFalse(Tty.shouldUseWidgets(same, same, emptyMap(), notTty))
         assertFalse(Tty.shouldUseWidgets(ByteArrayInputStream("x".toByteArray())))
+
+        val pipeNoDevice = TtyProbe(CommandRunner { _, _, _ -> CommandResult(1, "") }, controllingTty = null)
+        assertFalse(Tty.shouldUseWidgets(same, same, emptyMap(), pipeNoDevice))
+        val pipeWithTty =
+            TtyProbe(
+                CommandRunner { cmd, _, _ ->
+                    if (cmd.contains("-g")) CommandResult(0, "saved-state\n") else CommandResult(1, "")
+                },
+                controllingTty = "/dev/tty",
+            )
+        assertTrue(Tty.shouldUseWidgets(same, same, emptyMap(), pipeWithTty))
+        val pipeTtyBroken =
+            TtyProbe(
+                CommandRunner { cmd, _, _ ->
+                    if (cmd.contains("-g")) CommandResult(0, "  ") else CommandResult(1, "")
+                },
+                controllingTty = "/dev/tty",
+            )
+        assertFalse(Tty.shouldUseWidgets(same, same, emptyMap(), pipeTtyBroken))
+        val pipeTtyFail =
+            TtyProbe(
+                CommandRunner { _, _, _ -> CommandResult(1, "err") },
+                controllingTty = "/dev/tty",
+            )
+        assertFalse(Tty.shouldUseWidgets(same, same, emptyMap(), pipeTtyFail))
+        val macProbe =
+            TtyProbe(
+                CommandRunner { cmd, _, _ ->
+                    if (cmd == listOf("stty", "-f", "/dev/tty", "-g")) CommandResult(0, "tok") else CommandResult(1, "")
+                },
+                controllingTty = "/dev/tty",
+                osName = "Mac OS X",
+            )
+        assertTrue(macProbe.controllingTtyUsable())
     }
 
     @Test
@@ -71,6 +105,63 @@ class TtyTest {
         assertEquals(80, TtyProbe(CommandRunner { _, _, _ -> CommandResult(0, "24 -2") }).columns(emptyMap()))
         assertEquals(80, TtyProbe(CommandRunner { _, _, _ -> CommandResult(0, "24 xx") }).columns(emptyMap()))
         assertEquals(80, TtyProbe(CommandRunner { _, _, _ -> CommandResult(1, "24 80") }).columns(emptyMap()))
+
+        val viaDevice =
+            TtyProbe(
+                CommandRunner { cmd, _, _ ->
+                    when {
+                        cmd == listOf("stty", "size") -> CommandResult(1, "")
+                        cmd.contains("size") && cmd.contains("/dev/tty") -> CommandResult(0, "24 100\n")
+                        else -> CommandResult(1, "")
+                    }
+                },
+                controllingTty = "/dev/tty",
+            )
+        assertEquals(100, viaDevice.columns(emptyMap()))
+        val deviceBad =
+            TtyProbe(
+                CommandRunner { cmd, _, _ ->
+                    when {
+                        cmd == listOf("stty", "size") -> CommandResult(1, "")
+                        cmd.contains("size") -> CommandResult(0, "24 xx")
+                        else -> CommandResult(1, "")
+                    }
+                },
+                controllingTty = "/dev/tty",
+            )
+        assertEquals(80, deviceBad.columns(emptyMap()))
+        assertEquals(
+            80,
+            TtyProbe(
+                CommandRunner { _, _, _ -> CommandResult(1, "") },
+                controllingTty = "/dev/tty",
+            ).columns(emptyMap()),
+        )
+        val macCols =
+            TtyProbe(
+                CommandRunner { cmd, _, _ ->
+                    when {
+                        cmd == listOf("stty", "size") -> CommandResult(1, "")
+                        cmd == listOf("stty", "-f", "/dev/tty", "size") -> CommandResult(0, "24 88")
+                        else -> CommandResult(1, "")
+                    }
+                },
+                controllingTty = "/dev/tty",
+                osName = "Darwin",
+            )
+        assertEquals(88, macCols.columns(emptyMap()))
+    }
+
+    @Test
+    fun sttyFileFlagAndCommand() {
+        assertEquals("-f", sttyFileFlag("Mac OS X"))
+        assertEquals("-f", sttyFileFlag("Darwin"))
+        assertEquals("-F", sttyFileFlag("Linux"))
+        assertEquals("-F", sttyFileFlag("Windows 11"))
+        assertEquals(listOf("stty", "-g"), sttyCommand(listOf("-g"), null, "Linux"))
+        assertEquals(listOf("stty", "-g"), sttyCommand(listOf("-g"), "", "Linux"))
+        assertEquals(listOf("stty", "-F", "/dev/tty", "-g"), sttyCommand(listOf("-g"), "/dev/tty", "Linux"))
+        assertEquals(listOf("stty", "-f", "/dev/tty", "size"), sttyCommand(listOf("size"), "/dev/tty", "Mac OS X"))
     }
 
     @Test
@@ -130,6 +221,40 @@ class TtyTest {
         NoopRawMode.enter()
         NoopRawMode.close()
         SttyRawMode(CommandRunner { _, _, _ -> CommandResult(0, "x") }, RecordingHooks()).close()
+
+        val deviceLog = mutableListOf<List<String>>()
+        val deviceRunner =
+            CommandRunner { cmd, inherit, _ ->
+                deviceLog.add(cmd)
+                assertFalse(inherit)
+                when {
+                    cmd.contains("-g") -> CommandResult(0, "saved-state\n")
+                    cmd.contains("-echo") -> CommandResult(0, "")
+                    cmd.contains("saved-state") -> CommandResult(0, "")
+                    else -> CommandResult(1, "")
+                }
+            }
+        val deviceMode = SttyRawMode(deviceRunner, RecordingHooks(), ttyDevice = "/dev/tty", osName = "Linux")
+        deviceMode.enter()
+        deviceMode.close()
+        assertTrue(deviceLog.any { it == listOf("stty", "-F", "/dev/tty", "-g") })
+        assertTrue(deviceLog.any { it.contains("-icanon") && it.contains("/dev/tty") })
+        assertTrue(deviceLog.any { it == listOf("stty", "-F", "/dev/tty", "saved-state") })
+
+        val macLog = mutableListOf<List<String>>()
+        val macMode =
+            SttyRawMode(
+                CommandRunner { cmd, _, _ ->
+                    macLog.add(cmd)
+                    if (cmd.contains("-g")) CommandResult(0, "tok") else CommandResult(0, "")
+                },
+                RecordingHooks(),
+                ttyDevice = "/dev/tty",
+                osName = "Mac OS X",
+            )
+        macMode.enter()
+        macMode.close()
+        assertTrue(macLog.any { it.contains("-f") && it.contains("/dev/tty") })
     }
 }
 

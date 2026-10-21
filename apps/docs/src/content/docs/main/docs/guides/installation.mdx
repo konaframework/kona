@@ -31,7 +31,7 @@ cd my-app
 
 Open `http://127.0.0.1:4000/`. That is the supported path: **install `kona` → `kona new` → `./grind serve`** (equivalently `kona grind serve` from inside the app tree).
 
-Generated apps resolve `org.konaframework` libraries from **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** (current line: **0.1.1**). You do not need a Kona source checkout to build or run an application.
+Generated apps resolve `org.konaframework` libraries from **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** (the latest published release). You do not need a Kona source checkout to build or run an application.
 
 ## 1. JDK 21+
 
@@ -49,27 +49,29 @@ The installer and generated apps use the Gradle wrapper; you do not need a separ
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-The script installs the global **`kona`** CLI: it fetches the Kona source (into `~/.kona` by default), builds the CLI, and links `~/.local/bin/kona` (override the install prefix with `KONA_PREFIX`). Ensure `~/.local/bin` is on your `PATH`, then check:
+The curl URL only downloads the **installer script** from GitHub. That script then installs the latest **Maven Central** `org.konaframework:kona-cli` release (git tag `vX.Y.Z`) into `~/.kona`, builds the CLI, and links `~/.local/bin/kona`. It does **not** install unreleased commits from `main`. Override the install prefix with `KONA_PREFIX`. Ensure `~/.local/bin` is on your `PATH`, then check:
 
 ```bash
 kona version
 kona help
 ```
 
-Re-run the same curl command (or `~/.kona/scripts/install.sh`) to update.
+Re-run the same curl command to update to a newer Central release.
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `KONA_SRC` | `~/.kona` | Where source is cloned / updated |
 | `KONA_PREFIX` | `~/.local` | Where `bin/kona` and `lib/kona` are installed |
-| `KONA_REF` | `main` | Git branch or tag to install |
+| `KONA_REF` | latest Central `kona-cli` (`vX.Y.Z`) | Git branch or tag to install |
 | `KONA_REPO` | `https://github.com/konaframework/kona.git` | Clone URL |
 
-Example — install a specific ref into a custom prefix:
+Example — pin a published tag, or install unreleased `main`:
 
 ```bash
-KONA_REF=main KONA_PREFIX=$HOME/.local \
-  curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+KONA_REF=v0.2.0 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+KONA_REF=main curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+# same as KONA_REF=main:
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash -s -- --dev
 ```
 
 :::note[What about package managers?]
@@ -92,7 +94,7 @@ kona new my-app --lang=java --no-interaction
 - `./grind` / `grind.bat` — app-local CLI
 - `./gradlew` / `gradlew.bat` — Gradle wrapper
 - `src/main/…` layout, `.env`, and starter kit files
-- Dependencies on `org.konaframework:…:0.1.1` from Maven Central
+- Dependencies on `org.konaframework:…` at the **same version** the installer just installed (latest Maven Central)
 
 You should see a **DONE** chip and next steps ending with `./grind serve`.
 
@@ -118,8 +120,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.konaframework:kona-http:0.1.1")
-    implementation("org.konaframework:kona-grind:0.1.1")
+    implementation("org.konaframework:kona-http:0.2.0")
+    implementation("org.konaframework:kona-grind:0.2.0")
     // … other org.konaframework modules for your kit
     // Matches default H2 URL in config/Database:
     runtimeOnly("com.h2database:h2:2.3.232")
@@ -150,7 +152,7 @@ cd kona
 # or: ./scripts/install-kona.sh
 ```
 
-`--local` builds and links `~/.local/bin/kona` from **that tree** (not a published 0.2.0 wrapper). Then `kona version` prints the stamped version plus `git describe`. If `command -v kona` points elsewhere, that other binary is stale.
+`--local` builds and links `~/.local/bin/kona` from **that tree** (not the Maven Central release the curl installer uses). `./scripts/install.sh --dev` (or `KONA_REF=main`) installs git `main` without requiring a prior clone. Then `kona version` prints the stamped version plus `git describe`. If `command -v kona` points elsewhere, that other binary is stale.
 
 ### Repo samples
 

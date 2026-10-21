@@ -309,6 +309,89 @@ class ConsolePromptsTest {
     }
 
     @Test
+    fun widgetConfirmArrowsWhenAvailableReportsZero() {
+        val out = ByteArrayOutputStream()
+        val source = BufferSource(bytes(0x1B, '['.code, 'A'.code, 0x0D), 0)
+        val prompts =
+            ConsolePrompts.forTest(
+                ByteArrayInputStream(ByteArray(0)),
+                PrintStream(out),
+                widgets = true,
+                source = source,
+                rawMode = RecordingRawMode(),
+            )
+        assertFalse(prompts.confirm("Port 8080 is in use. Use 8081 instead?", true))
+        val down = BufferSource(bytes(0x1B, '['.code, 'B'.code, 0x0D), 0)
+        val choice =
+            ConsolePrompts.forTest(
+                ByteArrayInputStream(ByteArray(0)),
+                PrintStream(ByteArrayOutputStream()),
+                widgets = true,
+                source = down,
+                rawMode = RecordingRawMode(),
+            )
+        assertEquals("Java", choice.choice("Lang", listOf("Kotlin", "Java")))
+    }
+
+    @Test
+    fun widgetReadsControllingTtyWhenStdinIsPipe() {
+        val ttyFile = java.nio.file.Files.createTempFile("kona-tty", ".in")
+        java.nio.file.Files.write(ttyFile, bytes(0x1B, '['.code, 'A'.code, 0x0D))
+        val pipe = ByteArrayInputStream("ignored\n".toByteArray())
+        val probe =
+            TtyProbe(
+                CommandRunner { cmd, _, _ ->
+                    if (cmd.contains("-g")) CommandResult(0, "saved\n") else CommandResult(1, "")
+                },
+                controllingTty = ttyFile.toAbsolutePath().toString(),
+            )
+        val prompts =
+            ConsolePrompts.forTest(
+                pipe,
+                PrintStream(ByteArrayOutputStream()),
+                widgets = null,
+                probe = probe,
+                systemIn = pipe,
+                rawMode = RecordingRawMode(),
+            )
+        try {
+            assertFalse(prompts.confirm("Port 8080 is in use. Use 8081 instead?", true))
+        } finally {
+            java.nio.file.Files.deleteIfExists(ttyFile)
+        }
+    }
+
+    @Test
+    fun missingControllingTtyFallsBackToStdin() {
+        val pipe = ByteArrayInputStream(bytes(0x0D))
+        val probe =
+            TtyProbe(
+                CommandRunner { _, _, _ -> CommandResult(1, "") },
+                controllingTty = "/no/such/kona-tty-device",
+            )
+        val prompts =
+            ConsolePrompts.forTest(
+                pipe,
+                PrintStream(ByteArrayOutputStream()),
+                widgets = true,
+                probe = probe,
+                systemIn = pipe,
+                rawMode = RecordingRawMode(),
+            )
+        assertTrue(prompts.confirm("Ok?", true))
+        OwnedInput(ByteArrayInputStream(ByteArray(0)), owns = false).closeQuietly()
+        val throwing =
+            object : InputStream() {
+                override fun read(): Int = -1
+
+                override fun close() {
+                    throw IOException("closed")
+                }
+            }
+        OwnedInput(throwing, owns = true).closeQuietly()
+    }
+
+    @Test
     fun forTestSourceOverride() {
         val out = ByteArrayOutputStream()
         val source = BufferSource(bytes(0x0D))

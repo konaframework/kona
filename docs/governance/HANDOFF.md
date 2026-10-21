@@ -82,6 +82,8 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 **Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Brew parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Brew templates.
 
+**Scaffold indent:** `kona new` and `./grind install inertia` emit 2-space `package.json` / `tsconfig.json` via `PrettyJson` and assemble `vite.config.js` / Brew welcome HTML with `SourceBlocks` so nested `trimIndent()` cannot collapse blocks to column 0. Sister IDE **kona-idea 0.5.20** lists those frontend files in the Kona Project View.
+
 ### Intentional deferrals (do not reopen without mandate)
 
 - Horizon / queue metrics dashboard

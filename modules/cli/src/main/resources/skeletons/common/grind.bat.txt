@@ -2,6 +2,17 @@
 setlocal
 cd /d "%~dp0"
 rem Quiet + plain Gradle — no lifecycle spam / stuck ~83%% progress while serve runs.
+rem Prefer a direct JVM so stdin stays a TTY; JavaExec workers often see a pipe.
+set "CP="
+for /f "usebackq delims=" %%i in (`gradlew.bat --quiet --console=plain -Dorg.gradle.console=plain konaClasspath`) do set "CP=%%i"
+if defined CP (
+  if defined JAVA_HOME (
+    "%JAVA_HOME%\bin\java" -cp "%CP%" org.konaframework.grind.GrindKt %*
+  ) else (
+    java -cp "%CP%" org.konaframework.grind.GrindKt %*
+  )
+  exit /b %ERRORLEVEL%
+)
 if "%~1"=="" (
   call gradlew.bat --quiet --console=plain -Dorg.gradle.console=plain grind
 ) else (

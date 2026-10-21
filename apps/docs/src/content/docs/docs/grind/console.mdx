@@ -16,8 +16,11 @@ All Kona terminal CLIs share one Termwind-inspired console style: caramel badges
 
 Do **not** print user-facing output with raw `println` / unstyled `System.out` in commands; use these APIs.
 
-The app-local `./grind` launcher (and `grind serve --no-watch`’s nested `gradlew run`, plus
-watch-mode `gradlew classes`) use `--quiet --console=plain -Dorg.gradle.console=plain` so
+The app-local `./grind` launcher resolves the runtime classpath with Gradle’s `konaClasspath`
+task, then **`exec`s the JVM** so stdin stays the real terminal. (A Gradle `JavaExec` worker
+usually sees a pipe, which used to leave Yes/No and choice lists painted but unresponsive
+to arrow keys.) `grind serve --no-watch`’s nested `gradlew run`, plus watch-mode
+`gradlew classes`, still use `--quiet --console=plain -Dorg.gradle.console=plain` so
 build lifecycle noise and Gradle’s rich progress bar do not bury Termwind output. Default
 `./grind serve` keeps Netty up and recompiles on save; `--no-watch` is the child-JVM `run`
 path. Without plain console, a long-lived `run` can look “stuck” around 83% for the whole
@@ -150,12 +153,14 @@ Use `Prompts` (grind) or `org.konaframework.support.console.ConsolePrompts` (sha
 
 - Dim `┌ ┐ └ ┘ │ ─` frame, label on the top border (`┌ App name ───┐`), inner value padded to a consistent width (about 60 columns, or terminal width minus 4).
 - **Text (`ask`):** the caret sits **inside** the box on the value row. Backspace, Left/Right, Home/End, and UTF-8 characters edit that value. Enter submits; the live box is replaced in place with the same frame and a **green** value (no second stacked copy).
-- **Select (`choice`) / confirm:** cyan `›` marks the current row. **Up/Down** (and `k`/`j`) move the pointer; Enter submits. Confirm also accepts `y`/`n`/`1`/`2`. The pointer wraps at the ends of the list.
+- **Select (`choice`) / confirm:** cyan `›` marks the current row. **Up/Down** (and `k`/`j`) move the pointer; Enter submits. Confirm also accepts `y`/`n`/`1`/`2`. The pointer wraps at the ends of the list. Arrow keys work in `./grind` the same way they do in `kona new` — including port-in-use “use another port?” and other grind confirms.
 - **Ctrl+C** restores the terminal and cancels.
 
 `kona new` uses the same widgets. Scripts and CI skip them with `--no-interaction` (or `--yes` / `CI=true`).
 
-When stdin is **not** a TTY — pipes, Gradle test `ByteArrayInputStream`, `KONA_LINE_PROMPTS=1` — the same methods fall back to one-line answers (`readLine`). Empty line uses `default`; `choice` still accepts a 1-based index or a case-insensitive label.
+When stdin is **not** a TTY — pipes, tests that inject a `ByteArrayInputStream`, `KONA_LINE_PROMPTS=1` — the same methods fall back to one-line answers (`readLine`). Empty line uses `default`; `choice` still accepts a 1-based index or a case-insensitive label.
+
+If Gradle still launches grind with a piped stdin (older `./grind` scripts that call `JavaExec` directly), widgets open the controlling terminal (`/dev/tty`) for raw mode and key reads so Up/Down still move the pointer. Set `KONA_LINE_PROMPTS=1` to force the line fallback.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

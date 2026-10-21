@@ -31,7 +31,7 @@ cd my-app
 
 Abre `http://127.0.0.1:4000/`. Ese es el camino soportado: **instalar `kona` → `kona new` → `./grind serve`**.
 
-Las apps generadas resuelven las bibliotecas `org.konaframework` desde **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** (línea actual: **0.1.1**). No necesitas un checkout del código fuente de Kona para compilar o ejecutar una aplicación.
+Las apps generadas resuelven las bibliotecas `org.konaframework` desde **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** (la última versión publicada). No necesitas un checkout del código fuente de Kona para compilar o ejecutar una aplicación.
 
 ## 1. JDK 21+
 
@@ -49,20 +49,20 @@ El instalador y las apps generadas usan el wrapper de Gradle; no necesitas insta
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-El script instala el CLI global **`kona`**: descarga el código fuente de Kona (en `~/.kona` por defecto), construye el CLI y enlaza `~/.local/bin/kona` (cambia el prefijo con `KONA_PREFIX`). Asegúrate de que `~/.local/bin` esté en tu `PATH`, luego comprueba:
+La URL de curl solo descarga el **script instalador** desde GitHub. Ese script instala la última versión de **Maven Central** `org.konaframework:kona-cli` (tag git `vX.Y.Z`) en `~/.kona`, construye el CLI y enlaza `~/.local/bin/kona`. **No** instala commits sin publicar de `main`. Cambia el prefijo con `KONA_PREFIX`. Asegúrate de que `~/.local/bin` esté en tu `PATH`, luego comprueba:
 
 ```bash
 kona version
 kona help
 ```
 
-Vuelve a ejecutar el mismo comando curl (o `~/.kona/scripts/install.sh`) para actualizar.
+Vuelve a ejecutar el mismo comando curl para actualizar a una versión más reciente de Central.
 
 | Variable | Por defecto | Significado |
 |----------|---------|---------|
 | `KONA_SRC` | `~/.kona` | Dónde se clona / actualiza el código |
 | `KONA_PREFIX` | `~/.local` | Dónde se instalan `bin/kona` y `lib/kona` |
-| `KONA_REF` | `main` | Rama o tag de Git a instalar |
+| `KONA_REF` | última `kona-cli` en Central (`vX.Y.Z`) | Rama o tag de Git a instalar |
 | `KONA_REPO` | `https://github.com/konaframework/kona.git` | URL del clone |
 
 :::note[¿Y los gestores de paquetes?]
@@ -81,7 +81,7 @@ kona new my-app --lang=java
 - `./grind` / `grind.bat` — CLI local a la app
 - `./gradlew` / `gradlew.bat` — wrapper de Gradle
 - Layout `src/main/…`, `.env` y archivos del starter kit
-- Dependencias `org.konaframework:…:0.1.1` desde Maven Central
+- Dependencias `org.konaframework:…` en la **misma versión** que acaba de instalar el instalador (última de Maven Central)
 
 Fija otra versión con `--kona-version=x.y.z` si lo necesitas.
 
@@ -105,8 +105,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.konaframework:kona-http:0.1.1")
-    implementation("org.konaframework:kona-grind:0.1.1")
+    implementation("org.konaframework:kona-http:0.2.0")
+    implementation("org.konaframework:kona-grind:0.2.0")
 }
 ```
 

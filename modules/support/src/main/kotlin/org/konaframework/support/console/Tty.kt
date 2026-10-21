@@ -1,6 +1,7 @@
 package org.konaframework.support.console
 
 import org.konaframework.support.KoverExclude
+import java.io.File
 import java.io.IOException
 import java.io.InputStream
 
@@ -38,7 +39,10 @@ object Tty {
     const val LINE_PROMPTS_ENV = "KONA_LINE_PROMPTS"
 
     /**
-     * Raw widgets when [input] is the process stdin **and** fd 0 is a TTY.
+     * Raw widgets when [input] is the process stdin **and** either fd 0 is a TTY
+     * or the controlling terminal (`/dev/tty`) can take `stty`. Gradle JavaExec
+     * workers typically see a pipe on fd 0 even when `./grind` was started from
+     * a real terminal — without `/dev/tty`, Yes/No arrows never move.
      * Injected streams (tests, pipes) stay line-based. `System.console()` is not
      * required — IDE terminals often have a TTY with a null console.
      */
@@ -57,7 +61,7 @@ object Tty {
         if (input !== systemIn) {
             return false
         }
-        return probe.stdinIsTty()
+        return probe.stdinIsTty() || probe.controllingTtyUsable()
     }
 
     @JvmStatic
@@ -69,7 +73,11 @@ object Tty {
     }
 }
 
-class TtyProbe(internal val runner: CommandRunner = ProcessCommandRunner()) {
+class TtyProbe(
+    internal val runner: CommandRunner = ProcessCommandRunner(),
+    internal val controllingTty: String? = null,
+    private val osName: String = System.getProperty("os.name", ""),
+) {
     fun stdinIsTty(): Boolean {
         val test = runner.run(listOf("test", "-t", "0"), inheritInput = true, captureOutput = false)
         if (test.exitCode == 0) {
@@ -82,22 +90,70 @@ class TtyProbe(internal val runner: CommandRunner = ProcessCommandRunner()) {
         return false
     }
 
+    fun controllingTtyUsable(): Boolean {
+        val path = controllingTty ?: return false
+        val state =
+            runner.run(
+                sttyCommand(listOf("-g"), path, osName),
+                inheritInput = false,
+                captureOutput = true,
+            )
+        return state.exitCode == 0 && state.stdout.trim().isNotEmpty()
+    }
+
     fun columns(env: Map<String, String>): Int {
         val fromEnv = env["COLUMNS"]?.toIntOrNull()
         if (fromEnv != null && fromEnv > 0) {
             return fromEnv
         }
-        val stty = runner.run(listOf("stty", "size"), inheritInput = true, captureOutput = true)
-        if (stty.exitCode == 0) {
-            val parts = stty.stdout.trim().split(Regex("\\s+"))
-            if (parts.size >= 2) {
-                val cols = parts.last().toIntOrNull()
-                if (cols != null && cols > 0) {
-                    return cols
-                }
-            }
+        val inherit = runner.run(listOf("stty", "size"), inheritInput = true, captureOutput = true)
+        parseColumns(inherit)?.let { return it }
+        val path = controllingTty
+        if (path != null) {
+            val viaDevice =
+                runner.run(
+                    sttyCommand(listOf("size"), path, osName),
+                    inheritInput = false,
+                    captureOutput = true,
+                )
+            parseColumns(viaDevice)?.let { return it }
         }
         return 80
+    }
+
+    private fun parseColumns(stty: CommandResult): Int? {
+        if (stty.exitCode != 0) {
+            return null
+        }
+        val parts = stty.stdout.trim().split(Regex("\\s+"))
+        if (parts.size >= 2) {
+            val cols = parts.last().toIntOrNull()
+            if (cols != null && cols > 0) {
+                return cols
+            }
+        }
+        return null
+    }
+}
+
+/** POSIX `stty -F` (Linux) / `stty -f` (macOS) so raw mode can target `/dev/tty`. */
+internal fun sttyFileFlag(osName: String): String {
+    val n = osName.lowercase()
+    return if (n.startsWith("mac") || n.contains("darwin")) "-f" else "-F"
+}
+
+internal fun sttyCommand(args: List<String>, device: String?, osName: String): List<String> {
+    if (device.isNullOrEmpty()) {
+        return listOf("stty") + args
+    }
+    return listOf("stty", sttyFileFlag(osName), device) + args
+}
+
+@KoverExclude
+object DefaultControllingTty {
+    fun path(): String? {
+        val f = File("/dev/tty")
+        return if (f.exists()) "/dev/tty" else null
     }
 }
 
@@ -136,7 +192,11 @@ class ProcessCommandRunner : CommandRunner {
 @KoverExclude
 object ProductionRaw {
     @JvmStatic
-    fun open(): RawMode = SttyRawMode()
+    fun open(): RawMode {
+        val probe = TtyProbe(controllingTty = DefaultControllingTty.path())
+        val device = if (probe.stdinIsTty()) null else probe.controllingTty
+        return SttyRawMode(ttyDevice = device)
+    }
 }
 
 @KoverExclude
@@ -165,6 +225,8 @@ object RuntimeShutdownHooks : ShutdownHooks {
 class SttyRawMode(
     private val runner: CommandRunner = ProcessCommandRunner(),
     private val hooks: ShutdownHooks = RuntimeShutdownHooks,
+    private val ttyDevice: String? = null,
+    private val osName: String = System.getProperty("os.name", ""),
 ) : RawMode {
     private var saved: String? = null
     private var hook: Thread? = null
@@ -173,17 +235,12 @@ class SttyRawMode(
         if (saved != null) {
             return
         }
-        val state = runner.run(listOf("stty", "-g"), inheritInput = true, captureOutput = true)
+        val state = stty(listOf("-g"), capture = true)
         val token = state.stdout.trim()
         if (state.exitCode != 0 || token.isEmpty()) {
             throw RawModeException("stty -g failed")
         }
-        val raw =
-            runner.run(
-                listOf("stty", "-echo", "-icanon", "min", "1", "time", "0"),
-                inheritInput = true,
-                captureOutput = false,
-            )
+        val raw = stty(listOf("-echo", "-icanon", "min", "1", "time", "0"), capture = false)
         if (raw.exitCode != 0) {
             throw RawModeException("stty raw failed")
         }
@@ -205,6 +262,11 @@ class SttyRawMode(
     private fun restoreQuietly() {
         val token = saved ?: return
         saved = null
-        runner.run(listOf("stty", token), inheritInput = true, captureOutput = false)
+        stty(listOf(token), capture = false)
+    }
+
+    private fun stty(args: List<String>, capture: Boolean): CommandResult {
+        val inherit = ttyDevice == null
+        return runner.run(sttyCommand(args, ttyDevice, osName), inherit, capture)
     }
 }

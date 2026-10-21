@@ -1,6 +1,7 @@
 package org.konaframework.support.console
 
 import java.io.BufferedReader
+import java.io.FileInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -8,8 +9,10 @@ import java.io.PrintStream
 
 /**
  * Boxed TTY prompts: dim `┌┐└┘` frames, cyan `›`, cursor on the value row, in-place
- * submit (green value). Arrow keys move the pointer. When stdin is not a TTY (tests,
- * pipes, `KONA_LINE_PROMPTS=1`) the same API falls back to line-based `readLine`.
+ * submit (green value). Arrow keys move the pointer. When stdin is a pipe but `/dev/tty`
+ * is usable (Gradle JavaExec), widgets still run against the controlling terminal.
+ * When stdin is not a TTY (tests, pipes, `KONA_LINE_PROMPTS=1`) and no controlling
+ * terminal is available, the same API falls back to line-based `readLine`.
  */
 class ConsolePrompts private constructor(
     private val input: InputStream,
@@ -37,7 +40,7 @@ class ConsolePrompts private constructor(
         eofThrows,
         env = System.getenv(),
         systemIn = System.`in`,
-        probe = TtyProbe(),
+        probe = TtyProbe(controllingTty = DefaultControllingTty.path()),
         openRaw = ProductionRaw::open,
         columnsOverride = 0,
         forceWidgets = null,
@@ -46,6 +49,7 @@ class ConsolePrompts private constructor(
 
     private val style = ConsoleIO(output, output, color)
     private val reader by lazy { BufferedReader(InputStreamReader(input, Charsets.UTF_8)) }
+    private var activeKeyInput: InputStream? = null
 
     @JvmOverloads
     fun ask(question: String, default: String? = null): String =
@@ -71,19 +75,28 @@ class ConsolePrompts private constructor(
         if (!useWidgets()) {
             return line()
         }
-        val raw = openRaw()
-        val renderer = PromptRenderer(output, style, contentWidth(), raw = true)
-        try {
-            raw.enter()
-        } catch (_: RawModeException) {
-            return line()
+        val opened = openWidgetStream()
+        if (opened.owns) {
+            activeKeyInput = opened.stream
         }
-        renderer.hideCursor()
         try {
-            return widget(renderer)
+            val raw = openRaw()
+            val renderer = PromptRenderer(output, style, contentWidth(), raw = true)
+            try {
+                raw.enter()
+            } catch (_: RawModeException) {
+                return line()
+            }
+            renderer.hideCursor()
+            try {
+                return widget(renderer)
+            } finally {
+                renderer.showCursor()
+                raw.close()
+            }
         } finally {
-            renderer.showCursor()
-            raw.close()
+            activeKeyInput = null
+            opened.closeQuietly()
         }
     }
 
@@ -99,7 +112,25 @@ class ConsolePrompts private constructor(
         return Tty.promptContentWidth(columns)
     }
 
-    private fun keys(): KeyDecoder = KeyDecoder(sourceOverride ?: InputStreamByteSource(input))
+    private fun keys(): KeyDecoder {
+        val override = sourceOverride
+        if (override != null) {
+            return KeyDecoder(override)
+        }
+        return KeyDecoder(InputStreamByteSource(activeKeyInput ?: input))
+    }
+
+    private fun openWidgetStream(): OwnedInput {
+        if (probe.stdinIsTty()) {
+            return OwnedInput(input, owns = false)
+        }
+        val path = probe.controllingTty ?: return OwnedInput(input, owns = false)
+        return try {
+            OwnedInput(FileInputStream(path), owns = true)
+        } catch (_: IOException) {
+            OwnedInput(input, owns = false)
+        }
+    }
 
     private fun askLine(question: String, default: String?): String {
         val preview = if (default.isNullOrEmpty()) "" else style.paint(ConsoleIO.DIM, default)
@@ -349,6 +380,18 @@ class ConsolePrompts private constructor(
                 forceWidgets = widgets,
                 sourceOverride = source,
             )
+    }
+}
+
+internal class OwnedInput(val stream: InputStream, val owns: Boolean) {
+    fun closeQuietly() {
+        if (!owns) {
+            return
+        }
+        try {
+            stream.close()
+        } catch (_: IOException) {
+        }
     }
 }
 

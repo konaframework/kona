@@ -7,10 +7,18 @@ cd "$DIR"
 # Quiet + plain: no lifecycle spam / stuck ~83% progress while `run` (serve) lives.
 GRADLE=(./gradlew --quiet --console=plain -Dorg.gradle.console=plain)
 
+# Resolve the app classpath, then exec the JVM so stdin stays a TTY.
+# Gradle JavaExec workers typically see a pipe, which disables boxed prompts
+# (Yes/No arrows, choice lists). Fall back to the grind JavaExec task if
+# konaClasspath cannot run.
+CLASSPATH="$("${GRADLE[@]}" konaClasspath)" || CLASSPATH=""
+if [[ -n "$CLASSPATH" ]]; then
+  JAVA="${JAVA_HOME:+$JAVA_HOME/bin/java}"
+  JAVA="${JAVA:-java}"
+  exec "$JAVA" -cp "$CLASSPATH" org.konaframework.grind.GrindKt "$@"
+fi
+
 if [[ $# -eq 0 ]]; then
   exec "${GRADLE[@]}" grind
 fi
-
-# Capture Gradle's own stderr/lifecycle separately would also hide grind output when JavaExec
-# inherits IO — so we rely on --quiet and let the JVM process talk directly to the terminal.
 exec "${GRADLE[@]}" grind -PgrindArgs="$*"

@@ -81,7 +81,7 @@ Prints the same setup checklist (no processes are started).
 }
 ```
 
-Point Vite’s `build.outDir` at `public/build` and set `build.manifest` to `'manifest.json'` (a bare `true` writes `public/build/.vite/manifest.json`, which Kona also reads). The dev server should write `public/hot` with its origin (for example `http://127.0.0.1:5173`) and delete that file on exit; a production build should delete a stale hot file so the manifest is used. The Inertia starter kit (`kona new … --kit=inertia`) and `./grind install inertia` include a `vite.config.js` that does this.
+Point Vite’s `build.outDir` at `public/build` and set `build.manifest` to `'manifest.json'` (a bare `true` writes `public/build/.vite/manifest.json`, which Kona also reads). The dev server should write `public/hot` with its origin (for example `http://127.0.0.1:5173`) and delete that file on exit; a production build should delete a stale hot file so the manifest is used. The Inertia starter kit (`kona new … --kit=inertia`) and `./grind install inertia` write a 2-space `package.json` and `vite.config.js` that do this.
 
 ```bash
 npm run dev     # public/hot → dev-server script URLs

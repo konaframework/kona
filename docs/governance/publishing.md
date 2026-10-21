@@ -4,26 +4,26 @@ How maintainers publish Kona framework jars (including Brew and Inertia) for con
 
 **Gradle plumbing (this repo):** shared `com.vanniktech.maven.publish` convention in the root `build.gradle.kts` — POM metadata, sources jar, empty javadoc jar (Kotlin), optional GPG signing, Central Portal publisher, and `:bom` (`kona-bom`). **Local / CI still use** `publishToMavenLocal`. **Public Central release** needs a Portal user token, GPG key, non-SNAPSHOT version, and a human-triggered tag (see checklist below).
 
-Public install docs may still say generated apps resolve `org.konaframework:…:0.1.0-SNAPSHOT` from `mavenLocal()` until a non-SNAPSHOT train is published on Central.
+Generated apps resolve `org.konaframework:…` from Maven Central. The curl installer (`scripts/install.sh`) checks out the latest Central `kona-cli` release tag, not `main`.
 
-## Last published release — `0.1.1` (monorepo train)
+## Last published release — `0.2.0`
 
-**Status:** **shipped.** Tag `v0.1.1` → `release.yml` uploaded; Portal **Publish** completed. Includes in-tree Brew + Inertia (remonorepo `#138`). **Do not** re-tag or republish `0.1.1`. Sister repos remain archived (no tags from them).
+**Status:** **shipped.** Tag `v0.2.0` → `release.yml` uploaded; Portal **Publish** completed. On Maven Central as `org.konaframework:kona-cli:0.2.0` (and the rest of the train). **Do not** re-tag or republish `0.2.0`. Prior cuts: `0.1.1` (first remonorepo train), `0.1.0`. Sister repos remain archived.
 
-## Current train — `0.2.0` (not tagged yet)
+## `main` vs Central
 
-**Status:** `kona.version=0.2.0` on `main` for local / mavenLocal / `install.sh`. **No** `v0.2.0` tag and **not** on Maven Central until an explicit release cut.
+`kona.version` on `main` may still read `0.2.0` while `main` has commits **after** the tag. Those commits are unreleased. **`curl …/scripts/install.sh | bash` installs the latest Maven Central release (git tag `vX.Y.Z`), not `main`.** Use `./scripts/install.sh --local` or `--dev` / `KONA_REF=main` for unreleased trees.
 
-### When ready to ship `0.2.0`
+### When ready to ship the next train
 
-1. Confirm `main` is green and release notes are ready.
-2. Human tags: `git tag v0.2.0 <merge-sha> && git push origin v0.2.0`.
+1. Confirm `main` is green, `kona.version` is the new non-SNAPSHOT, and release notes are ready.
+2. Human tags: `git tag vX.Y.Z <merge-sha> && git push origin vX.Y.Z`.
 3. Wait for `.github/workflows/release.yml` → Environment `maven-central`.
 4. Portal **Publish** when `VALIDATED` (`automaticRelease=false`).
 
 ### Other follow-ups
 
-1. Confirm `0.1.1` artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (`kona-core`, `kona-bom`, `kona-brew`, `kona-inertia`, …).
+1. Confirm artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (`kona-core`, `kona-bom`, `kona-cli`, `kona-brew`, `kona-inertia`, …).
 2. **Usage / File Count** — org hit Central **File Count** monthly limit (grace through **2026-11-17**). Check [Usage Center](https://central.sonatype.com/); if still tight, email `central-support@sonatype.com` for a higher limit. See [Reducing Publishing Usage](https://central.sonatype.org/publish/reducing-publishing-usage/).
 
 ### File-count mitigations (this stack)
@@ -104,7 +104,7 @@ Root `build.gradle.kts` applies [`com.vanniktech.maven.publish` 0.34.0](https://
 
 ### Installer / day-to-day path
 
-`scripts/install.sh` publishes all in-tree modules (including `:kona-brew` / `:kona-inertia`) to Maven Local in one Gradle invocation. It may clone **this** monorepo for bootstrap; it does **not** need sister-repo clones.
+`scripts/install.sh` (curl path) resolves `<release>` from Maven Central `kona-cli` metadata, clones that git tag into `~/.kona`, then publishes that tree to Maven Local and links `~/.local/bin/kona`. `--local` builds the current checkout instead. `--dev` / `KONA_REF=main` installs unreleased `main`. It does **not** need sister-repo clones.
 
 ## Artifact inventory (`kona`)
 
@@ -156,9 +156,10 @@ Do **not** commit tokens, GPG private keys, or `gradle.properties` with secrets.
 
 | Kind | Version shape | Notes |
 |------|---------------|--------|
-| Local / CI / install.sh | `0.2.0` | Overwritable in `~/.m2`; not tagged yet |
-| Public release (last cut) | `0.1.1` | Tagged `v0.1.1`; on Central |
-| Prior cut | `0.1.0` | Tagged; brew/inertia were not in-tree yet |
+| Local / CI / `--local` | `kona.version` on the checkout | Overwritable in `~/.m2` |
+| Curl installer default | latest Central `kona-cli` | Tag `vX.Y.Z`; currently `0.2.0` |
+| Public release (last cut) | `0.2.0` | Tagged `v0.2.0`; on Central |
+| Prior cuts | `0.1.1`, `0.1.0` | `0.1.0` predates in-tree brew/inertia |
 
 ### C. Module publish order
 
