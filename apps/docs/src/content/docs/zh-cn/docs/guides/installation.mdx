@@ -31,7 +31,7 @@ cd my-app
 
 打开 `http://127.0.0.1:4000/`。这就是受支持的路径：**安装 `kona` → `kona new` → `./grind serve`**。
 
-生成的应用从 **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** 解析 `org.konaframework` 库（当前线：**0.1.1**）。构建或运行应用不需要 Kona 源码检出。
+生成的应用从 **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** 解析 `org.konaframework` 库（最新已发布版本）。构建或运行应用不需要 Kona 源码检出。
 
 ## 1. JDK 21+
 
@@ -49,20 +49,20 @@ java -version   # 必须报告 21 或更新
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-该脚本安装全局 **`kona` CLI**：拉取 Kona 源码（默认到 `~/.kona`）、构建 CLI，并链接 `~/.local/bin/kona`（可用 `KONA_PREFIX` 覆盖前缀）。确保 `~/.local/bin` 在你的 `PATH` 上，然后检查：
+curl URL 只从 GitHub 下载**安装脚本**。脚本随后安装 **Maven Central** 上最新的 `org.konaframework:kona-cli` 发布版（git 标签 `vX.Y.Z`）到 `~/.kona`，构建 CLI，并链接 `~/.local/bin/kona`。它**不会**安装 `main` 上尚未发布的提交。可用 `KONA_PREFIX` 覆盖前缀。确保 `~/.local/bin` 在你的 `PATH` 上，然后检查：
 
 ```bash
 kona version
 kona help
 ```
 
-再次运行同一 curl 命令（或 `~/.kona/scripts/install.sh`）即可更新。
+再次运行同一 curl 命令即可更新到更新的 Central 版本。
 
 | 变量 | 默认值 | 含义 |
 |----------|---------|---------|
 | `KONA_SRC` | `~/.kona` | 源码克隆 / 更新位置 |
 | `KONA_PREFIX` | `~/.local` | `bin/kona` 与 `lib/kona` 的安装位置 |
-| `KONA_REF` | `main` | 要安装的 Git 分支或标签 |
+| `KONA_REF` | Central 最新 `kona-cli`（`vX.Y.Z`） | 要安装的 Git 分支或标签 |
 | `KONA_REPO` | `https://github.com/konaframework/kona.git` | 克隆 URL |
 
 :::note[包管理器呢？]
@@ -81,7 +81,7 @@ kona new my-app --lang=java
 - `./grind` / `grind.bat` — 应用内 CLI
 - `./gradlew` / `gradlew.bat` — Gradle wrapper
 - `src/main/…` 布局、`.env` 与 starter kit 文件
-- 来自 Maven Central 的 `org.konaframework:…:0.1.1` 依赖
+- `org.konaframework:…` 依赖版本与安装脚本刚装上的版本相同（Maven Central 最新版）
 
 如需固定其他版本，可用 `--kona-version=x.y.z`。
 
@@ -105,8 +105,8 @@ repositories {
 }
 
 dependencies {
-    implementation("org.konaframework:kona-http:0.1.1")
-    implementation("org.konaframework:kona-grind:0.1.1")
+    implementation("org.konaframework:kona-http:0.2.0")
+    implementation("org.konaframework:kona-grind:0.2.0")
 }
 ```
 
