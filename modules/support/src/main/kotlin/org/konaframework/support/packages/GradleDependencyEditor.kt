@@ -4,7 +4,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Adds or updates an `implementation` dependency in a Gradle build script.
+ * Adds or updates a Gradle dependency (`implementation` by default, or
+ * `runtimeOnly` / another configuration) in a build script.
  *
  * Supports Kotlin DSL (`build.gradle.kts`) and Groovy (`build.gradle`).
  */
@@ -17,18 +18,25 @@ object GradleDependencyEditor {
     )
 
     /**
-     * Ensures `implementation("group:artifact:version")` (or Groovy single quotes) is present.
+     * Ensures `configuration("group:artifact:version")` (or Groovy single quotes) is present.
      * Returns null when no Gradle build file exists under [projectRoot].
      */
     @JvmStatic
-    fun ensureDependency(projectRoot: Path, group: String, artifact: String, version: String): Result? {
+    @JvmOverloads
+    fun ensureDependency(
+        projectRoot: Path,
+        group: String,
+        artifact: String,
+        version: String,
+        configuration: String = "implementation",
+    ): Result? {
         val kts = projectRoot.resolve("build.gradle.kts")
         if (Files.isRegularFile(kts)) {
-            return edit(kts, group, artifact, version, kotlinDsl = true)
+            return edit(kts, group, artifact, version, kotlinDsl = true, configuration = configuration)
         }
         val groovy = projectRoot.resolve("build.gradle")
         if (Files.isRegularFile(groovy)) {
-            return edit(groovy, group, artifact, version, kotlinDsl = false)
+            return edit(groovy, group, artifact, version, kotlinDsl = false, configuration = configuration)
         }
         return null
     }
@@ -39,13 +47,15 @@ object GradleDependencyEditor {
         artifact: String,
         version: String,
         kotlinDsl: Boolean,
+        configuration: String,
     ): Result {
         val original = Files.readString(buildFile)
         val ga = "$group:$artifact"
+        val config = Regex.escape(configuration)
         val existing =
-            Regex("""implementation\s*\(\s*["']${Regex.escape(ga)}:([^"']+)["']\s*\)""")
+            Regex("""(?<![A-Za-z])$config\s*\(\s*["']${Regex.escape(ga)}:([^"']+)["']\s*\)""")
                 .find(original)
-                ?: Regex("""implementation\s+["']${Regex.escape(ga)}:([^"']+)["']""")
+                ?: Regex("""(?<![A-Za-z])$config\s+["']${Regex.escape(ga)}:([^"']+)["']""")
                     .find(original)
         if (existing != null) {
             val currentVersion = existing.groupValues[1]
@@ -54,20 +64,27 @@ object GradleDependencyEditor {
             }
             val replacement =
                 if (kotlinDsl) {
-                    """implementation("$ga:$version")"""
+                    """$configuration("$ga:$version")"""
                 } else {
-                    """implementation '$ga:$version'"""
+                    """$configuration '$ga:$version'"""
                 }
             val updated = original.replace(existing.value, replacement)
             Files.writeString(buildFile, updated)
             return Result(buildFile, added = false, updated = true, alreadyPresent = false)
         }
+        val production =
+            Regex(
+                """(?<![A-Za-z])(?:implementation|api|compileOnly|runtimeOnly)\s*(?:\(|\s+)["']${Regex.escape(ga)}:([^"']+)["']""",
+            )
+        if (production.containsMatchIn(original)) {
+            return Result(buildFile, added = false, updated = false, alreadyPresent = true)
+        }
 
         val line =
             if (kotlinDsl) {
-                """    implementation("$ga:$version")"""
+                """    $configuration("$ga:$version")"""
             } else {
-                """    implementation '$ga:$version'"""
+                """    $configuration '$ga:$version'"""
             }
         val inserted = insertIntoDependenciesBlock(original, line)
             ?: error("Could not find a dependencies { } block in $buildFile")

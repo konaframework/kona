@@ -66,13 +66,13 @@ object Database : ConfigFile {
 
 When the `database` section defines no connections, Cadence falls back to environment variables (or `.env`): `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DRIVER`, `DB_POOL_SIZE`, and `DB_QUOTE_IDENTIFIERS`.
 
-`kona new` adds the SQLite JDBC driver (`runtimeOnly("org.xerial:sqlite-jdbc:…")`) for the default URL. When you switch engines (`DB_CONNECTION=pgsql`, …), add that driver’s `runtimeOnly` coordinate — Cadence prints the exact Gradle line if the class is missing — or pass `--database=pgsql` to `kona new` so the scaffold writes it. Example: `runtimeOnly("org.postgresql:postgresql:42.7.5")`.
+`kona new` adds the SQLite JDBC driver (`runtimeOnly("org.xerial:sqlite-jdbc:…")`) for the default URL. When you switch engines (`DB_CONNECTION=pgsql`, …), the next `./grind migrate` or `./grind serve` writes that driver’s `runtimeOnly` coordinate into `build.gradle.kts`. Pass `--database=pgsql` to `kona new` so the scaffold writes it up front. If grind cannot edit the build file, Cadence prints the Gradle line (example: `runtimeOnly("org.postgresql:postgresql:42.7.5")`).
 
 :::note[H2 and letter case]
 Cadence quotes table and column names (`"users"`), which makes them case-sensitive. H2 upper-cases unquoted names by default, so add `DATABASE_TO_LOWER=TRUE` to H2 URLs. With that flag, raw SQL you write by hand (`select * from users`) and the SQL Cadence generates refer to the same tables.
 :::
 
-`kona new` defaults to file SQLite so a fresh app runs without installing a database server. For production, point `DB_CONNECTION` / `DB_URL` at PostgreSQL or MySQL and add that engine’s JDBC JAR. Full engine matrix, env keys, and how to register a new JDBC database: [Database connections](./database/).
+`kona new` defaults to file SQLite so a fresh app runs without installing a database server. For production, point `DB_CONNECTION` / `DB_URL` at PostgreSQL or MySQL; grind adds that engine’s JDBC JAR on the next migrate or serve. Full engine matrix, env keys, and how to register a new JDBC database: [Database connections](./database/).
 
 ## Registering Cadence in an application
 

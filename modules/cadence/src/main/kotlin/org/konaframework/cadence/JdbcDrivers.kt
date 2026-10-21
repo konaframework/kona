@@ -5,8 +5,10 @@ package org.konaframework.cadence
  * `runtimeOnly` coordinate a Kona app needs when that JAR is not on the classpath.
  *
  * `kona new --database=pgsql` adds the coordinate at scaffold time. Switching
- * `DB_CONNECTION` later does not; Cadence then throws [CadenceException] with
- * the line to paste instead of Hikari's raw `RuntimeException`.
+ * `DB_CONNECTION` later is handled by grind: it writes the `runtimeOnly` line and
+ * refreshes `konaClasspath`. If the class is still missing (no Gradle build file,
+ * or `--no-jdbc-install`), Cadence throws [CadenceException] with the line to paste
+ * instead of Hikari's raw `RuntimeException`.
  */
 object JdbcDrivers {
     data class Engine(
@@ -49,6 +51,35 @@ object JdbcDrivers {
     @JvmStatic
     fun className(alias: String): String? = byAlias[alias.lowercase()]?.className
 
+    /** First-party engine for an alias (`pgsql`, `postgres`) or JDBC class name. */
+    @JvmStatic
+    fun engine(configured: String?): Engine? = engineOf(configured)
+
+    /**
+     * Splits `group:artifact:version` (version may contain extra dots, not colons).
+     * Returns null when the string is not a three-part Maven coordinate.
+     */
+    @JvmStatic
+    fun splitGradleCoordinate(coordinate: String): Array<String>? {
+        val parts = coordinate.split(':', limit = 3)
+        if (parts.size != 3 || parts.any { it.isBlank() }) {
+            return null
+        }
+        return parts.toTypedArray()
+    }
+
+    @JvmStatic
+    @JvmOverloads
+    fun isLoadable(className: String, loader: ClassLoader = JdbcDrivers::class.java.classLoader): Boolean =
+        try {
+            Class.forName(className, false, loader)
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        } catch (_: NoClassDefFoundError) {
+            false
+        }
+
     @JvmStatic
     @JvmOverloads
     fun gradleCoordinate(
@@ -84,7 +115,7 @@ object JdbcDrivers {
                 }
                 append('.')
                 if (coord != null) {
-                    append(" Add this to build.gradle.kts, then re-run ./grind migrate:\n\n")
+                    append(" ./grind migrate and ./grind serve add this to build.gradle.kts automatically; or paste it yourself:\n\n")
                     append("    runtimeOnly(\"$coord\")")
                 } else {
                     append(" Add the matching JDBC JAR as runtimeOnly on the application classpath.")

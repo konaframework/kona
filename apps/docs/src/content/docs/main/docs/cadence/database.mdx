@@ -82,7 +82,7 @@ The flag sets `DB_CONNECTION` and `DB_URL`, and adds the matching `runtimeOnly` 
 
 ### Scaffold named connections
 
-Generated `config/Database` includes maps for `main`, `h2`, `sqlite`, `mysql`, `mariadb`, `pgsql`, `sqlsrv`, and `oracle`. Switch with env **and** put that engine’s JDBC JAR on the classpath. `kona new --database=pgsql` does both. Changing only `DB_CONNECTION` after a SQLite scaffold does not — Cadence then fails with a `runtimeOnly("org.postgresql:postgresql:…")` line you can paste into `build.gradle.kts`, then re-run `./grind migrate`.
+Generated `config/Database` includes maps for `main`, `h2`, `sqlite`, `mysql`, `mariadb`, `pgsql`, `sqlsrv`, and `oracle`. Switch with env (`DB_CONNECTION`, `DB_URL`, credentials). `kona new --database=pgsql` writes both the env and the JDBC `runtimeOnly` coordinate. Changing only `DB_CONNECTION` after a SQLite scaffold is enough for grind: the next `./grind migrate` or `./grind serve` adds the matching JAR to `build.gradle.kts` (or Groovy `build.gradle`) and refreshes `konaClasspath`. Pass `--no-jdbc-install` to skip the write. If grind cannot edit a build file, Cadence prints the `runtimeOnly("org.postgresql:postgresql:…")` line to paste yourself.
 
 ```bash
 DB_CONNECTION=pgsql
@@ -91,7 +91,7 @@ DB_USERNAME=kona
 DB_PASSWORD=secret
 ```
 
-Or rely on host/port/database helpers without a full URL (see the generated config file). After adding the `runtimeOnly` coordinate, Gradle picks it up on the next `./grind` (the `konaClasspath` task).
+Or rely on host/port/database helpers without a full URL (see the generated config file). After grind writes the `runtimeOnly` coordinate, the same command (or the next `./grind`) picks it up through `konaClasspath`.
 
 ### Driver coordinates
 
@@ -101,7 +101,7 @@ Recommended versions are pinned in the version catalog / `kona-bom`. Examples:
 dependencies {
     // Always present from kona new (zero-install default):
     runtimeOnly("org.xerial:sqlite-jdbc:3.49.1.0")
-    // Added automatically by --database=…, or add by hand:
+    // Added by kona new --database=…, or by grind when you switch DB_CONNECTION:
     runtimeOnly("com.h2database:h2:2.3.232")
     runtimeOnly("org.postgresql:postgresql:42.7.5")
     runtimeOnly("com.mysql:mysql-connector-j:9.2.0")

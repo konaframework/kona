@@ -23,7 +23,7 @@ Living audit of `org.konaframework.cadence` against Laravel Eloquent / query bui
 
 **Decision:** **SQLite file is the scaffold/default** for local demos. H2 stays for tests and optional `--database=h2`. Document PostgreSQL / MySQL / MariaDB / SQL Server / Oracle as production (or heavier) targets.
 
-**Classpath:** skeletons include `runtimeOnly("org.xerial:sqlite-jdbc:…")`. `kona new --database=<engine>` sets `DB_CONNECTION` / `DB_URL` and adds that engine’s JDBC driver when needed.
+**Classpath:** skeletons include `runtimeOnly("org.xerial:sqlite-jdbc:…")`. `kona new --database=<engine>` sets `DB_CONNECTION` / `DB_URL` and adds that engine’s JDBC driver when needed. Switching `DB_CONNECTION` later is handled by grind (`JdbcDriverInstaller`): it writes the matching `runtimeOnly` line and refreshes `konaClasspath`.
 
 Evidence: `DatabaseEngines.DEFAULT_NAME`, skeletons, `apps/docs/.../cadence/database.mdx`.
 

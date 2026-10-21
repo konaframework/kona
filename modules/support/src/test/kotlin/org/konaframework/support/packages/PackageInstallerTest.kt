@@ -243,6 +243,87 @@ class PackageInstallerTest {
         assertTrue(result.dependency!!.updated)
     }
 
+    @Test
+    fun runtimeOnlyConfigurationAddUpdateAndAlreadyPresent() {
+        writeBuildKts()
+        val added =
+            GradleDependencyEditor.ensureDependency(
+                root,
+                "org.postgresql",
+                "postgresql",
+                "42.7.5",
+                "runtimeOnly",
+            )!!
+        assertTrue(added.added)
+        assertTrue(Files.readString(root.resolve("build.gradle.kts")).contains("""runtimeOnly("org.postgresql:postgresql:42.7.5")"""))
+        val present =
+            GradleDependencyEditor.ensureDependency(
+                root,
+                "org.postgresql",
+                "postgresql",
+                "42.7.5",
+                "runtimeOnly",
+            )!!
+        assertTrue(present.alreadyPresent)
+        val updated =
+            GradleDependencyEditor.ensureDependency(
+                root,
+                "org.postgresql",
+                "postgresql",
+                "42.7.6",
+                "runtimeOnly",
+            )!!
+        assertTrue(updated.updated)
+        assertTrue(Files.readString(root.resolve("build.gradle.kts")).contains("postgresql:42.7.6"))
+    }
+
+    @Test
+    fun runtimeOnlySkippedWhenImplementationAlreadyDeclaresCoordinate() {
+        writeBuildKts("""implementation("org.postgresql:postgresql:42.7.5")""")
+        val result =
+            GradleDependencyEditor.ensureDependency(
+                root,
+                "org.postgresql",
+                "postgresql",
+                "42.7.5",
+                "runtimeOnly",
+            )!!
+        assertTrue(result.alreadyPresent)
+        assertFalse(Files.readString(root.resolve("build.gradle.kts")).contains("runtimeOnly(\"org.postgresql"))
+    }
+
+    @Test
+    fun testImplementationIsNotTreatedAsImplementation() {
+        writeBuildKts("""testImplementation("org.konaframework:kona-drip:1.0.0")""")
+        val result = PackageInstaller.install(root, "drip", "2.0.0")
+        assertTrue(result.dependency!!.added)
+        val gradle = Files.readString(root.resolve("build.gradle.kts"))
+        assertTrue(gradle.contains("""testImplementation("org.konaframework:kona-drip:1.0.0")"""))
+        assertTrue(gradle.contains("""implementation("org.konaframework:kona-drip:2.0.0")"""))
+    }
+
+    @Test
+    fun groovyRuntimeOnlyUpdatesExistingVersion() {
+        Files.writeString(
+            root.resolve("build.gradle"),
+            """
+            dependencies {
+                runtimeOnly 'org.postgresql:postgresql:1.0.0'
+            }
+            """.trimIndent(),
+        )
+        val result =
+            GradleDependencyEditor.ensureDependency(
+                root,
+                "org.postgresql",
+                "postgresql",
+                "42.7.5",
+                "runtimeOnly",
+            )!!
+        assertTrue(result.updated)
+        assertTrue(Files.readString(root.resolve("build.gradle")).contains("runtimeOnly 'org.postgresql:postgresql:42.7.5'"))
+    }
+
     private fun writeBuildKts(extraDep: String = "") {
         val deps =
             if (extraDep.isEmpty()) {

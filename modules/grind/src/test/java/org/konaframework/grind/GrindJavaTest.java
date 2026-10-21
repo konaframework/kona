@@ -152,6 +152,29 @@ class GrindJavaTest {
     }
 
     @Test
+    void jdbcDriverInstallerFromJava() throws Exception {
+        Path empty = temp.resolve("emptyjdbc");
+        Files.createDirectories(empty);
+        assertEquals(JdbcDriverInstaller.Status.SKIPPED, JdbcDriverInstaller.ensure(empty).getStatus());
+        assertEquals(JdbcDriverInstaller.Status.SKIPPED, JdbcDriverInstaller.ensure(empty, Map.of()).getStatus());
+        assertEquals(JdbcDriverInstaller.Status.SKIPPED, JdbcDriverInstaller.ensure(empty, Map.of(), null).getStatus());
+        Path app = temp.resolve("pgapp");
+        Files.createDirectories(app);
+        Files.writeString(app.resolve(".env"), "DB_CONNECTION=pgsql\n");
+        Files.writeString(
+                app.resolve("build.gradle.kts"),
+                "dependencies {\n    runtimeOnly(\"org.xerial:sqlite-jdbc:3.49.1.0\")\n}\n");
+        JdbcDriverInstaller.Outcome outcome =
+                JdbcDriverInstaller.ensure(app, Map.of(), null, Map.of("DB_CONNECTION", "pgsql"));
+        assertEquals(JdbcDriverInstaller.Status.INSTALLED, outcome.getStatus());
+        assertEquals("pgsql", outcome.getEngine());
+        assertTrue(
+                Files.readString(app.resolve("build.gradle.kts"))
+                        .contains("runtimeOnly(\"org.postgresql:postgresql:42.7.5\")"));
+        assertEquals(JdbcDriverInstaller.OPT_OUT, "no-jdbc-install");
+    }
+
+    @Test
     void routeCommandsFromJava() throws Exception {
         Path app = temp.resolve("routed");
         Files.createDirectories(app.resolve("build/classes/kotlin/main"));

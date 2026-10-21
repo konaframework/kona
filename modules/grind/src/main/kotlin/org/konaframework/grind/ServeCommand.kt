@@ -38,6 +38,7 @@ constructor(
                 "No Kona application found at $start (expected settings.gradle.kts or build.gradle.kts). " +
                     "Create one with: kona new",
             )
+        JdbcDriverInstaller.ensure(root, options, io)
         if (ServeWatch.wantsWatch(options)) {
             return serveWatching(root, options)
         }

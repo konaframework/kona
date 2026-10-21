@@ -177,6 +177,8 @@ The migrate and seed commands:
 3. use the `MigrationRegistry` bound in the application container, or migrations listed in `META-INF/kona/migrations` (written by `make:migration`);
 4. use the container's `Database` (registered by `CadenceServiceProvider`), or build one from the `database` config section; `--database=name` selects a named connection.
 
+Before opening a connection, grind reads `DB_CONNECTION` / `DB_DRIVER` / `DB_URL` (process env, then `.env`). If that engine’s JDBC class is not on the classpath, it adds the matching `runtimeOnly` coordinate to `build.gradle.kts` (or `build.gradle`) and drops the cached `konaClasspath` so this command can load the driver. `./grind serve` does the same before watch / in-process / `gradlew run`. Pass `--no-jdbc-install` to skip the write.
+
 `migrate:fresh` and `db:wipe` drop **user** tables on that connection (foreign keys disabled, or `CASCADE` on PostgreSQL / Oracle). `--drop-views` also drops views. `--drop-types` drops user-defined types on engines that list them (PostgreSQL enums); it is a no-op on SQLite, H2, and MySQL. Bookkeeping tables such as SQLite's `sqlite_sequence` are not dropped.
 
 `schema:dump` writes portable `CREATE TABLE` statements reconstructed from JDBC metadata. Default path is `database/schema.sql` under the application root.

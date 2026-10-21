@@ -402,6 +402,9 @@ public class JavaCadenceApiTest {
     @Test
     void jdbcDriversAreCallableFromJava() {
         assertEquals("org.postgresql.Driver", JdbcDrivers.className("pgsql"));
+        assertEquals("pgsql", JdbcDrivers.engine("postgres").getAlias());
+        assertTrue(JdbcDrivers.isLoadable("java.lang.String"));
+        assertEquals("postgresql", JdbcDrivers.splitGradleCoordinate("org.postgresql:postgresql:42.7.5")[1]);
         assertEquals("org.postgresql:postgresql:42.7.5", JdbcDrivers.gradleCoordinate("pgsql"));
         assertNull(JdbcDrivers.gradleCoordinate(null, null, null));
         assertNull(JdbcDrivers.gradleCoordinate("unknown", "com.example.NoDriver", null));

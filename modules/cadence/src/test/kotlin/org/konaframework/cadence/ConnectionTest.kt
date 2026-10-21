@@ -194,6 +194,27 @@ class ConnectionTest {
         assertEquals("org.postgresql.Driver", JdbcDrivers.className("PGSQL"))
         assertEquals("org.postgresql.Driver", JdbcDrivers.className("postgres"))
         assertNull(JdbcDrivers.className("cockroach"))
+        assertEquals("pgsql", JdbcDrivers.engine("postgres")!!.alias)
+        assertNull(JdbcDrivers.engine(null))
+        assertNull(JdbcDrivers.engine("  "))
+        assertEquals("pgsql", JdbcDrivers.engine("org.postgresql.Driver")!!.alias)
+        assertTrue(JdbcDrivers.isLoadable("java.lang.String"))
+        assertFalse(JdbcDrivers.isLoadable("org.konaframework.NoSuchJdbcDriver"))
+        val boom =
+            object : ClassLoader() {
+                override fun loadClass(name: String, resolve: Boolean): Class<*> {
+                    throw NoClassDefFoundError(name)
+                }
+            }
+        assertFalse(JdbcDrivers.isLoadable("org.h2.Driver", boom))
+        assertEquals(
+            listOf("org.postgresql", "postgresql", "42.7.5"),
+            JdbcDrivers.splitGradleCoordinate("org.postgresql:postgresql:42.7.5")!!.toList(),
+        )
+        assertNull(JdbcDrivers.splitGradleCoordinate("org.postgresql"))
+        assertNull(JdbcDrivers.splitGradleCoordinate("org.postgresql:postgresql"))
+        assertNull(JdbcDrivers.splitGradleCoordinate("org.postgresql:postgresql:"))
+        assertNull(JdbcDrivers.splitGradleCoordinate(":postgresql:1"))
         assertEquals("org.postgresql:postgresql:42.7.5", JdbcDrivers.gradleCoordinate("pgsql"))
         assertEquals("org.postgresql:postgresql:42.7.5", JdbcDrivers.gradleCoordinate(jdbcClass = "org.postgresql.Driver"))
         assertEquals("org.postgresql:postgresql:42.7.5", JdbcDrivers.gradleCoordinate(url = "jdbc:postgresql://h/db"))

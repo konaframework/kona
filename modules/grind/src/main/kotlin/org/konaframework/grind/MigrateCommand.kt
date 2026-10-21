@@ -201,6 +201,7 @@ class MigrateCommand(private val action: Action) {
             val start = Names.base(options)
             val root = ServeCommand.findProjectRoot(start)
                 ?: throw GrindException("No Kona application found at $start. Create one with: kona new")
+            JdbcDriverInstaller.ensure(root, options, GrindIO.fromOptions(options))
             Kona.reset()
             val verbose = GrindLogging.wantsVerbose(options)
             GrindLogging.hushConsole(verbose)

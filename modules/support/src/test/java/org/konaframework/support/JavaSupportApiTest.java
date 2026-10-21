@@ -14,8 +14,10 @@ import org.konaframework.support.console.ConsoleIO;
 import org.konaframework.support.console.ConsolePrompts;
 import org.konaframework.support.console.Tty;
 import org.konaframework.support.str.Str;
+import org.konaframework.support.packages.GradleDependencyEditor;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -132,5 +134,20 @@ public class JavaSupportApiTest {
         assertFalse(Tty.shouldUseWidgets(in));
         assertEquals(60, Tty.promptContentWidth(0));
         assertEquals(76, Tty.promptContentWidth(80));
+    }
+
+    @Test
+    void gradleRuntimeOnlyFromJava(@TempDir Path base) throws Exception {
+        Files.writeString(base.resolve("build.gradle.kts"), "dependencies {\n}\n");
+        GradleDependencyEditor.Result impl =
+                GradleDependencyEditor.ensureDependency(base, "com.example", "lib", "1.0.0");
+        assertTrue(impl.getAdded());
+        GradleDependencyEditor.Result added =
+                GradleDependencyEditor.ensureDependency(
+                        base, "org.postgresql", "postgresql", "42.7.5", "runtimeOnly");
+        assertTrue(added.getAdded());
+        assertTrue(
+                Files.readString(base.resolve("build.gradle.kts"))
+                        .contains("runtimeOnly(\"org.postgresql:postgresql:42.7.5\")"));
     }
 }
