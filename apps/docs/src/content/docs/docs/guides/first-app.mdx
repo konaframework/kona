@@ -41,6 +41,8 @@ Everything application-owned lives under `src/main` (plus project-root `public/`
 |------|------|
 | `./grind` / `grind.bat` | **App-local** CLI (serve, make:controller, …) — written by `kona new` |
 | `./gradlew` / `gradlew.bat` | Gradle wrapper — builds and runs the app |
+| `README.md` | Kit-specific notes at the project root |
+| `package.json` / `vite.config.js` | Vite frontend when CSS or Inertia is enabled (`--typescript` also writes `tsconfig.json`) |
 | `.env` / `.env.example` | `APP_NAME`, `APP_KEY` (generated), `APP_DEBUG`, `HOST`, `PORT`, … |
 | `src/main/kotlin/bootstrap/App` (or `…/java/…`) | Boots Kona, registers providers, starts HTTP |
 | `src/main/…/bootstrap/Middleware` | Session + CSRF (`/api/*` excepted); trust proxies/hosts |

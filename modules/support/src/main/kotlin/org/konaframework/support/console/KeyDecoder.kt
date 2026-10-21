@@ -57,9 +57,10 @@ class KeyDecoder(private val source: ByteSource) {
         }
 
     private fun escape(): TerminalKey {
-        if (peekAvailable() <= 0) {
-            return TerminalKey.Esc
-        }
+        // Do not trust InputStream.available(): WSL and many FileInputStream
+        // stdin implementations report 0 even when CSI `\x1b[A` is already in
+        // the kernel buffer. A blocking read of the next byte is required so
+        // Up/Down reach confirm/choice widgets. EOF after ESC is still Esc.
         val second = readByte() ?: return TerminalKey.Esc
         return when (second) {
             '['.code -> csi()

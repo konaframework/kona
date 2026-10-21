@@ -181,6 +181,12 @@ class CliTest {
         ).forEach { assertTrue(Files.isRegularFile(kt.resolve(it)), it) }
         assertTrue(Files.isExecutable(kt.resolve("gradlew")))
         assertTrue(Files.isExecutable(kt.resolve("grind")))
+        val grindSh = Files.readString(kt.resolve("grind"))
+        assertTrue(grindSh.contains("konaClasspath"), grindSh)
+        assertTrue(grindSh.contains("org.konaframework.grind.GrindKt"), grindSh)
+        val grindBat = Files.readString(kt.resolve("grind.bat"))
+        assertTrue(grindBat.contains("konaClasspath"), grindBat)
+        assertTrue(grindBat.contains("org.konaframework.grind.GrindKt"), grindBat)
         assertFalse(Files.exists(kt.resolve("src/main/kotlin/routes/WebRoutes.kt.txt")))
 
         val versions = KonaVersions.load()
@@ -295,6 +301,8 @@ class CliTest {
         val j = temp.resolve("appjava")
         assertEquals(0, NewCommand().run(listOf(j.toString(), "--lang=java", "--kona-version=9.9.9", "--no-interaction")))
         assertTrue(Files.isRegularFile(j.resolve("grind")))
+        assertTrue(Files.readString(j.resolve("grind")).contains("org.konaframework.grind.GrindKt"))
+        assertTrue(Files.readString(j.resolve("grind.bat")).contains("org.konaframework.grind.GrindKt"))
         val build = Files.readString(j.resolve("build.gradle.kts"))
         assertTrue(build.contains("org.konaframework:kona-http:9.9.9"))
         assertTrue(build.contains("org.konaframework:kona-grind:9.9.9"))

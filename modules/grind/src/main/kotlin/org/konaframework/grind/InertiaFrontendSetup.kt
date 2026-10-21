@@ -1,5 +1,7 @@
 package org.konaframework.grind
 
+import org.konaframework.support.json.PrettyJson
+import org.konaframework.support.text.SourceBlocks
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -151,54 +153,35 @@ class InertiaFrontendSetup(
 
     companion object {
         private fun packageJson(adapter: Adapter): String {
-            val deps =
-                when (adapter) {
-                    Adapter.VUE ->
-                        """
-                        "dependencies": {
-                          "@inertiajs/vue3": "^2.0.0",
-                          "vue": "^3.5.0"
-                        },
-                        "devDependencies": {
-                          "@vitejs/plugin-vue": "^5.2.0",
-                          "vite": "^6.0.0"
-                        }
-                        """.trimIndent()
-                    Adapter.REACT ->
-                        """
-                        "dependencies": {
-                          "@inertiajs/react": "^2.0.0",
-                          "react": "^19.0.0",
-                          "react-dom": "^19.0.0"
-                        },
-                        "devDependencies": {
-                          "@vitejs/plugin-react": "^4.3.0",
-                          "vite": "^6.0.0"
-                        }
-                        """.trimIndent()
-                    Adapter.SVELTE ->
-                        """
-                        "dependencies": {
-                          "@inertiajs/svelte": "^2.0.0"
-                        },
-                        "devDependencies": {
-                          "@sveltejs/vite-plugin-svelte": "^5.0.0",
-                          "svelte": "^5.0.0",
-                          "vite": "^6.0.0"
-                        }
-                        """.trimIndent()
+            val dependencies = linkedMapOf<String, String>()
+            val dev = linkedMapOf("vite" to "^6.0.0")
+            when (adapter) {
+                Adapter.VUE -> {
+                    dependencies["@inertiajs/vue3"] = "^2.0.0"
+                    dependencies["vue"] = "^3.5.0"
+                    dev["@vitejs/plugin-vue"] = "^5.2.0"
                 }
-            return """
-                {
-                  "private": true,
-                  "type": "module",
-                  "scripts": {
-                    "dev": "vite",
-                    "build": "vite build"
-                  },
-                  $deps
+                Adapter.REACT -> {
+                    dependencies["@inertiajs/react"] = "^2.0.0"
+                    dependencies["react"] = "^19.0.0"
+                    dependencies["react-dom"] = "^19.0.0"
+                    dev["@vitejs/plugin-react"] = "^4.3.0"
                 }
-                """.trimIndent() + "\n"
+                Adapter.SVELTE -> {
+                    dependencies["@inertiajs/svelte"] = "^2.0.0"
+                    dev["@sveltejs/vite-plugin-svelte"] = "^5.0.0"
+                    dev["svelte"] = "^5.0.0"
+                }
+            }
+            return PrettyJson.stringify(
+                linkedMapOf(
+                    "private" to true,
+                    "type" to "module",
+                    "scripts" to linkedMapOf("dev" to "vite", "build" to "vite build"),
+                    "dependencies" to dependencies,
+                    "devDependencies" to dev,
+                ),
+            )
         }
 
         private fun viteConfig(adapter: Adapter): String {
@@ -219,11 +202,14 @@ class InertiaFrontendSetup(
                     Adapter.REACT -> "src/main/resources/js/app.jsx"
                     Adapter.VUE, Adapter.SVELTE -> "src/main/resources/js/app.js"
                 }
-            return """
-                import { defineConfig } from 'vite';
-                import { resolve } from 'node:path';
-                import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
-                ${pluginImport}${hotFilePlugins()}
+            val imports = buildString {
+                appendLine("import { defineConfig } from 'vite';")
+                appendLine("import { resolve } from 'node:path';")
+                appendLine("import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';")
+                append(pluginImport)
+            }
+            val config =
+                """
                 export default defineConfig({
                   plugins: [konaHotFile(), konaHotFileBuild(), $plugin],
                   publicDir: false,
@@ -240,7 +226,8 @@ class InertiaFrontendSetup(
                     port: 5173,
                   },
                 });
-                """.trimIndent() + "\n"
+                """.trimIndent()
+            return SourceBlocks.join(imports, hotFilePlugins(), config)
         }
 
         private fun hotFilePlugins(): String =
