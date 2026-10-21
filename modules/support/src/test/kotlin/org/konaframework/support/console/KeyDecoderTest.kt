@@ -85,6 +85,16 @@ class KeyDecoderTest {
     }
 
     @Test
+    fun arrowsWhenAvailableReportsZero() {
+        assertEquals(TerminalKey.Up, decode(0x1B, '['.code, 'A'.code, available = 0)[0])
+        assertEquals(TerminalKey.Down, decode(0x1B, '['.code, 'B'.code, available = 0)[0])
+        assertEquals(TerminalKey.Right, decode(0x1B, '['.code, 'C'.code, available = 0)[0])
+        assertEquals(TerminalKey.Left, decode(0x1B, '['.code, 'D'.code, available = 0)[0])
+        assertEquals(TerminalKey.Up, decode(0x1B, 'O'.code, 'A'.code, available = 0)[0])
+        assertEquals(TerminalKey.Down, decode(0x1B, 'O'.code, 'B'.code, available = 0)[0])
+    }
+
+    @Test
     fun utf8AndInvalidLead() {
         val cafe = "é".toByteArray(Charsets.UTF_8).map { it.toInt() and 0xFF }
         assertEquals(TerminalKey.CharKey("é"), decode(*cafe.toIntArray())[0])
@@ -113,13 +123,34 @@ class KeyDecoderTest {
         assertEquals(TerminalKey.Eof, KeyDecoder.from(ioRead).next())
         val ioAvail =
             object : InputStream() {
-                override fun read(): Int = 0x1B
+                private var n = 0
+
+                override fun read(): Int = if (n++ == 0) 0x1B else -1
+
                 override fun available(): Int = throw IOException("avail")
             }
         assertEquals(TerminalKey.Esc, KeyDecoder.from(ioAvail).next())
+        val crAvailThrow =
+            object : InputStream() {
+                private var n = 0
+
+                override fun read(): Int = if (n++ == 0) 0x0D else 0x41
+
+                override fun available(): Int = throw IOException("avail")
+            }
+        assertEquals(TerminalKey.Enter, KeyDecoder.from(crAvailThrow).next())
         val src = InputStreamByteSource(ByteArrayInputStream(byteArrayOf(0x20)))
         assertEquals(0x20, src.read())
         assertEquals(0, src.available())
+        val throwAvail =
+            object : ByteSource {
+                private var n = 0
+
+                override fun read(): Int = if (n++ == 0) 0x0D else -1
+
+                override fun available(): Int = throw IOException("avail")
+            }
+        assertEquals(TerminalKey.Enter, KeyDecoder(throwAvail).next())
     }
 
 }
