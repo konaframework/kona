@@ -1,5 +1,7 @@
 package org.konaframework.grind
 
+import org.konaframework.cadence.CadenceServiceProvider
+import org.konaframework.cadence.Database
 import org.konaframework.core.Application
 import org.konaframework.core.Kona
 import org.konaframework.http.HttpServiceProvider
@@ -16,6 +18,18 @@ object FixtureApp {
         val app = Kona.create(args).providers(HttpServiceProvider()).boot()
         app.resolve(Router::class.java).get("/fixture") {
             Response.text("fixture:" + app.config.get<String>("app.name"))
+        }
+        return app
+    }
+}
+
+object CadenceWatchApp {
+    @JvmStatic
+    fun create(args: Array<String>): Application {
+        val app = Kona.create(args).providers(HttpServiceProvider(), CadenceServiceProvider()).boot()
+        app.resolve(Router::class.java).get("/db") {
+            Database.global()
+            Response.text("ok")
         }
         return app
     }
