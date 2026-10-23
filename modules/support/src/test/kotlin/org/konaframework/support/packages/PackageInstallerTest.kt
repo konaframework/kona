@@ -107,6 +107,7 @@ class PackageInstallerTest {
 
     @Test
     fun catalogAliasesNonEmpty() {
+        assertTrue(PackageCatalog.aliases().contains("wire"))
         assertTrue(PackageCatalog.aliases().contains("brew"))
         assertEquals("org.konaframework", PackageCatalog.find("inertia")!!.group)
         assertEquals(null, PackageCatalog.find("missing"))
@@ -121,10 +122,10 @@ class PackageInstallerTest {
 
     @Test
     fun coordinateMatchingCatalogCarriesProviders() {
-        val resolved = ResolvedPackage.parse("org.konaframework:kona-brew", "1.0.0")
-        assertEquals(listOf("org.konaframework.brew.BrewServiceProvider"), resolved.providers)
-        assertEquals("brew", resolved.alias)
-        assertEquals("org.konaframework:kona-brew", PackageCatalog.find("brew")!!.coordinate)
+        val resolved = ResolvedPackage.parse("org.konaframework:kona-wire", "1.0.0")
+        assertEquals(listOf("org.konaframework.wire.WireServiceProvider"), resolved.providers)
+        assertEquals("wire", resolved.alias)
+        assertEquals("org.konaframework:kona-wire", PackageCatalog.find("brew")!!.coordinate)
     }
 
     @Test

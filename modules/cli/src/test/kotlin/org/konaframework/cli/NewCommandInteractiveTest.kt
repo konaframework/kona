@@ -62,7 +62,8 @@ class NewCommandInteractiveTest {
         assertEquals("crema", parseKitFlag("crema"))
         assertEquals("java", parseLangFlag("JAVA"))
         assertEquals("api", NewStacks.kitId(NewStacks.API))
-        assertEquals("brew", NewStacks.kitId(NewStacks.BREW))
+        assertEquals("wire", NewStacks.kitId(NewStacks.WIRE))
+        assertEquals("wire", NewStacks.kitId(NewStacks.BREW))
         assertEquals("inertia", NewStacks.kitId(NewStacks.INERTIA))
         assertEquals("web", NewStacks.kitId(NewStacks.CREMA))
         assertEquals("tailwind", NewStacks.cssId(NewStacks.CSS_TAILWIND))
@@ -110,7 +111,7 @@ class NewCommandInteractiveTest {
         val db = DatabaseEngines.require("sqlite")
         assertEquals("API only", NewPlan(temp, "A", "kotlin", "api", "custom", "", db, false, false, false).stackLabel)
         assertEquals(
-            "Brew · Tailwind CSS",
+            "Wire · Tailwind CSS",
             NewPlan(temp, "A", "kotlin", "brew", "tailwind", "", db, false, false, false).stackLabel,
         )
         assertEquals(
@@ -377,10 +378,10 @@ class NewCommandInteractiveTest {
         val brewTw = temp.resolve("brew-tw")
         assertEquals(
             0,
-            NewCommand().run(listOf(brewTw.toString(), "--kit=brew", "--css=tailwind", "--no-interaction")),
+            NewCommand().run(listOf(brewTw.toString(), "--kit=wire", "--css=tailwind", "--no-interaction")),
         )
         val brewWelcome = Files.readString(brewTw.resolve("src/main/resources/views/welcome.crema.html"))
-        assertTrue(brewWelcome.contains("<brew:counter"))
+        assertTrue(brewWelcome.contains("<wire:counter"))
         assertTrue(brewWelcome.contains("@vite"))
         assertTrue(brewWelcome.contains("url('/branding/kona-logo.svg')"), brewWelcome)
         assertTrue(Files.readString(brewTw.resolve("src/main/resources/js/app.js")).contains("app.css"))
@@ -747,7 +748,7 @@ class NewCommandInteractiveTest {
         val brew = temp.resolve("brew-ignores-ts")
         assertEquals(
             0,
-            NewCommand().run(listOf(brew.toString(), "--kit=brew", "--css=tailwind", "--ts", "--no-interaction")),
+            NewCommand().run(listOf(brew.toString(), "--kit=wire", "--css=tailwind", "--ts", "--no-interaction")),
         )
         assertTrue(Files.readString(brew.resolve("src/main/resources/js/app.js")).contains("app.css"))
         assertFalse(Files.exists(brew.resolve("tsconfig.json")))
@@ -802,9 +803,9 @@ class NewCommandInteractiveTest {
         val input = "\n2\n3\n2\n\nn\nn\nn\n\n"
         val (cmd, _) = command(input)
         assertEquals(0, cmd.run(listOf(app.toString())))
-        assertTrue(Files.isRegularFile(app.resolve("src/main/java/app/brew/Counter.java")))
+        assertTrue(Files.isRegularFile(app.resolve("src/main/java/app/wire/Counter.java")))
         assertTrue(Files.readString(app.resolve("package.json")).contains("bootstrap"))
-        assertTrue(Files.readString(app.resolve("src/main/resources/views/welcome.crema.html")).contains("<brew:counter"))
+        assertTrue(Files.readString(app.resolve("src/main/resources/views/welcome.crema.html")).contains("<wire:counter"))
     }
 }
 

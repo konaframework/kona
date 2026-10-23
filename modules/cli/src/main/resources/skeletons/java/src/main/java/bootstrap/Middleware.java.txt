@@ -37,7 +37,7 @@ public final class Middleware {
             .prependMiddleware(new ServePublicDirectory(app.getBasePath().resolve(publicRel)));
         new HttpMiddleware()
             .alias("start.session", (Supplier<org.konaframework.http.Middleware>) () -> new StartSession(sessions))
-            .alias("csrf", (Supplier<org.konaframework.http.Middleware>) () -> new VerifyCsrfToken(List.of("/api/*", "/brew/*")))
+            .alias("csrf", (Supplier<org.konaframework.http.Middleware>) () -> new VerifyCsrfToken(List.of("/api/*", "/wire/*")))
             .alias("auth", (Supplier<org.konaframework.http.Middleware>) () -> new Authenticate(auth))
             .alias("guest", (Supplier<org.konaframework.http.Middleware>) () -> new RedirectIfAuthenticated(auth, "/dashboard"))
             .web(List.of("start.session", "csrf"))

@@ -9,7 +9,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 1. `@component` / `@slot` directives
 2. `<x-name>` HTML-like tags with `<x-slot>`
-3. Prefixed extension tags (for example Brew’s `<brew:…>`) with `<x-slot>` or `<prefix:slot>`
+3. Prefixed extension tags (for example Wire’s `<wire:…>`) with `<x-slot>` or `<prefix:slot>`
 
 ## Define a component
 
@@ -154,25 +154,25 @@ Default and named slots may contain other components:
 
 ## Prefixed tags (extensions)
 
-Packages can register tag prefixes on `CremaEngine` (Brew registers `brew`). Those tags receive a default `slot` string and a `slots` map of named slots. Callers fill named slots with:
+Packages can register tag prefixes on `CremaEngine` (Wire registers `brew`). Those tags receive a default `slot` string and a `slots` map of named slots. Callers fill named slots with:
 
 ```crema
-<brew:card title="Stats">
+<wire:card title="Stats">
   <x-slot name="header">Overview</x-slot>
   Main body
-  <brew:slot name="footer">Updated just now</brew:slot>
-</brew:card>
+  <wire:slot name="footer">Updated just now</wire:slot>
+</wire:card>
 ```
 
 Supported named-slot shapes inside a prefixed tag:
 
 | Shape | Example |
 |-------|---------|
-| Prefixed slot | `<brew:slot name="footer">…</brew:slot>` |
+| Prefixed slot | `<wire:slot name="footer">…</wire:slot>` |
 | `x-slot` name attribute | `<x-slot name="header">…</x-slot>` |
 | `x-slot:` colon name | `<x-slot:side>…</x-slot:side>` |
 
-Attributes on prefixed tags (`:count="3"`, `title="…"`) are parsed and passed to the tag handler — see [Brew](/docs/brew/) for the Brew-specific surface. Built-in `<x-*>` view components currently use slots only (attributes on the opening `<x-alert …>` tag are not mapped into the view data).
+Attributes on prefixed tags (`:count="3"`, `title="…"`) are parsed and passed to the tag handler — see [Wire](/docs/wire/) for the Wire-specific surface. Built-in `<x-*>` view components currently use slots only (attributes on the opening `<x-alert …>` tag are not mapped into the view data).
 
 ## Choosing a style
 
@@ -180,7 +180,7 @@ Attributes on prefixed tags (`:count="3"`, `title="…"`) are parsed and passed 
 |-------|----------|
 | `@component` / `@slot` | Explicit view names, heavy named-slot markup |
 | `<x-*>` / `<x-slot>` | Short call sites that mirror HTML |
-| Prefixed tags | Package-owned components with attribute binding (Brew, etc.) |
+| Prefixed tags | Package-owned components with attribute binding (Wire, etc.) |
 
 All three end up rendering a view (or handler) with `slot` + named keys. Prefer one style per app for consistency.
 
@@ -233,5 +233,5 @@ return Response.html(
 
 - [Includes & partials](/docs/crema/includes/) — simpler shared chunks without slots
 - [Layouts](/docs/crema/layouts/) — page-level inheritance
-- [Brew](/docs/brew/) — reactive components on top of Crema
+- [Wire](/docs/wire/) — reactive components on top of Crema
 - [Directive reference](/docs/crema/directives/)

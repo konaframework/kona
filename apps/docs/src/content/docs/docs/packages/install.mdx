@@ -11,7 +11,7 @@ There is no top-level `kona install` — package install is a Grind Console comm
 
 ## What it does
 
-1. Resolves a **short alias** (`inertia`, `brew`, …) or a raw `group:artifact[:version]` coordinate.
+1. Resolves a **short alias** (`inertia`, `wire`, …) or a raw `group:artifact[:version]` coordinate.
 2. Ensures an `implementation("…")` line in the nearest Gradle build file (Kotlin or Groovy DSL).
 3. When the package declares providers, appends their FQCNs to `src/main/resources/META-INF/kona/providers` so [Package discovery](./) registers them on boot through grind’s `AppLoader`.
 
@@ -20,7 +20,7 @@ There is no top-level `kona install` — package install is a Grind Console comm
 ```bash
 # Inside an app created with kona new
 ./grind install inertia
-./grind install brew --version=0.1.1
+./grind install wire --version=0.1.1
 ./grind install com.example:widget:1.2.3
 
 # From anywhere under the app tree (global proxy)
@@ -41,7 +41,8 @@ After `./grind install inertia`, follow the printed npm / middleware checklist, 
 
 | Alias | Artifact | Auto-registered provider |
 | --- | --- | --- |
-| `brew` | `org.konaframework:kona-brew` | `BrewServiceProvider` |
+| `wire` | `org.konaframework:kona-wire` | `WireServiceProvider` |
+| `brew` | `org.konaframework:kona-wire` | `WireServiceProvider` (deprecated alias) |
 | `inertia` | `org.konaframework:kona-inertia` | `InertiaServiceProvider` |
 | `crema` | `org.konaframework:kona-crema` | `CremaServiceProvider` |
 | `filesystem` | `org.konaframework:kona-filesystem` | `FilesystemServiceProvider` |

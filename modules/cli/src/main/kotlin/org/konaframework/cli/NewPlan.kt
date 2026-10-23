@@ -21,7 +21,7 @@ internal data class NewPlan(
         get() {
             val kitPart = when (kit) {
                 "api" -> "API only"
-                "brew" -> "Brew"
+                "wire", "brew" -> "Wire"
                 "inertia" -> {
                     if (frontend.isEmpty()) {
                         "Inertia"
@@ -45,9 +45,10 @@ internal data class NewPlan(
 internal object NewStacks {
     const val API = "API only"
     const val CREMA = "Crema (server-rendered HTML)"
-    const val BREW = "Brew (reactive UI)"
+    const val WIRE = "Wire (reactive UI)"
+    const val BREW = "Wire (reactive UI)"
     const val INERTIA = "Inertia (SPA)"
-    val KITS = listOf(API, CREMA, BREW, INERTIA)
+    val KITS = listOf(API, CREMA, WIRE, INERTIA)
 
     const val CSS_TAILWIND = "Tailwind CSS"
     const val CSS_BOOTSTRAP = "Bootstrap"
@@ -67,12 +68,12 @@ internal object NewStacks {
     const val LANG_JAVA = "Java"
     val LANGUAGES = listOf(LANG_KOTLIN, LANG_JAVA)
 
-    val KITS_IDS = listOf("web", "api", "crema", "inertia", "brew")
+    val KITS_IDS = listOf("web", "api", "crema", "inertia", "wire", "brew")
 
     fun kitId(label: String): String =
         when (label) {
             API -> "api"
-            BREW -> "brew"
+            WIRE, BREW -> "wire"
             INERTIA -> "inertia"
             else -> "web"
         }
@@ -116,7 +117,7 @@ internal const val STDIN_UNREADABLE =
     "Cannot read stdin. Pass flags for each step, or use --no-interaction for defaults."
 
 internal const val NEW_USAGE =
-    "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|brew] " +
+    "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|wire] " +
         "[--css=tailwind|bootstrap|custom] [--frontend=vue|react|svelte] " +
         "[--typescript|--javascript] " +
         "[--name=…] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] " +

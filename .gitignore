@@ -48,7 +48,7 @@ apps/brew-docs/.wrangler/
 apps/inertia-docs/dist/
 apps/inertia-docs/.astro/
 apps/inertia-docs/.wrangler/
-js/brew/dist/
-js/brew/coverage/
-js/brew/test-results/
+js/wire/dist/
+js/wire/coverage/
+js/wire/test-results/
 *.tsbuildinfo

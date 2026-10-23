@@ -1,5 +1,0 @@
-org.konaframework.brew.console.MakeBrewCommand
-org.konaframework.brew.console.BrewStubsCommand
-org.konaframework.brew.console.BrewPublishCommand
-org.konaframework.brew.console.BrewLayoutCommand
-org.konaframework.brew.console.BrewConvertCommand

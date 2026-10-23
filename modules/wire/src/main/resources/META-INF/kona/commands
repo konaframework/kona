@@ -1,0 +1,10 @@
+org.konaframework.wire.console.MakeWireCommand
+org.konaframework.wire.console.WireStubsCommand
+org.konaframework.wire.console.WirePublishCommand
+org.konaframework.wire.console.WireLayoutCommand
+org.konaframework.wire.console.WireConvertCommand
+org.konaframework.wire.console.MakeBrewCommand
+org.konaframework.wire.console.BrewStubsCommand
+org.konaframework.wire.console.BrewPublishCommand
+org.konaframework.wire.console.BrewLayoutCommand
+org.konaframework.wire.console.BrewConvertCommand

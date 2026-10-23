@@ -95,7 +95,7 @@ object HostDocument {
                         } else {
                             6
                         },
-                    detail = "Brew member",
+                    detail = "Wire member",
                     insertText = member.name,
                 )
             }

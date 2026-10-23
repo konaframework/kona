@@ -24,7 +24,7 @@ object Middleware {
             .prependMiddleware(ServePublicStorage(files.disk("public")))
         HttpMiddleware()
             .alias("start.session") { StartSession(sessions) }
-            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/brew/*")) }
+            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/wire/*")) }
             .web(listOf("start.session", "csrf"))
             // Behind a load balancer / ingress:
             // .trustProxies(at = listOf("*"))

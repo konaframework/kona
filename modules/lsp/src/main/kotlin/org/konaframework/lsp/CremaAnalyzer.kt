@@ -58,8 +58,8 @@ object CremaAnalyzer {
             out +=
                 Diagnostic(
                     range = Range(start, end),
-                    message = "Unknown Brew attribute ${hit.name}",
-                    source = "brew",
+                    message = "Unknown Wire attribute ${hit.name}",
+                    source = "wire",
                 )
         }
         return out
@@ -79,7 +79,7 @@ object CremaAnalyzer {
                 CompletionItem(
                     label = label,
                     kind = 5, // Field
-                    detail = "Brew wire",
+                    detail = "Wire",
                     insertText = label,
                 )
             }

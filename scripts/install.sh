@@ -97,7 +97,7 @@ PUBLISH_TASKS=(
   :kona-broadcasting:publishToMavenLocal
   :kona-search:publishToMavenLocal
   :kona-lsp:publishToMavenLocal
-  :kona-brew:publishToMavenLocal
+  :kona-wire:publishToMavenLocal
   :kona-inertia:publishToMavenLocal
   :kona-cli:publishToMavenLocal
 )
@@ -382,13 +382,13 @@ sync_remote_source() {
 }
 
 # Reject only API-stale leftover Brew trees (no template()) that would poison includeBuild.
-# In-tree modules/brew and modules/inertia are canonical again (remonorepo).
+# In-tree modules/wire and modules/inertia are canonical again (remonorepo).
 prune_stale_brew_module() {
   local root="$1"
   local brew_component=""
   for candidate in \
-    "$root/modules/brew/src/main/kotlin/org/konaframework/brew/Component.kt" \
-    "$root/modules/brew/src/main/kotlin/dev/kona/brew/Component.kt"
+    "$root/modules/wire/src/main/kotlin/org/konaframework/wire/Component.kt" \
+    "$root/modules/wire/src/main/kotlin/dev/kona/wire/Component.kt"
   do
     if [[ -f "$candidate" ]]; then
       brew_component="$candidate"
@@ -396,8 +396,8 @@ prune_stale_brew_module() {
     fi
   done
   if [[ -n "$brew_component" ]] && ! grep -q 'fun template' "$brew_component"; then
-    ui_warn "Removing API-stale modules/brew (missing template())"
-    rm -rf "$root/modules/brew"
+    ui_warn "Removing API-stale modules/wire (missing template())"
+    rm -rf "$root/modules/wire"
   fi
 }
 

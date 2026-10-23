@@ -18,7 +18,7 @@ cd hello-kona
 ./grind key:generate          # once; copy APP_KEY into the generated env file
 ./gradlew check               # optional, but run it before you ship
 ./grind deploy:systemd
-# Vite / Inertia / Brew kits only, before deploy:systemd:
+# Vite / Inertia / Wire kits only, before deploy:systemd:
 # npm ci && npm run build
 ```
 
@@ -287,7 +287,7 @@ HTTP 200 means the process is up and the kernel answered. It does **not** check 
 `GET`/`HEAD` under `public/` (including `/build/assets/…` after a Vite production build) are served from disk. Do not ship `public/hot` — `deploy:systemd` already skips it. That file selects the Vite dev server.
 
 ```bash
-# Vite / Inertia / Brew kits, in CI or on the build machine, before deploy:systemd
+# Vite / Inertia / Wire kits, in CI or on the build machine, before deploy:systemd
 npm ci && npm run build
 ```
 

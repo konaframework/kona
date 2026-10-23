@@ -1,0 +1,76 @@
+---
+title: grind commands
+description: make:wire flags, wire:convert, publish, stubs, layout, and IDE notes.
+---
+
+Wire registers grind commands when `WireServiceProvider` is booted. Run them from your app root with `./grind`.
+
+## `make:wire`
+
+Scaffold a component:
+
+```bash
+./grind make:wire counter
+./grind make:wire posts.create-post --test
+./grind make:wire pages::Dashboard --inline
+./grind make:wire Avatar --mfc --emoji
+./grind make:wire Counter --lang=java
+./grind make:wire Counter --force
+```
+
+The default scaffold is an **empty class** plus a Crema view containing a random funny inspirational quote in a `<p>` tag.
+
+| Flag | Effect |
+|------|--------|
+| *(default)* | Class + separate Crema view (`class`) unless `brew.make.type` says otherwise |
+| `--inline` | Single-file component with `template()` (`sfc`) |
+| `--class` | Class + separate Crema view (same as the default) |
+| `--mfc` | Multi-file component assets |
+| `--test` | Generate a companion test |
+| `--emoji` | Prefix the view leaf with ⚡ |
+| `--lang=kotlin\|java` | Language (auto-detected from project layout when omitted) |
+| `--base=` | Project root (default `.`) |
+| `--force` | Overwrite existing files |
+
+Names may use dots (`posts.create-post`), studly (`CreatePost`), or namespaces (`pages::dashboard`, `admin::…`).
+
+Default type comes from config key `brew.make.type` (`class` | `sfc` | `mfc`).
+
+## Stubs
+
+```bash
+./grind wire:stubs
+```
+
+Publishes stub files under `stubs/wire/`. After that, `make:wire` prefers those stubs when present so you can customize class/view/test skeletons for your team.
+
+## Convert between shapes
+
+```bash
+./grind wire:convert src/main/kotlin/app/wire/Counter.kt --to=class
+./grind wire:convert … --to=sfc
+./grind wire:convert … --to=mfc
+```
+
+## Publish config & layout
+
+```bash
+./grind wire:publish --config
+./grind wire:layout
+```
+
+`wire:publish` writes Wire config into your app’s config tree. `wire:layout` scaffolds a Crema layout that already includes `@wireStyles` / `@wireScripts`.
+
+## Testing from grind-generated tests
+
+When you pass `--test`, the stub wires a `Wire.test("…")` example. Expand it as you add actions — see [Testing](/docs/wire/dx/testing/).
+
+## IDE / LSP
+
+Kona Idea and language servers can complete `<wire:…>` tags and `wire:*` attributes. The contract lives in the Wire repo: [`docs/governance/lsp-contract.md`](https://github.com/konaframework/kona/blob/main/docs/governance/livewire-v4-parity.md).
+
+## Next
+
+- [Installation](/docs/wire/guides/installation/) — register Wire before grind picks up commands
+- [Your first component](/docs/wire/guides/first-component/) — walkthrough after scaffolding
+- [Testing](/docs/wire/dx/testing/) — `Wire.test` API

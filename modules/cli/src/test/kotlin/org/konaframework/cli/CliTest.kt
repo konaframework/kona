@@ -110,15 +110,15 @@ class CliTest {
         assertEquals(defaultKona, NewCommand.resolveKonaHome(env = emptyMap(), userHome = defaultHome))
         assertTrue(NewCommand.isUsableKonaHome(defaultKona))
 
-        // Vendored Brew without template() is rejected (includeBuild would poison kona-brew).
+        // Vendored Brew without template() is rejected (includeBuild would poison kona-wire).
         val staleBrew = temp.resolve("stale-brew-home")
         Files.createDirectories(staleBrew.resolve("modules/cli"))
-        Files.createDirectories(staleBrew.resolve("modules/brew/src/main/kotlin/dev/kona/brew"))
+        Files.createDirectories(staleBrew.resolve("modules/wire/src/main/kotlin/dev/kona/wire"))
         Files.writeString(staleBrew.resolve("settings.gradle.kts"), "rootProject.name = \"kona\"\n")
         Files.writeString(staleBrew.resolve("gradlew"), "#!/bin/sh\n")
         staleBrew.resolve("gradlew").toFile().setExecutable(true)
         Files.writeString(
-            staleBrew.resolve("modules/brew/src/main/kotlin/dev/kona/brew/Component.kt"),
+            staleBrew.resolve("modules/wire/src/main/kotlin/dev/kona/wire/Component.kt"),
             "abstract class Component {\n    abstract fun render(): String\n}\n",
         )
         assertTrue(NewCommand.isKonaRoot(staleBrew))
@@ -409,18 +409,18 @@ class CliTest {
         )
 
         val brew = temp.resolve("brew-app")
-        assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=brew", "--no-interaction")))
-        assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-brew"))
+        assertEquals(0, NewCommand().run(listOf(brew.toString(), "--kit=wire", "--no-interaction")))
+        assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("kona-wire"))
         assertTrue(Files.readString(brew.resolve("build.gradle.kts")).contains("org.xerial:sqlite-jdbc"))
-        assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/brew/Counter.kt")))
-        assertFalse(Files.exists(brew.resolve("src/main/kotlin/app/brew/Todos.kt")))
-        assertFalse(Files.exists(brew.resolve("src/main/resources/views/brew/todos.crema.html")))
+        assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/wire/Counter.kt")))
+        assertFalse(Files.exists(brew.resolve("src/main/kotlin/app/wire/Todos.kt")))
+        assertFalse(Files.exists(brew.resolve("src/main/resources/views/wire/todos.crema.html")))
         val brewWelcome = Files.readString(brew.resolve("src/main/resources/views/welcome.crema.html"))
-        assertTrue(brewWelcome.contains("<brew:counter"), brewWelcome)
+        assertTrue(brewWelcome.contains("<wire:counter"), brewWelcome)
         assertTrue(brewWelcome.contains("docs.konaframework.org"), brewWelcome)
         // Tip text must not be the only mention — require a live tag, not an HTML-escaped example.
         assertFalse(brewWelcome.contains("&lt;brew:counter"), brewWelcome)
-        assertTrue(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("BrewServiceProvider"))
+        assertTrue(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("WireServiceProvider"))
         assertFalse(Files.readString(brew.resolve("src/main/kotlin/bootstrap/App.kt")).contains("Todos::class.java"))
         assertTrue(
             Files.readString(brew.resolve("src/main/kotlin/app/http/controllers/WelcomeController.kt"))
@@ -429,12 +429,17 @@ class CliTest {
         assertTrue(Files.isRegularFile(brew.resolve("src/main/kotlin/app/models/User.kt")))
         assertTrue(Files.isRegularFile(brew.resolve("src/main/resources/views/login.crema.html")))
 
+        val brewAlias = temp.resolve("brew-alias-app")
+        assertEquals(0, NewCommand().run(listOf(brewAlias.toString(), "--kit=brew", "--no-interaction")))
+        assertTrue(Files.isRegularFile(brewAlias.resolve("src/main/kotlin/app/wire/Counter.kt")))
+        assertTrue(Files.readString(brewAlias.resolve("build.gradle.kts")).contains("kona-wire"))
+
         val brewJava = temp.resolve("brew-java-app")
-        assertEquals(0, NewCommand().run(listOf(brewJava.toString(), "--kit=brew", "--lang=java", "--no-interaction")))
-        assertTrue(Files.isRegularFile(brewJava.resolve("src/main/java/app/brew/Counter.java")))
+        assertEquals(0, NewCommand().run(listOf(brewJava.toString(), "--kit=wire", "--lang=java", "--no-interaction")))
+        assertTrue(Files.isRegularFile(brewJava.resolve("src/main/java/app/wire/Counter.java")))
         assertTrue(
             Files.readString(brewJava.resolve("src/main/resources/views/welcome.crema.html"))
-                .contains("<brew:counter"),
+                .contains("<wire:counter"),
         )
 
         val javaInertia = temp.resolve("java-inertia")

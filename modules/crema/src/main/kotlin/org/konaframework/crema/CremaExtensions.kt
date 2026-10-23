@@ -18,7 +18,7 @@ fun interface CremaBlockDirective {
 }
 
 /**
- * Handler for prefixed tags such as `<brew:counter :count="$n" />` or `<brew:card>…</brew:card>`.
+ * Handler for prefixed tags such as `<wire:counter :count="$n" />` or `<wire:card>…</wire:card>`.
  */
 fun interface CremaTagHandler {
     fun render(tag: CremaTag): String

@@ -1,7 +1,7 @@
 {
   "name": "crema",
   "displayName": "Crema (Kona)",
-  "description": "Crema template language support for Kona — syntax highlighting, Brew wire:* attributes, and kona-lsp.",
+  "description": "Crema template language support for Kona — syntax highlighting, Wire wire:* attributes, and kona-lsp.",
   "version": "0.2.0",
   "publisher": "konaframework",
   "engines": {

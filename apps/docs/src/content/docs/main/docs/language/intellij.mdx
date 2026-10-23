@@ -26,14 +26,14 @@ Installing, updating, or removing the plugin requires an IDE restart.
 ## What you get
 
 - Native Crema lexer: HTML colors plus `@directives`, `{{ }}`, `{!! !!}`, `{{-- --}}`
-- **Inline Brew strings** — `Component.template()`, `Component.inline(source)`, and `BrewView.inline(source)` are marked `@CremaTemplate`; `// language=Crema` on the previous line also injects Crema into a Java/Kotlin string
+- **Inline Wire strings** — `Component.template()`, `Component.inline(source)`, and `WireView.inline(source)` are marked `@CremaTemplate`; `// language=Crema` on the previous line also injects Crema into a Java/Kotlin string
 - **`@` directive completion** — type `@` in a Crema view or an injected `template()` string (autopopup); also **Ctrl+Space**
-- **Echo helper completion** — inside `{{ }}` / `{!! !!}`, type `url` (or `route`, `asset`, `csrf_token`, `old`, `env`, `config`, `trans`, `lang`, `isset`, `empty`, `errors`, `loop.index`, …) to complete every Kona helper and conventional view variable. Selecting `url` inserts `url('')` with the caret between the quotes. Completes on welcome / login / dashboard views, not only Brew components.
-- **Brew `wire:*` attribute completion** — type `wire:` on HTML tags (`wire:model`, `wire:click`, `wire:submit`, …); weak warnings for unknown `wire:*` names
+- **Echo helper completion** — inside `{{ }}` / `{!! !!}`, type `url` (or `route`, `asset`, `csrf_token`, `old`, `env`, `config`, `trans`, `lang`, `isset`, `empty`, `errors`, `loop.index`, …) to complete every Kona helper and conventional view variable. Selecting `url` inserts `url('')` with the caret between the quotes. Completes on welcome / login / dashboard views, not only Wire components.
+- **Wire `wire:*` attribute completion** — type `wire:` on HTML tags (`wire:model`, `wire:click`, `wire:submit`, …); weak warnings for unknown `wire:*` names
 - Warnings for unknown `@name` tokens (emails like `hi@example.com` are ignored)
 - `{{` auto-closes as `{{  }}` with the caret in the middle
 - **Reformat Code** — **Ctrl+Alt+L** (macOS: **⌥⌘L**) formats Crema views with the same rules as HTML (**Settings → Editor → Code Style → HTML** for indent size, tabs vs spaces, and attribute wrapping). `@directives`, `{{ }}`, `{!! !!}`, and `{{-- --}}` stay intact.
-- **View name autocomplete** in `Crema.view`, `Brew.view`, `engine.make` / `render`, `@extends`, `@include`, and similar call sites
+- **View name autocomplete** in `Crema.view`, `Wire.view`, `engine.make` / `render`, `@extends`, `@include`, and similar call sites
 - **Go to view file:** place the caret on a view name string and use **Ctrl+B** or **Ctrl+Click** (macOS: **⌘B** / **⌘Click**). Same as Navigate → Declaration.
 - **Cadence model + DB column completion** — `user.` / `getAttribute("…")` / `user?.getAttribute("…")` / `get("…")` / `user["…"]` complete columns from the `kona new` users migration (and JDBC when `.env` can connect). Works in **any** Kotlin or Java file — controllers, services, seeders, jobs, console commands, and inside the model (`this.` / bare `getAttribute("`) — including `fun greet(user: Authenticatable)` (`user` → `User`) and Java `User.QUERY.find` / `User.QUERY.where("…")`. `User.where("…")` is scoped to that model’s table. Wherever Kona suggestions appear, they are listed at the **top** of the completion popup.
 - **Kona** tool window (RIGHT): `./grind serve`, migrate, queue/schedule, New Crema View, help, docs

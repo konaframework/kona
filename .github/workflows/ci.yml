@@ -26,6 +26,7 @@ jobs:
           test -f docs/quality/M1-architecture-review.md
           test -f docs/quality/M1-parity-audit.md
           test -f .cursor/rules/kona-milestones.mdc
+          test -d modules/wire
           test -d modules/brew
           test -d modules/inertia
           bash scripts/install_test.sh
@@ -48,23 +49,23 @@ jobs:
         # and publish-plugin churn invalidate Kover's relationship to cached test outputs
         # from main; UP-TO-DATE / configuration-cache hits produce false coverage gaps on
         # CI (same class as #106/#107, grind kover on #165).
-        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify :kona-brew:koverVerify :kona-inertia:koverVerify test --rerun-tasks --no-build-cache --no-configuration-cache
+        run: ./gradlew :kona-core:koverVerify :kona-http:koverVerify :kona-grind:koverVerify :kona-cli:koverVerify :kona-cadence:koverVerify :kona-auth:koverVerify :kona-session:koverVerify :kona-support:koverVerify :kona-redis:koverVerify :kona-cache:koverVerify :kona-crema:koverVerify :kona-events:koverVerify :kona-queue:koverVerify :kona-mail:koverVerify :kona-notifications:koverVerify :kona-filesystem:koverVerify :kona-schedule:koverVerify :kona-drip:koverVerify :kona-process:koverVerify :kona-concurrency:koverVerify :kona-testing:koverVerify :kona-broadcasting:koverVerify :kona-search:koverVerify :kona-lsp:koverVerify :kona-wire:koverVerify :kona-brew:koverVerify :kona-inertia:koverVerify test --rerun-tasks --no-build-cache --no-configuration-cache
       - name: Sample apps (HTTP smoke)
-        run: ./gradlew :hello-kotlin:test :hello-java:test :brew-sample-kotlin:test :brew-sample-java:test :inertia-sample-kotlin:test :inertia-sample-java:test
+        run: ./gradlew :hello-kotlin:test :hello-java:test :wire-sample-kotlin:test :wire-sample-java:test :inertia-sample-kotlin:test :inertia-sample-java:test
 
   brew-js:
-    name: Brew JS runtime (100% Vitest)
+    name: Wire JS runtime (100% Vitest)
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: js/brew
+        working-directory: js/wire
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: js/brew/package-lock.json
+          cache-dependency-path: js/wire/package-lock.json
       - run: npm ci
       - name: Unit + DOM tests with 100% coverage
         run: npm run coverage

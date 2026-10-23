@@ -19,7 +19,7 @@ internal object ScaffoldFrontends {
             writeInertia(target, adapter, css, script)
         } else if (css != "custom") {
             writeViteCss(target, css)
-            writeCremaViews(target, css, brew = kit == "brew")
+            writeCremaViews(target, css, brew = kit == "wire" || kit == "brew")
         }
     }
 
@@ -524,9 +524,9 @@ internal object ScaffoldFrontends {
         }
 
     private fun cremaWelcome(css: String, brew: Boolean, viteTag: String): String {
-        val title = if (brew) "Your Brew app is ready." else "Your app is ready."
+        val title = if (brew) "Your Wire app is ready." else "Your app is ready."
         val lede = if (brew) {
-            "Crema views, Cadence models, session auth, and Brew reactive components on one page."
+            "Crema views, Cadence models, session auth, and Wire reactive components on one page."
         } else {
             "A batteries-included JVM web app with Crema views, Cadence models, and session auth."
         }
@@ -536,17 +536,17 @@ internal object ScaffoldFrontends {
             } else {
                 """
                 <section class="brew-card card mb-4 p-4 border rounded">
-                  <h2>Brew sample — <code>app.brew.Counter</code></h2>
-                  <brew:counter :start="0" />
+                  <h2>Wire sample — <code>app.wire.Counter</code></h2>
+                  <wire:counter :start="0" />
                   <p class="hint text-muted mt-3">
-                    Edit <code>app/brew/Counter.kt</code> (or <code>.java</code>), or scaffold more with
-                    <code>./grind make:brew Todos --class</code> and embed <code>&lt;brew:todos /&gt;</code>.
+                    Edit <code>app/wire/Counter.kt</code> (or <code>.java</code>), or scaffold more with
+                    <code>./grind make:wire Todos --class</code> and embed <code>&lt;wire:todos /&gt;</code>.
                   </p>
                 </section>
                 """
             }
-        val docsHref = if (brew) "https://docs.konaframework.org/docs/brew/" else "https://docs.konaframework.org/"
-        val docsLabel = if (brew) "Brew docs" else "Docs"
+        val docsHref = if (brew) "https://docs.konaframework.org/docs/wire/" else "https://docs.konaframework.org/"
+        val docsLabel = if (brew) "Wire docs" else "Docs"
         val html =
             when (css) {
                 "tailwind" ->

@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** none — M25 merged. **Queued:** [M26](#m26--kona-wire) — rename Brew → **Kona Wire**, ships as Kona **0.3.0**. Do not start M26 until a human marks it **active**.
+**Active milestone:** [M26](#m26--kona-wire) — rename Brew → **Kona Wire**, ships as Kona **0.3.0**.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -439,8 +439,8 @@ Cadence Serialization, Cadence Collections, Soft-delete / model **events** → M
 
 **Parity slice:** Something similar to Livewire or Conduit — full-stack reactive components on the JVM.
 
-**Product name:** **Brew** (`org.konaframework:kona-brew`, package `org.konaframework.brew`) — coffee-themed reactive server components. **Queued rename:** [M26](#m26--kona-wire) / Kona **0.3.0** → **Kona Wire**.
-External repo: [konaframework/kona-brew](https://github.com/konaframework/kona-brew) (archived after remonorepo; Livewire v4 parity program M1–M7).
+**Product name:** **Brew** (`org.konaframework:kona-wire`, package `org.konaframework.wire`) — coffee-themed reactive server components. **Queued rename:** [M26](#m26--kona-wire) / Kona **0.3.0** → **Kona Wire**.
+External repo: [konaframework/kona-wire](https://github.com/konaframework/kona-wire) (archived after remonorepo; Livewire v4 parity program M1–M7).
 
 ### Parity checklist
 
@@ -452,7 +452,7 @@ External repo: [konaframework/kona-brew](https://github.com/konaframework/kona-b
 
 ### In-scope modules
 
-`kona-brew` + Crema/HTTP integration
+`kona-wire` + Crema/HTTP integration
 
 ---
 
@@ -607,7 +607,7 @@ After M13, further product work becomes new numbered milestones with the same Do
 ### Parity checklist
 
 - [x] `kona new` skeletons depend on + register Cadence / Redis / Session / Auth / Queue / Schedule / Mail providers (api + kit overlays)
-- [x] Scaffold middleware wires `StartSession` (+ CSRF on web stack; `/api/*` and `/brew/*` excepted)
+- [x] Scaffold middleware wires `StartSession` (+ CSRF on web stack; `/api/*` and `/wire/*` excepted)
 - [x] `session.json` + `.env` `APP_KEY` generated on `kona new`
 - [x] Cookie session payloads HMAC-signed when encryption is off; Encrypter path unchanged when bound / `session.encrypt=true`
 - [x] Redis session driver resolves via `SessionServiceProvider` + `RedisServiceProvider` (regression)
@@ -873,7 +873,7 @@ MongoDB / non-JDBC stores; changing the zero-install default away from H2; embed
 
 ## M26 — Kona Wire
 
-**Status:** queued — **do not start** until a human marks this milestone **active**.
+**Status:** in progress.
 
 **Release train:** Kona **0.3.0** (do not mix into `0.2.x`). After merge, a human tags `v0.3.0` when ready to publish Central — agents must **not** tag unless asked.
 
@@ -888,35 +888,35 @@ MongoDB / non-JDBC stores; changing the zero-install default away from H2; embed
 ### Parity checklist
 
 #### Names & coordinates
-- [ ] Product name **Kona Wire** (docs, CLI help, IDEA, LSP). Short name **Wire** in code and markup, same style as Cadence / Crema / drip (not “KonaCadence”).
-- [ ] Maven artifact `org.konaframework:kona-wire`; Gradle project `:kona-wire` (`modules/wire`).
-- [ ] Kotlin/Java package `org.konaframework.wire`.
-- [ ] App convention `app.wire` (replaces `app.brew`); `kona new` / `make:` stubs write the new folder.
-- [ ] JS runtime `js/wire/` bundled into `kona-wire` resources.
-- [ ] `kona-bom` / package catalog: `wire` → `kona-wire`; `brew` still resolves to the same artifact as a deprecated alias.
-- [ ] Publish **deprecated** `kona-brew` at **0.3.0** that relocates / depends on `kona-wire` so existing `implementation("…:kona-brew:0.2.0")` apps can bump without a surprise missing artifact. Do **not** delete the `0.2.0` Central coordinates.
+- [x] Product name **Kona Wire** (docs, CLI help, IDEA, LSP). Short name **Wire** in code and markup, same style as Cadence / Crema / drip (not “KonaCadence”).
+- [x] Maven artifact `org.konaframework:kona-wire`; Gradle project `:kona-wire` (`modules/wire`).
+- [x] Kotlin/Java package `org.konaframework.wire`.
+- [x] App convention `app.wire` (replaces `app.brew`); `kona new` / `make:` stubs write the new folder.
+- [x] JS runtime `js/wire/` bundled into `kona-wire` resources.
+- [x] `kona-bom` / package catalog: `wire` → `kona-wire`; `brew` still resolves to the same artifact as a deprecated alias.
+- [x] Publish **deprecated** `kona-brew` at **0.3.0** that relocates / depends on `kona-wire` so existing `implementation("…:kona-brew:0.2.0")` apps can bump without a surprise missing artifact. Do **not** delete the `0.2.0` Central coordinates.
 
 #### Markup, CLI, grind
-- [ ] Component tags `<wire:name />`; `<brew:name />` still mounts the same class (deprecation path).
-- [ ] Starter `--kit=wire`; `--kit=brew` remains an alias for the 0.3.0 train.
-- [ ] Grind commands `wire:make` / `wire:convert` / equivalents; `brew:*` shims print a one-line rename hint and run the Wire command.
-- [ ] Crema `@brew` / helpers renamed to Wire names with Brew aliases where they exist in public API (`Brew.view`, `BrewServiceProvider`, …).
+- [x] Component tags `<wire:name />`; `<brew:name />` still mounts the same class (deprecation path).
+- [x] Starter `--kit=wire`; `--kit=brew` remains an alias for the 0.3.0 train.
+- [x] Grind commands `wire:make` / `wire:convert` / equivalents; `brew:*` shims print a one-line rename hint and run the Wire command.
+- [x] Crema `@brew` / helpers renamed to Wire names with Brew aliases where they exist in public API (`Brew.view`, `WireServiceProvider`, …).
 
 #### Docs, IDE, samples
-- [ ] Public docs: Frontend → **Wire**; `/docs/wire/` is canonical; `/docs/brew/` redirects.
-- [ ] Rewrite Brew guides concurrently (progressive, no framework-comparison culture after the intro nod). Sync `docs/` + `main/docs/` copies.
-- [ ] Samples `samples/wire-kotlin` + `samples/wire-java` (Java-callable path, Law 8); retire or alias `samples/brew-*`.
-- [ ] `kona-lsp` + `ide-support/vscode-crema` + sister **kona-idea**: complete `<wire:…>` and keep `<brew:…>` / `wire:*`.
-- [ ] Governance: `AGENTS.md`, `.cursor/rules`, `components.md`, `PLAN.md`, this file, `HANDOFF.md` — product lock lists **Wire** (Brew only as alias).
+- [x] Public docs: Frontend → **Wire**; `/docs/wire/` is canonical; `/docs/brew/` redirects.
+- [x] Rewrite Brew guides concurrently (progressive, no framework-comparison culture after the intro nod). Sync `docs/` + `main/docs/` copies.
+- [x] Samples `samples/wire-kotlin` + `samples/wire-java` (Java-callable path, Law 8); retire or alias `samples/brew-*`.
+- [x] `kona-lsp` + `ide-support/vscode-crema` + sister **kona-idea**: complete `<wire:…>` and keep `<wire:…>` / `wire:*`.
+- [x] Governance: `AGENTS.md`, `.cursor/rules`, `components.md`, `PLAN.md`, this file, `HANDOFF.md` — product lock lists **Wire** (Brew only as alias).
 
 #### Tests & coverage
-- [ ] Kotlin + Java regression for tags, `app.wire` discovery, Maven coordinate, grind aliases, and `wire:*` attributes (unchanged behavior).
-- [ ] 100% line + branch Kover on production code touched by M26; full suite green (Laws 3–4).
-- [ ] Milestone PR → green CI → automerge; **do not tag `v0.3.0`** unless a human asks.
+- [x] Kotlin + Java regression for tags, `app.wire` discovery, Maven coordinate, grind aliases, and `wire:*` attributes (unchanged behavior).
+- [x] 100% line + branch Kover on production code touched by M26; full suite green (Laws 3–4).
+- [ ] Milestone PR → green CI; **do not merge or tag `v0.3.0`** until a human asks.
 
 ### In-scope modules
 
-`modules/brew` → `modules/wire`, `kona-cli` (kits/skeletons), `kona-grind`, `kona-lsp`, `js/wire`, `apps/docs/`, samples, BOM/catalog, sister `kona-idea` as a coordinated PR.
+`modules/wire` → `modules/wire`, `kona-cli` (kits/skeletons), `kona-grind`, `kona-lsp`, `js/wire`, `apps/docs/`, samples, BOM/catalog, sister `kona-idea` as a coordinated PR.
 
 ### Out of scope (defer)
 

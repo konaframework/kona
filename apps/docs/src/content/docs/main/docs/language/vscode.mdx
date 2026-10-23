@@ -15,11 +15,11 @@ code --install-extension ide-support/vscode-crema
 cursor --install-extension ide-support/vscode-crema
 ```
 
-Reload the window (`Developer: Reload Window`), then open any `*.crema.html` file — highlighting should activate without further setup. The grammar also highlights known Brew `wire:*` attributes (`wire:model`, `wire:click`, …).
+Reload the window (`Developer: Reload Window`), then open any `*.crema.html` file — highlighting should activate without further setup. The grammar also highlights known Wire `wire:*` attributes (`wire:model`, `wire:click`, …).
 
-Inline Brew markup in Java and Kotlin is highlighted too: `template()` text blocks, `inline(` string arguments, and strings preceded by `// language=Crema` or `/* language=Crema */`. That is the path you use when editing `samples/brew-java/.../Counter.java` (and the Kotlin equivalent) without a separate `.crema.html` file.
+Inline Wire markup in Java and Kotlin is highlighted too: `template()` text blocks, `inline(` string arguments, and strings preceded by `// language=Crema` or `/* language=Crema */`. That is the path you use when editing `samples/wire-java/.../Counter.java` (and the Kotlin equivalent) without a separate `.crema.html` file.
 
-With **kona-lsp** attached to **`crema`**, **`java`**, and **`kotlin`** documents, completions and diagnostics cover Crema `@` directives, Brew `wire:*` attributes, and (inside `{{ }}`) public members of the enclosing component class. Inertia apps that use Crema layouts benefit from the same Crema/LSP path; page-component completion stays on the IntelliJ plugin today.
+With **kona-lsp** attached to **`crema`**, **`java`**, and **`kotlin`** documents, completions and diagnostics cover Crema `@` directives, Wire `wire:*` attributes, and (inside `{{ }}`) public members of the enclosing component class. Inertia apps that use Crema layouts benefit from the same Crema/LSP path; page-component completion stays on the IntelliJ plugin today.
 
 Command palette: **Crema: Show kona-lsp setup help** prints build/run lines to an output channel.
 

@@ -3,28 +3,28 @@ title: Starter kits
 description: Interactive kona new installer, kits, CSS, and Inertia adapters.
 ---
 
-`kona new` scaffolds a Gradle app with a local `./grind` CLI. With **no arguments** it asks every question. A directory name skips **only** the directory question — language, kit, CSS, database, install, migrate, and seed are still asked. Pass a flag to skip that step. Scripts use `--no-interaction` for silent defaults (`CI=true` does **not** skip prompts).
+`kona new` scaffolds a Gradle app with a local `./grind` CLI. Run it **with no arguments** and it always walks you through the stack (boxed prompts). Pass a directory or flag to skip **that step only**. `--no-interaction` is the only full skip.
 
 ```bash
-kona new                          # ask every question
+kona new                          # interactive installer — always prompts
 kona new my-app                   # directory set; still asks lang / kit / CSS / db / …
 kona new my-app --no-interaction  # silent defaults (kotlin, web, sqlite)
 kona new my-app --kit=api --lang=java --no-interaction
 kona new my-app --kit=inertia --frontend=react --css=tailwind
 kona new my-app --kit=inertia --frontend=vue --typescript
-kona new my-app --kit=brew --css=bootstrap --install-deps --migrate --seed
+kona new my-app --kit=wire --css=bootstrap --install-deps --migrate --seed
 ```
 
 The default kit (when you skip the stack prompt) is **`web`** — Crema views. Non-interactive CSS stays **custom** (inline styles, no npm) so a first `./grind serve` works with zero JavaScript toolchain. The interactive CSS prompt defaults to **Tailwind CSS**.
 
 ## Interactive order
 
-Without `--no-interaction`, `kona new` asks only for values you did not already pass:
+Without `--no-interaction`, `kona new` asks only for values you did not already pass. IDE terminals, Cursor, and `CI=true` still prompt — answers are read from stdin:
 
 1. **Where should we create the app?** — default `kona-app` (skipped if you pass a directory)
 2. **App name** — `APP_NAME` in `.env`; default is Title Case of the folder (`my-app` → `My App`)
 3. **Language** — Kotlin (default) or Java
-4. **What are we brewing?** — API only, Crema, Brew, or Inertia
+4. **What are we brewing?** — API only, Crema, Wire, or Inertia
 5. **Inertia adapter** — Vue, React, or Svelte (Inertia only)
 6. **Frontend language** — JavaScript (default) or TypeScript (Inertia only; skipped when `--typescript` / `--ts` or `--javascript` / `--js` is set)
 7. **CSS** — Tailwind, Bootstrap, or custom (skipped for API)
@@ -34,7 +34,9 @@ Without `--no-interaction`, `kona new` asks only for values you did not already 
 11. **Run database seeders?**
 12. **Summary card** — then confirm before any files are written
 
-`--no-interaction` / `--no-interactive` never wait on stdin (no directory uses the default folder `kona-app`). Closed or unreadable stdin prints an error instead of scaffolding. `CI=true` is **not** treated as `--no-interaction`.
+Full non-interactive defaults only with `--no-interaction` or `--no-interactive`. Scripts should pass that flag; **`CI=true` does not skip prompts.** With `--no-interaction` and no directory, the default folder is `kona-app`.
+
+If stdin is not readable (closed pipe, EOF) and you did not opt out, Kona prints an **ERROR** telling you to pass flags or `--no-interaction` — it does not silently scaffold.
 
 ## Flags that skip a step
 
@@ -43,7 +45,7 @@ Without `--no-interaction`, `kona new` asks only for values you did not already 
 | Directory argument | “Where should we create the app?” |
 | `--name=` / `--app-name=` | App name (`APP_NAME`) |
 | `--lang=kotlin\|java` | Language |
-| `--kit=` / `--preset=` | Stack (`web`, `api`, `crema`, `inertia`, `brew`) |
+| `--kit=` / `--preset=` | Stack (`web`, `api`, `crema`, `inertia`, `wire`; `brew` is a Wire alias) |
 | `--frontend=vue\|react\|svelte` | Inertia adapter |
 | `--typescript` / `--ts` | Inertia frontend language → TypeScript |
 | `--javascript` / `--js` | Inertia frontend language → JavaScript |
@@ -66,9 +68,10 @@ After a **DONE** chip, the outro lists `cd`, `./grind serve`, and (when you skip
 | `crema` | same as `web` | Alias of `web` |
 | `api` | without Crema | Plain-text `/` welcome + JSON health (no CSS pipeline) |
 | `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite + Vue/React/Svelte, Crema login/dashboard |
-| `brew` | + `kona-brew` | Crema landing with a live `<brew:counter />` plus login/dashboard |
+| `wire` | + `kona-wire` | Crema landing with a live `<wire:counter />` plus login/dashboard |
+| `brew` | + `kona-wire` | Deprecated alias of `wire` |
 
-Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; and applies `StartSession` + CSRF (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`.
+Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; and applies `StartSession` + CSRF (except `/api/*` and `/wire/*`) in `bootstrap.Middleware`.
 
 ## CSS
 
@@ -80,7 +83,7 @@ Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail pro
 | `tailwind` | `package.json` + Vite + Tailwind v4 (`@tailwindcss/vite`), `css/app.css` with the coffee `@theme`, Crema views (or Inertia pages) using utilities, `@vite('src/main/resources/js/app.js')` |
 | `bootstrap` | Vite + Bootstrap 5, Crema/Inertia markup using Bootstrap classes |
 
-Crema and Brew with Tailwind or Bootstrap add `src/main/resources/js/app.js` that imports the CSS. Inertia adapters import the same file from `app.js` / `app.jsx` (or `app.ts` / `app.tsx` when you opt into TypeScript).
+Crema and Wire with Tailwind or Bootstrap add `src/main/resources/js/app.js` that imports the CSS. Inertia adapters import the same file from `app.js` / `app.jsx` (or `app.ts` / `app.tsx` when you opt into TypeScript).
 
 The web root is the project directory `public/` (`paths.public`). Logos and `robots.txt` live there. Vite’s production build writes `public/build`. Source entries stay under `src/main/resources/js/`. `kona new` does not create `src/main/resources/public`.
 
@@ -106,7 +109,7 @@ JavaScript is the default. Non-interactive `kona new my-app --kit=inertia --no-i
 | `--javascript` or `--js` | Force JavaScript |
 | Both | The **last** flag on the command line wins. `--typescript=false` selects JavaScript; `--javascript=false` selects TypeScript |
 
-API, Crema, and Brew ignore these flags and do not ask. Only Inertia shows **Frontend language** (after the adapter prompt).
+API, Crema, and Wire ignore these flags and do not ask. Only Inertia shows **Frontend language** (after the adapter prompt).
 
 TypeScript scaffolds:
 
@@ -128,4 +131,4 @@ When you accept (or pass `--install-deps`), `kona new` runs `./gradlew --no-daem
 
 Every kit has Kotlin and Java skeletons (`--lang=kotlin|java`). Controllers, providers, and routes match the language you choose; shared assets (views, `package.json`) are language-neutral.
 
-Generated apps resolve `org.konaframework` artifacts from **Maven Central**. Full guides: [Brew](/docs/brew/), [Inertia](/docs/inertia/), [Vite](/docs/assets/vite/).
+Generated apps resolve `org.konaframework` artifacts from **Maven Central**. Full guides: [Wire](/docs/wire/), [Inertia](/docs/inertia/), [Vite](/docs/assets/vite/).

@@ -1,7 +1,7 @@
 package org.konaframework.lsp
 
 /**
- * Detects Brew `wire:…` attribute typing / attribute spans in Crema HTML.
+ * Detects Wire `wire:…` attribute typing / attribute spans in Crema HTML.
  * Mirrors the IDEA plugin ([kona-idea] BrewWirePatterns).
  */
 object BrewWirePatterns {

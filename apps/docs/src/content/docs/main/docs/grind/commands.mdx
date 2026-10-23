@@ -49,7 +49,7 @@ On start, grind prints a Termwind box with the local URL (for example `http://12
 5. On a successful compile, grind boots a new application, calls `KonaHttpServer.replaceKernel`, then closes the previous classloader and any bound Cadence `Database` pools.
 6. If compile or boot fails, the previous kernel keeps answering requests and grind prints the error.
 
-That is a **soft** reload: one Netty process, one live app classloader at a time, no Java agent, no second application JVM. Brew inline `template()` blocks live on the component class, so a save that recompiles that class is enough — you do not restart the server. Crema view files under `src/main/resources` are included in the same watch.
+That is a **soft** reload: one Netty process, one live app classloader at a time, no Java agent, no second application JVM. Wire inline `template()` blocks live on the component class, so a save that recompiles that class is enough — you do not restart the server. Crema view files under `src/main/resources` are included in the same watch.
 
 `--in-process` still exists for scripts and tests that want a single boot with no poller. `--no-watch` is the old `gradlew run` child-process path.
 

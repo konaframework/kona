@@ -20,7 +20,8 @@ object PackageCatalog {
     @JvmField
     val ENTRIES: Map<String, CatalogEntry> =
         linkedMapOf(
-            "brew" to CatalogEntry("org.konaframework", "kona-brew", listOf("org.konaframework.brew.BrewServiceProvider")),
+            "wire" to CatalogEntry("org.konaframework", "kona-wire", listOf("org.konaframework.wire.WireServiceProvider")),
+            "brew" to CatalogEntry("org.konaframework", "kona-wire", listOf("org.konaframework.wire.WireServiceProvider")),
             "inertia" to CatalogEntry("org.konaframework", "kona-inertia", listOf("org.konaframework.inertia.InertiaServiceProvider")),
             "crema" to CatalogEntry("org.konaframework", "kona-crema", listOf("org.konaframework.crema.CremaServiceProvider")),
             "filesystem" to CatalogEntry(

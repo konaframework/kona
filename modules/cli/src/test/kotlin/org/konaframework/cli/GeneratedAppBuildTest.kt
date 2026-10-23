@@ -77,10 +77,10 @@ class GeneratedAppBuildTest {
         assumeTrue(System.getProperty("kona.repoRoot") != null, "run via Gradle :kona-cli:test")
         assumeTrue(
             konaBrewPublished() || System.getenv("KONA_HOME") != null,
-            "need kona-brew on Maven Central / mavenLocal, or KONA_HOME for includeBuild",
+            "need kona-wire on Maven Central / mavenLocal, or KONA_HOME for includeBuild",
         )
         val app = temp.resolve("brew-kt")
-        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=brew", "--no-interaction")))
+        assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=wire", "--no-interaction")))
         gradle(app, "classes")
         assertServesInProcess(app)
     }
@@ -163,7 +163,7 @@ class GeneratedAppBuildTest {
 
     private fun konaBrewPublished(): Boolean {
         val home = System.getProperty("user.home")
-        val base = Path.of(home, ".m2", "repository", "org", "konaframework", "kona-brew")
+        val base = Path.of(home, ".m2", "repository", "org", "konaframework", "kona-wire")
         if (!Files.isDirectory(base)) return false
         return Files.walk(base).use { stream -> stream.anyMatch { it.fileName.toString().endsWith(".jar") } }
     }
