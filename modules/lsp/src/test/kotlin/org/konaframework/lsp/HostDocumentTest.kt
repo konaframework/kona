@@ -49,7 +49,7 @@ class HostDocumentTest {
         val members =
             HostDocument.completions(src, "java", uri, echoPos.line, echoPos.character)
         assertTrue(members.any { it.label == "count" }, members.toString())
-        assertTrue(members.filter { it.detail == "Brew member" }.any { it.label == "count" })
+        assertTrue(members.filter { it.detail == "Wire member" }.any { it.label == "count" })
 
         val outside = HostDocument.completions(src, "java", uri, 0, 0)
         assertTrue(outside.isEmpty())

@@ -1,0 +1,17 @@
+---
+title: Wire
+description: Reactive server components for Kona — overview and guides.
+---
+
+**Kona Wire** (short name **Wire**) is Kona’s reactive server-component layer. You write Kotlin or Java classes with public state and actions, render HTML with [Crema](/docs/crema/), and Wire keeps the browser in sync over a small JSON protocol—without a full page reload.
+
+Wire ships as `org.konaframework:kona-wire` on [Maven Central](https://repo1.maven.org/maven2/org/konaframework/kona-wire/). Scaffold with `kona new my-app --kit=wire`, or add the dependency with `./grind install wire` (or `kona grind install wire`). The previous product name **Brew** remains as a compatibility alias for the 0.3.0 train (`--kit=brew`, `./grind install brew`, `<brew:name />`, and the deprecated `kona-brew` artifact).
+
+## Guides in this section
+
+Start here, then dig into essentials, nesting, JavaScript, testing, and examples:
+
+- [Introduction](/docs/wire/guides/introduction/) — what Wire is and when to use it
+- [Installation](/docs/wire/guides/installation/) — add Wire to a Kona app
+- [Your first component](/docs/wire/guides/first-component/) — Kotlin + Java walkthrough
+- [Components](/docs/wire/essentials/components/) — discovery, class + view, registration

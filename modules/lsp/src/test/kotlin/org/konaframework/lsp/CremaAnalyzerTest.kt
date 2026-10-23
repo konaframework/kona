@@ -48,7 +48,7 @@ class CremaAnalyzerTest {
         val diags = CremaAnalyzer.diagnostics(text)
         assertEquals(2, diags.size)
         assertTrue(diags.any { it.message.contains("@unknownThing") })
-        assertTrue(diags.any { it.message.contains("wire:notReal") && it.source == "brew" })
+        assertTrue(diags.any { it.message.contains("wire:notReal") && it.source == "wire" })
         assertEquals(2, diags[0].severity)
         assertTrue(diags.any { it.source == "crema" })
         assertTrue(diags[0].range.start.line >= 0)
@@ -75,7 +75,7 @@ class CremaAnalyzerTest {
         val text = """<button wire:cli"""
         val items = CremaAnalyzer.completions(text, 0, text.length)
         assertTrue(items.any { it.label == "wire:click" })
-        assertTrue(items.all { it.detail == "Brew wire" })
+        assertTrue(items.all { it.detail == "Wire" })
         assertEquals("wire:click", items.first { it.label == "wire:click" }.insertText)
 
         val short = """<input w"""

@@ -1,6 +1,6 @@
 # Crema for VS Code and Cursor
 
-Syntax highlighting for Crema templates — including **inline Brew `template()` strings** in
+Syntax highlighting for Crema templates — including **inline Wire `template()` strings** in
 Java and Kotlin — and an optional launch hook for **kona-lsp**.
 
 ## Install (development)
@@ -22,16 +22,16 @@ then install from this folder again.
 ## Language features (no LSP required)
 
 - File associations: `*.crema.html`, `*.crema.kt`
-- TextMate grammar (directives, Brew `wire:*` attributes, `{{ }}`, `{!! !!}`, `{{-- --}}`)
+- TextMate grammar (directives, Wire `wire:*` attributes, `{{ }}`, `{!! !!}`, `{{-- --}}`)
 - Language configuration (comments, folding)
 - **Injections into Java/Kotlin** text blocks and string literals that look like templates:
   a `template()` return or assignment, an `inline(` argument, or a `// language=Crema`
   / `/* language=Crema */` comment on the previous line. Crema tokens (`{{`, `@if`,
   `wire:click`, …) are also colored inside Java/Kotlin text blocks.
 
-### Inline Brew `template()` strings
+### Inline Wire `template()` strings
 
-Prefer a `views/brew/<name>.crema.html` file when the markup is large. For single-file
+Prefer a `views/wire/<name>.crema.html` file when the markup is large. For single-file
 components, Crema highlighting applies to the `template()` text block automatically:
 
 ```java
@@ -47,7 +47,7 @@ public String template() {
 ```
 
 `Component.template()` is annotated `@CremaTemplate`. `Component.inline(source)` and
-`BrewView.inline(source)` mark the `source` parameter the same way so IntelliJ (Kona Idea)
+`WireView.inline(source)` mark the `source` parameter the same way so IntelliJ (Kona Idea)
 can inject Crema. You can also write `// language=Crema` on the line above any string.
 
 ## Language server (kona-lsp)
@@ -81,7 +81,7 @@ java -jar /path/to/kona-lsp.jar
 
 Inside Java/Kotlin, kona-lsp only completes and diagnoses **inline Crema ranges**
 (`template()` strings, `inline(` arguments, `language=Crema` comments). Completions
-cover `@` directives, Brew `wire:*` attributes, and public members of the enclosing
+cover `@` directives, Wire `wire:*` attributes, and public members of the enclosing
 class when the caret is inside `{{ }}`.
 
 See also: `./grind ide:lsp` for a printed reminder, and the public docs under **Language / Editor**.

@@ -72,7 +72,7 @@ Other common flags (`--base=`, `--bootstrap=`, `--help`, `--isolated`) are docum
 
 Document only what ships. Gaps you should not expect from Grind Console yet:
 
-- No `make:brew` (or other Brew generators) in the `kona-grind` dispatcher — Brew scaffolding, if any, is separate from this catalog.
+- No `make:wire` (or other Wire generators) in the `kona-grind` dispatcher — Wire scaffolding, if any, is separate from this catalog.
 - Custom commands do **not** receive an injected `Application` automatically; boot the app yourself (or call APIs that already have a container) when you need services.
 - There is no interactive command “wizard” beyond `Prompts`, and no command middleware / event bus for console runs.
 - Built-in help for generators is usage strings and `./grind list` summaries — there is no separate man-page system.

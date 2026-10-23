@@ -56,7 +56,7 @@ tasks.test {
         ":kona-mail:publishToMavenLocal",
         ":kona-broadcasting:publishToMavenLocal",
         ":kona-grind:publishToMavenLocal",
-        ":kona-brew:publishToMavenLocal",
+        ":kona-wire:publishToMavenLocal",
         ":kona-inertia:publishToMavenLocal",
     )
     systemProperty("kona.repoRoot", rootDir.absolutePath)

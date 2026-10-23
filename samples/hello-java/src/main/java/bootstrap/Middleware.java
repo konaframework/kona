@@ -25,7 +25,7 @@ public final class Middleware {
             .prependMiddleware(new ServePublicStorage(files.disk("public")));
         new HttpMiddleware()
             .alias("start.session", (Supplier<org.konaframework.http.Middleware>) () -> new StartSession(sessions))
-            .alias("csrf", (Supplier<org.konaframework.http.Middleware>) () -> new VerifyCsrfToken(List.of("/api/*", "/brew/*")))
+            .alias("csrf", (Supplier<org.konaframework.http.Middleware>) () -> new VerifyCsrfToken(List.of("/api/*", "/wire/*")))
             .web(List.of("start.session", "csrf"))
             // Behind a load balancer / ingress:
             // .trustProxies(java.util.List.of("*"))

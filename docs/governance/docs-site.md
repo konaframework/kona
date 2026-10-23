@@ -53,7 +53,7 @@ Optional Worker proxy `/api/github-stats` is **not** wired yet (docs Worker is a
 
 ## Brand (locked)
 
-Coffee palette shared with Brew and Inertia (caramel / latte). Dark headings use soft cream, not pure white. Light accent is warm brown `#74453F` (~7.3:1 on cream) for links, feature headings, and secondary emphasis; primary deep `#9A5812` remains for caramel shade steps. Buttons on caramel fills use espresso `#1A120C` text. Body/heading ink stays deep espresso for long-form readability.
+Coffee palette shared with Wire and Inertia (caramel / latte). Dark headings use soft cream, not pure white. Light accent is warm brown `#74453F` (~7.3:1 on cream) for links, feature headings, and secondary emphasis; primary deep `#9A5812` remains for caramel shade steps. Buttons on caramel fills use espresso `#1A120C` text. Body/heading ink stays deep espresso for long-form readability.
 
 | Token | Light | Dark |
 |-------|-------|------|
@@ -85,7 +85,7 @@ CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--k
 
 5. **Progressive path (trajectory).** Today’s public site still leans on low-level application wiring (explicit providers, registries). That is honest for the current API, but it is **not** the end state. As scaffolding and conventions land, **rewrite** guides so newcomers start with the simple path (*Getting started*) and only dig into providers/container internals later — developer-friendly progressive disclosure, not a disjoint dump of every knob on page one.
 
-   **Sidebar IA (public):** group pages in progressive sections — *Getting started* → *The basics* → *Crema* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Brew* → *Inertia* → *Testing* → *Packages & tooling* — in `apps/docs/sidebar.mjs`. Brew and Inertia are top-level groups (not nested under Frontend). Prefer regrouping the sidebar over mass file moves so slugs stay stable.
+   **Sidebar IA (public):** group pages in progressive sections — *Getting started* → *The basics* → *Crema* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Wire* → *Inertia* → *Testing* → *Packages & tooling* — in `apps/docs/sidebar.mjs`. Wire and Inertia are top-level groups (not nested under Frontend). Prefer regrouping the sidebar over mass file moves so slugs stay stable.
 
 6. **Internal vs public.** Component maps that exist for agents under `docs/architecture/` stay out of the public site unless rewritten in Kona-only language.
 
@@ -105,11 +105,11 @@ Public guides for a milestone’s API surface are written **or rewritten** **in 
 |------|-----------|--------------------|
 | [docs.konaframework.org](https://docs.konaframework.org) | `konaframework/kona` (`apps/docs`, pnpm) | `kona` |
 
-Brew and Inertia guides live **inside** this site:
+Wire and Inertia guides live **inside** this site:
 
 | Section | Canonical path |
 |---------|----------------|
-| Brew | [docs.konaframework.org/docs/brew/](https://docs.konaframework.org/docs/brew/) |
+| Wire | [docs.konaframework.org/docs/wire/](https://docs.konaframework.org/docs/wire/) |
 | Inertia | [docs.konaframework.org/docs/inertia/](https://docs.konaframework.org/docs/inertia/) |
 
 Stub READMEs only: `apps/brew-docs/`, `apps/inertia-docs/` (no separate Starlight builds).
@@ -165,20 +165,20 @@ No `CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` in GitHub. Cloudflare clones
 5. Custom domain: `docs.konaframework.org` on the Worker (Workers & Pages → `kona` → Custom domains).
 6. **Save** Build settings, then **Retry build** (or push to `main`). Settings-only — no need to wait for a repo merge if the Deploy command was the only wrong field.
 
-#### Human Cloudflare follow-up — retire Brew / Inertia hosts
+#### Human Cloudflare follow-up — retire Wire / Inertia hosts
 
-Separate Workers `kona-brew-docs` / `kona-inertia-docs` and hosts `brew.konaframework.org` / `inertia.konaframework.org` are **deprecated**. Content ships only from `apps/docs`.
+Separate Workers `kona-wire-docs` / `kona-inertia-docs` and hosts `brew.konaframework.org` / `inertia.konaframework.org` are **deprecated**. Content ships only from `apps/docs`.
 
 Suggested redirects (Cloudflare Bulk Redirects, Worker routes, or DNS + Worker):
 
 | From | To |
 |------|----|
-| `https://brew.konaframework.org/` | `https://docs.konaframework.org/docs/brew/` |
-| `https://brew.konaframework.org/*` | `https://docs.konaframework.org/docs/brew/:splat` (or map old paths under `/guides/…` → `/docs/brew/guides/…`, `/essentials/…` → `/docs/brew/essentials/…`, etc.) |
+| `https://brew.konaframework.org/` | `https://docs.konaframework.org/docs/wire/` |
+| `https://brew.konaframework.org/*` | `https://docs.konaframework.org/docs/wire/:splat` (or map old paths under `/guides/…` → `/docs/wire/guides/…`, `/essentials/…` → `/docs/wire/essentials/…`, etc.) |
 | `https://inertia.konaframework.org/` | `https://docs.konaframework.org/docs/inertia/` |
 | `https://inertia.konaframework.org/*` | `https://docs.konaframework.org/docs/inertia/:splat` (same prefix mapping) |
 
-Then disable or delete Workers Builds for `kona-brew-docs` / `kona-inertia-docs` (do **not** change GitHub rulesets).
+Then disable or delete Workers Builds for `kona-wire-docs` / `kona-inertia-docs` (do **not** change GitHub rulesets).
 
 #### Path B — optional Wrangler from GitHub Actions (harden later)
 

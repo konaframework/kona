@@ -1,6 +1,6 @@
 # Publishing `org.konaframework` artifacts
 
-How maintainers publish Kona framework jars (including Brew and Inertia) for consumption. **Destination:** [Maven Central](https://central.sonatype.com/) under groupId `org.konaframework`.
+How maintainers publish Kona framework jars (including Wire and Inertia) for consumption. **Destination:** [Maven Central](https://central.sonatype.com/) under groupId `org.konaframework`.
 
 **Gradle plumbing (this repo):** shared `com.vanniktech.maven.publish` convention in the root `build.gradle.kts` — POM metadata, sources jar, empty javadoc jar (Kotlin), optional GPG signing, Central Portal publisher, and `:bom` (`kona-bom`). **Local / CI still use** `publishToMavenLocal`. **Public Central release** needs a Portal user token, GPG key, non-SNAPSHOT version, and a human-triggered tag (see checklist below).
 
@@ -23,7 +23,7 @@ Generated apps resolve `org.konaframework:…` from Maven Central. The curl inst
 
 ### Other follow-ups
 
-1. Confirm artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (`kona-core`, `kona-bom`, `kona-cli`, `kona-brew`, `kona-inertia`, …).
+1. Confirm artifacts on [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework) (`kona-core`, `kona-bom`, `kona-cli`, `kona-wire`, `kona-inertia`, …).
 2. **Usage / File Count** — org hit Central **File Count** monthly limit (grace through **2026-11-17**). Check [Usage Center](https://central.sonatype.com/); if still tight, email `central-support@sonatype.com` for a higher limit. See [Reducing Publishing Usage](https://central.sonatype.org/publish/reducing-publishing-usage/).
 
 ### File-count mitigations (this stack)
@@ -33,7 +33,7 @@ Generated apps resolve `org.konaframework:…` from Maven Central. The curl inst
 
 ## Namespace verified — first Central cut (`0.1.0`)
 
-**Status:** namespace **`org.konaframework`** is verified. Tag `v0.1.0` was pushed; release workflow uploaded once. Remonorepo of Brew + Inertia landed **after** that tag — they ship in **`0.1.1`**.
+**Status:** namespace **`org.konaframework`** is verified. Tag `v0.1.0` was pushed; release workflow uploaded once. Remonorepo of Wire + Inertia landed **after** that tag — they ship in **`0.1.1`**.
 
 Prerequisites (still required for every release):
 
@@ -66,12 +66,12 @@ Prerequisites (still required for every release):
 
 | Repo | Path (typical) | Version property | Publishable artifact(s) |
 |------|----------------|------------------|-------------------------|
-| [konaframework/kona](https://github.com/konaframework/kona) | `~/kona` | `kona.version` in `gradle.properties` | All `modules/*` named `kona-*` (including `modules/brew` → `kona-brew`, `modules/inertia` → `kona-inertia`) + `:bom` → `kona-bom` |
+| [konaframework/kona](https://github.com/konaframework/kona) | `~/kona` | `kona.version` in `gradle.properties` | All `modules/*` named `kona-*` (including `modules/wire` → `kona-wire`, `modules/inertia` → `kona-inertia`) + `:bom` → `kona-bom` |
 
 - **GroupId:** `org.konaframework` (root `build.gradle.kts` `allprojects`).
 - **Version train:** one `kona.version` for every artifact (including brew/inertia). **Monorepo only** — no sister-repo tags.
-- **Not published:** samples (`hello-*`, `brew-sample-*`, `inertia-sample-*`), docs apps, `js/brew`.
-- Archived sister repos `kona-brew` / `kona-inertia` are no longer publish sources.
+- **Not published:** samples (`hello-*`, `brew-sample-*`, `inertia-sample-*`), docs apps, `js/wire`.
+- Archived sister repos `kona-wire` / `kona-inertia` are no longer publish sources.
 
 ## What is configured today
 
@@ -85,7 +85,7 @@ Root `build.gradle.kts` applies [`com.vanniktech.maven.publish` 0.34.0](https://
 - `publishToMavenCentral(automaticRelease = false)` — Central Portal (not legacy OSSRH); human **Publish** in Portal after `VALIDATED`
 - `signAllPublications()` **only when** `signingInMemoryKey` / `signing.keyId` (or `ORG_GRADLE_PROJECT_*` equivalents) are present — so `publishToMavenLocal` keeps working without GPG
 
-`:kona-brew` and `:kona-inertia` use the same convention (they are `kona-*` Kotlin modules). `:bom` constrains both.
+`:kona-wire` and `:kona-inertia` use the same convention (they are `kona-*` Kotlin modules). `:bom` constrains both.
 
 ### Tasks
 
@@ -99,7 +99,7 @@ Root `build.gradle.kts` applies [`com.vanniktech.maven.publish` 0.34.0](https://
 
 | Workflow | Behavior |
 |----------|----------|
-| `.github/workflows/ci.yml` | `publishToMavenLocal` (all `kona-*` including brew/inertia) → Kover on every production module → sample smokes (`hello-*`, `brew-sample-*`, `inertia-sample-*`) + Brew JS Vitest job |
+| `.github/workflows/ci.yml` | `publishToMavenLocal` (all `kona-*` including brew/inertia) → Kover on every production module → sample smokes (`hello-*`, `brew-sample-*`, `inertia-sample-*`) + Wire JS Vitest job |
 | `.github/workflows/release.yml` | On `v*` tags: `environment: maven-central`; refuse SNAPSHOT; `publishToMavenCentral` for the **whole** train (one Gradle invocation) |
 
 ### Installer / day-to-day path
@@ -136,7 +136,7 @@ All at `org.konaframework:<artifactId>:<kona.version>`:
 | `:kona-broadcasting` | `kona-broadcasting` |
 | `:kona-search` | `kona-search` |
 | `:kona-lsp` | `kona-lsp` |
-| `:kona-brew` | `kona-brew` (`modules/brew`) |
+| `:kona-wire` | `kona-wire` (`modules/wire`) |
 | `:kona-inertia` | `kona-inertia` (`modules/inertia`) |
 | `:kona-cli` | `kona-cli` |
 
@@ -166,7 +166,7 @@ Do **not** commit tokens, GPG private keys, or `gradle.properties` with secrets.
 ```bash
 cd /path/to/kona
 ./gradlew publishToMavenLocal -x test   # or publishToMavenCentral for a real release
-# Includes :kona-brew and :kona-inertia (and :bom constraints)
+# Includes :kona-wire and :kona-inertia (and :bom constraints)
 ```
 
 ### D. Local dry-run (safe — do this anytime)
@@ -176,7 +176,7 @@ cd ~/kona && ./gradlew publishToMavenLocal -x test
 
 ls ~/.m2/repository/org/konaframework/kona-core/0.2.1/
 ls ~/.m2/repository/org/konaframework/kona-bom/0.2.1/
-ls ~/.m2/repository/org/konaframework/kona-brew/0.2.1/
+ls ~/.m2/repository/org/konaframework/kona-wire/0.2.1/
 ls ~/.m2/repository/org/konaframework/kona-inertia/0.2.1/
 ```
 
@@ -238,4 +238,4 @@ Or push a new version tag (e.g. `v0.2.1` when ready) and let `.github/workflows/
 - [docs-site.md](docs-site.md) — Cloudflare Pages first publish without GitHub secrets
 - [apps/docs … installation](../../apps/docs/src/content/docs/docs/guides/installation.mdx) — end-user install + mavenLocal note
 - [PLAN.md](../architecture/PLAN.md) — groupId `org.konaframework`
-- Archived sister repos (`kona-brew`, `kona-inertia`) — point consumers at this monorepo
+- Archived sister repos (`kona-wire`, `kona-inertia`) — point consumers at this monorepo

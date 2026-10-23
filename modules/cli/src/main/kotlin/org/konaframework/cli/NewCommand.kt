@@ -10,7 +10,7 @@ import java.nio.file.Path
  * Always interactive unless `--no-interaction` / `--no-interactive`. A positional directory
  * skips **only** the directory question; language, kit, CSS, database, install, migrate, and
  * seed are still asked. `CI` and missing `System.console()` do not skip prompts.
- * Kits (`--kit` / `--preset`): `web` (default), `api`, `crema` (alias of `web`), `inertia`, `brew`.
+ * Kits (`--kit` / `--preset`): `web` (default), `api`, `crema` (alias of `web`), `inertia`, `wire` (`brew` alias).
  */
 class NewCommand
 @JvmOverloads
@@ -250,9 +250,9 @@ constructor(
                 overlayKit("crema", lang, target, variables)
                 overlayKit("inertia", lang, target, variables)
             }
-            "brew" -> {
+            "wire", "brew" -> {
                 overlayKit("crema", lang, target, variables)
-                overlayKit("brew", lang, target, variables)
+                overlayKit("wire", lang, target, variables)
             }
             else -> throw KonaCliException("Unknown kit: $kit")
         }
@@ -334,16 +334,16 @@ constructor(
                 Files.isExecutable(path.resolve("gradlew"))
 
         /**
-         * Rejects checkouts whose `modules/brew` lacks the current `template()` API —
-         * `includeBuild` would substitute that stale module and break `--kit=brew` scaffolds.
+         * Rejects checkouts whose `modules/wire` lacks the current `template()` API —
+         * `includeBuild` would substitute that stale module and break `--kit=wire` scaffolds.
          * In-tree Brew with `template()` is the supported remonorepo layout.
          */
         internal fun isUsableKonaHome(path: Path): Boolean {
             if (!isKonaRoot(path)) return false
-            // Legacy (dev.kona / io.konaframework) or current (org.konaframework) layout under a leftover modules/brew.
+            // Legacy (dev.kona / io.konaframework) or current (org.konaframework) layout under a leftover modules/wire.
             val brewComponent = listOf(
-                path.resolve("modules/brew/src/main/kotlin/org/konaframework/brew/Component.kt"),
-                path.resolve("modules/brew/src/main/kotlin/dev/kona/brew/Component.kt"),
+                path.resolve("modules/wire/src/main/kotlin/org/konaframework/wire/Component.kt"),
+                path.resolve("modules/wire/src/main/kotlin/dev/kona/wire/Component.kt"),
             ).firstOrNull { Files.isRegularFile(it) } ?: return true
             return Files.readString(brewComponent).contains("fun template")
         }
@@ -425,8 +425,8 @@ constructor(
                 "src/main/resources/views/app.crema.html",
                 "public/.gitkeep",
             ),
-            // Brew overlays Crema landing with a live `<brew:counter />` demo (+ Counter class via KIT_LANG).
-            "brew" to listOf(
+            // Brew overlays Crema landing with a live `<wire:counter />` demo (+ Counter class via KIT_LANG).
+            "wire" to listOf(
                 "src/main/resources/views/welcome.crema.html",
             ),
         )
@@ -468,17 +468,17 @@ constructor(
                     "README.md",
                 ),
             ),
-            "brew" to mapOf(
+            "wire" to mapOf(
                 "kotlin" to listOf(
                     "build.gradle.kts.txt",
                     "src/main/kotlin/bootstrap/App.kt.txt",
-                    "src/main/kotlin/app/brew/Counter.kt.txt",
+                    "src/main/kotlin/app/wire/Counter.kt.txt",
                     "README.md",
                 ),
                 "java" to listOf(
                     "build.gradle.kts.txt",
                     "src/main/java/bootstrap/App.java.txt",
-                    "src/main/java/app/brew/Counter.java.txt",
+                    "src/main/java/app/wire/Counter.java.txt",
                     "README.md",
                 ),
             ),

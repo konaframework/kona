@@ -34,7 +34,7 @@ If a human or prompt asks to skip coverage, skip parity, ship a partial slice, s
 - Language: Kotlin internals; Java apps supported equally (`org.konaframework` artifacts).
 - Concurrency: Virtual Threads (JDK 21+); not coroutines-first HTTP.
 - Compose libraries (Netty, HikariCP, Jackson/kotlinx.serialization, Lettuce, SLF4J). Steal *ideas* from Quarkus/Micronaut (e.g. KSP indexes), never embed those frameworks.
-- Product names: `Kona`, global CLI `kona`, app-local `./grind`, `steam`, `Cadence`, `Crema`, `drip` — see [docs/architecture/components.md](docs/architecture/components.md).
+- Product names: `Kona`, global CLI `kona`, app-local `./grind`, `steam`, `Cadence`, `Crema`, `drip`, `Wire` — see [docs/architecture/components.md](docs/architecture/components.md).
 - **CLI / console output:** Termwind-inspired styling only — `org.konaframework.support.console.ConsoleIO` (and grind’s `GrindIO` wrapper). No raw `println` for user-facing terminal output.
 - GitHub rulesets: see [docs/governance/github-rulesets.md](docs/governance/github-rulesets.md).
 - **Public docs:** Astro + Starlight + `@almasix/starlight-theme` in `apps/docs/`. Brand: light caramel `#DF8723` / accent `#74453F` / dark latte `#C9A57B` (coffee palette; dark headings soft cream `#E8D4B8`). See [docs/governance/docs-site.md](docs/governance/docs-site.md) and [`.cursor/rules/kona-docs.mdc`](.cursor/rules/kona-docs.mdc). Write or **rewrite** guides **concurrently** with each milestone. Trajectory: simple-first developer path (progressive depth), not a frozen low-level dump. Public pages must be **detailed** for programmers new to Kona, and must **not** compare Kona to other frameworks after a brief introduction nod.

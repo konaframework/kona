@@ -1,0 +1,160 @@
+---
+title: Wire components
+description: Register, discover, and render Wire components from Kotlin or Java.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A Wire **component** is a subclass of `org.konaframework.wire.Component`. Public fields (or Kotlin properties with backing fields) are state. Public methods are actions. The class returns HTML through `template()`, `render()`, or a convention Crema view.
+
+## Two authoring styles
+
+### Single-file (inline template)
+
+Override `template()` with Crema source. Best for small widgets.
+
+```kotlin
+class Counter : Component() {
+    var count = 0
+    fun increment() { count++ }
+
+    override fun template() = """
+        <div>
+            <button wire:click="increment">+</button>
+            <span>{{ count }}</span>
+        </div>
+    """.trimIndent()
+}
+```
+
+### Class + Crema view
+
+Omit `template()` and either return `view("brew.todos")` from `render()`, or rely on the convention path `views/wire/<name>.crema.html`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Todos : Component() {
+    var draft = ""
+    var items = mutableListOf<String>()
+
+    fun add() {
+        if (draft.isNotBlank()) {
+            items.add(draft.trim())
+            draft = ""
+        }
+    }
+
+    // Convention: views/wire/todos.crema.html when render() / template() are null
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Todos extends Component {
+    public String draft = "";
+    public List<String> items = new ArrayList<>();
+
+    public void add() {
+        if (!draft.isBlank()) {
+            items.add(draft.trim());
+            draft = "";
+        }
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+{{-- views/wire/todos.crema.html — single root element required --}}
+<div>
+    <form wire:submit="add">
+        <input wire:model="draft" />
+        <button type="submit">Add</button>
+    </form>
+    <ul>
+        @foreach(items as item)
+            <li wire:key="todo-{{ loop.index }}">{{ item }}</li>
+        @endforeach
+    </ul>
+</div>
+```
+
+`render()` may return:
+
+| Return | Meaning |
+|--------|---------|
+| `null` | Use `template()`, else convention view `brew.<name>` |
+| `WireView` from `view(name, data)` / `inline(source, data)` | Named or inline Crema |
+| `String` | Raw HTML (still must have a single root element) |
+
+## Naming and discovery
+
+By default `WireServiceProvider` adds the `app.wire` package location. Class `app.wire.Counter` is named `counter`; nested packages become dotted names (`app.wire.posts.CreatePost` → `posts.create-post`).
+
+| API | Role |
+|-----|------|
+| `Wire.discover("app.wire")` | Scan a package |
+| `Wire.addLocation("com.acme.ui")` | Extra package root |
+| `Wire.addNamespace("admin", "app.admin.brew")` | Resolve `admin::users` |
+| `Wire.component("counter", Counter::class.java)` | Explicit registration |
+| `@WireComponent("explicit-name")` | Pin the discovered name |
+
+Namespaces use `ns::name` in tags: `<wire:admin::users />`.
+
+## Embedding
+
+```crema
+<wire:counter />
+<wire:counter :start="3" title="Demo" />
+@wire('counter', ['start' => 3])
+```
+
+- Static attributes become string props / mount args.
+- `:attr="expr"` evaluates the Crema expression.
+- Kebab-case attributes map to camelCase (`:user-id` → `userId`).
+
+From code:
+
+```kotlin
+Wire.mount("counter", mapOf("start" to 3))
+Wire.exists("counter") // true when registered / discoverable
+```
+
+## Identity helpers
+
+Inside a running component:
+
+```kotlin
+id()    // unique instance id
+name()  // registered name, e.g. "counter"
+```
+
+## Errors you will see
+
+| Situation | Exception / behaviour |
+|-----------|------------------------|
+| Unknown name | `ComponentNotFoundException` |
+| More than one root HTML element | `MultipleRootElementsException` |
+| Empty / no root tag | `RootTagMissingFromViewException` |
+| Client calls a non-action / lifecycle method | Method-not-found / lifecycle guard |
+
+## Scaffolding
+
+```bash
+./grind make:wire counter                 # class + views/wire/counter.crema.html
+./grind make:wire posts.create --inline   # single-file with template()
+./grind make:wire counter --lang=java
+./grind make:wire counter --test
+```
+
+## Next
+
+- [Properties](/docs/wire/essentials/properties/) — state API and security annotations
+- [Actions](/docs/wire/essentials/actions/) — calling methods from the browser
+- [Templates](/docs/wire/essentials/templates/) — assets and Crema surface

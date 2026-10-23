@@ -34,7 +34,7 @@ object Middleware {
             .prependMiddleware(ServePublicDirectory(publicRoot))
         HttpMiddleware()
             .alias("start.session") { StartSession(sessions) }
-            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/brew/*")) }
+            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/wire/*")) }
             .alias("auth") { Authenticate(auth) }
             .alias("guest") { RedirectIfAuthenticated(auth, "/dashboard") }
             .web(listOf("start.session", "csrf"))

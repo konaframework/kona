@@ -17,15 +17,15 @@ Paste this file (or its path) into a new chat so another agent can continue with
 7. [publishing.md](publishing.md) — Maven Local today; Maven Central prerequisites and blockers for `org.konaframework`.
 8. Sister IDE repo: [`konaframework/kona-idea` → `HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
 
-## In-repo Brew / Inertia (remonorepo)
+## In-repo Wire / Inertia (remonorepo)
 
 | Product | Module | Docs | Public URL |
 |---------|--------|------|------------|
-| Brew (queued M26 → **Kona Wire**, train **0.3.0**) | `modules/brew` → `:kona-brew` | `apps/docs` (Frontend → Brew) | https://docs.konaframework.org/docs/brew/ |
+| Wire (M26, train **0.3.0**; Brew aliases) | `modules/wire` → `:kona-wire` | `apps/docs` (Frontend → Wire) | https://docs.konaframework.org/docs/wire/ |
 | Inertia | `modules/inertia` → `:kona-inertia` | `apps/docs` (Frontend → Inertia) | https://docs.konaframework.org/docs/inertia/ |
-| Brew JS | `js/brew/` | — | bundled into `kona-brew` resources |
+| Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
-Stub only: `apps/brew-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
+Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
@@ -35,14 +35,14 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Last milestone coding | **M25 — First-class database engines** (merged PR #161) |
-| Active milestone | **none** |
-| Queued | **M26 — Kona Wire** (Brew → Wire), release train **0.3.0** — start only when a human marks it active |
+| Active milestone | **M26 — Kona Wire** (Brew → Wire), release train **0.3.0** |
+| Queued | *(none — finish M26, then tag 0.3.0 only if a human asks)* |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
-| App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Brew starter via package |
+| App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
 | Docs versions | `starlight-versions`: **`{major}.x (Latest)`** (default current from `kona.version`), **Dev** (`main` tip archive) |
 | Docs i18n | Root English; locales `es` / `fr` / `zh-cn` (Introduction + Installation translated; else EN fallback) |
-| LSP | `kona-lsp` completes Crema `@`, Brew `wire:*`, and echo helpers inside `{{ }}` (IDEA-aligned `CremaEchoCatalog`) |
+| LSP | `kona-lsp` completes Crema `@`, Wire `wire:*`, and echo helpers inside `{{ }}` (IDEA-aligned `CremaEchoCatalog`) |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Continue deepen / docs exhaustion; do not pause between merges |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
@@ -54,7 +54,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|-----|
 | Grind `route:list` / `route:cache` / `route:clear` | *(this PR — `feat/grind-route-commands`)* |
 | Docs versions + i18n + LSP `wire:*` + GH chip hydrate | *(this PR — `feat/docs-ide-i18n-versions`)* |
-| Remonorepo Brew + Inertia into `modules/{brew,inertia}` | [#138](https://github.com/konaframework/kona/pull/138) (landed; supersedes #137 approach) |
+| Remonorepo Wire + Inertia into `modules/{brew,inertia}` | [#138](https://github.com/konaframework/kona/pull/138) (landed; supersedes #137 approach) |
 | Handoff / publishing Central notes | [#135](https://github.com/konaframework/kona/pull/135) |
 | Extract `kona-inertia` + brief docs link-out | [#101](https://github.com/konaframework/kona/pull/101) |
 | `./grind install` / `kona grind install` + provider registration | [#100](https://github.com/konaframework/kona/pull/100); top-level `kona install` removed |
@@ -63,7 +63,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Expand Grind Console guides | [#97](https://github.com/konaframework/kona/pull/97) |
 | Exhaust Events into dedicated section | [#96](https://github.com/konaframework/kona/pull/96) |
 | Crema `view()` / Views helper (share, first) + docs | [#95](https://github.com/konaframework/kona/pull/95) |
-| Shrink Brew section to brief link-out | [#94](https://github.com/konaframework/kona/pull/94) |
+| Shrink Wire section to brief link-out | [#94](https://github.com/konaframework/kona/pull/94) |
 | Exhaust HTTP + Crema feature guides | [#93](https://github.com/konaframework/kona/pull/93) |
 | Close deepen ledger status after #88–#91 | [#92](https://github.com/konaframework/kona/pull/92) |
 | Support Collections/Arr/Str/Date deepen | [#91](https://github.com/konaframework/kona/pull/91) |
@@ -71,19 +71,19 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | HTTP niche validation / stream / controller middleware | [#89](https://github.com/konaframework/kona/pull/89) |
 | Security CadenceUserProvider + Argon2 | [#88](https://github.com/konaframework/kona/pull/88) |
 | Cadence B6 Eloquent parity | [#87](https://github.com/konaframework/kona/pull/87) |
-| Brew cutover to external `kona-brew` | [#79](https://github.com/konaframework/kona/pull/79) |
+| Wire cutover to external `kona-wire` | [#79](https://github.com/konaframework/kona/pull/79) |
 
 ### Done vs in-flight (honest)
 
-**Done on `main`:** logging drivers, `view()` / Views, Grind Console docs, Events / Testing sections, Brew/Inertia brief link-outs, `./grind install` / `kona grind install`, first `0.1.0` release train tagged on kona (#134). Continuous autopilot + Auto model locks remain in AGENTS / rules.
+**Done on `main`:** logging drivers, `view()` / Views, Grind Console docs, Events / Testing sections, Wire/Inertia brief link-outs, `./grind install` / `kona grind install`, first `0.1.0` release train tagged on kona (#134). Continuous autopilot + Auto model locks remain in AGENTS / rules.
 
-**Remonorepo done (#138):** Brew + Inertia are in-tree (`modules/brew`, `modules/inertia`, samples, `js/brew`). Docs unified into `apps/docs` (Frontend → Brew / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/brew/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-brew-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
+**Remonorepo done (#138):** Wire + Inertia are in-tree (`modules/wire`, `modules/inertia`, samples, `js/wire`). Docs unified into `apps/docs` (Frontend → Wire / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/wire/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-wire-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
 **Last published release:** **`v0.2.0`** on Maven Central. **`kona.version` on `main` is `0.2.1`** (version bump only — **not tagged / not on Central yet**). Do not push `v0.2.1` until a deliberate release PR + `release.yml`. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
-**Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Brew parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Brew templates.
+**Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Wire parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Wire templates.
 
-**Scaffold indent:** `kona new` and `./grind install inertia` emit 2-space `package.json` / `tsconfig.json` via `PrettyJson` and assemble `vite.config.js` / Brew welcome HTML with `SourceBlocks` so nested `trimIndent()` cannot collapse blocks to column 0. Sister IDE **kona-idea 0.5.20** lists those frontend files in the Kona Project View.
+**Scaffold indent:** `kona new` and `./grind install inertia` emit 2-space `package.json` / `tsconfig.json` via `PrettyJson` and assemble `vite.config.js` / Wire welcome HTML with `SourceBlocks` so nested `trimIndent()` cannot collapse blocks to column 0. Sister IDE **kona-idea 0.5.20** lists those frontend files in the Kona Project View.
 
 ### Intentional deferrals (do not reopen without mandate)
 
@@ -98,7 +98,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 - Do **not** revive Extract names — ORM is **Cadence**.
 - **CLI lock:** user-facing terminal output uses Termwind-style `ConsoleIO` (`kona-support`); grind wraps it as `GrindIO`. No raw `println`.
-- Brew and Inertia exhaustive guides live under `apps/docs` sidebar **Frontend → Brew / Inertia** (not separate sites).
+- Wire and Inertia exhaustive guides live under `apps/docs` sidebar **Frontend → Wire / Inertia** (not separate sites).
 
 ## How to continue
 
@@ -114,20 +114,20 @@ git fetch origin && git checkout main && git pull
 # or global CLI after install: kona new demo --lang=kotlin
 
 # Docs (local)
-pnpm install --frozen-lockfile && pnpm docs:dev          # apps/docs (includes Brew + Inertia)
+pnpm install --frozen-lockfile && pnpm docs:dev          # apps/docs (includes Wire + Inertia)
 
 # Publish all jars incl. brew/inertia
 ./gradlew publishToMavenLocal -x test
 # Full maintainer guide: docs/governance/publishing.md
 ```
 
-Key paths: `modules/` (framework), `apps/docs/`, `js/brew/`, `docs/governance/`, `.cursor/rules/kona-*.mdc`.
+Key paths: `modules/` (framework), `apps/docs/`, `js/wire/`, `docs/governance/`, `.cursor/rules/kona-*.mdc`.
 
 ## Open gaps / next priorities
 
 1. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
 2. Confirm no conflicting open PRs.
-3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time. **Queued for 0.3.0:** M26 Brew → **Kona Wire** (do not start until marked active).
+3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time. **Queued for 0.3.0:** M26 Wire → **Kona Wire** (do not start until marked active).
 4. **Maven Central — `v0.2.0` shipped** (do not re-tag). **`0.2.1` version bump on `main` — do not tag until release cut.** Optional follow-ups:
    - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
    - Trusted Publishing (OIDC) still **not GA** — token + GPG. Full checklist: [publishing.md](publishing.md).

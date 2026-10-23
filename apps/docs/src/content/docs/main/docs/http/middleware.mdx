@@ -322,7 +322,7 @@ object Middleware {
             .prependMiddleware(ServePublicStorage(files.disk("public")))
         HttpMiddleware()
             .alias("start.session") { StartSession(sessions) }
-            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/brew/*")) }
+            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/wire/*")) }
             .web(listOf("start.session", "csrf"))
             // .trustProxies(at = listOf("*"))
             // .trustHosts(at = listOf("example.com", "*.example.com"))

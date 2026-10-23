@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ name }}</title>
+    <style>
+      :root {
+        --caramel: #df8723;
+        --accent: #74453f;
+        --latte: #c9a57b;
+        --cream: #e8d4b8;
+        --ink: #2a1a12;
+        --bg: #faf6f0;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(900px 480px at 85% -10%, rgba(223, 135, 35, 0.22), transparent 55%),
+          radial-gradient(700px 420px at 0% 100%, rgba(116, 69, 63, 0.12), transparent 50%),
+          var(--bg);
+      }
+      .shell { max-width: 44rem; margin: 0 auto; padding: 3.5rem 1.5rem 3rem; }
+      .brand { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 2.5rem; }
+      .brand img { width: 3.25rem; height: 3.25rem; display: block; }
+      .brand span { font-weight: 700; letter-spacing: 0.04em; color: var(--accent); }
+      h1 {
+        font-size: clamp(2rem, 5vw, 2.85rem);
+        line-height: 1.15;
+        margin: 0 0 1rem;
+        color: var(--accent);
+      }
+      .lede { font-size: 1.125rem; line-height: 1.6; margin: 0 0 2rem; max-width: 34rem; opacity: 0.9; }
+      .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 2.5rem; }
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        padding: 0.75rem 1.2rem; border-radius: 0.55rem; font-weight: 600;
+        text-decoration: none; border: 1px solid transparent;
+      }
+      .btn-primary { background: var(--caramel); color: #fff; }
+      .btn-primary:hover { filter: brightness(1.05); }
+      .btn-ghost { background: transparent; color: var(--accent); border-color: #d8c4a8; }
+      .btn-ghost:hover { background: rgba(223, 135, 35, 0.08); }
+      .meta {
+        display: grid; gap: 0.85rem;
+        padding: 1.25rem 1.35rem; border-radius: 0.75rem;
+        background: rgba(255, 255, 255, 0.55); border: 1px solid #ead9c2;
+        margin-bottom: 1.5rem;
+      }
+      .meta code { font-size: 0.9rem; color: var(--caramel); }
+      .meta p { margin: 0; line-height: 1.5; font-size: 0.95rem; }
+      .brew-card {
+        padding: 1.25rem 1.35rem; border-radius: 0.75rem;
+        background: rgba(255, 255, 255, 0.55); border: 1px solid #ead9c2;
+        margin-bottom: 1.5rem;
+      }
+      .brew-card h2 {
+        margin: 0 0 0.75rem;
+        font-size: 1.1rem;
+        color: var(--accent);
+      }
+      .brew-card .hint {
+        margin: 0.85rem 0 0;
+        font-size: 0.9rem;
+        color: #7a6554;
+      }
+      .brew-demo button {
+        background: var(--caramel); color: #fff; border: 0;
+        border-radius: 0.35rem; padding: 0.35rem 0.75rem;
+        cursor: pointer; font-weight: 600; margin-right: 0.35rem;
+      }
+      footer { margin-top: 2.5rem; font-size: 0.9rem; color: #7a6554; }
+      footer a { color: var(--caramel); }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <div class="brand">
+        <img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+        <span>{{ name }}</span>
+      </div>
+      <h1>Your Wire app is ready.</h1>
+      <p class="lede">
+        Crema views, Cadence models, session auth, and Wire reactive components on one page.
+        Click the counter — no full page reload.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" href="{{ url('/login') }}">Sign in</a>
+        <a class="btn btn-ghost" href="{{ url('/dashboard') }}">Dashboard</a>
+        <a class="btn btn-ghost" href="https://docs.konaframework.org/docs/wire/">Wire docs</a>
+      </div>
+
+      <section class="brew-card">
+        <h2>Wire sample — <code>app.wire.Counter</code></h2>
+        <wire:counter :start="0" />
+        <p class="hint">
+          Edit <code>app/wire/Counter.kt</code> (or <code>.java</code>), or scaffold more with
+          <code>./grind make:wire Todos --class</code> and embed <code>&lt;wire:todos /&gt;</code>.
+        </p>
+      </section>
+
+      <div class="meta">
+        <p>Demo user after <code>./grind migrate</code> and <code>./grind db:seed</code>:</p>
+        <p><code>demo@kona.test</code> / <code>password</code></p>
+        <p>JSON users API: <code>GET /api/users</code></p>
+      </div>
+      <footer>
+        Built with <a href="https://docs.konaframework.org/">Kona</a>
+      </footer>
+    </div>
+  </body>
+</html>

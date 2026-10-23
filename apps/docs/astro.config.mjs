@@ -31,6 +31,10 @@ export default defineConfig({
   site,
   base,
   trailingSlash: 'ignore',
+  redirects: {
+    '/docs/brew': '/docs/wire',
+    '/docs/brew/[...slug]': '/docs/wire/[...slug]',
+  },
   integrations: [
     starlight({
       title: 'Kona',

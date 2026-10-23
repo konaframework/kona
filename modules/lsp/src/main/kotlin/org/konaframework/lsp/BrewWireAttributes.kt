@@ -1,7 +1,7 @@
 package org.konaframework.lsp
 
 /**
- * Known Brew `wire:*` HTML attributes used in Crema views.
+ * Known Wire `wire:*` HTML attributes used in Crema views.
  * Mirrors the IDEA plugin list ([kona-idea] BrewWireAttributes).
  */
 object BrewWireAttributes {

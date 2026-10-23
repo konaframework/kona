@@ -1,0 +1,42 @@
+{
+  "name": "@konaframework/wire",
+  "version": "0.1.0",
+  "description": "Wire browser runtime: reactive server-driven components for Kona.",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/wire.esm.js",
+  "module": "dist/wire.esm.js",
+  "exports": {
+    ".": "./dist/wire.esm.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "check:bundle": "node build.mjs --check",
+    "bench": "vitest bench --run",
+    "playwright": "npm run build && playwright test"
+  },
+  "dependencies": {
+    "@alpinejs/anchor": "3.17.4",
+    "@alpinejs/collapse": "3.17.4",
+    "@alpinejs/focus": "3.17.4",
+    "@alpinejs/intersect": "3.17.4",
+    "@alpinejs/mask": "3.17.4",
+    "@alpinejs/morph": "3.17.4",
+    "@alpinejs/persist": "3.17.4",
+    "@alpinejs/resize": "3.17.4",
+    "@alpinejs/sort": "3.17.4",
+    "alpinejs": "3.17.4"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
+    "esbuild": "^0.25.10",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4",
+    "@playwright/test": "^1.55.0"
+  }
+}

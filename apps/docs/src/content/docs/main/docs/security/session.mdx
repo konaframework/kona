@@ -68,4 +68,4 @@ String email = request.old("email"); // next request
 
 Use `session.flashInput(...)`, `session.old("field")`, and `request.old("field")` to redisplay form values after a failed POST. Validation errors flash under the key `errors`.
 
-`kona new` registers `SessionServiceProvider` and wires `StartSession` plus `VerifyCsrfToken` (except `/api/*` and `/brew/*`) in `bootstrap.Middleware`. Manual apps: register the provider, resolve `SessionManager`, and add `StartSession(manager)` to the kernel.
+`kona new` registers `SessionServiceProvider` and wires `StartSession` plus `VerifyCsrfToken` (except `/api/*` and `/wire/*`) in `bootstrap.Middleware`. Manual apps: register the provider, resolve `SessionManager`, and add `StartSession(manager)` to the kernel.

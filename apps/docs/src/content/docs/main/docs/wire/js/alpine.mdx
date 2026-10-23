@@ -1,0 +1,125 @@
+---
+title: Alpine.js coupling
+description: How Wire bundles Alpine, exposes $wire, and coexists with x-* directives.
+---
+
+Wire’s browser runtime is built **on** Alpine.js. You do not install Alpine separately when you load the default `/wire/wire.min.js` (or `brew.js`) script — Alpine ships inside that bundle.
+
+## Confirmed relationship
+
+| Fact | Detail |
+|------|--------|
+| **Bundles** | Alpine `3.17.x` is a direct dependency of `@konaframework/wire` and is compiled into the IIFE/ESM/CSP builds |
+| **Globals** | `window.Alpine` and `window.Wire` are both assigned |
+| **Plugins registered at start** | morph, intersect, sort, resize, collapse, anchor, focus, persist, mask |
+| **Starts Alpine** | `Wire.start()` calls `Alpine.plugin(...)`, registers Wire interceptors, then `Alpine.start()` |
+| **Not a peer-only dep** | Apps using the default script do not `npm install alpinejs`; custom ESM bundlers import from `@konaframework/wire` which re-exports Alpine |
+
+CSP-oriented pages can load `brew.csp.min.js` when `brew.csp_safe` is enabled — same Wire behaviour with an Alpine CSP-safe build path.
+
+## `$wire` magic
+
+Wire registers an Alpine magic named `wire`:
+
+```html
+<div x-data>
+  <button type="button" @click="$wire.increment()">+</button>
+  <span x-text="$wire.count"></span>
+</div>
+```
+
+Inside a component root (`wire:id`), `$wire` is a proxy over that component’s reactive state and server actions. See the [JavaScript runtime](/docs/wire/js/runtime/) for the full `$wire` API (`$set`, `$get`, `$errors`, `$refs`, `$dispatch`, …).
+
+## How `wire:*` uses Alpine
+
+Most Wire directives compile into Alpine bindings:
+
+| Directive | Alpine bridge |
+|-----------|---------------|
+| `wire:model` | Alpine `x-model` against `$wire` (with Wire modifiers) |
+| `wire:show` / `wire:text` / `wire:bind:*` | `x-show` / `x-text` / `x-bind` against `$wire` |
+| `wire:click` and other `wire:<event>` | Alpine `x-on` listeners that fire Wire actions |
+| Morph | Alpine Morph plugin with Wire key / ignore / replace hooks |
+| Component state | `Alpine.reactive(...)` ephemeral + server snapshot |
+
+Root elements with `wire:id` are Alpine root selectors (`Alpine.addRootSelector(() => '[wire\\:id]')`).
+
+## Coexistence with `x-*`
+
+You can mix Alpine UI with Wire state on the same tree:
+
+```html
+<div wire:id="…" x-data="{ open: false }">
+  <button type="button" @click="open = !open">Menu</button>
+  <div x-show="open" x-cloak>
+    <button type="button" wire:click="save">Save on server</button>
+  </div>
+</div>
+```
+
+Rules of thumb:
+
+1. **Server state** — put it on the component (`var` / public field) and bind with `wire:model` or `$wire`.
+2. **Ephemeral UI** — open/close, hover chrome, client-only animations — use Alpine `x-data`.
+3. **Name clashes** — Wire’s expression evaluator prefers `$wire` targets for action expressions so Alpine keys with the same name do not steal server method calls.
+4. **`x-modelable`** — custom Crema/Alpine controls that expose `x-modelable` work with `wire:model`.
+
+## Entangle
+
+Keep an Alpine value and a Wire property in sync:
+
+```html
+<div x-data="{ local: @entangle('count') }">
+  <input x-model="local" />
+</div>
+```
+
+Or from JS: `$wire.$entangle('count')` / `.live` variants. See `@entangle` in templates and the entangle feature in the runtime.
+
+## Events across Alpine and Wire
+
+- Wire `dispatch('saved')` becomes a browser `CustomEvent` that Alpine can hear with `x-on:saved.window`.
+- Alpine `$dispatch('saved')` can be listened to with `wire:saved` or Wire JS listeners.
+- Global: `Wire.on('saved', …)` / `Wire.dispatch('saved', …)`.
+
+## Avoiding double Alpine
+
+If another script also loads Alpine onto `window.Alpine` after Wire’s bundle, Wire logs a warning (`Detected multiple instances of Alpine running`). Prefer:
+
+- Default: only `@wireScripts` / injected Wire script, **or**
+- Custom: set `window.wireScriptConfig`, import `{ Wire, Alpine }` from `@konaframework/wire`, register your plugins, then call `Wire.start()` once.
+
+```js
+import { Wire, Alpine } from '@konaframework/wire'
+// optional: Alpine.plugin(yourPlugin)
+Wire.start()
+```
+
+When `window.wireScriptConfig` is defined, Wire **skips** the automatic `DOMContentLoaded` start so your bundle owns boot order.
+
+## `@script` and component modules
+
+Component scripts run with `$wire` in scope:
+
+```crema
+@script
+<script>
+    $wire.$watch('count', value => console.log(value))
+</script>
+@endscript
+```
+
+Multi-file components may ship a sibling `.js` module (`export default function ($wire) { … }`) loaded through effects.
+
+## Practical checklist
+
+- [ ] Load **one** Alpine (Wire’s) unless you intentionally replace it via ESM.
+- [ ] Use `wire:*` for server round-trips; use `x-*` for local UI.
+- [ ] Register hooks on `brew:init` (before Alpine finishes starting).
+- [ ] For CSP apps, enable `brew.csp_safe` and serve the CSP bundle.
+
+## Next
+
+- [JavaScript runtime](/docs/wire/js/runtime/) — hooks, morph, interceptors
+- [Examples → Alpine UI](/docs/wire/examples/alpine-ui/) — worked patterns
+- [Actions](/docs/wire/essentials/actions/) — calling methods from Alpine

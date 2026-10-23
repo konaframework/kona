@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap
 class CremaEngine(
     private val finder: ViewFinder,
 ) {
-    /** Custom directives / tag prefixes (e.g. packages registering `@brew` and `<brew:…>`). */
+    /** Custom directives / tag prefixes (e.g. packages registering `@brew` and `<wire:…>`). */
     val extensions: CremaExtensions = CremaExtensions()
 
     private val runtime = CremaRuntime(finder, extensions)
