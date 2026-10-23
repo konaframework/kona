@@ -62,6 +62,10 @@ Integrated into `grind`. Evaluates Kotlin/Java expressions inside the bootstrapp
 
 ActiveRecord with companion / static query helpers. Fluent builder: `Cadence.where()`, `Cadence.find()`, `hasMany()`, `belongsTo()`, and related Eloquent-class APIs.
 
+**Relational (shipped):** JDBC + HikariCP + SQL `Grammar` / migrations — SQLite, H2, MySQL, MariaDB, PostgreSQL, Oracle, SQL Server (M25).
+
+**Document (Kona 1.x, [M27](../../MILESTONES.md#m27--cadence-document--mongodb-kona-1x)):** MongoDB is a first-class **Cadence document family**, not an eighth SQL engine. Optional artifact `kona-cadence-mongo`; document models share Cadence DX (casts, events, factories, Auth) over collections/BSON. Agents must not implement M27 until a human activates the 1.x train.
+
 ### `Crema` (views)
 
 Directive-driven templating compiler. Core directives: `@extends`, `@section`, `@yield`, `@if`, `@foreach`, `@component`.

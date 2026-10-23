@@ -41,6 +41,7 @@ Evidence: `DatabaseEngines.DEFAULT_NAME`, skeletons, `apps/docs/.../cadence/data
 | **Oracle** | `Grammar.ORACLE` | `OracleSchemaGrammar` | `VARCHAR2`, MERGE upsert, identity |
 | **SQL Server** | `Grammar.SQLSERVER` | `SqlServerSchemaGrammar` | Brackets, `OFFSET/FETCH`, MERGE |
 | **Other JDBC** | `Grammar.registerUrlPrefix` | `SchemaGrammar.registerProduct` | Extension path **done** (#65) |
+| **MongoDB** | *n/a — not a SQL `Grammar`* | *n/a* | **Kona 1.x / [M27](../../MILESTONES.md#m27--cadence-document--mongodb-kona-1x):** Cadence **Document** family (`kona-cadence-mongo`), official sync driver. Do not add `jdbc:mongodb` or a fake SQL grammar. |
 
 ---
 

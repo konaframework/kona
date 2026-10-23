@@ -111,7 +111,8 @@ Canonical checklists and the **full Almasix menu coverage ledger** live in [`MIL
 | M11 | Reactive UI — **Wire** (Livewire / Conduit parity); rename → **Kona Wire** in M26 |
 | M12 | Inertia, asset bundling, starter kits |
 | M13 | Language support, LSP, editor setup |
-| M26 | **Kona Wire** — rename Wire → Wire; release train **0.3.0** |
+| M26 | **Kona Wire** — rename Brew → Wire; release train **0.3.0** |
+| M27 | **Cadence Document / MongoDB** — Kona **1.x**, human-gated (not an M25 SQL engine) |
 
 ```mermaid
 flowchart LR
@@ -128,9 +129,14 @@ flowchart LR
 5. Interop gate every coding milestone.
 6. Milestone rules above override convenience.
 
+## Decision: MongoDB is Cadence Document (1.x), not a SQL grammar
+
+Relational Cadence is JDBC + Hikari + `Grammar` (M25). MongoDB does not speak SQL. Kona will still treat it as **Cadence** — same product, document models, optional `kona-cadence-mongo` — rather than a second ORM name. Details and the human gate: [`MILESTONES.md` M27](../../MILESTONES.md#m27--cadence-document--mongodb-kona-1x).
+
 ## Non-goals (until their milestone)
 
 - Rust/Actix latency race; Spring/Quarkus embedding; coroutines-first HTTP; Kotlin-only APIs; Orbit-class admin before a post-M13 milestone is opened in `MILESTONES.md`.
+- MongoDB / other document stores before a human activates **M27** (Kona **1.x**).
 
 ## Immediate execution order
 
