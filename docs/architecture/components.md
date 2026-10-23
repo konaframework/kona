@@ -69,9 +69,11 @@ Directive-driven templating compiler. Core directives: `@extends`, `@section`, `
 
 Fluent HTTP client for external APIs and frontend → Kona backend calls.
 
-### Brew (reactive UI)
+### Brew (reactive UI) — queued rename: **Kona Wire**
 
 Full-stack reactive server components in this monorepo: `modules/brew` → Maven `org.konaframework:kona-brew` (package `org.konaframework.brew`). JS runtime: `js/brew/`. Docs: [docs.konaframework.org/docs/brew/](https://docs.konaframework.org/docs/brew/) (`apps/docs`). Livewire v4 parity ledger: [livewire-v4-parity.md](../governance/livewire-v4-parity.md). Starter: `kona new --kit=brew`.
+
+**M26 / Kona 0.3.0 (queued):** rename the product to **Kona Wire** (short name **Wire**). Keep `wire:*` attributes. New coordinates `kona-wire` / `org.konaframework.wire` / `app.wire` / `<wire:…>` with Brew aliases for one train. Do not start until M26 is marked **active** in [MILESTONES.md](../../MILESTONES.md).
 
 ### Inertia
 
