@@ -169,10 +169,13 @@ internal class SourcePoller(
 }
 
 internal object GradleInvocation {
+    fun wrapper(root: Path, windows: Boolean): String {
+        val file = root.resolve(if (windows) "gradlew.bat" else "gradlew")
+        return if (Files.isRegularFile(file)) file.toString() else "gradle"
+    }
+
     fun command(root: Path, task: String, windows: Boolean): List<String> {
-        val wrapper = root.resolve(if (windows) "gradlew.bat" else "gradlew")
-        val gradle = if (Files.isRegularFile(wrapper)) wrapper.toString() else "gradle"
-        return listOf(gradle, "--quiet", "--console=plain", "-Dorg.gradle.console=plain", task)
+        return listOf(wrapper(root, windows), "--quiet", "--console=plain", "-Dorg.gradle.console=plain", task)
     }
 }
 

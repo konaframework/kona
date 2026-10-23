@@ -98,6 +98,7 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Migrations | M2 | done |
 | Seeding | M2 | done |
 | Factories | M2 | done |
+| MongoDB / document stores | **M27 (Kona 1.x)** — Cadence Document family, not an M25 SQL engine | queued (human-gated) |
 
 ### Cadence ORM
 
@@ -109,8 +110,9 @@ Every topic from the Almasix docs menu maps to a milestone. Agents must not clos
 | Serialization | M4 | done |
 | Collections (Cadence) | M4 | done |
 | Soft Deletes & Events | Soft deletes M2; model events M4 | done |
+| Document models (MongoDB) | **M27 (Kona 1.x)** | queued (human-gated) |
 
-Living deepen ledger (Eloquent + Database engines/grammars): [docs/governance/cadence-eloquent-parity.md](docs/governance/cadence-eloquent-parity.md).
+Living deepen ledger (Eloquent + Database engines/grammars): [docs/governance/cadence-eloquent-parity.md](docs/governance/cadence-eloquent-parity.md). MongoDB is **not** another JDBC grammar — see [M27](#m27--cadence-document--mongodb-kona-1x).
 
 ### View layer (Crema)
 
@@ -863,7 +865,7 @@ M24 — Executable config.
 
 ### Out of scope (defer)
 
-MongoDB / non-JDBC stores; changing the zero-install default away from H2; embedding Quarkus/Micronaut/Spring; GitHub ruleset changes (Law 9).
+MongoDB / non-JDBC stores → **[M27](#m27--cadence-document--mongodb-kona-1x)** (Kona **1.x**, human-gated). Changing the zero-install default away from SQLite/H2; embedding Quarkus/Micronaut/Spring; GitHub ruleset changes (Law 9).
 
 ### Next (queued)
 
@@ -942,3 +944,91 @@ flowchart LR
   M24 --> M25[M25_DB_Engines]
   M25 --> M26[M26_Kona_Wire]
 ```
+
+---
+
+## Kona 1.x (queued — human-gated)
+
+Do **not** open these branches until a human sets **Active milestone** to the 1.x item. Continuous autopilot through M13 / remaining 0.x work (including tagging `v0.3.0`) does **not** include this train.
+
+---
+
+## M27 — Cadence Document / MongoDB (Kona 1.x)
+
+**Status:** queued (Kona **1.x**; not active).
+
+**Release train:** Kona **1.x**. Do not mix into `0.3.x`. Agents must **not** start `milestone/M27-cadence-mongo` until a human marks this milestone **active**.
+
+**Branch (when activated):** `milestone/M27-cadence-mongo`
+
+**Parity slice:** First-party **MongoDB** as a Cadence **document family** — ActiveRecord DX (models, casts, events, factories, Auth) over collections/BSON — not an eighth JDBC engine beside PostgreSQL.
+
+### How it fits (architecture lock)
+
+Cadence today is relational: `Database` + HikariCP + JDBC + `Grammar` / `SchemaGrammar` + SQL migrations (M2, exhausted per engine in **M25**). `kona new --database=mongo` is **rejected** on purpose (`DatabaseEngines`).
+
+MongoDB is collections, documents, `_id` / ObjectId, filters, aggregations, replica-set sessions. It does **not** have SQL joins, `CREATE TABLE`, `ON CONFLICT`, or `OFFSET/FETCH`. Putting it on `Grammar` would make Cadence **lie** (`join`, `toSql`, foreign-key DDL).
+
+It **is** still Cadence, not a second ORM product:
+
+- Cadence is Kona’s persistence name (same role as the relational ActiveRecord). A parallel “Kona Mongo ORM” brand would split models, Auth, factories, and grind.
+- Apps should write `class Post : Document<Post>()` (or the name locked at implementation) and keep `find` / `where` / casts / model events / factories — the mental model of Cadence, the storage model of Mongo.
+- Relational `Cadence<T>` stays JDBC-only. Document models do **not** extend the SQL query builder.
+
+**Preferred shape**
+
+| Piece | Lock |
+|-------|------|
+| Artifact | `org.konaframework:kona-cadence-mongo` (`:kona-cadence-mongo`, `modules/cadence-mongo`). Optional; `kona-cadence` remains JDBC. |
+| Driver | Official MongoDB Java **sync** driver; Virtual Threads. **Not** Spring Data, Morphia, or Quarkus/Micronaut (Law 7). |
+| Config | Named connection `mongodb` with `driver=mongodb` and `mongodb://` / `mongodb+srv://` URI. Never `jdbc:`. |
+| Model | Document base in `org.konaframework.cadence.document` (exact type name at impl). Collection instead of `table`; `_id` default key; `incrementing = false`. Share casts, fillable/guarded, hidden/visible, timestamps, `ModelDispatcher` events, serialization. |
+| Query | Filter/update API with familiar `where` / `find` / `create` / `update` / `delete`. Aggregations in-scope. No SQL `Grammar`, no `toSql` as a compatibility façade. |
+| Relations | Stored-id `belongsTo` / `hasMany` and **embed**; no SQL joins. |
+| Schema | Index helpers + optional JSON Schema validator. **Not** `SchemaBuilder.create` / SQL migrations. |
+| Transactions | Client sessions / replica-set transactions; documented behavior on standalone. |
+| Auth / grind | Document users work with `CadenceUserProvider`. `./grind make:model Post --document`. `kona new --database=mongodb` **adds** the mongo module + connection; SQLite remains the zero-install default. |
+| Shared kernel | If events/casts would otherwise be copy-pasted, extracting a small persistable kernel from `Cadence<T>` is **in scope** — only as much as Document needs. Do not rewrite the SQL engine. |
+
+**Named equivalent:** Eloquent-shaped Mongo document models (community Mongo + Eloquent DX). Prefer Almasix if a document ORM exists there; otherwise that Laravel-shaped surface.
+
+### Parity checklist (when activated)
+
+#### Connection & driver
+- [ ] `database.connections.mongodb` in Kotlin + Java skeletons; env `DB_CONNECTION=mongodb`, `MONGODB_URI` (or documented equivalent)
+- [ ] `Database` (or a document connection manager) resolves `mongodb://` without Hikari/JDBC
+- [ ] BOM / catalog pin for `mongodb-driver-sync`; `kona new --database=mongodb` adds `kona-cadence-mongo` + driver
+- [ ] SQLite remains `kona new` default; `--database=mongodb` is opt-in
+
+#### Document models
+- [ ] Document base: CRUD, fillable/guarded, casts (including `CastsAttributes`), hidden/visible/appends, timestamps, soft deletes if they map cleanly to a `deleted_at` field
+- [ ] Companion / `QUERY` Java path (`Cadence.of`-shaped) — Law 8
+- [ ] Model events + observers; factories + seeders against collections
+- [ ] `find` / `findOrFail` / `where` / `orWhere` / `whereIn` / `whereNull` / `limit` / `orderBy` / pagination that is Mongo-native (not SQL `LIMIT`)
+- [ ] Aggregations: match / group / sort pipeline helper (exhaust the first-party slice — no “use the raw driver” hole for the documented surface)
+- [ ] Relations: reference `belongsTo` / `hasMany`; embed one / many; eager load that does not pretend to JOIN
+
+#### Indexes, sessions, Auth
+- [ ] Declare indexes from the model or a document schema helper; create/ensure on boot or grind command
+- [ ] Multi-document transactions behind a replica-set (Testcontainers); clear error or documented skip on standalone
+- [ ] `CadenceUserProvider` (or document-aware alias) authenticates a document `User`
+
+#### Tests, samples, docs
+- [ ] Testcontainers MongoDB integration + unit tests for filter compilation / ObjectId keys
+- [ ] Samples `samples/cadence-mongo-kotlin` + `samples/cadence-mongo-java` (or equivalent regression apps)
+- [ ] Public docs: Cadence → Documents / MongoDB (simple-first; no framework-comparison culture after an intro nod). Sync `docs/` + `main/docs/`
+- [ ] Update `cadence-eloquent-parity.md` engines table: Mongo is Document family, not `Grammar`
+- [ ] 100% line + branch Kover on production code touched by M27; full suite green (Laws 3–4)
+- [ ] Milestone PR → green CI → automerge; **do not tag 1.x** unless a human asks
+
+### In-scope modules
+
+`kona-cadence-mongo` (new), possibly a thin persistable extract in `kona-cadence`, `kona-cli` (opt-in `--database=mongodb`), `kona-bom` / catalog, `kona-auth` (user provider), `kona-grind` (`make:model --document`), `apps/docs/`, samples, Testcontainers CI
+
+### Out of scope (defer)
+
+Cassandra, DynamoDB, Couchbase, Redis-as-document-store, Elasticsearch as ORM (Search is M10); making Mongo the `kona new` default; JDBC/SQL Server-style `Grammar` for Mongo; Spring Data Mongo; embedding Quarkus/Micronaut/Spring; GitHub rulesets (Law 9); starting this milestone without a human activation.
+
+### Next (queued)
+
+*(none — 1.x items are opened explicitly by a human in this file.)*
