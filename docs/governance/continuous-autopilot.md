@@ -25,6 +25,8 @@ Stop and surface to a human **only** when:
 
 Do **not** pause between milestones for celebration, planning permission, or “should we start M4?”. The answer is always yes if the previous milestone is on `main`.
 
+**Exception — Kona 1.x:** milestones listed under **Kona 1.x (queued — human-gated)** in [MILESTONES.md](../../MILESTONES.md) (today **M27 Cadence Document / MongoDB**) are **not** the next autopilot step. Do not open those branches until a human sets **Active milestone** to that item.
+
 ## Models
 
 Use **Auto** (Cursor Auto / `inherit`) for the parent agent and all subagents. Do **not** pin Opus, Sonnet, GPT, Grok, or other named models unless a human explicitly overrides for that turn.

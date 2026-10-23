@@ -36,7 +36,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Default branch | `main` — green; never push directly |
 | Last milestone coding | **M25 — First-class database engines** (merged PR #161) |
 | Active milestone | **M26 — Kona Wire** (Brew → Wire), release train **0.3.0** |
-| Queued | *(none — finish M26, then tag 0.3.0 only if a human asks)* |
+| Queued | **M27 — Cadence Document / MongoDB** (Kona **1.x**, human-gated — do **not** start until a human sets it active). Tag `v0.3.0` only if a human asks. |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
