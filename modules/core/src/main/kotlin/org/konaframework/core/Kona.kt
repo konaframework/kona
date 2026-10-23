@@ -2,9 +2,12 @@ package org.konaframework.core
 
 import java.nio.file.Path
 
-/**
+/***********************************************************************************************************************
  * Framework entry facade.
+ * -----------------------------------------------------------------------------------------------------------------------
+ * This is the main entry point for starting a Kona application. It provides methods to create and start an [Application] instance.
  *
+ * Usage:
  * ```kotlin
  * Kona.create(args)
  *     .configs(config.App, config.Database)
@@ -80,6 +83,14 @@ object Kona {
         application.refreshPathLayout()
     }
 
+    /**
+     * Resolves the base path for the application.
+     *
+     * The base path can be specified via the `--base` command-line argument. If not provided, the current working directory is used.
+     *
+     * @param args The command-line arguments.
+     * @return The resolved base path as a [Path].
+     */
     private fun resolveBasePath(args: Array<String>): Path {
         val fromArg = args.firstOrNull { it.startsWith("--base=") }
             ?.removePrefix("--base=")

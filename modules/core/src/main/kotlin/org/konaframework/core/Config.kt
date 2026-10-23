@@ -1,14 +1,28 @@
 package org.konaframework.core
 
-/**
+/***********************************************************************************************************************
  * Dot-notation config repository backed by nested maps.
  *
  * `set("app.debug", true)` creates `{app: {debug: true}}`; `get("app")` returns the nested map.
  * Application settings come from executable [ConfigFile] modules and [Env], not from JSON files.
+ *
+ * Example usage:
+ * ```kotlin
+ * val config = Config()
+ * config.set("app.debug", true)
+ * config.set("app.port", 8080)
+ * val debug = config.getBoolean("app.debug") // true
+ * val port = config.getInt("app.port") // 8080
+ * val missing = config.getString("app.missing", "default") // "default"
+ * val all = config.all() // {app: {debug: true, port: 8080}}
+ * ```
+ * ***************************************************************************************************************
  */
 class Config {
+    /** Backing store for config items, using a linked map to preserve insertion order. */
     private val items = linkedMapOf<String, Any?>()
 
+    /** Sets a config value at the given dot-notated key. Creates nested maps as needed. */
     @Synchronized
     fun set(key: String, value: Any?) {
         val segments = key.split('.')
@@ -19,9 +33,21 @@ class Config {
         node[segments.last()] = normalize(value)
     }
 
+    /** Checks if a config value exists at the given dot-notated key. */
     @Synchronized
     fun has(key: String): Boolean = lookup(key) !== MISSING
 
+    /***************************************************************************************************************************
+     * Gets a config value at the given dot-notated key, or returns [default] if not found.
+     * The return type is inferred from the caller's context.
+     * Use `get<Any>(key)` to get the raw value without casting.
+     * Use `getString(key)`, `getInt(key)`, or `getBoolean(key)` for type-specific retrieval.
+     *
+     * @JvmOverloads allows calling this method with or without the default value.
+     * @Synchronized ensures thread safety when accessing the config items.
+     * @Suppress("UNCHECKED_CAST") suppresses unchecked cast warnings when casting the value to the expected type.
+     * ***************************************************************************************************************
+     */
     @JvmOverloads
     @Synchronized
     @Suppress("UNCHECKED_CAST")
@@ -33,6 +59,10 @@ class Config {
         return value as T?
     }
 
+    /*****************************************************************************************************************
+     * Type-specific getters for convenience. These methods call the generic `get` method and cast the result to the expected type.
+     * ***************************************************************************************************************
+     */
     fun getString(key: String): String? = get<Any>(key)?.toString()
 
     fun getString(key: String, default: String): String = getString(key) ?: default
@@ -83,6 +113,7 @@ class Config {
         return current
     }
 
+    /** Returns a mutable child map for the given segment, creating it if it doesn't exist. */
     @Suppress("UNCHECKED_CAST")
     private fun MutableMap<String, Any?>.childMap(segment: String): MutableMap<String, Any?> {
         val existing = this[segment]
@@ -94,6 +125,7 @@ class Config {
         return created
     }
 
+    /** Normalizes a value by converting nested maps to linked maps with string keys. */
     private fun normalize(value: Any?): Any? {
         if (value !is Map<*, *>) {
             return value
@@ -103,10 +135,12 @@ class Config {
         return copy
     }
 
+    /** Deep copies a map, recursively copying nested maps. */
     @Suppress("UNCHECKED_CAST")
     private fun deepCopy(map: Map<String, Any?>): Map<String, Any?> =
         map.mapValues { (_, v) -> if (v is Map<*, *>) deepCopy(v as Map<String, Any?>) else v }
 
+    /** Companion object for static utility methods. */
     companion object {
         private val MISSING = Any()
 
