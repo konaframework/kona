@@ -1,5 +1,5 @@
 // @ts-check
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
@@ -26,15 +26,59 @@ function releaseLineLabel() {
   return `${major}.x (Latest)`;
 }
 
+/**
+ * `/docs/brew` → `/docs/wire` (and the same under `/main/` for the Dev archive).
+ * Destinations must already exist as Starlight routes.
+ * @returns {Record<string, string>}
+ */
+function brewToWireRedirects() {
+  const docsRoot = join(dirname(fileURLToPath(import.meta.url)), 'src/content/docs');
+  /** @type {Record<string, string>} */
+  const redirects = {
+    '/docs/brew': '/docs/wire',
+    '/main/docs/brew': '/main/docs/wire',
+  };
+  for (const slug of collectMdxSlugs(join(docsRoot, 'docs/wire'))) {
+    redirects[`/docs/brew/${slug}`] = `/docs/wire/${slug}`;
+    redirects[`/main/docs/brew/${slug}`] = `/main/docs/wire/${slug}`;
+  }
+  return redirects;
+}
+
+/**
+ * @param {string} dir
+ * @param {string} [prefix]
+ * @returns {string[]}
+ */
+function collectMdxSlugs(dir, prefix = '') {
+  /** @type {string[]} */
+  const slugs = [];
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) {
+      slugs.push(...collectMdxSlugs(full, prefix ? `${prefix}/${name}` : name));
+      continue;
+    }
+    if (!name.endsWith('.mdx')) continue;
+    const stem = name.replace(/\.mdx$/, '');
+    if (stem === 'index') {
+      if (prefix) slugs.push(prefix);
+      continue;
+    }
+    slugs.push(prefix ? `${prefix}/${stem}` : stem);
+  }
+  return slugs;
+}
+
 // https://astro.build/config
 export default defineConfig({
   site,
   base,
   trailingSlash: 'ignore',
-  redirects: {
-    '/docs/brew': '/docs/wire',
-    '/docs/brew/[...slug]': '/docs/wire/[...slug]',
-  },
+  // Starlight emits concrete pages, not a `/docs/wire/[...slug]` catch-all, so
+  // Astro rejects a splat destination (InvalidRedirectDestination). Map each
+  // shipped Wire page (and the Dev `/main/` archive) instead.
+  redirects: brewToWireRedirects(),
   integrations: [
     starlight({
       title: 'Kona',

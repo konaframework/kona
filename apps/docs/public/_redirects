@@ -1,0 +1,7 @@
+# Brew → Wire (0.3.0). Astro also emits per-page redirects from astro.config.mjs.
+/docs/brew /docs/wire 301
+/docs/brew/ /docs/wire/ 301
+/docs/brew/* /docs/wire/:splat 301
+/main/docs/brew /main/docs/wire 301
+/main/docs/brew/ /main/docs/wire/ 301
+/main/docs/brew/* /main/docs/wire/:splat 301
