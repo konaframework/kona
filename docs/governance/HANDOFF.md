@@ -21,7 +21,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 | Product | Module | Docs | Public URL |
 |---------|--------|------|------------|
-| Brew | `modules/brew` → `:kona-brew` | `apps/docs` (Frontend → Brew) | https://docs.konaframework.org/docs/brew/ |
+| Brew (queued M26 → **Kona Wire**, train **0.3.0**) | `modules/brew` → `:kona-brew` | `apps/docs` (Frontend → Brew) | https://docs.konaframework.org/docs/brew/ |
 | Inertia | `modules/inertia` → `:kona-inertia` | `apps/docs` (Frontend → Inertia) | https://docs.konaframework.org/docs/inertia/ |
 | Brew JS | `js/brew/` | — | bundled into `kona-brew` resources |
 
@@ -35,7 +35,8 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Last milestone coding | **M25 — First-class database engines** (merged PR #161) |
-| Active milestone | **none** — open next deepen with a clear checklist |
+| Active milestone | **none** |
+| Queued | **M26 — Kona Wire** (Brew → Wire), release train **0.3.0** — start only when a human marks it active |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Brew starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
@@ -126,7 +127,7 @@ Key paths: `modules/` (framework), `apps/docs/`, `js/brew/`, `docs/governance/`,
 
 1. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
 2. Confirm no conflicting open PRs.
-3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time.
+3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time. **Queued for 0.3.0:** M26 Brew → **Kona Wire** (do not start until marked active).
 4. **Maven Central — `v0.2.0` shipped** (do not re-tag). **`0.2.1` version bump on `main` — do not tag until release cut.** Optional follow-ups:
    - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
    - Trusted Publishing (OIDC) still **not GA** — token + GPG. Full checklist: [publishing.md](publishing.md).
