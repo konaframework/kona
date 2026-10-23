@@ -82,7 +82,12 @@ constructor(
                     io.warn("grind is app-local — run ./grind serve from inside a project.")
                     1
                 }
-                else -> runCustomOrUnknown(command, positional.drop(1) + flatten(options), io, options)
+                else ->
+                    if (GradleAliasCommand.isGradleToken(command)) {
+                        GradleAliasCommand.fromToken(command).run(positional.drop(1) + flatten(options))
+                    } else {
+                        runCustomOrUnknown(command, positional.drop(1) + flatten(options), io, options)
+                    }
             }
         } catch (ex: GrindException) {
             io.error(ex.message ?: "grind error")
