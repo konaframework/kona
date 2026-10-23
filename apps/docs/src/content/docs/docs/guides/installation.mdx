@@ -15,23 +15,28 @@ You install `kona` once. Every project from `kona new` ships its own `./grind` (
 ## Happy path
 
 ```bash
-# 1. JDK 21+ on your PATH
+# 1. JDK 21+
 java -version
 
-# 2. Install the global `kona` CLI
+# 2. Install the global `kona` CLI (latest Maven Central release)
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+export PATH="$HOME/.local/bin:$PATH"
 
 # 3. Create an application
-kona new my-app
+kona new my-app --no-interaction
 cd my-app
 
-# 4. Serve with the app-local CLI (or: kona grind serve)
+# 4. Serve
 ./grind serve
 ```
 
-Open `http://127.0.0.1:4000/`. That is the supported path: **install `kona` → `kona new` → `./grind serve`** (equivalently `kona grind serve` from inside the app tree).
+Open `http://127.0.0.1:4000/`. Supported path: **install `kona` → `kona new` → `./grind serve`**.
 
-Generated apps resolve `org.konaframework` libraries from **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** (the latest published release). You do not need a Kona source checkout to build or run an application.
+Drop `--no-interaction` if you want the installer to ask kit, language, CSS, and database. From a nested folder you can use `kona grind serve` instead of `./grind serve`.
+
+Generated apps resolve `org.konaframework` libraries from **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)**. You do not need a Kona source checkout to build or run an application.
+
+To ship that app, see [Deployment](../deployment/) (`./gradlew installDist`, not `./grind serve`).
 
 ## 1. JDK 21+
 
@@ -49,12 +54,15 @@ The installer and generated apps use the Gradle wrapper; you do not need a separ
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
 ```
 
-The curl URL only downloads the **installer script** from GitHub. That script then installs the latest **Maven Central** `org.konaframework:kona-cli` release (git tag `vX.Y.Z`) into `~/.kona`, builds the CLI, and links `~/.local/bin/kona`. It does **not** install unreleased commits from `main`. Override the install prefix with `KONA_PREFIX`. Ensure `~/.local/bin` is on your `PATH`, then check:
+The curl URL only downloads the **installer script** from GitHub. That script then installs the latest **Maven Central** `org.konaframework:kona-cli` release (git tag `vX.Y.Z`) into `~/.kona`, builds the CLI, and links `~/.local/bin/kona`. It does **not** install unreleased commits from `main`.
 
 ```bash
+export PATH="$HOME/.local/bin:$PATH"    # add this to ~/.bashrc or ~/.zshrc
 kona version
 kona help
 ```
+
+Override the install prefix with `KONA_PREFIX` if `~/.local` is not where you keep binaries.
 
 Re-run the same curl command to update to a newer Central release.
 
@@ -80,14 +88,21 @@ Homebrew, SDKMAN, and standalone GitHub Release binaries are not published yet. 
 
 ## 3. Create an application
 
+Scripts and CI — no prompts:
+
 ```bash
-kona new                        # interactive installer (asks directory first)
-kona new my-app                 # directory set; still asks kit / lang / CSS / db / …
 kona new my-app --no-interaction
 kona new my-app --lang=java --no-interaction
 ```
 
-`kona new` with no arguments always asks for directory, app name, language, stack (API / Crema / Brew / Inertia), CSS, database, then offers to install dependencies and run migrations/seeders. A summary card appears before anything is written. Flags skip only the matching question. `--no-interaction` uses defaults and never waits — required for scripts (`CI=true` does not skip). Details: [Starter kits](../../starter-kits/). Check `kona version` / `kona new --help` after `./scripts/install.sh --local` so you are not on a stale binary.
+Interactive (asks directory, language, kit, CSS, database):
+
+```bash
+kona new
+kona new my-app
+```
+
+`--no-interaction` uses defaults and never waits. `CI=true` does **not** skip questions — pass the flag. Details: [Starter kits](../../starter-kits/).
 
 `kona new` writes a self-contained Gradle app that already includes:
 
@@ -133,7 +148,7 @@ Add packages later with [`./grind install`](../../packages/install/) (for exampl
 ## Next
 
 - [Your first app](../first-app/) — walk through what `kona new` creates  
-- [Deployment](../deployment/) — run the same app in production  
+- [Deployment](../deployment/) — `installDist`, env, migrate, systemd / Docker  
 - [Starter kits](../../starter-kits/) — `web`, `api`, `inertia`, `brew`  
 - [grind](../../grind/) — app-local commands in detail  
 
