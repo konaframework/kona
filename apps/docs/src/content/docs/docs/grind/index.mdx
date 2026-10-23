@@ -10,6 +10,8 @@ description: The app-local console — ./grind serve, generators, custom command
 ./grind route:list
 ./grind make:controller Post
 ./grind make:command SendDigest
+./grind gradle:build
+./grind gradle:install
 ./grind list
 ./grind help
 ```
@@ -32,7 +34,7 @@ Grind Console is the product name for the console surface. The **CLI binary** yo
 2. `GrindApplication` parses arguments, builds a `GrindIO` (quiet/verbose), discovers custom commands, and dispatches built-ins or your `ConsoleCommand` classes.
 3. Custom commands bind signature tokens to input, then run `handle()` and return an exit code.
 
-Built-ins (serve, `route:list` / `route:cache` / `route:clear`, migrate, queue, schedule, generators, …) are wired inside `GrindApplication`. Custom commands are discovered from `META-INF/kona/commands` and from compiled app outputs under `build/`.
+Built-ins (serve, `route:list` / `route:cache` / `route:clear`, migrate, queue, schedule, generators, `gradle:build` / `gradle:install` / `gradle <tasks…>`, …) are wired inside `GrindApplication`. Custom commands are discovered from `META-INF/kona/commands` and from compiled app outputs under `build/`.
 
 ## Why two CLIs?
 

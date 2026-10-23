@@ -1,6 +1,6 @@
 ---
 title: serve / make
-description: Reference for ./grind serve, route:list, the make generators, and the database commands.
+description: Reference for ./grind serve, route:list, the make generators, gradle wrappers, and the database commands.
 ---
 
 All commands below assume you are in an application directory that contains `./grind` (created by `kona new`). From anywhere under that app you can also run the same commands through the global CLI:
@@ -244,6 +244,42 @@ Sets a cryptographically random **application key** in the project `.env` as `AP
 `--show` always prints a fresh key and never touches `.env`, regardless of production or an existing key.
 
 Rotate carefully: ciphertext and signed cookie payloads produced with the old key will not verify after you change `APP_KEY`. See [Encryption](../../security/encryption/).
+
+## `./grind gradle:build` / `gradle:install`
+
+```bash
+./grind gradle:build
+./grind gradle:install
+./grind gradle:test
+./grind gradle:check
+./grind gradle:classes
+./grind gradle:clean
+./grind gradle:run
+./grind gradle test --offline
+./grind gradle:assemble
+```
+
+These run the **Gradle wrapper** in the application root (`./gradlew`, or `gradlew.bat` on Windows; `gradle` on `PATH` if the wrapper is missing). Grind finds that root the same way `serve` does — walk upward from `--base` (default: current directory) until a `settings.gradle(.kts)` or `build.gradle(.kts)` is found.
+
+| Command | Gradle task |
+|---------|-------------|
+| `gradle:build` | `build` |
+| `gradle:install` / `gradle:installDist` | `installDist` (the Application plugin install task Kona apps use) |
+| `gradle:test` | `test` |
+| `gradle:check` | `check` |
+| `gradle:classes` | `classes` |
+| `gradle:clean` | `clean` |
+| `gradle:run` | `run` |
+| `gradle <tasks…>` | whatever you pass |
+| `gradle:<task>` | that task name (`gradle:assemble` → `assemble`) |
+
+`gradle:install` is **not** the same as `./grind install` (package install). It is a shorter name for `./gradlew installDist`, which writes `build/install/<app>/`.
+
+Gradle’s own output is shown (unlike watch-mode `classes` compiles, which use `--quiet` so Termwind is readable). Grind keeps `--base`, `--help` / `-h`, `-v` / `--verbose`, and `-q` / `--quiet`; every other flag is forwarded (`--offline`, `--max-workers=2`, …). Extra positional arguments after a named alias are appended (`./grind gradle:build extra` → `./gradlew build extra`).
+
+`./grind gradle` with no tasks prints usage and exits `1`. `--help` on any `gradle:` token prints the catalog and does not run Gradle.
+
+Java apps use the same commands. See [Installation](../../guides/installation/) for the wrapper `kona new` writes.
 
 ## Not a grind command: creating apps
 
