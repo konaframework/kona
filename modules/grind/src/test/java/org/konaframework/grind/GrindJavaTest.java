@@ -152,6 +152,25 @@ class GrindJavaTest {
     }
 
     @Test
+    void deploySystemdFromJava() throws Exception {
+        Path app = temp.resolve("sysd");
+        Files.createDirectories(app);
+        Files.writeString(app.resolve("settings.gradle.kts"), "rootProject.name = \"sysd\"\n");
+        ProcessRunner skip = (command, dir, env) -> 0;
+        assertEquals(
+                0,
+                new SystemdDeployCommand(app, skip, false)
+                        .run(List.of("--base=" + app, "--skip-build")));
+        assertTrue(Files.isRegularFile(app.resolve("build/deploy/systemd/sysd/sysd.service")));
+        assertTrue(Files.isRegularFile(app.resolve("build/deploy/systemd/sysd/install.sh")));
+        assertEquals(
+                0,
+                new GrindApplication()
+                        .run(new String[] {"deploy:systemd", "--base=" + app, "--skip-build", "--force"}));
+        assertEquals(0, new SystemdDeployCommand().run(List.of("--help")));
+    }
+
+    @Test
     void routeCommandsFromJava() throws Exception {
         Path app = temp.resolve("routed");
         Files.createDirectories(app.resolve("build/classes/kotlin/main"));

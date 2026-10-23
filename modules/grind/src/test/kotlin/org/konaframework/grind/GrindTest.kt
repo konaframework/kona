@@ -164,6 +164,7 @@ class GrindTest {
         assertTrue(ListCommand.COMMANDS.any { it.first == "make:middleware" } && ListCommand.COMMANDS.any { it.first == "make:policy" })
         assertTrue(ListCommand.COMMANDS.any { it.first == "make:request" })
         assertTrue(ListCommand.COMMANDS.any { it.first == "storage:link" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "deploy:systemd" })
     }
 
     @Test

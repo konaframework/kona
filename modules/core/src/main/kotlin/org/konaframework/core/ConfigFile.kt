@@ -2,12 +2,15 @@ package org.konaframework.core
 
 import java.util.function.Supplier
 
-/**
+/***********************************************************************************************************************
+ * ConfigFile is a contract for executable config modules that provide nested configuration values under a top-level key.
+ *
  * Executable config module. At boot, [config] is merged under [key] into [Config]
  * (e.g. key `"app"` → `app.*`).
  *
  * Place one module per file under the language root `config/` package and register
  * them from `bootstrap.App` via [Application.Builder.configs].
+ * *********************************************************************************************************************
  */
 interface ConfigFile {
     /** Top-level config key (usually the file stem: `App` → `"app"`). */
@@ -16,6 +19,7 @@ interface ConfigFile {
     /** Nested values for that key. May call [Env.get] / [Env.getOrDefault]. */
     fun config(): Map<String, Any?>
 
+    /** Builds a [ConfigFile] from a key and a supplier (Kotlin-friendly). */
     companion object {
         /** Builds a [ConfigFile] from a key and a supplier (Java-friendly). */
         @JvmStatic

@@ -54,6 +54,15 @@ export async function buildSidebar() {
           },
           slug: 'docs/guides/deployment',
         },
+        {
+          label: 'Scaling',
+          translations: {
+            es: 'Escalado',
+            fr: 'Mise à l’échelle',
+            'zh-CN': '扩容',
+          },
+          slug: 'docs/guides/scaling',
+        },
       ],
     },
     {

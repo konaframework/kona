@@ -336,4 +336,4 @@ new KonaHttpServer(app.resolve(HttpKernel.class), host, port).start();
 - `127.0.0.1` accepts connections from the same machine only, which is the safe default for development.
 - Set `HOST=0.0.0.0` to accept connections on every network interface, for example inside a container.
 - `grind serve --host=… --port=…` sets `HOST` and `PORT` for the application process, overriding `.env` for that run. See [grind commands](../../grind/commands/#grind-serve).
-- For production bind addresses, reverse proxies, and process supervision, see [Deployment](../../guides/deployment/).
+- For production bind addresses, reverse proxies, and process supervision, see [Deployment](../../guides/deployment/). For many instances and pool sizing, see [Scaling](../../guides/scaling/).

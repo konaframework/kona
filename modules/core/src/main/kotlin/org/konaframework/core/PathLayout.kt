@@ -3,8 +3,10 @@ package org.konaframework.core
 import java.nio.file.Files
 import java.nio.file.Path
 
-/**
- * Resolves Almasix-shaped application directories under the JVM `src/main` layout.
+/***********************************************************************************************************************
+ * PathLayout is a utility class that defines the directory structure of a Kona application.
+ * It provides methods to resolve paths for various application components such as source code, resources, storage, and public assets.
+ * The layout follows the conventions of a typical JVM project with a `src/main` directory structure.
  *
  * Defaults:
  * - language root: `src/main/kotlin` or `src/main/java` (detected)
@@ -14,6 +16,7 @@ import java.nio.file.Path
  *
  * Overrides via config keys `paths.langRoot`, `paths.resources`, `paths.storage`, `paths.public`
  * (relative to [base]).
+ * *********************************************************************************************************************
  */
 class PathLayout(
     val base: Path,
@@ -22,6 +25,7 @@ class PathLayout(
     val storage: Path,
     val publicDir: Path,
 ) {
+    /** Joins a root path with multiple segments, ignoring empty segments. */
     fun join(root: Path, segments: Array<out String>): Path {
         var result = root
         for (segment in segments) {
@@ -32,27 +36,37 @@ class PathLayout(
         return result
     }
 
+    /** Returns the base path joined with the given segments. */
     fun app(vararg segments: String): Path = join(langRoot.resolve("app"), segments)
 
+    /** Returns the bootstrap path joined with the given segments. */
     fun bootstrap(vararg segments: String): Path = join(langRoot.resolve("bootstrap"), segments)
 
+    /** Returns the routes path joined with the given segments. */
     fun routes(vararg segments: String): Path = join(langRoot.resolve("routes"), segments)
 
+    /** Returns the database path joined with the given segments. */
     fun database(vararg segments: String): Path = join(langRoot.resolve("database"), segments)
 
     /** Executable config modules live under the language root (`src/main/kotlin/config`, …). */
     fun config(vararg segments: String): Path = join(langRoot.resolve("config"), segments)
 
+    /** Returns the resources path joined with the given segments. */
     fun resource(vararg segments: String): Path = join(resources, segments)
 
+    /** Returns the views path joined with the given segments. */
     fun view(vararg segments: String): Path = join(resources.resolve("views"), segments)
 
+    /** Returns the public directory path joined with the given segments. */
     fun publicPath(vararg segments: String): Path = join(publicDir, segments)
 
+    /** Returns the language root path joined with the given segments. */
     fun lang(vararg segments: String): Path = join(resources.resolve("lang"), segments)
 
+    /** Returns the storage path joined with the given segments. */
     fun storage(vararg segments: String): Path = join(storage, segments)
 
+    /** Returns the language root path joined with the given segments. */
     companion object {
         const val DEFAULT_RESOURCES = "src/main/resources"
         const val DEFAULT_STORAGE = "storage"
@@ -95,6 +109,7 @@ class PathLayout(
  * Facade for [Application] path helpers after boot (`Kona.app()`).
  */
 object Paths {
+
     private fun app(): Application = Kona.app()
 
     @JvmStatic

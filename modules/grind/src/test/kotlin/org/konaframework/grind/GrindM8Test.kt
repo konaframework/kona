@@ -50,6 +50,7 @@ class GrindM8Test {
         assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("route:list"))
         assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("route:cache"))
         assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("route:clear"))
+        assertTrue(capture { GrindApplication().run(arrayOf("list")) }.second.contains("deploy:systemd"))
         assertEquals("", capture { GrindApplication().run(arrayOf("list", "-q")) }.second.trim())
         assertEquals("", capture { GrindApplication().run(arrayOf("list", "--quiet")) }.second.trim())
         assertEquals(Verbosity.VERBOSE, GrindIO.fromOptions(mapOf("verbose" to "true")).verbosity)

@@ -11,12 +11,13 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Files
 import java.nio.file.Path
 
-/**
+/***********************************************************************************************************************
  * Attaches a daily rolling file appender under `storage/logs` (default `kona.log`).
  *
  * Console appenders from Logback defaults or an app `logback.xml` are left alone.
  * Idempotent: reuses the existing appender when the target path is unchanged;
  * otherwise detaches and recreates it (useful when tests boot apps with different bases).
+ * *********************************************************************************************************************
  */
 object FileLogging {
     const val APPENDER_NAME: String = "KONA_FILE"
@@ -83,12 +84,20 @@ object FileLogging {
         root.addAppender(appender)
     }
 
+    /**
+     * Returns true when file logging is enabled via config `logging.to_file` or env `LOG_TO_FILE`.
+     * Defaults to true when neither is set.
+     */
     @JvmStatic
     fun enabled(app: Application): Boolean {
         app.config.getBoolean("logging.to_file")?.let { return it }
         return Config.toBoolean(Env.getOrDefault("LOG_TO_FILE", "true")) ?: true
     }
 
+    /**
+     * Returns the resolved log file path from config `logging.file` or env `LOG_FILE`.
+     * Relative names resolve under `storage/logs`; defaults to `kona.log`.
+     */
     @JvmStatic
     fun resolvedLogFile(app: Application): Path {
         val name = app.config.getString("logging.file")
@@ -101,6 +110,10 @@ object FileLogging {
         return app.storagePath("logs").resolve(name).normalize()
     }
 
+    /**
+     * Detaches the file appender and resets the logger context provider to the default.
+     * Useful for tests that boot multiple apps with different bases.
+     */
     @JvmStatic
     fun resetForTests() {
         try {
@@ -114,6 +127,7 @@ object FileLogging {
         }
     }
 
+    /** Applies the root logger level from config `logging.level` or env `LOG_LEVEL`. Defaults to `info`. */
     private fun applyRootLevel(app: Application, root: Logger) {
         val raw = app.config.getString("logging.level")
             ?: Env.get("LOG_LEVEL")
@@ -121,6 +135,7 @@ object FileLogging {
         root.level = Level.toLevel(raw, Level.INFO)
     }
 
+    /** Returns a daily rolling pattern for the given file name (e.g. `kona.log` → `kona.%d{yyyy-MM-dd}.log`). */
     private fun rollPattern(fileName: String): String {
         val dot = fileName.lastIndexOf('.')
         return if (dot > 0) {
