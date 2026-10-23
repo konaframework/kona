@@ -42,7 +42,7 @@ Worker(
 
 ## steam
 
-Boot the app with `./grind steam` and call `Bus` / `Worker` while developing. Prefer a dedicated `queue:work` process for real workloads.
+Boot the app with `./grind steam` and call `Bus` / `Worker` while developing. Prefer a dedicated `queue:work` process for real workloads. Production: run workers as systemd units (N workers, one scheduler) — see [Scaling](../../guides/scaling/).
 
 ## Retries
 

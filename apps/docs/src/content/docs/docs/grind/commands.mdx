@@ -53,7 +53,7 @@ That is a **soft** reload: one Netty process, one live app classloader at a time
 
 `--in-process` still exists for scripts and tests that want a single boot with no poller. `--no-watch` is the old `gradlew run` child-process path.
 
-`./grind serve` is for **local development**. For production, start `bootstrap.App` via `installDist` / `distZip` (or an equivalent JVM launch) — see [Deployment](../../guides/deployment/).
+`./grind serve` is for **local development**. For production, run `./grind deploy:systemd` and start the generated unit — see [Deployment](../../guides/deployment/).
 
 ## `./grind route:list`
 
@@ -186,6 +186,18 @@ When `app.env` is `production`, migrate / fresh / refresh / reset / rollback / i
 Stdout is the grind console only: an info line (`Running migrations.` / `Dropping all tables.` / `Nothing to migrate.` / `Seeding database.`), then one dotted row per migration or seeder (`2000_01_01_000000_create_users_table ........ 12ms DONE`). `migrate:status` prints a **Status** / **Batch** / **Migration** table (`Ran` in green, `Pending` in yellow). Connection-pool dumps, SQL traces, and boot logs stay on the `single` file channel under `storage/logs`. Pass `--verbose` (`-v`) to also print those logs on the console.
 
 Errors (unknown connection, a failing migration, a missing seeder class) print a message and exit with status 1. See [Migrations](../../cadence/migrations/) and [Seeders & factories](../../cadence/seeders-factories/) for the APIs behind these commands.
+
+## `./grind deploy:systemd`
+
+```bash
+./grind deploy:systemd
+./grind deploy:systemd --skip-build --force
+./grind deploy:systemd --prefix=/var/www/hello-kona --port=4000
+```
+
+Builds a **production bundle** for systemd: `build/deploy/systemd/<app>/` with `bin/`, `lib/`, `public/`, `storage/`, `<app>.service`, `<app>.env`, and `install.sh`. Runs `./gradlew installDist` unless you pass `--skip-build`. Review the env file, copy the directory to the server, then `sudo ./install.sh`.
+
+Java apps use the same command. Full flags, directory layout, and the unit contents: [Deployment](../../guides/deployment/). Many processes, pools, and workers: [Scaling](../../guides/scaling/).
 
 ## `./grind down` / `./grind up`
 

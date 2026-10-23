@@ -36,7 +36,7 @@ Drop `--no-interaction` if you want the installer to ask kit, language, CSS, and
 
 Generated apps resolve `org.konaframework` libraries from **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)**. You do not need a Kona source checkout to build or run an application.
 
-To ship that app, see [Deployment](../deployment/) (`./gradlew installDist`, not `./grind serve`).
+To ship that app, see [Deployment](../deployment/) (`./grind deploy:systemd`, not `./grind serve`).
 
 ## 1. JDK 21+
 
@@ -148,7 +148,8 @@ Add packages later with [`./grind install`](../../packages/install/) (for exampl
 ## Next
 
 - [Your first app](../first-app/) — walk through what `kona new` creates  
-- [Deployment](../deployment/) — `installDist`, env, migrate, systemd / Docker  
+- [Deployment](../deployment/) — `./grind deploy:systemd`, env, migrate  
+- [Scaling](../scaling/) — multiple processes, pools, Redis, workers  
 - [Starter kits](../../starter-kits/) — `web`, `api`, `inertia`, `brew`  
 - [grind](../../grind/) — app-local commands in detail  
 

@@ -1,0 +1,268 @@
+---
+title: Scaling
+description: Run a Kona app under heavy load — when one JVM is enough, how to add instances, size the database pool, share session and cache, and run queue and scheduler workers.
+---
+
+This page is for applications that must survive **a lot of concurrent traffic**, large payloads, or a bursty job queue. It assumes you already ship with [Deployment](../deployment/) (`./grind deploy:systemd` on a VM). Every knob below exists in the framework today — do not treat this as a catalogue of planned features.
+
+A Kona HTTP process is one JVM. `KonaHttpServer` starts a **virtual thread per request**. Blocking JDBC, file I/O, and outbound HTTP in a handler do not occupy an operating-system thread for the whole wait. That is why a single well-sized process often outruns a small fleet of processes that spend their time in connection pools.
+
+Scale **out** (more processes) when you need rolling restarts, more than one machine, or you have hit a limit that virtual threads cannot move: database connections, Redis, disk, or heap.
+
+## Decide: one process or many
+
+Stay on **one systemd unit** when:
+
+- One machine can hold the working set (heap + Metaspace + off-heap Netty buffers).
+- The database `max_connections` budget is small (see [Database pool](#database-pool)).
+- Sessions are cookies (the `kona new` default) or you do not yet need a shared cache.
+- The queue is `sync` or a single `queue:work` is enough.
+
+Add **more HTTP processes** when:
+
+- You want a restart without dropping all connections (proxy drains one upstream, then the next).
+- CPU is saturated on one VM even after the JVM has RAM (virtual threads still need cores for CPU-bound work: JSON, hashing, image work).
+- You split machines for isolation (API vs workers vs scheduler).
+
+Do **not** add processes to “make virtual threads faster.” Extra JVMs each open their own Hikari pool. Two processes with `DB_POOL_SIZE=10` hold 20 database connections, not 10.
+
+## Topology
+
+```text
+                     TLS
+                      │
+               reverse proxy
+               (Caddy / nginx)
+                 /    |    \
+           :4000    :4001    :4002     HTTP JVMs (same APP_KEY, same code)
+                 \    |    /
+                    Redis                 sessions / cache / queue (when shared)
+                      │
+                   database              one Hikari pool per JVM
+                      │
+              queue:work × N             separate systemd units
+              schedule:work × 1          exactly one
+```
+
+Each HTTP instance is a copy of the systemd bundle from `./grind deploy:systemd`, with a **different `PORT`** (and a unique `--prefix` / working directory if they share a host). The proxy load-balances. Migrations run **once** against the database, not once per instance.
+
+## HTTP instances (systemd)
+
+Generate the first bundle as usual. For a second instance on the same host:
+
+```bash
+./grind deploy:systemd --force --name=hello-kona-2 --port=4001 --prefix=/var/www/hello-kona-2
+```
+
+`install.sh` will write `/etc/systemd/system/hello-kona-2.service` and `/etc/kona/hello-kona-2.env`. Keep `APP_KEY`, `DB_*`, and `APP_URL` identical across instances. Only `HOST` / `PORT` and the prefix change.
+
+Point the proxy at every listen address:
+
+```nginx
+upstream kona_app {
+    server 127.0.0.1:4000;
+    server 127.0.0.1:4001;
+    server 127.0.0.1:4002;
+}
+```
+
+Caddy:
+
+```text
+app.example.com {
+    reverse_proxy 127.0.0.1:4000 127.0.0.1:4001 127.0.0.1:4002
+}
+```
+
+On **separate machines**, use the same unit name and port on each, and put the machine IPs in the upstream list. Copy the same `APP_KEY`.
+
+`LimitNOFILE=65535` is already on the generated unit. Raise it further only if `journalctl` shows file-descriptor exhaustion.
+
+## What not to change about threads
+
+[Kernel & server](../../http/kernel-server/) documents virtual threads in full. For load, the operational rules are:
+
+- **Do not pool virtual threads.** The server creates one per request on purpose.
+- **Do not** wrap handlers in extra executor pools “for concurrency.” Limit a scarce resource (JDBC, Redis, a third-party API) with that resource’s pool or a semaphore.
+- Shared objects (router, container singletons, Cadence `Database`) are used by many requests at once. Register them at boot; keep per-request state on the `Request`.
+- CPU-heavy work in a request still occupies a carrier thread. Push it to `./grind queue:work` if it would stall other requests.
+
+Netty uses **epoll** on Linux when it is available (`kona.http.transport=auto`). Force `nio` only if epoll is broken on the host. Keep-alive is on by default; leave it on behind a reverse proxy.
+
+## Database pool
+
+Each JVM has one Hikari pool per Cadence connection. Default `DB_POOL_SIZE` is **10**.
+
+```text
+instances × DB_POOL_SIZE  ≤  database max_connections − admin headroom
+```
+
+Example: PostgreSQL `max_connections=100`, three HTTP processes, two queue workers that also boot the app:
+
+| Process | Pool |
+|---------|------|
+| HTTP × 3 | 3 × 15 = 45 |
+| `queue:work` × 2 | 2 × 10 = 20 |
+| `schedule:work` × 1 | 10 |
+| **Total** | 75 |
+
+Leave room for `./grind migrate`, replicas, and humans. If the database reports connection saturation, **lower** `DB_POOL_SIZE` or run fewer processes — raising the pool on every instance makes it worse.
+
+Set the size in `/etc/kona/<app>.env`:
+
+```bash
+DB_POOL_SIZE=15
+```
+
+Or in `config/Database` as `pool_size` / `poolSize`. Details: [Database connections](../../cadence/database/).
+
+**Do not use SQLite or H2 in production**, and never share a SQLite file across processes. Use PostgreSQL, MySQL, MariaDB, SQL Server, or Oracle.
+
+Run `./grind migrate --force` **once** per release, from CI or a single ops checkout, before you point the proxy at new instances.
+
+## Session, cache, and files
+
+`kona new` defaults `SESSION_DRIVER=cookie`. Cookie sessions travel with the request, so any HTTP instance can serve the next hit. **Keep that default** unless cookies become too large.
+
+| Store | One process | Many processes |
+|-------|-------------|----------------|
+| `session.driver=cookie` (default) | fine | fine — same `APP_KEY` on every instance |
+| `file` | fine | needs proxy sticky sessions **or** a shared disk; prefer Redis or cookies instead |
+| `array` / `memory` | tests / single process | lost between instances and restarts |
+| `redis` | optional | required if you cannot use cookies |
+
+For Redis sessions, set `SESSION_DRIVER=redis`, register `RedisServiceProvider` before `SessionServiceProvider`, and point `REDIS_*` at a real server (`REDIS_CLIENT=lettuce`). Same `APP_KEY` everywhere — cookie and encrypt payloads are not portable across keys. See [Session](../../security/session/) and [Redis](../../cache/redis/).
+
+Cache:
+
+| `CACHE_STORE` | Many processes |
+|---------------|----------------|
+| `array` (scaffold default) | each JVM has its own map; use only for data that may differ per instance |
+| `redis` | shared; use this for cached HTML fragments, rate-limit counters you need globally, and anything users must see consistently |
+| `file` | only with a shared filesystem |
+
+Uploaded files and the `local` / `public` disks are **per machine**. For more than one HTTP host, put user uploads on an **s3** disk (or NFS you actually operate). `./grind storage:link` is a symlink on one prefix; run it on each machine that serves `public/storage`, or serve those URLs from the object store. See [Filesystem](../../filesystem/).
+
+## Queue workers and the scheduler
+
+`QUEUE_CONNECTION=sync` runs jobs inside the HTTP request. That is correct for development and wrong for heavy load. Switch to Redis (or another durable connection you configured) and run workers as **their own units**.
+
+Workers still need a checkout (or an image) that contains `./grind`, because `queue:work` is a grind command, not the `installDist` start script. Typical layout: keep a deploy checkout at `/var/www/hello-kona-src` with `./grind` and `build/classes`. From that checkout:
+
+```ini
+# /etc/systemd/system/hello-kona-queue.service
+[Unit]
+Description=Kona hello-kona queue worker
+After=network-online.target hello-kona.service
+
+[Service]
+Type=simple
+User=kona
+Group=kona
+WorkingDirectory=/var/www/hello-kona-src
+EnvironmentFile=/etc/kona/hello-kona.env
+ExecStart=/var/www/hello-kona-src/grind queue:work --daemon --sleep=3 --timeout=90 --tries=3
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Run **N** of those units (or a template `hello-kona-queue@.service` with `hello-kona-queue@1` … `@4`). Each worker boots the application and therefore takes a database pool. Size `DB_POOL_SIZE` on the worker env the same way as HTTP, or give workers a smaller pool if they rarely query.
+
+Flags that matter under load: `--timeout=`, `--memory=` (restart the worker when heap grows), `--sleep=` with `--daemon`. See [Workers](../../queue/workers/).
+
+The scheduler is different: run **exactly one** `./grind schedule:work` for the whole application. Two loops double every scheduled task.
+
+```ini
+# /etc/systemd/system/hello-kona-scheduler.service
+[Unit]
+Description=Kona hello-kona scheduler
+After=network-online.target hello-kona.service
+
+[Service]
+Type=simple
+User=kona
+Group=kona
+WorkingDirectory=/var/www/hello-kona-src
+EnvironmentFile=/etc/kona/hello-kona.env
+ExecStart=/var/www/hello-kona-src/grind schedule:work
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Details: [Task scheduling](../../scheduling/).
+
+## JVM memory and `JAVA_OPTS`
+
+`deploy:systemd` writes:
+
+```bash
+JAVA_OPTS=-XX:+UseG1GC -XX:MaxRAMPercentage=75.0
+```
+
+on both the unit (`Environment=JAVA_OPTS=…`) and the env file. The start script forwards `JAVA_OPTS` to the JVM.
+
+| Situation | Adjustment |
+|-----------|------------|
+| Small VM (1–2 GiB) | Lower `MaxRAMPercentage` (for example `50`) so the OS, Redis, and PostgreSQL still fit |
+| Dedicated app VM | Keep `75`, or set `-Xms` / `-Xmx` to a fixed heap you have measured |
+| Many instances on one host | Give each JVM an explicit `-Xmx` so they cannot starve each other |
+| Native memory pressure (Netty, direct buffers) | Heap is not the whole RSS; leave headroom below RAM |
+| Long GC pauses | Stay on G1 unless you have measured a reason to change |
+
+Do not set huge `-Xmx` “just in case.” A large heap delays GC and can make tail latencies worse. Watch RSS and GC logs (`-Xlog:gc*:file=/var/www/hello-kona/storage/logs/gc.log`) when you are tuning, then turn the log off.
+
+Reload after env changes:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart hello-kona
+```
+
+## Proxy, body size, and health
+
+The server reads **the entire request body into memory** (`Request.bodyBytes`). Large uploads (multi-hundred-megabyte files) belong on a direct-to-object-store flow, not through the JVM. Cap `client_max_body_size` (nginx) or Caddy’s request body limit at a size you have heap for.
+
+`GET /api/health` returning `{"status":"ok"}` is **liveness**: the process accepted HTTP and the kernel answered. It does not ping the database or Redis. For a load balancer that should stop sending traffic when the database is down, add a readiness route you own (a handler that runs `SELECT 1` and returns 503 on failure) and point the balancer at that path. Keep `/api/health` as the systemd / orchestrator liveness probe so a slow database does not kill the JVM.
+
+Behind the proxy, `trustProxies` / `trustHosts` must stay set so rate limiting and `APP_URL` see the public client. See [Deployment](../deployment/#reverse-proxy-and-tls).
+
+Static assets under `public/build` can be served by the proxy directly (`alias` / `file_server`) to keep those hits off the JVM. That is optional; Kona already serves `GET`/`HEAD` from `public/` on disk.
+
+## Rate limiting and logging
+
+Global HTTP rate limiters are per process unless you back them with Redis. If you rely on accurate global quotas under many instances, store counters in Redis (your limiter implementation) rather than in memory.
+
+`LOG_TO_FILE=true` on a VM is fine. Under very high request rates, file logging can stall threads on disk. Prefer `info` not `debug` in production (`APP_DEBUG=false`, `LOG_LEVEL=info`). When the platform captures stdout, set `LOG_TO_FILE=false`.
+
+## Checklist for heavy load
+
+1. Production recipe from [Deployment](../deployment/) is already green (`install.sh`, migrate, `/api/health`).  
+2. Database is a server engine, not SQLite/H2.  
+3. `instances × DB_POOL_SIZE` fits in `max_connections`.  
+4. `APP_KEY` is identical on every HTTP instance.  
+5. Sessions: cookies (default) or Redis — not per-box files without sticky sessions.  
+6. Cache that must be shared: `CACHE_STORE=redis`.  
+7. Uploads that must be shared: s3 (or equivalent), not only `storage/` on one VM.  
+8. `QUEUE_CONNECTION` is durable; **N** `queue:work` units; **one** `schedule:work`.  
+9. Proxy lists every `HOST:PORT`; TLS stays on the proxy.  
+10. `JAVA_OPTS` leave RAM for the OS and the database if they share the machine.  
+11. Health check is liveness; readiness is a route you added if the balancer needs it.  
+12. Do not run `./grind serve` in production.  
+
+## Related guides
+
+- [Deployment](../deployment/) — systemd bundle, env file, `install.sh`  
+- [Kernel & server](../../http/kernel-server/) — virtual threads, `HOST` / `PORT`  
+- [Database connections](../../cadence/database/) — `DB_POOL_SIZE`, engines  
+- [Session](../../security/session/) — cookie / file / Redis  
+- [Redis](../../cache/redis/)  
+- [Cache](../../cache/)  
+- [Workers](../../queue/workers/)  
+- [Task scheduling](../../scheduling/)  
+- [Filesystem](../../filesystem/) — local vs s3  
