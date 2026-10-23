@@ -241,6 +241,39 @@ class GrindJavaTest {
         assertEquals("Ran", io.paint("x", "Ran"));
     }
 
+    @Test
+    void gradleAliasesFromJava() throws Exception {
+        Path app = temp.resolve("javagradle");
+        Files.createDirectories(app);
+        Files.writeString(app.resolve("settings.gradle.kts"), "rootProject.name = \"javagradle\"\n");
+        Files.writeString(app.resolve("gradlew"), "#!/bin/sh\n");
+        java.util.concurrent.atomic.AtomicReference<List<String>> seen =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        ProcessRunner runner =
+                (command, dir, env) -> {
+                    seen.set(command);
+                    assertEquals(app, dir);
+                    return 0;
+                };
+        assertEquals(
+                0,
+                GradleAliasCommand.fromToken("gradle:build", app, runner, false)
+                        .run(List.of("--base=" + app)));
+        assertEquals("build", seen.get().get(1));
+        assertEquals(
+                0,
+                new GradleAliasCommand("gradle:install", List.of("installDist"), app, runner, false)
+                        .run(List.of("--base=" + app)));
+        assertEquals("installDist", seen.get().get(1));
+        assertEquals(0, GradleAliasCommand.fromToken("gradle:test").run(List.of("--help")));
+        assertEquals(0, GradleAliasCommand.fromToken("gradle:clean", app).run(List.of("--help")));
+        assertEquals(0, GradleAliasCommand.fromToken("gradle:run", app, runner).run(List.of("--base=" + app)));
+        assertEquals(0, new GrindApplication().run(new String[] {"gradle:test", "--help"}));
+        assertTrue(GradleAliasCommand.isGradleToken("gradle:classes"));
+        assertEquals(List.of("test"), GradleAliasCommand.tasksFor("gradle:test"));
+        assertTrue(GradleAliasCommand.tasksFor("serve").isEmpty());
+    }
+
     public static class JavaDemoCommand extends ConsoleCommand {
         @Override
         public String getSignature() {
