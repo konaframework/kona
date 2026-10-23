@@ -1,192 +1,135 @@
 ---
 title: Deployment
-description: Build and run a Kona app in production — JVM process, env, reverse proxy, health checks, and what not to use as the prod entrypoint.
+description: Ship a Kona app with a start script, environment variables, migrations, and a process manager — systemd, Docker, or any platform that sets PORT.
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+This page is the **production runbook** for an app created with `kona new`. Local development stays on [Your first app](../first-app/) (`./grind serve`). Production is a different launcher.
 
-This guide covers **shipping a real Kona application** created with `kona new`: how to build a runnable artifact, start the JVM process, set production environment variables, put a reverse proxy in front, and keep the process healthy.
+**What you are deploying:** one long-lived JVM process. It boots `bootstrap.App` and listens on `HOST`:`PORT` (default `127.0.0.1:4000`). There is no separate application server to install. Put TLS and the public hostname on a reverse proxy or your platform’s load balancer.
 
-Kona’s production model today is straightforward: **one long-lived JVM process** that boots `bootstrap.App` and listens with `KonaHttpServer` (Netty + virtual threads). There is no separate application server to install. Official first-party Docker images, cloud templates, and fat-jar plugins are **not** shipped yet — the paths below use the Gradle **application** plugin that every scaffold already includes.
+## The recipe
 
-If you are still learning the framework locally, finish [Your first app](../first-app/) first (`./grind serve`). Come back here when you want that same app to answer traffic under a real hostname.
+Do this on every release. Substitute `hello-kona` with the directory name you passed to `kona new` (`rootProject.name`).
 
-## What “production” means for a Kona app
+```bash
+# 1. On a machine with JDK 21 (CI or the server)
+cd hello-kona
+./gradlew installDist
 
-| Piece | Role |
-|-------|------|
-| **Entry class** | `bootstrap.App` — `main` boots the application and starts `KonaHttpServer` |
-| **HTTP server** | Embedded Netty (`KonaHttpServer`), bound to `HOST` / `PORT` |
-| **Dev launcher** | `./grind serve` (watch / soft reload locally; **not** the production process) |
-| **Prod launcher** | The same `main`, started via Gradle `run`, `installDist` / `distZip`, or an equivalent JVM command |
-| **Config** | Process environment (and optional `.env` on the server), plus executable `config/*` modules |
-| **Edge** | Reverse proxy or platform ingress terminates TLS and forwards to the app port |
+# Vite / Inertia / Brew kits only:
+# npm ci && npm run build
 
-```text
-Internet → reverse proxy (TLS) → 127.0.0.1:PORT → KonaHttpServer → HttpKernel → your routes
+# 2. Production environment (process env or a file your supervisor loads)
+export APP_ENV=production
+export APP_DEBUG=false
+export APP_URL=https://app.example.com
+export APP_KEY=base64:…          # secret — never commit
+export HOST=127.0.0.1            # 0.0.0.0 in Docker / most PaaS
+export PORT=4000                 # or the PORT your platform injects
+export DB_URL='jdbc:postgresql://db.internal:5432/kona'
+export DB_USERNAME=kona
+export DB_PASSWORD=…
+
+# 3. Writable runtime dirs + schema
+mkdir -p storage/logs storage/framework storage/app/public storage/database
+./grind migrate
+
+# 4. Start the app process — not ./grind serve
+./build/install/hello-kona/bin/hello-kona
 ```
 
-## Do not use `./grind serve` in production
+Probe it:
 
-`./grind serve` is a **development wrapper**. It:
-
-- Watches sources and recompiles in a development JVM (or `--no-watch` spawns `./gradlew run`)
-- Forwards `--host` / `--port` and may **prompt** interactively when the preferred port is taken
-- Exists so day-to-day coding stays one command
-
-Production should start the application JVM **directly** (distribution script, `java` + classpath, or `./gradlew run` only inside a controlled build/deploy pipeline that already produced a release). Keep using `./grind` on the server for one-off ops (`migrate`, `key:generate`, …) if you deploy a full project tree — just not as the supervised HTTP process.
-
-## Prerequisites on the host
-
-- **JDK 21+** (same major line you develop with; virtual threads require 21+)
-- Your app’s project (or a built distribution — see below)
-- A writable **`storage/`** directory next to the app base path (logs, framework cache, local disks)
-- Secrets and config via the **process environment** (preferred in production) or a server-local `.env` that is **not** committed
-
-Generated apps resolve `org.konaframework` libraries from **Maven Central**. You do not need a Kona source checkout on the server.
-
-## Build artifacts (what the scaffold gives you)
-
-Every `kona new` app applies Gradle’s **`application`** plugin with:
-
-```kotlin
-application {
-    mainClass.set("bootstrap.App")
-}
+```bash
+curl -fsS http://127.0.0.1:4000/api/health
+# {"status":"ok"}
 ```
 
-`rootProject.name` is the directory name you passed to `kona new` (for example `hello-kona`). That name appears in distribution paths.
+That is the whole model. The sections below are copy-paste for VMs, containers, CI, and a reverse proxy.
 
-### Option A — install a start script (recommended default)
+## Local vs production
 
-From the application directory:
+| | Local | Production |
+|---|--------|------------|
+| Command | `./grind serve` | `build/install/<app>/bin/<app>` after `./gradlew installDist` |
+| `APP_ENV` | `local` | `production` |
+| `APP_DEBUG` | `true` | `false` |
+| Database | SQLite file under `storage/` (scaffold default) | PostgreSQL, MySQL, MariaDB, SQL Server, or Oracle — not SQLite/H2 |
+| Process manager | your terminal | systemd, Docker, or the platform |
+| TLS | optional | reverse proxy / load balancer |
+
+`./grind` remains the tool for **one-off ops** on a checkout (`migrate`, `key:generate`). It is not the HTTP process you supervise.
+
+## 1. Build the start script
+
+From the application directory (JDK 21+):
 
 ```bash
 ./gradlew installDist
 ```
 
-Gradle writes:
+Output:
 
 ```text
-build/install/<app-name>/
-  bin/<app-name>          # Unix start script
-  bin/<app-name>.bat      # Windows
-  lib/                    # app JAR + dependencies
+build/install/hello-kona/
+  bin/hello-kona       # Unix
+  bin/hello-kona.bat   # Windows
+  lib/                 # app JAR + dependencies
 ```
 
-Run it with the **project root as the working directory** so `.env`, `storage/`, and `public/` resolve the same way as in development:
+That tree is **not** the whole app. The process still needs a **base directory** that contains `public/`, `storage/`, and (optionally) `.env`. Easiest layout on a VM: keep the git checkout as the working directory and run the script from there.
 
 ```bash
-# example: kona new hello-kona
-export APP_ENV=production
-export APP_DEBUG=false
-# …other env vars…
+cd /var/www/hello-kona
+export APP_ENV=production APP_DEBUG=false
 ./build/install/hello-kona/bin/hello-kona
 ```
 
-Or pack for copy-to-server:
+Ship a zip instead:
 
 ```bash
 ./gradlew distZip
-# → build/distributions/<app-name>-<version>.zip
+# → build/distributions/hello-kona-<version>.zip
 ```
 
-Unpack on the host, keep a stable **base directory** that contains `.env` (or rely on process env only), `storage/`, and any files your config modules expect, then run the `bin/<app-name>` script with that directory as the working directory. If the process must start elsewhere, pass the base path explicitly:
+Unpack on the host, copy `public/` and an empty `storage/` next to `bin/` / `lib/`, and start with that folder as the working directory — or pass the folder explicitly:
 
 ```bash
 ./bin/hello-kona --base=/var/www/hello-kona
 ```
 
-`Kona.create` honors `--base=/absolute/path` before falling back to the current working directory.
+`Kona.create` reads `--base=/absolute/path` before it falls back to the current working directory.
 
-### Option B — `./gradlew run` after a release build
+`./gradlew run` starts the same `main`. Use it only if CI already built the release and you accept a Gradle JVM in the process tree. Prefer `installDist` on long-lived machines.
 
-```bash
-./gradlew run
-```
+## 2. Environment variables
 
-This is the same entrypoint `grind serve` uses. It is acceptable when your deploy pipeline already checked out the release and you supervise the Gradle/`java` child carefully. Prefer **Option A** on long-lived VMs so production does not depend on the Gradle daemon.
+The process environment wins over a `.env` file. In production, inject variables from systemd, Docker, or your platform. If you keep a file on the server, do not commit it.
 
-### Option C — classpath JAR (advanced)
+| Variable | Production | Notes |
+|----------|------------|--------|
+| `APP_ENV` | `production` | Required for production behavior |
+| `APP_DEBUG` | `false` | Turns off exception pages |
+| `APP_KEY` | `base64:…` | Encryption / signed cookies. Create with `./grind key:generate` on a trusted machine, then store the value in your secret manager |
+| `APP_URL` | `https://app.example.com` | Public URL used in links |
+| `HOST` | `127.0.0.1` behind a local proxy; `0.0.0.0` in Docker / PaaS | Bind address |
+| `PORT` | `4000` or the platform’s `PORT` | Listen port |
+| `DB_CONNECTION` | `pgsql`, `mysql`, … | Must match `config/Database` |
+| `DB_URL` | JDBC URL | Example: `jdbc:postgresql://db:5432/kona` |
+| `DB_USERNAME` / `DB_PASSWORD` | credentials | Prefer secrets, not git |
+| `LOG_LEVEL` | `info` | |
+| `LOG_TO_FILE` | `true` on VMs with disk; `false` when the platform captures stdout | |
 
-```bash
-./gradlew jar
-```
-
-That produces the **thin** project JAR under `build/libs/`. You must still put the runtime classpath together (everything under `build/install/.../lib` after `installDist`, or an equivalent). The scaffold does **not** apply a Shadow/fat-jar plugin today.
-
-### What is not shipped yet
-
-Be explicit when planning ops:
-
-| Topic | Status today |
-|-------|----------------|
-| Fat / uber JAR in the skeleton | **Not** included — use `installDist` / `distZip` |
-| First-party Docker image or Compose file | **Not** published — you can containerize the JVM process yourself (example below) |
-| Platform one-click templates (Cloud Run, Fly, …) | **Not** published — same process model: listen on `PORT`, health on `/api/health` |
-| `Procfile` / systemd unit in the skeleton | **Not** included — sample units below are copy-paste starting points |
-
-## Environment and configuration
-
-`Env` reads the **process environment first**, then an optional `.env` file in the application base path. In production, prefer injecting variables from your platform or systemd — treat `.env` as a convenience file on the server, not as something checked into git.
-
-### Required / strongly recommended
-
-| Variable | Production value | Why |
-|----------|------------------|-----|
-| `APP_ENV` | `production` | Seeds `app.env`; grind treats production specially (for example `key:generate` confirmation) |
-| `APP_DEBUG` | `false` | Seeds `app.debug`; keeps exception pages and verbose errors off |
-| `APP_KEY` | long random key (`base64:…`) | Encryption, signed cookies, related crypto — generated by `kona new` or `./grind key:generate` |
-| `APP_URL` | public URL, e.g. `https://app.example.com` | Canonical URL for links and absolute URL helpers |
-| `HOST` | `127.0.0.1` behind a local proxy, or `0.0.0.0` in containers | Bind address for `KonaHttpServer` |
-| `PORT` | e.g. `4000`, or the platform-provided port | Listen port |
-
-Scaffold `.env.example` looks like:
-
-```bash
-APP_NAME=hello-kona
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=http://127.0.0.1:4000
-APP_KEY=
-HOST=127.0.0.1
-PORT=4000
-```
-
-A production overlay (process env or server `.env`) typically flips the first block:
-
-```bash
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://app.example.com
-APP_KEY=base64:…          # from secrets store; never commit
-HOST=127.0.0.1            # or 0.0.0.0 in Docker / many PaaS
-PORT=4000                 # or $PORT from the platform
-```
-
-Generate or rotate a key on a machine that can write `.env`:
+Generate a key (writes `APP_KEY` into `.env` unless you copy it out yourself):
 
 ```bash
 ./grind key:generate
-./grind key:generate --force   # when APP_ENV=production and a key already exists
+./grind key:generate --force    # production, key already set
 ```
 
-See [Encryption](../../security/encryption/) and [grind key:generate](../../grind/commands/#grind-keygenerate).
+## 3. Database and migrations
 
-### Database
-
-Scaffold `config/Database` reads:
-
-| Variable | Default when unset |
-|----------|--------------------|
-| `DB_CONNECTION` | `sqlite` |
-| `DB_URL` | SQLite file (`jdbc:sqlite:storage/database/database.sqlite`) |
-| `DB_USERNAME` | empty (SQLite) |
-| `DB_PASSWORD` | empty |
-
-Local scaffolds use **SQLite** at `storage/database/database.sqlite` so migrate, seed, and serve share data across processes. Use `kona new --database=h2` for file H2. In-memory H2 (`jdbc:h2:mem:…`) is fine for unit tests only.
-
-**Do not rely on SQLite or H2 for production data.** Point `DB_URL` at PostgreSQL, MySQL, or another supported JDBC URL, set credentials, and run migrations as part of deploy:
+Point `DB_URL` at a real server database. Run migrations **before** or **as** you start the new process, from a checkout that still has `./grind`:
 
 ```bash
 export DB_URL='jdbc:postgresql://db.internal:5432/kona'
@@ -195,67 +138,149 @@ export DB_PASSWORD=…
 ./grind migrate
 ```
 
-Details: [Config & env](../../concepts/config/), [Cadence](../../cadence/).
+Typical splits:
 
-### Logging
+- **VM:** deploy the git tree, run `./gradlew installDist`, then `./grind migrate`, then restart the start script.
+- **Container / immutable image:** run `./grind migrate` in CI or as an init job against the production database, then roll out the image that only contains `bin/` + `lib/` + `public/` + `storage/`.
 
-By default the root logger writes a rolling file under `storage/logs/` (`kona.log`, with dated rolls). Useful knobs:
-
-| Variable | Typical production |
-|----------|--------------------|
-| `LOG_LEVEL` | `info` (or `warn`) |
-| `LOG_TO_FILE` | `true` on VMs with a disk; often `false` when the platform collects stdout/stderr only |
-| `LOG_CHANNEL` | `stack` (default) |
-
-For containers, many teams set `LOG_TO_FILE=false` and rely on the process manager to capture console output (`stderr` / `stdout` channels). Full driver list: [Logging](../../http/logging/).
-
-Ensure `storage/logs` exists and is writable by the service user:
+Ensure `storage/` is writable by the service user:
 
 ```bash
 mkdir -p storage/logs storage/framework storage/app/public
-chmod -R u+rwX storage
+chown -R kona:kona storage
 ```
 
-## Reverse proxy and TLS
+Engine list and JDBC URLs: [Database](../../cadence/database/).
 
-`KonaHttpServer` speaks **HTTP** on `HOST:PORT`. Terminate **TLS** at nginx, Caddy, Traefik, or your cloud load balancer, then proxy to the app.
+## 4. systemd (VM)
 
-### Trust forwarded headers
+`/etc/kona/hello-kona.env` (mode `0600`, not in git):
 
-Scaffold `bootstrap.Middleware` documents (commented) trust helpers. Behind a proxy you almost always want them so `APP_URL`, redirects, and client IP reflect the public request:
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-HttpMiddleware()
-    .alias("start.session") { StartSession(sessions) }
-    .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/brew/*")) }
-    .web(listOf("start.session", "csrf"))
-    .trustProxies(at = listOf("*"))   // or your proxy CIDRs
-    .trustHosts(at = listOf("app.example.com", "*.example.com"))
-    .apply(app)
+```bash
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://app.example.com
+APP_KEY=base64:…
+HOST=127.0.0.1
+PORT=4000
+DB_URL=jdbc:postgresql://127.0.0.1:5432/kona
+DB_USERNAME=kona
+DB_PASSWORD=…
 ```
 
-</TabItem>
-<TabItem label="Java">
+`/etc/systemd/system/hello-kona.service`:
 
-```java
-new HttpMiddleware()
-    .alias("start.session", (Supplier<Middleware>) () -> new StartSession(sessions))
-    .alias("csrf", (Supplier<Middleware>) () -> new VerifyCsrfToken(List.of("/api/*", "/brew/*")))
-    .web(List.of("start.session", "csrf"))
-    .trustProxies(List.of("*"))
-    .trustHosts(List.of("app.example.com", "*.example.com"))
-    .apply(app);
+```ini
+[Unit]
+Description=Kona hello-kona
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=kona
+Group=kona
+WorkingDirectory=/var/www/hello-kona
+EnvironmentFile=/etc/kona/hello-kona.env
+ExecStart=/var/www/hello-kona/build/install/hello-kona/bin/hello-kona
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-</TabItem>
-</Tabs>
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now hello-kona
+sudo systemctl status hello-kona
+curl -fsS http://127.0.0.1:4000/api/health
+```
 
-See [Kernel & server](../../http/kernel-server/) for `trustProxies` / `trustHosts` behavior.
+## 5. Docker
 
-### nginx (sketch)
+There is no published Kona runtime image. Use a two-stage build in **the app repo**. Replace `hello-kona` with `rootProject.name`.
+
+```dockerfile
+# syntax=docker/dockerfile:1
+FROM eclipse-temurin:21-jdk AS build
+WORKDIR /src
+COPY . .
+RUN ./gradlew installDist --no-daemon
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /src/build/install/hello-kona/ /app/
+COPY --from=build /src/public /app/public
+RUN mkdir -p /app/storage/logs /app/storage/framework /app/storage/app/public \
+    && chown -R 65534:65534 /app/storage
+ENV HOST=0.0.0.0 PORT=4000 APP_ENV=production APP_DEBUG=false LOG_TO_FILE=false
+EXPOSE 4000
+USER 65534:65534
+CMD ["/app/bin/hello-kona", "--base=/app"]
+```
+
+```bash
+docker build -t hello-kona:latest .
+docker run --rm -p 4000:4000 \
+  -e APP_KEY=base64:… \
+  -e APP_URL=https://app.example.com \
+  -e DB_URL=jdbc:postgresql://db:5432/kona \
+  -e DB_USERNAME=kona \
+  -e DB_PASSWORD=… \
+  hello-kona:latest
+```
+
+Mount a volume on `/app/storage` if you need logs or local disks to survive restarts. Run `./grind migrate` from CI (or a one-shot JDK job that has the source tree) against the same `DB_*` values before you point traffic at the new container.
+
+Any platform that injects `PORT` works: the scaffold reads it.
+
+## 6. CI (GitHub Actions)
+
+Put this in the **application** repository:
+
+```yaml
+name: build
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Tests
+        run: ./gradlew check
+      - name: Release tree
+        run: ./gradlew installDist
+      # Vite kits only:
+      # - uses: actions/setup-node@v4
+      #   with: { node-version: "22" }
+      # - run: npm ci && npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hello-kona-dist
+          path: build/install/hello-kona
+```
+
+Promote the artifact (or the image from section 5), run migrations, then restart the process.
+
+## 7. Reverse proxy and TLS
+
+The JVM speaks **HTTP**. Terminate TLS in Caddy, nginx, Traefik, or the cloud load balancer.
+
+**Caddy** (certificates included):
+
+```text
+app.example.com {
+    reverse_proxy 127.0.0.1:4000
+}
+```
+
+**nginx:**
 
 ```nginx
 upstream kona_app {
@@ -265,9 +290,6 @@ upstream kona_app {
 server {
     listen 443 ssl http2;
     server_name app.example.com;
-
-    # ssl_certificate     …;
-    # ssl_certificate_key …;
 
     location / {
         proxy_pass http://kona_app;
@@ -282,118 +304,43 @@ server {
 }
 ```
 
-### Caddy (sketch)
+Behind a proxy, enable trusted forwarded headers in `bootstrap.Middleware` so `APP_URL`, redirects, and client IP match the public request: `.trustProxies(at = listOf("*"))` and `.trustHosts(at = listOf("app.example.com"))` (Java: `List.of(...)`). Details: [Kernel & server](../../http/kernel-server/).
 
-```text
-app.example.com {
-    reverse_proxy 127.0.0.1:4000
-}
-```
+Bind the app to `127.0.0.1` when the proxy is on the same host. Use `HOST=0.0.0.0` when the platform routes to the container port.
 
-Caddy manages certificates by default. Still enable `trustProxies` in the app when you need accurate scheme/client IP from forwarded headers.
-
-Bind the app to **`127.0.0.1`** when the proxy shares the host. Use **`HOST=0.0.0.0`** when the platform routes directly to the container port.
-
-## Process supervision
-
-Run **one** app process per machine/container (scale out with more instances behind the load balancer). Restart on failure; send a graceful stop when possible (`KonaHttpServer.stop()` runs on orderly JVM shutdown if you wire it — the scaffold’s `main` blocks on the server’s non-daemon threads).
-
-### systemd (sketch)
-
-```ini
-[Unit]
-Description=Kona hello-kona
-After=network.target
-
-[Service]
-Type=simple
-User=kona
-WorkingDirectory=/var/www/hello-kona
-Environment=APP_ENV=production
-Environment=APP_DEBUG=false
-Environment=APP_URL=https://app.example.com
-Environment=HOST=127.0.0.1
-Environment=PORT=4000
-# Prefer EnvironmentFile= for APP_KEY and DB_* secrets
-EnvironmentFile=-/var/www/hello-kona/.env.production
-ExecStart=/var/www/hello-kona/build/install/hello-kona/bin/hello-kona
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Adjust paths to match your `installDist` output and release layout.
-
-### Containers (example pattern, not an official image)
-
-There is **no** published `konaframework/...` runtime image yet. A minimal pattern:
-
-```dockerfile
-FROM eclipse-temurin:21-jre
-WORKDIR /app
-# Copy installDist output + storage + server .env (or inject env at runtime)
-COPY build/install/hello-kona /app/runtime
-COPY storage /app/storage
-ENV HOST=0.0.0.0 PORT=4000 APP_ENV=production APP_DEBUG=false
-EXPOSE 4000
-CMD ["/app/runtime/bin/hello-kona", "--base=/app"]
-```
-
-Build `installDist` in a CI image with JDK 21, then copy only the runtime tree into the JRE image. Platforms that set `PORT` automatically work as long as the process reads `PORT` (the scaffold does).
-
-## Health checks
-
-Scaffold API routes register:
+## 8. Health and static files
 
 ```http
 GET /api/health → {"status":"ok"}
 ```
 
-Point load balancers and orchestrators at that path (HTTP 200 + JSON body). Example:
+HTTP 200 means the process is up and the kernel answered. It does **not** check the database. Add your own readiness route if you need that.
+
+`GET`/`HEAD` under `public/` (including `/build/assets/…` after a Vite production build) are served from disk. Do not ship `public/hot` — that file selects the Vite dev server.
 
 ```bash
-curl -fsS http://127.0.0.1:4000/api/health
-# {"status":"ok"}
+# Vite / Inertia / Brew kits, in CI or on the build machine
+npm ci && npm run build
 ```
 
-This check is **liveness-oriented** (process up and kernel answering). It does not assert database connectivity today — add your own readiness route if you need that.
+## Checklist
 
-## Static assets and the public disk
-
-| Path / URL | Behavior today |
-|------------|----------------|
-| `public/` (`paths.public`, default) | Scaffold `Middleware` prepends **`ServePublicDirectory`**: a `GET`/`HEAD` under this tree (for example `/branding/kona-logo.svg`, `/robots.txt`, `/build/assets/…`) is served from disk. Path escapes (`..`) and symlinks are rejected. |
-| `GET /storage/...` | Served by `ServePublicStorage` from the **public** filesystem disk (see [Public disk and URLs](../../filesystem/urls/)). |
-| `./grind storage:link` | Symlinks `public/storage` → `storage/app/public` for tooling that expects a static tree. |
-| Frontend kits (Vite / Inertia / Brew) | Production builds write under `public/build/` (`manifest.json` or `.vite/manifest.json`, plus `assets/<hash>.*`). The browser requests `/build/assets/<hash>.js`, not the source path under `src/main/resources/js`. Run `npm run build` **before** or **during** deploy. Do not ship `public/hot` — that file selects the dev server. |
-
-Common production split:
-
-1. **App JVM** handles dynamic routes, `paths.public` files via `ServePublicDirectory`, and `/storage/...`.
-2. **Reverse proxy** optionally serves immutable hashed assets from `public/build` directly (faster, fewer hops), and proxies everything else to Kona.
-
-Keep the process working directory (or `--base=`) pointed at the app root so `paths.public` resolves to the same tree you built. If the proxy already serves `public/build`, you can leave those requests off the JVM.
-
-## Deploy checklist
-
-1. `./gradlew check` (or your CI) green on the release commit  
-2. Set `APP_ENV=production`, `APP_DEBUG=false`, real `APP_KEY`, `APP_URL`  
-3. Configure `DB_*` (not H2 mem) and run `./grind migrate`  
-4. `mkdir -p storage/...` and fix ownership  
-5. Build frontend assets if the kit needs them  
-6. `./gradlew installDist` (or `distZip`) and start **`bin/<app-name>`**, not `./grind serve`  
-7. Enable `trustProxies` / `trustHosts` behind TLS termination  
-8. Probe `GET /api/health` from the proxy and from outside  
-9. Confirm logs under `storage/logs` or your platform’s stdout capture  
+1. JDK 21 in CI / on the build host  
+2. `./gradlew check` green  
+3. `APP_ENV=production`, `APP_DEBUG=false`, real `APP_KEY`, public `APP_URL`  
+4. `DB_*` on a server database; `./grind migrate`  
+5. `storage/` exists and is writable  
+6. `npm run build` if the kit uses Vite  
+7. `./gradlew installDist` and start **`bin/<app>`**, not `./grind serve`  
+8. Reverse proxy + `trustProxies` / `trustHosts`  
+9. `GET /api/health` returns `{"status":"ok"}`  
 
 ## Related guides
 
-- [Installation](../installation/) — install `kona`, create apps  
+- [Installation](../installation/) — install `kona`, `kona new`  
 - [Your first app](../first-app/) — local `./grind serve`  
-- [Config & env](../../concepts/config/) — how `.env` seeds config  
-- [Kernel & server](../../http/kernel-server/) — `KonaHttpServer`, `HOST` / `PORT`  
-- [Logging](../../http/logging/) — channels and files  
-- [Public disk and URLs](../../filesystem/urls/) — `/storage` serving  
-- [grind commands](../../grind/commands/) — `serve`, `migrate`, `key:generate`  
+- [Config & env](../../concepts/config/) — process env vs `.env`  
+- [Database](../../cadence/database/) — JDBC URLs per engine  
+- [Kernel & server](../../http/kernel-server/) — `HOST` / `PORT`, `trustProxies`  
+- [Logging](../../http/logging/) — file vs stdout  
+- [grind commands](../../grind/commands/) — `migrate`, `key:generate`  

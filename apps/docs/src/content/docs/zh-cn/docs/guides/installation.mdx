@@ -15,17 +15,18 @@ Kona 有意使用 **两个** 命令行工具：
 ## 推荐路径
 
 ```bash
-# 1. PATH 上有 JDK 21+
+# 1. JDK 21+
 java -version
 
 # 2. 安装全局 `kona` CLI
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+export PATH="$HOME/.local/bin:$PATH"
 
 # 3. 创建应用
-kona new my-app
+kona new my-app --no-interaction
 cd my-app
 
-# 4. 用应用内 CLI 启动（或：kona grind serve）
+# 4. 启动
 ./grind serve
 ```
 

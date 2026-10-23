@@ -15,17 +15,18 @@ Instalas `kona` una vez. Cada proyecto de `kona new` trae su propio `./grind` (y
 ## Camino feliz
 
 ```bash
-# 1. JDK 21+ en tu PATH
+# 1. JDK 21+
 java -version
 
 # 2. Instalar el CLI global `kona`
 curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+export PATH="$HOME/.local/bin:$PATH"
 
 # 3. Crear una aplicación
-kona new my-app
+kona new my-app --no-interaction
 cd my-app
 
-# 4. Servir con el CLI local (o: kona grind serve)
+# 4. Servir
 ./grind serve
 ```
 
