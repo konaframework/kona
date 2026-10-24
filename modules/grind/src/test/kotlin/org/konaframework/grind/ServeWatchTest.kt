@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -315,6 +316,26 @@ class ServeWatchTest {
     }
 
     @Test
+    fun disposeDoesNotClearANewerGlobalDatabase() {
+        val previous = Application(temp.resolve("previous-db"))
+        val oldDb = Database().addConnection("default", ConnectionConfig("jdbc:h2:mem:watch_old;DB_CLOSE_DELAY=-1"))
+        previous.container.instance(Database::class.java, oldDb)
+        oldDb.setAsGlobal()
+        oldDb.connection()
+
+        val next = Database().addConnection("default", ConnectionConfig("jdbc:h2:mem:watch_next;DB_CLOSE_DELAY=-1"))
+        next.setAsGlobal()
+        next.connection()
+
+        ServeWatch.dispose(previous, AppLoader(previous.basePath))
+        assertTrue(Database.hasGlobal())
+        assertSame(next, Database.global())
+        next.connection()
+        Database.clearGlobal()
+        next.close()
+    }
+
+    @Test
     fun serveWatchReloadsKeepsServingAndSurvivesFailures() {
         val port = freePort()
         val base = fixtureProject(temp.resolve("watch-ok"), "HOST=127.0.0.1\nPORT=$port\n")
@@ -488,6 +509,33 @@ class ServeWatchTest {
             server.replaceKernel(HttpKernel(second))
             assertEquals("two", httpGet("http://127.0.0.1:$port/ping").body())
             ServeWatch.dispose(app, loader)
+        } finally {
+            server.stop()
+        }
+    }
+
+    @Test
+    fun reloadKeepsCadenceGlobalOnTheNewKernel() {
+        val port = freePort()
+        val base = fixtureProject(
+            temp.resolve("cadence-reload"),
+            "DB_URL=jdbc:h2:mem:cadence_reload;DB_CLOSE_DELAY=-1\n",
+        )
+        val (loader, app) = ServeWatch.boot(base, mapOf("bootstrap" to CadenceWatchApp::class.java.name))
+        val server = KonaHttpServer(app.resolve(HttpKernel::class.java), "127.0.0.1", port, transportPreference = "nio")
+        server.start()
+        try {
+            assertEquals("ok", httpGet("http://127.0.0.1:$port/db").body())
+            val (nextLoader, nextApp) = ServeWatch.reload(
+                base,
+                mapOf("bootstrap" to CadenceWatchApp::class.java.name),
+                server,
+                app,
+                loader,
+            )
+            assertEquals("ok", httpGet("http://127.0.0.1:$port/db").body())
+            assertTrue(Database.hasGlobal())
+            ServeWatch.dispose(nextApp, nextLoader)
         } finally {
             server.stop()
         }

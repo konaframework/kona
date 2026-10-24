@@ -247,11 +247,22 @@ internal object ServeWatch {
     }
 
     fun dispose(app: Application, loader: AppLoader) {
-        if (app.container.bound(Database::class.java)) {
-            closeQuietly(app.resolve(Database::class.java))
+        val bound = if (app.container.bound(Database::class.java)) {
+            app.resolve(Database::class.java)
+        } else {
+            null
         }
-        if (Database.hasGlobal()) {
-            closeQuietly(Database.global())
+        val global = if (Database.hasGlobal()) Database.global() else null
+        if (bound != null) {
+            closeQuietly(bound)
+        }
+        // Reload boots the next app (and CadenceServiceProvider.setAsGlobal) before disposing
+        // this one. Only clear the static global when it still *is* this app's Database —
+        // otherwise a Wire/Counter save 500s with "No global Database".
+        if (global != null && (bound == null || global === bound)) {
+            if (bound == null) {
+                closeQuietly(global)
+            }
             Database.clearGlobal()
         }
         loader.close()

@@ -46,7 +46,7 @@ On start, grind prints a Termwind box with the local URL (for example `http://12
 2. It boots `bootstrap.App` inside the grind JVM (`AppLoader` + a child `URLClassLoader`) and starts `KonaHttpServer`.
 3. It polls `src/main` (and `.env`) for Kotlin, Java, Crema, and common resource changes. Editor swap files (`*~`, `*.swp`) are ignored.
 4. After a quiet debounce it runs incremental `./gradlew classes`. **Netty stays bound** — event loops and keep-alive connections are not torn down.
-5. On a successful compile, grind boots a new application, calls `KonaHttpServer.replaceKernel`, then closes the previous classloader and any bound Cadence `Database` pools.
+5. On a successful compile, grind boots a new application (Cadence registers a fresh global `Database`), calls `KonaHttpServer.replaceKernel`, then closes the previous classloader and **that previous app’s** Cadence pools — not the new global. A Wire component save (for example `Counter`) must keep serving without `No global Database`.
 6. If compile or boot fails, the previous kernel keeps answering requests and grind prints the error.
 
 That is a **soft** reload: one Netty process, one live app classloader at a time, no Java agent, no second application JVM. Wire inline `template()` blocks live on the component class, so a save that recompiles that class is enough — you do not restart the server. Crema view files under `src/main/resources` are included in the same watch.
