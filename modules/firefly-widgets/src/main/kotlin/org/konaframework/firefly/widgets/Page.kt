@@ -53,7 +53,7 @@ open class Page {
 
     fun render(): String = render(emptyMap())
 
-    fun render(state: Map<String, Any?>): String {
+    open fun render(state: Map<String, Any?>): String {
         WidgetAssets.reset()
         val get = WidgetBridge.open(state)
         val title = titleSetting.resolve(get) ?: fallbackTitle()

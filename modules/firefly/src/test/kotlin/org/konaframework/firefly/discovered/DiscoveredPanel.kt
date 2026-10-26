@@ -3,6 +3,7 @@ package org.konaframework.firefly.discovered
 import org.konaframework.firefly.ListPage
 import org.konaframework.firefly.PanelPage
 import org.konaframework.firefly.Resource
+import org.konaframework.firefly.widgets.Page
 import org.konaframework.firefly.widgets.Widget
 
 class FoundPage : PanelPage("found")
@@ -22,9 +23,7 @@ class BoomPage : PanelPage("boom") {
 class Desk : PanelPage()
 
 class FoundResource : Resource("notes") {
-    init {
-        page(ListPage("all"))
-    }
+    override fun getPages(): Map<String, Page> = mapOf("all" to ListPage("all"))
 }
 
 abstract class SkipResource : Resource("skip")

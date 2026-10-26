@@ -28,6 +28,7 @@ import org.konaframework.firefly.support.Hook
 import org.konaframework.firefly.support.PanelLayout
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TextColumn
+import org.konaframework.firefly.widgets.Page
 import org.konaframework.firefly.widgets.Widget
 import org.konaframework.http.Request
 import org.konaframework.http.Response
@@ -64,7 +65,9 @@ class FireflyPanelTest {
         assertTrue(send(root, "GET", "/login").body.contains("ff-login"))
         assertThrows<FireflyException> { Panel().path("").page(ListPage("_firefly")).mount(Router()) }
         assertThrows<FireflyException> {
-            Panel().path("").resource(Resource("wire").page(ListPage("update"))).mount(Router())
+            Panel().path("").resource(object : Resource("wire") {
+                override fun getPages(): Map<String, Page> = mapOf("update" to ListPage("update"))
+            }).mount(Router())
         }
         assertThrows<FireflyException> {
             Panel().page(ListPage("orders")).page(ListPage("orders")).mount(Router())
@@ -76,7 +79,9 @@ class FireflyPanelTest {
     fun authScreensUseASeparateGuard() {
         val router = Router()
         val panel = Panel().id("desk").path("admin")
-        panel.page(PanelPage("")).page(CustomPage("note")).resource(Resource("box").page(PanelPage("")))
+        panel.page(PanelPage("")).page(CustomPage("note")).resource(object : Resource("box") {
+            override fun getPages(): Map<String, Page> = mapOf("" to PanelPage(""))
+        })
         panel.mount(router)
         assertEquals(302, send(router, "GET", "/admin/note").status)
         assertTrue(send(router, "GET", "/admin/login").body.contains("ff-login"))

@@ -9,12 +9,26 @@ import org.konaframework.firefly.widgets.Page
  */
 open class PanelPage @JvmOverloads constructor(private val slugValue: String? = null) : Page() {
     private var parentName: String? = null
+    private var boundSlug: String? = null
+    private var onShow: ((Map<String, Any?>) -> Unit)? = null
 
     fun slug(): String {
+        val bound = boundSlug
+        if (bound != null) return bound
         if (slugValue != null) return slugValue
         val raw = javaClass.simpleName
         val trimmed = if (raw.endsWith("Page")) raw.dropLast(4) else raw
         return trimmed.lowercase()
+    }
+
+    internal fun bindSlug(key: String): PanelPage = apply { boundSlug = key }
+
+    internal fun onShow(hook: (Map<String, Any?>) -> Unit): PanelPage = apply { onShow = hook }
+
+    override fun render(state: Map<String, Any?>): String {
+        val hook = onShow
+        if (hook != null) hook.invoke(state)
+        return super.render(state)
     }
 
     open fun navigationLabel(): String {

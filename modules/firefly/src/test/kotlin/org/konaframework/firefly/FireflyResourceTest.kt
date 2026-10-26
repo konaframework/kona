@@ -13,12 +13,13 @@ import org.konaframework.cadence.ModelBuilder
 import org.konaframework.firefly.forms.DateTimePicker
 import org.konaframework.firefly.forms.Select
 import org.konaframework.firefly.forms.TextInput
-import org.konaframework.firefly.infolists.Infolist
 import org.konaframework.firefly.infolists.TextEntry
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TextColumn
+import org.konaframework.firefly.widgets.Dashboard
+import org.konaframework.firefly.widgets.Page
 import org.konaframework.http.Request
 import org.konaframework.http.Response
 import org.konaframework.http.Router
@@ -27,9 +28,9 @@ class FireflyResourceTest {
     @Test
     fun simpleResourceKeepsCreateEditViewAndDeleteInDialogs() {
         val notes = notes()
-        assertTrue(notes.form() != null)
-        assertTrue(notes.infolist() != null)
-        assertTrue(notes.table() != null)
+        assertTrue(notes.form(Schema.make()).components().isNotEmpty())
+        assertTrue(notes.infolist(Schema.make()).components().isNotEmpty())
+        assertTrue(notes.table(Table.memory()).render().contains("Ada"))
         assertTrue(notes.isSimple())
         val pages = notes.pages()
         assertEquals(1, pages.size)
@@ -101,11 +102,14 @@ class FireflyResourceTest {
     }
 
     @Test
-    fun bareResourcesStillResolveLabelsAndSkipEmptyPages() {
-        assertTrue(Resource().pages().isEmpty())
-        assertNull(Resource().form())
-        assertNull(Resource().infolist())
-        assertNull(Resource().table())
+    fun bareResourcesStillResolveLabelsAndDefaultPages() {
+        val bareResource = Resource()
+        val barePages = bareResource.pages()
+        assertEquals(listOf("list", "create", "edit", "view"), barePages.map { it.slug() })
+        assertTrue(bareResource.pages().first() === barePages.first())
+        assertTrue(Resource().form(Schema.make()).components().isEmpty())
+        assertTrue(Resource().infolist(Schema.make()).components().isEmpty())
+        assertTrue(Resource().table(Table.memory()).render().contains("ff-table"))
         assertEquals("resource", Resource().label())
         assertEquals("Notes", Resource().label("Notes").label())
         assertEquals("Desk", Resource().label { "Desk" }.label())
@@ -122,12 +126,35 @@ class FireflyResourceTest {
         val simple = Resource("box").simple().pages().single()
         assertTrue(simple.render().contains("ff-dialog"))
         assertFalse(simple.render().contains("ff-picker"))
-        val custom = Resource("box").form(Schema.make().components(TextInput.make("name"))).page(CustomPage("extra"))
-        assertEquals("extra", custom.pages().single().slug())
+        val custom = object : Resource("box") {
+            override fun form(schema: Schema): Schema = schema.components(TextInput.make("name"))
+
+            override fun getPages(): Map<String, Page> = mapOf("extra" to CustomPage("extra"))
+        }
+        val extra = custom.pages().single()
+        assertEquals("extra", extra.slug())
         assertEquals(1, custom.pages().size)
-        Resource("box").simple(false)
-        val explicit = Resource("box").model(Shelf::class.java).page(ListPage("all"))
+        assertFalse(extra.render().contains("ff-input"))
+        assertEquals(4, Resource("box").simple(false).pages().size)
+        val explicit = object : Resource("box") {
+            override fun getPages(): Map<String, Page> = mapOf("all" to ListPage("all"))
+        }
+        explicit.model(Shelf::class.java)
         assertEquals(1, explicit.pages().size)
+        val late = LateForm()
+        val manage = late.pages().single()
+        assertNull(late.seenRecord)
+        assertNull(late.tenantAtForm)
+        manage.render(mapOf("record" to "Ada"))
+        assertEquals("Ada", late.seenRecord)
+        assertNull(late.tenantAtForm)
+        FireflyTenant.use("acme") { manage.render() }
+        assertEquals("acme", late.tenantAtForm)
+        val home = object : Resource("box") {
+            override fun getPages(): Map<String, Page> = mapOf("" to PanelPage(""))
+        }
+        assertEquals("", home.pages().single().slug())
+        assertThrows<FireflyException> { NotAPanelPage().pages() }
     }
 
     @Test
@@ -153,37 +180,9 @@ class FireflyResourceTest {
         assertTrue(closed.render().contains("data-ff-tone=\"info\""))
     }
 
-    private fun notes(): Resource = Resource("notes").label("Notes").simple()
-        .model(Shelf::class.java)
-        .form(
-            Schema.make().components(
-                TextInput.make("name"),
-                Select.make("status").options(mapOf("open" to "Open")).extraInputAttributes(mapOf("data-ff-extra" to "1")),
-                DateTimePicker.make("due"),
-            ),
-        )
-        .infolist(Infolist.make().components(TextEntry.make("name")))
-        .table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+    private fun notes(): Resource = NotesResource()
 
-    private fun orders(): Resource {
-        val lines = RelationManager("lines")
-            .related(Shelf::class.java)
-            .titleAttribute("sku")
-            .extraAttributes(mapOf("data-ff-tone" to "info"))
-            .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku")))
-        return Resource("orders").label("Orders")
-            .model { Shelf::class.java }
-            .form(
-                Schema.make().components(
-                    TextInput.make("name"),
-                    Select.make("status").options(mapOf("open" to "Open")),
-                    DateTimePicker.make("due"),
-                ),
-            )
-            .infolist(Infolist.make().components(TextEntry.make("name")))
-            .table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
-            .relation(lines)
-    }
+    private fun orders(): Resource = OrdersResource()
 
     private fun send(router: Router, path: String): String {
         val match = router.find("GET", path) ?: throw AssertionError("missing $path")
@@ -191,6 +190,76 @@ class FireflyResourceTest {
         assertEquals(200, response.status)
         return response.body
     }
+}
+
+private class NotesResource : Resource("notes") {
+    init {
+        label("Notes")
+        simple()
+        model(Shelf::class.java)
+    }
+
+    override fun form(schema: Schema): Schema = schema.components(
+        TextInput.make("name"),
+        Select.make("status").options(mapOf("open" to "Open")).extraInputAttributes(mapOf("data-ff-extra" to "1")),
+        DateTimePicker.make("due"),
+    )
+
+    override fun infolist(schema: Schema): Schema = schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+}
+
+private class OrdersResource : Resource("orders") {
+    init {
+        label("Orders")
+        model { Shelf::class.java }
+        relation(
+            RelationManager("lines")
+                .related(Shelf::class.java)
+                .titleAttribute("sku")
+                .extraAttributes(mapOf("data-ff-tone" to "info"))
+                .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
+        )
+    }
+
+    override fun form(schema: Schema): Schema = schema.components(
+        TextInput.make("name"),
+        Select.make("status").options(mapOf("open" to "Open")),
+        DateTimePicker.make("due"),
+    )
+
+    override fun infolist(schema: Schema): Schema = schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+
+    override fun getPages(): Map<String, Page> = mapOf(
+        "list" to ListPage("list"),
+        "create" to CreatePage("create"),
+        "edit" to EditPage("edit"),
+        "view" to ViewPage("view"),
+    )
+}
+
+private class LateForm : Resource("notes") {
+    var seenRecord: Any? = null
+    var tenantAtForm: String? = null
+
+    init {
+        simple()
+    }
+
+    override fun form(schema: Schema): Schema {
+        seenRecord = schema.record()
+        tenantAtForm = FireflyTenant.id()
+        return schema.components(TextInput.make("name"))
+    }
+}
+
+private class NotAPanelPage : Resource("dash") {
+    override fun getPages(): Map<String, Page> = mapOf("home" to Dashboard())
 }
 
 class Shelf : Cadence<Shelf>() {
