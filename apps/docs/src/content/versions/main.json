@@ -400,7 +400,7 @@
       ]
     },
     {
-      "label": "Brew",
+      "label": "Wire",
       "items": [
         {
           "label": "Overview",
@@ -602,6 +602,99 @@
         {
           "label": "Example: Location redirect",
           "slug": "docs/inertia/examples/location"
+        }
+      ]
+    },
+    {
+      "label": "Firefly",
+      "items": [
+        {
+          "label": "Introduction",
+          "slug": "docs/firefly"
+        },
+        {
+          "label": "Requirements",
+          "slug": "docs/firefly/requirements"
+        },
+        {
+          "label": "Installation",
+          "slug": "docs/firefly/installation"
+        },
+        {
+          "label": "Register a panel",
+          "slug": "docs/firefly/registration"
+        },
+        {
+          "label": "A working app",
+          "slug": "docs/firefly/working-app"
+        },
+        {
+          "label": "Panel",
+          "slug": "docs/firefly/panel"
+        },
+        {
+          "label": "Pages",
+          "slug": "docs/firefly/pages"
+        },
+        {
+          "label": "Navigation",
+          "slug": "docs/firefly/navigation"
+        },
+        {
+          "label": "Actions",
+          "slug": "docs/firefly/actions"
+        },
+        {
+          "label": "Schemas and layouts",
+          "slug": "docs/firefly/schemas"
+        },
+        {
+          "label": "Forms",
+          "slug": "docs/firefly/forms"
+        },
+        {
+          "label": "Infolists",
+          "slug": "docs/firefly/infolists"
+        },
+        {
+          "label": "Tables",
+          "slug": "docs/firefly/tables"
+        },
+        {
+          "label": "Notifications",
+          "slug": "docs/firefly/notifications"
+        },
+        {
+          "label": "Widgets",
+          "slug": "docs/firefly/widgets"
+        },
+        {
+          "label": "Resources",
+          "slug": "docs/firefly/resources"
+        },
+        {
+          "label": "Tenancy",
+          "slug": "docs/firefly/tenancy"
+        },
+        {
+          "label": "Plugins",
+          "slug": "docs/firefly/plugins"
+        },
+        {
+          "label": "Import and export",
+          "slug": "docs/firefly/import-export"
+        },
+        {
+          "label": "Themes and CSS",
+          "slug": "docs/firefly/themes"
+        },
+        {
+          "label": "Panel chrome",
+          "slug": "docs/firefly/chrome"
+        },
+        {
+          "label": "Dialog",
+          "slug": "docs/firefly/dialog"
         }
       ]
     },

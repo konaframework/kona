@@ -3,7 +3,13 @@ title: Widgets
 description: Place stats, charts, tables, and account widgets on a page or dashboard, and discover them from a panel widgets directory.
 ---
 
-A widget renders on its own and inside a page or dashboard. Stats, charts, a table, and an account card are the built-in widgets. A page is the composition host: a title, header and footer actions, a content region, and the widgets you place on it. Panel routes that serve that page arrive with the panel milestone. Until then, call `render()` yourself.
+:::note[Screenshot placeholder: the Desk widget on the Desk page]
+A screenshot of this screen will go here.
+:::
+
+A widget renders on its own and inside a page or dashboard. Stats, charts, a table, and an account card are the built-in widgets. A page is the composition host: a title, header and footer actions, a content region, and the widgets you place on it. A panel route serves that page. `render()` is still how tests and embedded widgets get the same HTML.
+
+Chart.js is the default chart engine. Pass `ChartEngine.APEX_CHARTS` when you want ApexCharts. A widget must be placeable on a page: `widgets(...)` on `Page` draws it inside `<div class="ff-page-widgets">`. The hello sample’s `DeskWidget` is discovered from `widgets/` and placed on the Desk page.
 
 The types live in `org.konaframework.firefly.widgets` (`kona-firefly-widgets`). Chainable setters accept a static value or a closure that receives the schema `Get`. `extraAttributes` is on every widget. Chart filters also accept `extraInputAttributes`.
 

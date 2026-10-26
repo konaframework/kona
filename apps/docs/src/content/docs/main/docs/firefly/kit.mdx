@@ -1,60 +1,12 @@
 ---
-title: Tenancy, plugins, and the kit
-description: Scope a resource to a tenant, extend a panel with a plugin, move rows through the queue, and start an app with kona new.
+title: Tenancy, plugins, and import
+description: Pointers to tenancy, plugins, and import and export.
 ---
 
-These pieces sit on the panel you already mount. A plugin calls the same panel methods an application calls. There is no separate plugin registry.
+These three topics each have their own page:
 
-## Tenants
+- [Tenancy](/docs/firefly/tenancy/) — the tenant menu and `Resource.tenant`
+- [Plugins](/docs/firefly/plugins/) — `FireflyPlugin.register` and `boot`
+- [Import and export](/docs/firefly/import-export/) — CSV jobs and `Firefly.test`
 
-`tenant(Tenant("acme").label("Acme"))` adds a link in the top bar. The link sets `?tenant=acme`. While that request renders, `FireflyTenant.id()` is `acme`. A resource that calls `tenant("tenant_id")` adds that column to `query()` when the id is set. A Cadence model still returns a `ModelBuilder`. An unknown tenant id fails at the page and names the id.
-
-```kotlin
-Panel().path("admin").tenant(Tenant("acme").label("Acme"))
-Resource("orders").model(Order::class.java).tenant("tenant_id")
-```
-
-```java
-new Panel().path("admin").tenant(new Tenant("acme").label("Acme"));
-new Resource("orders").model(Order.class).tenant("tenant_id");
-```
-
-## Plugins
-
-Subclass `FireflyPlugin`, override `register` and `boot`, and pass the instance to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts, before pages are routed. `configureUsing` is the same static hook other Firefly types use. `view("plugins/banner.crema.html")` stores the view path on the plugin.
-
-```kotlin
-class BannerPlugin : FireflyPlugin() {
-    override fun id(): String = "banner"
-
-    override fun register(panel: Panel) {
-        panel.hook(Hook.BODY_END, "<p>Banner</p>")
-    }
-}
-```
-
-## Import and export
-
-`FireflyTransfer.exportAction()` and `importAction()` are dialog actions. `export(rows, file, bus)` and `import(file, bus)` run `ExportRows` and `ImportRows`. Those jobs implement `ShouldQueue`. Pass a queue `Bus` and the sync driver runs them inline. Pass `null` and the same `handle()` runs on the caller.
-
-## Tests
-
-`Firefly.test(page)` reads the rendered page.
-
-```kotlin
-Firefly.test(page)
-    .assertSee("Ada")
-    .assertFormField("name")
-    .assertTable("Ada")
-    .assertDialog("Export")
-```
-
-```java
-Firefly.test(page).assertSee("Ada").assertFormField("name");
-```
-
-A custom field is a subclass of a form field. `assertFormField` looks for its `data-ff-path`.
-
-## A new app
-
-`kona new desk --kit=firefly` writes a Crema app plus `app/firefly/Panel`, the `pages/`, `widgets/`, and `resources/` folders, and a boot class that mounts the panel at `/admin`. `--lang=java` writes the Java panel. The welcome route stays in place.
+`kona new desk --kit=firefly` is covered on [Installation](/docs/firefly/installation/).

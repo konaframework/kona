@@ -3,6 +3,10 @@ title: Tables
 description: Show records in a Firefly table with columns, filters, search, sort, pages, and row buttons.
 ---
 
+:::note[Screenshot placeholder: the notes table]
+A screenshot of this screen will go here.
+:::
+
 A table lists records, then lets someone search, sort, filter, and page through them. You describe the columns and filters in Kotlin or Java. `render()` returns the HTML, including the Alpine `ffColumn` factory, `@entangle`, and `$wire.$call` hooks.
 
 The types live in `org.konaframework.firefly.tables` (`kona-firefly-tables`). The module depends on `kona-firefly-schemas` and `kona-firefly-support`. A Cadence model also uses `kona-cadence`, because the query you receive is that model’s `ModelBuilder`.
@@ -76,7 +80,7 @@ table.modifyQueryUsing(query -> query
 
 `extraAttributes` on a column merges HTML attributes onto the column root. A map or a closure that receives the cell both work. `extraInputAttributes` does the same for a column or filter that renders its own input or select. `type`, `name`, and `value` stay owned by that control.
 
-A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `ModelBuilder`. Mongo document models belong to the later `kona-firefly-document` addon.
+A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `ModelBuilder`. A document model fails, and the message names `kona-firefly-document`. That module is not part of this release. Any other type fails and tells you to use `Table.memory` for custom rows.
 
 ## Columns
 

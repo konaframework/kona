@@ -1,101 +1,41 @@
 ---
-title: Overview
-description: What Kona Firefly is, which artifacts ship today, and how the support types fit together.
+title: Introduction
+description: What Kona Firefly is for, and the path from an empty panel to a working desk.
 ---
 
-**Kona Firefly** (short name **Firefly**) is Kona’s application-panel product. A panel is a themed shell — sidebar, top bar, body, and footer — plus dialogs that actions can open. Firefly renders that chrome on the server and keeps interactive pieces on [Wire](/docs/wire/) and Alpine.
+**Kona Firefly** (short name **Firefly**) is Kona’s panel for the people who run an application. A **panel** is one signed-in (or public) area of the site: a brand, a navigation tree, and the screens that list and edit records. Firefly draws that area on the server. Buttons, dialogs, and live fields stay in the browser through [Wire](/docs/wire/) and Alpine.
 
-(Brief nod: Firefly occupies the same problem space as full application-panel kits. The rest of these pages describe Firefly on its own terms.)
+You use Firefly when the work is “open the desk, find the order, change it, and see that it saved” — not when the work is a public marketing page or a JSON API. Those stay on ordinary Kona routes. Adding the Firefly module does not rewrite routes you already defined. Routes appear when a `Panel` calls `mount`.
 
-Nine artifacts are in the repository today.
+:::note[Screenshot placeholder: the desk panel]
+A screenshot of the desk panel, with the sidebar and the Desk page, will go here.
+:::
 
-`org.konaframework:kona-firefly-support`, package `org.konaframework.firefly.support`, gives you themes, scoped CSS, panel chrome, render hooks, icons, and the shared dialog. It does not register HTTP routes, middleware, or views. Adding it to an existing application does not change routes you already defined.
+:::note
+Firefly takes a short cue from [Filamentphp](https://filamentphp.com/). From here on, these pages describe Firefly on its own terms.
+:::
 
-`org.konaframework:kona-firefly-schemas`, package `org.konaframework.firefly.schemas`, builds the schema tree: layouts, text, icons, images, state, and live updates. Read [Schemas](/docs/firefly/schemas/) for that API.
+## What you build
 
-`org.konaframework:kona-firefly-actions`, package `org.konaframework.firefly.actions`, builds buttons, links, groups, and confirmation dialogs. Read [Actions](/docs/firefly/actions/) for that API.
+A panel is a class named `Panel` in `app/firefly`. It discovers three folders next to itself:
 
-`org.konaframework:kona-firefly-infolists`, package `org.konaframework.firefly.infolists`, renders read-only entries on that tree. Read [Infolists](/docs/firefly/infolists/).
+| Folder | What lands there |
+|--------|------------------|
+| `pages/` | Screens you design yourself, such as a desk |
+| `widgets/` | Stats, charts, and other cards placed on a page |
+| `resources/` | One class per record type, such as notes or orders |
 
-`org.konaframework:kona-firefly-tables`, package `org.konaframework.firefly.tables`, lists records with columns, filters, search, sort, and pages. Read [Tables](/docs/firefly/tables/) for that API.
+The hello samples (`samples/hello-kotlin` and `samples/hello-java`) are that layout, mounted at `/admin`. The same samples are the app these guides follow.
 
-`org.konaframework:kona-firefly-forms`, package `org.konaframework.firefly.forms`, adds form fields on that schema: text, choices, dates, editors, uploads, repeaters, and builders. Read [Forms](/docs/firefly/forms/) for that API.
+## How to read the rest
 
-`org.konaframework:kona-firefly-notifications`, package `org.konaframework.firefly.notifications`, flashes a toast, lists database notices in a bell, and marks a page for broadcast refresh. Read [Notifications](/docs/firefly/notifications/).
+Follow the sidebar from top to bottom the first time:
 
-`org.konaframework:kona-firefly-widgets`, package `org.konaframework.firefly.widgets`, renders stats, charts, tables, and account cards on their own and on a page or dashboard. Read [Widgets](/docs/firefly/widgets/).
+1. [Requirements](/docs/firefly/requirements/) — JDK and the Kona app you already have.
+2. [Installation](/docs/firefly/installation/) — `kona new --kit=firefly`, or add the module to an existing app.
+3. [Register a panel](/docs/firefly/registration/) — the `Panel` file, the folders, and `discover`.
+4. [A working app](/docs/firefly/working-app/) — a simple notes resource and a full orders resource.
 
-`org.konaframework:kona-firefly`, package `org.konaframework.firefly`, mounts a panel at `/admin` or at the site root, with navigation, auth screens, and pages discovered from the panel directory. A resource in that directory binds one model to its pages. Tenants, plugins, import and export, and `kona new --kit=firefly` are in [Tenancy and plugins](/docs/firefly/kit/). Read [Panel](/docs/firefly/panel/) and [Resources](/docs/firefly/resources/).
+After that, each component has its own page: what it is, how a request uses it, the methods that exist, and Kotlin and Java examples. Start with [Panel](/docs/firefly/panel/) when you are ready to leave the walkthrough.
 
-## Add the module
-
-Depend on the Firefly modules through the Kona BOM (`org.konaframework`). The first Firefly release train is **0.4.x**. Until that train is published, use the modules from a Kona checkout:
-
-```kotlin
-dependencies {
-    implementation(project(":kona-firefly-support"))
-    implementation(project(":kona-firefly-schemas"))
-    implementation(project(":kona-firefly-actions"))
-    implementation(project(":kona-firefly-infolists"))
-    implementation(project(":kona-firefly-tables"))
-    implementation(project(":kona-firefly-forms"))
-    implementation(project(":kona-firefly-notifications"))
-    implementation(project(":kona-firefly-widgets"))
-    implementation(project(":kona-firefly"))
-}
-```
-
-Java projects use the same coordinates. Every public type in this package is callable from Java.
-
-## What you build with
-
-| Type | Role |
-|------|------|
-| [`FireflyTheme`](/docs/firefly/themes/) | Colors, font, radius, and optional replacement HTML for a chrome slot |
-| [`KonaTheme`](/docs/firefly/themes/) | Built-in caramel theme (`id` is `kona`) |
-| [`Stylesheet`](/docs/firefly/themes/) | Turns a theme into CSS variables scoped under `.ff-panel` |
-| [`Panel`](/docs/firefly/chrome/) | Picks the theme, layout, hooks, and partial overrides, then renders |
-| [`Dialog`](/docs/firefly/dialog/) | One dialog component: modal, sidebar, or fullscreen |
-| [`Action`](/docs/firefly/actions/) | Button, link, confirmation, and dialog body |
-| `Icon` | Inline SVG icons: `HOME`, `BARS`, `USER`, `X` |
-| `FireflyException` | Unchecked failure for a bad width, a missing hook marker, or CSS that escapes the panel |
-
-## A shell in one call
-
-Kotlin:
-
-```kotlin
-val html = Panel()
-    .theme(KonaTheme())
-    .hook(Hook.BODY_START, "<p>Welcome</p>")
-    .render()
-```
-
-Java:
-
-```java
-String html = new Panel()
-    .theme(new KonaTheme())
-    .hook(Hook.BODY_START, "<p>Welcome</p>")
-    .render();
-```
-
-`render()` returns one root `<div class="ff-panel">` with a `<style>` block, then the sidebar, top bar, body, and footer. The body partial contains the hook text `Welcome`.
-
-## Icons
-
-`Icon.HOME`, `Icon.BARS`, `Icon.USER`, and `Icon.X` each expose `path` and `svg()`. `svg()` returns an `<svg class="ff-icon">` whose path data is HTML-escaped.
-
-`Icon.fromName` accepts those names in any letter case (`"HoMe"` is `HOME`). Any other name throws `FireflyException` with the message `Unknown icon [<name>]`.
-
-```kotlin
-Icon.fromName("bars").svg()
-```
-
-```java
-Icon.fromName("bars").svg();
-```
-
-## Failure type
-
-`FireflyException` extends `RuntimeException`. Callers do not have to declare it. The message names the bad value: the dialog width, the theme id, the partial slot, or the icon name.
+Kotlin and Java call the same types. Every example that matters is shown in both languages. The class you extend is `Panel`. The package is `org.konaframework.firefly`.

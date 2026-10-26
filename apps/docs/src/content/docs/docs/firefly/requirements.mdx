@@ -1,0 +1,36 @@
+---
+title: Requirements
+description: JDK, Kona, and the pieces a Firefly panel needs before you install it.
+---
+
+Firefly runs inside a Kona application. You do not install a second runtime.
+
+:::note[Screenshot placeholder: a Kona app ready for a panel]
+A screenshot of a fresh app directory, before the panel is added, will go here.
+:::
+
+## Runtime
+
+| Requirement | What you need |
+|-------------|----------------|
+| **JDK** | 21 or newer. Kona uses virtual threads. |
+| **A Kona app** | Created with `kona new`, or an existing Gradle project that already depends on `org.konaframework`. |
+| **`kona` and `./grind`** | The global CLI creates the app. `./grind` inside the app serves it and runs `make:firefly-*`. |
+| **Browser** | A current browser. The panel HTML is interactive once Alpine starts. |
+
+The panel artifact is `org.konaframework:kona-firefly`. It brings the support, schema, action, infolist, table, form, notification, and widget modules with it. You do not add those coordinates one by one.
+
+## What the panel expects to be present
+
+| Piece | Why |
+|-------|-----|
+| HTTP and Crema | Pages are HTML responses. The kit registers those providers. |
+| Session | Login, password reset, and notification toasts use the session. |
+| Cadence | A resource that calls `model(...)` with a Cadence model can build a `ModelBuilder` from `query()`. The hello samples also render tables from in-memory rows, so the first screens work before you migrate. |
+| Wire | Live fields and action clicks post through Wire. The panel HTML includes those hooks. |
+
+You do not need Node to serve a panel. Chart.js and ApexCharts ship inside the widget module and are served from `/_firefly/widgets/`.
+
+## Next
+
+[Installation](/docs/firefly/installation/) creates the app or adds the dependency.

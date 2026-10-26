@@ -20,6 +20,7 @@ dependencies {
 
     testImplementation(project(":kona-grind"))
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.h2)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

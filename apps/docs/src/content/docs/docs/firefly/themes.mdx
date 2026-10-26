@@ -3,6 +3,10 @@ title: Themes and CSS
 description: FireflyTheme, KonaTheme tokens, scoped CSS variables, and the rule that keeps theme CSS inside the panel.
 ---
 
+:::note[Screenshot placeholder: a themed panel]
+A screenshot of this screen will go here.
+:::
+
 A **theme** is an implementation of `FireflyTheme`. It supplies an id, a `ThemeTokens` object, optional HTML for a chrome slot, and optional extra CSS. `Stylesheet.render` turns the tokens into CSS custom properties on `.ff-panel`. Component rules in the shipped stylesheet only match descendants of `.ff-panel`, so a page that never renders a panel does not pick up Firefly’s button, sidebar, or dialog rules.
 
 ## FireflyTheme

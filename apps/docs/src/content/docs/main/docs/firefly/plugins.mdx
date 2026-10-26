@@ -1,0 +1,73 @@
+---
+title: Plugins
+description: Extend a panel with FireflyPlugin register and boot, using the same methods an application calls.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A plugin is a class that receives the `Panel` and calls the same methods an application calls. There is no plugin registry. You pass the instance to `plugin(...)`.
+
+:::note[Screenshot placeholder: a plugin banner]
+A screenshot of a panel body with a plugin hook will go here.
+:::
+
+## How it runs
+
+`register` runs immediately, inside `plugin(...)`. `boot` runs when the panel mounts, before pages are routed. A second plugin with the same `id()` throws `FireflyException` and names the id. `configureUsing` is the same static hook other Firefly types use: it runs on the instance before `register`. Pass `null` to clear it. `view("plugins/banner.crema.html")` stores a view path on the plugin. A blank path throws `Plugin view path is blank`. `view()` returns that path, or null when you never set one.
+
+The default `id()` is the simple class name, lowercased.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class BannerPlugin : FireflyPlugin() {
+    override fun id(): String = "banner"
+
+    override fun register(panel: Panel) {
+        panel.hook(Hook.BODY_END, "<p>Banner</p>")
+    }
+
+    override fun boot(panel: Panel) {
+        panel.brand("Desk")
+    }
+}
+
+panel.plugin(BannerPlugin().view("plugins/banner.crema.html"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class BannerPlugin extends FireflyPlugin {
+    @Override
+    public String id() {
+        return "banner";
+    }
+
+    @Override
+    public void register(Panel panel) {
+        panel.hook(Hook.BODY_END, "<p>Banner</p>");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`Hook` lives in `org.konaframework.firefly.support`. The hook markers and partials are on [Panel chrome](/docs/firefly/chrome/).
+
+## Methods
+
+| Method | What it does |
+|--------|----------------|
+| `id()` | Stable name. Duplicate ids fail at `plugin` |
+| `view(path)` / `view()` | Stores and reads a Crema view path |
+| `register(panel)` | Runs immediately |
+| `boot(panel)` | Runs at the start of `mount` |
+| `configureUsing` | Static hook for every later `plugin(...)` call |
+
+## Next
+
+[Import and export](/docs/firefly/import-export/) moves rows through a dialog action and a queue job.

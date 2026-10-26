@@ -1,0 +1,131 @@
+---
+title: Register a panel
+description: The Panel class, the pages, widgets, and resources folders, and how discover loads them.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A panel becomes part of the app when two things are true: the class calls `discover` on its own directory, and boot calls `mount` on the router. The class is `Panel`. It extends `org.konaframework.firefly.Panel`.
+
+:::note[Screenshot placeholder: the panel directory]
+A screenshot of `app/firefly` with `Panel`, `pages/`, `widgets/`, and `resources/` will go here.
+:::
+
+## The panel file
+
+The hello sample and `kona new --kit=firefly` both use this class. The id is the panel’s name in route names and in the guard `firefly-desk`. The path is the URL prefix. `authenticate(false)` leaves the screens public, which is how the sample is shipped. `discover` is what loads the child folders.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.firefly
+
+import org.konaframework.core.Kona
+
+class Panel : org.konaframework.firefly.Panel() {
+    init {
+        id("desk")
+        path("admin")
+        brand("Desk")
+        authenticate(false)
+        discover(Kona.app().basePath("src/main/kotlin/app/firefly"))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.firefly;
+
+import org.konaframework.core.Kona;
+
+public class Panel extends org.konaframework.firefly.Panel {
+    public Panel() {
+        id("desk");
+        path("admin");
+        brand("Desk");
+        authenticate(false);
+        discover(Kona.app().basePath("src/main/java/app/firefly"));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`./grind make:firefly-panel` writes `id` and `path` only. Add `brand`, `authenticate`, and `discover` yourself when you generate the class instead of using the kit. `./grind firefly:install` writes that same shorter class.
+
+Mount it after your own routes, so `/` stays the welcome page:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+WebRoutes().register(router)
+ApiRoutes().register(router)
+DeskPanel().mount(router)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new WebRoutes().register(router);
+new ApiRoutes().register(router);
+new app.firefly.Panel().mount(router);
+```
+
+</TabItem>
+</Tabs>
+
+`mount` registers the panel’s GET and POST paths. Calling it twice throws `FireflyException` and names the panel id. If a path is already taken, `mount` throws and names both handlers. The existing route stays. A panel does not register `/_firefly/` or `/wire/update`.
+
+## Directory layout
+
+`discover(panelDirectory)` reads three folders. A missing folder is empty. A file must declare a package and a class whose name matches the file. That class must already be on the classpath and must have a no-arg constructor. Abstract classes and unrelated types are skipped.
+
+| Folder | Loaded type |
+|--------|-------------|
+| `pages/` | `PanelPage` (`CustomPage`, and the list, create, edit, view, and manage pages) |
+| `widgets/` | `Widget` |
+| `resources/` | `Resource` |
+
+The hello sample uses exactly those three folders:
+
+```text
+app/firefly/Panel.kt
+app/firefly/pages/Desk.kt
+app/firefly/widgets/DeskWidget.kt
+app/firefly/resources/NoteResource.kt
+app/firefly/resources/OrderResource.kt
+```
+
+Java uses the same names under `src/main/java/app/firefly/`.
+
+Generators for fields, entries, columns, filters, actions, layouts, and themes write sibling folders (`fields/`, `entries/`, `columns/`, `filters/`, `actions/`, `layouts/`, `themes/`). `discover` does not scan those folders. You reference those classes from a page, a resource, or `theme(...)`.
+
+You can still call `page`, `widget`, and `resource` on the panel instead of discovery. There is no app-wide registry.
+
+Discovered widgets are placed on the page whose slug is empty, or on the first page when no page has an empty slug. In the hello sample that first page is `Desk`, so `DeskWidget` renders on `/admin/desk`.
+
+## What mount serves
+
+With `path("admin")`, page and resource URLs look like this:
+
+| URL | Screen |
+|-----|--------|
+| `/admin/desk` | The custom Desk page |
+| `/admin/notes/manage` | The simple notes resource |
+| `/admin/orders/list` | Orders list |
+| `/admin/orders/create` | Orders create |
+| `/admin/orders/edit` | Orders edit |
+| `/admin/orders/view` | Orders view |
+
+`path("")` serves the same screens at the site root. Auth screens (`/admin/login`, `/admin/register`, `/admin/password-reset`, `/admin/email-verify`, `/admin/profile`) are registered even when `authenticate(false)` skips the redirect.
+
+## Next
+
+[A working app](/docs/firefly/working-app/) fills `resources/` with the notes and orders classes from the hello sample.

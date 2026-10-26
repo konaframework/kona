@@ -3,6 +3,10 @@ title: Infolists
 description: Show a record with text, icons, images, colors, key-value rows, code, and repeatable entries.
 ---
 
+:::note[Screenshot placeholder: the notes infolist]
+A screenshot of this screen will go here.
+:::
+
 An infolist reads state and renders it. It does not collect input. The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). They sit on the schema tree from [Schemas](/docs/firefly/schemas/), so a section, a grid, and tabs are the same layout components you already use.
 
 Each entry is a `div.ff-entry` with `x-data="ffEntry"`. That Alpine factory is registered by the schema script. Copyable state and live binding use it.
@@ -207,6 +211,6 @@ public class NoteEntry extends Entry<NoteEntry> {
 
 `./grind make:firefly-entry Note` writes `app/firefly/entries/Note.kt` and a Crema view that uses `x-data="ffEntry"` and `@entangle`. `--lang=java` writes a Java class. The view name is `firefly.entries.note`.
 
-## What arrives later
+## Prefix and suffix
 
-Prefix and suffix actions wait for the actions artifact. Counts, averages, and similar record summaries wait for a record store. A private disk URL waits for a filesystem-backed URL. The code editor field and data tables are separate Firefly artifacts.
+`prefix` and `suffix` are text, or a closure that returns text. They are not action buttons. Record summaries such as a count or an average are not methods on an entry. A table column can summarize with `summarize` — see [Tables](/docs/firefly/tables/). A code editor is a form field — see [Forms](/docs/firefly/forms/).
