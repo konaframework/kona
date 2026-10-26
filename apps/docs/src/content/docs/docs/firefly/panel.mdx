@@ -1,20 +1,20 @@
 ---
 title: Panel
-description: The Panel class — id, path, brand, guard, theme, hooks, and mount.
+description: Set the id, path, and brand on app/firefly/Panel, then call mount. That is the class that registers the desk routes.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`Panel` is the object you configure and mount. The file in your app is `app/firefly/Panel`, and the class it extends is `org.konaframework.firefly.Panel`.
+Set the id, the URL prefix, and the brand, then call `mount`. The file in your app is `app/firefly/Panel`. The class it extends is `org.konaframework.firefly.Panel`.
 
-Adding the module does not register routes by itself. Routes appear when you call `mount`. Chrome, the sidebar and the top bar, is a second class with the same simple name, `org.konaframework.firefly.support.Panel`. That one is documented on [Panel chrome](/docs/firefly/chrome/). The class you write is the one in `org.konaframework.firefly`.
+The module does not register routes until you call `mount`. Chrome, the sidebar and the top bar, is a second class with the same simple name, `org.konaframework.firefly.support.Panel`. That one is on [Panel chrome](/docs/firefly/chrome/). The class you write is the one in `org.konaframework.firefly`.
 
 <FireflyShot file="desk-panel.png" description="The hello-kotlin panel at http://127.0.0.1:4017/admin/desk, with the sidebar and the Desk page in the body." />
 
 Chainable setters accept a static value or a closure. The closure receives the schema `Get`. A blank id, brand, domain, or guard name throws `FireflyException` and names the field.
 
-## A panel in one call
+## Mount a panel
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -51,9 +51,9 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 
 `mount(router, state)` evaluates closures against that state map. A second `mount` throws `Panel [id] is already mounted`.
 
-## Methods
+## Methods you will call
 
-| Method | What it does |
+| Method | What you get |
 |--------|----------------|
 | `id` / `path` / `brand` / `domain` | String or `Get` closure. Id defaults to `admin`. Path defaults to `admin`. Brand defaults to `Firefly` |
 | `navigation` / `topNavigation()` | `NavigationType`. Default `APP`. See [Navigation](/docs/firefly/navigation/) |
@@ -61,7 +61,7 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 | `layout(PanelLayout)` | Replaces the shell arrangement |
 | `hook(Hook, html)` | Appends HTML into a chrome hook |
 | `spa(true)` | Adds `wire:navigate` on links that have a URL |
-| `authenticate(false)` | Pages do not redirect to login. The hello sample does this |
+| `authenticate(false)` | Pages skip the login redirect. The hello samples do this |
 | `guard` / `useAuthGuard` / `reuseAppGuard` | Who is signed in. See below |
 | `item` / `cluster` / `userMenu` | Navigation tree. See [Navigation](/docs/firefly/navigation/) |
 | `page` / `resource` / `widget` | Register one instance without discovery |
@@ -72,19 +72,19 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 | `render(request)` | The chrome for a request, without a page body |
 | `guardName()` | `firefly-{id}`, or the name you passed to `reuseAppGuard` |
 
-## Auth and the guard
+## Sign-in and the guard
 
-The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the application guard name `web`) or `reuseAppGuard("name")`. `useAuthGuard(guard)` adapts an application `Guard`. Until you do that, the panel keeps its own `MemoryPanelGuard` and does not replace the application’s login or session.
+The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the application guard name `web`) or `reuseAppGuard("name")`. `useAuthGuard(guard)` adapts an application `Guard`. Until you do that, the panel keeps its own `MemoryPanelGuard` and leaves the application’s login and session in place.
 
 The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, and `/profile`, under the panel prefix. Pages require that guard unless you call `authenticate(false)`. Login and registration read `email` and `password` (registration also reads `name`). A missing field returns 422 HTML. A failed attempt returns 422 HTML and the message `Those credentials do not match`.
 
 When the guard has no id, the user chip reads **Guest**.
 
-## Theme and hooks
+## Pick a theme and a hook
 
-`theme(HarborTheme())` selects the sample theme shipped on the panel artifact: a different primary color, a sidebar partial that keeps the hook markers, and a small extra stylesheet under `.ff-panel`. `hook(Hook.BODY_END, "...")` still injects into the shell. The support `Panel` is what applies the theme, the layout, and the hooks. Read [Panel chrome](/docs/firefly/chrome/) for slots and partials.
+`theme(HarborTheme())` selects the sample theme shipped on the panel artifact: a different primary color, a sidebar partial that keeps the hook markers, and a small extra stylesheet under `.ff-panel`. `hook(Hook.BODY_END, "...")` still injects into the shell. The support `Panel` applies the theme, the layout, and the hooks. Read [Panel chrome](/docs/firefly/chrome/) for slots and partials.
 
-## Generate one
+## Generate the class
 
 ```bash
 ./grind make:firefly-panel
@@ -94,7 +94,7 @@ When the guard has no id, the user chip reads **Guest**.
 ./grind firefly:publish
 ```
 
-`make:firefly-panel` and `firefly:install` write `Panel` plus empty `pages/`, `widgets/`, and `resources/` folders. The generated class sets `id` and `path` only. `firefly:publish` copies the sidebar partial into `resources/views/firefly/sidebar.crema.html` so you can edit it. The partial must keep the hook markers or render throws.
+`make:firefly-panel` and `firefly:install` write `Panel` plus empty `pages/`, `widgets/`, and `resources/` folders. The generated class sets `id` and `path` only. `firefly:publish` copies the sidebar partial into `resources/views/firefly/sidebar.crema.html` so you can edit it. Keep the hook markers in that partial, or `render` throws.
 
 ## Next
 

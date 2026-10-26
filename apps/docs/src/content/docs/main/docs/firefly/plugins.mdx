@@ -1,20 +1,20 @@
 ---
 title: Plugins
-description: Extend a panel with FireflyPlugin register and boot, using the same methods an application calls.
+description: Pass a class to plugin() when a banner, a brand, or an extra page should travel with the panel. register runs now. boot runs at mount.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A plugin is a class that receives the panel and calls the same methods you would call from the app. You use one when a banner, a brand, or an extra page should travel with the panel instead of being copied into every `Panel` file.
+Write a class that receives the panel and calls the same methods you would call from the app. Use one when a banner, a brand, or an extra page should travel with the panel.
 
-There is no plugin registry and no catalog to install from. You pass the instance to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts.
+Pass the instance to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts. Keep the class in the app. There is no catalog to install from.
 
 <FireflyShot file="plugin-banner.png" description="A panel body with the Banner text a plugin hook appends at the end of the body." />
 
-## How it runs
+## Register the plugin
 
-`register` runs immediately, inside `plugin(...)`. `boot` runs when the panel mounts, before pages are routed. A second plugin with the same `id()` throws `FireflyException` and names the id. `configureUsing` is the same static hook other Firefly types use: it runs on the instance before `register`. Pass `null` to clear it. `view("plugins/banner.crema.html")` stores a view path on the plugin. A blank path throws `Plugin view path is blank`. `view()` returns that path, or null when you never set one.
+`register` runs inside `plugin(...)`. `boot` runs when the panel mounts, before pages are routed. A second plugin with the same `id()` throws `FireflyException` and names the id. `configureUsing` runs on the instance before `register`. Pass `null` to clear it. `view("plugins/banner.crema.html")` stores a view path on the plugin. A blank path throws `Plugin view path is blank`. `view()` returns that path, or null when you never set one.
 
 The default `id()` is the simple class name, lowercased.
 
@@ -57,11 +57,11 @@ public class BannerPlugin extends FireflyPlugin {
 </TabItem>
 </Tabs>
 
-`Hook` lives in `org.konaframework.firefly.support`. The hook markers and partials are on [Panel chrome](/docs/firefly/chrome/).
+After `mount`, the body ends with the text **Banner**. `Hook` lives in `org.konaframework.firefly.support`. The hook markers and partials are on [Panel chrome](/docs/firefly/chrome/).
 
 ## Methods
 
-| Method | What it does |
+| Method | What you get |
 |--------|----------------|
 | `id()` | Stable name. Duplicate ids fail at `plugin` |
 | `view(path)` / `view()` | Stores and reads a Crema view path |

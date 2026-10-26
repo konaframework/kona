@@ -1,20 +1,20 @@
 ---
 title: A working app
-description: The hello sample’s simple notes resource and full orders resource, the routes that respond, and the commands that generate them.
+description: Open hello-kotlin or hello-java, read the notes and orders resources, and hit the routes those samples already answer.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-The hello sample is a desk you can click through. Notes are a simple resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a full resource: list, create, edit, and view are their own URLs, and line items sit on the edit and view pages.
+Open `samples/hello-kotlin` or `samples/hello-java` and click through the desk. Notes are a simple resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a full resource: list, create, edit, and view are their own URLs, and line items sit on the edit and view pages.
 
-Both apps are in the repository, `samples/hello-kotlin` and `samples/hello-java`. The routes below are the ones those samples answer.
+From the Kona repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :hello-java:run`. The app listens on `127.0.0.1` and port `4000` unless `HOST` or `PORT` is set. Then open the routes in the table at the bottom of this page.
 
 <FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table and the Create, Edit, View, and Delete actions." />
 
-## A simple resource
+## Add the simple notes resource
 
-`simple()` keeps a single `ManagePage`. The sample slug is `notes`, so the route is `/admin/notes/manage`. The form, infolist, and table are the ones the page and the dialogs use. The table in the sample is one in-memory row (`Ada`), so the screen renders before a migration. `model(Note::class.java)` is the Cadence type `query()` uses when you build the table from the model instead of `Table.memory`.
+Put the class in `app/firefly/resources/NoteResource`. `simple()` keeps a single `ManagePage`. The slug is `notes`, so the route is `/admin/notes/manage`. The form, infolist, and table are what the page and the dialogs use. The table is one in-memory row (`Ada`), so the screen renders before a migration. `model(Note::class.java)` is the Cadence type `query()` uses when you build the table from the model instead of `Table.memory`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -62,11 +62,11 @@ public class NoteResource extends Resource {
 </TabItem>
 </Tabs>
 
-The Java sample builds `row()` as a `LinkedHashMap` with `id` `1` and `name` `Ada`. `Select` is a combobox. `DateTimePicker` is Firefly’s own date and time control. Both are covered on [Forms](/docs/firefly/forms/).
+The Java sample builds `row()` as a `LinkedHashMap` with `id` `1` and `name` `Ada`. `Select` draws a combobox. `DateTimePicker` draws Firefly’s own date and time control. Both are on [Forms](/docs/firefly/forms/).
 
 Create, edit, and view put that schema or infolist in the shared dialog. Delete asks for confirmation in the same dialog. A simple resource rejects `relation(...)`.
 
-Generate the same shape with:
+Generate the same shape from a standalone app:
 
 ```bash
 ./grind make:firefly-resource Note --simple
@@ -75,9 +75,11 @@ Generate the same shape with:
 
 The generator writes `page(ManagePage("manage"))` as well as `simple()`, a text field named `name`, and `model(app.models.Note.class)`. Create that Cadence model before the project compiles. The generator’s table is `Table.memory()` with no seed row.
 
-## A full resource
+## Add the full orders resource
 
-Leave `simple()` off and the resource gets list, create, edit, and view pages. The list page mounts the table and a create action. Create and edit mount the form. View mounts the infolist. Edit and view also render each relation manager.
+Leave `simple()` off. The resource gets list, create, edit, and view pages. The list page mounts the table and a create action. Create and edit mount the form. View mounts the infolist. Edit and view also render each relation manager.
+
+Put the class in `app/firefly/resources/OrderResource`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -138,11 +140,11 @@ public class OrderResource extends Resource {
 
 The generator writes list, create, edit, and view pages and one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
 
-## The desk page and widget
+## Open the Desk page
 
 <FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
 
-`pages/Desk` is a `CustomPage` with the same form fields as notes, an infolist, a one-row table, and a header action that opens a dialog. `widgets/DeskWidget` renders a short paragraph. Discovery places that widget on the first page, which is Desk.
+`app/firefly/pages/Desk` is a `CustomPage` with the same form fields as notes, an infolist, a one-row table, and a header action that opens a dialog. `app/firefly/widgets/DeskWidget` renders a short paragraph. Discovery places that widget on the first page, which is Desk.
 
 ```bash
 ./grind make:firefly-page Desk
@@ -151,7 +153,7 @@ The generator writes list, create, edit, and view pages and one relation manager
 
 ## Routes that respond
 
-On the hello sample these GET routes return 200:
+On the hello samples these GET routes return 200:
 
 | Route | Page |
 |-------|------|
@@ -163,9 +165,9 @@ On the hello sample these GET routes return 200:
 | `/admin/orders/edit` | Orders edit |
 | `/admin/orders/view` | Orders view |
 
-## What you will see today
+## What you will see in the browser
 
-A few things on that sample are unfinished in the browser. They are worth knowing before you debug your own app:
+A few things on that sample are unfinished in the browser. Check these before you debug your own app:
 
 - Dialog markup is in the page, and the dialog stays closed until Alpine opens it. Create, edit, view, and delete on the notes page do not pop open from the first HTML response alone.
 - `@entangle(...)` can still appear as raw text when the Alpine binding has not run.
@@ -174,4 +176,4 @@ A few things on that sample are unfinished in the browser. They are worth knowin
 
 ## Next
 
-The component pages start at [Panel](/docs/firefly/panel/). [Resources](/docs/firefly/resources/) is the full method list for the two classes above.
+The component pages start at [Panel](/docs/firefly/panel/). [Resources](/docs/firefly/resources/) lists the methods on the two classes above.

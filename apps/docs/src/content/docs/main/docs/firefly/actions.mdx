@@ -1,18 +1,18 @@
 ---
 title: Actions
-description: Build a Firefly action, open it in the shared dialog, and run it from Wire.
+description: Add a button or a link, open the shared dialog from it, and run a server method when the user submits. The Desk page uses an Edit action in the header.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
+Add a button or a link when the user should save, delete, or open a dialog. The same object can show a schema inside the shared [dialog](/docs/firefly/dialog/) and call a server method when the dialog is submitted.
+
+Actions live in `org.konaframework.firefly.actions` (`kona-firefly-actions`). On the hello samples, `app/firefly/pages/Desk` puts an Edit action in the header. That action opens a dialog with a note field.
+
 <FireflyShot file="header-action.png" description="The Edit header action on the Desk page at http://127.0.0.1:4017/admin/desk." />
 
-An action is a button or a link. You use one when the user should save, delete, or open a dialog without you writing the button HTML. The same object can show a schema inside the shared [dialog](/docs/firefly/dialog/) and call a server method when the dialog is submitted.
-
-Actions live in `org.konaframework.firefly.actions` (`kona-firefly-actions`). On the hello sample, the Desk page puts an Edit action in the header. That action opens a dialog with a note field.
-
-## A button in one call
+## Render a button
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -35,11 +35,11 @@ String html = Schema.make().components(save).render();
 
 `make` takes the action name. The name is a letter or `_`, then letters, digits, and `_`. `save` and `save_record` are valid. `bad-name` throws `FireflyException`.
 
-The rendered button has `x-data="ffAction('save')"` and `wire:click="save"`. `ffAction` is the Alpine factory already registered with Wire. Its `run()` method calls `$wire.$call` with the action name. The button uses `wire:click` for the server call and mounts the factory so another control can call `run()`.
+You see a **Save** button. It has `x-data="ffAction('save')"` and `wire:click="save"`. `ffAction` is the Alpine factory already registered with Wire. Its `run()` method calls `$wire.$call` with the action name. The button uses `wire:click` for the server call and mounts the factory so another control can call `run()`.
 
 `call(schema)` runs that server method in-process. With no `action { ... }` handler and no URL, it throws `FireflyException` (`Action [save] has no handler`).
 
-## Values and closures
+## Pass a value or a closure
 
 Text and flag setters take a fixed value or a closure. The closure receives `Get`, the same reader a schema component uses. A path that starts with `/` is absolute. Other paths are relative to the action’s container.
 
@@ -67,7 +67,7 @@ The last call wins. `label("Save")` after a closure stores the fixed string. The
 
 `hidden`, `visible`, and `disabled` come from the schema component base, so they already take a boolean or a predicate. They return the component base. Call them on their own line when you want to keep the `Action` type for the next call.
 
-## Show, hide, disable, authorize
+## Show, hide, disable, or authorize
 
 `hidden(true)` and `visible(false)` render an empty action shell with the class `ff-hidden`. The button is not in the HTML. `disabled(true)` keeps the button and sets the `disabled` attribute. A disabled link uses `aria-disabled="true"` and omits `href`. `call` throws `Action [save] is hidden` or `Action [save] is disabled` before the handler runs.
 
@@ -92,7 +92,7 @@ Action.gate((ability, component, schema) -> "edit".equals(ability));
 
 `authorize(true)`, a predicate, and a named ability all apply. Any denial hides the action. `Action.gate(null)` clears the gate. The gate is process-wide.
 
-## Icon, color, tooltip, badge, size
+## Set the icon, color, tooltip, badge, and size
 
 `icon("home")` inlines an icon from the support set: `home`, `bars`, `user`, `x`. Any other name throws `Unknown icon [<name>]`. `iconPosition("before")` is the default. `iconPosition("after")` draws the icon after the label. Anything else throws `Unknown icon position [<value>]`.
 
@@ -106,16 +106,16 @@ Action.gate((ability, component, schema) -> "edit".equals(ability));
 
 `extraAttributes` merges attributes onto the component root. Pass a map or a closure. The name must be an HTML attribute name. `wire:click`, `x-data`, `type`, `href`, and `disabled` are reserved and throw. Values are escaped.
 
-## Links
+## Make it a link
 
 `url("https://example.test")` renders an `<a>` instead of a server button. `openUrlInNewTab(true)` adds `target="_blank"` and `rel="noopener noreferrer"`. The anchor still mounts `ffAction`. It does not use `wire:click`. `call` returns the URL and does not run the handler. An empty URL throws `Action [name] URL is empty`.
 
-## Confirmation and the dialog
+## Open the dialog
 
 `requiresConfirmation()`, `modal()`, `slideOver()`, `slideOverStart()`, `fullscreen()`, `modalHeading`, `modalDescription`, or `schema(...)` with at least one component opens `Dialog`. The trigger uses Alpine `open` and does not call the server. The submit button uses `wire:click` and `ffAction`.
 
-| Call | Dialog |
-|------|--------|
+| Call | What you see |
+|------|----------------|
 | default when a dialog is shown | `modal()`, top aligned, width `lg` |
 | `slideOver()` | sidebar from the end |
 | `slideOverStart()` | sidebar from the start |
@@ -140,7 +140,7 @@ Submit text is `Confirm` when confirmation is on, otherwise `Submit`, unless `mo
 
 `modalSubmitAction` and `modalCancelAction` replace those buttons with other actions. `extraModalFooterActions` adds more. Passing the action itself throws `Action [name] cannot contain itself` (or `cannot submit itself` / `cannot cancel itself`).
 
-## Schema content
+## Put a schema in the dialog
 
 `schema(Text.make("Hello"))` renders those components in the dialog body. Layouts and primes from the schema module work, including a wizard:
 
@@ -165,9 +165,9 @@ Action.make("edit").schema(
 </TabItem>
 </Tabs>
 
-`schema()` with no components does not open a dialog. This module does not add inputs, fill a form, or run validation.
+`schema()` with no components does not open a dialog. Inputs arrive with [Forms](/docs/firefly/forms/). On the Desk page the Edit action uses `schema(TextInput.make("note"))`, so the dialog body is a note field.
 
-## Groups
+## Group several actions
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -193,7 +193,7 @@ ActionGroup group = ActionGroup.make(List.of(save)).label("More").button();
 
 `configureUsing` on `Action` or `ActionGroup` runs for every later `make()` of that class. Pass `null` to clear it. It does not apply to a subclass you construct yourself.
 
-## Running the action
+## Run the handler
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -224,15 +224,15 @@ ActionResult result = save.call(schema);
 </TabItem>
 </Tabs>
 
-Order on success: `before`, the handler, `after`. The result `status` is `success`. `url` is set for a link action. `redirectUrl` is that link, or `successRedirectUrl` for a handler. The button also carries `data-ff-success-url` when a success URL is set. `call` does not send the browser anywhere. The caller does.
+Order on success: `before`, the handler, `after`. The result `status` is `success`. `url` is set for a link action. `redirectUrl` is that link, or `successRedirectUrl` for a handler. The button also carries `data-ff-success-url` when a success URL is set. `call` returns the result. Your caller sends the browser to `redirectUrl`.
 
 `halt()` throws `ActionHalt`, skips `after`, and `call` returns status `halted` with the message `Action halted`. `failure("nope")` throws `ActionFailure`, skips `after`, and `call` returns status `failed` with that message and `failureRedirectUrl`. Any other exception leaves `call`.
 
 `argument("id")` reads the map passed to `arguments`. A later change to the original map does not change the stored value. A missing key is `null`.
 
-## Your own action
+## Write your own action
 
-Subclass `Action`. The constructor name is the Wire method name.
+Subclass `Action`. The constructor name is the Wire method name. The generator writes the class under `app/firefly/actions`. Reference it from a page or a resource. `discover` does not scan that folder.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -263,14 +263,18 @@ public class Rename extends Action {
 
 `view("notes.action")` renders that Crema view when `Schema.crema(engine)` is set. The view receives `path`, `name`, `label`, and `content`. Without an engine, render emits `<div data-ff-view="notes.action">`. A hidden action does not render the view.
 
-`./grind make:firefly-action SaveRecord` writes an `open` class and a Crema view under `app/firefly/actions`. `--lang=java` writes a Java class. The view opens a local Alpine `open` flag and submits with `x-data="ffAction('saveRecord')"` and `wire:click="saveRecord"`.
+```bash
+./grind make:firefly-action SaveRecord
+```
 
-## What this module does not do
+`--lang=java` writes a Java class. The view opens a local Alpine `open` flag and submits with `x-data="ffAction('saveRecord')"` and `wire:click="saveRecord"`.
 
-It does not add form fields, fill or validate a form, or run a form wizard. Put a schema layout in `schema(...)` when the dialog only needs text, sections, or a wizard chrome. Inputs arrive with forms.
+## What you do on another page
 
-It does not render infolist entries or table columns, and it does not attach an action to a record, a bulk selection, or a toolbar.
+Form fields, fill, and validation are on [Forms](/docs/firefly/forms/). Put a schema layout in `schema(...)` when the dialog only needs text, sections, or a wizard chrome.
 
-It does not send notifications, import or export rows, wrap `call` in a database transaction, or rate-limit the handler.
+Infolist entries and table columns are their own pages. This module does not attach an action to a record, a bulk selection, or a toolbar. Row and header buttons on a table are `TableButton` on [Tables](/docs/firefly/tables/).
+
+This module does not send notifications, import or export rows, wrap `call` in a database transaction, or rate-limit the handler. Toasts are on [Notifications](/docs/firefly/notifications/). CSV is on [Import and export](/docs/firefly/import-export/).
 
 `Dialog` has no stack, no sticky header or footer, and no extra attributes on the window. An action cannot cancel a parent dialog or change the modal alignment. The alignment stays the dialog default, which is top for a modal.

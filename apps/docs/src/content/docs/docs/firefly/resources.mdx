@@ -1,22 +1,22 @@
 ---
 title: Resources
-description: Bind one model to list, create, edit, view, or manage pages, with a form, an infolist, a table, and actions.
+description: Drop a resource in app/firefly/resources. simple() is one Manage page. Leave it off and you get list, create, edit, and view.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="orders-list.png" description="The orders list at http://127.0.0.1:4017/admin/orders/list, with the orders table and a create action." />
+Add one class per record type, put it in the panel’s `resources/` folder, and discovery serves it. Bind a model, a form, an infolist, and a table on that class.
 
-A resource is one record type on the panel: notes, orders, customers. You bind a model, a form, an infolist, and a table. Drop the class in `resources/` and the panel discovers it. There is no separate registry.
-
-A simple resource is one Manage page. A full resource is list, create, edit, and view. The hello sample uses both. The walkthrough is on [A working app](/docs/firefly/working-app/). This page is the method list.
+Call `simple()` when you want one Manage page. Leave it off when you want list, create, edit, and view as their own URLs. The hello samples use both. The click-through is on [A working app](/docs/firefly/working-app/). This page is the method list.
 
 The types live in `org.konaframework.firefly` (`kona-firefly`).
 
-## A resource the panel can serve
+<FireflyShot file="orders-list.png" description="The orders list at http://127.0.0.1:4017/admin/orders/list, with the orders table and a create action." />
 
-Put the class in the panel's `resources/` folder. A full resource gets list, create, edit, and view pages. Call `page(...)` yourself, or leave the page list empty and `pages()` builds those four.
+## Serve a full resource
+
+Put the class in `app/firefly/resources/`. A full resource gets list, create, edit, and view pages. Call `page(...)` yourself, or leave the page list empty and `pages()` builds those four.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -54,11 +54,11 @@ public class OrderResource extends Resource {
 </TabItem>
 </Tabs>
 
-The list page mounts the table and a create action. The create and edit pages mount the form. The view page mounts the infolist. Edit and view also render each relation manager. The panel route is `/{prefix}/{resource}/{page}`, for example `/admin/orders/list`.
+The list page mounts the table and a create action. The create and edit pages mount the form. The view page mounts the infolist. Edit and view also render each relation manager. You open `/admin/orders/list` when the panel prefix is `admin` and the slug is `orders`.
 
 `query()` chooses the store from the model type. A Cadence model returns a `ModelBuilder`. A document model fails and names `kona-firefly-document`, which is not part of this release. Any other type fails and tells you to use `Table.memory` for custom rows.
 
-## A simple resource
+## Serve a simple resource
 
 <FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table and the Create, Edit, View, and Delete actions." />
 
@@ -70,6 +70,7 @@ The list page mounts the table and a create action. The create and edit pages mo
 ```kotlin
 class NoteResource : Resource("notes") {
     init {
+        label("Notes")
         simple()
         model(Note::class.java)
         form(Schema.make().components(TextInput.make("name")))
@@ -86,6 +87,7 @@ class NoteResource : Resource("notes") {
 public class NoteResource extends Resource {
     public NoteResource() {
         super("notes");
+        label("Notes");
         simple();
         model(Note.class);
         form(Schema.make().components(TextInput.make("name")));
@@ -98,19 +100,19 @@ public class NoteResource extends Resource {
 </TabItem>
 </Tabs>
 
-The route is `/admin/notes/manage` when the slug is `notes` and the page slug is `manage`.
+The route is `/admin/notes/manage` when the slug is `notes` and the page slug is `manage`. You see the notes table and the Create, Edit, View, and Delete actions.
 
 ## Generate one
 
 `./grind make:firefly-resource Order` writes `app/firefly/resources/Order.kt` (or `.java`) with list, create, edit, and view pages plus one relation manager. `./grind make:firefly-resource Note --simple` writes one Manage page and does not write a relation manager. The generated class calls `model(app.models.Order::class.java)`. Create that Cadence model, then let the panel discover the resource directory.
 
-The hello sample mounts a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
+The hello samples mount a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
 
 ## What you build with
 
 | Type | Role |
 |------|------|
 | `Resource` | Model, form, infolist, table, actions, and pages |
-| `RelationManager` | Related records on a full resource's edit and view pages |
+| `RelationManager` | Related records on a full resource's edit and view pages. Set the label column with `titleAttribute` |
 | `ManagePage` | The single page of a simple resource |
 | `query()` | `ModelBuilder` for a Cadence model |

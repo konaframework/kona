@@ -1,18 +1,18 @@
 ---
 title: Forms
-description: Add Firefly form fields to a schema, bind them with Wire, and validate the submitted state.
+description: Put fields on a schema, fill the state, and render the HTML. Select is a combobox until you call native(). DateTimePicker is the crafted picker until you call native().
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A form field is how you ask for a value: a name, a status, a due date. You put fields in a schema, fill that schema, and `render()` returns the HTML. Wire and Alpine keep the value in sync after the page loads.
+Put fields on a schema when the screen needs a name, a status, or a due date. Fill the schema, then `render()` returns the HTML. Wire and Alpine keep the value in sync after the page loads.
 
-Fields live in `org.konaframework.firefly.forms` (`kona-firefly-forms`). Each field is a schema component, so it sits in the same tree as a section or a tab and uses the same live modifiers (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`). The module does not register a panel. You place the schema on a page, or render it into a view you already have.
+Fields live in `org.konaframework.firefly.forms` (`kona-firefly-forms`). Each field is a schema component, so it sits in the same tree as a section or a tab and uses the same live modifiers (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`). Place the schema on a page, or render it into a view you already have.
 
-On the hello sample the Desk page and the notes form both use a text field, a status combobox, and a due date picker.
+On the hello samples the Desk page and the notes form both use a text field, a status combobox, and a due date picker. The files are `app/firefly/pages/Desk` and `app/firefly/resources/NoteResource`.
 
-## A field in one call
+## Add a text field
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -41,7 +41,7 @@ String html = schema.render();
 </TabItem>
 </Tabs>
 
-`make("name")` sets the state key. `render()` wraps the control in the field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. Live fields also emit `wire:model` on the schema wrapper. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Do not call `Alpine.start()` again. Until that script runs, `@entangle(...)` can still show as raw text in the page.
+`make("name")` sets the state key. `render()` wraps the control in the field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. You see a Name field filled with Ada. Live fields also emit `wire:model` on the schema wrapper. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Leave `Alpine.start()` to that instance. Until that script runs, `@entangle(...)` can still show as raw text in the page.
 
 `FormAssets.script()` and `FormAssets.stylesheet()` are the field script and the field CSS. Prose from the rich text and markdown editors uses the caramel accent `#DF8723` through `--ff-primary`.
 
@@ -71,11 +71,11 @@ name.helperText("Shown on the invoice");
 
 The last call wins. A string replaces a closure, and a closure replaces a string.
 
-## Shared helpers
+## Helpers on every field
 
 These methods are on the field base. Every concrete field has them.
 
-| Method | What it does |
+| Method | What you get |
 |--------|----------------|
 | `label`, `heading`, `description` | Text, or a closure that returns text |
 | `helperText`, `hint`, `hintColor`, `hintIcon` | Text under or beside the control |
@@ -97,9 +97,9 @@ These methods are on the field base. Every concrete field has them.
 
 `hidden`, `visible`, `live`, `liveOnBlur`, `liveDebounce`, and `afterStateUpdated` stay on the schema component. Call them on the field. They return the component base, so in Java finish the field chain before calling `live()`.
 
-`prefixAction`, `suffixAction`, and `hintAction` take an `Action`. They are documented under [Actions on a field](#actions-on-a-field).
+`prefixAction`, `suffixAction`, and `hintAction` take an `Action`. They are under [Actions on a field](#actions-on-a-field).
 
-## Text
+## Text, tags, color, and maps
 
 `TextInput` is a single-line control. `email()`, `url()`, `numeric()`, `integer()`, `password()`, `tel()`, and `type("search")` set the input type and the matching validation rule. `telRegex` replaces the default telephone pattern. Call `telRegex` before `tel()` when you want your own pattern.
 
@@ -109,8 +109,6 @@ These methods are on the field base. Every concrete field has them.
 
 `Textarea.make("body")` takes `rows`, `cols`, `autosize`, `minLength`, and `maxLength`. `Hidden.make("token")` renders a hidden input and no label.
 
-## Tags, color, slider, key-value
-
 `TagsInput.make("tags")` splits a string on the separator (`,` by default) and renders one chip per tag. `suggestions`, `splitKeys`, `reorderable`, and `color` are optional. `tags(raw)` returns the list.
 
 `ColorPicker.make("ink")` stores a color. `hex()`, `rgb()`, and `hsl()` pick the format and the validation pattern.
@@ -119,15 +117,13 @@ These methods are on the field base. Every concrete field has them.
 
 `KeyValue.make("meta")` edits a map of strings. `keyLabel`, `valueLabel`, `keyPlaceholder`, `valuePlaceholder`, and `addActionLabel` accept a string or a closure. `addable`, `deletable`, `editableKeys`, `editableValues`, and `reorderable` toggle the controls. `pairs(raw)` reads the map.
 
-## Placeholder and view
-
 `Placeholder.make("note").content("Thanks")` renders HTML and does not dehydrate. `content { get -> "Hello" }` is the closure form. `saved(true)` turns dehydration back on.
 
 `ViewField.make("bio").viewName("bios.card")` renders a Crema view when the schema has an engine. The view receives the state path. Without an engine the field emits `data-ff-view`.
 
 ## Choices
 
-`Select` renders a combobox (`ff-combobox`), not a native `<select>`. The status field on the Desk page is that combobox: Open and Done.
+`Select` renders a combobox (`ff-combobox`). Call `.native()` when you want a native `<select>`. In Java the method is `useNative(true)`, because `native` is a keyword. `.native(false)` and `useNative(false)` keep the combobox. The status field on the Desk page is the combobox: Open and Done.
 
 <FireflyShot file="form-combobox.png" description="The status field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as a combobox with Open and Done." />
 
@@ -135,8 +131,8 @@ These methods are on the field base. Every concrete field has them.
 <TabItem label="Kotlin">
 
 ```kotlin
-val kind = Select.make("kind")
-    .options(mapOf("org" to "Organization", "human" to "Person"))
+val status = Select.make("status")
+    .options(mapOf("open" to "Open", "done" to "Done"))
     .searchable(true)
     .placeholder("Pick one")
 ```
@@ -145,15 +141,37 @@ val kind = Select.make("kind")
 <TabItem label="Java">
 
 ```java
-Select kind = Select.make("kind")
-    .options(Map.of("org", "Organization"))
-    .useNative(false);
+Select status = Select.make("status")
+    .options(Map.of("open", "Open", "done", "Done"))
+    .searchable(true)
+    .placeholder("Pick one");
 ```
 
 </TabItem>
 </Tabs>
 
-Kotlin calls `.native()` to opt into `<select>`. Java calls `useNative(true)` because `native` is a Java keyword. `.native(false)` and `useNative(false)` keep the combobox.
+Call `.native()` on that same field when the control should be a plain select:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Select.make("status")
+    .options(mapOf("open" to "Open", "done" to "Done"))
+    .native()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Select.make("status")
+    .options(Map.of("open", "Open", "done", "Done"))
+    .useNative(true);
+```
+
+</TabItem>
+</Tabs>
 
 <FireflyShot file="form-native-select.png" description="The status field from the Desk form at http://127.0.0.1:4017/admin/desk, rendered with native() as a native select of Open and Done." />
 
@@ -161,38 +179,49 @@ Kotlin calls `.native()` to opt into `<select>`. Java calls `useNative(true)` be
 
 `descriptions` adds a line under each option. A static option list adds an `in:` rule when the field is not multiple and the values contain neither a comma nor a pipe.
 
-`relationship("author", "name")` loads options from the relationship of that name on the schema record. `name` is the label field. Pass a closure to change the query. `getOptionLabelFromRecordUsing` replaces that label with a value taken from each record.
+`extraAttributes` lands on the field root. `extraInputAttributes` lands on the select control. `type`, `name`, and `value` stay owned by the field.
+
+## Load options from a relationship
+
+`relationship(name, titleAttribute)` reads the related records on the schema’s record. `name` is the relationship. `titleAttribute` is the label field. Pass a closure as `modifyQueryUsing` when you need to narrow the query. `getOptionLabelFromRecordUsing` replaces the label with a value taken from each record.
+
+Put the owner model on the schema with `record(...)` before the options are read. When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query. `.native()` still opts into `<select>`. The default remains the combobox.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-Select.make("authorId").relationship("author", "name")
-Select.make("authorId").relationship("author", "name") { query ->
-    (query as ModelBuilder<Author>).where("active", true)
-}
-Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordUsing { record ->
-    (record as Author).getAttribute("name").toString()
-}
+Select.make("authorId")
+    .relationship("author", "name") { query ->
+        val authors = query as ModelBuilder<Author>
+        authors.where("active", true).whereHas("posts") { posts ->
+            posts.where("title", "Yes")
+        }
+    }
+    .getOptionLabelFromRecordUsing { record ->
+        "Dr " + (record as Author).getAttribute("name")
+    }
+    .extraAttributes(mapOf("data-field" to "author"))
+    .extraInputAttributes(mapOf("data-ff-extra" to "1"))
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-Select.make("authorId").relationship("author", "name");
-Select.make("authorId").relationship("author", "name", query -> { });
-Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordUsing(record -> "Ada");
+Select.make("authorId")
+    .relationship("author", "name", query -> { })
+    .getOptionLabelFromRecordUsing(record -> "Ada")
+    .extraAttributes(Map.of("data-field", "author"))
+    .extraInputAttributes(Map.of("data-ff-extra", "1"));
 ```
 
 </TabItem>
 </Tabs>
 
-When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query. `.native()` still opts into `<select>`. The default remains the combobox.
-
 `createOptionForm` and `createOptionUsing` open a support `Dialog` and create an option from the submitted map. An action wrapper around that dialog is `createOptionAction`.
 
-`Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` takes on and off colors and icons. `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
+`Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` takes on and off colors and icons. `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.relationship(name, titleAttribute)` loads options the same way a select does. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
 
 ## Dates and times
 
@@ -201,6 +230,23 @@ When the related model is a Cadence model, the closure receives a `ModelBuilder`
 <FireflyShot file="form-date-picker.png" description="The due field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as the crafted month grid with hour and minute controls." />
 
 `.native()` (Java: `useNative(true)`) switches to `type="date"`, `type="time"`, or `type="datetime-local"`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DateTimePicker.make("due").native()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DateTimePicker.make("due").useNative(true);
+```
+
+</TabItem>
+</Tabs>
 
 <FireflyShot file="form-native-date.png" description="The due field from the Desk form at http://127.0.0.1:4017/admin/desk, rendered with native() as a native datetime-local input." />
 
@@ -268,7 +314,7 @@ The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file wi
 
 `preventFilePathTampering(true)` rejects `..`, absolute paths, `.ffmeta` files, and paths outside the directory or `firefly-temporary/`. Mount `VerifyCsrfToken` from `kona-session` on `POST /_firefly/uploads`. The field script sends `X-CSRF-TOKEN` from a `csrf-token` meta tag and `_token`. Pass a checker as the third argument to `register` when you want the route itself to reject a bad token.
 
-`browse` and `browseAction` list files already stored on the disk. They are documented under [Browsing stored files](#browsing-stored-files).
+`browse` and `browseAction` list files already stored on the disk. They are under [Browsing stored files](#browsing-stored-files).
 
 ## Repeater and builder
 
@@ -276,7 +322,7 @@ The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file wi
 
 `Builder.make("blocks").blocks(BuilderBlock("hero", "Hero", listOf(TextInput.make("title"))))` edits a list of typed blocks. `addBlock(schema, "hero")` appends one. `blockNumbers(true)` prefixes the label with the index. `addBetweenAction` renders an action between blocks.
 
-## Validation
+## Validate
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -306,7 +352,7 @@ From the application directory:
 ./grind make:firefly-field Note --lang=java
 ```
 
-The command writes a class that extends the field base and a Crema view with `x-data="ffField"` and `@entangle`. Kotlin is the default. `--lang=java` writes a Java subclass.
+The command writes a class that extends the field base and a Crema view with `x-data="ffField"` and `@entangle`. Kotlin is the default. `--lang=java` writes a Java subclass. The files land under `fields/`. Reference the class from a page or a resource. `discover` does not scan that folder.
 
 ## Actions on a field
 
@@ -364,41 +410,7 @@ Repeater.make("rows")
 
 `Builder.addBetweenAction` renders an action between blocks. A rich-text custom block keeps its `Dialog` and can also carry `editBlockAction`, which renders an `Action` for that block. `Select.createOptionAction` does the same for the create-option button. `createOptionForm` and `createOptionUsing` still run the create flow.
 
-## Relationship query
-
-`relationship(name, titleAttribute)` reads the related records. The optional closure is `modifyQueryUsing`: it receives the related model's query and narrows the option list. `getOptionLabelFromRecordUsing` overrides `titleAttribute`.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-Select.make("authorId")
-    .relationship("author", "name") { query ->
-        val authors = query as ModelBuilder<Author>
-        authors.where("active", true).whereHas("posts") { posts ->
-            posts.where("title", "Yes")
-        }
-    }
-    .getOptionLabelFromRecordUsing { record ->
-        "Dr " + (record as Author).getAttribute("name")
-    }
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-Select.make("authorId")
-    .relationship("author", "name", query -> { })
-    .getOptionLabelFromRecordUsing(record -> "Ada");
-```
-
-</TabItem>
-</Tabs>
-
-Put the owner model on the schema with `record(...)` before the options are read. A Cadence relationship method such as `author()` supplies a `ModelBuilder`. A document model supplies its own query and is not given a SQL builder.
-
-## Table select and morph select
+## Pick a record from a table
 
 `ModalTableSelect` hosts a `Table`. `choose` toggles a record key and stores the selection on the field. `multiple(true)` stores every selected key.
 
@@ -441,6 +453,6 @@ MorphToSelect.make("link").titleAttribute("name").type("posts", posts);
 </TabItem>
 </Tabs>
 
-## Browsing stored files
+## Browse stored files
 
 `FileUpload.browseAction` renders an action beside the upload. `browse(disk)` lists files already stored under `directory()` and skips `*.ffmeta` paths. `chooseBrowsed` writes the chosen path into the same field state. Rename and delete of stored folders are not methods on this field.

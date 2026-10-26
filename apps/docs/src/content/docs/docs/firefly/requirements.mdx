@@ -1,37 +1,37 @@
 ---
 title: Requirements
-description: JDK, Kona, and the pieces a Firefly panel needs before you install it.
+description: Confirm JDK 21 and a Kona app, then add the panel on the router you already serve. Firefly does not ask for a second runtime.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 
-You already have a Kona app. Firefly does not ask you to install another runtime next to it. You add the panel module, write a `Panel`, and mount it on the router you already use.
+Check this list before you add the panel. You already have a Kona app. Add `kona-firefly`, write a `Panel`, and mount it on the router you already use.
 
-The hello samples (`samples/hello-kotlin` and `samples/hello-java`) are that app. `/` is still the welcome page. The desk lives at `/admin`.
+`samples/hello-kotlin` and `samples/hello-java` are that app. `/` is still the welcome page. The desk is at `/admin`.
 
 <FireflyShot file="app-ready.png" description="The hello-kotlin welcome page at http://127.0.0.1:4017/, a Kona app serving a route before you open the panel." />
 
-## Runtime
+## What you need installed
 
 | Requirement | What you need |
 |-------------|----------------|
 | **JDK** | 21 or newer. Kona uses virtual threads. |
 | **A Kona app** | Created with `kona new`, or an existing Gradle project that already depends on `org.konaframework`. |
-| **`kona` and `./grind`** | The global CLI creates the app. `./grind` inside the app serves it and runs `make:firefly-*`. |
-| **Browser** | A current browser. The panel HTML is interactive once Alpine starts. |
+| **`kona` and `./grind`** | The global CLI creates the app. `./grind` inside a standalone app serves it and runs `make:firefly-*`. |
+| **Browser** | A current browser. The panel HTML becomes interactive once Alpine starts. |
 
-The panel artifact is `org.konaframework:kona-firefly`. It brings the support, schema, action, infolist, table, form, notification, and widget modules with it. You do not add those coordinates one by one.
+The panel artifact is `org.konaframework:kona-firefly`. It brings the support, schema, action, infolist, table, form, notification, and widget modules with it. Add that one coordinate.
 
-## What the panel expects to be present
+## What the app already has to provide
 
-| Piece | Why |
-|-------|-----|
+| Piece | Why you need it |
+|-------|-----------------|
 | HTTP and Crema | Pages are HTML responses. The kit registers those providers. |
 | Session | Login, password reset, and notification toasts use the session. |
 | Cadence | A resource that calls `model(...)` with a Cadence model can build a `ModelBuilder` from `query()`. The hello samples also render tables from in-memory rows, so the first screens work before you migrate. |
 | Wire | Live fields and action clicks post through Wire. The panel HTML includes those hooks. |
 
-You do not need Node to serve a panel. Chart.js and ApexCharts ship inside the widget module and are served from `/_firefly/widgets/`.
+Chart.js and ApexCharts ship inside the widget module. The panel serves them from `/_firefly/widgets/`.
 
 ## Next
 
