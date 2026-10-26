@@ -4,6 +4,7 @@ description: What Kona Firefly is for, and the path from an empty panel to a wor
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
+import FilamentNod from '../../../../components/FilamentNod.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 **Kona Firefly** (short name **Firefly**) is the panel you give the people who run an application. A panel is one area of the site: a brand, a navigation tree, and the screens that list and edit records.
@@ -12,11 +13,13 @@ You describe those screens in Kotlin or Java. Firefly renders the HTML on the se
 
 <FireflyShot file="desk-panel.png" description="The hello-kotlin panel at http://127.0.0.1:4017/admin/desk, with the sidebar and the Desk page in the body." />
 
-Screenshots on these pages are PNG files in `apps/docs/public/images/firefly/`. Each page names the file it expects. Drop that file in the folder and rebuild the docs site, and the image replaces the placeholder. Until the file is there, the page shows the filename, the folder, and a one-sentence description of the shot. The list of filenames is in that folder’s README.
+Screenshots on these pages are PNG pairs in `apps/docs/public/images/firefly/`. Each page names a scene, such as `desk-panel.png`. The folder holds `desk-panel-light.png` for the light theme and `desk-panel-dark.png` for the dark theme. Drop both files in the folder and rebuild the docs site, and the page shows the light file in the light theme and the dark file in the dark theme. The caption and the alt text are the one-sentence description of the scene. If either file is missing, the page lists both filenames, the folder, and that description, and does not link a missing file. The pairs are listed in that folder’s README.
 
-:::note
-Firefly takes a short cue from [Filamentphp](https://filamentphp.com/). From here on, these pages describe Firefly on its own terms.
-:::
+<FilamentNod>
+
+Firefly stands on the shoulders of [Filament](https://filamentphp.com/). Filament’s architecture — panels, resources, forms, tables, and how those pieces compose — played a major role in shaping Firefly’s features. We’re our own panel for Kona, written in Kotlin and callable from Java, with [Kona Wire](/docs/wire/) for live fields, [Crema](/docs/crema/) for views, and [Cadence](/docs/cadence/) for records. Same *idea*, our *house*.
+
+</FilamentNod>
 
 You use a panel when the work is “open the desk, find the order, change it, and see that it saved.” A public marketing page or a JSON API stays on an ordinary Kona route. Adding the Firefly module does not rewrite routes you already defined. Routes appear when a `Panel` calls `mount`.
 

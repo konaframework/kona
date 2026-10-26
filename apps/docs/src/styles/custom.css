@@ -98,7 +98,7 @@ starlight-tabs [role='tabpanel'][hidden] {
   margin: 1.25rem 0;
 }
 
-.firefly-shot img {
+.firefly-shot__img {
   display: block;
   max-width: 100%;
   height: auto;
@@ -106,8 +106,71 @@ starlight-tabs [role='tabpanel'][hidden] {
   border-radius: 0.5rem;
 }
 
+/* Site theme, same switch Starlight uses for light and dark images. */
+:root[data-theme='light'] .firefly-shot__img--dark,
+:root:not([data-theme='light']) .firefly-shot__img--light {
+  display: none;
+}
+
+@media print {
+  :root .firefly-shot__img--dark {
+    display: none;
+  }
+
+  :root .firefly-shot__img--light {
+    display: block;
+  }
+}
+
 .firefly-shot figcaption {
   margin-top: 0.5rem;
   color: var(--sl-color-gray-3);
   font-size: 0.9rem;
+}
+
+/*
+ * Filament nod on the Firefly introduction. Same banner as Shamar’s
+ * introduction: honey fill, cocoa type, a tip aside. The honey is
+ * Filament’s; the rest of the site stays the coffee palette.
+ */
+.filament-callout {
+  --filament-honey: #efaf5d;
+  --filament-cocoa: #46341c;
+  margin: 1.25rem 0;
+}
+
+.filament-callout .starlight-aside.starlight-aside--tip {
+  --sl-color-asides-text-accent: var(--filament-cocoa);
+  --sl-color-asides-border: var(--filament-cocoa);
+  background-color: var(--filament-honey);
+  color: var(--filament-cocoa);
+  border-inline-start-width: 0.35rem;
+  border-inline-start-color: var(--filament-cocoa);
+}
+
+.filament-callout .starlight-aside__title,
+.filament-callout .starlight-aside__content,
+.filament-callout .starlight-aside__content a {
+  color: var(--filament-cocoa);
+}
+
+.filament-callout .starlight-aside__content a:hover {
+  color: color-mix(in srgb, var(--filament-cocoa) 72%, #000);
+}
+
+html[data-theme='dark'] .filament-callout .starlight-aside.starlight-aside--tip {
+  --sl-color-asides-text-accent: var(--filament-cocoa);
+  background-color: var(--filament-honey);
+  color: var(--filament-cocoa);
+  border-inline-start-color: var(--filament-cocoa);
+}
+
+html[data-theme='dark'] .filament-callout .starlight-aside__title,
+html[data-theme='dark'] .filament-callout .starlight-aside__content,
+html[data-theme='dark'] .filament-callout .starlight-aside__content a {
+  color: var(--filament-cocoa);
+}
+
+html[data-theme='dark'] .filament-callout .starlight-aside__content a:hover {
+  color: color-mix(in srgb, var(--filament-cocoa) 60%, #000);
 }

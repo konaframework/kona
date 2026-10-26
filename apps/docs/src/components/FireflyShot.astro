@@ -1,7 +1,12 @@
 ---
 /**
- * Firefly docs screenshot. Renders public/images/firefly/<file> when that
- * PNG is on disk at build time. Otherwise a Starlight note naming the file.
+ * Firefly docs screenshot. The `file` prop is the scene name
+ * (`desk-panel.png`). The images on disk are the pair
+ * `<name>-light.png` and `<name>-dark.png`. Both must exist.
+ * The light file shows in the light theme and the dark file shows
+ * in the dark theme. The alt text and the caption are the scene
+ * description. A missing file becomes a placeholder that names both
+ * files and does not link either one.
  */
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -19,26 +24,42 @@ if (!/^[a-z0-9]+(?:-[a-z0-9]+)*\.png$/.test(file)) {
   throw new Error(`FireflyShot file must be a kebab-case png name, received ${JSON.stringify(file)}`);
 }
 
+const stem = file.slice(0, -'.png'.length);
+if (stem.endsWith('-light') || stem.endsWith('-dark')) {
+  throw new Error(
+    `FireflyShot file is the scene name, such as desk-panel.png, received ${JSON.stringify(file)}`,
+  );
+}
+
+const lightFile = `${stem}-light.png`;
+const darkFile = `${stem}-dark.png`;
 const folder = 'apps/docs/public/images/firefly';
-const fromPackage = join(process.cwd(), 'public/images/firefly', file);
-const fromSource = join(dirname(fileURLToPath(import.meta.url)), '../../public/images/firefly', file);
-const present = existsSync(fromPackage) || existsSync(fromSource);
+const imageDirFromPackage = join(process.cwd(), 'public/images/firefly');
+const imageDirFromSource = join(dirname(fileURLToPath(import.meta.url)), '../../public/images/firefly');
+
+function present(name: string): boolean {
+  return existsSync(join(imageDirFromPackage, name)) || existsSync(join(imageDirFromSource, name));
+}
+
+const both = present(lightFile) && present(darkFile);
 const base = import.meta.env.BASE_URL.endsWith('/')
   ? import.meta.env.BASE_URL
   : `${import.meta.env.BASE_URL}/`;
-const src = `${base}images/firefly/${file}`;
+const lightSrc = `${base}images/firefly/${lightFile}`;
+const darkSrc = `${base}images/firefly/${darkFile}`;
 ---
 
 {
-  present ? (
+  both ? (
     <figure class="firefly-shot">
-      <img src={src} alt={description} />
+      <img class="firefly-shot__img firefly-shot__img--light dark:sl-hidden" src={lightSrc} alt={description} />
+      <img class="firefly-shot__img firefly-shot__img--dark light:sl-hidden" src={darkSrc} alt={description} />
       <figcaption>{description}</figcaption>
     </figure>
   ) : (
     <Aside type="note" title="Screenshot placeholder">
       <p>
-        File: <code>{file}</code>
+        Files: <code>{lightFile}</code> and <code>{darkFile}</code>
       </p>
       <p>
         Folder: <code>{folder}/</code>
