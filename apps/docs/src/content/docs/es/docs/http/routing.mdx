@@ -80,8 +80,9 @@ router.post("/echo", request -> Response.json(request.all()));
 </TabItem>
 </Tabs>
 
-## Llamar a un controlador {#call-a-controller}
+<a id="call-a-controller"></a>
 
+## Llamar a un controlador
 La mayoría de las rutas de producción apuntan a un método de **controlador** en lugar de una lambda en línea. Un controlador es una clase normal con métodos que reciben un `Request` y devuelven un `Response`. **No** tienes que extender `Controller` salvo que quieras los ayudantes compartidos de `validate`. Consulta [Controladores](../controllers/).
 
 El andamiaje predeterminado cablea una página de bienvenida así:
@@ -189,8 +190,9 @@ router.any("/health", request -> Response.text("ok"));
 - Las rutas se comprueban **en el orden de registro**; gana la **primera** coincidencia. Registra las rutas específicas antes que las generales: `/users/me` debe ir antes de `/users/{id}`, o `me` se capturará como un id.
 - Una ruta debe declarar al menos un método HTTP; construir una lista de métodos vacía lanza `IllegalArgumentException`.
 
-## Parámetros de ruta {#path-parameters}
+<a id="path-parameters"></a>
 
+## Parámetros de ruta
 Un segmento escrito como `{name}` captura **un segmento de ruta** (cualquier cosa hasta la siguiente `/`). Los nombres de parámetro deben empezar por una letra o un guion bajo y pueden contener letras, dígitos y guiones bajos (`[a-zA-Z_][a-zA-Z0-9_]*`).
 
 Los valores capturados se decodifican (`/files/a%20b` → `a b`). Un `+` literal en la ruta se queda como `+` (no se trata como espacio). Si un valor no se puede decodificar, se usa el texto en crudo. Los valores que al decodificarse incluyen `/` (por ejemplo `%2F`) se vuelven un solo valor de parámetro que contiene `/`: siguen viniendo de un segmento de la ruta de la petición.
@@ -235,8 +237,9 @@ router.get("/users/{id}/posts/{slug}", request -> {
 
 Los valores son siempre cadenas de la ruta: conviértelos tú (`toLong()`, `UUID.fromString`, y así). Las claves ausentes devuelven `null` desde `route(key)` (o el valor predeterminado que pases).
 
-## Rutas de recurso {#resource-routes}
+<a id="resource-routes"></a>
 
+## Rutas de recurso
 Un **recurso** es una colección de registros expuesta sobre un conjunto convencional de URLs. `resource(name, controller)` registra el conjunto completo (incluidas las rutas de formulario HTML) contra un `ResourceController`:
 
 | Método(s) | Ruta | Método del controlador | Nombre de ruta |
@@ -251,8 +254,9 @@ Un **recurso** es una colección de registros expuesta sobre un conjunto convenc
 
 El orden de registro coincide con la tabla: `create` se registra **antes** de `show`, así que `/posts/create` nunca se captura como `{id}=create`.
 
-### Rutas de recurso de API {#api-resource-routes}
+<a id="api-resource-routes"></a>
 
+### Rutas de recurso de API
 `apiResource(name, controller)` registra el mismo mapa **sin** `create` / `edit`, la forma habitual de las API JSON:
 
 | Método(s) | Ruta | Método del controlador | Nombre de ruta |
@@ -419,8 +423,9 @@ router.group("/v3", "v3.", List.of(new Authenticate()), v3 -> { /* ... */ });
 </TabItem>
 </Tabs>
 
-## Middleware en una ruta {#middleware-on-a-route}
+<a id="middleware-on-a-route"></a>
 
+## Middleware en una ruta
 Adjunta middleware a una ruta con `.middleware(...)`. El middleware de ruta corre **después** de cualquier middleware de grupo de esa ruta. Las pilas globales (sesión, CSRF y demás) se configuran en `bootstrap.Middleware` y se aplican al kernel: envuelven el enrutamiento por completo, así que siguen viendo las respuestas 404/405. Consulta [Middleware](../middleware/).
 
 <Tabs syncKey="lang">
@@ -442,8 +447,9 @@ router.post("/webhooks/stripe", stripe::handle)
 </TabItem>
 </Tabs>
 
-## Rutas con nombre y generación de URL {#named-routes-and-url-generation}
+<a id="named-routes-and-url-generation"></a>
 
+## Rutas con nombre y generación de URL
 `.name("…")` da un nombre a una ruta para que puedas construir su URL después sin fijar el camino en el código. Los prefijos de nombre del grupo se aplican solos (`api.` + `health` → `api.health`). Las acciones de recurso se nombran como `{resource}.{action}`.
 
 ### Ruta desde el enrutador
@@ -549,8 +555,9 @@ router.get("/ping", Controllers.asHandler(ping)).name("ping");
 
 Más patrones (form requests, `Controller.validate`) están en [Controladores](../controllers/#invokable-controllers).
 
-## HEAD, OPTIONS, 404 y 405 {#head-options-404-and-405}
+<a id="head-options-404-and-405"></a>
 
+## HEAD, OPTIONS, 404 y 405
 Estas reglas salen de `Router.find` / `Router.resolve` y del kernel HTTP:
 
 | Petición | Qué ocurre |
@@ -608,8 +615,9 @@ if (match != null) {
 </TabItem>
 </Tabs>
 
-## Listar rutas con grind {#listing-routes-with-grind}
+<a id="listing-routes-with-grind"></a>
 
+## Listar rutas con grind
 Desde un directorio de aplicación (después de `./gradlew classes`):
 
 ```bash
