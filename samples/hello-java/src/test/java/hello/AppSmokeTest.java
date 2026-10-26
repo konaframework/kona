@@ -40,6 +40,16 @@ class AppSmokeTest {
         assertTrue(home.getBody().toLowerCase().contains("welcome"), home.getBody());
         assertEquals(200, health.getStatus());
         assertEquals("{\"status\":\"ok\"}", health.getBody());
+        Response desk = kernel.handle(Request.get("/admin/desk"));
+        Response notes = kernel.handle(Request.get("/admin/notes/manage"));
+        Response orders = kernel.handle(Request.get("/admin/orders/edit"));
+        assertEquals(200, desk.getStatus());
+        assertTrue(desk.getBody().contains("ff-combobox"), desk.getBody());
+        assertTrue(desk.getBody().contains("ff-picker"), desk.getBody());
+        assertTrue(desk.getBody().contains("ff-dialog"), desk.getBody());
+        assertTrue(desk.getBody().contains("ff-desk-widget"), desk.getBody());
+        assertTrue(notes.getBody().contains("ff-manage"), notes.getBody());
+        assertTrue(orders.getBody().contains("ff-relation"), orders.getBody());
     }
 
     @Test

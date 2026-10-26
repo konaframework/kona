@@ -267,6 +267,7 @@ export async function buildSidebar() {
         { label: 'Notifications', slug: 'docs/firefly/notifications' },
         { label: 'Widgets', slug: 'docs/firefly/widgets' },
         { label: 'Panel', slug: 'docs/firefly/panel' },
+        { label: 'Resources', slug: 'docs/firefly/resources' },
       ],
     },
     {

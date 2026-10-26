@@ -1,0 +1,76 @@
+---
+title: Resources
+description: Bind one model to list, create, edit, view, or manage pages, with a form, an infolist, a table, and actions.
+---
+
+A resource is the panel's record screen. It binds one model to its pages, form schema, infolist, table, and actions. The panel discovers it from `resources/` and registers its pages and navigation. There is no separate registry.
+
+The types live in `org.konaframework.firefly` (`kona-firefly`). Chainable setters accept a static value or a closure. The closure receives the schema `Get`.
+
+## A resource the panel can serve
+
+Put the class in the panel's `resources/` folder. A full resource gets list, create, edit, and view pages. Call `page(...)` yourself, or leave the page list empty and `pages()` builds those four.
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Order::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory().columns(TextColumn.make("name")))
+        relation(RelationManager("lines").related(Line::class.java).titleAttribute("sku"))
+    }
+}
+```
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        label("Orders");
+        model(Order.class);
+        form(Schema.make().components(TextInput.make("name")));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory().columns(TextColumn.make("name")));
+        relation(new RelationManager("lines").related(Line.class).titleAttribute("sku"));
+    }
+}
+```
+
+The list page mounts the table and a create action. The create and edit pages mount the form. The view page mounts the infolist. Edit and view also render each relation manager. The panel route is `/{prefix}/{resource}/{page}`, for example `/admin/orders/list`.
+
+`query()` chooses the store from the model type. A Cadence model returns a `ModelBuilder`. A document model fails and names `kona-firefly-document`, which is not part of this release. Any other type fails and tells you to use `Table.memory` for custom rows.
+
+## A simple resource
+
+`simple()` keeps one `ManagePage`. Create, edit, view, and delete are header actions, and each one opens the existing dialog. Create and edit put the form schema in that dialog. View puts the infolist in it. Delete asks for confirmation in it. A simple resource rejects `relation(...)`.
+
+```kotlin
+class NoteResource : Resource("notes") {
+    init {
+        simple()
+        model(Note::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory().columns(TextColumn.make("name")))
+    }
+}
+```
+
+The route is `/admin/notes/manage` when the slug is `notes` and the page slug is `manage`.
+
+## Generate one
+
+`./grind make:firefly-resource Order` writes `app/firefly/resources/Order.kt` (or `.java`) with list, create, edit, and view pages plus one relation manager. `./grind make:firefly-resource Note --simple` writes one Manage page and does not write a relation manager. The generated class calls `model(app.models.Order::class.java)`. Create that Cadence model, then let the panel discover the resource directory.
+
+The hello sample mounts a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
+
+## What you build with
+
+| Type | Role |
+|------|------|
+| `Resource` | Model, form, infolist, table, actions, and pages |
+| `RelationManager` | Related records on a full resource's edit and view pages |
+| `ManagePage` | The single page of a simple resource |
+| `query()` | `ModelBuilder` for a Cadence model |

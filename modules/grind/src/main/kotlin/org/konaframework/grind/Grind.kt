@@ -54,6 +54,7 @@ constructor(
                 "make:firefly-panel" -> MakeFireflyPanelCommand().run(positional.drop(1) + flatten(options))
                 "make:firefly-page" -> MakeFireflyPageCommand().run(positional.drop(1) + flatten(options))
                 "make:firefly-theme" -> MakeFireflyThemeCommand().run(positional.drop(1) + flatten(options))
+                "make:firefly-resource" -> MakeFireflyResourceCommand().run(positional.drop(1) + flatten(options))
                 "firefly:install" -> FireflyInstallCommand().run(positional.drop(1) + flatten(options))
                 "firefly:publish" -> FireflyPublishCommand().run(positional.drop(1) + flatten(options))
                 "make:model" -> MakeModelCommand().run(positional.drop(1) + flatten(options))
