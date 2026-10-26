@@ -20,7 +20,7 @@ This plan targets **full Almasix menu parity** (behavioral/API shape). Prefer Al
 - [ ] Kotlin sample and Java sample (or regression paths) exercise new public API.
 - [ ] Public docs for the slice updated under `apps/docs/` (guides + sidebar; progressive simple-first where possible).
 - [ ] Milestone PR merged to `main` via required checks + automerge.
-- [ ] `MILESTONES.md` updated: milestone marked **done**, next marked **active**.
+- [ ] `MILESTONES.md` updated: this milestone marked **done**. Other milestones stay on their own branches. Do not open a milestone that depends on this one until it is on `main`.
 
 ---
 
