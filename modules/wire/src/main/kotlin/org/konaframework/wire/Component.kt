@@ -186,7 +186,7 @@ abstract class Component {
      */
     fun validate(rules: Map<String, List<String>>?): Map<String, Any?> {
         val resolved = rules ?: ValidationRules.forComponent(this)
-        val data = all()
+        val data = validationData()
         val validator = Validator(data, resolved)
         try {
             val validated = validator.validate()
@@ -196,6 +196,18 @@ abstract class Component {
             errorBag().clear().merge(e.errors)
             throw e
         }
+    }
+
+    /** Public state plus dotted form fields (`form.title`) so nested form rules can run. */
+    private fun validationData(): Map<String, Any?> {
+        val data = LinkedHashMap<String, Any?>()
+        for ((name, value) in all()) {
+            data[name] = value
+            if (value is Form) {
+                for ((field, fieldValue) in value.all()) data["$name.$field"] = fieldValue
+            }
+        }
+        return data
     }
 
     fun validateOnly(field: String): Map<String, Any?> {

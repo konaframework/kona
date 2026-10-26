@@ -28,6 +28,14 @@ internal object ValidationRules {
                 onUpdate += name
                 if (!update) onUpdate.remove(name)
             }
+            val value = prop.get(component)
+            if (value is Form) {
+                value.attach(component, name)
+                for ((field, fieldRules) in value.resolvedRules()) {
+                    fromAnnotations.getOrPut("$name.$field") { mutableListOf() }.addAll(fieldRules)
+                }
+                for (field in FormMeta.of(value).validateOnUpdate) onUpdate += "$name.$field"
+            }
         }
         component.state().store["brew.validateOnUpdate"] = onUpdate
         return fromAnnotations.mapValues { it.value.toList() } + fromMethod
