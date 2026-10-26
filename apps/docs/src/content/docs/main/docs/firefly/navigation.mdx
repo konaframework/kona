@@ -1,0 +1,89 @@
+---
+title: Navigation
+description: Where a panel draws its navigation, how deep the tree can go, and how labels and URLs are set.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Navigation is the tree of links in the panel chrome. Each panel has one `NavigationType`. Items are `NavigationItem` nodes. When you do not call `item` yourself, `mount` builds the tree from pages and resources.
+
+:::note[Screenshot placeholder: panel navigation]
+A screenshot of the desk sidebar, including the Notes and Orders groups, will go here.
+:::
+
+## How the three types draw
+
+| Type | Level 1 | Levels 2 and 3 |
+|------|---------|----------------|
+| `NavigationType.APP` (the default) | Top bar | Sidebar, for the active level-1 item’s children |
+| `NavigationType.SIDE` | Sidebar | Sidebar |
+| `NavigationType.TOP` | Top bar | Top bar |
+
+`topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
+
+Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` adds a parent with no URL of its own. `userMenu(...)` renders in the top bar, next to the user chip. `spa(true)` adds `wire:navigate` on links that have a URL.
+
+## What the hello sample shows
+
+The sample never calls `item`. Discovery therefore builds:
+
+- A link for each page. The label is `navigationLabel()`, which is the slug. Desk’s link text is `desk`. The URL is `/admin/desk`.
+- A cluster per resource. The label is `Resource.label()` (`Notes`, `Orders`). Each page of that resource is a child. The child label is the page slug: `manage` on notes, and `list`, `create`, `edit`, `view` on orders.
+
+Set `label` on a `NavigationItem` when you build the tree yourself and want a word instead of a slug.
+
+## Build a tree yourself
+
+Once `item` or `cluster` has been called, mount does not replace that tree with the discovered pages.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val catalog = panel.cluster("Catalog")
+catalog.child(
+    NavigationItem("orders").label("Orders").url("/admin/orders/list"),
+)
+panel.userMenu(
+    NavigationItem("profile").label("Profile").url("/admin/profile"),
+)
+panel.navigation(NavigationType.SIDE)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+NavigationItem catalog = panel.cluster("Catalog");
+catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list"));
+panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile"));
+panel.navigation(NavigationType.SIDE);
+```
+
+</TabItem>
+</Tabs>
+
+## Methods on NavigationItem
+
+A blank name throws `FireflyException` (`Navigation item name is blank`). A blank label or a blank URL from a closure throws and names the item.
+
+| Method | What it does |
+|--------|----------------|
+| `label(value)` / `label(provider)` | Visible text. The default is the name |
+| `url(value)` / `url(provider)` | Link target. Empty until you set it |
+| `extraAttributes(map)` / `extraAttributes(provider)` | HTML attributes on the link. A provider receives `Get` |
+| `cluster(true)` | Marks the node as a group |
+| `child(item)` | Appends a child and sets its depth |
+| `isCluster()` | Whether `cluster(true)` was set |
+| `labelText(get)` / `urlText(get)` / `attributes(get)` | Resolves the closure or the stored value |
+| `find(name)` | This node or a descendant with that name |
+
+Active state: the current path equals the item URL, or starts with that URL plus `/`. An empty URL or `/` is never treated as a prefix match.
+
+## The user chip
+
+The chip text is the panel guard’s id. When that id is null, the chip reads **Guest**. The hello sample calls `authenticate(false)` and does not sign anyone in, so the chip reads Guest. `userMenu` items render beside that chip.
+
+## Next
+
+[Actions](/docs/firefly/actions/) are the buttons on a page header and inside a dialog. The shell those links sit in is [Panel chrome](/docs/firefly/chrome/).

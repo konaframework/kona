@@ -1,0 +1,72 @@
+---
+title: Import and export
+description: Export rows to CSV and import them back, through a dialog action and a queue job.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Import and export are two jobs plus two dialog actions. `ExportRows` writes CSV. `ImportRows` reads CSV. Both implement `ShouldQueue`, so a queue `Bus` can run them. Pass `null` as the bus and `handle()` runs on the caller.
+
+:::note[Screenshot placeholder: the export dialog]
+A screenshot of the export dialog action will go here.
+:::
+
+## Actions
+
+`FireflyTransfer.exportAction()` is an action named `export`, labeled `Export`, opened as a modal headed `Export`. `importAction()` is the same shape with the name `import`. Put either action on a page header or a table. The dialog stays closed until Alpine opens it, the same as every other Firefly dialog.
+
+```kotlin
+page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction())
+```
+
+```java
+page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction());
+```
+
+## Run the jobs
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val rows = listOf(mapOf("name" to "Ada"))
+FireflyTransfer.export(rows, path, bus)
+val imported = FireflyTransfer.import(path, null)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FireflyTransfer.export(List.of(Map.of("name", "Ada")), path, bus);
+List<Map<String, String>> imported = FireflyTransfer.import(path, null);
+```
+
+</TabItem>
+</Tabs>
+
+`export` returns `"sync"` when `bus` is null, after `handle()` has written the file. With a bus, it returns whatever `bus.dispatch` returns. An empty row list throws `Export has no rows`.
+
+`import` with a null bus returns the parsed rows. A missing file throws `Import file is missing [path]`. An empty file throws `Import file is empty`. With a bus, `import` dispatches the job and returns the job’s row list. On the sync driver that list is filled before `dispatch` returns. A driver that runs later leaves the list empty until `handle()` runs.
+
+CSV encoding quotes a cell that contains a comma or a quote, and doubles quotes inside a quoted cell. The header row is the key set of the first map. Later rows are read in that column order. A short row stores an empty string for the missing cells.
+
+## Tests
+
+`Firefly.test` reads a rendered page, form, table, or dialog. It lives in `org.konaframework.firefly.testing`.
+
+```kotlin
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("name")
+    .assertTable("Ada")
+    .assertDialog("Export")
+```
+
+```java
+Firefly.test(page).assertSee("Ada").assertFormField("name");
+```
+
+`assertSee` fails when the HTML does not contain the text. `assertFormField` looks for `data-ff-path`. A custom field subclass is found the same way. `assertTable` requires both `ff-table` and the text. `assertDialog` requires both `ff-dialog` and the title. `Firefly.test(html)` asserts against a string you already rendered.
+
+`kona new desk --kit=firefly` is the install path on [Installation](/docs/firefly/installation/). It is not a separate runtime.

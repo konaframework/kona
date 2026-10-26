@@ -1,0 +1,81 @@
+---
+title: Installation
+description: Create a Firefly app with kona new --kit=firefly, or add kona-firefly to an existing Kona app.
+---
+
+The shortest path is a new app. The kit writes a `Panel`, the three discovery folders, and a boot class that mounts the panel at `/admin`.
+
+:::note[Screenshot placeholder: the kit’s empty admin path]
+A screenshot of `/admin` on a freshly generated Firefly app will go here.
+:::
+
+## A new app
+
+```bash
+kona new desk --kit=firefly
+cd desk
+./grind serve
+```
+
+Java:
+
+```bash
+kona new desk --kit=firefly --lang=java
+cd desk
+./grind serve
+```
+
+Open `http://127.0.0.1:4000/`. The welcome route stays on `/`. The panel is at `http://127.0.0.1:4000/admin`.
+
+The generated Gradle file depends on Maven Central. The CLI writes `org.konaframework:kona-firefly` at the same version as `kona-http` and the other Kona artifacts in that file.
+
+## An existing app
+
+Add the same coordinate next to your other `org.konaframework` dependencies:
+
+```kotlin
+dependencies {
+    implementation("org.konaframework:kona-firefly:0.3.0")
+}
+```
+
+Match the version on the other `org.konaframework` lines in that file. This repository’s version is `0.3.0`.
+
+Then add a `Panel` and call `mount` on the router after your own routes are registered. [Register a panel](/docs/firefly/registration/) is that step. `kona-firefly` does not register routes by itself.
+
+Inside the Kona repository, the hello samples depend on the module directly:
+
+```kotlin
+implementation(project(":kona-firefly"))
+```
+
+`samples/hello-kotlin` and `samples/hello-java` are the concrete desk used in [A working app](/docs/firefly/working-app/).
+
+## Commands that exist
+
+From the app directory, `./grind` accepts these Firefly commands. Each `make` command takes `--lang=java` when the app is Java. Kotlin is the default.
+
+| Command | What it writes |
+|---------|----------------|
+| `make:firefly-panel` | `app/firefly/Panel` plus `pages/`, `widgets/`, and `resources/` |
+| `firefly:install` | The same tree as `make:firefly-panel` |
+| `make:firefly-page Desk` | A `CustomPage` in `pages/` |
+| `make:firefly-theme Harbor` | A theme class in `themes/` |
+| `make:firefly-resource Note --simple` | One Manage page in `resources/` |
+| `make:firefly-resource Order` | List, create, edit, and view pages, plus one relation manager |
+| `make:firefly-field Price` | A field class and a Crema view under `fields/` |
+| `make:firefly-entry Note` | An infolist entry under `entries/` |
+| `make:firefly-column Name` | A table column under `columns/` |
+| `make:firefly-filter Status` | A table filter under `filters/` |
+| `make:firefly-action SaveRecord` | An action class and view under `actions/` |
+| `make:firefly-layout Banner` | A layout component under `layouts/` |
+| `make:firefly-widget Revenue` | A widget under `widgets/` |
+| `firefly:publish` | A sidebar partial at `resources/views/firefly/sidebar.crema.html` |
+
+`make:firefly-panel` writes a class named `Panel`. Passing another class name fails. Optional flags `--id=` and `--path=` set the generated id and URL prefix. `./grind firefly:install` writes that same tree.
+
+There is no `grind install firefly`. Use the kit, or add the Maven coordinate yourself.
+
+## Next
+
+[Register a panel](/docs/firefly/registration/) is the file the kit already created, and how discovery finds pages, widgets, and resources.

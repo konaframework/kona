@@ -3,6 +3,10 @@ title: Notifications
 description: Flash a Firefly toast, list database notices in a bell, and refresh a page when a broadcast arrives.
 ---
 
+:::note[Screenshot placeholder: a saved toast]
+A screenshot of this screen will go here.
+:::
+
 A Firefly notification is a short message with a title, a status, and optional body, icon, color, duration, extra attributes, and actions. You build it in Kotlin or Java, then send it to the session, the database, or a broadcast.
 
 The types live in `org.konaframework.firefly.notifications` (`kona-firefly-notifications`). The module uses the existing session flash store, `DatabaseChannel`, and `BroadcastManager`. It does not add a second notification store.

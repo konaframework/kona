@@ -3,6 +3,10 @@ title: Forms
 description: Add Firefly form fields to a schema, bind them with Wire, and validate the submitted state.
 ---
 
+:::note[Screenshot placeholder: the notes form, with the status combobox and the date picker]
+A screenshot of this screen will go here.
+:::
+
 Form fields live in `org.konaframework.firefly.forms` (`kona-firefly-forms`). Each field is a schema component, so it sits in the same tree as a section or a tab, shares that schema’s state map, and uses the live modifiers already on the component base (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`).
 
 The module depends on schemas, support, HTTP validation, and the filesystem. It does not register a panel. You place fields inside a `Schema` and render that schema into a Wire view.
@@ -27,7 +31,7 @@ schema.fill(Map.of("name", "Ada"));
 String html = schema.render();
 ```
 
-`make("name")` sets the state key. `render()` wraps the control in the field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. Live fields also emit `wire:model` on the schema wrapper. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Do not call `Alpine.start()` again.
+`make("name")` sets the state key. `render()` wraps the control in the field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. Live fields also emit `wire:model` on the schema wrapper. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Do not call `Alpine.start()` again. Until that script runs, `@entangle(...)` can still show as raw text in the page.
 
 `FormAssets.script()` and `FormAssets.stylesheet()` are the field script and the field CSS. Prose from the rich text and markdown editors uses the caramel accent `#DF8723` through `--ff-primary`.
 
@@ -74,7 +78,7 @@ These methods are on the field base. Every concrete field has them.
 
 `hidden`, `visible`, `live`, `liveOnBlur`, `liveDebounce`, and `afterStateUpdated` stay on the schema component. Call them on the field. They return the component base, so in Java finish the field chain before calling `live()`.
 
-`prefixAction`, `suffixAction`, and `hintAction` wait for the action type. They are not on this module.
+`prefixAction`, `suffixAction`, and `hintAction` take an `Action`. They are documented under [Actions on a field](#actions-on-a-field).
 
 ## Text
 
@@ -173,7 +177,7 @@ day.normalize(LocalDate.of(2024, 3, 10));
 
 ## Rich text, markdown, and code
 
-`RichEditor` emits a TipTap surface: a grouped sticky toolbar, a bubble menu, and a `.ff-prose` body. Link, image, and custom blocks open the support `Dialog`. `json()` stores JSON. The default is HTML, passed through a sanitizer that strips scripts, styles, iframes, `on*` attributes, and `javascript:` URLs. `disableToolbarButtons`, `mergeTags`, `mentions`, and `customBlocks` configure the toolbar. File attachments name a disk and directory. Wrapping a custom block’s edit button in an action waits for the action type.
+`RichEditor` emits a TipTap surface: a grouped sticky toolbar, a bubble menu, and a `.ff-prose` body. Link, image, and custom blocks open the support `Dialog`. `json()` stores JSON. The default is HTML, passed through a sanitizer that strips scripts, styles, iframes, `on*` attributes, and `javascript:` URLs. `disableToolbarButtons`, `mergeTags`, `mentions`, and `customBlocks` configure the toolbar. File attachments name a disk and directory. `editBlockAction` renders an `Action` for a custom block. The block’s edit control still opens the support `Dialog`.
 
 `MarkdownEditor` is a Write | Preview pair. Write uses CodeMirror with the markdown language. Preview renders a GitHub-flavored subset (fences, tables, lists, task lists, headings, links, images) into the same `.ff-prose` class, then sanitizes it.
 
@@ -195,15 +199,13 @@ The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file wi
 
 `preventFilePathTampering(true)` rejects `..`, absolute paths, `.ffmeta` files, and paths outside the directory or `firefly-temporary/`. Mount `VerifyCsrfToken` from `kona-session` on `POST /_firefly/uploads`. The field script sends `X-CSRF-TOKEN` from a `csrf-token` meta tag and `_token`. Pass a checker as the third argument to `register` when you want the route itself to reject a bad token.
 
-A file browser that picks existing files is a later package. This field uploads and stores.
+`browse` and `browseAction` list files already stored on the disk. They are documented under [Browsing stored files](#browsing-stored-files).
 
 ## Repeater and builder
 
-`Repeater.make("members").simple(TextInput.make("name").required())` edits a list of maps. `schema(...)` replaces the item blueprint. `addItem`, `removeItem`, `cloneItem`, and `moveItem` update the schema state and run `afterStateUpdated`. `orderColumn("sort")` writes 1-based positions. `itemLabel` is a string or a function of the index and `Get`. `grid`, `minItems`, `maxItems`, `defaultItems`, `collapsible`, and `collapsed` change the layout. `relationship("members")` stores the relation name. Loading the related records is a later milestone.
+`Repeater.make("members").simple(TextInput.make("name").required())` edits a list of maps. `schema(...)` replaces the item blueprint. `addItem`, `removeItem`, `cloneItem`, and `moveItem` update the schema state and run `afterStateUpdated`. `orderColumn("sort")` writes 1-based positions. `itemLabel` is a string or a function of the index and `Get`. `grid`, `minItems`, `maxItems`, `defaultItems`, `collapsible`, and `collapsed` change the layout. `relationship("members")` stores the relation name on the repeater. It does not load related records by itself.
 
-Item actions (`add`, `delete`, `clone`, and extra item actions) as action objects wait for the action type. The buttons in the field are plain buttons.
-
-`Builder.make("blocks").blocks(BuilderBlock("hero", "Hero", listOf(TextInput.make("title"))))` edits a list of typed blocks. `addBlock(schema, "hero")` appends one. `blockNumbers(true)` prefixes the label with the index. An action inserted between blocks waits for the action type.
+`Builder.make("blocks").blocks(BuilderBlock("hero", "Hero", listOf(TextInput.make("title"))))` edits a list of typed blocks. `addBlock(schema, "hero")` appends one. `blockNumbers(true)` prefixes the label with the index. `addBetweenAction` renders an action between blocks.
 
 ## Validation
 
@@ -300,4 +302,4 @@ MorphToSelect.make("link").titleAttribute("name").type("posts", posts)
 
 ## Browsing stored files
 
-`FileUpload.browseAction` renders an action beside the upload. `browse(disk)` lists files already stored under `directory()` and skips `*.ffmeta` paths. `chooseBrowsed` writes the chosen path into the same field state. Folder rename, delete, and a file manager stay a later package.
+`FileUpload.browseAction` renders an action beside the upload. `browse(disk)` lists files already stored under `directory()` and skips `*.ffmeta` paths. `chooseBrowsed` writes the chosen path into the same field state. Rename and delete of stored folders are not methods on this field.
