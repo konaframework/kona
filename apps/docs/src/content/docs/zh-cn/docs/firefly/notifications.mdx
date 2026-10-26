@@ -1,0 +1,84 @@
+---
+title: 通知
+description: 闪现一条 Firefly 提示，在铃铛里列出数据库通知，并在广播到达时刷新页面。
+---
+
+Firefly 通知是一条短消息，带有标题、状态，以及可选的正文、图标、颜色、持续时间、额外属性和动作。你在 Kotlin 或 Java 里构建它，然后发送到会话、数据库或广播。
+
+类型位于 `org.konaframework.firefly.notifications`（`kona-firefly-notifications`）。该模块使用已有的会话闪存存储、`DatabaseChannel` 和 `BroadcastManager`。它不另加第二套通知存储。
+
+可链式调用的设置器接受静态值或闭包。闭包接收当前状态的模式 `Get`。
+
+## 一次调用里的提示
+
+```kotlin
+val session = StoreSession("desk", ArraySessionStore())
+FireflyNotification.make("saved")
+    .title("Saved")
+    .body("The record is stored.")
+    .icon("bell")
+    .success()
+    .duration(6)
+    .extraAttributes(mapOf("data-lang" to "kotlin"))
+    .actions(Action.make("open").label("Open"))
+    .send(session)
+val html = FireflyNotification.pull(session)
+```
+
+```java
+StoreSession session = new StoreSession("desk", new ArraySessionStore());
+FireflyNotification notice = FireflyNotification.make("saved");
+notice.title(get -> "Saved");
+notice.body("The record is stored.");
+notice.success();
+notice.duration(6);
+notice.extraAttributes(get -> Map.of("data-lang", "java"));
+notice.send(session, Map.of());
+String html = FireflyNotification.pull(session);
+```
+
+`make()` 分配一个随机 id。`make(id)` 使用你传入的 id。空白 id 会抛出 `FireflyException`，消息是 `Notification id is blank`。空白标题会抛出 `Notification title is blank`，若值在发送时才解析，则是 `Notification [<id>] title is blank`。
+
+`success()`、`info()`、`warning()` 和 `danger()` 设置状态。默认状态是 `info`。颜色跟随状态，除非你自己调用 `color`。之后再调用 `success()` 时，显式颜色保持不变。
+
+`duration` 是整秒数。默认是 `6`。负的持续时间会抛出 `FireflyException`。
+
+`send(session)` 把一张映射写到会话闪存键 `firefly.notifications`。`send(session, state)` 对照该状态映射求值闭包。`FireflyNotification.render(session)` 读取闪存并返回提示 HTML，而不删除它。`pull(session)` 返回同样的 HTML，然后忘掉该键。
+
+每条提示是一个 `<div class="ff-notification" role="status">`，带有 `data-ff-status`、`data-ff-color` 和 `data-ff-duration`。额外属性写在该元素上。动作 HTML 由你附加的动作渲染。
+
+## 数据库铃铛
+
+```kotlin
+val channel = DatabaseChannel()
+notice.sendToDatabase(person, channel)
+val bell = NotificationBell(channel, person.routeNotificationFor("database"))
+val html = bell.render()
+bell.markAsRead(bell.records().first().id)
+bell.markAllAsRead()
+```
+
+`sendToDatabase` 接受 `DatabaseChannel` 或 `NotificationSender`。存储的行保留标题、状态、颜色、持续时间、正文、图标、属性，以及渲染后的动作 HTML。
+
+`NotificationBell` 列出该可通知对象的行。`render()` 返回带未读行计数和每条记录一个 `<li>` 的 `<div class="ff-notification-bell" wire:poll.30s>`。`data-ff-unread` 是 `true` 或 `false`。行没有标题时，列表项使用通知类型名。
+
+## 广播刷新
+
+```kotlin
+notice.broadcastChannel("desk").broadcast(person, manager)
+val marker = BroadcastRefresh().channel("desk").event("firefly.notification").render()
+```
+
+`broadcast` 通过 `BroadcastManager` 发到你设置的频道名。空白频道会抛出 `FireflyException`。
+
+`BroadcastRefresh` 标记一个应在该广播到达时刷新的页面。`render()` 返回带 `data-ff-channel` 和 `data-ff-event` 的 `<div class="ff-broadcast-refresh" wire:poll.15s>`。你不设置事件时，事件默认为 `firefly.notification`。空白频道或空白事件会抛出 `FireflyException`。
+
+`configureUsing` 对之后每一次 `make()` 调用运行。传入 `null` 可以清除它。
+
+## 你用什么来构建
+
+| 类型 | 作用 |
+|------|------|
+| `FireflyNotification` | 提示、数据库载荷和广播载荷 |
+| `NotificationBell` | 为一个可通知对象渲染数据库行 |
+| `BroadcastRefresh` | 用要监视的频道和事件标记页面 |

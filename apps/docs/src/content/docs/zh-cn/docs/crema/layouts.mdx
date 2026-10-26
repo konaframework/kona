@@ -1,0 +1,120 @@
+---
+title: 布局与继承
+description: 用 @extends、@section、@yield、@parent、@show 和节检查来构建页面布局。
+---
+
+布局让子视图填充共享外壳里的具名区域 — 文档外框、管理框架、邮件包装等。子视图声明 `@extends('layouts.app')`，填充节，Crema 渲染父级时这些节可供 `@yield` 使用。
+
+## 父布局
+
+```crema
+{{-- views/layouts/app.crema.html --}}
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>@yield('title', 'App')</title>
+    @stack('styles')
+  </head>
+  <body>
+    @hasSection('sidebar')
+      <aside>@yield('sidebar')</aside>
+    @endif
+    @sectionMissing('sidebar')
+      <aside>Default sidebar</aside>
+    @endif
+
+    <main>@yield('content')</main>
+
+    @stack('scripts')
+  </body>
+</html>
+```
+
+### `@yield`
+
+`@yield('name')` 打印名为 `name` 的节。第二个引号参数是子视图没有定义该节时的默认值：
+
+```crema
+@yield('title', 'Untitled')
+@yield('content')
+```
+
+如果节存在，它的正文会在当前上下文中展开（节被 yield 时会运行回显和嵌套指令）。如果缺少且没有默认值，Crema 不输出任何内容。
+
+### 节是否存在
+
+| 指令 | 正文在何时运行 |
+|------|----------------|
+| `@hasSection('name')…@endif` | 这次渲染定义了该节 |
+| `@sectionMissing('name')…@endif` | 没有定义该节 |
+
+它们与普通 `@if` 块共用 `@endif`，并且可以正确嵌套。
+
+## 子视图
+
+```crema
+{{-- views/home.crema.html --}}
+@extends('layouts.app')
+
+@section('title', 'Home')
+
+@section('content')
+  <h1>Hello {{ name }}</h1>
+@endsection
+
+@push('scripts')
+  <script src="/home.js"></script>
+@endpush
+```
+
+经验规则：
+
+1. 把 `@extends('…')` 放在子视图里（单引号的布局名）。
+2. 定义布局期望的每个区域（`content`、`title` 等）。
+3. 可选地 `@push` / `@prepend` 到布局用 `@stack` 输出的栈。
+
+子视图扩展布局时，Crema 先收集子视图的节和栈推入，再渲染父级。扩展中的子视图里、`@section` / `@push` 之外的内容在收集后被丢弃。
+
+## 节的形式
+
+| 形式 | 语法 | 说明 |
+|------|------|------|
+| 内联 | `@section('title', 'Home')` | 仅短字符串（单引号） |
+| 块 | `@section('content') … @endsection` | 正文按原文存储；yield 时展开 |
+| 立即显示 | `@section('s') … @show` | 正文立即展开，然后存储 |
+
+```crema
+@section('title', 'Home')
+
+@section('content')
+  <p>Long markup here.</p>
+@endsection
+
+@section('notice')
+  Visible {{ now }} and also stored
+@show
+```
+
+## `@parent`
+
+当子视图重新定义父模板已经填充的节时，在子节内使用 `@parent` 以保留先前的文本：
+
+```crema
+{{-- parent filled section content with PARENT --}}
+@section('content')
+  CHILD @parent MORE
+@endsection
+{{-- @yield('content') → CHILD PARENT MORE --}}
+```
+
+Crema 把先前的节正文保留为父缓冲，并在渲染该节时替换 `@parent`。如果子节为空但存在父缓冲，则原样使用父缓冲。
+
+## 继承链
+
+布局本身也可以 `@extends` 另一个布局。每一层把节收集进共享的渲染上下文；内层（子级）定义通过 `@parent` 覆盖或包裹外层。栈在整次渲染中共享 — 任意一层的推入都会出现在最外层布局调用 `@stack` 的地方。
+
+## 相关
+
+- [栈](/docs/crema/stacks/) — `@push`、`@prepend`、`@stack`
+- [包含与局部](/docs/crema/includes/) — 不使用完整继承的较小可复用片段
+- [组件与插槽](/docs/crema/components/) — 带具名插槽的可复用部件

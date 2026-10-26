@@ -1,0 +1,126 @@
+---
+title: 第一个页面
+description: 从路由到 HTML 外壳再到 Inertia JSON — 带 Kotlin 和 Java 的完整请求演练。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+本演练假设 [安装](../installation/) 已经完成：提供者、中间件、根视图，以及能解析 `Pages/*` 的 Vite 客户端。
+
+## 1. 从路由渲染
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/") {
+    Inertia.render(
+        "Pages/Welcome",
+        mapOf(
+            "title" to "Hello",
+            "message" to "First Inertia page",
+        ),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/", request ->
+    Inertia.render(
+        "Pages/Welcome",
+        Map.of(
+            "title", "Hello",
+            "message", "First Inertia page"
+        )
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+除非你显式传入 `Request`，否则 `Inertia.render` 需要当前请求（由 `HandleInertiaRequests` 设置）。见[渲染](../../essentials/rendering/)。
+
+## 2. 首次访问（完整 HTML）
+
+浏览器导航到 `/`，**没有** `X-Inertia` 头。
+
+1. 中间件把请求设到 `InertiaManager` 上，合并共享属性，并检查版本（首次文档加载时没有版本）。
+2. 你的路由返回一个 Inertia 响应。
+3. 管理器用这些数据构建 `InertiaPage` 并渲染根 Crema 视图（`inertia.root_view`）：
+   - `pageAttr` — 页面对象的 HTML 转义 JSON
+   - `vite` — 客户端入口的 script/link 标签
+4. 响应是 `text/html`。
+
+查看 `#app`：
+
+```html
+<div
+  id="app"
+  data-page="{&quot;component&quot;:&quot;Pages/Welcome&quot;,&quot;props&quot;:{&quot;title&quot;:&quot;Hello&quot;,…},&quot;url&quot;:&quot;/&quot;,&quot;version&quot;:&quot;1&quot;}"
+></div>
+```
+
+Vue/React/Svelte 入口把这份 JSON 水合进 `Pages/Welcome`。
+
+## 3. Inertia 访问（JSON）
+
+客户端挂载之后，Inertia 链接或 `router.visit` 会发送：
+
+```http
+GET / HTTP/1.1
+X-Inertia: true
+X-Inertia-Version: 1
+Accept: text/html, application/xhtml+xml
+X-Requested-With: XMLHttpRequest
+```
+
+（确切的客户端头取决于适配器；JSON 模式要求 `X-Inertia: true`。）
+
+服务器行为：
+
+1. 版本头匹配 → 继续。
+2. 路由渲染同样的 `Inertia.render(…)`。
+3. 响应正文是 JSON（不是 Crema 外壳）：
+
+```json
+{
+  "component": "Pages/Welcome",
+  "props": { "title": "Hello", "message": "First Inertia page" },
+  "url": "/",
+  "version": "1"
+}
+```
+
+配置了版本时，响应头包括 `X-Inertia: true`、`Vary: X-Inertia` 和 `X-Inertia-Version`。
+
+## 4. 版本冲突
+
+如果客户端发送了过期的 `X-Inertia-Version`，中间件返回 **409**，以便适配器强制整页重载并拿到新资源。配置 `inertia.version`（或在中间件上覆盖 `version(request)`）。见[资源版本](../../advanced/versioning/)。
+
+## 5. 共享属性
+
+闪存消息、认证用户和 ziggy 风格的 URL 放在中间件的 `share(request)` 或 `Inertia.share(…)` 里 — 不要放进每个控制器。见[共享数据](../../essentials/shared-data/)。
+
+## 6. 客户端页面组件
+
+名称要与服务器一致。Vue 示例（`js/Pages/Welcome.vue`）：
+
+```vue
+<script setup>
+defineProps({ title: String, message: String });
+</script>
+<template>
+  <h1>{{ title }}</h1>
+  <p>{{ message }}</p>
+</template>
+```
+
+## 下一步
+
+- [前端客户端](../frontend/) — 各栈的挂载细节
+- [请求与响应](../../essentials/requests-responses/) — 头和状态码
+- [外部重定向](../../advanced/redirects/) — `Inertia.location`

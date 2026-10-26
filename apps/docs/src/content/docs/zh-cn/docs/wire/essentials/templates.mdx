@@ -1,0 +1,108 @@
+---
+title: Wire 模板
+description: Crema 视图、brew 标签、资源指令和变形标记。
+---
+
+Wire 通过 **Crema** 渲染 HTML。每个组件必须产生**单个根元素**。Wire 把 `wire:snapshot`、`wire:effects`、`wire:id` 和 `wire:name` 盖到该根上。
+
+## 渲染路径
+
+1. `template()` — 类上的内联 Crema
+2. `render()` → `view("brew.todos", data)` 或 `inline(source, data)`
+3. 两者都不存在时，约定文件 `src/main/resources/views/wire/<name>.crema.html`
+
+在模板内部，公开属性和 `@Computed` 方法作为 Crema 数据处于作用域内。
+
+### 内联 `template()` 的 IDE 支持
+
+Crema 高亮和补全适用于 `*.crema.html` 文件，也适用于**内联字符串内部**。
+
+**IntelliJ IDEA**（Kona Idea 插件）把 Crema 注入 `Component.template()`、`Component.inline` / `WireView.inline` 的 `source` 参数（`@CremaTemplate`），以及任何前面有 `// language=Crema` 的字符串。
+
+**Cursor / VS Code**（vscode-crema 扩展）：TextMate 注入会给 Java/Kotlin 的 `template()` 文本块、`inline(` 参数和 `language=Crema` 字符串里的 Crema 上色。把 **kona-lsp** 的文档语言设为 `crema`、`java` 和 `kotlin`，即可在同样的范围内补全 `@` 指令、`wire:*` 和 `{{` 成员。安装或更新扩展后重新加载窗口。
+
+```kotlin
+override fun template(): String =
+    // language=Crema
+    """
+        <div>
+            <p>Count: {{ count }}</p>
+            <button type="button" wire:click="decrement">-</button>
+            <button type="button" wire:click="increment">+</button>
+        </div>
+    """.trimIndent()
+```
+
+Java 文本块同样适用 — 见 `samples/wire-java` 的 `Counter.template()`。方法是 `template()` 或调用是 `inline(` 时，不需要语言注释。
+
+## 标签和指令
+
+| 表面 | 示例 |
+|------|------|
+| 标签 | `<wire:counter :start="1" />` |
+| 指令 | `@wire('counter', ['start' => 1])` |
+| 样式占位 | `@wireStyles` |
+| 脚本 | `@wireScripts` |
+| 仅脚本配置 | `@wireScriptConfig`（用于手动 ESM 打包） |
+| JS 编码 | `@js($value)` |
+
+当 `wire.inject_assets` 为真时，看起来像完整 HTML 文档的响应如果缺少这些指令，会自动注入样式和脚本。
+
+## 资源与路由
+
+| URL | 内容 |
+|-----|------|
+| `/wire/wire.js` | 可读的包 |
+| `/wire/wire.min.js` | 压缩包（加源映射） |
+
+脚本标签包含用于破缓存的 `?id=` 哈希、`data-csrf` 和 `data-update-uri="/wire/update"`。需要自定义挂载点时，用 `Wire.setUpdateRoute` / `Wire.setScriptRoute` 覆盖路径（`brew.path` 仍是默认名）。
+
+从 Kotlin/Java：
+
+```kotlin
+Wire.styles()
+Wire.scripts()
+Wire.scriptConfig()
+```
+
+## 变形标记
+
+当 `brew.inject_morph_markers` 为真（默认）时，Crema 用 HTML 注释标记包裹条件块和循环，这样带键的变形可以增删块而不撕开兄弟 DOM。列表项上优先使用 `wire:key`：
+
+```crema
+@foreach(items as item)
+    <li wire:key="item-{{ item.id }}">{{ item.title }}</li>
+@endforeach
+```
+
+## 布局提示
+
+- 把交互界面放在组件根内部；Wire 变形的是那棵子树。
+- 对 Wire 不得触碰的孤岛（第三方部件）使用 `wire:ignore`（`.self` / `.children`）。
+- 需要时 `wire:replace` 强制整段替换而不是变形。
+
+## 示例页面
+
+```crema
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ title }}</title>
+    @wireStyles
+</head>
+<body>
+    <h1>{{ title }}</h1>
+    <wire:counter :start="3" />
+    <wire:todos />
+    @wire('search')
+    @wireScripts
+</body>
+</html>
+```
+
+## 下一步
+
+- [组件](/docs/wire/essentials/components/) — 类与视图的编写方式
+- [JavaScript](/docs/wire/js/runtime/) — 变形和 `$wire` 如何表现
+- [生命周期](/docs/wire/essentials/lifecycle/) — `rendering` / `rendered` 钩子

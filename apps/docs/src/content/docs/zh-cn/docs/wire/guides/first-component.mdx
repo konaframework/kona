@@ -1,0 +1,160 @@
+---
+title: 第一个组件
+description: 用 Kotlin 和 Java 做一个计数器，嵌入 Crema，并理解往返。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+本演练假设 Wire 已经[安装](/docs/wire/guides/installation/)，并且 web 栈上有会话和 CSRF 中间件。
+
+## 1. 脚手架或手写
+
+```bash
+./grind make:wire counter
+# or: ./grind make:wire counter --lang=java
+# single-file instead: ./grind make:wire counter --inline
+```
+
+默认会创建一个空的 `Counter` 类，以及 `views/wire/counter.crema.html`，里面用 `<p>` 放一句短引语。构建时替换视图（并在类上加上状态和动作）— 或者手写下面的计数器。
+
+把类放在 `app.wire`（或配置 `wire.class_namespace`）。
+
+## 2. 组件类
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.wire
+
+import org.konaframework.wire.Component
+
+class Counter : Component() {
+    var count = 0
+
+    fun mount(start: Int = 0) {
+        count = start
+    }
+
+    fun increment() {
+        count++
+    }
+
+    fun decrement() {
+        count--
+    }
+
+    override fun template() = """
+        <div>
+            <button type="button" wire:click="decrement">−</button>
+            <span>{{ count }}</span>
+            <button type="button" wire:click="increment">+</button>
+        </div>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.wire;
+
+import org.konaframework.wire.Component;
+
+public class Counter extends Component {
+    public int count = 0;
+
+    public void mount(int start) {
+        count = start;
+    }
+
+    public void increment() {
+        count++;
+    }
+
+    public void decrement() {
+        count--;
+    }
+
+    @Override
+    public String template() {
+        return """
+            <div>
+                <button type="button" wire:click="decrement">−</button>
+                <span>{{ count }}</span>
+                <button type="button" wire:click="increment">+</button>
+            </div>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 3. 嵌入页面
+
+属性成为挂载参数 / 初始属性（`:start="3"` → `mount(start = 3)`）。
+
+```crema
+{{-- views/welcome.crema.html --}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Welcome</title>
+    @wireStyles
+</head>
+<body>
+    <h1>Welcome</h1>
+    <wire:counter :start="3" />
+    {{-- or: @wire('counter', ['start' => 3]) --}}
+    @wireScripts
+</body>
+</html>
+```
+
+也可以从代码挂载：
+
+```kotlin
+val html = Wire.mount("counter", mapOf("start" to 3))
+```
+
+## 4. 把路由指到页面
+
+接上一条返回 Crema 视图的普通 Kona 路由（见 [Kona 路由](/docs/http/routing/)）。首次绘制应看到 `3`。每次点击都会发到 `/wire/update` 并把新 HTML 变形进去。
+
+## 5. 不打开浏览器来测试
+
+```kotlin
+Wire.test(Counter::class.java)
+    .set("count", 1)
+    .call("increment")
+    .assertSet("count", 2)
+    .assertSee("2")
+```
+
+```java
+Wire.test(Counter.class)
+    .set("count", 1)
+    .call("increment")
+    .assertSet("count", 2)
+    .assertSee("2");
+```
+
+## 你刚刚用到的部分
+
+| 部分 | 作用 |
+|------|------|
+| 公开的 `count` | 快照状态 |
+| `increment` / `decrement` | 浏览器可调用的动作 |
+| `wire:click` | 由 Alpine 支撑的事件 → 服务器调用 |
+| `{{ count }}` | 重新渲染时的 Crema 插值 |
+| 单个根 `<div>` | 变形所必需 |
+
+## 下一步
+
+- [组件](/docs/wire/essentials/components/) — 发现、类加视图、登记
+- [表单与校验](/docs/wire/essentials/forms/) — `wire:model` 和规则
+- [示例 → 计数器](/docs/wire/examples/counter/) — 打磨过的示例演练
