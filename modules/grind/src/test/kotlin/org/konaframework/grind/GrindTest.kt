@@ -755,6 +755,24 @@ class GrindTest {
     }
 
     @Test
+    fun makeFireflyWidget() {
+        val base = temp.resolve("firefly-widget")
+        Files.createDirectories(base)
+        assertEquals(0, MakeFireflyWidgetCommand().run(listOf("Revenue", "--base=$base", "--lang=kotlin")))
+        val source = Files.readString(base.resolve("src/main/kotlin/app/firefly/widgets/Revenue.kt"))
+        val view = Files.readString(base.resolve("src/main/resources/views/firefly/widgets/revenue.crema.html"))
+        assertTrue(source.contains("class Revenue"))
+        assertTrue(source.contains(": Widget("))
+        assertTrue(view.contains("x-data=\"ffWidget\""))
+        assertEquals(0, MakeFireflyWidgetCommand().run(listOf("Orders", "--base=$base", "--lang=java")))
+        assertTrue(Files.readString(base.resolve("src/main/java/app/firefly/widgets/Orders.java")).contains("extends Widget"))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-widget", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-widget", "Bad-Name", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-widget", "Revenue", "--base=$base", "--lang=kotlin")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-widget" })
+    }
+
+    @Test
     fun makeFireflyField() {
         val base = temp.resolve("firefly-field")
         Files.createDirectories(base)

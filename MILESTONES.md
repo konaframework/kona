@@ -1201,27 +1201,33 @@ Actions (M30) and tables (M33) are on `main`. Forms, including the code editor f
 
 ## M34 — Firefly notifications and widgets
 
-**Status:** queued (not started). Not done.
+**Status:** done (branch `milestone/M34-firefly-notifications`; on `main` when this PR merges).
 
-Not on `main`. Artifacts, when this milestone starts: `kona-firefly-notifications`, `kona-firefly-widgets`. Do not open this milestone from the forms or tables status update. Do not mark it done from a widget that only renders in isolation.
+Artifacts: `kona-firefly-notifications`, `kona-firefly-widgets`. Widgets render on their own and on a `Page` or `Dashboard`. Panel HTTP routes stay in M35.
 
 **Parity slice:** Notifications, plus widgets that render on their own and inside a page or dashboard. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
 
-**Widgets.** A widget renders on its own and inside a page or dashboard. Stats, charts (Chart.js default, ApexCharts optional), and table-backed widgets read the same query and schema pieces. A widget is not done if it cannot be placed on a page.
+**Widgets.** A widget renders on its own and inside a page or dashboard. Stats, charts (Chart.js default, ApexCharts optional), and table-backed widgets read the same query and schema pieces. `Page.widgets` and `Page.discoverWidgets` place them. `WidgetDiscovery` reads a panel `widgets/` directory.
 
 ### Parity checklist
 
-- [ ] Flash, database bell, and broadcast refresh
-- [ ] Stats widget
-- [ ] `ChartWidget` with Chart.js as the default and ApexCharts optional
-- [ ] Table-backed widget reads the same query and schema pieces as tables
-- [ ] The widget renders on its own for tests and embedding, and it can be placed on a page or dashboard
-- [ ] Kotlin and Java samples mount one widget of each chart engine on a page or dashboard
-- [ ] 100% line + branch coverage on the modules this milestone touches
+- [x] Flash, database bell, and broadcast refresh (`FireflyNotification`, `NotificationBell`, `BroadcastRefresh`)
+- [x] Stats widget (`Stat`, `StatsOverviewWidget`)
+- [x] `ChartWidget` with Chart.js as the default and ApexCharts optional (`RevenueChart`, `OrdersChart`)
+- [x] Table-backed widget reads the same query and schema pieces as tables (`TableWidget`)
+- [x] The widget renders on its own for tests and embedding, and it can be placed on a page or dashboard
+- [x] Kotlin and Java samples mount one widget of each chart engine on a page or dashboard
+- [x] Widgets are discovered from a panel `widgets/` directory (`WidgetDiscovery`)
+- [x] `make:firefly-widget` for Kotlin and `--lang=java`
+- [x] 100% line + branch coverage on `kona-firefly-notifications`, `kona-firefly-widgets`, and `kona-grind`
+
+### In-scope modules
+
+`kona-firefly-notifications`, `kona-firefly-widgets`, `kona-grind` (`make:firefly-widget`), `apps/docs/`, BOM, CI coverage gate
 
 ### Out of scope
 
-Panel routes, auth, navigation, and pages (M35). Resources (M36). Do not pull M36 forward. This milestone does not become the page or resource milestone.
+Panel routes, auth, navigation, and pages (M35). Resources (M36). Do not pull M36 forward. This milestone does not become the page or resource milestone. `Page` here is the composition host those routes will serve.
 
 ---
 
@@ -1250,7 +1256,7 @@ The Manage page for a simple resource is the M36 generator. M35 ships the Page t
 
 ### Out of scope
 
-Resources, relation managers, and `make:firefly-resource` (M36). Do not pull M36 forward ahead of M31 landing. Tenancy, plugins, import/export, and the kit (M37).
+Resources, relation managers, and `make:firefly-resource` (M36). Tenancy, plugins, import/export, and the kit (M37).
 
 ---
 
@@ -1258,7 +1264,7 @@ Resources, relation managers, and `make:firefly-resource` (M36). Do not pull M36
 
 **Status:** queued (not started). Not done.
 
-Not on `main`. Includes `--simple` resources. Artifact, when this milestone starts: `kona-firefly`. Do not pull this milestone forward ahead of M31 landing. Forms are still not on `main`.
+Not on `main`. Includes `--simple` resources. Artifact, when this milestone starts: `kona-firefly`. M31 forms are on `main`. Do not start this milestone until M35 is on `main`.
 
 **Parity slice:** A resource binds one model to its pages, form schema, infolist, table, and actions. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
 
@@ -1276,7 +1282,7 @@ Not on `main`. Includes `--simple` resources. Artifact, when this milestone star
 
 ### Out of scope
 
-The document addon. Tenancy, plugins, import/export, and the kit (M37). Do not mark this milestone done while M31 forms are still not on `main`.
+The document addon. Tenancy, plugins, import/export, and the kit (M37).
 
 ---
 
