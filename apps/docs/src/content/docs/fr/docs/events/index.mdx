@@ -1,0 +1,230 @@
+---
+title: Événements
+description: Événements d’application synchrones — définissez des charges typées, enregistrez des écouteurs, dispatchez via EventDispatcher et câblez EventServiceProvider.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un **événement** est un message typé que votre application publie lorsque quelque chose de significatif arrive — une commande expédiée, un utilisateur inscrit, un paiement échoué. Un **écouteur** est du code qui s’exécute lorsque ce message est publié. Le bus d’événements de Kona (`EventDispatcher`) est un registre **synchrone, dans le processus** : les écouteurs d’une classe d’événement donnée s’exécutent immédiatement, sur le même fil, dans l’ordre d’enregistrement.
+
+Cette section couvre toute la surface livrée dans `org.konaframework.events` (`kona-events`) : définir des événements, enregistrer des écouteurs, dispatcher, effacer les écouteurs, câblage du conteneur via `EventServiceProvider`, et tests avec `FakeEvent`. Les fonctionnalités qui ne sont **pas** dans Kona aujourd’hui sont listées sous [Pas disponible aujourd’hui](#not-available-today).
+
+| Guide | Utilisez lorsque |
+|-------|----------|
+| [Dispatch et écouteurs](/docs/events/dispatching/) | API complète, motifs d’enregistrement, ordre, forget/flush, pièges |
+| [Tests](/docs/events/testing/) | `FakeEvent`, enregistrement des dispatches, affirmation des types |
+
+Lié (systèmes différents) :
+
+- [Événements de cycle de vie de modèle Cadence](/docs/cadence/serialization-events/#lifecycle-events) — `ModelDispatcher` / `ModelEvent` autour de la persistance
+- [Files](/docs/queue/) — jobs d’arrière-plan (`Bus` / `ShouldQueue`) ; non câblés dans `EventDispatcher` aujourd’hui
+- [Diffusion](/docs/broadcasting/) — pousser des événements vers les clients (`Broadcast.event`)
+- [Conteneur](/docs/concepts/container/) — résoudre le dispatcher partagé
+- [Application et providers](/docs/concepts/application/) — où enregistrer `EventServiceProvider`
+
+## Ce que fait le bus
+
+1. Vous enregistrez un ou plusieurs **écouteurs** contre une **classe** d’événement (`Class<T>`).
+2. Quelque chose dans votre application appelle `dispatch(eventInstance)`.
+3. Le dispatcher cherche les écouteurs pour la **classe d’exécution exacte** de cette instance.
+4. Le `handle` de chaque écouteur correspondant s’exécute, dans l’ordre où ils ont été enregistrés.
+5. Lorsqu’il n’y a pas d’écouteurs pour cette classe, `dispatch` ne fait rien (pas d’erreur).
+
+Il n’y a pas de saut de file, pas de processus worker séparé, et pas de découverte automatique des classes d’écouteur. Si un écouteur doit faire un travail lourd plus tard, dispatchez un [job de file](/docs/queue/jobs/) depuis l’intérieur de l’écouteur (ou depuis le même site d’appel).
+
+## Démarrage rapide
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.events.EventDispatcher
+import org.konaframework.events.EventListener
+
+data class OrderShipped(val id: String)
+
+val bus = EventDispatcher()
+
+bus.listen(OrderShipped::class.java) { event ->
+    println("shipped ${event.id}")
+}
+
+// Equivalent SAM form:
+bus.listen(OrderShipped::class.java, EventListener { event ->
+    println("also ${event.id}")
+})
+
+// Reified helper (Kotlin only):
+bus.listen<OrderShipped> { event ->
+    println("reified ${event.id}")
+}
+
+bus.dispatch(OrderShipped("42"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.events.EventDispatcher;
+import org.konaframework.events.EventListener;
+
+public final class OrderShipped {
+    public final String id;
+    public OrderShipped(String id) { this.id = id; }
+}
+
+EventDispatcher bus = new EventDispatcher();
+
+bus.listen(OrderShipped.class, event -> System.out.println("shipped " + event.id));
+
+bus.listen(OrderShipped.class, (EventListener<OrderShipped>) event ->
+    System.out.println("also " + event.id)
+);
+
+bus.dispatch(new OrderShipped("42"));
+```
+
+</TabItem>
+</Tabs>
+
+## Câbler le dispatcher dans votre application
+
+`EventServiceProvider` lie un seul `EventDispatcher` comme **singleton de conteneur**. Les échafaudages `kona new` par défaut n’enregistrent **pas** ce provider automatiquement — ajoutez-le à côté de vos autres providers lorsque vous voulez un bus partagé.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.events.EventServiceProvider
+
+val app = Kona.create(args)
+    .providers(
+        HttpServiceProvider(),
+        EventServiceProvider(),
+        AppServiceProvider(),
+        // …
+    )
+    .boot()
+
+val events = app.resolve(EventDispatcher::class.java)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.events.EventServiceProvider;
+
+Application app = Kona.create(args)
+    .providers(
+        new HttpServiceProvider(),
+        new EventServiceProvider(),
+        new AppServiceProvider()
+        // …
+    )
+    .boot();
+
+EventDispatcher events = app.resolve(EventDispatcher.class);
+```
+
+</TabItem>
+</Tabs>
+
+Enregistrez les écouteurs dans la méthode **`boot`** d’un provider (après que chaque provider a fini `register`), ou dans un provider d’événements dédié que vous possédez :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) { /* bindings only */ }
+
+    override fun boot(app: Application) {
+        val events = app.resolve(EventDispatcher::class.java)
+        events.listen(OrderShipped::class.java) { event ->
+            app.resolve(Mailer::class.java).send(/* … */)
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) { /* bindings only */ }
+
+    @Override
+    public void boot(Application app) {
+        EventDispatcher events = app.resolve(EventDispatcher.class);
+        events.listen(OrderShipped.class, event -> {
+            app.resolve(Mailer.class).send(/* … */);
+        });
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Vous pouvez aussi construire `EventDispatcher()` vous-même dans les tests ou les petits outils sans enregistrer le provider. Préférez le singleton du conteneur dans les applications de longue durée afin que chaque site d’appel partage le même ensemble d’écouteurs.
+
+## Maven / Gradle
+
+Artefact : `org.konaframework:kona-events` (inclus dans le BOM Kona). Paquet : `org.konaframework.events`.
+
+| Type | Rôle |
+|------|------|
+| `EventDispatcher` | Le bus — `listen`, `dispatch`, `forget`, `flush`, inspection |
+| `EventListener<T>` | Interface SAM (`void handle(T event)`) pour les lambdas Kotlin et les références de méthode Java |
+| `EventServiceProvider` | Enregistre le dispatcher singleton sur `Application` |
+
+## Quand utiliser les événements d’application
+
+Utilisez `EventDispatcher` lorsque :
+
+- Plusieurs réactions indépendantes doivent suivre un fait de domaine (courriel, journal d’audit, invalidation de cache) sans coupler ces réactions dans l’éditeur.
+- Vous voulez des charges typées (data classes / records ou beans Java) au lieu de noms de sujet chaîne.
+- Le travail est **assez rapide** pour tourner sur le fil de requête ou de commande.
+
+Préférez d’autres outils lorsque :
+
+| Besoin | Préférez |
+|------|--------|
+| E/S lourde / lente / peu fiable | [Jobs de file](/docs/queue/jobs/) via `Bus` |
+| Hooks d’insert/update/delete Cadence | [Événements de cycle de vie de modèle](/docs/cadence/serialization-events/#lifecycle-events) |
+| Pousser vers les navigateurs / websockets | [Diffusion](/docs/broadcasting/) |
+| Exploration console interactive | Résolvez `EventDispatcher` depuis une application démarrée dans [steam](/docs/steam/) ou une commande [grind](/docs/grind/) |
+
+## Modèle d’exécution synchrone
+
+Chaque appel `dispatch` :
+
+- Exécute les écouteurs **en ligne** avant le retour de `dispatch`.
+- Propage les exceptions d’un écouteur vers l’appelant (les écouteurs suivants de ce dispatch ne s’exécutent pas une fois qu’un plus ancien lance).
+- Ne consulte pas les [connexions de file](/docs/queue/), `ShouldQueue`, ni les hooks after-commit — ils ne sont **pas disponibles** sur ce bus aujourd’hui.
+
+Il n’y a pas de mode séparé « sync contre file » sur `EventDispatcher`. Le travail d’arrière-plan appartient aux [Files](/docs/queue/).
+
+<a id="not-available-today"></a>
+
+## Pas disponible aujourd’hui
+
+Documenté afin que vous n’attendiez pas des API qui ne sont pas dans les sources :
+
+| Capacité | Statut |
+|------------|--------|
+| Façade globale `Event` / aide `event()` | Non livré — résolvez `EventDispatcher` depuis le conteneur (ou construisez-en un) |
+| Découverte d’écouteurs par attribut / annotation | Non livré — enregistrez avec `listen` explicitement |
+| Classes abonnées (`subscribe` mappe plusieurs événements) | Non livré |
+| Écouteurs joker / noms d’événement chaîne sur ce bus | Non livré (utilisez des classes typées ; la diffusion utilise des noms séparément) |
+| Arrêt de propagation / retour `false` pour stopper la chaîne | Non livré — tous les écouteurs enregistrés s’exécutent sauf si l’un lance |
+| Écouteurs en file / `shouldQueue` / files d’écouteurs | Non livré — dispatchez un job depuis un écouteur si besoin |
+| Dispatch after-commit | Non livré |
+| Correspondance d’héritage (écouter une interface/superclasse) | Non livré — classe d’exécution exacte seulement |
+| Enregistrement automatique dans les échafaudages par défaut | Non livré — ajoutez `EventServiceProvider` vous-même |
+
+Consultez [Dispatch et écouteurs](/docs/events/dispatching/) pour les tableaux d’API complets, les motifs et les cas limites, et [Tests](/docs/events/testing/) pour `FakeEvent`.

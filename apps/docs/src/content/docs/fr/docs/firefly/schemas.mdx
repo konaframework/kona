@@ -1,0 +1,255 @@
+---
+title: Schémas
+description: Construisez l’arbre d’un écran, remplissez la map d’état et appelez render(). Le formulaire Desk est un schéma des champs name, status et due.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Construisez l’arbre d’un écran, remplissez la map d’état et appelez `render()`. Les sections, le texte, les champs et les boutons se placent tous dans cet arbre. Les pièces live se lient avec `wire:model` et `@entangle`.
+
+Utilisez un schéma lorsqu’un écran est plus qu’un contrôle. Sur la page Desk le formulaire est un champ name, un champ status et un champ due. Les types vivent dans `org.konaframework.firefly.schemas` (`kona-firefly-schemas`).
+
+<FireflyShot file="schema-section.png" description="Le formulaire Desk à http://127.0.0.1:4017/admin/desk, un schéma des champs name, status et due." />
+
+## En construire un et le rendre
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val schema = Schema.make()
+    .statePath("user")
+    .components(
+        Section.make("Profile").schema(
+            Text.make("Hello"),
+        ),
+    )
+schema.hydrate()
+val html = schema.render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Schema schema = Schema.make()
+    .statePath("user")
+    .components(Section.make("Profile").schema(Text.make("Hello")));
+schema.hydrate();
+String html = schema.render();
+```
+
+</TabItem>
+</Tabs>
+
+`Schema.make()` démarre un arbre vide. `statePath("user")` préfixe chaque composant racine, donc un champ nommé `name` est stocké à `user.name`. `components(...)` remplace la liste racine et lie chaque composant au schéma. `hydrate()` écrit les défauts dans les chemins manquants. `render()` renvoie un `<div class="ff-schema">`. Vous voyez la section Profile et le texte Hello.
+
+`get` et `set` utilisent des chemins pointés. `set` renvoie les clés de rendu partiel de cette mise à jour. Un composant qui a appelé `live()`, `liveOnBlur()` ou `liveDebounce(...)` contribue son propre chemin.
+
+## Passer une valeur ou une fermeture
+
+La plupart des setters chaînés acceptent une valeur fixe ou une fermeture. La fermeture reçoit `Get`, le même lecteur que le schéma utilise dans `afterStateUpdated`. `Get.get` résout un chemin relatif au conteneur du composant. Un chemin qui commence par `/` est absolu.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val section = Section.make("Profile")
+section.label("Title")
+section.label { get -> if (get.get("/kind") == "org") "Organization" else "Title" }
+section.description { get -> "About ${get.get("/kind")}" }
+section.columns { 2 }
+section.hidden { get -> get.get("/draft") == true }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+name.label(get -> "From Java");
+details.columns(get -> 2);
+Text.make("Hello").content(get -> "Hello");
+```
+
+</TabItem>
+</Tabs>
+
+Le dernier appel gagne. `label("Title")` après une fermeture stocke la chaîne fixe et abandonne la fermeture. La même forme est sur `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight` et `imageWidth`.
+
+`extraAttributes` fusionne des attributs HTML sur la racine du composant. Les layouts, primes, actions, entrées d’infolist, colonnes de tableau et champs de formulaire l’ont tous. Passez une map ou une fermeture. Un nom qui n’est pas un nom d’attribut HTML est sauté. Les valeurs sont échappées.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Section.make().extraAttributes(mapOf("data-section" to "intro"))
+Text.make("note").extraAttributes { mapOf("data-kind" to "note") }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Section.make().extraAttributes(Map.of("data-section", "intro"));
+Text.make("note").extraAttributes(get -> Map.of("data-kind", "note"));
+```
+
+</TabItem>
+</Tabs>
+
+`hidden(true)` et `visible(false)` prennent encore un booléen. `hidden { ... }` et `visible { ... }` se recalculent lorsque le schéma se rend ou lorsque `isHidden` s’exécute.
+
+## Lire et écrire l’état
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+schema.fill(mapOf("user.city" to "Kona"))
+schema.get("user.city") // "Kona"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+schema.fill(Map.of("user.city", "Kona"));
+schema.get("user.city"); // "Kona"
+```
+
+</TabItem>
+</Tabs>
+
+À l’intérieur d’un composant sous `statePath("user")` :
+
+| Appel | Résultat |
+|------|--------|
+| `get("name")` | le frère à `user.name` |
+| `get("../name")` | encore `user.name` — `..` ne quitte pas le préfixe du schéma |
+| `get("/user.city")` | lecture absolue |
+| `get(".")`, `get("..")`, `get("")` | `null` |
+
+`defaultValue("Ada")` écrit ce littéral pendant `hydrate()` lorsque le chemin est vide. `defaultUsing { get -> get.get("../name") }` écrit le résultat de la fermeture. Un second `hydrate()` laisse une valeur existante en place.
+
+`dehydrate()` renvoie une map des chemins qui doivent être enregistrés. Un composant caché est omis sauf `dehydratedWhenHidden(true)`. `dehydrated(false)` omet le composant même lorsqu’il est visible.
+
+`afterStateUpdated` s’exécute après `set` lorsque le chemin correspond à un composant. Le hook reçoit la nouvelle valeur, l’ancienne valeur, `Get` et `Set`. `set.set("slug", "bea", false)` écrit un frère et saute le hook de mise à jour de ce frère.
+
+## Disposer l’écran
+
+Prenez un layout lorsque un champ après l’autre ne suffit pas. Une section, une grille, des onglets ou un assistant est encore un composant de schéma. La page Desk empile un formulaire, une infolist et un tableau dans le corps.
+
+<FireflyShot file="schema-layout.png" description="Le corps de la page Desk à http://127.0.0.1:4017/admin/desk, avec le formulaire, l’infolist name et le tableau des notes l’un après l’autre." />
+
+| Type | Ce que vous appelez |
+|------|----------------|
+| `Grid.make(columns)` | Grille de colonnes. `schema(...)` pose les enfants |
+| `Flex.make()` | Rangée d’enfants |
+| `Fieldset.make(legend)` | Groupe avec une légende. `required(true)` le marque |
+| `Section.make(heading)` | Titre, description et slots : `afterHeader`, `beforeLabel`, `afterLabel`, `aboveContent`, `belowContent`, `footer`. `aside(true)` et `formBefore(true)` ajoutent des attributs de données |
+| `Tabs.make()` | `tabs(...)`, `activeTab`, `vertical`, `scrollable`, `persistTabInQueryString` |
+| `Tab.make(label)` | Un panneau. `badge`, `badgeIcon`, `deferBadge` |
+| `Wizard.make()` | `steps(...)`, `nextStep`, `previousStep`, `goToStep`. `skippable(true)` autorise un saut |
+| `WizardStep.make(label)` | Une étape. `icon`, `completedIcon`, `formWrapper` |
+| `Callout.make(heading)` | `info()`, `success()`, `warning()`, `danger()`, ou `status(...)`. `color` surcharge la couleur du statut |
+| `EmptyState.make(heading)` | Titre plus un `footer` optionnel |
+
+`configureUsing` sur un layout s’exécute pour chaque `make()` suivant de cette classe. Passez `null` pour l’effacer.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Section.configureUsing { it.aside(true) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Section.configureUsing(section -> { section.aside(true); });
+```
+
+</TabItem>
+</Tabs>
+
+Le niveau de titre commence à 2. `rootHeadingLevel` change le départ. Les sections imbriquées l’incrémentent, et le niveau s’arrête à 6.
+
+## Texte, icônes, images et listes
+
+`Text.make(content)` rend un paragraphe. `content`, `size`, `badge(true)` et `js()` le changent. `SchemaIcon.make("home")` inline une icône du jeu de support (`home`, `bars`, `user`, `x`). `Image.make(url)` prend `alt`, `url`, `imageHeight`, `imageWidth` et `imageSize`. `UnorderedList.make("one", "two")` rend les éléments. `items { listOf("Kona") }` les remplace au moment du rendu.
+
+## Lier un champ pour qu’il se mette à jour en direct
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+field.live()
+field.liveOnBlur()
+field.liveDebounce(400)
+field.reactive()   // same binding as live()
+field.lazy()       // same binding as liveOnBlur()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+field.live();
+field.liveOnBlur();
+field.liveDebounce(400);
+field.reactive();
+field.lazy();
+```
+
+</TabItem>
+</Tabs>
+
+`live()` rend `wire:model.live`. `liveOnBlur()` et `lazy()` rendent `wire:model.blur`. `liveDebounce(400)` rend `wire:model.live.debounce.400ms`. Chacun pose aussi `data-ff-entangle="@entangle(path)"`. `afterStateUpdatedJs("watch")` stocke l’expression sur `data-ff-updated-js`. La page n’évalue pas cette chaîne sur le serveur.
+
+`hiddenJs` et `visibleJs` stockent des expressions navigateur de la même façon.
+
+## Écrire votre propre composant
+
+Sous-classez `Component`. Le nom du constructeur est la clé d’état. Placez la classe là où la page ou la ressource peut la référencer. `discover` ne scanne pas un dossier de layouts.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Banner(name: String) : Component(name)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NameField extends Component {
+    public NameField() { super("name"); }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`view("notes.banner")` rend cette vue Crema lorsque `Schema.crema(engine)` est posé. La vue reçoit `path`, `content` et `label`. Sans moteur, le rendu émet `<div data-ff-view="notes.banner">`.
+
+```bash
+./grind make:firefly-layout Banner
+```
+
+La commande écrit une classe de layout et une vue Crema sous `app/firefly/layouts`. `--lang=java` écrit une classe Java. La vue utilise `x-data="ffField"` et `@entangle`.
+
+## Fabriques Alpine
+
+`AlpineScripts.source()` est le script qui enregistre `ffField`, `ffEntry`, `ffColumn` et `ffAction`. Ces fabriques entanglent l’état avec `$wire.$entangle` et appellent les actions serveur avec `$wire.$call`. Enregistrez ce script sur l’instance Alpine que la page a déjà démarrée.
+
+## Différer un schéma lourd
+
+`deferLoading(true)` fait que `render()` renvoie un placeholder de chargement jusqu’à `loadDeferred()`. Le schéma a besoin de `key(...)`. Un schéma différé sans clé lance `FireflyException` (`Deferred schema is missing a key`).
+
+## Ce que vous ajoutez sur une autre page
+
+Les inputs tels qu’un select ou un sélecteur de date sont sur [Formulaires](/docs/firefly/forms/). Les boutons et les dialogues de confirmation sont sur [Actions](/docs/firefly/actions/). Ce module est l’arbre et l’état sur lesquels ces pièces se placent.

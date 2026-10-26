@@ -1,0 +1,179 @@
+---
+title: Une application qui tourne
+description: Ouvrez hello-kotlin ou hello-java, lisez les ressources notes et orders, et touchez les routes que ces exemples répondent déjà.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Ouvrez `samples/hello-kotlin` ou `samples/hello-java` et cliquez à travers le bureau. Les notes sont une ressource simple : une page Manage, et create, edit, view et delete s’ouvrent dans un dialogue. Les commandes sont une ressource complète : list, create, edit et view sont leurs propres URL, et les lignes se placent sur les pages edit et view.
+
+Depuis la racine du dépôt Kona, lancez `./gradlew :hello-kotlin:run` ou `./gradlew :hello-java:run`. L’application écoute sur `127.0.0.1` et le port `4000` sauf si `HOST` ou `PORT` est posé. Puis ouvrez les routes du tableau en bas de cette page.
+
+<FireflyShot file="notes-manage.png" description="La page Manage des notes à http://127.0.0.1:4017/admin/notes/manage, avec le tableau des notes et les actions Create, Edit, View et Delete." />
+
+## Ajouter la ressource notes simple
+
+Placez la classe dans `app/firefly/resources/NoteResource`. `simple()` garde une seule `ManagePage`. Le slug est `notes`, donc la route est `/admin/notes/manage`. Le formulaire, l’infolist et le tableau sont ce que la page et les dialogues utilisent. Le tableau est une ligne en mémoire (`Ada`), donc l’écran se rend avant une migration. `model(Note::class.java)` est le type Cadence que `query()` utilise lorsque vous construisez le tableau depuis le modèle au lieu de `Table.memory`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NoteResource : Resource("notes") {
+    init {
+        label("Notes")
+        simple()
+        model(Note::class.java)
+        form(
+            Schema.make().components(
+                TextInput.make("name"),
+                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+                DateTimePicker.make("due"),
+            ),
+        )
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NoteResource extends Resource {
+    public NoteResource() {
+        super("notes");
+        label("Notes");
+        simple();
+        model(Note.class);
+        form(Schema.make().components(
+            TextInput.make("name"),
+            Select.make("status").options(Map.of("open", "Open", "done", "Done")),
+            DateTimePicker.make("due")
+        ));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(row()).columns(TextColumn.make("name")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+L’exemple Java construit `row()` comme une `LinkedHashMap` avec `id` `1` et `name` `Ada`. `Select` dessine une combobox. `DateTimePicker` dessine le contrôle de date et d’heure propre à Firefly. Les deux sont sur [Formulaires](/docs/firefly/forms/).
+
+Create, edit et view mettent ce schéma ou cette infolist dans le dialogue partagé. Delete demande une confirmation dans le même dialogue. Une ressource simple refuse `relation(...)`.
+
+Générez la même forme depuis une application autonome :
+
+```bash
+./grind make:firefly-resource Note --simple
+./grind make:firefly-resource Note --simple --lang=java
+```
+
+Le générateur écrit `page(ManagePage("manage"))` ainsi que `simple()`, un champ texte nommé `name`, et `model(app.models.Note.class)`. Créez ce modèle Cadence avant que le projet compile. Le tableau du générateur est `Table.memory()` sans ligne de semence.
+
+## Ajouter la ressource orders complète
+
+Laissez `simple()` de côté. La ressource obtient les pages list, create, edit et view. La page list monte le tableau et une action de création. Create et edit montent le formulaire. View monte l’infolist. Edit et view rendent aussi chaque gestionnaire de relation.
+
+Placez la classe dans `app/firefly/resources/OrderResource`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Order::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+        relation(
+            RelationManager("lines")
+                .related(Line::class.java)
+                .titleAttribute("sku")
+                .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        label("Orders");
+        model(Order.class);
+        form(Schema.make().components(TextInput.make("name")));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(orderRow()).columns(TextColumn.make("name")));
+        relation(new RelationManager("lines")
+            .related(Line.class)
+            .titleAttribute("sku")
+            .table(Table.memory(lineRow()).columns(TextColumn.make("sku"))));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<FireflyShot file="orders-list.png" description="La liste des commandes à http://127.0.0.1:4017/admin/orders/list, avec le tableau des commandes et une action de création." />
+
+<FireflyShot file="orders-create.png" description="La page de création de commande à http://127.0.0.1:4017/admin/orders/create, avec le champ name." />
+
+<FireflyShot file="orders-edit.png" description="La page d’édition de commande à http://127.0.0.1:4017/admin/orders/edit, avec le champ name et la relation lines." />
+
+<FireflyShot file="orders-view.png" description="La page de vue de commande à http://127.0.0.1:4017/admin/orders/view, avec l’infolist name et la relation lines." />
+
+```bash
+./grind make:firefly-resource Order
+./grind make:firefly-resource Order --lang=java
+```
+
+Le générateur écrit les pages list, create, edit et view et un gestionnaire de relation nommé `related`. Le gestionnaire de l’exemple hello est nommé `lines` et pointe vers `Line`.
+
+## Ouvrir la page Desk
+
+<FireflyShot file="desk.png" description="La page Desk à http://127.0.0.1:4017/admin/desk, avec le champ name, la combobox status, le sélecteur due, l’infolist, le tableau et l’action d’en-tête Edit." />
+
+`app/firefly/pages/Desk` est une `CustomPage` avec les mêmes champs de formulaire que les notes, une infolist, un tableau d’une ligne et une action d’en-tête qui ouvre un dialogue. `app/firefly/widgets/DeskWidget` rend un court paragraphe. La découverte place ce widget sur la première page, qui est Desk.
+
+```bash
+./grind make:firefly-page Desk
+./grind make:firefly-widget Desk
+```
+
+## Routes qui répondent
+
+Sur les exemples hello ces routes GET renvoient 200 :
+
+| Route | Page |
+|-------|------|
+| `/` | La route d’accueil, hors du panneau |
+| `/admin/desk` | Desk |
+| `/admin/notes/manage` | Notes |
+| `/admin/orders/list` | Liste des commandes |
+| `/admin/orders/create` | Création de commande |
+| `/admin/orders/edit` | Édition de commande |
+| `/admin/orders/view` | Vue de commande |
+
+## Ce que vous verrez dans le navigateur
+
+Quelques choses sur cet exemple sont inachevées dans le navigateur. Vérifiez ceci avant de déboguer votre propre application :
+
+- Le balisage du dialogue est dans la page, et le dialogue reste fermé jusqu’à ce qu’Alpine l’ouvre. Create, edit, view et delete sur la page notes ne s’ouvrent pas depuis la première réponse HTML seule.
+- `@entangle(...)` peut encore apparaître comme du texte brut lorsque la liaison Alpine n’a pas tourné.
+- Les libellés de navigation des pages viennent du slug de page. Le lien Desk peut se lire `desk`, et l’enfant notes peut se lire `manage`, même lorsque le titre de page ou le libellé de ressource est un mot. Les groupes de ressources utilisent `label`, donc les groupes se lisent `Notes` et `Orders`.
+- L’exemple appelle `authenticate(false)`. La puce utilisateur se lit **Invité** lorsque le garde du panneau n’a pas d’id connecté.
+
+## Suite
+
+Les pages de composants commencent à [Panneau](/docs/firefly/panel/). [Ressources](/docs/firefly/resources/) liste les méthodes des deux classes ci-dessus.

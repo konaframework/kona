@@ -1,0 +1,166 @@
+---
+title: Limitation de débit
+description: Définissez des limiteurs nommés et étranglez les requêtes HTTP avec les en-têtes Retry-After et X-RateLimit.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+La **limitation de débit** plafonne la fréquence à laquelle un client peut toucher une route — endpoints de connexion, API publiques, rapports coûteux. Le `RateLimiter` de Kona suit les hits en mémoire par clé ; le middleware `ThrottleRequests` transforme un limiteur nommé en réponses HTTP avec des en-têtes standards.
+
+Artefact : `org.konaframework:kona-auth`. `AuthServiceProvider` enregistre un `RateLimiter` partagé.
+
+## Chemin le plus simple
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.http.HttpKernel
+import org.konaframework.http.Router
+import org.konaframework.security.RateLimit
+import org.konaframework.security.RateLimiter
+import org.konaframework.security.ThrottleRequests
+
+val limiter = app.resolve(RateLimiter::class.java)
+limiter.forName("login") { request ->
+    RateLimit.perMinute(5) // or RateLimit(5, 60)
+}
+
+val router = app.resolve(Router::class.java)
+router.routes {
+    group(prefix = "/auth", middleware = listOf(ThrottleRequests(limiter, "login"))) {
+        post("/login") { /* … */ }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.security.RateLimit;
+import org.konaframework.security.RateLimiter;
+import org.konaframework.security.ThrottleRequests;
+import java.util.List;
+
+RateLimiter limiter = app.resolve(RateLimiter.class);
+limiter.forName("login", request -> RateLimit.perMinute(5));
+
+Router router = app.resolve(Router.class);
+router.prefix("/auth")
+    .middleware(List.of(new ThrottleRequests(limiter, "login")))
+    .group(auth -> {
+        auth.post("/login", request -> /* … */);
+    });
+```
+
+</TabItem>
+</Tabs>
+
+Lorsque la limite est dépassée, le middleware lance `RateLimitExceededException` — HTTP **429** avec un en-tête `Retry-After` (secondes jusqu’à la réinitialisation de la fenêtre).
+
+Les réponses réussies gagnent :
+
+- `X-RateLimit-Limit` — tentatives max dans la fenêtre
+- `X-RateLimit-Remaining` — tentatives restantes après ce hit
+
+## Nommage et clés
+
+Enregistrez les limiteurs avec `for` / `forName` (alias adapté à Java). Chaque enregistrement est un callback `(Request) -> RateLimit` afin que les limites puissent dépendre du chemin, de l’utilisateur ou du plan :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+limiter.forName("api") { request ->
+    val userId = request.getAttribute("user")?.toString()
+    if (userId != null) RateLimit(120, 60) else RateLimit(30, 60)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+limiter.forName("api", request -> {
+    Object user = request.getAttribute("user");
+    return user != null ? new RateLimit(120, 60) : new RateLimit(30, 60);
+});
+```
+
+</TabItem>
+</Tabs>
+
+`ThrottleRequests` construit la clé de hit comme `{limiterName}:{clientKey}`. La clé client par défaut est :
+
+1. `X-Forwarded-For`
+2. sinon `X-Real-IP`
+3. sinon l’attribut de requête `"ip"`
+4. sinon `"global"`
+
+Surchargez avec un résolveur personnalisé :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ThrottleRequests(limiter, "login") { req ->
+    req.input("email") ?: req.header("X-Forwarded-For") ?: "unknown"
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new ThrottleRequests(limiter, "login", req -> {
+    String email = req.input("email", null);
+    if (email != null) return email;
+    String ip = req.header("X-Forwarded-For");
+    return ip != null ? ip : "unknown";
+});
+```
+
+</TabItem>
+</Tabs>
+
+## Utiliser le limiteur sans middleware
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val key = "reports:user-42"
+if (!limiter.attempt(key, maxAttempts = 10, decaySeconds = 60)) {
+    val wait = limiter.availableIn(key)
+    throw RateLimitExceededException(wait)
+}
+// work…
+limiter.clear(key)  // reset after success, if desired
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String key = "reports:user-42";
+if (!limiter.attempt(key, 10, 60)) {
+    throw new RateLimitExceededException(limiter.availableIn(key));
+}
+limiter.clear(key);
+```
+
+</TabItem>
+</Tabs>
+
+Autres aides : `hit`, `tooManyAttempts`, `retriesLeft`, `clearAll`.
+
+## Modes d’échec
+
+| Situation | Résultat |
+|-----------|--------|
+| Nom de limiteur inconnu dans le middleware | `IllegalArgumentException` |
+| Trop de tentatives | `RateLimitExceededException` (429 + `Retry-After`) |
+| Redémarrage du processus | Les compteurs en mémoire se réinitialisent (adapté à un nœud unique ; les stores partagés arrivent avec les jalons d’infrastructure suivants) |
+
+Placez le middleware d’étranglement **à l’extérieur** des handlers coûteux mais **à l’intérieur** du middleware d’identité lorsque la clé dépend de l’utilisateur authentifié.

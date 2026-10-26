@@ -1,0 +1,349 @@
+---
+title: Infolists
+description: Affichez un enregistrement avec des entrées au lieu de champs. Sur la page Desk, c’est l’entrée du nom. Sur les commandes, la page de vue monte l’infolist de la commande.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Affichez un enregistrement quand l’écran doit montrer une valeur, pas en collecter une. Placez l’infolist sur une page de vue, ou partout où vous voulez une étiquette et une valeur.
+
+Les types vivent dans `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). Ils reposent sur l’arbre de schéma de [Schémas](/docs/firefly/schemas/), donc une section, une grille et des onglets sont les mêmes dispositions que vous utilisez déjà. Sur la page Desk, l’infolist est une seule entrée de nom. Sur les commandes, la page de vue à `/admin/orders/view` monte l’infolist de la commande. Les deux classes vivent sous `app/firefly/`.
+
+Chaque entrée est un `div.ff-entry` avec `x-data="ffEntry"`. Cette fabrique Alpine est enregistrée par le script de schéma. L’état copiable et la liaison live l’utilisent.
+
+<FireflyShot file="notes-infolist.png" description="L’infolist du nom sur la page Desk à http://127.0.0.1:4017/admin/desk." />
+
+## Rendre une infolist
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val page = Infolist.make()
+    .statePath("user")
+    .record("ada")
+    .operation("view")
+    .components(
+        TextEntry.make("name").state("Ada"),
+    )
+page.hydrate()
+val html = page.render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Infolist page = Infolist.make()
+    .statePath("user")
+    .record("ada")
+    .operation("view")
+    .components(TextEntry.make("name").state("Ada"));
+page.hydrate();
+String html = page.render();
+```
+
+</TabItem>
+</Tabs>
+
+`Infolist.make()` enveloppe un `Schema`. `components(...)` remplace la liste racine. `statePath` préfixe les chemins stockés, donc `name` vit à `user.name`. `fill` écrit une carte. `get` lit un chemin pointé. `schema()` renvoie le schéma enveloppé quand vous avez besoin de `set` ou d’un rendu partiel. `record` et `operation` sont stockés sur ce schéma pour la page qui héberge l’infolist. Vous voyez le nom **Ada**.
+
+## Passer une valeur ou une fermeture
+
+Les setters d’entrée renvoient l’entrée, donc vous pouvez les enchaîner. Un setter accepte une valeur fixe ou une `java.util.function.Function` (ou un `Predicate` pour les drapeaux). La fonction reçoit `Get`, le même lecteur qu’un composant de schéma utilise.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val name = TextEntry.make("name")
+name.state("Ada")
+name.state(java.util.function.Function { get -> get.get("../name") })
+name.placeholder { "Empty" }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry name = TextEntry.make("name");
+name.state("Ada");
+name.placeholder(get -> "Empty");
+```
+
+</TabItem>
+</Tabs>
+
+Le dernier appel l’emporte. `state("Ada")` après une fermeture stocke le littéral et écarte la fermeture.
+
+`label`, `heading` et `description` sont surchargés sur `Entry` et renvoient l’entrée. Les méthodes de schéma telles que `hidden`, `visible` et `live` renvoient encore le `Component` de schéma. Appelez-les comme des instructions, puis continuez avec les méthodes d’entrée :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val name = TextEntry.make("name").state("Ada")
+name.hidden { get -> get.get("/draft") == true }
+name.live()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry name = TextEntry.make("name").state("Ada");
+name.hidden(get -> Boolean.TRUE.equals(get.get("/draft")));
+name.live();
+```
+
+</TabItem>
+</Tabs>
+
+## Aides sur chaque entrée
+
+| Méthode | Ce que vous obtenez |
+|--------|----------------|
+| `placeholder` | Texte quand l’état est vide |
+| `color`, `icon`, `iconColor`, `iconPosition` | Présentation. La position de l’icône est `before` ou `after` |
+| `tooltip` | Texte pour lecteur d’écran |
+| `url`, `openUrlInNewTab` | Enveloppe la valeur dans un lien |
+| `copyable`, `copyMessage`, `copyMessageDuration`, `copyableState` | Affordance de copie sur l’entrée |
+| `helperText`, `hint`, `hintColor`, `hintIcon` | Texte secondaire et indice |
+| `prefix`, `suffix` | Texte autour de la valeur |
+| `alignment`, `alignStart`, `alignCenter`, `alignEnd`, `alignJustify` | Alignement du texte |
+| `wrap`, `inlineLabel` | Retour à la ligne et une étiquette en ligne |
+| `extraAttributes` | Attributs HTML sur la racine du composant. Une carte ou une fermeture. Les noms qui ne sont pas des noms d’attributs HTML sont sautés |
+| `aboveContent`, `belowContent` | Composants de schéma rendus autour de la valeur |
+| `state` | Valeur littérale, ou une fermeture. Un littéral l’emporte sur le chemin de schéma |
+
+`configureUsing` sur une classe d’entrée s’exécute pour chaque `make()` ultérieur de cette classe. Passez `null` pour l’effacer.
+
+Résolution de l’état : un littéral ou une fermeture de `state(...)` l’emporte. À l’intérieur d’un item répétable, un nom pointé tel que `author.name` est lu depuis cet item. Sinon l’entrée lit `schema.get` à son chemin absolu.
+
+Les noms d’icônes connus (`home`, `bars`, `user`, `x`) rendent un SVG en ligne. Tout autre nom est stocké comme `data-ff-icon` et ne lance pas.
+
+## Afficher du texte
+
+`TextEntry.make("title")` rend du texte brut. Une liste peut être un badge, une liste à puces, ou des retours à la ligne. `limitList` avec `expandableLimitedList(true)` garde les items en trop et les marque `data-ff-extra`. Sans ce drapeau, la queue devient `+N`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextEntry.make("title")
+    .badge(true)
+    .size("lg")
+    .weight("bold")
+    .prose(true)
+    .lineClamp(3)
+    .limit(80)
+    .words(12)
+    .state("A short title")
+    .extraAttributes(mapOf("data-entry" to "title"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry.make("title")
+    .badge(true)
+    .size("lg")
+    .weight("bold")
+    .prose(true)
+    .lineClamp(3)
+    .limit(80)
+    .words(12)
+    .state("A short title")
+    .extraAttributes(Map.of("data-entry", "title"));
+```
+
+</TabItem>
+</Tabs>
+
+`markdown(true)` rend un petit sous-ensemble Markdown (emphase, code, liens et blocs clôturés). `html(true)` laisse la chaîne comme HTML. `date()`, `dateTime()` et `time()` formatent une valeur temporelle. Appelez-les avec un motif, ou sans arguments pour utiliser `yyyy-MM-dd`, `yyyy-MM-dd HH:mm` et `HH:mm`. `since()` rend une phrase relative contre l’instant courant. `timezone` règle la zone. `dateTooltip()` ajoute `data-ff-date-tooltip`. `money()` utilise USD par défaut. `money("EUR")` sélectionne une devise. `numeric()` imprime un nombre. `numeric(2)` règle les décimales. `formatStateUsing` remplace le texte formaté par la chaîne de la fermeture.
+
+## Afficher une icône
+
+`IconEntry.make("ok")` montre une icône pour l’état. `bool(true)` traite l’état comme un booléen : une valeur truthy utilise l’icône vraie (`user`, couleur `success`) et une valeur fausse utilise l’icône fausse (`x`, couleur `danger`). `whenTrue("user", "success")` et `whenFalse("x", "danger")` règlent à la fois l’icône et la couleur. `trueIcon`, `falseIcon`, `trueColor` et `falseColor` surchargent un côté. `hideTrueIcon()` et `hideFalseIcon()` omettent cette icône. `size` accepte `xs`, `sm`, `md`, `lg` et `xl`.
+
+La méthode est `bool`, parce que `boolean` est un mot-clé Java. Les aides de paire sont `whenTrue` et `whenFalse`.
+
+## Afficher une image
+
+`ImageEntry.make("photo")` rend des balises `<img>`. `height` et `imageHeight` règlent la hauteur. `width` et `imageWidth` règlent la largeur. `size` et `imageSize` règlent les deux. `circular` et `square` ajoutent des drapeaux de forme. `alt`, `defaultImageUrl` et `extraImgAttributes` changent la balise. `stacked`, `overlap` et `ring` décrivent une pile. `limit` avec `limitedRemainingText(true)` ajoute `+N`. `limitedRemainingTextSeparate` et `limitedRemainingTextSize` stylent ce reste.
+
+`disk`, `visibility` et `checkFileExistence` sont des attributs de données sur l’entrée (`data-ff-disk`, `data-ff-visibility`, `data-ff-check-file`). Ce module n’ouvre pas un disque et ne signe pas d’URL temporaire. Une chaîne d’URL relative ou absolue est rendue comme `src`. Quand `checkFileExistence` est vrai, une source vide est écartée.
+
+## Afficher une couleur
+
+`ColorEntry.make("ink")` rend un échantillon. Une couleur CSS (`#df8723`, `rgb(...)`, `hsl(...)`, ou un nom simple fait de lettres) devient `background-color`. Tout le reste est marqué `data-ff-invalid`. `copyable(true)` vient de l’aide d’entrée partagée et règle `data-ff-copyable`.
+
+## Afficher une carte clé-valeur
+
+`KeyValueEntry.make("meta")` rend une carte comme un tableau. `keyLabel` et `valueLabel` renomment les en-têtes (les défauts sont `Key` et `Value`). `emptyMessage` est le placeholder quand la carte est vide (défaut `No values`). Une clé nulle est sautée.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+KeyValueEntry.make("meta")
+    .keyLabel("Field")
+    .valueLabel("Detail")
+    .state(mapOf("city" to "Kona"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KeyValueEntry.make("meta")
+    .keyLabel("Field")
+    .valueLabel("Detail")
+    .state(Map.of("city", "Kona"));
+```
+
+</TabItem>
+</Tabs>
+
+Vous voyez un tableau avec l’en-tête **Field** / **Detail** et la ligne city / Kona.
+
+## Afficher du code
+
+`CodeEntry.make("snippet")` envoie la source brute et un nom de grammaire au navigateur. L’entrée est `data-ff-shiki="shiki"` et inclut une charge utile JSON. Le script navigateur appelle `createHighlighter` de Shiki, puis `codeToHtml`. Les thèmes clair et sombre sont `github-light` et `github-dark` par défaut.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CodeEntry.make("snippet")
+    .language("kotlin")
+    .lightTheme("github-light")
+    .darkTheme("github-dark")
+    .state("val name = \"Ada\"")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CodeEntry.make("snippet")
+    .language("kotlin")
+    .lightTheme("github-light")
+    .darkTheme("github-dark")
+    .state("val name = \"Ada\"");
+```
+
+</TabItem>
+</Tabs>
+
+`language` est un alias de `grammar`. Une chaîne sans grammaire utilise `html`. Une carte ou une liste utilise `json`. `jsonFlags` est passé à l’écrivain JSON : le bit 1 marque l’hexadécimal, le bit 64 laisse les barres obliques non échappées quand il est clair, et le bit 128 pretty-print.
+
+`ShikiCode.source()` renvoie le script navigateur. `ShikiCode.manifest()` renvoie `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`. Chargez ce script à côté d’un build Shiki qui exporte `createHighlighter`. Les mêmes noms de grammaire et thèmes sont ceux qu’un éditeur CodeMirror chargerait. Appelez `highlightCodeEntry(root, shiki)` avec le module Shiki.
+
+## Répéter une entrée
+
+`RepeatableEntry.make("comments")` répète son schéma enfant une fois par item. L’état peut être une carte ou une liste de cartes. Les cartes vides et les valeurs qui ne sont pas des cartes sont sautées. Un nom enfant pointé est lu depuis l’item courant.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RepeatableEntry.make("comments")
+    .contained(true)
+    .grid(2)
+    .schema(TextEntry.make("title"))
+    .state(listOf(mapOf("title" to "First")))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+RepeatableEntry.make("comments")
+    .contained(true)
+    .grid(2)
+    .schema(TextEntry.make("title"))
+    .state(java.util.List.of(java.util.Map.of("title", "First")));
+```
+
+</TabItem>
+</Tabs>
+
+`table(TableColumn.make("Title"))` rend un tableau. `hiddenHeaderLabel()` cache cet en-tête avec la classe `ff-sr`. Les composants de schéma enfants, y compris `Text.make`, se rendent dans les cellules. Le placeholder vide par défaut est `No items`.
+
+## Disposer les entrées
+
+Placez les entrées dans les dispositions de schéma. Utilisez `Section`, `Grid` et `Tabs` du module de schéma.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Infolist.make().components(
+    Section.make("Profile").schema(
+        Grid.make(2).schema(TextEntry.make("name")),
+        Tabs.make().tabs(
+            Tab.make("Code").schema(CodeEntry.make("snippet").state("a = 1")),
+        ),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Infolist.make().components(
+    Section.make("Profile").schema(
+        Grid.make(2).schema(TextEntry.make("name")),
+        Tabs.make().tabs(Tab.make("Code").schema(CodeEntry.make("snippet").state("a = 1")))
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+## Écrire votre propre entrée
+
+Sous-classez `Entry` et réglez à la fois `view` et `meta("ff-view", ...)` pour que le schéma rende la vue Crema.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NoteEntry(name: String) : Entry<NoteEntry>(name) {
+    init {
+        view("firefly.entries.note")
+        meta("ff-view", "firefly.entries.note")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NoteEntry extends Entry<NoteEntry> {
+    public NoteEntry(String name) {
+        super(name);
+        view("firefly.entries.note");
+        meta("ff-view", "firefly.entries.note");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+```bash
+./grind make:firefly-entry Note
+```
+
+La commande écrit `app/firefly/entries/Note.kt` et une vue Crema qui utilise `x-data="ffEntry"` et `@entangle`. `--lang=java` écrit une classe Java. Le nom de vue est `firefly.entries.note`. Référencez la classe depuis l’infolist. `discover` ne scanne pas `entries/`.
+
+## Préfixe, suffixe, et ce qui vit ailleurs
+
+`prefix` et `suffix` sont du texte, ou une fermeture qui renvoie du texte. Ce ne sont pas des boutons d’action. Un compte ou une moyenne appartient à une colonne de tableau : appelez `summarize` sur [Tableaux](/docs/firefly/tables/). Un éditeur de code est un champ de formulaire sur [Formulaires](/docs/firefly/forms/).

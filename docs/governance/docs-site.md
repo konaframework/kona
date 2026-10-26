@@ -40,8 +40,7 @@ Collection: `versions` loader in `src/content.config.ts`. Sidebar stays in `side
 Root locale is **English** (no `/en/` prefix). Additional locales: **`es`**, **`fr`**, **`zh-cn`** (`lang: zh-CN`).
 
 - UI strings: `src/content/i18n/{es,fr,zh-CN}.json` (Starlight + starlight-versions keys).
-- Chinese copies exist for every English page under `src/content/docs/docs/`, at the same relative path under `src/content/docs/zh-cn/docs/`. That Chinese tree is also copied to `src/content/docs/zh-cn/main/docs/` so the Dev archive is Chinese. Spanish copies exist the same way under `src/content/docs/es/docs/` and `src/content/docs/es/main/docs/`. French still translates Getting started **Introduction** + **Installation** only; its other pages fall back to English with Starlight’s untranslated notice.
-- Sidebar labels carry `es` and `zh-CN` for every item. Getting started also carries `fr`.
+- Chinese copies exist for every English page under `src/content/docs/docs/`, at the same relative path under `src/content/docs/zh-cn/docs/`. That Chinese tree is also copied to `src/content/docs/zh-cn/main/docs/` so the Dev archive is Chinese. Spanish copies exist the same way under `src/content/docs/es/docs/` and `src/content/docs/es/main/docs/`. French copies exist the same way under `src/content/docs/fr/docs/` and `src/content/docs/fr/main/docs/`. Sidebar labels carry `es`, `fr`, and `zh-CN` for every item.
 
 ## GitHub header chip
 

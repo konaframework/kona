@@ -1,0 +1,401 @@
+---
+title: Middleware
+description: Enveloppez les requêtes avec une logique transverse avant et après l’exécution des handlers, globalement ou par route.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Le **middleware** est du code qui tourne *autour* d’un handler. Il voit la requête avant le handler et la réponse après que le handler revient, ce qui en fait le bon endroit pour des préoccupations partagées par beaucoup de routes : identifiants de requête, authentification, journaux d’accès, chronométrage, en-têtes CORS, ou forcer un format de réponse.
+
+Un middleware est n’importe quel objet qui implémente l’interface `Middleware` :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun interface Middleware {
+    fun handle(request: Request, next: Handler): Response
+}
+```
+
+`next` est « le reste du pipeline » — le middleware suivant, ou le handler de route si c’est le dernier. Un middleware fait une de trois choses :
+
+1. **Laisser passer :** appeler `next` avec la requête et renvoyer sa réponse, éventuellement après l’avoir modifiée.
+2. **Court-circuiter :** renvoyer une `Response` sans appeler `next`. Rien de plus loin dans la chaîne ne s’exécute. C’est ainsi qu’un middleware d’authentification rejette une requête.
+3. **Lancer :** lever une exception (par exemple `HttpException(401, "Unauthenticated.")`). Le handler d’exception du noyau la transforme en réponse ; consultez [Où vont les exceptions](#where-exceptions-go).
+
+## Écrire du middleware
+
+### Un middleware de passage
+
+Ce middleware garantit que chaque réponse porte un en-tête `X-Request-Id`, en réutilisant l’identifiant du client quand il en a envoyé un et en le stockant dans les attributs de requête pour que les handlers puissent le journaliser.
+
+```kotlin
+import org.konaframework.http.Handler
+import org.konaframework.http.Middleware
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+import org.konaframework.http.invoke
+import java.util.UUID
+
+class RequestIdMiddleware : Middleware {
+    override fun handle(request: Request, next: Handler): Response {
+        val id = request.header("X-Request-Id") ?: UUID.randomUUID().toString()
+        request.setAttribute("requestId", id)
+        val response = next(request)
+        return response.header("X-Request-Id", id)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.http.Handler;
+import org.konaframework.http.Middleware;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import java.util.UUID;
+
+public final class RequestIdMiddleware implements Middleware {
+    @Override
+    public Response handle(Request request, Handler next) {
+        String id = request.header("X-Request-Id", UUID.randomUUID().toString());
+        request.setAttribute("requestId", id);
+        Response response = next.handle(request);
+        return response.header("X-Request-Id", id);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+En Kotlin, `next(request)` est un raccourci pour `next.handle(request)` ; il a besoin de `import org.konaframework.http.invoke` quand votre fichier est dans un autre paquet. Les deux orthographes font la même chose.
+
+### Un middleware de court-circuit
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Authenticate(private val tokens: TokenStore) : Middleware {
+    override fun handle(request: Request, next: Handler): Response {
+        val token = request.header("Authorization")?.removePrefix("Bearer ")
+        val user = token?.let(tokens::find)
+            ?: return Response.json(mapOf("message" to "Unauthenticated."), 401)
+        request.setAttribute("user", user)
+        return next.handle(request)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class Authenticate implements Middleware {
+    private final TokenStore tokens;
+
+    public Authenticate(TokenStore tokens) { this.tokens = tokens; }
+
+    @Override
+    public Response handle(Request request, Handler next) {
+        String header = request.header("Authorization", "");
+        User user = tokens.find(header.replaceFirst("^Bearer ", ""));
+        if (user == null) {
+            return Response.json(Map.of("message", "Unauthenticated."), 401);
+        }
+        request.setAttribute("user", user);
+        return next.handle(request);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Lambdas
+
+Parce que `Middleware` est une interface fonctionnelle, un petit middleware peut être une lambda :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val poweredBy = Middleware { request, next -> next.handle(request).header("X-Powered-By", "Kona") }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Middleware poweredBy = (request, next) -> next.handle(request).header("X-Powered-By", "Kona");
+```
+
+</TabItem>
+</Tabs>
+
+Gardez une référence à une lambda si vous devez la vérifier plus tard avec `hasMiddleware` ; deux lambdas écrites séparément ne sont jamais égales.
+
+### Ce que le middleware peut changer
+
+- **Requête :** méthode, chemin, en-têtes, query et corps sont en lecture seule. Utilisez les **attributs** (`setAttribute` / `getAttribute`) pour passer des données aux étapes ultérieures.
+- **Réponse :** statut, corps et en-têtes sont mutables. Utilisez `header`, `withStatus` et `withBody`, ou renvoyez une `Response` entièrement nouvelle.
+
+Les objets middleware sont partagés par toutes les requêtes, qui tournent en concurrence sur des fils séparés. Gardez les données par requête dans des variables locales ou des attributs de requête, jamais dans des champs du middleware.
+
+## Middleware global
+
+Le **middleware global** appartient au `HttpKernel` et s’exécute pour **chaque** requête — y compris les requêtes qui ne correspondent à aucune route. Il enveloppe le routage, le middleware de route, le handler, et la gestion d’exception de tout cela. En conséquence, le middleware global voit la réponse finale 404, 405, 422 ou 500 comme une réponse réussie, ce qui est exactement ce dont un journal d’accès ou un middleware d’en-têtes de sécurité a besoin.
+
+Configurez-le sur le noyau, en général depuis la méthode `boot` d’un service provider :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun boot(app: Application) {
+    app.resolve(HttpKernel::class.java)
+        .pushMiddleware(RequestIdMiddleware())
+        .pushMiddleware(AccessLogMiddleware())
+        .prependMiddleware(SecurityHeaders())
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override
+public void boot(Application app) {
+    app.resolve(HttpKernel.class)
+        .pushMiddleware(new RequestIdMiddleware())
+        .pushMiddleware(new AccessLogMiddleware())
+        .prependMiddleware(new SecurityHeaders());
+}
+```
+
+</TabItem>
+</Tabs>
+
+| Méthode | Effet |
+|--------|--------|
+| `pushMiddleware(mw)` | Ajouter à la fin de la liste — la position la **plus intérieure**. Sauté s’il est déjà présent. |
+| `prependMiddleware(mw)` | Ajouter au début — la position la **plus extérieure**. Sauté s’il est déjà présent. |
+| `setGlobalMiddleware(list)` | Remplacer la liste entièrement (pas de contrôle de doublon). |
+| `hasMiddleware(mw)` | Si `mw` est dans la liste (comparé avec `equals`). |
+| `globalMiddleware` / `getGlobalMiddleware()` | La liste courante. |
+
+Vous pouvez aussi passer la liste quand vous construisez un noyau vous-même : `HttpKernel(router, listOf(a, b))` en Kotlin, `new HttpKernel(router, List.of(a, b))` en Java. Chaque requête utilise un instantané de la liste pris à son démarrage.
+
+## Middleware de route et de groupe
+
+Le **middleware de route** ne s’exécute qu’après qu’une route a été sélectionnée, et seulement pour cette route. Attachez-le à une route avec `.middleware(...)`, ou à plusieurs à la fois via un groupe :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/reports") { reports.index(it) }.middleware(Authenticate(tokens), RequireRole("analyst"))
+
+router.group(prefix = "/admin", middleware = listOf(Authenticate(tokens), RequireAdmin())) {
+    get("/users") { admin.users(it) }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/reports", reports::index).middleware(new Authenticate(tokens), new RequireRole("analyst"));
+
+router.prefix("/admin").middleware(new Authenticate(tokens), new RequireAdmin()).group(admin ->
+    admin.get("/users", adminController::users));
+```
+
+</TabItem>
+</Tabs>
+
+Le middleware de route ne s’exécute **pas** pour les réponses 404, les réponses 405, ou les réponses `OPTIONS` automatiques, parce qu’aucune route n’a été sélectionnée. Pour une requête `HEAD` servie par une route `GET`, le middleware de la route `GET` s’exécute.
+
+## Ordre d’exécution
+
+L’ordre de la liste est l’ordre d’enveloppement : le premier middleware est la couche la plus extérieure. Pour un middleware global `[A, B]`, un middleware de groupe `[G]` et un middleware de route `[R]`, une requête circule ainsi :
+
+```text
+A before → B before → (route resolved) → G before → R before → handler
+A after  ← B after  ←                    G after  ← R after  ←
+```
+
+Le code que vous écrivez avant `next` s’exécute de haut en bas ; le code après `next` s’exécute en sens inverse. Les groupes imbriqués ajoutent leur middleware après celui du groupe extérieur, et `.middleware(...)` sur la route elle-même vient en dernier.
+
+<a id="where-exceptions-go"></a>
+
+## Où vont les exceptions
+
+Le noyau attrape les exceptions à deux endroits, et lequel s’applique change qui peut voir l’erreur :
+
+- **Lancée à l’intérieur du routage** — par le routeur (404/405), par le middleware de route ou de groupe, ou par le handler. L’exception se propage d’abord à travers le middleware de route, donc un middleware de route peut `try`/`catch` autour de `next` s’il veut récupérer. Si elle n’est pas attrapée, le `ExceptionHandler` du noyau la convertit en réponse, et cette réponse repasse ensuite à travers **tout le middleware global** normalement.
+- **Lancée par un middleware global lui-même.** Le noyau l’attrape tout à l’extérieur et la convertit avec le même handler d’exception. Le middleware global ne **voit pas** cette réponse, parce que la chaîne s’est déjà déroulée au-delà.
+
+Le middleware global ne reçoit donc jamais une exception de `next` — il reçoit toujours une `Response`. Consultez [Exceptions](../exceptions/) pour le format de réponse et [Noyau et serveur](../kernel-server/) pour le pipeline complet.
+
+## Middleware terminable
+
+Implémentez `TerminableMiddleware` quand vous avez besoin de travail **après** que la réponse est entièrement produite (vider des métriques, écrire des journaux d’accès). Le noyau appelle `terminate(request, response)` pour chaque middleware terminable qui a tourné — global d’abord, puis route — dans l’ordre **inverse**, après le retrait du corps HEAD.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AccessLog : TerminableMiddleware {
+    override fun handle(request: Request, next: Handler): Response = next(request)
+
+    override fun terminate(request: Request, response: Response) {
+        Log.info("${request.method} ${request.path} → ${response.status}")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AccessLog implements TerminableMiddleware {
+    @Override
+    public Response handle(Request request, Handler next) {
+        return next.handle(request);
+    }
+
+    @Override
+    public void terminate(Request request, Response response) {
+        Log.info(request.getMethod() + " " + request.getPath() + " → " + response.getStatus());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Priorité
+
+`HttpKernel.priority(PreferFirst.class, PreferSecond.class)` réordonne la liste de middleware **global** pour que les types listés s’exécutent plus tôt (le plus extérieur). Le middleware non listé garde son ordre relatif après ceux qui sont prioritaires. Le middleware de route n’est pas réordonné par la priorité.
+
+## Tester le middleware
+
+`MiddlewarePipeline.pipe(middlewares, destination)` construit la même chaîne que le noyau utilise, ce qui vous permet de tester un middleware isolément :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val handler = MiddlewarePipeline.pipe(listOf(RequestIdMiddleware())) { Response.text("ok") }
+val response = handler.handle(Request.get("/"))
+check(response.headers.containsKey("X-Request-Id"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Handler handler = MiddlewarePipeline.pipe(List.of(new RequestIdMiddleware()), request -> Response.text("ok"));
+Response response = handler.handle(Request.get("/"));
+assert response.getHeaders().containsKey("X-Request-Id");
+```
+
+</TabItem>
+</Tabs>
+
+## Bootstrap avec `HttpMiddleware`
+
+Les applications de `kona new` configurent le middleware dans `bootstrap.Middleware.configure(app)`. Cette aide utilise `HttpMiddleware` — un registraire pour les **alias**, la pile **`web`** (poussée sur le noyau global), une pile **`api`** optionnelle (pour les groupes de routes), et un middleware de **confiance** optionnel.
+
+Échafaudage typique (simplifié) :
+
+```kotlin
+object Middleware {
+    @JvmStatic
+    fun configure(app: Application) {
+        val sessions = app.resolve(SessionManager::class.java)
+        val files = app.resolve(FilesystemManager::class.java)
+        app.resolve(HttpKernel::class.java)
+            .prependMiddleware(ServePublicStorage(files.disk("public")))
+        HttpMiddleware()
+            .alias("start.session") { StartSession(sessions) }
+            .alias("csrf") { VerifyCsrfToken(except = listOf("/api/*", "/wire/*")) }
+            .web(listOf("start.session", "csrf"))
+            // .trustProxies(at = listOf("*"))
+            // .trustHosts(at = listOf("example.com", "*.example.com"))
+            .apply(app)
+    }
+}
+```
+
+| Méthode | Rôle |
+|--------|------|
+| `alias(name, factory)` | Enregistrer un fournisseur de middleware nommé |
+| `web(prepend, append)` / `api(...)` | Remplacer la pile nommée par des noms d’alias |
+| `webStack()` / `apiStack()` | Résoudre les alias en instances de middleware |
+| `trustProxies(at, headers)` | Préfixer `TrustProxies` sur `apply` |
+| `trustHosts(at)` | Préfixer `TrustHosts` sur `apply` |
+| `apply(app)` | Préfixer le middleware de confiance, pousser la pile `web` sur `HttpKernel`, lier ce registraire dans le conteneur |
+
+La **pile `api` n’est pas appliquée globalement** — résolvez `apiStack()` et passez-la à un groupe de routes quand vous voulez un middleware JSON sans session de votre propre conception.
+
+Générez un stub avec [`./grind make:middleware Name`](../../grind/commands/#grind-makemiddleware).
+
+## Middleware intégré à connaître
+
+| Type | Module | Rôle |
+|------|--------|------|
+| `StartSession` | session | Charger/sauver la session ; flash ; URL précédente |
+| `VerifyCsrfToken` | session | Rejeter les envois de formulaire forgés ; motifs de chemin `except` |
+| `ServePublicStorage` | http | Servir les fichiers du disque public sous `/storage/...` |
+| `TrustProxies` | http | Copier `X-Forwarded-*` / `X-Real-IP` sur les attributs de requête quand le pair est de confiance |
+| `TrustHosts` | http | Rejeter les en-têtes `Host` inconnus avec **400** |
+| `ValidateSignature` | http | Exiger une chaîne de requête signée valide ([génération d’URL](../url-generation/)) |
+| `CorsMiddleware` | auth/security | En-têtes CORS |
+| `SecurityHeadersMiddleware` | auth/security | En-têtes de réponse de sécurité |
+
+`TrustProxies` règle des attributs tels que `kona.clientIp`, `kona.scheme`, `kona.host`, `kona.port`. `Request.ip()` lit `kona.clientIp` puis `kona.remoteAddr`. Consultez les guides [Sécurité](../../security/) pour le détail CSRF et session.
+
+## Référence d’API (middleware)
+
+| Type | Rôle |
+|------|------|
+| `Middleware` | `handle(request, next): Response` |
+| `TerminableMiddleware` | Plus `terminate(request, response)` après que la réponse est produite |
+| `MiddlewarePipeline.pipe` | Construire une chaîne pour les tests ou un dispatch personnalisé |
+| `MiddlewarePipeline.sortByPriority` | Réordonner par liste de types |
+| `HttpKernel` push/prepend/set/priority | Contrôle de la pile globale |
+| `HttpMiddleware` | Alias + web/api + bootstrap de confiance |
+
+## Pièges et FAQ
+
+**Pourquoi mon middleware de route ne tourne-t-il pas sur un 404 ?**
+Aucune route n’a été sélectionnée. Utilisez le middleware global pour les journaux d’accès qui doivent voir les ratés.
+
+**Pourquoi mon middleware s’exécute-t-il deux fois ?**
+`pushMiddleware` saute les doublons par `equals` ; les lambdas ne sont jamais égales à une lambda précédente. Préférez des classes nommées.
+
+**Puis-je attacher du middleware par alias chaîne sur une route ?**
+Pas aujourd’hui sur `Route.middleware(...)` — passez des instances. Les alias sont pour les piles `HttpMiddleware`.
+
+**L’usurpation de méthode (`_method`) vit-elle ici ?**
+Non. Crema peut émettre un champ caché `_method` en HTML, mais le noyau ne réécrit pas la méthode HTTP depuis ce champ aujourd’hui — consultez [Formulaires Crema](../../crema/forms/#method-spoofing-method).
+
+## Ce qui n’est pas disponible aujourd’hui
+
+- Alias de middleware chaîne sur des appels individuels `Route.middleware("auth")`
+- Middleware de surcharge automatique de `_method`
+- Groupes de middleware au-delà de ce que vous construisez avec `HttpMiddleware` + `group(...)` de route
+- API de middleware coroutine / réactives (les handlers bloquent sur des fils virtuels)
+
+## Étapes suivantes
+
+- Attachez du middleware sur les routes et les groupes dans [Routage](../routing/).
+- Protégez les liens signés avec [Génération d’URL](../url-generation/).
+- Comprenez les points d’attrape dans [Exceptions](../exceptions/).
+- Session et CSRF dans [Sécurité](../../security/).

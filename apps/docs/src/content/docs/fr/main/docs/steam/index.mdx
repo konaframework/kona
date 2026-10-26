@@ -1,0 +1,19 @@
+---
+title: steam
+description: REPL interactif dans une application Kona déjà démarrée.
+---
+
+`steam` est le REPL de grind. Il démarre votre application dans le processus et évalue des expressions.
+
+```bash
+./gradlew classes
+./grind steam [--bootstrap=bootstrap.App]
+```
+
+Lorsque le moteur de scripts Kotlin est sur le classpath, `app` est lié dans le moteur. Sinon steam accepte :
+
+- `config("some.key")`
+- `app`
+- une arithmétique entière simple (`1+2*3` de gauche à droite)
+
+Tapez `:quit` pour quitter.

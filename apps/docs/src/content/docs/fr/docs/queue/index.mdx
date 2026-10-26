@@ -1,0 +1,53 @@
+---
+title: Files
+description: Jobs en arrière-plan, workers et reprise des jobs en échec.
+---
+
+Les files permettent à votre app de terminer une requête vite et de faire le travail plus lourd un peu plus tard — envoyer du mail, redimensionner des images, appeler des API lentes — sur un processus worker séparé.
+
+Enregistrez `QueueServiceProvider`, puis envoyez les jobs via `Bus`. Les jobs qui implémentent `ShouldQueue` sont poussés sur une connexion ; le reste s’exécute tout de suite.
+
+## Où aller ensuite
+
+| Guide | Quand l’utiliser |
+|-------|----------|
+| [Jobs et envoi](/docs/queue/jobs/) | Écrire des classes de job, délai, chaînes, lots, middleware |
+| [Workers](/docs/queue/workers/) | Lancer `./grind queue:work` et les options du worker |
+| [Jobs en échec](/docs/queue/failed-jobs/) | Lister, relancer et stocker durablement les échecs |
+
+## Démarrage rapide
+
+```kotlin
+class SendInvoice : Job, ShouldQueue {
+    override fun handle() { /* … */ }
+}
+
+val bus = app.resolve(Bus::class.java)
+bus.dispatch(SendInvoice())
+```
+
+```java
+Bus bus = app.resolve(Bus.class);
+bus.dispatch(new SendInvoice());
+```
+
+```bash
+./grind queue:work --connection=array --stop-when-empty
+```
+
+## Connexions
+
+Configurez `queue.default` et `queue.connections.{name}.driver` :
+
+| Pilote | Rôle |
+|--------|------|
+| `sync` | Exécute en ligne à l’envoi (le délai est ignoré) |
+| `array` / `memory` | File dans le processus pour les tests et les workers locaux |
+| `redis` | Liste Redis partagée (exige `RedisManager`) |
+| `database` | Table `jobs` (exige le `Database` de Cadence) |
+
+Nom de file par défaut pour une connexion : `queue.connections.{name}.queue` (repli `default`).
+
+## steam
+
+Depuis `./grind steam`, résolvez `Bus` / `QueueManager` après le démarrage et envoyez des jobs de façon interactive pendant qu’un worker tourne dans un autre terminal.

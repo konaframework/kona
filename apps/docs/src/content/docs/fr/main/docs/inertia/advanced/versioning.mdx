@@ -1,0 +1,29 @@
+---
+title: Version des assets
+description: Négociation X-Inertia-Version et réponses de conflit 409.
+---
+
+## But
+
+Lorsque vous déployez de nouveaux assets frontend, les clients Inertia doivent recharger entièrement la page pour ne pas mélanger l’ancien JS avec de nouvelles props. Le serveur expose une chaîne de version ; les clients envoient `X-Inertia-Version` lors des visites.
+
+## Définir la version
+
+```kotlin
+Inertia.version("1")
+// or config inertia.version
+// or middleware override fun version(request) = assetHash()
+```
+
+## Règles de conflit
+
+`versionConflict(request)` renvoie une réponse `409` lorsque **tout** ceci est vrai :
+
+1. La requête est une requête Inertia (`X-Inertia` présent)
+2. Le client a envoyé `X-Inertia-Version`
+3. La `version` du manager n’est pas vide
+4. La version du client ≠ la version du serveur
+
+Le corps du `409` est vide ; les en-têtes incluent `X-Inertia: true`. Le middleware appelle ensuite `decorate` pour que `X-Inertia-Version` corresponde au serveur.
+
+Si la version du serveur est vide, aucun conflit n’est levé (les clients peuvent omettre l’en-tête librement).

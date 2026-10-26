@@ -1,0 +1,38 @@
+---
+title: Prérequis
+description: Confirmez JDK 21 et une app Kona, puis ajoutez le panneau sur le routeur que vous servez déjà. Firefly ne demande pas un second runtime.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+Vérifiez cette liste avant d’ajouter le panneau. Vous avez déjà une app Kona. Ajoutez `kona-firefly`, écrivez un `Panel` et montez-le sur le routeur que vous utilisez déjà.
+
+`samples/hello-kotlin` et `samples/hello-java` sont cette app. `/` reste la page d’accueil. Le bureau est à `/admin`.
+
+<FireflyShot file="app-ready.png" description="La page d’accueil hello-kotlin à http://127.0.0.1:4017/, une app Kona qui sert une route avant d’ouvrir le panneau." />
+
+## Ce que vous devez avoir installé
+
+| Prérequis | Ce qu’il vous faut |
+|-------------|----------------|
+| **JDK** | 21 ou plus récent. Kona utilise les virtual threads. |
+| **Une app Kona** | Créée avec `kona new`, ou un projet Gradle existant qui dépend déjà de `org.konaframework`. |
+| **`kona` et `./grind`** | La CLI globale crée l’app. `./grind` dans une app autonome la sert et lance `make:firefly-*`. |
+| **Navigateur** | Un navigateur actuel. Le HTML du panneau devient interactif une fois Alpine démarré. |
+
+L’artefact du panneau est `org.konaframework:kona-firefly`. Il amène avec lui les modules support, schema, action, infolist, table, form, notification et widget. Ajoutez cette seule coordonnée.
+
+## Ce que l’app doit déjà fournir
+
+| Pièce | Pourquoi vous en avez besoin |
+|-------|-----------------|
+| HTTP et Crema | Les pages sont des réponses HTML. Le kit enregistre ces providers. |
+| Session | La connexion, la réinitialisation de mot de passe et les toasts de notification utilisent la session. |
+| Cadence | Une ressource qui appelle `model(...)` avec un modèle Cadence peut construire un `ModelBuilder` depuis `query()`. Les exemples hello rendent aussi des tables à partir de lignes en mémoire, donc les premiers écrans marchent avant que vous ne migriez. |
+| Wire | Les champs live et les clics d’action passent par Wire. Le HTML du panneau inclut ces hooks. |
+
+Chart.js et ApexCharts voyagent dans le module widget. Le panneau les sert depuis `/_firefly/widgets/`.
+
+## Suite
+
+[Installation](/docs/firefly/installation/) crée l’app ou ajoute la dépendance.

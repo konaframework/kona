@@ -1,0 +1,75 @@
+---
+title: Données partagées
+description: Inertia.share global, partage middleware par requête et règles de fusion.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Partage global
+
+Vit pendant la durée du processus (ou jusqu’au nettoyage) :
+
+```kotlin
+Inertia.share("appName", "Kona")
+Inertia.share(mapOf("features" to listOf("a", "b")))
+```
+
+```java
+Inertia.share("appName", "Kona");
+Inertia.share(Map.of("features", List.of("a", "b")));
+```
+
+Inspectez avec `Inertia.manager().shared()`. Effacez avec `manager.clearShared()`.
+
+## Partage par requête
+
+Sous-classez le middleware :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class HandleInertia : HandleInertiaRequests() {
+    override fun share(request: Request) = mapOf(
+        "path" to request.path,
+        "auth" to mapOf("user" to currentUser(request)),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class HandleInertia extends HandleInertiaRequests {
+    @Override
+    public Map<String, Object> share(Request request) {
+        return Map.of("path", request.getPath());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+En interne cela appelle `manager.shareForRequest(props)` pour la durée de la requête. La map ThreadLocal est effacée lorsque le middleware se termine.
+
+## Ordre de fusion
+
+1. `share` global
+2. Middleware / `shareForRequest`
+3. Props passées à `Inertia.render` (priorité la plus haute)
+
+Clés en double : les couches plus tardives gagnent. Préférez mettre les métadonnées stables de l’app dans le partage global et le flash/auth propre à la requête dans le middleware, afin que les contrôleurs restent fins.
+
+## Motifs de type flash
+
+Il n’y a pas de sac « flash » séparé dans `kona-inertia`. Approche typique :
+
+1. Stockez le flash dans la session depuis un contrôleur ou un filtre.
+2. Dans `share(request)`, lisez et effacez cette clé de session dans les props (par exemple `"flash" to mapOf("success" to …)`).
+3. Affichez côté client depuis `usePage().props.flash` (API des adaptateurs Vue/React — consultez [inertiajs.com](https://inertiajs.com/shared-data)).
+
+## Tester les props partagées
+
+Dans les tests unitaires, démarrez un manager, appelez `share` / `shareForRequest`, rendez avec une `Request` explicite et affirmez la map de props JSON. Consultez [Tests](../../dx/testing/).

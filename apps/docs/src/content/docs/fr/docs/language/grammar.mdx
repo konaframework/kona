@@ -1,0 +1,55 @@
+---
+title: Grammaire Crema
+description: Grammaire TextMate et configuration de langage pour les modèles Crema.
+---
+
+Les modèles Crema sont des fichiers HTML (ou à saveur Kotlin) avec des **directives** (`@extends`, `@section`, …), des **échos** (`{{ name }}`), des **échos bruts** (`{!! html !!}`) et des **commentaires** (`{{-- note --}}`).
+
+La grammaire vit dans le dépôt Kona afin que chaque éditeur partage une seule définition.
+
+## Fichiers
+
+| Chemin | Rôle |
+|------|---------|
+| `ide-support/crema/crema.tmLanguage.json` | Grammaire TextMate (`scopeName` : `text.html.crema`) |
+| `ide-support/crema/crema.injection.tmLanguage.json` | Injecte Crema dans les chaînes Java/Kotlin `template()` / `inline(` / `language=Crema` |
+| `ide-support/crema/crema.string-tokens.tmLanguage.json` | Colore `{{`, les directives `@` et `wire:*` dans les blocs de texte Java/Kotlin |
+| `ide-support/crema/language-configuration.json` | Commentaires de bloc, crochets, marqueurs de pliage |
+| `ide-support/crema/README.md` | Notes courtes d’empaquetage |
+
+Les mots-clés de directive reconnus dans la grammaire correspondent à l’ensemble intégré utilisé par **kona-lsp** (dont `@extends`, `@section`, `@endsection`, `@show`, `@yield`, `@parent`, `@stack`, `@push`, `@endpush`, `@include`, `@includeIf`, `@includeWhen`, `@if`, `@else`, `@endif`, `@foreach`, `@endforeach`, `@slot`, `@endslot`, `@json`, `@csrf`).
+
+## Extensions de fichier
+
+- `*.crema.html` — vues Crema typiques sous `src/main/resources/views/`
+- `*.crema.kt` — sources Crema optionnelles à saveur Kotlin
+
+Les éditeurs associent les deux à l’id de langage `crema` via l’[extension VS Code / Cursor](/docs/language/vscode).
+
+## Synchroniser dans l’extension VS Code
+
+L’extension copie la grammaire dans son propre arbre :
+
+```bash
+cd ide-support/vscode-crema
+node scripts/sync-grammar.js
+```
+
+Modifiez les fichiers canoniques sous `ide-support/crema/`, puis synchronisez avant d’empaqueter l’extension.
+
+## Extrait
+
+```html
+{{-- Layout home page --}}
+@extends('layouts.app')
+@section('title', 'Home')
+@section('content')
+  <h1>{{ title }}</h1>
+  @foreach(items as item)
+    <li>{{ item }}</li>
+  @endforeach
+  @csrf
+@endsection
+```
+
+La coloration est seulement cosmétique — le runtime Crema analyse et rend toujours les modèles sur le serveur. Pour les noms de directive inconnus pendant la saisie, utilisez le [serveur de langage](/docs/language/lsp).

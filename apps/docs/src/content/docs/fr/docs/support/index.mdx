@@ -1,0 +1,131 @@
+---
+title: Utilitaires de support
+description: Collections, chaînes, dates, aides et localisation.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Le module `kona-support` livre les aides du quotidien utilisées dans les apps et le framework.
+
+## Collections
+
+`Collection` enveloppe une liste avec une API fluide de forme Laravel. Créez-en une avec `collect(...)`, `Collection.make(...)` ou `Collection.of(...)`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val names = collect(users)
+    .where("active", true)
+    .pluck("name")
+    .filter { it != null }
+    .join(", ")
+
+collect(1, 2, 3, 4)
+    .reject { it % 2 == 0 }
+    .partition { it > 1 }
+
+Collection.times(3) { "row-$it" }
+Collection.wrap(listOf(1, 2)).merge(listOf(3))
+```
+
+Les méthodes utiles incluent `map`, `flatMap`, `filter`, `reject`, `where` / `firstWhere`, `reduce`, `chunk`, `collapse`, `flatten`, `sum` / `avg` / `min` / `max`, `keyBy`, `pluck` indexé, `groupBy`, `partition`, `sortBy`, `unique`, `sole`, `diff` / `intersect`, `mapWithKeys`, `countBy`, `slice` / `nth` / `pad`, `pop` / `shift` / `prepend`, et `when` / `unless` / `whenEmpty`.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Collection<Integer> nums = Collection.make(1, 2, 3, 4);
+nums.reject(n -> n % 2 == 0).toList();
+Collection.times(2, i -> i);
+Collection.wrap(List.of(1, 2)).join("-");
+```
+
+</TabItem>
+</Tabs>
+
+## Chaînes
+
+```kotlin
+Str.slug("Hello World")          // hello-world
+Str.of("hello_world").camel()    // helloWorld
+Str.headline("hello_world")      // Hello World
+Str.mask("5551234", "*", 0, 3)   // ***1234
+Str.beforeLast("a/b/c", "/")     // a/b
+Str.padLeft("7", 3, "0")         // 007
+```
+
+`Stringable` depuis `Str.of(...)` enchaîne les mêmes transformations (`lower`, `snake`, `slug`, `limit`, `append`, `finish`, …).
+
+## Dates
+
+`KonaDate` est le type date/heure fluide de `kona-support`. Il enveloppe un `Instant` UTC plus une zone utilisée pour le calendrier et le formatage. Le JSON (`Response.json`, Cadence `toJson`, `org.konaframework.support.json.Json.stringify`) encode un `KonaDate` en chaîne ISO-8601 — la même forme que pour `Instant` et les autres types `java.time`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val d = KonaDate.parse("2024-01-15T12:30:00Z")
+d.addMonths(1).startOfDay().toDateString()
+d.diffInDays(d.subDays(2))
+d.isSameDay(d.addHours(3))
+d.timezone()
+d.toIso()                 // 2024-01-15T12:30:00Z
+d.setTimezone(ZoneId.of("Africa/Nairobi")).toDateTimeString()
+
+KonaDate.now()
+KonaDate.today()
+KonaDate.ofInstant(user["created_at"] as Instant)
+KonaDate.parse("2024-01-15 12:30:00")
+KonaDate.parse("2024-01-15")
+KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KonaDate d = KonaDate.parse("2024-01-15T12:30:00Z");
+d.addMonths(1).startOfDay().toDateString();
+d.toIso();
+d.timezone();
+KonaDate.ofInstant((Instant) user.get("created_at"));
+KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15), ZoneOffset.UTC);
+```
+
+</TabItem>
+</Tabs>
+
+Le parse accepte les instants ISO (`…Z`), les chaînes avec offset et zone, les datetimes locaux `yyyy-MM-dd HH:mm:ss` / `T` (lus en UTC) et les dates calendaires. Arithmétique : `add` / `sub` secondes, minutes, heures, jours, semaines, mois, années. Bornes : `startOfDay` / `endOfDay`. Comparaisons : `isBefore` / `isAfter` / `isSameDay` / `isPast` / `isFuture`. Format : `format(pattern)`, `toDateString`, `toDateTimeString`, `toIso` / `toIso8601String`.
+
+Exemple JSON HTTP :
+
+```json
+{"created_at":"2024-01-15T12:30:00Z"}
+```
+
+## Tableaux / maps
+
+`Arr.get`, `Arr.set`, `Arr.has`, `Arr.forget`, `Arr.only`, `Arr.except`, `Arr.wrap`, `Arr.flatten`, `Arr.pluck` et `Arr.dot` fonctionnent avec des clés pointées imbriquées (`user.name`).
+
+```kotlin
+val row = linkedMapOf<String, Any?>()
+Arr.set(row, "user.name", "Ada")
+Arr.forget(row, "user.name")
+Arr.dot(mapOf("user" to mapOf("age" to 1))) // user.age → 1
+```
+
+## Localisation
+
+```kotlin
+val t = Translator().addLines("en", mapOf("hi" to "Hello :name"))
+t.get("hi", mapOf("name" to "Ada"))
+Lang.setTranslator(t)
+translate("hi", mapOf("name" to "Ada"))
+```
+
+```java
+Translations.__("hi", Map.of("name", "Ada"));
+```
+
+Enregistrez `SupportServiceProvider` pour lier un `Translator` partagé. Si `lang.path` est fixé ou si `{base}/lang` existe, les fichiers JSON et `key=value` sont chargés automatiquement (`lang/en.json`, `lang/en/messages.json`, `lang/en.properties`, et ainsi de suite).

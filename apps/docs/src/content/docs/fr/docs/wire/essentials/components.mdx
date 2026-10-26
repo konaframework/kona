@@ -1,0 +1,160 @@
+---
+title: Composants Wire
+description: Enregistrez, découvrez et rendez des composants Wire depuis Kotlin ou Java.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un **composant** Wire est une sous-classe de `org.konaframework.wire.Component`. Les champs publics (ou les propriétés Kotlin avec champs de soutien) sont l’état. Les méthodes publiques sont les actions. La classe renvoie du HTML via `template()`, `render()`, ou une vue Crema de convention.
+
+## Deux styles d’écriture
+
+### Fichier unique (modèle inline)
+
+Surchargez `template()` avec une source Crema. Idéal pour les petits widgets.
+
+```kotlin
+class Counter : Component() {
+    var count = 0
+    fun increment() { count++ }
+
+    override fun template() = """
+        <div>
+            <button wire:click="increment">+</button>
+            <span>{{ count }}</span>
+        </div>
+    """.trimIndent()
+}
+```
+
+### Classe + vue Crema
+
+Omettez `template()` et soit renvoyez `view("brew.todos")` depuis `render()`, soit appuyez-vous sur le chemin de convention `views/wire/<name>.crema.html`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Todos : Component() {
+    var draft = ""
+    var items = mutableListOf<String>()
+
+    fun add() {
+        if (draft.isNotBlank()) {
+            items.add(draft.trim())
+            draft = ""
+        }
+    }
+
+    // Convention: views/wire/todos.crema.html when render() / template() are null
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Todos extends Component {
+    public String draft = "";
+    public List<String> items = new ArrayList<>();
+
+    public void add() {
+        if (!draft.isBlank()) {
+            items.add(draft.trim());
+            draft = "";
+        }
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+{{-- views/wire/todos.crema.html — single root element required --}}
+<div>
+    <form wire:submit="add">
+        <input wire:model="draft" />
+        <button type="submit">Add</button>
+    </form>
+    <ul>
+        @foreach(items as item)
+            <li wire:key="todo-{{ loop.index }}">{{ item }}</li>
+        @endforeach
+    </ul>
+</div>
+```
+
+`render()` peut renvoyer :
+
+| Retour | Signification |
+|--------|---------|
+| `null` | Utilise `template()`, sinon la vue de convention `brew.<name>` |
+| `WireView` depuis `view(name, data)` / `inline(source, data)` | Crema nommé ou inline |
+| `String` | HTML brut (doit encore avoir un élément racine unique) |
+
+## Nommage et découverte
+
+Par défaut `WireServiceProvider` ajoute l’emplacement du paquet `app.wire`. La classe `app.wire.Counter` est nommée `counter` ; les paquets imbriqués deviennent des noms pointés (`app.wire.posts.CreatePost` → `posts.create-post`).
+
+| API | Rôle |
+|-----|------|
+| `Wire.discover("app.wire")` | Analyse un paquet |
+| `Wire.addLocation("com.acme.ui")` | Racine de paquet supplémentaire |
+| `Wire.addNamespace("admin", "app.admin.brew")` | Résout `admin::users` |
+| `Wire.component("counter", Counter::class.java)` | Enregistrement explicite |
+| `@WireComponent("explicit-name")` | Épingle le nom découvert |
+
+Les espaces de noms utilisent `ns::name` dans les balises : `<wire:admin::users />`.
+
+## Embarquement
+
+```crema
+<wire:counter />
+<wire:counter :start="3" title="Demo" />
+@wire('counter', ['start' => 3])
+```
+
+- Les attributs statiques deviennent des props chaîne / des arguments de montage.
+- `:attr="expr"` évalue l’expression Crema.
+- Les attributs en kebab-case mappent vers le camelCase (`:user-id` → `userId`).
+
+Depuis le code :
+
+```kotlin
+Wire.mount("counter", mapOf("start" to 3))
+Wire.exists("counter") // true when registered / discoverable
+```
+
+## Aides d’identité
+
+Dans un composant en cours :
+
+```kotlin
+id()    // unique instance id
+name()  // registered name, e.g. "counter"
+```
+
+## Erreurs que vous verrez
+
+| Situation | Exception / comportement |
+|-----------|------------------------|
+| Nom inconnu | `ComponentNotFoundException` |
+| Plus d’un élément HTML racine | `MultipleRootElementsException` |
+| Balise racine vide / absente | `RootTagMissingFromViewException` |
+| Le client appelle une non-action / une méthode de cycle de vie | Method-not-found / garde de cycle de vie |
+
+## Échafaudage
+
+```bash
+./grind make:wire counter                 # class + views/wire/counter.crema.html
+./grind make:wire posts.create --inline   # single-file with template()
+./grind make:wire counter --lang=java
+./grind make:wire counter --test
+```
+
+## Suite
+
+- [Propriétés](/docs/wire/essentials/properties/) — API d’état et annotations de sécurité
+- [Actions](/docs/wire/essentials/actions/) — appeler des méthodes depuis le navigateur
+- [Modèles](/docs/wire/essentials/templates/) — assets et surface Crema

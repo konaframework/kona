@@ -1,0 +1,101 @@
+---
+title: Panneau
+description: Posez l’id, le path et la marque sur app/firefly/Panel, puis appelez mount. C’est la classe qui enregistre les routes du bureau.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Posez l’id, le préfixe d’URL et la marque, puis appelez `mount`. Le fichier dans votre application est `app/firefly/Panel`. La classe qu’il étend est `org.konaframework.firefly.Panel`.
+
+Le module n’enregistre pas de routes tant que vous n’appelez pas `mount`. Le chrome, la barre latérale et la barre du haut, est une seconde classe du même nom simple, `org.konaframework.firefly.support.Panel`. Celle-là est sur [Chrome du panneau](/docs/firefly/chrome/). La classe que vous écrivez est celle de `org.konaframework.firefly`.
+
+<FireflyShot file="desk-panel.png" description="Le panneau hello-kotlin à http://127.0.0.1:4017/admin/desk, avec la barre latérale et la page Desk dans le corps." />
+
+Les setters chaînés acceptent une valeur statique ou une fermeture. La fermeture reçoit le `Get` de schéma. Un id, une marque, un domaine ou un nom de garde vide lance `FireflyException` et nomme le champ.
+
+## Monter un panneau
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val panel = Panel()
+    .id("desk")
+    .path("admin")
+    .brand("Desk")
+    .navigation(NavigationType.APP)
+    .page(ListPage("orders"))
+panel.mount(router)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Panel panel = new Panel();
+panel.id("desk");
+panel.path("admin");
+panel.brand("Desk");
+panel.navigation(NavigationType.APP);
+panel.page(new ListPage("orders"));
+panel.mount(router);
+```
+
+</TabItem>
+</Tabs>
+
+`path("admin")` et `path("/admin/")` servent tous deux `/admin`. `path("")` et `path("/")` servent la racine du site. Un panneau racine enregistre chaque page, écran d’auth et page de ressource par nom. Il n’enregistre pas un attrape-tout.
+
+Si un chemin est déjà routé, `mount` lance `FireflyException` et nomme les deux handlers. Deux panneaux peuvent se monter sur un routeur, un à `path("")` et un à `path("admin")`. `domain("ops.example")` refuse une requête dont l’en-tête `Host` ne correspond pas, y compris lorsque l’en-tête inclut un port.
+
+`mount(router, state)` évalue les fermetures contre cette map d’état. Un second `mount` lance `Panel [id] is already mounted`.
+
+## Méthodes que vous appellerez
+
+| Méthode | Ce que vous obtenez |
+|--------|----------------|
+| `id` / `path` / `brand` / `domain` | Chaîne ou fermeture `Get`. L’id défaut est `admin`. Le path défaut est `admin`. La marque défaut est `Firefly` |
+| `navigation` / `topNavigation()` | `NavigationType`. Défaut `APP`. Consultez [Navigation](/docs/firefly/navigation/) |
+| `theme(FireflyTheme)` | Jetons et partiels. Défaut `KonaTheme`. Consultez [Thèmes et CSS](/docs/firefly/themes/) |
+| `layout(PanelLayout)` | Remplace l’arrangement de la coquille |
+| `hook(Hook, html)` | Ajoute du HTML dans un hook de chrome |
+| `spa(true)` | Ajoute `wire:navigate` sur les liens qui ont une URL |
+| `authenticate(false)` | Les pages sautent la redirection de connexion. Les exemples hello font cela |
+| `guard` / `useAuthGuard` / `reuseAppGuard` | Qui est connecté. Voir ci-dessous |
+| `item` / `cluster` / `userMenu` | Arbre de navigation. Consultez [Navigation](/docs/firefly/navigation/) |
+| `page` / `resource` / `widget` | Enregistre une instance sans découverte |
+| `discover(path)` | Charge `pages/`, `widgets/` et `resources/`. Consultez [Enregistrer un panneau](/docs/firefly/registration/) |
+| `tenant` | Ajoute un lien de tenant. Consultez [Multi-tenant](/docs/firefly/tenancy/) |
+| `plugin` | Appelle `register` immédiatement. `boot` s’exécute dans `mount`. Consultez [Plugins](/docs/firefly/plugins/) |
+| `mount(router)` | Enregistre les routes |
+| `render(request)` | Le chrome d’une requête, sans corps de page |
+| `guardName()` | `firefly-{id}`, ou le nom que vous avez passé à `reuseAppGuard` |
+
+## Connexion et le garde
+
+Le garde du panneau est `firefly-{id}` sauf si vous appelez `reuseAppGuard()` (le nom de garde d’application `web`) ou `reuseAppGuard("name")`. `useAuthGuard(guard)` adapte un `Guard` d’application. Jusque-là, le panneau garde son propre `MemoryPanelGuard` et laisse la connexion et la session de l’application en place.
+
+Les écrans sont `/login`, `/register`, `/password-reset`, `/email-verify` et `/profile`, sous le préfixe du panneau. Les pages exigent ce garde sauf si vous appelez `authenticate(false)`. La connexion et l’inscription lisent `email` et `password` (l’inscription lit aussi `name`). Un champ manquant renvoie du HTML 422. Une tentative échouée renvoie du HTML 422 et le message `Those credentials do not match`.
+
+Lorsque le garde n’a pas d’id, la puce utilisateur se lit **Invité**.
+
+## Choisir un thème et un hook
+
+`theme(HarborTheme())` sélectionne le thème d’exemple livré sur l’artefact du panneau : une couleur primaire différente, un partiel de barre latérale qui garde les marqueurs de hook, et une petite feuille supplémentaire sous `.ff-panel`. `hook(Hook.BODY_END, "...")` injecte encore dans la coquille. Le `Panel` de support applique le thème, le layout et les hooks. Lisez [Chrome du panneau](/docs/firefly/chrome/) pour les slots et les partiels.
+
+## Générer la classe
+
+```bash
+./grind make:firefly-panel
+./grind make:firefly-panel --lang=java --id=desk --path=admin
+./grind firefly:install
+./grind make:firefly-theme Harbor
+./grind firefly:publish
+```
+
+`make:firefly-panel` et `firefly:install` écrivent `Panel` plus des dossiers vides `pages/`, `widgets/` et `resources/`. La classe générée pose seulement `id` et `path`. `firefly:publish` copie le partiel de barre latérale dans `resources/views/firefly/sidebar.crema.html` afin que vous puissiez l’éditer. Gardez les marqueurs de hook dans ce partiel, sinon `render` lance.
+
+## Suite
+
+[Pages](/docs/firefly/pages/) sont les écrans vers lesquels ce panneau route.

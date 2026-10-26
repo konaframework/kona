@@ -1,0 +1,17 @@
+---
+title: Redirections externes
+description: Inertia.location pour une navigation cross-origin ou forcée.
+---
+
+```kotlin
+Inertia.location("https://example.com")
+```
+
+| Client | Statut | En-têtes |
+|--------|--------|---------|
+| Inertia (`X-Inertia` + requête courante définie) | `409` | `X-Inertia-Location: <url>` |
+| Navigateur ordinaire / pas de requête Inertia | `302` | `Location: <url>` |
+
+La branche Inertia exige une requête courante sur le manager (middleware). Sans requête courante, le comportement est le `302` ordinaire.
+
+Après le middleware, `decorate` peut ajouter `X-Inertia-Version` lorsque la réponse porte déjà `X-Inertia-Location`.

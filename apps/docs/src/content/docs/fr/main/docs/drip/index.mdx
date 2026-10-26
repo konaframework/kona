@@ -1,0 +1,53 @@
+---
+title: drip
+description: Client HTTP fluide pour les requêtes sortantes.
+---
+
+**drip** est le client HTTP sortant de Kona. Utilisez-le depuis le code de l’application, les commandes grind ou les tests lorsque vous devez appeler un autre service.
+
+## Enregistrer
+
+```kotlin
+app.register(DripServiceProvider())
+```
+
+Résolvez un client partagé depuis le conteneur, ou construisez `Drip()` directement.
+
+## Kotlin
+
+```kotlin
+val drip = Drip().baseUrl("https://api.example.com").withHeaders(mapOf("Accept" to "application/json"))
+val response = drip.get("/users", mapOf("page" to "1"))
+if (response.successful()) {
+    val data = response.json()
+}
+drip.post("/users", mapOf("name" to "Ada"))
+drip.put("/users/1", mapOf("name" to "Ada Lovelace"))
+drip.delete("/users/1")
+```
+
+Les URL absolues ignorent l’URL de base :
+
+```kotlin
+drip.get("https://example.com/health")
+```
+
+## Java
+
+```java
+Drip drip = new Drip().baseUrl("https://api.example.com");
+DripResponse response = drip.get("/users");
+boolean ok = response.successful();
+```
+
+## Forme de la réponse
+
+| Champ | Signification |
+|-------|---------|
+| `status` | Code de statut HTTP |
+| `body` | Corps de la réponse en texte |
+| `headers` | En-têtes de la réponse |
+| `successful()` | Vrai lorsque le statut est 2xx |
+| `json()` | Analyse le corps comme une map d’objet JSON |
+
+Les délais de requête valent quelques secondes par défaut. Les corps JSON définissent `Content-Type: application/json` ; les corps `String` bruts utilisent `text/plain`.

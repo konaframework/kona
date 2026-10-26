@@ -1,0 +1,62 @@
+---
+title: Requêtes et réponses
+description: Coquilles HTML, visites JSON, en-têtes, et comment Inertia détecte une requête client.
+---
+
+## Détecter une requête Inertia
+
+`InertiaManager.isInertiaRequest(request)` est vrai lorsque la requête a un en-tête `X-Inertia` (n’importe quelle valeur). Les clients officiels envoient `X-Inertia: true`.
+
+## Première visite → HTML
+
+- Statut `200`
+- `Content-Type` HTML
+- Corps : vue racine Crema ou `rootHtml`
+- Données de vue : `page` (JSON brut), `pageAttr` (échappé HTML pour les attributs), `vite` (balises script/link)
+- Pas d’en-tête de réponse `X-Inertia` sur la coquille HTML brute
+
+Le HTML racine par défaut (lorsque Crema n’est pas utilisé) intègre `@page` dans `data-page='…'`.
+
+## Visite Inertia → JSON
+
+- Corps : map JSON de l’objet de page
+- `X-Inertia: true`
+- `Vary: X-Inertia`
+- `X-Inertia-Version` lorsque la version du manager n’est pas vide
+
+## Décoration
+
+Après l’exécution du handler de route, le middleware appelle `manager.decorate(response)`. Si la réponse a déjà `X-Inertia: true` ou `X-Inertia-Location`, et qu’une version est définie, `X-Inertia-Version` est ajouté.
+
+## Rendu explicite de requête
+
+```kotlin
+Inertia.render(request, "Pages/Show", mapOf("id" to 42))
+```
+
+Utilisez ceci depuis des chemins de code qui ne sont pas sous `HandleInertiaRequests`, ou lorsque vous voulez un objet de requête différent du ThreadLocal courant.
+
+## Codes de statut que vous verrez
+
+| Statut | Signification |
+|--------|---------|
+| `200` | Coquille HTML ou page JSON |
+| `302` / `303` | Redirection ordinaire (clients hors Inertia) ; les adaptateurs Inertia suivent ou convertissent |
+| `409` | Incompatibilité de version d’assets, ou `Inertia.location` pour les clients Inertia ([Redirections](../../advanced/redirects/)) |
+
+## Résumé de la négociation de contenu
+
+Vous appelez toujours `Inertia.render` de la même façon. Le manager inspecte la requête :
+
+```text
+X-Inertia present?
+  ├─ no  → HTML (root_view / root_html) + data-page
+  └─ yes → version OK? → JSON page
+                      └─ no → 409
+```
+
+## Lié
+
+- [Middleware](../middleware/) — où tournent les vérifications de version
+- [Modèle racine](../root-template/) — champs de la coquille HTML
+- [Votre première page](../../guides/first-page/) — exemple de bout en bout

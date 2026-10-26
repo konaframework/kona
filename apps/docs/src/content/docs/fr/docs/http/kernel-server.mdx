@@ -1,0 +1,339 @@
+---
+title: Noyau et serveur
+description: Comment HttpKernel transforme une Request en Response, et comment KonaHttpServer la sert avec Netty et les fils virtuels.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Deux classes se tiennent entre le réseau et vos handlers de route :
+
+- **`HttpKernel`** est le pipeline de requête. Il prend une `Request`, exécute le middleware global, demande une route au routeur, exécute le middleware et l’action de cette route, convertit les échecs en réponses d’erreur, et renvoie une `Response`. Il ne sait rien des sockets, donc vous pouvez l’appeler directement dans les tests.
+- **`KonaHttpServer`** est un mince adaptateur réseau au-dessus de **Netty**. Il écoute sur un hôte et un port, transforme chaque échange HTTP en `Request`, appelle `kernel.handle(request)`, et réécrit la `Response`. Netty possède les sockets (epoll sur Linux quand il est disponible, sinon NIO) ; chaque requête tourne sur son propre **fil virtuel**. Sur une liaison réussie il imprime une bannière d’écoute via `ConsoleIO` (et `Log.info`).
+
+Cette page parcourt les deux, dans l’ordre qu’une requête les vit.
+
+## D’où vient le noyau
+
+`HttpServiceProvider` (dans `kona-http`) enregistre deux **singletons** dans le conteneur de l’application — des objets créés une fois et partagés par tous ceux qui les demandent :
+
+- un `Router`, et
+- un `HttpKernel` construit depuis ce routeur, avec un `DefaultExceptionHandler` dont le mode debug suit la valeur de config `app.debug` (semée depuis `APP_DEBUG` dans `.env`). Au boot, quand la journalisation des requêtes est activée (`APP_DEBUG` / `LOG_REQUESTS`), le provider préfixe aussi `LogRequests` — consultez [Journalisation](../logging/#request-access-lines-local-serve).
+
+Une fois l’application démarrée, résolvez-les depuis le conteneur :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .boot()
+
+val router = app.resolve(Router::class.java)
+val kernel = app.resolve(HttpKernel::class.java)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .boot();
+
+Router router = app.resolve(Router.class);
+HttpKernel kernel = app.resolve(HttpKernel.class);
+```
+
+</TabItem>
+</Tabs>
+
+Vous pouvez aussi construire un noyau vous-même. Tous les paramètres après le routeur sont optionnels :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val kernel = HttpKernel(
+    router,
+    globalMiddleware = listOf(RequestIdMiddleware()),
+    exceptionHandler = DefaultExceptionHandler(debug = false),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+HttpKernel kernel = new HttpKernel(router);
+HttpKernel withMiddleware = new HttpKernel(router, List.of(new RequestIdMiddleware()));
+HttpKernel custom = new HttpKernel(router, List.of(), new DefaultExceptionHandler(false));
+```
+
+</TabItem>
+</Tabs>
+
+## Le pipeline, étape par étape
+
+`kernel.handle(request)` effectue ces étapes pour chaque requête :
+
+1. **Instantané du middleware global.** Le noyau lit sa liste de middleware global courante une fois. Les changements faits pendant que la requête est en vol n’affectent que les requêtes ultérieures.
+2. **Exécuter le middleware global, le plus extérieur d’abord.** Le premier middleware de la liste enveloppe tous les autres. Chacun peut inspecter la requête, appeler `next` pour continuer, et inspecter ou remplacer la réponse au retour. Consultez [Middleware](../middleware/).
+3. **Résoudre une route.** Au centre de la chaîne globale le noyau appelle `router.resolve(method, path)` :
+   - La première route enregistrée dont les méthodes et le chemin correspondent l’emporte.
+   - `HEAD` retombe sur une route `GET` correspondante.
+   - Si le chemin n’existe que sous d’autres méthodes, `OPTIONS` est répondu automatiquement (statut `200`, un corps vide, et un en-tête `Allow` tel que `GET,HEAD,POST`).
+   - Sinon le routeur lance `MethodNotAllowedException` (**405**, avec un en-tête `Allow`) ou `NotFoundException` (**404**).
+4. **Exposer les paramètres de route.** Chaque `{name}` capturé depuis le chemin est écrit dans les attributs de requête deux fois : comme `name` et comme `route.name`.
+5. **Exécuter le middleware de route, puis l’action.** Le middleware de groupe s’exécute d’abord, puis le middleware attaché à la route elle-même, puis le handler de la route.
+6. **Convertir les échecs à l’intérieur du routage.** Tout ce qui est lancé aux étapes 3–5 (404, 405, erreurs de validation, vos propres exceptions) est passé au `ExceptionHandler` du noyau, qui renvoie une `Response` normale. Cette réponse voyage ensuite **vers l’extérieur à travers le middleware global**, donc un middleware de journal ou d’en-tête voit les 404, 405, 422 et 500 comme les réponses réussies.
+7. **Convertir les échecs dans le middleware global.** Si un middleware global lui-même lance, le noyau l’attrape au niveau le plus extérieur et demande une réponse au même handler d’exception. Dans ce cas aucun middleware global n’observe le résultat, parce que la chaîne s’est déjà déroulée.
+8. **Retirer le corps pour `HEAD`.** Si la méthode de requête est `HEAD`, le noyau règle le corps de réponse à `""` tout en gardant le statut et les en-têtes. Cela s’applique aussi aux réponses d’erreur.
+
+```text
+Request
+  └─ global middleware 1 ─┐
+       └─ global middleware 2 ─┐
+            └─ router.resolve ── route middleware ── action
+            ◄─ (exceptions here become responses via ExceptionHandler)
+       ◄─ global middleware 2 sees the response
+  ◄─ global middleware 1 sees the response
+Response  (body cleared for HEAD)
+```
+
+Parce que tout le pipeline est de simples appels de méthode, vous pouvez l’exercer sans réseau :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val response = kernel.handle(Request.get("/api/health"))
+check(response.status == 200)
+
+val head = kernel.handle(Request("HEAD", "/api/health"))
+check(head.body.isEmpty())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Response response = kernel.handle(Request.get("/api/health"));
+assert response.getStatus() == 200;
+
+Response head = kernel.handle(new Request("HEAD", "/api/health"));
+assert head.getBody().isEmpty();
+```
+
+</TabItem>
+</Tabs>
+
+## Middleware de bootstrap (`HttpMiddleware`)
+
+Les applications générées configurent le middleware depuis `bootstrap/Middleware` via `.afterBoot` :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+HttpMiddleware()
+    .alias("mark") { RequestIdMiddleware() }
+    .web(prepend = listOf("mark"))
+    // .trustProxies(at = listOf("*"))
+    // .trustHosts(at = listOf("example.com", "*.example.com"))
+    .apply(app)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new HttpMiddleware()
+    .alias("mark", RequestIdMiddleware::new)
+    .web(List.of("mark"), List.of())
+    // .trustProxies(List.of("*"))
+    // .trustHosts(List.of("example.com", "*.example.com"))
+    .apply(app);
+```
+
+</TabItem>
+</Tabs>
+
+- **`trustProxies`** — quand le pair immédiat est de confiance (ou `*`), copie `X-Forwarded-*` / `X-Real-IP` sur les attributs de requête (`kona.clientIp`, `kona.scheme`, `kona.host`, `kona.port`).
+- **`trustHosts`** — rejette les requêtes dont l’en-tête `Host` n’est pas dans la liste autorisée (exact ou `*.example.com`).
+- **`web` / `api`** — piles nommées résolues depuis les alias ; `apply` pousse le middleware de confiance et la pile `web` sur le noyau. Utilisez `apiStack()` quand vous groupez des routes API.
+
+## Gérer le middleware global
+
+Le middleware global est le middleware qui s’exécute pour **chaque** requête, appariée ou non. Le noyau expose une petite API pour cela :
+
+| Méthode | Effet |
+|--------|--------|
+| `pushMiddleware(mw)` | Ajouter à la fin (position la plus intérieure). Ignoré si `mw` est déjà dans la liste. |
+| `prependMiddleware(mw)` | Insérer au début (position la plus extérieure). Ignoré s’il est déjà présent. |
+| `setGlobalMiddleware(list)` | Remplacer toute la liste. |
+| `hasMiddleware(mw)` | `true` quand `mw` est dans la liste. |
+| `globalMiddleware` | La liste courante (Java : `getGlobalMiddleware()`). |
+
+Toutes renvoient le noyau, donc les appels s’enchaînent. L’endroit habituel pour configurer le noyau partagé est la méthode `boot` d’un service provider, qui s’exécute après que `HttpServiceProvider` a enregistré le noyau :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {}
+
+    override fun boot(app: Application) {
+        app.resolve(HttpKernel::class.java)
+            .prependMiddleware(RequestIdMiddleware())
+            .pushMiddleware(AccessLogMiddleware())
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {}
+
+    @Override
+    public void boot(Application app) {
+        app.resolve(HttpKernel.class)
+            .prependMiddleware(new RequestIdMiddleware())
+            .pushMiddleware(new AccessLogMiddleware());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Remplacer le handler d’exception
+
+`HttpServiceProvider` construit toujours son noyau avec `DefaultExceptionHandler`. Pour utiliser votre propre `ExceptionHandler`, reliez `HttpKernel` dans un provider enregistré **après** `HttpServiceProvider` (les liaisons ultérieures remplacent les antérieures) :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun register(app: Application) {
+    app.container.singleton(HttpKernel::class.java) { c ->
+        HttpKernel(c.resolve(Router::class.java), exceptionHandler = HtmlErrorHandler())
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override
+public void register(Application app) {
+    app.getContainer().singleton(HttpKernel.class, c ->
+        new HttpKernel(c.resolve(Router.class), List.of(), new HtmlErrorHandler()));
+}
+```
+
+</TabItem>
+</Tabs>
+
+[Exceptions](../exceptions/) décrit le format JSON du handler par défaut et comment écrire le vôtre.
+
+## `KonaHttpServer`
+
+`KonaHttpServer` est construit sur **Netty** (`netty-codec-http`, avec epoll natif sur Linux quand la JVM peut le charger). Créez-le avec un noyau, un hôte et un port — l’API publique est inchangée pour les applications et `./grind serve` :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val server = KonaHttpServer(kernel, host = "127.0.0.1", port = 4000)
+server.start()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KonaHttpServer server = new KonaHttpServer(kernel, "127.0.0.1", 4000);
+server.start();
+```
+
+</TabItem>
+</Tabs>
+
+En Kotlin, `host` vaut `127.0.0.1` par défaut et `port` vaut `4000`. Les appelants Java passent les trois arguments.
+
+| Méthode | Comportement |
+|--------|----------|
+| `start()` | Lie le socket, commence à accepter les requêtes, et journalise `Kona server listening on http://host:port`. Revient immédiatement ; le serveur garde la JVM en vie. L’appeler à nouveau pendant qu’il tourne ne fait rien. Si le port est pris, il lance un échec de liaison (par exemple `java.net.BindException`). |
+| `stop(delaySeconds)` | Dort éventuellement `delaySeconds`, puis ferme le canal d’écoute et arrête les boucles d’événements Netty et l’exécuteur de fils virtuels. Kotlin peut omettre l’argument (défaut `0`) ; Java le passe, par exemple `stop(0)`. |
+| `isRunning()` | `true` entre `start()` et `stop()`. |
+| `port()` | Le port passé au constructeur. |
+| `kernel()` | Le noyau qui dispatche actuellement les requêtes. |
+| `replaceKernel(next)` | Échange le noyau sans arrêter Netty. `./grind serve` l’utilise pour le rechargement doux afin que les connexions keep-alive prennent les nouvelles routes et les classes compilées à la requête suivante. |
+
+### Ce qui se passe par requête
+
+Pour chaque échange entrant le serveur :
+
+1. Lit la méthode, normalise le chemin (réduit les `/` répétés, retire un `/` final), et analyse la chaîne de requête (décodée en pourcent).
+2. Copie les en-têtes, en gardant la première valeur de tout en-tête répété.
+3. Lit tout le corps en mémoire comme octets bruts (`Request.bodyBytes`).
+4. Dispatche `kernel.handle(request)` sur un **fil virtuel**. Le noyau convertit chaque exception en réponse, donc un handler qui échoue produit quand même une réponse bien formée.
+5. Écrit chaque en-tête de réponse (y compris les `Set-Cookie` répétés), puis le corps avec un `Content-Length` exact. Pour les réponses `204` et les requêtes `HEAD`, aucun octet de corps n’est écrit. Le keep-alive est honoré quand le client le demande.
+
+Le keep-alive HTTP et les tampons en pool sont activés par défaut. Vous pouvez forcer le transport avec la propriété système `kona.http.transport` (`auto`, `epoll` ou `nio`).
+
+### Notes d’adaptateur
+
+- Les chemins tels que `/foo//bar` sont normalisés et traités normalement.
+- Les codes de statut utilisent la table de phrases de raison de Kona quand elle est présente (y compris **422 Unprocessable Entity**).
+- Les paramètres de route sont disponibles comme `request.route("id")` (et comme attributs de requête).
+
+## Fils virtuels
+
+Un **fil virtuel** est un fil léger géré par la JVM (JDK 21 et plus) plutôt que par le système d’exploitation. En créer un est bon marché, et quand il bloque sur des E/S — une requête de base, un appel HTTP sortant, une lecture de fichier — la JVM le met en pause et réutilise le fil OS sous-jacent pour d’autre travail.
+
+`KonaHttpServer` exécute chaque requête sur un **nouveau fil virtuel** (`Executors.newVirtualThreadPerTaskExecutor()`). Pour vous, cela veut dire :
+
+- **Écrivez du code bloquant ordinaire.** Appelez JDBC, lisez des fichiers, ou attendez un client HTTP directement dans votre handler. Il n’y a pas de callback ni d’API async à apprendre, et une requête lente ne retient pas les autres.
+- **Une requête, un fil.** Tout ce qui arrive pour une requête — middleware global, middleware de route, votre action — tourne sur le même fil, du début à la fin. Les valeurs thread-local réglées au début d’une requête restent visibles jusqu’à sa fin.
+- **Les objets partagés doivent être sûrs pour les fils.** Le routeur, le noyau et vos singletons sont utilisés par beaucoup de requêtes à la fois. Enregistrez les routes et le middleware pendant le boot, avant `start()`, et évitez de les muter ensuite. Gardez l’état par requête sur la `Request` (attributs) ou dans des variables locales.
+- **Ne mettez pas les fils virtuels en pool.** Ils sont faits pour être créés par tâche ; limitez la concurrence d’une ressource rare avec un sémaphore ou un pool de connexions à la place.
+
+## `HOST` et `PORT`
+
+Les applications créées par `kona new` démarrent le serveur dans la fonction `main` de `bootstrap.App` (`src/main/…/bootstrap/App`), en lisant l’adresse de liaison depuis l’environnement :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val host = Env.getOrDefault("HOST", "127.0.0.1")
+val port = Env.getOrDefault("PORT", "4000").toInt()
+KonaHttpServer(app.resolve(HttpKernel::class.java), host, port).start()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String host = Env.getOrDefault("HOST", "127.0.0.1");
+int port = Integer.parseInt(Env.getOrDefault("PORT", "4000"));
+new KonaHttpServer(app.resolve(HttpKernel.class), host, port).start();
+```
+
+</TabItem>
+</Tabs>
+
+`Env` vérifie d’abord l’**environnement du processus**, puis le fichier `.env` dans le chemin de base de l’application, puis le défaut. Le `.env` généré contient `HOST=127.0.0.1` et `PORT=4000`.
+
+- `127.0.0.1` accepte les connexions de la même machine seulement, ce qui est le défaut sûr pour le développement.
+- Réglez `HOST=0.0.0.0` pour accepter les connexions sur chaque interface réseau, par exemple dans un conteneur.
+- `grind serve --host=… --port=…` règle `HOST` et `PORT` pour le processus d’application, en surchargeant `.env` pour cette exécution. Consultez [commandes grind](../../grind/commands/#grind-serve).
+- Pour les adresses de liaison de production, les reverse proxies et la supervision de processus, consultez [Déploiement](../../guides/deployment/). Pour beaucoup d’instances et le dimensionnement des pools, consultez [Mise à l’échelle](../../guides/scaling/).

@@ -1,0 +1,463 @@
+---
+title: Requête et réponse
+description: Lisez les en-têtes, la chaîne de requête, les champs de formulaire et le JSON d’une Request, et construisez des Response texte, HTML, JSON, redirection ou vides.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Chaque morceau de code HTTP dans Kona travaille avec deux petites classes du paquet `org.konaframework.http` :
+
+- **`Request`** — un instantané immuable de ce que le client a envoyé : méthode, chemin, en-têtes, chaîne de requête et corps. Elle porte aussi une carte d’**attributs** mutable que Kona et votre middleware utilisent pour faire passer des valeurs (les paramètres de route y vivent).
+- **`Response`** — ce que vous renvoyez : un code de statut, un corps chaîne, et une carte d’en-têtes. Les réponses sont mutables et chaînables, donc le middleware peut les ajuster à la sortie.
+
+Un **handler** est toute fonction qui prend une `Request` et renvoie une `Response` (l’interface `Handler`). Les actions de route, les méthodes de contrôleur et la fin d’une chaîne de middleware sont tous des handlers. Cette page explique les deux classes en détail ; [Routage](../routing/) explique comment une requête atteint votre handler, et [Noyau et serveur](../kernel-server/) explique comment les octets sur le socket deviennent une `Request` au départ.
+
+## D’où vient une `Request`
+
+Quand le serveur embarqué (`KonaHttpServer`) reçoit un appel, il construit une `Request` depuis l’échange brut :
+
+| Champ | Source |
+|-------|--------|
+| `method` | La méthode HTTP telle qu’envoyée, par exemple `GET` ou `POST` |
+| `path` | Le chemin de requête **brut**, sans la chaîne de requête, encore encodé en pourcent (par exemple `/files/a%20b`) |
+| `headers` | Une entrée par nom d’en-tête ; quand un client répète un en-tête, seule la **première** valeur est gardée |
+| `query` | La chaîne de requête analysée en `name → value`, décodée en pourcent ; un nom répété garde la **dernière** valeur, et `?flag` sans `=` devient `flag → ""` |
+| `bodyBytes` | Octets bruts du corps de requête (sûrs pour le binaire) |
+| `body` | Vue chaîne UTF-8 du corps (vide quand le serveur n’a fourni que des octets) |
+| `attributes` | Commence vide ; le noyau ajoute les paramètres de route, le middleware peut ajouter n’importe quoi |
+
+Le serveur embarqué stocke le corps du fil comme **`bodyBytes`**. Les aides texte (`form` pour URL-encoded/JSON, la journalisation) utilisent une chaîne `body` UTF-8 quand vous construisez des requêtes dans les tests. Il n’y a pas encore d’API de corps en flux, donc les gros téléversements sont tenus en mémoire.
+
+Vous pouvez aussi construire des requêtes vous-même, ce qui est la façon dont la plupart des tests HTTP de Kona sont écrits — vous remettez la requête directement au noyau sans ouvrir de socket :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val get = Request.get("/users/42")
+val form = Request.post("/login", "email=ada%40example.com&password=secret")
+val json = Request(
+    method = "POST",
+    path = "/users",
+    headers = mapOf("Content-Type" to "application/json"),
+    body = """{"name":"Ada","age":36}""",
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Request get = Request.get("/users/42");
+Request form = Request.post("/login", "email=ada%40example.com&password=secret");
+Request json = new Request(
+    "POST",
+    "/users",
+    Map.of("Content-Type", "application/json"),
+    Map.of(),                              // query
+    "{\"name\":\"Ada\",\"age\":36}"        // body
+);
+```
+
+</TabItem>
+</Tabs>
+
+Les paramètres de queue du constructeur sont optionnels dans les deux langues : Java peut appeler `new Request("DELETE", "/users/42")` et s’arrêter là. `Request.post` prend le corps comme second argument ; Kotlin peut l’omettre, Java le passe explicitement (utilisez `""` pour un corps vide).
+
+En Java, les champs se lisent par des getters : `getMethod()`, `getPath()`, `getHeaders()`, `getQuery()`, `getBody()`, `getAttributes()`.
+
+## En-têtes
+
+Utilisez `header(name)` pour lire un en-tête. La recherche est **insensible à la casse**, donc `header("content-type")` et `header("Content-Type")` renvoient la même valeur. Une seconde surcharge fournit un défaut quand l’en-tête est absent.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val agent = request.header("User-Agent")              // String? — null when missing
+val accept = request.header("Accept", "*/*")          // falls back to "*/*"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String agent = request.header("User-Agent");           // may be null
+String accept = request.header("Accept", "*/*");
+```
+
+</TabItem>
+</Tabs>
+
+Préférez `header(...)` à la lecture directe de la carte `headers`. La carte garde les noms exactement comme le serveur les a livrés, et les recherches de carte sont sensibles à la casse.
+
+## Chaîne de requête et champs de formulaire
+
+Kona vous donne trois façons de lire une entrée chaîne simple, et la différence compte quand le même nom apparaît à la fois dans la chaîne de requête et dans le corps.
+
+### `query`
+
+La chaîne de requête analysée, exactement comme décrite dans le tableau ci-dessus. `request.query["page"]` en Kotlin, `request.getQuery().get("page")` en Java.
+
+### `form()`
+
+`form()` analyse le **corps** en un `Map<String, String>` :
+
+- Un corps vide donne une carte vide.
+- Si l’en-tête `Content-Type` contient `application/json` (insensible à la casse, donc `application/json; charset=utf-8` compte), le corps est lu comme un objet JSON et **aplati en chaînes** : les valeurs texte restent telles quelles, `null` devient `""`, et les nombres, booléens, tableaux et objets imbriqués deviennent leur texte JSON (`36`, `true`, `["a","b"]`). Un corps JSON qui n’est pas un objet (par exemple un tableau de premier niveau) donne une carte vide.
+- Si le type de contenu est `multipart/form-data`, les **champs texte** sont analysés dans la carte ; les parties fichier sont disponibles via `file` / `hasFile` / `allFiles` (voir ci-dessous).
+- Pour les formulaires URL-encoded (`application/x-www-form-urlencoded` ou un type de contenu manquant), le corps est analysé comme `a=1&b=two`, avec noms et valeurs décodés en pourcent. Un champ répété garde la dernière valeur.
+
+`form()` analyse à chaque appel ; stockez le résultat dans une variable locale si vous le lisez souvent.
+
+### `input(key, default)` et `all()`
+
+- `input(key, default)` lit depuis [`data()`](#typed-json-with-data) (query + corps + toute superposition [`merge`](#merge-and-replace)) et transforme la valeur en chaîne.
+- `all()` renvoie le même sac en chaînes (valeurs null omises).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val page = request.input("page", "1")
+val search = request.input("q")            // default is null
+val everything: Map<String, String> = request.all()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String page = request.input("page", "1");
+String search = request.input("q");        // one-arg overload; may be null
+Map<String, String> everything = request.all();
+```
+
+</TabItem>
+</Tabs>
+
+### Only, except, aides de présence
+
+| API | Sens |
+|-----|---------|
+| `only("a", "b")` | Sous-ensemble de `data()` pour les clés listées |
+| `except("a")` | `data()` sans ces clés |
+| `has("a")` | La clé existe (y compris null) |
+| `filled("a")` | La clé existe et n’est pas vide |
+| `missing("a")` | La clé est absente |
+| `whenHas` / `whenFilled` / `whenMissing` | Exécuter un callback quand la condition tient |
+
+### Booléen, date, bearer, IP, user agent
+
+| API | Sens |
+|-----|---------|
+| `boolean("on")` | Truthy pour `1` / `true` / `on` / `yes` (Java : `booleanValue`) |
+| `date("when")` | Date / date-heure locale ISO → `LocalDate`, ou null |
+| `bearerToken()` | Jeton depuis `Authorization: Bearer …` |
+| `ip()` | `kona.clientIp` après TrustProxies, sinon `kona.remoteAddr` |
+| `userAgent()` | En-tête `User-Agent` |
+
+<a id="merge-and-replace"></a>
+
+### Fusion et remplacement
+
+`merge(map)` copie le sac d’entrée courant (ou l’entrée naturelle au premier appel) et superpose de nouvelles valeurs. `replace(map)` échange tout le sac. Les deux affectent `data()`, `input`, `validate` et les aides liées pour le reste de la requête.
+
+### `validate` et `safe`
+
+`validate(rules)` exécute le [Validator](../validation/) et se souvient du résultat. Après un appel réussi, `safe()` renvoie cette même carte. Appeler `safe()` avant `validate` lance `IllegalStateException`.
+
+<a id="typed-json-with-data"></a>
+
+## JSON typé avec `data()`
+
+`form()` et `all()` vous donnent toujours des chaînes, ce qui convient aux formulaires HTML mais perd de l’information pour les API JSON. `data()` renvoie `Map<String, Any?>` avec des **types JSON naturels** :
+
+| Valeur JSON | Type Kotlin / Java dans `data()` |
+|------------|-------------------------------|
+| `"Ada"` | `String` |
+| `36` | `Int` / `Integer` (les valeurs plus grandes deviennent `Long` ou `BigInteger`) |
+| `1.5` | `Double` |
+| `true` | `Boolean` |
+| `null` | `null` |
+| `[...]` | `List` |
+| `{...}` | `Map` |
+
+Quand la requête est JSON (le même contrôle `Content-Type` que ci-dessus), `data()` renvoie la chaîne de requête fusionnée avec l’objet de corps analysé, les clés du corps l’emportant en cas de conflit. Pour multipart, `data()` fusionne query, champs texte et valeurs `UploadedFile` sous leurs noms de champ. Pour les autres requêtes, `data()` renvoie `all()`, donc toutes les valeurs sont des chaînes.
+
+### Fichiers téléversés
+
+Pour `multipart/form-data` :
+
+| API | Sens |
+|-----|---------|
+| `file(name)` | Le `UploadedFile`, ou null |
+| `hasFile(name)` | Vrai quand le fichier est présent et valide (non vide, pas d’erreur de téléversement) |
+| `allFiles()` | Carte nom de champ → `UploadedFile` |
+
+`UploadedFile` expose `clientOriginalName`, `clientMimeType`, `contents`, `size`, `extension()`, `hashName()`, et `store` / `storeAs` (écrit à travers un `FilesystemAdapter`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val payload = request.data()
+val tags = payload["tags"] as? List<*> ?: emptyList<Any>()
+val active = payload["active"] == true
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Map<String, Object> payload = request.data();
+Object tags = payload.get("tags");         // a java.util.List for a JSON array
+boolean active = Boolean.TRUE.equals(payload.get("active"));
+```
+
+</TabItem>
+</Tabs>
+
+[Validation](../validation/) lit l’entrée à travers `data()`, ce qui explique pourquoi des règles telles que `boolean`, `array` et `integer` se comportent correctement pour les corps JSON.
+
+:::caution
+Si le corps est étiqueté JSON mais n’est pas du JSON valide, `form()`, `input()`, `all()` et `data()` lancent l’exception de l’analyseur. Kona ne transforme pas cela en réponse 400 ou 422 ; le handler d’exception par défaut le traite comme une erreur inattendue et répond **500**. Enveloppez l’appel dans votre propre code de handler si vous voulez une réponse plus amicale pour du JSON mal formé.
+:::
+
+## Attributs
+
+`attributes` est une carte mutable qui vit pour exactement une requête. C’est l’endroit standard pour qu’une étape du pipeline remette des données à une étape ultérieure : un middleware d’authentification stocke l’utilisateur courant, un handler le lit.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+request.setAttribute("user", currentUser)  // returns the Request, so calls chain
+val user = request.getAttribute("user") as User?
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+request.setAttribute("user", currentUser);
+User user = (User) request.getAttribute("user");
+```
+
+</TabItem>
+</Tabs>
+
+Le noyau écrit les **paramètres de route** ici avant que votre handler s’exécute. Pour une route `/users/{id}` et le chemin `/users/42`, `getAttribute("id")` et `getAttribute("route.id")` renvoient tous les deux `"42"` (toujours une `String`). Utilisez la forme `route.` quand un nom simple pourrait entrer en collision avec quelque chose que votre middleware stocke.
+
+<a id="route-parameters-requestroute"></a>
+<a id="route-parameters-requestroute"></a>
+
+## Paramètres de route (`request.route`)
+
+Après que le routeur apparie un chemin, le noyau stocke chaque `{param}` sur la requête sous `param` et `route.param`. Préférez l’aide dédiée :
+
+| API | Comportement |
+|-----|----------|
+| `route(key)` | Valeur chaîne ou `null` |
+| `route(key, default)` | Valeur chaîne ou défaut |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val id = request.route("id")!!
+val slug = request.route("slug", "home")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String id = request.route("id");
+String slug = request.route("slug", "home");
+```
+
+</TabItem>
+</Tabs>
+
+Les valeurs sont toujours des chaînes du chemin. Détails et règles d’encodage : [Routage → Paramètres de chemin](../routing/#path-parameters).
+
+<a id="building-a-response"></a>
+
+## Construire une `Response`
+
+### Fabriques
+
+Les fabriques statiques couvrent les cas courants. Les fabriques de corps règlent un `Content-Type` pour vous ; les trois premières acceptent un code de statut optionnel (défaut `200`).
+
+| Fabrique | Corps | `Content-Type` / notes |
+|---------|------|----------------|
+| `Response.text(body, status)` | La chaîne telle quelle | `text/plain; charset=utf-8` |
+| `Response.html(body, status)` | La chaîne telle quelle | `text/html; charset=utf-8` |
+| `Response.json(payload, status)` | `payload` sérialisé en JSON | `application/json; charset=utf-8` |
+| `Response.noContent()` | Vide, statut `204` | `text/plain; charset=utf-8` (aucun corps n’est envoyé) |
+| `Response.redirect(to, status)` | Vide, statut `302` par défaut | Règle `Location` |
+| `Response.back(request, fallback, status)` | Redirection vide | URL précédente → `Referer` → `fallback` |
+| `Response.binary(bytes, contentType, status)` | Octets bruts | Défaut `application/octet-stream` |
+| `Response.stream(writer, contentType, status)` | Octets produits en écrivant vers un `OutputStream` (mis en tampon en mémoire pour les adaptateurs) | Défaut `application/octet-stream` |
+| `Response.file(bytes\|path, …)` | Octets de fichier inline | `Content-Disposition: inline` optionnel |
+| `Response.download(bytes\|path, filename, …)` | Octets en pièce jointe | `Content-Disposition: attachment` |
+
+`json` accepte toute valeur que le sérialiseur Jackson fourni comprend : cartes, listes, chaînes, nombres, booléens, `null` (sérialisé comme `null`), data classes Kotlin, records Java, et classes ordinaires avec des getters.
+
+Les valeurs de date et d’heure se sérialisent en **chaînes ISO-8601**, pas en nombres d’époque. Cela inclut `java.time.Instant`, `LocalDate`, `LocalDateTime`, `OffsetDateTime`, `ZonedDateTime` et [`KonaDate`](../../support/#dates). Les horodatages Cadence (`created_at` / `updated_at`) sont des valeurs `Instant`, donc un index users typique ressemble à :
+
+```json
+[{"id":1,"name":"Ada","created_at":"2024-06-15T12:00:00Z"}]
+```
+
+Le `GET /api/users` échafaudé renvoie `User.all().map { it.toArray() }` à travers `Response.json`, donc ces champs d’horodatage s’encodent de la même façon. Utilisez [`KonaDate.parse`](../../support/#dates) / `KonaDate.ofInstant` quand vous avez besoin d’arithmétique, de formatage, ou d’un fuseau sur une valeur venue du JSON ou de Cadence.
+
+Les fabriques binaires règlent `bodyBytes()` pour que le serveur embarqué écrive la charge utile sans réencodage UTF-8. Préférez-les pour les PDF, les images, et tout ce qui n’est pas du texte.
+
+Enchaînez `header(name, value)`, `withHeaders(map)`, `cookie(...)`, `withStatus` et `withBody` / `withBodyBytes` sur n’importe quelle réponse. `Response.stream` laisse le code d’application écrire incrémentalement vers un `OutputStream` ; le résultat est mis en tampon pour que chaque adaptateur de serveur puisse émettre un corps complet aujourd’hui.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+data class UserView(val id: Int, val name: String)
+
+router.get("/hello") { Response.text("Hello") }
+router.get("/page") { Response.html("<h1>Welcome</h1>") }
+router.get("/users/{id}") { Response.json(UserView(42, "Ada")) }
+router.post("/users") { Response.json(mapOf("id" to 43), 201) }
+router.delete("/users/{id}") { Response.noContent() }
+router.post("/save") { Response.redirect("/done").with("status", "Saved") }
+router.get("/report.pdf") { Response.download(pdfBytes, "report.pdf") }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+record UserView(int id, String name) {}
+
+router.get("/hello", request -> Response.text("Hello"));
+router.get("/page", request -> Response.html("<h1>Welcome</h1>"));
+router.get("/users/{id}", request -> Response.json(new UserView(42, "Ada")));
+router.post("/users", request -> Response.json(Map.of("id", 43), 201));
+router.delete("/users/{id}", request -> Response.noContent());
+router.post("/save", request -> Response.redirect("/done").with("status", "Saved"));
+router.get("/report.pdf", request -> Response.download(pdfBytes, "report.pdf"));
+```
+
+</TabItem>
+</Tabs>
+
+### Redirections
+
+`Response.redirect("/path")` renvoie une redirection avec un en-tête `Location`. Enchaînez des aides flash pour la requête suivante (appliquées par `StartSession`) :
+
+- `with(key, value)` — flasher une valeur
+- `withInput(map)` — flasher `_old_input` pour réafficher un formulaire (`request.old("field")`)
+- `withErrors(map)` — flasher les `errors` de validation
+
+`Response.back(request)` vise l’URL précédente de la session (enregistrée sur les GET réussis), puis l’en-tête `Referer`, puis `/`.
+
+### Ajuster une réponse
+
+`Response` a des `status`, `body` et `headers` publics et mutables, plus un `bodyBytes()` binaire. Les aides fluides changent chacune une partie et renvoient le même objet :
+
+- `header(name, value)` règle un en-tête, en remplaçant toute valeur antérieure stockée sous le **même** nom.
+- `withStatus(code)` change le statut.
+- `withBody(content)` remplace le corps texte (efface toute charge utile binaire).
+- `withBodyBytes(bytes)` règle une charge utile binaire que le serveur écrit telle quelle.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+return Response.json(mapOf("ok" to true))
+    .withStatus(202)
+    .header("Location", "/jobs/7")
+    .header("Cache-Control", "no-store")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+return Response.json(Map.of("ok", true))
+    .withStatus(202)
+    .header("Location", "/jobs/7")
+    .header("Cache-Control", "no-store");
+```
+
+</TabItem>
+</Tabs>
+
+Le constructeur sans argument (`Response()` / `new Response()`) donne le statut `200`, un corps vide, et un type de contenu `text/plain` ; il est pratique quand le middleware construit une réponse de zéro. En Java, `getStatus()`/`setStatus(...)`, `getBody()`/`setBody(...)` et `getHeaders()` exposent les mêmes champs.
+
+Deux détails sur les en-têtes de réponse :
+
+- Les noms d’en-tête dans une `Response` sont stockés **exactement comme écrits**. Pour remplacer le type de contenu réglé par une fabrique, utilisez la même orthographe, `Content-Type` ; une orthographe différente telle que `content-type` ajoute une seconde entrée à la place.
+- Une réponse tient **une valeur par nom d’en-tête**. Appeler `header("Set-Cookie", …)` deux fois ne garde que la seconde valeur.
+
+## Cookies
+
+Lisez les cookies depuis l’en-tête de requête `Cookie` :
+
+| API | Comportement |
+|-----|----------|
+| `cookies()` | Carte nom → valeur |
+| `cookie(name)` / `cookie(name, default)` | Un seul cookie |
+
+Côté réponse, enchaînez `cookie(Cookie)` ou `cookie(name, value, …)` avec les options path, domain, maxAge, secure, httpOnly et sameSite. Consultez le type `Cookie` dans `org.konaframework.http`.
+
+## Session, ancienne entrée, et attente JSON
+
+| API | Comportement |
+|-----|----------|
+| `session()` | `RequestSession` depuis l’attribut `"session"` quand `StartSession` a tourné |
+| `old(key)` / `old(key, default)` | Ancienne entrée flashée pour réafficher un formulaire |
+| `expectsJson()` | Vrai quand `Accept` préfère JSON sans HTML, ou que `Content-Type` est JSON — pilote la forme de l’erreur de validation |
+
+Les aides flash sur les redirections (`with`, `withInput`, `withErrors`) sont appliquées quand la session se sauve — consultez [Validation](../validation/#the-error-response) et [Session](../../security/session/).
+
+## Ce que le serveur fait de votre réponse
+
+Après que le noyau revient, le serveur écrit chaque en-tête, puis le corps encodé en UTF-8 avec un `Content-Length` correspondant. Pour les réponses `204 No Content` et pour les requêtes `HEAD`, aucun corps n’est envoyé. Consultez [Noyau et serveur](../kernel-server/) pour la séquence complète.
+
+## Référence d’API (haut niveau)
+
+### `Request`
+
+Construction : `Request(...)`, `Request.get(path)`, `Request.post(path, body)`.
+
+Lecture : `header`, `query`, `form`, `input`, `all`, `data`, `only`/`except`, `has`/`filled`/`missing`, `whenHas`/`whenFilled`/`whenMissing`, `boolean`, `date`, `bearerToken`, `ip`, `userAgent`, `route`, `file`/`hasFile`/`allFiles`, `cookies`/`cookie`, `session`/`old`, `expectsJson`, `validate`/`safe`, `merge`/`replace`, attributs.
+
+### `Response`
+
+Fabriques : `text`, `html`, `json`, `noContent`, `redirect`, `back`, `binary`, `file`, `download`.
+
+Mutateurs : `header`, `withHeaders`, `cookie`, `withStatus`, `withBody`, `withBodyBytes`, `with`, `withInput`, `withErrors`.
+
+## Pièges et FAQ
+
+**Pourquoi `input("id")` est-il vide alors que le chemin a un id ?**
+Les paramètres de chemin sont des attributs (`route("id")`), pas une entrée de formulaire/query.
+
+**Pourquoi j’obtiens 500 sur du mauvais JSON ?**
+Du JSON mal formé lance depuis l’analyseur ; le handler par défaut le traite comme une erreur inattendue. Attrapez-le vous-même pour un 400.
+
+**Puis-je diffuser un gros fichier en flux ?**
+Pas encore — `file` / `download` / `binary` chargent les octets en mémoire.
+
+## Ce qui n’est pas disponible aujourd’hui
+
+- Corps de requête ou de réponse en flux
+- En-têtes multi-valeurs sur `Request` (le premier l’emporte) ou `Response` (une valeur par nom)
+- Surcharge automatique de `_method` depuis les corps de formulaire
+- Négociation de contenu au-delà de ce que vous implémentez dans les handlers
+
+## Étapes suivantes
+
+- Mappez les URL dans [Routage](../routing/).
+- Validez avec [Validation](../validation/).
+- Gérez les échecs dans [Exceptions](../exceptions/).
