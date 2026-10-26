@@ -1,11 +1,11 @@
 ---
 title: Tests HTTP
-description: HttpTestClient dans le processus — verbes, corps JSON et assertions de réponse.
+description: HttpTestClient en processus — verbes, corps JSON et assertions de réponse.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`HttpTestClient` résout `HttpKernel` depuis une application démarrée et exécute les requêtes **dans le processus** (pas de socket d’écoute).
+`HttpTestClient` résout `HttpKernel` depuis une app démarrée et exécute les requêtes **en processus** (pas de socket d’écoute).
 
 ## Créer un client
 
@@ -35,14 +35,14 @@ Enregistrez les routes avant d’appeler le client (`boot` du provider, ou aprè
 | Méthode | Notes |
 | --- | --- |
 | `get(uri)` / `get(uri, headers)` | Corps vide |
-| `postJson(uri, body)` / `postJson(uri, body, headers)` | Sérialise `body` avec Jackson ; pose `Content-Type: application/json` |
-| `put(uri)` / `put(uri, body)` / `put(uri, body, headers)` | Corps chaîne brute |
+| `postJson(uri, body)` / `postJson(uri, body, headers)` | Sérialise `body` avec Jackson ; fixe `Content-Type: application/json` |
+| `put(uri)` / `put(uri, body)` / `put(uri, body, headers)` | Corps chaîne brut |
 | `putJson(uri, body)` / `putJson(…, headers)` | Encodage JSON |
-| `patch(uri)` / `patch(uri, body)` / `patch(…, headers)` | Corps chaîne brute |
+| `patch(uri)` / `patch(uri, body)` / `patch(…, headers)` | Corps chaîne brut |
 | `patchJson(uri, body)` / `patchJson(…, headers)` | Encodage JSON |
 | `delete(uri)` / `delete(uri, headers)` | Corps vide |
 
-Les maps d’en-têtes sont de simples `Map<String, String>`. Les chaînes de requête appartiennent à l’`uri`.
+Les maps d’en-têtes sont de simples `Map<String, String>`. Les query strings appartiennent à l’`uri`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -82,16 +82,16 @@ Chaque verbe renvoie un `TestResponse` (fluide — les assertions renvoient `thi
 | Méthode | Comportement |
 | --- | --- |
 | `status()` / `body()` | Valeurs brutes pour des assertions personnalisées |
-| `assertStatus(code)` | Statut exact ; lance si différent |
+| `assertStatus(code)` | Statut exact ; lance si ça ne correspond pas |
 | `assertOk()` | Statut `200` |
 | `assertJsonContains(fragment)` | La chaîne du corps contient la sous-chaîne |
 | `assertJsonPath(path, expected)` | Le chemin JSON pointé (`user.name`) égale `expected` |
 | `assertJson(path, expected)` | Alias de `assertJsonPath` |
 
-Les segments de chemin sont coupés sur `.`. Les segments manquants font échouer l’assertion. Les nombres se comparent par égalité double (donc `1` et `1.0` correspondent). Les nœuds JSON `null` se comparent à `null` Kotlin/Java.
+Les segments de chemin sont coupés sur `.`. Les segments absents font échouer l’assertion. Les nombres se comparent par égalité double (donc `1` et `1.0` correspondent). Les nœuds JSON `null` se comparent à `null` Kotlin/Java.
 
 ## Cas limites
 
-- Le client **ne** suit **pas** les redirections ; affirmez la première réponse.
-- Le middleware du kernel s’exécute normalement — CSRF, session et auth se comportent comme en production lorsque ces providers sont enregistrés.
-- Les corps des `put`/`patch` non JSON sont des chaînes brutes ; encodez votre propre charge utile si besoin.
+- Le client ne **suit pas** les redirections ; affirmez la première réponse.
+- Le middleware du kernel tourne normalement — CSRF, session et auth se comportent comme en production quand ces providers sont enregistrés.
+- Les corps des `put`/`patch` non JSON sont des chaînes brutes ; encodez votre propre charge utile au besoin.
