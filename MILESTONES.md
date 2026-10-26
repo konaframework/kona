@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms. M28, M29, M30, and M32 are on `main`. Kona **0.3.0** (M26) has shipped.
+**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms. M28, M29, M30, M32, and M33 are on `main`. Kona **0.3.0** (M26) has shipped.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -948,6 +948,7 @@ flowchart LR
   M29 --> M30[M30_Firefly_Actions]
   M29 --> M31[M31_Firefly_Forms]
   M29 --> M32[M32_Firefly_Infolists]
+  M29 --> M33[M33_Firefly_Tables]
 ```
 
 ---
@@ -1024,7 +1025,7 @@ Actions (M30). Form fields shipped in M31.
 
 ## M31 — Firefly forms
 
-**Status:** done (branch `milestone/M31-firefly-forms`; on `main` when this PR merges).
+**Status:** in progress (`milestone/M31-firefly-forms`). Not done until FRM-18–FRM-26 ship and `koverVerify` passes.
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -1068,7 +1069,7 @@ Infolists (M32), tables (M33), and later panel milestones.
 
 ## M30 — Firefly actions
 
-**Status:** done (this branch).
+**Status:** done (on `main`).
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -1103,6 +1104,44 @@ Chainable setters accept a static value or a closure that receives `Get`. `label
 ### Out of scope
 
 Form fields, `fillForm`, form data mutation, a disabled form, and action `steps()` as a form wizard (M31). `schema(...)` can already hold a layout `Wizard`. Infolist actions (M32). Table record, bulk, and toolbar actions (M33). Success and failure notifications (M34). Import and export (M37). Parent-dialog cancellation, sticky header and footer, modal alignment, extra window attributes, widths `Dialog` does not offer, database transactions, and rate limits. `Select` and date/time pickers stay in M31.
+
+---
+
+## M33 — Firefly tables
+
+**Status:** in progress (not on `main`).
+
+**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
+
+**Branch:** `milestone/M33-firefly-tables`
+
+**Parity slice:** Columns, filters, search, sort, pagination, empty state, row selection, summaries, grouping, reorder, stack and grid layouts, and polling. `modifyQueryUsing` receives `ModelBuilder` for a Cadence model and `MemoryQuery` for an in-memory list. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+Chainable configuration methods accept a static value or a closure. The closure receives `Cell`. `label("Name")` and `label { cell -> ... }` are both valid. `default("open")` stores a value. `defaultUsing { "Ada" }` stores a closure.
+
+### Parity checklist
+
+- [x] `org.konaframework:kona-firefly-tables` in the monorepo, the BOM, and the CI coverage gate
+- [x] Columns: text, icon, image, color, checkbox, toggle, select
+- [x] Filters: attribute, select, ternary, trashed
+- [x] Search, sort, pagination, empty state, row selection, summaries
+- [x] Grouping, reorder, stack and grid layouts, polling
+- [x] Static-or-closure chainable setters, including `default` and `defaultUsing`
+- [x] `modifyQueryUsing` receives `ModelBuilder` (`whereHas`, `join`, `with`, `scope`) or `MemoryQuery`
+- [x] Row and header buttons render through `Dialog` and a schema
+- [x] `ffColumn` with `@entangle` and `$wire.$call`
+- [x] `make:firefly-column` and `make:firefly-filter` for Kotlin and `--lang=java`
+- [x] Kotlin and Java regression paths
+- [x] Public docs under Firefly → Tables
+- [x] 100% line + branch Kover on `kona-firefly-tables` and `kona-grind`
+
+### In-scope modules
+
+`kona-firefly-tables`, `kona-grind` (`make:firefly-column`, `make:firefly-filter`), `apps/docs/`, BOM, CI coverage gate
+
+### Out of scope
+
+Typed action objects attach when M30 is on `main`. Forms (M31), infolists (M32), notifications, widgets, the panel, resources, tenancy, import/export, and the Mongo document addon (`kona-firefly-document`) stay on their own milestones.
 
 ---
 

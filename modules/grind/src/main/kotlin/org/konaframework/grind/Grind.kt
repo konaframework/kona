@@ -47,6 +47,8 @@ constructor(
                 "make:firefly-layout" -> MakeFireflyLayoutCommand().run(positional.drop(1) + flatten(options))
                 "make:firefly-action" -> MakeFireflyActionCommand().run(positional.drop(1) + flatten(options))
                 "make:firefly-entry" -> MakeFireflyEntryCommand().run(positional.drop(1) + flatten(options))
+                "make:firefly-column" -> MakeFireflyColumnCommand().run(positional.drop(1) + flatten(options))
+                "make:firefly-filter" -> MakeFireflyFilterCommand().run(positional.drop(1) + flatten(options))
                 "make:firefly-field" -> MakeFireflyFieldCommand().run(positional.drop(1) + flatten(options))
                 "make:model" -> MakeModelCommand().run(positional.drop(1) + flatten(options))
                 "make:migration" -> MakeMigrationCommand().run(positional.drop(1) + flatten(options))

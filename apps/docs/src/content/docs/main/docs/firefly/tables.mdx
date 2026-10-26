@@ -1,0 +1,167 @@
+---
+title: Tables
+description: Show records in a Firefly table with columns, filters, search, sort, pages, and row buttons.
+---
+
+A table lists records, then lets someone search, sort, filter, and page through them. You describe the columns and filters in Kotlin or Java. `render()` returns the HTML, including the Alpine `ffColumn` factory, `@entangle`, and `$wire.$call` hooks.
+
+The types live in `org.konaframework.firefly.tables` (`kona-firefly-tables`). The module depends on `kona-firefly-schemas` and `kona-firefly-support`. A Cadence model also uses `kona-cadence`, because the query you receive is that model’s `ModelBuilder`.
+
+## A table in one call
+
+```kotlin
+val table = Table.memory(
+    listOf(
+        mapOf("id" to "1", "name" to "Ada", "score" to 2),
+        mapOf("id" to "2", "name" to "Bea", "score" to 4),
+    ),
+).columns(
+    TextColumn.make("name").label("Name").searchable(true).sortable(true),
+    TextColumn.make("score").money().summarize(Summary.SUM),
+)
+table.search("ada").sort("name").page(1).perPage(10)
+val html = table.render()
+```
+
+```java
+Map<String, Object> ada = new LinkedHashMap<>();
+ada.put("id", "1");
+ada.put("name", "Ada");
+ada.put("score", 2);
+Table<Map<String, Object>, MemoryQuery> table = Table.memory(List.of(ada));
+table.columns(
+    TextColumn.make("name").label(cell -> "Name").sortable(true).searchable(true),
+    TextColumn.make("score").money().summarize(Summary.SUM)
+);
+table.search("ada").sort("name", "asc").page(1);
+String html = table.render();
+```
+
+`Table.memory` keeps the rows in an in-memory query. `columns(...)` replaces the column list. `search`, `sort`, `page`, and `perPage` narrow what `load()` and `render()` return. Search matches columns you marked `searchable(true)`. Sort accepts `asc` or `desc` on a column you marked `sortable(true)`.
+
+`load()` returns the current page, the total, the summaries, and the groups. `render()` returns the same page as HTML. An empty page uses the heading from `empty("No records")` and the text from `emptyDescription(...)`. Both accept a fixed string or a closure.
+
+## Where the records come from
+
+Use `Table.memory` when the records are already a list of maps. `modifyQueryUsing` receives a `MemoryQuery`. That query filters, sorts, searches, and paginates the list.
+
+```kotlin
+table.modifyQueryUsing { query ->
+    query.where("name", "!=", "hidden")
+}
+```
+
+Use `Table.cadence(Customer::class.java)` when the records are a Cadence model. `modifyQueryUsing` receives that model’s `ModelBuilder`. `where`, `whereHas`, `join`, `with`, and `scope` run on the model query.
+
+```kotlin
+val table = Table.cadence(Customer::class.java)
+table.modifyQueryUsing { query ->
+    query.where("active", true)
+        .whereHas("orders") { orders -> orders.where("total", ">", 0) }
+        .with("orders")
+        .scope { builder -> builder.where("active", true) }
+}
+```
+
+```java
+Table<Customer, ModelBuilder<Customer>> table = Table.cadence(Customer.class);
+table.modifyQueryUsing(query -> query
+    .where("active", true)
+    .with("orders")
+    .whereHas("orders", orders -> orders.where("total", ">", 0))
+);
+```
+
+`relationship(Account.class)` builds a query of related options. Pass a closure when that query needs its own `where` or `whereHas`.
+
+A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `ModelBuilder`. Mongo document models belong to the later `kona-firefly-document` addon.
+
+## Columns
+
+| Type | Role |
+|------|------|
+| `TextColumn.make(name)` | Text, money, or a date. `badge`, `limit`, `html`, `url`, `icon`, `color`, `prefix`, `suffix`, `placeholder` |
+| `IconColumn.make(name)` | An icon for a true or false state |
+| `ImageColumn.make(name)` | An image with `alt`, `imageHeight`, and `imageWidth` |
+| `ColorColumn.make(name)` | A color swatch |
+| `CheckboxColumn.make(name)` | A checkbox bound to the row |
+| `ToggleColumn.make(name)` | A toggle that calls `$wire.$call('toggleColumn', ...)` |
+| `SelectColumn.make(name)` | A select that calls `$wire.$call('setColumn', ...)` |
+
+`searchable(true)` includes the column in search. `sortable(true)` allows `sort(name)`. `toggleable(true)` lets the caller hide the column. `hidden(true)` and `visible(false)` leave it out of the render. `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN`, and `MAX` add a footer value.
+
+`formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
+
+```kotlin
+TextColumn.make("name").label { cell ->
+    if (cell.get("/kind") == "org") "Organization" else "Name"
+}
+```
+
+```java
+TextColumn.make("name").label(cell -> "Name");
+```
+
+`money()` formats a number as dollars and cents. `date()` formats a date, instant, or timestamp. `align(Align.END)` sets the column alignment.
+
+Each column renders `x-data="ffColumn('name', true)"` and `@entangle(name)`.
+
+`./grind make:firefly-column Name` writes a column class and a Crema view under `app/firefly/columns`. `--lang=java` writes Java. The view uses `ffColumn`, `@entangle`, and `$wire.$call`.
+
+## Filters
+
+`filters(...)` replaces the filter list. `filter(name, value)` applies one. An empty value clears it.
+
+| Type | Role |
+|------|------|
+| `Filter.make(name)` | Matches one attribute. `attribute` and `operator` choose the column and the comparison |
+| `SelectFilter.make(name)` | A select of options. `options(map)` or `options { cell -> map }` |
+| `TernaryFilter.make(name)` | `true`, `false`, or `blank` |
+| `TrashedFilter.make()` | `with`, `only`, or the default that hides trashed rows |
+
+`default("open")` stores a fixed value. `defaultUsing { "Ada" }` stores a closure that runs when the filter reads its default.
+
+`query { query, value -> ... }` receives the table’s native query and the current filter value. On a memory table that query is `MemoryQuery`. On a Cadence table it is `ModelBuilder`.
+
+```kotlin
+Filter.make("name").query { query, value ->
+    (query as MemoryQuery).where("name", value)
+}
+```
+
+`./grind make:firefly-filter Status` writes a filter class and a Crema view under `app/firefly/filters`. `--lang=java` writes Java.
+
+## Pages, selection, groups, and layout
+
+`paginated(true)` is the default. `page(1)` and `perPage(10)` choose the window. `pageOptions(10, 25)` lists the page sizes in the HTML. Page numbers start at 1.
+
+`selectable(true)` adds a checkbox on each row. `select(key)` toggles that key. `selected()` returns the keys. Selecting every key on the current page again clears those keys.
+
+`groups(TableGroup.make("status"))` and `groupedBy("status")` split the page into groups. `label("Status")` or `label { cell -> ... }` sets the group heading.
+
+`reorderable("score")` then `move(key, index)` writes the new order into that attribute.
+
+`layout(TableLayout.ROWS)` is the table. `TableLayout.STACK` and `TableLayout.GRID` render the same records as cards. `poll("10s")` or `poll("500ms")` adds `wire:poll` on the root.
+
+## Row and header buttons
+
+A button renders through `Dialog` and can include a schema. `label("Export")` and `label { cell -> "Edit ${cell.get("name")}" }` set the text. `modal()`, `slideOver()`, and `fullscreen()` choose the dialog. `schema(Text.make("Go"))` is the dialog body. `url("https://example.test")` renders a link. `requiresSelection(true)` disables the button while no row is selected.
+
+```kotlin
+table.headerButtons(
+    TableButton.make("export").label("Export").requiresSelection(true).modal().schema(Text.make("Go")),
+)
+table.rowButtons(
+    TableButton.make("edit").label { cell -> "Edit ${cell.get("name")}" }.slideOver(),
+)
+```
+
+```java
+table.headerButtons(
+    TableButton.make("export").label("Export").modal().schema(Text.make("Go"))
+);
+```
+
+The button markup uses `ffAction` and `$wire.$call`. Typed action objects attach when the actions module is on `main`.
+
+`configureUsing` on `Table`, `TableButton`, `Column`, `TextColumn`, `Filter`, and `SelectFilter` runs for every later `make()`. Pass `null` to clear it.

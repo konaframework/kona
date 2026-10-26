@@ -796,6 +796,39 @@ class GrindTest {
     }
 
     @Test
+    fun makeFireflyColumnAndFilter() {
+        val base = temp.resolve("firefly-table")
+        Files.createDirectories(base)
+        assertEquals(0, MakeFireflyColumnCommand().run(listOf("Title", "--base=$base", "--lang=kotlin")))
+        val column = Files.readString(base.resolve("src/main/kotlin/app/firefly/columns/Title.kt"))
+        val columnView = Files.readString(base.resolve("src/main/resources/views/firefly/columns/title.crema.html"))
+        assertTrue(column.contains("class Title"))
+        assertTrue(columnView.contains("x-data=\"ffColumn"))
+        assertTrue(columnView.contains("@entangle"))
+        assertTrue(columnView.contains("\$wire.\$call"))
+        assertEquals(0, MakeFireflyColumnCommand().run(listOf("Status", "--base=$base", "--lang=java")))
+        assertTrue(Files.exists(base.resolve("src/main/java/app/firefly/columns/Status.java")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-column", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-column", "Bad-Name", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-column", "Title", "--base=$base", "--lang=kotlin")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-column" })
+
+        assertEquals(0, MakeFireflyFilterCommand().run(listOf("Active", "--base=$base", "--lang=kotlin")))
+        val filter = Files.readString(base.resolve("src/main/kotlin/app/firefly/filters/Active.kt"))
+        val filterView = Files.readString(base.resolve("src/main/resources/views/firefly/filters/active.crema.html"))
+        assertTrue(filter.contains("class Active"))
+        assertTrue(filterView.contains("x-data=\"ffColumn"))
+        assertTrue(filterView.contains("@entangle"))
+        assertTrue(filterView.contains("\$wire.\$call"))
+        assertEquals(0, MakeFireflyFilterCommand().run(listOf("Trashed", "--base=$base", "--lang=java")))
+        assertTrue(Files.exists(base.resolve("src/main/java/app/firefly/filters/Trashed.java")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-filter", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-filter", "Bad-Name", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-filter", "Active", "--base=$base", "--lang=kotlin")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-filter" })
+    }
+
+    @Test
     fun makeFireflyEntry() {
         val base = temp.resolve("firefly-entry")
         Files.createDirectories(base)

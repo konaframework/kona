@@ -4,7 +4,7 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-M28, M29, M30, and M32 are on `main`. M31 is the forms slice. Action-shaped form helpers stay `todo` until they call `kona-firefly-actions`. Record-store and table helpers stay `todo`.
+M28, M29, M30, M32, and M33 are on `main`. M31 is the forms slice.
 
 ## M28 — support (`kona-firefly-support`)
 
@@ -93,6 +93,23 @@ Shipped modal content is the schema layouts and primes already on `main`. These 
 | Import and export actions | M37 |
 | Parent-dialog cancellation, sticky header/footer, modal alignment, extra window attributes, widths outside `sm`/`md`/`lg`/`xl`/`screen`, database transactions, rate limits | `Dialog` does not expose them, or no rate-limit/transaction API is wired into this module |
 
+## M33 — tables (`kona-firefly-tables`)
+
+| ID | Surface | Firefly | Status |
+|----|---------|---------|--------|
+| TBL-1 | Columns | `TextColumn`, `IconColumn`, `ImageColumn`, `ColorColumn`, `CheckboxColumn`, `ToggleColumn`, `SelectColumn` | done |
+| TBL-2 | Filters | `Filter`, `SelectFilter`, `TernaryFilter`, `TrashedFilter` | done |
+| TBL-3 | Search, sort, pagination, empty state | `search`, `sort`, `page`, `perPage`, `empty` | done |
+| TBL-4 | Row selection state | `selectable`, `select`, `selected` | done |
+| TBL-5 | Summaries | `summarize` `COUNT`, `SUM`, `AVG`, `MIN`, `MAX` | done |
+| TBL-6 | Grouping, reorder, stack and grid, polling | `groups`, `reorderable`, `TableLayout`, `poll` | done |
+| TBL-7 | Static value or closure on chainable setters | `label`, `hidden`, `visible`, `default` / `defaultUsing`, and the same shape of setter | done |
+| TBL-8 | Native query hook | `modifyQueryUsing` receives `ModelBuilder` for a Cadence model (`whereHas`, `join`, `with`, `scope`) and `MemoryQuery` for an in-memory list | done |
+| TBL-9 | Row and header buttons | `TableButton` renders through `Dialog` and a schema. `label` accepts a string or a closure | done |
+| TBL-10 | Alpine column factory | `ffColumn` with `@entangle` and `$wire.$call` | done |
+| TBL-11 | Scaffolds | `make:firefly-column`, `make:firefly-filter`, Kotlin and `--lang=java` | done |
+| TBL-12 | Typed action objects | Attach when M30 (`kona-firefly-actions`) is on `main`. Buttons stay `TableButton` until then | todo |
+
 ## M32 — infolists (`kona-firefly-infolists`)
 
 Depends on `kona-firefly-schemas` and `kona-firefly-support` only. Layouts are schema `Section`, `Grid`, `Tabs`, and `Tab`. The code entry calls Shiki `createHighlighter` in the browser.
@@ -117,9 +134,9 @@ Left for later milestones (not implemented here): prefix and suffix actions that
 | Milestone | Filament packages | Firefly artifact | Status |
 |-----------|-------------------|------------------|--------|
 | M30 | `filament/actions` | `kona-firefly-actions` | done |
-| M31 | `filament/forms` | `kona-firefly-forms` | done (FRM-18–FRM-26 stay todo) |
+| M31 | `filament/forms` | `kona-firefly-forms` | in progress (FRM-18–FRM-26 still todo) |
 | M32 | `filament/infolists` | `kona-firefly-infolists` | done |
-| M33 | `filament/tables` | `kona-firefly-tables` | todo |
+| M33 | `filament/tables` | `kona-firefly-tables` | done |
 | M34 | notifications + widgets (Chart.js and ApexCharts) | `kona-firefly-notifications`, `kona-firefly-widgets` | todo |
 | M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3) | `kona-firefly` | todo |
 | M36 | resources, including `--simple` | `kona-firefly` | todo |
