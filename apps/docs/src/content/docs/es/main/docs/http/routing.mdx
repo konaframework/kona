@@ -1,34 +1,34 @@
 ---
-title: Enrutado
-description: Asigna URLs y métodos HTTP a manejadores y controladores — verbos, parámetros de camino, rutas de recurso, grupos, middleware, URLs con nombre, redirects, 404/405 y pruebas.
+title: Enrutamiento
+description: Asocia URLs y métodos HTTP a manejadores y controladores — verbos, parámetros de ruta, rutas de recurso, grupos, middleware, URLs con nombre, redirecciones, 404/405 y pruebas.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-El **enrutador** decide qué código corre para una petición HTTP entrante. Una **ruta** es una entrada: un conjunto de métodos HTTP, un patrón de camino como `/users/{id}`, middleware opcional, un nombre opcional y un **manejador** — una función con forma `Request → Response`.
+El **enrutador** decide qué código corre para una petición HTTP entrante. Una **ruta** es una entrada: un conjunto de métodos HTTP, un patrón de ruta como `/users/{id}`, middleware opcional, un nombre opcional y un **manejador** — una función con forma `Request → Response`.
 
-Cuando llega una petición, el [kernel HTTP](../kernel-server/) pide al enrutador que **resuelva** método + camino. Si hay coincidencia, el kernel copia los parámetros de camino a la petición, ejecuta el pipeline de middleware de esa ruta y luego el manejador. Si falla, el enrutador (y después el manejador de excepciones) produce respuestas **404** o **405**.
+Cuando llega una petición, el [kernel HTTP](../kernel-server/) pide al enrutador que **resuelva** método + ruta. Si hay coincidencia, el kernel copia los parámetros de ruta a la petición, ejecuta el pipeline de middleware de esa ruta y luego el manejador. Si falla, el enrutador (y después el manejador de excepciones) produce respuestas **404** o **405**.
 
-Esta guía cubre toda la superficie pública de enrutado que se entrega hoy: APIs de registro, parámetros, recursos, grupos, URLs con nombre, redirects desde manejadores, comportamiento de HEAD/OPTIONS, ayudantes de inspección y cómo probar rutas. Los controladores, las pilas de middleware global y los ayudantes de URL absoluta/firmada tienen sus propias páginas; esta página enlaza en lugar de duplicarlos.
+Esta guía cubre toda la superficie pública de enrutamiento que se publica hoy: APIs de registro, parámetros, recursos, grupos, URLs con nombre, redirecciones desde manejadores, el comportamiento de HEAD/OPTIONS, ayudantes de inspección y cómo probar rutas. Los controladores, las pilas de middleware global y los ayudantes de URL absoluta o firmada tienen sus propias páginas; esta página enlaza en lugar de duplicarlos.
 
 :::tip[Dónde viven las rutas]
-Las aplicaciones de `kona new` registran las rutas después de `boot()` en dos clases — `WebRoutes` (navegador / HTML) y `ApiRoutes` (JSON bajo `/api`). Mantén los manejadores finos; pon la validación y la forma de la respuesta en [controladores](../controllers/).
+Las aplicaciones de `kona new` registran las rutas después de `boot()` en dos clases: `WebRoutes` (navegador / HTML) y `ApiRoutes` (JSON bajo `/api`). Mantén los manejadores finos; pon la validación y la forma de la respuesta en los [controladores](../controllers/).
 :::
 
 ## Qué ocurre en una petición
 
-1. El transporte (Netty) construye un `Request` con el método HTTP real y el camino normalizado.
-2. El middleware global (sesión, CSRF, y así sucesivamente — consulta [Middleware](../middleware/)) corre alrededor del resto del pipeline.
-3. `Router.resolve(method, path)` encuentra la primera ruta coincidente, o lanza `NotFoundException` / `MethodNotAllowedException`, o sintetiza una respuesta `OPTIONS` automática.
-4. Los valores `{param}` capturados se guardan en la petición tanto bajo `param` como bajo `route.param`.
+1. El transporte (Netty) construye un `Request` con el método HTTP real y la ruta normalizada.
+2. El middleware global (sesión, CSRF y demás — consulta [Middleware](../middleware/)) corre alrededor del resto del pipeline.
+3. `Router.resolve(method, path)` encuentra la primera ruta que coincide, o lanza `NotFoundException` / `MethodNotAllowedException`, o sintetiza una respuesta `OPTIONS` automática.
+4. Los valores `{param}` capturados se guardan en la petición bajo `param` y `route.param`.
 5. Corre el middleware de ruta (primero el del grupo, luego `.middleware(...)` de la ruta) y después el manejador.
-6. Para `HEAD`, el kernel limpia el cuerpo de la respuesta después de que el manejador vuelve (el estado y las cabeceras se quedan).
+6. En `HEAD`, el kernel vacía el cuerpo de la respuesta cuando el manejador vuelve (el estado y las cabeceras se quedan).
 
-Registra todas las rutas **antes** de que el servidor acepte tráfico. El singleton compartido `Router` no está pensado para mutarse mientras sirve peticiones.
+Registra todas las rutas **antes** de que el servidor acepte tráfico. El singleton `Router` compartido no está pensado para mutarse mientras sirve peticiones.
 
 ## Obtener el enrutador
 
-`HttpServiceProvider` registra un `Router` compartido en el contenedor de la aplicación. Resuélvelo después de que la aplicación haya arrancado — en el método `boot` de un proveedor, o justo después de `boot()` en el bootstrap:
+`HttpServiceProvider` registra un `Router` compartido en el contenedor de la aplicación. Resuélvelo después de que la aplicación haya arrancado: en el método `boot` de un proveedor, o justo después de `boot()` en el bootstrap:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -55,11 +55,11 @@ new ApiRoutes().register(app.resolve(Router.class));
 </TabItem>
 </Tabs>
 
-La misma instancia de `Router` sostiene la [generación de URL](../url-generation/) (`UrlGenerator` / `Url.route` / `route(...)` de nivel superior).
+La misma instancia de `Router` respalda la [generación de URL](../url-generation/) (`UrlGenerator` / `Url.route` / `route(...)` de nivel superior).
 
 ## La ruta más simple
 
-Un manejador es cualquier `Handler` (`Request → Response`). En Kotlin suele ser una lambda final; en Java una lambda o un method reference:
+Un manejador es cualquier `Handler` (`Request → Response`). En Kotlin suele ser una lambda final; en Java una lambda o una referencia a método:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -80,9 +80,9 @@ router.post("/echo", request -> Response.json(request.all()));
 </TabItem>
 </Tabs>
 
-## Llamar a un controlador
+## Llamar a un controlador {#call-a-controller}
 
-La mayoría de las rutas de producción apuntan a un método de **controlador** en lugar de una lambda en línea. Un controlador es una clase ordinaria con métodos que toman un `Request` y devuelven un `Response`. **No** tienes que extender `Controller` salvo que quieras los ayudantes compartidos `validate` — consulta [Controladores](../controllers/).
+La mayoría de las rutas de producción apuntan a un método de **controlador** en lugar de una lambda en línea. Un controlador es una clase normal con métodos que reciben un `Request` y devuelven un `Response`. **No** tienes que extender `Controller` salvo que quieras los ayudantes compartidos de `validate`. Consulta [Controladores](../controllers/).
 
 El andamiaje predeterminado cablea una página de bienvenida así:
 
@@ -129,24 +129,24 @@ Lo que importa en este estilo:
 2. **Enlaza** un método que acepta `Request` y devuelve `Response` — Kotlin `{ welcome.index(it) }`, Java `welcome::index` — para que el IDE autocomplete y compruebe el tipo de la acción.
 3. Opcionalmente **nombra** la ruta con `.name("…")` para poder construir URLs después.
 
-Genera un stub con [`./grind make:controller Post`](../../grind/commands/#grind-makecontroller) (`--resource` escribe una subclase de `BaseResourceController`). Pon la validación y la forma de la respuesta en el controlador; deja los archivos de ruta como el mapa de URL → acción.
+Genera un esqueleto con [`./grind make:controller Post`](../../grind/commands/#grind-makecontroller) (`--resource` escribe una subclase de `BaseResourceController`). Pon la validación y la forma de la respuesta en el controlador; deja los archivos de rutas como el mapa de URL → acción.
 
 ## Declarar rutas (verbos HTTP)
 
-Hay un método de registro por método HTTP habitual, más dos formas generales:
+Hay un método de registro por cada método HTTP habitual, más dos formas generales:
 
-| Método | Coincide |
+| Método | Coincide con |
 |--------|---------|
-| `get(uri, handler)` | `GET` (y `HEAD` vía fallback — consulta [HEAD, OPTIONS, 404 y 405](#head-options-404-and-405)) |
+| `get(uri, handler)` | `GET` (y `HEAD` por fallback — consulta [HEAD, OPTIONS, 404 y 405](#head-options-404-and-405)) |
 | `post(uri, handler)` | `POST` |
 | `put(uri, handler)` | `PUT` |
 | `patch(uri, handler)` | `PATCH` |
 | `delete(uri, handler)` | `DELETE` |
-| `options(uri, handler)` | `OPTIONS` (anula el comportamiento OPTIONS automático de ese camino) |
+| `options(uri, handler)` | `OPTIONS` (sustituye el comportamiento automático de OPTIONS para esa ruta) |
 | `any(uri, handler)` | Todos los `Router.VERBS`: `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
 | `match(methods, uri, handler)` | Cada método de `methods` (sin distinguir mayúsculas; se guarda en mayúsculas, se quitan duplicados) |
 
-Cada llamada devuelve el `Route` nuevo, así que puedes encadenar `.name(...)` y `.middleware(...)`.
+Cada llamada devuelve la `Route` nueva, así que puedes encadenar `.name(...)` y `.middleware(...)`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -179,34 +179,34 @@ router.any("/health", request -> Response.text("ok"));
 </TabItem>
 </Tabs>
 
-`Router.VERBS` es una lista pública (`@JvmField`) de los siete métodos que registra `any`. Úsala cuando necesites el mismo conjunto tú mismo.
+`Router.VERBS` es una lista pública (`@JvmField`) de los siete métodos que registra `any`. Úsala cuando necesites el mismo conjunto.
 
-### Caminos y orden de coincidencia
+### Rutas y orden de coincidencia
 
-- Las barras iniciales y finales del camino **registrado** se normalizan al unir prefijos: `"users"`, `"/users"` y `"/users/"` se convierten todos en `/users`.
-- Los caminos entrantes se normalizan con `HttpPaths.normalize`: las `/` repetidas se colapsan, se asegura una `/` inicial y se quita una `/` final (excepto para `/` mismo). Así `/users/`, `//users` y `/users` coinciden todos con el `/users` registrado.
+- Las barras iniciales y finales de la ruta **registrada** se normalizan al unir prefijos: `"users"`, `"/users"` y `"/users/"` se vuelven `/users`.
+- Las rutas entrantes se normalizan con `HttpPaths.normalize`: las `/` repetidas se colapsan, se asegura una `/` inicial y se quita una `/` final (salvo en `/` mismo). Así `/users/`, `//users` y `/users` coinciden con el mismo `/users` registrado.
 - El texto estático debe coincidir exactamente y **distingue mayúsculas**.
 - Las rutas se comprueban **en el orden de registro**; gana la **primera** coincidencia. Registra las rutas específicas antes que las generales: `/users/me` debe ir antes de `/users/{id}`, o `me` se capturará como un id.
 - Una ruta debe declarar al menos un método HTTP; construir una lista de métodos vacía lanza `IllegalArgumentException`.
 
-## Parámetros de camino
+## Parámetros de ruta {#path-parameters}
 
-Un segmento escrito como `{name}` captura **un segmento de camino** (cualquier cosa hasta la siguiente `/`). Los nombres de parámetro deben empezar por una letra o un guion bajo y pueden contener letras, dígitos y guiones bajos (`[a-zA-Z_][a-zA-Z0-9_]*`).
+Un segmento escrito como `{name}` captura **un segmento de ruta** (cualquier cosa hasta la siguiente `/`). Los nombres de parámetro deben empezar por una letra o un guion bajo y pueden contener letras, dígitos y guiones bajos (`[a-zA-Z_][a-zA-Z0-9_]*`).
 
-Los valores capturados se decodifican en porcentaje (`/files/a%20b` → `a b`). Un `+` literal en el camino se queda como `+` (no se trata como espacio). Si un valor no se puede decodificar, se usa el texto en crudo. Los valores que al decodificarse incluyen `/` (por ejemplo `%2F`) se convierten en un solo valor de parámetro que contiene `/` — siguen viniendo de un segmento del camino de la petición.
+Los valores capturados se decodifican (`/files/a%20b` → `a b`). Un `+` literal en la ruta se queda como `+` (no se trata como espacio). Si un valor no se puede decodificar, se usa el texto en crudo. Los valores que al decodificarse incluyen `/` (por ejemplo `%2F`) se vuelven un solo valor de parámetro que contiene `/`: siguen viniendo de un segmento de la ruta de la petición.
 
-**No** hay parámetros opcionales (`{id?}`), **no** hay restricciones regex por parámetro y **no** hay comodines catch-all `{path}` en el enrutador actual. Registra una segunda ruta cuando un segmento sea opcional, y comprueba formatos dentro del manejador o con [validación](../validation/).
+En el enrutador actual **no** hay parámetros opcionales (`{id?}`), **no** hay restricciones regex por parámetro y **no** hay comodines catch-all `{path}`. Registra una segunda ruta cuando un segmento es opcional, y comprueba los formatos dentro del manejador o con [validación](../validation/).
 
 ### Leer parámetros
 
-Después de una coincidencia, el kernel guarda cada valor en la petición en dos sitios:
+Tras una coincidencia, el kernel guarda cada valor en la petición en dos sitios:
 
 | Clave | Ejemplo |
 |-----|---------|
 | `name` | `request.route("id")` o `request.getAttribute("id")` |
 | `route.name` | `request.getAttribute("route.id")` |
 
-Prefiere `request.route(key)` — devuelve un `String?` (o un predeterminado) y convierte el atributo a cadena. Más ayudantes de petición: [Petición y respuesta](../request-response/#route-parameters-requestroute).
+Prefiere `request.route(key)`: devuelve un `String?` (o un valor predeterminado) y convierte el atributo a cadena. Más ayudantes de petición: [Petición y respuesta](../request-response/#route-parameters-requestroute).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -233,13 +233,13 @@ router.get("/users/{id}/posts/{slug}", request -> {
 </TabItem>
 </Tabs>
 
-Los valores son siempre cadenas del camino — conviértelos tú (`toLong()`, `UUID.fromString`, y así sucesivamente). Las claves ausentes devuelven `null` desde `route(key)` (o el predeterminado que suministres).
+Los valores son siempre cadenas de la ruta: conviértelos tú (`toLong()`, `UUID.fromString`, y así). Las claves ausentes devuelven `null` desde `route(key)` (o el valor predeterminado que pases).
 
-## Rutas de recurso
+## Rutas de recurso {#resource-routes}
 
 Un **recurso** es una colección de registros expuesta sobre un conjunto convencional de URLs. `resource(name, controller)` registra el conjunto completo (incluidas las rutas de formulario HTML) contra un `ResourceController`:
 
-| Método(s) | Camino | Método del controlador | Nombre de ruta |
+| Método(s) | Ruta | Método del controlador | Nombre de ruta |
 |-----------|------|-------------------|------------|
 | `GET` | `/posts` | `index` | `posts.index` |
 | `GET` | `/posts/create` | `create` | `posts.create` |
@@ -251,11 +251,11 @@ Un **recurso** es una colección de registros expuesta sobre un conjunto convenc
 
 El orden de registro coincide con la tabla: `create` se registra **antes** de `show`, así que `/posts/create` nunca se captura como `{id}=create`.
 
-### Rutas de recurso de API
+### Rutas de recurso de API {#api-resource-routes}
 
-`apiResource(name, controller)` registra el mismo mapa **sin** `create` / `edit` — la forma habitual de las APIs JSON:
+`apiResource(name, controller)` registra el mismo mapa **sin** `create` / `edit`, la forma habitual de las API JSON:
 
-| Método(s) | Camino | Método del controlador | Nombre de ruta |
+| Método(s) | Ruta | Método del controlador | Nombre de ruta |
 |-----------|------|-------------------|------------|
 | `GET` | `/posts` | `index` | `posts.index` |
 | `POST` | `/posts` | `store` | `posts.store` |
@@ -264,20 +264,20 @@ El orden de registro coincide con la tabla: `create` se registra **antes** de `s
 | `DELETE` | `/posts/{id}` | `destroy` | `posts.destroy` |
 
 :::caution[Recurso de API y `/resource/create`]
-Como `apiResource` no registra `create`, una petición a `GET /posts/create` coincide con `show` y `id` igual a `"create"`. Usa `resource(...)` cuando necesites URLs HTML de create/edit, o reserva ese camino tú antes del registro del recurso.
+Como `apiResource` no registra `create`, una petición a `GET /posts/create` coincide con `show` y `id` igual a `"create"`. Usa `resource(...)` cuando necesites URLs HTML de crear/editar, o reserva esa ruta tú mismo antes del registro del recurso.
 :::
 
 ### Filtrar acciones: `only` y `except`
 
 Tanto `resource` como `apiResource` aceptan colecciones opcionales `only` / `except` de nombres de acción (`index`, `create`, `store`, `show`, `edit`, `update`, `destroy`). Los nombres se comparan sin distinguir mayúsculas.
 
-- **`only`** — conserva solo esas acciones.
-- **`except`** — descarta esas acciones.
-- Si ambos están fijados, se aplica primero `only` y luego `except`.
+- **`only`**: conserva solo esas acciones.
+- **`except`**: descarta esas acciones.
+- Si ambos están definidos, se aplica primero `only` y luego `except`.
 
-Pasa una **instancia** de tu `ResourceController` (constrúyela tú, o resuélvela desde el contenedor y pasa la instancia). Los caminos y los nombres respetan el grupo circundante, así que dentro de un grupo con prefijo `/api` y nombre `api.` obtienes `/api/posts` y `api.posts.index`. Pasa el nombre del recurso **sin** barra inicial.
+Pasa una **instancia** de tu `ResourceController` (constrúyela tú, o resuélvela del contenedor y pasa la instancia). Las rutas y los nombres respetan el grupo que las rodea, así que dentro de un grupo con prefijo `/api` y nombre `api.` obtienes `/api/posts` y `api.posts.index`. Pasa el nombre del recurso **sin** barra inicial.
 
-Implementa cada acción tú, o extiende `BaseResourceController` y anula solo las que necesites — las acciones no implementadas lanzan `NotFoundException` (HTTP 404). Detalles: [Controladores → Controladores de recurso](../controllers/#resource-controllers).
+Implementa cada acción tú mismo, o extiende `BaseResourceController` y anula solo las que necesites: las acciones no implementadas lanzan `NotFoundException` (HTTP 404). Detalles: [Controladores → Controladores de recurso](../controllers/#resource-controllers).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -334,17 +334,17 @@ router.apiResource("things", new ThingsController(), null, List.of("destroy"));
 </TabItem>
 </Tabs>
 
-Cuando omites una acción con `only` / `except`, el camino puede seguir existiendo bajo otro método. Ejemplo: `resource(..., only = listOf("index", "show"))` sigue registrando `GET /items`, así que `POST /items` devuelve **405** (método no permitido), no 404.
+Cuando omites una acción con `only` / `except`, la ruta puede seguir existiendo bajo otro método. Ejemplo: `resource(..., only = listOf("index", "show"))` sigue registrando `GET /items`, así que `POST /items` devuelve **405** (método no permitido), no 404.
 
-Empareja las cargas JSON con [Recursos de API](../api-resources/).
+Empareja los payloads JSON con [Recursos de API](../api-resources/).
 
 ## Grupos
 
 Un **grupo** aplica ajustes compartidos a cada ruta declarada dentro:
 
-- **prefix** — se antepone a cada camino (`/api` + `/me` → `/api/me`),
-- **name** — se antepone a cada nombre de ruta (`api.` + `me` → `api.me`),
-- **middleware** — corre antes del middleware propio de cada ruta.
+- **prefix**: se antepone a cada ruta (`/api` + `/me` → `/api/me`),
+- **name**: se antepone a cada nombre de ruta (`api.` + `me` → `api.me`),
+- **middleware**: corre antes del middleware propio de cada ruta.
 
 El `ApiRoutes` del andamiaje es un grupo típico:
 
@@ -376,7 +376,7 @@ router.prefix("/api").name("api.").group(api -> {
 
 ### Grupos anidados y middleware
 
-Los grupos interiores se suman a los exteriores: los prefijos se unen con `/`, los prefijos de nombre se concatenan y las listas de middleware se añaden (primero el exterior). Los ajustes del grupo se capturan cuando se registra cada ruta, y terminan cuando vuelve el bloque del grupo — incluso si el bloque lanza (se restaura la pila anterior de prefijo / nombre / middleware).
+Los grupos interiores se suman a los exteriores: los prefijos se unen con `/`, los prefijos de nombre se concatenan y las listas de middleware se añaden (el exterior primero). Los ajustes del grupo se capturan cuando se registra cada ruta, y terminan cuando vuelve el bloque del grupo, aunque el bloque lance (se restaura la pila anterior de prefijo / nombre / middleware).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -392,7 +392,7 @@ router.group(prefix = "/api", name = "api.", middleware = listOf(Authenticate())
 }
 ```
 
-`router.routes { … }` es un ayudante pequeño que ejecuta un bloque con el enrutador como `this`, útil para mantener ordenados los archivos de ruta.
+`router.routes { … }` es un ayudante pequeño que ejecuta un bloque con el enrutador como `this`, útil para mantener ordenados los archivos de rutas.
 
 </TabItem>
 <TabItem label="Java">
@@ -406,7 +406,7 @@ router.prefix("/api").name("api.").middleware(new Authenticate()).group(api -> {
 });
 ```
 
-O pasa los ajustes de forma posicional:
+O pasa los ajustes en posición:
 
 ```java
 router.group("/v1", v1 -> v1.get("/ping", request -> Response.text("pong")));
@@ -414,14 +414,14 @@ router.group("/v2", List.of(new Authenticate()), v2 -> { /* ... */ });
 router.group("/v3", "v3.", List.of(new Authenticate()), v3 -> { /* ... */ });
 ```
 
-`middleware(...)` en el builder fluido acepta varios argumentos de middleware o un `List`.
+`middleware(...)` en el builder fluido acepta varios argumentos de middleware o una `List`.
 
 </TabItem>
 </Tabs>
 
-## Middleware en una ruta
+## Middleware en una ruta {#middleware-on-a-route}
 
-Adjunta middleware a una ruta con `.middleware(...)`. El middleware de ruta corre **después** de cualquier middleware de grupo de esa ruta. Las pilas globales (sesión, CSRF, y así sucesivamente) se configuran en `bootstrap.Middleware` y se aplican al kernel — envuelven el enrutado por completo, así que siguen viendo las respuestas 404/405. Consulta [Middleware](../middleware/).
+Adjunta middleware a una ruta con `.middleware(...)`. El middleware de ruta corre **después** de cualquier middleware de grupo de esa ruta. Las pilas globales (sesión, CSRF y demás) se configuran en `bootstrap.Middleware` y se aplican al kernel: envuelven el enrutamiento por completo, así que siguen viendo las respuestas 404/405. Consulta [Middleware](../middleware/).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -442,13 +442,13 @@ router.post("/webhooks/stripe", stripe::handle)
 </TabItem>
 </Tabs>
 
-## Rutas con nombre y generación de URL
+## Rutas con nombre y generación de URL {#named-routes-and-url-generation}
 
-`.name("…")` da un nombre a una ruta para que puedas construir su URL después sin hardcodear el camino. Los prefijos de nombre de grupo se aplican automáticamente (`api.` + `health` → `api.health`). Las acciones de recurso se nombran solas como `{resource}.{action}`.
+`.name("…")` da un nombre a una ruta para que puedas construir su URL después sin fijar el camino en el código. Los prefijos de nombre del grupo se aplican solos (`api.` + `health` → `api.health`). Las acciones de recurso se nombran como `{resource}.{action}`.
 
-### Camino desde el enrutador
+### Ruta desde el enrutador
 
-`router.route(name, params)` devuelve el **camino** con cada `{key}` sustituido por el valor coincidente:
+`router.route(name, params)` devuelve el **camino** con cada `{key}` sustituido por el valor correspondiente:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -473,8 +473,8 @@ String path = router.route("users.show", Map.of("id", "42"));  // "/users/42"
 
 Reglas:
 
-- Los valores se insertan tal cual — **no** se codifican en porcentaje. Codifícalos primero si pueden contener `/`, espacios u otros caracteres reservados.
-- Los placeholders sin valor se quedan en la salida como `{key}`.
+- Los valores se insertan tal cual: **no** se codifican. Codifícalos antes si pueden contener `/`, espacios u otros caracteres reservados.
+- Los marcadores sin valor se quedan en la salida como `{key}`.
 - Un nombre desconocido lanza `IllegalArgumentException("Route [name] not defined")`.
 - Si dos rutas comparten un nombre, se usa la **primera** registrada.
 
@@ -484,7 +484,7 @@ Con `HttpServiceProvider` arrancado, prefiere:
 
 | Ayudante | Resultado |
 |--------|--------|
-| `Url.route(name, params)` / `route(name, params)` de nivel superior en Kotlin | URL absoluta o con raíz vía `UrlGenerator` (raíz `app.url`) |
+| `Url.route(name, params)` / `route(name, params)` de nivel superior en Kotlin | URL absoluta o enraizada vía `UrlGenerator` (raíz `app.url`) |
 | `Url.to(path)` / `url(path)` | Une un camino a la raíz configurada |
 | `UrlGenerator.signedRoute(...)` | Ruta con nombre firmada — consulta [Generación de URL](../url-generation/) |
 
@@ -492,9 +492,9 @@ Con `HttpServiceProvider` arrancado, prefiere:
 Response.redirect(route("users.show", mapOf("id" to "42")))
 ```
 
-## Redirects desde manejadores
+## Redirecciones desde manejadores
 
-El enrutador **no** tiene un ayudante de registro `redirect(...)`. Redirige devolviendo una respuesta de redirect desde el manejador (o el controlador):
+El enrutador **no** tiene un ayudante de registro `redirect(...)`. Redirige devolviendo una respuesta de redirección desde el manejador (o el controlador):
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -522,7 +522,7 @@ router.get("/back", request -> Response.back(request));
 </TabItem>
 </Tabs>
 
-`Response.back(request, fallback, status)` usa `_previous.url` de la sesión, luego la cabecera `Referer`, luego `fallback` (predeterminado `/`). Los ayudantes de flash (`with`, `withInput`, `withErrors`) se emparejan con el middleware de sesión — consulta [Petición y respuesta](../request-response/).
+`Response.back(request, fallback, status)` usa `_previous.url` de la sesión, luego la cabecera `Referer`, y luego `fallback` (predeterminado `/`). Los ayudantes de flash (`with`, `withInput`, `withErrors`) van con el middleware de sesión. Consulta [Petición y respuesta](../request-response/).
 
 ## Controladores invocables
 
@@ -549,17 +549,17 @@ router.get("/ping", Controllers.asHandler(ping)).name("ping");
 
 Más patrones (form requests, `Controller.validate`) están en [Controladores](../controllers/#invokable-controllers).
 
-## HEAD, OPTIONS, 404 y 405
+## HEAD, OPTIONS, 404 y 405 {#head-options-404-and-405}
 
-Estas reglas vienen de `Router.find` / `Router.resolve` y del kernel HTTP:
+Estas reglas salen de `Router.find` / `Router.resolve` y del kernel HTTP:
 
 | Petición | Qué ocurre |
 |---------|--------------|
-| `HEAD /path`, y solo está registrado `GET` | Corre la ruta `GET` (incluido su middleware). El kernel luego limpia el cuerpo; se conservan el estado y las cabeceras. Una ruta `HEAD` explícita (vía `match` o `any`), si se registró primero, gana. |
-| `OPTIONS /path`, ninguna ruta acepta `OPTIONS`, pero el camino existe bajo otros métodos | `200` automático con cuerpo vacío y una cabecera `Allow` que lista los métodos registrados para ese camino, en orden de registro, separados por comas **sin espacios** (por ejemplo `GET,HEAD,POST`). El middleware de ruta **no** corre. |
-| `options(uri, handler)` explícito para ese camino | Corre tu manejador (la primera coincidencia sigue ganando entre las rutas OPTIONS). |
-| El camino existe, el método no está registrado | `MethodNotAllowedException` → **405** con una cabecera `Allow` (métodos unidos con `", "` — fíjate en los espacios) y un sobre JSON o HTML del manejador de excepciones. |
-| Ninguna ruta coincide con el camino | `NotFoundException` → **404**. El mensaje de resolución se ve como `The route users/99 could not be found.` |
+| `HEAD /path`, y solo está registrado `GET` | Corre la ruta `GET` (incluido su middleware). El kernel vacía después el cuerpo; se conservan el estado y las cabeceras. Una ruta `HEAD` explícita (vía `match` o `any`), si se registró primero, gana. |
+| `OPTIONS /path`, ninguna ruta acepta `OPTIONS`, pero la ruta existe bajo otros métodos | `200` automático con cuerpo vacío y una cabecera `Allow` que lista los métodos registrados para esa ruta, en orden de registro, separados por comas **sin espacios** (por ejemplo `GET,HEAD,POST`). El middleware de ruta **no** corre. |
+| `options(uri, handler)` explícito para esa ruta | Corre tu manejador (la primera coincidencia sigue ganando entre las rutas OPTIONS). |
+| La ruta existe, el método no está registrado | `MethodNotAllowedException` → **405** con una cabecera `Allow` (métodos unidos con `", "` — fíjate en los espacios) y un sobre JSON o HTML del manejador de excepciones. |
+| Ninguna ruta coincide con el camino | `NotFoundException` → **404**. El mensaje de resolve se parece a `The route users/99 could not be found.` |
 
 Cualquier registro `GET` implica `HEAD` en la lista `Allow` de `allowedMethods` / 405 / OPTIONS automático.
 
@@ -569,13 +569,13 @@ El middleware global sigue envolviendo las respuestas 404 y 405; el middleware d
 
 | API | Comportamiento |
 |-----|----------|
-| `router.all()` | Lista instantánea de cada `Route` registrado |
+| `router.all()` | Lista instantánea de cada `Route` registrada |
 | `router.find(method, path)` | El primer `MatchResult` (ruta + mapa de parámetros), o `null`; HEAD cae a GET; **no** lanza |
 | `router.resolve(method, path)` | Como `find`, pero lanza 404/405 o devuelve la coincidencia OPTIONS sintética |
-| `router.allowedMethods(path)` | Métodos registrados para ese camino (`GET` implica `HEAD` en la lista) |
+| `router.allowedMethods(path)` | Métodos registrados para esa ruta (`GET` implica `HEAD` en la lista) |
 | `router.route(name, params)` | Construye un camino a partir de una ruta con nombre |
 
-Cada `Route` expone `methods`, `method` (el primero declarado), `uri`, `name`, `middleware`, más `match` / `matchPath` / `uriFor` para uso avanzado. `MatchResult` es una data class: `route` + `parameters`. Los comandos grind de abajo leen esta misma lista.
+Cada `Route` expone `methods`, `method` (el primero declarado), `uri`, `name`, `middleware`, más `match` / `matchPath` / `uriFor` para uso avanzado. `MatchResult` es una data class: `route` + `parameters`. Los comandos de grind de abajo leen esta misma lista.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -608,7 +608,7 @@ if (match != null) {
 </TabItem>
 </Tabs>
 
-## Listar rutas con grind
+## Listar rutas con grind {#listing-routes-with-grind}
 
 Desde un directorio de aplicación (después de `./gradlew classes`):
 
@@ -621,9 +621,9 @@ Desde un directorio de aplicación (después de `./gradlew classes`):
 ./grind route:clear
 ```
 
-`route:list` arranca tu app en proceso e imprime el `Router` vivo como una tabla: **Method**, **URI**, **Name**, **Action**, **Middleware**. Las lambdas aparecen como `Closure`; las clases `Handler` con nombre muestran su nombre completamente cualificado. Las rutas `GET` se listan como `GET` (HEAD sigue coincidiendo con ellas en tiempo de ejecución — consulta la tabla de arriba). Las rutas multimétodo, como el `update` de recurso, imprimen `PUT|PATCH`.
+`route:list` arranca tu app in-process e imprime el `Router` vivo como una tabla: **Method**, **URI**, **Name**, **Action**, **Middleware**. Las lambdas aparecen como `Closure`; las clases `Handler` con nombre muestran su nombre cualificado. Las rutas `GET` se listan como `GET` (HEAD sigue coincidiendo en tiempo de ejecución — consulta la tabla de arriba). Las rutas de varios métodos, como el `update` de un recurso, imprimen `PUT|PATCH`.
 
-Filtros útiles: `--method=`, `--name=`, `--path=`, `--except-path=`, `--except-vendor`, `--only-vendor`, `--compact`, `--columns=`, `--sort=`, `--reverse`, `--json`. Referencia completa de banderas: [Comandos integrados — route:list](../../grind/commands/#grind-routelist).
+Filtros útiles: `--method=`, `--name=`, `--path=`, `--except-path=`, `--except-vendor`, `--only-vendor`, `--compact`, `--columns=`, `--sort=`, `--reverse`, `--json`. Referencia completa de flags: [Comandos integrados — route:list](../../grind/commands/#grind-routelist).
 
 `route:cache` escribe `bootstrap/cache/routes.json` (una instantánea de esa tabla). El kernel HTTP no carga el archivo; el registro de rutas compilado ya corre en cada arranque. `route:clear` borra la instantánea.
 
@@ -631,7 +631,7 @@ Si grind no encuentra un proyecto Gradle, o la app arrancada no tiene un `Router
 
 ## Probar rutas
 
-Usa `HttpTestClient` de `org.konaframework:kona-testing` contra una aplicación arrancada. Resuelve `HttpKernel` y ejecuta peticiones en proceso (sin socket):
+Usa `HttpTestClient` de `org.konaframework:kona-testing` contra una aplicación arrancada. Resuelve `HttpKernel` y ejecuta peticiones in-process (sin socket):
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -662,13 +662,13 @@ new HttpTestClient(app).get("/ping").assertOk().assertJsonContains("ok");
 </TabItem>
 </Tabs>
 
-Registra las rutas antes de llamar al cliente. Más aserciones y pruebas de consola viven en [Pruebas HTTP y de consola](../../testing/http-console/).
+Registra las rutas antes de llamar al cliente. Más afirmaciones y pruebas de consola viven en [Pruebas HTTP y de consola](../../testing/http-console/).
 
 ## Casos de uso habituales
 
 ### Separar las tablas web y de API
 
-Mantén las rutas de navegador y las de JSON en clases separadas, comparte un `Router`:
+Deja las rutas de navegador y las de JSON en clases distintas, y comparte un `Router`:
 
 ```kotlin
 WebRoutes().register(router)
@@ -692,7 +692,7 @@ router.group(middleware = listOf(Authenticate())) {
 }
 ```
 
-### Segmento opcional mediante dos rutas
+### Segmento opcional con dos rutas
 
 ```kotlin
 router.get("/docs") { docs.index(it) }.name("docs.index")
@@ -707,7 +707,7 @@ router.get("/blog/{slug}") { request ->
 }
 ```
 
-## Referencia de la API (tipos de enrutado)
+## Referencia de API (tipos de enrutamiento)
 
 ### `Router`
 
@@ -727,11 +727,11 @@ router.get("/blog/{slug}") { request ->
 | Miembro | Papel |
 |--------|------|
 | `methods` / `method` | Verbos declarados / primer verbo |
-| `uri` | Patrón de camino completo (después del prefijo de grupo) |
+| `uri` | Patrón de ruta completo (después del prefijo de grupo) |
 | `name` / `name(value)` | Nombre opcional (el espacio de nombres del grupo se aplica en `name(...)`) |
 | `middleware` / `middleware(...)` | Lista de middleware de grupo + ruta |
 | `action` | `Handler` |
-| `match` / `matchPath` / `uriFor` | Coincidencia y construcción de camino |
+| `match` / `matchPath` / `uriFor` | Coincidencia y construcción de ruta |
 
 ### `RouteGroup` (fluido de Java)
 
@@ -739,7 +739,7 @@ Encadena `prefix`, `name`, `middleware` (vararg o `List`) y luego `group(Consume
 
 ### `MatchResult`
 
-`route: Route`, `parameters: Map<String, String>` (ordenados por aparición en el patrón).
+`route: Route`, `parameters: Map<String, String>` (ordenado por aparición en el patrón).
 
 ### `ResourceController` / `BaseResourceController`
 
@@ -752,21 +752,21 @@ Siete acciones: `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`.
 ## Trampas y preguntas
 
 **¿Por qué `/users/me` cae en `{id}`?**  
-Orden de registro. Pon los segmentos estáticos antes que los parametrizados.
+El orden de registro. Pon los segmentos estáticos antes que los parametrizados.
 
 **¿Por qué `POST /items` es un 405 después de `only = listOf("index", "show")`?**  
-El camino sigue coincidiendo con una ruta `GET` registrada, así que el enrutador informa de método no permitido en lugar de no encontrado.
+La ruta sigue coincidiendo con una ruta `GET` registrada, así que el enrutador informa de método no permitido en lugar de no encontrado.
 
 **¿Por qué `GET /api/posts/create` llama a `show`?**  
-`apiResource` no tiene acción `create`. Usa el `resource` completo o registra primero una ruta explícita.
+`apiResource` no tiene acción `create`. Usa el `resource` completo o registra una ruta explícita primero.
 
 **¿Los formularios HTML suplantan PUT/PATCH/DELETE?**  
-La directiva `@method` de Crema emite un campo oculto `_method` para las plantillas, pero el kernel HTTP y el enrutador coinciden con el método **real** de la petición hoy. Los clientes que no pueden enviar `PUT`/`PATCH`/`DELETE` necesitan un método real (o una ruta `POST` dedicada). Consulta [Formularios Crema](../../crema/forms/#method-spoofing).
+La directiva `@method` de Crema emite un campo oculto `_method` para las plantillas, pero el kernel HTTP y el enrutador coinciden hoy con el método **real** de la petición. Los clientes que no pueden enviar `PUT`/`PATCH`/`DELETE` necesitan un método real (o una ruta `POST` dedicada). Consulta [Formularios de Crema](../../crema/forms/#method-spoofing).
 
 **¿Hay rutas fallback / catch-all?**  
-No como una API dedicada. Registra al final una ruta parametrizada amplia si necesitas un manejador de página 404 personalizado — o personaliza el [manejador de excepciones](../exceptions/).
+No como una API dedicada. Registra al final una ruta parametrizada amplia si necesitas un manejador de página 404 propio, o personaliza el [manejador de excepciones](../exceptions/).
 
-**¿Puedo restringir `{id}` a dígitos?**  
+**¿Puedo limitar `{id}` a dígitos?**  
 No en el enrutador. Valida en el manejador o con reglas de [validación](../validation/).
 
 **¿Debo mutar el enrutador en tiempo de ejecución?**  
@@ -774,20 +774,20 @@ No. Registra durante el arranque y luego sirve.
 
 ## Qué no está en el enrutador (hoy)
 
-Documentado aquí para que no busques APIs ausentes:
+Documentado aquí para que no busques APIs que faltan:
 
-- Parámetros de camino opcionales y restricciones regex/where
-- Enrutado por dominio / subdominio
+- Parámetros de ruta opcionales y restricciones regex/where
+- Enrutamiento por dominio / subdominio
 - Ayudantes de registro `fallback()` / catch-all
-- Macros de ruta `redirect()` / `view()` (usa respuestas de manejador en su lugar)
-- Anulación automática de `_method` para envíos de formulario (Crema puede emitir el campo; el enrutado lo ignora — [Formularios Crema](../../crema/forms/#method-spoofing))
+- Macros de ruta `redirect()` / `view()` (usa respuestas del manejador)
+- Sustitución automática de `_method` en posts de formulario (Crema puede emitir el campo; el enrutamiento lo ignora — [Formularios de Crema](../../crema/forms/#method-spoofing))
 
 ## Siguientes pasos
 
 - Organiza las acciones en [Controladores](../controllers/) (validación, form requests, bases de recurso).
 - Envuelve las rutas con [Middleware](../middleware/).
-- Lee y escribe cargas en [Petición y respuesta](../request-response/).
+- Lee y escribe payloads en [Petición y respuesta](../request-response/).
 - Valida la entrada en [Validación](../validation/).
 - Construye enlaces absolutos y firmados con [Generación de URL](../url-generation/).
-- Mira cómo el kernel selecciona una ruta en [Kernel y servidor](../kernel-server/).
+- Mira cómo el kernel elige una ruta en [Kernel y servidor](../kernel-server/).
 - Ejercita las rutas con [Pruebas HTTP y de consola](../../testing/http-console/).
