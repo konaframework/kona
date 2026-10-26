@@ -229,6 +229,8 @@ Log.flushSharedContext();
 
 Si l’écriture sur le canal par défaut lance alors qu’un `LogManager` est lié, `Log` appelle `LogManager.writeEmergency`. Cela ajoute une ligne horodatée à `logging.channels.emergency.path` (sinon `logging.file`, sinon `kona.log`). Si même cela échoue, le message va sur `System.err`.
 
+<a id="request-access-lines-local-serve"></a>
+
 ## Lignes d’accès de requête (serve local)
 
 Quand `APP_DEBUG=true` (le défaut de l’échafaudage) — ou quand vous fixez `LOG_REQUESTS=true` / config `logging.requests=true` — `HttpServiceProvider` préfixe **`LogRequests`** sur le kernel global. Chaque requête imprime une ligne stylée Termwind dans le terminal :
