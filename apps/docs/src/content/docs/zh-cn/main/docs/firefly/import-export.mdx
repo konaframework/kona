@@ -1,15 +1,15 @@
 ---
+
 title: 导入和导出
 description: 通过对话框动作和队列任务把行导出为 CSV，再导入回来。
 ---
 
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-导入和导出是两个任务加上两个对话框动作。`ExportRows` 写 CSV。`ImportRows` 读 CSV。两者都实现 `ShouldQueue`，因此队列 `Bus` 可以运行它们。把 `null` 作为 bus 传入时，`handle()` 在调用方运行。
+<FireflyShot file="export-dialog.png" description="从导出动作打开的导出对话框，标题为 Export。" />
 
-:::note[截图占位：导出对话框]
-这里将放一张导出对话框动作的截图。
-:::
+导入和导出是两个任务加上两个对话框动作。`ExportRows` 写 CSV。`ImportRows` 读 CSV。两者都实现 `ShouldQueue`，因此队列 `Bus` 可以运行它们。把 `null` 作为 bus 传入时，`handle()` 在调用方运行。
 
 ## 动作
 

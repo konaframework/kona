@@ -1,11 +1,12 @@
 ---
+
 title: 表格
 description: 用列、筛选、搜索、排序、分页和行按钮在 Firefly 表格里展示记录。
 ---
 
-:::note[截图占位：笔记表格]
-这里将放一张该屏幕的截图。
-:::
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="notes-table.png" description="笔记表格，位于 http://127.0.0.1:4017/admin/notes/manage，名称列里是 Ada 这一行。" />
 
 表格列出记录，然后让人搜索、排序、筛选并翻页。你在 Kotlin 或 Java 里描述列和筛选。`render()` 返回 HTML，包括 Alpine 的 `ffColumn` 工厂、`@entangle` 和 `$wire.$call` 钩子。
 

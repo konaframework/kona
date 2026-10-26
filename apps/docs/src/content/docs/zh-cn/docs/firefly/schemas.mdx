@@ -1,11 +1,12 @@
 ---
+
 title: 模式
 description: 构建 Firefly 模式、绑定状态，并让标签和内容是一个值或一个闭包。
 ---
 
-:::note[截图占位：带节和文本的模式]
-这里将放一张该屏幕的截图。
-:::
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="schema-section.png" description="Desk 表单，位于 http://127.0.0.1:4017/admin/desk，由名称、状态和到期字段组成的模式。" />
 
 模式是一棵组件树加上一张状态映射。你在 Kotlin 或 Java 里构建这棵树，填充或水合状态，然后 `render()` 返回 HTML。实时组件用 `wire:model` 和 `@entangle` 绑定该状态。
 
@@ -109,6 +110,7 @@ schema.get("user.city") // "Kona"
 | `Callout.make(heading)` | `info()`、`success()`、`warning()`、`danger()` 或 `status(...)`。`color` 覆盖状态颜色 |
 | `EmptyState.make(heading)` | 标题加上可选的 `footer` |
 
+<FireflyShot file="schema-layout.png" description="Desk 页正文，位于 http://127.0.0.1:4017/admin/desk，表单、名称信息列表和笔记表格依次排列。" />
 布局上的 `configureUsing` 对该类之后每一次 `make()` 运行。传入 `null` 可以清除它。
 
 ```kotlin

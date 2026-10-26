@@ -1,15 +1,15 @@
 ---
+
 title: 页面
 description: 面板页面 — 标题、动作、内容区域、部件，以及列表、创建、编辑、查看、管理和自定义类型。
 ---
 
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-页面是面板路由提供的屏幕。它有标题、页眉动作、页脚动作、一个内容区域，以及可选的部件。内容区域挂载模式、表单、信息列表或表格。单独渲染这些部分对测试和嵌入仍然有效。把页面变成 URL 的是面板。
+<FireflyShot file="desk.png" description="Desk 页，位于 http://127.0.0.1:4017/admin/desk，带名称字段、状态组合框、到期选择器、信息列表、表格和编辑页眉动作。" />
 
-:::note[截图占位：Desk 页面]
-这里将放一张 `/admin/desk` 的截图，带有表单、表格和 Desk 部件。
-:::
+页面是面板路由提供的屏幕。它有标题、页眉动作、页脚动作、一个内容区域，以及可选的部件。内容区域挂载模式、表单、信息列表或表格。单独渲染这些部分对测试和嵌入仍然有效。把页面变成 URL 的是面板。
 
 类型位于 `org.konaframework.firefly` 和 `org.konaframework.firefly.widgets`。`PanelPage` 扩展 `Page`。`ListPage`、`CreatePage`、`EditPage`、`ViewPage`、`ManagePage` 和 `CustomPage` 是页面种类。`Dashboard` 是一个 `Page`，其节类是 `ff-page ff-dashboard`。
 

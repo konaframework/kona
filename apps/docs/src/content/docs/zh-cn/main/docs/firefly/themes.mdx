@@ -1,11 +1,12 @@
 ---
+
 title: 主题与 CSS
 description: FireflyTheme、KonaTheme 记号、作用域 CSS 变量，以及让主题 CSS 留在面板内的规则。
 ---
 
-:::note[截图占位：带主题的面板]
-这里将放一张该屏幕的截图。
-:::
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="themed-panel.png" description="hello-kotlin 面板，位于 http://127.0.0.1:4017/admin/desk，侧栏和页面穿着随附主题。" />
 
 **主题**是 `FireflyTheme` 的一个实现。它提供一个 id、一个 `ThemeTokens` 对象、可选的外框槽 HTML，以及可选的额外 CSS。`Stylesheet.render` 把记号变成 `.ff-panel` 上的 CSS 自定义属性。随附样式表里的组件规则只匹配 `.ff-panel` 的后代，因此从未渲染面板的页面不会套上 Firefly 的按钮、侧栏或对话框规则。
 

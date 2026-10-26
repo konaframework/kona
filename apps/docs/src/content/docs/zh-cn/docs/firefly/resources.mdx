@@ -1,11 +1,12 @@
 ---
+
 title: 资源
 description: 把一个模型绑定到列表、创建、编辑、查看或管理页面，并带有表单、信息列表、表格和动作。
 ---
 
-:::note[截图占位：订单列表页]
-这里将放一张该屏幕的截图。
-:::
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="orders-list.png" description="订单列表，位于 http://127.0.0.1:4017/admin/orders/list，带订单表格和创建动作。" />
 
 资源是面板的记录屏幕。它把一个模型绑定到页面、表单模式、信息列表、表格和动作。面板从 `resources/` 发现它，并登记它的页面和导航。没有单独的注册表。hello 示例里的笔记和订单类在[一个能工作的应用](/docs/firefly/working-app/)里逐步走过。本页是方法列表。
 
@@ -50,6 +51,7 @@ public class OrderResource extends Resource {
 
 `simple()` 只保留一个 `ManagePage`。创建、编辑、查看和删除是页眉动作，每一个都打开已有的对话框。创建和编辑把表单模式放进该对话框。查看把信息列表放进去。删除在其中请求确认。简单资源拒绝 `relation(...)`。
 
+<FireflyShot file="notes-manage.png" description="笔记 Manage 页，位于 http://127.0.0.1:4017/admin/notes/manage，带笔记表格以及创建、编辑、查看和删除动作。" />
 ```kotlin
 class NoteResource : Resource("notes") {
     init {

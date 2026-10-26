@@ -1,11 +1,12 @@
 ---
+
 title: 动作
 description: 构建 Firefly 动作，在共享对话框里打开它，并从 Wire 运行它。
 ---
 
-:::note[截图占位：Desk 页面上的表头动作]
-这里将放一张该屏幕的截图。
-:::
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="header-action.png" description="Desk 页上的编辑页眉动作，位于 http://127.0.0.1:4017/admin/desk。" />
 
 动作是按钮或链接。它可以打开共享的[对话框](/docs/firefly/dialog/)，在该对话框里显示模式，并调用服务器方法。动作位于 `org.konaframework.firefly.actions`（`kona-firefly-actions`）。它们使用 `kona-firefly-schemas` 的闭包和模态内容，以及 `kona-firefly-support` 的 `Dialog` 和图标。
 

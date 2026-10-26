@@ -1,11 +1,12 @@
 ---
+
 title: 部件
 description: 把统计、图表、表格和账户部件放在页面或仪表板上，并从面板的 widgets 目录发现它们。
 ---
 
-:::note[截图占位：Desk 页面上的 Desk 部件]
-这里将放一张该屏幕的截图。
-:::
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="desk-widget.png" description="Desk 页上的 Desk 小部件，位于 http://127.0.0.1:4017/admin/desk，那段写着 Open orders 的文字。" />
 
 部件可以单独渲染，也可以渲染在页面或仪表板内部。统计、图表、表格和账户卡片是内置部件。页面是组合宿主：标题、页眉和页脚动作、一个内容区域，以及你放在上面的部件。面板路由提供该页面。测试和嵌入的部件仍然用 `render()` 得到同样的 HTML。
 

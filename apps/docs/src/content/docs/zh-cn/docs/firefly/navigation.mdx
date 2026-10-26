@@ -1,15 +1,15 @@
 ---
+
 title: 导航
 description: 面板把导航画在哪里、树可以有多深，以及标签和 URL 如何设置。
 ---
 
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-导航是面板外框里的链接树。每个面板有一种 `NavigationType`。项是 `NavigationItem` 节点。你自己不调用 `item` 时，`mount` 从页面和资源构建这棵树。
+<FireflyShot file="panel-navigation.png" description="hello-kotlin 侧栏，位于 http://127.0.0.1:4017/admin/desk，带 desk 链接以及 Notes 和 Orders 分组。" />
 
-:::note[截图占位：面板导航]
-这里将放一张工作台侧栏的截图，包括 Notes 和 Orders 分组。
-:::
+导航是面板外框里的链接树。每个面板有一种 `NavigationType`。项是 `NavigationItem` 节点。你自己不调用 `item` 时，`mount` 从页面和资源构建这棵树。
 
 ## 三种类型如何绘制
 

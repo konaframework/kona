@@ -1,11 +1,12 @@
 ---
+
 title: 面板外框
 description: 面板槽、渲染钩子、局部覆盖和自定义布局。
 ---
 
-:::note[截图占位：侧栏、顶栏、正文和页脚]
-这里将放一张该屏幕的截图。
-:::
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="panel-chrome.png" description="面板外观，位于 http://127.0.0.1:4017/admin/desk，显示侧栏、顶栏、页面正文和页脚。" />
 
 **面板外框**是面板周围的四个区域：侧栏、顶栏、正文和页脚。类是 `org.konaframework.firefly.support.Panel`。它为每个区域选择 HTML，检查必需的钩子标记仍然存在，填充这些标记，并请 `PanelLayout` 包裹结果。你挂到路由器上的类是 `org.konaframework.firefly.Panel`，写在[面板](/docs/firefly/panel/)。
 

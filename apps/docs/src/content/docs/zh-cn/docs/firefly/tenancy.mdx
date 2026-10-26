@@ -1,15 +1,15 @@
 ---
+
 title: 租户
 description: 在面板上显示租户菜单，并把资源查询限定到选中的租户。
 ---
 
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-租户是顶栏里的一个标签，以及为当前请求存储的一个 id。面板不会创建数据库。你的资源决定这个 id 过滤哪一列。
+<FireflyShot file="tenant-menu.png" description="面板顶栏，带标为 Acme 的租户链接，把租户查询参数设为 acme。" />
 
-:::note[截图占位：租户菜单]
-这里将放一张顶栏带租户链接的截图。
-:::
+租户是顶栏里的一个标签，以及为当前请求存储的一个 id。面板不会创建数据库。你的资源决定这个 id 过滤哪一列。
 
 ## 请求如何使用它
 

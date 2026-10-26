@@ -1,15 +1,15 @@
 ---
+
 title: 一个能工作的应用
 description: hello 示例的简单笔记资源和完整订单资源、会响应的路由，以及生成它们的命令。
 ---
 
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-hello 示例是一个带两个资源的工作台。笔记是**简单**资源：一个 Manage 页面，创建、编辑、查看和删除在对话框里打开。订单是**完整**资源：分开的列表、创建、编辑和查看页面，外加行项目的关联管理器。两个示例都在仓库里，分别是 `samples/hello-kotlin` 和 `samples/hello-java`。
+<FireflyShot file="notes-manage.png" description="笔记 Manage 页，位于 http://127.0.0.1:4017/admin/notes/manage，带笔记表格以及创建、编辑、查看和删除动作。" />
 
-:::note[截图占位：笔记的 Manage 页面]
-这里将放一张 `/admin/notes/manage` 的截图，带有笔记表格以及创建、编辑、查看和删除动作。
-:::
+hello 示例是一个带两个资源的工作台。笔记是**简单**资源：一个 Manage 页面，创建、编辑、查看和删除在对话框里打开。订单是**完整**资源：分开的列表、创建、编辑和查看页面，外加行项目的关联管理器。两个示例都在仓库里，分别是 `samples/hello-kotlin` 和 `samples/hello-java`。
 
 ## 简单资源
 
@@ -78,6 +78,13 @@ Java 示例把 `row()` 建成 `LinkedHashMap`，`id` 为 `1`，`name` 为 `Ada`�
 
 不调用 `simple()` 时，资源会得到列表、创建、编辑和查看页面。列表页挂载表格和一个创建动作。创建和编辑挂载表单。查看挂载信息列表。编辑和查看还会渲染每个关联管理器。
 
+<FireflyShot file="orders-list.png" description="订单列表，位于 http://127.0.0.1:4017/admin/orders/list，带订单表格和创建动作。" />
+
+<FireflyShot file="orders-create.png" description="订单创建页，位于 http://127.0.0.1:4017/admin/orders/create，带名称字段。" />
+
+<FireflyShot file="orders-edit.png" description="订单编辑页，位于 http://127.0.0.1:4017/admin/orders/edit，带名称字段和明细关系。" />
+
+<FireflyShot file="orders-view.png" description="订单查看页，位于 http://127.0.0.1:4017/admin/orders/view，带名称信息列表和明细关系。" />
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
@@ -122,10 +129,6 @@ public class OrderResource extends Resource {
 </TabItem>
 </Tabs>
 
-:::note[截图占位：订单列表]
-这里将放一张 `/admin/orders/list` 的截图，带有订单表格，以及编辑页和查看页上的行关联。
-:::
-
 ```bash
 ./grind make:firefly-resource Order
 ./grind make:firefly-resource Order --lang=java
@@ -137,6 +140,7 @@ public class OrderResource extends Resource {
 
 `pages/Desk` 是一个 `CustomPage`，表单字段与笔记相同，还有信息列表、一行的表格，以及打开对话框的页眉动作。`widgets/DeskWidget` 渲染一小段文字。发现把该部件放在第一页，也就是 Desk。
 
+<FireflyShot file="desk.png" description="Desk 页，位于 http://127.0.0.1:4017/admin/desk，带名称字段、状态组合框、到期选择器、信息列表、表格和编辑页眉动作。" />
 ```bash
 ./grind make:firefly-page Desk
 ./grind make:firefly-widget Desk

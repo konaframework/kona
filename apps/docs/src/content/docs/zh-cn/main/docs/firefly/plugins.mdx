@@ -1,15 +1,15 @@
 ---
+
 title: 插件
 description: 用 FireflyPlugin 的 register 和 boot 扩展面板，使用与应用相同的方法。
 ---
 
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-插件是一个类，它接收 `Panel` 并调用应用会调用的同样方法。没有插件注册表。你把实例传给 `plugin(...)`。
+<FireflyShot file="plugin-banner.png" description="面板正文，插件钩子在正文末尾追加 Banner 文字。" />
 
-:::note[截图占位：插件横幅]
-这里将放一张面板正文带插件钩子的截图。
-:::
+插件是一个类，它接收 `Panel` 并调用应用会调用的同样方法。没有插件注册表。你把实例传给 `plugin(...)`。
 
 ## 它如何运行
 

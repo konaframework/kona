@@ -1,11 +1,10 @@
 ---
+
 title: 表单
 description: 把 Firefly 表单字段加到模式上，用 Wire 绑定它们，并验证提交的状态。
 ---
 
-:::note[截图占位：笔记表单，带状态组合框和日期选择器]
-这里将放一张该屏幕的截图。
-:::
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
 
 表单字段位于 `org.konaframework.firefly.forms`（`kona-firefly-forms`）。每个字段是一个模式组件，因此它坐在与节或标签页相同的树里，共享该模式的状态映射，并使用组件基类上已有的实时修饰符（`live`、`liveOnBlur`、`liveDebounce`、`hidden`、`visible`、`dehydrated`、`afterStateUpdated`）。
 
@@ -110,6 +109,9 @@ name.helperText("Shown on the invoice");
 
 `Select` 渲染组合框（`ff-combobox`），不是原生 `<select>`。
 
+<FireflyShot file="form-combobox.png" description="Desk 页上的状态字段，位于 http://127.0.0.1:4017/admin/desk，作为组合框打开，选项为 Open 和 Done。" />
+
+<FireflyShot file="form-native-select.png" description="Desk 表单的状态字段，位于 http://127.0.0.1:4017/admin/desk，用 native() 渲染为 Open 和 Done 的原生选择框。" />
 ```kotlin
 val kind = Select.make("kind")
     .options(mapOf("org" to "Organization", "human" to "Person"))
@@ -157,6 +159,9 @@ Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordU
 
 `DatePicker`、`TimePicker` 和 `DateTimePicker` 是带日期、时间或两者的一个组件。默认控件是 Firefly 自己的选择器：月网格，以及字段有时间时的小时和分钟旋钮。没有第三方日期库。`.native()`（Java：`useNative(true)`）切换到 `type="date"`、`type="time"` 或 `type="datetime-local"`。
 
+<FireflyShot file="form-date-picker.png" description="Desk 页上的到期字段，位于 http://127.0.0.1:4017/admin/desk，打开为自绘的月网格，带小时和分钟控件。" />
+
+<FireflyShot file="form-native-date.png" description="Desk 表单的到期字段，位于 http://127.0.0.1:4017/admin/desk，用 native() 渲染为原生 datetime-local 输入。" />
 服务器值使用 `java.time`。仅日期的值留在应用时区（`FieldClock.appZone`）。日期时间使用字段的 `timezone`。`LocalDate` 和 `LocalDateTime` 用存储格式写入（`Y-m-d`、`H:i` 或 `Y-m-d H:i`）。`seconds(true)` 追加秒。`displayFormat` 是文本输入显示的内容。
 
 ```kotlin

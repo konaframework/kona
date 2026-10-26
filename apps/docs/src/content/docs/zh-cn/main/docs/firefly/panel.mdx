@@ -1,17 +1,17 @@
 ---
+
 title: 面板
 description: Panel 类 — id、路径、品牌、守卫、主题、钩子和 mount。
 ---
 
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="desk-panel.png" description="hello-kotlin 面板，位于 http://127.0.0.1:4017/admin/desk，侧栏和正文里的 Desk 页。" />
 
 `Panel`（`org.konaframework.firefly.Panel`）是你构造、配置并挂载的对象。它是 `app/firefly/Panel` 里的类。外框渲染使用另一个简单名相同的类，`org.konaframework.firefly.support.Panel`，写在[面板外框](/docs/firefly/chrome/)。你在应用里写的类是 `org.konaframework.firefly` 里的那个。
 
 加入模块不会登记路由。路由在你调用 `mount` 时出现。
-
-:::note[截图占位：已挂载的面板]
-这里将放一张 `/admin/desk` 工作台面板的截图。
-:::
 
 可链式调用的设置器接受静态值或闭包。闭包接收模式的 `Get`。空白的 id、品牌、域或守卫名会抛出 `FireflyException` 并指出该字段。
 
