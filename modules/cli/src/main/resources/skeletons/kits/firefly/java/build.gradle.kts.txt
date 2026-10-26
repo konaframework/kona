@@ -1,0 +1,65 @@
+plugins {
+    java
+    application
+}
+
+group = "app"
+version = "0.1.1"
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    implementation("org.konaframework:kona-http:{{konaVersion}}")
+    implementation("org.konaframework:kona-grind:{{konaVersion}}")
+    implementation("org.konaframework:kona-cadence:{{konaVersion}}")
+    implementation("org.konaframework:kona-redis:{{konaVersion}}")
+    implementation("org.konaframework:kona-cache:{{konaVersion}}")
+    implementation("org.konaframework:kona-session:{{konaVersion}}")
+    implementation("org.konaframework:kona-auth:{{konaVersion}}")
+    implementation("org.konaframework:kona-queue:{{konaVersion}}")
+    implementation("org.konaframework:kona-schedule:{{konaVersion}}")
+    implementation("org.konaframework:kona-mail:{{konaVersion}}")
+    implementation("org.konaframework:kona-broadcasting:{{konaVersion}}")
+    implementation("org.konaframework:kona-crema:{{konaVersion}}")
+    implementation("org.konaframework:kona-firefly:{{konaVersion}}")
+    // Matches default SQLite URL in config/Database (zero-install local demos).
+    runtimeOnly("org.xerial:sqlite-jdbc:3.49.1.0")
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+application {
+    mainClass.set("bootstrap.App")
+}
+
+tasks.register<JavaExec>("grind") {
+    group = "kona"
+    description = "App-local grind CLI (serve, make:controller, …)"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("org.konaframework.grind.GrindKt")
+    standardInput = System.`in`
+    val grindArgs = project.findProperty("grindArgs") as String?
+    if (!grindArgs.isNullOrBlank()) {
+        args(grindArgs.split(Regex("\\s+")).filter { it.isNotEmpty() })
+    }
+}
+
+tasks.register("konaClasspath") {
+    group = "kona"
+    description = "Print runtime classpath for grind serve --in-process"
+    doLast {
+        val sep = System.getProperty("path.separator")
+        println(
+            sourceSets["main"].runtimeClasspath
+                .filter { it.exists() }
+                .joinToString(sep) { it.absolutePath },
+        )
+    }
+}

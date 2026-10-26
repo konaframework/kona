@@ -32,6 +32,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Firefly notifications (M34, train **0.4.x**) | `modules/firefly-notifications` → `:kona-firefly-notifications` | `apps/docs` (Firefly → Notifications) | https://docs.konaframework.org/docs/firefly/notifications/ |
 | Firefly widgets (M34, train **0.4.x**) | `modules/firefly-widgets` → `:kona-firefly-widgets` | `apps/docs` (Firefly → Widgets) | https://docs.konaframework.org/docs/firefly/widgets/ |
 | Firefly panel (M35, train **0.4.x**) | `modules/firefly` → `:kona-firefly` | `apps/docs` (Firefly → Panel) | https://docs.konaframework.org/docs/firefly/panel/ |
+| Firefly tenancy and kit (M37, train **0.4.x**) | `modules/firefly` → `:kona-firefly` | `apps/docs` (Firefly → Tenancy and plugins) | https://docs.konaframework.org/docs/firefly/kit/ |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
@@ -46,7 +47,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
 | `origin/main` | `252c78a4` (PR #225, M35 panel). #224 is M34. #223 is the grind Kover fix |
 | On `main` | M28–M35. M36 resources are this branch and land when the PR merges |
-| Active milestone | **M36 — Firefly resources**, on `milestone/M36-firefly-resources`. Next after merge is **M37**, then M38. Release train **0.4.x** |
+| Active milestone | **M37 — Firefly tenancy, plugins, import/export, and kit**, on `milestone/M37-firefly-kit`. Next after merge is **M38**. Release train **0.4.x** |
 | Queued | **M37–M38** not started. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Do not implement the Mongo addon. Do not run M36–M38 in parallel |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
