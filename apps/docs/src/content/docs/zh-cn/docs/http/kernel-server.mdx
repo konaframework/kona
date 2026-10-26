@@ -1,0 +1,339 @@
+---
+title: 内核与服务器
+description: HttpKernel 如何把 Request 变成 Response，以及 KonaHttpServer 如何用 Netty 和虚拟线程服务它。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+两个类坐在网络和你的路由处理函数之间：
+
+- **`HttpKernel`** 是请求管线。它接受一个 `Request`，运行全局中间件，向路由器请求一条路由，运行该路由的中间件和动作，把失败转换成错误响应，并返回 `Response`。它不了解套接字，因此你可以在测试里直接调用它。
+- **`KonaHttpServer`** 是 **Netty** 之上的薄网络适配器。它在主机和端口上监听，把每一次 HTTP 交换变成 `Request`，调用 `kernel.handle(request)`，并把 `Response` 写回去。Netty 拥有套接字（Linux 上可用时是 epoll，否则是 NIO）；每个请求在自己的**虚拟线程**上运行。绑定成功时它通过 `ConsoleIO`（以及 `Log.info`）打印监听横幅。
+
+本页按请求经历它们的顺序走查两者。
+
+## 内核从哪里来
+
+`HttpServiceProvider`（在 `kona-http` 里）在应用容器里登记两个**单例** — 创建一次、被所有请求者共享的对象：
+
+- 一个 `Router`，以及
+- 从该路由器构建的 `HttpKernel`，带一个调试模式跟随 `app.debug` 配置值（从 `.env` 里的 `APP_DEBUG` 播种）的 `DefaultExceptionHandler`。启动时，请求日志启用时（`APP_DEBUG` / `LOG_REQUESTS`），提供者还前置 `LogRequests` — 见[日志](../logging/#request-access-lines-local-serve)。
+
+应用启动之后，从容器解析它们：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .boot()
+
+val router = app.resolve(Router::class.java)
+val kernel = app.resolve(HttpKernel::class.java)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .boot();
+
+Router router = app.resolve(Router.class);
+HttpKernel kernel = app.resolve(HttpKernel.class);
+```
+
+</TabItem>
+</Tabs>
+
+你也可以自己构造内核。路由器之后的所有参数都是可选的：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val kernel = HttpKernel(
+    router,
+    globalMiddleware = listOf(RequestIdMiddleware()),
+    exceptionHandler = DefaultExceptionHandler(debug = false),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+HttpKernel kernel = new HttpKernel(router);
+HttpKernel withMiddleware = new HttpKernel(router, List.of(new RequestIdMiddleware()));
+HttpKernel custom = new HttpKernel(router, List.of(), new DefaultExceptionHandler(false));
+```
+
+</TabItem>
+</Tabs>
+
+## 管线，逐步
+
+`kernel.handle(request)` 对每个请求执行这些步骤：
+
+1. **快照全局中间件。** 内核读取一次当前的全局中间件列表。请求在途时的修改只影响后来的请求。
+2. **运行全局中间件，最外层先。** 列表里的第一个中间件包装所有其他中间件。每一个可以检查请求，调用 `next` 继续，并在返回路上检查或替换响应。见[中间件](../middleware/)。
+3. **解析路由。** 在全局链的中心，内核调用 `router.resolve(method, path)`：
+   - 方法和路径匹配的第一条已登记路由获胜。
+   - `HEAD` 回退到匹配的 `GET` 路由。
+   - 如果路径只存在于其他方法下，`OPTIONS` 被自动回答（状态 `200`、空正文，以及 `Allow` 头，例如 `GET,HEAD,POST`）。
+   - 否则路由器抛出 `MethodNotAllowedException`（**405**，带 `Allow` 头）或 `NotFoundException`（**404**）。
+4. **暴露路由参数。** 从路径捕获的每个 `{name}` 被写入请求属性两次：作为 `name` 和作为 `route.name`。
+5. **运行路由中间件，然后是动作。** 分组中间件先运行，然后是附在路由本身上的中间件，然后是路由的处理函数。
+6. **转换路由内部的失败。** 步骤 3–5 里抛出的任何东西（404、405、验证错误、你自己的异常）被传给内核的 `ExceptionHandler`，它返回普通的 `Response`。该响应然后**向外穿过全局中间件**，因此日志或加头的中间件看到 404、405、422 和 500，就像成功响应一样。
+7. **转换全局中间件里的失败。** 如果全局中间件本身抛出，内核在最外层捕获它，并向同一个异常处理程序请求响应。这种情况下没有全局中间件观察结果，因为链已经展开。
+8. **为 `HEAD` 去掉正文。** 如果请求方法是 `HEAD`，内核把响应正文设为 `""`，同时保留状态和头。这也适用于错误响应。
+
+```text
+Request
+  └─ global middleware 1 ─┐
+       └─ global middleware 2 ─┐
+            └─ router.resolve ── route middleware ── action
+            ◄─ (exceptions here become responses via ExceptionHandler)
+       ◄─ global middleware 2 sees the response
+  ◄─ global middleware 1 sees the response
+Response  (body cleared for HEAD)
+```
+
+因为整个管线是普通方法调用，你可以在没有网络的情况下行使它：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val response = kernel.handle(Request.get("/api/health"))
+check(response.status == 200)
+
+val head = kernel.handle(Request("HEAD", "/api/health"))
+check(head.body.isEmpty())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Response response = kernel.handle(Request.get("/api/health"));
+assert response.getStatus() == 200;
+
+Response head = kernel.handle(new Request("HEAD", "/api/health"));
+assert head.getBody().isEmpty();
+```
+
+</TabItem>
+</Tabs>
+
+## 引导中间件（`HttpMiddleware`）
+
+生成的应用通过 `.afterBoot` 从 `bootstrap/Middleware` 配置中间件：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+HttpMiddleware()
+    .alias("mark") { RequestIdMiddleware() }
+    .web(prepend = listOf("mark"))
+    // .trustProxies(at = listOf("*"))
+    // .trustHosts(at = listOf("example.com", "*.example.com"))
+    .apply(app)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new HttpMiddleware()
+    .alias("mark", RequestIdMiddleware::new)
+    .web(List.of("mark"), List.of())
+    // .trustProxies(List.of("*"))
+    // .trustHosts(List.of("example.com", "*.example.com"))
+    .apply(app);
+```
+
+</TabItem>
+</Tabs>
+
+- **`trustProxies`** — 当直接对等方受信任（或 `*`）时，把 `X-Forwarded-*` / `X-Real-IP` 复制到请求属性（`kona.clientIp`、`kona.scheme`、`kona.host`、`kona.port`）。
+- **`trustHosts`** — 拒绝 `Host` 头不在允许列表里的请求（精确或 `*.example.com`）。
+- **`web` / `api`** — 从别名解析的具名栈；`apply` 把信任中间件和 `web` 栈推到内核上。分组 API 路由时使用 `apiStack()`。
+
+## 管理全局中间件
+
+全局中间件是对**每一个**请求运行的中间件，无论是否匹配。内核为它暴露一个小 API：
+
+| 方法 | 效果 |
+|------|------|
+| `pushMiddleware(mw)` | 追加到末尾（最内层位置）。如果 `mw` 已在列表里则忽略。 |
+| `prependMiddleware(mw)` | 插入到前面（最外层位置）。已存在则忽略。 |
+| `setGlobalMiddleware(list)` | 替换整个列表。 |
+| `hasMiddleware(mw)` | `mw` 在列表里时为 `true`。 |
+| `globalMiddleware` | 当前列表（Java：`getGlobalMiddleware()`）。 |
+
+它们都返回内核，因此调用可以链式。配置共享内核的通常位置是服务提供者的 `boot` 方法，它在 `HttpServiceProvider` 登记内核之后运行：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {}
+
+    override fun boot(app: Application) {
+        app.resolve(HttpKernel::class.java)
+            .prependMiddleware(RequestIdMiddleware())
+            .pushMiddleware(AccessLogMiddleware())
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {}
+
+    @Override
+    public void boot(Application app) {
+        app.resolve(HttpKernel.class)
+            .prependMiddleware(new RequestIdMiddleware())
+            .pushMiddleware(new AccessLogMiddleware());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 替换异常处理程序
+
+`HttpServiceProvider` 总是用 `DefaultExceptionHandler` 构建它的内核。要使用你自己的 `ExceptionHandler`，在登记于 `HttpServiceProvider` **之后**的提供者里重新绑定 `HttpKernel`（后来的绑定替换较早的）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun register(app: Application) {
+    app.container.singleton(HttpKernel::class.java) { c ->
+        HttpKernel(c.resolve(Router::class.java), exceptionHandler = HtmlErrorHandler())
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override
+public void register(Application app) {
+    app.getContainer().singleton(HttpKernel.class, c ->
+        new HttpKernel(c.resolve(Router.class), List.of(), new HtmlErrorHandler()));
+}
+```
+
+</TabItem>
+</Tabs>
+
+[异常](../exceptions/)描述默认处理程序的 JSON 格式以及如何编写你自己的。
+
+## `KonaHttpServer`
+
+`KonaHttpServer` 构建在 **Netty** 上（`netty-codec-http`，JVM 能加载时 Linux 上有原生 epoll）。用内核、主机和端口创建它 — 对应用和 `./grind serve`，公开 API 不变：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val server = KonaHttpServer(kernel, host = "127.0.0.1", port = 4000)
+server.start()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KonaHttpServer server = new KonaHttpServer(kernel, "127.0.0.1", 4000);
+server.start();
+```
+
+</TabItem>
+</Tabs>
+
+在 Kotlin 里，`host` 默认 `127.0.0.1`，`port` 默认 `4000`。Java 调用者传入全部三个参数。
+
+| 方法 | 行为 |
+|------|------|
+| `start()` | 绑定套接字，开始接受请求，并记录 `Kona server listening on http://host:port`。立即返回；服务器保持 JVM 存活。运行中再次调用什么都不做。如果端口被占用，它抛出绑定失败（例如 `java.net.BindException`）。 |
+| `stop(delaySeconds)` | 可选地睡眠 `delaySeconds`，然后关闭监听通道并关闭 Netty 事件循环和虚拟线程执行器。Kotlin 可以省略参数（默认 `0`）；Java 传入它，例如 `stop(0)`。 |
+| `isRunning()` | 在 `start()` 和 `stop()` 之间为 `true`。 |
+| `port()` | 传给构造器的端口。 |
+| `kernel()` | 当前派发请求的内核。 |
+| `replaceKernel(next)` | 不停止 Netty 就交换内核。`./grind serve` 用它做软重载，这样保活连接在下一次请求时拾取新路由和编译后的类。 |
+
+### 每个请求发生什么
+
+对每一次进入的交换，服务器：
+
+1. 读取方法，规范化路径（折叠重复的 `/`，丢掉末尾的 `/`），并解析查询字符串（百分号解码）。
+2. 复制头，保留任何重复头的第一个值。
+3. 把整个正文读进内存作为原始字节（`Request.bodyBytes`）。
+4. 在**虚拟线程**上派发 `kernel.handle(request)`。内核把每一个异常转换成响应，因此失败的处理函数仍然产生格式良好的回复。
+5. 写入每一个响应头（包括重复的 `Set-Cookie`），然后是带精确 `Content-Length` 的正文。对 `204` 响应和 `HEAD` 请求，不写正文字节。客户端要求时遵守保活。
+
+HTTP 保活和池化缓冲默认启用。你可以用系统属性 `kona.http.transport`（`auto`、`epoll` 或 `nio`）强制传输。
+
+### 适配器说明
+
+- `/foo//bar` 这样的路径被规范化并正常处理。
+- 状态码在存在时使用 Kona 的原因短语表（包括 **422 Unprocessable Entity**）。
+- 路由参数作为 `request.route("id")` 可用（也作为请求属性）。
+
+## 虚拟线程
+
+**虚拟线程**是由 JVM（JDK 21 及以后）而不是操作系统管理的轻量线程。创建一个很便宜，当它在 I/O 上阻塞时 — 数据库查询、出站 HTTP 调用、文件读取 — JVM 停放它并复用底层操作系统线程做其他工作。
+
+`KonaHttpServer` 在**新的虚拟线程**上运行每个请求（`Executors.newVirtualThreadPerTaskExecutor()`）。对你来说，这意味着：
+
+- **写普通的阻塞代码。** 在处理函数里直接调用 JDBC、读文件，或等待 HTTP 客户端。没有回调或异步 API 要学，慢请求不会拖住其他请求。
+- **一个请求，一个线程。** 请求发生的一切 — 全局中间件、路由中间件、你的动作 — 从头到尾在同一线程上运行。请求开始时设置的线程局部值直到结束都可见。
+- **共享对象必须线程安全。** 路由器、内核和你的单例被许多请求同时使用。在 `start()` 之前的启动期间登记路由和中间件，之后避免改变它们。把每次请求的状态留在 `Request`（属性）或局部变量上。
+- **不要池化虚拟线程。** 它们按任务创建；用信号量或连接池限制稀缺资源的并发。
+
+## `HOST` 与 `PORT`
+
+`kona new` 创建的应用在 `bootstrap.App` 的 `main` 函数（`src/main/…/bootstrap/App`）里启动服务器，从环境读取绑定地址：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val host = Env.getOrDefault("HOST", "127.0.0.1")
+val port = Env.getOrDefault("PORT", "4000").toInt()
+KonaHttpServer(app.resolve(HttpKernel::class.java), host, port).start()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String host = Env.getOrDefault("HOST", "127.0.0.1");
+int port = Integer.parseInt(Env.getOrDefault("PORT", "4000"));
+new KonaHttpServer(app.resolve(HttpKernel.class), host, port).start();
+```
+
+</TabItem>
+</Tabs>
+
+`Env` 先检查**进程环境**，然后是应用基路径里的 `.env` 文件，然后是默认。生成的 `.env` 包含 `HOST=127.0.0.1` 和 `PORT=4000`。
+
+- `127.0.0.1` 只接受来自同一机器的连接，这是开发的安全默认。
+- 设置 `HOST=0.0.0.0` 以接受每一个网络接口上的连接，例如在容器内部。
+- `grind serve --host=… --port=…` 为应用进程设置 `HOST` 和 `PORT`，覆盖该次运行的 `.env`。见 [grind 命令](../../grind/commands/#grind-serve)。
+- 生产绑定地址、反向代理和进程监管见[部署](../../guides/deployment/)。许多实例和池大小见[扩展](../../guides/scaling/)。
