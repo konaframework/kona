@@ -1,0 +1,63 @@
+---
+title: VS Code et Cursor
+description: Installez l’ébauche d’extension Crema et connectez kona-lsp.
+---
+
+L’extension **Crema (Kona)** sous `ide-support/vscode-crema/` apporte l’id de langage Crema, la grammaire TextMate et les clés de réglage pour le jar du serveur de langage.
+
+## Installer pour le développement local
+
+```bash
+# VS Code
+code --install-extension ide-support/vscode-crema
+
+# Cursor
+cursor --install-extension ide-support/vscode-crema
+```
+
+Rechargez la fenêtre (`Developer: Reload Window`), puis ouvrez n’importe quel fichier `*.crema.html` — la coloration doit s’activer sans autre réglage. La grammaire colore aussi les attributs Wire `wire:*` connus (`wire:model`, `wire:click`, …).
+
+Le balisage Wire inline en Java et en Kotlin est coloré aussi : blocs de texte `template()`, arguments de chaîne `inline(`, et chaînes précédées de `// language=Crema` ou `/* language=Crema */`. C’est le chemin que vous utilisez pour éditer `samples/wire-java/.../Counter.java` (et l’équivalent Kotlin) sans fichier `.crema.html` séparé.
+
+Avec **kona-lsp** attaché aux documents **`crema`**, **`java`** et **`kotlin`**, les complétions et les diagnostics couvrent les directives Crema `@`, les attributs Wire `wire:*` et (dans `{{ }}`) les membres publics de la classe de composant englobante. Les apps Inertia qui utilisent des layouts Crema profitent du même chemin Crema/LSP ; la complétion des composants de page reste aujourd’hui sur le plugin IntelliJ.
+
+Palette de commandes : **Crema: Show kona-lsp setup help** imprime les lignes de build/run dans un canal de sortie.
+
+## Réglages
+
+| Réglage | Défaut | Rôle |
+|---------|---------|---------|
+| `crema.lsp.enabled` | `true` | Réservé aux clients qui démarrent le serveur tout seuls |
+| `crema.lsp.javaPath` | `java` | Lanceur JDK |
+| `crema.lsp.jarPath` | `""` | Chemin absolu vers le jar kona-lsp |
+
+Exemple `settings.json` :
+
+```json
+{
+  "crema.lsp.javaPath": "java",
+  "crema.lsp.jarPath": "/home/you/kona/modules/lsp/build/libs/kona-lsp-0.1.1.jar"
+}
+```
+
+Construisez d’abord le jar : `./gradlew :kona-lsp:jar`.
+
+## Brancher un client LSP complet
+
+L’extension ébauche enregistre le support de langage et l’aide ; pour la complétion et les diagnostics en direct, configurez un client LSP (par exemple `vscode-languageclient`) avec :
+
+```text
+java -jar /absolute/path/to/kona-lsp.jar
+```
+
+Transport stdio. Langages du sélecteur de documents : `crema`, `java`, `kotlin`. Voir [Serveur de langage](/docs/language/lsp) pour la surface du protocole.
+
+Pointez le client vers les buffers Java et Kotlin autant que vers `*.crema.html`. kona-lsp ignore le code Java/Kotlin ordinaire : il ne scanne que les plages Crema inline, donc `@Override` dans un fichier Java n’est pas traité comme une directive Crema.
+
+## Synchroniser la grammaire après des éditions
+
+```bash
+cd ide-support/vscode-crema && node scripts/sync-grammar.js
+```
+
+Les sources canoniques de la grammaire restent dans `ide-support/crema/`.
