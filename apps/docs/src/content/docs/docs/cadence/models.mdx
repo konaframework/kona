@@ -111,11 +111,32 @@ User newest = User.QUERY.query().latest().first();
 
 ### Attributes
 
-Read attributes with `getAttribute("name")`, the Kotlin index operator `user["name"]`, or the typed `user.attribute<String>("name")`. Set them with `setAttribute` or `user["name"] = "Ada"`. Reads apply casts; `getRawAttribute` returns the stored value untouched.
+Read attributes with `getAttribute("name")`, the Kotlin index operator `user["name"]`, the typed `user.attribute<String>("name")`, or a [column property](#column-properties). Set them with `setAttribute` or `user["name"] = "Ada"`. Reads apply casts; `getRawAttribute` returns the stored value untouched.
 
 Cadence also resolves Laravel-style magic methods: `getFullNameAttribute()` for reads and `setFullNameAttribute(value)` for writes (use `setRawAttribute` inside mutators). `push()` saves the model and recursively saves loaded related models. `Cadence.unguard()` / `reguard()` / `runUnguarded { … }` and `Cadence.runWithoutTimestamps { … }` mirror Eloquent mass-assignment and timestamp controls. `sole()` returns exactly one model or throws `ModelNotFoundException` / `MultipleRecordsFoundException`.
 
 A model remembers the values it was loaded with. `isDirty()` / `getDirty()` report attributes changed since then, `getOriginal()` returns the loaded values, and `toMap()` renders cast attributes plus loaded relations, ready for `Response.json(...)`.
+
+### Column properties
+
+Declare a column as a Kotlin property when you want the compiler to know its name and type. `column()` (alias `attr()`) reads and writes through the attribute map. The property name is the column name unless you pass a different key.
+
+```kotlin
+class User : Cadence<User>() {
+    var name: String? by column()
+    var email: String? by column("email_address")
+
+    companion object : CadenceCompanion<User>(User::class.java)
+}
+
+val user: User? = User.first()
+if (user != null) {
+    user.name = "Ada"
+    user.email
+}
+```
+
+`User.first()` is nullable. After `if (user != null)`, Kotlin smart-casts `user`, so `user.name` and `user.email` need no `?.`. Java calls the generated `getName` / `setName` and `getEmail` / `setEmail`.
 
 ## Writing rows
 
