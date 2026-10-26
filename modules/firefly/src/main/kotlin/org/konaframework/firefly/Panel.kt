@@ -48,6 +48,8 @@ open class Panel {
     private var authenticatePages: Boolean = true
     private var spaMode: Boolean = false
     private var directory: Path? = null
+    private val tenantList = ArrayList<Tenant>()
+    private val plugins = ArrayList<FireflyPlugin>()
     private var mounted: Boolean = false
     private var resolvedPrefix: String = "admin"
     private var resolvedId: String = "admin"
@@ -155,6 +157,17 @@ open class Panel {
 
     fun discover(panelDirectory: Path): Panel = apply { directory = panelDirectory }
 
+    fun tenant(tenant: Tenant): Panel = apply { tenantList.add(tenant) }
+
+    fun plugin(plugin: FireflyPlugin): Panel = apply {
+        val ready = FireflyPlugin.finish(plugin)
+        if (plugins.any { it.id() == ready.id() }) {
+            throw FireflyException("Plugin [${ready.id()}] is already registered")
+        }
+        ready.register(this)
+        plugins.add(ready)
+    }
+
     fun mount(router: Router): Panel = mount(router, emptyMap())
 
     fun mount(router: Router, state: Map<String, Any?>): Panel {
@@ -164,6 +177,7 @@ open class Panel {
         resolvedPrefix = normalizePrefix(resolvePath(get))
         resolveBrand(get)
         resolveDomain(get)
+        for (plugin in plugins) plugin.boot(this)
         val discovered = loadDiscovered()
         adopt(discovered)
         val planned = ArrayList<Planned>()
@@ -196,7 +210,7 @@ open class Panel {
         val chrome = Chrome().theme(theme).layout(layout)
         for (hook in hooks) chrome.hook(hook.first, hook.second)
         chrome.hook(Hook.TOPBAR_START, topHtml(type, request.path, brand, get))
-        chrome.hook(Hook.TOPBAR_END, userHtml(request.path, get))
+        chrome.hook(Hook.TOPBAR_END, tenantHtml(request) + userHtml(request.path, get))
         chrome.hook(Hook.SIDEBAR_START, sideHtml(type, request.path, get))
         chrome.hook(Hook.BODY_START, body)
         return chrome.render()
@@ -296,7 +310,10 @@ open class Panel {
         if (authenticatePages && !panelGuard.check()) {
             return Response.redirect(uri("login"))
         }
-        return Response.html(draw(request, emptyMap(), page.render()))
+        val tenant = tenantId(request)
+        return FireflyTenant.use(tenant) {
+            Response.html(draw(request, emptyMap(), page.render()))
+        }
     }
 
     private fun loginGet(request: Request): Response {
@@ -429,6 +446,26 @@ open class Panel {
         val chosen = if (active == null) items.firstOrNull() else active
         if (chosen == null) return emptyList()
         return chosen.children
+    }
+
+    private fun tenantId(request: Request): String? {
+        if (tenantList.isEmpty()) return null
+        val raw = request.query["tenant"]
+        if (raw == null || raw.isBlank()) return null
+        if (tenantList.none { it.id == raw }) throw FireflyException("Unknown tenant [$raw]")
+        return raw
+    }
+
+    private fun tenantHtml(request: Request): String {
+        if (tenantList.isEmpty()) return ""
+        val current = request.query["tenant"]
+        val links = StringBuilder()
+        for (tenant in tenantList) {
+            val active = if (tenant.id == current) " ff-active" else ""
+            val href = request.path + "?tenant=" + tenant.id
+            links.append("""<a class="ff-tenant$active" href="${escapeHtml(href)}">${escapeHtml(tenant.label())}</a>""")
+        }
+        return """<nav class="ff-tenants">$links</nav>"""
     }
 
     private fun userHtml(path: String, get: Get): String {

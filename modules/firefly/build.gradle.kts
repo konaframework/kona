@@ -21,6 +21,7 @@ dependencies {
     api(project(":kona-firefly-tables"))
     api(project(":kona-firefly-forms"))
     api(project(":kona-firefly-widgets"))
+    api(project(":kona-queue"))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.h2)
     testRuntimeOnly(libs.junit.platform.launcher)

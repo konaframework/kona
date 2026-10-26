@@ -1296,9 +1296,18 @@ The document addon. Tenancy, plugins, import/export, and the kit (M37).
 
 ## M37 — Firefly tenancy, plugins, import/export, and kit
 
-**Status:** queued (not started).
+**Status:** done (branch `milestone/M37-firefly-kit`; on `main` when this PR merges).
 
-Not on `main`. Includes `Firefly.test` and `kona new --kit=firefly`.
+Artifact: `kona-firefly`, plus `kona new --kit=firefly` in `kona-cli`. M36 is on `main`.
+
+### Parity checklist
+
+- [x] Tenant menu and `Resource.tenant(column)` scope a Cadence `ModelBuilder` while the page renders
+- [x] `FireflyPlugin.register` and `boot` use the panel, hook, and `configureUsing` APIs. `view` stores a view path. No plugin registry
+- [x] Import and export jobs implement `ShouldQueue` and run through a queue `Bus` or inline
+- [x] `Firefly.test` asserts page text, a form field, a table, and a dialog, including a custom field subclass
+- [x] `kona new --kit=firefly` for Kotlin and Java
+- [x] 100% line + branch coverage on the modules this milestone touches
 
 ---
 
