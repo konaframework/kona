@@ -1,0 +1,192 @@
+---
+title: 安装
+description: 用一条命令加入 Wire — ./grind install wire（或 kona grind install wire）— 或用 wire 套件搭建。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire 应该像一行命令。优先使用 **`./grind install`**（或 **`kona grind install`**），或 wire 起步套件。手动改 Gradle 是可选的，列在末尾。
+
+## 已经有 Kona 应用？
+
+从应用根（`build.gradle.kts` / `build.gradle` 所在处）：
+
+```bash
+./grind install wire
+# from anywhere under the app:
+kona grind install wire
+```
+
+该命令：
+
+1. 把 `org.konaframework:kona-wire` 加到 Gradle 依赖。
+2. 在 `src/main/resources/META-INF/kona/providers` 里登记 `WireServiceProvider`，这样 grind/`PackageDiscovery` 在启动时加载它。
+
+然后刷新 Gradle 并重新构建：
+
+```bash
+./gradlew build
+# or just restart ./grind serve
+```
+
+需要时固定版本：
+
+```bash
+./grind install wire --version=0.1.1
+# or: kona grind install wire --version=0.1.1
+```
+
+完整的包安装文档在 Kona 上：[安装包](/docs/packages/install/)。
+
+## 从零开始
+
+搭建一个已经包含 Wire、Crema、会话和 CSRF 的应用：
+
+```bash
+kona new my-app --kit=wire
+# Java sample path:
+kona new my-app --kit=wire --lang=java
+cd my-app
+./grind serve
+```
+
+## 安装之后 — 快速检查
+
+1. 创建组件：`./grind make:wire counter`
+2. 在 Crema 页面里嵌入 `<wire:counter />`。
+3. 打开页面并点击 — 计数应在不整页刷新的情况下更新。
+4. 在 DevTools 里确认存在 `window.Wire` 和 `window.Alpine`。
+
+Wire 默认把脚本/样式注入 HTML 响应（`wire.inject_assets`）。对你自己控制的布局，加上 `@wireStyles` / `@wireScripts` — 见[布局里的资源](#assets-in-layouts)。
+
+现有应用需要 web 中间件栈上的**会话 + CSRF**（wire 套件会替你接上）。更新请求携带 `_token`。
+
+## grind 命令
+
+Wire 的提供者登记之后，应用本地的 grind 会发现 Wire 命令：
+
+```bash
+./grind make:wire counter
+./grind make:wire todos --class
+./grind make:wire counter --lang=java --test
+./grind wire:publish
+./grind wire:stubs
+./grind wire:layout
+```
+
+细节：[grind 命令](/docs/wire/dx/grind/)。
+
+## 布局里的资源
+
+当你自己管理布局时：
+
+```crema
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@yield('title', 'App')</title>
+    @wireStyles
+</head>
+<body>
+    @yield('content')
+    @wireScripts
+</body>
+</html>
+```
+
+`@wireScripts` 发出带 CSRF 感知的标签，它加载 Alpine 加 Wire，并在 `DOMContentLoaded` 时调用 `Wire.start()`。
+
+## 配置键
+
+| 键 | 默认 | 作用 |
+|----|------|------|
+| `app.key` | — | 快照校验和的 HMAC 密钥 |
+| `wire.class_namespace` | `app.wire` | `<wire:name />` 解析的包根（`brew.class_namespace` 仍然可用） |
+| `wire.path` | `/wire` | 更新和脚本路由的基路径（`brew.path` 仍然可用） |
+| `wire.view_prefix` | `wire` | 约定视图前缀（`views/wire/<name>.crema.html`） |
+| `wire.inject_assets` | `true` | 自动把样式/脚本注入 HTML 响应 |
+| `wire.inject_morph_markers` | `true` | 为带键变形包裹循环/条件 |
+| `wire.csrf` | `true` | 存在会话时，更新要求 CSRF 令牌 |
+
+## 再深入 — 手动 Gradle（可选）
+
+只有在你不用 `./grind install` / 套件时才需要：
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.konaframework:kona-http:0.1.1")
+    implementation("org.konaframework:kona-session:0.1.1")
+    implementation("org.konaframework:kona-crema:0.1.1")
+    implementation("org.konaframework:kona-wire:0.1.1")
+}
+```
+
+然后自己登记提供者（或把 `WireServiceProvider` 写进 `META-INF/kona/providers`）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Kona.create(args)
+    .configure {
+        it.set("app.key", Env.getOrDefault("APP_KEY", "change-me"))
+        it.set("session.driver", "cookie")
+    }
+    .providers(
+        HttpServiceProvider(),
+        SessionServiceProvider(),
+        CremaServiceProvider(),
+        WireServiceProvider(),
+    )
+    .afterBoot { app ->
+        HttpMiddleware()
+            .alias("start.session") { StartSession(app.resolve(SessionManager::class.java)) }
+            .alias("csrf") { VerifyCsrfToken() }
+            .web(listOf("start.session", "csrf"))
+            .apply(app)
+    }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Kona.create(args)
+    .configure(c -> {
+        c.set("app.key", Env.getOrDefault("APP_KEY", "change-me"));
+        c.set("session.driver", "cookie");
+    })
+    .providers(
+        new HttpServiceProvider(),
+        new SessionServiceProvider(),
+        new CremaServiceProvider(),
+        new WireServiceProvider()
+    )
+    .afterBoot(app -> {
+        new HttpMiddleware()
+            .alias("start.session", () -> new StartSession(app.resolve(SessionManager.class)))
+            .alias("csrf", VerifyCsrfToken::new)
+            .web(List.of("start.session", "csrf"))
+            .apply(app);
+    })
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+`WireServiceProvider` 绑定 `WireManager`，默认在 `app.wire` 下发现组件，并登记 `POST /wire/update` 以及 `/wire/wire.js` 脚本路由。
+
+构件默认从 **Maven Central** 解析（`org.konaframework:kona-wire:0.1.1` 及配套构件）。
+
+## 下一步
+
+- [第一个组件](/docs/wire/guides/first-component/) — 完整的 Kotlin 加 Java 教程
+- [Kona — 安装包](/docs/packages/install/) — `./grind install` 目录和标志
+- [Kona 安装](/docs/guides/installation/) — 基础框架设置

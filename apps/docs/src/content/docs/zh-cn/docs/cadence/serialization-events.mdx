@@ -1,0 +1,180 @@
+---
+title: 序列化、集合与事件
+description: 把模型转成数组和 JSON，使用 CadenceCollection，并监听生命周期事件。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## 序列化
+
+模型把自己变成映射和 JSON，供 API 和视图使用。
+
+| API | 作用 |
+|-----|------|
+| `toArray()` / `toMap()` | 把转换后的属性加上已加载的关联变成嵌套映射 |
+| `toJson()` | `toMap()` 的 JSON 字符串 |
+| `hidden` | 从序列化中省略的属性名 |
+| `visible` | 非空时只包含这些属性（再减去 `hidden` 的覆盖） |
+| `appends` | 由 `getAppendedAttribute` 填充的虚拟键 |
+| `makeHidden` / `makeVisible` / `setAppends` | 每个实例的覆盖 |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class User : Cadence<User>() {
+    override val hidden = setOf("password")
+    override val appends = setOf("display_name")
+
+    override fun getAppendedAttribute(key: String): Any? =
+        if (key == "display_name") getAttribute("name") else null
+}
+
+val payload = user.toMap()
+Response.json(user.toMap())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class User extends Cadence<User> {
+    @Override
+    public Set<String> getHidden() {
+        return Set.of("password");
+    }
+
+    @Override
+    public Set<String> getAppends() {
+        return Set.of("display_name");
+    }
+
+    @Override
+    public Object getAppendedAttribute(String key) {
+        return "display_name".equals(key) ? getAttribute("name") : null;
+    }
+}
+
+Map<String, Object> payload = user.toMap();
+Response.json(user.toMap());
+```
+
+</TabItem>
+</Tabs>
+
+已加载的关联出现在它们的关联名下。软删除时间戳和其他转换列在映射里使用它们的转换 Java 类型（例如 `created_at` / `updated_at` 是 `Instant`，`datetime` 转换是 `LocalDateTime`）。你可以把 [`KonaDate`](../../support/#dates) 赋给这些列；Cadence 存储底层的 `Instant`。
+
+`toJson()`（以及 `Response.json(model.toArray())`）把这些值写成 ISO-8601 字符串，因此 `GET /api/users` 不会倾倒原始的 Java Time 对象：
+
+```json
+{"id":1,"name":"Ada","created_at":"2024-06-15T12:00:00Z","updated_at":"2024-06-15T12:00:00Z"}
+```
+
+## 集合
+
+`get()` 返回 `List`。想要 Cadence 辅助方法时优先用 `getCollection()`：
+
+```kotlin
+val users = User.query().where("admin", true).getCollection()
+users.pluck("email")
+users.modelKeys()
+users.find(1)
+users.load("posts")
+users.loadMissing("roles")
+users.filter { it["admin"] == true }
+users.toArray()
+users.toMapKeyedById()
+```
+
+`CadenceCollection.of(list)` / `CadenceCollection.make(…)` 包装已有列表。加载关联的变更会更新你已经持有的同一批模型实例。
+
+## 生命周期事件
+
+`ModelDispatcher` 是进程级的持久化钩子注册表。事件：
+
+| 事件 | 何时 |
+|------|------|
+| `RETRIEVED` | 模型从一行水合之后 |
+| `CREATING` / `CREATED` | 插入之前 / 之后 |
+| `UPDATING` / `UPDATED` | 更新之前 / 之后 |
+| `SAVING` / `SAVED` | 每一次 `save` 周围（包括干净的空操作更新） |
+| `DELETING` / `DELETED` | `delete` 周围 |
+| `TRASHED` | 软删除完成 |
+| `RESTORING` / `RESTORED` | 软删除恢复 |
+| `FORCE_DELETING` / `FORCE_DELETED` | 软删除模型上的永久删除 |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ModelDispatcher.listen(ModelEvent.CREATED) { model ->
+    logger.info("created {}#{}", model.javaClass.simpleName, model.getKey())
+}
+
+ModelDispatcher.withoutEvents {
+    user.save()   // no listeners run
+}
+
+user.saveQuietly()
+user.deleteQuietly()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ModelDispatcher.listen(ModelEvent.CREATED, model -> {
+    logger.info("created {}#{}", model.getClass().getSimpleName(), model.getKey());
+});
+
+ModelDispatcher.withoutEvents(() -> user.save());
+user.saveQuietly();
+user.deleteQuietly();
+```
+
+</TabItem>
+</Tabs>
+
+在测试里调用 `ModelDispatcher.flush()` 以在用例之间清除监听器。嵌套的 `withoutEvents` 块可以安全嵌套（一个深度计数器）。
+
+### 观察者类
+
+对限定于模型的钩子，扩展 `ModelObserver` 并登记一次：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class UserObserver : ModelObserver<User>() {
+    override fun creating(model: User) {
+        model["email"] = model["email"].toString().lowercase()
+    }
+
+    override fun deleted(model: User) {
+        logger.info("removed user {}", model.getKey())
+    }
+}
+
+User.observe(UserObserver())
+// or Cadence.observe(User::class.java, UserObserver())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class UserObserver extends ModelObserver<User> {
+    @Override
+    public void creating(User model) {
+        model.set("email", String.valueOf(model.get("email")).toLowerCase());
+    }
+}
+
+Cadence.observe(User.class, new UserObserver());
+// or User.QUERY.observe(new UserObserver());
+```
+
+</TabItem>
+</Tabs>
+
+观察者只接收它们模型类型的实例。覆盖任意生命周期方法（`retrieved`、`creating`、`created`、`updating`、`updated`、`saving`、`saved`、`deleting`、`deleted`、`trashed`、`restoring`、`restored`、`forceDeleting`、`forceDeleted`）。底层它们登记在 `ModelDispatcher` 上，因此 `flush()` / `withoutEvents` / `saveQuietly` 以同样的方式生效。

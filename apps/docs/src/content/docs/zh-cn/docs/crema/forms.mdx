@@ -1,0 +1,212 @@
+---
+title: 表单
+description: Crema 模板里的 CSRF 令牌、方法伪装、校验错误和资源辅助方法。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Crema 带有一小套从表单数据映射读取值的表单辅助方法。在请求侧把它们与 [CSRF 中间件](/docs/security/csrf/) 和[校验](/docs/http/validation/)配合使用。
+
+## CSRF
+
+```crema
+<form method="post" action="/posts">
+  @csrf
+  <input name="title" value="{{ title }}">
+  <button type="submit">Save</button>
+</form>
+```
+
+`@csrf` 渲染一个隐藏的 `_token` 输入。把令牌作为 `_token` 或 `csrf_token` 放进数据映射（会话中间件通常会暴露它）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "posts.create",
+    mapOf(
+        "_token" to csrfToken,
+        "title" to "",
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "posts.create",
+    Map.of(
+        "_token", csrfToken,
+        "title", ""
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+输出形状：
+
+```html
+<input type="hidden" name="_token" value="…">
+```
+
+如果两个键都不存在，value 属性为空 — 在你传入真实令牌之前，表单会无法通过 CSRF 检查。
+
+## 方法伪装（`@method`）
+
+浏览器里的 HTML 表单只能以 `GET` 或 `POST` 提交。Crema 的 `@method` 指令发出一个隐藏字段，让模板可以*声明*预期的动词：
+
+```crema
+<form method="post" action="/posts/{{ post.id }}">
+  @csrf
+  @method('PUT')
+  …
+</form>
+```
+
+发出：
+
+```html
+<input type="hidden" name="_method" value="PUT">
+```
+
+常见值：`PUT`、`PATCH`、`DELETE`。
+
+:::caution[今天的运行时行为]
+HTTP 内核和路由器匹配的是传输层的**实际**请求方法（普通表单提交是 `POST`）。它们目前**不会**根据正文里的 `_method` 字段改写方法。带 `@method('PUT')` 提交的表单仍然作为 `POST` 到达，除非客户端发送真正的 `PUT`/`PATCH`/`DELETE`（例如通过 JavaScript `fetch`）。
+
+在 HTTP 栈发布方法覆盖之前，选择下面一种模式：
+
+1. **为表单动作登记一条 `POST` 路由**（例如 `router.post("/posts/{id}", …)` 或专用的 `/posts/{id}/update` 路径），并且只把 `@method` 当作模板里的说明 — 或者在覆盖存在之前省略 `@method`。
+2. **使用 JavaScript**（或 API 客户端）发出你的[路由](../../http/routing/)期望的真实 HTTP 动词。
+3. 在模板里保留 `@method`，以便与 Crema 的 HTML 辅助方法向前兼容，同时知道路由今天会忽略这个隐藏字段。
+:::
+
+## 字段错误
+
+```crema
+<label>
+  Email
+  <input name="email" value="{{ email }}">
+</label>
+@error('email')
+  <p class="error">{{ errors.email }}</p>
+@enderror
+```
+
+当视图数据包含 `errors` 映射，且该字段的值非空时，正文才会渲染：
+
+| `errors['email']` 的值 | `@error('email')` 正文 |
+|------------------------|------------------------|
+| 缺少 / `null` | 跳过 |
+| 空字符串或空集合 | 跳过 |
+| 非空字符串 / 集合 | 渲染 |
+| 任何其他非空值 | 渲染 |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "auth.login",
+    mapOf(
+        "_token" to token,
+        "email" to submittedEmail,
+        "errors" to mapOf("email" to "Required"),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "auth.login",
+    Map.of(
+        "_token", token,
+        "email", submittedEmail,
+        "errors", Map.of("email", "Required")
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+校验对每个字段返回多条消息时，传入列表并在循环里打印：
+
+```crema
+@error('email')
+  <ul>
+    @foreach(errors.email as message)
+      <li>{{ message }}</li>
+    @endforeach
+  </ul>
+@enderror
+```
+
+## 完整表单示例
+
+```crema
+@extends('layouts.app')
+@section('content')
+  <h1>Edit post</h1>
+  <form method="post" action="/posts/{{ post.id }}">
+    @csrf
+    @method('PUT')
+
+    <label>
+      Title
+      <input name="title" value="{{ post.title }}">
+    </label>
+    @error('title')
+      <p class="error">{{ errors.title }}</p>
+    @enderror
+
+    <label>
+      Body
+      <textarea name="body">{{ post.body }}</textarea>
+    </label>
+    @error('body')
+      <p class="error">{{ errors.body }}</p>
+    @enderror
+
+    <button type="submit">Update</button>
+  </form>
+@endsection
+```
+
+## 表单和布局里的资源 URL
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+默认解析为 `/css/app.css`，或者在设置了视图数据里的 `asset_url` / `assetUrl` 时加上前缀（CDN 基址）。见[渲染](/docs/crema/rendering/#asset)。
+
+## 语言字符串
+
+标签和消息经常使用 `@lang` — 见[渲染](/docs/crema/rendering/#lang)。
+
+## 陷阱与常见问题
+
+**为什么我的 `@method('PUT')` 表单返回 405？**
+请求仍然是 `POST`。登记一条 POST 路由或发送真正的 PUT — 见[方法伪装](#method-spoofing-method)。
+
+**为什么 CSRF 字段是空的？**
+在视图数据里传入 `_token` 或 `csrf_token`（会话中间件通常会提供）。
+
+**校验重定向之后如何显示旧输入？**
+再次渲染表单时使用会话里闪存的旧输入（`request.old("email")`）— [校验](../../http/validation/)。
+
+## 相关
+
+- [CSRF 防护](/docs/security/csrf/)
+- [校验](/docs/http/validation/)
+- [会话](/docs/security/session/)
+- [路由](/docs/http/routing/)
