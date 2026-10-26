@@ -261,6 +261,8 @@ Les deux comparent les valeurs par égalité ordinaire, donc les types comptent 
 </TabItem>
 </Tabs>
 
+<a id="the-error-response"></a>
+
 ## La réponse d’erreur
 
 `ValidationException` expose `errors` (Java : `getErrors()`), une map du nom de champ vers une liste de messages. Les champs apparaissent dans l’ordre d’itération de votre map de règles : ordre de déclaration pour un `mapOf` Kotlin ou un `LinkedHashMap` Java, non spécifié pour un `Map.of` Java. Son `message` les résume : le premier message, plus `(and N more error)` ou `(and N more errors)` quand il y en a d’autres.
