@@ -29,6 +29,23 @@ When the caret is inside `{{ … }}` of a Crema view, kona-lsp suggests every Cr
 
 `CremaEchoCatalog.completions(prefix)` / `CremaHelpers.completions(prefix)` expose the same names for tests and tooling.
 
+### Firefly catalog
+
+`firefly-catalog.json` is generated from the shipped `Panel`, `Resource`, `Page`, and `Widget` types. It is not a hand-written list. A test fails when a public type or method is missing.
+
+In a Kotlin or Java buffer, typing `Panel` offers the type. `Panel().path` and `new ChartWidget().engine` offer the methods on that type. Hover on the name returns the package and member. The same file ships in the Crema extension for Cursor and VS Code, and in the IntelliJ plugin.
+
+```kotlin
+val types = FireflyCatalog.types()
+val items = FireflyCatalog.completions("Panel().pa", "kotlin", 0, 10)
+val hover = FireflyCatalog.hover("Page", "java", 0, 0)
+```
+
+```java
+List<FireflyCatalog.TypeRecord> types = FireflyCatalog.types();
+FireflyCatalog.hover("Page", "java", 0, 0);
+```
+
 ## Run it
 
 ```bash

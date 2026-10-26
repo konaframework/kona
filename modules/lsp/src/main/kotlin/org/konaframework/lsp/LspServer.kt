@@ -94,6 +94,12 @@ class LspServer {
                 }
                 transport.writeResponse(id, completionResult(transport, params))
             }
+            "textDocument/hover" -> {
+                if (!hasRequestId(id)) {
+                    return
+                }
+                transport.writeResponse(id, hoverResult(transport, params))
+            }
             "textDocument/diagnostic" -> {
                 if (!hasRequestId(id)) {
                     return
@@ -205,6 +211,47 @@ class LspServer {
         )
     }
 
+    private fun hoverResult(transport: JsonRpcTransport, params: JsonNode?): ObjectNode? {
+        val uri: String
+        val line: Int
+        val character: Int
+        if (params == null) {
+            uri = ""
+            line = 0
+            character = 0
+        } else {
+            uri = textDocumentUri(params)
+            val position = params.get("position")
+            if (position == null) {
+                line = 0
+                character = 0
+            } else {
+                line = position.path("line").asInt(0)
+                character = position.path("character").asInt(0)
+            }
+        }
+        val stored = documents[uri]
+        val text: String
+        val languageId: String
+        if (stored == null) {
+            text = ""
+            languageId = ""
+        } else {
+            text = stored.text
+            languageId = stored.languageId
+        }
+        val value = FireflyCatalog.hover(text, languageId, line, character)
+        if (value == null) {
+            return null
+        }
+        val result = transport.objectNode()
+        val contents = transport.objectNode()
+        contents.put("kind", "plaintext")
+        contents.put("value", value)
+        result.set<ObjectNode>("contents", contents)
+        return result
+    }
+
     private fun hasRequestId(id: JsonNode?): Boolean {
         if (id == null) {
             return false
@@ -219,6 +266,7 @@ class LspServer {
         val result = transport.objectNode()
         val caps = transport.objectNode()
         caps.put("textDocumentSync", 1) // Full
+        caps.put("hoverProvider", true)
         caps.set<ObjectNode>(
             "completionProvider",
             transport.objectNode().apply {

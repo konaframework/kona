@@ -15,6 +15,7 @@ dependencies {
     implementation(libs.jackson.module.kotlin)
 
     testImplementation(libs.junit.jupiter)
+    testImplementation(project(":kona-firefly"))
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
