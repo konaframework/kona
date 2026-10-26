@@ -34,6 +34,23 @@ Out of M28 (do not implement on the M28 branch): schemas, fields, actions, forms
 
 M31 notes (do not implement in M29): `Select` defaults to a combobox, and `.native()` opts into `<select>`. Date and time pickers default to Firefly’s crafted picker, and `.native()` opts into the HTML date/time input.
 
+## M33 — tables (`kona-firefly-tables`)
+
+| ID | Surface | Firefly | Status |
+|----|---------|---------|--------|
+| TBL-1 | Columns | `TextColumn`, `IconColumn`, `ImageColumn`, `ColorColumn`, `CheckboxColumn`, `ToggleColumn`, `SelectColumn` | done |
+| TBL-2 | Filters | `Filter`, `SelectFilter`, `TernaryFilter`, `TrashedFilter` | done |
+| TBL-3 | Search, sort, pagination, empty state | `search`, `sort`, `page`, `perPage`, `empty` | done |
+| TBL-4 | Row selection state | `selectable`, `select`, `selected` | done |
+| TBL-5 | Summaries | `summarize` `COUNT`, `SUM`, `AVG`, `MIN`, `MAX` | done |
+| TBL-6 | Grouping, reorder, stack and grid, polling | `groups`, `reorderable`, `TableLayout`, `poll` | done |
+| TBL-7 | Static value or closure on chainable setters | `label`, `hidden`, `visible`, `default` / `defaultUsing`, and the same shape of setter | done |
+| TBL-8 | Native query hook | `modifyQueryUsing` receives `ModelBuilder` for a Cadence model (`whereHas`, `join`, `with`, `scope`) and `MemoryQuery` for an in-memory list | done |
+| TBL-9 | Row and header buttons | `TableButton` renders through `Dialog` and a schema. `label` accepts a string or a closure | done |
+| TBL-10 | Alpine column factory | `ffColumn` with `@entangle` and `$wire.$call` | done |
+| TBL-11 | Scaffolds | `make:firefly-column`, `make:firefly-filter`, Kotlin and `--lang=java` | done |
+| TBL-12 | Typed action objects | Attach when M30 (`kona-firefly-actions`) is on `main`. Buttons stay `TableButton` until then | todo |
+
 ## Queued
 
 | Milestone | Filament packages | Firefly artifact | Status |
@@ -41,7 +58,6 @@ M31 notes (do not implement in M29): `Select` defaults to a combobox, and `.nati
 | M30 | `filament/actions` | `kona-firefly-actions` | todo |
 | M31 | `filament/forms` | `kona-firefly-forms` | todo |
 | M32 | `filament/infolists` | `kona-firefly-infolists` | todo |
-| M33 | `filament/tables` | `kona-firefly-tables` | todo |
 | M34 | notifications + widgets (Chart.js and ApexCharts) | `kona-firefly-notifications`, `kona-firefly-widgets` | todo |
 | M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3) | `kona-firefly` | todo |
 | M36 | resources, including `--simple` | `kona-firefly` | todo |

@@ -1019,6 +1019,44 @@ Actions (M30). Form fields, including `Select` and date/time pickers (M31). `Sel
 
 ---
 
+## M33 — Firefly tables
+
+**Status:** in progress (not on `main`).
+
+**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
+
+**Branch:** `milestone/M33-firefly-tables`
+
+**Parity slice:** Columns, filters, search, sort, pagination, empty state, row selection, summaries, grouping, reorder, stack and grid layouts, and polling. `modifyQueryUsing` receives `ModelBuilder` for a Cadence model and `MemoryQuery` for an in-memory list. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+Chainable configuration methods accept a static value or a closure. The closure receives `Cell`. `label("Name")` and `label { cell -> ... }` are both valid. `default("open")` stores a value. `defaultUsing { "Ada" }` stores a closure.
+
+### Parity checklist
+
+- [x] `org.konaframework:kona-firefly-tables` in the monorepo, the BOM, and the CI coverage gate
+- [x] Columns: text, icon, image, color, checkbox, toggle, select
+- [x] Filters: attribute, select, ternary, trashed
+- [x] Search, sort, pagination, empty state, row selection, summaries
+- [x] Grouping, reorder, stack and grid layouts, polling
+- [x] Static-or-closure chainable setters, including `default` and `defaultUsing`
+- [x] `modifyQueryUsing` receives `ModelBuilder` (`whereHas`, `join`, `with`, `scope`) or `MemoryQuery`
+- [x] Row and header buttons render through `Dialog` and a schema
+- [x] `ffColumn` with `@entangle` and `$wire.$call`
+- [x] `make:firefly-column` and `make:firefly-filter` for Kotlin and `--lang=java`
+- [x] Kotlin and Java regression paths
+- [x] Public docs under Firefly → Tables
+- [x] 100% line + branch Kover on `kona-firefly-tables` and `kona-grind`
+
+### In-scope modules
+
+`kona-firefly-tables`, `kona-grind` (`make:firefly-column`, `make:firefly-filter`), `apps/docs/`, BOM, CI coverage gate
+
+### Out of scope
+
+Typed action objects attach when M30 is on `main`. Forms (M31), infolists (M32), notifications, widgets, the panel, resources, tenancy, import/export, and the Mongo document addon (`kona-firefly-document`) stay on their own milestones.
+
+---
+
 ## Kona 1.x (queued — human-gated)
 
 Do **not** open these branches until a human sets **Active milestone** to the 1.x item. Continuous autopilot through M13 / remaining 0.x work (including tagging `v0.3.0`) does **not** include this train.

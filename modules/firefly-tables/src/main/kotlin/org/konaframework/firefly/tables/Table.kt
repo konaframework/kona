@@ -1,0 +1,465 @@
+package org.konaframework.firefly.tables
+
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.ModelBuilder
+import org.konaframework.firefly.schemas.EmptyState
+import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.support.FireflyException
+import java.util.function.Consumer
+
+enum class TableLayout {
+    ROWS,
+    STACK,
+    GRID,
+}
+
+open class TableGroup(val column: String) {
+    private val labelValue = TextSetting()
+
+    fun label(value: String): TableGroup = apply { labelValue.set(value) }
+
+    fun label(value: java.util.function.Function<Cell, String>): TableGroup = apply { labelValue.set(value) }
+
+    fun heading(cell: Cell, fallback: String): String = labelValue.get(cell, fallback)
+
+    companion object {
+        @JvmStatic
+        fun make(column: String): TableGroup = TableGroup(column)
+    }
+}
+
+class LoadedTable<T>(
+    val records: List<T>,
+    val total: Long,
+    val page: Int,
+    val lastPage: Int,
+    val summaries: Map<String, Any?>,
+    val groups: List<Pair<String, List<T>>>,
+) {
+    fun isEmpty(): Boolean = records.isEmpty()
+
+    fun hasMorePages(): Boolean = page < lastPage
+}
+
+open class Table<T, Q>(private val store: RecordStore<T, Q>) {
+    private val columnList = ArrayList<Column>()
+    private val filterList = ArrayList<Filter>()
+    private val headerButtonList = ArrayList<TableButton>()
+    private val rowButtonList = ArrayList<TableButton>()
+    private val groupList = ArrayList<TableGroup>()
+    private val hooks = ArrayList<Consumer<Q>>()
+    private val filterValues = LinkedHashMap<String, Any?>()
+    private val selectedKeys = LinkedHashSet<String>()
+    private val hiddenByUser = LinkedHashSet<String>()
+    private val emptyHeading = TextSetting()
+    private val emptyDescription = TextSetting()
+    private var searchTerm = ""
+    private var sortColumn: String? = null
+    private var sortDirection = "asc"
+    private var pageNumber = 1
+    private var pageSize = 10
+    private var paginate = true
+    private var pageSizes = emptyList<Int>()
+    private var layout = TableLayout.ROWS
+    private var selectable = false
+    private var groupColumn: String? = null
+    private var reorderColumn: String? = null
+    private var pollInterval: String? = null
+
+    fun columns(vararg columns: Column): Table<T, Q> = apply {
+        columnList.clear()
+        columnList.addAll(columns)
+    }
+
+    fun filters(vararg filters: Filter): Table<T, Q> = apply {
+        filterList.clear()
+        filterList.addAll(filters)
+    }
+
+    fun headerButtons(vararg buttons: TableButton): Table<T, Q> = apply {
+        headerButtonList.clear()
+        headerButtonList.addAll(buttons)
+    }
+
+    fun rowButtons(vararg buttons: TableButton): Table<T, Q> = apply {
+        rowButtonList.clear()
+        rowButtonList.addAll(buttons)
+    }
+
+    fun groups(vararg groups: TableGroup): Table<T, Q> = apply {
+        groupList.clear()
+        groupList.addAll(groups)
+        if (groups.isNotEmpty() && groupColumn == null) groupColumn = groups.first().column
+    }
+
+    fun groupedBy(column: String): Table<T, Q> = apply {
+        if (groupList.none { it.column == column }) throw FireflyException("Unknown group [$column]")
+        groupColumn = column
+    }
+
+    fun modifyQueryUsing(hook: Consumer<Q>): Table<T, Q> = apply { hooks.add(hook) }
+
+    fun search(term: String): Table<T, Q> = apply { searchTerm = term }
+
+    fun sort(column: String, direction: String = "asc"): Table<T, Q> = apply {
+        val target = this.column(column)
+        if (!target.isSortable(tableCell())) throw FireflyException("Column [$column] is not sortable")
+        val normalized = direction.lowercase()
+        if (normalized != "asc" && normalized != "desc") {
+            throw FireflyException("Sort direction must be asc or desc")
+        }
+        sortColumn = column
+        sortDirection = normalized
+    }
+
+    fun page(number: Int): Table<T, Q> = apply {
+        if (number < 1) throw FireflyException("Page must be at least 1")
+        pageNumber = number
+    }
+
+    fun perPage(size: Int): Table<T, Q> = apply {
+        if (size < 1) throw FireflyException("Page size must be at least 1")
+        pageSize = size
+    }
+
+    fun paginated(on: Boolean): Table<T, Q> = apply { paginate = on }
+
+    fun pageOptions(vararg options: Int): Table<T, Q> = apply { pageSizes = options.toList() }
+
+    fun layout(value: TableLayout): Table<T, Q> = apply { layout = value }
+
+    fun selectable(on: Boolean): Table<T, Q> = apply { selectable = on }
+
+    fun reorderable(column: String): Table<T, Q> = apply { reorderColumn = column }
+
+    fun empty(heading: String): Table<T, Q> = apply { emptyHeading.set(heading) }
+
+    fun empty(heading: java.util.function.Function<Cell, String>): Table<T, Q> = apply { emptyHeading.set(heading) }
+
+    fun emptyDescription(value: String): Table<T, Q> = apply { emptyDescription.set(value) }
+
+    fun emptyDescription(value: java.util.function.Function<Cell, String>): Table<T, Q> = apply {
+        emptyDescription.set(value)
+    }
+
+    fun poll(interval: String): Table<T, Q> = apply {
+        if (!POLL.matches(interval)) throw FireflyException("Poll interval must look like 10s or 500ms")
+        pollInterval = interval
+    }
+
+    fun filter(name: String, value: Any?): Table<T, Q> = apply {
+        if (filterList.none { it.name == name }) throw FireflyException("Unknown filter [$name]")
+        if (value == null) filterValues.remove(name) else filterValues[name] = value
+    }
+
+    fun select(key: String): Table<T, Q> = apply {
+        if (!selectedKeys.remove(key)) selectedKeys.add(key)
+    }
+
+    fun deselect(key: String): Table<T, Q> = apply { selectedKeys.remove(key) }
+
+    fun selected(): List<String> = selectedKeys.toList()
+
+    fun <R : Cadence<R>> relationship(model: Class<R>): ModelBuilder<R> = CadenceRecordStore(model).query()
+
+    fun <R : Cadence<R>> relationship(model: Class<R>, hook: Consumer<ModelBuilder<R>>): ModelBuilder<R> =
+        relationship(model).also { hook.accept(it) }
+
+    fun load(): LoadedTable<T> {
+        val query = prepare(store.query())
+        val page = if (paginate) {
+            store.paginate(query, pageNumber, pageSize)
+        } else {
+            val records = store.list(query)
+            TablePage(records, records.size.toLong(), records.size.coerceAtLeast(1), 1)
+        }
+        val summaries = if (columnList.any { it.summaries().isNotEmpty() }) {
+            summarize(prepare(store.query()))
+        } else {
+            emptyMap()
+        }
+        return LoadedTable(page.records, page.total, page.page, page.lastPage, summaries, groups(page.records))
+    }
+
+    fun render(): String {
+        val loaded = load()
+        val cell = tableCell()
+        val pollAttr = if (pollInterval == null) "" else """ wire:poll.$pollInterval"""
+        val visible = columnList.filter { shown(it, cell) }
+        return """
+            <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$pollAttr>
+              ${toolbar(cell)}
+              ${body(loaded, visible)}
+              ${footer(loaded)}
+              ${emptyState(loaded, cell)}
+              ${pager(loaded)}
+            </div>
+        """.trimIndent()
+    }
+
+    fun call(name: String, vararg args: String): Table<T, Q> = apply {
+        when (name) {
+            "selectRecord" -> select(arg(args, 0, name))
+            "selectPage" -> selectPage()
+            "gotoPage" -> page(number(arg(args, 0, name), name))
+            "search" -> search(arg(args, 0, name))
+            "sort" -> sort(arg(args, 0, name), if (args.size > 1) args[1] else "asc")
+            "applyFilter" -> filter(arg(args, 0, name), blankToNull(arg(args, 1, name)))
+            "toggleColumn" -> setValue(arg(args, 0, name), arg(args, 1, name), arg(args, 2, name))
+            "setColumn" -> setValue(arg(args, 0, name), arg(args, 1, name), arg(args, 2, name))
+            "moveRecord" -> move(arg(args, 0, name), number(arg(args, 1, name), name))
+            "toggleColumnVisibility" -> toggleColumn(arg(args, 0, name), arg(args, 1, name) != "false")
+            else -> throw FireflyException("Unknown table call [$name]")
+        }
+    }
+
+    fun toggleColumn(name: String, visible: Boolean): Table<T, Q> = apply {
+        val column = column(name)
+        if (!column.isToggleable(tableCell())) throw FireflyException("Column [$name] is not toggleable")
+        if (visible) hiddenByUser.remove(name) else hiddenByUser.add(name)
+    }
+
+    fun move(key: String, position: Int): Table<T, Q> = apply {
+        val column = reorderColumn ?: throw FireflyException("This table is not reorderable")
+        val keys = store.list(baseQuery()).map { store.keyOf(it) }.toMutableList()
+        if (!keys.remove(key)) throw FireflyException("Unknown record [$key]")
+        keys.add(position.coerceIn(0, keys.size), key)
+        store.reorder(column, keys)
+    }
+
+    private fun selectPage() {
+        val keys = load().records.map { store.keyOf(it) }
+        if (keys.all { it in selectedKeys }) {
+            keys.forEach { selectedKeys.remove(it) }
+        } else {
+            keys.forEach { selectedKeys.add(it) }
+        }
+    }
+
+    private fun setValue(key: String, column: String, raw: String) {
+        column(column)
+        val value: Any = when (raw) {
+            "true" -> true
+            "false" -> false
+            else -> raw
+        }
+        store.set(key, column, value)
+    }
+
+    private fun prepare(query: Q): Q {
+        val cell = tableCell()
+        hooks.forEach { it.accept(query) }
+        for (filter in filterList) {
+            filter.apply(query as Any, store, filterValue(filter, cell))
+        }
+        val searchable = columnList.filter { it.isSearchable(cell) }.map { it.name }
+        if (searchTerm.isNotEmpty()) store.search(query, searchTerm, searchable)
+        val grouped = groupColumn
+        if (grouped != null) store.sort(query, grouped, "asc")
+        val sorting = sortColumn
+        if (sorting != null) store.sort(query, sorting, sortDirection)
+        return query
+    }
+
+    private fun baseQuery(): Q {
+        val query = store.query()
+        hooks.forEach { it.accept(query) }
+        return query
+    }
+
+    private fun summarize(query: Q): Map<String, Any?> {
+        val out = LinkedHashMap<String, Any?>()
+        for (column in columnList) {
+            for (operation in column.summaries()) {
+                out["${column.name}:${operation.name}"] = store.summarize(query, column.name, operation)
+            }
+        }
+        return out
+    }
+
+    private fun groups(records: List<T>): List<Pair<String, List<T>>> {
+        val column = groupColumn ?: return emptyList()
+        val definition = groupList.firstOrNull { it.column == column } ?: return emptyList()
+        val ordered = LinkedHashMap<String, MutableList<T>>()
+        for (record in records) {
+            val raw = store.attributes(record)[column]
+            val key = if (raw == null) "—" else raw.toString()
+            val label = definition.heading(Cell { path -> if (path == column || path == "/$column") raw else null }, key)
+            ordered.getOrPut(label) { ArrayList() }.add(record)
+        }
+        return ordered.map { it.key to it.value.toList() }
+    }
+
+    private fun shown(column: Column, cell: Cell): Boolean =
+        !column.isHidden(cell) && column.name !in hiddenByUser
+
+    private fun toolbar(cell: Cell): String {
+        val search = if (columnList.any { it.isSearchable(cell) }) {
+            """<input class="ff-table-search" value="${escapeHtml(searchTerm)}">"""
+        } else {
+            ""
+        }
+        val filters = if (filterList.isEmpty()) "" else filterList.joinToString("") { it.render(cell, filterValue(it, cell)) }
+        val buttons = headerButtonList.joinToString("") { it.render(cell, selectedKeys.isEmpty()) }
+        return """<div class="ff-table-toolbar">$search$filters$buttons</div>"""
+    }
+
+    private fun body(loaded: LoadedTable<T>, visible: List<Column>): String = when (layout) {
+        TableLayout.ROWS -> rows(loaded, visible)
+        TableLayout.STACK -> cards(loaded, visible, "ff-table-stack")
+        TableLayout.GRID -> cards(loaded, visible, "ff-table-grid")
+    }
+
+    private fun rows(loaded: LoadedTable<T>, visible: List<Column>): String {
+        val headers = visible.joinToString("") { """<th>${escapeHtml(it.heading(tableCell()))}</th>""" }
+        val selectHead = if (selectable) """<th><button type="button" x-on:click="${'$'}wire.${'$'}call('selectPage')"></button></th>""" else ""
+        val body = if (loaded.groups.isEmpty()) {
+            loaded.records.joinToString("") { recordRow(it, visible) }
+        } else {
+            loaded.groups.joinToString("") { (label, records) ->
+                val span = visible.size + if (selectable) 1 else 0
+                """<tr class="ff-group"><th colspan="$span">${escapeHtml(label)}</th></tr>""" +
+                    records.joinToString("") { recordRow(it, visible) }
+            }
+        }
+        return """<table class="ff-table"><thead><tr>$selectHead$headers</tr></thead><tbody>$body</tbody></table>"""
+    }
+
+    private fun recordRow(record: T, visible: List<Column>): String {
+        val values = store.attributes(record)
+        val key = store.keyOf(record)
+        val select = if (selectable) selectionCell(key) else ""
+        val cells = visible.joinToString("") { """<td>${it.render(values, key, rowCell(values, it.name))}</td>""" }
+        val actions = rowActions(values)
+        return """<tr data-ff-record="${escapeHtml(key)}">$select$cells$actions</tr>"""
+    }
+
+    private fun cards(loaded: LoadedTable<T>, visible: List<Column>, className: String): String {
+        val content = if (loaded.groups.isEmpty()) {
+            loaded.records.joinToString("") { card(it, visible) }
+        } else {
+            loaded.groups.joinToString("") { (label, records) ->
+                """<h3 class="ff-group">${escapeHtml(label)}</h3>""" +
+                    records.joinToString("") { card(it, visible) }
+            }
+        }
+        return """<div class="$className">$content</div>"""
+    }
+
+    private fun card(record: T, visible: List<Column>): String {
+        val values = store.attributes(record)
+        val key = store.keyOf(record)
+        val select = if (selectable) selectionCell(key) else ""
+        val fields = visible.joinToString("") { column ->
+            """<div class="ff-stack-field"><span>${escapeHtml(column.heading(tableCell()))}</span>${column.render(values, key, rowCell(values, column.name))}</div>"""
+        }
+        return """<article class="ff-table-card" data-ff-record="${escapeHtml(key)}">$select$fields${rowActions(values)}</article>"""
+    }
+
+    private fun selectionCell(key: String): String {
+        val checked = if (key in selectedKeys) """ checked""" else ""
+        return """<td><input type="checkbox"$checked x-on:click="${'$'}wire.${'$'}call('selectRecord', '${escapeHtml(key)}')"></td>"""
+    }
+
+    private fun rowActions(values: Map<String, Any?>): String {
+        if (rowButtonList.isEmpty()) return ""
+        val html = rowButtonList.joinToString("") { it.render(rowCell(values, ""), selectedKeys.isEmpty()) }
+        return """<td class="ff-row-actions">$html</td>"""
+    }
+
+    private fun footer(loaded: LoadedTable<T>): String {
+        if (loaded.summaries.isEmpty()) return ""
+        val cells = loaded.summaries.entries.joinToString("") { (name, value) ->
+            """<span data-ff-summary="$name">${escapeHtml(value?.toString().orEmpty())}</span>"""
+        }
+        return """<div class="ff-table-summaries">$cells</div>"""
+    }
+
+    private fun emptyState(loaded: LoadedTable<T>, cell: Cell): String {
+        if (!loaded.isEmpty()) return ""
+        val heading = emptyHeading.get(cell, "No records")
+        val state = EmptyState.make(heading)
+        val description = emptyDescription.get(cell, "")
+        if (description.isNotEmpty()) state.description(description)
+        return state.render(Schema.make())
+    }
+
+    private fun pager(loaded: LoadedTable<T>): String {
+        if (!paginate) return ""
+        val previous = if (loaded.page > 1) {
+            """<button type="button" data-ff-page="prev" x-on:click="${'$'}wire.${'$'}call('gotoPage', '${loaded.page - 1}')">Previous</button>"""
+        } else {
+            ""
+        }
+        val next = if (loaded.hasMorePages()) {
+            """<button type="button" data-ff-page="next" x-on:click="${'$'}wire.${'$'}call('gotoPage', '${loaded.page + 1}')">Next</button>"""
+        } else {
+            ""
+        }
+        val sizes = if (pageSizes.isEmpty()) {
+            ""
+        } else {
+            pageSizes.joinToString("") { size -> """<option value="$size">$size</option>""" }
+                .let { """<select class="ff-page-size">$it</select>""" }
+        }
+        return """<nav class="ff-pagination">$previous<span>${loaded.page} / ${loaded.lastPage}</span>$next$sizes</nav>"""
+    }
+
+    private fun filterValue(filter: Filter, cell: Cell): Any? =
+        if (filterValues.containsKey(filter.name)) filterValues[filter.name] else filter.defaultValue(cell)
+
+    private fun column(name: String): Column =
+        columnList.firstOrNull { it.name == name } ?: throw FireflyException("Unknown column [$name]")
+
+    private fun tableCell(): Cell = Cell { path ->
+        when (path) {
+            "search" -> searchTerm
+            "page" -> pageNumber
+            "sort" -> sortColumn
+            else -> filterValues[path]
+        }
+    }
+
+    private fun rowCell(values: Map<String, Any?>, column: String): Cell = Cell { path ->
+        when (path) {
+            ".", "" -> values[column]
+            else -> values[path.removePrefix("/")]
+        }
+    }
+
+    private fun arg(args: Array<out String>, index: Int, method: String): String {
+        if (index >= args.size) throw FireflyException("Table call [$method] is missing an argument")
+        return args[index]
+    }
+
+    private fun number(raw: String, method: String): Int =
+        raw.toIntOrNull() ?: throw FireflyException("Table call [$method] expected a number")
+
+    private fun blankToNull(raw: String): String? = if (raw.isEmpty()) null else raw
+
+    companion object {
+        private val POLL = Regex("\\d+(ms|s)")
+        private var configurer: Consumer<Table<*, *>>? = null
+
+        @JvmStatic
+        fun configureUsing(block: Consumer<Table<*, *>>?) {
+            configurer = block
+        }
+
+        @JvmStatic
+        fun <T : Cadence<T>> cadence(model: Class<T>): Table<T, ModelBuilder<T>> = finish(Table(CadenceRecordStore(model)))
+
+        @JvmStatic
+        fun memory(rows: List<Map<String, Any?>>): Table<Map<String, Any?>, MemoryQuery> =
+            finish(Table(MemoryRecordStore(rows)))
+
+        @JvmStatic
+        fun memory(vararg rows: Map<String, Any?>): Table<Map<String, Any?>, MemoryQuery> = memory(rows.toList())
+
+        private fun <T, Q> finish(table: Table<T, Q>): Table<T, Q> {
+            @Suppress("UNCHECKED_CAST")
+            configurer?.accept(table as Table<*, *>)
+            return table
+        }
+    }
+}

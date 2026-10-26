@@ -25,6 +25,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Inertia | `modules/inertia` → `:kona-inertia` | `apps/docs` (Frontend → Inertia) | https://docs.konaframework.org/docs/inertia/ |
 | Firefly support (M28, train **0.4.x**) | `modules/firefly-support` → `:kona-firefly-support` | `apps/docs` (Firefly) | https://docs.konaframework.org/docs/firefly/ |
 | Firefly schemas (M29, train **0.4.x**) | `modules/firefly-schemas` → `:kona-firefly-schemas` | `apps/docs` (Firefly → Schemas) | https://docs.konaframework.org/docs/firefly/schemas/ |
+| Firefly tables (M33, train **0.4.x**) | `modules/firefly-tables` → `:kona-firefly-tables` | `apps/docs` (Firefly → Tables) | https://docs.konaframework.org/docs/firefly/tables/ |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
