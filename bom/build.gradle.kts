@@ -34,6 +34,8 @@ dependencies {
         api(project(":kona-inertia"))
         api(project(":kona-firefly-support"))
         api(project(":kona-firefly-schemas"))
+        api(project(":kona-firefly-actions"))
+        api(project(":kona-firefly-infolists"))
         api(project(":kona-firefly-forms"))
         api(project(":kona-lsp"))
         api(project(":kona-wire"))

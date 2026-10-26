@@ -260,6 +260,8 @@ export async function buildSidebar() {
         { label: 'Panel chrome', slug: 'docs/firefly/chrome' },
         { label: 'Dialog', slug: 'docs/firefly/dialog' },
         { label: 'Schemas', slug: 'docs/firefly/schemas' },
+        { label: 'Actions', slug: 'docs/firefly/actions' },
+        { label: 'Infolists', slug: 'docs/firefly/infolists' },
         { label: 'Forms', slug: 'docs/firefly/forms' },
       ],
     },

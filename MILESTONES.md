@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms. Kona **0.3.0** (M26) has shipped. M28 and M29 are on `main`.
+**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms. M28, M29, M30, and M32 are on `main`. Kona **0.3.0** (M26) has shipped.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -945,7 +945,9 @@ flowchart LR
   M25 --> M26[M26_Kona_Wire]
   M26 --> M28[M28_Firefly_Support]
   M28 --> M29[M29_Firefly_Schemas]
+  M29 --> M30[M30_Firefly_Actions]
   M29 --> M31[M31_Firefly_Forms]
+  M29 --> M32[M32_Firefly_Infolists]
 ```
 
 ---
@@ -1061,6 +1063,89 @@ Record queries for `relationship`, table selects, and morph selects (M33 / M36).
 A file browser over stored files. Uploads and `commit` ship here.
 
 Infolists (M32), tables (M33), and later panel milestones.
+
+---
+
+## M30 — Firefly actions
+
+**Status:** done (this branch).
+
+**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
+
+**Branch:** `milestone/M30-firefly-actions`
+
+**Parity slice:** One `Action` type, groups, confirmation, schema and header placement, authorization, and URL actions. Presentation calls `Dialog` from `kona-firefly-support`. Modal body content uses schema layouts and primes. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+Chainable setters accept a static value or a closure that receives `Get`. `label("Save")` and `label { get -> ... }` are both valid.
+
+### Parity checklist
+
+- [x] `org.konaframework:kona-firefly-actions` in the monorepo, the BOM, and the CI coverage gate
+- [x] `Action.make` and `ActionGroup.make`, with `configureUsing`
+- [x] Static-or-closure setters for label, icon, color, tooltip, badge, URL, confirmation, and modal copy
+- [x] Visibility, `disabled`, and authorization (`authorize` boolean, predicate, and named ability through `Action.gate`)
+- [x] Confirmation and modal heading, description, submit, and cancel
+- [x] `url` and `openUrlInNewTab`
+- [x] Mount through `Dialog`: modal, `slideOver`, `slideOverStart`, `fullscreen`, and Dialog widths
+- [x] Modal body from schema components (layouts and primes)
+- [x] Schema and header placement
+- [x] Alpine `ffAction` plus `wire:click` for the server call; Alpine `open` for the dialog
+- [x] `call` lifecycle: handler, `before`, `after`, `halt`, `failure`, success and failure redirect URLs
+- [x] `make:firefly-action` for Kotlin and `--lang=java`, covered by the grind test
+- [x] Kotlin and Java regression paths
+- [x] Public docs under Firefly → Actions
+- [x] 100% line + branch Kover on `kona-firefly-actions` and on `kona-grind` after the new command
+
+### In-scope modules
+
+`kona-firefly-actions`, `kona-grind` (`make:firefly-action`), `apps/docs/`, BOM, CI coverage gate
+
+### Out of scope
+
+Form fields, `fillForm`, form data mutation, a disabled form, and action `steps()` as a form wizard (M31). `schema(...)` can already hold a layout `Wizard`. Infolist actions (M32). Table record, bulk, and toolbar actions (M33). Success and failure notifications (M34). Import and export (M37). Parent-dialog cancellation, sticky header and footer, modal alignment, extra window attributes, widths `Dialog` does not offer, database transactions, and rate limits. `Select` and date/time pickers stay in M31.
+
+---
+
+## M32 — Firefly infolists
+
+**Status:** in progress (`milestone/M32-firefly-infolists`; checklist below is the shipped slice, and the milestone is done when this PR is on `main`).
+
+**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
+
+**Branch:** `milestone/M32-firefly-infolists`
+
+**Parity slice:** Read-only infolist entries on the schema tree. Layouts are the schema `Section`, `Grid`, `Tabs`, and `Tab`. Code highlighting is the browser Shiki script (`createHighlighter`). Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+Chainable entry setters accept a static value or a closure (`Function` / `Predicate` of schema `Get`). `label`, `heading`, and `description` return the entry. Schema visibility and live methods stay on `Component`.
+
+### Parity checklist
+
+- [x] `org.konaframework:kona-firefly-infolists` in the monorepo, the BOM, and the CI coverage gate
+- [x] `Infolist` over `Schema`: components, state path, fill, record, operation, hydrate, render
+- [x] `TextEntry`: badge, bullets, line breaks, list limit, prose, size, weight, font, line clamp, character and word limits, HTML, Markdown, date, date-time, time, since, timezone, date tooltip, money, numeric, `formatStateUsing`
+- [x] `IconEntry`: `bool`, `whenTrue`, `whenFalse`, true/false icon and color, hide icons, size, line breaks
+- [x] `ImageEntry`: dimensions, shape, alt, default URL, stack, limit, and disk/visibility/check as data attributes
+- [x] `ColorEntry` swatches
+- [x] `KeyValueEntry` with key and value labels
+- [x] `CodeEntry` with `grammar` / `language`, light and dark themes, JSON flags, and `ShikiCode` (`createHighlighter`, no Prism)
+- [x] `RepeatableEntry` with child schema, grid, contained, and `TableColumn`
+- [x] Sections, grids, and tabs reuse schema layouts
+- [x] Static-or-closure setters, schema visibility, and `ffEntry`
+- [x] `make:firefly-entry` for Kotlin and `--lang=java`
+- [x] Kotlin and Java regression paths
+- [x] Public docs under Firefly → Infolists
+- [x] 100% line + branch Kover on `kona-firefly-infolists` (and `kona-grind` for the new command)
+- [ ] Entry prefix/suffix actions that need the actions `Action` type (M30)
+- [ ] Record aggregates (`avg`, counts, min, max, sum) — no record store on this branch
+- [ ] Private-disk temporary URLs and real file-existence checks
+
+### In-scope modules
+
+`kona-firefly-infolists`, `kona-grind` (`make:firefly-entry`), `apps/docs/`, BOM, CI coverage gate
+
+### Out of scope
+
+Actions (M30). Forms, including the code editor field (M31). Tables (M33). Do not depend on `kona-firefly-actions`, `kona-firefly-forms`, or `kona-firefly-tables`.
 
 ---
 

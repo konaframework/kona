@@ -14,7 +14,7 @@ Kona is a full-stack, developer-friendly web framework for the Java/Kotlin ecosy
 | **Crema** | Blade / Prism | Prism | Server-side templates with layouts, directives, components |
 | **drip** | Axios / HTTP client | HTTP client | Fluent HTTP client/SDK |
 | **Wire** | Livewire | — | Reactive server components (HTML over JSON; `wire:*` attributes) |
-| **Firefly** | Filament | — | Application panels on Wire (`kona-firefly-support`, `kona-firefly-schemas`; later panel artifacts) |
+| **Firefly** | Filament | — | Application panels on Wire (`kona-firefly-support`, `kona-firefly-schemas`, `kona-firefly-actions`, `kona-firefly-infolists`; later panel artifacts) |
 
 ## Ecosystem conventions
 
@@ -89,4 +89,4 @@ Sister GitHub repos `konaframework/kona-wire` and `konaframework/kona-inertia` a
 
 ### Firefly (application panels)
 
-Panel system in this monorepo. `org.konaframework:kona-firefly-support` (package `org.konaframework.firefly.support`) ships themes, scoped CSS, panel chrome, render hooks, and `Dialog`. `org.konaframework:kona-firefly-schemas` (package `org.konaframework.firefly.schemas`) ships the schema tree, layouts, primes, and reactivity. Later milestones add actions, forms, infolists, tables, notifications, widgets, and the panel (`kona-firefly`). Docs: `apps/docs` sidebar **Firefly**. Parity ledger: [firefly-filament-parity.md](../governance/firefly-filament-parity.md). There is no Orbit admin product.
+Panel system in this monorepo. `org.konaframework:kona-firefly-support` (package `org.konaframework.firefly.support`) ships themes, scoped CSS, panel chrome, render hooks, and `Dialog`. `org.konaframework:kona-firefly-schemas` (package `org.konaframework.firefly.schemas`) ships the schema tree, layouts, primes, and reactivity. `org.konaframework:kona-firefly-actions` (package `org.konaframework.firefly.actions`) ships actions, groups, confirmation, and dialog mounting. `org.konaframework:kona-firefly-infolists` (package `org.konaframework.firefly.infolists`) ships read-only entries on that tree. Later milestones add forms, tables, notifications, widgets, and the panel (`kona-firefly`). Docs: `apps/docs` sidebar **Firefly**. Parity ledger: [firefly-filament-parity.md](../governance/firefly-filament-parity.md). There is no Orbit admin product.

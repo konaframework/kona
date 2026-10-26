@@ -4,7 +4,7 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-M28 and M29 are on `main`. M31 is the forms slice. A helper that needs the action type, a record store, or a table stays `todo` even when the rest of M31 is `done`.
+M28, M29, M30, and M32 are on `main`. M31 is the forms slice. Action-shaped form helpers stay `todo` until they call `kona-firefly-actions`. Record-store and table helpers stay `todo`.
 
 ## M28 — support (`kona-firefly-support`)
 
@@ -65,13 +65,60 @@ Shipped fields extend `Component` in this module. Schemas and support were not e
 | FRM-25 | `MorphToSelect` | needs models / record store | todo |
 | FRM-26 | File upload browse / file manager | later package. Upload and `commit` ship in FRM-13 | todo |
 
+## M30 — actions (`kona-firefly-actions`)
+
+| ID | Surface | Firefly | Status |
+|----|---------|---------|--------|
+| ACT-1 | `Action` / `ActionGroup`, `make`, `configureUsing` | `Action`, `ActionGroup` | done |
+| ACT-2 | Static value or `Get` closure | `label`, `icon`, `color`, `tooltip`, `badge`, `badgeColor`, `size`, `iconPosition`, `url`, `openUrlInNewTab`, `requiresConfirmation`, modal copy, `modalWidth`, redirect URLs | done |
+| ACT-3 | Visibility, disabled, authorization | `hidden`, `visible`, `disabled`, `authorize` boolean / predicate / ability + `Action.gate` | done |
+| ACT-4 | Icon, color, tooltip, badge, size, button styles, extra attributes | rendered on the trigger | done |
+| ACT-5 | Confirmation and modal copy | heading, description, submit, cancel, icon, close, autofocus, escape, overlay click | done |
+| ACT-6 | Mount `Dialog` | `modal`, `slideOver`, `slideOverStart`, `fullscreen`, Dialog widths, `modalDraggable` | done |
+| ACT-7 | URL actions | `url`, `openUrlInNewTab` | done |
+| ACT-8 | Modal schema content | `schema(...)` with layouts and primes | done |
+| ACT-9 | Schema and header placement | `ActionPlacement.SCHEMA`, `ActionPlacement.HEADER` | done |
+| ACT-10 | Server call and local open state | `wire:click`, `ffAction`, Alpine `open` | done |
+| ACT-11 | Handler lifecycle | `action`, `before`, `after`, `halt`, `failure`, redirect URLs, `arguments` | done |
+| ACT-12 | Action scaffold | `make:firefly-action`, Kotlin and `--lang=java` | done |
+
+Shipped modal content is the schema layouts and primes already on `main`. These Filament action helpers wait on a later milestone. They are not stubbed here:
+
+| Helper | Waits on |
+|--------|----------|
+| Form fields inside an action, `fillForm`, form data mutation, a disabled form, action `steps()` as a form wizard | M31 |
+| Infolist actions | M32 |
+| Record, bulk, and toolbar table actions | M33 |
+| Success and failure notifications | M34 |
+| Import and export actions | M37 |
+| Parent-dialog cancellation, sticky header/footer, modal alignment, extra window attributes, widths outside `sm`/`md`/`lg`/`xl`/`screen`, database transactions, rate limits | `Dialog` does not expose them, or no rate-limit/transaction API is wired into this module |
+
+## M32 — infolists (`kona-firefly-infolists`)
+
+Depends on `kona-firefly-schemas` and `kona-firefly-support` only. Layouts are schema `Section`, `Grid`, `Tabs`, and `Tab`. The code entry calls Shiki `createHighlighter` in the browser.
+
+| ID | Surface | Firefly | Status |
+|----|---------|---------|--------|
+| INF-1 | Infolist over a schema | `Infolist` | done |
+| INF-2 | Text entry | `TextEntry` | done |
+| INF-3 | Icon entry | `IconEntry` (`bool`, `whenTrue`, `whenFalse`) | done |
+| INF-4 | Image entry | `ImageEntry` (disk, visibility, and file check are data attributes) | done |
+| INF-5 | Color entry | `ColorEntry` | done |
+| INF-6 | Key-value entry | `KeyValueEntry` | done |
+| INF-7 | Code entry | `CodeEntry` + `ShikiCode` (`createHighlighter`) | done |
+| INF-8 | Repeatable entry | `RepeatableEntry`, `TableColumn` | done |
+| INF-9 | Shared entry helpers and static-or-closure setters | `Entry` | done |
+| INF-10 | Entry scaffold | `make:firefly-entry` | done |
+
+Left for later milestones (not implemented here): prefix and suffix actions that need `Action` (M30); record aggregates; private-disk temporary URLs; the forms code editor (M31); tables (M33).
+
 ## Queued
 
 | Milestone | Filament packages | Firefly artifact | Status |
 |-----------|-------------------|------------------|--------|
-| M30 | `filament/actions` | `kona-firefly-actions` | todo |
+| M30 | `filament/actions` | `kona-firefly-actions` | done |
 | M31 | `filament/forms` | `kona-firefly-forms` | done (FRM-18–FRM-26 stay todo) |
-| M32 | `filament/infolists` | `kona-firefly-infolists` | todo |
+| M32 | `filament/infolists` | `kona-firefly-infolists` | done |
 | M33 | `filament/tables` | `kona-firefly-tables` | todo |
 | M34 | notifications + widgets (Chart.js and ApexCharts) | `kona-firefly-notifications`, `kona-firefly-widgets` | todo |
 | M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3) | `kona-firefly` | todo |

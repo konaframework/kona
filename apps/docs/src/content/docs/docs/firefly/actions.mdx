@@ -1,0 +1,190 @@
+---
+title: Actions
+description: Build a Firefly action, open it in the shared dialog, and run it from Wire.
+---
+
+An action is a button or a link. It can open the shared [dialog](/docs/firefly/dialog/), show a schema inside that dialog, and call a server method. Actions live in `org.konaframework.firefly.actions` (`kona-firefly-actions`). They use `kona-firefly-schemas` for closures and modal content, and `kona-firefly-support` for `Dialog` and icons.
+
+## A button in one call
+
+```kotlin
+val save = Action.make("save").label("Save")
+val html = Schema.make().components(save).render()
+```
+
+```java
+Action save = Action.make("save").label("Save");
+String html = Schema.make().components(save).render();
+```
+
+`make` takes the action name. The name is a letter or `_`, then letters, digits, and `_`. `save` and `save_record` are valid. `bad-name` throws `FireflyException`.
+
+The rendered button has `x-data="ffAction('save')"` and `wire:click="save"`. `ffAction` is the Alpine factory already registered with Wire. Its `run()` method calls `$wire.$call` with the action name. The button uses `wire:click` for the server call and mounts the factory so another control can call `run()`.
+
+`call(schema)` runs that server method in-process. With no `action { ... }` handler and no URL, it throws `FireflyException` (`Action [save] has no handler`).
+
+## Values and closures
+
+Text and flag setters take a fixed value or a closure. The closure receives `Get`, the same reader a schema component uses. A path that starts with `/` is absolute. Other paths are relative to the action’s container.
+
+```kotlin
+val save = Action.make("save")
+save.label("Save")
+save.label { get -> if (get.get("/kind") == "org") "Save organization" else "Save" }
+save.icon { get -> if (get.get("/kind") == "org") "user" else "home" }
+```
+
+```java
+save.label(get -> "org".equals(get.get("/kind")) ? "Save organization" : "Save");
+```
+
+The last call wins. `label("Save")` after a closure stores the fixed string. The same shape is on `icon`, `color`, `tooltip`, `badge`, `badgeColor`, `size`, `iconPosition`, `url`, `openUrlInNewTab`, `requiresConfirmation`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `modalCancelActionLabel`, `modalIcon`, `modalIconColor`, `modalWidth`, `successRedirectUrl`, and `failureRedirectUrl`.
+
+`hidden`, `visible`, and `disabled` come from the schema component base, so they already take a boolean or a predicate. They return the component base. Call them on their own line when you want to keep the `Action` type for the next call.
+
+## Show, hide, disable, authorize
+
+`hidden(true)` and `visible(false)` render an empty action shell with the class `ff-hidden`. The button is not in the HTML. `disabled(true)` keeps the button and sets the `disabled` attribute. A disabled link uses `aria-disabled="true"` and omits `href`. `call` throws `Action [save] is hidden` or `Action [save] is disabled` before the handler runs.
+
+`authorize(false)` hides the action. `authorize { get -> get.get("/ok") == true }` hides it when the predicate is false. `authorize("edit")` asks `Action.gate`. With no gate installed, a named ability is denied and the action is hidden. A gate that returns true shows it.
+
+```kotlin
+Action.gate { ability, component, schema -> ability == "edit" }
+```
+
+```java
+Action.gate((ability, component, schema) -> "edit".equals(ability));
+```
+
+`authorize(true)`, a predicate, and a named ability all apply. Any denial hides the action. `Action.gate(null)` clears the gate. The gate is process-wide.
+
+## Icon, color, tooltip, badge, size
+
+`icon("home")` inlines an icon from the support set: `home`, `bars`, `user`, `x`. Any other name throws `Unknown icon [<name>]`. `iconPosition("before")` is the default. `iconPosition("after")` draws the icon after the label. Anything else throws `Unknown icon position [<value>]`.
+
+`iconButton()` keeps the label in `aria-label` and does not show the text. `button()` is the default. `link()` adds `ff-action-link` on a button that still calls the server. `outlined()` and `grouped()` set `ff-action-outlined` and `ff-action-grouped`.
+
+`color("primary")`, `color("accent")`, and `color("heading")` set `color` to the theme variable `--ff-primary`, `--ff-accent`, or `--ff-heading`, and store the name on `data-ff-color`. Any other color is stored on `data-ff-color` only. `size` accepts `xs`, `sm`, `md`, `lg`, or `xl` and sets `font-size`. Anything else throws `Unknown action size [<value>]`.
+
+`tooltip` is the `title` attribute. `badge` is a `<span class="ff-action-badge">`. `badgeColor` sets `data-ff-color` on that span.
+
+`placement(ActionPlacement.SCHEMA)` is the default and adds `ff-placement-schema`. `placement(ActionPlacement.HEADER)` adds `ff-placement-header`. That class is how a page tells a schema action from a header action. Both are still schema components, so you put header actions in the same tree.
+
+`extraAttributes` adds attributes. The name must be an HTML attribute name. `wire:click`, `x-data`, `type`, `href`, and `disabled` are reserved and throw. Values are escaped.
+
+## Links
+
+`url("https://example.test")` renders an `<a>` instead of a server button. `openUrlInNewTab(true)` adds `target="_blank"` and `rel="noopener noreferrer"`. The anchor still mounts `ffAction`. It does not use `wire:click`. `call` returns the URL and does not run the handler. An empty URL throws `Action [name] URL is empty`.
+
+## Confirmation and the dialog
+
+`requiresConfirmation()`, `modal()`, `slideOver()`, `slideOverStart()`, `fullscreen()`, `modalHeading`, `modalDescription`, or `schema(...)` with at least one component opens `Dialog`. The trigger uses Alpine `open` and does not call the server. The submit button uses `wire:click` and `ffAction`.
+
+| Call | Dialog |
+|------|--------|
+| default when a dialog is shown | `modal()`, top aligned, width `lg` |
+| `slideOver()` | sidebar from the end |
+| `slideOverStart()` | sidebar from the start |
+| `fullscreen()` | fullscreen, not dragged |
+| `modalWidth("sm" \| "md" \| "lg" \| "xl" \| "screen")` | width class only |
+| `modalDraggable(false)` | no drag marker |
+
+`modalWidth` uses the widths `Dialog` accepts. Any other width throws `Unknown dialog width [<value>]`. `width("screen")` stays a modal. Fullscreen is `fullscreen()`.
+
+`Dialog.configureUsing` still runs, because the action calls `Dialog.make`. `mountDialog(schema)` returns that `Dialog`. An action with no dialog throws `Action [name] has no dialog`.
+
+The page wraps the dialog in `x-data="{ open: false }"`. Defaults:
+
+- overlay click sets `open` to false (`closeModalByClickingAway(false)` leaves the overlay alone)
+- Escape sets `open` to false (`closeModalByEscaping(false)` omits the listener)
+- a close button uses the `x` icon (`modalCloseButton(false)` removes it)
+- the submit control has `autofocus` (`modalAutofocus(false)` removes it)
+
+`modal(false)` and `modalHidden(true)` skip the dialog. The trigger calls the server directly.
+
+Submit text is `Confirm` when confirmation is on, otherwise `Submit`, unless `modalSubmitActionLabel` is set. Cancel text is `Cancel` unless `modalCancelActionLabel` is set. The dialog title is `modalHeading`, then the label, then the action name.
+
+`modalSubmitAction` and `modalCancelAction` replace those buttons with other actions. `extraModalFooterActions` adds more. Passing the action itself throws `Action [name] cannot contain itself` (or `cannot submit itself` / `cannot cancel itself`).
+
+## Schema content
+
+`schema(Text.make("Hello"))` renders those components in the dialog body. Layouts and primes from the schema module work, including a wizard:
+
+```kotlin
+Action.make("edit").schema(
+    Wizard.make().steps(WizardStep.make("Details")),
+)
+```
+
+`schema()` with no components does not open a dialog. This module does not add inputs, fill a form, or run validation.
+
+## Groups
+
+```kotlin
+val group = ActionGroup.make(save, Action.make("delete").label("Delete"))
+    .label("More")
+    .icon("bars")
+    .dropdown()
+```
+
+```java
+ActionGroup group = ActionGroup.make(List.of(save)).label("More").button();
+```
+
+`dropdown()` is the default. The trigger toggles Alpine `open`. The menu starts hidden. `button()` lays the actions in a row (`ff-action-group-inline`). Groups take `label`, `icon`, `color`, `tooltip`, `placement`, `hidden`, `visible`, `disabled`, and `authorize` the same way an action does. `disabled(true)` disables the dropdown trigger. On an inline group it sets `aria-disabled="true"`.
+
+`configureUsing` on `Action` or `ActionGroup` runs for every later `make()` of that class. Pass `null` to clear it. It does not apply to a subclass you construct yourself.
+
+## Running the action
+
+```kotlin
+save.arguments(mapOf("id" to 7))
+save.before { action, schema -> }
+save.action { action, schema -> }
+save.after { action, schema -> }
+save.successRedirectUrl("/customers")
+save.failureRedirectUrl("/customers")
+val result = save.call(schema)
+```
+
+Order on success: `before`, the handler, `after`. The result `status` is `success`. `url` is set for a link action. `redirectUrl` is that link, or `successRedirectUrl` for a handler. The button also carries `data-ff-success-url` when a success URL is set. `call` does not send the browser anywhere. The caller does.
+
+`halt()` throws `ActionHalt`, skips `after`, and `call` returns status `halted` with the message `Action halted`. `failure("nope")` throws `ActionFailure`, skips `after`, and `call` returns status `failed` with that message and `failureRedirectUrl`. Any other exception leaves `call`.
+
+`argument("id")` reads the map passed to `arguments`. A later change to the original map does not change the stored value. A missing key is `null`.
+
+## Your own action
+
+Subclass `Action`. The constructor name is the Wire method name.
+
+```kotlin
+open class SaveRecord : Action("saveRecord") {
+    init {
+        label("SaveRecord")
+        view("firefly.actions.saverecord")
+    }
+}
+```
+
+```java
+public class Rename extends Action {
+    public Rename() {
+        super("rename");
+        label("Rename");
+    }
+}
+```
+
+`view("notes.action")` renders that Crema view when `Schema.crema(engine)` is set. The view receives `path`, `name`, `label`, and `content`. Without an engine, render emits `<div data-ff-view="notes.action">`. A hidden action does not render the view.
+
+`./grind make:firefly-action SaveRecord` writes an `open` class and a Crema view under `app/firefly/actions`. `--lang=java` writes a Java class. The view opens a local Alpine `open` flag and submits with `x-data="ffAction('saveRecord')"` and `wire:click="saveRecord"`.
+
+## What this module does not do
+
+It does not add form fields, fill or validate a form, or run a form wizard. Put a schema layout in `schema(...)` when the dialog only needs text, sections, or a wizard chrome. Inputs arrive with forms.
+
+It does not render infolist entries or table columns, and it does not attach an action to a record, a bulk selection, or a toolbar.
+
+It does not send notifications, import or export rows, wrap `call` in a database transaction, or rate-limit the handler.
+
+`Dialog` has no stack, no sticky header or footer, and no extra attributes on the window. An action cannot cancel a parent dialog or change the modal alignment. The alignment stays the dialog default, which is top for a modal.
