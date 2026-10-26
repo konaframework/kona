@@ -1055,21 +1055,8 @@ internal class CremaRuntime(
         if (expr.startsWith("isset(") && expr.endsWith(")")) {
             return resolve(expr.removePrefix("isset(").removeSuffix(")"), context) != null
         }
-        for (op in listOf("==", "!=", "<=", ">=", "<", ">")) {
-            val idx = expr.indexOf(op)
-            if (idx > 0) {
-                val left = eval(expr.substring(0, idx), context)
-                val right = eval(expr.substring(idx + op.length), context)
-                return when (op) {
-                    "==" -> "$left" == "$right"
-                    "!=" -> "$left" != "$right"
-                    "<" -> compare(left, right) < 0
-                    ">" -> compare(left, right) > 0
-                    "<=" -> compare(left, right) <= 0
-                    else -> compare(left, right) >= 0
-                }
-            }
-        }
+        val compared = CremaAccess.compare(expr) { eval(it, context) }
+        if (compared !== CremaAccess.NotComparison) return compared
         CremaHelpers.parseCall(expr)?.let { (name, inner) ->
             if (CremaHelpers.isCallable(name)) {
                 val args = CremaArguments.split(inner).map { eval(it, context) }
@@ -1079,39 +1066,12 @@ internal class CremaRuntime(
         return resolve(expr, context)
     }
 
-    private fun compare(left: Any?, right: Any?): Int {
-        if (left is Number && right is Number) {
-            return left.toDouble().compareTo(right.toDouble())
-        }
-        return "$left".compareTo("$right")
-    }
-
-    private fun resolve(path: String, context: CremaContext): Any? {
-        val parts = path.trim().split('.')
-        var current: Any? = unwrap(context.get(parts[0]))
-        for (part in parts.drop(1)) {
-            current = when (current) {
-                null -> return null
-                is Map<*, *> -> unwrap(current[part])
-                else -> unwrap(member(current, part))
-            }
-        }
-        return current
-    }
+    private fun resolve(path: String, context: CremaContext): Any? =
+        CremaAccess.read(path, { unwrap(context.get(it)) }, { target, part ->
+            unwrap(CremaAccess.member(target, part))
+        }) { eval(it, context) }
 
     private fun unwrap(value: Any?): Any? = if (value is CremaLazy) value.get() else value
-
-    /** `getX()` / `isX()` getter, then a zero-arg method named [part], then a public field. */
-    private fun member(target: Any, part: String): Any? {
-        val cap = part.replaceFirstChar { c -> c.uppercaseChar() }
-        val methods = target.javaClass.methods
-        val method = methods.firstOrNull { it.parameterCount == 0 && it.name.equals("get$cap", true) }
-            ?: methods.firstOrNull { it.parameterCount == 0 && it.name == "is$cap" }
-            ?: methods.firstOrNull { it.parameterCount == 0 && it.name == part }
-        if (method != null) return method.invoke(target)
-        val field = target.javaClass.fields.firstOrNull { it.name == part } ?: return null
-        return field.get(target)
-    }
 
     private fun iterate(value: Any?): List<Any?> = when (value) {
         null -> emptyList()
