@@ -1,0 +1,134 @@
+---
+title: 起步套件
+description: 交互式的 kona new 安装器、套件、CSS 和 Inertia 适配器。
+---
+
+`kona new` 搭建一个带本地 `./grind` CLI 的 Gradle 应用。**不带参数**运行它时，它总会带你走过技术栈（带框的提示）。传入目录或标志只跳过**那一步**。`--no-interaction` 是唯一的完全跳过。
+
+```bash
+kona new                          # interactive installer — always prompts
+kona new my-app                   # directory set; still asks lang / kit / CSS / db / …
+kona new my-app --no-interaction  # silent defaults (kotlin, web, sqlite)
+kona new my-app --kit=api --lang=java --no-interaction
+kona new my-app --kit=inertia --frontend=react --css=tailwind
+kona new my-app --kit=inertia --frontend=vue --typescript
+kona new my-app --kit=wire --css=bootstrap --install-deps --migrate --seed
+```
+
+你跳过技术栈提示时，默认套件是 **`web`** — Crema 视图。非交互的 CSS 保持 **custom**（内联样式，没有 npm），这样第一次 `./grind serve` 不需要 JavaScript 工具链就能工作。交互式 CSS 提示默认是 **Tailwind CSS**。
+
+## 交互顺序
+
+没有 `--no-interaction` 时，`kona new` 只询问你还没传入的值。IDE 终端、Cursor 和 `CI=true` 仍然会提示 — 答案从标准输入读取：
+
+1. **我们应该在哪里创建应用？** — 默认 `kona-app`（传入目录时跳过）
+2. **应用名** — `.env` 里的 `APP_NAME`；默认是文件夹的标题大小写（`my-app` → `My App`）
+3. **语言** — Kotlin（默认）或 Java
+4. **我们在调制什么？** — 仅 API、Crema、Wire 或 Inertia
+5. **Inertia 适配器** — Vue、React 或 Svelte（仅 Inertia）
+6. **前端语言** — JavaScript（默认）或 TypeScript（仅 Inertia；设置了 `--typescript` / `--ts` 或 `--javascript` / `--js` 时跳过）
+7. **CSS** — Tailwind、Bootstrap 或 custom（API 跳过）
+8. **数据库** — sqlite（默认）、h2、mysql、mariadb、pgsql、sqlsrv、oracle
+9. **现在安装依赖吗？** — Gradle 包装器，以及存在 `package.json` 时的 `npm` 或 `pnpm`
+10. **运行初始迁移吗？**
+11. **运行数据库填充器吗？**
+12. **摘要卡片** — 然后在写入任何文件之前确认
+
+只有 `--no-interaction` 或 `--no-interactive` 才使用完整的非交互默认值。脚本应该传入该标志；**`CI=true` 不会跳过提示。** 有 `--no-interaction` 且没有目录时，默认文件夹是 `kona-app`。
+
+如果标准输入不可读（关闭的管道、EOF）而你没有选择退出，Kona 会打印一条 **ERROR**，告诉你传入标志或 `--no-interaction` — 它不会静默搭建。
+
+## 跳过一步的标志
+
+| 标志 | 跳过 |
+|------|------|
+| 目录参数 | “我们应该在哪里创建应用？” |
+| `--name=` / `--app-name=` | 应用名（`APP_NAME`） |
+| `--lang=kotlin\|java` | 语言 |
+| `--kit=` / `--preset=` | 技术栈（`web`、`api`、`crema`、`inertia`、`wire`；`brew` 是 Wire 的别名） |
+| `--frontend=vue\|react\|svelte` | Inertia 适配器 |
+| `--typescript` / `--ts` | Inertia 前端语言 → TypeScript |
+| `--javascript` / `--js` | Inertia 前端语言 → JavaScript |
+| `--css=tailwind\|bootstrap\|custom` | CSS（`tw`、`bs`、`none` / `vanilla` / `plain` 别名） |
+| `--database=` | 数据库引擎 |
+| `--install-deps` / `--no-install-deps` | Gradle 加 npm/pnpm 的提议 |
+| `--migrate` / `--no-migrate` | 初始迁移 |
+| `--seed` / `--no-seed` | 填充器 |
+| `--no-interaction` / `--no-interactive` | 每一个提示；使用默认值 |
+
+`--install-deps=false`、`--migrate=no` 和 `--seed=0` 与 `--no-*` 形式相同。
+
+**DONE** 芯片之后，收尾列出 `cd`、`./grind serve`，以及（你跳过迁移时）`./grind migrate --seed`。带 JS 应用的套件还会打印 `npm install && npm run dev`。
+
+## 套件
+
+| 套件 | 依赖 | 你得到什么 |
+|------|------|------------|
+| `web`（默认） | HTTP + grind + session/auth/queue/… + **crema** | 欢迎视图、登录、仪表板、JSON `/api/health` |
+| `crema` | 与 `web` 相同 | `web` 的别名 |
+| `api` | 没有 Crema | 纯文本 `/` 欢迎加 JSON 健康检查（没有 CSS 管线） |
+| `inertia` | + `kona-inertia` | Inertia 中间件、根外壳、Vite + Vue/React/Svelte、Crema 登录/仪表板 |
+| `wire` | + `kona-wire` | 带实时 `<wire:counter />` 的 Crema 落地页，外加登录/仪表板 |
+| `brew` | + `kona-wire` | 已弃用的 `wire` 别名 |
+
+每个套件都登记 Cadence、Redis、Session、Auth、Queue、Schedule 和 Mail 提供者；在 `.env` 里生成 `APP_KEY`；并在 `bootstrap.Middleware` 里应用 `StartSession` 加 CSRF（排除 `/api/*` 和 `/wire/*`）。
+
+## CSS
+
+`--css`（以及 CSS 提示）叠加在套件上。它们写入一条**真正的** Vite 管线，不是桩：
+
+| 值 | 写入什么 |
+|----|----------|
+| `custom`（非交互默认） | Crema 视图上已有的品牌内联样式；Inertia 欢迎页使用内联样式。除非套件已经有 JS 应用（Inertia），否则没有额外的 npm。 |
+| `tailwind` | `package.json` + Vite + Tailwind v4（`@tailwindcss/vite`）、带咖啡 `@theme` 的 `css/app.css`、使用工具类的 Crema 视图（或 Inertia 页面）、`@vite('src/main/resources/js/app.js')` |
+| `bootstrap` | Vite + Bootstrap 5、使用 Bootstrap 类的 Crema/Inertia 标记 |
+
+带 Tailwind 或 Bootstrap 的 Crema 和 Wire 会加上导入 CSS 的 `src/main/resources/js/app.js`。Inertia 适配器从 `app.js` / `app.jsx`（选择 TypeScript 时是 `app.ts` / `app.tsx`）导入同一文件。
+
+Web 根是项目目录 `public/`（`paths.public`）。标志和 `robots.txt` 在那里。Vite 的生产构建写入 `public/build`。源入口留在 `src/main/resources/js/`。`kona new` 不创建 `src/main/resources/public`。
+
+开发时让 Vite 运行（`npm run dev`）并与 `./grind serve` 一起提供 CSS。生产：`npm run build` 写入 `public/build`。
+
+## Inertia 适配器
+
+| `--frontend` | JavaScript 入口（默认） | TypeScript 入口 | 包 |
+|--------------|-------------------------|-----------------|----|
+| `vue`（默认） | `src/main/resources/js/app.js` | `src/main/resources/js/app.ts` | `@inertiajs/vue3` |
+| `react` | `src/main/resources/js/app.jsx` | `src/main/resources/js/app.tsx` | `@inertiajs/react` |
+| `svelte` | `src/main/resources/js/app.js` | `src/main/resources/js/app.ts` | `@inertiajs/svelte` |
+
+同一路径是 Vite 的 `rollupOptions.input` 和 `InertiaManager.viteEntries`，因此清单键与 `{!! vite !!}` 打印的标签匹配。
+
+### 前端语言
+
+JavaScript 是默认。非交互的 `kona new my-app --kit=inertia --no-interaction` 保持 JavaScript。
+
+| 标志 | 效果 |
+|------|------|
+| `--typescript` 或 `--ts` | TypeScript 入口、`tsconfig.json`，以及 `devDependencies` 里的 `typescript` |
+| `--javascript` 或 `--js` | 强制 JavaScript |
+| 两者都有 | 命令行上的**最后一个**标志获胜。`--typescript=false` 选择 JavaScript；`--javascript=false` 选择 TypeScript |
+
+API、Crema 和 Wire 忽略这些标志，也不会询问。只有 Inertia 显示 **前端语言**（在适配器提示之后）。
+
+TypeScript 脚手架：
+
+- **Vue** — `app.ts`、`Pages/Welcome.vue` 上的 `<script setup lang="ts">`、`env.d.ts`、`vue-tsc`、脚本 `typecheck`
+- **React** — `app.tsx` 和 `Pages/Welcome.tsx`、`vite-env.d.ts`、`@types/react`、`@types/react-dom`
+- **Svelte** — `app.ts`、`Pages/Welcome.svelte` 上的 `<script lang="ts">`、`vite-env.d.ts`、带 `vitePreprocess` 的 `svelte.config.js`，这样 `npm run build` 可以编译页面
+
+`npm run build` 仍然是 Vite。`npm run typecheck` 运行 `vue-tsc`（Vue）或 `tsc`（React 和 Svelte）。
+
+落地页、登录和仪表板仍然以 **Crema HTML** 发布，这样在你添加更多 Inertia 页面之前会话认证就能工作。`js/Pages/Welcome.*` 是用来继续扩展的客户端页面。
+
+## 安装、迁移、填充
+
+当你接受（或传入 `--install-deps`）时，`kona new` 在新应用里运行 `./gradlew --no-daemon help -q`，如果存在 `package.json`，再运行 `npm install`（存在 `pnpm-lock.yaml` 时是 `pnpm install`）。失败会打印 WARN 芯片并继续。
+
+`--migrate` 运行 `./grind migrate`。`--seed` 运行 `./grind db:seed`。如果没有数据库，或 grind 失败，安装器会跳过该步而不是中止。默认引擎是 **sqlite**（`storage/database/database.sqlite`），这样迁移/填充可以在本地成功，而不需要服务器。
+
+## Kotlin 与 Java
+
+每个套件都有 Kotlin 和 Java 骨架（`--lang=kotlin|java`）。控制器、提供者和路由匹配你选择的语言；共享资源（视图、`package.json`）与语言无关。
+
+生成的应用从 **Maven Central** 解析 `org.konaframework` 构件。完整指南：[Wire](/docs/wire/)、[Inertia](/docs/inertia/)、[Vite](/docs/assets/vite/)。

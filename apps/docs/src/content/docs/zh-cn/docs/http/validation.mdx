@@ -1,0 +1,323 @@
+---
+title: 验证
+description: 为请求输入声明规则，只取回已验证的字段，并对网页表单返回 JSON 422 或带回闪存错误的重定向。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**验证**在处理函数信任传入数据之前检查它。你用一份**规则**列表描述每个字段 — `required`、`email` 或 `min:18` 这样的短字符串。Kona 检查每一个字段，收集人类可读的错误消息，然后要么把已验证的数据交给你，要么抛出 `ValidationException`。默认异常处理函数把该异常变成 **422** JSON 信封（客户端期望 JSON 时），或变成带回闪存错误和旧输入的**重定向回去**（典型的 HTML 表单提交），因此典型处理函数完全不需要错误处理代码。
+
+## 验证请求
+
+`Request.validate(rules)` 接受 `Map<String, List<String>>`：每个**字段名**映射到一份**规则字符串列表**。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.post("/users") { request ->
+    val input = request.validate(
+        mapOf(
+            "email" to listOf("required", "email"),
+            "age" to listOf("nullable", "integer", "min:18"),
+            "password" to listOf("required", "string", "min:8", "confirmed"),
+            "role" to listOf("required", "in:admin,member"),
+        ),
+    )
+    Response.json(users.create(input), 201)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.post("/users", request -> {
+    Map<String, Object> input = request.validate(Map.of(
+        "email", List.of("required", "email"),
+        "age", List.of("nullable", "integer", "min:18"),
+        "password", List.of("required", "string", "min:8", "confirmed"),
+        "role", List.of("required", "in:admin,member")
+    ));
+    return Response.json(users.create(input), 201);
+});
+```
+
+</TabItem>
+</Tabs>
+
+### 列表元素内部用管道连接的规则
+
+任何列表元素也可以包含用 `|` 连接的几条规则。Kona 在运行规则之前按 `|` 拆分每个元素，因此这三种声明相同：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+"email" to listOf("required", "email")
+"email" to listOf("required|email")
+"email" to listOf("required|string", "email")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+"email", List.of("required", "email")
+"email", List.of("required|email")
+"email", List.of("required|string", "email")
+```
+
+</TabItem>
+</Tabs>
+
+一个例外是 `regex:`。**以** `regex:` **开头**的元素从不拆分，因为 `|` 在正则表达式内部有意义。总是给正则规则自己的列表元素：`listOf("required", "regex:/^(draft|published)$/")`。
+
+### 你得到什么
+
+成功时，`validate` 返回 `Map<String, Any?>`，**只包含有规则并且存在于输入中的字段**。客户端发送的额外字段被丢掉，缺席的可选字段不被包含。使用这个映射，而不是再次读取请求，这样未验证的输入永远不会漏进你的逻辑。
+
+失败时，它抛出 `ValidationException`，你的处理函数停在那一行。
+
+## 数据从哪里来
+
+`Request.validate` 验证 `request.data()` — 见[请求与响应](../request-response/#typed-json-with-data)：
+
+- 对 **JSON** 请求（`Content-Type` 包含 `application/json`），值保留它们的 JSON 类型：数字、布尔、`null`、列表和映射。查询字符串值也被包含，冲突时正文值获胜。
+- 对**表单**和其他请求，每个值是取自查询字符串和 URL 编码正文的 `String`。
+
+这影响一些规则。`integer`、`numeric` 和 `boolean` 接受合适的字符串，因此它们对表单提交有效。`array` 和 `list` 只能对 JSON 通过，因为表单值总是字符串。
+
+## 用 `Validator` 验证任意映射
+
+当数据不直接来自请求 — 解码的消息、配置块、CSV 行 — 直接构建 `Validator`。`Validator.make` 接受 `Map<String, Any?>` 或 `Request`，规则格式相同。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val validator = Validator.make(
+    mapOf("name" to "Ada", "tags" to listOf("math", "engines")),
+    mapOf(
+        "name" to listOf("required", "string", "max:50"),
+        "tags" to listOf("array", "max:5"),
+    ),
+)
+
+if (validator.fails()) {
+    println(validator.errors())       // Map<String, List<String>>
+} else {
+    val clean = validator.validate()  // same result as Request.validate
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Validator validator = Validator.make(
+    Map.of("name", "Ada", "tags", List.of("math", "engines")),
+    Map.of(
+        "name", List.of("required", "string", "max:50"),
+        "tags", List.of("array", "max:5")
+    )
+);
+
+if (validator.fails()) {
+    System.out.println(validator.errors());      // Map<String, List<String>>
+} else {
+    Map<String, Object> clean = validator.validate();
+}
+```
+
+</TabItem>
+</Tabs>
+
+`passes()` 是 `fails()` 的反面。每次调用从头重新运行规则，因此结果总是反映当前数据。`errors()` 返回最近一次运行的消息。`validate()` 运行规则，并返回已验证映射或抛出 `ValidationException`。
+
+## 规则如何运行
+
+对每个字段，Kona 按你写下的顺序处理规则：
+
+1. **缺失或空白字段跳过大多数规则。** 如果字段缺席，或是只含空白的字符串，除 `required` 之外的每条规则都被跳过。因此单独的 `min:3` 不会让字段成为必填 — 它必须存在时加上 `required`。
+2. **`required` 在第一次失败时停止。** 如果 `required` 失败，该字段不再运行其他规则，因此客户端看到一条清楚的消息。
+3. **`nullable` 让 `null` 通过。** 存在且值为 `null` 的字段通常仍然运行它的规则（并在 `string`、`integer` 等上失败）。有 `nullable` 时，`null` 值跳过它们。
+4. **所有其他失败累积。** 没有 `bail` 时，每一条剩余规则都运行，每次失败加一条消息。字段规则里任何位置有 `bail` 时，第一次失败结束该字段。
+5. **未知或格式错误的规则失败关闭。** Kona 不知道的规则名加上 `Unknown validation rule [name].` 参数坏掉的已知规则 — `min:abc`、`between:1`、模式或标志无效的正则 — 加上 `Invalid validation rule [rule].` 即使字段缺失，这些错误也会出现，因此拼写错误不能悄悄禁用检查。
+
+消息里的字段名把下划线换成空格：`first_name` 显示为 “first name”。
+
+## 规则参考
+
+| 规则 | 何时通过 | 错误消息 |
+|------|----------|----------|
+| `required` | 字段存在，并且不是 `null`、不是空白字符串、不是空列表或映射 | `The email field is required.` |
+| `nullable` | 总是；让 `null` 跳过其他规则 | — |
+| `bail` | 总是；在第一次失败时停止该字段 | — |
+| `string` | 值是字符串 | `The name field must be a string.` |
+| `integer` | 整数，或带可选符号、没有前导零的数字字符串（`"42"`、`"-7"`），在 64 位范围内 | `The age field must be an integer.` |
+| `numeric` | 数字，或数字字符串（`"3.14"`、`"1e3"`、`" 12 "`） | `The price field must be a number.` |
+| `boolean` | `true`、`false`、`1`、`0`、`"1"`、`"0"`、`"true"`、`"false"` 之一 | `The active field must be true or false.` |
+| `email` | 形状为 `local@domain.tld`、没有空格的字符串 | `The email field must be a valid email address.` |
+| `url` | 解析为同时有方案和主机的 URI 的字符串（`https://example.com`） | `The website field must be a valid URL.` |
+| `array` | 列表或映射（JSON 数组或对象） | `The tags field must be an array.` |
+| `list` | 列表（JSON 数组） | `The tags field must be a list.` |
+| `min:n` | 大小至少为 `n` | `…must be at least 18.` / `…must be at least 8 characters.` / `…must have at least 1 items.` |
+| `max:n` | 大小至多为 `n` | `…must not be greater than 50 characters.` |
+| `size:n` | 大小恰好为 `n` | `…must be 4 characters.` |
+| `between:a,b` | 大小从 `a` 到 `b`，含端点 | `…must be between 1 and 10.` |
+| `in:a,b,c` | 值（作为文本）是列出的选项之一；对列表，每个元素都必须是 | `The selected role is invalid.` |
+| `not_in:a,b` | 值不是列出的选项之一 | `The selected role is invalid.` |
+| `confirmed` | 等于名为 `<field>_confirmation` 的字段 | `The password field confirmation does not match.` |
+| `confirmed:other` | 等于名为 `other` 的字段 | 同上 |
+| `same:other` | 等于名为 `other` 的字段 | `The email field must match email again.`（对 `same:email_again`） |
+| `different:other` | 不同于名为 `other` 的字段 | `The email field must be different from email again.` |
+| `regex:/pattern/flags` | 字符串包含模式的匹配 | `The code field format is invalid.` |
+| `not_regex:/pattern/flags` | 字符串**不**包含匹配 | `The code field format is invalid.` |
+| `file` | 值是有效的 `UploadedFile` | `The photo field must be a file.` |
+| `image` | 有效上传，带图片 MIME 类型或图片扩展名 | `The photo field must be an image.` |
+| `mimes:png,jpg` | 有效上传，其扩展名被列出 | `The photo field must be a file of type: png, jpg.` |
+| `mimetypes:image/png` | 有效上传，其 `Content-Type` 被列出 | `The photo field must be a file of type: image/png.` |
+| `filled` | 如果字段存在，它必须非空 | `The name field must have a value.` |
+| `present` | 字段键必须存在（即使为空） | `The name field must be present.` |
+| `sometimes` | 字段缺席时跳过整个字段 | — |
+| `accepted` | `yes`、`on`、`1` 或 `true`（不区分大小写） | `The terms field must be accepted.` |
+| `declined` | `no`、`off`、`0` 或 `false` | `The marketing field must be declined.` |
+| `accepted_if:field,value` | 另一字段等于 `value` 时必须被接受 | `…must be accepted when role is admin.` |
+| `declined_if:field,value` | 另一字段等于 `value` 时必须被拒绝 | `…must be declined when role is admin.` |
+| `prohibited` | 字段必须缺失或为空 | `…is prohibited.` |
+| `prohibited_if:field,value` | 另一字段等于 `value` 时被禁止 | `…is prohibited when role is admin.` |
+| `prohibited_unless:field,value` | 除非另一字段等于 `value`，否则被禁止 | `…is prohibited unless role is admin.` |
+| `prohibits:a,b` | 本字段存在时，列出的字段必须为空 | `…prohibits a / b from being present.` |
+| `exclude` | 从已验证输出中丢掉该字段（总是） | — |
+| `exclude_if` / `exclude_unless` / `exclude_with` / `exclude_without` | 有条件地从已验证输出中省略该字段 | — |
+| `current_password` | 通过 `Validator.setCurrentPasswordChecker` 匹配已认证用户的密码 | `…is incorrect.` |
+| `alpha` / `alpha_num` / `alpha_dash` | 仅字母 / 字母+数字 / 字母+数字+`-`+`_` | `…must only contain letters.` |
+| `ascii` | 仅 ASCII 字符 | `…must only contain ASCII characters.` |
+| `uuid` | UUID 字符串 | `…must be a valid UUID.` |
+| `ulid` | 26 字符 ULID 字符串 | `…must be a valid ULID.` |
+| `mac_address` | MAC（`aa:bb:…`、`aa-bb-…` 或 `aabb.ccdd.eeff`） | `…must be a valid MAC address.` |
+| `json` | JSON 对象或数组字符串 | `…must be a valid JSON string.` |
+| `ip` / `ipv4` / `ipv6` | IP 地址（IPv4 使用点分四段检查；IPv6 通过 JDK） | `…must be a valid IP address.` |
+| `timezone` | JDK 时区 id，例如 `UTC` 或 `America/New_York` | `…must be a valid timezone.` |
+| `date` | 解析为 ISO 本地日期 / 日期时间 | `…must be a valid date.` |
+| `date_format:Y-m-d` | 匹配格式（PHP 风格的 `Y m d H i s`，或 Java `DateTimeFormatter` 模式） | `…must match the format Y-m-d.` |
+| `after:…` / `before:…` / `after_or_equal:…` / `before_or_equal:…` | 相对另一字段或日期字符串的日期比较 | `…must be after start.` |
+| `starts_with:a,b` / `ends_with:a,b` | 字符串前缀 / 后缀 | `…must start with one of: a, b.` |
+| `digits:n` / `digits_between:a,b` | 精确 / 范围内长度的数字字符串 | `…must be 4 digits.` |
+| `lowercase` / `uppercase` | 整个字符串是小写 / 大写 | `…must be lowercase.` |
+| `distinct` | 没有重复值的数组 / 列表 | `…has duplicate values.` |
+| `required_if:field,value` | 另一字段等于 `value` 时必填 | `…is required when role is admin.` |
+| `required_unless:field,value` | 除非另一字段等于 `value`，否则必填 | `…is required unless role is admin.` |
+| `required_with:a,b` | 任一列出的字段非空时必填 | `…is required when name is present.` |
+| `required_without:a,b` | 任一列出的字段为空 / 缺失时必填 | `…is required when name is not present.` |
+| `required_with_all:a,b` | 所有列出的字段非空时必填 | `…is required when a / b are present.` |
+| `required_without_all:a,b` | 所有列出的字段为空时必填 | `…is required when none of a / b are present.` |
+| `exists:table,column` | 行存在（需要 [`ExistenceChecker`](#exists-and-unique)） | `…is invalid.` |
+| `unique:table,column[,exceptId]` | 没有冲突行（需要 `ExistenceChecker`） | `…has already been taken.` |
+
+对 `UploadedFile` 值，`min` / `max` / `size` / `between` 以**千字节**衡量，不是字符。
+
+### `exists` 与 `unique`
+
+这些规则需要数据库探测。用 `Validator.setExistenceChecker(checker)` 登记一个 — 通常来自 Cadence 支持的提供者。没有检查器时，规则失败关闭，消息说明需要 `ExistenceChecker`，因此缺失的接线不能悄悄通过。
+
+### 大小如何衡量
+
+`min`、`max`、`size` 和 `between` 从值本身决定“大小”的含义：
+
+- **数字**（JSON 数字）按值比较：`min:18` 表示 18 或更多。
+- **列表和映射**按元素个数比较：`max:5` 表示至多五项。
+- **字符串**按字符数比较 — 除非字段还有 `integer` 或 `numeric` 并且字符串看起来像数字，那种情况下按值比较。这就是 `"age" to listOf("integer", "min:18")` 对表单字段 `age=21` 有效的原因。
+
+### `confirmed` 与 `same`
+
+两者用普通相等比较值，因此类型重要：JSON 数字 `1` 不等于字符串 `"1"`。对密码字段，发送值相同的 `password` 和 `password_confirmation`。
+
+### `regex`
+
+把模式写在两个相同的分隔字符之间（任何非字母数字字符，通常是 `/`），后面跟可选标志：`i`（忽略大小写）、`m`（多行）、`s`（点匹配换行）、`x`（允许空白和注释）、`u`（接受，无效果）。模式在字符串中任何位置被找到时规则通过，因此用 `^…$` 锚定以匹配整个值。非字符串值失败。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+"slug" to listOf("required", "regex:/^[a-z0-9-]+$/")
+"code" to listOf("required", "regex:/^[A-Z]{3}$/i")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+"slug", List.of("required", "regex:/^[a-z0-9-]+$/"),
+"code", List.of("required", "regex:/^[A-Z]{3}$/i")
+```
+
+</TabItem>
+</Tabs>
+
+## 错误响应
+
+`ValidationException` 暴露 `errors`（Java：`getErrors()`），从字段名到消息列表的映射。字段按你的规则映射的迭代顺序出现：Kotlin `mapOf` 或 Java `LinkedHashMap` 是声明顺序，Java `Map.of` 未指定。它的 `message` 概括它们：第一条消息，还有其他时加上 `(and N more error)` 或 `(and N more errors)`。
+
+异常逃出你的处理函数时，默认异常处理函数从 `request.expectsJson()` 选择响应：
+
+### JSON 客户端（`expectsJson()` 为真）
+
+状态 **422**，正文：
+
+```json
+{
+  "message": "The email field is required. (and 1 more error)",
+  "errors": {
+    "email": ["The email field is required."],
+    "age": ["The age field must be at least 18."]
+  }
+}
+```
+
+当 `Accept` 偏好 `application/json` 且没有 `text/html`，或当 `Content-Type` 是 JSON 时，`expectsJson()` 为真。
+
+### 网页 / 表单客户端（其他一切）
+
+**302** 重定向到先前的 URL（`session` `_previous.url`，否则 `Referer`，否则 `/`），带：
+
+- 闪存的 `errors`（验证映射）
+- 来自 `request.all()` 的闪存 `_old_input`
+
+`StartSession` 保存时应用那些待处理的闪存袋。下一次 GET 时，用 `request.old("email")` / `session.old("email")` 和 `session.get("errors")` 读取它们。见[会话](../../security/session/)和[请求与响应](../request-response/)。
+
+该响应像任何其他响应一样穿过全局中间件。如果你需要不同的形状，在处理函数里捕获 `ValidationException`，或安装自定义 `ExceptionHandler` — 见[异常](../exceptions/)。
+
+## 表单请求与控制器
+
+控制器可以调用 `validate(request, rules)` 或 `validate(request, formRequest)`。`FormRequest` 拥有 `rules()` 和可选的 `authorize(request)` — 见[控制器 → 表单请求](../controllers/#form-requests)。未授权的表单请求在规则运行之前抛出 `HttpException(403)`。
+
+你也可以从处理函数直接调用 `request.validate(rules)` 或 `Validator.make(request, rules).validate()`。
+
+## 陷阱与常见问题
+
+**为什么 `min:3` 没有让字段成为必填？**  
+缺席/空白字段跳过大多数规则。加上 `required`。
+
+**为什么 `array` 在表单提交上失败？**  
+表单值是字符串。为列表/映射规则发送 JSON。
+
+**为什么未知规则让缺失字段失败？**  
+即使字段缺席，未知/格式错误的规则也失败关闭，因此拼写错误不能禁用检查。
+
+**`exists` / `unique` 需要数据库吗？**  
+需要 — 登记 `Validator.setExistenceChecker(...)`。没有它，那些规则失败关闭。
+
+## 今天不可用的内容
+
+- 作为一等 DSL、超出扁平键的深层 JSON 对象的嵌套 `dot.notation` 规则展开
+- 全局登记的自定义规则类（罕见情况在处理函数里用命令式检查）
+- 从方法签名自动注入 FormRequest
+
+## 下一步
+
+- [控制器](../controllers/)里的控制器辅助方法。
+- [异常](../exceptions/)里的错误信封。
+- [请求与响应](../request-response/)和[Crema 表单](../../crema/forms/)里的闪存重新显示。

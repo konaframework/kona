@@ -1,0 +1,122 @@
+---
+title: 安装
+description: 用一行 curl 安装脚本安装全局 kona CLI，用 kona new 创建应用，并在每个项目中使用 ./grind。
+---
+
+Kona 有意使用 **两个** 命令行工具：
+
+| 工具 | 所在位置 | 作用 |
+|------|----------------|--------------|
+| **`kona`** | 在你的 PATH 上（全局） | 创建应用（`kona new`），并可转发到 grind（`kona grind …`） |
+| **`./grind`** | 在每个由 `kona new` 创建的应用内 | *该* 应用的日常工作：启动服务、生成 controller 等 |
+
+你只需安装一次 `kona`。每个 `kona new` 项目都自带 `./grind`（Windows 上还有 `grind.bat`）。已在应用目录中时优先使用 `./grind`；从嵌套目录也可以运行 `kona grind <命令>`。
+
+## 推荐路径
+
+```bash
+# 1. JDK 21+
+java -version
+
+# 2. 安装全局 `kona` CLI
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+export PATH="$HOME/.local/bin:$PATH"
+
+# 3. 创建应用
+kona new my-app --no-interaction
+cd my-app
+
+# 4. 启动
+./grind serve
+```
+
+打开 `http://127.0.0.1:4000/`。这就是受支持的路径：**安装 `kona` → `kona new` → `./grind serve`**。
+
+生成的应用从 **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** 解析 `org.konaframework` 库（最新已发布版本）。构建或运行应用不需要 Kona 源码检出。
+
+## 1. JDK 21+
+
+```bash
+java -version   # 必须报告 21 或更新
+```
+
+安装脚本与生成的应用使用 Gradle wrapper；你不需要单独安装 Gradle。
+
+## 2. 安装全局 `kona` CLI
+
+### 推荐：curl 安装脚本
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+```
+
+curl URL 只从 GitHub 下载**安装脚本**。脚本随后安装 **Maven Central** 上最新的 `org.konaframework:kona-cli` 发布版（git 标签 `vX.Y.Z`）到 `~/.kona`，构建 CLI，并链接 `~/.local/bin/kona`。它**不会**安装 `main` 上尚未发布的提交。可用 `KONA_PREFIX` 覆盖前缀。确保 `~/.local/bin` 在你的 `PATH` 上，然后检查：
+
+```bash
+kona version
+kona help
+```
+
+再次运行同一 curl 命令即可更新到更新的 Central 版本。
+
+| 变量 | 默认值 | 含义 |
+|----------|---------|---------|
+| `KONA_SRC` | `~/.kona` | 源码克隆 / 更新位置 |
+| `KONA_PREFIX` | `~/.local` | `bin/kona` 与 `lib/kona` 的安装位置 |
+| `KONA_REF` | Central 最新 `kona-cli`（`vX.Y.Z`） | 要安装的 Git 分支或标签 |
+| `KONA_REPO` | `https://github.com/konaframework/kona.git` | 克隆 URL |
+
+:::note[包管理器呢？]
+Homebrew、SDKMAN 以及独立的 GitHub Release 二进制尚未发布。curl 安装脚本是受支持的路径。应用依赖仍来自 Maven Central 的 `org.konaframework` 组。
+:::
+
+## 3. 创建应用
+
+```bash
+kona new my-app                 # Kotlin（默认）
+kona new my-app --lang=java
+```
+
+`kona new` 会写出一个自包含的 Gradle 应用，其中已包含：
+
+- `./grind` / `grind.bat` — 应用内 CLI
+- `./gradlew` / `gradlew.bat` — Gradle wrapper
+- `src/main/…` 布局、`.env` 与 starter kit 文件
+- `org.konaframework:…` 依赖版本与安装脚本刚装上的版本相同（Maven Central 最新版）
+
+如需固定其他版本，可用 `--kona-version=x.y.z`。
+
+## 4. 在应用内使用 `./grind`
+
+```bash
+cd my-app
+./grind serve
+./grind make:controller Post
+```
+
+`./grind` 是一个薄脚本，用项目的 Gradle `grind` 任务并在 classpath 上放上 `kona-grind`。它与全局 `kona` **不是**同一个二进制。
+
+## 应用中的依赖
+
+生成的 `build.gradle.kts` 看起来像普通 Gradle 应用：
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.konaframework:kona-http:0.2.0")
+    implementation("org.konaframework:kona-grind:0.2.0")
+}
+```
+
+之后可用 [`./grind install`](../../packages/install/) 添加包（例如 `./grind install wire` 或 `./grind install inertia`）。
+
+## 接下来
+
+- [你的第一个应用](../first-app/) — 走一遍 `kona new` 创建了什么
+- [Deployment](../deployment/) — 在生产环境运行同一应用  
+- [Scaling](../scaling/) — 多进程、连接池、Redis、队列 worker
+- [Starter kits](../../starter-kits/) — `web`、`api`、`inertia`、`wire`
+- [grind](../../grind/) — 应用内命令详解

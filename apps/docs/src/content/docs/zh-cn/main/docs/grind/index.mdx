@@ -1,0 +1,82 @@
+---
+title: Grind Console
+description: 应用本地控制台 — ./grind serve、生成器、自定义命令、调度钩子和 steam。
+---
+
+**Grind Console** 是 Kona 的应用内命令行。用 `kona new` 创建项目并 `cd` 进去之后，几乎所有日常任务都走本地脚本：
+
+```bash
+./grind serve
+./grind route:list
+./grind make:controller Post
+./grind make:command SendDigest
+./grind gradle:build
+./grind gradle:install
+./grind list
+./grind help
+```
+
+`kona new` 把 `./grind`（Windows 上还有 `grind.bat`）写到项目根。没有单独的全局 grind 安装。创建应用始终是：
+
+```bash
+kona new my-app
+```
+
+在应用树下的任意位置也可以使用全局代理：`kona grind <args…>` — 见[运行命令](./running-commands/#kona-grind-proxy)。
+
+在 Kona 仓库里浏览 `samples/hello-kotlin` 或 `samples/hello-java` 的框架贡献者不会在那里找到 `./grind` — 那些是仓库示例模块。从仓库根用 `./gradlew :hello-kotlin:run`（或 `:hello-java:run`）运行它们，或用 `kona new` 创建一个真正的应用以获得 Grind Console。细节：[安装 → 贡献](../guides/installation/#contributing-to-kona-optional)。
+
+## Grind Console 是什么
+
+Grind Console 是控制台表面的产品名。你输入的 **CLI 二进制**仍然是 `./grind`（或 `kona grind …`）。脚本背后：
+
+1. Gradle 为**这个**项目的依赖版本运行带有 `kona-grind` 类路径的 `grind` 任务。
+2. `GrindApplication` 解析参数，构建 `GrindIO`（安静/详细），发现自定义命令，并派发内置命令或你的 `ConsoleCommand` 类。
+3. 自定义命令把签名记号绑定到输入，然后运行 `handle()` 并返回退出码。
+
+内置命令（serve、`route:list` / `route:cache` / `route:clear`、migrate、queue、schedule、生成器、`gradle:build` / `gradle:install` / `gradle <tasks…>` 等）接在 `GrindApplication` 内部。自定义命令从 `META-INF/kona/commands` 和 `build/` 下已编译的应用输出中发现。
+
+## 为什么有两个 CLI？
+
+| 工具 | 范围 | 典型用途 |
+|------|------|----------|
+| **`kona`**（全局） | 整台机器 | `kona new`，或把 `kona grind` 当作进入应用的代理（`kona grind install …`、`serve` 等） |
+| **`./grind`**（每个应用） | 一个项目 | 服务、安装包、生成代码、迁移、队列、调度、你的命令 |
+
+如果你输入 `./grind new …`，Grind Console 会提醒你改用 `kona new`，并以状态 `1` 退出。
+
+## 学习控制台
+
+| 指南 | 主题 |
+|------|------|
+| [创建命令](./creating-commands/) | `make:command`、签名、发现、隔离、陷阱 |
+| [运行命令](./running-commands/) | CLI 标志、`list`/`help`、`Grind.call`、`kona grind`、调度 |
+| [控制台 IO 与提示](./console/) | `ConsoleIO`、`GrindIO`、表格、提示、退出码 |
+| [内置命令](./commands/) | 每一个随附的 `./grind` 命令目录 |
+| [steam](../steam/) | 交互式 REPL（`./grind steam`） |
+
+用 `ConsoleTester` 测试 Grind Console 位于 [HTTP 与控制台测试](../testing/http-console/#console-grind)。
+
+## 全局标志
+
+这些作用于整个 Grind Console 进程（以及使用已绑定 `GrindIO` 的自定义命令）：
+
+| 标志 | 效果 |
+|------|------|
+| `-v` / `--verbose` | 详细诊断（`GrindIO.verbose`）**以及**控制台上的库日志（Hikari、SQL、启动） |
+| `-q` / `--quiet` | 抑制正常的标准输出；错误仍打印到标准错误 |
+
+没有 `--verbose` 时，grind 会拆掉 Logback 控制台 appender，这样连接池转储和 SQL 跟踪留在 `storage/logs`，而不会淹没 `taskLine` / `info` 输出。文件日志不变。
+
+其他常见标志（`--base=`、`--bootstrap=`、`--help`、`--isolated`）写在它们适用的地方 — 见[运行命令](./running-commands/)和[创建命令](./creating-commands/)。
+
+## 今天还没有的
+
+只记录已经发布的内容。你还不应该期望 Grind Console 具备这些缺口：
+
+- `kona-grind` 派发器里没有 `make:wire`（或其他 Wire 生成器）— 如果有 Wire 脚手架，它与这个目录是分开的。
+- 自定义命令**不会**自动收到注入的 `Application`；需要服务时自己启动应用（或调用已经有容器的 API）。
+- 除了 `Prompts` 之外没有交互式命令“向导”，控制台运行也没有命令中间件 / 事件总线。
+- 生成器的内置帮助是用法字符串和 `./grind list` 摘要 — 没有单独的手册页系统。
+
+优先省略未发布的功能，而不是把它们写成当前行为。

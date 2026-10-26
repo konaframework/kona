@@ -1,0 +1,24 @@
+---
+title: 环境要求
+description: Inertia 需要的 JDK、Node，以及配套的 Kona 模块。
+---
+
+## 运行时
+
+| 要求 | 说明 |
+|------|------|
+| **JDK 21+** | 虚拟线程；与 Kona 核心相同 |
+| **Kona 模块** | `kona-http`，根视图通常还要 `kona-crema` — 来自 Maven Central（当前线：**0.1.1**） |
+| **Inertia** | Maven Central 上的 `org.konaframework:kona-inertia` |
+
+## 前端（你的应用）
+
+Inertia 本身不打包 Vue、React 或 Svelte。应用的 `package.json` 应加入 Inertia 适配器（例如 `@inertiajs/vue3`）和 Vite。**inertia** 起步套件会放一个 Vite 应用，入口是 `src/main/resources/js/app.js`（Vue 和 Svelte）或 `app.jsx`（React）。传入 `--typescript` 会得到 `app.ts` / `app.tsx` 以及 `tsconfig.json`。这些构建写入的网站根目录是项目根下的 `public/build`。
+
+## 文档站点
+
+在 `apps/docs/` 下构建本文档需要 **Node 22+**。
+
+## 下一步
+
+- [安装](/docs/inertia/guides/installation/) — 把 Inertia 加到 Kona 项目

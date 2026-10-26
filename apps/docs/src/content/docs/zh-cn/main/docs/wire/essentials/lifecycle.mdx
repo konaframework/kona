@@ -1,0 +1,127 @@
+---
+title: Wire 生命周期
+description: mount、boot、hydrate、属性钩子、渲染和异常处理。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire 在挂载时和每次更新时按固定顺序运行**生命周期钩子**。钩子是按名称找到的普通方法 — 浏览器**不能**调用它们。
+
+## 首次挂载
+
+第一次渲染的顺序：
+
+1. 把匹配的挂载参数赋给属性
+2. `boot()`
+3. 接口混入的 `boot…` / `initialize…`
+4. `mount(...)`（以及混入的 `mount…`）
+5. `booted()`
+6. 渲染（`rendering` → HTML → `rendered`）
+
+`mount` 接收标签属性和 `Wire.mount` 参数（也可以接收容器解析的尾部参数）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Counter : Component() {
+    var count = 0
+
+    fun mount(start: Int = 0) {
+        count = start
+    }
+
+    fun boot() {
+        // runs on mount and on every subsequent request
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Counter extends Component {
+    public int count = 0;
+
+    public void mount(int start) {
+        count = start;
+    }
+
+    public void boot() {
+        // runs on mount and on every subsequent request
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 后续请求
+
+在 `POST /wire/update` 上，Wire 从快照恢复状态，然后：
+
+1. `boot` / 混入 boot / `initialize…`
+2. `hydrate` / `hydrateFoo`
+3. `booted`
+4. 属性更新 → `updating` / `updatingFoo` / 嵌套变体，然后 `updated…`
+5. 动作调用
+6. `dehydrate` / `dehydrateFoo`
+7. 渲染（除非被跳过）
+
+## 属性钩子
+
+| 钩子 | 何时 |
+|------|------|
+| `updating(path, value)` | 任何属性写入之前 |
+| `updated(path, value)` | 任何属性写入之后 |
+| `updatingFoo` / `updatedFoo` | 针对属性 `foo` |
+| 嵌套 | `foo.bar` 路径使用 `updatedFoo($value, $key)` 风格 |
+
+```kotlin
+fun updatedCount(value: Int) {
+    // count just changed
+}
+
+fun updating(path: String, value: Any?) {
+    // any path, e.g. "todos.0.title"
+}
+```
+
+## 渲染钩子
+
+```kotlin
+fun rendering(view: WireView, data: MutableMap<String, Any?>) {
+    data["extra"] = true
+}
+
+fun rendered(view: WireView, html: String) {
+    // inspect or log final HTML
+}
+```
+
+## 异常
+
+```kotlin
+fun exception(e: Throwable, stopPropagation: () -> Unit) {
+    if (e is IllegalStateException) stopPropagation()
+}
+```
+
+## 接口混入
+
+组件实现接口时，Wire 还会查找混入风格的钩子，例如 `bootWithX`、`mountWithX`、`hydrateWithX`、`updatingWithX`（附上接口的简单名）。用它们在组件家族之间共享行为，而不必继承。
+
+## 跳过渲染
+
+```kotlin
+fun touch() {
+    skipRender() // or @Renderless on the method
+}
+```
+
+## 下一步
+
+- [属性](/docs/wire/essentials/properties/) — 钩子观察什么
+- [动作](/docs/wire/essentials/actions/) — hydrate 和 dehydrate 之间运行什么
+- [测试](/docs/wire/dx/testing/) — 断言生命周期结果

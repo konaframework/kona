@@ -1,0 +1,123 @@
+---
+title: 第一个应用
+description: 用 kona new 创建应用，查看 src/main 布局，并用 ./grind 提供服务。
+---
+
+## 前提
+
+- JDK 21+
+- PATH 上的全局 `kona`（[安装](../installation/) — `curl …/scripts/install.sh | bash`）
+
+## 创建项目
+
+```bash
+kona new hello-kona                 # still asks language, kit, CSS, database, …
+kona new hello-kona --no-interaction
+cd hello-kona
+```
+
+用 `--lang=java` 得到 Java 骨架。默认套件是 **`web`**（Crema 欢迎视图）。其他套件：`--kit=api`、`--kit=inertia`、`--kit=wire`。CSS：`--css=tailwind|bootstrap|custom`。Inertia 适配器：`--frontend=vue|react|svelte`。除非传入 `--typescript`（或 `--ts`），否则 Inertia 前端是 JavaScript。每个标志只跳过那一步。不带参数的 `kona new` 是交互式安装器；它拒绝覆盖已有目录。
+
+你应该看到类似这样的输出：
+
+```text
+ DONE  Application created successfully.
+  Path         …/hello-kona
+  Language     kotlin
+  Stack        Crema · custom CSS
+  Database     sqlite
+  cd           hello-kona
+  serve        ./grind serve
+  migrate      ./grind migrate --seed
+```
+
+那个 `./grind` 文件是脚手架的一部分。`kona grind …` 是全局便利命令，替你找到这个文件。在 Kona git 检出里浏览 `samples/hello-*` 的贡献者**不会**在那里找到 `./grind` — 见[安装 → 为 Kona 做贡献](../installation/#contributing-to-kona-optional)。
+
+## 你得到了什么
+
+应用拥有的一切都在 `src/main` 下（外加项目根的 `public/`、`storage/` 和 `.env`）：
+
+| 路径 | 作用 |
+|------|------|
+| `./grind` / `grind.bat` | **应用本地** CLI（serve、make:controller 等）— 由 `kona new` 写入 |
+| `./gradlew` / `gradlew.bat` | Gradle 包装器 — 构建并运行应用 |
+| `README.md` | 项目根上与套件相关的说明 |
+| `package.json` / `vite.config.js` | 启用 CSS 或 Inertia 时的 Vite 前端（`--typescript` 还会写入 `tsconfig.json`） |
+| `.env` / `.env.example` | `APP_NAME`、`APP_KEY`（已生成）、`APP_DEBUG`、`HOST`、`PORT` 等 |
+| `src/main/kotlin/bootstrap/App`（或 `…/java/…`） | 启动 Kona、登记提供者、启动 HTTP |
+| `src/main/…/bootstrap/Middleware` | 会话加 CSRF（排除 `/api/*`）；信任代理/主机 |
+| `src/main/…/app/providers/` | 你的服务提供者 |
+| `src/main/…/app/http/controllers/` | 控制器（`Welcome`、`Login`、`Dashboard`、`api/User`） |
+| `src/main/…/app/models/User` | Cadence 用户（会话认证加 JSON API） |
+| `src/main/…/database/migrations/` | `2000_01_01_000000_create_users_table`（类 `CreateUsersTable`，列在 `META-INF/kona/migrations`） |
+| `src/main/…/database/seeders/DatabaseSeeder` | 供本地登录的演示用户 |
+| `src/main/…/routes/WebRoutes` + `ApiRoutes` | Web（`/`、`/login`、`/dashboard`）和 `/api` 路由表 |
+| `src/main/resources/config/` | JSON 配置（`app`、`http`、`paths`、`session`） |
+| `src/main/resources/views/` | Crema 视图（web 套件上的 `welcome`、`login`、`dashboard`） |
+| `public/` | HTTP 文档根（`branding/kona-logo.svg`、`robots.txt`、Vite 的 `public/build`） |
+| `storage/` | 可写的运行时数据（日志、框架缓存） |
+| `build.gradle.kts` | HTTP、grind、extract、redis、session、auth、queue、schedule、mail、crema |
+
+`kona` 本身**不会**被复制进项目。本地只有 `./grind`（加上 Gradle 包装器和应用源码）。
+
+### 路径辅助方法
+
+启动之后，用 `Application` 辅助方法或 `Paths` 门面解析目录：
+
+```kotlin
+app.appPath("http", "controllers")
+app.storagePath("logs")
+app.configPath()
+Paths.view("welcome")
+Paths.publicDir()
+```
+
+默认值遵循上面的树；用 `config/Paths` 里的 `paths.*` 键覆盖（通过 `.configs(...)` 登记）。
+
+## 迁移、填充并提供服务
+
+Web 套件带有 Cadence `User` 模型、`2000_01_01_000000_create_users_table` 迁移（类 `CreateUsersTable`）和演示填充器：
+
+```bash
+./grind migrate --seed
+./grind serve
+```
+
+（或先 `./grind migrate` 再 `./grind db:seed` — 脚手架默认是 `storage/database/` 下的**文件** H2 数据库，因此两个进程共享同一份数据。）
+
+打开 `http://127.0.0.1:4000/`（或 `.env` 里的 `HOST`/`PORT`）。用 Ctrl+C 停止。
+
+`APP_DEBUG=true`（脚手架默认）时，你访问应用时终端会显示每个请求 — 方法、路径、状态和耗时。见[日志](../../http/logging/#request-access-lines-local-serve)。
+
+`./grind serve` 监视 `src/main`，并在不重启 HTTP 服务器的情况下重新加载已编译的 Kotlin/Java（包括 Wire 的 `template()` 类）。如果你想要一个子进程 `./gradlew run`，传入 `--no-watch`。
+
+带品牌的落地页是来自 `welcome.crema.html` 的 HTML（通过 `/` 上的 `WelcomeController`）。用演示用户 **`demo@kona.test`** / **`password`** 在 `/login` 登录，然后打开 `/dashboard`。`/api/health` 返回 JSON `{"status":"ok"}`。`/api/users` 和 `/api/users/{id}` 列出或显示用户（密码字段被隐藏）。
+
+`--kit=api` 骨架包含同样的 `User` 模型和 JSON API，但没有 Crema 登录视图。
+
+## 添加控制器
+
+```bash
+./grind make:controller Post
+```
+
+然后在 `src/main/…/routes/` 里登记一条使用它的路由。生成器写到 `src/main/kotlin|java/app/…` 下。
+
+## 以后再创建另一个应用
+
+保持全局 — 不要用 grind 做这件事：
+
+```bash
+cd ..
+kona new shop --lang=java
+cd shop
+./grind serve
+```
+
+## 下一步
+
+- [部署](../deployment/) — `./grind deploy:systemd`、环境、迁移
+- [扩容](../scaling/) — 多进程、连接池、Redis、worker
+- [应用与提供者](../../concepts/application/)
+- [路由](../../http/routing/)
+- [grind 命令](../../grind/commands/)

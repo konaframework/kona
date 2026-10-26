@@ -1,0 +1,105 @@
+---
+
+title: 部件
+description: 把统计、图表、表格和账户部件放在页面或仪表板上，并从面板的 widgets 目录发现它们。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="desk-widget.png" description="Desk 页上的 Desk 小部件，位于 http://127.0.0.1:4017/admin/desk，那段写着 Open orders 的文字。" />
+
+部件可以单独渲染，也可以渲染在页面或仪表板内部。统计、图表、表格和账户卡片是内置部件。页面是组合宿主：标题、页眉和页脚动作、一个内容区域，以及你放在上面的部件。面板路由提供该页面。测试和嵌入的部件仍然用 `render()` 得到同样的 HTML。
+
+Chart.js 是默认图表引擎。想要 ApexCharts 时传入 `ChartEngine.APEX_CHARTS`。部件必须能放在页面上：`Page` 上的 `widgets(...)` 把它画在 `<div class="ff-page-widgets">` 内部。hello 示例的 `DeskWidget` 从 `widgets/` 发现，并放在 Desk 页面上。
+
+类型位于 `org.konaframework.firefly.widgets`（`kona-firefly-widgets`）。可链式调用的设置器接受静态值或接收模式 `Get` 的闭包。每个部件都有 `extraAttributes`。图表筛选还接受 `extraInputAttributes`。
+
+## 页面上的部件
+
+```kotlin
+val page = Page()
+    .title("Desk")
+    .headerActions(Action.make("refresh").label("Refresh"))
+    .widgets(
+        StatsOverviewWidget.make("overview").stats(
+            Stat().label("Orders").value("12").description("Today").color("caramel"),
+        ),
+        RevenueChart(),
+        OrdersChart(),
+    )
+val html = page.render()
+```
+
+```java
+Page page = new Page();
+page.title(get -> "Desk");
+page.widgets(
+    StatsOverviewWidget.make("overview").stats(
+        new Stat().label("Orders").value("12")
+    ),
+    new RevenueChart(),
+    ChartWidget.make("orders").engine(ChartEngine.APEX_CHARTS).type("area")
+);
+String html = page.render();
+```
+
+`Page.render()` 返回带页眉、内容区域、`<div class="ff-page-widgets">` 和页脚的 `<section class="ff-page">`。`Dashboard` 使用 `ff-page ff-dashboard`，回退标题是 `Dashboard`。内容区域由 `schema(...)`、`form(...)`、`infolistHtml(...)` 或 `table(...)` 填充。部件渲染在部件区域，因此图表在页面上，而不只是在一段独立字符串里。
+
+`widgets(...)` 替换部件列表。`discoverWidgets(panelDirectory)` 追加在 `panelDirectory/widgets` 下找到的每一个部件。
+
+部件自己的 `render()` 返回把那一个部件放进模式时会得到的同样 HTML。在测试里，以及在页面之外嵌入部件时使用它。
+
+## 统计
+
+`Stat` 需要标签和值。空白标签抛出 `Stat label is blank`。空白值抛出 `Stat value is blank`。描述、颜色、图标和 `chart`（数字列表）是可选的。`StatsOverviewWidget.make(name).stats(...)` 为每个统计渲染一个 `<article class="ff-stat">`。空的统计列表抛出 `FireflyException`。
+
+## 图表
+
+`ChartWidget` 默认使用 Chart.js（`ChartEngine.CHART_JS`）。传入 `ChartEngine.APEX_CHARTS` 使用 ApexCharts。除非你设置 `bar`、`area`、`pie` 或 `donut`，图表类型是 `line`。任何其他类型抛出 `FireflyException`。Chart.js 把 `area` 当作 `line`，把 `donut` 当作 `doughnut`。ApexCharts 保留 `area` 和 `donut`。`options` 原样传给库配置。
+
+```kotlin
+ChartWidget.make("revenue")
+    .type("bar")
+    .categories(listOf("Mon", "Tue", "Wed"))
+    .series(listOf(ChartSeries("Revenue", listOf(10, 20, 15))))
+    .maxHeight("240px")
+```
+
+`RevenueChart` 是 Chart.js 上的那个柱状图。`OrdersChart` 是 ApexCharts 上的面积图。
+
+`filters` 是键到标签的映射。`activeFilter` 选择绘制哪一份 `series(filter, points)` 列表。空白筛选名，或没有系列的筛选，会抛出 `FireflyException`。`extraInputAttributes` 落在筛选 `<select>` 上。
+
+标记是带 `data-ff-engine`（`chartjs` 或 `apexcharts`）、`data-ff-type` 和 `data-ff-library-type` 的 `<div class="ff-chart">`。一个 `<script type="application/json" class="ff-chart-config">` 保存分类、系列和选项。每次渲染包含一次 `/_firefly/widgets/ff-widget.js`、`ff-chart.js`，以及 `chart.umd.js`（Chart.js 4.4.6）或 `apexcharts.min.js`（ApexCharts 3.54.1）的脚本标签。`WidgetScripts.source(path)` 返回随附的文件。
+
+`ChartWidget.configureUsing` 对之后每一次 `ChartWidget.make` 运行。传入 `null` 可以清除它。
+
+## 表格与账户
+
+`TableWidget.make(name).table(table)` 渲染与 `Table.render()` 相同的表格 HTML。缺少表格会抛出 `FireflyException`。表格仍然需要记录 `id`。
+
+`AccountWidget.make(name).accountName("Ada").email("ada@example.com").avatar("/ada.png")` 渲染账户卡片。空白名称抛出 `FireflyException`。
+
+## 发现
+
+`WidgetDiscovery.discover(panelDirectory)` 读取 `panelDirectory/widgets`。缺少目录时返回空列表。存在但不是目录的路径抛出 `FireflyException`。每个 `.kt` 或 `.java` 文件必须声明包，以及一个名字与文件名匹配的类。该类必须已经在类路径上，并且必须有公开的无参构造器。抽象类和非部件类型会被跳过。缺少包、缺少类声明、名字与文件不匹配、类不在类路径上，或构造器失败，都会抛出 `FireflyException` 并指出文件。
+
+## 生成一个部件
+
+```bash
+./grind make:firefly-widget Revenue
+./grind make:firefly-widget Orders --lang=java
+```
+
+该命令写入 `app/firefly/widgets/Revenue.kt`（或 `Orders.java`）以及使用 `x-data="ffWidget"` 的 Crema 视图 `firefly.widgets.revenue`。该类扩展 `Widget` 并调用 `view(...)`。
+
+## 你用什么来构建
+
+| 类型 | 作用 |
+|------|------|
+| `Widget` | 基础部件。`make(name)`、`label`、`heading`、`description`、`extraAttributes` |
+| `Page` / `Dashboard` | 标题、页眉和页脚动作、模式或表格，以及部件 |
+| `Stat` / `StatsOverviewWidget` | 一张或多张统计卡片 |
+| `ChartWidget` | 默认 Chart.js，设置引擎后为 ApexCharts |
+| `TableWidget` | 嵌入一个 Firefly 表格 |
+| `AccountWidget` | 名称、邮箱和头像 |
+| `WidgetDiscovery` | 从面板的 `widgets/` 目录加载部件 |

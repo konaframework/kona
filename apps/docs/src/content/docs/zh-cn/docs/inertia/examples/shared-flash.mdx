@@ -1,0 +1,19 @@
+---
+title: 共享的一次性属性
+description: 把全局共享、中间件共享和本地覆盖合在一起。
+---
+
+```kotlin
+Inertia.share("appName", "Kona")
+Inertia.share(mapOf("flash" to "ok"))
+
+class HandleInertia : HandleInertiaRequests() {
+    override fun share(request: Request) = mapOf("path" to request.path)
+}
+
+router.get("/x") {
+    Inertia.render("Pages/X", mapOf("local" to true, "flash" to "override"))
+}
+```
+
+得到的属性：`appName=Kona`、`path=/x`、`local=true`、`flash=override`（本地值优先）。

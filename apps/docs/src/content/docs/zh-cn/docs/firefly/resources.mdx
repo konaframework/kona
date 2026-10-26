@@ -1,0 +1,82 @@
+---
+
+title: 资源
+description: 把一个模型绑定到列表、创建、编辑、查看或管理页面，并带有表单、信息列表、表格和动作。
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="orders-list.png" description="订单列表，位于 http://127.0.0.1:4017/admin/orders/list，带订单表格和创建动作。" />
+
+资源是面板的记录屏幕。它把一个模型绑定到页面、表单模式、信息列表、表格和动作。面板从 `resources/` 发现它，并登记它的页面和导航。没有单独的注册表。hello 示例里的笔记和订单类在[一个能工作的应用](/docs/firefly/working-app/)里逐步走过。本页是方法列表。
+
+类型位于 `org.konaframework.firefly`（`kona-firefly`）。可链式调用的设置器接受静态值或闭包。闭包接收模式的 `Get`。
+
+## 面板可以提供的资源
+
+把类放在面板的 `resources/` 文件夹。完整资源会得到列表、创建、编辑和查看页面。自己调用 `page(...)`，或者让页面列表为空，由 `pages()` 构建这四页。
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Order::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory().columns(TextColumn.make("name")))
+        relation(RelationManager("lines").related(Line::class.java).titleAttribute("sku"))
+    }
+}
+```
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        label("Orders");
+        model(Order.class);
+        form(Schema.make().components(TextInput.make("name")));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory().columns(TextColumn.make("name")));
+        relation(new RelationManager("lines").related(Line.class).titleAttribute("sku"));
+    }
+}
+```
+
+列表页挂载表格和一个创建动作。创建页和编辑页挂载表单。查看页挂载信息列表。编辑和查看还会渲染每个关联管理器。面板路由是 `/{prefix}/{resource}/{page}`，例如 `/admin/orders/list`。
+
+`query()` 根据模型类型选择存储。Cadence 模型返回 `ModelBuilder`。文档模型会失败并指出 `kona-firefly-document`，它不属于这一发行版。任何其他类型都会失败，并告诉你对自定义行使用 `Table.memory`。
+
+## 简单资源
+
+`simple()` 只保留一个 `ManagePage`。创建、编辑、查看和删除是页眉动作，每一个都打开已有的对话框。创建和编辑把表单模式放进该对话框。查看把信息列表放进去。删除在其中请求确认。简单资源拒绝 `relation(...)`。
+
+<FireflyShot file="notes-manage.png" description="笔记 Manage 页，位于 http://127.0.0.1:4017/admin/notes/manage，带笔记表格以及创建、编辑、查看和删除动作。" />
+```kotlin
+class NoteResource : Resource("notes") {
+    init {
+        simple()
+        model(Note::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory().columns(TextColumn.make("name")))
+    }
+}
+```
+
+当 slug 是 `notes`、页面 slug 是 `manage` 时，路由是 `/admin/notes/manage`。
+
+## 生成一个
+
+`./grind make:firefly-resource Order` 会写入 `app/firefly/resources/Order.kt`（或 `.java`），带有列表、创建、编辑和查看页面，外加一个关联管理器。`./grind make:firefly-resource Note --simple` 只写一个 Manage 页面，不写关联管理器。生成的类会调用 `model(app.models.Order::class.java)`。先创建那个 Cadence 模型，再让面板发现资源目录。
+
+hello 示例在 `/admin` 挂载一个工作台面板，包含自定义页面、一个部件、一个简单的笔记资源，以及一个完整的订单资源。
+
+## 你用什么来构建
+
+| 类型 | 作用 |
+|------|------|
+| `Resource` | 模型、表单、信息列表、表格、动作和页面 |
+| `RelationManager` | 完整资源的编辑页和查看页上的相关记录 |
+| `ManagePage` | 简单资源的那一个页面 |
+| `query()` | Cadence 模型的 `ModelBuilder` |

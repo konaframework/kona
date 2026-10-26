@@ -1,0 +1,271 @@
+---
+title: URL 生成
+description: 用 UrlGenerator 和 ValidateSignature 构建绝对和具名路由、签名 URL，并验证请求签名。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**URL 生成**把路由名和路径变成应用可以放进 JSON、重定向、邮件或 HTML 的字符串。你用 `HttpServiceProvider` 启动时，Kona 登记一个单例 `UrlGenerator`。服务请求的同一个路由器支撑具名路由查找 — 先给路由命名（[路由](../routing/#named-routes-and-url-generation)）。
+
+## 它们如何配合
+
+1. `HttpServiceProvider` 绑定 `Router` 和 `UrlGenerator`。
+2. 生成器用共享的 `Router`、作为根的 `app.url`（或 `""`），以及作为签名密钥的 `app.key`（或 `"kona-app-key"`）构造。
+3. `Url.setGenerator(generator)` 安装全局辅助方法：`Url.route`、`Url.to` / `Url.url`，以及 Kotlin 顶层的 `route(...)` / `url(...)`。
+4. 控制器和视图调用这些辅助方法，而不是硬编码路径。
+
+如果在生成器配置之前调用 `Url.route`，你会得到 `IllegalStateException("URL generator not configured")`。
+
+## 解析生成器
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val urls = app.resolve(UrlGenerator::class.java)
+// Optional overrides after boot:
+urls.setRoot("https://example.com")
+urls.setKey(app.config.getString("app.key", "kona-app-key"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+UrlGenerator urls = app.resolve(UrlGenerator.class);
+urls.setRoot("https://example.com");
+urls.setKey(app.config.getString("app.key", "kona-app-key"));
+```
+
+</TabItem>
+</Tabs>
+
+`setRoot` 去掉末尾的 `/`。空根意味着辅助方法返回只有路径的字符串（`/users/42`）。传给 `to(...)` 的绝对 `http://` / `https://` 路径原样通过。
+
+## 具名路由
+
+给路由一个名称，然后生成 URL（带可选参数）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/users/{id}") { users.show(it) }.name("users.show")
+
+val pathOnly = router.route("users.show", mapOf("id" to "42"))
+// "/users/42" — path only, no root
+
+val absolute = urls.route("users.show", mapOf("id" to "42"))
+// "https://example.com/users/42" when root is set
+
+val viaHelper = route("users.show", mapOf("id" to "42"))  // Url.route
+Response.redirect(route("users.show", mapOf("id" to id)))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/users/{id}", users::show).name("users.show");
+
+String pathOnly = router.route("users.show", Map.of("id", "42"));
+String absolute = urls.route("users.show", Map.of("id", "42"));
+String viaHelper = Url.route("users.show", Map.of("id", "42"));
+return Response.redirect(Url.route("users.show", Map.of("id", id)));
+```
+
+</TabItem>
+</Tabs>
+
+### 参数替换规则
+
+替换在底层使用 `Router.route`：
+
+- 每个 `{key}` 被替换成匹配的映射值。
+- 值**不会**百分号编码 — 自己编码保留字符。
+- 缺少的键会把 `{key}` 留在输出里。
+- 未知的路由名 → `IllegalArgumentException("Route [name] not defined")`。
+- 重复的名称 → **第一个**登记的路由获胜。
+- 分组名称前缀在登记时应用（`api.` + `health` → `api.health`）。
+
+## 没有名称的路径
+
+`to(path)` / `Url.to` / `url(path)` 把相对路径接到配置的根上：
+
+| 输入 | 根 `https://example.com` | 结果 |
+|------|--------------------------|------|
+| `/users` | 已设置 | `https://example.com/users` |
+| `users` | 已设置 | `https://example.com/users`（补上前导 `/`） |
+| `https://other.test/x` | 任意 | `https://other.test/x`（不变） |
+| `/users` | 空 | `/users` |
+
+## 签名 URL
+
+**签名 URL** 包含 HMAC-SHA256 签名（十六进制），以及可选的 `expires` Unix 时间戳。把它用于一次性下载、邮件确认，或任何不得被篡改的链接。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val link = urls.signed("/downloads/report", expirationSeconds = 600)
+// https://example.com/downloads/report?expires=…&signature=…
+
+val named = urls.signedRoute(
+    "users.show",
+    mapOf("id" to "42"),
+    expirationSeconds = 120,
+)
+
+val forever = urls.signed("/invite/accept")  // no expires query param
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String link = urls.signed("/downloads/report", 600L);
+String named = urls.signedRoute("users.show", Map.of("id", "42"), 120L);
+String forever = urls.signed("/invite/accept"); // expirationSeconds null
+```
+
+</TabItem>
+</Tabs>
+
+### 签名如何工作
+
+1. 从路径上拆开任何已有的查询字符串。
+2. 可选地加上 `expires` = 现在 + `expirationSeconds`。
+3. 排序查询键，对键和值做 URL 编码，构建 `path?sortedQuery`。
+4. 用生成器的密钥对该字符串做 HMAC-SHA256 签名。
+5. 追加 `signature=<hex>`，并用 `to(...)` 加前缀。
+
+验证从 `request.path` 加上**除** `signature` 以外的所有查询参数重建载荷，并以同样方式排序。如果存在 `expires` 并且已经过去，签名无效。
+
+### 验证进入的请求
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+if (!urls.hasValidSignature(request)) {
+    throw HttpException(403, "Invalid signature.")
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+if (!urls.hasValidSignature(request)) {
+    throw new HttpException(403, "Invalid signature.");
+}
+```
+
+</TabItem>
+</Tabs>
+
+或者登记 `ValidateSignature` 中间件，让未签名或过期的链接变成 HTTP 403，消息为 `Invalid signature.`：
+
+```kotlin
+router.get("/downloads/report") { request ->
+    Response.download(reportBytes, "report.pdf")
+}.middleware(ValidateSignature(urls))
+```
+
+```java
+router.get("/downloads/report", request -> Response.download(reportBytes, "report.pdf"))
+    .middleware(new ValidateSignature(urls));
+```
+
+## 全局 `Url` 辅助方法
+
+| 辅助方法 | 行为 |
+|----------|------|
+| `Url.setGenerator` / `clearGenerator` | 安装或清除（测试） |
+| `Url.generator()` | 当前生成器，否则抛出 |
+| `Url.route(name, params)` | 绝对/带根的具名 URL |
+| `Url.to(path)` / `Url.url(path)` | 把路径接到根上 |
+| Kotlin `route(...)` / `url(...)` | 顶层包装 |
+| Crema `{{ url(path) }}` / `{{ route(name) }}` / `{{ asset(path) }}` | 同样的生成器，在视图里求值 |
+
+## 在 Crema 视图里
+
+Crema 模板里每一个应用内的 `href`、`src` 和 `action` 都经过 `url()`、`route()` 或 `asset()`。硬编码的 `src="/branding/kona-logo.svg"` 会忽略 `APP_URL`，并且总是打到主机根。来自 `kona new` 的起步应用已经发出：
+
+```crema
+<img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+<a href="{{ url('/login') }}">Log in</a>
+```
+
+安装了生成器时（HTTP 内核在启动时会做），`url(path)` 调用 `Url.url`。没有生成器时它仍然发出带根的路径，这样标记在测试里有效。完整的辅助方法表：[渲染与数据](/docs/crema/rendering/#echo-helpers)。IntelliJ 在 `{{ }}` 里补全 `url` — 见 [IntelliJ](/docs/language/intellij/)。
+
+## 常见用法
+
+### 创建后重定向
+
+```kotlin
+return Response.redirect(route("posts.show", mapOf("id" to post.id)))
+```
+
+### JSON 链接
+
+```kotlin
+Response.json(mapOf(
+    "self" to route("users.show", mapOf("id" to user.id)),
+    "avatar" to url("/storage/avatars/${user.id}.png"),
+))
+```
+
+### 临时下载链接
+
+```kotlin
+val downloadUrl = urls.signedRoute("files.show", mapOf("id" to fileId), 300)
+mailer.send(user.email, "Your file", downloadUrl)
+```
+
+## API 参考
+
+### `UrlGenerator`
+
+| 方法 | 作用 |
+|------|------|
+| `setRoot(root)` / `setKey(key)` | 配置绝对 URL 和 HMAC 密钥 |
+| `to(path)` | 根 + 路径（或原样通过绝对 URL） |
+| `route(name, params)` | 经路由器的具名路由，然后 `to` |
+| `signed(path, expirationSeconds?)` | 签名的路径 URL |
+| `signedRoute(name, params, expirationSeconds?)` | 具名路径然后 `signed` |
+| `hasValidSignature(request)` | 验证查询签名（加可选的过期） |
+
+### `ValidateSignature`
+
+包装 `hasValidSignature` 的中间件；失败时抛出 `HttpException(403, "Invalid signature.")`。
+
+## 陷阱与常见问题
+
+**为什么我的具名 URL 缺少主机？**  
+`app.url` 是空的。设置 `APP_URL` / `app.url`，或调用 `setRoot`。
+
+**为什么替换把 `{id}` 留在字符串里？**  
+参数映射没有包含 `id`。检查键名。
+
+**我可以给 POST 正文签名吗？**  
+不行。签名只覆盖路径加查询。
+
+**改变查询顺序会破坏验证吗？**  
+不会 — 签名和验证之前都会排序键。
+
+**生产里应该使用默认的 `kona-app-key` 吗？**  
+不应该。设置一个强的 `app.key` / `APP_KEY`。
+
+## 今天不可用的内容
+
+- 作为单独 API 的 `route(..., absolute = false)`（只要路径时使用 `router.route`）
+- 允许 `expires` 查询参数之外的相对过期头的签名中间件
+- 生成器里的自动强制 HTTPS
+- 资源 URL 辅助方法（Crema `@asset` 是分开的 — 见 [Crema 表单 / 渲染](../../crema/rendering/#asset)）
+
+## 下一步
+
+- 在[路由](../routing/)里登记具名路由。
+- 用[中间件](../middleware/)保护下载。
+- 从 [API 资源](../api-resources/)返回转换后的模型。

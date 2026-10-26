@@ -1,0 +1,222 @@
+---
+title: 控制结构
+description: Crema 模板里的条件、循环、认证、能力、switch 和循环元数据。
+---
+
+Crema 的结构指令用来分支和重复模板区域。外层块先展开，这样内层块能看到循环变量和子上下文。
+
+## 真值
+
+`@if`、`@unless`、`@empty`、`@includeWhen` 及类似指令里的表达式把一个值当作**真**，除非它是：
+
+- `null`
+- `false`
+- 等于 `0` 的数字
+- 空字符串
+- 空集合、映射或数组
+
+其他一切（包括非空字符串、对象和非零数字）都是真。
+
+## 条件
+
+```crema
+@if(n == 1)
+  One
+@elseif(n == 2)
+  Two
+@else
+  Other
+@endif
+
+@unless(ok)
+  Hidden when ok is truthy
+@endunless
+
+@isset(name)
+  Name is present (non-null)
+@endisset
+
+@empty(items)
+  No items (not truthy)
+@endempty
+```
+
+| 指令 | 结束 | 含义 |
+|------|------|------|
+| `@if(expr)` | `@endif` | 为真时的正文；支持 `@elseif` / `@else` |
+| `@unless(expr)` | `@endunless` | 不为真时的正文 |
+| `@isset(name)` | `@endisset` | 解析值非 null 时的正文 |
+| `@empty(expr)` | `@endempty` | 值不为真时的正文 |
+
+嵌套的 `@if` 块匹配正确的 `@endif`。`@hasSection` / `@sectionMissing` 也用 `@endif` 结束 — 见[布局](/docs/crema/layouts/)。
+
+### 边界情况
+
+```crema
+@if(0)never@endif
+@if('')never@endif
+@if(nil)never@endif
+@if(items)has items@endif
+```
+
+比较要小心：`==` 一类在求值之后会把两边字符串化，但 `<` / `>` / `<=` / `>=` 在两边都是数字时做数值比较。`===` 和 `!==` 不字符串化：`null` 保持 null，两个数字按数值匹配。
+
+在 `@if(user !== null)` 内部，值非 null，因此 `user.getEmail()` 和 `user.email` 直接读取它。`user` 仍可能为 null 时，`user?.getEmail()` 是同一次读取；接收者为 null 时不渲染任何内容。类没有 `getEmail()` 方法时，模型上的 `user.email` 也会读取用 `getAttribute("email")` 存储的列。
+
+## `@while`
+
+```crema
+@while(loop.iteration <= n)
+  {{ loop.iteration }}
+@endwhile
+```
+
+每一轮在求值条件**之前**把 `loop` 映射注入子上下文，因此第一次检查已经看到 `loop.iteration == 1`。硬上限：**10 000** 次迭代。
+
+## `@foreach` / `@each` / `@for`
+
+### 集合形式
+
+```crema
+@foreach(items as item)
+  <li>{{ item }} ({{ loop.iteration }})</li>
+@endforeach
+```
+
+`@each` / `@endeach` 和 `@for(items as item)…@endfor` 行为相同。项名前面的 `$` 可选（`as $item`）。
+
+### 带键形式
+
+```crema
+@foreach(map as key => value)
+  {{ key }}={{ value }}
+@endforeach
+```
+
+对 `Map`，`key` / `value` 是每个条目。对列表（或其他可迭代对象），`key` 是从零开始的下标，`value` 是元素。
+
+### 范围和 C 风格 `@for`
+
+```crema
+@for(i in 0..2)
+  {{ i }}
+@endfor
+
+@for(i = 0; i < n; i++)
+  {{ i }}
+@endfor
+```
+
+`0..2` 是**闭区间**。C 风格形式使用严格的 `<` 上界（`i = 0; i < n; i++`）。
+
+### 标量和奇怪的值
+
+| 传给 `@foreach` 的值 | 迭代 |
+|----------------------|------|
+| `null` | 零次 |
+| 集合 / 数组 / `IntRange` | 元素 |
+| `CharSequence` | 字符 |
+| 任何其他单个值 | 一次迭代，值为该值本身 |
+
+## 循环元数据
+
+每一次循环迭代都在子上下文里设置一个 `loop` 映射：
+
+| 键 | 含义 |
+|----|------|
+| `index` | 从零开始的下标 |
+| `iteration` | 从一开始的下标 |
+| `first` / `last` | 布尔值 |
+| `count` | 这次循环的总数 |
+| `remaining` | 当前项之后的项数 |
+| `even` / `odd` | 基于从零开始的下标 |
+| `depth` | 嵌套深度（最外层循环为 `1`） |
+| `parent` | 嵌套时的外层循环映射，否则为 null |
+
+```crema
+@foreach(outer as o)
+  @foreach(inner as i)
+    depth={{ loop.depth }} parent={{ loop.parent.iteration }}
+  @endforeach
+@endforeach
+```
+
+## `@forelse`
+
+与 `@foreach` 类似，但集合没有项时必须有 `@empty` 分支：
+
+```crema
+@forelse(items as item)
+  {{ item }}
+@empty
+  <p>None</p>
+@endforelse
+```
+
+嵌套的 `@forelse` 块匹配正确的 `@empty` / `@endforelse`。空分支不会收到“当前”项的循环元数据。
+
+## 认证与访客
+
+```crema
+@auth
+  Signed in
+@endauth
+
+@guest
+  Please sign in
+@endguest
+```
+
+视图数据具有下列任一情况时，访问者被视为已认证：
+
+- `__authenticated` 为真
+- `auth_user` 非 null
+- `user` 非 null
+
+在认证层运行之后，从中间件或控制器传入这些值。见[认证](/docs/security/authentication/)。
+
+## 能力
+
+```crema
+@can('edit')
+  <button>Edit</button>
+@endcan
+
+@cannot('edit')
+  <span>Read-only</span>
+@endcannot
+```
+
+Crema 按顺序检查：
+
+1. `__abilities` 是包含该能力字符串的 `Set` / `List`，或该键的值为真的 `Map`
+2. 数据里的 `can` 映射（`can['edit']` 为真）
+
+真实策略通过[授权](/docs/security/authorization/)接入；这些指令只读取你提供给视图的映射。
+
+## `@switch`
+
+```crema
+@switch(status)
+@case(1)
+  Open
+  @break
+@case(2)
+  Closed
+  @break
+@default
+  Unknown
+@endswitch
+```
+
+分支比较的是**字符串化**后的值（`"1"` 匹配 `1`）。`@break` 停止当前分支；没有它时，文本可能落入下一个分支，直到下一个 `@case` / `@default` / 结束。没有分支匹配时运行 `@default`。
+
+## 字段错误
+
+`@error('field')…@enderror` 与表单一起说明 — 见[表单](/docs/crema/forms/#field-errors)。
+
+## 下一步
+
+- [包含与局部](/docs/crema/includes/)
+- [组件与插槽](/docs/crema/components/)
+- [指令参考](/docs/crema/directives/)

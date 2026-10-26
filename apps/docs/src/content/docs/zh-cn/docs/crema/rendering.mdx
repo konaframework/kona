@@ -1,0 +1,266 @@
+---
+title: 渲染与数据
+description: Crema 里的回显、转义、原始 HTML、表达式、JSON、语言字符串和 Vite 标签。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Crema 对照你传给 `view` / `render` 的数据映射（以及嵌套映射、列表和 bean 风格的 getter）求值表达式。本页说明值如何变成 HTML — 转义或原始 — 以及把数据变成 JSON、URL 和翻译字符串的辅助方法。从控制器创建视图见[视图辅助方法](/docs/crema/view-helper/)。
+
+## 传入数据
+
+每一次渲染从 `Map<String, Any?>`（Kotlin）或 `Map<String, ?>`（Java）开始。键成为模板里的顶层名称：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+view(
+    "posts.show",
+    mapOf(
+        "title" to "Hello",
+        "post" to post,
+        "tags" to listOf("kona", "jvm"),
+    ),
+).render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Views.make(
+    "posts.show",
+    Map.of(
+        "title", "Hello",
+        "post", post,
+        "tags", List.of("kona", "jvm")
+    )
+).render();
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+<h1>{{ title }}</h1>
+<p>{{ post.body }}</p>
+```
+
+嵌套路径使用点：`post.body` 走过映射键或零参数 getter（`getBody()`、`isActive()`，或名为 `body` 的方法/字段）。
+
+`View.with(key, value)` / `with(map)` 在 `render()` 之前合并更多键。子上下文（包含、循环、组件）继承父数据，并可以覆盖循环变量或插槽。
+
+## 转义回显
+
+`{{ expr }}` 把值作为文本打印，并对 `&`、`<`、`>`、`"` 和 `'` 做 HTML 转义：
+
+```crema
+<p>Hello {{ name }}</p>
+{{-- name = "<script>" → Hello &lt;script&gt; --}}
+```
+
+空值或缺失值渲染成空字符串 — 不是字面量 `null`。
+
+## 原始 HTML
+
+`{!! expr !!}` 不转义地打印。只用于你自己构建（或已经消毒）的受信任标记：
+
+```crema
+<div class="prose">{!! html !!}</div>
+```
+
+未闭合的 `{!!` / `{{` 序列在渲染时是错误。
+
+## 字面量 `@` 与注释
+
+| 语法 | 结果 |
+|------|------|
+| `@@` | 输出里的单个 `@`（记录指令时有用） |
+| `{{-- … --}}` | 注释 — 在任何其他处理之前去掉 |
+
+```crema
+{{-- Never appears in HTML --}}
+<code>@@extends</code>
+```
+
+## 表达式
+
+回显和大多数指令参数接受一种小型表达式语言：
+
+| 种类 | 示例 |
+|------|------|
+| 字面量 | `true`、`false`、`null` / `nil`、`42`、`3.5`、`'string'`、`"string"` |
+| 比较 | `==`、`!=`、`<`、`>`、`<=`、`>=`（数字按数值比较；否则字符串化） |
+| 逻辑 | `and`、`or`、`not …`、`!…` |
+| 辅助方法 | `isset(name)`、`empty(name)`、`url(path)`、`route(name)`、`asset(path)`、`csrf_token()`、`old(key)`、`env(key)`、`config(key)`、`trans(key)` / `__(key)` / `lang(key)` |
+| 路径 | `user.name`、`errors.email` |
+
+```crema
+@if(count > 0 and ready)
+  Ready
+@endif
+
+{{ isset(name) }}
+{{ empty(items) }}
+{{ not ok }}
+{{ a == 1 or b == 2 }}
+```
+
+解析出的值非 null 时 `isset(path)` 为真。值不为真时 `empty(path)` 为真（见[真值](/docs/crema/control-structures/#truthiness)）。
+
+模板里没有任意代码执行 — 只有这个表达式子集、下面的回显辅助方法，以及属性访问。
+
+## 回显辅助方法
+
+在 `{{ }}` 或 `{!! !!}` 里按名称调用这些方法。参数是普通的 Crema 表达式（字符串字面量、路径、嵌套辅助调用）。IntelliJ 和 kona-lsp 在你输入时补全完整列表。
+
+把**每一个**应用内 URL 写成 `url(...)`（或 `route(...)` / `asset(...)`）。硬编码的 `src="/branding/kona-logo.svg"` 总是打到主机根并忽略 `APP_URL`。`kona new` 起步应用已经使用该辅助方法：
+
+```crema
+<img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+<a href="{{ url('/login') }}">Log in</a>
+<form method="post" action="{{ url('/logout') }}">
+```
+
+| 辅助方法 | 结果 |
+|----------|------|
+| `url(path)` | 把 `path` 接到应用根上（`Url.url` / `APP_URL`）。绝对的 `http://` / `https://` 值原样通过。缺少生成器 → 带根路径（`/branding/…`）。空路径 → `/`。 |
+| `route(name)` | 具名路由 URL（`Url.route`）。未知名称或缺少生成器 → 由名称得到的带根路径。空名称 → 空字符串。 |
+| `asset(path)` | 公开资源 URL。前导斜杠会被去掉。数据映射里用 `asset_url` 或 `assetUrl` 作为 CDN 前缀；否则是 `/path`。 |
+| `csrf_token()` | 数据映射里 `_token` 或 `csrf_token` 的会话 CSRF 令牌。 |
+| `old(key)` / `old(key, default)` | 来自 `old`、`_old_input` 或 `oldInput` 的闪存旧输入。 |
+| `env(key)` / `env(key, default)` | 环境值（`Env.get`）。 |
+| `config(key)` | 已启动应用的配置值（`Kona.app().config`）。缺少应用或键时，回显为空。 |
+| `trans(key)` / `__(key)` / `lang(key)` | 翻译字符串（`Lang.get`）。存在时 `lang` 优先使用视图数据里的 `lang` 映射。可选的第二个参数是替换映射（`:name` 占位符）。 |
+
+引擎（或你的控制器）可能放进数据映射的约定变量，补全里也会提供：`errors`、`user`、`auth_user`、`_token`、`asset_url`、`slot`，以及 `loop` / `loop.index` / `loop.iteration` / `loop.first` / `loop.last` / `loop.even` / `loop.odd` / `loop.count` / `loop.remaining` / `loop.depth` / `loop.parent`。见[循环元数据](/docs/crema/control-structures/#loop-metadata)。
+
+```crema
+{{ url('/dashboard') }}
+{{ route('login') }}
+{{ asset('css/app.css') }}
+{{ csrf_token() }}
+<input value="{{ old('email') }}" />
+{{ config('app.name') }}
+{{ trans('messages.welcome') }}
+```
+
+`@asset`、`@csrf`、`@lang` 和 `@json` **指令**仍然可用；值属于属性或混合标记时使用回显辅助方法。Kotlin 和 Java 里的 `Url` / `route()` / `url()` 见 [URL 生成](/docs/http/url-generation/)。
+
+## `@json`
+
+`@json($expr)` 把值编码为 JSON（Jackson）。在 `<script>` 或数据属性里有用：
+
+```crema
+<script>
+  window.bootstrap = @json($user);
+</script>
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "page",
+    mapOf("user" to mapOf("name" to "Ada", "id" to 1)),
+)
+// → window.bootstrap = {"name":"Ada","id":1};
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "page",
+    Map.of("user", Map.of("name", "Ada", "id", 1))
+);
+// → window.bootstrap = {"name":"Ada","id":1};
+```
+
+</TabItem>
+</Tabs>
+
+## `@lang`
+
+`@lang('key')` 解析翻译字符串。存在时 Crema 优先使用视图数据里的 `lang` 映射；否则调用 `kona-support` 的 `Lang.get`。
+
+```crema
+@lang('messages.welcome')
+@lang('messages.hello', replace)
+```
+
+可选的第二个参数是求值为替换 `Map` 的表达式。字符串里的占位符使用 `:name` 形式（`Hi :name` + `name → Ada` → `Hi Ada`）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "greet",
+    mapOf(
+        "replace" to mapOf("name" to "Ada"),
+        // or override a single key:
+        // "lang" to mapOf("messages.hello" to "Hi :name"),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "greet",
+    Map.of("replace", Map.of("name", "Ada"))
+);
+```
+
+</TabItem>
+</Tabs>
+
+依赖全局翻译器时，在渲染之前登记 `SupportServiceProvider`（或调用 `Lang.setTranslator`）。
+
+## `@asset`
+
+`@asset('css/app.css')` 构建公开 URL。数据映射里没有基址时它发出 `/css/app.css`。传入 `asset_url` 或 `assetUrl` 作为 CDN 前缀：
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+路径参数上的前导斜杠在拼接之前会被去掉。
+
+## `@vite`
+
+`@vite('src/main/resources/js/app.js')` 为该入口发出脚本和样式表标签。支持列表：
+
+```crema
+@vite('src/main/resources/js/app.js')
+@vite(['src/main/resources/js/app.js', 'src/main/resources/css/app.css'])
+```
+
+`CremaServiceProvider` 绑定了 Vite 清单时：
+
+- **`public/hot`**（开发服务器源）→ Vite 客户端加上该源上的入口 URL，例如 `http://127.0.0.1:5173/src/main/resources/js/app.js`。
+- **清单**（`public/build/manifest.json` 或 `public/build/.vite/manifest.json`）→ 带哈希的文件，例如 `/build/assets/app-<hash>.js` 以及匹配的 CSS。
+
+`.css` 入口变成 `<link rel="stylesheet">`；其他入口变成 `<script type="module">`。没有 hot 文件或清单时，指令回退到 `/build/<entry>`。该占位不是 Vite 提供的文件 — 先运行 `npm run dev` 或 `npm run build`。见 [Vite / 资源打包](/docs/assets/vite/) 和 [Inertia](/docs/inertia/)。
+
+## 边界情况
+
+| 情况 | 行为 |
+|------|------|
+| `{{ name }}` 里缺少键 | 空字符串 |
+| `null` / `nil` 字面量 | 回显时为空字符串 |
+| 嵌套 null（`user` 为 null 时的 `user.name`） | 空字符串 |
+| 未闭合的 `{{` 或 `{!!` | 渲染抛出 |
+| 映射对 bean | 映射使用键查找；其他对象使用 getter / 零参数方法 / 公共字段 |
+
+## 下一步
+
+- [布局与继承](/docs/crema/layouts/) — 在页面间共享 HTML 外壳
+- [控制结构](/docs/crema/control-structures/) — 在同样的表达式上做条件和循环
+- [指令参考](/docs/crema/directives/) — 完整的指令表

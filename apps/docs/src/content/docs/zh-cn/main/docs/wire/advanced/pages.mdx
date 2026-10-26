@@ -1,0 +1,118 @@
+---
+title: 页面、导航与 URL
+description: 整页 Wire 组件、布局、wire:navigate、查询字符串、会话和分页。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+整页 Wire 组件在 Crema 布局里渲染，并能驱动地址栏、会话，以及单页式导航。
+
+## 整页路由
+
+把页面组件登记到一条路径上：
+
+```kotlin
+Wire.route(router, "/posts", "posts-page")
+```
+
+挂载参数来自路由属性和查询字符串。用 `@Layout` / `@Title` 标注页面，或用代码构造视图：
+
+```kotlin
+override fun render() = WireView.layout("layouts.app").title("Posts").slot {
+    // …
+}
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@Layout("layouts.app")
+@Title("Dashboard")
+class Dashboard : Component() {
+    var greeting = "Hello"
+
+    fun mount() { /* route + query params available */ }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Layout("layouts.app")
+@Title("Dashboard")
+public class Dashboard extends Component {
+    public String greeting = "Hello";
+
+    public void mount() { /* … */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 导航
+
+预取并切换页面，而不做完整的浏览器重新加载：
+
+```html
+<a href="/posts" wire:navigate>Posts</a>
+<a href="/posts" wire:navigate.hover>Prefetch on hover</a>
+<a href="/posts" wire:current.exact>Here</a>
+<a href="/posts#list" wire:navigate:scroll>Keep scroll region</a>
+```
+
+| API | 作用 |
+|-----|------|
+| `Wire.navigate(url)` | 编程式访问 |
+| `brew:navigate` / `brew:navigating` / `brew:navigated` | 一次访问前后的文档事件 |
+| `@persist('key')` | 跨访问保留 DOM |
+| `wire:current`（加 `.exact`、`.strict`） | 标记当前链接（`data-current`） |
+| 进度与视图过渡 | 通过 `brew.navigate.*` 配置 |
+| `disableBackButtonCache()` | 退出 bfcache |
+
+## URL 与会话
+
+把属性绑到查询字符串或会话：
+
+```kotlin
+@field:Url(`as` = "q", keep = true, history = true)
+var search = ""
+
+@field:Session(key = "posts.filter")
+var filter = "all"
+
+fun queryString() = mapOf("sort" to sort)
+```
+
+每次请求之后，`effects.url` 和 `effects.title` 更新地址栏和文档标题。测试里使用 `withQueryParams(...)`。
+
+## 分页
+
+扩展 `Paginates` / 实现 `WithPagination`：
+
+```kotlin
+class PostsPage : Paginates() {
+    fun results() = paginate(items, 15)
+}
+```
+
+辅助方法：`previousPage`、`nextPage`、`gotoPage`、`resetPage`。链接主题包括 Tailwind 和 Bootstrap 变体。页面状态不应出现在查询字符串上时，使用 `withoutUrlPagination`。
+
+## 带导航的重定向
+
+```kotlin
+fun create() {
+    // …
+    redirect("/posts/$id", navigate = true)
+}
+```
+
+`navigate = true` 走单页访问路径，而不是加载整份文档。
+
+## 下一步
+
+- [嵌套](/docs/wire/advanced/nesting/) — 子组件、岛屿、惰性加载
+- [示例 — 整页列表](/docs/wire/examples/crud/) — 一个接近 CRUD 的页面
+- [测试](/docs/wire/dx/testing/) — `assertSeeWire`、查询参数

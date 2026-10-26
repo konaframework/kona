@@ -1,0 +1,348 @@
+---
+title: 安装
+description: Kona 上的端到端 Inertia 设置 — grind install、前端脚手架、中间件、Vite 和第一次请求。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+本指南带你从空的 Kona 应用（或全新套件）到一个**能工作的** Inertia 页面：第一次访问是 HTML，之后的访问是 JSON，并带有真正的 Vue / React / Svelte 客户端。
+
+客户端适配器、访问选项和表单辅助方法记录在上游 **[inertiajs.com](https://inertiajs.com/)**。本站记录 **Kona 服务器**一侧，以及我们如何接线官方客户端。
+
+---
+
+## 选择你的路径
+
+| 路径 | 何时使用 |
+|------|----------|
+| **A. 起步套件** | 全新应用 — 一切都已搭建 |
+| **B. `./grind install inertia`** | 已有的 Kona 应用 — 依赖加交互式前端 |
+| **C. 手工** | 你想亲手写每一个文件 |
+
+路径 A 和 B 是受支持的“不用想”路线。路径 C 在末尾。
+
+---
+
+## 路径 A — 带 inertia 套件的新应用
+
+```bash
+kona new my-app --kit=inertia
+# Java + React + Tailwind:
+kona new my-app --kit=inertia --lang=java --frontend=react --css=tailwind
+cd my-app
+```
+
+套件包括：
+
+- Maven 依赖 `org.konaframework:kona-inertia`
+- 提供者列表上的 `InertiaServiceProvider`
+- 配置 `inertia.root_view=app`、`inertia.version=1`
+- Crema 根外壳 `src/main/resources/views/app.crema.html`
+- 启动之后推入的 `HandleInertia` 中间件
+- Crema 欢迎 / 登录 / 仪表板（会话认证，没有 JS 登录页）
+- Vite 应用：默认 **Vue 3**，或 `--frontend=react|svelte`；CSS 通过 `--css=tailwind|bootstrap|custom`
+
+### 运行它
+
+```bash
+npm install
+npm run dev          # terminal 1 — Vite on :5173, writes public/hot
+./grind serve        # terminal 2 — Kona HTTP (default :4000)
+```
+
+打开 `http://127.0.0.1:4000/`。你应该看到欢迎页。在 DevTools → Network 里，完整文档加载没有 `X-Inertia` 头；客户端导航之后（一旦你加上链接），请求包含 `X-Inertia: true` 并收到 JSON。
+
+生成的应用从 **Maven Central** 解析 `org.konaframework`（包括 `kona-inertia`）。
+
+---
+
+## 路径 B — 把 Inertia 加到已有应用
+
+### 1. 安装包
+
+从应用根（有 `build.gradle.kts` / `build.gradle` 的目录）：
+
+```bash
+./grind install inertia
+# or from anywhere under the app tree:
+kona grind install inertia
+```
+
+它总会：
+
+1. 把 `implementation("org.konaframework:kona-inertia:…")` 加到 Gradle。
+2. 把 `org.konaframework.inertia.InertiaServiceProvider` 追加到 `src/main/resources/META-INF/kona/providers`。
+
+然后它**搭建前端**（TTY 可用时是交互式的）：
+
+```text
+Which Inertia frontend stack should we scaffold?
+  [1] Vue 3 (@inertiajs/vue3)
+  [2] React (@inertiajs/react)
+  [3] Svelte (@inertiajs/svelte)
+  [4] Skip — I will wire the client myself
+```
+
+非交互 / CI 默认 **Vue 3**。随时覆盖：
+
+```bash
+./grind install inertia --frontend=vue
+./grind install inertia --frontend=react
+./grind install inertia --frontend=svelte
+./grind install inertia --frontend=none          # server package only
+./grind install inertia --frontend=vue --no-interactive
+```
+
+| 标志 | 含义 |
+|------|------|
+| `--frontend=` | `vue`、`react`、`svelte` 或 `none` |
+| `--no-interactive` | 从不提示；使用 `--frontend` 或默认 Vue |
+| `--version=` | 钉住 Maven 构件版本 |
+| `--base=` | grind 的工作目录不对时的应用根 |
+
+脚手架写入（不是 `none` 时）：
+
+| 文件 | 作用 |
+|------|------|
+| `package.json` | Vite + 官方 `@inertiajs/*` 适配器 |
+| `vite.config.js` | 构建到带清单的 `public/build`；开发 `origin` 用于热更新 |
+| `src/main/resources/js/app.(js\|jsx)` | `createInertiaApp` 入口 |
+| `src/main/resources/js/Pages/Welcome.*` | 示例页面组件 |
+| `src/main/resources/views/app.crema.html` | 根 HTML 外壳（**仅在缺失时**） |
+| `public/.gitkeep` | `hot` + `build/` 的公开目录 |
+
+安装后刷新 Gradle：
+
+```bash
+./gradlew build
+# or restart ./grind serve
+```
+
+### 2. 服务器配置
+
+在登记提供者之前或期间设置这些（套件应用已经做了）：
+
+```kotlin
+.configure { cfg ->
+    cfg.set("inertia.root_view", "app")       // Crema view name
+    cfg.set("inertia.version", "1")         // asset version string
+    // optional:
+    // cfg.set("inertia.public_path", app.basePath.resolve("public").toString())
+    // cfg.set("inertia.root_html", "<!DOCTYPE html>…")  // instead of a Crema view
+}
+```
+
+| 键 | 用途 |
+|----|------|
+| `inertia.root_view` | 包装 `{!! pageAttr !!}` + `{!! vite !!}` 的 Crema 视图 |
+| `inertia.root_html` | 不使用 Crema 时的原始 HTML 字符串 |
+| `inertia.version` | 在 Inertia 访问上比较；不匹配 → `409` |
+| `inertia.public_path` | 包含 Vite `hot` 和 `build/` 的目录（默认 `<base>/public`） |
+
+细节：[配置](../../essentials/configuration/)。
+
+**React 说明：** JavaScript 脚手架入口是 `app.jsx`。把 Vite 标签指向它：
+
+```kotlin
+.afterBoot { app ->
+    Inertia.manager().viteEntries = listOf("src/main/resources/js/app.jsx")
+}
+```
+
+（默认 `viteEntries` 是 `src/main/resources/js/app.js`，匹配 Vue/Svelte JavaScript。）
+
+**TypeScript：** `kona new --kit=inertia --typescript`（别名 `--ts`）为 Vue 和 Svelte 写入 `app.ts`，为 React 写入 `app.tsx`，并把 `viteEntries` 设为同一路径。`--javascript` / `--js` 保持 JavaScript 文件。这些标志里的最后一个获胜。Vite 仍然发出 `public/build`；源文件留在 `src/main/resources/js/`。
+
+### 3. 登记中间件
+
+`InertiaServiceProvider` 必须在你推入中间件**之前**启动，这样 `Inertia.manager()` 才存在。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+.afterBoot { application ->
+    application.resolve(HttpKernel::class.java)
+        .pushMiddleware(HandleInertiaRequests())
+    // or your kit wrapper, e.g. HandleInertia()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+.afterBoot(application -> {
+    application.resolve(HttpKernel.class)
+        .pushMiddleware(new HandleInertiaRequests());
+});
+```
+
+</TabItem>
+</Tabs>
+
+子类化 `HandleInertiaRequests` 以共享 flash/auth 属性，或覆盖 `version(request)`。见[中间件](../../essentials/middleware/)。
+
+### 4. 根模板
+
+Crema 视图 `app`（名称必须匹配 `inertia.root_view`）：
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title inertia>Kona</title>
+    {!! vite !!}
+  </head>
+  <body>
+    <div id="app" data-page="{!! pageAttr !!}"></div>
+  </body>
+</html>
+```
+
+- `{!! vite !!}` — 来自 Vite hot 文件或生产清单的 script/link 标签（[Vite 与资源](../../advanced/vite/)）。
+- `{!! pageAttr !!}` — 第一次访问的转义 JSON 页面对象。
+- `#app` — 官方适配器期望的挂载元素。
+
+### 5. 从路由渲染页面
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/") {
+    Inertia.render(
+        "Pages/Welcome",
+        mapOf(
+            "title" to "Welcome",
+            "message" to "Inertia is running on Kona",
+        ),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/", request ->
+    Inertia.render(
+        "Pages/Welcome",
+        Map.of(
+            "title", "Welcome",
+            "message", "Inertia is running on Kona"
+        )
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+字符串 `"Pages/Welcome"` 必须匹配 `js/Pages/` 下的文件（例如 `Welcome.vue`），由你的 `createInertiaApp` `resolve` 函数解析。
+
+### 6. 前端安装与运行
+
+```bash
+npm install
+npm run dev          # keep running — creates public/hot
+./grind serve
+```
+
+生产构建（没有 Vite 开发服务器）：
+
+```bash
+npm run build        # writes public/build/manifest.json
+./grind serve        # serves hashed assets via {!! vite !!}
+```
+
+### 7. 端到端验证
+
+1. **第一次访问** — 不带 `X-Inertia` 的 `GET /` → `200` HTML，存在 `#app[data-page]`，存在 `public/hot` 时有 Vite 客户端脚本标签。
+2. **Inertia 访问** — 同一 URL 带头：
+
+```http
+GET / HTTP/1.1
+X-Inertia: true
+X-Inertia-Version: 1
+```
+
+→ `200` JSON `{ "component", "props", "url", "version" }` 加上 `X-Inertia: true`。
+
+3. **版本不匹配** — 服务器版本是 `1` 时发送 `X-Inertia-Version: stale` → `409`，这样客户端硬重载（[资源版本](../../advanced/versioning/)）。
+
+4. 浏览器 — Welcome 组件渲染 `title` / `message` 属性。
+
+如果 HTML 的正文脚本区是空的，Vite 没在运行，并且还没有生产清单 — 启动 `npm run dev` 或运行 `npm run build`。
+
+---
+
+## 服务器上“已安装”意味着什么
+
+| 部分 | 作用 |
+|------|------|
+| `kona-inertia` 构件 | 门面、管理器、中间件、提供者 |
+| `InertiaServiceProvider` | 绑定 `InertiaManager` + Vite `AssetManifest` |
+| `HandleInertiaRequests` | 每次请求的共享、版本检查、响应头 |
+| 根视图 / HTML | 第一次访问的文档外壳 |
+| 配置键 | 根视图、版本、公开路径 |
+
+应用通过 grind 启动时，包发现加载 `META-INF/kona/providers` 里列出的提供者。见 Kona 的[安装包](/docs/packages/install/)。
+
+---
+
+## 前端技术栈（官方 Inertia）
+
+Kona 不重新实现浏览器协议。使用官方适配器：
+
+| 技术栈 | 包 | 上游 |
+|--------|----|------|
+| Vue 3 | `@inertiajs/vue3`、`vue`、`@vitejs/plugin-vue` | [Vue 设置](https://inertiajs.com/client-side-setup) |
+| React | `@inertiajs/react`、`react`、`react-dom`、`@vitejs/plugin-react` | [React 设置](https://inertiajs.com/client-side-setup) |
+| Svelte | `@inertiajs/svelte`、`svelte`、`@sveltejs/vite-plugin-svelte` | [Svelte 设置](https://inertiajs.com/client-side-setup) |
+
+更深的客户端主题（表单、部分重载、延迟属性，在你的适配器版本里可用时）在 [inertiajs.com](https://inertiajs.com/) 上。Kona 的工作是正确的 HTML/JSON 响应和共享属性 — 见[渲染](../../essentials/rendering/)、[共享数据](../../essentials/shared-data/)和[你的第一页](../first-page/)。
+
+---
+
+## 路径 C — 手工 Gradle（可选）
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.konaframework:kona-http:0.1.1")
+    implementation("org.konaframework:kona-crema:0.1.1")
+    implementation("org.konaframework:kona-inertia:0.1.1")
+}
+```
+
+登记 `InertiaServiceProvider`，推入中间件，加上根视图，然后要么运行 `./grind install inertia --frontend=vue`（依赖已存在时复用脚手架而不失败），要么手工复制路径 B 表里的 Vite 文件。
+
+---
+
+## 排错
+
+| 症状 | 可能原因 |
+|------|----------|
+| `InertiaException` / 没有管理器 | 提供者未登记，或中间件在启动之前 |
+| 空的 `{!! vite !!}` | 没有 `public/hot`，并且 `public/build/manifest.json` 或 `public/build/.vite/manifest.json` 没有清单 |
+| `GET /build/src/main/resources/js/app.js` 404 | 标签回退到 `/build/` 加源路径。启动 `npm run dev`（写入 `public/hot`）或 `npm run build`，然后重新加载。开发脚本来自 Vite 源；生产脚本是 `/build/assets/<hash>.js` |
+| 空白页，控制台错误 “page not found” | 组件名 ≠ `js/Pages/` 下的文件 |
+| XHR 上总是完整 HTML | 缺少 `HandleInertiaRequests`，或客户端没有发送 `X-Inertia` |
+| 持续的 `409` | 客户端 `X-Inertia-Version` ≠ 服务器 `inertia.version` |
+| React 资源 404 | `viteEntries` 仍指向 `app.js` 而不是 `app.jsx` |
+
+---
+
+## 下一步
+
+- [你的第一页](../first-page/) — 请求/响应走查
+- [前端客户端](../frontend/) — 搭建好的应用如何挂载
+- [渲染页面](../../essentials/rendering/) — `Inertia.render` API
+- [起步套件](../../dx/starter-kit/) — 套件文件图
+- [inertiajs.com](https://inertiajs.com/) — 客户端协议和适配器

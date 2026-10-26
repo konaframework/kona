@@ -1,0 +1,42 @@
+---
+title: 进程
+description: 从 Kona 运行操作系统上的外部进程。
+---
+
+**进程**模块运行 shell 命令和其他可执行文件，可以设置超时、可选的工作目录，以及环境变量覆盖。
+
+## Kotlin
+
+```kotlin
+val result = Process.run("sh", "-c", "echo hello")
+if (result.successful()) {
+    println(result.output)
+}
+
+val custom = ProcessRunner(defaultTimeoutSeconds = 30)
+val again = custom.run(
+    listOf("sh", "-c", "echo $NAME"),
+    workingDirectory = File("/tmp"),
+    env = mapOf("NAME" to "kona"),
+    timeoutSeconds = 5,
+)
+```
+
+## Java
+
+```java
+ProcessResult result = Process.run("sh", "-c", "echo hello");
+boolean ok = result.successful();
+String out = result.getOutput();
+```
+
+## 结果字段
+
+| 字段 | 含义 |
+|------|------|
+| `exitCode` | 进程退出状态 |
+| `output` | 捕获的标准输出 |
+| `errorOutput` | 捕获的标准错误 |
+| `successful()` | 退出码为 `0` 时为真 |
+
+如果进程超过超时时间，Kona 会销毁它并抛出 `IllegalStateException`。

@@ -1,0 +1,144 @@
+---
+title: 简介
+description: Kona 是什么、你会遇到的术语，以及 Kona 应用如何启动并响应请求。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Kona** 是面向 JVM 的全栈 Web 框架。你可以用 **Kotlin** 或 **Java**（或在同一项目中两者并用）编写应用代码。框架本身用 Kotlin 实现，每一处公开 API 都设计成 Java 调用点自然可读：启动应用、注册路由或解析服务时，不需要仅限 Kotlin 的繁琐写法。
+
+Kona 从其他生态中高效的应用框架汲取灵感（尤其是 Laravel 与 Almasix）。从这里开始，文档将用 **Kona 自己的术语** 描述：命名、启动顺序、HTTP 栈与工具链。
+
+## 这些文档写给谁
+
+你应已熟悉某种编程语言、类与接口，以及较高层次的 HTTP：`GET` / `POST` 等方法、`200` / `404` 等状态码、响应头与 JSON 正文。你**不必**事先用过任何 Web 框架。每个 Kona 术语都会在首次出现时给出定义，每篇概念页会说明该部件 *为何存在* 以及 *何时运行*。
+
+## 一个完整的 Kona 应用
+
+在进入词汇表之前，先看一段完整程序：启动 Kona、注册一个服务、定义一条路由，并在 4000 端口监听。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.core.Application
+import org.konaframework.core.Kona
+import org.konaframework.core.ServiceProvider
+import org.konaframework.http.HttpKernel
+import org.konaframework.http.HttpServiceProvider
+import org.konaframework.http.KonaHttpServer
+import org.konaframework.http.Response
+import org.konaframework.http.Router
+
+class Greeter(private val greeting: String) {
+    fun greet(name: String) = "$greeting, $name"
+}
+
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Greeter::class.java) { Greeter("Hello") }
+    }
+
+    override fun boot(app: Application) {
+        val greeter = app.resolve(Greeter::class.java)
+        app.resolve(Router::class.java).get("/hello/{name}") { request ->
+            Response.json(mapOf("message" to greeter.greet(request.attributes["name"].toString())))
+        }
+    }
+}
+
+fun main(args: Array<String>) {
+    val app = Kona.create(args)
+        .providers(HttpServiceProvider(), AppServiceProvider())
+        .boot()
+    KonaHttpServer(app.resolve(HttpKernel::class.java), "127.0.0.1", 4000).start()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.core.Application;
+import org.konaframework.core.Kona;
+import org.konaframework.core.ServiceProvider;
+import org.konaframework.http.HttpKernel;
+import org.konaframework.http.HttpServiceProvider;
+import org.konaframework.http.KonaHttpServer;
+import org.konaframework.http.Response;
+import org.konaframework.http.Router;
+import java.util.Map;
+
+public final class Main {
+    public static final class Greeter {
+        private final String greeting;
+        public Greeter(String greeting) { this.greeting = greeting; }
+        public String greet(String name) { return greeting + ", " + name; }
+    }
+
+    public static final class AppServiceProvider implements ServiceProvider {
+        @Override
+        public void register(Application app) {
+            app.getContainer().singleton(Greeter.class, c -> new Greeter("Hello"));
+        }
+
+        @Override
+        public void boot(Application app) {
+            Greeter greeter = app.resolve(Greeter.class);
+            app.resolve(Router.class).get("/hello/{name}", request ->
+                Response.json(Map.of("message", greeter.greet(String.valueOf(request.getAttribute("name"))))));
+        }
+    }
+
+    public static void main(String[] args) {
+        Application app = Kona.create(args)
+            .providers(new HttpServiceProvider(), new AppServiceProvider())
+            .boot();
+        new KonaHttpServer(app.resolve(HttpKernel.class), "127.0.0.1", 4000).start();
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+对 `GET /hello/kona` 的请求会返回 `{"message":"Hello, kona"}`。本页其余部分会点名你刚看到的每一块。
+
+## 词汇表
+
+- **Application**（`org.konaframework.core.Application`）：表示正在运行的项目。参见 [Application & providers](../../concepts/application/)。
+- **Service provider**（`org.konaframework.core.ServiceProvider`）：带 `register` 与 `boot` 的小类，把功能接入应用。
+- **Container**（`org.konaframework.core.Container`）：知道如何创建对象的注册表。参见 [Container](../../concepts/container/)。
+- **Config** / **Env**：配置树与环境变量。参见 [Config & env](../../concepts/config/)。
+- **Router** / **Middleware** / **HTTP kernel**：HTTP 路由、过滤器，以及请求到响应的统一入口。
+- **kona**（全局 CLI）：创建应用 — `kona new my-app`。
+- **grind**（应用内 CLI）：每个项目中的 `./grind`。
+- **Cadence**：数据库层。参见 [Cadence](../../cadence/)。
+
+## 生命周期：从启动到结束
+
+1. **进程启动。** 你的 `main` 调用 `Kona.create(args)`。
+2. **引导。** 调用 `.boot()` 时创建 `Application`、加载 `.env`、播种基础配置并运行 `configure` 回调。
+3. **register 阶段。** 按你列出的顺序，每个 provider 执行 `register`。
+4. **boot 阶段。** **所有** provider 注册完成后，执行 `boot`（挂载路由与中间件）。
+5. **服务。** `KonaHttpServer` 绑定 Netty socket，并在各自的虚拟线程上把请求交给 HTTP kernel。
+6. **每个请求。** kernel 运行全局中间件、匹配路由、执行 handler，并把异常转为错误响应。
+
+步骤 1–4 只发生一次；步骤 6 对每个请求都会发生。
+
+## 文档如何组织
+
+侧边栏是渐进路径：**入门** → **基础** → **Crema** → **Digging deeper** → **Security** → **Database** → **Frontend** → **Wire** → **Inertia** → **Testing** → **Packages & tooling**。
+
+## 需要先了解的设计选择
+
+- **JDK 21 或更新。** 每个请求跑在 *虚拟线程* 上。
+- **组合，而非嵌入。** Kona 从零基于专注的库构建（Netty、Jackson、SLF4J）。
+- **显式装配。** 服务在可读的 provider 中绑定；没有 classpath 扫描。
+- **Kotlin 优先，Java 一等公民。** 每处公开 API 都有自然的 Java 调用点。
+
+## 接下来去哪
+
+- [安装](../installation/)：安装全局 `kona`，然后创建应用。
+- [你的第一个应用](../first-app/)：`kona new`，然后 `./grind serve`。
+- [Routing](../../http/routing/)：**基础** 中的第一页。

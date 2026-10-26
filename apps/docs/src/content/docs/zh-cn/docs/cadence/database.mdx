@@ -1,0 +1,192 @@
+---
+title: 数据库连接
+description: 为 H2、SQLite、MySQL、MariaDB、PostgreSQL、Oracle 和 SQL Server 配置 JDBC 连接；环境键；kona new --database；方言和驱动。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Cadence 通过 **JDBC** 与关系数据库对话。**连接**是一个具名连接池（HikariCP）加上标识符引用和查询方言规则。模型、查询构建器和 `DB` 门面都使用 `CadenceServiceProvider` 从你的 `database` 配置构建的**全局** `Database` 管理器。
+
+本页覆盖配置深度：每一个环境键、每一个第一方引擎、生产与本地默认值、脚手架的具名连接，以及如何接入 Cadence 尚未专门支持的数据库。
+
+## 配置如何加载
+
+1. 你的应用登记一个 `key()` 为 `"database"` 的 `ConfigFile`（脚手架：`config/Database.kt` 或 `config/Database.java`）。
+2. `CadenceServiceProvider` 调用 `Database.fromConfig(app.config)`，把管理器绑定到容器（`Database` 和别名 `db`），并在启动时调用 `setAsGlobal()`。
+3. 如果 `database` 节**没有**连接，并且环境（或 `.env`）里设置了 `DB_URL`，Cadence 从 `DB_*` 变量构建单个连接。
+
+### 连接映射键
+
+| 键 | 环境等价物 | 含义 |
+|----|------------|------|
+| `url` | `DB_URL` | JDBC URL（必需） |
+| `username` | `DB_USERNAME` | 登录用户 |
+| `password` | `DB_PASSWORD` | 登录密码 |
+| `driver` | `DB_DRIVER` | 引擎别名（`sqlite`、`h2`、`mysql`、`mariadb`、`pgsql`、`sqlsrv`、`oracle`）或 JDBC 类（`org.sqlite.JDBC`）。脚手架使用别名；Cadence 在打开连接池之前映射它们。省略或留空，让 Hikari 从 JDBC URL 加载驱动。 |
+| `pool_size` / `poolSize` | `DB_POOL_SIZE` | Hikari 最大连接池大小（默认 `10`） |
+| `quote_identifiers` / `quoteIdentifiers` | `DB_QUOTE_IDENTIFIERS` | 引用表/列名（默认 `true`） |
+
+`database.default` 可以是由 `DB_CONNECTION` 选择的**连接名**（`"main"`、`"pgsql"` 等），或很少见的**内联连接映射**。
+
+脚手架具名连接使用的辅助环境键（当你不设置完整的 `DB_URL` 时）：
+
+| 键 | 使用者 |
+|----|--------|
+| `DB_HOST` | mysql、mariadb、pgsql、sqlsrv、oracle |
+| `DB_PORT` | 同上 |
+| `DB_DATABASE` | 数据库 / 服务名 |
+
+## 为什么新应用默认 SQLite
+
+`kona new` 设置 `DB_CONNECTION=sqlite`，并把 SQLite JDBC 驱动放到类路径上（`runtimeOnly("org.xerial:sqlite-jdbc:…")`），这样全新应用**不必安装数据库服务器**就能运行：
+
+```text
+jdbc:sqlite:storage/database/database.sqlite
+```
+
+- 文件位于 **`storage/database/database.sqlite`**（不在 `src/.../database` 下，那里放迁移和填充器）。
+- 每一个 `./grind` 进程（migrate、seed、serve）打开同一个文件，因此模式和填充数据跨命令保留。
+- 脚手架创建 `storage/database/.gitkeep`；`storage/database/*` 被 gitignore（包括 SQLite 文件）。
+
+文件 H2 使用 `kona new --database=h2`（`storage/database/kona` 加 `AUTO_SERVER`）。`jdbc:h2:mem:…` 只用于**单元测试**。
+
+**生产应用应该把 `DB_CONNECTION` / `DB_URL` 指向 PostgreSQL、MySQL/MariaDB 或其他第一方引擎。**
+
+## 第一方引擎
+
+Cadence 为这些引擎提供专用的查询方言和模式语法。**默认**意味着方言、具名脚手架连接、BOM 坐标和 `kona new --database=` — 不是每个应用类路径上都有每一个 JDBC JAR。
+
+| 引擎 | 连接名 | 典型 JDBC URL | 引用 | 模式说明 |
+|------|--------|---------------|------|----------|
+| **SQLite** | `sqlite` | `jdbc:sqlite:storage/database/database.sqlite`（脚手架默认） | `"…"` | `INTEGER PRIMARY KEY AUTOINCREMENT`；变更只支持 ADD/DROP 列加索引 |
+| **H2** | `main` / `h2` | `jdbc:h2:file:…`（`--database=h2`）；`jdbc:h2:mem:…`（测试） | `"…"` | `TEXT` → `CHARACTER VARYING` |
+| **MySQL** | `mysql` | `jdbc:mysql://…` | `` `…` `` | `AUTO_INCREMENT`、`LONGTEXT`、`TINYINT(1)` |
+| **MariaDB** | `mariadb` | `jdbc:mariadb://…` | `` `…` `` | 与 MySQL 相同的 DDL 家族；产品检测不同 |
+| **PostgreSQL** | `pgsql` | `jdbc:postgresql://…` | `"…"` | 标识列 ID、`JSONB`、`DROP INDEX IF EXISTS` |
+| **Oracle** | `oracle` | `jdbc:oracle:thin:@//…` | `"…"` | `VARCHAR2`、标识列、`NUMBER(1)`、PL/SQL drop-if-exists |
+| **SQL Server** | `sqlsrv` | `jdbc:sqlserver://…` | `[…]` | `IDENTITY`、`NVARCHAR`、`DROP INDEX … ON table`、`OFFSET/FETCH` |
+
+查询方言还覆盖 limit/offset（包括 SQL Server / Oracle 的 `OFFSET … FETCH`）、锁（`FOR UPDATE` / 共享 / SQL Server 表提示）、日期部分辅助方法、原生 upsert（`ON CONFLICT`、`ON DUPLICATE KEY`、`MERGE`），以及驱动支持时的生成键 / returning 策略。
+
+### 用 `kona new` 选择引擎
+
+```bash
+kona new shop
+kona new shop --database=pgsql
+kona new shop --database=h2 --lang=java
+```
+
+接受的值：`sqlite`（**默认**）、`h2`、`mysql`、`mariadb`、`pgsql`（别名：`postgres`、`postgresql`、`pg`）、`sqlsrv`（别名：`sqlserver`、`mssql`）、`oracle`。
+
+该标志设置 `DB_CONNECTION` 和 `DB_URL`，并在引擎不是脚手架默认时，在 SQLite 旁边加上匹配的 `runtimeOnly` JDBC 坐标。
+
+### 脚手架的具名连接
+
+生成的 `config/Database` 包含 `main`、`h2`、`sqlite`、`mysql`、`mariadb`、`pgsql`、`sqlsrv` 和 `oracle` 的映射。用环境切换，**并且**把该引擎的 JDBC JAR 放到类路径上。`kona new --database=pgsql` 两件事都做。SQLite 脚手架之后只改 `DB_CONNECTION` 则不会 — Cadence 随后失败，并给出一行你可以粘贴进 `build.gradle.kts` 的 `runtimeOnly("org.postgresql:postgresql:…")`，然后重新运行 `./grind migrate`。
+
+```bash
+DB_CONNECTION=pgsql
+DB_URL=jdbc:postgresql://127.0.0.1:5432/kona
+DB_USERNAME=kona
+DB_PASSWORD=secret
+```
+
+或者不使用完整 URL，依赖主机/端口/数据库辅助键（见生成的配置文件）。加上 `runtimeOnly` 坐标之后，Gradle 在下一次 `./grind` 时拾取它（`konaClasspath` 任务）。
+
+### 驱动坐标
+
+推荐版本钉在版本目录 / `kona-bom` 里。示例：
+
+```kotlin
+dependencies {
+    // Always present from kona new (zero-install default):
+    runtimeOnly("org.xerial:sqlite-jdbc:3.49.1.0")
+    // Added automatically by --database=…, or add by hand:
+    runtimeOnly("com.h2database:h2:2.3.232")
+    runtimeOnly("org.postgresql:postgresql:42.7.5")
+    runtimeOnly("com.mysql:mysql-connector-j:9.2.0")
+    runtimeOnly("org.mariadb.jdbc:mariadb-java-client:3.5.2")
+    runtimeOnly("com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11")
+    runtimeOnly("com.oracle.database.jdbc:ojdbc11:23.7.0.25.01")
+}
+```
+
+## 在代码里使用连接
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.Database
+
+DB.table("users").where("active", true).get()
+
+DB.transaction { connection ->
+    connection.table("accounts").where("id", 1).decrement("balance", 50)
+    connection.table("accounts").where("id", 2).increment("balance", 50)
+}
+
+Database.global().connection("pgsql").table("facts").count()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.DB;
+import org.konaframework.cadence.Database;
+
+DB.table("users").where("active", true).get();
+
+DB.transaction(connection -> {
+    connection.table("accounts").where("id", 1).decrement("balance", 50);
+    connection.table("accounts").where("id", 2).increment("balance", 50);
+    return null;
+});
+
+Database.global().connection("pgsql").table("facts").count();
+```
+
+</TabItem>
+</Tabs>
+
+模型使用全局默认连接，除非模型覆盖 `connectionName`。
+
+在应用之外（脚本、测试），构建一个管理器并调用 `setAsGlobal()`：
+
+```kotlin
+Database()
+    .addConnection("default", ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
+    .setAsGlobal()
+```
+
+你也可以传入已有的 `javax.sql.DataSource` 和显式的 `Grammar`：
+
+```kotlin
+database.addConnection("raw", myDataSource, Grammar.POSTGRES)
+```
+
+## SQLite 变更限制
+
+SQLite 不能像服务器引擎那样自由地重塑表。Cadence 的 SQLite 模式语法在变更时发出 **ADD COLUMN**、**DROP COLUMN**（SQLite 3.35+）和索引 DDL；它**不会**在一次 `ALTER` 里把外键重写到已有表上。对 SQLite 优先使用创建时约束，或在需要完整重塑时在自定义迁移里重建表。
+
+## 添加 Cadence 尚未专门支持的数据库
+
+1. **查询标识符引用**（`Grammar`）— 用 `Grammar.registerUrlPrefix` 登记 URL 前缀。
+2. **模式 DDL**（`SchemaGrammar`）— 子类化并用 `SchemaGrammar.registerProduct` 登记 JDBC 产品名。
+
+`Grammar.forUrl` / `SchemaGrammar.forProduct` 先选择内置，再选择登记。最长的 URL 前缀获胜。
+
+## 事务与连接池
+
+- `DB.transaction { … }` 把一个 JDBC 连接绑定到当前线程；嵌套工作加入同一事务。
+- 连接池在第一次使用时**惰性**打开。`Database.close()` 关闭已打开的池；配置保留，因此下一次查询可以重新连接。
+- `disconnect(name)` 关闭一个具名池，而不忘记它的配置。
+
+## 相关指南
+
+- [Cadence 概览](./) — 层次和词汇
+- [查询构建器](./query-builder/) — 流畅 SQL
+- [迁移](./migrations/) — 模式 DSL 和 `./grind migrate`
+- [模型](./models/) — 连接之上的活动记录模型

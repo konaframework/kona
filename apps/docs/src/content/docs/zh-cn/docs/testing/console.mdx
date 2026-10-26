@@ -1,0 +1,142 @@
+---
+title: 控制台测试
+description: 用 ConsoleTester 运行 grind — 捕获退出码和标准输出，assertSee / assertDontSee。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ConsoleTester` **在进程内**运行 grind，捕获**标准输出**，并返回一个可以断言的 `ConsoleResult`。用它测试内置命令（`list`、`schedule:run` 等）和应用发现到的命令。
+
+包：`org.konaframework.testing`。命令如何编写和发现，见[创建命令](../../grind/creating-commands/)和[运行命令](../../grind/running-commands/)。
+
+## 运行一条命令
+
+`run(vararg args: String)` 构建 `GrindApplication().run(args)`，在调用期间把 `System.out` 重定向到缓冲区，然后恢复原来的流。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val result = ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertExit(0)
+    .assertSee("schedule:run")
+    .assertDontSee("missing-command")
+
+println(result.exitCode)
+println(result.output)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ConsoleResult result = new ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertExit(0)
+    .assertSee("schedule:run")
+    .assertDontSee("missing-command");
+
+result.getExitCode(); // or .getOutput() via Kotlin data-class accessors from Java: exitCode / output
+```
+
+</TabItem>
+</Tabs>
+
+`ConsoleResult` 是 Kotlin `data class`，属性是 `exitCode: Int` 和 `output: String`。从 Java 看它们是 `getExitCode()` / `getOutput()`（或取决于工具的 Kotlin 属性访问器）。
+
+## 传入与 CLI 相同的标志
+
+你写在 `./grind` 后面的任何东西都可以传给 `run`：
+
+```kotlin
+ConsoleTester().run(
+    "db:migrate",
+    "--base=$base",
+    "--bootstrap=bootstrap.App",
+    "-q",
+)
+```
+
+常见标志：
+
+| 标志 | 作用 |
+|------|------|
+| `--base=…` | 应用根（与 `TestApplication` 的临时目录是同一想法） |
+| `--bootstrap=…` | 需要时为命令启动应用的引导类 |
+| `-q` / quiet | 更安静的 grind 输出（如果打印了，仍会捕获进 `output`） |
+
+当命令读取该根下的配置、`.env` 或已编译类时，把 `--base` 指到真实或临时的应用树。
+
+## 断言
+
+所有断言方法返回 `ConsoleResult` 以便链式调用。失败抛出 `IllegalArgumentException`。
+
+| 方法 | 行为 |
+|------|------|
+| `assertOk()` | `exitCode == 0` |
+| `assertExit(code)` | 精确的退出码 |
+| `assertSee(text)` | `output` 包含该子串 |
+| `assertDontSee(text)` | `output` **不**包含该子串 |
+
+```kotlin
+ConsoleTester().run("list").assertOk()
+ConsoleResult(1, "usage error").assertExit(1).assertSee("usage")
+```
+
+今天没有 `assertExactOutput`、正则辅助方法或结构化表格解析器 — 需要时用 `output` 做你自己的检查。
+
+## 自定义应用命令
+
+Grind 从 `META-INF/kona/commands`（及相关发现）发现命令。要让自定义命令出现在 `list` 下或按名称运行：
+
+1. 编译应用（或测试模块），让命令索引在类路径上。
+2. 当命令需要已启动的应用时，像生产入口那样传入 `--base` / `--bootstrap`。
+
+```kotlin
+ConsoleTester()
+    .run("app:report", "--base=$base")
+    .assertOk()
+    .assertSee("Report complete")
+```
+
+如果发现看不到该命令，grind 以非零退出；`assertOk()` 失败，消息里带有捕获的标准输出。
+
+## `Grind.call` 与 `ConsoleTester`
+
+`org.konaframework.grind.Grind` 提供应用代码**和**测试都使用的编程入口：
+
+| API | 捕获标准输出？ | 典型用途 |
+|-----|----------------|----------|
+| `ConsoleTester().run(…)` | 是（`ConsoleResult` 上的完整缓冲区） | 对打印文本做断言 |
+| `Grind.call(name, args, …)` | 否（正常打印） | 为副作用调用一条命令 |
+| `Grind.callSilently(name, args, …)` | 抑制标准输出（不返回） | 没有噪声的副作用 |
+
+当断言**就是**控制台输出时，优先用 `ConsoleTester`。当你只关心退出码或数据库/文件副作用、并且已有其他断言时，优先用 `Grind.call` / `callSilently`。见[运行命令](../../grind/running-commands/)。
+
+## 边界情况
+
+**标准错误。** 只重定向 `System.out`。写到 `System.err` 的消息**不**在 `output` 里，`assertSee` 也不会断言它们。
+
+**并行测试。** 重定向 `System.out` 是进程全局的。避免在同一 JVM 里没有隔离地并发运行多个 `ConsoleTester` 调用；串行化控制台测试，或对这个类使用单线程测试 worker。
+
+**ANSI / 样式。** Grind 使用 Termwind 风格的 `ConsoleIO` / `GrindIO`。捕获的 `output` 可能包含 ANSI 转义序列，取决于 `NO_COLOR` / `FORCE_COLOR` / `TERM`。优先断言稳定的子串（命令名、纯文本消息），而不是整行着色文本。在测试环境设置 `NO_COLOR=1` 可以让快照更容易。
+
+**交互提示。** 从标准输入读取的命令今天不能由 `ConsoleTester` 驱动。这个类上没有伪造输入流的辅助方法。
+
+## 今天还没有的
+
+- 标准错误捕获，或合并的标准输出加标准错误缓冲区
+- 标准输入 / 提示脚本
+- 正则或按行的断言辅助方法
+- 来自 `TestApplication` 的自动 `--base`（自己传入路径）
+- 运行 JUnit 的专用 grind `test` 命令（使用 Gradle / 你的 IDE）
+
+## 下一步
+
+- [HTTP 测试](../http-console/) — 进程内请求
+- [创建命令](../../grind/creating-commands/) — 命令类和发现
+- [控制台 IO 与提示](../../grind/console/) — `GrindIO` 样式
+- [数据库与伪造对象](../database-fakes/) — 命令发邮件或入队时替换协作者

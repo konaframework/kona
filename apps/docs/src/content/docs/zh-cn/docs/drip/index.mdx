@@ -1,0 +1,53 @@
+---
+title: drip
+description: 用于出站请求的流畅 HTTP 客户端。
+---
+
+**drip** 是 Kona 的出站 HTTP 客户端。在应用代码、grind 命令或测试里需要调用另一个服务时使用它。
+
+## 注册
+
+```kotlin
+app.register(DripServiceProvider())
+```
+
+从容器解析共享客户端，或直接构造 `Drip()`。
+
+## Kotlin
+
+```kotlin
+val drip = Drip().baseUrl("https://api.example.com").withHeaders(mapOf("Accept" to "application/json"))
+val response = drip.get("/users", mapOf("page" to "1"))
+if (response.successful()) {
+    val data = response.json()
+}
+drip.post("/users", mapOf("name" to "Ada"))
+drip.put("/users/1", mapOf("name" to "Ada Lovelace"))
+drip.delete("/users/1")
+```
+
+绝对 URL 会跳过基址：
+
+```kotlin
+drip.get("https://example.com/health")
+```
+
+## Java
+
+```java
+Drip drip = new Drip().baseUrl("https://api.example.com");
+DripResponse response = drip.get("/users");
+boolean ok = response.successful();
+```
+
+## 响应形状
+
+| 字段 | 含义 |
+|------|------|
+| `status` | HTTP 状态码 |
+| `body` | 作为文本的响应正文 |
+| `headers` | 响应头 |
+| `successful()` | 状态为 2xx 时为真 |
+| `json()` | 把正文解析为 JSON 对象映射 |
+
+请求超时默认为数秒。JSON 正文设置 `Content-Type: application/json`；普通 `String` 正文使用 `text/plain`。

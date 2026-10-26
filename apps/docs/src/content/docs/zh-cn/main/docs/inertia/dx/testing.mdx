@@ -1,0 +1,41 @@
+---
+title: 测试
+description: 如何在应用里测试 Inertia 页面，以及给库贡献者的说明。
+---
+
+## 在你的应用里
+
+用 Kona 的[测试](/docs/testing/)辅助方法驱动 HTTP 内核。如果测试共享静态状态，在测试之间重置 Inertia（以及 Vite / 容器）：
+
+```kotlin
+@AfterEach
+fun tearDown() {
+    Inertia.reset()
+    Vite.reset()
+    Kona.reset()
+}
+```
+
+驱动内核：
+
+```kotlin
+val app = Kona.create(arrayOf("--base=$temp"))
+    .providers(HttpServiceProvider(), InertiaServiceProvider())
+    .boot()
+app.resolve(HttpKernel::class.java).pushMiddleware(HandleInertiaRequests())
+val response = app.resolve(HttpKernel::class.java).handle(
+    Request("GET", "/", headers = mapOf("X-Inertia" to "true")),
+)
+```
+
+断言状态码、`X-Inertia` 头，以及 JSON 页面对象（`component`、`props`、`url`、`version`）。
+
+## 向 `kona-inertia` 贡献（可选）
+
+在 [Kona 仓库](https://github.com/konaframework/kona) 里工作的框架贡献者，可以从仓库根运行库测试和覆盖率门槛：
+
+```bash
+./gradlew :kona-inertia:test :kona-inertia:koverVerify
+```
+
+应用项目不需要这些模块任务 — 从 Maven Central 依赖 `org.konaframework:kona-inertia`，并按上面的方式测试自己的路由和页面。

@@ -1,0 +1,89 @@
+---
+
+title: 导航
+description: 面板把导航画在哪里、树可以有多深，以及标签和 URL 如何设置。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="panel-navigation.png" description="hello-kotlin 侧栏，位于 http://127.0.0.1:4017/admin/desk，带 desk 链接以及 Notes 和 Orders 分组。" />
+
+导航是面板外框里的链接树。每个面板有一种 `NavigationType`。项是 `NavigationItem` 节点。你自己不调用 `item` 时，`mount` 从页面和资源构建这棵树。
+
+## 三种类型如何绘制
+
+| 类型 | 第 1 级 | 第 2 级和第 3 级 |
+|------|---------|------------------|
+| `NavigationType.APP`（默认） | 顶栏 | 侧栏，针对当前第 1 级项的子项 |
+| `NavigationType.SIDE` | 侧栏 | 侧栏 |
+| `NavigationType.TOP` | 顶栏 | 顶栏 |
+
+`topNavigation()` 就是 `navigation(NavigationType.TOP)`。`navigation` 接受枚举或接收 `Get` 的闭包。
+
+嵌套停在第 3 级。第四级在面板挂载时失败，消息会写出该项的名字。`cluster("Catalog")` 加上一个自己没有 URL 的父节点。`userMenu(...)` 渲染在顶栏，紧挨用户芯片。`spa(true)` 在有 URL 的链接上加上 `wire:navigate`。
+
+## hello 示例显示什么
+
+示例从不调用 `item`。因此发现构建的是：
+
+- 每个页面一条链接。标签是 `navigationLabel()`，也就是 slug。Desk 的链接文本是 `desk`。URL 是 `/admin/desk`。
+- 每个资源一个分组。标签是 `Resource.label()`（`Notes`、`Orders`）。该资源的每个页面是一个子项。子项标签是页面 slug：笔记上是 `manage`，订单上是 `list`、`create`、`edit`、`view`。
+
+当你自己构建树并想要一个词而不是 slug 时，在 `NavigationItem` 上设置 `label`。
+
+## 自己构建一棵树
+
+一旦调用了 `item` 或 `cluster`，挂载不会用发现到的页面替换那棵树。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val catalog = panel.cluster("Catalog")
+catalog.child(
+    NavigationItem("orders").label("Orders").url("/admin/orders/list"),
+)
+panel.userMenu(
+    NavigationItem("profile").label("Profile").url("/admin/profile"),
+)
+panel.navigation(NavigationType.SIDE)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+NavigationItem catalog = panel.cluster("Catalog");
+catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list"));
+panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile"));
+panel.navigation(NavigationType.SIDE);
+```
+
+</TabItem>
+</Tabs>
+
+## NavigationItem 上的方法
+
+空白名称会抛出 `FireflyException`（`Navigation item name is blank`）。来自闭包的空白标签或空白 URL 会抛出并指出该项。
+
+| 方法 | 它做什么 |
+|------|----------|
+| `label(value)` / `label(provider)` | 可见文本。默认是名称 |
+| `url(value)` / `url(provider)` | 链接目标。设置之前为空 |
+| `extraAttributes(map)` / `extraAttributes(provider)` | 链接上的 HTML 属性。提供者接收 `Get` |
+| `cluster(true)` | 把节点标成一组 |
+| `child(item)` | 追加一个子项并设置其深度 |
+| `isCluster()` | 是否设置了 `cluster(true)` |
+| `labelText(get)` / `urlText(get)` / `attributes(get)` | 解析闭包或已存储的值 |
+| `find(name)` | 本节点或具有该名称的后代 |
+
+活动状态：当前路径等于该项 URL，或以该 URL 加 `/` 开头。空 URL 或 `/` 从不被当作前缀匹配。
+
+## 用户芯片
+
+芯片文本是面板守卫的 id。该 id 为 null 时，芯片显示 **访客**。hello 示例调用 `authenticate(false)` 并且不让任何人登录，因此芯片显示访客。`userMenu` 项渲染在该芯片旁边。
+
+## 下一步
+
+[动作](/docs/firefly/actions/) 是页面页眉和对话框内部的按钮。这些链接所在的外壳是[面板外框](/docs/firefly/chrome/)。

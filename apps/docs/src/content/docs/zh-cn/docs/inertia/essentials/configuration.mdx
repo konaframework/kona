@@ -1,0 +1,31 @@
+---
+title: 配置
+description: 全部 inertia.* 配置键，以及 InertiaServiceProvider 如何应用它们。
+---
+
+`InertiaServiceProvider` 在 `register` / `boot` 中读取配置：
+
+| 键 | 类型 | 作用 |
+|----|------|------|
+| `inertia.root_view` | 字符串 | 设置 `InertiaManager.rootView` |
+| `inertia.root_html` | 字符串 | 设置 `InertiaManager.rootHtml` |
+| `inertia.version` | 字符串 | 设置 `InertiaManager.version` |
+| `inertia.public_path` | 路径字符串 | Vite 的 public 目录；默认 `<app.basePath>/public` |
+
+示例：
+
+```kotlin
+.configure { cfg ->
+    cfg.set("inertia.root_view", "app")
+    cfg.set("inertia.version", "1")
+    cfg.set("inertia.public_path", app.basePath.resolve("public").toString())
+}
+```
+
+启动之后的运行时修改：
+
+```kotlin
+Inertia.version("2")
+Inertia.manager().rootView = "shell"
+Inertia.manager().viteEntries = listOf("resources/js/app.js")
+```

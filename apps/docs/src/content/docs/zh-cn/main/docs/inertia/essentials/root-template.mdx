@@ -1,0 +1,46 @@
+---
+title: 根模板
+description: Crema 根视图与纯 HTML 根、page / pageAttr / vite 绑定。
+---
+
+## Crema 根视图
+
+把 `inertia.root_view` 设为 Crema 视图名（例如 `app`）。管理器渲染：
+
+| 绑定 | 内容 |
+|------|------|
+| `page` | 页面对象的原始 JSON 字符串 |
+| `pageAttr` | 做过 HTML 属性转义的 JSON（可安全放进 `data-page="…"`） |
+| `vite` | `Vite.tags(*viteEntries)` 产生的标签；无法解析时为 `""` |
+
+示例：
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    {!! vite !!}
+  </head>
+  <body>
+    <div id="app" data-page="{!! pageAttr !!}"></div>
+  </body>
+</html>
+```
+
+必须注册 Crema（`CremaServiceProvider`），这样 `InertiaServiceProvider` 才能在启动时挂上 `CremaEngine`。
+
+## 纯 HTML 根
+
+当 `rootView` 为 null，或没有 Crema 时，管理器使用 `rootHtml`（配置 `inertia.root_html`，或内置默认值）。
+
+占位符：
+
+- `@page` → 转义后的 JSON（用于属性）
+- `@vite` → Vite 标签字符串
+
+默认外壳包含一个带 `data-page='@page'` 的 `#app` 元素。
+
+## Vite 入口
+
+`InertiaManager.viteEntries` 默认为 `["src/main/resources/js/app.js"]`。设为空列表后，即使存在清单也不会输出标签。

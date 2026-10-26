@@ -1,0 +1,167 @@
+---
+title: 测试事件
+description: 用 FakeEvent 记录并断言派发；针对普通 EventDispatcher 对监听器做单元测试。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+两种做法覆盖大多数情况：
+
+1. 针对真实的 `EventDispatcher` **单元测试一个监听器**（或直接调用 `handle`）。
+2. 用 `org.konaframework.testing.FakeEvent` **记录你的代码派发了什么**。
+
+更广的测试设置在[测试](/docs/testing/)和[数据库与伪造对象](/docs/testing/database-fakes/)。
+
+## FakeEvent
+
+`FakeEvent` 包装一个 `EventDispatcher`，并记录传给它自己的 `dispatch` 方法的每一个对象。在 `fake.dispatcher` 上登记的监听器在你调用 `fake.dispatch` 时仍然运行。
+
+| API | 作用 |
+|-----|------|
+| `dispatcher` | 底层 `EventDispatcher` — 在这里登记监听器 |
+| `dispatch(Any)` | 追加到记录列表，然后调用 `dispatcher.dispatch` |
+| `events(): List<Any>` | 已记录载荷的快照（副本） |
+| `assertDispatched(Class<*>): Boolean` | 任一已记录事件是该类的实例时为 `true` |
+| `clear()` | 清除记录**以及** `dispatcher.flush()` |
+
+`assertDispatched` 使用 `Class.isInstance`，因此它匹配你传入类型的子类。真实总线上的监听器匹配仍然只按精确类；这个断言只关于记录列表。
+
+### Kotlin
+
+```kotlin
+import org.konaframework.testing.FakeEvent
+
+data class OrderPlaced(val id: String)
+
+val events = FakeEvent()
+var heard = false
+
+events.dispatcher.listen(OrderPlaced::class.java) { heard = true }
+
+events.dispatch(OrderPlaced("o1"))
+
+assert(heard)
+assert(events.assertDispatched(OrderPlaced::class.java))
+assertEquals(1, events.events().size)
+
+events.clear()
+assert(events.events().isEmpty())
+assert(!events.dispatcher.hasListeners(OrderPlaced::class.java))
+```
+
+### Java
+
+```java
+import org.konaframework.testing.FakeEvent;
+
+FakeEvent events = new FakeEvent();
+events.dispatcher.listen(OrderPlaced.class, event -> { /* … */ });
+events.dispatch(new OrderPlaced("o1"));
+assertTrue(events.assertDispatched(OrderPlaced.class));
+assertEquals(1, events.events().size());
+events.clear();
+```
+
+## 断言生产代码发布了什么
+
+`FakeEvent.dispatch` 记录载荷。解析 `EventDispatcher` 并在**那个**实例上调用 `dispatch` 的生产代码**不会**经过 `FakeEvent.dispatch`，因此除非测试自己通过 `fake.dispatch` 发布，否则 `assertDispatched` 保持为空。
+
+优先在应用使用的同一条总线上登记一个捕获监听器：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val bus = app.resolve(EventDispatcher::class.java)
+val seen = mutableListOf<Any>()
+bus.listen(OrderPlaced::class.java) { seen += it }
+
+app.resolve(CheckoutService::class.java).placeOrder(/* … */)
+
+assertEquals(listOf(OrderPlaced("o1")), seen)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+EventDispatcher bus = app.resolve(EventDispatcher.class);
+List<Object> seen = new ArrayList<>();
+bus.listen(OrderPlaced.class, seen::add);
+
+app.resolve(CheckoutService.class).placeOrder(/* … */);
+
+assertEquals(List.of(new OrderPlaced("o1")), seen);
+```
+
+</TabItem>
+</Tabs>
+
+或者把一个新的 `EventDispatcher` 注入被测单元：
+
+```kotlin
+val bus = EventDispatcher()
+val seen = mutableListOf<Any>()
+bus.listen(OrderPlaced::class.java) { seen += it }
+
+val service = CheckoutService(bus)
+service.placeOrder(/* … */)
+
+assertEquals(listOf(OrderPlaced("o1")), seen)
+```
+
+当**测试**（或工具）是发布者，并且你想要一份记录列表加上可选监听器时，使用 `FakeEvent`：
+
+```kotlin
+val fake = FakeEvent()
+fake.dispatcher.listen(OrderPlaced::class.java) { /* side effect under test */ }
+fake.dispatch(OrderPlaced("o1"))
+assertTrue(fake.assertDispatched(OrderPlaced::class.java))
+```
+
+## 隔离测试一个监听器
+
+不经过总线调用 `handle`：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val listener = SendWelcomeEmail(mailer)
+listener.handle(UserRegistered(1, "a@b.c"))
+assertEquals(1, mailer.sentCount)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SendWelcomeEmail listener = new SendWelcomeEmail(mailer);
+listener.handle(new UserRegistered(1, "a@b.c"));
+assertEquals(1, mailer.sentCount());
+```
+
+</TabItem>
+</Tabs>
+
+## 测试登记顺序
+
+```kotlin
+val bus = EventDispatcher()
+val order = mutableListOf<String>()
+bus.listen(Ping::class.java) { order += "a" }
+bus.listen(Ping::class.java) { order += "b" }
+bus.dispatch(Ping())
+assertEquals(listOf("a", "b"), order)
+```
+
+## FakeEvent 不做什么
+
+| 期望 | 现实 |
+|------|------|
+| 把事件入队 | 仍然是同步的 — 与 `EventDispatcher` 相同 |
+| 伪造 Cadence 模型事件 | 使用 `ModelDispatcher.flush()` / `withoutEvents` — 见 [Cadence 事件](/docs/cadence/serialization-events/#lifecycle-events) |
+| 在生产 `dispatch` 之后断言监听器数量 | 使用 `dispatcher.listenerCount` / `hasListeners`，或在监听器里捕获 |
+| 替换全局的 `Event::fake()` 门面 | 未发布 — 在测试里构造 `FakeEvent` |
+
+依赖：`org.konaframework:kona-testing`（会拉入 `kona-events`）。

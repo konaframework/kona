@@ -1,0 +1,139 @@
+---
+title: Wire 动作
+description: 用 wire:click、wire:submit 和 $wire 从浏览器调用服务器方法。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**动作**是组件上的公开方法。浏览器用 `wire:click`、其他 `wire:*` 事件、`wire:submit`，或从 Alpine 用 `$wire.method()` 调用它。
+
+## 基本点击
+
+```html
+<button wire:click="increment">+</button>
+<button wire:click="add(5)">+5</button>
+<button wire:click="save('draft', true)">Save</button>
+```
+
+参数按 JSON 编码并按位置传递。尾部参数可以从 Kona 容器解析（依赖注入）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun increment() { count++ }
+
+fun add(amount: Int) { count += amount }
+
+fun save(label: String, notify: Boolean) { /* … */ }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public void increment() { count++; }
+
+public void add(int amount) { count += amount; }
+
+public void save(String label, boolean notify) { /* … */ }
+```
+
+</TabItem>
+</Tabs>
+
+## 返回值
+
+返回一个值，并从 JavaScript 读取它：
+
+```kotlin
+fun doubled(): Int = count * 2
+```
+
+```html
+<button x-data x-on:click="alert(await $wire.doubled())">Doubled?</button>
+```
+
+返回值走 `effects.returns`。
+
+## 不渲染的动作
+
+当你只需要改变状态或返回一个值时，跳过 HTML 重新渲染：
+
+```kotlin
+@Renderless
+fun clearQuietly() {
+    count = 0
+}
+```
+
+或在方法内调用 `skipRender()` / `renderless()`。`forceRender()` 使该请求后续的跳过调用变成空操作。模板上的 `.renderless` 事件修饰符效果相同。
+
+## 魔术动作
+
+| 调用 | 效果 |
+|------|------|
+| `$set('count', 1)` | 设置一个属性 |
+| `$toggle('open')` | 翻转布尔值 |
+| `$refresh` | 不通过具名方法重新渲染 |
+| `$event` | 从 Alpine 访问 DOM 事件 |
+
+```html
+<button wire:click="$set('count', 0)">Reset</button>
+<button wire:click="$toggle('open')">Toggle</button>
+<button wire:click="$refresh">Refresh</button>
+```
+
+## 任意 DOM 事件
+
+`wire:<event>` 适用于原生事件和自定义事件：
+
+```html
+<input wire:keydown.enter="search" />
+<div wire:click.outside="close"></div>
+<input wire:trix-change="updated" />
+```
+
+### 按键修饰符
+
+`.enter`、`.escape`、`.space`、`.tab`、`.shift`、`.ctrl`、`.alt`、`.meta` / `.cmd`、`.up` / `.down` / `.left` / `.right`、`.page-up` / `.page-down`、`.slash`，以及 `.shift.enter` 这样的组合。
+
+### 事件修饰符
+
+`.prevent`、`.stop`、`.window`、`.document`、`.outside`、`.once`、`.self`、`.camel`、`.dot`、`.passive`、`.capture`、`.debounce` / `.debounce.500ms`、`.throttle` / `.throttle.500ms`。
+
+## 表单
+
+```html
+<form wire:submit="save">
+    <input wire:model="email" />
+    <button type="submit">Save</button>
+</form>
+```
+
+`wire:submit` 隐含 `.prevent`。`wire:model` 修饰符见[表单](/docs/wire/essentials/forms/)。
+
+## 从 Alpine / `$wire`
+
+```js
+await $wire.save()
+await $wire.$call('add', 5)
+await $wire.$refresh()
+await $wire.$commit()
+```
+
+`$wire` 还暴露 `$el`、`$id`、`$watch` 和 `$hook`。
+
+## 请求打包
+
+交互按组件排队。实时的 `wire:model` 更新会合并；动作按 Wire 的请求总线中断或排队，因此快速点击不会和变形竞态。
+
+## 不能调用什么
+
+受保护/私有方法、`render` / `template`，以及生命周期钩子（`mount`、`boot`、`updatedFoo` 等）不能从浏览器调用。尝试会引发方法未找到或生命周期保护错误。
+
+## 下一步
+
+- [表单](/docs/wire/essentials/forms/) — 模型绑定细节
+- [JavaScript](/docs/wire/js/runtime/) — 全局 `Wire` API 和钩子
+- [生命周期](/docs/wire/essentials/lifecycle/) — 动作和更新周围的钩子

@@ -1,0 +1,15 @@
+---
+title: Inertia
+description: Kona 上由服务器驱动的单页前端：概览与指南。
+---
+
+Kona 的 **Inertia** 让 JVM 应用返回一个**页面对象**（组件名加上属性），由 JavaScript 客户端接管。第一次访问是普通 HTML 文档；之后的导航发送 `X-Inertia` 头并收到 JSON。
+
+Inertia 以 `org.konaframework:kona-inertia` 发布在 [Maven Central](https://repo1.maven.org/maven2/org/konaframework/kona-inertia/)。用 `kona new my-app --kit=inertia` 搭建，或用 `./grind install inertia`（或 `kona grind install inertia`）加入依赖和提供者。
+
+## 本节指南
+
+- [简介](/docs/inertia/guides/introduction/) — 协议，以及何时使用 Inertia
+- [安装](/docs/inertia/guides/installation/) — 包与 Vite 客户端
+- [第一个页面](/docs/inertia/guides/first-page/) — 端到端的第一页
+- [渲染页面](/docs/inertia/essentials/rendering/) — `Inertia.render` 与属性

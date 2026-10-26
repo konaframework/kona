@@ -1,0 +1,75 @@
+---
+title: 任务调度
+description: Cron 风格的日程、重叠锁，以及 grind schedule 命令。
+---
+
+在 `Schedule` 上登记重复工作，再用 grind 运行到期任务。配合系统 cron 每分钟调用 `./grind schedule:run`，或把 `./grind schedule:work` 作为长期进程运行。
+
+在应用引导里注册 `ScheduleServiceProvider`。
+
+## 快速开始
+
+```kotlin
+val schedule = app.resolve(Schedule::class.java)
+schedule.everyMinute("heartbeat") { ping() }
+schedule.dailyAt("reports", hour = 8, minute = 0) { buildReports() }
+schedule.command("custom", "*/15 * * * *") { sync() }
+```
+
+```java
+Schedule schedule = app.resolve(Schedule.class);
+schedule.everyMinute("heartbeat", () -> ping());
+schedule.dailyAt("reports", 8, 0, () -> buildReports());
+```
+
+```bash
+./grind schedule:list
+./grind schedule:run
+./grind schedule:work --max=1 --sleep=60
+```
+
+## 频率辅助方法
+
+| 方法 | Cron |
+|------|------|
+| `everyMinute` | `* * * * *` |
+| `everyFiveMinutes` | `*/5 * * * *` |
+| `everyTenMinutes` | `*/10 * * * *` |
+| `everyFifteenMinutes` | `*/15 * * * *` |
+| `everyThirtyMinutes` | `*/30 * * * *` |
+| `hourly` | `0 * * * *` |
+| `everyTwoHours` … `everySixHours` | `0 */n * * *` |
+| `daily` | `0 0 * * *` |
+| `dailyAt(name, hour, minute)` | `minute hour * * *` |
+| `weekly` | `0 0 * * 0` |
+| `monthly` | `0 0 1 * *` |
+| `command(name, expression, task)` | 自定义 5 字段 cron |
+
+Cron 字段是 `min hour dom month dow`。支持的原子：`*`、数字、列表（`0,30`）、范围（`1-5`）和步长（`*/n`）。
+
+## 重叠与服务器
+
+每次登记返回一个可以配置的 `ScheduledEvent`：
+
+```kotlin
+schedule.everyFiveMinutes("invoice-sync") { syncInvoices() }
+    .withoutOverlapping(expiresMinutes = 10)
+
+schedule.hourly("cleanup") { purgeTemp() }
+    .onOneServer()          // file lock under storage/framework
+    .runInBackground()      // virtual thread; schedule:run returns immediately
+```
+
+- **withoutOverlapping** — 如果上一次运行仍持有互斥锁则跳过
+- **onOneServer** — 基于文件的锁，使只有一台机器运行该任务
+- **runInBackground** — 在虚拟线程上启动任务
+
+## grind 命令
+
+| 命令 | 行为 |
+|------|------|
+| `schedule:list` | 显示已登记的事件名（和标志） |
+| `schedule:run` | 运行当前分钟到期的事件 |
+| `schedule:work` | 循环：运行到期事件、休眠（`--sleep=60`），可选 `--max` 次数 |
+
+典型的生产设置：系统 cron `* * * * * cd /app && ./grind schedule:run`。如果你更想要一个长期存活的 JVM 而不是每分钟的 cron，使用 `schedule:work`。

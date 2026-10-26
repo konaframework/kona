@@ -1,0 +1,96 @@
+---
+title: 包含与片段
+description: 在 Crema 里包含片段模板、once 块和逐字区域。
+---
+
+**片段**是普通视图，用来组合进其他模板 — 导航、闪存条、表单字段片段。Crema 没有单独的“片段”文件类型：任何视图名都可以被包含。包含通过子数据上下文共享父级的节和栈（父级的键仍然可见；包含可以读到同样的 `name`、`user` 等）。
+
+## 始终包含
+
+```crema
+@include('partials.nav')
+```
+
+解析为 `src/main/resources/views/partials/nav.crema.html`（点分名称变成路径）。缺少视图时抛出 `ViewNotFoundException`。
+
+```crema
+{{-- views/partials/nav.crema.html --}}
+<nav>
+  <a href="/">Home</a>
+  @auth
+    <a href="/account">Account</a>
+  @endauth
+</nav>
+```
+
+## 可选包含
+
+```crema
+@includeIf('optional.banner')
+```
+
+视图文件不存在时不渲染任何东西（也不报错）。用于主题覆盖或可选包。
+
+## 条件包含
+
+```crema
+@includeWhen(showBanner, 'partials.banner')
+@includeUnless(hideBanner, 'partials.banner')
+```
+
+| 指令 | 在这种情况下渲染视图 |
+|------|----------------------|
+| `@includeWhen(expr, 'name')` | `expr` 为真 |
+| `@includeUnless(expr, 'name')` | `expr` 不为真 |
+
+## 第一个可用的视图
+
+```crema
+@includeFirst(['theme.banner', 'partials.banner'])
+```
+
+渲染第一个能解析的引号名称；跳过缺失的视图且不报错。如果一个都解析不到，则不输出。
+
+适合“优先主题，否则用默认”的片段：
+
+```crema
+@includeFirst([
+  'themes.current.flash',
+  'partials.flash',
+])
+```
+
+## `@once`
+
+```crema
+@once
+  <script>window.__konaFlash = true;</script>
+@endonce
+```
+
+正文在**每次渲染过程中最多渲染一次**，即使包含它的片段被包含了很多次。相同的 `@once` 正文共用同一个键。栈和节在第一次经过时仍然可用。
+
+## `@verbatim`
+
+```crema
+@verbatim
+  Document {{ this }} and @if(examples) literally.
+@endverbatim
+```
+
+`@verbatim`…`@endverbatim` 里面的内容不会被当成 Crema 处理 — 输出和指令保持为文本。用在文档页，或在 Crema 布局里嵌入模板示例时。
+
+## 片段、布局与组件
+
+| 做法 | 何时使用 |
+|------|----------|
+| `@include` | 小的共享块（导航、字段、提示条） |
+| `@extends` / `@section` | 带具名区域的整页外壳 — [布局](/docs/crema/layouts/) |
+| `@component` / `<x-*>` | 带默认插槽和可选**具名插槽**的可复用部件 — [组件](/docs/crema/components/) |
+
+包含不隔离栈：片段里的 `@push('scripts')` 仍然落到布局的 `@stack('scripts')` 上。
+
+## 下一步
+
+- [组件与插槽](/docs/crema/components/) — 插槽和 `<x-*>` 标签
+- [栈](/docs/crema/stacks/) — 从片段收集脚本

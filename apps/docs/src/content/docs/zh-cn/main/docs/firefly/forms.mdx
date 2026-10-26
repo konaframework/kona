@@ -1,0 +1,310 @@
+---
+
+title: 表单
+description: 把 Firefly 表单字段加到模式上，用 Wire 绑定它们，并验证提交的状态。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+表单字段位于 `org.konaframework.firefly.forms`（`kona-firefly-forms`）。每个字段是一个模式组件，因此它坐在与节或标签页相同的树里，共享该模式的状态映射，并使用组件基类上已有的实时修饰符（`live`、`liveOnBlur`、`liveDebounce`、`hidden`、`visible`、`dehydrated`、`afterStateUpdated`）。
+
+该模块依赖模式、支持、HTTP 验证和文件系统。它不登记面板。你把字段放进 `Schema`，并把该模式渲染进 Wire 视图。
+
+## 一次调用里的字段
+
+```kotlin
+val name = TextInput.make("name")
+    .label("Name")
+    .required()
+    .live()
+val schema = Schema.make().components(name)
+schema.fill(mapOf("name" to "Ada"))
+val html = schema.render()
+```
+
+```java
+TextInput name = TextInput.make("name").label("Name").required();
+name.live();
+Schema schema = Schema.make().components(name);
+schema.fill(Map.of("name", "Ada"));
+String html = schema.render();
+```
+
+`make("name")` 设置状态键。`render()` 用字段外观包装控件：标签、提示、前缀、后缀、辅助文字，以及带 `x-data="ffField"` 加 `@entangle(name)` 的 span。实时字段还在模式包装上发出 `wire:model`。在页面已经启动的 Alpine 实例上调用 `registerFirefly` 和 `registerFireflyForms`。不要再次调用 `Alpine.start()`。在该脚本运行之前，`@entangle(...)` 仍可能在页面上显示为原始文本。
+
+`FormAssets.script()` 和 `FormAssets.stylesheet()` 是字段脚本和字段 CSS。富文本和 Markdown 编辑器的正文通过 `--ff-primary` 使用焦糖强调色 `#DF8723`。
+
+大多数可链式设置器接受固定值或闭包。闭包接收 `Get`。
+
+```kotlin
+name.label("Name")
+name.label { get -> if (get.get("/kind") == "org") "Organization" else "Name" }
+name.placeholder { "Ada Lovelace" }
+name.helperText("Shown on the invoice")
+```
+
+```java
+name.label("Name");
+name.label(get -> "Organization");
+name.helperText("Shown on the invoice");
+```
+
+最后一次调用获胜。字符串替换闭包，闭包替换字符串。
+
+## 共享辅助方法
+
+这些方法在字段基类上。每一个具体字段都有它们。
+
+| 方法 | 它做什么 |
+|------|----------|
+| `label`、`heading`、`description` | 文字，或返回文字的闭包 |
+| `helperText`、`hint`、`hintColor`、`hintIcon` | 控件下方或旁边的文字 |
+| `placeholder` | 输入占位 |
+| `prefix`、`suffix`、`prefixIcon`、`suffixIcon` | 控件内部的文字或图标 |
+| `inlinePrefix`、`aboveContent`、`belowContent` | 额外外观 |
+| `required()`、`required(false)`、`required { get -> ... }` | 加上 `required` 规则。必需字段不可空 |
+| `markAsRequired` | 显示星号而不加规则 |
+| `nullable()` | 加上 `nullable` 并清除 `required` |
+| `readOnly`、`autofocus`、`autocomplete`、`autocapitalize`、`inputMode` | 输入属性 |
+| `distinct` | 重复器项拒绝重复值 |
+| `rule`、`rules` | 额外的验证规则字符串 |
+| `validationAttribute` | 把 “The name field” 改写成你的标签 |
+| `validationMessages` | 每个规则名的消息 |
+| `saved(false)` | 与 `dehydrated(false)` 相同 |
+| `formatStateUsing`、`dehydrateStateUsing` | 改变 `dehydrate()` 写入的值 |
+| `extraAttributes` | 合并到组件根上的 HTML 属性。映射或闭包。无效名称被跳过 |
+| `extraInputAttributes` | 输入、文本域、选择或编辑器控件上的 HTML 属性。映射或闭包。`type`、`name` 和 `value` 仍由字段拥有 |
+
+`hidden`、`visible`、`live`、`liveOnBlur`、`liveDebounce` 和 `afterStateUpdated` 留在模式组件上。在字段上调用它们。它们返回组件基类，因此在 Java 里先完成字段链再调用 `live()`。
+
+`prefixAction`、`suffixAction` 和 `hintAction` 接受 `Action`。它们记录在[字段上的动作](#actions-on-a-field)。
+
+## 文本
+
+`TextInput` 是单行控件。`email()`、`url()`、`numeric()`、`integer()`、`password()`、`tel()` 和 `type("search")` 设置输入类型和匹配的验证规则。`telRegex` 替换默认电话模式。想要自己的模式时，在 `tel()` 之前调用 `telRegex`。
+
+`revealable(true)` 在密码上加显示按钮。`copyable(true)` 加复制按钮。`mask`、`step`、`minValue`、`maxValue`、`minLength`、`maxLength`、`length`、`regex`、`notRegex` 和 `datalist` 配置控件。`stripCharacters("-")` 或 `stripCharacters { value -> value.trim() }` 在渲染之前改变存储的文本。
+
+`unique("users", "email")` 和 `exists("users", "email")` 加上这些规则。没有数据库检查器时它们失败关闭。
+
+`Textarea.make("body")` 接受 `rows`、`cols`、`autosize`、`minLength` 和 `maxLength`。`Hidden.make("token")` 渲染隐藏输入并且没有标签。
+
+## 标签、颜色、滑块、键值
+
+`TagsInput.make("tags")` 按分隔符拆分字符串（默认 `,`），每个标签渲染一个芯片。`suggestions`、`splitKeys`、`reorderable` 和 `color` 可选。`tags(raw)` 返回列表。
+
+`ColorPicker.make("ink")` 存储颜色。`hex()`、`rgb()` 和 `hsl()` 选择格式和验证模式。
+
+`Slider.make("volume")` 默认 0–100，步长 1。`minValue`、`maxValue`、`step`、`decimalPlaces` 和 `tooltips` 调整它。值被钳制并四舍五入。
+
+`KeyValue.make("meta")` 编辑字符串映射。`keyLabel`、`valueLabel`、`keyPlaceholder`、`valuePlaceholder` 和 `addActionLabel` 接受字符串或闭包。`addable`、`deletable`、`editableKeys`、`editableValues` 和 `reorderable` 切换控件。`pairs(raw)` 读取映射。
+
+## 占位与视图
+
+`Placeholder.make("note").content("Thanks")` 渲染 HTML 并且不脱水。`content { get -> "Hello" }` 是闭包形式。`saved(true)` 重新打开脱水。
+
+模式有引擎时，`ViewField.make("bio").viewName("bios.card")` 渲染 Crema 视图。视图收到状态路径。没有引擎时字段发出 `data-ff-view`。
+
+## 选择
+
+`Select` 渲染组合框（`ff-combobox`），不是原生 `<select>`。
+
+<FireflyShot file="form-combobox.png" description="Desk 页上的状态字段，位于 http://127.0.0.1:4017/admin/desk，作为组合框打开，选项为 Open 和 Done。" />
+
+<FireflyShot file="form-native-select.png" description="Desk 表单的状态字段，位于 http://127.0.0.1:4017/admin/desk，用 native() 渲染为 Open 和 Done 的原生选择框。" />
+```kotlin
+val kind = Select.make("kind")
+    .options(mapOf("org" to "Organization", "human" to "Person"))
+    .searchable(true)
+    .placeholder("Pick one")
+```
+
+```java
+Select kind = Select.make("kind")
+    .options(Map.of("org", "Organization"))
+    .useNative(false);
+```
+
+Kotlin 调用 `.native()` 选择 `<select>`。Java 调用 `useNative(true)`，因为 `native` 是 Java 关键字。`.native(false)` 和 `useNative(false)` 保持组合框。
+
+`options { get -> mapOf("a" to "A") }` 从闭包加载选项。`optionsFrom(records, "title", "id")` 读取映射列表。`boolean()` 使用 Yes 和 No。`multiple(true)`、`preload`、`optionsLimit`、`maxItems`、`searchDebounce`、`position`，以及加载、搜索、空和搜索提示字符串配置组合框。`getOptionLabelUsing` 和 `getSearchResultsUsing` 替换标签和搜索。`disableOptionWhen` 禁用一个选项。`allowHtml(true)` 在原生选项标签里保留 HTML。
+
+`descriptions` 在每个选项下加一行。字段不是多选且值既不含逗号也不含管道时，静态选项列表加上 `in:` 规则。
+
+`relationship("author", "name")` 从模式记录上该名称的关系加载选项。`name` 是标签字段。传入闭包以改变查询。`getOptionLabelFromRecordUsing` 用从每条记录取出的值替换该标签。
+
+```kotlin
+Select.make("authorId").relationship("author", "name")
+Select.make("authorId").relationship("author", "name") { query ->
+    (query as ModelBuilder<Author>).where("active", true)
+}
+Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordUsing { record ->
+    (record as Author).getAttribute("name").toString()
+}
+```
+
+```java
+Select.make("authorId").relationship("author", "name");
+Select.make("authorId").relationship("author", "name", query -> { });
+Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordUsing(record -> "Ada");
+```
+
+相关模型是 Cadence 模型时，闭包接收 `ModelBuilder`，因此 `where`、`whereHas`、`join`、`with` 和作用域在该构建器上运行。相关模型不是 Cadence 模型时，闭包接收该模型自己的查询。`.native()` 仍然选择 `<select>`。默认仍然是组合框。
+
+`createOptionForm` 和 `createOptionUsing` 打开支持的 `Dialog`，并从提交的映射创建一个选项。围绕该对话框的动作包装是 `createOptionAction`。
+
+`Checkbox`、`Toggle`、`Radio`、`CheckboxList` 和 `ToggleButtons` 是其他选择字段。复选框上的 `accepted()` 加上 `accepted` 规则。`Toggle` 接受开和关的颜色和图标。`Radio.boolean()` 和 `ToggleButtons.boolean()` 使用 Yes 和 No。`CheckboxList.optionColumns` 设置网格（组件基类上的 `columns` 是分开的）。`bulkToggleable` 加上全选按钮。
+
+## 日期与时间
+
+`DatePicker`、`TimePicker` 和 `DateTimePicker` 是带日期、时间或两者的一个组件。默认控件是 Firefly 自己的选择器：月网格，以及字段有时间时的小时和分钟旋钮。没有第三方日期库。`.native()`（Java：`useNative(true)`）切换到 `type="date"`、`type="time"` 或 `type="datetime-local"`。
+
+<FireflyShot file="form-date-picker.png" description="Desk 页上的到期字段，位于 http://127.0.0.1:4017/admin/desk，打开为自绘的月网格，带小时和分钟控件。" />
+
+<FireflyShot file="form-native-date.png" description="Desk 表单的到期字段，位于 http://127.0.0.1:4017/admin/desk，用 native() 渲染为原生 datetime-local 输入。" />
+服务器值使用 `java.time`。仅日期的值留在应用时区（`FieldClock.appZone`）。日期时间使用字段的 `timezone`。`LocalDate` 和 `LocalDateTime` 用存储格式写入（`Y-m-d`、`H:i` 或 `Y-m-d H:i`）。`seconds(true)` 追加秒。`displayFormat` 是文本输入显示的内容。
+
+```kotlin
+val day = DatePicker.make("day")
+    .minDate("2024-03-01")
+    .maxDate { "2024-03-31" }
+    .weekStartsOnMonday()
+    .disabledDates(listOf("2024-03-10"))
+day.normalize(LocalDate.of(2024, 3, 10)) // "2024-03-10"
+```
+
+```java
+DateTimePicker day = DatePicker.make("day").useNative(false).minDate("2024-03-01");
+day.normalize(LocalDate.of(2024, 3, 10));
+```
+
+`firstDayOfWeek` 是 0（星期日）或 1（星期一）。`hoursStep`、`minutesStep` 和 `secondsStep` 必须留在它们的范围内。`defaultFocusedDate` 在那天打开网格。`FieldClock.pinToday` 在测试里固定“今天”。
+
+## 富文本、Markdown 和代码
+
+`RichEditor` 发出 TipTap 表面：分组的粘性工具栏、气泡菜单和 `.ff-prose` 正文。链接、图片和自定义块打开支持的 `Dialog`。`json()` 存储 JSON。默认是 HTML，经过消毒器，去掉脚本、样式、iframe、`on*` 属性和 `javascript:` URL。`disableToolbarButtons`、`mergeTags`、`mentions` 和 `customBlocks` 配置工具栏。文件附件命名磁盘和目录。`editBlockAction` 为自定义块渲染一个 `Action`。块的编辑控件仍然打开支持的 `Dialog`。
+
+`MarkdownEditor` 是写入 | 预览一对。写入使用带 Markdown 语言的 CodeMirror。预览把 GitHub 风味的子集（围栏、表格、列表、任务列表、标题、链接、图片）渲染进同一个 `.ff-prose` 类，然后消毒。
+
+`CodeEditor` 使用 CodeMirror 6 和 Shiki 语言集。`language("kotlin")` 选择语法。`CodeEditor.languages()` 列出模块附带的 id。`wrap(true)` 换行长行。这个编辑器不是富文本表面。
+
+页面脚本寻找 `FilePond` 和 `FireflyEditors` 对象（TipTap、CodeMirror、Shiki、markdown-it）。这些脚本在页面上时，字段挂载它们。FilePond 缺席时上传路径仍然提交。
+
+## 上传
+
+`FileUpload` 通过文件系统提交到 `POST /_firefly/uploads`。登记路由一次：
+
+```kotlin
+FireflyUploads.register(router, UploadDisks { name -> filesystems.disk(name) })
+```
+
+处理函数写入 `firefly-temporary/{id}.ext` 加上带原始名称的兄弟 `.ffmeta` 文件，然后返回 JSON `{ "path", "name" }`。`commit(schema, disks)` 把临时文件复制进 `directory()`（设置了 `moveFiles(true)` 时则移动），应用 `preserveFilenames` 或 `getUploadedFileNameForStorageUsing`，并把最终路径存在字段上。`storeFileNamesIn` 把原始名称写到另一条状态路径。`storeFiles(false)` 把临时路径留在原地。
+
+`image()` 接受图片类型。`avatar()` 还打开图片编辑器、紧凑布局，以及你没设置纵横比时的 1:1 裁剪。编辑器是 FilePond 的图片编辑器。`maxSize` 和 `minSize` 是千字节。`minFiles` 和 `maxFiles` 计数文件。`acceptedFileTypes` 接受 `image/*`、mime 类型、`.png` 或裸扩展名。
+
+`preventFilePathTampering(true)` 拒绝 `..`、绝对路径、`.ffmeta` 文件，以及目录或 `firefly-temporary/` 之外的路径。在 `POST /_firefly/uploads` 上挂载来自 `kona-session` 的 `VerifyCsrfToken`。字段脚本从 `csrf-token` meta 标签和 `_token` 发送 `X-CSRF-TOKEN`。想让路由本身拒绝坏令牌时，把检查器作为第三个参数传给 `register`。
+
+`browse` 和 `browseAction` 列出已经存在磁盘上的文件。它们记录在[浏览已存储的文件](#browsing-stored-files)。
+
+## 重复器与构建器
+
+`Repeater.make("members").simple(TextInput.make("name").required())` 编辑映射列表。`schema(...)` 替换项蓝图。`addItem`、`removeItem`、`cloneItem` 和 `moveItem` 更新模式状态并运行 `afterStateUpdated`。`orderColumn("sort")` 写入从 1 开始的位置。`itemLabel` 是字符串或索引与 `Get` 的函数。`grid`、`minItems`、`maxItems`、`defaultItems`、`collapsible` 和 `collapsed` 改变布局。`relationship("members")` 把关系名存在重复器上。它不会自己加载相关记录。
+
+`Builder.make("blocks").blocks(BuilderBlock("hero", "Hero", listOf(TextInput.make("title"))))` 编辑类型化块的列表。`addBlock(schema, "hero")` 追加一个。`blockNumbers(true)` 用索引给标签加前缀。`addBetweenAction` 在块之间渲染一个动作。
+
+## 验证
+
+```kotlin
+val errors = FieldValidation.validate(schema, schemaRoots)
+```
+
+```java
+Map<String, List<String>> errors = FieldValidation.validate(schema, List.of(name));
+```
+
+遍历跳过布局节点、隐藏字段、`dehydrated(false)` 的字段，以及路径为空的字段。规则经过 HTTP 验证器。自定义 `validationAttribute` 改写消息里的字段名。来自文件上传或重复器的 `extraErrors` 被合并。配置检查器之前，`unique` 和 `exists` 失败关闭。
+
+## 生成字段
+
+从应用目录：
+
+```bash
+./grind make:firefly-field Price
+./grind make:firefly-field Note --lang=java
+```
+
+命令写入扩展字段基类的类，以及带 `x-data="ffField"` 和 `@entangle` 的 Crema 视图。Kotlin 是默认。`--lang=java` 写入 Java 子类。
+
+## 字段上的动作
+
+前缀、后缀和提示按钮是来自 `org.konaframework.firefly.actions` 的 `Action` 值。字段把动作渲染在该外观旁边。
+
+```kotlin
+TextInput.make("title")
+    .prefixAction(Action.make("prefix").label("Prefix"))
+    .suffixAction(Action.make("suffix").label("Suffix"))
+    .hintAction(Action.make("hint").label("Hint"))
+```
+
+```java
+TextInput.make("title")
+    .prefixAction(Action.make("prefix").label("Prefix"))
+    .suffixAction(Action.make("suffix").label("Suffix"))
+    .hintAction(Action.make("hint").label("Hint"));
+```
+
+重复器在项控件旁边渲染添加、删除、克隆和额外项动作：
+
+```kotlin
+Repeater.make("rows")
+    .addAction(Action.make("addRow").label("Add"))
+    .deleteAction(Action.make("deleteRow").label("Delete"))
+    .cloneAction(Action.make("cloneRow").label("Clone"))
+    .extraItemActions(Action.make("extraRow").label("Extra"))
+```
+
+`Builder.addBetweenAction` 在块之间渲染动作。富文本自定义块保留它的 `Dialog`，也可以携带 `editBlockAction`，为该块渲染一个 `Action`。`Select.createOptionAction` 对创建选项按钮做同样的事。`createOptionForm` 和 `createOptionUsing` 仍然运行创建流程。
+
+## 关系查询
+
+`relationship(name, titleAttribute)` 读取相关记录。可选闭包是 `modifyQueryUsing`：它接收相关模型的查询并收窄选项列表。`getOptionLabelFromRecordUsing` 覆盖 `titleAttribute`。
+
+```kotlin
+Select.make("authorId")
+    .relationship("author", "name") { query ->
+        val authors = query as ModelBuilder<Author>
+        authors.where("active", true).whereHas("posts") { posts ->
+            posts.where("title", "Yes")
+        }
+    }
+    .getOptionLabelFromRecordUsing { record ->
+        "Dr " + (record as Author).getAttribute("name")
+    }
+```
+
+```java
+Select.make("authorId")
+    .relationship("author", "name", query -> { })
+    .getOptionLabelFromRecordUsing(record -> "Ada");
+```
+
+在读取选项之前用 `record(...)` 把拥有者模型放在模式上。`author()` 这样的 Cadence 关系方法提供 `ModelBuilder`。文档模型提供自己的查询，并且不会得到 SQL 构建器。
+
+## 表格选择与多态选择
+
+`ModalTableSelect` 承载一个 `Table`。`choose` 切换记录键并把选择存在字段上。`multiple(true)` 存储每一个选中的键。
+
+```kotlin
+val people = Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+ModalTableSelect.make("person").table(people)
+```
+
+`MorphToSelect` 把类型名映射到记录存储。`selectType` 存储 `type` 和 `id`。`optionsFor` 列出该类型，`modifyQueryUsing` 收窄查询。
+
+```kotlin
+MorphToSelect.make("link").titleAttribute("name").type("posts", posts)
+```
+
+## 浏览已存储的文件
+
+`FileUpload.browseAction` 在上传旁边渲染一个动作。`browse(disk)` 列出已经存在 `directory()` 下的文件，并跳过 `*.ffmeta` 路径。`chooseBrowsed` 把所选路径写进同一字段状态。已存储文件夹的重命名和删除不是这个字段上的方法。

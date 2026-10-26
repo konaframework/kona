@@ -1,0 +1,283 @@
+---
+title: Wire 表单
+description: 绑定输入、在服务器上验证，并显示加载和脏状态。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire 里的表单把值留在**服务器组件**上。`wire:model` 把输入同步到公共属性；`wire:submit` 运行动作而不做整页导航。验证、表单对象和 UI 指令（`wire:loading`、`wire:dirty` 等）补齐这一片。
+
+## 模型绑定
+
+```html
+<input type="text" wire:model="email" />
+<textarea wire:model="bio"></textarea>
+<input type="checkbox" wire:model="agree" />
+<select wire:model="country">…</select>
+```
+
+支持的控件：文本、文本域、复选框（布尔或数组）、单选、选择框（单选/多选）、数字、日期。自定义 Alpine 控件在声明 `x-modelable` 时可以工作 — `wire:model` 通过 Alpine 的 `x-model` 绑定。
+
+## 修饰符
+
+| 修饰符 | 行为 |
+|--------|------|
+| （默认） | 在 `change` / 运行时使用的等价于失焦的延迟上同步 |
+| `.live` | 在每一次输入事件上同步（在请求总线上合并） |
+| `.blur` | 字段失焦时同步 |
+| `.change` | 在 `change` 上同步 |
+| `.lazy` | 别名风格的延迟同步 |
+| `.debounce` / `.debounce.500ms` | 防抖更新 |
+| `.throttle` / `.throttle.500ms` | 节流更新 |
+| `.number` | 转换成数字 |
+| `.boolean` | 转换成布尔 |
+| `.fill` | 某些控件的初始填充行为 |
+| `.self` | 只处理元素自身的事件 |
+| `.deep` | 对嵌套对象做深度监视 |
+
+```html
+<input wire:model.live="query" />
+<input wire:model.blur="email" />
+<input wire:model.number="age" />
+<input wire:model.debounce.500ms="search" />
+```
+
+## 提交
+
+```html
+<form wire:submit="save">
+    …
+</form>
+```
+
+`wire:submit` 隐含 `.prevent`。请求在途时，Wire 禁用提交按钮 / 选择框，并把文本输入标为只读，响应结束时再恢复它们。
+
+运行动作之前确认：
+
+```html
+<button wire:click="delete" wire:confirm="Delete this post?">Delete</button>
+<button wire:click="wipe" wire:confirm.prompt="Type DELETE|DELETE">Wipe</button>
+```
+
+## 验证
+
+用 `@Validate`（或别名 `@Rule`）标注属性，覆盖 `rules()` / `messages()` / `validationAttributes()`，并从动作调用 `validate()` / `validateOnly()`。失败填充一个 `ErrorBag`，它持久化在 `memo.errors` 里，作为 `errors` 暴露给 Crema，并在 JS 里作为 `$wire.$errors` 可用。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Profile : Component() {
+    @Validate("required", "email")
+    var email = ""
+
+    override fun rules() = mapOf(
+        "email" to listOf("required", "email", Rules.unique("users", "email").ignore(id).toString()),
+    )
+
+    fun save() {
+        validate()
+        // persist…
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            <input type="email" wire:model="email" />
+            @if(errors['email'])
+                <em>{{ errors['email'][0] }}</em>
+            @endif
+            <button type="submit">Save</button>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Profile extends Component {
+    @Validate({"required", "email"})
+    public String email = "";
+
+    @Override
+    public Map<String, List<String>> rules() {
+        return Map.of("email", List.of("required", "email"));
+    }
+
+    public void save() { validate(); }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input type="email" wire:model="email" />
+                <button type="submit">Save</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+实时：带 `@Validate(onUpdate = true)`（默认）的属性在 `wire:model` 更新它们时重新验证。使用 `onUpdate = false` 等到显式的 `validate()` 调用。
+
+### 表单对象
+
+表单对象是扩展 `Form` 并持有一个表单的字段、规则和辅助方法的类。把它作为公共属性放在组件上。该属性为 null 且类有无参数公共构造器时，Wire 构造表单。`wire:model` 路径以属性名为前缀（`form.title`）；表单内部的规则保持局部（`title`）。
+
+```bash
+./grind make:form PostForm
+./grind make:form PostForm --lang=java
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.wire.Component
+import org.konaframework.wire.Form
+import org.konaframework.wire.Validate
+
+class PostForm : Form() {
+    @Validate("required", "min:5")
+    var title: String = ""
+
+    @Validate("required", "min:5")
+    var content: String = ""
+
+    fun store(): Map<String, Any?> {
+        val saved = validate()
+        reset()
+        return saved
+    }
+}
+
+class CreatePost : Component() {
+    var form = PostForm()
+
+    fun save() {
+        form.store()
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            <input wire:model.blur="form.title" />
+            @if(errors['form.title'])
+                <em>{{ errors['form.title'][0] }}</em>
+            @endif
+            <textarea wire:model="form.content"></textarea>
+            <button type="submit">Save</button>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.wire.Component;
+import org.konaframework.wire.Form;
+import org.konaframework.wire.Validate;
+import java.util.Map;
+
+public class PostForm extends Form {
+    @Validate({"required", "min:5"})
+    public String title = "";
+
+    @Validate({"required", "min:5"})
+    public String content = "";
+
+    public Map<String, Object> store() {
+        Map<String, Object> saved = validate();
+        reset();
+        return saved;
+    }
+}
+
+public class CreatePost extends Component {
+    public PostForm form;
+
+    public void save() {
+        form.store();
+    }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input wire:model.blur="form.title" />
+                <textarea wire:model="form.content"></textarea>
+                <button type="submit">Save</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`component.validate()` 和 `component.validateOnly("form.title")` 包含表单的规则，以属性名为前缀。`form.validate()` 和 `form.validateOnly("title")` 运行同样的规则并返回局部字段名。
+
+| 方法 | 作用 |
+|------|------|
+| `fill` / `all` / `only` / `except` | 把值复制进来或出去。`fill` 里未知的键会被忽略 |
+| `reset` / `resetExcept` | 把字段恢复到新实例上的值。`reset()` 和 `reset(emptyList())` 恢复每一个字段；传入名称或集合以限制哪些 |
+| `pull` / `pull("title")` / `pull("title", "content")` | 读取，然后重置。没有参数时返回每一个字段 |
+| `rules` | 与 `@Validate` / `@Rule` 合并。`rules()` 替换同一键。`messages()` 和 `validationAttributes()` 是表单上可覆盖的映射 |
+| `addError` / `getErrorBag` / `resetErrorBag` / `resetValidation` | 错误存在组件上的 `form.title` 下 |
+| `component` / `getComponent` / `getPropertyName` | 拥有者组件和属性名（`form`） |
+| `withValidator` | 在 `validate` 之前用 `Validator` 运行回调 |
+| `boot` / `hydrate` / `dehydrate` / `updating` / `updated` | 生命周期钩子。`updating` / `updated` 接收表单内部的路径（`title`） |
+
+实时检查只对标注了 `@Validate` 或 `@Rule` 且 `onUpdate` 为真（默认）的字段运行。只存在于 `rules()` 里的字段等到你调用 `validate()` 或 `validateOnly()`。`onUpdate = false` 保留注解规则但跳过更新检查。
+
+`@Validate` 和 `@Rule` 接受管道（`"required|min:5"`）或分开的参数。两个注解可以出现在同一字段上；它们的规则被合并，最后一个注解决定 `onUpdate`。
+
+### 错误袋辅助方法
+
+| API | 作用 |
+|-----|------|
+| `addError` / `resetValidation` / `resetErrorBag` | 改变袋子 |
+| `getErrorBag` / `setErrorBag` | 替换 / 读取 |
+| `$wire.$errors.has` / `first` / `get` / `all` / `clear` | 浏览器侧的 MessageBag 形状 |
+
+`Wire.test(…).assertHasErrors("email").assertHasNoErrors("name")` 覆盖测试表面。
+
+## 加载、脏和离线 UI
+
+```html
+<button wire:click="save">Save</button>
+<span wire:loading wire:target="save">Saving…</span>
+<span wire:dirty wire:target="title">Unsaved</span>
+<span wire:offline>You are offline</span>
+```
+
+- `wire:loading`（加 `.class` / `.attr` / `.remove` / `.delay.*` / 显示修饰符）在匹配的请求在途时切换。`wire:target` / `wire:target.except` 限定范围；请求中的元素也会得到 `data-loading="true"`。
+- `wire:dirty` 反映临时状态对服务器已确认状态；表达式用 `$wire.$dirty()` / `$wire.$dirty('title')`。
+- `wire:offline` 跟随浏览器的在线/离线事件。
+- `wire:poll.5s` / `.keep-alive` / `.visible` 按间隔刷新。
+
+## 显示、文本、绑定、遮罩、引用、过渡
+
+```html
+<div wire:cloak>…</div>
+<div wire:show="open">…</div>
+<span wire:text="label"></span>
+<a wire:bind:href="url">Link</a>
+<input wire:ref="email" />
+<div wire:transition="panel">…</div>
+```
+
+`$wire.$refs.email`（或 `$wire.$refs('email')`）返回该元素。动作上的 `@Transition(type = "forward")`（或 `$this.transition("forward")` / `skipTransition()`）在变形期间为 View Transitions API 发出 `effects.transition`。
+
+## 下一步
+
+- [动作](/docs/wire/essentials/actions/) — 提交调用什么
+- [属性](/docs/wire/essentials/properties/) — 状态辅助方法
+- [JavaScript](/docs/wire/js/runtime/) — `$wire`、钩子、变形
+- [测试](/docs/wire/dx/testing/) — `assertHasErrors`

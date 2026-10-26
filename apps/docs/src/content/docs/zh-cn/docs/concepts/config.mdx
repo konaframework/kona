@@ -1,0 +1,358 @@
+---
+title: 配置与环境
+description: 可执行配置模块、Env、启动顺序，以及类型化的 Config API。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+应用需要在机器之间变化的设置：应用名、是否显示调试输出、监听哪个端口、数据库凭据。Kona 把这些分成两层：
+
+- **环境**（`org.konaframework.core.Env`）：来自操作系统的扁平字符串变量，开发时可选 `.env` 文件。机器特定和秘密值属于这里。
+- **配置**（`org.konaframework.core.Config`）：类型化值的结构化树，用 `app.debug` 这样的点分键寻址。它由来自环境的默认值、`config/` 下的**可执行配置模块**，以及可选的 `configure` 回调填充。
+
+你的代码大多应该读取**配置**。环境变量是播种它的原始输入。
+
+## 值从哪里来，按顺序
+
+用 `Kona.create(...)` 启动时，Kona 按这个顺序填充配置。后面的步骤覆盖前面步骤设置的键。
+
+1. **加载 `.env`**，如果基路径上文件存在。缺失的文件被静默跳过。
+2. **从环境播种默认值**：
+
+   | 配置键 | 环境变量 | 未设置时的默认 |
+   |--------|----------|----------------|
+   | `app.name` | `APP_NAME` | `"Kona"` |
+   | `app.env` | `APP_ENV` | `"local"` |
+   | `app.debug` | `APP_DEBUG`（解析为布尔） | `false` |
+   | `app.url` | `APP_URL` | `"http://127.0.0.1:4000"` |
+   | `app.timezone` | `APP_TIMEZONE` | `"UTC"` |
+   | `app.locale` | `APP_LOCALE` | `"en"` |
+   | `app.fallback_locale` | `APP_FALLBACK_LOCALE` | `"en"` |
+   | `app.faker_locale` | `APP_FAKER_LOCALE` | `"en_US"` |
+   | `app.cipher` | `APP_CIPHER` | `"AES-256-GCM"` |
+   | `app.key` | `APP_KEY` | 除非存在否则未设置 |
+   | `app.previous_keys` | `APP_PREVIOUS_KEYS`（逗号分隔） | 空列表 |
+   | `app.maintenance.driver` | `APP_MAINTENANCE_DRIVER` | `"file"` |
+   | `app.maintenance.store` | `APP_MAINTENANCE_STORE` | `"database"` |
+
+3. **已登记的 `ConfigFile` 模块**按登记顺序合并。每个模块返回一张映射，落在它的键下（`app`、`database`、`session` 等）。模块构建该映射时可以调用 `Env.get` / `Env.getOrDefault`。这一步之后布局刷新时，来自 `paths` 模块的路径覆盖被应用。
+4. **你的 `configure` 回调**按你添加的顺序运行。
+
+因此设置 `"name"` 来自 `APP_NAME` 的 `config.App` 模块可以细化播种的默认，而 `configure { it.set("app.name", ...) }` 覆盖两者。用 `Application.builder`（没有 `Kona.create`）构建的应用跳过步骤 1 到 2，除非你自己登记同样的引导器；它们仍然合并你添加的任何 `.configs(...)`。
+
+配置在启动时填充一次。应用运行时编辑 `.env` 或配置模块的源没有效果，直到重启（模块还要重新编译）。
+
+`kona new` 写入这些模块，带节注释，解释每个键是做什么的、哪个环境变量喂它，以及哪些驱动或值有效。先读 `config/App.kt`（或 `config/App.java`）— 名称、环境、调试、URL、时区、区域、加密和维护模式都记录在那里。其他模块覆盖数据库连接、Redis、HTTP 会话、缓存存储、文件系统磁盘、队列、邮件器、日志通道、认证、哈希、广播和第三方服务凭据。
+
+## 可执行配置模块
+
+把 Kotlin 或 Java 类放在语言根的 `config/` 包里（在 `app/`、`bootstrap/`、`routes/` 旁边）：
+
+```text
+src/main/kotlin/config/
+  App.kt           → key "app"
+  Database.kt      → key "database"
+  Redis.kt         → key "redis"
+  Session.kt       → key "session"
+  Cache.kt         → key "cache"
+  Filesystems.kt   → key "filesystems"
+  Queue.kt         → key "queue"
+  Mail.kt          → key "mail"
+  Logging.kt       → key "logging"
+  Auth.kt          → key "auth"
+  Hash.kt          → key "hash"
+  Broadcasting.kt  → key "broadcasting"
+  Services.kt      → key "services"
+  Http.kt          → key "http"
+  Paths.kt         → key "paths"
+```
+
+| 模块 | 配置键 | 它控制什么 |
+|------|--------|------------|
+| `App` | `app` | 名称、环境、调试、URL、时区、区域、加密密钥、维护 |
+| `Database` | `database` | 默认连接、JDBC URL/凭据、迁移表名 |
+| `Redis` | `redis` | 客户端（`memory` 或 `lettuce`）和具名连接（`default`、`cache`） |
+| `Session` | `session` | 驱动、生存期、cookie 标志、Redis 前缀、抽奖 |
+| `Cache` | `cache` | 默认存储、`array` / `file` / `redis` 存储、键前缀 |
+| `Filesystems` | `filesystems` | 默认磁盘、`local` / `public` / `s3` / `memory` 磁盘、`storage:link` 映射 |
+| `Queue` | `queue` | 默认连接、后端、批处理、失败作业存储 |
+| `Mail` | `mail` | 默认邮件器、SMTP/log/array 邮件器、全局发件地址 |
+| `Logging` | `logging` | 默认通道、stack/single/daily/stderr/syslog/null 通道 |
+| `Auth` | `auth` | 守卫、用户提供者、密码重置代理、个人访问令牌 |
+| `Hash` | `hash` | Bcrypt / Argon2 驱动和代价参数 |
+| `Broadcasting` | `broadcasting` | 默认广播器和 websocket/log/null 连接 |
+| `Services` | `services` | 应用代码的第三方凭据（SES、Postmark、Resend、Slack） |
+| `Http` | `http` | HTTP 内核设置 |
+| `Paths` | `paths` | 语言、资源、存储和公开根 |
+
+Redis 位于顶层 `redis.*` 键（不嵌套在 `database` 下）。说 `connection = "cache"` 的缓存和队列连接指向 `redis.connections.cache`。
+
+每个模块实现 `org.konaframework.core.ConfigFile`，带两个方法：
+
+- `key()` — 顶层配置键（通常是小写的文件词干：`App` → `"app"`）。
+- `config()` — 该键的嵌套值映射。在这里为机器特定值调用 `Env`。
+
+从 `bootstrap.App` 显式登记它们（可靠且容易测试）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Kona.create(args)
+    .configs(
+        config.App, config.Database, config.Redis, config.Session, config.Cache,
+        config.Filesystems, config.Queue, config.Mail, config.Logging, config.Auth,
+        config.Hash, config.Broadcasting, config.Services, config.Http, config.Paths,
+    )
+    .providers(/* ... */)
+    .boot()
+```
+
+```kotlin title="config/Database.kt"
+package config
+
+import org.konaframework.core.ConfigFile
+import org.konaframework.core.Env
+
+object Database : ConfigFile {
+    override fun key(): String = "database"
+
+    override fun config(): Map<String, Any?> = mapOf(
+        "default" to Env.getOrDefault("DB_CONNECTION", "main"),
+        "connections" to mapOf(
+            "main" to mapOf(
+                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"),
+                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+        ),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Kona.create(args)
+    .configs(
+        new config.App(),
+        new config.Database(),
+        new config.Redis(),
+        new config.Session(),
+        new config.Cache(),
+        new config.Filesystems(),
+        new config.Queue(),
+        new config.Mail(),
+        new config.Logging(),
+        new config.Auth(),
+        new config.Hash(),
+        new config.Broadcasting(),
+        new config.Services(),
+        new config.Http(),
+        new config.Paths()
+    )
+    .providers(/* ... */)
+    .boot();
+```
+
+```java title="config/Database.java"
+package config;
+
+import org.konaframework.core.ConfigFile;
+import org.konaframework.core.Env;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public final class Database implements ConfigFile {
+    @Override
+    public String key() {
+        return "database";
+    }
+
+    @Override
+    public Map<String, Object> config() {
+        Map<String, Object> main = new LinkedHashMap<>();
+        main.put("url", Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"));
+        main.put("username", Env.getOrDefault("DB_USERNAME", "sa"));
+        main.put("password", Env.getOrDefault("DB_PASSWORD", ""));
+
+        Map<String, Object> connections = new LinkedHashMap<>();
+        connections.put("main", main);
+
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("default", Env.getOrDefault("DB_CONNECTION", "main"));
+        values.put("connections", connections);
+        return values;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+你也可以用 `ConfigFile.of("cache", () -> Map.of("driver", "memory"))` 内联构建模块。
+
+`kona new` 搭建这些模块，并在 Kotlin 和 Java（以及每一个起步套件覆盖）的 `bootstrap.App` 里接线 `.configs(...)`。
+
+**没有** JSON 或 `.properties` 配置目录加载。设置住在源码里、应用其余部分旁边，这样它们可以调用 `Env` 并保持类型检查。
+
+### 路径
+
+`PathLayout` 仍然遵守 `paths.langRoot`、`paths.resources`、`paths.storage` 和 `paths.public`。默认公开目录是项目根 `public/`（HTTP 文档根）。从 `config/Paths` 发布覆盖（或省略模块并保持框架默认）。`Application.configPath()` / `Paths.config()` 解析到语言根的 `config/` 目录（例如 `src/main/kotlin/config`），不是 `src/main/resources/config`。
+
+## 环境变量与 `.env`
+
+`Env.get` 先检查**真正的进程环境**，然后回退到从 `.env` 加载的值。这个优先级是故意的：部署平台、CI 作业或容器可以注入生产值和秘密，而不必编辑文件，甚至文件不必存在。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val host = Env.getOrDefault("HOST", "127.0.0.1")
+val region = Env.get("REGION")                 // String? — null when unset
+val apiKey = Env.require("PAYMENTS_API_KEY")   // throws when unset
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String host = Env.getOrDefault("HOST", "127.0.0.1");
+String region = Env.get("REGION", null);           // null when unset
+String apiKey = Env.require("PAYMENTS_API_KEY");   // throws when unset
+```
+
+</TabItem>
+</Tabs>
+
+
+| 方法 | 行为 |
+|------|------|
+| `get(key, default)` | 进程环境，然后 `.env`，然后 `default`（Kotlin 可以省略 `default`；Java 传入 `null`） |
+| `getOrDefault(key, default)` | 相同，结果非 null |
+| `require(key)` | 相同，但缺席时抛出 `IllegalStateException("Missing environment variable [KEY]")` |
+| `load(path)` | 解析 `.env` 文件并记住它的值（后来的加载覆盖较早的键） |
+| `set(key, value)` | 在代码里设置回退值；真正的进程变量仍然获胜 |
+| `clear()` | 忘记已加载和已设置的值；`Kona.reset()` 也会做 |
+
+`Env` 是进程范围的，不是每个应用。启动多个应用的测试应该在它们之间调用 `Kona.reset()`。
+
+### `.env` 文件格式
+
+```bash
+# Comments start with #
+APP_NAME=billing
+APP_DEBUG=on
+export PORT=9000               # an "export " prefix is allowed
+GREETING="Hello # not a comment"
+SINGLE='single quotes work too'
+EMPTY=
+```
+
+- 每行一个 `KEY=value`。键和值周围的空白会被去掉。
+- 空行和以 `#` 开头的行被跳过，没有 `=` 或 `=` 之前什么都没有的行也一样。
+- 在**未加引号**的值里，` #`（空格然后井号）开始尾随注释。在单引号或双引号内部，`#` 是字面量。
+- 周围的引号被去掉。没有变量插值、转义处理或多行值支持。
+
+### 布尔值
+
+`APP_DEBUG`，以及你用 `getBoolean` 读取的任何东西，以任何字母大小写接受这些字符串：
+
+| 真 | 假 |
+|----|----|
+| `true`、`1`、`yes`、`on` | `false`、`0`、`no`、`off`、空字符串 |
+
+非零数字算作真。对 `APP_DEBUG`，任何其他字符串（例如 `maybe`）被当作 `false`。`app.debug` 打开时，HTTP 层把异常消息和类名加到错误响应上；在公开服务器上保持它关闭。
+
+## `Config` API
+
+`Config` 存储嵌套映射。点分键走进树：`set("app.debug", true)` 创建 `{ "app": { "debug": true } }`，`get("app")` 返回整个 `app` 映射。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val config = app.config
+
+config.set("mail.host", "smtp.example.com")
+config.set("mail.port", 587)
+config.set("mail", mapOf("from" to "noreply@example.com"))   // replaces the mail subtree
+
+val name = config.getString("app.name", "Kona")
+val port = config.getInt("server.port", 8080)
+val debug = config.getBoolean("app.debug", false)
+val hasMail = config.has("mail.from")                // true
+val mail: Map<String, Any?>? = config.get("mail")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Config config = app.getConfig();
+
+config.set("mail.host", "smtp.example.com");
+config.set("mail.port", 587);
+config.set("mail", Map.of("from", "noreply@example.com"));   // replaces the mail subtree
+
+String name = config.getString("app.name", "Kona");
+int port = config.getInt("server.port", 8080);
+boolean debug = config.getBoolean("app.debug", false);
+boolean hasMail = config.has("mail.from");              // true
+Map<String, Object> mail = config.get("mail");
+```
+
+</TabItem>
+</Tabs>
+
+
+| 方法 | 返回 |
+|------|------|
+| `set(key, value)` | 存储 `value`，创建中间映射。映射值被复制进树。在非映射值之下设置会用映射替换它。 |
+| `has(key)` | 完整路径存在时为 `true`，即使存储的值是 `null` |
+| `get(key)` / `get(key, default)` | 原始值（或嵌套映射），转换成你赋值的类型；只在键缺失时用 `default` |
+| `getString(key)` / `getString(key, default)` | 值的 `toString()` |
+| `getInt(key)` / `getInt(key, default)` | 数字截断为 `Int`；解析数字字符串；其他一切算作缺失 |
+| `getBoolean(key)` / `getBoolean(key, default)` | 使用上面的布尔规则；无法识别的字符串算作缺失 |
+| `all()` | 整棵树的深拷贝，修改是安全的 |
+| `loadMap(prefix, map)` | 在 `prefix` 下深合并映射（空前缀在根合并） |
+| `load(ConfigFile)` | 在其 `key()` 下合并一个可执行模块 |
+
+单参数的类型化 getter 在键缺失或不可转换时返回 `null`（Kotlin `Int?`，Java `Integer`）。两参数形式改为返回默认，这通常是你想要的。`get` 做未检查转换：把字符串值赋给 `Integer` 能编译，但使用时以 `ClassCastException` 失败，因此标量优先使用类型化 getter。
+
+读写是同步的，因此从请求线程读取配置是安全的。启动之后仍然把它当作只读；它是为设置准备的，不是共享可变状态。
+
+你仍然可以在 `configure` 回调里设置键，而不需要专用模块：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Kona.create(args)
+    .configs(config.App, config.Database)
+    .configure { config ->
+        config.loadMap("feature", mapOf("beta" to true))
+    }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Kona.create(args)
+    .configs(new config.App(), new config.Database())
+    .configure(config -> config.loadMap("feature", Map.of("beta", true)))
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+## 失败模式
+
+- 用 `Env.require` 读取的**缺失必需环境变量**：`IllegalStateException` 点名该变量。
+- 启动期间 **`ConfigFile.config()` 内部抛出的异常**会传播并快速失败，在应用服务请求之前。
+
+配置在启动顺序里的位置另见[应用与提供者](../application/)。

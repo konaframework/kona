@@ -1,0 +1,149 @@
+---
+title: 嵌套、孤岛与懒加载
+description: 嵌套 Wire 组件、插槽、响应式属性、孤岛、传送和懒加载。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire 组件像任何其他 Crema 标签一样嵌套。子组件保留自己的快照；父组件把它们记在 `memo.children` 下，这样后续请求可以跳过未变化的子组件的重新渲染。
+
+## 嵌套子组件
+
+```crema
+{{-- parent template --}}
+<div>
+    <wire:panel wire:key="main" title="Main" class="card" />
+    <wire:dynamic-component :is="childName" />
+</div>
+```
+
+- `wire:key` / `key` 在循环里给出稳定身份。
+- 不是属性的额外 HTML 属性会作为 `data-brew-attr-*` 转发到子组件根上，并在视图里作为 `attributes` 袋暴露。
+- `<wire:dynamic-component :is="…" />`（或 `:component`）在渲染时选择子组件名。
+- 组件可以嵌套自己 — 在 `template()` 里用深度（或类似）守卫停止递归。
+
+## 响应式与可建模属性
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Panel : Component() {
+    @field:Reactive
+    var title: String = ""
+
+    @field:Modelable
+    var value: String = ""
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Panel extends Component {
+    @Reactive public String title = "";
+    @Modelable public String value = "";
+}
+```
+
+</TabItem>
+</Tabs>
+
+- `@Reactive` — 父组件每次重新渲染时重新推送该属性（`memo.props`）。
+- `@Modelable` — 标记父组件在子标签上用 `wire:model` 绑定的属性（`memo.bindings`）。
+
+## 插槽
+
+```crema
+<wire:card>
+    <wire:slot name="footer">Save</wire:slot>
+    Body content
+</wire:card>
+```
+
+在子组件内部：
+
+```crema
+<div>
+    {{ slots.get('default') }}
+    @if(slots.has('footer'))
+        <footer>{{ slots.get('footer') }}</footer>
+    @endif
+</div>
+```
+
+`slots` 是带有 `has`、`get`、`default()` 和 `all()` 的 `SlotBag`。
+
+## 监听子组件事件
+
+在子标签上放 `@event-name="method"`。子组件 `dispatch` 该事件时，Wire 调用父组件的方法：
+
+```crema
+<wire:panel @saved="onPanelSaved" />
+```
+
+```kotlin
+fun onPanelSaved(label: String = "") { heard = label }
+```
+
+## `$parent`
+
+从 JS：`$wire.$parent.save()`。从服务器 / `wire:click`：`$parent` 魔术动作转发到父组件（`$parent`，然后是方法名和参数）。
+
+在 Kotlin/Java 内部：嵌套时 `parent()` 返回外层组件（挂载之后也可以通过存储的父引用获得）。
+
+## 懒加载与延迟
+
+```kotlin
+@Lazy(bundle = true)
+class Heavy : Component() {
+    override fun placeholder() = "<em>Loading…</em>"
+}
+```
+
+- `@Lazy` / `lazy` 挂载参数 — 元素与视口相交之前显示占位。
+- `@Defer` / `defer` — 首次绘制之后加载（微任务）。
+- `bundle = true` — 把懒加载分组（`memo.lazyBundle`）。
+- `@placeholder('…')` / `WireConfig.lazyPlaceholder` — 默认标记。
+- `Wire.withoutLazyLoading { … }` — 在测试中立即挂载。
+
+## 孤岛
+
+```crema
+@island('stats')
+    <p>{{ count }}</p>
+@endisland
+
+<button wire:click.island.stats.append="add">Add</button>
+```
+
+- 具名或匿名（`@island` → `default`）。
+- 表达式里的元标志：`lazy`、`defer`、`always`、`skip`。
+- JS：`$wire.$island('stats', 'append'|'prepend'|'morph')` 以及 `.island` 点击修饰符。
+- 孤岛内的轮询使用与其他地方相同的 `wire:poll` 指令。
+
+## 传送
+
+```crema
+@teleport('body')
+    <aside>Portaled</aside>
+@endteleport
+```
+
+渲染一个 `<template wire:teleport="selector">`；JS 运行时把内容移到 `document.querySelector(selector)`。
+
+## 隔离
+
+```kotlin
+@Isolate
+class ChatPane : Component()
+```
+
+隔离的子组件跳过与兄弟组件的请求打包（`memo.isolate`）。
+
+## 下一步
+
+- [组件](/docs/wire/essentials/components/) — 登记与发现
+- [事件](/docs/wire/advanced/events/) — `dispatch`、`@On`、JS 监听器
+- [JavaScript](/docs/wire/js/runtime/) — `$wire` API

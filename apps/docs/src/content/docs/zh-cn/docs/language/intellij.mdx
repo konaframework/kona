@@ -1,0 +1,76 @@
+---
+title: IntelliJ
+description: 在 IntelliJ IDEA 里安装原生的 Kona Idea 插件以支持 Crema。
+---
+
+IntelliJ IDEA 使用**原生**的 JetBrains 插件 — [kona-idea](https://github.com/konaframework/kona-idea) — 与其他一等的 JetBrains 语言插件是同一做法。Crema 是真正的文件类型，带有分层的 HTML 高亮、补全和导航。IntelliJ 路径上**没有语言服务器**。
+
+| | |
+| --- | --- |
+| 仓库 | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) |
+| 插件 id | `org.konaframework.idea` |
+| 发行 | [GitHub Releases](https://github.com/konaframework/kona-idea/releases)（`.zip`） |
+| 产品 | IntelliJ IDEA Community 和 Ultimate（2024.2+） |
+| 当前系列 | **v0.5.24** |
+
+安装、更新或移除插件需要重启 IDE。
+
+## 安装
+
+1. 从 [Releases](https://github.com/konaframework/kona-idea/releases) 下载最新的 `kona-idea-*.zip`（当前系列：**v0.5.24**）。
+2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** 并选择该 zip。
+3. 提示时重启。
+4. 打开一份 Crema 视图（`src/main/resources/views/….crema.html` 或 `*.crema.kt`）。确认语言芯片显示 **Crema**（不是 HTML）。
+5. 在 IDE **右侧**打开 **Kona** 工具窗口，查看 grind 快捷方式和文档链接。
+
+## 你会得到什么
+
+- 原生 Crema 词法器：HTML 颜色加上 `@directives`、`{{ }}`、`{!! !!}`、`{{-- --}}`
+- **内联 Wire 字符串** — `Component.template()`、`Component.inline(source)` 和 `WireView.inline(source)` 标了 `@CremaTemplate`；上一行的 `// language=Crema` 也会把 Crema 注入 Java/Kotlin 字符串
+- **`@` 指令补全** — 在 Crema 视图或注入的 `template()` 字符串里输入 `@`（自动弹出）；也可以 **Ctrl+Space**
+- **回显辅助方法补全** — 在 `{{ }}` / `{!! !!}` 内输入 `url`（或 `route`、`asset`、`csrf_token`、`old`、`env`、`config`、`trans`、`lang`、`isset`、`empty`、`errors`、`loop.index` 等）来补全每一个 Kona 辅助方法和约定视图变量。选择 `url` 会插入 `url('')`，光标在引号之间。在 welcome / login / dashboard 视图上也会补全，不只是 Wire 组件。
+- **Wire `wire:*` 属性补全** — 在 HTML 标签上输入 `wire:`（`wire:model`、`wire:click`、`wire:submit` 等）；未知 `wire:*` 名称会有弱警告
+- 未知 `@name` 记号的警告（`hi@example.com` 这样的邮箱会被忽略）
+- `{{` 自动闭合为 `{{  }}`，光标在中间
+- **重新格式化代码** — **Ctrl+Alt+L**（macOS：**⌥⌘L**）用与 HTML 相同的规则格式化 Crema 视图（缩进大小、制表符还是空格、属性换行见 **Settings → Editor → Code Style → HTML**）。`@directives`、`{{ }}`、`{!! !!}` 和 `{{-- --}}` 保持完整。
+- **视图名自动补全**，用于 `Crema.view`、`Wire.view`、`engine.make` / `render`、`@extends`、`@include` 和类似调用点
+- **转到视图文件：** 把光标放在视图名字符串上，使用 **Ctrl+B** 或 **Ctrl+Click**（macOS：**⌘B** / **⌘Click**）。与 Navigate → Declaration 相同。
+- **Cadence 模型 + 数据库列补全** — `user.` / `getAttribute("…")` / `user?.getAttribute("…")` / `get("…")` / `user["…"]` 从 `kona new` 的 users 迁移（以及 `.env` 能连接时的 JDBC）补全列。在**任何** Kotlin 或 Java 文件里都有效 — 控制器、服务、填充器、任务、控制台命令，以及模型内部（`this.` / 裸的 `getAttribute("`）— 包括 `fun greet(user: Authenticatable)`（`user` → `User`）和 Java 的 `User.QUERY.find` / `User.QUERY.where("…")`。`User.where("…")` 限定到该模型的表。只要出现 Kona 建议，它们就列在补全弹窗的**顶部**。
+- **Kona** 工具窗口（右侧）：`./grind serve`、迁移、队列/调度、新建 Crema 视图、帮助、文档
+- **Kona Project View** — Kona 应用的默认 Project 工具窗口窗格。文件夹：`app`、`routes`、`resources`、项目根的 `public`。存在时的根文件：`./grind`、`.env`、`README.md`、`package.json`、锁文件、`tsconfig.json`、`vite.config.js`，以及相关的 Vite / Svelte 配置
+- 工具窗口、Crema 文件、脚手架文件夹和 Grind 运行配置上的官方 Kona 品牌图标
+- 用于 `./grind …` 的 **Grind** 运行配置类型（Netty serve，默认端口 `4000`）
+- **Kona** 菜单：布局、路由、Maven 模块、视图导航帮助
+
+## 视图导航快捷键
+
+| 动作 | Windows / Linux | macOS |
+| --- | --- | --- |
+| 转到声明（打开 Crema 文件） | **Ctrl+B** 或 Ctrl+Click | **⌘B** 或 ⌘Click |
+| 基本补全（视图名 / `@` 指令） | Ctrl+Space | Ctrl+Space |
+| 重新格式化代码（HTML 规则） | **Ctrl+Alt+L** | **⌥⌘L** |
+
+## 数据库列的来源
+
+列建议在可用时合并两个来源：
+
+1. **迁移** — 解析 `src/main/{kotlin|java}/database/migrations` 下的 `schema.create` / `schema.table` 桩（`id()`、`string("…")`、`json("…")`、`longText("…")`、`timestamps()`、`morphs`、`dropColumn` 等）。模型由 `kona new` 放在 `app/models`。
+2. **JDBC** — 从项目 `.env` 读取 `DB_URL`（或从 `DB_CONNECTION=sqlite` / `h2` 推断文件 URL）、`DB_USERNAME`、`DB_PASSWORD`，以及可选的 `DB_DRIVER`。相对的 SQLite 和 H2 路径相对应用根解析（IDE 工作目录不是项目）。不在插件类路径上的驱动从 `build/kona-runtime.classpath` 加载（由 grind / `konaClasspath` 写入）。
+
+在任何 Kotlin 或 Java 文件里的模型实例上使用它们（`user.`、`this.`、`user.getAttribute("…")`、`user?.getAttribute("…")`、`user.get("…")`，包括名为 `user` 的 `Authenticatable` 参数），以及 Cadence / 查询调用点，例如 `where("…")`、`User.QUERY.where("…")`、`select("…")` 和 `orderBy("…")`。Kona 行出现在补全列表顶部。
+
+## 开发这个插件
+
+```bash
+git clone https://github.com/konaframework/kona-idea.git
+cd kona-idea
+./gradlew test
+./gradlew buildPlugin   # → build/distributions/*.zip
+./gradlew runIde        # sandboxed IntelliJ with the plugin loaded
+```
+
+添加模板指令或回显辅助方法时，让插件里的 `CremaDirectives` 和 `CremaEchoCatalog` 与本仓库的 Crema 指令集和 `CremaHelpers` 对齐。插件的代理续接说明在该仓库的 [`HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md)。
+
+## 其他编辑器
+
+VS Code / Cursor，或供其他工具使用的 stdio 语言服务器，见[语言服务器](/docs/language/lsp)和 [VS Code 与 Cursor](/docs/language/vscode)。IntelliJ 应使用上面的原生插件 — 不是 LSP 客户端。

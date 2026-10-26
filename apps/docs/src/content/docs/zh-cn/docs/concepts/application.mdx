@@ -1,0 +1,256 @@
+---
+title: 应用与提供者
+description: Kona Application 是什么、服务提供者如何把功能插进去，以及启动发生的精确顺序。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+每一个 Kona 程序都围绕一个对象：应用（`org.konaframework.core.Application`）。本页解释它持有什么、**服务提供者**如何把功能加进去，以及 Kona 从 `Kona.create(args)` 到准备好服务请求的已启动应用所遵循的精确顺序。
+
+## 应用持有什么
+
+`Application` 是一个普通对象，你可以创建、检查并丢弃（测试经常这样做）。它持有四样东西：
+
+- **基路径**（`basePath`）：磁盘上项目的根目录。Kona 在这里寻找 `.env`。`app.path(...)` 把片段接到基路径上并返回 `java.nio.file.Path`。
+- **路径布局**：`src/main` 下的目录 — `appPath`、`bootstrapPath`、`routesPath`、`databasePath`、`configPath`、`resourcePath`、`viewPath`、`publicPath`、`langPath`、`storagePath`。启动之后 `Paths` 门面镜像这些（`Paths.config()`、`Paths.storage("logs")` 等）。覆盖位于 `paths.*` 配置键。
+- **容器**（`container`）：知道如何构建你的服务的注册表。见[容器](../container/)。
+- **配置**（`config`）：点分键的设置树。见[配置与环境](../config/)。
+- **提供者**：已登记的服务提供者列表，按登记顺序。
+
+应用构造时把自己登记进自己的容器，因此任何服务都可以依赖它：
+
+| 查找 | 返回 |
+|------|------|
+| `Application` 类，或字符串键 `"app"` | 应用 |
+| `Config` 类，或字符串键 `"config"` | 它的配置 |
+| `Container` 类 | 容器本身 |
+
+## 服务提供者
+
+**服务提供者**是实现 `org.konaframework.core.ServiceProvider` 的类。它是你用来把功能插入应用的单元：Kona 的 HTTP 层是一个提供者（`HttpServiceProvider`），你自己的应用代码通常从 `AppServiceProvider` 开始。提供者有两个方法，它们之间的划分是本页的核心想法：
+
+- **`register(app)`** 描述服务。把类型绑定进容器，读取配置值，仅此而已。`register` 运行时，其他提供者可能还没登记，因此不要*解析*别人提供的服务。
+- **`boot(app)`** 做启动工作。它只在**每一个**提供者都完成 `register` 之后运行，因此一切都已绑定，你可以自由解析：附加路由、安装中间件、预热缓存、验证配置。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Greeter::class.java) { Greeter("Hello") }
+    }
+
+    override fun boot(app: Application) {
+        val greeter = app.resolve(Greeter::class.java)
+        app.resolve(Router::class.java).get("/") { Response.text(greeter.greet("world")) }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().singleton(Greeter.class, c -> new Greeter("Hello"));
+    }
+
+    @Override
+    public void boot(Application app) {
+        Greeter greeter = app.resolve(Greeter.class);
+        app.resolve(Router.class).get("/", request -> Response.text(greeter.greet("world")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+这里 `boot` 解析 `Router`，它是 `HttpServiceProvider` 在*它的* `register` 期间绑定的。因为两阶段顺序，无论 `HttpServiceProvider` 列在 `AppServiceProvider` 之前还是之后，这都能工作。
+
+在 Kotlin 里，`boot` 有空的默认，可以省略。Java 提供者必须实现两个方法（空的 `boot` 也可以）。
+
+## 创建应用
+
+### 用 `Kona.create`（推荐）
+
+`Kona.create` 返回一个 `Application.Builder`，它还会加载 `.env`、默认配置，以及 `src/main/resources/config` 里的 JSON 文件（回退到顶层 `config/` 目录）。生成的项目使用它。用 `.afterBoot { … }` 在提供者启动之后登记 HTTP 中间件栈。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .configure { it.set("app.name", "Demo") }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .configure(config -> config.set("app.name", "Demo"))
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+
+重载选择基路径：
+
+| 调用 | 基路径 |
+|------|--------|
+| `Kona.create(args)` | 第一个 `--base=/some/dir` 参数的值，否则是当前工作目录 |
+| `Kona.create(path)` | `path`，变成绝对路径并规范化 |
+| `Kona.create()` | 当前工作目录 |
+
+`args` 里的其他参数被 Kona 忽略，因此你可以传入自己的标志。
+
+### 用 `Application.builder`（没有引导）
+
+`Application.builder()` 和 `Application.builder(path)` 返回同一个构建器，**没有** Kona 的引导步骤：没有 `.env` 加载、没有 `app.*` 默认值、没有 `config/` 目录。想要完全控制时使用它，通常在单元测试里。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Application.builder(Path.of("/srv/demo"))
+    .withProvider(HttpServiceProvider())
+    .withProviders(AppServiceProvider(), MetricsServiceProvider())
+    .configure { it.set("app.debug", true) }
+    .build()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Application.builder(Path.of("/srv/demo"))
+    .withProvider(new HttpServiceProvider())
+    .withProviders(new AppServiceProvider(), new MetricsServiceProvider())
+    .configure(config -> config.set("app.debug", true))
+    .build();
+```
+
+</TabItem>
+</Tabs>
+
+
+构建器方法，全部可链式调用：
+
+- `basePath(path)`：改变基路径（无参数构建器从工作目录开始）。
+- `withProvider(p)`、`withProviders(a, b, ...)`、`withProviders(iterable)`、`providers(a, b, ...)`：追加提供者。`providers` 是 `withProviders` 的较短别名。
+- `configure(consumer)`：排队一个接收 `Config` 的回调。多个回调按添加顺序运行。
+- `build()` / `boot()`：创建、登记并启动。两个名字是别名。
+
+### 手工
+
+你也可以直接驱动 `Application`：`Application(basePath)`，然后对每个提供者 `register(...)`，然后 `boot()`。构建器存在是为了让你不能在列出所有提供者之前意外启动，因此它是首选形式。
+
+## 启动顺序，精确地
+
+当你对来自 `Kona.create` 的构建器调用 `boot()` 时，这些步骤按这个顺序运行：
+
+1. 构造一个新的 `Application`，并把它自己、它的 `Config` 和它的 `Container` 登记进容器。
+2. **引导**（只有 `Kona.create`）：如果存在，从基路径加载 `.env`；`app.name`、`app.env` 和 `app.debug` 从 `APP_NAME`（默认 `Kona`）、`APP_ENV`（默认 `local`）和 `APP_DEBUG`（默认 `false`）设置；然后已登记的 `ConfigFile` 模块在它们的键下合并。
+3. 你的 **`configure`** 回调按顺序运行。它们能看到并覆盖第 2 步的一切。
+4. **登记阶段**：每个提供者的 `register` 按列表顺序运行。
+5. **启动阶段**：每个提供者的 `boot` 按登记顺序运行。
+6. 应用被标记为已启动，并记录 `Kona application booted at <base path>`。
+7. 有 `Kona.create` 时，应用被记住，这样 `Kona.app()` 可以返回它。
+
+### 顺序处理的边界情况
+
+- **重复的提供者。** 登记一个已经登记过的类的第二个提供者会被静默忽略：它的 `register` 从不被调用。身份是精确的类，不是实例。
+- **启动期间登记的提供者。** 如果提供者的 `boot` 登记另一个提供者，新的那个立即运行 `register`，并在同一次通过里稍后启动，在启动完成之前。
+- **启动之后登记的提供者。** 在已启动的应用上调用 `app.register(provider)` 会立即运行该提供者的 `register`，然后是它的 `boot`。
+- **调用 `boot()` 两次**是无害的；第二次调用立即返回。
+
+登记和启动是同步的，因此来自多个线程的并发调用不能交错阶段。
+
+## `Application` 上的辅助方法
+
+| 方法 | 用途 |
+|------|------|
+| `path(vararg segments)` | 解析基路径下的路径 |
+| `resolve(Class)` / `make(Class)` | 向容器请求实例（两者相同） |
+| `register(provider)` / `registerAll(iterable)` | 添加提供者（见上面的边界情况） |
+| `getProvider(Class)` | 该精确类的已登记提供者，或 `null` |
+| `providers()` | 已登记提供者的快照列表 |
+| `isBooted()` | 启动阶段是否已完成 |
+| `container`、`config`、`basePath` | 拥有的对象（Java 是 `getContainer()`、`getConfig()`、`getBasePath()`） |
+
+## `Kona` 入口
+
+`Kona` 是应用范围访问的静态入口：
+
+- `Kona.create(...)`：返回引导构建器，如上所述。
+- `Kona.start(args)` / `Kona.start(path)`：`Kona.create(...).boot()` 的简写，没有提供者。对只需要配置和环境的脚本有用；需要更多时在结果上登记提供者。
+- `Kona.app()`：最近通过 `Kona.create` 或 `Kona.start` 启动的应用。如果不存在，它抛出 `IllegalStateException("Kona has not been started…")`。用 `Application.builder` 构建的应用不被跟踪。
+- `Kona.reset()`：忘记当前应用并清除从 `.env` 加载的值。在测试之间调用它。
+
+优先显式传递 `Application`（或你需要的服务）；`Kona.app()` 是没有其他途径到达它的代码的便利方法。
+
+## 启动失败时
+
+Kona 在启动期间不吞掉错误。来自提供者 `register` 或 `boot`、来自容器（例如 `BindingException: No binding for [...]`），或来自加载配置文件的任何异常都会从 `build()`/`boot()` 传播到你的 `main`。在那种情况下应用不被标记为已启动，`Kona.app()` 也不更新。把失败的启动当作致命：修复原因并启动新进程，而不是在同一实例上再次调用 `boot()`，那会重新运行已经启动过的提供者。
+
+## 测试应用
+
+因为 `create` 返回已启动的应用而不打开套接字，测试可以针对临时基路径启动真正的应用，并在进程内行使它：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppTest {
+    @TempDir lateinit var temp: Path
+
+    @AfterEach fun reset() = Kona.reset()
+
+    @Test fun boots() {
+        val app = Kona.create(arrayOf("--base=$temp"))
+            .providers(HttpServiceProvider(), AppServiceProvider())
+            .boot()
+        assertTrue(app.isBooted())
+        val response = app.resolve(HttpKernel::class.java).handle(Request.get("/"))
+        assertEquals(200, response.status)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+class AppTest {
+    @TempDir Path temp;
+
+    @AfterEach void reset() { Kona.reset(); }
+
+    @Test void boots() {
+        Application app = Kona.create(new String[] {"--base=" + temp})
+            .providers(new HttpServiceProvider(), new AppServiceProvider())
+            .boot();
+        assertTrue(app.isBooted());
+        Response response = app.resolve(HttpKernel.class).handle(Request.get("/"));
+        assertEquals(200, response.getStatus());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+空的临时目录意味着没有 `.env` 也没有 `config/`，因此测试只看到默认值以及测试自己配置的内容。
+
+另见[容器](../container/)和[配置与环境](../config/)。

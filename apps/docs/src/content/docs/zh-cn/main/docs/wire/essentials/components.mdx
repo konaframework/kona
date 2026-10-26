@@ -1,0 +1,160 @@
+---
+title: Wire 组件
+description: 从 Kotlin 或 Java 登记、发现并渲染 Wire 组件。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire **组件**是 `org.konaframework.wire.Component` 的子类。公开字段（或带后备字段的 Kotlin 属性）是状态。公开方法是动作。类通过 `template()`、`render()` 或约定的 Crema 视图返回 HTML。
+
+## 两种编写方式
+
+### 单文件（内联模板）
+
+用 Crema 源覆盖 `template()`。适合小部件。
+
+```kotlin
+class Counter : Component() {
+    var count = 0
+    fun increment() { count++ }
+
+    override fun template() = """
+        <div>
+            <button wire:click="increment">+</button>
+            <span>{{ count }}</span>
+        </div>
+    """.trimIndent()
+}
+```
+
+### 类加 Crema 视图
+
+省略 `template()`，要么从 `render()` 返回 `view("brew.todos")`，要么依赖约定路径 `views/wire/<name>.crema.html`。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Todos : Component() {
+    var draft = ""
+    var items = mutableListOf<String>()
+
+    fun add() {
+        if (draft.isNotBlank()) {
+            items.add(draft.trim())
+            draft = ""
+        }
+    }
+
+    // Convention: views/wire/todos.crema.html when render() / template() are null
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Todos extends Component {
+    public String draft = "";
+    public List<String> items = new ArrayList<>();
+
+    public void add() {
+        if (!draft.isBlank()) {
+            items.add(draft.trim());
+            draft = "";
+        }
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+{{-- views/wire/todos.crema.html — single root element required --}}
+<div>
+    <form wire:submit="add">
+        <input wire:model="draft" />
+        <button type="submit">Add</button>
+    </form>
+    <ul>
+        @foreach(items as item)
+            <li wire:key="todo-{{ loop.index }}">{{ item }}</li>
+        @endforeach
+    </ul>
+</div>
+```
+
+`render()` 可以返回：
+
+| 返回值 | 含义 |
+|--------|------|
+| `null` | 使用 `template()`，否则使用约定视图 `brew.<name>` |
+| 来自 `view(name, data)` / `inline(source, data)` 的 `WireView` | 具名或内联 Crema |
+| `String` | 原始 HTML（仍必须有单个根元素） |
+
+## 命名与发现
+
+默认情况下 `WireServiceProvider` 加入 `app.wire` 包位置。类 `app.wire.Counter` 名为 `counter`；嵌套包变成点分名（`app.wire.posts.CreatePost` → `posts.create-post`）。
+
+| API | 作用 |
+|-----|------|
+| `Wire.discover("app.wire")` | 扫描一个包 |
+| `Wire.addLocation("com.acme.ui")` | 额外的包根 |
+| `Wire.addNamespace("admin", "app.admin.brew")` | 解析 `admin::users` |
+| `Wire.component("counter", Counter::class.java)` | 显式登记 |
+| `@WireComponent("explicit-name")` | 固定发现到的名字 |
+
+命名空间在标签里使用 `ns::name`：`<wire:admin::users />`。
+
+## 嵌入
+
+```crema
+<wire:counter />
+<wire:counter :start="3" title="Demo" />
+@wire('counter', ['start' => 3])
+```
+
+- 静态属性成为字符串属性 / 挂载参数。
+- `:attr="expr"` 求值 Crema 表达式。
+- 烤串式属性映射到驼峰（`:user-id` → `userId`）。
+
+从代码：
+
+```kotlin
+Wire.mount("counter", mapOf("start" to 3))
+Wire.exists("counter") // true when registered / discoverable
+```
+
+## 身份辅助方法
+
+在运行中的组件内部：
+
+```kotlin
+id()    // unique instance id
+name()  // registered name, e.g. "counter"
+```
+
+## 你会看到的错误
+
+| 情况 | 异常 / 行为 |
+|------|-------------|
+| 未知名称 | `ComponentNotFoundException` |
+| 不止一个根 HTML 元素 | `MultipleRootElementsException` |
+| 空 / 没有根标签 | `RootTagMissingFromViewException` |
+| 客户端调用非动作 / 生命周期方法 | 方法未找到 / 生命周期保护 |
+
+## 脚手架
+
+```bash
+./grind make:wire counter                 # class + views/wire/counter.crema.html
+./grind make:wire posts.create --inline   # single-file with template()
+./grind make:wire counter --lang=java
+./grind make:wire counter --test
+```
+
+## 下一步
+
+- [属性](/docs/wire/essentials/properties/) — 状态 API 和安全注解
+- [动作](/docs/wire/essentials/actions/) — 从浏览器调用方法
+- [模板](/docs/wire/essentials/templates/) — 资源和 Crema 表面

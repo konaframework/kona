@@ -1,0 +1,30 @@
+---
+title: Kotlin 与 Java API
+description: 可供 Java 调用的表面、重载，以及本仓库里的示例应用。
+---
+
+每个公开入口都是 `@JvmStatic` 或开放的 Java 类，因此 Java 应用调用的是同一套 API。
+
+## 门面（`Inertia`）
+
+- `setManager` / `manager` / `reset`
+- `render`（1 到 3 个参数的重载）
+- `share`（键值对和映射）
+- `version`
+- `location`
+
+## 中间件
+
+扩展 `HandleInertiaRequests` 并覆盖 `share` / `version`。返回类型使用 Java 可以用 `Map.of` 构造的映射。
+
+## 示例
+
+| 示例 | 路径 |
+|------|------|
+| Kotlin | `samples/inertia-kotlin` |
+| Java | `samples/inertia-java` |
+
+```bash
+./gradlew :inertia-sample-kotlin:test :inertia-sample-java:test
+./gradlew :inertia-sample-kotlin:run --args="--base=$(pwd)/samples/inertia-kotlin"
+```

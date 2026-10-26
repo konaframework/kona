@@ -1,0 +1,290 @@
+---
+title: serve / make
+description: ./grind serve、route:list、make 生成器、gradle 包装器和数据库命令的参考。
+---
+
+下面所有命令都假设你在包含 `./grind`（由 `kona new` 创建）的应用目录里。从该应用下的任何地方，你也可以通过全局 CLI 运行同样的命令：
+
+```bash
+kona grind serve
+kona grind route:list
+kona grind migrate
+kona grind --help   # explains the proxy; other args are forwarded to ./grind
+```
+
+`kona grind` 找到最近的 Gradle 项目（与 `./grind serve` 同样的向上走），然后用你剩下的参数和退出码运行该应用的 `./grind` 或 `grind.bat`。
+
+## `./grind serve`
+
+```bash
+./grind serve
+./grind serve --host=127.0.0.1 --port=4000
+./grind serve --no-watch
+./grind serve --in-process --once
+./grind serve --in-process --bootstrap=bootstrap.App
+```
+
+| 标志 | 效果 |
+|------|------|
+| `--host` / `--port` | 绑定地址（也可通过 `.env` 的 `HOST` / `PORT`） |
+| `--watch` / `-w` | 软重载（这是默认）：保持 Netty 绑定，重新编译，交换应用类 |
+| `--no-watch` | 改为生成 `./gradlew run`（子 JVM；重启是完整的进程替换） |
+| `--in-process` | 从 `build/classes` 启动一次，不监视 |
+| `--once` | 服务器绑定后返回（禁用监视） |
+| `--bootstrap=` | 引导类（进程内 / 监视） |
+| `--base=` | 向上搜索 Gradle 项目的目录 |
+
+默认主机是 **127.0.0.1**，默认端口是 **4000**（生成的 `.env` 里也是）。如果该端口已被占用，grind 询问是否尝试下一个（4001、4002 等）。如果找不到 Gradle 项目，grind 退出并告诉你运行 `kona new`。
+
+启动时，grind 打印一个 Termwind 框，带本地 URL（例如 `http://127.0.0.1:4000`）以及如何停止（`Ctrl+C`）。增量编译使用 `--quiet --console=plain`，这样 Gradle 噪音不会淹没 Termwind 输出。
+
+### 软重载（默认）
+
+`./grind serve` 是一个**监视**服务器：
+
+1. 如果 `build/classes` 是空的，grind 运行一次 `./gradlew classes`。
+2. 它在 grind JVM 内部启动 `bootstrap.App`（`AppLoader` 加子 `URLClassLoader`）并启动 `KonaHttpServer`。
+3. 它轮询 `src/main`（和 `.env`）的 Kotlin、Java、Crema 和常见资源变更。编辑器交换文件（`*~`、`*.swp`）被忽略。
+4. 安静防抖之后它运行增量 `./gradlew classes`。**Netty 保持绑定** — 事件循环和保活连接不会被拆掉。
+5. 编译成功时，grind 启动一个新应用（Cadence 登记一个新的全局 `Database`），调用 `KonaHttpServer.replaceKernel`，然后关闭先前的类加载器和**那个先前应用的** Cadence 池 — 不是新的全局。Wire 组件保存（例如 `Counter`）必须继续服务，而没有 `No global Database`。
+6. 如果编译或启动失败，先前的内核继续回答请求，grind 打印错误。
+
+这是**软**重载：一个 Netty 进程，一次一个活动应用类加载器，没有 Java agent，没有第二个应用 JVM。Wire 内联 `template()` 块住在组件类上，因此重新编译该类的保存就够了 — 你不重启服务器。`src/main/resources` 下的 Crema 视图文件包含在同一次监视里。
+
+`--in-process` 仍然存在，供想要单次启动、没有轮询器的脚本和测试使用。`--no-watch` 是旧的 `gradlew run` 子进程路径。
+
+`./grind serve` 用于**本地开发**。生产时运行 `./grind deploy:systemd` 并启动生成的单元 — 见[部署](../../guides/deployment/)。
+
+## `./grind route:list`
+
+```bash
+./grind route:list
+./grind route:list --json
+./grind route:list --method=GET --name=users --path=/api
+./grind route:list --compact
+./grind route:list --columns=method,uri,name --sort=uri --reverse
+```
+
+在进程内启动应用（与 migrate 相同：找到项目，加载 `build/classes`，调用 `bootstrap.App.create`）并打印共享 `Router` 上登记的每一条路由。先运行 `./gradlew classes`，这样编译后的应用在类路径上。
+
+表格列是 **Method**、**URI**、**Name**、**Action** 和 **Middleware**。路由接受不止一个方法时，方法用 `|` 连接（例如 `PUT|PATCH`）。具名处理函数类显示完全限定名；Kotlin/Java lambda 显示为 `Closure`。路由中间件类显示简单名，逗号分隔；lambda 中间件显示为 `Closure`。未命名的路由把名称单元格留空。
+
+页脚报告 `Showing N route(s)`。什么都没登记时：`Your application doesn't have any routes.` 筛选去掉一切时：`Your application doesn't have any routes matching the given criteria.` 两者仍然以 `0` 退出。
+
+| 标志 | 效果 |
+|------|------|
+| `--json` | 打印 JSON 数组（键 `method`、`uri`、`name`、`action`、`middleware`、`vendor`）而不是表格。路由没有名称时 `name` 是 `null`。 |
+| `--method=` | 保留声明该动词的路由（逗号分隔）。不区分大小写。`HEAD` 也匹配 `GET` 路由，因为路由器那样回退。 |
+| `--name=` | 保留名称包含该子串的路由（逗号分隔，不区分大小写）。未命名路由永不匹配。 |
+| `--path=` | 保留 URI 包含该子串的路由（逗号分隔，区分大小写）。 |
+| `--except-path=` | 丢掉 URI 包含这些子串中任何一个的路由（逗号分隔）。 |
+| `--except-vendor` | 丢掉处理函数类位于 `org.konaframework.` 下的路由（框架包）。`app.http.ShowUser` 这样的应用处理函数留下。编译在框架类内部的 lambda 被当作 vendor。 |
+| `--only-vendor` | 只保留那些 vendor 处理函数。与 `--except-vendor` 结合时表格为空。 |
+| `--reverse` | 反转排序顺序。 |
+| `--sort=` | 按 `method`、`uri`（默认）、`name`、`action` 或 `middleware` 排序。未知值以 `1` 退出。 |
+| `--columns=` | `method`、`uri`、`name`、`action`、`middleware` 的逗号分隔子集。未知值以 `1` 退出。 |
+| `--compact` | `--columns=method,uri,action,middleware` 的简写。 |
+| `--bootstrap=` / `--base=` | 与 `serve --in-process` 含义相同。 |
+
+`--json` 忽略 `--columns` / `--compact`，并且总是发出完整对象形状。`--quiet` 抑制表格和 JSON。
+
+如果从未登记 `HttpServiceProvider`，grind 以 `1` 退出，消息为 `No Router bound`。
+
+表格如何映射到 `Router` / `Route`，见[路由](../../http/routing/#listing-routes-with-grind)。
+
+## `./grind route:cache` / `./grind route:clear`
+
+```bash
+./grind route:cache
+./grind route:clear
+```
+
+`route:cache` 启动应用，然后把活动表的美化 JSON 快照写到 `bootstrap/cache/routes.json`（按需创建 `bootstrap/cache/`）。成功：`Routes cached successfully.`
+
+HTTP 派发**不**读取该文件。路由登记已经住在编译后的 Kotlin/Java 里（提供者和 `WebRoutes` / `ApiRoutes`）。快照用于检查、CI 和编辑器工具。
+
+`route:clear` 删除存在的 `bootstrap/cache/routes.json`，并且总是打印 `Route cache cleared successfully.` 它不启动应用。文件缺失仍然是成功的清除。
+
+两个命令都要求在 `--base=` 或之上有 Kona 应用（与 `serve` 同样的项目向上走）。
+
+## `./grind make:command`
+
+```bash
+./grind make:command SendDigest
+./grind make:command SendDigest --command=mail:digest --lang=java
+```
+
+在 `app/console/commands/` 下生成 `ConsoleCommand`，并在 `META-INF/kona/commands` 里登记它。完整指南：[创建命令](../creating-commands/)。
+
+## `./grind make:controller`
+
+```bash
+./grind make:controller Post
+./grind make:controller AccountController --lang=java
+./grind make:controller Post --resource
+./grind make:controller Post --api --requests --model=Post
+```
+
+写入 `src/main/kotlin|java/app/http/controllers/`。名称不能包含路径分隔符；无效标识符被拒绝。语言默认来自 `src/main/java/` 下已有的 `.java` 文件，或传入 `--lang=`。
+
+| 标志 | 效果 |
+|------|------|
+| `--resource` | `BaseResourceController` 子类，带 `index` / `create` / `store` / `show` / `edit` / `update` / `destroy` — 把实例传给 `router.resource` |
+| `--api` | 同样的子类，但没有 `create` / `edit` 覆盖（基类返回 404）。与 `router.apiResource` 一起使用 |
+| `--requests` | 还写入 `Store{Model}Request` / `Update{Model}Request`；`store` / `update` 调用 `validate(request, …)`（签名保持 `Request`，这样它们匹配 `ResourceController`） |
+| `--model=Name` | 表单请求类名使用的模型名（默认来自控制器名） |
+
+与 `serve` 不同，除非你传入 `--base=`，`make:controller` 不会从嵌套文件夹向上走。
+
+## `./grind make:resource`
+
+```bash
+./grind make:resource User
+./grind make:resource PostResource --collection --lang=java
+```
+
+写入 `src/main/kotlin|java/app/http/resources/`。缺少时名称得到 `Resource` 后缀。传入 `--collection` 以包含静态/伴生 `collection` 辅助方法，它用 `JsonResource.collection(...)` 包装项。
+
+## 数据库命令
+
+这些命令与 [Cadence](../../cadence/) 一起工作。生成器写源文件；其他命令在进程内启动你的应用。
+
+| 命令 | 写入 / 做什么 |
+|------|----------------|
+| `./grind make:model <Name> [-mcrfspaR]` | `app/models/<Name>`；短标志：`-m` 迁移，`-c` 普通控制器，`-r` `BaseResourceController` 子类，`-f` 工厂，`-s` 填充器，`-p` 策略，`-R` / `--requests` Store/Update 表单请求，`--api` API 资源控制器（没有 create/edit 覆盖），`-a` / `--all` 迁移 + 工厂 + 填充器 + 资源控制器 + 请求 + 策略 |
+| `./grind make:migration <name> [--create=table] [--table=table]` | 文件 `database/migrations/{yyyy_MM_dd_HHmmss}_{snake_name}`，带 PascalCase 类（snake_case 或 PascalCase 输入）；把类追加到 `META-INF/kona/migrations`；`create_x_table` 创建 `x`，`…_to_x_table` 改变 `x` |
+| `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
+| `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
+| `./grind migrate [--seed] [--class=…] [--seeder=…]` | 把待运行迁移作为一批新批次运行（点线 `DONE` 行）；有 `--seed` / `--seeder` / `--seeder=Class` 时，还在同一进程里运行填充器 |
+| `./grind migrate:fresh [--seed] [--drop-views] [--drop-types]` | 删除所有表（以及可选的视图 / 用户类型），然后运行每一个迁移 |
+| `./grind migrate:refresh [--step=N] [--seed]` | 撤销所有批次（或最后 `N` 个），然后再次迁移 |
+| `./grind migrate:rollback [--step=N]` | 撤销最后 `N` 个批次（默认 1） |
+| `./grind migrate:reset` | 撤销每一个迁移 |
+| `./grind migrate:install` | 如果缺失则创建 `extract_migrations` 记账表 |
+| `./grind migrate:status` | `Ran` / `Pending`、批次和迁移名的表 |
+| `./grind db:wipe [--drop-views] [--drop-types]` | 删除所有表（以及可选的视图 / 用户类型）而不迁移 |
+| `./grind db:seed [--class=…]` | 运行填充器（默认 `database.seeders.DatabaseSeeder`） |
+| `./grind db:show` | 连接、驱动、URL，以及带列数的表名表 |
+| `./grind db:table <name>` | 一张表的列名、类型、可空和默认 |
+| `./grind schema:dump [--path=database/schema.sql]` | 写入从 JDBC 元数据重建的 `CREATE TABLE` SQL |
+
+所有生成器接受 `--lang=kotlin|java`（默认：`app/` 已有 `.java` 文件时为 Java）和 `--base=`，并且从不覆盖已有文件。
+
+迁移和填充命令：
+
+1. 在 `--base` 或之上找到项目（默认：当前目录）；
+2. 加载 `build/classes` 并在引导类上调用 `create(String[])`（`--bootstrap=`，默认 `bootstrap.App`），因此先运行 `./gradlew classes`；
+3. 使用应用容器里绑定的 `MigrationRegistry`，或 `META-INF/kona/migrations` 里列出的迁移（由 `make:migration` 写入）；
+4. 使用容器的 `Database`（由 `CadenceServiceProvider` 登记），或从 `database` 配置节构建一个；`--database=name` 选择具名连接。
+
+`migrate:fresh` 和 `db:wipe` 删除该连接上的**用户**表（禁用外键，或 PostgreSQL / Oracle 上的 `CASCADE`）。`--drop-views` 也删除视图。`--drop-types` 在列出它们的引擎上删除用户定义类型（PostgreSQL 枚举）；在 SQLite、H2 和 MySQL 上是空操作。SQLite 的 `sqlite_sequence` 这样的记账表不会被删除。
+
+`schema:dump` 写入从 JDBC 元数据重建的可移植 `CREATE TABLE` 语句。默认路径是应用根下的 `database/schema.sql`。
+
+当 `app.env` 是 `production` 时，migrate / fresh / refresh / reset / rollback / install / wipe / seed 需要 `--force`。`migrate:status`、`db:show`、`db:table` 和 `schema:dump` 不需要。
+
+标准输出只是 grind 控制台：一行信息（`Running migrations.` / `Dropping all tables.` / `Nothing to migrate.` / `Seeding database.`），然后每个迁移或填充器一行点线（`2000_01_01_000000_create_users_table ........ 12ms DONE`）。`migrate:status` 打印 **Status** / **Batch** / **Migration** 表（`Ran` 绿色，`Pending` 黄色）。连接池转储、SQL 跟踪和启动日志留在 `storage/logs` 下的 `single` 文件通道。传入 `--verbose`（`-v`）也把这些日志打印到控制台。
+
+错误（未知连接、失败的迁移、缺失的填充器类）打印消息并以状态 1 退出。这些命令背后的 API 见[迁移](../../cadence/migrations/)和[填充器与工厂](../../cadence/seeders-factories/)。
+
+## `./grind deploy:systemd`
+
+```bash
+./grind deploy:systemd
+./grind deploy:systemd --skip-build --force
+./grind deploy:systemd --prefix=/var/www/hello-kona --port=4000
+```
+
+为 systemd 构建**生产包**：`build/deploy/systemd/<app>/`，带 `bin/`、`lib/`、`public/`、`storage/`、`<app>.service`、`<app>.env` 和 `install.sh`。除非你传入 `--skip-build`，否则运行 `./gradlew installDist`。检查环境文件，把目录复制到服务器，然后 `sudo ./install.sh`。
+
+Java 应用使用同一命令。完整标志、目录布局和单元内容：[部署](../../guides/deployment/)。许多进程、池和工作进程：[扩展](../../guides/scaling/)。
+
+## `./grind down` / `./grind up`
+
+```bash
+./grind down
+./grind up
+./grind down --base=/path/to/app
+```
+
+维护模式。`down` 写入 `storage/framework/down`；然后 HTTP 请求收到 **503 Service Unavailable**，直到 `up` 删除该文件。`file` 驱动由 `config/App` 里的 `app.maintenance.driver` 选择。
+
+## `./grind key:generate`
+
+```bash
+./grind key:generate
+./grind key:generate --show
+./grind key:generate --force
+./grind key:generate --base=/path/to/app
+```
+
+在项目 `.env` 里设置密码学随机的**应用密钥**，为 `APP_KEY=base64:…`（32 个原始字节，Base64 编码）。该值是加密、签名 cookie 和相关功能作为 `app.key` 读取的内容。
+
+| 标志 | 效果 |
+|------|------|
+| *（无）* | 生成密钥并写入 `.env` |
+| `--show` | 把新密钥打印到终端，并且**不**修改文件 |
+| `--force` | `APP_ENV=production` 时允许覆盖已有密钥 |
+| `--base=` | 向上搜索 Gradle 项目的目录（与 `serve` 同样的向上走） |
+
+### 正常运行时发生什么
+
+1. Grind 在 `--base` 或之上找到应用根（默认：当前目录）。
+2. 如果 `.env` 缺失但 `.env.example` 存在，grind 先复制 `.env.example` → `.env`。
+3. 生成一个新的 `base64:…` 密钥（与 `kona new` 相同的格式）。
+4. 替换 `.env` 里的 `APP_KEY=…` 行。如果该行缺失，grind 以错误退出。
+5. 成功时：`Application key set successfully.`
+
+### 已有密钥与生产
+
+- 如果 `APP_KEY` **为空**，grind 写入新密钥，没有额外提示。
+- 如果 `APP_KEY` **已经设置**并且环境**不是**生产（`APP_ENV` 来自进程环境，或进程里未设置时来自 `.env`），grind 覆盖密钥。
+- 如果 `APP_KEY` 已设置并且 `APP_ENV=production`，grind 警告并请求确认。拒绝（或非交互的“否”）取消命令。传入 `--force` 跳过提示。
+
+`--show` 总是打印一个新密钥，并且从不触碰 `.env`，无论生产还是已有密钥。
+
+小心轮换：用旧密钥产生的密文和签名 cookie 载荷在你改变 `APP_KEY` 之后不会验证。见[加密](../../security/encryption/)。
+
+## `./grind gradle:build` / `gradle:install`
+
+```bash
+./grind gradle:build
+./grind gradle:install
+./grind gradle:test
+./grind gradle:check
+./grind gradle:classes
+./grind gradle:clean
+./grind gradle:run
+./grind gradle test --offline
+./grind gradle:assemble
+```
+
+这些在应用根运行 **Gradle 包装器**（`./gradlew`，或 Windows 上的 `gradlew.bat`；包装器缺失时是 `PATH` 上的 `gradle`）。Grind 以与 `serve` 相同的方式找到该根 — 从 `--base`（默认：当前目录）向上走，直到找到 `settings.gradle(.kts)` 或 `build.gradle(.kts)`。
+
+| 命令 | Gradle 任务 |
+|------|-------------|
+| `gradle:build` | `build` |
+| `gradle:install` / `gradle:installDist` | `installDist`（Kona 应用使用的 Application 插件安装任务） |
+| `gradle:test` | `test` |
+| `gradle:check` | `check` |
+| `gradle:classes` | `classes` |
+| `gradle:clean` | `clean` |
+| `gradle:run` | `run` |
+| `gradle <tasks…>` | 你传入的任何东西 |
+| `gradle:<task>` | 该任务名（`gradle:assemble` → `assemble`） |
+
+`gradle:install` **不是** `./grind install`（包安装）。它是 `./gradlew installDist` 的较短名称，后者写入 `build/install/<app>/`。
+
+Gradle 自己的输出会显示（与监视模式的 `classes` 编译不同，那些使用 `--quiet` 以便 Termwind 可读）。Grind 保留 `--base`、`--help` / `-h`、`-v` / `--verbose` 和 `-q` / `--quiet`；每一个其他标志被转发（`--offline`、`--max-workers=2` 等）。具名别名之后的额外位置参数被追加（`./grind gradle:build extra` → `./gradlew build extra`）。
+
+没有任务的 `./grind gradle` 打印用法并以 `1` 退出。任何 `gradle:` 记号上的 `--help` 打印目录并且不运行 Gradle。
+
+Java 应用使用同样的命令。`kona new` 写入的包装器见[安装](../../guides/installation/)。
+
+## 不是 grind 命令：创建应用
+
+```bash
+kona new my-app --lang=kotlin
+```
+
+见[安装](../guides/installation/)。
