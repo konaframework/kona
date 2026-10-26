@@ -1,0 +1,97 @@
+---
+title: Tests HTTP
+description: HttpTestClient dans le processus — verbes, corps JSON et assertions de réponse.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`HttpTestClient` résout `HttpKernel` depuis une application démarrée et exécute les requêtes **dans le processus** (pas de socket d’écoute).
+
+## Créer un client
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val http = HttpTestClient(app)
+http.get("/ping").assertOk().assertJsonContains("ok")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+HttpTestClient http = new HttpTestClient(app);
+http.get("/ping").assertOk().assertJsonContains("ok");
+```
+
+</TabItem>
+</Tabs>
+
+Enregistrez les routes avant d’appeler le client (`boot` du provider, ou après `TestApplication.create`).
+
+## Verbes
+
+| Méthode | Notes |
+| --- | --- |
+| `get(uri)` / `get(uri, headers)` | Corps vide |
+| `postJson(uri, body)` / `postJson(uri, body, headers)` | Sérialise `body` avec Jackson ; pose `Content-Type: application/json` |
+| `put(uri)` / `put(uri, body)` / `put(uri, body, headers)` | Corps chaîne brute |
+| `putJson(uri, body)` / `putJson(…, headers)` | Encodage JSON |
+| `patch(uri)` / `patch(uri, body)` / `patch(…, headers)` | Corps chaîne brute |
+| `patchJson(uri, body)` / `patchJson(…, headers)` | Encodage JSON |
+| `delete(uri)` / `delete(uri, headers)` | Corps vide |
+
+Les maps d’en-têtes sont de simples `Map<String, String>`. Les chaînes de requête appartiennent à l’`uri`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+http.postJson("/users", mapOf("name" to "Ada"))
+    .assertStatus(201)
+    .assertJsonPath("user.name", "Ada")
+
+http.putJson("/users/1", mapOf("name" to "Ada Lovelace"), mapOf("X-Request-Id" to "r-1"))
+    .assertOk()
+
+http.delete("/users/1").assertStatus(204)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+http.postJson("/users", Map.of("name", "Ada"))
+    .assertStatus(201)
+    .assertJsonPath("user.name", "Ada");
+
+http.putJson("/users/1", Map.of("name", "Ada Lovelace"), Map.of("X-Request-Id", "r-1"))
+    .assertOk();
+
+http.delete("/users/1").assertStatus(204);
+```
+
+</TabItem>
+</Tabs>
+
+## Assertions de réponse
+
+Chaque verbe renvoie un `TestResponse` (fluide — les assertions renvoient `this`).
+
+| Méthode | Comportement |
+| --- | --- |
+| `status()` / `body()` | Valeurs brutes pour des assertions personnalisées |
+| `assertStatus(code)` | Statut exact ; lance si différent |
+| `assertOk()` | Statut `200` |
+| `assertJsonContains(fragment)` | La chaîne du corps contient la sous-chaîne |
+| `assertJsonPath(path, expected)` | Le chemin JSON pointé (`user.name`) égale `expected` |
+| `assertJson(path, expected)` | Alias de `assertJsonPath` |
+
+Les segments de chemin sont coupés sur `.`. Les segments manquants font échouer l’assertion. Les nombres se comparent par égalité double (donc `1` et `1.0` correspondent). Les nœuds JSON `null` se comparent à `null` Kotlin/Java.
+
+## Cas limites
+
+- Le client **ne** suit **pas** les redirections ; affirmez la première réponse.
+- Le middleware du kernel s’exécute normalement — CSRF, session et auth se comportent comme en production lorsque ces providers sont enregistrés.
+- Les corps des `put`/`patch` non JSON sont des chaînes brutes ; encodez votre propre charge utile si besoin.
