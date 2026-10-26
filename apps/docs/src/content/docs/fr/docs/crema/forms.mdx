@@ -1,0 +1,214 @@
+---
+title: Formulaires
+description: Jetons CSRF, usurpation de méthode, erreurs de validation et aides d’assets dans les modèles Crema.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Crema livre un petit ensemble d’aides de formulaire qui lisent des valeurs dans la map de données de vue. Associez-les au [middleware CSRF](/docs/security/csrf/) et à la [validation](/docs/http/validation/) côté requête.
+
+## CSRF
+
+```crema
+<form method="post" action="/posts">
+  @csrf
+  <input name="title" value="{{ title }}">
+  <button type="submit">Save</button>
+</form>
+```
+
+`@csrf` rend un input caché `_token`. Passez le jeton comme `_token` ou `csrf_token` dans la map de données (le middleware de session l’expose en général) :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "posts.create",
+    mapOf(
+        "_token" to csrfToken,
+        "title" to "",
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "posts.create",
+    Map.of(
+        "_token", csrfToken,
+        "title", ""
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+Forme de sortie :
+
+```html
+<input type="hidden" name="_token" value="…">
+```
+
+Si aucune des clés n’est présente, l’attribut value est vide — le formulaire échouera aux vérifications CSRF jusqu’à ce que vous passiez un vrai jeton.
+
+<a id="method-spoofing-method"></a>
+
+## Usurpation de méthode (`@method`)
+
+Les formulaires HTML dans les navigateurs ne se soumettent qu’en `GET` ou `POST`. La directive `@method` de Crema émet un champ caché afin que les modèles puissent *déclarer* le verbe voulu :
+
+```crema
+<form method="post" action="/posts/{{ post.id }}">
+  @csrf
+  @method('PUT')
+  …
+</form>
+```
+
+Émet :
+
+```html
+<input type="hidden" name="_method" value="PUT">
+```
+
+Valeurs courantes : `PUT`, `PATCH`, `DELETE`.
+
+:::caution[Comportement d’exécution aujourd’hui]
+Le kernel HTTP et le routeur correspondent à la méthode de requête **réelle** du transport (`POST` pour un envoi de formulaire normal). Ils ne réécrivent pas actuellement la méthode depuis le champ de corps `_method`. Un formulaire qui poste avec `@method('PUT')` arrive encore en `POST` sauf si le client envoie un vrai `PUT`/`PATCH`/`DELETE` (par exemple via `fetch` JavaScript).
+
+Jusqu’à ce que la surcharge de méthode arrive dans la pile HTTP, choisissez l’un de ces motifs :
+
+1. **Enregistrez une route `POST`** pour l’action du formulaire (par exemple `router.post("/posts/{id}", …)` ou un chemin dédié `/posts/{id}/update`), et gardez `@method` seulement comme documentation dans le modèle — ou omettez `@method` jusqu’à ce que la surcharge existe.
+2. **Utilisez JavaScript** (ou un client API) qui émet le vrai verbe HTTP que votre [route](../../http/routing/) attend.
+3. Gardez `@method` dans les modèles pour la compatibilité future avec les aides HTML de Crema, en sachant que le champ caché est ignoré par le routage aujourd’hui.
+:::
+
+## Erreurs de champ
+
+```crema
+<label>
+  Email
+  <input name="email" value="{{ email }}">
+</label>
+@error('email')
+  <p class="error">{{ errors.email }}</p>
+@enderror
+```
+
+Le corps se rend lorsque les données de vue contiennent une map `errors` avec une valeur non vide pour ce champ :
+
+| Valeur de `errors['email']` | Corps de `@error('email')` |
+|-------------------------|------------------------|
+| Absent / `null` | Sauté |
+| Chaîne vide ou collection vide | Sauté |
+| Chaîne / collection non vide | Rendu |
+| Toute autre valeur non nulle | Rendu |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "auth.login",
+    mapOf(
+        "_token" to token,
+        "email" to submittedEmail,
+        "errors" to mapOf("email" to "Required"),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "auth.login",
+    Map.of(
+        "_token", token,
+        "email", submittedEmail,
+        "errors", Map.of("email", "Required")
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+Lorsque la validation renvoie plusieurs messages par champ, passez une liste et imprimez-les dans une boucle :
+
+```crema
+@error('email')
+  <ul>
+    @foreach(errors.email as message)
+      <li>{{ message }}</li>
+    @endforeach
+  </ul>
+@enderror
+```
+
+## Exemple de formulaire complet
+
+```crema
+@extends('layouts.app')
+@section('content')
+  <h1>Edit post</h1>
+  <form method="post" action="/posts/{{ post.id }}">
+    @csrf
+    @method('PUT')
+
+    <label>
+      Title
+      <input name="title" value="{{ post.title }}">
+    </label>
+    @error('title')
+      <p class="error">{{ errors.title }}</p>
+    @enderror
+
+    <label>
+      Body
+      <textarea name="body">{{ post.body }}</textarea>
+    </label>
+    @error('body')
+      <p class="error">{{ errors.body }}</p>
+    @enderror
+
+    <button type="submit">Update</button>
+  </form>
+@endsection
+```
+
+## URL d’assets dans les formulaires et les layouts
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+Se résout en `/css/app.css` par défaut, ou préfixe `asset_url` / `assetUrl` depuis les données de vue lorsqu’ils sont posés (base CDN). Consultez [Rendu](/docs/crema/rendering/#asset).
+
+## Chaînes de langue
+
+Les libellés et les messages utilisent souvent `@lang` — consultez [Rendu](/docs/crema/rendering/#lang).
+
+## Pièges et FAQ
+
+**Pourquoi mon formulaire `@method('PUT')` renvoie 405 ?**
+La requête est encore `POST`. Enregistrez une route POST ou envoyez un vrai PUT — consultez [Usurpation de méthode](#method-spoofing-method).
+
+**Pourquoi le champ CSRF est-il vide ?**
+Passez `_token` ou `csrf_token` dans les données de vue (le middleware de session le fournit en général).
+
+**Comment montrer l’ancienne saisie après une redirection de validation ?**
+Utilisez l’ancienne saisie flashée depuis la session (`request.old("email")`) lorsque vous rendez à nouveau le formulaire — [Validation](../../http/validation/).
+
+## Lié
+
+- [Protection CSRF](/docs/security/csrf/)
+- [Validation](/docs/http/validation/)
+- [Session](/docs/security/session/)
+- [Routage](/docs/http/routing/)
