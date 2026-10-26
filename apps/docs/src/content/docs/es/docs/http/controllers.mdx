@@ -1,0 +1,482 @@
+---
+title: Controladores
+description: Organiza los manejadores HTTP en clases de controlador, acciones invocables, controladores de recurso, validación de form request y stubs de grind.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un **controlador** es una clase que agrupa acciones HTTP relacionadas. En lugar de poner cada cierre de ruta en un archivo, apuntas las rutas a métodos del controlador. Los controladores mantienen juntas la validación, la autorización y la forma de la respuesta.
+
+Cómo **registras** esos métodos en el enrutador (incluido `WebRoutes`, los grupos y `resource()`) se cubre en [Enrutado](../routing/). Esta página se centra en lo que vive *dentro* de la clase del controlador y en los tipos públicos que la sostienen: `Controller`, `FormRequest`, `InvokableController`, `ResourceController` y `BaseResourceController`.
+
+## Qué hace un controlador
+
+En cada petición coincidente, el [kernel HTTP](../kernel-server/) ejecuta el middleware global, resuelve la ruta, enlaza los parámetros de camino al `Request`, ejecuta el middleware de ruta y luego llama al `Handler` de la ruta. Un método de controlador *es* ese manejador cuando lo enlazas desde una tabla de rutas:
+
+```text
+Request → global middleware → route match → route middleware → controller method → Response
+```
+
+Un método de controlador siempre toma un `Request` y devuelve un `Response`. No hay una API aparte de «firma de acción», ni inyección automática de constructor en los controladores, ni enrutado por atributo/anotación — construyes el controlador tú mismo y enlazas los métodos de forma explícita.
+
+## Cablear desde las rutas
+
+**Recomendado (amigable con el IDE):** instancia el controlador en `WebRoutes.register` (o `ApiRoutes`) y luego enlaza una lambda o un method reference. El IDE puede autocompletar nombres de método, saltar a la acción y marcar erratas en tiempo de compilación.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class WebRoutes(private val app: Application) {
+    fun register(router: Router) {
+        val projects = ProjectController(app)
+        router.get("/projects") { projects.index(it) }.name("projects.index")
+        router.post("/projects") { projects.store(it) }.name("projects.store")
+        router.get("/projects/{id}") { projects.show(it) }.name("projects.show")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class WebRoutes {
+    private final Application app;
+
+    public WebRoutes(Application app) { this.app = app; }
+
+    public void register(Router router) {
+        ProjectController projects = new ProjectController(app);
+        router.get("/projects", projects::index).name("projects.index");
+        router.post("/projects", projects::store).name("projects.store");
+        router.get("/projects/{id}", projects::show).name("projects.show");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Las lambdas de manejador en línea funcionan igual cuando no necesitas una clase de controlador. Los detalles y más verbos viven en [Enrutado](../routing/#call-a-controller).
+
+### Pasar dependencias
+
+Los controladores son clases ordinarias. Pasa lo que necesiten en el constructor — `Application`, un repositorio, un ayudante de modelo Cadence, valores de configuración del arranque:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class ProjectController(private val app: Application) {
+    private val db = app.resolve(DatabaseManager::class.java)
+
+    fun index(request: Request): Response =
+        Response.json(db.table("projects").get())
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class ProjectController {
+    private final DatabaseManager db;
+
+    public ProjectController(Application app) {
+        this.db = app.resolve(DatabaseManager.class);
+    }
+
+    public Response index(Request request) {
+        return Response.json(db.table("projects").get());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Resuelve las dependencias pesadas una vez cuando construyes el controlador en la tabla de rutas (o una vez en un proveedor), no en cada petición dentro de la acción, salvo que la dependencia esté acotada a la petición.
+
+## Generar un stub con grind
+
+[`./grind make:controller Name`](../../grind/commands/#grind-makecontroller) escribe `app/http/controllers/<Name>Controller` (Kotlin o Java mediante `--lang`).
+
+| Bandera | Efecto |
+|------|--------|
+| *(ninguna)* | Un solo método `index` que devuelve un stub de texto |
+| `--resource` | Subclase de `BaseResourceController` con `index`, `create`, `store`, `show`, `edit`, `update`, `destroy` — pasa la instancia a [`router.resource`](../routing/#resource-routes) |
+| `--api` | La misma subclase sin anulaciones de `create` / `edit` (404 de la base). Úsala con [`apiResource`](../routing/#api-resource-routes) |
+| `--lang=kotlin\|java` | Lenguaje (predetermina a partir de la disposición de la app) |
+
+Los stubs de recurso generados **extienden `BaseResourceController`** (que extiende `Controller` e implementa `ResourceController`). Los ids de camino usan `request.route("id")`. `make:model -r` / `--resource` / `--api` / `--all` pasan por el mismo generador. Un `./grind make:controller Post` plano o `make:model -c` (sin `-r`) sigue escribiendo un POJO con un solo método `index`.
+
+## Controladores planos frente a `Controller`
+
+**No** tienes que extender `Controller`. Cualquier clase con métodos `Request → Response` funciona como destino de ruta.
+
+Extiende `Controller` cuando quieras los ayudantes protegidos `validate`:
+
+| Método | Comportamiento |
+|--------|----------|
+| `validate(request, rules)` | Delega en `request.validate(rules)` — devuelve el mapa validado o lanza `ValidationException` |
+| `validate(request, formRequest)` | Ejecuta `formRequest.validate(request)` — autoriza primero y luego las reglas |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NotesController : Controller() {
+    fun store(request: Request): Response {
+        val data = validate(request, mapOf("title" to listOf("required", "min:3")))
+        return Response.json(data, 201)
+    }
+}
+
+router.post("/notes") { notes.store(it) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NotesController extends Controller {
+    public Response store(Request request) {
+        Map<String, Object> data = validate(request, Map.of("title", List.of("required", "min:3")));
+        return Response.json(data, 201);
+    }
+}
+
+router.post("/notes", notes::store);
+```
+
+</TabItem>
+</Tabs>
+
+`validate` lanza `ValidationException` (HTTP 422 / redirect-back) cuando fallan las reglas — el mismo camino que `request.validate(...)`. Lista completa de reglas: [Validación](../validation/).
+
+Después de un `request.validate(...)` con éxito (o el ayudante del controlador que lo llama), `request.safe()` devuelve el mismo mapa validado. Llamar a `safe()` antes de un validate con éxito lanza `IllegalStateException`.
+
+## Leer parámetros de ruta y entrada
+
+Los parámetros de camino están en la petición después del enrutado. Prefiere `request.route("id")`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun show(request: Request): Response {
+    val id = request.route("id")!!
+    val project = projects.find(id) ?: throw NotFoundException("Project not found.")
+    return Response.json(project)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public Response show(Request request) {
+    String id = request.route("id");
+    Project project = projects.find(id);
+    if (project == null) {
+        throw new NotFoundException("Project not found.");
+    }
+    return Response.json(project);
+}
+```
+
+</TabItem>
+</Tabs>
+
+Para la entrada del cuerpo y de la consulta, usa `request.data()`, `request.input(...)` o valida primero — consulta [Petición y respuesta](../request-response/).
+
+## Form requests
+
+Un **form request** es un objeto pequeño que es dueño de las reglas de validación (y de la autorización opcional) de una acción. Extiende `FormRequest`:
+
+| Miembro | Papel |
+|--------|------|
+| `rules()` | Abstracto — mapa de campo → cadenas de regla |
+| `authorize(request)` | Opcional; predetermina `true`. Devuelve `false` para rechazar |
+| `validate(request)` | Si no está autorizado → `HttpException(403, "This action is unauthorized.")`; si no, `Validator.make(request, rules()).validate()` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class StoreNoteRequest : FormRequest() {
+    override fun rules(): Map<String, List<String>> =
+        mapOf("title" to listOf("required", "min:3"))
+
+    override fun authorize(request: Request): Boolean =
+        request.header("X-Token") == "secret"
+}
+
+class NotesController : Controller() {
+    fun store(request: Request): Response {
+        val data = validate(request, StoreNoteRequest())
+        return Response.json(data, 201)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class StoreNoteRequest extends FormRequest {
+    @Override
+    public Map<String, List<String>> rules() {
+        return Map.of("title", List.of("required", "min:3"));
+    }
+
+    @Override
+    public boolean authorize(Request request) {
+        return "secret".equals(request.header("X-Token"));
+    }
+}
+
+public class NotesController extends Controller {
+    public Response store(Request request) {
+        return Response.json(validate(request, new StoreNoteRequest()), 201);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+También puedes llamar a `StoreNoteRequest().validate(request)` sin extender `Controller`. Los fallos de autorización son **403**, no 422. Los fallos de validación siguen siendo `ValidationException`.
+
+No hay resolución automática de form request a partir de las firmas de ruta — construyes y ejecutas el form request tú mismo dentro de la acción.
+
+## Controladores invocables
+
+Cuando una ruta tiene una sola acción, implementa `InvokableController` (`invoke(Request): Response`) y regístralo como manejador:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val ping = InvokableController { Response.text("pong") }
+router.get("/ping", ping.asHandler()).name("ping")
+
+class HealthCheck : InvokableController {
+    override fun invoke(request: Request): Response =
+        Response.json(mapOf("status" to "ok"))
+}
+router.get("/health", HealthCheck().asHandler()).name("health")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+InvokableController ping = request -> Response.text("pong");
+router.get("/ping", Controllers.asHandler(ping)).name("ping");
+
+public final class HealthCheck implements InvokableController {
+    @Override
+    public Response invoke(Request request) {
+        return Response.json(Map.of("status", "ok"));
+    }
+}
+router.get("/health", Controllers.asHandler(new HealthCheck())).name("health");
+```
+
+</TabItem>
+</Tabs>
+
+`Controllers.asHandler` / `asHandler()` de Kotlin adapta el invocable a un `Handler` para el enrutador.
+
+## Controladores de recurso
+
+[`Router.resource(name, controller)`](../routing/#resource-routes) cablea el mapa REST completo (incluido HTML `create` / `edit`) a un `ResourceController`. Prefiere [`apiResource`](../routing/#api-resource-routes) para APIs JSON (sin rutas de formulario).
+
+`ResourceController` es una interfaz con siete métodos: `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`. Extiende `BaseResourceController` cuando solo necesitas algunas acciones — las no implementadas lanzan `NotFoundException` (HTTP 404).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NotesController : BaseResourceController() {
+    override fun index(request: Request): Response = Response.json(notes.all())
+
+    override fun show(request: Request): Response {
+        val note = notes.find(request.route("id")!!)
+            ?: throw NotFoundException()
+        return Response.json(note)
+    }
+
+    override fun store(request: Request): Response {
+        val data = validate(request, StoreNoteRequest())
+        return Response.json(notes.create(data), 201)
+    }
+
+    override fun destroy(request: Request): Response {
+        notes.delete(request.route("id")!!)
+        return Response.noContent()
+    }
+}
+
+router.apiResource("notes", NotesController())
+router.apiResource("notes", NotesController(), only = listOf("index", "show"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NotesController extends BaseResourceController {
+    @Override
+    public Response index(Request request) {
+        return Response.json(notes.all());
+    }
+
+    @Override
+    public Response show(Request request) {
+        Note note = notes.find(request.route("id"));
+        if (note == null) throw new NotFoundException();
+        return Response.json(note);
+    }
+
+    @Override
+    public Response store(Request request) {
+        return Response.json(notes.create(validate(request, new StoreNoteRequest())), 201);
+    }
+
+    @Override
+    public Response destroy(Request request) {
+        notes.delete(request.route("id"));
+        return Response.noContent();
+    }
+}
+
+router.apiResource("notes", new NotesController());
+router.apiResource("notes", new NotesController(), List.of("index", "show"), null);
+```
+
+</TabItem>
+</Tabs>
+
+`BaseResourceController` extiende `Controller`, así que `validate` está disponible. Empareja las cargas JSON con [Recursos de API](../api-resources/). El filtrado con `only` / `except` y la salvedad de `/resource/create` para `apiResource` están documentados en [Enrutado](../routing/#resource-routes).
+
+## Devolver respuestas
+
+Los controladores devuelven las mismas fábricas que cualquier manejador — `Response.json`, `html`, `text`, `redirect`, `back`, `noContent`, `download`, y así sucesivamente. Consulta [Petición y respuesta](../request-response/#building-a-response).
+
+Patrones habituales:
+
+```kotlin
+fun store(request: Request): Response {
+    val data = validate(request, StoreNoteRequest())
+    val note = notes.create(data)
+    return Response.redirect(route("notes.show", mapOf("id" to note.id)))
+        .with("status", "Created")
+}
+
+fun destroy(request: Request): Response {
+    notes.delete(request.route("id")!!)
+    return Response.noContent()
+}
+```
+
+Lanza `NotFoundException`, `HttpException` o `ValidationException` en lugar de construir sobres de error a mano — consulta [Excepciones](../exceptions/).
+
+## Casos de uso habituales
+
+### Controlador de API fino con validación
+
+```kotlin
+class UserApiController : Controller() {
+    fun store(request: Request): Response {
+        val data = validate(request, mapOf(
+            "email" to listOf("required", "email"),
+            "name" to listOf("required", "string", "max:100"),
+        ))
+        return Response.json(users.create(data), 201)
+    }
+}
+```
+
+### Actualización de formulario HTML con redirect-back si falla
+
+Los fallos de validación de clientes que no son JSON redirigen de vuelta con errores flasheados (manejador de excepciones predeterminado). Si tiene éxito, redirige a una ruta con nombre:
+
+```kotlin
+fun update(request: Request): Response {
+    val data = validate(request, UpdatePostRequest())
+    posts.update(request.route("id")!!, data)
+    return Response.redirect(route("posts.show", mapOf("id" to request.route("id")!!)))
+}
+```
+
+### Descarga de una sola acción
+
+```kotlin
+class ReportDownload(private val reports: ReportService) : InvokableController {
+    override fun invoke(request: Request): Response =
+        Response.download(reports.pdf(), "report.pdf")
+}
+router.get("/reports/latest", ReportDownload(reports).asHandler())
+    .middleware(Authenticate())
+```
+
+## Referencia de la API
+
+### `Controller`
+
+Clase abierta. Protegidos: `validate(Request, Map)`, `validate(Request, FormRequest)`.
+
+### `FormRequest`
+
+Abstracto. `rules()`, `authorize(Request)` opcional, `validate(Request)`.
+
+### `InvokableController`
+
+Interfaz funcional: `invoke(Request): Response`. Adáptalo con `asHandler()` / `Controllers.asHandler`.
+
+### `ResourceController`
+
+Interfaz: `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`.
+
+### `BaseResourceController`
+
+Clase abstracta que extiende `Controller` e implementa `ResourceController`. Las implementaciones predeterminadas lanzan `NotFoundException()`.
+
+### `Controllers`
+
+`Controllers.asHandler(InvokableController): Handler`.
+
+## Trampas y preguntas
+
+**¿Necesito extender `Controller`?**  
+No. Extiéndelo solo para los ayudantes `validate` (o extiende `BaseResourceController` para los predeterminados de recurso).
+
+**¿Por qué mi controlador no se construye automáticamente desde el contenedor?**  
+Kona no resuelve automáticamente los controladores a partir de referencias de clase de ruta. Instáncialos en la tabla de rutas (o en una fábrica que controles).
+
+**¿Puedo poner middleware en la clase del controlador?**  
+No como anotación de clase. Adjunta el middleware en la ruta o en el grupo — consulta [Middleware](../middleware/) y [Enrutado](../routing/#middleware-on-a-route).
+
+**¿Adónde van los errores de validación?**  
+Los clientes JSON obtienen 422; los clientes de formulario HTML obtienen redirect-back con errores flasheados — [Validación](../validation/#the-error-response).
+
+## Qué no está disponible hoy
+
+- Enrutado de controladores por anotación / atributo
+- Inyección automática de constructor de controladores desde el enrutador
+- Atributos de middleware a nivel de controlador
+- Registro invocable sin `asHandler` / `Controllers.asHandler`
+- Pistas de tipo de form request que corren solas antes de la acción
+
+## Siguientes pasos
+
+- Registra rutas, grupos y recursos en [Enrutado](../routing/).
+- Envuelve los controladores con [Middleware](../middleware/).
+- Lee y escribe cargas en [Petición y respuesta](../request-response/).
+- Declara reglas en [Validación](../validation/).
+- Da forma al JSON con [Recursos de API](../api-resources/).
+- Construye enlaces con [Generación de URL](../url-generation/).
+- Afina las páginas de fallo en [Excepciones](../exceptions/).
