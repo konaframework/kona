@@ -1,0 +1,49 @@
+---
+title: Worker
+description: grind queue:work 的选项、超时和守护模式。
+---
+
+**worker** 取出载荷、恢复任务、运行中间件和 `handle()`，然后确认成功、释放以便重试，或记下失败的任务。
+
+```bash
+./grind queue:work
+./grind queue:work --connection=redis --queue=default
+./grind queue:work --once
+./grind queue:work --stop-when-empty --max=100
+./grind queue:work --daemon --sleep=3
+```
+
+## 标志
+
+| 标志 | 含义 |
+|------|------|
+| `--connection=` | 队列连接名 |
+| `--queue=` | 该连接上的队列名 |
+| `--max=` | 成功处理 N 次后停止 |
+| `--once` | 最多处理一个任务 |
+| `--stop-when-empty` | 队列没有可用任务时退出（除非 `--daemon` / `--sleep`，否则这是默认） |
+| `--daemon` | 空队列时继续轮询 |
+| `--sleep=` | 守护模式下队列为空时休眠的秒数 |
+| `--timeout=` | 每个任务的超时秒数（`0` 关闭） |
+| `--memory=` | 已用堆达到这么多 MB 时停止（`0` 关闭） |
+| `--tries=` | 覆盖任务的尝试次数 |
+| `--backoff=` | 覆盖重试时的退避秒数 |
+
+编程方式：
+
+```kotlin
+Worker(
+    manager,
+    connectionName = "array",
+    queueName = "default",
+    options = WorkerOptions(once = true, timeoutSeconds = 30),
+).run()
+```
+
+## steam
+
+开发时用 `./grind steam` 启动应用并调用 `Bus` / `Worker`。真正的工作负载更适合单独的 `queue:work` 进程。生产环境：把 worker 作为 systemd 单元运行（N 个 worker，一个调度器）— 见[扩容](../../guides/scaling/)。
+
+## 重试
+
+发生异常时，如果尝试次数仍低于 `tries`，worker 会用 `backoffSeconds`（通过 `availableAt`）`release` 载荷。否则记下失败 — 见[失败的任务](/docs/queue/failed-jobs/)。
