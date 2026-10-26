@@ -45,6 +45,7 @@ constructor(
                 "make:request" -> MakeRequestCommand().run(positional.drop(1) + flatten(options))
                 "make:view" -> MakeViewCommand().run(positional.drop(1) + flatten(options))
                 "make:firefly-layout" -> MakeFireflyLayoutCommand().run(positional.drop(1) + flatten(options))
+                "make:firefly-action" -> MakeFireflyActionCommand().run(positional.drop(1) + flatten(options))
                 "make:firefly-entry" -> MakeFireflyEntryCommand().run(positional.drop(1) + flatten(options))
                 "make:model" -> MakeModelCommand().run(positional.drop(1) + flatten(options))
                 "make:migration" -> MakeMigrationCommand().run(positional.drop(1) + flatten(options))
