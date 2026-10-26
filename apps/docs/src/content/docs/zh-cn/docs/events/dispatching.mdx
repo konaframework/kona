@@ -1,0 +1,443 @@
+---
+title: 派发与监听器
+description: 定义事件类型、登记 EventListener 处理程序、派发、forget 和 flush、调用顺序，以及 API 参考。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+本页是 `EventDispatcher` 和 `EventListener` 的完整公开 API。接线和概念从[事件](/docs/events/)开始。测试替身见[测试](/docs/events/testing/)。
+
+## 定义事件
+
+事件是任何非 null 对象。没有必需的基类或标记接口。优先使用字段清晰的**不可变载荷**：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+data class UserRegistered(
+    val userId: Long,
+    val email: String,
+)
+
+data class PaymentFailed(
+    val orderId: String,
+    val reason: String,
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class UserRegistered {
+    public final long userId;
+    public final String email;
+
+    public UserRegistered(long userId, String email) {
+        this.userId = userId;
+        this.email = email;
+    }
+}
+
+public record PaymentFailed(String orderId, String reason) {}
+```
+
+</TabItem>
+</Tabs>
+
+能做到时让事件不含框架类型。传入标识符和值对象；监听器需要服务时，让它们从容器解析 `Mailer`、仓库或 `Bus`。
+
+## 登记监听器
+
+### `listen(Class, EventListener)`
+
+为恰好该类添加处理程序。返回 `this`，因此可以链式调用。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val bus = EventDispatcher()
+
+bus.listen(UserRegistered::class.java) { event ->
+    // trailing lambda → EventListener SAM
+}
+
+bus.listen(UserRegistered::class.java, EventListener { event ->
+    // explicit SAM
+})
+
+bus
+    .listen(UserRegistered::class.java) { /* A */ }
+    .listen(PaymentFailed::class.java) { /* B */ }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+EventDispatcher bus = new EventDispatcher();
+
+bus.listen(UserRegistered.class, event -> {
+    // lambda implements EventListener
+});
+
+bus.listen(UserRegistered.class, (EventListener<UserRegistered>) event -> {
+    // explicit SAM when the compiler needs help
+});
+
+bus
+    .listen(UserRegistered.class, event -> { /* A */ })
+    .listen(PaymentFailed.class, event -> { /* B */ });
+```
+
+</TabItem>
+</Tabs>
+
+### Kotlin 具体化的 `listen`
+
+```kotlin
+inline fun <reified T : Any> listen(listener: EventListener<T>): EventDispatcher
+```
+
+```kotlin
+bus.listen<UserRegistered> { event ->
+    logger.info("user {}", event.userId)
+}
+```
+
+Java 没有具体化形式 — 总是传入 `SomeEvent.class`。
+
+### 监听器形状
+
+```kotlin
+fun interface EventListener<T : Any> {
+    fun handle(event: T)
+}
+```
+
+匹配 `handle` 的任何类（或方法引用）都能工作：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class SendWelcomeEmail : EventListener<UserRegistered> {
+    override fun handle(event: UserRegistered) {
+        // …
+    }
+}
+
+bus.listen(UserRegistered::class.java, SendWelcomeEmail())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class SendWelcomeEmail implements EventListener<UserRegistered> {
+    @Override
+    public void handle(UserRegistered event) {
+        // …
+    }
+}
+
+bus.listen(UserRegistered.class, new SendWelcomeEmail());
+```
+
+</TabItem>
+</Tabs>
+
+**没有**自动类扫描，没有 `@Listens` 属性，也没有事件 → 监听器类名的 `EventServiceProvider` 映射。登记总是显式的 `listen` 调用。
+
+## 派发
+
+```kotlin
+fun dispatch(event: Any)
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+bus.dispatch(UserRegistered(userId = 7, email = "a@b.c"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+bus.dispatch(new UserRegistered(7, "a@b.c"));
+```
+
+</TabItem>
+</Tabs>
+
+行为：
+
+| 情况 | 结果 |
+|------|------|
+| 为 `event.javaClass` 登记了监听器 | 每个 `handle` 按登记顺序运行 |
+| 该类没有监听器 | 立即返回；没有错误 |
+| 监听器抛出 | 异常传播；本次派发的剩余监听器被跳过 |
+| 派发一个零登记的类型 | 静默空操作（与“没有监听器”相同） |
+
+没有 `Event::dispatch` 静态辅助方法，也没有顶层 `event(...)` 函数 — 在 `EventDispatcher` 实例上调用 `dispatch`。
+
+### 精确类匹配
+
+匹配使用事件实例的**运行时类**，不是接口或超类：
+
+```kotlin
+open class DomainEvent
+class OrderShipped : DomainEvent()
+
+bus.listen(DomainEvent::class.java) { /* never runs for OrderShipped */ }
+bus.dispatch(OrderShipped()) // no DomainEvent listeners invoked
+
+bus.listen(OrderShipped::class.java) { /* runs */ }
+bus.dispatch(OrderShipped())
+```
+
+如果需要共享处理，在每个具体类上登记同一个监听器（或共享函数），或把共享逻辑放在具体监听器调用的辅助方法里。
+
+### 多个监听器
+
+```kotlin
+bus.listen(OrderShipped::class.java) { audit.log(it) }
+bus.listen(OrderShipped::class.java) { mail.sendReceipt(it) }
+bus.listen(OrderShipped::class.java) { metrics.increment("orders.shipped") }
+
+bus.dispatch(OrderShipped("42"))
+// audit → mail → metrics (registration order)
+```
+
+监听器存在并发映射的写时复制列表里 — 从多个线程登记是安全的，但优先在流量到来之前的启动期间登记。
+
+## 检查
+
+| 方法 | 返回 |
+|------|------|
+| `hasListeners(Class<*>)` | 该类至少登记了一个监听器时为 `true` |
+| `listenerCount(Class<*>)` | 该类的监听器数量（没有则为 `0`） |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+assertTrue(bus.hasListeners(OrderShipped::class.java))
+assertEquals(3, bus.listenerCount(OrderShipped::class.java))
+assertEquals(0, bus.listenerCount(PaymentFailed::class.java))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+assertTrue(bus.hasListeners(OrderShipped.class));
+assertEquals(3, bus.listenerCount(OrderShipped.class));
+```
+
+</TabItem>
+</Tabs>
+
+这些**不会**告诉你某一次 `dispatch` 是否已经运行；它们只描述注册表。在测试里记录派发，使用 [`FakeEvent`](/docs/events/testing/)。
+
+## 移除监听器
+
+| 方法 | 效果 |
+|------|------|
+| `forget(Class<*>)` | 移除该事件类的**所有**监听器 |
+| `flush()` | 清除每一个类的**每一个**监听器 |
+
+没有 API 可以移除单个监听器实例而留下同一类型的其他监听器。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+bus.forget(OrderShipped::class.java)
+assertFalse(bus.hasListeners(OrderShipped::class.java))
+
+bus.flush()
+// registry empty
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+bus.forget(OrderShipped.class);
+bus.flush();
+```
+
+</TabItem>
+</Tabs>
+
+持有共享派发器时，在测试之间使用 `flush()`，或每个测试优先使用新的 `EventDispatcher()` / [`FakeEvent`](/docs/events/testing/)。
+
+## 从容器登记
+
+典型的生产模式：一个单例总线，监听器在 `boot` 里附上。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class EventBindings : ServiceProvider {
+    override fun register(app: Application) {
+        // EventServiceProvider already bound EventDispatcher; nothing here
+    }
+
+    override fun boot(app: Application) {
+        val events = app.resolve(EventDispatcher::class.java)
+        val mailer = app.resolve(Mailer::class.java)
+
+        events.listen(UserRegistered::class.java) { event ->
+            mailer.send(/* welcome using event.email */)
+        }
+
+        events.listen(OrderShipped::class.java) { event ->
+            app.resolve(Bus::class.java).dispatch(SendShipmentNotification(event.id))
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class EventBindings implements ServiceProvider {
+    @Override
+    public void register(Application app) { }
+
+    @Override
+    public void boot(Application app) {
+        EventDispatcher events = app.resolve(EventDispatcher.class);
+        Mailer mailer = app.resolve(Mailer.class);
+
+        events.listen(UserRegistered.class, event ->
+            mailer.send(/* welcome using event.email */)
+        );
+
+        events.listen(OrderShipped.class, event ->
+            app.resolve(Bus.class).dispatch(new SendShipmentNotification(event.id))
+        );
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+确保 `EventServiceProvider` 在任何于 `boot` 里解析 `EventDispatcher` 的提供者**之前**登记。只在 `boot` 里调用 `listen` 的提供者没问题，只要 `EventServiceProvider` 出现在提供者列表更早的位置（或在启动之前已登记）。
+
+## 常见用法
+
+### 把写路径与副作用解耦
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun checkout(order: Order, events: EventDispatcher) {
+    orders.save(order)
+    events.dispatch(OrderPlaced(order.id, order.total))
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+void checkout(Order order, EventDispatcher events) {
+    orders.save(order);
+    events.dispatch(new OrderPlaced(order.id, order.total));
+}
+```
+
+</TabItem>
+</Tabs>
+
+监听器发送邮件、更新搜索索引或入队作业，而结账方法不必知道它们。
+
+### 扇出到队列作业
+
+```kotlin
+events.listen(OrderPlaced::class.java) { event ->
+    bus.dispatch(ProcessOrderPlaced(event.orderId)) // Job + ShouldQueue
+}
+```
+
+事件保持同步且很小；作业做慢的工作。见[作业与派发](/docs/queue/jobs/)。
+
+### 审计日志
+
+```kotlin
+events.listen(PaymentFailed::class.java) { event ->
+    logger.warn("payment failed order={} reason={}", event.orderId, event.reason)
+}
+```
+
+### Grind / steam
+
+从 [steam](/docs/steam/) 或自定义 [grind](/docs/grind/creating-commands/) 命令里已启动的应用，解析同一个单例并派发，用于手工运维：
+
+```kotlin
+app.resolve(EventDispatcher::class.java).dispatch(OrderShipped("ops-1"))
+```
+
+## API 参考
+
+### `EventDispatcher`
+
+| 方法 | 说明 |
+|------|------|
+| `listen(Class<T>, EventListener<T>): EventDispatcher` | 登记监听器；可链式 |
+| `listen<T>(EventListener<T>): EventDispatcher` | Kotlin 具体化重载 |
+| `dispatch(Any)` | 按顺序调用 `event.javaClass` 的监听器 |
+| `forget(Class<*>)` | 丢掉一个类型的所有监听器 |
+| `flush()` | 丢掉所有监听器 |
+| `hasListeners(Class<*>): Boolean` | 该类型是否存在任何监听器 |
+| `listenerCount(Class<*>): Int` | 该类型的监听器数量 |
+
+### `EventListener<T>`
+
+| 方法 | 说明 |
+|------|------|
+| `handle(T)` | 每次匹配的 `dispatch` 调用一次 |
+
+### `EventServiceProvider`
+
+| 方法 | 说明 |
+|------|------|
+| `register(Application)` | `singleton(EventDispatcher::class.java) { EventDispatcher() }` |
+| `boot` | 未覆盖（没有默认监听器） |
+
+## 陷阱
+
+1. **忘了提供者。** 没有 `EventServiceProvider` 就解析 `EventDispatcher` 会失败，除非你自己绑定了它。
+2. **只有精确类型。** 在基类型上监听不会收到子类派发。
+3. **异常中止链。** 抛出的监听器跳过该次派发的后续监听器；想要尽力扇出时在监听器内部捕获。
+4. **请求线程上的长工作。** `dispatch` 阻塞直到所有监听器完成 — 把重活移到[队列](/docs/queue/)。
+5. **共享可变状态。** 监听器在调用者的线程上运行；从许多虚拟线程派发时保持它们线程安全。
+6. **Cadence 与应用事件。** 模型钩子使用 `ModelDispatcher`，不是 `EventDispatcher`。见[序列化、集合与事件](/docs/cadence/serialization-events/#lifecycle-events)。
+7. **没有停止传播。** 你不能取消剩余监听器，除非抛出（这会暴露给发布者）。
+8. **`forget` 对每个类型是全有或全无。** 你不能注销同一类的几个监听器中的一个。
+
+## 今天不可用（细节）
+
+| 功能 | 说明 |
+|------|------|
+| 订阅者 | 没有在一处映射许多事件的 `subscribe(dispatcher)` 类 |
+| 排队的监听器 | `EventListener` 上没有 `ShouldQueue`；从同步监听器使用 `Bus` |
+| 提交之后 | 没有推迟到数据库事务提交 |
+| 发现 | 没有包扫描或监听器的 KSP 索引 |
+| 门面 / 辅助方法 | 没有 `Event.dispatch` / `event()` — 使用派发器实例 |
+| 通配符 | 这条总线上没有 `listen("order.*")` |
+| 优先级 / 排序的监听器 | 顺序只是登记顺序 |
+| 中止 / 停止 | 没有返回值或 API 来停止剩余监听器 |
+
+如果你需要这些行为，在应用代码里实现它们（例如 `EventDispatcher` 周围的薄包装），或等待未来的加深里程碑 — 不要发明 `modules/events` 里没有的 API。
