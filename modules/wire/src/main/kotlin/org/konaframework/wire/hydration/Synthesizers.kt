@@ -26,7 +26,7 @@ class Synthesizers {
     val policy = SecurityPolicy()
     private val custom = CopyOnWriteArrayList<Synth>()
     private val builtIns: List<Synth> = listOf(
-        EnumSynth, WireableSynth, TemporalSynth, BigNumberSynth, UuidSynth, ArraySynth, SetSynth, MapSynth, ObjectSynth,
+        EnumSynth, WireableSynth, TemporalSynth, BigNumberSynth, UuidSynth, ArraySynth, SetSynth, MapSynth, FormSynth, ObjectSynth,
     )
 
     fun register(synth: Synth): Synthesizers {

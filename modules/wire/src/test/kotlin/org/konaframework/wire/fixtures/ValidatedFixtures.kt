@@ -221,3 +221,51 @@ class TransitionedCounter : Component() {
 
     override fun template() = """<div wire:transition="panel">{{ count }}</div>"""
 }
+
+class TitleForm : Form() {
+    @JvmField
+    @field:Validate("required|min:2", "")
+    var title: String = ""
+
+    @JvmField
+    @field:Rule("max:3", onUpdate = false)
+    var code: String = ""
+}
+
+class NeedsArgForm(unused: String) : Form() {
+    @JvmField
+    var title: String = unused
+}
+
+abstract class AbstractForm : Form() {
+    @JvmField
+    var title: String = ""
+}
+
+class TitleHost : Component() {
+    var form: TitleForm? = null
+
+    fun save() {
+        validate()
+    }
+
+    override fun template() = "<div></div>"
+}
+
+class NeedsArgHost : Component() {
+    var form: NeedsArgForm? = null
+
+    override fun template() = "<div></div>"
+}
+
+class AbstractFormHost : Component() {
+    var form: AbstractForm? = null
+
+    override fun template() = "<div></div>"
+}
+
+class ReadOnlyFormHost : Component() {
+    val form: TitleForm? = null
+
+    override fun template() = "<div></div>"
+}

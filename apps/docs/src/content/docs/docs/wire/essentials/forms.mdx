@@ -126,7 +126,117 @@ Real-time: properties with `@Validate(onUpdate = true)` (the default) re-validat
 
 ### Form objects
 
-Nest a `Form` subclass as a public property. Call `form.validate()`, `fill()`, `all()`, `only()`, `except()`, `reset()`, `pull()` — keys are local to the form (`title`), not `form.title`.
+A form object is a class that extends `Form` and holds one form's fields, rules, and helpers. Put it on the component as a public property. Wire constructs the form when that property is null and the class has a public constructor with no arguments. `wire:model` paths are prefixed with the property name (`form.title`); rules inside the form stay local (`title`).
+
+```bash
+./grind make:form PostForm
+./grind make:form PostForm --lang=java
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.wire.Component
+import org.konaframework.wire.Form
+import org.konaframework.wire.Validate
+
+class PostForm : Form() {
+    @Validate("required", "min:5")
+    var title: String = ""
+
+    @Validate("required", "min:5")
+    var content: String = ""
+
+    fun store(): Map<String, Any?> {
+        val saved = validate()
+        reset()
+        return saved
+    }
+}
+
+class CreatePost : Component() {
+    var form = PostForm()
+
+    fun save() {
+        form.store()
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            <input wire:model.blur="form.title" />
+            @if(errors['form.title'])
+                <em>{{ errors['form.title'][0] }}</em>
+            @endif
+            <textarea wire:model="form.content"></textarea>
+            <button type="submit">Save</button>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.wire.Component;
+import org.konaframework.wire.Form;
+import org.konaframework.wire.Validate;
+import java.util.Map;
+
+public class PostForm extends Form {
+    @Validate({"required", "min:5"})
+    public String title = "";
+
+    @Validate({"required", "min:5"})
+    public String content = "";
+
+    public Map<String, Object> store() {
+        Map<String, Object> saved = validate();
+        reset();
+        return saved;
+    }
+}
+
+public class CreatePost extends Component {
+    public PostForm form;
+
+    public void save() {
+        form.store();
+    }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input wire:model.blur="form.title" />
+                <textarea wire:model="form.content"></textarea>
+                <button type="submit">Save</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`component.validate()` and `component.validateOnly("form.title")` include the form's rules, prefixed with the property name. `form.validate()` and `form.validateOnly("title")` run the same rules and return the local field names.
+
+| Method | Role |
+|--------|------|
+| `fill` / `all` / `only` / `except` | Copy values in or out. Unknown keys in `fill` are ignored |
+| `reset` / `resetExcept` | Restore fields to the values on a fresh instance. `reset()` and `reset(emptyList())` restore every field; pass names or a collection to limit which ones |
+| `pull` / `pull("title")` / `pull("title", "content")` | Read, then reset. No arguments returns every field |
+| `rules` | Merged with `@Validate` / `@Rule`. `rules()` replaces the same key. `messages()` and `validationAttributes()` are overridable maps on the form |
+| `addError` / `getErrorBag` / `resetErrorBag` / `resetValidation` | Errors are stored on the component under `form.title` |
+| `component` / `getComponent` / `getPropertyName` | The owning component and the property name (`form`) |
+| `withValidator` | Runs the callback with the `Validator` before `validate` |
+| `boot` / `hydrate` / `dehydrate` / `updating` / `updated` | Lifecycle hooks. `updating` / `updated` receive the path inside the form (`title`) |
+
+Real-time checks run only for fields annotated with `@Validate` or `@Rule` whose `onUpdate` is true (the default). A field that exists only in `rules()` waits until you call `validate()` or `validateOnly()`. `onUpdate = false` keeps the annotation rules but skips the update check.
+
+`@Validate` and `@Rule` accept a pipe (`"required|min:5"`) or separate arguments. Both annotations may appear on one field; their rules are combined and the last annotation decides `onUpdate`.
 
 ### Error bag helpers
 
