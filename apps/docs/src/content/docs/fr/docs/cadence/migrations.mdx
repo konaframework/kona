@@ -1,0 +1,346 @@
+---
+title: Migrations
+description: Décrivez des tables avec le DSL de schéma, versionnez les changements de base comme des migrations, et exécutez-les avec le Migrator ou ./grind migrate.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Une **migration** est une petite classe qui change la structure de la base (créer une table, ajouter une colonne, ajouter un index) et peut annuler ce changement. Garder chaque changement structurel dans une migration signifie que n’importe quelle copie de l’application (le portable d’un coéquipier, la CI, la production) peut construire le même schéma en exécutant les migrations dans l’ordre.
+
+## Ordre d’exécution
+
+Cadence enregistre quelles migrations ont tourné dans une table appelée `extract_migrations`, avec un numéro de **lot**. Chaque exécution de `migrate` qui applique quelque chose ouvre un nouveau lot ; `rollback` annule le lot le plus récent.
+
+Vous tapez seulement un **nom descriptif** — snake_case ou PascalCase, pas d’horodatage :
+
+```bash
+./grind make:migration create_users_table
+./grind make:migration AddStatusToUsersTable
+```
+
+grind écrit un **fichier** dont le nom est l’UTC `yyyy_MM_dd_HHmmss` plus la description snake_case, et une **classe PascalCase** dans ce fichier :
+
+```text
+2026_10_20_153950_add_status_to_users_table.kt
+└ yyyy_MM_dd_HHmmss (UTC)     └ snake_case description
+
+class AddStatusToUsersTable          ← JVM type: no leading digit, no underscores
+@MigrationName("2026_10_20_153950_add_status_to_users_table")
+```
+
+L’horodatage vit sur le **fichier**, pas sur la classe. Un nom de classe JVM ne peut pas commencer par un chiffre, et les éditeurs signalent les underscores dans les noms de types. La forme prise en charge est une classe PascalCase nommée dans un fichier nommé autrement : Kotlin autorise une classe publique là ; Java exige que la classe ne soit pas `public` quand le nom de fichier ne correspond pas, donc les migrations Java générées sont package-private. La découverte liste quand même le nom de classe pleinement qualifié dans `META-INF/kona/migrations` et l’instancie par réflexion.
+
+`@MigrationName` enregistre la tige du fichier. Cette tige est ce que `Migrator` stocke dans `extract_migrations` et ce sur quoi `./grind migrate` trie, donc l’ordre d’exécution ne dépend pas de la façon dont les lignes se trouvent listées dans le fichier de découverte. Deux descriptions différentes générées dans la même seconde partagent le même tampon (`…153950_create_flights_table` et `…153950_add_status_to_users_table`). Si ce **fichier** existe déjà, grind avance le tampon d’une seconde. Si la **classe** PascalCase existe déjà sous `database/migrations`, grind refuse — deux unités de compilation ne peuvent pas déclarer la même classe dans le paquet `database.migrations`.
+
+La migration users de `kona new` est `2000_01_01_000000_create_users_table` avec la classe `CreateUsersTable`, donc elle s’exécute toujours en premier parmi les migrations horodatées. Les noms **sans** tampon (une classe écrite à la main, ou un reste d’une disposition plus ancienne) gardent l’ordre d’enregistrement et s’exécutent **avant** les horodatées. Les noms de classe hérités `M{stamp}_DescriptiveName` trient encore par ce tampon.
+
+Vous pouvez encore lier un `MigrationRegistry` vous-même. Les noms horodatés dans ce registre sont triés de la même façon ; les noms sans horodatage gardent l’ordre d’insertion.
+
+## Écrire une migration
+
+Une migration implémente `org.konaframework.cadence.migrations.Migration` avec deux méthodes. `up` applique le changement ; `down` inverse exactement ce que `up` a fait. Les deux reçoivent un `Schema`, qui exécute du DDL (SQL de définition de table) sur la connexion de la migration. grind génère cette classe dans un fichier snake_case horodaté et tamponne `@MigrationName` avec cette tige de fichier (l’exemple ci-dessous correspond à `2026_10_20_141530_create_posts_table.kt` / `.java`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package database.migrations
+
+import org.konaframework.cadence.migrations.Migration
+import org.konaframework.cadence.migrations.MigrationName
+import org.konaframework.cadence.schema.Schema
+
+@MigrationName("2026_10_20_141530_create_posts_table")
+class CreatePostsTable : Migration {
+    override fun up(schema: Schema) {
+        schema.create("posts") {
+            id()
+            foreignId("user_id").constrained().cascadeOnDelete()
+            string("title", 200)
+            text("body").nullable()
+            boolean("published").default(false)
+            integer("votes").default(0)
+            timestamp("published_at").nullable()
+            timestamps()
+            softDeletes()
+            index("user_id", "published")
+        }
+    }
+
+    override fun down(schema: Schema) {
+        schema.dropIfExists("posts")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package database.migrations;
+
+import org.konaframework.cadence.migrations.Migration;
+import org.konaframework.cadence.migrations.MigrationName;
+import org.konaframework.cadence.schema.Schema;
+
+@MigrationName("2026_10_20_141530_create_posts_table")
+class CreatePostsTable implements Migration {
+    @Override
+    public void up(Schema schema) {
+        schema.create("posts", table -> {
+            table.id();
+            table.foreignId("user_id").constrained().cascadeOnDelete();
+            table.string("title", 200);
+            table.text("body").nullable();
+            table.bool("published").withDefault(false);
+            table.integer("votes").withDefault(0);
+            table.timestamp("published_at").nullable();
+            table.timestamps();
+            table.softDeletes();
+            table.index("user_id", "published");
+        });
+    }
+
+    @Override
+    public void down(Schema schema) {
+        schema.dropIfExists("posts");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+En Kotlin, le bloc passé à `create` et `table` a la définition de table (un `Blueprint`) comme récepteur, donc vous appelez `id()` directement. En Java, la lambda reçoit le `Blueprint` comme paramètre (`table -> table.id()`).
+
+Deux méthodes ont des noms différents en Java parce que leurs noms Kotlin sont des mots-clés Java : `boolean(name)` est `bool(name)`, et le modificateur `default(value)` est `withDefault(value)`.
+
+## Le DSL de schéma
+
+### Opérations de table
+
+| Appel | Effet |
+|------|--------|
+| `create(table) { … }` | `CREATE TABLE` avec les colonnes, clés étrangères et index définis dans le bloc |
+| `table(table) { … }` | altère une table existante : ajouter des colonnes, clés étrangères et index ; supprimer des colonnes et des index |
+| `drop(table)` | `DROP TABLE` (échoue quand elle n’existe pas) |
+| `dropIfExists(table)` | `DROP TABLE IF EXISTS` |
+| `rename(from, to)` | renomme une table |
+| `hasTable(table)` / `hasColumn(table, column)` | vérifie le schéma courant |
+| `execute(listOf(sql, …))` | exécute des instructions brutes |
+
+### Types de colonnes
+
+| Méthode | Type SQL | Notes |
+|--------|----------|-------|
+| `id()` / `id("key")` | clé primaire identité `BIGINT` | auto-incrémentée |
+| `string(name)` / `string(name, length)` | `VARCHAR(255)` / `VARCHAR(length)` | la longueur doit être positive |
+| `text(name)` | `TEXT` (`CHARACTER VARYING` sur H2) | texte |
+| `longText(name)` | `LONGTEXT` sur MySQL ; `TEXT` ailleurs (`CHARACTER VARYING` sur H2) | texte non borné |
+| `json(name)` | `JSON` sur MySQL/Postgres ; `TEXT` sur SQLite ; `CHARACTER VARYING` sur H2 | documents JSON |
+| `integer(name)` | `INTEGER` | |
+| `bigInteger(name)` | `BIGINT` | |
+| `boolean(name)` (Java : `bool`) | `BOOLEAN` | |
+| `timestamp(name)` | `TIMESTAMP` | |
+| `foreignId(name)` | `BIGINT` | une clé qui pointe vers une autre table ; enchaînez `constrained()` |
+| `timestamps()` | `created_at`, `updated_at` | les deux nullables |
+| `softDeletes()` | `deleted_at` | nullable, utilisé par les [suppressions douces](../models/#soft-deletes) |
+| `morphs(name)` / `nullableMorphs` / `uuidMorphs` | `{name}_type` + `{name}_id` (+ index) | colonnes polymorphes ; consultez [Relations](../relations/#polymorphic-relations) |
+
+Les colonnes sont `NOT NULL` sauf si vous appelez un modificateur :
+
+| Modificateur | Effet |
+|----------|--------|
+| `nullable()` | autorise `NULL` (`nullable(false)` l’annule) |
+| `default(value)` (Java : `withDefault`) | littéral `DEFAULT` : les chaînes sont quotées, les booléens deviennent `TRUE`/`FALSE`, `null` devient `NULL` |
+| `useCurrent()` | `DEFAULT CURRENT_TIMESTAMP` |
+| `unique()` | ajoute un index unique sur la colonne |
+| `index()` | ajoute un index simple sur la colonne |
+
+### Index
+
+```kotlin
+index("email")                                   // users_email_index
+index(listOf("user_id", "created_at"), "posts_timeline")
+unique("email")                                  // users_email_unique
+unique("team_id", "number")                      // composite
+dropIndex("users_email_index")                   // inside table(...)
+```
+
+Les noms d’index générés sont `<table>_<columns>_index` ou `<table>_<columns>_unique`.
+
+### Clés étrangères
+
+```kotlin
+foreignId("user_id").constrained()                    // references users(id)
+foreignId("editor_id").nullable().constrained("users").nullOnDelete()
+foreign("owner_id").references("id").on("owners").onDelete("restrict").onUpdate("cascade")
+```
+
+`constrained()` devine la table depuis le nom de colonne : `user_id` référence `users`. Les actions sont `cascade`, `set null`, `restrict` et `no action` ; `cascadeOnDelete()` et `nullOnDelete()` sont des raccourcis. Les contraintes sont nommées `<table>_<column>_foreign`.
+
+### Altérer des tables
+
+```kotlin
+schema.table("users") {
+    string("nickname").nullable()
+    foreignId("team_id").nullable().constrained()
+    dropColumn("legacy_flag")
+}
+```
+
+Dans un seul appel `table`, Cadence supprime d’abord les index, puis les colonnes, puis ajoute les colonnes, clés étrangères et index.
+
+### Dialectes SQL
+
+Le DSL de schéma génère du SQL standard que H2 et PostgreSQL acceptent tous les deux. Le `Schema` choisit un `SchemaGrammar` depuis le nom de produit du pilote JDBC ; `SchemaGrammar.H2` ajuste les quelques types qui diffèrent. Le quoting des identifiants suit la connexion, donc `quote_identifiers = false` s’applique aussi au DDL.
+
+## Enregistrer et exécuter des migrations
+
+`grind make:migration` et `make:model -m` ajoutent chaque nouvelle classe à `src/main/resources/META-INF/kona/migrations` (un nom de classe pleinement qualifié par ligne — `database.migrations.CreatePostsTable`, pas le nom de fichier). `CadenceServiceProvider` charge ce fichier dans un `MigrationRegistry` quand l’application n’en a pas lié un elle-même, puis trie par `@MigrationName` (la tige de fichier) comme décrit ci-dessus, donc `./grind migrate` exécute les nouvelles migrations sans liaison manuelle.
+
+Vous pouvez encore lier un registre explicitement quand vous avez besoin d’un ordre personnalisé ou d’entrées écrites à la main :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import database.migrations.CreatePostsTable
+import database.migrations.CreateUsersTable
+import org.konaframework.cadence.migrations.MigrationRegistry
+
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.instance(
+            MigrationRegistry::class.java,
+            MigrationRegistry(CreateUsersTable(), CreatePostsTable()),
+        )
+    }
+
+    override fun boot(app: Application) = Unit
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import database.migrations.CreatePostsTable;
+import database.migrations.CreateUsersTable;
+import org.konaframework.cadence.migrations.MigrationRegistry;
+
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().instance(MigrationRegistry.class,
+            new MigrationRegistry(new CreateUsersTable(), new CreatePostsTable()));
+    }
+
+    @Override
+    public void boot(Application app) {}
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Le Migrator
+
+`Migrator` applique et annule les entrées du registre sur une connexion. `Migrator.using` emprunte une connexion pour la durée d’un bloc :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.migrations.Migrator
+import org.konaframework.cadence.migrations.MigrationEvents
+
+val ran = Migrator.using(db.connection(), registry) { it.migrate() }       // names that ran
+Migrator.using(db.connection(), registry) { migrator ->
+    migrator.pending()        // not run yet, in order
+    migrator.status()         // List<MigrationStatus(name, batch)>; status.ran is true when batch != null
+    migrator.rollback()       // undo the last batch
+    migrator.rollback(3)      // undo the last three batches
+    migrator.reset()          // undo everything
+    migrator.fresh()          // drop all tables, then migrate
+    migrator.refresh()        // reset, then migrate
+    migrator.refresh(1)       // rollback one batch, then migrate
+    migrator.wipe()           // drop all tables (optional dropViews / dropTypes)
+    migrator.schema.dump()    // CREATE TABLE SQL from JDBC metadata
+    migrator.migrate(object : MigrationEvents {                           // optional start/finish callbacks
+        override fun finished(name: String, millis: Long) = Unit
+    })
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.migrations.Migrator;
+import org.konaframework.cadence.migrations.MigrationEvents;
+
+List<String> ran = Migrator.using(db.connection(), registry, Migrator::migrate);
+Migrator.using(db.connection(), registry, migrator -> {
+    migrator.pending();
+    migrator.status();
+    migrator.rollback();
+    migrator.rollback(3);
+    migrator.fresh();
+    migrator.refresh();
+    migrator.wipe(true, false);
+    migrator.getSchema().dump();
+    migrator.migrate(new MigrationEvents() {
+        @Override public void finished(String name, long millis) {}
+    });
+    return migrator.reset();
+});
+```
+
+</TabItem>
+</Tabs>
+
+Chaque migration s’exécute dans sa propre transaction avec son enregistrement `extract_migrations`. Quand `up` ou `down` lance, la transaction est annulée et une `MigrationException` nomme la migration en échec ; les migrations avant elle restent appliquées. (Certaines bases, H2 parmi elles, committent les instructions DDL immédiatement, donc un `up` à moitié fini peut y laisser des changements partiels.)
+
+Annuler une migration enregistrée qui n’est plus enregistrée lance `MigrationException("Migration not found: …")`.
+
+## Commandes grind
+
+Toutes les commandes s’exécutent depuis le répertoire de l’application. Les commandes de base démarrent votre application **dans le processus** depuis ses classes compilées (`build/classes`), donc lancez `./gradlew classes` après avoir changé des migrations. Elles utilisent le `MigrationRegistry` lié dans le conteneur, plus la `Database` liée (depuis `CadenceServiceProvider`) ou, quand aucune n’est liée, une `Database` construite depuis la section de config `database` (votre module `config/Database`).
+
+```bash
+./grind make:migration create_flights_table          # snake_case; schema.create("flights") stub
+./grind make:migration CreateFlightsTable            # same, PascalCase
+./grind make:migration add_gate_to_flights_table     # schema.table("flights") stub
+./grind make:migration backfill_data                 # empty up/down
+./grind make:migration seats --create=seats          # explicit create
+./grind make:migration widen_seats --table=seats     # explicit alter
+# optional: supply the stamp yourself
+./grind make:migration 2026_10_20_141530_create_gates_table
+
+./grind migrate                          # run pending migrations as a new batch (dotted DONE rows)
+./grind migrate --seed                   # migrate, then seed in the same process
+./grind migrate --seed --class=database.seeders.UserSeeder
+./grind migrate --seeder=database.seeders.UserSeeder
+./grind migrate:fresh                    # drop all tables, then migrate
+./grind migrate:fresh --seed --drop-views
+./grind migrate:refresh                  # reset, then migrate
+./grind migrate:refresh --step=1
+./grind migrate:status                   # Ran/Pending, batch, name
+./grind migrate:rollback                 # undo the last batch
+./grind migrate:rollback --step=2        # undo the last two batches
+./grind migrate:reset                    # undo everything
+./grind migrate:install                  # create extract_migrations if missing
+./grind db:wipe                          # drop all tables
+./grind db:show                          # connection + tables
+./grind db:table widgets                 # columns for one table
+./grind schema:dump                      # write database/schema.sql
+./grind migrate --database=reports       # a named connection
+./grind migrate --bootstrap=bootstrap.App
+```
+
+`./grind migrate` imprime un en-tête info, puis une ligne pointillée par migration (`name …… 12ms DONE`). Les dumps de pool et les traces SQL restent dans `storage/logs` ; passez `--verbose` pour les imprimer aussi sur la console.
+
+`make:migration` accepte snake_case ou PascalCase (et un préfixe optionnel `{stamp}_` / `M{stamp}_` si vous avez besoin d’une seconde précise). Il écrit `database/migrations/{yyyy_MM_dd_HHmmss}_{snake_name}.kt` (ou `.java`, choisi par `--lang=` ou par des fichiers `.java` existants sous `app/`) avec une classe PascalCase et `@MigrationName`, puis ajoute la classe à `META-INF/kona/migrations`. Il refuse d’écraser un fichier existant (avance le tampon d’une seconde) et refuse une seconde classe avec le même nom PascalCase.
+
+`./grind make:model Flight --migration` crée le modèle et une migration horodatée `CreateFlightsTable` ensemble ; consultez [Seeders et factories](../seeders-factories/) pour `--factory` et `--seeder`.
