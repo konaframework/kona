@@ -7,7 +7,7 @@ description: What Kona Firefly is, which artifacts ship today, and how the suppo
 
 (Brief nod: Firefly occupies the same problem space as full application-panel kits. The rest of these pages describe Firefly on its own terms.)
 
-Five artifacts are in the repository today.
+Six artifacts are in the repository today.
 
 `org.konaframework:kona-firefly-support`, package `org.konaframework.firefly.support`, gives you themes, scoped CSS, panel chrome, render hooks, icons, and the shared dialog. It does not register HTTP routes, middleware, or views. Adding it to an existing application does not change routes you already defined.
 
@@ -17,7 +17,9 @@ Five artifacts are in the repository today.
 
 `org.konaframework:kona-firefly-infolists`, package `org.konaframework.firefly.infolists`, renders read-only entries on that tree. Read [Infolists](/docs/firefly/infolists/).
 
-`org.konaframework:kona-firefly-tables`, package `org.konaframework.firefly.tables`, lists records with columns, filters, search, sort, and pages. Read [Tables](/docs/firefly/tables/) for that API. Navigation trees and mounted panel routes come with the panel milestone.
+`org.konaframework:kona-firefly-tables`, package `org.konaframework.firefly.tables`, lists records with columns, filters, search, sort, and pages. Read [Tables](/docs/firefly/tables/) for that API.
+
+`org.konaframework:kona-firefly-forms`, package `org.konaframework.firefly.forms`, adds form fields on that schema: text, choices, dates, editors, uploads, repeaters, and builders. Read [Forms](/docs/firefly/forms/) for that API. Navigation trees and mounted panel routes come with the panel milestone.
 
 ## Add the module
 
@@ -30,6 +32,7 @@ dependencies {
     implementation(project(":kona-firefly-actions"))
     implementation(project(":kona-firefly-infolists"))
     implementation(project(":kona-firefly-tables"))
+    implementation(project(":kona-firefly-forms"))
 }
 ```
 

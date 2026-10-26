@@ -41,6 +41,7 @@ class ListCommand(
             "make:firefly-entry" to "Generate a Firefly infolist entry",
             "make:firefly-column" to "Generate a Firefly table column",
             "make:firefly-filter" to "Generate a Firefly table filter",
+            "make:firefly-field" to "Generate a Firefly form field",
             "make:model" to "Generate a Cadence model (-mcrfspaR companions)",
             "make:migration" to "Generate a migration (auto-registers)",
             "make:factory" to "Generate a factory",

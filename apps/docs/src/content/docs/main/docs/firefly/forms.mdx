@@ -1,0 +1,268 @@
+---
+title: Forms
+description: Add Firefly form fields to a schema, bind them with Wire, and validate the submitted state.
+---
+
+Form fields live in `org.konaframework.firefly.forms` (`kona-firefly-forms`). Each field is a schema component, so it sits in the same tree as a section or a tab, shares that schema’s state map, and uses the live modifiers already on the component base (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`).
+
+The module depends on schemas, support, HTTP validation, and the filesystem. It does not register a panel. You place fields inside a `Schema` and render that schema into a Wire view.
+
+## A field in one call
+
+```kotlin
+val name = TextInput.make("name")
+    .label("Name")
+    .required()
+    .live()
+val schema = Schema.make().components(name)
+schema.fill(mapOf("name" to "Ada"))
+val html = schema.render()
+```
+
+```java
+TextInput name = TextInput.make("name").label("Name").required();
+name.live();
+Schema schema = Schema.make().components(name);
+schema.fill(Map.of("name", "Ada"));
+String html = schema.render();
+```
+
+`make("name")` sets the state key. `render()` wraps the control in the field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. Live fields also emit `wire:model` on the schema wrapper. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Do not call `Alpine.start()` again.
+
+`FormAssets.script()` and `FormAssets.stylesheet()` are the field script and the field CSS. Prose from the rich text and markdown editors uses the caramel accent `#DF8723` through `--ff-primary`.
+
+Most chainable setters take a fixed value or a closure. The closure receives `Get`.
+
+```kotlin
+name.label("Name")
+name.label { get -> if (get.get("/kind") == "org") "Organization" else "Name" }
+name.placeholder { "Ada Lovelace" }
+name.helperText("Shown on the invoice")
+```
+
+```java
+name.label("Name");
+name.label(get -> "Organization");
+name.helperText("Shown on the invoice");
+```
+
+The last call wins. A string replaces a closure, and a closure replaces a string.
+
+## Shared helpers
+
+These methods are on the field base. Every concrete field has them.
+
+| Method | What it does |
+|--------|----------------|
+| `label`, `heading`, `description` | Text, or a closure that returns text |
+| `helperText`, `hint`, `hintColor`, `hintIcon` | Text under or beside the control |
+| `placeholder` | Input placeholder |
+| `prefix`, `suffix`, `prefixIcon`, `suffixIcon` | Text or icon inside the control |
+| `inlinePrefix`, `aboveContent`, `belowContent` | Extra chrome |
+| `required()`, `required(false)`, `required { get -> ... }` | Adds the `required` rule. A required field is not nullable |
+| `markAsRequired` | Shows the asterisk without the rule |
+| `nullable()` | Adds `nullable` and clears `required` |
+| `readOnly`, `autofocus`, `autocomplete`, `autocapitalize`, `inputMode` | Input attributes |
+| `distinct` | Repeater items reject a repeated value |
+| `rule`, `rules` | Extra validation rule strings |
+| `validationAttribute` | Rewrites “The name field” to your label |
+| `validationMessages` | Message per rule name |
+| `saved(false)` | Same as `dehydrated(false)` |
+| `formatStateUsing`, `dehydrateStateUsing` | Change the value written by `dehydrate()` |
+| `extraInputAttributes`, `extraAttributes` | Extra HTML attributes. `type`, `name`, and `value` stay owned by the field |
+
+`hidden`, `visible`, `live`, `liveOnBlur`, `liveDebounce`, and `afterStateUpdated` stay on the schema component. Call them on the field. They return the component base, so in Java finish the field chain before calling `live()`.
+
+`prefixAction`, `suffixAction`, and `hintAction` wait for the action type. They are not on this module.
+
+## Text
+
+`TextInput` is a single-line control. `email()`, `url()`, `numeric()`, `integer()`, `password()`, `tel()`, and `type("search")` set the input type and the matching validation rule. `telRegex` replaces the default telephone pattern. Call `telRegex` before `tel()` when you want your own pattern.
+
+`revealable(true)` adds a show button on passwords. `copyable(true)` adds a copy button. `mask`, `step`, `minValue`, `maxValue`, `minLength`, `maxLength`, `length`, `regex`, `notRegex`, and `datalist` configure the control. `stripCharacters("-")` or `stripCharacters { value -> value.trim() }` changes the stored text before it is rendered.
+
+`unique("users", "email")` and `exists("users", "email")` add those rules. Without a database checker they fail closed.
+
+`Textarea.make("body")` takes `rows`, `cols`, `autosize`, `minLength`, and `maxLength`. `Hidden.make("token")` renders a hidden input and no label.
+
+## Tags, color, slider, key-value
+
+`TagsInput.make("tags")` splits a string on the separator (`,` by default) and renders one chip per tag. `suggestions`, `splitKeys`, `reorderable`, and `color` are optional. `tags(raw)` returns the list.
+
+`ColorPicker.make("ink")` stores a color. `hex()`, `rgb()`, and `hsl()` pick the format and the validation pattern.
+
+`Slider.make("volume")` defaults to 0–100 with step 1. `minValue`, `maxValue`, `step`, `decimalPlaces`, and `tooltips` adjust it. Values are clamped and rounded.
+
+`KeyValue.make("meta")` edits a map of strings. `keyLabel`, `valueLabel`, `keyPlaceholder`, `valuePlaceholder`, and `addActionLabel` accept a string or a closure. `addable`, `deletable`, `editableKeys`, `editableValues`, and `reorderable` toggle the controls. `pairs(raw)` reads the map.
+
+## Placeholder and view
+
+`Placeholder.make("note").content("Thanks")` renders HTML and does not dehydrate. `content { get -> "Hello" }` is the closure form. `saved(true)` turns dehydration back on.
+
+`ViewField.make("bio").viewName("bios.card")` renders a Crema view when the schema has an engine. The view receives the state path. Without an engine the field emits `data-ff-view`.
+
+## Choices
+
+`Select` renders a combobox (`ff-combobox`), not a native `<select>`.
+
+```kotlin
+val kind = Select.make("kind")
+    .options(mapOf("org" to "Organization", "human" to "Person"))
+    .searchable(true)
+    .placeholder("Pick one")
+```
+
+```java
+Select kind = Select.make("kind")
+    .options(Map.of("org", "Organization"))
+    .useNative(false);
+```
+
+Kotlin calls `.native()` to opt into `<select>`. Java calls `useNative(true)` because `native` is a Java keyword. `.native(false)` and `useNative(false)` keep the combobox.
+
+`options { get -> mapOf("a" to "A") }` loads options from a closure. `optionsFrom(records, "title", "id")` reads a list of maps. `boolean()` uses Yes and No. `multiple(true)`, `preload`, `optionsLimit`, `maxItems`, `searchDebounce`, `position`, and the loading, searching, empty, and search-prompt strings configure the combobox. `getOptionLabelUsing` and `getSearchResultsUsing` replace the label and the search. `disableOptionWhen` disables one option. `allowHtml(true)` keeps HTML in a native option label.
+
+`descriptions` adds a line under each option. A static option list adds an `in:` rule when the field is not multiple and the values contain neither a comma nor a pipe.
+
+`relationship("companies", "name")` stores the relation name and the title attribute. Options still come from `options`, `optionsFrom`, or `getSearchResultsUsing`. Querying a record store is a later milestone. `createOptionForm` and `createOptionUsing` open a support `Dialog` and create an option from the submitted map. An action wrapper around that dialog waits for the action type.
+
+`Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` takes on and off colors and icons. `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
+
+## Dates and times
+
+`DatePicker`, `TimePicker`, and `DateTimePicker` are one component with date, time, or both. The default control is Firefly’s own picker: a month grid and, when the field has a time, hour and minute spinners. There is no third-party date library. `.native()` (Java: `useNative(true)`) switches to `type="date"`, `type="time"`, or `type="datetime-local"`.
+
+Server values use `java.time`. A date-only value stays in the application zone (`FieldClock.appZone`). A date-time uses the field’s `timezone`. `LocalDate` and `LocalDateTime` are written with the storage format (`Y-m-d`, `H:i`, or `Y-m-d H:i`). `seconds(true)` appends seconds. `displayFormat` is what the text input shows.
+
+```kotlin
+val day = DatePicker.make("day")
+    .minDate("2024-03-01")
+    .maxDate { "2024-03-31" }
+    .weekStartsOnMonday()
+    .disabledDates(listOf("2024-03-10"))
+day.normalize(LocalDate.of(2024, 3, 10)) // "2024-03-10"
+```
+
+```java
+DateTimePicker day = DatePicker.make("day").useNative(false).minDate("2024-03-01");
+day.normalize(LocalDate.of(2024, 3, 10));
+```
+
+`firstDayOfWeek` is 0 (Sunday) or 1 (Monday). `hoursStep`, `minutesStep`, and `secondsStep` must stay inside their ranges. `defaultFocusedDate` opens the grid on that day. `FieldClock.pinToday` fixes “today” in tests.
+
+## Rich text, markdown, and code
+
+`RichEditor` emits a TipTap surface: a grouped sticky toolbar, a bubble menu, and a `.ff-prose` body. Link, image, and custom blocks open the support `Dialog`. `json()` stores JSON. The default is HTML, passed through a sanitizer that strips scripts, styles, iframes, `on*` attributes, and `javascript:` URLs. `disableToolbarButtons`, `mergeTags`, `mentions`, and `customBlocks` configure the toolbar. File attachments name a disk and directory. Wrapping a custom block’s edit button in an action waits for the action type.
+
+`MarkdownEditor` is a Write | Preview pair. Write uses CodeMirror with the markdown language. Preview renders a GitHub-flavored subset (fences, tables, lists, task lists, headings, links, images) into the same `.ff-prose` class, then sanitizes it.
+
+`CodeEditor` uses CodeMirror 6 and the Shiki language set. `language("kotlin")` selects the grammar. `CodeEditor.languages()` lists the ids shipped with the module. `wrap(true)` wraps long lines. This editor is not a rich-text surface.
+
+The page script looks for `FilePond` and for a `FireflyEditors` object (TipTap, CodeMirror, Shiki, markdown-it). When those scripts are on the page, the field mounts them. The upload path still posts if FilePond is absent.
+
+## Uploads
+
+`FileUpload` posts to `POST /_firefly/uploads` through the filesystem. Register the route once:
+
+```kotlin
+FireflyUploads.register(router, UploadDisks { name -> filesystems.disk(name) })
+```
+
+The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file with the original name, then returns JSON `{ "path", "name" }`. `commit(schema, disks)` copies the temporary file into `directory()` (or moves it when `moveFiles(true)` is set), applies `preserveFilenames` or `getUploadedFileNameForStorageUsing`, and stores the final path on the field. `storeFileNamesIn` writes the original names to another state path. `storeFiles(false)` leaves the temporary path in place.
+
+`image()` accepts image types. `avatar()` also turns on the image editor, a compact layout, and a 1:1 crop when you have not set aspect ratios. The editor is FilePond’s image editor. `maxSize` and `minSize` are kilobytes. `minFiles` and `maxFiles` count files. `acceptedFileTypes` takes `image/*`, a mime type, `.png`, or a bare extension.
+
+`preventFilePathTampering(true)` rejects `..`, absolute paths, `.ffmeta` files, and paths outside the directory or `firefly-temporary/`. Mount `VerifyCsrfToken` from `kona-session` on `POST /_firefly/uploads`. The field script sends `X-CSRF-TOKEN` from a `csrf-token` meta tag and `_token`. Pass a checker as the third argument to `register` when you want the route itself to reject a bad token.
+
+A file browser that picks existing files is a later package. This field uploads and stores.
+
+## Repeater and builder
+
+`Repeater.make("members").simple(TextInput.make("name").required())` edits a list of maps. `schema(...)` replaces the item blueprint. `addItem`, `removeItem`, `cloneItem`, and `moveItem` update the schema state and run `afterStateUpdated`. `orderColumn("sort")` writes 1-based positions. `itemLabel` is a string or a function of the index and `Get`. `grid`, `minItems`, `maxItems`, `defaultItems`, `collapsible`, and `collapsed` change the layout. `relationship("members")` stores the relation name. Loading the related records is a later milestone.
+
+Item actions (`add`, `delete`, `clone`, and extra item actions) as action objects wait for the action type. The buttons in the field are plain buttons.
+
+`Builder.make("blocks").blocks(BuilderBlock("hero", "Hero", listOf(TextInput.make("title"))))` edits a list of typed blocks. `addBlock(schema, "hero")` appends one. `blockNumbers(true)` prefixes the label with the index. An action inserted between blocks waits for the action type.
+
+## Validation
+
+```kotlin
+val errors = FieldValidation.validate(schema, schemaRoots)
+```
+
+```java
+Map<String, List<String>> errors = FieldValidation.validate(schema, List.of(name));
+```
+
+The walk skips layout nodes, hidden fields, fields with `dehydrated(false)`, and fields with an empty path. Rules go through the HTTP validator. A custom `validationAttribute` rewrites the field name in the message. `extraErrors` from a file upload or a repeater are merged in. `unique` and `exists` fail closed until a checker is configured.
+
+## Generate a field
+
+From the application directory:
+
+```bash
+./grind make:firefly-field Price
+./grind make:firefly-field Note --lang=java
+```
+
+The command writes a class that extends the field base and a Crema view with `x-data="ffField"` and `@entangle`. Kotlin is the default. `--lang=java` writes a Java subclass.
+
+## Actions on a field
+
+Prefix, suffix, and hint buttons are `Action` values from `org.konaframework.firefly.actions`. The field renders the action next to that piece of chrome.
+
+```kotlin
+TextInput.make("title")
+    .prefixAction(Action.make("prefix").label("Prefix"))
+    .suffixAction(Action.make("suffix").label("Suffix"))
+    .hintAction(Action.make("hint").label("Hint"))
+```
+
+```java
+TextInput.make("title")
+    .prefixAction(Action.make("prefix").label("Prefix"))
+    .suffixAction(Action.make("suffix").label("Suffix"))
+    .hintAction(Action.make("hint").label("Hint"));
+```
+
+A repeater renders add, delete, clone, and extra item actions beside the item controls:
+
+```kotlin
+Repeater.make("rows")
+    .addAction(Action.make("addRow").label("Add"))
+    .deleteAction(Action.make("deleteRow").label("Delete"))
+    .cloneAction(Action.make("cloneRow").label("Clone"))
+    .extraItemActions(Action.make("extraRow").label("Extra"))
+```
+
+`Builder.addBetweenAction` renders an action between blocks. A rich-text custom block keeps its `Dialog` and can also carry `editBlockAction`, which renders an `Action` for that block. `Select.createOptionAction` does the same for the create-option button. `createOptionForm` and `createOptionUsing` still run the create flow.
+
+## Relationship query
+
+`Select.relationship(name, titleAttribute, store)` reads options from a `RecordStore`. `modifyQueryUsing` receives that store’s query. An in-memory store is `MemoryRecordStore`. A Cadence model store is available through the tables module.
+
+```kotlin
+val authors = MemoryRecordStore(listOf(mapOf("id" to "1", "name" to "Ada")))
+Select.make("author")
+    .relationship("authors", "name", authors)
+    .modifyQueryUsing { query -> (query as MemoryQuery).where("name", "Ada") }
+```
+
+## Table select and morph select
+
+`ModalTableSelect` hosts a `Table`. `choose` toggles a record key and stores the selection on the field. `multiple(true)` stores every selected key.
+
+```kotlin
+val people = Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+ModalTableSelect.make("person").table(people)
+```
+
+`MorphToSelect` maps a type name to a record store. `selectType` stores `type` and `id`. `optionsFor` lists that type, and `modifyQueryUsing` narrows the query.
+
+```kotlin
+MorphToSelect.make("link").titleAttribute("name").type("posts", posts)
+```
+
+## Browsing stored files
+
+`FileUpload.browseAction` renders an action beside the upload. `browse(disk)` lists files already stored under `directory()` and skips `*.ffmeta` paths. `chooseBrowsed` writes the chosen path into the same field state. Folder rename, delete, and a file manager stay a later package.

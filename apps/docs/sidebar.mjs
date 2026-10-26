@@ -263,6 +263,7 @@ export async function buildSidebar() {
         { label: 'Actions', slug: 'docs/firefly/actions' },
         { label: 'Infolists', slug: 'docs/firefly/infolists' },
         { label: 'Tables', slug: 'docs/firefly/tables' },
+        { label: 'Forms', slug: 'docs/firefly/forms' },
       ],
     },
     {

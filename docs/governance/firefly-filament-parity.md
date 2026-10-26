@@ -4,7 +4,7 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-Verified on `origin/main` `1a6045b1`: `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. `firefly-forms` is not. M31 is in progress on `milestone/M31-firefly-forms` (`5c56f6e1`) with no pull request. Do not mark M31 done. M34–M38 stay queued and not started. Law 1 still allows parallel non-colliding milestones.
+Verified on `origin/main` `e89f1c77` (including #219 and #220): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. M31 forms, including FRM-18–FRM-26, are complete on `milestone/M31-firefly-forms` and land on `main` when that PR merges. M34–M38 stay queued and not started. Law 1 still allows parallel non-colliding milestones.
 
 Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. That render does not close a later milestone. Pages, widgets, and resources compose those pieces. A milestone cannot ship by only rendering a form, infolist, table, or widget in isolation.
 
@@ -57,7 +57,38 @@ Out of M28 (do not implement on the M28 branch): schemas, fields, actions, forms
 | SCH-7 | Alpine factories and Crema view | `ffField`, `ffEntry`, `ffColumn`, `ffAction`, `Schema.crema` | done |
 | SCH-8 | Layout scaffold | `make:firefly-layout` | done |
 
-M31 notes (do not implement in M29): `Select` defaults to a combobox, and `.native()` opts into `<select>`. Date and time pickers default to Firefly’s crafted picker, and `.native()` opts into the HTML date/time input.
+## M31 — forms (`kona-firefly-forms`)
+
+Shipped fields extend `Component` in this module. Schemas and support were not edited. Kotlin `.native()` is Java `useNative` because `native` is a Java keyword.
+
+| ID | Filament surface | Firefly | Status |
+|----|------------------|---------|--------|
+| FRM-1 | Field chrome, value or closure | `Field` label, hint, prefix, suffix, placeholder, helper, above/below | done |
+| FRM-2 | `required` / `nullable` / rules | `required`, `nullable`, `rule`, `validationAttribute`, `validationMessages` | done |
+| FRM-3 | Dehydrate transforms | `formatStateUsing`, `dehydrateStateUsing`, `saved` | done |
+| FRM-4 | Text inputs | `TextInput`, `Textarea`, `Hidden` | done |
+| FRM-5 | Tags, color, slider, key-value | `TagsInput`, `ColorPicker`, `Slider`, `KeyValue` | done |
+| FRM-6 | Placeholder and view | `Placeholder`, `ViewField` | done |
+| FRM-7 | Select combobox, `.native()` for `<select>` | `Select` | done |
+| FRM-8 | Checkbox, toggle, radio, checkbox list, toggle buttons | those classes | done |
+| FRM-9 | Date and time, crafted picker, `.native()` for the HTML input, `java.time`, date-only in the app zone | `DatePicker`, `TimePicker`, `DateTimePicker`, `FieldClock` | done |
+| FRM-10 | Rich editor, TipTap toolbar and bubble menu, dialog for link, image, and blocks | `RichEditor` | done |
+| FRM-11 | Markdown Write \| Preview, CodeMirror markdown, sanitized `.ff-prose` | `MarkdownEditor` | done |
+| FRM-12 | Code editor, CodeMirror 6 and the Shiki language catalog | `CodeEditor` | done |
+| FRM-13 | File upload to `POST /_firefly/uploads`, FilePond image editor, filesystem commit | `FileUpload`, `FireflyUploads` | done |
+| FRM-14 | Repeater and builder item state | `Repeater`, `Builder` | done |
+| FRM-15 | Form validation walk | `FieldValidation` | done |
+| FRM-16 | Live bindings, including editors and uploads | `live`, `liveOnBlur`, `liveDebounce`, `afterStateUpdated`, `@entangle` | done |
+| FRM-17 | Field scaffold | `make:firefly-field` Kotlin and `--lang=java` | done |
+| FRM-18 | `prefixAction`, `suffixAction`, `hintAction` | `Field` + `Action` | done |
+| FRM-19 | Repeater `addAction` / `deleteAction` / `cloneAction` / `extraItemActions` as actions | `Repeater` + `Action` | done |
+| FRM-20 | Builder `addBetweenAction` | `Builder` + `Action` | done |
+| FRM-21 | Rich-editor custom block edit as an action | `RichEditor.editBlockAction` + `Action`. `Dialog` stays on the block | done |
+| FRM-22 | Select `createOptionAction` | `Select` + `Action`. `createOptionForm` and `createOptionUsing` stay | done |
+| FRM-23 | `relationship` record query / `modifyQueryUsing` | `Select.relationship` + `RecordStore` | done |
+| FRM-24 | `ModalTableSelect` | `ModalTableSelect` + `Table` | done |
+| FRM-25 | `MorphToSelect` | `MorphToSelect` + `RecordStore` | done |
+| FRM-26 | File upload browse | `FileUpload.browseAction`, `browse`, `chooseBrowsed`. File manager stays a later package | done |
 
 ## M30 — actions (`kona-firefly-actions`)
 
@@ -123,30 +154,12 @@ Depends on `kona-firefly-schemas` and `kona-firefly-support` only. Layouts are s
 
 Left for later milestones (not implemented in this module): prefix and suffix actions; record aggregates; private-disk temporary URLs; the forms code editor (M31, still not on `main`). Tables shipped in M33.
 
-## M31 — forms (`kona-firefly-forms`)
-
-Not on `main`. In progress on `milestone/M31-firefly-forms` (`5c56f6e1`). No pull request. The branch checklist is not copied here as done.
-
-The branch ledger still lists these helpers as `todo`:
-
-| ID | Surface | Status |
-|----|---------|--------|
-| FRM-18 | `prefixAction`, `suffixAction`, `hintAction` | todo |
-| FRM-19 | Repeater `addAction` / `deleteAction` / `cloneAction` / `extraItemActions` as actions | todo |
-| FRM-20 | Builder `addBetweenAction` | todo |
-| FRM-21 | Rich-editor custom block edit as an action | todo |
-| FRM-22 | Select `createOptionAction` | todo |
-| FRM-23 | `relationship` record query / `modifyQueryUsing` | todo |
-| FRM-24 | `ModalTableSelect` | todo |
-| FRM-25 | `MorphToSelect` | todo |
-| FRM-26 | File upload browse / file manager | todo |
-
 ## Queued
 
 | Milestone | Filament packages | Firefly artifact | Status |
 |-----------|-------------------|------------------|--------|
 | M30 | `filament/actions` | `kona-firefly-actions` | done |
-| M31 | `filament/forms` | `kona-firefly-forms` | in progress (not on `main`; no pull request; FRM-18–FRM-26 todo) |
+| M31 | `filament/forms` | `kona-firefly-forms` | done (on `main` when the forms PR merges) |
 | M32 | `filament/infolists` | `kona-firefly-infolists` | done |
 | M33 | `filament/tables` | `kona-firefly-tables` | done |
 | M34 | notifications + widgets (Chart.js default, ApexCharts optional). A widget is not done if it cannot be placed on a page | `kona-firefly-notifications`, `kona-firefly-widgets` | queued (not started, not done) |
