@@ -1,0 +1,261 @@
+---
+title: Semeurs et fabriques
+description: Remplissez la base avec des données d’exemple grâce aux semeurs, et construisez vite des modèles de test avec les fabriques.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Une base fraîche est vide. Les **semeurs** y mettent des données : données de référence dont votre application a besoin (pays, rôles) ou données d’exemple réalistes pour le développement. Les **fabriques** construisent des instances de modèle à partir d’un modèle d’attributs par défaut, afin que les tests et les semeurs puissent créer « un utilisateur » ou « dix articles » en une ligne.
+
+## Fabriques
+
+Une fabrique étend `org.konaframework.cadence.factory.Factory<M>` et implémente `definition()`, qui renvoie les attributs par défaut d’un modèle. La propriété protégée `index` compte les modèles que cette fabrique a construits (à partir de 0) ; utilisez-la pour rendre les valeurs uniques.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package database.factories
+
+import app.Models.User
+import org.konaframework.cadence.factory.Factory
+
+class UserFactory : Factory<User>(User::class.java) {
+    override fun definition(): Map<String, Any?> = mapOf(
+        "name" to "User $index",
+        "email" to "user$index@example.com",
+        "admin" to false,
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package database.factories;
+
+import app.Models.User;
+import org.konaframework.cadence.factory.Factory;
+import java.util.Map;
+
+public class UserFactory extends Factory<User> {
+    public UserFactory() {
+        super(User.class);
+    }
+
+    @Override
+    public Map<String, Object> definition() {
+        return Map.of(
+            "name", "User " + getIndex(),
+            "email", "user" + getIndex() + "@example.com",
+            "admin", false);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`./grind make:factory UserFactory` (ou `./grind make:model User --factory`) écrit ce squelette sous `database/factories/`.
+
+### Construire des modèles
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = UserFactory().make()                         // unsaved model
+val saved = UserFactory().create()                      // saved model
+val admin = UserFactory().create(mapOf("admin" to true)) // override attributes
+val many = UserFactory().count(10).createMany()         // 10 saved models
+val drafts = UserFactory().count(3).makeMany()          // 3 unsaved models
+val attributes = UserFactory().raw()                    // just the map
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = new UserFactory().make();
+User saved = new UserFactory().create();
+User admin = new UserFactory().create(Map.of("admin", true));
+List<User> many = new UserFactory().count(10).createMany();
+List<User> drafts = new UserFactory().count(3).makeMany();
+Map<String, Object> attributes = new UserFactory().raw();
+```
+
+</TabItem>
+</Tabs>
+
+Les fabriques posent les attributs avec `forceFill`, donc `fillable` et `guarded` ne s’appliquent pas : la fabrique est du code de confiance.
+
+### États, séquences et callbacks
+
+Les méthodes du builder changent la fabrique et la renvoient, donc vous pouvez les chaîner. Elles s’appliquent dans cet ordre : `definition()`, puis chaque `state` dans l’ordre d’ajout, puis l’entrée `sequence` courante, puis les surcharges passées à `make` / `create`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+UserFactory()
+    .state(mapOf("admin" to true))                                   // fixed overrides
+    .state { attrs -> attrs + ("email" to attrs["email"].toString().uppercase()) }   // computed
+    .sequence(mapOf("team" to "red"), mapOf("team" to "blue"))      // alternates per model
+    .afterMaking { user -> user["nickname"] = user["name"] }
+    .afterCreating { user -> user.posts().create(mapOf("title" to "Welcome")) }
+    .count(4)
+    .createMany()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new UserFactory()
+    .state(Map.of("admin", true))
+    .state(attrs -> {
+        Map<String, Object> copy = new HashMap<>(attrs);
+        copy.put("email", attrs.get("email").toString().toUpperCase());
+        return copy;
+    })
+    .sequence(Map.of("team", "red"), Map.of("team", "blue"))
+    .afterMaking(user -> user.setAttribute("nickname", user.getAttribute("name")))
+    .afterCreating(user -> user.posts().create(Map.of("title", "Welcome")))
+    .count(4)
+    .createMany();
+```
+
+</TabItem>
+</Tabs>
+
+Parce que les appels du builder changent la fabrique, créez une nouvelle fabrique pour un lot sans rapport plutôt que de réutiliser une fabrique déjà configurée.
+
+### Attributs calculés et liés
+
+Une valeur d’attribut peut être :
+
+- un `java.util.function.Supplier`, appelé une fois par modèle ;
+- une autre `Factory`, dont le modèle est **créé** et dont la clé est utilisée. C’est ainsi que vous donnez à chaque article son propre auteur :
+
+```kotlin
+class PostFactory : Factory<Post>(Post::class.java) {
+    override fun definition(): Map<String, Any?> = mapOf(
+        "title" to "Post $index",
+        "user_id" to UserFactory(),                      // a new user per post
+        "slug" to Supplier { "post-${System.nanoTime()}" },
+    )
+}
+```
+
+Passez une clé explicite dans les surcharges pour réutiliser un modèle existant : `PostFactory().count(3).createMany(mapOf("user_id" to ada.getKey()))`.
+
+### Fabriques ponctuelles
+
+`Factory.of` construit une fabrique depuis une lambda, pratique dans les tests Java :
+
+```java
+Factory<User> users = Factory.of(User.class, () -> Map.of("name", "Ada", "email", "ada@example.com"));
+users.count(2).createMany();
+```
+
+## Semeurs
+
+Un semeur étend `org.konaframework.cadence.seeding.Seeder` et implémente `run()`. Un semeur racine, par convention `database.seeders.DatabaseSeeder`, appelle les autres avec `call` afin qu’ils tournent dans un ordre connu.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package database.seeders
+
+import database.factories.UserFactory
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.seeding.Seeder
+
+class RoleSeeder : Seeder() {
+    override fun run() {
+        DB.table("roles").insert(listOf(mapOf("name" to "admin"), mapOf("name" to "member")))
+    }
+}
+
+class UserSeeder : Seeder() {
+    override fun run() {
+        UserFactory().count(20).createMany()
+    }
+}
+
+class DatabaseSeeder : Seeder() {
+    override fun run() {
+        call(RoleSeeder::class.java, UserSeeder::class.java)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package database.seeders;
+
+import database.factories.UserFactory;
+import org.konaframework.cadence.DB;
+import org.konaframework.cadence.seeding.Seeder;
+import java.util.List;
+import java.util.Map;
+
+public class RoleSeeder extends Seeder {
+    @Override
+    public void run() {
+        DB.table("roles").insert(List.of(Map.of("name", "admin"), Map.of("name", "member")));
+    }
+}
+
+public class UserSeeder extends Seeder {
+    @Override
+    public void run() {
+        new UserFactory().count(20).createMany();
+    }
+}
+
+public class DatabaseSeeder extends Seeder {
+    @Override
+    public void run() {
+        call(RoleSeeder.class, UserSeeder.class);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+- `call(SomeSeeder::class.java, …)` construit chaque semeur à travers le **conteneur** (le conteneur de l’application lorsqu’il est lancé par grind, ou un frais), donc les constructeurs de semeur peuvent demander des services. Il exécute ensuite les semeurs dans l’ordre.
+- `call(SomeSeeder(), …)` exécute des instances que vous avez créées vous-même.
+- `called` liste les noms simples de chaque semeur exécuté via `call`, appels imbriqués compris.
+- `Seeder.instantiate(type, container)` construit un semeur de la même façon que `call`, pour en lancer un depuis votre propre code.
+
+Les semeurs et les fabriques qu’ils utilisent écrivent à travers la base globale, donc la base doit être enregistrée (avec `CadenceServiceProvider` ou `Database.setAsGlobal()`) avant qu’ils tournent.
+
+## Commandes grind
+
+```bash
+./grind make:factory UserFactory                 # database/factories/UserFactory
+./grind make:factory CrewFactory --model=Person  # factory for app.Models.Person
+./grind make:seeder UserSeeder                   # database/seeders/UserSeeder
+./grind make:model User --factory --seeder       # model plus both
+./grind make:model User --all                    # model, migration, factory, seeder
+
+./grind db:seed                                  # runs database.seeders.DatabaseSeeder
+./grind db:seed --class=database.seeders.UserSeeder
+./grind migrate --seed                           # migrate, then seed before closing the DB
+./grind migrate --seed --class=database.seeders.UserSeeder
+./grind migrate --seeder=database.seeders.UserSeeder
+./grind migrate:fresh --seed
+./grind migrate:refresh --seed
+```
+
+`db:seed` démarre l’application dans le processus depuis ses classes compilées (lancez `./gradlew classes` d’abord), rend sa base globale, résout le semeur à travers le conteneur de l’application, l’exécute et imprime chaque semeur qu’il a lancé. Il échoue avec un message lorsque la classe manque ou n’étend pas `Seeder`.
+
+`migrate --seed` (alias `--seeder` ou `--seeder=Class`) exécute le même chemin de semeur **après** une migration réussie, **dans le même processus** et avant la fermeture de la base — donc les tables du lot de migration sont visibles même sur des connexions éphémères. `--class=` optionnel sélectionne le semeur (défaut `database.seeders.DatabaseSeeder`). `migrate:fresh --seed` et `migrate:refresh --seed` font de même après avoir reconstruit le schéma. Rollback, reset, status et wipe ne sèment jamais.
+
+Les nouvelles applications créées par `kona new` compilent le répertoire `database/` avec `app/`, donc les migrations, fabriques et semeurs générés font partie du build.

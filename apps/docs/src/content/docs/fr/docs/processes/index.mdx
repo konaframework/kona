@@ -1,0 +1,42 @@
+---
+title: Processus
+description: Lancez des processus du système depuis Kona.
+---
+
+Le module **process** exécute des commandes shell et d’autres exécutables avec un délai, un répertoire de travail optionnel et des surcharges d’environnement.
+
+## Kotlin
+
+```kotlin
+val result = Process.run("sh", "-c", "echo hello")
+if (result.successful()) {
+    println(result.output)
+}
+
+val custom = ProcessRunner(defaultTimeoutSeconds = 30)
+val again = custom.run(
+    listOf("sh", "-c", "echo $NAME"),
+    workingDirectory = File("/tmp"),
+    env = mapOf("NAME" to "kona"),
+    timeoutSeconds = 5,
+)
+```
+
+## Java
+
+```java
+ProcessResult result = Process.run("sh", "-c", "echo hello");
+boolean ok = result.successful();
+String out = result.getOutput();
+```
+
+## Champs du résultat
+
+| Champ | Signification |
+|-------|---------|
+| `exitCode` | Statut de sortie du processus |
+| `output` | stdout capturé |
+| `errorOutput` | stderr capturé |
+| `successful()` | Vrai lorsque le code de sortie est `0` |
+
+Si le processus dépasse le délai, Kona le détruit et lance `IllegalStateException`.

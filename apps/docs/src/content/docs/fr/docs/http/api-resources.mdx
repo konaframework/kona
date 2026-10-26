@@ -1,0 +1,119 @@
+---
+title: Ressources d’API
+description: Transformez des objets de domaine en maps JSON stables avec JsonResource, des attributs conditionnels, whenLoaded et ResourceCollection.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Une **ressource d’API** est un transformateur dédié entre votre objet de domaine et la map JSON que vous envoyez aux clients. Garder ce mapping dans une classe évite de fuiter des champs internes et garde cohérentes les charges de liste et de détail.
+
+Générez une ébauche avec [`./grind make:resource User`](../../grind/commands/#grind-makeresource) (`--collection` ajoute une aide `collection`).
+
+## Ressource unique
+
+Sous-classez `JsonResource` et implémentez `toArray`. Par défaut `resolve` / `toResponse` enveloppent la map sous une clé `"data"`. Appelez `JsonResource.withoutWrapping()` (d’habitude une fois au boot) pour le désactiver, ou `JsonResource.wrap("payload")` pour le renommer.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class UserResource(
+    private val id: Int,
+    private val name: String,
+    private val email: String?,
+    model: Any? = null,
+) : JsonResource(model) {
+    override fun toArray(request: Request): Map<String, Any?> =
+        mapOf(
+            "id" to id,
+            "name" to name,
+            "email" to `when`(email != null, email),
+            "admin" to mergeWhen(request.header("X-Role") == "admin", mapOf("role" to "admin")),
+            "posts" to whenLoaded("posts"),
+        )
+}
+
+router.get("/users/{id}") { request ->
+    UserResource(1, "Ada", "ada@example.com").toResponse(request)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class UserResource extends JsonResource {
+    private final int id;
+    private final String name;
+
+    public UserResource(int id, String name, Object model) {
+        super(model);
+        this.id = id;
+        this.name = name;
+    }
+
+    @Override
+    public Map<String, Object> toArray(Request request) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", id);
+        data.put("name", name);
+        data.put("posts", whenLoaded("posts"));
+        return data;
+    }
+}
+
+router.get("/users/{id}", request -> new UserResource(1, "Ada", null).toResponse(request));
+```
+
+</TabItem>
+</Tabs>
+
+### Aides conditionnelles
+
+| Aide | Comportement |
+|--------|----------|
+| `when(condition, value)` | Omet la clé quand la condition est fausse (`MissingValue`) |
+| `mergeWhen(condition, map)` | Aplatit `map` dans le parent quand c’est vrai |
+| `whenLoaded("relation")` | Inclut une relation seulement si le modèle sous-jacent l’a déjà chargée (`relationLoaded` / `getRelation` — fonctionne avec les modèles Cadence sans dépendance dure) |
+| `additional(map)` / `with(request)` | Clés de premier niveau supplémentaires à côté de la charge enveloppée |
+
+`toResponse` enveloppe `resolve` dans `Response.json(...)`. Appelez `resolve(request)` quand vous avez besoin de la map sans construire encore une réponse.
+
+## Collections
+
+Enveloppez plusieurs ressources avec `JsonResource.collection(...)`. Par défaut la charge est `{ "data": [ ... ] }`. Changez ou retirez l’enveloppe avec `wrap` :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val payload = JsonResource.collection(
+    listOf(UserResource(1, "Ada", null), UserResource(2, "Grace", null)),
+).wrap("users").toResponse(request)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Response payload = JsonResource.collection(
+    List.of(new UserResource(1, "Ada", null), new UserResource(2, "Grace", null))
+).wrap("users").toResponse(request);
+```
+
+</TabItem>
+</Tabs>
+
+Passez `wrap(null)` pour un tableau JSON nu.
+
+## Avec les routes API
+
+Enregistrez un contrôleur de ressource d’API, puis renvoyez des ressources depuis les actions :
+
+```kotlin
+router.group(prefix = "/api", name = "api.") {
+    apiResource("projects", ProjectApiController(app))
+}
+```
+
+Flux typique : le contrôleur charge un modèle (avec relations en option) → construit une ressource → renvoie `toResponse`. Associez à [Contrôleurs](../controllers/), [routes resource / apiResource](../routing/#resource-routes) et aux liens nommés de [Génération d’URL](../url-generation/).

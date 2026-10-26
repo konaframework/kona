@@ -1,0 +1,66 @@
+---
+title: Opérations sur les fichiers
+description: Put, get, flux, répertoires, métadonnées, visibilité et aides putFile.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Chaque disque implémente `FilesystemAdapter`. Les mêmes méthodes marchent sur les disques local, scopé, mémoire et S3.
+
+## Lecture et écriture
+
+| Méthode | Comportement |
+| --- | --- |
+| `put(path, String\|ByteArray)` | Crée ou écrase |
+| `get` / `getString` | Octets ou texte UTF-8 ; `null` si absent |
+| `exists` / `missing` | Vérifications de présence |
+| `append` / `prepend` | Fait grandir un fichier texte à la fin ou au début |
+| `delete` | Supprime un fichier (`false` s’il est absent) |
+| `copy` / `move` | Copie ou renomme sur le même disque |
+
+## Flux
+
+```kotlin
+disk.writeStream("big.bin", inputStream)
+disk.readStream("big.bin")?.use { /* ... */ }
+```
+
+`putFile` / `putFileAs` copient un `java.nio.file.Path` sur le disque (nom unique ou nom explicite) et renvoient le chemin relatif stocké :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val stored = disk.putFile("photos", Path.of("/tmp/shot.jpg"))
+val named = disk.putFileAs("photos", Path.of("/tmp/shot.jpg"), "hero.jpg")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String stored = disk.putFile("photos", Path.of("/tmp/shot.jpg"));
+String named = disk.putFileAs("photos", Path.of("/tmp/shot.jpg"), "hero.jpg");
+```
+
+</TabItem>
+</Tabs>
+
+## Répertoires
+
+- `files(dir)` — enfants immédiats qui sont des fichiers
+- `allFiles(dir)` — chemins de fichiers récursifs
+- `directories(dir)` / `allDirectories(dir)` — listes de répertoires
+- `makeDirectory` / `deleteDirectory` — crée ou efface un arbre
+
+## Métadonnées
+
+- `size` / `lastModified` — octets et millisecondes epoch
+- `mimeType` — sondé depuis le type de contenu / l’extension
+- `checksum(path)` — hex SHA-256 par défaut ; passez un autre nom d’algorithme en second argument
+- `path` — chemin local absolu ou `bucket/key` pour S3
+- `url` — préfixe d’URL publique + chemin
+
+## Visibilité
+
+`Visibility.PUBLIC` et `Visibility.PRIVATE` marquent comment un fichier doit être traité pour la génération d’URL et les ACL cloud. Utilisez `getVisibility` / `setVisibility` après le stockage.

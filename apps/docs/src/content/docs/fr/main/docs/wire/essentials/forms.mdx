@@ -1,0 +1,283 @@
+---
+title: Formulaires Wire
+description: Liez les inputs, validez sur le serveur et montrez l’état de chargement et de modifications.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Les formulaires dans Wire gardent les valeurs sur le **composant serveur**. `wire:model` synchronise les inputs vers les propriétés publiques ; `wire:submit` exécute une action sans navigation de page complète. La validation, les objets de formulaire et les directives d’interface (`wire:loading`, `wire:dirty`, …) complètent la tranche.
+
+## Liaison de modèle
+
+```html
+<input type="text" wire:model="email" />
+<textarea wire:model="bio"></textarea>
+<input type="checkbox" wire:model="agree" />
+<select wire:model="country">…</select>
+```
+
+Contrôles pris en charge : texte, textarea, case à cocher (booléen ou tableau), radio, select (simple/multiple), nombre, date. Les contrôles Alpine personnalisés fonctionnent lorsqu’ils déclarent `x-modelable` — `wire:model` se lie à travers `x-model` d’Alpine.
+
+## Modificateurs
+
+| Modificateur | Comportement |
+|----------|-----------|
+| (défaut) | Synchronise sur `change` / le report équivalent au blur utilisé par le runtime |
+| `.live` | Synchronise à chaque événement input (coalescé sur le bus de requêtes) |
+| `.blur` | Synchronise lorsque le champ perd le focus |
+| `.change` | Synchronise sur `change` |
+| `.lazy` | Synchronisation différée de style alias |
+| `.debounce` / `.debounce.500ms` | Debounce des mises à jour |
+| `.throttle` / `.throttle.500ms` | Étranglement des mises à jour |
+| `.number` | Cast en nombre |
+| `.boolean` | Cast en booléen |
+| `.fill` | Comportement de remplissage initial pour certains contrôles |
+| `.self` | Seulement les événements de l’élément lui-même |
+| `.deep` | Observation profonde des objets imbriqués |
+
+```html
+<input wire:model.live="query" />
+<input wire:model.blur="email" />
+<input wire:model.number="age" />
+<input wire:model.debounce.500ms="search" />
+```
+
+## Envoi
+
+```html
+<form wire:submit="save">
+    …
+</form>
+```
+
+`wire:submit` implique `.prevent`. Pendant que la requête est en vol, Wire désactive les boutons d’envoi / les selects et marque les inputs texte en lecture seule, puis les restaure lorsque la réponse se termine.
+
+Confirmez avant d’exécuter une action :
+
+```html
+<button wire:click="delete" wire:confirm="Delete this post?">Delete</button>
+<button wire:click="wipe" wire:confirm.prompt="Type DELETE|DELETE">Wipe</button>
+```
+
+## Validation
+
+Annotez les propriétés avec `@Validate` (ou l’alias `@Rule`), surchargez `rules()` / `messages()` / `validationAttributes()`, et appelez `validate()` / `validateOnly()` depuis les actions. Les échecs remplissent un `ErrorBag` persisté dans `memo.errors`, exposé à Crema comme `errors`, et disponible en JS comme `$wire.$errors`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Profile : Component() {
+    @Validate("required", "email")
+    var email = ""
+
+    override fun rules() = mapOf(
+        "email" to listOf("required", "email", Rules.unique("users", "email").ignore(id).toString()),
+    )
+
+    fun save() {
+        validate()
+        // persist…
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            <input type="email" wire:model="email" />
+            @if(errors['email'])
+                <em>{{ errors['email'][0] }}</em>
+            @endif
+            <button type="submit">Save</button>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Profile extends Component {
+    @Validate({"required", "email"})
+    public String email = "";
+
+    @Override
+    public Map<String, List<String>> rules() {
+        return Map.of("email", List.of("required", "email"));
+    }
+
+    public void save() { validate(); }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input type="email" wire:model="email" />
+                <button type="submit">Save</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Temps réel : les propriétés avec `@Validate(onUpdate = true)` (le défaut) se re-valident lorsque `wire:model` les met à jour. Utilisez `onUpdate = false` pour attendre un appel explicite `validate()`.
+
+### Objets de formulaire
+
+Un objet de formulaire est une classe qui étend `Form` et tient les champs, les règles et les aides d’un formulaire. Placez-le sur le composant comme propriété publique. Wire construit le formulaire lorsque cette propriété est nulle et que la classe a un constructeur public sans argument. Les chemins `wire:model` sont préfixés par le nom de propriété (`form.title`) ; les règles à l’intérieur du formulaire restent locales (`title`).
+
+```bash
+./grind make:form PostForm
+./grind make:form PostForm --lang=java
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.wire.Component
+import org.konaframework.wire.Form
+import org.konaframework.wire.Validate
+
+class PostForm : Form() {
+    @Validate("required", "min:5")
+    var title: String = ""
+
+    @Validate("required", "min:5")
+    var content: String = ""
+
+    fun store(): Map<String, Any?> {
+        val saved = validate()
+        reset()
+        return saved
+    }
+}
+
+class CreatePost : Component() {
+    var form = PostForm()
+
+    fun save() {
+        form.store()
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            <input wire:model.blur="form.title" />
+            @if(errors['form.title'])
+                <em>{{ errors['form.title'][0] }}</em>
+            @endif
+            <textarea wire:model="form.content"></textarea>
+            <button type="submit">Save</button>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.wire.Component;
+import org.konaframework.wire.Form;
+import org.konaframework.wire.Validate;
+import java.util.Map;
+
+public class PostForm extends Form {
+    @Validate({"required", "min:5"})
+    public String title = "";
+
+    @Validate({"required", "min:5"})
+    public String content = "";
+
+    public Map<String, Object> store() {
+        Map<String, Object> saved = validate();
+        reset();
+        return saved;
+    }
+}
+
+public class CreatePost extends Component {
+    public PostForm form;
+
+    public void save() {
+        form.store();
+    }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input wire:model.blur="form.title" />
+                <textarea wire:model="form.content"></textarea>
+                <button type="submit">Save</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`component.validate()` et `component.validateOnly("form.title")` incluent les règles du formulaire, préfixées par le nom de propriété. `form.validate()` et `form.validateOnly("title")` exécutent les mêmes règles et renvoient les noms de champs locaux.
+
+| Méthode | Rôle |
+|--------|------|
+| `fill` / `all` / `only` / `except` | Copie les valeurs vers l’intérieur ou l’extérieur. Les clés inconnues de `fill` sont ignorées |
+| `reset` / `resetExcept` | Restaure les champs aux valeurs d’une instance fraîche. `reset()` et `reset(emptyList())` restaurent chaque champ ; passez des noms ou une collection pour limiter |
+| `pull` / `pull("title")` / `pull("title", "content")` | Lit, puis réinitialise. Sans arguments, renvoie chaque champ |
+| `rules` | Fusionné avec `@Validate` / `@Rule`. `rules()` remplace la même clé. `messages()` et `validationAttributes()` sont des maps surchargeables sur le formulaire |
+| `addError` / `getErrorBag` / `resetErrorBag` / `resetValidation` | Les erreurs sont stockées sur le composant sous `form.title` |
+| `component` / `getComponent` / `getPropertyName` | Le composant propriétaire et le nom de propriété (`form`) |
+| `withValidator` | Exécute le callback avec le `Validator` avant `validate` |
+| `boot` / `hydrate` / `dehydrate` / `updating` / `updated` | Hooks de cycle de vie. `updating` / `updated` reçoivent le chemin à l’intérieur du formulaire (`title`) |
+
+Les vérifications en temps réel ne tournent que pour les champs annotés `@Validate` ou `@Rule` dont `onUpdate` est vrai (le défaut). Un champ qui n’existe que dans `rules()` attend que vous appeliez `validate()` ou `validateOnly()`. `onUpdate = false` garde les règles d’annotation mais saute la vérification de mise à jour.
+
+`@Validate` et `@Rule` acceptent un pipe (`"required|min:5"`) ou des arguments séparés. Les deux annotations peuvent apparaître sur un champ ; leurs règles sont combinées et la dernière annotation décide `onUpdate`.
+
+### Aides du sac d’erreurs
+
+| API | Rôle |
+|-----|------|
+| `addError` / `resetValidation` / `resetErrorBag` | Mute le sac |
+| `getErrorBag` / `setErrorBag` | Remplace / lit |
+| `$wire.$errors.has` / `first` / `get` / `all` / `clear` | Forme MessageBag côté navigateur |
+
+`Wire.test(…).assertHasErrors("email").assertHasNoErrors("name")` couvre la surface de test.
+
+## Interface de chargement, de modifications et hors ligne
+
+```html
+<button wire:click="save">Save</button>
+<span wire:loading wire:target="save">Saving…</span>
+<span wire:dirty wire:target="title">Unsaved</span>
+<span wire:offline>You are offline</span>
+```
+
+- `wire:loading` (+ `.class` / `.attr` / `.remove` / `.delay.*` / modificateurs d’affichage) bascule pendant qu’une requête correspondante est en vol. `wire:target` / `wire:target.except` le cale ; les éléments demandeurs reçoivent aussi `data-loading="true"`.
+- `wire:dirty` reflète l’état éphémère contre l’état confirmé par le serveur ; `$wire.$dirty()` / `$wire.$dirty('title')` pour les expressions.
+- `wire:offline` suit les événements online/offline du navigateur.
+- `wire:poll.5s` / `.keep-alive` / `.visible` rafraîchit sur un intervalle.
+
+## Show, text, bind, cloak, ref, transition
+
+```html
+<div wire:cloak>…</div>
+<div wire:show="open">…</div>
+<span wire:text="label"></span>
+<a wire:bind:href="url">Link</a>
+<input wire:ref="email" />
+<div wire:transition="panel">…</div>
+```
+
+`$wire.$refs.email` (ou `$wire.$refs('email')`) renvoie l’élément. `@Transition(type = "forward")` sur une action (ou `$this.transition("forward")` / `skipTransition()`) émet `effects.transition` pour l’API View Transitions pendant le morph.
+
+## Suite
+
+- [Actions](/docs/wire/essentials/actions/) — ce que l’envoi appelle
+- [Propriétés](/docs/wire/essentials/properties/) — aides d’état
+- [JavaScript](/docs/wire/js/runtime/) — `$wire`, hooks, morph
+- [Tests](/docs/wire/dx/testing/) — `assertHasErrors`

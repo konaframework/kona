@@ -1,0 +1,41 @@
+---
+title: Tests du système de fichiers
+description: Disques factices, FakeStorage et remplacement d’adaptateurs dans les tests.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## `fake` et `set` du manager
+
+`FilesystemManager.fake(name)` monte un disque local à racine temporaire sous ce nom et enregistre un constructeur simple d’URL temporaire. `set(name, adapter)` remplace toute instance de disque :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+files.fake("photos")
+files.disk("photos").put("a.jpg", byteArrayOf(1))
+
+files.set("photos", FakeStorage())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+files.fake("photos");
+files.disk("photos").put("a.jpg", new byte[] { 1 });
+
+files.set("photos", new FakeStorage());
+```
+
+</TabItem>
+</Tabs>
+
+## `FakeStorage`
+
+`org.konaframework.testing.FakeStorage` est un `FilesystemAdapter` en mémoire pour les tests unitaires qui ne doivent pas toucher le système de fichiers. Il implémente toute la surface de l’adaptateur (flux, `putFile`, visibilité, somme de contrôle, listes récursives). Il ne prend **pas** en charge `temporaryUrl` — utilisez `files.fake(...)` ou `buildTemporaryUrlsUsing` lorsque le code testé construit des liens signés.
+
+Voir aussi [Base de données et factices](../testing/database-fakes/).

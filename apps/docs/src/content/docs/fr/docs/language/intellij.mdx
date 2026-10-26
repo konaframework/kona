@@ -1,0 +1,76 @@
+---
+title: IntelliJ
+description: Installez le plugin natif Kona Idea pour Crema dans IntelliJ IDEA.
+---
+
+IntelliJ IDEA utilise un plugin JetBrains **natif** — [kona-idea](https://github.com/konaframework/kona-idea) — la même approche que les autres plugins de langage JetBrains de premier plan. Crema est un vrai type de fichier avec un surligneur superposé à HTML, de la complétion et de la navigation. Il n’y a **pas de serveur de langage** sur le chemin IntelliJ.
+
+| | |
+| --- | --- |
+| Dépôt | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) |
+| Id du plugin | `org.konaframework.idea` |
+| Versions | [GitHub Releases](https://github.com/konaframework/kona-idea/releases) (`.zip`) |
+| Produits | IntelliJ IDEA Community et Ultimate (2024.2+) |
+| Ligne actuelle | **v0.5.24** |
+
+Installer, mettre à jour ou retirer le plugin exige un redémarrage de l’IDE.
+
+## Installer
+
+1. Téléchargez le dernier `kona-idea-*.zip` depuis [Releases](https://github.com/konaframework/kona-idea/releases) (ligne actuelle : **v0.5.24**).
+2. **Settings → Plugins → ⚙ → Install Plugin from Disk…** et choisissez le zip.
+3. Redémarrez quand on vous le demande.
+4. Ouvrez une vue Crema (`src/main/resources/views/….crema.html` ou `*.crema.kt`). Confirmez que la puce de langage affiche **Crema** (pas HTML).
+5. Ouvrez la fenêtre d’outils **Kona** sur le côté **droit** de l’IDE pour les raccourcis grind et les liens de docs.
+
+## Ce que vous obtenez
+
+- Lexer Crema natif : couleurs HTML plus `@directives`, `{{ }}`, `{!! !!}`, `{{-- --}}`
+- **Chaînes Wire inline** — `Component.template()`, `Component.inline(source)` et `WireView.inline(source)` sont marqués `@CremaTemplate` ; `// language=Crema` sur la ligne précédente injecte aussi Crema dans une chaîne Java/Kotlin
+- **Complétion de directive `@`** — tapez `@` dans une vue Crema ou une chaîne `template()` injectée (autopopup) ; aussi **Ctrl+Space**
+- **Complétion des aides d’écho** — dans `{{ }}` / `{!! !!}`, tapez `url` (ou `route`, `asset`, `csrf_token`, `old`, `env`, `config`, `trans`, `lang`, `isset`, `empty`, `errors`, `loop.index`, …) pour compléter chaque aide Kona et variable de vue conventionnelle. Choisir `url` insère `url('')` avec le curseur entre les guillemets. Complète sur les vues welcome / login / dashboard, pas seulement les composants Wire.
+- **Complétion d’attribut Wire `wire:*`** — tapez `wire:` sur les balises HTML (`wire:model`, `wire:click`, `wire:submit`, …) ; avertissements faibles pour les noms `wire:*` inconnus
+- Avertissements pour les jetons `@name` inconnus (les e-mails comme `hi@example.com` sont ignorés)
+- `{{` se ferme automatiquement en `{{  }}` avec le curseur au milieu
+- **Reformat Code** — **Ctrl+Alt+L** (macOS : **⌥⌘L**) formate les vues Crema avec les mêmes règles que HTML (**Settings → Editor → Code Style → HTML** pour la taille d’indentation, tabulations ou espaces, et le retour des attributs). `@directives`, `{{ }}`, `{!! !!}` et `{{-- --}}` restent intacts.
+- **Autocomplétion de nom de vue** dans `Crema.view`, `Wire.view`, `engine.make` / `render`, `@extends`, `@include` et les sites d’appel semblables
+- **Aller au fichier de vue :** placez le curseur sur une chaîne de nom de vue et utilisez **Ctrl+B** ou **Ctrl+Click** (macOS : **⌘B** / **⌘Click**). Comme Navigate → Declaration.
+- **Complétion de modèle Cadence + colonne DB** — `user.` / `getAttribute("…")` / `user?.getAttribute("…")` / `get("…")` / `user["…"]` complètent les colonnes de la migration users de `kona new` (et JDBC quand `.env` peut se connecter). Fonctionne dans **n’importe quel** fichier Kotlin ou Java — contrôleurs, services, seeders, jobs, commandes console, et dans le modèle (`this.` / `getAttribute("` nu) — y compris `fun greet(user: Authenticatable)` (`user` → `User`) et Java `User.QUERY.find` / `User.QUERY.where("…")`. `User.where("…")` est limité à la table de ce modèle. Là où les suggestions Kona apparaissent, elles sont listées en **haut** de la popup de complétion.
+- Fenêtre d’outils **Kona** (DROITE) : `./grind serve`, migrate, queue/schedule, New Crema View, aide, docs
+- **Kona Project View** — volet par défaut de la fenêtre Project pour les apps Kona. Dossiers : `app`, `routes`, `resources`, `public` à la racine du projet. Fichiers racine quand ils existent : `./grind`, `.env`, `README.md`, `package.json`, lockfiles, `tsconfig.json`, `vite.config.js` et la config Vite / Svelte liée
+- Icônes de marque Kona officielles sur la fenêtre d’outils, les fichiers Crema, les dossiers d’échafaudage et les configs d’exécution Grind
+- Type de configuration d’exécution **Grind** pour `./grind …` (serve Netty, port par défaut `4000`)
+- Menu **Kona** : layout, routage, modules Maven, aide à la navigation de vues
+
+## Raccourcis de navigation de vues
+
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Aller à la déclaration (ouvrir le fichier Crema) | **Ctrl+B** ou Ctrl+Click | **⌘B** ou ⌘Click |
+| Complétion de base (nom de vue / directive `@`) | Ctrl+Space | Ctrl+Space |
+| Reformat Code (règles HTML) | **Ctrl+Alt+L** | **⌥⌘L** |
+
+## Sources de colonnes DB
+
+Les suggestions de colonnes fusionnent deux sources quand elles sont disponibles :
+
+1. **Migrations** — parse les ébauches `schema.create` / `schema.table` sous `src/main/{kotlin|java}/database/migrations` (`id()`, `string("…")`, `json("…")`, `longText("…")`, `timestamps()`, `morphs`, `dropColumn`, …). Les modèles vivent dans `app/models` depuis `kona new`.
+2. **JDBC** — lit `DB_URL` (ou déduit une URL fichier depuis `DB_CONNECTION=sqlite` / `h2`), `DB_USERNAME`, `DB_PASSWORD` et `DB_DRIVER` optionnel depuis le `.env` du projet. Les chemins SQLite et H2 relatifs sont résolus contre la racine de l’app (le répertoire de travail de l’IDE n’est pas le projet). Les drivers absents du classpath du plugin se chargent depuis `build/kona-runtime.classpath` (écrit par grind / `konaClasspath`).
+
+Utilisez-les sur une instance de modèle dans n’importe quel fichier Kotlin ou Java (`user.`, `this.`, `user.getAttribute("…")`, `user?.getAttribute("…")`, `user.get("…")`, y compris les paramètres `Authenticatable` nommés `user`) et sur les sites d’appel Cadence / requête comme `where("…")`, `User.QUERY.where("…")`, `select("…")` et `orderBy("…")`. Les lignes Kona apparaissent en haut de la liste de complétion.
+
+## Développer le plugin
+
+```bash
+git clone https://github.com/konaframework/kona-idea.git
+cd kona-idea
+./gradlew test
+./gradlew buildPlugin   # → build/distributions/*.zip
+./gradlew runIde        # sandboxed IntelliJ with the plugin loaded
+```
+
+Gardez `CremaDirectives` et `CremaEchoCatalog` dans le plugin alignés avec l’ensemble de directives de Crema et `CremaHelpers` de ce dépôt quand vous ajoutez des directives de template ou des aides d’écho. Les notes de reprise pour les agents du plugin vivent dans le [`HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md) de ce dépôt.
+
+## Autres éditeurs
+
+Pour VS Code / Cursor ou un serveur de langage stdio utilisé par d’autres outils, voir [Serveur de langage](/docs/language/lsp) et [VS Code et Cursor](/docs/language/vscode). IntelliJ doit utiliser le plugin natif ci-dessus — pas un client LSP.

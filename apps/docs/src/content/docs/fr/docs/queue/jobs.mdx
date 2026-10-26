@@ -1,0 +1,121 @@
+---
+title: Travaux et dispatch
+description: Classes de job, délai, chaînes, lots, middleware et jobs uniques.
+---
+
+Un **job** est une classe (ou un lambda) avec une méthode `handle()`. Marquez-le `ShouldQueue` pour que `Bus` le pousse au lieu de l’exécuter en ligne.
+
+## Contrats de job
+
+Méthodes optionnelles de `JobContract` :
+
+- `tries()` — tentatives avant que le job soit marqué en échec (défaut `3`)
+- `backoffSeconds()` — délai avant une nouvelle tentative (défaut `0`)
+- `displayName()` — libellé dans les journaux et les listes de jobs en échec
+
+Préférez des jobs **sérialisables par Jackson** (constructeur public sans argument + propriétés lisibles). Chaque charge utile stocke un instantané JSON `jobBody` pour qu’un autre processus puisse restaurer le job sans factory en mémoire.
+
+## Dispatch
+
+```kotlin
+val bus = app.resolve(Bus::class.java)
+
+bus.dispatch(SendInvoice())
+bus.dispatch(SendInvoice(), connection = "redis", queue = "mail")
+bus.later(delaySeconds = 60, job = SendInvoice())
+bus.dispatchSync(SendInvoice()) // always inline
+```
+
+```java
+bus.dispatch(new SendInvoice(), "redis", "mail", 0L);
+bus.later(60L, new SendInvoice());
+```
+
+`later` / `delaySeconds` fixe `availableAt` sur la charge utile. Les pilotes array, Redis et base de données sautent le job jusqu’à la fin du délai. Le pilote `sync` s’exécute toujours tout de suite.
+
+## Chaînes
+
+Exécutez les jobs l’un après l’autre. Le job suivant n’est dispatché qu’après le succès du `handle()` précédent.
+
+```kotlin
+bus.chain(ReserveStock(), ChargeCard(), SendReceipt()).dispatch()
+```
+
+Les workers lient un `WorkerContext` pour que la chaîne continue à travers les pops. Gardez les étapes de chaîne sérialisables si les workers tournent dans d’autres processus.
+
+## Lots
+
+Dispatchez un ensemble de jobs, puis lancez des callbacks quand l’ensemble se termine. Les workers enregistrent succès/échec contre le lot à chaque job terminé.
+
+```kotlin
+val batch = bus.batch(JobA(), JobB(), JobC())
+    .name("fulfill-order")
+    .allowFailures() // optional: finish even if some jobs fail
+    .then { b -> /* all done (or allowed failures) */ }
+    .catch { b, err -> /* cancelled or hard failure */ }
+    .finally { b -> /* always */ }
+    .dispatch()
+
+batch.id
+batch.size()
+batch.progress() // 0.0 … 100.0
+batch.pendingJobs()
+batch.failedJobIds()
+batch.cancel()   // stop tracking; runs catch/finally
+```
+
+```java
+Batch batch = bus.batch(new JobA(), new JobB())
+    .name("fulfill-order")
+    .allowFailures()
+    .then(b -> { })
+    .onFinally(b -> { })
+    .dispatch();
+```
+
+### Dépôt de lots
+
+Par défaut les lots vivent en mémoire (`InMemoryBatchRepository`). Pour des compteurs durables entre workers, fixez :
+
+```
+queue.batch.driver=database
+queue.batch.table=job_batches
+```
+
+`QueueServiceProvider` crée une table `job_batches` (`Database` Cadence requis) et branche `DatabaseBatchRepository`. Les callbacks (`then` / `catch` / `finally`) restent en processus sur la JVM qui dispatche ; les lignes durables suivent les totaux, l’en attente, les échecs et les drapeaux terminé/annulé.
+
+### Événements de file
+
+Crochets optionnels à l’échelle du processus via `QueueEvents.setDispatcher` :
+
+| Événement | Quand |
+|-------|------|
+| `BatchDispatched` | Lot stocké et jobs poussés |
+| `BatchJobSucceeded` / `BatchJobFailed` | Issue de chaque job |
+| `BatchFinished` | Lot terminé ou annulé |
+| `JobQueued` / `JobProcessed` / `JobFailed` | Cycle de vie d’un job |
+
+## Middleware
+
+Implémentez `HasMiddleware` et renvoyez des enveloppes `JobMiddleware`. Le middleware s’exécute de l’extérieur vers l’intérieur autour de `handle()`.
+
+```kotlin
+class NotifyUsers : Job, ShouldQueue, HasMiddleware {
+    override fun middleware() = listOf(RateLimited(maxAttempts = 10, decaySeconds = 60, key = "notify"))
+    override fun handle() { /* … */ }
+}
+```
+
+Lancez `ReleaseJobException(delaySeconds)` pour remettre le job en file **sans** compter un échec (utilisé par `RateLimited` au-delà de la limite).
+
+## Jobs uniques
+
+```kotlin
+class RebuildSearchIndex : Job, ShouldQueue, ShouldBeUnique {
+    override fun uniqueId() = "search-index"
+    override fun uniqueForSeconds() = 3600L
+    override fun handle() { /* … */ }
+}
+```
+
+Si le verrou unique est tenu, le worker remet la charge utile en file et passe à la suite.

@@ -1,0 +1,22 @@
+---
+title: Protection CSRF
+description: Middleware VerifyCsrfToken et aides pour le jeton.
+---
+
+## Middleware
+
+Ajoutez `VerifyCsrfToken` après `StartSession`. Les méthodes sûres (`GET`, `HEAD`, `OPTIONS`, `TRACE`) sautent la vérification. Les autres méthodes doivent envoyer le jeton de session ainsi :
+
+- `_token` dans le formulaire ou l’entrée, ou
+- en-tête `X-CSRF-TOKEN`, ou
+- en-tête `X-XSRF-TOKEN`
+
+Les échecs lancent `TokenMismatchException` (HTTP **419**).
+
+## Jetons
+
+```kotlin
+val token = Csrf.token(session)
+```
+
+Excluez des chemins avec `VerifyCsrfToken(except = listOf("/stripe/*", "/exact"))`.

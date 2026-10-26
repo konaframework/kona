@@ -1,0 +1,75 @@
+---
+title: Planification de tâches
+description: Plannings façon cron, verrous de chevauchement et commandes grind schedule.
+---
+
+Enregistrez un travail récurrent sur un `Schedule`, puis lancez les tâches dues avec grind. Associez cela à une entrée cron système qui appelle `./grind schedule:run` chaque minute, ou lancez `./grind schedule:work` comme processus de longue durée.
+
+Enregistrez `ScheduleServiceProvider` dans le bootstrap de votre application.
+
+## Démarrage rapide
+
+```kotlin
+val schedule = app.resolve(Schedule::class.java)
+schedule.everyMinute("heartbeat") { ping() }
+schedule.dailyAt("reports", hour = 8, minute = 0) { buildReports() }
+schedule.command("custom", "*/15 * * * *") { sync() }
+```
+
+```java
+Schedule schedule = app.resolve(Schedule.class);
+schedule.everyMinute("heartbeat", () -> ping());
+schedule.dailyAt("reports", 8, 0, () -> buildReports());
+```
+
+```bash
+./grind schedule:list
+./grind schedule:run
+./grind schedule:work --max=1 --sleep=60
+```
+
+## Aides de fréquence
+
+| Méthode | Cron |
+|--------|------|
+| `everyMinute` | `* * * * *` |
+| `everyFiveMinutes` | `*/5 * * * *` |
+| `everyTenMinutes` | `*/10 * * * *` |
+| `everyFifteenMinutes` | `*/15 * * * *` |
+| `everyThirtyMinutes` | `*/30 * * * *` |
+| `hourly` | `0 * * * *` |
+| `everyTwoHours` … `everySixHours` | `0 */n * * *` |
+| `daily` | `0 0 * * *` |
+| `dailyAt(name, hour, minute)` | `minute hour * * *` |
+| `weekly` | `0 0 * * 0` |
+| `monthly` | `0 0 1 * *` |
+| `command(name, expression, task)` | Cron personnalisé à 5 champs |
+
+Les champs cron sont `min hour dom month dow`. Atomes pris en charge : `*`, nombres, listes (`0,30`), plages (`1-5`) et pas (`*/n`).
+
+## Chevauchement et serveurs
+
+Chaque enregistrement renvoie un `ScheduledEvent` que vous pouvez configurer :
+
+```kotlin
+schedule.everyFiveMinutes("invoice-sync") { syncInvoices() }
+    .withoutOverlapping(expiresMinutes = 10)
+
+schedule.hourly("cleanup") { purgeTemp() }
+    .onOneServer()          // file lock under storage/framework
+    .runInBackground()      // virtual thread; schedule:run returns immediately
+```
+
+- **withoutOverlapping** — saute si l’exécution précédente tient encore le mutex
+- **onOneServer** — verrou fichier pour qu’une seule machine lance la tâche
+- **runInBackground** — démarre la tâche sur un virtual thread
+
+## Commandes grind
+
+| Commande | Comportement |
+|---------|----------|
+| `schedule:list` | Affiche les noms d’événements enregistrés (et les drapeaux) |
+| `schedule:run` | Lance les événements dus à la minute courante |
+| `schedule:work` | Boucle : lance les événements dus, dort (`--sleep=60`), ticks `--max` optionnels |
+
+Mise en production typique : cron système `* * * * * cd /app && ./grind schedule:run`. Utilisez `schedule:work` quand vous préférez une seule JVM de longue durée plutôt qu’un cron à la minute.

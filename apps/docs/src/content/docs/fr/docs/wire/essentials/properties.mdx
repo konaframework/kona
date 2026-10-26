@@ -1,0 +1,142 @@
+---
+title: Propriétés Wire
+description: État public, aides en masse, champs verrouillés et valeurs calculées.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Les **propriétés** sont l’état public que Wire déshydrate dans le snapshot et réhydrate à chaque mise à jour. Seuls les membres déclarés sur votre sous-classe comptent — les membres de base de `Component` ne sont jamais de l’état.
+
+## Déclarer l’état
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Profile : Component() {
+    var name = ""
+    var age = 0
+    var tags = mutableListOf<String>()
+}
+```
+
+Préférez `var` avec un champ de soutien. Les membres private / protected sont invisibles pour le navigateur.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Profile extends Component {
+    public String name = "";
+    public int age = 0;
+    public List<String> tags = new ArrayList<>();
+}
+```
+
+Les champs publics (ou les paires getter/setter publics que Wire peut voir) deviennent l’état.
+
+</TabItem>
+</Tabs>
+
+## Types pris en charge
+
+Scalaires, listes/maps/sets, enums, types `java.time`, `BigDecimal` / `BigInteger`, `UUID`, data classes / DTO, et objets qui implémentent `Wireable` (`toWire` / `fromWire`). Les chemins imbriqués tels que `todos.0.title` passent par les synthétiseurs.
+
+Les mauvais types venant du client lèvent un décalage de type de propriété (requête rejetée). Les propriétés verrouillées ou inconnues sont refusées.
+
+Un modèle Cadence est aussi de l’état public. Le snapshot garde sa classe, sa clé primaire, sa connexion et ses valeurs d’attributs. À la requête suivante, Wire recharge la ligne lorsqu’une base globale est configurée. Sans base globale, Wire reconstruit le modèle depuis ces attributs, donc le modèle voit encore les mêmes colonnes. Appelez des méthodes sur le modèle, y compris lorsque la propriété est nulle :
+
+```crema
+{{ user?.getEmail() }}
+{{ user?.getAttribute('name') }}
+```
+
+`user.email` lit cette colonne lorsque la classe n’a pas de méthode `getEmail()`. Les modèles Java utilisent les mêmes appels (`getEmail()`, `getAttribute("name")`).
+
+## Aides en masse
+
+| Méthode | Comportement |
+|--------|-----------|
+| `fill(map)` | Assigne les clés connues ; ignore les inconnues |
+| `reset()` / `reset("a", "b")` | Restaure les valeurs initiales (instance fraîche) |
+| `resetExcept("keep")` | Réinitialise tout le reste |
+| `pull("title")` | Renvoie la valeur et réinitialise |
+| `pull("a", "b")` | Renvoie une map et réinitialise ces clés |
+| `only("a", "b")` | Sous-ensemble du snapshot |
+| `all()` | Map complète de l’état public |
+
+```kotlin
+fun clearForm() {
+    reset("name", "email")
+}
+
+fun importDraft(data: Map<String, Any?>) {
+    fill(data)
+}
+```
+
+## Propriétés verrouillées
+
+Marquez les champs que le navigateur ne doit pas écrire :
+
+```kotlin
+@Locked
+var userId = 0
+```
+
+```java
+@Locked
+public int userId = 0;
+```
+
+Les mises à jour client d’une propriété verrouillée lancent `CannotUpdateLockedPropertyException`.
+
+## Propriétés calculées
+
+Valeurs dérivées mémoïsées depuis une méthode publique sans argument :
+
+```kotlin
+@Computed
+fun remaining(): Int = items.count { !it.done }
+```
+
+Les modèles les lisent comme des données normales (`{{ remaining }}`). Options :
+
+| Paramètre | Rôle |
+|-----------|------|
+| `persist` | Cache entre les requêtes pour cette instance |
+| `cache` | Cache entre toutes les instances de la classe |
+| `seconds` | TTL (défaut 3600) |
+| `key` | Clé de cache explicite lorsque `cache` est vrai |
+| `tags` | Tags informatifs pour les stores conscients des tags |
+
+Oubliez une valeur mémoïsée :
+
+```kotlin
+forgetComputed("remaining")
+```
+
+Ou lisez explicitement : `computed<Int>("remaining")`.
+
+## Depuis JavaScript
+
+```js
+$wire.count          // read
+$wire.count = 5      // queue an update
+$wire.$set('count', 5, true)  // set + live round-trip
+$wire.$get('todos.0.title')
+$wire.$toggle('open')
+```
+
+## Notes de sécurité
+
+- Seules les propriétés **publiques** de la sous-classe sont de l’état.
+- Seules les méthodes **publiques** de la sous-classe (pas `render` / cycle de vie / `mount`) sont des actions appelables.
+- Les snapshots sont checksummés avec `app.key` ; une altération échoue la vérification.
+- L’hydratation utilise une politique de sécurité en liste d’autorisation pour les classes synthétisables.
+
+## Suite
+
+- [Actions](/docs/wire/essentials/actions/) — méthodes et `$wire`
+- [Cycle de vie](/docs/wire/essentials/lifecycle/) — hooks `updatedFoo` lorsque les propriétés changent
+- [Formulaires](/docs/wire/essentials/forms/) — lier les inputs avec `wire:model`

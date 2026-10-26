@@ -1,0 +1,118 @@
+---
+title: Ressources
+description: Déposez une ressource dans app/firefly/resources. simple() est une page Manage. Laissez-le de côté et vous obtenez list, create, edit et view.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Ajoutez une classe par type d’enregistrement, placez-la dans le dossier `resources/` du panneau, et la découverte la sert. Liez un modèle, un formulaire, une infolist et un tableau sur cette classe.
+
+Appelez `simple()` lorsque vous voulez une page Manage. Laissez-le de côté lorsque vous voulez list, create, edit et view comme leurs propres URL. Les exemples hello utilisent les deux. Le parcours de clics est sur [Une application qui tourne](/docs/firefly/working-app/). Cette page est la liste des méthodes.
+
+Les types vivent dans `org.konaframework.firefly` (`kona-firefly`).
+
+<FireflyShot file="orders-list.png" description="La liste des commandes à http://127.0.0.1:4017/admin/orders/list, avec le tableau des commandes et une action de création." />
+
+## Servir une ressource complète
+
+Placez la classe dans `app/firefly/resources/`. Une ressource complète obtient les pages list, create, edit et view. Appelez `page(...)` vous-même, ou laissez la liste de pages vide et `pages()` construit ces quatre.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Order::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory().columns(TextColumn.make("name")))
+        relation(RelationManager("lines").related(Line::class.java).titleAttribute("sku"))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        label("Orders");
+        model(Order.class);
+        form(Schema.make().components(TextInput.make("name")));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory().columns(TextColumn.make("name")));
+        relation(new RelationManager("lines").related(Line.class).titleAttribute("sku"));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+La page list monte le tableau et une action de création. Les pages create et edit montent le formulaire. La page view monte l’infolist. Edit et view rendent aussi chaque gestionnaire de relation. Vous ouvrez `/admin/orders/list` lorsque le préfixe du panneau est `admin` et le slug est `orders`.
+
+`query()` choisit le store selon le type de modèle. Un modèle Cadence renvoie un `ModelBuilder`. Un modèle document échoue et nomme `kona-firefly-document`, qui ne fait pas partie de cette version. Tout autre type échoue et vous dit d’utiliser `Table.memory` pour des lignes personnalisées.
+
+## Servir une ressource simple
+
+<FireflyShot file="notes-manage.png" description="La page Manage des notes à http://127.0.0.1:4017/admin/notes/manage, avec le tableau des notes et les actions Create, Edit, View et Delete." />
+
+`simple()` garde une `ManagePage`. Create, edit, view et delete sont des actions d’en-tête, et chacune ouvre le dialogue existant. Create et edit mettent le schéma de formulaire dans ce dialogue. View y met l’infolist. Delete y demande une confirmation. Une ressource simple refuse `relation(...)`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NoteResource : Resource("notes") {
+    init {
+        label("Notes")
+        simple()
+        model(Note::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory().columns(TextColumn.make("name")))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NoteResource extends Resource {
+    public NoteResource() {
+        super("notes");
+        label("Notes");
+        simple();
+        model(Note.class);
+        form(Schema.make().components(TextInput.make("name")));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory().columns(TextColumn.make("name")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+La route est `/admin/notes/manage` lorsque le slug est `notes` et le slug de page est `manage`. Vous voyez le tableau des notes et les actions Create, Edit, View et Delete.
+
+## En générer une
+
+`./grind make:firefly-resource Order` écrit `app/firefly/resources/Order.kt` (ou `.java`) avec les pages list, create, edit et view plus un gestionnaire de relation. `./grind make:firefly-resource Note --simple` écrit une page Manage et n’écrit pas de gestionnaire de relation. La classe générée appelle `model(app.models.Order::class.java)`. Créez ce modèle Cadence, puis laissez le panneau découvrir le répertoire de ressources.
+
+Les exemples hello montent un panneau desk à `/admin` avec une page personnalisée, un widget, une ressource note simple et une ressource order complète.
+
+## Ce avec quoi vous construisez
+
+| Type | Rôle |
+|------|------|
+| `Resource` | Modèle, formulaire, infolist, tableau, actions et pages |
+| `RelationManager` | Enregistrements liés sur les pages edit et view d’une ressource complète. Posez la colonne de libellé avec `titleAttribute` |
+| `ManagePage` | La page unique d’une ressource simple |
+| `query()` | `ModelBuilder` pour un modèle Cadence |

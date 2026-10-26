@@ -1,0 +1,55 @@
+---
+title: Tenancy
+description: Ajoutez un lien de tenant dans la barre du haut, puis nommez la colonne sur la ressource pour que query() filtre les lignes de ce tenant.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Ajoutez un tenant lorsqu’un panneau sert plus d’un client et qu’une ressource ne doit interroger que les lignes de ce client. Le lien est un libellé dans la barre du haut. L’id est ce sur quoi la requête courante filtre.
+
+Vous ajoutez le tenant. Votre ressource nomme la colonne. Le lien définit `?tenant=acme`. Pendant le rendu de cette requête, `FireflyTenant.id()` vaut `acme`.
+
+<FireflyShot file="tenant-menu.png" description="Une barre haute de panneau avec un lien de tenant libellé Acme qui définit le paramètre de requête tenant à acme." />
+
+## Filtrer une ressource par le tenant sélectionné
+
+`tenant(Tenant("acme").label("Acme"))` ajoute le lien. Une ressource qui appelle `tenant("tenant_id")` ajoute cette colonne à `query()` lorsque l’id est défini. Un modèle Cadence renvoie toujours un `ModelBuilder`. Un id de tenant inconnu échoue sur la page et nomme l’id.
+
+Un id de tenant vide ou un libellé vide lance `FireflyException`. Un nom de colonne vide lance `Tenant column is blank`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Panel().path("admin").tenant(Tenant("acme").label("Acme"))
+Resource("orders").model(Order::class.java).tenant("tenant_id")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new Panel().path("admin").tenant(new Tenant("acme").label("Acme"));
+new Resource("orders").model(Order.class).tenant("tenant_id");
+```
+
+</TabItem>
+</Tabs>
+
+Ouvrez `/admin/orders/list?tenant=acme`. La requête orders inclut `tenant_id`. `label` accepte une chaîne ou une fermeture qui reçoit `Get`. `FireflyTenant.use(id) { ... }` définit l’id pour le thread courant et restaure la valeur précédente lorsque le bloc revient. `mount` le fait déjà autour de la réponse de page. Appelez `use` vous-même dans un test.
+
+`FireflyTenant.id()` est null lorsque la chaîne de requête n’a pas de paramètre `tenant`.
+
+## Méthodes
+
+| Type | Méthodes |
+|------|---------|
+| `Tenant` | `label(value)`, `label(provider)`, `label()` |
+| `Panel` | `tenant(tenant)` |
+| `Resource` | `tenant(column)` |
+| `FireflyTenant` | `id()`, `use(id, supplier)` |
+
+## Suite
+
+[Plugins](/docs/firefly/plugins/) étendent le même panneau. Passez la classe à `plugin(...)`.

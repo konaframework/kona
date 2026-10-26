@@ -1,0 +1,49 @@
+---
+title: Workers
+description: Options de grind queue:work, délais et mode démon.
+---
+
+Un **worker** retire des charges, restaure les jobs, exécute le middleware et `handle()`, puis accuse réception du succès, relâche pour un nouvel essai, ou enregistre un job en échec.
+
+```bash
+./grind queue:work
+./grind queue:work --connection=redis --queue=default
+./grind queue:work --once
+./grind queue:work --stop-when-empty --max=100
+./grind queue:work --daemon --sleep=3
+```
+
+## Drapeaux
+
+| Drapeau | Signification |
+|------|---------|
+| `--connection=` | Nom de la connexion de file |
+| `--queue=` | Nom de la file sur cette connexion |
+| `--max=` | S’arrête après N tentatives de traitement réussies |
+| `--once` | Traite au plus un job |
+| `--stop-when-empty` | Quitte lorsque la file n’a plus de jobs disponibles (défaut sauf `--daemon` / `--sleep`) |
+| `--daemon` | Continue d’interroger lorsque c’est vide |
+| `--sleep=` | Secondes de pause lorsque c’est vide en mode démon |
+| `--timeout=` | Délai par job en secondes (`0` le désactive) |
+| `--memory=` | S’arrête si le tas utilisé atteint ce nombre de Mo (`0` le désactive) |
+| `--tries=` | Remplace le nombre d’essais du job |
+| `--backoff=` | Remplace les secondes de backoff à la relance |
+
+De façon programmatique :
+
+```kotlin
+Worker(
+    manager,
+    connectionName = "array",
+    queueName = "default",
+    options = WorkerOptions(once = true, timeoutSeconds = 30),
+).run()
+```
+
+## steam
+
+Démarrez l’app avec `./grind steam` et appelez `Bus` / `Worker` pendant le développement. Préférez un processus `queue:work` dédié pour les charges réelles. En production : lancez les workers comme unités systemd (N workers, un planificateur) — consultez [Mise à l’échelle](../../guides/scaling/).
+
+## Relances
+
+En cas d’exception, si les tentatives restent sous `tries`, le worker `release` la charge avec `backoffSeconds` (via `availableAt`). Sinon l’échec est enregistré — consultez [Jobs en échec](/docs/queue/failed-jobs/).

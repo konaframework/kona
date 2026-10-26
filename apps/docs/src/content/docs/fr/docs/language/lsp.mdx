@@ -1,0 +1,100 @@
+---
+title: Serveur de langage (kona-lsp)
+description: LSP minimal pour la complétion des directives Crema et les diagnostics de directive inconnue.
+---
+
+**kona-lsp** est une petite implémentation du Language Server Protocol pour Crema. Il parle JSON-RPC avec un cadrage `Content-Length` sur **stdio** — la forme habituelle que les éditeurs attendent quand vous configurez « lance cette commande comme serveur de langage ».
+
+Il accepte les documents **`crema`**, **`java`** et **`kotlin`**. Sur les fichiers Crema il scanne tout le buffer. Sur Java et Kotlin il trouve les plages Crema inline — chaînes de retour/affectation `template()`, arguments `inline(`, et chaînes précédées de `// language=Crema` / `/* language=Crema */` — puis lance le même analyseur sur le contenu de la chaîne avec des positions remappées vers le fichier hôte.
+
+Coordonnées Maven : `org.konaframework:kona-lsp` (module `modules/lsp`, paquet `org.konaframework.lsp`).
+
+## Capacités
+
+| Méthode | Comportement |
+|--------|----------|
+| `initialize` / `initialized` | Annonce la synchro de document complet, la complétion (déclencheur `@`), le fournisseur de diagnostics |
+| `shutdown` / `exit` | Arrêt propre (code de sortie `0` après shutdown) |
+| `textDocument/didOpen` / `didChange` / `didClose` | Suit le texte du buffer ; `publishDiagnostics` à l’ouverture/au changement |
+| `textDocument/completion` | Suggère les directives Crema intégrées, les attributs Wire `wire:*`, les aides/variables d’écho dans `{{ }}` (`url`, `route`, `asset`, `csrf_token`, `old`, `env`, `config`, `trans`, `lang`, `loop.index`, …), et (dans `{{ }}` d’une classe hôte) les champs/méthodes publics |
+| `textDocument/diagnostic` | Rapport en mode pull des noms `@directive` inconnus et des attributs `wire:*` inconnus (mappés dans les chaînes inline sur Java/Kotlin) |
+
+Les commentaires `{{-- … --}}` sont ignorés au scan des directives et des attributs `wire:*` pour que les exemples dans les commentaires n’avertissent pas.
+
+### Wire `wire:*` (HTML Crema)
+
+Dans une balise HTML ouverte, taper `wire:` (ou une amorce comme `wi`) propose la même liste d’attributs Wire que le plugin IntelliJ : `wire:model`, `wire:click`, `wire:submit`, `wire:loading`, `wire:target`, `wire:ignore`, `wire:key`, `wire:dirty`, `wire:offline`, `wire:confirm`, `wire:poll`, `wire:init`, `wire:show`, `wire:transition`, plus les modificateurs courants (`.live`, `.prevent`, …). Les noms `wire:*` inconnus produisent un avertissement. Les caractères déclencheurs incluent `@`, `:`, `.` et `{`.
+
+Quand le curseur est dans `{{ … }}` d’une vue Crema, kona-lsp suggère chaque aide d’écho Crema et variable conventionnelle (`CremaEchoCatalog`, tenu aligné avec `CremaHelpers` et le plugin IntelliJ). Sur une chaîne `template()` inline il suggère aussi les propriétés et méthodes publiques scannées depuis la source de la classe englobante (pas de résolveur de types Java complet — les membres hérités de `Component` n’apparaissent que s’ils sont écrits dans ce fichier). Les noms d’aides du catalogue apparaissent encore à côté de ces membres.
+
+`CremaEchoCatalog.completions(prefix)` / `CremaHelpers.completions(prefix)` exposent les mêmes noms pour les tests et l’outillage.
+
+### Catalogue Firefly
+
+`firefly-catalog.json` est généré depuis les types livrés `Panel`, `Resource`, `Page` et `Widget`. Ce n’est pas une liste écrite à la main. Un test échoue quand un type ou une méthode public manque.
+
+Dans un buffer Kotlin ou Java, taper `Panel` propose le type. `Panel().path` et `new ChartWidget().engine` proposent les méthodes de ce type. Le survol du nom renvoie le paquet et le membre. Le même fichier est livré dans l’extension Crema pour Cursor et VS Code, et dans le plugin IntelliJ.
+
+```kotlin
+val types = FireflyCatalog.types()
+val items = FireflyCatalog.completions("Panel().pa", "kotlin", 0, 10)
+val hover = FireflyCatalog.hover("Page", "java", 0, 0)
+```
+
+```java
+List<FireflyCatalog.TypeRecord> types = FireflyCatalog.types();
+FireflyCatalog.hover("Page", "java", 0, 0);
+```
+
+## Le lancer
+
+```bash
+./gradlew :kona-lsp:jar
+java -jar modules/lsp/build/libs/kona-lsp-*.jar
+```
+
+Ou :
+
+```bash
+./gradlew :kona-lsp:installDist
+modules/lsp/build/install/kona-lsp/bin/kona-lsp
+```
+
+Le processus lit les messages LSP sur stdin et écrit réponses/notifications sur stdout. Ne tapez pas dedans de façon interactive — laissez l’éditeur posséder les tubes.
+
+Depuis un checkout d’app :
+
+```bash
+./grind ide:lsp
+```
+
+imprime les mêmes instructions sans démarrer de serveur.
+
+## Usage depuis Kotlin ou Java (tests / outillage)
+
+La surface publique est utilisable sans éditeur. Kotlin :
+
+```kotlin
+val diags = CremaAnalyzer.diagnostics("@csrf @notReal")
+val items = CremaAnalyzer.completions("@for", 0, 4)
+val code = LspServer().serve(inputStream, outputStream)
+```
+
+Java :
+
+```java
+List<CremaAnalyzer.Diagnostic> diags = CremaAnalyzer.diagnostics("@csrf @notReal");
+List<CremaAnalyzer.CompletionItem> items = CremaAnalyzer.completions("@for", 0, 4);
+int code = new LspServer().serve(inputStream, outputStream);
+```
+
+`CremaDirectives.KNOWN` / `isKnown(name)` exposent l’ensemble de directives intégré partagé avec la complétion et les diagnostics.
+
+## Ce qu’il ne fait pas (encore)
+
+- Parsing Crema complet ou validation HTML
+- Complétion des noms de route depuis le routeur de votre app
+- Formatage ou renommages
+- Un second serveur de langage pour Java/Kotlin (l’extension Java possède encore les fichiers `.java` ; fusionnez les listes de complétion dans l’éditeur)
+
+Cela peut grandir plus tard ; ce jalon garde la surface du protocole petite mais réelle pour que les éditeurs puissent s’attacher aujourd’hui.

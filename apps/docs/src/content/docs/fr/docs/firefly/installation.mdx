@@ -1,0 +1,87 @@
+---
+title: Installation
+description: Créez un bureau avec kona new --kit=firefly et ouvrez /admin, ou ajoutez kona-firefly au fichier Gradle d’une application que vous avez déjà.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Créez une nouvelle application lorsque vous voulez que le panneau, les dossiers et la classe de démarrage soient écrits pour vous. Entrez dans le projet et lancez `./grind serve`. Le kit monte le panneau sur `/admin`. Vos propres routes restent où elles sont. La page d’accueil est toujours `/`.
+
+<FireflyShot file="empty-admin.png" description="Le chemin /admin d’une nouvelle application issue de kona new --kit=firefly, avant l’ajout d’une page ou d’une ressource." />
+
+## Créer l’application
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```bash
+kona new desk --kit=firefly
+cd desk
+./grind serve
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```bash
+kona new desk --kit=firefly --lang=java
+cd desk
+./grind serve
+```
+
+</TabItem>
+</Tabs>
+
+Ouvrez `http://127.0.0.1:4000/`. C’est la route d’accueil. Ouvrez `http://127.0.0.1:4000/admin` pour le panneau. Le fichier Gradle généré dépend de Maven Central. Le CLI écrit `org.konaframework:kona-firefly` à la même version que `kona-http` et les autres artefacts Kona de ce fichier.
+
+## L’ajouter à une application que vous avez déjà
+
+Placez la même coordonnée à côté de vos autres dépendances `org.konaframework`. Les applications Kotlin et Java de ce dépôt utilisent toutes deux le DSL Gradle Kotlin :
+
+```kotlin
+dependencies {
+    implementation("org.konaframework:kona-firefly:0.3.0")
+}
+```
+
+Faites correspondre la version aux autres lignes `org.konaframework` de ce fichier. La version de ce dépôt est `0.3.0`.
+
+Ajoutez ensuite un `Panel` et appelez `mount` sur le routeur après l’enregistrement de vos propres routes. [Enregistrer un panneau](/docs/firefly/registration/) est cette étape. La dépendance n’enregistre pas de routes toute seule.
+
+Dans le dépôt Kona, les exemples hello dépendent du module directement :
+
+```kotlin
+implementation(project(":kona-firefly"))
+```
+
+`samples/hello-kotlin` et `samples/hello-java` sont le bureau utilisé dans [Une application qui tourne](/docs/firefly/working-app/). Depuis la racine du dépôt, lancez `./gradlew :hello-kotlin:run` ou `./gradlew :hello-java:run`. Ces exemples ne livrent pas `./grind`. Une application autonome issue de `kona new` le fait.
+
+## Commandes que vous pouvez lancer
+
+Depuis le répertoire de l’application, `./grind` accepte ces commandes Firefly. Passez `--lang=java` lorsque l’application est en Java. Kotlin est le défaut.
+
+| Commande | Ce qu’elle écrit |
+|---------|----------------|
+| `make:firefly-panel` | `app/firefly/Panel` plus `pages/`, `widgets/` et `resources/` |
+| `firefly:install` | Le même arbre que `make:firefly-panel` |
+| `make:firefly-page Desk` | Une `CustomPage` dans `pages/` |
+| `make:firefly-theme Harbor` | Une classe de thème dans `themes/` |
+| `make:firefly-resource Note --simple` | Une page Manage dans `resources/` |
+| `make:firefly-resource Order` | Pages list, create, edit et view, plus un gestionnaire de relation |
+| `make:firefly-field Price` | Une classe de champ et une vue Crema sous `fields/` |
+| `make:firefly-entry Note` | Une entrée d’infolist sous `entries/` |
+| `make:firefly-column Name` | Une colonne de tableau sous `columns/` |
+| `make:firefly-filter Status` | Un filtre de tableau sous `filters/` |
+| `make:firefly-action SaveRecord` | Une classe d’action et une vue sous `actions/` |
+| `make:firefly-layout Banner` | Un composant de layout sous `layouts/` |
+| `make:firefly-widget Revenue` | Un widget sous `widgets/` |
+| `firefly:publish` | Un partiel de barre latérale à `resources/views/firefly/sidebar.crema.html` |
+
+`make:firefly-panel` écrit une classe nommée `Panel`. Passer un autre nom de classe échoue. Les drapeaux optionnels `--id=` et `--path=` fixent l’id généré et le préfixe d’URL. `./grind firefly:install` écrit ce même arbre.
+
+Ajoutez le kit, ou ajoutez la coordonnée Maven. Puis utilisez les commandes du tableau.
+
+## Suite
+
+[Enregistrer un panneau](/docs/firefly/registration/) est le fichier que le kit a déjà créé, et comment la découverte trouve les pages, les widgets et les ressources.

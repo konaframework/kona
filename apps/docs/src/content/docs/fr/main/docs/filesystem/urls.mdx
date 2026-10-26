@@ -1,0 +1,59 @@
+---
+title: Disque public et URL
+description: Service /storage, grind storage:link et URL signées temporaires.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Disque public et `/storage`
+
+Le disque **public** contient les fichiers que les navigateurs peuvent récupérer. Les apps échafaudées préposent `ServePublicStorage` afin que `GET /storage/...` lise ce disque et renvoie une réponse fichier binaire (consultez [Requête et réponse](../http/request-response/)).
+
+Créez le lien symbolique que l’outillage statique attend :
+
+```bash
+./grind storage:link
+```
+
+Cela lie `public/storage` → `storage/app/public`. Si le projet n’a pas encore de répertoire `public/` mais a encore un ancien dossier `src/main/resources/public`, le lien y est créé à la place.
+
+## URL temporaires
+
+Enregistrez comment les liens temporaires sont construits (en général `UrlGenerator.signed`), puis appelez `temporaryUrl` :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+val urls = app.resolve(UrlGenerator::class.java)
+
+files.buildTemporaryUrlsUsing("public") { url, exp -> urls.signed(url, exp) }
+
+val link = files.temporaryUrl("avatars/a.png", 600, "public")
+// or pass a signer inline:
+val link2 = files.temporaryUrl("avatars/a.png", 600, { url, exp -> urls.signed(url, exp) }, "public")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+UrlGenerator urls = app.resolve(UrlGenerator.class);
+
+files.buildTemporaryUrlsUsing("public", (url, exp) -> urls.signed(url, exp));
+
+String link = files.temporaryUrl("avatars/a.png", 600L, "public");
+String link2 = files.temporaryUrl(
+    "avatars/a.png",
+    600L,
+    (url, exp) -> urls.signed(url, exp),
+    "public"
+);
+```
+
+</TabItem>
+</Tabs>
+
+`providesTemporaryUrls("public")` est vrai après l’enregistrement d’un constructeur (ou si l’adaptateur lui-même en a reçu un via `LocalAdapter.buildTemporaryUrlsUsing`). Protégez les routes de téléchargement avec `ValidateSignature` — consultez [Génération d’URL](../http/url-generation/).

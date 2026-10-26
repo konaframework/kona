@@ -1,0 +1,123 @@
+---
+title: Votre première application
+description: Créez une application avec kona new, explorez la disposition src/main et servez-la avec ./grind.
+---
+
+## Prérequis
+
+- JDK 21+
+- `kona` global sur votre PATH ([Installation](../installation/) — `curl …/scripts/install.sh | bash`)
+
+## Créer le projet
+
+```bash
+kona new hello-kona                 # still asks language, kit, CSS, database, …
+kona new hello-kona --no-interaction
+cd hello-kona
+```
+
+Utilisez `--lang=java` pour un squelette Java. Le kit par défaut est **`web`** (vue d’accueil Crema). Autres kits : `--kit=api`, `--kit=inertia`, `--kit=wire`. CSS : `--css=tailwind|bootstrap|custom`. Adaptateurs Inertia : `--frontend=vue|react|svelte`. Les frontends Inertia sont en JavaScript sauf si vous passez `--typescript` (ou `--ts`). Chaque drapeau saute seulement cette étape. `kona new` sans arguments est l’installateur interactif ; il refuse d’écraser un répertoire existant.
+
+Vous devez voir quelque chose comme :
+
+```text
+ DONE  Application created successfully.
+  Path         …/hello-kona
+  Language     kotlin
+  Stack        Crema · custom CSS
+  Database     sqlite
+  cd           hello-kona
+  serve        ./grind serve
+  migrate      ./grind migrate --seed
+```
+
+Ce fichier `./grind` fait partie de l’échafaudage. `kona grind …` est une commodité globale qui trouve ce fichier pour vous. Les contributeurs qui parcourent `samples/hello-*` dans le checkout git de Kona n’y trouveront **pas** `./grind` — consultez [Installation → Contribuer à Kona](../installation/#contributing-to-kona-optional).
+
+## Ce que vous avez obtenu
+
+Tout ce qui appartient à l’application vit sous `src/main` (plus `public/`, `storage/` et `.env` à la racine du projet) :
+
+| Chemin | Rôle |
+|------|------|
+| `./grind` / `grind.bat` | CLI **local à l’application** (serve, make:controller, …) — écrit par `kona new` |
+| `./gradlew` / `gradlew.bat` | Wrapper Gradle — construit et lance l’application |
+| `README.md` | Notes propres au kit à la racine du projet |
+| `package.json` / `vite.config.js` | Frontend Vite lorsque CSS ou Inertia est activé (`--typescript` écrit aussi `tsconfig.json`) |
+| `.env` / `.env.example` | `APP_NAME`, `APP_KEY` (généré), `APP_DEBUG`, `HOST`, `PORT`, … |
+| `src/main/kotlin/bootstrap/App` (ou `…/java/…`) | Démarre Kona, enregistre les providers, lance HTTP |
+| `src/main/…/bootstrap/Middleware` | Session + CSRF (`/api/*` excepté) ; confiance proxies/hôtes |
+| `src/main/…/app/providers/` | Votre service provider |
+| `src/main/…/app/http/controllers/` | Contrôleurs (`Welcome`, `Login`, `Dashboard`, `api/User`) |
+| `src/main/…/app/models/User` | Utilisateur Cadence (auth de session + API JSON) |
+| `src/main/…/database/migrations/` | `2000_01_01_000000_create_users_table` (classe `CreateUsersTable`, listée dans `META-INF/kona/migrations`) |
+| `src/main/…/database/seeders/DatabaseSeeder` | Utilisateur de démo pour la connexion locale |
+| `src/main/…/routes/WebRoutes` + `ApiRoutes` | Tables de routes web (`/`, `/login`, `/dashboard`) et `/api` |
+| `src/main/resources/config/` | Config JSON (`app`, `http`, `paths`, `session`) |
+| `src/main/resources/views/` | Vues Crema (`welcome`, `login`, `dashboard` sur les kits web) |
+| `public/` | Racine de documents HTTP (`branding/kona-logo.svg`, `robots.txt`, Vite `public/build`) |
+| `storage/` | Données d’exécution inscriptibles (journaux, cache du framework) |
+| `build.gradle.kts` | HTTP, grind, extract, redis, session, auth, queue, schedule, mail, crema |
+
+`kona` lui-même n’est **pas** copié dans le projet. Seuls `./grind` (plus le wrapper Gradle et les sources de l’application) sont locaux.
+
+### Aides de chemin
+
+Après le boot, résolvez les répertoires avec les aides `Application` ou la façade `Paths` :
+
+```kotlin
+app.appPath("http", "controllers")
+app.storagePath("logs")
+app.configPath()
+Paths.view("welcome")
+Paths.publicDir()
+```
+
+Les défauts suivent l’arbre ci-dessus ; surchargez avec les clés `paths.*` dans `config/Paths` (enregistré via `.configs(...)`).
+
+## Migrer, semer et servir
+
+Les kits web livrent un modèle Cadence `User`, une migration `2000_01_01_000000_create_users_table` (classe `CreateUsersTable`) et un semeur de démo :
+
+```bash
+./grind migrate --seed
+./grind serve
+```
+
+(Ou `./grind migrate` puis `./grind db:seed` — le défaut de l’échafaudage est une base H2 **fichier** sous `storage/database/`, donc les deux processus partagent les mêmes données.)
+
+Ouvrez `http://127.0.0.1:4000/` (ou le `HOST`/`PORT` de `.env`). Arrêtez avec Ctrl+C.
+
+Avec `APP_DEBUG=true` (défaut de l’échafaudage), le terminal montre chaque requête — méthode, chemin, statut et durée — à mesure que vous touchez l’application. Consultez [Journalisation](../../http/logging/#request-access-lines-local-serve).
+
+`./grind serve` surveille `src/main` et recharge le Kotlin/Java compilé (y compris les classes Wire `template()`) sans redémarrer le serveur HTTP. Passez `--no-watch` si vous voulez un enfant `./gradlew run` à la place.
+
+La page d’atterrissage de marque est du HTML depuis `welcome.crema.html` (via `WelcomeController` sur `/`). Connectez-vous à `/login` avec l’utilisateur de démo **`demo@kona.test`** / **`password`**, puis ouvrez `/dashboard`. `/api/health` renvoie le JSON `{"status":"ok"}`. `/api/users` et `/api/users/{id}` listent ou montrent les utilisateurs (les champs mot de passe sont cachés).
+
+Le squelette `--kit=api` inclut le même modèle `User` et l’API JSON sans les vues de connexion Crema.
+
+## Ajouter un contrôleur
+
+```bash
+./grind make:controller Post
+```
+
+Puis enregistrez une route dans `src/main/…/routes/` qui l’utilise. Les générateurs écrivent sous `src/main/kotlin|java/app/…`.
+
+## Créer une autre application plus tard
+
+Restez global — n’utilisez pas grind pour cela :
+
+```bash
+cd ..
+kona new shop --lang=java
+cd shop
+./grind serve
+```
+
+## Suite
+
+- [Déploiement](../deployment/) — `./grind deploy:systemd`, env, migrate
+- [Montée en charge](../scaling/) — plusieurs processus, pools, Redis, workers
+- [Application et providers](../../concepts/application/)
+- [Routage](../../http/routing/)
+- [Commandes grind](../../grind/commands/)

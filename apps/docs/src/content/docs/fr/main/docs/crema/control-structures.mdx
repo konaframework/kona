@@ -1,0 +1,226 @@
+---
+title: Structures de contrôle
+description: Conditionnels, boucles, auth, capacités, switch et métadonnées de boucle dans les modèles Crema.
+---
+
+Les directives structurelles de Crema branchent et répètent des régions de modèle. Les blocs extérieurs se développent d’abord afin que les blocs intérieurs voient les variables de boucle et le contexte enfant.
+
+<a id="truthiness"></a>
+
+## Vérité
+
+Les expressions dans `@if`, `@unless`, `@empty`, `@includeWhen` et similaires traitent une valeur comme **vraie** sauf si elle est :
+
+- `null`
+- `false`
+- un nombre égal à `0`
+- une chaîne vide
+- une collection, une map ou un tableau vide
+
+Tout le reste (y compris les chaînes non vides, les objets et les nombres non nuls) est vrai.
+
+## Conditionnels
+
+```crema
+@if(n == 1)
+  One
+@elseif(n == 2)
+  Two
+@else
+  Other
+@endif
+
+@unless(ok)
+  Hidden when ok is truthy
+@endunless
+
+@isset(name)
+  Name is present (non-null)
+@endisset
+
+@empty(items)
+  No items (not truthy)
+@endempty
+```
+
+| Directive | Fermeture | Signification |
+|-----------|--------|---------|
+| `@if(expr)` | `@endif` | Corps lorsque c’est vrai ; accepte `@elseif` / `@else` |
+| `@unless(expr)` | `@endunless` | Corps lorsque ce n’est pas vrai |
+| `@isset(name)` | `@endisset` | Corps lorsque la valeur résolue est non nulle |
+| `@empty(expr)` | `@endempty` | Corps lorsque la valeur n’est pas vraie |
+
+Les blocs `@if` imbriqués correspondent au bon `@endif`. `@hasSection` / `@sectionMissing` se ferment aussi avec `@endif` — consultez [Layouts](/docs/crema/layouts/).
+
+### Cas limites
+
+```crema
+@if(0)never@endif
+@if('')never@endif
+@if(nil)never@endif
+@if(items)has items@endif
+```
+
+Comparez avec soin : `==` et ses proches stringifient les deux côtés après évaluation, sauf les comparaisons numériques pour `<` / `>` / `<=` / `>=` lorsque les deux côtés sont des nombres. `===` et `!==` ne stringifient pas : `null` reste null, et deux nombres correspondent par valeur numérique.
+
+À l’intérieur de `@if(user !== null)` la valeur est non nulle, donc `user.getEmail()` et `user.email` la lisent directement. `user?.getEmail()` est la même lecture lorsque `user` peut encore être null ; un récepteur null ne rend rien. `user.email` sur un modèle lit aussi une colonne stockée avec `getAttribute("email")` lorsque la classe n’a pas de méthode `getEmail()`.
+
+## `@while`
+
+```crema
+@while(loop.iteration <= n)
+  {{ loop.iteration }}
+@endwhile
+```
+
+Chaque passe injecte une map `loop` dans un contexte enfant **avant** d’évaluer la condition, donc la première vérification voit déjà `loop.iteration == 1`. Plafond dur : **10 000** itérations.
+
+## `@foreach` / `@each` / `@for`
+
+### Forme collection
+
+```crema
+@foreach(items as item)
+  <li>{{ item }} ({{ loop.iteration }})</li>
+@endforeach
+```
+
+`@each` / `@endeach` et `@for(items as item)…@endfor` se comportent de la même façon. Un `$` en tête du nom d’élément est optionnel (`as $item`).
+
+### Forme à clé
+
+```crema
+@foreach(map as key => value)
+  {{ key }}={{ value }}
+@endforeach
+```
+
+Pour une `Map`, `key` / `value` sont chaque entrée. Pour une liste (ou un autre itérable), `key` est l’index base zéro et `value` est l’élément.
+
+### Plage et `@for` style C
+
+```crema
+@for(i in 0..2)
+  {{ i }}
+@endfor
+
+@for(i = 0; i < n; i++)
+  {{ i }}
+@endfor
+```
+
+`0..2` est **inclusif**. La forme style C utilise une borne haute stricte `<` (`i = 0; i < n; i++`).
+
+### Scalaires et valeurs étranges
+
+| Valeur passée à `@foreach` | Itération |
+|----------------------------|-----------|
+| `null` | Zéro itération |
+| Collection / tableau / `IntRange` | Éléments |
+| `CharSequence` | Caractères |
+| Toute autre valeur unique | Une itération avec cette valeur |
+
+<a id="loop-metadata"></a>
+
+## Métadonnées de boucle
+
+Chaque itération de boucle pose une map `loop` dans le contexte enfant :
+
+| Clé | Signification |
+|-----|---------|
+| `index` | Index base zéro |
+| `iteration` | Index base un |
+| `first` / `last` | Booléens |
+| `count` | Taille totale de cette boucle |
+| `remaining` | Éléments après celui-ci |
+| `even` / `odd` | Basé sur l’index base zéro |
+| `depth` | Profondeur d’imbrication (`1` à la boucle la plus externe) |
+| `parent` | Map de boucle externe lorsqu’elle est imbriquée, sinon null |
+
+```crema
+@foreach(outer as o)
+  @foreach(inner as i)
+    depth={{ loop.depth }} parent={{ loop.parent.iteration }}
+  @endforeach
+@endforeach
+```
+
+## `@forelse`
+
+Comme `@foreach`, mais exige une branche `@empty` lorsque la collection n’a pas d’éléments :
+
+```crema
+@forelse(items as item)
+  {{ item }}
+@empty
+  <p>None</p>
+@endforelse
+```
+
+Les blocs `@forelse` imbriqués correspondent au bon `@empty` / `@endforelse`. La branche vide ne reçoit pas de métadonnées de boucle pour un élément « courant ».
+
+## Auth et invité
+
+```crema
+@auth
+  Signed in
+@endauth
+
+@guest
+  Please sign in
+@endguest
+```
+
+Un visiteur est traité comme authentifié lorsque les données de vue ont l’un de :
+
+- `__authenticated` vrai
+- `auth_user` non null
+- `user` non null
+
+Passez-les depuis le middleware ou le contrôleur après que votre couche d’auth a tourné. Consultez [Authentification](/docs/security/authentication/).
+
+## Capacités
+
+```crema
+@can('edit')
+  <button>Edit</button>
+@endcan
+
+@cannot('edit')
+  <span>Read-only</span>
+@endcannot
+```
+
+Crema vérifie, dans l’ordre :
+
+1. `__abilities` comme un `Set` / `List` contenant la chaîne de capacité, ou une `Map` dont la valeur pour cette clé est vraie
+2. Une map `can` dans les données (`can['edit']` vrai)
+
+Câblez de vraies politiques via [Autorisation](/docs/security/authorization/) ; ces directives ne lisent que la map que vous fournissez à la vue.
+
+## `@switch`
+
+```crema
+@switch(status)
+@case(1)
+  Open
+  @break
+@case(2)
+  Closed
+  @break
+@default
+  Unknown
+@endswitch
+```
+
+Les cas comparent des valeurs **stringifiées** (`"1"` correspond à `1`). `@break` arrête le bras actif ; sans lui, la chute dans le texte du bras suivant est possible jusqu’au prochain `@case` / `@default` / fin. `@default` s’exécute lorsqu’aucun cas n’a correspondu.
+
+## Erreurs de champ
+
+`@error('field')…@enderror` est documenté avec les formulaires — consultez [Formulaires](/docs/crema/forms/#field-errors).
+
+## Suite
+
+- [Includes et partiels](/docs/crema/includes/)
+- [Composants et slots](/docs/crema/components/)
+- [Référence des directives](/docs/crema/directives/)

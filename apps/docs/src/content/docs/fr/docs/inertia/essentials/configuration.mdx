@@ -1,0 +1,31 @@
+---
+title: Configuration
+description: Toutes les clés inertia.* et comment InertiaServiceProvider les applique.
+---
+
+`InertiaServiceProvider` lit la configuration dans `register` / `boot` :
+
+| Clé | Type | Effet |
+|-----|------|--------|
+| `inertia.root_view` | chaîne | Définit `InertiaManager.rootView` |
+| `inertia.root_html` | chaîne | Définit `InertiaManager.rootHtml` |
+| `inertia.version` | chaîne | Définit `InertiaManager.version` |
+| `inertia.public_path` | chemin | Répertoire public de Vite ; défaut `<app.basePath>/public` |
+
+Exemple :
+
+```kotlin
+.configure { cfg ->
+    cfg.set("inertia.root_view", "app")
+    cfg.set("inertia.version", "1")
+    cfg.set("inertia.public_path", app.basePath.resolve("public").toString())
+}
+```
+
+Changements à l’exécution après le démarrage :
+
+```kotlin
+Inertia.version("2")
+Inertia.manager().rootView = "shell"
+Inertia.manager().viteEntries = listOf("resources/js/app.js")
+```

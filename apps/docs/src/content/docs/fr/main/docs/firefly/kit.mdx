@@ -1,0 +1,12 @@
+---
+title: Tenancy, plugins et import
+description: Ouvrez la page qui ajoute un menu de tenant, un plugin ou un import CSV. Le kit lui-même s’installe sur la page Installation.
+---
+
+Ouvrez la page du travail que vous faites. Chacune est une étape séparée sur le panneau que vous avez déjà monté.
+
+- [Tenancy](/docs/firefly/tenancy/) ajoute le menu de tenant et `Resource.tenant`, afin qu’une ressource filtre les lignes du tenant sélectionné.
+- [Plugins](/docs/firefly/plugins/) est une classe que vous passez à `plugin(...)`. `register` s’exécute tout de suite. `boot` s’exécute lorsque le panneau se monte.
+- [Import et export](/docs/firefly/import-export/) écrit et lit du CSV via une action de dialogue et un job de file, et montre `Firefly.test` sur une page rendue.
+
+`kona new desk --kit=firefly` est le chemin d’installation. Suivez-le sur [Installation](/docs/firefly/installation/).

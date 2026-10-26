@@ -1,0 +1,142 @@
+---
+title: Tests de console
+description: Lancez grind avec ConsoleTester — capturez les codes de sortie et stdout, assertSee / assertDontSee.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ConsoleTester` lance **grind** en processus, capture **stdout** et renvoie un `ConsoleResult` sur lequel vous pouvez affirmer. Utilisez-le pour les commandes intégrées (`list`, `schedule:run`, …) et pour les commandes découvertes de votre app.
+
+Paquet : `org.konaframework.testing`. Pour l’écriture et la découverte des commandes, voir [Créer des commandes](../../grind/creating-commands/) et [Exécuter des commandes](../../grind/running-commands/).
+
+## Lancer une commande
+
+`run(vararg args: String)` construit `GrindApplication().run(args)`, redirige `System.out` dans un buffer le temps de l’appel, puis restaure le flux d’origine.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val result = ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertExit(0)
+    .assertSee("schedule:run")
+    .assertDontSee("missing-command")
+
+println(result.exitCode)
+println(result.output)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ConsoleResult result = new ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertExit(0)
+    .assertSee("schedule:run")
+    .assertDontSee("missing-command");
+
+result.getExitCode(); // or .getOutput() via Kotlin data-class accessors from Java: exitCode / output
+```
+
+</TabItem>
+</Tabs>
+
+`ConsoleResult` est une `data class` Kotlin avec les propriétés `exitCode: Int` et `output: String`. Depuis Java ce sont `getExitCode()` / `getOutput()` (ou les accesseurs de propriété Kotlin selon votre outillage).
+
+## Passer les mêmes drapeaux que la CLI
+
+Tout ce que vous passeriez après `./grind` peut être passé à `run` :
+
+```kotlin
+ConsoleTester().run(
+    "db:migrate",
+    "--base=$base",
+    "--bootstrap=bootstrap.App",
+    "-q",
+)
+```
+
+Drapeaux courants :
+
+| Drapeau | Rôle |
+|------|------|
+| `--base=…` | Racine de l’application (même idée que le répertoire temporaire de `TestApplication`) |
+| `--bootstrap=…` | Classe de bootstrap qui démarre l’app pour les commandes qui en ont besoin |
+| `-q` / quiet | Sortie grind plus calme (toujours capturée dans `output` si elle est imprimée) |
+
+Pointez `--base` vers un arbre d’app réel ou temporaire quand la commande lit la config, `.env` ou les classes compilées sous cette racine.
+
+## Assertions
+
+Toutes les méthodes d’assertion renvoient `ConsoleResult` pour l’enchaînement. Les échecs lancent `IllegalArgumentException`.
+
+| Méthode | Comportement |
+|--------|----------|
+| `assertOk()` | `exitCode == 0` |
+| `assertExit(code)` | Code de sortie exact |
+| `assertSee(text)` | `output` contient la sous-chaîne |
+| `assertDontSee(text)` | `output` ne contient **pas** la sous-chaîne |
+
+```kotlin
+ConsoleTester().run("list").assertOk()
+ConsoleResult(1, "usage error").assertExit(1).assertSee("usage")
+```
+
+Il n’y a pas aujourd’hui de `assertExactOutput`, d’aide regex ni d’analyseur de tableau structuré — utilisez `output` avec vos propres contrôles au besoin.
+
+## Commandes d’app personnalisées
+
+Grind découvre les commandes depuis `META-INF/kona/commands` (et la découverte liée). Pour que des commandes personnalisées apparaissent sous `list` ou soient lançables par nom :
+
+1. Compilez l’app (ou le module de test) pour que l’index de commandes soit sur le classpath.
+2. Passez `--base` / `--bootstrap` comme votre entrée de production quand la commande a besoin d’une application démarrée.
+
+```kotlin
+ConsoleTester()
+    .run("app:report", "--base=$base")
+    .assertOk()
+    .assertSee("Report complete")
+```
+
+Si la découverte ne voit pas la commande, grind sort avec un code non nul ; `assertOk()` échoue avec le stdout capturé dans le message.
+
+## `Grind.call` contre `ConsoleTester`
+
+`org.konaframework.grind.Grind` offre des points d’entrée programmatiques utilisés depuis le code d’application **et** les tests :
+
+| API | Capture stdout ? | Usage typique |
+|-----|------------------|-------------|
+| `ConsoleTester().run(…)` | Oui (buffer complet sur `ConsoleResult`) | Affirmer le texte imprimé |
+| `Grind.call(name, args, …)` | Non (imprime normalement) | Invoquer une commande pour ses effets de bord |
+| `Grind.callSilently(name, args, …)` | Supprime stdout (non renvoyé) | Effets de bord sans bruit |
+
+Préférez `ConsoleTester` quand l’assertion **est** la sortie console. Préférez `Grind.call` / `callSilently` quand seul le code de sortie ou les effets de bord base/fichier comptent et que vous avez déjà d’autres asserts. Voir [Exécuter des commandes](../../grind/running-commands/).
+
+## Cas limites
+
+**Stderr.** Seul `System.out` est redirigé. Les messages écrits sur `System.err` ne sont **pas** dans `output` et ne sont pas affirmés par `assertSee`.
+
+**Tests parallèles.** Rediriger `System.out` est global au processus. Évitez de lancer plusieurs appels `ConsoleTester` en concurrence dans la même JVM sans isolation ; sérialisez les tests console ou utilisez un worker de test mono-thread pour cette classe.
+
+**ANSI / style.** Grind utilise `ConsoleIO` / `GrindIO` de style Termwind. Le `output` capturé peut inclure des séquences d’échappement ANSI selon `NO_COLOR` / `FORCE_COLOR` / `TERM`. Préférez affirmer des sous-chaînes stables (noms de commande, messages bruts) plutôt que des lignes colorées entières. Fixer `NO_COLOR=1` dans l’environnement de test peut simplifier les instantanés.
+
+**Prompts interactifs.** Les commandes qui lisent stdin ne sont pas pilotées par `ConsoleTester` aujourd’hui. Cette classe n’a pas d’aide de flux d’entrée fictif.
+
+## Ce qui n’est pas disponible aujourd’hui
+
+- Capture stderr ou buffers out+err combinés
+- Scripting stdin / prompts
+- Aides d’assertion regex ou par ligne
+- `--base` automatique depuis `TestApplication` (passez les chemins vous-même)
+- Une commande grind `test` dédiée qui lance JUnit (utilisez Gradle / votre IDE)
+
+## Suite
+
+- [Tests HTTP](../http-console/) — requêtes en processus
+- [Créer des commandes](../../grind/creating-commands/) — classes de commande et découverte
+- [IO de console et prompts](../../grind/console/) — style `GrindIO`
+- [Base de données et fakes](../database-fakes/) — remplacez les collaborateurs quand une commande envoie du courrier ou met des jobs en file
