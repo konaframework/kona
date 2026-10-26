@@ -139,6 +139,7 @@ class ValidationTest {
         facade()
         val c = Wire.test(ValidatedCounter::class.java).instance() as ValidatedCounter
         c.email = "ada@example.com"
+        c.profile.fill(mapOf("name" to "Ada"))
         val validated = c.validate()
         assertEquals("ada@example.com", validated["email"])
         assertTrue(c.errorBag().isEmpty())
@@ -189,13 +190,18 @@ class ValidationTest {
             .assertHasNoErrors("missing")
         Wire.test(ValidatedCounter::class.java)
             .set("email", "ada@example.com")
+            .set("profile.name", "Ada")
             .call("save")
             .assertHasNoErrors()
         assertThrows<AssertionError> {
             Wire.test(ValidatedCounter::class.java).call("save").assertHasNoErrors("email")
         }
         assertThrows<AssertionError> {
-            Wire.test(ValidatedCounter::class.java).set("email", "ada@example.com").call("save").assertHasErrors()
+            Wire.test(ValidatedCounter::class.java)
+                .set("email", "ada@example.com")
+                .set("profile.name", "Ada")
+                .call("save")
+                .assertHasErrors()
         }
         assertThrows<AssertionError> {
             Wire.test(ValidatedCounter::class.java).call("save").assertHasErrors("nope")

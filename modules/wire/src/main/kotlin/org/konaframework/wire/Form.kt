@@ -18,10 +18,16 @@ abstract class Form {
     @Transient
     private var propertyName: String = ""
 
+    @Transient
+    private val validatorHooks = mutableListOf<Consumer<Validator>>()
+
     fun attach(component: Component, propertyName: String) {
         this.owner = component
         this.propertyName = propertyName
     }
+
+    /** Property name on the owning component (`form` in `public form`). */
+    fun getPropertyName(): String = propertyName
 
     /** Exposed for tests / advanced callers that need the owning component. */
     fun component(): Component {
@@ -31,6 +37,8 @@ abstract class Form {
         }
         return attached
     }
+
+    fun getComponent(): Component = component()
 
     /** Override for rule map (`rules()`). Keys are local field names (`title`), not `form.title`. */
     open fun rules(): Map<String, List<String>> = emptyMap()
@@ -75,10 +83,29 @@ abstract class Form {
         return this
     }
 
+    /** `reset(['title', 'content'])`. An empty collection resets every field. */
+    fun reset(properties: Collection<String>): Form =
+        if (properties.isEmpty()) reset() else reset(*properties.toTypedArray())
+
+    /** Reset every field except [properties] (`resetExcept`). */
+    fun resetExcept(vararg properties: String): Form {
+        val keep = properties.toSet()
+        val names = FormMeta.of(this).fields.keys.filter { it !in keep }
+        if (names.isNotEmpty()) reset(*names.toTypedArray())
+        return this
+    }
+
     fun pull(property: String): Any? {
         val value = all()[property]
         reset(property)
         return value
+    }
+
+    /** Return several fields and reset them (`pull(['title', 'content'])`; all fields when empty). */
+    fun pull(vararg properties: String): Map<String, Any?> {
+        val values = if (properties.isEmpty()) all() else only(*properties)
+        reset(*properties)
+        return values
     }
 
     fun validate(): Map<String, Any?> = validate(null)
@@ -89,6 +116,7 @@ abstract class Form {
         val prefixedRules = resolved.mapKeys { "$prefix${it.key}" }
         val data = all().mapKeys { "$prefix${it.key}" }
         val validator = Validator(data, prefixedRules)
+        validatorHooks.forEach { it.accept(validator) }
         try {
             val validated = validator.validate()
             this.component().errorBag().clear()
@@ -97,6 +125,31 @@ abstract class Form {
             this.component().errorBag().clear().merge(e.errors)
             throw e
         }
+    }
+
+    fun addError(key: String, message: String) {
+        component().addError(prefixed(key), message)
+    }
+
+    fun getErrorBag(): ErrorBag = component().errorBag()
+
+    /** Clear this form's errors (`resetErrorBag` / `resetValidation`). */
+    fun resetErrorBag(vararg fields: String) {
+        val bag = component().errorBag()
+        if (fields.isEmpty()) {
+            if (propertyName.isEmpty()) {
+                bag.clear()
+                return
+            }
+            val prefix = "$propertyName."
+            bag.all().keys.filter { it == propertyName || it.startsWith(prefix) }.forEach { bag.clear(it) }
+            return
+        }
+        for (field in fields) bag.clear(prefixed(field))
+    }
+
+    fun resetValidation(vararg fields: String) {
+        resetErrorBag(*fields)
     }
 
     fun validateOnly(field: String): Map<String, Any?> {
@@ -116,15 +169,24 @@ abstract class Form {
 
     open fun updated(property: String, value: Any?) {}
 
-    fun withValidator(block: Consumer<Validator>): Form = this
+    fun withValidator(block: Consumer<Validator>): Form {
+        validatorHooks += block
+        return this
+    }
 
     /** Whether [field] should re-validate on `updated` (from `@Validate(onUpdate=…)`). */
     fun shouldValidateOnUpdate(field: String): Boolean = field in FormMeta.of(this).validateOnUpdate
 
-    private fun resolvedRules(): Map<String, List<String>> {
+    internal fun resolvedRules(): Map<String, List<String>> {
         val fromMethods = rules().mapValues { (_, v) -> v }
         val fromAnnotations = FormMeta.of(this).validationRules
         return fromAnnotations + fromMethods
+    }
+
+    private fun prefixed(key: String): String {
+        if (propertyName.isEmpty()) return key
+        val prefix = "$propertyName."
+        return if (key.startsWith(prefix)) key else prefix + key
     }
 }
 
@@ -159,10 +221,18 @@ internal class FormMeta private constructor(
         }
 
         private fun collectRules(field: Field, rules: MutableMap<String, MutableList<String>>, onUpdate: MutableSet<String>) {
-            val ann = field.getAnnotation(Validate::class.java) ?: return
-            ann.value.flatMap { it.split('|') }.filter { it.isNotBlank() }
-                .forEach { rules.getOrPut(field.name) { mutableListOf() }.add(it) }
-            if (ann.onUpdate) onUpdate += field.name
+            val validate = field.getAnnotation(Validate::class.java)
+            val rule = field.getAnnotation(Rule::class.java)
+            if (validate == null && rule == null) return
+            var live = false
+            fun take(values: Array<out String>, onUpdateFlag: Boolean) {
+                values.flatMap { it.split('|') }.filter { it.isNotBlank() }
+                    .forEach { rules.getOrPut(field.name) { mutableListOf() }.add(it) }
+                live = onUpdateFlag
+            }
+            if (validate != null) take(validate.value, validate.onUpdate)
+            if (rule != null) take(rule.value, rule.onUpdate)
+            if (live) onUpdate += field.name else onUpdate -= field.name
         }
     }
 }

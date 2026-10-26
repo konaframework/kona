@@ -1,4 +1,5 @@
 org.konaframework.wire.console.MakeWireCommand
+org.konaframework.wire.console.MakeFormCommand
 org.konaframework.wire.console.WireStubsCommand
 org.konaframework.wire.console.WirePublishCommand
 org.konaframework.wire.console.WireLayoutCommand

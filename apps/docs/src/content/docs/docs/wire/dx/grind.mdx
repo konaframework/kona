@@ -36,6 +36,18 @@ Names may use dots (`posts.create-post`), studly (`CreatePost`), or namespaces (
 
 Default type comes from config key `brew.make.type` (`class` | `sfc` | `mfc`).
 
+## `make:form`
+
+Scaffold a form object under `app.wire.forms`:
+
+```bash
+./grind make:form PostForm
+./grind make:form post-form --lang=java
+./grind make:form PostForm --force
+```
+
+The class extends `Form` with `title` and `content` fields marked `@Validate("required")`. Declare it as a public property on a component and bind inputs with `wire:model="form.title"`. See [Forms](/docs/wire/essentials/forms/).
+
 ## Stubs
 
 ```bash
