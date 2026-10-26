@@ -268,6 +268,7 @@ export async function buildSidebar() {
         { label: 'Widgets', slug: 'docs/firefly/widgets' },
         { label: 'Panel', slug: 'docs/firefly/panel' },
         { label: 'Resources', slug: 'docs/firefly/resources' },
+        { label: 'Tenancy and plugins', slug: 'docs/firefly/kit' },
       ],
     },
     {

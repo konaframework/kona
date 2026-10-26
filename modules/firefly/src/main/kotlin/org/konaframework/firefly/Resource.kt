@@ -27,6 +27,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private var tableRef: Table<*, *>? = null
     private var simpleFlag = false
     private var configured = false
+    private var tenantColumn: String? = null
 
     fun slug(): String {
         if (slugValue.isNotEmpty()) return slugValue
@@ -81,7 +82,15 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     /** Cadence models use [org.konaframework.cadence.ModelBuilder]. A document model names the missing addon. */
-    fun query(): Any = RecordStores.open(boundModel()).query() as Any
+    fun query(): Any {
+        val opened = RecordStores.open(boundModel()).query()
+        val column = tenantColumn
+        val tenant = FireflyTenant.id()
+        if (column == null || tenant == null) return opened as Any
+        val builder = opened as org.konaframework.cadence.ModelBuilder<*>
+        builder.where(column, tenant)
+        return builder
+    }
 
     fun form(schema: Schema): Resource = apply {
         formSchema = schema
@@ -114,6 +123,11 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     fun isSimple(): Boolean = simpleFlag
+
+    fun tenant(column: String): Resource = apply {
+        if (column.isBlank()) throw FireflyException("Tenant column is blank")
+        tenantColumn = column
+    }
 
     fun relation(manager: RelationManager): Resource = apply {
         if (simpleFlag) throw FireflyException("Simple resource [${slug()}] has no relation managers")

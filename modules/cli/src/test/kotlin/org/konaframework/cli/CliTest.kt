@@ -476,6 +476,16 @@ class CliTest {
         assertTrue(
             Files.readString(webExplicit.resolve("src/main/kotlin/routes/WebRoutes.kt")).contains("/login"),
         )
+        val firefly = temp.resolve("firefly-kotlin")
+        assertEquals(0, NewCommand().run(listOf(firefly.toString(), "--kit=firefly", "--no-interaction")))
+        assertTrue(Files.readString(firefly.resolve("build.gradle.kts")).contains("kona-firefly"))
+        assertTrue(Files.readString(firefly.resolve("src/main/kotlin/bootstrap/App.kt")).contains("DeskPanel().mount"))
+        assertTrue(Files.isRegularFile(firefly.resolve("src/main/kotlin/app/firefly/Panel.kt")))
+        assertTrue(Files.isRegularFile(firefly.resolve("src/main/kotlin/app/firefly/resources/.gitkeep")))
+        val fireflyJava = temp.resolve("firefly-java")
+        assertEquals(0, NewCommand().run(listOf(fireflyJava.toString(), "--lang=java", "--kit=firefly", "--no-interaction")))
+        assertTrue(Files.readString(fireflyJava.resolve("src/main/java/bootstrap/App.java")).contains("app.firefly.Panel"))
+        assertTrue(Files.isRegularFile(fireflyJava.resolve("src/main/java/app/firefly/Panel.java")))
     }
 
     private fun assertNoPlaceholders(root: Path) {

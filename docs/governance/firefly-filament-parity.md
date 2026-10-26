@@ -165,6 +165,6 @@ Left for later milestones (not implemented in this module): prefix and suffix ac
 | M34 | notifications + widgets (Chart.js default, ApexCharts optional). A widget is not done if it cannot be placed on a page | `kona-firefly-notifications`, `kona-firefly-widgets` | done (on `main` when this PR merges) |
 | M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3), and pages. A panel route serves a Page that mounts a schema, form, infolist, or table | `kona-firefly` | done |
 | M36 | resources, including `--simple`. Pages mount the form, infolist, table, actions, and relation managers | `kona-firefly` | done (on `main` when this PR merges) |
-| M37 | tenancy, plugins, import/export, `Firefly.test`, `kona new --kit=firefly` | `kona-firefly` | queued (not started) |
+| M37 | tenancy, plugins, import/export, `Firefly.test`, `kona new --kit=firefly` | `kona-firefly`, `kona-cli` | done (on `main` when this PR merges) |
 | M38 | IDE catalog after M37 is on `main` | `kona-lsp`, editor extensions | queued (not started) |
 | Document addon | Mongo / `Document<T>` queries, after M27 and M37 | `kona-firefly-document` | todo |

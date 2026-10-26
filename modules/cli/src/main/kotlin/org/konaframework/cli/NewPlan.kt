@@ -21,6 +21,7 @@ internal data class NewPlan(
         get() {
             val kitPart = when (kit) {
                 "api" -> "API only"
+                "firefly" -> "Firefly"
                 "wire", "brew" -> "Wire"
                 "inertia" -> {
                     if (frontend.isEmpty()) {
@@ -68,7 +69,7 @@ internal object NewStacks {
     const val LANG_JAVA = "Java"
     val LANGUAGES = listOf(LANG_KOTLIN, LANG_JAVA)
 
-    val KITS_IDS = listOf("web", "api", "crema", "inertia", "wire", "brew")
+    val KITS_IDS = listOf("web", "api", "crema", "inertia", "wire", "brew", "firefly")
 
     fun kitId(label: String): String =
         when (label) {
@@ -117,7 +118,7 @@ internal const val STDIN_UNREADABLE =
     "Cannot read stdin. Pass flags for each step, or use --no-interaction for defaults."
 
 internal const val NEW_USAGE =
-    "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|wire] " +
+    "Usage: kona new [name] [--lang=kotlin|java] [--kit=web|api|crema|inertia|wire|firefly] " +
         "[--css=tailwind|bootstrap|custom] [--frontend=vue|react|svelte] " +
         "[--typescript|--javascript] " +
         "[--name=…] [--database=h2|sqlite|mysql|mariadb|pgsql|sqlsrv|oracle] " +

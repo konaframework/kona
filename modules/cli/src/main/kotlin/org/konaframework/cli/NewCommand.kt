@@ -254,6 +254,10 @@ constructor(
                 overlayKit("crema", lang, target, variables)
                 overlayKit("wire", lang, target, variables)
             }
+            "firefly" -> {
+                overlayKit("crema", lang, target, variables)
+                overlayKit("firefly", lang, target, variables)
+            }
             else -> throw KonaCliException("Unknown kit: $kit")
         }
     }
@@ -429,6 +433,7 @@ constructor(
             "wire" to listOf(
                 "src/main/resources/views/welcome.crema.html",
             ),
+            "firefly" to emptyList(),
         )
 
         private val KIT_LANG = mapOf(
@@ -480,6 +485,24 @@ constructor(
                     "src/main/java/bootstrap/App.java.txt",
                     "src/main/java/app/wire/Counter.java.txt",
                     "README.md",
+                ),
+            ),
+            "firefly" to mapOf(
+                "kotlin" to listOf(
+                    "build.gradle.kts.txt",
+                    "src/main/kotlin/bootstrap/App.kt.txt",
+                    "src/main/kotlin/app/firefly/Panel.kt.txt",
+                    "src/main/kotlin/app/firefly/pages/.gitkeep",
+                    "src/main/kotlin/app/firefly/widgets/.gitkeep",
+                    "src/main/kotlin/app/firefly/resources/.gitkeep",
+                ),
+                "java" to listOf(
+                    "build.gradle.kts.txt",
+                    "src/main/java/bootstrap/App.java.txt",
+                    "src/main/java/app/firefly/Panel.java.txt",
+                    "src/main/java/app/firefly/pages/.gitkeep",
+                    "src/main/java/app/firefly/widgets/.gitkeep",
+                    "src/main/java/app/firefly/resources/.gitkeep",
                 ),
             ),
         )

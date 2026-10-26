@@ -1,0 +1,13 @@
+package app.firefly;
+
+import org.konaframework.core.Kona;
+
+public class Panel extends org.konaframework.firefly.Panel {
+    public Panel() {
+        id("desk");
+        path("admin");
+        brand("Desk");
+        authenticate(false);
+        discover(Kona.app().basePath("src/main/java/app/firefly"));
+    }
+}
