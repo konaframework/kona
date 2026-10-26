@@ -304,6 +304,8 @@ Chaque migration s’exécute dans sa propre transaction avec son enregistrement
 
 Annuler une migration enregistrée qui n’est plus enregistrée lance `MigrationException("Migration not found: …")`.
 
+<a id="grind-commands"></a>
+
 ## Commandes grind
 
 Toutes les commandes s’exécutent depuis le répertoire de l’application. Les commandes de base démarrent votre application **dans le processus** depuis ses classes compilées (`build/classes`), donc lancez `./gradlew classes` après avoir changé des migrations. Elles utilisent le `MigrationRegistry` lié dans le conteneur, plus la `Database` liée (depuis `CadenceServiceProvider`) ou, quand aucune n’est liée, une `Database` construite depuis la section de config `database` (votre module `config/Database`).
