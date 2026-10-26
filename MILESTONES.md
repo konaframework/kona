@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** [M28](#m28--firefly-support) — **Kona Firefly** support, theme, and dialog. Kona **0.3.0** (M26) has shipped.
+**Active milestone:** [M29](#m29--firefly-schemas) — **Kona Firefly** schemas and reactivity. Kona **0.3.0** (M26) has shipped. M28 is on `main`.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -944,13 +944,14 @@ flowchart LR
   M24 --> M25[M25_DB_Engines]
   M25 --> M26[M26_Kona_Wire]
   M26 --> M28[M28_Firefly_Support]
+  M28 --> M29[M29_Firefly_Schemas]
 ```
 
 ---
 
 ## M28 — Firefly support
 
-**Status:** in progress.
+**Status:** done (on `main`).
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -979,6 +980,42 @@ flowchart LR
 ### Out of scope
 
 Schemas, fields, tables, panel routes, resources, the document addon, IDE support (M38).
+
+---
+
+## M29 — Firefly schemas
+
+**Status:** in progress (not on `main`).
+
+**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
+
+**Branch:** `milestone/M29-firefly-schemas`
+
+**Parity slice:** Schema tree, layout and prime components, visibility, state paths, and the reactivity runtime (`Get` / `Set`, live modifiers, hydration). Actions, form fields, select, and date pickers are later milestones. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+Chainable configuration methods on the schema component base and on layout and prime components accept a static value or a closure. The closure receives `Get` (and the same utilities the schema injects into state hooks). `label("Name")` and `label { get -> ... }` are both valid. The same shape covers `heading`, `description`, `hidden`, `visible`, `disabled`, `columns`, `columnSpan`, `maxWidth`, `content`, `size`, `url`, `alt`, and the image size setters.
+
+### Parity checklist
+
+- [x] `org.konaframework:kona-firefly-schemas` in the monorepo, the BOM, and the CI coverage gate
+- [x] `Schema` state path, fill, get/set, hydrate, dehydrate, partial render, deferred loading
+- [x] Relative `Get` / `Set` (`../` stays inside the schema state prefix; `.`, `..`, and `""` do not return the container map)
+- [x] Layouts: grid, flex, fieldset, section, tabs, wizard, callout, empty state
+- [x] Primes: text, icon, image, unordered list
+- [x] Static-or-closure chainable setters on the component base and on those layout and prime components
+- [x] Live modifiers, visibility, Alpine factories, Crema view hook
+- [x] `make:firefly-layout` covered by the grind test
+- [x] Kotlin and Java regression paths
+- [x] Public docs under Firefly → Schemas
+- [x] 100% line + branch Kover on `kona-firefly-schemas`
+
+### In-scope modules
+
+`kona-firefly-schemas`, `kona-grind` (`make:firefly-layout`), `apps/docs/`, BOM, CI coverage gate
+
+### Out of scope
+
+Actions (M30). Form fields, including `Select` and date/time pickers (M31). `Select` defaults to a combobox; `.native()` opts into `<select>`. Date and time pickers default to Firefly’s crafted picker; `.native()` opts into the HTML input. Do not implement either in M29.
 
 ---
 

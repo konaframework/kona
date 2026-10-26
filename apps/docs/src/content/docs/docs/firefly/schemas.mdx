@@ -1,0 +1,154 @@
+---
+title: Schemas
+description: Build a Firefly schema, bind state, and let labels and content be a value or a closure.
+---
+
+A schema is a tree of components plus a state map. You build the tree in Kotlin or Java, fill or hydrate state, then `render()` returns HTML. Live components bind that state with `wire:model` and `@entangle`.
+
+The types live in `org.konaframework.firefly.schemas` (`kona-firefly-schemas`). They depend on `kona-firefly-support` for icons and errors.
+
+## A schema in one call
+
+```kotlin
+val schema = Schema.make()
+    .statePath("user")
+    .components(
+        Section.make("Profile").schema(
+            Text.make("Hello"),
+        ),
+    )
+schema.hydrate()
+val html = schema.render()
+```
+
+```java
+Schema schema = Schema.make()
+    .statePath("user")
+    .components(Section.make("Profile").schema(Text.make("Hello")));
+schema.hydrate();
+String html = schema.render();
+```
+
+`Schema.make()` starts an empty tree. `statePath("user")` prefixes every root component, so a field named `name` is stored at `user.name`. `components(...)` replaces the root list and binds each component to the schema. `hydrate()` writes defaults into missing paths. `render()` returns a `<div class="ff-schema">`.
+
+`get` and `set` use dotted paths. `set` returns the partial-render keys for that update. A component that called `live()`, `liveOnBlur()`, or `liveDebounce(...)` contributes its own path.
+
+## Values and closures
+
+Most chainable setters accept a fixed value or a closure. The closure receives `Get`, the same reader the schema uses inside `afterStateUpdated`. `Get.get` resolves a path relative to the component’s container. A path that starts with `/` is absolute.
+
+```kotlin
+val section = Section.make("Profile")
+section.label("Title")
+section.label { get -> if (get.get("/kind") == "org") "Organization" else "Title" }
+section.description { get -> "About ${get.get("/kind")}" }
+section.columns { 2 }
+section.hidden { get -> get.get("/draft") == true }
+```
+
+```java
+name.label(get -> "From Java");
+details.columns(get -> 2);
+Text.make("Hello").content(get -> "Hello");
+```
+
+The last call wins. `label("Title")` after a closure stores the fixed string and drops the closure. The same shape is on `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight`, and `imageWidth`.
+
+`hidden(true)` and `visible(false)` still take a boolean. `hidden { ... }` and `visible { ... }` recompute when the schema renders or when `isHidden` runs.
+
+## State
+
+```kotlin
+schema.fill(mapOf("user.city" to "Kona"))
+schema.get("user.city") // "Kona"
+```
+
+Inside a component under `statePath("user")`:
+
+| Call | Result |
+|------|--------|
+| `get("name")` | the sibling at `user.name` |
+| `get("../name")` | still `user.name` — `..` does not leave the schema prefix |
+| `get("/user.city")` | absolute read |
+| `get(".")`, `get("..")`, `get("")` | `null` |
+
+`defaultValue("Ada")` writes that literal during `hydrate()` when the path is empty. `defaultUsing { get -> get.get("../name") }` writes the closure’s result. A second `hydrate()` leaves an existing value in place.
+
+`dehydrate()` returns a map of paths that should be saved. A hidden component is omitted unless `dehydratedWhenHidden(true)`. `dehydrated(false)` omits the component even when it is visible.
+
+`afterStateUpdated` runs after `set` when the path matches a component. The hook receives the new value, the old value, `Get`, and `Set`. `set.set("slug", "bea", false)` writes a sibling and does not run that sibling’s update hook.
+
+## Layouts
+
+| Type | Role |
+|------|------|
+| `Grid.make(columns)` | Column grid. `schema(...)` sets the children |
+| `Flex.make()` | Row of children |
+| `Fieldset.make(legend)` | Group with a legend. `required(true)` marks it |
+| `Section.make(heading)` | Heading, description, and slots: `afterHeader`, `beforeLabel`, `afterLabel`, `aboveContent`, `belowContent`, `footer`. `aside(true)` and `formBefore(true)` add data attributes |
+| `Tabs.make()` | `tabs(...)`, `activeTab`, `vertical`, `scrollable`, `persistTabInQueryString` |
+| `Tab.make(label)` | One panel. `badge`, `badgeIcon`, `deferBadge` |
+| `Wizard.make()` | `steps(...)`, `nextStep`, `previousStep`, `goToStep`. `skippable(true)` allows a jump |
+| `WizardStep.make(label)` | One step. `icon`, `completedIcon`, `formWrapper` |
+| `Callout.make(heading)` | `info()`, `success()`, `warning()`, `danger()`, or `status(...)`. `color` overrides the status color |
+| `EmptyState.make(heading)` | Heading plus an optional `footer` |
+
+`configureUsing` on a layout runs for every later `make()` of that class. Pass `null` to clear it.
+
+```kotlin
+Section.configureUsing { it.aside(true) }
+```
+
+```java
+Section.configureUsing(section -> { section.aside(true); });
+```
+
+Heading level starts at 2. `rootHeadingLevel` changes the start. Nested sections increment it, and the level stops at 6.
+
+## Primes
+
+`Text.make(content)` renders a paragraph. `content`, `size`, `badge(true)`, and `js()` change it. `SchemaIcon.make("home")` inlines an icon from the support set (`home`, `bars`, `user`, `x`). `Image.make(url)` takes `alt`, `url`, `imageHeight`, `imageWidth`, and `imageSize`. `UnorderedList.make("one", "two")` renders the items; `items { listOf("Kona") }` replaces them at render time.
+
+## Live updates
+
+```kotlin
+field.live()
+field.liveOnBlur()
+field.liveDebounce(400)
+field.reactive()   // same binding as live()
+field.lazy()       // same binding as liveOnBlur()
+```
+
+`live()` renders `wire:model.live`. `liveOnBlur()` and `lazy()` render `wire:model.blur`. `liveDebounce(400)` renders `wire:model.live.debounce.400ms`. Each also sets `data-ff-entangle="@entangle(path)"`. `afterStateUpdatedJs("watch")` stores the expression on `data-ff-updated-js`. The page does not evaluate that string on the server.
+
+`hiddenJs` and `visibleJs` store browser expressions the same way.
+
+## Your own component
+
+Subclass `Component`. The constructor name is the state key.
+
+```kotlin
+class Banner(name: String) : Component(name)
+```
+
+```java
+public class NameField extends Component {
+    public NameField() { super("name"); }
+}
+```
+
+`view("notes.banner")` renders that Crema view when `Schema.crema(engine)` is set. The view receives `path`, `content`, and `label`. Without an engine, render emits `<div data-ff-view="notes.banner">`.
+
+`./grind make:firefly-layout Banner` writes a layout class and a Crema view under `app/firefly/layouts`. `--lang=java` writes a Java class. The view uses `x-data="ffField"` and `@entangle`.
+
+## Alpine
+
+`AlpineScripts.source()` is the script that registers `ffField`, `ffEntry`, `ffColumn`, and `ffAction`. Those factories entangle state with `$wire.$entangle` and call server actions with `$wire.$call`.
+
+## Deferred schemas
+
+`deferLoading(true)` makes `render()` return a loading placeholder until `loadDeferred()`. The schema needs `key(...)`. A deferred schema with no key throws `FireflyException` (`Deferred schema is missing a key`).
+
+## What this module does not do
+
+It does not open dialogs, register routes, or render inputs such as a select or a date picker. Those arrive with later Firefly artifacts. This module is the tree and the state those inputs will sit on.

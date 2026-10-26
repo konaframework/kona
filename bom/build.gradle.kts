@@ -33,6 +33,7 @@ dependencies {
         api(project(":kona-search"))
         api(project(":kona-inertia"))
         api(project(":kona-firefly-support"))
+        api(project(":kona-firefly-schemas"))
         api(project(":kona-lsp"))
         api(project(":kona-wire"))
         api(project(":kona-brew"))
