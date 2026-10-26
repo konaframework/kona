@@ -1,27 +1,27 @@
 ---
 title: Contrôleurs
-description: Organisez les handlers HTTP en classes de contrôleur, actions invocables, contrôleurs de ressource, validation de form request, et stubs grind.
+description: Organisez les handlers HTTP en classes de contrôleur, actions invocables, contrôleurs de ressource, validation de form request et stubs grind.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Un **contrôleur** est une classe qui groupe des actions HTTP liées. Au lieu de mettre chaque fermeture de route dans un fichier, vous pointez les routes vers des méthodes de contrôleur. Les contrôleurs gardent la validation, l’autorisation et la forme de la réponse les unes à côté des autres.
+Un **contrôleur** est une classe qui regroupe des actions HTTP liées. Au lieu de mettre chaque fermeture de route dans un seul fichier, vous pointez les routes vers des méthodes de contrôleur. Les contrôleurs gardent la validation, l’autorisation et la mise en forme de la réponse côte à côte.
 
-Comment vous **enregistrez** ces méthodes sur le routeur (y compris `WebRoutes`, les groupes et `resource()`) est couvert dans [Routage](../routing/). Cette page se concentre sur ce qui vit *à l’intérieur* de la classe de contrôleur et les types publics qui la soutiennent : `Controller`, `FormRequest`, `InvokableController`, `ResourceController` et `BaseResourceController`.
+Comment vous **enregistrez** ces méthodes sur le routeur (y compris `WebRoutes`, les groupes et `resource()`) est couvert dans [Routage](../routing/). Cette page se concentre sur ce qui vit *à l’intérieur* de la classe de contrôleur et sur les types publics qui la soutiennent : `Controller`, `FormRequest`, `InvokableController`, `ResourceController` et `BaseResourceController`.
 
 ## Ce que fait un contrôleur
 
-Sur chaque requête appariée, le [noyau HTTP](../kernel-server/) exécute le middleware global, résout la route, lie les paramètres de chemin sur la `Request`, exécute le middleware de route, puis appelle le `Handler` de la route. Une méthode de contrôleur *est* ce handler quand vous la liez depuis une table de routes :
+À chaque requête correspondante, le [noyau HTTP](../kernel-server/) exécute le middleware global, résout la route, lie les paramètres de chemin au `Request`, exécute le middleware de route, puis appelle le `Handler` de la route. Une méthode de contrôleur *est* ce handler lorsque vous la liez depuis une table de routes :
 
 ```text
 Request → global middleware → route match → route middleware → controller method → Response
 ```
 
-Une méthode de contrôleur prend toujours une `Request` et renvoie une `Response`. Il n’y a pas d’API séparée de « signature d’action », pas d’injection de constructeur automatique dans les contrôleurs, et pas de routage par attribut / annotation — vous construisez le contrôleur vous-même et liez les méthodes explicitement.
+Une méthode de contrôleur prend toujours un `Request` et renvoie une `Response`. Il n’y a pas d’API séparée de « signature d’action », pas d’injection automatique de constructeur dans les contrôleurs, et pas de routage par attribut/annotation — vous construisez le contrôleur vous-même et liez les méthodes explicitement.
 
 ## Brancher depuis les routes
 
-**Recommandé (agréable pour l’IDE) :** instanciez le contrôleur dans `WebRoutes.register` (ou `ApiRoutes`), puis liez une lambda ou une référence de méthode. L’IDE peut autocompléter les noms de méthodes, sauter vers l’action, et signaler les fautes de frappe à la compilation.
+**Recommandé (convivial pour l’IDE) :** instanciez le contrôleur dans `WebRoutes.register` (ou `ApiRoutes`), puis liez une lambda ou une référence de méthode. L’IDE peut autocompléter les noms de méthode, aller à l’action et signaler les fautes de frappe à la compilation.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -58,11 +58,11 @@ public final class WebRoutes {
 </TabItem>
 </Tabs>
 
-Les lambdas de handler en ligne fonctionnent de la même façon quand vous n’avez pas besoin d’une classe de contrôleur. Les détails et d’autres verbes vivent sur [Routage](../routing/#call-a-controller).
+Les lambdas de handler en ligne fonctionnent de la même façon quand vous n’avez pas besoin d’une classe de contrôleur. Les détails et d’autres verbes sont dans [Routage](../routing/#call-a-controller).
 
 ### Passer des dépendances
 
-Les contrôleurs sont des classes ordinaires. Passez ce dont ils ont besoin dans le constructeur — `Application`, un dépôt, une aide de modèle Cadence, des valeurs de config du boot :
+Les contrôleurs sont des classes ordinaires. Passez ce dont ils ont besoin dans le constructeur — `Application`, un dépôt, un helper de modèle Cadence, des valeurs de config du boot :
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -96,30 +96,30 @@ public class ProjectController {
 </TabItem>
 </Tabs>
 
-Résolvez les dépendances lourdes une fois quand vous construisez le contrôleur dans la table de routes (ou une fois dans un provider), pas à chaque requête dans l’action, sauf si la dépendance est portée par la requête.
+Résolvez les dépendances lourdes une fois lorsque vous construisez le contrôleur dans la table de routes (ou une fois dans un provider), pas à chaque requête à l’intérieur de l’action, sauf si la dépendance est limitée à la requête.
 
 ## Générer un stub avec grind
 
 [`./grind make:controller Name`](../../grind/commands/#grind-makecontroller) écrit `app/http/controllers/<Name>Controller` (Kotlin ou Java via `--lang`).
 
-| Drapeau | Effet |
+| Option | Effet |
 |------|--------|
-| *(aucun)* | Une seule méthode `index` qui renvoie un stub texte |
+| *(aucune)* | Une seule méthode `index` renvoyant un stub texte |
 | `--resource` | Sous-classe de `BaseResourceController` avec `index`, `create`, `store`, `show`, `edit`, `update`, `destroy` — passez l’instance à [`router.resource`](../routing/#resource-routes) |
-| `--api` | La même sous-classe sans surcharges `create` / `edit` (404 depuis la base). Utilisez avec [`apiResource`](../routing/#api-resource-routes) |
-| `--lang=kotlin\|java` | Langue (défauts depuis la disposition de l’application) |
+| `--api` | La même sous-classe sans surcharges de `create` / `edit` (404 depuis la base). À utiliser avec [`apiResource`](../routing/#api-resource-routes) |
+| `--lang=kotlin\|java` | Langage (par défaut selon la disposition de l’app) |
 
 Les stubs de ressource générés **étendent `BaseResourceController`** (qui étend `Controller` et implémente `ResourceController`). Les ids de chemin utilisent `request.route("id")`. `make:model -r` / `--resource` / `--api` / `--all` passent par le même générateur. Un simple `./grind make:controller Post` ou `make:model -c` (sans `-r`) écrit encore un POJO avec une seule méthode `index`.
 
-## Contrôleurs simples et `Controller`
+## Contrôleurs simples face à `Controller`
 
-Vous n’**avez pas** à étendre `Controller`. Toute classe avec des méthodes `Request → Response` fonctionne comme cible de route.
+Vous n’**êtes pas** obligé d’étendre `Controller`. Toute classe avec des méthodes `Request → Response` fonctionne comme cible de route.
 
-Étendez `Controller` quand vous voulez les aides protégées `validate` :
+Étendez `Controller` lorsque vous voulez les helpers protégés `validate` :
 
 | Méthode | Comportement |
 |--------|----------|
-| `validate(request, rules)` | Délègue à `request.validate(rules)` — renvoie la carte validée ou lance `ValidationException` |
+| `validate(request, rules)` | Délègue à `request.validate(rules)` — renvoie la map validée ou lance `ValidationException` |
 | `validate(request, formRequest)` | Exécute `formRequest.validate(request)` — autorise d’abord, puis les règles |
 
 <Tabs syncKey="lang">
@@ -155,7 +155,7 @@ router.post("/notes", notes::store);
 
 `validate` lance `ValidationException` (HTTP 422 / redirect-back) quand les règles échouent — le même chemin que `request.validate(...)`. Liste complète des règles : [Validation](../validation/).
 
-Après un `request.validate(...)` réussi (ou l’aide de contrôleur qui l’appelle), `request.safe()` renvoie la même carte validée. Appeler `safe()` avant une validation réussie lance `IllegalStateException`.
+Après un `request.validate(...)` réussi (ou le helper du contrôleur qui l’appelle), `request.safe()` renvoie la même map validée. Appeler `safe()` avant un validate réussi lance `IllegalStateException`.
 
 ## Lire les paramètres de route et l’entrée
 
@@ -189,16 +189,17 @@ public Response show(Request request) {
 </TabItem>
 </Tabs>
 
-Pour l’entrée du corps et de la query, utilisez `request.data()`, `request.input(...)`, ou validez d’abord — consultez [Requête et réponse](../request-response/).
+Pour l’entrée du corps et de la requête, utilisez `request.data()`, `request.input(...)`, ou validez d’abord — consultez [Requête et réponse](../request-response/).
 
+<a id="form-requests"></a>
 ## Form requests
 
-Une **form request** est un petit objet qui possède les règles de validation (et une autorisation optionnelle) pour une action. Étendez `FormRequest` :
+Un **form request** est un petit objet qui possède les règles de validation (et l’autorisation optionnelle) pour une action. Étendez `FormRequest` :
 
 | Membre | Rôle |
 |--------|------|
-| `rules()` | Abstrait — carte champ → chaînes de règles |
-| `authorize(request)` | Optionnel ; défaut `true`. Renvoyez `false` pour rejeter |
+| `rules()` | Abstrait — map de champ → chaînes de règle |
+| `authorize(request)` | Optionnel ; par défaut `true`. Renvoyez `false` pour rejeter |
 | `validate(request)` | Si non autorisé → `HttpException(403, "This action is unauthorized.")` ; sinon `Validator.make(request, rules()).validate()` |
 
 <Tabs syncKey="lang">
@@ -247,9 +248,12 @@ public class NotesController extends Controller {
 </TabItem>
 </Tabs>
 
-Vous pouvez aussi appeler `StoreNoteRequest().validate(request)` sans étendre `Controller`. Les échecs d’autorisation sont **403**, pas 422. Les échecs de validation deviennent encore `ValidationException`.
+Vous pouvez aussi appeler `StoreNoteRequest().validate(request)` sans étendre `Controller`. Les échecs d’autorisation sont **403**, pas 422. Les échecs de validation restent des `ValidationException`.
 
-Il n’y a pas de résolution automatique de form request depuis les signatures de route — vous construisez et exécutez la form request vous-même dans l’action.
+Il n’y a pas de résolution automatique de form request depuis les signatures de route — vous construisez et exécutez le form request vous-même à l’intérieur de l’action.
+
+<a id="invokable-controllers"></a>
+<a id="invokable-controllers"></a>
 
 ## Contrôleurs invocables
 
@@ -288,13 +292,16 @@ router.get("/health", Controllers.asHandler(new HealthCheck())).name("health");
 </TabItem>
 </Tabs>
 
-`Controllers.asHandler` / `asHandler()` Kotlin adapte l’invocable à un `Handler` pour le routeur.
+`Controllers.asHandler` / `asHandler()` de Kotlin adapte l’invocable en un `Handler` pour le routeur.
+
+<a id="resource-controllers"></a>
+<a id="resource-controllers"></a>
 
 ## Contrôleurs de ressource
 
-[`Router.resource(name, controller)`](../routing/#resource-routes) branche la carte REST complète (y compris le HTML `create` / `edit`) sur un `ResourceController`. Préférez [`apiResource`](../routing/#api-resource-routes) pour les API JSON (pas de routes de formulaire).
+[`Router.resource(name, controller)`](../routing/#resource-routes) branche la carte REST complète (y compris HTML `create` / `edit`) sur un `ResourceController`. Préférez [`apiResource`](../routing/#api-resource-routes) pour les API JSON (sans routes de formulaire).
 
-`ResourceController` est une interface avec sept méthodes : `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`. Étendez `BaseResourceController` quand vous n’avez besoin que de certaines actions — les non implémentées lancent `NotFoundException` (HTTP 404).
+`ResourceController` est une interface avec sept méthodes : `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`. Étendez `BaseResourceController` quand vous n’avez besoin que de certaines actions — celles non implémentées lancent `NotFoundException` (HTTP 404).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -360,7 +367,7 @@ router.apiResource("notes", new NotesController(), List.of("index", "show"), nul
 </TabItem>
 </Tabs>
 
-`BaseResourceController` étend `Controller`, donc `validate` est disponible. Associez les charges utiles JSON avec [Ressources API](../api-resources/). Le filtrage avec `only` / `except` et la réserve `/resource/create` pour `apiResource` sont documentés sous [Routage](../routing/#resource-routes).
+`BaseResourceController` étend `Controller`, donc `validate` est disponible. Associez les charges JSON avec [Ressources d’API](../api-resources/). Le filtrage avec `only` / `except` et la particularité de `/resource/create` pour `apiResource` sont documentés sous [Routage](../routing/#resource-routes).
 
 ## Renvoyer des réponses
 
@@ -386,7 +393,7 @@ Lancez `NotFoundException`, `HttpException` ou `ValidationException` au lieu de 
 
 ## Cas d’usage courants
 
-### Contrôleur API mince avec validation
+### Contrôleur d’API mince avec validation
 
 ```kotlin
 class UserApiController : Controller() {
@@ -427,7 +434,7 @@ router.get("/reports/latest", ReportDownload(reports).asHandler())
 
 ### `Controller`
 
-Classe ouverte. Protégé : `validate(Request, Map)`, `validate(Request, FormRequest)`.
+Classe ouverte. Protégés : `validate(Request, Map)`, `validate(Request, FormRequest)`.
 
 ### `FormRequest`
 
@@ -443,7 +450,7 @@ Interface : `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`.
 
 ### `BaseResourceController`
 
-Classe abstraite qui étend `Controller` et implémente `ResourceController`. Les implémentations par défaut lancent `NotFoundException()`.
+Classe abstraite étendant `Controller` et implémentant `ResourceController`. Les implémentations par défaut lancent `NotFoundException()`.
 
 ### `Controllers`
 
@@ -451,32 +458,32 @@ Classe abstraite qui étend `Controller` et implémente `ResourceController`. Le
 
 ## Pièges et FAQ
 
-**Dois-je étendre `Controller` ?**
-Non. Étendez-le seulement pour les aides `validate` (ou étendez `BaseResourceController` pour les défauts de ressource).
+**Dois-je étendre `Controller` ?**  
+Non. Étendez-le seulement pour les helpers `validate` (ou étendez `BaseResourceController` pour les défauts de ressource).
 
-**Pourquoi mon contrôleur n’est-il pas construit automatiquement depuis le conteneur ?**
-Kona ne résout pas automatiquement les contrôleurs depuis des références de classe de route. Instanciez-les dans la table de routes (ou une fabrique que vous contrôlez).
+**Pourquoi mon contrôleur n’est-il pas construit automatiquement depuis le conteneur ?**  
+Kona ne résout pas automatiquement les contrôleurs à partir de références de classe de route. Instanciez-les dans la table de routes (ou une fabrique que vous contrôlez).
 
-**Puis-je mettre du middleware sur la classe de contrôleur ?**
+**Puis-je mettre du middleware sur la classe du contrôleur ?**  
 Pas comme annotation de classe. Attachez le middleware sur la route ou le groupe — consultez [Middleware](../middleware/) et [Routage](../routing/#middleware-on-a-route).
 
-**Où vont les erreurs de validation ?**
-Les clients JSON reçoivent 422 ; les clients de formulaire HTML reçoivent un redirect-back avec des erreurs flashées — [Validation](../validation/#the-error-response).
+**Où vont les erreurs de validation ?**  
+Les clients JSON obtiennent 422 ; les clients de formulaire HTML obtiennent un redirect-back avec des erreurs flashées — [Validation](../validation/#the-error-response).
 
 ## Ce qui n’est pas disponible aujourd’hui
 
-- Routage de contrôleur par annotation / attribut
-- Injection de constructeur automatique des contrôleurs depuis le routeur
+- Routage de contrôleurs par annotation / attribut
+- Injection automatique de constructeur des contrôleurs depuis le routeur
 - Attributs de middleware au niveau du contrôleur
 - Enregistrement invocable sans `asHandler` / `Controllers.asHandler`
-- Indications de type de form request qui s’exécutent automatiquement avant l’action
+- Indices de type form request qui s’exécutent seuls avant l’action
 
 ## Étapes suivantes
 
-- Enregistrez des routes, des groupes et des ressources dans [Routage](../routing/).
+- Enregistrez les routes, groupes et ressources dans [Routage](../routing/).
 - Enveloppez les contrôleurs avec [Middleware](../middleware/).
-- Lisez et écrivez des charges utiles dans [Requête et réponse](../request-response/).
-- Déclarez des règles dans [Validation](../validation/).
-- Formez le JSON avec [Ressources API](../api-resources/).
+- Lisez et écrivez les charges dans [Requête et réponse](../request-response/).
+- Déclarez les règles dans [Validation](../validation/).
+- Donnez forme au JSON avec [Ressources d’API](../api-resources/).
 - Construisez des liens avec [Génération d’URL](../url-generation/).
-- Réglez les pages d’échec dans [Exceptions](../exceptions/).
+- Affinez les pages d’échec dans [Exceptions](../exceptions/).

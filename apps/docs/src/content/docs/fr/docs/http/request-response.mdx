@@ -249,6 +249,9 @@ User user = (User) request.getAttribute("user");
 
 Le noyau écrit les **paramètres de route** ici avant que votre handler s’exécute. Pour une route `/users/{id}` et le chemin `/users/42`, `getAttribute("id")` et `getAttribute("route.id")` renvoient tous les deux `"42"` (toujours une `String`). Utilisez la forme `route.` quand un nom simple pourrait entrer en collision avec quelque chose que votre middleware stocke.
 
+<a id="route-parameters-requestroute"></a>
+<a id="route-parameters-requestroute"></a>
+
 ## Paramètres de route (`request.route`)
 
 Après que le routeur apparie un chemin, le noyau stocke chaque `{param}` sur la requête sous `param` et `route.param`. Préférez l’aide dédiée :
