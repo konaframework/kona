@@ -3,13 +3,14 @@ title: Register a panel
 description: The Panel class, the pages, widgets, and resources folders, and how discover loads them.
 ---
 
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A panel becomes part of the app when two things are true: the class calls `discover` on its own directory, and boot calls `mount` on the router. The class is `Panel`. It extends `org.konaframework.firefly.Panel`.
+You register a panel, then drop a page, a widget, or a resource in the folder next to it. `discover` reads those folders. `mount` is what puts the URLs on the router.
 
-:::note[Screenshot placeholder: the panel directory]
-A screenshot of `app/firefly` with `Panel`, `pages/`, `widgets/`, and `resources/` will go here.
-:::
+The class is `Panel`. It extends `org.konaframework.firefly.Panel`. The hello sample and `kona new --kit=firefly` both start from that class.
+
+<FireflyShot file="panel-directory.png" description="The hello-kotlin app/firefly directory, showing Panel.kt, pages/, widgets/, and resources/." />
 
 ## The panel file
 

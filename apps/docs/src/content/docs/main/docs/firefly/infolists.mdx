@@ -3,15 +3,21 @@ title: Infolists
 description: Show a record with text, icons, images, colors, key-value rows, code, and repeatable entries.
 ---
 
-:::note[Screenshot placeholder: the notes infolist]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-An infolist reads state and renders it. It does not collect input. The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). They sit on the schema tree from [Schemas](/docs/firefly/schemas/), so a section, a grid, and tabs are the same layout components you already use.
+<FireflyShot file="notes-infolist.png" description="The name infolist on the Desk page at http://127.0.0.1:4017/admin/desk." />
+
+An infolist shows a record. It does not collect input. You use one on a view page, or anywhere you want a label and a value instead of a field.
+
+The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). They sit on the schema tree from [Schemas](/docs/firefly/schemas/), so a section, a grid, and tabs are the same layouts you already use. On the Desk page the infolist is a single name entry. On orders, the view page at `/admin/orders/view` mounts the order infolist.
 
 Each entry is a `div.ff-entry` with `x-data="ffEntry"`. That Alpine factory is registered by the schema script. Copyable state and live binding use it.
 
 ## An infolist in one call
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val page = Infolist.make()
@@ -25,6 +31,9 @@ page.hydrate()
 val html = page.render()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Infolist page = Infolist.make()
     .statePath("user")
@@ -35,11 +44,17 @@ page.hydrate();
 String html = page.render();
 ```
 
+</TabItem>
+</Tabs>
+
 `Infolist.make()` wraps a `Schema`. `components(...)` replaces the root list. `statePath` prefixes stored paths, so `name` lives at `user.name`. `fill` writes a map. `get` reads a dotted path. `schema()` returns the wrapped schema when you need `set` or partial render. `record` and `operation` are stored on that schema for the page that hosts the infolist.
 
 ## Values and closures
 
 Entry setters return the entry, so you can chain them. A setter accepts a fixed value or a `java.util.function.Function` (or a `Predicate` for flags). The function receives `Get`, the same reader a schema component uses.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val name = TextEntry.make("name")
@@ -48,21 +63,42 @@ name.state(java.util.function.Function { get -> get.get("../name") })
 name.placeholder { "Empty" }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 TextEntry name = TextEntry.make("name");
 name.state("Ada");
 name.placeholder(get -> "Empty");
 ```
 
+</TabItem>
+</Tabs>
+
 The last call wins. `state("Ada")` after a closure stores the literal and drops the closure.
 
 `label`, `heading`, and `description` are overridden on `Entry` and return the entry. Schema methods such as `hidden`, `visible`, and `live` still return the schema `Component`. Call those as statements, then continue with entry methods:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val name = TextEntry.make("name").state("Ada")
 name.hidden { get -> get.get("/draft") == true }
 name.live()
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry name = TextEntry.make("name").state("Ada");
+name.hidden(get -> Boolean.TRUE.equals(get.get("/draft")));
+name.live();
+```
+
+</TabItem>
+</Tabs>
 
 ## Shared entry helpers
 
@@ -91,6 +127,9 @@ Known icon names (`home`, `bars`, `user`, `x`) render inline SVG. Any other name
 
 `TextEntry.make("title")` renders plain text. A list can be a badge, a bullet list, or line breaks. `limitList` with `expandableLimitedList(true)` keeps the extra items and marks them `data-ff-extra`. Without that flag, the tail becomes `+N`.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 TextEntry.make("title")
     .badge(true)
@@ -102,6 +141,24 @@ TextEntry.make("title")
     .words(12)
     .state("A short title")
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry.make("title")
+    .badge(true)
+    .size("lg")
+    .weight("bold")
+    .prose(true)
+    .lineClamp(3)
+    .limit(80)
+    .words(12)
+    .state("A short title");
+```
+
+</TabItem>
+</Tabs>
 
 `markdown(true)` renders a small Markdown subset (emphasis, code, links, and fenced blocks). `html(true)` leaves the string as HTML. `date()`, `dateTime()`, and `time()` format a temporal value. Call them with a pattern, or with no arguments to use `yyyy-MM-dd`, `yyyy-MM-dd HH:mm`, and `HH:mm`. `since()` renders a relative phrase against the current instant. `timezone` sets the zone. `dateTooltip()` adds `data-ff-date-tooltip`. `money()` defaults to USD. `money("EUR")` selects a currency. `numeric()` prints a number. `numeric(2)` sets the decimal places. `formatStateUsing` replaces the formatted text with the closure’s string.
 
@@ -125,6 +182,9 @@ The method is `bool`, because `boolean` is a Java keyword. The pair helpers are 
 
 `KeyValueEntry.make("meta")` renders a map as a table. `keyLabel` and `valueLabel` rename the headers (defaults are `Key` and `Value`). `emptyMessage` is the placeholder when the map is empty (default `No values`). A null key is skipped.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 KeyValueEntry.make("meta")
     .keyLabel("Field")
@@ -132,9 +192,25 @@ KeyValueEntry.make("meta")
     .state(mapOf("city" to "Kona"))
 ```
 
+</TabItem>
+<TabItem label="Java">
+
+```java
+KeyValueEntry.make("meta")
+    .keyLabel("Field")
+    .valueLabel("Detail")
+    .state(Map.of("city", "Kona"));
+```
+
+</TabItem>
+</Tabs>
+
 ## Code
 
 `CodeEntry.make("snippet")` sends the raw source and a grammar name to the browser. The entry is `data-ff-shiki="shiki"` and includes a JSON payload. The browser script calls Shiki `createHighlighter`, then `codeToHtml`. Light and dark themes default to `github-light` and `github-dark`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 CodeEntry.make("snippet")
@@ -144,6 +220,20 @@ CodeEntry.make("snippet")
     .state("val name = \"Ada\"")
 ```
 
+</TabItem>
+<TabItem label="Java">
+
+```java
+CodeEntry.make("snippet")
+    .language("kotlin")
+    .lightTheme("github-light")
+    .darkTheme("github-dark")
+    .state("val name = \"Ada\"");
+```
+
+</TabItem>
+</Tabs>
+
 `language` is an alias of `grammar`. A string with no grammar uses `html`. A map or a list uses `json`. `jsonFlags` is passed to the JSON writer: bit 1 tags hex, bit 64 leaves slashes unescaped when clear, and bit 128 pretty-prints.
 
 `ShikiCode.source()` returns the browser script. `ShikiCode.manifest()` returns `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`. Load that script next to a Shiki build that exports `createHighlighter`. The same grammar names and themes are the ones a CodeMirror editor would load. Call `highlightCodeEntry(root, shiki)` with the Shiki module.
@@ -151,6 +241,9 @@ CodeEntry.make("snippet")
 ## Repeatable
 
 `RepeatableEntry.make("comments")` repeats its child schema once per item. State may be one map or a list of maps. Empty maps and values that are not maps are skipped. A dotted child name is read from the current item.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 RepeatableEntry.make("comments")
@@ -160,11 +253,28 @@ RepeatableEntry.make("comments")
     .state(listOf(mapOf("title" to "First")))
 ```
 
+</TabItem>
+<TabItem label="Java">
+
+```java
+RepeatableEntry.make("comments")
+    .contained(true)
+    .grid(2)
+    .schema(TextEntry.make("title"))
+    .state(java.util.List.of(java.util.Map.of("title", "First")));
+```
+
+</TabItem>
+</Tabs>
+
 `table(TableColumn.make("Title"))` renders a table. `hiddenHeaderLabel()` hides that header with the `ff-sr` class. Child schema components, including `Text.make`, render in the cells. The default empty placeholder is `No items`.
 
 ## Layouts
 
 Place entries inside the schema layouts. Do not build a second section type.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Infolist.make().components(
@@ -177,6 +287,9 @@ Infolist.make().components(
 )
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Infolist.make().components(
     Section.make("Profile").schema(
@@ -186,9 +299,15 @@ Infolist.make().components(
 );
 ```
 
+</TabItem>
+</Tabs>
+
 ## Your own entry
 
 Subclass `Entry` and set both `view` and `meta("ff-view", ...)` so the schema renders the Crema view.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class NoteEntry(name: String) : Entry<NoteEntry>(name) {
@@ -199,6 +318,9 @@ class NoteEntry(name: String) : Entry<NoteEntry>(name) {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 public class NoteEntry extends Entry<NoteEntry> {
     public NoteEntry(String name) {
@@ -208,6 +330,9 @@ public class NoteEntry extends Entry<NoteEntry> {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 `./grind make:firefly-entry Note` writes `app/firefly/entries/Note.kt` and a Crema view that uses `x-data="ffEntry"` and `@entangle`. `--lang=java` writes a Java class. The view name is `firefly.entries.note`.
 

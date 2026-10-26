@@ -3,17 +3,21 @@ title: Dialog
 description: The shared Firefly dialog — modal, sidebar, and fullscreen — including width, drag, and configureUsing.
 ---
 
-:::note[Screenshot placeholder: a dialog that stays closed until it is opened]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`Dialog` is the one dialog component. You choose a mode, a width, a title, and a body, then `render()` returns HTML. The dialog does not open itself and it does not post to the server. The page that embeds the HTML decides when it is shown. Drag behavior is a marker for the client: `x-data="ffDialog"` and `data-ff-drag="true"`. The support artifact does not ship that script.
+<FireflyShot file="dialog.png" description="The Edit dialog on the Desk page at http://127.0.0.1:4017/admin/desk, opened from the Edit header action, with a note field inside." />
+
+A dialog is the window that opens on top of a page. You use it for a confirmation, a short form, or a side panel. There is one component, `Dialog`. You pick a mode, a width, a title, and a body, and `render()` returns the HTML.
+
+The dialog does not open itself, and it does not post to the server. The page that embeds the HTML decides when it is shown. On the Desk page the Edit action’s dialog is in the first response and stays closed until the button opens it.
 
 ## Create one
 
 `Dialog.make(title)` returns a dialog. The default mode is modal, the default width is `lg`, and dragging is on. `configureUsing`, if set, runs on the new dialog before `make` returns.
 
-Kotlin:
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val html = Dialog.make("Edit category")
@@ -21,13 +25,17 @@ val html = Dialog.make("Edit category")
     .render()
 ```
 
-Java:
+</TabItem>
+<TabItem label="Java">
 
 ```java
 String html = Dialog.make("Edit category")
     .body("<p>Name</p>")
     .render();
 ```
+
+</TabItem>
+</Tabs>
 
 The title is HTML-escaped. `A & B <tag> "q"` becomes `A &amp; B &lt;tag&gt; &quot;q&quot;`. The body is inserted as the string you passed. Escape body HTML yourself when it comes from a user.
 
@@ -72,7 +80,8 @@ The modal window is offset by the stylesheet: `.ff-dialog-modal .ff-dialog-windo
 
 `Dialog.configureUsing` stores one `Consumer<Dialog>` used by later `make` calls. Pass `null` to clear it. The setting is static and shared by every `make` in the process until you replace or clear it.
 
-Kotlin:
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Dialog.configureUsing { dialog -> dialog.width("md") }
@@ -80,13 +89,17 @@ val html = Dialog.make("Edit").slideOver().render()
 Dialog.configureUsing(null)
 ```
 
-Java:
+</TabItem>
+<TabItem label="Java">
 
 ```java
 Dialog.configureUsing(dialog -> dialog.width("md"));
 String html = Dialog.make("Edit").slideOver().render();
 Dialog.configureUsing(null);
 ```
+
+</TabItem>
+</Tabs>
 
 The example’s HTML contains `ff-dialog-sidebar`, `ff-dialog-md`, and `data-ff-position="end"`. It does not contain `data-ff-align`.
 

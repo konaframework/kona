@@ -3,13 +3,14 @@ title: Plugins
 description: Extend a panel with FireflyPlugin register and boot, using the same methods an application calls.
 ---
 
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A plugin is a class that receives the `Panel` and calls the same methods an application calls. There is no plugin registry. You pass the instance to `plugin(...)`.
+A plugin is a class that receives the panel and calls the same methods you would call from the app. You use one when a banner, a brand, or an extra page should travel with the panel instead of being copied into every `Panel` file.
 
-:::note[Screenshot placeholder: a plugin banner]
-A screenshot of a panel body with a plugin hook will go here.
-:::
+There is no plugin registry and no catalog to install from. You pass the instance to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts.
+
+<FireflyShot file="plugin-banner.png" description="A panel body with the Banner text a plugin hook appends at the end of the body." />
 
 ## How it runs
 

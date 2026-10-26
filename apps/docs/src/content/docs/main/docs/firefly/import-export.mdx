@@ -3,25 +3,35 @@ title: Import and export
 description: Export rows to CSV and import them back, through a dialog action and a queue job.
 ---
 
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Import and export are two jobs plus two dialog actions. `ExportRows` writes CSV. `ImportRows` reads CSV. Both implement `ShouldQueue`, so a queue `Bus` can run them. Pass `null` as the bus and `handle()` runs on the caller.
+Import and export move rows through a dialog and a job. Export writes CSV. Import reads it back. You put the action on a page header or a table, the same way you put any other action there.
 
-:::note[Screenshot placeholder: the export dialog]
-A screenshot of the export dialog action will go here.
-:::
+Both jobs implement `ShouldQueue`, so a queue `Bus` can run them. Pass `null` as the bus and `handle()` runs on the caller. The dialog stays closed until it is opened, like every other Firefly dialog.
+
+<FireflyShot file="export-dialog.png" description="The Export dialog opened from the export action, with the heading Export." />
 
 ## Actions
 
 `FireflyTransfer.exportAction()` is an action named `export`, labeled `Export`, opened as a modal headed `Export`. `importAction()` is the same shape with the name `import`. Put either action on a page header or a table. The dialog stays closed until Alpine opens it, the same as every other Firefly dialog.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction())
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction());
 ```
+
+</TabItem>
+</Tabs>
 
 ## Run the jobs
 
@@ -55,6 +65,9 @@ CSV encoding quotes a cell that contains a comma or a quote, and doubles quotes 
 
 `Firefly.test` reads a rendered page, form, table, or dialog. It lives in `org.konaframework.firefly.testing`.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 Firefly.test(page)
     .assertSee("Ada")
@@ -63,9 +76,15 @@ Firefly.test(page)
     .assertDialog("Export")
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Firefly.test(page).assertSee("Ada").assertFormField("name");
 ```
+
+</TabItem>
+</Tabs>
 
 `assertSee` fails when the HTML does not contain the text. `assertFormField` looks for `data-ff-path`. A custom field subclass is found the same way. `assertTable` requires both `ff-table` and the text. `assertDialog` requires both `ff-dialog` and the title. `Firefly.test(html)` asserts against a string you already rendered.
 

@@ -3,13 +3,14 @@ title: Pages
 description: Panel pages — title, actions, a content region, widgets, and the list, create, edit, view, manage, and custom types.
 ---
 
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A page is the screen a panel route serves. It has a title, header actions, footer actions, a content region, and optional widgets. The content region mounts a schema, a form, an infolist, or a table. Rendering those pieces on their own still works for tests and embedding. The panel is what turns a page into a URL.
+A page is one screen. It has a title, buttons in the header and the footer, a content region, and any widgets you place on it. The content region is where the form, the infolist, or the table goes.
 
-:::note[Screenshot placeholder: the Desk page]
-A screenshot of `/admin/desk`, with the form, the table, and the Desk widget, will go here.
-:::
+You can call `render()` on that page from a test. The panel is what turns the same page into a URL. In the hello sample, Desk is a custom page at `/admin/desk`.
+
+<FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
 
 The types live in `org.konaframework.firefly` and `org.konaframework.firefly.widgets`. `PanelPage` extends `Page`. `ListPage`, `CreatePage`, `EditPage`, `ViewPage`, `ManagePage`, and `CustomPage` are the page kinds. `Dashboard` is a `Page` whose section class is `ff-page ff-dashboard`.
 

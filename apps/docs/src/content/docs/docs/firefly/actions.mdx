@@ -3,23 +3,35 @@ title: Actions
 description: Build a Firefly action, open it in the shared dialog, and run it from Wire.
 ---
 
-:::note[Screenshot placeholder: a header action on the Desk page]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-An action is a button or a link. It can open the shared [dialog](/docs/firefly/dialog/), show a schema inside that dialog, and call a server method. Actions live in `org.konaframework.firefly.actions` (`kona-firefly-actions`). They use `kona-firefly-schemas` for closures and modal content, and `kona-firefly-support` for `Dialog` and icons.
+<FireflyShot file="header-action.png" description="The Edit header action on the Desk page at http://127.0.0.1:4017/admin/desk." />
+
+An action is a button or a link. You use one when the user should save, delete, or open a dialog without you writing the button HTML. The same object can show a schema inside the shared [dialog](/docs/firefly/dialog/) and call a server method when the dialog is submitted.
+
+Actions live in `org.konaframework.firefly.actions` (`kona-firefly-actions`). On the hello sample, the Desk page puts an Edit action in the header. That action opens a dialog with a note field.
 
 ## A button in one call
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val save = Action.make("save").label("Save")
 val html = Schema.make().components(save).render()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Action save = Action.make("save").label("Save");
 String html = Schema.make().components(save).render();
 ```
+
+</TabItem>
+</Tabs>
 
 `make` takes the action name. The name is a letter or `_`, then letters, digits, and `_`. `save` and `save_record` are valid. `bad-name` throws `FireflyException`.
 
@@ -31,6 +43,9 @@ The rendered button has `x-data="ffAction('save')"` and `wire:click="save"`. `ff
 
 Text and flag setters take a fixed value or a closure. The closure receives `Get`, the same reader a schema component uses. A path that starts with `/` is absolute. Other paths are relative to the action’s container.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val save = Action.make("save")
 save.label("Save")
@@ -38,9 +53,15 @@ save.label { get -> if (get.get("/kind") == "org") "Save organization" else "Sav
 save.icon { get -> if (get.get("/kind") == "org") "user" else "home" }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 save.label(get -> "org".equals(get.get("/kind")) ? "Save organization" : "Save");
 ```
+
+</TabItem>
+</Tabs>
 
 The last call wins. `label("Save")` after a closure stores the fixed string. The same shape is on `icon`, `color`, `tooltip`, `badge`, `badgeColor`, `size`, `iconPosition`, `url`, `openUrlInNewTab`, `requiresConfirmation`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `modalCancelActionLabel`, `modalIcon`, `modalIconColor`, `modalWidth`, `successRedirectUrl`, and `failureRedirectUrl`.
 
@@ -52,13 +73,22 @@ The last call wins. `label("Save")` after a closure stores the fixed string. The
 
 `authorize(false)` hides the action. `authorize { get -> get.get("/ok") == true }` hides it when the predicate is false. `authorize("edit")` asks `Action.gate`. With no gate installed, a named ability is denied and the action is hidden. A gate that returns true shows it.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 Action.gate { ability, component, schema -> ability == "edit" }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Action.gate((ability, component, schema) -> "edit".equals(ability));
 ```
+
+</TabItem>
+</Tabs>
 
 `authorize(true)`, a predicate, and a named ability all apply. Any denial hides the action. `Action.gate(null)` clears the gate. The gate is process-wide.
 
@@ -114,15 +144,33 @@ Submit text is `Confirm` when confirmation is on, otherwise `Submit`, unless `mo
 
 `schema(Text.make("Hello"))` renders those components in the dialog body. Layouts and primes from the schema module work, including a wizard:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 Action.make("edit").schema(
     Wizard.make().steps(WizardStep.make("Details")),
 )
 ```
 
+</TabItem>
+<TabItem label="Java">
+
+```java
+Action.make("edit").schema(
+    Wizard.make().steps(WizardStep.make("Details"))
+);
+```
+
+</TabItem>
+</Tabs>
+
 `schema()` with no components does not open a dialog. This module does not add inputs, fill a form, or run validation.
 
 ## Groups
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val group = ActionGroup.make(save, Action.make("delete").label("Delete"))
@@ -131,15 +179,24 @@ val group = ActionGroup.make(save, Action.make("delete").label("Delete"))
     .dropdown()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 ActionGroup group = ActionGroup.make(List.of(save)).label("More").button();
 ```
+
+</TabItem>
+</Tabs>
 
 `dropdown()` is the default. The trigger toggles Alpine `open`. The menu starts hidden. `button()` lays the actions in a row (`ff-action-group-inline`). Groups take `label`, `icon`, `color`, `tooltip`, `placement`, `hidden`, `visible`, `disabled`, and `authorize` the same way an action does. `disabled(true)` disables the dropdown trigger. On an inline group it sets `aria-disabled="true"`.
 
 `configureUsing` on `Action` or `ActionGroup` runs for every later `make()` of that class. Pass `null` to clear it. It does not apply to a subclass you construct yourself.
 
 ## Running the action
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 save.arguments(mapOf("id" to 7))
@@ -151,6 +208,22 @@ save.failureRedirectUrl("/customers")
 val result = save.call(schema)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
+```java
+save.arguments(Map.of("id", 7));
+save.before((action, schema) -> { });
+save.action((action, schema) -> { });
+save.after((action, schema) -> { });
+save.successRedirectUrl("/customers");
+save.failureRedirectUrl("/customers");
+ActionResult result = save.call(schema);
+```
+
+</TabItem>
+</Tabs>
+
 Order on success: `before`, the handler, `after`. The result `status` is `success`. `url` is set for a link action. `redirectUrl` is that link, or `successRedirectUrl` for a handler. The button also carries `data-ff-success-url` when a success URL is set. `call` does not send the browser anywhere. The caller does.
 
 `halt()` throws `ActionHalt`, skips `after`, and `call` returns status `halted` with the message `Action halted`. `failure("nope")` throws `ActionFailure`, skips `after`, and `call` returns status `failed` with that message and `failureRedirectUrl`. Any other exception leaves `call`.
@@ -161,6 +234,9 @@ Order on success: `before`, the handler, `after`. The result `status` is `succes
 
 Subclass `Action`. The constructor name is the Wire method name.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 open class SaveRecord : Action("saveRecord") {
     init {
@@ -170,6 +246,9 @@ open class SaveRecord : Action("saveRecord") {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 public class Rename extends Action {
     public Rename() {
@@ -178,6 +257,9 @@ public class Rename extends Action {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 `view("notes.action")` renders that Crema view when `Schema.crema(engine)` is set. The view receives `path`, `name`, `label`, and `content`. Without an engine, render emits `<div data-ff-view="notes.action">`. A hidden action does not render the view.
 

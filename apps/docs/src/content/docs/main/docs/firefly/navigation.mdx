@@ -3,13 +3,14 @@ title: Navigation
 description: Where a panel draws its navigation, how deep the tree can go, and how labels and URLs are set.
 ---
 
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Navigation is the tree of links in the panel chrome. Each panel has one `NavigationType`. Items are `NavigationItem` nodes. When you do not call `item` yourself, `mount` builds the tree from pages and resources.
+Navigation is the list of links your user actually clicks. Each panel has one layout for that tree. If you never build the tree yourself, `mount` builds it from the pages and resources it discovered.
 
-:::note[Screenshot placeholder: panel navigation]
-A screenshot of the desk sidebar, including the Notes and Orders groups, will go here.
-:::
+On the hello sample that means a link for Desk, a Notes group, and an Orders group. The labels come from the page slug and the resource label, which is why you may see `desk` and `manage` until you set a label.
+
+<FireflyShot file="panel-navigation.png" description="The hello-kotlin sidebar at http://127.0.0.1:4017/admin/desk, with the desk link and the Notes and Orders groups." />
 
 ## How the three types draw
 

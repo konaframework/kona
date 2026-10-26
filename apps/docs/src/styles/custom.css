@@ -93,3 +93,21 @@ a:not(.sl-link-button):hover {
 starlight-tabs [role='tabpanel'][hidden] {
   display: none;
 }
+
+.firefly-shot {
+  margin: 1.25rem 0;
+}
+
+.firefly-shot img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 0.5rem;
+}
+
+.firefly-shot figcaption {
+  margin-top: 0.5rem;
+  color: var(--sl-color-gray-3);
+  font-size: 0.9rem;
+}

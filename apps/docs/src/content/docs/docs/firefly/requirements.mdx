@@ -3,11 +3,13 @@ title: Requirements
 description: JDK, Kona, and the pieces a Firefly panel needs before you install it.
 ---
 
-Firefly runs inside a Kona application. You do not install a second runtime.
+import FireflyShot from '../../../../components/FireflyShot.astro';
 
-:::note[Screenshot placeholder: a Kona app ready for a panel]
-A screenshot of a fresh app directory, before the panel is added, will go here.
-:::
+You already have a Kona app. Firefly does not ask you to install another runtime next to it. You add the panel module, write a `Panel`, and mount it on the router you already use.
+
+The hello samples (`samples/hello-kotlin` and `samples/hello-java`) are that app. `/` is still the welcome page. The desk lives at `/admin`.
+
+<FireflyShot file="app-ready.png" description="The hello-kotlin welcome page at http://127.0.0.1:4017/, a Kona app serving a route before you open the panel." />
 
 ## Runtime
 
