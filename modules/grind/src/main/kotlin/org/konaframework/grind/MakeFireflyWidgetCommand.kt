@@ -13,17 +13,17 @@ class MakeFireflyWidgetCommand {
         Names.requireClassName("widget", name)
         val base = Names.base(options)
         val lang = Names.lang(base, options)
-        write(base, name, lang)
+        write(base, name, lang, panelIdFromOptions(options))
         return 0
     }
 
     companion object {
-        internal fun write(base: Path, className: String, lang: String) {
+        internal fun write(base: Path, className: String, lang: String, panel: String) {
             Names.write(
                 base,
-                Names.sourceFile(lang, "app/firefly/widgets", className),
+                Names.sourceFile(lang, "app/panels/$panel/widgets", className),
                 "Firefly widget",
-                source(className, lang),
+                source(className, lang, panel),
             )
             Names.write(
                 base,
@@ -33,9 +33,9 @@ class MakeFireflyWidgetCommand {
             )
         }
 
-        private fun source(name: String, lang: String): String = if (lang == "java") {
+        private fun source(name: String, lang: String, panel: String): String = if (lang == "java") {
             lines(
-                "package app.firefly.widgets;",
+                "package app.panels.$panel.widgets;",
                 "",
                 "import org.konaframework.firefly.widgets.Widget;",
                 "",
@@ -48,7 +48,7 @@ class MakeFireflyWidgetCommand {
             )
         } else {
             lines(
-                "package app.firefly.widgets",
+                "package app.panels.$panel.widgets",
                 "",
                 "import org.konaframework.firefly.widgets.Widget",
                 "",

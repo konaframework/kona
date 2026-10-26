@@ -36,9 +36,23 @@ object PanelDiscovery {
     @JvmStatic
     fun widgets(panelDirectory: Path): List<Widget> = WidgetDiscovery.discover(panelDirectory)
 
+    /** Panel classes that live directly under [directory], including nested packages. */
+    @JvmStatic
+    fun panels(directory: Path): List<Panel> = panels(directory, Thread.currentThread().contextClassLoader)
+
+    @JvmStatic
+    fun panels(directory: Path, loader: ClassLoader): List<Panel> {
+        if (!Files.exists(directory)) return emptyList()
+        return loadDirectory(directory, "panels", loader, Panel::class.java)
+    }
+
     private fun <T> load(panelDirectory: Path, folder: String, loader: ClassLoader, type: Class<T>): List<T> {
         val dir = panelDirectory.resolve(folder)
         if (!Files.exists(dir)) return emptyList()
+        return loadDirectory(dir, folder, loader, type)
+    }
+
+    private fun <T> loadDirectory(dir: Path, folder: String, loader: ClassLoader, type: Class<T>): List<T> {
         if (!Files.isDirectory(dir)) throw FireflyException("Panel $folder path is not a directory [$dir]")
         val found = ArrayList<T>()
         Files.walk(dir).use { stream ->
@@ -74,6 +88,7 @@ object PanelDiscovery {
             val ctor = loaded.getDeclaredConstructor()
             ctor.isAccessible = true
             val created = ctor.newInstance()
+            if (created is Panel) created.adoptHome(file.parent)
             return type.cast(created)
         } catch (ex: NoSuchMethodException) {
             throw FireflyException("Panel $folder [$qualified] has no no-arg constructor")

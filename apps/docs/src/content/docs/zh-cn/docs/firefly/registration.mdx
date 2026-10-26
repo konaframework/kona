@@ -107,13 +107,13 @@ Java 在 `src/main/java/app/firefly/` 下使用同样的名字。
 
 字段、条目、列、筛选、动作、布局和主题的生成器写入兄弟文件夹（`fields/`、`entries/`、`columns/`、`filters/`、`actions/`、`layouts/`、`themes/`）。`discover` 不扫描这些文件夹。你从页面、资源或 `theme(...)` 引用这些类。
 
-你仍然可以在面板上调用 `page`、`widget` 和 `resource`，而不使用发现。没有应用级注册表。
+你仍然可以在面板上调用 `page`、`widget` 和 `resource`。`app/panels` 下的面板会被发现。要用手传入一个面板时，在应用的 `FireflyServiceProvider` 里调用 `Firefly.register`。
 
 发现到的部件放在 slug 为空的页面上，或者当没有页面的 slug 为空时放在第一页。在 hello 示例里第一页是 `Desk`，因此 `DeskWidget` 渲染在 `/admin/desk`。
 
 ## mount 提供什么
 
-使用 `path("admin")` 时，页面和资源 URL 看起来像这样：
+没有调用 `path` 时，前缀是面板 id。下面是 hello 示例调用 `path("admin")` 之后的 URL：
 
 | URL | 屏幕 |
 |-----|------|
@@ -124,7 +124,7 @@ Java 在 `src/main/java/app/firefly/` 下使用同样的名字。
 | `/admin/orders/edit` | 订单编辑 |
 | `/admin/orders/view` | 订单查看 |
 
-`path("")` 在站点根提供同样的屏幕。即使 `authenticate(false)` 跳过重定向，认证屏幕（`/admin/login`、`/admin/register`、`/admin/password-reset`、`/admin/email-verify`、`/admin/profile`）也会被登记。
+`path("")` 在站点根提供同样的屏幕。`path("admin")` 把它们放在 `/admin`。认证屏幕（`login`、`register`、`password-reset`、`email-verify`、`profile`）登记在面板前缀下面，即使 `authenticate(false)` 跳过重定向。
 
 ## 下一步
 

@@ -1,14 +1,14 @@
 ---
 title: Panel
-description: Set the id, path, and brand on app/firefly/Panel, then call mount. That is the class that registers the desk routes.
+description: Set the id, path, and brand on the panel class. If path is omitted, the URL prefix is the panel id.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Set the id, the URL prefix, and the brand, then call `mount`. The file in your app is `app/firefly/Panel`. The class it extends is `org.konaframework.firefly.Panel`.
+Set the id, the URL prefix, and the brand. The class you write extends `org.konaframework.firefly.Panel`. After `./grind install firefly`, the provider mounts every panel under `app/panels` on boot. `./grind make:firefly-panel` writes that class.
 
-The module does not register routes until you call `mount`. Chrome, the sidebar and the top bar, is a second class with the same simple name, `org.konaframework.firefly.support.Panel`. That one is on [Panel chrome](/docs/firefly/chrome/). The class you write is the one in `org.konaframework.firefly`.
+The chrome, the sidebar and the top bar, is a second class with the same simple name, `org.konaframework.firefly.support.Panel`. That one is on [Panel chrome](/docs/firefly/chrome/). The class you write is the one in `org.konaframework.firefly`.
 
 <FireflyShot file="desk-panel.png" description="The hello-kotlin panel at http://127.0.0.1:4017/admin/desk, with the sidebar and the Desk page in the body." />
 
@@ -21,9 +21,8 @@ Chainable setters accept a static value or a closure. The closure receives the s
 
 ```kotlin
 val panel = Panel()
-    .id("desk")
-    .path("admin")
-    .brand("Desk")
+    .id("billing")
+    .brand("Billing")
     .navigation(NavigationType.APP)
     .page(ListPage("orders"))
 panel.mount(router)
@@ -34,9 +33,8 @@ panel.mount(router)
 
 ```java
 Panel panel = new Panel();
-panel.id("desk");
-panel.path("admin");
-panel.brand("Desk");
+panel.id("billing");
+panel.brand("Billing");
 panel.navigation(NavigationType.APP);
 panel.page(new ListPage("orders"));
 panel.mount(router);
@@ -45,9 +43,9 @@ panel.mount(router);
 </TabItem>
 </Tabs>
 
-`path("admin")` and `path("/admin/")` both serve `/admin`. `path("")` and `path("/")` serve the site root. A root panel registers each page, auth screen, and resource page by name. It does not register a catch-all.
+If `path` is not set, the URL prefix is the panel id. The example above is `/billing/orders`. `path("admin")` and `path("/admin/")` both serve `/admin`. `path("")` and `path("/")` serve the site root. A root panel registers each page, auth screen, and resource page by name. It does not register a catch-all.
 
-If a path is already routed, `mount` throws `FireflyException` and names both handlers. Two panels can mount on one router, one at `path("")` and one at `path("admin")`. `domain("ops.example")` rejects a request whose `Host` header does not match, including when the header includes a port.
+If a path is already routed, `mount` throws `FireflyException` and names both handlers. Two panels can mount on one router when their prefixes differ: one can use its id, one can call `path("admin")`, and one can call `path("")`. `domain("ops.example")` rejects a request whose `Host` header does not match, including when the header includes a port.
 
 `mount(router, state)` evaluates closures against that state map. A second `mount` throws `Panel [id] is already mounted`.
 
@@ -55,7 +53,7 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 
 | Method | What you get |
 |--------|----------------|
-| `id` / `path` / `brand` / `domain` | String or `Get` closure. Id defaults to `admin`. Path defaults to `admin`. Brand defaults to `Firefly` |
+| `id` / `path` / `brand` / `domain` | String or `Get` closure. Id defaults to `admin`. If `path` is omitted, the prefix is the id. Brand defaults to `Firefly` |
 | `navigation` / `topNavigation()` | `NavigationType`. Default `APP`. See [Navigation](/docs/firefly/navigation/) |
 | `theme(FireflyTheme)` | Tokens and partials. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the shell arrangement |
@@ -88,13 +86,15 @@ When the guard has no id, the user chip reads **Guest**.
 
 ```bash
 ./grind make:firefly-panel
-./grind make:firefly-panel --lang=java --id=desk --path=admin
+./grind make:firefly-panel --id=billing
+./grind make:firefly-panel --lang=java --id=billing --path=staff
+./grind make:firefly-panel --id=billing --path=
 ./grind firefly:install
 ./grind make:firefly-theme Harbor
 ./grind firefly:publish
 ```
 
-`make:firefly-panel` and `firefly:install` write `Panel` plus empty `pages/`, `widgets/`, and `resources/` folders. The generated class sets `id` and `path` only. `firefly:publish` copies the sidebar partial into `resources/views/firefly/sidebar.crema.html` so you can edit it. Keep the hook markers in that partial, or `render` throws.
+`make:firefly-panel` and `firefly:install` write `app/panels/{id}/Panel` plus empty `pages/`, `widgets/`, and `resources/` folders. Omit `--path` and the class does not call `path`. `--path=staff` writes `path("staff")`. `--path=` writes `path("")`. `firefly:publish` copies the sidebar partial into `resources/views/firefly/sidebar.crema.html` so you can edit it. Keep the hook markers in that partial, or `render` throws.
 
 ## Next
 

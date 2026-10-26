@@ -12,7 +12,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 <FireflyShot file="desk-panel.png" description="hello-kotlin 面板，位于 http://127.0.0.1:4017/admin/desk，侧栏和正文里的 Desk 页。" />
 
-这些页面上的截图是 `apps/docs/public/images/firefly/` 里的 PNG 文件。每一页点名它期望的文件。把该文件放进文件夹并重新构建文档站点，图片就会替换占位。文件还没在那里时，页面显示文件名、文件夹，以及这张截图的一句话说明。文件名列表在该文件夹的 README 里。
+没有调用 `path` 时，URL 前缀是面板 id。`path("admin")` 提供 `/admin`。`path("")` 提供站点根。`./grind install firefly` 之后，应用会在启动时发现 `app/panels` 下的每一个面板。
 
 :::note
 Firefly 从 [Filamentphp](https://filamentphp.com/) 取了一个简短的提示。从这里开始，这些页面按 Firefly 自身的术语来描述。

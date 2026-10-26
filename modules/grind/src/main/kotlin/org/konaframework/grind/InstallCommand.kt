@@ -47,6 +47,10 @@ class InstallCommand(
                 io.success("Registered providers: ${providers.added.joinToString(", ")}")
             }
             io.warn("Refresh Gradle / rebuild so the dependency is on the classpath.")
+            if (isFireflyPackage(result.resolved.artifact)) {
+                FireflyProjectInstall.install(root, Names.lang(root, options))
+                io.success("Firefly config and service provider are in place.")
+            }
             if (isInertiaPackage(result.resolved.artifact)) {
                 InertiaFrontendSetup(
                     root,
@@ -70,4 +74,7 @@ class InstallCommand(
 
     private fun isInertiaPackage(artifact: String): Boolean =
         artifact.equals("kona-inertia", ignoreCase = true)
+
+    private fun isFireflyPackage(artifact: String): Boolean =
+        artifact.equals("kona-firefly", ignoreCase = true)
 }
