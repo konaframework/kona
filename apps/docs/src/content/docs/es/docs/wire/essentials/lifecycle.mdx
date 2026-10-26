@@ -1,0 +1,127 @@
+---
+title: Ciclo de vida de Wire
+description: mount, boot, hydrate, hooks de propiedades, renderizado y manejo de excepciones.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire ejecuta una secuencia fija de **hooks de ciclo de vida** en el montaje y en cada actualización. Los hooks son métodos ordinarios encontrados por nombre — **no** se pueden llamar desde el navegador.
+
+## Primer montaje
+
+Orden en el primer render:
+
+1. Asigna los mount/params coincidentes a las propiedades
+2. `boot()`
+3. `boot…` / `initialize…` de los mixins de interfaz
+4. `mount(...)` (y `mount…` de los mixins)
+5. `booted()`
+6. Render (`rendering` → HTML → `rendered`)
+
+`mount` recibe los atributos de la etiqueta / los params de `Wire.mount` (y puede tomar argumentos finales resueltos del contenedor).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Counter : Component() {
+    var count = 0
+
+    fun mount(start: Int = 0) {
+        count = start
+    }
+
+    fun boot() {
+        // runs on mount and on every subsequent request
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Counter extends Component {
+    public int count = 0;
+
+    public void mount(int start) {
+        count = start;
+    }
+
+    public void boot() {
+        // runs on mount and on every subsequent request
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Peticiones posteriores
+
+En `POST /wire/update`, Wire restaura el estado desde la instantánea y luego:
+
+1. `boot` / boot del mixin / `initialize…`
+2. `hydrate` / `hydrateFoo`
+3. `booted`
+4. Actualizaciones de propiedades → `updating` / `updatingFoo` / variantes anidadas, luego `updated…`
+5. Llamadas a acciones
+6. `dehydrate` / `dehydrateFoo`
+7. Render (salvo que se omita)
+
+## Hooks de propiedades
+
+| Hook | Cuándo |
+|------|------|
+| `updating(path, value)` | Antes de cualquier escritura de propiedad |
+| `updated(path, value)` | Después de cualquier escritura de propiedad |
+| `updatingFoo` / `updatedFoo` | Para la propiedad `foo` |
+| Anidados | Estilo `updatedFoo($value, $key)` para rutas `foo.bar` |
+
+```kotlin
+fun updatedCount(value: Int) {
+    // count just changed
+}
+
+fun updating(path: String, value: Any?) {
+    // any path, e.g. "todos.0.title"
+}
+```
+
+## Hooks de render
+
+```kotlin
+fun rendering(view: WireView, data: MutableMap<String, Any?>) {
+    data["extra"] = true
+}
+
+fun rendered(view: WireView, html: String) {
+    // inspect or log final HTML
+}
+```
+
+## Excepciones
+
+```kotlin
+fun exception(e: Throwable, stopPropagation: () -> Unit) {
+    if (e is IllegalStateException) stopPropagation()
+}
+```
+
+## Mixins de interfaz
+
+Cuando tu componente implementa interfaces, Wire también busca hooks al estilo mixin como `bootWithX`, `mountWithX`, `hydrateWithX`, `updatingWithX` (se añade el nombre simple de la interfaz). Úsalos para compartir comportamiento entre familias de componentes sin herencia.
+
+## Omitir el render
+
+```kotlin
+fun touch() {
+    skipRender() // or @Renderless on the method
+}
+```
+
+## Siguiente
+
+- [Propiedades](/docs/wire/essentials/properties/) — lo que observan los hooks
+- [Acciones](/docs/wire/essentials/actions/) — lo que corre entre hydrate y dehydrate
+- [Pruebas](/docs/wire/dx/testing/) — afirmar resultados del ciclo de vida
