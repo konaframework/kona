@@ -28,6 +28,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Firefly actions (M30, train **0.4.x**) | `modules/firefly-actions` → `:kona-firefly-actions` | `apps/docs` (Firefly → Actions) | https://docs.konaframework.org/docs/firefly/actions/ |
 | Firefly infolists (M32, train **0.4.x**) | `modules/firefly-infolists` → `:kona-firefly-infolists` | `apps/docs` (Firefly → Infolists) | https://docs.konaframework.org/docs/firefly/infolists/ |
 | Firefly tables (M33, train **0.4.x**) | `modules/firefly-tables` → `:kona-firefly-tables` | `apps/docs` (Firefly → Tables) | https://docs.konaframework.org/docs/firefly/tables/ |
+| Firefly forms (M31, train **0.4.x**) | not on `main`. Branch `milestone/M31-firefly-forms` (`5c56f6e1`). No pull request | — | — |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
@@ -40,8 +41,10 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
-| Active milestone | **M33 — Firefly tables** (`kona-firefly-tables`: columns, filters, search, sort, pagination, `make:firefly-column`, `make:firefly-filter`). M30 actions is on `main`. Release train **0.4.x**. |
-| Queued | **M31** forms and the rest of the Firefly train. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. |
+| `origin/main` | `1a6045b1` (PR #218, M33 tables) |
+| On `main` | M28 `firefly-support` (#213), M29 `firefly-schemas` (#214), M30 `firefly-actions` (#216), M32 `firefly-infolists` (#217), M33 `firefly-tables` (#218). `modules/firefly-forms` is absent |
+| Active milestone | **M31 — Firefly forms**, in progress on `milestone/M31-firefly-forms` (`5c56f6e1`). Not merged. No pull request. Do not mark done. FRM-18–FRM-26 stay open on that branch ledger. Release train **0.4.x** |
+| Queued | **M34–M38** not started. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Law 1 still allows parallel non-colliding milestones |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
@@ -57,6 +60,11 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 | Work | PR |
 |------|-----|
+| M33 Firefly tables | [#218](https://github.com/konaframework/kona/pull/218) (`1a6045b1`) |
+| M30 Firefly actions | [#216](https://github.com/konaframework/kona/pull/216) |
+| M32 Firefly infolists | [#217](https://github.com/konaframework/kona/pull/217) |
+| M29 Firefly schemas | [#214](https://github.com/konaframework/kona/pull/214) |
+| M28 Firefly support | [#213](https://github.com/konaframework/kona/pull/213) |
 | Grind `route:list` / `route:cache` / `route:clear` | *(this PR — `feat/grind-route-commands`)* |
 | Docs versions + i18n + LSP `wire:*` + GH chip hydrate | *(this PR — `feat/docs-ide-i18n-versions`)* |
 | Remonorepo Wire + Inertia into `modules/{brew,inertia}` | [#138](https://github.com/konaframework/kona/pull/138) (landed; supersedes #137 approach) |

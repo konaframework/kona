@@ -4,7 +4,7 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-M28, M29, M30, and M32 are on `main`. M33 is the tables slice. Later rows stay `todo` until their milestone has shipped.
+Verified on `origin/main` `1a6045b1`: `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. `firefly-forms` is not. M31 is in progress on `milestone/M31-firefly-forms` (`5c56f6e1`) with no pull request. Do not mark M31 done. M34–M38 stay queued and not started. Law 1 still allows parallel non-colliding milestones.
 
 ## M28 — support (`kona-firefly-support`)
 
@@ -77,7 +77,7 @@ Shipped modal content is the schema layouts and primes already on `main`. These 
 | TBL-9 | Row and header buttons | `TableButton` renders through `Dialog` and a schema. `label` accepts a string or a closure | done |
 | TBL-10 | Alpine column factory | `ffColumn` with `@entangle` and `$wire.$call` | done |
 | TBL-11 | Scaffolds | `make:firefly-column`, `make:firefly-filter`, Kotlin and `--lang=java` | done |
-| TBL-12 | Typed action objects | Attach when M30 (`kona-firefly-actions`) is on `main`. Buttons stay `TableButton` until then | todo |
+| TBL-12 | Typed action objects | Still open. M30 is on `main`. Buttons stay `TableButton` | todo |
 
 ## M32 — infolists (`kona-firefly-infolists`)
 
@@ -96,19 +96,37 @@ Depends on `kona-firefly-schemas` and `kona-firefly-support` only. Layouts are s
 | INF-9 | Shared entry helpers and static-or-closure setters | `Entry` | done |
 | INF-10 | Entry scaffold | `make:firefly-entry` | done |
 
-Left for later milestones (not implemented here): prefix and suffix actions that need `Action` (M30); record aggregates; private-disk temporary URLs; the forms code editor (M31); tables (M33).
+Left for later milestones (not implemented in this module): prefix and suffix actions; record aggregates; private-disk temporary URLs; the forms code editor (M31, still not on `main`). Tables shipped in M33.
+
+## M31 — forms (`kona-firefly-forms`)
+
+Not on `main`. In progress on `milestone/M31-firefly-forms` (`5c56f6e1`). No pull request. The branch checklist is not copied here as done.
+
+The branch ledger still lists these helpers as `todo`:
+
+| ID | Surface | Status |
+|----|---------|--------|
+| FRM-18 | `prefixAction`, `suffixAction`, `hintAction` | todo |
+| FRM-19 | Repeater `addAction` / `deleteAction` / `cloneAction` / `extraItemActions` as actions | todo |
+| FRM-20 | Builder `addBetweenAction` | todo |
+| FRM-21 | Rich-editor custom block edit as an action | todo |
+| FRM-22 | Select `createOptionAction` | todo |
+| FRM-23 | `relationship` record query / `modifyQueryUsing` | todo |
+| FRM-24 | `ModalTableSelect` | todo |
+| FRM-25 | `MorphToSelect` | todo |
+| FRM-26 | File upload browse / file manager | todo |
 
 ## Queued
 
 | Milestone | Filament packages | Firefly artifact | Status |
 |-----------|-------------------|------------------|--------|
 | M30 | `filament/actions` | `kona-firefly-actions` | done |
-| M31 | `filament/forms` | `kona-firefly-forms` | todo |
+| M31 | `filament/forms` | `kona-firefly-forms` | in progress (not on `main`; no pull request; FRM-18–FRM-26 todo) |
 | M32 | `filament/infolists` | `kona-firefly-infolists` | done |
 | M33 | `filament/tables` | `kona-firefly-tables` | done |
-| M34 | notifications + widgets (Chart.js and ApexCharts) | `kona-firefly-notifications`, `kona-firefly-widgets` | todo |
-| M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3) | `kona-firefly` | todo |
-| M36 | resources, including `--simple` | `kona-firefly` | todo |
-| M37 | tenancy, plugins, import/export, `Firefly.test`, `kona new --kit=firefly` | `kona-firefly` | todo |
-| M38 | IDE catalog after M37 is on `main` | `kona-lsp`, editor extensions | todo |
+| M34 | notifications + widgets (Chart.js and ApexCharts) | `kona-firefly-notifications`, `kona-firefly-widgets` | queued (not started) |
+| M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3) | `kona-firefly` | queued (not started) |
+| M36 | resources, including `--simple` | `kona-firefly` | queued (not started) |
+| M37 | tenancy, plugins, import/export, `Firefly.test`, `kona new --kit=firefly` | `kona-firefly` | queued (not started) |
+| M38 | IDE catalog after M37 is on `main` | `kona-lsp`, editor extensions | queued (not started) |
 | Document addon | Mongo / `Document<T>` queries, after M27 and M37 | `kona-firefly-document` | todo |

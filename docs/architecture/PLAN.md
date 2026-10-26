@@ -113,6 +113,13 @@ Canonical checklists and the **full Almasix menu coverage ledger** live in [`MIL
 | M13 | Language support, LSP, editor setup |
 | M26 | **Kona Wire** — rename Brew → Wire; release train **0.3.0** |
 | M27 | **Cadence Document / MongoDB** — Kona **1.x**, human-gated (not an M25 SQL engine) |
+| M28 | **Firefly support** — on `main` (PR #213) |
+| M29 | **Firefly schemas** — on `main` (PR #214) |
+| M30 | **Firefly actions** — on `main` (PR #216) |
+| M31 | **Firefly forms** — in progress on `milestone/M31-firefly-forms` (`5c56f6e1`); not merged; no pull request; FRM-18–FRM-26 still open on that branch |
+| M32 | **Firefly infolists** — on `main` (PR #217) |
+| M33 | **Firefly tables** — on `main` (PR #218, `1a6045b1`) |
+| M34–M38 | Firefly notifications, widgets, panel, resources, tenancy, kit, IDE catalog — queued, not started |
 
 ```mermaid
 flowchart LR
@@ -140,5 +147,9 @@ Relational Cadence is JDBC + Hikari + `Grammar` (M25). MongoDB does not speak SQ
 
 ## Immediate execution order
 
-1. Confirm **active** milestone in `MILESTONES.md` (currently M3).
-2. Exhaust that milestone under the locked rules → PR → automerge → next, through **M13** ([continuous-autopilot.md](../governance/continuous-autopilot.md)).
+Verified 2026-10-26 against `origin/main` `1a6045b1`:
+
+1. On `main`: M28 support, M29 schemas, M30 actions, M32 infolists, M33 tables. `modules/firefly-forms` is not on `main`.
+2. M31 forms is in progress on `milestone/M31-firefly-forms` (`5c56f6e1`). There is no pull request. Do not mark it done. FRM-18–FRM-26 stay open on that branch.
+3. M34–M38 stay queued and not started.
+4. Law 1 still allows parallel non-colliding milestones, each on its own branch and pull request. Confirm the live status in `MILESTONES.md`, then continue under [continuous-autopilot.md](../governance/continuous-autopilot.md).
