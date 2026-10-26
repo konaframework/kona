@@ -1,17 +1,17 @@
 ---
-title: Ressources API
+title: Ressources d’API
 description: Transformez des objets de domaine en maps JSON stables avec JsonResource, des attributs conditionnels, whenLoaded et ResourceCollection.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Une **ressource API** est un transformateur dédié entre votre objet de domaine et la map JSON que vous envoyez aux clients. Garder ce mapping dans une classe évite de fuiter des champs internes et garde les charges de liste et de détail cohérentes.
+Une **ressource d’API** est un transformateur dédié entre votre objet de domaine et la map JSON que vous envoyez aux clients. Garder ce mapping dans une classe évite de fuiter des champs internes et garde cohérentes les charges de liste et de détail.
 
-Générez un stub avec [`./grind make:resource User`](../../grind/commands/#grind-makeresource) (`--collection` ajoute une aide `collection`).
+Générez une ébauche avec [`./grind make:resource User`](../../grind/commands/#grind-makeresource) (`--collection` ajoute une aide `collection`).
 
 ## Ressource unique
 
-Sous-classez `JsonResource` et implémentez `toArray`. Par défaut `resolve` / `toResponse` enveloppent la map sous une clé `"data"`. Appelez `JsonResource.withoutWrapping()` (en général une fois au démarrage) pour le désactiver, ou `JsonResource.wrap("payload")` pour le renommer.
+Sous-classez `JsonResource` et implémentez `toArray`. Par défaut `resolve` / `toResponse` enveloppent la map sous une clé `"data"`. Appelez `JsonResource.withoutWrapping()` (d’habitude une fois au boot) pour le désactiver, ou `JsonResource.wrap("payload")` pour le renommer.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -72,12 +72,12 @@ router.get("/users/{id}", request -> new UserResource(1, "Ada", null).toResponse
 
 | Aide | Comportement |
 |--------|----------|
-| `when(condition, value)` | Omet la clé lorsque la condition est fausse (`MissingValue`) |
-| `mergeWhen(condition, map)` | Aplatit `map` dans le parent lorsque c’est vrai |
+| `when(condition, value)` | Omet la clé quand la condition est fausse (`MissingValue`) |
+| `mergeWhen(condition, map)` | Aplatit `map` dans le parent quand c’est vrai |
 | `whenLoaded("relation")` | Inclut une relation seulement si le modèle sous-jacent l’a déjà chargée (`relationLoaded` / `getRelation` — fonctionne avec les modèles Cadence sans dépendance dure) |
 | `additional(map)` / `with(request)` | Clés de premier niveau supplémentaires à côté de la charge enveloppée |
 
-`toResponse` enveloppe `resolve` dans `Response.json(...)`. Appelez `resolve(request)` lorsque vous avez besoin de la map sans construire encore une réponse.
+`toResponse` enveloppe `resolve` dans `Response.json(...)`. Appelez `resolve(request)` quand vous avez besoin de la map sans construire encore une réponse.
 
 ## Collections
 
@@ -108,7 +108,7 @@ Passez `wrap(null)` pour un tableau JSON nu.
 
 ## Avec les routes API
 
-Enregistrez un contrôleur de ressource API, puis renvoyez des ressources depuis les actions :
+Enregistrez un contrôleur de ressource d’API, puis renvoyez des ressources depuis les actions :
 
 ```kotlin
 router.group(prefix = "/api", name = "api.") {
@@ -116,4 +116,4 @@ router.group(prefix = "/api", name = "api.") {
 }
 ```
 
-Flux typique : le contrôleur charge un modèle (optionnellement avec des relations) → construit une ressource → renvoie `toResponse`. Associez à [Contrôleurs](../controllers/), aux [routes resource / apiResource](../routing/#resource-routes) et aux liens nommés de [Génération d’URL](../url-generation/).
+Flux typique : le contrôleur charge un modèle (avec relations en option) → construit une ressource → renvoie `toResponse`. Associez à [Contrôleurs](../controllers/), [routes resource / apiResource](../routing/#resource-routes) et aux liens nommés de [Génération d’URL](../url-generation/).
