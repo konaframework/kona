@@ -44,7 +44,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | `origin/main` | `1a6045b1` (PR #218, M33 tables) |
 | On `main` | M28 `firefly-support` (#213), M29 `firefly-schemas` (#214), M30 `firefly-actions` (#216), M32 `firefly-infolists` (#217), M33 `firefly-tables` (#218). `modules/firefly-forms` is absent |
 | Active milestone | **M31 — Firefly forms**, in progress on `milestone/M31-firefly-forms` (`5c56f6e1`). Not merged. No pull request. Do not mark done. FRM-18–FRM-26 stay open on that branch ledger. Release train **0.4.x** |
-| Queued | **M34–M38** not started. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Law 1 still allows parallel non-colliding milestones |
+| Queued | **M34–M38** not started and not done. M34 is notifications and widgets, M35 is panel, auth, navigation, and pages, M36 is resources. The integration contract below is part of that parity. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Law 1 still allows parallel non-colliding milestones. Do not pull M36 forward ahead of M31 landing |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
@@ -53,8 +53,19 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | LSP | `kona-lsp` completes Crema `@`, Wire `wire:*`, and echo helpers inside `{{ }}` (IDEA-aligned `CremaEchoCatalog`) |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Non-colliding milestones may proceed in parallel. After a merge, continue remaining milestones whose dependencies are on `main`, including ones already in progress. Do not pause for permission |
+| Firefly integration | Pages, widgets, and resources compose schemas, forms, infolists, actions, and tables. Standalone render stays available for tests and embedding. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M34, M35, and M36 stay queued and not done |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9) |
+
+### Firefly integration contract
+
+Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. Pages, widgets, and resources compose those pieces. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M31 forms are still not on `main`. M34 is notifications and widgets. M35 is panel, auth, navigation, and pages. M36 is resources. None of M34–M36 is done. Do not pull M36 forward ahead of M31 landing.
+
+**Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
+
+**Widgets.** A widget renders on its own and inside a page or dashboard. Stats, charts (Chart.js default, ApexCharts optional), and table-backed widgets read the same query and schema pieces. A widget is not done if it cannot be placed on a page.
+
+**Resources.** A resource binds one model to its pages, form schema, infolist, table, and actions, including relation managers on a full resource. The model type selects the query (Cadence ModelBuilder versus the document addon later). A resource is not done if the form, infolist, table, and actions exist only as separate samples and are not reachable from the resource's pages.
 
 ### Recently merged (this session / adjacent)
 

@@ -9,6 +9,8 @@ On `main` (`0bd0c321`, including #219): M28 support, M29 schemas, M30 actions, M
 
 Law 1 still allows parallel non-colliding milestones, each on its own branch and pull request. This status line records what is on `main`. It does not collapse that rule back to a single active milestone.
 
+Pages, widgets, and resources compose the schemas, forms, infolists, actions, and tables that can already render on their own. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. The integration contract is part of M34, M35, and M36 parity below. Those three stay queued and not done. Do not pull M36 forward ahead of M31 landing.
+
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
 
@@ -955,7 +957,7 @@ flowchart LR
   M29 --> M33[M33_Firefly_Tables]
 ```
 
-M31 is drawn beside M30, M32, and M33 because Law 1 allows that parallel work. M34–M38 are queued and not started, so they are not on this graph yet.
+M31 is drawn beside M30, M32, and M33 because Law 1 allows that parallel work. M34–M38 are queued and not started, so they are not on this graph yet. M34 (notifications and widgets), M35 (panel, auth, navigation, and pages), and M36 (resources) include the integration contract in their parity below. None of them is done. Do not pull M36 forward ahead of M31 landing.
 
 ---
 
@@ -1199,25 +1201,82 @@ Actions (M30) and tables (M33) are on `main`. Forms, including the code editor f
 
 ## M34 — Firefly notifications and widgets
 
-**Status:** queued (not started).
+**Status:** queued (not started). Not done.
 
-Not on `main`. Artifacts, when this milestone starts: `kona-firefly-notifications`, `kona-firefly-widgets`. Do not open this milestone from the forms or tables status update.
+Not on `main`. Artifacts, when this milestone starts: `kona-firefly-notifications`, `kona-firefly-widgets`. Do not open this milestone from the forms or tables status update. Do not mark it done from a widget that only renders in isolation.
+
+**Parity slice:** Notifications, plus widgets that render on their own and inside a page or dashboard. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+**Widgets.** A widget renders on its own and inside a page or dashboard. Stats, charts (Chart.js default, ApexCharts optional), and table-backed widgets read the same query and schema pieces. A widget is not done if it cannot be placed on a page.
+
+### Parity checklist
+
+- [ ] Flash, database bell, and broadcast refresh
+- [ ] Stats widget
+- [ ] `ChartWidget` with Chart.js as the default and ApexCharts optional
+- [ ] Table-backed widget reads the same query and schema pieces as tables
+- [ ] The widget renders on its own for tests and embedding, and it can be placed on a page or dashboard
+- [ ] Kotlin and Java samples mount one widget of each chart engine on a page or dashboard
+- [ ] 100% line + branch coverage on the modules this milestone touches
+
+### Out of scope
+
+Panel routes, auth, navigation, and pages (M35). Resources (M36). Do not pull M36 forward. This milestone does not become the page or resource milestone.
 
 ---
 
-## M35 — Firefly panel, auth, and navigation
+## M35 — Firefly panel, auth, navigation, and pages
 
-**Status:** queued (not started).
+**Status:** queued (not started). Not done.
 
-Not on `main`. Artifact, when this milestone starts: `kona-firefly`.
+Not on `main`. Artifact, when this milestone starts: `kona-firefly`. A route that renders a form, infolist, or table by itself does not finish this milestone.
+
+**Parity slice:** Panel provider, auth screens, navigation, and pages. A page composes the actions, schema, form, infolist, table, and widget pieces. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+**Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
+
+The Manage page for a simple resource is the M36 generator. M35 ships the Page type that generator uses, including the manage page, and it does not start the resource milestone.
+
+### Parity checklist
+
+- [ ] `Panel` provider, multiple panels, root mount and `/admin` mount, auth screens, user menu, clusters, SPA mode, render hooks, and navigation types App, Side, and Top
+- [ ] A page has a title, header and footer actions, a content region, and optional widgets
+- [ ] The content region mounts a schema, form, infolist, or table
+- [ ] List, create, edit, view, manage, and custom pages are pages
+- [ ] A panel route serves a Page
+- [ ] Standalone component render remains available for tests and embedding
+- [ ] Kotlin and Java samples
+- [ ] 100% line + branch coverage on the modules this milestone touches
+
+### Out of scope
+
+Resources, relation managers, and `make:firefly-resource` (M36). Do not pull M36 forward ahead of M31 landing. Tenancy, plugins, import/export, and the kit (M37).
 
 ---
 
 ## M36 — Firefly resources
 
-**Status:** queued (not started).
+**Status:** queued (not started). Not done.
 
-Not on `main`. Includes `--simple` resources. Artifact, when this milestone starts: `kona-firefly`.
+Not on `main`. Includes `--simple` resources. Artifact, when this milestone starts: `kona-firefly`. Do not pull this milestone forward ahead of M31 landing. Forms are still not on `main`.
+
+**Parity slice:** A resource binds one model to its pages, form schema, infolist, table, and actions. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+**Resources.** A resource binds one model to its pages, form schema, infolist, table, and actions, including relation managers on a full resource. The model type selects the query (Cadence ModelBuilder versus the document addon later). A resource is not done if the form, infolist, table, and actions exist only as separate samples and are not reachable from the resource's pages.
+
+### Parity checklist
+
+- [ ] List, create, edit, view, and manage pages are the resource's pages
+- [ ] The resource form schema, infolist, table, and actions are reachable from those pages
+- [ ] Relation managers on a full resource
+- [ ] The model type selects the query (`ModelBuilder` for a Cadence model; the document addon later for a document model)
+- [ ] A simple resource uses one Manage page whose create, edit, view, and delete run in the existing Dialog
+- [ ] `make:firefly-resource` and `--simple`, with Kotlin and Java samples that open the resource pages
+- [ ] 100% line + branch coverage on the modules this milestone touches
+
+### Out of scope
+
+The document addon. Tenancy, plugins, import/export, and the kit (M37). Do not mark this milestone done while M31 forms are still not on `main`.
 
 ---
 

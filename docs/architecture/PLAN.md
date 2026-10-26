@@ -119,7 +119,10 @@ Canonical checklists and the **full Almasix menu coverage ledger** live in [`MIL
 | M31 | **Firefly forms** — in progress on `milestone/M31-firefly-forms` (`5c56f6e1`); not merged; no pull request; FRM-18–FRM-26 still open on that branch |
 | M32 | **Firefly infolists** — on `main` (PR #217) |
 | M33 | **Firefly tables** — on `main` (PR #218, `1a6045b1`) |
-| M34–M38 | Firefly notifications, widgets, panel, resources, tenancy, kit, IDE catalog — queued, not started |
+| M34 | **Firefly notifications and widgets** — queued, not started, not done. A widget renders on its own and inside a page or dashboard. A widget is not done if it cannot be placed on a page |
+| M35 | **Firefly panel, auth, navigation, and pages** — queued, not started, not done. A page is the routable screen a panel route serves. It mounts a schema, form, infolist, or table, with header and footer actions and optional widgets |
+| M36 | **Firefly resources** — queued, not started, not done. Do not pull ahead of M31. A resource binds one model to its pages, form schema, infolist, table, and actions. It is not done if those pieces exist only as separate samples |
+| M37–M38 | Firefly tenancy, plugins, import/export, kit, and IDE catalog — queued, not started |
 
 ```mermaid
 flowchart LR
@@ -151,5 +154,9 @@ Verified 2026-10-26 against `origin/main` `1a6045b1`:
 
 1. On `main`: M28 support, M29 schemas, M30 actions, M32 infolists, M33 tables. `modules/firefly-forms` is not on `main`.
 2. M31 forms is in progress on `milestone/M31-firefly-forms` (`5c56f6e1`). There is no pull request. Do not mark it done. FRM-18–FRM-26 stay open on that branch.
-3. M34–M38 stay queued and not started.
-4. Law 1 still allows parallel non-colliding milestones, each on its own branch and pull request. Confirm the live status in `MILESTONES.md`, then continue under [continuous-autopilot.md](../governance/continuous-autopilot.md).
+3. M34–M38 stay queued and not started. M34 is notifications and widgets, M35 is panel, auth, navigation, and pages, and M36 is resources. None of them is done.
+4. Pages, widgets, and resources compose schemas, forms, infolists, actions, and tables. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. Standalone component render remains for tests and embedding.
+5. **Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
+6. **Widgets.** A widget renders on its own and inside a page or dashboard. Stats, charts (Chart.js default, ApexCharts optional), and table-backed widgets read the same query and schema pieces. A widget is not done if it cannot be placed on a page.
+7. **Resources.** A resource binds one model to its pages, form schema, infolist, table, and actions, including relation managers on a full resource. The model type selects the query (Cadence ModelBuilder versus the document addon later). A resource is not done if the form, infolist, table, and actions exist only as separate samples and are not reachable from the resource's pages. Do not pull M36 forward ahead of M31 landing.
+8. Law 1 still allows parallel non-colliding milestones, each on its own branch and pull request. Confirm the live status in `MILESTONES.md`, then continue under [continuous-autopilot.md](../governance/continuous-autopilot.md).
