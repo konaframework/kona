@@ -1,0 +1,136 @@
+---
+title: Primeros pasos con Crema
+description: Renderiza vistas HTML con plantillas Crema desde controladores Kotlin o Java.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Crema** es el motor de vistas del lado del servidor de Kona. Escribes plantillas bajo `src/main/resources/views`, pasas un mapa de datos desde un controlador, y Crema expande las directivas `@` y los ecos `{{ }}` a HTML. Las plantillas usan las extensiones `*.crema.html` o `*.crema.kt` (texto plano con la misma sintaxis de directivas).
+
+Crema se inspiró en menús de plantillas del lado del servidor que ya resultaban familiares; todo lo que sigue a esta frase describe Crema en sus propios términos.
+
+## Qué es una vista
+
+Una **vista** es una plantilla con nombre más los datos usados para renderizarla. El nombre lleva puntos (`home`, `posts.show`) y se mapea a una ruta de archivo bajo la raíz de vistas (`home.crema.html`, `posts/show.crema.html`). Después del arranque, el [ayudante de vista](/docs/crema/view-helper/) resuelve ese nombre a través del motor enlazado a la app y devuelve un `View` (o una `Response` HTML).
+
+Camino típico de una petición:
+
+1. Una ruta llega a un método de controlador.
+2. El controlador llama a `view("welcome", …)` (Kotlin) o a `Views.make("welcome", …)` (Java).
+3. Crema carga la plantilla, ejecuta las directivas, escapa los ecos y devuelve HTML mediante `toResponse()`.
+
+## Esqueletos
+
+`kona new` (kit **web** predeterminado) ya registra `CremaServiceProvider` y trae una vista de bienvenida. Añade más plantillas con grind:
+
+```bash
+./grind make:view home
+./grind make:view posts.show
+```
+
+Eso crea `src/main/resources/views/home.crema.html` y `src/main/resources/views/posts/show.crema.html`.
+
+## Plantilla mínima
+
+```crema
+{{-- src/main/resources/views/home.crema.html --}}
+<h1>Hello {{ name }}</h1>
+```
+
+`{{ name }}` imprime la entrada `name` del mapa de datos con escape HTML. Los valores ausentes o null se convierten en una cadena vacía.
+
+## Renderizar desde un controlador
+
+Registra `CremaServiceProvider` (el esqueleto web lo hace) y arranca la app. Luego usa el ayudante de vista:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.crema.view
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+
+class WelcomeController {
+    fun index(request: Request): Response =
+        view("welcome", mapOf("name" to "Kona")).toResponse()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.crema.Views;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import java.util.Map;
+
+public final class WelcomeController {
+    public Response index(Request request) {
+        return Views.make("welcome", Map.of("name", "Kona")).toResponse();
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+API completa de la fábrica (share, `first`, existencia, tablas Java/Kotlin): [Ayudante de vista](/docs/crema/view-helper/).
+
+## Rutas de vista y configuración
+
+| Ajuste | Comportamiento |
+|---------|----------|
+| Raíz predeterminada | `{basePath}/src/main/resources/views` |
+| Respaldo | `build/resources/main/views`, luego el legado `resources/views` |
+| Anulación | Clave de configuración `view.path` (ruta absoluta o relativa a la app) |
+
+Los nombres con puntos se convierten en segmentos de ruta: `mail.orders.shipped` → `mail/orders/shipped.crema.html`. Crema prueba primero `.crema.html` y luego `.crema.kt`.
+
+## Datos que busca el motor
+
+Algunas directivas leen claves convencionales del mismo mapa de datos (o de un contexto hijo). Las pasas desde el controlador o el middleware:
+
+| Clave | La usa |
+|-----|---------|
+| `_token` / `csrf_token` | `@csrf` |
+| `asset_url` / `assetUrl` | Prefijo base de `@asset` |
+| `__authenticated`, `auth_user`, `user` | `@auth` / `@guest` |
+| `__abilities` o `can` | `@can` / `@cannot` |
+| `errors` | `@error('field')` |
+| `lang` | Anulaciones de `@lang` antes de `Lang.get` |
+
+## Menú de directivas
+
+| Área | Directivas |
+|------|------------|
+| Ecos | `{{ }}`, `{!! !!}`, `@@`, `{{-- --}}` |
+| Layouts | `@extends`, `@section` / `@endsection` / `@show`, `@yield`, `@parent`, `@hasSection`, `@sectionMissing` |
+| Pilas | `@push` / `@endpush`, `@prepend` / `@endprepend`, `@stack` |
+| Includes | `@include`, `@includeIf`, `@includeWhen`, `@includeUnless`, `@includeFirst`, `@once`, `@verbatim` |
+| Condicionales | `@if` / `@elseif` / `@else` / `@endif`, `@unless`, `@isset`, `@empty` |
+| Bucles | `@while`, `@foreach` / `@each` / `@for`, `@forelse`, `loop.*` |
+| Auth | `@auth`, `@guest`, `@can`, `@cannot` |
+| Switch | `@switch` / `@case` / `@break` / `@default` / `@endswitch` |
+| Componentes | `@component` / `@slot`, `<x-*>`, `<x-slot>` |
+| Ayudantes | `@json`, `@csrf`, `@method`, `@asset`, `@lang`, `@vite`, `@error` |
+
+Tablas completas: [Referencia de directivas](/docs/crema/directives/).
+
+## Superficies relacionadas
+
+- **[Wire](/docs/wire/)** — componentes reactivos que renderizan plantillas Crema y mantienen el navegador sincronizado.
+- **[Inertia](/docs/inertia/)** — vista Crema raíz opcional que aloja una app de página del lado del cliente.
+- **[Vite / assets](/docs/assets/vite/)** — empaquetado; el ayudante `@vite` de Crema emite etiquetas finas de script/link.
+
+## Siguientes pasos
+
+- [Ayudante de vista](/docs/crema/view-helper/) — `view()` / `Views`, share, `first`, respuestas
+- [Renderizado y datos](/docs/crema/rendering/) — ecos, escape, expresiones, `@json`, `@lang`
+- [Layouts y herencia](/docs/crema/layouts/) — `@extends`, secciones, `@yield`, `@parent`
+- [Componentes y slots](/docs/crema/components/) — vistas reutilizables, slots con nombre, etiquetas `<x-*>`
+- [Estructuras de control](/docs/crema/control-structures/) — condicionales, bucles, auth
+- [Includes y parciales](/docs/crema/includes/) — fragmentos compartidos
+- [Pilas](/docs/crema/stacks/) — scripts y estilos
+- [Formularios](/docs/crema/forms/) — CSRF, simulación de método, errores de campo

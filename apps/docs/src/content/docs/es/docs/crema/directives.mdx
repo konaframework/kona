@@ -1,0 +1,132 @@
+---
+title: Referencia de directivas
+description: Tablas de referencia de cada directiva, eco y etiqueta de componente integrados de Crema.
+---
+
+Consulta rápida de la sintaxis de Crema. Para explicaciones y ejemplos completos, sigue los enlaces de «Guía».
+
+## Ecos y comentarios
+
+| Sintaxis | Propósito | Guía |
+|--------|---------|-------|
+| `{{ expr }}` | Salida escapada | [Renderizado](/docs/crema/rendering/) |
+| `{!! expr !!}` | Salida HTML cruda | [Renderizado](/docs/crema/rendering/) |
+| `{{ url(path) }}` / `{{ route(name) }}` / `{{ asset(path) }}` | URL de la app / con nombre / públicas | [Renderizado](/docs/crema/rendering/#echo-helpers) |
+| `{{ csrf_token() }}` / `{{ old(key) }}` | Token CSRF / entrada en flash | [Renderizado](/docs/crema/rendering/#echo-helpers) |
+| `{{ env(key) }}` / `{{ config(key) }}` | Entorno / configuración | [Renderizado](/docs/crema/rendering/#echo-helpers) |
+| `{{ trans(key) }}` / `{{ __(key) }}` / `{{ lang(key) }}` | Traducción | [Renderizado](/docs/crema/rendering/#echo-helpers) |
+| `@@` | `@` literal | [Renderizado](/docs/crema/rendering/) |
+| `{{-- … --}}` | Comentario (se elimina) | [Renderizado](/docs/crema/rendering/) |
+
+## Layouts y secciones
+
+| Directiva | Cierre / notas | Guía |
+|-----------|----------------|-------|
+| `@extends('layout')` | El hijo declara el layout padre | [Layouts](/docs/crema/layouts/) |
+| `@section('name', 'text')` | Sección en línea | [Layouts](/docs/crema/layouts/) |
+| `@section('name')` | Sección de bloque | `@endsection` o `@show` |
+| `@endsection` | Cierra la sección de bloque (guarda crudo) | [Layouts](/docs/crema/layouts/) |
+| `@show` | Cierra la sección y la expande de inmediato | [Layouts](/docs/crema/layouts/) |
+| `@yield('name')` | Imprime la sección | Valor predeterminado opcional: `@yield('n', 'default')` |
+| `@parent` | Inserta el búfer de la sección padre | Dentro de un `@section` hijo |
+| `@hasSection('name')` | Cuerpo si la sección está definida | Cierra con `@endif` |
+| `@sectionMissing('name')` | Cuerpo si falta la sección | Cierra con `@endif` |
+
+## Pilas
+
+| Directiva | Cierre | Guía |
+|-----------|--------|-------|
+| `@push('name')` | `@endpush` | [Pilas](/docs/crema/stacks/) |
+| `@prepend('name')` | `@endprepend` | [Pilas](/docs/crema/stacks/) |
+| `@stack('name')` | — | [Pilas](/docs/crema/stacks/) |
+
+## Includes y regiones crudas
+
+| Directiva | Notas | Guía |
+|-----------|-------|-------|
+| `@include('name')` | Obligatorio; lanza si falta | [Includes](/docs/crema/includes/) |
+| `@includeIf('name')` | Omite si falta | [Includes](/docs/crema/includes/) |
+| `@includeWhen(expr, 'name')` | Cuando es verdadero | [Includes](/docs/crema/includes/) |
+| `@includeUnless(expr, 'name')` | Cuando no es verdadero | [Includes](/docs/crema/includes/) |
+| `@includeFirst(['a', 'b'])` | Primer nombre que se resuelve | [Includes](/docs/crema/includes/) |
+| `@once` | `@endonce` — una vez por render | [Includes](/docs/crema/includes/) |
+| `@verbatim` | `@endverbatim` — sin procesar | [Includes](/docs/crema/includes/) |
+
+## Condicionales
+
+| Directiva | Cierre | Guía |
+|-----------|--------|-------|
+| `@if(expr)` | `@endif` (`@elseif` / `@else` opcionales) | [Estructuras de control](/docs/crema/control-structures/) |
+| `@unless(expr)` | `@endunless` | [Estructuras de control](/docs/crema/control-structures/) |
+| `@isset(name)` | `@endisset` | [Estructuras de control](/docs/crema/control-structures/) |
+| `@empty(expr)` | `@endempty` | [Estructuras de control](/docs/crema/control-structures/) |
+
+## Bucles
+
+| Directiva | Cierre | Notas | Guía |
+|-----------|--------|-------|-------|
+| `@foreach(items as item)` | `@endforeach` | También `as key => value` | [Estructuras de control](/docs/crema/control-structures/) |
+| `@each(items as item)` | `@endeach` | Alias de foreach | [Estructuras de control](/docs/crema/control-structures/) |
+| `@for(…)` | `@endfor` | Colección, `i in a..b` o al estilo C | [Estructuras de control](/docs/crema/control-structures/) |
+| `@forelse(items as item)` | `@endforelse` | Exige una rama `@empty` | [Estructuras de control](/docs/crema/control-structures/) |
+| `@while(expr)` | `@endwhile` | Tope 10 000; inyecta `loop` | [Estructuras de control](/docs/crema/control-structures/) |
+
+### Claves de `loop`
+
+`index`, `iteration`, `first`, `last`, `count`, `remaining`, `even`, `odd`, `depth`, `parent` — consulta [Metadatos del bucle](/docs/crema/control-structures/#loop-metadata).
+
+## Auth y capacidades
+
+| Directiva | Cierre | Claves de datos | Guía |
+|-----------|--------|-----------|-------|
+| `@auth` | `@endauth` | `__authenticated`, `auth_user`, `user` | [Estructuras de control](/docs/crema/control-structures/) |
+| `@guest` | `@endguest` | Igual que `@auth` (invertido) | [Estructuras de control](/docs/crema/control-structures/) |
+| `@can('ability')` | `@endcan` | `__abilities`, `can` | [Estructuras de control](/docs/crema/control-structures/) |
+| `@cannot('ability')` | `@endcannot` | Igual que `@can` (invertido) | [Estructuras de control](/docs/crema/control-structures/) |
+
+## Switch
+
+| Directiva | Notas | Guía |
+|-----------|-------|-------|
+| `@switch(expr)` | Abre el switch | `@endswitch` |
+| `@case(expr)` | Igualdad convertida a cadena | [Estructuras de control](/docs/crema/control-structures/) |
+| `@break` | Detiene el brazo activo | [Estructuras de control](/docs/crema/control-structures/) |
+| `@default` | Cuando ningún caso coincidió | [Estructuras de control](/docs/crema/control-structures/) |
+
+## Componentes y slots
+
+| Sintaxis | Propósito | Guía |
+|--------|---------|-------|
+| `@component('name')…@endcomponent` | Renderiza una vista como componente | [Componentes](/docs/crema/components/) |
+| `@slot('name')…@endslot` | Slot con nombre dentro de `@component` | [Componentes](/docs/crema/components/) |
+| `<x-name>…</x-name>` | Renderiza `components.name` | [Componentes](/docs/crema/components/) |
+| `<x-name />` | Slot predeterminado vacío | [Componentes](/docs/crema/components/) |
+| `<x-slot name="n">…</x-slot>` | Slot con nombre para `<x-*>` o etiquetas con prefijo | [Componentes](/docs/crema/components/) |
+| `<x-slot:n>…</x-slot:n>` | Forma de nombre con dos puntos | [Componentes](/docs/crema/components/) |
+| `<prefix:slot name="n">…` | Slot con nombre para etiquetas de extensión | [Componentes](/docs/crema/components/) |
+
+Dentro de la vista del componente: `{{ slot }}` (predeterminado) y `{{ name }}` para cada slot con nombre.
+
+## Formularios y ayudantes
+
+| Directiva | Propósito | Guía |
+|-----------|---------|-------|
+| `@csrf` | Input oculto `_token` | [Formularios](/docs/crema/forms/) |
+| `@method('VERB')` | Input oculto `_method` | [Formularios](/docs/crema/forms/) |
+| `@error('field')` | `@enderror` cuando `errors` tiene el campo | [Formularios](/docs/crema/forms/) |
+| `@asset('path')` | URL de asset público | [Renderizado](/docs/crema/rendering/) |
+| `@json($expr)` | Codificación JSON | [Renderizado](/docs/crema/rendering/) |
+| `@lang('key')` | Traducción | Mapa de sustitución opcional |
+| `@vite('entry')` | Etiquetas script/link bajo `/build` | Se admite la forma de lista |
+
+## Extensiones propias
+
+Las apps y los paquetes pueden registrar más sintaxis en `CremaEngine`:
+
+| API | Forma |
+|-----|-------|
+| `directive(name) { … }` | `@name` / `@name(args)` |
+| `blockDirective(name) { … }` | `@name…@endname` |
+| `tag(prefix) { … }` | `<prefix:name>…` |
+
+Wire las usa para `@brew` y `<wire:…>`. Consulta [Wire](/docs/wire/).

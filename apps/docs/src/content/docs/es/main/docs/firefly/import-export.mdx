@@ -1,0 +1,91 @@
+---
+title: Importar y exportar
+description: Exporta filas a CSV e impórtalas de vuelta, mediante una acción de diálogo y un job de cola.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Importar y exportar mueven filas a través de un diálogo y un job. Exportar escribe CSV. Importar lo lee de vuelta. Pones la acción en la cabecera de una página o en una tabla, igual que cualquier otra acción.
+
+Ambos jobs implementan `ShouldQueue`, así que un `Bus` de cola puede ejecutarlos. Pasa `null` como bus y `handle()` corre en quien llama. El diálogo permanece cerrado hasta que se abre, como cualquier otro diálogo de Firefly.
+
+<FireflyShot file="export-dialog.png" description="El diálogo Export abierto desde la acción de exportación, con el encabezado Export." />
+
+## Acciones
+
+`FireflyTransfer.exportAction()` es una acción llamada `export`, etiquetada `Export`, abierta como un modal con encabezado `Export`. `importAction()` tiene la misma forma con el nombre `import`. Pon cualquiera de las dos en la cabecera de una página o en una tabla. El diálogo permanece cerrado hasta que Alpine lo abre, igual que cualquier otro diálogo de Firefly.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction());
+```
+
+</TabItem>
+</Tabs>
+
+## Ejecutar los jobs
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val rows = listOf(mapOf("name" to "Ada"))
+FireflyTransfer.export(rows, path, bus)
+val imported = FireflyTransfer.import(path, null)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FireflyTransfer.export(List.of(Map.of("name", "Ada")), path, bus);
+List<Map<String, String>> imported = FireflyTransfer.import(path, null);
+```
+
+</TabItem>
+</Tabs>
+
+`export` devuelve `"sync"` cuando `bus` es null, después de que `handle()` ha escrito el archivo. Con un bus, devuelve lo que devuelva `bus.dispatch`. Una lista de filas vacía lanza `Export has no rows`.
+
+`import` con un bus null devuelve las filas interpretadas. Un archivo ausente lanza `Import file is missing [path]`. Un archivo vacío lanza `Import file is empty`. Con un bus, `import` despacha el job y devuelve la lista de filas del job. En el driver sync esa lista se llena antes de que `dispatch` vuelva. Un driver que corre más tarde deja la lista vacía hasta que corre `handle()`.
+
+La codificación CSV entrecomilla una celda que contiene una coma o una comilla, y duplica las comillas dentro de una celda entrecomillada. La fila de cabecera es el conjunto de claves del primer mapa. Las filas posteriores se leen en ese orden de columnas. Una fila corta guarda una cadena vacía para las celdas que faltan.
+
+## Pruebas
+
+`Firefly.test` lee una página, un formulario, una tabla o un diálogo ya renderizados. Vive en `org.konaframework.firefly.testing`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("name")
+    .assertTable("Ada")
+    .assertDialog("Export")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Firefly.test(page).assertSee("Ada").assertFormField("name");
+```
+
+</TabItem>
+</Tabs>
+
+`assertSee` falla cuando el HTML no contiene el texto. `assertFormField` busca `data-ff-path`. Una subclase de campo personalizada se encuentra igual. `assertTable` exige tanto `ff-table` como el texto. `assertDialog` exige tanto `ff-dialog` como el título. `Firefly.test(html)` afirma contra una cadena que ya renderizaste.
+
+`kona new desk --kit=firefly` es el camino de instalación en [Instalación](/docs/firefly/installation/). No es un runtime aparte.

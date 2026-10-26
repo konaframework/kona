@@ -1,0 +1,59 @@
+---
+title: Disco público y URL
+description: Servir /storage, grind storage:link y URL firmadas temporales.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Disco público y `/storage`
+
+El disco **public** guarda archivos que los navegadores pueden pedir. Las apps generadas anteponen `ServePublicStorage` para que `GET /storage/...` lea de ese disco y devuelva una respuesta de archivo binario (consulta [Petición y respuesta](../http/request-response/)).
+
+Crea el enlace simbólico que espera el tooling estático:
+
+```bash
+./grind storage:link
+```
+
+Eso enlaza `public/storage` → `storage/app/public`. Si el proyecto todavía no tiene un directorio `public/` pero sí una carpeta antigua `src/main/resources/public`, el enlace se crea allí.
+
+## URL temporales
+
+Registra cómo se construyen los enlaces temporales (normalmente `UrlGenerator.signed`) y luego llama a `temporaryUrl`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+val urls = app.resolve(UrlGenerator::class.java)
+
+files.buildTemporaryUrlsUsing("public") { url, exp -> urls.signed(url, exp) }
+
+val link = files.temporaryUrl("avatars/a.png", 600, "public")
+// or pass a signer inline:
+val link2 = files.temporaryUrl("avatars/a.png", 600, { url, exp -> urls.signed(url, exp) }, "public")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+UrlGenerator urls = app.resolve(UrlGenerator.class);
+
+files.buildTemporaryUrlsUsing("public", (url, exp) -> urls.signed(url, exp));
+
+String link = files.temporaryUrl("avatars/a.png", 600L, "public");
+String link2 = files.temporaryUrl(
+    "avatars/a.png",
+    600L,
+    (url, exp) -> urls.signed(url, exp),
+    "public"
+);
+```
+
+</TabItem>
+</Tabs>
+
+`providesTemporaryUrls("public")` es verdadero después de registrar un constructor (o si al propio adaptador se le dio uno vía `LocalAdapter.buildTemporaryUrlsUsing`). Protege las rutas de descarga con `ValidateSignature` — consulta [Generación de URL](../http/url-generation/).

@@ -1,0 +1,180 @@
+---
+title: Ejecutar comandos
+description: Invoca Grind Console desde la shell, el proxy kona grind, Grind.call y el programador.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Grind Console acepta la misma forma de entrada tanto si la escribes en una terminal, la reenvías mediante `kona grind` o llamas a `Grind.call` desde el código de la aplicación o las pruebas.
+
+## Desde el proyecto
+
+```bash
+./grind list
+./grind mail:digest 42 --queue=high
+./grind mail:digest --help
+./grind -v schedule:run
+./grind -q list
+./grind --base=/path/to/app list
+```
+
+| Bandera | Efecto |
+|------|--------|
+| `-v` / `--verbose` | Diagnósticos verbosos (`GrindIO.verbose`) |
+| `-q` / `--quiet` | Suprime el stdout normal (los errores siguen imprimiéndose) |
+| `--help` / `-h` | Argv vacío / ayuda global, o en un comando **propio**: imprime la ayuda de la firma |
+| `--base=` | Raíz de la app para el descubrimiento / los cargadores (y muchos integrados) |
+| `--bootstrap=` | Clase de arranque para arranques en el proceso (predeterminado `bootstrap.App`) |
+| `--isolated` | Con comandos propios aislables: bloqueo de un solo proceso |
+
+Reglas de análisis de opciones (`parseOptions`):
+
+- `-v`, `-q`, `-h` ponen `verbose`, `quiet` y `help`.
+- `--name` pone `name=true`.
+- `--name=value` pone `name` en `value`.
+- Todo lo demás es posicional.
+
+El código de salida **0** significa éxito. **1** (y otros valores distintos de cero) significa fallo — argumentos ausentes, comando desconocido, conflictos del generador, errores de Cadence expuestos como errores de grind, y así sucesivamente. Los nombres al estilo integrado desconocidos imprimen un error, muestran el catálogo de ayuda y salen con `1`.
+
+### Argv vacío y ayuda
+
+```bash
+./grind
+./grind help
+./grind --help
+./grind -h
+```
+
+Estos descubren comandos propios, imprimen el catálogo de uso «grind» en un recuadro (integrados + propios descubiertos) y salen con `0`.
+
+## `list` y ayuda por comando
+
+```bash
+./grind list
+./grind mail:digest --help
+```
+
+`list` imprime un catálogo de dos columnas: nombres integrados de `ListCommand.BUILTIN`, luego los comandos propios registrados (descripción, o firma cuando la descripción está vacía). Los nombres duplicados se muestran una vez.
+
+Para un comando **propio**, `--help` / `-h` imprime un recuadro con el nombre/descripción, la firma renderizada y las líneas de ayuda de argumentos/opciones — y luego sale con `0` sin ejecutar `handle()`. Los comandos integrados suelen usar sus propios mensajes de uso/`GrindException` en lugar del renderizador de ayuda de comandos propios.
+
+## Proxy `kona grind`
+
+Cuando no estás invocando `./grind` directamente, el CLI global puede reenviar al script grind del proyecto más cercano:
+
+```bash
+kona grind serve
+kona grind migrate
+kona grind mail:digest 42
+kona grind --help
+```
+
+Comportamiento (`org.konaframework.cli.GrindCommand`):
+
+1. Camina hacia arriba desde el directorio actual hasta encontrar un script de settings/build de Gradle (los mismos marcadores que `serve`).
+2. Exige `./grind` o `grind.bat` en esa raíz (apps de `kona new`).
+3. Ejecuta ese script con tus argumentos restantes y propaga el código de salida.
+
+Si no se encuentra un proyecto Gradle, o el proyecto no tiene script grind (por ejemplo un ejemplo del repositorio bajo `samples/`), el proxy falla con un error claro que apunta a `kona new`. Prefiere `./grind` cuando ya estás dentro de la app.
+
+Consulta [Instalación](../../guides/installation/) para instalar el CLI global `kona`.
+
+## Llamar comandos desde código
+
+Usa `org.konaframework.grind.Grind` para ejecutar un nombre de comando con tokens de argumento (las mismas cadenas que escribirías después del nombre del comando en el CLI):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.grind.CommandRegistry
+import org.konaframework.grind.Grind
+
+val registry = CommandRegistry().register(SendDigestCommand::class.java)
+
+val code = Grind.call("mail:digest", listOf("42", "--queue=default"), registry)
+val quiet = Grind.callSilently("schedule:run", listOf("--base=$root"))
+val listed = Grind.call("list")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.grind.CommandRegistry;
+import org.konaframework.grind.Grind;
+import java.util.List;
+
+CommandRegistry registry = new CommandRegistry().register(SendDigestCommand.class);
+
+int code = Grind.call("mail:digest", List.of("42", "--queue=default"), registry);
+int quiet = Grind.callSilently("schedule:run", List.of("--base=" + root));
+int listed = Grind.call("list");
+```
+
+</TabItem>
+</Tabs>
+
+### Resolución de `Grind.call`
+
+Las sobrecargas aceptan combinaciones de `name`, `args`, `CommandRegistry` opcional, `basePath` y `ClassLoader` (todas `@JvmStatic`).
+
+1. Fusiona el registro opcional con `CommandDiscovery.registerAll` en el cargador dado.
+2. Si el registro fusionado **tiene** el nombre, lo ejecuta mediante `CommandExecutor` (camino de comando propio: enlace de firma, `--help`, `--isolated`).
+3. Si no, cae a `GrindApplication.run(name + args)` para que los **integrados** (`serve`, `route:list`, `migrate`, `list`, …) sigan funcionando.
+
+`callSilently` sustituye temporalmente `System.out` por un búfer para que se suprima el stdout normal; **stderr** sigue mostrando los errores de `GrindIO.error` / `ConsoleIO.error`.
+
+El `basePath` predeterminado es el directorio de trabajo actual (absoluto, normalizado). El cargador predeterminado es el class loader de `Grind`.
+
+## Hooks de programación
+
+Registra trabajo en el `Schedule` de la aplicación y luego ejecuta las tareas vencidas con Grind Console:
+
+```bash
+./grind schedule:run
+./grind schedule:list
+./grind schedule:work --sleep=60 --max=1
+```
+
+Esos comandos arrancan la app en el proceso (por el mismo camino de cargador que migrate) y exigen `ScheduleServiceProvider` para que haya un `Schedule` enlazado.
+
+Los comandos propios de Grind Console son procesos ordinarios: apunta un callback programado a una invocación de shell de `./grind your:command`, o llama a `Grind.call` desde código que el programador ya ejecuta. Para comandos aislables al estilo cron, combina el schedule con `--isolated`.
+
+Guía completa: [Programación de tareas](../../scheduling/).
+
+## Pruebas
+
+Captura stdout y códigos de salida con `ConsoleTester`:
+
+```kotlin
+ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertSee("schedule:run")
+```
+
+Consulta [Pruebas HTTP y de consola](../../testing/http-console/#console-grind). Para comandos propios, compila la app primero para que el descubrimiento pueda ver `META-INF/kona/commands` y `build/classes`.
+
+## Hoja de ciclo de vida
+
+| Paso | Qué corre |
+|------|-----------|
+| Analizar argv | Posicionales + mapa de opciones; construye `GrindIO.fromOptions` |
+| Descubrir | `CommandDiscovery` en el cargador de grind + salidas opcionales de `build/` de la app |
+| Despachar | Ramas `when` integradas, si no `CommandRegistry.create` + `CommandExecutor` |
+| Enlace propio | Firma → `CommandInput`; bloqueo de aislamiento opcional |
+| Terminar | Código de salida del `run` integrado / `handle()` / ayuda / errores |
+
+## Trampas
+
+- **Directorio equivocado** — muchos generadores usan `--base` tal cual; `serve` / `key:generate` / `kona grind` caminan hacia arriba hasta una raíz Gradle.
+- **Stdout silencioso ≠ errores silenciosos** — `-q` y `callSilently` no ocultan `error(...)`.
+- **Nombres solo de registro en `Grind.call`** — si pasas un registro **sin** poner el comando en el `META-INF` del class loader, está bien; si dependes solo de `META-INF`, asegúrate de que el cargador pueda ver los recursos.
+- **Ayuda integrada frente a propia** — `--help` en un comando propio es rico; en muchos integrados obtienes el uso mediante excepciones o una salida dedicada.
+
+## Siguiente
+
+- [Crear comandos](../creating-commands/)
+- [IO de consola y prompts](../console/)
+- [Comandos integrados](../commands/)

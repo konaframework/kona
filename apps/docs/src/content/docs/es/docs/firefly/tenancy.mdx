@@ -1,0 +1,55 @@
+---
+title: Tenencia
+description: Muestra un menú de inquilinos en el panel y limita la consulta de un recurso al inquilino seleccionado.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un inquilino es una etiqueta en la barra superior y un id para la petición actual. Lo usas cuando un panel sirve a más de un cliente y un recurso solo debe consultar las filas de ese cliente.
+
+El panel no crea una base de datos y no migra una columna por ti. Tú añades el inquilino, y tu recurso nombra la columna a filtrar. El enlace fija `?tenant=acme`. Mientras esa petición se renderiza, `FireflyTenant.id()` es `acme`.
+
+<FireflyShot file="tenant-menu.png" description="Barra superior de un panel con un enlace de inquilino etiquetado Acme que fija el parámetro de consulta tenant en acme." />
+
+## Cómo lo usa una petición
+
+`tenant(Tenant("acme").label("Acme"))` añade un enlace. El enlace fija `?tenant=acme`. Mientras esa petición se renderiza, `FireflyTenant.id()` es `acme`. Un recurso que llama a `tenant("tenant_id")` añade esa columna a `query()` cuando el id está fijado. Un modelo Cadence sigue devolviendo un `ModelBuilder`. Un id de inquilino desconocido falla en la página y nombra el id.
+
+Un id de inquilino en blanco o una etiqueta en blanco lanzan `FireflyException`. Un nombre de columna en blanco lanza `Tenant column is blank`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Panel().path("admin").tenant(Tenant("acme").label("Acme"))
+Resource("orders").model(Order::class.java).tenant("tenant_id")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new Panel().path("admin").tenant(new Tenant("acme").label("Acme"));
+new Resource("orders").model(Order.class).tenant("tenant_id");
+```
+
+</TabItem>
+</Tabs>
+
+`label` acepta una cadena o un closure que recibe `Get`. `FireflyTenant.use(id) { ... }` fija el id para el hilo actual y restaura el valor anterior cuando el bloque regresa. `mount` ya hace eso alrededor de la respuesta de la página. Llama a `use` tú mismo en una prueba.
+
+`FireflyTenant.id()` es null cuando la cadena de consulta no tiene el parámetro `tenant`.
+
+## Métodos
+
+| Tipo | Métodos |
+|------|---------|
+| `Tenant` | `label(value)`, `label(provider)`, `label()` |
+| `Panel` | `tenant(tenant)` |
+| `Resource` | `tenant(column)` |
+| `FireflyTenant` | `id()`, `use(id, supplier)` |
+
+## Siguiente
+
+[Plugins](/docs/firefly/plugins/) extienden el mismo panel sin un registro.

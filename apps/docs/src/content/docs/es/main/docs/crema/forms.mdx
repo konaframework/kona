@@ -1,0 +1,213 @@
+---
+title: Formularios
+description: Tokens CSRF, simulación de método, errores de validación y ayudantes de assets en plantillas Crema.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Crema incluye un conjunto pequeño de ayudantes de formulario que leen valores del mapa de datos de la vista. Combínalos con el [middleware CSRF](/docs/security/csrf/) y la [validación](/docs/http/validation/) del lado de la petición.
+
+## CSRF
+
+```crema
+<form method="post" action="/posts">
+  @csrf
+  <input name="title" value="{{ title }}">
+  <button type="submit">Save</button>
+</form>
+```
+
+`@csrf` renderiza un input oculto `_token`. Pasa el token como `_token` o `csrf_token` en el mapa de datos (el middleware de sesión normalmente lo expone):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "posts.create",
+    mapOf(
+        "_token" to csrfToken,
+        "title" to "",
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "posts.create",
+    Map.of(
+        "_token", csrfToken,
+        "title", ""
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+Forma de la salida:
+
+```html
+<input type="hidden" name="_token" value="…">
+```
+
+Si ninguna de las dos claves está presente, el atributo value queda vacío — el formulario fallará las comprobaciones CSRF hasta que pases un token real.
+
+## Simulación de método (`@method`)
+
+Los formularios HTML en los navegadores solo se envían como `GET` o `POST`. La directiva `@method` de Crema emite un campo oculto para que las plantillas puedan *declarar* el verbo previsto:
+
+```crema
+<form method="post" action="/posts/{{ post.id }}">
+  @csrf
+  @method('PUT')
+  …
+</form>
+```
+
+Emite:
+
+```html
+<input type="hidden" name="_method" value="PUT">
+```
+
+Valores habituales: `PUT`, `PATCH`, `DELETE`.
+
+:::caution[Comportamiento del runtime hoy]
+El kernel HTTP y el router coinciden con el método **real** de la petición del transporte (`POST` en un envío de formulario normal). **No** reescriben hoy el método a partir del campo de cuerpo `_method`. Un formulario que hace POST con `@method('PUT')` sigue llegando como `POST` salvo que el cliente envíe un `PUT`/`PATCH`/`DELETE` real (por ejemplo mediante `fetch` de JavaScript).
+
+Hasta que la anulación de método se publique en la pila HTTP, elige uno de estos patrones:
+
+1. **Registra una ruta `POST`** para la acción del formulario (por ejemplo `router.post("/posts/{id}", …)` o una ruta dedicada `/posts/{id}/update`), y conserva `@method` solo como documentación en la plantilla — u omite `@method` hasta que exista la anulación.
+2. **Usa JavaScript** (o un cliente de API) que emita el verbo HTTP real que espera tu [ruta](../../http/routing/).
+3. Conserva `@method` en las plantillas por compatibilidad futura con los ayudantes HTML de Crema, sabiendo que el campo oculto lo ignora el enrutamiento hoy.
+:::
+
+## Errores de campo
+
+```crema
+<label>
+  Email
+  <input name="email" value="{{ email }}">
+</label>
+@error('email')
+  <p class="error">{{ errors.email }}</p>
+@enderror
+```
+
+El cuerpo se renderiza cuando los datos de la vista contienen un mapa `errors` con un valor no vacío para ese campo:
+
+| Valor de `errors['email']` | Cuerpo de `@error('email')` |
+|-------------------------|------------------------|
+| Ausente / `null` | Omitido |
+| Cadena vacía o colección vacía | Omitido |
+| Cadena / colección no vacía | Renderizado |
+| Cualquier otro valor no nulo | Renderizado |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "auth.login",
+    mapOf(
+        "_token" to token,
+        "email" to submittedEmail,
+        "errors" to mapOf("email" to "Required"),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "auth.login",
+    Map.of(
+        "_token", token,
+        "email", submittedEmail,
+        "errors", Map.of("email", "Required")
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+Cuando la validación devuelve varios mensajes por campo, pasa una lista e imprímelos en un bucle:
+
+```crema
+@error('email')
+  <ul>
+    @foreach(errors.email as message)
+      <li>{{ message }}</li>
+    @endforeach
+  </ul>
+@enderror
+```
+
+## Ejemplo de formulario completo
+
+```crema
+@extends('layouts.app')
+@section('content')
+  <h1>Edit post</h1>
+  <form method="post" action="/posts/{{ post.id }}">
+    @csrf
+    @method('PUT')
+
+    <label>
+      Title
+      <input name="title" value="{{ post.title }}">
+    </label>
+    @error('title')
+      <p class="error">{{ errors.title }}</p>
+    @enderror
+
+    <label>
+      Body
+      <textarea name="body">{{ post.body }}</textarea>
+    </label>
+    @error('body')
+      <p class="error">{{ errors.body }}</p>
+    @enderror
+
+    <button type="submit">Update</button>
+  </form>
+@endsection
+```
+
+## URL de assets en formularios y layouts
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+Se resuelve a `/css/app.css` por defecto, o antepone `asset_url` / `assetUrl` de los datos de la vista cuando está definido (base de CDN). Consulta [Renderizado](/docs/crema/rendering/#asset).
+
+## Cadenas de idioma
+
+Las etiquetas y los mensajes suelen usar `@lang` — consulta [Renderizado](/docs/crema/rendering/#lang).
+
+
+## Trampas y preguntas frecuentes
+
+**¿Por qué mi formulario `@method('PUT')` da 405?**
+La petición sigue siendo `POST`. Registra una ruta POST o envía un PUT real — consulta [Simulación de método](#simulación-de-método-method).
+
+**¿Por qué el campo CSRF está vacío?**
+Pasa `_token` o `csrf_token` en los datos de la vista (el middleware de sesión normalmente lo aporta).
+
+**¿Cómo muestro la entrada anterior después de una redirección de validación?**
+Usa la entrada anterior en flash de la sesión (`request.old("email")`) al volver a renderizar el formulario — [Validación](../../http/validation/).
+
+## Relacionado
+
+- [Protección CSRF](/docs/security/csrf/)
+- [Validación](/docs/http/validation/)
+- [Sesión](/docs/security/session/)
+- [Enrutamiento](/docs/http/routing/)

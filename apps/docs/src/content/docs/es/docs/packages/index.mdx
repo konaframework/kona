@@ -1,0 +1,26 @@
+---
+title: Desarrollo de paquetes
+description: Descubre service providers desde META-INF/kona/providers; instala paquetes con ./grind install.
+---
+
+Para **añadir** un paquete a una app existente (dependencia + providers), consulta [Instalar paquetes](./install/).
+
+Los paquetes reutilizables de Kona exponen service providers mediante un recurso del classpath:
+
+```
+META-INF/kona/providers
+```
+
+Un nombre de clase `ServiceProvider` totalmente cualificado por línea (se permiten comentarios `#`).
+
+```kotlin
+PackageDiscovery.registerAll(app)
+// or
+PackageDiscovery.loadProviders(classLoader).forEach { app.register(it) }
+```
+
+## Descubrimiento automático con grind
+
+Cuando arrancas una app mediante `AppLoader` (por ejemplo `grind serve --in-process`), grind busca `META-INF/kona/providers` en el classloader de la app. Si ese archivo existe y lista providers, `PackageDiscovery.registerAll` se ejecuta después de que `bootstrap.App.create` regresa. Los providers que el bootstrap ya registró se omiten (la misma clase se registra una sola vez).
+
+Coloca el archivo en `src/main/resources/META-INF/kona/providers` de tu app para que quede en `build/resources/main` tras compilar. Las apps con bootstrap manual pueden llamar ellas mismas a `PackageDiscovery.registerAll(app)`.

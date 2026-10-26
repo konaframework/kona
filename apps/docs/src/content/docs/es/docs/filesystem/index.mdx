@@ -1,0 +1,55 @@
+---
+title: Sistema de archivos
+description: Discos con nombre, almacenamiento local y en la nube, URL públicas, streams y enlaces firmados temporales.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona guarda archivos en **discos con nombre**. Un disco es una raíz (carpeta o bucket en la nube) más una API pequeña: poner y obtener bytes, listar directorios, construir URL y más. Resuelve los discos mediante `FilesystemManager` después de registrar `FilesystemServiceProvider` (`kona new` lo hace por ti).
+
+## Inicio rápido
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+val disk = files.disk() // default disk from config
+
+disk.put("reports/q1.txt", "ok")
+val body = disk.getString("reports/q1.txt")
+val present = disk.exists("reports/q1.txt")
+val gone = disk.missing("reports/nope.txt")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+FilesystemAdapter disk = files.disk();
+
+disk.put("reports/q1.txt", "ok");
+String body = disk.getString("reports/q1.txt");
+boolean present = disk.exists("reports/q1.txt");
+boolean gone = disk.missing("reports/nope.txt");
+```
+
+</TabItem>
+</Tabs>
+
+La configuración ejecutable vive en `config/Filesystems` (consulta [Configuración y entorno](../concepts/config/)). Los valores `root` relativos se resuelven contra la ruta base de la aplicación.
+
+## Drivers de un vistazo
+
+| Driver | Rol |
+| --- | --- |
+| `local` | Archivos bajo un directorio (predeterminado `storage/app`) |
+| `public` | Disco local que por defecto es `storage/app/public` con prefijo de URL `/storage` |
+| `scoped` | Prefijo de ruta sobre otro disco |
+| `memory` / `s3-memory` | Almacén en el proceso, con forma de S3, para pruebas |
+| `s3` | Cliente HTTP path-style con AWS SigV4 (`endpoint`, `bucket`, `key`, `secret`, `region`, `prefix` opcional) |
+
+Cualquier disco puede fijar `read-only` / `read_only` en `true` para rechazar escrituras.
+
+Siguiente: [configuración](./configuration/), [trabajar con archivos](./file-operations/), [disco público y URL temporales](./urls/) y [pruebas](./testing/).

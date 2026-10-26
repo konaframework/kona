@@ -1,0 +1,290 @@
+---
+title: serve / make
+description: Referencia de ./grind serve, route:list, los generadores make, los envoltorios de Gradle y los comandos de base de datos.
+---
+
+Todos los comandos de abajo asumen que estás en un directorio de aplicación que contiene `./grind` (creado por `kona new`). Desde cualquier sitio bajo esa app también puedes ejecutar los mismos comandos a través de la CLI global:
+
+```bash
+kona grind serve
+kona grind route:list
+kona grind migrate
+kona grind --help   # explains the proxy; other args are forwarded to ./grind
+```
+
+`kona grind` encuentra el proyecto Gradle más cercano (el mismo recorrido que `./grind serve`) y luego ejecuta el `./grind` o `grind.bat` de esa app con el resto de tus argumentos y el código de salida.
+
+## `./grind serve`
+
+```bash
+./grind serve
+./grind serve --host=127.0.0.1 --port=4000
+./grind serve --no-watch
+./grind serve --in-process --once
+./grind serve --in-process --bootstrap=bootstrap.App
+```
+
+| Bandera | Efecto |
+|------|--------|
+| `--host` / `--port` | Dirección de enlace (también vía `.env` como `HOST` / `PORT`) |
+| `--watch` / `-w` | Recarga suave (es el predeterminado): Netty sigue enlazado, recompila e intercambia las clases de la app |
+| `--no-watch` | Lanza `./gradlew run` en su lugar (JVM hija; un reinicio sustituye el proceso entero) |
+| `--in-process` | Arranca una vez desde `build/classes` sin vigilar |
+| `--once` | Vuelve después de que el servidor se enlace (desactiva la vigilancia) |
+| `--bootstrap=` | Clase de arranque (en proceso / vigilancia) |
+| `--base=` | Directorio desde el que buscar hacia arriba el proyecto Gradle |
+
+El host predeterminado es **127.0.0.1** y el puerto predeterminado es **4000** (también en el `.env` generado). Si ese puerto ya está en uso, grind pregunta si probar el siguiente (4001, 4002, …). Si no encuentra un proyecto Gradle, grind sale y te dice que ejecutes `kona new`.
+
+Al arrancar, grind imprime una caja Termwind con la URL local (por ejemplo `http://127.0.0.1:4000`) y cómo parar (`Ctrl+C`). Las compilaciones incrementales usan `--quiet --console=plain` para que el ruido de Gradle no tape la salida Termwind.
+
+### Recarga suave (predeterminada)
+
+`./grind serve` es un servidor de **vigilancia**:
+
+1. Si `build/classes` está vacío, grind ejecuta `./gradlew classes` una vez.
+2. Arranca `bootstrap.App` dentro de la JVM de grind (`AppLoader` + un `URLClassLoader` hijo) y pone en marcha `KonaHttpServer`.
+3. Sondea `src/main` (y `.env`) en busca de cambios de Kotlin, Java, Crema y recursos habituales. Los archivos de intercambio del editor (`*~`, `*.swp`) se ignoran.
+4. Tras un debounce en silencio ejecuta `./gradlew classes` incremental. **Netty sigue enlazado** — los event loops y las conexiones keep-alive no se desmontan.
+5. Si la compilación tiene éxito, grind arranca una aplicación nueva (Cadence registra un `Database` global nuevo), llama a `KonaHttpServer.replaceKernel` y luego cierra el classloader anterior y los pools de Cadence **de esa app anterior** — no el global nuevo. Guardar un componente Wire (por ejemplo `Counter`) debe seguir sirviendo sin `No global Database`.
+6. Si la compilación o el arranque fallan, el kernel anterior sigue respondiendo peticiones y grind imprime el error.
+
+Eso es una recarga **suave**: un proceso Netty, un classloader de app vivo a la vez, sin agente Java y sin una segunda JVM de aplicación. Los bloques `template()` en línea de Wire viven en la clase del componente, así que basta un guardado que recompile esa clase — no reinicias el servidor. Los archivos de vista Crema bajo `src/main/resources` entran en la misma vigilancia.
+
+`--in-process` sigue existiendo para scripts y pruebas que quieren un solo arranque sin sondeo. `--no-watch` es el camino antiguo de proceso hijo `gradlew run`.
+
+`./grind serve` es para **desarrollo local**. En producción, ejecuta `./grind deploy:systemd` y arranca la unidad generada — consulta [Despliegue](../../guides/deployment/).
+
+## `./grind route:list`
+
+```bash
+./grind route:list
+./grind route:list --json
+./grind route:list --method=GET --name=users --path=/api
+./grind route:list --compact
+./grind route:list --columns=method,uri,name --sort=uri --reverse
+```
+
+Arranca la aplicación en proceso (igual que migrate: encuentra el proyecto, carga `build/classes`, llama a `bootstrap.App.create`) e imprime cada ruta registrada en el `Router` compartido. Ejecuta `./gradlew classes` primero para que la app compilada esté en el classpath.
+
+Las columnas de la tabla son **Method**, **URI**, **Name**, **Action** y **Middleware**. Los métodos se unen con `|` cuando una ruta acepta más de uno (por ejemplo `PUT|PATCH`). Las clases de manejador con nombre muestran su nombre completamente cualificado; las lambdas de Kotlin/Java aparecen como `Closure`. Las clases de middleware de ruta muestran sus nombres simples, separados por comas; el middleware lambda aparece como `Closure`. Las rutas sin nombre dejan la celda de nombre en blanco.
+
+Un pie informa `Showing N route(s)`. Cuando no hay nada registrado: `Your application doesn't have any routes.` Cuando los filtros lo eliminan todo: `Your application doesn't have any routes matching the given criteria.` Ambos siguen saliendo con `0`.
+
+| Bandera | Efecto |
+|------|--------|
+| `--json` | Imprime un array JSON (claves `method`, `uri`, `name`, `action`, `middleware`, `vendor`) en lugar de la tabla. `name` es `null` cuando la ruta no tiene nombre. |
+| `--method=` | Conserva las rutas que declaran este verbo (separado por comas). Sin distinguir mayúsculas. `HEAD` también coincide con rutas `GET`, porque el enrutador hace ese fallback. |
+| `--name=` | Conserva las rutas cuyo nombre contiene esta subcadena (separado por comas, sin distinguir mayúsculas). Las rutas sin nombre nunca coinciden. |
+| `--path=` | Conserva las rutas cuya URI contiene esta subcadena (separado por comas, distinguiendo mayúsculas). |
+| `--except-path=` | Descarta las rutas cuya URI contiene alguna de estas subcadenas (separado por comas). |
+| `--except-vendor` | Descarta las rutas cuyo manejador vive bajo `org.konaframework.` (paquetes del framework). Los manejadores de la app, como `app.http.ShowUser`, se quedan. Las lambdas compiladas dentro de una clase del framework se tratan como vendor. |
+| `--only-vendor` | Conserva solo esos manejadores vendor. Combinado con `--except-vendor`, la tabla queda vacía. |
+| `--reverse` | Invierte el orden de clasificación. |
+| `--sort=` | Ordena por `method`, `uri` (predeterminado), `name`, `action` o `middleware`. Los valores desconocidos salen con `1`. |
+| `--columns=` | Subconjunto separado por comas de `method`, `uri`, `name`, `action`, `middleware`. Los valores desconocidos salen con `1`. |
+| `--compact` | Atajo de `--columns=method,uri,action,middleware`. |
+| `--bootstrap=` / `--base=` | El mismo significado que `serve --in-process`. |
+
+`--json` ignora `--columns` / `--compact` y siempre emite la forma completa del objeto. `--quiet` suprime la tabla y el JSON.
+
+Si `HttpServiceProvider` nunca se registró, grind sale con `1` y `No Router bound`.
+
+Consulta [Enrutado](../../http/routing/#listing-routes-with-grind) para ver cómo la tabla se corresponde con `Router` / `Route`.
+
+## `./grind route:cache` / `./grind route:clear`
+
+```bash
+./grind route:cache
+./grind route:clear
+```
+
+`route:cache` arranca la app y luego escribe una instantánea JSON con formato legible de la tabla viva en `bootstrap/cache/routes.json` (crea `bootstrap/cache/` si hace falta). Éxito: `Routes cached successfully.`
+
+El despacho HTTP **no** lee este archivo. El registro de rutas ya vive en Kotlin/Java compilado (proveedores y `WebRoutes` / `ApiRoutes`). La instantánea es para inspección, CI y herramientas del editor.
+
+`route:clear` borra `bootstrap/cache/routes.json` si existe y siempre imprime `Route cache cleared successfully.` No arranca la aplicación. Un archivo ausente sigue siendo un clear con éxito.
+
+Ambos comandos requieren una app Kona en `--base=` o por encima (el mismo recorrido de proyecto que `serve`).
+
+## `./grind make:command`
+
+```bash
+./grind make:command SendDigest
+./grind make:command SendDigest --command=mail:digest --lang=java
+```
+
+Genera un `ConsoleCommand` bajo `app/console/commands/` y lo registra en `META-INF/kona/commands`. Guía completa: [Crear comandos](../creating-commands/).
+
+## `./grind make:controller`
+
+```bash
+./grind make:controller Post
+./grind make:controller AccountController --lang=java
+./grind make:controller Post --resource
+./grind make:controller Post --api --requests --model=Post
+```
+
+Escribe bajo `src/main/kotlin|java/app/http/controllers/`. Los nombres no pueden contener separadores de camino; los identificadores inválidos se rechazan. El lenguaje predetermina a partir de los archivos `.java` existentes bajo `src/main/java/`, o pasa `--lang=`.
+
+| Bandera | Efecto |
+|------|--------|
+| `--resource` | Subclase de `BaseResourceController` con `index` / `create` / `store` / `show` / `edit` / `update` / `destroy` — pasa la instancia a `router.resource` |
+| `--api` | La misma subclase, pero sin anulaciones de `create` / `edit` (la base devuelve 404). Úsala con `router.apiResource` |
+| `--requests` | También escribe `Store{Model}Request` / `Update{Model}Request`; `store` / `update` llaman a `validate(request, …)` (las firmas siguen siendo `Request` para coincidir con `ResourceController`) |
+| `--model=Name` | Nombre de modelo usado para los nombres de clase de form request (predetermina a partir del nombre del controlador) |
+
+A diferencia de `serve`, `make:controller` no camina hacia arriba desde carpetas anidadas salvo que pases `--base=`.
+
+## `./grind make:resource`
+
+```bash
+./grind make:resource User
+./grind make:resource PostResource --collection --lang=java
+```
+
+Escribe bajo `src/main/kotlin|java/app/http/resources/`. A los nombres se les añade el sufijo `Resource` cuando falta. Pasa `--collection` para incluir un ayudante estático/companion `collection` que envuelve los elementos en `JsonResource.collection(...)`.
+
+## Comandos de base de datos
+
+Estos comandos trabajan con [Cadence](../../cadence/). Los generadores escriben archivos fuente; los demás arrancan tu aplicación en proceso.
+
+| Comando | Escribe / hace |
+|---------|---------------|
+| `./grind make:model <Name> [-mcrfspaR]` | `app/models/<Name>`; banderas cortas: `-m` migración, `-c` controlador plano, `-r` subclase de `BaseResourceController`, `-f` fábrica, `-s` seeder, `-p` política, `-R` / `--requests` form requests Store/Update, `--api` controlador de recurso de API (sin anulaciones create/edit), `-a` / `--all` migración + fábrica + seeder + controlador de recurso + requests + política |
+| `./grind make:migration <name> [--create=table] [--table=table]` | Archivo `database/migrations/{yyyy_MM_dd_HHmmss}_{snake_name}` con clase PascalCase (entrada snake_case o PascalCase); añade la clase a `META-INF/kona/migrations`; `create_x_table` crea `x`, `…_to_x_table` altera `x` |
+| `./grind make:factory <Name>Factory [--model=Name]` | `database/factories/<Name>Factory` |
+| `./grind make:seeder <Name>Seeder` | `database/seeders/<Name>Seeder` |
+| `./grind migrate [--seed] [--class=…] [--seeder=…]` | Ejecuta las migraciones pendientes como un lote nuevo (filas punteadas `DONE`); con `--seed` / `--seeder` / `--seeder=Class`, también ejecuta un seeder en el mismo proceso |
+| `./grind migrate:fresh [--seed] [--drop-views] [--drop-types]` | Elimina todas las tablas (y opcionalmente vistas / tipos de usuario) y luego ejecuta cada migración |
+| `./grind migrate:refresh [--step=N] [--seed]` | Revierte todos los lotes (o los últimos `N`) y luego migra de nuevo |
+| `./grind migrate:rollback [--step=N]` | Revierte los últimos `N` lotes (predeterminado 1) |
+| `./grind migrate:reset` | Revierte cada migración |
+| `./grind migrate:install` | Crea la tabla de contabilidad `extract_migrations` si falta |
+| `./grind migrate:status` | Tabla de `Ran` / `Pending`, lote y nombre de migración |
+| `./grind db:wipe [--drop-views] [--drop-types]` | Elimina todas las tablas (y opcionalmente vistas / tipos de usuario) sin migrar |
+| `./grind db:seed [--class=…]` | Ejecuta un seeder (predeterminado `database.seeders.DatabaseSeeder`) |
+| `./grind db:show` | Conexión, driver, URL y una tabla de nombres de tabla con recuentos de columnas |
+| `./grind db:table <name>` | Nombre de columna, tipo, nullable y predeterminado de una tabla |
+| `./grind schema:dump [--path=database/schema.sql]` | Escribe SQL `CREATE TABLE` reconstruido a partir de metadatos JDBC |
+
+Todos los generadores aceptan `--lang=kotlin|java` (predeterminado: Java cuando `app/` ya tiene archivos `.java`) y `--base=`, y nunca sobrescriben un archivo existente.
+
+Los comandos migrate y seed:
+
+1. encuentran el proyecto en `--base` o por encima (predeterminado: el directorio actual);
+2. cargan `build/classes` y llaman a `create(String[])` en la clase de arranque (`--bootstrap=`, predeterminado `bootstrap.App`), así que ejecuta `./gradlew classes` primero;
+3. usan el `MigrationRegistry` enlazado en el contenedor de la aplicación, o las migraciones listadas en `META-INF/kona/migrations` (escritas por `make:migration`);
+4. usan el `Database` del contenedor (registrado por `CadenceServiceProvider`), o construyen uno a partir de la sección de configuración `database`; `--database=name` selecciona una conexión con nombre.
+
+`migrate:fresh` y `db:wipe` eliminan las tablas de **usuario** de esa conexión (claves foráneas desactivadas, o `CASCADE` en PostgreSQL / Oracle). `--drop-views` también elimina las vistas. `--drop-types` elimina los tipos definidos por el usuario en los motores que los listan (enums de PostgreSQL); no hace nada en SQLite, H2 y MySQL. Las tablas de contabilidad, como `sqlite_sequence` de SQLite, no se eliminan.
+
+`schema:dump` escribe sentencias `CREATE TABLE` portables reconstruidas a partir de metadatos JDBC. La ruta predeterminada es `database/schema.sql` bajo la raíz de la aplicación.
+
+Cuando `app.env` es `production`, migrate / fresh / refresh / reset / rollback / install / wipe / seed exigen `--force`. `migrate:status`, `db:show`, `db:table` y `schema:dump` no.
+
+La salida estándar es solo la consola de grind: una línea de información (`Running migrations.` / `Dropping all tables.` / `Nothing to migrate.` / `Seeding database.`), luego una fila punteada por migración o seeder (`2000_01_01_000000_create_users_table ........ 12ms DONE`). `migrate:status` imprime una tabla **Status** / **Batch** / **Migration** (`Ran` en verde, `Pending` en amarillo). Los volcados del pool de conexiones, las trazas SQL y los registros de arranque se quedan en el canal de archivo `single` bajo `storage/logs`. Pasa `--verbose` (`-v`) para imprimir también esos registros en la consola.
+
+Los errores (conexión desconocida, una migración que falla, una clase de seeder ausente) imprimen un mensaje y salen con estado 1. Consulta [Migraciones](../../cadence/migrations/) y [Seeders y fábricas](../../cadence/seeders-factories/) para las APIs detrás de estos comandos.
+
+## `./grind deploy:systemd`
+
+```bash
+./grind deploy:systemd
+./grind deploy:systemd --skip-build --force
+./grind deploy:systemd --prefix=/var/www/hello-kona --port=4000
+```
+
+Construye un **paquete de producción** para systemd: `build/deploy/systemd/<app>/` con `bin/`, `lib/`, `public/`, `storage/`, `<app>.service`, `<app>.env` e `install.sh`. Ejecuta `./gradlew installDist` salvo que pases `--skip-build`. Revisa el archivo env, copia el directorio al servidor y luego `sudo ./install.sh`.
+
+Las apps Java usan el mismo comando. Banderas completas, disposición de directorios y el contenido de la unidad: [Despliegue](../../guides/deployment/). Muchos procesos, pools y workers: [Escalado](../../guides/scaling/).
+
+## `./grind down` / `./grind up`
+
+```bash
+./grind down
+./grind up
+./grind down --base=/path/to/app
+```
+
+Modo de mantenimiento. `down` escribe `storage/framework/down`; las peticiones HTTP reciben entonces **503 Service Unavailable** hasta que `up` elimina el archivo. El driver `file` se selecciona con `app.maintenance.driver` en `config/App`.
+
+## `./grind key:generate`
+
+```bash
+./grind key:generate
+./grind key:generate --show
+./grind key:generate --force
+./grind key:generate --base=/path/to/app
+```
+
+Fija una **clave de aplicación** criptográficamente aleatoria en el `.env` del proyecto como `APP_KEY=base64:…` (32 bytes en crudo, codificados en Base64). Ese valor es lo que el cifrado, las cookies firmadas y las funciones relacionadas leen como `app.key`.
+
+| Bandera | Efecto |
+|------|--------|
+| *(ninguna)* | Genera una clave y la escribe en `.env` |
+| `--show` | Imprime una clave nueva en la terminal y **no** modifica archivos |
+| `--force` | Permite sobrescribir una clave existente cuando `APP_ENV=production` |
+| `--base=` | Directorio desde el que buscar hacia arriba el proyecto Gradle (el mismo recorrido que `serve`) |
+
+### Qué ocurre en una ejecución normal
+
+1. Grind encuentra la raíz de la aplicación en `--base` o por encima (predeterminado: el directorio actual).
+2. Si falta `.env` pero existe `.env.example`, grind copia `.env.example` → `.env` primero.
+3. Se genera una clave `base64:…` nueva (el mismo formato que `kona new`).
+4. Se sustituye la línea `APP_KEY=…` de `.env`. Si esa línea falta, grind sale con un error.
+5. Si tiene éxito: `Application key set successfully.`
+
+### Claves existentes y producción
+
+- Si `APP_KEY` está **vacía**, grind escribe la clave nueva sin pregunta extra.
+- Si `APP_KEY` **ya está fijada** y el entorno **no** es producción (`APP_ENV` del entorno del proceso, o de `.env` cuando no está fijada en el proceso), grind sobrescribe la clave.
+- Si `APP_KEY` ya está fijada y `APP_ENV=production`, grind avisa y pide confirmación. Rechazar (o un «no» no interactivo) cancela el comando. Pasa `--force` para saltarte la pregunta.
+
+`--show` siempre imprime una clave nueva y nunca toca `.env`, con independencia de producción o de una clave existente.
+
+Rota con cuidado: el texto cifrado y las cargas de cookies firmadas producidas con la clave antigua no verificarán después de cambiar `APP_KEY`. Consulta [Cifrado](../../security/encryption/).
+
+## `./grind gradle:build` / `gradle:install`
+
+```bash
+./grind gradle:build
+./grind gradle:install
+./grind gradle:test
+./grind gradle:check
+./grind gradle:classes
+./grind gradle:clean
+./grind gradle:run
+./grind gradle test --offline
+./grind gradle:assemble
+```
+
+Estos ejecutan el **envoltorio de Gradle** en la raíz de la aplicación (`./gradlew`, o `gradlew.bat` en Windows; `gradle` en `PATH` si falta el envoltorio). Grind encuentra esa raíz igual que `serve` — camina hacia arriba desde `--base` (predeterminado: el directorio actual) hasta encontrar un `settings.gradle(.kts)` o `build.gradle(.kts)`.
+
+| Comando | Tarea de Gradle |
+|---------|-------------|
+| `gradle:build` | `build` |
+| `gradle:install` / `gradle:installDist` | `installDist` (la tarea de instalación del plugin Application que usan las apps Kona) |
+| `gradle:test` | `test` |
+| `gradle:check` | `check` |
+| `gradle:classes` | `classes` |
+| `gradle:clean` | `clean` |
+| `gradle:run` | `run` |
+| `gradle <tasks…>` | lo que pases |
+| `gradle:<task>` | ese nombre de tarea (`gradle:assemble` → `assemble`) |
+
+`gradle:install` **no** es lo mismo que `./grind install` (instalación de paquete). Es un nombre más corto de `./gradlew installDist`, que escribe `build/install/<app>/`.
+
+Se muestra la salida propia de Gradle (a diferencia de las compilaciones `classes` en modo vigilancia, que usan `--quiet` para que Termwind sea legible). Grind conserva `--base`, `--help` / `-h`, `-v` / `--verbose` y `-q` / `--quiet`; el resto de banderas se reenvía (`--offline`, `--max-workers=2`, …). Los argumentos posicionales extra después de un alias con nombre se añaden (`./grind gradle:build extra` → `./gradlew build extra`).
+
+`./grind gradle` sin tareas imprime el uso y sale con `1`. `--help` en cualquier token `gradle:` imprime el catálogo y no ejecuta Gradle.
+
+Las apps Java usan los mismos comandos. Consulta [Instalación](../../guides/installation/) para el envoltorio que escribe `kona new`.
+
+## No es un comando de grind: crear apps
+
+```bash
+kona new my-app --lang=kotlin
+```
+
+Consulta [Instalación](../guides/installation/).

@@ -1,0 +1,443 @@
+---
+title: Despacho y listeners
+description: Define tipos de evento, registra manejadores EventListener, despacha, olvida y vacía, el orden de invocación y la referencia de la API.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Esta página es la API pública completa de `EventDispatcher` y `EventListener`. Para el cableado y los conceptos, empieza en [Eventos](/docs/events/). Para dobles de prueba, consulta [Pruebas](/docs/events/testing/).
+
+## Definir eventos
+
+Un evento es cualquier objeto no nulo. No hay una clase base ni una interfaz marcadora obligatorias. Prefiere **cargas inmutables** con campos claros:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+data class UserRegistered(
+    val userId: Long,
+    val email: String,
+)
+
+data class PaymentFailed(
+    val orderId: String,
+    val reason: String,
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class UserRegistered {
+    public final long userId;
+    public final String email;
+
+    public UserRegistered(long userId, String email) {
+        this.userId = userId;
+        this.email = email;
+    }
+}
+
+public record PaymentFailed(String orderId, String reason) {}
+```
+
+</TabItem>
+</Tabs>
+
+Mantén los eventos libres de tipos del framework cuando puedas. Pasa identificadores y objetos de valor; deja que los listeners resuelvan `Mailer`, repositorios o `Bus` desde el contenedor si necesitan servicios.
+
+## Registrar listeners
+
+### `listen(Class, EventListener)`
+
+Añade un manejador exactamente para esa clase. Devuelve `this` para que puedas encadenar llamadas.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val bus = EventDispatcher()
+
+bus.listen(UserRegistered::class.java) { event ->
+    // trailing lambda → EventListener SAM
+}
+
+bus.listen(UserRegistered::class.java, EventListener { event ->
+    // explicit SAM
+})
+
+bus
+    .listen(UserRegistered::class.java) { /* A */ }
+    .listen(PaymentFailed::class.java) { /* B */ }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+EventDispatcher bus = new EventDispatcher();
+
+bus.listen(UserRegistered.class, event -> {
+    // lambda implements EventListener
+});
+
+bus.listen(UserRegistered.class, (EventListener<UserRegistered>) event -> {
+    // explicit SAM when the compiler needs help
+});
+
+bus
+    .listen(UserRegistered.class, event -> { /* A */ })
+    .listen(PaymentFailed.class, event -> { /* B */ });
+```
+
+</TabItem>
+</Tabs>
+
+### `listen` reificado de Kotlin
+
+```kotlin
+inline fun <reified T : Any> listen(listener: EventListener<T>): EventDispatcher
+```
+
+```kotlin
+bus.listen<UserRegistered> { event ->
+    logger.info("user {}", event.userId)
+}
+```
+
+Java no tiene forma reificada — pasa siempre `SomeEvent.class`.
+
+### Forma del listener
+
+```kotlin
+fun interface EventListener<T : Any> {
+    fun handle(event: T)
+}
+```
+
+Cualquier clase (o method reference) que coincida con `handle` funciona:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class SendWelcomeEmail : EventListener<UserRegistered> {
+    override fun handle(event: UserRegistered) {
+        // …
+    }
+}
+
+bus.listen(UserRegistered::class.java, SendWelcomeEmail())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class SendWelcomeEmail implements EventListener<UserRegistered> {
+    @Override
+    public void handle(UserRegistered event) {
+        // …
+    }
+}
+
+bus.listen(UserRegistered.class, new SendWelcomeEmail());
+```
+
+</TabItem>
+</Tabs>
+
+**No** hay escaneo automático de clases, ni atributo `@Listens`, ni un mapa de `EventServiceProvider` de evento → nombres de clase de listener. El registro es siempre llamadas explícitas a `listen`.
+
+## Despachar
+
+```kotlin
+fun dispatch(event: Any)
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+bus.dispatch(UserRegistered(userId = 7, email = "a@b.c"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+bus.dispatch(new UserRegistered(7, "a@b.c"));
+```
+
+</TabItem>
+</Tabs>
+
+Comportamiento:
+
+| Situación | Resultado |
+|-----------|--------|
+| Listeners registrados para `event.javaClass` | Cada `handle` corre en el orden de registro |
+| Sin listeners para esa clase | Vuelve de inmediato; sin error |
+| Un listener lanza | La excepción se propaga; los listeners restantes de este despacho se saltan |
+| Despachar un tipo con cero registros | No-op silencioso (igual que «sin listeners») |
+
+No hay un ayudante estático `Event::dispatch` ni una función de nivel superior `event(...)` — llama a `dispatch` en una instancia de `EventDispatcher`.
+
+### Coincidencia de clase exacta
+
+La coincidencia usa la **clase de tiempo de ejecución** de la instancia del evento, no interfaces ni superclases:
+
+```kotlin
+open class DomainEvent
+class OrderShipped : DomainEvent()
+
+bus.listen(DomainEvent::class.java) { /* never runs for OrderShipped */ }
+bus.dispatch(OrderShipped()) // no DomainEvent listeners invoked
+
+bus.listen(OrderShipped::class.java) { /* runs */ }
+bus.dispatch(OrderShipped())
+```
+
+Si necesitas un manejo compartido, registra el mismo listener (o una función compartida) en cada clase concreta, o pon la lógica compartida en un ayudante al que llamen los listeners concretos.
+
+### Varios listeners
+
+```kotlin
+bus.listen(OrderShipped::class.java) { audit.log(it) }
+bus.listen(OrderShipped::class.java) { mail.sendReceipt(it) }
+bus.listen(OrderShipped::class.java) { metrics.increment("orders.shipped") }
+
+bus.dispatch(OrderShipped("42"))
+// audit → mail → metrics (registration order)
+```
+
+Los listeners se guardan en un mapa concurrente de listas copy-on-write — es seguro registrar desde varios hilos, pero prefiere registrar durante el arranque antes de que llegue el tráfico.
+
+## Inspección
+
+| Método | Devuelve |
+|--------|---------|
+| `hasListeners(Class<*>)` | `true` cuando hay al menos un listener registrado para esa clase |
+| `listenerCount(Class<*>)` | Número de listeners de esa clase (`0` si no hay) |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+assertTrue(bus.hasListeners(OrderShipped::class.java))
+assertEquals(3, bus.listenerCount(OrderShipped::class.java))
+assertEquals(0, bus.listenerCount(PaymentFailed::class.java))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+assertTrue(bus.hasListeners(OrderShipped.class));
+assertEquals(3, bus.listenerCount(OrderShipped.class));
+```
+
+</TabItem>
+</Tabs>
+
+Estos **no** te dicen si un `dispatch` concreto ya corrió; solo describen el registro. Para registrar despachos en las pruebas, usa [`FakeEvent`](/docs/events/testing/).
+
+## Quitar listeners
+
+| Método | Efecto |
+|--------|--------|
+| `forget(Class<*>)` | Quita **todos** los listeners de esa clase de evento |
+| `flush()` | Limpia **cada** listener de cada clase |
+
+No hay una API para quitar una sola instancia de listener y dejar las demás del mismo tipo.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+bus.forget(OrderShipped::class.java)
+assertFalse(bus.hasListeners(OrderShipped::class.java))
+
+bus.flush()
+// registry empty
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+bus.forget(OrderShipped.class);
+bus.flush();
+```
+
+</TabItem>
+</Tabs>
+
+Usa `flush()` entre pruebas cuando tienes un despachador compartido, o prefiere un `EventDispatcher()` nuevo / [`FakeEvent`](/docs/events/testing/) por prueba.
+
+## Registrar desde el contenedor
+
+Patrón de producción típico: un bus singleton, listeners adjuntos en `boot`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class EventBindings : ServiceProvider {
+    override fun register(app: Application) {
+        // EventServiceProvider already bound EventDispatcher; nothing here
+    }
+
+    override fun boot(app: Application) {
+        val events = app.resolve(EventDispatcher::class.java)
+        val mailer = app.resolve(Mailer::class.java)
+
+        events.listen(UserRegistered::class.java) { event ->
+            mailer.send(/* welcome using event.email */)
+        }
+
+        events.listen(OrderShipped::class.java) { event ->
+            app.resolve(Bus::class.java).dispatch(SendShipmentNotification(event.id))
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class EventBindings implements ServiceProvider {
+    @Override
+    public void register(Application app) { }
+
+    @Override
+    public void boot(Application app) {
+        EventDispatcher events = app.resolve(EventDispatcher.class);
+        Mailer mailer = app.resolve(Mailer.class);
+
+        events.listen(UserRegistered.class, event ->
+            mailer.send(/* welcome using event.email */)
+        );
+
+        events.listen(OrderShipped.class, event ->
+            app.resolve(Bus.class).dispatch(new SendShipmentNotification(event.id))
+        );
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Asegúrate de que `EventServiceProvider` esté registrado **antes** de cualquier proveedor que resuelva `EventDispatcher` en `boot`. Los proveedores que solo llaman a `listen` en `boot` están bien siempre que `EventServiceProvider` aparezca antes en la lista de proveedores (o se haya registrado antes del arranque).
+
+## Casos de uso habituales
+
+### Desacoplar un camino de escritura de los efectos laterales
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun checkout(order: Order, events: EventDispatcher) {
+    orders.save(order)
+    events.dispatch(OrderPlaced(order.id, order.total))
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+void checkout(Order order, EventDispatcher events) {
+    orders.save(order);
+    events.dispatch(new OrderPlaced(order.id, order.total));
+}
+```
+
+</TabItem>
+</Tabs>
+
+Los listeners envían correo, actualizan índices de búsqueda o encolan trabajos sin que el método de checkout sepa de ellos.
+
+### Fan-out a un trabajo de cola
+
+```kotlin
+events.listen(OrderPlaced::class.java) { event ->
+    bus.dispatch(ProcessOrderPlaced(event.orderId)) // Job + ShouldQueue
+}
+```
+
+El evento se queda síncrono y pequeño; el trabajo hace el trabajo lento. Consulta [Trabajos y despacho](/docs/queue/jobs/).
+
+### Registro de auditoría
+
+```kotlin
+events.listen(PaymentFailed::class.java) { event ->
+    logger.warn("payment failed order={} reason={}", event.orderId, event.reason)
+}
+```
+
+### Grind / steam
+
+Desde una aplicación arrancada en [steam](/docs/steam/) o un comando [grind](/docs/grind/creating-commands/) propio, resuelve el mismo singleton y despacha para operaciones manuales:
+
+```kotlin
+app.resolve(EventDispatcher::class.java).dispatch(OrderShipped("ops-1"))
+```
+
+## Referencia de la API
+
+### `EventDispatcher`
+
+| Método | Descripción |
+|--------|-------------|
+| `listen(Class<T>, EventListener<T>): EventDispatcher` | Registra un listener; encadenable |
+| `listen<T>(EventListener<T>): EventDispatcher` | Sobrecarga reificada de Kotlin |
+| `dispatch(Any)` | Invoca los listeners de `event.javaClass` en orden |
+| `forget(Class<*>)` | Descarta todos los listeners de un tipo |
+| `flush()` | Descarta todos los listeners |
+| `hasListeners(Class<*>): Boolean` | Si existe algún listener para el tipo |
+| `listenerCount(Class<*>): Int` | Conteo de listeners del tipo |
+
+### `EventListener<T>`
+
+| Método | Descripción |
+|--------|-------------|
+| `handle(T)` | Se invoca una vez por cada `dispatch` coincidente |
+
+### `EventServiceProvider`
+
+| Método | Descripción |
+|--------|-------------|
+| `register(Application)` | `singleton(EventDispatcher::class.java) { EventDispatcher() }` |
+| `boot` | No se anula (sin listeners predeterminados) |
+
+## Trampas
+
+1. **Olvidar el proveedor.** Resolver `EventDispatcher` sin `EventServiceProvider` falla salvo que lo hayas enlazado tú.
+2. **Solo el tipo exacto.** Escuchar un tipo base no recibe los despachos de las subclases.
+3. **Las excepciones abortan la cadena.** Un listener que lanza salta los listeners posteriores de ese despacho; captura dentro del listener si quieres un fan-out de mejor esfuerzo.
+4. **Trabajo largo en el hilo de la petición.** `dispatch` bloquea hasta que terminan todos los listeners — mueve el trabajo pesado a [colas](/docs/queue/).
+5. **Estado mutable compartido.** Los listeners corren en el hilo del llamador; mantenlos seguros para hilos si despachas desde muchos virtual threads.
+6. **Cadence frente a eventos de aplicación.** Los hooks de modelo usan `ModelDispatcher`, no `EventDispatcher`. Consulta [Serialización, colecciones y eventos](/docs/cadence/serialization-events/#lifecycle-events).
+7. **Sin detener la propagación.** No puedes cancelar los listeners restantes salvo lanzando (lo que aflora al publicador).
+8. **`forget` es todo o nada por tipo.** No puedes desregistrar uno de varios listeners de la misma clase.
+
+## No disponible hoy (detalle)
+
+| Función | Notas |
+|---------|-------|
+| Suscriptores | No hay una clase `subscribe(dispatcher)` que mapee muchos eventos en un sitio |
+| Listeners en cola | No hay `ShouldQueue` en `EventListener`; usa `Bus` desde un listener síncrono |
+| After commit | No hay aplazamiento hasta que una transacción de BD haga commit |
+| Descubrimiento | No hay escaneo de paquetes ni índice KSP de listeners |
+| Fachadas / ayudantes | No hay `Event.dispatch` / `event()` — usa la instancia del despachador |
+| Comodines | No hay `listen("order.*")` en este bus |
+| Prioridad / listeners ordenados | El orden es solo el de registro |
+| Detener / parar | No hay valor de retorno ni API para detener los listeners restantes |
+
+Si necesitas esos comportamientos, implémentalos en el código de la aplicación (por ejemplo un envoltorio fino alrededor de `EventDispatcher`) o espera un hito de profundización futuro — no inventes APIs que no estén en `modules/events`.

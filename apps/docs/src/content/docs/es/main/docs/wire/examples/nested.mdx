@@ -1,0 +1,104 @@
+---
+title: Ejemplo — Componentes anidados
+description: Props padre/hijo, eventos, enlace modelable y marcadores de posición perezosos.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un padre de panel de control aloja un hijo de panel reactivo y escucha un evento del hijo.
+
+## Hijo
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Panel : Component() {
+    @field:Reactive
+    var title = ""
+
+    @field:Modelable
+    var note = ""
+
+    fun save() {
+        dispatch("panel-saved", mapOf("title" to title))
+    }
+
+    override fun template() = """
+        <section>
+            <h2>{{ title }}</h2>
+            <input wire:model.live="note" />
+            <button type="button" wire:click="save">Save panel</button>
+        </section>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Panel extends Component {
+    @Reactive public String title = "";
+    @Modelable public String note = "";
+
+    public void save() {
+        dispatch("panel-saved", Map.of("title", title));
+    }
+
+    @Override
+    public String template() {
+        return """
+            <section>
+                <h2>{{ title }}</h2>
+                <input wire:model.live="note" />
+                <button type="button" wire:click="save">Save panel</button>
+            </section>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Padre
+
+```kotlin
+class Dashboard : Component() {
+    var heading = "Ops"
+    var draft = ""
+    var lastSaved = ""
+
+    fun onPanelSaved(title: String = "") {
+        lastSaved = title
+    }
+
+    override fun template() = """
+        <div>
+            <p>Last saved: {{ lastSaved }}</p>
+            <wire:panel
+                wire:key="main"
+                :title="heading"
+                wire:model="draft"
+                @panel-saved="onPanelSaved"
+            />
+        </div>
+    """.trimIndent()
+}
+```
+
+## Hijo perezoso
+
+```kotlin
+@Lazy
+class HeavyChart : Component() {
+    override fun placeholder() = """<div aria-busy="true">Loading chart…</div>"""
+}
+```
+
+```crema
+<wire:heavy-chart lazy />
+```
+
+Más detalle: [Anidación, islas y lazy](/docs/wire/advanced/nesting/).

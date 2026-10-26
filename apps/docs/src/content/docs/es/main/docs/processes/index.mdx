@@ -1,0 +1,42 @@
+---
+title: Procesos
+description: Ejecuta procesos del sistema operativo desde Kona.
+---
+
+El módulo de **procesos** ejecuta comandos de shell y otros ejecutables con un tiempo límite, un directorio de trabajo opcional y anulaciones de entorno.
+
+## Kotlin
+
+```kotlin
+val result = Process.run("sh", "-c", "echo hello")
+if (result.successful()) {
+    println(result.output)
+}
+
+val custom = ProcessRunner(defaultTimeoutSeconds = 30)
+val again = custom.run(
+    listOf("sh", "-c", "echo $NAME"),
+    workingDirectory = File("/tmp"),
+    env = mapOf("NAME" to "kona"),
+    timeoutSeconds = 5,
+)
+```
+
+## Java
+
+```java
+ProcessResult result = Process.run("sh", "-c", "echo hello");
+boolean ok = result.successful();
+String out = result.getOutput();
+```
+
+## Campos del resultado
+
+| Campo | Significado |
+|-------|-------------|
+| `exitCode` | Estado de salida del proceso |
+| `output` | stdout capturado |
+| `errorOutput` | stderr capturado |
+| `successful()` | Verdadero cuando el código de salida es `0` |
+
+Si el proceso supera el tiempo límite, Kona lo destruye y lanza `IllegalStateException`.

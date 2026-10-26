@@ -1,0 +1,256 @@
+---
+title: Aplicación y proveedores
+description: Qué es una Application de Kona, cómo los proveedores de servicios enchufan funciones en ella y el orden exacto en que ocurre el arranque.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Cada programa Kona gira alrededor de un objeto: la **aplicación** (`org.konaframework.core.Application`). Esta página explica qué guarda, cómo los **proveedores de servicios** le añaden funciones y la secuencia precisa que sigue Kona desde `Kona.create(args)` hasta una app arrancada lista para servir peticiones.
+
+## Qué guarda una aplicación
+
+Una `Application` es un objeto plano que puedes crear, inspeccionar y tirar (las pruebas lo hacen constantemente). Guarda cuatro cosas:
+
+- **Camino base** (`basePath`): el directorio raíz de tu proyecto en disco. Kona busca `.env` aquí. `app.path(...)` une segmentos al camino base y devuelve un `java.nio.file.Path`.
+- **Disposición de caminos**: directorios bajo `src/main` — `appPath`, `bootstrapPath`, `routesPath`, `databasePath`, `configPath`, `resourcePath`, `viewPath`, `publicPath`, `langPath`, `storagePath`. La fachada `Paths` los refleja después del arranque (`Paths.config()`, `Paths.storage("logs")`, …). Las anulaciones viven en las claves de configuración `paths.*`.
+- **Contenedor** (`container`): el registro que sabe cómo construir tus servicios. Consulta [Contenedor](../container/).
+- **Config** (`config`): el árbol de ajustes con claves punteadas. Consulta [Config y entorno](../config/).
+- **Proveedores**: la lista de proveedores de servicios registrados, en orden de registro.
+
+Cuando se construye una aplicación se registra a sí misma en su propio contenedor, así que cualquier servicio puede depender de ella:
+
+| Búsqueda | Devuelve |
+|--------|---------|
+| Clase `Application`, o clave de cadena `"app"` | la aplicación |
+| Clase `Config`, o clave de cadena `"config"` | su config |
+| Clase `Container` | el propio contenedor |
+
+## Proveedores de servicios
+
+Un **proveedor de servicios** es una clase que implementa `org.konaframework.core.ServiceProvider`. Es la unidad que usas para enchufar una función en una aplicación: la capa HTTP de Kona es un proveedor (`HttpServiceProvider`), y tu propio código de aplicación normalmente empieza en un `AppServiceProvider`. Un proveedor tiene dos métodos, y la división entre ellos es la idea central de esta página:
+
+- **`register(app)`** describe servicios. Enlaza tipos en el contenedor, lee valores de configuración, y nada más. Cuando corre `register`, otros proveedores pueden no haberse registrado aún, así que no *resuelvas* servicios que aporta otra persona.
+- **`boot(app)`** hace el trabajo de arranque. Corre solo después de que **cada** proveedor haya terminado `register`, así que todo está enlazado y puedes resolver con libertad: adjunta rutas, instala middleware, calienta cachés, valida la configuración.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Greeter::class.java) { Greeter("Hello") }
+    }
+
+    override fun boot(app: Application) {
+        val greeter = app.resolve(Greeter::class.java)
+        app.resolve(Router::class.java).get("/") { Response.text(greeter.greet("world")) }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().singleton(Greeter.class, c -> new Greeter("Hello"));
+    }
+
+    @Override
+    public void boot(Application app) {
+        Greeter greeter = app.resolve(Greeter.class);
+        app.resolve(Router.class).get("/", request -> Response.text(greeter.greet("world")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+Aquí `boot` resuelve `Router`, que `HttpServiceProvider` enlazó durante *su* `register`. Por el orden de dos fases, esto funciona tanto si `HttpServiceProvider` está listado antes como después de `AppServiceProvider`.
+
+En Kotlin, `boot` tiene un predeterminado vacío y puede omitirse. Los proveedores Java deben implementar ambos métodos (un `boot` vacío está bien).
+
+## Crear una aplicación
+
+### Con `Kona.create` (recomendado)
+
+`Kona.create` devuelve un `Application.Builder` que también carga `.env`, la configuración predeterminada y los archivos JSON de `src/main/resources/config` (cayendo a un directorio `config/` de nivel superior). Es lo que usan los proyectos generados. Usa `.afterBoot { … }` para registrar pilas de middleware HTTP después de que los proveedores hayan arrancado.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .configure { it.set("app.name", "Demo") }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .configure(config -> config.set("app.name", "Demo"))
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+
+Las sobrecargas eligen el camino base:
+
+| Llamada | Camino base |
+|------|-----------|
+| `Kona.create(args)` | el valor del primer argumento `--base=/some/dir`, si no el directorio de trabajo actual |
+| `Kona.create(path)` | `path`, hecho absoluto y normalizado |
+| `Kona.create()` | el directorio de trabajo actual |
+
+Kona ignora los demás argumentos de `args`, así que puedes pasar tus propias banderas.
+
+### Con `Application.builder` (sin arranque)
+
+`Application.builder()` y `Application.builder(path)` devuelven el mismo builder **sin** el paso de arranque de Kona: sin carga de `.env`, sin predeterminados `app.*`, sin directorio `config/`. Úsalo cuando quieras control total, normalmente en pruebas unitarias.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Application.builder(Path.of("/srv/demo"))
+    .withProvider(HttpServiceProvider())
+    .withProviders(AppServiceProvider(), MetricsServiceProvider())
+    .configure { it.set("app.debug", true) }
+    .build()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Application.builder(Path.of("/srv/demo"))
+    .withProvider(new HttpServiceProvider())
+    .withProviders(new AppServiceProvider(), new MetricsServiceProvider())
+    .configure(config -> config.set("app.debug", true))
+    .build();
+```
+
+</TabItem>
+</Tabs>
+
+
+Métodos del builder, todos encadenables:
+
+- `basePath(path)`: cambia el camino base (el builder sin argumentos empieza en el directorio de trabajo).
+- `withProvider(p)`, `withProviders(a, b, ...)`, `withProviders(iterable)`, `providers(a, b, ...)`: añaden proveedores. `providers` es un alias más corto de `withProviders`.
+- `configure(consumer)`: encola un callback que recibe el `Config`. Varios callbacks corren en el orden en que se añadieron.
+- `build()` / `boot()`: crea, registra y arranca. Los dos nombres son alias.
+
+### A mano
+
+También puedes conducir una `Application` directamente: `Application(basePath)`, luego `register(...)` de cada proveedor, luego `boot()`. El builder existe para que no puedas arrancar por accidente antes de que todos los proveedores estén listados, y por eso es la forma preferida.
+
+## La secuencia de arranque, exactamente
+
+Cuando llamas a `boot()` en un builder de `Kona.create`, estos pasos corren en este orden:
+
+1. Se construye una `Application` nueva y se registra a sí misma, su `Config` y su `Container` en el contenedor.
+2. **Arranque** (solo con `Kona.create`): se carga `.env` del camino base si está presente; se ponen `app.name`, `app.env` y `app.debug` a partir de `APP_NAME` (predeterminado `Kona`), `APP_ENV` (predeterminado `local`) y `APP_DEBUG` (predeterminado `false`); luego los módulos `ConfigFile` registrados se fusionan bajo sus claves.
+3. Corren tus callbacks **`configure`**, en orden. Ven y pueden anular todo lo del paso 2.
+4. **Fase de registro**: el `register` de cada proveedor corre en el orden de la lista.
+5. **Fase de arranque**: el `boot` de cada proveedor corre en el orden de registro.
+6. La aplicación se marca como arrancada y registra `Kona application booted at <base path>`.
+7. Con `Kona.create`, la aplicación se recuerda para que `Kona.app()` pueda devolverla.
+
+### Casos límite que maneja el orden
+
+- **Proveedores duplicados.** Registrar un segundo proveedor de una clase que ya está registrada se ignora en silencio: su `register` nunca se llama. La identidad es la clase exacta, no la instancia.
+- **Proveedores registrados durante el arranque.** Si el `boot` de un proveedor registra otro proveedor, el nuevo corre `register` de inmediato y se arranca más tarde en el mismo pase, antes de que termine el arranque.
+- **Proveedores registrados después del arranque.** Llamar a `app.register(provider)` en una aplicación arrancada corre el `register` de ese proveedor y luego su `boot` enseguida.
+- **Llamar a `boot()` dos veces** es inocuo; la segunda llamada vuelve de inmediato.
+
+El registro y el arranque están sincronizados, así que las llamadas concurrentes de varios hilos no pueden intercalar fases.
+
+## Ayudantes en `Application`
+
+| Método | Propósito |
+|--------|---------|
+| `path(vararg segments)` | Resuelve un camino bajo el camino base |
+| `resolve(Class)` / `make(Class)` | Pide al contenedor una instancia (los dos son idénticos) |
+| `register(provider)` / `registerAll(iterable)` | Añade proveedores (consulta los casos límite de arriba) |
+| `getProvider(Class)` | El proveedor registrado de esa clase exacta, o `null` |
+| `providers()` | Una lista instantánea de los proveedores registrados |
+| `isBooted()` | Si la fase de arranque ha terminado |
+| `container`, `config`, `basePath` | Los objetos propios (`getContainer()`, `getConfig()`, `getBasePath()` desde Java) |
+
+## El punto de entrada `Kona`
+
+`Kona` es un punto de entrada estático para el acceso a nivel de aplicación:
+
+- `Kona.create(...)`: devuelve un builder de arranque, descrito arriba.
+- `Kona.start(args)` / `Kona.start(path)`: atajo de `Kona.create(...).boot()` sin proveedores. Útil para scripts que solo necesitan config y entorno; registra proveedores en el resultado si necesitas más.
+- `Kona.app()`: la aplicación arrancada más recientemente mediante `Kona.create` o `Kona.start`. Lanza `IllegalStateException("Kona has not been started…")` si no hay ninguna. Las aplicaciones construidas con `Application.builder` no se rastrean.
+- `Kona.reset()`: olvida la aplicación actual y limpia los valores cargados de `.env`. Llámalo entre pruebas.
+
+Prefiere pasar la `Application` (o los servicios que necesitas) de forma explícita; `Kona.app()` es una comodidad para el código que no tiene otra forma de alcanzarla.
+
+## Cuando el arranque falla
+
+Kona no traga errores durante el arranque. Cualquier excepción del `register` o `boot` de un proveedor, del contenedor (por ejemplo `BindingException: No binding for [...]`), o de cargar un archivo de configuración se propaga fuera de `build()`/`boot()` hacia tu `main`. En ese caso la aplicación no se marca como arrancada y `Kona.app()` no se actualiza. Trata un arranque fallido como fatal: arregla la causa y arranca un proceso nuevo en lugar de llamar a `boot()` de nuevo en la misma instancia, lo que volvería a ejecutar proveedores que ya arrancaron.
+
+## Probar una aplicación
+
+Como `create` devuelve una aplicación arrancada sin abrir un socket, las pruebas pueden arrancar la app real contra un camino base temporal y ejercitarla en el proceso:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppTest {
+    @TempDir lateinit var temp: Path
+
+    @AfterEach fun reset() = Kona.reset()
+
+    @Test fun boots() {
+        val app = Kona.create(arrayOf("--base=$temp"))
+            .providers(HttpServiceProvider(), AppServiceProvider())
+            .boot()
+        assertTrue(app.isBooted())
+        val response = app.resolve(HttpKernel::class.java).handle(Request.get("/"))
+        assertEquals(200, response.status)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+class AppTest {
+    @TempDir Path temp;
+
+    @AfterEach void reset() { Kona.reset(); }
+
+    @Test void boots() {
+        Application app = Kona.create(new String[] {"--base=" + temp})
+            .providers(new HttpServiceProvider(), new AppServiceProvider())
+            .boot();
+        assertTrue(app.isBooted());
+        Response response = app.resolve(HttpKernel.class).handle(Request.get("/"));
+        assertEquals(200, response.getStatus());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+El directorio temporal vacío significa que no hay `.env` ni `config/`, así que la prueba solo ve los predeterminados y lo que la propia prueba configura.
+
+Consulta también [Contenedor](../container/) y [Config y entorno](../config/).

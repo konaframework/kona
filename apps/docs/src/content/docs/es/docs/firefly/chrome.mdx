@@ -1,0 +1,178 @@
+---
+title: Cromo del panel
+description: Slots del panel, hooks de render, anulaciones de parciales y layouts propios.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="panel-chrome.png" description="El cromo del panel en http://127.0.0.1:4017/admin/desk, mostrando la barra lateral, la barra superior, el cuerpo de la página y el pie." />
+
+El cromo del panel es el marco alrededor de cada pantalla: barra lateral, barra superior, cuerpo y pie. Lo tocas cuando el marco predeterminado está cerca pero quieres otra barra lateral, un banner o tu propio envoltorio.
+
+La clase que dibuja el marco es `org.konaframework.firefly.support.Panel`. La clase que montas en el router es `org.konaframework.firefly.Panel`, documentada en [Panel](/docs/firefly/panel/). La clase de soporte elige el HTML de cada región, comprueba que los marcadores de hook siguen ahí, rellena esos marcadores y pide a un layout que envuelva el resultado.
+
+## Panel
+
+| Método | Comportamiento |
+|--------|----------|
+| `theme(FireflyTheme)` | Tema usado para tokens, CSS y parciales del tema. Predeterminado: `KonaTheme` |
+| `layout(PanelLayout)` | Sustituye el envoltorio. Predeterminado: `DefaultLayout`. Una llamada posterior sustituye el layout anterior |
+| `hook(Hook, String)` | Añade HTML para ese hook. Varias llamadas al mismo hook se concatenan, en orden |
+| `overridePartial(slot, html)` | HTML de la app para un slot. Gana sobre el parcial del tema y el parcial integrado |
+| `render(): String` | Resuelve cada slot y luego `layout.render(...)` |
+
+Slots, en orden: `sidebar`, `topbar`, `body`, `footer`.
+
+Para cada slot, `render` elige la primera fuente que existe:
+
+1. `overridePartial` de ese slot, cuando lo pusiste.
+2. `theme.partial(slot)`, cuando devuelve no null.
+3. El parcial integrado.
+
+Los nombres de slot desconocidos pasados a `overridePartial` se guardan y se ignoran, porque solo se resuelven los cuatro slots.
+
+## Marcadores de hook
+
+Cada parcial elegido debe seguir conteniendo los marcadores de su slot. El texto del marcador es exacto, incluido el comentario:
+
+| Slot | Marcadores exigidos |
+|------|------------------|
+| `sidebar` | `<!-- ff-hook:sidebar.start -->` y `<!-- ff-hook:sidebar.end -->` |
+| `topbar` | `<!-- ff-hook:topbar.start -->` y `<!-- ff-hook:topbar.end -->` |
+| `body` | `<!-- ff-hook:body.start -->` y `<!-- ff-hook:body.end -->` |
+| `footer` | `<!-- ff-hook:footer -->` |
+
+Si falta algún marcador, `render` lanza `FireflyException`:
+
+```text
+Partial [<slot>] is missing markers [<marker>, ...]
+```
+
+La cáscara no se renderiza. Arregla el parcial para que los comentarios sigan en el HTML, incluso cuando tu marcado los rodea.
+
+Después de la comprobación, cada marcador se sustituye por el HTML de hook concatenado. Un hook que nunca rellenaste se convierte en una cadena vacía, así que el comentario desaparece.
+
+Valores de `Hook`: `SIDEBAR_START`, `SIDEBAR_END`, `TOPBAR_START`, `TOPBAR_END`, `BODY_START`, `BODY_END`, `FOOTER`. Cada uno tiene una cadena `marker` (`sidebar.start`, y así sucesivamente).
+
+## Parciales integrados
+
+| Slot | Elemento |
+|------|---------|
+| sidebar | `<aside class="ff-sidebar">` |
+| topbar | `<header class="ff-topbar">` |
+| body | `<main class="ff-body">` |
+| footer | `<footer class="ff-footer">` |
+
+## Layout predeterminado
+
+`DefaultLayout` escribe:
+
+```html
+<div class="ff-panel">
+  <style>…theme CSS…</style>
+  …sidebar…
+  …topbar…
+  …body…
+  …footer…
+</div>
+```
+
+Si un slot faltara en el mapa que recibe, lanzaría `Missing partial [<name>]`. `Panel` siempre rellena los cuatro slots antes de llamar al layout, así que ese fallo es para un llamador propio de `DefaultLayout` que omite una clave.
+
+## Sustituir un parcial
+
+La anulación debe conservar los marcadores. Esta barra lateral añade una etiqueta y sigue aceptando hooks:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val shell = Panel().overridePartial(
+    "sidebar",
+    """<aside class="ff-sidebar"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>""",
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Panel shell = new Panel().overridePartial(
+    "sidebar",
+    "<aside class=\"ff-sidebar\"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>"
+);
+```
+
+</TabItem>
+</Tabs>
+
+Un tema puede aportar el mismo HTML desde `partial("sidebar")`. Una anulación de la app sigue ganando cuando existen ambas.
+
+## Sustituir el layout
+
+`PanelLayout.render` recibe un `ChromeContext`:
+
+| Campo | Contenido |
+|-------|----------|
+| `theme` | El `FireflyTheme` de la cáscara |
+| `hooks` | La instancia de `RenderHooks` (ya aplicada a los parciales) |
+| `partials` | Mapa de nombre de slot a HTML, con los marcadores ya sustituidos |
+| `css` | La cadena de `Stylesheet.render(theme)` |
+
+Un layout puede ignorar `DefaultLayout` y colocar los parciales él mismo. Para usar los tokens oscuros, pon `ff-dark` en el mismo elemento que `ff-panel`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class DarkLayout : PanelLayout {
+    override fun render(context: ChromeContext): String = """
+        <div class="ff-panel ff-dark">
+          <style>${context.css}</style>
+          ${context.partials["sidebar"]}
+          ${context.partials["topbar"]}
+          ${context.partials["body"]}
+          ${context.partials["footer"]}
+        </div>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class DarkLayout implements PanelLayout {
+    @Override public String render(ChromeContext context) {
+        return "<div class=\"ff-panel ff-dark\"><style>" + context.getCss() + "</style>"
+            + context.getPartials().get("sidebar")
+            + context.getPartials().get("topbar")
+            + context.getPartials().get("body")
+            + context.getPartials().get("footer")
+            + "</div>";
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Panel().layout(DarkLayout()).render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new Panel().layout(new DarkLayout()).render();
+```
+
+</TabItem>
+</Tabs>
+
+`layout(...)` después de `theme(...)` no descarta el tema. El tema sigue aportando tokens, CSS y parciales de tema. Solo cambia el envoltorio.

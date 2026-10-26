@@ -1,0 +1,323 @@
+---
+title: Validación
+description: Declara reglas para la entrada de la petición, recupera solo los campos validados y devuelve JSON 422 o un redirect-back con errores flasheados para formularios web.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+La **validación** comprueba los datos entrantes antes de que tu manejador confíe en ellos. Describes cada campo con una lista de **reglas** — cadenas cortas como `required`, `email` o `min:18`. Kona comprueba cada campo, recoge mensajes de error legibles y o bien te entrega los datos validados o lanza una `ValidationException`. El manejador de excepciones predeterminado convierte esa excepción en un sobre JSON **422** (cuando el cliente espera JSON) o en un **redirect back** con errores flasheados y la entrada antigua (típico de envíos de formulario HTML), así que un manejador habitual no necesita código de manejo de errores.
+
+## Validar una petición
+
+`Request.validate(rules)` toma un `Map<String, List<String>>`: cada **nombre de campo** se corresponde con una **lista de cadenas de regla**.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.post("/users") { request ->
+    val input = request.validate(
+        mapOf(
+            "email" to listOf("required", "email"),
+            "age" to listOf("nullable", "integer", "min:18"),
+            "password" to listOf("required", "string", "min:8", "confirmed"),
+            "role" to listOf("required", "in:admin,member"),
+        ),
+    )
+    Response.json(users.create(input), 201)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.post("/users", request -> {
+    Map<String, Object> input = request.validate(Map.of(
+        "email", List.of("required", "email"),
+        "age", List.of("nullable", "integer", "min:18"),
+        "password", List.of("required", "string", "min:8", "confirmed"),
+        "role", List.of("required", "in:admin,member")
+    ));
+    return Response.json(users.create(input), 201);
+});
+```
+
+</TabItem>
+</Tabs>
+
+### Reglas unidas con tubería dentro de un elemento de la lista
+
+Cualquier elemento de la lista también puede contener varias reglas unidas con `|`. Kona parte cada elemento en `|` antes de ejecutar las reglas, así que estas tres declaraciones son idénticas:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+"email" to listOf("required", "email")
+"email" to listOf("required|email")
+"email" to listOf("required|string", "email")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+"email", List.of("required", "email")
+"email", List.of("required|email")
+"email", List.of("required|string", "email")
+```
+
+</TabItem>
+</Tabs>
+
+La única excepción es `regex:`. Un elemento que **empieza por** `regex:` nunca se parte, porque `|` tiene significado dentro de una expresión regular. Dale siempre a una regla regex su propio elemento de lista: `listOf("required", "regex:/^(draft|published)$/")`.
+
+### Qué recibes
+
+Si tiene éxito, `validate` devuelve un `Map<String, Any?>` que contiene **solo los campos que tienen reglas y están presentes** en la entrada. Los campos extra que envió el cliente se descartan, y los campos opcionales ausentes no se incluyen. Usa este mapa en lugar de leer la petición otra vez, para que la entrada no validada nunca se filtre en tu lógica.
+
+Si falla, lanza `ValidationException` y tu manejador se detiene en esa línea.
+
+## De dónde salen los datos
+
+`Request.validate` valida `request.data()` — consulta [Petición y respuesta](../request-response/#typed-json-with-data):
+
+- En peticiones **JSON** (`Content-Type` que contiene `application/json`), los valores conservan sus tipos JSON: números, booleanos, `null`, listas y mapas. Los valores de la cadena de consulta también se incluyen, y los del cuerpo ganan en un conflicto.
+- En peticiones de **formulario** y otras, cada valor es un `String` tomado de la cadena de consulta y del cuerpo codificado en URL.
+
+Esto afecta a algunas reglas. `integer`, `numeric` y `boolean` aceptan cadenas adecuadas, así que funcionan en envíos de formulario. `array` y `list` solo pueden pasar con JSON, porque los valores de formulario son siempre cadenas.
+
+## Validar cualquier mapa con `Validator`
+
+Cuando los datos no vienen directamente de una petición — un mensaje decodificado, un bloque de configuración, una fila CSV — construye un `Validator` directamente. `Validator.make` acepta un `Map<String, Any?>` o un `Request`, con el mismo formato de reglas.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val validator = Validator.make(
+    mapOf("name" to "Ada", "tags" to listOf("math", "engines")),
+    mapOf(
+        "name" to listOf("required", "string", "max:50"),
+        "tags" to listOf("array", "max:5"),
+    ),
+)
+
+if (validator.fails()) {
+    println(validator.errors())       // Map<String, List<String>>
+} else {
+    val clean = validator.validate()  // same result as Request.validate
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Validator validator = Validator.make(
+    Map.of("name", "Ada", "tags", List.of("math", "engines")),
+    Map.of(
+        "name", List.of("required", "string", "max:50"),
+        "tags", List.of("array", "max:5")
+    )
+);
+
+if (validator.fails()) {
+    System.out.println(validator.errors());      // Map<String, List<String>>
+} else {
+    Map<String, Object> clean = validator.validate();
+}
+```
+
+</TabItem>
+</Tabs>
+
+`passes()` es lo contrario de `fails()`. Cada llamada vuelve a ejecutar las reglas desde cero, así que el resultado siempre refleja los datos actuales. `errors()` devuelve los mensajes de la ejecución más reciente. `validate()` ejecuta las reglas y o bien devuelve el mapa validado o lanza `ValidationException`.
+
+## Cómo corren las reglas
+
+Para cada campo, Kona recorre las reglas en el orden en que las escribiste:
+
+1. **Los campos ausentes o en blanco saltan la mayoría de las reglas.** Si el campo no está, o es una cadena que solo contiene espacios, se salta toda regla excepto `required`. Así que `min:3` solo no hace obligatorio un campo — añade `required` cuando deba estar presente.
+2. **`required` se detiene en el primer fallo.** Si `required` falla, no corre ninguna otra regla de ese campo, así que el cliente ve un mensaje claro.
+3. **`nullable` deja pasar `null`.** Un campo presente con el valor `null` normalmente sigue ejecutando sus reglas (y falla `string`, `integer`, y así sucesivamente). Con `nullable`, un valor `null` las salta.
+4. **El resto de fallos se acumula.** Sin `bail`, cada regla restante corre y cada fallo añade un mensaje. Con `bail` en cualquier punto de las reglas del campo, el primer fallo termina ese campo.
+5. **Las reglas desconocidas o mal formadas fallan cerradas.** Un nombre de regla que Kona no conoce añade `Unknown validation rule [name].` Una regla conocida con un parámetro malo — `min:abc`, `between:1`, un regex con un patrón o bandera inválidos — añade `Invalid validation rule [rule].` Estos errores aparecen incluso cuando el campo falta, así que una errata no puede desactivar una comprobación en silencio.
+
+Los nombres de campo en los mensajes sustituyen los guiones bajos por espacios: `first_name` aparece como “first name”.
+
+## Referencia de reglas
+
+| Regla | Pasa cuando | Mensaje de error |
+|------|-------------|---------------|
+| `required` | El campo está presente y no es `null`, ni una cadena en blanco, ni una lista o mapa vacíos | `The email field is required.` |
+| `nullable` | Siempre; deja que `null` salte las demás reglas | — |
+| `bail` | Siempre; detiene el campo en su primer fallo | — |
+| `string` | El valor es una cadena | `The name field must be a string.` |
+| `integer` | Un número entero, o una cadena de dígitos con signo opcional y sin ceros a la izquierda (`"42"`, `"-7"`), dentro del rango de 64 bits | `The age field must be an integer.` |
+| `numeric` | Un número, o una cadena numérica (`"3.14"`, `"1e3"`, `" 12 "`) | `The price field must be a number.` |
+| `boolean` | Uno de `true`, `false`, `1`, `0`, `"1"`, `"0"`, `"true"`, `"false"` | `The active field must be true or false.` |
+| `email` | Una cadena con forma `local@domain.tld` sin espacios | `The email field must be a valid email address.` |
+| `url` | Una cadena que se analiza como URI con esquema y host (`https://example.com`) | `The website field must be a valid URL.` |
+| `array` | Una lista o un mapa (array u objeto JSON) | `The tags field must be an array.` |
+| `list` | Una lista (array JSON) | `The tags field must be a list.` |
+| `min:n` | El tamaño es al menos `n` | `…must be at least 18.` / `…must be at least 8 characters.` / `…must have at least 1 items.` |
+| `max:n` | El tamaño es como mucho `n` | `…must not be greater than 50 characters.` |
+| `size:n` | El tamaño es exactamente `n` | `…must be 4 characters.` |
+| `between:a,b` | El tamaño va de `a` a `b`, inclusive | `…must be between 1 and 10.` |
+| `in:a,b,c` | El valor (como texto) es una de las opciones listadas; en una lista, cada elemento debe serlo | `The selected role is invalid.` |
+| `not_in:a,b` | El valor no es una de las opciones listadas | `The selected role is invalid.` |
+| `confirmed` | Igual al campo llamado `<field>_confirmation` | `The password field confirmation does not match.` |
+| `confirmed:other` | Igual al campo llamado `other` | igual que arriba |
+| `same:other` | Igual al campo llamado `other` | `The email field must match email again.` (para `same:email_again`) |
+| `different:other` | Distinto del campo llamado `other` | `The email field must be different from email again.` |
+| `regex:/pattern/flags` | La cadena contiene una coincidencia del patrón | `The code field format is invalid.` |
+| `not_regex:/pattern/flags` | La cadena **no** contiene una coincidencia | `The code field format is invalid.` |
+| `file` | El valor es un `UploadedFile` válido | `The photo field must be a file.` |
+| `image` | Una subida válida con tipo MIME de imagen o extensión de imagen | `The photo field must be an image.` |
+| `mimes:png,jpg` | Una subida válida cuya extensión está listada | `The photo field must be a file of type: png, jpg.` |
+| `mimetypes:image/png` | Una subida válida cuyo `Content-Type` está listado | `The photo field must be a file of type: image/png.` |
+| `filled` | Si el campo está presente, no debe estar vacío | `The name field must have a value.` |
+| `present` | La clave del campo debe existir (aunque esté vacía) | `The name field must be present.` |
+| `sometimes` | Salta el campo entero cuando está ausente | — |
+| `accepted` | `yes`, `on`, `1` o `true` (sin distinguir mayúsculas) | `The terms field must be accepted.` |
+| `declined` | `no`, `off`, `0` o `false` | `The marketing field must be declined.` |
+| `accepted_if:field,value` | Debe aceptarse cuando otro campo es igual a `value` | `…must be accepted when role is admin.` |
+| `declined_if:field,value` | Debe rechazarse cuando otro campo es igual a `value` | `…must be declined when role is admin.` |
+| `prohibited` | El campo debe faltar o estar vacío | `…is prohibited.` |
+| `prohibited_if:field,value` | Prohibido cuando otro campo es igual a `value` | `…is prohibited when role is admin.` |
+| `prohibited_unless:field,value` | Prohibido salvo que otro campo sea igual a `value` | `…is prohibited unless role is admin.` |
+| `prohibits:a,b` | Cuando este campo está presente, los campos listados deben estar vacíos | `…prohibits a / b from being present.` |
+| `exclude` | Quita el campo de la salida validada (siempre) | — |
+| `exclude_if` / `exclude_unless` / `exclude_with` / `exclude_without` | Omite el campo de la salida validada de forma condicional | — |
+| `current_password` | Coincide con la contraseña del usuario autenticado vía `Validator.setCurrentPasswordChecker` | `…is incorrect.` |
+| `alpha` / `alpha_num` / `alpha_dash` | Solo letras / letras+dígitos / letras+dígitos+`-`+`_` | `…must only contain letters.` |
+| `ascii` | Solo caracteres ASCII | `…must only contain ASCII characters.` |
+| `uuid` | Una cadena UUID | `…must be a valid UUID.` |
+| `ulid` | Una cadena ULID de 26 caracteres | `…must be a valid ULID.` |
+| `mac_address` | MAC (`aa:bb:…`, `aa-bb-…` o `aabb.ccdd.eeff`) | `…must be a valid MAC address.` |
+| `json` | Una cadena de objeto o array JSON | `…must be a valid JSON string.` |
+| `ip` / `ipv4` / `ipv6` | Dirección IP (IPv4 usa una comprobación de cuarteto punteado; IPv6 vía el JDK) | `…must be a valid IP address.` |
+| `timezone` | Un id de zona del JDK como `UTC` o `America/New_York` | `…must be a valid timezone.` |
+| `date` | Se analiza como fecha local ISO / fecha-hora | `…must be a valid date.` |
+| `date_format:Y-m-d` | Coincide con el formato (estilo PHP `Y m d H i s` o un patrón `DateTimeFormatter` de Java) | `…must match the format Y-m-d.` |
+| `after:…` / `before:…` / `after_or_equal:…` / `before_or_equal:…` | Comparación de fecha contra otro campo o una cadena de fecha | `…must be after start.` |
+| `starts_with:a,b` / `ends_with:a,b` | Prefijo / sufijo de cadena | `…must start with one of: a, b.` |
+| `digits:n` / `digits_between:a,b` | Cadena de dígitos de longitud exacta / en rango | `…must be 4 digits.` |
+| `lowercase` / `uppercase` | La cadena entera está en minúsculas / mayúsculas | `…must be lowercase.` |
+| `distinct` | Array / lista sin valores duplicados | `…has duplicate values.` |
+| `required_if:field,value` | Obligatorio cuando otro campo es igual a `value` | `…is required when role is admin.` |
+| `required_unless:field,value` | Obligatorio salvo que otro campo sea igual a `value` | `…is required unless role is admin.` |
+| `required_with:a,b` | Obligatorio cuando cualquier campo listado no está vacío | `…is required when name is present.` |
+| `required_without:a,b` | Obligatorio cuando cualquier campo listado está vacío o falta | `…is required when name is not present.` |
+| `required_with_all:a,b` | Obligatorio cuando todos los campos listados no están vacíos | `…is required when a / b are present.` |
+| `required_without_all:a,b` | Obligatorio cuando todos los campos listados están vacíos | `…is required when none of a / b are present.` |
+| `exists:table,column` | La fila existe (necesita un [`ExistenceChecker`](#exists-and-unique)) | `…is invalid.` |
+| `unique:table,column[,exceptId]` | No hay fila en conflicto (necesita un `ExistenceChecker`) | `…has already been taken.` |
+
+Para valores `UploadedFile`, `min` / `max` / `size` / `between` miden **kilobytes**, no caracteres.
+
+### `exists` y `unique`
+
+Estas reglas necesitan una sonda de base de datos. Registra una con `Validator.setExistenceChecker(checker)` — normalmente desde un proveedor respaldado por Cadence. Sin un checker, la regla falla cerrada con un mensaje de que se requiere un `ExistenceChecker`, así que un cableado ausente no puede pasar en silencio.
+
+### Cómo se mide el tamaño
+
+`min`, `max`, `size` y `between` deciden qué significa «tamaño» a partir del propio valor:
+
+- Los **números** (números JSON) se comparan por valor: `min:18` significa 18 o más.
+- Las **listas y mapas** se comparan por número de elementos: `max:5` significa como mucho cinco elementos.
+- Las **cadenas** se comparan por número de caracteres — salvo que el campo también tenga `integer` o `numeric` y la cadena parezca un número, en cuyo caso se compara por valor. Por eso `"age" to listOf("integer", "min:18")` funciona para un campo de formulario `age=21`.
+
+### `confirmed` y `same`
+
+Ambos comparan valores con igualdad ordinaria, así que los tipos importan: el número JSON `1` no es igual a la cadena `"1"`. Para un campo de contraseña, envía `password` y `password_confirmation` con el mismo valor.
+
+### `regex`
+
+Escribe el patrón entre dos caracteres delimitadores idénticos (cualquier carácter no alfanumérico, normalmente `/`), seguido de banderas opcionales: `i` (ignorar mayúsculas), `m` (multilínea), `s` (el punto coincide con saltos de línea), `x` (permitir espacios y comentarios), `u` (aceptada, sin efecto). La regla pasa cuando el patrón se encuentra en cualquier punto de la cadena, así que ancla con `^…$` para coincidir con el valor entero. Los valores que no son cadena fallan.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+"slug" to listOf("required", "regex:/^[a-z0-9-]+$/")
+"code" to listOf("required", "regex:/^[A-Z]{3}$/i")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+"slug", List.of("required", "regex:/^[a-z0-9-]+$/"),
+"code", List.of("required", "regex:/^[A-Z]{3}$/i")
+```
+
+</TabItem>
+</Tabs>
+
+## La respuesta de error
+
+`ValidationException` expone `errors` (Java: `getErrors()`), un mapa de nombre de campo a una lista de mensajes. Los campos aparecen en el orden de iteración de tu mapa de reglas: orden de declaración para `mapOf` de Kotlin o un `LinkedHashMap` de Java, no especificado para `Map.of` de Java. Su `message` los resume: el primer mensaje, más `(and N more error)` o `(and N more errors)` cuando hay otros.
+
+Cuando la excepción escapa de tu manejador, el manejador de excepciones predeterminado elige una respuesta a partir de `request.expectsJson()`:
+
+### Clientes JSON (`expectsJson()` es true)
+
+Estado **422** con:
+
+```json
+{
+  "message": "The email field is required. (and 1 more error)",
+  "errors": {
+    "email": ["The email field is required."],
+    "age": ["The age field must be at least 18."]
+  }
+}
+```
+
+`expectsJson()` es true cuando `Accept` prefiere `application/json` sin `text/html`, o cuando `Content-Type` es JSON.
+
+### Clientes web / formulario (todo lo demás)
+
+Un redirect **302** a la URL anterior (`session` `_previous.url`, si no `Referer`, si no `/`) con:
+
+- `errors` flasheados (el mapa de validación)
+- `_old_input` flasheado desde `request.all()`
+
+`StartSession` aplica esas bolsas de flash pendientes cuando guarda. En el GET siguiente, léelas con `request.old("email")` / `session.old("email")` y `session.get("errors")`. Consulta [Sesión](../../security/session/) y [Petición y respuesta](../request-response/).
+
+Esta respuesta pasa por el middleware global como cualquier otra. Si necesitas otra forma, captura `ValidationException` en el manejador, o instala un `ExceptionHandler` personalizado — consulta [Excepciones](../exceptions/).
+
+## Form requests y controladores
+
+Los controladores pueden llamar a `validate(request, rules)` o `validate(request, formRequest)`. Un `FormRequest` es dueño de `rules()` y de `authorize(request)` opcional — consulta [Controladores → Form requests](../controllers/#form-requests). Los form requests no autorizados lanzan `HttpException(403)` antes de que corran las reglas.
+
+También puedes llamar a `request.validate(rules)` o `Validator.make(request, rules).validate()` directamente desde un manejador.
+
+## Trampas y preguntas
+
+**¿Por qué `min:3` no hizo obligatorio el campo?**  
+Los campos ausentes o en blanco saltan la mayoría de las reglas. Añade `required`.
+
+**¿Por qué `array` falla en un envío de formulario?**  
+Los valores de formulario son cadenas. Envía JSON para las reglas de lista/mapa.
+
+**¿Por qué una regla desconocida hizo fallar un campo ausente?**  
+Las reglas desconocidas o mal formadas fallan cerradas incluso cuando el campo está ausente, así que las erratas no pueden desactivar comprobaciones.
+
+**¿Necesito una base de datos para `exists` / `unique`?**  
+Sí — registra `Validator.setExistenceChecker(...)`. Sin ello, esas reglas fallan cerradas.
+
+## Qué no está disponible hoy
+
+- Expansión de reglas con `dot.notation` anidada para objetos JSON profundos como DSL de primera clase más allá de claves planas
+- Clases de regla personalizadas registradas de forma global (usa comprobaciones imperativas en el manejador para casos exóticos)
+- Inyección automática de FormRequest a partir de firmas de método
+
+## Siguientes pasos
+
+- Ayudantes de controlador en [Controladores](../controllers/).
+- Sobres de error en [Excepciones](../exceptions/).
+- Redisplay con flash en [Petición y respuesta](../request-response/) y [Formularios Crema](../../crema/forms/).

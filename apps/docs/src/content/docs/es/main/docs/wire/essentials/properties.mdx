@@ -1,0 +1,142 @@
+---
+title: Propiedades de Wire
+description: Estado público, ayudantes en bloque, campos bloqueados y valores calculados.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Las **propiedades** son el estado público que Wire deshidrata en la instantánea y rehidrata en cada actualización. Solo cuentan los miembros declarados en tu subclase — los miembros de la base `Component` nunca son estado.
+
+## Declarar estado
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Profile : Component() {
+    var name = ""
+    var age = 0
+    var tags = mutableListOf<String>()
+}
+```
+
+Prefiere `var` con un campo de respaldo. Los miembros private / protected son invisibles para el navegador.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Profile extends Component {
+    public String name = "";
+    public int age = 0;
+    public List<String> tags = new ArrayList<>();
+}
+```
+
+Los campos públicos (o pares getter/setter públicos que Wire puede ver) se convierten en estado.
+
+</TabItem>
+</Tabs>
+
+## Tipos admitidos
+
+Escalares, listas/mapas/conjuntos, enums, tipos `java.time`, `BigDecimal` / `BigInteger`, `UUID`, data classes / DTO y objetos que implementan `Wireable` (`toWire` / `fromWire`). Las rutas anidadas como `todos.0.title` funcionan mediante sintetizadores.
+
+Los tipos incorrectos del cliente lanzan un desajuste de tipo de propiedad (la petición se rechaza). Las propiedades bloqueadas o desconocidas se rechazan.
+
+Un modelo Cadence también es estado público. La instantánea guarda su clase, clave primaria, conexión y valores de atributos. En la petición siguiente, Wire recarga la fila cuando hay una base de datos global configurada. Sin base de datos global, Wire reconstruye el modelo a partir de esos atributos, así que la plantilla sigue viendo las mismas columnas. Llama a métodos del modelo, incluso cuando la propiedad es null:
+
+```crema
+{{ user?.getEmail() }}
+{{ user?.getAttribute('name') }}
+```
+
+`user.email` lee esa columna cuando la clase no tiene un método `getEmail()`. Los modelos Java usan las mismas llamadas (`getEmail()`, `getAttribute("name")`).
+
+## Ayudantes en bloque
+
+| Método | Comportamiento |
+|--------|-----------|
+| `fill(map)` | Asigna claves conocidas; ignora las desconocidas |
+| `reset()` / `reset("a", "b")` | Restaura los valores iniciales (instancia nueva) |
+| `resetExcept("keep")` | Reinicia todo lo demás |
+| `pull("title")` | Devuelve el valor y reinicia |
+| `pull("a", "b")` | Devuelve un mapa y reinicia esas claves |
+| `only("a", "b")` | Subconjunto de la instantánea |
+| `all()` | Mapa completo del estado público |
+
+```kotlin
+fun clearForm() {
+    reset("name", "email")
+}
+
+fun importDraft(data: Map<String, Any?>) {
+    fill(data)
+}
+```
+
+## Propiedades bloqueadas
+
+Marca los campos que el navegador no debe escribir:
+
+```kotlin
+@Locked
+var userId = 0
+```
+
+```java
+@Locked
+public int userId = 0;
+```
+
+Las actualizaciones del cliente a una propiedad bloqueada lanzan `CannotUpdateLockedPropertyException`.
+
+## Propiedades calculadas
+
+Valores derivados memorizados de un método público sin argumentos:
+
+```kotlin
+@Computed
+fun remaining(): Int = items.count { !it.done }
+```
+
+Las plantillas los leen como datos normales (`{{ remaining }}`). Opciones:
+
+| Parámetro | Rol |
+|-----------|------|
+| `persist` | Caché entre peticiones para esta instancia |
+| `cache` | Caché entre todas las instancias de la clase |
+| `seconds` | TTL (predeterminado 3600) |
+| `key` | Clave de caché explícita cuando `cache` es verdadero |
+| `tags` | Etiquetas informativas para almacenes conscientes de etiquetas |
+
+Olvida un valor memorizado:
+
+```kotlin
+forgetComputed("remaining")
+```
+
+O léelo de forma explícita: `computed<Int>("remaining")`.
+
+## Desde JavaScript
+
+```js
+$wire.count          // read
+$wire.count = 5      // queue an update
+$wire.$set('count', 5, true)  // set + live round-trip
+$wire.$get('todos.0.title')
+$wire.$toggle('open')
+```
+
+## Notas de seguridad
+
+- Solo las propiedades **públicas** de la subclase son estado.
+- Solo los métodos **públicos** de la subclase (no `render` / ciclo de vida / `mount`) son acciones llamables.
+- Las instantáneas se checksumean con `app.key`; la manipulación falla la verificación.
+- La hidratación usa una política de seguridad de lista de permitidos para las clases sintetizables.
+
+## Siguiente
+
+- [Acciones](/docs/wire/essentials/actions/) — métodos y `$wire`
+- [Ciclo de vida](/docs/wire/essentials/lifecycle/) — hooks `updatedFoo` cuando cambian las propiedades
+- [Formularios](/docs/wire/essentials/forms/) — enlaza entradas con `wire:model`

@@ -1,0 +1,206 @@
+---
+title: Eventos
+description: Despacho en el servidor, oyentes @On, eventos wire:* del navegador y puentes de eventos Alpine ↔ Wire.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire tiene tres superficies de eventos relacionadas:
+
+1. **Eventos DOM del navegador** — `wire:click`, `wire:keydown.enter`, `wire:trix-change` propio, …
+2. **Eventos de componente** — `dispatch(...)` en el servidor, `@On` / `listeners()` en el receptor
+3. **JavaScript / Alpine** — `Wire.dispatch`, `$wire.$dispatch`, `x-on:….window`
+
+Comparten nombres a propósito: un `dispatch('saved')` del servidor se convierte en un `CustomEvent` del navegador que Alpine y otros componentes pueden oír.
+
+## Eventos del navegador (`wire:*`)
+
+Usa `wire:<event-name>` en cualquier elemento para llamar a una acción del servidor:
+
+```html
+<button wire:click="save">Save</button>
+<button wire:click.prevent="save">Save</button>
+<button wire:dblclick="edit">Edit</button>
+<input wire:keydown.enter="search" />
+<input wire:keydown.shift.enter="newline" />
+<div wire:keydown.escape.window="close"></div>
+<div wire:trix-change="updated"></div>
+<div wire:init="load">…</div>
+```
+
+Los modificadores de tecla incluyen `.enter`, `.escape`, `.space`, `.tab`, `.shift`, `.ctrl`, `.alt`, `.meta` / `.cmd`, teclas de flecha, `.page-up` / `.page-down` y `.slash`.
+
+| Modificador | Rol |
+|----------|------|
+| `.window` / `.document` | Escucha en window / document |
+| `.outside` | Dispara cuando el evento ocurre fuera del elemento |
+| `.self` | Solo cuando el objetivo del evento es el elemento |
+| `.once` | Quita el oyente después del primer disparo |
+| `.debounce.Xms` / `.throttle.Xms` | Limita la tasa |
+| `.passive` / `.capture` | Opciones de `addEventListener` |
+| `.camel` / `.dot` | Mayúsculas del nombre del evento |
+
+Cualquier nombre de evento DOM funciona después de `wire:`. Consulta [Acciones](/docs/wire/essentials/actions/) para acciones mágicas y diálogos de confirmación.
+
+## Despachar desde el servidor
+
+Encola un evento del navegador desde una acción:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun save() {
+    // …
+    dispatch("post-saved", "id" to postId)
+}
+
+fun notifySelf() {
+    dispatch("refresh-ui").self()
+}
+
+fun notifyChild() {
+    dispatch("filter-changed", "q" to query).to("search-panel")
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public void save() {
+    // …
+    dispatch("post-saved", Map.of("id", postId));
+}
+
+public void notifySelf() {
+    dispatch("refresh-ui").self();
+}
+
+public void notifyChild() {
+    dispatch("filter-changed", Map.of("q", query)).to("search-panel");
+}
+```
+
+</TabItem>
+</Tabs>
+
+Entrega fluida:
+
+| Método | Efecto |
+|--------|--------|
+| `to("name")` / `to(Class)` / `component("name")` | Apunta a un componente por nombre |
+| `self()` | Solo este componente |
+| `ref("name")` | Apunta a un `wire:ref` |
+| `el("selector")` | Apunta a un selector CSS |
+
+Se serializa en `effects.dispatches` y el cliente lo entrega después del morph.
+
+## Escuchar con `@On` y `listeners()`
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.wire.On
+
+class Feed : Component() {
+    @On("post-saved")
+    fun onSaved(id: Long) { /* … */ }
+
+    @On("post-updated.{post.id}")
+    fun onThisPost() { /* dynamic placeholder from state */ }
+
+    override fun listeners() = mapOf(
+        "legacy-event" to "onLegacy",
+    )
+
+    fun onLegacy() { /* … */ }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.wire.On;
+
+public class Feed extends Component {
+    @On("post-saved")
+    public void onSaved(long id) { /* … */ }
+
+    @On("post-updated.{post.id}")
+    public void onThisPost() { /* … */ }
+
+    @Override
+    public Map<String, String> listeners() {
+        return Map.of("legacy-event", "onLegacy");
+    }
+
+    public void onLegacy() { /* … */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+En el mount, Wire deshidrata los nombres de oyente en `effects.listeners` para que el cliente pueda enrutar eventos. Los marcadores como `{post.id}` se resuelven a partir de las propiedades del componente.
+
+## Oyentes de hijos anidados
+
+Escucha un evento del hijo en la etiqueta del padre:
+
+```html
+<wire:editor @post-saved="refreshList" />
+```
+
+El método del padre corre cuando el hijo despacha `post-saved`.
+
+## JavaScript y Alpine
+
+```js
+// Global
+Wire.on('saved', (e) => console.log(e))
+Wire.dispatch('saved', { id: 1 })
+Wire.dispatchTo('counter', 'bump', {})
+
+// From Alpine / $wire
+$wire.$on('saved', () => {})
+$wire.$dispatch('saved', { id: 1 })
+$wire.$dispatchSelf('refresh-ui')
+$wire.$dispatchTo('search-panel', 'filter-changed', { q: 'brew' })
+$wire.$dispatchRef('panel', 'close')
+$wire.$dispatchEl('#toast', 'show', { text: 'Done' })
+```
+
+Alpine oye los eventos de Wire como `CustomEvent` de window:
+
+```html
+<div x-data x-on:post-saved.window="toast = $event.detail">
+  …
+</div>
+```
+
+Los ayudantes de plantilla `$dispatch` / `$dispatchTo` / `$dispatchSelf` están disponibles en expresiones Alpine dentro de una raíz de componente.
+
+## Echo / broadcasting
+
+`@On("echo:channel,Event")`, `echo-private:` y `echo-presence:` se integran con el adaptador de broadcasting de Kona cuando Echo está presente en la página. Consulta la documentación de broadcasting de Kona para la configuración de canales; Wire solo cablea los nombres de oyente en el componente.
+
+## Pruebas
+
+```kotlin
+Wire.test("feed")
+    .call("save")
+    .assertDispatched("post-saved")
+    .assertDispatched("post-saved") { params -> params["id"] == 42L }
+    .assertNotDispatched("deleted")
+```
+
+También puedes `dispatch(...)` hacia una instancia testeable para ejercitar los manejadores `@On` sin un navegador.
+
+## Siguiente
+
+- [Anidación](/docs/wire/advanced/nesting/) — cableado de eventos padre/hijo
+- [Acoplamiento con Alpine.js](/docs/wire/js/alpine/) — `$wire` y `x-on`
+- [Runtime de JavaScript](/docs/wire/js/runtime/) — hooks e interceptores

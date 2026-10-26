@@ -1,0 +1,266 @@
+---
+title: Renderizado y datos
+description: Ecos, escape, HTML crudo, expresiones, JSON, cadenas de idioma y etiquetas Vite en Crema.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Crema evalúa expresiones contra el mapa de datos que pasas a `view` / `render` (y mapas anidados, listas y getters al estilo bean). Esta página cubre cómo los valores se vuelven HTML — escapados o crudos — y los ayudantes que convierten datos en JSON, URL y cadenas de traducción. Para crear vistas desde controladores, consulta el [Ayudante de vistas](/docs/crema/view-helper/).
+
+## Pasar datos
+
+Cada render empieza con un `Map<String, Any?>` (Kotlin) o `Map<String, ?>` (Java). Las claves se vuelven nombres de nivel superior en la plantilla:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+view(
+    "posts.show",
+    mapOf(
+        "title" to "Hello",
+        "post" to post,
+        "tags" to listOf("kona", "jvm"),
+    ),
+).render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Views.make(
+    "posts.show",
+    Map.of(
+        "title", "Hello",
+        "post", post,
+        "tags", List.of("kona", "jvm")
+    )
+).render();
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+<h1>{{ title }}</h1>
+<p>{{ post.body }}</p>
+```
+
+Los caminos anidados usan puntos: `post.body` recorre claves de mapa o getters sin argumentos (`getBody()`, `isActive()`, o un método/campo llamado `body`).
+
+`View.with(key, value)` / `with(map)` fusiona más claves antes de `render()`. Los contextos hijos (includes, bucles, componentes) heredan los datos del padre y pueden superponer variables de bucle o slots.
+
+## Ecos escapados
+
+`{{ expr }}` imprime el valor como texto con escape HTML de `&`, `<`, `>`, `"` y `'`:
+
+```crema
+<p>Hello {{ name }}</p>
+{{-- name = "<script>" → Hello &lt;script&gt; --}}
+```
+
+Los valores vacíos o ausentes se renderizan como cadena vacía — no el literal `null`.
+
+## HTML crudo
+
+`{!! expr !!}` imprime sin escape. Úsalo solo para marcado de confianza que construiste tú (o que ya sanitizaste):
+
+```crema
+<div class="prose">{!! html !!}</div>
+```
+
+Las secuencias `{!!` / `{{` sin cerrar son errores en el momento del render.
+
+## `@` literal y comentarios
+
+| Sintaxis | Resultado |
+|--------|--------|
+| `@@` | Una sola `@` en la salida (útil al documentar directivas) |
+| `{{-- … --}}` | Comentario — se elimina antes de cualquier otro procesamiento |
+
+```crema
+{{-- Never appears in HTML --}}
+<code>@@extends</code>
+```
+
+## Expresiones
+
+Los ecos y la mayoría de los argumentos de directiva aceptan un pequeño lenguaje de expresiones:
+
+| Tipo | Ejemplos |
+|------|----------|
+| Literales | `true`, `false`, `null` / `nil`, `42`, `3.5`, `'string'`, `"string"` |
+| Comparaciones | `==`, `!=`, `<`, `>`, `<=`, `>=` (los números se comparan numéricamente; si no, como cadena) |
+| Lógica | `and`, `or`, `not …`, `!…` |
+| Ayudantes | `isset(name)`, `empty(name)`, `url(path)`, `route(name)`, `asset(path)`, `csrf_token()`, `old(key)`, `env(key)`, `config(key)`, `trans(key)` / `__(key)` / `lang(key)` |
+| Caminos | `user.name`, `errors.email` |
+
+```crema
+@if(count > 0 and ready)
+  Ready
+@endif
+
+{{ isset(name) }}
+{{ empty(items) }}
+{{ not ok }}
+{{ a == 1 or b == 2 }}
+```
+
+`isset(path)` es verdadero cuando el valor resuelto no es nulo. `empty(path)` es verdadero cuando el valor no es truthy (consulta [veracidad](/docs/crema/control-structures/#truthiness)).
+
+No hay ejecución de código arbitrario en las plantillas — solo este subconjunto de expresiones, los ayudantes de eco de abajo y el acceso a propiedades.
+
+## Ayudantes de eco
+
+Llámalos por nombre dentro de `{{ }}` o `{!! !!}`. Los argumentos son expresiones Crema ordinarias (literales de cadena, caminos, llamadas anidadas a ayudantes). IntelliJ y kona-lsp completan la lista completa mientras escribes.
+
+Escribe **cada** URL de la app mediante `url(...)` (o `route(...)` / `asset(...)`). Un `src="/branding/kona-logo.svg"` codificado a mano siempre pega en la raíz del host e ignora `APP_URL`. Los arranques de `kona new` ya usan el ayudante:
+
+```crema
+<img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+<a href="{{ url('/login') }}">Log in</a>
+<form method="post" action="{{ url('/logout') }}">
+```
+
+| Ayudante | Resultado |
+|--------|--------|
+| `url(path)` | Une `path` a la raíz de la app (`Url.url` / `APP_URL`). Los valores absolutos `http://` / `https://` pasan. Sin generador → un camino enraizado (`/branding/…`). Camino vacío → `/`. |
+| `route(name)` | URL de ruta con nombre (`Url.route`). Nombre desconocido o sin generador → un camino enraizado a partir del nombre. Nombre vacío → cadena vacía. |
+| `asset(path)` | URL de activo público. Se recortan las barras iniciales. Prefija con `asset_url` o `assetUrl` en el mapa de datos para un CDN; si no, `/path`. |
+| `csrf_token()` | Token CSRF de sesión desde `_token` o `csrf_token` en el mapa de datos. |
+| `old(key)` / `old(key, default)` | Entrada antigua flasheada desde `old`, `_old_input` u `oldInput`. |
+| `env(key)` / `env(key, default)` | Valor de entorno (`Env.get`). |
+| `config(key)` | Valor de configuración de la aplicación arrancada (`Kona.app().config`). App o clave ausente → vacío al hacer eco. |
+| `trans(key)` / `__(key)` / `lang(key)` | Cadena de traducción (`Lang.get`). `lang` prefiere un mapa `lang` en los datos de la vista cuando está presente. El segundo argumento opcional es un mapa de sustitución (marcadores `:name`). |
+
+Variables convencionales que el motor (o tu controlador) puede poner en el mapa de datos, también ofrecidas en la completación: `errors`, `user`, `auth_user`, `_token`, `asset_url`, `slot`, y `loop` / `loop.index` / `loop.iteration` / `loop.first` / `loop.last` / `loop.even` / `loop.odd` / `loop.count` / `loop.remaining` / `loop.depth` / `loop.parent`. Consulta [Metadatos del bucle](/docs/crema/control-structures/#loop-metadata).
+
+```crema
+{{ url('/dashboard') }}
+{{ route('login') }}
+{{ asset('css/app.css') }}
+{{ csrf_token() }}
+<input value="{{ old('email') }}" />
+{{ config('app.name') }}
+{{ trans('messages.welcome') }}
+```
+
+Las **directivas** `@asset`, `@csrf`, `@lang` y `@json` siguen disponibles; usa los ayudantes de eco cuando el valor pertenece a un atributo o a marcado mixto. Consulta [Generación de URL](/docs/http/url-generation/) para `Url` / `route()` / `url()` en Kotlin y Java.
+
+## `@json`
+
+`@json($expr)` codifica un valor como JSON (Jackson). Útil dentro de `<script>` o atributos de datos:
+
+```crema
+<script>
+  window.bootstrap = @json($user);
+</script>
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "page",
+    mapOf("user" to mapOf("name" to "Ada", "id" to 1)),
+)
+// → window.bootstrap = {"name":"Ada","id":1};
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "page",
+    Map.of("user", Map.of("name", "Ada", "id", 1))
+);
+// → window.bootstrap = {"name":"Ada","id":1};
+```
+
+</TabItem>
+</Tabs>
+
+## `@lang`
+
+`@lang('key')` resuelve una cadena de traducción. Crema prefiere un mapa `lang` en los datos de la vista cuando está presente; si no, llama a `Lang.get` de `kona-support`.
+
+```crema
+@lang('messages.welcome')
+@lang('messages.hello', replace)
+```
+
+El segundo argumento opcional es una expresión que evalúa a un `Map` de sustituciones. Los marcadores de la cadena usan la forma `:name` (`Hi :name` + `name → Ada` → `Hi Ada`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "greet",
+    mapOf(
+        "replace" to mapOf("name" to "Ada"),
+        // or override a single key:
+        // "lang" to mapOf("messages.hello" to "Hi :name"),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "greet",
+    Map.of("replace", Map.of("name", "Ada"))
+);
+```
+
+</TabItem>
+</Tabs>
+
+Registra `SupportServiceProvider` (o llama a `Lang.setTranslator`) antes de renderizar cuando dependes del traductor global.
+
+## `@asset`
+
+`@asset('css/app.css')` construye una URL pública. Sin base en el mapa de datos emite `/css/app.css`. Pasa `asset_url` o `assetUrl` para prefijar un CDN:
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+Las barras iniciales del argumento de camino se recortan antes de unir.
+
+## `@vite`
+
+`@vite('src/main/resources/js/app.js')` emite las etiquetas de script y hoja de estilos de esa entrada. Se admiten listas:
+
+```crema
+@vite('src/main/resources/js/app.js')
+@vite(['src/main/resources/js/app.js', 'src/main/resources/css/app.css'])
+```
+
+Cuando `CremaServiceProvider` ha enlazado el manifiesto de Vite:
+
+- **`public/hot`** (origen del servidor de desarrollo) → cliente Vite más la URL de la entrada en ese origen, por ejemplo `http://127.0.0.1:5173/src/main/resources/js/app.js`.
+- **Manifiesto** (`public/build/manifest.json` o `public/build/.vite/manifest.json`) → archivos con hash como `/build/assets/app-<hash>.js` y el CSS coincidente.
+
+Las entradas `.css` se vuelven `<link rel="stylesheet">`; las demás se vuelven `<script type="module">`. Sin archivo hot ni manifiesto, la directiva cae a `/build/<entry>`. Ese marcador no es el archivo que sirve Vite — ejecuta `npm run dev` o `npm run build` primero. Consulta [Vite / empaquetado de activos](/docs/assets/vite/) e [Inertia](/docs/inertia/).
+
+## Casos límite
+
+| Situación | Comportamiento |
+|-----------|----------|
+| Clave ausente en `{{ name }}` | Cadena vacía |
+| Literal `null` / `nil` | Cadena vacía al hacer eco |
+| Nulo anidado (`user.name` cuando `user` es nulo) | Cadena vacía |
+| `{{` o `{!!` sin cerrar | El render lanza |
+| Mapa frente a bean | Los mapas usan búsqueda por clave; los demás objetos usan getters / métodos sin argumentos / campos públicos |
+
+## Siguiente
+
+- [Layouts y herencia](/docs/crema/layouts/) — compartir shells HTML entre páginas
+- [Estructuras de control](/docs/crema/control-structures/) — condicionales y bucles sobre las mismas expresiones
+- [Referencia de directivas](/docs/crema/directives/) — tablas completas de directivas

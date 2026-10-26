@@ -1,0 +1,66 @@
+---
+title: Operaciones con archivos
+description: Put, get, streams, directorios, metadatos, visibilidad y ayudantes putFile.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Cada disco implementa `FilesystemAdapter`. Los mismos métodos funcionan en discos local, scoped, memory y S3.
+
+## Leer y escribir
+
+| Método | Comportamiento |
+| --- | --- |
+| `put(path, String\|ByteArray)` | Crear o sobrescribir |
+| `get` / `getString` | Bytes o texto UTF-8; `null` si falta |
+| `exists` / `missing` | Comprobaciones de presencia |
+| `append` / `prepend` | Hacer crecer un archivo de texto al final o al principio |
+| `delete` | Quitar un archivo (`false` si está ausente) |
+| `copy` / `move` | Copiar o renombrar en el mismo disco |
+
+## Streams
+
+```kotlin
+disk.writeStream("big.bin", inputStream)
+disk.readStream("big.bin")?.use { /* ... */ }
+```
+
+`putFile` / `putFileAs` copian un `java.nio.file.Path` al disco (nombre único o nombre explícito) y devuelven la ruta relativa almacenada:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val stored = disk.putFile("photos", Path.of("/tmp/shot.jpg"))
+val named = disk.putFileAs("photos", Path.of("/tmp/shot.jpg"), "hero.jpg")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String stored = disk.putFile("photos", Path.of("/tmp/shot.jpg"));
+String named = disk.putFileAs("photos", Path.of("/tmp/shot.jpg"), "hero.jpg");
+```
+
+</TabItem>
+</Tabs>
+
+## Directorios
+
+- `files(dir)` — hijos inmediatos que son archivos
+- `allFiles(dir)` — rutas de archivo recursivas
+- `directories(dir)` / `allDirectories(dir)` — listados de directorios
+- `makeDirectory` / `deleteDirectory` — crear o vaciar un árbol
+
+## Metadatos
+
+- `size` / `lastModified` — bytes y milisegundos de época
+- `mimeType` — sondeado desde el tipo de contenido / extensión
+- `checksum(path)` — hex SHA-256 por defecto; pasa otro nombre de algoritmo como segundo argumento
+- `path` — ruta local absoluta o `bucket/key` para S3
+- `url` — prefijo de URL pública + ruta
+
+## Visibilidad
+
+`Visibility.PUBLIC` y `Visibility.PRIVATE` marcan cómo debe tratarse un archivo para generar URL y ACL en la nube. Usa `getVisibility` / `setVisibility` después de guardar.

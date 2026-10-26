@@ -1,0 +1,64 @@
+---
+title: Instalar paquetes
+description: ./grind install / kona grind install — dependencia Maven más providers registrados automáticamente.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Usa **`./grind install`** dentro de una app (o **`kona grind install`** desde cualquier sitio bajo el árbol de la app) para añadir un paquete de primera parte o de Maven sin editar a mano `build.gradle.kts` y sin olvidar el service provider.
+
+No hay un `kona install` de nivel superior — instalar paquetes es un comando de Grind Console. El CLI global solo hace de proxy: `kona grind install …`.
+
+## Qué hace
+
+1. Resuelve un **alias corto** (`inertia`, `wire`, …) o una coordenada cruda `group:artifact[:version]`.
+2. Asegura una línea `implementation("…")` en el archivo de build Gradle más cercano (DSL Kotlin o Groovy).
+3. Cuando el paquete declara providers, añade sus FQCN a `src/main/resources/META-INF/kona/providers` para que el [descubrimiento de paquetes](./) los registre en el arranque mediante el `AppLoader` de grind.
+
+## Uso
+
+```bash
+# Inside an app created with kona new
+./grind install inertia
+./grind install wire --version=0.1.1
+./grind install com.example:widget:1.2.3
+
+# From anywhere under the app tree (global proxy)
+kona grind install filesystem
+kona grind install drip --base=/path/to/app
+```
+
+| Bandera | Rol |
+| --- | --- |
+| `--base=…` | Raíz de la app (predeterminado: la raíz del proyecto grind / cwd para `./grind`) |
+| `--version=…` | Anula cuando el alias o la coordenada omiten la versión (predeterminado: detectar un `org.konaframework:…:version` que ya esté en el archivo de build, si no la versión de Kona empaquetada con el CLI) |
+| `--frontend=…` | **Solo Inertia:** `vue`, `react`, `svelte` o `none` — esqueleto Vite + adaptador (interactivo si se omite y hay un TTY; Vue por defecto cuando no es interactivo) |
+| `--no-interactive` | **Solo Inertia:** no preguntar nunca por `--frontend` |
+
+Después de `./grind install inertia`, sigue la lista npm / middleware que se imprime, o la guía completa en [Instalación de Inertia](/docs/inertia/guides/installation/).
+
+## Alias del catálogo
+
+| Alias | Artefacto | Provider registrado automáticamente |
+| --- | --- | --- |
+| `wire` | `org.konaframework:kona-wire` | `WireServiceProvider` |
+| `brew` | `org.konaframework:kona-wire` | `WireServiceProvider` (alias obsoleto) |
+| `inertia` | `org.konaframework:kona-inertia` | `InertiaServiceProvider` |
+| `crema` | `org.konaframework:kona-crema` | `CremaServiceProvider` |
+| `filesystem` | `org.konaframework:kona-filesystem` | `FilesystemServiceProvider` |
+| `search` | `org.konaframework:kona-search` | `SearchServiceProvider` |
+| `broadcasting` | `org.konaframework:kona-broadcasting` | `BroadcastServiceProvider` |
+| `notifications` | `org.konaframework:kona-notifications` | `NotificationServiceProvider` |
+| `drip` | `org.konaframework:kona-drip` | — |
+| `concurrency` | `org.konaframework:kona-concurrency` | — |
+| `testing` | `org.konaframework:kona-testing` | — |
+
+Los nombres cortos desconocidos fallan con un mensaje que lista los alias. Las coordenadas que coinciden con un artefacto del catálogo siguen recibiendo los providers de ese artefacto.
+
+## Después de instalar
+
+Refresca Gradle / reconstruye para que la dependencia nueva esté en el classpath. Los providers listados en `META-INF/kona/providers` se registran cuando la app arranca mediante grind (`serve`, generadores, …). Las configuraciones manuales de `bootstrap.App` pueden seguir llamando a `PackageDiscovery.registerAll(app)`.
+
+## API programática
+
+Los mismos pasos están disponibles desde Kotlin/Java como `PackageInstaller.install(projectRoot, spec, defaultVersion)` en `org.konaframework.support.packages` (lo usa el comando de grind).
