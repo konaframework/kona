@@ -1,0 +1,482 @@
+---
+title: 控制器
+description: 把 HTTP 处理函数组织成控制器类、可调用动作、资源控制器、表单请求验证和 grind 桩。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**控制器**是把相关 HTTP 动作分组的类。你把路由指向控制器方法，而不是把每一个路由闭包放在一个文件里。控制器把验证、授权和响应塑形放在一起。
+
+如何在路由器上**登记**这些方法（包括 `WebRoutes`、分组和 `resource()`）在[路由](../routing/)里。本页聚焦控制器类*内部*住着什么，以及支撑它的公开类型：`Controller`、`FormRequest`、`InvokableController`、`ResourceController` 和 `BaseResourceController`。
+
+## 控制器做什么
+
+每个匹配的请求上，[HTTP 内核](../kernel-server/)运行全局中间件，解析路由，把路径参数绑定到 `Request` 上，运行路由中间件，然后调用路由的 `Handler`。当你从路由表绑定控制器方法时，该方法*就是*那个处理函数：
+
+```text
+Request → global middleware → route match → route middleware → controller method → Response
+```
+
+控制器方法总是接受 `Request` 并返回 `Response`。没有单独的“动作签名”API，没有对控制器的自动构造器注入，也没有属性/注解路由 — 你自己构造控制器并显式绑定方法。
+
+## 从路由接线
+
+**推荐（对 IDE 友好）：** 在 `WebRoutes.register`（或 `ApiRoutes`）里实例化控制器，然后绑定 lambda 或方法引用。IDE 可以补全方法名、跳到动作，并在编译时标记拼写错误。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class WebRoutes(private val app: Application) {
+    fun register(router: Router) {
+        val projects = ProjectController(app)
+        router.get("/projects") { projects.index(it) }.name("projects.index")
+        router.post("/projects") { projects.store(it) }.name("projects.store")
+        router.get("/projects/{id}") { projects.show(it) }.name("projects.show")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class WebRoutes {
+    private final Application app;
+
+    public WebRoutes(Application app) { this.app = app; }
+
+    public void register(Router router) {
+        ProjectController projects = new ProjectController(app);
+        router.get("/projects", projects::index).name("projects.index");
+        router.post("/projects", projects::store).name("projects.store");
+        router.get("/projects/{id}", projects::show).name("projects.show");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+不需要控制器类时，内联处理函数 lambda 以同样方式工作。细节和更多动词在[路由](../routing/#call-a-controller)上。
+
+### 传入依赖
+
+控制器是普通类。在构造器里传入它们需要的东西 — `Application`、仓库、Cadence 模型辅助方法、来自启动的配置值：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class ProjectController(private val app: Application) {
+    private val db = app.resolve(DatabaseManager::class.java)
+
+    fun index(request: Request): Response =
+        Response.json(db.table("projects").get())
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class ProjectController {
+    private final DatabaseManager db;
+
+    public ProjectController(Application app) {
+        this.db = app.resolve(DatabaseManager.class);
+    }
+
+    public Response index(Request request) {
+        return Response.json(db.table("projects").get());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+在路由表里构造控制器时（或在提供者里一次）解析重依赖，而不是在动作内部的每一次请求上，除非依赖是请求范围的。
+
+## 用 grind 生成桩
+
+[`./grind make:controller Name`](../../grind/commands/#grind-makecontroller) 写入 `app/http/controllers/<Name>Controller`（通过 `--lang` 选择 Kotlin 或 Java）。
+
+| 标志 | 效果 |
+|------|------|
+| *（无）* | 单个返回文本桩的 `index` 方法 |
+| `--resource` | `BaseResourceController` 子类，带 `index`、`create`、`store`、`show`、`edit`、`update`、`destroy` — 把实例传给 [`router.resource`](../routing/#resource-routes) |
+| `--api` | 同样的子类，没有 `create` / `edit` 覆盖（基类返回 404）。与 [`apiResource`](../routing/#api-resource-routes) 一起使用 |
+| `--lang=kotlin\|java` | 语言（默认来自应用布局） |
+
+生成的资源桩**扩展 `BaseResourceController`**（它扩展 `Controller` 并实现 `ResourceController`）。路径 id 使用 `request.route("id")`。`make:model -r` / `--resource` / `--api` / `--all` 走同一个生成器。普通的 `./grind make:controller Post` 或 `make:model -c`（没有 `-r`）仍然写入带单个 `index` 方法的 POJO。
+
+## 普通控制器对 `Controller`
+
+你**不必**扩展 `Controller`。任何带 `Request → Response` 方法的类都可以作为路由目标。
+
+想要受保护的 `validate` 辅助方法时扩展 `Controller`：
+
+| 方法 | 行为 |
+|------|------|
+| `validate(request, rules)` | 委托给 `request.validate(rules)` — 返回已验证映射或抛出 `ValidationException` |
+| `validate(request, formRequest)` | 运行 `formRequest.validate(request)` — 先授权，然后规则 |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NotesController : Controller() {
+    fun store(request: Request): Response {
+        val data = validate(request, mapOf("title" to listOf("required", "min:3")))
+        return Response.json(data, 201)
+    }
+}
+
+router.post("/notes") { notes.store(it) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NotesController extends Controller {
+    public Response store(Request request) {
+        Map<String, Object> data = validate(request, Map.of("title", List.of("required", "min:3")));
+        return Response.json(data, 201);
+    }
+}
+
+router.post("/notes", notes::store);
+```
+
+</TabItem>
+</Tabs>
+
+规则失败时 `validate` 抛出 `ValidationException`（HTTP 422 / 重定向回去）— 与 `request.validate(...)` 相同的路径。完整规则列表：[验证](../validation/)。
+
+成功的 `request.validate(...)`（或调用它的控制器辅助方法）之后，`request.safe()` 返回同一个已验证映射。在成功验证之前调用 `safe()` 会抛出 `IllegalStateException`。
+
+## 读取路由参数和输入
+
+路径参数在路由之后位于请求上。优先使用 `request.route("id")`：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun show(request: Request): Response {
+    val id = request.route("id")!!
+    val project = projects.find(id) ?: throw NotFoundException("Project not found.")
+    return Response.json(project)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public Response show(Request request) {
+    String id = request.route("id");
+    Project project = projects.find(id);
+    if (project == null) {
+        throw new NotFoundException("Project not found.");
+    }
+    return Response.json(project);
+}
+```
+
+</TabItem>
+</Tabs>
+
+正文和查询输入使用 `request.data()`、`request.input(...)`，或先验证 — 见[请求与响应](../request-response/)。
+
+## 表单请求
+
+**表单请求**是为一个动作拥有验证规则（以及可选授权）的小对象。扩展 `FormRequest`：
+
+| 成员 | 作用 |
+|------|------|
+| `rules()` | 抽象 — 字段 → 规则字符串的映射 |
+| `authorize(request)` | 可选；默认 `true`。返回 `false` 以拒绝 |
+| `validate(request)` | 未授权 → `HttpException(403, "This action is unauthorized.")`；否则 `Validator.make(request, rules()).validate()` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class StoreNoteRequest : FormRequest() {
+    override fun rules(): Map<String, List<String>> =
+        mapOf("title" to listOf("required", "min:3"))
+
+    override fun authorize(request: Request): Boolean =
+        request.header("X-Token") == "secret"
+}
+
+class NotesController : Controller() {
+    fun store(request: Request): Response {
+        val data = validate(request, StoreNoteRequest())
+        return Response.json(data, 201)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class StoreNoteRequest extends FormRequest {
+    @Override
+    public Map<String, List<String>> rules() {
+        return Map.of("title", List.of("required", "min:3"));
+    }
+
+    @Override
+    public boolean authorize(Request request) {
+        return "secret".equals(request.header("X-Token"));
+    }
+}
+
+public class NotesController extends Controller {
+    public Response store(Request request) {
+        return Response.json(validate(request, new StoreNoteRequest()), 201);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+你也可以不扩展 `Controller` 就调用 `StoreNoteRequest().validate(request)`。授权失败是 **403**，不是 422。验证失败仍然变成 `ValidationException`。
+
+没有从路由签名自动解析表单请求 — 你在动作内部自己构造并运行表单请求。
+
+## 可调用控制器
+
+路由只有单个动作时，实现 `InvokableController`（`invoke(Request): Response`）并把它登记为处理函数：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val ping = InvokableController { Response.text("pong") }
+router.get("/ping", ping.asHandler()).name("ping")
+
+class HealthCheck : InvokableController {
+    override fun invoke(request: Request): Response =
+        Response.json(mapOf("status" to "ok"))
+}
+router.get("/health", HealthCheck().asHandler()).name("health")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+InvokableController ping = request -> Response.text("pong");
+router.get("/ping", Controllers.asHandler(ping)).name("ping");
+
+public final class HealthCheck implements InvokableController {
+    @Override
+    public Response invoke(Request request) {
+        return Response.json(Map.of("status", "ok"));
+    }
+}
+router.get("/health", Controllers.asHandler(new HealthCheck())).name("health");
+```
+
+</TabItem>
+</Tabs>
+
+`Controllers.asHandler` / Kotlin `asHandler()` 把可调用对象适配成路由器的 `Handler`。
+
+## 资源控制器
+
+[`Router.resource(name, controller)`](../routing/#resource-routes) 把完整的 REST 映射（包括 HTML `create` / `edit`）接到 `ResourceController` 上。JSON API 优先 [`apiResource`](../routing/#api-resource-routes)（没有表单路由）。
+
+`ResourceController` 是带七个方法的接口：`index`、`create`、`store`、`show`、`edit`、`update`、`destroy`。只需要部分动作时扩展 `BaseResourceController` — 未实现的抛出 `NotFoundException`（HTTP 404）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NotesController : BaseResourceController() {
+    override fun index(request: Request): Response = Response.json(notes.all())
+
+    override fun show(request: Request): Response {
+        val note = notes.find(request.route("id")!!)
+            ?: throw NotFoundException()
+        return Response.json(note)
+    }
+
+    override fun store(request: Request): Response {
+        val data = validate(request, StoreNoteRequest())
+        return Response.json(notes.create(data), 201)
+    }
+
+    override fun destroy(request: Request): Response {
+        notes.delete(request.route("id")!!)
+        return Response.noContent()
+    }
+}
+
+router.apiResource("notes", NotesController())
+router.apiResource("notes", NotesController(), only = listOf("index", "show"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NotesController extends BaseResourceController {
+    @Override
+    public Response index(Request request) {
+        return Response.json(notes.all());
+    }
+
+    @Override
+    public Response show(Request request) {
+        Note note = notes.find(request.route("id"));
+        if (note == null) throw new NotFoundException();
+        return Response.json(note);
+    }
+
+    @Override
+    public Response store(Request request) {
+        return Response.json(notes.create(validate(request, new StoreNoteRequest())), 201);
+    }
+
+    @Override
+    public Response destroy(Request request) {
+        notes.delete(request.route("id"));
+        return Response.noContent();
+    }
+}
+
+router.apiResource("notes", new NotesController());
+router.apiResource("notes", new NotesController(), List.of("index", "show"), null);
+```
+
+</TabItem>
+</Tabs>
+
+`BaseResourceController` 扩展 `Controller`，因此 `validate` 可用。JSON 载荷与 [API 资源](../api-resources/)配合。`only` / `except` 筛选以及 `apiResource` 的 `/resource/create` 注意点记录在[路由](../routing/#resource-routes)下。
+
+## 返回响应
+
+控制器返回与任何处理函数相同的工厂 — `Response.json`、`html`、`text`、`redirect`、`back`、`noContent`、`download` 等。见[请求与响应](../request-response/#building-a-response)。
+
+常见模式：
+
+```kotlin
+fun store(request: Request): Response {
+    val data = validate(request, StoreNoteRequest())
+    val note = notes.create(data)
+    return Response.redirect(route("notes.show", mapOf("id" to note.id)))
+        .with("status", "Created")
+}
+
+fun destroy(request: Request): Response {
+    notes.delete(request.route("id")!!)
+    return Response.noContent()
+}
+```
+
+抛出 `NotFoundException`、`HttpException` 或 `ValidationException`，而不是手工构建错误信封 — 见[异常](../exceptions/)。
+
+## 常见用法
+
+### 带验证的薄 API 控制器
+
+```kotlin
+class UserApiController : Controller() {
+    fun store(request: Request): Response {
+        val data = validate(request, mapOf(
+            "email" to listOf("required", "email"),
+            "name" to listOf("required", "string", "max:100"),
+        ))
+        return Response.json(users.create(data), 201)
+    }
+}
+```
+
+### HTML 表单更新，失败时重定向回去
+
+非 JSON 客户端的验证失败会带着闪存错误重定向回去（默认异常处理程序）。成功时重定向到具名路由：
+
+```kotlin
+fun update(request: Request): Response {
+    val data = validate(request, UpdatePostRequest())
+    posts.update(request.route("id")!!, data)
+    return Response.redirect(route("posts.show", mapOf("id" to request.route("id")!!)))
+}
+```
+
+### 单动作下载
+
+```kotlin
+class ReportDownload(private val reports: ReportService) : InvokableController {
+    override fun invoke(request: Request): Response =
+        Response.download(reports.pdf(), "report.pdf")
+}
+router.get("/reports/latest", ReportDownload(reports).asHandler())
+    .middleware(Authenticate())
+```
+
+## API 参考
+
+### `Controller`
+
+开放类。受保护：`validate(Request, Map)`、`validate(Request, FormRequest)`。
+
+### `FormRequest`
+
+抽象。`rules()`、可选的 `authorize(Request)`、`validate(Request)`。
+
+### `InvokableController`
+
+函数式接口：`invoke(Request): Response`。用 `asHandler()` / `Controllers.asHandler` 适配。
+
+### `ResourceController`
+
+接口：`index`、`create`、`store`、`show`、`edit`、`update`、`destroy`。
+
+### `BaseResourceController`
+
+扩展 `Controller` 并实现 `ResourceController` 的抽象类。默认实现抛出 `NotFoundException()`。
+
+### `Controllers`
+
+`Controllers.asHandler(InvokableController): Handler`。
+
+## 陷阱与常见问题
+
+**我需要扩展 `Controller` 吗？**  
+不需要。只为 `validate` 辅助方法扩展它（或为资源默认扩展 `BaseResourceController`）。
+
+**为什么我的控制器不会从容器自动构造？**  
+Kona 不会从路由类引用自动解析控制器。在路由表里（或你控制的工厂里）实例化它们。
+
+**我可以把中间件放在控制器类上吗？**  
+不能作为类注解。把中间件附在路由或分组上 — 见[中间件](../middleware/)和[路由](../routing/#middleware-on-a-route)。
+
+**验证错误去哪里？**  
+JSON 客户端得到 422；HTML 表单客户端得到带闪存错误的重定向回去 — [验证](../validation/#the-error-response)。
+
+## 今天不可用的内容
+
+- 基于注解 / 属性的控制器路由
+- 从路由器自动构造器注入控制器
+- 控制器级中间件属性
+- 没有 `asHandler` / `Controllers.asHandler` 的可调用登记
+- 在动作之前自动运行的表单请求类型提示
+
+## 下一步
+
+- 在[路由](../routing/)里登记路由、分组和资源。
+- 用[中间件](../middleware/)包装控制器。
+- 在[请求与响应](../request-response/)里读写载荷。
+- 在[验证](../validation/)里声明规则。
+- 用 [API 资源](../api-resources/)塑形 JSON。
+- 用 [URL 生成](../url-generation/)构建链接。
+- 在[异常](../exceptions/)里调整失败页。
