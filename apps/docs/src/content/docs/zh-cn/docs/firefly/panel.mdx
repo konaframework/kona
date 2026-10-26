@@ -1,0 +1,84 @@
+---
+title: 面板
+description: 在 /admin 或站点根挂载 Firefly 面板，带有导航、认证屏幕，以及从面板目录发现的页面。
+---
+
+面板是可路由的外壳。它提供页面、登录、注册、密码重置、邮箱验证和个人资料。把 `kona-firefly` 加到应用并不会改变你已经定义的路由。路由在你对路由器调用 `mount` 时出现。
+
+类型位于 `org.konaframework.firefly`（`kona-firefly`）。外框、主题和对话框留在 `org.konaframework.firefly.support`。你放进应用的类是 `Panel`，它扩展 `org.konaframework.firefly.Panel`。
+
+可链式调用的设置器接受静态值或闭包。闭包接收模式的 `Get`。
+
+## 一次调用里的面板
+
+```kotlin
+val panel = Panel()
+    .id("desk")
+    .path("admin")
+    .navigation(NavigationType.APP)
+    .page(ListPage("orders"))
+panel.mount(router)
+```
+
+```java
+Panel panel = new Panel();
+panel.id("desk");
+panel.path("admin");
+panel.navigation(NavigationType.APP);
+panel.page(new ListPage("orders"));
+panel.mount(router);
+```
+
+`path("admin")` 和 `path("/admin/")` 都提供 `/admin`。`path("")` 和 `path("/")` 提供站点根。根面板按名称登记每个页面、认证屏幕和资源页面。它不登记兜底路由，也不登记 `/_firefly/` 或 `/wire/update`。
+
+如果面板路径已经被路由，`mount` 会抛出 `FireflyException` 并写出两个处理器的名字。已有路由保持不变。
+
+两个面板可以挂在同一个路由器上，一个在 `path("")`，一个在 `path("admin")`。`domain("ops.example")` 会拒绝 `Host` 头不匹配的请求，包括头里带端口的情况。
+
+## 目录布局
+
+`discover(panelDirectory)` 读取三个文件夹：
+
+| 文件夹 | 它加载什么 |
+|--------|------------|
+| `pages/` | `PanelPage` 类 |
+| `widgets/` | `Widget` 类 |
+| `resources/` | `Resource` 类 |
+
+缺少的文件夹是空的。文件必须声明包，以及一个名字与文件匹配的类，并且该类必须已经在类路径上、带有无参构造器。抽象类和无关类型会被跳过。你仍然可以自己调用 `page`、`widget` 和 `resource`。没有应用级注册表。
+
+`./grind make:firefly-panel` 会写入 `Panel` 以及 `pages/`、`widgets/` 和 `resources/`。`./grind firefly:install` 写入同一棵树。`./grind make:firefly-page Desk` 和 `./grind make:firefly-theme Harbor` 增加一个页面和一个主题。`./grind firefly:publish` 把侧栏局部复制进应用。
+
+## 页面
+
+页面是面板路由提供的屏幕。它有标题、页眉和页脚动作、一个内容区域，以及可选的部件。内容区域挂载模式、表单模式、信息列表或表格。`ListPage`、`CreatePage`、`EditPage`、`ViewPage`、`ManagePage` 和 `CustomPage` 都是页面。单独渲染模式、表单、信息列表或表格对测试和嵌入仍然有效。
+
+`ManagePage` 是简单资源使用的页面。该资源的创建、编辑、查看和删除在已有对话框里运行。模型绑定和 `./grind make:firefly-resource` 请读[资源](/docs/firefly/resources/)。
+
+## 导航
+
+每个面板有一种导航类型。默认是 `NavigationType.APP`：第 1 级在顶栏，当前项的第 2 级和第 3 级子项在侧栏。`NavigationType.SIDE` 在侧栏绘制第 1–3 级。`NavigationType.TOP`，也可以用 `topNavigation()` 选择，在顶栏绘制第 1–3 级。
+
+嵌套停在第 3 级。第四级在面板挂载时失败，消息会写出该项的名字。`cluster("Catalog")` 是父节点。`userMenu(...)` 渲染在顶栏。`spa(true)` 在有 URL 的链接上加上 `wire:navigate`。
+
+## 认证与守卫
+
+面板守卫是 `firefly-{id}`，除非你调用 `reuseAppGuard()`（应用守卫名 `web`）或 `reuseAppGuard("name")`。`useAuthGuard(guard)` 适配一个应用 `Guard`。在你这样做之前，面板保留自己的 `MemoryPanelGuard`，并且不替换应用的登录或会话。
+
+屏幕是面板前缀下的 `/login`、`/register`、`/password-reset`、`/email-verify` 和 `/profile`。除非你调用 `authenticate(false)`，页面需要该守卫。
+
+## 主题
+
+`theme(HarborTheme())` 选择示例主题：不同的主色、保留钩子标记的侧栏局部，以及 `.ff-panel` 下的一小段额外样式表。`layout(...)` 替换外壳排列。`hook(Hook.BODY_END, "...")` 仍然注入外壳。
+
+## 你用什么来构建
+
+| 类型 | 作用 |
+|------|------|
+| `Panel` | Id、路径、域、导航、守卫和 `mount` |
+| `PanelPage` 以及列表、创建、编辑、查看、管理和自定义页面 | 可路由的屏幕 |
+| `NavigationItem` / `NavigationType` | 树以及它画在哪里 |
+| `Resource` | 从 `resources/` 发现的一组页面 |
+| `PanelDiscovery` | 从面板目录加载页面、资源和部件 |
+| `HarborTheme` | 示例主题 |
+| `MemoryPanelGuard` / `AuthPanelGuard` | 面板自己的账户，或一个应用守卫 |
