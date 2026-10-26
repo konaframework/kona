@@ -24,6 +24,14 @@ class FireflySchemasTest {
     @TempDir
     lateinit var temp: Path
 
+    @Test
+    fun schemaListsItsComponents() {
+        val name = NamedField("name")
+        val schema = Schema.make().components(name)
+        assertEquals(listOf(name), schema.components())
+        assertTrue(Schema.make().components().isEmpty())
+    }
+
     @AfterEach
     fun clearConfig() {
         Section.configureUsing(null)

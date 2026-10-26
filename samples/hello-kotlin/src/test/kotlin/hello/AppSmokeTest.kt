@@ -36,6 +36,17 @@ class AppSmokeTest {
         assertTrue(home.body.contains("Welcome", ignoreCase = true), home.body)
         assertEquals(200, health.status)
         assertEquals("{\"status\":\"ok\"}", health.body)
+        val desk = kernel.handle(Request.get("/admin/desk"))
+        val notes = kernel.handle(Request.get("/admin/notes/manage"))
+        val orders = kernel.handle(Request.get("/admin/orders/edit"))
+        assertEquals(200, desk.status)
+        assertTrue(desk.body.contains("ff-combobox"), desk.body)
+        assertTrue(desk.body.contains("ff-picker"), desk.body)
+        assertTrue(desk.body.contains("ff-dialog"), desk.body)
+        assertTrue(desk.body.contains("ff-desk-widget"), desk.body)
+        assertTrue(notes.body.contains("ff-manage"), notes.body)
+        assertTrue(notes.body.contains("ff-dialog"), notes.body)
+        assertTrue(orders.body.contains("ff-relation"), orders.body)
     }
 
     @Test

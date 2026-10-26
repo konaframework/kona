@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":kona-mail"))
     implementation(project(":kona-broadcasting"))
     implementation(project(":kona-crema"))
+    implementation(project(":kona-firefly"))
     // Matches default H2 URL in config/Database (zero-install local demos).
     runtimeOnly(libs.h2)
 

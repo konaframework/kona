@@ -25,6 +25,8 @@ class Schema {
         }
     }
 
+    fun components(): List<Component> = roots.toList()
+
     fun statePath(path: String): Schema = apply { statePath = path }
 
     fun operation(name: String): Schema = apply { operation = name }
