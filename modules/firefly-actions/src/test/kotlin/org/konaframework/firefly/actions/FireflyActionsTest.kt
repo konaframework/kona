@@ -371,6 +371,9 @@ class FireflyActionsTest {
         assertThrows(FireflyException::class.java) { Action.make("save").extraAttributes(mapOf("wire:click" to "save")) }
         save.extraAttributes(emptyMap())
         assertFalse(page(save).contains("data-test"))
+        val dynamic = Action.make("save").extraAttributes { mapOf("data-live" to "1") }.action { _, _ -> }
+        assertTrue(page(dynamic).contains("data-live=\"1\""))
+        assertThrows(FireflyException::class.java) { Action.make("save").extraAttributes { mapOf("bad name" to "x") }.render(host(Action.make("save"))) }
     }
 
     @Test

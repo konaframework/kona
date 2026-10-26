@@ -4,6 +4,7 @@ import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.schemas.htmlAttributes
 import org.konaframework.firefly.support.FireflyException
 import java.util.function.Function
 import java.util.function.Predicate
@@ -39,8 +40,8 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
     private var distinctFlag: Boolean = false
     private val extraRules = ArrayList<String>()
     private val validationMessages = LinkedHashMap<String, String>()
-    private val inputAttributes = LinkedHashMap<String, String>()
-    private val wrapperAttributes = LinkedHashMap<String, String>()
+    private var inputLiteral: Map<String, String> = emptyMap()
+    private var inputUsing: Function<Get, Map<String, String>>? = null
     private var autocompleteText: String? = null
     private var autocapitalizeText: String? = null
     private var inputModeText: String? = null
@@ -77,6 +78,16 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
 
     override fun description(value: Function<Get, String>): T {
         super.description(value)
+        return self()
+    }
+
+    override fun extraAttributes(values: Map<String, String>): T {
+        super.extraAttributes(values)
+        return self()
+    }
+
+    override fun extraAttributes(provider: Function<Get, Map<String, String>>): T {
+        super.extraAttributes(provider)
         return self()
     }
 
@@ -174,17 +185,13 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
     fun inputMode(value: String): T = self().apply { inputModeText = value }
 
     fun extraInputAttributes(attributes: Map<String, String>): T = self().apply {
-        inputAttributes.clear()
-        for ((key, value) in attributes) {
-            if (key.isNotEmpty() && key !in RESERVED_INPUT) inputAttributes[key] = value
-        }
+        inputLiteral = LinkedHashMap(attributes)
+        inputUsing = null
     }
 
-    fun extraAttributes(attributes: Map<String, String>): T = self().apply {
-        wrapperAttributes.clear()
-        for ((key, value) in attributes) {
-            if (key.isNotEmpty()) wrapperAttributes[key] = value
-        }
+    fun extraInputAttributes(provider: Function<Get, Map<String, String>>): T = self().apply {
+        inputUsing = provider
+        inputLiteral = emptyMap()
     }
 
     fun rule(rule: String): T = self().apply {
@@ -285,7 +292,7 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
             val hintIcon = hintIconText.get(get)
             if (hintColor != null) append("""<span class="ff-hint-color" data-ff-hint-color="${esc(hintColor)}"></span>""")
             if (hintIcon != null) append("""<span class="ff-hint-icon" data-ff-hint-icon="${esc(hintIcon)}"></span>""")
-            append("""<div class="ff-control${if (inlinePrefixFlag) " ff-inline-prefix" else ""}"${mapAttrs(wrapperAttributes)}>""")
+            append("""<div class="ff-control${if (inlinePrefixFlag) " ff-inline-prefix" else ""}">""")
             append(entangle(path))
             val prefixButton = prefixAction
             if (prefixButton != null) append(prefixButton.render(schema))
@@ -319,8 +326,20 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
         builder.append(attr("inputmode", inputModeText))
         if (readOnlyFlag) builder.append(" readonly")
         if (autofocusFlag) builder.append(" autofocus")
-        builder.append(mapAttrs(inputAttributes))
+        builder.append(extraInputMarkup(get))
         return builder.toString()
+    }
+
+    internal fun extraInputMarkup(get: Get): String {
+        val provider = inputUsing
+        val source = if (provider != null) provider.apply(get) else inputLiteral
+        if (source.isEmpty()) return ""
+        val filtered = LinkedHashMap<String, String>()
+        for ((key, value) in source) {
+            if (key.isEmpty() || key in RESERVED_INPUT) continue
+            filtered[key] = value
+        }
+        return htmlAttributes(filtered)
     }
 
     private fun installTransform() {
@@ -332,10 +351,6 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
             if (dry != null) next = dry.apply(next)
             set.set(name, next, false)
         }
-    }
-
-    private fun mapAttrs(attributes: Map<String, String>): String = buildString {
-        for ((key, value) in attributes) append(attr(key, value))
     }
 
     companion object {

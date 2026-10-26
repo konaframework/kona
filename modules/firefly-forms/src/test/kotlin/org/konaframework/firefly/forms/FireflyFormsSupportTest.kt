@@ -83,7 +83,7 @@ class FireflyFormsSupportTest {
             .autocomplete("name")
             .autocapitalize("words")
             .inputMode("text")
-            .extraInputAttributes(mapOf("data-a" to "1", "" to "skip", "type" to "hidden"))
+            .extraInputAttributes(mapOf("data-a" to "1", "" to "skip", "type" to "hidden", "name" to "x", "value" to "y"))
             .extraAttributes(mapOf("data-wrap" to "1", "" to "no"))
             .rule("alpha")
             .rules("ascii")
@@ -98,6 +98,12 @@ class FireflyFormsSupportTest {
         assertTrue(html.contains("ff-inline-prefix"))
         assertTrue(html.contains("data-a=\"1\""))
         assertTrue(html.contains("data-wrap=\"1\""))
+        field.extraInputAttributes { mapOf("data-closure" to "yes", "1bad" to "no") }
+        field.extraAttributes { mapOf("data-root" to "2\"") }
+        val closed = schema.render()
+        assertTrue(closed.contains("data-closure=\"yes\""))
+        assertTrue(closed.contains("data-root=\"2&quot;\""))
+        assertFalse(closed.contains("1bad"))
         assertTrue(html.contains("readonly"))
         assertTrue(html.contains("autofocus"))
         assertTrue(html.contains("ff-required-mark"))

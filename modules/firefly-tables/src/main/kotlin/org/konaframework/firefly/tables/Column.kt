@@ -362,10 +362,18 @@ open class ColorColumn private constructor(name: String) : Column(name) {
 }
 
 open class CheckboxColumn private constructor(name: String) : Column(name) {
+    private val inputExtras = InputAttributes()
+
+    fun extraInputAttributes(attributes: Map<String, String>): CheckboxColumn = apply { inputExtras.set(attributes) }
+
+    fun extraInputAttributes(provider: Function<Cell, Map<String, String>>): CheckboxColumn =
+        apply { inputExtras.set(provider) }
+
     override fun render(row: Map<String, Any?>, key: String, cell: Cell): String {
         val checked = if (truthy(row[name])) """ checked""" else ""
         val disabled = if (isDisabled(cell)) """ disabled""" else ""
-        return """<div class="ff-column ff-checkbox-column" x-data="ffColumn('${escapeHtml(name)}', true)">@entangle(${escapeHtml(name)})<input type="checkbox"$checked$disabled></div>"""
+        val extra = inputExtras.markup(cell)
+        return """<div class="ff-column ff-checkbox-column" x-data="ffColumn('${escapeHtml(name)}', true)">@entangle(${escapeHtml(name)})<input type="checkbox"$checked$disabled$extra></div>"""
     }
 
     companion object {
@@ -391,6 +399,12 @@ open class ToggleColumn private constructor(name: String) : Column(name) {
 open class SelectColumn private constructor(name: String) : Column(name) {
     private var options: Map<String, String> = emptyMap()
     private var optionsUsing: Function<Cell, Map<String, String>>? = null
+    private val inputExtras = InputAttributes()
+
+    fun extraInputAttributes(attributes: Map<String, String>): SelectColumn = apply { inputExtras.set(attributes) }
+
+    fun extraInputAttributes(provider: Function<Cell, Map<String, String>>): SelectColumn =
+        apply { inputExtras.set(provider) }
 
     fun options(values: Map<String, String>): SelectColumn = apply {
         options = LinkedHashMap(values)
@@ -406,7 +420,8 @@ open class SelectColumn private constructor(name: String) : Column(name) {
             val selected = if (value == current) """ selected""" else ""
             """<option value="${escapeHtml(value)}"$selected>${escapeHtml(label)}</option>"""
         }
-        return """<div class="ff-column ff-select-column" x-data="ffColumn('${escapeHtml(name)}', true)">@entangle(${escapeHtml(name)})<select x-on:change="${'$'}wire.${'$'}call('setColumn', '${escapeHtml(key)}', '${escapeHtml(name)}', ${'$'}event.target.value)">$tags</select></div>"""
+        val extra = inputExtras.markup(cell)
+        return """<div class="ff-column ff-select-column" x-data="ffColumn('${escapeHtml(name)}', true)">@entangle(${escapeHtml(name)})<select$extra x-on:change="${'$'}wire.${'$'}call('setColumn', '${escapeHtml(key)}', '${escapeHtml(name)}', ${'$'}event.target.value)">$tags</select></div>"""
     }
 
     private fun resolved(cell: Cell): Map<String, String> {

@@ -35,19 +35,19 @@ class DefaultLayout : PanelLayout {
     }
 }
 
-class PanelShell {
+class Panel {
     private var theme: FireflyTheme = KonaTheme()
     private var layout: PanelLayout = DefaultLayout()
     private val hooks = RenderHooks()
     private val overrides = linkedMapOf<String, String>()
 
-    fun theme(theme: FireflyTheme): PanelShell = apply { this.theme = theme }
+    fun theme(theme: FireflyTheme): Panel = apply { this.theme = theme }
 
-    fun layout(layout: PanelLayout): PanelShell = apply { this.layout = layout }
+    fun layout(layout: PanelLayout): Panel = apply { this.layout = layout }
 
-    fun hook(hook: Hook, html: String): PanelShell = apply { hooks.add(hook, html) }
+    fun hook(hook: Hook, html: String): Panel = apply { hooks.add(hook, html) }
 
-    fun overridePartial(slot: String, html: String): PanelShell = apply { overrides[slot] = html }
+    fun overridePartial(slot: String, html: String): Panel = apply { overrides[slot] = html }
 
     fun render(): String {
         val partials = linkedMapOf<String, String>()

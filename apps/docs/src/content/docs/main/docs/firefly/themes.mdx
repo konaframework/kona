@@ -14,7 +14,7 @@ A **theme** is an implementation of `FireflyTheme`. It supplies an id, a `ThemeT
 | `partial(slot: String): String?` | `null` | Replacement HTML for `sidebar`, `topbar`, `body`, or `footer`. `null` keeps the built-in partial |
 | `extraCss(): String` | `""` | Extra rules. Firefly wraps a non-empty value in `.ff-panel { ... }` |
 
-Implement the interface in Kotlin or Java. You do not register the class anywhere. Pass an instance to `PanelShell.theme(...)`.
+Implement the interface in Kotlin or Java. You do not register the class anywhere. Pass an instance to `Panel.theme(...)`.
 
 Kotlin:
 
@@ -67,7 +67,7 @@ public final class HarborTheme implements FireflyTheme {
 
 ## KonaTheme
 
-`KonaTheme` is the built-in theme. `id()` returns `kona`. `PanelShell` uses it when you never call `theme(...)`.
+`KonaTheme` is the built-in theme. `id()` returns `kona`. `Panel` uses it when you never call `theme(...)`.
 
 | Token | Light value | Dark token | Dark value |
 |-------|-------------|------------|------------|
@@ -141,4 +141,4 @@ The checked-in stylesheet (`firefly.css`) is the scoped result of the Tailwind C
 | `.ff-panel .ff-dialog` | Fixed, inset 0, z-index 50 |
 | `.ff-panel .ff-dialog-modal .ff-dialog-window` | Top margin `4rem` |
 
-`PanelShell.render` places this CSS in a `<style>` element inside `.ff-panel`, so the variables and the component rules travel with the shell.
+`Panel.render` places this CSS in a `<style>` element inside `.ff-panel`, so the variables and the component rules travel with the shell.

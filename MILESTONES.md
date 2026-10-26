@@ -976,7 +976,7 @@ M31 is drawn beside M30, M32, and M33 because Law 1 allows that parallel work. M
 - [x] `org.konaframework:kona-firefly-support` in the monorepo and the BOM
 - [x] Tailwind CSS v4 authoring source and checked-in `ff-*` stylesheet scoped under `.ff-panel` (no unscoped preflight)
 - [x] `FireflyTheme` plus the built-in Kona theme (color, font, radius, sidebar, top bar, body)
-- [x] `PanelShell.theme(...)` and `PanelShell.layout(...)`, with a later layout call overriding the theme shell
+- [x] `Panel.theme(...)` and `Panel.layout(...)`, with a later layout call overriding the theme shell
 - [x] Named partials: sidebar, top bar, body, footer, with render-hook markers
 - [x] App partial override wins over the theme partial; a partial that drops a required marker fails
 - [x] `Dialog`: modal (top-aligned, draggable), sidebar (start and end), fullscreen (not dragged), `configureUsing`

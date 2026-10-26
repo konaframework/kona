@@ -53,6 +53,7 @@ open class Component protected constructor(val name: String) {
     private var partialSelf: Boolean = false
     private val partialComponents = ArrayList<String>()
     private val metaMap = LinkedHashMap<String, String>()
+    private val extraBag = AttributeBag()
 
     fun statePath(path: String): Component = apply { explicitStatePath = path }
 
@@ -216,6 +217,10 @@ open class Component protected constructor(val name: String) {
         partialComponents.addAll(keys)
     }
 
+    open fun extraAttributes(values: Map<String, String>): Component = apply { extraBag.set(values) }
+
+    open fun extraAttributes(provider: Function<Get, Map<String, String>>): Component = apply { extraBag.set(provider) }
+
     fun meta(key: String, value: String): Component = apply { metaMap[key] = value }
 
     fun meta(key: String): String? = metaMap[key]
@@ -334,6 +339,7 @@ open class Component protected constructor(val name: String) {
         val poll = pollInterval
         if (poll != null) attrs.append(" wire:poll.${escapeHtml(poll)}=\"partial\"")
         if (path != null && live == true) attrs.append(" ${binding(path)}")
+        attrs.append(htmlAttributes(extraBag.resolve(schema.getFor(this))))
         val body = renderBody(schema)
         return """<div class="$classes"$attrs>$body</div>"""
     }
@@ -435,6 +441,27 @@ open class Component protected constructor(val name: String) {
             ComponentConfig.apply(component)
             return component
         }
+    }
+}
+
+internal class AttributeBag {
+    private var literal: Map<String, String> = emptyMap()
+    private var using: Function<Get, Map<String, String>>? = null
+
+    fun set(values: Map<String, String>) {
+        literal = LinkedHashMap(values)
+        using = null
+    }
+
+    fun set(provider: Function<Get, Map<String, String>>) {
+        using = provider
+        literal = emptyMap()
+    }
+
+    fun resolve(get: Get): Map<String, String> {
+        val provider = using
+        if (provider != null) return provider.apply(get)
+        return literal
     }
 }
 

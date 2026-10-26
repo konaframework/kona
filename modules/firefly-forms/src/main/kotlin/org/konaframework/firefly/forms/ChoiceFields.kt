@@ -2,7 +2,6 @@ package org.konaframework.firefly.forms
 
 import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Get
-import org.konaframework.firefly.tables.RecordStore
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.Dialog
 import org.konaframework.firefly.support.FireflyException
@@ -58,10 +57,11 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     private var searchUsing: Function<String, Map<String, String>>? = null
     private var disableWhen: Predicate<String>? = null
     private var relation: RelationBinding? = null
+    private var relationNameUsing: Function<Get, String>? = null
+    private var relationTitleUsing: Function<Get, String>? = null
+    private var recordLabel: Function<Any?, String>? = null
     private var createForm: Schema? = null
     private var createAction: Action? = null
-    private var optionLoad: (() -> Map<String, String>)? = null
-    private var queryHook: Consumer<Any?>? = null
     private var editForm: Schema? = null
     private var createUsing: Function<Map<String, Any?>, String>? = null
 
@@ -135,46 +135,34 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     fun relationship(name: String, titleAttribute: String): Select = relationship(name, titleAttribute, null)
 
     fun relationship(name: String, titleAttribute: String, modify: Consumer<Any?>?): Select = apply {
+        relationNameUsing = null
+        relationTitleUsing = null
         relation = RelationBinding(name, titleAttribute, modify)
         searchableFlag = true
         preloadFlag = true
     }
 
-    fun <T, Q> relationship(name: String, titleAttribute: String, store: RecordStore<T, Q>): Select =
-        relationship(name, titleAttribute, store, null)
+    fun relationship(name: Function<Get, String>, titleAttribute: Function<Get, String>): Select =
+        relationship(name, titleAttribute, null)
 
-    fun <T, Q> relationship(
-        name: String,
-        titleAttribute: String,
-        store: RecordStore<T, Q>,
-        modify: Consumer<Q>?,
+    fun relationship(
+        name: Function<Get, String>,
+        titleAttribute: Function<Get, String>,
+        modify: Consumer<Any?>?,
     ): Select = apply {
-        relation = RelationBinding(name, titleAttribute, null)
-        queryHook = if (modify == null) {
-            null
-        } else {
-            Consumer { query -> modify.accept(query as Q) }
-        }
-        optionLoad = {
-            val query = store.query()
-            val hook = queryHook
-            if (hook != null) hook.accept(query)
-            val out = LinkedHashMap<String, String>()
-            for (record in store.list(query)) {
-                val key = store.keyOf(record)
-                val raw = store.attributes(record)[titleAttribute]
-                out[key] = if (raw == null) "" else raw.toString()
-            }
-            out
-        }
+        relationNameUsing = name
+        relationTitleUsing = titleAttribute
+        relation = RelationBinding("", "", modify)
         searchableFlag = true
         preloadFlag = true
     }
 
     fun modifyQueryUsing(modify: Consumer<Any?>): Select = apply {
-        if (optionLoad == null) throw FireflyException("relationship needs a record store before modifyQueryUsing")
-        queryHook = modify
+        val binding = relation ?: throw FireflyException("Select relationship is not set")
+        relation = binding.copy(modify = modify)
     }
+
+    fun getOptionLabelFromRecordUsing(provider: Function<Any?, String>): Select = apply { recordLabel = provider }
 
     fun createOptionAction(action: Action): Select = apply { createAction = action }
 
@@ -198,14 +186,50 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     }
 
     fun resolvedOptions(schema: Schema): List<FieldOption> {
+        val binding = relation
+        val owner = schema.record()
+        if (binding != null && owner != null) {
+            val get = Reads.of(schema, this)
+            val name = relationNameUsing?.apply(get) ?: binding.name
+            val title = relationTitleUsing?.apply(get) ?: binding.titleAttribute
+            if (relationNameUsing != null) {
+                relation = RelationBinding(name, title, binding.modify)
+            }
+            val opened = RelationshipOptions.open(owner, name, binding.modify)
+            return optionsFromRecords(opened.records, title)
+        }
         val get = Reads.of(schema, this)
-        val loaded = optionLoad
-        var entries = if (loaded != null) loaded().entries.toList() else options.get(get).entries.toList()
+        return optionsFromPairs(options.get(get).entries.toList())
+    }
+
+    private fun optionsFromRecords(records: List<Any?>, title: String): List<FieldOption> {
+        var rows = records
         val limit = optionsLimitCount
-        if (limit != null && entries.size > limit) entries = entries.take(limit)
+        if (limit != null && rows.size > limit) rows = rows.take(limit)
         val disable = disableWhen
         val labels = labelUsing
-        return entries.map { (value, label) ->
+        val fromRecord = recordLabel
+        return rows.map { record ->
+            val value = recordKey(record)
+            val base = if (fromRecord != null) {
+                (fromRecord.apply(record) as String?).orEmpty()
+            } else {
+                val raw = recordAttribute(record, title)
+                if (raw == null) "" else raw.toString()
+            }
+            val text = if (labels == null) base else labels.apply(value)
+            val enabled = if (disable == null) true else !disable.test(value)
+            FieldOption(value, text, enabled, descriptions[value])
+        }
+    }
+
+    private fun optionsFromPairs(entries: List<Map.Entry<String, String>>): List<FieldOption> {
+        var rows = entries
+        val limit = optionsLimitCount
+        if (limit != null && rows.size > limit) rows = rows.take(limit)
+        val disable = disableWhen
+        val labels = labelUsing
+        return rows.map { (value, label) ->
             val text = if (labels == null) label else labels.apply(value)
             val enabled = if (disable == null) true else !disable.test(value)
             FieldOption(value, text, enabled, descriptions[value])
@@ -239,9 +263,9 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         val selected = selected(value)
         val binding = relation
         val body = if (nativeFlag) {
-            nativeSelect(path, choices, selected)
+            nativeSelect(path, choices, selected, extraInputMarkup(get))
         } else {
-            combobox(path, schema, choices, selected, binding)
+            combobox(path, schema, get, choices, selected, binding)
         }
         val action = createAction
         if (action == null) return body
@@ -251,12 +275,14 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     private fun combobox(
         path: String,
         schema: Schema,
+        get: Get,
         choices: List<FieldOption>,
         selected: Set<String>,
         binding: RelationBinding?,
     ): String = buildString {
-            append("""<div class="ff-combobox" x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}>""")
-            if (searchableFlag) append("""<input class="ff-input" type="text" role="combobox"${attr("placeholder", placeholderValue(schema))} />""")
+            val inputExtra = extraInputMarkup(get)
+            append("""<div class="ff-combobox" x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}${if (searchableFlag) "" else inputExtra}>""")
+            if (searchableFlag) append("""<input class="ff-input" type="text" role="combobox"${attr("placeholder", placeholderValue(schema))}$inputExtra />""")
             append("""<ul class="ff-options">""")
             for (option in choices) {
                 val css = if (option.value in selected) "ff-option ff-selected" else "ff-option"
@@ -269,8 +295,8 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
             append("</div>")
     }
 
-    private fun nativeSelect(path: String, choices: List<FieldOption>, selected: Set<String>): String = buildString {
-        append("""<select class="ff-input" name="${esc(path)}"${if (multipleFlag) " multiple" else ""}>""")
+    private fun nativeSelect(path: String, choices: List<FieldOption>, selected: Set<String>, inputExtra: String): String = buildString {
+        append("""<select class="ff-input" name="${esc(path)}"${if (multipleFlag) " multiple" else ""}$inputExtra>""")
         if (selectablePlaceholderFlag && !multipleFlag) append("""<option value="">${esc(placeholderValueOrEmpty())}</option>""")
         for (option in choices) {
             val mark = if (option.value in selected) " selected" else ""
@@ -329,7 +355,7 @@ open class Checkbox protected constructor(name: String) : Field<Checkbox>(name) 
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val checked = value == true || value == "1" || value == "true" || value == "on" || value == "yes"
-        return """<input class="ff-input ff-checkbox" type="checkbox" name="${esc(path)}" value="1"${if (checked) " checked" else ""}${boolAttr("data-ff-inline", inlineFlag)} />"""
+        return """<input class="ff-input ff-checkbox" type="checkbox" name="${esc(path)}" value="1"${if (checked) " checked" else ""}${boolAttr("data-ff-inline", inlineFlag)}${extraInputMarkup(get)} />"""
     }
 
     companion object {
@@ -439,12 +465,12 @@ open class CheckboxList protected constructor(name: String) : Field<CheckboxList
         val disable = disableWhen
         return buildString {
             append("""<div class="ff-checkbox-list" data-ff-columns="$optionColumnCount"${attr("data-ff-direction", directionText)}${boolAttr("data-ff-searchable", searchableFlag)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)}${attr("data-ff-relationship", relation?.name)}>""")
-            if (searchableFlag) append("""<input class="ff-input" type="text"${attr("placeholder", searchPromptText)} />""")
+            if (searchableFlag) append("""<input class="ff-input" type="text"${attr("placeholder", searchPromptText)}${extraInputMarkup(get)} />""")
             if (bulkFlag) append("""<button type="button" class="ff-bulk-toggle">Select all</button>""")
             for ((optionValue, label) in options.get(get)) {
                 val enabled = if (disable == null) true else !disable.test(optionValue)
                 val checked = if (optionValue in selected) " checked" else ""
-                append("""<label class="ff-check"><input type="checkbox" name="${esc(path)}" value="${esc(optionValue)}"$checked${if (enabled) "" else " disabled"} />${esc(label)}${textTag("small", "ff-option-description", descriptions[optionValue])}</label>""")
+                append("""<label class="ff-check"><input type="checkbox" name="${esc(path)}" value="${esc(optionValue)}"$checked${if (enabled) "" else " disabled"}${extraInputMarkup(get)} />${esc(label)}${textTag("small", "ff-option-description", descriptions[optionValue])}</label>""")
             }
             append("</div>")
         }
@@ -492,7 +518,7 @@ open class Radio protected constructor(name: String) : Field<Radio>(name) {
             for ((optionValue, label) in options.get(get)) {
                 val enabled = if (disable == null) true else !disable.test(optionValue)
                 val checked = if (optionValue == current) " checked" else ""
-                append("""<label class="ff-check"><input type="radio" name="${esc(path)}" value="${esc(optionValue)}"$checked${if (enabled) "" else " disabled"} />${esc(label)}${textTag("small", "ff-option-description", descriptions[optionValue])}</label>""")
+                append("""<label class="ff-check"><input type="radio" name="${esc(path)}" value="${esc(optionValue)}"$checked${if (enabled) "" else " disabled"}${extraInputMarkup(get)} />${esc(label)}${textTag("small", "ff-option-description", descriptions[optionValue])}</label>""")
             }
             append("</div>")
         }
