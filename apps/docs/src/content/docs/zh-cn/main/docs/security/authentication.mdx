@@ -1,0 +1,147 @@
+---
+title: 认证
+description: 守卫、Auth 门面、记住我 cookie、中间件、哈希、密码和 API 令牌。
+---
+
+认证回答的是：*这个请求是谁？* Kona 为浏览器提供会话守卫，为 API 提供 bearer 令牌守卫，以及密码哈希、重置经纪人和把守路由的中间件。
+
+`AuthServiceProvider` 登记哈希、内存用户提供者（Cadence 模型换成 `CadenceUserProvider`）、`web` 加 `api` 守卫、密码经纪人、个人访问令牌，以及 `Auth` 门面。
+
+## 简单路径
+
+1. 在引导列表里保留 `AuthServiceProvider`（web 还要 `SessionServiceProvider`）— `kona new` 会这样做。
+2. 确保 HTML 路由上 `StartSession` 在认证中间件之前运行。
+3. 用凭据登录；用 `Authenticate` 保护路由。
+
+```kotlin
+auth.setRequest(request)
+if (auth.attempt(mapOf("email" to email, "password" to password), remember = true)) {
+    val intended = Authenticate.pullIntended(request, "/")
+    return Response.redirect(intended)
+}
+```
+
+```java
+auth.setRequest(request);
+if (auth.attempt(Map.of("email", email, "password", password), true)) {
+    String intended = Authenticate.pullIntended(request, "/");
+    return Response.redirect(intended);
+}
+```
+
+## Auth 门面与管理器
+
+`AuthManager` 解析具名守卫。提供者启动之后，`Auth` 对象镜像该管理器：
+
+| 调用 | 含义 |
+|------|------|
+| `attempt` / `login` / `logout` | 持久化（或清除）会话用户 |
+| `check` / `guest` / `id` / `user` | 查看当前用户 |
+| `validate` | **不**登录地检查凭据 |
+| `once` / `onceUsingId` | 只为**这一次请求**认证 |
+| `loginUsingId` | 按主键登录 |
+| `viaRemember` | 从记住我 cookie 恢复时为真 |
+| `guard("api")` | 切换守卫 |
+
+```kotlin
+Auth.setRequest(request)
+Auth.attempt(mapOf("email" to "a@b.c", "password" to "secret"))
+val user = Auth.user()
+```
+
+## 守卫
+
+- **`web`（`SessionGuard`）** — 在请求会话属性 `"session"` 里存储 `login_{guard}_id`（以及密码哈希）。
+- **`api`（`TokenGuard`）** — 通过 `PersonalAccessTokenManager` 读取 `Authorization: Bearer {id}|{secret}`。
+
+用 `auth.extend("admin", SessionGuard("admin", users))` 登记自定义守卫。
+
+### 记住我
+
+当 `login` / `attempt` 以 `remember = true` 调用时：
+
+1. 记住令牌存在用户上（`Authenticatable.setRememberToken`）。
+2. 长寿命的 `remember_{guard}` cookie（`{id}|{token}`）在请求上**排队**。
+3. 冲掉认证 cookie 的中间件（内建于 `Authenticate`、`RedirectIfAuthenticated` 和 `AuthenticateSession`）在响应上写 `Set-Cookie`。
+
+之后的访问没有会话 id 时，`SessionGuard` 从 cookie 召回用户，`viaRemember()` 返回 true。登出清除令牌并排队一个遗忘 cookie。
+
+`UserProvider.retrieveByToken` / `updateRememberToken` 支撑这一点；`InMemoryUserProvider` 和 `CadenceUserProvider` 都实现了它们。
+
+### Cadence 用户提供者
+
+用户住在 Cadence 模型里的应用，登记 `CadenceUserProvider` 来代替（或并列于）内存提供者。模型必须实现 `Authenticatable`，并暴露凭据列（通常是 `email` 加 `password`）以及可选的 `remember_token`：
+
+```kotlin
+class User : Cadence<User>(), Authenticatable {
+    override val fillable = setOf("email", "password", "remember_token")
+    companion object : CadenceCompanion<User>(User::class.java)
+    override fun getAuthIdentifier(): Any = getAttribute("id")!!
+    override fun getAuthPassword(): String = getAttribute("password")?.toString() ?: ""
+    override fun getRememberToken(): String? = getAttribute("remember_token")?.toString()
+    override fun setRememberToken(token: String?) { setAttribute("remember_token", token) }
+}
+
+val users = CadenceUserProvider(User::class.java, Hash.manager().driver())
+auth.provider("users", users)
+auth.extend("web", SessionGuard("web", users))
+```
+
+```java
+CadenceUserProvider<User> users = new CadenceUserProvider<>(User.class, Hash.manager().driver());
+auth.provider("users", users);
+auth.extend("web", new SessionGuard("web", users));
+```
+
+除密码键以外的凭据键成为模型查询上的相等筛选。记住令牌的更新对模型调用 `save()`。
+
+## 中间件
+
+| 中间件 | 作用 |
+|--------|------|
+| `Authenticate` | 要求登录；重定向到 `/login`（`redirectTo = null` 时抛出 401）；在 GET 上存储 `url.intended` |
+| `RedirectIfAuthenticated` | 把已经登录的用户从访客页面弹开 |
+| `AuthenticateSession` | 密码哈希不再匹配登录时捕获的哈希时登出 |
+
+```kotlin
+router.get("/dashboard", handler).middleware(Authenticate(auth))
+router.get("/login", handler).middleware(RedirectIfAuthenticated(auth, "/home"))
+router.middleware(AuthenticateSession(auth))
+```
+
+登录成功之后，把用户送到 `Authenticate.pullIntended(request, "/")`。
+
+## 哈希
+
+```kotlin
+Hash.make("secret")
+Hash.check("secret", hash)
+Hash.needsRehash(hash)
+```
+
+**Bcrypt** 是默认（`hash.driver=bcrypt`，`hash.rounds` 默认 10）。长于 72 字节的密码会被截断到 bcrypt 的限制。
+
+**Argon2id** 登记为 `argon2` / `argon2id`。用 `hash.driver=argon2` 切换默认（可选 `hash.argon2.memory`、`hash.argon2.iterations`、`hash.argon2.parallelism`）。需要自定义算法时用 `HashManager.extend` 登记另一个 `Hasher`。
+
+## 密码重置
+
+`PasswordBroker` 通过 `PasswordResetTokenRepository` 签发重置令牌，并通过回调应用重置。默认存储是内存（`auth.passwords.driver=array`）。要让令牌在重启后仍然存在，设置 `auth.passwords.driver=database`（可选 `auth.passwords.table`），并确保在 `AuthServiceProvider` 之前登记 `Database`。
+
+```kotlin
+val token = broker.createToken(mapOf("email" to email))
+val result = broker.reset(mapOf("email" to email, "token" to token, "password" to next)) { user, password ->
+    // persist Hash.make(password)
+}
+```
+
+你也可以显式构造 `PasswordBroker(..., tokens = DatabasePasswordResetTokenRepository(connection))`。
+
+表单校验规则列表使用 `PasswordRules.min(8)` / `PasswordRules.confirmed()` 配合 HTTP 校验器（见[校验](/docs/http/validation/)）。
+
+## API 令牌
+
+`PersonalAccessTokenManager.create(user, name, abilities)` 一次性返回明文令牌（`id|secret`）并存储 SHA-256 哈希。用 `token.can("read")` / `token.cant("write")` 检查能力。
+
+默认仓库是内存（`auth.tokens.driver=array`）。设置 `auth.tokens.driver=database`（可选 `auth.tokens.table`）以使用 JDBC 支撑的令牌，或在构造管理器时传入 `DatabasePersonalAccessTokenRepository`。
+
+通过 `TokenGuard` 或 `AuthenticateWithToken` 中间件用 bearer 令牌认证。

@@ -1,0 +1,174 @@
+---
+
+title: 表格
+description: 用列、筛选、搜索、排序、分页和行按钮在 Firefly 表格里展示记录。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="notes-table.png" description="笔记表格，位于 http://127.0.0.1:4017/admin/notes/manage，名称列里是 Ada 这一行。" />
+
+表格列出记录，然后让人搜索、排序、筛选并翻页。你在 Kotlin 或 Java 里描述列和筛选。`render()` 返回 HTML，包括 Alpine 的 `ffColumn` 工厂、`@entangle` 和 `$wire.$call` 钩子。
+
+类型位于 `org.konaframework.firefly.tables`（`kona-firefly-tables`）。该模块依赖 `kona-firefly-schemas` 和 `kona-firefly-support`。Cadence 模型还使用 `kona-cadence`，因为你收到的查询是该模型的 `ModelBuilder`。
+
+## 一次调用里的表格
+
+```kotlin
+val table = Table.memory(
+    listOf(
+        mapOf("id" to "1", "name" to "Ada", "score" to 2),
+        mapOf("id" to "2", "name" to "Bea", "score" to 4),
+    ),
+).columns(
+    TextColumn.make("name").label("Name").searchable(true).sortable(true),
+    TextColumn.make("score").money().summarize(Summary.SUM),
+)
+table.search("ada").sort("name").page(1).perPage(10)
+val html = table.render()
+```
+
+```java
+Map<String, Object> ada = new LinkedHashMap<>();
+ada.put("id", "1");
+ada.put("name", "Ada");
+ada.put("score", 2);
+Table<Map<String, Object>, MemoryQuery> table = Table.memory(List.of(ada));
+table.columns(
+    TextColumn.make("name").label(cell -> "Name").sortable(true).searchable(true),
+    TextColumn.make("score").money().summarize(Summary.SUM)
+);
+table.search("ada").sort("name", "asc").page(1);
+String html = table.render();
+```
+
+`Table.memory` 把行保存在内存查询里。`columns(...)` 替换列列表。`search`、`sort`、`page` 和 `perPage` 收窄 `load()` 和 `render()` 返回的内容。搜索匹配你标记了 `searchable(true)` 的列。排序在你标记了 `sortable(true)` 的列上接受 `asc` 或 `desc`。
+
+`load()` 返回当前页、总数、汇总和分组。`render()` 把同一页作为 HTML 返回。空页使用 `empty("No records")` 的标题和 `emptyDescription(...)` 的文字。两者都接受固定字符串或闭包。
+
+## 记录从哪里来
+
+记录已经是映射列表时使用 `Table.memory`。`modifyQueryUsing` 接收一个 `MemoryQuery`。该查询过滤、排序、搜索并分页这个列表。
+
+```kotlin
+table.modifyQueryUsing { query ->
+    query.where("name", "!=", "hidden")
+}
+```
+
+记录是 Cadence 模型时使用 `Table.cadence(Customer::class.java)`。`modifyQueryUsing` 接收该模型的 `ModelBuilder`。`where`、`whereHas`、`join`、`with` 和 `scope` 在模型查询上运行。
+
+```kotlin
+val table = Table.cadence(Customer::class.java)
+table.modifyQueryUsing { query ->
+    query.where("active", true)
+        .whereHas("orders") { orders -> orders.where("total", ">", 0) }
+        .with("orders")
+        .scope { builder -> builder.where("active", true) }
+}
+```
+
+```java
+Table<Customer, ModelBuilder<Customer>> table = Table.cadence(Customer.class);
+table.modifyQueryUsing(query -> query
+    .where("active", true)
+    .with("orders")
+    .whereHas("orders", orders -> orders.where("total", ">", 0))
+);
+```
+
+`relationship(Account.class)` 构建相关选项的查询。该查询需要自己的 `where` 或 `whereHas` 时传入闭包。
+
+列上的 `extraAttributes` 把 HTML 属性合并到列根上。映射，或接收单元格的闭包，都可以。`extraInputAttributes` 对渲染自己的输入或选择框的列或筛选做同样的事。`type`、`name` 和 `value` 仍由该控件拥有。
+
+你持有在内存里的列表留在 `MemoryQuery` 上。Cadence 模型留在 `ModelBuilder` 上。文档模型会失败，消息会点名 `kona-firefly-document`。该模块不属于这个版本。任何其他类型都会失败，并告诉你对自定义行使用 `Table.memory`。
+
+## 列
+
+| 类型 | 作用 |
+|------|------|
+| `TextColumn.make(name)` | 文本、金额或日期。`badge`、`limit`、`html`、`url`、`icon`、`color`、`prefix`、`suffix`、`placeholder` |
+| `IconColumn.make(name)` | 真或假状态的图标 |
+| `ImageColumn.make(name)` | 带 `alt`、`imageHeight` 和 `imageWidth` 的图片 |
+| `ColorColumn.make(name)` | 色块 |
+| `CheckboxColumn.make(name)` | 绑定到行的复选框 |
+| `ToggleColumn.make(name)` | 调用 `$wire.$call('toggleColumn', ...)` 的开关 |
+| `SelectColumn.make(name)` | 调用 `$wire.$call('setColumn', ...)` 的选择框 |
+
+`searchable(true)` 把该列纳入搜索。`sortable(true)` 允许 `sort(name)`。`toggleable(true)` 让调用者隐藏该列。`hidden(true)` 和 `visible(false)` 让它不出现在渲染里。`summarize(Summary.COUNT)`、`SUM`、`AVG`、`MIN` 和 `MAX` 加上页脚值。
+
+`formatStateUsing` 接收单元格状态和一个 `Cell`。`Cell.get` 读取路径。以 `/` 开头的路径是绝对路径。
+
+```kotlin
+TextColumn.make("name").label { cell ->
+    if (cell.get("/kind") == "org") "Organization" else "Name"
+}
+```
+
+```java
+TextColumn.make("name").label(cell -> "Name");
+```
+
+`money()` 把数字格式化为元和分。`date()` 格式化日期、时刻或时间戳。`align(Align.END)` 设置列对齐。
+
+每一列渲染 `x-data="ffColumn('name', true)"` 和 `@entangle(name)`。
+
+`./grind make:firefly-column Name` 在 `app/firefly/columns` 下写入一个列类和一份 Crema 视图。`--lang=java` 写入 Java。视图使用 `ffColumn`、`@entangle` 和 `$wire.$call`。
+
+## 筛选
+
+`filters(...)` 替换筛选列表。`filter(name, value)` 应用一个。空值会清除它。
+
+| 类型 | 作用 |
+|------|------|
+| `Filter.make(name)` | 匹配一个属性。`attribute` 和 `operator` 选择列和比较 |
+| `SelectFilter.make(name)` | 选项的选择框。`options(map)` 或 `options { cell -> map }` |
+| `TernaryFilter.make(name)` | `true`、`false` 或 `blank` |
+| `TrashedFilter.make()` | `with`、`only`，或隐藏已删除行的默认值 |
+
+`default("open")` 存储固定值。`defaultUsing { "Ada" }` 存储一个在筛选读取默认值时运行的闭包。
+
+`query { query, value -> ... }` 接收表格的原生查询和当前筛选值。内存表格上该查询是 `MemoryQuery`。Cadence 表格上它是 `ModelBuilder`。
+
+```kotlin
+Filter.make("name").query { query, value ->
+    (query as MemoryQuery).where("name", value)
+}
+```
+
+`./grind make:firefly-filter Status` 在 `app/firefly/filters` 下写入一个筛选类和一份 Crema 视图。`--lang=java` 写入 Java。
+
+## 分页、选择、分组和布局
+
+`paginated(true)` 是默认。`page(1)` 和 `perPage(10)` 选择窗口。`pageOptions(10, 25)` 在 HTML 里列出页大小。页码从 1 开始。
+
+`selectable(true)` 在每一行加上复选框。`select(key)` 切换该键。`selected()` 返回这些键。再次选择当前页的每一个键会清除这些键。
+
+`groups(TableGroup.make("status"))` 和 `groupedBy("status")` 把页面分成组。`label("Status")` 或 `label { cell -> ... }` 设置组标题。
+
+`reorderable("score")` 然后 `move(key, index)` 把新顺序写入该属性。
+
+`layout(TableLayout.ROWS)` 是表格。`TableLayout.STACK` 和 `TableLayout.GRID` 把同样的记录渲染成卡片。`poll("10s")` 或 `poll("500ms")` 在根上加上 `wire:poll`。
+
+## 行按钮和表头按钮
+
+按钮通过 `Dialog` 渲染，可以包含一个模式。`label("Export")` 和 `label { cell -> "Edit ${cell.get("name")}" }` 设置文字。`modal()`、`slideOver()` 和 `fullscreen()` 选择对话框。`schema(Text.make("Go"))` 是对话框正文。`url("https://example.test")` 渲染一个链接。`requiresSelection(true)` 在没有选中行时禁用按钮。
+
+```kotlin
+table.headerButtons(
+    TableButton.make("export").label("Export").requiresSelection(true).modal().schema(Text.make("Go")),
+)
+table.rowButtons(
+    TableButton.make("edit").label { cell -> "Edit ${cell.get("name")}" }.slideOver(),
+)
+```
+
+```java
+table.headerButtons(
+    TableButton.make("export").label("Export").modal().schema(Text.make("Go"))
+);
+```
+
+按钮标记使用 `ffAction` 和 `$wire.$call`。动作模块在 `main` 上时，类型化的动作对象会附上。
+
+`Table`、`TableButton`、`Column`、`TextColumn`、`Filter` 和 `SelectFilter` 上的 `configureUsing` 对之后每一次 `make()` 运行。传入 `null` 可以清除它。

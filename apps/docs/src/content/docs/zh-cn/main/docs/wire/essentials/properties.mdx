@@ -1,0 +1,142 @@
+---
+title: Wire 属性
+description: 公开状态、批量辅助方法、锁定字段和计算值。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**属性**是 Wire 脱水进快照、并在每次更新时重新水合的公开状态。只有在你的子类上声明的成员才算 — 基类 `Component` 的成员永远不是状态。
+
+## 声明状态
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Profile : Component() {
+    var name = ""
+    var age = 0
+    var tags = mutableListOf<String>()
+}
+```
+
+优先使用带后备字段的 `var`。私有 / 受保护成员对浏览器不可见。
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Profile extends Component {
+    public String name = "";
+    public int age = 0;
+    public List<String> tags = new ArrayList<>();
+}
+```
+
+公开字段（或 Wire 能看见的公开 getter/setter 对）成为状态。
+
+</TabItem>
+</Tabs>
+
+## 支持的类型
+
+标量、列表/映射/集合、枚举、`java.time` 类型、`BigDecimal` / `BigInteger`、`UUID`、数据类 / DTO，以及实现 `Wireable`（`toWire` / `fromWire`）的对象。`todos.0.title` 这样的嵌套路径通过合成器工作。
+
+客户端传来的错误类型会引发属性类型不匹配（请求被拒绝）。锁定或未知属性会被拒绝。
+
+Cadence 模型同样是公开状态。快照保留它的类、主键、连接和属性值。下一次请求时，如果配置了全局数据库，Wire 会重新加载该行。没有全局数据库时，Wire 用这些属性重建模型，因此模板仍然看到同样的列。在模型上调用方法，包括属性为 null 时：
+
+```crema
+{{ user?.getEmail() }}
+{{ user?.getAttribute('name') }}
+```
+
+当类没有 `getEmail()` 方法时，`user.email` 读取该列。Java 模型使用同样的调用（`getEmail()`、`getAttribute("name")`）。
+
+## 批量辅助方法
+
+| 方法 | 行为 |
+|------|------|
+| `fill(map)` | 赋值已知键；忽略未知键 |
+| `reset()` / `reset("a", "b")` | 恢复初始值（新实例） |
+| `resetExcept("keep")` | 重置其余所有属性 |
+| `pull("title")` | 返回值并重置 |
+| `pull("a", "b")` | 返回映射并重置这些键 |
+| `only("a", "b")` | 快照子集 |
+| `all()` | 完整的公开状态映射 |
+
+```kotlin
+fun clearForm() {
+    reset("name", "email")
+}
+
+fun importDraft(data: Map<String, Any?>) {
+    fill(data)
+}
+```
+
+## 锁定属性
+
+标记浏览器不得写入的字段：
+
+```kotlin
+@Locked
+var userId = 0
+```
+
+```java
+@Locked
+public int userId = 0;
+```
+
+客户端更新锁定属性会抛出 `CannotUpdateLockedPropertyException`。
+
+## 计算属性
+
+由零参数公开方法得到的记忆化派生值：
+
+```kotlin
+@Computed
+fun remaining(): Int = items.count { !it.done }
+```
+
+模板把它们当作普通数据读取（`{{ remaining }}`）。选项：
+
+| 参数 | 作用 |
+|------|------|
+| `persist` | 在该实例的多次请求之间缓存 |
+| `cache` | 在该类的所有实例之间缓存 |
+| `seconds` | TTL（默认 3600） |
+| `key` | `cache` 为真时的显式缓存键 |
+| `tags` | 供支持标签的存储使用的信息性标签 |
+
+忘掉一个记忆化的值：
+
+```kotlin
+forgetComputed("remaining")
+```
+
+或显式读取：`computed<Int>("remaining")`。
+
+## 从 JavaScript
+
+```js
+$wire.count          // read
+$wire.count = 5      // queue an update
+$wire.$set('count', 5, true)  // set + live round-trip
+$wire.$get('todos.0.title')
+$wire.$toggle('open')
+```
+
+## 安全说明
+
+- 只有子类的**公开**属性才是状态。
+- 只有子类的**公开**方法（不是 `render` / 生命周期 / `mount`）才是可调用的动作。
+- 快照用 `app.key` 做校验和；篡改会使校验失败。
+- 水合对可合成的类使用允许列表安全策略。
+
+## 下一步
+
+- [动作](/docs/wire/essentials/actions/) — 方法和 `$wire`
+- [生命周期](/docs/wire/essentials/lifecycle/) — 属性变化时的 `updatedFoo` 钩子
+- [表单](/docs/wire/essentials/forms/) — 用 `wire:model` 绑定输入

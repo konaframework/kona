@@ -1,0 +1,26 @@
+---
+title: 包开发
+description: 从 META-INF/kona/providers 发现服务提供者；用 ./grind install 安装包。
+---
+
+要把包**加到**已有应用（依赖加上提供者），见[安装包](./install/)。
+
+可复用的 Kona 包通过类路径资源暴露服务提供者：
+
+```
+META-INF/kona/providers
+```
+
+每行一个完整的 `ServiceProvider` 类名（允许 `#` 注释）。
+
+```kotlin
+PackageDiscovery.registerAll(app)
+// or
+PackageDiscovery.loadProviders(classLoader).forEach { app.register(it) }
+```
+
+## 用 grind 自动发现
+
+通过 `AppLoader` 启动应用时（例如 `grind serve --in-process`），grind 会在应用类加载器上查找 `META-INF/kona/providers`。如果该文件存在并列出提供者，`PackageDiscovery.registerAll` 会在 `bootstrap.App.create` 返回之后运行。引导程序已经注册的提供者会被跳过（同一个类只注册一次）。
+
+把文件放在应用的 `src/main/resources/META-INF/kona/providers`，编译后它会出现在 `build/resources/main`。手动引导的应用仍然可以自己调用 `PackageDiscovery.registerAll(app)`。

@@ -1,0 +1,112 @@
+---
+title: 介绍
+description: Kona Firefly 用来做什么，以及从空面板到能用的工作台的路径。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Kona Firefly**（简称 **Firefly**）是你交给运行应用的人的面板。面板是站点的一个区域：一个品牌、一棵导航树，以及列出和编辑记录的屏幕。
+
+你用 Kotlin 或 Java 描述那些屏幕。Firefly 在服务器上渲染 HTML。按钮、对话框和实时字段通过 [Wire](/docs/wire/) 和 Alpine 留在浏览器里。你不必每次加一列或一个按钮就手写一个新模板。
+
+<FireflyShot file="desk-panel.png" description="hello-kotlin 面板，位于 http://127.0.0.1:4017/admin/desk，侧栏和正文里的 Desk 页。" />
+
+这些页面上的截图是 `apps/docs/public/images/firefly/` 里的 PNG 文件。每一页点名它期望的文件。把该文件放进文件夹并重新构建文档站点，图片就会替换占位。文件还没在那里时，页面显示文件名、文件夹，以及这张截图的一句话说明。文件名列表在该文件夹的 README 里。
+
+:::note
+Firefly 从 [Filamentphp](https://filamentphp.com/) 取了一个简短的提示。从这里开始，这些页面按 Firefly 自身的术语来描述。
+:::
+
+当工作是“打开工作台、找到订单、改它，并看到它已保存”时使用面板。公开营销页或 JSON API 留在普通的 Kona 路由上。加入 Firefly 模块不会改写你已经定义的路由。路由在 `Panel` 调用 `mount` 时出现。
+
+同样的部件也可以在完整面板之外工作。模式、表单或表格可以 `render()` 成 HTML，放进视图或在测试里断言。面板把那些部件变成 URL、侧栏和登录屏幕。
+
+## 你能构建什么
+
+名为 `Panel` 的面板类住在 `app/firefly`。它发现自己旁边的三个文件夹：
+
+| 文件夹 | 放什么 |
+|--------|--------|
+| `pages/` | 你自己设计的屏幕，例如工作台 |
+| `widgets/` | 页面上的统计、图表和其他块 |
+| `resources/` | 每种记录类型一个类，例如笔记或订单 |
+
+hello 示例（`samples/hello-kotlin` 和 `samples/hello-java`）就是这个布局，挂在 `/admin`。这些指南跟随 Kotlin 示例。同样的屏幕也在 Java 示例里。
+
+在那个应用上你可以打开：
+
+- `/` — 欢迎页，在面板之外
+- `/admin/desk` — 自定义 Desk 页，带表单、信息列表、表格、页眉动作和小部件
+- `/admin/notes/manage` — 简单资源：一个页面，创建、编辑、查看和删除在对话框里打开
+- `/admin/orders/list`、`/admin/orders/create`、`/admin/orders/edit`、`/admin/orders/view` — 完整资源，编辑和查看上还有明细的关系管理器
+
+你登记一个面板，然后把资源放进它的 `resources/` 文件夹。发现会捡起它。除非你想要，否则不必手工登记每一个页面。
+
+## 包
+
+`org.konaframework:kona-firefly` 是面板。它带上其他 Firefly 模块，因此应用只依赖这一个坐标。模块这样拆分，这样你能看到类型住在哪里：
+
+- `kona-firefly` — 面板、页面、资源、导航、多租户、插件、导入与导出，以及 `Firefly.test`
+- `kona-firefly-schemas` — 组件树和它的状态映射。节、网格、标签页和纯文本住在这里
+- `kona-firefly-forms` — 那棵树上的字段，包括组合框选择和自绘日期选择器，带验证
+- `kona-firefly-infolists` — 只读条目：文本、图标、图片，以及其他展示记录的方式
+- `kona-firefly-tables` — 列、筛选、搜索、排序和分页
+- `kona-firefly-actions` — 按钮或链接、它可以打开的对话框，以及它调用的服务器方法
+- `kona-firefly-notifications` — 提示、数据库铃铛，以及广播刷新标记
+- `kona-firefly-widgets` — 页面上的统计、图表和自定义块
+- `kona-firefly-support` — 对话框、图标、主题记号和 `FireflyException`。其他模块依赖它。你不必自己加这个坐标
+
+## 插件
+
+插件是你传给 `plugin(...)` 的类。`register` 立刻运行，`boot` 在面板挂载时运行。在那些方法里你调用应用所调用的同样的面板方法：品牌、钩子、页面。没有注册表。如果行为属于一个应用，把类留在那个应用里。阅读[插件](/docs/firefly/plugins/)。
+
+## 外观
+
+随附的外观是 `KonaTheme`。颜色和字体是记号，`Stylesheet.render` 把它们写成 `.ff-panel` 上的 CSS 自定义属性。组件规则只在该类内部匹配，因此从不渲染面板的页面不会带上 Firefly 的按钮或侧栏。
+
+要改变外观，实现 `FireflyTheme` 并把它传给 `theme(...)`。`extraCss()` 被包在 `.ff-panel { ... }` 里，因此你的覆盖留在面板内部。hello 示例的工作台是随附主题。阅读[主题与 CSS](/docs/firefly/themes/)。
+
+## 测试
+
+`Firefly.test` 读取你已经渲染的 HTML，并检查页面、字段、表格或对话框在那里。它住在 `org.konaframework.firefly.testing`。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("name")
+    .assertTable("Ada")
+    .assertDialog("Export")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("name")
+    .assertTable("Ada")
+    .assertDialog("Export");
+```
+
+</TabItem>
+</Tabs>
+
+文本缺失时 `assertSee` 失败。`assertFormField` 寻找 `data-ff-path`。`assertTable` 同时要 `ff-table` 和文本。`assertDialog` 同时要 `ff-dialog` 和标题。`Firefly.test(html)` 针对字符串断言。同样的断言列在[导入与导出](/docs/firefly/import-export/)。
+
+## 其余部分怎么读
+
+第一次按侧栏从上到下：
+
+1. [要求](/docs/firefly/requirements/) — JDK 和你已经有的 Kona 应用。
+2. [安装](/docs/firefly/installation/) — `kona new --kit=firefly`，或把模块加到已有应用。
+3. [登记面板](/docs/firefly/registration/) — `Panel` 文件、文件夹和 `discover`。
+4. [一个能用的应用](/docs/firefly/working-app/) — 简单的笔记资源和完整的订单资源。
+
+在那之后，每一块都有自己的页面：它是什么、你为什么用它、最小示例，然后是方法和边界。准备离开导览时从[面板](/docs/firefly/panel/)开始。
+
+Kotlin 和 Java 调用同样的类型。示例用两种语言显示，放在标签页里。你扩展的类是 `Panel`。包是 `org.konaframework`。

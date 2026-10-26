@@ -1,0 +1,22 @@
+---
+title: CSRF 防护
+description: VerifyCsrfToken 中间件和令牌辅助方法。
+---
+
+## 中间件
+
+把 `VerifyCsrfToken` 放在 `StartSession` 之后。安全方法（`GET`、`HEAD`、`OPTIONS`、`TRACE`）会跳过检查。其他方法必须用下面之一送出会话令牌：
+
+- 表单或输入字段 `_token`，或
+- 请求头 `X-CSRF-TOKEN`，或
+- 请求头 `X-XSRF-TOKEN`
+
+失败时抛出 `TokenMismatchException`（HTTP **419**）。
+
+## 令牌
+
+```kotlin
+val token = Csrf.token(session)
+```
+
+用 `VerifyCsrfToken(except = listOf("/stripe/*", "/exact"))` 排除路径。

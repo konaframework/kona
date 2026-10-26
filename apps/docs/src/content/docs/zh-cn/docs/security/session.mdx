@@ -1,0 +1,71 @@
+---
+title: 会话
+description: 使用 array、file、cookie 和 Redis 驱动的 HTTP 会话。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## 会话是什么
+
+会话在一个会话 id 下，为一个浏览器（或客户端）跨请求保存数据。Kona 通过 `StartSession` 中间件把会话挂到请求属性 `"session"` 上。
+
+## 驱动
+
+用 `session.driver` 配置：
+
+| 驱动 | 行为 |
+|------|------|
+| `array` / `memory` | 进程内映射（测试 / 单进程） |
+| `file` | `storage/framework/sessions`（或 `session.files`）下的 JSON 文件 |
+| `cookie` | 会话 cookie 里的 JSON 载荷（设置了 `app.key` 时签名或加密） |
+| `redis` | Redis 连接上的键（`session.connection_prefix`，默认 `kona_session:`） |
+
+使用 `redis` 时，要在 `SessionServiceProvider` **之前**注册 `RedisServiceProvider`，这样 `SessionManager` 才能从容器解析 `RedisConnection` / `RedisManager`。
+
+### Cookie 完整性
+
+`kona new` 生成的应用会发出随机的 `APP_KEY`，并默认 `session.driver=cookie`。Cookie 载荷的保护如下：
+
+1. 绑定了 `Encrypter` 时**加密**（例如通过 `AuthServiceProvider` 加 `app.key`），或 `session.encrypt=true` 加上 `app.key`。
+2. 关闭加密但设置了 `app.key` 时做 **HMAC 签名**（`payload.mac`）。
+3. 只有没有密钥时才是**纯 Base64**（测试 / 本地试验）。
+
+其他键：`session.lifetime`（分钟）、`session.cookie`、`session.path`、`session.secure`、`session.http_only`、`session.same_site`、`session.encrypt`。
+
+## 用法
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val session = request.session()!! // or getAttribute(StartSession.ATTRIBUTE) as Session
+session.put("user_id", 1)
+session.flash("status", "Saved")
+session.flashInput(mapOf("email" to "ada@example.com"))
+val email = request.old("email") // "ada@example.com" on the next request
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Session session = (Session) request.getAttribute(StartSession.ATTRIBUTE);
+session.put("user_id", 1);
+session.flash("status", "Saved");
+session.flashInput(Map.of("email", "ada@example.com"));
+String email = request.old("email"); // next request
+```
+
+</TabItem>
+</Tabs>
+
+### 重定向闪存、旧输入和上一个 URL
+
+`StartSession` 还会：
+
+1. 在保存之前应用待处理的 `Response.with` / `withInput` / `withErrors` 袋（因此 `Response.redirect("/home").with("status", "Saved")` 会在下一次请求闪现）。
+2. 在成功的 GET 响应上记录 `_previous.url`（供 `Response.back(request)` 和校验后返回使用）。
+
+用 `session.flashInput(...)`、`session.old("field")` 和 `request.old("field")` 在失败的 POST 之后重新显示表单值。校验错误闪存在键 `errors` 下。
+
+`kona new` 会注册 `SessionServiceProvider`，并在 `bootstrap.Middleware` 里接上 `StartSession` 和 `VerifyCsrfToken`（排除 `/api/*` 和 `/wire/*`）。手动应用：注册提供者，解析 `SessionManager`，并把 `StartSession(manager)` 加到内核。

@@ -1,0 +1,94 @@
+---
+title: 授权
+description: 门、策略、发现，以及 Authorize 中间件。
+---
+
+授权回答的是：*这个用户可以做那件事吗？* 认证认出用户之后，门和策略决定能力。
+
+## 简单路径
+
+1. 从容器解析 `Gate`（由 `AuthServiceProvider` 注册），或自己构造一个。
+2. 用 `setUserResolver { auth.user() }` 把门指向当前用户。
+3. `define` 能力或 `policy` 模型类；在处理程序里调用 `allows` / `authorize`，或挂上 `Authorize` 中间件。
+
+```kotlin
+gate.define("edit-post") { user, args ->
+    val post = args.firstOrNull() as? Post ?: return@define false
+    user?.getAuthIdentifier() == post.ownerId
+}
+if (gate.allows("edit-post", post)) { /* … */ }
+gate.authorize("edit-post", post) // throws AuthorizationException (403)
+```
+
+```java
+gate.define("edit-post", (user, args) -> {
+    if (args.length == 0 || !(args[0] instanceof Post post)) return false;
+    return user != null && user.getAuthIdentifier().equals(post.ownerId);
+});
+gate.authorize("edit-post", post);
+```
+
+## Gate API
+
+| 方法 | 行为 |
+|------|------|
+| `define` | 登记具名能力回调 |
+| `allows` / `denies` | 布尔检查（当前用户或显式用户） |
+| `any` / `none` | 组合多个能力名 |
+| `authorize` | 被拒绝时抛出 `AuthorizationException` |
+| `before` | 全局短路（`null` 继续；`true`/`false` 定案） |
+| `policy` | 把 `Policy` 绑到模型类 |
+| `discoverPolicy` | 按约定从包里加载 `{SimpleName}Policy` |
+| `forUser` | 限定到一个用户的检查器（`allows` / `any` / `authorize`） |
+| `has` | 某个能力名是否已定义 |
+
+```kotlin
+gate.before { user, ability, _ ->
+    if (user is Admin) true else null
+}
+gate.any(listOf("edit", "publish"), post)
+gate.none(listOf("delete"), post)
+```
+
+## 策略
+
+```kotlin
+gate.policy(Post::class.java, object : Policy {
+    override fun before(user: Authenticatable?, ability: String): Boolean? =
+        if (ability == "admin") true else null
+
+    override fun authorize(user: Authenticatable?, ability: String, model: Any): Boolean {
+        val post = model as Post
+        return ability == "update" && user?.getAuthIdentifier() == post.ownerId
+    }
+})
+```
+
+约定发现：
+
+```kotlin
+gate.discoverPolicy(Post::class.java, "app.policies") // loads app.policies.PostPolicy
+```
+
+用 grind 生成桩：
+
+```bash
+./grind make:policy Post --model=Post
+./grind make:policy CommentPolicy --lang=java
+```
+
+## Authorize 中间件
+
+```kotlin
+router.put("/posts/{id}", handler).middleware(
+    Authorize(gate, "update") { request ->
+        arrayOf(Post.find(request.route("id")!!))
+    },
+)
+```
+
+被拒绝的检查抛出 `AuthorizationException`（HTTP 403）。
+
+## Crema 模板
+
+在视图里，通过 `__abilities` 或 `can` 映射传入能力，并使用 `@can` / `@cannot`（见 [Crema 控制结构](/docs/crema/control-structures/)）。模板检查是数据驱动的 — 它们不会自动调用 `Gate`。

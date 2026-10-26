@@ -1,12 +1,12 @@
 ---
 title: Tenancy, plugins, and import
-description: Pointers to tenancy, plugins, and import and export.
+description: Jump to the page that adds a tenant menu, a plugin, or a CSV import. The kit itself is installed on the Installation page.
 ---
 
-Three topics sit beside the panel, and each has its own page. Open the one you need.
+Open the page for the job you are doing. Each one is a separate step on the panel you already mounted.
 
-- [Tenancy](/docs/firefly/tenancy/) is the tenant menu and `Resource.tenant`.
-- [Plugins](/docs/firefly/plugins/) is `FireflyPlugin.register` and `boot`.
-- [Import and export](/docs/firefly/import-export/) is the CSV jobs, and `Firefly.test` for a rendered page.
+- [Tenancy](/docs/firefly/tenancy/) adds the tenant menu and `Resource.tenant`, so a resource filters rows for the selected tenant.
+- [Plugins](/docs/firefly/plugins/) is a class you pass to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts.
+- [Import and export](/docs/firefly/import-export/) writes and reads CSV through a dialog action and a queue job, and shows `Firefly.test` on a rendered page.
 
-`kona new desk --kit=firefly` is the install path. It is covered on [Installation](/docs/firefly/installation/). It is not a separate runtime.
+`kona new desk --kit=firefly` is the install path. Follow it on [Installation](/docs/firefly/installation/).

@@ -1,0 +1,143 @@
+---
+title: 加密
+description: 使用应用密钥（app.key / APP_KEY）以 AES-256-GCM 加密和解密字符串。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**加密**用秘密的**应用密钥**把敏感字符串变成只有你的应用能读的密文。把它用于 cookie 载荷、存储的秘密，以及必须在静止或穿过不可信层时保持不透明的任何值。
+
+构件：`org.konaframework:kona-auth`（`org.konaframework.security.Encrypter`）。设置了 `app.key` 时，`AuthServiceProvider` 会绑定一个 `Encrypter`。
+
+## 应用密钥
+
+密钥是 32 个原始字节，通常在配置里存成 `base64:…`：
+
+| 来源 | 说明 |
+|------|------|
+| 配置 `app.key` | 由 `Encrypter.fromConfig` / `AuthServiceProvider` 读取 |
+| 环境 | 通常在引导时作为 `APP_KEY` 镜像到该配置键 |
+
+### 用 grind 生成（应用推荐）
+
+在应用目录中：
+
+```bash
+./grind key:generate          # write APP_KEY into .env
+./grind key:generate --show   # print a key without writing
+./grind key:generate --force  # overwrite in production without prompting
+```
+
+`kona new` 已经在生成的 `.env` 里嵌入随机的 `APP_KEY`。当你手抄了 `.env.example`、轮换密钥，或需要为密钥管理器打印一把密钥（`--show`）时，使用 `key:generate`。完整标志行为：[grind key:generate](../../grind/commands/#grind-keygenerate)。
+
+### 在代码中生成
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.security.Encrypter
+
+val key = Encrypter.generateKey()  // "base64:...."
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String key = Encrypter.generateKey();
+```
+
+</TabItem>
+</Tabs>
+
+在启动之前放进配置（或确保 `.env` / `config/` 种入 `app.key`）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+.configure { it.set("app.key", Encrypter.generateKey()) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+app.configure(config -> config.set("app.key", Encrypter.generateKey()));
+```
+
+</TabItem>
+</Tabs>
+
+不要提交真实的生产密钥。谨慎轮换 — 用旧密钥加密的密文在轮换后无法解密，除非你重新加密。轮换 `.env` 里存储的密钥时使用 `./grind key:generate`（生产环境加 `--force`）。
+
+## 加密与解密
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val encrypter = app.resolve(Encrypter::class.java)
+// or: Encrypter.fromBase64Key(app.config.getString("app.key")!!)
+
+val cipher = encrypter.encryptString("user@example.com")
+val plain = encrypter.decryptString(cipher)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Encrypter encrypter = app.resolve(Encrypter.class);
+String cipher = encrypter.encryptString("user@example.com");
+String plain = encrypter.decryptString(cipher);
+```
+
+</TabItem>
+</Tabs>
+
+算法：**AES-256-GCM**。载荷是 Base64 编码的 JSON，字段 `iv`、`value` 和 `tag` 也是 Base64。
+
+## 手动创建加密器
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val fromConfig = Encrypter.fromConfig(app.config)
+val fromKey = Encrypter.fromBase64Key("base64:…")
+val fromBytes = Encrypter(ByteArray(32) /* exactly 32 bytes */)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Encrypter.fromConfig(app.getConfig());
+Encrypter.fromBase64Key("base64:…");
+new Encrypter(keyBytes); // length must be 32
+```
+
+</TabItem>
+</Tabs>
+
+## 失败模式
+
+| 情况 | 异常 |
+|------|------|
+| `fromConfig` 缺少 `app.key` | `EncryptionException` — “No application encryption key has been specified.” |
+| 密钥长度错误 / Base64 损坏 | `EncryptionException` — 不支持的密码或密钥长度不正确 |
+| 被篡改或密钥错误的密文 | `EncryptionException` — 无法解密 |
+| `AuthServiceProvider` 的密钥为空或无效 | Encrypter 保持未绑定；设置有效密钥后再解析 |
+
+`EncryptionException` 是非受检的 — 在接受不可信密文的边界捕获它。
+
+## 何时加密
+
+- 你不希望在日志、cookie 或数据库列里可读的值
+- 在非本地环境使用 cookie 会话驱动时的会话 cookie 载荷（与[会话](../session/)配置结合）
+
+对可 JSON 序列化的值使用 `encrypt(value)` / `decrypt(payload, MyType::class.java)`（Jackson）。原始字符串优先用 `encryptString` / `decryptString`。
+
+**不要**用加密代替密码哈希。密码属于 [Hash / bcrypt](../authentication/#hashing)。

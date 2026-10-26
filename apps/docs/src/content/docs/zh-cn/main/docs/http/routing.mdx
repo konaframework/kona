@@ -1,0 +1,793 @@
+---
+title: 路由
+description: 把 URL 和 HTTP 方法映射到处理函数和控制器 — 动词、路径参数、资源路由、分组、中间件、具名 URL、重定向、404/405 和测试。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**路由器**决定传入的 HTTP 请求运行哪段代码。**路由**是一项：一组 HTTP 方法、一个路径模式例如 `/users/{id}`、可选中间件、可选名称，以及一个**处理函数** — 形状为 `Request → Response` 的函数。
+
+请求到达时，[HTTP 内核](../kernel-server/)要求路由器**解析**方法 + 路径。匹配时，内核把路径参数复制到请求上，运行该路由的中间件管道，然后是处理函数。失败时，路由器（然后是异常处理函数）产生 **404** 或 **405** 响应。
+
+本指南覆盖今天交付的完整公开路由表面：登记 API、参数、资源、分组、具名 URL、来自处理函数的重定向、HEAD/OPTIONS 行为、检查辅助方法，以及如何测试路由。控制器、全局中间件栈和绝对/签名 URL 辅助方法有自己的页面；本页链出去，而不是重复它们。
+
+:::tip[路由住在哪里]
+来自 `kona new` 的应用在 `boot()` 之后于两个类里登记路由 — `WebRoutes`（浏览器 / HTML）和 `ApiRoutes`（`/api` 下的 JSON）。保持处理函数薄；把验证和响应塑形放在[控制器](../controllers/)里。
+:::
+
+## 请求上发生什么
+
+1. 传输（Netty）用真实的 HTTP 方法和规范化路径构建 `Request`。
+2. 全局中间件（会话、CSRF 等 — 见[中间件](../middleware/)）围绕管道的其余部分运行。
+3. `Router.resolve(method, path)` 找到第一条匹配的路由，或抛出 `NotFoundException` / `MethodNotAllowedException`，或合成自动的 `OPTIONS` 响应。
+4. 捕获的 `{param}` 值存在请求上，同时在 `param` 和 `route.param` 下。
+5. 路由中间件运行（先是分组中间件，然后是路由上的 `.middleware(...)`），然后是处理函数。
+6. 对 `HEAD`，内核在处理函数返回后清除响应正文（状态和头留下）。
+
+在服务器接受流量**之前**登记所有路由。共享的 `Router` 单例不是为在服务请求时被修改而设计的。
+
+## 取得路由器
+
+`HttpServiceProvider` 在应用容器里登记一个共享 `Router`。应用启动之后解析它 — 在提供者的 `boot` 方法里，或在引导里 `boot()` 之后马上：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), /* … */, AppServiceProvider())
+    .boot()
+WebRoutes().register(app.resolve(Router::class.java))
+ApiRoutes().register(app.resolve(Router::class.java))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), /* … */, new AppServiceProvider())
+    .boot();
+new WebRoutes().register(app.resolve(Router.class));
+new ApiRoutes().register(app.resolve(Router.class));
+```
+
+</TabItem>
+</Tabs>
+
+同一个 `Router` 实例支撑[URL 生成](../url-generation/)（`UrlGenerator` / `Url.route` / 顶层 `route(...)`）。
+
+## 最简单的路由
+
+处理函数是任何 `Handler`（`Request → Response`）。在 Kotlin 里那通常是尾随 lambda；在 Java 里是 lambda 或方法引用：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/") { Response.text("home") }
+router.post("/echo") { request -> Response.json(request.all()) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/", request -> Response.text("home"));
+router.post("/echo", request -> Response.json(request.all()));
+```
+
+</TabItem>
+</Tabs>
+
+## 调用控制器
+
+大多数生产路由指向**控制器**方法，而不是内联 lambda。控制器是普通类，方法接受 `Request` 并返回 `Response`。除非你想要共享的 `validate` 辅助方法，你**不必**扩展 `Controller` — 见[控制器](../controllers/)。
+
+默认脚手架这样接线欢迎页：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package routes
+
+import app.http.controllers.WelcomeController
+import org.konaframework.http.Router
+
+class WebRoutes {
+    fun register(router: Router) {
+        val welcome = WelcomeController()
+        router.get("/") { welcome.index(it) }.name("welcome")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package routes;
+
+import app.http.controllers.WelcomeController;
+import org.konaframework.http.Router;
+
+public final class WebRoutes {
+    public void register(Router router) {
+        WelcomeController welcome = new WelcomeController();
+        router.get("/", welcome::index).name("welcome");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+这种风格重要的是：
+
+1. **实例化**控制器（控制器需要容器或配置时传入 `Application`）。
+2. **绑定**接受 `Request` 并返回 `Response` 的方法 — Kotlin `{ welcome.index(it) }`，Java `welcome::index` — 这样 IDE 自动完成并类型检查该动作。
+3. 可选地用 `.name("…")` **命名**路由，以便以后构建 URL。
+
+用 [`./grind make:controller Post`](../../grind/commands/#grind-makecontroller) 生成桩（`--resource` 写入 `BaseResourceController` 子类）。把验证和响应塑形放在控制器里；路由文件保持为 URL → 动作的映射。
+
+## 声明路由（HTTP 动词）
+
+每个常见 HTTP 方法有一个登记方法，加上两种一般形式：
+
+| 方法 | 匹配 |
+|------|------|
+| `get(uri, handler)` | `GET`（以及通过回退的 `HEAD` — 见 [HEAD、OPTIONS、404 和 405](#head-options-404-and-405)） |
+| `post(uri, handler)` | `POST` |
+| `put(uri, handler)` | `PUT` |
+| `patch(uri, handler)` | `PATCH` |
+| `delete(uri, handler)` | `DELETE` |
+| `options(uri, handler)` | `OPTIONS`（覆盖该路径的自动 OPTIONS 行为） |
+| `any(uri, handler)` | `Router.VERBS` 的全部：`GET`、`HEAD`、`POST`、`PUT`、`PATCH`、`DELETE`、`OPTIONS` |
+| `match(methods, uri, handler)` | `methods` 里的每一个方法（不区分大小写；存储为大写，去掉重复） |
+
+每次调用返回新的 `Route`，因此你可以链式调用 `.name(...)` 和 `.middleware(...)`。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/") { Response.text("home") }.name("home")
+router.post("/users") { users.store(it) }
+router.put("/users/{id}") { users.update(it) }
+router.patch("/users/{id}") { users.patch(it) }
+router.delete("/users/{id}") { users.destroy(it) }
+router.options("/users") { Response.noContent().header("Allow", "GET,POST,OPTIONS") }
+router.match(listOf("PUT", "PATCH"), "/profile") { profile.update(it) }
+router.any("/health") { Response.text("ok") }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/", request -> Response.text("home")).name("home");
+router.post("/users", users::store);
+router.put("/users/{id}", users::update);
+router.patch("/users/{id}", users::patch);
+router.delete("/users/{id}", users::destroy);
+router.options("/users", request -> Response.noContent().header("Allow", "GET,POST,OPTIONS"));
+router.match(List.of("PUT", "PATCH"), "/profile", profile::update);
+router.any("/health", request -> Response.text("ok"));
+```
+
+</TabItem>
+</Tabs>
+
+`Router.VERBS` 是公开列表（`@JvmField`），包含 `any` 登记的七个方法。当你自己需要同一集合时使用它。
+
+### 路径与匹配顺序
+
+- **已登记**路径里的前导和尾随斜杠在连接前缀时被规范化：`"users"`、`"/users"` 和 `"/users/"` 都变成 `/users`。
+- 传入路径用 `HttpPaths.normalize` 规范化：重复的 `/` 折叠，确保前导 `/`，尾随 `/` 被去掉（`/` 本身除外）。因此 `/users/`、`//users` 和 `/users` 都匹配同一个已登记的 `/users`。
+- 静态文本必须精确匹配，并且**区分大小写**。
+- 路由按**登记顺序**检查；**第一个**匹配获胜。在一般路由之前登记具体路由：`/users/me` 必须在 `/users/{id}` 之前，否则 `me` 会被捕获为 id。
+- 路由必须声明至少一个 HTTP 方法；构造空方法列表抛出 `IllegalArgumentException`。
+
+## 路径参数
+
+写成 `{name}` 的段捕获**一个路径段**（直到下一个 `/` 的任何内容）。参数名必须以字母或下划线开头，可以包含字母、数字和下划线（`[a-zA-Z_][a-zA-Z0-9_]*`）。
+
+捕获的值被百分号解码（`/files/a%20b` → `a b`）。路径里的字面 `+` 保持 `+`（它不被当作空格）。如果值无法解码，使用原始文本。解码后包含 `/` 的值（例如 `%2F`）变成包含 `/` 的单个参数值 — 它们仍然来自请求路径的一个段。
+
+当前路由器**没有**可选参数（`{id?}`），**没有**每个参数的正则约束，也**没有**全捕获 `{path}` 通配符。段可选时登记第二条路由，并在处理函数内部或用[验证](../validation/)检查格式。
+
+### 读取参数
+
+匹配之后，内核把每个值存在请求上的两个地方：
+
+| 键 | 例子 |
+|----|------|
+| `name` | `request.route("id")` 或 `request.getAttribute("id")` |
+| `route.name` | `request.getAttribute("route.id")` |
+
+优先使用 `request.route(key)` — 它返回 `String?`（或默认值）并把属性变成字符串。更多请求辅助方法：[请求与响应](../request-response/#route-parameters-requestroute)。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/users/{id}/posts/{slug}") { request ->
+    val id = request.route("id")!!.toLong()
+    val slug = request.route("slug")!!
+    Response.json(mapOf("user" to id, "post" to slug))
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/users/{id}/posts/{slug}", request -> {
+    long id = Long.parseLong(request.route("id"));
+    String slug = request.route("slug");
+    return Response.json(Map.of("user", id, "post", slug));
+});
+```
+
+</TabItem>
+</Tabs>
+
+值总是来自路径的字符串 — 自己转换它们（`toLong()`、`UUID.fromString` 等）。缺失的键从 `route(key)` 返回 `null`（或你提供的默认值）。
+
+## 资源路由
+
+**资源**是通过约定的一组 URL 暴露的记录集合。`resource(name, controller)` 针对 `ResourceController` 登记完整集合（包括 HTML 表单路由）：
+
+| 方法 | 路径 | 控制器方法 | 路由名 |
+|------|------|------------|--------|
+| `GET` | `/posts` | `index` | `posts.index` |
+| `GET` | `/posts/create` | `create` | `posts.create` |
+| `POST` | `/posts` | `store` | `posts.store` |
+| `GET` | `/posts/{id}` | `show` | `posts.show` |
+| `GET` | `/posts/{id}/edit` | `edit` | `posts.edit` |
+| `PUT`、`PATCH` | `/posts/{id}` | `update` | `posts.update` |
+| `DELETE` | `/posts/{id}` | `destroy` | `posts.destroy` |
+
+登记顺序与表匹配：`create` 在 `show` **之前**登记，因此 `/posts/create` 永远不会被捕获为 `{id}=create`。
+
+### API 资源路由
+
+`apiResource(name, controller)` 登记同一映射，**没有** `create` / `edit` — JSON API 的通常形状：
+
+| 方法 | 路径 | 控制器方法 | 路由名 |
+|------|------|------------|--------|
+| `GET` | `/posts` | `index` | `posts.index` |
+| `POST` | `/posts` | `store` | `posts.store` |
+| `GET` | `/posts/{id}` | `show` | `posts.show` |
+| `PUT`、`PATCH` | `/posts/{id}` | `update` | `posts.update` |
+| `DELETE` | `/posts/{id}` | `destroy` | `posts.destroy` |
+
+:::caution[API 资源与 `/resource/create`]
+因为 `apiResource` 不登记 `create`，对 `GET /posts/create` 的请求匹配 `show`，`id` 等于 `"create"`。需要 HTML 创建/编辑 URL 时使用 `resource(...)`，或在资源登记之前自己保留该路径。
+:::
+
+### 筛选动作：`only` 与 `except`
+
+`resource` 和 `apiResource` 都接受可选的 `only` / `except` 动作名集合（`index`、`create`、`store`、`show`、`edit`、`update`、`destroy`）。名称比较不区分大小写。
+
+- **`only`** — 只保留那些动作。
+- **`except`** — 丢掉那些动作。
+- 如果两者都设置，先应用 `only`，然后 `except`。
+
+传入你的 `ResourceController` 的**实例**（自己构造它，或从容器解析并传入实例）。路径和名称尊重周围的分组，因此在前缀 `/api`、名称 `api.` 的分组内部，你得到 `/api/posts` 和 `api.posts.index`。传入资源名时**不要**前导斜杠。
+
+自己实现每一个动作，或扩展 `BaseResourceController` 并只覆盖你需要的那些 — 未实现的动作抛出 `NotFoundException`（HTTP 404）。细节：[控制器 → 资源控制器](../controllers/#resource-controllers)。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class PostController : BaseResourceController() {
+    override fun index(request: Request) = Response.json(posts.all())
+    override fun show(request: Request) =
+        Response.json(posts.find(request.route("id")!!))
+    override fun store(request: Request) =
+        Response.json(posts.create(request.data()), 201)
+    override fun update(request: Request) =
+        Response.json(posts.update(request.route("id")!!, request.data()))
+    override fun destroy(request: Request): Response {
+        posts.delete(request.route("id")!!)
+        return Response.noContent()
+    }
+}
+
+router.resource("posts", PostController())
+router.apiResource("posts", PostController())
+router.apiResource("notes", NotesController(), only = listOf("index", "show"))
+router.apiResource("things", ThingsController(), except = listOf("destroy"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class PostController extends BaseResourceController {
+    @Override public Response index(Request request) { return Response.json(posts.all()); }
+    @Override public Response show(Request request) {
+        return Response.json(posts.find(request.route("id")));
+    }
+    @Override public Response store(Request request) {
+        return Response.json(posts.create(request.data()), 201);
+    }
+    @Override public Response update(Request request) {
+        return Response.json(posts.update(request.route("id"), request.data()));
+    }
+    @Override public Response destroy(Request request) {
+        posts.delete(request.route("id"));
+        return Response.noContent();
+    }
+}
+
+router.resource("posts", new PostController());
+router.apiResource("posts", new PostController());
+// only, except — pass null for the filter you do not use
+router.apiResource("notes", new NotesController(), List.of("index", "show"), null);
+router.apiResource("things", new ThingsController(), null, List.of("destroy"));
+```
+
+</TabItem>
+</Tabs>
+
+用 `only` / `except` 省略动作时，该路径在另一个方法下可能仍然存在。例子：`resource(..., only = listOf("index", "show"))` 仍然登记 `GET /items`，因此 `POST /items` 返回 **405**（方法不允许），不是 404。
+
+把 JSON 载荷与 [API 资源](../api-resources/)配对。
+
+## 分组
+
+**分组**把共享设置应用到在它内部声明的每一条路由：
+
+- **prefix** — 加到每条路径前面（`/api` + `/me` → `/api/me`），
+- **name** — 加到每个路由名前面（`api.` + `me` → `api.me`），
+- **middleware** — 在每条路由自己的中间件之前运行。
+
+脚手架的 `ApiRoutes` 是典型分组：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.") {
+    get("/health") { Response.json(mapOf("status" to "ok")) }.name("health")
+    // Full path /api/health, name api.health
+
+    apiResource("pings", PingApiController())
+    // /api/pings, names api.pings.index, …
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").group(api -> {
+    api.get("/health", request -> Response.json(Map.of("status", "ok"))).name("health");
+    api.apiResource("pings", new PingApiController());
+});
+```
+
+</TabItem>
+</Tabs>
+
+### 嵌套分组与中间件
+
+内部分组加到外部之上：前缀用 `/` 连接，名称前缀拼接，中间件列表追加（外部在先）。分组设置在每条路由登记时捕获，并在分组块返回时结束 — 即使块抛出（先前的前缀 / 名称 / 中间件栈被恢复）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.", middleware = listOf(Authenticate())) {
+    get("/me") { Response.json(mapOf("user" to it.getAttribute("user"))) }.name("me")
+
+    group(prefix = "/admin", name = "admin.", middleware = listOf(RequireAdmin())) {
+        get("/stats") { Response.json(stats()) }.name("stats")
+        // /api/admin/stats, name api.admin.stats
+    }
+}
+```
+
+`router.routes { … }` 是一个小辅助方法，它以路由器为 `this` 运行块，对保持路由文件整洁有用。
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").middleware(new Authenticate()).group(api -> {
+    api.get("/me", request -> Response.json(Map.of("user", request.getAttribute("user")))).name("me");
+
+    api.prefix("/admin").name("admin.").middleware(new RequireAdmin()).group(admin ->
+        admin.get("/stats", request -> Response.json(stats())).name("stats"));
+});
+```
+
+或按位置传入设置：
+
+```java
+router.group("/v1", v1 -> v1.get("/ping", request -> Response.text("pong")));
+router.group("/v2", List.of(new Authenticate()), v2 -> { /* ... */ });
+router.group("/v3", "v3.", List.of(new Authenticate()), v3 -> { /* ... */ });
+```
+
+流畅构建器上的 `middleware(...)` 接受若干中间件参数或一个 `List`。
+
+</TabItem>
+</Tabs>
+
+## 路由上的中间件
+
+用 `.middleware(...)` 把中间件附加到一条路由。路由中间件在该路由的任何分组中间件**之后**运行。全局栈（会话、CSRF 等）在 `bootstrap.Middleware` 里配置并应用到内核 — 它们完全包裹路由，因此它们仍然看到 404/405 响应。见[中间件](../middleware/)。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.post("/webhooks/stripe") { stripe.handle(it) }
+    .middleware(VerifyStripeSignature())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.post("/webhooks/stripe", stripe::handle)
+    .middleware(new VerifyStripeSignature());
+```
+
+</TabItem>
+</Tabs>
+
+## 具名路由与 URL 生成
+
+`.name("…")` 给路由一个名称，这样你可以以后构建它的 URL，而不把路径硬编码。分组名称前缀自动应用（`api.` + `health` → `api.health`）。资源动作把自己命名为 `{resource}.{action}`。
+
+### 来自路由器的路径
+
+`router.route(name, params)` 返回**路径**，每个 `{key}` 被匹配的值替换：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/users/{id}") { users.show(it) }.name("users.show")
+
+val path = router.route("users.show", mapOf("id" to "42"))   // "/users/42"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/users/{id}", users::show).name("users.show");
+
+String path = router.route("users.show", Map.of("id", "42"));  // "/users/42"
+```
+
+</TabItem>
+</Tabs>
+
+规则：
+
+- 值按给定插入 — 它们**不**被百分号编码。如果它们可以包含 `/`、空格或其他保留字符，先编码它们。
+- 没有值的占位符在输出里保持为 `{key}`。
+- 未知名称抛出 `IllegalArgumentException("Route [name] not defined")`。
+- 如果两条路由共享名称，使用**第一条**登记的。
+
+### 绝对 URL 与辅助方法
+
+`HttpServiceProvider` 启动后，优先使用：
+
+| 辅助方法 | 结果 |
+|----------|------|
+| `Url.route(name, params)` / Kotlin 顶层 `route(name, params)` | 通过 `UrlGenerator` 的绝对或根相对 URL（`app.url` 根） |
+| `Url.to(path)` / `url(path)` | 把路径接到配置的根上 |
+| `UrlGenerator.signedRoute(...)` | 签名的具名路由 — 见[URL 生成](../url-generation/) |
+
+```kotlin
+Response.redirect(route("users.show", mapOf("id" to "42")))
+```
+
+## 来自处理函数的重定向
+
+路由器**没有** `redirect(...)` 登记辅助方法。从处理函数（或控制器）返回重定向响应来重定向：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/home") { Response.redirect("/") }                    // 302 + Location
+router.get("/old") { Response.redirect("/new", 301) }
+router.post("/login") { request ->
+    // … authenticate …
+    Response.redirect(route("dashboard"))
+}
+router.get("/back") { request -> Response.back(request) }         // previous / Referer / "/"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/home", request -> Response.redirect("/"));
+router.get("/old", request -> Response.redirect("/new", 301));
+router.post("/login", request -> Response.redirect(Url.route("dashboard")));
+router.get("/back", request -> Response.back(request));
+```
+
+</TabItem>
+</Tabs>
+
+`Response.back(request, fallback, status)` 使用会话 `_previous.url`，然后是 `Referer` 头，然后是 `fallback`（默认 `/`）。闪存辅助方法（`with`、`withInput`、`withErrors`）与会话中间件配对 — 见[请求与响应](../request-response/)。
+
+## 可调用控制器
+
+当路由只有一个动作时，实现 `InvokableController` 并把它登记为处理函数：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val ping = InvokableController { Response.text("pong") }
+router.get("/ping", ping.asHandler()).name("ping")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+InvokableController ping = request -> Response.text("pong");
+router.get("/ping", Controllers.asHandler(ping)).name("ping");
+```
+
+</TabItem>
+</Tabs>
+
+更多模式（表单请求、`Controller.validate`）在[控制器](../controllers/#invokable-controllers)。
+
+## HEAD、OPTIONS、404 和 405
+
+这些规则来自 `Router.find` / `Router.resolve` 和 HTTP 内核：
+
+| 请求 | 发生什么 |
+|------|----------|
+| `HEAD /path`，并且只登记了 `GET` | `GET` 路由运行（包括它的中间件）。然后内核清除正文；状态和头被保留。如果先登记了显式 `HEAD` 路由（通过 `match` 或 `any`），它获胜。 |
+| `OPTIONS /path`，没有路由接受 `OPTIONS`，但路径在其他方法下存在 | 自动 `200`，空正文，以及 `Allow` 头，按登记顺序列出为该路径登记的方法，逗号分隔**没有空格**（例如 `GET,HEAD,POST`）。路由中间件**不**运行。 |
+| 该路径的显式 `options(uri, handler)` | 你的处理函数运行（OPTIONS 路由中第一个匹配仍然获胜）。 |
+| 路径存在，方法未登记 | `MethodNotAllowedException` → **405**，带 `Allow` 头（方法用 `", "` 连接 — 注意空格）以及来自异常处理函数的 JSON 或 HTML 信封。 |
+| 根本没有路由匹配该路径 | `NotFoundException` → **404**。解析消息看起来像 `The route users/99 could not be found.` |
+
+任何 `GET` 登记都在 `allowedMethods` / 405 / 自动 OPTIONS 的 `Allow` 列表里隐含 `HEAD`。
+
+全局中间件仍然包裹 404 和 405 响应；没有路由被选中时，**路由**中间件从不运行。信封形状见[异常](../exceptions/)（`Accept: text/html` 可以渲染一个小 HTML 页面而不是 JSON）。
+
+## 检查与解析路由
+
+| API | 行为 |
+|-----|------|
+| `router.all()` | 每一个已登记 `Route` 的快照列表 |
+| `router.find(method, path)` | 第一个 `MatchResult`（路由 + 参数映射），或 `null`；HEAD 回退到 GET；**不**抛出 |
+| `router.resolve(method, path)` | 像 `find`，但抛出 404/405 或返回合成的 OPTIONS 匹配 |
+| `router.allowedMethods(path)` | 为该路径登记的方法（列表里 `GET` 隐含 `HEAD`） |
+| `router.route(name, params)` | 从具名路由构建路径 |
+
+每个 `Route` 暴露 `methods`、`method`（第一个声明的）、`uri`、`name`、`middleware`，加上供高级使用的 `match` / `matchPath` / `uriFor`。`MatchResult` 是数据类：`route` + `parameters`。下面的 grind 命令读取同一列表。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.all().forEach { route ->
+    println("${route.methods} ${route.uri} ${route.name ?: ""}")
+}
+
+val match = router.find("GET", "/users/42")
+if (match != null) {
+    println(match.parameters["id"]) // "42"
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+for (Route route : router.all()) {
+    System.out.println(route.getMethods() + " " + route.getUri() + " " + route.getName());
+}
+
+MatchResult match = router.find("GET", "/users/42");
+if (match != null) {
+    System.out.println(match.getParameters().get("id")); // "42"
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 用 grind 列出路由
+
+从应用目录（`./gradlew classes` 之后）：
+
+```bash
+./grind route:list
+./grind route:list --json
+./grind route:list --method=GET --name=users
+./grind route:list --path=/api --except-path=/api/internal
+./grind route:cache
+./grind route:clear
+```
+
+`route:list` 在进程内启动你的应用，并把活动 `Router` 打印成表格：**Method**、**URI**、**Name**、**Action**、**Middleware**。Lambda 显示为 `Closure`；具名 `Handler` 类显示它们的完全限定名。`GET` 路由列为 `GET`（HEAD 在运行时仍然匹配它们 — 见上表）。资源 `update` 这样的多方法路由打印 `PUT|PATCH`。
+
+有用的筛选：`--method=`、`--name=`、`--path=`、`--except-path=`、`--except-vendor`、`--only-vendor`、`--compact`、`--columns=`、`--sort=`、`--reverse`、`--json`。完整标志参考：[内置命令 — route:list](../../grind/commands/#grind-routelist)。
+
+`route:cache` 写入 `bootstrap/cache/routes.json`（该表的快照）。HTTP 内核不加载该文件；编译后的路由登记已经在每次启动时运行。`route:clear` 删除快照。
+
+如果 grind 找不到 Gradle 项目，或启动的应用在容器里没有 `Router`，命令以 `1` 退出。零条匹配路由仍然是退出 `0`（警告，或带 `--json` 的 `[]`）。
+
+## 测试路由
+
+对已启动的应用使用来自 `org.konaframework:kona-testing` 的 `HttpTestClient`。它解析 `HttpKernel` 并在进程内运行请求（没有套接字）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val router = app.resolve(Router::class.java)
+router.get("/ping") { Response.json(mapOf("ok" to true)) }
+router.get("/users/{id}") { request ->
+    Response.json(mapOf("id" to request.route("id")))
+}.name("users.show")
+
+val http = HttpTestClient(app)
+http.get("/ping").assertOk().assertJsonContains("ok")
+http.get("/users/7").assertOk().assertJsonContains("\"id\":\"7\"")
+http.get("/missing").assertStatus(404)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Router router = app.resolve(Router.class);
+router.get("/ping", request -> Response.json(Map.of("ok", true)));
+
+new HttpTestClient(app).get("/ping").assertOk().assertJsonContains("ok");
+```
+
+</TabItem>
+</Tabs>
+
+在调用客户端之前登记路由。更多断言和控制台测试在 [HTTP 与控制台测试](../../testing/http-console/)。
+
+## 常见用例
+
+### 拆分网页与 API 表
+
+把浏览器路由和 JSON 路由放在分开的类里，共享一个 `Router`：
+
+```kotlin
+WebRoutes().register(router)
+ApiRoutes().register(router) // typically group(prefix = "/api", name = "api.") { … }
+```
+
+### 带版本的 API 前缀
+
+```kotlin
+router.group(prefix = "/api/v1", name = "api.v1.") {
+    apiResource("orders", OrderApiController())
+}
+```
+
+### 保护路由子集
+
+```kotlin
+router.group(middleware = listOf(Authenticate())) {
+    get("/settings") { settings.edit(it) }.name("settings.edit")
+    post("/settings") { settings.update(it) }.name("settings.update")
+}
+```
+
+### 通过两条路由的可选段
+
+```kotlin
+router.get("/docs") { docs.index(it) }.name("docs.index")
+router.get("/docs/{page}") { docs.show(it) }.name("docs.show")
+```
+
+### 重定向旧 URL
+
+```kotlin
+router.get("/blog/{slug}") { request ->
+    Response.redirect(route("posts.show", mapOf("id" to request.route("slug")!!)), 301)
+}
+```
+
+## API 参考（路由类型）
+
+### `Router`
+
+| 成员 | 角色 |
+|------|------|
+| `get` / `post` / `put` / `patch` / `delete` / `options` | 登记一个方法 |
+| `any` / `match` | 登记若干方法 |
+| `resource` / `apiResource` | 约定的 CRUD 映射（`only` / `except` 可选） |
+| `group(...)` | Kotlin DSL 或 Java `Consumer` 重载 |
+| `prefix` / `name` / `middleware` | 开始 Java 流畅 `RouteGroup` |
+| `routes { }` | 以路由器为接收者的 Kotlin 块 |
+| `all` / `find` / `resolve` / `allowedMethods` / `route` | 检查和具名路径 |
+| `VERBS` | `GET`、`HEAD`、`POST`、`PUT`、`PATCH`、`DELETE`、`OPTIONS` |
+
+### `Route`
+
+| 成员 | 角色 |
+|------|------|
+| `methods` / `method` | 已声明的动词 / 第一个动词 |
+| `uri` | 完整路径模式（分组前缀之后） |
+| `name` / `name(value)` | 可选名称（`name(...)` 里应用分组命名空间） |
+| `middleware` / `middleware(...)` | 分组 + 路由中间件列表 |
+| `action` | `Handler` |
+| `match` / `matchPath` / `uriFor` | 匹配和路径构建 |
+
+### `RouteGroup`（Java 流畅）
+
+链式调用 `prefix`、`name`、`middleware`（可变参数或 `List`），然后 `group(Consumer)`。
+
+### `MatchResult`
+
+`route: Route`，`parameters: Map<String, String>`（按在模式中出现的顺序）。
+
+### `ResourceController` / `BaseResourceController`
+
+七个动作：`index`、`create`、`store`、`show`、`edit`、`update`、`destroy`。你不覆盖的任何动作，`BaseResourceController` 抛出 `NotFoundException`。
+
+### `Handler` / `InvokableController`
+
+`Handler.handle(Request): Response`。`InvokableController.invoke` 通过 `asHandler()` / `Controllers.asHandler` 适配。
+
+## 陷阱与常见问题
+
+**为什么 `/users/me` 命中 `{id}`？**  
+登记顺序。把静态段放在参数化段之前。
+
+**为什么 `only = listOf("index", "show")` 之后 `POST /items` 是 405？**  
+该路径仍然匹配已登记的 `GET` 路由，因此路由器报告方法不允许，而不是未找到。
+
+**为什么 `GET /api/posts/create` 调用 `show`？**  
+`apiResource` 没有 `create` 动作。使用完整的 `resource`，或先登记显式路由。
+
+**HTML 表单会伪造 PUT/PATCH/DELETE 吗？**  
+Crema 的 `@method` 指令为模板发出隐藏的 `_method` 字段，但 HTTP 内核和路由器今天匹配**实际**请求方法。不能发送 `PUT`/`PATCH`/`DELETE` 的客户端需要真实方法（或专用的 `POST` 路由）。见 [Crema 表单](../../crema/forms/#method-spoofing)。
+
+**有回退 / 全捕获路由吗？**  
+没有专用 API。如果你需要自定义 404 页面处理函数，最后登记一条宽的参数化路由 — 或自定义[异常处理函数](../exceptions/)。
+
+**我可以把 `{id}` 约束为数字吗？**  
+路由器里不行。在处理函数里或用[验证](../validation/)规则验证。
+
+**我应该在运行时修改路由器吗？**  
+不要。在启动期间登记，然后服务。
+
+## 路由器里今天没有的内容
+
+写在这里，这样你不必寻找缺失的 API：
+
+- 可选路径参数和正则/where 约束
+- 域 / 子域路由
+- `fallback()` / 全捕获登记辅助方法
+- `redirect()` / `view()` 路由宏（改为使用处理函数响应）
+- 表单提交的自动 `_method` 覆盖（Crema 可以发出该字段；路由忽略它 — [Crema 表单](../../crema/forms/#method-spoofing)）
+
+## 下一步
+
+- 在[控制器](../controllers/)里组织动作（验证、表单请求、资源基类）。
+- 用[中间件](../middleware/)包裹路由。
+- 在[请求与响应](../request-response/)里读写载荷。
+- 在[验证](../validation/)里验证输入。
+- 用[URL 生成](../url-generation/)构建绝对和签名链接。
+- 在[内核与服务器](../kernel-server/)里看内核如何选择路由。
+- 用 [HTTP 与控制台测试](../../testing/http-console/)练习路由。

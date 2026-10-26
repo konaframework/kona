@@ -1,0 +1,64 @@
+---
+title: 安装包
+description: ./grind install / kona grind install — Maven 依赖加上自动登记的提供者。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+在应用内使用 **`./grind install`**（或在应用树下任意位置使用 **`kona grind install`**），可以加入第一方或 Maven 包，而不用手改 `build.gradle.kts`，也不会忘记服务提供者。
+
+没有顶层的 `kona install` — 安装包是 Grind Console 命令。全局 CLI 只做代理：`kona grind install …`。
+
+## 它做什么
+
+1. 解析一个**短别名**（`inertia`、`wire` 等）或原始的 `group:artifact[:version]` 坐标。
+2. 在最近的 Gradle 构建文件（Kotlin 或 Groovy DSL）里确保有一行 `implementation("…")`。
+3. 当包声明了提供者时，把它们的完全限定类名追加到 `src/main/resources/META-INF/kona/providers`，这样 [包发现](./) 会在通过 grind 的 `AppLoader` 启动时登记它们。
+
+## 用法
+
+```bash
+# Inside an app created with kona new
+./grind install inertia
+./grind install wire --version=0.1.1
+./grind install com.example:widget:1.2.3
+
+# From anywhere under the app tree (global proxy)
+kona grind install filesystem
+kona grind install drip --base=/path/to/app
+```
+
+| 标志 | 作用 |
+| --- | --- |
+| `--base=…` | 应用根（默认：grind 项目根 / `./grind` 的当前目录） |
+| `--version=…` | 别名或坐标省略版本时覆盖（默认：检测构建文件里已有的 `org.konaframework:…:version`，否则用 CLI 捆绑的 Kona 版本） |
+| `--frontend=…` | **仅 Inertia：** `vue`、`react`、`svelte` 或 `none` — 搭建 Vite 和适配器（有 TTY 且省略时会交互询问；非交互时默认 Vue） |
+| `--no-interactive` | **仅 Inertia：** 从不提示 `--frontend` |
+
+`./grind install inertia` 之后，按打印出的 npm / 中间件清单操作，或阅读 [Inertia 安装](/docs/inertia/guides/installation/) 的完整指南。
+
+## 目录别名
+
+| 别名 | 构件 | 自动登记的提供者 |
+| --- | --- | --- |
+| `wire` | `org.konaframework:kona-wire` | `WireServiceProvider` |
+| `brew` | `org.konaframework:kona-wire` | `WireServiceProvider`（已弃用的别名） |
+| `inertia` | `org.konaframework:kona-inertia` | `InertiaServiceProvider` |
+| `crema` | `org.konaframework:kona-crema` | `CremaServiceProvider` |
+| `filesystem` | `org.konaframework:kona-filesystem` | `FilesystemServiceProvider` |
+| `search` | `org.konaframework:kona-search` | `SearchServiceProvider` |
+| `broadcasting` | `org.konaframework:kona-broadcasting` | `BroadcastServiceProvider` |
+| `notifications` | `org.konaframework:kona-notifications` | `NotificationServiceProvider` |
+| `drip` | `org.konaframework:kona-drip` | — |
+| `concurrency` | `org.konaframework:kona-concurrency` | — |
+| `testing` | `org.konaframework:kona-testing` | — |
+
+未知短名会失败，并列出别名。匹配目录构件的坐标仍会收到该构件的提供者。
+
+## 安装之后
+
+刷新 Gradle / 重新构建，让新依赖进入类路径。应用通过 grind 启动时（`serve`、生成器等），会登记 `META-INF/kona/providers` 里列出的提供者。手动的 `bootstrap.App` 设置仍可以调用 `PackageDiscovery.registerAll(app)`。
+
+## 编程 API
+
+同样的步骤可以从 Kotlin/Java 调用：`org.konaframework.support.packages` 里的 `PackageInstaller.install(projectRoot, spec, defaultVersion)`（grind 命令使用它）。

@@ -1,0 +1,131 @@
+---
+title: 支持工具
+description: 集合、字符串、日期、辅助方法和本地化。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`kona-support` 模块提供应用和框架各处使用的日常辅助方法。
+
+## 集合
+
+`Collection` 用流畅 API 包装一个列表。用 `collect(...)`、`Collection.make(...)` 或 `Collection.of(...)` 创建。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val names = collect(users)
+    .where("active", true)
+    .pluck("name")
+    .filter { it != null }
+    .join(", ")
+
+collect(1, 2, 3, 4)
+    .reject { it % 2 == 0 }
+    .partition { it > 1 }
+
+Collection.times(3) { "row-$it" }
+Collection.wrap(listOf(1, 2)).merge(listOf(3))
+```
+
+有用的方法包括 `map`、`flatMap`、`filter`、`reject`、`where` / `firstWhere`、`reduce`、`chunk`、`collapse`、`flatten`、`sum` / `avg` / `min` / `max`、`keyBy`、带键的 `pluck`、`groupBy`、`partition`、`sortBy`、`unique`、`sole`、`diff` / `intersect`、`mapWithKeys`、`countBy`、`slice` / `nth` / `pad`、`pop` / `shift` / `prepend`，以及 `when` / `unless` / `whenEmpty`。
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Collection<Integer> nums = Collection.make(1, 2, 3, 4);
+nums.reject(n -> n % 2 == 0).toList();
+Collection.times(2, i -> i);
+Collection.wrap(List.of(1, 2)).join("-");
+```
+
+</TabItem>
+</Tabs>
+
+## 字符串
+
+```kotlin
+Str.slug("Hello World")          // hello-world
+Str.of("hello_world").camel()    // helloWorld
+Str.headline("hello_world")      // Hello World
+Str.mask("5551234", "*", 0, 3)   // ***1234
+Str.beforeLast("a/b/c", "/")     // a/b
+Str.padLeft("7", 3, "0")         // 007
+```
+
+`Str.of(...)` 得到的 `Stringable` 可以链式做同样的变换（`lower`、`snake`、`slug`、`limit`、`append`、`finish` 等）。
+
+## 日期
+
+`KonaDate` 是 `kona-support` 里的流畅日期/时间类型。它包装一个 UTC `Instant`，外加用于日历运算和格式化的时区。JSON（`Response.json`、Cadence `toJson`、`org.konaframework.support.json.Json.stringify`）把 `KonaDate` 编码为 ISO-8601 字符串 — 与 `Instant` 和其他 `java.time` 类型相同的形状。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val d = KonaDate.parse("2024-01-15T12:30:00Z")
+d.addMonths(1).startOfDay().toDateString()
+d.diffInDays(d.subDays(2))
+d.isSameDay(d.addHours(3))
+d.timezone()
+d.toIso()                 // 2024-01-15T12:30:00Z
+d.setTimezone(ZoneId.of("Africa/Nairobi")).toDateTimeString()
+
+KonaDate.now()
+KonaDate.today()
+KonaDate.ofInstant(user["created_at"] as Instant)
+KonaDate.parse("2024-01-15 12:30:00")
+KonaDate.parse("2024-01-15")
+KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KonaDate d = KonaDate.parse("2024-01-15T12:30:00Z");
+d.addMonths(1).startOfDay().toDateString();
+d.toIso();
+d.timezone();
+KonaDate.ofInstant((Instant) user.get("created_at"));
+KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15), ZoneOffset.UTC);
+```
+
+</TabItem>
+</Tabs>
+
+解析接受 ISO 时刻（`…Z`）、带偏移和时区的字符串、`yyyy-MM-dd HH:mm:ss` / `T` 本地日期时间（按 UTC 读取），以及日历日期。运算：`add` / `sub` 秒、分钟、小时、天、周、月、年。边界：`startOfDay` / `endOfDay`。比较：`isBefore` / `isAfter` / `isSameDay` / `isPast` / `isFuture`。格式：`format(pattern)`、`toDateString`、`toDateTimeString`、`toIso` / `toIso8601String`。
+
+HTTP JSON 示例：
+
+```json
+{"created_at":"2024-01-15T12:30:00Z"}
+```
+
+## 数组 / 映射
+
+`Arr.get`、`Arr.set`、`Arr.has`、`Arr.forget`、`Arr.only`、`Arr.except`、`Arr.wrap`、`Arr.flatten`、`Arr.pluck` 和 `Arr.dot` 可用于嵌套的点分键（`user.name`）。
+
+```kotlin
+val row = linkedMapOf<String, Any?>()
+Arr.set(row, "user.name", "Ada")
+Arr.forget(row, "user.name")
+Arr.dot(mapOf("user" to mapOf("age" to 1))) // user.age → 1
+```
+
+## 本地化
+
+```kotlin
+val t = Translator().addLines("en", mapOf("hi" to "Hello :name"))
+t.get("hi", mapOf("name" to "Ada"))
+Lang.setTranslator(t)
+translate("hi", mapOf("name" to "Ada"))
+```
+
+```java
+Translations.__("hi", Map.of("name", "Ada"));
+```
+
+注册 `SupportServiceProvider` 以绑定共享的 `Translator`。如果设置了 `lang.path` 或存在 `{base}/lang`，会自动加载 JSON 和 `key=value` 文件（`lang/en.json`、`lang/en/messages.json`、`lang/en.properties` 等）。

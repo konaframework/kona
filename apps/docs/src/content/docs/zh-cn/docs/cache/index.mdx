@@ -1,0 +1,48 @@
+---
+title: 缓存
+description: Kona 中的数组、文件和 Redis 缓存存储。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona 的缓存层按键存放值，并可以设置可选的存活时间。
+
+## 快速开始
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val cache = CacheManager(config, basePath, redisManager).store()
+cache.put("answer", 42, 60)
+val value = cache.get("answer")
+val computed = cache.remember("profile", 120) { loadProfile() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Repository cache = new CacheManager(config, basePath, redisManager).store();
+cache.put("answer", 42, 60);
+Object value = cache.get("answer");
+```
+
+</TabItem>
+</Tabs>
+
+## 存储
+
+配置 `cache.default` 和 `cache.stores.{name}.driver`：
+
+| 驱动 | 行为 |
+| --- | --- |
+| `array` / `memory` | 进程内映射（适合测试） |
+| `file` | `storage/framework/cache/data` 下的 JSON 文件（或 `cache.stores.file.path`） |
+| `redis` | 使用带 `cache.prefix` 的 `RedisManager` |
+
+## Repository 方法
+
+- `get` / `put` / `forever` / `forget` / `flush`
+- `has` / `missing` / `add`
+- `remember` / `rememberForever` / `pull`

@@ -1,0 +1,126 @@
+---
+title: 示例 — 带校验的表单
+description: wire:model、校验规则、错误显示，以及未保存标记。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+带实时校验和提交体验的联系表单。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.wire
+
+import org.konaframework.wire.Component
+import org.konaframework.wire.Validate
+
+class ContactForm : Component() {
+    @Validate("required", "email")
+    var email = ""
+
+    @Validate("required", "min:10")
+    var message = ""
+
+    var sent = false
+
+    fun save() {
+        validate()
+        // persist…
+        sent = true
+        reset("email", "message")
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            @if(sent)
+                <p role="status">Thanks — we got your message.</p>
+            @endif
+
+            <label>
+                Email
+                <input type="email" wire:model.blur="email" />
+            </label>
+            @if(errors['email'])
+                <em>{{ errors['email'][0] }}</em>
+            @endif
+
+            <label>
+                Message
+                <textarea wire:model="message"></textarea>
+            </label>
+            @if(errors['message'])
+                <em>{{ errors['message'][0] }}</em>
+            @endif
+
+            <button type="submit">
+                <span wire:loading.remove wire:target="save">Send</span>
+                <span wire:loading wire:target="save">Sending…</span>
+            </button>
+            <span wire:dirty>Unsaved changes</span>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.wire;
+
+import org.konaframework.wire.Component;
+import org.konaframework.wire.Validate;
+import java.util.List;
+import java.util.Map;
+
+public class ContactForm extends Component {
+    @Validate({"required", "email"})
+    public String email = "";
+
+    @Validate({"required", "min:10"})
+    public String message = "";
+
+    public boolean sent = false;
+
+    @Override
+    public Map<String, List<String>> rules() {
+        return Map.of(
+            "email", List.of("required", "email"),
+            "message", List.of("required", "min:10")
+        );
+    }
+
+    public void save() {
+        validate();
+        sent = true;
+        reset("email", "message");
+    }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input type="email" wire:model.blur="email" />
+                <textarea wire:model="message"></textarea>
+                <button type="submit">Send</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 测试错误
+
+```kotlin
+Wire.test(ContactForm::class.java)
+    .set("email", "not-an-email")
+    .call("save")
+    .assertHasErrors("email")
+```
+
+修饰符、表单对象和 `$wire.$errors` 见[表单与校验](/docs/wire/essentials/forms/)。

@@ -1,0 +1,210 @@
+---
+title: 查询构建器
+description: 用绑定参数流畅构建 SQL 查询 — 选择、筛选、连接、聚合和写入。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**查询构建器**（`org.konaframework.cadence.QueryBuilder`）从方法调用组装一条 SQL 语句。它工作在普通表上，并把行作为 `Map<String, Any?>`（列名 → 值）返回。模型在底层使用同一个构建器，因此这里的一切在 `User.query()` 之后也能工作。
+
+从 `DB` 门面、`Database` 或 `DatabaseConnection` 开始查询：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.DB
+
+val rows: List<Map<String, Any?>> = DB.table("users")
+    .where("votes", ">", 100)
+    .orWhere { it.where("name", "Ada").whereNotNull("email") }
+    .orderBy("name")
+    .limit(10)
+    .get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.DB;
+import java.util.List;
+import java.util.Map;
+
+List<Map<String, Object>> rows = DB.table("users")
+    .where("votes", ">", 100)
+    .orWhere(q -> q.where("name", "Ada").whereNotNull("email"))
+    .orderBy("name")
+    .limit(10)
+    .get();
+```
+
+</TabItem>
+</Tabs>
+
+
+构建器是**可变的**：每次调用改变构建器并返回它。使用 `copy()` 分叉查询而不影响原始查询。
+
+## 值如何到达数据库
+
+值从不粘进 SQL 文本。构建器写入 `?` 占位符并把值作为 JDBC 参数发送；只有表名和列名出现在 SQL 里，由连接的语法引用（`"users"."id"`）。`toSql()` 显示语句，`getBindings()` 显示值：
+
+```kotlin
+val query = DB.table("users").where("email", "ada@example.com")
+query.toSql()        // select * from "users" where "email" = ?
+query.getBindings()  // [ada@example.com]
+```
+
+运算符对照允许列表检查（`=`、`<`、`>`、`<=`、`>=`、`<>`、`!=`、`like`、`not like`、`ilike`、`not ilike`）；其他一切抛出 `IllegalArgumentException`。
+
+## 选择列
+
+| 调用 | SQL |
+|------|-----|
+| `select("id", "name")` | `select "id", "name"`（替换较早的列） |
+| `addSelect("email")` | 添加一列 |
+| `select("users.name as author")` | `"users"."name" as "author"` |
+| `selectRaw("count(*) as total")` | 原始表达式；可选的绑定列表 |
+| `distinct()` | `select distinct` |
+
+## 筛选
+
+| 调用 | 含义 |
+|------|------|
+| `where("name", "Ada")` | `name = ?` |
+| `where("votes", ">=", 10)` | 任何允许的运算符 |
+| `where("deleted_at", null)` | 变成 `is null`（null 配合 `!=` / `<>` 变成 `is not null`） |
+| `where { … }` / `orWhere { … }` | 带括号的分组 |
+| `orWhere(column, value)` / `orWhere(column, op, value)` | 用 `or` 连接 |
+| `whereNull` / `whereNotNull`（以及 `or…` 形式） | 空检查 |
+| `whereIn("id", listOf(1, 2))` / `whereNotIn`（以及 `or…` 形式） | 成员；空列表匹配不到任何东西（`whereIn`）或匹配一切（`whereNotIn`） |
+| `whereBetween("age", 18, 65)` | 闭区间 |
+| `orWhereBetween` / `whereNotBetween` / `orWhereNotBetween` | between 变体 |
+| `whereColumn("a", "b")` / `whereColumn("a", ">", "b")` | 比较两列（没有绑定） |
+| `orWhereColumn(…)` | 用 `or` 连接的列比较 |
+| `whereRaw("lower(email) = ?", listOf(email))` / `orWhereRaw` | 带绑定的原始片段 |
+| `whereDate("born_at", date)` / `whereDate(col, op, value)` | 比较 `cast(col as date)`（也有 `orWhereDate`） |
+| `whereDay` / `whereMonth` / `whereYear` | `extract(… from col)` 对照一个数字（以及 `or…` 形式） |
+| `whereTime("born_at", time)` / `whereTime(col, op, value)` | 比较 `cast(col as time)`（也有 `orWhereTime`） |
+| `when(condition) { … }` / `unless(condition) { … }` | 只在条件成立时应用嵌套消费者 |
+| `tap { … }` | 在构建器上运行副作用并继续链式调用 |
+| `orWhereNull` / `orWhereNotNull` / `orWhereIn` / `orWhereNotIn` | 与 `where…` 形式相同，用 `or` 连接（模型查询上也有） |
+
+日期辅助方法接受 `java.sql.Date` / `java.time.LocalDate`（以及驱动接受的字符串）。时间辅助方法接受 `java.sql.Time` / `java.time.LocalTime`。测试里优先使用现代民用日期 — 把非常旧的时间戳转换成 `time` 时，有些驱动会应用历史时区规则。
+
+这些筛选（以及下面的 select / group / having 辅助方法）在 `ModelBuilder` 上有镜像，因此 `User.query().whereDate(…).groupBy(…).having(…)` 不必落到 `getQuery()` 就能工作。
+
+## 连接、分组、排序、分页
+
+```kotlin
+DB.table("posts")
+    .join("users", "users.id", "=", "posts.user_id")       // inner join
+    .leftJoin("images", "images.post_id", "posts.id")      // operator defaults to "="
+    .rightJoin("authors", "authors.id", "posts.author_id")
+    .select("posts.title", "users.name as author")
+    .groupBy("posts.id", "users.name")
+    .having("posts.votes", ">", 5)
+    .orHaving("posts.votes", "=", 0)
+    .havingRaw("sum(posts.votes) > ?", listOf(10))
+    .orHavingRaw("count(*) = ?", listOf(1))
+    .orderBy("posts.created_at", "desc")                   // or orderByDesc / latest / oldest
+    .offset(20).limit(10)                                  // or skip / take / forPage(page, perPage)
+    .get()
+```
+
+| 调用 | 含义 |
+|------|------|
+| `groupBy("user_id", "status")` | 包装列的 `group by` |
+| `having("total", ">", 10)` / `orHaving(…)` | 带绑定值的 having 子句 |
+| `havingRaw("sum(votes) > ?", listOf(10))` / `orHavingRaw` | 原始 having 片段 |
+
+`orderBy` 接受 `asc` 或 `desc`。除非你传入列，`latest()` 和 `oldest()` 按 `created_at` 排序。负的 `limit` 去掉限制。
+
+## 读取结果
+
+| 调用 | 返回 |
+|------|------|
+| `get()` | 每一行 |
+| `first()` | 第一行或 `null` |
+| `find(id)` | `id`（或给定列）匹配的行，或 `null` |
+| `value("email")` | 第一行的一列 |
+| `pluck("email")` | 每一行的一列 |
+| `pluck("name", "id")` | `id` → `name` 的键控映射 |
+| `sole()` | 恰好一行，否则抛出 |
+| `union` / `unionAll` / `crossJoin` | 合并查询 / 笛卡尔连接 |
+| `count()`、`max(c)`、`min(c)`、`sum(c)`、`avg(c)` | 聚合（`count()` 是 `Long`） |
+| `exists()` / `doesntExist()` | 是否有任何行匹配 |
+| `paginate(perPage, page)` | 行的 `Page` 加上总数（见[模型](../models/#pagination)） |
+| `simplePaginate(perPage, page)` | 没有总数的 `SimplePage` |
+| `cursorPaginate(perPage, cursor, column)` | 按 `column` 排序的 `CursorPage`（默认 `id`） |
+| `chunk(size) { batch -> … }` | 走过大小为 `size` 的映射页，直到耗尽 |
+| `cursor()` / `lazy(chunkSize)` | 行的惰性序列（底层分批） |
+| `chunkById(size) { … }` / `lazyById(chunkSize)` | 用 `where id > last` 前进（大表更安全） |
+| `lockForUpdate()` / `sharedLock()` / `withoutLock()` | 在 select 上追加 `for update` / `for share` |
+
+总是给 `chunk` / `lazy` 配上稳定的 `orderBy`，这样连续的页保持一致。扫描期间行可能被插入或删除时，优先使用 `chunkById` / `lazyById`。`sharedLock()` 需要接受 `FOR SHARE` 的驱动（PostgreSQL）；即使 `toSql()` 包含该子句，H2 也可能在执行时拒绝它。
+
+## 写入
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DB.table("users").insert(mapOf("name" to "Ada", "email" to "ada@example.com"))
+DB.table("users").insert(listOf(mapOf("name" to "Bob"), mapOf("name" to "Cy")))  // multi-row
+val id = DB.table("users").insertGetId(mapOf("name" to "Dee"))
+
+DB.table("users").where("id", id).update(mapOf("name" to "Dee Dee"))   // rows changed
+DB.table("users").where("id", id).increment("votes")                 // or increment("votes", 5)
+DB.table("users").where("votes", "<", 0).delete()
+DB.table("sessions").truncate()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DB.table("users").insert(Map.of("name", "Ada", "email", "ada@example.com"));
+DB.table("users").insert(List.of(Map.of("name", "Bob"), Map.of("name", "Cy")));
+Object id = DB.table("users").insertGetId(Map.of("name", "Dee"));
+
+DB.table("users").where("id", id).update(Map.of("name", "Dee Dee"));
+DB.table("users").where("id", id).increment("votes");
+DB.table("users").where("votes", "<", 0).delete();
+DB.table("sessions").truncate();
+```
+
+</TabItem>
+</Tabs>
+
+
+多行插入从第一行取列列表；后面行缺少的键写成 `NULL`。空映射的 `update` 什么都不做并返回 0。
+
+### Upsert
+
+```kotlin
+DB.table("users").updateOrInsert(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada"),
+)
+
+DB.table("users").upsert(
+    listOf(
+        mapOf("email" to "a@example.com", "name" to "A", "votes" to 1),
+        mapOf("email" to "b@example.com", "name" to "B", "votes" to 2),
+    ),
+    uniqueBy = listOf("email"),
+    update = listOf("name", "votes"),
+)
+
+DB.table("users").insertOrIgnore(
+    listOf(mapOf("email" to "a@example.com", "name" to "A")),
+    uniqueBy = listOf("email"),
+)
+```
+
+这些辅助方法在 JDBC 驱动之间可移植：每一行按唯一列查找，然后更新或插入。在生产模式里给这些列加上唯一索引。
+
+## 错误
+
+数据库拒绝的语句抛出 `QueryException`，带驱动的消息、SQL 和绑定。没有表就构建查询（`DB.connection().query().get()`）会抛出 `CadenceException`。

@@ -1,0 +1,41 @@
+---
+title: 文件系统测试
+description: 伪造磁盘、FakeStorage，以及在测试里替换适配器。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## 管理器的 `fake` 与 `set`
+
+`FilesystemManager.fake(name)` 在该名称下挂载一个以临时目录为根的本地磁盘，并注册一个简单的临时 URL 构造器。`set(name, adapter)` 替换任意磁盘实例：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+files.fake("photos")
+files.disk("photos").put("a.jpg", byteArrayOf(1))
+
+files.set("photos", FakeStorage())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+files.fake("photos");
+files.disk("photos").put("a.jpg", new byte[] { 1 });
+
+files.set("photos", new FakeStorage());
+```
+
+</TabItem>
+</Tabs>
+
+## `FakeStorage`
+
+`org.konaframework.testing.FakeStorage` 是内存中的 `FilesystemAdapter`，供不应触碰文件系统的单元测试使用。它实现完整的适配器表面（流、`putFile`、可见性、校验和、递归列表）。它**不**支持 `temporaryUrl` — 当被测代码要构造签名链接时，使用 `files.fake(...)` 或 `buildTemporaryUrlsUsing`。
+
+另见[数据库与伪造对象](../testing/database-fakes/)。

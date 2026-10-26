@@ -1,0 +1,208 @@
+---
+title: Cadence 概览
+description: Cadence 是什么、它如何连接到你的数据库，以及各部分如何配合。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Cadence** 是 Kona 的数据库层。它让你读写关系数据库（H2、PostgreSQL 和其他 JDBC 数据库）里的行，日常工作不必手写 SQL，同时在需要时仍然可以下到 SQL。它以 `org.konaframework:kona-cadence` 构件发布。
+
+Cadence 有五层。每一层都可以单独使用，并且每一层建立在前一层之上。
+
+| 层 | 它给你什么 | 主要类型 |
+|----|------------|----------|
+| 连接 | 具名的、池化的 JDBC 连接和事务 | `Database`、`DatabaseConnection`、`DB` |
+| 查询构建器 | 带绑定参数的流畅 `select` / `insert` / `update` / `delete` | `QueryBuilder` |
+| 模型 | 每张表一个类；每个实例是一行 | `Cadence<T>`、`CadenceCompanion<T>` |
+| 关系 | 模型之间的链接，惰性或急切加载 | `HasOne`、`HasMany`、`BelongsTo`、`BelongsToMany` |
+| 模式工具 | 迁移、填充器和工厂 | `Schema`、`Migration`、`Migrator`、`Seeder`、`Factory` |
+
+## 词汇
+
+- **连接**：到达一个数据库的具名方式：JDBC URL、可选凭据和连接池大小。除非你另有要求，否则使用名为 `default` 的连接。
+- **连接池**：在查询之间复用的一小批打开的数据库连接。打开 JDBC 连接很慢，因此 Cadence 为每个具名连接保持一个池，并为每条语句借出连接。池在第一次查询时惰性打开。
+- **绑定**：与 SQL 文本分开发送给数据库的值，代替 `?` 标记。Cadence 从不把值粘进 SQL 字符串；每一个值都是绑定。这防止 SQL 注入。
+- **模型**：扩展 `Cadence<T>` 并代表一张表的 Kotlin 或 Java 类。类的实例是一行；它的*属性*是该行的列。
+- **关系**：模型上的方法，描述它的行如何连接到另一个模型的行，例如“一个用户有许多文章”。
+- **急切加载**：预先为一个模型列表加载关系，每个关系一条额外查询，而不是每个模型一条查询。
+- **迁移**：改变数据库结构（创建表、添加列）并知道如何撤销该改变的类。
+- **填充器**和**工厂**：为开发和测试填充表的代码。
+
+## 配置数据库
+
+应用通常在 `config/Database`（从 `bootstrap.App` 登记的可执行 `ConfigFile`）里配置连接。该模块成为 `database` 节：
+
+```kotlin title="config/Database.kt"
+object Database : ConfigFile {
+    override fun key(): String = "database"
+
+    override fun config(): Map<String, Any?> = mapOf(
+        "default" to "main",
+        "connections" to mapOf(
+            "main" to mapOf(
+                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/app;DATABASE_TO_LOWER=TRUE"),
+                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+                "pool_size" to 10,
+            ),
+            "reports" to mapOf(
+                "url" to "jdbc:postgresql://localhost/reports",
+                "username" to "reporter",
+                "password" to "secret",
+            ),
+        ),
+    )
+}
+```
+
+| 键 | 含义 | 默认 |
+|----|------|------|
+| `default` | 未指定时使用的连接名 | `default` |
+| `connections.<name>.url` | JDBC URL（必需） | — |
+| `connections.<name>.username` / `password` | 凭据 | 无 |
+| `connections.<name>.driver` | JDBC 驱动类，当驱动不自行登记时 | 自动 |
+| `connections.<name>.pool_size` | 池中最大打开连接数 | `10` |
+| `connections.<name>.quote_identifiers` | 在生成的 SQL 里引用表名和列名 | `true` |
+
+当 `database` 节没有定义连接时，Cadence 回退到环境变量（或 `.env`）：`DB_URL`、`DB_USERNAME`、`DB_PASSWORD`、`DB_DRIVER`、`DB_POOL_SIZE` 和 `DB_QUOTE_IDENTIFIERS`。
+
+`kona new` 为默认 URL 加上 SQLite JDBC 驱动（`runtimeOnly("org.xerial:sqlite-jdbc:…")`）。当你切换引擎（`DB_CONNECTION=pgsql` 等）时，加上该驱动的 `runtimeOnly` 坐标 — 类缺失时 Cadence 会打印精确的 Gradle 行 — 或把 `--database=pgsql` 传给 `kona new`，让脚手架写入它。示例：`runtimeOnly("org.postgresql:postgresql:42.7.5")`。
+
+:::note[H2 与字母大小写]
+Cadence 引用表名和列名（`"users"`），这使它们区分大小写。H2 默认把未引用的名称变成大写，因此给 H2 URL 加上 `DATABASE_TO_LOWER=TRUE`。有了该标志，你手写的原始 SQL（`select * from users`）和 Cadence 生成的 SQL 指向同一张表。
+:::
+
+`kona new` 默认使用文件 SQLite，这样全新应用不必安装数据库服务器就能运行。生产时把 `DB_CONNECTION` / `DB_URL` 指向 PostgreSQL 或 MySQL，并加上该引擎的 JDBC JAR。完整的引擎矩阵、环境键，以及如何登记新的 JDBC 数据库：[数据库连接](./database/)。
+
+## 在应用里登记 Cadence
+
+`CadenceServiceProvider` 从 `database` 配置节构建一个 `Database`，把它作为单例绑定到容器（也在别名 `db` 下），并在启动阶段把它设为模型和 `DB` 门面使用的**全局**数据库。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.core.Kona
+import org.konaframework.cadence.CadenceServiceProvider
+import org.konaframework.http.HttpServiceProvider
+
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), CadenceServiceProvider(), AppServiceProvider())
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.core.Application;
+import org.konaframework.core.Kona;
+import org.konaframework.cadence.CadenceServiceProvider;
+import org.konaframework.http.HttpServiceProvider;
+
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new CadenceServiceProvider(), new AppServiceProvider())
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+
+在应用之外（脚本或测试里）你可以自己构建管理器并把它设为全局：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.ConnectionConfig
+import org.konaframework.cadence.Database
+
+val db = Database()
+    .addConnection("default", ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
+    .setAsGlobal()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.ConnectionConfig;
+import org.konaframework.cadence.Database;
+
+Database db = new Database()
+    .addConnection("default", new ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
+    .setAsGlobal();
+```
+
+</TabItem>
+</Tabs>
+
+
+`Database` 是 `AutoCloseable`：`close()` 关闭每一个打开的池。已关闭的管理器保留配置，并在下一次查询时重新打开池。
+
+## 原始 SQL 与事务
+
+`DB` 门面在全局数据库的默认连接上运行语句。把值作为绑定列表传入；每个 `?` 取下一个值。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.DB
+
+val admins = DB.select("select * from users where admin = ?", listOf(true))
+DB.update("update users set active = ? where id = ?", listOf(false, 7))
+
+DB.transaction { connection ->
+    connection.table("accounts").where("id", 1).decrement("balance", 50)
+    connection.table("accounts").where("id", 2).increment("balance", 50)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.DB;
+import java.util.List;
+import java.util.Map;
+
+List<Map<String, Object>> admins = DB.select("select * from users where admin = ?", List.of(true));
+DB.update("update users set active = ? where id = ?", List.of(false, 7));
+
+DB.transaction(connection -> {
+    connection.table("accounts").where("id", 1).decrement("balance", 50);
+    connection.table("accounts").where("id", 2).increment("balance", 50);
+    return null;
+});
+```
+
+</TabItem>
+</Tabs>
+
+
+块返回时事务提交，抛出时回滚（异常会重新抛出）。块内同一线程上发出的每一条语句都使用事务的连接，包括模型保存。嵌套的 `transaction` 调用加入外层事务。
+
+失败的语句抛出 `QueryException`，它携带 SQL（`sql`）和绑定（`bindings`）以便调试。所有 Cadence 错误都扩展 `CadenceException`。
+
+## 功能菜单
+
+| 主题 | 位置 |
+|------|------|
+| 模型、CRUD、转换、软删除、分页 | [模型](../models/) |
+| 检索或创建、upsert、作用域、修改器、分块 | [模型](../models/#retrieving-or-creating) |
+| 没有模型的流畅 SQL | [查询构建器](../query-builder/) |
+| 关系、多态、穿透、急切加载、`withCount` / `withExists` / `withSum` / `withAvg` / `withMax` / `withMin`、中间表 | [关系](../relations/) |
+| `toArray` / JSON、集合、生命周期事件 | [序列化与事件](../serialization-events/) |
+| 模式变更 | [迁移](../migrations/) |
+| 填充数据与工厂 | [填充器与工厂](../seeders-factories/) |
+
+## 接下来去哪里
+
+- [模型](../models/) — 定义模型、读写行、转换、软删除、分页、作用域。
+- [查询构建器](../query-builder/) — 每一个子句、聚合、upsert 和写操作。
+- [关系](../relations/) — 模型之间的链接、存在性筛选、计数、急切加载。
+- [序列化与事件](../serialization-events/) — 映射/JSON、集合、生命周期钩子。
+- [迁移](../migrations/) — 模式 DSL、迁移器，以及 `./grind migrate`。
+- [填充器与工厂](../seeders-factories/) — 为开发和测试生成数据。

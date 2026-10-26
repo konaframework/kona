@@ -1,0 +1,265 @@
+---
+title: 填充器与工厂
+description: 用填充器把示例数据写入数据库，并用工厂快速构建测试模型。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+全新的数据库是空的。**填充器**把数据放进去：应用需要的参考数据（国家、角色），或开发用的逼真示例数据。**工厂**从默认属性模板构建模型实例，这样测试和填充器可以一行创建“一个用户”或“十篇文章”。
+
+## 工厂
+
+工厂扩展 `org.konaframework.cadence.factory.Factory<M>` 并实现 `definition()`，它返回一个模型的默认属性。受保护的 `index` 属性计算该工厂已构建的模型数（从 0 开始）；用它让值唯一。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package database.factories
+
+import app.Models.User
+import org.konaframework.cadence.factory.Factory
+
+class UserFactory : Factory<User>(User::class.java) {
+    override fun definition(): Map<String, Any?> = mapOf(
+        "name" to "User $index",
+        "email" to "user$index@example.com",
+        "admin" to false,
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package database.factories;
+
+import app.Models.User;
+import org.konaframework.cadence.factory.Factory;
+import java.util.Map;
+
+public class UserFactory extends Factory<User> {
+    public UserFactory() {
+        super(User.class);
+    }
+
+    @Override
+    public Map<String, Object> definition() {
+        return Map.of(
+            "name", "User " + getIndex(),
+            "email", "user" + getIndex() + "@example.com",
+            "admin", false);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+`./grind make:factory UserFactory`（或 `./grind make:model User --factory`）在 `database/factories/` 下写入这个骨架。
+
+### 构建模型
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = UserFactory().make()                         // unsaved model
+val saved = UserFactory().create()                      // saved model
+val admin = UserFactory().create(mapOf("admin" to true)) // override attributes
+val many = UserFactory().count(10).createMany()         // 10 saved models
+val drafts = UserFactory().count(3).makeMany()          // 3 unsaved models
+val attributes = UserFactory().raw()                    // just the map
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = new UserFactory().make();
+User saved = new UserFactory().create();
+User admin = new UserFactory().create(Map.of("admin", true));
+List<User> many = new UserFactory().count(10).createMany();
+List<User> drafts = new UserFactory().count(3).makeMany();
+Map<String, Object> attributes = new UserFactory().raw();
+```
+
+</TabItem>
+</Tabs>
+
+
+工厂用 `forceFill` 设置属性，因此 `fillable` 和 `guarded` 不适用：工厂是受信任的代码。
+
+### 状态、序列和回调
+
+构建器方法改变工厂并返回它，因此可以链式调用。它们按这个顺序应用：`definition()`，然后按添加顺序的每个 `state`，然后当前的 `sequence` 条目，然后传给 `make` / `create` 的覆盖。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+UserFactory()
+    .state(mapOf("admin" to true))                                   // fixed overrides
+    .state { attrs -> attrs + ("email" to attrs["email"].toString().uppercase()) }   // computed
+    .sequence(mapOf("team" to "red"), mapOf("team" to "blue"))      // alternates per model
+    .afterMaking { user -> user["nickname"] = user["name"] }
+    .afterCreating { user -> user.posts().create(mapOf("title" to "Welcome")) }
+    .count(4)
+    .createMany()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new UserFactory()
+    .state(Map.of("admin", true))
+    .state(attrs -> {
+        Map<String, Object> copy = new HashMap<>(attrs);
+        copy.put("email", attrs.get("email").toString().toUpperCase());
+        return copy;
+    })
+    .sequence(Map.of("team", "red"), Map.of("team", "blue"))
+    .afterMaking(user -> user.setAttribute("nickname", user.getAttribute("name")))
+    .afterCreating(user -> user.posts().create(Map.of("title", "Welcome")))
+    .count(4)
+    .createMany();
+```
+
+</TabItem>
+</Tabs>
+
+
+因为构建器调用会改变工厂，无关的批次要新建工厂，而不是复用已配置的那个。
+
+### 计算属性和关联属性
+
+属性值可以是：
+
+- 一个 `java.util.function.Supplier`，每个模型调用一次；
+- 另一个 `Factory`，其模型会被**创建**，并使用其键。这是给每篇文章自己的作者的方式：
+
+```kotlin
+class PostFactory : Factory<Post>(Post::class.java) {
+    override fun definition(): Map<String, Any?> = mapOf(
+        "title" to "Post $index",
+        "user_id" to UserFactory(),                      // a new user per post
+        "slug" to Supplier { "post-${System.nanoTime()}" },
+    )
+}
+```
+
+在覆盖里传入显式键来复用已有模型：`PostFactory().count(3).createMany(mapOf("user_id" to ada.getKey()))`。
+
+### 一次性工厂
+
+`Factory.of` 从 lambda 构建工厂，在 Java 测试里很方便：
+
+```java
+Factory<User> users = Factory.of(User.class, () -> Map.of("name", "Ada", "email", "ada@example.com"));
+users.count(2).createMany();
+```
+
+## 填充器
+
+填充器扩展 `org.konaframework.cadence.seeding.Seeder` 并实现 `run()`。根填充器按惯例是 `database.seeders.DatabaseSeeder`，用 `call` 调用其他填充器，使它们按已知顺序运行。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package database.seeders
+
+import database.factories.UserFactory
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.seeding.Seeder
+
+class RoleSeeder : Seeder() {
+    override fun run() {
+        DB.table("roles").insert(listOf(mapOf("name" to "admin"), mapOf("name" to "member")))
+    }
+}
+
+class UserSeeder : Seeder() {
+    override fun run() {
+        UserFactory().count(20).createMany()
+    }
+}
+
+class DatabaseSeeder : Seeder() {
+    override fun run() {
+        call(RoleSeeder::class.java, UserSeeder::class.java)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package database.seeders;
+
+import database.factories.UserFactory;
+import org.konaframework.cadence.DB;
+import org.konaframework.cadence.seeding.Seeder;
+import java.util.List;
+import java.util.Map;
+
+public class RoleSeeder extends Seeder {
+    @Override
+    public void run() {
+        DB.table("roles").insert(List.of(Map.of("name", "admin"), Map.of("name", "member")));
+    }
+}
+
+public class UserSeeder extends Seeder {
+    @Override
+    public void run() {
+        new UserFactory().count(20).createMany();
+    }
+}
+
+public class DatabaseSeeder extends Seeder {
+    @Override
+    public void run() {
+        call(RoleSeeder.class, UserSeeder.class);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+- `call(SomeSeeder::class.java, …)` 通过**容器**构建每个填充器（grind 运行时是应用的容器，否则是新的），因此填充器构造器可以请求服务。然后按顺序运行填充器。
+- `call(SomeSeeder(), …)` 运行你自己创建的实例。
+- `called` 列出通过 `call` 运行的每一个填充器的简单名，包括嵌套调用。
+- `Seeder.instantiate(type, container)` 以与 `call` 相同的方式构建填充器，供你自己的代码运行一个。
+
+填充器及其使用的工厂通过全局数据库写入，因此运行前必须登记数据库（用 `CadenceServiceProvider` 或 `Database.setAsGlobal()`）。
+
+## grind 命令
+
+```bash
+./grind make:factory UserFactory                 # database/factories/UserFactory
+./grind make:factory CrewFactory --model=Person  # factory for app.Models.Person
+./grind make:seeder UserSeeder                   # database/seeders/UserSeeder
+./grind make:model User --factory --seeder       # model plus both
+./grind make:model User --all                    # model, migration, factory, seeder
+
+./grind db:seed                                  # runs database.seeders.DatabaseSeeder
+./grind db:seed --class=database.seeders.UserSeeder
+./grind migrate --seed                           # migrate, then seed before closing the DB
+./grind migrate --seed --class=database.seeders.UserSeeder
+./grind migrate --seeder=database.seeders.UserSeeder
+./grind migrate:fresh --seed
+./grind migrate:refresh --seed
+```
+
+`db:seed` 从编译后的类在进程内启动应用（先运行 `./gradlew classes`），把它的数据库设为全局，通过应用容器解析填充器，运行它，并打印它运行过的每个填充器。类缺失或不扩展 `Seeder` 时，它会失败并给出消息。
+
+`migrate --seed`（别名 `--seeder` 或 `--seeder=Class`）在成功迁移**之后**、**同一进程**里、关闭数据库**之前**运行同一填充器路径 — 因此即使在临时连接上，迁移批次的表也可见。可选的 `--class=` 选择填充器（默认 `database.seeders.DatabaseSeeder`）。`migrate:fresh --seed` 和 `migrate:refresh --seed` 在重建模式之后做同样的事。回滚、重置、状态和清空从不填充。
+
+`kona new` 创建的新应用把 `database/` 目录与 `app/` 一起编译，因此生成的迁移、工厂和填充器是构建的一部分。

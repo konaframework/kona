@@ -1,20 +1,20 @@
 ---
 title: Infolists
-description: Show a record with text, icons, images, colors, key-value rows, code, and repeatable entries.
+description: Show a record with entries instead of fields. On the Desk page that is the name entry. On orders, the view page mounts the order infolist.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="notes-infolist.png" description="The name infolist on the Desk page at http://127.0.0.1:4017/admin/desk." />
+Show a record when the screen should display a value, not collect one. Put the infolist on a view page, or anywhere you want a label and a value.
 
-An infolist shows a record. It does not collect input. You use one on a view page, or anywhere you want a label and a value instead of a field.
-
-The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). They sit on the schema tree from [Schemas](/docs/firefly/schemas/), so a section, a grid, and tabs are the same layouts you already use. On the Desk page the infolist is a single name entry. On orders, the view page at `/admin/orders/view` mounts the order infolist.
+The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). They sit on the schema tree from [Schemas](/docs/firefly/schemas/), so a section, a grid, and tabs are the same layouts you already use. On the Desk page the infolist is a single name entry. On orders, the view page at `/admin/orders/view` mounts the order infolist. Both classes live under `app/firefly/`.
 
 Each entry is a `div.ff-entry` with `x-data="ffEntry"`. That Alpine factory is registered by the schema script. Copyable state and live binding use it.
 
-## An infolist in one call
+<FireflyShot file="notes-infolist.png" description="The name infolist on the Desk page at http://127.0.0.1:4017/admin/desk." />
+
+## Render an infolist
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -47,9 +47,9 @@ String html = page.render();
 </TabItem>
 </Tabs>
 
-`Infolist.make()` wraps a `Schema`. `components(...)` replaces the root list. `statePath` prefixes stored paths, so `name` lives at `user.name`. `fill` writes a map. `get` reads a dotted path. `schema()` returns the wrapped schema when you need `set` or partial render. `record` and `operation` are stored on that schema for the page that hosts the infolist.
+`Infolist.make()` wraps a `Schema`. `components(...)` replaces the root list. `statePath` prefixes stored paths, so `name` lives at `user.name`. `fill` writes a map. `get` reads a dotted path. `schema()` returns the wrapped schema when you need `set` or partial render. `record` and `operation` are stored on that schema for the page that hosts the infolist. You see the name **Ada**.
 
-## Values and closures
+## Pass a value or a closure
 
 Entry setters return the entry, so you can chain them. A setter accepts a fixed value or a `java.util.function.Function` (or a `Predicate` for flags). The function receives `Get`, the same reader a schema component uses.
 
@@ -100,10 +100,10 @@ name.live();
 </TabItem>
 </Tabs>
 
-## Shared entry helpers
+## Helpers on every entry
 
-| Method | Role |
-|--------|------|
+| Method | What you get |
+|--------|----------------|
 | `placeholder` | Text when the state is empty |
 | `color`, `icon`, `iconColor`, `iconPosition` | Presentation. Icon position is `before` or `after` |
 | `tooltip` | Screen-reader text |
@@ -123,7 +123,7 @@ State resolution: a literal or closure from `state(...)` wins. Inside a repeatab
 
 Known icon names (`home`, `bars`, `user`, `x`) render inline SVG. Any other name is stored as `data-ff-icon` and does not throw.
 
-## Text
+## Show text
 
 `TextEntry.make("title")` renders plain text. A list can be a badge, a bullet list, or line breaks. `limitList` with `expandableLimitedList(true)` keeps the extra items and marks them `data-ff-extra`. Without that flag, the tail becomes `+N`.
 
@@ -140,6 +140,7 @@ TextEntry.make("title")
     .limit(80)
     .words(12)
     .state("A short title")
+    .extraAttributes(mapOf("data-entry" to "title"))
 ```
 
 </TabItem>
@@ -154,7 +155,8 @@ TextEntry.make("title")
     .lineClamp(3)
     .limit(80)
     .words(12)
-    .state("A short title");
+    .state("A short title")
+    .extraAttributes(Map.of("data-entry", "title"));
 ```
 
 </TabItem>
@@ -162,23 +164,23 @@ TextEntry.make("title")
 
 `markdown(true)` renders a small Markdown subset (emphasis, code, links, and fenced blocks). `html(true)` leaves the string as HTML. `date()`, `dateTime()`, and `time()` format a temporal value. Call them with a pattern, or with no arguments to use `yyyy-MM-dd`, `yyyy-MM-dd HH:mm`, and `HH:mm`. `since()` renders a relative phrase against the current instant. `timezone` sets the zone. `dateTooltip()` adds `data-ff-date-tooltip`. `money()` defaults to USD. `money("EUR")` selects a currency. `numeric()` prints a number. `numeric(2)` sets the decimal places. `formatStateUsing` replaces the formatted text with the closure’s string.
 
-## Icon
+## Show an icon
 
 `IconEntry.make("ok")` shows an icon for the state. `bool(true)` treats the state as a boolean: a truthy value uses the true icon (`user`, color `success`) and a false value uses the false icon (`x`, color `danger`). `whenTrue("user", "success")` and `whenFalse("x", "danger")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon. `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
 
 The method is `bool`, because `boolean` is a Java keyword. The pair helpers are `whenTrue` and `whenFalse`.
 
-## Image
+## Show an image
 
 `ImageEntry.make("photo")` renders `<img>` tags. `height` and `imageHeight` set the height. `width` and `imageWidth` set the width. `size` and `imageSize` set both. `circular` and `square` add shape flags. `alt`, `defaultImageUrl`, and `extraImgAttributes` change the tag. `stacked`, `overlap`, and `ring` describe a stack. `limit` with `limitedRemainingText(true)` appends `+N`. `limitedRemainingTextSeparate` and `limitedRemainingTextSize` style that remainder.
 
 `disk`, `visibility`, and `checkFileExistence` are data attributes on the entry (`data-ff-disk`, `data-ff-visibility`, `data-ff-check-file`). This module does not open a disk or sign a temporary URL. A relative or absolute URL string is rendered as `src`. When `checkFileExistence` is true, a blank source is dropped.
 
-## Color
+## Show a color
 
 `ColorEntry.make("ink")` renders a swatch. A CSS color (`#df8723`, `rgb(...)`, `hsl(...)`, or a plain name made of letters) becomes `background-color`. Anything else is marked `data-ff-invalid`. `copyable(true)` comes from the shared entry helper and sets `data-ff-copyable`.
 
-## Key-value
+## Show a key-value map
 
 `KeyValueEntry.make("meta")` renders a map as a table. `keyLabel` and `valueLabel` rename the headers (defaults are `Key` and `Value`). `emptyMessage` is the placeholder when the map is empty (default `No values`). A null key is skipped.
 
@@ -205,7 +207,9 @@ KeyValueEntry.make("meta")
 </TabItem>
 </Tabs>
 
-## Code
+You see a table with the header **Field** / **Detail** and the row city / Kona.
+
+## Show code
 
 `CodeEntry.make("snippet")` sends the raw source and a grammar name to the browser. The entry is `data-ff-shiki="shiki"` and includes a JSON payload. The browser script calls Shiki `createHighlighter`, then `codeToHtml`. Light and dark themes default to `github-light` and `github-dark`.
 
@@ -238,7 +242,7 @@ CodeEntry.make("snippet")
 
 `ShikiCode.source()` returns the browser script. `ShikiCode.manifest()` returns `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`. Load that script next to a Shiki build that exports `createHighlighter`. The same grammar names and themes are the ones a CodeMirror editor would load. Call `highlightCodeEntry(root, shiki)` with the Shiki module.
 
-## Repeatable
+## Repeat an entry
 
 `RepeatableEntry.make("comments")` repeats its child schema once per item. State may be one map or a list of maps. Empty maps and values that are not maps are skipped. A dotted child name is read from the current item.
 
@@ -269,9 +273,9 @@ RepeatableEntry.make("comments")
 
 `table(TableColumn.make("Title"))` renders a table. `hiddenHeaderLabel()` hides that header with the `ff-sr` class. Child schema components, including `Text.make`, render in the cells. The default empty placeholder is `No items`.
 
-## Layouts
+## Lay entries out
 
-Place entries inside the schema layouts. Do not build a second section type.
+Place entries inside the schema layouts. Use `Section`, `Grid`, and `Tabs` from the schema module.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -302,7 +306,7 @@ Infolist.make().components(
 </TabItem>
 </Tabs>
 
-## Your own entry
+## Write your own entry
 
 Subclass `Entry` and set both `view` and `meta("ff-view", ...)` so the schema renders the Crema view.
 
@@ -334,8 +338,12 @@ public class NoteEntry extends Entry<NoteEntry> {
 </TabItem>
 </Tabs>
 
-`./grind make:firefly-entry Note` writes `app/firefly/entries/Note.kt` and a Crema view that uses `x-data="ffEntry"` and `@entangle`. `--lang=java` writes a Java class. The view name is `firefly.entries.note`.
+```bash
+./grind make:firefly-entry Note
+```
 
-## Prefix and suffix
+The command writes `app/firefly/entries/Note.kt` and a Crema view that uses `x-data="ffEntry"` and `@entangle`. `--lang=java` writes a Java class. The view name is `firefly.entries.note`. Reference the class from the infolist. `discover` does not scan `entries/`.
 
-`prefix` and `suffix` are text, or a closure that returns text. They are not action buttons. Record summaries such as a count or an average are not methods on an entry. A table column can summarize with `summarize` — see [Tables](/docs/firefly/tables/). A code editor is a form field — see [Forms](/docs/firefly/forms/).
+## Prefix, suffix, and what lives elsewhere
+
+`prefix` and `suffix` are text, or a closure that returns text. They are not action buttons. A count or an average belongs on a table column: call `summarize` on [Tables](/docs/firefly/tables/). A code editor is a form field on [Forms](/docs/firefly/forms/).

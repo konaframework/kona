@@ -1,0 +1,399 @@
+---
+title: 部署
+description: 首选的生产路径 — ./grind deploy:systemd 构建一棵树、一个单元、一个环境文件和 install.sh。Docker 和其他平台是替代方案。
+---
+
+本页是用 `kona new` 创建的应用的**生产手册**。本地开发留在[你的第一个应用](../first-app/)（`./grind serve`）。生产是不同的启动器：一个长期运行的 JVM 进程，启动 `bootstrap.App` 并在 `HOST`:`PORT` 上监听。
+
+**VM 上的首选路径：** systemd。一条 grind 命令构建生产就绪的目录；`install.sh` 把它复制到位，写入单元和环境文件，并启动服务。
+
+许多实例、连接池、Redis 和工作进程，继续看[扩展](../scaling/)。
+
+## 首选：一条命令里的 systemd
+
+在有 **JDK 21** 的机器上（你的笔记本、CI 或服务器）：
+
+```bash
+cd hello-kona
+./grind key:generate          # once; copy APP_KEY into the generated env file
+./gradlew check               # optional, but run it before you ship
+./grind deploy:systemd
+# Vite / Inertia / Wire kits only, before deploy:systemd:
+# npm ci && npm run build
+```
+
+它写入：
+
+```text
+build/deploy/systemd/hello-kona/
+  bin/hello-kona          # start script (from ./gradlew installDist)
+  lib/                    # application JAR + dependencies
+  public/                 # HTTP document root (do not ship public/hot)
+  storage/                # empty writable dirs (logs, framework, app/public, database)
+  hello-kona.service      # systemd unit
+  hello-kona.env          # production environment (APP_ENV, HOST, PORT, DB_*, …)
+  install.sh              # copies the tree, installs the unit, starts the service
+  README.txt
+```
+
+`./grind deploy:systemd` 运行 `./gradlew installDist`，除非你传入 `--skip-build`。检查 `hello-kona.env`（尤其是 `APP_KEY` 和 `DB_*`）。把目录复制到服务器，然后：
+
+```bash
+sudo ./install.sh
+```
+
+服务器上的默认位置：
+
+| 路径 | 内容 |
+|------|------|
+| `/var/www/hello-kona/bin/` | 启动脚本 |
+| `/var/www/hello-kona/lib/` | JAR |
+| `/var/www/hello-kona/public/` | 静态文件 |
+| `/var/www/hello-kona/storage/` | 可写运行时（必须保持服务用户可写） |
+| `/etc/kona/hello-kona.env` | 环境（模式 `0600`；`install.sh` 不会覆盖已有文件） |
+| `/etc/systemd/system/hello-kona.service` | 单元 |
+
+`install.sh` 在缺少时创建 `kona` 系统用户，运行 `systemctl enable --now hello-kona`，并打印状态。探测进程：
+
+```bash
+curl -fsS http://127.0.0.1:4000/api/health
+# {"status":"ok"}
+```
+
+从仍然有 `./grind` 的检出，在开始流量**之前**或同时，针对同样的 `DB_*` 值运行迁移：
+
+```bash
+./grind migrate --force
+```
+
+用你传给 `kona new` 的目录名（`rootProject.name`）替换 `hello-kona`。
+
+## 构建步骤（命令做什么）
+
+1. **找到应用根**（与 `./grind serve` 同样的向上走：`settings.gradle.kts` / `build.gradle.kts`）。
+2. **用 `./gradlew installDist` 编译启动脚本** → `build/install/<app>/{bin,lib}`。
+3. **在 `build/deploy/systemd/<app>/` 下组装包**：
+   - 复制 `bin/` 和 `lib/`
+   - 复制 `public/`（跳过 `public/hot` 以及 `public/storage` 这样的符号链接）
+   - 创建空的 `storage/{logs,framework,app/public,database}`
+   - 从 `.env`（或 `.env.example`）写入带生产覆盖的 `<app>.env`
+   - 写入 `ExecStart=/var/www/<app>/bin/<app> --base=/var/www/<app>` 的 `<app>.service`
+   - 写入 `install.sh`（可执行）和 `README.txt`
+4. **你**检查环境文件，复制包，运行 `sudo ./install.sh`。
+
+`--base=` 是 `Kona.create` 定位 `public/`、`storage/` 和配置的方式。单元总是传入它，这样工作目录和文件保持对齐。
+
+### 标志
+
+```bash
+./grind deploy:systemd
+./grind deploy:systemd --skip-build          # reuse an existing installDist tree
+./grind deploy:systemd --force               # overwrite the output directory
+./grind deploy:systemd --output=/tmp/hello-kona
+./grind deploy:systemd --prefix=/opt/hello-kona
+./grind deploy:systemd --user=www --group=www
+./grind deploy:systemd --host=127.0.0.1 --port=4000
+./grind deploy:systemd --url=https://app.example.com
+./grind deploy:systemd --name=hello-kona
+./grind deploy:systemd --java-opts='-XX:+UseG1GC -XX:MaxRAMPercentage=75.0'
+```
+
+| 标志 | 默认 | 效果 |
+|------|------|------|
+| `--skip-build` | 关 | 不运行 `installDist` |
+| `--force` | 关 | 如果 `build/deploy/systemd/<app>/` 已存在则替换 |
+| `--output=` | `build/deploy/systemd/<app>` | 包目录 |
+| `--prefix=` | `/var/www/<app>` | 服务器安装根（`WorkingDirectory` / `--base`） |
+| `--user=` / `--group=` | `kona` | systemd `User` / `Group`（`install.sh` 创建用户） |
+| `--host=` / `--port=` | 来自 `.env`，否则 `127.0.0.1`:`4000` | 写入环境文件的绑定地址 |
+| `--url=` | 来自 `.env`，否则 `http://<host>:<port>` | `APP_URL` |
+| `--name=` | `rootProject.name` | 单元、环境文件和目录名 |
+| `--java-opts=` | G1 + `MaxRAMPercentage=75` | 单元上的 `JAVA_OPTS` |
+| `--base=` | 当前目录 | 向上搜索的应用根 |
+
+运行时覆盖安装目的地：
+
+```bash
+sudo PREFIX=/opt/hello-kona ENV_DST=/etc/kona/hello-kona.env UNIT_DST=/etc/systemd/system/hello-kona.service ./install.sh
+```
+
+Java 应用使用同一命令（从 `kona new --lang=java` 树运行 `./grind deploy:systemd`）。
+
+## 单元和环境文件
+
+`install.sh` 安装这个形状（生成的；名称跟随 `--name`）：
+
+`/etc/kona/hello-kona.env`：
+
+```bash
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://app.example.com
+APP_KEY=base64:…
+HOST=127.0.0.1
+PORT=4000
+LOG_TO_FILE=true
+DB_URL=jdbc:postgresql://127.0.0.1:5432/kona
+DB_USERNAME=kona
+DB_PASSWORD=…
+JAVA_OPTS=-XX:+UseG1GC -XX:MaxRAMPercentage=75.0
+```
+
+`/etc/systemd/system/hello-kona.service`：
+
+```ini
+[Unit]
+Description=Kona hello-kona
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kona
+Group=kona
+WorkingDirectory=/var/www/hello-kona
+EnvironmentFile=/etc/kona/hello-kona.env
+Environment=JAVA_OPTS=-XX:+UseG1GC -XX:MaxRAMPercentage=75.0
+ExecStart=/var/www/hello-kona/bin/hello-kona --base=/var/www/hello-kona
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+LimitNOFILE=65535
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload          # install.sh already does this
+sudo systemctl enable --now hello-kona
+sudo systemctl status hello-kona
+sudo journalctl -u hello-kona -f
+```
+
+如果 `/etc/kona/hello-kona.env` 已存在，`install.sh` **不会**覆盖它，因此第二次部署保留生产密钥。新键仍然进入包里的 `hello-kona.env`，供你手工合并。
+
+## 本地与生产
+
+| | 本地 | 生产 |
+|---|------|------|
+| 命令 | `./grind serve` | `bin/<app> --base=<prefix>`（systemd `ExecStart`） |
+| `APP_ENV` | `local` | `production` |
+| `APP_DEBUG` | `true` | `false` |
+| 数据库 | `storage/` 下的 SQLite 文件（脚手架默认） | PostgreSQL、MySQL、MariaDB、SQL Server 或 Oracle — 不是 SQLite/H2 |
+| 进程管理器 | 你的终端 | **systemd**（首选）；设置 `PORT` 的 Docker 或平台 |
+| TLS | 可选 | 反向代理 / 负载均衡器 |
+
+`./grind` 仍然是检出上**一次性运维**的工具（`migrate`、`key:generate`、`deploy:systemd`）。它不是你监管的 HTTP 进程。
+
+## 环境变量
+
+进程环境优先于 `.env` 文件。systemd 通过 `EnvironmentFile` 注入 `/etc/kona/<app>.env`，因此该文件**就是**进程环境。不要提交它。
+
+| 变量 | 生产 | 说明 |
+|------|------|------|
+| `APP_ENV` | `production` | 生产行为所必需 |
+| `APP_DEBUG` | `false` | 关闭异常页 |
+| `APP_KEY` | `base64:…` | 加密 / 签名 cookie。在受信任的机器上用 `./grind key:generate` 创建 |
+| `APP_URL` | `https://app.example.com` | 链接里使用的公开 URL |
+| `HOST` | 本地代理后面是 `127.0.0.1`；Docker / PaaS 里是 `0.0.0.0` | 绑定地址 |
+| `PORT` | `4000` 或平台的 `PORT` | 监听端口 |
+| `DB_CONNECTION` | `pgsql`、`mysql` 等 | 必须匹配 `config/Database` |
+| `DB_URL` | JDBC URL | 示例：`jdbc:postgresql://db:5432/kona` |
+| `DB_USERNAME` / `DB_PASSWORD` | 凭据 | 优先环境文件，不是 git |
+| `DB_POOL_SIZE` | 从 `10` 开始 | Hikari 最大大小；见[扩展](../scaling/) |
+| `LOG_LEVEL` | `info` | |
+| `LOG_TO_FILE` | 有磁盘的 VM 上为 `true`；平台捕获标准输出时为 `false` | |
+| `JAVA_OPTS` | G1 + 75% RAM | 也设置在单元上 |
+
+生成密钥：
+
+```bash
+./grind key:generate
+./grind key:generate --force    # production, key already set
+```
+
+## 数据库与迁移
+
+把 `DB_URL` 指向真正的服务器数据库。从仍然有 `./grind` 的检出运行迁移：
+
+```bash
+export DB_URL='jdbc:postgresql://db.internal:5432/kona'
+export DB_USERNAME=kona
+export DB_PASSWORD=…
+./grind migrate --force
+```
+
+典型划分：
+
+- **VM（systemd）：** 复制包，`sudo ./install.sh`，从 CI 或带相同 `DB_*` 的检出迁移，如果进程已经在运行则 `systemctl restart <app>`。
+- **容器：** 在 CI（或一次性 JDK 作业）里针对生产数据库运行 `./grind migrate`，然后推出镜像。
+
+`storage/` 必须保持服务用户可写（`install.sh` 对前缀 `chown`）。
+
+引擎列表和 JDBC URL：[数据库](../../cadence/database/)。
+
+## 反向代理与 TLS
+
+JVM 说 **HTTP**。在 Caddy、nginx、Traefik 或云负载均衡器里终止 TLS。代理在同一主机上时，把应用绑定到 `127.0.0.1`。
+
+**Caddy**（包含证书）：
+
+```text
+app.example.com {
+    reverse_proxy 127.0.0.1:4000
+}
+```
+
+**nginx：**
+
+```nginx
+upstream kona_app {
+    server 127.0.0.1:4000;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name app.example.com;
+
+    location / {
+        proxy_pass http://kona_app;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+        proxy_set_header X-Forwarded-Port  $server_port;
+    }
+}
+```
+
+在代理后面，在 `bootstrap.Middleware` 里启用受信任的转发头，这样 `APP_URL`、重定向和客户端 IP 匹配公开请求：`.trustProxies(at = listOf("*"))` 和 `.trustHosts(at = listOf("app.example.com"))`（Java：`List.of(...)`）。细节：[内核与服务器](../../http/kernel-server/)。
+
+平台路由到容器端口时使用 `HOST=0.0.0.0`。
+
+## 健康与静态文件
+
+```http
+GET /api/health → {"status":"ok"}
+```
+
+HTTP 200 意味着进程已启动并且内核回答了。它**不**检查数据库。需要时加上你自己的就绪路由。
+
+`public/` 下的 `GET`/`HEAD`（包括 Vite 生产构建之后的 `/build/assets/…`）从磁盘服务。不要发布 `public/hot` — `deploy:systemd` 已经跳过它。该文件选择 Vite 开发服务器。
+
+```bash
+# Vite / Inertia / Wire kits, in CI or on the build machine, before deploy:systemd
+npm ci && npm run build
+```
+
+## 替代：Docker
+
+没有已发布的 Kona 运行时镜像。在**应用仓库**里使用两阶段构建。用 `rootProject.name` 替换 `hello-kona`。你拥有的 VM 上优先 systemd；目标是容器平台时使用这个。
+
+```dockerfile
+# syntax=docker/dockerfile:1
+FROM eclipse-temurin:21-jdk AS build
+WORKDIR /src
+COPY . .
+RUN ./gradlew installDist --no-daemon
+
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=build /src/build/install/hello-kona/ /app/
+COPY --from=build /src/public /app/public
+RUN mkdir -p /app/storage/logs /app/storage/framework /app/storage/app/public \
+    && chown -R 65534:65534 /app/storage
+ENV HOST=0.0.0.0 PORT=4000 APP_ENV=production APP_DEBUG=false LOG_TO_FILE=false
+EXPOSE 4000
+USER 65534:65534
+CMD ["/app/bin/hello-kona", "--base=/app"]
+```
+
+```bash
+docker build -t hello-kona:latest .
+docker run --rm -p 4000:4000 \
+  -e APP_KEY=base64:… \
+  -e APP_URL=https://app.example.com \
+  -e DB_URL=jdbc:postgresql://db:5432/kona \
+  -e DB_USERNAME=kona \
+  -e DB_PASSWORD=… \
+  hello-kona:latest
+```
+
+如果需要日志或本地磁盘在重启后保留，在 `/app/storage` 上挂载卷。任何注入 `PORT` 的平台都能工作：脚手架会读取它。
+
+## CI（GitHub Actions）
+
+把这个放在**应用**仓库里。构件是 systemd 包（或如果你只需要 `bin/` + `lib/`，则是 `installDist`）。
+
+```yaml
+name: build
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Tests
+        run: ./gradlew check
+      - name: systemd bundle
+        run: ./grind deploy:systemd --force
+      # Vite kits only:
+      # - uses: actions/setup-node@v4
+      #   with: { node-version: "22" }
+      # - run: npm ci && npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hello-kona-systemd
+          path: build/deploy/systemd/hello-kona
+```
+
+提升构件，需要时合并 `/etc/kona/<app>.env`，运行迁移，然后 `sudo ./install.sh` 或 `systemctl restart <app>`。
+
+## 手工 `installDist`（没有 systemd）
+
+如果你不在 systemd 上，同样的启动脚本是：
+
+```bash
+./gradlew installDist
+./build/install/hello-kona/bin/hello-kona --base=/var/www/hello-kona
+```
+
+用 `./gradlew distZip` 发布 zip（`build/distributions/hello-kona-<version>.zip`）。解包，把 `public/` 和 `storage/` 放在 `bin/` / `lib/` 旁边，并用指向该文件夹的 `--base=` 启动。
+
+`./gradlew run` 启动同一个 `main`。长期机器上优先 `installDist` 或 `deploy:systemd`。
+
+## 清单
+
+1. CI / 构建主机上的 JDK 21
+2. `./gradlew check` 是绿的
+3. `./grind key:generate`（真正的 `APP_KEY`）
+4. Vite 套件：`npm run build`
+5. `./grind deploy:systemd` — 检查 `<app>.env`（`APP_ENV=production`、`APP_DEBUG=false`、`APP_URL`、`DB_*`）
+6. 复制包；`sudo ./install.sh`
+7. `./grind migrate --force`
+8. 反向代理 + `trustProxies` / `trustHosts`
+9. `GET /api/health` 返回 `{"status":"ok"}`
+10. 高负载：[扩展](../scaling/)
+
+## 相关指南
+
+- [安装](../installation/) — 安装 `kona`、`kona new`
+- [你的第一个应用](../first-app/) — 本地 `./grind serve`
+- [扩展](../scaling/) — 多个进程、池、Redis、工作进程
+- [配置与环境](../../concepts/config/) — 进程环境对 `.env`
+- [数据库](../../cadence/database/) — 每个引擎的 JDBC URL
+- [内核与服务器](../../http/kernel-server/) — `HOST` / `PORT`、虚拟线程、`trustProxies`
+- [日志](../../http/logging/) — 文件对标准输出
+- [grind 命令](../../grind/commands/) — `deploy:systemd`、`migrate`、`key:generate`

@@ -1,0 +1,242 @@
+---
+title: Kotlin 与 Java
+description: 同样的 Kona API 从 Kotlin 和 Java 看起来是什么样，以及少数调用语法不同的地方。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona 用 Kotlin 编写，但 Java 应用是一等目标。每一个公开 API 的形状都让 Java 调用点读起来自然，并且 Kona 仓库把 Java 示例（`samples/hello-java`）放在 Kotlin 示例（`samples/hello-kotlin`）旁边，作为回归测试的一部分。当这些文档里的某一页同时展示两种语言时，**行为是相同的**；只有语法不同。
+
+本页解释背后的约定，这样你不必到处找例子，也能预测任何 Kona API 从你的语言看起来是什么样。
+
+## Kotlin API 在 Java 里如何出现
+
+Kotlin 编译成普通的 JVM 类。少数语言特性以可预测的方式转换：
+
+| Kotlin 声明 | Kotlin 代码写什么 | Java 代码写什么 |
+|-------------|-------------------|-----------------|
+| 属性 `val container` | `app.container` | `app.getContainer()` |
+| 可变属性 `var status` | `response.status = 201` | `response.setStatus(201)` |
+| 带 `@JvmStatic` 成员的 `object Kona` | `Kona.create(args)` | `Kona.create(args)` |
+| 嵌套类 `Application.Builder` | `Application.Builder` | `Application.Builder` |
+| `fun interface Handler` | 尾随 lambda `{ request -> ... }` | lambda `request -> ...` 或方法引用 |
+| 函数类型 `(Container) -> T` | `{ c -> Greeter() }` | `c -> new Greeter()` |
+| 返回类型 `T?`（可空） | 编译器强制空检查 | 可能返回 `null`；自己检查 |
+
+Kona 用 `@JvmStatic` 标记入口点（`Kona`、`Env`、`Application.builder`、`Response.text`/`json`/`html`、`Request.get`/`post`、`Config.toBoolean`），因此 Java 把它们当作普通静态方法调用，不需要经过 `.INSTANCE` 或 `.Companion`。
+
+## 启动应用
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app: Application = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .configure { config -> config.set("app.name", "Demo") }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .configure(config -> config.set("app.name", "Demo"))
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+
+`configure` 接受 `java.util.function.Consumer<Config>`，因此它直接接受 Java lambda，并通过 SAM 转换接受 Kotlin lambda。
+
+## 编写服务提供者
+
+`ServiceProvider` 是带 `register(Application)` 和 `boot(Application)` 的接口。在 Kotlin 里，`boot` 有空的默认体，因此 Kotlin 提供者可以省略它。**Java 提供者必须实现两个方法**：Kotlin 默认没有编译成 Java 的 `default` 方法，所以启动时无事可做就把 `boot` 留空。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Clock::class.java) { SystemClock() }
+    }
+
+    override fun boot(app: Application) {
+        val router = app.resolve(Router::class.java)
+        router.get("/time") { Response.text(app.resolve(Clock::class.java).now().toString()) }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().singleton(Clock.class, c -> new SystemClock());
+    }
+
+    @Override
+    public void boot(Application app) {
+        Router router = app.resolve(Router.class);
+        router.get("/time", request -> Response.text(app.resolve(Clock.class).now().toString()));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+类型总是作为 `Class` 对象传入：Kotlin 是 `Clock::class.java`，Java 是 `Clock.class`。没有具体化泛型的捷径，因此同样的容器调用在两种语言里工作相同。
+
+## 处理函数
+
+**处理函数**是把 `Request` 变成 `Response` 的任何东西。`Handler` 是单方法接口 `handle(Request): Response`，因此任何该形状的 lambda 或方法引用都合适。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/ping") { request -> Response.text("pong") }
+
+val users = UserController()
+router.get("/users") { users.index(it) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/ping", request -> Response.text("pong"));
+
+UserController users = new UserController();
+router.get("/users", users::index);
+```
+
+</TabItem>
+</Tabs>
+
+
+## 中间件与 `next`
+
+**中间件**是在处理函数之前运行的函数 `handle(request, next)`。调用 `next` 把请求继续传到链的下游；不调用它就用你自己的响应提前结束请求。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.http.invoke   // enables next(request)
+
+val requireToken = Middleware { request, next ->
+    if (request.header("X-Token") == "secret") next(request)
+    else Response.json(mapOf("error" to "unauthorized"), 401)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Middleware requireToken = (request, next) ->
+    "secret".equals(request.header("X-Token"))
+        ? next.handle(request)
+        : Response.json(Map.of("error", "unauthorized"), 401);
+```
+
+</TabItem>
+</Tabs>
+
+
+在 Kotlin 里，`next(request)` 是声明在 `org.konaframework.http` 里的运算符扩展；要让它编译，你必须导入 `org.konaframework.http.invoke`。`next.handle(request)` 在两种语言里都不需要额外导入。
+
+## 路由分组
+
+**路由分组**把 URL 前缀、路由名前缀和中间件应用到里面声明的每一条路由。这是按语言形状真正不同的一个 API。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.", middleware = listOf(requireToken)) {
+    get("/me") { Response.json(mapOf("ok" to true)) }.name("me")   // GET /api/me, name "api.me"
+}
+
+// Or declare several routes with a receiver block:
+router.routes {
+    get("/") { Response.text("home") }
+    post("/contact") { Response.noContent() }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").middleware(requireToken).group(api -> {
+    api.get("/me", request -> Response.json(Map.of("ok", true))).name("me");
+});
+
+// Positional overloads, if you prefer:
+router.group("/api", List.of(requireToken), api -> { /* ... */ });
+router.group("/api", "api.", List.of(requireToken), api -> { /* ... */ });
+```
+
+</TabItem>
+</Tabs>
+
+
+Kotlin 的 `group(prefix =, name =, middleware =) { }` 形式使用具名参数和接收者 lambda，因此对 Java 隐藏。Java 得到流畅的 `prefix(...).name(...).middleware(...).group(Consumer<Router>)` 链以及 `Consumer` 重载。两者构建完全相同的路由。
+
+## 默认参数
+
+Kotlin 参数可以有默认值。Kona 加上 `@JvmOverloads` 的地方，Java 看到每个可选参数一个重载：例如 `Response.text(body)` 和 `Response.text(body, status)`，或 `config.get(key)` 和 `config.get(key, default)`。少数函数没有 Java 重载，Java 必须传入每一个参数：
+
+| 调用 | Kotlin | Java |
+|------|--------|------|
+| 环境查找 | `Env.get("KEY")` | `Env.get("KEY", null)`，或 `Env.getOrDefault("KEY", "x")` |
+| 请求输入 | `request.input("q")` | `request.input("q", null)` |
+| 具名路由 URL | `router.route("home")` | `router.route("home", Map.of())` |
+
+如果 Java 在一次 Kona 调用上报告 “method cannot be applied to given types”，缺少默认参数通常是原因。
+
+## 泛型返回类型
+
+按**字符串键**查找的调用返回泛型 `T`，从你赋值的变量推断：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val greeter: Greeter = app.container.make("greeter")
+val port: Int? = app.config.get("server.port")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Greeter greeter = app.getContainer().make("greeter");
+Integer port = app.getConfig().get("server.port");
+```
+
+</TabItem>
+</Tabs>
+
+
+转换是未检查的：如果存储的值是另一种类型，你会在使用处得到 `ClassCastException`。能用时优先使用类型化的配置 getter（`getInt`、`getString`、`getBoolean`）和基于类的容器查找（`make(Greeter.class)`）。
+
+## 在一个项目里混用两种语言
+
+Kotlin 项目可以包含 Java 类，反过来也一样；Kona 不关心提供者或控制器是用哪种语言写的。脚手架使用标准的 `src/main/kotlin` 和 `src/main/java` 根，因此你可以在第一种语言旁边加上另一种的源。`src/main/java/` 下一旦存在任何 `.java` 文件，`grind make:controller` 就选择 `.java`；传入 `--lang=` 可以覆盖。
+
+## 参考示例
+
+Kona 仓库里的 `samples/hello-kotlin` 和 `samples/hello-java` 匹配默认 **web** `kona new` 的*源*布局（Crema 欢迎页加 `/api/health`），并带 HTTP 冒烟测试。它们**不是**完整脚手架：没有 `./grind` 或本地 `./gradlew`，你从仓库根运行它们（`./gradlew :hello-kotlin:run` / `:hello-java:run`）。带 `./grind serve` 的产品路径见[安装](../installation/)和[你的第一个应用](../first-app/)。其他套件（`api`、`wire`、`inertia`）由 CLI 测试套件里的 `kona new` 回归覆盖。

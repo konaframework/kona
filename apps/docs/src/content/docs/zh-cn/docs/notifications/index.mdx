@@ -1,0 +1,68 @@
+---
+title: 通知
+description: 通过邮件、数据库和日志通道通知用户，并持久保存与已读状态。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+实现 `Notifiable`（按通道路由）和 `Notification`（`via`、`toMail`、`toArray`），然后通过 `NotificationSender` 发送。
+
+## 快速开始
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class InvoicePaid : Notification() {
+    override fun via(notifiable: Notifiable) = listOf("mail", "database", "log")
+    override fun toMail(notifiable: Notifiable) = object : Mailable() { /* … */ }
+    override fun toArray(notifiable: Notifiable) = mapOf("status" to "paid")
+}
+
+app.resolve(NotificationSender::class.java).send(user, InvoicePaid())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+app.resolve(NotificationSender.class).send(user, new InvoicePaid());
+```
+
+</TabItem>
+</Tabs>
+
+先注册 `MailServiceProvider`，再注册 `NotificationServiceProvider`。通道：`mail`（需要 `Mailer`）、`database`、`log`。当已注册 `QueueServiceProvider` 且通知实现了 `ShouldQueue` 时，投递会经过 `Bus`。
+
+## 数据库通道的持久化
+
+`DatabaseChannel` 存储 [NotificationRecord] 行（id、type、data、notifiable、`readAt`、时间戳）。
+
+| `notifications.database.driver` | 行为 |
+|---------------------------------|------|
+| `memory`（默认） | 进程内存储；可通过 `notifications.database.path` 使用可选的 JSON 文件 |
+| `file` / `json` | 配置了路径时与 memory 相同 |
+| `database` / `cadence` | 绑定了 `Database` 时使用 Cadence 表（默认 `notifications`） |
+
+```kotlin
+app.config.set("notifications.database.driver", "database")
+app.config.set("notifications.database.table", "notifications")
+app.register(CadenceServiceProvider())
+app.register(NotificationServiceProvider())
+```
+
+### 未读 / 标为已读
+
+```kotlin
+val db = app.resolve(DatabaseChannel::class.java)
+val unread = db.unread("user@example.com")
+db.markAsRead(unread.first().id)
+db.markAllAsRead("user@example.com")
+```
+
+```java
+DatabaseChannel db = app.resolve(DatabaseChannel.class);
+db.markAllAsRead("user@example.com");
+```
+
+测试里也可以直接构造 `DatabaseChannel(path)` 或 `DatabaseChannel(store)`。

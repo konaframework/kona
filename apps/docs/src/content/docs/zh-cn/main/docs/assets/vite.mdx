@@ -1,0 +1,93 @@
+---
+title: 用 Vite 打包资源
+description: 从 Vite 清单或 Vite 开发服务器发出 script 和样式表标签。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona 的 **Vite 辅助**位于 `kona-crema`（`org.konaframework.crema.assets`），并与 Inertia 共享（`org.konaframework.inertia.assets` 仍是一层薄门面）。它读取标准的 Vite 构建输出和可选的 hot 文件，这样 Crema 的 `@vite` 指令和 Inertia 外壳能在开发和生产中发出正确的标签。
+
+## 磁盘布局
+
+```text
+public/
+  hot                         # dev only: full URL of the Vite dev server
+  build/
+    manifest.json             # preferred (scaffold sets build.manifest to this name)
+    .vite/manifest.json       # Vite’s default location when manifest is just `true`
+    assets/app-<hash>.js
+    assets/app-<hash>.css
+```
+
+## 发出标签
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Vite.tags("src/main/resources/js/app.js")
+// production (names come from the manifest `file` / `css` fields):
+// <link rel="stylesheet" href="/build/assets/app-<hash>.css">
+// <script type="module" src="/build/assets/app-<hash>.js"></script>
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Vite.tags("src/main/resources/js/app.js");
+```
+
+</TabItem>
+</Tabs>
+
+当 `public/hot` 存在时（内容类似 `http://127.0.0.1:5173`），标签指向 Vite 开发服务器。入口 URL 是开发服务器源加上 Vite 提供的入口路径（相对 Vite 项目根的路径 — Inertia 套件是 `src/main/resources/js/app.js`）：
+
+```html
+<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
+<script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
+```
+
+`.css` 入口会变成同一源上的样式表链接。Kona **不会**请求 `/build/` 加上源路径（`/build/src/main/resources/js/app.js` 不是资源 URL）。
+
+解析单个 URL：
+
+```kotlin
+Vite.asset("src/main/resources/js/app.js")
+// dev:    http://127.0.0.1:5173/src/main/resources/js/app.js
+// prod:   /build/assets/app-<hash>.js
+```
+
+`CremaServiceProvider` 和 `InertiaServiceProvider` 把 `AssetManifest` 绑定到 `vite.public_path`，否则绑定到 `inertia.public_path`（默认 `<base>/public`，与 `paths.public` 同一目录），并设置 `Vite` 门面。它们也通过 HTTP 提供该目录，因此 `/branding/…`、`/robots.txt` 和 `/build/assets/…` 来自同一个 Web 根。`src/main/resources/js/app.js` 这类源文件不在那棵树里。
+
+门面已绑定时，Crema 的 `@vite('…')` 使用同一个解析器。如果没有 hot 文件也没有清单，它回退到 `/build/<entry>`。该回退只是占位 — 在期望浏览器加载入口之前，先启动开发服务器或做一次生产构建。这种情况下 Inertia 外壳（`{!! vite !!}`）会把标签槽留空，而不是发出占位符。
+
+## grind 帮助
+
+```bash
+./grind assets:vite
+```
+
+打印同样的设置清单（不会启动任何进程）。
+
+## 典型的前端脚本
+
+```json
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  }
+}
+```
+
+把 Vite 的 `build.outDir` 指到 `public/build`，并把 `build.manifest` 设为 `'manifest.json'`（单纯的 `true` 会写入 `public/build/.vite/manifest.json`，Kona 也会读取）。开发服务器应把源（例如 `http://127.0.0.1:5173`）写入 `public/hot`，并在退出时删除该文件；生产构建应删除过期的 hot 文件，以便使用清单。Inertia 起步套件（`kona new … --kit=inertia`）和 `./grind install inertia` 会写入做这些事的、2 空格缩进的 `package.json` 和 `vite.config.js`。
+
+```bash
+npm run dev     # public/hot → dev-server script URLs
+npm run build   # public/build/manifest.json → /build/assets/<hash>.*
+```
+
+## Inertia 根视图
+
+设置了 `inertia.root_view` 时，HTML 外壳会收到一个 `vite` 字符串，你可以用 `{!! vite !!}` 打印。默认入口：`src/main/resources/js/app.js`（`InertiaManager.viteEntries`）。

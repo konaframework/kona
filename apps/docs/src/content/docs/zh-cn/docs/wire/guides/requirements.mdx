@@ -1,0 +1,45 @@
+---
+title: 环境要求
+description: 运行和开发 Wire 所需的 JDK、Kona 版本、Node 与工具。
+---
+
+## 运行时（应用）
+
+| 要求 | 版本 / 说明 |
+|------|-------------|
+| **JDK** | 21+（虚拟线程；与 Kona 相同） |
+| **Kona** | 来自 Maven Central 的配套 `kona-http`、`kona-session`、`kona-crema` 及相关模块（当前线：**0.1.1**） |
+| **Wire** | `org.konaframework:kona-wire` |
+| **浏览器** | 现代常青浏览器；Alpine 3.x API |
+
+携带 `_token` 的更新请求需要会话和 CSRF。Cookie 或服务器会话驱动在接到 Kona 的会话提供者之后都可以工作。
+
+## 开发（框架贡献者）
+
+| 工具 | 何时需要 |
+|------|----------|
+| **JDK 21** | 始终需要 — 库与示例 |
+| **Node 22** | 仅在改 `js/wire/` 下的 JS 运行时（Vitest、esbuild、Playwright）时 |
+| **Gradle** | Kona 仓库自带包装器（`./gradlew`） |
+
+在应用里**使用** Wire 不需要 Node。客户端包（`brew.min.js`、`brew.js`、`brew.esm.js`、`brew.csp.min.js`）随 `kona-wire` jar 发布，由框架提供。
+
+## Alpine.js
+
+Wire 在默认运行时里**捆绑**了 Alpine.js `3.17.x` 以及这些插件：
+
+- morph、intersect、collapse、focus、persist、anchor、mask、sort、resize
+
+加载 `/wire/wire.min.js` 时会同时设置 `window.Alpine` 和 `window.Wire`。共存规则和 `$wire` 见 [Alpine.js 配合](/docs/wire/js/alpine/)。
+
+## 可选
+
+| 部分 | 作用 |
+|------|------|
+| **Vite / 资源管线** | 仅当你自己打包 Wire ESM，而不是使用框架提供的脚本 |
+| **Playwright** | Wire JS 运行时的浏览器冒烟测试（在 Kona 仓库里） |
+| **Kona Idea / LSP** | `<wire:…>` 和 `wire:*` 的补全（见[语言](/docs/language/)和 [kona-idea](https://github.com/konaframework/kona-idea) 项目） |
+
+## 下一步
+
+- [安装](/docs/wire/guides/installation/) — 把 Wire 加到 Kona 项目

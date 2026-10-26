@@ -1,0 +1,81 @@
+---
+
+title: 安装
+description: 用 kona new --kit=firefly 创建 Firefly 应用，或把 kona-firefly 加到现有 Kona 应用。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="empty-admin.png" description="由 kona new --kit=firefly 生成的新应用的 /admin 路径，尚未添加任何页面或资源。" />
+最短的路径是一个新应用。套件会写入一个 `Panel`、三个发现文件夹，以及一个把面板挂在 `/admin` 的启动类。
+
+## 一个新应用
+
+```bash
+kona new desk --kit=firefly
+cd desk
+./grind serve
+```
+
+Java：
+
+```bash
+kona new desk --kit=firefly --lang=java
+cd desk
+./grind serve
+```
+
+打开 `http://127.0.0.1:4000/`。欢迎路由留在 `/`。面板在 `http://127.0.0.1:4000/admin`。
+
+生成的 Gradle 文件依赖 Maven Central。CLI 写入的 `org.konaframework:kona-firefly` 版本与该文件里的 `kona-http` 和其他 Kona 构件相同。
+
+## 现有应用
+
+在其他 `org.konaframework` 依赖旁边加上同一坐标：
+
+```kotlin
+dependencies {
+    implementation("org.konaframework:kona-firefly:0.3.0")
+}
+```
+
+版本要与该文件里其他 `org.konaframework` 行一致。本仓库的版本是 `0.3.0`。
+
+然后加上一个 `Panel`，并在你自己的路由登记之后对路由器调用 `mount`。[登记面板](/docs/firefly/registration/) 就是这一步。`kona-firefly` 自己不登记路由。
+
+在 Kona 仓库内部，hello 示例直接依赖该模块：
+
+```kotlin
+implementation(project(":kona-firefly"))
+```
+
+`samples/hello-kotlin` 和 `samples/hello-java` 是[一个能工作的应用](/docs/firefly/working-app/)里使用的具体工作台。
+
+## 存在的命令
+
+在应用目录里，`./grind` 接受这些 Firefly 命令。应用是 Java 时，每个 `make` 命令接受 `--lang=java`。Kotlin 是默认。
+
+| 命令 | 它写入什么 |
+|------|------------|
+| `make:firefly-panel` | `app/firefly/Panel` 以及 `pages/`、`widgets/` 和 `resources/` |
+| `firefly:install` | 与 `make:firefly-panel` 相同的树 |
+| `make:firefly-page Desk` | `pages/` 里的一个 `CustomPage` |
+| `make:firefly-theme Harbor` | `themes/` 里的一个主题类 |
+| `make:firefly-resource Note --simple` | `resources/` 里的一个 Manage 页面 |
+| `make:firefly-resource Order` | 列表、创建、编辑和查看页面，外加一个关联管理器 |
+| `make:firefly-field Price` | `fields/` 下的字段类和 Crema 视图 |
+| `make:firefly-entry Note` | `entries/` 下的信息列表条目 |
+| `make:firefly-column Name` | `columns/` 下的表格列 |
+| `make:firefly-filter Status` | `filters/` 下的表格筛选 |
+| `make:firefly-action SaveRecord` | `actions/` 下的动作类和视图 |
+| `make:firefly-layout Banner` | `layouts/` 下的布局组件 |
+| `make:firefly-widget Revenue` | `widgets/` 下的部件 |
+| `firefly:publish` | `resources/views/firefly/sidebar.crema.html` 处的侧栏局部 |
+
+`make:firefly-panel` 写入一个名为 `Panel` 的类。传入另一个类名会失败。可选标志 `--id=` 和 `--path=` 设置生成的 id 和 URL 前缀。`./grind firefly:install` 写入同一棵树。
+
+没有 `grind install firefly`。使用套件，或自己加上 Maven 坐标。
+
+## 下一步
+
+[登记面板](/docs/firefly/registration/) 是套件已经创建的文件，以及发现如何找到页面、部件和资源。

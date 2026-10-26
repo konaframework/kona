@@ -1,0 +1,129 @@
+---
+title: 示例 — 实时搜索
+description: 带防抖的 wire:model.live 搜索列表，计算属性结果和带键的变形。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+一个典型的 Wire 流程：在搜索框里输入，短暂防抖后重新渲染过滤后的列表，而不整页刷新。
+
+## 组件
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.wire
+
+import org.konaframework.wire.Component
+import org.konaframework.wire.Computed
+
+class Search : Component() {
+    var query = ""
+
+    @Computed
+    fun results(): List<String> =
+        BEANS.filter { query.isBlank() || it.contains(query.trim(), ignoreCase = true) }
+
+    override fun template() = """
+        <div class="card">
+            <h2>Search beans</h2>
+            <input
+                type="search"
+                wire:model.live.debounce.300ms="query"
+                placeholder="Try 'kona'"
+            >
+            <ul>
+            @foreach(results as bean)
+                <li wire:key="{{ bean }}">{{ bean }}</li>
+            @endforeach
+            </ul>
+            <p wire:loading wire:target="query">Searching…</p>
+        </div>
+    """.trimIndent()
+
+    companion object {
+        val BEANS = listOf(
+            "Kona Extra Fancy",
+            "Kona Peaberry",
+            "Ethiopia Yirgacheffe",
+            "Colombia Supremo",
+            "Sumatra Mandheling",
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.wire;
+
+import org.konaframework.wire.Component;
+import org.konaframework.wire.Computed;
+import java.util.List;
+
+public class Search extends Component {
+    public String query = "";
+
+    @Computed
+    public List<String> results() {
+        String q = query == null ? "" : query.trim();
+        return BEANS.stream()
+            .filter(bean -> q.isEmpty() || bean.toLowerCase().contains(q.toLowerCase()))
+            .toList();
+    }
+
+    @Override
+    public String template() {
+        return """
+            <div class="card">
+                <h2>Search beans</h2>
+                <input type="search" wire:model.live.debounce.300ms="query" placeholder="Try 'kona'">
+                <ul>
+                @foreach(results as bean)
+                    <li wire:key="{{ bean }}">{{ bean }}</li>
+                @endforeach
+                </ul>
+            </div>
+            """;
+    }
+
+    private static final List<String> BEANS = List.of(
+        "Kona Extra Fancy",
+        "Kona Peaberry",
+        "Ethiopia Yirgacheffe",
+        "Colombia Supremo",
+        "Sumatra Mandheling"
+    );
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 为什么这样能工作
+
+1. `wire:model.live.debounce.300ms` 在停止输入 300ms 后把 `query` 更新到服务器。
+2. `@Computed` 的 `results()` 在每次请求时根据当前状态重新计算。
+3. 每个 `<li>` 上的 `wire:key` 在列表变短或变长时让变形保持稳定。
+4. 可选的 `wire:loading` 加 `wire:target="query"` 在往返期间显示反馈。
+
+在任何已经加载了 `@wireScripts` 的 Crema 页面上用 `<wire:search />` 嵌入。
+
+## 测试
+
+```kotlin
+Wire.test("search")
+    .set("query", "kona")
+    .assertSee("Kona Extra Fancy")
+    .assertSee("Kona Peaberry")
+    .assertDontSee("Colombia Supremo")
+```
+
+## 下一步
+
+- [表单与校验](/docs/wire/essentials/forms/) — 更多 `wire:model` 修饰符
+- [属性](/docs/wire/essentials/properties/) — `@Computed`
+- [示例 — 计数器](/docs/wire/examples/counter/) — 更简单的动作驱动界面

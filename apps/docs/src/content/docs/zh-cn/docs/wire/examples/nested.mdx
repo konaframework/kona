@@ -1,0 +1,104 @@
+---
+title: 示例 — 嵌套组件
+description: 父子属性、事件、可建模绑定，以及惰性占位。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+仪表盘父组件承载一个响应式面板子组件，并监听子组件事件。
+
+## 子组件
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Panel : Component() {
+    @field:Reactive
+    var title = ""
+
+    @field:Modelable
+    var note = ""
+
+    fun save() {
+        dispatch("panel-saved", mapOf("title" to title))
+    }
+
+    override fun template() = """
+        <section>
+            <h2>{{ title }}</h2>
+            <input wire:model.live="note" />
+            <button type="button" wire:click="save">Save panel</button>
+        </section>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Panel extends Component {
+    @Reactive public String title = "";
+    @Modelable public String note = "";
+
+    public void save() {
+        dispatch("panel-saved", Map.of("title", title));
+    }
+
+    @Override
+    public String template() {
+        return """
+            <section>
+                <h2>{{ title }}</h2>
+                <input wire:model.live="note" />
+                <button type="button" wire:click="save">Save panel</button>
+            </section>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 父组件
+
+```kotlin
+class Dashboard : Component() {
+    var heading = "Ops"
+    var draft = ""
+    var lastSaved = ""
+
+    fun onPanelSaved(title: String = "") {
+        lastSaved = title
+    }
+
+    override fun template() = """
+        <div>
+            <p>Last saved: {{ lastSaved }}</p>
+            <wire:panel
+                wire:key="main"
+                :title="heading"
+                wire:model="draft"
+                @panel-saved="onPanelSaved"
+            />
+        </div>
+    """.trimIndent()
+}
+```
+
+## 惰性子组件
+
+```kotlin
+@Lazy
+class HeavyChart : Component() {
+    override fun placeholder() = """<div aria-busy="true">Loading chart…</div>"""
+}
+```
+
+```crema
+<wire:heavy-chart lazy />
+```
+
+更多细节：[嵌套、岛屿与惰性加载](/docs/wire/advanced/nesting/)。

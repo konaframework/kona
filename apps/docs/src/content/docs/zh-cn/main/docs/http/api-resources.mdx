@@ -1,0 +1,119 @@
+---
+title: API 资源
+description: 用 JsonResource、条件属性、whenLoaded 和 ResourceCollection 把领域对象转换成稳定的 JSON 映射。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**API 资源**是领域对象与发给客户端的 JSON 映射之间的专用转换器。把映射放在一个类里，可以避免泄漏内部字段，并让列表载荷和详情载荷保持一致。
+
+用 [`./grind make:resource User`](../../grind/commands/#grind-makeresource) 生成桩（`--collection` 会加上 `collection` 辅助方法）。
+
+## 单个资源
+
+子类化 `JsonResource` 并实现 `toArray`。默认情况下 `resolve` / `toResponse` 把映射包在 `"data"` 键下。调用 `JsonResource.withoutWrapping()`（通常在启动时调用一次）可以关闭包装，或用 `JsonResource.wrap("payload")` 改名。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class UserResource(
+    private val id: Int,
+    private val name: String,
+    private val email: String?,
+    model: Any? = null,
+) : JsonResource(model) {
+    override fun toArray(request: Request): Map<String, Any?> =
+        mapOf(
+            "id" to id,
+            "name" to name,
+            "email" to `when`(email != null, email),
+            "admin" to mergeWhen(request.header("X-Role") == "admin", mapOf("role" to "admin")),
+            "posts" to whenLoaded("posts"),
+        )
+}
+
+router.get("/users/{id}") { request ->
+    UserResource(1, "Ada", "ada@example.com").toResponse(request)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class UserResource extends JsonResource {
+    private final int id;
+    private final String name;
+
+    public UserResource(int id, String name, Object model) {
+        super(model);
+        this.id = id;
+        this.name = name;
+    }
+
+    @Override
+    public Map<String, Object> toArray(Request request) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", id);
+        data.put("name", name);
+        data.put("posts", whenLoaded("posts"));
+        return data;
+    }
+}
+
+router.get("/users/{id}", request -> new UserResource(1, "Ada", null).toResponse(request));
+```
+
+</TabItem>
+</Tabs>
+
+### 条件辅助方法
+
+| 辅助方法 | 行为 |
+|----------|------|
+| `when(condition, value)` | 条件为假时省略该键（`MissingValue`） |
+| `mergeWhen(condition, map)` | 为真时把 `map` 展平进父映射 |
+| `whenLoaded("relation")` | 仅当底层模型已经加载了该关联时才包含它（`relationLoaded` / `getRelation` — 可与 Cadence 模型配合，没有硬依赖） |
+| `additional(map)` / `with(request)` | 包装载荷旁边的额外顶层键 |
+
+`toResponse` 把 `resolve` 包进 `Response.json(...)`。需要映射但还不要构建响应时，调用 `resolve(request)`。
+
+## 集合
+
+用 `JsonResource.collection(...)` 包装多个资源。默认载荷是 `{ "data": [ ... ] }`。用 `wrap` 更改或去掉包装：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val payload = JsonResource.collection(
+    listOf(UserResource(1, "Ada", null), UserResource(2, "Grace", null)),
+).wrap("users").toResponse(request)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Response payload = JsonResource.collection(
+    List.of(new UserResource(1, "Ada", null), new UserResource(2, "Grace", null))
+).wrap("users").toResponse(request);
+```
+
+</TabItem>
+</Tabs>
+
+传入 `wrap(null)` 可以得到裸 JSON 数组。
+
+## 与 API 路由一起
+
+登记一个 API 资源控制器，然后从动作返回资源：
+
+```kotlin
+router.group(prefix = "/api", name = "api.") {
+    apiResource("projects", ProjectApiController(app))
+}
+```
+
+典型流程：控制器加载模型（可选地带上关联）→ 构建资源 → 返回 `toResponse`。与[控制器](../controllers/)、[resource / apiResource 路由](../routing/#resource-routes) 以及[URL 生成](../url-generation/)中的具名链接配合使用。

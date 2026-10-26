@@ -1,0 +1,113 @@
+---
+
+title: 页面
+description: 面板页面 — 标题、动作、内容区域、部件，以及列表、创建、编辑、查看、管理和自定义类型。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="desk.png" description="Desk 页，位于 http://127.0.0.1:4017/admin/desk，带名称字段、状态组合框、到期选择器、信息列表、表格和编辑页眉动作。" />
+
+页面是面板路由提供的屏幕。它有标题、页眉动作、页脚动作、一个内容区域，以及可选的部件。内容区域挂载模式、表单、信息列表或表格。单独渲染这些部分对测试和嵌入仍然有效。把页面变成 URL 的是面板。
+
+类型位于 `org.konaframework.firefly` 和 `org.konaframework.firefly.widgets`。`PanelPage` 扩展 `Page`。`ListPage`、`CreatePage`、`EditPage`、`ViewPage`、`ManagePage` 和 `CustomPage` 是页面种类。`Dashboard` 是一个 `Page`，其节类是 `ff-page ff-dashboard`。
+
+## 页面如何被提供
+
+`Panel.mount` 为从 `pages/` 发现或传给 `page(...)` 的每个页面登记 `GET /{prefix}/{slug}`。hello 示例的 `Desk` 使用 slug `desk`，因此路由是 `/admin/desk`。请求被允许时，面板渲染外框并把 `page.render()` 放进正文。
+
+`navigationLabel()` 是侧栏文本。默认是 slug，slug 为空时是 `Dashboard`。这就是为什么标题为 `Desk` 的页面在你改变标签路径之前，链接仍可能显示 `desk`。`parent("name")` 把页面嵌到具有该名称的导航项下。缺少父项会在挂载时失败，并写出两项的名字。
+
+## Desk 页面
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Desk : CustomPage("desk") {
+    init {
+        title("Desk")
+        mountForm(
+            Schema.make().components(
+                TextInput.make("name"),
+                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+                DateTimePicker.make("due"),
+            ),
+        )
+        mountInfolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+        headerActions(
+            Action.make("edit").label("Edit").modal().modalHeading("Edit note").schema(TextInput.make("note")),
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Desk extends CustomPage {
+    public Desk() {
+        super("desk");
+        title("Desk");
+        mountForm(Schema.make().components(
+            TextInput.make("name"),
+            Select.make("status").options(Map.of("open", "Open", "done", "Done")),
+            DateTimePicker.make("due")
+        ));
+        mountInfolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(row()).columns(TextColumn.make("name")));
+        headerActions(Action.make("edit").label("Edit").modal().modalHeading("Edit note").schema(TextInput.make("note")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`mountForm` 把模式存为页面表单。`mountInfolist` 把信息列表渲染成 HTML 并存储该标记。`table` 和 `headerActions` 来自 `Page`。编辑动作的对话框在 HTML 里，并保持关闭，直到 Alpine 打开它。
+
+```bash
+./grind make:firefly-page Desk
+./grind make:firefly-page Desk --lang=java
+```
+
+该命令写入一个 `CustomPage`，slug 是小写名称，并且还没有表单。
+
+## Page 上的方法
+
+| 方法 | 它做什么 |
+|------|----------|
+| `title(value)` / `title(provider)` | 标题文本，或接收 `Get` 的闭包 |
+| `headerActions(...)` / `footerActions(...)` | 替换该动作列表 |
+| `widgets(...)` | 替换画在 `ff-page-widgets` 里的部件 |
+| `discoverWidgets(directory)` | 追加在 `directory/widgets` 下找到的部件 |
+| `schema(schema)` | 来自模式的内容区域 |
+| `form(schema)` | 来自表单模式的内容区域 |
+| `infolistHtml(html)` | 来自信息列表 HTML 的内容区域 |
+| `table(table)` | 来自表格的内容区域 |
+| `render()` / `render(state)` | 带页眉、内容、部件和页脚的 `<section class="ff-page">` |
+
+`PanelPage` 增加：
+
+| 方法 | 它做什么 |
+|------|----------|
+| `slug()` | 构造器 slug，或去掉尾部 `Page` 后小写的类名 |
+| `navigationLabel()` | slug 文本，slug 为空时是 `Dashboard` |
+| `parent(name)` | 导航父项。`parentName()` 把它读回来 |
+| `mountForm(schema)` | 与 `form` 同一个槽 |
+| `mountInfolist(infolist)` | 渲染信息列表并存储 HTML |
+
+节类：`ff-list`、`ff-create`、`ff-edit`、`ff-view`、`ff-manage`、`ff-custom`。回退标题与这些名字匹配（`List`、`Create`、`Edit`、`View`、`Manage`、`Custom`）。
+
+`ManagePage` 是简单资源使用的页面。该资源的创建、编辑、查看和删除是页眉动作。请读[资源](/docs/firefly/resources/)。
+
+## 页面上的部件
+
+`Page.render()` 包含 `<div class="ff-page-widgets">`。你传给 `widgets(...)` 的部件在页面里，不只是你在旁边渲染的字符串。面板也会把发现到的部件复制到主页（空 slug）或第一页。见[部件](/docs/firefly/widgets/)。
+
+## 下一步
+
+[导航](/docs/firefly/navigation/) 说明这些页面如何出现在侧栏和顶栏。

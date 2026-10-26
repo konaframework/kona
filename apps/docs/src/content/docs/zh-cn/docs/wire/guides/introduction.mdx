@@ -1,0 +1,58 @@
+---
+title: 介绍
+description: Wire 是什么、何时使用，以及它如何融入 Kona 应用。
+---
+
+**Kona Wire**（简称 **Wire**）是 Kona 的响应式服务端组件产品。你写一个带有公开状态和动作的类，用 Crema 渲染 HTML，Wire 通过一套小的 JSON 协议让浏览器保持同步 — 不必为每次交互整页刷新。
+
+（简短说明：Wire 处理的是流行的全栈响应式组件工具所面对的同一类问题。本站其余部分只按 Wire 自身的术语来描述它。）
+
+以前的产品名 **Brew** 是 0.3.0 系列的兼容别名：`<brew:name />`、`@brew`、`--kit=brew` 和 `org.konaframework:kona-brew` 仍然可用。新应用应使用 `<wire:name />`、`--kit=wire` 和 `kona-wire`。HTML 属性永远是 `wire:*`。
+
+## 何时使用 Wire
+
+在这些情况下使用 Wire：
+
+- **状态属于服务器** — 表单草稿、筛选、分页和界面开关都放在 JVM 上。
+- **增量更新 HTML** — 客户端把返回的 HTML 变形进现有 DOM。
+- **Kotlin 和 Java 同等** — 同一套组件模型，并有一等的 Java 示例和测试。
+- **与 Crema 紧密结合** — 模板、布局和指令留在与 Kona 同一套栈里。
+
+当界面几乎完全由客户端驱动、服务器只是数据平面时，更适合 JSON API 加 SPA。当交互很少、整页响应就够用时，更适合普通的 Kona 控制器加 Crema。
+
+## 你会得到什么
+
+1. 一个**组件类** — 公开字段是状态；公开方法是浏览器可以调用的动作。
+2. 根 HTML 元素上的一份**快照**（`wire:snapshot`、`wire:effects`、`wire:id`、`wire:name`）。
+3. 一个**客户端运行时**，它向 `POST /wire/update` 发请求，并把新 HTML 变形到位。
+4. 捆绑的 **Alpine.js** 运行时 — Wire 带有 Alpine 3.x 和插件；默认 script 标签不需要单独安装 Alpine。
+
+## 一次点击如何工作
+
+1. 浏览器找到组件根（`wire:id`）并读取 `wire:snapshot`。
+2. 它把 `{ _token, components: [{ snapshot, updates, calls }] }` `POST` 到 `/wire/update`，并带上 `X-Brew` 头（更新协议的头没有改名）。
+3. 服务器校验 CSRF 和校验和，恢复状态，运行动作，重新渲染，并返回 `{ components: [{ snapshot, effects }], assets }`。
+4. 客户端把 `effects.html` 变形进 DOM（按 `wire:key` / `wire:id` 作为键）。
+
+校验和损坏或写入锁定属性会使请求失败。缺少组件或未知动作会抛出 Wire 异常。
+
+## 与 Kona 的关系
+
+Wire 以 `org.konaframework:kona-wire` 发布在 Maven Central。它依赖 Kona HTTP、会话、Crema 和相关模块。路由、Crema 和 grind 的框架指南在本站其他位置。
+
+## 一条命令安装
+
+```bash
+./grind install wire
+# or: kona grind install wire
+# or: kona new my-app --kit=wire
+# compatibility: ./grind install wire
+```
+
+细节：[安装](/docs/wire/guides/installation/)。
+
+## 下一步
+
+- [要求](/docs/wire/guides/requirements/) — JDK、Kona、Node
+- [安装](/docs/wire/guides/installation/) — `./grind install wire`、套件，以及可选的手动设置
+- [第一个组件](/docs/wire/guides/first-component/) — Kotlin 与 Java 演练

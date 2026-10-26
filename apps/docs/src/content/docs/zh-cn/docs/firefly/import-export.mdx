@@ -1,0 +1,72 @@
+---
+
+title: 导入和导出
+description: 通过对话框动作和队列任务把行导出为 CSV，再导入回来。
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="export-dialog.png" description="从导出动作打开的导出对话框，标题为 Export。" />
+
+导入和导出是两个任务加上两个对话框动作。`ExportRows` 写 CSV。`ImportRows` 读 CSV。两者都实现 `ShouldQueue`，因此队列 `Bus` 可以运行它们。把 `null` 作为 bus 传入时，`handle()` 在调用方运行。
+
+## 动作
+
+`FireflyTransfer.exportAction()` 是名为 `export`、标签为 `Export` 的动作，作为标题为 `Export` 的模态打开。`importAction()` 形状相同，名称是 `import`。把任一动作放在页面页眉或表格上。对话框保持关闭，直到 Alpine 打开它，与其他每一个 Firefly 对话框相同。
+
+```kotlin
+page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction())
+```
+
+```java
+page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction());
+```
+
+## 运行任务
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val rows = listOf(mapOf("name" to "Ada"))
+FireflyTransfer.export(rows, path, bus)
+val imported = FireflyTransfer.import(path, null)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FireflyTransfer.export(List.of(Map.of("name", "Ada")), path, bus);
+List<Map<String, String>> imported = FireflyTransfer.import(path, null);
+```
+
+</TabItem>
+</Tabs>
+
+当 `bus` 为 null 时，`export` 在 `handle()` 写完文件后返回 `"sync"`。有 bus 时，它返回 `bus.dispatch` 返回的任何值。空的行列表会抛出 `Export has no rows`。
+
+`import` 在 bus 为 null 时返回解析后的行。缺少文件会抛出 `Import file is missing [path]`。空文件会抛出 `Import file is empty`。有 bus 时，`import` 派发任务并返回任务的行列表。在 sync 驱动上，该列表在 `dispatch` 返回之前就被填好。稍后才运行的驱动会让列表保持为空，直到 `handle()` 运行。
+
+CSV 编码会给包含逗号或引号的单元格加引号，并在引号单元格内把引号加倍。表头行是第一张映射的键集合。后续行按该列顺序读取。较短的行对缺少的单元格存储空字符串。
+
+## 测试
+
+`Firefly.test` 读取已渲染的页面、表单、表格或对话框。它位于 `org.konaframework.firefly.testing`。
+
+```kotlin
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("name")
+    .assertTable("Ada")
+    .assertDialog("Export")
+```
+
+```java
+Firefly.test(page).assertSee("Ada").assertFormField("name");
+```
+
+HTML 不包含该文本时 `assertSee` 失败。`assertFormField` 查找 `data-ff-path`。自定义字段子类以同样方式被找到。`assertTable` 要求同时有 `ff-table` 和该文本。`assertDialog` 要求同时有 `ff-dialog` 和标题。`Firefly.test(html)` 对你已经渲染的字符串做断言。
+
+`kona new desk --kit=firefly` 是[安装](/docs/firefly/installation/)上的安装路径。它不是单独的运行时。

@@ -1,16 +1,16 @@
 ---
 title: Dialog
-description: The shared Firefly dialog — modal, sidebar, and fullscreen — including width, drag, and configureUsing.
+description: Call Dialog.make, pick modal, sidebar, or fullscreen, and render the HTML. The page that embeds it decides when it opens.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="dialog.png" description="The Edit dialog on the Desk page at http://127.0.0.1:4017/admin/desk, opened from the Edit header action, with a note field inside." />
-
-A dialog is the window that opens on top of a page. You use it for a confirmation, a short form, or a side panel. There is one component, `Dialog`. You pick a mode, a width, a title, and a body, and `render()` returns the HTML.
+Open a window on top of a page for a confirmation, a short form, or a side panel. There is one component, `Dialog`. Pick a mode, a width, a title, and a body, then call `render()`.
 
 The dialog does not open itself, and it does not post to the server. The page that embeds the HTML decides when it is shown. On the Desk page the Edit action’s dialog is in the first response and stays closed until the button opens it.
+
+<FireflyShot file="dialog.png" description="The Edit dialog on the Desk page at http://127.0.0.1:4017/admin/desk, opened from the Edit header action, with a note field inside." />
 
 ## Create one
 
@@ -37,9 +37,9 @@ String html = Dialog.make("Edit category")
 </TabItem>
 </Tabs>
 
-The title is HTML-escaped. `A & B <tag> "q"` becomes `A &amp; B &lt;tag&gt; &quot;q&quot;`. The body is inserted as the string you passed. Escape body HTML yourself when it comes from a user.
+You get a modal titled **Edit category** with the body `Name`. The title is HTML-escaped. `A & B <tag> "q"` becomes `A &amp; B &lt;tag&gt; &quot;q&quot;`. The body is inserted as the string you passed. Escape body HTML yourself when it comes from a user.
 
-## Modes
+## Choose the mode
 
 | Call | Root classes | Extra attributes |
 |------|----------------|------------------|
@@ -52,9 +52,9 @@ The root element always has `role="dialog"`. Inside it: an overlay (`ff-dialog-o
 
 Calling `modal()` after `slideOver()` switches the mode back to modal. The stored sidebar position is left as it was and is not rendered on a modal.
 
-`width("screen")` only changes the width class to `ff-dialog-screen`. It does not make the dialog fullscreen. Fullscreen is `fullscreen()`.
+`width("screen")` changes the width class to `ff-dialog-screen`. Fullscreen is `fullscreen()`.
 
-## Width
+## Set the width
 
 `width` accepts `sm`, `md`, `lg`, `xl`, or `screen`. Anything else throws `FireflyException`:
 
@@ -64,7 +64,7 @@ Unknown dialog width [<value>]
 
 The default is `lg`, so the class `ff-dialog-lg` is present until you change it. The width class is rendered for sidebar and fullscreen dialogs as well.
 
-## Dragging
+## Turn dragging on or off
 
 `draggable(true)` is the default. `draggable(false)` removes the drag attributes.
 
@@ -76,7 +76,7 @@ x-data="ffDialog" data-ff-drag="true"
 
 The modal window is offset by the stylesheet: `.ff-dialog-modal .ff-dialog-window` has a top margin of `4rem`. That is the top alignment. Sidebar and fullscreen windows do not get that margin.
 
-## configureUsing
+## Set a default for later dialogs
 
 `Dialog.configureUsing` stores one `Consumer<Dialog>` used by later `make` calls. Pass `null` to clear it. The setting is static and shared by every `make` in the process until you replace or clear it.
 
@@ -105,6 +105,6 @@ The example’s HTML contains `ff-dialog-sidebar`, `ff-dialog-md`, and `data-ff-
 
 A configurer runs before your own calls, so a later `width("xl")` on that instance replaces the configured width.
 
-## Actions
+## Open it from an action
 
-[Actions](/docs/firefly/actions/) open this dialog. `slideOver()`, `slideOverStart()`, `fullscreen()`, and the default modal call `Dialog.make`. The action supplies the title, the width, and the body.
+[Actions](/docs/firefly/actions/) open this dialog. `slideOver()`, `slideOverStart()`, `fullscreen()`, and the default modal call `Dialog.make`. The action supplies the title, the width, and the body. On the Desk page, the Edit header action opens a dialog with a note field.

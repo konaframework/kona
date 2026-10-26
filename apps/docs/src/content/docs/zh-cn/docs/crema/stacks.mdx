@@ -1,0 +1,101 @@
+---
+title: 栈
+description: 从子视图和片段把脚本与样式压入或前置到具名栈。
+---
+
+**栈**从子视图、包含和组件收集 HTML 片段，然后在布局调用 `@stack` 的地方打印它们。典型用法：每个页面压入自己的脚本；布局在 `</body>` 之前一次性输出。
+
+## 压入与前置
+
+```crema
+@push('scripts')
+  <script src="/app.js"></script>
+@endpush
+
+@prepend('scripts')
+  <script src="/vendor.js"></script>
+@endprepend
+```
+
+| 指令 | 效果 |
+|------|------|
+| `@push('name')…@endpush` | 把片段追加到栈的末尾 |
+| `@prepend('name')…@endprepend` | 把片段插到栈的最前面 |
+
+压入时会展开正文（输出和嵌套指令在当前上下文里运行）。push/prepend 指令本身在调用处不输出任何东西 — 它们只填充栈。
+
+## 渲染栈
+
+在布局里（或任何应当打印已收集片段的祖先里）：
+
+```crema
+@stack('scripts')
+@stack('styles')
+```
+
+同时使用 push 和 prepend 时的顺序：**所有前置片段在前**（每次 prepend 插到索引 0，所以后前置的出现在先前置的前面），然后是**按登记顺序的压入片段**。
+
+示例：
+
+```crema
+@prepend('scripts')A@endprepend
+@push('scripts')B@endpush
+@prepend('scripts')C@endprepend
+@stack('scripts')
+{{-- → CAB --}}
+```
+
+## 布局模式
+
+```crema
+{{-- layouts/app.crema.html --}}
+<html>
+  <head>
+    @stack('styles')
+  </head>
+  <body>
+    @yield('content')
+    @stack('scripts')
+  </body>
+</html>
+```
+
+```crema
+{{-- posts/show.crema.html --}}
+@extends('layouts.app')
+@section('content')
+  <article>…</article>
+@endsection
+@push('styles')
+  <link rel="stylesheet" href="/posts.css">
+@endpush
+@push('scripts')
+  <script src="/posts-show.js"></script>
+@endpush
+```
+
+压入可以写在 `@section` 块里面或旁边；父布局渲染之前两者都会被收集。
+
+## 片段与组件
+
+包含和组件在同一次渲染里共享同一套栈映射。`@include('partials.chart')` 里面的 `@push` 仍然会出现在布局的 `@stack` 里。这样片段可以一次性登记自己的资源，尤其是和 [`@once`](/docs/crema/includes/#once) 一起用：
+
+```crema
+{{-- partials/chart.crema.html --}}
+@once
+  @push('scripts')
+    <script src="/chart-lib.js"></script>
+  @endpush
+@endonce
+<div class="chart" data-id="{{ id }}"></div>
+```
+
+## 空栈
+
+什么都没压入时，`@stack('missing')` 打印空字符串。不必事先声明栈。
+
+## 相关
+
+- [布局](/docs/crema/layouts/) — 栈通常放在哪里
+- [渲染](/docs/crema/rendering/#vite) — 打包入口的 `@vite`
+- [表单](/docs/crema/forms/) — CSRF 和方法辅助通常靠近表单，不在栈里

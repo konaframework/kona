@@ -1,0 +1,268 @@
+---
+title: 扩展
+description: 在高负载下运行 Kona 应用 — 一个 JVM 何时足够、如何增加实例、如何设定数据库池大小、如何共享会话和缓存，以及如何运行队列和调度器工作进程。
+---
+
+本页面向必须承受**大量并发流量**、大载荷或突发作业队列的应用。它假设你已经按[部署](../deployment/)发布（VM 上的 `./grind deploy:systemd`）。下面每一个旋钮今天都存在于框架里 — 不要把这当作计划功能的目录。
+
+一个 Kona HTTP 进程是一个 JVM。`KonaHttpServer` 为**每个请求启动一个虚拟线程**。处理函数里阻塞的 JDBC、文件 I/O 和出站 HTTP 不会在整个等待期间占用操作系统线程。这就是为什么单个大小合适的进程常常跑过一小队把时间花在连接池里的进程。
+
+需要滚动重启、不止一台机器，或你碰到虚拟线程搬不动的限制时，再**向外**扩展（更多进程）：数据库连接、Redis、磁盘或堆。
+
+## 决定：一个进程还是许多
+
+在这些情况下留在**一个 systemd 单元**：
+
+- 一台机器能装下工作集（堆 + Metaspace + 堆外 Netty 缓冲）。
+- 数据库 `max_connections` 预算很小（见[数据库池](#database-pool)）。
+- 会话是 cookie（`kona new` 默认），或你还不需要共享缓存。
+- 队列是 `sync`，或单个 `queue:work` 就够。
+
+在这些情况下增加**更多 HTTP 进程**：
+
+- 你想重启而不丢掉所有连接（代理排空一个上游，然后下一个）。
+- 即使 JVM 有内存，一台 VM 上的 CPU 也饱和了（虚拟线程对 CPU 密集工作仍然需要核心：JSON、哈希、图像工作）。
+- 你为隔离拆分机器（API 对工作进程对调度器）。
+
+**不要**为了“让虚拟线程更快”而增加进程。额外的 JVM 各自打开自己的 Hikari 池。两个 `DB_POOL_SIZE=10` 的进程持有 20 个数据库连接，不是 10 个。
+
+## 拓扑
+
+```text
+                     TLS
+                      │
+               reverse proxy
+               (Caddy / nginx)
+                 /    |    \
+           :4000    :4001    :4002     HTTP JVMs (same APP_KEY, same code)
+                 \    |    /
+                    Redis                 sessions / cache / queue (when shared)
+                      │
+                   database              one Hikari pool per JVM
+                      │
+              queue:work × N             separate systemd units
+              schedule:work × 1          exactly one
+```
+
+每个 HTTP 实例是 `./grind deploy:systemd` 的 systemd 包的一份副本，带**不同的 `PORT`**（如果它们共享一台主机，还有唯一的 `--prefix` / 工作目录）。代理做负载均衡。迁移对数据库运行**一次**，不是每个实例一次。
+
+## HTTP 实例（systemd）
+
+照常生成第一个包。同一主机上的第二个实例：
+
+```bash
+./grind deploy:systemd --force --name=hello-kona-2 --port=4001 --prefix=/var/www/hello-kona-2
+```
+
+`install.sh` 会写入 `/etc/systemd/system/hello-kona-2.service` 和 `/etc/kona/hello-kona-2.env`。在实例之间保持 `APP_KEY`、`DB_*` 和 `APP_URL` 相同。只有 `HOST` / `PORT` 和前缀改变。
+
+把代理指向每一个监听地址：
+
+```nginx
+upstream kona_app {
+    server 127.0.0.1:4000;
+    server 127.0.0.1:4001;
+    server 127.0.0.1:4002;
+}
+```
+
+Caddy：
+
+```text
+app.example.com {
+    reverse_proxy 127.0.0.1:4000 127.0.0.1:4001 127.0.0.1:4002
+}
+```
+
+在**不同的机器**上，每台使用相同的单元名和端口，并把机器 IP 放进上游列表。复制同一个 `APP_KEY`。
+
+生成的单元上已经有 `LimitNOFILE=65535`。只有 `journalctl` 显示文件描述符耗尽时才进一步提高。
+
+## 线程上不要改什么
+
+[内核与服务器](../../http/kernel-server/)完整记录了虚拟线程。对负载，运维规则是：
+
+- **不要池化虚拟线程。** 服务器故意为每个请求创建一个。
+- **不要**把处理函数包进额外的执行器池“为了并发”。用该资源的池或信号量限制稀缺资源（JDBC、Redis、第三方 API）。
+- 共享对象（路由器、容器单例、Cadence `Database`）被许多请求同时使用。在启动时登记它们；把每次请求的状态留在 `Request` 上。
+- 请求里的 CPU 重活仍然占用载体线程。如果它会拖住其他请求，把它推到 `./grind queue:work`。
+
+Linux 上可用时 Netty 使用 **epoll**（`kona.http.transport=auto`）。只有主机上 epoll 坏了才强制 `nio`。保活默认打开；在反向代理后面保持打开。
+
+## 数据库池
+
+每个 JVM 对每个 Cadence 连接有一个 Hikari 池。默认 `DB_POOL_SIZE` 是 **10**。
+
+```text
+instances × DB_POOL_SIZE  ≤  database max_connections − admin headroom
+```
+
+示例：PostgreSQL `max_connections=100`，三个 HTTP 进程，两个也会启动应用的队列工作进程：
+
+| 进程 | 池 |
+|------|----|
+| HTTP × 3 | 3 × 15 = 45 |
+| `queue:work` × 2 | 2 × 10 = 20 |
+| `schedule:work` × 1 | 10 |
+| **合计** | 75 |
+
+给 `./grind migrate`、副本和人留出空间。如果数据库报告连接饱和，**降低** `DB_POOL_SIZE` 或运行更少进程 — 在每个实例上提高池会更糟。
+
+在 `/etc/kona/<app>.env` 里设置大小：
+
+```bash
+DB_POOL_SIZE=15
+```
+
+或在 `config/Database` 里作为 `pool_size` / `poolSize`。细节：[数据库连接](../../cadence/database/)。
+
+**生产里不要使用 SQLite 或 H2**，也绝不在进程之间共享 SQLite 文件。使用 PostgreSQL、MySQL、MariaDB、SQL Server 或 Oracle。
+
+每个发布运行 `./grind migrate --force` **一次**，从 CI 或单个运维检出，在你把代理指向新实例之前。
+
+## 会话、缓存和文件
+
+`kona new` 默认 `SESSION_DRIVER=cookie`。Cookie 会话随请求走，因此任何 HTTP 实例都能服务下一次命中。**保持该默认**，除非 cookie 变得太大。
+
+| 存储 | 一个进程 | 许多进程 |
+|------|----------|----------|
+| `session.driver=cookie`（默认） | 可以 | 可以 — 每个实例相同的 `APP_KEY` |
+| `file` | 可以 | 需要代理粘性会话**或**共享磁盘；改为优先 Redis 或 cookie |
+| `array` / `memory` | 测试 / 单进程 | 在实例和重启之间丢失 |
+| `redis` | 可选 | 不能使用 cookie 时必需 |
+
+对 Redis 会话，设置 `SESSION_DRIVER=redis`，在 `SessionServiceProvider` 之前登记 `RedisServiceProvider`，并把 `REDIS_*` 指向真正的服务器（`REDIS_CLIENT=lettuce`）。到处相同的 `APP_KEY` — cookie 和加密载荷不能跨密钥移植。见[会话](../../security/session/)和 [Redis](../../cache/redis/)。
+
+缓存：
+
+| `CACHE_STORE` | 许多进程 |
+|---------------|----------|
+| `array`（脚手架默认） | 每个 JVM 有自己的映射；只用于可以按实例不同的数据 |
+| `redis` | 共享；用于缓存的 HTML 片段、你需要全局的限流计数器，以及用户必须一致看到的任何东西 |
+| `file` | 只有共享文件系统时 |
+
+上传的文件以及 `local` / `public` 磁盘是**每台机器**的。不止一台 HTTP 主机时，把用户上传放在 **s3** 磁盘上（或你真正运维的 NFS）。`./grind storage:link` 是一个前缀上的符号链接；在每一台服务 `public/storage` 的机器上运行它，或从对象存储服务那些 URL。见[文件系统](../../filesystem/)。
+
+## 队列工作进程和调度器
+
+`QUEUE_CONNECTION=sync` 在 HTTP 请求内部运行作业。这对开发是对的，对高负载是错的。切换到 Redis（或你配置的另一个持久连接），并把工作进程作为**它们自己的单元**运行。
+
+工作进程仍然需要包含 `./grind` 的检出（或镜像），因为 `queue:work` 是 grind 命令，不是 `installDist` 启动脚本。典型布局：在 `/var/www/hello-kona-src` 保留带 `./grind` 和 `build/classes` 的部署检出。从该检出：
+
+```ini
+# /etc/systemd/system/hello-kona-queue.service
+[Unit]
+Description=Kona hello-kona queue worker
+After=network-online.target hello-kona.service
+
+[Service]
+Type=simple
+User=kona
+Group=kona
+WorkingDirectory=/var/www/hello-kona-src
+EnvironmentFile=/etc/kona/hello-kona.env
+ExecStart=/var/www/hello-kona-src/grind queue:work --daemon --sleep=3 --timeout=90 --tries=3
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+运行这些单元的 **N** 份（或模板 `hello-kona-queue@.service`，带 `hello-kona-queue@1` … `@4`）。每个工作进程启动应用，因此占用一个数据库池。以与 HTTP 相同的方式在工作进程环境上设定 `DB_POOL_SIZE`，或在它们很少查询时给工作进程更小的池。
+
+负载下重要的标志：`--timeout=`、`--memory=`（堆增长时重启工作进程）、带 `--daemon` 的 `--sleep=`。见[工作进程](../../queue/workers/)。
+
+调度器不同：为整个应用运行**恰好一个** `./grind schedule:work`。两个循环会把每个调度任务加倍。
+
+```ini
+# /etc/systemd/system/hello-kona-scheduler.service
+[Unit]
+Description=Kona hello-kona scheduler
+After=network-online.target hello-kona.service
+
+[Service]
+Type=simple
+User=kona
+Group=kona
+WorkingDirectory=/var/www/hello-kona-src
+EnvironmentFile=/etc/kona/hello-kona.env
+ExecStart=/var/www/hello-kona-src/grind schedule:work
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+细节：[任务调度](../../scheduling/)。
+
+## JVM 内存与 `JAVA_OPTS`
+
+`deploy:systemd` 写入：
+
+```bash
+JAVA_OPTS=-XX:+UseG1GC -XX:MaxRAMPercentage=75.0
+```
+
+同时在单元（`Environment=JAVA_OPTS=…`）和环境文件上。启动脚本把 `JAVA_OPTS` 转发给 JVM。
+
+| 情况 | 调整 |
+|------|------|
+| 小 VM（1–2 GiB） | 降低 `MaxRAMPercentage`（例如 `50`），这样操作系统、Redis 和 PostgreSQL 仍然放得下 |
+| 专用应用 VM | 保持 `75`，或把 `-Xms` / `-Xmx` 设为你测量过的固定堆 |
+| 一台主机上许多实例 | 给每个 JVM 显式的 `-Xmx`，这样它们不能互相饿死 |
+| 本机内存压力（Netty、直接缓冲） | 堆不是全部 RSS；在 RAM 之下留出余量 |
+| 长的 GC 暂停 | 留在 G1，除非你测量到改变的理由 |
+
+不要“以防万一”设置巨大的 `-Xmx`。大堆会推迟 GC，并可能使尾延迟更差。调优时观察 RSS 和 GC 日志（`-Xlog:gc*:file=/var/www/hello-kona/storage/logs/gc.log`），然后关掉日志。
+
+环境改变后重新加载：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart hello-kona
+```
+
+## 代理、正文大小和健康
+
+服务器把**整个请求正文读进内存**（`Request.bodyBytes`）。大上传（数百兆文件）属于直达对象存储的流程，不经过 JVM。把 `client_max_body_size`（nginx）或 Caddy 的请求正文限制设在你有堆的大小。
+
+`GET /api/health` 返回 `{"status":"ok"}` 是**存活**：进程接受了 HTTP 并且内核回答了。它不探测数据库或 Redis。对应该在数据库宕机时停止发送流量的负载均衡器，加上你拥有的就绪路由（运行 `SELECT 1` 并在失败时返回 503 的处理函数），并把均衡器指向该路径。把 `/api/health` 保留为 systemd / 编排器的存活探测，这样慢的数据库不会杀掉 JVM。
+
+在代理后面，`trustProxies` / `trustHosts` 必须保持设置，这样限流和 `APP_URL` 看到公开客户端。见[部署](../deployment/#reverse-proxy-and-tls)。
+
+`public/build` 下的静态资源可以由代理直接服务（`alias` / `file_server`），让这些命中离开 JVM。这是可选的；Kona 已经从磁盘上的 `public/` 服务 `GET`/`HEAD`。
+
+## 限流和日志
+
+除非用 Redis 支撑，全局 HTTP 限流器是每个进程的。如果你在许多实例下依赖准确的全局配额，把计数器存在 Redis 里（你的限流器实现），而不是内存里。
+
+VM 上 `LOG_TO_FILE=true` 没问题。非常高的请求率下，文件日志可能因磁盘拖住线程。生产里优先 `info` 而不是 `debug`（`APP_DEBUG=false`、`LOG_LEVEL=info`）。平台捕获标准输出时，设置 `LOG_TO_FILE=false`。
+
+## 高负载清单
+
+1. [部署](../deployment/)的生产配方已经是绿的（`install.sh`、迁移、`/api/health`）。
+2. 数据库是服务器引擎，不是 SQLite/H2。
+3. `instances × DB_POOL_SIZE` 放进 `max_connections`。
+4. 每个 HTTP 实例上的 `APP_KEY` 相同。
+5. 会话：cookie（默认）或 Redis — 不是没有粘性会话的每盒文件。
+6. 必须共享的缓存：`CACHE_STORE=redis`。
+7. 必须共享的上传：s3（或等价物），不只是一台 VM 上的 `storage/`。
+8. `QUEUE_CONNECTION` 是持久的；**N** 个 `queue:work` 单元；**一个** `schedule:work`。
+9. 代理列出每一个 `HOST:PORT`；TLS 留在代理上。
+10. 如果它们共享机器，`JAVA_OPTS` 给操作系统和数据库留出 RAM。
+11. 健康检查是存活；如果均衡器需要，就绪是你加上的路由。
+12. 生产里不要运行 `./grind serve`。
+
+## 相关指南
+
+- [部署](../deployment/) — systemd 包、环境文件、`install.sh`
+- [内核与服务器](../../http/kernel-server/) — 虚拟线程、`HOST` / `PORT`
+- [数据库连接](../../cadence/database/) — `DB_POOL_SIZE`、引擎
+- [会话](../../security/session/) — cookie / 文件 / Redis
+- [Redis](../../cache/redis/)
+- [缓存](../../cache/)
+- [工作进程](../../queue/workers/)
+- [任务调度](../../scheduling/)
+- [文件系统](../../filesystem/) — 本地对 s3

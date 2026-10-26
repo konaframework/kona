@@ -1,0 +1,46 @@
+---
+title: 起步套件
+description: kona new --kit=inertia 会生成什么，以及它和 grind install 的关系。
+---
+
+```bash
+kona new my-app --kit=inertia
+kona new my-app --kit=inertia --lang=java --frontend=react --css=tailwind
+kona new my-app --kit=inertia --frontend=vue --typescript
+```
+
+套件叠加上[安装](../../guides/installation/)里描述的、让应用能跑起来的那些部分。依赖从 **Maven Central** 解析。`--frontend=vue|react|svelte`（默认 Vue）和 `--css=tailwind|bootstrap|custom` 会写出真正的 Vite 应用 — 见[起步套件](/docs/starter-kits/)。
+
+前端语言默认是 JavaScript。`--typescript` 或 `--ts` 选择 TypeScript（Vue 为 `app.ts`，React 为 `app.tsx`，Svelte 为 `app.ts`）。`--javascript` 或 `--js` 强制 JavaScript。如果两类标志都传了，以后出现的为准。API、Crema 和 Wire 忽略该标志。非交互的 `kona new my-app --kit=inertia --no-interaction` 保持 JavaScript。
+
+## 布局
+
+| 区域 | 内容 |
+|------|------|
+| Gradle | `org.konaframework:kona-inertia`（外加 Crema、HTTP、会话等） |
+| 启动 | `InertiaServiceProvider`、`inertia.root_view` / `inertia.version`、适配器的 `viteEntries` |
+| 中间件 | 启动后压入 `HandleInertia` |
+| HTTP | Crema 欢迎页 / 登录 / 仪表盘，会话认证从第一天就能用 |
+| Crema | `views/app.crema.html`，带 `{!! vite !!}` 和 `{!! pageAttr !!}` |
+| 前端 | Vue 3、React 或 Svelte 加 Vite（`package.json`、`vite.config.js`、`Pages/Welcome.*`）。默认 JavaScript；`--typescript` 写出 `app.ts` / `app.tsx`、`tsconfig.json` 和 `typecheck` 脚本 |
+| 公开目录 | 项目根的 `public/`（logo、`robots.txt`）。Vite 生产输出是 `public/build` |
+
+## 运行
+
+```bash
+npm install
+npm run dev
+./grind serve
+```
+
+## 与 `./grind install inertia` 的差别
+
+| | 套件（`kona new --kit=inertia`） | `./grind install inertia` |
+|--|----------------------------------|---------------------------|
+| 新应用脚手架 | 是 | 否 — 针对已有应用 |
+| Maven 与提供者 | 是 | 是 |
+| 前端 | Vue / React / Svelte（`--frontend`）加 CSS（`--css`） | 交互选择 Vue / React / Svelte / 跳过 |
+| 路由 / Welcome 控制器 | 是 | 否 — 自己加上渲染调用 |
+| 中间件类 | 套件的 `HandleInertia` 包装 | 你压入 `HandleInertiaRequests`（或你的子类） |
+
+另见 [Kona 起步套件](/docs/starter-kits/)。

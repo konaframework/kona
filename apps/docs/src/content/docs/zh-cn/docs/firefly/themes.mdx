@@ -1,0 +1,149 @@
+---
+
+title: 主题与 CSS
+description: FireflyTheme、KonaTheme 记号、作用域 CSS 变量，以及让主题 CSS 留在面板内的规则。
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="themed-panel.png" description="hello-kotlin 面板，位于 http://127.0.0.1:4017/admin/desk，侧栏和页面穿着随附主题。" />
+
+**主题**是 `FireflyTheme` 的一个实现。它提供一个 id、一个 `ThemeTokens` 对象、可选的外框槽 HTML，以及可选的额外 CSS。`Stylesheet.render` 把记号变成 `.ff-panel` 上的 CSS 自定义属性。随附样式表里的组件规则只匹配 `.ff-panel` 的后代，因此从未渲染面板的页面不会套上 Firefly 的按钮、侧栏或对话框规则。
+
+## FireflyTheme
+
+| 方法 | 默认 | 含义 |
+|------|------|------|
+| `id(): String` | 必需 | 错误消息里使用的短名 |
+| `tokens(): ThemeTokens` | 必需 | 颜色、字体和尺寸记号 |
+| `partial(slot: String): String?` | `null` | `sidebar`、`topbar`、`body` 或 `footer` 的替换 HTML。`null` 保留内置局部 |
+| `extraCss(): String` | `""` | 额外规则。Firefly 把非空值包进 `.ff-panel { ... }` |
+
+用 Kotlin 或 Java 实现该接口。你不必在任何地方登记这个类。把实例传给 `Panel.theme(...)`。
+
+Kotlin：
+
+```kotlin
+class HarborTheme : FireflyTheme {
+    override fun id(): String = "harbor"
+
+    override fun tokens(): ThemeTokens = ThemeTokens(
+        primary = "#DF8723",
+        accent = "#74453F",
+        surface = "#FAF6F0",
+        heading = "#2A1C10",
+        font = "ui-sans-serif, system-ui, sans-serif",
+        radius = "0.75rem",
+        sidebarWidth = "18rem",
+        topbarHeight = "4rem",
+        bodyBackground = "#FAF6F0",
+        darkPrimary = "#C9A57B",
+        darkSurface = "#1A120C",
+        darkHeading = "#E8D4B8",
+    )
+
+    override fun extraCss(): String =
+        ".ff-sidebar { box-shadow: inset -1px 0 0 var(--ff-accent); }"
+}
+```
+
+Java：
+
+```java
+public final class HarborTheme implements FireflyTheme {
+    @Override public String id() { return "harbor"; }
+
+    @Override public ThemeTokens tokens() {
+        return new ThemeTokens(
+            "#DF8723", "#74453F", "#FAF6F0", "#2A1C10",
+            "ui-sans-serif, system-ui, sans-serif",
+            "0.75rem", "18rem", "4rem", "#FAF6F0",
+            "#C9A57B", "#1A120C", "#E8D4B8"
+        );
+    }
+
+    @Override public String extraCss() {
+        return ".ff-sidebar { box-shadow: inset -1px 0 0 var(--ff-accent); }";
+    }
+}
+```
+
+`ThemeTokens` 是一个类，有这十二个构造参数，顺序如上。每个字段是公开的 `val`（Java getter）。值按你提供的样子插入 CSS。Firefly 不校验记号是否是合法的 CSS 颜色。
+
+## KonaTheme
+
+`KonaTheme` 是内置主题。`id()` 返回 `kona`。你从不调用 `theme(...)` 时，`Panel` 使用它。
+
+| 记号 | 浅色值 | 深色记号 | 深色值 |
+|------|--------|----------|--------|
+| primary | `#DF8723` | darkPrimary | `#C9A57B` |
+| accent | `#74453F` | — | 深色块里 accent 不变 |
+| surface | `#FAF6F0` | darkSurface | `#1A120C` |
+| heading | `#2A1C10` | darkHeading | `#E8D4B8` |
+| font | `ui-sans-serif, system-ui, sans-serif` | — | |
+| radius | `0.5rem` | — | |
+| sidebarWidth | `16rem` | — | |
+| topbarHeight | `4rem` | — | |
+| bodyBackground | `#FAF6F0` | 写成 `--ff-body` | 深色块从 `darkSurface` 设置 `--ff-body` |
+
+## Stylesheet.render
+
+`Stylesheet.render(theme)` 返回一段 CSS 字符串：
+
+1. 自定义属性的 `.ff-panel { ... }` 块。
+2. 覆盖 primary、surface、heading 和 body 的 `.ff-panel.ff-dark { ... }` 块。
+3. 随附的组件样式表。
+4. 当 `extraCss()` 在 `trim()` 之后非空白时，尾部的 `.ff-panel { <extra> }` 块。
+
+自定义属性：
+
+| 属性 | 记号 |
+|------|------|
+| `--ff-primary` | `primary` / `darkPrimary` |
+| `--ff-accent` | `accent` |
+| `--ff-surface` | `surface` / `darkSurface` |
+| `--ff-heading` | `heading` / `darkHeading` |
+| `--ff-font` | `font` |
+| `--ff-radius` | `radius` |
+| `--ff-sidebar-width` | `sidebarWidth` |
+| `--ff-topbar-height` | `topbarHeight` |
+| `--ff-body` | `bodyBackground` / 深色块里的 `darkSurface` |
+
+`DefaultLayout` 发出不带 `ff-dark` 的 `<div class="ff-panel">`。面板根同时有类 `ff-dark` 时，深色记号才生效。自定义 `PanelLayout` 可以加上该类。见[面板外框](/docs/firefly/chrome/)。
+
+## 额外 CSS 必须留在面板内
+
+trim 之后，如果 `extraCss()` 非空，并且任一行在行首匹配 `body` 后接 `{`（允许前导空白），`Stylesheet.render` 会抛出 `FireflyException`：
+
+```text
+Theme [<id>] CSS must stay under .ff-panel
+```
+
+这会被拒绝：
+
+```css
+body { background: red; }
+```
+
+这会被接受，因为选择器不是裸的 `body` 规则：
+
+```css
+.ff-sidebar { background: var(--ff-surface); }
+```
+
+空的或只有空白的 `extraCss()` 会被省略。检查不会运行。
+
+## 随附的组件类
+
+签入的样式表（`firefly.css`）是 Tailwind CSS v4 编写文件 `modules/firefly-support/tailwind/input.css` 的作用域结果。规则是 `.ff-panel` 的后代。宿主的 `html` 或 `body` 上没有 preflight。
+
+| 选择器 | 效果 |
+|--------|------|
+| `.ff-panel .ff-btn` | 圆角来自 `--ff-radius`，内边距 `0.5rem 0.75rem`，`0.875rem` / 字重 500 |
+| `.ff-panel .ff-sidebar` | 全高，宽度 `--ff-sidebar-width`，不收缩，纵向滚动 |
+| `.ff-panel .ff-topbar` | 弹性行，项目居中，高度 `--ff-topbar-height` |
+| `.ff-panel .ff-body` | 弹性增长，字体 `--ff-font`，背景 `--ff-body` |
+| `.ff-panel .ff-dialog` | 固定，inset 0，z-index 50 |
+| `.ff-panel .ff-dialog-modal .ff-dialog-window` | 上边距 `4rem` |
+
+`Panel.render` 把这段 CSS 放在 `.ff-panel` 内部的 `<style>` 元素里，因此变量和组件规则随外壳一起走。

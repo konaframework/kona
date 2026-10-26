@@ -1,0 +1,287 @@
+---
+title: 异常
+description: HTTP 内核如何把失败变成 JSON 错误响应、如何抛出 HTTP 错误，以及如何安装你自己的处理程序。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+处理函数会失败：记录不存在、客户端不被允许进入、输入无效，或缺陷抛出意外异常。在 Kona 里，这些情况下你通常**抛出**，而不是手工构建错误响应。[HTTP 内核](../kernel-server/)捕获异常并把它交给**异常处理程序** — 实现 `ExceptionHandler` 的对象 — 它唯一的工作是把异常变成 `Response`。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun interface ExceptionHandler {
+    fun handle(request: Request, throwable: Throwable): Response
+}
+```
+
+除非你替换它，内核使用 `DefaultExceptionHandler`。默认它用 **JSON** 回答。如果请求的 `Accept` 头偏好 `text/html`（并且没有同时列出 `application/json`），同一个处理程序改为返回一个小的 HTML 错误页。
+
+## 抛出 HTTP 错误
+
+`HttpException` 携带 HTTP 状态、消息，以及可选的额外响应头。从处理函数、控制器、服务或中间件抛出它：
+
+```kotlin
+router.get("/posts/{id}") { request ->
+    val post = posts.find(request.getAttribute("id") as String)
+        ?: throw NotFoundException("Post not found.")
+    if (!post.published) {
+        throw HttpException(403, "This post is not published yet.")
+    }
+    Response.json(post)
+}
+
+throw HttpException(429, "Too many requests.", mapOf("Retry-After" to "30"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/posts/{id}", request -> {
+    Post post = posts.find((String) request.getAttribute("id"));
+    if (post == null) {
+        throw new NotFoundException("Post not found.");
+    }
+    if (!post.isPublished()) {
+        throw new HttpException(403, "This post is not published yet.");
+    }
+    return Response.json(post);
+});
+
+throw new HttpException(429, "Too many requests.", Map.of("Retry-After", "30"));
+```
+
+</TabItem>
+</Tabs>
+
+Kona 在 `org.konaframework.http` 里提供这些类型：
+
+| 类型 | 状态 | 说明 |
+|------|------|------|
+| `HttpException(status, message, headers)` | 任意 | `headers` 默认为空。它是 `open` 类，因此你可以为自己的错误类型子类化它。 |
+| `NotFoundException(message)` | 404 | 消息默认为 `Not Found`。没有路由匹配时路由器抛出它。 |
+| `MethodNotAllowedException(allowed, message)` | 405 | 列表非空时加上 `Allow: GET, HEAD`（`allowed` 列表，逗号加空格分隔）。消息默认为 `Method Not Allowed`。路径存在于其他方法下时路由器抛出它。 |
+| `ValidationException(errors)` | 422 | 由 `Request.validate` 和 `Validator.validate` 抛出；见[验证](../validation/)。 |
+
+它们都是未检查的（`RuntimeException`），因此 Java 代码不需要 `throws` 子句。
+
+## 默认处理程序返回什么
+
+`DefaultExceptionHandler` 按异常类型选择响应：
+
+### 验证失败 → 422
+
+```json
+{
+  "message": "The email field is required. (and 1 more error)",
+  "errors": {
+    "email": ["The email field is required."],
+    "age": ["The age field must be at least 18."]
+  }
+}
+```
+
+### `HttpException` 及其子类 → 异常的状态
+
+正文是 `{"message": "<exception message>"}`，异常 `headers` 里的每一项都复制到响应上。路由器产生的消息看起来是这样：
+
+```json
+{ "message": "The route users/42 could not be found." }
+```
+
+```json
+{ "message": "The POST method is not supported for route users. Supported methods: GET, HEAD." }
+```
+
+405 响应还携带头 `Allow: GET, HEAD`。
+
+### 其他一切 → 500
+
+任何其他 `Throwable` 都被当作缺陷。处理程序通过 Kona 的日志器在错误级别记录它（带堆栈跟踪），并响应：
+
+```json
+{ "message": "Server Error" }
+```
+
+真实消息是故意隐藏的 — 异常文本常常包含 SQL、文件路径或其他不该展示给客户端的内部信息。
+
+默认处理程序的 JSON 响应使用 `Content-Type: application/json; charset=utf-8`。HTML 错误页使用 `text/html; charset=utf-8`。
+
+## 报告与渲染回调
+
+不必写完整的自定义处理程序，你可以在 `DefaultExceptionHandler` 上附加回调：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val handler = DefaultExceptionHandler(debug = true)
+    .report { throwable -> metrics.increment("http.exceptions") }
+    .render { request, throwable ->
+        if (throwable is PaymentFailedException) {
+            Response.json(mapOf("error" to "payment_failed"), 402)
+        } else {
+            null // fall through to the default envelope
+        }
+    }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DefaultExceptionHandler handler = new DefaultExceptionHandler(true)
+    .report(throwable -> metrics.increment("http.exceptions"))
+    .render((request, throwable) -> {
+        if (throwable instanceof PaymentFailedException) {
+            return Response.json(Map.of("error", "payment_failed"), 402);
+        }
+        return null;
+    });
+```
+
+</TabItem>
+</Tabs>
+
+`report` 先运行。你设置它时，意外失败的默认 `Log.error` 路径会被跳过 — 你的回调拥有报告。`render` 可以返回 `Response`，或返回 `null` 以保留内置的 JSON/HTML 信封。
+
+## 调试模式
+
+调试模式打开时，默认处理程序帮助你在本地诊断问题：
+
+- 对 **500** 响应，`message` 是异常的真实消息（可能是 `null`），而不是 `Server Error`。
+- 对 **500** 和 **`HttpException`** 响应，额外的 `exception` 字段保存完全限定类名。
+
+```json
+{
+  "message": "Connection refused",
+  "exception": "java.net.ConnectException"
+}
+```
+
+两种模式下验证响应相同。
+
+`HttpServiceProvider` 登记的内核从 `app.debug` 配置值读取调试模式，它来自环境或 `.env` 里的 `APP_DEBUG`（默认 `false`）。`kona new` 创建的项目在 `.env` 里为本地工作设置 `APP_DEBUG=true`。**生产里设置 `APP_DEBUG=false`**，要么在该环境的 `.env` 里，要么作为真正的环境变量，后者优先。要直接构建处理程序，传入标志：Kotlin 是 `DefaultExceptionHandler(debug = true)`，Java 是 `new DefaultExceptionHandler(true)`。
+
+## 异常在哪里被捕获
+
+内核在两个点转换异常：
+
+1. **路由内部** — 来自路由解析（404、405）、路由和分组中间件，以及你的处理函数的异常。得到的响应向外穿过所有**全局中间件**，因此访问日志、CORS 头和请求 ID 仍然适用于错误响应。
+2. **整个管线周围** — 全局中间件抛出的异常。这些响应不会被任何全局中间件看到。
+
+对 `HEAD` 请求，内核也会从错误响应里去掉正文，保留状态和头。这如何与你自己的中间件交互，见[中间件](../middleware/#where-exceptions-go)。
+
+## 编写自定义处理程序
+
+当你需要不同的错误格式时编写自己的 `ExceptionHandler` — 浏览器站点的 HTML 页面、API 的不同 JSON 形状，或每一次失败上的指标。常见模式是处理你关心的情况，并把其他一切**委托**给默认处理程序：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class HtmlErrorHandler(debug: Boolean) : ExceptionHandler {
+    private val fallback = DefaultExceptionHandler(debug)
+
+    override fun handle(request: Request, throwable: Throwable): Response {
+        val wantsHtml = request.header("Accept").orEmpty().contains("text/html")
+        if (wantsHtml && throwable is NotFoundException) {
+            return Response.html("<h1>Page not found</h1>", 404)
+        }
+        return fallback.handle(request, throwable)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class HtmlErrorHandler implements ExceptionHandler {
+    private final DefaultExceptionHandler fallback;
+
+    public HtmlErrorHandler(boolean debug) {
+        this.fallback = new DefaultExceptionHandler(debug);
+    }
+
+    @Override
+    public Response handle(Request request, Throwable throwable) {
+        boolean wantsHtml = request.header("Accept", "").contains("text/html");
+        if (wantsHtml && throwable instanceof NotFoundException) {
+            return Response.html("<h1>Page not found</h1>", 404);
+        }
+        return fallback.handle(request, throwable);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+异常处理程序必须**总是返回响应，并且永不抛出**。它是最后一道防线；从它逃出的异常会让客户端没有回复。
+
+### 安装它
+
+构造 `HttpKernel` 时把处理程序作为第三个参数传入。要替换 `HttpServiceProvider` 登记的内核，从列在 `HttpServiceProvider` 之后的提供者的 `register` 方法重新绑定 `HttpKernel`：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        val debug = app.config.getBoolean("app.debug", false)
+        app.container.singleton(HttpKernel::class.java) { c ->
+            HttpKernel(c.resolve(Router::class.java), exceptionHandler = HtmlErrorHandler(debug))
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        boolean debug = app.getConfig().getBoolean("app.debug", false);
+        app.getContainer().singleton(HttpKernel.class, c ->
+            new HttpKernel(c.resolve(Router.class), List.of(), new HtmlErrorHandler(debug)));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`ExceptionHandler` 是函数式接口，因此逻辑短时 lambda 也可以。
+
+## HTML 与 JSON 的选择
+
+`DefaultExceptionHandler` 使用一个小的 `Accept` 检查：如果 `Accept` 包含 `text/html` 并且**没有**同时包含 `application/json`，你得到 HTML 错误页。否则是 JSON。验证失败改用 `request.expectsJson()`（JSON `Accept`/`Content-Type` → 422 JSON；否则重定向回去）。
+
+## 陷阱与常见问题
+
+**为什么生产里我的自定义消息不见了？**  
+`app.debug` 为 false 时，非 `HttpException` 的失败显示 `"Server Error"`。`HttpException` 的消息总会被使用。
+
+**为什么全局中间件看不到另一个全局中间件的错误？**  
+该捕获发生在管线之外 — 见[异常在哪里被捕获](#where-exceptions-are-caught)。
+
+**处理程序可以抛出吗？**  
+不可以。总是返回 `Response`。
+
+## 今天不可用的内容
+
+- 超出小默认页的内置 HTML 错误*模板*
+- 默认处理程序里按状态的视图映射
+- 超出 `Log.error` / 你的 `report` 回调的异常报告通道
+
+## 下一步
+
+- 验证错误：[验证](../validation/)。
+- 中间件捕获语义：[中间件](../middleware/#where-exceptions-go)。
+- 内核管线：[内核与服务器](../kernel-server/)。

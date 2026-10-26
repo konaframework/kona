@@ -1,0 +1,473 @@
+---
+title: 关系
+description: 用 hasOne、hasMany、belongsTo、belongsToMany、多态和穿透关系连接 Cadence 模型；惰性或预加载它们，避免 N+1 查询。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+表通过**外键**互相指向：`posts.user_id` 列保存写下该文章的用户的 `id`。**关系**是描述这种链接的模型方法，因此你可以写 `user.posts().get()`，而不用手写查询。
+
+你把关系定义为**没有参数的公开方法**，以关系命名，返回四种关系类型之一。方法名重要：预加载通过按名称调用该方法找到关系。
+
+| 关系 | 形状 | 例子 | 解析为 |
+|------|------|------|--------|
+| `hasOne` | 另一张表持有我们的键，至多一行 | user → profile | `R?` |
+| `hasMany` | 另一张表持有我们的键，许多行 | user → posts | `List<R>` |
+| `belongsTo` | 我们持有另一张表的键 | post → user | `R?` |
+| `belongsToMany` | 第三张（枢纽）表持有两个键 | user ↔ roles | `List<R>` |
+| `morphMany` / `morphOne` | 相关行存储 `{name}_type` + `{name}_id` | post → comments | `List<R>` / `R?` |
+| `morphToMany` / `morphedByMany` | 枢纽存储 `{name}_type` + `{name}_id` + 相关键 | post ↔ tags | `List<R>` |
+| `morphTo` | 本行存储拥有者的类型 + id | comment → post/video | `Cadence<*>?` |
+| `hasManyThrough` / `hasOneThrough` | 经由中间表到达远处的行 | user → comments via posts | `List<R>` / `R?` |
+
+## 定义关系
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.CadenceCompanion
+import org.konaframework.cadence.relations.BelongsTo
+import org.konaframework.cadence.relations.BelongsToMany
+import org.konaframework.cadence.relations.HasMany
+import org.konaframework.cadence.relations.HasOne
+
+class User : Cadence<User>() {
+    fun profile(): HasOne<Profile> = hasOne(Profile::class.java)
+    fun posts(): HasMany<Post> = hasMany(Post::class.java)
+    fun roles(): BelongsToMany<Role> = belongsToMany(Role::class.java)
+
+    companion object : CadenceCompanion<User>(User::class.java)
+}
+
+class Post : Cadence<Post>() {
+    override val fillable = setOf("title")
+
+    fun user(): BelongsTo<User> = belongsTo(User::class.java)
+    fun comments(): HasMany<Comment> = hasMany(Comment::class.java).apply { orderBy("created_at") }
+
+    companion object : CadenceCompanion<Post>(Post::class.java)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.Cadence;
+import org.konaframework.cadence.CadenceCompanion;
+import org.konaframework.cadence.relations.BelongsTo;
+import org.konaframework.cadence.relations.BelongsToMany;
+import org.konaframework.cadence.relations.HasMany;
+import org.konaframework.cadence.relations.HasOne;
+
+public class User extends Cadence<User> {
+    public static final CadenceCompanion<User> QUERY = Cadence.of(User.class);
+
+    public HasOne<Profile> profile() { return hasOne(Profile.class); }
+    public HasMany<Post> posts() { return hasMany(Post.class); }
+    public BelongsToMany<Role> roles() { return belongsToMany(Role.class); }
+}
+
+public class Post extends Cadence<Post> {
+    public static final CadenceCompanion<Post> QUERY = Cadence.of(Post.class);
+
+    public BelongsTo<User> user() { return belongsTo(User.class); }
+    public HasMany<Comment> comments() {
+        HasMany<Comment> relation = hasMany(Comment.class);
+        relation.orderBy("created_at", "asc");
+        return relation;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+定义内部加上的约束（像上面的 `orderBy`）在关系每次运行时都适用，无论惰性还是预加载。
+
+### 键约定
+
+键名从类名和主键派生。列不同时传入显式名称。
+
+| 调用 | 默认 | 完整形式 |
+|------|------|----------|
+| `hasOne(Profile)` / `hasMany(Post)` | 相关表上的外键 `user_id`；本地键 `id` | `hasMany(Post::class.java, "author_id", "id")` |
+| `belongsTo(User)` | 本表上的外键 `user_id`；`users` 上的拥有者键 `id`；关系名 `user` | `belongsTo(User::class.java, "author_id", "id", "author")` |
+| `belongsToMany(Role)` | 枢纽表 `role_user`（两个蛇形名，排序后用 `_` 连接）；枢纽键 `user_id` 和 `role_id`；父键和相关键 `id` | `belongsToMany(Role::class.java, "user_roles", "user_id", "role_id", "id", "id")` |
+
+前缀是蛇形类名：`BlogPost` 给出 `blog_post_id`。
+
+## 惰性加载
+
+调用关系方法返回一个新的关系对象。在你要求结果之前什么都不运行：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.findOrFail(1)
+
+val posts: List<Post> = user.posts().get()
+val published = user.posts().where("published", true).orderBy("created_at", "desc").get()
+val profile: Profile? = user.profile().first()
+val author: User? = post.user().first()
+val howMany: Long = user.posts().count()
+val any: Boolean = user.roles().exists()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.findOrFail(1);
+
+List<Post> posts = user.posts().get();
+List<Post> published = user.posts().where("published", true).orderBy("created_at", "desc").get();
+Profile profile = user.profile().first();
+User author = post.user().first();
+long howMany = user.posts().count();
+boolean any = user.roles().exists();
+```
+
+</TabItem>
+</Tabs>
+
+
+每个关系支持 `get()`（所有行，对一对一关系也是）、`first()`、`count()`、`exists()`、`getResults()`（自然值：列表或单个模型），以及约束辅助方法 `where`、`orderBy` 和 `constrain { builder -> … }`，用于相关 `ModelBuilder` 上的其他任何东西。
+
+父模型还没有键时（未保存的模型），关系返回空列表或 `null`，而不查询。
+
+每次调用 `user.posts()` 都运行新查询。要把已加载的值留在模型上，使用 `getRelationValue`：它第一次加载关系，之后返回存储的值。
+
+```kotlin
+val posts = user.getRelationValue<List<Post>>("posts")   // queries
+val again = user.getRelationValue<List<Post>>("posts")   // no query
+```
+
+## 预加载
+
+循环 50 个用户并对每个调用 `user.posts().get()` 会运行 51 次查询：一次给用户，每个用户一次。这是 **N+1 问题**。预加载通过一次为所有用户加载关系来修复它：一次查询给用户，然后**一次**查询给他们的所有文章（`where user_id in (…)`），这些行在内存里交给正确的用户。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val users = User.with("posts", "profile").get()        // 3 queries in total
+for (user in users) {
+    val posts = user.getRelation("posts") as List<*>   // already loaded
+}
+
+User.query().with("posts.comments").get()             // nested: users, posts, comments — 3 queries
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> users = User.QUERY.with("posts", "profile").get();
+for (User user : users) {
+    List<?> posts = (List<?>) user.getRelation("posts");
+}
+
+User.QUERY.query().with("posts.comments").get();
+```
+
+</TabItem>
+</Tabs>
+
+
+- 名称是关系方法名；点加载相关模型的关系（`posts.comments`、`posts.user`）。
+- 加载之后，每个模型都存储了关系：一对多是列表（没有行时为空），一对一是模型或 `null`。用 `getRelation(name)` 或 `getRelationValue(name)` 读取；用 `relationLoaded(name)` 检查。
+- `with` 与 `get()`、`first()`、`find()`、`findMany()` 和 `paginate()` 一起工作。
+- `toMap()` 包含已加载的关系，递归渲染，因此 `Response.json(user.toMap())` 返回带文章的用户。
+
+### 约束预加载
+
+传入 `RelationConstraint` 以筛选或排序被加载的内容：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.relations.RelationConstraint
+
+val users = User.query()
+    .with("posts", RelationConstraint { it.where("published", true).orderBy("created_at", "desc") })
+    .get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> users = User.QUERY.query()
+    .with("posts", relation -> relation.where("published", true).orderBy("created_at", "desc"))
+    .get();
+```
+
+</TabItem>
+</Tabs>
+
+
+### 加载到你已经有的模型上
+
+```kotlin
+user.load("posts", "roles")          // always queries, replacing loaded values
+user.loadMissing("posts", "profile") // only relations not loaded yet
+EagerLoader.load(users, "posts")     // a list loaded elsewhere, still one query per relation
+```
+
+请求一个不是返回关系的公开无参方法的名称会抛出 `CadenceException`（"Call to undefined relationship"）。
+
+## 查询关系是否存在
+
+按相关行是否存在筛选父模型（翻译成 `EXISTS` / `NOT EXISTS` 子查询）：
+
+| 调用 | 含义 |
+|------|------|
+| `whereHas("posts")` / `has("posts")` | 至少一行相关行 |
+| `whereDoesntHave("posts")` / `doesntHave("posts")` | 没有相关行 |
+| `orWhereHas` / `orWhereDoesntHave` | 用 `or` 连接的同样检查 |
+| `whereHas("posts") { it.where("published", true) }` | 带相关查询上额外约束的存在性 |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val authors = User.whereHas("posts") { it.where("published", true) }.get()
+val newcomers = User.doesntHave("posts").get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> authors = User.QUERY.whereHas("posts", q -> q.where("published", true)).get();
+List<User> newcomers = User.QUERY.doesntHave("posts").get();
+```
+
+</TabItem>
+</Tabs>
+
+
+对 `hasOne` / `hasMany`、`belongsTo` 和 `belongsToMany`（包括枢纽连接）有效。
+
+## 计数、存在与求和
+
+`withCount("posts")` 加上 `posts_count` 属性（一个子查询），而不加载相关行。用 `relation as alias` 自定义属性名：
+
+```kotlin
+val users = User.withCount("posts", "posts as published_posts_count").get()
+users[0]["posts_count"]
+users[0]["published_posts_count"]
+
+// After the fact:
+user.loadCount("posts", "roles")
+```
+
+`withExists("posts")` 加上布尔风格的 `posts_exists` 列（`1` / `0`）。聚合辅助方法共享同样的 `relation:column` / `relation as alias:column` 形状：
+
+| 辅助方法 | 默认别名 | 加载器 |
+|----------|----------|--------|
+| `withSum("posts", "votes")` | `posts_sum_votes` | `loadSum` |
+| `withAvg("posts", "votes")` | `posts_avg_votes` | `loadAvg` |
+| `withMax` / `withMin` | `posts_max_votes` / `posts_min_votes` | `loadMax` / `loadMin` |
+
+```kotlin
+val authors = Author.withExists("books")
+    .withSum("books", "votes")
+    .withAvg("books", "votes")
+    .withMax("books", "votes")
+    .get()
+author.loadExists("books")
+author.loadSum("books as total_votes:votes")
+author.loadAvg("books:votes")
+```
+
+MorphTo 存在性（`comment.whereHas("commentable")`）在已登记的 `MorphMap` 别名上做 OR。BelongsToMany 支持 `firstOrCreate(attributes, values)`（找到已附加的相关行，或创建并附加）。
+
+当你还投影特定列时，与 `select("users.*")` 结合（或让这些辅助方法确保表选择）。
+
+## 通过关系写入
+
+### hasOne / hasMany
+
+`create`、`make` 和 `save` 为你设置外键：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val post = user.posts().create(mapOf("title" to "Hello"))     // fill (fillable rules apply) + user_id + save
+val draft = user.posts().make(mapOf("title" to "Draft"))      // same, unsaved
+user.posts().save(Post().forceFill(mapOf("title" to "Imported")))
+user.posts().createMany(listOf(mapOf("title" to "A"), mapOf("title" to "B")))
+
+// Find under this relation's scope, or create / update linked to the parent:
+user.posts().firstOrCreate(mapOf("title" to "Hello"))
+user.posts().firstOrCreate(mapOf("slug" to "hello"), mapOf("title" to "Hello"))
+user.posts().updateOrCreate(mapOf("slug" to "hello"), mapOf("title" to "Hello again"))
+user.posts().firstOrNew(mapOf("title" to "Draft"))           // unsaved when missing
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Post post = user.posts().create(Map.of("title", "Hello"));
+Post draft = user.posts().make(Map.of("title", "Draft"));
+user.posts().save(new Post().forceFill(Map.of("title", "Imported")));
+user.posts().createMany(List.of(Map.of("title", "A"), Map.of("title", "B")));
+
+user.posts().firstOrCreate(Map.of("title", "Hello"));
+user.posts().firstOrCreate(Map.of("slug", "hello"), Map.of("title", "Hello"));
+user.posts().updateOrCreate(Map.of("slug", "hello"), Map.of("title", "Hello again"));
+user.posts().firstOrNew(Map.of("title", "Draft"));
+```
+
+</TabItem>
+</Tabs>
+
+
+父模型尚未保存时（它没有可复制的键），这些抛出 `IllegalStateException`。`firstOrCreate` / `updateOrCreate` / `firstOrNew` 只在已经链接到父模型的行中搜索（创建时设置外键 — 多态关系还设置多态类型）。
+
+### belongsTo
+
+```kotlin
+post.user().associate(otherUser)   // sets user_id and stores the "user" relation
+post.save()
+post.user().dissociate()           // sets user_id to null
+post.save()
+```
+
+### belongsToMany
+
+枢纽行用 `attach`、`detach` 和 `sync` 管理。每一个接受键或模型实例。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+user.roles().attach(admin)                                   // one row
+user.roles().attach(listOf(1, 2), mapOf("granted_by" to 7))  // extra pivot columns
+user.roles().detach(admin)                                   // returns rows removed
+user.roles().detach()                                        // remove all
+val result = user.roles().sync(listOf(1, 3))                 // exactly these
+result.attached   // [3]
+result.detached   // [2]
+user.roles().syncWithoutDetaching(listOf(4, 5))              // attach missing only
+user.roles().toggle(listOf(1, 6))                            // attach missing, detach present
+user.roles().updateExistingPivot(1, mapOf("granted_by" to 9))
+user.roles().wherePivot("granted_by", 7).get()               // filter via pivot columns
+user.roles().wherePivotIn("role_id", listOf(1, 2)).get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+user.roles().attach(admin);
+user.roles().attach(List.of(1, 2), Map.of("granted_by", 7));
+user.roles().detach(admin);
+user.roles().detach();
+SyncResult result = user.roles().sync(List.of(1, 3));
+result.getAttached();
+result.getDetached();
+user.roles().syncWithoutDetaching(List.of(4, 5));
+user.roles().toggle(List.of(1, 6));
+user.roles().updateExistingPivot(1, Map.of("granted_by", 9));
+user.roles().wherePivot("granted_by", 7).get();
+user.roles().wherePivotIn("role_id", List.of(1, 2)).get();
+```
+
+</TabItem>
+</Tabs>
+
+
+### 枢纽数据
+
+`belongsToMany` 关系返回的每个模型都把枢纽行作为 `pivot` 关系携带：一个映射，持有两个枢纽键，加上 `withPivot` 中命名的任何列。`withTimestamps()` 在 `attach` 上填充 `created_at` / `updated_at`（在 `updateExistingPivot` 上填充 `updated_at`），并把它们读进 `pivot`。
+
+```kotlin
+fun roles(): BelongsToMany<Role> = belongsToMany(Role::class.java).withPivot("granted_by").withTimestamps()
+
+val role = user.roles().first()!!
+val pivot = role.getRelation("pivot") as Map<*, *>
+pivot["granted_by"]
+pivot["created_at"]
+```
+
+除非相关查询另有要求（`constrain { it.withTrashed() }`），软删除的相关行从每个关系中排除。
+
+## 多态关系
+
+当一张表可以属于几种父类型（文章*或*视频上的评论）时，在子表上存储 `{name}_type` 和 `{name}_id`。模式辅助方法 `morphs`、`nullableMorphs` 和 `uuidMorphs` 创建那些列（和一个索引）。
+
+用 `Relation.morphMap` 登记短别名，这样类型列保持稳定：
+
+```kotlin
+Relation.morphMap(
+    mapOf(
+        "posts" to Post::class.java,
+        "videos" to Video::class.java,
+    ),
+)
+
+class Post : Cadence<Post>() {
+    fun comments(): MorphMany<Comment> = morphMany(Comment::class.java, "commentable")
+    fun image(): MorphOne<Image> = morphOne(Image::class.java, "imageable")
+}
+
+class Comment : Cadence<Comment>() {
+    fun commentable(): MorphTo = morphTo("commentable")
+}
+
+post.comments().create(mapOf("body" to "Nice"))
+comment.commentable().getResults()   // Post or Video
+comment.commentable().associate(post)
+```
+
+没有多态映射条目时，Cadence 使用模型的简单类名（并且可以解析类型列里存储的完全限定类名）。
+
+### morphToMany / morphedByMany
+
+多态多对多使用带 `{name}_id`、`{name}_type` 和相关外键的枢纽（默认表名是 `{name}` 的复数）：
+
+```kotlin
+class Post : Cadence<Post>() {
+    fun tags(): MorphToMany<Tag> = morphToMany(Tag::class.java, "taggable")
+}
+
+class Tag : Cadence<Tag>() {
+    fun posts(): MorphToMany<Post> = morphedByMany(Post::class.java, "taggable")
+    fun videos(): MorphToMany<Video> = morphedByMany(Video::class.java, "taggable")
+}
+
+// taggables(tag_id, taggable_id, taggable_type)
+post.tags().attach(listOf(kotlinTag, javaTag))
+tag.posts().get()
+```
+
+`attach` / `detach` / `sync` / `withPivot` / `withTimestamps` 的行为像 `belongsToMany`，并且每一次枢纽写入都包含多态类型。用 `Post.with("tags")` 预加载。
+
+## 穿透关系
+
+`hasManyThrough` / `hasOneThrough` 经由中间模型到达远处的表（user → posts → comments）：
+
+```kotlin
+class User : Cadence<User>() {
+    fun comments(): HasManyThrough<Comment, Post> =
+        hasManyThrough(Comment::class.java, Post::class.java, "user_id", "post_id")
+
+    fun firstComment(): HasOneThrough<Comment, Post> =
+        hasOneThrough(Comment::class.java, Post::class.java, "user_id", "post_id")
+}
+
+user.comments().get()
+User.with("comments").get()
+```
+
+默认外键在每一侧遵循 `{snake_class}_id`；模式使用更短的名称时传入显式键。

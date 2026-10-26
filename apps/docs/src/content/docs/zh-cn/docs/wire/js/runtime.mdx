@@ -1,0 +1,143 @@
+---
+title: JavaScript 运行时
+description: Wire 全局 API、$wire、钩子、变形、拦截器和手动 ESM。
+---
+
+Wire 的客户端运行时是构建在 Alpine.js 上的 ESM/IIFE 包。默认 script 标签加载 Alpine 加 Wire 插件，并在 `DOMContentLoaded` 时调用 `Wire.start()`。
+
+## 全局变量
+
+脚本加载之后：
+
+```js
+window.Wire
+window.Alpine
+```
+
+`document` 上的生命周期事件：
+
+| 事件 | 何时 |
+|------|------|
+| `brew:init` / `brew:initializing` | 在 Alpine 插件和根选择器接上之前 — 在这里登记钩子/指令 |
+| `brew:initialized` | `Alpine.start()` 之后，组件已经活着 |
+
+## 查找组件
+
+```js
+Wire.find(id)
+Wire.first()
+Wire.getByName('counter')
+Wire.all()
+Wire.navigate('/posts')
+Wire.dispatch('saved', { id: 1 })
+Wire.dispatchTo('counter', 'bump', {})
+Wire.on('saved', handler)
+```
+
+## `$wire`
+
+每个组件根通过 Alpine 暴露 `$wire`（魔术名 `wire`）：
+
+| API | 作用 |
+|-----|------|
+| `$wire.prop` | 读取 / 赋值瞬时状态 |
+| `$wire.$get(path)` | 深层读取 |
+| `$wire.$set(path, value, live?)` | 深层设置；`live` 触发往返 |
+| `$wire.$toggle(prop)` | 翻转布尔值 |
+| `$wire.$call(method, …args)` | 调用动作 |
+| `$wire.method(…args)` | 与 `$call` 相同 |
+| `$wire.$refresh()` | 重新渲染 |
+| `$wire.$commit()` | 冲掉待处理的更新 |
+| `$wire.$el` / `$wire.$id` | 根元素 / id |
+| `$wire.$watch(path, fn)` | 监视状态 |
+| `$wire.$hook(name, fn)` | 组件范围的钩子 |
+| `$wire.$errors` | 校验袋（`has` / `first` / `get` / `all` / `clear`） |
+| `$wire.$refs` / `$wire.$refs(name)` | 标了 `wire:ref` 的元素 |
+| `$wire.$dirty(path?)` | 瞬时状态是否偏离最后一次服务器快照 |
+| `$wire.$on` / `$wire.$dispatch*` | 事件桥（见[事件](/docs/wire/advanced/events/)） |
+| `$wire.$entangle(name, live?)` | Alpine ↔ Wire 双向绑定 |
+| `$wire.$intercept` / `$interceptAction` / `$interceptMessage` / `$interceptRequest` | 每个组件的请求拦截器 |
+| `$wire.$js` | 访问排队的 JS 求值辅助方法 |
+| `$wire.$island(name)` | 以一个孤岛的重新渲染为目标（使用孤岛时） |
+
+## 钩子
+
+```js
+document.addEventListener('brew:init', () => {
+  Wire.hook('commit', ({ component, respond }) => { /* … */ })
+  Wire.hook('request', ({ respond }) => { /* … */ })
+  Wire.hook('morph', ({ el, component }) => { /* … */ })
+  Wire.hook('morph.updating', ({ el, toEl, component }) => {})
+  Wire.hook('component.init', ({ component, cleanup }) => {})
+  Wire.hook('element.init', ({ el, component }) => {})
+  Wire.hook('effect', ({ component, effects }) => {})
+})
+```
+
+变形子钩子：`morph.updated`、`morph.removing`、`morph.removed`、`morph.adding`、`morph.added`。
+
+## 拦截器
+
+请求生命周期控制优先使用拦截器：
+
+```js
+Wire.interceptAction(({ action, onCancel }) => { /* … */ })
+Wire.interceptMessage(({ message, cancel, onSuccess }) => { /* … */ })
+Wire.interceptRequest(({ request, onError, onFailure }) => { /* … */ })
+```
+
+旧的 `request` / `commit` 钩子仍留给更早的集成。
+
+## 自定义指令
+
+```js
+Wire.directive('tooltip', ({ el, directive, component, cleanup }) => {
+  // wire:tooltip="…"
+})
+```
+
+## 内置指令
+
+| 组 | 指令 |
+|----|------|
+| 绑定 | `wire:model`（加修饰符）、`wire:show`、`wire:text`、`wire:bind:*` |
+| 动作 | `wire:click`、`wire:submit`、任意 `wire:<event>`、`wire:init`、`wire:confirm` |
+| 体验 | `wire:loading`、`wire:dirty`、`wire:offline`、`wire:cloak`、`wire:poll`、`wire:intersect`、`wire:sort` |
+| 变形 | `wire:key`、`wire:ignore`、`wire:replace`、`wire:transition`、`wire:stream`、`wire:ref` |
+| 导航 | `wire:navigate`、`wire:current`、`wire:scroll` |
+| 孤岛 | `wire:island`（加 `.append` / `.prepend`） |
+
+## 变形行为
+
+- 以 `wire:key` 和 `wire:id` 为键
+- 尊重 `wire:ignore` / `wire:ignore.self` / `wire:ignore.children`
+- `wire:replace` / `wire:replace.self` 替换而不是变形
+- `wire:transition` 加 `effects.transition` 在可用时参与 View Transitions API
+- 来自 Crema 的块标记让循环/条件保持稳定
+
+## 错误
+
+| 响应 | 客户端行为 |
+|------|------------|
+| 419（过期 / 校验和） | 页面过期提示，要求刷新 |
+| 500（当 `app.debug`） | 带细节的调试模态 |
+| 自定义 | `onError` / 请求拦截器可以短路 |
+
+## 手动 ESM
+
+如果你自己打包 Wire，设置 `window.wireScriptConfig`（或发出 `@wireScriptConfig`），并在你的 Alpine 设置之后调用 `Wire.start()`。存在脚本配置时会跳过默认的自动启动。
+
+```js
+import { Wire, Alpine } from '@konaframework/wire'
+// optional: Alpine.plugin(yourPlugin)
+Wire.start()
+```
+
+启动时捆绑的 Alpine 插件：morph、intersect、sort、resize、collapse、anchor、focus、persist、mask。
+
+## 下一步
+
+- [与 Alpine.js 的结合](/docs/wire/js/alpine/) — 共存规则
+- [动作](/docs/wire/essentials/actions/) — `$wire` 调用的服务器方法
+- [事件](/docs/wire/advanced/events/) — 派发和监听器
+- [表单](/docs/wire/essentials/forms/) — `wire:model` 修饰符
