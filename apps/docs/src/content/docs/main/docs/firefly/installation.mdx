@@ -1,18 +1,16 @@
 ---
 title: Installation
-description: Create a Firefly app with kona new --kit=firefly, or add kona-firefly to an existing Kona app.
+description: Create a desk with kona new --kit=firefly and open /admin, or add kona-firefly to the Gradle file of an app you already have.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-The shortest path is a new app. Run `kona new`, step into the project, and `./grind serve`. The kit writes a `Panel`, the three folders beside it, and a boot class that mounts the panel at `/admin`.
-
-Your own routes stay where they are. The welcome page is still `/`. The panel is a prefix you chose, which the kit sets to `admin`.
+Create a new app when you want the panel, the folders, and the boot class written for you. Step into the project and run `./grind serve`. The kit mounts the panel at `/admin`. Your own routes stay where they are. The welcome page is still `/`.
 
 <FireflyShot file="empty-admin.png" description="The /admin path of a new app from kona new --kit=firefly, before any page or resource is added." />
 
-## A new app
+## Create the app
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -35,13 +33,11 @@ cd desk
 </TabItem>
 </Tabs>
 
-Open `http://127.0.0.1:4000/`. The welcome route stays on `/`. The panel is at `http://127.0.0.1:4000/admin`.
+Open `http://127.0.0.1:4000/`. That is the welcome route. Open `http://127.0.0.1:4000/admin` for the panel. The generated Gradle file depends on Maven Central. The CLI writes `org.konaframework:kona-firefly` at the same version as `kona-http` and the other Kona artifacts in that file.
 
-The generated Gradle file depends on Maven Central. The CLI writes `org.konaframework:kona-firefly` at the same version as `kona-http` and the other Kona artifacts in that file.
+## Add it to an app you already have
 
-## An existing app
-
-Add the same coordinate next to your other `org.konaframework` dependencies. Kotlin and Java apps in this repository both use the Gradle Kotlin DSL, so the block is the same either way:
+Put the same coordinate next to your other `org.konaframework` dependencies. Kotlin and Java apps in this repository both use the Gradle Kotlin DSL:
 
 ```kotlin
 dependencies {
@@ -51,7 +47,7 @@ dependencies {
 
 Match the version on the other `org.konaframework` lines in that file. This repository’s version is `0.3.0`.
 
-Then add a `Panel` and call `mount` on the router after your own routes are registered. [Register a panel](/docs/firefly/registration/) is that step. `kona-firefly` does not register routes by itself.
+Then add a `Panel` and call `mount` on the router after your own routes are registered. [Register a panel](/docs/firefly/registration/) is that step. The dependency does not register routes by itself.
 
 Inside the Kona repository, the hello samples depend on the module directly:
 
@@ -59,11 +55,11 @@ Inside the Kona repository, the hello samples depend on the module directly:
 implementation(project(":kona-firefly"))
 ```
 
-`samples/hello-kotlin` and `samples/hello-java` are the concrete desk used in [A working app](/docs/firefly/working-app/).
+`samples/hello-kotlin` and `samples/hello-java` are the desk used in [A working app](/docs/firefly/working-app/). From the repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :hello-java:run`. Those samples do not ship `./grind`. A standalone app from `kona new` does.
 
-## Commands that exist
+## Commands you can run
 
-From the app directory, `./grind` accepts these Firefly commands. Each `make` command takes `--lang=java` when the app is Java. Kotlin is the default.
+From the app directory, `./grind` accepts these Firefly commands. Pass `--lang=java` when the app is Java. Kotlin is the default.
 
 | Command | What it writes |
 |---------|----------------|
@@ -84,7 +80,7 @@ From the app directory, `./grind` accepts these Firefly commands. Each `make` co
 
 `make:firefly-panel` writes a class named `Panel`. Passing another class name fails. Optional flags `--id=` and `--path=` set the generated id and URL prefix. `./grind firefly:install` writes that same tree.
 
-There is no `grind install firefly`. Use the kit, or add the Maven coordinate yourself.
+Add the kit, or add the Maven coordinate. Then use the commands in the table.
 
 ## Next
 

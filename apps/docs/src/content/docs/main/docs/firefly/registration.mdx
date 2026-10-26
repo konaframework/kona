@@ -1,20 +1,20 @@
 ---
 title: Register a panel
-description: The Panel class, the pages, widgets, and resources folders, and how discover loads them.
+description: Write app/firefly/Panel, point discover at that folder, and call mount after your own routes. Pages, widgets, and resources load from the folders beside the class.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-You register a panel, then drop a page, a widget, or a resource in the folder next to it. `discover` reads those folders. `mount` is what puts the URLs on the router.
+Write the panel class, point `discover` at its folder, and call `mount`. After that, drop a page, a widget, or a resource in the matching folder. The next request can serve it.
 
-The class is `Panel`. It extends `org.konaframework.firefly.Panel`. The hello sample and `kona new --kit=firefly` both start from that class.
+The class in your app is `app.firefly.Panel`. It extends `org.konaframework.firefly.Panel`. The hello samples and `kona new --kit=firefly` both start from that class.
 
 <FireflyShot file="panel-directory.png" description="The hello-kotlin app/firefly directory, showing Panel.kt, pages/, widgets/, and resources/." />
 
-## The panel file
+## Write the panel file
 
-The hello sample and `kona new --kit=firefly` both use this class. The id is the panel’s name in route names and in the guard `firefly-desk`. The path is the URL prefix. `authenticate(false)` leaves the screens public, which is how the sample is shipped. `discover` is what loads the child folders.
+Put this class in `src/main/kotlin/app/firefly/Panel.kt`, or `src/main/java/app/firefly/Panel.java`. The id shows up in route names and in the guard `firefly-desk`. The path is the URL prefix. `authenticate(false)` leaves the screens public, which is how the hello samples ship. `discover` loads the child folders.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -57,14 +57,18 @@ public class Panel extends org.konaframework.firefly.Panel {
 </TabItem>
 </Tabs>
 
-`./grind make:firefly-panel` writes `id` and `path` only. Add `brand`, `authenticate`, and `discover` yourself when you generate the class instead of using the kit. `./grind firefly:install` writes that same shorter class.
+`./grind make:firefly-panel` writes `id` and `path` only. Add `brand`, `authenticate`, and `discover` yourself when you generate the class. `./grind firefly:install` writes that same shorter class. The kit writes the full class above.
 
-Mount it after your own routes, so `/` stays the welcome page:
+## Mount it after your own routes
+
+hello-kotlin imports `app.firefly.Panel` as `DeskPanel` so the name stays clear in `bootstrap/App.kt`. hello-java constructs `app.firefly.Panel`. Both calls sit after the welcome routes, so `/` stays the welcome page.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
+import app.firefly.Panel as DeskPanel
+
 WebRoutes().register(router)
 ApiRoutes().register(router)
 DeskPanel().mount(router)
@@ -84,7 +88,7 @@ new app.firefly.Panel().mount(router);
 
 `mount` registers the panel’s GET and POST paths. Calling it twice throws `FireflyException` and names the panel id. If a path is already taken, `mount` throws and names both handlers. The existing route stays. A panel does not register `/_firefly/` or `/wire/update`.
 
-## Directory layout
+## What discover loads
 
 `discover(panelDirectory)` reads three folders. A missing folder is empty. A file must declare a package and a class whose name matches the file. That class must already be on the classpath and must have a no-arg constructor. Abstract classes and unrelated types are skipped.
 
@@ -94,7 +98,7 @@ new app.firefly.Panel().mount(router);
 | `widgets/` | `Widget` |
 | `resources/` | `Resource` |
 
-The hello sample uses exactly those three folders:
+hello-kotlin uses exactly those three folders:
 
 ```text
 app/firefly/Panel.kt
@@ -104,17 +108,15 @@ app/firefly/resources/NoteResource.kt
 app/firefly/resources/OrderResource.kt
 ```
 
-Java uses the same names under `src/main/java/app/firefly/`.
+hello-java uses the same names under `src/main/java/app/firefly/`.
 
-Generators for fields, entries, columns, filters, actions, layouts, and themes write sibling folders (`fields/`, `entries/`, `columns/`, `filters/`, `actions/`, `layouts/`, `themes/`). `discover` does not scan those folders. You reference those classes from a page, a resource, or `theme(...)`.
+Generators for fields, entries, columns, filters, actions, layouts, and themes write sibling folders (`fields/`, `entries/`, `columns/`, `filters/`, `actions/`, `layouts/`, `themes/`). `discover` does not scan those folders. Reference those classes from a page, a resource, or `theme(...)`.
 
-You can still call `page`, `widget`, and `resource` on the panel instead of discovery. There is no app-wide registry.
+You can still call `page`, `widget`, and `resource` on the panel. There is no app-wide registry.
 
-Discovered widgets are placed on the page whose slug is empty, or on the first page when no page has an empty slug. In the hello sample that first page is `Desk`, so `DeskWidget` renders on `/admin/desk`.
+Discovered widgets land on the page whose slug is empty, or on the first page when no page has an empty slug. In the hello samples that first page is `Desk`, so `DeskWidget` renders on `/admin/desk`.
 
-## What mount serves
-
-With `path("admin")`, page and resource URLs look like this:
+## URLs you get with path("admin")
 
 | URL | Screen |
 |-----|--------|
@@ -129,4 +131,4 @@ With `path("admin")`, page and resource URLs look like this:
 
 ## Next
 
-[A working app](/docs/firefly/working-app/) fills `resources/` with the notes and orders classes from the hello sample.
+[A working app](/docs/firefly/working-app/) fills `resources/` with the notes and orders classes from the hello samples.

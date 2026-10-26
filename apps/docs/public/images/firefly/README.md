@@ -1,6 +1,8 @@
 # Firefly screenshots
 
-Each scene is a pair of PNGs in this folder. `<name>-light.png` is the light theme. `<name>-dark.png` is the dark theme. A page names the scene as `<name>.png` (for example `desk-panel.png`). That unsuffixed name is not an image the site loads. Drop both files of the pair in this folder and rebuild the docs site. The page shows the light file when the docs theme is light and the dark file when the docs theme is dark. The description is the alt text and the caption, and it describes the scene. If either file is missing, the page shows a placeholder that lists both filenames, this folder (`apps/docs/public/images/firefly/`), and the description. It does not link a missing file.
+Maintainer notes. This file is not linked from the Firefly guide.
+
+Each scene is a pair of PNGs in this folder. `<name>-light.png` is the light theme. `<name>-dark.png` is the dark theme. A page names the scene as `<name>.png` (for example `desk-panel.png`). That unsuffixed name is not an image the site loads. Drop both files of the pair in this folder and rebuild the docs site. The page shows the light file when the docs theme is light and the dark file when the docs theme is dark. The description on the page is the alt text and the caption. If either file is missing, the reader still sees that caption and nothing else: no filenames, and no path.
 
 Files are served as `/images/firefly/<file>`.
 

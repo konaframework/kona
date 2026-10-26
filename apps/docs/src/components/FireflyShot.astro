@@ -5,13 +5,12 @@
  * `<name>-light.png` and `<name>-dark.png`. Both must exist.
  * The light file shows in the light theme and the dark file shows
  * in the dark theme. The alt text and the caption are the scene
- * description. A missing file becomes a placeholder that names both
- * files and does not link either one.
+ * description. A missing file becomes a placeholder whose only
+ * visible text is that description.
  */
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Aside } from '@astrojs/starlight/components';
 
 interface Props {
   file: string;
@@ -33,7 +32,6 @@ if (stem.endsWith('-light') || stem.endsWith('-dark')) {
 
 const lightFile = `${stem}-light.png`;
 const darkFile = `${stem}-dark.png`;
-const folder = 'apps/docs/public/images/firefly';
 const imageDirFromPackage = join(process.cwd(), 'public/images/firefly');
 const imageDirFromSource = join(dirname(fileURLToPath(import.meta.url)), '../../public/images/firefly');
 
@@ -57,14 +55,8 @@ const darkSrc = `${base}images/firefly/${darkFile}`;
       <figcaption>{description}</figcaption>
     </figure>
   ) : (
-    <Aside type="note" title="Screenshot placeholder">
-      <p>
-        Files: <code>{lightFile}</code> and <code>{darkFile}</code>
-      </p>
-      <p>
-        Folder: <code>{folder}/</code>
-      </p>
-      <p>{description}</p>
-    </Aside>
+    <figure class="firefly-shot">
+      <figcaption>{description}</figcaption>
+    </figure>
   )
 }

@@ -1,21 +1,21 @@
 ---
 title: Panel chrome
-description: Panel slots, render hooks, partial overrides, and custom layouts.
+description: Change the sidebar, top bar, body, or footer around every screen. Keep the hook markers, or render throws.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
+Change the frame around every screen when the default sidebar, top bar, body, or footer is close and you want a different sidebar, a banner, or your own wrapper.
+
+The class that draws the frame is `org.konaframework.firefly.support.Panel`. The class you mount on the router is `org.konaframework.firefly.Panel`, on [Panel](/docs/firefly/panel/). The support class picks HTML for each region, checks that the hook markers are still there, fills those markers, and asks a layout to wrap the result.
+
 <FireflyShot file="panel-chrome.png" description="The panel chrome at http://127.0.0.1:4017/admin/desk, showing the sidebar, top bar, page body, and footer." />
 
-Panel chrome is the frame around every screen: sidebar, top bar, body, and footer. You touch it when the default frame is close but you want a different sidebar, a banner, or your own wrapper.
+## Call the support Panel
 
-The class that draws the frame is `org.konaframework.firefly.support.Panel`. The class you mount on the router is `org.konaframework.firefly.Panel`, documented on [Panel](/docs/firefly/panel/). The support class picks HTML for each region, checks that the hook markers are still there, fills those markers, and asks a layout to wrap the result.
-
-## Panel
-
-| Method | Behavior |
-|--------|----------|
+| Method | What you get |
+|--------|----------------|
 | `theme(FireflyTheme)` | Theme used for tokens, CSS, and theme partials. Default: `KonaTheme` |
 | `layout(PanelLayout)` | Replaces the wrapper. Default: `DefaultLayout`. A later call replaces the earlier layout |
 | `hook(Hook, String)` | Appends HTML for that hook. Several calls for the same hook concatenate, in order |
@@ -32,7 +32,7 @@ For each slot, `render` picks the first source that exists:
 
 Unknown slot names passed to `overridePartial` are stored and ignored, because only the four slots are resolved.
 
-## Hook markers
+## Keep the hook markers
 
 Every chosen partial must still contain the markers for its slot. The marker text is exact, including the comment:
 
@@ -49,7 +49,7 @@ If any marker is missing, `render` throws `FireflyException`:
 Partial [<slot>] is missing markers [<marker>, ...]
 ```
 
-The shell does not render. Fix the partial so the comments are still in the HTML, including when your markup surrounds them.
+The shell does not render. Put the comments back in the HTML, including when your markup surrounds them.
 
 After the check, each marker is replaced with the concatenated hook HTML. A hook you never filled becomes an empty string, so the comment disappears.
 
@@ -64,7 +64,7 @@ After the check, each marker is replaced with the concatenated hook HTML. A hook
 | body | `<main class="ff-body">` |
 | footer | `<footer class="ff-footer">` |
 
-## Default layout
+## What the default layout writes
 
 `DefaultLayout` writes:
 
@@ -107,7 +107,9 @@ Panel shell = new Panel().overridePartial(
 </TabItem>
 </Tabs>
 
-A theme can supply the same HTML from `partial("sidebar")`. An app override still wins when both exist.
+You see **Menu** at the top of the sidebar. Hooks still inject between the two comments. A theme can supply the same HTML from `partial("sidebar")`. An app override still wins when both exist.
+
+`./grind firefly:publish` copies the sidebar partial to `resources/views/firefly/sidebar.crema.html` so you can edit it in the app. Keep the markers.
 
 ## Replace the layout
 
@@ -175,4 +177,4 @@ new Panel().layout(new DarkLayout()).render();
 </TabItem>
 </Tabs>
 
-`layout(...)` after `theme(...)` does not drop the theme. The theme still supplies tokens, CSS, and theme partials. Only the wrapper changes.
+`layout(...)` after `theme(...)` keeps the theme. The theme still supplies tokens, CSS, and theme partials. Only the wrapper changes. Read [Themes and CSS](/docs/firefly/themes/) for the tokens those classes use.

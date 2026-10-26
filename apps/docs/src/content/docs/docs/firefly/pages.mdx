@@ -1,26 +1,26 @@
 ---
 title: Pages
-description: Panel pages — title, actions, a content region, widgets, and the list, create, edit, view, manage, and custom types.
+description: Add a screen under app/firefly/pages and open it at /admin/{slug}. The Desk page in hello-kotlin is the concrete example.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A page is one screen. It has a title, buttons in the header and the footer, a content region, and any widgets you place on it. The content region is where the form, the infolist, or the table goes.
+Add a screen when the desk needs a page that is not a resource. Give it a title, buttons in the header and the footer, and a content region for the form, the infolist, or the table.
 
-You can call `render()` on that page from a test. The panel is what turns the same page into a URL. In the hello sample, Desk is a custom page at `/admin/desk`.
+Call `render()` on that page from a test. The panel turns the same page into a URL. In the hello samples, Desk is a custom page at `/admin/desk`. The file is `app/firefly/pages/Desk`.
 
 <FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
 
 The types live in `org.konaframework.firefly` and `org.konaframework.firefly.widgets`. `PanelPage` extends `Page`. `ListPage`, `CreatePage`, `EditPage`, `ViewPage`, `ManagePage`, and `CustomPage` are the page kinds. `Dashboard` is a `Page` whose section class is `ff-page ff-dashboard`.
 
-## How a page is served
+## How the URL is chosen
 
 `Panel.mount` registers `GET /{prefix}/{slug}` for each page discovered from `pages/` or passed to `page(...)`. The hello sample’s `Desk` uses slug `desk`, so the route is `/admin/desk`. When the request is allowed, the panel renders the chrome and puts `page.render()` in the body.
 
-`navigationLabel()` is the sidebar text. The default is the slug, or `Dashboard` when the slug is empty. That is why a page titled `Desk` can still show the link `desk` until you change the label path. `parent("name")` nests the page under a navigation item with that name. A missing parent fails at mount and names both items.
+`navigationLabel()` is the sidebar text. The default is the slug, or `Dashboard` when the slug is empty. A page titled `Desk` still shows the link `desk` until you change the label. `parent("name")` nests the page under a navigation item with that name. A missing parent fails at mount and names both items.
 
-## The Desk page
+## Write the Desk page
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -68,18 +68,18 @@ public class Desk extends CustomPage {
 </TabItem>
 </Tabs>
 
-`mountForm` stores the schema as the page form. `mountInfolist` renders the infolist to HTML and stores that markup. `table` and `headerActions` come from `Page`. The edit action’s dialog is in the HTML and stays closed until Alpine opens it.
+`mountForm` stores the schema as the page form. You see the name field, the status combobox, and the due picker. `mountInfolist` renders the infolist to HTML and stores that markup. `table` and `headerActions` come from `Page`. The edit action’s dialog is in the HTML and stays closed until Alpine opens it.
 
 ```bash
 ./grind make:firefly-page Desk
 ./grind make:firefly-page Desk --lang=java
 ```
 
-The command writes a `CustomPage` with the lowercased name as the slug and no form yet.
+The command writes a `CustomPage` in `pages/`. The slug is the lowercased name. The generated class has no form yet.
 
 ## Methods on Page
 
-| Method | What it does |
+| Method | What you get |
 |--------|----------------|
 | `title(value)` / `title(provider)` | Heading text, or a closure that receives `Get` |
 | `headerActions(...)` / `footerActions(...)` | Replaces that action list |
@@ -93,7 +93,7 @@ The command writes a `CustomPage` with the lowercased name as the slug and no fo
 
 `PanelPage` adds:
 
-| Method | What it does |
+| Method | What you get |
 |--------|----------------|
 | `slug()` | The constructor slug, or the class name without a trailing `Page`, lowercased |
 | `navigationLabel()` | Slug text, or `Dashboard` when the slug is empty |
@@ -105,9 +105,9 @@ Section classes: `ff-list`, `ff-create`, `ff-edit`, `ff-view`, `ff-manage`, `ff-
 
 `ManagePage` is the page a simple resource uses. Create, edit, view, and delete for that resource are header actions. Read [Resources](/docs/firefly/resources/).
 
-## Widgets on the page
+## Put a widget on the page
 
-`Page.render()` includes `<div class="ff-page-widgets">`. A widget you pass to `widgets(...)` is in the page, not only a string you render beside it. The panel also copies discovered widgets onto the home page (empty slug) or the first page. See [Widgets](/docs/firefly/widgets/).
+`Page.render()` includes `<div class="ff-page-widgets">`. A widget you pass to `widgets(...)` is in the page. The panel also copies discovered widgets onto the home page (empty slug) or the first page. See [Widgets](/docs/firefly/widgets/).
 
 ## Next
 

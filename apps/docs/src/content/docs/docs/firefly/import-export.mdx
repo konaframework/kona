@@ -1,20 +1,20 @@
 ---
 title: Import and export
-description: Export rows to CSV and import them back, through a dialog action and a queue job.
+description: Put the export and import actions on a page header, then run the CSV jobs. Pass a queue bus, or pass null and handle() runs on the caller.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Import and export move rows through a dialog and a job. Export writes CSV. Import reads it back. You put the action on a page header or a table, the same way you put any other action there.
+Put an export or import action on a page header or a table when you need to move rows as CSV. Export writes the file. Import reads it back. Both jobs implement `ShouldQueue`, so a queue `Bus` can run them. Pass `null` as the bus and `handle()` runs on the caller.
 
-Both jobs implement `ShouldQueue`, so a queue `Bus` can run them. Pass `null` as the bus and `handle()` runs on the caller. The dialog stays closed until it is opened, like every other Firefly dialog.
+The dialog stays closed until Alpine opens it, the same as every other Firefly dialog.
 
 <FireflyShot file="export-dialog.png" description="The Export dialog opened from the export action, with the heading Export." />
 
-## Actions
+## Add the actions
 
-`FireflyTransfer.exportAction()` is an action named `export`, labeled `Export`, opened as a modal headed `Export`. `importAction()` is the same shape with the name `import`. Put either action on a page header or a table. The dialog stays closed until Alpine opens it, the same as every other Firefly dialog.
+`FireflyTransfer.exportAction()` is an action named `export`, labeled `Export`, opened as a modal headed `Export`. `importAction()` is the same shape with the name `import`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -32,6 +32,8 @@ page.headerActions(FireflyTransfer.exportAction(), FireflyTransfer.importAction(
 
 </TabItem>
 </Tabs>
+
+You see **Export** and **Import** in the page header. Open Export and the dialog heading is **Export**.
 
 ## Run the jobs
 
@@ -61,7 +63,7 @@ List<Map<String, String>> imported = FireflyTransfer.import(path, null);
 
 CSV encoding quotes a cell that contains a comma or a quote, and doubles quotes inside a quoted cell. The header row is the key set of the first map. Later rows are read in that column order. A short row stores an empty string for the missing cells.
 
-## Tests
+## Assert the rendered page
 
 `Firefly.test` reads a rendered page, form, table, or dialog. It lives in `org.konaframework.firefly.testing`.
 
@@ -80,7 +82,11 @@ Firefly.test(page)
 <TabItem label="Java">
 
 ```java
-Firefly.test(page).assertSee("Ada").assertFormField("name");
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("name")
+    .assertTable("Ada")
+    .assertDialog("Export");
 ```
 
 </TabItem>
@@ -88,4 +94,4 @@ Firefly.test(page).assertSee("Ada").assertFormField("name");
 
 `assertSee` fails when the HTML does not contain the text. `assertFormField` looks for `data-ff-path`. A custom field subclass is found the same way. `assertTable` requires both `ff-table` and the text. `assertDialog` requires both `ff-dialog` and the title. `Firefly.test(html)` asserts against a string you already rendered.
 
-`kona new desk --kit=firefly` is the install path on [Installation](/docs/firefly/installation/). It is not a separate runtime.
+`kona new desk --kit=firefly` is the install path on [Installation](/docs/firefly/installation/).

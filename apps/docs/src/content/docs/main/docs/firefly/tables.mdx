@@ -1,20 +1,20 @@
 ---
 title: Tables
-description: Show records in a Firefly table with columns, filters, search, sort, pages, and row buttons.
+description: Pass rows to Table.memory or a Cadence model to Table.cadence, name the columns, and render the list. The notes page shows one row, Ada.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
+Name the columns, point the table at the rows, and call `render()`. You get the search box, the sort, the filters, and the pages in that HTML.
+
+Use `Table.memory` when the rows are already in your hand. The hello samples do that: one row, Ada, so the screen renders before a migration. Use `Table.cadence` when the rows are a Cadence model and you want `where` and `whereHas` on that model’s query.
+
+The types live in `org.konaframework.firefly.tables` (`kona-firefly-tables`). On the notes page the table is `Table.memory(...).columns(TextColumn.make("name"))` inside `app/firefly/resources/NoteResource`.
+
 <FireflyShot file="notes-table.png" description="The notes table at http://127.0.0.1:4017/admin/notes/manage, with the Ada row in the name column." />
 
-A table is the list of records on a page. You describe the columns, and Firefly draws the search box, the sort, the filters, and the pages. `render()` returns that HTML.
-
-You use `Table.memory` when the rows are already in your hand. The hello sample does that: one row, Ada, so the screen renders before a migration. You use `Table.cadence` when the rows are a Cadence model and you want `where` and `whereHas` on that model’s query.
-
-The types live in `org.konaframework.firefly.tables` (`kona-firefly-tables`).
-
-## A table in one call
+## Render a table
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -53,11 +53,11 @@ String html = table.render();
 </TabItem>
 </Tabs>
 
-`Table.memory` keeps the rows in an in-memory query. `columns(...)` replaces the column list. `search`, `sort`, `page`, and `perPage` narrow what `load()` and `render()` return. Search matches columns you marked `searchable(true)`. Sort accepts `asc` or `desc` on a column you marked `sortable(true)`.
+`Table.memory` keeps the rows in an in-memory query. `columns(...)` replaces the column list. `search`, `sort`, `page`, and `perPage` narrow what `load()` and `render()` return. Search matches columns you marked `searchable(true)`. Sort accepts `asc` or `desc` on a column you marked `sortable(true)`. You see the Ada row when the search is `ada`.
 
 `load()` returns the current page, the total, the summaries, and the groups. `render()` returns the same page as HTML. An empty page uses the heading from `empty("No records")` and the text from `emptyDescription(...)`. Both accept a fixed string or a closure.
 
-## Where the records come from
+## Choose where the rows come from
 
 Use `Table.memory` when the records are already a list of maps. `modifyQueryUsing` receives a `MemoryQuery`. That query filters, sorts, searches, and paginates the list.
 
@@ -116,10 +116,10 @@ table.modifyQueryUsing(query -> query
 
 A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `ModelBuilder`. A document model fails, and the message names `kona-firefly-document`. That module is not part of this release. Any other type fails and tells you to use `Table.memory` for custom rows.
 
-## Columns
+## Pick a column
 
-| Type | Role |
-|------|------|
+| Type | What you call |
+|------|----------------|
 | `TextColumn.make(name)` | Text, money, or a date. `badge`, `limit`, `html`, `url`, `icon`, `color`, `prefix`, `suffix`, `placeholder` |
 | `IconColumn.make(name)` | An icon for a true or false state |
 | `ImageColumn.make(name)` | An image with `alt`, `imageHeight`, and `imageWidth` |
@@ -136,16 +136,18 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 <TabItem label="Kotlin">
 
 ```kotlin
-TextColumn.make("name").label { cell ->
-    if (cell.get("/kind") == "org") "Organization" else "Name"
-}
+TextColumn.make("name")
+    .label { cell ->
+        if (cell.get("/kind") == "org") "Organization" else "Name"
+    }
+    .extraAttributes(mapOf("data-col" to "name"))
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-TextColumn.make("name").label(cell -> "Name");
+TextColumn.make("name").label(cell -> "Name").extraAttributes(Map.of("data-col", "name"));
 ```
 
 </TabItem>
@@ -155,14 +157,14 @@ TextColumn.make("name").label(cell -> "Name");
 
 Each column renders `x-data="ffColumn('name', true)"` and `@entangle(name)`.
 
-`./grind make:firefly-column Name` writes a column class and a Crema view under `app/firefly/columns`. `--lang=java` writes Java. The view uses `ffColumn`, `@entangle`, and `$wire.$call`.
+`./grind make:firefly-column Name` writes a column class and a Crema view under `app/firefly/columns`. `--lang=java` writes Java. The view uses `ffColumn`, `@entangle`, and `$wire.$call`. Reference the class from the table. `discover` does not scan `columns/`.
 
-## Filters
+## Add a filter
 
 `filters(...)` replaces the filter list. `filter(name, value)` applies one. An empty value clears it.
 
-| Type | Role |
-|------|------|
+| Type | What you call |
+|------|----------------|
 | `Filter.make(name)` | Matches one attribute. `attribute` and `operator` choose the column and the comparison |
 | `SelectFilter.make(name)` | A select of options. `options(map)` or `options { cell -> map }` |
 | `TernaryFilter.make(name)` | `true`, `false`, or `blank` |
@@ -170,7 +172,7 @@ Each column renders `x-data="ffColumn('name', true)"` and `@entangle(name)`.
 
 `default("open")` stores a fixed value. `defaultUsing { "Ada" }` stores a closure that runs when the filter reads its default.
 
-`query { query, value -> ... }` receives the table’s native query and the current filter value. On a memory table that query is `MemoryQuery`. On a Cadence table it is `ModelBuilder`.
+`query { query, value -> ... }` receives the table’s native query and the current filter value. On a memory table that query is `MemoryQuery`. On a Cadence table it is `ModelBuilder`. `extraInputAttributes` lands on the filter’s input or select.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -178,7 +180,7 @@ Each column renders `x-data="ffColumn('name', true)"` and `@entangle(name)`.
 ```kotlin
 Filter.make("name").query { query, value ->
     (query as MemoryQuery).where("name", value)
-}
+}.extraInputAttributes(mapOf("data-filter" to "name"))
 ```
 
 </TabItem>
@@ -187,7 +189,7 @@ Filter.make("name").query { query, value ->
 ```java
 Filter.make("name").query((query, value) -> {
     ((MemoryQuery) query).where("name", value);
-});
+}).extraInputAttributes(Map.of("data-filter", "name"));
 ```
 
 </TabItem>
@@ -195,7 +197,7 @@ Filter.make("name").query((query, value) -> {
 
 `./grind make:firefly-filter Status` writes a filter class and a Crema view under `app/firefly/filters`. `--lang=java` writes Java.
 
-## Pages, selection, groups, and layout
+## Page, select, group, and lay out the rows
 
 `paginated(true)` is the default. `page(1)` and `perPage(10)` choose the window. `pageOptions(10, 25)` lists the page sizes in the HTML. Page numbers start at 1.
 
@@ -207,7 +209,7 @@ Filter.make("name").query((query, value) -> {
 
 `layout(TableLayout.ROWS)` is the table. `TableLayout.STACK` and `TableLayout.GRID` render the same records as cards. `poll("10s")` or `poll("500ms")` adds `wire:poll` on the root.
 
-## Row and header buttons
+## Put a button on the header or the row
 
 A button renders through `Dialog` and can include a schema. `label("Export")` and `label { cell -> "Edit ${cell.get("name")}" }` set the text. `modal()`, `slideOver()`, and `fullscreen()` choose the dialog. `schema(Text.make("Go"))` is the dialog body. `url("https://example.test")` renders a link. `requiresSelection(true)` disables the button while no row is selected.
 
@@ -235,6 +237,6 @@ table.headerButtons(
 </TabItem>
 </Tabs>
 
-The button markup uses `ffAction` and `$wire.$call`. Typed action objects attach when the actions module is on `main`.
+You see **Export** above the table. It stays disabled until a row is selected. The button markup uses `ffAction` and `$wire.$call`. Typed action objects attach when the actions module is on the classpath.
 
 `configureUsing` on `Table`, `TableButton`, `Column`, `TextColumn`, `Filter`, and `SelectFilter` runs for every later `make()`. Pass `null` to clear it.

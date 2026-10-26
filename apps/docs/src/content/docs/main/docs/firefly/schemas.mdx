@@ -1,18 +1,18 @@
 ---
 title: Schemas
-description: Build a Firefly schema, bind state, and let labels and content be a value or a closure.
+description: Build the tree for a screen, fill the state map, and call render(). The Desk form is a schema of the name, status, and due fields.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
+Build the tree for a screen, fill the state map, and call `render()`. Sections, text, fields, and buttons all sit in that tree. Live pieces bind with `wire:model` and `@entangle`.
+
+Use a schema when a screen is more than one control. On the Desk page the form is a name field, a status field, and a due field. The types live in `org.konaframework.firefly.schemas` (`kona-firefly-schemas`).
+
 <FireflyShot file="schema-section.png" description="The Desk form at http://127.0.0.1:4017/admin/desk, a schema of the name, status, and due fields." />
 
-A schema is the tree you build instead of writing the page HTML by hand. Sections, text, and later fields and buttons all sit in that tree. You fill the state map, then `render()` returns HTML. Live pieces bind with `wire:model` and `@entangle`.
-
-You use a schema whenever a screen is more than one control. The Desk page is a schema of a name field, a status field, and a due field, plus an infolist and a table beside it. The types live in `org.konaframework.firefly.schemas` (`kona-firefly-schemas`).
-
-## A schema in one call
+## Build one and render it
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -43,11 +43,11 @@ String html = schema.render();
 </TabItem>
 </Tabs>
 
-`Schema.make()` starts an empty tree. `statePath("user")` prefixes every root component, so a field named `name` is stored at `user.name`. `components(...)` replaces the root list and binds each component to the schema. `hydrate()` writes defaults into missing paths. `render()` returns a `<div class="ff-schema">`.
+`Schema.make()` starts an empty tree. `statePath("user")` prefixes every root component, so a field named `name` is stored at `user.name`. `components(...)` replaces the root list and binds each component to the schema. `hydrate()` writes defaults into missing paths. `render()` returns a `<div class="ff-schema">`. You see the Profile section and the text Hello.
 
 `get` and `set` use dotted paths. `set` returns the partial-render keys for that update. A component that called `live()`, `liveOnBlur()`, or `liveDebounce(...)` contributes its own path.
 
-## Values and closures
+## Pass a value or a closure
 
 Most chainable setters accept a fixed value or a closure. The closure receives `Get`, the same reader the schema uses inside `afterStateUpdated`. `Get.get` resolves a path relative to the component’s container. A path that starts with `/` is absolute.
 
@@ -77,7 +77,7 @@ Text.make("Hello").content(get -> "Hello");
 
 The last call wins. `label("Title")` after a closure stores the fixed string and drops the closure. The same shape is on `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight`, and `imageWidth`.
 
-`extraAttributes` merges a map of HTML attributes onto the component root. Layouts, primes, actions, infolist entries, table columns, and form fields all have it, because they share the schema component (columns keep the same methods on the column root). Pass a map or a closure. A name that is not an HTML attribute name is skipped. Values are escaped.
+`extraAttributes` merges HTML attributes onto the component root. Layouts, primes, actions, infolist entries, table columns, and form fields all have it. Pass a map or a closure. A name that is not an HTML attribute name is skipped. Values are escaped.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -100,7 +100,7 @@ Text.make("note").extraAttributes(get -> Map.of("data-kind", "note"));
 
 `hidden(true)` and `visible(false)` still take a boolean. `hidden { ... }` and `visible { ... }` recompute when the schema renders or when `isHidden` runs.
 
-## State
+## Read and write state
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -134,16 +134,16 @@ Inside a component under `statePath("user")`:
 
 `dehydrate()` returns a map of paths that should be saved. A hidden component is omitted unless `dehydratedWhenHidden(true)`. `dehydrated(false)` omits the component even when it is visible.
 
-`afterStateUpdated` runs after `set` when the path matches a component. The hook receives the new value, the old value, `Get`, and `Set`. `set.set("slug", "bea", false)` writes a sibling and does not run that sibling’s update hook.
+`afterStateUpdated` runs after `set` when the path matches a component. The hook receives the new value, the old value, `Get`, and `Set`. `set.set("slug", "bea", false)` writes a sibling and skips that sibling’s update hook.
 
-## Layouts
+## Lay the screen out
 
-You reach for a layout when one field after another is not enough. A section, a grid, tabs, or a wizard is still a schema component. The Desk page stacks a form, an infolist, and a table in the body, which is the layout you see in the sample.
+Reach for a layout when one field after another is not enough. A section, a grid, tabs, or a wizard is still a schema component. The Desk page stacks a form, an infolist, and a table in the body.
 
 <FireflyShot file="schema-layout.png" description="The Desk page body at http://127.0.0.1:4017/admin/desk, with the form, the name infolist, and the notes table one after another." />
 
-| Type | Role |
-|------|------|
+| Type | What you call |
+|------|----------------|
 | `Grid.make(columns)` | Column grid. `schema(...)` sets the children |
 | `Flex.make()` | Row of children |
 | `Fieldset.make(legend)` | Group with a legend. `required(true)` marks it |
@@ -176,11 +176,11 @@ Section.configureUsing(section -> { section.aside(true); });
 
 Heading level starts at 2. `rootHeadingLevel` changes the start. Nested sections increment it, and the level stops at 6.
 
-## Primes
+## Text, icons, images, and lists
 
-`Text.make(content)` renders a paragraph. `content`, `size`, `badge(true)`, and `js()` change it. `SchemaIcon.make("home")` inlines an icon from the support set (`home`, `bars`, `user`, `x`). `Image.make(url)` takes `alt`, `url`, `imageHeight`, `imageWidth`, and `imageSize`. `UnorderedList.make("one", "two")` renders the items; `items { listOf("Kona") }` replaces them at render time.
+`Text.make(content)` renders a paragraph. `content`, `size`, `badge(true)`, and `js()` change it. `SchemaIcon.make("home")` inlines an icon from the support set (`home`, `bars`, `user`, `x`). `Image.make(url)` takes `alt`, `url`, `imageHeight`, `imageWidth`, and `imageSize`. `UnorderedList.make("one", "two")` renders the items. `items { listOf("Kona") }` replaces them at render time.
 
-## Live updates
+## Bind a field so it updates live
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -211,9 +211,9 @@ field.lazy();
 
 `hiddenJs` and `visibleJs` store browser expressions the same way.
 
-## Your own component
+## Write your own component
 
-Subclass `Component`. The constructor name is the state key.
+Subclass `Component`. The constructor name is the state key. Put the class where the page or resource can reference it. `discover` does not scan a layouts folder.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -236,16 +236,20 @@ public class NameField extends Component {
 
 `view("notes.banner")` renders that Crema view when `Schema.crema(engine)` is set. The view receives `path`, `content`, and `label`. Without an engine, render emits `<div data-ff-view="notes.banner">`.
 
-`./grind make:firefly-layout Banner` writes a layout class and a Crema view under `app/firefly/layouts`. `--lang=java` writes a Java class. The view uses `x-data="ffField"` and `@entangle`.
+```bash
+./grind make:firefly-layout Banner
+```
 
-## Alpine
+The command writes a layout class and a Crema view under `app/firefly/layouts`. `--lang=java` writes a Java class. The view uses `x-data="ffField"` and `@entangle`.
 
-`AlpineScripts.source()` is the script that registers `ffField`, `ffEntry`, `ffColumn`, and `ffAction`. Those factories entangle state with `$wire.$entangle` and call server actions with `$wire.$call`.
+## Alpine factories
 
-## Deferred schemas
+`AlpineScripts.source()` is the script that registers `ffField`, `ffEntry`, `ffColumn`, and `ffAction`. Those factories entangle state with `$wire.$entangle` and call server actions with `$wire.$call`. Register that script on the Alpine instance the page already started.
+
+## Defer a heavy schema
 
 `deferLoading(true)` makes `render()` return a loading placeholder until `loadDeferred()`. The schema needs `key(...)`. A deferred schema with no key throws `FireflyException` (`Deferred schema is missing a key`).
 
-## What this module does not do
+## What you add on another page
 
-It does not open dialogs, register routes, or render inputs such as a select or a date picker. Buttons and confirmation dialogs are built with [Actions](/docs/firefly/actions/). This module is the tree and the state those pieces sit on.
+Inputs such as a select or a date picker are on [Forms](/docs/firefly/forms/). Buttons and confirmation dialogs are on [Actions](/docs/firefly/actions/). This module is the tree and the state those pieces sit on.
