@@ -736,6 +736,24 @@ class GrindTest {
         assertEquals("true", watch["watch"])
     }
 
+    @Test
+    fun makeFireflyLayout() {
+        val base = temp.resolve("firefly-layout")
+        Files.createDirectories(base)
+        assertEquals(0, MakeFireflyLayoutCommand().run(listOf("Banner", "--base=$base", "--lang=kotlin")))
+        val source = Files.readString(base.resolve("src/main/kotlin/app/firefly/layouts/Banner.kt"))
+        val view = Files.readString(base.resolve("src/main/resources/views/firefly/layouts/banner.crema.html"))
+        assertTrue(source.contains("class Banner"))
+        assertTrue(view.contains("x-data=\"ffField\""))
+        assertTrue(view.contains("@entangle"))
+        assertEquals(0, MakeFireflyLayoutCommand().run(listOf("Notice", "--base=$base", "--lang=java")))
+        assertTrue(Files.exists(base.resolve("src/main/java/app/firefly/layouts/Notice.java")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-layout", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-layout", "Bad-Name", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-layout", "Banner", "--base=$base", "--lang=kotlin")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-layout" })
+    }
+
     private fun stubGradleApp(dir: Path): Path {
         Files.createDirectories(dir)
         Files.writeString(dir.resolve("settings.gradle.kts"), "rootProject.name = \"stub\"\n")

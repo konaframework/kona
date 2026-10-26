@@ -7,17 +7,20 @@ description: What Kona Firefly is, which artifact ships today, and how the suppo
 
 (Brief nod: Firefly occupies the same problem space as full application-panel kits. The rest of these pages describe Firefly on its own terms.)
 
-The artifact in the repository today is `org.konaframework:kona-firefly-support`, package `org.konaframework.firefly.support`. It gives you themes, scoped CSS, panel chrome, render hooks, icons, and the shared dialog. It does not register HTTP routes, middleware, or views. Adding it to an existing application does not change routes you already defined.
+Two artifacts are in the repository today.
 
-Forms, tables, navigation trees, and mounted panel routes are not in this artifact.
+`org.konaframework:kona-firefly-support`, package `org.konaframework.firefly.support`, gives you themes, scoped CSS, panel chrome, render hooks, icons, and the shared dialog. It does not register HTTP routes, middleware, or views. Adding it to an existing application does not change routes you already defined.
+
+`org.konaframework:kona-firefly-schemas`, package `org.konaframework.firefly.schemas`, builds the schema tree: layouts, text, icons, images, state, and live updates. Read [Schemas](/docs/firefly/schemas/) for that API. Tables, navigation trees, and mounted panel routes are not in these artifacts yet.
 
 ## Add the module
 
-Depend on `kona-firefly-support` through the Kona BOM (`org.konaframework`). The first Firefly release train is **0.4.x**. Until that train is published, use the module from a Kona checkout:
+Depend on the Firefly modules through the Kona BOM (`org.konaframework`). The first Firefly release train is **0.4.x**. Until that train is published, use the modules from a Kona checkout:
 
 ```kotlin
 dependencies {
     implementation(project(":kona-firefly-support"))
+    implementation(project(":kona-firefly-schemas"))
 }
 ```
 

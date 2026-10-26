@@ -23,7 +23,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 |---------|--------|------|------------|
 | Wire (M26, train **0.3.0**; Brew aliases) | `modules/wire` → `:kona-wire` | `apps/docs` (Frontend → Wire) | https://docs.konaframework.org/docs/wire/ |
 | Inertia | `modules/inertia` → `:kona-inertia` | `apps/docs` (Frontend → Inertia) | https://docs.konaframework.org/docs/inertia/ |
-| Firefly (M28, train **0.4.x**, support slice) | `modules/firefly-support` → `:kona-firefly-support` | `apps/docs` (Firefly) | https://docs.konaframework.org/docs/firefly/ |
+| Firefly support (M28, train **0.4.x**) | `modules/firefly-support` → `:kona-firefly-support` | `apps/docs` (Firefly) | https://docs.konaframework.org/docs/firefly/ |
+| Firefly schemas (M29, train **0.4.x**) | `modules/firefly-schemas` → `:kona-firefly-schemas` | `apps/docs` (Firefly → Schemas) | https://docs.konaframework.org/docs/firefly/schemas/ |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
@@ -36,8 +37,8 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
-| Active milestone | **M28 — Firefly support** (`kona-firefly-support`: theme, scoped CSS, chrome, dialog). Release train **0.4.x**. Not merged yet. |
-| Queued | **M29+** Firefly builders after M28 is on `main`. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. |
+| Active milestone | **M29 — Firefly schemas** (`kona-firefly-schemas`: schema tree, layouts, primes, Get/Set, static-or-closure setters). Release train **0.4.x**. Not merged yet. |
+| Queued | **M30+** after M29 is on `main`. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
