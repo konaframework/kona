@@ -1,0 +1,98 @@
+---
+
+title: 对话框
+description: 共享的 Firefly 对话框 — 模态、侧栏和全屏 — 包括宽度、拖动和 configureUsing。
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="dialog.png" description="Desk 页上的编辑对话框，位于 http://127.0.0.1:4017/admin/desk，从编辑页眉动作打开，里面有笔记字段。" />
+
+`Dialog` 是唯一的对话框组件。你选择模式、宽度、标题和正文，然后 `render()` 返回 HTML。对话框不会自己打开，也不会向服务器发请求。嵌入这段 HTML 的页面决定何时显示它。拖动行为是给客户端的标记：`x-data="ffDialog"` 和 `data-ff-drag="true"`。支持构件不附带那段脚本。
+
+## 创建一个
+
+`Dialog.make(title)` 返回一个对话框。默认模式是模态，默认宽度是 `lg`，拖动是开着的。如果设置了 `configureUsing`，它会在 `make` 返回之前对新对话框运行。
+
+Kotlin：
+
+```kotlin
+val html = Dialog.make("Edit category")
+    .body("<p>Name</p>")
+    .render()
+```
+
+Java：
+
+```java
+String html = Dialog.make("Edit category")
+    .body("<p>Name</p>")
+    .render();
+```
+
+标题会被 HTML 转义。`A & B <tag> "q"` 变成 `A &amp; B &lt;tag&gt; &quot;q&quot;`。正文按你传入的字符串插入。正文 HTML 来自用户时，请自行转义。
+
+## 模式
+
+| 调用 | 根类 | 额外属性 |
+|------|------|----------|
+| `modal()` | `ff-dialog ff-dialog-modal ff-dialog-<width>` | `data-ff-align="top"` |
+| `slideOver()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="end"` |
+| `slideOverStart()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="start"` |
+| `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | 没有对齐、位置或拖动属性 |
+
+根元素始终有 `role="dialog"`。内部是：遮罩（`ff-dialog-overlay`）、窗口（`ff-dialog-window`）、带标题的页眉（`ff-dialog-header`）和正文（`ff-dialog-body`）。
+
+在 `slideOver()` 之后调用 `modal()` 会把模式切回模态。已存储的侧栏位置保持原样，并且不会渲染在模态上。
+
+`width("screen")` 只把宽度类改成 `ff-dialog-screen`。它不会让对话框全屏。全屏是 `fullscreen()`。
+
+## 宽度
+
+`width` 接受 `sm`、`md`、`lg`、`xl` 或 `screen`。其他值会抛出 `FireflyException`：
+
+```text
+Unknown dialog width [<value>]
+```
+
+默认是 `lg`，因此在你更改之前会有类 `ff-dialog-lg`。侧栏和全屏对话框也会渲染宽度类。
+
+## 拖动
+
+`draggable(true)` 是默认值。`draggable(false)` 会去掉拖动属性。
+
+即使调用了 `draggable(true)`，全屏模式也会省略拖动。模态和侧栏对话框包含：
+
+```html
+x-data="ffDialog" data-ff-drag="true"
+```
+
+模态窗口由样式表偏移：`.ff-dialog-modal .ff-dialog-window` 的上边距是 `4rem`。这就是顶部对齐。侧栏和全屏窗口没有这个边距。
+
+## configureUsing
+
+`Dialog.configureUsing` 存储一个 `Consumer<Dialog>`，供之后的 `make` 调用使用。传入 `null` 可以清除它。该设置是静态的，在你替换或清除之前，进程中每一次 `make` 都共享它。
+
+Kotlin：
+
+```kotlin
+Dialog.configureUsing { dialog -> dialog.width("md") }
+val html = Dialog.make("Edit").slideOver().render()
+Dialog.configureUsing(null)
+```
+
+Java：
+
+```java
+Dialog.configureUsing(dialog -> dialog.width("md"));
+String html = Dialog.make("Edit").slideOver().render();
+Dialog.configureUsing(null);
+```
+
+该示例的 HTML 包含 `ff-dialog-sidebar`、`ff-dialog-md` 和 `data-ff-position="end"`。它不包含 `data-ff-align`。
+
+配置器在你自己的调用之前运行，因此稍后在该实例上的 `width("xl")` 会替换配置的宽度。
+
+## 动作
+
+[动作](/docs/firefly/actions/) 会打开这个对话框。`slideOver()`、`slideOverStart()`、`fullscreen()` 和默认模态都会调用 `Dialog.make`。动作提供标题、宽度和正文。

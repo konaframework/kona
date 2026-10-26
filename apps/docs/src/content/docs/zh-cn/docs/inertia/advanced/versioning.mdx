@@ -1,0 +1,29 @@
+---
+title: 资源版本
+description: X-Inertia-Version 协商，以及 409 冲突响应。
+---
+
+## 目的
+
+部署新的前端资源后，Inertia 客户端应当整页重新加载，以免旧的 JS 和新的属性混在一起。服务器公布一个版本字符串；客户端在后续访问时发送 `X-Inertia-Version`。
+
+## 设置版本
+
+```kotlin
+Inertia.version("1")
+// or config inertia.version
+// or middleware override fun version(request) = assetHash()
+```
+
+## 冲突规则
+
+当下面**全部**成立时，`versionConflict(request)` 返回 `409`：
+
+1. 请求是 Inertia 请求（存在 `X-Inertia`）
+2. 客户端发送了 `X-Inertia-Version`
+3. 管理器的 `version` 非空
+4. 客户端版本 ≠ 服务器版本
+
+`409` 的正文为空；响应头包含 `X-Inertia: true`。中间件随后 `decorate`，使 `X-Inertia-Version` 与服务器一致。
+
+如果服务器版本为空，则不会产生冲突（客户端可以不发送该头）。

@@ -1,0 +1,55 @@
+---
+title: 文件系统
+description: 具名磁盘、本地与云存储、公开 URL、流，以及临时签名链接。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona 把文件放在**具名磁盘**上。磁盘是一个根（文件夹或云存储桶）加上一套小 API：写入和读取字节、列出目录、构造 URL，以及更多操作。注册 `FilesystemServiceProvider` 之后，通过 `FilesystemManager` 解析磁盘（`kona new` 会替你完成）。
+
+## 快速开始
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+val disk = files.disk() // default disk from config
+
+disk.put("reports/q1.txt", "ok")
+val body = disk.getString("reports/q1.txt")
+val present = disk.exists("reports/q1.txt")
+val gone = disk.missing("reports/nope.txt")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+FilesystemAdapter disk = files.disk();
+
+disk.put("reports/q1.txt", "ok");
+String body = disk.getString("reports/q1.txt");
+boolean present = disk.exists("reports/q1.txt");
+boolean gone = disk.missing("reports/nope.txt");
+```
+
+</TabItem>
+</Tabs>
+
+可执行配置位于 `config/Filesystems`（见[配置与环境](../concepts/config/)）。相对的 `root` 会相对应用基路径解析。
+
+## 驱动一览
+
+| 驱动 | 作用 |
+| --- | --- |
+| `local` | 目录下的文件（默认 `storage/app`） |
+| `public` | 本地磁盘，默认 `storage/app/public`，URL 前缀 `/storage` |
+| `scoped` | 在另一个磁盘上加路径前缀 |
+| `memory` / `s3-memory` | 进程内、形状类似 S3 的存储，用于测试 |
+| `s3` | 带 AWS SigV4 的路径式 HTTP 客户端（`endpoint`、`bucket`、`key`、`secret`、`region`，可选 `prefix`） |
+
+任何磁盘都可以把 `read-only` / `read_only` 设为 `true` 以拒绝写入。
+
+接下来：[配置](./configuration/)、[操作文件](./file-operations/)、[公开磁盘与临时 URL](./urls/)，以及[测试](./testing/)。

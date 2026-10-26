@@ -1,0 +1,293 @@
+---
+title: 创建命令
+description: 编写 ConsoleCommand 类 — 签名、发现、隔离、IO 辅助方法、Kotlin 和 Java。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+除了 `serve` 和 `migrate` 这样的内置命令，Grind Console 还运行**自定义命令**：扩展 `org.konaframework.grind.ConsoleCommand` 的类。你声明一个**签名**、可选的**描述**，以及返回退出码的 **`handle()`** 方法。Grind 把 CLI 记号绑定到该签名，然后调用 `handle()`。
+
+## 生成命令
+
+```bash
+./grind make:command SendDigest
+./grind make:command SendDigest --command=mail:digest
+./grind make:command SendDigest --lang=java
+./grind make:command SendDigest --base=/path/to/app
+```
+
+它在 `app/console/commands/` 下写入一个类，并把完全限定名追加到 `src/main/resources/META-INF/kona/commands`，这样你编译之后（`./gradlew classes`）Grind Console 可以发现它。
+
+| 标志 / 参数 | 效果 |
+|-------------|------|
+| *（名称）* | 类名；缺少时追加 `Command`（`SendDigest` → `SendDigestCommand`） |
+| `--command=` | 签名**名称**（默认 `app:类的短横线形式`，例如 `SendDigestCommand` → `app:send-digest`） |
+| `--lang=kotlin\|java` | 源语言（见[语言默认](#language-defaults)） |
+| `--base=` | 不从项目目录运行时的应用根 |
+
+`make:command` 从不覆盖已有文件。无效的类名会被拒绝。如果 FQCN 已经列在 `META-INF/kona/commands` 里，发现保持不变。
+
+生成之后编译，这样发现才能加载该类：
+
+```bash
+./gradlew classes
+./grind list
+./grind mail:digest --help   # if you used --command=mail:digest
+```
+
+## 结构
+
+每一个自定义命令声明一个**签名**、可选的**描述**和 **`handle()`**：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.console.commands
+
+import org.konaframework.grind.ConsoleCommand
+
+class SendDigestCommand : ConsoleCommand() {
+    override val signature: String = "mail:digest {user} {--queue=default}"
+
+    override val description: String = "Send the daily digest"
+
+    override fun handle(): Int {
+        val user = argumentOrFail("user")
+        val queue = option("queue", "default")
+        info("Queueing digest for $user on $queue")
+        return SUCCESS
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.console.commands;
+
+import org.konaframework.grind.ConsoleCommand;
+
+public class SendDigestCommand extends ConsoleCommand {
+    @Override
+    public String getSignature() {
+        return "mail:digest {user} {--queue=default}";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Send the daily digest";
+    }
+
+    @Override
+    public int handle() {
+        String user = argumentOrFail("user");
+        String queue = option("queue", "default");
+        info("Queueing digest for " + user + " on " + queue);
+        return SUCCESS;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### `ConsoleCommand` 上的公开表面
+
+| 成员 | 作用 |
+|------|------|
+| `signature` / `getSignature()` | 必需。命令名加上 `{arg}` / `{--opt}` 记号 |
+| `description` / `getDescription()` | `list` / 帮助的可选摘要（默认空） |
+| `isolatable` / `getIsolatable()` | 为 `true` 时，`--isolated` 取得文件锁（默认 `false`） |
+| `handle()` | 命令正文；返回 `SUCCESS`（`0`）或 `FAILURE`（`1`）（或任何非零） |
+| `name()` | 从签名解析出的命令名（例如 `mail:digest`） |
+| `io` | 运行器启动命令之后绑定的 `GrindIO` |
+| `argument` / `argumentOrFail` / `arguments` | 绑定的位置输入 |
+| `option` / `optionBool` / `hasOption` | 绑定的选项 |
+| `line` / `info` / `success` / `warn` / `error` / `title` / `table` / `progress` / `verbose` | IO 辅助方法（优先使用这些，而不是原始打印） |
+
+退出码：使用 `ConsoleCommand.SUCCESS`（`0`）或 `FAILURE`（`1`）。任何非零值对脚本和 CI 都使进程失败。当 `--isolated` 不能取得锁时，Grind Console 返回 `SUCCESS` 而**不**调用 `handle()` — 见[隔离](#isolation)。
+
+## 签名形状
+
+签名字符串以**命令名**开始，然后是花括号记号。解析器（`SignatureParser`）要求非空签名，并且**不以** `{` 开头。
+
+```text
+mail:digest {user} {days?} {files*} {--force} {--queue=default} {--driver= : Queue driver}
+```
+
+| 记号 | 含义 |
+|------|------|
+| `{user}` | 必需参数 |
+| `{user?}` | 可选参数 |
+| `{files*}` | 剩余位置参数作为列表（`arguments("files")`） |
+| `{--force}` | 布尔标志（`--force`）；存在时存为 `"true"` |
+| `{--queue=}` | 接受值的选项（`--queue=high`） |
+| `{--queue=default}` | 省略时带默认值的选项 |
+| `{name : help text}` | 参数或选项加上帮助（` : ` 分隔符 — 冒号周围的空格有意义） |
+
+参数和选项**名称**必须匹配 `[A-Za-z_][A-Za-z0-9_-]*`。
+
+### 绑定规则（边界情况）
+
+当你运行 `./grind mail:digest …` 时，Grind Console：
+
+1. 通过 `parseOptions` 拆开全局风格的标志（`--foo`、`--foo=bar`、`-v`、`-q`、`-h`）。
+2. 把剩余位置参数和已知选项绑定到签名。
+3. 绑定失败时（缺少必需参数、参数过多），打印错误、打印命令帮助，并以 `1` 退出。
+
+| 情况 | 行为 |
+|------|------|
+| 缺少必需的 `{user}` | `GrindException` → 错误 + 帮助 → 退出 `1` |
+| 所有参数消耗之后还有额外位置参数 | “Too many arguments” → 退出 `1` |
+| `{files*}` | 消耗**所有**剩余位置参数（包括没有 → 空列表） |
+| 省略 `{user?}` | `argument("user")` 是 `null` |
+| 省略值选项，签名里有默认 | 默认被放进绑定的选项映射 |
+| 省略值选项，没有默认 | 选项缺席；`option("name")` 是 `null` |
+| 标志选项存在 | 绑定为 `"true"`；使用 `optionBool` 或 `hasOption` |
+| `--help` / `-h` | 打印该命令的帮助并以 `0` 退出，**没有** `handle()` |
+
+即使不在你的签名里，也可能出现在绑定映射里的保留 / 透传选项键：`isolated`、`help`、`verbose`、`quiet`、`v`、`q`、`base`、`bootstrap`。遍历选项时小心对待未知键。
+
+### 在 `handle()` 内部读取输入
+
+| 辅助方法 | 返回 |
+|----------|------|
+| `argument("name")` | `String?` / 可空 `String` |
+| `argumentOrFail("name")` | `String`，或抛出 `GrindException("Missing argument [name]")` |
+| `arguments("name")` | `*` 参数的 `List<String>`（没有则为空列表） |
+| `option("name")` | 选项值或 `null` |
+| `option("name", default)` | 选项值或给定默认 |
+| `optionBool("name")` | 值为 `true`、`1` 或 `yes` 时为 `true`（`yes` 不区分大小写） |
+| `hasOption("name")` | 选项键是否出现在绑定映射里 |
+
+来自 `{--force}` 的布尔标志以 `"true"` 存在，因此 `optionBool("force")` 和 `hasOption("force")` 都能工作。设为字符串 `false` 的值选项仍然“存在”；`optionBool` 对该字符串返回 `false`。
+
+## 登记与发现
+
+当 Grind Console 能**构造**自定义命令并按**签名名**查找它们时，它们变得可运行。
+
+### 1. 自动发现（`META-INF/kona/commands`）
+
+每行一个完全限定类名。`#` 开始注释；空行被忽略。`make:command` 维护 `src/main/resources/META-INF/kona/commands` 下的这个文件。
+
+```text
+# Custom Grind Console commands
+app.console.commands.SendDigestCommand
+```
+
+`CommandDiscovery` 加载类加载器上每一个匹配的资源，要求每个类型扩展 `ConsoleCommand`，并在 `CommandRegistry` 上登记无参构造器工厂。
+
+### 2. 编译后的应用输出
+
+每次运行时，`GrindApplication` 还会在 `--base`（或当前应用根）下打开这些目录上的 `URLClassLoader`（当它们存在时）：
+
+- `build/classes/kotlin/main`
+- `build/classes/java/main`
+- `build/resources/main`
+
+因此加上命令之后，在期望 `./grind your:command` 看到它之前，运行 `./gradlew classes`（或完整构建）。发现合并进 `list` / 帮助使用的同一个注册表。
+
+### 3. 程序化登记
+
+在 `CommandRegistry` 上登记工厂，并把它传入 `GrindApplication` 或 `Grind.call`（测试里有用）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val registry = CommandRegistry()
+    .register(SendDigestCommand::class.java)
+    .register { OtherCommand() }
+
+Grind.call("mail:digest", listOf("42"), registry)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CommandRegistry registry = new CommandRegistry()
+    .register(SendDigestCommand.class);
+
+int code = Grind.call("mail:digest", List.of("42"), registry);
+```
+
+</TabItem>
+</Tabs>
+
+| `CommandRegistry` 方法 | 行为 |
+|------------------------|------|
+| `register(() -> ConsoleCommand)` | 探测一次 `name()`，存储工厂 |
+| `register(Class)` | 无参构造器工厂 |
+| `has` / `create` / `names` | 查找 |
+| `summaries()` | 名称 → 描述（描述为空时用签名），供 `list` |
+| `merge(other)` | 从另一个注册表覆盖工厂 |
+
+重复的名称：后来的 `register` / `merge` 对该名称获胜。
+
+## 隔离
+
+一次只应有一个进程运行命令时，设置 `isolatable = true`（Kotlin）或覆盖 `getIsolatable()` 返回 `true`（Java）。然后传入 `--isolated` 会在 `storage/framework/grind/<sanitized-name>.lock` 下取得**非阻塞**文件锁。
+
+```kotlin
+override val isolatable: Boolean = true
+```
+
+```bash
+./grind mail:digest 42 --isolated
+```
+
+| 情况 | 结果 |
+|------|------|
+| 可隔离 + 取得锁 | `handle()` 运行；之后释放锁 |
+| 可隔离 + 锁忙 | 退出 `0` 而**没有** `handle()`（对 cron 重叠是安全的） |
+| 不可隔离 + `--isolated` | 警告：忽略 `--isolated`；`handle()` 仍然运行 |
+
+命令名为锁文件做净化（`[^A-Za-z0-9._-]` → `_`）。隔离**不**需要缓存驱动。
+
+## 语言默认
+
+大多数 `make:*` 生成器共享（`Names.lang`）：
+
+1. 如果设置了 `--lang=`，使用它（`kotlin` 或 `java`）。
+2. 否则如果 `src/main/java/` 下存在任何 `.java` 文件，默认 **Java**。
+3. 否则默认 **Kotlin**。
+
+源路径：`src/main/kotlin/…` 或 `src/main/java/…`，在 `app/console/commands` 这样的包下。
+
+## 从命令调用服务
+
+`ConsoleCommand` 不注入 `Application`。今天能工作的模式：
+
+- 解析你已经持有的服务（在测试或工厂里设置的构造器字段）。
+- 为其他命令调用 shell 或 `Grind.call`。
+- 对需要容器的长期工作，优先使用通过 `AppLoader` 启动的内置命令（migrate、schedule、queue、steam），或在 `handle()` 里以那些命令同样的方式启动你自己的引导。
+
+不要发明源码里没有的框架“命令内核”API。
+
+## 陷阱
+
+- **忘了编译** — 发现读取 `build/…` 和 jar/资源类加载器；在 `./gradlew classes` 之前，`./grind list` 不会显示全新的类。
+- **签名名 ≠ 类名** — 可运行的名称是 `signature` 的第一个记号（`mail:digest`），不是 `SendDigestCommand`。
+- **原始 `println`** — 面向用户的输出必须经过 `GrindIO` / 辅助方法（`info`、`error` 等）。见[控制台 IO 与提示](./console/)。
+- **生成器上的 `--base`** — 大多数 `make:*` 命令把 `--base` 当作项目根，并且**不会**像 `serve` / `key:generate` 那样向上走，除非另有文档。
+- **覆盖保护** — 目标文件已存在时生成器抛出；先删除或重命名。
+- **可选参数之后的 `argumentOrFail`** — 只对必需的签名记号使用它。
+- **安静模式** — `info` / `success` / 表格遵守 `-q`；`error` 仍然打印。
+
+## 今天不可用
+
+- 没有基于属性/注解的命令登记（只有 `META-INF` 加注册表）。
+- 没有对 `ConsoleCommand` 子类的自动依赖注入。
+- 没有命令分组、超出名称字符串的命名空间，或隐藏命令 API。
+- 没有超出上面列出的标志的 `make:command` 交互问卷。
+- grind 派发器里没有 Wire 专用的 `make:wire`。
+
+## 下一步
+
+- [运行命令](../running-commands/) — CLI 标志、`list`、`help`、`Grind.call`、`kona grind`
+- [控制台 IO 与提示](../console/) — `info`、`table`、`Prompts`、详细程度
+- [内置命令](../commands/) — 生成器和运维目录
+- [任务调度](../../scheduling/) — 用 `schedule:run` 按计划运行工作

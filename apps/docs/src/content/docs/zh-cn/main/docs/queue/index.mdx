@@ -1,0 +1,53 @@
+---
+title: 队列
+description: 后台任务、worker，以及失败任务的恢复。
+---
+
+队列让应用尽快结束请求，把更重的工作放到片刻之后 — 发邮件、缩放图片、调用缓慢的 API — 由单独的 worker 进程完成。
+
+注册 `QueueServiceProvider`，然后通过 `Bus` 派发任务。实现了 `ShouldQueue` 的任务会被推进连接；其余任务立即运行。
+
+## 接下来去哪里
+
+| 指南 | 何时阅读 |
+|------|----------|
+| [任务与派发](/docs/queue/jobs/) | 编写任务类、延迟、链、批次、中间件 |
+| [Worker](/docs/queue/workers/) | 运行 `./grind queue:work` 和 worker 选项 |
+| [失败的任务](/docs/queue/failed-jobs/) | 列出、重试，以及可持久的失败存储 |
+
+## 快速开始
+
+```kotlin
+class SendInvoice : Job, ShouldQueue {
+    override fun handle() { /* … */ }
+}
+
+val bus = app.resolve(Bus::class.java)
+bus.dispatch(SendInvoice())
+```
+
+```java
+Bus bus = app.resolve(Bus.class);
+bus.dispatch(new SendInvoice());
+```
+
+```bash
+./grind queue:work --connection=array --stop-when-empty
+```
+
+## 连接
+
+配置 `queue.default` 和 `queue.connections.{name}.driver`：
+
+| 驱动 | 作用 |
+|------|------|
+| `sync` | 派发时就地运行（忽略延迟） |
+| `array` / `memory` | 进程内队列，用于测试和本地 worker |
+| `redis` | 共享的 Redis 列表（需要 `RedisManager`） |
+| `database` | `jobs` 表（需要 Cadence 的 `Database`） |
+
+每个连接的默认队列名：`queue.connections.{name}.queue`（回退为 `default`）。
+
+## steam
+
+在 `./grind steam` 里，启动之后解析 `Bus` / `QueueManager`，在另一个终端运行 worker 的同时交互式地派发任务。

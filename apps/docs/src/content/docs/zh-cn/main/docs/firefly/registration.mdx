@@ -1,0 +1,131 @@
+---
+
+title: 登记面板
+description: Panel 类，pages、widgets 和 resources 文件夹，以及 discover 如何加载它们。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="panel-directory.png" description="hello-kotlin 的 app/firefly 目录，显示 Panel.kt、pages/、widgets/ 和 resources/。" />
+
+当两件事为真时，面板成为应用的一部分：类对自己的目录调用 `discover`，并且启动时对路由器调用 `mount`。类是 `Panel`。它扩展 `org.konaframework.firefly.Panel`。
+
+## 面板文件
+
+hello 示例和 `kona new --kit=firefly` 都使用这个类。id 是路由名里的面板名，也是守卫 `firefly-desk` 里的名字。路径是 URL 前缀。`authenticate(false)` 让屏幕保持公开，示例就是这样发布的。`discover` 负责加载子文件夹。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.firefly
+
+import org.konaframework.core.Kona
+
+class Panel : org.konaframework.firefly.Panel() {
+    init {
+        id("desk")
+        path("admin")
+        brand("Desk")
+        authenticate(false)
+        discover(Kona.app().basePath("src/main/kotlin/app/firefly"))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.firefly;
+
+import org.konaframework.core.Kona;
+
+public class Panel extends org.konaframework.firefly.Panel {
+    public Panel() {
+        id("desk");
+        path("admin");
+        brand("Desk");
+        authenticate(false);
+        discover(Kona.app().basePath("src/main/java/app/firefly"));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`./grind make:firefly-panel` 只写入 `id` 和 `path`。当你生成类而不是使用套件时，自己加上 `brand`、`authenticate` 和 `discover`。`./grind firefly:install` 写入同样较短的类。
+
+在你自己的路由之后挂载它，这样 `/` 仍然是欢迎页：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+WebRoutes().register(router)
+ApiRoutes().register(router)
+DeskPanel().mount(router)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new WebRoutes().register(router);
+new ApiRoutes().register(router);
+new app.firefly.Panel().mount(router);
+```
+
+</TabItem>
+</Tabs>
+
+`mount` 登记面板的 GET 和 POST 路径。调用两次会抛出 `FireflyException` 并指出面板 id。如果路径已被占用，`mount` 会抛出并写出两个处理器的名字。已有路由保持不变。面板不登记 `/_firefly/` 或 `/wire/update`。
+
+## 目录布局
+
+`discover(panelDirectory)` 读取三个文件夹。缺少的文件夹是空的。文件必须声明包，以及一个名字与文件匹配的类。该类必须已经在类路径上，并且必须有无参构造器。抽象类和无关类型会被跳过。
+
+| 文件夹 | 加载的类型 |
+|--------|------------|
+| `pages/` | `PanelPage`（`CustomPage`，以及列表、创建、编辑、查看和管理页面） |
+| `widgets/` | `Widget` |
+| `resources/` | `Resource` |
+
+hello 示例正好使用这三个文件夹：
+
+```text
+app/firefly/Panel.kt
+app/firefly/pages/Desk.kt
+app/firefly/widgets/DeskWidget.kt
+app/firefly/resources/NoteResource.kt
+app/firefly/resources/OrderResource.kt
+```
+
+Java 在 `src/main/java/app/firefly/` 下使用同样的名字。
+
+字段、条目、列、筛选、动作、布局和主题的生成器写入兄弟文件夹（`fields/`、`entries/`、`columns/`、`filters/`、`actions/`、`layouts/`、`themes/`）。`discover` 不扫描这些文件夹。你从页面、资源或 `theme(...)` 引用这些类。
+
+你仍然可以在面板上调用 `page`、`widget` 和 `resource`，而不使用发现。没有应用级注册表。
+
+发现到的部件放在 slug 为空的页面上，或者当没有页面的 slug 为空时放在第一页。在 hello 示例里第一页是 `Desk`，因此 `DeskWidget` 渲染在 `/admin/desk`。
+
+## mount 提供什么
+
+使用 `path("admin")` 时，页面和资源 URL 看起来像这样：
+
+| URL | 屏幕 |
+|-----|------|
+| `/admin/desk` | 自定义 Desk 页面 |
+| `/admin/notes/manage` | 简单的笔记资源 |
+| `/admin/orders/list` | 订单列表 |
+| `/admin/orders/create` | 订单创建 |
+| `/admin/orders/edit` | 订单编辑 |
+| `/admin/orders/view` | 订单查看 |
+
+`path("")` 在站点根提供同样的屏幕。即使 `authenticate(false)` 跳过重定向，认证屏幕（`/admin/login`、`/admin/register`、`/admin/password-reset`、`/admin/email-verify`、`/admin/profile`）也会被登记。
+
+## 下一步
+
+[一个能工作的应用](/docs/firefly/working-app/) 用 hello 示例里的笔记和订单类填满 `resources/`。

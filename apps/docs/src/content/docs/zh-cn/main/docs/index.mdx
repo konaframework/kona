@@ -1,0 +1,63 @@
+---
+title: 文档
+description: Kona JVM Web 框架的渐进指南与参考 — 从首次安装到 HTTP、安全、Cadence 和工具。
+template: splash
+hero:
+  tagline: 先从简单开始，再逐步深入 — 先是 HTTP 和 Crema，然后是容器内部、安全、Cadence 和包。
+  actions:
+    - text: 安装
+      link: guides/installation/
+      icon: right-arrow
+      variant: primary
+    - text: 介绍
+      link: guides/introduction/
+      icon: document
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/konaframework/kona
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+这是 **Kona** 的文档中心。营销首页在站点根路径；下面的内容是如何用这个框架来构建。
+
+Kona 启动一个**应用**，用**服务提供者**接入功能，从**容器**查找服务，并用**路由**和**中间件**响应 HTTP。同一套 API 可以从 Kotlin 和 Java 调用。**grind** CLI 负责搭建和运行你的项目。
+
+刚接触时按侧栏顺序阅读：**入门** → **基础** → **Crema**，然后是**深入**，再按需要进入**安全**、**数据库**、**前端**、**Wire**、**Inertia**、**Firefly**、**测试**和**包与工具**。
+
+<CardGrid>
+  <Card title="入门" icon="rocket">
+    [介绍](guides/introduction/)、[安装](guides/installation/)、[第一个应用](guides/first-app/) 和 [Kotlin 与 Java](guides/kotlin-java/)。
+  </Card>
+  <Card title="基础" icon="document">
+    日常请求工作：[路由](http/routing/)、[控制器](http/controllers/)、[中间件](http/middleware/)、[校验](http/validation/)、[异常](http/exceptions/) 和 [日志](http/logging/)。
+  </Card>
+  <Card title="Crema" icon="open-book">
+    服务端视图：[入门](crema/)、[渲染](crema/rendering/)、[布局](crema/layouts/)、[组件与插槽](crema/components/)、[栈](crema/stacks/) 和 [指令参考](crema/directives/)。
+  </Card>
+  <Card title="深入" icon="puzzle">
+    [应用](concepts/application/) 和 [容器](concepts/container/) 如何配合，以及 [grind](grind/)、[事件](events/)、[队列](queue/)、[邮件](mail/)、[缓存](cache/)、[drip](drip/) 和 [调度](scheduling/)。
+  </Card>
+  <Card title="安全" icon="seti:lock">
+    [概览](security/)，然后是 [会话](security/session/)、[认证](security/authentication/)、[授权](security/authorization/)、[CSRF](security/csrf/)、加密、CORS 和限流。
+  </Card>
+  <Card title="数据库" icon="seti:db">
+    **Cadence** — [概览](cadence/)、[模型](cadence/models/)、[查询构建器](cadence/query-builder/)、[关联](cadence/relations/)、[迁移](cadence/migrations/) 和 [填充器](cadence/seeders-factories/)。
+  </Card>
+  <Card title="前端" icon="seti:html">
+    [Wire](wire/) 响应式界面、[Inertia](inertia/)、[Vite / 资源](assets/vite/) 和 [起步套件](starter-kits/)。
+  </Card>
+  <Card title="Firefly" icon="seti:html">
+    按一条路径阅读：[介绍](firefly/)、[要求](firefly/requirements/)、[安装](firefly/installation/)、[登记面板](firefly/registration/)，然后是[一个能工作的应用](firefly/working-app/)。
+  </Card>
+  <Card title="测试" icon="approve-check">
+    [入门](testing/)、[HTTP 与控制台](testing/http-console/) 和 [数据库与伪造对象](testing/database-fakes/)。
+  </Card>
+  <Card title="包与工具" icon="seti:shell">
+    [包](packages/)、[语言支持](language/)、[LSP](language/lsp/)、[VS Code 与 Cursor](language/vscode/) 和 [IntelliJ](language/intellij/)。
+  </Card>
+</CardGrid>
+
+Kona 以 Maven 构件发布，组名是 `org.konaframework`，需要 JDK 21 或更新版本。框架本身的贡献者说明在[仓库](https://github.com/konaframework/kona)里。

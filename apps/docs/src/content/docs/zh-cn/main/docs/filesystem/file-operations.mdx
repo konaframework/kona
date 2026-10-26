@@ -1,0 +1,66 @@
+---
+title: 文件操作
+description: 写入、读取、流、目录、元数据、可见性，以及 putFile 辅助方法。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+每个磁盘都实现 `FilesystemAdapter`。同样的方法可用于本地、作用域、内存和 S3 磁盘。
+
+## 读取与写入
+
+| 方法 | 行为 |
+| --- | --- |
+| `put(path, String\|ByteArray)` | 创建或覆盖 |
+| `get` / `getString` | 字节或 UTF-8 文本；缺失时为 `null` |
+| `exists` / `missing` | 是否存在 |
+| `append` / `prepend` | 在文本文件末尾或开头追加 |
+| `delete` | 删除文件（不存在时为 `false`） |
+| `copy` / `move` | 同一磁盘上的复制或重命名 |
+
+## 流
+
+```kotlin
+disk.writeStream("big.bin", inputStream)
+disk.readStream("big.bin")?.use { /* ... */ }
+```
+
+`putFile` / `putFileAs` 把 `java.nio.file.Path` 复制到磁盘上（唯一名称或指定名称），并返回存储后的相对路径：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val stored = disk.putFile("photos", Path.of("/tmp/shot.jpg"))
+val named = disk.putFileAs("photos", Path.of("/tmp/shot.jpg"), "hero.jpg")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String stored = disk.putFile("photos", Path.of("/tmp/shot.jpg"));
+String named = disk.putFileAs("photos", Path.of("/tmp/shot.jpg"), "hero.jpg");
+```
+
+</TabItem>
+</Tabs>
+
+## 目录
+
+- `files(dir)` — 直接子级中的文件
+- `allFiles(dir)` — 递归的文件路径
+- `directories(dir)` / `allDirectories(dir)` — 目录列表
+- `makeDirectory` / `deleteDirectory` — 创建或清空一棵目录树
+
+## 元数据
+
+- `size` / `lastModified` — 字节数和纪元毫秒
+- `mimeType` — 从内容类型 / 扩展名探测
+- `checksum(path)` — 默认 SHA-256 十六进制；第二个参数可传入其他算法名
+- `path` — 本地绝对路径，或 S3 的 `bucket/key`
+- `url` — 公开 URL 前缀加上路径
+
+## 可见性
+
+`Visibility.PUBLIC` 和 `Visibility.PRIVATE` 标记文件在 URL 生成和云 ACL 中应如何对待。存储之后使用 `getVisibility` / `setVisibility`。

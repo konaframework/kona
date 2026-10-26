@@ -1,0 +1,125 @@
+---
+title: 与 Alpine.js 的结合
+description: Wire 如何捆绑 Alpine、暴露 $wire，并与 x-* 指令共存。
+---
+
+Wire 的浏览器运行时**构建在** Alpine.js 之上。加载默认的 `/wire/wire.min.js`（或 `brew.js`）脚本时，你不必单独安装 Alpine — Alpine 就在那个包里。
+
+## 已确认的关系
+
+| 事实 | 细节 |
+|------|------|
+| **捆绑** | Alpine `3.17.x` 是 `@konaframework/wire` 的直接依赖，并编译进 IIFE/ESM/CSP 构建 |
+| **全局变量** | `window.Alpine` 和 `window.Wire` 都会被赋值 |
+| **启动时登记的插件** | morph、intersect、sort、resize、collapse、anchor、focus、persist、mask |
+| **启动 Alpine** | `Wire.start()` 调用 `Alpine.plugin(...)`，登记 Wire 拦截器，然后 `Alpine.start()` |
+| **不只是对等依赖** | 使用默认脚本的应用不 `npm install alpinejs`；自定义 ESM 打包器从重新导出 Alpine 的 `@konaframework/wire` 导入 |
+
+面向 CSP 的页面在启用 `brew.csp_safe` 时可以加载 `brew.csp.min.js` — Wire 行为相同，走 Alpine 的 CSP 安全构建路径。
+
+## `$wire` 魔术
+
+Wire 登记一个名为 `wire` 的 Alpine 魔术：
+
+```html
+<div x-data>
+  <button type="button" @click="$wire.increment()">+</button>
+  <span x-text="$wire.count"></span>
+</div>
+```
+
+在组件根（`wire:id`）内部，`$wire` 是该组件响应式状态和服务器动作上的代理。完整的 `$wire` API（`$set`、`$get`、`$errors`、`$refs`、`$dispatch` 等）见 [JavaScript 运行时](/docs/wire/js/runtime/)。
+
+## `wire:*` 如何使用 Alpine
+
+大多数 Wire 指令编译成 Alpine 绑定：
+
+| 指令 | Alpine 桥 |
+|------|-----------|
+| `wire:model` | 针对 `$wire` 的 Alpine `x-model`（带 Wire 修饰符） |
+| `wire:show` / `wire:text` / `wire:bind:*` | 针对 `$wire` 的 `x-show` / `x-text` / `x-bind` |
+| `wire:click` 和其他 `wire:<event>` | 触发 Wire 动作的 Alpine `x-on` 监听器 |
+| 变形 | 带有 Wire 键 / 忽略 / 替换钩子的 Alpine Morph 插件 |
+| 组件状态 | `Alpine.reactive(...)` 的瞬时状态加服务器快照 |
+
+带 `wire:id` 的根元素是 Alpine 根选择器（`Alpine.addRootSelector(() => '[wire\\:id]')`）。
+
+## 与 `x-*` 共存
+
+你可以在同一棵树上混合 Alpine 界面和 Wire 状态：
+
+```html
+<div wire:id="…" x-data="{ open: false }">
+  <button type="button" @click="open = !open">Menu</button>
+  <div x-show="open" x-cloak>
+    <button type="button" wire:click="save">Save on server</button>
+  </div>
+</div>
+```
+
+经验规则：
+
+1. **服务器状态** — 放在组件上（`var` / 公开字段），并用 `wire:model` 或 `$wire` 绑定。
+2. **瞬时界面** — 打开/关闭、悬停外框、仅客户端的动画 — 使用 Alpine 的 `x-data`。
+3. **名称冲突** — Wire 的表达式求值器对动作表达式优先使用 `$wire` 目标，这样同名的 Alpine 键不会抢走服务器方法调用。
+4. **`x-modelable`** — 暴露 `x-modelable` 的自定义 Crema/Alpine 控件可以与 `wire:model` 一起工作。
+
+## 缠结
+
+让一个 Alpine 值和一个 Wire 属性保持同步：
+
+```html
+<div x-data="{ local: @entangle('count') }">
+  <input x-model="local" />
+</div>
+```
+
+或从 JS：`$wire.$entangle('count')` / `.live` 变体。见模板里的 `@entangle` 和运行时里的缠结功能。
+
+## 跨越 Alpine 和 Wire 的事件
+
+- Wire 的 `dispatch('saved')` 变成浏览器 `CustomEvent`，Alpine 可以用 `x-on:saved.window` 听到。
+- Alpine 的 `$dispatch('saved')` 可以用 `wire:saved` 或 Wire JS 监听器来听。
+- 全局：`Wire.on('saved', …)` / `Wire.dispatch('saved', …)`。
+
+## 避免两份 Alpine
+
+如果另一个脚本在 Wire 的包之后也把 Alpine 加载到 `window.Alpine`，Wire 会记录一条警告（`Detected multiple instances of Alpine running`）。优先：
+
+- 默认：只有 `@wireScripts` / 注入的 Wire 脚本，**或者**
+- 自定义：设置 `window.wireScriptConfig`，从 `@konaframework/wire` 导入 `{ Wire, Alpine }`，登记你的插件，然后只调用一次 `Wire.start()`。
+
+```js
+import { Wire, Alpine } from '@konaframework/wire'
+// optional: Alpine.plugin(yourPlugin)
+Wire.start()
+```
+
+定义了 `window.wireScriptConfig` 时，Wire **跳过**自动的 `DOMContentLoaded` 启动，这样你的包拥有启动顺序。
+
+## `@script` 与组件模块
+
+组件脚本在作用域内带有 `$wire` 运行：
+
+```crema
+@script
+<script>
+    $wire.$watch('count', value => console.log(value))
+</script>
+@endscript
+```
+
+多文件组件可以附带一个兄弟 `.js` 模块（`export default function ($wire) { … }`），通过效果加载。
+
+## 实用清单
+
+- [ ] 加载**一份** Alpine（Wire 的），除非你有意通过 ESM 替换它。
+- [ ] 服务器往返用 `wire:*`；本地界面用 `x-*`。
+- [ ] 在 `brew:init` 上登记钩子（在 Alpine 完成启动之前）。
+- [ ] 对 CSP 应用，启用 `brew.csp_safe` 并提供 CSP 包。
+
+## 下一步
+
+- [JavaScript 运行时](/docs/wire/js/runtime/) — 钩子、变形、拦截器
+- [示例 → Alpine 界面](/docs/wire/examples/alpine-ui/) — 已做出来的模式
+- [动作](/docs/wire/essentials/actions/) — 从 Alpine 调用方法

@@ -1,0 +1,25 @@
+---
+title: 失败的任务
+description: 列出、重试并清空失败的队列任务。
+---
+
+当任务用尽尝试次数后，worker 会通过 `FailedJobProvider` 把它记下来。
+
+```bash
+./grind queue:failed
+./grind queue:retry <id>
+./grind queue:retry --all
+./grind queue:flush
+```
+
+`queue:retry` 会把载荷**重新入队**（尝试次数重置）到原来的连接和队列，然后忘掉那条失败记录。
+
+## 可持久的失败存储
+
+| `queue.failed.driver` | 存储 |
+|-----------------------|------|
+| `memory`（默认） | 进程堆 |
+| `file` | JSON，路径为 `queue.failed.path`（默认 `storage/framework/failed_jobs.json`） |
+| `database` | `failed_jobs` 表（`queue.failed.table`）；需要 Cadence 的 `Database` |
+
+只要重试必须在 worker 重启后仍然存在，就使用 `file` 或 `database`。

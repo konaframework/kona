@@ -1,0 +1,55 @@
+---
+title: Crema 语法
+description: Crema 模板的 TextMate 语法和语言配置。
+---
+
+Crema 模板是 HTML（或带 Kotlin 风味的）文件，包含**指令**（`@extends`、`@section` 等）、**输出**（`{{ name }}`）、**原始输出**（`{!! html !!}`）和**注释**（`{{-- note --}}`）。
+
+语法定义放在 Kona 仓库里，以便每个编辑器共用同一份定义。
+
+## 文件
+
+| 路径 | 用途 |
+|------|------|
+| `ide-support/crema/crema.tmLanguage.json` | TextMate 语法（`scopeName`：`text.html.crema`） |
+| `ide-support/crema/crema.injection.tmLanguage.json` | 把 Crema 注入 Java/Kotlin 的 `template()` / `inline(` / `language=Crema` 字符串 |
+| `ide-support/crema/crema.string-tokens.tmLanguage.json` | 为 Java/Kotlin 文本块里的 `{{`、`@` 指令和 `wire:*` 着色 |
+| `ide-support/crema/language-configuration.json` | 块注释、括号、折叠标记 |
+| `ide-support/crema/README.md` | 简短的打包说明 |
+
+语法里识别的指令关键字与 **kona-lsp** 使用的内置集合一致（包括 `@extends`、`@section`、`@endsection`、`@show`、`@yield`、`@parent`、`@stack`、`@push`、`@endpush`、`@include`、`@includeIf`、`@includeWhen`、`@if`、`@else`、`@endif`、`@foreach`、`@endforeach`、`@slot`、`@endslot`、`@json`、`@csrf`）。
+
+## 文件扩展名
+
+- `*.crema.html` — `src/main/resources/views/` 下典型的 Crema 视图
+- `*.crema.kt` — 可选的 Kotlin 风味 Crema 源文件
+
+编辑器通过 [VS Code / Cursor 扩展](/docs/language/vscode) 把两者都关联到语言 id `crema`。
+
+## 同步到 VS Code 扩展
+
+扩展会把语法复制进自己的目录树：
+
+```bash
+cd ide-support/vscode-crema
+node scripts/sync-grammar.js
+```
+
+编辑 `ide-support/crema/` 下的规范文件，打包扩展之前先同步。
+
+## 示例片段
+
+```html
+{{-- Layout home page --}}
+@extends('layouts.app')
+@section('title', 'Home')
+@section('content')
+  <h1>{{ title }}</h1>
+  @foreach(items as item)
+    <li>{{ item }}</li>
+  @endforeach
+  @csrf
+@endsection
+```
+
+高亮只是外观 — Crema 运行时仍然在服务器上解析并渲染模板。输入时遇到未知指令名，使用[语言服务器](/docs/language/lsp)。

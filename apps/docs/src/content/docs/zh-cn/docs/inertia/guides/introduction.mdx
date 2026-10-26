@@ -1,0 +1,53 @@
+---
+title: 简介
+description: Kona 的 Inertia 是什么、何时使用，以及它如何放进应用。
+---
+
+Kona 的 **Inertia** 让 JVM 应用返回一个**页面对象** — 组件名加上属性 — 由 JavaScript 客户端接管。第一次访问是普通 HTML 文档。之后的导航发送 `X-Inertia` 头并收到 JSON，而不是整页重新加载。
+
+路由、控制器、认证和校验仍留在服务器上。浏览器挂载一个客户端框架（Vue、React、Svelte，或任何能读取页面对象的东西），并在 Inertia 导航时切换页面。
+
+## 这个包里有什么
+
+| 部分 | 作用 |
+|------|------|
+| `Inertia` 门面 | 可供 Java 调用的静态方法：`render`、`share`、`version`、`location` |
+| `InertiaManager` | 构造 HTML 外壳和 JSON 页面响应 |
+| `HandleInertiaRequests` | 中间件：每次请求的共享属性、版本检查、响应头 |
+| `InertiaServiceProvider` | 绑定管理器与 Vite `AssetManifest` |
+| `org.konaframework.inertia.assets.Vite` | Crema Vite 解析器上的薄门面 |
+
+构件：Maven Central 上的 `org.konaframework:kona-inertia`。
+
+## 何时使用
+
+当你想要现代的单页体验，又不想为每个画面单独写 JSON API 时，使用 Inertia。控制器返回页面属性；客户端渲染具名组件。
+
+如果你更想要响应式的**服务器**组件，而不引入 JS 单页栈，改看 [Wire](/docs/wire/)。经典 HTML 模板用 [Crema](/docs/crema/)。
+
+## 协议一览
+
+1. **首次访问**（没有 `X-Inertia`）→ HTML 外壳，`#app` 上带 `data-page='…json…'`。
+2. **Inertia 访问**（`X-Inertia: true`）→ JSON `{ component, props, url, version }`，外加 `X-Inertia` / `X-Inertia-Version`。
+3. **版本不匹配** → `409`，客户端可以强制重新加载资源。
+4. 通过 `Inertia.location` 的**外部重定向** → 对 Inertia 客户端是 `409` + `X-Inertia-Location`；普通浏览器得到 `302`。
+
+## 一条命令安装
+
+```bash
+./grind install inertia
+# interactive frontend: Vue / React / Svelte
+# or greenfield:
+kona new my-app --kit=inertia
+```
+
+这条路径同时覆盖 Maven 构件**和** Vite 客户端脚手架。演练：[安装](../installation/)。
+
+客户端协议和适配器：[inertiajs.com](https://inertiajs.com/)。
+
+## 下一步
+
+- [环境要求](../requirements/)
+- [安装](../installation/) — 直到第一页能工作
+- [第一个页面](../first-page/)
+- [前端客户端](../frontend/)

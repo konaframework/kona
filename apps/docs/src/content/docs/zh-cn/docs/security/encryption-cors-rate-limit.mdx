@@ -1,0 +1,32 @@
+---
+title: 加密、CORS、响应头与限流
+description: 应用密钥加密、CORS、安全响应头和节流。
+---
+
+## 加密
+
+把 `app.key` 设为 `base64:…`（`Encrypter.generateKey()`）。然后：
+
+```kotlin
+encrypter.encryptString("secret")
+encrypter.decryptString(payload)
+```
+
+使用 AES-256-GCM。
+
+## CORS
+
+`CorsMiddleware(CorsConfig(…))` 处理预检 `OPTIONS`，并应用允许的来源、方法和请求头。
+
+## 安全响应头
+
+`SecurityHeadersMiddleware` 添加可配置的浏览器安全响应头。
+
+## 限流
+
+```kotlin
+rateLimiter.forName("api") { RateLimit(60, 60) }
+rateLimiter.attempt(key, maxAttempts, decaySeconds)
+```
+
+当具名限制器被超过时，`ThrottleRequests` 中间件返回 **429**，并带上 `Retry-After`。

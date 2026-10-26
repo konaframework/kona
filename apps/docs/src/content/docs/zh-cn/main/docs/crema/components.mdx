@@ -1,0 +1,237 @@
+---
+title: 组件与插槽
+description: 可复用的 Crema 组件，带默认插槽、具名插槽、@component 和 x 标签。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**组件**是作为部件渲染的视图：你传入正文（**默认插槽**）以及可选的**具名插槽**，组件模板用 `{{ slot }}` 和 `{{ title }}`（或你选择的任何名称）打印它们。Crema 支持三种调用风格，它们共用同一套插槽模型：
+
+1. `@component` / `@slot` 指令
+2. 带 `<x-slot>` 的 `<x-name>` 类 HTML 标签
+3. 带前缀的扩展标签（例如 Wire 的 `<wire:…>`），配合 `<x-slot>` 或 `<prefix:slot>`
+
+## 定义一个组件
+
+组件就是普通视图。按约定，把可复用的放在 `views/components/` 下：
+
+```crema
+{{-- views/components/alert.crema.html — or alert.crema.html at the views root --}}
+<div class="alert alert-{{ type }}">
+  @isset(title)
+    <strong class="alert-title">{{ title }}</strong>
+  @endisset
+  <div class="alert-body">{{ slot }}</div>
+  @isset(footer)
+    <div class="alert-footer">{{ footer }}</div>
+  @endisset
+</div>
+```
+
+| 数据键 | 来源 |
+|--------|------|
+| `slot` | 默认（未命名）正文 |
+| 任何其他名称 | 具有该名称的**具名插槽**（`title`、`footer` 等） |
+
+具名插槽成为组件子上下文里的普通键 — 用 `{{ title }}`、`@isset(title)` 等使用它们。除非插槽名遮蔽了父视图数据，否则父视图数据仍然可见。
+
+## `@component` 和 `@slot`
+
+```crema
+@component('alert')
+  @slot('title')Notice@endslot
+  Body text goes in the default slot.
+  @slot('footer')Thanks@endslot
+@endcomponent
+```
+
+- `@component('view.name')…@endcomponent` 渲染该视图名（这里 `alert` → `alert.crema.html`）。
+- `@slot('name')…@endslot` 捕获一个具名插槽；组件正文里剩下的内容（去掉具名插槽之后）是默认 `slot`。
+- 插槽正文在**调用方**上下文中展开（它们能看到父级的 `name`、`user`、循环变量等），然后传入组件。
+
+### 只有默认插槽
+
+```crema
+@component('components.box')
+  Just the body.
+@endcomponent
+```
+
+```crema
+{{-- views/components/box.crema.html --}}
+<section class="box">{{ slot }}</section>
+```
+
+### 多个具名插槽
+
+```crema
+@component('components.card')
+  @slot('title')
+    <h2>{{ post.title }}</h2>
+  @endslot
+
+  <p>{{ post.excerpt }}</p>
+
+  @slot('actions')
+    <a href="/posts/{{ post.id }}">Read</a>
+  @endslot
+@endcomponent
+```
+
+```crema
+{{-- views/components/card.crema.html --}}
+<article class="card">
+  <header>{{ title }}</header>
+  <div class="card-body">{{ slot }}</div>
+  <footer>{{ actions }}</footer>
+</article>
+```
+
+## `<x-*>` 标签
+
+作为一种更轻的方式，Crema 把类 HTML 标签解析到 `components.` 前缀下的视图：
+
+```crema
+<x-alert>Hi</x-alert>
+<x-alert />
+```
+
+| 标签 | 视图名 |
+|------|--------|
+| `<x-alert>` | `components.alert` |
+| `<x-inputs.button>` | `components.inputs.button` |
+| `<x-inputs/button>` | `components.inputs.button`（斜杠变成点） |
+
+缺少的组件视图渲染为空字符串（不抛异常）。自闭合标签传入空的默认插槽。
+
+### 用 `<x-slot>` 的具名插槽
+
+具名插槽在 `<x-*>` 标签上的工作方式与 `@slot` 相同：
+
+```crema
+<x-card>
+  <x-slot name="title">Notice</x-slot>
+
+  Body copy in the default slot.
+
+  <x-slot:footer>Bye</x-slot:footer>
+</x-card>
+```
+
+两种等价形式：
+
+| 语法 | 插槽名 |
+|------|--------|
+| `<x-slot name="title">…</x-slot>` | `title` |
+| `<x-slot:footer>…</x-slot:footer>` | `footer` |
+
+你也可以把冒号形式结束为 `</x-slot>`（结束标签上的名字可选）。
+
+```crema
+{{-- views/components/card.crema.html --}}
+<div class="card">
+  <h2>{{ title }}</h2>
+  <div>{{ slot }}</div>
+  <footer>{{ footer }}</footer>
+</div>
+```
+
+上面示例的渲染结果：标题 `Notice`，默认插槽 `Body copy…`，页脚 `Bye`。
+
+### 嵌套组件
+
+默认插槽和具名插槽可以包含其他组件：
+
+```crema
+<x-panel>
+  <x-slot name="heading">Dashboard</x-slot>
+  <x-alert>
+    <x-slot name="title">Heads up</x-slot>
+    Save your work.
+  </x-alert>
+</x-panel>
+```
+
+## 带前缀的标签（扩展）
+
+包可以在 `CremaEngine` 上登记标签前缀（Wire 登记 `brew`）。这些标签收到默认 `slot` 字符串和具名插槽的 `slots` 映射。调用方用这些方式填充具名插槽：
+
+```crema
+<wire:card title="Stats">
+  <x-slot name="header">Overview</x-slot>
+  Main body
+  <wire:slot name="footer">Updated just now</wire:slot>
+</wire:card>
+```
+
+带前缀标签内部支持的具名插槽形状：
+
+| 形状 | 示例 |
+|------|------|
+| 带前缀的插槽 | `<wire:slot name="footer">…</wire:slot>` |
+| `x-slot` 的 name 属性 | `<x-slot name="header">…</x-slot>` |
+| `x-slot:` 冒号名 | `<x-slot:side>…</x-slot:side>` |
+
+带前缀标签上的属性（`:count="3"`、`title="…"`）会被解析并传给标签处理器 — Wire 自己的表面见 [Wire](/docs/wire/)。内置的 `<x-*>` 视图组件目前只用插槽（开始标签 `<x-alert …>` 上的属性不会映射进视图数据）。
+
+## 选择一种风格
+
+| 风格 | 最适合 |
+|------|--------|
+| `@component` / `@slot` | 显式视图名、大量具名插槽标记 |
+| `<x-*>` / `<x-slot>` | 模仿 HTML 的短调用点 |
+| 带前缀的标签 | 带属性绑定的包拥有的组件（Wire 等） |
+
+三种最终都渲染一个带 `slot` 加具名键的视图（或处理器）。为了一致，一个应用优先只用一种风格。
+
+## 从控制器
+
+组件只在模板侧 — 控制器仍然渲染页面视图；该页面嵌入组件：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+return Response.html(
+    crema.render(
+        "posts.show",
+        mapOf("post" to post, "flash" to flashMessage),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+return Response.html(
+    crema.render(
+        "posts.show",
+        Map.of("post", post, "flash", flashMessage)
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+{{-- views/posts/show.crema.html --}}
+@extends('layouts.app')
+@section('content')
+  @isset(flash)
+    <x-alert>
+      <x-slot name="title">Saved</x-slot>
+      {{ flash }}
+    </x-alert>
+  @endisset
+  <h1>{{ post.title }}</h1>
+@endsection
+```
+
+## 相关
+
+- [包含与局部](/docs/crema/includes/) — 没有插槽的更简单共享片段
+- [布局](/docs/crema/layouts/) — 页面级继承
+- [Wire](/docs/wire/) — 建在 Crema 之上的响应式组件
+- [指令参考](/docs/crema/directives/)

@@ -1,0 +1,225 @@
+---
+title: 控制台 IO 与提示
+description: ConsoleIO、GrindIO、Verbosity、表格、进度、Prompts、颜色环境和退出码。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+所有 Kona 终端 CLI 共享一种受 Termwind 启发的控制台风格：焦糖徽章（`INFO` / `DONE` / `WARN` / `ERROR`）、带青色 `›` 指针的暗淡 `┌┐└┘` 提示框、开场/收尾条、盒子、两列列表、表格和点线任务行。品牌色：浅焦糖 `#DF8723`，强调色 `#74453F`。
+
+| API | 模块 | 作用 |
+| --- | --- | --- |
+| `org.konaframework.support.console.ConsoleIO` | `kona-support` | 规范实现 |
+| `org.konaframework.grind.GrindIO` | `kona-grind` | 用安静 / 详细过滤包装 `ConsoleIO` |
+| `ConsoleCommand` 上的辅助方法 | `kona-grind` | `info`、`success`、`warn`、`error`、`intro`、`outro`、`note`、`table`、`progress` 等 |
+| `org.konaframework.grind.Prompts` | `kona-grind` | 交互式询问 / 确认 / 选择 |
+
+命令里**不要**用原始 `println` / 未加样式的 `System.out` 打印面向用户的输出；使用这些 API。
+
+应用本地的 `./grind` 启动器用 Gradle 的 `konaClasspath` 任务解析运行时类路径，然后 **`exec` JVM**，这样标准输入保持为真正的终端。（Gradle 的 `JavaExec` 工作进程通常看到的是管道，这曾经让是/否和选择列表画出来，但对方向键没有响应。）`grind serve --no-watch` 嵌套的 `gradlew run`，加上监视模式的 `gradlew classes`，仍然使用 `--quiet --console=plain -Dorg.gradle.console=plain`，这样构建生命周期噪音和 Gradle 的丰富进度条不会淹没 Termwind 输出。默认的 `./grind serve` 保持 Netty 运行并在保存时重新编译；`--no-watch` 是子 JVM 的 `run` 路径。没有纯控制台时，长时间的 `run` 在 HTTP 服务器运行的整个期间看起来会“卡”在 83% 左右 — 那个百分比是正常的 Gradle 任务进度，不是挂起。
+
+## 颜色环境
+
+`ConsoleIO.detectColor`（`GrindIO.detectColor` 也使用）：
+
+| 环境 | 效果 |
+| --- | --- |
+| `NO_COLOR` | 禁用 ANSI（存在任何值） |
+| `FORCE_COLOR=1`（任何非 `0`） | 即使 `TERM=dumb` 也强制 ANSI |
+| `FORCE_COLOR=0` | 保持颜色关闭 |
+| `TERM=dumb` 或缺少 `TERM` | 除非强制，否则颜色关闭 |
+
+## 详细程度（`GrindIO`）
+
+```kotlin
+enum class Verbosity { QUIET, NORMAL, VERBOSE }
+```
+
+`GrindIO.fromOptions(options)` 从 CLI 标志设置详细程度：
+
+| 标志 | 详细程度 |
+|------|----------|
+| `--quiet` / `-q` | `QUIET` |
+| `--verbose` / `-v` | `VERBOSE` |
+| 都没有 | `NORMAL` |
+
+如果安静和详细的键都出现，安静获胜（先检查）。
+
+| 方法 | 安静 | 正常 | 详细 |
+|------|------|------|------|
+| `writeln` / `write` / `line` / `info` / `success` / `warn` / `title` / `subtitle` / `twoColumn` / `box` / `progress` / `table` / `intro` / `outro` / `note` / `promptFrame` / `taskLine` | 抑制 | 打印 | 打印 |
+| `error` | **总是打印**（标准错误） | 打印 | 打印 |
+| `verbose` | 抑制 | 抑制 | 打印（暗淡） |
+
+## `ConsoleIO` 表面
+
+用可选的 `PrintStream` 输出/错误和一个 `color` 布尔构造：
+
+```kotlin
+val console = ConsoleIO()
+console.info("Working…")
+console.success("Done")
+console.warn("Slow path")
+console.error("Could not connect")
+console.title("Report")
+console.subtitle("Section")
+console.twoColumn("serve", "Run the HTTP server")
+console.box("grind", listOf("Kona app CLI"))
+console.progress(3, 10, "users")
+console.table(
+    listOf("id", "email"),
+    listOf(listOf("1", "ada@example.com"), listOf("2", "bea@example.com")),
+)
+console.taskLine("2000_01_01_000000_create_users_table", "DONE", 12)
+console.intro("grind")
+console.note("Running migrations.", "INFO")
+console.outro("Done.")
+```
+
+| 方法 | 行为 |
+|------|------|
+| `writeln` / `write` / `line` | 原始标准输出（包装时仍受 GrindIO 安静影响） |
+| `info` | 绿色 ` INFO ` 芯片 + 消息 |
+| `success` | 绿色 ` DONE ` 芯片 + 消息 |
+| `warn` | 黄色 ` WARN ` 芯片 + 消息 |
+| `error` | 红色 ` ERROR ` 芯片，在**标准错误**上 |
+| `intro(title)` | 暗淡的顶条 `┌ title ────┐` |
+| `outro(message)` | 暗淡的底条 `└ message ─┘` |
+| `note(message, label="NOTE")` | 带框的标注备注（`INFO` / `WARN` / `ERROR` / `NOTE`） |
+| `promptFrame(label, body, pointerLine=-1, …)` | 提示框；青色 `›` 在 `pointerLine` 上；`pointerPrefix=false` 用于齐平的文本值 |
+| `promptFrameLines(…)` | 与 `promptFrame` 相同的框，作为行返回，供原地 TTY 重绘 |
+| `promptSubmitted(label, value)` | 所选值以绿色显示的提示框 |
+| `title` | 粗体绿色标题 + 暗淡下划线（最多 48） |
+| `subtitle` | 青色行 |
+| `twoColumn(left, right, width=22)` | 青色粗体左列 + 暗淡右列 |
+| `box(title, lines)` | 暗淡的 `┌┐└┘` 框；内容宽度大致钳在 24–56 |
+| `progress(current, total, label="")` | 28 格条 + 百分比；`total` 必须 `> 0`；`current` 钳在 `[0, total]` |
+| `table(headers, rows)` | 按**纯**文本宽度对齐列（去掉 ANSI）；表头非空；每一行必须匹配表头宽度 |
+| `taskLine(name, status, millis=null, ok=true)` | 点线行（`name …… 12ms DONE`）；`ok` 时绿色状态，否则红色；`millis` 为 null 时省略时长 |
+| `paint(codes, text)` | 颜色打开时应用 ANSI |
+| `plainLength(text)` | 去掉 ANSI 序列后的长度 |
+
+`ConsoleIO.formatDuration(millis)` 把 `<1000` 渲染成 `12ms`，更长的运行渲染成 `1.23s`。行对齐到 `ConsoleIO.TASK_WIDTH`（72）。
+
+`ConsoleIO` 上的公开 ANSI 常量：`RESET`、`BOLD`、`DIM`、`RED`、`GREEN`、`YELLOW`、`CYAN`、`PRIMARY`、`ACCENT`、`GRAY`、`WHITE`、`BLACK`、`BG_GREEN`、`BG_YELLOW`、`BG_RED`、`BG_CYAN`。`PROMPT_WIDTH` 是 60。
+
+## `GrindIO` 表面
+
+与上面相同的高层辅助方法，外加：
+
+```kotlin
+val io = GrindIO.fromOptions(mapOf("verbose" to "true"))
+io.verbose("only with -v")
+io.subtitle("Detail")
+io.twoColumn("left", "right")
+io.box("Title", listOf("line"))
+io.taskLine("create_users_table", "DONE", 12)
+io.intro("grind")
+io.outro("Done.")
+```
+
+在 `ConsoleCommand` 内部，优先使用绑定的辅助方法（它们使用运行器的 `GrindIO`）：
+
+```kotlin
+info("Working…")
+success("Done")
+warn("Slow path")
+error("Could not connect")
+title("Report")
+line()
+line("plain")
+table(
+    listOf("id", "email"),
+    listOf(listOf("1", "ada@example.com"), listOf("2", "bea@example.com")),
+)
+progress(3, 10)
+progress(3, 10, "users")
+verbose("only with -v")
+```
+
+`ConsoleCommand.progress` 有带标签和不带标签的重载。`intro` / `outro` / `note` 在 `ConsoleCommand` 上。`ConsoleCommand` 本身仍然**没有** `box` / `twoColumn` / `subtitle` 辅助方法 — 需要时使用 `io.box(...)` / `io.twoColumn(...)` / `io.subtitle(...)`。
+
+## 提示
+
+交互输入使用 `Prompts`（grind）或 `org.konaframework.support.console.ConsolePrompts`（共享）。在真正的 TTY 上它们是**带框的控件**，不是基于行的 `readLine`：
+
+- 暗淡的 `┌ ┐ └ ┘ │ ─` 框，标签在顶边上（`┌ App name ───┐`），内部值填充到一致宽度（大约 60 列，或终端宽度减 4）。
+- **文本（`ask`）：** 光标坐在值行的框**内部**。退格、左/右、Home/End 和 UTF-8 字符编辑该值。回车提交；实时框被原地替换成同一框和**绿色**值（没有第二份堆叠副本）。
+- **选择（`choice`）/ 确认：** 青色 `›` 标记当前行。**上/下**（以及 `k`/`j`）移动指针；回车提交。确认也接受 `y`/`n`/`1`/`2`。指针在列表两端环绕。方向键在 `./grind` 里与在 `kona new` 里一样工作 — 包括端口占用时的“使用另一个端口？”以及其他 grind 确认。
+- **Ctrl+C** 恢复终端并取消。
+
+`kona new` 使用同样的控件。脚本和 CI 用 `--no-interaction`（或 `--yes` / `CI=true`）跳过它们。
+
+标准输入**不是** TTY 时 — 管道、注入 `ByteArrayInputStream` 的测试、`KONA_LINE_PROMPTS=1` — 同样的方法回退到一行答案（`readLine`）。空行使用 `default`；`choice` 仍然接受从 1 开始的索引或不区分大小写的标签。
+
+如果 Gradle 仍然用管道标准输入启动 grind（直接调用 `JavaExec` 的较旧 `./grind` 脚本），控件会打开控制终端（`/dev/tty`）做原始模式和按键读取，这样上/下仍然移动指针。设置 `KONA_LINE_PROMPTS=1` 强制行回退。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val prompts = Prompts()
+val name = prompts.ask("Name", default = "Kona")
+val ok = prompts.confirm("Continue?", default = false)
+val pick = prompts.choice("Driver", listOf("array", "redis"), defaultIndex = 0)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Prompts prompts = new Prompts();
+String name = prompts.ask("Name", "Kona");
+boolean ok = prompts.confirm("Continue?", false);
+String pick = prompts.choice("Driver", List.of("array", "redis"), 0);
+```
+
+</TabItem>
+</Tabs>
+
+| 方法 | TTY 控件 | 行回退（管道 / 测试 / `--no-interaction` 调用者） |
+|------|----------|-----------------------------------------------------|
+| `ask(question, default=null)` | 光标在框内；回车提交缓冲区（初始化为 `default`） | 设置了 `default` 时空行使用它；否则空字符串 |
+| `confirm(question, default=false)` | `›` 在是/否上；方向键切换；`y`/`n` 提交 | 空 → 默认；`y`/`yes`/`1` → true；`n`/`no`/`2` → false |
+| `choice(question, options, defaultIndex=0)` | `›` + 高亮；方向键环绕；数字 `1`… 提交 | 空 → 默认；从 1 开始的索引或不区分大小写的标签；无效 → 默认 |
+
+`choice` 需要非空选项列表和范围内的 `defaultIndex`。框写到你注入的提示输出流（默认：`System.out`）。`ConsoleIO.PROMPT_WIDTH` 是 60。
+
+`serve`（端口冲突）和 `key:generate`（生产覆盖）等内置命令在内部使用 `Prompts`。安装器（`kona new`）使用外观相同的 `InstallerPrompts`。
+
+## 退出码
+
+| 码 | 常量 | 含义 |
+|----|------|------|
+| `0` | `ConsoleCommand.SUCCESS` | 成功（`--isolated` 跳过忙碌命令时也是） |
+| `1` | `ConsoleCommand.FAILURE` | 用法错误、缺少项目、生成器失败、未绑定的服务、未知命令 |
+
+脚本和 CI 应该把任何非零退出当作失败。内置命令通常以同样方式返回 `0`/`1`；`GrindApplication` 里未捕获的 `GrindException` / `CadenceException` 变成错误行并以 `1` 退出。
+
+## 测试输出
+
+`ConsoleTester` 在运行 `GrindApplication` 时只捕获**标准输出** — 见 [HTTP 与控制台测试](../../testing/http-console/#console-grind)。断言：
+
+| 方法 | 行为 |
+|------|------|
+| `assertOk()` | 退出码 `0` |
+| `assertExit(code)` | 精确退出码 |
+| `assertSee(text)` | 标准输出包含子串 |
+| `assertDontSee(text)` | 标准输出不包含子串 |
+
+因为 `error(...)` 写到标准错误，失败的错误消息可能**不会**出现在 `ConsoleResult.output` 里。失败路径上断言退出码，或在直接测试 `Prompts` / `ConsoleIO` 时注入流（模块测试就是这样做的）。
+
+## 陷阱
+
+- **安静会隐藏进度和表格** — 不要依赖 `-q` CI 日志里的进度条。
+- **`table` 行宽** — 列数不匹配会抛出；先规范化行。
+- **`progress` 总数** — 必须为正，否则 `ConsoleIO` 抛出。
+- **管道里的颜色** — 自动化里遵守 `NO_COLOR`；不要假定捕获的测试输出里有 ANSI。
+- **全局 `System.out` 替换** — `Grind.callSilently` 和 `ConsoleTester` 替换标准输出；避免依赖真实流的嵌套并发调用。
+
+## 相关
+
+- [创建命令](../creating-commands/)
+- [运行命令](../running-commands/)
+- [内置命令](../commands/)
+- [HTTP 与控制台测试](../../testing/http-console/)

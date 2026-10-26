@@ -1,0 +1,259 @@
+---
+title: 日志
+description: 通道、驱动（stack、daily、single 等）、Log 门面、共享上下文和配置。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona 的 `Log` 门面位于 SLF4J / Logback 之上。应用启动时，**`LogManager`** 从配置解析具名**通道** — 包括 `stack`、`daily`、`single`、`stderr`、`stdout`、`syslog`、`errorlog` 和 `null` 等驱动。
+
+## 快速开始
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Log.info("Application started")
+Log.channel("orders").warning("Retrying charge")
+Log.error("Payment failed", exception)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Log.info("Application started");
+Log.channel("orders").warning("Retrying charge");
+Log.error("Payment failed", exception);
+```
+
+</TabItem>
+</Tabs>
+
+引导把 `LogManager` 绑定进容器并接到 `Log` 门面上。你很少自己构造管理器。
+
+## 日志默认去哪里
+
+启动时，Kona 还把一个按日滚动的文件追加器接到**根**日志器（`KONA_FILE`）：
+
+| 设置 | 配置键 | 环境 | 默认 |
+| --- | --- | --- | --- |
+| 写入文件 | `logging.to_file` | `LOG_TO_FILE` | `true` |
+| 文件名 | `logging.file` | `LOG_FILE` | `kona.log`（除非绝对路径，否则在 `storage/logs` 下） |
+| 根级别 | `logging.level` | `LOG_LEVEL` | `info` |
+| 默认通道 | `logging.default` | `LOG_CHANNEL` | `stack` |
+
+脚手架应用包含 `storage/logs/`。`./grind serve`（或任何会记日志的启动）之后，查看 `storage/logs/kona.log`。滚动历史使用 `kona.yyyy-MM-dd.log`（根追加器保留 14 天）。
+
+只想要控制台时设置 `LOG_TO_FILE=false`。自定义布局或额外追加器时，加上 `src/main/resources/logback.xml` — Kona 刷新 `KONA_FILE`，并且不替换你的控制台配置。
+
+## 通道与 Log 门面
+
+**通道**是由 `LogManager` 解析的具名目的地。默认通道名来自 `logging.default`（通常是 `stack`）。
+
+| API | 作用 |
+| --- | --- |
+| `Log.info` / `debug` / `warning` / `warn` / `notice` / `error` / `critical` / `alert` / `emergency` | 在**默认**通道上写入 |
+| `Log.log(level, message)` | 相同，使用 `LogLevel` 或字符串级别 |
+| `Log.channel(name)` | 解析具名通道 |
+| `Log.channel()` | 默认通道 |
+| `Log.stack("a", "b")` | 临时扇出栈（不缓存在配置键下） |
+| `Log.setDefaultChannel(name)` | 覆盖本进程的默认 |
+| `Log.shareContext` / `withContext` / `flushSharedContext` | 请求范围的字段（见下） |
+| `Log.manager()` | 已绑定的 `LogManager`，启动前为 `null` |
+
+没有绑定的管理器时（早期启动 / 单元测试），`Log.channel(name)` 回退到具名的 SLF4J 日志器。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Log.channel("orders").info("Order placed")
+Log.setDefaultChannel("api")
+Log.info("uses the api channel")
+Log.stack("single", "stderr").warning("fan-out")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Log.channel("orders").info("Order placed");
+Log.setDefaultChannel("api");
+Log.info("uses the api channel");
+Log.stack("single", "stderr").warning("fan-out");
+```
+
+</TabItem>
+</Tabs>
+
+每个通道暴露同样的级别方法，外加 `with(map)`，用于合并共享上下文并返回自身以便链式调用。
+
+## 驱动
+
+在 `logging.channels.{name}.*` 下配置通道。启动时，键缺失则 `LogManager.seedDefaults` 登记完整的起步映射：
+
+| 通道 | 驱动 | 说明 |
+| --- | --- | --- |
+| `stack` | `stack` | 扇出到 `logging.channels.stack.channels`（环境 `LOG_STACK`，默认 `single`） |
+| `single` | `single` | 一个文件（路径默认是 `logging.file`） |
+| `daily` | `daily` | 基于时间的滚动文件（`days` / `max_files`，环境 `LOG_DAILY_DAYS`，默认 14） |
+| `stderr` / `console` | `stderr` | 控制台追加器 → System.err |
+| `stdout` | `stdout` | 控制台追加器 → System.out |
+| `syslog` | `syslog` | Logback `SyslogAppender`（`host`、`facility`） |
+| `errorlog` | `errorlog` | 控制台错误（Logback 上下文不可用时是 JUL） |
+| `null` | `null` | 丢弃每一条消息 |
+| `emergency` | （仅路径） | 默认通道写入失败时使用的最后手段文件 |
+
+你可以加上自己的名称：
+
+```kotlin
+// config (executable ConfigFile or .configure { })
+logging.channels.payments.driver = "daily"
+logging.channels.payments.path = "payments.log"
+logging.channels.payments.level = "debug"
+logging.channels.payments.days = 30
+```
+
+### 驱动参考
+
+**`stack`** — `channels` 可以是逗号字符串、列表，或子通道名数组。可选的 `ignore_exceptions`（布尔）：为真时，失败的子通道不会中止其余部分。
+
+**`single` / `daily`** — `path`（相对 → `storage/logs/…`，或绝对），可选 `level`。Daily 还使用 `days` 或 `max_files`。解析出的路径与根 `KONA_FILE` 追加器匹配时，Kona **复用**该追加器，这样两个写入者不会争抢同一文件。
+
+**`stderr` / `stdout` / `console` / `errorlog` / `syslog`** — 可选 `level`；syslog 还有 `host`（默认 `localhost`）和 `facility`（默认 `USER`）。
+
+**`null`** — 没有 I/O。
+
+未知的 `driver` 值抛出 `IllegalArgumentException`。循环的 `stack` 图抛出 `IllegalStateException`。
+
+### 自定义驱动、tap 和覆盖
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val logs = app.resolve(LogManager::class.java)
+
+logs.extend("memory") { name, config ->
+    object : LogChannel() {
+        override fun write(level: LogLevel, message: String, throwable: Throwable?) {
+            // capture in tests / buffers
+        }
+    }
+}
+app.config.set("logging.channels.mem.driver", "memory")
+
+logs.tap("mem") { channel ->
+    // runs once when the channel is first resolved (and immediately if already resolved)
+}
+
+logs.set("orders", NullLogChannel) // tests / advanced wiring
+logs.forget("orders")
+logs.flush() // drop all cached channels
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+LogManager logs = app.resolve(LogManager.class);
+
+logs.extend("memory", (name, config) -> new LogChannel() {
+    @Override
+    public void write(LogLevel level, String message, Throwable throwable) {
+        // capture in tests / buffers
+    }
+});
+app.config().set("logging.channels.mem.driver", "memory");
+
+logs.tap("mem", channel -> { /* … */ });
+logs.set("orders", NullLogChannel.INSTANCE);
+logs.forget("orders");
+logs.flush();
+```
+
+</TabItem>
+</Tabs>
+
+如果通道名匹配内置驱动（`daily`、`stderr` 等）但**没有** `driver` 键，`LogManager` 把名称本身当作驱动提示。
+
+## 级别
+
+`LogLevel` 镜像常见的严重程度名称。`LogLevel.parse` / `log(level, …)` 接受的字符串形式：
+
+| 级别 | 别名 |
+| --- | --- |
+| EMERGENCY | `emergency`、`emerg` |
+| ALERT | `alert` |
+| CRITICAL | `critical`、`crit` |
+| ERROR | `error`、`err` |
+| WARNING | `warning`、`warn` |
+| NOTICE | `notice` |
+| INFO | `info` |
+| DEBUG | `debug` |
+
+通道 `level` 和 `logging.level` 传给 Logback 的 `Level.toLevel`（准备好的通道日志器未设置时默认 `debug`）。
+
+## 共享上下文
+
+一次附上请求范围的字段；通道上随后的每一条消息都包含它们，直到你刷新。值也会镜像进 SLF4J MDC（null → 字符串 `"null"`）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Log.shareContext(mapOf("requestId" to "r-1", "userId" to 42))
+Log.info("Handling checkout")
+// message includes {requestId=r-1, userId=42}
+
+Log.channel("orders").with(mapOf("orderId" to 9)).info("charged")
+Log.flushSharedContext()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Log.shareContext(Map.of("requestId", "r-1", "userId", 42));
+Log.info("Handling checkout");
+Log.channel("orders").with(Map.of("orderId", 9)).info("charged");
+Log.flushSharedContext();
+```
+
+</TabItem>
+</Tabs>
+
+`withContext` 合并值并返回**默认**通道以便链式调用。优先在每个 HTTP 请求结束时刷新（例如在中间件里），这样上下文不会泄漏到虚拟线程之间。
+
+## 紧急写入
+
+如果在绑定了 `LogManager` 时写入默认通道抛出，`Log` 调用 `LogManager.writeEmergency`。它把带时间戳的一行追加到 `logging.channels.emergency.path`（否则 `logging.file`，否则 `kona.log`）。如果连这也失败，消息会到 `System.err`。
+
+## 请求访问行（本地 serve）
+
+当 `APP_DEBUG=true`（脚手架默认）— 或你设置 `LOG_REQUESTS=true` / 配置 `logging.requests=true` 时 — `HttpServiceProvider` 把 **`LogRequests`** 前置到全局内核。每个请求向终端打印一行 Termwind 风格的行：
+
+```text
+GET     /  200  3ms
+```
+
+……并把同样的纯文本通过 `Log.info` 镜像进你的日志栈（通常是 `storage/logs/kona.log`）。状态颜色：绿（2xx）、青（3xx）、黄（4xx）、红（5xx 及其他）。
+
+| 设置 | 配置键 | 环境 | 默认 |
+| --- | --- | --- | --- |
+| 请求访问行 | `logging.requests` | `LOG_REQUESTS` | 未设置时跟随 `app.debug` |
+
+即使调试打开，设置 `LOG_REQUESTS=false` 也会让控制台访问行安静。这对 `./grind serve`（Gradle `run`）和进程内 serve 都适用 — 中间件住在 HTTP 内核里，不只在 grind 里。
+
+绑定成功时 `KonaHttpServer` 也用 `ConsoleIO` 打印监听横幅。意外的 Netty/处理函数失败经过 `Log.error`。
+
+## 错误与 HTTP 栈
+
+除非你安装自定义的 `report` 回调，`DefaultExceptionHandler` 通过 `Log.error` 记录意外失败 — 见[异常](../exceptions/)。
+
+## 测试提示
+
+- 使用 `null` 通道或 `logs.extend("memory", …)` 来断言日志流量而不触碰磁盘。
+- `FileLogging.resetForTests()` / `Log.unbind()` / `Kona.reset()` 让测试套件隔离（与 `kona-core` 自己的测试一样）。
+- 断言文件内容时优先使用 `@TempDir` 下的绝对 `path` 值。

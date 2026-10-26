@@ -1,0 +1,88 @@
+---
+title: 广播
+description: 把事件广播到具名通道。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**广播**把应用事件推到具名通道，让监听者（进程内的 websocket 订阅者、测试，或以后的网络驱动）能够响应。
+
+## 注册
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+app.register(BroadcastServiceProvider())
+```
+
+配置键：
+
+| 键 | 含义 |
+|----|------|
+| `broadcasting.default` | 连接名（默认 `log`） |
+| `broadcasting.connections.{name}.driver` | `log`、`null` / `none`，或 `websocket` / `ws` |
+
+## ShouldBroadcast 事件
+
+```kotlin
+class OrderShipped : ShouldBroadcast {
+    override fun broadcastOn() = listOf(Channel.publicChannel("orders"))
+    override fun broadcastAs() = "order.shipped"
+    override fun broadcastWith() = mapOf("id" to 42)
+}
+
+Broadcast.event(OrderShipped())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Broadcast.event(new OrderShipped());
+```
+
+</TabItem>
+</Tabs>
+
+## 临时广播
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Broadcast.to(Channel.publicChannel("orders"), Channel.privateOf("user.1"))
+    .event("order.shipped", mapOf("id" to 42))
+```
+
+## 驱动
+
+| 驱动 | 行为 |
+|------|------|
+| `log` | 把载荷存在内存里（`Broadcast.manager().log().messages()`）— 适合测试 |
+| `null` / `none` | 空操作 |
+| `websocket` / `ws` | 在进程内扇出到已注册的连接处理程序（`WebsocketBroadcaster`） |
+
+### Websocket（进程内）
+
+`WebsocketBroadcaster` 维护通道到监听者的映射。先在本地订阅，再广播；即使一个连接监听了多个匹配通道，每个不同的连接也只收到一次载荷。这一版没有网络套接字 — 该驱动是 websocket 的*形状*（订阅加扇出），供测试和 Java 调用者使用，以后可以包一层 Netty 端点。
+
+```kotlin
+val ws = Broadcast.manager().websocket()
+ws.subscribe("orders") { channels, event, payload ->
+    // deliver to a client connection
+}
+app.config.set("broadcasting.default", "websocket")
+Broadcast.event(OrderShipped())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+WebsocketBroadcaster ws = Broadcast.manager().websocket();
+ws.subscribe("orders", (channels, event, payload) -> { /* … */ });
+```
+
+</TabItem>
+</Tabs>

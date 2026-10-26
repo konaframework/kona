@@ -1,0 +1,454 @@
+---
+title: 请求与响应
+description: 从 Request 读取头、查询字符串、表单字段和 JSON，并构建文本、HTML、JSON、重定向或空的 Response。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona 里每一段 HTTP 代码都使用 `org.konaframework.http` 包里的两个小类：
+
+- **`Request`** — 客户端发送内容的不可变快照：方法、路径、头、查询字符串和正文。它还携带可变的**属性**映射，Kona 和你的中间件用它传递值（路由参数住在那里）。
+- **`Response`** — 你发回的内容：状态码、字符串正文，以及头的映射。响应可变且可链式调用，因此中间件可以在出去的路上调整它们。
+
+**处理函数**是任何接受 `Request` 并返回 `Response` 的函数（`Handler` 接口）。路由动作、控制器方法和中间件链的末端都是处理函数。本页详细解释这两个类；[路由](../routing/)解释请求如何到达你的处理函数，[内核与服务器](../kernel-server/)解释套接字上的字节如何首先变成 `Request`。
+
+## `Request` 从哪里来
+
+嵌入式服务器（`KonaHttpServer`）收到调用时，它从原始交换构建 `Request`：
+
+| 字段 | 来源 |
+|------|------|
+| `method` | 发送的 HTTP 方法，例如 `GET` 或 `POST` |
+| `path` | **原始**请求路径，没有查询字符串，仍然百分号编码（例如 `/files/a%20b`） |
+| `headers` | 每个头名一项；客户端重复一个头时，只保留**第一个**值 |
+| `query` | 查询字符串解析成 `name → value`，百分号解码；重复的名称保留**最后一个**值，没有 `=` 的 `?flag` 变成 `flag → ""` |
+| `bodyBytes` | 原始请求正文字节（二进制安全） |
+| `body` | 正文的 UTF-8 字符串视图（服务器只提供字节时为空） |
+| `attributes` | 开始为空；内核添加路由参数，中间件可以添加任何东西 |
+
+嵌入式服务器把线路正文存为 **`bodyBytes`**。文本辅助方法（URL 编码/JSON 的 `form`、日志）在你在测试里构造请求时使用 UTF-8 `body` 字符串。还没有流式正文 API，因此大上传保存在内存里。
+
+你也可以自己构建请求，Kona 里大多数 HTTP 测试就是这样写的 — 你把请求直接交给内核，而不打开套接字：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val get = Request.get("/users/42")
+val form = Request.post("/login", "email=ada%40example.com&password=secret")
+val json = Request(
+    method = "POST",
+    path = "/users",
+    headers = mapOf("Content-Type" to "application/json"),
+    body = """{"name":"Ada","age":36}""",
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Request get = Request.get("/users/42");
+Request form = Request.post("/login", "email=ada%40example.com&password=secret");
+Request json = new Request(
+    "POST",
+    "/users",
+    Map.of("Content-Type", "application/json"),
+    Map.of(),                              // query
+    "{\"name\":\"Ada\",\"age\":36}"        // body
+);
+```
+
+</TabItem>
+</Tabs>
+
+构造函数的尾部参数在两种语言里都可选：Java 可以调用 `new Request("DELETE", "/users/42")` 然后停在那里。`Request.post` 把正文作为第二个参数；Kotlin 可以省略它，Java 显式传入（空正文用 `""`）。
+
+在 Java 里，字段通过 getter 读取：`getMethod()`、`getPath()`、`getHeaders()`、`getQuery()`、`getBody()`、`getAttributes()`。
+
+## 头
+
+用 `header(name)` 读取头。查找**不区分大小写**，因此 `header("content-type")` 和 `header("Content-Type")` 返回相同的值。第二个重载在头缺席时提供默认值。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val agent = request.header("User-Agent")              // String? — null when missing
+val accept = request.header("Accept", "*/*")          // falls back to "*/*"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String agent = request.header("User-Agent");           // may be null
+String accept = request.header("Accept", "*/*");
+```
+
+</TabItem>
+</Tabs>
+
+优先使用 `header(...)`，而不是直接读取 `headers` 映射。该映射按服务器交付的样子保留名称，映射查找区分大小写。
+
+## 查询字符串与表单字段
+
+Kona 给你三种读取简单字符串输入的方式，当同一名称同时出现在查询字符串和正文里时，它们的差别很重要。
+
+### `query`
+
+解析后的查询字符串，与上表描述的完全一样。Kotlin 里是 `request.query["page"]`，Java 里是 `request.getQuery().get("page")`。
+
+### `form()`
+
+`form()` 把**正文**解析成 `Map<String, String>`：
+
+- 空正文给出空映射。
+- 如果 `Content-Type` 头包含 `application/json`（不区分大小写，因此 `application/json; charset=utf-8` 算），正文被读作 JSON 对象并**压平为字符串**：文本值保持原样，`null` 变成 `""`，数字、布尔、数组和嵌套对象变成它们的 JSON 文本（`36`、`true`、`["a","b"]`）。不是对象的 JSON 正文（例如顶层数组）给出空映射。
+- 如果内容类型是 `multipart/form-data`，**文本字段**被解析进映射；文件部分通过 `file` / `hasFile` / `allFiles` 可用（见下文）。
+- 对 URL 编码表单（`application/x-www-form-urlencoded` 或缺失的内容类型），正文被解析为 `a=1&b=two`，名称和值百分号解码。重复字段保留最后一个值。
+
+`form()` 每次调用都解析；如果你多次读取，把结果存在局部变量里。
+
+### `input(key, default)` 与 `all()`
+
+- `input(key, default)` 从 [`data()`](#typed-json-with-data)（查询 + 正文 + 任何 [`merge`](#merge-and-replace) 覆盖）读取，并把值变成字符串。
+- `all()` 把同一个袋子作为字符串返回（省略 null 值）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val page = request.input("page", "1")
+val search = request.input("q")            // default is null
+val everything: Map<String, String> = request.all()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String page = request.input("page", "1");
+String search = request.input("q");        // one-arg overload; may be null
+Map<String, String> everything = request.all();
+```
+
+</TabItem>
+</Tabs>
+
+### Only、except、存在性辅助方法
+
+| API | 含义 |
+|-----|------|
+| `only("a", "b")` | 列出的键的 `data()` 子集 |
+| `except("a")` | 没有那些键的 `data()` |
+| `has("a")` | 键存在（包括 null） |
+| `filled("a")` | 键存在且非空 |
+| `missing("a")` | 键缺席 |
+| `whenHas` / `whenFilled` / `whenMissing` | 条件成立时运行回调 |
+
+### 布尔、日期、bearer、IP、用户代理
+
+| API | 含义 |
+|-----|------|
+| `boolean("on")` | `1` / `true` / `on` / `yes` 为真（Java：`booleanValue`） |
+| `date("when")` | ISO 本地日期 / 日期时间 → `LocalDate`，或 null |
+| `bearerToken()` | 来自 `Authorization: Bearer …` 的令牌 |
+| `ip()` | TrustProxies 之后的 `kona.clientIp`，否则 `kona.remoteAddr` |
+| `userAgent()` | `User-Agent` 头 |
+
+### 合并与替换
+
+`merge(map)` 复制当前输入袋（或第一次调用时的自然输入）并覆盖新值。`replace(map)` 交换整个袋子。两者影响该请求剩余部分的 `data()`、`input`、`validate` 和相关辅助方法。
+
+### `validate` 与 `safe`
+
+`validate(rules)` 运行[验证器](../validation/)并记住结果。成功调用之后，`safe()` 返回同一个映射。在 `validate` 之前调用 `safe()` 抛出 `IllegalStateException`。
+
+## 用 `data()` 的带类型 JSON
+
+`form()` 和 `all()` 总是给你字符串，这对 HTML 表单是对的，但对 JSON API 会丢失信息。`data()` 返回带**自然 JSON 类型**的 `Map<String, Any?>`：
+
+| JSON 值 | `data()` 里的 Kotlin / Java 类型 |
+|---------|----------------------------------|
+| `"Ada"` | `String` |
+| `36` | `Int` / `Integer`（更大的值变成 `Long` 或 `BigInteger`） |
+| `1.5` | `Double` |
+| `true` | `Boolean` |
+| `null` | `null` |
+| `[...]` | `List` |
+| `{...}` | `Map` |
+
+当请求是 JSON（与上面相同的 `Content-Type` 检查）时，`data()` 返回查询字符串与解析后的正文对象的合并，冲突时正文键获胜。对 multipart，`data()` 合并查询、文本字段，以及字段名下的 `UploadedFile` 值。对其他请求，`data()` 返回 `all()`，因此所有值都是字符串。
+
+### 上传的文件
+
+对 `multipart/form-data`：
+
+| API | 含义 |
+|-----|------|
+| `file(name)` | `UploadedFile`，或 null |
+| `hasFile(name)` | 文件存在且有效（非空，没有上传错误）时为真 |
+| `allFiles()` | 字段名 → `UploadedFile` 的映射 |
+
+`UploadedFile` 暴露 `clientOriginalName`、`clientMimeType`、`contents`、`size`、`extension()`、`hashName()`，以及 `store` / `storeAs`（通过 `FilesystemAdapter` 写入）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val payload = request.data()
+val tags = payload["tags"] as? List<*> ?: emptyList<Any>()
+val active = payload["active"] == true
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Map<String, Object> payload = request.data();
+Object tags = payload.get("tags");         // a java.util.List for a JSON array
+boolean active = Boolean.TRUE.equals(payload.get("active"));
+```
+
+</TabItem>
+</Tabs>
+
+[验证](../validation/)通过 `data()` 读取输入，这就是 `boolean`、`array` 和 `integer` 这样的规则对 JSON 正文行为正确的原因。
+
+:::caution
+如果正文被标为 JSON 但不是有效 JSON，`form()`、`input()`、`all()` 和 `data()` 抛出解析器的异常。Kona 不会把这变成 400 或 422 响应；默认异常处理函数把它当作意外错误并回答 **500**。如果你想对格式错误的 JSON 给出更友好的响应，在你自己的处理函数代码里包装该调用。
+:::
+
+## 属性
+
+`attributes` 是恰好为一个请求存活的可变映射。它是管道的一个阶段把数据交给后一阶段的标准位置：认证中间件存储当前用户，处理函数读取它。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+request.setAttribute("user", currentUser)  // returns the Request, so calls chain
+val user = request.getAttribute("user") as User?
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+request.setAttribute("user", currentUser);
+User user = (User) request.getAttribute("user");
+```
+
+</TabItem>
+</Tabs>
+
+内核在你的处理函数运行之前把**路由参数**写在这里。对路由 `/users/{id}` 和路径 `/users/42`，`getAttribute("id")` 和 `getAttribute("route.id")` 都返回 `"42"`（总是 `String`）。当普通名称可能与中间件存储的东西冲突时，使用 `route.` 形式。
+
+## 路由参数（`request.route`）
+
+路由器匹配路径之后，内核把每个 `{param}` 存在请求上，同时在 `param` 和 `route.param` 下。优先使用专用辅助方法：
+
+| API | 行为 |
+|-----|------|
+| `route(key)` | 字符串值或 `null` |
+| `route(key, default)` | 字符串值或默认 |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val id = request.route("id")!!
+val slug = request.route("slug", "home")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String id = request.route("id");
+String slug = request.route("slug", "home");
+```
+
+</TabItem>
+</Tabs>
+
+值总是来自路径的字符串。细节和编码规则：[路由 → 路径参数](../routing/#path-parameters)。
+
+## 构建 `Response`
+
+### 工厂
+
+静态工厂覆盖常见情况。正文工厂为你设置 `Content-Type`；前三个接受可选状态码（默认 `200`）。
+
+| 工厂 | 正文 | `Content-Type` / 说明 |
+|------|------|----------------------|
+| `Response.text(body, status)` | 给定的字符串 | `text/plain; charset=utf-8` |
+| `Response.html(body, status)` | 给定的字符串 | `text/html; charset=utf-8` |
+| `Response.json(payload, status)` | `payload` 序列化为 JSON | `application/json; charset=utf-8` |
+| `Response.noContent()` | 空，状态 `204` | `text/plain; charset=utf-8`（不发送正文） |
+| `Response.redirect(to, status)` | 空，默认状态 `302` | 设置 `Location` |
+| `Response.back(request, fallback, status)` | 空重定向 | 先前 URL → `Referer` → `fallback` |
+| `Response.binary(bytes, contentType, status)` | 原始字节 | 默认为 `application/octet-stream` |
+| `Response.stream(writer, contentType, status)` | 写入 `OutputStream` 产生的字节（为适配器在内存里缓冲） | 默认为 `application/octet-stream` |
+| `Response.file(bytes\|path, …)` | 内联文件字节 | 可选 `Content-Disposition: inline` |
+| `Response.download(bytes\|path, filename, …)` | 附件字节 | `Content-Disposition: attachment` |
+
+`json` 接受捆绑的 Jackson 序列化器理解的任何值：映射、列表、字符串、数字、布尔、`null`（序列化为 `null`）、Kotlin 数据类、Java record，以及带 getter 的普通类。
+
+日期和时间值序列化为 **ISO-8601 字符串**，不是纪元数字。这包括 `java.time.Instant`、`LocalDate`、`LocalDateTime`、`OffsetDateTime`、`ZonedDateTime` 和 [`KonaDate`](../../support/#dates)。Cadence 时间戳（`created_at` / `updated_at`）是 `Instant` 值，因此典型的用户索引看起来像：
+
+```json
+[{"id":1,"name":"Ada","created_at":"2024-06-15T12:00:00Z"}]
+```
+
+脚手架的 `GET /api/users` 通过 `Response.json` 返回 `User.all().map { it.toArray() }`，因此那些时间戳字段以同样的方式编码。当你需要对来自 JSON 或 Cadence 的值做算术、格式化或时区时，使用 [`KonaDate.parse`](../../support/#dates) / `KonaDate.ofInstant`。
+
+二进制工厂设置 `bodyBytes()`，这样嵌入式服务器写入载荷时不做 UTF-8 重新编码。PDF、图片和任何不是文本的内容优先使用它们。
+
+在任何响应上链式调用 `header(name, value)`、`withHeaders(map)`、`cookie(...)`、`withStatus` 和 `withBody` / `withBodyBytes`。`Response.stream` 让应用代码增量写入 `OutputStream`；结果被缓冲，这样今天每一个服务器适配器都能发出完整正文。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+data class UserView(val id: Int, val name: String)
+
+router.get("/hello") { Response.text("Hello") }
+router.get("/page") { Response.html("<h1>Welcome</h1>") }
+router.get("/users/{id}") { Response.json(UserView(42, "Ada")) }
+router.post("/users") { Response.json(mapOf("id" to 43), 201) }
+router.delete("/users/{id}") { Response.noContent() }
+router.post("/save") { Response.redirect("/done").with("status", "Saved") }
+router.get("/report.pdf") { Response.download(pdfBytes, "report.pdf") }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+record UserView(int id, String name) {}
+
+router.get("/hello", request -> Response.text("Hello"));
+router.get("/page", request -> Response.html("<h1>Welcome</h1>"));
+router.get("/users/{id}", request -> Response.json(new UserView(42, "Ada")));
+router.post("/users", request -> Response.json(Map.of("id", 43), 201));
+router.delete("/users/{id}", request -> Response.noContent());
+router.post("/save", request -> Response.redirect("/done").with("status", "Saved"));
+router.get("/report.pdf", request -> Response.download(pdfBytes, "report.pdf"));
+```
+
+</TabItem>
+</Tabs>
+
+### 重定向
+
+`Response.redirect("/path")` 返回带 `Location` 头的重定向。为下一次请求链式调用闪存辅助方法（由 `StartSession` 应用）：
+
+- `with(key, value)` — 闪存一个值
+- `withInput(map)` — 为表单重新显示闪存 `_old_input`（`request.old("field")`）
+- `withErrors(map)` — 闪存验证 `errors`
+
+`Response.back(request)` 指向会话的先前 URL（在成功的 GET 上记录），然后是 `Referer` 头，然后是 `/`。
+
+### 调整响应
+
+`Response` 有公开、可变的 `status`、`body` 和 `headers`，加上二进制 `bodyBytes()`。流畅辅助方法各自改变一部分并返回同一对象：
+
+- `header(name, value)` 设置头，替换**相同**名称下先前存储的任何值。
+- `withStatus(code)` 改变状态。
+- `withBody(content)` 替换文本正文（清除任何二进制载荷）。
+- `withBodyBytes(bytes)` 设置二进制载荷，供服务器原样写入。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+return Response.json(mapOf("ok" to true))
+    .withStatus(202)
+    .header("Location", "/jobs/7")
+    .header("Cache-Control", "no-store")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+return Response.json(Map.of("ok", true))
+    .withStatus(202)
+    .header("Location", "/jobs/7")
+    .header("Cache-Control", "no-store");
+```
+
+</TabItem>
+</Tabs>
+
+无参构造函数（`Response()` / `new Response()`）给出状态 `200`、空正文和 `text/plain` 内容类型；中间件从头构建响应时它很方便。在 Java 里，`getStatus()`/`setStatus(...)`、`getBody()`/`setBody(...)` 和 `getHeaders()` 暴露同样的字段。
+
+关于响应头的两个细节：
+
+- `Response` 里的头名**按写下的样子**存储。要替换工厂设置的内容类型，使用同样的拼写 `Content-Type`；`content-type` 这样的不同拼写会添加第二项。
+- 响应对每个头名持有**一个值**。调用 `header("Set-Cookie", …)` 两次只保留第二个值。
+
+## Cookie
+
+从 `Cookie` 请求头读取 cookie：
+
+| API | 行为 |
+|-----|------|
+| `cookies()` | 名称 → 值的映射 |
+| `cookie(name)` / `cookie(name, default)` | 单个 cookie |
+
+在响应侧，链式调用 `cookie(Cookie)` 或 `cookie(name, value, …)`，带 path、domain、maxAge、secure、httpOnly 和 sameSite 选项。见 `org.konaframework.http` 里的 `Cookie` 类型。
+
+## 会话、旧输入与 JSON 期望
+
+| API | 行为 |
+|-----|------|
+| `session()` | `StartSession` 运行时来自属性 `"session"` 的 `RequestSession` |
+| `old(key)` / `old(key, default)` | 为表单重新显示而闪存的旧输入 |
+| `expectsJson()` | 当 `Accept` 偏好 JSON 且没有 HTML，或 `Content-Type` 是 JSON 时为真 — 驱动验证错误形状 |
+
+重定向上的闪存辅助方法（`with`、`withInput`、`withErrors`）在会话保存时应用 — 见[验证](../validation/#the-error-response)和[会话](../../security/session/)。
+
+## 服务器对你的响应做什么
+
+内核返回之后，服务器写入每一个头，然后写入编码为 UTF-8、带匹配 `Content-Length` 的正文。对 `204 No Content` 响应和 `HEAD` 请求，完全不发送正文。完整顺序见[内核与服务器](../kernel-server/)。
+
+## API 参考（高层）
+
+### `Request`
+
+构造：`Request(...)`、`Request.get(path)`、`Request.post(path, body)`。
+
+读取：`header`、`query`、`form`、`input`、`all`、`data`、`only`/`except`、`has`/`filled`/`missing`、`whenHas`/`whenFilled`/`whenMissing`、`boolean`、`date`、`bearerToken`、`ip`、`userAgent`、`route`、`file`/`hasFile`/`allFiles`、`cookies`/`cookie`、`session`/`old`、`expectsJson`、`validate`/`safe`、`merge`/`replace`、属性。
+
+### `Response`
+
+工厂：`text`、`html`、`json`、`noContent`、`redirect`、`back`、`binary`、`file`、`download`。
+
+修改器：`header`、`withHeaders`、`cookie`、`withStatus`、`withBody`、`withBodyBytes`、`with`、`withInput`、`withErrors`。
+
+## 陷阱与常见问题
+
+**为什么 `input("id")` 是空的，但路径里有 id？**  
+路径参数是属性（`route("id")`），不是表单/查询输入。
+
+**为什么坏 JSON 得到 500？**  
+格式错误的 JSON 从解析器抛出；默认处理函数把它当作意外错误。自己捕获它以得到 400。
+
+**我可以流式传输大文件吗？**  
+还不行 — `file` / `download` / `binary` 把字节加载进内存。
+
+## 今天不可用的内容
+
+- 流式请求或响应正文
+- `Request` 上的多值头（第一个获胜）或 `Response` 上的多值头（每个名称一个值）
+- 来自表单正文的自动 `_method` 覆盖
+- 超出你在处理函数里实现的内容协商
+
+## 下一步
+
+- 在[路由](../routing/)里映射 URL。
+- 用[验证](../validation/)验证。
+- 在[异常](../exceptions/)里处理失败。

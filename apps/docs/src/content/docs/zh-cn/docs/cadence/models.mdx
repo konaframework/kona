@@ -1,0 +1,548 @@
+---
+title: 模型
+description: 定义 Cadence 模型，读写行，转换属性，软删除行，并对结果分页。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**模型**是代表一张数据库表的类。每个实例持有一行：它的**属性**是该行的列，以列名为键。模型知道如何查找行、插入新行、更新已改变的列，以及删除自己。这种风格有时称为*活动记录*：持有数据的对象也知道如何持久化它。
+
+模型读取**全局**数据库（见 [Cadence 概览](../)），因此在使用它们之前登记 `CadenceServiceProvider` 或调用 `Database.setAsGlobal()`。
+
+## 定义模型
+
+模型扩展 `Cadence<T>`，把自己的类作为 `T` 传入，并且必须有无参构造函数。Kotlin 模型通常加上伴生对象，这样 `User.find(1)` 读起来自然；Java 模型保留静态 `CadenceCompanion` 字段。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.CastType
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.CadenceCompanion
+
+class User : Cadence<User>() {
+    override val fillable = setOf("name", "email", "admin")
+    override val casts = mapOf("admin" to CastType.BOOLEAN, "settings" to CastType.JSON)
+
+    companion object : CadenceCompanion<User>(User::class.java)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.CastType;
+import org.konaframework.cadence.Cadence;
+import org.konaframework.cadence.CadenceCompanion;
+import java.util.Map;
+import java.util.Set;
+
+public class User extends Cadence<User> {
+    public static final CadenceCompanion<User> QUERY = Cadence.of(User.class);
+
+    @Override
+    public Set<String> getFillable() {
+        return Set.of("name", "email", "admin");
+    }
+
+    @Override
+    public Map<String, Object> getCasts() {
+        return Map.of("admin", CastType.BOOLEAN, "settings", CastType.JSON);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+`./grind make:model User` 在 `src/main/…/app/models/` 下为你写入这个骨架（见[迁移](../migrations/#grind-commands)）。
+
+### 你可以覆盖的约定
+
+每个约定都是 `Cadence` 上的开放属性（Java 里是 getter）：
+
+| 属性 | 默认 | 含义 |
+|------|------|------|
+| `table` | 类名的蛇形复数（`BlogPost` → `blog_posts`，`Category` → `categories`） | 表名 |
+| `primaryKey` | `id` | 主键列 |
+| `incrementing` | `true` | 插入后读回生成的键 |
+| `timestamps` | `true` | 维护 `created_at` / `updated_at` |
+| `createdAtColumn` / `updatedAtColumn` | `created_at` / `updated_at` | 时间戳列名 |
+| `fillable` | 空 | `fill` 可以设置的键 |
+| `guarded` | `*` | `fill` 拒绝的键（`*` 保护一切不可填充的） |
+| `casts` | 空 | 列 → `CastType` 或 `CastsAttributes` |
+| `connectionName` | `null`（默认连接） | 要使用的具名连接 |
+| `perPage` | `15` | `paginate()` / `simplePaginate()` / `cursorPaginate()` 的页大小 |
+
+## 读取行
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val all: List<User> = User.all()
+val ada: User? = User.find(1)
+val sure: User = User.findOrFail(1)          // ModelNotFoundException when missing
+val some: List<User> = User.findMany(listOf(1, 2, 3))
+val admins = User.where("admin", true).orderBy("name").get()
+val newest = User.query().latest().first()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> all = User.QUERY.all();
+User ada = User.QUERY.find(1);
+User sure = User.QUERY.findOrFail(1);
+List<User> some = User.QUERY.findMany(List.of(1, 2, 3));
+List<User> admins = User.QUERY.where("admin", true).orderBy("name").get();
+User newest = User.QUERY.query().latest().first();
+```
+
+</TabItem>
+</Tabs>
+
+
+`query()` 返回 `ModelBuilder<T>`。它接受与[查询构建器](../query-builder/)相同的约束（`where`、`whereIn`、`whereDate` / `whereYear` / …、`orWhereRaw`、`select` / `selectRaw` / `distinct`、`groupBy` / `having` / `havingRaw`、`orderBy`、`limit`、连接等），但返回模型实例而不是映射。调用 `toBase()`（或 `getQuery()`）得到底层 `QueryBuilder`，或 `toSql()` 查看生成的 SQL。
+
+### 属性
+
+用 `getAttribute("name")`、Kotlin 索引运算符 `user["name"]`、带类型的 `user.attribute<String>("name")`，或[列属性](#column-properties)读取属性。用 `setAttribute` 或 `user["name"] = "Ada"` 设置它们。读取应用转换；`getRawAttribute` 返回未触碰的存储值。
+
+Cadence 也解析按约定命名的方法：读取用 `getFullNameAttribute()`，写入用 `setFullNameAttribute(value)`（在修改器内部使用 `setRawAttribute`）。`push()` 保存模型并递归保存已加载的相关模型。`Cadence.unguard()` / `reguard()` / `runUnguarded { … }` 和 `Cadence.runWithoutTimestamps { … }` 控制批量赋值和时间戳。`sole()` 恰好返回一个模型，否则抛出 `ModelNotFoundException` / `MultipleRecordsFoundException`。
+
+模型记住它被加载时的值。`isDirty()` / `getDirty()` 报告自那时起改变的属性，`getOriginal()` 返回加载时的值，`toMap()` 渲染转换后的属性加上已加载的关系，可供 `Response.json(...)` 使用。
+
+### 列属性
+
+当你希望编译器知道列的名称和类型时，把列声明为 Kotlin 属性。`column()`（别名 `attr()`）通过属性映射读写。除非你传入不同的键，属性名就是列名。
+
+```kotlin
+class User : Cadence<User>() {
+    var name: String? by column()
+    var email: String? by column("email_address")
+
+    companion object : CadenceCompanion<User>(User::class.java)
+}
+
+val user: User? = User.first()
+if (user != null) {
+    user.name = "Ada"
+    user.email
+}
+```
+
+`User.first()` 可空。`if (user != null)` 之后，Kotlin 智能转换 `user`，因此 `user.name` 和 `user.email` 不需要 `?.`。Java 调用生成的 `getName` / `setName` 和 `getEmail` / `setEmail`。
+
+## 写入行
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.create(mapOf("name" to "Ada", "email" to "ada@example.com"))  // insert
+
+user["name"] = "Ada Lovelace"
+user.save()                                   // update of the changed column only
+
+user.update(mapOf("admin" to true))           // fill + save
+user.delete()
+
+User.where("admin", false).update(mapOf("active" to false))   // mass update
+User.destroy(4, 5, 6)                                          // load and delete each
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.create(Map.of("name", "Ada", "email", "ada@example.com"));
+
+user.setAttribute("name", "Ada Lovelace");
+user.save();
+
+user.update(Map.of("admin", true));
+user.delete();
+
+User.QUERY.where("admin", false).update(Map.of("active", false));
+User.QUERY.destroy(4, 5, 6);
+```
+
+</TabItem>
+</Tabs>
+
+
+`save()` 插入新模型或更新已加载的模型。插入时，它把生成的键读回 `id`。更新时，它只写脏属性，没有脏属性时什么都不做。`timestamps` 开启时，它在每次写入设置 `updated_at`，在插入时设置 `created_at`，除非你自己设置它们。
+
+`fresh()` 返回该行新加载的副本；`refresh()` 就地重新加载当前实例。
+
+### 批量赋值
+
+`create`、`fill` 和 `update` 接受属性映射。为了阻止请求正文设置你没打算设置的列（`admin`、`id`），它们只接受 `fillable` 里列出的键。默认 `guarded = setOf("*")` 且 `fillable` 为空时，任何键都抛出 `MassAssignmentException`。当你有意设置每一个键时使用 `forceFill`，例如来自受信任的代码。
+
+## 转换
+
+转换在读取时把存储的列值变成方便的类型。在 `casts` 里把转换声明为内置 `CastType` 或自定义 `CastsAttributes` 类：
+
+| `CastType` | 读取为 |
+|------------|--------|
+| `INT`、`LONG`、`DOUBLE` | `Int`、`Long`、`Double` |
+| `BOOLEAN` | `Boolean`（接受 `1`/`0`、`"true"`/`"false"`） |
+| `STRING` | `String` |
+| `JSON` | 来自 JSON 文本的 `Map` 或 `List`；映射和列表写回为 JSON |
+| `DATETIME` | `java.time.LocalDateTime` |
+| `INSTANT` | `java.time.Instant` |
+
+时间戳列（以及软删除模型上的 `deleted_at`）自动转换为 `Instant`。
+
+### 自定义转换
+
+当你需要领域类型（以分为单位的金额、值对象、加密块）时实现 `CastsAttributes`：
+
+```kotlin
+class CentsCast : CastsAttributes {
+    override fun get(model: Cadence<*>, key: String, value: Any?, attributes: Map<String, Any?>): Any? {
+        if (value == null) return null
+        val cents = (value as Number).toLong()
+        return cents / 100.0
+    }
+
+    override fun set(model: Cadence<*>, key: String, value: Any?, attributes: Map<String, Any?>): Any? {
+        if (value == null) return null
+        return Math.round((value as Number).toDouble() * 100)
+    }
+}
+
+class Product : Cadence<Product>() {
+    override val casts = mapOf("price" to CentsCast())
+}
+```
+
+Java 覆盖从 `getCasts()` 返回 `Map<String, Object>`，这样枚举和转换实例都放得下。
+
+## 全局作用域
+
+**全局作用域**是应用到模型每一次查询的约束 — 例如“只有活动行”。在伴生对象上登记作用域（Kotlin `init`），或在启动时登记一次（Java）。软删除保持分开（`withTrashed` / `onlyTrashed`）；全局作用域叠在上面。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class User : Cadence<User>() {
+    companion object : CadenceCompanion<User>(User::class.java) {
+        init {
+            addGlobalScope("active") { it.where("admin", true) }
+            addGlobalScope(AncientScope()) // identifier = class name
+        }
+    }
+}
+
+class AncientScope : Scope {
+    override fun apply(builder: ModelBuilder<*>) {
+        builder.where("age", ">", 100)
+    }
+}
+
+User.all()                                      // admin = true and age > 100
+User.withoutGlobalScope("active").get()         // drops only "active"
+User.withoutGlobalScopes().get()                // no global scopes
+User.withoutGlobalScopes(listOf("active")).get()
+User.withoutGlobalScopesExcept(listOf("active")).get() // only "active" remains
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Member extends Cadence<Member> {
+    public static final CadenceCompanion<Member> QUERY = Cadence.of(Member.class);
+
+    static {
+        Cadence.addGlobalScope(Member.class, "active", b -> b.where("admin", true));
+    }
+}
+
+Member.QUERY.all();
+Member.QUERY.withoutGlobalScope("active").get();
+Member.QUERY.withoutGlobalScopes().get();
+```
+
+</TabItem>
+</Tabs>
+
+`hasGlobalScope` / `getGlobalScope` / `getGlobalScopes` 检查注册表。`removeGlobalScope` 为整个进程注销作用域（不只是一次查询）。
+
+## 软删除
+
+**软删除**通过设置 `deleted_at` 时间戳把行标为已删除，而不是移除它，因此它可以恢复。实现 `SoftDeletes` 接口：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.SoftDeletes
+
+class Post : Cadence<Post>(), SoftDeletes {
+    companion object : CadenceCompanion<Post>(Post::class.java)
+}
+
+post.delete()                    // sets deleted_at
+post.trashed()                   // true
+Post.all()                       // excludes trashed rows
+Post.withTrashed().get()         // includes them
+Post.onlyTrashed().get()         // only them
+post.restore()                   // clears deleted_at
+post.forceDelete()               // removes the row
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.SoftDeletes;
+
+public class Post extends Cadence<Post> implements SoftDeletes {
+    public static final CadenceCompanion<Post> QUERY = Cadence.of(Post.class);
+}
+
+post.delete();
+post.trashed();
+Post.QUERY.all();
+Post.QUERY.withTrashed().get();
+Post.QUERY.onlyTrashed().get();
+post.restore();
+post.forceDelete();
+```
+
+</TabItem>
+</Tabs>
+
+
+覆盖 `deletedAtColumn` 以使用另一个列名。在迁移里用 `softDeletes()` 添加该列。
+
+## 分页
+
+`paginate(perPage, page)` 运行一次计数查询加上一页查询，并返回 `Page<T>`：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val page = User.query().orderBy("name").paginate(20, request.query["page"]?.toIntOrNull() ?: 1)
+page.data          // List<User> for this page
+page.total         // total rows
+page.lastPage      // last page number (at least 1)
+page.hasMorePages()
+Response.json(page.toMap())   // {"data":[…],"total":…,"per_page":20,"current_page":…,"last_page":…}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Page<User> page = User.QUERY.query().orderBy("name").paginate(20, 1);
+page.getData();
+page.getTotal();
+page.getLastPage();
+page.hasMorePages();
+Response.json(page.toMap());
+```
+
+</TabItem>
+</Tabs>
+
+
+页码从 1 开始；低于 1 的值被当作第 1 页。
+
+### 简单分页与游标分页
+
+当你不需要总数时，`simplePaginate` 取出 `perPage + 1` 行并暴露 `hasMorePages()`：
+
+```kotlin
+val page = User.query().orderBy("id").simplePaginate(20, 1)
+page.hasMorePages()
+page.toMap()   // data, per_page, current_page, has_more
+```
+
+`cursorPaginate` 用不透明游标沿有序列行走（插入时没有偏移漂移）：
+
+```kotlin
+val first = User.cursorPaginate(20)
+val next = User.cursorPaginate(20, first.nextCursor)
+// CursorPage: data, per_page, next_cursor, prev_cursor
+```
+
+## 保存后的脏跟踪
+
+`isDirty` / `getDirty` 描述自上次加载以来的变更。成功的 `save()` 之后，用 `wasChanged` / `getChanges` 看那次保存持久化了什么：
+
+```kotlin
+user["name"] = "Ada"
+user.save()
+user.wasChanged("name")   // true
+user.getChanges()         // map of persisted attributes
+user.save()               // no-op when clean → wasChanged() is false
+```
+
+## 检索或创建
+
+当你想在一次调用里“找到这一行，或造一个”：
+
+| 调用 | 行为 |
+|------|------|
+| `firstOrNew(attributes)` | 返回第一个匹配，或用 `attributes` 填充的新的**未保存**模型 |
+| `firstOrCreate(attributes, values)` | 返回第一个匹配，或从 `attributes` 与可选 `values` 合并**创建**一行 |
+| `updateOrCreate(attributes, values)` | 用 `values` 更新第一个匹配，或创建 `attributes + values` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.firstOrCreate(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada"),
+)
+val flight = Flight.updateOrCreate(
+    mapOf("departure" to "OAK", "destination" to "SDY"),
+    mapOf("price" to 99, "discounted" to true),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.firstOrCreate(
+    Map.of("email", "ada@example.com"),
+    Map.of("name", "Ada")
+);
+Flight flight = Flight.QUERY.updateOrCreate(
+    Map.of("departure", "OAK", "destination", "SDY"),
+    Map.of("price", 99, "discounted", true)
+);
+```
+
+</TabItem>
+</Tabs>
+
+
+只有当最后一次 `save()` 插入了该实例时，`wasRecentlyCreated()` 为真（在 `firstOrCreate` 之后有用）。
+
+## 更新插入与插入或忽略
+
+在模型查询上（或表[查询构建器](../query-builder/#upserts)）：
+
+```kotlin
+User.query().upsert(
+    listOf(
+        mapOf("email" to "a@example.com", "name" to "A"),
+        mapOf("email" to "b@example.com", "name" to "B"),
+    ),
+    uniqueBy = listOf("email"),
+    update = listOf("name"),
+)
+
+User.query().updateOrInsert(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada Lovelace"),
+)
+
+User.query().insertOrIgnore(
+    listOf(mapOf("email" to "ada@example.com", "name" to "Ada")),
+    uniqueBy = listOf("email"),
+)
+```
+
+`upsert` 遍历每一行：当匹配 `uniqueBy` 的行存在时，它更新列出的列（`update` 省略时则更新每一个非唯一列）；否则插入。在模式里给那些列加上唯一索引，这样并发写入者不会竞态。
+
+## 查询作用域
+
+可复用筛选是你的伴生对象上的普通方法（或 Java 里的静态辅助方法），返回 `ModelBuilder`：
+
+```kotlin
+class User : Cadence<User>() {
+    companion object : CadenceCompanion<User>(User::class.java) {
+        fun admins(): ModelBuilder<User> = query().where("admin", true)
+        fun named(name: String): ModelBuilder<User> = query().where("name", name)
+    }
+}
+
+User.admins().orderBy("name").get()
+```
+
+内联作用域使用 `scope { … }` 或条件 `when` / `unless`：
+
+```kotlin
+User.query()
+    .scope { it.where("active", true) }
+    .when(onlyAdmins) { it.where("admin", true) }
+    .unless(includeBanned) { it.where("banned", false) }
+    .get()
+```
+
+## 访问器与修改器
+
+覆盖 `getMutatedAttribute`（读取时在转换之后）和 `setMutatedAttribute`（写入时在转换之前）以变换值：
+
+```kotlin
+class User : Cadence<User>() {
+    override fun getMutatedAttribute(key: String, value: Any?): Any? =
+        if (key == "name" && value is String) value.uppercase() else value
+
+    override fun setMutatedAttribute(key: String, value: Any?): Any? =
+        if (key == "email" && value is String) value.lowercase() else value
+}
+```
+
+序列化的虚拟字段仍然使用 `appends` + `getAppendedAttribute` — 见[序列化与事件](../serialization-events/)。
+
+## 复制、触碰与比较
+
+```kotlin
+val copy = user.replicate()                    // unsaved clone without id / timestamps
+val draft = user.replicate(setOf("email"))     // also skip email
+user.touch()                                   // bump updated_at and persist
+user.`is`(other)                               // same class + same non-null primary key
+user.isNot(other)
+```
+
+## 分块大结果集
+
+```kotlin
+User.query().orderBy("id").chunk(200) { batch ->
+    batch.forEach { process(it) }
+}
+```
+
+每一块运行一页查询（`forPage`）。总是对稳定列 `orderBy`，这样并发写入下页面不会跳过或重复行。
+
+## 安静持久化
+
+`saveQuietly()` 和 `deleteQuietly()` 持久化而不触发[模型事件](../serialization-events/#lifecycle-events)。对一整块工作，使用 `ModelDispatcher.withoutEvents { … }`。
+
+## 清空模型的表
+
+`User.truncate()`（或 `User.query().truncate()`）在模型的表上运行 `TRUNCATE TABLE` 并移除每一行。它忽略查询约束和软删除作用域 — 当你想要空表而不是筛选删除时使用它。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+User.truncate()
+User.query().truncate()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User.QUERY.truncate();
+User.QUERY.query().truncate();
+```
+
+</TabItem>
+</Tabs>

@@ -1,0 +1,153 @@
+---
+
+title: 面板外框
+description: 面板槽、渲染钩子、局部覆盖和自定义布局。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="panel-chrome.png" description="面板外观，位于 http://127.0.0.1:4017/admin/desk，显示侧栏、顶栏、页面正文和页脚。" />
+
+**面板外框**是面板周围的四个区域：侧栏、顶栏、正文和页脚。类是 `org.konaframework.firefly.support.Panel`。它为每个区域选择 HTML，检查必需的钩子标记仍然存在，填充这些标记，并请 `PanelLayout` 包裹结果。你挂到路由器上的类是 `org.konaframework.firefly.Panel`，写在[面板](/docs/firefly/panel/)。
+
+## Panel
+
+| 方法 | 行为 |
+|------|------|
+| `theme(FireflyTheme)` | 用于记号、CSS 和主题局部的主题。默认：`KonaTheme` |
+| `layout(PanelLayout)` | 替换包装器。默认：`DefaultLayout`。后一次调用替换先前的布局 |
+| `hook(Hook, String)` | 为该钩子追加 HTML。同一钩子的多次调用按顺序拼接 |
+| `overridePartial(slot, html)` | 一个槽的应用 HTML。优先于主题局部和内置局部 |
+| `render(): String` | 解析每个槽，然后 `layout.render(...)` |
+
+槽的顺序：`sidebar`、`topbar`、`body`、`footer`。
+
+对每个槽，`render` 选择第一个存在的来源：
+
+1. 你设置了该槽的 `overridePartial` 时，用它。
+2. `theme.partial(slot)` 返回非 null 时，用它。
+3. 内置局部。
+
+传给 `overridePartial` 的未知槽名会被存储并忽略，因为只解析这四个槽。
+
+## 钩子标记
+
+每一个被选中的局部仍必须包含该槽的标记。标记文本是精确的，包括注释：
+
+| 槽 | 必需的标记 |
+|----|------------|
+| `sidebar` | `<!-- ff-hook:sidebar.start -->` 和 `<!-- ff-hook:sidebar.end -->` |
+| `topbar` | `<!-- ff-hook:topbar.start -->` 和 `<!-- ff-hook:topbar.end -->` |
+| `body` | `<!-- ff-hook:body.start -->` 和 `<!-- ff-hook:body.end -->` |
+| `footer` | `<!-- ff-hook:footer -->` |
+
+任一标记缺失时，`render` 抛出 `FireflyException`：
+
+```text
+Partial [<slot>] is missing markers [<marker>, ...]
+```
+
+外壳不会渲染。修好局部，让这些注释仍在 HTML 里，包括你的标记包围它们的时候。
+
+检查之后，每个标记被替换成拼接后的钩子 HTML。你从未填充的钩子变成空字符串，因此注释消失。
+
+`Hook` 的值：`SIDEBAR_START`、`SIDEBAR_END`、`TOPBAR_START`、`TOPBAR_END`、`BODY_START`、`BODY_END`、`FOOTER`。每一个都有 `marker` 字符串（`sidebar.start` 等）。
+
+## 内置局部
+
+| 槽 | 元素 |
+|----|------|
+| sidebar | `<aside class="ff-sidebar">` |
+| topbar | `<header class="ff-topbar">` |
+| body | `<main class="ff-body">` |
+| footer | `<footer class="ff-footer">` |
+
+## 默认布局
+
+`DefaultLayout` 写出：
+
+```html
+<div class="ff-panel">
+  <style>…theme CSS…</style>
+  …sidebar…
+  …topbar…
+  …body…
+  …footer…
+</div>
+```
+
+如果它收到的映射里缺少某个槽，它会抛出 `Missing partial [<name>]`。`Panel` 在调用布局之前总会填满四个槽，因此该失败是给省略了键的 `DefaultLayout` 自定义调用方的。
+
+## 替换一个局部
+
+覆盖必须保留标记。这个侧栏加上一个标签，并且仍然接受钩子：
+
+Kotlin：
+
+```kotlin
+val shell = Panel().overridePartial(
+    "sidebar",
+    """<aside class="ff-sidebar"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>""",
+)
+```
+
+Java：
+
+```java
+Panel shell = new Panel().overridePartial(
+    "sidebar",
+    "<aside class=\"ff-sidebar\"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>"
+);
+```
+
+主题可以从 `partial("sidebar")` 提供同样的 HTML。两者都存在时，应用覆盖仍然优先。
+
+## 替换布局
+
+`PanelLayout.render` 接收一个 `ChromeContext`：
+
+| 字段 | 内容 |
+|------|------|
+| `theme` | 外壳上的 `FireflyTheme` |
+| `hooks` | `RenderHooks` 实例（已经应用到局部） |
+| `partials` | 槽名到 HTML 的映射，标记已经替换 |
+| `css` | `Stylesheet.render(theme)` 的字符串 |
+
+布局可以忽略 `DefaultLayout` 并自己放置局部。要使用深色记号，把 `ff-dark` 放在与 `ff-panel` 同一个元素上：
+
+```kotlin
+class DarkLayout : PanelLayout {
+    override fun render(context: ChromeContext): String = """
+        <div class="ff-panel ff-dark">
+          <style>${context.css}</style>
+          ${context.partials["sidebar"]}
+          ${context.partials["topbar"]}
+          ${context.partials["body"]}
+          ${context.partials["footer"]}
+        </div>
+    """.trimIndent()
+}
+```
+
+```java
+public final class DarkLayout implements PanelLayout {
+    @Override public String render(ChromeContext context) {
+        return "<div class=\"ff-panel ff-dark\"><style>" + context.getCss() + "</style>"
+            + context.getPartials().get("sidebar")
+            + context.getPartials().get("topbar")
+            + context.getPartials().get("body")
+            + context.getPartials().get("footer")
+            + "</div>";
+    }
+}
+```
+
+```kotlin
+Panel().layout(DarkLayout()).render()
+```
+
+```java
+new Panel().layout(new DarkLayout()).render();
+```
+
+在 `theme(...)` 之后调用 `layout(...)` 不会丢掉主题。主题仍然提供记号、CSS 和主题局部。变的只是包装器。

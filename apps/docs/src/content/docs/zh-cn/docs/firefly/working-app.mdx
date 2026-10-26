@@ -1,0 +1,174 @@
+---
+
+title: 一个能工作的应用
+description: hello 示例的简单笔记资源和完整订单资源、会响应的路由，以及生成它们的命令。
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="notes-manage.png" description="笔记 Manage 页，位于 http://127.0.0.1:4017/admin/notes/manage，带笔记表格以及创建、编辑、查看和删除动作。" />
+
+hello 示例是一个带两个资源的工作台。笔记是**简单**资源：一个 Manage 页面，创建、编辑、查看和删除在对话框里打开。订单是**完整**资源：分开的列表、创建、编辑和查看页面，外加行项目的关联管理器。两个示例都在仓库里，分别是 `samples/hello-kotlin` 和 `samples/hello-java`。
+
+## 简单资源
+
+`simple()` 只保留一个 `ManagePage`。示例 slug 是 `notes`，因此路由是 `/admin/notes/manage`。表单、信息列表和表格是页面和对话框使用的那些。示例里的表格是一行内存数据（`Ada`），因此屏幕在迁移之前就能渲染。当你用模型而不是 `Table.memory` 构建表格时，`model(Note::class.java)` 是 `query()` 使用的 Cadence 类型。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NoteResource : Resource("notes") {
+    init {
+        label("Notes")
+        simple()
+        model(Note::class.java)
+        form(
+            Schema.make().components(
+                TextInput.make("name"),
+                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+                DateTimePicker.make("due"),
+            ),
+        )
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NoteResource extends Resource {
+    public NoteResource() {
+        super("notes");
+        label("Notes");
+        simple();
+        model(Note.class);
+        form(Schema.make().components(
+            TextInput.make("name"),
+            Select.make("status").options(Map.of("open", "Open", "done", "Done")),
+            DateTimePicker.make("due")
+        ));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(row()).columns(TextColumn.make("name")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Java 示例把 `row()` 建成 `LinkedHashMap`，`id` 为 `1`，`name` 为 `Ada`。`Select` 是组合框。`DateTimePicker` 是 Firefly 自己的日期和时间控件。两者都写在[表单](/docs/firefly/forms/)里。
+
+创建、编辑和查看把该模式或信息列表放进共享对话框。删除在同一个对话框里请求确认。简单资源拒绝 `relation(...)`。
+
+用同样的形状生成：
+
+```bash
+./grind make:firefly-resource Note --simple
+./grind make:firefly-resource Note --simple --lang=java
+```
+
+生成器会写入 `page(ManagePage("manage"))` 以及 `simple()`、一个名为 `name` 的文本字段，和 `model(app.models.Note.class)`。在项目编译之前创建那个 Cadence 模型。生成器的表格是没有种子行的 `Table.memory()`。
+
+## 完整资源
+
+不调用 `simple()` 时，资源会得到列表、创建、编辑和查看页面。列表页挂载表格和一个创建动作。创建和编辑挂载表单。查看挂载信息列表。编辑和查看还会渲染每个关联管理器。
+
+<FireflyShot file="orders-list.png" description="订单列表，位于 http://127.0.0.1:4017/admin/orders/list，带订单表格和创建动作。" />
+
+<FireflyShot file="orders-create.png" description="订单创建页，位于 http://127.0.0.1:4017/admin/orders/create，带名称字段。" />
+
+<FireflyShot file="orders-edit.png" description="订单编辑页，位于 http://127.0.0.1:4017/admin/orders/edit，带名称字段和明细关系。" />
+
+<FireflyShot file="orders-view.png" description="订单查看页，位于 http://127.0.0.1:4017/admin/orders/view，带名称信息列表和明细关系。" />
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Order::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+        relation(
+            RelationManager("lines")
+                .related(Line::class.java)
+                .titleAttribute("sku")
+                .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        label("Orders");
+        model(Order.class);
+        form(Schema.make().components(TextInput.make("name")));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(orderRow()).columns(TextColumn.make("name")));
+        relation(new RelationManager("lines")
+            .related(Line.class)
+            .titleAttribute("sku")
+            .table(Table.memory(lineRow()).columns(TextColumn.make("sku"))));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+```bash
+./grind make:firefly-resource Order
+./grind make:firefly-resource Order --lang=java
+```
+
+生成器写入列表、创建、编辑和查看页面，以及一个名为 `related` 的关联管理器。hello 示例的管理器名为 `lines`，并指向 `Line`。
+
+## 工作台页面和部件
+
+`pages/Desk` 是一个 `CustomPage`，表单字段与笔记相同，还有信息列表、一行的表格，以及打开对话框的页眉动作。`widgets/DeskWidget` 渲染一小段文字。发现把该部件放在第一页，也就是 Desk。
+
+<FireflyShot file="desk.png" description="Desk 页，位于 http://127.0.0.1:4017/admin/desk，带名称字段、状态组合框、到期选择器、信息列表、表格和编辑页眉动作。" />
+```bash
+./grind make:firefly-page Desk
+./grind make:firefly-widget Desk
+```
+
+## 会响应的路由
+
+在 hello 示例上，这些 GET 路由返回 200：
+
+| 路由 | 页面 |
+|------|------|
+| `/` | 欢迎路由，在面板之外 |
+| `/admin/desk` | Desk |
+| `/admin/notes/manage` | 笔记 |
+| `/admin/orders/list` | 订单列表 |
+| `/admin/orders/create` | 订单创建 |
+| `/admin/orders/edit` | 订单编辑 |
+| `/admin/orders/view` | 订单查看 |
+
+## 你今天会看到什么
+
+该示例在浏览器里有几处尚未完成。在调试你自己的应用之前值得知道：
+
+- 对话框标记在页面里，对话框保持关闭，直到 Alpine 打开它。笔记页上的创建、编辑、查看和删除不会仅凭第一次 HTML 响应就弹开。
+- Alpine 绑定还没运行时，`@entangle(...)` 仍可能显示为原始文本。
+- 页面的导航标签来自页面 slug。Desk 链接可能读成 `desk`，笔记子项可能读成 `manage`，即使页面标题或资源标签是一个词。资源分组使用 `label`，因此分组读成 `Notes` 和 `Orders`。
+- 示例调用 `authenticate(false)`。面板守卫没有已登录 id 时，用户芯片显示 **访客**。
+
+## 下一步
+
+组件页面从[面板](/docs/firefly/panel/)开始。[资源](/docs/firefly/resources/) 是上面两个类的完整方法列表。

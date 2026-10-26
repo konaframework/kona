@@ -1,0 +1,17 @@
+---
+title: 外部重定向
+description: 用 Inertia.location 做跨源或强制导航。
+---
+
+```kotlin
+Inertia.location("https://example.com")
+```
+
+| 客户端 | 状态 | 响应头 |
+|--------|------|--------|
+| Inertia（带 `X-Inertia`，且当前请求已设置） | `409` | `X-Inertia-Location: <url>` |
+| 普通浏览器，或不是 Inertia 请求 | `302` | `Location: <url>` |
+
+Inertia 分支需要管理器上有当前请求（由中间件设置）。没有当前请求时，行为是普通的 `302`。
+
+中间件之后，如果响应已经带有 `X-Inertia-Location`，`decorate` 可能会加上 `X-Inertia-Version`。

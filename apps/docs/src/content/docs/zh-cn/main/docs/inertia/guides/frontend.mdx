@@ -1,0 +1,112 @@
+---
+title: 前端客户端
+description: Kona 的 Inertia 脚手架如何把 Vue、React 或 Svelte 挂到服务器页面对象上。
+---
+
+Kona 的 Inertia 包是**服务端**的。浏览器应用是你的 UI 框架对应的官方 Inertia.js 客户端。`./grind install inertia`（或 inertia 套件）之后，你会有一个调用 `createInertiaApp` 并在 `src/main/resources/js/Pages/` 下解析页面组件的 Vite 应用。
+
+适配器 API（表单、链接、路由器、事件）请用上游文档：**[inertiajs.com](https://inertiajs.com/)**。
+
+## 挂载契约
+
+首次访问时，Kona 返回的 HTML 根元素看起来像：
+
+```html
+<div id="app" data-page="{&quot;component&quot;:&quot;Pages/Welcome&quot;,&quot;props&quot;:{…},…}"></div>
+```
+
+客户端：
+
+1. 读取 `#app` 和 `data-page`。
+2. 把组件名解析成模块（例如 `./Pages/Welcome.vue`）。
+3. 把属性水合进该组件。
+4. 之后的访问发送 `X-Inertia: true`，并用 JSON 换页，而不是完整文档。
+
+你的 `resolve` 函数必须理解你在服务器上传给 `Inertia.render` 的同一套命名（`Pages/Welcome` → `Pages/Welcome.vue` / `.jsx` / `.svelte`）。
+
+## Vue 3（默认脚手架）
+
+入口 `src/main/resources/js/app.js`：
+
+```js
+import { createApp, h } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+
+createInertiaApp({
+  resolve: (name) => {
+    const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
+    const page = pages[`./Pages/${name}.vue`];
+    if (!page) throw new Error(`Inertia page not found: Pages/${name}.vue`);
+    return page;
+  },
+  setup({ el, App, props, plugin }) {
+    createApp({ render: () => h(App, props) }).use(plugin).mount(el);
+  },
+});
+```
+
+页面组件使用 `<script setup>`，并声明与服务器映射匹配的属性。
+
+## React
+
+入口 `src/main/resources/js/app.jsx` — 把服务器的 `viteEntries` 设成该路径（见[安装](../installation/#2-server-configuration)）。
+
+```jsx
+import { createInertiaApp } from '@inertiajs/react';
+import { createRoot } from 'react-dom/client';
+
+createInertiaApp({
+  resolve: (name) => {
+    const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
+    const page = pages[`./Pages/${name}.jsx`];
+    if (!page) throw new Error(`Inertia page not found: Pages/${name}.jsx`);
+    return page;
+  },
+  setup({ el, App, props }) {
+    createRoot(el).render(<App {...props} />);
+  },
+});
+```
+
+## Svelte
+
+入口 `src/main/resources/js/app.js`，使用 `@inertiajs/svelte` 和来自 `svelte` 的 `mount`。页面文件在 `Pages/` 下使用 `.svelte`。
+
+## TypeScript
+
+给 `kona new --kit=inertia` 传入 `--typescript` 或 `--ts`。JavaScript 仍是默认（`--javascript` / `--js`，以及省略该标志的任何非交互运行）。
+
+| 适配器 | 入口 | 页面 |
+|--------|------|------|
+| Vue | `src/main/resources/js/app.ts` | 带 `<script setup lang="ts">` 的 `Pages/Welcome.vue` |
+| React | `src/main/resources/js/app.tsx` | `Pages/Welcome.tsx` |
+| Svelte | `src/main/resources/js/app.ts` | 带 `<script lang="ts">` 的 `Pages/Welcome.svelte` |
+
+套件还会写入 `tsconfig.json`、`devDependencies` 里的 `typescript`，以及 `env.d.ts`（Vue）或 `vite-env.d.ts`（React 和 Svelte）。Vue 会加上 `vue-tsc`。Svelte 会加上 `svelte.config.js`，这样 Vite 可以预处理 `.svelte` 文件里的 TypeScript。`npm run build` 编译入口；`npm run typecheck` 运行检查器。
+
+`viteEntries` 使用 TypeScript 文件名（`app.ts` 或 `app.tsx`），这也是 Vite 的输入，因此清单键和 `{!! vite !!}` 查找同一路径。生产文件仍落在 `public/build`。
+
+## Vite 工作流
+
+| 模式 | 命令 | 外壳请求什么 |
+|------|------|----------------|
+| 开发 | `npm run dev` | `public/hot` 的源加入口，例如 `http://127.0.0.1:5173/src/main/resources/js/app.js` 和 `/@vite/client` |
+| 生产 | `npm run build` | 来自 `public/build/manifest.json` 或 `public/build/.vite/manifest.json` 的 `/build/assets/<hash>.js`（以及 CSS） |
+
+根 Crema 视图里的 `{!! vite !!}` 通过 Crema 的 `AssetManifest`（由 `InertiaServiceProvider` 绑定）展开成正确的标签。细节：[Vite 与资源](../../advanced/vite/)。
+
+## 稍后更换栈
+
+重新运行：
+
+```bash
+./grind install inertia --frontend=react
+```
+
+这会刷新 `package.json`、Vite 配置以及入口/页面桩。在你编辑 `package.json` 并重新安装之前，它**不会**从 `node_modules` 移除旧的 UI 框架包。切换之后优先提交预期的锁文件。
+
+## 上游链接
+
+- [客户端设置](https://inertiajs.com/client-side-setup)
+- [协议](https://inertiajs.com/the-protocol)
+- [响应](https://inertiajs.com/responses)（概念性的；Kona 构建 JSON/HTML 形状）

@@ -1,0 +1,58 @@
+---
+title: 并发
+description: 在虚拟线程上并行映射和运行任务列表的辅助方法。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**并发**辅助方法在 JDK 虚拟线程上运行工作，因此你可以展开轻量计算或 IO 工作，而不必自己管理线程池。
+
+## 并行映射
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val doubled = Concurrency.map(listOf(1, 2, 3)) { it * 2 }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<Integer> doubled = Concurrency.map(List.of(1, 2, 3), n -> n * 2);
+```
+
+</TabItem>
+</Tabs>
+
+空输入直接返回空列表，不会启动执行器。
+
+## 任务列表
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val results = Concurrency.run(
+    listOf(
+        Callable { fetchA() },
+        Callable { fetchB() },
+    )
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<String> results = Concurrency.run(List.of(
+    (Callable<String>) () -> fetchA(),
+    (Callable<String>) () -> fetchB()
+));
+```
+
+</TabItem>
+</Tabs>
+
+结果保持输入顺序。收集 future 时，任务抛出的异常会继续向外传播。

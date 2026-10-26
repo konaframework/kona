@@ -1,0 +1,59 @@
+---
+title: 公开磁盘与 URL
+description: /storage 提供文件、grind storage:link，以及临时签名 URL。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## 公开磁盘与 `/storage`
+
+**public** 磁盘存放浏览器可以获取的文件。脚手架应用会在前面加上 `ServePublicStorage`，因此 `GET /storage/...` 从该磁盘读取并返回二进制文件响应（见[请求与响应](../http/request-response/)）。
+
+创建静态工具期望的符号链接：
+
+```bash
+./grind storage:link
+```
+
+这会把 `public/storage` 链接到 `storage/app/public`。如果项目还没有 `public/` 目录，但仍有较旧的 `src/main/resources/public` 文件夹，链接会改在那里创建。
+
+## 临时 URL
+
+先注册临时链接的构造方式（通常是 `UrlGenerator.signed`），再调用 `temporaryUrl`：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+val urls = app.resolve(UrlGenerator::class.java)
+
+files.buildTemporaryUrlsUsing("public") { url, exp -> urls.signed(url, exp) }
+
+val link = files.temporaryUrl("avatars/a.png", 600, "public")
+// or pass a signer inline:
+val link2 = files.temporaryUrl("avatars/a.png", 600, { url, exp -> urls.signed(url, exp) }, "public")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+UrlGenerator urls = app.resolve(UrlGenerator.class);
+
+files.buildTemporaryUrlsUsing("public", (url, exp) -> urls.signed(url, exp));
+
+String link = files.temporaryUrl("avatars/a.png", 600L, "public");
+String link2 = files.temporaryUrl(
+    "avatars/a.png",
+    600L,
+    (url, exp) -> urls.signed(url, exp),
+    "public"
+);
+```
+
+</TabItem>
+</Tabs>
+
+注册构造器之后（或适配器本身已通过 `LocalAdapter.buildTemporaryUrlsUsing` 获得一个），`providesTemporaryUrls("public")` 为真。用 `ValidateSignature` 保护下载路由 — 见[URL 生成](../http/url-generation/)。

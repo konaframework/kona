@@ -1,0 +1,51 @@
+---
+title: 语言与编辑器支持
+description: 为 Crema 模板高亮，并在编辑器里连接 kona-lsp。
+---
+
+Kona 为 Crema 模板提供**编辑器支持**，这样你可以编辑 `*.crema.html` 和 `*.crema.kt`，获得高亮、`@` 指令和 Wire `wire:*` 属性的补全，以及对未知 `@name` / `wire:*` 记号的警告。Java 和 Kotlin 里内联的 Wire `template()` 字符串会得到同样的颜色，装上 kona-lsp 后也会得到同样的补全。编写 Wire 组件或 Inertia 套件使用的 Crema 布局时，同一套 Crema 语法和 LSP 也会帮忙。
+
+## 你得到什么
+
+| 部分 | 位置 | 作用 |
+|------|------|------|
+| TextMate 语法 | `ide-support/crema/` | VS Code / Cursor 共用的作用域 |
+| 语言服务器 | `modules/lsp`（`org.konaframework:kona-lsp`） | 通过 LSP stdio 提供补全和诊断 |
+| VS Code / Cursor 扩展 | `ide-support/vscode-crema/` | 语言贡献和安装帮助 |
+| IntelliJ 原生插件 | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) | Crema 文件类型、`@`/视图/数据库补全、工具窗口、Grind（不用 LSP） |
+
+## 最快的路径
+
+### IntelliJ IDEA
+
+安装 [Kona Idea](https://github.com/konaframework/kona-idea/releases) 的 zip（**从磁盘安装插件…**），重启，打开一个 `*.crema.html` 视图 — 语言应显示为 **Crema**。细节：[IntelliJ](/docs/language/intellij)。
+
+### VS Code / Cursor
+
+1. 用 [VS Code 扩展](/docs/language/vscode) 打开 Crema 视图（语法来自 `ide-support/crema/`）。
+2. 构建一次语言服务器：
+
+   ```bash
+   ./gradlew :kona-lsp:jar
+   ```
+
+3. 让 LSP 客户端指向：
+
+   ```bash
+   java -jar modules/lsp/build/libs/kona-lsp-*.jar
+   ```
+
+在应用项目里也可以打印同样的提示，而不启动服务器：
+
+```bash
+./grind ide:lsp
+```
+
+## 循序渐进的指南
+
+1. [Crema 语法](/docs/language/grammar) — 高亮什么，以及如何同步 TextMate 文件。
+2. [语言服务器](/docs/language/lsp) — 协议表面、测试里的 Kotlin/Java 用法、运行 jar。
+3. [VS Code 与 Cursor](/docs/language/vscode) — 安装扩展桩并接上 `crema.lsp.jarPath`。
+4. [IntelliJ](/docs/language/intellij) — 原生 Kona Idea 插件（不用 LSP；IntelliJ 上首选）。
+
+Crema 模板本身的行为（布局、`@foreach`、栈）写在 [Crema](/docs/crema) 下。

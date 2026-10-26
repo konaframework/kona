@@ -1,0 +1,32 @@
+---
+title: 安全概览
+description: Kona 中的会话、认证、授权、CSRF、加密、CORS 和限流。
+---
+
+Kona 的安全栈分两个模块：
+
+- **`kona-session`** — HTTP 会话（array / file / cookie / Redis 驱动）、闪存数据、上一个 URL / 旧输入，以及 CSRF 校验。
+- **`kona-auth`** — 哈希、守卫、`Auth` 门面、密码重置、门 / 策略、API 令牌、加密、CORS、安全响应头和限流。
+
+## 简单路径
+
+`kona new` 生成的应用已经注册会话和认证提供者，并在 web 中间件栈里接上 `StartSession` 和 CSRF。
+
+1. 在引导提供者列表里保留 `SessionServiceProvider` 和 `AuthServiceProvider`。
+2. 在 web 栈上保留 `StartSession` 和 `VerifyCsrfToken`（默认排除 `/api/*` 的 CSRF）。
+3. 用 `Authenticate` 保护 HTML 路由；API 使用 bearer 令牌或 `AuthenticateWithToken`。
+4. 用 `Gate` / 策略或 `Authorize` 中间件授权。
+
+## 指南地图
+
+| 主题 | 指南 |
+|------|------|
+| 会话、闪存、驱动 | [会话](/docs/security/session/) |
+| 登录、记住我、中间件、哈希、令牌 | [认证](/docs/security/authentication/) |
+| 门、策略、`Authorize` | [授权](/docs/security/authorization/) |
+| 表单令牌 | [CSRF 防护](/docs/security/csrf/) |
+| `APP_KEY`、加密 / 解密 | [加密](/docs/security/encryption/) |
+| CORS 与响应头 | [CORS 与安全响应头](/docs/security/cors-headers/) |
+| 具名限制器与节流中间件 | [限流](/docs/security/rate-limiting/) |
+
+CSRF 和会话 cookie 与 [HTTP 中间件](/docs/http/middleware/) 管线相互作用；密码表单规则使用 [HTTP 校验器](/docs/http/validation/)。

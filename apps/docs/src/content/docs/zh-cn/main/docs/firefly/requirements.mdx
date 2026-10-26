@@ -1,0 +1,36 @@
+---
+
+title: 要求
+description: 安装 Firefly 面板之前需要的 JDK、Kona，以及面板依赖的部分。
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+
+<FireflyShot file="app-ready.png" description="hello-kotlin 欢迎页，位于 http://127.0.0.1:4017/，一个在你打开面板之前就在提供路由的 Kona 应用。" />
+Firefly 运行在 Kona 应用内部。你不必安装第二套运行时。
+
+## 运行时
+
+| 要求 | 你需要什么 |
+|------|------------|
+| **JDK** | 21 或更新。Kona 使用虚拟线程。 |
+| **一个 Kona 应用** | 用 `kona new` 创建，或一个已经依赖 `org.konaframework` 的现有 Gradle 项目。 |
+| **`kona` 和 `./grind`** | 全局 CLI 创建应用。应用内的 `./grind` 提供服务并运行 `make:firefly-*`。 |
+| **浏览器** | 当前的浏览器。Alpine 启动后，面板 HTML 就可以交互。 |
+
+面板构件是 `org.konaframework:kona-firefly`。它会带上支持、模式、动作、信息列表、表格、表单、通知和部件模块。你不必逐个加上那些坐标。
+
+## 面板期望已经存在的部分
+
+| 部分 | 原因 |
+|------|------|
+| HTTP 和 Crema | 页面是 HTML 响应。套件会登记这些提供者。 |
+| 会话 | 登录、密码重置和通知提示使用会话。 |
+| Cadence | 用 Cadence 模型调用 `model(...)` 的资源可以从 `query()` 构建 `ModelBuilder`。hello 示例也从内存行渲染表格，因此在迁移之前第一批屏幕就能工作。 |
+| Wire | 实时字段和动作点击通过 Wire 发送。面板 HTML 包含这些钩子。 |
+
+提供面板不需要 Node。Chart.js 和 ApexCharts 随部件模块一起发布，并从 `/_firefly/widgets/` 提供。
+
+## 下一步
+
+[安装](/docs/firefly/installation/) 会创建应用或加入依赖。

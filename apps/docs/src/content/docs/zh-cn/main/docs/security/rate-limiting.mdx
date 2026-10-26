@@ -1,0 +1,166 @@
+---
+title: 限流
+description: 定义具名限制器，并用 Retry-After 和 X-RateLimit 头节流 HTTP 请求。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**限流**限制客户端命中一条路由的频率 — 登录端点、公开 API、昂贵的报表。Kona 的 `RateLimiter` 按键在内存中跟踪命中；`ThrottleRequests` 中间件把具名限制器变成带标准头的 HTTP 响应。
+
+构件：`org.konaframework:kona-auth`。`AuthServiceProvider` 登记一个共享的 `RateLimiter`。
+
+## 最简单的路径
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.http.HttpKernel
+import org.konaframework.http.Router
+import org.konaframework.security.RateLimit
+import org.konaframework.security.RateLimiter
+import org.konaframework.security.ThrottleRequests
+
+val limiter = app.resolve(RateLimiter::class.java)
+limiter.forName("login") { request ->
+    RateLimit.perMinute(5) // or RateLimit(5, 60)
+}
+
+val router = app.resolve(Router::class.java)
+router.routes {
+    group(prefix = "/auth", middleware = listOf(ThrottleRequests(limiter, "login"))) {
+        post("/login") { /* … */ }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.security.RateLimit;
+import org.konaframework.security.RateLimiter;
+import org.konaframework.security.ThrottleRequests;
+import java.util.List;
+
+RateLimiter limiter = app.resolve(RateLimiter.class);
+limiter.forName("login", request -> RateLimit.perMinute(5));
+
+Router router = app.resolve(Router.class);
+router.prefix("/auth")
+    .middleware(List.of(new ThrottleRequests(limiter, "login")))
+    .group(auth -> {
+        auth.post("/login", request -> /* … */);
+    });
+```
+
+</TabItem>
+</Tabs>
+
+超过限制时，中间件抛出 `RateLimitExceededException` — HTTP **429**，带 `Retry-After` 头（窗口重置前的秒数）。
+
+成功的响应会得到：
+
+- `X-RateLimit-Limit` — 窗口内的最大尝试次数
+- `X-RateLimit-Remaining` — 这次命中之后剩余的尝试次数
+
+## 命名与键
+
+用 `for` / `forName`（对 Java 友好的别名）登记限制器。每次登记是一个回调 `(Request) -> RateLimit`，因此限制可以取决于路径、用户或套餐：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+limiter.forName("api") { request ->
+    val userId = request.getAttribute("user")?.toString()
+    if (userId != null) RateLimit(120, 60) else RateLimit(30, 60)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+limiter.forName("api", request -> {
+    Object user = request.getAttribute("user");
+    return user != null ? new RateLimit(120, 60) : new RateLimit(30, 60);
+});
+```
+
+</TabItem>
+</Tabs>
+
+`ThrottleRequests` 把命中键建成 `{limiterName}:{clientKey}`。默认客户端键是：
+
+1. `X-Forwarded-For`
+2. 否则 `X-Real-IP`
+3. 否则请求属性 `"ip"`
+4. 否则 `"global"`
+
+用自定义解析器覆盖：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ThrottleRequests(limiter, "login") { req ->
+    req.input("email") ?: req.header("X-Forwarded-For") ?: "unknown"
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new ThrottleRequests(limiter, "login", req -> {
+    String email = req.input("email", null);
+    if (email != null) return email;
+    String ip = req.header("X-Forwarded-For");
+    return ip != null ? ip : "unknown";
+});
+```
+
+</TabItem>
+</Tabs>
+
+## 不用中间件使用限制器
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val key = "reports:user-42"
+if (!limiter.attempt(key, maxAttempts = 10, decaySeconds = 60)) {
+    val wait = limiter.availableIn(key)
+    throw RateLimitExceededException(wait)
+}
+// work…
+limiter.clear(key)  // reset after success, if desired
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String key = "reports:user-42";
+if (!limiter.attempt(key, 10, 60)) {
+    throw new RateLimitExceededException(limiter.availableIn(key));
+}
+limiter.clear(key);
+```
+
+</TabItem>
+</Tabs>
+
+其他辅助方法：`hit`、`tooManyAttempts`、`retriesLeft`、`clearAll`。
+
+## 失败模式
+
+| 情况 | 结果 |
+|------|------|
+| 中间件中的限制器名未知 | `IllegalArgumentException` |
+| 尝试过多 | `RateLimitExceededException`（429 加 `Retry-After`） |
+| 进程重启 | 内存计数器重置（单节点可以；共享存储随后续基础设施里程碑到来） |
+
+把节流中间件放在昂贵处理器的**外面**，但当键依赖已认证用户时，放在身份中间件的**里面**。

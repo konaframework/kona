@@ -1,0 +1,63 @@
+---
+title: 测试
+description: 在 JUnit 里启动 Kona 应用 — HTTP、控制台、数据库辅助方法和伪造对象。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**kona-testing** 是 Kona 应用的测试工具。它在临时基路径下启动一个真实的 `Application`，然后驱动 HTTP、grind、数据库和内存伪造对象，而不打开套接字或碰生产服务。
+
+把它加为测试依赖：
+
+```kotlin
+dependencies {
+    testImplementation("org.konaframework:kona-testing:${konaVersion}")
+}
+```
+
+## 启动应用
+
+`TestApplication.create(base, *providers)` 是 `Kona.create("--base=…").providers(…).boot()` 的薄包装。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@TempDir
+lateinit var base: Path
+
+val app = TestApplication.create(
+    base,
+    HttpServiceProvider(),
+    MyAppProvider(),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Path base = Files.createTempDirectory("app");
+Application app = TestApplication.create(
+    base,
+    new HttpServiceProvider(),
+    new MyAppProvider()
+);
+```
+
+</TabItem>
+</Tabs>
+
+在你传入的提供者里（或启动之后）登记路由、绑定和中间件。清理通常就是“丢掉临时目录” — 优先用新的基路径，而不是在测试之间复用长期应用。
+
+## 接下来断言什么
+
+| 指南 | 表面 |
+| --- | --- |
+| [HTTP 测试](./http-console/) | `HttpTestClient` / `TestResponse` |
+| [控制台测试](./console/) | `ConsoleTester` / `ConsoleResult` |
+| [数据库与伪造对象](./database-fakes/) | `DatabaseTest`、`FakeMail`、`FakeQueue`、`FakeEvent` 等 |
+
+## Java 示例
+
+`modules/testing` 带有 `JavaTestingApiTest` — 同样的 API 是 `@JvmStatic` / 可供 Java 调用的。上面优先给出 Kotlin 示例；应用测试以 Java 为主时，从 Java 调用相同的类型。

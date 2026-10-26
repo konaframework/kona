@@ -1,0 +1,97 @@
+---
+title: HTTP 测试
+description: 进程内的 HttpTestClient — 动词、JSON 正文和响应断言。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`HttpTestClient` 从已启动的应用解析 `HttpKernel`，并**在进程内**运行请求（不监听套接字）。
+
+## 创建客户端
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val http = HttpTestClient(app)
+http.get("/ping").assertOk().assertJsonContains("ok")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+HttpTestClient http = new HttpTestClient(app);
+http.get("/ping").assertOk().assertJsonContains("ok");
+```
+
+</TabItem>
+</Tabs>
+
+调用客户端之前登记路由（提供者的 `boot`，或 `TestApplication.create` 之后）。
+
+## 动词
+
+| 方法 | 说明 |
+| --- | --- |
+| `get(uri)` / `get(uri, headers)` | 空正文 |
+| `postJson(uri, body)` / `postJson(uri, body, headers)` | 用 Jackson 序列化 `body`；设置 `Content-Type: application/json` |
+| `put(uri)` / `put(uri, body)` / `put(uri, body, headers)` | 原始字符串正文 |
+| `putJson(uri, body)` / `putJson(…, headers)` | JSON 编码 |
+| `patch(uri)` / `patch(uri, body)` / `patch(…, headers)` | 原始字符串正文 |
+| `patchJson(uri, body)` / `patchJson(…, headers)` | JSON 编码 |
+| `delete(uri)` / `delete(uri, headers)` | 空正文 |
+
+请求头映射是普通的 `Map<String, String>`。查询字符串写在 `uri` 里。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+http.postJson("/users", mapOf("name" to "Ada"))
+    .assertStatus(201)
+    .assertJsonPath("user.name", "Ada")
+
+http.putJson("/users/1", mapOf("name" to "Ada Lovelace"), mapOf("X-Request-Id" to "r-1"))
+    .assertOk()
+
+http.delete("/users/1").assertStatus(204)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+http.postJson("/users", Map.of("name", "Ada"))
+    .assertStatus(201)
+    .assertJsonPath("user.name", "Ada");
+
+http.putJson("/users/1", Map.of("name", "Ada Lovelace"), Map.of("X-Request-Id", "r-1"))
+    .assertOk();
+
+http.delete("/users/1").assertStatus(204);
+```
+
+</TabItem>
+</Tabs>
+
+## 响应断言
+
+每个动词返回 `TestResponse`（流畅接口 — 断言返回 `this`）。
+
+| 方法 | 行为 |
+| --- | --- |
+| `status()` / `body()` | 供自定义断言使用的原始值 |
+| `assertStatus(code)` | 精确状态；不匹配则抛出 |
+| `assertOk()` | 状态 `200` |
+| `assertJsonContains(fragment)` | 正文字符串包含子串 |
+| `assertJsonPath(path, expected)` | 点分 JSON 路径（`user.name`）等于 `expected` |
+| `assertJson(path, expected)` | `assertJsonPath` 的别名 |
+
+路径段按 `.` 拆分。缺少的段会使断言失败。数字按双精度相等比较（因此 `1` 和 `1.0` 匹配）。JSON 的 `null` 节点与 Kotlin/Java 的 `null` 比较。
+
+## 边界情况
+
+- 客户端**不**跟随重定向；断言的是第一个响应。
+- 内核上的中间件照常运行 — 注册了相应提供者时，CSRF、会话和认证与生产环境一致。
+- 非 JSON 的 `put`/`patch` 正文是原始字符串；需要时自己编码载荷。

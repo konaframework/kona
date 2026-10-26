@@ -1,0 +1,89 @@
+---
+title: 文件上传与平台
+description: WithFileUploads、签名临时存储、S3 预签名、样式、相交、排序、Authorize 和 CSP。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+组件实现 `WithFileUploads` 时，Wire 通过 `wire:model` 接受文件输入。上传走到签名的临时端点（或兼容 S3 的预签名 PUT），然后以 `TemporaryUploadedFile` 落到组件上，你可以 `store`、预览或校验。
+
+## 快速开始
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AvatarForm : Component(), WithFileUploads {
+    var photo: TemporaryUploadedFile? = null
+
+    fun save() {
+        photo?.store("avatars")
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            <input type="file" wire:model="photo" />
+            <button type="submit">Save</button>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AvatarForm extends Component implements WithFileUploads {
+    public TemporaryUploadedFile photo;
+
+    public void save() {
+        if (photo != null) photo.store("avatars");
+    }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input type="file" wire:model="photo" />
+                <button type="submit">Save</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+客户端辅助：`$wire.$upload`、`$uploadMultiple`、`$cancelUpload`、`$removeUpload`。进度事件：`brew-upload-start|finish|error|cancel|progress`（以及 `livewire-upload-*` 别名）。
+
+## 配置
+
+| 键 | 作用 |
+| --- | --- |
+| `brew.temporary_file_upload.timeout` | 签名 URL 的寿命（秒） |
+| `brew.temporary_file_upload.cleanup` | 删除早于 N 秒的临时文件 |
+| `brew.temporary_file_upload.rules` | 全局规则（`file\|max:12288`） |
+| `brew.temporary_file_upload.disk` | `local`（默认）或 `s3` |
+| `brew.temporary_file_upload.s3_endpoint` | 兼容 S3 的 PUT 基址 |
+| `brew.csp_safe` | 提供 `brew.csp.min.js` |
+
+`WireManager.cleanupOldUploads()` 删除过期的临时文件。测试可以使用 `UploadedFileFake.create(...)`。
+
+## 样式、JS 模块、排序与相交
+
+- 通过 `SupportStyles` 的作用域 / 全局 CSS 和 CSS 模块（effects.styles）
+- 通过 `SupportJsModules` 的组件 JS 模块（effects.scripts）
+- `brew/<name>.{js,css,global.css}` 下的多文件资源
+- `wire:sort` / `wire:sort:item` 和 `wire:intersect`（`.once`、`.half`、`.full` 等）
+
+## 授权与平台
+
+```kotlin
+@Authorize("update", "post")
+fun save() { /* … */ }
+
+authorize("update", post)
+```
+
+这一层还包括：区域设置备忘、发布令牌、持久 / 更新中间件、Cadence 模型合成器，以及 `app.debug` 打开时的校验和调试信息。

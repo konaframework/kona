@@ -1,0 +1,122 @@
+---
+title: 数据库与伪造对象
+description: 事务性数据库辅助方法，以及邮件、队列、事件、缓存、广播和存储的内存伪造对象。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## 数据库辅助方法
+
+`DatabaseTest` 为测试包装 Cadence 连接。
+
+| API | 行为 |
+| --- | --- |
+| `transactional(database, block)` | 在 `database.connection().transaction(…)` 内运行 `block` 并返回其结果 |
+| `refresh(database, tables)` | 对列出的每个表名执行 `DELETE FROM`（外键时顺序有影响） |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DatabaseTest.transactional(database) { db ->
+    // inserts that roll back when the transaction ends without commit
+    db
+}
+
+DatabaseTest.refresh(database, listOf("password_reset_tokens", "users"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DatabaseTest.transactional(database, db -> {
+    return null;
+});
+
+DatabaseTest.refresh(database, List.of("password_reset_tokens", "users"));
+```
+
+</TabItem>
+</Tabs>
+
+`refresh` 发出原始的 `DELETE FROM $table` 语句 — 只传入可信的表标识符。
+
+## 伪造对象
+
+每个伪造对象持有一个内存中（或基于日志）的协作者，你可以对其断言。它们是普通构造器 — 当生产代码解析真实类型时，在测试提供者里把它们绑定进容器。
+
+### FakeMail
+
+`LogTransport` 加 `Mailer`。`messages()` 返回捕获的 `MailMessage`。
+
+```kotlin
+val mail = FakeMail()
+mail.mailer.send(MailMessage().to("a@b.c").subject("Hi"))
+assertEquals(1, mail.messages().size)
+```
+
+### FakeQueue
+
+数组驱动的 `QueueManager` 加 `Bus`。`dispatch(job)` 和 `size()` 查看该连接。
+
+```kotlin
+val queue = FakeQueue()
+queue.dispatch(MyJob())
+assertEquals(1L, queue.size())
+```
+
+### FakeNotification
+
+`NotificationSender` 背后的内存 `DatabaseChannel` 加 `LogChannel`。任一通道记录了该通知类时，`assertSent(type)` 为真。
+
+```kotlin
+val notifications = FakeNotification()
+notifications.send(user, WelcomeNotification())
+assertTrue(notifications.assertSent(WelcomeNotification::class.java))
+```
+
+### FakeEvent
+
+包装 `EventDispatcher` 并记录每一次 `dispatch` 参数。`assertDispatched(type)`、`events()`、`clear()`。
+
+```kotlin
+val events = FakeEvent()
+events.dispatch(OrderPlaced(id = 1))
+assertTrue(events.assertDispatched(OrderPlaced::class.java))
+events.clear()
+```
+
+### FakeCache
+
+`ArrayCacheStore` 加 `Repository`。对应 `get` / `put` / `forever` / `forget` / `flush` / `has`。
+
+```kotlin
+val cache = FakeCache()
+cache.put("k", "v", 60)
+assertEquals("v", cache.get("k"))
+```
+
+### FakeBroadcast
+
+日志驱动的 `BroadcastManager`。`broadcast(event)`、`messages()`、`clear()`。
+
+```kotlin
+val broadcast = FakeBroadcast()
+broadcast.broadcast(OrderShipped())
+assertTrue(broadcast.messages().isNotEmpty())
+```
+
+### FakeStorage
+
+完整的内存 `FilesystemAdapter`：put/get/exists/delete/copy/move、目录、可见性、流、`putFile` / `putFileAs`。临时 URL 会抛出 `IllegalStateException`（`providesTemporaryUrls()` 为 `false`）。
+
+```kotlin
+val disk = FakeStorage()
+disk.put("a.txt", "hello")
+assertEquals("hello", disk.getString("a.txt"))
+```
+
+## 选择伪造对象还是真实驱动
+
+当被测单元不应接触 Redis、SMTP 或文件系统时，优先用伪造对象。当你要断言的是 SQL 行为本身时，优先用真实的 SQLite/H2 Cadence 连接（配合 `DatabaseTest.transactional`）。

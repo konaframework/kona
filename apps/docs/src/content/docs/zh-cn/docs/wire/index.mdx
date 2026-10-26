@@ -1,0 +1,17 @@
+---
+title: Wire
+description: Kona 的响应式服务器组件：概览与指南。
+---
+
+**Kona Wire**（简称 **Wire**）是 Kona 的响应式服务器组件层。你用 Kotlin 或 Java 编写带有公开状态和动作的类，用 [Crema](/docs/crema/) 渲染 HTML，Wire 通过一套小型 JSON 协议让浏览器保持同步，而不必整页重新加载。
+
+Wire 以 `org.konaframework:kona-wire` 发布在 [Maven Central](https://repo1.maven.org/maven2/org/konaframework/kona-wire/)。用 `kona new my-app --kit=wire` 搭建，或用 `./grind install wire`（或 `kona grind install wire`）加入依赖。先前的产品名 **Brew** 在 0.3.0 系列中仍作为兼容别名（`--kit=brew`、`./grind install brew`、`<brew:name />`，以及已弃用的 `kona-brew` 构件）。
+
+## 本节指南
+
+从这里开始，再进入基础、嵌套、JavaScript、测试和示例：
+
+- [简介](/docs/wire/guides/introduction/) — Wire 是什么，以及何时使用
+- [安装](/docs/wire/guides/installation/) — 把 Wire 加到 Kona 应用
+- [第一个组件](/docs/wire/guides/first-component/) — Kotlin 与 Java 演练
+- [组件](/docs/wire/essentials/components/) — 发现、类与视图、注册

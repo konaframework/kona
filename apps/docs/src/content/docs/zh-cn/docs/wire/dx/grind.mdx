@@ -1,0 +1,88 @@
+---
+title: grind 命令
+description: make:wire 标志、wire:convert、发布、桩、布局，以及 IDE 说明。
+---
+
+`WireServiceProvider` 启动后会登记 grind 命令。在应用根目录用 `./grind` 运行它们。
+
+## `make:wire`
+
+搭建一个组件：
+
+```bash
+./grind make:wire counter
+./grind make:wire posts.create-post --test
+./grind make:wire pages::Dashboard --inline
+./grind make:wire Avatar --mfc --emoji
+./grind make:wire Counter --lang=java
+./grind make:wire Counter --force
+```
+
+默认脚手架是一个**空类**，外加一份 Crema 视图，视图里用 `<p>` 放一句随机的有趣鼓励语。
+
+| 标志 | 效果 |
+|------|------|
+| *（默认）* | 类加独立 Crema 视图（`class`），除非 `brew.make.type` 另有说明 |
+| `--inline` | 带 `template()` 的单文件组件（`sfc`） |
+| `--class` | 类加独立 Crema 视图（与默认相同） |
+| `--mfc` | 多文件组件资源 |
+| `--test` | 生成配套测试 |
+| `--emoji` | 在视图叶名前面加上 ⚡ |
+| `--lang=kotlin\|java` | 语言（省略时从项目布局自动检测） |
+| `--base=` | 项目根（默认 `.`） |
+| `--force` | 覆盖已有文件 |
+
+名称可以用点（`posts.create-post`）、大驼峰（`CreatePost`）或命名空间（`pages::dashboard`、`admin::…`）。
+
+默认类型来自配置键 `brew.make.type`（`class` \| `sfc` \| `mfc`）。
+
+## `make:form`
+
+在 `app.wire.forms` 下搭建表单对象：
+
+```bash
+./grind make:form PostForm
+./grind make:form post-form --lang=java
+./grind make:form PostForm --force
+```
+
+该类扩展 `Form`，`title` 和 `content` 字段标了 `@Validate("required")`。把它声明为组件上的公开属性，并用 `wire:model="form.title"` 绑定输入。见[表单](/docs/wire/essentials/forms/)。
+
+## 桩
+
+```bash
+./grind wire:stubs
+```
+
+把桩文件发布到 `stubs/wire/`。之后如果这些桩存在，`make:wire` 会优先使用它们，这样你可以为团队定制类、视图和测试骨架。
+
+## 在形态之间转换
+
+```bash
+./grind wire:convert src/main/kotlin/app/wire/Counter.kt --to=class
+./grind wire:convert … --to=sfc
+./grind wire:convert … --to=mfc
+```
+
+## 发布配置与布局
+
+```bash
+./grind wire:publish --config
+./grind wire:layout
+```
+
+`wire:publish` 把 Wire 配置写进应用的配置树。`wire:layout` 搭建一份已经包含 `@wireStyles` / `@wireScripts` 的 Crema 布局。
+
+## 从 grind 生成的测试开始测试
+
+传入 `--test` 时，桩会接上一个 `Wire.test("…")` 示例。加上动作后再展开它 — 见[测试](/docs/wire/dx/testing/)。
+
+## IDE / LSP
+
+Kona Idea 和语言服务器可以补全 `<wire:…>` 标签和 `wire:*` 属性。契约在 Wire 仓库里：[`docs/governance/lsp-contract.md`](https://github.com/konaframework/kona/blob/main/docs/governance/livewire-v4-parity.md)。
+
+## 下一步
+
+- [安装](/docs/wire/guides/installation/) — 在 grind 能发现命令之前先注册 Wire
+- [第一个组件](/docs/wire/guides/first-component/) — 脚手架之后的演练
+- [测试](/docs/wire/dx/testing/) — `Wire.test` API

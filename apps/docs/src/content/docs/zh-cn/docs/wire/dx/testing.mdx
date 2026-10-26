@@ -1,0 +1,98 @@
+---
+title: 测试 Wire 组件
+description: 用 Wire.test 驱动组件 — 设置、调用、断言，以及真实的快照往返。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Wire.test` 挂载组件，并走更新管线做**真实**的快照往返（JSON 编码、校验和、水合、动作、渲染）。不需要浏览器。
+
+## 准备
+
+按生产环境同样的方式注册提供者（要从视图断言 HTML 时，至少包括 Wire 和 Crema）。在测试里，如果启动了完整应用，在用例之间调用 `Wire.reset()` / `Kona.reset()`。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@Test
+fun increments() {
+    Wire.test(Counter::class.java, mapOf("start" to 2))
+        .assertSet("count", 2)
+        .call("increment")
+        .assertSet("count", 3)
+        .assertSee(3)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Test
+void increments() {
+    Wire.test(Counter.class, Map.of("start", 2))
+        .assertSet("count", 2)
+        .call("increment")
+        .assertSet("count", 3)
+        .assertSee(3);
+}
+```
+
+</TabItem>
+</Tabs>
+
+也可以按名称寻址：`Wire.test("counter", mapOf("start" to 2))`。
+
+## 交互
+
+| 方法 | 作用 |
+|------|------|
+| `set(name, value)` / `set(map)` | 更新属性 |
+| `toggle(name)` | 翻转布尔值 |
+| `call(method, *params)` | 调用动作 |
+| `refresh()` | `$refresh` |
+| `commit()` | `$commit` |
+
+## 断言
+
+| 断言 | 检查 |
+|------|------|
+| `assertSet` / `assertNotSet` | 属性相等（默认宽松；`strict = true` 表示 `==`） |
+| `assertCount` | 集合 / 映射 / 数组 / CharSequence 的大小 |
+| `assertSee` / `assertDontSee` | 可见文本（默认做 HTML 转义） |
+| `assertSeeHtml` / `assertDontSeeHtml` | 原始 HTML 子串 |
+| `assertSeeInOrder` | 多个片段按顺序出现 |
+| `assertViewHas` / `assertViewIs` | 视图数据 / 视图名 |
+| `assertRenderSkipped` / `assertRenderNotSkipped` | `skipRender` / `@Renderless` |
+| `assertStatus` | 这次往返的最后 HTTP 状态 |
+| `assertForbidden` / `assertUnauthorized` | 403 / 401 |
+
+## 访问器
+
+```kotlin
+val t = Wire.test("counter")
+t.instance()   // live Component
+t.id()
+t.html()       // last HTML (optional strip of wire:snapshot/effects)
+t.get("todos.0.title")
+t.snapshot()
+t.effects()
+t.viewData("title")
+```
+
+## 脚手架
+
+```bash
+./grind make:wire counter --test
+```
+
+## HTTP 冒烟测试
+
+示例也会打真实端点：`GET /` 取嵌入的 HTML，然后用 `X-Brew`、CSRF cookie，以及从 `wire:snapshot` 取出的快照 `POST /wire/update`。组件逻辑优先用 `Wire.test`；中间件、CSRF 和资源注入用 HTTP 测试。
+
+## 下一步
+
+- [组件](/docs/wire/essentials/components/) — 你在测什么
+- [动作](/docs/wire/essentials/actions/) — `call` 的目标
+- [生命周期](/docs/wire/essentials/lifecycle/) — 每次往返里运行的钩子

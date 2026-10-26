@@ -1,0 +1,206 @@
+---
+title: 事件
+description: 服务器派发、@On 监听器、浏览器 wire:* 事件，以及 Alpine 与 Wire 之间的事件桥。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire 有三个相关的事件表面：
+
+1. **浏览器 DOM 事件** — `wire:click`、`wire:keydown.enter`、自定义 `wire:trix-change` 等
+2. **组件事件** — 服务器上的 `dispatch(...)`，接收方的 `@On` / `listeners()`
+3. **JavaScript / Alpine** — `Wire.dispatch`、`$wire.$dispatch`、`x-on:….window`
+
+它们故意共用名称：服务器的 `dispatch('saved')` 变成浏览器 `CustomEvent`，Alpine 和其他组件都能听到。
+
+## 浏览器事件（`wire:*`）
+
+在任意元素上使用 `wire:<event-name>` 来调用服务器动作：
+
+```html
+<button wire:click="save">Save</button>
+<button wire:click.prevent="save">Save</button>
+<button wire:dblclick="edit">Edit</button>
+<input wire:keydown.enter="search" />
+<input wire:keydown.shift.enter="newline" />
+<div wire:keydown.escape.window="close"></div>
+<div wire:trix-change="updated"></div>
+<div wire:init="load">…</div>
+```
+
+按键修饰符包括 `.enter`、`.escape`、`.space`、`.tab`、`.shift`、`.ctrl`、`.alt`、`.meta` / `.cmd`、方向键、`.page-up` / `.page-down` 和 `.slash`。
+
+| 修饰符 | 作用 |
+|--------|------|
+| `.window` / `.document` | 在 window / document 上监听 |
+| `.outside` | 事件发生在元素外部时触发 |
+| `.self` | 仅当事件目标是该元素时 |
+| `.once` | 第一次触发后移除监听器 |
+| `.debounce.Xms` / `.throttle.Xms` | 限速 |
+| `.passive` / `.capture` | `addEventListener` 选项 |
+| `.camel` / `.dot` | 事件名大小写 |
+
+`wire:` 后面可以使用任意 DOM 事件名。魔术动作和确认对话框见[动作](/docs/wire/essentials/actions/)。
+
+## 从服务器派发
+
+从动作里排队一个浏览器事件：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun save() {
+    // …
+    dispatch("post-saved", "id" to postId)
+}
+
+fun notifySelf() {
+    dispatch("refresh-ui").self()
+}
+
+fun notifyChild() {
+    dispatch("filter-changed", "q" to query).to("search-panel")
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public void save() {
+    // …
+    dispatch("post-saved", Map.of("id", postId));
+}
+
+public void notifySelf() {
+    dispatch("refresh-ui").self();
+}
+
+public void notifyChild() {
+    dispatch("filter-changed", Map.of("q", query)).to("search-panel");
+}
+```
+
+</TabItem>
+</Tabs>
+
+流畅的投递：
+
+| 方法 | 效果 |
+|------|------|
+| `to("name")` / `to(Class)` / `component("name")` | 按名称定位一个组件 |
+| `self()` | 仅这个组件 |
+| `ref("name")` | 定位一个 `wire:ref` |
+| `el("selector")` | 定位一个 CSS 选择器 |
+
+它们被序列化进 `effects.dispatches`，并在变形之后由客户端投递。
+
+## 用 `@On` 和 `listeners()` 监听
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.wire.On
+
+class Feed : Component() {
+    @On("post-saved")
+    fun onSaved(id: Long) { /* … */ }
+
+    @On("post-updated.{post.id}")
+    fun onThisPost() { /* dynamic placeholder from state */ }
+
+    override fun listeners() = mapOf(
+        "legacy-event" to "onLegacy",
+    )
+
+    fun onLegacy() { /* … */ }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.wire.On;
+
+public class Feed extends Component {
+    @On("post-saved")
+    public void onSaved(long id) { /* … */ }
+
+    @On("post-updated.{post.id}")
+    public void onThisPost() { /* … */ }
+
+    @Override
+    public Map<String, String> listeners() {
+        return Map.of("legacy-event", "onLegacy");
+    }
+
+    public void onLegacy() { /* … */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+挂载时，Wire 把监听器名称脱水进 `effects.listeners`，这样客户端可以路由事件。`{post.id}` 这样的占位符从组件属性解析。
+
+## 嵌套的子组件监听器
+
+在父标签上监听子组件的事件：
+
+```html
+<wire:editor @post-saved="refreshList" />
+```
+
+子组件派发 `post-saved` 时，父组件的方法会运行。
+
+## JavaScript 与 Alpine
+
+```js
+// Global
+Wire.on('saved', (e) => console.log(e))
+Wire.dispatch('saved', { id: 1 })
+Wire.dispatchTo('counter', 'bump', {})
+
+// From Alpine / $wire
+$wire.$on('saved', () => {})
+$wire.$dispatch('saved', { id: 1 })
+$wire.$dispatchSelf('refresh-ui')
+$wire.$dispatchTo('search-panel', 'filter-changed', { q: 'brew' })
+$wire.$dispatchRef('panel', 'close')
+$wire.$dispatchEl('#toast', 'show', { text: 'Done' })
+```
+
+Alpine 把 Wire 事件当作 window 上的 `CustomEvent` 来听：
+
+```html
+<div x-data x-on:post-saved.window="toast = $event.detail">
+  …
+</div>
+```
+
+在组件根内部的 Alpine 表达式里可以使用模板辅助方法 `$dispatch` / `$dispatchTo` / `$dispatchSelf`。
+
+## Echo / 广播
+
+当页面上有 Echo 时，`@On("echo:channel,Event")`、`echo-private:` 和 `echo-presence:` 与 Kona 的广播适配器集成。频道设置见 Kona 广播文档；Wire 只把监听器名称接到组件上。
+
+## 测试
+
+```kotlin
+Wire.test("feed")
+    .call("save")
+    .assertDispatched("post-saved")
+    .assertDispatched("post-saved") { params -> params["id"] == 42L }
+    .assertNotDispatched("deleted")
+```
+
+你也可以对可测试实例 `dispatch(...)`，从而在没有浏览器的情况下演练 `@On` 处理器。
+
+## 下一步
+
+- [嵌套](/docs/wire/advanced/nesting/) — 父子事件接线
+- [与 Alpine.js 的结合](/docs/wire/js/alpine/) — `$wire` 和 `x-on`
+- [JavaScript 运行时](/docs/wire/js/runtime/) — 钩子和拦截器

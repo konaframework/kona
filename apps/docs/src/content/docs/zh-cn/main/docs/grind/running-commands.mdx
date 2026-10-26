@@ -1,0 +1,180 @@
+---
+title: 运行命令
+description: 从 shell、kona grind 代理、Grind.call 和调度器调用 Grind Console。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+无论你在终端里输入、通过 `kona grind` 转发，还是从应用代码或测试调用 `Grind.call`，Grind Console 接受同样形状的输入。
+
+## 从项目里
+
+```bash
+./grind list
+./grind mail:digest 42 --queue=high
+./grind mail:digest --help
+./grind -v schedule:run
+./grind -q list
+./grind --base=/path/to/app list
+```
+
+| 标志 | 效果 |
+|------|------|
+| `-v` / `--verbose` | 详细诊断（`GrindIO.verbose`） |
+| `-q` / `--quiet` | 抑制正常的标准输出（错误仍然打印） |
+| `--help` / `-h` | 空参数 / 全局帮助，或在**自定义**命令上：打印签名帮助 |
+| `--base=` | 发现 / 加载器（以及许多内置命令）的应用根 |
+| `--bootstrap=` | 进程内启动的引导类（默认 `bootstrap.App`） |
+| `--isolated` | 对可隔离的自定义命令：单进程锁 |
+
+选项解析规则（`parseOptions`）：
+
+- `-v`、`-q`、`-h` 设置 `verbose`、`quiet` 和 `help`。
+- `--name` 把 `name` 设为 `true`。
+- `--name=value` 把 `name` 设为 `value`。
+- 其他一切都是位置参数。
+
+退出码 **0** 表示成功。**1**（以及其他非零值）表示失败 — 缺少参数、未知命令、生成器冲突、作为 grind 错误露出的 Cadence 错误等。未知的内置风格名称会打印错误、显示帮助目录，并以 `1` 退出。
+
+### 空参数与帮助
+
+```bash
+./grind
+./grind help
+./grind --help
+./grind -h
+```
+
+这些会发现自定义命令，打印带框的 “grind” 用法目录（内置命令加发现到的自定义命令），并以 `0` 退出。
+
+## `list` 与每条命令的帮助
+
+```bash
+./grind list
+./grind mail:digest --help
+```
+
+`list` 打印两列目录：来自 `ListCommand.BUILTIN` 的内置名称，然后是已登记的自定义命令（描述，描述为空时用签名）。重复的名称只显示一次。
+
+对一条**自定义**命令，`--help` / `-h` 打印一个框，包含名称/描述、渲染后的签名，以及参数/选项帮助行 — 然后以 `0` 退出，而不运行 `handle()`。内置命令通常使用自己的用法/`GrindException` 消息，而不是自定义命令的帮助渲染器。
+
+## `kona grind` 代理
+
+当你不是直接调用 `./grind` 时，全局 CLI 可以转发到最近项目的 grind 脚本：
+
+```bash
+kona grind serve
+kona grind migrate
+kona grind mail:digest 42
+kona grind --help
+```
+
+行为（`org.konaframework.cli.GrindCommand`）：
+
+1. 从当前目录向上走，直到找到 Gradle settings/build 脚本（与 `serve` 相同的标记）。
+2. 要求该根里有 `./grind` 或 `grind.bat`（来自 `kona new` 的应用）。
+3. 用你剩下的参数运行该脚本，并传播退出码。
+
+如果找不到 Gradle 项目，或项目没有 grind 脚本（例如 `samples/` 下的仓库示例），代理会失败，并给出指向 `kona new` 的明确错误。你已经在应用内部时，优先使用 `./grind`。
+
+安装全局 `kona` CLI 见[安装](../../guides/installation/)。
+
+## 从代码调用命令
+
+使用 `org.konaframework.grind.Grind`，用参数记号运行一个命令名（与你在 CLI 上写在命令名后面的字符串相同）：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.grind.CommandRegistry
+import org.konaframework.grind.Grind
+
+val registry = CommandRegistry().register(SendDigestCommand::class.java)
+
+val code = Grind.call("mail:digest", listOf("42", "--queue=default"), registry)
+val quiet = Grind.callSilently("schedule:run", listOf("--base=$root"))
+val listed = Grind.call("list")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.grind.CommandRegistry;
+import org.konaframework.grind.Grind;
+import java.util.List;
+
+CommandRegistry registry = new CommandRegistry().register(SendDigestCommand.class);
+
+int code = Grind.call("mail:digest", List.of("42", "--queue=default"), registry);
+int quiet = Grind.callSilently("schedule:run", List.of("--base=" + root));
+int listed = Grind.call("list");
+```
+
+</TabItem>
+</Tabs>
+
+### `Grind.call` 的解析
+
+重载接受 `name`、`args`、可选的 `CommandRegistry`、`basePath` 和 `ClassLoader` 的组合（全部 `@JvmStatic`）。
+
+1. 把可选注册表与给定加载器上的 `CommandDiscovery.registerAll` 合并。
+2. 如果合并后的注册表**有**该名称，通过 `CommandExecutor` 运行它（自定义命令路径：签名绑定、`--help`、`--isolated`）。
+3. 否则落到 `GrindApplication.run(name + args)`，这样**内置命令**（`serve`、`route:list`、`migrate`、`list` 等）仍然可用。
+
+`callSilently` 暂时用缓冲区替换 `System.out`，从而抑制正常的标准输出；**标准错误**仍然会露出 `GrindIO.error` / `ConsoleIO.error` 的错误。
+
+默认 `basePath` 是当前工作目录（绝对路径，已规范化）。默认加载器是 `Grind` 的类加载器。
+
+## 调度钩子
+
+在应用的 `Schedule` 上登记工作，然后用 Grind Console 运行到期任务：
+
+```bash
+./grind schedule:run
+./grind schedule:list
+./grind schedule:work --sleep=60 --max=1
+```
+
+这些命令在进程内启动应用（与 migrate 相同的加载器路径），并要求 `ScheduleServiceProvider`，以便绑定一个 `Schedule`。
+
+自定义 Grind Console 命令是普通进程：让调度回调指向一次 `./grind your:command` 的 shell 调用，或从调度器已经运行的代码里调用 `Grind.call`。对可隔离的 cron 风格命令，把调度与 `--isolated` 结合起来。
+
+完整指南：[任务调度](../../scheduling/)。
+
+## 测试
+
+用 `ConsoleTester` 捕获标准输出和退出码：
+
+```kotlin
+ConsoleTester()
+    .run("list")
+    .assertOk()
+    .assertSee("schedule:run")
+```
+
+见 [HTTP 与控制台测试](../../testing/http-console/#console-grind)。自定义命令要先编译应用，这样发现才能看到 `META-INF/kona/commands` 和 `build/classes`。
+
+## 生命周期速查
+
+| 步骤 | 运行什么 |
+|------|----------|
+| 解析参数 | 位置参数加选项映射；构建 `GrindIO.fromOptions` |
+| 发现 | grind 加载器上的 `CommandDiscovery`，加上可选的应用 `build/` 输出 |
+| 派发 | 内置的 `when` 分支，否则 `CommandRegistry.create` 加 `CommandExecutor` |
+| 自定义绑定 | 签名 → `CommandInput`；可选的隔离锁 |
+| 结束 | 来自内置 `run` / `handle()` / 帮助 / 错误的退出码 |
+
+## 陷阱
+
+- **目录不对** — 许多生成器按原样使用 `--base`；`serve` / `key:generate` / `kona grind` 向上走到 Gradle 根。
+- **安静的标准输出不等于安静的错误** — `-q` 和 `callSilently` 不会隐藏 `error(...)`。
+- **`Grind.call` 里只有注册表的名称** — 如果你传入注册表但**没有**把命令放在类加载器的 `META-INF` 上，那没问题；如果你只依赖 `META-INF`，要确保加载器能看到资源。
+- **内置帮助与自定义帮助** — 自定义命令上的 `--help` 很丰富；许多内置命令则通过异常或专用输出给出用法。
+
+## 下一步
+
+- [创建命令](../creating-commands/)
+- [控制台 IO 与提示](../console/)
+- [内置命令](../commands/)

@@ -1,0 +1,19 @@
+---
+title: steam
+description: 在已启动的 Kona 应用里使用的交互式 REPL。
+---
+
+`steam` 是 grind 的交互式 REPL。它在当前进程里启动应用，并对表达式求值。
+
+```bash
+./gradlew classes
+./grind steam [--bootstrap=bootstrap.App]
+```
+
+当 Kotlin 脚本引擎在类路径上时，`app` 会绑定进引擎。否则 steam 接受：
+
+- `config("some.key")`
+- `app`
+- 简单的整数运算（`1+2*3` 从左到右）
+
+输入 `:quit` 退出。
