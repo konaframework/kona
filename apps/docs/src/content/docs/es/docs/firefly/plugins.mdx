@@ -1,0 +1,74 @@
+---
+title: Plugins
+description: Amplía un panel con register y boot de FireflyPlugin, usando los mismos métodos que llama una aplicación.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un plugin es una clase que recibe el panel y llama a los mismos métodos que llamarías desde la app. Lo usas cuando un banner, una marca o una página extra deben viajar con el panel en lugar de copiarse en cada archivo `Panel`.
+
+No hay un registro de plugins ni un catálogo del que instalar. Pasas la instancia a `plugin(...)`. `register` corre de inmediato. `boot` corre cuando el panel se monta.
+
+<FireflyShot file="plugin-banner.png" description="Un cuerpo de panel con el texto Banner que un hook de plugin añade al final del cuerpo." />
+
+## Cómo se ejecuta
+
+`register` corre de inmediato, dentro de `plugin(...)`. `boot` corre cuando el panel se monta, antes de enrutar las páginas. Un segundo plugin con el mismo `id()` lanza `FireflyException` y nombra el id. `configureUsing` es el mismo hook estático que usan otros tipos de Firefly: corre sobre la instancia antes de `register`. Pasa `null` para limpiarlo. `view("plugins/banner.crema.html")` guarda una ruta de vista en el plugin. Una ruta en blanco lanza `Plugin view path is blank`. `view()` devuelve esa ruta, o null cuando nunca la definiste.
+
+El `id()` predeterminado es el nombre simple de la clase, en minúsculas.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class BannerPlugin : FireflyPlugin() {
+    override fun id(): String = "banner"
+
+    override fun register(panel: Panel) {
+        panel.hook(Hook.BODY_END, "<p>Banner</p>")
+    }
+
+    override fun boot(panel: Panel) {
+        panel.brand("Desk")
+    }
+}
+
+panel.plugin(BannerPlugin().view("plugins/banner.crema.html"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class BannerPlugin extends FireflyPlugin {
+    @Override
+    public String id() {
+        return "banner";
+    }
+
+    @Override
+    public void register(Panel panel) {
+        panel.hook(Hook.BODY_END, "<p>Banner</p>");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`Hook` vive en `org.konaframework.firefly.support`. Los marcadores de hook y los parciales están en [Cromo del panel](/docs/firefly/chrome/).
+
+## Métodos
+
+| Método | Qué hace |
+|--------|----------------|
+| `id()` | Nombre estable. Los ids duplicados fallan en `plugin` |
+| `view(path)` / `view()` | Guarda y lee una ruta de vista Crema |
+| `register(panel)` | Corre de inmediato |
+| `boot(panel)` | Corre al inicio de `mount` |
+| `configureUsing` | Hook estático para cada llamada posterior a `plugin(...)` |
+
+## Siguiente
+
+[Importar y exportar](/docs/firefly/import-export/) mueve filas mediante una acción de diálogo y un job de cola.

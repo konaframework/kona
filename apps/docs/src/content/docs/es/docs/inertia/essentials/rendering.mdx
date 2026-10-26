@@ -1,0 +1,81 @@
+---
+title: Renderizar páginas
+description: Sobrecargas de Inertia.render, props de página y la forma de InertiaPage.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## API de la fachada
+
+| Llamada | Comportamiento |
+|------|----------|
+| `Inertia.render(component)` | Props vacías; usa la petición actual del middleware |
+| `Inertia.render(component, props)` | Lo mismo con un mapa de props |
+| `Inertia.render(request, component)` | Petición explícita |
+| `Inertia.render(request, component, props)` | Petición explícita + props |
+
+Sin middleware (o `manager.setRequest`), las llamadas que omiten `request` lanzan `InertiaException`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Inertia.render("Pages/Users/Index", mapOf(
+    "users" to listOf(mapOf("id" to 1, "name" to "Ada")),
+))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Inertia.render("Pages/Users/Index", Map.of(
+    "users", List.of(Map.of("id", 1, "name", "Ada"))
+));
+```
+
+</TabItem>
+</Tabs>
+
+## Objeto de página
+
+Campos de `InertiaPage` serializados a JSON / `data-page`:
+
+| Campo | Significado |
+|-------|---------|
+| `component` | Nombre del componente cliente (p. ej. `Pages/Home`) |
+| `props` | Props fusionadas: compartidas + compartidas de la petición + locales |
+| `url` | `request.path` |
+| `version` | Versión del manager, o `null` cuando está vacía |
+
+Orden de fusión de props: **compartidas globales** → **compartidas por petición** (middleware) → **props locales** (ganan si la clave choca).
+
+## Nombres de componente
+
+La cadena `component` es opaca para Kona — se reenvía al cliente. Por convención el kit y los esqueletos de `./grind install` usan `Pages/Name` y resuelven archivos bajo `src/main/resources/js/Pages/Name.{vue,jsx,svelte}`. Mantén el nombre del servidor y del cliente alineados o el navegador lanzará «page not found».
+
+## Cuándo se elige HTML o JSON
+
+| Condición | Cuerpo |
+|-----------|------|
+| Sin cabecera de petición `X-Inertia` | Cáscara HTML raíz (`root_view` / `root_html`) con `data-page` |
+| `X-Inertia: true` y versión correcta | Objeto de página JSON |
+| `X-Inertia: true` y versión distinta | `409` (consulta [Versionado de assets](../../advanced/versioning/)) |
+
+No eliges el modo en el controlador — llama a `Inertia.render` igual en ambos casos; el middleware y el manager seleccionan la representación.
+
+## Petición perezosa o ausente
+
+```kotlin
+// Throws if middleware has not set the current request:
+Inertia.render("Pages/Home")
+
+// Explicit request (tests, unusual pipelines):
+Inertia.render(request, "Pages/Home", mapOf("ok" to true))
+```
+
+## Siguiente
+
+- [Peticiones y respuestas](../requests-responses/)
+- [Datos compartidos](../shared-data/)
+- [Tu primera página](../../guides/first-page/)

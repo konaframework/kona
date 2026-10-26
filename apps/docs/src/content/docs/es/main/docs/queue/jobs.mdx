@@ -1,0 +1,121 @@
+---
+title: Jobs y despacho
+description: Clases de job, retardo, cadenas, lotes, middleware y jobs únicos.
+---
+
+Un **job** es una clase (o lambda) con un método `handle()`. Márcalo `ShouldQueue` para que `Bus` lo empuje en lugar de ejecutarlo en línea.
+
+## Contratos de job
+
+Métodos opcionales de `JobContract`:
+
+- `tries()` — intentos antes de marcar el job como fallido (predeterminado `3`)
+- `backoffSeconds()` — retardo antes de un reintento (predeterminado `0`)
+- `displayName()` — etiqueta en los logs y en las listas de jobs fallidos
+
+Prefiere jobs **serializables con Jackson** (constructor público sin argumentos + propiedades legibles). Cada carga guarda una instantánea JSON `jobBody` para que otro proceso pueda restaurar el job sin una fábrica en memoria.
+
+## Despacho
+
+```kotlin
+val bus = app.resolve(Bus::class.java)
+
+bus.dispatch(SendInvoice())
+bus.dispatch(SendInvoice(), connection = "redis", queue = "mail")
+bus.later(delaySeconds = 60, job = SendInvoice())
+bus.dispatchSync(SendInvoice()) // always inline
+```
+
+```java
+bus.dispatch(new SendInvoice(), "redis", "mail", 0L);
+bus.later(60L, new SendInvoice());
+```
+
+`later` / `delaySeconds` pone `availableAt` en la carga. Los drivers array, Redis y database omiten el job hasta que pasa el retardo. El driver `sync` siempre corre de inmediato.
+
+## Cadenas
+
+Ejecuta jobs uno detrás de otro. El job siguiente se despacha solo después de que el `handle()` anterior tiene éxito.
+
+```kotlin
+bus.chain(ReserveStock(), ChargeCard(), SendReceipt()).dispatch()
+```
+
+Los workers enlazan un `WorkerContext` para que la cadena pueda continuar entre pops. Mantén los pasos de la cadena serializables si los workers corren en otros procesos.
+
+## Lotes
+
+Despacha un conjunto de jobs y luego ejecuta callbacks cuando el conjunto termina. Los workers registran éxito o fallo contra el lote a medida que cada job se completa.
+
+```kotlin
+val batch = bus.batch(JobA(), JobB(), JobC())
+    .name("fulfill-order")
+    .allowFailures() // optional: finish even if some jobs fail
+    .then { b -> /* all done (or allowed failures) */ }
+    .catch { b, err -> /* cancelled or hard failure */ }
+    .finally { b -> /* always */ }
+    .dispatch()
+
+batch.id
+batch.size()
+batch.progress() // 0.0 … 100.0
+batch.pendingJobs()
+batch.failedJobIds()
+batch.cancel()   // stop tracking; runs catch/finally
+```
+
+```java
+Batch batch = bus.batch(new JobA(), new JobB())
+    .name("fulfill-order")
+    .allowFailures()
+    .then(b -> { })
+    .onFinally(b -> { })
+    .dispatch();
+```
+
+### Repositorio de lotes
+
+Por defecto los lotes viven en memoria (`InMemoryBatchRepository`). Para conteos durables entre workers, pon:
+
+```
+queue.batch.driver=database
+queue.batch.table=job_batches
+```
+
+`QueueServiceProvider` crea una tabla `job_batches` (se exige `Database` de Cadence) y cablea `DatabaseBatchRepository`. Los callbacks (`then` / `catch` / `finally`) se quedan en el proceso de la JVM que despacha; las filas durables siguen totales, pendientes, fallos y banderas de terminado/cancelado.
+
+### Eventos de cola
+
+Hooks opcionales de todo el proceso mediante `QueueEvents.setDispatcher`:
+
+| Evento | Cuándo |
+|-------|------|
+| `BatchDispatched` | Lote guardado y jobs empujados |
+| `BatchJobSucceeded` / `BatchJobFailed` | Resultado por job |
+| `BatchFinished` | Lote completado o cancelado |
+| `JobQueued` / `JobProcessed` / `JobFailed` | Ciclo de vida de un job individual |
+
+## Middleware
+
+Implementa `HasMiddleware` y devuelve envoltorios `JobMiddleware`. El middleware corre de fuera hacia dentro alrededor de `handle()`.
+
+```kotlin
+class NotifyUsers : Job, ShouldQueue, HasMiddleware {
+    override fun middleware() = listOf(RateLimited(maxAttempts = 10, decaySeconds = 60, key = "notify"))
+    override fun handle() { /* … */ }
+}
+```
+
+Lanza `ReleaseJobException(delaySeconds)` para devolver el job a la cola **sin** contar un fallo (lo usa `RateLimited` cuando se pasa del límite).
+
+## Jobs únicos
+
+```kotlin
+class RebuildSearchIndex : Job, ShouldQueue, ShouldBeUnique {
+    override fun uniqueId() = "search-index"
+    override fun uniqueForSeconds() = 3600L
+    override fun handle() { /* … */ }
+}
+```
+
+Si el bloqueo único está tomado, el worker vuelve a encolar la carga y sigue.

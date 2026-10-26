@@ -1,0 +1,55 @@
+---
+title: Gramática Crema
+description: Gramática TextMate y configuración de lenguaje para plantillas Crema.
+---
+
+Las plantillas Crema son archivos HTML (o con sabor Kotlin) con **directivas** (`@extends`, `@section`, …), **ecos** (`{{ name }}`), **ecos crudos** (`{!! html !!}`) y **comentarios** (`{{-- note --}}`).
+
+La gramática vive en el repositorio de Kona para que cada editor pueda compartir una definición.
+
+## Archivos
+
+| Ruta | Propósito |
+|------|-----------|
+| `ide-support/crema/crema.tmLanguage.json` | Gramática TextMate (`scopeName`: `text.html.crema`) |
+| `ide-support/crema/crema.injection.tmLanguage.json` | Inyecta Crema en cadenas Java/Kotlin `template()` / `inline(` / `language=Crema` |
+| `ide-support/crema/crema.string-tokens.tmLanguage.json` | Colorea `{{`, directivas `@` y `wire:*` dentro de bloques de texto Java/Kotlin |
+| `ide-support/crema/language-configuration.json` | Comentarios de bloque, corchetes, marcadores de plegado |
+| `ide-support/crema/README.md` | Notas breves de empaquetado |
+
+Las palabras clave de directivas que reconoce la gramática coinciden con el conjunto integrado que usa **kona-lsp** (incluye `@extends`, `@section`, `@endsection`, `@show`, `@yield`, `@parent`, `@stack`, `@push`, `@endpush`, `@include`, `@includeIf`, `@includeWhen`, `@if`, `@else`, `@endif`, `@foreach`, `@endforeach`, `@slot`, `@endslot`, `@json`, `@csrf`).
+
+## Extensiones de archivo
+
+- `*.crema.html` — vistas Crema típicas bajo `src/main/resources/views/`
+- `*.crema.kt` — fuentes Crema opcionales con sabor Kotlin
+
+Los editores asocian ambas con el id de lenguaje `crema` mediante la [extensión de VS Code / Cursor](/docs/language/vscode).
+
+## Sincronizar con la extensión de VS Code
+
+La extensión copia la gramática a su propio árbol:
+
+```bash
+cd ide-support/vscode-crema
+node scripts/sync-grammar.js
+```
+
+Edita los archivos canónicos bajo `ide-support/crema/` y luego sincroniza antes de empaquetar la extensión.
+
+## Fragmento de ejemplo
+
+```html
+{{-- Layout home page --}}
+@extends('layouts.app')
+@section('title', 'Home')
+@section('content')
+  <h1>{{ title }}</h1>
+  @foreach(items as item)
+    <li>{{ item }}</li>
+  @endforeach
+  @csrf
+@endsection
+```
+
+El resaltado es solo cosmético — el runtime de Crema sigue interpretando y renderizando las plantillas en el servidor. Para nombres de directiva desconocidos mientras escribes, usa el [servidor de lenguaje](/docs/language/lsp).

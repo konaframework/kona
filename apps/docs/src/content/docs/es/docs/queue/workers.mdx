@@ -1,0 +1,49 @@
+---
+title: Workers
+description: Opciones de grind queue:work, tiempos límite y modo daemon.
+---
+
+Un **worker** saca payloads, restaura trabajos, ejecuta el middleware y `handle()`, y luego confirma el éxito, libera para reintentar o registra un trabajo fallido.
+
+```bash
+./grind queue:work
+./grind queue:work --connection=redis --queue=default
+./grind queue:work --once
+./grind queue:work --stop-when-empty --max=100
+./grind queue:work --daemon --sleep=3
+```
+
+## Banderas
+
+| Bandera | Significado |
+|---------|-------------|
+| `--connection=` | Nombre de la conexión de cola |
+| `--queue=` | Nombre de la cola en esa conexión |
+| `--max=` | Detenerse tras N intentos de proceso exitosos |
+| `--once` | Procesar como máximo un trabajo |
+| `--stop-when-empty` | Salir cuando la cola no tiene trabajos disponibles (predeterminado salvo `--daemon` / `--sleep`) |
+| `--daemon` | Seguir sondeando cuando está vacía |
+| `--sleep=` | Segundos de espera cuando está vacía en modo daemon |
+| `--timeout=` | Tiempo límite por trabajo en segundos (`0` lo desactiva) |
+| `--memory=` | Detenerse si el heap usado llega a estos MB (`0` lo desactiva) |
+| `--tries=` | Anula el número de intentos del trabajo |
+| `--backoff=` | Anula los segundos de espera en el reintento |
+
+De forma programática:
+
+```kotlin
+Worker(
+    manager,
+    connectionName = "array",
+    queueName = "default",
+    options = WorkerOptions(once = true, timeoutSeconds = 30),
+).run()
+```
+
+## steam
+
+Arranca la app con `./grind steam` y llama a `Bus` / `Worker` mientras desarrollas. Prefiere un proceso dedicado `queue:work` para cargas reales. En producción: ejecuta los workers como unidades systemd (N workers, un scheduler) — consulta [Escalado](../../guides/scaling/).
+
+## Reintentos
+
+Ante una excepción, si los intentos quedan por debajo de `tries`, el worker hace `release` del payload con `backoffSeconds` (vía `availableAt`). Si no, el fallo queda registrado — consulta [Trabajos fallidos](/docs/queue/failed-jobs/).

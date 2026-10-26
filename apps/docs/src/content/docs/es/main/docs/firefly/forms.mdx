@@ -1,0 +1,458 @@
+---
+title: Formularios
+description: Pon campos en un esquema, rellena el estado y renderiza el HTML. Select es un combobox hasta que llamas a native(). DateTimePicker es el selector propio hasta que llamas a native().
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Pon campos en un esquema cuando la pantalla necesita un nombre, un estado o una fecha de vencimiento. Rellena el esquema y luego `render()` devuelve el HTML. Wire y Alpine mantienen el valor sincronizado después de que carga la página.
+
+Los campos viven en `org.konaframework.firefly.forms` (`kona-firefly-forms`). Cada campo es un componente de esquema, así que se sienta en el mismo árbol que una sección o una pestaña y usa los mismos modificadores en vivo (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`). Coloca el esquema en una página, o renderízalo en una vista que ya tengas.
+
+En las muestras hello, la página Desk y el formulario de notas usan un campo de texto, un combobox de estado y un selector de fecha de vencimiento. Los archivos son `app/firefly/pages/Desk` y `app/firefly/resources/NoteResource`.
+
+## Añadir un campo de texto
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val name = TextInput.make("name")
+    .label("Name")
+    .required()
+    .live()
+val schema = Schema.make().components(name)
+schema.fill(mapOf("name" to "Ada"))
+val html = schema.render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput name = TextInput.make("name").label("Name").required();
+name.live();
+Schema schema = Schema.make().components(name);
+schema.fill(Map.of("name", "Ada"));
+String html = schema.render();
+```
+
+</TabItem>
+</Tabs>
+
+`make("name")` fija la clave de estado. `render()` envuelve el control en el cromo del campo: etiqueta, pista, prefijo, sufijo, texto de ayuda y un span con `x-data="ffField"` más `@entangle(name)`. Ves un campo Name relleno con Ada. Los campos en vivo también emiten `wire:model` en el envoltorio del esquema. Llama a `registerFirefly` y `registerFireflyForms` en la instancia de Alpine que la página ya arrancó. Deja `Alpine.start()` a esa instancia. Hasta que ese script corre, `@entangle(...)` todavía puede verse como texto en crudo en la página.
+
+`FormAssets.script()` y `FormAssets.stylesheet()` son el script del campo y el CSS del campo. La prosa de los editores de texto enriquecido y markdown usa el acento caramelo `#DF8723` a través de `--ff-primary`.
+
+La mayoría de los setters encadenables toman un valor fijo o un cierre. El cierre recibe `Get`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+name.label("Name")
+name.label { get -> if (get.get("/kind") == "org") "Organization" else "Name" }
+name.placeholder { "Ada Lovelace" }
+name.helperText("Shown on the invoice")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+name.label("Name");
+name.label(get -> "Organization");
+name.helperText("Shown on the invoice");
+```
+
+</TabItem>
+</Tabs>
+
+La última llamada gana. Una cadena sustituye un cierre, y un cierre sustituye una cadena.
+
+## Ayudantes de cada campo
+
+Estos métodos están en la base del campo. Cada campo concreto los tiene.
+
+| Método | Qué obtienes |
+|--------|----------------|
+| `label`, `heading`, `description` | Texto, o un cierre que devuelve texto |
+| `helperText`, `hint`, `hintColor`, `hintIcon` | Texto bajo o junto al control |
+| `placeholder` | Placeholder del input |
+| `prefix`, `suffix`, `prefixIcon`, `suffixIcon` | Texto o icono dentro del control |
+| `inlinePrefix`, `aboveContent`, `belowContent` | Cromo extra |
+| `required()`, `required(false)`, `required { get -> ... }` | Añade la regla `required`. Un campo obligatorio no es nullable |
+| `markAsRequired` | Muestra el asterisco sin la regla |
+| `nullable()` | Añade `nullable` y limpia `required` |
+| `readOnly`, `autofocus`, `autocomplete`, `autocapitalize`, `inputMode` | Atributos del input |
+| `distinct` | Los ítems del repeater rechazan un valor repetido |
+| `rule`, `rules` | Cadenas extra de regla de validación |
+| `validationAttribute` | Reescribe “The name field” a tu etiqueta |
+| `validationMessages` | Mensaje por nombre de regla |
+| `saved(false)` | Igual que `dehydrated(false)` |
+| `formatStateUsing`, `dehydrateStateUsing` | Cambia el valor escrito por `dehydrate()` |
+| `extraAttributes` | Atributos HTML fusionados en la raíz del componente. Un mapa o un cierre. Los nombres inválidos se saltan |
+| `extraInputAttributes` | Atributos HTML en el input, textarea, select o control del editor. Un mapa o un cierre. `type`, `name` y `value` siguen siendo del campo |
+
+`hidden`, `visible`, `live`, `liveOnBlur`, `liveDebounce` y `afterStateUpdated` se quedan en el componente de esquema. Llámalos en el campo. Devuelven la base del componente, así que en Java termina la cadena del campo antes de llamar a `live()`.
+
+`prefixAction`, `suffixAction` y `hintAction` toman un `Action`. Están en [Acciones en un campo](#actions-on-a-field).
+
+## Texto, etiquetas, color y mapas
+
+`TextInput` es un control de una sola línea. `email()`, `url()`, `numeric()`, `integer()`, `password()`, `tel()` y `type("search")` fijan el tipo de input y la regla de validación coincidente. `telRegex` sustituye el patrón de teléfono predeterminado. Llama a `telRegex` antes de `tel()` cuando quieras tu propio patrón.
+
+`revealable(true)` añade un botón de mostrar en las contraseñas. `copyable(true)` añade un botón de copiar. `mask`, `step`, `minValue`, `maxValue`, `minLength`, `maxLength`, `length`, `regex`, `notRegex` y `datalist` configuran el control. `stripCharacters("-")` o `stripCharacters { value -> value.trim() }` cambia el texto almacenado antes de renderizarlo.
+
+`unique("users", "email")` y `exists("users", "email")` añaden esas reglas. Sin un checker de base de datos fallan cerradas.
+
+`Textarea.make("body")` toma `rows`, `cols`, `autosize`, `minLength` y `maxLength`. `Hidden.make("token")` renderiza un input oculto y ninguna etiqueta.
+
+`TagsInput.make("tags")` parte una cadena en el separador (`,` de forma predeterminada) y renderiza un chip por etiqueta. `suggestions`, `splitKeys`, `reorderable` y `color` son opcionales. `tags(raw)` devuelve la lista.
+
+`ColorPicker.make("ink")` guarda un color. `hex()`, `rgb()` y `hsl()` eligen el formato y el patrón de validación.
+
+`Slider.make("volume")` predetermina 0–100 con paso 1. `minValue`, `maxValue`, `step`, `decimalPlaces` y `tooltips` lo ajustan. Los valores se acotan y se redondean.
+
+`KeyValue.make("meta")` edita un mapa de cadenas. `keyLabel`, `valueLabel`, `keyPlaceholder`, `valuePlaceholder` y `addActionLabel` aceptan una cadena o un cierre. `addable`, `deletable`, `editableKeys`, `editableValues` y `reorderable` conmutan los controles. `pairs(raw)` lee el mapa.
+
+`Placeholder.make("note").content("Thanks")` renderiza HTML y no deshidrata. `content { get -> "Hello" }` es la forma de cierre. `saved(true)` vuelve a activar la deshidratación.
+
+`ViewField.make("bio").viewName("bios.card")` renderiza una vista Crema cuando el esquema tiene un motor. La vista recibe el camino de estado. Sin motor el campo emite `data-ff-view`.
+
+## Opciones
+
+`Select` renderiza un combobox (`ff-combobox`). Llama a `.native()` cuando quieras un `<select>` nativo. En Java el método es `useNative(true)`, porque `native` es una palabra clave. `.native(false)` y `useNative(false)` conservan el combobox. El campo de estado de la página Desk es el combobox: Open y Done.
+
+<FireflyShot file="form-combobox.png" description="El campo de estado de la página Desk en http://127.0.0.1:4017/admin/desk, abierto como combobox con Open y Done." />
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val status = Select.make("status")
+    .options(mapOf("open" to "Open", "done" to "Done"))
+    .searchable(true)
+    .placeholder("Pick one")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Select status = Select.make("status")
+    .options(Map.of("open", "Open", "done", "Done"))
+    .searchable(true)
+    .placeholder("Pick one");
+```
+
+</TabItem>
+</Tabs>
+
+Llama a `.native()` en ese mismo campo cuando el control deba ser un select plano:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Select.make("status")
+    .options(mapOf("open" to "Open", "done" to "Done"))
+    .native()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Select.make("status")
+    .options(Map.of("open", "Open", "done", "Done"))
+    .useNative(true);
+```
+
+</TabItem>
+</Tabs>
+
+<FireflyShot file="form-native-select.png" description="El campo de estado del formulario Desk en http://127.0.0.1:4017/admin/desk, renderizado con native() como un select nativo de Open y Done." />
+
+`options { get -> mapOf("a" to "A") }` carga opciones desde un cierre. `optionsFrom(records, "title", "id")` lee una lista de mapas. `boolean()` usa Yes y No. `multiple(true)`, `preload`, `optionsLimit`, `maxItems`, `searchDebounce`, `position` y las cadenas de carga, búsqueda, vacío y aviso de búsqueda configuran el combobox. `getOptionLabelUsing` y `getSearchResultsUsing` sustituyen la etiqueta y la búsqueda. `disableOptionWhen` desactiva una opción. `allowHtml(true)` conserva HTML en la etiqueta de una opción nativa.
+
+`descriptions` añade una línea bajo cada opción. Una lista estática de opciones añade una regla `in:` cuando el campo no es múltiple y los valores no contienen ni una coma ni una tubería.
+
+`extraAttributes` cae en la raíz del campo. `extraInputAttributes` cae en el control select. `type`, `name` y `value` siguen siendo del campo.
+
+## Cargar opciones desde una relación
+
+`relationship(name, titleAttribute)` lee los registros relacionados del registro del esquema. `name` es la relación. `titleAttribute` es el campo de etiqueta. Pasa un cierre como `modifyQueryUsing` cuando necesites estrechar la consulta. `getOptionLabelFromRecordUsing` sustituye la etiqueta por un valor tomado de cada registro.
+
+Pon el modelo dueño en el esquema con `record(...)` antes de que se lean las opciones. Cuando el modelo relacionado es un modelo Cadence, el cierre recibe un `ModelBuilder`, así que `where`, `whereHas`, `join`, `with` y los ámbitos corren en ese builder. Cuando el modelo relacionado no es un modelo Cadence, el cierre recibe la consulta propia de ese modelo. `.native()` sigue optando por `<select>`. El predeterminado sigue siendo el combobox.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Select.make("authorId")
+    .relationship("author", "name") { query ->
+        val authors = query as ModelBuilder<Author>
+        authors.where("active", true).whereHas("posts") { posts ->
+            posts.where("title", "Yes")
+        }
+    }
+    .getOptionLabelFromRecordUsing { record ->
+        "Dr " + (record as Author).getAttribute("name")
+    }
+    .extraAttributes(mapOf("data-field" to "author"))
+    .extraInputAttributes(mapOf("data-ff-extra" to "1"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Select.make("authorId")
+    .relationship("author", "name", query -> { })
+    .getOptionLabelFromRecordUsing(record -> "Ada")
+    .extraAttributes(Map.of("data-field", "author"))
+    .extraInputAttributes(Map.of("data-ff-extra", "1"));
+```
+
+</TabItem>
+</Tabs>
+
+`createOptionForm` y `createOptionUsing` abren un `Dialog` de apoyo y crean una opción a partir del mapa enviado. Un envoltorio de acción alrededor de ese diálogo es `createOptionAction`.
+
+`Checkbox`, `Toggle`, `Radio`, `CheckboxList` y `ToggleButtons` son los otros campos de opción. `accepted()` en un checkbox añade la regla `accepted`. `Toggle` toma colores e iconos de encendido y apagado. `Radio.boolean()` y `ToggleButtons.boolean()` usan Yes y No. `CheckboxList.relationship(name, titleAttribute)` carga opciones igual que un select. `CheckboxList.optionColumns` fija la rejilla (`columns` en la base del componente es aparte). `bulkToggleable` añade un botón de seleccionar todo.
+
+## Fechas y horas
+
+`DatePicker`, `TimePicker` y `DateTimePicker` son un componente con fecha, hora o ambas. El control predeterminado es el selector propio de Firefly: una rejilla de mes y, cuando el campo tiene hora, selectores de hora y minuto. No hay una biblioteca de fechas de terceros. El campo de vencimiento de la página Desk es ese selector.
+
+<FireflyShot file="form-date-picker.png" description="El campo de vencimiento de la página Desk en http://127.0.0.1:4017/admin/desk, abierto como la rejilla de mes propia con controles de hora y minuto." />
+
+`.native()` (Java: `useNative(true)`) cambia a `type="date"`, `type="time"` o `type="datetime-local"`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DateTimePicker.make("due").native()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DateTimePicker.make("due").useNative(true);
+```
+
+</TabItem>
+</Tabs>
+
+<FireflyShot file="form-native-date.png" description="El campo de vencimiento del formulario Desk en http://127.0.0.1:4017/admin/desk, renderizado con native() como un input datetime-local nativo." />
+
+Los valores de servidor usan `java.time`. Un valor solo de fecha se queda en la zona de la aplicación (`FieldClock.appZone`). Una fecha-hora usa la `timezone` del campo. `LocalDate` y `LocalDateTime` se escriben con el formato de almacenamiento (`Y-m-d`, `H:i` o `Y-m-d H:i`). `seconds(true)` añade segundos. `displayFormat` es lo que muestra el input de texto.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val day = DatePicker.make("day")
+    .minDate("2024-03-01")
+    .maxDate { "2024-03-31" }
+    .weekStartsOnMonday()
+    .disabledDates(listOf("2024-03-10"))
+day.normalize(LocalDate.of(2024, 3, 10)) // "2024-03-10"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DateTimePicker day = DatePicker.make("day").useNative(false).minDate("2024-03-01");
+day.normalize(LocalDate.of(2024, 3, 10));
+```
+
+</TabItem>
+</Tabs>
+
+`firstDayOfWeek` es 0 (domingo) o 1 (lunes). `hoursStep`, `minutesStep` y `secondsStep` deben quedarse dentro de sus rangos. `defaultFocusedDate` abre la rejilla en ese día. `FieldClock.pinToday` fija «hoy» en las pruebas.
+
+## Texto enriquecido, markdown y código
+
+`RichEditor` emite una superficie TipTap: una barra de herramientas agrupada y pegajosa, un menú burbuja y un cuerpo `.ff-prose`. Enlace, imagen y bloques personalizados abren el `Dialog` de apoyo. `json()` guarda JSON. El predeterminado es HTML, pasado por un sanitizador que quita scripts, estilos, iframes, atributos `on*` y URLs `javascript:`. `disableToolbarButtons`, `mergeTags`, `mentions` y `customBlocks` configuran la barra. Los adjuntos de archivo nombran un disco y un directorio. `editBlockAction` renderiza un `Action` para un bloque personalizado. El control de edición del bloque sigue abriendo el `Dialog` de apoyo.
+
+`MarkdownEditor` es un par Escribir | Vista previa. Escribir usa CodeMirror con el lenguaje markdown. La vista previa renderiza un subconjunto al estilo de GitHub (cercas, tablas, listas, listas de tareas, encabezados, enlaces, imágenes) en la misma clase `.ff-prose` y luego lo sanitiza.
+
+`CodeEditor` usa CodeMirror 6 y el conjunto de lenguajes Shiki. `language("kotlin")` selecciona la gramática. `CodeEditor.languages()` lista los ids que viajan con el módulo. `wrap(true)` envuelve las líneas largas. Este editor no es una superficie de texto enriquecido.
+
+El script de la página busca `FilePond` y un objeto `FireflyEditors` (TipTap, CodeMirror, Shiki, markdown-it). Cuando esos scripts están en la página, el campo los monta. La ruta de subida sigue publicando si FilePond está ausente.
+
+## Subidas
+
+`FileUpload` publica en `POST /_firefly/uploads` a través del sistema de archivos. Registra la ruta una vez:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+FireflyUploads.register(router, UploadDisks { name -> filesystems.disk(name) })
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FireflyUploads.register(router, name -> filesystems.disk(name));
+```
+
+</TabItem>
+</Tabs>
+
+El manejador escribe `firefly-temporary/{id}.ext` más un archivo hermano `.ffmeta` con el nombre original, y luego devuelve JSON `{ "path", "name" }`. `commit(schema, disks)` copia el archivo temporal en `directory()` (o lo mueve cuando `moveFiles(true)` está fijado), aplica `preserveFilenames` o `getUploadedFileNameForStorageUsing` y guarda el camino final en el campo. `storeFileNamesIn` escribe los nombres originales en otro camino de estado. `storeFiles(false)` deja el camino temporal en su sitio.
+
+`image()` acepta tipos de imagen. `avatar()` también enciende el editor de imagen, una disposición compacta y un recorte 1:1 cuando no has fijado relaciones de aspecto. El editor es el editor de imagen de FilePond. `maxSize` y `minSize` son kilobytes. `minFiles` y `maxFiles` cuentan archivos. `acceptedFileTypes` toma `image/*`, un tipo mime, `.png` o una extensión suelta.
+
+`preventFilePathTampering(true)` rechaza `..`, caminos absolutos, archivos `.ffmeta` y caminos fuera del directorio o de `firefly-temporary/`. Monta `VerifyCsrfToken` de `kona-session` en `POST /_firefly/uploads`. El script del campo envía `X-CSRF-TOKEN` desde una meta `csrf-token` y `_token`. Pasa un checker como tercer argumento de `register` cuando quieras que la propia ruta rechace un token malo.
+
+`browse` y `browseAction` listan archivos ya almacenados en el disco. Están en [Examinar archivos almacenados](#browsing-stored-files).
+
+## Repeater y builder
+
+`Repeater.make("members").simple(TextInput.make("name").required())` edita una lista de mapas. `schema(...)` sustituye el plano del ítem. `addItem`, `removeItem`, `cloneItem` y `moveItem` actualizan el estado del esquema y ejecutan `afterStateUpdated`. `orderColumn("sort")` escribe posiciones con base 1. `itemLabel` es una cadena o una función del índice y `Get`. `grid`, `minItems`, `maxItems`, `defaultItems`, `collapsible` y `collapsed` cambian la disposición. `relationship("members")` guarda el nombre de la relación en el repeater. No carga registros relacionados por sí mismo.
+
+`Builder.make("blocks").blocks(BuilderBlock("hero", "Hero", listOf(TextInput.make("title"))))` edita una lista de bloques tipados. `addBlock(schema, "hero")` añade uno. `blockNumbers(true)` prefija la etiqueta con el índice. `addBetweenAction` renderiza una acción entre bloques.
+
+## Validar
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val errors = FieldValidation.validate(schema, schemaRoots)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Map<String, List<String>> errors = FieldValidation.validate(schema, List.of(name));
+```
+
+</TabItem>
+</Tabs>
+
+El recorrido salta nodos de disposición, campos ocultos, campos con `dehydrated(false)` y campos con un camino vacío. Las reglas pasan por el validador HTTP. Un `validationAttribute` personalizado reescribe el nombre del campo en el mensaje. Se fusionan los `extraErrors` de una subida de archivo o de un repeater. `unique` y `exists` fallan cerradas hasta que se configura un checker.
+
+## Generar un campo
+
+Desde el directorio de la aplicación:
+
+```bash
+./grind make:firefly-field Price
+./grind make:firefly-field Note --lang=java
+```
+
+El comando escribe una clase que extiende la base del campo y una vista Crema con `x-data="ffField"` y `@entangle`. Kotlin es el predeterminado. `--lang=java` escribe una subclase Java. Los archivos caen bajo `fields/`. Referencia la clase desde una página o un recurso. `discover` no escanea esa carpeta.
+
+## Acciones en un campo
+
+Los botones de prefijo, sufijo y pista son valores `Action` de `org.konaframework.firefly.actions`. El campo renderiza la acción junto a esa pieza de cromo.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextInput.make("title")
+    .prefixAction(Action.make("prefix").label("Prefix"))
+    .suffixAction(Action.make("suffix").label("Suffix"))
+    .hintAction(Action.make("hint").label("Hint"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput.make("title")
+    .prefixAction(Action.make("prefix").label("Prefix"))
+    .suffixAction(Action.make("suffix").label("Suffix"))
+    .hintAction(Action.make("hint").label("Hint"));
+```
+
+</TabItem>
+</Tabs>
+
+Un repeater renderiza acciones de añadir, borrar, clonar y de ítem extra junto a los controles del ítem:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Repeater.make("rows")
+    .addAction(Action.make("addRow").label("Add"))
+    .deleteAction(Action.make("deleteRow").label("Delete"))
+    .cloneAction(Action.make("cloneRow").label("Clone"))
+    .extraItemActions(Action.make("extraRow").label("Extra"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Repeater.make("rows")
+    .addAction(Action.make("addRow").label("Add"))
+    .deleteAction(Action.make("deleteRow").label("Delete"))
+    .cloneAction(Action.make("cloneRow").label("Clone"))
+    .extraItemActions(Action.make("extraRow").label("Extra"));
+```
+
+</TabItem>
+</Tabs>
+
+`Builder.addBetweenAction` renderiza una acción entre bloques. Un bloque personalizado de texto enriquecido conserva su `Dialog` y también puede llevar `editBlockAction`, que renderiza un `Action` para ese bloque. `Select.createOptionAction` hace lo mismo para el botón de crear opción. `createOptionForm` y `createOptionUsing` siguen ejecutando el flujo de creación.
+
+## Elegir un registro de una tabla
+
+`ModalTableSelect` aloja una `Table`. `choose` conmuta una clave de registro y guarda la selección en el campo. `multiple(true)` guarda cada clave seleccionada.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val people = Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+ModalTableSelect.make("person").table(people)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Table<Map<String, Object>, MemoryQuery> people =
+    Table.memory(List.of(Map.of("id", "1", "name", "Ada"))).columns(TextColumn.make("name"));
+ModalTableSelect.make("person").table(people);
+```
+
+</TabItem>
+</Tabs>
+
+`MorphToSelect` asigna un nombre de tipo a un almacén de registros. `selectType` guarda `type` e `id`. `optionsFor` lista ese tipo, y `modifyQueryUsing` estrecha la consulta.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+MorphToSelect.make("link").titleAttribute("name").type("posts", posts)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+MorphToSelect.make("link").titleAttribute("name").type("posts", posts);
+```
+
+</TabItem>
+</Tabs>
+
+## Examinar archivos almacenados
+
+`FileUpload.browseAction` renderiza una acción junto a la subida. `browse(disk)` lista archivos ya almacenados bajo `directory()` y salta los caminos `*.ffmeta`. `chooseBrowsed` escribe el camino elegido en el mismo estado del campo. Renombrar y borrar carpetas almacenadas no son métodos de este campo.

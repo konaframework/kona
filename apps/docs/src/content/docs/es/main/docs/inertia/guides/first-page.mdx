@@ -1,0 +1,126 @@
+---
+title: Tu primera página
+description: De la ruta a la cáscara HTML y al JSON de Inertia — un recorrido completo de la petición con Kotlin y Java.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Este recorrido supone que [Instalación](../installation/) está hecha: provider, middleware, vista raíz y un cliente Vite que resuelve `Pages/*`.
+
+## 1. Renderizar desde una ruta
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/") {
+    Inertia.render(
+        "Pages/Welcome",
+        mapOf(
+            "title" to "Hello",
+            "message" to "First Inertia page",
+        ),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/", request ->
+    Inertia.render(
+        "Pages/Welcome",
+        Map.of(
+            "title", "Hello",
+            "message", "First Inertia page"
+        )
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+`Inertia.render` exige una petición actual (puesta por `HandleInertiaRequests`) salvo que pases el `Request` de forma explícita. Consulta [Renderizar páginas](../../essentials/rendering/).
+
+## 2. Primera visita (HTML completo)
+
+El navegador navega a `/` **sin** cabecera `X-Inertia`.
+
+1. El middleware pone la petición en `InertiaManager`, fusiona las props compartidas y comprueba la versión (ninguna en la primera carga del documento).
+2. Tu ruta devuelve una respuesta Inertia.
+3. El manager construye un `InertiaPage` y renderiza la vista Crema raíz (`inertia.root_view`) con:
+   - `pageAttr` — JSON del objeto de página escapado para HTML
+   - `vite` — etiquetas script/link del punto de entrada del cliente
+4. La respuesta es `text/html`.
+
+Inspecciona `#app`:
+
+```html
+<div
+  id="app"
+  data-page="{&quot;component&quot;:&quot;Pages/Welcome&quot;,&quot;props&quot;:{&quot;title&quot;:&quot;Hello&quot;,…},&quot;url&quot;:&quot;/&quot;,&quot;version&quot;:&quot;1&quot;}"
+></div>
+```
+
+El punto de entrada Vue/React/Svelte hidrata ese JSON en `Pages/Welcome`.
+
+## 3. Visita Inertia (JSON)
+
+Después de que el cliente está montado, un enlace Inertia o `router.visit` envía:
+
+```http
+GET / HTTP/1.1
+X-Inertia: true
+X-Inertia-Version: 1
+Accept: text/html, application/xhtml+xml
+X-Requested-With: XMLHttpRequest
+```
+
+(Las cabeceras exactas del cliente dependen del adaptador; `X-Inertia: true` es obligatorio para el modo JSON.)
+
+Comportamiento del servidor:
+
+1. La cabecera de versión coincide → continúa.
+2. La ruta renderiza el mismo `Inertia.render(…)`.
+3. El cuerpo de la respuesta es JSON (no la cáscara Crema):
+
+```json
+{
+  "component": "Pages/Welcome",
+  "props": { "title": "Hello", "message": "First Inertia page" },
+  "url": "/",
+  "version": "1"
+}
+```
+
+Las cabeceras incluyen `X-Inertia: true`, `Vary: X-Inertia` y `X-Inertia-Version` cuando hay una versión configurada.
+
+## 4. Conflicto de versión
+
+Si el cliente envía un `X-Inertia-Version` viejo, el middleware devuelve **409** para que el adaptador pueda forzar una recarga completa y recoger los assets nuevos. Configura `inertia.version` (o anula `version(request)` en tu middleware). Consulta [Versionado de assets](../../advanced/versioning/).
+
+## 5. Props compartidas
+
+Los mensajes flash, el usuario de auth y las URL al estilo ziggy van en `share(request)` del middleware o en `Inertia.share(…)` — no en cada controlador. Consulta [Datos compartidos](../../essentials/shared-data/).
+
+## 6. Componente de página del cliente
+
+Haz coincidir el nombre del servidor. Ejemplo Vue (`js/Pages/Welcome.vue`):
+
+```vue
+<script setup>
+defineProps({ title: String, message: String });
+</script>
+<template>
+  <h1>{{ title }}</h1>
+  <p>{{ message }}</p>
+</template>
+```
+
+## Siguiente
+
+- [Clientes frontend](../frontend/) — detalles de montaje por pila
+- [Peticiones y respuestas](../../essentials/requests-responses/) — cabeceras y códigos de estado
+- [Redirecciones externas](../../advanced/redirects/) — `Inertia.location`

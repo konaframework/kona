@@ -1,0 +1,192 @@
+---
+title: Conexiones de base de datos
+description: Configura conexiones JDBC para H2, SQLite, MySQL, MariaDB, PostgreSQL, Oracle y SQL Server; claves de entorno; kona new --database; dialectos y drivers.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Cadence habla con bases de datos relacionales mediante **JDBC**. Una **conexión** es un pool con nombre (HikariCP) más reglas de entrecomillado de identificadores y de dialecto de consulta. Los modelos, el constructor de consultas y la fachada `DB` usan el gestor `Database` **global** que `CadenceServiceProvider` construye a partir de tu configuración `database`.
+
+Esta página cubre la profundidad de la configuración: cada clave de entorno, cada motor de primera parte, los valores predeterminados de producción frente a local, las conexiones con nombre del andamiaje y cómo enchufar una base de datos que Cadence aún no especializa.
+
+## Cómo se carga la configuración
+
+1. Tu app registra un `ConfigFile` cuyo `key()` es `"database"` (andamiaje: `config/Database.kt` o `config/Database.java`).
+2. `CadenceServiceProvider` llama a `Database.fromConfig(app.config)`, enlaza el gestor en el contenedor (`Database` y el alias `db`) y, al arrancar, llama a `setAsGlobal()`.
+3. Si la sección `database` **no** tiene conexiones y `DB_URL` está en el entorno (o en `.env`), Cadence construye una sola conexión a partir de las variables `DB_*`.
+
+### Claves del mapa de conexión
+
+| Clave | Equivalente de entorno | Significado |
+|-----|----------------|---------|
+| `url` | `DB_URL` | URL JDBC (obligatoria) |
+| `username` | `DB_USERNAME` | Usuario de inicio de sesión |
+| `password` | `DB_PASSWORD` | Contraseña |
+| `driver` | `DB_DRIVER` | Alias de motor (`sqlite`, `h2`, `mysql`, `mariadb`, `pgsql`, `sqlsrv`, `oracle`) o una clase JDBC (`org.sqlite.JDBC`). El andamiaje usa alias; Cadence los mapea antes de abrir el pool. Omítelo o déjalo en blanco para que Hikari cargue el driver desde la URL JDBC. |
+| `pool_size` / `poolSize` | `DB_POOL_SIZE` | Tamaño máximo del pool de Hikari (predeterminado `10`) |
+| `quote_identifiers` / `quoteIdentifiers` | `DB_QUOTE_IDENTIFIERS` | Entrecomillar nombres de tabla/columna (predeterminado `true`) |
+
+`database.default` puede ser un **nombre de conexión** (`"main"`, `"pgsql"`, …) seleccionado por `DB_CONNECTION`, o raramente un **mapa de conexión en línea**.
+
+Claves de entorno de ayuda que usan las conexiones con nombre del andamiaje (cuando no pones una `DB_URL` completa):
+
+| Clave | La usan |
+|-----|---------|
+| `DB_HOST` | mysql, mariadb, pgsql, sqlsrv, oracle |
+| `DB_PORT` | las mismas |
+| `DB_DATABASE` | nombre de la base de datos / servicio |
+
+## Por qué las apps nuevas predeterminan SQLite
+
+`kona new` pone `DB_CONNECTION=sqlite` y añade el driver JDBC de SQLite al classpath (`runtimeOnly("org.xerial:sqlite-jdbc:…")`) para que una app nueva corra **sin instalar un servidor de base de datos**:
+
+```text
+jdbc:sqlite:storage/database/database.sqlite
+```
+
+- El archivo vive en **`storage/database/database.sqlite`** (no bajo `src/.../database`, que guarda migraciones y seeders).
+- Cada proceso `./grind` (migrate, seed, serve) abre el mismo archivo, así que el esquema y los datos sembrados persisten entre comandos.
+- Los andamiajes crean `storage/database/.gitkeep`; `storage/database/*` está en gitignore (incluido el archivo SQLite).
+
+Usa `kona new --database=h2` para H2 de archivo (`storage/database/kona` + `AUTO_SERVER`). Usa `jdbc:h2:mem:…` solo en **pruebas unitarias**.
+
+**Las apps de producción deben apuntar `DB_CONNECTION` / `DB_URL` a PostgreSQL, MySQL/MariaDB u otro motor de primera parte.**
+
+## Motores de primera parte
+
+Cadence envía dialectos de consulta y gramáticas de esquema dedicados para estos motores. **De forma predeterminada** eso significa dialectos, conexiones con nombre del andamiaje, coordenadas del BOM y `kona new --database=` — no cada JAR JDBC en el classpath de cada app.
+
+| Motor | Nombre de conexión | URL JDBC típica | Entrecomillado | Notas de esquema |
+|--------|-----------------|------------------|---------|--------------|
+| **SQLite** | `sqlite` | `jdbc:sqlite:storage/database/database.sqlite` (predeterminado del andamiaje) | `"…"` | `INTEGER PRIMARY KEY AUTOINCREMENT`; alter es solo ADD/DROP de columna + índices |
+| **H2** | `main` / `h2` | `jdbc:h2:file:…` (`--database=h2`); `jdbc:h2:mem:…` (pruebas) | `"…"` | `TEXT` → `CHARACTER VARYING` |
+| **MySQL** | `mysql` | `jdbc:mysql://…` | `` `…` `` | `AUTO_INCREMENT`, `LONGTEXT`, `TINYINT(1)` |
+| **MariaDB** | `mariadb` | `jdbc:mariadb://…` | `` `…` `` | La misma familia DDL que MySQL; detección de producto distinta |
+| **PostgreSQL** | `pgsql` | `jdbc:postgresql://…` | `"…"` | IDs de identidad, `JSONB`, `DROP INDEX IF EXISTS` |
+| **Oracle** | `oracle` | `jdbc:oracle:thin:@//…` | `"…"` | `VARCHAR2`, identidad, `NUMBER(1)`, drop-if-exists en PL/SQL |
+| **SQL Server** | `sqlsrv` | `jdbc:sqlserver://…` | `[…]` | `IDENTITY`, `NVARCHAR`, `DROP INDEX … ON table`, `OFFSET/FETCH` |
+
+Los dialectos de consulta también cubren limit/offset (incluido `OFFSET … FETCH` de SQL Server / Oracle), bloqueos (`FOR UPDATE` / share / hints de tabla de SQL Server), ayudantes de parte de fecha, upsert nativo (`ON CONFLICT`, `ON DUPLICATE KEY`, `MERGE`) y estrategias de clave generada / returning donde el driver las admite.
+
+### Elegir un motor con `kona new`
+
+```bash
+kona new shop
+kona new shop --database=pgsql
+kona new shop --database=h2 --lang=java
+```
+
+Valores aceptados: `sqlite` (**predeterminado**), `h2`, `mysql`, `mariadb`, `pgsql` (alias: `postgres`, `postgresql`, `pg`), `sqlsrv` (alias: `sqlserver`, `mssql`), `oracle`.
+
+La bandera pone `DB_CONNECTION` y `DB_URL`, y añade la coordenada JDBC `runtimeOnly` coincidente junto a SQLite cuando el motor no es el predeterminado del andamiaje.
+
+### Conexiones con nombre del andamiaje
+
+El `config/Database` generado incluye mapas para `main`, `h2`, `sqlite`, `mysql`, `mariadb`, `pgsql`, `sqlsrv` y `oracle`. Cambia con el entorno **y** pon el JAR JDBC de ese motor en el classpath. `kona new --database=pgsql` hace ambas cosas. Cambiar solo `DB_CONNECTION` después de un andamiaje SQLite no lo hace — Cadence entonces falla con una línea `runtimeOnly("org.postgresql:postgresql:…")` que puedes pegar en `build.gradle.kts`, y luego vuelve a ejecutar `./grind migrate`.
+
+```bash
+DB_CONNECTION=pgsql
+DB_URL=jdbc:postgresql://127.0.0.1:5432/kona
+DB_USERNAME=kona
+DB_PASSWORD=secret
+```
+
+O apóyate en los ayudantes de host/puerto/base de datos sin una URL completa (consulta el archivo de configuración generado). Después de añadir la coordenada `runtimeOnly`, Gradle la recoge en el siguiente `./grind` (la tarea `konaClasspath`).
+
+### Coordenadas de drivers
+
+Las versiones recomendadas están fijadas en el catálogo de versiones / `kona-bom`. Ejemplos:
+
+```kotlin
+dependencies {
+    // Always present from kona new (zero-install default):
+    runtimeOnly("org.xerial:sqlite-jdbc:3.49.1.0")
+    // Added automatically by --database=…, or add by hand:
+    runtimeOnly("com.h2database:h2:2.3.232")
+    runtimeOnly("org.postgresql:postgresql:42.7.5")
+    runtimeOnly("com.mysql:mysql-connector-j:9.2.0")
+    runtimeOnly("org.mariadb.jdbc:mariadb-java-client:3.5.2")
+    runtimeOnly("com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11")
+    runtimeOnly("com.oracle.database.jdbc:ojdbc11:23.7.0.25.01")
+}
+```
+
+## Usar conexiones en código
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.Database
+
+DB.table("users").where("active", true).get()
+
+DB.transaction { connection ->
+    connection.table("accounts").where("id", 1).decrement("balance", 50)
+    connection.table("accounts").where("id", 2).increment("balance", 50)
+}
+
+Database.global().connection("pgsql").table("facts").count()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.DB;
+import org.konaframework.cadence.Database;
+
+DB.table("users").where("active", true).get();
+
+DB.transaction(connection -> {
+    connection.table("accounts").where("id", 1).decrement("balance", 50);
+    connection.table("accounts").where("id", 2).increment("balance", 50);
+    return null;
+});
+
+Database.global().connection("pgsql").table("facts").count();
+```
+
+</TabItem>
+</Tabs>
+
+Los modelos usan la conexión predeterminada global salvo que el modelo anule `connectionName`.
+
+Fuera de una app (scripts, pruebas), construye un gestor y llama a `setAsGlobal()`:
+
+```kotlin
+Database()
+    .addConnection("default", ConnectionConfig("jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"))
+    .setAsGlobal()
+```
+
+También puedes pasar un `javax.sql.DataSource` existente y una `Grammar` explícita:
+
+```kotlin
+database.addConnection("raw", myDataSource, Grammar.POSTGRES)
+```
+
+## Límites de alter en SQLite
+
+SQLite no puede remodelar tablas con libertad como los motores de servidor. La gramática de esquema SQLite de Cadence emite **ADD COLUMN**, **DROP COLUMN** (SQLite 3.35+) y DDL de índices en alter; **no** reescribe claves foráneas sobre una tabla existente en un solo `ALTER`. Prefiere restricciones en el momento de crear para SQLite, o reconstruye la tabla en una migración propia cuando necesites una remodelación completa.
+
+## Añadir una base de datos que Cadence no especializa
+
+1. **Entrecomillado de identificadores de consulta** (`Grammar`) — registra un prefijo de URL con `Grammar.registerUrlPrefix`.
+2. **DDL de esquema** (`SchemaGrammar`) — subclasifica y `SchemaGrammar.registerProduct` para el nombre de producto JDBC.
+
+`Grammar.forUrl` / `SchemaGrammar.forProduct` eligen primero los integrados y luego los registros. Gana el prefijo de URL más largo.
+
+## Transacciones y pools
+
+- `DB.transaction { … }` liga una conexión JDBC al hilo actual; el trabajo anidado se une a la misma transacción.
+- Los pools se abren **de forma perezosa** en el primer uso. `Database.close()` cierra los pools abiertos; la configuración permanece para que la siguiente consulta pueda reconectar.
+- `disconnect(name)` cierra un pool con nombre sin olvidar su configuración.
+
+## Guías relacionadas
+
+- [Visión general de Cadence](./) — capas y vocabulario
+- [Constructor de consultas](./query-builder/) — SQL fluido
+- [Migraciones](./migrations/) — DSL de esquema y `./grind migrate`
+- [Modelos](./models/) — modelos active-record sobre las conexiones

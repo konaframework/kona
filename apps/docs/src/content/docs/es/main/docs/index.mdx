@@ -1,0 +1,63 @@
+---
+title: Documentación
+description: Guías progresivas y referencia del framework web JVM Kona — desde la primera instalación hasta HTTP, seguridad, Cadence y herramientas.
+template: splash
+hero:
+  tagline: Empieza simple y luego profundiza — primero HTTP y Crema, después el interior del contenedor, seguridad, Cadence y paquetes.
+  actions:
+    - text: Instalación
+      link: guides/installation/
+      icon: right-arrow
+      variant: primary
+    - text: Introducción
+      link: guides/introduction/
+      icon: document
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/konaframework/kona
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+Este es el centro de documentación de **Kona**. La página de marketing vive en la raíz del sitio; todo lo de abajo es cómo construir con el framework.
+
+Kona arranca una **aplicación**, enchufa funciones con **service providers**, busca servicios en un **contenedor** y responde HTTP con **rutas** y **middleware**. Las mismas API funcionan desde Kotlin y Java. El CLI **grind** genera el esqueleto y sirve tu proyecto.
+
+Usa la barra lateral en orden si eres nuevo: **Primeros pasos** → **Lo esencial** → **Crema**, luego **Profundizar**, y entra en **Seguridad**, **Base de datos**, **Frontend**, **Wire**, **Inertia**, **Firefly**, **Pruebas** y **Paquetes y herramientas** cuando los necesites.
+
+<CardGrid>
+  <Card title="Primeros pasos" icon="rocket">
+    [Introducción](guides/introduction/), [Instalación](guides/installation/), [Tu primera app](guides/first-app/) y [Kotlin y Java](guides/kotlin-java/).
+  </Card>
+  <Card title="Lo esencial" icon="document">
+    El trabajo diario con peticiones: [enrutamiento](http/routing/), [controladores](http/controllers/), [middleware](http/middleware/), [validación](http/validation/), [excepciones](http/exceptions/) y [registro](http/logging/).
+  </Card>
+  <Card title="Crema" icon="open-book">
+    Vistas de servidor: [primeros pasos](crema/), [renderizado](crema/rendering/), [layouts](crema/layouts/), [componentes e slots](crema/components/), [stacks](crema/stacks/) y la [referencia de directivas](crema/directives/).
+  </Card>
+  <Card title="Profundizar" icon="puzzle">
+    Cómo encajan la [aplicación](concepts/application/) y el [contenedor](concepts/container/), más [grind](grind/), [eventos](events/), [colas](queue/), [correo](mail/), [caché](cache/), [drip](drip/) y [programación](scheduling/).
+  </Card>
+  <Card title="Seguridad" icon="seti:lock">
+    [Resumen](security/), luego [sesión](security/session/), [autenticación](security/authentication/), [autorización](security/authorization/), [CSRF](security/csrf/), cifrado, CORS y limitación de tasa.
+  </Card>
+  <Card title="Base de datos" icon="seti:db">
+    **Cadence** — [resumen](cadence/), [modelos](cadence/models/), [constructor de consultas](cadence/query-builder/), [relaciones](cadence/relations/), [migraciones](cadence/migrations/) y [seeders](cadence/seeders-factories/).
+  </Card>
+  <Card title="Frontend" icon="seti:html">
+    UI reactiva con [Wire](wire/), [Inertia](inertia/), [Vite / assets](assets/vite/) y [starter kits](starter-kits/).
+  </Card>
+  <Card title="Firefly" icon="seti:html">
+    Sigue un camino: [introducción](firefly/), [requisitos](firefly/requirements/), [instalación](firefly/installation/), [registrar un panel](firefly/registration/) y luego [una app que funciona](firefly/working-app/).
+  </Card>
+  <Card title="Pruebas" icon="approve-check">
+    [Primeros pasos](testing/), [HTTP y consola](testing/http-console/) y [base de datos y fakes](testing/database-fakes/).
+  </Card>
+  <Card title="Paquetes y herramientas" icon="seti:shell">
+    [Paquetes](packages/), [soporte de lenguaje](language/), [LSP](language/lsp/), [VS Code y Cursor](language/vscode/) e [IntelliJ](language/intellij/).
+  </Card>
+</CardGrid>
+
+Kona se publica como artefactos Maven bajo el grupo `org.konaframework` y requiere JDK 21 o más reciente. Las notas para quienes contribuyen al framework viven en el [repositorio](https://github.com/konaframework/kona).

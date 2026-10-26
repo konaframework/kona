@@ -1,0 +1,82 @@
+---
+title: Grind Console
+description: La consola local de la app — ./grind serve, generadores, comandos propios, hooks de programación y steam.
+---
+
+**Grind Console** es la línea de comandos dentro de la app de Kona. Después de crear un proyecto con `kona new` y hacer `cd` dentro, casi cada tarea del día pasa por el script local:
+
+```bash
+./grind serve
+./grind route:list
+./grind make:controller Post
+./grind make:command SendDigest
+./grind gradle:build
+./grind gradle:install
+./grind list
+./grind help
+```
+
+`kona new` escribe `./grind` (y `grind.bat` en Windows) en la raíz del proyecto. No hay una instalación global aparte de grind. Crear aplicaciones es siempre:
+
+```bash
+kona new my-app
+```
+
+Desde cualquier sitio bajo el árbol de una app también puedes usar el proxy global: `kona grind <args…>` — consulta [Ejecutar comandos](./running-commands/#kona-grind-proxy).
+
+Quienes contribuyen al framework y navegan `samples/hello-kotlin` o `samples/hello-java` dentro del repositorio de Kona no encontrarán `./grind` ahí — son módulos de ejemplo del repositorio. Ejecútalos con `./gradlew :hello-kotlin:run` (o `:hello-java:run`) desde la raíz del repositorio, o crea una app real con `kona new` para obtener Grind Console. Detalles: [Instalación → Contribuir](../guides/installation/#contributing-to-kona-optional).
+
+## Qué es Grind Console
+
+Grind Console es el nombre de producto de la superficie de consola. El **binario CLI** que escribes sigue siendo `./grind` (o `kona grind …`). Detrás de ese script:
+
+1. Gradle ejecuta una tarea `grind` con `kona-grind` en el classpath para las versiones de dependencia de **este** proyecto.
+2. `GrindApplication` analiza los argumentos, construye un `GrindIO` (quiet/verbose), descubre comandos propios y despacha los integrados o tus clases `ConsoleCommand`.
+3. Los comandos propios enlazan los tokens de la firma a la entrada, luego ejecutan `handle()` y devuelven un código de salida.
+
+Los integrados (serve, `route:list` / `route:cache` / `route:clear`, migrate, queue, schedule, generadores, `gradle:build` / `gradle:install` / `gradle <tasks…>`, …) están cableados dentro de `GrindApplication`. Los comandos propios se descubren desde `META-INF/kona/commands` y desde las salidas compiladas de la app bajo `build/`.
+
+## Por qué dos CLI
+
+| Herramienta | Ámbito | Uso típico |
+|------|--------|-------------|
+| **`kona`** (global) | Toda la máquina | `kona new`, o `kona grind` como proxy hacia una app (`kona grind install …`, `serve`, …) |
+| **`./grind`** (por app) | Un proyecto | Servir, instalar paquetes, generar código, migrar, cola, programación, tus comandos |
+
+Si escribes `./grind new …`, Grind Console te recuerda usar `kona new` y sale con estado `1`.
+
+## Aprende la consola
+
+| Guía | Tema |
+|-------|-------|
+| [Crear comandos](./creating-commands/) | `make:command`, firmas, descubrimiento, aislamiento, trampas |
+| [Ejecutar comandos](./running-commands/) | Banderas del CLI, `list`/`help`, `Grind.call`, `kona grind`, programación |
+| [IO de consola y prompts](./console/) | `ConsoleIO`, `GrindIO`, tablas, prompts, códigos de salida |
+| [Comandos integrados](./commands/) | Catálogo de cada comando `./grind` que se publica |
+| [steam](../steam/) | REPL interactivo (`./grind steam`) |
+
+Probar Grind Console con `ConsoleTester` vive bajo [Pruebas HTTP y de consola](../testing/http-console/#console-grind).
+
+## Banderas globales
+
+Se aplican a todo el proceso de Grind Console (y a los comandos propios que usan el `GrindIO` enlazado):
+
+| Bandera | Efecto |
+|------|--------|
+| `-v` / `--verbose` | Diagnósticos verbosos (`GrindIO.verbose`) **y** logs de librerías (Hikari, SQL, arranque) en la consola |
+| `-q` / `--quiet` | Suprime el stdout normal; los errores siguen imprimiéndose en stderr |
+
+Sin `--verbose`, grind desprende los appenders de consola de Logback para que los volcados del pool y las trazas SQL se queden en `storage/logs` en lugar de enterrar la salida de `taskLine` / `info`. El registro en archivo no cambia.
+
+Otras banderas habituales (`--base=`, `--bootstrap=`, `--help`, `--isolated`) se documentan donde se aplican — consulta [Ejecutar comandos](./running-commands/) y [Crear comandos](./creating-commands/).
+
+## No disponible hoy
+
+Documenta solo lo que se publica. Huecos que todavía no debes esperar de Grind Console:
+
+- No hay `make:wire` (ni otros generadores de Wire) en el despachador de `kona-grind` — el esqueleto de Wire, si existe, está aparte de este catálogo.
+- Los comandos propios **no** reciben una `Application` inyectada automáticamente; arranca la app tú mismo (o llama a APIs que ya tienen un contenedor) cuando necesites servicios.
+- No hay un «asistente» interactivo de comandos más allá de `Prompts`, ni un middleware de comandos / bus de eventos para las ejecuciones de consola.
+- La ayuda integrada de los generadores son cadenas de uso y resúmenes de `./grind list` — no hay un sistema de páginas man aparte.
+
+Prefiere omitir las funciones no publicadas a documentarlas como actuales.

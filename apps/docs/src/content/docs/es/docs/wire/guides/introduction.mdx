@@ -1,0 +1,58 @@
+---
+title: Introducción
+description: Qué es Wire, cuándo usarlo y cómo encaja en una aplicación Kona.
+---
+
+**Kona Wire** (nombre corto **Wire**) es el producto de componentes reactivos de servidor de Kona. Escribes una clase con estado y acciones públicas, renderizas HTML con Crema, y Wire mantiene el navegador sincronizado con un protocolo JSON pequeño, sin recargar la página entera en cada interacción.
+
+(Un apunte breve: Wire ocupa el mismo espacio de problema que las herramientas populares de componentes reactivos full-stack. El resto de este sitio describe Wire en sus propios términos.)
+
+El nombre de producto anterior **Brew** es un alias de compatibilidad en la serie 0.3.0: `<brew:name />`, `@brew`, `--kit=brew` y `org.konaframework:kona-brew` siguen funcionando. Las apps nuevas deben usar `<wire:name />`, `--kit=wire` y `kona-wire`. Los atributos HTML se quedan en `wire:*` para siempre.
+
+## Cuándo usar Wire
+
+Usa Wire cuando quieras:
+
+- **Estado que pertenece al servidor** — borradores de formularios, filtros, paginación y conmutadores de UI viven en la JVM.
+- **Actualizaciones HTML incrementales** — el cliente transforma el HTML devuelto dentro del DOM existente.
+- **Kotlin y Java por igual** — el mismo modelo de componente, con ejemplos y pruebas Java de primera clase.
+- **Integración estrecha con Crema** — plantillas, layouts y directivas se quedan en una sola pila con Kona.
+
+Prefiere una API JSON + SPA cuando la UI es casi por completo del cliente y el servidor solo es un plano de datos. Prefiere controladores Kona planos + Crema cuando las interacciones son raras y basta una respuesta de página completa.
+
+## Qué obtienes
+
+1. Una **clase de componente** — los campos públicos son estado; los métodos públicos son acciones que el navegador puede llamar.
+2. Una **instantánea** en el elemento HTML raíz (`wire:snapshot`, `wire:effects`, `wire:id`, `wire:name`).
+3. Un **runtime de cliente** que hace POST a `POST /wire/update` y transforma el HTML nuevo en su sitio.
+4. Un **Alpine.js empaquetado** — Wire incluye Alpine 3.x más plugins; no instalas Alpine aparte para la etiqueta de script predeterminada.
+
+## Cómo funciona un clic
+
+1. El navegador encuentra la raíz del componente (`wire:id`) y lee `wire:snapshot`.
+2. Hace `POST` de `{ _token, components: [{ snapshot, updates, calls }] }` a `/wire/update` con la cabecera `X-Brew` (la cabecera del protocolo de actualización no cambia).
+3. El servidor verifica CSRF + checksum, restaura el estado, ejecuta la acción, vuelve a renderizar y devuelve `{ components: [{ snapshot, effects }], assets }`.
+4. El cliente transforma `effects.html` en el DOM (con clave `wire:key` / `wire:id`).
+
+Los checksum corruptos o las escrituras de propiedades bloqueadas hacen fallar la petición. Los componentes ausentes o las acciones desconocidas lanzan excepciones de Wire.
+
+## Relación con Kona
+
+Wire se publica como `org.konaframework:kona-wire` en Maven Central. Depende de HTTP, sesión, Crema y módulos relacionados de Kona. Las guías del framework para enrutamiento, Crema y grind viven en otras partes de este sitio.
+
+## Instalar en un comando
+
+```bash
+./grind install wire
+# or: kona grind install wire
+# or: kona new my-app --kit=wire
+# compatibility: ./grind install wire
+```
+
+Detalles: [Instalación](/docs/wire/guides/installation/).
+
+## Siguiente
+
+- [Requisitos](/docs/wire/guides/requirements/) — JDK, Kona, Node
+- [Instalación](/docs/wire/guides/installation/) — `./grind install wire`, el kit y la configuración manual opcional
+- [Tu primer componente](/docs/wire/guides/first-component/) — recorrido en Kotlin y Java

@@ -1,0 +1,15 @@
+---
+title: Inertia
+description: Frontends de una sola página dirigidos por el servidor para Kona — resumen y guías.
+---
+
+**Inertia** para Kona permite que tu aplicación JVM devuelva un **objeto de página** — nombre del componente más props — que un cliente JavaScript hidrata. La primera visita es un documento HTML normal; las navegaciones posteriores envían la cabecera `X-Inertia` y reciben JSON.
+
+Inertia se publica como `org.konaframework:kona-inertia` en [Maven Central](https://repo1.maven.org/maven2/org/konaframework/kona-inertia/). Crea el esqueleto con `kona new my-app --kit=inertia`, o añade la dependencia (y el provider) con `./grind install inertia` (o `kona grind install inertia`).
+
+## Guías de esta sección
+
+- [Introducción](/docs/inertia/guides/introduction/) — protocolo y cuándo usar Inertia
+- [Instalación](/docs/inertia/guides/installation/) — paquete + cliente Vite
+- [Tu primera página](/docs/inertia/guides/first-page/) — primera página de punta a punta
+- [Renderizar páginas](/docs/inertia/essentials/rendering/) — `Inertia.render` y props

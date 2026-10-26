@@ -1,0 +1,225 @@
+---
+title: IO de consola y prompts
+description: ConsoleIO, GrindIO, Verbosity, tablas, progreso, Prompts, entorno de color y códigos de salida.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Todos los CLI de terminal de Kona comparten un estilo de consola inspirado en Termwind: insignias color caramelo (`INFO` / `DONE` / `WARN` / `ERROR`), marcos de prompt tenues `┌┐└┘` con un puntero cian `›`, barras de intro/outro, recuadros, listas de dos columnas, tablas y líneas de tarea punteadas. Colores de marca: caramelo claro `#DF8723`, acento `#74453F`.
+
+| API | Módulo | Papel |
+| --- | --- | --- |
+| `org.konaframework.support.console.ConsoleIO` | `kona-support` | Implementación canónica |
+| `org.konaframework.grind.GrindIO` | `kona-grind` | Envuelve `ConsoleIO` con filtrado quiet / verbose |
+| Ayudantes en `ConsoleCommand` | `kona-grind` | `info`, `success`, `warn`, `error`, `intro`, `outro`, `note`, `table`, `progress`, … |
+| `org.konaframework.grind.Prompts` | `kona-grind` | Pregunta / confirma / elige de forma interactiva |
+
+**No** imprimas salida de cara al usuario con `println` crudo / `System.out` sin estilo en los comandos; usa estas APIs.
+
+El lanzador local `./grind` de la app resuelve el classpath de ejecución con la tarea `konaClasspath` de Gradle, y luego **hace `exec` de la JVM** para que stdin siga siendo la terminal real. (Un worker `JavaExec` de Gradle suele ver una tubería, lo que antes dejaba las listas Yes/No y de elección pintadas pero sin responder a las flechas.) El `gradlew run` anidado de `grind serve --no-watch`, más el `gradlew classes` del modo watch, siguen usando `--quiet --console=plain -Dorg.gradle.console=plain` para que el ruido del ciclo de vida del build y la barra de progreso rica de Gradle no entierren la salida Termwind. El `./grind serve` predeterminado mantiene Netty en marcha y recompila al guardar; `--no-watch` es el camino `run` de la JVM hija. Sin consola plana, un `run` de larga duración puede parecer «atascado» alrededor del 83% todo el tiempo que el servidor HTTP está arriba — ese porcentaje es el progreso normal de la tarea Gradle, no un cuelgue.
+
+## Entorno de color
+
+`ConsoleIO.detectColor` (también lo usa `GrindIO.detectColor`):
+
+| Entorno | Efecto |
+| --- | --- |
+| `NO_COLOR` | Desactiva ANSI (cualquier valor presente) |
+| `FORCE_COLOR=1` (cualquier valor distinto de `0`) | Fuerza ANSI incluso cuando `TERM=dumb` |
+| `FORCE_COLOR=0` | Mantiene el color apagado |
+| `TERM=dumb` o `TERM` ausente | Color apagado salvo que se fuerce |
+
+## Verbosidad (`GrindIO`)
+
+```kotlin
+enum class Verbosity { QUIET, NORMAL, VERBOSE }
+```
+
+`GrindIO.fromOptions(options)` pone la verbosidad a partir de las banderas del CLI:
+
+| Banderas | Verbosidad |
+|-------|-----------|
+| `--quiet` / `-q` | `QUIET` |
+| `--verbose` / `-v` | `VERBOSE` |
+| ninguna | `NORMAL` |
+
+Quiet gana si aparecen a la vez las claves quiet y verbose (se comprueba primero).
+
+| Método | Quiet | Normal | Verbose |
+|--------|-------|--------|---------|
+| `writeln` / `write` / `line` / `info` / `success` / `warn` / `title` / `subtitle` / `twoColumn` / `box` / `progress` / `table` / `intro` / `outro` / `note` / `promptFrame` / `taskLine` | suprimido | imprime | imprime |
+| `error` | **siempre imprime** (stderr) | imprime | imprime |
+| `verbose` | suprimido | suprimido | imprime (tenue) |
+
+## Superficie de `ConsoleIO`
+
+Constrúyelo con `PrintStream` out/err opcionales y un booleano `color`:
+
+```kotlin
+val console = ConsoleIO()
+console.info("Working…")
+console.success("Done")
+console.warn("Slow path")
+console.error("Could not connect")
+console.title("Report")
+console.subtitle("Section")
+console.twoColumn("serve", "Run the HTTP server")
+console.box("grind", listOf("Kona app CLI"))
+console.progress(3, 10, "users")
+console.table(
+    listOf("id", "email"),
+    listOf(listOf("1", "ada@example.com"), listOf("2", "bea@example.com")),
+)
+console.taskLine("2000_01_01_000000_create_users_table", "DONE", 12)
+console.intro("grind")
+console.note("Running migrations.", "INFO")
+console.outro("Done.")
+```
+
+| Método | Comportamiento |
+|--------|----------|
+| `writeln` / `write` / `line` | Stdout crudo (sigue sujeto al quiet de GrindIO cuando está envuelto) |
+| `info` | Chip verde ` INFO ` + mensaje |
+| `success` | Chip verde ` DONE ` + mensaje |
+| `warn` | Chip amarillo ` WARN ` + mensaje |
+| `error` | Chip rojo ` ERROR ` en **stderr** |
+| `intro(title)` | Barra superior tenue `┌ title ────┐` |
+| `outro(message)` | Barra inferior tenue `└ message ─┘` |
+| `note(message, label="NOTE")` | Observación etiquetada en recuadro (`INFO` / `WARN` / `ERROR` / `NOTE`) |
+| `promptFrame(label, body, pointerLine=-1, …)` | Recuadro de prompt; `›` cian en `pointerLine`; `pointerPrefix=false` para valores de texto al ras |
+| `promptFrameLines(…)` | El mismo recuadro que `promptFrame`, devuelto como líneas para redibujar el TTY in situ |
+| `promptSubmitted(label, value)` | Recuadro de prompt con el valor elegido en verde |
+| `title` | Encabezado verde en negrita + subrayado tenue (máx. 48) |
+| `subtitle` | Línea cian |
+| `twoColumn(left, right, width=22)` | Columna izquierda cian en negrita + derecha tenue |
+| `box(title, lines)` | Marco tenue `┌┐└┘`; el ancho del contenido se recorta más o menos a 24–56 |
+| `progress(current, total, label="")` | Barra de 28 celdas + porcentaje; `total` debe ser `> 0`; `current` se recorta a `[0, total]` |
+| `table(headers, rows)` | Columnas alineadas por el ancho de texto **plano** (ANSI eliminado); cabeceras no vacías; cada fila debe coincidir con el ancho de la cabecera |
+| `taskLine(name, status, millis=null, ok=true)` | Fila punteada (`name …… 12ms DONE`); estado verde cuando `ok`, rojo si no; la duración se omite cuando `millis` es null |
+| `paint(codes, text)` | Aplica ANSI cuando el color está activado |
+| `plainLength(text)` | Longitud con las secuencias ANSI eliminadas |
+
+`ConsoleIO.formatDuration(millis)` renderiza `<1000` como `12ms` y las ejecuciones más largas como `1.23s`. Las filas se alinean a `ConsoleIO.TASK_WIDTH` (72).
+
+Constantes ANSI públicas en `ConsoleIO`: `RESET`, `BOLD`, `DIM`, `RED`, `GREEN`, `YELLOW`, `CYAN`, `PRIMARY`, `ACCENT`, `GRAY`, `WHITE`, `BLACK`, `BG_GREEN`, `BG_YELLOW`, `BG_RED`, `BG_CYAN`. `PROMPT_WIDTH` es 60.
+
+## Superficie de `GrindIO`
+
+Los mismos ayudantes de alto nivel de arriba, más:
+
+```kotlin
+val io = GrindIO.fromOptions(mapOf("verbose" to "true"))
+io.verbose("only with -v")
+io.subtitle("Detail")
+io.twoColumn("left", "right")
+io.box("Title", listOf("line"))
+io.taskLine("create_users_table", "DONE", 12)
+io.intro("grind")
+io.outro("Done.")
+```
+
+Dentro de un `ConsoleCommand`, prefiere los ayudantes enlazados (usan el `GrindIO` del runner):
+
+```kotlin
+info("Working…")
+success("Done")
+warn("Slow path")
+error("Could not connect")
+title("Report")
+line()
+line("plain")
+table(
+    listOf("id", "email"),
+    listOf(listOf("1", "ada@example.com"), listOf("2", "bea@example.com")),
+)
+progress(3, 10)
+progress(3, 10, "users")
+verbose("only with -v")
+```
+
+`ConsoleCommand.progress` tiene sobrecargas con y sin etiqueta. `intro` / `outro` / `note` están en `ConsoleCommand`. Sigue **sin** haber un ayudante `box` / `twoColumn` / `subtitle` en el propio `ConsoleCommand` — usa `io.box(...)` / `io.twoColumn(...)` / `io.subtitle(...)` cuando los necesites.
+
+## Prompts
+
+Usa `Prompts` (grind) u `org.konaframework.support.console.ConsolePrompts` (compartido) para la entrada interactiva. En un TTY real son **widgets en recuadro**, no `readLine` basado en líneas:
+
+- Marco tenue `┌ ┐ └ ┘ │ ─`, etiqueta en el borde superior (`┌ App name ───┐`), valor interior rellenado a un ancho consistente (unas 60 columnas, o el ancho de la terminal menos 4).
+- **Texto (`ask`):** el cursor se sienta **dentro** del recuadro en la fila del valor. Retroceso, Izquierda/Derecha, Inicio/Fin y los caracteres UTF-8 editan ese valor. Enter envía; el recuadro en vivo se sustituye in situ por el mismo marco y un valor **verde** (sin una segunda copia apilada).
+- **Select (`choice`) / confirm:** el `›` cian marca la fila actual. **Arriba/Abajo** (y `k`/`j`) mueven el puntero; Enter envía. Confirm también acepta `y`/`n`/`1`/`2`. El puntero da la vuelta en los extremos de la lista. Las flechas funcionan en `./grind` igual que en `kona new` — incluido el «¿usar otro puerto?» cuando el puerto está ocupado y otras confirmaciones de grind.
+- **Ctrl+C** restaura la terminal y cancela.
+
+`kona new` usa los mismos widgets. Los scripts y CI los saltan con `--no-interaction` (o `--yes` / `CI=true`).
+
+Cuando stdin **no** es un TTY — tuberías, pruebas que inyectan un `ByteArrayInputStream`, `KONA_LINE_PROMPTS=1` — los mismos métodos caen a respuestas de una línea (`readLine`). La línea vacía usa `default`; `choice` sigue aceptando un índice basado en 1 o una etiqueta sin distinguir mayúsculas.
+
+Si Gradle sigue lanzando grind con un stdin entubado (scripts `./grind` más antiguos que llaman a `JavaExec` directamente), los widgets abren la terminal controladora (`/dev/tty`) para el modo crudo y la lectura de teclas, así que Arriba/Abajo siguen moviendo el puntero. Pon `KONA_LINE_PROMPTS=1` para forzar la caída a líneas.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val prompts = Prompts()
+val name = prompts.ask("Name", default = "Kona")
+val ok = prompts.confirm("Continue?", default = false)
+val pick = prompts.choice("Driver", listOf("array", "redis"), defaultIndex = 0)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Prompts prompts = new Prompts();
+String name = prompts.ask("Name", "Kona");
+boolean ok = prompts.confirm("Continue?", false);
+String pick = prompts.choice("Driver", List.of("array", "redis"), 0);
+```
+
+</TabItem>
+</Tabs>
+
+| Método | Widget de TTY | Caída a línea (tuberías / pruebas / llamadores de `--no-interaction`) |
+|--------|------------|--------------------------------------------------------------|
+| `ask(question, default=null)` | Cursor en el recuadro; Enter envía el búfer (inicializado a `default`) | La línea vacía usa `default` cuando está puesto; si no, cadena vacía |
+| `confirm(question, default=false)` | `›` en Yes/No; las flechas alternan; `y`/`n` envían | Vacío → predeterminado; `y`/`yes`/`1` → true; `n`/`no`/`2` → false |
+| `choice(question, options, defaultIndex=0)` | `›` + resaltado; las flechas dan la vuelta; el dígito `1`… envía | Vacío → predeterminado; índice basado en 1 o etiqueta sin distinguir mayúsculas; inválido → predeterminado |
+
+`choice` exige una lista de opciones no vacía y un `defaultIndex` dentro del rango. Los marcos van al stream de salida del prompt que inyectas (predeterminado: `System.out`). `ConsoleIO.PROMPT_WIDTH` es 60.
+
+Los integrados como `serve` (conflicto de puerto) y `key:generate` (sobrescritura en producción) usan `Prompts` internamente. El instalador (`kona new`) usa `InstallerPrompts` con el mismo aspecto.
+
+## Códigos de salida
+
+| Código | Constante | Significado |
+|------|----------|---------|
+| `0` | `ConsoleCommand.SUCCESS` | Éxito (también cuando `--isolated` salta un comando ocupado) |
+| `1` | `ConsoleCommand.FAILURE` | Errores de uso, proyectos ausentes, generadores fallidos, servicios no enlazados, comandos desconocidos |
+
+Los scripts y CI deben tratar cualquier salida distinta de cero como fallo. Los integrados suelen devolver `0`/`1` de la misma forma; un `GrindException` / `CadenceException` no capturado en `GrindApplication` se vuelve líneas de error y sale con `1`.
+
+## Probar la salida
+
+`ConsoleTester` captura solo **stdout** mientras ejecuta `GrindApplication` — consulta [Pruebas HTTP y de consola](../../testing/http-console/#console-grind). Afirmaciones:
+
+| Método | Comportamiento |
+|--------|----------|
+| `assertOk()` | Código de salida `0` |
+| `assertExit(code)` | Código de salida exacto |
+| `assertSee(text)` | Stdout contiene la subcadena |
+| `assertDontSee(text)` | Stdout no contiene la subcadena |
+
+Como `error(...)` escribe en stderr, los mensajes de error fallidos pueden **no** aparecer en `ConsoleResult.output`. Afirma los códigos de salida en los caminos de fallo, o inyecta streams cuando pruebes `Prompts` / `ConsoleIO` directamente (como hacen las pruebas del módulo).
+
+## Trampas
+
+- **Quiet oculta el progreso y las tablas** — no dependas de las barras de progreso en los registros de CI con `-q`.
+- **Ancho de fila de `table`** — los conteos de columna que no coinciden lanzan; normaliza las filas primero.
+- **Total de `progress`** — debe ser positivo o `ConsoleIO` lanza.
+- **Color en tuberías** — respeta `NO_COLOR` en la automatización; no asumas ANSI en la salida de prueba capturada.
+- **Intercambio global de `System.out`** — `Grind.callSilently` y `ConsoleTester` sustituyen stdout; evita llamadas concurrentes anidadas que dependan del stream real.
+
+## Relacionado
+
+- [Crear comandos](../creating-commands/)
+- [Ejecutar comandos](../running-commands/)
+- [Comandos integrados](../commands/)
+- [Pruebas HTTP y de consola](../../testing/http-console/)
