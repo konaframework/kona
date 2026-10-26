@@ -38,6 +38,8 @@ dependencies {
         api(project(":kona-firefly-infolists"))
         api(project(":kona-firefly-tables"))
         api(project(":kona-firefly-forms"))
+        api(project(":kona-firefly-notifications"))
+        api(project(":kona-firefly-widgets"))
         api(project(":kona-lsp"))
         api(project(":kona-wire"))
         api(project(":kona-brew"))

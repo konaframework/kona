@@ -28,7 +28,9 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Firefly actions (M30, train **0.4.x**) | `modules/firefly-actions` → `:kona-firefly-actions` | `apps/docs` (Firefly → Actions) | https://docs.konaframework.org/docs/firefly/actions/ |
 | Firefly infolists (M32, train **0.4.x**) | `modules/firefly-infolists` → `:kona-firefly-infolists` | `apps/docs` (Firefly → Infolists) | https://docs.konaframework.org/docs/firefly/infolists/ |
 | Firefly tables (M33, train **0.4.x**) | `modules/firefly-tables` → `:kona-firefly-tables` | `apps/docs` (Firefly → Tables) | https://docs.konaframework.org/docs/firefly/tables/ |
-| Firefly forms (M31, train **0.4.x**) | not on `main`. Branch `milestone/M31-firefly-forms` (`5c56f6e1`). No pull request | — | — |
+| Firefly forms (M31, train **0.4.x**) | `modules/firefly-forms` → `:kona-firefly-forms` | `apps/docs` (Firefly → Forms) | https://docs.konaframework.org/docs/firefly/forms/ |
+| Firefly notifications (M34, train **0.4.x**) | `modules/firefly-notifications` → `:kona-firefly-notifications` | `apps/docs` (Firefly → Notifications) | https://docs.konaframework.org/docs/firefly/notifications/ |
+| Firefly widgets (M34, train **0.4.x**) | `modules/firefly-widgets` → `:kona-firefly-widgets` | `apps/docs` (Firefly → Widgets) | https://docs.konaframework.org/docs/firefly/widgets/ |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
@@ -41,10 +43,10 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
-| `origin/main` | `1a6045b1` (PR #218, M33 tables) |
-| On `main` | M28 `firefly-support` (#213), M29 `firefly-schemas` (#214), M30 `firefly-actions` (#216), M32 `firefly-infolists` (#217), M33 `firefly-tables` (#218). `modules/firefly-forms` is absent |
-| Active milestone | **M31 — Firefly forms**, in progress on `milestone/M31-firefly-forms` (`5c56f6e1`). Not merged. No pull request. Do not mark done. FRM-18–FRM-26 stay open on that branch ledger. Release train **0.4.x** |
-| Queued | **M34–M38** not started and not done. M34 is notifications and widgets, M35 is panel, auth, navigation, and pages, M36 is resources. The integration contract below is part of that parity. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Law 1 still allows parallel non-colliding milestones. Do not pull M36 forward ahead of M31 landing |
+| `origin/main` | `6fd41aa9` (PR #223, grind Kover). M31 forms are #221. Panel API align is #222 |
+| On `main` | M28–M33 including M31 forms. M34 notifications and widgets are this branch (`milestone/M34-firefly-notifications`) and land when the PR merges |
+| Active milestone | **M34 — Firefly notifications and widgets**, on `milestone/M34-firefly-notifications`. Next after merge is **M35** (panel, auth, navigation, pages), then M36, M37, M38 in order. Release train **0.4.x** |
+| Queued | **M35–M38** not started. M35 is panel, auth, navigation, and pages. M36 is resources. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Do not implement the Mongo addon. Do not run M34–M38 in parallel |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
@@ -53,13 +55,13 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | LSP | `kona-lsp` completes Crema `@`, Wire `wire:*`, and echo helpers inside `{{ }}` (IDEA-aligned `CremaEchoCatalog`) |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Non-colliding milestones may proceed in parallel. After a merge, continue remaining milestones whose dependencies are on `main`, including ones already in progress. Do not pause for permission |
-| Firefly integration | Pages, widgets, and resources compose schemas, forms, infolists, actions, and tables. Standalone render stays available for tests and embedding. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M34, M35, and M36 stay queued and not done |
+| Firefly integration | Pages, widgets, and resources compose schemas, forms, infolists, actions, and tables. Standalone render stays available for tests and embedding. M34 widgets place on a `Page` or `Dashboard` and are discovered from a panel `widgets/` directory. M35 and M36 stay queued |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9) |
 
 ### Firefly integration contract
 
-Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. Pages, widgets, and resources compose those pieces. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M31 forms are still not on `main`. M34 is notifications and widgets. M35 is panel, auth, navigation, and pages. M36 is resources. None of M34–M36 is done. Do not pull M36 forward ahead of M31 landing.
+Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. Pages, widgets, and resources compose those pieces. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M34 notifications and widgets are done on this branch. M35 is panel, auth, navigation, and pages. M36 is resources. Do not start M36 until M35 is on `main`.
 
 **Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
 

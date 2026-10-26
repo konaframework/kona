@@ -1,0 +1,84 @@
+---
+title: Notifications
+description: Flash a Firefly toast, list database notices in a bell, and refresh a page when a broadcast arrives.
+---
+
+A Firefly notification is a short message with a title, a status, and optional body, icon, color, duration, extra attributes, and actions. You build it in Kotlin or Java, then send it to the session, the database, or a broadcast.
+
+The types live in `org.konaframework.firefly.notifications` (`kona-firefly-notifications`). The module uses the existing session flash store, `DatabaseChannel`, and `BroadcastManager`. It does not add a second notification store.
+
+Chainable setters accept a static value or a closure. The closure receives the schema `Get` for the current state.
+
+## A toast in one call
+
+```kotlin
+val session = StoreSession("desk", ArraySessionStore())
+FireflyNotification.make("saved")
+    .title("Saved")
+    .body("The record is stored.")
+    .icon("bell")
+    .success()
+    .duration(6)
+    .extraAttributes(mapOf("data-lang" to "kotlin"))
+    .actions(Action.make("open").label("Open"))
+    .send(session)
+val html = FireflyNotification.pull(session)
+```
+
+```java
+StoreSession session = new StoreSession("desk", new ArraySessionStore());
+FireflyNotification notice = FireflyNotification.make("saved");
+notice.title(get -> "Saved");
+notice.body("The record is stored.");
+notice.success();
+notice.duration(6);
+notice.extraAttributes(get -> Map.of("data-lang", "java"));
+notice.send(session, Map.of());
+String html = FireflyNotification.pull(session);
+```
+
+`make()` assigns a random id. `make(id)` uses the id you pass. A blank id throws `FireflyException` with `Notification id is blank`. A blank title throws `Notification title is blank` or `Notification [<id>] title is blank` when the value is resolved at send time.
+
+`success()`, `info()`, `warning()`, and `danger()` set the status. The default status is `info`. Color follows the status unless you call `color` yourself. An explicit color stays in place when you later call `success()`.
+
+`duration` is a whole number of seconds. The default is `6`. A negative duration throws `FireflyException`.
+
+`send(session)` writes one map onto the session flash key `firefly.notifications`. `send(session, state)` evaluates closures against that state map. `FireflyNotification.render(session)` reads the flash and returns the toast HTML without removing it. `pull(session)` returns the same HTML and then forgets the key.
+
+Each toast is a `<div class="ff-notification" role="status">` with `data-ff-status`, `data-ff-color`, and `data-ff-duration`. Extra attributes are written on that element. Action HTML is rendered from the actions you attached.
+
+## Database bell
+
+```kotlin
+val channel = DatabaseChannel()
+notice.sendToDatabase(person, channel)
+val bell = NotificationBell(channel, person.routeNotificationFor("database"))
+val html = bell.render()
+bell.markAsRead(bell.records().first().id)
+bell.markAllAsRead()
+```
+
+`sendToDatabase` accepts a `DatabaseChannel` or a `NotificationSender`. The stored row keeps the title, status, color, duration, body, icon, attributes, and the rendered action HTML.
+
+`NotificationBell` lists that notifiable’s rows. `render()` returns `<div class="ff-notification-bell" wire:poll.30s>` with a count of unread rows and one `<li>` per record. `data-ff-unread` is `true` or `false`. When a row has no title, the list item uses the notification type name.
+
+## Broadcast refresh
+
+```kotlin
+notice.broadcastChannel("desk").broadcast(person, manager)
+val marker = BroadcastRefresh().channel("desk").event("firefly.notification").render()
+```
+
+`broadcast` sends through `BroadcastManager` on the channel name you set. A blank channel throws `FireflyException`.
+
+`BroadcastRefresh` marks a page that should refresh when that broadcast arrives. `render()` returns `<div class="ff-broadcast-refresh" wire:poll.15s>` with `data-ff-channel` and `data-ff-event`. The event defaults to `firefly.notification` when you do not set one. A blank channel or a blank event throws `FireflyException`.
+
+`configureUsing` runs for every later `make()` call. Pass `null` to clear it.
+
+## What you build with
+
+| Type | Role |
+|------|------|
+| `FireflyNotification` | Toast, database payload, and broadcast payload |
+| `NotificationBell` | Renders database rows for one notifiable |
+| `BroadcastRefresh` | Marks a page with the channel and event to watch |

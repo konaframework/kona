@@ -4,13 +4,13 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-Verified on `origin/main` `e89f1c77` (including #219 and #220): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. M31 forms, including FRM-18–FRM-26, are complete on `milestone/M31-firefly-forms` and land on `main` when that PR merges. M34–M38 stay queued and not started. Law 1 still allows parallel non-colliding milestones.
+Verified on `origin/main` `6fd41aa9` (including #223): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-forms` (M31), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. M34 notifications and widgets ship on `milestone/M34-firefly-notifications` and land on `main` when that PR merges. M35–M38 stay queued. Law 1 still allows parallel non-colliding milestones.
 
 Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. That render does not close a later milestone. Pages, widgets, and resources compose those pieces. A milestone cannot ship by only rendering a form, infolist, table, or widget in isolation.
 
 ## Integration contract
 
-M31 forms are still not on `main`. M34 is notifications and widgets. M35 is panel, auth, navigation, and pages. M36 is resources. The rows below are part of that parity. None of them is done. Do not pull M36 forward ahead of M31 landing.
+M34 is notifications and widgets. M35 is panel, auth, navigation, and pages. M36 is resources. Widget rows below are done. Page and resource rows stay open. Do not pull M36 forward.
 
 **Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
 
@@ -23,9 +23,9 @@ M31 forms are still not on `main`. M34 is notifications and widgets. M35 is pane
 | PAG-1 | Page is the routable panel screen a panel route serves, with a title, header and footer actions, a content region, and optional widgets | M35 | todo |
 | PAG-2 | Content region mounts a schema, form, infolist, or table. List, create, edit, view, manage, and custom pages are pages | M35 | todo |
 | PAG-3 | Standalone component render remains for tests and embedding. It does not replace the Page | M35 | todo |
-| WDG-1 | Widget renders on its own and inside a page or dashboard | M34 | todo |
-| WDG-2 | Stats, Chart.js default, ApexCharts optional, and table-backed widgets read the same query and schema pieces | M34 | todo |
-| WDG-3 | A widget is not done if it cannot be placed on a page | M34 | todo |
+| WDG-1 | Widget renders on its own and inside a page or dashboard | M34 | done |
+| WDG-2 | Stats, Chart.js default, ApexCharts optional, and table-backed widgets read the same query and schema pieces | M34 | done |
+| WDG-3 | A widget is not done if it cannot be placed on a page | M34 | done |
 | RES-1 | Resource binds one model to its pages, form schema, infolist, table, and actions | M36 | todo |
 | RES-2 | Relation managers on a full resource. Model type selects the query | M36 | todo |
 | RES-3 | Simple resource: one Manage page; create, edit, view, and delete run in the existing Dialog | M36 | todo |
@@ -114,7 +114,7 @@ Shipped modal content is the schema layouts and primes already on `main`. These 
 | Form fields inside an action, `fillForm`, form data mutation, a disabled form, action `steps()` as a form wizard | M31 |
 | Infolist actions | M32 |
 | Record, bulk, and toolbar table actions | M33 |
-| Success and failure notifications | M34 |
+| Success and failure notifications | done (`FireflyNotification.success`, `info`, `warning`, `danger`, database bell, broadcast refresh) |
 | Import and export actions | M37 |
 | Parent-dialog cancellation, sticky header/footer, modal alignment, extra window attributes, widths outside `sm`/`md`/`lg`/`xl`/`screen`, database transactions, rate limits | `Dialog` does not expose them, or no rate-limit/transaction API is wired into this module |
 
@@ -162,7 +162,7 @@ Left for later milestones (not implemented in this module): prefix and suffix ac
 | M31 | `filament/forms` | `kona-firefly-forms` | done (on `main` when the forms PR merges) |
 | M32 | `filament/infolists` | `kona-firefly-infolists` | done |
 | M33 | `filament/tables` | `kona-firefly-tables` | done |
-| M34 | notifications + widgets (Chart.js default, ApexCharts optional). A widget is not done if it cannot be placed on a page | `kona-firefly-notifications`, `kona-firefly-widgets` | queued (not started, not done) |
+| M34 | notifications + widgets (Chart.js default, ApexCharts optional). A widget is not done if it cannot be placed on a page | `kona-firefly-notifications`, `kona-firefly-widgets` | done (on `main` when this PR merges) |
 | M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3), and pages. A panel route serves a Page that mounts a schema, form, infolist, or table | `kona-firefly` | queued (not started, not done) |
 | M36 | resources, including `--simple`. Not done if the form, infolist, table, and actions are only separate samples. Do not pull ahead of M31 | `kona-firefly` | queued (not started, not done) |
 | M37 | tenancy, plugins, import/export, `Firefly.test`, `kona new --kit=firefly` | `kona-firefly` | queued (not started) |
