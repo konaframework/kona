@@ -26,6 +26,8 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Firefly support (M28, train **0.4.x**) | `modules/firefly-support` → `:kona-firefly-support` | `apps/docs` (Firefly) | https://docs.konaframework.org/docs/firefly/ |
 | Firefly schemas (M29, train **0.4.x**) | `modules/firefly-schemas` → `:kona-firefly-schemas` | `apps/docs` (Firefly → Schemas) | https://docs.konaframework.org/docs/firefly/schemas/ |
 | Firefly actions (M30, train **0.4.x**) | `modules/firefly-actions` → `:kona-firefly-actions` | `apps/docs` (Firefly → Actions) | https://docs.konaframework.org/docs/firefly/actions/ |
+| Firefly infolists (M32, train **0.4.x**) | `modules/firefly-infolists` → `:kona-firefly-infolists` | `apps/docs` (Firefly → Infolists) | https://docs.konaframework.org/docs/firefly/infolists/ |
+| Firefly tables (M33, train **0.4.x**) | `modules/firefly-tables` → `:kona-firefly-tables` | `apps/docs` (Firefly → Tables) | https://docs.konaframework.org/docs/firefly/tables/ |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
@@ -38,8 +40,8 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
-| Active milestone | **M30 — Firefly actions** (`kona-firefly-actions`: actions, groups, confirmation, Dialog mounting, `make:firefly-action`). Release train **0.4.x**. |
-| Queued | **M31+** forms, infolists, tables, and the rest of the Firefly train. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. |
+| Active milestone | **M33 — Firefly tables** (`kona-firefly-tables`: columns, filters, search, sort, pagination, `make:firefly-column`, `make:firefly-filter`). M30 actions is on `main`. Release train **0.4.x**. |
+| Queued | **M31** forms and the rest of the Firefly train. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
