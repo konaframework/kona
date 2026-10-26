@@ -3,15 +3,19 @@ title: Forms
 description: Add Firefly form fields to a schema, bind them with Wire, and validate the submitted state.
 ---
 
-:::note[Screenshot placeholder: the notes form, with the status combobox and the date picker]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Form fields live in `org.konaframework.firefly.forms` (`kona-firefly-forms`). Each field is a schema component, so it sits in the same tree as a section or a tab, shares that schema’s state map, and uses the live modifiers already on the component base (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`).
+A form field is how you ask for a value: a name, a status, a due date. You put fields in a schema, fill that schema, and `render()` returns the HTML. Wire and Alpine keep the value in sync after the page loads.
 
-The module depends on schemas, support, HTTP validation, and the filesystem. It does not register a panel. You place fields inside a `Schema` and render that schema into a Wire view.
+Fields live in `org.konaframework.firefly.forms` (`kona-firefly-forms`). Each field is a schema component, so it sits in the same tree as a section or a tab and uses the same live modifiers (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`). The module does not register a panel. You place the schema on a page, or render it into a view you already have.
+
+On the hello sample the Desk page and the notes form both use a text field, a status combobox, and a due date picker.
 
 ## A field in one call
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val name = TextInput.make("name")
@@ -23,6 +27,9 @@ schema.fill(mapOf("name" to "Ada"))
 val html = schema.render()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 TextInput name = TextInput.make("name").label("Name").required();
 name.live();
@@ -31,11 +38,17 @@ schema.fill(Map.of("name", "Ada"));
 String html = schema.render();
 ```
 
+</TabItem>
+</Tabs>
+
 `make("name")` sets the state key. `render()` wraps the control in the field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. Live fields also emit `wire:model` on the schema wrapper. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Do not call `Alpine.start()` again. Until that script runs, `@entangle(...)` can still show as raw text in the page.
 
 `FormAssets.script()` and `FormAssets.stylesheet()` are the field script and the field CSS. Prose from the rich text and markdown editors uses the caramel accent `#DF8723` through `--ff-primary`.
 
 Most chainable setters take a fixed value or a closure. The closure receives `Get`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 name.label("Name")
@@ -44,11 +57,17 @@ name.placeholder { "Ada Lovelace" }
 name.helperText("Shown on the invoice")
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 name.label("Name");
 name.label(get -> "Organization");
 name.helperText("Shown on the invoice");
 ```
+
+</TabItem>
+</Tabs>
 
 The last call wins. A string replaces a closure, and a closure replaces a string.
 
@@ -108,7 +127,12 @@ These methods are on the field base. Every concrete field has them.
 
 ## Choices
 
-`Select` renders a combobox (`ff-combobox`), not a native `<select>`.
+`Select` renders a combobox (`ff-combobox`), not a native `<select>`. The status field on the Desk page is that combobox: Open and Done.
+
+<FireflyShot file="form-combobox.png" description="The status field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as a combobox with Open and Done." />
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val kind = Select.make("kind")
@@ -117,19 +141,30 @@ val kind = Select.make("kind")
     .placeholder("Pick one")
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Select kind = Select.make("kind")
     .options(Map.of("org", "Organization"))
     .useNative(false);
 ```
 
+</TabItem>
+</Tabs>
+
 Kotlin calls `.native()` to opt into `<select>`. Java calls `useNative(true)` because `native` is a Java keyword. `.native(false)` and `useNative(false)` keep the combobox.
+
+<FireflyShot file="form-native-select.png" description="The status field from the Desk form at http://127.0.0.1:4017/admin/desk, rendered with native() as a native select of Open and Done." />
 
 `options { get -> mapOf("a" to "A") }` loads options from a closure. `optionsFrom(records, "title", "id")` reads a list of maps. `boolean()` uses Yes and No. `multiple(true)`, `preload`, `optionsLimit`, `maxItems`, `searchDebounce`, `position`, and the loading, searching, empty, and search-prompt strings configure the combobox. `getOptionLabelUsing` and `getSearchResultsUsing` replace the label and the search. `disableOptionWhen` disables one option. `allowHtml(true)` keeps HTML in a native option label.
 
 `descriptions` adds a line under each option. A static option list adds an `in:` rule when the field is not multiple and the values contain neither a comma nor a pipe.
 
 `relationship("author", "name")` loads options from the relationship of that name on the schema record. `name` is the label field. Pass a closure to change the query. `getOptionLabelFromRecordUsing` replaces that label with a value taken from each record.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Select.make("authorId").relationship("author", "name")
@@ -141,11 +176,17 @@ Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordU
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Select.make("authorId").relationship("author", "name");
 Select.make("authorId").relationship("author", "name", query -> { });
 Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordUsing(record -> "Ada");
 ```
+
+</TabItem>
+</Tabs>
 
 When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query. `.native()` still opts into `<select>`. The default remains the combobox.
 
@@ -155,9 +196,18 @@ When the related model is a Cadence model, the closure receives a `ModelBuilder`
 
 ## Dates and times
 
-`DatePicker`, `TimePicker`, and `DateTimePicker` are one component with date, time, or both. The default control is Firefly’s own picker: a month grid and, when the field has a time, hour and minute spinners. There is no third-party date library. `.native()` (Java: `useNative(true)`) switches to `type="date"`, `type="time"`, or `type="datetime-local"`.
+`DatePicker`, `TimePicker`, and `DateTimePicker` are one component with date, time, or both. The default control is Firefly’s own picker: a month grid and, when the field has a time, hour and minute spinners. There is no third-party date library. The due field on the Desk page is that picker.
+
+<FireflyShot file="form-date-picker.png" description="The due field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as the crafted month grid with hour and minute controls." />
+
+`.native()` (Java: `useNative(true)`) switches to `type="date"`, `type="time"`, or `type="datetime-local"`.
+
+<FireflyShot file="form-native-date.png" description="The due field from the Desk form at http://127.0.0.1:4017/admin/desk, rendered with native() as a native datetime-local input." />
 
 Server values use `java.time`. A date-only value stays in the application zone (`FieldClock.appZone`). A date-time uses the field’s `timezone`. `LocalDate` and `LocalDateTime` are written with the storage format (`Y-m-d`, `H:i`, or `Y-m-d H:i`). `seconds(true)` appends seconds. `displayFormat` is what the text input shows.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val day = DatePicker.make("day")
@@ -168,10 +218,16 @@ val day = DatePicker.make("day")
 day.normalize(LocalDate.of(2024, 3, 10)) // "2024-03-10"
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 DateTimePicker day = DatePicker.make("day").useNative(false).minDate("2024-03-01");
 day.normalize(LocalDate.of(2024, 3, 10));
 ```
+
+</TabItem>
+</Tabs>
 
 `firstDayOfWeek` is 0 (Sunday) or 1 (Monday). `hoursStep`, `minutesStep`, and `secondsStep` must stay inside their ranges. `defaultFocusedDate` opens the grid on that day. `FieldClock.pinToday` fixes “today” in tests.
 
@@ -189,9 +245,22 @@ The page script looks for `FilePond` and for a `FireflyEditors` object (TipTap, 
 
 `FileUpload` posts to `POST /_firefly/uploads` through the filesystem. Register the route once:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 FireflyUploads.register(router, UploadDisks { name -> filesystems.disk(name) })
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FireflyUploads.register(router, name -> filesystems.disk(name));
+```
+
+</TabItem>
+</Tabs>
 
 The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file with the original name, then returns JSON `{ "path", "name" }`. `commit(schema, disks)` copies the temporary file into `directory()` (or moves it when `moveFiles(true)` is set), applies `preserveFilenames` or `getUploadedFileNameForStorageUsing`, and stores the final path on the field. `storeFileNamesIn` writes the original names to another state path. `storeFiles(false)` leaves the temporary path in place.
 
@@ -209,13 +278,22 @@ The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file wi
 
 ## Validation
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val errors = FieldValidation.validate(schema, schemaRoots)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Map<String, List<String>> errors = FieldValidation.validate(schema, List.of(name));
 ```
+
+</TabItem>
+</Tabs>
 
 The walk skips layout nodes, hidden fields, fields with `dehydrated(false)`, and fields with an empty path. Rules go through the HTTP validator. A custom `validationAttribute` rewrites the field name in the message. `extraErrors` from a file upload or a repeater are merged in. `unique` and `exists` fail closed until a checker is configured.
 
@@ -234,12 +312,18 @@ The command writes a class that extends the field base and a Crema view with `x-
 
 Prefix, suffix, and hint buttons are `Action` values from `org.konaframework.firefly.actions`. The field renders the action next to that piece of chrome.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 TextInput.make("title")
     .prefixAction(Action.make("prefix").label("Prefix"))
     .suffixAction(Action.make("suffix").label("Suffix"))
     .hintAction(Action.make("hint").label("Hint"))
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 TextInput.make("title")
@@ -248,7 +332,13 @@ TextInput.make("title")
     .hintAction(Action.make("hint").label("Hint"));
 ```
 
+</TabItem>
+</Tabs>
+
 A repeater renders add, delete, clone, and extra item actions beside the item controls:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Repeater.make("rows")
@@ -258,11 +348,28 @@ Repeater.make("rows")
     .extraItemActions(Action.make("extraRow").label("Extra"))
 ```
 
+</TabItem>
+<TabItem label="Java">
+
+```java
+Repeater.make("rows")
+    .addAction(Action.make("addRow").label("Add"))
+    .deleteAction(Action.make("deleteRow").label("Delete"))
+    .cloneAction(Action.make("cloneRow").label("Clone"))
+    .extraItemActions(Action.make("extraRow").label("Extra"));
+```
+
+</TabItem>
+</Tabs>
+
 `Builder.addBetweenAction` renders an action between blocks. A rich-text custom block keeps its `Dialog` and can also carry `editBlockAction`, which renders an `Action` for that block. `Select.createOptionAction` does the same for the create-option button. `createOptionForm` and `createOptionUsing` still run the create flow.
 
 ## Relationship query
 
 `relationship(name, titleAttribute)` reads the related records. The optional closure is `modifyQueryUsing`: it receives the related model's query and narrows the option list. `getOptionLabelFromRecordUsing` overrides `titleAttribute`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Select.make("authorId")
@@ -277,11 +384,17 @@ Select.make("authorId")
     }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Select.make("authorId")
     .relationship("author", "name", query -> { })
     .getOptionLabelFromRecordUsing(record -> "Ada");
 ```
+
+</TabItem>
+</Tabs>
 
 Put the owner model on the schema with `record(...)` before the options are read. A Cadence relationship method such as `author()` supplies a `ModelBuilder`. A document model supplies its own query and is not given a SQL builder.
 
@@ -289,16 +402,44 @@ Put the owner model on the schema with `record(...)` before the options are read
 
 `ModalTableSelect` hosts a `Table`. `choose` toggles a record key and stores the selection on the field. `multiple(true)` stores every selected key.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val people = Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
 ModalTableSelect.make("person").table(people)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
+```java
+Table<Map<String, Object>, MemoryQuery> people =
+    Table.memory(List.of(Map.of("id", "1", "name", "Ada"))).columns(TextColumn.make("name"));
+ModalTableSelect.make("person").table(people);
+```
+
+</TabItem>
+</Tabs>
+
 `MorphToSelect` maps a type name to a record store. `selectType` stores `type` and `id`. `optionsFor` lists that type, and `modifyQueryUsing` narrows the query.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 MorphToSelect.make("link").titleAttribute("name").type("posts", posts)
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+MorphToSelect.make("link").titleAttribute("name").type("posts", posts);
+```
+
+</TabItem>
+</Tabs>
 
 ## Browsing stored files
 

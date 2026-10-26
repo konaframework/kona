@@ -3,15 +3,19 @@ title: Schemas
 description: Build a Firefly schema, bind state, and let labels and content be a value or a closure.
 ---
 
-:::note[Screenshot placeholder: a schema with a section and text]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A schema is a tree of components plus a state map. You build the tree in Kotlin or Java, fill or hydrate state, then `render()` returns HTML. Live components bind that state with `wire:model` and `@entangle`.
+<FireflyShot file="schema-section.png" description="The Desk form at http://127.0.0.1:4017/admin/desk, a schema of the name, status, and due fields." />
 
-The types live in `org.konaframework.firefly.schemas` (`kona-firefly-schemas`). They depend on `kona-firefly-support` for icons and errors.
+A schema is the tree you build instead of writing the page HTML by hand. Sections, text, and later fields and buttons all sit in that tree. You fill the state map, then `render()` returns HTML. Live pieces bind with `wire:model` and `@entangle`.
+
+You use a schema whenever a screen is more than one control. The Desk page is a schema of a name field, a status field, and a due field, plus an infolist and a table beside it. The types live in `org.konaframework.firefly.schemas` (`kona-firefly-schemas`).
 
 ## A schema in one call
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val schema = Schema.make()
@@ -25,6 +29,9 @@ schema.hydrate()
 val html = schema.render()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Schema schema = Schema.make()
     .statePath("user")
@@ -33,6 +40,9 @@ schema.hydrate();
 String html = schema.render();
 ```
 
+</TabItem>
+</Tabs>
+
 `Schema.make()` starts an empty tree. `statePath("user")` prefixes every root component, so a field named `name` is stored at `user.name`. `components(...)` replaces the root list and binds each component to the schema. `hydrate()` writes defaults into missing paths. `render()` returns a `<div class="ff-schema">`.
 
 `get` and `set` use dotted paths. `set` returns the partial-render keys for that update. A component that called `live()`, `liveOnBlur()`, or `liveDebounce(...)` contributes its own path.
@@ -40,6 +50,9 @@ String html = schema.render();
 ## Values and closures
 
 Most chainable setters accept a fixed value or a closure. The closure receives `Get`, the same reader the schema uses inside `afterStateUpdated`. `Get.get` resolves a path relative to the component’s container. A path that starts with `/` is absolute.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val section = Section.make("Profile")
@@ -50,34 +63,63 @@ section.columns { 2 }
 section.hidden { get -> get.get("/draft") == true }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 name.label(get -> "From Java");
 details.columns(get -> 2);
 Text.make("Hello").content(get -> "Hello");
 ```
 
+</TabItem>
+</Tabs>
+
 The last call wins. `label("Title")` after a closure stores the fixed string and drops the closure. The same shape is on `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight`, and `imageWidth`.
 
 `extraAttributes` merges a map of HTML attributes onto the component root. Layouts, primes, actions, infolist entries, table columns, and form fields all have it, because they share the schema component (columns keep the same methods on the column root). Pass a map or a closure. A name that is not an HTML attribute name is skipped. Values are escaped.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Section.make().extraAttributes(mapOf("data-section" to "intro"))
 Text.make("note").extraAttributes { mapOf("data-kind" to "note") }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Section.make().extraAttributes(Map.of("data-section", "intro"));
 Text.make("note").extraAttributes(get -> Map.of("data-kind", "note"));
 ```
 
+</TabItem>
+</Tabs>
+
 `hidden(true)` and `visible(false)` still take a boolean. `hidden { ... }` and `visible { ... }` recompute when the schema renders or when `isHidden` runs.
 
 ## State
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 schema.fill(mapOf("user.city" to "Kona"))
 schema.get("user.city") // "Kona"
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+schema.fill(Map.of("user.city", "Kona"));
+schema.get("user.city"); // "Kona"
+```
+
+</TabItem>
+</Tabs>
 
 Inside a component under `statePath("user")`:
 
@@ -96,6 +138,10 @@ Inside a component under `statePath("user")`:
 
 ## Layouts
 
+You reach for a layout when one field after another is not enough. A section, a grid, tabs, or a wizard is still a schema component. The Desk page stacks a form, an infolist, and a table in the body, which is the layout you see in the sample.
+
+<FireflyShot file="schema-layout.png" description="The Desk page body at http://127.0.0.1:4017/admin/desk, with the form, the name infolist, and the notes table one after another." />
+
 | Type | Role |
 |------|------|
 | `Grid.make(columns)` | Column grid. `schema(...)` sets the children |
@@ -111,13 +157,22 @@ Inside a component under `statePath("user")`:
 
 `configureUsing` on a layout runs for every later `make()` of that class. Pass `null` to clear it.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 Section.configureUsing { it.aside(true) }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Section.configureUsing(section -> { section.aside(true); });
 ```
+
+</TabItem>
+</Tabs>
 
 Heading level starts at 2. `rootHeadingLevel` changes the start. Nested sections increment it, and the level stops at 6.
 
@@ -127,6 +182,9 @@ Heading level starts at 2. `rootHeadingLevel` changes the start. Nested sections
 
 ## Live updates
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 field.live()
 field.liveOnBlur()
@@ -134,6 +192,20 @@ field.liveDebounce(400)
 field.reactive()   // same binding as live()
 field.lazy()       // same binding as liveOnBlur()
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+field.live();
+field.liveOnBlur();
+field.liveDebounce(400);
+field.reactive();
+field.lazy();
+```
+
+</TabItem>
+</Tabs>
 
 `live()` renders `wire:model.live`. `liveOnBlur()` and `lazy()` render `wire:model.blur`. `liveDebounce(400)` renders `wire:model.live.debounce.400ms`. Each also sets `data-ff-entangle="@entangle(path)"`. `afterStateUpdatedJs("watch")` stores the expression on `data-ff-updated-js`. The page does not evaluate that string on the server.
 
@@ -143,15 +215,24 @@ field.lazy()       // same binding as liveOnBlur()
 
 Subclass `Component`. The constructor name is the state key.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 class Banner(name: String) : Component(name)
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 public class NameField extends Component {
     public NameField() { super("name"); }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 `view("notes.banner")` renders that Crema view when `Schema.crema(engine)` is set. The view receives `path`, `content`, and `label`. Without an engine, render emits `<div data-ff-view="notes.banner">`.
 

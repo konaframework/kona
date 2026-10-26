@@ -3,17 +3,21 @@ title: Widgets
 description: Place stats, charts, tables, and account widgets on a page or dashboard, and discover them from a panel widgets directory.
 ---
 
-:::note[Screenshot placeholder: the Desk widget on the Desk page]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A widget renders on its own and inside a page or dashboard. Stats, charts, a table, and an account card are the built-in widgets. A page is the composition host: a title, header and footer actions, a content region, and the widgets you place on it. A panel route serves that page. `render()` is still how tests and embedded widgets get the same HTML.
+<FireflyShot file="desk-widget.png" description="The Desk widget on the Desk page at http://127.0.0.1:4017/admin/desk, the paragraph that reads Open orders." />
 
-Chart.js is the default chart engine. Pass `ChartEngine.APEX_CHARTS` when you want ApexCharts. A widget must be placeable on a page: `widgets(...)` on `Page` draws it inside `<div class="ff-page-widgets">`. The hello sample’s `DeskWidget` is discovered from `widgets/` and placed on the Desk page.
+A widget is a small block on a page: a stat, a chart, a table, or a paragraph you wrote. You place it with `widgets(...)` on a page. The panel draws those blocks inside `<div class="ff-page-widgets">`.
 
-The types live in `org.konaframework.firefly.widgets` (`kona-firefly-widgets`). Chainable setters accept a static value or a closure that receives the schema `Get`. `extraAttributes` is on every widget. Chart filters also accept `extraInputAttributes`.
+The hello sample’s `DeskWidget` is a paragraph that reads “Open orders”. Discovery finds it in `widgets/` and puts it on the Desk page, because Desk is the first page.
+
+Chart.js is the default chart engine. Pass `ChartEngine.APEX_CHARTS` when you want ApexCharts. The types live in `org.konaframework.firefly.widgets` (`kona-firefly-widgets`). `extraAttributes` is on every widget. Chart filters also accept `extraInputAttributes`.
 
 ## A widget on a page
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val page = Page()
@@ -29,6 +33,9 @@ val page = Page()
 val html = page.render()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Page page = new Page();
 page.title(get -> "Desk");
@@ -41,6 +48,9 @@ page.widgets(
 );
 String html = page.render();
 ```
+
+</TabItem>
+</Tabs>
 
 `Page.render()` returns `<section class="ff-page">` with a header, the content region, `<div class="ff-page-widgets">`, and a footer. `Dashboard` uses `ff-page ff-dashboard` and the fallback title `Dashboard`. The content region is filled by `schema(...)`, `form(...)`, `infolistHtml(...)`, or `table(...)`. Widgets render in the widgets region, so a chart is on the page rather than only in a standalone string.
 
@@ -56,6 +66,9 @@ A widget’s own `render()` returns the same HTML you would get by placing that 
 
 `ChartWidget` defaults to Chart.js (`ChartEngine.CHART_JS`). Pass `ChartEngine.APEX_CHARTS` to use ApexCharts. The chart type is `line` unless you set `bar`, `area`, `pie`, or `donut`. Any other type throws `FireflyException`. Chart.js receives `area` as `line` and `donut` as `doughnut`. ApexCharts keeps `area` and `donut`. `options` is passed through to the library config.
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 ChartWidget.make("revenue")
     .type("bar")
@@ -63,6 +76,20 @@ ChartWidget.make("revenue")
     .series(listOf(ChartSeries("Revenue", listOf(10, 20, 15))))
     .maxHeight("240px")
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ChartWidget.make("revenue")
+    .type("bar")
+    .categories(List.of("Mon", "Tue", "Wed"))
+    .series(List.of(new ChartSeries("Revenue", List.<Number>of(10, 20, 15))))
+    .maxHeight("240px");
+```
+
+</TabItem>
+</Tabs>
 
 `RevenueChart` is that bar chart on Chart.js. `OrdersChart` is an area chart on ApexCharts.
 

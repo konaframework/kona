@@ -3,17 +3,21 @@ title: Notifications
 description: Flash a Firefly toast, list database notices in a bell, and refresh a page when a broadcast arrives.
 ---
 
-:::note[Screenshot placeholder: a saved toast]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A Firefly notification is a short message with a title, a status, and optional body, icon, color, duration, extra attributes, and actions. You build it in Kotlin or Java, then send it to the session, the database, or a broadcast.
+<FireflyShot file="saved-toast.png" description="A success toast titled Saved on a Firefly panel page, such as after a save on http://127.0.0.1:4017/admin/notes/manage." />
 
-The types live in `org.konaframework.firefly.notifications` (`kona-firefly-notifications`). The module uses the existing session flash store, `DatabaseChannel`, and `BroadcastManager`. It does not add a second notification store.
+A notification is a short message for the person using the panel. The usual one is a toast after a save. You can also store the same message for a bell, or broadcast it so another open page can refresh.
+
+You build the message in Kotlin or Java, then send it. The types live in `org.konaframework.firefly.notifications` (`kona-firefly-notifications`). The module uses the session flash store, `DatabaseChannel`, and `BroadcastManager` you already have. It does not add a second store.
 
 Chainable setters accept a static value or a closure. The closure receives the schema `Get` for the current state.
 
 ## A toast in one call
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val session = StoreSession("desk", ArraySessionStore())
@@ -29,6 +33,9 @@ FireflyNotification.make("saved")
 val html = FireflyNotification.pull(session)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 StoreSession session = new StoreSession("desk", new ArraySessionStore());
 FireflyNotification notice = FireflyNotification.make("saved");
@@ -40,6 +47,9 @@ notice.extraAttributes(get -> Map.of("data-lang", "java"));
 notice.send(session, Map.of());
 String html = FireflyNotification.pull(session);
 ```
+
+</TabItem>
+</Tabs>
 
 `make()` assigns a random id. `make(id)` uses the id you pass. A blank id throws `FireflyException` with `Notification id is blank`. A blank title throws `Notification title is blank` or `Notification [<id>] title is blank` when the value is resolved at send time.
 
@@ -53,6 +63,9 @@ Each toast is a `<div class="ff-notification" role="status">` with `data-ff-stat
 
 ## Database bell
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 val channel = DatabaseChannel()
 notice.sendToDatabase(person, channel)
@@ -62,16 +75,45 @@ bell.markAsRead(bell.records().first().id)
 bell.markAllAsRead()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
+```java
+DatabaseChannel channel = new DatabaseChannel();
+notice.sendToDatabase(person, channel);
+NotificationBell bell = new NotificationBell(channel, person.routeNotificationFor("database"));
+String html = bell.render();
+bell.markAsRead(bell.records().get(0).getId());
+bell.markAllAsRead();
+```
+
+</TabItem>
+</Tabs>
+
 `sendToDatabase` accepts a `DatabaseChannel` or a `NotificationSender`. The stored row keeps the title, status, color, duration, body, icon, attributes, and the rendered action HTML.
 
 `NotificationBell` lists that notifiable’s rows. `render()` returns `<div class="ff-notification-bell" wire:poll.30s>` with a count of unread rows and one `<li>` per record. `data-ff-unread` is `true` or `false`. When a row has no title, the list item uses the notification type name.
 
 ## Broadcast refresh
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 notice.broadcastChannel("desk").broadcast(person, manager)
 val marker = BroadcastRefresh().channel("desk").event("firefly.notification").render()
 ```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+notice.broadcastChannel("desk").broadcast(person, manager);
+String marker = new BroadcastRefresh().channel("desk").event("firefly.notification").render();
+```
+
+</TabItem>
+</Tabs>
 
 `broadcast` sends through `BroadcastManager` on the channel name you set. A blank channel throws `FireflyException`.
 
