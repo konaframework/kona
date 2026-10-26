@@ -165,6 +165,8 @@ Les réponses de validation sont les mêmes dans les deux modes.
 
 Le kernel enregistré par `HttpServiceProvider` lit le mode debug depuis la valeur de config `app.debug`, qui vient de `APP_DEBUG` dans l’environnement ou `.env` (défaut `false`). Les projets créés par `kona new` fixent `APP_DEBUG=true` dans `.env` pour le travail local. **Fixez `APP_DEBUG=false` en production**, soit dans le `.env` de cet environnement, soit comme vraie variable d’environnement, qui a la priorité. Pour construire un handler directement, passez le drapeau : `DefaultExceptionHandler(debug = true)` en Kotlin, `new DefaultExceptionHandler(true)` en Java.
 
+<a id="where-exceptions-are-caught"></a>
+
 ## Où les exceptions sont attrapées
 
 Le kernel convertit les exceptions à deux points :
