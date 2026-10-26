@@ -10,7 +10,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 
 1. [AGENTS.md](../../AGENTS.md) — milestone laws, architecture locks, Auto model default.
 2. [MILESTONES.md](../../MILESTONES.md) — **active** milestone and Almasix parity ledger.
-3. [continuous-autopilot.md](continuous-autopilot.md) — uninterrupted drill (implement → docs → PR + automerge → next).
+3. [continuous-autopilot.md](continuous-autopilot.md) — uninterrupted drill (implement → docs → PR + automerge; non-colliding milestones may run in parallel).
 4. [docs-site.md](docs-site.md) + [`.cursor/rules/kona-docs.mdc`](../../.cursor/rules/kona-docs.mdc) — public docs voice (feature-guide depth; Getting Started stays simple).
 5. [docs/architecture/PLAN.md](../architecture/PLAN.md) and [components.md](../architecture/components.md) — product map.
 6. [github-rulesets.md](github-rulesets.md) — **never** mutate rulesets (Law 9).
@@ -46,7 +46,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Docs i18n | Root English; locales `es` / `fr` / `zh-cn` (Introduction + Installation translated; else EN fallback) |
 | LSP | `kona-lsp` completes Crema `@`, Wire `wire:*`, and echo helpers inside `{{ }}` (IDEA-aligned `CremaEchoCatalog`) |
 | Models | **Auto only** unless the human names a model for that turn |
-| Autopilot | Continue deepen / docs exhaustion; do not pause between merges |
+| Autopilot | Non-colliding milestones may proceed in parallel. After a merge, continue remaining milestones whose dependencies are on `main`, including ones already in progress. Do not pause for permission |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9) |
 
@@ -129,14 +129,14 @@ Key paths: `modules/` (framework), `apps/docs/`, `js/wire/`, `docs/governance/`,
 
 1. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
 2. Confirm no conflicting open PRs.
-3. Pick the next **deepen** slice from remaining Almasix ledger rows — one milestone branch at a time. **Queued for 0.3.0:** M26 Wire → **Kona Wire** (do not start until marked active).
+3. Pick remaining **deepen** slices from the Almasix ledger. Non-colliding milestones may proceed in parallel, each on its own branch. Do not start a milestone that depends on another until that dependency is on `main`. **M26 Wire** shipped on **0.3.0**.
 4. **Maven Central — `v0.2.0` shipped** (do not re-tag). **`0.2.1` version bump on `main` — do not tag until release cut.** Optional follow-ups:
    - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
    - Trusted Publishing (OIDC) still **not GA** — token + GPG. Full checklist: [publishing.md](publishing.md).
 
 ## Do not
 
-- Skip coverage or parity; jump milestones; embed Quarkus/Micronaut/Spring.
+- Skip coverage or parity; run parallel work that collides or depends on a milestone that is not yet on `main`; embed Quarkus/Micronaut/Spring.
 - Mutate GitHub rulesets.
 - Pin named Cursor models unless the human asks.
 - Commit `~/hello-kona` or treat it as a product repo.

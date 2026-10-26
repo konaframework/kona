@@ -10,12 +10,12 @@ GitHub org **`konaframework`** is ready. Primary repo: [`konaframework/kona`](ht
 
 These rules are product law. They will live in-repo so every agent and human must follow them.
 
-1. **One active milestone at a time.** Do not start the next milestone until the current one is merged to `main`.
+1. **Milestones may be implemented in parallel when they do not collide.** A collision means shared files, the same module, or a behavioral dependency on another milestone that is not yet on `main`. Each milestone still ships on its own branch and its own pull request. Do not start a milestone that depends on another until that dependency is on `main`. Independent, non-colliding milestones may be coded and reviewed at the same time. After one of them merges, rebase any parallel branch that needs those changes before merging it.
 2. **Develop to exhaustion.** Within a milestone’s declared parity scope, implement completely — no “good enough for now,” no deferred core behaviors inside that scope.
 3. **100% code coverage** for all production code introduced or touched by the milestone (line + branch via Kover/JaCoCo). CI **fails** the milestone PR if coverage &lt; 100% on in-scope modules.
 4. **Regression suite.** Every milestone adds/extends automated tests; the full suite for all *completed* milestones must stay green. No merge that breaks prior milestones.
 5. **Slice parity gate.** A milestone is done only when its checklist shows **100% parity** with the corresponding **Laravel and/or Almasix** surface for that slice (behavioral/API shape — not PHP/Python source identity). Prefer Almasix where both exist and Kona’s DX should match your stack; use Laravel as the named equivalent for gaps.
-6. **Commit + automerge, then next.** Open a milestone PR → required CI (tests, coverage, regression, Kotlin+Java samples) → automerge to `main` → only then begin the next milestone branch.
+6. **Commit + automerge.** Open a milestone PR → required CI (tests, coverage, regression, Kotlin+Java samples) → automerge to `main`. Each milestone keeps its own branch and pull request.
 7. **No engine pivots.** From-scratch Kona only; no Quarkus/Micronaut/Spring under the hood.
 8. **Kotlin-first, Java first-class.** Every milestone that ships public API includes Java-callable usage and a Java sample/regression path.
 
@@ -30,7 +30,7 @@ These rules are product law. They will live in-repo so every agent and human mus
 | [`components.md`](components.md) | Kona ↔ Laravel/Almasix component map (grind, Cadence, Crema, …) |
 | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | From M1 onward: test + 100% coverage gate + regression; automerge on green milestone PRs |
 
-Agents must read `AGENTS.md` + current milestone section in `MILESTONES.md` before writing code. If a request would skip coverage, skip parity, or start the next milestone early — **refuse and finish the current milestone**.
+Agents must read `AGENTS.md` + the milestone section in `MILESTONES.md` before writing code. If a request would skip coverage, skip parity, or change GitHub rulesets — **refuse** and finish the milestone in scope (or wait for a human on rulesets). Parallel work that collides, or that depends on a milestone that is not yet on `main`, is still refused.
 
 ---
 
@@ -91,7 +91,7 @@ kona/
 
 Trunk: `main`. SemVer via BOM. Apache-2.0. Milestone branches: `milestone/M0-plan`, `milestone/M1-kernel`, …
 
-## Milestones (exhausted, sequential)
+## Milestones (exhausted)
 
 Canonical checklists and the **full Almasix menu coverage ledger** live in [`MILESTONES.md`](../../MILESTONES.md). Summary:
 

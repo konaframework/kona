@@ -13,6 +13,6 @@ Always use **Auto** (Cursor Auto / `inherit`) for this agent and every subagent/
 
 ## Continuous drill
 
-After a milestone merges to `main`, immediately start the next active milestone. Loop: exhaust parity → 100% coverage → docs write/rewrite → commit → PR → automerge → next through **M13** (full Almasix ledger in `MILESTONES.md`). Do not pause between milestones for permission.
+Non-colliding milestones may proceed in parallel, each on its own branch and pull request. When a milestone merges to `main`, continue remaining milestones whose dependencies are on `main`, including ones already in progress on their own branches. Loop: exhaust parity → 100% coverage → docs write/rewrite → commit → PR → automerge through **M13** (full Almasix ledger in `MILESTONES.md`). Do not pause for permission. Do not implement two milestones on one branch. Do not expand a milestone into a later milestone’s checklist. After one merges, rebase any parallel branch that needs those changes before merging it.
 
 Stop only for ruleset blocks (Law 9), security/destructive approvals, or unrecoverable environment failure.

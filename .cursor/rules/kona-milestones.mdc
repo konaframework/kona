@@ -1,27 +1,27 @@
 ---
-description: Kona milestone laws — coverage, parity, sequential delivery, no engine pivots
+description: Kona milestone laws — coverage, parity, parallel non-colliding delivery, no engine pivots
 alwaysApply: true
 ---
 
 # Kona milestone enforcement
 
-Before any implementation work, read `AGENTS.md` and the active milestone in `MILESTONES.md`.
+Before any implementation work, read `AGENTS.md` and the milestone you are implementing in `MILESTONES.md`.
 
 ## Laws
 
-1. One active milestone at a time — no starting the next until current is on `main`.
+1. Milestones may be implemented in parallel when they do not collide. A collision means shared files, the same module, or a behavioral dependency on another milestone that is not yet on `main`. Each milestone still ships on its own branch and its own pull request. Do not start a milestone that depends on another until that dependency is on `main`. Independent, non-colliding milestones may be coded and reviewed at the same time. After one of them merges, rebase any parallel branch that needs those changes before merging it.
 2. Develop the current milestone to exhaustion within its parity scope.
 3. 100% line + branch coverage on production code touched by the milestone; CI must fail below 100%.
 4. Keep the full regression suite green for all completed milestones.
 5. Require 100% Laravel/Almasix slice parity (behavioral/API shape) before marking the milestone done.
-6. Ship via milestone PR → green CI → automerge → then next milestone branch.
+6. Ship via milestone PR → green CI → automerge. Each milestone keeps its own branch and pull request.
 7. Never embed Quarkus, Micronaut, or Spring as the engine; from-scratch Kona + libraries only.
 8. Kotlin-first internals; every public API milestone must include Java-callable usage and Java sample/regression.
 9. NEVER adjust GitHub rulesets (create/update/disable/delete/`gh api …/rulesets`). If blocked by rules, stop and ask a human — do not change the ruleset.
 
 ## Refuse
 
-If asked to skip coverage, skip parity, partially ship a slice, jump milestones, or change GitHub rulesets: refuse and finish the current milestone (or wait for a human on rulesets).
+If asked to skip coverage, skip parity, partially ship a slice, or change GitHub rulesets: refuse and finish the milestone in scope (or wait for a human on rulesets). Parallel work that collides, or that depends on a milestone that is not yet on `main`, is still refused.
 
 ## Forbidden `gh` usage
 
@@ -40,4 +40,4 @@ Public site: `apps/docs/` — Astro + Starlight + `@almasix/starlight-theme`. Br
 
 ## Continuous autopilot + Auto
 
-See `.cursor/rules/kona-autopilot.mdc` and `docs/governance/continuous-autopilot.md`. Use Auto for models; after merge, immediately continue the next milestone.
+See `.cursor/rules/kona-autopilot.mdc` and `docs/governance/continuous-autopilot.md`. Use Auto for models. Non-colliding milestones may proceed in parallel. When a milestone merges to `main`, continue remaining milestones whose dependencies are on `main`, including ones already in progress on their own branches. Do not pause for permission. Do not implement two milestones on one branch.
