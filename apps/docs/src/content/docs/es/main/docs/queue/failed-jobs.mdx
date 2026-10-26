@@ -1,0 +1,25 @@
+---
+title: Trabajos fallidos
+description: Lista, reintenta y vacía los trabajos de cola fallidos.
+---
+
+Cuando un trabajo agota sus intentos, el worker lo registra mediante `FailedJobProvider`.
+
+```bash
+./grind queue:failed
+./grind queue:retry <id>
+./grind queue:retry --all
+./grind queue:flush
+```
+
+`queue:retry` **vuelve a encolar** el payload (los intentos se reinician) en la conexión y la cola originales, y luego olvida la fila fallida.
+
+## Almacenamiento durable de fallos
+
+| `queue.failed.driver` | Almacenamiento |
+|-----------------------|----------------|
+| `memory` (predeterminado) | Heap del proceso |
+| `file` | JSON en `queue.failed.path` (predeterminado `storage/framework/failed_jobs.json`) |
+| `database` | Tabla `failed_jobs` (`queue.failed.table`); necesita `Database` de Cadence |
+
+Usa `file` o `database` siempre que los reintentos deban sobrevivir a un reinicio del worker.

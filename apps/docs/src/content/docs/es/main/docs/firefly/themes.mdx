@@ -1,0 +1,156 @@
+---
+title: Temas y CSS
+description: FireflyTheme, tokens de KonaTheme, variables CSS con ámbito y la regla que mantiene el CSS del tema dentro del panel.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="themed-panel.png" description="El panel hello-kotlin en http://127.0.0.1:4017/admin/desk con el tema publicado en la barra lateral y en la página." />
+
+Un tema es el aspecto del panel: colores, tipo y cualquier CSS extra que quieras dentro del marco. Usas uno cuando el aspecto publicado está cerca y quieres tu propio color primario o una barra lateral distinta.
+
+Implementas `FireflyTheme`. Aporta un id, un objeto `ThemeTokens`, HTML opcional para un slot del cromo y CSS extra opcional. `Stylesheet.render` convierte los tokens en propiedades personalizadas de CSS en `.ff-panel`. Las reglas de la hoja de estilos publicada solo coinciden dentro de `.ff-panel`, así que una página que nunca renderiza un panel no recoge los botones, la barra lateral ni los diálogos de Firefly.
+
+## FireflyTheme
+
+| Método | Predeterminado | Significado |
+|--------|---------|---------|
+| `id(): String` | obligatorio | Nombre corto usado en los mensajes de error |
+| `tokens(): ThemeTokens` | obligatorio | Tokens de color, tipo y tamaño |
+| `partial(slot: String): String?` | `null` | HTML de sustitución para `sidebar`, `topbar`, `body` o `footer`. `null` conserva el parcial integrado |
+| `extraCss(): String` | `""` | Reglas extra. Firefly envuelve un valor no vacío en `.ff-panel { ... }` |
+
+Implementa la interfaz en Kotlin o Java. No registras la clase en ningún sitio. Pasa una instancia a `Panel.theme(...)`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class HarborTheme : FireflyTheme {
+    override fun id(): String = "harbor"
+
+    override fun tokens(): ThemeTokens = ThemeTokens(
+        primary = "#DF8723",
+        accent = "#74453F",
+        surface = "#FAF6F0",
+        heading = "#2A1C10",
+        font = "ui-sans-serif, system-ui, sans-serif",
+        radius = "0.75rem",
+        sidebarWidth = "18rem",
+        topbarHeight = "4rem",
+        bodyBackground = "#FAF6F0",
+        darkPrimary = "#C9A57B",
+        darkSurface = "#1A120C",
+        darkHeading = "#E8D4B8",
+    )
+
+    override fun extraCss(): String =
+        ".ff-sidebar { box-shadow: inset -1px 0 0 var(--ff-accent); }"
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class HarborTheme implements FireflyTheme {
+    @Override public String id() { return "harbor"; }
+
+    @Override public ThemeTokens tokens() {
+        return new ThemeTokens(
+            "#DF8723", "#74453F", "#FAF6F0", "#2A1C10",
+            "ui-sans-serif, system-ui, sans-serif",
+            "0.75rem", "18rem", "4rem", "#FAF6F0",
+            "#C9A57B", "#1A120C", "#E8D4B8"
+        );
+    }
+
+    @Override public String extraCss() {
+        return ".ff-sidebar { box-shadow: inset -1px 0 0 var(--ff-accent); }";
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`ThemeTokens` es una clase con esos doce parámetros de constructor, en ese orden. Cada campo es un `val` público (un getter de Java). Los valores se insertan en el CSS tal como los das. Firefly no valida que un token sea un color CSS legal.
+
+## KonaTheme
+
+`KonaTheme` es el tema integrado. `id()` devuelve `kona`. `Panel` lo usa cuando nunca llamas a `theme(...)`.
+
+| Token | Valor claro | Token oscuro | Valor oscuro |
+|-------|-------------|------------|------------|
+| primary | `#DF8723` | darkPrimary | `#C9A57B` |
+| accent | `#74453F` | — | accent no cambia en el bloque oscuro |
+| surface | `#FAF6F0` | darkSurface | `#1A120C` |
+| heading | `#2A1C10` | darkHeading | `#E8D4B8` |
+| font | `ui-sans-serif, system-ui, sans-serif` | — | |
+| radius | `0.5rem` | — | |
+| sidebarWidth | `16rem` | — | |
+| topbarHeight | `4rem` | — | |
+| bodyBackground | `#FAF6F0` | escrito como `--ff-body` | el bloque oscuro pone `--ff-body` desde `darkSurface` |
+
+## Stylesheet.render
+
+`Stylesheet.render(theme)` devuelve una cadena CSS:
+
+1. Un bloque `.ff-panel { ... }` de propiedades personalizadas.
+2. Un bloque `.ff-panel.ff-dark { ... }` que anula primary, surface, heading y body.
+3. La hoja de estilos de componentes publicada.
+4. Cuando `extraCss()` no está en blanco después de `trim()`, un bloque final `.ff-panel { <extra> }`.
+
+Propiedades personalizadas:
+
+| Propiedad | Token |
+|----------|--------|
+| `--ff-primary` | `primary` / `darkPrimary` |
+| `--ff-accent` | `accent` |
+| `--ff-surface` | `surface` / `darkSurface` |
+| `--ff-heading` | `heading` / `darkHeading` |
+| `--ff-font` | `font` |
+| `--ff-radius` | `radius` |
+| `--ff-sidebar-width` | `sidebarWidth` |
+| `--ff-topbar-height` | `topbarHeight` |
+| `--ff-body` | `bodyBackground` / `darkSurface` en el bloque oscuro |
+
+`DefaultLayout` emite `<div class="ff-panel">` sin `ff-dark`. Los tokens oscuros se aplican cuando la raíz del panel también tiene la clase `ff-dark`. Un `PanelLayout` propio puede añadir esa clase. Consulta [Cromo del panel](/docs/firefly/chrome/).
+
+## El CSS extra debe quedarse dentro del panel
+
+Después de trim, si `extraCss()` no está vacío y alguna línea coincide con `body` seguido de `{` al inicio de la línea (se permite espacio inicial), `Stylesheet.render` lanza `FireflyException`:
+
+```text
+Theme [<id>] CSS must stay under .ff-panel
+```
+
+Esto se rechaza:
+
+```css
+body { background: red; }
+```
+
+Esto se acepta, porque el selector no es una regla `body` desnuda:
+
+```css
+.ff-sidebar { background: var(--ff-surface); }
+```
+
+`extraCss()` vacío o solo con espacios se omite. La comprobación no corre.
+
+## Clases de componente publicadas
+
+La hoja de estilos registrada (`firefly.css`) es el resultado con ámbito del archivo de autoría Tailwind CSS v4 `modules/firefly-support/tailwind/input.css`. Las reglas son descendientes de `.ff-panel`. No hay preflight en el `html` o `body` del anfitrión.
+
+| Selector | Efecto |
+|----------|--------|
+| `.ff-panel .ff-btn` | Radio desde `--ff-radius`, relleno `0.5rem 0.75rem`, `0.875rem` / peso 500 |
+| `.ff-panel .ff-sidebar` | Altura completa, ancho `--ff-sidebar-width`, sin encogerse, scroll vertical |
+| `.ff-panel .ff-topbar` | Fila flex, ítems centrados, altura `--ff-topbar-height` |
+| `.ff-panel .ff-body` | Flex que crece, fuente `--ff-font`, fondo `--ff-body` |
+| `.ff-panel .ff-dialog` | Fijo, inset 0, z-index 50 |
+| `.ff-panel .ff-dialog-modal .ff-dialog-window` | Margen superior `4rem` |
+
+`Panel.render` coloca este CSS en un elemento `<style>` dentro de `.ff-panel`, así que las variables y las reglas de componente viajan con la cáscara.

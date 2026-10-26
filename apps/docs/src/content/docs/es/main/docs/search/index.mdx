@@ -1,0 +1,56 @@
+---
+title: Búsqueda
+description: Indexa registros y consúltalos con búsqueda de texto.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Búsqueda** indexa registros de la aplicación y ejecuta consultas de estilo de texto completo contra un motor enchufable.
+
+## Registrar
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+app.register(SearchServiceProvider())
+```
+
+| Clave | Significado |
+|-------|-------------|
+| `search.default` | Nombre del motor (predeterminado `collection`) |
+| `search.engines.{name}.driver` | `collection`, `array` o `memory` |
+
+## Tipos buscables
+
+```kotlin
+data class Post(val id: String, val title: String) : Searchable {
+    override fun searchableAs() = "posts"
+    override fun getScoutKey() = id
+    override fun toSearchableArray() = mapOf("title" to title)
+}
+```
+
+## Indexar y consultar
+
+```kotlin
+Scout.update(post)
+val result = Scout.search("posts", "kona")
+result.keys() // matching scout keys
+Scout.remove(post)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Scout.update(article);
+SearchResult result = Scout.search("articles", "kona");
+```
+
+</TabItem>
+</Tabs>
+
+## Motor collection
+
+El motor **collection** integrado guarda los documentos en memoria y coincide cuando la consulta aparece en cualquier campo indexado (sin distinguir mayúsculas). Es el driver concreto para desarrollo local y pruebas; motores adicionales pueden implementar `Engine`.

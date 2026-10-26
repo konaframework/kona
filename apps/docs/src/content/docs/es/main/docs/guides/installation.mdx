@@ -1,0 +1,122 @@
+---
+title: Instalación
+description: Instala el CLI global kona con un instalador curl de una línea, crea apps con kona new y usa ./grind dentro de cada proyecto.
+---
+
+Kona usa **dos** herramientas de línea de comandos a propósito:
+
+| Herramienta | Dónde vive | Qué hace |
+|------|----------------|--------------|
+| **`kona`** | En tu PATH (global) | Crea apps (`kona new`) y puede reenviar a grind (`kona grind …`) |
+| **`./grind`** | Dentro de cada app creada con `kona new` | Trabajo diario de *esa* app: servir, generar controllers, … |
+
+Instalas `kona` una vez. Cada proyecto de `kona new` trae su propio `./grind` (y `grind.bat` en Windows). Prefiere `./grind` cuando ya estás en el directorio de la app; desde una carpeta anidada también puedes usar `kona grind <comando>`.
+
+## Camino feliz
+
+```bash
+# 1. JDK 21+
+java -version
+
+# 2. Instalar el CLI global `kona`
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+export PATH="$HOME/.local/bin:$PATH"
+
+# 3. Crear una aplicación
+kona new my-app --no-interaction
+cd my-app
+
+# 4. Servir
+./grind serve
+```
+
+Abre `http://127.0.0.1:4000/`. Ese es el camino soportado: **instalar `kona` → `kona new` → `./grind serve`**.
+
+Las apps generadas resuelven las bibliotecas `org.konaframework` desde **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)** (la última versión publicada). No necesitas un checkout del código fuente de Kona para compilar o ejecutar una aplicación.
+
+## 1. JDK 21+
+
+```bash
+java -version   # debe reportar 21 o más reciente
+```
+
+El instalador y las apps generadas usan el wrapper de Gradle; no necesitas instalar Gradle por separado.
+
+## 2. Instalar el CLI global `kona`
+
+### Recomendado: instalador curl
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/konaframework/kona/main/scripts/install.sh | bash
+```
+
+La URL de curl solo descarga el **script instalador** desde GitHub. Ese script instala la última versión de **Maven Central** `org.konaframework:kona-cli` (tag git `vX.Y.Z`) en `~/.kona`, construye el CLI y enlaza `~/.local/bin/kona`. **No** instala commits sin publicar de `main`. Cambia el prefijo con `KONA_PREFIX`. Asegúrate de que `~/.local/bin` esté en tu `PATH`, luego comprueba:
+
+```bash
+kona version
+kona help
+```
+
+Vuelve a ejecutar el mismo comando curl para actualizar a una versión más reciente de Central.
+
+| Variable | Por defecto | Significado |
+|----------|---------|---------|
+| `KONA_SRC` | `~/.kona` | Dónde se clona / actualiza el código |
+| `KONA_PREFIX` | `~/.local` | Dónde se instalan `bin/kona` y `lib/kona` |
+| `KONA_REF` | última `kona-cli` en Central (`vX.Y.Z`) | Rama o tag de Git a instalar |
+| `KONA_REPO` | `https://github.com/konaframework/kona.git` | URL del clone |
+
+:::note[¿Y los gestores de paquetes?]
+Homebrew, SDKMAN y binarios sueltos de GitHub Releases aún no están publicados. El instalador curl es el camino soportado. Las dependencias de la aplicación siguen viniendo de Maven Central bajo el grupo `org.konaframework`.
+:::
+
+## 3. Crear una aplicación
+
+```bash
+kona new my-app                 # Kotlin (por defecto)
+kona new my-app --lang=java
+```
+
+`kona new` escribe una app Gradle autocontenida que ya incluye:
+
+- `./grind` / `grind.bat` — CLI local a la app
+- `./gradlew` / `gradlew.bat` — wrapper de Gradle
+- Layout `src/main/…`, `.env` y archivos del starter kit
+- Dependencias `org.konaframework:…` en la **misma versión** que acaba de instalar el instalador (última de Maven Central)
+
+Fija otra versión con `--kona-version=x.y.z` si lo necesitas.
+
+## 4. Trabajar dentro de la app con `./grind`
+
+```bash
+cd my-app
+./grind serve
+./grind make:controller Post
+```
+
+`./grind` es un script delgado que ejecuta la tarea Gradle `grind` del proyecto con `kona-grind` en el classpath. **No** es el mismo binario que el `kona` global.
+
+## Dependencias en tu app
+
+Los `build.gradle.kts` generados parecen una app Gradle normal:
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.konaframework:kona-http:0.2.0")
+    implementation("org.konaframework:kona-grind:0.2.0")
+}
+```
+
+Añade paquetes más tarde con [`./grind install`](../../packages/install/) (por ejemplo `./grind install wire` o `./grind install inertia`).
+
+## Siguiente
+
+- [Tu primera app](../first-app/) — recorrido de lo que crea `kona new`
+- [Deployment](../deployment/) — ejecutar la misma app en producción  
+- [Scaling](../scaling/) — varias instancias, pools, Redis, workers
+- [Starter kits](../../starter-kits/) — `web`, `api`, `inertia`, `wire`
+- [grind](../../grind/) — comandos locales a la app en detalle

@@ -1,0 +1,130 @@
+---
+title: Notificaciones
+description: Muestra un toast de Firefly, lista avisos de base de datos en una campana y refresca una página cuando llega un broadcast.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="saved-toast.png" description="Un toast de éxito titulado Saved en una página de panel Firefly, por ejemplo después de guardar en http://127.0.0.1:4017/admin/notes/manage." />
+
+Una notificación es un mensaje corto para la persona que usa el panel. Lo habitual es un toast después de guardar. También puedes guardar el mismo mensaje para una campana, o emitirlo para que otra página abierta pueda refrescarse.
+
+Construyes el mensaje en Kotlin o Java y luego lo envías. Los tipos viven en `org.konaframework.firefly.notifications` (`kona-firefly-notifications`). El módulo usa el almacén flash de sesión, `DatabaseChannel` y `BroadcastManager` que ya tienes. No añade un segundo almacén.
+
+Los setters encadenables aceptan un valor estático o un cierre. El cierre recibe el `Get` del esquema para el estado actual.
+
+## Un toast en una llamada
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val session = StoreSession("desk", ArraySessionStore())
+FireflyNotification.make("saved")
+    .title("Saved")
+    .body("The record is stored.")
+    .icon("bell")
+    .success()
+    .duration(6)
+    .extraAttributes(mapOf("data-lang" to "kotlin"))
+    .actions(Action.make("open").label("Open"))
+    .send(session)
+val html = FireflyNotification.pull(session)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+StoreSession session = new StoreSession("desk", new ArraySessionStore());
+FireflyNotification notice = FireflyNotification.make("saved");
+notice.title(get -> "Saved");
+notice.body("The record is stored.");
+notice.success();
+notice.duration(6);
+notice.extraAttributes(get -> Map.of("data-lang", "java"));
+notice.send(session, Map.of());
+String html = FireflyNotification.pull(session);
+```
+
+</TabItem>
+</Tabs>
+
+`make()` asigna un id aleatorio. `make(id)` usa el id que pasas. Un id en blanco lanza `FireflyException` con `Notification id is blank`. Un título en blanco lanza `Notification title is blank` o `Notification [<id>] title is blank` cuando el valor se resuelve en el momento del envío.
+
+`success()`, `info()`, `warning()` y `danger()` ponen el estado. El estado predeterminado es `info`. El color sigue al estado salvo que llames a `color` tú mismo. Un color explícito se queda en su sitio cuando luego llamas a `success()`.
+
+`duration` es un número entero de segundos. El predeterminado es `6`. Una duración negativa lanza `FireflyException`.
+
+`send(session)` escribe un mapa en la clave flash de sesión `firefly.notifications`. `send(session, state)` evalúa los cierres contra ese mapa de estado. `FireflyNotification.render(session)` lee el flash y devuelve el HTML del toast sin quitarlo. `pull(session)` devuelve el mismo HTML y luego olvida la clave.
+
+Cada toast es un `<div class="ff-notification" role="status">` con `data-ff-status`, `data-ff-color` y `data-ff-duration`. Los atributos extra se escriben en ese elemento. El HTML de las acciones se renderiza a partir de las acciones que adjuntaste.
+
+## Campana de base de datos
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val channel = DatabaseChannel()
+notice.sendToDatabase(person, channel)
+val bell = NotificationBell(channel, person.routeNotificationFor("database"))
+val html = bell.render()
+bell.markAsRead(bell.records().first().id)
+bell.markAllAsRead()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DatabaseChannel channel = new DatabaseChannel();
+notice.sendToDatabase(person, channel);
+NotificationBell bell = new NotificationBell(channel, person.routeNotificationFor("database"));
+String html = bell.render();
+bell.markAsRead(bell.records().get(0).getId());
+bell.markAllAsRead();
+```
+
+</TabItem>
+</Tabs>
+
+`sendToDatabase` acepta un `DatabaseChannel` o un `NotificationSender`. La fila guardada conserva el título, el estado, el color, la duración, el cuerpo, el icono, los atributos y el HTML de acción renderizado.
+
+`NotificationBell` lista las filas de ese notifiable. `render()` devuelve `<div class="ff-notification-bell" wire:poll.30s>` con un conteo de filas no leídas y un `<li>` por registro. `data-ff-unread` es `true` o `false`. Cuando una fila no tiene título, el ítem de la lista usa el nombre del tipo de notificación.
+
+## Refresco por broadcast
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+notice.broadcastChannel("desk").broadcast(person, manager)
+val marker = BroadcastRefresh().channel("desk").event("firefly.notification").render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+notice.broadcastChannel("desk").broadcast(person, manager);
+String marker = new BroadcastRefresh().channel("desk").event("firefly.notification").render();
+```
+
+</TabItem>
+</Tabs>
+
+`broadcast` envía a través de `BroadcastManager` en el nombre de canal que pusiste. Un canal en blanco lanza `FireflyException`.
+
+`BroadcastRefresh` marca una página que debe refrescarse cuando llega ese broadcast. `render()` devuelve `<div class="ff-broadcast-refresh" wire:poll.15s>` con `data-ff-channel` y `data-ff-event`. El evento predeterminado es `firefly.notification` cuando no pones uno. Un canal en blanco o un evento en blanco lanza `FireflyException`.
+
+`configureUsing` corre en cada llamada posterior a `make()`. Pasa `null` para limpiarlo.
+
+## Con qué construyes
+
+| Tipo | Rol |
+|------|------|
+| `FireflyNotification` | Toast, carga de base de datos y carga de broadcast |
+| `NotificationBell` | Renderiza filas de base de datos para un notifiable |
+| `BroadcastRefresh` | Marca una página con el canal y el evento a observar |

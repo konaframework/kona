@@ -1,0 +1,97 @@
+---
+title: Pruebas HTTP
+description: HttpTestClient en el proceso — verbos, cuerpos JSON y afirmaciones de respuesta.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`HttpTestClient` resuelve `HttpKernel` de una app arrancada y ejecuta peticiones **en el proceso** (sin socket de escucha).
+
+## Crear un cliente
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val http = HttpTestClient(app)
+http.get("/ping").assertOk().assertJsonContains("ok")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+HttpTestClient http = new HttpTestClient(app);
+http.get("/ping").assertOk().assertJsonContains("ok");
+```
+
+</TabItem>
+</Tabs>
+
+Registra las rutas antes de llamar al cliente (`boot` del provider, o después de `TestApplication.create`).
+
+## Verbos
+
+| Método | Notas |
+| --- | --- |
+| `get(uri)` / `get(uri, headers)` | Cuerpo vacío |
+| `postJson(uri, body)` / `postJson(uri, body, headers)` | Serializa `body` con Jackson; pone `Content-Type: application/json` |
+| `put(uri)` / `put(uri, body)` / `put(uri, body, headers)` | Cuerpo de cadena crudo |
+| `putJson(uri, body)` / `putJson(…, headers)` | Codificación JSON |
+| `patch(uri)` / `patch(uri, body)` / `patch(…, headers)` | Cuerpo de cadena crudo |
+| `patchJson(uri, body)` / `patchJson(…, headers)` | Codificación JSON |
+| `delete(uri)` / `delete(uri, headers)` | Cuerpo vacío |
+
+Los mapas de cabeceras son `Map<String, String>` planos. Las cadenas de consulta van en el `uri`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+http.postJson("/users", mapOf("name" to "Ada"))
+    .assertStatus(201)
+    .assertJsonPath("user.name", "Ada")
+
+http.putJson("/users/1", mapOf("name" to "Ada Lovelace"), mapOf("X-Request-Id" to "r-1"))
+    .assertOk()
+
+http.delete("/users/1").assertStatus(204)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+http.postJson("/users", Map.of("name", "Ada"))
+    .assertStatus(201)
+    .assertJsonPath("user.name", "Ada");
+
+http.putJson("/users/1", Map.of("name", "Ada Lovelace"), Map.of("X-Request-Id", "r-1"))
+    .assertOk();
+
+http.delete("/users/1").assertStatus(204);
+```
+
+</TabItem>
+</Tabs>
+
+## Afirmaciones de respuesta
+
+Cada verbo devuelve un `TestResponse` (fluido — las afirmaciones devuelven `this`).
+
+| Método | Comportamiento |
+| --- | --- |
+| `status()` / `body()` | Valores crudos para afirmaciones propias |
+| `assertStatus(code)` | Estado exacto; lanza si no coincide |
+| `assertOk()` | Estado `200` |
+| `assertJsonContains(fragment)` | La cadena del cuerpo contiene la subcadena |
+| `assertJsonPath(path, expected)` | La ruta JSON con puntos (`user.name`) es igual a `expected` |
+| `assertJson(path, expected)` | Alias de `assertJsonPath` |
+
+Los segmentos de ruta se parten en `.`. Los segmentos ausentes hacen fallar la afirmación. Los números se comparan por igualdad de double (así `1` y `1.0` coinciden). Los nodos JSON `null` se comparan con `null` de Kotlin/Java.
+
+## Casos límite
+
+- El cliente **no** sigue redirecciones; afirma la primera respuesta.
+- El middleware del kernel corre con normalidad — CSRF, sesión y auth se comportan como en producción cuando esos providers están registrados.
+- Los cuerpos de `put`/`patch` que no son JSON son cadenas crudas; codifica tu propia carga cuando haga falta.

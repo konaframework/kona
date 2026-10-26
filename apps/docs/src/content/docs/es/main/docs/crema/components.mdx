@@ -1,0 +1,237 @@
+---
+title: Componentes y slots
+description: Componentes Crema reutilizables con slot predeterminado, slots con nombre, @component y etiquetas x.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Los **componentes** son vistas renderizadas como widgets: pasas un cuerpo (el **slot predeterminado**) y, opcionalmente, **slots con nombre**, y la plantilla del componente los imprime con `{{ slot }}` y `{{ title }}` (o los nombres que elijas). Crema admite tres estilos de llamada que comparten el mismo modelo de slots:
+
+1. Directivas `@component` / `@slot`
+2. Etiquetas parecidas a HTML `<x-name>` con `<x-slot>`
+3. Etiquetas de extensión con prefijo (por ejemplo `<wire:…>` de Wire) con `<x-slot>` o `<prefix:slot>`
+
+## Definir un componente
+
+Un componente es una vista normal. Por convención, pon los reutilizables bajo `views/components/`:
+
+```crema
+{{-- views/components/alert.crema.html — or alert.crema.html at the views root --}}
+<div class="alert alert-{{ type }}">
+  @isset(title)
+    <strong class="alert-title">{{ title }}</strong>
+  @endisset
+  <div class="alert-body">{{ slot }}</div>
+  @isset(footer)
+    <div class="alert-footer">{{ footer }}</div>
+  @endisset
+</div>
+```
+
+| Clave de datos | Origen |
+|----------|--------|
+| `slot` | Contenido del cuerpo predeterminado (sin nombre) |
+| Cualquier otro nombre | Un **slot con nombre** con ese nombre (`title`, `footer`, …) |
+
+Los slots con nombre se convierten en claves ordinarias del contexto hijo del componente — úsalos con `{{ title }}`, `@isset(title)`, y así sucesivamente. Los datos de la vista padre siguen visibles salvo que un nombre de slot los tape.
+
+## `@component` y `@slot`
+
+```crema
+@component('alert')
+  @slot('title')Notice@endslot
+  Body text goes in the default slot.
+  @slot('footer')Thanks@endslot
+@endcomponent
+```
+
+- `@component('view.name')…@endcomponent` renderiza ese nombre de vista (aquí `alert` → `alert.crema.html`).
+- `@slot('name')…@endslot` captura un slot con nombre; lo que queda en el cuerpo del componente (después de quitar los slots con nombre) es el `slot` predeterminado.
+- Los cuerpos de slot se expanden en el contexto del **llamador** (ven el `name`, `user`, variables de bucle, … del padre) y luego se pasan al componente.
+
+### Solo el slot predeterminado
+
+```crema
+@component('components.box')
+  Just the body.
+@endcomponent
+```
+
+```crema
+{{-- views/components/box.crema.html --}}
+<section class="box">{{ slot }}</section>
+```
+
+### Varios slots con nombre
+
+```crema
+@component('components.card')
+  @slot('title')
+    <h2>{{ post.title }}</h2>
+  @endslot
+
+  <p>{{ post.excerpt }}</p>
+
+  @slot('actions')
+    <a href="/posts/{{ post.id }}">Read</a>
+  @endslot
+@endcomponent
+```
+
+```crema
+{{-- views/components/card.crema.html --}}
+<article class="card">
+  <header>{{ title }}</header>
+  <div class="card-body">{{ slot }}</div>
+  <footer>{{ actions }}</footer>
+</article>
+```
+
+## Etiquetas `<x-*>`
+
+Como alternativa ligera, Crema resuelve etiquetas parecidas a HTML hacia vistas bajo el prefijo `components.`:
+
+```crema
+<x-alert>Hi</x-alert>
+<x-alert />
+```
+
+| Etiqueta | Nombre de vista |
+|-----|-----------|
+| `<x-alert>` | `components.alert` |
+| `<x-inputs.button>` | `components.inputs.button` |
+| `<x-inputs/button>` | `components.inputs.button` (barra → punto) |
+
+Las vistas de componente ausentes se renderizan como una cadena vacía (sin excepción). Las etiquetas de autocierre pasan un slot predeterminado vacío.
+
+### Slots con nombre con `<x-slot>`
+
+Los slots con nombre funcionan en las etiquetas `<x-*>` igual que `@slot`:
+
+```crema
+<x-card>
+  <x-slot name="title">Notice</x-slot>
+
+  Body copy in the default slot.
+
+  <x-slot:footer>Bye</x-slot:footer>
+</x-card>
+```
+
+Dos formas equivalentes:
+
+| Sintaxis | Nombre del slot |
+|--------|-----------|
+| `<x-slot name="title">…</x-slot>` | `title` |
+| `<x-slot:footer>…</x-slot:footer>` | `footer` |
+
+También puedes cerrar la forma con dos puntos como `</x-slot>` (nombre opcional en el cierre).
+
+```crema
+{{-- views/components/card.crema.html --}}
+<div class="card">
+  <h2>{{ title }}</h2>
+  <div>{{ slot }}</div>
+  <footer>{{ footer }}</footer>
+</div>
+```
+
+Salida renderizada del ejemplo de arriba: título `Notice`, slot predeterminado `Body copy…`, pie `Bye`.
+
+### Componentes anidados
+
+Los slots predeterminados y con nombre pueden contener otros componentes:
+
+```crema
+<x-panel>
+  <x-slot name="heading">Dashboard</x-slot>
+  <x-alert>
+    <x-slot name="title">Heads up</x-slot>
+    Save your work.
+  </x-alert>
+</x-panel>
+```
+
+## Etiquetas con prefijo (extensiones)
+
+Los paquetes pueden registrar prefijos de etiqueta en `CremaEngine` (Wire registra `brew`). Esas etiquetas reciben una cadena `slot` predeterminada y un mapa `slots` de slots con nombre. Quien llama llena los slots con nombre así:
+
+```crema
+<wire:card title="Stats">
+  <x-slot name="header">Overview</x-slot>
+  Main body
+  <wire:slot name="footer">Updated just now</wire:slot>
+</wire:card>
+```
+
+Formas de slot con nombre admitidas dentro de una etiqueta con prefijo:
+
+| Forma | Ejemplo |
+|-------|---------|
+| Slot con prefijo | `<wire:slot name="footer">…</wire:slot>` |
+| Atributo de nombre `x-slot` | `<x-slot name="header">…</x-slot>` |
+| Nombre con dos puntos `x-slot:` | `<x-slot:side>…</x-slot:side>` |
+
+Los atributos de las etiquetas con prefijo (`:count="3"`, `title="…"`) se analizan y se pasan al manejador de la etiqueta — consulta [Wire](/docs/wire/) para la superficie específica de Wire. Los componentes de vista `<x-*>` integrados usan hoy solo slots (los atributos de la etiqueta de apertura `<x-alert …>` no se mapean a los datos de la vista).
+
+## Elegir un estilo
+
+| Estilo | Mejor para |
+|-------|----------|
+| `@component` / `@slot` | Nombres de vista explícitos, marcado pesado de slots con nombre |
+| `<x-*>` / `<x-slot>` | Sitios de llamada cortos que imitan HTML |
+| Etiquetas con prefijo | Componentes que pertenecen a un paquete, con enlace de atributos (Wire, etc.) |
+
+Los tres acaban renderizando una vista (o un manejador) con `slot` + claves con nombre. Prefiere un estilo por app para mantener la consistencia.
+
+## Desde un controlador
+
+Los componentes son solo del lado de la plantilla — los controladores siguen renderizando una vista de página; esa página incrusta componentes:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+return Response.html(
+    crema.render(
+        "posts.show",
+        mapOf("post" to post, "flash" to flashMessage),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+return Response.html(
+    crema.render(
+        "posts.show",
+        Map.of("post", post, "flash", flashMessage)
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+{{-- views/posts/show.crema.html --}}
+@extends('layouts.app')
+@section('content')
+  @isset(flash)
+    <x-alert>
+      <x-slot name="title">Saved</x-slot>
+      {{ flash }}
+    </x-alert>
+  @endisset
+  <h1>{{ post.title }}</h1>
+@endsection
+```
+
+## Relacionado
+
+- [Includes y parciales](/docs/crema/includes/) — trozos compartidos más simples, sin slots
+- [Layouts](/docs/crema/layouts/) — herencia a nivel de página
+- [Wire](/docs/wire/) — componentes reactivos encima de Crema
+- [Referencia de directivas](/docs/crema/directives/)

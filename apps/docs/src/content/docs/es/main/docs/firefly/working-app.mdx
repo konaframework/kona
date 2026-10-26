@@ -1,0 +1,177 @@
+---
+title: Una app que funciona
+description: El recurso simple de notes y el recurso completo de orders del ejemplo hello, las rutas que responden y los comandos que los generan.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+El ejemplo hello es un escritorio que puedes recorrer con clics. Notes es un recurso simple: una página Manage, y crear, editar, ver y borrar se abren en un diálogo. Orders es un recurso completo: lista, crear, editar y ver son sus propias URL, y las líneas se sientan en las páginas de editar y ver.
+
+Ambas apps están en el repositorio, `samples/hello-kotlin` y `samples/hello-java`. Las rutas de abajo son las que responden esos ejemplos.
+
+<FireflyShot file="notes-manage.png" description="La página Manage de notes en http://127.0.0.1:4017/admin/notes/manage, con la tabla de notes y las acciones Create, Edit, View y Delete." />
+
+## Un recurso simple
+
+`simple()` conserva una sola `ManagePage`. El slug del ejemplo es `notes`, así que la ruta es `/admin/notes/manage`. El formulario, el infolist y la tabla son los que usan la página y los diálogos. La tabla del ejemplo es una fila en memoria (`Ada`), así que la pantalla se renderiza antes de una migración. `model(Note::class.java)` es el tipo Cadence que usa `query()` cuando construyes la tabla a partir del modelo en lugar de `Table.memory`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NoteResource : Resource("notes") {
+    init {
+        label("Notes")
+        simple()
+        model(Note::class.java)
+        form(
+            Schema.make().components(
+                TextInput.make("name"),
+                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+                DateTimePicker.make("due"),
+            ),
+        )
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NoteResource extends Resource {
+    public NoteResource() {
+        super("notes");
+        label("Notes");
+        simple();
+        model(Note.class);
+        form(Schema.make().components(
+            TextInput.make("name"),
+            Select.make("status").options(Map.of("open", "Open", "done", "Done")),
+            DateTimePicker.make("due")
+        ));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(row()).columns(TextColumn.make("name")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+El ejemplo Java construye `row()` como un `LinkedHashMap` con `id` `1` y `name` `Ada`. `Select` es un combobox. `DateTimePicker` es el control propio de fecha y hora de Firefly. Ambos se cubren en [Formularios](/docs/firefly/forms/).
+
+Crear, editar y ver ponen ese esquema o infolist en el diálogo compartido. Borrar pide confirmación en el mismo diálogo. Un recurso simple rechaza `relation(...)`.
+
+Genera la misma forma con:
+
+```bash
+./grind make:firefly-resource Note --simple
+./grind make:firefly-resource Note --simple --lang=java
+```
+
+El generador escribe `page(ManagePage("manage"))` además de `simple()`, un campo de texto llamado `name` y `model(app.models.Note.class)`. Crea ese modelo Cadence antes de que el proyecto compile. La tabla del generador es `Table.memory()` sin fila semilla.
+
+## Un recurso completo
+
+Deja `simple()` apagado y el recurso obtiene páginas de lista, crear, editar y ver. La página de lista monta la tabla y una acción de crear. Crear y editar montan el formulario. Ver monta el infolist. Editar y ver también renderizan cada gestor de relación.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Order::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+        relation(
+            RelationManager("lines")
+                .related(Line::class.java)
+                .titleAttribute("sku")
+                .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        label("Orders");
+        model(Order.class);
+        form(Schema.make().components(TextInput.make("name")));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(orderRow()).columns(TextColumn.make("name")));
+        relation(new RelationManager("lines")
+            .related(Line.class)
+            .titleAttribute("sku")
+            .table(Table.memory(lineRow()).columns(TextColumn.make("sku"))));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<FireflyShot file="orders-list.png" description="La lista de orders en http://127.0.0.1:4017/admin/orders/list, con la tabla de orders y una acción de crear." />
+
+<FireflyShot file="orders-create.png" description="La página de crear orders en http://127.0.0.1:4017/admin/orders/create, con el campo de nombre." />
+
+<FireflyShot file="orders-edit.png" description="La página de editar orders en http://127.0.0.1:4017/admin/orders/edit, con el campo de nombre y la relación de líneas." />
+
+<FireflyShot file="orders-view.png" description="La página de ver orders en http://127.0.0.1:4017/admin/orders/view, con el infolist de nombre y la relación de líneas." />
+
+```bash
+./grind make:firefly-resource Order
+./grind make:firefly-resource Order --lang=java
+```
+
+El generador escribe páginas de lista, crear, editar y ver y un gestor de relación llamado `related`. El gestor del ejemplo hello se llama `lines` y apunta a `Line`.
+
+## La página del escritorio y el widget
+
+<FireflyShot file="desk.png" description="La página Desk en http://127.0.0.1:4017/admin/desk, con el campo de nombre, el combobox de estado, el selector de vencimiento, el infolist, la tabla y la acción de cabecera Edit." />
+
+`pages/Desk` es un `CustomPage` con los mismos campos de formulario que notes, un infolist, una tabla de una fila y una acción de cabecera que abre un diálogo. `widgets/DeskWidget` renderiza un párrafo corto. El descubrimiento coloca ese widget en la primera página, que es Desk.
+
+```bash
+./grind make:firefly-page Desk
+./grind make:firefly-widget Desk
+```
+
+## Rutas que responden
+
+En el ejemplo hello estas rutas GET devuelven 200:
+
+| Ruta | Página |
+|-------|------|
+| `/` | La ruta de bienvenida, fuera del panel |
+| `/admin/desk` | Desk |
+| `/admin/notes/manage` | Notes |
+| `/admin/orders/list` | Lista de orders |
+| `/admin/orders/create` | Crear orders |
+| `/admin/orders/edit` | Editar orders |
+| `/admin/orders/view` | Ver orders |
+
+## Lo que verás hoy
+
+Unas cuantas cosas de ese ejemplo están sin terminar en el navegador. Conviene saberlas antes de depurar tu propia app:
+
+- El marcado del diálogo está en la página, y el diálogo permanece cerrado hasta que Alpine lo abre. Crear, editar, ver y borrar en la página de notes no se abren solo con la primera respuesta HTML.
+- `@entangle(...)` puede seguir apareciendo como texto crudo cuando el enlace de Alpine no ha corrido.
+- Las etiquetas de navegación de las páginas salen del slug de la página. El enlace Desk puede leer `desk`, y el hijo de notes puede leer `manage`, aunque el título de la página o la etiqueta del recurso sea una palabra. Los grupos de recursos usan `label`, así que los grupos leen `Notes` y `Orders`.
+- El ejemplo llama a `authenticate(false)`. El chip del usuario lee **Invitado** cuando el guard del panel no tiene un id con sesión iniciada.
+
+## Siguiente
+
+Las páginas de componentes empiezan en [Panel](/docs/firefly/panel/). [Recursos](/docs/firefly/resources/) es la lista completa de métodos de las dos clases de arriba.

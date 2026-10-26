@@ -1,0 +1,110 @@
+---
+title: Diálogo
+description: El diálogo compartido de Firefly — modal, barra lateral y pantalla completa — incluyendo ancho, arrastre y configureUsing.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="dialog.png" description="El diálogo Edit de la página Desk en http://127.0.0.1:4017/admin/desk, abierto desde la acción de cabecera Edit, con un campo de nota dentro." />
+
+Un diálogo es la ventana que se abre encima de una página. Lo usas para una confirmación, un formulario corto o un panel lateral. Hay un solo componente, `Dialog`. Eliges un modo, un ancho, un título y un cuerpo, y `render()` devuelve el HTML.
+
+El diálogo no se abre solo, y no hace POST al servidor. La página que incrusta el HTML decide cuándo se muestra. En la página Desk el diálogo de la acción Edit está en la primera respuesta y permanece cerrado hasta que el botón lo abre.
+
+## Crear uno
+
+`Dialog.make(title)` devuelve un diálogo. El modo predeterminado es modal, el ancho predeterminado es `lg` y el arrastre está activo. `configureUsing`, si está definido, corre sobre el diálogo nuevo antes de que `make` vuelva.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val html = Dialog.make("Edit category")
+    .body("<p>Name</p>")
+    .render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String html = Dialog.make("Edit category")
+    .body("<p>Name</p>")
+    .render();
+```
+
+</TabItem>
+</Tabs>
+
+El título se escapa para HTML. `A & B <tag> "q"` se convierte en `A &amp; B &lt;tag&gt; &quot;q&quot;`. El cuerpo se inserta como la cadena que pasaste. Escapa el HTML del cuerpo tú mismo cuando viene de un usuario.
+
+## Modos
+
+| Llamada | Clases de la raíz | Atributos extra |
+|------|----------------|------------------|
+| `modal()` | `ff-dialog ff-dialog-modal ff-dialog-<width>` | `data-ff-align="top"` |
+| `slideOver()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="end"` |
+| `slideOverStart()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="start"` |
+| `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | ninguno de los atributos de alineación, posición o arrastre |
+
+El elemento raíz siempre tiene `role="dialog"`. Dentro: una superposición (`ff-dialog-overlay`), una ventana (`ff-dialog-window`), una cabecera (`ff-dialog-header`) con el título y un cuerpo (`ff-dialog-body`).
+
+Llamar a `modal()` después de `slideOver()` vuelve a cambiar el modo a modal. La posición de barra lateral guardada se queda como estaba y no se renderiza en un modal.
+
+`width("screen")` solo cambia la clase de ancho a `ff-dialog-screen`. No pone el diálogo a pantalla completa. Pantalla completa es `fullscreen()`.
+
+## Ancho
+
+`width` acepta `sm`, `md`, `lg`, `xl` o `screen`. Cualquier otra cosa lanza `FireflyException`:
+
+```text
+Unknown dialog width [<value>]
+```
+
+El predeterminado es `lg`, así que la clase `ff-dialog-lg` está presente hasta que la cambies. La clase de ancho también se renderiza en los diálogos de barra lateral y de pantalla completa.
+
+## Arrastre
+
+`draggable(true)` es el predeterminado. `draggable(false)` quita los atributos de arrastre.
+
+El arrastre también se omite cuando el modo es pantalla completa, aunque se haya llamado a `draggable(true)`. Los diálogos modal y de barra lateral incluyen:
+
+```html
+x-data="ffDialog" data-ff-drag="true"
+```
+
+La ventana modal se desplaza por la hoja de estilos: `.ff-dialog-modal .ff-dialog-window` tiene un margen superior de `4rem`. Esa es la alineación superior. Las ventanas de barra lateral y de pantalla completa no reciben ese margen.
+
+## configureUsing
+
+`Dialog.configureUsing` guarda un `Consumer<Dialog>` usado por las llamadas posteriores a `make`. Pasa `null` para limpiarlo. El ajuste es estático y lo comparte cada `make` del proceso hasta que lo sustituyes o lo limpias.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Dialog.configureUsing { dialog -> dialog.width("md") }
+val html = Dialog.make("Edit").slideOver().render()
+Dialog.configureUsing(null)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Dialog.configureUsing(dialog -> dialog.width("md"));
+String html = Dialog.make("Edit").slideOver().render();
+Dialog.configureUsing(null);
+```
+
+</TabItem>
+</Tabs>
+
+El HTML del ejemplo contiene `ff-dialog-sidebar`, `ff-dialog-md` y `data-ff-position="end"`. No contiene `data-ff-align`.
+
+Un configurador corre antes de tus propias llamadas, así que un `width("xl")` posterior en esa instancia sustituye el ancho configurado.
+
+## Acciones
+
+[Acciones](/docs/firefly/actions/) abren este diálogo. `slideOver()`, `slideOverStart()`, `fullscreen()` y el modal predeterminado llaman a `Dialog.make`. La acción aporta el título, el ancho y el cuerpo.

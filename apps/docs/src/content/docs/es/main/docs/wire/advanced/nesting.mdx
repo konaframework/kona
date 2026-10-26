@@ -1,0 +1,149 @@
+---
+title: Anidación, islas y lazy
+description: Anida componentes Wire, slots, props reactivas, islas, teleport y carga perezosa.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Los componentes Wire se anidan como cualquier otra etiqueta Crema. Los hijos conservan sus propias instantáneas; el padre las registra bajo `memo.children` para que las peticiones posteriores puedan omitir el re-render de hijos que no cambiaron.
+
+## Anidar un hijo
+
+```crema
+{{-- parent template --}}
+<div>
+    <wire:panel wire:key="main" title="Main" class="card" />
+    <wire:dynamic-component :is="childName" />
+</div>
+```
+
+- `wire:key` / `key` da una identidad estable en los bucles.
+- Los atributos HTML extra que no son props se reenvían a la raíz del hijo como `data-brew-attr-*` y se exponen como una bolsa `attributes` en la vista.
+- `<wire:dynamic-component :is="…" />` (o `:component`) elige el nombre del hijo en el momento del render.
+- Un componente puede anidarse a sí mismo — detén la recursión con una guarda de profundidad (o similar) en `template()`.
+
+## Props reactivas y modelables
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Panel : Component() {
+    @field:Reactive
+    var title: String = ""
+
+    @field:Modelable
+    var value: String = ""
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Panel extends Component {
+    @Reactive public String title = "";
+    @Modelable public String value = "";
+}
+```
+
+</TabItem>
+</Tabs>
+
+- `@Reactive` — el padre vuelve a empujar la prop cada vez que el padre se re-renderiza (`memo.props`).
+- `@Modelable` — marca la propiedad que el padre enlaza con `wire:model` en la etiqueta hija (`memo.bindings`).
+
+## Slots
+
+```crema
+<wire:card>
+    <wire:slot name="footer">Save</wire:slot>
+    Body content
+</wire:card>
+```
+
+Dentro del hijo:
+
+```crema
+<div>
+    {{ slots.get('default') }}
+    @if(slots.has('footer'))
+        <footer>{{ slots.get('footer') }}</footer>
+    @endif
+</div>
+```
+
+`slots` es un `SlotBag` con `has`, `get`, `default()` y `all()`.
+
+## Escuchar eventos del hijo
+
+Pon `@event-name="method"` en la etiqueta hija. Cuando el hijo hace `dispatch` de ese evento, Wire llama al método del padre:
+
+```crema
+<wire:panel @saved="onPanelSaved" />
+```
+
+```kotlin
+fun onPanelSaved(label: String = "") { heard = label }
+```
+
+## `$parent`
+
+Desde JS: `$wire.$parent.save()`. Desde el servidor / `wire:click`: la acción mágica `$parent` reenvía al componente padre (`$parent`, luego el nombre del método y los argumentos).
+
+Dentro de Kotlin/Java: `parent()` devuelve el componente envolvente mientras está anidado (también disponible después del mount mediante la referencia de padre guardada).
+
+## Lazy y defer
+
+```kotlin
+@Lazy(bundle = true)
+class Heavy : Component() {
+    override fun placeholder() = "<em>Loading…</em>"
+}
+```
+
+- `@Lazy` / parámetro de mount `lazy` — marcador de posición hasta que el elemento intersecta el viewport.
+- `@Defer` / `defer` — carga después del primer pintado (microtarea).
+- `bundle = true` — agrupa cargas perezosas (`memo.lazyBundle`).
+- `@placeholder('…')` / `WireConfig.lazyPlaceholder` — marcado predeterminado.
+- `Wire.withoutLazyLoading { … }` — monta con avidez en las pruebas.
+
+## Islas
+
+```crema
+@island('stats')
+    <p>{{ count }}</p>
+@endisland
+
+<button wire:click.island.stats.append="add">Add</button>
+```
+
+- Con nombre o anónimas (`@island` → `default`).
+- Banderas meta en la expresión: `lazy`, `defer`, `always`, `skip`.
+- JS: `$wire.$island('stats', 'append'|'prepend'|'morph')` y el modificador de clic `.island`.
+- El sondeo dentro de una isla usa la misma directiva `wire:poll` que en cualquier otro sitio.
+
+## Teleport
+
+```crema
+@teleport('body')
+    <aside>Portaled</aside>
+@endteleport
+```
+
+Renderiza un `<template wire:teleport="selector">`; el runtime JS mueve el contenido a `document.querySelector(selector)`.
+
+## Isolate
+
+```kotlin
+@Isolate
+class ChatPane : Component()
+```
+
+Los hijos aislados omiten la agrupación de peticiones con sus hermanos (`memo.isolate`).
+
+## Siguiente
+
+- [Componentes](/docs/wire/essentials/components/) — registro y descubrimiento
+- [Eventos](/docs/wire/advanced/events/) — `dispatch`, `@On`, oyentes JS
+- [JavaScript](/docs/wire/js/runtime/) — API de `$wire`

@@ -1,0 +1,58 @@
+---
+title: Concurrencia
+description: Ayudantes de virtual threads para map en paralelo y listas de tareas.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Los ayudantes de **concurrencia** ejecutan trabajo en virtual threads del JDK, así puedes repartir trabajo ligero de CPU o ligado a IO sin administrar un pool de hilos a mano.
+
+## Map en paralelo
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val doubled = Concurrency.map(listOf(1, 2, 3)) { it * 2 }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<Integer> doubled = Concurrency.map(List.of(1, 2, 3), n -> n * 2);
+```
+
+</TabItem>
+</Tabs>
+
+Una entrada vacía devuelve una lista vacía sin arrancar un executor.
+
+## Lista de tareas
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val results = Concurrency.run(
+    listOf(
+        Callable { fetchA() },
+        Callable { fetchB() },
+    )
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<String> results = Concurrency.run(List.of(
+    (Callable<String>) () -> fetchA(),
+    (Callable<String>) () -> fetchB()
+));
+```
+
+</TabItem>
+</Tabs>
+
+Los resultados conservan el orden de entrada. Las excepciones de una tarea se propagan cuando se recoge el future.

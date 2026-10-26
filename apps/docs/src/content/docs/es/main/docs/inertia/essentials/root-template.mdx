@@ -1,0 +1,46 @@
+---
+title: Plantilla raíz
+description: Vista raíz de Crema frente a raíz HTML plana, y los bindings page / pageAttr / vite.
+---
+
+## Vista raíz de Crema
+
+Asigna a `inertia.root_view` un nombre de vista Crema (por ejemplo `app`). El manager renderiza:
+
+| Binding | Contenido |
+|---------|-----------|
+| `page` | Cadena JSON cruda del objeto de página |
+| `pageAttr` | JSON escapado para atributo HTML (seguro en `data-page="…"`) |
+| `vite` | Etiquetas de `Vite.tags(*viteEntries)` o `""` si no se resuelve |
+
+Ejemplo:
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    {!! vite !!}
+  </head>
+  <body>
+    <div id="app" data-page="{!! pageAttr !!}"></div>
+  </body>
+</html>
+```
+
+Crema debe estar registrado (`CremaServiceProvider`) para que `InertiaServiceProvider` pueda adjuntar `CremaEngine` en el arranque.
+
+## Raíz HTML plana
+
+Cuando `rootView` es null, o falta Crema, el manager usa `rootHtml` (config `inertia.root_html` o el valor integrado).
+
+Marcadores:
+
+- `@page` → JSON escapado (para atributos)
+- `@vite` → cadena de etiquetas Vite
+
+La cáscara predeterminada incluye un div `#app` con `data-page='@page'`.
+
+## Entradas de Vite
+
+`InertiaManager.viteEntries` vale por defecto `["src/main/resources/js/app.js"]`. Déjalo vacío para omitir las etiquetas aunque exista un manifest.
