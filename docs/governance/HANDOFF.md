@@ -31,6 +31,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 | Firefly forms (M31, train **0.4.x**) | `modules/firefly-forms` → `:kona-firefly-forms` | `apps/docs` (Firefly → Forms) | https://docs.konaframework.org/docs/firefly/forms/ |
 | Firefly notifications (M34, train **0.4.x**) | `modules/firefly-notifications` → `:kona-firefly-notifications` | `apps/docs` (Firefly → Notifications) | https://docs.konaframework.org/docs/firefly/notifications/ |
 | Firefly widgets (M34, train **0.4.x**) | `modules/firefly-widgets` → `:kona-firefly-widgets` | `apps/docs` (Firefly → Widgets) | https://docs.konaframework.org/docs/firefly/widgets/ |
+| Firefly panel (M35, train **0.4.x**) | `modules/firefly` → `:kona-firefly` | `apps/docs` (Firefly → Panel) | https://docs.konaframework.org/docs/firefly/panel/ |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
@@ -43,10 +44,10 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
-| `origin/main` | `6fd41aa9` (PR #223, grind Kover). M31 forms are #221. Panel API align is #222 |
-| On `main` | M28–M33 including M31 forms. M34 notifications and widgets are this branch (`milestone/M34-firefly-notifications`) and land when the PR merges |
-| Active milestone | **M34 — Firefly notifications and widgets**, on `milestone/M34-firefly-notifications`. Next after merge is **M35** (panel, auth, navigation, pages), then M36, M37, M38 in order. Release train **0.4.x** |
-| Queued | **M35–M38** not started. M35 is panel, auth, navigation, and pages. M36 is resources. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Do not implement the Mongo addon. Do not run M34–M38 in parallel |
+| `origin/main` | `38e5a847` (PR #224, M34 notifications and widgets). #223 is the grind Kover fix |
+| On `main` | M28–M34, including forms and notifications/widgets (`38e5a847`, #224). M35 panel is this branch and lands when the PR merges |
+| Active milestone | **M35 — Firefly panel, auth, navigation, and pages**, on `milestone/M35-firefly-panel`. Next after merge is **M36** (resources), then M37, M38. Release train **0.4.x** |
+| Queued | **M36–M38** not started. M36 is resources. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Do not implement the Mongo addon. Do not run M35–M38 in parallel |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
@@ -61,7 +62,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 ### Firefly integration contract
 
-Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. Pages, widgets, and resources compose those pieces. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M34 notifications and widgets are done on this branch. M35 is panel, auth, navigation, and pages. M36 is resources. Do not start M36 until M35 is on `main`.
+Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. Pages, widgets, and resources compose those pieces. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M34 notifications and widgets are on `main`. M35 panel, auth, navigation, and pages are done on this branch. M36 is resources. Do not start M36 until M35 is on `main`.
 
 **Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
 

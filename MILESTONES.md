@@ -1233,30 +1233,38 @@ Panel routes, auth, navigation, and pages (M35). Resources (M36). Do not pull M3
 
 ## M35 — Firefly panel, auth, navigation, and pages
 
-**Status:** queued (not started). Not done.
+**Status:** done (branch `milestone/M35-firefly-panel`; on `main` when this PR merges).
 
-Not on `main`. Artifact, when this milestone starts: `kona-firefly`. A route that renders a form, infolist, or table by itself does not finish this milestone.
+Artifact: `kona-firefly`. A panel route serves a `PanelPage`. Standalone schema, form, infolist, and table render remains for tests and embedding.
 
 **Parity slice:** Panel provider, auth screens, navigation, and pages. A page composes the actions, schema, form, infolist, table, and widget pieces. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
 
-**Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
-
-The Manage page for a simple resource is the M36 generator. M35 ships the Page type that generator uses, including the manage page, and it does not start the resource milestone.
+**Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. `ManagePage` is the page a simple resource uses. The resource generator is M36.
 
 ### Parity checklist
 
-- [ ] `Panel` provider, multiple panels, root mount and `/admin` mount, auth screens, user menu, clusters, SPA mode, render hooks, and navigation types App, Side, and Top
-- [ ] A page has a title, header and footer actions, a content region, and optional widgets
-- [ ] The content region mounts a schema, form, infolist, or table
-- [ ] List, create, edit, view, manage, and custom pages are pages
-- [ ] A panel route serves a Page
-- [ ] Standalone component render remains available for tests and embedding
-- [ ] Kotlin and Java samples
-- [ ] 100% line + branch coverage on the modules this milestone touches
+- [x] `Panel` provider, multiple panels, root mount and `/admin` mount, auth screens, user menu, clusters, SPA mode, render hooks, and navigation types App, Side, and Top
+- [x] Panels mount at `path("admin")` and `path("")` without catching `/_firefly/` or `/wire/update`
+- [x] A taken path fails at mount and names both handlers. Adding the module does not rewrite existing routes
+- [x] The panel guard is `firefly-{id}` unless `reuseAppGuard` or `useAuthGuard` selects the application guard
+- [x] Navigation nests through level 3. Level 4 fails at mount and names the item
+- [x] `pages/`, `widgets/`, and `resources/` are discovered from the panel directory
+- [x] A page has a title, header and footer actions, a content region, and optional widgets
+- [x] The content region mounts a schema, form, infolist, or table
+- [x] List, create, edit, view, manage, and custom pages are pages
+- [x] A panel route serves a Page
+- [x] Standalone component render remains available for tests and embedding
+- [x] `make:firefly-panel`, `make:firefly-page`, `make:firefly-theme`, `firefly:install`, and `firefly:publish`
+- [x] Kotlin and Java samples
+- [x] 100% line + branch coverage on `kona-firefly`, `kona-firefly-widgets`, and `kona-grind`
+
+### In-scope modules
+
+`kona-firefly`, `kona-firefly-widgets` (form and infolist slots on `Page`), `kona-grind`, `apps/docs/`, BOM, CI coverage gate
 
 ### Out of scope
 
-Resources, relation managers, and `make:firefly-resource` (M36). Tenancy, plugins, import/export, and the kit (M37).
+Resource model binding, relation managers, and `make:firefly-resource` (M36). Tenancy, plugins, import/export, and the kit (M37).
 
 ---
 

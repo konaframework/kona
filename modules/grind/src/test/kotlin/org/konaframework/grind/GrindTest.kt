@@ -773,6 +773,49 @@ class GrindTest {
     }
 
     @Test
+    fun makeFireflyPanel() {
+        val base = temp.resolve("firefly-panel")
+        Files.createDirectories(base)
+        assertEquals(0, MakeFireflyPanelCommand().run(listOf("--base=$base", "--lang=kotlin", "--id=desk", "--path=")))
+        val source = Files.readString(base.resolve("src/main/kotlin/app/firefly/Panel.kt"))
+        assertTrue(source.contains("class Panel"))
+        assertTrue(source.contains("id(\"desk\")"))
+        assertTrue(source.contains("path(\"\")"))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/firefly/pages/.gitkeep")))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/firefly/widgets/.gitkeep")))
+        assertTrue(Files.exists(base.resolve("src/main/kotlin/app/firefly/resources/.gitkeep")))
+        assertEquals(0, MakeFireflyPanelCommand().run(listOf("Panel", "--base=${temp.resolve("firefly-panel-named")}", "--lang=java")))
+        assertTrue(Files.readString(temp.resolve("firefly-panel-named/src/main/java/app/firefly/Panel.java")).contains("extends org.konaframework.firefly.Panel"))
+        assertThrows(GrindException::class.java) { MakeFireflyPanelCommand().run(listOf("Desk", "--base=$base")) }
+        assertThrows(GrindException::class.java) { MakeFireflyPanelCommand().run(listOf("Bad-Name", "--base=$base")) }
+        assertThrows(GrindException::class.java) { MakeFireflyPanelCommand().run(listOf("--base=${temp.resolve("blank-id")}", "--id=")) }
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-panel", "--base=$base", "--lang=kotlin")))
+        assertEquals(0, FireflyInstallCommand().run(listOf("--base=${temp.resolve("firefly-install")}", "--lang=kotlin", "--id=desk", "--path=staff")))
+        assertEquals(0, FireflyInstallCommand().run(listOf("--base=${temp.resolve("firefly-install-default")}", "--lang=java")))
+        assertThrows(GrindException::class.java) { FireflyInstallCommand().run(listOf("extra", "--base=$base")) }
+        assertEquals(0, MakeFireflyPageCommand().run(listOf("Desk", "--base=$base", "--lang=kotlin")))
+        assertTrue(Files.readString(base.resolve("src/main/kotlin/app/firefly/pages/Desk.kt")).contains("CustomPage"))
+        assertEquals(0, MakeFireflyPageCommand().run(listOf("Note", "--base=$base", "--lang=java")))
+        assertTrue(Files.readString(base.resolve("src/main/java/app/firefly/pages/Note.java")).contains("extends CustomPage"))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-page", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-page", "Bad-Name", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-page", "Desk", "--base=$base", "--lang=kotlin")))
+        assertEquals(0, MakeFireflyThemeCommand().run(listOf("Harbor", "--base=$base", "--lang=kotlin")))
+        assertTrue(Files.readString(base.resolve("src/main/kotlin/app/firefly/themes/Harbor.kt")).contains("FireflyTheme"))
+        assertEquals(0, MakeFireflyThemeCommand().run(listOf("Slate", "--base=$base", "--lang=java")))
+        assertTrue(Files.readString(base.resolve("src/main/java/app/firefly/themes/Slate.java")).contains("implements FireflyTheme"))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-theme", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-theme", "Bad-Name", "--base=$base")))
+        assertEquals(0, FireflyPublishCommand().run(listOf("--base=$base")))
+        assertTrue(Files.readString(base.resolve("src/main/resources/views/firefly/sidebar.crema.html")).contains("ff-hook:sidebar.start"))
+        assertEquals(1, GrindApplication().run(arrayOf("firefly:publish", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("firefly:publish", "extra", "--base=$base")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-panel" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "firefly:install" })
+        assertTrue(ListCommand.COMMANDS.any { it.first == "firefly:publish" })
+    }
+
+    @Test
     fun makeFireflyField() {
         val base = temp.resolve("firefly-field")
         Files.createDirectories(base)
