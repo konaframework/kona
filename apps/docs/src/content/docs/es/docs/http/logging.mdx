@@ -1,0 +1,259 @@
+---
+title: Registro
+description: Canales, drivers (stack, daily, single, …), la fachada Log, el contexto compartido y la configuración.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+La fachada `Log` de Kona se sienta sobre SLF4J / Logback. Cuando una aplicación arranca, un **`LogManager`** resuelve **canales** con nombre a partir de la configuración — incluidos drivers como `stack`, `daily`, `single`, `stderr`, `stdout`, `syslog`, `errorlog` y `null`.
+
+## Inicio rápido
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Log.info("Application started")
+Log.channel("orders").warning("Retrying charge")
+Log.error("Payment failed", exception)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Log.info("Application started");
+Log.channel("orders").warning("Retrying charge");
+Log.error("Payment failed", exception);
+```
+
+</TabItem>
+</Tabs>
+
+El arranque enlaza `LogManager` en el contenedor y en la fachada `Log`. Rara vez construyes un gestor tú mismo.
+
+## Adónde van los registros de forma predeterminada
+
+Al arrancar, Kona también adjunta un appender de archivo rotativo diario al logger **raíz** (`KONA_FILE`):
+
+| Ajuste | Clave de configuración | Entorno | Predeterminado |
+| --- | --- | --- | --- |
+| Escribir a archivo | `logging.to_file` | `LOG_TO_FILE` | `true` |
+| Nombre de archivo | `logging.file` | `LOG_FILE` | `kona.log` (bajo `storage/logs` salvo que sea absoluto) |
+| Nivel raíz | `logging.level` | `LOG_LEVEL` | `info` |
+| Canal predeterminado | `logging.default` | `LOG_CHANNEL` | `stack` |
+
+Las apps andamiadas incluyen `storage/logs/`. Después de `./grind serve` (o cualquier arranque que registre), busca `storage/logs/kona.log`. El historial rotado usa `kona.yyyy-MM-dd.log` (14 días retenidos en el appender raíz).
+
+Pon `LOG_TO_FILE=false` cuando solo quieras la consola. Para layouts propios o appenders extra, añade `src/main/resources/logback.xml` — Kona refresca `KONA_FILE` y no sustituye tu configuración de consola.
+
+## Canales y la fachada Log
+
+Un **canal** es un destino con nombre que resuelve `LogManager`. El nombre del canal predeterminado sale de `logging.default` (normalmente `stack`).
+
+| API | Papel |
+| --- | --- |
+| `Log.info` / `debug` / `warning` / `warn` / `notice` / `error` / `critical` / `alert` / `emergency` | Escribe en el canal **predeterminado** |
+| `Log.log(level, message)` | Igual, con un `LogLevel` o un nivel en cadena |
+| `Log.channel(name)` | Resuelve un canal con nombre |
+| `Log.channel()` | Canal predeterminado |
+| `Log.stack("a", "b")` | Stack de fan-out efímero (no se cachea bajo una clave de configuración) |
+| `Log.setDefaultChannel(name)` | Anula el predeterminado de este proceso |
+| `Log.shareContext` / `withContext` / `flushSharedContext` | Campos acotados a la petición (consulta abajo) |
+| `Log.manager()` | `LogManager` enlazado, o `null` antes del arranque |
+
+Sin un gestor enlazado (arranque temprano / pruebas unitarias), `Log.channel(name)` cae a un logger SLF4J con nombre.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Log.channel("orders").info("Order placed")
+Log.setDefaultChannel("api")
+Log.info("uses the api channel")
+Log.stack("single", "stderr").warning("fan-out")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Log.channel("orders").info("Order placed");
+Log.setDefaultChannel("api");
+Log.info("uses the api channel");
+Log.stack("single", "stderr").warning("fan-out");
+```
+
+</TabItem>
+</Tabs>
+
+Cada canal expone los mismos métodos de nivel, más `with(map)` para fusionar el contexto compartido y devolverse a sí mismo para encadenar.
+
+## Drivers
+
+Configura los canales bajo `logging.channels.{name}.*`. Al arrancar, `LogManager.seedDefaults` registra un mapa de arranque completo cuando faltan claves:
+
+| Canal | Driver | Notas |
+| --- | --- | --- |
+| `stack` | `stack` | Hace fan-out a `logging.channels.stack.channels` (entorno `LOG_STACK`, predeterminado `single`) |
+| `single` | `single` | Un archivo (el camino predetermina `logging.file`) |
+| `daily` | `daily` | Archivo rotativo por tiempo (`days` / `max_files`, entorno `LOG_DAILY_DAYS`, predeterminado 14) |
+| `stderr` / `console` | `stderr` | Appender de consola → System.err |
+| `stdout` | `stdout` | Appender de consola → System.out |
+| `syslog` | `syslog` | `SyslogAppender` de Logback (`host`, `facility`) |
+| `errorlog` | `errorlog` | Consola err (o JUL si el contexto de Logback no está disponible) |
+| `null` | `null` | Descarta cada mensaje |
+| `emergency` | (solo camino) | Archivo de último recurso usado cuando falla una escritura del canal predeterminado |
+
+Puedes añadir tus propios nombres:
+
+```kotlin
+// config (executable ConfigFile or .configure { })
+logging.channels.payments.driver = "daily"
+logging.channels.payments.path = "payments.log"
+logging.channels.payments.level = "debug"
+logging.channels.payments.days = 30
+```
+
+### Referencia de drivers
+
+**`stack`** — `channels` puede ser una cadena separada por comas, una lista o un array de nombres de canales hijos. `ignore_exceptions` opcional (booleano): cuando es verdadero, un hijo que falla no aborta el resto.
+
+**`single` / `daily`** — `path` (relativo → `storage/logs/…`, o absoluto), `level` opcional. Daily también usa `days` o `max_files`. Cuando el camino resuelto coincide con el appender raíz `KONA_FILE`, Kona **reutiliza** ese appender para que dos escritores no peleen por el mismo archivo.
+
+**`stderr` / `stdout` / `console` / `errorlog` / `syslog`** — `level` opcional; syslog también `host` (predeterminado `localhost`) y `facility` (predeterminado `USER`).
+
+**`null`** — sin E/S.
+
+Los valores de `driver` desconocidos lanzan `IllegalArgumentException`. Los grafos `stack` circulares lanzan `IllegalStateException`.
+
+### Drivers propios, taps y anulaciones
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val logs = app.resolve(LogManager::class.java)
+
+logs.extend("memory") { name, config ->
+    object : LogChannel() {
+        override fun write(level: LogLevel, message: String, throwable: Throwable?) {
+            // capture in tests / buffers
+        }
+    }
+}
+app.config.set("logging.channels.mem.driver", "memory")
+
+logs.tap("mem") { channel ->
+    // runs once when the channel is first resolved (and immediately if already resolved)
+}
+
+logs.set("orders", NullLogChannel) // tests / advanced wiring
+logs.forget("orders")
+logs.flush() // drop all cached channels
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+LogManager logs = app.resolve(LogManager.class);
+
+logs.extend("memory", (name, config) -> new LogChannel() {
+    @Override
+    public void write(LogLevel level, String message, Throwable throwable) {
+        // capture in tests / buffers
+    }
+});
+app.config().set("logging.channels.mem.driver", "memory");
+
+logs.tap("mem", channel -> { /* … */ });
+logs.set("orders", NullLogChannel.INSTANCE);
+logs.forget("orders");
+logs.flush();
+```
+
+</TabItem>
+</Tabs>
+
+Si un nombre de canal coincide con un driver integrado (`daily`, `stderr`, …) pero **no** tiene clave `driver`, `LogManager` trata el propio nombre como pista de driver.
+
+## Niveles
+
+`LogLevel` refleja los nombres de severidad habituales. Formas de cadena que aceptan `LogLevel.parse` / `log(level, …)`:
+
+| Nivel | Alias |
+| --- | --- |
+| EMERGENCY | `emergency`, `emerg` |
+| ALERT | `alert` |
+| CRITICAL | `critical`, `crit` |
+| ERROR | `error`, `err` |
+| WARNING | `warning`, `warn` |
+| NOTICE | `notice` |
+| INFO | `info` |
+| DEBUG | `debug` |
+
+El `level` del canal y `logging.level` se pasan a `Level.toLevel` de Logback (predeterminado `debug` cuando no está puesto en un logger de canal preparado).
+
+## Contexto compartido
+
+Adjunta campos acotados a la petición una vez; cada mensaje posterior de un canal los incluye hasta que hagas flush. Los valores también se reflejan en el MDC de SLF4J (null → la cadena `"null"`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Log.shareContext(mapOf("requestId" to "r-1", "userId" to 42))
+Log.info("Handling checkout")
+// message includes {requestId=r-1, userId=42}
+
+Log.channel("orders").with(mapOf("orderId" to 9)).info("charged")
+Log.flushSharedContext()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Log.shareContext(Map.of("requestId", "r-1", "userId", 42));
+Log.info("Handling checkout");
+Log.channel("orders").with(Map.of("orderId", 9)).info("charged");
+Log.flushSharedContext();
+```
+
+</TabItem>
+</Tabs>
+
+`withContext` fusiona valores y devuelve el canal **predeterminado** para encadenar. Prefiere hacer flush al final de cada petición HTTP (por ejemplo en middleware) para que el contexto no se filtre entre virtual threads.
+
+## Escrituras de emergencia
+
+Si escribir en el canal predeterminado lanza mientras hay un `LogManager` enlazado, `Log` llama a `LogManager.writeEmergency`. Eso añade una línea con marca de tiempo a `logging.channels.emergency.path` (si no, `logging.file`, si no `kona.log`). Si incluso eso falla, el mensaje va a `System.err`.
+
+## Líneas de acceso de petición (serve local)
+
+Cuando `APP_DEBUG=true` (el predeterminado del andamiaje) — o cuando pones `LOG_REQUESTS=true` / configuración `logging.requests=true` — `HttpServiceProvider` antepone **`LogRequests`** al kernel global. Cada petición imprime una línea con estilo Termwind en la terminal:
+
+```text
+GET     /  200  3ms
+```
+
+…y refleja el mismo texto plano mediante `Log.info` en tu stack de registro (normalmente `storage/logs/kona.log`). Colores de estado: verde (2xx), cian (3xx), amarillo (4xx), rojo (5xx y otros).
+
+| Ajuste | Clave de configuración | Entorno | Predeterminado |
+| --- | --- | --- | --- |
+| Líneas de acceso de petición | `logging.requests` | `LOG_REQUESTS` | sigue `app.debug` cuando no está puesto |
+
+Pon `LOG_REQUESTS=false` para silenciar las líneas de acceso de consola incluso con debug activado. Esto se aplica tanto a `./grind serve` (`run` de Gradle) como al serve en el proceso — el middleware vive en el kernel HTTP, no solo en grind.
+
+`KonaHttpServer` también imprime un banner de escucha con `ConsoleIO` cuando el bind tiene éxito. Los fallos inesperados de Netty/manejador pasan por `Log.error`.
+
+## Errores y la pila HTTP
+
+`DefaultExceptionHandler` registra los fallos inesperados mediante `Log.error` salvo que instales un callback `report` propio — consulta [Excepciones](../exceptions/).
+
+## Consejos de pruebas
+
+- Usa el canal `null` o `logs.extend("memory", …)` para afirmar el tráfico de registro sin tocar el disco.
+- `FileLogging.resetForTests()` / `Log.unbind()` / `Kona.reset()` mantienen las suites aisladas (como en las propias pruebas de `kona-core`).
+- Prefiere valores `path` absolutos bajo `@TempDir` cuando afirmes el contenido de archivos.
