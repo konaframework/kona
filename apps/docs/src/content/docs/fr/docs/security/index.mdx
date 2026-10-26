@@ -1,0 +1,32 @@
+---
+title: Aperçu de la sécurité
+description: Sessions, authentification, autorisation, CSRF, chiffrement, CORS et limitation de débit dans Kona.
+---
+
+La pile de sécurité de Kona est livrée dans deux modules :
+
+- **`kona-session`** — sessions HTTP (pilotes array / fichier / cookie / Redis), données flash, URL précédente / ancienne entrée, et vérification CSRF.
+- **`kona-auth`** — hachage, guards, la façade `Auth`, réinitialisations de mot de passe, gates / policies, jetons d’API, chiffrement, CORS, en-têtes de sécurité et limitation de débit.
+
+## Chemin simple
+
+Les apps de `kona new` enregistrent déjà les providers de session et d’auth et câblent `StartSession` + CSRF dans la pile de middleware web.
+
+1. Gardez `SessionServiceProvider` et `AuthServiceProvider` dans la liste des providers du bootstrap.
+2. Gardez `StartSession` et `VerifyCsrfToken` sur la pile web (`/api/*` est exclu du CSRF par défaut).
+3. Protégez les routes HTML avec `Authenticate` ; utilisez des jetons bearer ou `AuthenticateWithToken` pour les API.
+4. Autorisez avec `Gate` / des policies ou le middleware `Authorize`.
+
+## Carte des guides
+
+| Sujet | Guide |
+|-------|-------|
+| Sessions, flash, pilotes | [Session](/docs/security/session/) |
+| Connexion, se souvenir de moi, middleware, hachage, jetons | [Authentification](/docs/security/authentication/) |
+| Gates, policies, `Authorize` | [Autorisation](/docs/security/authorization/) |
+| Jetons de formulaire | [Protection CSRF](/docs/security/csrf/) |
+| `APP_KEY`, chiffrer / déchiffrer | [Chiffrement](/docs/security/encryption/) |
+| CORS + en-têtes de réponse | [CORS et en-têtes de sécurité](/docs/security/cors-headers/) |
+| Limiteurs nommés + middleware de throttle | [Limitation de débit](/docs/security/rate-limiting/) |
+
+Le CSRF et les cookies de session interagissent avec le pipeline de [middleware HTTP](/docs/http/middleware/) ; les règles de formulaire de mot de passe utilisent le [validateur HTTP](/docs/http/validation/).
