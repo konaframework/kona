@@ -1,9 +1,9 @@
 ---
-title: Piles
-description: Poussez et préposez scripts et styles sur des piles nommées depuis les vues enfants et les partiels.
+title: Stacks
+description: Poussez et préfixez scripts et styles sur des stacks nommées depuis les vues enfants et les partiels.
 ---
 
-Les **piles** collectent des fragments HTML depuis les vues enfants, les includes et les composants, puis les impriment là où un layout appelle `@stack`. Usage typique : chaque page pousse des scripts propres à la page ; le layout les rend une fois avant `</body>`.
+Les **stacks** collectent des fragments HTML depuis les vues enfants, les inclusions et les composants, puis les impriment là où un layout appelle `@stack`. Usage typique : chaque page pousse des scripts propres à la page ; le layout les rend une fois avant `</body>`.
 
 ## Push et prepend
 
@@ -19,12 +19,12 @@ Les **piles** collectent des fragments HTML depuis les vues enfants, les include
 
 | Directive | Effet |
 |-----------|--------|
-| `@push('name')…@endpush` | Ajoute le fragment à la fin de la pile |
-| `@prepend('name')…@endprepend` | Insère le fragment au début de la pile |
+| `@push('name')…@endpush` | Ajoute le fragment à la fin de la stack |
+| `@prepend('name')…@endprepend` | Insère le fragment au début de la stack |
 
-Les corps sont développés au moment du push (les échos et les directives imbriquées s’exécutent dans le contexte courant). Les directives push/prepend elles-mêmes n’émettent rien à l’appel — elles ne font que remplir la pile.
+Les corps sont développés au moment du push (les échos et les directives imbriquées tournent dans le contexte courant). Les directives push/prepend elles-mêmes n’émettent rien au site d’appel — elles ne font que remplir la stack.
 
-## Rendre la pile
+## Rendre la stack
 
 Dans le layout (ou tout ancêtre qui doit imprimer les fragments collectés) :
 
@@ -33,7 +33,7 @@ Dans le layout (ou tout ancêtre qui doit imprimer les fragments collectés) :
 @stack('styles')
 ```
 
-Ordre lorsque push et prepend sont tous deux utilisés : **tous les fragments prepend d’abord** (chaque prepend s’insère à l’index 0, donc les prepend plus tardifs apparaissent avant les plus anciens), puis **les fragments push dans l’ordre d’enregistrement**.
+Ordre quand push et prepend sont utilisés ensemble : **tous les fragments prepend d’abord** (chaque prepend insère à l’index 0, donc les prepend plus tardifs apparaissent avant les plus anciens), puis **les fragments push dans l’ordre d’enregistrement**.
 
 Exemple :
 
@@ -74,11 +74,11 @@ Exemple :
 @endpush
 ```
 
-Les push peuvent vivre dans des blocs `@section` ou à côté ; les deux sont collectés avant le rendu du layout parent.
+Les push peuvent vivre dans des blocs `@section` ou à côté ; les deux sont collectés avant que le layout parent ne se rende.
 
 ## Partiels et composants
 
-Les includes et les composants partagent les mêmes maps de pile pour le rendu. Un `@push` dans `@include('partials.chart')` apparaît quand même dans le `@stack` du layout. Cela permet à un partiel d’enregistrer ses propres assets une fois, surtout combiné à [`@once`](/docs/crema/includes/#once) :
+Les inclusions et les composants partagent les mêmes maps de stack pour le rendu. Un `@push` dans `@include('partials.chart')` apparaît quand même dans le `@stack` du layout. Cela permet à un partiel d’enregistrer ses assets une fois, surtout combiné avec [`@once`](/docs/crema/includes/#once) :
 
 ```crema
 {{-- partials/chart.crema.html --}}
@@ -90,12 +90,12 @@ Les includes et les composants partagent les mêmes maps de pile pour le rendu. 
 <div class="chart" data-id="{{ id }}"></div>
 ```
 
-## Piles vides
+## Stacks vides
 
-`@stack('missing')` imprime une chaîne vide lorsque rien n’a été poussé. Vous n’avez pas besoin de déclarer les piles à l’avance.
+`@stack('missing')` imprime une chaîne vide quand rien n’a été poussé. Vous n’avez pas à déclarer les stacks à l’avance.
 
 ## Lié
 
-- [Layouts](/docs/crema/layouts/) — où vivent en général les piles
+- [Layouts](/docs/crema/layouts/) — où les stacks vivent d’habitude
 - [Rendu](/docs/crema/rendering/#vite) — `@vite` pour les points d’entrée empaquetés
-- [Formulaires](/docs/crema/forms/) — CSRF et aides de méthode se placent souvent près des formulaires, pas dans les piles
+- [Formulaires](/docs/crema/forms/) — les aides CSRF et de méthode sont souvent près des formulaires, pas dans les stacks

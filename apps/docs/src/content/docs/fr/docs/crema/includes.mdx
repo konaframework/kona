@@ -1,17 +1,17 @@
 ---
-title: Includes et partiels
-description: Incluez des modèles partiels, des blocs once et des régions verbatim dans Crema.
+title: Inclusions et partiels
+description: Incluez des templates partiels, des blocs once et des régions verbatim dans Crema.
 ---
 
-Les **partiels** sont des vues ordinaires destinées à être composées dans d’autres modèles — navigation, bannières flash, extraits de champ de formulaire. Crema n’utilise pas un type de fichier « fragment » séparé : n’importe quel nom de vue peut être inclus. Les includes partagent les sections et les piles du parent à travers un contexte de données enfant (les clés parentes restent visibles ; l’include peut lire le même `name`, `user`, et ainsi de suite).
+Les **partiels** sont des vues ordinaires destinées à être composées dans d’autres templates — navigation, bannières flash, extraits de champ de formulaire. Crema n’utilise pas un type de fichier « fragment » séparé : n’importe quel nom de vue peut être inclus. Les inclusions partagent les sections et les stacks du parent à travers un contexte de données enfant (les clés du parent restent visibles ; l’inclusion peut lire le même `name`, `user`, et ainsi de suite).
 
-## Inclure toujours
+## Toujours inclure
 
 ```crema
 @include('partials.nav')
 ```
 
-Résout `src/main/resources/views/partials/nav.crema.html` (nom pointé → chemin). Les vues manquantes lancent `ViewNotFoundException`.
+Résout `src/main/resources/views/partials/nav.crema.html` (nom pointé → chemin). Les vues absentes lancent `ViewNotFoundException`.
 
 ```crema
 {{-- views/partials/nav.crema.html --}}
@@ -23,25 +23,25 @@ Résout `src/main/resources/views/partials/nav.crema.html` (nom pointé → chem
 </nav>
 ```
 
-## Include optionnel
+## Inclusion optionnelle
 
 ```crema
 @includeIf('optional.banner')
 ```
 
-Ne rend rien lorsque le fichier de vue est absent (pas d’erreur). Utilisez ceci pour les surcharges de thème ou les paquets optionnels.
+Ne rend rien quand le fichier de vue manque (pas d’erreur). Utilisez cela pour des surcharges de thème ou des paquets optionnels.
 
-## Include conditionnel
+## Inclusion conditionnelle
 
 ```crema
 @includeWhen(showBanner, 'partials.banner')
 @includeUnless(hideBanner, 'partials.banner')
 ```
 
-| Directive | Rend la vue lorsque… |
+| Directive | Rend la vue quand… |
 |-----------|------------------------|
-| `@includeWhen(expr, 'name')` | `expr` est vrai |
-| `@includeUnless(expr, 'name')` | `expr` n’est pas vrai |
+| `@includeWhen(expr, 'name')` | `expr` est truthy |
+| `@includeUnless(expr, 'name')` | `expr` n’est pas truthy |
 
 ## Première vue disponible
 
@@ -49,7 +49,7 @@ Ne rend rien lorsque le fichier de vue est absent (pas d’erreur). Utilisez cec
 @includeFirst(['theme.banner', 'partials.banner'])
 ```
 
-Rend le premier nom cité qui se résout ; ignore les vues manquantes sans erreur. Si aucun ne se résout, n’émet rien.
+Rend le premier nom entre guillemets qui se résout ; saute les vues absentes sans erreur. Si aucune ne se résout, n’émet rien.
 
 Utile pour des partiels « préférer le thème, retomber sur le défaut » :
 
@@ -68,7 +68,7 @@ Utile pour des partiels « préférer le thème, retomber sur le défaut » :
 @endonce
 ```
 
-Le corps se rend au plus **une fois par passe de rendu**, même si le partiel qui le contient est inclus plusieurs fois. Les corps `@once` identiques partagent la même clé. Les piles et les sections fonctionnent encore dans le corps lors de la première passe.
+Le corps se rend au plus **une fois par passage de rendu**, même si le partiel qui le contient est inclus plusieurs fois. Les corps `@once` identiques partagent la même clé. Les stacks et les sections fonctionnent encore dans le corps au premier passage.
 
 ## `@verbatim`
 
@@ -78,19 +78,19 @@ Le corps se rend au plus **une fois par passe de rendu**, même si le partiel qu
 @endverbatim
 ```
 
-Rien à l’intérieur de `@verbatim`…`@endverbatim` n’est traité comme Crema — les échos et les directives restent du texte. Utilisez ceci dans les pages de documentation ou lorsque vous embarquez des exemples de modèle dans un layout Crema.
+Rien dans `@verbatim`…`@endverbatim` n’est traité comme du Crema — les échos et les directives restent du texte. Utilisez cela dans les pages de documentation ou quand vous embarquez des exemples de template dans un layout Crema.
 
 ## Partiels, layouts et composants
 
 | Approche | Quand l’utiliser |
 |----------|-------------|
 | `@include` | Petits morceaux partagés (nav, champ, bandeau d’alerte) |
-| `@extends` / `@section` | Coquilles de page complète avec régions nommées — [Layouts](/docs/crema/layouts/) |
+| `@extends` / `@section` | Coquilles de page complète avec des régions nommées — [Layouts](/docs/crema/layouts/) |
 | `@component` / `<x-*>` | Widgets réutilisables avec un slot par défaut et des **slots nommés** optionnels — [Composants](/docs/crema/components/) |
 
-Les includes n’isolent pas les piles : un `@push('scripts')` dans un partiel arrive quand même sur le `@stack('scripts')` du layout.
+Les inclusions n’isolent pas les stacks : un `@push('scripts')` dans un partiel atterrit quand même sur le `@stack('scripts')` du layout.
 
 ## Suite
 
 - [Composants et slots](/docs/crema/components/) — slots et balises `<x-*>`
-- [Piles](/docs/crema/stacks/) — collecter des scripts depuis les partiels
+- [Stacks](/docs/crema/stacks/) — collecter des scripts depuis les partiels
