@@ -5,6 +5,8 @@ description: Conditionnels, boucles, auth, capacités, switch et métadonnées d
 
 Les directives structurelles de Crema branchent et répètent des régions de modèle. Les blocs extérieurs se développent d’abord afin que les blocs intérieurs voient les variables de boucle et le contexte enfant.
 
+<a id="truthiness"></a>
+
 ## Vérité
 
 Les expressions dans `@if`, `@unless`, `@empty`, `@includeWhen` et similaires traitent une valeur comme **vraie** sauf si elle est :
@@ -117,6 +119,8 @@ Pour une `Map`, `key` / `value` sont chaque entrée. Pour une liste (ou un autre
 | Collection / tableau / `IntRange` | Éléments |
 | `CharSequence` | Caractères |
 | Toute autre valeur unique | Une itération avec cette valeur |
+
+<a id="loop-metadata"></a>
 
 ## Métadonnées de boucle
 
