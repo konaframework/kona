@@ -59,7 +59,9 @@ Nested `@if` blocks match the correct `@endif`. `@hasSection` / `@sectionMissing
 @if(items)has items@endif
 ```
 
-Compare with care: `==` and friends stringify both sides after evaluating, except numeric comparisons for `<` / `>` / `<=` / `>=` when both sides are numbers.
+Compare with care: `==` and friends stringify both sides after evaluating, except numeric comparisons for `<` / `>` / `<=` / `>=` when both sides are numbers. `===` and `!==` do not stringify: `null` stays null, and two numbers match by numeric value.
+
+Inside `@if(user !== null)` the value is non-null, so `user.getEmail()` and `user.email` read it directly. `user?.getEmail()` is the same read when `user` might still be null; a null receiver renders nothing. `user.email` on a model also reads a column stored with `getAttribute("email")` when the class has no `getEmail()` method.
 
 ## `@while`
 
