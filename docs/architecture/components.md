@@ -14,6 +14,7 @@ Kona is a full-stack, developer-friendly web framework for the Java/Kotlin ecosy
 | **Crema** | Blade / Prism | Prism | Server-side templates with layouts, directives, components |
 | **drip** | Axios / HTTP client | HTTP client | Fluent HTTP client/SDK |
 | **Wire** | Livewire | — | Reactive server components (HTML over JSON; `wire:*` attributes) |
+| **Firefly** | Filament | — | Application panels on Wire (`kona-firefly-support` first; later panel artifacts) |
 
 ## Ecosystem conventions
 
@@ -85,3 +86,7 @@ Full-stack reactive server components in this monorepo: `modules/wire` → Maven
 SPA adapter in this monorepo: `modules/inertia` → Maven `org.konaframework:kona-inertia` (package `org.konaframework.inertia`). Docs: [docs.konaframework.org/docs/inertia/](https://docs.konaframework.org/docs/inertia/) (`apps/docs`). Starter: `kona new --kit=inertia`.
 
 Sister GitHub repos `konaframework/kona-wire` and `konaframework/kona-inertia` are archived after remonorepo (source of truth is this repo).
+
+### Firefly (application panels)
+
+Panel system in this monorepo, Maven `org.konaframework:kona-firefly-support` (package `org.konaframework.firefly.support`). M28 ships themes, scoped CSS, panel chrome, render hooks, and `Dialog`. Later milestones add schemas, actions, forms, infolists, tables, notifications, widgets, and the panel (`kona-firefly`). Docs: `apps/docs` sidebar **Firefly**. Parity ledger: [firefly-filament-parity.md](../governance/firefly-filament-parity.md). There is no Orbit admin product.

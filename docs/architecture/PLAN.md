@@ -135,7 +135,7 @@ Relational Cadence is JDBC + Hikari + `Grammar` (M25). MongoDB does not speak SQ
 
 ## Non-goals (until their milestone)
 
-- Rust/Actix latency race; Spring/Quarkus embedding; coroutines-first HTTP; Kotlin-only APIs; Orbit-class admin before a post-M13 milestone is opened in `MILESTONES.md`.
+- Rust/Actix latency race; Spring/Quarkus embedding; coroutines-first HTTP; Kotlin-only APIs. Application panels are **Kona Firefly** (M28+), not a separate Orbit product.
 - MongoDB / other document stores before a human activates **M27** (Kona **1.x**).
 
 ## Immediate execution order

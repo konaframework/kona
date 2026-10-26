@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** [M26](#m26--kona-wire) — rename Brew → **Kona Wire**, ships as Kona **0.3.0**.
+**Active milestone:** [M28](#m28--firefly-support) — **Kona Firefly** support, theme, and dialog. Kona **0.3.0** (M26) has shipped.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -875,7 +875,7 @@ MongoDB / non-JDBC stores → **[M27](#m27--cadence-document--mongodb-kona-1x)**
 
 ## M26 — Kona Wire
 
-**Status:** in progress.
+**Status:** done (shipped as Kona **0.3.0**).
 
 **Release train:** Kona **0.3.0** (do not mix into `0.2.x`). After merge, a human tags `v0.3.0` when ready to publish Central — agents must **not** tag unless asked.
 
@@ -914,7 +914,7 @@ MongoDB / non-JDBC stores → **[M27](#m27--cadence-document--mongodb-kona-1x)**
 #### Tests & coverage
 - [x] Kotlin + Java regression for tags, `app.wire` discovery, Maven coordinate, grind aliases, and `wire:*` attributes (unchanged behavior).
 - [x] 100% line + branch Kover on production code touched by M26; full suite green (Laws 3–4).
-- [ ] Milestone PR → green CI; **do not merge or tag `v0.3.0`** until a human asks.
+- [x] Milestone PR → green CI; **0.3.0** has shipped. Do not tag again unless a human asks.
 
 ### In-scope modules
 
@@ -943,7 +943,42 @@ flowchart LR
   M23 --> M24[M24_Executable_Config]
   M24 --> M25[M25_DB_Engines]
   M25 --> M26[M26_Kona_Wire]
+  M26 --> M28[M28_Firefly_Support]
 ```
+
+---
+
+## M28 — Firefly support
+
+**Status:** in progress.
+
+**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
+
+**Branch:** `milestone/M28-firefly-support`
+
+**Parity slice:** Kona Firefly support — scoped Tailwind CSS, theme packages, panel chrome partials, render hooks, and the shared dialog. Resources, forms, and tables are later milestones. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+### Parity checklist
+
+- [x] `org.konaframework:kona-firefly-support` in the monorepo and the BOM
+- [x] Tailwind CSS v4 authoring source and checked-in `ff-*` stylesheet scoped under `.ff-panel` (no unscoped preflight)
+- [x] `FireflyTheme` plus the built-in Kona theme (color, font, radius, sidebar, top bar, body)
+- [x] `PanelShell.theme(...)` and `PanelShell.layout(...)`, with a later layout call overriding the theme shell
+- [x] Named partials: sidebar, top bar, body, footer, with render-hook markers
+- [x] App partial override wins over the theme partial; a partial that drops a required marker fails
+- [x] `Dialog`: modal (top-aligned, draggable), sidebar (start and end), fullscreen (not dragged), `configureUsing`
+- [x] Icon set with inline SVG (`HOME`, `BARS`, `USER`, `X`)
+- [x] Kotlin and Java regression paths
+- [x] Public docs under Firefly
+- [x] 100% line + branch Kover on `kona-firefly-support`
+
+### In-scope modules
+
+`kona-firefly-support`, `apps/docs/`, BOM, CI coverage gate
+
+### Out of scope
+
+Schemas, fields, tables, panel routes, resources, the document addon, IDE support (M38).
 
 ---
 

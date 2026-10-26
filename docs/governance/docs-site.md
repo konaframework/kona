@@ -85,7 +85,7 @@ CSS: `apps/docs/src/styles/custom.css` and `landing.css` (`--kona-primary`, `--k
 
 5. **Progressive path (trajectory).** Today’s public site still leans on low-level application wiring (explicit providers, registries). That is honest for the current API, but it is **not** the end state. As scaffolding and conventions land, **rewrite** guides so newcomers start with the simple path (*Getting started*) and only dig into providers/container internals later — developer-friendly progressive disclosure, not a disjoint dump of every knob on page one.
 
-   **Sidebar IA (public):** group pages in progressive sections — *Getting started* → *The basics* → *Crema* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Wire* → *Inertia* → *Testing* → *Packages & tooling* — in `apps/docs/sidebar.mjs`. Wire and Inertia are top-level groups (not nested under Frontend). Prefer regrouping the sidebar over mass file moves so slugs stay stable.
+   **Sidebar IA (public):** group pages in progressive sections — *Getting started* → *The basics* → *Crema* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Wire* → *Inertia* → *Firefly* → *Testing* → *Packages & tooling* — in `apps/docs/sidebar.mjs`. Wire, Inertia, and Firefly are top-level groups (not nested under Frontend). Prefer regrouping the sidebar over mass file moves so slugs stay stable.
 
 6. **Internal vs public.** Component maps that exist for agents under `docs/architecture/` stay out of the public site unless rewritten in Kona-only language.
 
@@ -111,6 +111,7 @@ Wire and Inertia guides live **inside** this site:
 |---------|----------------|
 | Wire | [docs.konaframework.org/docs/wire/](https://docs.konaframework.org/docs/wire/) |
 | Inertia | [docs.konaframework.org/docs/inertia/](https://docs.konaframework.org/docs/inertia/) |
+| Firefly | [docs.konaframework.org/docs/firefly/](https://docs.konaframework.org/docs/firefly/) |
 
 Stub READMEs only: `apps/brew-docs/`, `apps/inertia-docs/` (no separate Starlight builds).
 

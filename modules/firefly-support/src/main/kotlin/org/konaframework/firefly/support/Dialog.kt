@@ -1,0 +1,78 @@
+package org.konaframework.firefly.support
+
+import java.util.function.Consumer
+
+enum class DialogMode {
+    MODAL,
+    SIDEBAR,
+    FULLSCREEN,
+}
+
+class Dialog private constructor(private val title: String) {
+    private var body: String = ""
+    private var mode: DialogMode = DialogMode.MODAL
+    private var position: String = "end"
+    private var draggable: Boolean = true
+    private var width: String = "lg"
+
+    fun body(html: String): Dialog = apply { body = html }
+
+    fun modal(): Dialog = apply { mode = DialogMode.MODAL }
+
+    fun slideOver(): Dialog = apply {
+        mode = DialogMode.SIDEBAR
+        position = "end"
+    }
+
+    fun slideOverStart(): Dialog = apply {
+        mode = DialogMode.SIDEBAR
+        position = "start"
+    }
+
+    fun fullscreen(): Dialog = apply { mode = DialogMode.FULLSCREEN }
+
+    fun draggable(on: Boolean): Dialog = apply { draggable = on }
+
+    fun width(width: String): Dialog = apply {
+        if (width !in WIDTHS) throw FireflyException("Unknown dialog width [$width]")
+        this.width = width
+    }
+
+    fun render(): String {
+        val modeClass = when (mode) {
+            DialogMode.MODAL -> "ff-dialog-modal"
+            DialogMode.SIDEBAR -> "ff-dialog-sidebar"
+            DialogMode.FULLSCREEN -> "ff-dialog-fullscreen"
+        }
+        val canDrag = draggable && mode != DialogMode.FULLSCREEN
+        val drag = if (canDrag) """ x-data="ffDialog" data-ff-drag="true"""" else ""
+        val align = if (mode == DialogMode.MODAL) """ data-ff-align="top"""" else ""
+        val side = if (mode == DialogMode.SIDEBAR) """ data-ff-position="$position"""" else ""
+        return """
+            <div class="ff-dialog $modeClass ff-dialog-$width" role="dialog"$align$side$drag>
+              <div class="ff-dialog-overlay"></div>
+              <div class="ff-dialog-window">
+                <header class="ff-dialog-header">${escapeHtml(title)}</header>
+                <div class="ff-dialog-body">$body</div>
+              </div>
+            </div>
+        """.trimIndent()
+    }
+
+    companion object {
+        private val WIDTHS = setOf("sm", "md", "lg", "xl", "screen")
+        private var configurer: Consumer<Dialog>? = null
+
+        @JvmStatic
+        fun configureUsing(block: Consumer<Dialog>?): Unit {
+            configurer = block
+        }
+
+        @JvmStatic
+        fun make(title: String): Dialog {
+            val dialog = Dialog(title)
+            configurer?.accept(dialog)
+            return dialog
+        }
+    }
+}

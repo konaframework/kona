@@ -1,0 +1,144 @@
+---
+title: Themes and CSS
+description: FireflyTheme, KonaTheme tokens, scoped CSS variables, and the rule that keeps theme CSS inside the panel.
+---
+
+A **theme** is an implementation of `FireflyTheme`. It supplies an id, a `ThemeTokens` object, optional HTML for a chrome slot, and optional extra CSS. `Stylesheet.render` turns the tokens into CSS custom properties on `.ff-panel`. Component rules in the shipped stylesheet only match descendants of `.ff-panel`, so a page that never renders a panel does not pick up Firefly’s button, sidebar, or dialog rules.
+
+## FireflyTheme
+
+| Method | Default | Meaning |
+|--------|---------|---------|
+| `id(): String` | required | Short name used in error messages |
+| `tokens(): ThemeTokens` | required | Color, type, and size tokens |
+| `partial(slot: String): String?` | `null` | Replacement HTML for `sidebar`, `topbar`, `body`, or `footer`. `null` keeps the built-in partial |
+| `extraCss(): String` | `""` | Extra rules. Firefly wraps a non-empty value in `.ff-panel { ... }` |
+
+Implement the interface in Kotlin or Java. You do not register the class anywhere. Pass an instance to `PanelShell.theme(...)`.
+
+Kotlin:
+
+```kotlin
+class HarborTheme : FireflyTheme {
+    override fun id(): String = "harbor"
+
+    override fun tokens(): ThemeTokens = ThemeTokens(
+        primary = "#DF8723",
+        accent = "#74453F",
+        surface = "#FAF6F0",
+        heading = "#2A1C10",
+        font = "ui-sans-serif, system-ui, sans-serif",
+        radius = "0.75rem",
+        sidebarWidth = "18rem",
+        topbarHeight = "4rem",
+        bodyBackground = "#FAF6F0",
+        darkPrimary = "#C9A57B",
+        darkSurface = "#1A120C",
+        darkHeading = "#E8D4B8",
+    )
+
+    override fun extraCss(): String =
+        ".ff-sidebar { box-shadow: inset -1px 0 0 var(--ff-accent); }"
+}
+```
+
+Java:
+
+```java
+public final class HarborTheme implements FireflyTheme {
+    @Override public String id() { return "harbor"; }
+
+    @Override public ThemeTokens tokens() {
+        return new ThemeTokens(
+            "#DF8723", "#74453F", "#FAF6F0", "#2A1C10",
+            "ui-sans-serif, system-ui, sans-serif",
+            "0.75rem", "18rem", "4rem", "#FAF6F0",
+            "#C9A57B", "#1A120C", "#E8D4B8"
+        );
+    }
+
+    @Override public String extraCss() {
+        return ".ff-sidebar { box-shadow: inset -1px 0 0 var(--ff-accent); }";
+    }
+}
+```
+
+`ThemeTokens` is a class with those twelve constructor parameters, in that order. Each field is a public `val` (a Java getter). Values are inserted into CSS as you provide them. Firefly does not validate that a token is a legal CSS color.
+
+## KonaTheme
+
+`KonaTheme` is the built-in theme. `id()` returns `kona`. `PanelShell` uses it when you never call `theme(...)`.
+
+| Token | Light value | Dark token | Dark value |
+|-------|-------------|------------|------------|
+| primary | `#DF8723` | darkPrimary | `#C9A57B` |
+| accent | `#74453F` | — | accent is unchanged in the dark block |
+| surface | `#FAF6F0` | darkSurface | `#1A120C` |
+| heading | `#2A1C10` | darkHeading | `#E8D4B8` |
+| font | `ui-sans-serif, system-ui, sans-serif` | — | |
+| radius | `0.5rem` | — | |
+| sidebarWidth | `16rem` | — | |
+| topbarHeight | `4rem` | — | |
+| bodyBackground | `#FAF6F0` | written as `--ff-body` | dark block sets `--ff-body` from `darkSurface` |
+
+## Stylesheet.render
+
+`Stylesheet.render(theme)` returns a CSS string:
+
+1. A `.ff-panel { ... }` block of custom properties.
+2. A `.ff-panel.ff-dark { ... }` block that overrides primary, surface, heading, and body.
+3. The shipped component stylesheet.
+4. When `extraCss()` is non-blank after `trim()`, a trailing `.ff-panel { <extra> }` block.
+
+Custom properties:
+
+| Property | Token |
+|----------|--------|
+| `--ff-primary` | `primary` / `darkPrimary` |
+| `--ff-accent` | `accent` |
+| `--ff-surface` | `surface` / `darkSurface` |
+| `--ff-heading` | `heading` / `darkHeading` |
+| `--ff-font` | `font` |
+| `--ff-radius` | `radius` |
+| `--ff-sidebar-width` | `sidebarWidth` |
+| `--ff-topbar-height` | `topbarHeight` |
+| `--ff-body` | `bodyBackground` / `darkSurface` in the dark block |
+
+`DefaultLayout` emits `<div class="ff-panel">` without `ff-dark`. Dark tokens apply when the panel root also has the class `ff-dark`. A custom `PanelLayout` can add that class. See [Panel chrome](/docs/firefly/chrome/).
+
+## Extra CSS must stay inside the panel
+
+After trim, if `extraCss()` is non-empty and any line matches `body` followed by `{` at the start of the line (leading whitespace allowed), `Stylesheet.render` throws `FireflyException`:
+
+```text
+Theme [<id>] CSS must stay under .ff-panel
+```
+
+This is rejected:
+
+```css
+body { background: red; }
+```
+
+This is accepted, because the selector is not a bare `body` rule:
+
+```css
+.ff-sidebar { background: var(--ff-surface); }
+```
+
+Empty or whitespace-only `extraCss()` is omitted. The check does not run.
+
+## Shipped component classes
+
+The checked-in stylesheet (`firefly.css`) is the scoped result of the Tailwind CSS v4 authoring file `modules/firefly-support/tailwind/input.css`. Rules are descendants of `.ff-panel`. There is no preflight on the host `html` or `body`.
+
+| Selector | Effect |
+|----------|--------|
+| `.ff-panel .ff-btn` | Radius from `--ff-radius`, padding `0.5rem 0.75rem`, `0.875rem` / weight 500 |
+| `.ff-panel .ff-sidebar` | Full height, width `--ff-sidebar-width`, no shrink, vertical scroll |
+| `.ff-panel .ff-topbar` | Flex row, centered items, height `--ff-topbar-height` |
+| `.ff-panel .ff-body` | Flex grow, font `--ff-font`, background `--ff-body` |
+| `.ff-panel .ff-dialog` | Fixed, inset 0, z-index 50 |
+| `.ff-panel .ff-dialog-modal .ff-dialog-window` | Top margin `4rem` |
+
+`PanelShell.render` places this CSS in a `<style>` element inside `.ff-panel`, so the variables and the component rules travel with the shell.

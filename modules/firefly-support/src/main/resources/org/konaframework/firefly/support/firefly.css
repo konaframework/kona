@@ -1,0 +1,37 @@
+/* Scoped compile of tailwind/input.css. Preflight is not applied outside .ff-panel. */
+.ff-panel .ff-btn {
+    border-radius: var(--ff-radius);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.ff-panel .ff-sidebar {
+    height: 100%;
+    width: var(--ff-sidebar-width);
+    flex-shrink: 0;
+    overflow-y: auto;
+}
+
+.ff-panel .ff-topbar {
+    display: flex;
+    align-items: center;
+    height: var(--ff-topbar-height);
+}
+
+.ff-panel .ff-body {
+    min-width: 0;
+    flex: 1 1 0%;
+    background: var(--ff-body);
+    font-family: var(--ff-font);
+}
+
+.ff-panel .ff-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+}
+
+.ff-panel .ff-dialog-modal .ff-dialog-window {
+    margin-top: 4rem;
+}

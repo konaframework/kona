@@ -1,0 +1,76 @@
+---
+title: Overview
+description: What Kona Firefly is, which artifact ships today, and how the support types fit together.
+---
+
+**Kona Firefly** (short name **Firefly**) is Kona’s application-panel product. A panel is a themed shell — sidebar, top bar, body, and footer — plus dialogs that actions can open. Firefly renders that chrome on the server and keeps interactive pieces on [Wire](/docs/wire/) and Alpine.
+
+(Brief nod: Firefly occupies the same problem space as full application-panel kits. The rest of these pages describe Firefly on its own terms.)
+
+The artifact in the repository today is `org.konaframework:kona-firefly-support`, package `org.konaframework.firefly.support`. It gives you themes, scoped CSS, panel chrome, render hooks, icons, and the shared dialog. It does not register HTTP routes, middleware, or views. Adding it to an existing application does not change routes you already defined.
+
+Forms, tables, navigation trees, and mounted panel routes are not in this artifact.
+
+## Add the module
+
+Depend on `kona-firefly-support` through the Kona BOM (`org.konaframework`). The first Firefly release train is **0.4.x**. Until that train is published, use the module from a Kona checkout:
+
+```kotlin
+dependencies {
+    implementation(project(":kona-firefly-support"))
+}
+```
+
+Java projects use the same coordinates. Every public type in this package is callable from Java.
+
+## What you build with
+
+| Type | Role |
+|------|------|
+| [`FireflyTheme`](/docs/firefly/themes/) | Colors, font, radius, and optional replacement HTML for a chrome slot |
+| [`KonaTheme`](/docs/firefly/themes/) | Built-in caramel theme (`id` is `kona`) |
+| [`Stylesheet`](/docs/firefly/themes/) | Turns a theme into CSS variables scoped under `.ff-panel` |
+| [`PanelShell`](/docs/firefly/chrome/) | Picks the theme, layout, hooks, and partial overrides, then renders |
+| [`Dialog`](/docs/firefly/dialog/) | One dialog component: modal, sidebar, or fullscreen |
+| `Icon` | Inline SVG icons: `HOME`, `BARS`, `USER`, `X` |
+| `FireflyException` | Unchecked failure for a bad width, a missing hook marker, or CSS that escapes the panel |
+
+## A shell in one call
+
+Kotlin:
+
+```kotlin
+val html = PanelShell()
+    .theme(KonaTheme())
+    .hook(Hook.BODY_START, "<p>Welcome</p>")
+    .render()
+```
+
+Java:
+
+```java
+String html = new PanelShell()
+    .theme(new KonaTheme())
+    .hook(Hook.BODY_START, "<p>Welcome</p>")
+    .render();
+```
+
+`render()` returns one root `<div class="ff-panel">` with a `<style>` block, then the sidebar, top bar, body, and footer. The body partial contains the hook text `Welcome`.
+
+## Icons
+
+`Icon.HOME`, `Icon.BARS`, `Icon.USER`, and `Icon.X` each expose `path` and `svg()`. `svg()` returns an `<svg class="ff-icon">` whose path data is HTML-escaped.
+
+`Icon.fromName` accepts those names in any letter case (`"HoMe"` is `HOME`). Any other name throws `FireflyException` with the message `Unknown icon [<name>]`.
+
+```kotlin
+Icon.fromName("bars").svg()
+```
+
+```java
+Icon.fromName("bars").svg();
+```
+
+## Failure type
+
+`FireflyException` extends `RuntimeException`. Callers do not have to declare it. The message names the bad value: the dialog width, the theme id, the partial slot, or the icon name.

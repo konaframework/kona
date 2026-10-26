@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Authoring source. The shipped stylesheet is firefly.css, scoped under .ff-panel. */
+.ff-panel .ff-btn {
+    @apply rounded-lg px-3 py-2 text-sm font-medium;
+}
+
+.ff-panel .ff-sidebar {
+    @apply h-full shrink-0 overflow-y-auto;
+}
+
+.ff-panel .ff-topbar {
+    @apply flex items-center;
+}
+
+.ff-panel .ff-body {
+    @apply min-w-0 flex-1;
+}
+
+.ff-panel .ff-dialog {
+    @apply fixed inset-0 z-50;
+}
+
+.ff-panel .ff-dialog-modal .ff-dialog-window {
+    @apply mt-16;
+}
