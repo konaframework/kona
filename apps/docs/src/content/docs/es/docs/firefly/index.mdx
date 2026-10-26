@@ -1,0 +1,112 @@
+---
+title: Introducción
+description: Para qué sirve Kona Firefly, y el camino desde un panel vacío hasta un escritorio que funciona.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Kona Firefly** (nombre corto **Firefly**) es el panel que das a las personas que operan una aplicación. Un panel es una zona del sitio: una marca, un árbol de navegación y las pantallas que listan y editan registros.
+
+Describes esas pantallas en Kotlin o Java. Firefly renderiza el HTML en el servidor. Los botones, los diálogos y los campos en vivo se quedan en el navegador a través de [Wire](/docs/wire/) y Alpine. No escribes a mano una plantilla nueva cada vez que añades una columna o un botón.
+
+<FireflyShot file="desk-panel.png" description="El panel hello-kotlin en http://127.0.0.1:4017/admin/desk, con la barra lateral y la página Desk en el cuerpo." />
+
+Las capturas de estas páginas son archivos PNG en `apps/docs/public/images/firefly/`. Cada página nombra el archivo que espera. Deja ese archivo en la carpeta y reconstruye el sitio de documentación, y la imagen sustituye el marcador. Hasta que el archivo esté ahí, la página muestra el nombre del archivo, la carpeta y una descripción de una frase de la captura. La lista de nombres de archivo está en el README de esa carpeta.
+
+:::note
+Firefly toma una pista breve de [Filamentphp](https://filamentphp.com/). A partir de aquí, estas páginas describen Firefly en sus propios términos.
+:::
+
+Usas un panel cuando el trabajo es «abre el escritorio, encuentra el pedido, cámbialo y comprueba que se guardó». Una página pública de marketing o una API JSON se queda en una ruta Kona ordinaria. Añadir el módulo Firefly no reescribe las rutas que ya definiste. Las rutas aparecen cuando un `Panel` llama a `mount`.
+
+Las mismas piezas funcionan fuera de un panel completo. Un esquema, un formulario o una tabla pueden `render()` a HTML que pones en una vista o afirmas en una prueba. El panel es lo que convierte esas piezas en URL, una barra lateral y una pantalla de inicio de sesión.
+
+## Qué puedes construir
+
+Una clase de panel llamada `Panel` vive en `app/firefly`. Descubre tres carpetas junto a sí misma:
+
+| Carpeta | Qué pones ahí |
+|--------|--------------------|
+| `pages/` | Pantallas que diseñas tú, como un escritorio |
+| `widgets/` | Estadísticas, gráficos y otros bloques de una página |
+| `resources/` | Una clase por tipo de registro, como notes u orders |
+
+Los ejemplos hello (`samples/hello-kotlin` y `samples/hello-java`) son ese layout, montado en `/admin`. Estas guías siguen el ejemplo Kotlin. Las mismas pantallas existen en el ejemplo Java.
+
+En esa app puedes abrir:
+
+- `/` — la página de bienvenida, fuera del panel
+- `/admin/desk` — una página Desk personalizada, con un formulario, un infolist, una tabla, una acción de cabecera y un widget
+- `/admin/notes/manage` — un recurso simple: una página, y crear, editar, ver y borrar se abren en un diálogo
+- `/admin/orders/list`, `/admin/orders/create`, `/admin/orders/edit`, `/admin/orders/view` — un recurso completo, más un gestor de relación para las líneas en editar y ver
+
+Registras un panel y luego dejas un recurso en su carpeta `resources/`. El descubrimiento lo recoge. No registras cada página a mano salvo que quieras.
+
+## Paquetes
+
+`org.konaframework:kona-firefly` es el panel. Trae consigo los demás módulos de Firefly, así que una aplicación depende de esa única coordenada. Los módulos se parten así, para que veas dónde vive un tipo:
+
+- `kona-firefly` — el panel, las páginas, los recursos, la navegación, la tenencia, los plugins, importar y exportar, y `Firefly.test`
+- `kona-firefly-schemas` — el árbol de componentes y su mapa de estado. Las secciones, las rejillas, las pestañas y el texto plano viven aquí
+- `kona-firefly-forms` — campos de ese árbol, incluido el select de combobox y el selector de fecha elaborado, con validación
+- `kona-firefly-infolists` — entradas de solo lectura: texto, iconos, imágenes y las demás formas de mostrar un registro
+- `kona-firefly-tables` — columnas, filtros, búsqueda, orden y páginas
+- `kona-firefly-actions` — un botón o un enlace, el diálogo que puede abrir y el método de servidor que llama
+- `kona-firefly-notifications` — un toast, una campana de base de datos y un marcador de refresco por broadcast
+- `kona-firefly-widgets` — estadísticas, gráficos y bloques propios de una página
+- `kona-firefly-support` — el diálogo, los iconos, los tokens de tema y `FireflyException`. Los demás módulos dependen de él. No añades esta coordenada tú mismo
+
+## Plugins
+
+Un plugin es una clase que pasas a `plugin(...)`. `register` corre de inmediato y `boot` corre cuando el panel se monta. Dentro de esos métodos llamas a los mismos métodos del panel que llama la aplicación: una marca, un hook, una página. No hay un registro. Si el comportamiento pertenece a una app, deja la clase en esa app. Lee [Plugins](/docs/firefly/plugins/).
+
+## Apariencia
+
+El aspecto publicado es `KonaTheme`. Los colores y el tipo son tokens, y `Stylesheet.render` los escribe como propiedades personalizadas de CSS en `.ff-panel`. Las reglas de componente solo coinciden dentro de esa clase, así que una página que nunca renderiza un panel no recoge los botones ni la barra lateral de Firefly.
+
+Para cambiar el aspecto, implementa `FireflyTheme` y pásalo a `theme(...)`. `extraCss()` se envuelve en `.ff-panel { ... }`, así que tus anulaciones se quedan dentro del panel. El escritorio del ejemplo hello es el tema publicado. Lee [Temas y CSS](/docs/firefly/themes/).
+
+## Pruebas
+
+`Firefly.test` lee HTML que ya renderizaste y comprueba que una página, un campo, una tabla o un diálogo están ahí. Vive en `org.konaframework.firefly.testing`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("name")
+    .assertTable("Ada")
+    .assertDialog("Export")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("name")
+    .assertTable("Ada")
+    .assertDialog("Export");
+```
+
+</TabItem>
+</Tabs>
+
+`assertSee` falla cuando falta el texto. `assertFormField` busca `data-ff-path`. `assertTable` quiere tanto `ff-table` como el texto. `assertDialog` quiere tanto `ff-dialog` como el título. `Firefly.test(html)` afirma contra una cadena. Las mismas afirmaciones están listadas en [Importar y exportar](/docs/firefly/import-export/).
+
+## Cómo leer el resto
+
+Sigue la barra lateral de arriba abajo la primera vez:
+
+1. [Requisitos](/docs/firefly/requirements/) — JDK y la app Kona que ya tienes.
+2. [Instalación](/docs/firefly/installation/) — `kona new --kit=firefly`, o añade el módulo a una app existente.
+3. [Registrar un panel](/docs/firefly/registration/) — el archivo `Panel`, las carpetas y `discover`.
+4. [Una app que funciona](/docs/firefly/working-app/) — un recurso simple de notes y un recurso completo de orders.
+
+Después, cada pieza tiene su propia página: qué es, por qué la usarías, el ejemplo más pequeño, y luego los métodos y los bordes. Empieza por [Panel](/docs/firefly/panel/) cuando estés listo para salir del recorrido.
+
+Kotlin y Java llaman a los mismos tipos. Los ejemplos se muestran en ambos lenguajes, en pestañas. La clase que extiendes es `Panel`. El paquete es `org.konaframework`.
