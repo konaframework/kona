@@ -1,0 +1,48 @@
+---
+title: Caché
+description: Almacenes de caché array, file y Redis en Kona.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+La capa de caché de Kona te da una API pequeña para guardar valores por clave, con TTL opcionales.
+
+## Inicio rápido
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val cache = CacheManager(config, basePath, redisManager).store()
+cache.put("answer", 42, 60)
+val value = cache.get("answer")
+val computed = cache.remember("profile", 120) { loadProfile() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Repository cache = new CacheManager(config, basePath, redisManager).store();
+cache.put("answer", 42, 60);
+Object value = cache.get("answer");
+```
+
+</TabItem>
+</Tabs>
+
+## Almacenes
+
+Configura `cache.default` y `cache.stores.{name}.driver`:
+
+| Driver | Comportamiento |
+| --- | --- |
+| `array` / `memory` | Mapa local al proceso (útil en pruebas) |
+| `file` | Archivos JSON bajo `storage/framework/cache/data` (o `cache.stores.file.path`) |
+| `redis` | Usa `RedisManager` con `cache.prefix` |
+
+## Métodos del repositorio
+
+- `get` / `put` / `forever` / `forget` / `flush`
+- `has` / `missing` / `add`
+- `remember` / `rememberForever` / `pull`
