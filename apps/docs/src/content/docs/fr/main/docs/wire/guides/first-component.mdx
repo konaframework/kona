@@ -1,0 +1,160 @@
+---
+title: Votre premier composant
+description: Construisez un compteur en Kotlin et Java, embarquez-le dans Crema et comprenez l’aller-retour.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Ce parcours suppose que Wire est [installé](/docs/wire/guides/installation/) et que les middlewares session et CSRF sont sur la pile web.
+
+## 1. Échafauder ou écrire à la main
+
+```bash
+./grind make:wire counter
+# or: ./grind make:wire counter --lang=java
+# single-file instead: ./grind make:wire counter --inline
+```
+
+Par défaut cela crée une classe `Counter` vide et `views/wire/counter.crema.html` avec une courte citation dans une balise `<p>`. Remplacez la vue (et ajoutez état et actions sur la classe) à mesure que vous construisez — ou écrivez le compteur ci-dessous à la main.
+
+Placez les classes dans `app.wire` (ou configurez `wire.class_namespace`).
+
+## 2. Classe de composant
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.wire
+
+import org.konaframework.wire.Component
+
+class Counter : Component() {
+    var count = 0
+
+    fun mount(start: Int = 0) {
+        count = start
+    }
+
+    fun increment() {
+        count++
+    }
+
+    fun decrement() {
+        count--
+    }
+
+    override fun template() = """
+        <div>
+            <button type="button" wire:click="decrement">−</button>
+            <span>{{ count }}</span>
+            <button type="button" wire:click="increment">+</button>
+        </div>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.wire;
+
+import org.konaframework.wire.Component;
+
+public class Counter extends Component {
+    public int count = 0;
+
+    public void mount(int start) {
+        count = start;
+    }
+
+    public void increment() {
+        count++;
+    }
+
+    public void decrement() {
+        count--;
+    }
+
+    @Override
+    public String template() {
+        return """
+            <div>
+                <button type="button" wire:click="decrement">−</button>
+                <span>{{ count }}</span>
+                <button type="button" wire:click="increment">+</button>
+            </div>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## 3. Embarquer dans une page
+
+Les attributs deviennent des paramètres de montage / des props initiales (`:start="3"` → `mount(start = 3)`).
+
+```crema
+{{-- views/welcome.crema.html --}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Welcome</title>
+    @wireStyles
+</head>
+<body>
+    <h1>Welcome</h1>
+    <wire:counter :start="3" />
+    {{-- or: @wire('counter', ['start' => 3]) --}}
+    @wireScripts
+</body>
+</html>
+```
+
+Vous pouvez aussi monter depuis le code :
+
+```kotlin
+val html = Wire.mount("counter", mapOf("start" to 3))
+```
+
+## 4. Router vers la page
+
+Câblez une route Kona normale qui renvoie la vue Crema (consultez [Routage Kona](/docs/http/routing/)). Au premier rendu vous devez voir `3`. Chaque clic poste vers `/wire/update` et morph le nouveau HTML.
+
+## 5. Tester sans navigateur
+
+```kotlin
+Wire.test(Counter::class.java)
+    .set("count", 1)
+    .call("increment")
+    .assertSet("count", 2)
+    .assertSee("2")
+```
+
+```java
+Wire.test(Counter.class)
+    .set("count", 1)
+    .call("increment")
+    .assertSet("count", 2)
+    .assertSee("2");
+```
+
+## Ce que vous venez d’utiliser
+
+| Pièce | Rôle |
+|-------|------|
+| `count` public | État du snapshot |
+| `increment` / `decrement` | Actions appelables par le navigateur |
+| `wire:click` | Événement appuyé sur Alpine → appel serveur |
+| `{{ count }}` | Interpolation Crema au re-rendu |
+| `<div>` racine unique | Requis pour le morph |
+
+## Suite
+
+- [Composants](/docs/wire/essentials/components/) — découverte, classe + vue, enregistrement
+- [Formulaires et validation](/docs/wire/essentials/forms/) — `wire:model` et règles
+- [Exemples → Compteur](/docs/wire/examples/counter/) — parcours d’exemple poli

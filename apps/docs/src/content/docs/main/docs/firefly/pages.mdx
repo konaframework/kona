@@ -1,6 +1,6 @@
 ---
 title: Pages
-description: Add a screen under app/firefly/pages and open it at /admin/{slug}. The Desk page in hello-kotlin is the concrete example.
+description: Add a screen under the panel pages folder. The URL is /{prefix}/{slug}. The prefix is the panel id unless you set path.
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
@@ -8,7 +8,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Add a screen when the desk needs a page that is not a resource. Give it a title, buttons in the header and the footer, and a content region for the form, the infolist, or the table.
 
-Call `render()` on that page from a test. The panel turns the same page into a URL. In the hello samples, Desk is a custom page at `/admin/desk`. The file is `app/firefly/pages/Desk`.
+Call `render()` on that page from a test. The panel turns the same page into a URL. In the hello samples, Desk is a custom page at `/admin/desk` because that panel calls `path("admin")`. The file is `app/firefly/pages/Desk`. A page you generate with `make:firefly-page` is served under the panel id until you set `path`.
 
 <FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
 
@@ -16,7 +16,7 @@ The types live in `org.konaframework.firefly` and `org.konaframework.firefly.wid
 
 ## How the URL is chosen
 
-`Panel.mount` registers `GET /{prefix}/{slug}` for each page discovered from `pages/` or passed to `page(...)`. The hello sample’s `Desk` uses slug `desk`, so the route is `/admin/desk`. When the request is allowed, the panel renders the chrome and puts `page.render()` in the body.
+`Panel.mount` registers `GET /{prefix}/{slug}` for each page discovered from `pages/` or passed to `page(...)`. The prefix is the panel id when `path` is not set. The hello sample’s `Desk` uses slug `desk` and `path("admin")`, so the route is `/admin/desk`. When the request is allowed, the panel renders the chrome and puts `page.render()` in the body.
 
 `navigationLabel()` is the sidebar text. The default is the slug, or `Dashboard` when the slug is empty. A page titled `Desk` still shows the link `desk` until you change the label. `parent("name")` nests the page under a navigation item with that name. A missing parent fails at mount and names both items.
 
@@ -72,10 +72,10 @@ public class Desk extends CustomPage {
 
 ```bash
 ./grind make:firefly-page Desk
-./grind make:firefly-page Desk --lang=java
+./grind make:firefly-page Desk --panel=billing --lang=java
 ```
 
-The command writes a `CustomPage` in `pages/`. The slug is the lowercased name. The generated class has no form yet.
+The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defaults to `admin`. The slug is the lowercased name. The generated class has no form yet.
 
 ## Methods on Page
 

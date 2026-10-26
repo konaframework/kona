@@ -1,0 +1,134 @@
+---
+title: Enregistrer un panneau
+description: Écrivez app/firefly/Panel, pointez discover vers ce dossier, et appelez mount après vos propres routes. Les pages, widgets et ressources se chargent depuis les dossiers à côté de la classe.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Écrivez la classe du panneau, pointez `discover` vers son dossier, et appelez `mount`. Ensuite, déposez une page, un widget ou une ressource dans le dossier correspondant. La requête suivante peut la servir.
+
+La classe dans votre application est `app.firefly.Panel`. Elle étend `org.konaframework.firefly.Panel`. Les exemples hello et `kona new --kit=firefly` partent tous deux de cette classe.
+
+<FireflyShot file="panel-directory.png" description="Le répertoire hello-kotlin app/firefly, montrant Panel.kt, pages/, widgets/ et resources/." />
+
+## Écrire le fichier du panneau
+
+Placez cette classe dans `src/main/kotlin/app/firefly/Panel.kt`, ou `src/main/java/app/firefly/Panel.java`. L’id apparaît dans les noms de route et dans le garde `firefly-desk`. Le path est le préfixe d’URL. `authenticate(false)` laisse les écrans publics, ce qui est la façon dont les exemples hello sont livrés. `discover` charge les dossiers enfants.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.firefly
+
+import org.konaframework.core.Kona
+
+class Panel : org.konaframework.firefly.Panel() {
+    init {
+        id("desk")
+        path("admin")
+        brand("Desk")
+        authenticate(false)
+        discover(Kona.app().basePath("src/main/kotlin/app/firefly"))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.firefly;
+
+import org.konaframework.core.Kona;
+
+public class Panel extends org.konaframework.firefly.Panel {
+    public Panel() {
+        id("desk");
+        path("admin");
+        brand("Desk");
+        authenticate(false);
+        discover(Kona.app().basePath("src/main/java/app/firefly"));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`./grind make:firefly-panel` écrit seulement `id` et `path`. Ajoutez `brand`, `authenticate` et `discover` vous-même lorsque vous générez la classe. `./grind firefly:install` écrit cette même classe plus courte. Le kit écrit la classe complète ci-dessus.
+
+## Le monter après vos propres routes
+
+hello-kotlin importe `app.firefly.Panel` comme `DeskPanel` afin que le nom reste clair dans `bootstrap/App.kt`. hello-java construit `app.firefly.Panel`. Les deux appels se placent après les routes d’accueil, donc `/` reste la page d’accueil.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import app.firefly.Panel as DeskPanel
+
+WebRoutes().register(router)
+ApiRoutes().register(router)
+DeskPanel().mount(router)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new WebRoutes().register(router);
+new ApiRoutes().register(router);
+new app.firefly.Panel().mount(router);
+```
+
+</TabItem>
+</Tabs>
+
+`mount` enregistre les chemins GET et POST du panneau. L’appeler deux fois lance `FireflyException` et nomme l’id du panneau. Si un chemin est déjà pris, `mount` lance et nomme les deux handlers. La route existante reste. Un panneau n’enregistre pas `/_firefly/` ni `/wire/update`.
+
+## Ce que discover charge
+
+`discover(panelDirectory)` lit trois dossiers. Un dossier manquant est vide. Un fichier doit déclarer un paquet et une classe dont le nom correspond au fichier. Cette classe doit déjà être sur le classpath et avoir un constructeur sans argument. Les classes abstraites et les types sans rapport sont sautés.
+
+| Dossier | Type chargé |
+|--------|-------------|
+| `pages/` | `PanelPage` (`CustomPage`, et les pages list, create, edit, view et manage) |
+| `widgets/` | `Widget` |
+| `resources/` | `Resource` |
+
+hello-kotlin utilise exactement ces trois dossiers :
+
+```text
+app/firefly/Panel.kt
+app/firefly/pages/Desk.kt
+app/firefly/widgets/DeskWidget.kt
+app/firefly/resources/NoteResource.kt
+app/firefly/resources/OrderResource.kt
+```
+
+hello-java utilise les mêmes noms sous `src/main/java/app/firefly/`.
+
+Les générateurs de champs, entrées, colonnes, filtres, actions, layouts et thèmes écrivent des dossiers frères (`fields/`, `entries/`, `columns/`, `filters/`, `actions/`, `layouts/`, `themes/`). `discover` ne scanne pas ces dossiers. Référencez ces classes depuis une page, une ressource ou `theme(...)`.
+
+Vous pouvez encore appeler `page`, `widget` et `resource` sur le panneau. Il n’y a pas de registre à l’échelle de l’application.
+
+Les widgets découverts atterrissent sur la page dont le slug est vide, ou sur la première page lorsqu’aucune page n’a de slug vide. Dans les exemples hello cette première page est `Desk`, donc `DeskWidget` se rend sur `/admin/desk`.
+
+## URL que vous obtenez avec path("admin")
+
+| URL | Écran |
+|-----|--------|
+| `/admin/desk` | La page Desk personnalisée |
+| `/admin/notes/manage` | La ressource notes simple |
+| `/admin/orders/list` | Liste des commandes |
+| `/admin/orders/create` | Création de commande |
+| `/admin/orders/edit` | Édition de commande |
+| `/admin/orders/view` | Vue de commande |
+
+`path("")` sert les mêmes écrans à la racine du site. Les écrans d’auth (`/admin/login`, `/admin/register`, `/admin/password-reset`, `/admin/email-verify`, `/admin/profile`) sont enregistrés même lorsque `authenticate(false)` saute la redirection.
+
+## Suite
+
+[Une application qui tourne](/docs/firefly/working-app/) remplit `resources/` avec les classes notes et orders des exemples hello.

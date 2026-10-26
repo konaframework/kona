@@ -1,0 +1,180 @@
+---
+title: Chrome du panneau
+description: Changez la barre latérale, la barre du haut, le corps ou le pied autour de chaque écran. Gardez les marqueurs de hook, sinon render lance.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Changez le cadre autour de chaque écran lorsque la barre latérale, la barre du haut, le corps ou le pied par défaut est proche et que vous voulez une autre barre latérale, une bannière ou votre propre enveloppe.
+
+La classe qui dessine le cadre est `org.konaframework.firefly.support.Panel`. La classe que vous montez sur le routeur est `org.konaframework.firefly.Panel`, sur [Panneau](/docs/firefly/panel/). La classe de support choisit le HTML de chaque région, vérifie que les marqueurs de hook sont encore là, remplit ces marqueurs et demande à un layout d’envelopper le résultat.
+
+<FireflyShot file="panel-chrome.png" description="Le chrome du panneau à http://127.0.0.1:4017/admin/desk, montrant la barre latérale, la barre du haut, le corps de page et le pied." />
+
+## Appeler le Panel de support
+
+| Méthode | Ce que vous obtenez |
+|--------|----------------|
+| `theme(FireflyTheme)` | Thème utilisé pour les jetons, le CSS et les partiels de thème. Défaut : `KonaTheme` |
+| `layout(PanelLayout)` | Remplace l’enveloppe. Défaut : `DefaultLayout`. Un appel plus tard remplace le layout antérieur |
+| `hook(Hook, String)` | Ajoute du HTML pour ce hook. Plusieurs appels pour le même hook se concatènent, dans l’ordre |
+| `overridePartial(slot, html)` | HTML d’application pour un slot. Gagne sur le partiel de thème et le partiel intégré |
+| `render(): String` | Résout chaque slot, puis `layout.render(...)` |
+
+Slots, dans l’ordre : `sidebar`, `topbar`, `body`, `footer`.
+
+Pour chaque slot, `render` prend la première source qui existe :
+
+1. `overridePartial` pour ce slot, lorsque vous en posez un.
+2. `theme.partial(slot)`, lorsqu’il renvoie non null.
+3. Le partiel intégré.
+
+Les noms de slot inconnus passés à `overridePartial` sont stockés et ignorés, parce que seuls les quatre slots sont résolus.
+
+## Garder les marqueurs de hook
+
+Chaque partiel choisi doit encore contenir les marqueurs de son slot. Le texte du marqueur est exact, commentaire compris :
+
+| Slot | Marqueurs requis |
+|------|------------------|
+| `sidebar` | `<!-- ff-hook:sidebar.start -->` et `<!-- ff-hook:sidebar.end -->` |
+| `topbar` | `<!-- ff-hook:topbar.start -->` et `<!-- ff-hook:topbar.end -->` |
+| `body` | `<!-- ff-hook:body.start -->` et `<!-- ff-hook:body.end -->` |
+| `footer` | `<!-- ff-hook:footer -->` |
+
+Si un marqueur manque, `render` lance `FireflyException` :
+
+```text
+Partial [<slot>] is missing markers [<marker>, ...]
+```
+
+La coquille ne se rend pas. Remettez les commentaires dans le HTML, y compris lorsque votre balisage les entoure.
+
+Après la vérification, chaque marqueur est remplacé par le HTML de hook concaténé. Un hook que vous n’avez jamais rempli devient une chaîne vide, donc le commentaire disparaît.
+
+Valeurs de `Hook` : `SIDEBAR_START`, `SIDEBAR_END`, `TOPBAR_START`, `TOPBAR_END`, `BODY_START`, `BODY_END`, `FOOTER`. Chacune a une chaîne `marker` (`sidebar.start`, et ainsi de suite).
+
+## Partiels intégrés
+
+| Slot | Élément |
+|------|---------|
+| sidebar | `<aside class="ff-sidebar">` |
+| topbar | `<header class="ff-topbar">` |
+| body | `<main class="ff-body">` |
+| footer | `<footer class="ff-footer">` |
+
+## Ce que le layout par défaut écrit
+
+`DefaultLayout` écrit :
+
+```html
+<div class="ff-panel">
+  <style>…theme CSS…</style>
+  …sidebar…
+  …topbar…
+  …body…
+  …footer…
+</div>
+```
+
+Si un slot était absent de la map qu’il reçoit, il lancerait `Missing partial [<name>]`. `Panel` remplit toujours les quatre slots avant d’appeler le layout, donc cet échec est pour un appelant personnalisé de `DefaultLayout` qui omet une clé.
+
+## Remplacer un partiel
+
+La surcharge doit garder les marqueurs. Cette barre latérale ajoute un libellé et accepte encore les hooks :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val shell = Panel().overridePartial(
+    "sidebar",
+    """<aside class="ff-sidebar"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>""",
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Panel shell = new Panel().overridePartial(
+    "sidebar",
+    "<aside class=\"ff-sidebar\"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>"
+);
+```
+
+</TabItem>
+</Tabs>
+
+Vous voyez **Menu** en haut de la barre latérale. Les hooks s’injectent encore entre les deux commentaires. Un thème peut fournir le même HTML depuis `partial("sidebar")`. Une surcharge d’application gagne encore lorsque les deux existent.
+
+`./grind firefly:publish` copie le partiel de barre latérale vers `resources/views/firefly/sidebar.crema.html` afin que vous puissiez l’éditer dans l’application. Gardez les marqueurs.
+
+## Remplacer le layout
+
+`PanelLayout.render` reçoit un `ChromeContext` :
+
+| Champ | Contenu |
+|-------|----------|
+| `theme` | Le `FireflyTheme` de la coquille |
+| `hooks` | L’instance `RenderHooks` (déjà appliquée aux partiels) |
+| `partials` | Map du nom de slot vers le HTML, marqueurs déjà remplacés |
+| `css` | La chaîne de `Stylesheet.render(theme)` |
+
+Un layout peut ignorer `DefaultLayout` et placer les partiels lui-même. Pour utiliser les jetons sombres, mettez `ff-dark` sur le même élément que `ff-panel` :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class DarkLayout : PanelLayout {
+    override fun render(context: ChromeContext): String = """
+        <div class="ff-panel ff-dark">
+          <style>${context.css}</style>
+          ${context.partials["sidebar"]}
+          ${context.partials["topbar"]}
+          ${context.partials["body"]}
+          ${context.partials["footer"]}
+        </div>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class DarkLayout implements PanelLayout {
+    @Override public String render(ChromeContext context) {
+        return "<div class=\"ff-panel ff-dark\"><style>" + context.getCss() + "</style>"
+            + context.getPartials().get("sidebar")
+            + context.getPartials().get("topbar")
+            + context.getPartials().get("body")
+            + context.getPartials().get("footer")
+            + "</div>";
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Panel().layout(DarkLayout()).render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new Panel().layout(new DarkLayout()).render();
+```
+
+</TabItem>
+</Tabs>
+
+`layout(...)` après `theme(...)` garde le thème. Le thème fournit encore les jetons, le CSS et les partiels de thème. Seule l’enveloppe change. Lisez [Thèmes et CSS](/docs/firefly/themes/) pour les jetons que ces classes utilisent.

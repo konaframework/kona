@@ -1,0 +1,139 @@
+---
+title: Actions Wire
+description: Appelez des méthodes serveur depuis le navigateur avec wire:click, wire:submit et $wire.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Une **action** est une méthode publique de votre composant. Le navigateur l’invoque avec `wire:click`, d’autres événements `wire:*`, `wire:submit`, ou `$wire.method()` depuis Alpine.
+
+## Clic de base
+
+```html
+<button wire:click="increment">+</button>
+<button wire:click="add(5)">+5</button>
+<button wire:click="save('draft', true)">Save</button>
+```
+
+Les paramètres sont encodés en JSON et passés par position. Les paramètres de fin peuvent être résolus depuis le conteneur Kona (injection de dépendances).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun increment() { count++ }
+
+fun add(amount: Int) { count += amount }
+
+fun save(label: String, notify: Boolean) { /* … */ }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public void increment() { count++; }
+
+public void add(int amount) { count += amount; }
+
+public void save(String label, boolean notify) { /* … */ }
+```
+
+</TabItem>
+</Tabs>
+
+## Valeurs de retour
+
+Renvoyez une valeur et lisez-la depuis JavaScript :
+
+```kotlin
+fun doubled(): Int = count * 2
+```
+
+```html
+<button x-data x-on:click="alert(await $wire.doubled())">Doubled?</button>
+```
+
+Les retours voyagent dans `effects.returns`.
+
+## Actions sans rendu
+
+Sautez le re-rendu HTML lorsque vous n’avez besoin que de muter l’état ou de renvoyer une valeur :
+
+```kotlin
+@Renderless
+fun clearQuietly() {
+    count = 0
+}
+```
+
+Ou appelez `skipRender()` / `renderless()` dans la méthode. `forceRender()` rend les appels de saut suivants sans effet pour cette requête. Le modificateur d’événement `.renderless` fait la même chose depuis le modèle.
+
+## Actions magiques
+
+| Appel | Effet |
+|------|--------|
+| `$set('count', 1)` | Pose une propriété |
+| `$toggle('open')` | Inverse un booléen |
+| `$refresh` | Re-rend sans méthode nommée |
+| `$event` | Accède à l’événement DOM depuis Alpine |
+
+```html
+<button wire:click="$set('count', 0)">Reset</button>
+<button wire:click="$toggle('open')">Toggle</button>
+<button wire:click="$refresh">Refresh</button>
+```
+
+## N’importe quel événement DOM
+
+`wire:<event>` fonctionne pour les événements natifs et personnalisés :
+
+```html
+<input wire:keydown.enter="search" />
+<div wire:click.outside="close"></div>
+<input wire:trix-change="updated" />
+```
+
+### Modificateurs de touche
+
+`.enter`, `.escape`, `.space`, `.tab`, `.shift`, `.ctrl`, `.alt`, `.meta` / `.cmd`, `.up` / `.down` / `.left` / `.right`, `.page-up` / `.page-down`, `.slash`, et des combinaisons comme `.shift.enter`.
+
+### Modificateurs d’événement
+
+`.prevent`, `.stop`, `.window`, `.document`, `.outside`, `.once`, `.self`, `.camel`, `.dot`, `.passive`, `.capture`, `.debounce` / `.debounce.500ms`, `.throttle` / `.throttle.500ms`.
+
+## Formulaires
+
+```html
+<form wire:submit="save">
+    <input wire:model="email" />
+    <button type="submit">Save</button>
+</form>
+```
+
+`wire:submit` implique `.prevent`. Consultez [Formulaires](/docs/wire/essentials/forms/) pour les modificateurs `wire:model`.
+
+## Depuis Alpine / `$wire`
+
+```js
+await $wire.save()
+await $wire.$call('add', 5)
+await $wire.$refresh()
+await $wire.$commit()
+```
+
+`$wire` expose aussi `$el`, `$id`, `$watch` et `$hook`.
+
+## Regroupement des requêtes
+
+Les interactions se mettent en file par composant. Les mises à jour `wire:model` live se coalescent ; les actions interrompent ou se mettent en file selon le bus de requêtes de Wire afin que des clics rapides ne fassent pas la course avec le morph.
+
+## Ce qui ne peut pas être appelé
+
+Les méthodes protected/private, `render` / `template`, et les hooks de cycle de vie (`mount`, `boot`, `updatedFoo`, …) ne sont pas appelables par le navigateur. Les tentatives lèvent des erreurs method-not-found ou de garde de cycle de vie.
+
+## Suite
+
+- [Formulaires](/docs/wire/essentials/forms/) — détails de liaison de modèle
+- [JavaScript](/docs/wire/js/runtime/) — API globale `Wire` et hooks
+- [Cycle de vie](/docs/wire/essentials/lifecycle/) — hooks autour des actions et des mises à jour

@@ -1,0 +1,55 @@
+---
+title: Système de fichiers
+description: Disques nommés, stockage local et cloud, URL publiques, flux et liens signés temporaires.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona stocke les fichiers sur des **disques nommés**. Un disque est une racine (dossier ou bucket cloud) plus une petite API : poser et lire des octets, lister des répertoires, construire des URL, et plus. Résolvez les disques via `FilesystemManager` après l’enregistrement de `FilesystemServiceProvider` (`kona new` le fait pour vous).
+
+## Démarrage rapide
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val files = app.resolve(FilesystemManager::class.java)
+val disk = files.disk() // default disk from config
+
+disk.put("reports/q1.txt", "ok")
+val body = disk.getString("reports/q1.txt")
+val present = disk.exists("reports/q1.txt")
+val gone = disk.missing("reports/nope.txt")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FilesystemManager files = app.resolve(FilesystemManager.class);
+FilesystemAdapter disk = files.disk();
+
+disk.put("reports/q1.txt", "ok");
+String body = disk.getString("reports/q1.txt");
+boolean present = disk.exists("reports/q1.txt");
+boolean gone = disk.missing("reports/nope.txt");
+```
+
+</TabItem>
+</Tabs>
+
+La config exécutable vit dans `config/Filesystems` (consultez [Config et env](../concepts/config/)). Les valeurs `root` relatives se résolvent contre le chemin de base de l’application.
+
+## Pilotes en un coup d’œil
+
+| Pilote | Rôle |
+| --- | --- |
+| `local` | Fichiers sous un répertoire (défaut `storage/app`) |
+| `public` | Disque local qui vaut par défaut `storage/app/public` avec le préfixe d’URL `/storage` |
+| `scoped` | Préfixe de chemin sur un autre disque |
+| `memory` / `s3-memory` | Magasin en mémoire pour les tests, avec les mêmes réglages `bucket`, `url` et `prefix` |
+| `s3` | Client HTTP path-style avec AWS SigV4 (`endpoint`, `bucket`, `key`, `secret`, `region`, `prefix` optionnel) |
+
+Tout disque peut définir `read-only` / `read_only` à `true` pour refuser les écritures.
+
+Ensuite : [configuration](./configuration/), [travailler avec les fichiers](./file-operations/), [disque public et URL temporaires](./urls/) et [tests](./testing/).

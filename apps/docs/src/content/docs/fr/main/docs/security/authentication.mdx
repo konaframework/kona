@@ -1,0 +1,147 @@
+---
+title: Authentification
+description: Guards, la façade Auth, cookies remember, middleware, hachage, mots de passe et jetons d’API.
+---
+
+L’authentification répond : *qui est cette requête ?* Kona livre des guards de session pour les navigateurs, des guards à jeton bearer pour les API, le hachage de mot de passe, des brokers de réinitialisation et du middleware qui ferme les routes.
+
+`AuthServiceProvider` enregistre le hachage, un fournisseur d’utilisateurs en mémoire (remplacez par `CadenceUserProvider` pour les modèles Cadence), les guards `web` + `api`, le broker de mot de passe, les jetons d’accès personnel et la façade `Auth`.
+
+## Chemin simple
+
+1. Gardez `AuthServiceProvider` (et `SessionServiceProvider` pour le web) sur votre liste de bootstrap — `kona new` le fait.
+2. Assurez-vous que `StartSession` tourne avant le middleware d’auth sur les routes HTML.
+3. Connectez-vous avec des identifiants ; protégez les routes avec `Authenticate`.
+
+```kotlin
+auth.setRequest(request)
+if (auth.attempt(mapOf("email" to email, "password" to password), remember = true)) {
+    val intended = Authenticate.pullIntended(request, "/")
+    return Response.redirect(intended)
+}
+```
+
+```java
+auth.setRequest(request);
+if (auth.attempt(Map.of("email", email, "password", password), true)) {
+    String intended = Authenticate.pullIntended(request, "/");
+    return Response.redirect(intended);
+}
+```
+
+## Façade Auth et gestionnaire
+
+`AuthManager` résout des guards nommés. L’objet `Auth` reflète le gestionnaire après le boot du provider :
+
+| Appel | Sens |
+|------|---------|
+| `attempt` / `login` / `logout` | Persiste (ou efface) l’utilisateur de session |
+| `check` / `guest` / `id` / `user` | Inspecte l’utilisateur courant |
+| `validate` | Vérifie les identifiants **sans** connecter |
+| `once` / `onceUsingId` | Authentifie pour **cette requête seulement** |
+| `loginUsingId` | Connecte par clé primaire |
+| `viaRemember` | Vrai quand l’utilisateur est restauré depuis un cookie remember |
+| `guard("api")` | Change de guard |
+
+```kotlin
+Auth.setRequest(request)
+Auth.attempt(mapOf("email" to "a@b.c", "password" to "secret"))
+val user = Auth.user()
+```
+
+## Guards
+
+- **`web` (`SessionGuard`)** — stocke `login_{guard}_id` (et le hash du mot de passe) dans l’attribut de requête `"session"`.
+- **`api` (`TokenGuard`)** — lit `Authorization: Bearer {id}|{secret}` via `PersonalAccessTokenManager`.
+
+Enregistrez des guards personnalisés avec `auth.extend("admin", SessionGuard("admin", users))`.
+
+### Se souvenir de moi
+
+Quand `login` / `attempt` est appelé avec `remember = true` :
+
+1. Un jeton remember est stocké sur l’utilisateur (`Authenticatable.setRememberToken`).
+2. Un cookie longue durée `remember_{guard}` (`{id}|{token}`) est **mis en file** sur la requête.
+3. Le middleware qui vide les cookies d’auth (intégré à `Authenticate`, `RedirectIfAuthenticated` et `AuthenticateSession`) écrit `Set-Cookie` sur la réponse.
+
+Lors d’une visite ultérieure sans id de session, `SessionGuard` rappelle l’utilisateur depuis le cookie et `viaRemember()` renvoie true. La déconnexion efface le jeton et met en file un cookie d’oubli.
+
+`UserProvider.retrieveByToken` / `updateRememberToken` portent cela ; `InMemoryUserProvider` et `CadenceUserProvider` l’implémentent tous les deux.
+
+### Fournisseur d’utilisateurs Cadence
+
+Pour les apps dont les utilisateurs vivent dans des modèles Cadence, enregistrez `CadenceUserProvider` à la place (ou à côté) du fournisseur en mémoire. Le modèle doit implémenter `Authenticatable` et exposer des colonnes d’identifiants (typiquement `email` + `password`) plus un `remember_token` optionnel :
+
+```kotlin
+class User : Cadence<User>(), Authenticatable {
+    override val fillable = setOf("email", "password", "remember_token")
+    companion object : CadenceCompanion<User>(User::class.java)
+    override fun getAuthIdentifier(): Any = getAttribute("id")!!
+    override fun getAuthPassword(): String = getAttribute("password")?.toString() ?: ""
+    override fun getRememberToken(): String? = getAttribute("remember_token")?.toString()
+    override fun setRememberToken(token: String?) { setAttribute("remember_token", token) }
+}
+
+val users = CadenceUserProvider(User::class.java, Hash.manager().driver())
+auth.provider("users", users)
+auth.extend("web", SessionGuard("web", users))
+```
+
+```java
+CadenceUserProvider<User> users = new CadenceUserProvider<>(User.class, Hash.manager().driver());
+auth.provider("users", users);
+auth.extend("web", new SessionGuard("web", users));
+```
+
+Les clés d’identifiant autres que la clé de mot de passe deviennent des filtres d’égalité sur la requête du modèle. Les mises à jour du jeton remember appellent `save()` sur le modèle.
+
+## Middleware
+
+| Middleware | Rôle |
+|------------|------|
+| `Authenticate` | Exige une connexion ; redirige vers `/login` (ou lance 401 quand `redirectTo = null`) ; stocke `url.intended` sur GET |
+| `RedirectIfAuthenticated` | Renvoie les utilisateurs déjà connectés hors des pages invité |
+| `AuthenticateSession` | Déconnecte quand le hash du mot de passe ne correspond plus au hash capturé à la connexion |
+
+```kotlin
+router.get("/dashboard", handler).middleware(Authenticate(auth))
+router.get("/login", handler).middleware(RedirectIfAuthenticated(auth, "/home"))
+router.middleware(AuthenticateSession(auth))
+```
+
+Après une connexion réussie, envoyez l’utilisateur vers `Authenticate.pullIntended(request, "/")`.
+
+## Hachage
+
+```kotlin
+Hash.make("secret")
+Hash.check("secret", hash)
+Hash.needsRehash(hash)
+```
+
+**Bcrypt** est le défaut (`hash.driver=bcrypt`, `hash.rounds` défaut 10). Les mots de passe de plus de 72 octets sont tronqués à la limite de bcrypt.
+
+**Argon2id** est enregistré comme `argon2` / `argon2id`. Changez le défaut avec `hash.driver=argon2` (`hash.argon2.memory`, `hash.argon2.iterations`, `hash.argon2.parallelism` optionnels). Enregistrez un autre `Hasher` avec `HashManager.extend` quand vous avez besoin d’un algorithme personnalisé.
+
+## Réinitialisations de mot de passe
+
+`PasswordBroker` émet des jetons de réinitialisation via un `PasswordResetTokenRepository` et applique les réinitialisations via un callback. Le store par défaut est en mémoire (`auth.passwords.driver=array`). Pour des jetons durables qui survivent aux redémarrages, fixez `auth.passwords.driver=database` (`auth.passwords.table` optionnel) et assurez-vous que `Database` est enregistré avant `AuthServiceProvider`.
+
+```kotlin
+val token = broker.createToken(mapOf("email" to email))
+val result = broker.reset(mapOf("email" to email, "token" to token, "password" to next)) { user, password ->
+    // persist Hash.make(password)
+}
+```
+
+Vous pouvez aussi construire `PasswordBroker(..., tokens = DatabasePasswordResetTokenRepository(connection))` explicitement.
+
+Pour les listes de règles de validation de formulaire, utilisez `PasswordRules.min(8)` / `PasswordRules.confirmed()` avec le validateur HTTP (voir [Validation](/docs/http/validation/)).
+
+## Jetons d’API
+
+`PersonalAccessTokenManager.create(user, name, abilities)` renvoie un jeton en clair une fois (`id|secret`) et stocke un hash SHA-256. Vérifiez les capacités avec `token.can("read")` / `token.cant("write")`.
+
+Le dépôt par défaut est en mémoire (`auth.tokens.driver=array`). Fixez `auth.tokens.driver=database` (`auth.tokens.table` optionnel) pour des jetons adossés à JDBC, ou passez `DatabasePersonalAccessTokenRepository` à la construction du gestionnaire.
+
+Authentifiez avec des jetons bearer via `TokenGuard` ou le middleware `AuthenticateWithToken`.

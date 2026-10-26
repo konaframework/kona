@@ -1,0 +1,58 @@
+---
+title: Concurrence
+description: Aides sur virtual threads pour le map parallèle et les listes de tâches.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Les aides de **concurrence** exécutent le travail sur les virtual threads du JDK, afin de répartir un travail léger en CPU ou lié aux E/S sans gérer un pool de threads à la main.
+
+## Map parallèle
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val doubled = Concurrency.map(listOf(1, 2, 3)) { it * 2 }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<Integer> doubled = Concurrency.map(List.of(1, 2, 3), n -> n * 2);
+```
+
+</TabItem>
+</Tabs>
+
+Une entrée vide renvoie une liste vide sans démarrer d’exécuteur.
+
+## Liste de tâches
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val results = Concurrency.run(
+    listOf(
+        Callable { fetchA() },
+        Callable { fetchB() },
+    )
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<String> results = Concurrency.run(List.of(
+    (Callable<String>) () -> fetchA(),
+    (Callable<String>) () -> fetchB()
+));
+```
+
+</TabItem>
+</Tabs>
+
+Les résultats conservent l’ordre d’entrée. Les exceptions d’une tâche se propagent lorsque le future est collecté.

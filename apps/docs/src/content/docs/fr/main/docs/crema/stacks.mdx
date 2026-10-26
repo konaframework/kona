@@ -1,0 +1,101 @@
+---
+title: Stacks
+description: Poussez et préfixez scripts et styles sur des stacks nommées depuis les vues enfants et les partiels.
+---
+
+Les **stacks** collectent des fragments HTML depuis les vues enfants, les inclusions et les composants, puis les impriment là où un layout appelle `@stack`. Usage typique : chaque page pousse des scripts propres à la page ; le layout les rend une fois avant `</body>`.
+
+## Push et prepend
+
+```crema
+@push('scripts')
+  <script src="/app.js"></script>
+@endpush
+
+@prepend('scripts')
+  <script src="/vendor.js"></script>
+@endprepend
+```
+
+| Directive | Effet |
+|-----------|--------|
+| `@push('name')…@endpush` | Ajoute le fragment à la fin de la stack |
+| `@prepend('name')…@endprepend` | Insère le fragment au début de la stack |
+
+Les corps sont développés au moment du push (les échos et les directives imbriquées tournent dans le contexte courant). Les directives push/prepend elles-mêmes n’émettent rien au site d’appel — elles ne font que remplir la stack.
+
+## Rendre la stack
+
+Dans le layout (ou tout ancêtre qui doit imprimer les fragments collectés) :
+
+```crema
+@stack('scripts')
+@stack('styles')
+```
+
+Ordre quand push et prepend sont utilisés ensemble : **tous les fragments prepend d’abord** (chaque prepend insère à l’index 0, donc les prepend plus tardifs apparaissent avant les plus anciens), puis **les fragments push dans l’ordre d’enregistrement**.
+
+Exemple :
+
+```crema
+@prepend('scripts')A@endprepend
+@push('scripts')B@endpush
+@prepend('scripts')C@endprepend
+@stack('scripts')
+{{-- → CAB --}}
+```
+
+## Motif de layout
+
+```crema
+{{-- layouts/app.crema.html --}}
+<html>
+  <head>
+    @stack('styles')
+  </head>
+  <body>
+    @yield('content')
+    @stack('scripts')
+  </body>
+</html>
+```
+
+```crema
+{{-- posts/show.crema.html --}}
+@extends('layouts.app')
+@section('content')
+  <article>…</article>
+@endsection
+@push('styles')
+  <link rel="stylesheet" href="/posts.css">
+@endpush
+@push('scripts')
+  <script src="/posts-show.js"></script>
+@endpush
+```
+
+Les push peuvent vivre dans des blocs `@section` ou à côté ; les deux sont collectés avant que le layout parent ne se rende.
+
+## Partiels et composants
+
+Les inclusions et les composants partagent les mêmes maps de stack pour le rendu. Un `@push` dans `@include('partials.chart')` apparaît quand même dans le `@stack` du layout. Cela permet à un partiel d’enregistrer ses assets une fois, surtout combiné avec [`@once`](/docs/crema/includes/#once) :
+
+```crema
+{{-- partials/chart.crema.html --}}
+@once
+  @push('scripts')
+    <script src="/chart-lib.js"></script>
+  @endpush
+@endonce
+<div class="chart" data-id="{{ id }}"></div>
+```
+
+## Stacks vides
+
+`@stack('missing')` imprime une chaîne vide quand rien n’a été poussé. Vous n’avez pas à déclarer les stacks à l’avance.
+
+## Lié
+
+- [Layouts](/docs/crema/layouts/) — où les stacks vivent d’habitude
+- [Rendu](/docs/crema/rendering/#vite) — `@vite` pour les points d’entrée empaquetés
+- [Formulaires](/docs/crema/forms/) — les aides CSRF et de méthode sont souvent près des formulaires, pas dans les stacks

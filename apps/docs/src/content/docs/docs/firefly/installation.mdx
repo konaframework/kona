@@ -1,19 +1,78 @@
 ---
 title: Installation
-description: Create a desk with kona new --kit=firefly and open /admin, or add kona-firefly to the Gradle file of an app you already have.
+description: Run ./grind install firefly. It adds the dependency, the config, and a service provider that discovers panels under app/panels.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Create a new app when you want the panel, the folders, and the boot class written for you. Step into the project and run `./grind serve`. The kit mounts the panel at `/admin`. Your own routes stay where they are. The welcome page is still `/`.
+From the app directory, install Firefly and generate a panel. The provider mounts that panel when the app boots. You do not register the provider yourself.
 
 <FireflyShot file="empty-admin.png" description="The /admin path of a new app from kona new --kit=firefly, before any page or resource is added." />
 
-## Create the app
+## Install Firefly
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
+
+```bash
+./grind install firefly
+./grind make:firefly-panel
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```bash
+./grind install firefly --lang=java
+./grind make:firefly-panel --lang=java
+```
+
+</TabItem>
+</Tabs>
+
+`./grind install firefly` adds `org.konaframework:kona-firefly` next to your other Kona dependencies. It writes `config/Firefly`, which is the `firefly` config key. It writes `app.providers.FireflyServiceProvider` and records that class in `META-INF/kona/providers`. The framework provider ships in the Firefly artifact, so both are loaded on boot.
+
+The generated panel is `app/panels/admin/Panel`. Its id is `admin`, and `path` is not set, so the panel is served at `/admin`. `pages/`, `widgets/`, and `resources/` sit beside that class. The provider reads them.
+
+Pass `--id=` when the panel should live somewhere else. The prefix is that id until you also pass `--path=`.
+
+```bash
+./grind make:firefly-panel --id=billing
+./grind make:firefly-panel --id=billing --path=staff
+./grind make:firefly-panel --id=billing --path=
+```
+
+The first command serves `/billing`. `--path=staff` serves `/staff`. `--path=` with an empty value serves the site root.
+
+`./grind serve` starts the app. Open the prefix you chose. A welcome route on `/` stays on `/` when the panel prefix is not empty.
+
+## What the config is for
+
+`app/panels` is always scanned, under `src/main/kotlin` and `src/main/java`. `discovery` in `config/Firefly` is a list of extra directories. Leave it empty until you have panels outside `app/panels`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+"discovery" to listOf("src/main/kotlin/app/more-panels"),
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+values.put("discovery", java.util.List.of("src/main/java/app/more-panels"));
+```
+
+</TabItem>
+</Tabs>
+
+The installer also adds `config.Firefly` to `bootstrap/App` when that file lists `Paths` the way a new Kona app does.
+
+## A new app
+
+`kona new desk --kit=firefly` writes a starter that already mounts one panel at `/admin`, because that class calls `path("admin")`. Use the kit when you want that starter. Use `./grind install firefly` when the app already exists.
 
 ```bash
 kona new desk --kit=firefly
@@ -21,67 +80,40 @@ cd desk
 ./grind serve
 ```
 
-</TabItem>
-<TabItem label="Java">
+Open `http://127.0.0.1:4000/` for the welcome route and `http://127.0.0.1:4000/admin` for that kit panel.
 
-```bash
-kona new desk --kit=firefly --lang=java
-cd desk
-./grind serve
-```
-
-</TabItem>
-</Tabs>
-
-Open `http://127.0.0.1:4000/`. That is the welcome route. Open `http://127.0.0.1:4000/admin` for the panel. The generated Gradle file depends on Maven Central. The CLI writes `org.konaframework:kona-firefly` at the same version as `kona-http` and the other Kona artifacts in that file.
-
-## Add it to an app you already have
-
-Put the same coordinate next to your other `org.konaframework` dependencies. Kotlin and Java apps in this repository both use the Gradle Kotlin DSL:
-
-```kotlin
-dependencies {
-    implementation("org.konaframework:kona-firefly:0.3.0")
-}
-```
-
-Match the version on the other `org.konaframework` lines in that file. This repository’s version is `0.3.0`.
-
-Then add a `Panel` and call `mount` on the router after your own routes are registered. [Register a panel](/docs/firefly/registration/) is that step. The dependency does not register routes by itself.
-
-Inside the Kona repository, the hello samples depend on the module directly:
+Inside this repository, the hello samples depend on the module directly:
 
 ```kotlin
 implementation(project(":kona-firefly"))
 ```
 
-`samples/hello-kotlin` and `samples/hello-java` are the desk used in [A working app](/docs/firefly/working-app/). From the repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :hello-java:run`. Those samples do not ship `./grind`. A standalone app from `kona new` does.
+`samples/hello-kotlin` and `samples/hello-java` are the app in [A working app](/docs/firefly/working-app/). From the repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :hello-java:run`.
 
 ## Commands you can run
 
-From the app directory, `./grind` accepts these Firefly commands. Pass `--lang=java` when the app is Java. Kotlin is the default.
+From the app directory, `./grind` accepts these Firefly commands. Pass `--lang=java` when the app is Java. Kotlin is the default. `--panel=` chooses the panel directory. It defaults to `admin`.
 
 | Command | What it writes |
 |---------|----------------|
-| `make:firefly-panel` | `app/firefly/Panel` plus `pages/`, `widgets/`, and `resources/` |
-| `firefly:install` | The same tree as `make:firefly-panel` |
-| `make:firefly-page Desk` | A `CustomPage` in `pages/` |
-| `make:firefly-theme Harbor` | A theme class in `themes/` |
-| `make:firefly-resource Note --simple` | One Manage page in `resources/` |
+| `install firefly` | The dependency, `config/Firefly`, and `app.providers.FireflyServiceProvider` |
+| `make:firefly-panel` | `app/panels/{id}/Panel` plus `pages/`, `widgets/`, and `resources/` |
+| `firefly:install` | The same panel tree as `make:firefly-panel` |
+| `make:firefly-page Desk` | A `CustomPage` in that panel's `pages/` |
+| `make:firefly-widget Revenue` | A widget in that panel's `widgets/`, and a Crema view |
+| `make:firefly-resource Note --simple` | One Manage page in that panel's `resources/` |
 | `make:firefly-resource Order` | List, create, edit, and view pages, plus one relation manager |
-| `make:firefly-field Price` | A field class and a Crema view under `fields/` |
-| `make:firefly-entry Note` | An infolist entry under `entries/` |
-| `make:firefly-column Name` | A table column under `columns/` |
-| `make:firefly-filter Status` | A table filter under `filters/` |
-| `make:firefly-action SaveRecord` | An action class and view under `actions/` |
-| `make:firefly-layout Banner` | A layout component under `layouts/` |
-| `make:firefly-widget Revenue` | A widget under `widgets/` |
+| `make:firefly-field Price` | A field class and a Crema view under `app/firefly/fields/` |
+| `make:firefly-entry Note` | An infolist entry under `app/firefly/entries/` |
+| `make:firefly-column Name` | A table column under `app/firefly/columns/` |
+| `make:firefly-filter Status` | A table filter under `app/firefly/filters/` |
+| `make:firefly-action SaveRecord` | An action class and view under `app/firefly/actions/` |
+| `make:firefly-layout Banner` | A layout component under `app/firefly/layouts/` |
+| `make:firefly-theme Harbor` | A theme class under `app/firefly/themes/` |
 | `firefly:publish` | A sidebar partial at `resources/views/firefly/sidebar.crema.html` |
 
-`make:firefly-panel` writes a class named `Panel`. Passing another class name fails. Optional flags `--id=` and `--path=` set the generated id and URL prefix. `./grind firefly:install` writes that same tree.
-
-Add the kit, or add the Maven coordinate. Then use the commands in the table.
+`make:firefly-panel` writes a class named `Panel`. Passing another class name fails. `--id=` is the package folder and the panel id. Omit `--path=` and the generated class does not call `path`, so the prefix is the id. `./grind firefly:install` writes that same tree. It does not add the dependency or the provider. Use `./grind install firefly` for that.
 
 ## Next
 
-[Register a panel](/docs/firefly/registration/) is the file the kit already created, and how discovery finds pages, widgets, and resources.
+[Register a panel](/docs/firefly/registration/) opens the class you just generated and shows `Firefly.register` for a panel you build by hand.

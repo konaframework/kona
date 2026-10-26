@@ -1,0 +1,53 @@
+---
+title: Introduction
+description: Ce qu’est Inertia pour Kona, quand l’utiliser et comment il s’insère dans une application.
+---
+
+**Inertia** pour Kona laisse votre app JVM renvoyer un **objet de page** — un nom de composant plus des props — qu’un client JavaScript hydrate. La première visite est un document HTML normal. Les navigations suivantes envoient l’en-tête `X-Inertia` et reçoivent du JSON au lieu d’un rechargement complet.
+
+Vous gardez le routage, les contrôleurs, l’auth et la validation sur le serveur. Le navigateur monte un framework client (Vue, React, Svelte, ou tout ce qui sait lire l’objet de page) et échange les pages quand Inertia navigue.
+
+## Ce que livre ce paquet
+
+| Pièce | Rôle |
+|-------|------|
+| Façade `Inertia` | Statiques appelables depuis Java : `render`, `share`, `version`, `location` |
+| `InertiaManager` | Construit les shells HTML et les réponses JSON de page |
+| `HandleInertiaRequests` | Middleware : props partagées par requête, contrôles de version, en-têtes de réponse |
+| `InertiaServiceProvider` | Lie le manager et le `AssetManifest` de Vite |
+| `org.konaframework.inertia.assets.Vite` | Fine façade au-dessus du résolveur Vite de Crema |
+
+Artefact : `org.konaframework:kona-inertia` sur Maven Central.
+
+## Quand l’utiliser
+
+Utilisez Inertia quand vous voulez une UX de SPA moderne sans écrire une API JSON séparée pour chaque écran. Les contrôleurs renvoient des props de page ; le client rend des composants nommés.
+
+Si vous préférez des composants **serveur** réactifs sans pile SPA JavaScript, voyez [Wire](/docs/wire/). Pour des templates HTML classiques, utilisez [Crema](/docs/crema/).
+
+## Le protocole en un coup d’œil
+
+1. **Première visite** (pas de `X-Inertia`) → shell HTML avec `data-page='…json…'` sur `#app`.
+2. **Visite Inertia** (`X-Inertia: true`) → JSON `{ component, props, url, version }` plus `X-Inertia` / `X-Inertia-Version`.
+3. **Version différente** → `409` pour que le client puisse recharger les assets.
+4. **Redirection externe** via `Inertia.location` → `409` + `X-Inertia-Location` pour les clients Inertia ; les navigateurs ordinaires reçoivent `302`.
+
+## Installer en une commande
+
+```bash
+./grind install inertia
+# interactive frontend: Vue / React / Svelte
+# or greenfield:
+kona new my-app --kit=inertia
+```
+
+Ce chemin couvre l’artefact Maven **et** un échafaudage client Vite. Parcours : [Installation](../installation/).
+
+Protocole client et adaptateurs : [inertiajs.com](https://inertiajs.com/).
+
+## Étapes suivantes
+
+- [Prérequis](../requirements/)
+- [Installation](../installation/) — de bout en bout jusqu’à ce que la première page fonctionne
+- [Votre première page](../first-page/)
+- [Clients frontend](../frontend/)

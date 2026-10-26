@@ -1,0 +1,24 @@
+---
+title: Prérequis
+description: JDK, Node et modules Kona compagnons nécessaires à Inertia.
+---
+
+## Exécution
+
+| Prérequis | Notes |
+|-------------|--------|
+| **JDK 21+** | Virtual threads ; comme le cœur de Kona |
+| **Modules Kona** | `kona-http`, et en général `kona-crema` pour la vue racine — depuis Maven Central (ligne actuelle : **0.1.1**) |
+| **Inertia** | `org.konaframework:kona-inertia` sur Maven Central |
+
+## Frontend (votre app)
+
+Inertia lui-même n’embarque pas Vue/React/Svelte. Le `package.json` de votre app doit ajouter un adaptateur Inertia (par exemple `@inertiajs/vue3`) et Vite. Le kit de démarrage **inertia** dépose une app Vite dont l’entrée est `src/main/resources/js/app.js` (Vue et Svelte) ou `app.jsx` (React). Passez `--typescript` pour `app.ts` / `app.tsx` plus `tsconfig.json`. La racine web où ces builds émettent est `public/build` à la racine du projet.
+
+## Site de docs
+
+Construire cette documentation sous `apps/docs/` exige **Node 22+**.
+
+## Suite
+
+- [Installation](/docs/inertia/guides/installation/) — ajouter Inertia à un projet Kona

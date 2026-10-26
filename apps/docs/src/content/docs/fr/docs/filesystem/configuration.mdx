@@ -1,0 +1,73 @@
+---
+title: Configuration du système de fichiers
+description: Pilotes de disque, préfixes scopés, disques en lecture seule et réglages de client cloud.
+---
+
+Définissez les disques sous la clé de config `filesystems` (échafaudage : `config/Filesystems`).
+
+## Disque par défaut
+
+```kotlin
+"default" to Env.getOrDefault("FILESYSTEM_DISK", "local"),
+```
+
+`FilesystemManager.disk()` utilise ce nom. Passez un nom explicite à `disk("public")` lorsque vous avez besoin d’une autre racine.
+
+## Local et public
+
+```kotlin
+"local" to mapOf(
+    "driver" to "local",
+    "root" to "storage/app",
+),
+"public" to mapOf(
+    "driver" to "local",
+    "root" to "storage/app/public",
+    "url" to "/storage",
+),
+```
+
+Si vous omettez `root` / `url` pour un disque nommé `public`, Kona utilise quand même `storage/app/public` et `/storage`.
+
+## Disques scopés
+
+Un disque scopé transmet chaque chemin à un disque parent sous un préfixe fixe :
+
+```kotlin
+"avatars" to mapOf(
+    "driver" to "scoped",
+    "disk" to "public",
+    "prefix" to "avatars",
+),
+```
+
+`disk("avatars").put("ada.png", bytes)` stocke `avatars/ada.png` sur le disque `public`.
+
+## Disques en lecture seule
+
+```kotlin
+"archive" to mapOf(
+    "driver" to "local",
+    "root" to "storage/archive",
+    "read-only" to true,
+),
+```
+
+Les écritures (`put`, `delete`, `append`, …) lancent `UnsupportedOperationException`. Les lectures fonctionnent encore.
+
+## Cloud compatible S3
+
+```kotlin
+"s3" to mapOf(
+    "driver" to "s3",
+    "endpoint" to Env.get("AWS_ENDPOINT"),
+    "bucket" to Env.getOrDefault("AWS_BUCKET", "kona"),
+    "key" to Env.getOrDefault("AWS_ACCESS_KEY_ID", ""),
+    "secret" to Env.getOrDefault("AWS_SECRET_ACCESS_KEY", ""),
+    "region" to Env.getOrDefault("AWS_DEFAULT_REGION", "us-east-1"),
+    "url" to Env.getOrDefault("AWS_URL", ""),
+    "prefix" to Env.getOrDefault("AWS_ROOT_PREFIX", ""),
+),
+```
+
+`prefix` est préfixé à chaque clé d’objet (racine de tenant ou d’environnement). Pour les factices dans le processus, utilisez `memory` / `s3-memory` avec les mêmes boutons `bucket` / `url` / `prefix`.

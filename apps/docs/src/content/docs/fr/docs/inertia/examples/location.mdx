@@ -1,0 +1,13 @@
+---
+title: Redirection externe
+description: Envoyez les utilisateurs vers une URL externe depuis une visite Inertia ou classique.
+---
+
+```kotlin
+router.get("/leave") {
+    Inertia.location("https://example.com")
+}
+```
+
+- Client Inertia → `409` + `X-Inertia-Location`
+- Navigateur / hors Inertia → `302` + `Location`

@@ -1,0 +1,122 @@
+---
+title: Base de données et doubles
+description: Aides de base transactionnelles et doubles en mémoire pour le courriel, la file, les événements, le cache, la diffusion et le stockage.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Aides de base de données
+
+`DatabaseTest` enveloppe les connexions Cadence pour les tests.
+
+| API | Comportement |
+| --- | --- |
+| `transactional(database, block)` | Exécute `block` dans `database.connection().transaction(…)` et renvoie le résultat du bloc |
+| `refresh(database, tables)` | `DELETE FROM` chaque nom de table listé (l’ordre compte pour les clés étrangères) |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DatabaseTest.transactional(database) { db ->
+    // inserts that roll back when the transaction ends without commit
+    db
+}
+
+DatabaseTest.refresh(database, listOf("password_reset_tokens", "users"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DatabaseTest.transactional(database, db -> {
+    return null;
+});
+
+DatabaseTest.refresh(database, List.of("password_reset_tokens", "users"));
+```
+
+</TabItem>
+</Tabs>
+
+`refresh` émet des instructions `DELETE FROM $table` brutes — ne passez que des identifiants de table de confiance.
+
+## Doubles
+
+Chaque double possède un collaborateur en mémoire (ou appuyé sur un journal) que vous pouvez affirmer. Ce sont de simples constructeurs — liez-les dans le conteneur de votre provider de test lorsque le code de production résout le vrai type.
+
+### FakeMail
+
+`LogTransport` + `Mailer`. `messages()` renvoie les `MailMessage` capturés.
+
+```kotlin
+val mail = FakeMail()
+mail.mailer.send(MailMessage().to("a@b.c").subject("Hi"))
+assertEquals(1, mail.messages().size)
+```
+
+### FakeQueue
+
+`QueueManager` à driver tableau + `Bus`. `dispatch(job)` et `size()` inspectent la connexion.
+
+```kotlin
+val queue = FakeQueue()
+queue.dispatch(MyJob())
+assertEquals(1L, queue.size())
+```
+
+### FakeNotification
+
+`DatabaseChannel` et `LogChannel` en mémoire derrière `NotificationSender`. `assertSent(type)` est vrai si l’un ou l’autre canal a enregistré cette classe de notification.
+
+```kotlin
+val notifications = FakeNotification()
+notifications.send(user, WelcomeNotification())
+assertTrue(notifications.assertSent(WelcomeNotification::class.java))
+```
+
+### FakeEvent
+
+Enveloppe `EventDispatcher` et enregistre chaque argument de `dispatch`. `assertDispatched(type)`, `events()`, `clear()`.
+
+```kotlin
+val events = FakeEvent()
+events.dispatch(OrderPlaced(id = 1))
+assertTrue(events.assertDispatched(OrderPlaced::class.java))
+events.clear()
+```
+
+### FakeCache
+
+`ArrayCacheStore` + `Repository`. Miroir de `get` / `put` / `forever` / `forget` / `flush` / `has`.
+
+```kotlin
+val cache = FakeCache()
+cache.put("k", "v", 60)
+assertEquals("v", cache.get("k"))
+```
+
+### FakeBroadcast
+
+`BroadcastManager` à driver journal. `broadcast(event)`, `messages()`, `clear()`.
+
+```kotlin
+val broadcast = FakeBroadcast()
+broadcast.broadcast(OrderShipped())
+assertTrue(broadcast.messages().isNotEmpty())
+```
+
+### FakeStorage
+
+`FilesystemAdapter` entièrement en mémoire : put/get/exists/delete/copy/move, répertoires, visibilité, flux, `putFile` / `putFileAs`. Les URL temporaires lancent `IllegalStateException` (`providesTemporaryUrls()` vaut `false`).
+
+```kotlin
+val disk = FakeStorage()
+disk.put("a.txt", "hello")
+assertEquals("hello", disk.getString("a.txt"))
+```
+
+## Choisir un double ou le vrai driver
+
+Préférez les doubles lorsque l’unité testée ne doit pas toucher Redis, SMTP ou le système de fichiers. Préférez une vraie connexion Cadence SQLite/H2 (avec `DatabaseTest.transactional`) lorsque vous affirmez le comportement SQL lui-même.

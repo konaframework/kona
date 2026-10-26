@@ -1,0 +1,118 @@
+---
+title: Pages, navigation et URL
+description: Composants Wire pleine page, layouts, wire:navigate, chaîne de requête, session et pagination.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Les composants Wire pleine page se rendent dans un layout Crema et peuvent piloter la barre d’URL, la session et une navigation de style SPA.
+
+## Routes pleine page
+
+Enregistrez un composant de page sur un chemin :
+
+```kotlin
+Wire.route(router, "/posts", "posts-page")
+```
+
+Les paramètres de montage viennent des attributs de route et de la chaîne de requête. Annotez la page avec `@Layout` / `@Title`, ou construisez la vue par programme :
+
+```kotlin
+override fun render() = WireView.layout("layouts.app").title("Posts").slot {
+    // …
+}
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@Layout("layouts.app")
+@Title("Dashboard")
+class Dashboard : Component() {
+    var greeting = "Hello"
+
+    fun mount() { /* route + query params available */ }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Layout("layouts.app")
+@Title("Dashboard")
+public class Dashboard extends Component {
+    public String greeting = "Hello";
+
+    public void mount() { /* … */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Navigation
+
+Préchargez et échangez les pages sans rechargement complet du navigateur :
+
+```html
+<a href="/posts" wire:navigate>Posts</a>
+<a href="/posts" wire:navigate.hover>Prefetch on hover</a>
+<a href="/posts" wire:current.exact>Here</a>
+<a href="/posts#list" wire:navigate:scroll>Keep scroll region</a>
+```
+
+| API | Rôle |
+|-----|------|
+| `Wire.navigate(url)` | Visite programmatique |
+| `brew:navigate` / `brew:navigating` / `brew:navigated` | Événements document autour d’une visite |
+| `@persist('key')` | Conserve le DOM entre les visites |
+| `wire:current` (+ `.exact`, `.strict`) | Marque les liens actifs (`data-current`) |
+| Progression + transitions de vue | Configuré via `brew.navigate.*` |
+| `disableBackButtonCache()` | Sort du bfcache |
+
+## URL et session
+
+Liez des propriétés à la chaîne de requête ou à la session :
+
+```kotlin
+@field:Url(`as` = "q", keep = true, history = true)
+var search = ""
+
+@field:Session(key = "posts.filter")
+var filter = "all"
+
+fun queryString() = mapOf("sort" to sort)
+```
+
+Après chaque requête, `effects.url` et `effects.title` mettent à jour la barre d’adresse et le titre du document. Dans les tests, utilisez `withQueryParams(...)`.
+
+## Pagination
+
+Étendez `Paginates` / implémentez `WithPagination` :
+
+```kotlin
+class PostsPage : Paginates() {
+    fun results() = paginate(items, 15)
+}
+```
+
+Aides : `previousPage`, `nextPage`, `gotoPage`, `resetPage`. Les thèmes de liens incluent des variantes Tailwind et Bootstrap. Utilisez `withoutUrlPagination` lorsque l’état de page doit rester hors de la chaîne de requête.
+
+## Redirections avec navigate
+
+```kotlin
+fun create() {
+    // …
+    redirect("/posts/$id", navigate = true)
+}
+```
+
+`navigate = true` utilise le chemin de visite SPA au lieu d’un chargement complet du document.
+
+## Suite
+
+- [Imbrication](/docs/wire/advanced/nesting/) — enfants, îlots, lazy
+- [Exemple — Liste pleine page](/docs/wire/examples/crud/) — page de type CRUD travaillée
+- [Tests](/docs/wire/dx/testing/) — `assertSeeWire`, paramètres de requête

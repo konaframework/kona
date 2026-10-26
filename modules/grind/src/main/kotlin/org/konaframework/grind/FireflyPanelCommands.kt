@@ -12,7 +12,7 @@ class MakeFireflyPanelCommand {
         }
         val base = Names.base(options)
         val lang = Names.lang(base, options)
-        writePanel(base, lang, options["id"] ?: "admin", options["path"] ?: "admin")
+        writePanel(base, lang, options["id"] ?: "admin", panelPath(options))
         return 0
     }
 }
@@ -23,7 +23,7 @@ class FireflyInstallCommand {
         val (positional, options) = parseOptions(args)
         if (positional.isNotEmpty()) throw GrindException("Usage: grind firefly:install [--lang=kotlin|java]")
         val base = Names.base(options)
-        writePanel(base, Names.lang(base, options), options["id"] ?: "admin", options["path"] ?: "admin")
+        writePanel(base, Names.lang(base, options), options["id"] ?: "admin", panelPath(options))
         return 0
     }
 }
@@ -32,12 +32,18 @@ class FireflyInstallCommand {
 class MakeFireflyPageCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
-        if (positional.isEmpty()) throw GrindException("Usage: grind make:firefly-page <Name> [--lang=kotlin|java]")
+        if (positional.isEmpty()) throw GrindException("Usage: grind make:firefly-page <Name> [--panel=admin] [--lang=kotlin|java]")
         val name = positional.first()
         Names.requireClassName("page", name)
         val base = Names.base(options)
         val lang = Names.lang(base, options)
-        Names.write(base, Names.sourceFile(lang, "app/firefly/pages", name), "Firefly page", pageSource(name, lang))
+        val panel = panelIdFromOptions(options)
+        Names.write(
+            base,
+            Names.sourceFile(lang, "app/panels/$panel/pages", name),
+            "Firefly page",
+            pageSource(name, lang, panel),
+        )
         return 0
     }
 }
@@ -73,41 +79,68 @@ class FireflyPublishCommand {
     }
 }
 
-internal fun writePanel(base: Path, lang: String, id: String, path: String) {
+internal fun panelPath(options: Map<String, String>): String? =
+    if (options.containsKey("path")) options["path"] else null
+
+internal fun panelIdFromOptions(options: Map<String, String>): String {
+    val raw = options["panel"]?.takeIf { it.isNotEmpty() } ?: "admin"
+    return panelPackageSegment(raw)
+}
+
+internal fun panelPackageSegment(id: String): String {
+    if (!PANEL_ID.matches(id)) throw GrindException("Panel id [$id] is not a package name")
+    return id
+}
+
+private val PANEL_ID = Regex("^[A-Za-z_][A-Za-z0-9_]*$")
+
+internal fun writePanel(base: Path, lang: String, id: String, path: String?) {
     if (id.isBlank()) throw GrindException("Panel id is blank")
-    Names.write(base, Names.sourceFile(lang, "app/firefly", "Panel"), "Firefly panel", panelSource(lang, id, path))
+    val segment = panelPackageSegment(id)
+    val root = "app/panels/$segment"
+    Names.write(base, Names.sourceFile(lang, root, "Panel"), "Firefly panel", panelSource(lang, segment, path))
+    val language = if (lang == "java") "java" else "kotlin"
     for (folder in listOf("pages", "widgets", "resources")) {
-        Names.write(base, "src/main/${if (lang == "java") "java" else "kotlin"}/app/firefly/$folder/.gitkeep", "Firefly $folder", "")
+        Names.write(base, "src/main/$language/$root/$folder/.gitkeep", "Firefly $folder", "")
     }
 }
 
-private fun panelSource(lang: String, id: String, path: String): String = if (lang == "java") {
-    lines(
-        "package app.firefly;",
-        "",
-        "public class Panel extends org.konaframework.firefly.Panel {",
-        "    public Panel() {",
-        "        id(\"$id\");",
-        "        path(\"$path\");",
-        "    }",
-        "}",
-    )
-} else {
-    lines(
-        "package app.firefly",
-        "",
-        "class Panel : org.konaframework.firefly.Panel() {",
-        "    init {",
-        "        id(\"$id\")",
-        "        path(\"$path\")",
-        "    }",
-        "}",
-    )
+private fun panelSource(lang: String, id: String, path: String?): String {
+    val pathLines = if (path == null) {
+        emptyList()
+    } else if (lang == "java") {
+        listOf("        path(\"$path\");")
+    } else {
+        listOf("        path(\"$path\")")
+    }
+    return if (lang == "java") {
+        lines(
+            "package app.panels.$id;",
+            "",
+            "public class Panel extends org.konaframework.firefly.Panel {",
+            "    public Panel() {",
+            "        id(\"$id\");",
+            *pathLines.toTypedArray(),
+            "    }",
+            "}",
+        )
+    } else {
+        lines(
+            "package app.panels.$id",
+            "",
+            "class Panel : org.konaframework.firefly.Panel() {",
+            "    init {",
+            "        id(\"$id\")",
+            *pathLines.toTypedArray(),
+            "    }",
+            "}",
+        )
+    }
 }
 
-private fun pageSource(name: String, lang: String): String = if (lang == "java") {
+private fun pageSource(name: String, lang: String, panel: String): String = if (lang == "java") {
     lines(
-        "package app.firefly.pages;",
+        "package app.panels.$panel.pages;",
         "",
         "import org.konaframework.firefly.CustomPage;",
         "",
@@ -119,7 +152,7 @@ private fun pageSource(name: String, lang: String): String = if (lang == "java")
     )
 } else {
     lines(
-        "package app.firefly.pages",
+        "package app.panels.$panel.pages",
         "",
         "import org.konaframework.firefly.CustomPage",
         "",

@@ -1,0 +1,92 @@
+---
+title: Navigation
+description: Laissez la découverte construire la barre latérale, ou appelez item et cluster vous-même lorsque vous voulez d’autres libellés et URL.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Décidez où les liens se placent, puis laissez `mount` construire l’arbre ou écrivez-le vous-même. Chaque panneau a un layout pour cet arbre. Si vous n’appelez jamais `item` ni `cluster`, `mount` construit l’arbre à partir des pages et des ressources qu’il a découvertes.
+
+Sur les exemples hello cela signifie un lien pour Desk, un groupe Notes et un groupe Orders. Les libellés de page viennent du slug, donc vous pouvez voir `desk` et `manage` jusqu’à ce que vous posiez un libellé. Les groupes de ressources utilisent `label`, donc ces groupes se lisent `Notes` et `Orders`.
+
+<FireflyShot file="panel-navigation.png" description="La barre latérale hello-kotlin à http://127.0.0.1:4017/admin/desk, avec le lien desk et les groupes Notes et Orders." />
+
+## Choisir où les liens se placent
+
+| Type | Niveau 1 | Niveaux 2 et 3 |
+|------|---------|----------------|
+| `NavigationType.APP` (le défaut) | Barre du haut | Barre latérale, pour les enfants de l’élément de niveau 1 actif |
+| `NavigationType.SIDE` | Barre latérale | Barre latérale |
+| `NavigationType.TOP` | Barre du haut | Barre du haut |
+
+`topNavigation()` est `navigation(NavigationType.TOP)`. `navigation` accepte l’enum ou une fermeture qui reçoit `Get`.
+
+L’imbrication s’arrête au niveau 3. Un quatrième niveau échoue lorsque le panneau se monte, et le message nomme l’élément. `cluster("Catalog")` ajoute un parent sans URL propre. `userMenu(...)` se rend dans la barre du haut, à côté de la puce utilisateur. `spa(true)` ajoute `wire:navigate` sur les liens qui ont une URL.
+
+## Ce que montrent les exemples hello
+
+Les exemples n’appellent jamais `item`. La découverte construit donc :
+
+- Un lien par page. Le libellé est `navigationLabel()`, qui est le slug. Le texte du lien Desk est `desk`. L’URL est `/admin/desk`.
+- Un cluster par ressource. Le libellé est `Resource.label()` (`Notes`, `Orders`). Chaque page de cette ressource est un enfant. Le libellé enfant est le slug de page : `manage` sur notes, et `list`, `create`, `edit`, `view` sur orders.
+
+Posez `label` sur un `NavigationItem` lorsque vous construisez l’arbre vous-même et voulez un mot à la place d’un slug.
+
+## Construire l’arbre vous-même
+
+Une fois `item` ou `cluster` appelé, mount garde cet arbre. Il ne le remplace pas par les pages découvertes.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val catalog = panel.cluster("Catalog")
+catalog.child(
+    NavigationItem("orders").label("Orders").url("/admin/orders/list"),
+)
+panel.userMenu(
+    NavigationItem("profile").label("Profile").url("/admin/profile"),
+)
+panel.navigation(NavigationType.SIDE)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+NavigationItem catalog = panel.cluster("Catalog");
+catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list"));
+panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile"));
+panel.navigation(NavigationType.SIDE);
+```
+
+</TabItem>
+</Tabs>
+
+Vous voyez **Orders** dans la barre latérale, lié à `/admin/orders/list`, et **Profile** à côté de la puce utilisateur.
+
+## Méthodes de NavigationItem
+
+Un nom vide lance `FireflyException` (`Navigation item name is blank`). Un libellé vide ou une URL vide issue d’une fermeture lance et nomme l’élément.
+
+| Méthode | Ce que vous obtenez |
+|--------|----------------|
+| `label(value)` / `label(provider)` | Texte visible. Le défaut est le nom |
+| `url(value)` / `url(provider)` | Cible du lien. Vide jusqu’à ce que vous la posiez |
+| `extraAttributes(map)` / `extraAttributes(provider)` | Attributs HTML sur le lien. Un provider reçoit `Get` |
+| `cluster(true)` | Marque le nœud comme un groupe |
+| `child(item)` | Ajoute un enfant et fixe sa profondeur |
+| `isCluster()` | Si `cluster(true)` a été posé |
+| `labelText(get)` / `urlText(get)` / `attributes(get)` | Résout la fermeture ou la valeur stockée |
+| `find(name)` | Ce nœud ou un descendant de ce nom |
+
+État actif : le chemin courant égale l’URL de l’élément, ou commence par cette URL plus `/`. Une URL vide ou `/` n’est jamais traitée comme une correspondance de préfixe.
+
+## La puce utilisateur
+
+Le texte de la puce est l’id du garde du panneau. Lorsque cet id est null, la puce se lit **Invité**. Les exemples hello appellent `authenticate(false)` et ne connectent personne, donc la puce se lit Invité. Les éléments `userMenu` se rendent à côté de cette puce.
+
+## Suite
+
+[Actions](/docs/firefly/actions/) sont les boutons d’un en-tête de page et à l’intérieur d’un dialogue. La coquille où ces liens se placent est [Chrome du panneau](/docs/firefly/chrome/).

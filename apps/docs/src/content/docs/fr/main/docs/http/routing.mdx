@@ -1,0 +1,809 @@
+---
+title: Routage
+description: Mappez des URL et des méthodes HTTP vers des handlers et des contrôleurs — verbes, paramètres de chemin, routes de ressource, groupes, middleware, URL nommées, redirections, 404/405, et tests.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Le **routeur** décide quel code s’exécute pour une requête HTTP entrante. Une **route** est une entrée : un ensemble de méthodes HTTP, un motif de chemin tel que `/users/{id}`, un middleware optionnel, un nom optionnel, et un **handler** — une fonction de forme `Request → Response`.
+
+Quand une requête arrive, le [noyau HTTP](../kernel-server/) demande au routeur de **résoudre** méthode + chemin. Sur une correspondance, le noyau copie les paramètres de chemin sur la requête, exécute le pipeline de middleware de cette route, puis le handler. En cas d’échec, le routeur (puis le handler d’exception) produit des réponses **404** ou **405**.
+
+Ce guide couvre toute la surface de routage publique livrée aujourd’hui : API d’enregistrement, paramètres, ressources, groupes, URL nommées, redirections depuis les handlers, comportement HEAD/OPTIONS, aides d’inspection, et comment tester les routes. Les contrôleurs, les piles de middleware global, et les aides d’URL absolues/signées ont leurs propres pages ; cette page renvoie vers elles au lieu de les dupliquer.
+
+:::tip[Où vivent les routes]
+Les applications de `kona new` enregistrent les routes après `boot()` dans deux classes — `WebRoutes` (navigateur / HTML) et `ApiRoutes` (JSON sous `/api`). Gardez les handlers minces ; mettez la validation et la forme de la réponse dans les [contrôleurs](../controllers/).
+:::
+
+## Ce qui se passe sur une requête
+
+1. Le transport (Netty) construit une `Request` avec la vraie méthode HTTP et le chemin normalisé.
+2. Le middleware global (session, CSRF, et ainsi de suite — consultez [Middleware](../middleware/)) s’exécute autour du reste du pipeline.
+3. `Router.resolve(method, path)` trouve la première route correspondante, ou lance `NotFoundException` / `MethodNotAllowedException`, ou synthétise une réponse `OPTIONS` automatique.
+4. Les valeurs `{param}` capturées sont stockées sur la requête sous `param` et `route.param`.
+5. Le middleware de route s’exécute (middleware de groupe d’abord, puis `.middleware(...)` sur la route), puis le handler.
+6. Pour `HEAD`, le noyau efface le corps de réponse après que le handler revient (statut et en-têtes restent).
+
+Enregistrez toutes les routes **avant** que le serveur accepte du trafic. Le singleton `Router` partagé n’est pas conçu pour être muté pendant qu’il sert des requêtes.
+
+## Obtenir le routeur
+
+`HttpServiceProvider` enregistre un `Router` partagé dans le conteneur de l’application. Résolvez-le après que l’application a démarré — dans la méthode `boot` d’un provider, ou juste après `boot()` dans le bootstrap :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app = Kona.create(args)
+    .providers(HttpServiceProvider(), /* … */, AppServiceProvider())
+    .boot()
+WebRoutes().register(app.resolve(Router::class.java))
+ApiRoutes().register(app.resolve(Router::class.java))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), /* … */, new AppServiceProvider())
+    .boot();
+new WebRoutes().register(app.resolve(Router.class));
+new ApiRoutes().register(app.resolve(Router.class));
+```
+
+</TabItem>
+</Tabs>
+
+La même instance `Router` soutient la [génération d’URL](../url-generation/) (`UrlGenerator` / `Url.route` / `route(...)` de premier niveau).
+
+## Route la plus simple
+
+Un handler est n’importe quel `Handler` (`Request → Response`). En Kotlin c’est en général une lambda finale ; en Java une lambda ou une référence de méthode :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/") { Response.text("home") }
+router.post("/echo") { request -> Response.json(request.all()) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/", request -> Response.text("home"));
+router.post("/echo", request -> Response.json(request.all()));
+```
+
+</TabItem>
+</Tabs>
+
+<a id="call-a-controller"></a>
+
+## Appeler un contrôleur
+
+La plupart des routes de production pointent vers une méthode de **contrôleur** au lieu d’une lambda en ligne. Un contrôleur est une classe ordinaire avec des méthodes qui prennent une `Request` et renvoient une `Response`. Vous n’**avez pas** à étendre `Controller` sauf si vous voulez les aides `validate` partagées — consultez [Contrôleurs](../controllers/).
+
+L’échafaudage par défaut branche une page d’accueil ainsi :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package routes
+
+import app.http.controllers.WelcomeController
+import org.konaframework.http.Router
+
+class WebRoutes {
+    fun register(router: Router) {
+        val welcome = WelcomeController()
+        router.get("/") { welcome.index(it) }.name("welcome")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package routes;
+
+import app.http.controllers.WelcomeController;
+import org.konaframework.http.Router;
+
+public final class WebRoutes {
+    public void register(Router router) {
+        WelcomeController welcome = new WelcomeController();
+        router.get("/", welcome::index).name("welcome");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Ce qui compte pour ce style :
+
+1. **Instanciez** le contrôleur (passez `Application` quand le contrôleur a besoin du conteneur ou de la config).
+2. **Liez** une méthode qui accepte `Request` et renvoie `Response` — Kotlin `{ welcome.index(it) }`, Java `welcome::index` — pour que l’IDE autocomplète et vérifie le type de l’action.
+3. **Nommez** éventuellement la route avec `.name("…")` pour pouvoir construire des URL plus tard.
+
+Générez un stub avec [`./grind make:controller Post`](../../grind/commands/#grind-makecontroller) (`--resource` écrit une sous-classe de `BaseResourceController`). Mettez la validation et la forme de la réponse dans le contrôleur ; gardez les fichiers de route comme la carte URL → action.
+
+## Déclarer des routes (verbes HTTP)
+
+Il y a une méthode d’enregistrement par méthode HTTP courante, plus deux formes générales :
+
+| Méthode | Correspond à |
+|--------|---------|
+| `get(uri, handler)` | `GET` (et `HEAD` par repli — consultez [HEAD, OPTIONS, 404 et 405](#head-options-404-and-405)) |
+| `post(uri, handler)` | `POST` |
+| `put(uri, handler)` | `PUT` |
+| `patch(uri, handler)` | `PATCH` |
+| `delete(uri, handler)` | `DELETE` |
+| `options(uri, handler)` | `OPTIONS` (surcharge le comportement OPTIONS automatique pour ce chemin) |
+| `any(uri, handler)` | Tous les `Router.VERBS` : `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
+| `match(methods, uri, handler)` | Chaque méthode dans `methods` (insensible à la casse ; stockée en majuscules, doublons retirés) |
+
+Chaque appel renvoie la nouvelle `Route`, donc vous pouvez enchaîner `.name(...)` et `.middleware(...)`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/") { Response.text("home") }.name("home")
+router.post("/users") { users.store(it) }
+router.put("/users/{id}") { users.update(it) }
+router.patch("/users/{id}") { users.patch(it) }
+router.delete("/users/{id}") { users.destroy(it) }
+router.options("/users") { Response.noContent().header("Allow", "GET,POST,OPTIONS") }
+router.match(listOf("PUT", "PATCH"), "/profile") { profile.update(it) }
+router.any("/health") { Response.text("ok") }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/", request -> Response.text("home")).name("home");
+router.post("/users", users::store);
+router.put("/users/{id}", users::update);
+router.patch("/users/{id}", users::patch);
+router.delete("/users/{id}", users::destroy);
+router.options("/users", request -> Response.noContent().header("Allow", "GET,POST,OPTIONS"));
+router.match(List.of("PUT", "PATCH"), "/profile", profile::update);
+router.any("/health", request -> Response.text("ok"));
+```
+
+</TabItem>
+</Tabs>
+
+`Router.VERBS` est une liste publique (`@JvmField`) des sept méthodes que `any` enregistre. Utilisez-la quand vous avez besoin du même ensemble vous-même.
+
+### Chemins et ordre de correspondance
+
+- Les barres obliques de début et de fin dans le chemin **enregistré** sont normalisées quand on joint des préfixes : `"users"`, `"/users"` et `"/users/"` deviennent tous `/users`.
+- Les chemins entrants sont normalisés avec `HttpPaths.normalize` : les `/` répétés s’effondrent, un `/` initial est assuré, et un `/` final est retiré (sauf pour `/` lui-même). Donc `/users/`, `//users` et `/users` correspondent tous au `/users` enregistré.
+- Le texte statique doit correspondre exactement et est **sensible à la casse**.
+- Les routes sont vérifiées **dans l’ordre d’enregistrement** ; la **première** correspondance l’emporte. Enregistrez les routes spécifiques avant les générales : `/users/me` doit venir avant `/users/{id}`, sinon `me` sera capturé comme un id.
+- Une route doit déclarer au moins une méthode HTTP ; construire une liste de méthodes vide lance `IllegalArgumentException`.
+
+<a id="path-parameters"></a>
+
+## Paramètres de chemin
+
+Un segment écrit `{name}` capture **un segment de chemin** (tout jusqu’au `/` suivant). Les noms de paramètres doivent commencer par une lettre ou un underscore et peuvent contenir des lettres, des chiffres et des underscores (`[a-zA-Z_][a-zA-Z0-9_]*`).
+
+Les valeurs capturées sont décodées en pourcent (`/files/a%20b` → `a b`). Un `+` littéral dans le chemin reste `+` (il n’est pas traité comme un espace). Si une valeur ne peut pas être décodée, le texte brut est utilisé. Les valeurs qui se décodent en incluant `/` (par exemple `%2F`) deviennent une seule valeur de paramètre contenant `/` — elles venaient encore d’un segment du chemin de requête.
+
+Il n’y a **pas** de paramètres optionnels (`{id?}`), **pas** de contraintes regex par paramètre, et **pas** de jokers catch-all `{path}` dans le routeur actuel. Enregistrez une seconde route quand un segment est optionnel, et vérifiez les formats dans le handler ou avec la [validation](../validation/).
+
+### Lire les paramètres
+
+Après une correspondance, le noyau stocke chaque valeur sur la requête à deux endroits :
+
+| Clé | Exemple |
+|-----|---------|
+| `name` | `request.route("id")` ou `request.getAttribute("id")` |
+| `route.name` | `request.getAttribute("route.id")` |
+
+Préférez `request.route(key)` — il renvoie un `String?` (ou un défaut) et transforme l’attribut en chaîne. Plus d’aides de requête : [Requête et réponse](../request-response/#route-parameters-requestroute).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/users/{id}/posts/{slug}") { request ->
+    val id = request.route("id")!!.toLong()
+    val slug = request.route("slug")!!
+    Response.json(mapOf("user" to id, "post" to slug))
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/users/{id}/posts/{slug}", request -> {
+    long id = Long.parseLong(request.route("id"));
+    String slug = request.route("slug");
+    return Response.json(Map.of("user", id, "post", slug));
+});
+```
+
+</TabItem>
+</Tabs>
+
+Les valeurs sont toujours des chaînes du chemin — convertissez-les vous-même (`toLong()`, `UUID.fromString`, et ainsi de suite). Les clés manquantes renvoient `null` depuis `route(key)` (ou votre défaut fourni).
+
+<a id="resource-routes"></a>
+
+## Routes de ressource
+
+Une **ressource** est une collection d’enregistrements exposée sur un ensemble conventionnel d’URL. `resource(name, controller)` enregistre l’ensemble complet (y compris les routes de formulaire HTML) contre un `ResourceController` :
+
+| Méthode(s) | Chemin | Méthode de contrôleur | Nom de route |
+|-----------|------|-------------------|------------|
+| `GET` | `/posts` | `index` | `posts.index` |
+| `GET` | `/posts/create` | `create` | `posts.create` |
+| `POST` | `/posts` | `store` | `posts.store` |
+| `GET` | `/posts/{id}` | `show` | `posts.show` |
+| `GET` | `/posts/{id}/edit` | `edit` | `posts.edit` |
+| `PUT`, `PATCH` | `/posts/{id}` | `update` | `posts.update` |
+| `DELETE` | `/posts/{id}` | `destroy` | `posts.destroy` |
+
+L’ordre d’enregistrement correspond au tableau : `create` est enregistré **avant** `show`, donc `/posts/create` n’est jamais capturé comme `{id}=create`.
+
+<a id="api-resource-routes"></a>
+
+### Routes de ressource API
+
+`apiResource(name, controller)` enregistre la même carte **sans** `create` / `edit` — la forme habituelle pour les API JSON :
+
+| Méthode(s) | Chemin | Méthode de contrôleur | Nom de route |
+|-----------|------|-------------------|------------|
+| `GET` | `/posts` | `index` | `posts.index` |
+| `POST` | `/posts` | `store` | `posts.store` |
+| `GET` | `/posts/{id}` | `show` | `posts.show` |
+| `PUT`, `PATCH` | `/posts/{id}` | `update` | `posts.update` |
+| `DELETE` | `/posts/{id}` | `destroy` | `posts.destroy` |
+
+:::caution[Ressource API et `/resource/create`]
+Parce que `apiResource` n’enregistre pas `create`, une requête vers `GET /posts/create` correspond à `show` avec `id` égal à `"create"`. Utilisez `resource(...)` quand vous avez besoin d’URL HTML create/edit, ou réservez ce chemin vous-même avant l’enregistrement de la ressource.
+:::
+
+### Filtrer les actions : `only` et `except`
+
+`resource` et `apiResource` acceptent tous les deux des collections optionnelles `only` / `except` de noms d’action (`index`, `create`, `store`, `show`, `edit`, `update`, `destroy`). Les noms sont comparés sans tenir compte de la casse.
+
+- **`only`** — ne garder que ces actions.
+- **`except`** — écarter ces actions.
+- Si les deux sont réglés, `only` est appliqué d’abord, puis `except`.
+
+Passez une **instance** de votre `ResourceController` (construisez-la vous-même, ou résolvez-la depuis le conteneur et passez l’instance). Les chemins et les noms respectent le groupe environnant, donc dans un groupe avec préfixe `/api` et nom `api.`, vous obtenez `/api/posts` et `api.posts.index`. Passez le nom de ressource **sans** barre oblique initiale.
+
+Implémentez chaque action vous-même, ou étendez `BaseResourceController` et ne surchargez que celles dont vous avez besoin — les actions non implémentées lancent `NotFoundException` (HTTP 404). Détails : [Contrôleurs → Contrôleurs de ressource](../controllers/#resource-controllers).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class PostController : BaseResourceController() {
+    override fun index(request: Request) = Response.json(posts.all())
+    override fun show(request: Request) =
+        Response.json(posts.find(request.route("id")!!))
+    override fun store(request: Request) =
+        Response.json(posts.create(request.data()), 201)
+    override fun update(request: Request) =
+        Response.json(posts.update(request.route("id")!!, request.data()))
+    override fun destroy(request: Request): Response {
+        posts.delete(request.route("id")!!)
+        return Response.noContent()
+    }
+}
+
+router.resource("posts", PostController())
+router.apiResource("posts", PostController())
+router.apiResource("notes", NotesController(), only = listOf("index", "show"))
+router.apiResource("things", ThingsController(), except = listOf("destroy"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class PostController extends BaseResourceController {
+    @Override public Response index(Request request) { return Response.json(posts.all()); }
+    @Override public Response show(Request request) {
+        return Response.json(posts.find(request.route("id")));
+    }
+    @Override public Response store(Request request) {
+        return Response.json(posts.create(request.data()), 201);
+    }
+    @Override public Response update(Request request) {
+        return Response.json(posts.update(request.route("id"), request.data()));
+    }
+    @Override public Response destroy(Request request) {
+        posts.delete(request.route("id"));
+        return Response.noContent();
+    }
+}
+
+router.resource("posts", new PostController());
+router.apiResource("posts", new PostController());
+// only, except — pass null for the filter you do not use
+router.apiResource("notes", new NotesController(), List.of("index", "show"), null);
+router.apiResource("things", new ThingsController(), null, List.of("destroy"));
+```
+
+</TabItem>
+</Tabs>
+
+Quand vous omettez une action avec `only` / `except`, le chemin peut encore exister sous une autre méthode. Exemple : `resource(..., only = listOf("index", "show"))` enregistre encore `GET /items`, donc `POST /items` renvoie **405** (méthode non autorisée), pas 404.
+
+Associez les charges utiles JSON avec les [Ressources API](../api-resources/).
+
+## Groupes
+
+Un **groupe** applique des réglages partagés à chaque route déclarée à l’intérieur :
+
+- **prefix** — préfixé à chaque chemin (`/api` + `/me` → `/api/me`),
+- **name** — préfixé à chaque nom de route (`api.` + `me` → `api.me`),
+- **middleware** — s’exécute avant le propre middleware de chaque route.
+
+Le `ApiRoutes` de l’échafaudage est un groupe typique :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.") {
+    get("/health") { Response.json(mapOf("status" to "ok")) }.name("health")
+    // Full path /api/health, name api.health
+
+    apiResource("pings", PingApiController())
+    // /api/pings, names api.pings.index, …
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").group(api -> {
+    api.get("/health", request -> Response.json(Map.of("status", "ok"))).name("health");
+    api.apiResource("pings", new PingApiController());
+});
+```
+
+</TabItem>
+</Tabs>
+
+### Groupes imbriqués et middleware
+
+Les groupes intérieurs s’ajoutent aux extérieurs : les préfixes se joignent avec `/`, les préfixes de nom se concatènent, et les listes de middleware s’ajoutent (extérieur d’abord). Les réglages de groupe sont capturés quand chaque route est enregistrée, et ils se terminent quand le bloc du groupe revient — même si le bloc lance (la pile précédente de préfixe / nom / middleware est restaurée).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.", middleware = listOf(Authenticate())) {
+    get("/me") { Response.json(mapOf("user" to it.getAttribute("user"))) }.name("me")
+
+    group(prefix = "/admin", name = "admin.", middleware = listOf(RequireAdmin())) {
+        get("/stats") { Response.json(stats()) }.name("stats")
+        // /api/admin/stats, name api.admin.stats
+    }
+}
+```
+
+`router.routes { … }` est une petite aide qui exécute un bloc avec le routeur comme `this`, utile pour garder les fichiers de route nets.
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").middleware(new Authenticate()).group(api -> {
+    api.get("/me", request -> Response.json(Map.of("user", request.getAttribute("user")))).name("me");
+
+    api.prefix("/admin").name("admin.").middleware(new RequireAdmin()).group(admin ->
+        admin.get("/stats", request -> Response.json(stats())).name("stats"));
+});
+```
+
+Ou passez les réglages en positionnel :
+
+```java
+router.group("/v1", v1 -> v1.get("/ping", request -> Response.text("pong")));
+router.group("/v2", List.of(new Authenticate()), v2 -> { /* ... */ });
+router.group("/v3", "v3.", List.of(new Authenticate()), v3 -> { /* ... */ });
+```
+
+`middleware(...)` sur le builder fluide accepte soit plusieurs arguments middleware, soit une `List`.
+
+</TabItem>
+</Tabs>
+
+<a id="middleware-on-a-route"></a>
+
+## Middleware sur une route
+
+Attachez du middleware à une route avec `.middleware(...)`. Le middleware de route s’exécute **après** tout middleware de groupe pour cette route. Les piles globales (session, CSRF, et ainsi de suite) sont configurées dans `bootstrap.Middleware` et appliquées au noyau — elles enveloppent entièrement le routage, donc elles voient encore les réponses 404/405. Consultez [Middleware](../middleware/).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.post("/webhooks/stripe") { stripe.handle(it) }
+    .middleware(VerifyStripeSignature())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.post("/webhooks/stripe", stripe::handle)
+    .middleware(new VerifyStripeSignature());
+```
+
+</TabItem>
+</Tabs>
+
+<a id="named-routes-and-url-generation"></a>
+
+## Routes nommées et génération d’URL
+
+`.name("…")` donne un nom à une route pour que vous puissiez construire son URL plus tard sans coder le chemin en dur. Les préfixes de nom de groupe s’appliquent automatiquement (`api.` + `health` → `api.health`). Les actions de ressource se nomment `{resource}.{action}`.
+
+### Chemin depuis le routeur
+
+`router.route(name, params)` renvoie le **chemin** avec chaque `{key}` remplacé par la valeur correspondante :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/users/{id}") { users.show(it) }.name("users.show")
+
+val path = router.route("users.show", mapOf("id" to "42"))   // "/users/42"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/users/{id}", users::show).name("users.show");
+
+String path = router.route("users.show", Map.of("id", "42"));  // "/users/42"
+```
+
+</TabItem>
+</Tabs>
+
+Règles :
+
+- Les valeurs sont insérées telles quelles — elles ne sont **pas** encodées en pourcent. Encodez-les d’abord si elles peuvent contenir `/`, des espaces, ou d’autres caractères réservés.
+- Les placeholders sans valeur restent dans la sortie comme `{key}`.
+- Un nom inconnu lance `IllegalArgumentException("Route [name] not defined")`.
+- Si deux routes partagent un nom, la **première** enregistrée est utilisée.
+
+### URL absolues et aides
+
+Avec `HttpServiceProvider` démarré, préférez :
+
+| Aide | Résultat |
+|--------|--------|
+| `Url.route(name, params)` / `route(name, params)` de premier niveau Kotlin | URL absolue ou enracinée via `UrlGenerator` (racine `app.url`) |
+| `Url.to(path)` / `url(path)` | Joint un chemin sur la racine configurée |
+| `UrlGenerator.signedRoute(...)` | Route nommée signée — consultez [Génération d’URL](../url-generation/) |
+
+```kotlin
+Response.redirect(route("users.show", mapOf("id" to "42")))
+```
+
+## Redirections depuis les handlers
+
+Le routeur n’a **pas** d’aide d’enregistrement `redirect(...)`. Redirigez en renvoyant une réponse de redirection depuis le handler (ou le contrôleur) :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/home") { Response.redirect("/") }                    // 302 + Location
+router.get("/old") { Response.redirect("/new", 301) }
+router.post("/login") { request ->
+    // … authenticate …
+    Response.redirect(route("dashboard"))
+}
+router.get("/back") { request -> Response.back(request) }         // previous / Referer / "/"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/home", request -> Response.redirect("/"));
+router.get("/old", request -> Response.redirect("/new", 301));
+router.post("/login", request -> Response.redirect(Url.route("dashboard")));
+router.get("/back", request -> Response.back(request));
+```
+
+</TabItem>
+</Tabs>
+
+`Response.back(request, fallback, status)` utilise `_previous.url` de la session, puis l’en-tête `Referer`, puis `fallback` (défaut `/`). Les aides flash (`with`, `withInput`, `withErrors`) s’associent au middleware de session — consultez [Requête et réponse](../request-response/).
+
+## Contrôleurs invocables
+
+Quand une route a une seule action, implémentez `InvokableController` et enregistrez-le comme handler :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val ping = InvokableController { Response.text("pong") }
+router.get("/ping", ping.asHandler()).name("ping")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+InvokableController ping = request -> Response.text("pong");
+router.get("/ping", Controllers.asHandler(ping)).name("ping");
+```
+
+</TabItem>
+</Tabs>
+
+Plus de motifs (form requests, `Controller.validate`) sont sur [Contrôleurs](../controllers/#invokable-controllers).
+
+<a id="head-options-404-and-405"></a>
+
+## HEAD, OPTIONS, 404 et 405
+
+Ces règles viennent de `Router.find` / `Router.resolve` et du noyau HTTP :
+
+| Requête | Ce qui se passe |
+|---------|--------------|
+| `HEAD /path`, et seul `GET` est enregistré | La route `GET` s’exécute (y compris son middleware). Le noyau efface ensuite le corps ; statut et en-têtes sont gardés. Une route `HEAD` explicite (via `match` ou `any`), si elle est enregistrée en premier, l’emporte. |
+| `OPTIONS /path`, aucune route n’accepte `OPTIONS`, mais le chemin existe sous d’autres méthodes | `200` automatique avec un corps vide et un en-tête `Allow` qui liste les méthodes enregistrées pour ce chemin, dans l’ordre d’enregistrement, séparées par des virgules **sans espaces** (par exemple `GET,HEAD,POST`). Le middleware de route ne s’exécute **pas**. |
+| `options(uri, handler)` explicite pour ce chemin | Votre handler s’exécute (la première correspondance l’emporte encore parmi les routes OPTIONS). |
+| Le chemin existe, la méthode n’est pas enregistrée | `MethodNotAllowedException` → **405** avec un en-tête `Allow` (méthodes jointes par `", "` — notez les espaces) et une enveloppe JSON ou HTML du handler d’exception. |
+| Aucune route ne correspond au chemin | `NotFoundException` → **404**. Le message de résolution ressemble à `The route users/99 could not be found.` |
+
+Tout enregistrement `GET` implique `HEAD` dans la liste `Allow` de `allowedMethods` / 405 / OPTIONS automatique.
+
+Le middleware global enveloppe encore les réponses 404 et 405 ; le middleware de **route** ne s’exécute jamais quand aucune route n’a été sélectionnée. Consultez [Exceptions](../exceptions/) pour la forme de l’enveloppe (`Accept: text/html` peut rendre une petite page HTML au lieu de JSON).
+
+## Inspecter et résoudre des routes
+
+| API | Comportement |
+|-----|----------|
+| `router.all()` | Liste instantanée de chaque `Route` enregistrée |
+| `router.find(method, path)` | Premier `MatchResult` (route + carte de paramètres), ou `null` ; HEAD retombe sur GET ; ne **lance pas** |
+| `router.resolve(method, path)` | Comme `find`, mais lance 404/405 ou renvoie la correspondance OPTIONS synthétique |
+| `router.allowedMethods(path)` | Méthodes enregistrées pour ce chemin (`GET` implique `HEAD` dans la liste) |
+| `router.route(name, params)` | Construire un chemin depuis une route nommée |
+
+Chaque `Route` expose `methods`, `method` (premier déclaré), `uri`, `name`, `middleware`, plus `match` / `matchPath` / `uriFor` pour un usage avancé. `MatchResult` est une data class : `route` + `parameters`. Les commandes grind ci-dessous lisent cette même liste.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.all().forEach { route ->
+    println("${route.methods} ${route.uri} ${route.name ?: ""}")
+}
+
+val match = router.find("GET", "/users/42")
+if (match != null) {
+    println(match.parameters["id"]) // "42"
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+for (Route route : router.all()) {
+    System.out.println(route.getMethods() + " " + route.getUri() + " " + route.getName());
+}
+
+MatchResult match = router.find("GET", "/users/42");
+if (match != null) {
+    System.out.println(match.getParameters().get("id")); // "42"
+}
+```
+
+</TabItem>
+</Tabs>
+
+<a id="listing-routes-with-grind"></a>
+
+## Lister les routes avec grind
+
+Depuis un répertoire d’application (après `./gradlew classes`) :
+
+```bash
+./grind route:list
+./grind route:list --json
+./grind route:list --method=GET --name=users
+./grind route:list --path=/api --except-path=/api/internal
+./grind route:cache
+./grind route:clear
+```
+
+`route:list` démarre votre application dans le processus et imprime le `Router` vivant comme un tableau : **Method**, **URI**, **Name**, **Action**, **Middleware**. Les lambdas s’affichent comme `Closure` ; les classes `Handler` nommées montrent leur nom pleinement qualifié. Les routes `GET` se listent comme `GET` (HEAD leur correspond encore à l’exécution — voir le tableau ci-dessus). Les routes multi-méthodes telles que `update` de ressource impriment `PUT|PATCH`.
+
+Filtres utiles : `--method=`, `--name=`, `--path=`, `--except-path=`, `--except-vendor`, `--only-vendor`, `--compact`, `--columns=`, `--sort=`, `--reverse`, `--json`. Référence complète des drapeaux : [Commandes intégrées — route:list](../../grind/commands/#grind-routelist).
+
+`route:cache` écrit `bootstrap/cache/routes.json` (un instantané de ce tableau). Le noyau HTTP ne charge pas le fichier ; l’enregistrement de routes compilé s’exécute déjà à chaque boot. `route:clear` supprime l’instantané.
+
+Si grind ne peut pas trouver un projet Gradle, ou que l’application démarrée n’a pas de `Router` dans le conteneur, la commande sort `1`. Zéro route correspondante est encore une sortie `0` (un avertissement, ou `[]` avec `--json`).
+
+## Tester les routes
+
+Utilisez `HttpTestClient` de `org.konaframework:kona-testing` contre une application démarrée. Il résout `HttpKernel` et exécute les requêtes dans le processus (pas de socket) :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val router = app.resolve(Router::class.java)
+router.get("/ping") { Response.json(mapOf("ok" to true)) }
+router.get("/users/{id}") { request ->
+    Response.json(mapOf("id" to request.route("id")))
+}.name("users.show")
+
+val http = HttpTestClient(app)
+http.get("/ping").assertOk().assertJsonContains("ok")
+http.get("/users/7").assertOk().assertJsonContains("\"id\":\"7\"")
+http.get("/missing").assertStatus(404)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Router router = app.resolve(Router.class);
+router.get("/ping", request -> Response.json(Map.of("ok", true)));
+
+new HttpTestClient(app).get("/ping").assertOk().assertJsonContains("ok");
+```
+
+</TabItem>
+</Tabs>
+
+Enregistrez les routes avant d’appeler le client. Plus d’assertions et de tests console vivent sous [Tests HTTP et console](../../testing/http-console/).
+
+## Cas d’usage courants
+
+### Séparer les tables web et API
+
+Gardez les routes navigateur et les routes JSON dans des classes séparées, partagez un `Router` :
+
+```kotlin
+WebRoutes().register(router)
+ApiRoutes().register(router) // typically group(prefix = "/api", name = "api.") { … }
+```
+
+### Préfixe d’API versionnée
+
+```kotlin
+router.group(prefix = "/api/v1", name = "api.v1.") {
+    apiResource("orders", OrderApiController())
+}
+```
+
+### Protéger un sous-ensemble de routes
+
+```kotlin
+router.group(middleware = listOf(Authenticate())) {
+    get("/settings") { settings.edit(it) }.name("settings.edit")
+    post("/settings") { settings.update(it) }.name("settings.update")
+}
+```
+
+### Segment optionnel via deux routes
+
+```kotlin
+router.get("/docs") { docs.index(it) }.name("docs.index")
+router.get("/docs/{page}") { docs.show(it) }.name("docs.show")
+```
+
+### Rediriger d’anciennes URL
+
+```kotlin
+router.get("/blog/{slug}") { request ->
+    Response.redirect(route("posts.show", mapOf("id" to request.route("slug")!!)), 301)
+}
+```
+
+## Référence d’API (types de routage)
+
+### `Router`
+
+| Membre | Rôle |
+|--------|------|
+| `get` / `post` / `put` / `patch` / `delete` / `options` | Enregistrer une méthode |
+| `any` / `match` | Enregistrer plusieurs méthodes |
+| `resource` / `apiResource` | Cartes CRUD conventionnelles (`only` / `except` optionnels) |
+| `group(...)` | DSL Kotlin ou surcharges `Consumer` Java |
+| `prefix` / `name` / `middleware` | Démarrer un `RouteGroup` fluide Java |
+| `routes { }` | Bloc Kotlin avec le routeur comme récepteur |
+| `all` / `find` / `resolve` / `allowedMethods` / `route` | Inspection et chemins nommés |
+| `VERBS` | `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` |
+
+### `Route`
+
+| Membre | Rôle |
+|--------|------|
+| `methods` / `method` | Verbes déclarés / premier verbe |
+| `uri` | Motif de chemin complet (après le préfixe de groupe) |
+| `name` / `name(value)` | Nom optionnel (espace de noms de groupe appliqué dans `name(...)`) |
+| `middleware` / `middleware(...)` | Liste de middleware de groupe + route |
+| `action` | `Handler` |
+| `match` / `matchPath` / `uriFor` | Correspondance et construction de chemin |
+
+### `RouteGroup` (Java fluide)
+
+Enchaînez `prefix`, `name`, `middleware` (vararg ou `List`), puis `group(Consumer)`.
+
+### `MatchResult`
+
+`route: Route`, `parameters: Map<String, String>` (ordonné par apparition dans le motif).
+
+### `ResourceController` / `BaseResourceController`
+
+Sept actions : `index`, `create`, `store`, `show`, `edit`, `update`, `destroy`. `BaseResourceController` lance `NotFoundException` pour toute action que vous ne surchargez pas.
+
+### `Handler` / `InvokableController`
+
+`Handler.handle(Request): Response`. `InvokableController.invoke` s’adapte via `asHandler()` / `Controllers.asHandler`.
+
+## Pièges et FAQ
+
+**Pourquoi `/users/me` tombe-t-il sur `{id}` ?**
+Ordre d’enregistrement. Mettez les segments statiques avant les paramétrés.
+
+**Pourquoi `POST /items` est-il un 405 après `only = listOf("index", "show")` ?**
+Le chemin correspond encore à une route `GET` enregistrée, donc le routeur signale méthode non autorisée au lieu de non trouvé.
+
+**Pourquoi `GET /api/posts/create` appelle-t-il `show` ?**
+`apiResource` n’a pas d’action `create`. Utilisez le `resource` complet ou enregistrez une route explicite d’abord.
+
+**Les formulaires HTML usurpent-ils PUT/PATCH/DELETE ?**
+La directive `@method` de Crema émet un champ caché `_method` pour les modèles, mais le noyau HTTP et le routeur correspondent à la méthode de requête **réelle** aujourd’hui. Les clients qui ne peuvent pas envoyer `PUT`/`PATCH`/`DELETE` ont besoin d’une vraie méthode (ou d’une route `POST` dédiée). Consultez [Formulaires Crema](../../crema/forms/#method-spoofing-method).
+
+**Y a-t-il des routes de repli / catch-all ?**
+Pas comme API dédiée. Enregistrez une route paramétrée large en dernier si vous avez besoin d’un handler de page 404 personnalisé — ou personnalisez le [handler d’exception](../exceptions/).
+
+**Puis-je contraindre `{id}` à des chiffres ?**
+Pas dans le routeur. Validez dans le handler ou avec des règles de [validation](../validation/).
+
+**Dois-je muter le routeur à l’exécution ?**
+Non. Enregistrez pendant le boot, puis servez.
+
+## Ce qui n’est pas dans le routeur (aujourd’hui)
+
+Documenté ici pour que vous ne cherchiez pas des API manquantes :
+
+- Paramètres de chemin optionnels et contraintes regex/where
+- Routage de domaine / sous-domaine
+- Aides d’enregistrement `fallback()` / catch-all
+- Macros de route `redirect()` / `view()` (utilisez des réponses de handler à la place)
+- Surcharge automatique de `_method` pour les envois de formulaire (Crema peut émettre le champ ; le routage l’ignore — [Formulaires Crema](../../crema/forms/#method-spoofing-method))
+
+## Étapes suivantes
+
+- Organisez les actions dans [Contrôleurs](../controllers/) (validation, form requests, bases de ressource).
+- Enveloppez les routes avec [Middleware](../middleware/).
+- Lisez et écrivez des charges utiles dans [Requête et réponse](../request-response/).
+- Validez l’entrée dans [Validation](../validation/).
+- Construisez des liens absolus et signés avec [Génération d’URL](../url-generation/).
+- Voyez comment le noyau sélectionne une route dans [Noyau et serveur](../kernel-server/).
+- Exercez les routes avec [Tests HTTP et console](../../testing/http-console/).

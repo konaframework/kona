@@ -1,0 +1,47 @@
+---
+title: Middleware
+description: Cycle de vie de HandleInertiaRequests, surcharge de version et alias InertiaMiddleware.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`HandleInertiaRequests` (alias de type `InertiaMiddleware`) doit être sur le kernel HTTP pour toutes les routes Inertia.
+
+## Cycle de vie
+
+1. Résoudre `Inertia.manager()` (exige un `InertiaServiceProvider` démarré)
+2. `setRequest(request)`
+3. Appliquer `share(request)` → `shareForRequest`
+4. `version(request)` optionnel → met à jour `manager.version`
+5. Si `versionConflict(request)` → renvoyer un `409` décoré
+6. Sinon `decorate(next.handle(request))`
+7. `finally` → `setRequest(null)` (efface les props partagées de la requête)
+
+## Surcharges
+
+| Méthode | Défaut | Rôle |
+|--------|---------|---------|
+| `share(request)` | map vide | Props par requête |
+| `version(request)` | `null` (garde la version du manager) | Version d’assets dynamique |
+
+## Enregistrement
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+app.resolve(HttpKernel::class.java).pushMiddleware(HandleInertia())
+// or alias via HttpMiddleware if you use the web stack
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+app.resolve(HttpKernel.class).pushMiddleware(new HandleInertia());
+```
+
+</TabItem>
+</Tabs>
+
+Poussez **après** le démarrage de `InertiaServiceProvider`, afin que le manager de la façade soit défini.

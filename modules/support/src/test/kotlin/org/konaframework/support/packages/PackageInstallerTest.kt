@@ -110,6 +110,10 @@ class PackageInstallerTest {
         assertTrue(PackageCatalog.aliases().contains("wire"))
         assertTrue(PackageCatalog.aliases().contains("brew"))
         assertEquals("org.konaframework", PackageCatalog.find("inertia")!!.group)
+        assertEquals(
+            listOf("org.konaframework.firefly.FireflyServiceProvider"),
+            PackageCatalog.find("firefly")!!.providers,
+        )
         assertEquals(null, PackageCatalog.find("missing"))
     }
 

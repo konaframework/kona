@@ -28,7 +28,7 @@ Nesting stops at level 3. A fourth level fails when the panel mounts, and the me
 
 The samples never call `item`. Discovery therefore builds:
 
-- A link for each page. The label is `navigationLabel()`, which is the slug. Desk’s link text is `desk`. The URL is `/admin/desk`.
+- A link for each page. The label is `navigationLabel()`, which is the slug. Desk’s link text is `desk`. The URL is `/admin/desk` because that panel calls `path("admin")`. When `path` is omitted, the same page is `/{id}/desk`.
 - A cluster per resource. The label is `Resource.label()` (`Notes`, `Orders`). Each page of that resource is a child. The child label is the page slug: `manage` on notes, and `list`, `create`, `edit`, `view` on orders.
 
 Set `label` on a `NavigationItem` when you build the tree yourself and want a word instead of a slug.

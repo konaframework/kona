@@ -1,0 +1,242 @@
+---
+title: Tableaux
+description: Passez des lignes à Table.memory ou un modèle Cadence à Table.cadence, nommez les colonnes et rendez la liste. La page notes montre une ligne, Ada.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Nommez les colonnes, pointez le tableau vers les lignes et appelez `render()`. Vous obtenez la boîte de recherche, le tri, les filtres et les pages dans ce HTML.
+
+Utilisez `Table.memory` lorsque les lignes sont déjà dans votre main. Les exemples hello font cela : une ligne, Ada, donc l’écran se rend avant une migration. Utilisez `Table.cadence` lorsque les lignes sont un modèle Cadence et que vous voulez `where` et `whereHas` sur la requête de ce modèle.
+
+Les types vivent dans `org.konaframework.firefly.tables` (`kona-firefly-tables`). Sur la page notes le tableau est `Table.memory(...).columns(TextColumn.make("name"))` dans `app/firefly/resources/NoteResource`.
+
+<FireflyShot file="notes-table.png" description="Le tableau des notes à http://127.0.0.1:4017/admin/notes/manage, avec la ligne Ada dans la colonne name." />
+
+## Rendre un tableau
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val table = Table.memory(
+    listOf(
+        mapOf("id" to "1", "name" to "Ada", "score" to 2),
+        mapOf("id" to "2", "name" to "Bea", "score" to 4),
+    ),
+).columns(
+    TextColumn.make("name").label("Name").searchable(true).sortable(true),
+    TextColumn.make("score").money().summarize(Summary.SUM),
+)
+table.search("ada").sort("name").page(1).perPage(10)
+val html = table.render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Map<String, Object> ada = new LinkedHashMap<>();
+ada.put("id", "1");
+ada.put("name", "Ada");
+ada.put("score", 2);
+Table<Map<String, Object>, MemoryQuery> table = Table.memory(List.of(ada));
+table.columns(
+    TextColumn.make("name").label(cell -> "Name").sortable(true).searchable(true),
+    TextColumn.make("score").money().summarize(Summary.SUM)
+);
+table.search("ada").sort("name", "asc").page(1);
+String html = table.render();
+```
+
+</TabItem>
+</Tabs>
+
+`Table.memory` garde les lignes dans une requête en mémoire. `columns(...)` remplace la liste de colonnes. `search`, `sort`, `page` et `perPage` restreignent ce que `load()` et `render()` renvoient. La recherche correspond aux colonnes que vous avez marquées `searchable(true)`. Le tri accepte `asc` ou `desc` sur une colonne que vous avez marquée `sortable(true)`. Vous voyez la ligne Ada lorsque la recherche est `ada`.
+
+`load()` renvoie la page courante, le total, les résumés et les groupes. `render()` renvoie la même page en HTML. Une page vide utilise le titre de `empty("No records")` et le texte de `emptyDescription(...)`. Les deux acceptent une chaîne fixe ou une fermeture.
+
+## Choisir d’où viennent les lignes
+
+Utilisez `Table.memory` lorsque les enregistrements sont déjà une liste de maps. `modifyQueryUsing` reçoit une `MemoryQuery`. Cette requête filtre, trie, cherche et pagine la liste.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+table.modifyQueryUsing { query ->
+    query.where("name", "!=", "hidden")
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.modifyQueryUsing(query -> query.where("name", "!=", "hidden"));
+```
+
+</TabItem>
+</Tabs>
+
+Utilisez `Table.cadence(Customer::class.java)` lorsque les enregistrements sont un modèle Cadence. `modifyQueryUsing` reçoit le `ModelBuilder` de ce modèle. `where`, `whereHas`, `join`, `with` et `scope` s’exécutent sur la requête du modèle.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val table = Table.cadence(Customer::class.java)
+table.modifyQueryUsing { query ->
+    query.where("active", true)
+        .whereHas("orders") { orders -> orders.where("total", ">", 0) }
+        .with("orders")
+        .scope { builder -> builder.where("active", true) }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Table<Customer, ModelBuilder<Customer>> table = Table.cadence(Customer.class);
+table.modifyQueryUsing(query -> query
+    .where("active", true)
+    .with("orders")
+    .whereHas("orders", orders -> orders.where("total", ">", 0))
+);
+```
+
+</TabItem>
+</Tabs>
+
+`relationship(Account.class)` construit une requête d’options liées. Passez une fermeture lorsque cette requête a besoin de son propre `where` ou `whereHas`.
+
+`extraAttributes` sur une colonne fusionne des attributs HTML sur la racine de colonne. Une map ou une fermeture qui reçoit la cellule fonctionnent toutes deux. `extraInputAttributes` fait de même pour une colonne ou un filtre qui rend son propre input ou select. `type`, `name` et `value` restent possédés par ce contrôle.
+
+Une liste que vous tenez en mémoire reste sur `MemoryQuery`. Un modèle Cadence reste sur `ModelBuilder`. Un modèle document échoue, et le message nomme `kona-firefly-document`. Ce module ne fait pas partie de cette version. Tout autre type échoue et vous dit d’utiliser `Table.memory` pour des lignes personnalisées.
+
+## Choisir une colonne
+
+| Type | Ce que vous appelez |
+|------|----------------|
+| `TextColumn.make(name)` | Texte, argent ou une date. `badge`, `limit`, `html`, `url`, `icon`, `color`, `prefix`, `suffix`, `placeholder` |
+| `IconColumn.make(name)` | Une icône pour un état vrai ou faux |
+| `ImageColumn.make(name)` | Une image avec `alt`, `imageHeight` et `imageWidth` |
+| `ColorColumn.make(name)` | Une pastille de couleur |
+| `CheckboxColumn.make(name)` | Une case liée à la ligne |
+| `ToggleColumn.make(name)` | Un interrupteur qui appelle `$wire.$call('toggleColumn', ...)` |
+| `SelectColumn.make(name)` | Un select qui appelle `$wire.$call('setColumn', ...)` |
+
+`searchable(true)` inclut la colonne dans la recherche. `sortable(true)` autorise `sort(name)`. `toggleable(true)` laisse l’appelant cacher la colonne. `hidden(true)` et `visible(false)` la laissent hors du rendu. `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN` et `MAX` ajoutent une valeur de pied.
+
+`formatStateUsing` reçoit l’état de cellule et une `Cell`. `Cell.get` lit un chemin. Un chemin qui commence par `/` est absolu.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextColumn.make("name")
+    .label { cell ->
+        if (cell.get("/kind") == "org") "Organization" else "Name"
+    }
+    .extraAttributes(mapOf("data-col" to "name"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextColumn.make("name").label(cell -> "Name").extraAttributes(Map.of("data-col", "name"));
+```
+
+</TabItem>
+</Tabs>
+
+`money()` formate un nombre en dollars et cents. `date()` formate une date, un instant ou un horodatage. `align(Align.END)` pose l’alignement de colonne.
+
+Chaque colonne rend `x-data="ffColumn('name', true)"` et `@entangle(name)`.
+
+`./grind make:firefly-column Name` écrit une classe de colonne et une vue Crema sous `app/firefly/columns`. `--lang=java` écrit du Java. La vue utilise `ffColumn`, `@entangle` et `$wire.$call`. Référencez la classe depuis le tableau. `discover` ne scanne pas `columns/`.
+
+## Ajouter un filtre
+
+`filters(...)` remplace la liste de filtres. `filter(name, value)` en applique un. Une valeur vide l’efface.
+
+| Type | Ce que vous appelez |
+|------|----------------|
+| `Filter.make(name)` | Correspond à un attribut. `attribute` et `operator` choisissent la colonne et la comparaison |
+| `SelectFilter.make(name)` | Un select d’options. `options(map)` ou `options { cell -> map }` |
+| `TernaryFilter.make(name)` | `true`, `false` ou `blank` |
+| `TrashedFilter.make()` | `with`, `only`, ou le défaut qui cache les lignes à la corbeille |
+
+`default("open")` stocke une valeur fixe. `defaultUsing { "Ada" }` stocke une fermeture qui s’exécute lorsque le filtre lit son défaut.
+
+`query { query, value -> ... }` reçoit la requête native du tableau et la valeur de filtre courante. Sur un tableau mémoire cette requête est `MemoryQuery`. Sur un tableau Cadence c’est `ModelBuilder`. `extraInputAttributes` atterrit sur l’input ou le select du filtre.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Filter.make("name").query { query, value ->
+    (query as MemoryQuery).where("name", value)
+}.extraInputAttributes(mapOf("data-filter" to "name"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Filter.make("name").query((query, value) -> {
+    ((MemoryQuery) query).where("name", value);
+}).extraInputAttributes(Map.of("data-filter", "name"));
+```
+
+</TabItem>
+</Tabs>
+
+`./grind make:firefly-filter Status` écrit une classe de filtre et une vue Crema sous `app/firefly/filters`. `--lang=java` écrit du Java.
+
+## Paginer, sélectionner, grouper et disposer les lignes
+
+`paginated(true)` est le défaut. `page(1)` et `perPage(10)` choisissent la fenêtre. `pageOptions(10, 25)` liste les tailles de page dans le HTML. Les numéros de page commencent à 1.
+
+`selectable(true)` ajoute une case sur chaque ligne. `select(key)` bascule cette clé. `selected()` renvoie les clés. Sélectionner à nouveau chaque clé de la page courante efface ces clés.
+
+`groups(TableGroup.make("status"))` et `groupedBy("status")` découpent la page en groupes. `label("Status")` ou `label { cell -> ... }` pose le titre du groupe.
+
+`reorderable("score")` puis `move(key, index)` écrit le nouvel ordre dans cet attribut.
+
+`layout(TableLayout.ROWS)` est le tableau. `TableLayout.STACK` et `TableLayout.GRID` rendent les mêmes enregistrements comme des cartes. `poll("10s")` ou `poll("500ms")` ajoute `wire:poll` sur la racine.
+
+## Mettre un bouton sur l’en-tête ou la ligne
+
+Un bouton se rend à travers `Dialog` et peut inclure un schéma. `label("Export")` et `label { cell -> "Edit ${cell.get("name")}" }` posent le texte. `modal()`, `slideOver()` et `fullscreen()` choisissent le dialogue. `schema(Text.make("Go"))` est le corps du dialogue. `url("https://example.test")` rend un lien. `requiresSelection(true)` désactive le bouton tant qu’aucune ligne n’est sélectionnée.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+table.headerButtons(
+    TableButton.make("export").label("Export").requiresSelection(true).modal().schema(Text.make("Go")),
+)
+table.rowButtons(
+    TableButton.make("edit").label { cell -> "Edit ${cell.get("name")}" }.slideOver(),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.headerButtons(
+    TableButton.make("export").label("Export").modal().schema(Text.make("Go"))
+);
+```
+
+</TabItem>
+</Tabs>
+
+Vous voyez **Export** au-dessus du tableau. Il reste désactivé jusqu’à ce qu’une ligne soit sélectionnée. Le balisage du bouton utilise `ffAction` et `$wire.$call`. Les objets d’action typés s’attachent lorsque le module d’actions est sur le classpath.
+
+`configureUsing` sur `Table`, `TableButton`, `Column`, `TextColumn`, `Filter` et `SelectFilter` s’exécute pour chaque `make()` suivant. Passez `null` pour l’effacer.

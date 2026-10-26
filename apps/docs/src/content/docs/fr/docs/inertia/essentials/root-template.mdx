@@ -1,0 +1,46 @@
+---
+title: Modèle racine
+description: Vue racine Crema ou HTML brut, liaisons page / pageAttr / vite.
+---
+
+## Vue racine Crema
+
+Définissez `inertia.root_view` sur un nom de vue Crema (par exemple `app`). Le manager rend :
+
+| Liaison | Contenu |
+|---------|---------|
+| `page` | Chaîne JSON brute de l’objet de page |
+| `pageAttr` | JSON échappé pour un attribut HTML (sûr pour `data-page="…"`) |
+| `vite` | Balises de `Vite.tags(*viteEntries)`, ou `""` si non résolu |
+
+Exemple :
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    {!! vite !!}
+  </head>
+  <body>
+    <div id="app" data-page="{!! pageAttr !!}"></div>
+  </body>
+</html>
+```
+
+Crema doit être enregistré (`CremaServiceProvider`) pour que `InertiaServiceProvider` puisse attacher `CremaEngine` au démarrage.
+
+## Racine HTML brute
+
+Lorsque `rootView` est null, ou que Crema est absent, le manager utilise `rootHtml` (config `inertia.root_html` ou le défaut intégré).
+
+Espaces réservés :
+
+- `@page` → JSON échappé (pour les attributs)
+- `@vite` → chaîne de balises Vite
+
+Le shell par défaut inclut un div `#app` avec `data-page='@page'`.
+
+## Entrées Vite
+
+`InertiaManager.viteEntries` vaut par défaut `["src/main/resources/js/app.js"]`. Mettez une liste vide pour omettre les balises même lorsqu’un manifeste existe.
