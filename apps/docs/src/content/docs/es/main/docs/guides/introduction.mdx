@@ -1,0 +1,147 @@
+---
+title: Introducción
+description: Qué es Kona, el vocabulario que encontrarás y cómo una aplicación Kona arranca y responde a una petición.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Kona** es un framework web full-stack para la JVM. Escribes el código de la aplicación en **Kotlin** o **Java** (o ambos en el mismo proyecto). El framework está implementado en Kotlin y cada API pública está pensada para que los call sites en Java sean naturales: no hay ceremonia exclusiva de Kotlin para arrancar una app, registrar rutas o resolver servicios.
+
+Kona toma inspiración de frameworks productivos de otros ecosistemas (en particular Laravel y Almasix). A partir de aquí, esta documentación describe **Kona en sus propios términos**: sus nombres, secuencia de arranque, pila HTTP y herramientas.
+
+## A quién van dirigidas estas guías
+
+Debes sentirte cómodo con un lenguaje de programación, con clases e interfaces, y con HTTP a alto nivel: métodos como `GET` y `POST`, códigos de estado como `200` y `404`, cabeceras y cuerpos JSON. **No** necesitas haber usado ningún framework web antes. Cada término de Kona se define la primera vez que aparece, y cada página de concepto explica *por qué* existe esa pieza y *cuándo* se ejecuta.
+
+## Una app Kona completa
+
+Antes del vocabulario, aquí tienes un programa completo. Arranca Kona, registra un servicio, define una ruta y escucha en el puerto 4000.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.core.Application
+import org.konaframework.core.Kona
+import org.konaframework.core.ServiceProvider
+import org.konaframework.http.HttpKernel
+import org.konaframework.http.HttpServiceProvider
+import org.konaframework.http.KonaHttpServer
+import org.konaframework.http.Response
+import org.konaframework.http.Router
+
+class Greeter(private val greeting: String) {
+    fun greet(name: String) = "$greeting, $name"
+}
+
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Greeter::class.java) { Greeter("Hello") }
+    }
+
+    override fun boot(app: Application) {
+        val greeter = app.resolve(Greeter::class.java)
+        app.resolve(Router::class.java).get("/hello/{name}") { request ->
+            Response.json(mapOf("message" to greeter.greet(request.attributes["name"].toString())))
+        }
+    }
+}
+
+fun main(args: Array<String>) {
+    val app = Kona.create(args)
+        .providers(HttpServiceProvider(), AppServiceProvider())
+        .boot()
+    KonaHttpServer(app.resolve(HttpKernel::class.java), "127.0.0.1", 4000).start()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.core.Application;
+import org.konaframework.core.Kona;
+import org.konaframework.core.ServiceProvider;
+import org.konaframework.http.HttpKernel;
+import org.konaframework.http.HttpServiceProvider;
+import org.konaframework.http.KonaHttpServer;
+import org.konaframework.http.Response;
+import org.konaframework.http.Router;
+import java.util.Map;
+
+public final class Main {
+    public static final class Greeter {
+        private final String greeting;
+        public Greeter(String greeting) { this.greeting = greeting; }
+        public String greet(String name) { return greeting + ", " + name; }
+    }
+
+    public static final class AppServiceProvider implements ServiceProvider {
+        @Override
+        public void register(Application app) {
+            app.getContainer().singleton(Greeter.class, c -> new Greeter("Hello"));
+        }
+
+        @Override
+        public void boot(Application app) {
+            Greeter greeter = app.resolve(Greeter.class);
+            app.resolve(Router.class).get("/hello/{name}", request ->
+                Response.json(Map.of("message", greeter.greet(String.valueOf(request.getAttribute("name"))))));
+        }
+    }
+
+    public static void main(String[] args) {
+        Application app = Kona.create(args)
+            .providers(new HttpServiceProvider(), new AppServiceProvider())
+            .boot();
+        new KonaHttpServer(app.resolve(HttpKernel.class), "127.0.0.1", 4000).start();
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Una petición a `GET /hello/kona` devuelve `{"message":"Hello, kona"}`. El resto de esta página nombra cada pieza que acabas de ver.
+
+## Vocabulario
+
+- **Application** (`org.konaframework.core.Application`): El objeto que representa tu proyecto en ejecución. Conoce su **base path** (el directorio con `.env`, `config/` y normalmente tus fuentes), posee un contenedor y un almacén de config, y mantiene la lista de service providers. Suele haber uno por proceso. Ver [Application & providers](../../concepts/application/).
+- **Service provider** (`org.konaframework.core.ServiceProvider`): Una clase pequeña con dos métodos, `register` y `boot`, que enchufa una funcionalidad en la aplicación. `register` describe cómo construir servicios; `boot` ejecuta el trabajo de arranque cuando todos los providers se han registrado. La capa HTTP de Kona llega como `HttpServiceProvider`; tu código suele vivir en un `AppServiceProvider`.
+- **Container** (`org.konaframework.core.Container`): Un registro que sabe cómo crear objetos. *Enlazas* un tipo a una fábrica y luego lo *resuelves* donde lo necesites. Ver [Container](../../concepts/container/).
+- **Config** (`org.konaframework.core.Config`): Un árbol de ajustes con claves con puntos como `app.name`. Ver [Config & env](../../concepts/config/).
+- **Env** (`org.konaframework.core.Env`): Lectura de variables de entorno, con un `.env` opcional como respaldo.
+- **Router** (`org.konaframework.http.Router`): Asocia un método HTTP más un patrón de URL a un **handler**.
+- **Middleware** (`org.konaframework.http.Middleware`): Una función delante de un handler que puede alterar la petición, la respuesta, o responder sin llamar a `next`.
+- **HTTP kernel** (`org.konaframework.http.HttpKernel`): El punto de entrada que convierte un `Request` en un `Response`.
+- **kona** (CLI global): crea aplicaciones — `kona new my-app`.
+- **grind** (CLI local a la app): vive en cada proyecto como `./grind`.
+- **Cadence** (`org.konaframework.cadence`): la capa de base de datos. Ver [Cadence](../../cadence/).
+
+## El ciclo de vida, de principio a fin
+
+1. **Inicio del proceso.** Tu `main` llama a `Kona.create(args)`.
+2. **Bootstrap.** Al llamar a `.boot()`, Kona crea la `Application`, carga `.env`, siembra config básica y ejecuta tus callbacks `configure`.
+3. **Fase register.** Cada provider ejecuta `register`, en el orden en que los listaste.
+4. **Fase boot.** Tras registrar **todos** los providers, corre `boot` (rutas y middleware).
+5. **Servir.** `KonaHttpServer` enlaza un socket Netty y entrega cada petición al kernel en su propio virtual thread.
+6. **Por petición.** El kernel ejecuta middleware global, empareja una ruta, ejecuta el handler y convierte excepciones en respuestas de error.
+
+Los pasos 1–4 ocurren una vez. El paso 6 ocurre en cada petición.
+
+## Cómo se organizan estas docs
+
+La barra lateral es un camino progresivo: **Primeros pasos** → **Lo esencial** → **Crema** → **Digging deeper** → **Security** → **Database** → **Frontend** → **Wire** → **Inertia** → **Testing** → **Packages & tooling**.
+
+## Decisiones de diseño a conocer desde el principio
+
+- **JDK 21 o superior.** Cada petición corre en un *virtual thread*.
+- **Componer, no embeber.** Kona se construye desde cero sobre bibliotecas enfocadas (Netty, Jackson, SLF4J).
+- **Cableado explícito.** Los servicios se enlazan en providers que puedes leer; no hay escaneo del classpath.
+- **Kotlin primero, Java de primera clase.** Cada API pública tiene un call site natural en Java.
+
+## Siguiente paso
+
+- [Instalación](../installation/): instala el `kona` global y crea una app.
+- [Tu primera app](../first-app/): `kona new`, luego `./grind serve`.
+- [Routing](../../http/routing/): la primera página de **Lo esencial**.

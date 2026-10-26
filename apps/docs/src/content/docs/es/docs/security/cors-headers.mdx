@@ -1,0 +1,135 @@
+---
+title: CORS y cabeceras de seguridad
+description: Configura el uso compartido de recursos entre orígenes y adjunta cabeceras de seguridad del navegador con middleware.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Dos clases de middleware complementarias en `org.konaframework:kona-auth` endurecen las respuestas HTTP:
+
+- **CORS** (`CorsMiddleware`) — dice a los navegadores qué otros orígenes pueden llamar a tu API con cookies o cabeceras propias.
+- **Cabeceras de seguridad** (`SecurityHeadersMiddleware`) — adjunta cabeceras que reducen el clickjacking, el rastreo MIME y riesgos relacionados.
+
+Ninguno sustituye la [autenticación](../authentication/), el [CSRF](../csrf/) ni la [limitación de tasa](../rate-limiting/); limitan cómo tratan los navegadores las respuestas.
+
+## CORS
+
+### Camino más simple
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.http.HttpKernel
+import org.konaframework.security.CorsConfig
+import org.konaframework.security.CorsMiddleware
+
+val cors = CorsMiddleware(
+    CorsConfig(
+        allowedOrigins = listOf("https://app.example.com"),
+        allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
+        allowedHeaders = listOf("Content-Type", "Authorization", "X-Requested-With"),
+        allowCredentials = true,
+        maxAgeSeconds = 600,
+    ),
+)
+app.resolve(HttpKernel::class.java).pushMiddleware(cors)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.security.CorsConfig;
+import org.konaframework.security.CorsMiddleware;
+import java.util.List;
+
+CorsMiddleware cors = new CorsMiddleware(new CorsConfig(
+    List.of("https://app.example.com"),
+    List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
+    List.of("Content-Type", "Authorization", "X-Requested-With"),
+    List.of(),   // exposedHeaders
+    true,        // allowCredentials
+    600L
+));
+app.resolve(HttpKernel.class).pushMiddleware(cors);
+```
+
+</TabItem>
+</Tabs>
+
+Valores predeterminados (`CorsConfig()` sin argumentos): orígenes `*`, métodos habituales, cabeceras `*`, credenciales apagadas, max-age 600 segundos.
+
+### Comportamiento
+
+1. **Preflight** — `OPTIONS` con `Origin` + `Access-Control-Request-Method` se corta con **204** y cabeceras CORS (el manejador no corre).
+2. **Otras peticiones** — el pipeline corre; las cabeceras CORS se aplican a la respuesta.
+
+| Campo de configuración | Efecto |
+|--------------|--------|
+| `allowedOrigins` | Coincidencia exacta de origen, o `*` (con credenciales, `*` repite el origen de la petición) |
+| `allowedMethods` | `Access-Control-Allow-Methods` |
+| `allowedHeaders` | Lista fija, o `*` (refleja las cabeceras de la petición / un valor predeterminado sensato) |
+| `exposedHeaders` | `Access-Control-Expose-Headers` cuando no está vacío |
+| `allowCredentials` | Pone `Access-Control-Allow-Credentials: true` |
+| `maxAgeSeconds` | `Access-Control-Max-Age` |
+
+Cuando el origen permitido no es `*`, las respuestas también reciben `Vary: Origin` (fusionado con cualquier `Vary` existente).
+
+## Cabeceras de seguridad
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.security.SecurityHeadersConfig
+import org.konaframework.security.SecurityHeadersMiddleware
+
+val headers = SecurityHeadersMiddleware(
+    SecurityHeadersConfig(
+        xContentTypeOptions = "nosniff",
+        xFrameOptions = "SAMEORIGIN",
+        referrerPolicy = "no-referrer-when-downgrade",
+        xXssProtection = "0",
+        // permissionsPolicy = "geolocation=()",
+        // strictTransportSecurity = "max-age=31536000; includeSubDomains",
+        // contentSecurityPolicy = "default-src 'self'",
+        // custom = mapOf("X-App" to "kona"),
+    ),
+)
+app.resolve(HttpKernel::class.java).pushMiddleware(headers)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SecurityHeadersMiddleware headers = new SecurityHeadersMiddleware(
+    new SecurityHeadersConfig(
+        "nosniff",
+        "SAMEORIGIN",
+        "no-referrer-when-downgrade",
+        "0",
+        null,  // permissionsPolicy
+        null,  // HSTS
+        null,  // CSP
+        Map.of()
+    )
+);
+app.resolve(HttpKernel.class).pushMiddleware(headers);
+```
+
+</TabItem>
+</Tabs>
+
+Cualquier campo de configuración puesto a `null` omite esa cabecera. Los valores predeterminados activan `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` y `X-XSS-Protection` como se muestra arriba. Activa HSTS solo detrás de HTTPS.
+
+## Orden sugerido de la pila
+
+Empuja primero las preocupaciones externas (envuelven el middleware posterior):
+
+1. `CorsMiddleware` — maneja el preflight pronto
+2. `SecurityHeadersMiddleware` — etiqueta cada respuesta
+3. `StartSession` / CSRF / auth / throttle — lógica de la aplicación
+
+El orden entre CORS y las cabeceras de seguridad es flexible; mantén la sesión y el CSRF dentro del camino de cookie/sesión como se documenta en esas páginas.

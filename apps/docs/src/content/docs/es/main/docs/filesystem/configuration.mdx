@@ -1,0 +1,73 @@
+---
+title: Configuración del sistema de archivos
+description: Drivers de disco, prefijos con ámbito, discos de solo lectura y ajustes del cliente en la nube.
+---
+
+Define los discos bajo la clave de configuración `filesystems` (esqueleto: `config/Filesystems`).
+
+## Disco predeterminado
+
+```kotlin
+"default" to Env.getOrDefault("FILESYSTEM_DISK", "local"),
+```
+
+`FilesystemManager.disk()` usa ese nombre. Pasa un nombre explícito a `disk("public")` cuando necesites otra raíz.
+
+## Local y public
+
+```kotlin
+"local" to mapOf(
+    "driver" to "local",
+    "root" to "storage/app",
+),
+"public" to mapOf(
+    "driver" to "local",
+    "root" to "storage/app/public",
+    "url" to "/storage",
+),
+```
+
+Si omites `root` / `url` en un disco llamado `public`, Kona sigue usando por defecto `storage/app/public` y `/storage`.
+
+## Discos con ámbito
+
+Un disco con ámbito reenvía cada ruta a un disco padre bajo un prefijo fijo:
+
+```kotlin
+"avatars" to mapOf(
+    "driver" to "scoped",
+    "disk" to "public",
+    "prefix" to "avatars",
+),
+```
+
+`disk("avatars").put("ada.png", bytes)` guarda `avatars/ada.png` en el disco `public`.
+
+## Discos de solo lectura
+
+```kotlin
+"archive" to mapOf(
+    "driver" to "local",
+    "root" to "storage/archive",
+    "read-only" to true,
+),
+```
+
+Las escrituras (`put`, `delete`, `append`, …) lanzan `UnsupportedOperationException`. Las lecturas siguen funcionando.
+
+## Nube compatible con S3
+
+```kotlin
+"s3" to mapOf(
+    "driver" to "s3",
+    "endpoint" to Env.get("AWS_ENDPOINT"),
+    "bucket" to Env.getOrDefault("AWS_BUCKET", "kona"),
+    "key" to Env.getOrDefault("AWS_ACCESS_KEY_ID", ""),
+    "secret" to Env.getOrDefault("AWS_SECRET_ACCESS_KEY", ""),
+    "region" to Env.getOrDefault("AWS_DEFAULT_REGION", "us-east-1"),
+    "url" to Env.getOrDefault("AWS_URL", ""),
+    "prefix" to Env.getOrDefault("AWS_ROOT_PREFIX", ""),
+),
+```
+
+`prefix` se antepone a cada clave de objeto (raíz de inquilino o de entorno). Para fakes en el proceso usa `memory` / `s3-memory` con los mismos controles `bucket` / `url` / `prefix`.

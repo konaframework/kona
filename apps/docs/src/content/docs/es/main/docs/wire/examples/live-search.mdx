@@ -1,0 +1,129 @@
+---
+title: Ejemplo — Búsqueda en vivo
+description: Lista de búsqueda con wire:model.live y debounce, resultados calculados y morph con clave.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un flujo clásico de Wire: escribes en un cuadro de búsqueda, esperas un debounce corto y se vuelve a renderizar una lista filtrada sin recargar la página entera.
+
+## Componente
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.wire
+
+import org.konaframework.wire.Component
+import org.konaframework.wire.Computed
+
+class Search : Component() {
+    var query = ""
+
+    @Computed
+    fun results(): List<String> =
+        BEANS.filter { query.isBlank() || it.contains(query.trim(), ignoreCase = true) }
+
+    override fun template() = """
+        <div class="card">
+            <h2>Search beans</h2>
+            <input
+                type="search"
+                wire:model.live.debounce.300ms="query"
+                placeholder="Try 'kona'"
+            >
+            <ul>
+            @foreach(results as bean)
+                <li wire:key="{{ bean }}">{{ bean }}</li>
+            @endforeach
+            </ul>
+            <p wire:loading wire:target="query">Searching…</p>
+        </div>
+    """.trimIndent()
+
+    companion object {
+        val BEANS = listOf(
+            "Kona Extra Fancy",
+            "Kona Peaberry",
+            "Ethiopia Yirgacheffe",
+            "Colombia Supremo",
+            "Sumatra Mandheling",
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.wire;
+
+import org.konaframework.wire.Component;
+import org.konaframework.wire.Computed;
+import java.util.List;
+
+public class Search extends Component {
+    public String query = "";
+
+    @Computed
+    public List<String> results() {
+        String q = query == null ? "" : query.trim();
+        return BEANS.stream()
+            .filter(bean -> q.isEmpty() || bean.toLowerCase().contains(q.toLowerCase()))
+            .toList();
+    }
+
+    @Override
+    public String template() {
+        return """
+            <div class="card">
+                <h2>Search beans</h2>
+                <input type="search" wire:model.live.debounce.300ms="query" placeholder="Try 'kona'">
+                <ul>
+                @foreach(results as bean)
+                    <li wire:key="{{ bean }}">{{ bean }}</li>
+                @endforeach
+                </ul>
+            </div>
+            """;
+    }
+
+    private static final List<String> BEANS = List.of(
+        "Kona Extra Fancy",
+        "Kona Peaberry",
+        "Ethiopia Yirgacheffe",
+        "Colombia Supremo",
+        "Sumatra Mandheling"
+    );
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Por qué funciona
+
+1. `wire:model.live.debounce.300ms` actualiza `query` en el servidor 300 ms después de que dejas de escribir.
+2. `results()` con `@Computed` se recalcula en cada petición a partir del estado actual.
+3. `wire:key` en cada `<li>` mantiene estable el morph cuando la lista se encoge o crece.
+4. `wire:loading` + `wire:target="query"` opcionales muestran retroalimentación durante el viaje de ida y vuelta.
+
+Incrústalo con `<wire:search />` en cualquier página Crema que ya cargue `@wireScripts`.
+
+## Prueba
+
+```kotlin
+Wire.test("search")
+    .set("query", "kona")
+    .assertSee("Kona Extra Fancy")
+    .assertSee("Kona Peaberry")
+    .assertDontSee("Colombia Supremo")
+```
+
+## Siguiente
+
+- [Formularios y validación](/docs/wire/essentials/forms/) — más modificadores de `wire:model`
+- [Propiedades](/docs/wire/essentials/properties/) — `@Computed`
+- [Ejemplo — Contador](/docs/wire/examples/counter/) — UI más simple conducida por acciones

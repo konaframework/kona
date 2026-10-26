@@ -1,0 +1,131 @@
+---
+title: Widgets
+description: Coloca widgets de estadísticas, gráficos, tablas y cuenta en una página o un panel de control, y descúbrelos desde un directorio widgets del panel.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="desk-widget.png" description="El widget Desk en la página Desk en http://127.0.0.1:4017/admin/desk, el párrafo que dice Open orders." />
+
+Un widget es un bloque pequeño en una página: una estadística, un gráfico, una tabla o un párrafo que escribiste. Lo colocas con `widgets(...)` en una página. El panel dibuja esos bloques dentro de `<div class="ff-page-widgets">`.
+
+El `DeskWidget` del ejemplo hello es un párrafo que dice «Open orders». El descubrimiento lo encuentra en `widgets/` y lo pone en la página Desk, porque Desk es la primera página.
+
+Chart.js es el motor de gráficos predeterminado. Pasa `ChartEngine.APEX_CHARTS` cuando quieres ApexCharts. Los tipos viven en `org.konaframework.firefly.widgets` (`kona-firefly-widgets`). `extraAttributes` está en cada widget. Los filtros de gráfico también aceptan `extraInputAttributes`.
+
+## Un widget en una página
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val page = Page()
+    .title("Desk")
+    .headerActions(Action.make("refresh").label("Refresh"))
+    .widgets(
+        StatsOverviewWidget.make("overview").stats(
+            Stat().label("Orders").value("12").description("Today").color("caramel"),
+        ),
+        RevenueChart(),
+        OrdersChart(),
+    )
+val html = page.render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Page page = new Page();
+page.title(get -> "Desk");
+page.widgets(
+    StatsOverviewWidget.make("overview").stats(
+        new Stat().label("Orders").value("12")
+    ),
+    new RevenueChart(),
+    ChartWidget.make("orders").engine(ChartEngine.APEX_CHARTS).type("area")
+);
+String html = page.render();
+```
+
+</TabItem>
+</Tabs>
+
+`Page.render()` devuelve `<section class="ff-page">` con una cabecera, la región de contenido, `<div class="ff-page-widgets">` y un pie. `Dashboard` usa `ff-page ff-dashboard` y el título de respaldo `Dashboard`. La región de contenido se llena con `schema(...)`, `form(...)`, `infolistHtml(...)` o `table(...)`. Los widgets se renderizan en la región de widgets, así que un gráfico está en la página y no solo en una cadena suelta.
+
+`widgets(...)` sustituye la lista de widgets. `discoverWidgets(panelDirectory)` añade cada widget encontrado bajo `panelDirectory/widgets`.
+
+El `render()` propio de un widget devuelve el mismo HTML que obtendrías al colocar ese único widget en un esquema. Úsalo en las pruebas y cuando incrustas un widget fuera de una página.
+
+## Estadísticas
+
+`Stat` necesita una etiqueta y un valor. Una etiqueta en blanco lanza `Stat label is blank`. Un valor en blanco lanza `Stat value is blank`. La descripción, el color, el icono y `chart` (una lista de números) son opcionales. `StatsOverviewWidget.make(name).stats(...)` renderiza un `<article class="ff-stat">` por estadística. Una lista de estadísticas vacía lanza `FireflyException`.
+
+## Gráficos
+
+`ChartWidget` usa Chart.js por defecto (`ChartEngine.CHART_JS`). Pasa `ChartEngine.APEX_CHARTS` para usar ApexCharts. El tipo de gráfico es `line` salvo que pongas `bar`, `area`, `pie` o `donut`. Cualquier otro tipo lanza `FireflyException`. Chart.js recibe `area` como `line` y `donut` como `doughnut`. ApexCharts conserva `area` y `donut`. `options` se pasa a la configuración de la librería.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ChartWidget.make("revenue")
+    .type("bar")
+    .categories(listOf("Mon", "Tue", "Wed"))
+    .series(listOf(ChartSeries("Revenue", listOf(10, 20, 15))))
+    .maxHeight("240px")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ChartWidget.make("revenue")
+    .type("bar")
+    .categories(List.of("Mon", "Tue", "Wed"))
+    .series(List.of(new ChartSeries("Revenue", List.<Number>of(10, 20, 15))))
+    .maxHeight("240px");
+```
+
+</TabItem>
+</Tabs>
+
+`RevenueChart` es ese gráfico de barras en Chart.js. `OrdersChart` es un gráfico de área en ApexCharts.
+
+`filters` es un mapa de clave a etiqueta. `activeFilter` selecciona qué lista `series(filter, points)` se dibuja. Un nombre de filtro en blanco, o un filtro sin series, lanza `FireflyException`. `extraInputAttributes` cae en el `<select>` del filtro.
+
+El marcado es `<div class="ff-chart">` con `data-ff-engine` (`chartjs` o `apexcharts`), `data-ff-type` y `data-ff-library-type`. Un `<script type="application/json" class="ff-chart-config">` guarda las categorías, las series y las opciones. Las etiquetas de script de `/_firefly/widgets/ff-widget.js`, `ff-chart.js` y o bien `chart.umd.js` (Chart.js 4.4.6) o `apexcharts.min.js` (ApexCharts 3.54.1) se incluyen una vez por render. `WidgetScripts.source(path)` devuelve el archivo empaquetado.
+
+`ChartWidget.configureUsing` corre en cada `ChartWidget.make` posterior. Pasa `null` para limpiarlo.
+
+## Tabla y cuenta
+
+`TableWidget.make(name).table(table)` renderiza el mismo HTML de tabla que `Table.render()`. Una tabla ausente lanza `FireflyException`. La tabla sigue necesitando un `id` de registro.
+
+`AccountWidget.make(name).accountName("Ada").email("ada@example.com").avatar("/ada.png")` renderiza la tarjeta de cuenta. Un nombre en blanco lanza `FireflyException`.
+
+## Descubrimiento
+
+`WidgetDiscovery.discover(panelDirectory)` lee `panelDirectory/widgets`. Un directorio ausente devuelve una lista vacía. Una ruta que existe y no es un directorio lanza `FireflyException`. Cada archivo `.kt` o `.java` debe declarar un paquete y una clase cuyo nombre coincida con el nombre del archivo. La clase ya debe estar en el classpath y debe tener un constructor público sin argumentos. Las clases abstractas y los tipos que no son widgets se omiten. Un paquete ausente, una declaración de clase ausente, un nombre que no coincide con el archivo, una clase que no está en el classpath o un constructor que falla lanzan `FireflyException` y nombran el archivo.
+
+## Generar un widget
+
+```bash
+./grind make:firefly-widget Revenue
+./grind make:firefly-widget Orders --lang=java
+```
+
+El comando escribe `app/firefly/widgets/Revenue.kt` (o `Orders.java`) y una vista Crema `firefly.widgets.revenue` que usa `x-data="ffWidget"`. La clase extiende `Widget` y llama a `view(...)`.
+
+## Con qué construyes
+
+| Tipo | Rol |
+|------|------|
+| `Widget` | Widget base. `make(name)`, `label`, `heading`, `description`, `extraAttributes` |
+| `Page` / `Dashboard` | Título, acciones de cabecera y pie, esquema o tabla, y widgets |
+| `Stat` / `StatsOverviewWidget` | Una o más tarjetas de estadística |
+| `ChartWidget` | Chart.js por defecto, ApexCharts cuando pones el motor |
+| `TableWidget` | Incrusta una tabla Firefly |
+| `AccountWidget` | Nombre, correo y avatar |
+| `WidgetDiscovery` | Carga widgets desde un directorio `widgets/` del panel |

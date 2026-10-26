@@ -1,0 +1,287 @@
+---
+title: Excepciones
+description: Cómo el kernel HTTP convierte los fallos en respuestas de error JSON, cómo lanzar errores HTTP y cómo instalar tu propio manejador.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Los manejadores fallan: un registro no existe, un cliente no puede entrar, la entrada no es válida, o un bug lanza una excepción inesperada. En Kona normalmente **lanzas** en esas situaciones en lugar de construir una respuesta de error a mano. El [kernel HTTP](../kernel-server/) captura la excepción y se la da a un **manejador de excepciones** — un objeto que implementa `ExceptionHandler` — cuyo único trabajo es convertir la excepción en un `Response`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun interface ExceptionHandler {
+    fun handle(request: Request, throwable: Throwable): Response
+}
+```
+
+Salvo que lo sustituyas, el kernel usa `DefaultExceptionHandler`. De forma predeterminada responde con **JSON**. Si la cabecera `Accept` de la petición prefiere `text/html` (y no lista también `application/json`), el mismo manejador devuelve una página de error HTML pequeña.
+
+## Lanzar errores HTTP
+
+`HttpException` lleva un estado HTTP, un mensaje y cabeceras de respuesta extra opcionales. Lánzala desde un manejador, un controlador, un servicio o un middleware:
+
+```kotlin
+router.get("/posts/{id}") { request ->
+    val post = posts.find(request.getAttribute("id") as String)
+        ?: throw NotFoundException("Post not found.")
+    if (!post.published) {
+        throw HttpException(403, "This post is not published yet.")
+    }
+    Response.json(post)
+}
+
+throw HttpException(429, "Too many requests.", mapOf("Retry-After" to "30"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/posts/{id}", request -> {
+    Post post = posts.find((String) request.getAttribute("id"));
+    if (post == null) {
+        throw new NotFoundException("Post not found.");
+    }
+    if (!post.isPublished()) {
+        throw new HttpException(403, "This post is not published yet.");
+    }
+    return Response.json(post);
+});
+
+throw new HttpException(429, "Too many requests.", Map.of("Retry-After", "30"));
+```
+
+</TabItem>
+</Tabs>
+
+Kona envía estos tipos en `org.konaframework.http`:
+
+| Tipo | Estado | Notas |
+|------|--------|-------|
+| `HttpException(status, message, headers)` | Cualquiera | `headers` predetermina ninguna. Es una clase `open`, así que puedes subclasificarla para tus propios tipos de error. |
+| `NotFoundException(message)` | 404 | El mensaje predetermina `Not Found`. El enrutador la lanza cuando ninguna ruta coincide. |
+| `MethodNotAllowedException(allowed, message)` | 405 | Añade `Allow: GET, HEAD` (la lista `allowed`, separada por coma y espacio) cuando la lista no está vacía. El mensaje predetermina `Method Not Allowed`. El enrutador la lanza cuando el camino existe bajo otros métodos. |
+| `ValidationException(errors)` | 422 | La lanzan `Request.validate` y `Validator.validate`; consulta [Validación](../validation/). |
+
+Todas son no comprobadas (`RuntimeException`), así que el código Java no necesita cláusulas `throws`.
+
+## Qué devuelve el manejador predeterminado
+
+`DefaultExceptionHandler` elige una respuesta según el tipo de excepción:
+
+### Fallos de validación → 422
+
+```json
+{
+  "message": "The email field is required. (and 1 more error)",
+  "errors": {
+    "email": ["The email field is required."],
+    "age": ["The age field must be at least 18."]
+  }
+}
+```
+
+### `HttpException` y subclases → el estado de la excepción
+
+El cuerpo es `{"message": "<exception message>"}`, y cada entrada de las `headers` de la excepción se copia en la respuesta. Los mensajes que produce el enrutador se ven así:
+
+```json
+{ "message": "The route users/42 could not be found." }
+```
+
+```json
+{ "message": "The POST method is not supported for route users. Supported methods: GET, HEAD." }
+```
+
+La respuesta 405 también lleva la cabecera `Allow: GET, HEAD`.
+
+### Cualquier otra cosa → 500
+
+Cualquier otro `Throwable` se trata como un bug. El manejador lo registra a nivel error (con su traza) mediante el logger de Kona y responde con:
+
+```json
+{ "message": "Server Error" }
+```
+
+El mensaje real se oculta a propósito — el texto de la excepción a menudo contiene SQL, caminos de archivo u otros internos que no debes mostrar a los clientes.
+
+Las respuestas JSON del manejador predeterminado usan `Content-Type: application/json; charset=utf-8`. Las páginas de error HTML usan `text/html; charset=utf-8`.
+
+## Callbacks de report y render
+
+Sin escribir un manejador propio completo, puedes adjuntar callbacks en `DefaultExceptionHandler`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val handler = DefaultExceptionHandler(debug = true)
+    .report { throwable -> metrics.increment("http.exceptions") }
+    .render { request, throwable ->
+        if (throwable is PaymentFailedException) {
+            Response.json(mapOf("error" to "payment_failed"), 402)
+        } else {
+            null // fall through to the default envelope
+        }
+    }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DefaultExceptionHandler handler = new DefaultExceptionHandler(true)
+    .report(throwable -> metrics.increment("http.exceptions"))
+    .render((request, throwable) -> {
+        if (throwable instanceof PaymentFailedException) {
+            return Response.json(Map.of("error", "payment_failed"), 402);
+        }
+        return null;
+    });
+```
+
+</TabItem>
+</Tabs>
+
+`report` corre primero. Cuando lo pones, se salta el camino predeterminado `Log.error` de los fallos inesperados — tu callback es dueño del informe. `render` puede devolver un `Response` o `null` para conservar los sobres JSON/HTML integrados.
+
+## Modo debug
+
+Cuando el modo debug está activado, el manejador predeterminado te ayuda a diagnosticar problemas en local:
+
+- Para respuestas **500**, `message` es el mensaje real de la excepción (que puede ser `null`) en lugar de `Server Error`.
+- Para respuestas **500** y **`HttpException`**, un campo extra `exception` guarda el nombre de clase completamente cualificado.
+
+```json
+{
+  "message": "Connection refused",
+  "exception": "java.net.ConnectException"
+}
+```
+
+Las respuestas de validación son iguales en ambos modos.
+
+El kernel que registra `HttpServiceProvider` lee el modo debug del valor de configuración `app.debug`, que sale de `APP_DEBUG` en el entorno o en `.env` (predeterminado `false`). Los proyectos creados por `kona new` ponen `APP_DEBUG=true` en `.env` para el trabajo local. **Pon `APP_DEBUG=false` en producción**, ya sea en el `.env` de ese entorno o como variable de entorno real, que tiene precedencia. Para construir un manejador directamente, pasa la bandera: `DefaultExceptionHandler(debug = true)` en Kotlin, `new DefaultExceptionHandler(true)` en Java.
+
+## Dónde se capturan las excepciones
+
+El kernel convierte las excepciones en dos puntos:
+
+1. **Dentro del enrutado** — excepciones de la resolución de ruta (404, 405), del middleware de ruta y de grupo, y de tu manejador. La respuesta resultante viaja de vuelta a través de todo el **middleware global**, así que los registros de acceso, las cabeceras CORS y los ids de petición siguen aplicando a las respuestas de error.
+2. **Alrededor de toda la tubería** — excepciones lanzadas por un middleware global. Esas respuestas no las ve ningún middleware global.
+
+Para las peticiones `HEAD` el kernel también quita el cuerpo de las respuestas de error, conservando el estado y las cabeceras. Consulta [Middleware](../middleware/#where-exceptions-go) para ver cómo interactúa esto con tu propio middleware.
+
+## Escribir un manejador propio
+
+Escribe tu propio `ExceptionHandler` cuando necesitas un formato de error distinto — páginas HTML para un sitio de navegador, una forma JSON distinta para una API, o métricas en cada fallo. Un patrón habitual es manejar los casos que te importan y **delegar** todo lo demás al manejador predeterminado:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class HtmlErrorHandler(debug: Boolean) : ExceptionHandler {
+    private val fallback = DefaultExceptionHandler(debug)
+
+    override fun handle(request: Request, throwable: Throwable): Response {
+        val wantsHtml = request.header("Accept").orEmpty().contains("text/html")
+        if (wantsHtml && throwable is NotFoundException) {
+            return Response.html("<h1>Page not found</h1>", 404)
+        }
+        return fallback.handle(request, throwable)
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class HtmlErrorHandler implements ExceptionHandler {
+    private final DefaultExceptionHandler fallback;
+
+    public HtmlErrorHandler(boolean debug) {
+        this.fallback = new DefaultExceptionHandler(debug);
+    }
+
+    @Override
+    public Response handle(Request request, Throwable throwable) {
+        boolean wantsHtml = request.header("Accept", "").contains("text/html");
+        if (wantsHtml && throwable instanceof NotFoundException) {
+            return Response.html("<h1>Page not found</h1>", 404);
+        }
+        return fallback.handle(request, throwable);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Un manejador de excepciones debe **devolver siempre una respuesta y no lanzar nunca**. Es la última línea de defensa; una excepción que se le escape deja al cliente sin respuesta.
+
+### Instalarlo
+
+Pasa el manejador como tercer argumento cuando construyes un `HttpKernel`. Para sustituir el kernel que registra `HttpServiceProvider`, vuelve a enlazar `HttpKernel` desde el método `register` de un proveedor listado después de `HttpServiceProvider`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        val debug = app.config.getBoolean("app.debug", false)
+        app.container.singleton(HttpKernel::class.java) { c ->
+            HttpKernel(c.resolve(Router::class.java), exceptionHandler = HtmlErrorHandler(debug))
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        boolean debug = app.getConfig().getBoolean("app.debug", false);
+        app.getContainer().singleton(HttpKernel.class, c ->
+            new HttpKernel(c.resolve(Router.class), List.of(), new HtmlErrorHandler(debug)));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`ExceptionHandler` es una interfaz funcional, así que una lambda también funciona cuando la lógica es corta.
+
+## Selección de HTML frente a JSON
+
+`DefaultExceptionHandler` usa una comprobación pequeña de `Accept`: si `Accept` contiene `text/html` y **no** contiene también `application/json`, obtienes la página de error HTML. Si no, JSON. Los fallos de validación usan `request.expectsJson()` en su lugar (JSON `Accept`/`Content-Type` → 422 JSON; si no, redirect-back).
+
+## Trampas y preguntas
+
+**¿Por qué falta mi mensaje propio en producción?**  
+Los fallos que no son `HttpException` muestran `"Server Error"` cuando `app.debug` es falso. Los mensajes de `HttpException` siempre se usan.
+
+**¿Por qué el middleware global no ve un error de otro middleware global?**  
+Esa captura ocurre fuera de la tubería — consulta [Dónde se capturan las excepciones](#where-exceptions-are-caught).
+
+**¿Puede lanzar el manejador?**  
+No debe. Devuelve siempre un `Response`.
+
+## Qué no está disponible hoy
+
+- *Plantillas* HTML de error integradas más allá de la página predeterminada pequeña
+- Mapeo de vistas por estado en el manejador predeterminado
+- Canales de informe de excepciones más allá de `Log.error` / tu callback `report`
+
+## Siguientes pasos
+
+- Errores de validación: [Validación](../validation/).
+- Semántica de captura del middleware: [Middleware](../middleware/#where-exceptions-go).
+- Tubería del kernel: [Kernel y servidor](../kernel-server/).

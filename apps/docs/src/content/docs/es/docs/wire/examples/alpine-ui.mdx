@@ -1,0 +1,86 @@
+---
+title: Ejemplo — patrones de UI con Alpine
+description: Estado local de Alpine, llamadas $wire, entangle y eventos de window con Wire.
+---
+
+Patrones que combinan el Alpine empaquetado de Wire con componentes de servidor.
+
+## Desplegable + acción de servidor
+
+```html
+<div x-data="{ open: false }">
+  <button type="button" @click="open = ! open">Account</button>
+  <div x-show="open" @click.outside="open = false" x-cloak>
+    <button type="button" wire:click="logout">Log out</button>
+  </div>
+</div>
+```
+
+## Llamar al servidor desde Alpine
+
+```html
+<div x-data>
+  <button
+    type="button"
+    @click="
+      const n = await $wire.doubled();
+      alert(n);
+    "
+  >Double count</button>
+</div>
+```
+
+```kotlin
+fun doubled(): Int = count * 2
+```
+
+## Entrelazar un campo
+
+```html
+<div x-data="{ local: @entangle('query').live }">
+  <input x-model="local" placeholder="Search…" />
+  <p x-text="'Local: ' + local"></p>
+</div>
+```
+
+## Escuchar eventos de Wire en Alpine
+
+```kotlin
+fun save() {
+    dispatch("post-saved", mapOf("id" to id))
+}
+```
+
+```html
+<div
+  x-data
+  x-on:post-saved.window="console.log($event.detail)"
+>
+  <button type="button" wire:click="save">Save</button>
+</div>
+```
+
+## Control personalizado con `x-modelable`
+
+```html
+<div x-data="{ value: '' }" x-modelable="value" wire:model="title">
+  <input x-model="value" />
+</div>
+```
+
+`wire:model` de Wire se enlaza a través de la superficie modelable de Alpine — consulta [Formularios](/docs/wire/essentials/forms/).
+
+## Registrar un hook antes de arrancar
+
+```html
+<script>
+  document.addEventListener('brew:init', () => {
+    Wire.hook('commit', ({ component }) => {
+      console.debug('commit', component.name)
+    })
+  })
+</script>
+@wireScripts
+```
+
+Profundiza: [Acoplamiento con Alpine.js](/docs/wire/js/alpine/).

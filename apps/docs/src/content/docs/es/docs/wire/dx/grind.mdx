@@ -1,0 +1,88 @@
+---
+title: Comandos grind
+description: Banderas de make:wire, wire:convert, publish, stubs, layout y notas de IDE.
+---
+
+Wire registra comandos grind cuando arranca `WireServiceProvider`. Ejecútalos desde la raíz de tu app con `./grind`.
+
+## `make:wire`
+
+Esqueleto de un componente:
+
+```bash
+./grind make:wire counter
+./grind make:wire posts.create-post --test
+./grind make:wire pages::Dashboard --inline
+./grind make:wire Avatar --mfc --emoji
+./grind make:wire Counter --lang=java
+./grind make:wire Counter --force
+```
+
+El esqueleto predeterminado es una **clase vacía** más una vista Crema que contiene una cita inspiradora graciosa aleatoria en una etiqueta `<p>`.
+
+| Bandera | Efecto |
+|------|--------|
+| *(predeterminado)* | Clase + vista Crema aparte (`class`) salvo que `brew.make.type` diga otra cosa |
+| `--inline` | Componente de un solo archivo con `template()` (`sfc`) |
+| `--class` | Clase + vista Crema aparte (igual que el predeterminado) |
+| `--mfc` | Assets de componente de varios archivos |
+| `--test` | Genera una prueba compañera |
+| `--emoji` | Antepone ⚡ a la hoja de la vista |
+| `--lang=kotlin\|java` | Lenguaje (se detecta del layout del proyecto si se omite) |
+| `--base=` | Raíz del proyecto (predeterminado `.`) |
+| `--force` | Sobrescribe archivos existentes |
+
+Los nombres pueden usar puntos (`posts.create-post`), studly (`CreatePost`) o espacios de nombres (`pages::dashboard`, `admin::…`).
+
+El tipo predeterminado sale de la clave de configuración `brew.make.type` (`class` | `sfc` | `mfc`).
+
+## `make:form`
+
+Esqueleto de un objeto de formulario bajo `app.wire.forms`:
+
+```bash
+./grind make:form PostForm
+./grind make:form post-form --lang=java
+./grind make:form PostForm --force
+```
+
+La clase extiende `Form` con los campos `title` y `content` marcados `@Validate("required")`. Declárala como propiedad pública de un componente y enlaza las entradas con `wire:model="form.title"`. Consulta [Formularios](/docs/wire/essentials/forms/).
+
+## Stubs
+
+```bash
+./grind wire:stubs
+```
+
+Publica archivos stub bajo `stubs/wire/`. Después, `make:wire` prefiere esos stubs cuando existen para que puedas personalizar los esqueletos de clase/vista/prueba de tu equipo.
+
+## Convertir entre formas
+
+```bash
+./grind wire:convert src/main/kotlin/app/wire/Counter.kt --to=class
+./grind wire:convert … --to=sfc
+./grind wire:convert … --to=mfc
+```
+
+## Publicar configuración y layout
+
+```bash
+./grind wire:publish --config
+./grind wire:layout
+```
+
+`wire:publish` escribe la configuración de Wire en el árbol de configuración de tu app. `wire:layout` crea un layout Crema que ya incluye `@wireStyles` / `@wireScripts`.
+
+## Pruebas desde tests generados por grind
+
+Cuando pasas `--test`, el stub cablea un ejemplo `Wire.test("…")`. Amplíalo a medida que añades acciones — consulta [Pruebas](/docs/wire/dx/testing/).
+
+## IDE / LSP
+
+Kona Idea y los servidores de lenguaje pueden completar etiquetas `<wire:…>` y atributos `wire:*`. El contrato vive en el repositorio de Wire: [`docs/governance/lsp-contract.md`](https://github.com/konaframework/kona/blob/main/docs/governance/livewire-v4-parity.md).
+
+## Siguiente
+
+- [Instalación](/docs/wire/guides/installation/) — registra Wire antes de que grind recoja los comandos
+- [Tu primer componente](/docs/wire/guides/first-component/) — recorrido después del esqueleto
+- [Pruebas](/docs/wire/dx/testing/) — API de `Wire.test`

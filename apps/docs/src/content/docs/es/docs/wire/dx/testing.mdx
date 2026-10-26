@@ -1,0 +1,98 @@
+---
+title: Probar componentes Wire
+description: Conduce componentes con Wire.test — set, call, assert y viajes reales de instantánea.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Wire.test` monta un componente y hace viajes de ida y vuelta **reales** de la instantánea por el pipeline de actualización (codificar JSON, checksum, hidratar, acciones, render). No hace falta un navegador.
+
+## Configuración
+
+Registra los providers igual que en producción (al menos Wire + Crema cuando afirmas HTML de las vistas). En las pruebas, llama a `Wire.reset()` / `Kona.reset()` entre casos si arrancas una aplicación completa.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@Test
+fun increments() {
+    Wire.test(Counter::class.java, mapOf("start" to 2))
+        .assertSet("count", 2)
+        .call("increment")
+        .assertSet("count", 3)
+        .assertSee(3)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Test
+void increments() {
+    Wire.test(Counter.class, Map.of("start", 2))
+        .assertSet("count", 2)
+        .call("increment")
+        .assertSet("count", 3)
+        .assertSee(3);
+}
+```
+
+</TabItem>
+</Tabs>
+
+También puedes dirigirte por nombre: `Wire.test("counter", mapOf("start" to 2))`.
+
+## Interacciones
+
+| Método | Rol |
+|--------|------|
+| `set(name, value)` / `set(map)` | Actualizaciones de propiedades |
+| `toggle(name)` | Invierte un booleano |
+| `call(method, *params)` | Invoca una acción |
+| `refresh()` | `$refresh` |
+| `commit()` | `$commit` |
+
+## Afirmaciones
+
+| Afirmación | Comprueba |
+|-----------|--------|
+| `assertSet` / `assertNotSet` | La propiedad es igual (laxo por defecto; `strict = true` para `==`) |
+| `assertCount` | Tamaño de colección / mapa / array / CharSequence |
+| `assertSee` / `assertDontSee` | Texto visible (escapado HTML por defecto) |
+| `assertSeeHtml` / `assertDontSeeHtml` | Subcadena de HTML crudo |
+| `assertSeeInOrder` | Varias agujas en orden |
+| `assertViewHas` / `assertViewIs` | Datos de la vista / nombre de la vista |
+| `assertRenderSkipped` / `assertRenderNotSkipped` | `skipRender` / `@Renderless` |
+| `assertStatus` | Último estado HTTP del viaje de ida y vuelta |
+| `assertForbidden` / `assertUnauthorized` | 403 / 401 |
+
+## Accesores
+
+```kotlin
+val t = Wire.test("counter")
+t.instance()   // live Component
+t.id()
+t.html()       // last HTML (optional strip of wire:snapshot/effects)
+t.get("todos.0.title")
+t.snapshot()
+t.effects()
+t.viewData("title")
+```
+
+## Esqueleto
+
+```bash
+./grind make:wire counter --test
+```
+
+## Pruebas de humo HTTP
+
+Los ejemplos también ejercitan el endpoint real: `GET /` para el HTML incrustado, luego `POST /wire/update` con `X-Brew`, la cookie CSRF y una instantánea tomada de `wire:snapshot`. Prefiere `Wire.test` para la lógica del componente; usa pruebas HTTP para middleware, CSRF e inyección de assets.
+
+## Siguiente
+
+- [Componentes](/docs/wire/essentials/components/) — lo que estás probando
+- [Acciones](/docs/wire/essentials/actions/) — destinos de `call`
+- [Ciclo de vida](/docs/wire/essentials/lifecycle/) — hooks que corren dentro de cada viaje de ida y vuelta

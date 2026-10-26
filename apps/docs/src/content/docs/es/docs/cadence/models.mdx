@@ -1,0 +1,548 @@
+---
+title: Modelos
+description: Define modelos Cadence, lee y escribe filas, convierte atributos, borra filas de forma suave y pagina resultados.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un **modelo** es una clase que representa una tabla de base de datos. Cada instancia guarda una fila: sus **atributos** son las columnas de la fila, con clave por nombre de columna. Los modelos saben encontrar filas, insertar otras nuevas, actualizar las columnas cambiadas y borrarse a sí mismos. Este estilo a veces se llama *active record*: el objeto que guarda los datos también sabe cómo persistirlos.
+
+Los modelos leen la base de datos **global** (consulta [Visión general de Cadence](../)), así que registra `CadenceServiceProvider` o llama a `Database.setAsGlobal()` antes de usarlos.
+
+## Definir un modelo
+
+Un modelo extiende `Cadence<T>`, pasando su propia clase como `T`, y debe tener un constructor sin argumentos. Los modelos Kotlin suelen añadir un objeto companion para que `User.find(1)` se lea con naturalidad; los modelos Java conservan un campo estático `CadenceCompanion`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.CastType
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.CadenceCompanion
+
+class User : Cadence<User>() {
+    override val fillable = setOf("name", "email", "admin")
+    override val casts = mapOf("admin" to CastType.BOOLEAN, "settings" to CastType.JSON)
+
+    companion object : CadenceCompanion<User>(User::class.java)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.CastType;
+import org.konaframework.cadence.Cadence;
+import org.konaframework.cadence.CadenceCompanion;
+import java.util.Map;
+import java.util.Set;
+
+public class User extends Cadence<User> {
+    public static final CadenceCompanion<User> QUERY = Cadence.of(User.class);
+
+    @Override
+    public Set<String> getFillable() {
+        return Set.of("name", "email", "admin");
+    }
+
+    @Override
+    public Map<String, Object> getCasts() {
+        return Map.of("admin", CastType.BOOLEAN, "settings", CastType.JSON);
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+`./grind make:model User` escribe este esqueleto por ti bajo `src/main/…/app/models/` (consulta [Migraciones](../migrations/#grind-commands)).
+
+### Convenciones que puedes anular
+
+Cada convención es una propiedad abierta (un getter en Java) de `Cadence`:
+
+| Propiedad | Predeterminado | Significado |
+|----------|---------|---------|
+| `table` | plural en snake_case del nombre de clase (`BlogPost` → `blog_posts`, `Category` → `categories`) | Nombre de tabla |
+| `primaryKey` | `id` | Columna de clave primaria |
+| `incrementing` | `true` | Lee de vuelta la clave generada después del insert |
+| `timestamps` | `true` | Mantiene `created_at` / `updated_at` |
+| `createdAtColumn` / `updatedAtColumn` | `created_at` / `updated_at` | Nombres de las columnas de marca de tiempo |
+| `fillable` | vacío | Claves que `fill` puede fijar |
+| `guarded` | `*` | Claves que `fill` rechaza (`*` protege todo lo que no es fillable) |
+| `casts` | vacío | Columna → `CastType` o `CastsAttributes` |
+| `connectionName` | `null` (conexión predeterminada) | Conexión con nombre que usar |
+| `perPage` | `15` | Tamaño de página de `paginate()` / `simplePaginate()` / `cursorPaginate()` |
+
+## Leer filas
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val all: List<User> = User.all()
+val ada: User? = User.find(1)
+val sure: User = User.findOrFail(1)          // ModelNotFoundException when missing
+val some: List<User> = User.findMany(listOf(1, 2, 3))
+val admins = User.where("admin", true).orderBy("name").get()
+val newest = User.query().latest().first()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> all = User.QUERY.all();
+User ada = User.QUERY.find(1);
+User sure = User.QUERY.findOrFail(1);
+List<User> some = User.QUERY.findMany(List.of(1, 2, 3));
+List<User> admins = User.QUERY.where("admin", true).orderBy("name").get();
+User newest = User.QUERY.query().latest().first();
+```
+
+</TabItem>
+</Tabs>
+
+
+`query()` devuelve un `ModelBuilder<T>`. Acepta las mismas restricciones que el [constructor de consultas](../query-builder/) (`where`, `whereIn`, `whereDate` / `whereYear` / …, `orWhereRaw`, `select` / `selectRaw` / `distinct`, `groupBy` / `having` / `havingRaw`, `orderBy`, `limit`, joins, …) pero devuelve instancias de modelo en lugar de mapas. Llama a `toBase()` (o `getQuery()`) para obtener el `QueryBuilder` subyacente, o a `toSql()` para ver el SQL generado.
+
+### Atributos
+
+Lee atributos con `getAttribute("name")`, el operador de índice de Kotlin `user["name"]`, el tipado `user.attribute<String>("name")` o una [propiedad de columna](#column-properties). Fíjalos con `setAttribute` o `user["name"] = "Ada"`. Las lecturas aplican casts; `getRawAttribute` devuelve el valor almacenado sin tocar.
+
+Cadence también resuelve métodos mágicos de atributo: `getFullNameAttribute()` para lecturas y `setFullNameAttribute(value)` para escrituras (usa `setRawAttribute` dentro de los mutadores). `push()` guarda el modelo y guarda de forma recursiva los modelos relacionados cargados. `Cadence.unguard()` / `reguard()` / `runUnguarded { … }` y `Cadence.runWithoutTimestamps { … }` controlan la asignación masiva y las marcas de tiempo. `sole()` devuelve exactamente un modelo o lanza `ModelNotFoundException` / `MultipleRecordsFoundException`.
+
+Un modelo recuerda los valores con los que se cargó. `isDirty()` / `getDirty()` informan de los atributos cambiados desde entonces, `getOriginal()` devuelve los valores cargados y `toMap()` renderiza los atributos convertidos más las relaciones cargadas, listo para `Response.json(...)`.
+
+### Propiedades de columna
+
+Declara una columna como propiedad de Kotlin cuando quieras que el compilador conozca su nombre y su tipo. `column()` (alias `attr()`) lee y escribe a través del mapa de atributos. El nombre de la propiedad es el nombre de la columna salvo que pases otra clave.
+
+```kotlin
+class User : Cadence<User>() {
+    var name: String? by column()
+    var email: String? by column("email_address")
+
+    companion object : CadenceCompanion<User>(User::class.java)
+}
+
+val user: User? = User.first()
+if (user != null) {
+    user.name = "Ada"
+    user.email
+}
+```
+
+`User.first()` es nullable. Después de `if (user != null)`, Kotlin hace smart-cast de `user`, así que `user.name` y `user.email` no necesitan `?.`. Java llama a los `getName` / `setName` y `getEmail` / `setEmail` generados.
+
+## Escribir filas
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.create(mapOf("name" to "Ada", "email" to "ada@example.com"))  // insert
+
+user["name"] = "Ada Lovelace"
+user.save()                                   // update of the changed column only
+
+user.update(mapOf("admin" to true))           // fill + save
+user.delete()
+
+User.where("admin", false).update(mapOf("active" to false))   // mass update
+User.destroy(4, 5, 6)                                          // load and delete each
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.create(Map.of("name", "Ada", "email", "ada@example.com"));
+
+user.setAttribute("name", "Ada Lovelace");
+user.save();
+
+user.update(Map.of("admin", true));
+user.delete();
+
+User.QUERY.where("admin", false).update(Map.of("active", false));
+User.QUERY.destroy(4, 5, 6);
+```
+
+</TabItem>
+</Tabs>
+
+
+`save()` inserta un modelo nuevo o actualiza uno cargado. En el insert, lee de vuelta la clave generada en `id`. En la actualización, escribe solo los atributos sucios, y no hace nada cuando no hay ninguno. Cuando `timestamps` está activo, fija `updated_at` en cada escritura y `created_at` en el insert, salvo que los fijes tú.
+
+`fresh()` devuelve una copia recién cargada de la fila; `refresh()` recarga la instancia actual en su sitio.
+
+### Asignación masiva
+
+`create`, `fill` y `update` toman un mapa de atributos. Para impedir que un cuerpo de petición fije columnas que no pretendías (`admin`, `id`), solo aceptan claves listadas en `fillable`. Con el `guarded = setOf("*")` predeterminado y un `fillable` vacío, cualquier clave lanza `MassAssignmentException`. Usa `forceFill` cuando quieras fijar cada clave a propósito, por ejemplo desde código de confianza.
+
+## Casts
+
+Un cast convierte un valor de columna almacenado en un tipo cómodo al leer. Declara casts en `casts` como un `CastType` integrado o una clase `CastsAttributes` personalizada:
+
+| `CastType` | Se lee como |
+|------------|---------|
+| `INT`, `LONG`, `DOUBLE` | `Int`, `Long`, `Double` |
+| `BOOLEAN` | `Boolean` (acepta `1`/`0`, `"true"`/`"false"`) |
+| `STRING` | `String` |
+| `JSON` | `Map` o `List` a partir de texto JSON; los mapas y las listas se escriben de vuelta como JSON |
+| `DATETIME` | `java.time.LocalDateTime` |
+| `INSTANT` | `java.time.Instant` |
+
+Las columnas de marca de tiempo (y `deleted_at` en los modelos con borrado suave) se convierten a `Instant` automáticamente.
+
+### Casts personalizados
+
+Implementa `CastsAttributes` cuando necesites tipos de dominio (dinero en céntimos, objetos de valor, blobs cifrados):
+
+```kotlin
+class CentsCast : CastsAttributes {
+    override fun get(model: Cadence<*>, key: String, value: Any?, attributes: Map<String, Any?>): Any? {
+        if (value == null) return null
+        val cents = (value as Number).toLong()
+        return cents / 100.0
+    }
+
+    override fun set(model: Cadence<*>, key: String, value: Any?, attributes: Map<String, Any?>): Any? {
+        if (value == null) return null
+        return Math.round((value as Number).toDouble() * 100)
+    }
+}
+
+class Product : Cadence<Product>() {
+    override val casts = mapOf("price" to CentsCast())
+}
+```
+
+Las anulaciones de Java devuelven `Map<String, Object>` desde `getCasts()` para que quepan tanto los enums como las instancias de cast.
+
+## Ámbitos globales
+
+Un **ámbito global** es una restricción aplicada a cada consulta de un modelo — por ejemplo «solo filas activas». Registra los ámbitos en el companion (`init` de Kotlin) o una vez en el arranque (Java). Los borrados suaves se quedan aparte (`withTrashed` / `onlyTrashed`); los ámbitos globales se apilan encima.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class User : Cadence<User>() {
+    companion object : CadenceCompanion<User>(User::class.java) {
+        init {
+            addGlobalScope("active") { it.where("admin", true) }
+            addGlobalScope(AncientScope()) // identifier = class name
+        }
+    }
+}
+
+class AncientScope : Scope {
+    override fun apply(builder: ModelBuilder<*>) {
+        builder.where("age", ">", 100)
+    }
+}
+
+User.all()                                      // admin = true and age > 100
+User.withoutGlobalScope("active").get()         // drops only "active"
+User.withoutGlobalScopes().get()                // no global scopes
+User.withoutGlobalScopes(listOf("active")).get()
+User.withoutGlobalScopesExcept(listOf("active")).get() // only "active" remains
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Member extends Cadence<Member> {
+    public static final CadenceCompanion<Member> QUERY = Cadence.of(Member.class);
+
+    static {
+        Cadence.addGlobalScope(Member.class, "active", b -> b.where("admin", true));
+    }
+}
+
+Member.QUERY.all();
+Member.QUERY.withoutGlobalScope("active").get();
+Member.QUERY.withoutGlobalScopes().get();
+```
+
+</TabItem>
+</Tabs>
+
+`hasGlobalScope` / `getGlobalScope` / `getGlobalScopes` inspeccionan el registro. `removeGlobalScope` da de baja un ámbito para todo el proceso (no solo para una consulta).
+
+## Borrados suaves
+
+Un **borrado suave** marca una fila como borrada fijando una marca de tiempo `deleted_at` en lugar de quitarla, para poder restaurarla. Implementa la interfaz `SoftDeletes`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.SoftDeletes
+
+class Post : Cadence<Post>(), SoftDeletes {
+    companion object : CadenceCompanion<Post>(Post::class.java)
+}
+
+post.delete()                    // sets deleted_at
+post.trashed()                   // true
+Post.all()                       // excludes trashed rows
+Post.withTrashed().get()         // includes them
+Post.onlyTrashed().get()         // only them
+post.restore()                   // clears deleted_at
+post.forceDelete()               // removes the row
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.SoftDeletes;
+
+public class Post extends Cadence<Post> implements SoftDeletes {
+    public static final CadenceCompanion<Post> QUERY = Cadence.of(Post.class);
+}
+
+post.delete();
+post.trashed();
+Post.QUERY.all();
+Post.QUERY.withTrashed().get();
+Post.QUERY.onlyTrashed().get();
+post.restore();
+post.forceDelete();
+```
+
+</TabItem>
+</Tabs>
+
+
+Anula `deletedAtColumn` para usar otro nombre de columna. Añade la columna en una migración con `softDeletes()`.
+
+## Paginación
+
+`paginate(perPage, page)` ejecuta una consulta de recuento más una consulta de página y devuelve un `Page<T>`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val page = User.query().orderBy("name").paginate(20, request.query["page"]?.toIntOrNull() ?: 1)
+page.data          // List<User> for this page
+page.total         // total rows
+page.lastPage      // last page number (at least 1)
+page.hasMorePages()
+Response.json(page.toMap())   // {"data":[…],"total":…,"per_page":20,"current_page":…,"last_page":…}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Page<User> page = User.QUERY.query().orderBy("name").paginate(20, 1);
+page.getData();
+page.getTotal();
+page.getLastPage();
+page.hasMorePages();
+Response.json(page.toMap());
+```
+
+</TabItem>
+</Tabs>
+
+
+Los números de página empiezan en 1; los valores por debajo de 1 se tratan como la página 1.
+
+### Paginación simple y por cursor
+
+Cuando no necesitas un recuento total, `simplePaginate` obtiene `perPage + 1` filas y expone `hasMorePages()`:
+
+```kotlin
+val page = User.query().orderBy("id").simplePaginate(20, 1)
+page.hasMorePages()
+page.toMap()   // data, per_page, current_page, has_more
+```
+
+`cursorPaginate` recorre una columna ordenada con cursores opacos (sin deriva de offset en los inserts):
+
+```kotlin
+val first = User.cursorPaginate(20)
+val next = User.cursorPaginate(20, first.nextCursor)
+// CursorPage: data, per_page, next_cursor, prev_cursor
+```
+
+## Seguimiento de suciedad después de guardar
+
+`isDirty` / `getDirty` describen los cambios desde la última carga. Después de un `save()` con éxito, usa `wasChanged` / `getChanges` para lo que ese guardado persistió:
+
+```kotlin
+user["name"] = "Ada"
+user.save()
+user.wasChanged("name")   // true
+user.getChanges()         // map of persisted attributes
+user.save()               // no-op when clean → wasChanged() is false
+```
+
+## Recuperar o crear
+
+Cuando quieres «encuentra esta fila, o haz una» en una sola llamada:
+
+| Llamada | Comportamiento |
+|------|----------|
+| `firstOrNew(attributes)` | Devuelve la primera coincidencia, o un modelo **sin guardar** rellenado con `attributes` |
+| `firstOrCreate(attributes, values)` | Devuelve la primera coincidencia, o **crea** una fila a partir de `attributes` fusionado con `values` opcionales |
+| `updateOrCreate(attributes, values)` | Actualiza la primera coincidencia con `values`, o crea `attributes + values` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.firstOrCreate(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada"),
+)
+val flight = Flight.updateOrCreate(
+    mapOf("departure" to "OAK", "destination" to "SDY"),
+    mapOf("price" to 99, "discounted" to true),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.firstOrCreate(
+    Map.of("email", "ada@example.com"),
+    Map.of("name", "Ada")
+);
+Flight flight = Flight.QUERY.updateOrCreate(
+    Map.of("departure", "OAK", "destination", "SDY"),
+    Map.of("price", 99, "discounted", true)
+);
+```
+
+</TabItem>
+</Tabs>
+
+
+`wasRecentlyCreated()` es true solo cuando el último `save()` insertó esa instancia (útil después de `firstOrCreate`).
+
+## Upserts e insert-or-ignore
+
+En la consulta del modelo (o en el [constructor de consultas](../query-builder/#upserts) de la tabla):
+
+```kotlin
+User.query().upsert(
+    listOf(
+        mapOf("email" to "a@example.com", "name" to "A"),
+        mapOf("email" to "b@example.com", "name" to "B"),
+    ),
+    uniqueBy = listOf("email"),
+    update = listOf("name"),
+)
+
+User.query().updateOrInsert(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada Lovelace"),
+)
+
+User.query().insertOrIgnore(
+    listOf(mapOf("email" to "ada@example.com", "name" to "Ada")),
+    uniqueBy = listOf("email"),
+)
+```
+
+`upsert` recorre cada fila: cuando existe una fila que coincide con `uniqueBy`, actualiza las columnas listadas (o cada columna no única cuando se omite `update`); si no, inserta. Prefiere un índice único sobre esas columnas en el esquema para que los escritores concurrentes no compitan.
+
+## Ámbitos de consulta
+
+Los filtros reutilizables son métodos ordinarios de tu companion (o ayudantes estáticos en Java) que devuelven un `ModelBuilder`:
+
+```kotlin
+class User : Cadence<User>() {
+    companion object : CadenceCompanion<User>(User::class.java) {
+        fun admins(): ModelBuilder<User> = query().where("admin", true)
+        fun named(name: String): ModelBuilder<User> = query().where("name", name)
+    }
+}
+
+User.admins().orderBy("name").get()
+```
+
+Los ámbitos en línea usan `scope { … }` o el condicional `when` / `unless`:
+
+```kotlin
+User.query()
+    .scope { it.where("active", true) }
+    .when(onlyAdmins) { it.where("admin", true) }
+    .unless(includeBanned) { it.where("banned", false) }
+    .get()
+```
+
+## Accesores y mutadores
+
+Anula `getMutatedAttribute` (después de los casts en la lectura) y `setMutatedAttribute` (antes de los casts en la escritura) para transformar valores:
+
+```kotlin
+class User : Cadence<User>() {
+    override fun getMutatedAttribute(key: String, value: Any?): Any? =
+        if (key == "name" && value is String) value.uppercase() else value
+
+    override fun setMutatedAttribute(key: String, value: Any?): Any? =
+        if (key == "email" && value is String) value.lowercase() else value
+}
+```
+
+Los campos virtuales para la serialización siguen usando `appends` + `getAppendedAttribute` — consulta [Serialización y eventos](../serialization-events/).
+
+## Replicar, tocar y comparar
+
+```kotlin
+val copy = user.replicate()                    // unsaved clone without id / timestamps
+val draft = user.replicate(setOf("email"))     // also skip email
+user.touch()                                   // bump updated_at and persist
+user.`is`(other)                               // same class + same non-null primary key
+user.isNot(other)
+```
+
+## Trocear conjuntos grandes de resultados
+
+```kotlin
+User.query().orderBy("id").chunk(200) { batch ->
+    batch.forEach { process(it) }
+}
+```
+
+Cada trozo ejecuta una consulta de página (`forPage`). Haz siempre `orderBy` de una columna estable para que las páginas no salten ni repitan filas bajo escrituras concurrentes.
+
+## Persistencia silenciosa
+
+`saveQuietly()` y `deleteQuietly()` persisten sin disparar [eventos de modelo](../serialization-events/#lifecycle-events). Para un bloque entero de trabajo, usa `ModelDispatcher.withoutEvents { … }`.
+
+## Truncar la tabla de un modelo
+
+`User.truncate()` (o `User.query().truncate()`) ejecuta `TRUNCATE TABLE` sobre la tabla del modelo y elimina cada fila. Ignora las restricciones de consulta y los ámbitos de borrado suave — úsalo cuando quieras una tabla vacía, no un borrado filtrado.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+User.truncate()
+User.query().truncate()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User.QUERY.truncate();
+User.QUERY.query().truncate();
+```
+
+</TabItem>
+</Tabs>

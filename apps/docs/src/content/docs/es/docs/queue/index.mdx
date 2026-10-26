@@ -1,0 +1,53 @@
+---
+title: Colas
+description: Trabajos en segundo plano, workers y recuperación de trabajos fallidos.
+---
+
+Las colas permiten que tu app termine una petición rápido y haga el trabajo más pesado unos momentos después — enviar correo, redimensionar imágenes, llamar API lentas — en un proceso worker aparte.
+
+Registra `QueueServiceProvider` y luego despacha trabajos mediante `Bus`. Los trabajos que implementan `ShouldQueue` se empujan a una conexión; el resto se ejecuta de inmediato.
+
+## A dónde ir después
+
+| Guía | Úsala cuando |
+|------|--------------|
+| [Trabajos y despacho](/docs/queue/jobs/) | Escribir clases de trabajo, retraso, cadenas, lotes, middleware |
+| [Workers](/docs/queue/workers/) | Ejecutar `./grind queue:work` y las opciones del worker |
+| [Trabajos fallidos](/docs/queue/failed-jobs/) | Listar, reintentar y almacenamiento durable de fallos |
+
+## Inicio rápido
+
+```kotlin
+class SendInvoice : Job, ShouldQueue {
+    override fun handle() { /* … */ }
+}
+
+val bus = app.resolve(Bus::class.java)
+bus.dispatch(SendInvoice())
+```
+
+```java
+Bus bus = app.resolve(Bus.class);
+bus.dispatch(new SendInvoice());
+```
+
+```bash
+./grind queue:work --connection=array --stop-when-empty
+```
+
+## Conexiones
+
+Configura `queue.default` y `queue.connections.{name}.driver`:
+
+| Driver | Rol |
+|--------|-----|
+| `sync` | Ejecuta en línea al despachar (el retraso se ignora) |
+| `array` / `memory` | Cola en el proceso para pruebas y workers locales |
+| `redis` | Lista Redis compartida (necesita `RedisManager`) |
+| `database` | Tabla `jobs` (necesita `Database` de Cadence) |
+
+Nombre de cola predeterminado por conexión: `queue.connections.{name}.queue` (respaldo `default`).
+
+## steam
+
+Desde `./grind steam`, resuelve `Bus` / `QueueManager` después del arranque y despacha trabajos de forma interactiva mientras un worker corre en otra terminal.

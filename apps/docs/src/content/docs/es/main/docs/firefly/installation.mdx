@@ -1,0 +1,91 @@
+---
+title: Instalación
+description: Crea una app Firefly con kona new --kit=firefly, o añade kona-firefly a una app Kona existente.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+El camino más corto es una app nueva. Ejecuta `kona new`, entra en el proyecto y `./grind serve`. El kit escribe un `Panel`, las tres carpetas junto a él y una clase de arranque que monta el panel en `/admin`.
+
+Tus propias rutas se quedan donde están. La página de bienvenida sigue siendo `/`. El panel es un prefijo que elegiste, que el kit pone en `admin`.
+
+<FireflyShot file="empty-admin.png" description="La ruta /admin de una app nueva de kona new --kit=firefly, antes de añadir cualquier página o recurso." />
+
+## Una app nueva
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```bash
+kona new desk --kit=firefly
+cd desk
+./grind serve
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```bash
+kona new desk --kit=firefly --lang=java
+cd desk
+./grind serve
+```
+
+</TabItem>
+</Tabs>
+
+Abre `http://127.0.0.1:4000/`. La ruta de bienvenida se queda en `/`. El panel está en `http://127.0.0.1:4000/admin`.
+
+El archivo Gradle generado depende de Maven Central. El CLI escribe `org.konaframework:kona-firefly` en la misma versión que `kona-http` y los demás artefactos de Kona de ese archivo.
+
+## Una app existente
+
+Añade la misma coordenada junto a tus otras dependencias `org.konaframework`. Las apps Kotlin y Java de este repositorio usan el DSL Kotlin de Gradle, así que el bloque es el mismo en ambos casos:
+
+```kotlin
+dependencies {
+    implementation("org.konaframework:kona-firefly:0.3.0")
+}
+```
+
+Haz coincidir la versión con las otras líneas `org.konaframework` de ese archivo. La versión de este repositorio es `0.3.0`.
+
+Luego añade un `Panel` y llama a `mount` en el router después de registrar tus propias rutas. [Registrar un panel](/docs/firefly/registration/) es ese paso. `kona-firefly` no registra rutas por sí solo.
+
+Dentro del repositorio de Kona, los ejemplos hello dependen del módulo directamente:
+
+```kotlin
+implementation(project(":kona-firefly"))
+```
+
+`samples/hello-kotlin` y `samples/hello-java` son el escritorio concreto usado en [Una app que funciona](/docs/firefly/working-app/).
+
+## Comandos que existen
+
+Desde el directorio de la app, `./grind` acepta estos comandos de Firefly. Cada comando `make` toma `--lang=java` cuando la app es Java. Kotlin es el predeterminado.
+
+| Comando | Qué escribe |
+|---------|----------------|
+| `make:firefly-panel` | `app/firefly/Panel` más `pages/`, `widgets/` y `resources/` |
+| `firefly:install` | El mismo árbol que `make:firefly-panel` |
+| `make:firefly-page Desk` | Un `CustomPage` en `pages/` |
+| `make:firefly-theme Harbor` | Una clase de tema en `themes/` |
+| `make:firefly-resource Note --simple` | Una página Manage en `resources/` |
+| `make:firefly-resource Order` | Páginas de lista, crear, editar y ver, más un gestor de relación |
+| `make:firefly-field Price` | Una clase de campo y una vista Crema bajo `fields/` |
+| `make:firefly-entry Note` | Una entrada de infolist bajo `entries/` |
+| `make:firefly-column Name` | Una columna de tabla bajo `columns/` |
+| `make:firefly-filter Status` | Un filtro de tabla bajo `filters/` |
+| `make:firefly-action SaveRecord` | Una clase de acción y una vista bajo `actions/` |
+| `make:firefly-layout Banner` | Un componente de layout bajo `layouts/` |
+| `make:firefly-widget Revenue` | Un widget bajo `widgets/` |
+| `firefly:publish` | Un parcial de barra lateral en `resources/views/firefly/sidebar.crema.html` |
+
+`make:firefly-panel` escribe una clase llamada `Panel`. Pasar otro nombre de clase falla. Las banderas opcionales `--id=` y `--path=` fijan el id generado y el prefijo de URL. `./grind firefly:install` escribe ese mismo árbol.
+
+No hay `grind install firefly`. Usa el kit, o añade la coordenada Maven tú mismo.
+
+## Siguiente
+
+[Registrar un panel](/docs/firefly/registration/) es el archivo que el kit ya creó, y cómo el descubrimiento encuentra páginas, widgets y recursos.

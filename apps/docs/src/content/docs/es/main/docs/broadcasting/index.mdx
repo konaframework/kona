@@ -1,0 +1,88 @@
+---
+title: Broadcasting
+description: Emite eventos a canales con nombre.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Broadcasting** empuja eventos de la aplicación a canales con nombre para que los oyentes (suscriptores websocket en el proceso, pruebas o un driver de red futuro) puedan reaccionar.
+
+## Registrar
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+app.register(BroadcastServiceProvider())
+```
+
+Claves de configuración:
+
+| Clave | Significado |
+|-----|---------|
+| `broadcasting.default` | Nombre de la conexión (predeterminado `log`) |
+| `broadcasting.connections.{name}.driver` | `log`, `null` / `none`, o `websocket` / `ws` |
+
+## Eventos ShouldBroadcast
+
+```kotlin
+class OrderShipped : ShouldBroadcast {
+    override fun broadcastOn() = listOf(Channel.publicChannel("orders"))
+    override fun broadcastAs() = "order.shipped"
+    override fun broadcastWith() = mapOf("id" to 42)
+}
+
+Broadcast.event(OrderShipped())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Broadcast.event(new OrderShipped());
+```
+
+</TabItem>
+</Tabs>
+
+## Emisiones ad hoc
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Broadcast.to(Channel.publicChannel("orders"), Channel.privateOf("user.1"))
+    .event("order.shipped", mapOf("id" to 42))
+```
+
+## Drivers
+
+| Driver | Comportamiento |
+|--------|----------|
+| `log` | Guarda las cargas en memoria (`Broadcast.manager().log().messages()`) — ideal para pruebas |
+| `null` / `none` | No hace nada |
+| `websocket` / `ws` | Difusión en el proceso hacia manejadores de conexión registrados (`WebsocketBroadcaster`) |
+
+### Websocket (en el proceso)
+
+`WebsocketBroadcaster` mantiene un mapa canal → oyente. Suscríbete en local y luego emite; cada conexión distinta recibe la carga una vez aunque escuche en varios canales que coincidan. En esta versión no hay socket de red — el driver es la *forma* websocket (suscripción + difusión) para pruebas y llamadores Java, listo para envolver un endpoint Netty más adelante.
+
+```kotlin
+val ws = Broadcast.manager().websocket()
+ws.subscribe("orders") { channels, event, payload ->
+    // deliver to a client connection
+}
+app.config.set("broadcasting.default", "websocket")
+Broadcast.event(OrderShipped())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+WebsocketBroadcaster ws = Broadcast.manager().websocket();
+ws.subscribe("orders", (channels, event, payload) -> { /* … */ });
+```
+
+</TabItem>
+</Tabs>

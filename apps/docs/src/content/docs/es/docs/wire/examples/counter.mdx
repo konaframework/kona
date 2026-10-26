@@ -1,0 +1,93 @@
+---
+title: Ejemplo — Contador
+description: Contador de extremo a extremo con parámetros de mount, acciones y un Wire.test.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Un widget interactivo mínimo: una propiedad entera, dos acciones, una plantilla.
+
+## Componente
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.wire
+
+import org.konaframework.wire.Component
+
+class Counter : Component() {
+    var count = 0
+
+    fun mount(start: Int = 0) {
+        count = start
+    }
+
+    fun increment() { count++ }
+    fun decrement() { count-- }
+    fun reset() { count = 0 }
+
+    override fun template() = """
+        <div class="counter">
+            <button type="button" wire:click="decrement" wire:loading.attr="disabled">−</button>
+            <span wire:text="count"></span>
+            <button type="button" wire:click="increment" wire:loading.attr="disabled">+</button>
+            <button type="button" wire:click="reset">Reset</button>
+            <span wire:loading wire:target="increment,decrement">…</span>
+        </div>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.wire;
+
+import org.konaframework.wire.Component;
+
+public class Counter extends Component {
+    public int count = 0;
+
+    public void mount(int start) { count = start; }
+    public void increment() { count++; }
+    public void decrement() { count--; }
+    public void reset() { count = 0; }
+
+    @Override
+    public String template() {
+        return """
+            <div class="counter">
+                <button type="button" wire:click="decrement" wire:loading.attr="disabled">−</button>
+                <span wire:text="count"></span>
+                <button type="button" wire:click="increment" wire:loading.attr="disabled">+</button>
+                <button type="button" wire:click="reset">Reset</button>
+            </div>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Página
+
+```crema
+<wire:counter :start="3" />
+```
+
+## Prueba
+
+```kotlin
+Wire.test(Counter::class.java, mapOf("start" to 3))
+    .assertSet("count", 3)
+    .call("increment")
+    .assertSet("count", 4)
+    .call("reset")
+    .assertSet("count", 0)
+```
+
+Los ejemplos del repositorio (`samples/wire-kotlin`, `samples/wire-java`) incluyen un contador parecido en la página de bienvenida.

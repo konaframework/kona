@@ -1,0 +1,21 @@
+---
+title: Fachada y manager
+description: Responsabilidades de InertiaManager, ThreadLocals y el escape de HtmlAttr.
+---
+
+## InertiaManager
+
+Posee:
+
+- `version`, `rootView`, `rootHtml`, `cremaEngine`, `viteEntries`
+- `sharedProps` globales (`ConcurrentHashMap`)
+- `Request` actual en ThreadLocal y el mapa compartido por petición
+- `render` / `location` / `versionConflict` / `decorate` / `isInertiaRequest`
+
+## Fachada
+
+`Inertia` es un holder de todo el proceso para el manager activo. `InertiaServiceProvider.boot` llama a `Inertia.setManager`. Las pruebas deben llamar a `Inertia.reset()` (y `Vite.reset()`) en `@AfterEach`.
+
+## HtmlAttr
+
+`HtmlAttr.escape` escapa `& < > " '` para incrustar JSON en atributos HTML (`pageAttr` / `@page`).

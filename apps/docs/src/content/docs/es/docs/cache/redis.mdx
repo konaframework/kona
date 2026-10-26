@@ -1,0 +1,31 @@
+---
+title: Redis
+description: Conexiones Redis para caché, sesión y colas futuras.
+---
+
+`kona-redis` expone una API pequeña `RedisConnection` respaldada por un cliente en memoria (predeterminado) o Lettuce.
+
+## Configuración
+
+```
+redis.default=default
+redis.client=memory   # or lettuce
+redis.connections.default.host=127.0.0.1
+redis.connections.default.port=6379
+# or redis.connections.default.url=redis://127.0.0.1:6379/0
+```
+
+## Uso
+
+```kotlin
+val redis = RedisManager(config).connection()
+redis.set("key", "value")
+redis.setex("ttl", 60, "value")
+redis.get("key")
+```
+
+Registra `RedisServiceProvider` para enlazar `RedisManager` y la `RedisConnection` predeterminada.
+
+## Driver de sesión
+
+Asigna `session.driver=redis` y pasa una `RedisConnection` a `SessionManager` (o resuelve ambos desde el contenedor). Las claves usan `session.connection_prefix` (predeterminado `kona_session:`).

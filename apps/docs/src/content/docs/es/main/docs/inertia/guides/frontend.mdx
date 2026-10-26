@@ -1,0 +1,112 @@
+---
+title: Clientes frontend
+description: Cómo el esqueleto Inertia de Kona monta Vue, React o Svelte contra el objeto de página del servidor.
+---
+
+El paquete Inertia de Kona es **del lado del servidor**. La app del navegador es el cliente oficial de Inertia.js para tu framework de UI. Después de `./grind install inertia` (o el kit inertia), tienes una app Vite que llama a `createInertiaApp` y resuelve componentes de página bajo `src/main/resources/js/Pages/`.
+
+Para las APIs de los adaptadores (formularios, enlaces, routers, eventos), usa la documentación de origen: **[inertiajs.com](https://inertiajs.com/)**.
+
+## Contrato de montaje
+
+En la primera visita, Kona devuelve HTML cuyo elemento raíz se parece a:
+
+```html
+<div id="app" data-page="{&quot;component&quot;:&quot;Pages/Welcome&quot;,&quot;props&quot;:{…},…}"></div>
+```
+
+El cliente:
+
+1. Lee `#app` y `data-page`.
+2. Resuelve el nombre del componente a un módulo (p. ej. `./Pages/Welcome.vue`).
+3. Hidrata las props en ese componente.
+4. En visitas posteriores, envía `X-Inertia: true` y cambia de página a partir de JSON en lugar de documentos completos.
+
+Tu función `resolve` debe entender la misma convención de nombres que pasas a `Inertia.render` en el servidor (`Pages/Welcome` → `Pages/Welcome.vue` / `.jsx` / `.svelte`).
+
+## Vue 3 (esqueleto predeterminado)
+
+Entrada `src/main/resources/js/app.js`:
+
+```js
+import { createApp, h } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+
+createInertiaApp({
+  resolve: (name) => {
+    const pages = import.meta.glob('./Pages/**/*.vue', { eager: true });
+    const page = pages[`./Pages/${name}.vue`];
+    if (!page) throw new Error(`Inertia page not found: Pages/${name}.vue`);
+    return page;
+  },
+  setup({ el, App, props, plugin }) {
+    createApp({ render: () => h(App, props) }).use(plugin).mount(el);
+  },
+});
+```
+
+Los componentes de página usan `<script setup>` y declaran props que coinciden con el mapa del servidor.
+
+## React
+
+Entrada `src/main/resources/js/app.jsx` — pon `viteEntries` del servidor en esa ruta (consulta [Instalación](../installation/#2-server-configuration)).
+
+```jsx
+import { createInertiaApp } from '@inertiajs/react';
+import { createRoot } from 'react-dom/client';
+
+createInertiaApp({
+  resolve: (name) => {
+    const pages = import.meta.glob('./Pages/**/*.jsx', { eager: true });
+    const page = pages[`./Pages/${name}.jsx`];
+    if (!page) throw new Error(`Inertia page not found: Pages/${name}.jsx`);
+    return page;
+  },
+  setup({ el, App, props }) {
+    createRoot(el).render(<App {...props} />);
+  },
+});
+```
+
+## Svelte
+
+Entrada `src/main/resources/js/app.js` con `@inertiajs/svelte` y `mount` de `svelte`. Los archivos de página usan `.svelte` bajo `Pages/`.
+
+## TypeScript
+
+Pasa `--typescript` o `--ts` a `kona new --kit=inertia`. JavaScript sigue siendo el predeterminado (`--javascript` / `--js`, y cualquier ejecución no interactiva que omita la bandera).
+
+| Adaptador | Entrada | Página |
+|---------|-------|------|
+| Vue | `src/main/resources/js/app.ts` | `Pages/Welcome.vue` con `<script setup lang="ts">` |
+| React | `src/main/resources/js/app.tsx` | `Pages/Welcome.tsx` |
+| Svelte | `src/main/resources/js/app.ts` | `Pages/Welcome.svelte` con `<script lang="ts">` |
+
+El kit también escribe `tsconfig.json`, `typescript` en `devDependencies` y `env.d.ts` (Vue) o `vite-env.d.ts` (React y Svelte). Vue añade `vue-tsc`. Svelte añade `svelte.config.js` para que Vite pueda preprocesar TypeScript en archivos `.svelte`. `npm run build` compila la entrada; `npm run typecheck` ejecuta el comprobador.
+
+`viteEntries` usa el nombre de archivo TypeScript (`app.ts` o `app.tsx`), que también es la entrada de Vite, así que la clave del manifiesto y `{!! vite !!}` buscan la misma ruta. Los archivos de producción siguen cayendo en `public/build`.
+
+## Flujo de Vite
+
+| Modo | Comando | Qué pide la cáscara |
+|------|---------|----------------|
+| Desarrollo | `npm run dev` | Origen de `public/hot` + entrada, p. ej. `http://127.0.0.1:5173/src/main/resources/js/app.js` y `/@vite/client` |
+| Producción | `npm run build` | `/build/assets/<hash>.js` (y CSS) desde `public/build/manifest.json` o `public/build/.vite/manifest.json` |
+
+`{!! vite !!}` en la vista Crema raíz se expande a las etiquetas correctas mediante el `AssetManifest` de Crema (enlazado por `InertiaServiceProvider`). Detalles: [Vite y assets](../../advanced/vite/).
+
+## Cambiar de pila más tarde
+
+Vuelve a ejecutar:
+
+```bash
+./grind install inertia --frontend=react
+```
+
+Esto refresca `package.json`, la configuración de Vite y los stubs de entrada/página. **No** quita los paquetes del framework de UI anterior de `node_modules` hasta que edites `package.json` y reinstales. Prefiere hacer commit del lockfile previsto después de cambiar.
+
+## Enlaces de origen
+
+- [Configuración del lado del cliente](https://inertiajs.com/client-side-setup)
+- [El protocolo](https://inertiajs.com/the-protocol)
+- [Respuestas](https://inertiajs.com/responses) (conceptual; Kona construye las formas JSON/HTML)

@@ -1,0 +1,358 @@
+---
+title: Config y entorno
+description: Módulos de configuración ejecutables, Env, orden de arranque y la API tipada de Config.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Las aplicaciones necesitan ajustes que cambian entre máquinas: el nombre de la app, si se muestra la salida de debug, en qué puerto escuchar, las credenciales de la base de datos. Kona los separa en dos capas:
+
+- **Entorno** (`org.konaframework.core.Env`): variables de cadena planas del sistema operativo, con un archivo `.env` opcional para el desarrollo. Aquí pertenecen los valores específicos de la máquina y los secretos.
+- **Config** (`org.konaframework.core.Config`): un árbol estructurado de valores tipados, direccionado con claves punteadas como `app.debug`. Se llena a partir de predeterminados derivados del entorno, **módulos de configuración ejecutables** bajo `config/` y callbacks `configure` opcionales.
+
+Tu código debería leer sobre todo **config**. Las variables de entorno son la entrada cruda que lo siembra.
+
+## De dónde salen los valores, en orden
+
+Cuando arrancas con `Kona.create(...)`, Kona llena la config en este orden. Un paso posterior sobrescribe las claves puestas por uno anterior.
+
+1. **Se carga `.env`** del camino base, si el archivo existe. Los archivos ausentes se saltan en silencio.
+2. **Se siembran los predeterminados** a partir del entorno:
+
+   | Clave de config | Variable de entorno | Predeterminado cuando no está puesta |
+   |------------|----------------------|--------------------|
+   | `app.name` | `APP_NAME` | `"Kona"` |
+   | `app.env` | `APP_ENV` | `"local"` |
+   | `app.debug` | `APP_DEBUG` (analizado como booleano) | `false` |
+   | `app.url` | `APP_URL` | `"http://127.0.0.1:4000"` |
+   | `app.timezone` | `APP_TIMEZONE` | `"UTC"` |
+   | `app.locale` | `APP_LOCALE` | `"en"` |
+   | `app.fallback_locale` | `APP_FALLBACK_LOCALE` | `"en"` |
+   | `app.faker_locale` | `APP_FAKER_LOCALE` | `"en_US"` |
+   | `app.cipher` | `APP_CIPHER` | `"AES-256-GCM"` |
+   | `app.key` | `APP_KEY` | no puesta salvo que esté presente |
+   | `app.previous_keys` | `APP_PREVIOUS_KEYS` (separadas por comas) | lista vacía |
+   | `app.maintenance.driver` | `APP_MAINTENANCE_DRIVER` | `"file"` |
+   | `app.maintenance.store` | `APP_MAINTENANCE_STORE` | `"database"` |
+
+3. **Los módulos `ConfigFile` registrados** se fusionan en el orden de registro. Cada módulo devuelve un mapa que aterriza bajo su clave (`app`, `database`, `session`, …). Los módulos pueden llamar a `Env.get` / `Env.getOrDefault` mientras construyen ese mapa. Las anulaciones de camino de un módulo `paths` se aplican cuando la disposición se refresca después de este paso.
+4. **Tus callbacks `configure`** corren, en el orden en que los añadiste.
+
+Así que un módulo `config.App` que pone `"name"` a partir de `APP_NAME` puede refinar el predeterminado sembrado, y un `configure { it.set("app.name", ...) }` anula ambos. Las aplicaciones construidas con `Application.builder` (sin `Kona.create`) saltan los pasos 1 a 2 salvo que registres los mismos bootstrappers tú; siguen fusionando cualquier `.configs(...)` que añadas.
+
+La config se llena una vez, al arrancar. Editar `.env` o el código de un módulo de config mientras la app corre no tiene efecto hasta el reinicio (y la recompilación de los módulos).
+
+`kona new` escribe estos módulos con comentarios de sección que explican para qué sirve cada clave, qué variable de entorno la alimenta y qué drivers o valores son válidos. Lee primero `config/App.kt` (o `config/App.java`) — el nombre, el entorno, el debug, la URL, la zona horaria, los locales, el cifrado y el modo de mantenimiento están documentados ahí. Los demás módulos cubren conexiones de base de datos, Redis, sesiones HTTP, almacenes de caché, discos del sistema de archivos, colas, mailers, canales de registro, autenticación, hashing, broadcasting y credenciales de servicios de terceros.
+
+## Módulos de configuración ejecutables
+
+Pon clases Kotlin o Java en el paquete `config/` de la raíz del lenguaje (junto a `app/`, `bootstrap/`, `routes/`):
+
+```text
+src/main/kotlin/config/
+  App.kt           → key "app"
+  Database.kt      → key "database"
+  Redis.kt         → key "redis"
+  Session.kt       → key "session"
+  Cache.kt         → key "cache"
+  Filesystems.kt   → key "filesystems"
+  Queue.kt         → key "queue"
+  Mail.kt          → key "mail"
+  Logging.kt       → key "logging"
+  Auth.kt          → key "auth"
+  Hash.kt          → key "hash"
+  Broadcasting.kt  → key "broadcasting"
+  Services.kt      → key "services"
+  Http.kt          → key "http"
+  Paths.kt         → key "paths"
+```
+
+| Módulo | Clave de config | Qué controla |
+|--------|------------|------------------|
+| `App` | `app` | Nombre, entorno, debug, URL, zona horaria, locales, clave de cifrado, mantenimiento |
+| `Database` | `database` | Conexión predeterminada, URL JDBC/credenciales, nombre de la tabla de migraciones |
+| `Redis` | `redis` | Cliente (`memory` o `lettuce`) y conexiones con nombre (`default`, `cache`) |
+| `Session` | `session` | Driver, duración, banderas de cookie, prefijo Redis, lotería |
+| `Cache` | `cache` | Almacén predeterminado, almacenes `array` / `file` / `redis`, prefijo de clave |
+| `Filesystems` | `filesystems` | Disco predeterminado, discos `local` / `public` / `s3` / `memory`, mapa de `storage:link` |
+| `Queue` | `queue` | Conexión predeterminada, backends, lotes, almacén de trabajos fallidos |
+| `Mail` | `mail` | Mailer predeterminado, mailers SMTP/log/array, dirección from global |
+| `Logging` | `logging` | Canal predeterminado, canales stack/single/daily/stderr/syslog/null |
+| `Auth` | `auth` | Guards, proveedores de usuario, brokers de restablecimiento de contraseña, tokens de acceso personal |
+| `Hash` | `hash` | Driver Bcrypt / Argon2 y parámetros de coste |
+| `Broadcasting` | `broadcasting` | Broadcaster predeterminado y conexiones websocket/log/null |
+| `Services` | `services` | Credenciales de terceros (SES, Postmark, Resend, Slack) para el código de la app |
+| `Http` | `http` | Ajustes del kernel HTTP |
+| `Paths` | `paths` | Raíces de idioma, recursos, almacenamiento y público |
+
+Redis vive en la clave de nivel superior `redis.*` (no anidada bajo `database`). Las conexiones de caché y cola que dicen `connection = "cache"` se refieren a `redis.connections.cache`.
+
+Cada módulo implementa `org.konaframework.core.ConfigFile` con dos métodos:
+
+- `key()` — clave de config de nivel superior (normalmente el tallo del archivo en minúsculas: `App` → `"app"`).
+- `config()` — mapa anidado de valores para esa clave. Llama a `Env` aquí para los valores específicos de la máquina.
+
+Regístralos de forma explícita desde `bootstrap.App` (fiable y fácil de probar):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Kona.create(args)
+    .configs(
+        config.App, config.Database, config.Redis, config.Session, config.Cache,
+        config.Filesystems, config.Queue, config.Mail, config.Logging, config.Auth,
+        config.Hash, config.Broadcasting, config.Services, config.Http, config.Paths,
+    )
+    .providers(/* ... */)
+    .boot()
+```
+
+```kotlin title="config/Database.kt"
+package config
+
+import org.konaframework.core.ConfigFile
+import org.konaframework.core.Env
+
+object Database : ConfigFile {
+    override fun key(): String = "database"
+
+    override fun config(): Map<String, Any?> = mapOf(
+        "default" to Env.getOrDefault("DB_CONNECTION", "main"),
+        "connections" to mapOf(
+            "main" to mapOf(
+                "url" to Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"),
+                "username" to Env.getOrDefault("DB_USERNAME", "sa"),
+                "password" to Env.getOrDefault("DB_PASSWORD", ""),
+            ),
+        ),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Kona.create(args)
+    .configs(
+        new config.App(),
+        new config.Database(),
+        new config.Redis(),
+        new config.Session(),
+        new config.Cache(),
+        new config.Filesystems(),
+        new config.Queue(),
+        new config.Mail(),
+        new config.Logging(),
+        new config.Auth(),
+        new config.Hash(),
+        new config.Broadcasting(),
+        new config.Services(),
+        new config.Http(),
+        new config.Paths()
+    )
+    .providers(/* ... */)
+    .boot();
+```
+
+```java title="config/Database.java"
+package config;
+
+import org.konaframework.core.ConfigFile;
+import org.konaframework.core.Env;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public final class Database implements ConfigFile {
+    @Override
+    public String key() {
+        return "database";
+    }
+
+    @Override
+    public Map<String, Object> config() {
+        Map<String, Object> main = new LinkedHashMap<>();
+        main.put("url", Env.getOrDefault("DB_URL", "jdbc:h2:file:./storage/database/kona;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE"));
+        main.put("username", Env.getOrDefault("DB_USERNAME", "sa"));
+        main.put("password", Env.getOrDefault("DB_PASSWORD", ""));
+
+        Map<String, Object> connections = new LinkedHashMap<>();
+        connections.put("main", main);
+
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("default", Env.getOrDefault("DB_CONNECTION", "main"));
+        values.put("connections", connections);
+        return values;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+También puedes construir un módulo en línea con `ConfigFile.of("cache", () -> Map.of("driver", "memory"))`.
+
+`kona new` andamia estos módulos y cablea `.configs(...)` en `bootstrap.App` tanto para Kotlin como para Java (y cada superposición de kit de inicio).
+
+**No** hay carga de un directorio de config JSON o `.properties`. Los ajustes viven en el código junto al resto de la app para que puedan llamar a `Env` y sigan comprobados por el tipo.
+
+### Caminos
+
+`PathLayout` sigue respetando `paths.langRoot`, `paths.resources`, `paths.storage` y `paths.public`. El directorio público predeterminado es el `public/` de la raíz del proyecto (la raíz de documentos HTTP). Envía anulaciones desde `config/Paths` (u omite el módulo y conserva los predeterminados del framework). `Application.configPath()` / `Paths.config()` resuelven al directorio `config/` de la raíz del lenguaje (por ejemplo `src/main/kotlin/config`), no a `src/main/resources/config`.
+
+## Variables de entorno y `.env`
+
+`Env.get` comprueba primero el **entorno real del proceso** y cae a los valores cargados de `.env`. Esta precedencia es deliberada: una plataforma de despliegue, un trabajo de CI o un contenedor pueden inyectar valores de producción y secretos sin que el archivo se edite o siquiera esté presente.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val host = Env.getOrDefault("HOST", "127.0.0.1")
+val region = Env.get("REGION")                 // String? — null when unset
+val apiKey = Env.require("PAYMENTS_API_KEY")   // throws when unset
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String host = Env.getOrDefault("HOST", "127.0.0.1");
+String region = Env.get("REGION", null);           // null when unset
+String apiKey = Env.require("PAYMENTS_API_KEY");   // throws when unset
+```
+
+</TabItem>
+</Tabs>
+
+
+| Método | Comportamiento |
+|--------|----------|
+| `get(key, default)` | Entorno del proceso, luego `.env`, luego `default` (Kotlin puede omitir `default`; Java pasa `null`) |
+| `getOrDefault(key, default)` | Igual, con un resultado no nulo |
+| `require(key)` | Igual, pero lanza `IllegalStateException("Missing environment variable [KEY]")` cuando está ausente |
+| `load(path)` | Analiza un archivo `.env` y recuerda sus valores (las cargas posteriores sobrescriben las claves anteriores) |
+| `set(key, value)` | Pone un valor de respaldo en código; las variables reales del proceso siguen ganando |
+| `clear()` | Olvida los valores cargados y puestos; también lo hace `Kona.reset()` |
+
+`Env` es de todo el proceso, no por aplicación. Las pruebas que arrancan varias aplicaciones deben llamar a `Kona.reset()` entre ellas.
+
+### Formato del archivo `.env`
+
+```bash
+# Comments start with #
+APP_NAME=billing
+APP_DEBUG=on
+export PORT=9000               # an "export " prefix is allowed
+GREETING="Hello # not a comment"
+SINGLE='single quotes work too'
+EMPTY=
+```
+
+- Un `KEY=value` por línea. Se recorta el espacio alrededor de la clave y del valor.
+- Se saltan las líneas en blanco y las que empiezan por `#`, igual que las líneas sin `=` o sin nada antes.
+- En un valor **sin comillas**, ` #` (espacio y luego almohadilla) empieza un comentario final. Dentro de comillas simples o dobles, `#` es literal.
+- Se quitan las comillas circundantes. No hay interpolación de variables, procesamiento de escapes ni soporte de valores multilínea.
+
+### Valores booleanos
+
+`APP_DEBUG`, y cualquier cosa que leas con `getBoolean`, acepta estas cadenas en cualquier combinación de mayúsculas:
+
+| Verdadero | Falso |
+|------|-------|
+| `true`, `1`, `yes`, `on` | `false`, `0`, `no`, `off`, cadena vacía |
+
+Los números cuentan como verdaderos cuando no son cero. Para `APP_DEBUG`, cualquier otra cadena (por ejemplo `maybe`) se trata como `false`. Con `app.debug` activado, la capa HTTP añade mensajes de excepción y nombres de clase a las respuestas de error; mantenlo apagado en servidores públicos.
+
+## La API de `Config`
+
+`Config` guarda mapas anidados. Una clave punteada camina por el árbol: `set("app.debug", true)` crea `{ "app": { "debug": true } }`, y `get("app")` devuelve todo el mapa `app`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val config = app.config
+
+config.set("mail.host", "smtp.example.com")
+config.set("mail.port", 587)
+config.set("mail", mapOf("from" to "noreply@example.com"))   // replaces the mail subtree
+
+val name = config.getString("app.name", "Kona")
+val port = config.getInt("server.port", 8080)
+val debug = config.getBoolean("app.debug", false)
+val hasMail = config.has("mail.from")                // true
+val mail: Map<String, Any?>? = config.get("mail")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Config config = app.getConfig();
+
+config.set("mail.host", "smtp.example.com");
+config.set("mail.port", 587);
+config.set("mail", Map.of("from", "noreply@example.com"));   // replaces the mail subtree
+
+String name = config.getString("app.name", "Kona");
+int port = config.getInt("server.port", 8080);
+boolean debug = config.getBoolean("app.debug", false);
+boolean hasMail = config.has("mail.from");              // true
+Map<String, Object> mail = config.get("mail");
+```
+
+</TabItem>
+</Tabs>
+
+
+| Método | Devuelve |
+|--------|---------|
+| `set(key, value)` | Guarda `value`, creando mapas intermedios. Los valores de mapa se copian al árbol. Poner bajo un valor que no es mapa lo sustituye por un mapa. |
+| `has(key)` | `true` si existe el camino completo, incluso cuando el valor almacenado es `null` |
+| `get(key)` / `get(key, default)` | El valor crudo (o el mapa anidado), convertido al tipo al que asignas; `default` solo cuando falta la clave |
+| `getString(key)` / `getString(key, default)` | `toString()` del valor |
+| `getInt(key)` / `getInt(key, default)` | Números truncados a `Int`; cadenas numéricas analizadas; cualquier otra cosa cuenta como ausente |
+| `getBoolean(key)` / `getBoolean(key, default)` | Con las reglas booleanas de arriba; las cadenas no reconocidas cuentan como ausentes |
+| `all()` | Una copia profunda de todo el árbol, segura de modificar |
+| `loadMap(prefix, map)` | Fusiona en profundidad un mapa bajo `prefix` (un prefijo vacío fusiona en la raíz) |
+| `load(ConfigFile)` | Fusiona un módulo ejecutable bajo su `key()` |
+
+Los getters tipados de un solo argumento devuelven `null` (Kotlin `Int?`, Java `Integer`) cuando falta la clave o no es convertible. Las formas de dos argumentos devuelven el predeterminado, que es lo que normalmente quieres. `get` hace un cast no comprobado: asignar un valor de cadena a un `Integer` compila pero falla con `ClassCastException` al usarlo, así que prefiere los getters tipados para los escalares.
+
+Las lecturas y escrituras están sincronizadas, así que la config es segura de leer desde los hilos de petición. Trátala como de solo lectura después del arranque de todos modos; está pensada para ajustes, no para estado mutable compartido.
+
+Aún puedes poner claves en un callback `configure` sin un módulo dedicado:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Kona.create(args)
+    .configs(config.App, config.Database)
+    .configure { config ->
+        config.loadMap("feature", mapOf("beta" to true))
+    }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Kona.create(args)
+    .configs(new config.App(), new config.Database())
+    .configure(config -> config.loadMap("feature", Map.of("beta", true)))
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+## Modos de fallo
+
+- **Variable de entorno obligatoria ausente** leída con `Env.require`: `IllegalStateException` que nombra la variable.
+- **Excepciones lanzadas dentro de `ConfigFile.config()`** durante el arranque se propagan y fallan rápido antes de que la app sirva peticiones.
+
+Consulta también [Aplicación y proveedores](../application/) para ver dónde encaja la configuración en la secuencia de arranque.
