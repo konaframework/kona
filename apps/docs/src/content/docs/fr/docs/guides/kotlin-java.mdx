@@ -5,25 +5,25 @@ description: Comment les mêmes API Kona se présentent depuis Kotlin et Java, e
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Kona est écrit en Kotlin, mais les applications Java sont une cible de premier ordre. Chaque API publique est formée pour qu’un site d’appel Java se lise naturellement, et le dépôt Kona garde un échantillon Java (`samples/hello-java`) à côté de celui en Kotlin (`samples/hello-kotlin`) dans ses tests de régression. Quand une page de ces docs montre les deux langages, **le comportement est identique** ; seule la syntaxe diffère.
+Kona est écrit en Kotlin, mais les applications Java sont une cible de premier rang. Chaque API publique est façonnée pour qu’un site d’appel Java se lise naturellement, et le dépôt Kona garde un exemple Java (`samples/hello-java`) à côté de l’exemple Kotlin (`samples/hello-kotlin`) dans ses tests de régression. Lorsqu’une page de cette documentation montre les deux langues, **le comportement est identique** ; seule la syntaxe diffère.
 
-Cette page explique les conventions derrière cela, pour que vous puissiez prédire comment n’importe quelle API Kona se présente depuis votre langage sans chercher un exemple.
+Cette page explique les conventions derrière cela, afin que vous puissiez prédire comment n’importe quelle API Kona se présente depuis votre langue sans chercher un exemple.
 
 ## Comment les API Kotlin apparaissent en Java
 
-Kotlin compile vers des classes JVM ordinaires. Quelques fonctionnalités de langage se traduisent de façon prévisible :
+Kotlin compile vers des classes JVM ordinaires. Quelques traits de langage se traduisent de façon prévisible :
 
 | Déclaration Kotlin | Ce que le code Kotlin écrit | Ce que le code Java écrit |
 |--------------------|-------------------------|-----------------------|
 | Propriété `val container` | `app.container` | `app.getContainer()` |
 | Propriété mutable `var status` | `response.status = 201` | `response.setStatus(201)` |
-| `object Kona` avec des membres `@JvmStatic` | `Kona.create(args)` | `Kona.create(args)` |
+| `object Kona` avec membres `@JvmStatic` | `Kona.create(args)` | `Kona.create(args)` |
 | Classe imbriquée `Application.Builder` | `Application.Builder` | `Application.Builder` |
-| `fun interface Handler` | lambda final `{ request -> ... }` | lambda `request -> ...` ou référence de méthode |
+| `fun interface Handler` | lambda finale `{ request -> ... }` | lambda `request -> ...` ou référence de méthode |
 | Type de fonction `(Container) -> T` | `{ c -> Greeter() }` | `c -> new Greeter()` |
-| Type de retour `T?` (nullable) | le compilateur force un contrôle null | peut renvoyer `null` ; vérifiez-le vous-même |
+| Type de retour `T?` (nullable) | le compilateur force une vérification null | peut renvoyer `null` ; vérifiez-le vous-même |
 
-Kona marque ses points d’entrée (`Kona`, `Env`, `Application.builder`, `Response.text`/`json`/`html`, `Request.get`/`post`, `Config.toBoolean`) avec `@JvmStatic`, donc Java les appelle comme des méthodes statiques simples sans saut `.INSTANCE` ou `.Companion`.
+Kona marque ses points d’entrée (`Kona`, `Env`, `Application.builder`, `Response.text`/`json`/`html`, `Request.get`/`post`, `Config.toBoolean`) avec `@JvmStatic`, donc Java les appelle comme de simples méthodes statiques sans saut `.INSTANCE` ou `.Companion`.
 
 ## Démarrer une application
 
@@ -50,11 +50,11 @@ Application app = Kona.create(args)
 </TabItem>
 </Tabs>
 
-`configure` accepte un `java.util.function.Consumer<Config>`, donc il prend un lambda Java directement et un lambda Kotlin par conversion SAM.
+`configure` accepte un `java.util.function.Consumer<Config>`, donc il prend une lambda Java directement et une lambda Kotlin par conversion SAM.
 
 ## Écrire un service provider
 
-`ServiceProvider` est une interface avec `register(Application)` et `boot(Application)`. En Kotlin, `boot` a un corps par défaut vide, donc un provider Kotlin peut l’omettre. **Les providers Java doivent implémenter les deux méthodes** : le défaut Kotlin n’est pas compilé comme une méthode `default` Java, donc laissez `boot` vide quand vous n’avez rien à faire au boot.
+`ServiceProvider` est une interface avec `register(Application)` et `boot(Application)`. En Kotlin, `boot` a un corps par défaut vide, donc un provider Kotlin peut l’omettre. **Les providers Java doivent implémenter les deux méthodes** : le défaut Kotlin n’est pas compilé comme une méthode Java `default`, donc laissez `boot` vide lorsque vous n’avez rien à faire au boot.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -93,11 +93,11 @@ public final class AppServiceProvider implements ServiceProvider {
 </TabItem>
 </Tabs>
 
-Les types sont toujours passés comme objets `Class` : `Clock::class.java` en Kotlin, `Clock.class` en Java. Il n’y a pas de raccourcis génériques réifiés, donc le même appel de conteneur fonctionne de façon identique dans les deux langages.
+Les types sont toujours passés comme objets `Class` : `Clock::class.java` en Kotlin, `Clock.class` en Java. Il n’y a pas de raccourcis génériques réifiés, donc le même appel de conteneur fonctionne identiquement dans les deux langues.
 
 ## Handlers
 
-Un **handler** est tout ce qui transforme une `Request` en `Response`. `Handler` est une interface à une méthode, `handle(Request): Response`, donc tout lambda ou référence de méthode de cette forme convient.
+Un **handler** est tout ce qui transforme une `Request` en `Response`. `Handler` est une interface à une méthode, `handle(Request): Response`, donc toute lambda ou référence de méthode de cette forme convient.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -124,7 +124,7 @@ router.get("/users", users::index);
 
 ## Middleware et `next`
 
-Le **middleware** est une fonction `handle(request, next)` qui tourne avant un handler. Appeler `next` passe la requête plus loin dans la chaîne ; revenir sans l’appeler termine la requête tôt avec votre propre réponse.
+Le **middleware** est une fonction `handle(request, next)` qui s’exécute avant un handler. Appeler `next` passe la requête plus loin dans la chaîne ; renvoyer sans l’appeler termine la requête tôt avec votre propre réponse.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -151,11 +151,11 @@ Middleware requireToken = (request, next) ->
 </TabItem>
 </Tabs>
 
-En Kotlin, `next(request)` est une extension d’opérateur déclarée dans `org.konaframework.http` ; vous devez importer `org.konaframework.http.invoke` pour que ça compile. `next.handle(request)` fonctionne dans les deux langages sans import.
+En Kotlin, `next(request)` est une extension d’opérateur déclarée dans `org.konaframework.http` ; vous devez importer `org.konaframework.http.invoke` pour qu’elle compile. `next.handle(request)` fonctionne dans les deux langues sans import.
 
 ## Groupes de routes
 
-Un **groupe de routes** applique un préfixe d’URL, un préfixe de nom de route et du middleware à chaque route déclarée dedans. C’est la seule API dont les formes diffèrent vraiment par langage.
+Un **groupe de routes** applique un préfixe d’URL, un préfixe de nom de route et du middleware à chaque route déclarée à l’intérieur. C’est la seule API avec des formes vraiment différentes par langue.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -188,7 +188,7 @@ router.group("/api", "api.", List.of(requireToken), api -> { /* ... */ });
 </TabItem>
 </Tabs>
 
-La forme Kotlin `group(prefix =, name =, middleware =) { }` utilise des arguments nommés et un lambda récepteur, donc elle est cachée de Java. Java obtient la chaîne fluide `prefix(...).name(...).middleware(...).group(Consumer<Router>)` et des surcharges `Consumer` à la place. Les deux construisent exactement les mêmes routes.
+La forme Kotlin `group(prefix =, name =, middleware =) { }` utilise des arguments nommés et une lambda réceptrice, donc elle est cachée de Java. Java obtient la chaîne fluide `prefix(...).name(...).middleware(...).group(Consumer<Router>)` et des surcharges `Consumer` à la place. Les deux construisent exactement les mêmes routes.
 
 ## Arguments par défaut
 
@@ -197,7 +197,7 @@ Les paramètres Kotlin peuvent avoir des valeurs par défaut. Là où Kona ajout
 | Appel | Kotlin | Java |
 |------|--------|------|
 | Recherche d’environnement | `Env.get("KEY")` | `Env.get("KEY", null)`, ou `Env.getOrDefault("KEY", "x")` |
-| Entrée de requête | `request.input("q")` | `request.input("q", null)` |
+| Saisie de requête | `request.input("q")` | `request.input("q", null)` |
 | URL de route nommée | `router.route("home")` | `router.route("home", Map.of())` |
 
 Si Java signale « method cannot be applied to given types » sur un appel Kona, un argument par défaut manquant est la raison habituelle.
@@ -225,12 +225,12 @@ Integer port = app.getConfig().get("server.port");
 </TabItem>
 </Tabs>
 
-Le cast n’est pas vérifié : si la valeur stockée a un autre type, vous obtenez une `ClassCastException` là où vous l’utilisez. Préférez les getters de config typés (`getInt`, `getString`, `getBoolean`) et les recherches de conteneur par classe (`make(Greeter.class)`) quand vous pouvez.
+Le cast n’est pas vérifié : si la valeur stockée a un autre type, vous obtenez une `ClassCastException` là où vous l’utilisez. Préférez les getters de config typés (`getInt`, `getString`, `getBoolean`) et les recherches de conteneur par classe (`make(Greeter.class)`) lorsque vous le pouvez.
 
-## Mélanger les deux langages dans un projet
+## Mélanger les deux langues dans un projet
 
-Un projet Kotlin peut contenir des classes Java et l’inverse ; Kona ne se soucie pas du langage dans lequel un provider ou un contrôleur a été écrit. Les échafaudages utilisent les racines standard `src/main/kotlin` et `src/main/java`, donc vous pouvez ajouter les sources de l’autre langage à côté du premier. `grind make:controller` choisit `.java` dès qu’un fichier `.java` existe sous `src/main/java/` ; passez `--lang=` pour surcharger.
+Un projet Kotlin peut contenir des classes Java et l’inverse ; Kona ne se soucie pas de la langue dans laquelle un provider ou un contrôleur a été écrit. Les échafaudages utilisent les racines standard `src/main/kotlin` et `src/main/java`, donc vous pouvez ajouter les sources de l’autre langue à côté de la première. `grind make:controller` choisit `.java` dès qu’un fichier `.java` existe sous `src/main/java/` ; passez `--lang=` pour surcharger.
 
-## Échantillons de référence
+## Exemples de référence
 
-`samples/hello-kotlin` et `samples/hello-java` dans le dépôt Kona correspondent au layout *source* **web** par défaut de `kona new` (accueil Crema + `/api/health`) avec des tests de fumée HTTP. Ce ne sont **pas** des échafaudages complets : ils n’ont pas `./grind` ni un `./gradlew` local, et vous les lancez depuis la racine du dépôt (`./gradlew :hello-kotlin:run` / `:hello-java:run`). Pour le chemin produit avec `./grind serve`, utilisez [Installation](../installation/) et [Votre première app](../first-app/). Les autres kits (`api`, `wire`, `inertia`) sont couverts par les régressions `kona new` dans la suite de tests du CLI.
+`samples/hello-kotlin` et `samples/hello-java` dans le dépôt Kona correspondent à la disposition *source* **web** par défaut de `kona new` (accueil Crema + `/api/health`) avec des tests de fumée HTTP. Ce ne sont **pas** des échafaudages complets : ils n’ont pas de `./grind` ni de `./gradlew` local, et vous les lancez depuis la racine du dépôt (`./gradlew :hello-kotlin:run` / `:hello-java:run`). Pour le chemin produit avec `./grind serve`, utilisez [Installation](../installation/) et [Votre première application](../first-app/). Les autres kits (`api`, `wire`, `inertia`) sont couverts par les régressions `kona new` dans la suite de tests du CLI.
