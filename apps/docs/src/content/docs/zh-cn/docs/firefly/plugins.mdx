@@ -1,0 +1,73 @@
+---
+title: 插件
+description: 用 FireflyPlugin 的 register 和 boot 扩展面板，使用与应用相同的方法。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+插件是一个类，它接收 `Panel` 并调用应用会调用的同样方法。没有插件注册表。你把实例传给 `plugin(...)`。
+
+:::note[截图占位：插件横幅]
+这里将放一张面板正文带插件钩子的截图。
+:::
+
+## 它如何运行
+
+`register` 立即运行，在 `plugin(...)` 内部。`boot` 在面板挂载时、页面被路由之前运行。第二个具有相同 `id()` 的插件会抛出 `FireflyException` 并指出这个 id。`configureUsing` 是其他 Firefly 类型使用的同一个静态钩子：它在 `register` 之前对实例运行。传入 `null` 可以清除它。`view("plugins/banner.crema.html")` 在插件上存储一个视图路径。空白路径会抛出 `Plugin view path is blank`。`view()` 返回该路径，从未设置时返回 null。
+
+默认的 `id()` 是简单类名的小写形式。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class BannerPlugin : FireflyPlugin() {
+    override fun id(): String = "banner"
+
+    override fun register(panel: Panel) {
+        panel.hook(Hook.BODY_END, "<p>Banner</p>")
+    }
+
+    override fun boot(panel: Panel) {
+        panel.brand("Desk")
+    }
+}
+
+panel.plugin(BannerPlugin().view("plugins/banner.crema.html"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class BannerPlugin extends FireflyPlugin {
+    @Override
+    public String id() {
+        return "banner";
+    }
+
+    @Override
+    public void register(Panel panel) {
+        panel.hook(Hook.BODY_END, "<p>Banner</p>");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`Hook` 位于 `org.konaframework.firefly.support`。钩子标记和局部在[面板外框](/docs/firefly/chrome/)。
+
+## 方法
+
+| 方法 | 它做什么 |
+|------|----------|
+| `id()` | 稳定名称。重复的 id 在 `plugin` 时失败 |
+| `view(path)` / `view()` | 存储并读取 Crema 视图路径 |
+| `register(panel)` | 立即运行 |
+| `boot(panel)` | 在 `mount` 开始时运行 |
+| `configureUsing` | 之后每一次 `plugin(...)` 调用的静态钩子 |
+
+## 下一步
+
+[导入和导出](/docs/firefly/import-export/) 通过对话框动作和队列任务搬运行。

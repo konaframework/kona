@@ -44,6 +44,15 @@ public class Profile extends Component {
 
 客户端传来的错误类型会引发属性类型不匹配（请求被拒绝）。锁定或未知属性会被拒绝。
 
+Cadence 模型同样是公开状态。快照保留它的类、主键、连接和属性值。下一次请求时，如果配置了全局数据库，Wire 会重新加载该行。没有全局数据库时，Wire 用这些属性重建模型，因此模板仍然看到同样的列。在模型上调用方法，包括属性为 null 时：
+
+```crema
+{{ user?.getEmail() }}
+{{ user?.getAttribute('name') }}
+```
+
+当类没有 `getEmail()` 方法时，`user.email` 读取该列。Java 模型使用同样的调用（`getEmail()`、`getAttribute("name")`）。
+
 ## 批量辅助方法
 
 | 方法 | 行为 |
