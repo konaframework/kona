@@ -3,7 +3,11 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms. M28, M29, M30, M32, and M33 are on `main`. Kona **0.3.0** (M26) has shipped.
+**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms, in progress on `milestone/M31-firefly-forms`. Not merged. No pull request. Do not mark M31 done.
+
+On `main` (`0bd0c321`, including #219): M28 support, M29 schemas, M30 actions, M32 infolists, M33 tables. `modules/firefly-forms` is not on `main`. M34–M38 are queued and not started. Kona **0.3.0** (M26) has shipped.
+
+Law 1 still allows parallel non-colliding milestones, each on its own branch and pull request. This status line records what is on `main`. It does not collapse that rule back to a single active milestone.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -951,11 +955,13 @@ flowchart LR
   M29 --> M33[M33_Firefly_Tables]
 ```
 
+M31 is drawn beside M30, M32, and M33 because Law 1 allows that parallel work. M34–M38 are queued and not started, so they are not on this graph yet.
+
 ---
 
 ## M28 — Firefly support
 
-**Status:** done (on `main`).
+**Status:** done (on `main`, PR #213).
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -989,7 +995,7 @@ Schemas, fields, tables, panel routes, resources, the document addon, IDE suppor
 
 ## M29 — Firefly schemas
 
-**Status:** done (on `main`).
+**Status:** done (on `main`, PR #214).
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -1069,7 +1075,7 @@ Infolists (M32), tables (M33), and later panel milestones.
 
 ## M30 — Firefly actions
 
-**Status:** done (on `main`).
+**Status:** done (on `main`, PR #216).
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -1107,9 +1113,37 @@ Form fields, `fillForm`, form data mutation, a disabled form, and action `steps(
 
 ---
 
+## M31 — Firefly forms
+
+**Status:** in progress (not on `main`). Not done.
+
+**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
+
+**Branch:** `milestone/M31-firefly-forms` at `5c56f6e1`. There is no pull request. `modules/firefly-forms` is absent from `main` (`1a6045b1`).
+
+**Parity slice:** Form fields. The checklist on that branch is not copied here as done, because the branch has not merged. Ledger note: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+The branch ledger still lists these helpers as open (`todo`):
+
+- FRM-18 `prefixAction`, `suffixAction`, `hintAction`
+- FRM-19 repeater `addAction`, `deleteAction`, `cloneAction`, `extraItemActions` as actions
+- FRM-20 builder `addBetweenAction`
+- FRM-21 rich-editor custom block edit as an action
+- FRM-22 select `createOptionAction`
+- FRM-23 `relationship` record query / `modifyQueryUsing`
+- FRM-24 `ModalTableSelect`
+- FRM-25 `MorphToSelect`
+- FRM-26 file upload browse / file manager
+
+### Out of scope for this status update
+
+Do not treat the branch checklist as merged. Do not start M34–M38 from this note.
+
+---
+
 ## M33 — Firefly tables
 
-**Status:** in progress (not on `main`).
+**Status:** done (on `main`, PR #218, `1a6045b1`).
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -1141,13 +1175,13 @@ Chainable configuration methods accept a static value or a closure. The closure 
 
 ### Out of scope
 
-Typed action objects attach when M30 is on `main`. Forms (M31), infolists (M32), notifications, widgets, the panel, resources, tenancy, import/export, and the Mongo document addon (`kona-firefly-document`) stay on their own milestones.
+Typed action objects (TBL-12) are still open. M30 is already on `main`; this module still uses `TableButton` for row and header buttons. Forms (M31) are in progress on `milestone/M31-firefly-forms` and are not on `main`. Notifications, widgets, the panel, resources, tenancy, import/export, and the Mongo document addon (`kona-firefly-document`) stay on M34–M38 or the document addon.
 
 ---
 
 ## M32 — Firefly infolists
 
-**Status:** in progress (`milestone/M32-firefly-infolists`; checklist below is the shipped slice, and the milestone is done when this PR is on `main`).
+**Status:** done (on `main`, PR #217). The three unchecked rows below were left open on that slice. They are not a reason to call M32 unmerged.
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -1184,7 +1218,47 @@ Chainable entry setters accept a static value or a closure (`Function` / `Predic
 
 ### Out of scope
 
-Actions (M30). Forms, including the code editor field (M31). Tables (M33). Do not depend on `kona-firefly-actions`, `kona-firefly-forms`, or `kona-firefly-tables`.
+Actions (M30) and tables (M33) are on `main`. Forms, including the code editor field (M31), are in progress on `milestone/M31-firefly-forms` and are not on `main`. This module does not depend on `kona-firefly-forms`.
+
+---
+
+## M34 — Firefly notifications and widgets
+
+**Status:** queued (not started).
+
+Not on `main`. Artifacts, when this milestone starts: `kona-firefly-notifications`, `kona-firefly-widgets`. Do not open this milestone from the forms or tables status update.
+
+---
+
+## M35 — Firefly panel, auth, and navigation
+
+**Status:** queued (not started).
+
+Not on `main`. Artifact, when this milestone starts: `kona-firefly`.
+
+---
+
+## M36 — Firefly resources
+
+**Status:** queued (not started).
+
+Not on `main`. Includes `--simple` resources. Artifact, when this milestone starts: `kona-firefly`.
+
+---
+
+## M37 — Firefly tenancy, plugins, import/export, and kit
+
+**Status:** queued (not started).
+
+Not on `main`. Includes `Firefly.test` and `kona new --kit=firefly`.
+
+---
+
+## M38 — Firefly IDE catalog
+
+**Status:** queued (not started).
+
+Not on `main`. Starts only after M37 is on `main`. Targets `kona-lsp` and the editor extensions. Law 1 still allows other non-colliding milestones to proceed in parallel while this one waits on that dependency.
 
 ---
 
