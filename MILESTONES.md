@@ -3,9 +3,9 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms, in progress on `milestone/M31-firefly-forms`. Not merged. No pull request. Do not mark M31 done.
+**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms, complete on `milestone/M31-firefly-forms` and on `main` when this PR merges.
 
-On `main` (`0bd0c321`, including #219): M28 support, M29 schemas, M30 actions, M32 infolists, M33 tables. `modules/firefly-forms` is not on `main`. M34–M38 are queued and not started. Kona **0.3.0** (M26) has shipped.
+On `main` (`0bd0c321`, including #219): M28 support, M29 schemas, M30 actions, M32 infolists, M33 tables. `modules/firefly-forms` is not on `main` until this PR merges. M34–M38 are queued and not started. Kona **0.3.0** (M26) has shipped.
 
 Law 1 still allows parallel non-colliding milestones, each on its own branch and pull request. This status line records what is on `main`. It does not collapse that rule back to a single active milestone.
 
@@ -1031,7 +1031,7 @@ Actions (M30). Form fields shipped in M31.
 
 ## M31 — Firefly forms
 
-**Status:** in progress (`milestone/M31-firefly-forms`). Not done until FRM-18–FRM-26 ship and `koverVerify` passes.
+**Status:** done (branch `milestone/M31-firefly-forms`; on `main` when this PR merges). FRM-18–FRM-26 ship in this module. `koverVerify` is 100% line and branch.
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -1056,6 +1056,13 @@ Chainable field methods accept a static value or a closure, matching the schema 
 - [x] Kotlin and Java regression paths
 - [x] Public docs under Firefly → Forms, plus the Dev archive copy
 - [x] 100% line + branch Kover on `kona-firefly-forms`
+- [x] `prefixAction`, `suffixAction`, `hintAction` using `Action`
+- [x] Repeater `addAction`, `deleteAction`, `cloneAction`, `extraItemActions`
+- [x] Builder `addBetweenAction`
+- [x] Rich-editor `editBlockAction` (dialog stays inside the block; the action renders beside it)
+- [x] Select `createOptionAction` and `relationship` / `modifyQueryUsing` on a `RecordStore`
+- [x] `ModalTableSelect` on `Table`, `MorphToSelect` on a `RecordStore`
+- [x] File upload `browseAction`, `browse`, and `chooseBrowsed` (file manager stays a later package)
 
 ### In-scope modules
 
@@ -1063,13 +1070,9 @@ Chainable field methods accept a static value or a closure, matching the schema 
 
 ### Out of scope
 
-Actions (M30): `prefixAction`, `suffixAction`, `hintAction`, repeater item actions, builder `addBetweenAction`, and action wrappers around the rich-text block dialog and `createOptionUsing`. The dialogs and `createOptionUsing` themselves ship here.
+The file manager (rename, delete, and folders) stays a later package. This milestone lists stored files and writes the chosen path.
 
-Record queries for `relationship`, table selects, and morph selects (M33 / M36). The relation name and title attribute are stored.
-
-A file browser over stored files. Uploads and `commit` ship here.
-
-Infolists (M32), tables (M33), and later panel milestones.
+Notifications, widgets, the panel, resources, and tenancy are later milestones (M34 and after).
 
 ---
 
@@ -1110,34 +1113,6 @@ Chainable setters accept a static value or a closure that receives `Get`. `label
 ### Out of scope
 
 Form fields, `fillForm`, form data mutation, a disabled form, and action `steps()` as a form wizard (M31). `schema(...)` can already hold a layout `Wizard`. Infolist actions (M32). Table record, bulk, and toolbar actions (M33). Success and failure notifications (M34). Import and export (M37). Parent-dialog cancellation, sticky header and footer, modal alignment, extra window attributes, widths `Dialog` does not offer, database transactions, and rate limits. `Select` and date/time pickers stay in M31.
-
----
-
-## M31 — Firefly forms
-
-**Status:** in progress (not on `main`). Not done.
-
-**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
-
-**Branch:** `milestone/M31-firefly-forms` at `5c56f6e1`. There is no pull request. `modules/firefly-forms` is absent from `main` (`1a6045b1`).
-
-**Parity slice:** Form fields. The checklist on that branch is not copied here as done, because the branch has not merged. Ledger note: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
-
-The branch ledger still lists these helpers as open (`todo`):
-
-- FRM-18 `prefixAction`, `suffixAction`, `hintAction`
-- FRM-19 repeater `addAction`, `deleteAction`, `cloneAction`, `extraItemActions` as actions
-- FRM-20 builder `addBetweenAction`
-- FRM-21 rich-editor custom block edit as an action
-- FRM-22 select `createOptionAction`
-- FRM-23 `relationship` record query / `modifyQueryUsing`
-- FRM-24 `ModalTableSelect`
-- FRM-25 `MorphToSelect`
-- FRM-26 file upload browse / file manager
-
-### Out of scope for this status update
-
-Do not treat the branch checklist as merged. Do not start M34–M38 from this note.
 
 ---
 

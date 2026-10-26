@@ -352,7 +352,7 @@ class FireflyFormsUploadTest {
     }
 }
 
-private class FakeDisk : FilesystemAdapter {
+internal class FakeDisk : FilesystemAdapter {
     val files = LinkedHashMap<String, ByteArray>()
     var failMove: Boolean = false
     var failCopy: Boolean = true
@@ -399,7 +399,10 @@ private class FakeDisk : FilesystemAdapter {
 
     override fun checksum(path: String, algorithm: String): String? = null
 
-    override fun files(directory: String): List<String> = emptyList()
+    override fun files(directory: String): List<String> {
+        if (directory.isEmpty() && files.isEmpty()) return emptyList()
+        return ArrayList(files.keys)
+    }
 
     override fun allFiles(directory: String): List<String> = emptyList()
 

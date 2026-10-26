@@ -4,7 +4,7 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-Verified on `origin/main` `0bd0c321` (including #219): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. `firefly-forms` is not. M31 is in progress on `milestone/M31-firefly-forms` with no pull request. Do not mark M31 done. M34–M38 stay queued and not started. Law 1 still allows parallel non-colliding milestones.
+Verified on `origin/main` `0bd0c321` (including #219): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. M31 forms, including FRM-18–FRM-26, are complete on `milestone/M31-firefly-forms` and land on `main` when that PR merges. M34–M38 stay queued and not started. Law 1 still allows parallel non-colliding milestones.
 
 ## M28 — support (`kona-firefly-support`)
 
@@ -55,15 +55,15 @@ Shipped fields extend `Component` in this module. Schemas and support were not e
 | FRM-15 | Form validation walk | `FieldValidation` | done |
 | FRM-16 | Live bindings, including editors and uploads | `live`, `liveOnBlur`, `liveDebounce`, `afterStateUpdated`, `@entangle` | done |
 | FRM-17 | Field scaffold | `make:firefly-field` Kotlin and `--lang=java` | done |
-| FRM-18 | `prefixAction`, `suffixAction`, `hintAction` | needs `Action` (M30) | todo |
-| FRM-19 | Repeater `addAction` / `deleteAction` / `cloneAction` / `extraItemActions` as actions | needs `Action` (M30). Plain buttons ship in FRM-14 | todo |
-| FRM-20 | Builder `addBetweenAction` | needs `Action` (M30) | todo |
-| FRM-21 | Rich-editor custom block edit as an action | needs `Action` (M30). `Dialog` is used directly | todo |
-| FRM-22 | Select `createOptionAction` | needs `Action` (M30). `createOptionForm` and `createOptionUsing` ship in FRM-7 | todo |
-| FRM-23 | `relationship` record query / `modifyQueryUsing` | needs the record store (M33 / M36). Name and title attribute are stored | todo |
-| FRM-24 | `ModalTableSelect` | needs tables (M33) | todo |
-| FRM-25 | `MorphToSelect` | needs models / record store | todo |
-| FRM-26 | File upload browse / file manager | later package. Upload and `commit` ship in FRM-13 | todo |
+| FRM-18 | `prefixAction`, `suffixAction`, `hintAction` | `Field` + `Action` | done |
+| FRM-19 | Repeater `addAction` / `deleteAction` / `cloneAction` / `extraItemActions` as actions | `Repeater` + `Action` | done |
+| FRM-20 | Builder `addBetweenAction` | `Builder` + `Action` | done |
+| FRM-21 | Rich-editor custom block edit as an action | `RichEditor.editBlockAction` + `Action`. `Dialog` stays on the block | done |
+| FRM-22 | Select `createOptionAction` | `Select` + `Action`. `createOptionForm` and `createOptionUsing` stay | done |
+| FRM-23 | `relationship` record query / `modifyQueryUsing` | `Select.relationship` + `RecordStore` | done |
+| FRM-24 | `ModalTableSelect` | `ModalTableSelect` + `Table` | done |
+| FRM-25 | `MorphToSelect` | `MorphToSelect` + `RecordStore` | done |
+| FRM-26 | File upload browse | `FileUpload.browseAction`, `browse`, `chooseBrowsed`. File manager stays a later package | done |
 
 ## M30 — actions (`kona-firefly-actions`)
 
@@ -134,7 +134,7 @@ Left for later milestones (not implemented in this module): prefix and suffix ac
 | Milestone | Filament packages | Firefly artifact | Status |
 |-----------|-------------------|------------------|--------|
 | M30 | `filament/actions` | `kona-firefly-actions` | done |
-| M31 | `filament/forms` | `kona-firefly-forms` | in progress (not on `main`; no pull request; FRM-18–FRM-26 todo) |
+| M31 | `filament/forms` | `kona-firefly-forms` | done (on `main` when the forms PR merges) |
 | M32 | `filament/infolists` | `kona-firefly-infolists` | done |
 | M33 | `filament/tables` | `kona-firefly-tables` | done |
 | M34 | notifications + widgets (Chart.js and ApexCharts) | `kona-firefly-notifications`, `kona-firefly-widgets` | queued (not started) |

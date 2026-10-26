@@ -1,5 +1,6 @@
 package org.konaframework.firefly.forms
 
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
@@ -25,6 +26,9 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
     private val suffixIconColorText = Phrase()
     private val aboveText = Phrase()
     private val belowText = Phrase()
+    private var prefixAction: Action? = null
+    private var suffixAction: Action? = null
+    private var hintAction: Action? = null
     private val validationAttributeText = Phrase()
     private val requiredSwitch = Switch()
     private var markRequired: Boolean = false
@@ -127,6 +131,12 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
     fun aboveContent(value: Function<Get, String>): T = self().apply { aboveText.set(value) }
 
     fun belowContent(value: String): T = self().apply { belowText.set(value) }
+
+    fun prefixAction(action: Action): T = self().apply { prefixAction = action }
+
+    fun suffixAction(action: Action): T = self().apply { suffixAction = action }
+
+    fun hintAction(action: Action): T = self().apply { hintAction = action }
 
     fun belowContent(value: Function<Get, String>): T = self().apply { belowText.set(value) }
 
@@ -269,12 +279,16 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
             append(labelHtml(schema))
             if (required) append("""<span class="ff-required-mark">*</span>""")
             append(textTag("p", "ff-hint", hintText.get(get)))
+            val hintButton = hintAction
+            if (hintButton != null) append(hintButton.render(schema))
             val hintColor = hintColorText.get(get)
             val hintIcon = hintIconText.get(get)
             if (hintColor != null) append("""<span class="ff-hint-color" data-ff-hint-color="${esc(hintColor)}"></span>""")
             if (hintIcon != null) append("""<span class="ff-hint-icon" data-ff-hint-icon="${esc(hintIcon)}"></span>""")
             append("""<div class="ff-control${if (inlinePrefixFlag) " ff-inline-prefix" else ""}"${mapAttrs(wrapperAttributes)}>""")
             append(entangle(path))
+            val prefixButton = prefixAction
+            if (prefixButton != null) append(prefixButton.render(schema))
             append(textTag("span", "ff-prefix", prefixText.get(get)))
             val prefixIcon = prefixIconText.get(get)
             if (prefixIcon != null) {
@@ -282,6 +296,8 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
             }
             append(control(schema, get, path, value))
             append(textTag("span", "ff-suffix", suffixText.get(get)))
+            val suffixButton = suffixAction
+            if (suffixButton != null) append(suffixButton.render(schema))
             val suffixIcon = suffixIconText.get(get)
             if (suffixIcon != null) {
                 append("""<span class="ff-suffix-icon" data-ff-icon="${esc(suffixIcon)}"${attr("data-ff-icon-color", suffixIconColorText.get(get))}></span>""")

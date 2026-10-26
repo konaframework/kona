@@ -1,7 +1,10 @@
 package org.konaframework.firefly.forms;
 
 import org.junit.jupiter.api.Test;
+import org.konaframework.firefly.actions.Action;
 import org.konaframework.firefly.schemas.Schema;
+import org.konaframework.firefly.tables.MemoryRecordStore;
+import org.konaframework.firefly.tables.Table;
 
 import java.time.LocalDate;
 import java.util.Map;
@@ -79,5 +82,25 @@ class FireflyFormsJavaTest {
         Repeater.make("members");
         Builder.configureUsing(null);
         Builder.make("blocks");
+        TextInput.make("chrome")
+            .prefixAction(Action.make("prefix").label("Prefix"))
+            .suffixAction(Action.make("suffix").label("Suffix"))
+            .hintAction(Action.make("hint").label("Hint"));
+        MemoryRecordStore store = new MemoryRecordStore();
+        Select.make("author").relationship("authors", "name", store);
+        Select.make("authorFiltered").relationship("authors", "name", store, null)
+            .createOptionAction(Action.make("createAuthor").label("Create"));
+        Repeater.make("lines")
+            .addAction(Action.make("addLine").label("Add"))
+            .deleteAction(Action.make("deleteLine").label("Delete"))
+            .cloneAction(Action.make("cloneLine").label("Clone"))
+            .extraItemActions(Action.make("extraLine").label("Extra"));
+        Builder.make("layout").addBetweenAction(Action.make("between").label("Between"));
+        RichEditor.make("article").editBlockAction("hero", Action.make("editHero").label("Edit"));
+        FileUpload.make("photo").browseAction(Action.make("browse").label("Browse"));
+        ModalTableSelect.configureUsing(null);
+        ModalTableSelect.make("pick").table(Table.memory(java.util.List.of())).multiple(false);
+        MorphToSelect.configureUsing(null);
+        MorphToSelect.make("link").titleAttribute("name").type("posts", store);
     }
 }

@@ -207,16 +207,62 @@ From the application directory:
 
 The command writes a class that extends the field base and a Crema view with `x-data="ffField"` and `@entangle`. Kotlin is the default. `--lang=java` writes a Java subclass.
 
-## Later milestones
+## Actions on a field
 
-These helpers are not in this module. The pages that add them will extend the same fields.
+Prefix, suffix, and hint buttons are `Action` values from `org.konaframework.firefly.actions`. The field renders the action next to that piece of chrome.
 
-- Prefix, suffix, and hint buttons that are actions.
-- Repeater add, delete, clone, and extra item buttons as actions.
-- A builder action inserted between blocks.
-- An action wrapper around a rich-text block dialog. The dialog itself is already used.
-- An action wrapper around `createOptionUsing`. The dialog and the callback are already used.
-- A record-store query for `relationship`. The name and title attribute are stored today.
-- A select that picks rows from a table.
-- A select that morphs to a model type.
-- A file browser over files that are already stored.
+```kotlin
+TextInput.make("title")
+    .prefixAction(Action.make("prefix").label("Prefix"))
+    .suffixAction(Action.make("suffix").label("Suffix"))
+    .hintAction(Action.make("hint").label("Hint"))
+```
+
+```java
+TextInput.make("title")
+    .prefixAction(Action.make("prefix").label("Prefix"))
+    .suffixAction(Action.make("suffix").label("Suffix"))
+    .hintAction(Action.make("hint").label("Hint"));
+```
+
+A repeater renders add, delete, clone, and extra item actions beside the item controls:
+
+```kotlin
+Repeater.make("rows")
+    .addAction(Action.make("addRow").label("Add"))
+    .deleteAction(Action.make("deleteRow").label("Delete"))
+    .cloneAction(Action.make("cloneRow").label("Clone"))
+    .extraItemActions(Action.make("extraRow").label("Extra"))
+```
+
+`Builder.addBetweenAction` renders an action between blocks. A rich-text custom block keeps its `Dialog` and can also carry `editBlockAction`, which renders an `Action` for that block. `Select.createOptionAction` does the same for the create-option button. `createOptionForm` and `createOptionUsing` still run the create flow.
+
+## Relationship query
+
+`Select.relationship(name, titleAttribute, store)` reads options from a `RecordStore`. `modifyQueryUsing` receives that store’s query. An in-memory store is `MemoryRecordStore`. A Cadence model store is available through the tables module.
+
+```kotlin
+val authors = MemoryRecordStore(listOf(mapOf("id" to "1", "name" to "Ada")))
+Select.make("author")
+    .relationship("authors", "name", authors)
+    .modifyQueryUsing { query -> (query as MemoryQuery).where("name", "Ada") }
+```
+
+## Table select and morph select
+
+`ModalTableSelect` hosts a `Table`. `choose` toggles a record key and stores the selection on the field. `multiple(true)` stores every selected key.
+
+```kotlin
+val people = Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+ModalTableSelect.make("person").table(people)
+```
+
+`MorphToSelect` maps a type name to a record store. `selectType` stores `type` and `id`. `optionsFor` lists that type, and `modifyQueryUsing` narrows the query.
+
+```kotlin
+MorphToSelect.make("link").titleAttribute("name").type("posts", posts)
+```
+
+## Browsing stored files
+
+`FileUpload.browseAction` renders an action beside the upload. `browse(disk)` lists files already stored under `directory()` and skips `*.ffmeta` paths. `chooseBrowsed` writes the chosen path into the same field state. Folder rename, delete, and a file manager stay a later package.

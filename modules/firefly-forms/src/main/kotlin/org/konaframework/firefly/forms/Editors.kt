@@ -1,5 +1,6 @@
 package org.konaframework.firefly.forms
 
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.Dialog
@@ -21,6 +22,7 @@ open class RichEditor protected constructor(name: String) : Field<RichEditor>(na
     private val mentionList = ArrayList<String>()
     private var mentionUsing: Function<String, List<String>>? = null
     private val blocks = ArrayList<EditorBlock>()
+    private val blockActions = LinkedHashMap<String, Action>()
 
     init {
         groups.addAll(DEFAULT_GROUPS)
@@ -79,6 +81,10 @@ open class RichEditor protected constructor(name: String) : Field<RichEditor>(na
         this.blocks.addAll(blocks)
     }
 
+    fun editBlockAction(blockName: String, action: Action): RichEditor = apply {
+        blockActions[blockName] = action
+    }
+
     fun sanitize(html: String): String = if (jsonFlag) html else HtmlSanitizer.clean(html)
 
     override fun kind(): String = "rich-editor"
@@ -105,6 +111,8 @@ open class RichEditor protected constructor(name: String) : Field<RichEditor>(na
             append(Dialog.make("Image").body("""<input class="ff-input" data-ff-image-url="true" /><input class="ff-input" data-ff-image-alt="true" />""").render())
             for (block in blocks) {
                 append(Dialog.make(block.label).body(block.schema.render()).render())
+                val edit = blockActions[block.name]
+                if (edit != null) append(edit.render(schema))
             }
             append("</div>")
         }

@@ -1,5 +1,6 @@
 package org.konaframework.firefly.forms
 
+import org.konaframework.firefly.actions.Action
 import org.konaframework.filesystem.FilesystemAdapter
 import org.konaframework.filesystem.Visibility
 import org.konaframework.firefly.schemas.Get
@@ -128,6 +129,7 @@ open class FileUpload protected constructor(name: String) : Field<FileUpload>(na
     private var loadingPosition: String = "right"
     private var uploadingMessageText: String = "Uploading"
     private var namesState: String? = null
+    private var browseAction: Action? = null
     private var namer: Function<StoredUpload, String>? = null
 
     fun disk(name: String): FileUpload = apply { diskName = name }
@@ -233,6 +235,31 @@ open class FileUpload protected constructor(name: String) : Field<FileUpload>(na
 
     fun storeFileNamesIn(statePath: String): FileUpload = apply { namesState = statePath }
 
+    fun browseAction(action: Action): FileUpload = apply { browseAction = action }
+
+    fun browse(adapter: FilesystemAdapter): List<String> {
+        val listed = adapter.files(directoryName)
+        val out = ArrayList<String>()
+        for (path in listed) {
+            if (path.endsWith(".ffmeta")) continue
+            if (!accepts(path)) continue
+            out.add(path)
+        }
+        return out
+    }
+
+    fun chooseBrowsed(schema: Schema, path: String): Any? {
+        if (!accepts(path)) throw FireflyException("File path is not allowed [$path]")
+        if (multipleFlag) {
+            val next = pathsOf(schema.get(fieldPath())).toMutableList()
+            if (!next.contains(path)) next.add(path)
+            schema.set(fieldPath(), next, false)
+            return next
+        }
+        schema.set(fieldPath(), path, false)
+        return path
+    }
+
     fun getUploadedFileNameForStorageUsing(provider: Function<StoredUpload, String>): FileUpload = apply { namer = provider }
 
     fun disk(): String = diskName
@@ -319,6 +346,8 @@ open class FileUpload protected constructor(name: String) : Field<FileUpload>(na
             append("""<div class="ff-filepond" x-data="ffFilePond" data-ff-path="${esc(path)}" data-ff-upload="${FireflyUploads.PATH}"${attr("data-ff-disk", diskName)}${attr("data-ff-directory", directoryName)}${attr("data-ff-visibility", visibilityName)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-image", imageFlag)}${boolAttr("data-ff-avatar", avatarFlag)}${boolAttr("data-ff-image-editor", imageEditorFlag)}${attr("data-ff-aspect", if (aspectRatios.isEmpty()) null else aspectRatios.joinToString(","))}${attr("data-ff-editor-mode", editorMode)}${attr("data-ff-editor-fill", editorFill)}${attr("data-ff-viewport-width", editorViewportWidth?.toString())}${attr("data-ff-viewport-height", editorViewportHeight?.toString())}${attr("data-ff-preview-height", previewHeight?.toString())}${attr("data-ff-resize-mode", resizeMode)}${attr("data-ff-resize-width", resizeWidth?.toString())}${attr("data-ff-resize-height", resizeHeight?.toString())}${attr("data-ff-crop", cropRatio)}${boolAttr("data-ff-upscale", resizeUpscale)}${boolAttr("data-ff-exif", exifFlag)}${boolAttr("data-ff-download", downloadableFlag)}${boolAttr("data-ff-open", openableFlag)}${boolAttr("data-ff-preview", previewableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}${boolAttr("data-ff-append", appendFlag)}${boolAttr("data-ff-store", storeFlag)}${boolAttr("data-ff-move", moveFlag)}${boolAttr("data-ff-preserve", preserveFlag)}${boolAttr("data-ff-tamper", tamperFlag)}${boolAttr("data-ff-paste", pasteFlag)}${boolAttr("data-ff-fetch", fetchInfoFlag)} data-ff-parallel="$maxParallel"${attr("data-ff-layout", panelLayoutText)}${attr("data-ff-panel-aspect", panelAspect)}${attr("data-ff-upload-position", uploadButtonPosition)}${attr("data-ff-remove-position", removeButtonPosition)}${attr("data-ff-progress-position", progressPosition)}${attr("data-ff-loading-position", loadingPosition)}${attr("data-ff-uploading", uploadingMessageText)}${attr("data-ff-accept", if (accepted.isEmpty()) null else accepted.joinToString(","))}${attr("data-ff-names", namesState)}>""")
             append("""<input class="filepond" type="file"${if (multipleFlag) " multiple" else ""} />""")
             for (item in paths) append("""<span class="ff-file" data-ff-path="${esc(item)}"></span>""")
+            val browse = browseAction
+            if (browse != null) append(browse.render(schema))
             append("</div>")
         }
     }

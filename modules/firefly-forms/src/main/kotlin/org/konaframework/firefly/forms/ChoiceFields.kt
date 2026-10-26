@@ -1,6 +1,8 @@
 package org.konaframework.firefly.forms
 
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Get
+import org.konaframework.firefly.tables.RecordStore
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.Dialog
 import org.konaframework.firefly.support.FireflyException
@@ -57,6 +59,9 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     private var disableWhen: Predicate<String>? = null
     private var relation: RelationBinding? = null
     private var createForm: Schema? = null
+    private var createAction: Action? = null
+    private var optionLoad: (() -> Map<String, String>)? = null
+    private var queryHook: Consumer<Any?>? = null
     private var editForm: Schema? = null
     private var createUsing: Function<Map<String, Any?>, String>? = null
 
@@ -135,6 +140,44 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         preloadFlag = true
     }
 
+    fun <T, Q> relationship(name: String, titleAttribute: String, store: RecordStore<T, Q>): Select =
+        relationship(name, titleAttribute, store, null)
+
+    fun <T, Q> relationship(
+        name: String,
+        titleAttribute: String,
+        store: RecordStore<T, Q>,
+        modify: Consumer<Q>?,
+    ): Select = apply {
+        relation = RelationBinding(name, titleAttribute, null)
+        queryHook = if (modify == null) {
+            null
+        } else {
+            Consumer { query -> modify.accept(query as Q) }
+        }
+        optionLoad = {
+            val query = store.query()
+            val hook = queryHook
+            if (hook != null) hook.accept(query)
+            val out = LinkedHashMap<String, String>()
+            for (record in store.list(query)) {
+                val key = store.keyOf(record)
+                val raw = store.attributes(record)[titleAttribute]
+                out[key] = if (raw == null) "" else raw.toString()
+            }
+            out
+        }
+        searchableFlag = true
+        preloadFlag = true
+    }
+
+    fun modifyQueryUsing(modify: Consumer<Any?>): Select = apply {
+        if (optionLoad == null) throw FireflyException("relationship needs a record store before modifyQueryUsing")
+        queryHook = modify
+    }
+
+    fun createOptionAction(action: Action): Select = apply { createAction = action }
+
     fun relation(): RelationBinding? = relation
 
     fun prepareRelationship(query: Any?) {
@@ -156,7 +199,8 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
 
     fun resolvedOptions(schema: Schema): List<FieldOption> {
         val get = Reads.of(schema, this)
-        var entries = options.get(get).entries.toList()
+        val loaded = optionLoad
+        var entries = if (loaded != null) loaded().entries.toList() else options.get(get).entries.toList()
         val limit = optionsLimitCount
         if (limit != null && entries.size > limit) entries = entries.take(limit)
         val disable = disableWhen
@@ -194,8 +238,23 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         val choices = resolvedOptions(schema)
         val selected = selected(value)
         val binding = relation
-        if (nativeFlag) return nativeSelect(path, choices, selected)
-        return buildString {
+        val body = if (nativeFlag) {
+            nativeSelect(path, choices, selected)
+        } else {
+            combobox(path, schema, choices, selected, binding)
+        }
+        val action = createAction
+        if (action == null) return body
+        return body + action.render(schema)
+    }
+
+    private fun combobox(
+        path: String,
+        schema: Schema,
+        choices: List<FieldOption>,
+        selected: Set<String>,
+        binding: RelationBinding?,
+    ): String = buildString {
             append("""<div class="ff-combobox" x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}>""")
             if (searchableFlag) append("""<input class="ff-input" type="text" role="combobox"${attr("placeholder", placeholderValue(schema))} />""")
             append("""<ul class="ff-options">""")
@@ -208,7 +267,6 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
             append(optionDialog("Create option", createForm))
             append(optionDialog("Edit option", editForm))
             append("</div>")
-        }
     }
 
     private fun nativeSelect(path: String, choices: List<FieldOption>, selected: Set<String>): String = buildString {

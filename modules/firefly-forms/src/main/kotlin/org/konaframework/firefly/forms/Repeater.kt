@@ -1,5 +1,6 @@
 package org.konaframework.firefly.forms
 
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
@@ -25,6 +26,10 @@ open class Repeater protected constructor(name: String) : Field<Repeater>(name) 
     private val itemLabelText = Phrase()
     private var itemLabelUsing: BiFunction<Int, Get, String>? = null
     private val addLabelText = Phrase()
+    private var addAction: Action? = null
+    private var deleteAction: Action? = null
+    private var cloneAction: Action? = null
+    private val extraItemActions = ArrayList<Action>()
 
     fun schema(vararg components: Component): Repeater = apply {
         blueprint.clear()
@@ -72,6 +77,17 @@ open class Repeater protected constructor(name: String) : Field<Repeater>(name) 
     fun addActionLabel(value: String): Repeater = apply { addLabelText.set(value) }
 
     fun addActionLabel(value: java.util.function.Function<Get, String>): Repeater = apply { addLabelText.set(value) }
+
+    fun addAction(action: Action): Repeater = apply { addAction = action }
+
+    fun deleteAction(action: Action): Repeater = apply { deleteAction = action }
+
+    fun cloneAction(action: Action): Repeater = apply { cloneAction = action }
+
+    fun extraItemActions(vararg actions: Action): Repeater = apply {
+        extraItemActions.clear()
+        extraItemActions.addAll(actions)
+    }
 
     fun items(schema: Schema): List<Map<String, Any?>> {
         val value = schema.get(fieldPath())
@@ -156,9 +172,16 @@ open class Repeater protected constructor(name: String) : Field<Repeater>(name) 
                         append(child.renderAt(schema, itemPath, row[child.name]))
                     }
                 }
+                val removing = deleteAction
+                if (removing != null) append(removing.render(schema))
+                val cloning = cloneAction
+                if (cloning != null) append(cloning.render(schema))
+                for (extra in extraItemActions) append(extra.render(schema))
                 append("</div>")
             }
             if (addableFlag) append("""<button type="button" data-ff-repeater-add="true">${esc(addLabelText.get(get) ?: "Add")}</button>""")
+            val adding = addAction
+            if (adding != null) append(adding.render(schema))
             append("</div>")
         }
     }
@@ -205,6 +228,7 @@ open class Builder protected constructor(name: String) : Field<Builder>(name) {
     private var minCount: Int? = null
     private var maxCount: Int? = null
     private val addLabelText = Phrase()
+    private var betweenAction: Action? = null
 
     fun blocks(vararg blocks: BuilderBlock): Builder = apply {
         this.blocks.clear()
@@ -230,6 +254,8 @@ open class Builder protected constructor(name: String) : Field<Builder>(name) {
     fun addActionLabel(value: String): Builder = apply { addLabelText.set(value) }
 
     fun addActionLabel(value: java.util.function.Function<Get, String>): Builder = apply { addLabelText.set(value) }
+
+    fun addBetweenAction(action: Action): Builder = apply { betweenAction = action }
 
     fun items(schema: Schema): List<Map<String, Any?>> {
         val value = schema.get(fieldPath())
@@ -272,6 +298,10 @@ open class Builder protected constructor(name: String) : Field<Builder>(name) {
         return buildString {
             append("""<div class="ff-builder" x-data="ffBuilder" data-ff-path="${esc(path)}"${boolAttr("data-ff-addable", addableFlag)}${boolAttr("data-ff-deletable", deletableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}${boolAttr("data-ff-cloneable", cloneableFlag)}${boolAttr("data-ff-collapsible", collapsibleFlag)}${boolAttr("data-ff-numbers", numbersFlag)}>""")
             for ((index, row) in rows.withIndex()) {
+                if (index > 0) {
+                    val between = betweenAction
+                    if (between != null) append(between.render(schema))
+                }
                 val rawType = row["type"]
                 val type = if (rawType == null) "" else rawType.toString()
                 val block = blocks.firstOrNull { it.name == type }
