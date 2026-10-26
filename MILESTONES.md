@@ -5,7 +5,7 @@ Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md]
 
 **Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms, complete on `milestone/M31-firefly-forms` and on `main` when this PR merges.
 
-On `main` (`0bd0c321`, including #219): M28 support, M29 schemas, M30 actions, M32 infolists, M33 tables. `modules/firefly-forms` is not on `main` until this PR merges. M34–M38 are queued and not started. Kona **0.3.0** (M26) has shipped.
+On `main` (`e89f1c77`, including #219 and #220): M28 support, M29 schemas, M30 actions, M32 infolists, M33 tables. `modules/firefly-forms` is not on `main` until this PR merges. M34–M38 are queued and not started. Kona **0.3.0** (M26) has shipped.
 
 Law 1 still allows parallel non-colliding milestones, each on its own branch and pull request. This status line records what is on `main`. It does not collapse that rule back to a single active milestone.
 

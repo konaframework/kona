@@ -4,7 +4,7 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-Verified on `origin/main` `0bd0c321` (including #219): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. M31 forms, including FRM-18–FRM-26, are complete on `milestone/M31-firefly-forms` and land on `main` when that PR merges. M34–M38 stay queued and not started. Law 1 still allows parallel non-colliding milestones.
+Verified on `origin/main` `e89f1c77` (including #219 and #220): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. M31 forms, including FRM-18–FRM-26, are complete on `milestone/M31-firefly-forms` and land on `main` when that PR merges. M34–M38 stay queued and not started. Law 1 still allows parallel non-colliding milestones.
 
 Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. That render does not close a later milestone. Pages, widgets, and resources compose those pieces. A milestone cannot ship by only rendering a form, infolist, table, or widget in isolation.
 
