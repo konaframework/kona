@@ -1,0 +1,45 @@
+.ff-prose {
+  font-family: var(--ff-font, inherit);
+  color: inherit;
+  line-height: 1.6;
+}
+
+.ff-prose a {
+  color: var(--ff-primary, #DF8723);
+}
+
+.ff-prose h1,
+.ff-prose h2,
+.ff-prose h3 {
+  color: var(--ff-heading, #E8D4B8);
+  font-weight: 650;
+}
+
+.ff-prose pre,
+.ff-prose code {
+  font-family: ui-monospace, monospace;
+}
+
+.ff-prose table {
+  border-collapse: collapse;
+}
+
+.ff-prose th,
+.ff-prose td {
+  border: 1px solid var(--ff-border, #C9A57B);
+  padding: 0.25rem 0.5rem;
+}
+
+.ff-toolbar-sticky {
+  position: sticky;
+  top: 0;
+}
+
+.ff-picker-grid,
+.ff-combobox,
+.ff-filepond,
+.ff-rich,
+.ff-markdown,
+.ff-code {
+  display: block;
+}

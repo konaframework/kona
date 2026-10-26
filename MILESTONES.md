@@ -3,7 +3,7 @@
 Single source of truth for milestone status and Definition of Done.  
 Working rules: [AGENTS.md](AGENTS.md). Architecture: [docs/architecture/PLAN.md](docs/architecture/PLAN.md).
 
-**Active milestone:** [M29](#m29--firefly-schemas) — **Kona Firefly** schemas and reactivity. Kona **0.3.0** (M26) has shipped. M28 is on `main`.
+**Active milestone:** [M31](#m31--firefly-forms) — **Kona Firefly** forms. Kona **0.3.0** (M26) has shipped. M28 and M29 are on `main`.
 
 Public site docs (`apps/docs/`, Astro + Starlight + `@almasix/starlight-theme`) are written **concurrently** with each coding milestone — see [docs/governance/docs-site.md](docs/governance/docs-site.md).  
 Continuous delivery drill: [docs/governance/continuous-autopilot.md](docs/governance/continuous-autopilot.md). Handoff: [docs/governance/HANDOFF.md](docs/governance/HANDOFF.md).
@@ -945,6 +945,7 @@ flowchart LR
   M25 --> M26[M26_Kona_Wire]
   M26 --> M28[M28_Firefly_Support]
   M28 --> M29[M29_Firefly_Schemas]
+  M29 --> M31[M31_Firefly_Forms]
 ```
 
 ---
@@ -985,7 +986,7 @@ Schemas, fields, tables, panel routes, resources, the document addon, IDE suppor
 
 ## M29 — Firefly schemas
 
-**Status:** in progress (not on `main`).
+**Status:** done (on `main`).
 
 **Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
 
@@ -1015,7 +1016,51 @@ Chainable configuration methods on the schema component base and on layout and p
 
 ### Out of scope
 
-Actions (M30). Form fields, including `Select` and date/time pickers (M31). `Select` defaults to a combobox; `.native()` opts into `<select>`. Date and time pickers default to Firefly’s crafted picker; `.native()` opts into the HTML input. Do not implement either in M29.
+Actions (M30). Form fields shipped in M31.
+
+---
+
+## M31 — Firefly forms
+
+**Status:** done (branch `milestone/M31-firefly-forms`; on `main` when this PR merges).
+
+**Release train:** Kona **0.4.x**. Do not mix into `0.3.x`. Do not tag unless a human asks.
+
+**Branch:** `milestone/M31-firefly-forms`
+
+**Parity slice:** Form fields on the schema component base. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
+
+Chainable field methods accept a static value or a closure, matching the schema base. `Select` defaults to a combobox; Kotlin `.native()` and Java `useNative(true)` opt into `<select>` (`native` is a Java keyword). Date and time fields default to Firefly’s picker; `.native()` / `useNative(true)` opts into the HTML input. Date-only values stay in `FieldClock.appZone`. Rich text is TipTap with a sticky toolbar and bubble menu; link, image, and blocks use the support `Dialog`. Code is CodeMirror 6 plus the Shiki language catalog. Markdown is Write | Preview with a sanitized `.ff-prose` preview. Uploads post to `POST /_firefly/uploads` and commit through `kona-filesystem`. FilePond’s image editor is the image editor. Hidden, visible, live, and dehydrate stay on the schema component.
+
+### Parity checklist
+
+- [x] `org.konaframework:kona-firefly-forms` in the monorepo, the BOM, and the CI coverage gate
+- [x] Field base: label/hint/prefix/suffix (value or closure), required, nullable, rules, validation attribute and messages, `formatStateUsing`, `dehydrateStateUsing`
+- [x] Text, textarea, hidden, tags, color, slider, key-value, placeholder, view field
+- [x] Select combobox by default, checkbox, toggle, radio, checkbox list, toggle buttons
+- [x] Date, time, and date-time pickers (`java.time`, crafted grid, `.native()`)
+- [x] Rich editor, markdown editor, code editor, and `registerFireflyForms` (does not call `Alpine.start()`)
+- [x] File upload route, commit, image editor flags, path tampering checks
+- [x] Repeater and builder item state, including `live()` / `afterStateUpdated`
+- [x] `FieldValidation` over the schema walk
+- [x] `make:firefly-field` for Kotlin and `--lang=java`, grind coverage still 100%
+- [x] Kotlin and Java regression paths
+- [x] Public docs under Firefly → Forms, plus the Dev archive copy
+- [x] 100% line + branch Kover on `kona-firefly-forms`
+
+### In-scope modules
+
+`kona-firefly-forms`, `kona-grind` (`make:firefly-field` only), `apps/docs/`, BOM, CI coverage gate
+
+### Out of scope
+
+Actions (M30): `prefixAction`, `suffixAction`, `hintAction`, repeater item actions, builder `addBetweenAction`, and action wrappers around the rich-text block dialog and `createOptionUsing`. The dialogs and `createOptionUsing` themselves ship here.
+
+Record queries for `relationship`, table selects, and morph selects (M33 / M36). The relation name and title attribute are stored.
+
+A file browser over stored files. Uploads and `commit` ship here.
+
+Infolists (M32), tables (M33), and later panel milestones.
 
 ---
 

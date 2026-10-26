@@ -754,6 +754,25 @@ class GrindTest {
         assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-layout" })
     }
 
+    @Test
+    fun makeFireflyField() {
+        val base = temp.resolve("firefly-field")
+        Files.createDirectories(base)
+        assertEquals(0, MakeFireflyFieldCommand().run(listOf("Price", "--base=$base", "--lang=kotlin")))
+        val source = Files.readString(base.resolve("src/main/kotlin/app/firefly/fields/Price.kt"))
+        val view = Files.readString(base.resolve("src/main/resources/views/firefly/fields/price.crema.html"))
+        assertTrue(source.contains("class Price"))
+        assertTrue(source.contains("Field<Price>"))
+        assertTrue(view.contains("x-data=\"ffField\""))
+        assertTrue(view.contains("@entangle"))
+        assertEquals(0, MakeFireflyFieldCommand().run(listOf("Note", "--base=$base", "--lang=java")))
+        assertTrue(Files.readString(base.resolve("src/main/java/app/firefly/fields/Note.java")).contains("extends Field<Note>"))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-field", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-field", "Bad-Name", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-field", "Price", "--base=$base", "--lang=kotlin")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-field" })
+    }
+
     private fun stubGradleApp(dir: Path): Path {
         Files.createDirectories(dir)
         Files.writeString(dir.resolve("settings.gradle.kts"), "rootProject.name = \"stub\"\n")
