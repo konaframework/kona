@@ -1,0 +1,276 @@
+---
+title: Acciones
+description: Construye una acción de Firefly, ábrela en el diálogo compartido y ejecútala desde Wire.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="header-action.png" description="La acción de cabecera Edit en la página Desk en http://127.0.0.1:4017/admin/desk." />
+
+Una acción es un botón o un enlace. La usas cuando el usuario debe guardar, borrar o abrir un diálogo sin que escribas el HTML del botón. El mismo objeto puede mostrar un esquema dentro del [diálogo](/docs/firefly/dialog/) compartido y llamar a un método del servidor cuando se envía el diálogo.
+
+Las acciones viven en `org.konaframework.firefly.actions` (`kona-firefly-actions`). En el ejemplo hello, la página Desk pone una acción Edit en la cabecera. Esa acción abre un diálogo con un campo de nota.
+
+## Un botón en una llamada
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val save = Action.make("save").label("Save")
+val html = Schema.make().components(save).render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Action save = Action.make("save").label("Save");
+String html = Schema.make().components(save).render();
+```
+
+</TabItem>
+</Tabs>
+
+`make` toma el nombre de la acción. El nombre es una letra o `_`, y luego letras, dígitos y `_`. `save` y `save_record` son válidos. `bad-name` lanza `FireflyException`.
+
+El botón renderizado tiene `x-data="ffAction('save')"` y `wire:click="save"`. `ffAction` es la fábrica Alpine ya registrada con Wire. Su método `run()` llama a `$wire.$call` con el nombre de la acción. El botón usa `wire:click` para la llamada al servidor y monta la fábrica para que otro control pueda llamar a `run()`.
+
+`call(schema)` ejecuta ese método del servidor en el proceso. Sin un manejador `action { ... }` y sin URL, lanza `FireflyException` (`Action [save] has no handler`).
+
+## Valores y cierres
+
+Los setters de texto y de bandera toman un valor fijo o un cierre. El cierre recibe `Get`, el mismo lector que usa un componente de esquema. Un camino que empieza por `/` es absoluto. Los demás caminos son relativos al contenedor de la acción.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val save = Action.make("save")
+save.label("Save")
+save.label { get -> if (get.get("/kind") == "org") "Save organization" else "Save" }
+save.icon { get -> if (get.get("/kind") == "org") "user" else "home" }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+save.label(get -> "org".equals(get.get("/kind")) ? "Save organization" : "Save");
+```
+
+</TabItem>
+</Tabs>
+
+Gana la última llamada. `label("Save")` después de un cierre guarda la cadena fija. La misma forma está en `icon`, `color`, `tooltip`, `badge`, `badgeColor`, `size`, `iconPosition`, `url`, `openUrlInNewTab`, `requiresConfirmation`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `modalCancelActionLabel`, `modalIcon`, `modalIconColor`, `modalWidth`, `successRedirectUrl` y `failureRedirectUrl`.
+
+`hidden`, `visible` y `disabled` salen de la base del componente de esquema, así que ya toman un booleano o un predicado. Devuelven la base del componente. Llámalos en su propia línea cuando quieras conservar el tipo `Action` para la siguiente llamada.
+
+## Mostrar, ocultar, desactivar, autorizar
+
+`hidden(true)` y `visible(false)` renderizan un shell de acción vacío con la clase `ff-hidden`. El botón no está en el HTML. `disabled(true)` conserva el botón y pone el atributo `disabled`. Un enlace desactivado usa `aria-disabled="true"` y omite `href`. `call` lanza `Action [save] is hidden` o `Action [save] is disabled` antes de que corra el manejador.
+
+`authorize(false)` oculta la acción. `authorize { get -> get.get("/ok") == true }` la oculta cuando el predicado es falso. `authorize("edit")` pregunta a `Action.gate`. Sin una puerta instalada, una habilidad con nombre se deniega y la acción se oculta. Una puerta que devuelve verdadero la muestra.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Action.gate { ability, component, schema -> ability == "edit" }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Action.gate((ability, component, schema) -> "edit".equals(ability));
+```
+
+</TabItem>
+</Tabs>
+
+`authorize(true)`, un predicado y una habilidad con nombre se aplican todos. Cualquier denegación oculta la acción. `Action.gate(null)` limpia la puerta. La puerta es de todo el proceso.
+
+## Icono, color, tooltip, insignia, tamaño
+
+`icon("home")` incrusta un icono del conjunto de soporte: `home`, `bars`, `user`, `x`. Cualquier otro nombre lanza `Unknown icon [<name>]`. `iconPosition("before")` es el predeterminado. `iconPosition("after")` dibuja el icono después de la etiqueta. Cualquier otra cosa lanza `Unknown icon position [<value>]`.
+
+`iconButton()` conserva la etiqueta en `aria-label` y no muestra el texto. `button()` es el predeterminado. `link()` añade `ff-action-link` en un botón que sigue llamando al servidor. `outlined()` y `grouped()` ponen `ff-action-outlined` y `ff-action-grouped`.
+
+`color("primary")`, `color("accent")` y `color("heading")` ponen `color` en la variable de tema `--ff-primary`, `--ff-accent` o `--ff-heading`, y guardan el nombre en `data-ff-color`. Cualquier otro color se guarda solo en `data-ff-color`. `size` acepta `xs`, `sm`, `md`, `lg` o `xl` y pone `font-size`. Cualquier otra cosa lanza `Unknown action size [<value>]`.
+
+`tooltip` es el atributo `title`. `badge` es un `<span class="ff-action-badge">`. `badgeColor` pone `data-ff-color` en ese span.
+
+`placement(ActionPlacement.SCHEMA)` es el predeterminado y añade `ff-placement-schema`. `placement(ActionPlacement.HEADER)` añade `ff-placement-header`. Esa clase es cómo una página distingue una acción de esquema de una acción de cabecera. Ambas siguen siendo componentes de esquema, así que pones las acciones de cabecera en el mismo árbol.
+
+`extraAttributes` fusiona atributos en la raíz del componente. Pasa un mapa o un cierre. El nombre debe ser un nombre de atributo HTML. `wire:click`, `x-data`, `type`, `href` y `disabled` están reservados y lanzan. Los valores se escapan.
+
+## Enlaces
+
+`url("https://example.test")` renderiza un `<a>` en lugar de un botón de servidor. `openUrlInNewTab(true)` añade `target="_blank"` y `rel="noopener noreferrer"`. El ancla sigue montando `ffAction`. No usa `wire:click`. `call` devuelve la URL y no ejecuta el manejador. Una URL vacía lanza `Action [name] URL is empty`.
+
+## Confirmación y el diálogo
+
+`requiresConfirmation()`, `modal()`, `slideOver()`, `slideOverStart()`, `fullscreen()`, `modalHeading`, `modalDescription` o `schema(...)` con al menos un componente abren `Dialog`. El disparador usa Alpine `open` y no llama al servidor. El botón de envío usa `wire:click` y `ffAction`.
+
+| Llamada | Diálogo |
+|------|--------|
+| predeterminado cuando se muestra un diálogo | `modal()`, alineado arriba, ancho `lg` |
+| `slideOver()` | barra lateral desde el final |
+| `slideOverStart()` | barra lateral desde el inicio |
+| `fullscreen()` | pantalla completa, sin arrastre |
+| `modalWidth("sm" \| "md" \| "lg" \| "xl" \| "screen")` | solo la clase de ancho |
+| `modalDraggable(false)` | sin marcador de arrastre |
+
+`modalWidth` usa los anchos que acepta `Dialog`. Cualquier otro ancho lanza `Unknown dialog width [<value>]`. `width("screen")` sigue siendo un modal. La pantalla completa es `fullscreen()`.
+
+`Dialog.configureUsing` sigue corriendo, porque la acción llama a `Dialog.make`. `mountDialog(schema)` devuelve ese `Dialog`. Una acción sin diálogo lanza `Action [name] has no dialog`.
+
+La página envuelve el diálogo en `x-data="{ open: false }"`. Predeterminados:
+
+- el clic en la superposición pone `open` en false (`closeModalByClickingAway(false)` deja quieta la superposición)
+- Escape pone `open` en false (`closeModalByEscaping(false)` omite el listener)
+- un botón de cierre usa el icono `x` (`modalCloseButton(false)` lo quita)
+- el control de envío tiene `autofocus` (`modalAutofocus(false)` lo quita)
+
+`modal(false)` y `modalHidden(true)` saltan el diálogo. El disparador llama al servidor directamente.
+
+El texto de envío es `Confirm` cuando la confirmación está activada, si no `Submit`, salvo que esté puesto `modalSubmitActionLabel`. El texto de cancelar es `Cancel` salvo que esté puesto `modalCancelActionLabel`. El título del diálogo es `modalHeading`, luego la etiqueta, luego el nombre de la acción.
+
+`modalSubmitAction` y `modalCancelAction` sustituyen esos botones por otras acciones. `extraModalFooterActions` añade más. Pasar la propia acción lanza `Action [name] cannot contain itself` (o `cannot submit itself` / `cannot cancel itself`).
+
+## Contenido del esquema
+
+`schema(Text.make("Hello"))` renderiza esos componentes en el cuerpo del diálogo. Los layouts y los primes del módulo de esquema funcionan, incluido un asistente:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Action.make("edit").schema(
+    Wizard.make().steps(WizardStep.make("Details")),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Action.make("edit").schema(
+    Wizard.make().steps(WizardStep.make("Details"))
+);
+```
+
+</TabItem>
+</Tabs>
+
+`schema()` sin componentes no abre un diálogo. Este módulo no añade entradas, no llena un formulario ni ejecuta validación.
+
+## Grupos
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val group = ActionGroup.make(save, Action.make("delete").label("Delete"))
+    .label("More")
+    .icon("bars")
+    .dropdown()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ActionGroup group = ActionGroup.make(List.of(save)).label("More").button();
+```
+
+</TabItem>
+</Tabs>
+
+`dropdown()` es el predeterminado. El disparador alterna Alpine `open`. El menú empieza oculto. `button()` dispone las acciones en una fila (`ff-action-group-inline`). Los grupos toman `label`, `icon`, `color`, `tooltip`, `placement`, `hidden`, `visible`, `disabled` y `authorize` igual que una acción. `disabled(true)` desactiva el disparador del desplegable. En un grupo en línea pone `aria-disabled="true"`.
+
+`configureUsing` en `Action` o `ActionGroup` corre para cada `make()` posterior de esa clase. Pasa `null` para limpiarlo. No se aplica a una subclase que construyas tú.
+
+## Ejecutar la acción
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+save.arguments(mapOf("id" to 7))
+save.before { action, schema -> }
+save.action { action, schema -> }
+save.after { action, schema -> }
+save.successRedirectUrl("/customers")
+save.failureRedirectUrl("/customers")
+val result = save.call(schema)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+save.arguments(Map.of("id", 7));
+save.before((action, schema) -> { });
+save.action((action, schema) -> { });
+save.after((action, schema) -> { });
+save.successRedirectUrl("/customers");
+save.failureRedirectUrl("/customers");
+ActionResult result = save.call(schema);
+```
+
+</TabItem>
+</Tabs>
+
+Orden en el éxito: `before`, el manejador, `after`. El `status` del resultado es `success`. `url` se pone para una acción de enlace. `redirectUrl` es ese enlace, o `successRedirectUrl` para un manejador. El botón también lleva `data-ff-success-url` cuando hay una URL de éxito. `call` no envía el navegador a ningún sitio. Lo hace el llamador.
+
+`halt()` lanza `ActionHalt`, salta `after`, y `call` devuelve el estado `halted` con el mensaje `Action halted`. `failure("nope")` lanza `ActionFailure`, salta `after`, y `call` devuelve el estado `failed` con ese mensaje y `failureRedirectUrl`. Cualquier otra excepción sale de `call`.
+
+`argument("id")` lee el mapa pasado a `arguments`. Un cambio posterior del mapa original no cambia el valor almacenado. Una clave ausente es `null`.
+
+## Tu propia acción
+
+Subclasifica `Action`. El nombre del constructor es el nombre del método Wire.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+open class SaveRecord : Action("saveRecord") {
+    init {
+        label("SaveRecord")
+        view("firefly.actions.saverecord")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Rename extends Action {
+    public Rename() {
+        super("rename");
+        label("Rename");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`view("notes.action")` renderiza esa vista Crema cuando está puesto `Schema.crema(engine)`. La vista recibe `path`, `name`, `label` y `content`. Sin motor, el render emite `<div data-ff-view="notes.action">`. Una acción oculta no renderiza la vista.
+
+`./grind make:firefly-action SaveRecord` escribe una clase `open` y una vista Crema bajo `app/firefly/actions`. `--lang=java` escribe una clase Java. La vista abre una bandera Alpine local `open` y envía con `x-data="ffAction('saveRecord')"` y `wire:click="saveRecord"`.
+
+## Lo que este módulo no hace
+
+No añade campos de formulario, no llena ni valida un formulario, ni ejecuta un asistente de formulario. Pon un layout de esquema en `schema(...)` cuando el diálogo solo necesita texto, secciones o el cromo de un asistente. Las entradas llegan con los formularios.
+
+No renderiza entradas de infolist ni columnas de tabla, y no adjunta una acción a un registro, a una selección masiva ni a una barra de herramientas.
+
+No envía notificaciones, no importa ni exporta filas, no envuelve `call` en una transacción de base de datos ni limita la tasa del manejador.
+
+`Dialog` no tiene pila, ni cabecera o pie pegajosos, ni atributos extra en la ventana. Una acción no puede cancelar un diálogo padre ni cambiar la alineación del modal. La alineación se queda en el predeterminado del diálogo, que es arriba para un modal.
