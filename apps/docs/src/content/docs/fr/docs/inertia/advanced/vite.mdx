@@ -1,36 +1,36 @@
 ---
 title: Vite et assets
-description: Liaison AssetManifest, fichier hot, manifeste de production et façade inertia.assets.Vite.
+description: Liaison AssetManifest, fichier hot, manifeste de production et la façade inertia.assets.Vite.
 ---
 
 ## Partagé avec Crema
 
-L’implémentation vit dans `org.konaframework.crema.assets`. Inertia réexporte une façade à `org.konaframework.inertia.assets` pour que les anciens imports continuent de marcher :
+L’implémentation vit dans `org.konaframework.crema.assets`. Inertia réexporte une façade dans `org.konaframework.inertia.assets` pour que les anciens imports continuent de fonctionner :
 
 ```kotlin
 import org.konaframework.inertia.assets.Vite
 import org.konaframework.inertia.assets.AssetManifest
 ```
 
-`InertiaServiceProvider` lie `AssetManifest` à `vite.public_path` ou `inertia.public_path` (défaut `<base>/public`) et appelle `Vite.setManifest` au démarrage. Il sert aussi ce répertoire, donc un fichier haché sous `public/build/assets/` répond à `GET /build/assets/…`.
+`InertiaServiceProvider` lie `AssetManifest` à `vite.public_path` ou `inertia.public_path` (par défaut `<base>/public`) et appelle `Vite.setManifest` au démarrage. Il sert aussi ce répertoire, donc un fichier haché sous `public/build/assets/` répond à `GET /build/assets/…`.
 
 ## Développement (`public/hot`)
 
-Si `public/hot` contient une URL de base (par exemple `http://127.0.0.1:5173`), la coquille inclut le client Vite et le module d’entrée sur cette origine :
+Si `public/hot` contient une URL de base (par exemple `http://127.0.0.1:5173`), le shell inclut le client Vite et le module d’entrée sur cette origine :
 
 ```html
 <script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
 <script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
 ```
 
-Le chemin après l’origine est l’entrée Vite (`InertiaManager.viteEntries`), pas un fichier sous le répertoire `/build/` de Kona. Le `vite.config.js` de l’échafaudage écrit `public/hot` pendant que `npm run dev` tourne et le retire lorsque le serveur de dev s’arrête.
+Le chemin après l’origine est l’entrée Vite (`InertiaManager.viteEntries`), pas un fichier sous le répertoire `/build/` de Kona. Le `vite.config.js` de l’échafaudage écrit `public/hot` pendant que `npm run dev` tourne et le retire quand le serveur de dev s’arrête.
 
 ## Production (manifeste)
 
 Kona lit le premier fichier qui existe :
 
 1. `public/build/manifest.json`
-2. `public/build/.vite/manifest.json` (défaut de Vite lorsque `build.manifest` est `true`)
+2. `public/build/.vite/manifest.json` (le défaut de Vite quand `build.manifest` vaut `true`)
 
 Les valeurs `file` et `css` de chaque entrée deviennent des URL sous `/build/` :
 
@@ -39,10 +39,10 @@ Les valeurs `file` et `css` de chaque entrée deviennent des URL sous `/build/` 
 <script type="module" src="/build/assets/app-<hash>.js"></script>
 ```
 
-Le chemin source n’est jamais préfixé par `/build/`. `GET /build/src/main/resources/js/app.js` n’est pas une URL d’asset valide et n’est pas ce que la coquille émet lorsque le fichier hot ou le manifeste est présent.
+Le chemin source n’est jamais préfixé par `/build/`. `GET /build/src/main/resources/js/app.js` n’est pas une URL d’asset valide et n’est pas ce que le shell émet quand le fichier hot ou le manifeste est présent.
 
 ## Dans la vue racine
 
-`{!! vite !!}` imprime les balises de `InertiaManager.viteEntries`. Un fichier hot absent et un manifeste absent donnent des balises vides sur les coquilles HTML (les exceptions sont avalées sur le chemin de la coquille, afin que les premières visites rendent quand même).
+`{!! vite !!}` imprime les balises pour `InertiaManager.viteEntries`. Un fichier hot absent et un manifeste absent donnent des balises vides sur les shells HTML (les exceptions sont avalées sur le chemin du shell pour que les premières visites s’affichent quand même).
 
-Les aides de façade lancent `ViteException` lorsque vous appelez `Vite.tags` / `Vite.asset` sans manifeste lié — utile dans les tests.
+Les aides de la façade lancent `ViteException` quand vous appelez `Vite.tags` / `Vite.asset` sans manifeste lié — utile dans les tests.
