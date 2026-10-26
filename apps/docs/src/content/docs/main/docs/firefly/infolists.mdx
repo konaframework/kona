@@ -1,0 +1,212 @@
+---
+title: Infolists
+description: Show a record with text, icons, images, colors, key-value rows, code, and repeatable entries.
+---
+
+An infolist reads state and renders it. It does not collect input. The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). They sit on the schema tree from [Schemas](/docs/firefly/schemas/), so a section, a grid, and tabs are the same layout components you already use.
+
+Each entry is a `div.ff-entry` with `x-data="ffEntry"`. That Alpine factory is registered by the schema script. Copyable state and live binding use it.
+
+## An infolist in one call
+
+```kotlin
+val page = Infolist.make()
+    .statePath("user")
+    .record("ada")
+    .operation("view")
+    .components(
+        TextEntry.make("name").state("Ada"),
+    )
+page.hydrate()
+val html = page.render()
+```
+
+```java
+Infolist page = Infolist.make()
+    .statePath("user")
+    .record("ada")
+    .operation("view")
+    .components(TextEntry.make("name").state("Ada"));
+page.hydrate();
+String html = page.render();
+```
+
+`Infolist.make()` wraps a `Schema`. `components(...)` replaces the root list. `statePath` prefixes stored paths, so `name` lives at `user.name`. `fill` writes a map. `get` reads a dotted path. `schema()` returns the wrapped schema when you need `set` or partial render. `record` and `operation` are stored on that schema for the page that hosts the infolist.
+
+## Values and closures
+
+Entry setters return the entry, so you can chain them. A setter accepts a fixed value or a `java.util.function.Function` (or a `Predicate` for flags). The function receives `Get`, the same reader a schema component uses.
+
+```kotlin
+val name = TextEntry.make("name")
+name.state("Ada")
+name.state(java.util.function.Function { get -> get.get("../name") })
+name.placeholder { "Empty" }
+```
+
+```java
+TextEntry name = TextEntry.make("name");
+name.state("Ada");
+name.placeholder(get -> "Empty");
+```
+
+The last call wins. `state("Ada")` after a closure stores the literal and drops the closure.
+
+`label`, `heading`, and `description` are overridden on `Entry` and return the entry. Schema methods such as `hidden`, `visible`, and `live` still return the schema `Component`. Call those as statements, then continue with entry methods:
+
+```kotlin
+val name = TextEntry.make("name").state("Ada")
+name.hidden { get -> get.get("/draft") == true }
+name.live()
+```
+
+## Shared entry helpers
+
+| Method | Role |
+|--------|------|
+| `placeholder` | Text when the state is empty |
+| `color`, `icon`, `iconColor`, `iconPosition` | Presentation. Icon position is `before` or `after` |
+| `tooltip` | Screen-reader text |
+| `url`, `openUrlInNewTab` | Wrap the value in a link |
+| `copyable`, `copyMessage`, `copyMessageDuration`, `copyableState` | Copy affordance on the entry |
+| `helperText`, `hint`, `hintColor`, `hintIcon` | Secondary text and hint |
+| `prefix`, `suffix` | Text around the value |
+| `alignment`, `alignStart`, `alignCenter`, `alignEnd`, `alignJustify` | Text alignment |
+| `wrap`, `inlineLabel` | Wrapping and an inline label |
+| `extraAttributes` | Extra attributes on the entry. Names must be letters, digits, hyphens, or colons |
+| `aboveContent`, `belowContent` | Schema components rendered around the value |
+| `state` | Literal value, or a closure. A literal wins over the schema path |
+
+`configureUsing` on an entry class runs for every later `make()` of that class. Pass `null` to clear it.
+
+State resolution: a literal or closure from `state(...)` wins. Inside a repeatable item, a dotted name such as `author.name` is read from that item. Otherwise the entry reads `schema.get` at its absolute path.
+
+Known icon names (`home`, `bars`, `user`, `x`) render inline SVG. Any other name is stored as `data-ff-icon` and does not throw.
+
+## Text
+
+`TextEntry.make("title")` renders plain text. A list can be a badge, a bullet list, or line breaks. `limitList` with `expandableLimitedList(true)` keeps the extra items and marks them `data-ff-extra`. Without that flag, the tail becomes `+N`.
+
+```kotlin
+TextEntry.make("title")
+    .badge(true)
+    .size("lg")
+    .weight("bold")
+    .prose(true)
+    .lineClamp(3)
+    .limit(80)
+    .words(12)
+    .state("A short title")
+```
+
+`markdown(true)` renders a small Markdown subset (emphasis, code, links, and fenced blocks). `html(true)` leaves the string as HTML. `date()`, `dateTime()`, and `time()` format a temporal value. Call them with a pattern, or with no arguments to use `yyyy-MM-dd`, `yyyy-MM-dd HH:mm`, and `HH:mm`. `since()` renders a relative phrase against the current instant. `timezone` sets the zone. `dateTooltip()` adds `data-ff-date-tooltip`. `money()` defaults to USD. `money("EUR")` selects a currency. `numeric()` prints a number. `numeric(2)` sets the decimal places. `formatStateUsing` replaces the formatted text with the closure’s string.
+
+## Icon
+
+`IconEntry.make("ok")` shows an icon for the state. `bool(true)` treats the state as a boolean: a truthy value uses the true icon (`user`, color `success`) and a false value uses the false icon (`x`, color `danger`). `whenTrue("user", "success")` and `whenFalse("x", "danger")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon. `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
+
+The method is `bool`, because `boolean` is a Java keyword. The pair helpers are `whenTrue` and `whenFalse`.
+
+## Image
+
+`ImageEntry.make("photo")` renders `<img>` tags. `height` and `imageHeight` set the height. `width` and `imageWidth` set the width. `size` and `imageSize` set both. `circular` and `square` add shape flags. `alt`, `defaultImageUrl`, and `extraImgAttributes` change the tag. `stacked`, `overlap`, and `ring` describe a stack. `limit` with `limitedRemainingText(true)` appends `+N`. `limitedRemainingTextSeparate` and `limitedRemainingTextSize` style that remainder.
+
+`disk`, `visibility`, and `checkFileExistence` are data attributes on the entry (`data-ff-disk`, `data-ff-visibility`, `data-ff-check-file`). This module does not open a disk or sign a temporary URL. A relative or absolute URL string is rendered as `src`. When `checkFileExistence` is true, a blank source is dropped.
+
+## Color
+
+`ColorEntry.make("ink")` renders a swatch. A CSS color (`#df8723`, `rgb(...)`, `hsl(...)`, or a plain name made of letters) becomes `background-color`. Anything else is marked `data-ff-invalid`. `copyable(true)` comes from the shared entry helper and sets `data-ff-copyable`.
+
+## Key-value
+
+`KeyValueEntry.make("meta")` renders a map as a table. `keyLabel` and `valueLabel` rename the headers (defaults are `Key` and `Value`). `emptyMessage` is the placeholder when the map is empty (default `No values`). A null key is skipped.
+
+```kotlin
+KeyValueEntry.make("meta")
+    .keyLabel("Field")
+    .valueLabel("Detail")
+    .state(mapOf("city" to "Kona"))
+```
+
+## Code
+
+`CodeEntry.make("snippet")` sends the raw source and a grammar name to the browser. The entry is `data-ff-shiki="shiki"` and includes a JSON payload. The browser script calls Shiki `createHighlighter`, then `codeToHtml`. Light and dark themes default to `github-light` and `github-dark`.
+
+```kotlin
+CodeEntry.make("snippet")
+    .language("kotlin")
+    .lightTheme("github-light")
+    .darkTheme("github-dark")
+    .state("val name = \"Ada\"")
+```
+
+`language` is an alias of `grammar`. A string with no grammar uses `html`. A map or a list uses `json`. `jsonFlags` is passed to the JSON writer: bit 1 tags hex, bit 64 leaves slashes unescaped when clear, and bit 128 pretty-prints.
+
+`ShikiCode.source()` returns the browser script. `ShikiCode.manifest()` returns `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`. Load that script next to a Shiki build that exports `createHighlighter`. The same grammar names and themes are the ones a CodeMirror editor would load. Call `highlightCodeEntry(root, shiki)` with the Shiki module.
+
+## Repeatable
+
+`RepeatableEntry.make("comments")` repeats its child schema once per item. State may be one map or a list of maps. Empty maps and values that are not maps are skipped. A dotted child name is read from the current item.
+
+```kotlin
+RepeatableEntry.make("comments")
+    .contained(true)
+    .grid(2)
+    .schema(TextEntry.make("title"))
+    .state(listOf(mapOf("title" to "First")))
+```
+
+`table(TableColumn.make("Title"))` renders a table. `hiddenHeaderLabel()` hides that header with the `ff-sr` class. Child schema components, including `Text.make`, render in the cells. The default empty placeholder is `No items`.
+
+## Layouts
+
+Place entries inside the schema layouts. Do not build a second section type.
+
+```kotlin
+Infolist.make().components(
+    Section.make("Profile").schema(
+        Grid.make(2).schema(TextEntry.make("name")),
+        Tabs.make().tabs(
+            Tab.make("Code").schema(CodeEntry.make("snippet").state("a = 1")),
+        ),
+    ),
+)
+```
+
+```java
+Infolist.make().components(
+    Section.make("Profile").schema(
+        Grid.make(2).schema(TextEntry.make("name")),
+        Tabs.make().tabs(Tab.make("Code").schema(CodeEntry.make("snippet").state("a = 1")))
+    )
+);
+```
+
+## Your own entry
+
+Subclass `Entry` and set both `view` and `meta("ff-view", ...)` so the schema renders the Crema view.
+
+```kotlin
+class NoteEntry(name: String) : Entry<NoteEntry>(name) {
+    init {
+        view("firefly.entries.note")
+        meta("ff-view", "firefly.entries.note")
+    }
+}
+```
+
+```java
+public class NoteEntry extends Entry<NoteEntry> {
+    public NoteEntry(String name) {
+        super(name);
+        view("firefly.entries.note");
+        meta("ff-view", "firefly.entries.note");
+    }
+}
+```
+
+`./grind make:firefly-entry Note` writes `app/firefly/entries/Note.kt` and a Crema view that uses `x-data="ffEntry"` and `@entangle`. `--lang=java` writes a Java class. The view name is `firefly.entries.note`.
+
+## What arrives later
+
+Prefix and suffix actions wait for the actions artifact. Counts, averages, and similar record summaries wait for a record store. A private disk URL waits for a filesystem-backed URL. The code editor field and data tables are separate Firefly artifacts.
