@@ -1,0 +1,73 @@
+---
+title: 文件系统配置
+description: 磁盘驱动、带前缀的作用域磁盘、只读磁盘，以及云客户端设置。
+---
+
+在 `filesystems` 配置键下定义磁盘（脚手架：`config/Filesystems`）。
+
+## 默认磁盘
+
+```kotlin
+"default" to Env.getOrDefault("FILESYSTEM_DISK", "local"),
+```
+
+`FilesystemManager.disk()` 使用这个名称。需要另一个根目录时，把名称显式传给 `disk("public")`。
+
+## 本地与公开
+
+```kotlin
+"local" to mapOf(
+    "driver" to "local",
+    "root" to "storage/app",
+),
+"public" to mapOf(
+    "driver" to "local",
+    "root" to "storage/app/public",
+    "url" to "/storage",
+),
+```
+
+如果名为 `public` 的磁盘省略了 `root` / `url`，Kona 仍然默认使用 `storage/app/public` 和 `/storage`。
+
+## 作用域磁盘
+
+作用域磁盘把每条路径转发到父磁盘上的固定前缀之下：
+
+```kotlin
+"avatars" to mapOf(
+    "driver" to "scoped",
+    "disk" to "public",
+    "prefix" to "avatars",
+),
+```
+
+`disk("avatars").put("ada.png", bytes)` 把 `avatars/ada.png` 存到 `public` 磁盘上。
+
+## 只读磁盘
+
+```kotlin
+"archive" to mapOf(
+    "driver" to "local",
+    "root" to "storage/archive",
+    "read-only" to true,
+),
+```
+
+写入（`put`、`delete`、`append` 等）会抛出 `UnsupportedOperationException`。读取仍然可用。
+
+## 兼容 S3 的云存储
+
+```kotlin
+"s3" to mapOf(
+    "driver" to "s3",
+    "endpoint" to Env.get("AWS_ENDPOINT"),
+    "bucket" to Env.getOrDefault("AWS_BUCKET", "kona"),
+    "key" to Env.getOrDefault("AWS_ACCESS_KEY_ID", ""),
+    "secret" to Env.getOrDefault("AWS_SECRET_ACCESS_KEY", ""),
+    "region" to Env.getOrDefault("AWS_DEFAULT_REGION", "us-east-1"),
+    "url" to Env.getOrDefault("AWS_URL", ""),
+    "prefix" to Env.getOrDefault("AWS_ROOT_PREFIX", ""),
+),
+```
+
+`prefix` 会加在每个对象键前面（租户或环境根）。进程内伪造使用 `memory` / `s3-memory`，并使用同样的 `bucket` / `url` / `prefix` 开关。

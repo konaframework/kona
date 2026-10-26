@@ -1,0 +1,63 @@
+---
+title: VS Code 与 Cursor
+description: 安装 Crema 扩展桩并连接 kona-lsp。
+---
+
+`ide-support/vscode-crema/` 下的 **Crema (Kona)** 扩展提供 Crema 语言 id、TextMate 语法，以及语言服务器 jar 的设置键。
+
+## 本地开发安装
+
+```bash
+# VS Code
+code --install-extension ide-support/vscode-crema
+
+# Cursor
+cursor --install-extension ide-support/vscode-crema
+```
+
+重新加载窗口（`Developer: Reload Window`），然后打开任意 `*.crema.html` 文件 — 高亮应无需进一步设置就生效。语法也会高亮已知的 Wire `wire:*` 属性（`wire:model`、`wire:click` 等）。
+
+Java 和 Kotlin 里的内联 Wire 标记也会高亮：`template()` 文本块、`inline(` 的字符串参数，以及前面有 `// language=Crema` 或 `/* language=Crema */` 的字符串。编辑 `samples/wire-java/.../Counter.java`（以及 Kotlin 对应文件）而没有单独的 `.crema.html` 时，走的就是这条路径。
+
+当 **kona-lsp** 接到 **`crema`**、**`java`** 和 **`kotlin`** 文档上时，补全和诊断覆盖 Crema 的 `@` 指令、Wire 的 `wire:*` 属性，以及（在 `{{ }}` 内）外层组件类的公开成员。使用 Crema 布局的 Inertia 应用受益于同一条 Crema/LSP 路径；页面组件补全目前仍在 IntelliJ 插件上。
+
+命令面板：**Crema: Show kona-lsp setup help** 把构建和运行命令打印到输出通道。
+
+## 设置
+
+| 设置 | 默认 | 用途 |
+|------|------|------|
+| `crema.lsp.enabled` | `true` | 留给会自动启动服务器的客户端 |
+| `crema.lsp.javaPath` | `java` | JDK 启动器 |
+| `crema.lsp.jarPath` | `""` | kona-lsp jar 的绝对路径 |
+
+示例 `settings.json`：
+
+```json
+{
+  "crema.lsp.javaPath": "java",
+  "crema.lsp.jarPath": "/home/you/kona/modules/lsp/build/libs/kona-lsp-0.1.1.jar"
+}
+```
+
+先构建 jar：`./gradlew :kona-lsp:jar`。
+
+## 接上完整的 LSP 客户端
+
+桩扩展注册语言支持和帮助；要得到实时补全和诊断，用 LSP 客户端（例如 `vscode-languageclient`）配置：
+
+```text
+java -jar /absolute/path/to/kona-lsp.jar
+```
+
+stdio 传输。文档选择器语言：`crema`、`java`、`kotlin`。协议表面见[语言服务器](/docs/language/lsp)。
+
+让客户端同时指向 Java 和 Kotlin 缓冲区以及 `*.crema.html`。kona-lsp 忽略普通的 Java/Kotlin 代码：它只扫描内联的 Crema 范围，因此 Java 文件里的 `@Override` 不会被当成 Crema 指令。
+
+## 编辑后同步语法
+
+```bash
+cd ide-support/vscode-crema && node scripts/sync-grammar.js
+```
+
+规范语法源仍在 `ide-support/crema/`。

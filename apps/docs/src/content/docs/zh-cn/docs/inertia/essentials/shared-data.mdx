@@ -1,0 +1,75 @@
+---
+title: 共享数据
+description: 全局 Inertia.share、每次请求的中间件共享，以及合并规则。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## 全局共享
+
+在进程存活期间一直存在（或直到被清空）：
+
+```kotlin
+Inertia.share("appName", "Kona")
+Inertia.share(mapOf("features" to listOf("a", "b")))
+```
+
+```java
+Inertia.share("appName", "Kona");
+Inertia.share(Map.of("features", List.of("a", "b")));
+```
+
+用 `Inertia.manager().shared()` 查看。用 `manager.clearShared()` 清空。
+
+## 每次请求的共享
+
+子类化中间件：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class HandleInertia : HandleInertiaRequests() {
+    override fun share(request: Request) = mapOf(
+        "path" to request.path,
+        "auth" to mapOf("user" to currentUser(request)),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class HandleInertia extends HandleInertiaRequests {
+    @Override
+    public Map<String, Object> share(Request request) {
+        return Map.of("path", request.getPath());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+内部会在本次请求期间调用 `manager.shareForRequest(props)`。中间件结束时会清空 ThreadLocal 映射。
+
+## 合并顺序
+
+1. 全局 `share`
+2. 中间件 / `shareForRequest`
+3. 传给 `Inertia.render` 的属性（优先级最高）
+
+重复的键以后面的层为准。把稳定的应用元数据放在全局共享里，把随请求变化的闪存和认证放在中间件里，控制器就可以保持精简。
+
+## 闪存式做法
+
+`kona-inertia` 里没有单独的“闪存”袋。常见做法：
+
+1. 在控制器或过滤器里把闪存放进会话。
+2. 在 `share(request)` 里读取并清除该会话键，放进属性（例如 `"flash" to mapOf("success" to …)`）。
+3. 在客户端从 `usePage().props.flash` 显示（Vue/React 适配器 API — 见 [inertiajs.com](https://inertiajs.com/shared-data)）。
+
+## 测试共享属性
+
+在单元测试里启动管理器，调用 `share` / `shareForRequest`，用显式的 `Request` 渲染，并断言 JSON 属性映射。见[测试](../../dx/testing/)。
