@@ -1,0 +1,194 @@
+---
+title: Installation
+description: Ajoutez Wire en une commande — ./grind install wire (ou kona grind install wire) — ou échafaudez avec le kit wire.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire doit se sentir comme une ligne. Préférez **`./grind install`** (ou **`kona grind install`**), ou le kit de démarrage wire. Les éditions Gradle manuelles sont optionnelles et listées à la fin.
+
+## Vous avez déjà une application Kona ?
+
+Depuis la racine de l’application (où vivent `build.gradle.kts` / `build.gradle`) :
+
+```bash
+./grind install wire
+# from anywhere under the app:
+kona grind install wire
+```
+
+Cette commande :
+
+1. Ajoute `org.konaframework:kona-wire` à vos dépendances Gradle.
+2. Enregistre `WireServiceProvider` dans `src/main/resources/META-INF/kona/providers` afin que grind/`PackageDiscovery` le charge au boot.
+
+Puis rafraîchissez Gradle et reconstruisez :
+
+```bash
+./gradlew build
+# or just restart ./grind serve
+```
+
+Épinglez une version lorsque vous en avez besoin :
+
+```bash
+./grind install wire --version=0.1.1
+# or: kona grind install wire --version=0.1.1
+```
+
+Consultez la documentation complète de l’installateur de paquets sur Kona : [Installer des paquets](/docs/packages/install/).
+
+## Partir de zéro
+
+Échafaudez une application qui inclut déjà Wire, Crema, la session et le CSRF :
+
+```bash
+kona new my-app --kit=wire
+# Java sample path:
+kona new my-app --kit=wire --lang=java
+cd my-app
+./grind serve
+```
+
+## Après l’installation — vérification rapide
+
+1. Créez un composant : `./grind make:wire counter`
+2. Embarquez `<wire:counter />` dans une page Crema.
+3. Ouvrez la page et cliquez — le compte doit se mettre à jour sans rechargement complet.
+4. Dans DevTools, confirmez que `window.Wire` et `window.Alpine` existent.
+
+Wire injecte son script et ses styles dans les réponses HTML par défaut (`wire.inject_assets`). Pour les layouts que vous contrôlez vous-même, ajoutez `@wireStyles` / `@wireScripts` — consultez [Assets](#assets-in-layouts).
+
+Les applications existantes ont besoin de **session + CSRF** sur la pile middleware web (le kit wire le câble pour vous). Les requêtes de mise à jour portent `_token`.
+
+## Commandes grind
+
+Une fois le provider de Wire enregistré, le grind local à l’application prend les commandes Wire :
+
+```bash
+./grind make:wire counter
+./grind make:wire todos --class
+./grind make:wire counter --lang=java --test
+./grind wire:publish
+./grind wire:stubs
+./grind wire:layout
+```
+
+Détails : [Commandes grind](/docs/wire/dx/grind/).
+
+<a id="assets-in-layouts"></a>
+
+## Assets dans les layouts
+
+Lorsque vous gérez le layout vous-même :
+
+```crema
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@yield('title', 'App')</title>
+    @wireStyles
+</head>
+<body>
+    @yield('content')
+    @wireScripts
+</body>
+</html>
+```
+
+`@wireScripts` émet la balise consciente du CSRF qui charge Alpine + Wire et appelle `Wire.start()` sur `DOMContentLoaded`.
+
+## Clés de config
+
+| Clé | Défaut | Rôle |
+|-----|---------|------|
+| `app.key` | — | Clé HMAC pour les checksums de snapshot |
+| `wire.class_namespace` | `app.wire` | Racines de paquet pour la résolution `<wire:name />` (`brew.class_namespace` fonctionne encore) |
+| `wire.path` | `/wire` | Chemin de base pour les routes de mise à jour et de script (`brew.path` fonctionne encore) |
+| `wire.view_prefix` | `wire` | Préfixe de vue de convention (`views/wire/<name>.crema.html`) |
+| `wire.inject_assets` | `true` | Injecte automatiquement styles/scripts dans les réponses HTML |
+| `wire.inject_morph_markers` | `true` | Enveloppe boucles/conditionnels pour le morph à clé |
+| `wire.csrf` | `true` | Exige un jeton CSRF sur les mises à jour lorsqu’une session existe |
+
+## Aller plus loin — Gradle manuel (optionnel)
+
+Seulement si vous n’utilisez pas `./grind install` / le kit :
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.konaframework:kona-http:0.1.1")
+    implementation("org.konaframework:kona-session:0.1.1")
+    implementation("org.konaframework:kona-crema:0.1.1")
+    implementation("org.konaframework:kona-wire:0.1.1")
+}
+```
+
+Puis enregistrez les providers vous-même (ou écrivez `WireServiceProvider` dans `META-INF/kona/providers`) :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Kona.create(args)
+    .configure {
+        it.set("app.key", Env.getOrDefault("APP_KEY", "change-me"))
+        it.set("session.driver", "cookie")
+    }
+    .providers(
+        HttpServiceProvider(),
+        SessionServiceProvider(),
+        CremaServiceProvider(),
+        WireServiceProvider(),
+    )
+    .afterBoot { app ->
+        HttpMiddleware()
+            .alias("start.session") { StartSession(app.resolve(SessionManager::class.java)) }
+            .alias("csrf") { VerifyCsrfToken() }
+            .web(listOf("start.session", "csrf"))
+            .apply(app)
+    }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Kona.create(args)
+    .configure(c -> {
+        c.set("app.key", Env.getOrDefault("APP_KEY", "change-me"));
+        c.set("session.driver", "cookie");
+    })
+    .providers(
+        new HttpServiceProvider(),
+        new SessionServiceProvider(),
+        new CremaServiceProvider(),
+        new WireServiceProvider()
+    )
+    .afterBoot(app -> {
+        new HttpMiddleware()
+            .alias("start.session", () -> new StartSession(app.resolve(SessionManager.class)))
+            .alias("csrf", VerifyCsrfToken::new)
+            .web(List.of("start.session", "csrf"))
+            .apply(app);
+    })
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+`WireServiceProvider` lie `WireManager`, découvre les composants sous `app.wire` par défaut, et enregistre `POST /wire/update` plus les routes de script `/wire/wire.js`.
+
+Les artefacts se résolvent depuis **Maven Central** par défaut (`org.konaframework:kona-wire:0.1.1` et les compagnons correspondants).
+
+## Suite
+
+- [Votre premier composant](/docs/wire/guides/first-component/) — tutoriel Kotlin + Java complet
+- [Kona — installer des paquets](/docs/packages/install/) — catalogue et drapeaux `./grind install`
+- [Installation de Kona](/docs/guides/installation/) — mise en place du framework de base
