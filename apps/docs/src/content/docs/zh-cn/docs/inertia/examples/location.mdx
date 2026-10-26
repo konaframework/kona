@@ -1,0 +1,13 @@
+---
+title: 外部地址跳转
+description: 从 Inertia 访问或普通浏览器访问把用户送到站外 URL。
+---
+
+```kotlin
+router.get("/leave") {
+    Inertia.location("https://example.com")
+}
+```
+
+- Inertia 客户端 → `409` + `X-Inertia-Location`
+- 浏览器或非 Inertia 访问 → `302` + `Location`

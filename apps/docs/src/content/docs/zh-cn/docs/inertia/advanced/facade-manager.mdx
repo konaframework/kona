@@ -1,0 +1,21 @@
+---
+title: 门面与管理器
+description: InertiaManager 的职责、ThreadLocal，以及 HtmlAttr 转义。
+---
+
+## InertiaManager
+
+它负责：
+
+- `version`、`rootView`、`rootHtml`、`cremaEngine`、`viteEntries`
+- 全局 `sharedProps`（`ConcurrentHashMap`）
+- 当前 `Request` 的 ThreadLocal，以及每次请求的共享映射
+- `render` / `location` / `versionConflict` / `decorate` / `isInertiaRequest`
+
+## 门面
+
+`Inertia` 在进程内持有当前管理器。`InertiaServiceProvider.boot` 会调用 `Inertia.setManager`。测试应在 `@AfterEach` 里调用 `Inertia.reset()`（以及 `Vite.reset()`）。
+
+## HtmlAttr
+
+`HtmlAttr.escape` 转义 `& < > " '`，以便把 JSON 放进 HTML 属性（`pageAttr` / `@page`）。
