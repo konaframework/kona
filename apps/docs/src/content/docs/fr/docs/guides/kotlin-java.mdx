@@ -1,0 +1,236 @@
+---
+title: Kotlin et Java
+description: Comment les mêmes API Kona se présentent depuis Kotlin et Java, et les quelques endroits où la syntaxe d’appel diffère.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Kona est écrit en Kotlin, mais les applications Java sont une cible de premier ordre. Chaque API publique est formée pour qu’un site d’appel Java se lise naturellement, et le dépôt Kona garde un échantillon Java (`samples/hello-java`) à côté de celui en Kotlin (`samples/hello-kotlin`) dans ses tests de régression. Quand une page de ces docs montre les deux langages, **le comportement est identique** ; seule la syntaxe diffère.
+
+Cette page explique les conventions derrière cela, pour que vous puissiez prédire comment n’importe quelle API Kona se présente depuis votre langage sans chercher un exemple.
+
+## Comment les API Kotlin apparaissent en Java
+
+Kotlin compile vers des classes JVM ordinaires. Quelques fonctionnalités de langage se traduisent de façon prévisible :
+
+| Déclaration Kotlin | Ce que le code Kotlin écrit | Ce que le code Java écrit |
+|--------------------|-------------------------|-----------------------|
+| Propriété `val container` | `app.container` | `app.getContainer()` |
+| Propriété mutable `var status` | `response.status = 201` | `response.setStatus(201)` |
+| `object Kona` avec des membres `@JvmStatic` | `Kona.create(args)` | `Kona.create(args)` |
+| Classe imbriquée `Application.Builder` | `Application.Builder` | `Application.Builder` |
+| `fun interface Handler` | lambda final `{ request -> ... }` | lambda `request -> ...` ou référence de méthode |
+| Type de fonction `(Container) -> T` | `{ c -> Greeter() }` | `c -> new Greeter()` |
+| Type de retour `T?` (nullable) | le compilateur force un contrôle null | peut renvoyer `null` ; vérifiez-le vous-même |
+
+Kona marque ses points d’entrée (`Kona`, `Env`, `Application.builder`, `Response.text`/`json`/`html`, `Request.get`/`post`, `Config.toBoolean`) avec `@JvmStatic`, donc Java les appelle comme des méthodes statiques simples sans saut `.INSTANCE` ou `.Companion`.
+
+## Démarrer une application
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val app: Application = Kona.create(args)
+    .providers(HttpServiceProvider(), AppServiceProvider())
+    .configure { config -> config.set("app.name", "Demo") }
+    .boot()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Application app = Kona.create(args)
+    .providers(new HttpServiceProvider(), new AppServiceProvider())
+    .configure(config -> config.set("app.name", "Demo"))
+    .boot();
+```
+
+</TabItem>
+</Tabs>
+
+`configure` accepte un `java.util.function.Consumer<Config>`, donc il prend un lambda Java directement et un lambda Kotlin par conversion SAM.
+
+## Écrire un service provider
+
+`ServiceProvider` est une interface avec `register(Application)` et `boot(Application)`. En Kotlin, `boot` a un corps par défaut vide, donc un provider Kotlin peut l’omettre. **Les providers Java doivent implémenter les deux méthodes** : le défaut Kotlin n’est pas compilé comme une méthode `default` Java, donc laissez `boot` vide quand vous n’avez rien à faire au boot.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.singleton(Clock::class.java) { SystemClock() }
+    }
+
+    override fun boot(app: Application) {
+        val router = app.resolve(Router::class.java)
+        router.get("/time") { Response.text(app.resolve(Clock::class.java).now().toString()) }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().singleton(Clock.class, c -> new SystemClock());
+    }
+
+    @Override
+    public void boot(Application app) {
+        Router router = app.resolve(Router.class);
+        router.get("/time", request -> Response.text(app.resolve(Clock.class).now().toString()));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Les types sont toujours passés comme objets `Class` : `Clock::class.java` en Kotlin, `Clock.class` en Java. Il n’y a pas de raccourcis génériques réifiés, donc le même appel de conteneur fonctionne de façon identique dans les deux langages.
+
+## Handlers
+
+Un **handler** est tout ce qui transforme une `Request` en `Response`. `Handler` est une interface à une méthode, `handle(Request): Response`, donc tout lambda ou référence de méthode de cette forme convient.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/ping") { request -> Response.text("pong") }
+
+val users = UserController()
+router.get("/users") { users.index(it) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/ping", request -> Response.text("pong"));
+
+UserController users = new UserController();
+router.get("/users", users::index);
+```
+
+</TabItem>
+</Tabs>
+
+## Middleware et `next`
+
+Le **middleware** est une fonction `handle(request, next)` qui tourne avant un handler. Appeler `next` passe la requête plus loin dans la chaîne ; revenir sans l’appeler termine la requête tôt avec votre propre réponse.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.http.invoke   // enables next(request)
+
+val requireToken = Middleware { request, next ->
+    if (request.header("X-Token") == "secret") next(request)
+    else Response.json(mapOf("error" to "unauthorized"), 401)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Middleware requireToken = (request, next) ->
+    "secret".equals(request.header("X-Token"))
+        ? next.handle(request)
+        : Response.json(Map.of("error", "unauthorized"), 401);
+```
+
+</TabItem>
+</Tabs>
+
+En Kotlin, `next(request)` est une extension d’opérateur déclarée dans `org.konaframework.http` ; vous devez importer `org.konaframework.http.invoke` pour que ça compile. `next.handle(request)` fonctionne dans les deux langages sans import.
+
+## Groupes de routes
+
+Un **groupe de routes** applique un préfixe d’URL, un préfixe de nom de route et du middleware à chaque route déclarée dedans. C’est la seule API dont les formes diffèrent vraiment par langage.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.group(prefix = "/api", name = "api.", middleware = listOf(requireToken)) {
+    get("/me") { Response.json(mapOf("ok" to true)) }.name("me")   // GET /api/me, name "api.me"
+}
+
+// Or declare several routes with a receiver block:
+router.routes {
+    get("/") { Response.text("home") }
+    post("/contact") { Response.noContent() }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.prefix("/api").name("api.").middleware(requireToken).group(api -> {
+    api.get("/me", request -> Response.json(Map.of("ok", true))).name("me");
+});
+
+// Positional overloads, if you prefer:
+router.group("/api", List.of(requireToken), api -> { /* ... */ });
+router.group("/api", "api.", List.of(requireToken), api -> { /* ... */ });
+```
+
+</TabItem>
+</Tabs>
+
+La forme Kotlin `group(prefix =, name =, middleware =) { }` utilise des arguments nommés et un lambda récepteur, donc elle est cachée de Java. Java obtient la chaîne fluide `prefix(...).name(...).middleware(...).group(Consumer<Router>)` et des surcharges `Consumer` à la place. Les deux construisent exactement les mêmes routes.
+
+## Arguments par défaut
+
+Les paramètres Kotlin peuvent avoir des valeurs par défaut. Là où Kona ajoute `@JvmOverloads`, Java voit une surcharge par paramètre optionnel : par exemple `Response.text(body)` et `Response.text(body, status)`, ou `config.get(key)` et `config.get(key, default)`. Quelques fonctions n’ont pas de surcharges Java, et Java doit passer chaque argument :
+
+| Appel | Kotlin | Java |
+|------|--------|------|
+| Recherche d’environnement | `Env.get("KEY")` | `Env.get("KEY", null)`, ou `Env.getOrDefault("KEY", "x")` |
+| Entrée de requête | `request.input("q")` | `request.input("q", null)` |
+| URL de route nommée | `router.route("home")` | `router.route("home", Map.of())` |
+
+Si Java signale « method cannot be applied to given types » sur un appel Kona, un argument par défaut manquant est la raison habituelle.
+
+## Types de retour génériques
+
+Les appels qui cherchent par **clé chaîne** renvoient un `T` générique, inféré depuis la variable à laquelle vous assignez :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val greeter: Greeter = app.container.make("greeter")
+val port: Int? = app.config.get("server.port")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Greeter greeter = app.getContainer().make("greeter");
+Integer port = app.getConfig().get("server.port");
+```
+
+</TabItem>
+</Tabs>
+
+Le cast n’est pas vérifié : si la valeur stockée a un autre type, vous obtenez une `ClassCastException` là où vous l’utilisez. Préférez les getters de config typés (`getInt`, `getString`, `getBoolean`) et les recherches de conteneur par classe (`make(Greeter.class)`) quand vous pouvez.
+
+## Mélanger les deux langages dans un projet
+
+Un projet Kotlin peut contenir des classes Java et l’inverse ; Kona ne se soucie pas du langage dans lequel un provider ou un contrôleur a été écrit. Les échafaudages utilisent les racines standard `src/main/kotlin` et `src/main/java`, donc vous pouvez ajouter les sources de l’autre langage à côté du premier. `grind make:controller` choisit `.java` dès qu’un fichier `.java` existe sous `src/main/java/` ; passez `--lang=` pour surcharger.
+
+## Échantillons de référence
+
+`samples/hello-kotlin` et `samples/hello-java` dans le dépôt Kona correspondent au layout *source* **web** par défaut de `kona new` (accueil Crema + `/api/health`) avec des tests de fumée HTTP. Ce ne sont **pas** des échafaudages complets : ils n’ont pas `./grind` ni un `./gradlew` local, et vous les lancez depuis la racine du dépôt (`./gradlew :hello-kotlin:run` / `:hello-java:run`). Pour le chemin produit avec `./grind serve`, utilisez [Installation](../installation/) et [Votre première app](../first-app/). Les autres kits (`api`, `wire`, `inertia`) sont couverts par les régressions `kona new` dans la suite de tests du CLI.
