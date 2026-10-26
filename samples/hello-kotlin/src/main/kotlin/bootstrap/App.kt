@@ -1,5 +1,6 @@
 package bootstrap
 
+import app.firefly.Panel as DeskPanel
 import app.providers.AppServiceProvider
 import config.App as AppConfig
 import config.Auth
@@ -62,8 +63,10 @@ object App {
             )
             .afterBoot { Middleware.configure(it) }
             .boot()
-        WebRoutes().register(app.resolve(Router::class.java))
-        ApiRoutes().register(app.resolve(Router::class.java))
+        val router = app.resolve(Router::class.java)
+        WebRoutes().register(router)
+        ApiRoutes().register(router)
+        DeskPanel().mount(router)
         return app
     }
 

@@ -23,7 +23,7 @@ import org.konaframework.firefly.support.Panel as Chrome
  *
  * The panel guard is `firefly-{id}` unless [reuseAppGuard] names the application guard.
  */
-class Panel {
+open class Panel {
     private var idLiteral: String = "admin"
     private var idUsing: Function<Get, String>? = null
     private var pathLiteral: String = "admin"

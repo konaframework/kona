@@ -73,8 +73,10 @@ public final class App {
             )
             .afterBoot(Middleware::configure)
             .boot();
-        new WebRoutes().register(app.resolve(Router.class));
-        new ApiRoutes().register(app.resolve(Router.class));
+        Router router = app.resolve(Router.class);
+        new WebRoutes().register(router);
+        new ApiRoutes().register(router);
+        new app.firefly.Panel().mount(router);
         return app;
     }
 

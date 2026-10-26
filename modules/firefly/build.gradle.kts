@@ -22,6 +22,7 @@ dependencies {
     api(project(":kona-firefly-forms"))
     api(project(":kona-firefly-widgets"))
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.h2)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

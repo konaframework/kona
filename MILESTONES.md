@@ -1233,7 +1233,7 @@ Panel routes, auth, navigation, and pages (M35). Resources (M36). Do not pull M3
 
 ## M35 — Firefly panel, auth, navigation, and pages
 
-**Status:** done (branch `milestone/M35-firefly-panel`; on `main` when this PR merges).
+**Status:** done (on `main`, `252c78a4`, #225).
 
 Artifact: `kona-firefly`. A panel route serves a `PanelPage`. Standalone schema, form, infolist, and table render remains for tests and embedding.
 
@@ -1270,9 +1270,9 @@ Resource model binding, relation managers, and `make:firefly-resource` (M36). Te
 
 ## M36 — Firefly resources
 
-**Status:** queued (not started). Not done.
+**Status:** done (branch `milestone/M36-firefly-resources`; on `main` when this PR merges).
 
-Not on `main`. Includes `--simple` resources. Artifact, when this milestone starts: `kona-firefly`. M31 forms are on `main`. Do not start this milestone until M35 is on `main`.
+Artifact: `kona-firefly`. M35 is on `main`. Includes `--simple` resources and the hello sample panel.
 
 **Parity slice:** A resource binds one model to its pages, form schema, infolist, table, and actions. Ledger: [docs/governance/firefly-filament-parity.md](docs/governance/firefly-filament-parity.md).
 
@@ -1280,13 +1280,13 @@ Not on `main`. Includes `--simple` resources. Artifact, when this milestone star
 
 ### Parity checklist
 
-- [ ] List, create, edit, view, and manage pages are the resource's pages
-- [ ] The resource form schema, infolist, table, and actions are reachable from those pages
-- [ ] Relation managers on a full resource
-- [ ] The model type selects the query (`ModelBuilder` for a Cadence model; the document addon later for a document model)
-- [ ] A simple resource uses one Manage page whose create, edit, view, and delete run in the existing Dialog
-- [ ] `make:firefly-resource` and `--simple`, with Kotlin and Java samples that open the resource pages
-- [ ] 100% line + branch coverage on the modules this milestone touches
+- [x] List, create, edit, view, and manage pages are the resource's pages
+- [x] The resource form schema, infolist, table, and actions are reachable from those pages
+- [x] Relation managers on a full resource
+- [x] The model type selects the query (`ModelBuilder` for a Cadence model; the document addon later for a document model)
+- [x] A simple resource uses one Manage page whose create, edit, view, and delete run in the existing Dialog
+- [x] `make:firefly-resource` and `--simple`, with Kotlin and Java samples that open the resource pages
+- [x] 100% line + branch coverage on the modules this milestone touches
 
 ### Out of scope
 

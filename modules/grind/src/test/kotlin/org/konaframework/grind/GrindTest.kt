@@ -816,6 +816,35 @@ class GrindTest {
     }
 
     @Test
+    fun makeFireflyResource() {
+        val base = temp.resolve("firefly-resource")
+        Files.createDirectories(base)
+        assertEquals(0, MakeFireflyResourceCommand().run(listOf("Category", "--base=$base", "--lang=kotlin", "--simple")))
+        val simple = Files.readString(base.resolve("src/main/kotlin/app/firefly/resources/Category.kt"))
+        assertTrue(simple.contains("simple()"))
+        assertTrue(simple.contains("ManagePage"))
+        assertTrue(simple.contains("model(app.models.Category::class.java)"))
+        assertFalse(simple.contains("RelationManager"))
+        assertEquals(0, MakeFireflyResourceCommand().run(listOf("Order", "--base=$base", "--lang=kotlin")))
+        val full = Files.readString(base.resolve("src/main/kotlin/app/firefly/resources/Order.kt"))
+        assertTrue(full.contains("ListPage"))
+        assertTrue(full.contains("RelationManager"))
+        assertFalse(full.contains("simple()"))
+        assertEquals(0, MakeFireflyResourceCommand().run(listOf("Note", "--base=$base", "--lang=java", "--simple")))
+        val javaSimple = Files.readString(base.resolve("src/main/java/app/firefly/resources/Note.java"))
+        assertTrue(javaSimple.contains("simple();"))
+        assertTrue(javaSimple.contains("new ManagePage"))
+        assertEquals(0, MakeFireflyResourceCommand().run(listOf("Invoice", "--base=$base", "--lang=java")))
+        val javaFull = Files.readString(base.resolve("src/main/java/app/firefly/resources/Invoice.java"))
+        assertTrue(javaFull.contains("new ViewPage"))
+        assertTrue(javaFull.contains("new RelationManager"))
+        assertThrows(GrindException::class.java) { MakeFireflyResourceCommand().run(listOf("--base=$base")) }
+        assertThrows(GrindException::class.java) { MakeFireflyResourceCommand().run(listOf("Bad-Name", "--base=$base")) }
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-resource", "Category", "--base=$base", "--lang=kotlin", "--simple")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-resource" })
+    }
+
+    @Test
     fun makeFireflyField() {
         val base = temp.resolve("firefly-field")
         Files.createDirectories(base)

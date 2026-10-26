@@ -46,6 +46,7 @@ class ListCommand(
             "make:firefly-panel" to "Generate a Firefly panel and its pages, widgets, and resources folders",
             "make:firefly-page" to "Generate a Firefly page",
             "make:firefly-theme" to "Generate a Firefly theme",
+            "make:firefly-resource" to "Generate a Firefly resource (--simple for one Manage page)",
             "firefly:install" to "Generate a Firefly panel tree",
             "firefly:publish" to "Publish the Firefly sidebar partial",
             "make:model" to "Generate a Cadence model (-mcrfspaR companions)",

@@ -44,10 +44,10 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
-| `origin/main` | `38e5a847` (PR #224, M34 notifications and widgets). #223 is the grind Kover fix |
-| On `main` | M28–M34, including forms and notifications/widgets (`38e5a847`, #224). M35 panel is this branch and lands when the PR merges |
-| Active milestone | **M35 — Firefly panel, auth, navigation, and pages**, on `milestone/M35-firefly-panel`. Next after merge is **M36** (resources), then M37, M38. Release train **0.4.x** |
-| Queued | **M36–M38** not started. M36 is resources. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Do not implement the Mongo addon. Do not run M35–M38 in parallel |
+| `origin/main` | `252c78a4` (PR #225, M35 panel). #224 is M34. #223 is the grind Kover fix |
+| On `main` | M28–M35. M36 resources are this branch and land when the PR merges |
+| Active milestone | **M36 — Firefly resources**, on `milestone/M36-firefly-resources`. Next after merge is **M37**, then M38. Release train **0.4.x** |
+| Queued | **M37–M38** not started. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Do not implement the Mongo addon. Do not run M36–M38 in parallel |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
@@ -56,13 +56,13 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | LSP | `kona-lsp` completes Crema `@`, Wire `wire:*`, and echo helpers inside `{{ }}` (IDEA-aligned `CremaEchoCatalog`) |
 | Models | **Auto only** unless the human names a model for that turn |
 | Autopilot | Non-colliding milestones may proceed in parallel. After a merge, continue remaining milestones whose dependencies are on `main`, including ones already in progress. Do not pause for permission |
-| Firefly integration | Pages, widgets, and resources compose schemas, forms, infolists, actions, and tables. Standalone render stays available for tests and embedding. M34 widgets place on a `Page` or `Dashboard` and are discovered from a panel `widgets/` directory. M35 and M36 stay queued |
+| Firefly integration | Pages, widgets, and resources compose schemas, forms, infolists, actions, and tables. M35 discovers pages, widgets, and resources from the panel directory. M36 binds a model to those pages. M37 and M38 stay queued |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9) |
 
 ### Firefly integration contract
 
-Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. Pages, widgets, and resources compose those pieces. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M34 notifications and widgets are on `main`. M35 panel, auth, navigation, and pages are done on this branch. M36 is resources. Do not start M36 until M35 is on `main`.
+Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. Pages, widgets, and resources compose those pieces. A later milestone cannot ship by only rendering a form, infolist, table, or widget in isolation. M35 panel, auth, navigation, and pages are on `main`. M36 resources are done on this branch. Do not start M37 until M36 is on `main`.
 
 **Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
 
