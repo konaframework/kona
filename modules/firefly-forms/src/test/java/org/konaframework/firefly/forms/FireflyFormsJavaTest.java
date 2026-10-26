@@ -87,9 +87,14 @@ class FireflyFormsJavaTest {
             .suffixAction(Action.make("suffix").label("Suffix"))
             .hintAction(Action.make("hint").label("Hint"));
         MemoryRecordStore store = new MemoryRecordStore();
-        Select.make("author").relationship("authors", "name", store);
-        Select.make("authorFiltered").relationship("authors", "name", store, null)
+        Select.make("authorId").relationship("author", "name");
+        Select.make("authorFiltered").relationship("author", "name", query -> { })
+            .getOptionLabelFromRecordUsing(record -> "Ada")
             .createOptionAction(Action.make("createAuthor").label("Create"));
+        Select.make("authorClosure").relationship(get -> "author", get -> "name");
+        TextInput.make("extra").extraAttributes(Map.of("data-root", "1")).extraInputAttributes(Map.of("data-in", "1"));
+        TextInput.make("extraClosure").extraAttributes(get -> Map.of("data-root", "2"))
+            .extraInputAttributes(get -> Map.of("data-in", "2"));
         Repeater.make("lines")
             .addAction(Action.make("addLine").label("Add"))
             .deleteAction(Action.make("deleteLine").label("Delete"))

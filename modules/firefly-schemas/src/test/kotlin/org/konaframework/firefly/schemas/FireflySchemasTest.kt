@@ -416,6 +416,18 @@ class FireflySchemasTest {
         assertTrue(Markup.optionalSpan("data-ff-icon", "home").contains("home"))
     }
 
+    @Test
+    fun extraAttributesRenderOnTheComponentRoot() {
+        val block = NamedField("note").extraAttributes(mapOf("data-a" to "1", "1bad" to "no"))
+        val html = Schema.make().components(block).render()
+        assertTrue(html.contains("""data-a="1""""))
+        assertFalse(html.contains("1bad"))
+        block.extraAttributes { mapOf("data-b" to "2") }
+        assertTrue(Schema.make().components(block).render().contains("""data-b="2""""))
+        assertEquals("", htmlAttributes(null))
+        assertEquals("", htmlAttributes(emptyMap()))
+    }
+
     private fun nest(depth: Int): Section {
         val section = Section.make("L$depth")
         if (depth == 1) return section

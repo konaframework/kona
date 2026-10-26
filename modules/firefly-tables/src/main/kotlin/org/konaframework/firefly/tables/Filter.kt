@@ -13,6 +13,7 @@ open class Filter(val name: String) {
     private var queryHook: BiConsumer<Any, Any?>? = null
     private var options: Map<String, String> = emptyMap()
     private var optionsUsing: Function<Cell, Map<String, String>>? = null
+    private val inputExtras = InputAttributes()
 
     fun label(value: String): Filter = apply { labelValue.set(value) }
 
@@ -38,6 +39,10 @@ open class Filter(val name: String) {
     }
 
     fun options(provider: Function<Cell, Map<String, String>>): Filter = apply { optionsUsing = provider }
+
+    fun extraInputAttributes(attributes: Map<String, String>): Filter = apply { inputExtras.set(attributes) }
+
+    fun extraInputAttributes(provider: Function<Cell, Map<String, String>>): Filter = apply { inputExtras.set(provider) }
 
     open fun heading(cell: Cell): String = labelValue.get(cell, name)
 
@@ -66,10 +71,11 @@ open class Filter(val name: String) {
                 """<option value="${escapeHtml(option)}"$selected>${escapeHtml(label)}</option>"""
             }
         }
+        val extra = inputExtras.markup(cell)
         val control = if (choices.isEmpty()) {
-            """<input data-ff-filter="${escapeHtml(name)}" value="${escapeHtml(current)}">"""
+            """<input data-ff-filter="${escapeHtml(name)}" value="${escapeHtml(current)}"$extra>"""
         } else {
-            """<select data-ff-filter="${escapeHtml(name)}">$tags</select>"""
+            """<select data-ff-filter="${escapeHtml(name)}"$extra>$tags</select>"""
         }
         val indicator = if (!active(value)) {
             ""

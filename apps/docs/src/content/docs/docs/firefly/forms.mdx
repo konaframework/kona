@@ -69,7 +69,8 @@ These methods are on the field base. Every concrete field has them.
 | `validationMessages` | Message per rule name |
 | `saved(false)` | Same as `dehydrated(false)` |
 | `formatStateUsing`, `dehydrateStateUsing` | Change the value written by `dehydrate()` |
-| `extraInputAttributes`, `extraAttributes` | Extra HTML attributes. `type`, `name`, and `value` stay owned by the field |
+| `extraAttributes` | HTML attributes merged onto the component root. A map or a closure. Invalid names are skipped |
+| `extraInputAttributes` | HTML attributes on the input, textarea, select, or editor control. A map or a closure. `type`, `name`, and `value` stay owned by the field |
 
 `hidden`, `visible`, `live`, `liveOnBlur`, `liveDebounce`, and `afterStateUpdated` stay on the schema component. Call them on the field. They return the component base, so in Java finish the field chain before calling `live()`.
 
@@ -124,7 +125,27 @@ Kotlin calls `.native()` to opt into `<select>`. Java calls `useNative(true)` be
 
 `descriptions` adds a line under each option. A static option list adds an `in:` rule when the field is not multiple and the values contain neither a comma nor a pipe.
 
-`relationship("companies", "name")` stores the relation name and the title attribute. Options still come from `options`, `optionsFrom`, or `getSearchResultsUsing`. Querying a record store is a later milestone. `createOptionForm` and `createOptionUsing` open a support `Dialog` and create an option from the submitted map. An action wrapper around that dialog waits for the action type.
+`relationship("author", "name")` loads options from the relationship of that name on the schema record. `name` is the label field. Pass a closure to change the query. `getOptionLabelFromRecordUsing` replaces that label with a value taken from each record.
+
+```kotlin
+Select.make("authorId").relationship("author", "name")
+Select.make("authorId").relationship("author", "name") { query ->
+    (query as ModelBuilder<Author>).where("active", true)
+}
+Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordUsing { record ->
+    (record as Author).getAttribute("name").toString()
+}
+```
+
+```java
+Select.make("authorId").relationship("author", "name");
+Select.make("authorId").relationship("author", "name", query -> { });
+Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordUsing(record -> "Ada");
+```
+
+When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query. `.native()` still opts into `<select>`. The default remains the combobox.
+
+`createOptionForm` and `createOptionUsing` open a support `Dialog` and create an option from the submitted map. An action wrapper around that dialog is `createOptionAction`.
 
 `Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` takes on and off colors and icons. `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
 
@@ -239,14 +260,28 @@ Repeater.make("rows")
 
 ## Relationship query
 
-`Select.relationship(name, titleAttribute, store)` reads options from a `RecordStore`. `modifyQueryUsing` receives that store’s query. An in-memory store is `MemoryRecordStore`. A Cadence model store is available through the tables module.
+`relationship(name, titleAttribute)` reads the related records. The optional closure is `modifyQueryUsing`: it receives the related model's query and narrows the option list. `getOptionLabelFromRecordUsing` overrides `titleAttribute`.
 
 ```kotlin
-val authors = MemoryRecordStore(listOf(mapOf("id" to "1", "name" to "Ada")))
-Select.make("author")
-    .relationship("authors", "name", authors)
-    .modifyQueryUsing { query -> (query as MemoryQuery).where("name", "Ada") }
+Select.make("authorId")
+    .relationship("author", "name") { query ->
+        val authors = query as ModelBuilder<Author>
+        authors.where("active", true).whereHas("posts") { posts ->
+            posts.where("title", "Yes")
+        }
+    }
+    .getOptionLabelFromRecordUsing { record ->
+        "Dr " + (record as Author).getAttribute("name")
+    }
 ```
+
+```java
+Select.make("authorId")
+    .relationship("author", "name", query -> { })
+    .getOptionLabelFromRecordUsing(record -> "Ada");
+```
+
+Put the owner model on the schema with `record(...)` before the options are read. A Cadence relationship method such as `author()` supplies a `ModelBuilder`. A document model supplies its own query and is not given a SQL builder.
 
 ## Table select and morph select
 

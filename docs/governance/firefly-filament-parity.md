@@ -37,7 +37,7 @@ M31 forms are still not on `main`. M34 is notifications and widgets. M35 is pane
 |----|------------------|---------|--------|
 | SUP-1 | Panel theme colors, font, radius | `FireflyTheme` + `ThemeTokens` + `KonaTheme` | done |
 | SUP-2 | Scoped panel CSS, no host preflight | `.ff-panel` stylesheet from Tailwind v4 source | done |
-| SUP-3 | Render hooks and layout views | `PanelShell` partials, `Hook`, `PanelLayout` | done |
+| SUP-3 | Render hooks and layout views | `Panel` partials, `Hook`, `PanelLayout` | done |
 | SUP-4 | App view overrides a package view | `overridePartial` wins over `FireflyTheme.partial` | done |
 | SUP-5 | Modal, slide-over, fullscreen | `Dialog.modal` / `slideOver` / `slideOverStart` / `fullscreen` | done |
 | SUP-6 | `configureUsing` on the component | `Dialog.configureUsing` | done |

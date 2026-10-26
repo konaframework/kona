@@ -254,7 +254,7 @@ open class DateTimePicker protected constructor(
         val focused = focusedDate(schema, stored)
         return buildString {
             append("""<div class="ff-picker" x-data="ffDatePicker" data-ff-path="${esc(path)}"${boolAttr("data-ff-native", false)}${boolAttr("data-ff-date", withDate)}${boolAttr("data-ff-time", withTime)}${attr("data-ff-format", formatText)}${attr("data-ff-display", displayText)}${attr("data-ff-locale", localeTag)}${attr("data-ff-zone", zoneId.id)} data-ff-first-day="$firstDay"${boolAttr("data-ff-close", closeOnSelect)} data-ff-hours-step="$hoursStepCount" data-ff-minutes-step="$minutesStepCount" data-ff-seconds-step="$secondsStepCount"${boolAttr("data-ff-seconds", secondsFlag)}${attr("data-ff-min", min)}${attr("data-ff-max", max)}${attr("data-ff-state", stored)}>""")
-            append("""<input class="ff-input" type="text" readonly value="${esc(display(stored))}" />""")
+            append("""<input class="ff-input" type="text" readonly value="${esc(display(stored))}"${extraInputMarkup(get)} />""")
             if (withDate) append(monthGrid(schema, focused))
             if (withTime) append(timeSpinners())
             append("</div>")

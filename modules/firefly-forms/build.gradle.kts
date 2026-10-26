@@ -18,6 +18,7 @@ dependencies {
     api(project(":kona-firefly-tables"))
     api(project(":kona-http"))
     api(project(":kona-filesystem"))
+    testImplementation(libs.h2)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

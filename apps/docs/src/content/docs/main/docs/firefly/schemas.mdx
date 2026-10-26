@@ -54,6 +54,18 @@ Text.make("Hello").content(get -> "Hello");
 
 The last call wins. `label("Title")` after a closure stores the fixed string and drops the closure. The same shape is on `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight`, and `imageWidth`.
 
+`extraAttributes` merges a map of HTML attributes onto the component root. Layouts, primes, actions, infolist entries, table columns, and form fields all have it, because they share the schema component (columns keep the same methods on the column root). Pass a map or a closure. A name that is not an HTML attribute name is skipped. Values are escaped.
+
+```kotlin
+Section.make().extraAttributes(mapOf("data-section" to "intro"))
+Text.make("note").extraAttributes { mapOf("data-kind" to "note") }
+```
+
+```java
+Section.make().extraAttributes(Map.of("data-section", "intro"));
+Text.make("note").extraAttributes(get -> Map.of("data-kind", "note"));
+```
+
 `hidden(true)` and `visible(false)` still take a boolean. `hidden { ... }` and `visible { ... }` recompute when the schema renders or when `isHidden` runs.
 
 ## State

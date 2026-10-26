@@ -224,7 +224,7 @@ open class Textarea protected constructor(name: String) : Field<Textarea>(name) 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val shown = if (value == null) "" else value.toString()
         val cols = colCount
-        return """<textarea class="ff-input" name="${esc(path)}" rows="$rowCount"${if (cols == null) "" else " cols=\"$cols\""}${boolAttr("data-ff-autosize", autosizeFlag)}${attr("placeholder", placeholderValue(schema))}>${esc(shown)}</textarea>"""
+        return """<textarea class="ff-input" name="${esc(path)}" rows="$rowCount"${if (cols == null) "" else " cols=\"$cols\""}${boolAttr("data-ff-autosize", autosizeFlag)}${attr("placeholder", placeholderValue(schema))}${extraInputMarkup(get)}>${esc(shown)}</textarea>"""
     }
 
     companion object {
@@ -245,7 +245,7 @@ open class Hidden protected constructor(name: String) : Field<Hidden>(name) {
         val path = fieldPath()
         val value = schema.get(path)
         val shown = if (value == null) "" else value.toString()
-        return """${entangle(path)}<input class="ff-input" type="hidden" name="${esc(path)}" value="${esc(shown)}" />"""
+        return """${entangle(path)}<input class="ff-input" type="hidden" name="${esc(path)}" value="${esc(shown)}"${extraInputMarkup(Reads.of(schema, this))} />"""
     }
 
     companion object {
@@ -307,7 +307,7 @@ open class TagsInput protected constructor(name: String) : Field<TagsInput>(name
         return buildString {
             append("""<div class="ff-tags" x-data="ffTags" data-ff-path="${esc(path)}"${attr("data-ff-separator", separatorText)}${attr("data-ff-split", keys)}${boolAttr("data-ff-reorder", reorderableFlag)}${attr("data-ff-color", colorText)}>""")
             for (tag in tags) append("""<span class="ff-tag">${esc(tag)}</span>""")
-            append("""<input class="ff-input" type="text"${attr("placeholder", placeholderValue(schema))} />""")
+            append("""<input class="ff-input" type="text"${attr("placeholder", placeholderValue(schema))}${extraInputMarkup(get)} />""")
             if (suggestions.isNotEmpty()) {
                 append("""<ul class="ff-suggestions">""")
                 for (item in suggestions) append("""<li>${esc(item)}</li>""")
@@ -501,7 +501,8 @@ open class KeyValue protected constructor(name: String) : Field<KeyValue>(name) 
             for ((key, cell) in rows) {
                 val keyMode = if (editableKeysFlag) "" else " readonly"
                 val valueMode = if (editableValuesFlag) "" else " readonly"
-                append("""<div class="ff-key-value-row"><input class="ff-input" value="${esc(key)}"$keyMode${attr("placeholder", keyPlaceholderText.get(get))} /><input class="ff-input" value="${esc(cell)}"$valueMode${attr("placeholder", valuePlaceholderText.get(get))} /></div>""")
+                val inputExtra = extraInputMarkup(get)
+                append("""<div class="ff-key-value-row"><input class="ff-input" value="${esc(key)}"$keyMode${attr("placeholder", keyPlaceholderText.get(get))}$inputExtra /><input class="ff-input" value="${esc(cell)}"$valueMode${attr("placeholder", valuePlaceholderText.get(get))}$inputExtra /></div>""")
             }
             if (addableFlag) append("""<button type="button" class="ff-key-value-add">${esc(addLabelText.get(get) ?: "Add row")}</button>""")
             append("</div>")

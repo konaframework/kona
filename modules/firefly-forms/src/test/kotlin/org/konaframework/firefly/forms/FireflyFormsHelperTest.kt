@@ -1,6 +1,7 @@
 package org.konaframework.firefly.forms
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -99,36 +100,56 @@ class FireflyFormsHelperTest {
         assertTrue(html.contains("data-ff-action=\"createKind\""))
         assertTrue(html.contains("data-ff-action=\"createNative\""))
 
-        val store = MemoryRecordStore(
+        val shelf = OptionShelf(
             listOf(
                 mapOf("id" to "1", "name" to "Ada"),
                 mapOf("id" to "2", "name" to "Grace"),
                 mapOf("id" to "3"),
             ),
         )
-        val empty = Select.make("emptyRel").relationship("authors", "name", MemoryRecordStore())
-        assertTrue(empty.resolvedOptions(Schema.make().components(empty)).isEmpty())
+        val empty = Select.make("emptyRel").relationship("author", "name")
+        assertTrue(empty.resolvedOptions(Schema.make().components(empty).record(OptionShelf(emptyList()))).isEmpty())
 
-        val filtered = Select.make("author").relationship(
-            "authors",
-            "name",
-            store,
-            Consumer<MemoryQuery> { query -> query.where("name", "Ada") },
-        )
-        val schema = Schema.make().components(filtered)
+        var seen: Any? = null
+        val filtered = Select.make("authorId").relationship("author", "name") { query ->
+            seen = query
+            (query as OptionQuery).where("name", "Ada")
+        }
+        val schema = Schema.make().components(filtered).record(shelf)
         assertEquals(listOf("1"), filtered.resolvedOptions(schema).map { it.value })
         assertEquals("Ada", filtered.resolvedOptions(schema).first().label)
+        assertTrue(seen is OptionQuery)
 
-        val open = Select.make("everyone").relationship("authors", "name", store)
-        val labels = open.resolvedOptions(Schema.make().components(open)).associate { it.value to it.label }
+        val open = Select.make("everyone").relationship("author", "name")
+        val labels = open.resolvedOptions(Schema.make().components(open).record(shelf)).associate { it.value to it.label }
         assertEquals("Ada", labels["1"])
         assertEquals("", labels["3"])
+
+        val titled = Select.make("authorId").relationship("author", "name").getOptionLabelFromRecordUsing { record ->
+            val name = (record as Map<*, *>)["name"]
+            if (name == null) "blank" else "Dr $name"
+        }
+        val titledLabels = titled.resolvedOptions(Schema.make().components(titled).record(shelf)).associate { it.value to it.label }
+        assertEquals("Dr Ada", titledLabels["1"])
+        assertEquals("blank", titledLabels["3"])
+        val limited = Select.make("authorId").relationship("author", "name").optionsLimit(1)
+            .disableOptionWhen { it == "1" }
+            .getOptionLabelUsing { it }
+        val limitedOptions = limited.resolvedOptions(Schema.make().components(limited).record(shelf))
+        assertEquals(1, limitedOptions.size)
+        assertFalse(limitedOptions.first().enabled)
+        val named = Select.make("authorId").relationship({ "author" }, { "name" }) { query ->
+            (query as OptionQuery).where("name", "Grace")
+        }
+        assertEquals("2", named.resolvedOptions(Schema.make().components(named).record(shelf)).single().value)
+        assertEquals("author", named.relation()!!.name)
 
         assertThrows(FireflyException::class.java) {
             Select.make("missing").modifyQueryUsing { }
         }
-        filtered.modifyQueryUsing(Consumer { query -> (query as MemoryQuery).where("name", "Grace") })
+        filtered.modifyQueryUsing(Consumer { query -> (query as OptionQuery).where("name", "Grace") })
         assertEquals(listOf("2"), filtered.resolvedOptions(schema).map { it.value })
+        assertFalse(Schema.make().components(Select.make("authorId").relationship("author", "name").native(false)).render().contains("<select"))
     }
 
     @Test
@@ -208,5 +229,25 @@ class FireflyFormsHelperTest {
         assertEquals(listOf("photos/a.png"), multi.chooseBrowsed(multiSchema, "photos/a.png"))
         assertEquals(listOf("photos/a.png"), multi.chooseBrowsed(multiSchema, "photos/a.png"))
         assertEquals(listOf("photos/a.png", "photos/b.png"), multi.chooseBrowsed(multiSchema, "photos/b.png"))
+    }
+}
+
+class OptionShelf(private val rows: List<Map<String, Any?>>) {
+    fun author(): OptionQuery = OptionQuery(rows)
+}
+
+class OptionQuery(rows: List<Map<String, Any?>>) {
+    private val rows = rows.map { LinkedHashMap(it) }
+    private var column: String? = null
+    private var expected: Any? = null
+
+    fun where(column: String, value: Any?): OptionQuery = apply {
+        this.column = column
+        expected = value
+    }
+
+    fun get(): List<Map<String, Any?>> {
+        val name = column ?: return rows
+        return rows.filter { it[name] == expected }
     }
 }

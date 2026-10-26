@@ -1,11 +1,11 @@
 ---
 title: Panel chrome
-description: PanelShell slots, render hooks, partial overrides, and custom layouts.
+description: Panel slots, render hooks, partial overrides, and custom layouts.
 ---
 
-**Panel chrome** is the four regions around a panel: sidebar, top bar, body, and footer. `PanelShell` chooses HTML for each region, checks that required hook markers are still present, fills those markers, and asks a `PanelLayout` to wrap the result.
+**Panel chrome** is the four regions around a panel: sidebar, top bar, body, and footer. `Panel` chooses HTML for each region, checks that required hook markers are still present, fills those markers, and asks a `PanelLayout` to wrap the result.
 
-## PanelShell
+## Panel
 
 | Method | Behavior |
 |--------|----------|
@@ -71,7 +71,7 @@ After the check, each marker is replaced with the concatenated hook HTML. A hook
 </div>
 ```
 
-If a slot were absent from the map it receives, it would throw `Missing partial [<name>]`. `PanelShell` always fills all four slots before calling the layout, so that failure is for a custom caller of `DefaultLayout` that omits a key.
+If a slot were absent from the map it receives, it would throw `Missing partial [<name>]`. `Panel` always fills all four slots before calling the layout, so that failure is for a custom caller of `DefaultLayout` that omits a key.
 
 ## Replace one partial
 
@@ -80,7 +80,7 @@ The override must keep the markers. This sidebar adds a label and still accepts 
 Kotlin:
 
 ```kotlin
-val shell = PanelShell().overridePartial(
+val shell = Panel().overridePartial(
     "sidebar",
     """<aside class="ff-sidebar"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>""",
 )
@@ -89,7 +89,7 @@ val shell = PanelShell().overridePartial(
 Java:
 
 ```java
-PanelShell shell = new PanelShell().overridePartial(
+Panel shell = new Panel().overridePartial(
     "sidebar",
     "<aside class=\"ff-sidebar\"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>"
 );
@@ -138,11 +138,11 @@ public final class DarkLayout implements PanelLayout {
 ```
 
 ```kotlin
-PanelShell().layout(DarkLayout()).render()
+Panel().layout(DarkLayout()).render()
 ```
 
 ```java
-new PanelShell().layout(new DarkLayout()).render();
+new Panel().layout(new DarkLayout()).render();
 ```
 
 `layout(...)` after `theme(...)` does not drop the theme. The theme still supplies tokens, CSS, and theme partials. Only the wrapper changes.

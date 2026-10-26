@@ -92,7 +92,7 @@ open class RichEditor protected constructor(name: String) : Field<RichEditor>(na
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val shown = if (value == null) "" else value.toString()
         return buildString {
-            append("""<div class="ff-rich" x-data="ffRichEditor" data-ff-path="${esc(path)}" data-ff-editor="tiptap"${boolAttr("data-ff-json", jsonFlag)}${boolAttr("data-ff-resizable", resizableFlag)}${attr("data-ff-disk", attachmentsDisk.get(get))}${attr("data-ff-directory", attachmentsDirectory.get(get))}${attr("data-ff-visibility", attachmentsVisibility.get(get))}${attr("data-ff-merge", if (mergeTags.isEmpty()) null else mergeTags.joinToString(","))}${attr("placeholder", placeholderValue(schema))}>""")
+            append("""<div class="ff-rich" x-data="ffRichEditor" data-ff-path="${esc(path)}" data-ff-editor="tiptap"${boolAttr("data-ff-json", jsonFlag)}${boolAttr("data-ff-resizable", resizableFlag)}${attr("data-ff-disk", attachmentsDisk.get(get))}${attr("data-ff-directory", attachmentsDirectory.get(get))}${attr("data-ff-visibility", attachmentsVisibility.get(get))}${attr("data-ff-merge", if (mergeTags.isEmpty()) null else mergeTags.joinToString(","))}${attr("placeholder", placeholderValue(schema))}${extraInputMarkup(get)}>""")
             append("""<div class="ff-toolbar ff-toolbar-sticky">""")
             for (group in groups) {
                 append("""<div class="ff-toolbar-group">""")
@@ -181,7 +181,7 @@ open class MarkdownEditor protected constructor(name: String) : Field<MarkdownEd
                 append("""<button type="button" data-ff-tool="${esc(tool)}">${esc(tool)}</button>""")
             }
             append("</div>")
-            append("""<textarea class="ff-input" data-ff-write="true">${esc(shown)}</textarea>""")
+            append("""<textarea class="ff-input" data-ff-write="true"${extraInputMarkup(get)}>${esc(shown)}</textarea>""")
             append(preview(shown))
             append("</div>")
         }
@@ -216,7 +216,7 @@ open class CodeEditor protected constructor(name: String) : Field<CodeEditor>(na
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val shown = if (value == null) "" else value.toString()
-        return """<div class="ff-code" x-data="ffCodeEditor" data-ff-path="${esc(path)}" data-ff-editor="codemirror" data-ff-highlighter="shiki"${attr("data-ff-language", languageName)}${boolAttr("data-ff-wrap", wrapFlag)}><textarea class="ff-input">${esc(shown)}</textarea></div>"""
+        return """<div class="ff-code" x-data="ffCodeEditor" data-ff-path="${esc(path)}" data-ff-editor="codemirror" data-ff-highlighter="shiki"${attr("data-ff-language", languageName)}${boolAttr("data-ff-wrap", wrapFlag)}><textarea class="ff-input"${extraInputMarkup(get)}>${esc(shown)}</textarea></div>"""
     }
 
     companion object {

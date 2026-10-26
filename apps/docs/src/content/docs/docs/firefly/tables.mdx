@@ -74,6 +74,8 @@ table.modifyQueryUsing(query -> query
 
 `relationship(Account.class)` builds a query of related options. Pass a closure when that query needs its own `where` or `whereHas`.
 
+`extraAttributes` on a column merges HTML attributes onto the column root. A map or a closure that receives the cell both work. `extraInputAttributes` does the same for a column or filter that renders its own input or select. `type`, `name`, and `value` stay owned by that control.
+
 A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `ModelBuilder`. Mongo document models belong to the later `kona-firefly-document` addon.
 
 ## Columns
