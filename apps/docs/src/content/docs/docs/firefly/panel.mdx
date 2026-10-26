@@ -1,84 +1,102 @@
 ---
 title: Panel
-description: Mount a Firefly panel at /admin or at the site root, with navigation, auth screens, and pages discovered from the panel directory.
+description: The Panel class — id, path, brand, guard, theme, hooks, and mount.
 ---
 
-A panel is the routable shell. It serves pages, login, registration, password reset, email verification, and a profile. Adding `kona-firefly` to an application does not change routes you already defined. Routes appear when you call `mount` on a router.
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-The types live in `org.konaframework.firefly` (`kona-firefly`). Chrome, the theme, and the dialog stay in `org.konaframework.firefly.support`. The class you put in the app is `Panel`, and it extends `org.konaframework.firefly.Panel`.
+`Panel` (`org.konaframework.firefly.Panel`) is the object you construct, configure, and mount. It is the class in `app/firefly/Panel`. Chrome rendering uses a second class with the same simple name, `org.konaframework.firefly.support.Panel`, documented on [Panel chrome](/docs/firefly/chrome/). The class you write in the app is the one in `org.konaframework.firefly`.
 
-Chainable setters accept a static value or a closure. The closure receives the schema `Get`.
+Adding the module does not register routes. Routes appear when you call `mount`.
+
+:::note[Screenshot placeholder: a mounted panel]
+A screenshot of the desk panel at `/admin/desk` will go here.
+:::
+
+Chainable setters accept a static value or a closure. The closure receives the schema `Get`. A blank id, brand, domain, or guard name throws `FireflyException` and names the field.
 
 ## A panel in one call
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val panel = Panel()
     .id("desk")
     .path("admin")
+    .brand("Desk")
     .navigation(NavigationType.APP)
     .page(ListPage("orders"))
 panel.mount(router)
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Panel panel = new Panel();
 panel.id("desk");
 panel.path("admin");
+panel.brand("Desk");
 panel.navigation(NavigationType.APP);
 panel.page(new ListPage("orders"));
 panel.mount(router);
 ```
 
-`path("admin")` and `path("/admin/")` both serve `/admin`. `path("")` and `path("/")` serve the site root. A root panel registers each page, auth screen, and resource page by name. It does not register a catch-all, and it does not register `/_firefly/` or `/wire/update`.
+</TabItem>
+</Tabs>
 
-If a panel path is already routed, `mount` throws `FireflyException` and names both handlers. The existing route stays.
+`path("admin")` and `path("/admin/")` both serve `/admin`. `path("")` and `path("/")` serve the site root. A root panel registers each page, auth screen, and resource page by name. It does not register a catch-all.
 
-Two panels can mount on one router, one at `path("")` and one at `path("admin")`. `domain("ops.example")` rejects a request whose `Host` header does not match, including when the header includes a port.
+If a path is already routed, `mount` throws `FireflyException` and names both handlers. Two panels can mount on one router, one at `path("")` and one at `path("admin")`. `domain("ops.example")` rejects a request whose `Host` header does not match, including when the header includes a port.
 
-## Directory layout
+`mount(router, state)` evaluates closures against that state map. A second `mount` throws `Panel [id] is already mounted`.
 
-`discover(panelDirectory)` reads three folders:
+## Methods
 
-| Folder | What it loads |
+| Method | What it does |
 |--------|----------------|
-| `pages/` | `PanelPage` classes |
-| `widgets/` | `Widget` classes |
-| `resources/` | `Resource` classes |
-
-A missing folder is empty. A file must declare a package and a class whose name matches the file, and that class must already be on the classpath with a no-arg constructor. Abstract classes and unrelated types are skipped. You can still call `page`, `widget`, and `resource` yourself. There is no app-wide registry.
-
-`./grind make:firefly-panel` writes `Panel` plus `pages/`, `widgets/`, and `resources/`. `./grind firefly:install` writes the same tree. `./grind make:firefly-page Desk` and `./grind make:firefly-theme Harbor` add a page and a theme. `./grind firefly:publish` copies the sidebar partial into the app.
-
-## Pages
-
-A page is the screen a panel route serves. It has a title, header and footer actions, a content region, and optional widgets. The content region mounts a schema, a form schema, an infolist, or a table. `ListPage`, `CreatePage`, `EditPage`, `ViewPage`, `ManagePage`, and `CustomPage` are pages. Rendering a schema, form, infolist, or table on its own still works for tests and embedding.
-
-`ManagePage` is the page a simple resource uses. Create, edit, view, and delete for that resource run in the existing dialog. Read [Resources](/docs/firefly/resources/) for the model binding and `./grind make:firefly-resource`.
-
-## Navigation
-
-Each panel has one navigation type. The default is `NavigationType.APP`: level 1 in the top bar, and the active item’s level 2 and level 3 children in the sidebar. `NavigationType.SIDE` draws levels 1–3 in the sidebar. `NavigationType.TOP`, also selected with `topNavigation()`, draws levels 1–3 in the top bar.
-
-Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` is a parent node. `userMenu(...)` renders in the top bar. `spa(true)` adds `wire:navigate` on links that have a URL.
+| `id` / `path` / `brand` / `domain` | String or `Get` closure. Id defaults to `admin`. Path defaults to `admin`. Brand defaults to `Firefly` |
+| `navigation` / `topNavigation()` | `NavigationType`. Default `APP`. See [Navigation](/docs/firefly/navigation/) |
+| `theme(FireflyTheme)` | Tokens and partials. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
+| `layout(PanelLayout)` | Replaces the shell arrangement |
+| `hook(Hook, html)` | Appends HTML into a chrome hook |
+| `spa(true)` | Adds `wire:navigate` on links that have a URL |
+| `authenticate(false)` | Pages do not redirect to login. The hello sample does this |
+| `guard` / `useAuthGuard` / `reuseAppGuard` | Who is signed in. See below |
+| `item` / `cluster` / `userMenu` | Navigation tree. See [Navigation](/docs/firefly/navigation/) |
+| `page` / `resource` / `widget` | Register one instance without discovery |
+| `discover(path)` | Load `pages/`, `widgets/`, and `resources/`. See [Register a panel](/docs/firefly/registration/) |
+| `tenant` | Adds a tenant link. See [Tenancy](/docs/firefly/tenancy/) |
+| `plugin` | Calls `register` immediately. `boot` runs inside `mount`. See [Plugins](/docs/firefly/plugins/) |
+| `mount(router)` | Registers routes |
+| `render(request)` | The chrome for a request, without a page body |
+| `guardName()` | `firefly-{id}`, or the name you passed to `reuseAppGuard` |
 
 ## Auth and the guard
 
 The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the application guard name `web`) or `reuseAppGuard("name")`. `useAuthGuard(guard)` adapts an application `Guard`. Until you do that, the panel keeps its own `MemoryPanelGuard` and does not replace the application’s login or session.
 
-The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, and `/profile`, under the panel prefix. Pages require that guard unless you call `authenticate(false)`.
+The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, and `/profile`, under the panel prefix. Pages require that guard unless you call `authenticate(false)`. Login and registration read `email` and `password` (registration also reads `name`). A missing field returns 422 HTML. A failed attempt returns 422 HTML and the message `Those credentials do not match`.
 
-## Theme
+When the guard has no id, the user chip reads **Guest**.
 
-`theme(HarborTheme())` selects the sample theme: a different primary color, a sidebar partial that keeps the hook markers, and a small extra stylesheet under `.ff-panel`. `layout(...)` replaces the shell arrangement. `hook(Hook.BODY_END, "...")` still injects into the shell.
+## Theme and hooks
 
-## What you build with
+`theme(HarborTheme())` selects the sample theme shipped on the panel artifact: a different primary color, a sidebar partial that keeps the hook markers, and a small extra stylesheet under `.ff-panel`. `hook(Hook.BODY_END, "...")` still injects into the shell. The support `Panel` is what applies the theme, the layout, and the hooks. Read [Panel chrome](/docs/firefly/chrome/) for slots and partials.
 
-| Type | Role |
-|------|------|
-| `Panel` | Id, path, domain, navigation, guard, and `mount` |
-| `PanelPage` and the list, create, edit, view, manage, and custom pages | Routable screens |
-| `NavigationItem` / `NavigationType` | The tree and where it is drawn |
-| `Resource` | A group of pages discovered from `resources/` |
-| `PanelDiscovery` | Loads pages, resources, and widgets from the panel directory |
-| `HarborTheme` | Sample theme |
-| `MemoryPanelGuard` / `AuthPanelGuard` | The panel’s own accounts, or an application guard |
+## Generate one
+
+```bash
+./grind make:firefly-panel
+./grind make:firefly-panel --lang=java --id=desk --path=admin
+./grind firefly:install
+./grind make:firefly-theme Harbor
+./grind firefly:publish
+```
+
+`make:firefly-panel` and `firefly:install` write `Panel` plus empty `pages/`, `widgets/`, and `resources/` folders. The generated class sets `id` and `path` only. `firefly:publish` copies the sidebar partial into `resources/views/firefly/sidebar.crema.html` so you can edit it. The partial must keep the hook markers or render throws.
+
+## Next
+
+[Pages](/docs/firefly/pages/) are the screens this panel routes to.

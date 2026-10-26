@@ -1,0 +1,54 @@
+---
+title: Tenancy
+description: Show a tenant menu on the panel and scope a resource query to the selected tenant.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A tenant is a label in the top bar and an id stored for the current request. The panel does not create a database. Your resource decides which column that id filters.
+
+:::note[Screenshot placeholder: the tenant menu]
+A screenshot of the top bar with a tenant link will go here.
+:::
+
+## How a request uses it
+
+`tenant(Tenant("acme").label("Acme"))` adds a link. The link sets `?tenant=acme`. While that request renders, `FireflyTenant.id()` is `acme`. A resource that calls `tenant("tenant_id")` adds that column to `query()` when the id is set. A Cadence model still returns a `ModelBuilder`. An unknown tenant id fails at the page and names the id.
+
+A blank tenant id or a blank label throws `FireflyException`. A blank column name throws `Tenant column is blank`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Panel().path("admin").tenant(Tenant("acme").label("Acme"))
+Resource("orders").model(Order::class.java).tenant("tenant_id")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new Panel().path("admin").tenant(new Tenant("acme").label("Acme"));
+new Resource("orders").model(Order.class).tenant("tenant_id");
+```
+
+</TabItem>
+</Tabs>
+
+`label` accepts a string or a closure that receives `Get`. `FireflyTenant.use(id) { ... }` sets the id for the current thread and restores the previous value when the block returns. `mount` already does that around the page response. Call `use` yourself in a test.
+
+`FireflyTenant.id()` is null when the query string has no `tenant` parameter.
+
+## Methods
+
+| Type | Methods |
+|------|---------|
+| `Tenant` | `label(value)`, `label(provider)`, `label()` |
+| `Panel` | `tenant(tenant)` |
+| `Resource` | `tenant(column)` |
+| `FireflyTenant` | `id()`, `use(id, supplier)` |
+
+## Next
+
+[Plugins](/docs/firefly/plugins/) extend the same panel without a registry.

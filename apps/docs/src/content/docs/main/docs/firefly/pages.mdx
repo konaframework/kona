@@ -1,0 +1,113 @@
+---
+title: Pages
+description: Panel pages — title, actions, a content region, widgets, and the list, create, edit, view, manage, and custom types.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A page is the screen a panel route serves. It has a title, header actions, footer actions, a content region, and optional widgets. The content region mounts a schema, a form, an infolist, or a table. Rendering those pieces on their own still works for tests and embedding. The panel is what turns a page into a URL.
+
+:::note[Screenshot placeholder: the Desk page]
+A screenshot of `/admin/desk`, with the form, the table, and the Desk widget, will go here.
+:::
+
+The types live in `org.konaframework.firefly` and `org.konaframework.firefly.widgets`. `PanelPage` extends `Page`. `ListPage`, `CreatePage`, `EditPage`, `ViewPage`, `ManagePage`, and `CustomPage` are the page kinds. `Dashboard` is a `Page` whose section class is `ff-page ff-dashboard`.
+
+## How a page is served
+
+`Panel.mount` registers `GET /{prefix}/{slug}` for each page discovered from `pages/` or passed to `page(...)`. The hello sample’s `Desk` uses slug `desk`, so the route is `/admin/desk`. When the request is allowed, the panel renders the chrome and puts `page.render()` in the body.
+
+`navigationLabel()` is the sidebar text. The default is the slug, or `Dashboard` when the slug is empty. That is why a page titled `Desk` can still show the link `desk` until you change the label path. `parent("name")` nests the page under a navigation item with that name. A missing parent fails at mount and names both items.
+
+## The Desk page
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Desk : CustomPage("desk") {
+    init {
+        title("Desk")
+        mountForm(
+            Schema.make().components(
+                TextInput.make("name"),
+                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+                DateTimePicker.make("due"),
+            ),
+        )
+        mountInfolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+        headerActions(
+            Action.make("edit").label("Edit").modal().modalHeading("Edit note").schema(TextInput.make("note")),
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Desk extends CustomPage {
+    public Desk() {
+        super("desk");
+        title("Desk");
+        mountForm(Schema.make().components(
+            TextInput.make("name"),
+            Select.make("status").options(Map.of("open", "Open", "done", "Done")),
+            DateTimePicker.make("due")
+        ));
+        mountInfolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(row()).columns(TextColumn.make("name")));
+        headerActions(Action.make("edit").label("Edit").modal().modalHeading("Edit note").schema(TextInput.make("note")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`mountForm` stores the schema as the page form. `mountInfolist` renders the infolist to HTML and stores that markup. `table` and `headerActions` come from `Page`. The edit action’s dialog is in the HTML and stays closed until Alpine opens it.
+
+```bash
+./grind make:firefly-page Desk
+./grind make:firefly-page Desk --lang=java
+```
+
+The command writes a `CustomPage` with the lowercased name as the slug and no form yet.
+
+## Methods on Page
+
+| Method | What it does |
+|--------|----------------|
+| `title(value)` / `title(provider)` | Heading text, or a closure that receives `Get` |
+| `headerActions(...)` / `footerActions(...)` | Replaces that action list |
+| `widgets(...)` | Replaces the widgets drawn in `ff-page-widgets` |
+| `discoverWidgets(directory)` | Appends widgets found under `directory/widgets` |
+| `schema(schema)` | Content region from a schema |
+| `form(schema)` | Content region from a form schema |
+| `infolistHtml(html)` | Content region from infolist HTML |
+| `table(table)` | Content region from a table |
+| `render()` / `render(state)` | `<section class="ff-page">` with header, content, widgets, and footer |
+
+`PanelPage` adds:
+
+| Method | What it does |
+|--------|----------------|
+| `slug()` | The constructor slug, or the class name without a trailing `Page`, lowercased |
+| `navigationLabel()` | Slug text, or `Dashboard` when the slug is empty |
+| `parent(name)` | Navigation parent. `parentName()` reads it back |
+| `mountForm(schema)` | Same slot as `form` |
+| `mountInfolist(infolist)` | Renders the infolist and stores the HTML |
+
+Section classes: `ff-list`, `ff-create`, `ff-edit`, `ff-view`, `ff-manage`, `ff-custom`. Fallback titles match those names (`List`, `Create`, `Edit`, `View`, `Manage`, `Custom`).
+
+`ManagePage` is the page a simple resource uses. Create, edit, view, and delete for that resource are header actions. Read [Resources](/docs/firefly/resources/).
+
+## Widgets on the page
+
+`Page.render()` includes `<div class="ff-page-widgets">`. A widget you pass to `widgets(...)` is in the page, not only a string you render beside it. The panel also copies discovered widgets onto the home page (empty slug) or the first page. See [Widgets](/docs/firefly/widgets/).
+
+## Next
+
+[Navigation](/docs/firefly/navigation/) is how those pages show up in the sidebar and the top bar.

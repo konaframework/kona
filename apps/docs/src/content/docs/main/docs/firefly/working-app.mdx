@@ -1,0 +1,170 @@
+---
+title: A working app
+description: The hello sample’s simple notes resource and full orders resource, the routes that respond, and the commands that generate them.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The hello sample is a desk with two resources. Notes are a **simple** resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a **full** resource: separate list, create, edit, and view pages, plus a relation manager for line items. Both samples live in the repository as `samples/hello-kotlin` and `samples/hello-java`.
+
+:::note[Screenshot placeholder: the notes Manage page]
+A screenshot of `/admin/notes/manage`, with the notes table and the Create, Edit, View, and Delete actions, will go here.
+:::
+
+## A simple resource
+
+`simple()` keeps a single `ManagePage`. The sample slug is `notes`, so the route is `/admin/notes/manage`. The form, infolist, and table are the ones the page and the dialogs use. The table in the sample is one in-memory row (`Ada`), so the screen renders before a migration. `model(Note::class.java)` is the Cadence type `query()` uses when you build the table from the model instead of `Table.memory`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class NoteResource : Resource("notes") {
+    init {
+        label("Notes")
+        simple()
+        model(Note::class.java)
+        form(
+            Schema.make().components(
+                TextInput.make("name"),
+                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+                DateTimePicker.make("due"),
+            ),
+        )
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class NoteResource extends Resource {
+    public NoteResource() {
+        super("notes");
+        label("Notes");
+        simple();
+        model(Note.class);
+        form(Schema.make().components(
+            TextInput.make("name"),
+            Select.make("status").options(Map.of("open", "Open", "done", "Done")),
+            DateTimePicker.make("due")
+        ));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(row()).columns(TextColumn.make("name")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+The Java sample builds `row()` as a `LinkedHashMap` with `id` `1` and `name` `Ada`. `Select` is a combobox. `DateTimePicker` is Firefly’s own date and time control. Both are covered on [Forms](/docs/firefly/forms/).
+
+Create, edit, and view put that schema or infolist in the shared dialog. Delete asks for confirmation in the same dialog. A simple resource rejects `relation(...)`.
+
+Generate the same shape with:
+
+```bash
+./grind make:firefly-resource Note --simple
+./grind make:firefly-resource Note --simple --lang=java
+```
+
+The generator writes `page(ManagePage("manage"))` as well as `simple()`, a text field named `name`, and `model(app.models.Note.class)`. Create that Cadence model before the project compiles. The generator’s table is `Table.memory()` with no seed row.
+
+## A full resource
+
+Leave `simple()` off and the resource gets list, create, edit, and view pages. The list page mounts the table and a create action. Create and edit mount the form. View mounts the infolist. Edit and view also render each relation manager.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Order::class.java)
+        form(Schema.make().components(TextInput.make("name")))
+        infolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+        relation(
+            RelationManager("lines")
+                .related(Line::class.java)
+                .titleAttribute("sku")
+                .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        label("Orders");
+        model(Order.class);
+        form(Schema.make().components(TextInput.make("name")));
+        infolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(orderRow()).columns(TextColumn.make("name")));
+        relation(new RelationManager("lines")
+            .related(Line.class)
+            .titleAttribute("sku")
+            .table(Table.memory(lineRow()).columns(TextColumn.make("sku"))));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+:::note[Screenshot placeholder: the orders list]
+A screenshot of `/admin/orders/list`, with the orders table and the lines relation on the edit and view pages, will go here.
+:::
+
+```bash
+./grind make:firefly-resource Order
+./grind make:firefly-resource Order --lang=java
+```
+
+The generator writes list, create, edit, and view pages and one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
+
+## The desk page and widget
+
+`pages/Desk` is a `CustomPage` with the same form fields as notes, an infolist, a one-row table, and a header action that opens a dialog. `widgets/DeskWidget` renders a short paragraph. Discovery places that widget on the first page, which is Desk.
+
+```bash
+./grind make:firefly-page Desk
+./grind make:firefly-widget Desk
+```
+
+## Routes that respond
+
+On the hello sample these GET routes return 200:
+
+| Route | Page |
+|-------|------|
+| `/` | The welcome route, outside the panel |
+| `/admin/desk` | Desk |
+| `/admin/notes/manage` | Notes |
+| `/admin/orders/list` | Orders list |
+| `/admin/orders/create` | Orders create |
+| `/admin/orders/edit` | Orders edit |
+| `/admin/orders/view` | Orders view |
+
+## What you will see today
+
+A few things on that sample are unfinished in the browser. They are worth knowing before you debug your own app:
+
+- Dialog markup is in the page, and the dialog stays closed until Alpine opens it. Create, edit, view, and delete on the notes page do not pop open from the first HTML response alone.
+- `@entangle(...)` can still appear as raw text when the Alpine binding has not run.
+- Navigation labels for pages come from the page slug. The Desk link can read `desk`, and the notes child can read `manage`, even when the page title or the resource label is a word. Resource groups use `label`, so the groups read `Notes` and `Orders`.
+- The sample calls `authenticate(false)`. The user chip reads **Guest** when the panel guard has no signed-in id.
+
+## Next
+
+The component pages start at [Panel](/docs/firefly/panel/). [Resources](/docs/firefly/resources/) is the full method list for the two classes above.
