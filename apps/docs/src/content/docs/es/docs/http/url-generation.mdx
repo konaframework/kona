@@ -1,0 +1,271 @@
+---
+title: Generación de URL
+description: Construye rutas absolutas y con nombre, URL firmadas, y verifica firmas de petición con UrlGenerator y ValidateSignature.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+La **generación de URL** convierte nombres de ruta y caminos en cadenas que tu app puede poner en JSON, redirecciones, correos o HTML. Kona registra un singleton `UrlGenerator` cuando arrancas con `HttpServiceProvider`. El mismo enrutador que sirve las peticiones respalda las búsquedas de rutas con nombre — nombra tus rutas primero ([Enrutado](../routing/#named-routes-and-url-generation)).
+
+## Cómo encaja
+
+1. `HttpServiceProvider` enlaza `Router` y `UrlGenerator`.
+2. El generador se construye con el `Router` compartido, `app.url` como raíz (o `""`) y `app.key` como clave de firma (o `"kona-app-key"`).
+3. `Url.setGenerator(generator)` instala los ayudantes globales: `Url.route`, `Url.to` / `Url.url`, y `route(...)` / `url(...)` de nivel superior en Kotlin.
+4. Los controladores y las vistas llaman a esos ayudantes en lugar de codificar caminos a mano.
+
+Si llamas a `Url.route` antes de que el generador esté configurado, obtienes `IllegalStateException("URL generator not configured")`.
+
+## Resolver el generador
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val urls = app.resolve(UrlGenerator::class.java)
+// Optional overrides after boot:
+urls.setRoot("https://example.com")
+urls.setKey(app.config.getString("app.key", "kona-app-key"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+UrlGenerator urls = app.resolve(UrlGenerator.class);
+urls.setRoot("https://example.com");
+urls.setKey(app.config.getString("app.key", "kona-app-key"));
+```
+
+</TabItem>
+</Tabs>
+
+`setRoot` recorta una `/` final. Una raíz vacía significa que los ayudantes devuelven cadenas solo de camino (`/users/42`). Los caminos absolutos `http://` / `https://` pasados a `to(...)` pasan sin cambios.
+
+## Rutas con nombre
+
+Dale un nombre a las rutas y luego genera URL (con parámetros opcionales):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/users/{id}") { users.show(it) }.name("users.show")
+
+val pathOnly = router.route("users.show", mapOf("id" to "42"))
+// "/users/42" — path only, no root
+
+val absolute = urls.route("users.show", mapOf("id" to "42"))
+// "https://example.com/users/42" when root is set
+
+val viaHelper = route("users.show", mapOf("id" to "42"))  // Url.route
+Response.redirect(route("users.show", mapOf("id" to id)))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/users/{id}", users::show).name("users.show");
+
+String pathOnly = router.route("users.show", Map.of("id", "42"));
+String absolute = urls.route("users.show", Map.of("id", "42"));
+String viaHelper = Url.route("users.show", Map.of("id", "42"));
+return Response.redirect(Url.route("users.show", Map.of("id", id)));
+```
+
+</TabItem>
+</Tabs>
+
+### Reglas de sustitución de parámetros
+
+La sustitución usa `Router.route` por debajo:
+
+- Cada `{key}` se sustituye por el valor coincidente del mapa.
+- Los valores **no** se codifican en porcentaje — codifica tú los caracteres reservados.
+- Las claves ausentes dejan `{key}` en la salida.
+- Nombre de ruta desconocido → `IllegalArgumentException("Route [name] not defined")`.
+- Nombres duplicados → gana la **primera** ruta registrada.
+- Los prefijos de nombre de grupo se aplican en el registro (`api.` + `health` → `api.health`).
+
+## Caminos sin nombre
+
+`to(path)` / `Url.to` / `url(path)` unen un camino relativo a la raíz configurada:
+
+| Entrada | Raíz `https://example.com` | Resultado |
+|-------|----------------------------|--------|
+| `/users` | puesta | `https://example.com/users` |
+| `users` | puesta | `https://example.com/users` (se añade `/` inicial) |
+| `https://other.test/x` | cualquiera | `https://other.test/x` (sin cambios) |
+| `/users` | vacía | `/users` |
+
+## URL firmadas
+
+Una **URL firmada** incluye una firma HMAC-SHA256 (hex) y, opcionalmente, una marca de tiempo unix `expires`. Úsala para descargas de un solo uso, confirmaciones de correo o cualquier enlace que no deba alterarse.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val link = urls.signed("/downloads/report", expirationSeconds = 600)
+// https://example.com/downloads/report?expires=…&signature=…
+
+val named = urls.signedRoute(
+    "users.show",
+    mapOf("id" to "42"),
+    expirationSeconds = 120,
+)
+
+val forever = urls.signed("/invite/accept")  // no expires query param
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String link = urls.signed("/downloads/report", 600L);
+String named = urls.signedRoute("users.show", Map.of("id", "42"), 120L);
+String forever = urls.signed("/invite/accept"); // expirationSeconds null
+```
+
+</TabItem>
+</Tabs>
+
+### Cómo funciona la firma
+
+1. Separa cualquier cadena de consulta existente del camino.
+2. Opcionalmente añade `expires` = ahora + `expirationSeconds`.
+3. Ordena las claves de la consulta, codifica claves y valores, y construye `path?sortedQuery`.
+4. Firma esa cadena con HMAC-SHA256 usando la clave del generador.
+5. Añade `signature=<hex>` y prefija con `to(...)`.
+
+La verificación reconstruye la carga a partir de `request.path` más todos los parámetros de consulta **excepto** `signature`, ordenados igual. Si `expires` está presente y ya pasó, la firma es inválida.
+
+### Verificar peticiones entrantes
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+if (!urls.hasValidSignature(request)) {
+    throw HttpException(403, "Invalid signature.")
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+if (!urls.hasValidSignature(request)) {
+    throw new HttpException(403, "Invalid signature.");
+}
+```
+
+</TabItem>
+</Tabs>
+
+O registra el middleware `ValidateSignature` para que los enlaces sin firma o caducados se vuelvan HTTP 403 con el mensaje `Invalid signature.`:
+
+```kotlin
+router.get("/downloads/report") { request ->
+    Response.download(reportBytes, "report.pdf")
+}.middleware(ValidateSignature(urls))
+```
+
+```java
+router.get("/downloads/report", request -> Response.download(reportBytes, "report.pdf"))
+    .middleware(new ValidateSignature(urls));
+```
+
+## Ayudantes globales `Url`
+
+| Ayudante | Comportamiento |
+|--------|----------|
+| `Url.setGenerator` / `clearGenerator` | Instala o limpia (pruebas) |
+| `Url.generator()` | Generador actual o lanza |
+| `Url.route(name, params)` | URL con nombre absoluta/enraizada |
+| `Url.to(path)` / `Url.url(path)` | Une el camino a la raíz |
+| Kotlin `route(...)` / `url(...)` | Envoltorios de nivel superior |
+| Crema `{{ url(path) }}` / `{{ route(name) }}` / `{{ asset(path) }}` | Los mismos generadores, evaluados en la vista |
+
+## En vistas Crema
+
+Cada `href`, `src` y `action` de la app en una plantilla Crema pasa por `url()`, `route()` o `asset()`. Un `src="/branding/kona-logo.svg"` codificado a mano ignora `APP_URL` y siempre pega en la raíz del host. Los arranques de `kona new` ya emiten:
+
+```crema
+<img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+<a href="{{ url('/login') }}">Log in</a>
+```
+
+`url(path)` llama a `Url.url` cuando hay un generador instalado (el kernel HTTP lo hace al arrancar). Sin generador sigue emitiendo un camino enraizado para que el marcado sea válido en las pruebas. Tabla completa de ayudantes: [Renderizado y datos](/docs/crema/rendering/#echo-helpers). IntelliJ completa `url` dentro de `{{ }}` — consulta [IntelliJ](/docs/language/intellij/).
+
+## Casos de uso habituales
+
+### Redirigir después de crear
+
+```kotlin
+return Response.redirect(route("posts.show", mapOf("id" to post.id)))
+```
+
+### Enlaces JSON
+
+```kotlin
+Response.json(mapOf(
+    "self" to route("users.show", mapOf("id" to user.id)),
+    "avatar" to url("/storage/avatars/${user.id}.png"),
+))
+```
+
+### Enlace de descarga temporal
+
+```kotlin
+val downloadUrl = urls.signedRoute("files.show", mapOf("id" to fileId), 300)
+mailer.send(user.email, "Your file", downloadUrl)
+```
+
+## Referencia de la API
+
+### `UrlGenerator`
+
+| Método | Papel |
+|--------|------|
+| `setRoot(root)` / `setKey(key)` | Configura URL absolutas y la clave HMAC |
+| `to(path)` | Raíz + camino (o deja pasar una URL absoluta) |
+| `route(name, params)` | Ruta con nombre mediante el enrutador, luego `to` |
+| `signed(path, expirationSeconds?)` | URL de camino firmada |
+| `signedRoute(name, params, expirationSeconds?)` | Camino con nombre y luego `signed` |
+| `hasValidSignature(request)` | Verifica la firma de la consulta (+ caducidad opcional) |
+
+### `ValidateSignature`
+
+Middleware que envuelve `hasValidSignature`; lanza `HttpException(403, "Invalid signature.")` si falla.
+
+## Trampas y preguntas
+
+**¿Por qué a mi URL con nombre le falta el host?**  
+`app.url` está vacío. Pon `APP_URL` / `app.url`, o llama a `setRoot`.
+
+**¿Por qué la sustitución deja `{id}` en la cadena?**  
+El mapa de parámetros no incluía `id`. Revisa el nombre de la clave.
+
+**¿Puedo firmar cuerpos POST?**  
+No. Las firmas cubren solo el camino + la consulta.
+
+**¿Cambiar el orden de la consulta rompe la verificación?**  
+No — las claves se ordenan antes de firmar y de verificar.
+
+**¿Debo usar la `kona-app-key` predeterminada en producción?**  
+No. Pon una `app.key` / `APP_KEY` fuerte.
+
+## Qué no está disponible hoy
+
+- `route(..., absolute = false)` como API aparte (usa `router.route` para solo el camino)
+- Middleware firmado que permita cabeceras de caducidad relativa más allá del parámetro de consulta `expires`
+- Forzar HTTPS de forma automática en el generador
+- Ayudantes de URL de activos (el `@asset` de Crema es aparte — consulta [Formularios / renderizado de Crema](../../crema/rendering/#asset))
+
+## Siguientes pasos
+
+- Registra rutas con nombre en [Enrutado](../routing/).
+- Protege las descargas con [Middleware](../middleware/).
+- Devuelve modelos transformados desde [Recursos de API](../api-resources/).
