@@ -7,13 +7,15 @@ description: What Kona Firefly is, which artifacts ship today, and how the suppo
 
 (Brief nod: Firefly occupies the same problem space as full application-panel kits. The rest of these pages describe Firefly on its own terms.)
 
-Three artifacts are in the repository today.
+Four artifacts are in the repository today.
 
 `org.konaframework:kona-firefly-support`, package `org.konaframework.firefly.support`, gives you themes, scoped CSS, panel chrome, render hooks, icons, and the shared dialog. It does not register HTTP routes, middleware, or views. Adding it to an existing application does not change routes you already defined.
 
 `org.konaframework:kona-firefly-schemas`, package `org.konaframework.firefly.schemas`, builds the schema tree: layouts, text, icons, images, state, and live updates. Read [Schemas](/docs/firefly/schemas/) for that API.
 
-`org.konaframework:kona-firefly-actions`, package `org.konaframework.firefly.actions`, builds buttons, links, groups, and confirmation dialogs. Read [Actions](/docs/firefly/actions/) for that API. Tables, navigation trees, and mounted panel routes are not in these artifacts yet.
+`org.konaframework:kona-firefly-actions`, package `org.konaframework.firefly.actions`, builds buttons, links, groups, and confirmation dialogs. Read [Actions](/docs/firefly/actions/) for that API.
+
+`org.konaframework:kona-firefly-infolists`, package `org.konaframework.firefly.infolists`, renders read-only entries on that tree. Read [Infolists](/docs/firefly/infolists/). Tables, navigation trees, and mounted panel routes are not in these artifacts yet.
 
 ## Add the module
 
@@ -24,6 +26,7 @@ dependencies {
     implementation(project(":kona-firefly-support"))
     implementation(project(":kona-firefly-schemas"))
     implementation(project(":kona-firefly-actions"))
+    implementation(project(":kona-firefly-infolists"))
 }
 ```
 

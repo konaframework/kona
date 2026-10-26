@@ -776,6 +776,30 @@ class GrindTest {
         assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-action" })
     }
 
+    @Test
+    fun makeFireflyEntry() {
+        val base = temp.resolve("firefly-entry")
+        Files.createDirectories(base)
+        assertEquals(0, MakeFireflyEntryCommand().run(listOf("StatusEntry", "--base=$base", "--lang=kotlin")))
+        val source = Files.readString(base.resolve("src/main/kotlin/app/firefly/entries/StatusEntry.kt"))
+        val view = Files.readString(base.resolve("src/main/resources/views/firefly/entries/statusentry.crema.html"))
+        assertTrue(source.contains("class StatusEntry"))
+        assertTrue(source.contains("ff-view"))
+        assertTrue(view.contains("x-data=\"ffEntry\""))
+        assertTrue(view.contains("@entangle"))
+        assertEquals(0, MakeFireflyEntryCommand().run(listOf("NoteEntry", "--base=$base", "--lang=java")))
+        val java = Files.readString(base.resolve("src/main/java/app/firefly/entries/NoteEntry.java"))
+        assertTrue(java.contains("extends Entry<NoteEntry>"))
+        val fresh = temp.resolve("firefly-entry-default")
+        Files.createDirectories(fresh)
+        assertEquals(0, MakeFireflyEntryCommand().run(listOf("PlainEntry", "--base=$fresh")))
+        assertTrue(Files.exists(fresh.resolve("src/main/kotlin/app/firefly/entries/PlainEntry.kt")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-entry", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-entry", "Bad-Name", "--base=$base")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-entry", "StatusEntry", "--base=$base", "--lang=kotlin")))
+        assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-entry" })
+    }
+
     private fun stubGradleApp(dir: Path): Path {
         Files.createDirectories(dir)
         Files.writeString(dir.resolve("settings.gradle.kts"), "rootProject.name = \"stub\"\n")

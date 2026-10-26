@@ -38,6 +38,7 @@ class ListCommand(
             "make:view" to "Generate a Crema view",
             "make:firefly-layout" to "Generate a Firefly layout component",
             "make:firefly-action" to "Generate a Firefly action",
+            "make:firefly-entry" to "Generate a Firefly infolist entry",
             "make:model" to "Generate a Cadence model (-mcrfspaR companions)",
             "make:migration" to "Generate a migration (auto-registers)",
             "make:factory" to "Generate a factory",
