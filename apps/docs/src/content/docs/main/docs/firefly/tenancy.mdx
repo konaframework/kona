@@ -3,13 +3,14 @@ title: Tenancy
 description: Show a tenant menu on the panel and scope a resource query to the selected tenant.
 ---
 
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A tenant is a label in the top bar and an id stored for the current request. The panel does not create a database. Your resource decides which column that id filters.
+A tenant is a label in the top bar and an id for the current request. You use it when one panel serves more than one customer, and a resource should only query that customer’s rows.
 
-:::note[Screenshot placeholder: the tenant menu]
-A screenshot of the top bar with a tenant link will go here.
-:::
+The panel does not create a database and it does not migrate a column for you. You add the tenant, and your resource names the column to filter. The link sets `?tenant=acme`. While that request renders, `FireflyTenant.id()` is `acme`.
+
+<FireflyShot file="tenant-menu.png" description="A panel top bar with a tenant link labeled Acme that sets the tenant query parameter to acme." />
 
 ## How a request uses it
 

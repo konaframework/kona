@@ -3,13 +3,14 @@ title: A working app
 description: The hello sample’s simple notes resource and full orders resource, the routes that respond, and the commands that generate them.
 ---
 
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-The hello sample is a desk with two resources. Notes are a **simple** resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a **full** resource: separate list, create, edit, and view pages, plus a relation manager for line items. Both samples live in the repository as `samples/hello-kotlin` and `samples/hello-java`.
+The hello sample is a desk you can click through. Notes are a simple resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a full resource: list, create, edit, and view are their own URLs, and line items sit on the edit and view pages.
 
-:::note[Screenshot placeholder: the notes Manage page]
-A screenshot of `/admin/notes/manage`, with the notes table and the Create, Edit, View, and Delete actions, will go here.
-:::
+Both apps are in the repository, `samples/hello-kotlin` and `samples/hello-java`. The routes below are the ones those samples answer.
+
+<FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table and the Create, Edit, View, and Delete actions." />
 
 ## A simple resource
 
@@ -122,9 +123,13 @@ public class OrderResource extends Resource {
 </TabItem>
 </Tabs>
 
-:::note[Screenshot placeholder: the orders list]
-A screenshot of `/admin/orders/list`, with the orders table and the lines relation on the edit and view pages, will go here.
-:::
+<FireflyShot file="orders-list.png" description="The orders list at http://127.0.0.1:4017/admin/orders/list, with the orders table and a create action." />
+
+<FireflyShot file="orders-create.png" description="The orders create page at http://127.0.0.1:4017/admin/orders/create, with the name field." />
+
+<FireflyShot file="orders-edit.png" description="The orders edit page at http://127.0.0.1:4017/admin/orders/edit, with the name field and the lines relation." />
+
+<FireflyShot file="orders-view.png" description="The orders view page at http://127.0.0.1:4017/admin/orders/view, with the name infolist and the lines relation." />
 
 ```bash
 ./grind make:firefly-resource Order
@@ -134,6 +139,8 @@ A screenshot of `/admin/orders/list`, with the orders table and the lines relati
 The generator writes list, create, edit, and view pages and one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
 
 ## The desk page and widget
+
+<FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
 
 `pages/Desk` is a `CustomPage` with the same form fields as notes, an infolist, a one-row table, and a header action that opens a dialog. `widgets/DeskWidget` renders a short paragraph. Discovery places that widget on the first page, which is Desk.
 

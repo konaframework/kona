@@ -3,11 +3,14 @@ title: Themes and CSS
 description: FireflyTheme, KonaTheme tokens, scoped CSS variables, and the rule that keeps theme CSS inside the panel.
 ---
 
-:::note[Screenshot placeholder: a themed panel]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-A **theme** is an implementation of `FireflyTheme`. It supplies an id, a `ThemeTokens` object, optional HTML for a chrome slot, and optional extra CSS. `Stylesheet.render` turns the tokens into CSS custom properties on `.ff-panel`. Component rules in the shipped stylesheet only match descendants of `.ff-panel`, so a page that never renders a panel does not pick up Firefly’s button, sidebar, or dialog rules.
+<FireflyShot file="themed-panel.png" description="The hello-kotlin panel at http://127.0.0.1:4017/admin/desk wearing the shipped theme on the sidebar and the page." />
+
+A theme is how the panel looks: colors, type, and any extra CSS you want inside the frame. You use one when the shipped look is close and you want your own primary color or a different sidebar.
+
+You implement `FireflyTheme`. It supplies an id, a `ThemeTokens` object, optional HTML for one chrome slot, and optional extra CSS. `Stylesheet.render` turns the tokens into CSS custom properties on `.ff-panel`. Rules in the shipped stylesheet only match inside `.ff-panel`, so a page that never renders a panel does not pick up Firefly’s buttons, sidebar, or dialogs.
 
 ## FireflyTheme
 
@@ -20,7 +23,8 @@ A **theme** is an implementation of `FireflyTheme`. It supplies an id, a `ThemeT
 
 Implement the interface in Kotlin or Java. You do not register the class anywhere. Pass an instance to `Panel.theme(...)`.
 
-Kotlin:
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class HarborTheme : FireflyTheme {
@@ -46,7 +50,8 @@ class HarborTheme : FireflyTheme {
 }
 ```
 
-Java:
+</TabItem>
+<TabItem label="Java">
 
 ```java
 public final class HarborTheme implements FireflyTheme {
@@ -66,6 +71,9 @@ public final class HarborTheme implements FireflyTheme {
     }
 }
 ```
+
+</TabItem>
+</Tabs>
 
 `ThemeTokens` is a class with those twelve constructor parameters, in that order. Each field is a public `val` (a Java getter). Values are inserted into CSS as you provide them. Firefly does not validate that a token is a legal CSS color.
 

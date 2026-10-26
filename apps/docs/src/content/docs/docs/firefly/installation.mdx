@@ -3,13 +3,19 @@ title: Installation
 description: Create a Firefly app with kona new --kit=firefly, or add kona-firefly to an existing Kona app.
 ---
 
-The shortest path is a new app. The kit writes a `Panel`, the three discovery folders, and a boot class that mounts the panel at `/admin`.
+import FireflyShot from '../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-:::note[Screenshot placeholder: the kit’s empty admin path]
-A screenshot of `/admin` on a freshly generated Firefly app will go here.
-:::
+The shortest path is a new app. Run `kona new`, step into the project, and `./grind serve`. The kit writes a `Panel`, the three folders beside it, and a boot class that mounts the panel at `/admin`.
+
+Your own routes stay where they are. The welcome page is still `/`. The panel is a prefix you chose, which the kit sets to `admin`.
+
+<FireflyShot file="empty-admin.png" description="The /admin path of a new app from kona new --kit=firefly, before any page or resource is added." />
 
 ## A new app
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```bash
 kona new desk --kit=firefly
@@ -17,7 +23,8 @@ cd desk
 ./grind serve
 ```
 
-Java:
+</TabItem>
+<TabItem label="Java">
 
 ```bash
 kona new desk --kit=firefly --lang=java
@@ -25,13 +32,16 @@ cd desk
 ./grind serve
 ```
 
+</TabItem>
+</Tabs>
+
 Open `http://127.0.0.1:4000/`. The welcome route stays on `/`. The panel is at `http://127.0.0.1:4000/admin`.
 
 The generated Gradle file depends on Maven Central. The CLI writes `org.konaframework:kona-firefly` at the same version as `kona-http` and the other Kona artifacts in that file.
 
 ## An existing app
 
-Add the same coordinate next to your other `org.konaframework` dependencies:
+Add the same coordinate next to your other `org.konaframework` dependencies. Kotlin and Java apps in this repository both use the Gradle Kotlin DSL, so the block is the same either way:
 
 ```kotlin
 dependencies {

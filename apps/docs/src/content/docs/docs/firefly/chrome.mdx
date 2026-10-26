@@ -3,11 +3,14 @@ title: Panel chrome
 description: Panel slots, render hooks, partial overrides, and custom layouts.
 ---
 
-:::note[Screenshot placeholder: sidebar, top bar, body, and footer]
-A screenshot of this screen will go here.
-:::
+import FireflyShot from '../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-**Panel chrome** is the four regions around a panel: sidebar, top bar, body, and footer. The class is `org.konaframework.firefly.support.Panel`. It chooses HTML for each region, checks that required hook markers are still present, fills those markers, and asks a `PanelLayout` to wrap the result. The class you mount on the router is `org.konaframework.firefly.Panel`, documented on [Panel](/docs/firefly/panel/).
+<FireflyShot file="panel-chrome.png" description="The panel chrome at http://127.0.0.1:4017/admin/desk, showing the sidebar, top bar, page body, and footer." />
+
+Panel chrome is the frame around every screen: sidebar, top bar, body, and footer. You touch it when the default frame is close but you want a different sidebar, a banner, or your own wrapper.
+
+The class that draws the frame is `org.konaframework.firefly.support.Panel`. The class you mount on the router is `org.konaframework.firefly.Panel`, documented on [Panel](/docs/firefly/panel/). The support class picks HTML for each region, checks that the hook markers are still there, fills those markers, and asks a layout to wrap the result.
 
 ## Panel
 
@@ -81,7 +84,8 @@ If a slot were absent from the map it receives, it would throw `Missing partial 
 
 The override must keep the markers. This sidebar adds a label and still accepts hooks:
 
-Kotlin:
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val shell = Panel().overridePartial(
@@ -90,7 +94,8 @@ val shell = Panel().overridePartial(
 )
 ```
 
-Java:
+</TabItem>
+<TabItem label="Java">
 
 ```java
 Panel shell = new Panel().overridePartial(
@@ -98,6 +103,9 @@ Panel shell = new Panel().overridePartial(
     "<aside class=\"ff-sidebar\"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>"
 );
 ```
+
+</TabItem>
+</Tabs>
 
 A theme can supply the same HTML from `partial("sidebar")`. An app override still wins when both exist.
 
@@ -114,6 +122,9 @@ A theme can supply the same HTML from `partial("sidebar")`. An app override stil
 
 A layout may ignore `DefaultLayout` and place the partials itself. To use the dark tokens, put `ff-dark` on the same element as `ff-panel`:
 
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 class DarkLayout : PanelLayout {
     override fun render(context: ChromeContext): String = """
@@ -128,6 +139,9 @@ class DarkLayout : PanelLayout {
 }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 public final class DarkLayout implements PanelLayout {
     @Override public String render(ChromeContext context) {
@@ -141,12 +155,24 @@ public final class DarkLayout implements PanelLayout {
 }
 ```
 
+</TabItem>
+</Tabs>
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
 ```kotlin
 Panel().layout(DarkLayout()).render()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 new Panel().layout(new DarkLayout()).render();
 ```
+
+</TabItem>
+</Tabs>
 
 `layout(...)` after `theme(...)` does not drop the theme. The theme still supplies tokens, CSS, and theme partials. Only the wrapper changes.
