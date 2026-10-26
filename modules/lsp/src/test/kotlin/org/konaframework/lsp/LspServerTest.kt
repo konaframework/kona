@@ -584,4 +584,73 @@ class LspServerTest {
         val pull = messages.first { it.has("id") && it.get("id").asInt() == 1 }
         assertEquals(0, pull.path("result").path("items").size())
     }
+
+    @Test
+    fun hoverReportsFireflyMembers() {
+        val text = "Panel().path other"
+        val uri = "file:///Desk.kt"
+        val openParams = LspTestSupport.mapper.createObjectNode()
+        val doc = LspTestSupport.mapper.createObjectNode()
+        doc.put("uri", uri)
+        doc.put("languageId", "kotlin")
+        doc.put("version", 1)
+        doc.put("text", text)
+        openParams.set<com.fasterxml.jackson.databind.JsonNode>("textDocument", doc)
+
+        val hit = LspTestSupport.mapper.createObjectNode()
+        hit.set<com.fasterxml.jackson.databind.JsonNode>(
+            "textDocument",
+            LspTestSupport.mapper.createObjectNode().put("uri", uri),
+        )
+        hit.set<com.fasterxml.jackson.databind.JsonNode>(
+            "position",
+            LspTestSupport.mapper.createObjectNode().put("line", 0).put("character", text.indexOf("path")),
+        )
+        val miss = LspTestSupport.mapper.createObjectNode()
+        miss.set<com.fasterxml.jackson.databind.JsonNode>(
+            "textDocument",
+            LspTestSupport.mapper.createObjectNode().put("uri", uri),
+        )
+        miss.set<com.fasterxml.jackson.databind.JsonNode>(
+            "position",
+            LspTestSupport.mapper.createObjectNode().put("line", 0).put("character", text.indexOf("other")),
+        )
+        val noPosition = LspTestSupport.mapper.createObjectNode()
+        noPosition.set<com.fasterxml.jackson.databind.JsonNode>(
+            "textDocument",
+            LspTestSupport.mapper.createObjectNode().put("uri", uri),
+        )
+        val unknown = LspTestSupport.mapper.createObjectNode()
+        unknown.set<com.fasterxml.jackson.databind.JsonNode>(
+            "textDocument",
+            LspTestSupport.mapper.createObjectNode().put("uri", "file:///missing.kt"),
+        )
+        unknown.set<com.fasterxml.jackson.databind.JsonNode>(
+            "position",
+            LspTestSupport.mapper.createObjectNode().put("line", 0).put("character", 0),
+        )
+
+        val (code, messages) =
+            LspTestSupport.runSession(
+                LspTestSupport.request(1, "initialize", LspTestSupport.initializeParams()),
+                LspTestSupport.notification("textDocument/didOpen", openParams),
+                LspTestSupport.notification("textDocument/hover", hit),
+                LspTestSupport.request(2, "textDocument/hover"),
+                LspTestSupport.request(3, "textDocument/hover", noPosition),
+                LspTestSupport.request(4, "textDocument/hover", unknown),
+                LspTestSupport.request(5, "textDocument/hover", hit),
+                LspTestSupport.request(6, "textDocument/hover", miss),
+                LspTestSupport.request(7, "shutdown"),
+                LspTestSupport.notification("exit"),
+            )
+        assertEquals(0, code)
+        val init = messages.first { it.has("id") && it.get("id").asInt() == 1 }
+        assertTrue(init.path("result").path("capabilities").path("hoverProvider").asBoolean())
+        val empty = messages.first { it.has("id") && it.get("id").asInt() == 2 }
+        assertTrue(empty.get("result").isNull)
+        val named = messages.first { it.has("id") && it.get("id").asInt() == 5 }
+        assertTrue(named.path("result").path("contents").path("value").asText().contains("Panel.path"))
+        val unnamed = messages.first { it.has("id") && it.get("id").asInt() == 6 }
+        assertTrue(unnamed.get("result").isNull)
+    }
 }

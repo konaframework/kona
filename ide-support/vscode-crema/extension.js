@@ -8,12 +8,51 @@
  *
  * `vscode` is provided by the host at runtime.
  */
+const { completions: fireflyCompletions } = require('./firefly-complete');
+
+function loadFireflyCatalog() {
+  try {
+    return JSON.parse(
+      require('fs').readFileSync(require('path').join(__dirname, 'firefly-catalog.json'), 'utf8'),
+    );
+  } catch {
+    return { types: [] };
+  }
+}
+
 function activate(context) {
   let vscode;
   try {
     vscode = require('vscode');
   } catch {
     return;
+  }
+
+  const fireflyCatalog = loadFireflyCatalog();
+  for (const language of ['java', 'kotlin']) {
+    context.subscriptions.push(
+      vscode.languages.registerCompletionItemProvider(
+        language,
+        {
+          provideCompletionItems(document, position) {
+            const items = fireflyCompletions(
+              document.getText(),
+              document.offsetAt(position),
+              fireflyCatalog,
+            );
+            return items.map((item) => {
+              const kind = item.kind === 'method'
+                ? vscode.CompletionItemKind.Method
+                : vscode.CompletionItemKind.Class;
+              const entry = new vscode.CompletionItem(item.label, kind);
+              entry.detail = item.detail;
+              return entry;
+            });
+          },
+        },
+        '.',
+      ),
+    );
   }
 
   const showLspHelp = () => {

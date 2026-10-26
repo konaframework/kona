@@ -1313,9 +1313,17 @@ Artifact: `kona-firefly`, plus `kona new --kit=firefly` in `kona-cli`. M36 is on
 
 ## M38 — Firefly IDE catalog
 
-**Status:** queued (not started).
+**Status:** done (branch `milestone/M38-firefly-ide`; on `main` when this PR merges).
 
-Not on `main`. Starts only after M37 is on `main`. Targets `kona-lsp` and the editor extensions. Law 1 still allows other non-colliding milestones to proceed in parallel while this one waits on that dependency.
+M37 is on `main`. Does not wait on M27 and does not add a Mongo module.
+
+### Parity checklist
+
+- [x] Catalog generated from the shipped `Panel`, `Resource`, `Page`, and `Widget` types, including public methods
+- [x] `kona-lsp` completes and hovers those names in Kotlin and Java
+- [x] `ide-support/vscode-crema` completes from the same catalog
+- [x] IntelliJ plugin `kona-idea` consumes the same catalog
+- [x] 100% line + branch coverage on `kona-lsp`
 
 ---
 

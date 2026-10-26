@@ -1,7 +1,7 @@
 # Crema for VS Code and Cursor
 
 Syntax highlighting for Crema templates — including **inline Wire `template()` strings** in
-Java and Kotlin — and an optional launch hook for **kona-lsp**.
+Java and Kotlin — Firefly type and method completion from the generated catalog — and an optional launch hook for **kona-lsp**.
 
 ## Install (development)
 

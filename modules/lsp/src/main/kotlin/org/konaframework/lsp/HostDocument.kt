@@ -50,7 +50,10 @@ object HostDocument {
             return withHostMembers(text, offset, text, offset, CremaAnalyzer.completions(text, line, character))
         }
         val offset = CremaAnalyzer.positionToOffset(text, line, character)
-        val range = InlineCremaRanges.containing(text, offset) ?: return emptyList()
+        val range = InlineCremaRanges.containing(text, offset)
+        if (range == null) {
+            return FireflyCatalog.completions(text, languageId(languageId, uri), line, character)
+        }
         val excerpt = text.substring(range.contentStart, range.contentEnd.coerceAtMost(text.length))
         val local = (offset - range.contentStart).coerceIn(0, excerpt.length)
         val pos = CremaAnalyzer.offsetToPosition(excerpt, local)
