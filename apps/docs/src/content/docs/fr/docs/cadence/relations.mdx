@@ -1,0 +1,468 @@
+---
+title: Relations
+description: Reliez des modèles Cadence avec hasOne, hasMany, belongsTo, belongsToMany, les morphs et les relations through ; chargez-les paresseusement ou en avance sans requêtes N+1.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Les tables se pointent les unes les autres par des **clés étrangères** : une colonne `posts.user_id` tient l’`id` de l’utilisateur qui a écrit le post. Une **relation** est une méthode de modèle qui décrit un tel lien, pour que vous puissiez écrire `user.posts().get()` au lieu d’une requête écrite à la main.
+
+Vous définissez une relation comme une **méthode publique sans paramètres**, nommée d’après la relation, qui renvoie l’un des quatre types de relation. Le nom de méthode compte : le chargement anticipé trouve les relations en appelant cette méthode par son nom.
+
+| Relation | Forme | Exemple | Se résout en |
+|----------|-------|---------|-------------|
+| `hasOne` | l’autre table tient notre clé, au plus une ligne | user → profile | `R?` |
+| `hasMany` | l’autre table tient notre clé, plusieurs lignes | user → posts | `List<R>` |
+| `belongsTo` | nous tenons la clé de l’autre table | post → user | `R?` |
+| `belongsToMany` | une troisième table (pivot) tient les deux clés | user ↔ roles | `List<R>` |
+| `morphMany` / `morphOne` | les lignes liées stockent `{name}_type` + `{name}_id` | post → comments | `List<R>` / `R?` |
+| `morphToMany` / `morphedByMany` | le pivot stocke `{name}_type` + `{name}_id` + clé liée | post ↔ tags | `List<R>` |
+| `morphTo` | cette ligne stocke le type + l’id du propriétaire | comment → post/video | `Cadence<*>?` |
+| `hasManyThrough` / `hasOneThrough` | lignes lointaines via une table intermédiaire | user → comments via posts | `List<R>` / `R?` |
+
+## Définir des relations
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.Cadence
+import org.konaframework.cadence.CadenceCompanion
+import org.konaframework.cadence.relations.BelongsTo
+import org.konaframework.cadence.relations.BelongsToMany
+import org.konaframework.cadence.relations.HasMany
+import org.konaframework.cadence.relations.HasOne
+
+class User : Cadence<User>() {
+    fun profile(): HasOne<Profile> = hasOne(Profile::class.java)
+    fun posts(): HasMany<Post> = hasMany(Post::class.java)
+    fun roles(): BelongsToMany<Role> = belongsToMany(Role::class.java)
+
+    companion object : CadenceCompanion<User>(User::class.java)
+}
+
+class Post : Cadence<Post>() {
+    override val fillable = setOf("title")
+
+    fun user(): BelongsTo<User> = belongsTo(User::class.java)
+    fun comments(): HasMany<Comment> = hasMany(Comment::class.java).apply { orderBy("created_at") }
+
+    companion object : CadenceCompanion<Post>(Post::class.java)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.Cadence;
+import org.konaframework.cadence.CadenceCompanion;
+import org.konaframework.cadence.relations.BelongsTo;
+import org.konaframework.cadence.relations.BelongsToMany;
+import org.konaframework.cadence.relations.HasMany;
+import org.konaframework.cadence.relations.HasOne;
+
+public class User extends Cadence<User> {
+    public static final CadenceCompanion<User> QUERY = Cadence.of(User.class);
+
+    public HasOne<Profile> profile() { return hasOne(Profile.class); }
+    public HasMany<Post> posts() { return hasMany(Post.class); }
+    public BelongsToMany<Role> roles() { return belongsToMany(Role.class); }
+}
+
+public class Post extends Cadence<Post> {
+    public static final CadenceCompanion<Post> QUERY = Cadence.of(Post.class);
+
+    public BelongsTo<User> user() { return belongsTo(User.class); }
+    public HasMany<Comment> comments() {
+        HasMany<Comment> relation = hasMany(Comment.class);
+        relation.orderBy("created_at", "asc");
+        return relation;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Une contrainte ajoutée dans la définition (comme le `orderBy` ci-dessus) s’applique chaque fois que la relation s’exécute, paresseusement ou en avance.
+
+### Conventions de clés
+
+Les noms de clés sont dérivés des noms de classes et des clés primaires. Passez des noms explicites quand vos colonnes diffèrent.
+
+| Appel | Défauts | Forme complète |
+|------|----------|-----------|
+| `hasOne(Profile)` / `hasMany(Post)` | clé étrangère `user_id` sur la table liée ; clé locale `id` | `hasMany(Post::class.java, "author_id", "id")` |
+| `belongsTo(User)` | clé étrangère `user_id` sur cette table ; clé propriétaire `id` sur `users` ; nom de relation `user` | `belongsTo(User::class.java, "author_id", "id", "author")` |
+| `belongsToMany(Role)` | table pivot `role_user` (les deux noms snake, triés, joints par `_`) ; clés pivot `user_id` et `role_id` ; clés parent et liée `id` | `belongsToMany(Role::class.java, "user_roles", "user_id", "role_id", "id", "id")` |
+
+Le préfixe est le nom de classe en snake_case : `BlogPost` donne `blog_post_id`.
+
+## Chargement paresseux
+
+Appeler une méthode de relation renvoie un objet de relation frais. Rien ne s’exécute tant que vous ne demandez pas les résultats :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val user = User.findOrFail(1)
+
+val posts: List<Post> = user.posts().get()
+val published = user.posts().where("published", true).orderBy("created_at", "desc").get()
+val profile: Profile? = user.profile().first()
+val author: User? = post.user().first()
+val howMany: Long = user.posts().count()
+val any: Boolean = user.roles().exists()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+User user = User.QUERY.findOrFail(1);
+
+List<Post> posts = user.posts().get();
+List<Post> published = user.posts().where("published", true).orderBy("created_at", "desc").get();
+Profile profile = user.profile().first();
+User author = post.user().first();
+long howMany = user.posts().count();
+boolean any = user.roles().exists();
+```
+
+</TabItem>
+</Tabs>
+
+Chaque relation prend en charge `get()` (toutes les lignes, aussi pour les relations to-one), `first()`, `count()`, `exists()`, `getResults()` (la valeur naturelle : une liste ou un seul modèle), et les aides de contrainte `where`, `orderBy` et `constrain { builder -> … }` pour tout le reste sur le `ModelBuilder` lié.
+
+Quand le parent n’a pas encore de clé (un modèle non sauvé), les relations renvoient une liste vide ou `null` sans interroger.
+
+Chaque appel à `user.posts()` exécute une nouvelle requête. Pour garder une valeur chargée sur le modèle, utilisez `getRelationValue` : il charge la relation la première fois et renvoie la valeur stockée ensuite.
+
+```kotlin
+val posts = user.getRelationValue<List<Post>>("posts")   // queries
+val again = user.getRelationValue<List<Post>>("posts")   // no query
+```
+
+## Chargement anticipé
+
+Boucler sur 50 utilisateurs et appeler `user.posts().get()` pour chacun exécute 51 requêtes : une pour les utilisateurs et une par utilisateur. C’est le **problème N+1**. Le chargement anticipé le corrige en chargeant la relation pour tous les utilisateurs d’un coup : une requête pour les utilisateurs, puis **une** requête pour tous leurs posts (`where user_id in (…)`), dont les lignes sont distribuées aux bons utilisateurs en mémoire.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val users = User.with("posts", "profile").get()        // 3 queries in total
+for (user in users) {
+    val posts = user.getRelation("posts") as List<*>   // already loaded
+}
+
+User.query().with("posts.comments").get()             // nested: users, posts, comments — 3 queries
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> users = User.QUERY.with("posts", "profile").get();
+for (User user : users) {
+    List<?> posts = (List<?>) user.getRelation("posts");
+}
+
+User.QUERY.query().with("posts.comments").get();
+```
+
+</TabItem>
+</Tabs>
+
+- Les noms sont des noms de méthodes de relation ; les points chargent des relations des modèles liés (`posts.comments`, `posts.user`).
+- Après le chargement, chaque modèle a la relation stockée : une liste pour les relations to-many (vide quand il n’y a pas de lignes) ou un modèle / `null` pour les relations to-one. Lisez-la avec `getRelation(name)` ou `getRelationValue(name)` ; vérifiez avec `relationLoaded(name)`.
+- `with` fonctionne avec `get()`, `first()`, `find()`, `findMany()` et `paginate()`.
+- `toMap()` inclut les relations chargées, rendues récursivement, donc `Response.json(user.toMap())` renvoie l’utilisateur avec ses posts.
+
+### Contraindre un chargement anticipé
+
+Passez un `RelationConstraint` pour filtrer ou trier ce qui est chargé :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.relations.RelationConstraint
+
+val users = User.query()
+    .with("posts", RelationConstraint { it.where("published", true).orderBy("created_at", "desc") })
+    .get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> users = User.QUERY.query()
+    .with("posts", relation -> relation.where("published", true).orderBy("created_at", "desc"))
+    .get();
+```
+
+</TabItem>
+</Tabs>
+
+### Charger sur des modèles que vous avez déjà
+
+```kotlin
+user.load("posts", "roles")          // always queries, replacing loaded values
+user.loadMissing("posts", "profile") // only relations not loaded yet
+EagerLoader.load(users, "posts")     // a list loaded elsewhere, still one query per relation
+```
+
+Demander un nom qui n’est pas une méthode publique sans argument renvoyant une relation lance `CadenceException` ("Call to undefined relationship").
+
+## Interroger l’existence d’une relation
+
+Filtrez les parents selon que des lignes liées existent (traduit en sous-requêtes `EXISTS` / `NOT EXISTS`) :
+
+| Appel | Sens |
+|------|---------|
+| `whereHas("posts")` / `has("posts")` | au moins une ligne liée |
+| `whereDoesntHave("posts")` / `doesntHave("posts")` | aucune ligne liée |
+| `orWhereHas` / `orWhereDoesntHave` | les mêmes contrôles joints avec `or` |
+| `whereHas("posts") { it.where("published", true) }` | existence avec des contraintes supplémentaires sur la requête liée |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val authors = User.whereHas("posts") { it.where("published", true) }.get()
+val newcomers = User.doesntHave("posts").get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<User> authors = User.QUERY.whereHas("posts", q -> q.where("published", true)).get();
+List<User> newcomers = User.QUERY.doesntHave("posts").get();
+```
+
+</TabItem>
+</Tabs>
+
+Fonctionne pour `hasOne` / `hasMany`, `belongsTo` et `belongsToMany` (y compris la jointure pivot).
+
+## Compter, existence et sommes
+
+`withCount("posts")` ajoute un attribut `posts_count` (une sous-requête) sans charger les lignes liées. Utilisez `relation as alias` pour un nom d’attribut personnalisé :
+
+```kotlin
+val users = User.withCount("posts", "posts as published_posts_count").get()
+users[0]["posts_count"]
+users[0]["published_posts_count"]
+
+// After the fact:
+user.loadCount("posts", "roles")
+```
+
+`withExists("posts")` ajoute une colonne `posts_exists` de type booléen (`1` / `0`). Les aides d’agrégat partagent la même forme `relation:column` / `relation as alias:column` :
+
+| Aide | Alias par défaut | Chargeur |
+|--------|---------------|--------|
+| `withSum("posts", "votes")` | `posts_sum_votes` | `loadSum` |
+| `withAvg("posts", "votes")` | `posts_avg_votes` | `loadAvg` |
+| `withMax` / `withMin` | `posts_max_votes` / `posts_min_votes` | `loadMax` / `loadMin` |
+
+```kotlin
+val authors = Author.withExists("books")
+    .withSum("books", "votes")
+    .withAvg("books", "votes")
+    .withMax("books", "votes")
+    .get()
+author.loadExists("books")
+author.loadSum("books as total_votes:votes")
+author.loadAvg("books:votes")
+```
+
+L’existence MorphTo (`comment.whereHas("commentable")`) fait un OR sur les alias `MorphMap` enregistrés. BelongsToMany prend en charge `firstOrCreate(attributes, values)` (trouver la ligne liée attachée, ou créer + attacher).
+
+Combinez avec `select("users.*")` (ou laissez ces aides garantir un select de table) quand vous projetez aussi des colonnes précises.
+
+## Écrire à travers les relations
+
+### hasOne / hasMany
+
+`create`, `make` et `save` règlent la clé étrangère pour vous :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val post = user.posts().create(mapOf("title" to "Hello"))     // fill (fillable rules apply) + user_id + save
+val draft = user.posts().make(mapOf("title" to "Draft"))      // same, unsaved
+user.posts().save(Post().forceFill(mapOf("title" to "Imported")))
+user.posts().createMany(listOf(mapOf("title" to "A"), mapOf("title" to "B")))
+
+// Find under this relation's scope, or create / update linked to the parent:
+user.posts().firstOrCreate(mapOf("title" to "Hello"))
+user.posts().firstOrCreate(mapOf("slug" to "hello"), mapOf("title" to "Hello"))
+user.posts().updateOrCreate(mapOf("slug" to "hello"), mapOf("title" to "Hello again"))
+user.posts().firstOrNew(mapOf("title" to "Draft"))           // unsaved when missing
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Post post = user.posts().create(Map.of("title", "Hello"));
+Post draft = user.posts().make(Map.of("title", "Draft"));
+user.posts().save(new Post().forceFill(Map.of("title", "Imported")));
+user.posts().createMany(List.of(Map.of("title", "A"), Map.of("title", "B")));
+
+user.posts().firstOrCreate(Map.of("title", "Hello"));
+user.posts().firstOrCreate(Map.of("slug", "hello"), Map.of("title", "Hello"));
+user.posts().updateOrCreate(Map.of("slug", "hello"), Map.of("title", "Hello again"));
+user.posts().firstOrNew(Map.of("title", "Draft"));
+```
+
+</TabItem>
+</Tabs>
+
+Ceux-ci lancent `IllegalStateException` quand le parent n’a pas encore été sauvé (il n’a pas de clé à copier). `firstOrCreate` / `updateOrCreate` / `firstOrNew` ne cherchent que parmi les lignes déjà liées au parent (et règlent la clé étrangère — et le type morph pour les relations polymorphes — à la création).
+
+### belongsTo
+
+```kotlin
+post.user().associate(otherUser)   // sets user_id and stores the "user" relation
+post.save()
+post.user().dissociate()           // sets user_id to null
+post.save()
+```
+
+### belongsToMany
+
+Les lignes pivot se gèrent avec `attach`, `detach` et `sync`. Chacun accepte des clés ou des instances de modèle.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+user.roles().attach(admin)                                   // one row
+user.roles().attach(listOf(1, 2), mapOf("granted_by" to 7))  // extra pivot columns
+user.roles().detach(admin)                                   // returns rows removed
+user.roles().detach()                                        // remove all
+val result = user.roles().sync(listOf(1, 3))                 // exactly these
+result.attached   // [3]
+result.detached   // [2]
+user.roles().syncWithoutDetaching(listOf(4, 5))              // attach missing only
+user.roles().toggle(listOf(1, 6))                            // attach missing, detach present
+user.roles().updateExistingPivot(1, mapOf("granted_by" to 9))
+user.roles().wherePivot("granted_by", 7).get()               // filter via pivot columns
+user.roles().wherePivotIn("role_id", listOf(1, 2)).get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+user.roles().attach(admin);
+user.roles().attach(List.of(1, 2), Map.of("granted_by", 7));
+user.roles().detach(admin);
+user.roles().detach();
+SyncResult result = user.roles().sync(List.of(1, 3));
+result.getAttached();
+result.getDetached();
+user.roles().syncWithoutDetaching(List.of(4, 5));
+user.roles().toggle(List.of(1, 6));
+user.roles().updateExistingPivot(1, Map.of("granted_by", 9));
+user.roles().wherePivot("granted_by", 7).get();
+user.roles().wherePivotIn("role_id", List.of(1, 2)).get();
+```
+
+</TabItem>
+</Tabs>
+
+### Données pivot
+
+Chaque modèle renvoyé par une relation `belongsToMany` porte sa ligne pivot comme relation `pivot` : une carte qui tient les deux clés pivot plus toute colonne nommée dans `withPivot`. `withTimestamps()` remplit `created_at` / `updated_at` sur `attach` (et `updated_at` sur `updateExistingPivot`) et les lit dans `pivot`.
+
+```kotlin
+fun roles(): BelongsToMany<Role> = belongsToMany(Role::class.java).withPivot("granted_by").withTimestamps()
+
+val role = user.roles().first()!!
+val pivot = role.getRelation("pivot") as Map<*, *>
+pivot["granted_by"]
+pivot["created_at"]
+```
+
+Les lignes liées supprimées en douce sont exclues de chaque relation sauf si la requête liée demande autrement (`constrain { it.withTrashed() }`).
+
+<a id="polymorphic-relations"></a>
+
+## Relations polymorphes
+
+Quand une table peut appartenir à plusieurs types parents (commentaires sur des posts *ou* des vidéos), stockez `{name}_type` et `{name}_id` sur l’enfant. Les aides de schéma `morphs`, `nullableMorphs` et `uuidMorphs` créent ces colonnes (et un index).
+
+Enregistrez des alias courts avec `Relation.morphMap` pour que la colonne de type reste stable :
+
+```kotlin
+Relation.morphMap(
+    mapOf(
+        "posts" to Post::class.java,
+        "videos" to Video::class.java,
+    ),
+)
+
+class Post : Cadence<Post>() {
+    fun comments(): MorphMany<Comment> = morphMany(Comment::class.java, "commentable")
+    fun image(): MorphOne<Image> = morphOne(Image::class.java, "imageable")
+}
+
+class Comment : Cadence<Comment>() {
+    fun commentable(): MorphTo = morphTo("commentable")
+}
+
+post.comments().create(mapOf("body" to "Nice"))
+comment.commentable().getResults()   // Post or Video
+comment.commentable().associate(post)
+```
+
+Sans entrée de morph map, Cadence utilise le nom simple de classe du modèle (et peut résoudre un nom de classe pleinement qualifié stocké dans la colonne de type).
+
+### morphToMany / morphedByMany
+
+Le many-to-many polymorphe utilise un pivot avec `{name}_id`, `{name}_type` et la clé étrangère liée (le nom de table par défaut est le pluriel de `{name}`) :
+
+```kotlin
+class Post : Cadence<Post>() {
+    fun tags(): MorphToMany<Tag> = morphToMany(Tag::class.java, "taggable")
+}
+
+class Tag : Cadence<Tag>() {
+    fun posts(): MorphToMany<Post> = morphedByMany(Post::class.java, "taggable")
+    fun videos(): MorphToMany<Video> = morphedByMany(Video::class.java, "taggable")
+}
+
+// taggables(tag_id, taggable_id, taggable_type)
+post.tags().attach(listOf(kotlinTag, javaTag))
+tag.posts().get()
+```
+
+`attach` / `detach` / `sync` / `withPivot` / `withTimestamps` se comportent comme `belongsToMany`, et chaque écriture de pivot inclut le type morph. Chargez en avance avec `Post.with("tags")`.
+
+## Relations through
+
+`hasManyThrough` / `hasOneThrough` atteignent une table lointaine à travers un modèle intermédiaire (user → posts → comments) :
+
+```kotlin
+class User : Cadence<User>() {
+    fun comments(): HasManyThrough<Comment, Post> =
+        hasManyThrough(Comment::class.java, Post::class.java, "user_id", "post_id")
+
+    fun firstComment(): HasOneThrough<Comment, Post> =
+        hasOneThrough(Comment::class.java, Post::class.java, "user_id", "post_id")
+}
+
+user.comments().get()
+User.with("comments").get()
+```
+
+Les clés étrangères par défaut suivent `{snake_class}_id` de chaque côté ; passez des clés explicites quand votre schéma utilise des noms plus courts.
