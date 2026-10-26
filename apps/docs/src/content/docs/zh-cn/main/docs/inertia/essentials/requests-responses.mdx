@@ -1,0 +1,62 @@
+---
+title: 请求与响应
+description: HTML 外壳、JSON 访问、响应头，以及 Inertia 如何识别客户端请求。
+---
+
+## 识别 Inertia 请求
+
+当请求带有 `X-Inertia` 头（任意值）时，`InertiaManager.isInertiaRequest(request)` 为真。官方客户端发送 `X-Inertia: true`。
+
+## 首次访问 → HTML
+
+- 状态 `200`
+- `Content-Type` 为 HTML
+- 正文：根 Crema 视图或 `rootHtml`
+- 视图数据：`page`（原始 JSON）、`pageAttr`（用于属性的 HTML 转义）、`vite`（script/link 标签）
+- 纯 HTML 外壳上没有 `X-Inertia` 响应头
+
+默认根 HTML（未使用 Crema 时）把 `@page` 嵌在 `data-page='…'` 里。
+
+## Inertia 访问 → JSON
+
+- 正文：页面对象的 JSON 映射
+- `X-Inertia: true`
+- `Vary: X-Inertia`
+- 管理器版本非空时带 `X-Inertia-Version`
+
+## 装饰
+
+路由处理程序运行之后，中间件调用 `manager.decorate(response)`。如果响应已经有 `X-Inertia: true` 或 `X-Inertia-Location`，并且设置了版本，就会加上 `X-Inertia-Version`。
+
+## 显式按请求渲染
+
+```kotlin
+Inertia.render(request, "Pages/Show", mapOf("id" to 42))
+```
+
+在不经过 `HandleInertiaRequests` 的代码路径里使用，或当你想使用与 ThreadLocal 当前请求不同的请求对象时使用。
+
+## 你会看到的状态码
+
+| 状态 | 含义 |
+|------|------|
+| `200` | HTML 外壳或 JSON 页面 |
+| `302` / `303` | 普通重定向（非 Inertia 客户端）；Inertia 适配器会跟随或转换 |
+| `409` | 资源版本不匹配，或面向 Inertia 客户端的 `Inertia.location`（[重定向](../../advanced/redirects/)） |
+
+## 内容协商摘要
+
+你始终以同样的方式调用 `Inertia.render`。管理器检查请求：
+
+```text
+X-Inertia present?
+  ├─ no  → HTML (root_view / root_html) + data-page
+  └─ yes → version OK? → JSON page
+                      └─ no → 409
+```
+
+## 相关
+
+- [中间件](../middleware/) — 版本检查在哪里运行
+- [根模板](../root-template/) — HTML 外壳字段
+- [第一个页面](../../guides/first-page/) — 端到端示例

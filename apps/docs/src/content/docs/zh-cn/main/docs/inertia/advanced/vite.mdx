@@ -1,0 +1,48 @@
+---
+title: Vite 与资源
+description: AssetManifest 绑定、hot 文件、生产清单，以及 inertia.assets.Vite 门面。
+---
+
+## 与 Crema 共用
+
+实现位于 `org.konaframework.crema.assets`。Inertia 在 `org.konaframework.inertia.assets` 再导出一个门面，旧的 import 仍然可用：
+
+```kotlin
+import org.konaframework.inertia.assets.Vite
+import org.konaframework.inertia.assets.AssetManifest
+```
+
+`InertiaServiceProvider` 把 `AssetManifest` 绑到 `vite.public_path` 或 `inertia.public_path`（默认 `<base>/public`），并在启动时调用 `Vite.setManifest`。它也会提供该目录，因此 `public/build/assets/` 下带哈希的文件会响应 `GET /build/assets/…`。
+
+## 开发（`public/hot`）
+
+如果 `public/hot` 里有一个基址（例如 `http://127.0.0.1:5173`），外壳会在该源上包含 Vite 客户端和入口模块：
+
+```html
+<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
+<script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
+```
+
+源之后的路径是 Vite 入口（`InertiaManager.viteEntries`），不是 Kona `/build/` 目录下的文件。脚手架的 `vite.config.js` 在 `npm run dev` 运行时写入 `public/hot`，开发服务器停止时删除它。
+
+## 生产（清单）
+
+Kona 读取第一个存在的文件：
+
+1. `public/build/manifest.json`
+2. `public/build/.vite/manifest.json`（`build.manifest` 为 `true` 时 Vite 的默认位置）
+
+每个入口的 `file` 和 `css` 会变成 `/build/` 下的 URL：
+
+```html
+<link rel="stylesheet" href="/build/assets/app-<hash>.css">
+<script type="module" src="/build/assets/app-<hash>.js"></script>
+```
+
+源路径永远不会加上 `/build/` 前缀。`GET /build/src/main/resources/js/app.js` 不是有效的资源 URL，有 hot 文件或清单时外壳也不会发出它。
+
+## 在根视图里
+
+`{!! vite !!}` 为 `InertiaManager.viteEntries` 打印标签。缺少 hot 文件且缺少清单时，HTML 外壳上的标签为空（外壳路径会吞掉异常，首次访问仍然能渲染）。
+
+在没有绑定清单时调用 `Vite.tags` / `Vite.asset`，门面辅助方法会抛出 `ViteException` — 测试里很有用。

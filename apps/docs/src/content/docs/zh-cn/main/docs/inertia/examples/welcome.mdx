@@ -1,0 +1,21 @@
+---
+title: 欢迎页
+description: 用一条消息属性渲染 Pages/Welcome 的最小路由。
+---
+
+```kotlin
+router.get("/") {
+    Inertia.render(
+        "Pages/Welcome",
+        mapOf("message" to "Welcome to Kona Inertia"),
+    )
+}
+```
+
+```java
+router.get("/", request ->
+    Inertia.render("Pages/Welcome", Map.of("message", "Welcome to Kona Inertia"))
+);
+```
+
+首次访问得到包含组件名的 HTML `data-page`。Inertia 访问得到带同样属性的 JSON。

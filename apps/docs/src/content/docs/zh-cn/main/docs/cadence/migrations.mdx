@@ -1,0 +1,349 @@
+---
+title: 迁移
+description: 用模式 DSL 描述表，把数据库变更版本化为迁移，并用 Migrator 或 ./grind migrate 运行它们。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**迁移**是改变数据库结构（创建表、添加列、添加索引）并能撤销该改变的小类。把每一次结构变更留在迁移里，意味着应用的任何副本（队友的笔记本、CI、生产）都可以通过按顺序运行迁移来构建同样的模式。
+
+## 运行顺序
+
+Cadence 在名为 `extract_migrations` 的表里记录哪些迁移已运行，并带一个**批次**号。每一次应用了东西的 `migrate` 运行打开一个新批次；`rollback` 撤销最近的批次。
+
+你只输入一个**描述性名称** — snake_case 或 PascalCase，没有时间戳：
+
+```bash
+./grind make:migration create_users_table
+./grind make:migration AddStatusToUsersTable
+```
+
+grind 写入一个**文件**，名称是 UTC `yyyy_MM_dd_HHmmss` 加上 snake_case 描述，以及该文件内部的 **PascalCase 类**：
+
+```text
+2026_10_20_153950_add_status_to_users_table.kt
+└ yyyy_MM_dd_HHmmss (UTC)     └ snake_case description
+
+class AddStatusToUsersTable          ← JVM type: no leading digit, no underscores
+@MigrationName("2026_10_20_153950_add_status_to_users_table")
+```
+
+时间戳住在**文件**上，不是类上。JVM 类名不能以数字开头，编辑器也会标记类型名里的下划线。受支持的形状是不同名文件里的具名 PascalCase 类：Kotlin 允许那里有公共类；文件名不匹配时 Java 要求类不是 `public`，因此生成的 Java 迁移是包私有的。发现仍然在 `META-INF/kona/migrations` 里列出完全限定类名，并反射实例化它。
+
+`@MigrationName` 记录文件词干。该词干是 `Migrator` 存在 `extract_migrations` 里的内容，也是 `./grind migrate` 排序的依据，因此运行顺序不依赖发现文件里行碰巧如何列出。同一秒生成的两个不同描述共享同一戳（`…153950_create_flights_table` 和 `…153950_add_status_to_users_table`）。如果该**文件**已存在，grind 把戳加一秒。如果 PascalCase **类**已存在于 `database/migrations` 下，grind 拒绝 — 两个编译单元不能在包 `database.migrations` 里声明同一个类。
+
+`kona new` 的用户迁移是 `2000_01_01_000000_create_users_table`，类为 `CreateUsersTable`，因此它在带时间戳的迁移中总是最先运行。**没有**戳的名称（手写的类，或旧布局的残留）保持登记顺序，并在带时间戳的那些**之前**运行。遗留类名 `M{stamp}_DescriptiveName` 仍然按该戳排序。
+
+你仍然可以自己绑定 `MigrationRegistry`。该注册表里带时间戳的名称以同样方式排序；不带时间戳的名称保持插入顺序。
+
+## 编写迁移
+
+迁移实现 `org.konaframework.cadence.migrations.Migration`，带两个方法。`up` 应用变更；`down` 精确撤销 `up` 做的事。两者都接收 `Schema`，它在迁移的连接上运行 DDL（表定义 SQL）。grind 在带时间戳的 snake_case 文件里生成该类，并用该文件词干盖上 `@MigrationName`（下面的例子匹配 `2026_10_20_141530_create_posts_table.kt` / `.java`）。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package database.migrations
+
+import org.konaframework.cadence.migrations.Migration
+import org.konaframework.cadence.migrations.MigrationName
+import org.konaframework.cadence.schema.Schema
+
+@MigrationName("2026_10_20_141530_create_posts_table")
+class CreatePostsTable : Migration {
+    override fun up(schema: Schema) {
+        schema.create("posts") {
+            id()
+            foreignId("user_id").constrained().cascadeOnDelete()
+            string("title", 200)
+            text("body").nullable()
+            boolean("published").default(false)
+            integer("votes").default(0)
+            timestamp("published_at").nullable()
+            timestamps()
+            softDeletes()
+            index("user_id", "published")
+        }
+    }
+
+    override fun down(schema: Schema) {
+        schema.dropIfExists("posts")
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package database.migrations;
+
+import org.konaframework.cadence.migrations.Migration;
+import org.konaframework.cadence.migrations.MigrationName;
+import org.konaframework.cadence.schema.Schema;
+
+@MigrationName("2026_10_20_141530_create_posts_table")
+class CreatePostsTable implements Migration {
+    @Override
+    public void up(Schema schema) {
+        schema.create("posts", table -> {
+            table.id();
+            table.foreignId("user_id").constrained().cascadeOnDelete();
+            table.string("title", 200);
+            table.text("body").nullable();
+            table.bool("published").withDefault(false);
+            table.integer("votes").withDefault(0);
+            table.timestamp("published_at").nullable();
+            table.timestamps();
+            table.softDeletes();
+            table.index("user_id", "published");
+        });
+    }
+
+    @Override
+    public void down(Schema schema) {
+        schema.dropIfExists("posts");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+在 Kotlin 里，传给 `create` 和 `table` 的块以表定义（`Blueprint`）为接收者，因此你直接调用 `id()`。在 Java 里，lambda 把 `Blueprint` 作为参数接收（`table -> table.id()`）。
+
+两个方法在 Java 里名称不同，因为它们的 Kotlin 名称是 Java 关键字：`boolean(name)` 是 `bool(name)`，`default(value)` 修饰符是 `withDefault(value)`。
+
+## 模式 DSL
+
+### 表操作
+
+| 调用 | 效果 |
+|------|------|
+| `create(table) { … }` | 带块里定义的列、外键和索引的 `CREATE TABLE` |
+| `table(table) { … }` | 改变已有表：添加列、外键和索引；删除列和索引 |
+| `drop(table)` | `DROP TABLE`（不存在时失败） |
+| `dropIfExists(table)` | `DROP TABLE IF EXISTS` |
+| `rename(from, to)` | 重命名表 |
+| `hasTable(table)` / `hasColumn(table, column)` | 检查当前模式 |
+| `execute(listOf(sql, …))` | 运行原始语句 |
+
+### 列类型
+
+| 方法 | SQL 类型 | 说明 |
+|------|----------|------|
+| `id()` / `id("key")` | `BIGINT` 标识主键 | 自增 |
+| `string(name)` / `string(name, length)` | `VARCHAR(255)` / `VARCHAR(length)` | 长度必须为正 |
+| `text(name)` | `TEXT`（H2 上是 `CHARACTER VARYING`） | 文本 |
+| `longText(name)` | MySQL 上是 `LONGTEXT`；其他地方是 `TEXT`（H2 上是 `CHARACTER VARYING`） | 无界文本 |
+| `json(name)` | MySQL/Postgres 上是 `JSON`；SQLite 上是 `TEXT`；H2 上是 `CHARACTER VARYING` | JSON 文档 |
+| `integer(name)` | `INTEGER` | |
+| `bigInteger(name)` | `BIGINT` | |
+| `boolean(name)`（Java：`bool`） | `BOOLEAN` | |
+| `timestamp(name)` | `TIMESTAMP` | |
+| `foreignId(name)` | `BIGINT` | 指向另一张表的键；链式 `constrained()` |
+| `timestamps()` | `created_at`、`updated_at` | 两者都可空 |
+| `softDeletes()` | `deleted_at` | 可空，由[软删除](../models/#soft-deletes)使用 |
+| `morphs(name)` / `nullableMorphs` / `uuidMorphs` | `{name}_type` + `{name}_id`（加索引） | 多态列；见[关系](../relations/#polymorphic-relations) |
+
+除非你调用修饰符，列是 `NOT NULL`：
+
+| 修饰符 | 效果 |
+|--------|------|
+| `nullable()` | 允许 `NULL`（`nullable(false)` 撤销它） |
+| `default(value)`（Java：`withDefault`） | `DEFAULT` 字面量：字符串被引用，布尔变成 `TRUE`/`FALSE`，`null` 变成 `NULL` |
+| `useCurrent()` | `DEFAULT CURRENT_TIMESTAMP` |
+| `unique()` | 在该列上加唯一索引 |
+| `index()` | 在该列上加普通索引 |
+
+### 索引
+
+```kotlin
+index("email")                                   // users_email_index
+index(listOf("user_id", "created_at"), "posts_timeline")
+unique("email")                                  // users_email_unique
+unique("team_id", "number")                      // composite
+dropIndex("users_email_index")                   // inside table(...)
+```
+
+生成的索引名是 `<table>_<columns>_index` 或 `<table>_<columns>_unique`。
+
+### 外键
+
+```kotlin
+foreignId("user_id").constrained()                    // references users(id)
+foreignId("editor_id").nullable().constrained("users").nullOnDelete()
+foreign("owner_id").references("id").on("owners").onDelete("restrict").onUpdate("cascade")
+```
+
+`constrained()` 从列名猜测表：`user_id` 引用 `users`。动作是 `cascade`、`set null`、`restrict` 和 `no action`；`cascadeOnDelete()` 和 `nullOnDelete()` 是快捷方式。约束名为 `<table>_<column>_foreign`。
+
+### 改变表
+
+```kotlin
+schema.table("users") {
+    string("nickname").nullable()
+    foreignId("team_id").nullable().constrained()
+    dropColumn("legacy_flag")
+}
+```
+
+在一次 `table` 调用内，Cadence 先删除索引，然后删除列，然后添加列、外键和索引。
+
+### SQL 方言
+
+模式 DSL 生成 H2 和 PostgreSQL 都接受的标准 SQL。`Schema` 从 JDBC 驱动的产品名挑选 `SchemaGrammar`；`SchemaGrammar.H2` 调整少数不同的类型。标识符引用跟随连接，因此 `quote_identifiers = false` 也适用于 DDL。
+
+## 登记并运行迁移
+
+`grind make:migration` 和 `make:model -m` 把每个新类追加到 `src/main/resources/META-INF/kona/migrations`（每行一个完全限定类名 — `database.migrations.CreatePostsTable`，不是文件名）。应用自己没有绑定时，`CadenceServiceProvider` 把该文件加载进 `MigrationRegistry`，然后按上面描述的 `@MigrationName`（文件词干）排序，因此 `./grind migrate` 运行新迁移而不需要手工绑定。
+
+需要自定义顺序或手写条目时，你仍然可以显式绑定注册表：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import database.migrations.CreatePostsTable
+import database.migrations.CreateUsersTable
+import org.konaframework.cadence.migrations.MigrationRegistry
+
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) {
+        app.container.instance(
+            MigrationRegistry::class.java,
+            MigrationRegistry(CreateUsersTable(), CreatePostsTable()),
+        )
+    }
+
+    override fun boot(app: Application) = Unit
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import database.migrations.CreatePostsTable;
+import database.migrations.CreateUsersTable;
+import org.konaframework.cadence.migrations.MigrationRegistry;
+
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {
+        app.getContainer().instance(MigrationRegistry.class,
+            new MigrationRegistry(new CreateUsersTable(), new CreatePostsTable()));
+    }
+
+    @Override
+    public void boot(Application app) {}
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+### Migrator
+
+`Migrator` 在一个连接上应用和撤销注册表条目。`Migrator.using` 在块的持续时间内借出一个连接：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.migrations.Migrator
+import org.konaframework.cadence.migrations.MigrationEvents
+
+val ran = Migrator.using(db.connection(), registry) { it.migrate() }       // names that ran
+Migrator.using(db.connection(), registry) { migrator ->
+    migrator.pending()        // not run yet, in order
+    migrator.status()         // List<MigrationStatus(name, batch)>; status.ran is true when batch != null
+    migrator.rollback()       // undo the last batch
+    migrator.rollback(3)      // undo the last three batches
+    migrator.reset()          // undo everything
+    migrator.fresh()          // drop all tables, then migrate
+    migrator.refresh()        // reset, then migrate
+    migrator.refresh(1)       // rollback one batch, then migrate
+    migrator.wipe()           // drop all tables (optional dropViews / dropTypes)
+    migrator.schema.dump()    // CREATE TABLE SQL from JDBC metadata
+    migrator.migrate(object : MigrationEvents {                           // optional start/finish callbacks
+        override fun finished(name: String, millis: Long) = Unit
+    })
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.migrations.Migrator;
+import org.konaframework.cadence.migrations.MigrationEvents;
+
+List<String> ran = Migrator.using(db.connection(), registry, Migrator::migrate);
+Migrator.using(db.connection(), registry, migrator -> {
+    migrator.pending();
+    migrator.status();
+    migrator.rollback();
+    migrator.rollback(3);
+    migrator.fresh();
+    migrator.refresh();
+    migrator.wipe(true, false);
+    migrator.getSchema().dump();
+    migrator.migrate(new MigrationEvents() {
+        @Override public void finished(String name, long millis) {}
+    });
+    return migrator.reset();
+});
+```
+
+</TabItem>
+</Tabs>
+
+
+每个迁移与它的 `extract_migrations` 记录在自己的事务里运行。当 `up` 或 `down` 抛出时，事务回滚，`MigrationException` 点名失败的迁移；它之前的迁移保持已应用。（有些数据库，包括 H2，立即提交 DDL 语句，因此半完成的 `up` 可能在那里留下部分变更。）
+
+回滚一个已记录但不再登记的迁移会抛出 `MigrationException("Migration not found: …")`。
+
+## grind 命令
+
+所有命令从应用目录运行。数据库命令从编译后的类（`build/classes`）**在进程内**启动你的应用，因此改变迁移之后运行 `./gradlew classes`。它们使用容器里绑定的 `MigrationRegistry`，加上绑定的 `Database`（来自 `CadenceServiceProvider`），或没有绑定时从 `database` 配置节（你的 `config/Database` 模块）构建的 `Database`。
+
+```bash
+./grind make:migration create_flights_table          # snake_case; schema.create("flights") stub
+./grind make:migration CreateFlightsTable            # same, PascalCase
+./grind make:migration add_gate_to_flights_table     # schema.table("flights") stub
+./grind make:migration backfill_data                 # empty up/down
+./grind make:migration seats --create=seats          # explicit create
+./grind make:migration widen_seats --table=seats     # explicit alter
+# optional: supply the stamp yourself
+./grind make:migration 2026_10_20_141530_create_gates_table
+
+./grind migrate                          # run pending migrations as a new batch (dotted DONE rows)
+./grind migrate --seed                   # migrate, then seed in the same process
+./grind migrate --seed --class=database.seeders.UserSeeder
+./grind migrate --seeder=database.seeders.UserSeeder
+./grind migrate:fresh                    # drop all tables, then migrate
+./grind migrate:fresh --seed --drop-views
+./grind migrate:refresh                  # reset, then migrate
+./grind migrate:refresh --step=1
+./grind migrate:status                   # Ran/Pending, batch, name
+./grind migrate:rollback                 # undo the last batch
+./grind migrate:rollback --step=2        # undo the last two batches
+./grind migrate:reset                    # undo everything
+./grind migrate:install                  # create extract_migrations if missing
+./grind db:wipe                          # drop all tables
+./grind db:show                          # connection + tables
+./grind db:table widgets                 # columns for one table
+./grind schema:dump                      # write database/schema.sql
+./grind migrate --database=reports       # a named connection
+./grind migrate --bootstrap=bootstrap.App
+```
+
+`./grind migrate` 打印信息头，然后每个迁移一行点线（`name …… 12ms DONE`）。池转储和 SQL 跟踪留在 `storage/logs`；传入 `--verbose` 也把它们打印到控制台。
+
+`make:migration` 接受 snake_case 或 PascalCase（如果你需要特定的秒，还有可选的 `{stamp}_` / `M{stamp}_` 前缀）。它写入 `database/migrations/{yyyy_MM_dd_HHmmss}_{snake_name}.kt`（或 `.java`，由 `--lang=` 或 `app/` 下已有的 `.java` 文件选择），带 PascalCase 类和 `@MigrationName`，然后把类追加到 `META-INF/kona/migrations`。它拒绝覆盖已有文件（把戳加一秒），并拒绝第二个相同 PascalCase 名称的类。
+
+`./grind make:model Flight --migration` 一起创建模型和带时间戳的 `CreateFlightsTable` 迁移；`--factory` 和 `--seeder` 见[填充器与工厂](../seeders-factories/)。

@@ -1,0 +1,135 @@
+---
+title: CORS 与安全响应头
+description: 配置跨源资源共享，并用中间件附加浏览器安全响应头。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`org.konaframework:kona-auth` 里两个互补的中间件类加固 HTTP 响应：
+
+- **CORS**（`CorsMiddleware`）— 告诉浏览器哪些其他源可以用 cookie 或自定义头调用你的 API。
+- **安全响应头**（`SecurityHeadersMiddleware`）— 附加减少点击劫持、MIME 嗅探及相关风险的头。
+
+它们不能代替[认证](../authentication/)、[CSRF](../csrf/) 或[限流](../rate-limiting/)；它们约束浏览器如何对待响应。
+
+## CORS
+
+### 最简单的路径
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.http.HttpKernel
+import org.konaframework.security.CorsConfig
+import org.konaframework.security.CorsMiddleware
+
+val cors = CorsMiddleware(
+    CorsConfig(
+        allowedOrigins = listOf("https://app.example.com"),
+        allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
+        allowedHeaders = listOf("Content-Type", "Authorization", "X-Requested-With"),
+        allowCredentials = true,
+        maxAgeSeconds = 600,
+    ),
+)
+app.resolve(HttpKernel::class.java).pushMiddleware(cors)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.security.CorsConfig;
+import org.konaframework.security.CorsMiddleware;
+import java.util.List;
+
+CorsMiddleware cors = new CorsMiddleware(new CorsConfig(
+    List.of("https://app.example.com"),
+    List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
+    List.of("Content-Type", "Authorization", "X-Requested-With"),
+    List.of(),   // exposedHeaders
+    true,        // allowCredentials
+    600L
+));
+app.resolve(HttpKernel.class).pushMiddleware(cors);
+```
+
+</TabItem>
+</Tabs>
+
+默认值（无参 `CorsConfig()`）：源 `*`、常见方法、头 `*`、凭证关闭、max-age 600 秒。
+
+### 行为
+
+1. **预检** — 带 `Origin` 和 `Access-Control-Request-Method` 的 `OPTIONS` 以 **204** 和 CORS 头短路返回（不运行处理器）。
+2. **其他请求** — 管线运行；CORS 头应用到响应上。
+
+| 配置字段 | 效果 |
+|----------|------|
+| `allowedOrigins` | 精确匹配源，或 `*`（带凭证时，`*` 回显请求源） |
+| `allowedMethods` | `Access-Control-Allow-Methods` |
+| `allowedHeaders` | 固定列表，或 `*`（反映请求头 / 合理默认） |
+| `exposedHeaders` | 非空时的 `Access-Control-Expose-Headers` |
+| `allowCredentials` | 设置 `Access-Control-Allow-Credentials: true` |
+| `maxAgeSeconds` | `Access-Control-Max-Age` |
+
+允许的源不是 `*` 时，响应还会得到 `Vary: Origin`（与已有的 `Vary` 合并）。
+
+## 安全响应头
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.security.SecurityHeadersConfig
+import org.konaframework.security.SecurityHeadersMiddleware
+
+val headers = SecurityHeadersMiddleware(
+    SecurityHeadersConfig(
+        xContentTypeOptions = "nosniff",
+        xFrameOptions = "SAMEORIGIN",
+        referrerPolicy = "no-referrer-when-downgrade",
+        xXssProtection = "0",
+        // permissionsPolicy = "geolocation=()",
+        // strictTransportSecurity = "max-age=31536000; includeSubDomains",
+        // contentSecurityPolicy = "default-src 'self'",
+        // custom = mapOf("X-App" to "kona"),
+    ),
+)
+app.resolve(HttpKernel::class.java).pushMiddleware(headers)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SecurityHeadersMiddleware headers = new SecurityHeadersMiddleware(
+    new SecurityHeadersConfig(
+        "nosniff",
+        "SAMEORIGIN",
+        "no-referrer-when-downgrade",
+        "0",
+        null,  // permissionsPolicy
+        null,  // HSTS
+        null,  // CSP
+        Map.of()
+    )
+);
+app.resolve(HttpKernel.class).pushMiddleware(headers);
+```
+
+</TabItem>
+</Tabs>
+
+任何设为 `null` 的配置字段都会跳过该头。默认启用上面所示的 `X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy` 和 `X-XSS-Protection`。只在 HTTPS 之后启用 HSTS。
+
+## 建议的栈顺序
+
+先推入外层关注点（它们包裹后面的中间件）：
+
+1. `CorsMiddleware` — 尽早处理预检
+2. `SecurityHeadersMiddleware` — 给每个响应打上标记
+3. `StartSession` / CSRF / 认证 / 节流 — 应用逻辑
+
+CORS 和安全响应头之间的顺序是灵活的；会话和 CSRF 按那些页面的说明留在 cookie/会话路径内部。

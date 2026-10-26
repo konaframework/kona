@@ -1,0 +1,31 @@
+---
+title: Redis
+description: 供缓存、会话以及后续队列使用的 Redis 连接。
+---
+
+`kona-redis` 提供一个小的 `RedisConnection` API，底层是内存客户端（默认）或 Lettuce。
+
+## 配置
+
+```
+redis.default=default
+redis.client=memory   # or lettuce
+redis.connections.default.host=127.0.0.1
+redis.connections.default.port=6379
+# or redis.connections.default.url=redis://127.0.0.1:6379/0
+```
+
+## 用法
+
+```kotlin
+val redis = RedisManager(config).connection()
+redis.set("key", "value")
+redis.setex("ttl", 60, "value")
+redis.get("key")
+```
+
+注册 `RedisServiceProvider`，以绑定 `RedisManager` 和默认的 `RedisConnection`。
+
+## 会话驱动
+
+设置 `session.driver=redis`，并把 `RedisConnection` 传给 `SessionManager`（或从容器里同时解析两者）。键使用 `session.connection_prefix`（默认 `kona_session:`）。

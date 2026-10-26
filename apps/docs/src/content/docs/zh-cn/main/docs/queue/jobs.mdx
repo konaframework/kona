@@ -1,0 +1,121 @@
+---
+title: 任务与派发
+description: 任务类、延迟、链、批次、中间件和唯一任务。
+---
+
+**任务**是带有 `handle()` 方法的类（或 lambda）。把它标成 `ShouldQueue`，这样 `Bus` 会推入队列而不是内联运行。
+
+## 任务契约
+
+可选的 `JobContract` 方法：
+
+- `tries()` — 标记失败之前的尝试次数（默认 `3`）
+- `backoffSeconds()` — 重试前的延迟（默认 `0`）
+- `displayName()` — 日志和失败任务列表中的标签
+
+优先使用 **可被 Jackson 序列化**的任务（公开的无参构造器加上可读属性）。每个载荷存储一份 `jobBody` JSON 快照，这样另一个进程可以在没有内存工厂的情况下恢复任务。
+
+## 派发
+
+```kotlin
+val bus = app.resolve(Bus::class.java)
+
+bus.dispatch(SendInvoice())
+bus.dispatch(SendInvoice(), connection = "redis", queue = "mail")
+bus.later(delaySeconds = 60, job = SendInvoice())
+bus.dispatchSync(SendInvoice()) // always inline
+```
+
+```java
+bus.dispatch(new SendInvoice(), "redis", "mail", 0L);
+bus.later(60L, new SendInvoice());
+```
+
+`later` / `delaySeconds` 在载荷上设置 `availableAt`。数组、Redis 和数据库驱动会跳过任务，直到延迟过去。`sync` 驱动总是立即运行。
+
+## 链
+
+一个接一个地运行任务。只有前一个 `handle()` 成功之后才会派发下一个任务。
+
+```kotlin
+bus.chain(ReserveStock(), ChargeCard(), SendReceipt()).dispatch()
+```
+
+Worker 绑定 `WorkerContext`，这样链可以跨多次取出继续。如果 worker 在其他进程中运行，链的步骤要保持可序列化。
+
+## 批次
+
+派发一组任务，然后在该组完成时运行回调。每个任务完成时，worker 把成功或失败记到批次上。
+
+```kotlin
+val batch = bus.batch(JobA(), JobB(), JobC())
+    .name("fulfill-order")
+    .allowFailures() // optional: finish even if some jobs fail
+    .then { b -> /* all done (or allowed failures) */ }
+    .catch { b, err -> /* cancelled or hard failure */ }
+    .finally { b -> /* always */ }
+    .dispatch()
+
+batch.id
+batch.size()
+batch.progress() // 0.0 … 100.0
+batch.pendingJobs()
+batch.failedJobIds()
+batch.cancel()   // stop tracking; runs catch/finally
+```
+
+```java
+Batch batch = bus.batch(new JobA(), new JobB())
+    .name("fulfill-order")
+    .allowFailures()
+    .then(b -> { })
+    .onFinally(b -> { })
+    .dispatch();
+```
+
+### 批次仓库
+
+默认情况下批次住在内存里（`InMemoryBatchRepository`）。要在多个 worker 之间持久化计数，设置：
+
+```
+queue.batch.driver=database
+queue.batch.table=job_batches
+```
+
+`QueueServiceProvider` 会创建 `job_batches` 表（需要 Cadence `Database`）并接上 `DatabaseBatchRepository`。回调（`then` / `catch` / `finally`）留在派发所在的 JVM 进程内；持久化的行跟踪总数、待处理、失败，以及完成/取消标志。
+
+### 队列事件
+
+通过 `QueueEvents.setDispatcher` 的可选进程级钩子：
+
+| 事件 | 何时 |
+|------|------|
+| `BatchDispatched` | 批次已存储且任务已推入 |
+| `BatchJobSucceeded` / `BatchJobFailed` | 每个任务的结果 |
+| `BatchFinished` | 批次完成或取消 |
+| `JobQueued` / `JobProcessed` / `JobFailed` | 单个任务的生命周期 |
+
+## 中间件
+
+实现 `HasMiddleware` 并返回 `JobMiddleware` 包装器。中间件从外到内包住 `handle()`。
+
+```kotlin
+class NotifyUsers : Job, ShouldQueue, HasMiddleware {
+    override fun middleware() = listOf(RateLimited(maxAttempts = 10, decaySeconds = 60, key = "notify"))
+    override fun handle() { /* … */ }
+}
+```
+
+抛出 `ReleaseJobException(delaySeconds)` 可以把任务放回队列，**而不**计为一次失败（`RateLimited` 在超过限制时使用它）。
+
+## 唯一任务
+
+```kotlin
+class RebuildSearchIndex : Job, ShouldQueue, ShouldBeUnique {
+    override fun uniqueId() = "search-index"
+    override fun uniqueForSeconds() = 3600L
+    override fun handle() { /* … */ }
+}
+```
+
+如果唯一锁被持有，worker 会重新入队该载荷并继续处理下一个。

@@ -1,0 +1,228 @@
+---
+title: 事件
+description: 同步的应用事件 — 定义类型化载荷、登记监听器、通过 EventDispatcher 派发，并接线 EventServiceProvider。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**事件**是应用在有意义的事情发生时发布的类型化消息 — 订单已发货、用户已注册、支付失败。**监听器**是该消息发布时运行的代码。Kona 的事件总线（`EventDispatcher`）是一个**同步的、进程内的**注册表：给定事件类的监听器立即在同一线程上、按登记顺序运行。
+
+本节覆盖 `org.konaframework.events`（`kona-events`）里已发布的完整表面：定义事件、登记监听器、派发、清除监听器、通过 `EventServiceProvider` 接线容器，以及用 `FakeEvent` 测试。今天**不在** Kona 里的功能列在[今天不可用](#not-available-today)。
+
+| 指南 | 何时使用 |
+|------|----------|
+| [派发与监听器](/docs/events/dispatching/) | 完整 API、登记模式、顺序、forget/flush、陷阱 |
+| [测试](/docs/events/testing/) | `FakeEvent`、记录派发、断言类型 |
+
+相关（不同的系统）：
+
+- [Cadence 模型生命周期事件](/docs/cadence/serialization-events/#lifecycle-events) — 围绕持久化的 `ModelDispatcher` / `ModelEvent`
+- [队列](/docs/queue/) — 后台作业（`Bus` / `ShouldQueue`）；今天没有接进 `EventDispatcher`
+- [广播](/docs/broadcasting/) — 把事件推给客户端（`Broadcast.event`）
+- [容器](/docs/concepts/container/) — 解析共享的派发器
+- [应用与提供者](/docs/concepts/application/) — 在哪里登记 `EventServiceProvider`
+
+## 总线做什么
+
+1. 你针对一个事件**类**（`Class<T>`）登记一个或多个**监听器**。
+2. 应用里的某处调用 `dispatch(eventInstance)`。
+3. 派发器查找该实例**精确运行时类**的监听器。
+4. 每个匹配监听器的 `handle` 按登记顺序运行。
+5. 该类没有监听器时，`dispatch` 是空操作（没有错误）。
+
+没有队列跳转、没有单独的工作进程，也没有监听器类的自动发现。如果监听器必须稍后做重活，从监听器内部（或从同一调用点）派发一个[队列作业](/docs/queue/jobs/)。
+
+## 快速开始
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.events.EventDispatcher
+import org.konaframework.events.EventListener
+
+data class OrderShipped(val id: String)
+
+val bus = EventDispatcher()
+
+bus.listen(OrderShipped::class.java) { event ->
+    println("shipped ${event.id}")
+}
+
+// Equivalent SAM form:
+bus.listen(OrderShipped::class.java, EventListener { event ->
+    println("also ${event.id}")
+})
+
+// Reified helper (Kotlin only):
+bus.listen<OrderShipped> { event ->
+    println("reified ${event.id}")
+}
+
+bus.dispatch(OrderShipped("42"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.events.EventDispatcher;
+import org.konaframework.events.EventListener;
+
+public final class OrderShipped {
+    public final String id;
+    public OrderShipped(String id) { this.id = id; }
+}
+
+EventDispatcher bus = new EventDispatcher();
+
+bus.listen(OrderShipped.class, event -> System.out.println("shipped " + event.id));
+
+bus.listen(OrderShipped.class, (EventListener<OrderShipped>) event ->
+    System.out.println("also " + event.id)
+);
+
+bus.dispatch(new OrderShipped("42"));
+```
+
+</TabItem>
+</Tabs>
+
+## 把派发器接进应用
+
+`EventServiceProvider` 把单个 `EventDispatcher` 绑定为**容器单例**。默认的 `kona new` 脚手架**不会**自动登记这个提供者 — 当你想要共享总线时，把它加到其他提供者旁边。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.events.EventServiceProvider
+
+val app = Kona.create(args)
+    .providers(
+        HttpServiceProvider(),
+        EventServiceProvider(),
+        AppServiceProvider(),
+        // …
+    )
+    .boot()
+
+val events = app.resolve(EventDispatcher::class.java)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.events.EventServiceProvider;
+
+Application app = Kona.create(args)
+    .providers(
+        new HttpServiceProvider(),
+        new EventServiceProvider(),
+        new AppServiceProvider()
+        // …
+    )
+    .boot();
+
+EventDispatcher events = app.resolve(EventDispatcher.class);
+```
+
+</TabItem>
+</Tabs>
+
+在提供者的 **`boot`** 方法里登记监听器（每个提供者都完成 `register` 之后），或在你拥有的专用事件提供者里：
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) { /* bindings only */ }
+
+    override fun boot(app: Application) {
+        val events = app.resolve(EventDispatcher::class.java)
+        events.listen(OrderShipped::class.java) { event ->
+            app.resolve(Mailer::class.java).send(/* … */)
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) { /* bindings only */ }
+
+    @Override
+    public void boot(Application app) {
+        EventDispatcher events = app.resolve(EventDispatcher.class);
+        events.listen(OrderShipped.class, event -> {
+            app.resolve(Mailer.class).send(/* … */);
+        });
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+你也可以在测试或小工具里自己构造 `EventDispatcher()`，而不登记提供者。长期运行的应用里优先使用容器单例，这样每个调用点共享同一组监听器。
+
+## Maven / Gradle
+
+构件：`org.konaframework:kona-events`（包含在 Kona BOM 里）。包：`org.konaframework.events`。
+
+| 类型 | 作用 |
+|------|------|
+| `EventDispatcher` | 总线 — `listen`、`dispatch`、`forget`、`flush`、检查 |
+| `EventListener<T>` | SAM 接口（`void handle(T event)`），供 Kotlin lambda 和 Java 方法引用 |
+| `EventServiceProvider` | 在 `Application` 上登记单例派发器 |
+
+## 何时使用应用事件
+
+在这些情况下使用 `EventDispatcher`：
+
+- 多个独立反应应该跟随同一个领域事实（邮件、审计日志、缓存失效），而不把这些反应耦合进发布者。
+- 你想要类型化载荷（数据类 / 普通 Java record 或 bean），而不是字符串主题名。
+- 工作**足够快**，可以在请求或命令线程上运行。
+
+需要别的东西时优先用其他工具：
+
+| 需要 | 优先 |
+|------|------|
+| 重 / 慢 / 不可靠的 I/O | 通过 `Bus` 的[队列作业](/docs/queue/jobs/) |
+| Cadence 插入/更新/删除钩子 | [模型生命周期事件](/docs/cadence/serialization-events/#lifecycle-events) |
+| 推送到浏览器 / websocket | [广播](/docs/broadcasting/) |
+| 交互式控制台探索 | 在 [steam](/docs/steam/) 或 [grind](/docs/grind/) 命令里从已启动的应用解析 `EventDispatcher` |
+
+## 同步执行模型
+
+每一次 `dispatch` 调用：
+
+- 在 `dispatch` 返回之前**内联**运行监听器。
+- 把监听器的异常传播给调用者（一旦较早的监听器抛出，该次派发的后续监听器不会运行）。
+- **不会**查阅[队列连接](/docs/queue/)、`ShouldQueue` 或提交后钩子 — 这些在这条总线上今天**不可用**。
+
+`EventDispatcher` 上没有单独的“同步对队列”模式。后台工作属于[队列](/docs/queue/)。
+
+## 今天不可用
+
+写在这里，以免你期待源码里没有的 API：
+
+| 能力 | 状态 |
+|------|------|
+| 全局 `Event` 门面 / `event()` 辅助方法 | 未发布 — 从容器解析 `EventDispatcher`（或自己构造一个） |
+| 属性 / 注解发现监听器 | 未发布 — 用 `listen` 显式登记 |
+| 事件订阅者类（`subscribe` 映射许多事件） | 未发布 |
+| 通配监听器 / 这条总线上的字符串事件名 | 未发布（使用类型化类；广播单独使用名称） |
+| 停止传播 / 返回 `false` 来中断链 | 未发布 — 所有已登记的监听器都会运行，除非其中一个抛出 |
+| 排队的监听器 / `shouldQueue` / 监听器队列 | 未发布 — 需要时从监听器派发作业 |
+| 提交后派发 | 未发布 |
+| 继承匹配（在接口/超类上监听） | 未发布 — 只匹配精确的运行时类 |
+| 默认脚手架里的自动登记 | 未发布 — 自己添加 `EventServiceProvider` |
+
+完整的 API 表、模式和边界情况见[派发与监听器](/docs/events/dispatching/)，`FakeEvent` 见[测试](/docs/events/testing/)。

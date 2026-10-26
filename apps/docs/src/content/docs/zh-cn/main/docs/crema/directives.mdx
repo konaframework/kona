@@ -1,0 +1,132 @@
+---
+title: 指令参考
+description: 每一个内置 Crema 指令、回显和组件标签的参考表。
+---
+
+Crema 语法的快速查找。解释和完整示例请顺着“指南”链接阅读。
+
+## 回显与注释
+
+| 语法 | 用途 | 指南 |
+|------|------|------|
+| `{{ expr }}` | 转义输出 | [渲染](/docs/crema/rendering/) |
+| `{!! expr !!}` | 原始 HTML 输出 | [渲染](/docs/crema/rendering/) |
+| `{{ url(path) }}` / `{{ route(name) }}` / `{{ asset(path) }}` | 应用 / 具名 / 公开 URL | [渲染](/docs/crema/rendering/#echo-helpers) |
+| `{{ csrf_token() }}` / `{{ old(key) }}` | CSRF 令牌 / 闪存输入 | [渲染](/docs/crema/rendering/#echo-helpers) |
+| `{{ env(key) }}` / `{{ config(key) }}` | 环境 / 配置 | [渲染](/docs/crema/rendering/#echo-helpers) |
+| `{{ trans(key) }}` / `{{ __(key) }}` / `{{ lang(key) }}` | 翻译 | [渲染](/docs/crema/rendering/#echo-helpers) |
+| `@@` | 字面量 `@` | [渲染](/docs/crema/rendering/) |
+| `{{-- … --}}` | 注释（会被去掉） | [渲染](/docs/crema/rendering/) |
+
+## 布局与节
+
+| 指令 | 结束 / 说明 | 指南 |
+|------|-------------|------|
+| `@extends('layout')` | 子视图声明父布局 | [布局](/docs/crema/layouts/) |
+| `@section('name', 'text')` | 内联节 | [布局](/docs/crema/layouts/) |
+| `@section('name')` | 块节 | `@endsection` 或 `@show` |
+| `@endsection` | 结束块节（按原文存储） | [布局](/docs/crema/layouts/) |
+| `@show` | 结束节并立即展开 | [布局](/docs/crema/layouts/) |
+| `@yield('name')` | 打印节 | 可选默认值：`@yield('n', 'default')` |
+| `@parent` | 插入父节缓冲 | 在子级 `@section` 内部 |
+| `@hasSection('name')` | 节已定义时的正文 | 用 `@endif` 结束 |
+| `@sectionMissing('name')` | 节缺失时的正文 | 用 `@endif` 结束 |
+
+## 栈
+
+| 指令 | 结束 | 指南 |
+|------|------|------|
+| `@push('name')` | `@endpush` | [栈](/docs/crema/stacks/) |
+| `@prepend('name')` | `@endprepend` | [栈](/docs/crema/stacks/) |
+| `@stack('name')` | — | [栈](/docs/crema/stacks/) |
+
+## 包含与原始区域
+
+| 指令 | 说明 | 指南 |
+|------|------|------|
+| `@include('name')` | 必需；缺少时抛出 | [包含](/docs/crema/includes/) |
+| `@includeIf('name')` | 缺少时跳过 | [包含](/docs/crema/includes/) |
+| `@includeWhen(expr, 'name')` | 为真时 | [包含](/docs/crema/includes/) |
+| `@includeUnless(expr, 'name')` | 不为真时 | [包含](/docs/crema/includes/) |
+| `@includeFirst(['a', 'b'])` | 第一个能解析的名称 | [包含](/docs/crema/includes/) |
+| `@once` | `@endonce` — 每次渲染一次 | [包含](/docs/crema/includes/) |
+| `@verbatim` | `@endverbatim` — 不处理 | [包含](/docs/crema/includes/) |
+
+## 条件
+
+| 指令 | 结束 | 指南 |
+|------|------|------|
+| `@if(expr)` | `@endif`（`@elseif` / `@else` 可选） | [控制结构](/docs/crema/control-structures/) |
+| `@unless(expr)` | `@endunless` | [控制结构](/docs/crema/control-structures/) |
+| `@isset(name)` | `@endisset` | [控制结构](/docs/crema/control-structures/) |
+| `@empty(expr)` | `@endempty` | [控制结构](/docs/crema/control-structures/) |
+
+## 循环
+
+| 指令 | 结束 | 说明 | 指南 |
+|------|------|------|------|
+| `@foreach(items as item)` | `@endforeach` | 也支持 `as key => value` | [控制结构](/docs/crema/control-structures/) |
+| `@each(items as item)` | `@endeach` | foreach 的别名 | [控制结构](/docs/crema/control-structures/) |
+| `@for(…)` | `@endfor` | 集合、`i in a..b` 或 C 风格 | [控制结构](/docs/crema/control-structures/) |
+| `@forelse(items as item)` | `@endforelse` | 需要 `@empty` 分支 | [控制结构](/docs/crema/control-structures/) |
+| `@while(expr)` | `@endwhile` | 上限 10 000；注入 `loop` | [控制结构](/docs/crema/control-structures/) |
+
+### `loop` 键
+
+`index`、`iteration`、`first`、`last`、`count`、`remaining`、`even`、`odd`、`depth`、`parent` — 见[循环元数据](/docs/crema/control-structures/#loop-metadata)。
+
+## 认证与能力
+
+| 指令 | 结束 | 数据键 | 指南 |
+|------|------|--------|------|
+| `@auth` | `@endauth` | `__authenticated`、`auth_user`、`user` | [控制结构](/docs/crema/control-structures/) |
+| `@guest` | `@endguest` | 与 `@auth` 相同（取反） | [控制结构](/docs/crema/control-structures/) |
+| `@can('ability')` | `@endcan` | `__abilities`、`can` | [控制结构](/docs/crema/control-structures/) |
+| `@cannot('ability')` | `@endcannot` | 与 `@can` 相同（取反） | [控制结构](/docs/crema/control-structures/) |
+
+## Switch
+
+| 指令 | 说明 | 指南 |
+|------|------|------|
+| `@switch(expr)` | 打开 switch | `@endswitch` |
+| `@case(expr)` | 字符串化后的相等 | [控制结构](/docs/crema/control-structures/) |
+| `@break` | 停止当前分支 | [控制结构](/docs/crema/control-structures/) |
+| `@default` | 没有分支匹配时 | [控制结构](/docs/crema/control-structures/) |
+
+## 组件与插槽
+
+| 语法 | 用途 | 指南 |
+|------|------|------|
+| `@component('name')…@endcomponent` | 把视图渲染成组件 | [组件](/docs/crema/components/) |
+| `@slot('name')…@endslot` | `@component` 内的具名插槽 | [组件](/docs/crema/components/) |
+| `<x-name>…</x-name>` | 渲染 `components.name` | [组件](/docs/crema/components/) |
+| `<x-name />` | 空的默认插槽 | [组件](/docs/crema/components/) |
+| `<x-slot name="n">…</x-slot>` | `<x-*>` 或带前缀标签的具名插槽 | [组件](/docs/crema/components/) |
+| `<x-slot:n>…</x-slot:n>` | 冒号名形式 | [组件](/docs/crema/components/) |
+| `<prefix:slot name="n">…` | 扩展标签的具名插槽 | [组件](/docs/crema/components/) |
+
+在组件视图内部：`{{ slot }}`（默认）以及每个具名插槽的 `{{ name }}`。
+
+## 表单与辅助方法
+
+| 指令 | 用途 | 指南 |
+|------|------|------|
+| `@csrf` | 隐藏的 `_token` 输入 | [表单](/docs/crema/forms/) |
+| `@method('VERB')` | 隐藏的 `_method` 输入 | [表单](/docs/crema/forms/) |
+| `@error('field')` | `errors` 含该字段时 `@enderror` | [表单](/docs/crema/forms/) |
+| `@asset('path')` | 公开资源 URL | [渲染](/docs/crema/rendering/) |
+| `@json($expr)` | JSON 编码 | [渲染](/docs/crema/rendering/) |
+| `@lang('key')` | 翻译 | 可选的替换映射 |
+| `@vite('entry')` | `/build` 下的 script/link 标签 | 支持列表形式 |
+
+## 自定义扩展
+
+应用和包可以在 `CremaEngine` 上登记更多语法：
+
+| API | 形状 |
+|-----|------|
+| `directive(name) { … }` | `@name` / `@name(args)` |
+| `blockDirective(name) { … }` | `@name…@endname` |
+| `tag(prefix) { … }` | `<prefix:name>…` |
+
+Wire 用这些实现 `@brew` 和 `<wire:…>`。见 [Wire](/docs/wire/)。

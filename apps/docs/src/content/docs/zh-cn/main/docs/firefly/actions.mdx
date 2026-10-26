@@ -1,0 +1,194 @@
+---
+title: 动作
+description: 构建 Firefly 动作，在共享对话框里打开它，并从 Wire 运行它。
+---
+
+:::note[截图占位：Desk 页面上的表头动作]
+这里将放一张该屏幕的截图。
+:::
+
+动作是按钮或链接。它可以打开共享的[对话框](/docs/firefly/dialog/)，在该对话框里显示模式，并调用服务器方法。动作位于 `org.konaframework.firefly.actions`（`kona-firefly-actions`）。它们使用 `kona-firefly-schemas` 的闭包和模态内容，以及 `kona-firefly-support` 的 `Dialog` 和图标。
+
+## 一次调用里的按钮
+
+```kotlin
+val save = Action.make("save").label("Save")
+val html = Schema.make().components(save).render()
+```
+
+```java
+Action save = Action.make("save").label("Save");
+String html = Schema.make().components(save).render();
+```
+
+`make` 接受动作名。名称是一个字母或 `_`，然后是字母、数字和 `_`。`save` 和 `save_record` 有效。`bad-name` 抛出 `FireflyException`。
+
+渲染出的按钮有 `x-data="ffAction('save')"` 和 `wire:click="save"`。`ffAction` 是已经向 Wire 登记的 Alpine 工厂。它的 `run()` 方法用动作名调用 `$wire.$call`。按钮用 `wire:click` 做服务器调用，并挂载工厂，这样另一个控件可以调用 `run()`。
+
+`call(schema)` 在进程内运行该服务器方法。没有 `action { ... }` 处理程序也没有 URL 时，它抛出 `FireflyException`（`Action [save] has no handler`）。
+
+## 值与闭包
+
+文本和标志设置器接受固定值或闭包。闭包接收 `Get`，也就是模式组件使用的同一个读取器。以 `/` 开头的路径是绝对路径。其他路径相对动作的容器。
+
+```kotlin
+val save = Action.make("save")
+save.label("Save")
+save.label { get -> if (get.get("/kind") == "org") "Save organization" else "Save" }
+save.icon { get -> if (get.get("/kind") == "org") "user" else "home" }
+```
+
+```java
+save.label(get -> "org".equals(get.get("/kind")) ? "Save organization" : "Save");
+```
+
+最后一次调用获胜。闭包之后的 `label("Save")` 存储固定字符串。同样的形状也在 `icon`、`color`、`tooltip`、`badge`、`badgeColor`、`size`、`iconPosition`、`url`、`openUrlInNewTab`、`requiresConfirmation`、`modalHeading`、`modalDescription`、`modalSubmitActionLabel`、`modalCancelActionLabel`、`modalIcon`、`modalIconColor`、`modalWidth`、`successRedirectUrl` 和 `failureRedirectUrl` 上。
+
+`hidden`、`visible` 和 `disabled` 来自模式组件基类，因此它们已经接受布尔或谓词。它们返回组件基类。想让下一次调用保持 `Action` 类型时，把它们放在自己的一行上调用。
+
+## 显示、隐藏、禁用、授权
+
+`hidden(true)` 和 `visible(false)` 渲染带 `ff-hidden` 类的空动作外壳。按钮不在 HTML 里。`disabled(true)` 保留按钮并设置 `disabled` 属性。禁用的链接使用 `aria-disabled="true"` 并省略 `href`。处理程序运行之前，`call` 抛出 `Action [save] is hidden` 或 `Action [save] is disabled`。
+
+`authorize(false)` 隐藏动作。`authorize { get -> get.get("/ok") == true }` 在谓词为假时隐藏它。`authorize("edit")` 询问 `Action.gate`。没有安装门时，具名能力被拒绝，动作被隐藏。返回 true 的门会显示它。
+
+```kotlin
+Action.gate { ability, component, schema -> ability == "edit" }
+```
+
+```java
+Action.gate((ability, component, schema) -> "edit".equals(ability));
+```
+
+`authorize(true)`、谓词和具名能力都会应用。任何拒绝都隐藏动作。`Action.gate(null)` 清除门。门是进程范围的。
+
+## 图标、颜色、提示、徽章、大小
+
+`icon("home")` 内联支持集里的图标：`home`、`bars`、`user`、`x`。任何其他名称抛出 `Unknown icon [<name>]`。`iconPosition("before")` 是默认。`iconPosition("after")` 把图标画在标签之后。其他一切抛出 `Unknown icon position [<value>]`。
+
+`iconButton()` 把标签留在 `aria-label` 里，并且不显示文字。`button()` 是默认。`link()` 在仍然调用服务器的按钮上加上 `ff-action-link`。`outlined()` 和 `grouped()` 设置 `ff-action-outlined` 和 `ff-action-grouped`。
+
+`color("primary")`、`color("accent")` 和 `color("heading")` 把 `color` 设为主题变量 `--ff-primary`、`--ff-accent` 或 `--ff-heading`，并把名称存在 `data-ff-color` 上。任何其他颜色只存在 `data-ff-color` 上。`size` 接受 `xs`、`sm`、`md`、`lg` 或 `xl`，并设置 `font-size`。其他一切抛出 `Unknown action size [<value>]`。
+
+`tooltip` 是 `title` 属性。`badge` 是 `<span class="ff-action-badge">`。`badgeColor` 在该 span 上设置 `data-ff-color`。
+
+`placement(ActionPlacement.SCHEMA)` 是默认，并加上 `ff-placement-schema`。`placement(ActionPlacement.HEADER)` 加上 `ff-placement-header`。该类别是页面区分模式动作和表头动作的方式。两者仍然是模式组件，因此你把表头动作放在同一棵树里。
+
+`extraAttributes` 把属性合并到组件根上。传入映射或闭包。名称必须是 HTML 属性名。`wire:click`、`x-data`、`type`、`href` 和 `disabled` 是保留的并会抛出。值会被转义。
+
+## 链接
+
+`url("https://example.test")` 渲染 `<a>` 而不是服务器按钮。`openUrlInNewTab(true)` 加上 `target="_blank"` 和 `rel="noopener noreferrer"`。锚点仍然挂载 `ffAction`。它不使用 `wire:click`。`call` 返回 URL，并且不运行处理程序。空 URL 抛出 `Action [name] URL is empty`。
+
+## 确认与对话框
+
+`requiresConfirmation()`、`modal()`、`slideOver()`、`slideOverStart()`、`fullscreen()`、`modalHeading`、`modalDescription`，或带至少一个组件的 `schema(...)` 会打开 `Dialog`。触发器使用 Alpine `open`，并且不调用服务器。提交按钮使用 `wire:click` 和 `ffAction`。
+
+| 调用 | 对话框 |
+|------|--------|
+| 显示对话框时的默认 | `modal()`，顶部对齐，宽度 `lg` |
+| `slideOver()` | 从末端滑出的侧栏 |
+| `slideOverStart()` | 从起点滑出的侧栏 |
+| `fullscreen()` | 全屏，不可拖动 |
+| `modalWidth("sm" \| "md" \| "lg" \| "xl" \| "screen")` | 只有宽度类 |
+| `modalDraggable(false)` | 没有拖动标记 |
+
+`modalWidth` 使用 `Dialog` 接受的宽度。任何其他宽度抛出 `Unknown dialog width [<value>]`。`width("screen")` 仍然是模态。全屏是 `fullscreen()`。
+
+`Dialog.configureUsing` 仍然运行，因为动作调用 `Dialog.make`。`mountDialog(schema)` 返回该 `Dialog`。没有对话框的动作抛出 `Action [name] has no dialog`。
+
+页面用 `x-data="{ open: false }"` 包装对话框。默认：
+
+- 点击遮罩把 `open` 设为 false（`closeModalByClickingAway(false)` 不碰遮罩）
+- Escape 把 `open` 设为 false（`closeModalByEscaping(false)` 省略监听器）
+- 关闭按钮使用 `x` 图标（`modalCloseButton(false)` 去掉它）
+- 提交控件有 `autofocus`（`modalAutofocus(false)` 去掉它）
+
+`modal(false)` 和 `modalHidden(true)` 跳过对话框。触发器直接调用服务器。
+
+确认打开时提交文字是 `Confirm`，否则是 `Submit`，除非设置了 `modalSubmitActionLabel`。取消文字是 `Cancel`，除非设置了 `modalCancelActionLabel`。对话框标题是 `modalHeading`，然后是标签，然后是动作名。
+
+`modalSubmitAction` 和 `modalCancelAction` 用其他动作替换这些按钮。`extraModalFooterActions` 添加更多。传入动作自身会抛出 `Action [name] cannot contain itself`（或 `cannot submit itself` / `cannot cancel itself`）。
+
+## 模式内容
+
+`schema(Text.make("Hello"))` 在对话框正文里渲染这些组件。模式模块的布局和基础件都可以，包括向导：
+
+```kotlin
+Action.make("edit").schema(
+    Wizard.make().steps(WizardStep.make("Details")),
+)
+```
+
+没有组件的 `schema()` 不打开对话框。这个模块不添加输入、不填充表单，也不运行验证。
+
+## 分组
+
+```kotlin
+val group = ActionGroup.make(save, Action.make("delete").label("Delete"))
+    .label("More")
+    .icon("bars")
+    .dropdown()
+```
+
+```java
+ActionGroup group = ActionGroup.make(List.of(save)).label("More").button();
+```
+
+`dropdown()` 是默认。触发器切换 Alpine `open`。菜单开始时隐藏。`button()` 把动作排成一行（`ff-action-group-inline`）。分组以与动作相同的方式接受 `label`、`icon`、`color`、`tooltip`、`placement`、`hidden`、`visible`、`disabled` 和 `authorize`。`disabled(true)` 禁用下拉触发器。在内联分组上它设置 `aria-disabled="true"`。
+
+`Action` 或 `ActionGroup` 上的 `configureUsing` 对该类之后每一次 `make()` 运行。传入 `null` 可以清除它。它不适用于你自己构造的子类。
+
+## 运行动作
+
+```kotlin
+save.arguments(mapOf("id" to 7))
+save.before { action, schema -> }
+save.action { action, schema -> }
+save.after { action, schema -> }
+save.successRedirectUrl("/customers")
+save.failureRedirectUrl("/customers")
+val result = save.call(schema)
+```
+
+成功时的顺序：`before`、处理程序、`after`。结果 `status` 是 `success`。链接动作会设置 `url`。`redirectUrl` 是该链接，或处理程序的 `successRedirectUrl`。设置了成功 URL 时，按钮还携带 `data-ff-success-url`。`call` 不会把浏览器送到任何地方。调用者会。
+
+`halt()` 抛出 `ActionHalt`，跳过 `after`，并且 `call` 返回状态 `halted`，消息为 `Action halted`。`failure("nope")` 抛出 `ActionFailure`，跳过 `after`，并且 `call` 返回状态 `failed`，带该消息和 `failureRedirectUrl`。任何其他异常离开 `call`。
+
+`argument("id")` 读取传给 `arguments` 的映射。后来对原始映射的修改不会改变存储的值。缺少的键是 `null`。
+
+## 你自己的动作
+
+子类化 `Action`。构造器名称是 Wire 方法名。
+
+```kotlin
+open class SaveRecord : Action("saveRecord") {
+    init {
+        label("SaveRecord")
+        view("firefly.actions.saverecord")
+    }
+}
+```
+
+```java
+public class Rename extends Action {
+    public Rename() {
+        super("rename");
+        label("Rename");
+    }
+}
+```
+
+设置了 `Schema.crema(engine)` 时，`view("notes.action")` 渲染该 Crema 视图。视图收到 `path`、`name`、`label` 和 `content`。没有引擎时，渲染发出 `<div data-ff-view="notes.action">`。隐藏的动作不渲染视图。
+
+`./grind make:firefly-action SaveRecord` 在 `app/firefly/actions` 下写入一个 `open` 类和一份 Crema 视图。`--lang=java` 写入 Java 类。视图打开本地 Alpine `open` 标志，并用 `x-data="ffAction('saveRecord')"` 和 `wire:click="saveRecord"` 提交。
+
+## 这个模块不做什么
+
+它不添加表单字段、不填充或验证表单，也不运行表单向导。对话框只需要文本、节或向导外观时，把模式布局放进 `schema(...)`。输入随表单一起来到。
+
+它不渲染信息列表条目或表格列，也不把动作附到记录、批量选择或工具栏上。
+
+它不发送通知、不导入或导出行、不用数据库事务包装 `call`，也不对处理程序限流。
+
+`Dialog` 没有栈、没有粘性页眉或页脚，窗口上也没有额外属性。动作不能取消父对话框或改变模态对齐。对齐保持对话框默认，模态是顶部。

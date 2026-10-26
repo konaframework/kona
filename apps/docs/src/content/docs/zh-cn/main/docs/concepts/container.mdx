@@ -1,0 +1,258 @@
+---
+title: 容器
+description: 绑定服务，按类型或键解析它们，并理解构造器自动装配、生命周期和解析错误。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**容器**（`org.konaframework.core.Container`）是一张注册表，记录*如何创建*应用需要的对象。你不必手工构造服务并把它们穿进应用的每一个构造器，而是告诉容器一次某种类型如何制成（一次**绑定**），然后在需要的地方向容器请求该类型（**解析**）。容器也会通过读取构造器自己构建普通类，这称为**自动装配**。
+
+每一个 `Application` 拥有一个容器，Kotlin 里是 `app.container`，Java 里是 `app.getContainer()`。绑定通常加在提供者的 `register` 方法里，并在 `boot` 或请求时解析。
+
+## 键
+
+内部，每一次绑定都存在一个**字符串键**下。基于类的方法使用类型的完全限定类名作为键，因此 `bind(Greeter::class.java, ...)` 和 `bind("com.example.Greeter", ...)` 指向同一条目。大多数代码应该使用类；字符串键对具名服务有用，例如应用为你登记的 `"app"` 和 `"config"`。
+
+## 绑定服务
+
+**工厂**是接收容器并返回实例的函数。因为它接收容器，工厂可以解析服务自己的依赖。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val c = app.container
+
+// A new instance on every resolve
+c.bind(ReportBuilder::class.java) { ReportBuilder() }
+
+// One shared instance, created on first resolve
+c.singleton(Clock::class.java) { SystemClock() }
+
+// A factory that pulls in another service
+c.singleton(Mailer::class.java) { container -> SmtpMailer(container.make(Clock::class.java)) }
+
+// An interface bound to an implementation class, which the container autowires
+c.singleton(UserRepository::class.java, SqlUserRepository::class.java)
+
+// An object you already have
+c.instance(AppSettings::class.java, AppSettings(region = "eu"))
+
+// A string key
+c.singleton("greeter") { Greeter("Hello") }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Container c = app.getContainer();
+
+// A new instance on every resolve
+c.bind(ReportBuilder.class, container -> new ReportBuilder());
+
+// One shared instance, created on first resolve
+c.singleton(Clock.class, container -> new SystemClock());
+
+// A factory that pulls in another service
+c.singleton(Mailer.class, container -> new SmtpMailer(container.make(Clock.class)));
+
+// An interface bound to an implementation class, which the container autowires
+c.singleton(UserRepository.class, SqlUserRepository.class);
+
+// An object you already have
+c.instance(AppSettings.class, new AppSettings("eu"));
+
+// A string key
+c.singleton("greeter", container -> new Greeter("Hello"));
+```
+
+</TabItem>
+</Tabs>
+
+
+| 方法 | 生命周期 | 说明 |
+|------|----------|------|
+| `bind(type, factory)` | 每次解析新实例 | `bind(type, factory, true)` 使它共享 |
+| `bind(type, implClass)` | 每次解析新实例 | `implClass` 被自动装配；可选的第三个参数 `shared` |
+| `singleton(type, factory)` | 一个共享实例 | 与 `bind(..., shared = true)` 相同 |
+| `singleton(type, implClass)` | 一个共享实例 | `implClass` 被自动装配一次 |
+| `instance(type, obj)` | 给定的对象 | 立即登记；没有工厂 |
+| 带 `String` 键的 `bind` / `singleton` / `instance` | 如上 | 用于具名服务 |
+
+工厂是**惰性**的：绑定时什么都不构建，只在第一次解析时构建。再次绑定同一键会替换较早的绑定，并丢弃已经为它构建的任何共享实例。如果单例工厂抛出，什么都不缓存，下一次解析会再试。
+
+## 解析服务
+
+`make` 和 `resolve` 是同一操作的两个名字，在 `Container` 和 `Application` 上都是。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val clock = app.resolve(Clock::class.java)
+val mailer = app.container.make(Mailer::class.java)
+val greeter: Greeter = app.container.make("greeter")
+val known = app.container.bound(Clock::class.java)   // true
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Clock clock = app.resolve(Clock.class);
+Mailer mailer = app.getContainer().make(Mailer.class);
+Greeter greeter = app.getContainer().make("greeter");
+boolean known = app.getContainer().bound(Clock.class);   // true
+```
+
+</TabItem>
+</Tabs>
+
+
+发生什么取决于你如何询问：
+
+- **按类**：如果该类（或其别名）已绑定，使用该绑定。如果没有，容器**自动装配**一个新实例（如下所述）。自动装配的实例不缓存；每次解析构建一个新的。想要共享就把类绑定为单例。
+- **按字符串键**：绑定必须存在。字符串键没有自动装配；未知键抛出 `BindingException: No binding for [key]`。
+
+`bound(key)` / `bound(type)` 告诉你是否存在显式绑定，而不构建任何东西。
+
+## 自动装配
+
+当被要求一个未绑定的类时，容器：
+
+1. 在该类的**公共**构造器中选一个（忽略编译器生成的合成构造器）：
+   - 如果恰好一个标注了 `@Inject`，用那个；
+   - 否则，用**参数最多**的那个。
+2. 用同样的规则从容器递归解析每个参数类型。
+3. 用这些值调用构造器。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+interface Clock { fun now(): Instant }
+class SystemClock : Clock { override fun now(): Instant = Instant.now() }
+
+class AuditLog(private val clock: Clock)
+class UserService(private val audit: AuditLog, private val clock: Clock)
+
+app.container.singleton(Clock::class.java) { SystemClock() }
+
+// Neither AuditLog nor UserService is bound: both are autowired.
+val users = app.resolve(UserService::class.java)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public interface Clock { Instant now(); }
+public final class SystemClock implements Clock { public Instant now() { return Instant.now(); } }
+
+public final class AuditLog {
+    public AuditLog(Clock clock) { /* ... */ }
+}
+public final class UserService {
+    public UserService(AuditLog audit, Clock clock) { /* ... */ }
+}
+
+app.getContainer().singleton(Clock.class, c -> new SystemClock());
+
+// Neither AuditLog nor UserService is bound: both are autowired.
+UserService users = app.resolve(UserService.class);
+```
+
+</TabItem>
+</Tabs>
+
+
+### 用 `@Inject` 选择构造器
+
+用 `org.konaframework.core.Inject` 标记容器应该使用的构造器。容器识别简单名是 `Inject` 的任何注解，因此如果 `jakarta.inject.Inject` 和 `javax.inject.Inject` 已经在类路径上，它们也能用。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class ReportService @Inject constructor(private val clock: Clock) {
+    constructor(clock: Clock, title: String) : this(clock)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class ReportService {
+    @Inject
+    public ReportService(Clock clock) { /* ... */ }
+
+    public ReportService(Clock clock, String title) { /* ... */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+
+没有 `@Inject` 时，容器会选择两参数构造器，并在 `String` 上失败。
+
+### 自动装配不会做的事
+
+- **发明值。** 类型是原始类型，或位于 `java.*`、`javax.*` 或 `kotlin.*`（例如 `String`、`Int`、`Duration`、`List`）的参数必须显式绑定，否则构造失败。Kotlin 默认参数值也不会被使用。改为在工厂内部从配置读取这类值。
+- **挑选实现。** 接口和抽象类不能被构造；把它们绑定到具体类或工厂。
+
+## 别名
+
+`alias(alias, abstract)` 让一个字符串键指向另一个键。查找跟随别名链，把键别名回自己会抛出 `BindingException("[x] is aliased to itself.")`。
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+app.container.alias("clock", Clock::class.java.name)
+val clock: Clock = app.container.make("clock")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+app.getContainer().alias("clock", Clock.class.getName());
+Clock clock = app.getContainer().make("clock");
+```
+
+</TabItem>
+</Tabs>
+
+
+## 错误
+
+所有解析失败都抛出 `org.konaframework.core.BindingException`（未检查异常），消息点名该类型：
+
+| 消息 | 原因 | 修复 |
+|------|------|------|
+| `No binding for [key]` | 字符串键从未绑定 | 绑定它，或按类解析 |
+| `Target [X] is not instantiable.` | 接口、抽象类，或没有公共构造器 | 把 `X` 绑定到一个实现 |
+| `Unresolvable dependency [java.lang.String] in class [X]` | 构造器参数是平台类型 | 用提供该值的工厂绑定 `X` |
+| `Target [X] has multiple @Inject constructors.` | 选择含糊 | 只保留一个 `@Inject` |
+| `Failed to build [X]: …` | 构造器本身抛出 | 查看附加的原因 |
+| `Circular dependency detected: A -> B -> A` | `A` 需要 `B`，而 `B` 需要 `A` | 重构，或在方法内部惰性解析一侧 |
+
+`CircularDependencyException` 是 `BindingException` 的子类，因此你可以专门捕获它。循环通过自动装配和工厂都会被检测到。
+
+## 线程安全
+
+容器可以同时从许多线程使用，这很重要，因为每个 HTTP 请求在自己的虚拟线程上运行。共享实例在锁下构建，因此即使并发的第一次访问，单例工厂也最多运行一次。因为该锁被所有单例共享，保持单例工厂快速：把慢的准备（网络连接、大文件读取）放在 `boot` 里，而不是放在请求线程可能正在等待的工厂内部。
+
+## `flush`
+
+`flush()` 移除每一个绑定、实例和别名，然后在它自己的类下重新登记容器。它也移除应用登记的 `Application` 和 `Config` 条目。它存在于复用容器的测试；生产代码不应该需要它。
+
+## 何时绑定、何时自动装配
+
+- **绑定**接口、任何需要配置值的东西、任何应该共享的东西（连接池、客户端、缓存），以及 `Router` 这样的 Kona 基础设施。
+- **自动装配**构造器参数本身已绑定或可自动装配的普通类，例如控制器和小型领域服务。
+
+启动期间绑定在哪里登记，另见[应用与提供者](../application/)。
