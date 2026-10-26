@@ -26,8 +26,9 @@ import org.konaframework.firefly.support.Panel as Chrome
 open class Panel {
     private var idLiteral: String = "admin"
     private var idUsing: Function<Get, String>? = null
-    private var pathLiteral: String = "admin"
+    private var pathLiteral: String = ""
     private var pathUsing: Function<Get, String>? = null
+    private var pathExplicit: Boolean = false
     private var brandLiteral: String = "Firefly"
     private var brandUsing: Function<Get, String>? = null
     private var domainLiteral: String? = null
@@ -68,10 +69,12 @@ open class Panel {
     fun path(value: String): Panel = apply {
         pathLiteral = value
         pathUsing = null
+        pathExplicit = true
     }
 
     fun path(provider: Function<Get, String>): Panel = apply {
         pathUsing = provider
+        pathExplicit = true
     }
 
     fun brand(value: String): Panel = apply {
@@ -157,6 +160,11 @@ open class Panel {
 
     fun discover(panelDirectory: Path): Panel = apply { directory = panelDirectory }
 
+    /** Sets the directory of pages, widgets, and resources when the panel did not call [discover]. */
+    internal fun adoptHome(path: Path) {
+        if (directory == null) directory = path
+    }
+
     fun tenant(tenant: Tenant): Panel = apply { tenantList.add(tenant) }
 
     fun plugin(plugin: FireflyPlugin): Panel = apply {
@@ -174,7 +182,7 @@ open class Panel {
         if (mounted) throw FireflyException("Panel [$resolvedId] is already mounted")
         val get = SchemaBridge.open(state)
         resolvedId = resolveId(get)
-        resolvedPrefix = normalizePrefix(resolvePath(get))
+        resolvedPrefix = normalizePrefix(resolvePath(get, resolvedId))
         resolveBrand(get)
         resolveDomain(get)
         for (plugin in plugins) plugin.boot(this)
@@ -489,9 +497,14 @@ open class Panel {
         return idLiteral
     }
 
-    private fun resolvePath(get: Get): String {
+    /**
+     * When [path] was not called, the URL prefix is the panel id.
+     * [path] with `""` serves the site root. Any other value is that prefix.
+     */
+    private fun resolvePath(get: Get, id: String): String {
         val provider = pathUsing
         if (provider != null) return provider.apply(get)
+        if (!pathExplicit) return id
         return pathLiteral
     }
 

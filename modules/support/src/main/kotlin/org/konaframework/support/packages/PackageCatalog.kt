@@ -43,6 +43,11 @@ object PackageCatalog {
             "drip" to CatalogEntry("org.konaframework", "kona-drip", emptyList()),
             "concurrency" to CatalogEntry("org.konaframework", "kona-concurrency", emptyList()),
             "testing" to CatalogEntry("org.konaframework", "kona-testing", emptyList()),
+            "firefly" to CatalogEntry(
+                "org.konaframework",
+                "kona-firefly",
+                listOf("org.konaframework.firefly.FireflyServiceProvider"),
+            ),
         )
 
     @JvmStatic

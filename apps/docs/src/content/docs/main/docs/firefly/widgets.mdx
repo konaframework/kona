@@ -117,10 +117,10 @@ In the hello samples, `Panel.discover` does this for you. `DeskWidget` lands on 
 
 ```bash
 ./grind make:firefly-widget Revenue
-./grind make:firefly-widget Orders --lang=java
+./grind make:firefly-widget Orders --panel=billing --lang=java
 ```
 
-The command writes `app/firefly/widgets/Revenue.kt` (or `Orders.java`) and a Crema view `firefly.widgets.revenue` that uses `x-data="ffWidget"`. The class extends `Widget` and calls `view(...)`.
+The command writes `app/panels/admin/widgets/Revenue.kt` (or `app/panels/billing/widgets/Orders.java`) and a Crema view `firefly.widgets.revenue` that uses `x-data="ffWidget"`. `--panel` defaults to `admin`. The class extends `Widget` and calls `view(...)`.
 
 ## What you build with
 

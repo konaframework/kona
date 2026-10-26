@@ -9,7 +9,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 <FireflyShot file="desk-panel.png" description="hello-kotlin 面板，位于 http://127.0.0.1:4017/admin/desk，侧栏和正文里的 Desk 页。" />
 
-`Panel`（`org.konaframework.firefly.Panel`）是你构造、配置并挂载的对象。它是 `app/firefly/Panel` 里的类。外框渲染使用另一个简单名相同的类，`org.konaframework.firefly.support.Panel`，写在[面板外框](/docs/firefly/chrome/)。你在应用里写的类是 `org.konaframework.firefly` 里的那个。
+`Panel`（`org.konaframework.firefly.Panel`）是你构造、配置并挂载的对象。`./grind make:firefly-panel` 把它写在 `app/panels/{id}/Panel`。没有调用 `path` 时，URL 前缀是面板 id。hello 示例仍在 `app/firefly/Panel`，并且调用了 `path("admin")`。外框渲染使用另一个简单名相同的类，`org.konaframework.firefly.support.Panel`，写在[面板外框](/docs/firefly/chrome/)。你在应用里写的类是 `org.konaframework.firefly` 里的那个。
 
 加入模块不会登记路由。路由在你调用 `mount` 时出现。
 
@@ -46,9 +46,9 @@ panel.mount(router);
 </TabItem>
 </Tabs>
 
-`path("admin")` 和 `path("/admin/")` 都提供 `/admin`。`path("")` 和 `path("/")` 提供站点根。根面板按名称登记每个页面、认证屏幕和资源页面。它不登记兜底路由。
+如果没有调用 `path`，URL 前缀就是面板 id。`path("admin")` 和 `path("/admin/")` 都提供 `/admin`。`path("")` 和 `path("/")` 提供站点根。根面板按名称登记每个页面、认证屏幕和资源页面。它不登记兜底路由。
 
-如果路径已经被路由，`mount` 会抛出 `FireflyException` 并写出两个处理器的名字。两个面板可以挂在同一个路由器上，一个在 `path("")`，一个在 `path("admin")`。`domain("ops.example")` 会拒绝 `Host` 头不匹配的请求，包括头里带端口的情况。
+如果路径已经被路由，`mount` 会抛出 `FireflyException` 并写出两个处理器的名字。两个面板可以挂在同一个路由器上，前缀各不相同：一个用自己的 id，一个调用 `path("admin")`，一个调用 `path("")`。`domain("ops.example")` 会拒绝 `Host` 头不匹配的请求，包括头里带端口的情况。
 
 `mount(router, state)` 对照该状态映射求值闭包。第二次 `mount` 会抛出 `Panel [id] is already mounted`。
 
@@ -56,7 +56,7 @@ panel.mount(router);
 
 | 方法 | 它做什么 |
 |------|----------|
-| `id` / `path` / `brand` / `domain` | 字符串或 `Get` 闭包。Id 默认 `admin`。路径默认 `admin`。品牌默认 `Firefly` |
+| `id` / `path` / `brand` / `domain` | 字符串或 `Get` 闭包。Id 默认 `admin`。没有调用 `path` 时，前缀是 id。品牌默认 `Firefly` |
 | `navigation` / `topNavigation()` | `NavigationType`。默认 `APP`。见[导航](/docs/firefly/navigation/) |
 | `theme(FireflyTheme)` | 记号和局部。默认 `KonaTheme`。见[主题与 CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | 替换外壳排列 |

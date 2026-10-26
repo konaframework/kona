@@ -7,7 +7,7 @@ description: 用 kona new --kit=firefly 创建 Firefly 应用，或把 kona-fire
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 
 <FireflyShot file="empty-admin.png" description="由 kona new --kit=firefly 生成的新应用的 /admin 路径，尚未添加任何页面或资源。" />
-最短的路径是一个新应用。套件会写入一个 `Panel`、三个发现文件夹，以及一个把面板挂在 `/admin` 的启动类。
+在已有应用里运行 `./grind install firefly`。它会加上依赖、写入 `config/Firefly`，并注册服务提供者。然后运行 `./grind make:firefly-panel`。没有 `--path` 时，前缀是面板 id。`kona new --kit=firefly` 会生成一个调用 `path("admin")` 的面板，所以那个起步应用在 `/admin`。
 
 ## 一个新应用
 
@@ -41,7 +41,7 @@ dependencies {
 
 版本要与该文件里其他 `org.konaframework` 行一致。本仓库的版本是 `0.3.0`。
 
-然后加上一个 `Panel`，并在你自己的路由登记之后对路由器调用 `mount`。[登记面板](/docs/firefly/registration/) 就是这一步。`kona-firefly` 自己不登记路由。
+然后运行 `./grind make:firefly-panel`。[登记面板](/docs/firefly/registration/) 说明生成出来的类，以及何时调用 `Firefly.register`。应用启动时，提供者会挂载 `app/panels` 下的面板。
 
 在 Kona 仓库内部，hello 示例直接依赖该模块：
 
@@ -57,7 +57,8 @@ implementation(project(":kona-firefly"))
 
 | 命令 | 它写入什么 |
 |------|------------|
-| `make:firefly-panel` | `app/firefly/Panel` 以及 `pages/`、`widgets/` 和 `resources/` |
+| `install firefly` | 依赖、`config/Firefly`，以及 `app.providers.FireflyServiceProvider` |
+| `make:firefly-panel` | `app/panels/{id}/Panel` 以及 `pages/`、`widgets/` 和 `resources/` |
 | `firefly:install` | 与 `make:firefly-panel` 相同的树 |
 | `make:firefly-page Desk` | `pages/` 里的一个 `CustomPage` |
 | `make:firefly-theme Harbor` | `themes/` 里的一个主题类 |

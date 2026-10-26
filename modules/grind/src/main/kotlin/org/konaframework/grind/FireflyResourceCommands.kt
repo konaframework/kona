@@ -10,26 +10,28 @@ class MakeFireflyResourceCommand {
         val base = Names.base(options)
         val lang = Names.lang(base, options)
         val simple = options["simple"] == "true"
+        val panel = panelIdFromOptions(options)
         Names.write(
             base,
-            Names.sourceFile(lang, "app/firefly/resources", name),
+            Names.sourceFile(lang, "app/panels/$panel/resources", name),
             "Firefly resource",
-            resourceSource(name, lang, simple),
+            resourceSource(name, lang, simple, panel),
         )
         return 0
     }
 }
 
-private fun resourceSource(name: String, lang: String, simple: Boolean): String {
+private fun resourceSource(name: String, lang: String, simple: Boolean, panel: String): String {
     val slug = name.lowercase()
-    if (lang == "java" && simple) return javaSimple(name, slug)
-    if (lang == "java") return javaFull(name, slug)
-    if (simple) return kotlinSimple(name, slug)
-    return kotlinFull(name, slug)
+    val pkg = "app.panels.$panel.resources"
+    if (lang == "java" && simple) return javaSimple(name, slug, pkg)
+    if (lang == "java") return javaFull(name, slug, pkg)
+    if (simple) return kotlinSimple(name, slug, pkg)
+    return kotlinFull(name, slug, pkg)
 }
 
-private fun kotlinSimple(name: String, slug: String): String = lines(
-    "package app.firefly.resources",
+private fun kotlinSimple(name: String, slug: String, pkg: String): String = lines(
+    "package $pkg",
     "",
     "import org.konaframework.firefly.ManagePage",
     "import org.konaframework.firefly.Resource",
@@ -53,8 +55,8 @@ private fun kotlinSimple(name: String, slug: String): String = lines(
     "}",
 )
 
-private fun kotlinFull(name: String, slug: String): String = lines(
-    "package app.firefly.resources",
+private fun kotlinFull(name: String, slug: String, pkg: String): String = lines(
+    "package $pkg",
     "",
     "import org.konaframework.firefly.CreatePage",
     "import org.konaframework.firefly.EditPage",
@@ -90,8 +92,8 @@ private fun kotlinFull(name: String, slug: String): String = lines(
     "}",
 )
 
-private fun javaSimple(name: String, slug: String): String = lines(
-    "package app.firefly.resources;",
+private fun javaSimple(name: String, slug: String, pkg: String): String = lines(
+    "package $pkg;",
     "",
     "import org.konaframework.firefly.ManagePage;",
     "import org.konaframework.firefly.Resource;",
@@ -116,8 +118,8 @@ private fun javaSimple(name: String, slug: String): String = lines(
     "}",
 )
 
-private fun javaFull(name: String, slug: String): String = lines(
-    "package app.firefly.resources;",
+private fun javaFull(name: String, slug: String, pkg: String): String = lines(
+    "package $pkg;",
     "",
     "import org.konaframework.firefly.CreatePage;",
     "import org.konaframework.firefly.EditPage;",

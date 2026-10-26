@@ -6,7 +6,7 @@ description: Open hello-kotlin or hello-java, read the notes and orders resource
 import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Open `samples/hello-kotlin` or `samples/hello-java` and click through the desk. Notes are a simple resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a full resource: list, create, edit, and view are their own URLs, and line items sit on the edit and view pages.
+Open `samples/hello-kotlin` or `samples/hello-java` and click through the panel. Those classes call `path("admin")`, so the screens are under `/admin`. A panel from `make:firefly-panel` uses its id as the prefix until you set `path`. Notes are a simple resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a full resource: list, create, edit, and view are their own URLs, and line items sit on the edit and view pages.
 
 From the Kona repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :hello-java:run`. The app listens on `127.0.0.1` and port `4000` unless `HOST` or `PORT` is set. Then open the routes in the table at the bottom of this page.
 
