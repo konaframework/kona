@@ -1,0 +1,132 @@
+---
+title: Registrar un panel
+description: La clase Panel, las carpetas de páginas, widgets y recursos, y cómo discover las carga.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Registras un panel y luego dejas una página, un widget o un recurso en la carpeta de al lado. `discover` lee esas carpetas. `mount` es lo que pone las URL en el router.
+
+La clase es `Panel`. Extiende `org.konaframework.firefly.Panel`. El ejemplo hello y `kona new --kit=firefly` parten ambos de esa clase.
+
+<FireflyShot file="panel-directory.png" description="El directorio app/firefly de hello-kotlin, mostrando Panel.kt, pages/, widgets/ y resources/." />
+
+## El archivo del panel
+
+El ejemplo hello y `kona new --kit=firefly` usan ambos esta clase. El id es el nombre del panel en los nombres de ruta y en el guard `firefly-desk`. La ruta es el prefijo de URL. `authenticate(false)` deja las pantallas públicas, que es como se publica el ejemplo. `discover` es lo que carga las carpetas hijas.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.firefly
+
+import org.konaframework.core.Kona
+
+class Panel : org.konaframework.firefly.Panel() {
+    init {
+        id("desk")
+        path("admin")
+        brand("Desk")
+        authenticate(false)
+        discover(Kona.app().basePath("src/main/kotlin/app/firefly"))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.firefly;
+
+import org.konaframework.core.Kona;
+
+public class Panel extends org.konaframework.firefly.Panel {
+    public Panel() {
+        id("desk");
+        path("admin");
+        brand("Desk");
+        authenticate(false);
+        discover(Kona.app().basePath("src/main/java/app/firefly"));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`./grind make:firefly-panel` escribe solo `id` y `path`. Añade `brand`, `authenticate` y `discover` tú mismo cuando generas la clase en lugar de usar el kit. `./grind firefly:install` escribe esa misma clase más corta.
+
+Móntalo después de tus propias rutas, para que `/` siga siendo la página de bienvenida:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+WebRoutes().register(router)
+ApiRoutes().register(router)
+DeskPanel().mount(router)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new WebRoutes().register(router);
+new ApiRoutes().register(router);
+new app.firefly.Panel().mount(router);
+```
+
+</TabItem>
+</Tabs>
+
+`mount` registra las rutas GET y POST del panel. Llamarlo dos veces lanza `FireflyException` y nombra el id del panel. Si una ruta ya está tomada, `mount` lanza y nombra ambos manejadores. La ruta existente se queda. Un panel no registra `/_firefly/` ni `/wire/update`.
+
+## Disposición del directorio
+
+`discover(panelDirectory)` lee tres carpetas. Una carpeta ausente está vacía. Un archivo debe declarar un paquete y una clase cuyo nombre coincida con el archivo. Esa clase ya debe estar en el classpath y debe tener un constructor sin argumentos. Las clases abstractas y los tipos no relacionados se omiten.
+
+| Carpeta | Tipo cargado |
+|--------|-------------|
+| `pages/` | `PanelPage` (`CustomPage`, y las páginas de lista, crear, editar, ver y gestionar) |
+| `widgets/` | `Widget` |
+| `resources/` | `Resource` |
+
+El ejemplo hello usa exactamente esas tres carpetas:
+
+```text
+app/firefly/Panel.kt
+app/firefly/pages/Desk.kt
+app/firefly/widgets/DeskWidget.kt
+app/firefly/resources/NoteResource.kt
+app/firefly/resources/OrderResource.kt
+```
+
+Java usa los mismos nombres bajo `src/main/java/app/firefly/`.
+
+Los generadores de campos, entradas, columnas, filtros, acciones, layouts y temas escriben carpetas hermanas (`fields/`, `entries/`, `columns/`, `filters/`, `actions/`, `layouts/`, `themes/`). `discover` no escanea esas carpetas. Referencias esas clases desde una página, un recurso o `theme(...)`.
+
+Puedes seguir llamando a `page`, `widget` y `resource` en el panel en lugar del descubrimiento. No hay un registro de toda la app.
+
+Los widgets descubiertos se colocan en la página cuyo slug está vacío, o en la primera página cuando ninguna página tiene un slug vacío. En el ejemplo hello esa primera página es `Desk`, así que `DeskWidget` se renderiza en `/admin/desk`.
+
+## Qué sirve mount
+
+Con `path("admin")`, las URL de página y de recurso se ven así:
+
+| URL | Pantalla |
+|-----|--------|
+| `/admin/desk` | La página Desk personalizada |
+| `/admin/notes/manage` | El recurso simple de notes |
+| `/admin/orders/list` | Lista de orders |
+| `/admin/orders/create` | Crear orders |
+| `/admin/orders/edit` | Editar orders |
+| `/admin/orders/view` | Ver orders |
+
+`path("")` sirve las mismas pantallas en la raíz del sitio. Las pantallas de auth (`/admin/login`, `/admin/register`, `/admin/password-reset`, `/admin/email-verify`, `/admin/profile`) se registran incluso cuando `authenticate(false)` omite la redirección.
+
+## Siguiente
+
+[Una app que funciona](/docs/firefly/working-app/) llena `resources/` con las clases de notes y orders del ejemplo hello.
