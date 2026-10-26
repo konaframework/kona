@@ -27,19 +27,14 @@ kover {
     reports {
         // Common filters only. `total { filters }` *replaces* this block (Kover 0.9);
         // when koverCachedVerify drops the variant filters on CI the replacement is empty
-        // and verification runs unfiltered (~94.89% branches / ~98.49% lines).
+        // and verification runs unfiltered. SteamCommand and Prompts are not excluded:
+        // CI has counted them, and GrindM8Test covers both (including the null-engine fallback).
         // Inner `$*` matches http's MultipartParser pattern.
         filters {
             excludes {
                 classes(
                     "org.konaframework.grind.GrindKt",
                     "org.konaframework.grind.GrindKt\$*",
-                    // ScriptEngine wiring varies by JDK/classpath; fallback paths covered in GrindM8Test.
-                    "org.konaframework.grind.SteamCommand",
-                    "org.konaframework.grind.SteamCommand\$*",
-                    // Interactive prompt matrix — covered by GrindM8Test stream fixtures.
-                    "org.konaframework.grind.Prompts",
-                    "org.konaframework.grind.Prompts\$*",
                     // ClassLoader resource enumeration — covered by GrindM8Test.
                     "org.konaframework.grind.PackageDiscovery",
                     "org.konaframework.grind.PackageDiscovery\$*",

@@ -16,9 +16,16 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
+import java.io.Reader
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.script.AbstractScriptEngine
+import javax.script.Bindings
+import javax.script.ScriptContext
+import javax.script.ScriptEngine
+import javax.script.ScriptException
+import javax.script.SimpleBindings
 
 class GrindM8Test {
     @TempDir
@@ -210,6 +217,111 @@ class GrindM8Test {
         assertEquals(1, GrindApplication().run(arrayOf("new", "x")))
         assertEquals(1, GrindApplication().run(arrayOf("nope")))
     }
+
+    @Test
+    fun steamFallbackEnginesAndReplBranches() {
+        val project = fixtureProject(temp.resolve("steam-branches"))
+        val boot = "--bootstrap=${ScheduleFixtureApp::class.java.name}"
+        val kts = StubEngine { "from-kts" }
+        val kotlinEngine = StubEngine { "from-kotlin" }
+        val js = StubEngine { "from-js" }
+        assertEquals("from-kts", selectEngine(kts, kotlinEngine, js)?.eval("x"))
+        assertEquals("from-kotlin", selectEngine(null, kotlinEngine, js)?.eval("x"))
+        assertEquals("from-js", selectEngine(null, null, js)?.eval("x"))
+        assertEquals(null, selectEngine(null, null, null))
+
+        val discovered = steam(project, boot, "1\n")
+        assertTrue(discovered.contains("steam>"))
+        SteamCommand(ByteArrayInputStream(ByteArray(0)), PrintStream(ByteArrayOutputStream()))
+            .createEngine(Thread.currentThread().contextClassLoader)
+
+        val quit = steam(project, boot, " \n:quit\n", StubEngine { "kept" })
+        assertFalse(quit.contains("kept"))
+        val exitWord = steam(project, boot, ":exit\n", StubEngine { "nope" })
+        assertFalse(exitWord.contains("nope"))
+        val exitPlain = steam(project, boot, "exit\n", StubEngine { "nope" })
+        assertFalse(exitPlain.contains("nope"))
+
+        val values = steam(project, boot, "answer\nnull\n", StubEngine { script ->
+            if (script == "null") null else "answer-ok"
+        })
+        assertTrue(values.contains("answer-ok"))
+
+        val scriptError = steam(project, boot, "bad\n:quit\n", StubEngine {
+            throw ScriptException("bad script")
+        })
+        assertTrue(scriptError.contains("bad script"))
+        val scriptSilent = steam(project, boot, "bad\n:quit\n", StubEngine {
+            throw ScriptException(null as String?)
+        })
+        assertTrue(scriptSilent.contains("ScriptException"), scriptSilent)
+        val plainError = steam(project, boot, "bad\n:quit\n", StubEngine {
+            throw IllegalStateException("broken")
+        })
+        assertTrue(plainError.contains("broken"))
+        val plainSilent = steam(project, boot, "bad\n:quit\n", StubEngine {
+            throw IllegalStateException(null as String?)
+        })
+        assertTrue(plainSilent.contains("IllegalStateException"))
+
+        val fallback = steam(
+            project,
+            boot,
+            "config(\"app.name\")\nconfig('app.name')\napp\n1 + 2 - 3 * 4 / 5\nnope\n",
+            null,
+        )
+        assertTrue(fallback.contains("Fixture"))
+        assertTrue(fallback.contains("org.konaframework.core.Application"))
+        assertTrue(fallback.contains("0"))
+        assertTrue(fallback.contains("No scripting engine"))
+
+        val app = Kona.create(arrayOf("--base=$project")).configure { it.set("app.name", "Fixture") }.boot()
+        assertEquals("Fixture", evaluateFallback(app, "config(\"app.name\")"))
+        assertEquals("Fixture", evaluateFallback(app, "config('app.name')"))
+        assertEquals(app, evaluateFallback(app, "app"))
+        assertEquals(3L, evaluateFallback(app, "1+2"))
+        assertThrows(GrindException::class.java) { evaluateFallback(app, "nope") }
+        assertThrows(GrindException::class.java) { simpleMath("") }
+        assertEquals(1L, simpleMath("1"))
+        assertEquals(3L, simpleMath("4-1"))
+        assertEquals(6L, simpleMath("2*3"))
+        assertEquals(4L, simpleMath("9/2"))
+        assertEquals(0L, simpleMath("1 + 2 - 3 * 4 / 5"))
+        Kona.reset()
+    }
+
+    private fun steam(
+        project: Path,
+        boot: String,
+        input: String,
+        engine: ScriptEngine? = null,
+    ): String {
+        val out = ByteArrayOutputStream()
+        val previousErr = System.err
+        System.setErr(PrintStream(out, true))
+        try {
+            val command = SteamCommand(ByteArrayInputStream(input.toByteArray()), PrintStream(out, true))
+            if (engine != null) {
+                command.engineFactory = { _ -> engine }
+            } else if (input.contains("config(")) {
+                command.engineFactory = { _ -> null }
+            }
+            assertEquals(0, command.run(listOf("--base=$project", boot)))
+            return out.toString()
+        } finally {
+            System.setErr(previousErr)
+        }
+    }
+}
+
+private class StubEngine(private val behavior: (String) -> Any?) : AbstractScriptEngine() {
+    override fun eval(script: String, context: ScriptContext): Any? = behavior(script)
+
+    override fun eval(reader: Reader, context: ScriptContext): Any? = eval(reader.readText(), context)
+
+    override fun createBindings(): Bindings = SimpleBindings()
+
+    override fun getFactory() = null
 }
 
 class DemoPackageProvider : ServiceProvider {
