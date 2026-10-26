@@ -1,0 +1,293 @@
+---
+title: Crear comandos
+description: Escribe clases ConsoleCommand — firmas, descubrimiento, aislamiento, ayudantes de IO, Kotlin y Java.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Además de los integrados como `serve` y `migrate`, Grind Console ejecuta **comandos propios**: clases que extienden `org.konaframework.grind.ConsoleCommand`. Declaras una **firma**, una **descripción** opcional y un método **`handle()`** que devuelve un código de salida. Grind enlaza los tokens del CLI a esa firma y luego llama a `handle()`.
+
+## Generar un comando
+
+```bash
+./grind make:command SendDigest
+./grind make:command SendDigest --command=mail:digest
+./grind make:command SendDigest --lang=java
+./grind make:command SendDigest --base=/path/to/app
+```
+
+Eso escribe una clase bajo `app/console/commands/` y añade su nombre completamente cualificado a `src/main/resources/META-INF/kona/commands` para que Grind Console pueda descubrirla después de que compiles (`./gradlew classes`).
+
+| Bandera / arg | Efecto |
+|------------|--------|
+| *(nombre)* | Nombre de clase; se añade `Command` cuando falta (`SendDigest` → `SendDigestCommand`) |
+| `--command=` | **Nombre** de la firma (predeterminado `app:kebab-case-of-class`, p. ej. `SendDigestCommand` → `app:send-digest`) |
+| `--lang=kotlin\|java` | Lenguaje fuente (consulta [Valores predeterminados de lenguaje](#language-defaults)) |
+| `--base=` | Raíz de la app cuando no se ejecuta desde el directorio del proyecto |
+
+`make:command` nunca sobrescribe un archivo existente. Los nombres de clase inválidos se rechazan. Si el FQCN ya está listado en `META-INF/kona/commands`, el descubrimiento se deja igual.
+
+Después de generar, compila para que el descubrimiento pueda cargar la clase:
+
+```bash
+./gradlew classes
+./grind list
+./grind mail:digest --help   # if you used --command=mail:digest
+```
+
+## Anatomía
+
+Cada comando propio declara una **firma**, una **descripción** opcional y **`handle()`**:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.console.commands
+
+import org.konaframework.grind.ConsoleCommand
+
+class SendDigestCommand : ConsoleCommand() {
+    override val signature: String = "mail:digest {user} {--queue=default}"
+
+    override val description: String = "Send the daily digest"
+
+    override fun handle(): Int {
+        val user = argumentOrFail("user")
+        val queue = option("queue", "default")
+        info("Queueing digest for $user on $queue")
+        return SUCCESS
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.console.commands;
+
+import org.konaframework.grind.ConsoleCommand;
+
+public class SendDigestCommand extends ConsoleCommand {
+    @Override
+    public String getSignature() {
+        return "mail:digest {user} {--queue=default}";
+    }
+
+    @Override
+    public String getDescription() {
+        return "Send the daily digest";
+    }
+
+    @Override
+    public int handle() {
+        String user = argumentOrFail("user");
+        String queue = option("queue", "default");
+        info("Queueing digest for " + user + " on " + queue);
+        return SUCCESS;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+### Superficie pública de `ConsoleCommand`
+
+| Miembro | Papel |
+|--------|------|
+| `signature` / `getSignature()` | Obligatorio. Nombre del comando más tokens `{arg}` / `{--opt}` |
+| `description` / `getDescription()` | Resumen opcional para `list` / ayuda (predeterminado vacío) |
+| `isolatable` / `getIsolatable()` | Cuando es `true`, `--isolated` toma un bloqueo de archivo (predeterminado `false`) |
+| `handle()` | Cuerpo del comando; devuelve `SUCCESS` (`0`) o `FAILURE` (`1`) (o cualquier valor distinto de cero) |
+| `name()` | Nombre de comando analizado a partir de la firma (p. ej. `mail:digest`) |
+| `io` | `GrindIO` enlazado después de que el runner arranca el comando |
+| `argument` / `argumentOrFail` / `arguments` | Entrada posicional enlazada |
+| `option` / `optionBool` / `hasOption` | Opciones enlazadas |
+| `line` / `info` / `success` / `warn` / `error` / `title` / `table` / `progress` / `verbose` | Ayudantes de IO (prefiérelos a las impresiones crudas) |
+
+Códigos de salida: usa `ConsoleCommand.SUCCESS` (`0`) o `FAILURE` (`1`). Cualquier valor distinto de cero hace fallar el proceso para scripts y CI. Cuando `--isolated` no puede adquirir el bloqueo, Grind Console devuelve `SUCCESS` **sin** llamar a `handle()` — consulta [Aislamiento](#isolation).
+
+## Forma de la firma
+
+La cadena de firma empieza con el **nombre del comando** y luego tokens entre llaves. El analizador (`SignatureParser`) exige una firma no vacía que **no** empiece por `{`.
+
+```text
+mail:digest {user} {days?} {files*} {--force} {--queue=default} {--driver= : Queue driver}
+```
+
+| Token | Significado |
+|-------|---------|
+| `{user}` | Argumento obligatorio |
+| `{user?}` | Argumento opcional |
+| `{files*}` | Argumentos posicionales restantes como lista (`arguments("files")`) |
+| `{--force}` | Bandera booleana (`--force`); se guarda como `"true"` cuando está presente |
+| `{--queue=}` | Opción que toma un valor (`--queue=high`) |
+| `{--queue=default}` | Opción con un predeterminado cuando se omite |
+| `{name : help text}` | Argumento u opción más ayuda (separador ` : ` — los espacios alrededor de los dos puntos importan) |
+
+Los **nombres** de argumento y opción deben coincidir con `[A-Za-z_][A-Za-z0-9_-]*`.
+
+### Reglas de enlace (casos límite)
+
+Cuando ejecutas `./grind mail:digest …`, Grind Console:
+
+1. Separa las banderas al estilo global (`--foo`, `--foo=bar`, `-v`, `-q`, `-h`) mediante `parseOptions`.
+2. Enlaza los posicionales restantes y las opciones conocidas a la firma.
+3. Si el enlace falla (falta un arg obligatorio, demasiados args), imprime el error, imprime la ayuda del comando y sale con `1`.
+
+| Situación | Comportamiento |
+|-----------|----------|
+| Falta `{user}` obligatorio | `GrindException` → error + ayuda → salida `1` |
+| Posicional extra después de consumir todos los args | «Too many arguments» → salida `1` |
+| `{files*}` | Consume **todos** los posicionales restantes (incluido ninguno → lista vacía) |
+| `{user?}` omitido | `argument("user")` es `null` |
+| Opción de valor omitida, predeterminado en la firma | El predeterminado se aplica al mapa de opciones enlazadas |
+| Opción de valor omitida, sin predeterminado | La opción está ausente; `option("name")` es `null` |
+| Opción de bandera presente | Enlazada como `"true"`; usa `optionBool` o `hasOption` |
+| `--help` / `-h` | Imprime la ayuda de ese comando y sale con `0` **sin** `handle()` |
+
+Claves de opción reservadas / de paso que pueden aparecer en el mapa enlazado aunque no estén en tu firma: `isolated`, `help`, `verbose`, `quiet`, `v`, `q`, `base`, `bootstrap`. Trata con cuidado las claves desconocidas si iteras las opciones.
+
+### Leer la entrada dentro de `handle()`
+
+| Ayudante | Devuelve |
+|--------|---------|
+| `argument("name")` | `String?` / `String` nullable |
+| `argumentOrFail("name")` | `String`, o lanza `GrindException("Missing argument [name]")` |
+| `arguments("name")` | `List<String>` para args `*` (lista vacía si no hay) |
+| `option("name")` | Valor de la opción o `null` |
+| `option("name", default)` | Valor de la opción o el predeterminado dado |
+| `optionBool("name")` | `true` cuando el valor es `true`, `1` o `yes` (sin distinguir mayúsculas para `yes`) |
+| `hasOption("name")` | Si la clave de la opción está presente en el mapa enlazado |
+
+Las banderas booleanas de `{--force}` están presentes como `"true"`, así que `optionBool("force")` y `hasOption("force")` funcionan. Una opción de valor puesta a la cadena `false` sigue «presente»; `optionBool` devuelve `false` para esa cadena.
+
+## Registro y descubrimiento
+
+Los comandos propios se vuelven ejecutables cuando Grind Console puede **construirlos** y buscarlos por el **nombre de la firma**.
+
+### 1. Autodescubrimiento (`META-INF/kona/commands`)
+
+Un nombre de clase completamente cualificado por línea. `#` empieza un comentario; las líneas en blanco se ignoran. `make:command` mantiene este archivo bajo `src/main/resources/META-INF/kona/commands`.
+
+```text
+# Custom Grind Console commands
+app.console.commands.SendDigestCommand
+```
+
+`CommandDiscovery` carga cada recurso coincidente en el class loader, exige que cada tipo extienda `ConsoleCommand` y registra una fábrica de constructor sin argumentos en un `CommandRegistry`.
+
+### 2. Salidas compiladas de la app
+
+En cada ejecución, `GrindApplication` también abre un `URLClassLoader` sobre estos directorios bajo `--base` (o la raíz actual de la app), cuando existen:
+
+- `build/classes/kotlin/main`
+- `build/classes/java/main`
+- `build/resources/main`
+
+Así que, después de añadir un comando, ejecuta `./gradlew classes` (o un build completo) antes de esperar que `./grind your:command` lo vea. El descubrimiento se fusiona en el mismo registro que usan `list` / la ayuda.
+
+### 3. Registro programático
+
+Registra fábricas en un `CommandRegistry` y pásalo a `GrindApplication` o `Grind.call` (útil en pruebas):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val registry = CommandRegistry()
+    .register(SendDigestCommand::class.java)
+    .register { OtherCommand() }
+
+Grind.call("mail:digest", listOf("42"), registry)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CommandRegistry registry = new CommandRegistry()
+    .register(SendDigestCommand.class);
+
+int code = Grind.call("mail:digest", List.of("42"), registry);
+```
+
+</TabItem>
+</Tabs>
+
+| Método de `CommandRegistry` | Comportamiento |
+|--------------------------|----------|
+| `register(() -> ConsoleCommand)` | Sonda una vez `name()`, guarda la fábrica |
+| `register(Class)` | Fábrica de constructor sin argumentos |
+| `has` / `create` / `names` | Búsqueda |
+| `summaries()` | Nombre → descripción (o firma si la descripción está vacía) para `list` |
+| `merge(other)` | Superpone fábricas de otro registro |
+
+Nombres duplicados: el `register` / `merge` posterior gana para ese nombre.
+
+## Aislamiento
+
+Pon `isolatable = true` (Kotlin) o anula `getIsolatable()` para que devuelva `true` (Java) cuando solo un proceso debe ejecutar el comando a la vez. Pasar `--isolated` toma entonces un bloqueo de archivo **no bloqueante** bajo `storage/framework/grind/<sanitized-name>.lock`.
+
+```kotlin
+override val isolatable: Boolean = true
+```
+
+```bash
+./grind mail:digest 42 --isolated
+```
+
+| Caso | Resultado |
+|------|--------|
+| Aislable + bloqueo adquirido | Corre `handle()`; el bloqueo se libera después |
+| Aislable + bloqueo ocupado | Sale con `0` **sin** `handle()` (seguro para solapamiento de cron) |
+| No aislable + `--isolated` | Aviso: se ignora `--isolated`; `handle()` sigue corriendo |
+
+Los nombres de comando se sanitizan para el archivo de bloqueo (`[^A-Za-z0-9._-]` → `_`). El aislamiento **no** exige un driver de caché.
+
+## Valores predeterminados de lenguaje
+
+Compartidos por la mayoría de los generadores `make:*` (`Names.lang`):
+
+1. Si está puesto `--lang=`, úsalo (`kotlin` o `java`).
+2. Si no, si existe cualquier archivo `.java` bajo `src/main/java/`, predetermina **Java**.
+3. Si no, predetermina **Kotlin**.
+
+Caminos fuente: `src/main/kotlin/…` o `src/main/java/…` bajo paquetes como `app/console/commands`.
+
+## Llamar servicios desde un comando
+
+`ConsoleCommand` no inyecta `Application`. Patrones que funcionan hoy:
+
+- Resuelve servicios que ya tienes (campos de constructor que pones en pruebas o en una fábrica).
+- Sal a la shell o llama a `Grind.call` para otros comandos.
+- Para trabajo de larga duración que necesita el contenedor, prefiere un integrado que arranca mediante `AppLoader` (migrate, schedule, queue, steam) o arranca tu propio bootstrap en `handle()` igual que esos comandos.
+
+No inventes una API de «kernel de comandos» del framework que no esté en el código.
+
+## Trampas
+
+- **Olvidaste compilar** — el descubrimiento lee `build/…` y el class loader del jar/recursos; `./grind list` no mostrará una clase recién creada hasta `./gradlew classes`.
+- **El nombre de la firma ≠ el nombre de la clase** — el nombre ejecutable es el primer token de `signature` (`mail:digest`), no `SendDigestCommand`.
+- **`println` crudo** — la salida de cara al usuario debe ir por `GrindIO` / los ayudantes (`info`, `error`, …). Consulta [IO de consola y prompts](./console/).
+- **`--base` en los generadores** — la mayoría de los comandos `make:*` usan `--base` como raíz del proyecto y **no** caminan hacia arriba como `serve` / `key:generate` salvo que se documente lo contrario.
+- **Protección contra sobrescritura** — los generadores lanzan si el archivo destino ya existe; bórralo o renómbralo primero.
+- **`argumentOrFail` después de args opcionales** — úsalo solo para tokens de firma obligatorios.
+- **Modo quiet** — `info` / `success` / las tablas respetan `-q`; `error` sigue imprimiendo.
+
+## No disponible hoy
+
+- No hay registro de comandos por atributo/anotación (solo `META-INF` + registro).
+- No hay inyección automática de dependencias en las subclases de `ConsoleCommand`.
+- No hay grupos de comandos, espacios de nombres más allá de la cadena del nombre, ni una API de comandos ocultos.
+- No hay un cuestionario interactivo de `make:command` más allá de las banderas listadas arriba.
+- No hay `make:wire` específico de Wire en el despachador de grind.
+
+## Siguiente
+
+- [Ejecutar comandos](../running-commands/) — banderas del CLI, `list`, `help`, `Grind.call`, `kona grind`
+- [IO de consola y prompts](../console/) — `info`, `table`, `Prompts`, verbosidad
+- [Comandos integrados](../commands/) — catálogo de generadores y operaciones
+- [Programación de tareas](../../scheduling/) — ejecutar trabajo en un horario con `schedule:run`
