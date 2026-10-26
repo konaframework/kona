@@ -36,7 +36,7 @@ page.widgets(
 String html = page.render();
 ```
 
-`Page.render()` returns `<section class="ff-page">` with a header, the content region, `<div class="ff-page-widgets">`, and a footer. `Dashboard` uses `ff-page ff-dashboard` and the fallback title `Dashboard`. The content region is filled by `schema(...)` or `table(...)`. Widgets render in the widgets region, so a chart is on the page rather than only in a standalone string.
+`Page.render()` returns `<section class="ff-page">` with a header, the content region, `<div class="ff-page-widgets">`, and a footer. `Dashboard` uses `ff-page ff-dashboard` and the fallback title `Dashboard`. The content region is filled by `schema(...)`, `form(...)`, `infolistHtml(...)`, or `table(...)`. Widgets render in the widgets region, so a chart is on the page rather than only in a standalone string.
 
 `widgets(...)` replaces the widget list. `discoverWidgets(panelDirectory)` appends every widget found under `panelDirectory/widgets`.
 

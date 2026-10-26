@@ -16,6 +16,8 @@ open class Page {
     private val footer = ArrayList<Action>()
     private val widgetList = ArrayList<Widget>()
     private var contentSchema: Schema? = null
+    private var formSchema: Schema? = null
+    private var infolistMarkup: String? = null
     private var contentTable: Table<*, *>? = null
 
     fun title(value: String): Page = apply { titleSetting.setLiteral(value) }
@@ -43,6 +45,10 @@ open class Page {
 
     fun schema(schema: Schema): Page = apply { contentSchema = schema }
 
+    fun form(schema: Schema): Page = apply { formSchema = schema }
+
+    fun infolistHtml(html: String): Page = apply { infolistMarkup = html }
+
     fun table(table: Table<*, *>): Page = apply { contentTable = table }
 
     fun render(): String = render(emptyMap())
@@ -53,8 +59,10 @@ open class Page {
         val title = titleSetting.resolve(get) ?: fallbackTitle()
         val widgetSchema = Schema().fill(state).components(*widgetList.toTypedArray())
         val schemaHtml = if (contentSchema == null) "" else contentSchema!!.render()
+        val formHtml = if (formSchema == null) "" else formSchema!!.render()
+        val infoHtml = if (infolistMarkup == null) "" else infolistMarkup!!
         val tableHtml = if (contentTable == null) "" else contentTable!!.render()
-        return """<section class="${sectionClass()}"><header class="ff-page-header"><h1>${escapeHtml(title)}</h1><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        return """<section class="${sectionClass()}"><header class="ff-page-header"><h1>${escapeHtml(title)}</h1><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
     }
 
     protected open fun sectionClass(): String = "ff-page"

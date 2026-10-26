@@ -4,13 +4,13 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-Verified on `origin/main` `6fd41aa9` (including #223): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-forms` (M31), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. M34 notifications and widgets ship on `milestone/M34-firefly-notifications` and land on `main` when that PR merges. M35–M38 stay queued. Law 1 still allows parallel non-colliding milestones.
+Verified on `origin/main` `6fd41aa9` (including #223): `firefly-support` (M28), `firefly-schemas` (M29), `firefly-actions` (M30), `firefly-forms` (M31), `firefly-infolists` (M32), and `firefly-tables` (M33) are in the tree. M34 notifications and widgets are on `main`. M35 panel, auth, navigation, and pages ship on `milestone/M35-firefly-panel` and land on `main` when that PR merges. M36–M38 stay queued. Law 1 still allows parallel non-colliding milestones.
 
 Schemas, forms, infolists, actions, and tables can render on their own for tests and embedding. That render does not close a later milestone. Pages, widgets, and resources compose those pieces. A milestone cannot ship by only rendering a form, infolist, table, or widget in isolation.
 
 ## Integration contract
 
-M34 is notifications and widgets. M35 is panel, auth, navigation, and pages. M36 is resources. Widget rows below are done. Page and resource rows stay open. Do not pull M36 forward.
+M34 notifications and widgets are done. M35 panel, auth, navigation, and pages are done on this branch. M36 is resources. Page rows below are done. Resource rows stay open. Do not start M36 until M35 is on `main`.
 
 **Pages.** A page is a routable panel screen. It has a title, header and footer actions (the actions module), a content region that mounts a schema, form, infolist, or table, and optional widgets. List, create, edit, view, manage, and custom pages are pages. Standalone component render remains available for tests and embedding, and a Page is the thing a panel route serves. Simple resources use one Manage page whose create/edit/view/delete run in the existing Dialog.
 
@@ -20,9 +20,9 @@ M34 is notifications and widgets. M35 is panel, auth, navigation, and pages. M36
 
 | ID | Surface | Milestone | Status |
 |----|---------|-----------|--------|
-| PAG-1 | Page is the routable panel screen a panel route serves, with a title, header and footer actions, a content region, and optional widgets | M35 | todo |
-| PAG-2 | Content region mounts a schema, form, infolist, or table. List, create, edit, view, manage, and custom pages are pages | M35 | todo |
-| PAG-3 | Standalone component render remains for tests and embedding. It does not replace the Page | M35 | todo |
+| PAG-1 | Page is the routable panel screen a panel route serves, with a title, header and footer actions, a content region, and optional widgets | M35 | done |
+| PAG-2 | Content region mounts a schema, form, infolist, or table. List, create, edit, view, manage, and custom pages are pages | M35 | done |
+| PAG-3 | Standalone component render remains for tests and embedding. It does not replace the Page | M35 | done |
 | WDG-1 | Widget renders on its own and inside a page or dashboard | M34 | done |
 | WDG-2 | Stats, Chart.js default, ApexCharts optional, and table-backed widgets read the same query and schema pieces | M34 | done |
 | WDG-3 | A widget is not done if it cannot be placed on a page | M34 | done |
@@ -163,7 +163,7 @@ Left for later milestones (not implemented in this module): prefix and suffix ac
 | M32 | `filament/infolists` | `kona-firefly-infolists` | done |
 | M33 | `filament/tables` | `kona-firefly-tables` | done |
 | M34 | notifications + widgets (Chart.js default, ApexCharts optional). A widget is not done if it cannot be placed on a page | `kona-firefly-notifications`, `kona-firefly-widgets` | done (on `main` when this PR merges) |
-| M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3), and pages. A panel route serves a Page that mounts a schema, form, infolist, or table | `kona-firefly` | queued (not started, not done) |
+| M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3), and pages. A panel route serves a Page that mounts a schema, form, infolist, or table | `kona-firefly` | done (on `main` when this PR merges) |
 | M36 | resources, including `--simple`. Not done if the form, infolist, table, and actions are only separate samples. Do not pull ahead of M31 | `kona-firefly` | queued (not started, not done) |
 | M37 | tenancy, plugins, import/export, `Firefly.test`, `kona new --kit=firefly` | `kona-firefly` | queued (not started) |
 | M38 | IDE catalog after M37 is on `main` | `kona-lsp`, editor extensions | queued (not started) |

@@ -249,6 +249,10 @@ class FireflyWidgetsTest {
 
         val empty = Page().render()
         assertTrue(empty.contains("ff-page"))
+        assertFalse(empty.contains("FormBody"))
+        assertFalse(empty.contains("InfoBody"))
+        assertTrue(Page().form(Schema().components(Text.make("FormBody"))).render().contains("FormBody"))
+        assertTrue(Page().infolistHtml("<p>InfoBody</p>").render().contains("InfoBody"))
         assertTrue(empty.contains(">Page<"))
         assertFalse(empty.contains("ff-dashboard"))
         assertTrue(Page().title("Static").render().contains(">Static<"))
