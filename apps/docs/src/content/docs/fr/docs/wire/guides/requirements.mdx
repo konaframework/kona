@@ -1,0 +1,45 @@
+---
+title: Prérequis
+description: JDK, version de Kona, Node et outillage nécessaires pour exécuter et développer Wire.
+---
+
+## Exécution (applications)
+
+| Prérequis | Version / note |
+|-------------|----------------|
+| **JDK** | 21+ (virtual threads ; comme Kona) |
+| **Kona** | Version correspondante de `kona-http`, `kona-session`, `kona-crema` et des modules liés, depuis Maven Central (ligne actuelle : **0.1.1**) |
+| **Wire** | `org.konaframework:kona-wire` |
+| **Navigateur** | Navigateurs evergreen modernes ; API Alpine 3.x |
+
+La session + le CSRF sont requis pour les requêtes de mise à jour qui portent `_token`. Les pilotes de session cookie ou serveur fonctionnent tous deux lorsqu’ils sont câblés via le provider de session de Kona.
+
+## Développement (contributeurs du framework)
+
+| Outil | Quand vous en avez besoin |
+|------|------------------|
+| **JDK 21** | Toujours — bibliothèque + exemples |
+| **Node 22** | Seulement pour travailler sur le runtime JS sous `js/wire/` (Vitest, esbuild, Playwright) |
+| **Gradle** | Wrapper inclus (`./gradlew`) dans le dépôt Kona |
+
+Vous n’avez **pas** besoin de Node pour *utiliser* Wire dans une application. Les bundles client (`brew.min.js`, `brew.js`, `brew.esm.js`, `brew.csp.min.js`) voyagent dans le jar `kona-wire` et sont servis par le framework.
+
+## Alpine.js
+
+Wire **embarque** Alpine.js `3.17.x` et ces plugins dans le runtime par défaut :
+
+- morph, intersect, collapse, focus, persist, anchor, mask, sort, resize
+
+`window.Alpine` et `window.Wire` sont tous deux définis lorsque `/wire/wire.min.js` se charge. Consultez [Couplage Alpine.js](/docs/wire/js/alpine/) pour les règles de coexistence et `$wire`.
+
+## Optionnel
+
+| Pièce | Rôle |
+|-------|------|
+| **Vite / pipeline d’assets** | Seulement si vous empaquetez vous-même l’ESM de Wire au lieu du script servi |
+| **Playwright** | Tests de fumée navigateur du runtime JS de Wire (dans le dépôt Kona) |
+| **Kona Idea / LSP** | Complétions pour `<wire:…>` et `wire:*` (consultez [Langage](/docs/language/) et le projet [kona-idea](https://github.com/konaframework/kona-idea)) |
+
+## Suite
+
+- [Installation](/docs/wire/guides/installation/) — ajouter Wire à un projet Kona
