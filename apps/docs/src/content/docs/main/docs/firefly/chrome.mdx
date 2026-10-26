@@ -1,0 +1,148 @@
+---
+title: Panel chrome
+description: PanelShell slots, render hooks, partial overrides, and custom layouts.
+---
+
+**Panel chrome** is the four regions around a panel: sidebar, top bar, body, and footer. `PanelShell` chooses HTML for each region, checks that required hook markers are still present, fills those markers, and asks a `PanelLayout` to wrap the result.
+
+## PanelShell
+
+| Method | Behavior |
+|--------|----------|
+| `theme(FireflyTheme)` | Theme used for tokens, CSS, and theme partials. Default: `KonaTheme` |
+| `layout(PanelLayout)` | Replaces the wrapper. Default: `DefaultLayout`. A later call replaces the earlier layout |
+| `hook(Hook, String)` | Appends HTML for that hook. Several calls for the same hook concatenate, in order |
+| `overridePartial(slot, html)` | App HTML for one slot. Wins over the theme partial and the built-in partial |
+| `render(): String` | Resolves every slot, then `layout.render(...)` |
+
+Slots, in order: `sidebar`, `topbar`, `body`, `footer`.
+
+For each slot, `render` picks the first source that exists:
+
+1. `overridePartial` for that slot, when you set one.
+2. `theme.partial(slot)`, when it returns non-null.
+3. The built-in partial.
+
+Unknown slot names passed to `overridePartial` are stored and ignored, because only the four slots are resolved.
+
+## Hook markers
+
+Every chosen partial must still contain the markers for its slot. The marker text is exact, including the comment:
+
+| Slot | Required markers |
+|------|------------------|
+| `sidebar` | `<!-- ff-hook:sidebar.start -->` and `<!-- ff-hook:sidebar.end -->` |
+| `topbar` | `<!-- ff-hook:topbar.start -->` and `<!-- ff-hook:topbar.end -->` |
+| `body` | `<!-- ff-hook:body.start -->` and `<!-- ff-hook:body.end -->` |
+| `footer` | `<!-- ff-hook:footer -->` |
+
+If any marker is missing, `render` throws `FireflyException`:
+
+```text
+Partial [<slot>] is missing markers [<marker>, ...]
+```
+
+The shell does not render. Fix the partial so the comments are still in the HTML, including when your markup surrounds them.
+
+After the check, each marker is replaced with the concatenated hook HTML. A hook you never filled becomes an empty string, so the comment disappears.
+
+`Hook` values: `SIDEBAR_START`, `SIDEBAR_END`, `TOPBAR_START`, `TOPBAR_END`, `BODY_START`, `BODY_END`, `FOOTER`. Each has a `marker` string (`sidebar.start`, and so on).
+
+## Built-in partials
+
+| Slot | Element |
+|------|---------|
+| sidebar | `<aside class="ff-sidebar">` |
+| topbar | `<header class="ff-topbar">` |
+| body | `<main class="ff-body">` |
+| footer | `<footer class="ff-footer">` |
+
+## Default layout
+
+`DefaultLayout` writes:
+
+```html
+<div class="ff-panel">
+  <style>…theme CSS…</style>
+  …sidebar…
+  …topbar…
+  …body…
+  …footer…
+</div>
+```
+
+If a slot were absent from the map it receives, it would throw `Missing partial [<name>]`. `PanelShell` always fills all four slots before calling the layout, so that failure is for a custom caller of `DefaultLayout` that omits a key.
+
+## Replace one partial
+
+The override must keep the markers. This sidebar adds a label and still accepts hooks:
+
+Kotlin:
+
+```kotlin
+val shell = PanelShell().overridePartial(
+    "sidebar",
+    """<aside class="ff-sidebar"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>""",
+)
+```
+
+Java:
+
+```java
+PanelShell shell = new PanelShell().overridePartial(
+    "sidebar",
+    "<aside class=\"ff-sidebar\"><strong>Menu</strong><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>"
+);
+```
+
+A theme can supply the same HTML from `partial("sidebar")`. An app override still wins when both exist.
+
+## Replace the layout
+
+`PanelLayout.render` receives a `ChromeContext`:
+
+| Field | Contents |
+|-------|----------|
+| `theme` | The `FireflyTheme` on the shell |
+| `hooks` | The `RenderHooks` instance (already applied to the partials) |
+| `partials` | Map of slot name to HTML, markers already replaced |
+| `css` | The string from `Stylesheet.render(theme)` |
+
+A layout may ignore `DefaultLayout` and place the partials itself. To use the dark tokens, put `ff-dark` on the same element as `ff-panel`:
+
+```kotlin
+class DarkLayout : PanelLayout {
+    override fun render(context: ChromeContext): String = """
+        <div class="ff-panel ff-dark">
+          <style>${context.css}</style>
+          ${context.partials["sidebar"]}
+          ${context.partials["topbar"]}
+          ${context.partials["body"]}
+          ${context.partials["footer"]}
+        </div>
+    """.trimIndent()
+}
+```
+
+```java
+public final class DarkLayout implements PanelLayout {
+    @Override public String render(ChromeContext context) {
+        return "<div class=\"ff-panel ff-dark\"><style>" + context.getCss() + "</style>"
+            + context.getPartials().get("sidebar")
+            + context.getPartials().get("topbar")
+            + context.getPartials().get("body")
+            + context.getPartials().get("footer")
+            + "</div>";
+    }
+}
+```
+
+```kotlin
+PanelShell().layout(DarkLayout()).render()
+```
+
+```java
+new PanelShell().layout(new DarkLayout()).render();
+```
+
+`layout(...)` after `theme(...)` does not drop the theme. The theme still supplies tokens, CSS, and theme partials. Only the wrapper changes.

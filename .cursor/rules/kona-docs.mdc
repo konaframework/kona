@@ -52,4 +52,4 @@ Internal architecture docs under `docs/architecture/` may still map components f
 - [ ] Kotlin + Java call sites where the surface is public.
 - [ ] Getting Started pages stay minimal/linear; feature guides exhaust the shipped API (concepts, use cases, edge cases, examples).
 - [ ] Documented APIs exist in source — no invented or “coming soon” surfaces presented as current.
-- [ ] Sidebar updated if a new section was added — place it in the progressive group (*Getting started* → *The basics* → *Crema* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Wire* → *Inertia* → *Testing* → *Packages & tooling*).
+- [ ] Sidebar updated if a new section was added — place it in the progressive group (*Getting started* → *The basics* → *Crema* → *Digging deeper* → *Security* → *Database* → *Frontend* → *Wire* → *Inertia* → *Firefly* → *Testing* → *Packages & tooling*).

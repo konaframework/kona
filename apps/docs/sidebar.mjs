@@ -3,7 +3,7 @@
  *
  * Progressive path (simple → deeper):
  * Getting started → The basics → Crema → Digging deeper → Security → Database →
- * Frontend → Wire → Inertia → Testing → Packages & tooling.
+ * Frontend → Wire → Inertia → Firefly → Testing → Packages & tooling.
  *
  * Prefer regrouping here over mass page moves so existing slugs stay stable.
  */
@@ -250,6 +250,15 @@ export async function buildSidebar() {
         { label: 'Example: Shared flash', slug: 'docs/inertia/examples/shared-flash' },
         { label: 'Example: Version conflict', slug: 'docs/inertia/examples/version-conflict' },
         { label: 'Example: Location redirect', slug: 'docs/inertia/examples/location' },
+      ],
+    },
+    {
+      label: 'Firefly',
+      items: [
+        { label: 'Overview', slug: 'docs/firefly' },
+        { label: 'Themes and CSS', slug: 'docs/firefly/themes' },
+        { label: 'Panel chrome', slug: 'docs/firefly/chrome' },
+        { label: 'Dialog', slug: 'docs/firefly/dialog' },
       ],
     },
     {

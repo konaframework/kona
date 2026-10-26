@@ -1,0 +1,89 @@
+---
+title: Dialog
+description: The shared Firefly dialog — modal, sidebar, and fullscreen — including width, drag, and configureUsing.
+---
+
+`Dialog` is the one dialog component. You choose a mode, a width, a title, and a body, then `render()` returns HTML. The dialog does not open itself and it does not post to the server. The page that embeds the HTML decides when it is shown. Drag behavior is a marker for the client: `x-data="ffDialog"` and `data-ff-drag="true"`. The support artifact does not ship that script.
+
+## Create one
+
+`Dialog.make(title)` returns a dialog. The default mode is modal, the default width is `lg`, and dragging is on. `configureUsing`, if set, runs on the new dialog before `make` returns.
+
+Kotlin:
+
+```kotlin
+val html = Dialog.make("Edit category")
+    .body("<p>Name</p>")
+    .render()
+```
+
+Java:
+
+```java
+String html = Dialog.make("Edit category")
+    .body("<p>Name</p>")
+    .render();
+```
+
+The title is HTML-escaped. `A & B <tag> "q"` becomes `A &amp; B &lt;tag&gt; &quot;q&quot;`. The body is inserted as the string you passed. Escape body HTML yourself when it comes from a user.
+
+## Modes
+
+| Call | Root classes | Extra attributes |
+|------|----------------|------------------|
+| `modal()` | `ff-dialog ff-dialog-modal ff-dialog-<width>` | `data-ff-align="top"` |
+| `slideOver()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="end"` |
+| `slideOverStart()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="start"` |
+| `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | none of the align, position, or drag attributes |
+
+The root element always has `role="dialog"`. Inside it: an overlay (`ff-dialog-overlay`), a window (`ff-dialog-window`), a header (`ff-dialog-header`) with the title, and a body (`ff-dialog-body`).
+
+Calling `modal()` after `slideOver()` switches the mode back to modal. The stored sidebar position is left as it was and is not rendered on a modal.
+
+`width("screen")` only changes the width class to `ff-dialog-screen`. It does not make the dialog fullscreen. Fullscreen is `fullscreen()`.
+
+## Width
+
+`width` accepts `sm`, `md`, `lg`, `xl`, or `screen`. Anything else throws `FireflyException`:
+
+```text
+Unknown dialog width [<value>]
+```
+
+The default is `lg`, so the class `ff-dialog-lg` is present until you change it. The width class is rendered for sidebar and fullscreen dialogs as well.
+
+## Dragging
+
+`draggable(true)` is the default. `draggable(false)` removes the drag attributes.
+
+Dragging is also omitted when the mode is fullscreen, even if `draggable(true)` was called. Modal and sidebar dialogs include:
+
+```html
+x-data="ffDialog" data-ff-drag="true"
+```
+
+The modal window is offset by the stylesheet: `.ff-dialog-modal .ff-dialog-window` has a top margin of `4rem`. That is the top alignment. Sidebar and fullscreen windows do not get that margin.
+
+## configureUsing
+
+`Dialog.configureUsing` stores one `Consumer<Dialog>` used by later `make` calls. Pass `null` to clear it. The setting is static and shared by every `make` in the process until you replace or clear it.
+
+Kotlin:
+
+```kotlin
+Dialog.configureUsing { dialog -> dialog.width("md") }
+val html = Dialog.make("Edit").slideOver().render()
+Dialog.configureUsing(null)
+```
+
+Java:
+
+```java
+Dialog.configureUsing(dialog -> dialog.width("md"));
+String html = Dialog.make("Edit").slideOver().render();
+Dialog.configureUsing(null);
+```
+
+The example’s HTML contains `ff-dialog-sidebar`, `ff-dialog-md`, and `data-ff-position="end"`. It does not contain `data-ff-align`.
+
+A configurer runs before your own calls, so a later `width("xl")` on that instance replaces the configured width.

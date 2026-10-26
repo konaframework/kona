@@ -23,20 +23,21 @@ Paste this file (or its path) into a new chat so another agent can continue with
 |---------|--------|------|------------|
 | Wire (M26, train **0.3.0**; Brew aliases) | `modules/wire` → `:kona-wire` | `apps/docs` (Frontend → Wire) | https://docs.konaframework.org/docs/wire/ |
 | Inertia | `modules/inertia` → `:kona-inertia` | `apps/docs` (Frontend → Inertia) | https://docs.konaframework.org/docs/inertia/ |
+| Firefly (M28, train **0.4.x**, support slice) | `modules/firefly-support` → `:kona-firefly-support` | `apps/docs` (Firefly) | https://docs.konaframework.org/docs/firefly/ |
 | Wire JS | `js/wire/` | — | bundled into `kona-wire` resources |
 
 Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived** sister repos: `konaframework/kona-brew`, `konaframework/kona-inertia`.
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
-## Where we are (2026-10-19)
+## Where we are (2026-10-26)
 
 | Item | Value |
 |------|--------|
 | Default branch | `main` — green; never push directly |
-| Last milestone coding | **M25 — First-class database engines** (merged PR #161) |
-| Active milestone | **M26 — Kona Wire** (Brew → Wire), release train **0.3.0** |
-| Queued | **M27 — Cadence Document / MongoDB** (Kona **1.x**, human-gated — do **not** start until a human sets it active). Tag `v0.3.0` only if a human asks. |
+| Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
+| Active milestone | **M28 — Firefly support** (`kona-firefly-support`: theme, scoped CSS, chrome, dialog). Release train **0.4.x**. Not merged yet. |
+| Queued | **M29+** Firefly builders after M28 is on `main`. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
@@ -79,7 +80,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 
 **Remonorepo done (#138):** Wire + Inertia are in-tree (`modules/wire`, `modules/inertia`, samples, `js/wire`). Docs unified into `apps/docs` (Frontend → Wire / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/wire/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-wire-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
-**Last published release:** **`v0.2.0`** on Maven Central. **`kona.version` on `main` is `0.2.1`** (version bump only — **not tagged / not on Central yet**). Do not push `v0.2.1` until a deliberate release PR + `release.yml`. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
+**Repo version:** `gradle.properties` `kona.version` is **0.3.0** (M26). Confirm Maven Central before describing a version as downloadable. Do not tag Firefly **0.4.x** unless a human asks. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
 **Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Wire parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Wire templates.
 
