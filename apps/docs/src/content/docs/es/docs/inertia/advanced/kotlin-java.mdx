@@ -1,0 +1,30 @@
+---
+title: API de Kotlin y Java
+description: Superficie llamable desde Java, sobrecargas y apps de ejemplo de este repositorio.
+---
+
+Cada punto de entrada público es `@JvmStatic` o una clase Java abierta, así las apps Java llaman a la misma API.
+
+## Fachada (`Inertia`)
+
+- `setManager` / `manager` / `reset`
+- `render` (sobrecargas de 1 a 3 argumentos)
+- `share` (clave/valor y mapa)
+- `version`
+- `location`
+
+## Middleware
+
+Extiende `HandleInertiaRequests` y sobrescribe `share` / `version`. Los tipos de retorno usan mapas que Java puede construir con `Map.of`.
+
+## Ejemplos
+
+| Ejemplo | Ruta |
+|---------|------|
+| Kotlin | `samples/inertia-kotlin` |
+| Java | `samples/inertia-java` |
+
+```bash
+./gradlew :inertia-sample-kotlin:test :inertia-sample-java:test
+./gradlew :inertia-sample-kotlin:run --args="--base=$(pwd)/samples/inertia-kotlin"
+```

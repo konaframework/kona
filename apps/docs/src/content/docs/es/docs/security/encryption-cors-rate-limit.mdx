@@ -1,0 +1,32 @@
+---
+title: Cifrado, CORS, cabeceras y limitación de tasa
+description: Cifrado con la clave de la app, CORS, cabeceras de seguridad y throttling.
+---
+
+## Cifrado
+
+Asigna a `app.key` un valor `base64:…` (`Encrypter.generateKey()`). Después:
+
+```kotlin
+encrypter.encryptString("secret")
+encrypter.decryptString(payload)
+```
+
+Usa AES-256-GCM.
+
+## CORS
+
+`CorsMiddleware(CorsConfig(…))` atiende el preflight `OPTIONS` y aplica allow-origin/methods/headers.
+
+## Cabeceras de seguridad
+
+`SecurityHeadersMiddleware` añade cabeceras de seguridad del navegador configurables.
+
+## Limitación de tasa
+
+```kotlin
+rateLimiter.forName("api") { RateLimit(60, 60) }
+rateLimiter.attempt(key, maxAttempts, decaySeconds)
+```
+
+El middleware `ThrottleRequests` devuelve **429** con `Retry-After` cuando se supera un limitador con nombre.

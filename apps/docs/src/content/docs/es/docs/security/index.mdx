@@ -1,0 +1,32 @@
+---
+title: Resumen de seguridad
+description: Sesiones, autenticación, autorización, CSRF, cifrado, CORS y limitación de tasa en Kona.
+---
+
+La pila de seguridad de Kona se publica en dos módulos:
+
+- **`kona-session`** — sesiones HTTP (drivers array / file / cookie / Redis), datos flash, URL anterior / input antiguo y verificación CSRF.
+- **`kona-auth`** — hashing, guards, la fachada `Auth`, restablecimiento de contraseñas, gates / policies, tokens de API, cifrado, CORS, cabeceras de seguridad y limitación de tasa.
+
+## Camino simple
+
+Las apps de `kona new` ya registran los providers de sesión y auth y conectan `StartSession` + CSRF en la pila de middleware web.
+
+1. Mantén `SessionServiceProvider` y `AuthServiceProvider` en la lista de providers del bootstrap.
+2. Mantén `StartSession` y `VerifyCsrfToken` en la pila web (`/api/*` queda excluido de CSRF por defecto).
+3. Protege las rutas HTML con `Authenticate`; usa bearer tokens o `AuthenticateWithToken` para las API.
+4. Autoriza con `Gate` / policies o el middleware `Authorize`.
+
+## Mapa de guías
+
+| Tema | Guía |
+|------|------|
+| Sesiones, flash, drivers | [Sesión](/docs/security/session/) |
+| Login, remember me, middleware, hashing, tokens | [Autenticación](/docs/security/authentication/) |
+| Gates, policies, `Authorize` | [Autorización](/docs/security/authorization/) |
+| Tokens de formulario | [Protección CSRF](/docs/security/csrf/) |
+| `APP_KEY`, encrypt / decrypt | [Cifrado](/docs/security/encryption/) |
+| CORS + cabeceras de respuesta | [CORS y cabeceras de seguridad](/docs/security/cors-headers/) |
+| Limitadores con nombre + middleware throttle | [Limitación de tasa](/docs/security/rate-limiting/) |
+
+CSRF y las cookies de sesión interactúan con el pipeline de [middleware HTTP](/docs/http/middleware/); las reglas de formularios de contraseña usan el [validador HTTP](/docs/http/validation/).
