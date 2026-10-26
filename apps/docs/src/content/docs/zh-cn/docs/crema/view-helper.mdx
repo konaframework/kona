@@ -1,0 +1,243 @@
+---
+title: 视图辅助方法
+description: 用 view() 和 Views 创建、共享并返回 Crema 视图 — 绑定到应用的工厂 API。
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`CremaServiceProvider` 启动之后，Kona 把应用的 `CremaEngine` 绑定到一个全局工厂。控制器和路由使用该工厂，而不是手工解析引擎。
+
+- **Kotlin：** 顶层 `view("name")` / `view("name", data)` → `View`
+- **Java：** `Views.make("name")` / `Views.make("name", data)` → `View`
+- **两者：** `Views.response(...)`、`Crema.view(...)` 或 `view(...).toResponse()` → HTML `Response`
+
+本页是该工厂的完整公开表面。模板语法在[渲染与数据](/docs/crema/rendering/)和其他 Crema 指南里。
+
+## 它在请求里的位置
+
+1. `CremaServiceProvider.register` 构建一个 `CremaEngine`（视图根上的文件查找器）并把它放进容器。
+2. `CremaServiceProvider.boot` 调用 `Views.setEngine(engine)`。
+3. 控制器或路由处理函数调用 `view(...)` / `Views.make(...)`。
+4. 你返回 `toResponse()`（或 `Views.response` / `Crema.view`）作为 HTTP [响应](/docs/http/request-response/)。处理函数今天返回 `Response`，不是裸的 `View`。
+
+如果你在启动之前调用 `view`（或没有登记 Crema），你会得到 `IllegalStateException: View engine not configured`。
+
+## 最小控制器
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.crema.view
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+
+class WelcomeController {
+    fun index(request: Request): Response =
+        view("welcome", mapOf("name" to "Kona")).toResponse()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.crema.Views;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import java.util.Map;
+
+public final class WelcomeController {
+    public Response index(Request request) {
+        return Views.make("welcome", Map.of("name", "Kona")).toResponse();
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+路由处理函数以同样方式工作：
+
+```kotlin
+router.get("/") { view("welcome", mapOf("name" to "Kona")).toResponse() }
+```
+
+```java
+router.get("/", request -> Views.make("welcome", Map.of("name", "Kona")).toResponse());
+```
+
+## API 表面
+
+### `view` / `Views.make`
+
+| 调用 | 结果 |
+|------|------|
+| `view("home")` / `Views.make("home")` | 数据为空的 `View` |
+| `view("home", map)` / `Views.make("home", map)` | 带该数据映射副本的 `View` |
+
+`View` 方法：
+
+| 方法 | 行为 |
+|------|------|
+| `with(key, value)` | 设置一个键；返回同一个 `View` |
+| `with(map)` | 合并许多键 |
+| `data()` | 绑定在该视图上的键的快照（不是后来的共享） |
+| `name` | 规范名称（`posts.show`） |
+| `render()` | HTML 字符串（合并了共享数据） |
+| `toResponse(status = 200)` | `Response.html(...)` |
+
+### `Views.render` / `Views.response` / `Crema.view`
+
+| 调用 | 结果 |
+|------|------|
+| `Views.render(name, data?)` | HTML `String` |
+| `Views.response(name, data?, status?)` | HTML `Response` |
+| `Crema.view(name, data?, status?)` | 与 `Views.response` 相同（已绑定的引擎） |
+| `Crema.view(engine, name, data?, status?)` | 相同，但使用显式的 `CremaEngine`（测试 / 自定义查找器） |
+
+### 存在性与第一个匹配
+
+| 调用 | 行为 |
+|------|------|
+| `Views.exists(name)` | 查找器能加载模板时为 `true` |
+| `Views.first(names, data?)` | 第一个可解析的名称；否则列出候选的 `ViewNotFoundException` |
+| `CremaEngine.first(...)` | 在本地引擎上相同 |
+
+主题或租户可能覆盖默认模板时使用 `first`：
+
+```kotlin
+return Views.first(
+    listOf("themes.$theme.home", "home"),
+    mapOf("title" to "Hi"),
+).toResponse()
+```
+
+```java
+return Views.first(
+    List.of("themes." + theme + ".home", "home"),
+    Map.of("title", "Hi")
+).toResponse();
+```
+
+### 共享数据
+
+共享键一次（服务提供者、中间件或启动代码）。之后每一次 `make` / `render` 都会合并它们；**每个视图自己的数据获胜**。
+
+| 调用 | 行为 |
+|------|------|
+| `Views.share(key, value)` | 一个键 |
+| `Views.share(map)` | 许多键 |
+| `Views.shared()` | 当前共享映射的副本 |
+| `Views.flushShared()` | 清除所有共享键 |
+| `CremaEngine.share` / `shared` / `flushShared` | 在本地引擎上相同 |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Views.share("appName", "Kona")
+Views.share(mapOf("locale" to "en"))
+
+// every view sees appName / locale unless overridden
+view("dashboard", mapOf("user" to user)).toResponse()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Views.share("appName", "Kona");
+Views.share(Map.of("locale", "en"));
+
+Views.make("dashboard", Map.of("user", user)).toResponse();
+```
+
+</TabItem>
+</Tabs>
+
+对基于 `CremaContext` 的渲染（`engine.render(name, context)`），共享键只填充**缺失**的上下文键；上下文上已经存在的键保持不动。该上下文上的节和栈会被保留。
+
+### 工厂接线（测试）
+
+| 调用 | 行为 |
+|------|------|
+| `Views.setEngine(engine)` | 绑定（`CremaServiceProvider.boot` 也会做） |
+| `Views.clearEngine()` | 解除绑定（测试） |
+| `Views.engine()` | 已绑定的引擎，没有则抛出 |
+| `Views.configured()` | 是否绑定了引擎 |
+
+## 视图名称：点与斜杠
+
+名称用 `normalizeViewName` 规范化：斜杠变成点，多余的首尾分隔符会被去掉。
+
+| 你写的 | 规范名 | 文件（在视图根下） |
+|--------|--------|--------------------|
+| `home` | `home` | `home.crema.html` |
+| `posts.show` | `posts.show` | `posts/show.crema.html` |
+| `posts/show` | `posts.show` | `posts/show.crema.html` |
+
+对同一文件，`Views.exists("posts.show")` 和 `Views.exists("posts/show")` 都为真。内存里的 `MapViewFinder.put("posts/show", …)` 也存在 `posts.show` 下。
+
+## 从控制器和路由返回
+
+控制器和 `Handler` 返回 `Response`。用下列方式之一转换视图：
+
+```kotlin
+view("posts.show", mapOf("post" to post)).toResponse()
+view("posts.show", mapOf("post" to post)).toResponse(201)
+Views.response("posts.show", mapOf("post" to post))
+Crema.view("posts.show", mapOf("post" to post), 200)
+```
+
+```java
+Views.make("posts.show", Map.of("post", post)).toResponse();
+Views.make("posts.show", Map.of("post", post)).toResponse(201);
+Views.response("posts.show", Map.of("post", post));
+Crema.view("posts.show", Map.of("post", post), 200);
+```
+
+响应之前累积数据：
+
+```kotlin
+return view("checkout")
+    .with("cart", cart)
+    .with(mapOf("tax" to tax, "total" to total))
+    .toResponse()
+```
+
+与[控制器](/docs/http/controllers/)、[路由](/docs/http/routing/)和[请求与响应](/docs/http/request-response/)配合。
+
+## 何时自己解析 `CremaEngine`
+
+应用代码里优先使用 `view` / `Views`。需要下列情况时解析或构造 `CremaEngine`：
+
+- 自定义 `ViewFinder`（用 `MapViewFinder` 的测试、备用根）
+- 只在该引擎上登记的指令 / 标签（`directive`、`blockDirective`、`tag`）
+- 内联模板的 `renderSource`
+- 不触碰全局工厂的 `Crema.view(engine, …)`
+
+```kotlin
+val engine = CremaEngine(MapViewFinder().put("x", "Hi {{ name }}"))
+assertEquals("Hi Ada", engine.render("x", mapOf("name" to "Ada")))
+```
+
+## 陷阱
+
+| 陷阱 | 怎么做 |
+|------|--------|
+| `View engine not configured` | 调用 `view` / `Views` 之前登记 `CremaServiceProvider` 并 `app.boot()` |
+| 从处理函数返回裸的 `View` | 调用 `toResponse()` — 内核期望 `Response` |
+| 共享数据“没有更新”已经构建的 `View` | 共享键在**渲染**时通过引擎合并；`View.data()` 只显示你用 `with` / `make` 设置的键 |
+| 每个视图的键被忽略 | 后来的 `with` / 数据映射条目覆盖共享；检查拼写 |
+| `ViewNotFoundException` | 确认文件在视图根下，扩展名是 `.crema.html` 或 `.crema.kt`，并且名称匹配（`posts.show` ↔ `posts/show.crema.html`） |
+| 测试里斜杠与点不匹配 | 在 `MapViewFinder.put` 里优先使用点名称，或规范化之后两种形式都可以 |
+| 单元测试里没有绑定就调用 `Views` | 在准备阶段 `Views.setEngine(CremaEngine(...))`；在拆除阶段 `Views.clearEngine()` |
+
+## 相关
+
+- [Crema 入门](/docs/crema/) — 模板、路径、脚手架
+- [渲染与数据](/docs/crema/rendering/) — 回显、表达式、`@json`、`@lang`
+- [控制器](/docs/http/controllers/) — 从动作返回响应
+- [路由](/docs/http/routing/) — 接线处理函数
+- [请求与响应](/docs/http/request-response/) — `Response.html` 及同类方法

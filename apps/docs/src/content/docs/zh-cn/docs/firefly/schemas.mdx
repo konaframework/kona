@@ -1,0 +1,170 @@
+---
+title: 模式
+description: 构建 Firefly 模式、绑定状态，并让标签和内容是一个值或一个闭包。
+---
+
+:::note[截图占位：带节和文本的模式]
+这里将放一张该屏幕的截图。
+:::
+
+模式是一棵组件树加上一张状态映射。你在 Kotlin 或 Java 里构建这棵树，填充或水合状态，然后 `render()` 返回 HTML。实时组件用 `wire:model` 和 `@entangle` 绑定该状态。
+
+类型位于 `org.konaframework.firefly.schemas`（`kona-firefly-schemas`）。它们依赖 `kona-firefly-support` 的图标和错误。
+
+## 一次调用里的模式
+
+```kotlin
+val schema = Schema.make()
+    .statePath("user")
+    .components(
+        Section.make("Profile").schema(
+            Text.make("Hello"),
+        ),
+    )
+schema.hydrate()
+val html = schema.render()
+```
+
+```java
+Schema schema = Schema.make()
+    .statePath("user")
+    .components(Section.make("Profile").schema(Text.make("Hello")));
+schema.hydrate();
+String html = schema.render();
+```
+
+`Schema.make()` 开始一棵空树。`statePath("user")` 给每个根组件加前缀，因此名为 `name` 的字段存在 `user.name`。`components(...)` 替换根列表并把每个组件绑定到模式。`hydrate()` 把默认值写入缺失的路径。`render()` 返回一个 `<div class="ff-schema">`。
+
+`get` 和 `set` 使用点分路径。`set` 返回该次更新的部分渲染键。调用了 `live()`、`liveOnBlur()` 或 `liveDebounce(...)` 的组件会贡献自己的路径。
+
+## 值与闭包
+
+大多数可链式调用的设置器接受固定值或闭包。闭包接收 `Get`，也就是模式在 `afterStateUpdated` 内部使用的同一个读取器。`Get.get` 解析相对组件容器的路径。以 `/` 开头的路径是绝对路径。
+
+```kotlin
+val section = Section.make("Profile")
+section.label("Title")
+section.label { get -> if (get.get("/kind") == "org") "Organization" else "Title" }
+section.description { get -> "About ${get.get("/kind")}" }
+section.columns { 2 }
+section.hidden { get -> get.get("/draft") == true }
+```
+
+```java
+name.label(get -> "From Java");
+details.columns(get -> 2);
+Text.make("Hello").content(get -> "Hello");
+```
+
+最后一次调用获胜。闭包之后的 `label("Title")` 存储固定字符串并丢掉闭包。同样的形状也在 `heading`、`description`、`hidden`、`visible`、`disabled`、`columnSpan`、`columns`、`maxWidth`、`content`、`size`、`url`、`alt`、`imageHeight` 和 `imageWidth` 上。
+
+`extraAttributes` 把一张 HTML 属性映射合并到组件根上。布局、基础件、动作、信息列表条目、表格列和表单字段都有它，因为它们共享模式组件（列在列根上保留同样的方法）。传入映射或闭包。不是 HTML 属性名的名称会被跳过。值会被转义。
+
+```kotlin
+Section.make().extraAttributes(mapOf("data-section" to "intro"))
+Text.make("note").extraAttributes { mapOf("data-kind" to "note") }
+```
+
+```java
+Section.make().extraAttributes(Map.of("data-section", "intro"));
+Text.make("note").extraAttributes(get -> Map.of("data-kind", "note"));
+```
+
+`hidden(true)` 和 `visible(false)` 仍然接受布尔值。`hidden { ... }` 和 `visible { ... }` 在模式渲染或 `isHidden` 运行时重新计算。
+
+## 状态
+
+```kotlin
+schema.fill(mapOf("user.city" to "Kona"))
+schema.get("user.city") // "Kona"
+```
+
+在 `statePath("user")` 下的组件内部：
+
+| 调用 | 结果 |
+|------|------|
+| `get("name")` | `user.name` 处的兄弟 |
+| `get("../name")` | 仍然是 `user.name` — `..` 不会离开模式前缀 |
+| `get("/user.city")` | 绝对读取 |
+| `get(".")`、`get("..")`、`get("")` | `null` |
+
+路径为空时，`defaultValue("Ada")` 在 `hydrate()` 期间写入该字面量。`defaultUsing { get -> get.get("../name") }` 写入闭包的结果。第二次 `hydrate()` 会留下已有的值。
+
+`dehydrate()` 返回应该保存的路径映射。隐藏的组件会被省略，除非 `dehydratedWhenHidden(true)`。`dehydrated(false)` 即使可见也省略该组件。
+
+路径匹配一个组件时，`afterStateUpdated` 在 `set` 之后运行。钩子接收新值、旧值、`Get` 和 `Set`。`set.set("slug", "bea", false)` 写入一个兄弟，并且不运行该兄弟的更新钩子。
+
+## 布局
+
+| 类型 | 作用 |
+|------|------|
+| `Grid.make(columns)` | 列网格。`schema(...)` 设置子项 |
+| `Flex.make()` | 子项的一行 |
+| `Fieldset.make(legend)` | 带图例的分组。`required(true)` 标记它 |
+| `Section.make(heading)` | 标题、描述和槽：`afterHeader`、`beforeLabel`、`afterLabel`、`aboveContent`、`belowContent`、`footer`。`aside(true)` 和 `formBefore(true)` 加上数据属性 |
+| `Tabs.make()` | `tabs(...)`、`activeTab`、`vertical`、`scrollable`、`persistTabInQueryString` |
+| `Tab.make(label)` | 一个面板。`badge`、`badgeIcon`、`deferBadge` |
+| `Wizard.make()` | `steps(...)`、`nextStep`、`previousStep`、`goToStep`。`skippable(true)` 允许跳转 |
+| `WizardStep.make(label)` | 一步。`icon`、`completedIcon`、`formWrapper` |
+| `Callout.make(heading)` | `info()`、`success()`、`warning()`、`danger()` 或 `status(...)`。`color` 覆盖状态颜色 |
+| `EmptyState.make(heading)` | 标题加上可选的 `footer` |
+
+布局上的 `configureUsing` 对该类之后每一次 `make()` 运行。传入 `null` 可以清除它。
+
+```kotlin
+Section.configureUsing { it.aside(true) }
+```
+
+```java
+Section.configureUsing(section -> { section.aside(true); });
+```
+
+标题级别从 2 开始。`rootHeadingLevel` 改变起点。嵌套的节会递增它，级别停在 6。
+
+## 基础件
+
+`Text.make(content)` 渲染一段文字。`content`、`size`、`badge(true)` 和 `js()` 改变它。`SchemaIcon.make("home")` 内联支持集里的图标（`home`、`bars`、`user`、`x`）。`Image.make(url)` 接受 `alt`、`url`、`imageHeight`、`imageWidth` 和 `imageSize`。`UnorderedList.make("one", "two")` 渲染这些项；`items { listOf("Kona") }` 在渲染时替换它们。
+
+## 实时更新
+
+```kotlin
+field.live()
+field.liveOnBlur()
+field.liveDebounce(400)
+field.reactive()   // same binding as live()
+field.lazy()       // same binding as liveOnBlur()
+```
+
+`live()` 渲染 `wire:model.live`。`liveOnBlur()` 和 `lazy()` 渲染 `wire:model.blur`。`liveDebounce(400)` 渲染 `wire:model.live.debounce.400ms`。每一个还设置 `data-ff-entangle="@entangle(path)"`。`afterStateUpdatedJs("watch")` 把表达式存在 `data-ff-updated-js` 上。页面不会在服务器上求值该字符串。
+
+`hiddenJs` 和 `visibleJs` 以同样方式存储浏览器表达式。
+
+## 你自己的组件
+
+子类化 `Component`。构造器名称是状态键。
+
+```kotlin
+class Banner(name: String) : Component(name)
+```
+
+```java
+public class NameField extends Component {
+    public NameField() { super("name"); }
+}
+```
+
+设置了 `Schema.crema(engine)` 时，`view("notes.banner")` 渲染该 Crema 视图。视图收到 `path`、`content` 和 `label`。没有引擎时，渲染发出 `<div data-ff-view="notes.banner">`。
+
+`./grind make:firefly-layout Banner` 在 `app/firefly/layouts` 下写入一个布局类和一份 Crema 视图。`--lang=java` 写入 Java 类。视图使用 `x-data="ffField"` 和 `@entangle`。
+
+## Alpine
+
+`AlpineScripts.source()` 是登记 `ffField`、`ffEntry`、`ffColumn` 和 `ffAction` 的脚本。这些工厂用 `$wire.$entangle` 缠结状态，并用 `$wire.$call` 调用服务器动作。
+
+## 延迟的模式
+
+`deferLoading(true)` 让 `render()` 在 `loadDeferred()` 之前返回加载占位。模式需要 `key(...)`。没有键的延迟模式会抛出 `FireflyException`（`Deferred schema is missing a key`）。
+
+## 这个模块不做什么
+
+它不打开对话框、不登记路由，也不渲染选择框或日期选择器这样的输入。按钮和确认对话框用[动作](/docs/firefly/actions/)构建。这个模块是那些部分所在的树和状态。
