@@ -1,0 +1,149 @@
+---
+title: Imbrication, îlots et lazy
+description: Imbriquez des composants Wire, des slots, des props réactives, des îlots, teleport et le chargement paresseux.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Les composants Wire s’imbriquent comme n’importe quelle autre balise Crema. Les enfants gardent leurs propres snapshots ; le parent les enregistre sous `memo.children` afin que les requêtes suivantes puissent sauter le re-rendu des enfants inchangés.
+
+## Imbriquer un enfant
+
+```crema
+{{-- parent template --}}
+<div>
+    <wire:panel wire:key="main" title="Main" class="card" />
+    <wire:dynamic-component :is="childName" />
+</div>
+```
+
+- `wire:key` / `key` donne une identité stable dans les boucles.
+- Les attributs HTML supplémentaires qui ne sont pas des props sont transmis sur la racine de l’enfant comme `data-brew-attr-*` et exposés comme un sac `attributes` dans la vue.
+- `<wire:dynamic-component :is="…" />` (ou `:component`) choisit le nom de l’enfant au moment du rendu.
+- Un composant peut s’imbriquer lui-même — arrêtez la récursion avec une garde de profondeur (ou similaire) dans `template()`.
+
+## Props réactives et modelable
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Panel : Component() {
+    @field:Reactive
+    var title: String = ""
+
+    @field:Modelable
+    var value: String = ""
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Panel extends Component {
+    @Reactive public String title = "";
+    @Modelable public String value = "";
+}
+```
+
+</TabItem>
+</Tabs>
+
+- `@Reactive` — le parent repousse la prop chaque fois que le parent se re-rend (`memo.props`).
+- `@Modelable` — marque la propriété que le parent lie avec `wire:model` sur la balise enfant (`memo.bindings`).
+
+## Slots
+
+```crema
+<wire:card>
+    <wire:slot name="footer">Save</wire:slot>
+    Body content
+</wire:card>
+```
+
+Dans l’enfant :
+
+```crema
+<div>
+    {{ slots.get('default') }}
+    @if(slots.has('footer'))
+        <footer>{{ slots.get('footer') }}</footer>
+    @endif
+</div>
+```
+
+`slots` est un `SlotBag` avec `has`, `get`, `default()` et `all()`.
+
+## Écouter les événements enfant
+
+Mettez `@event-name="method"` sur la balise enfant. Lorsque l’enfant `dispatch` cet événement, Wire appelle la méthode du parent :
+
+```crema
+<wire:panel @saved="onPanelSaved" />
+```
+
+```kotlin
+fun onPanelSaved(label: String = "") { heard = label }
+```
+
+## `$parent`
+
+Depuis JS : `$wire.$parent.save()`. Depuis le serveur / `wire:click` : l’action magique `$parent` transmet au composant parent (`$parent`, puis le nom de méthode et les arguments).
+
+Dans Kotlin/Java : `parent()` renvoie le composant englobant lorsqu’il est imbriqué (disponible aussi après le montage via la référence parent stockée).
+
+## Lazy et defer
+
+```kotlin
+@Lazy(bundle = true)
+class Heavy : Component() {
+    override fun placeholder() = "<em>Loading…</em>"
+}
+```
+
+- `@Lazy` / param de montage `lazy` — placeholder jusqu’à ce que l’élément croise le viewport.
+- `@Defer` / `defer` — charge après le premier paint (microtâche).
+- `bundle = true` — groupe les chargements lazy (`memo.lazyBundle`).
+- `@placeholder('…')` / `WireConfig.lazyPlaceholder` — balisage par défaut.
+- `Wire.withoutLazyLoading { … }` — monte avidement dans les tests.
+
+## Îlots
+
+```crema
+@island('stats')
+    <p>{{ count }}</p>
+@endisland
+
+<button wire:click.island.stats.append="add">Add</button>
+```
+
+- Nommé ou anonyme (`@island` → `default`).
+- Drapeaux meta dans l’expression : `lazy`, `defer`, `always`, `skip`.
+- JS : `$wire.$island('stats', 'append'|'prepend'|'morph')` et le modificateur de clic `.island`.
+- Le polling dans un îlot utilise la même directive `wire:poll` que partout ailleurs.
+
+## Teleport
+
+```crema
+@teleport('body')
+    <aside>Portaled</aside>
+@endteleport
+```
+
+Rend un `<template wire:teleport="selector">` ; le runtime JS déplace le contenu vers `document.querySelector(selector)`.
+
+## Isolate
+
+```kotlin
+@Isolate
+class ChatPane : Component()
+```
+
+Les enfants isolés sautent le regroupement de requêtes avec leurs frères (`memo.isolate`).
+
+## Suite
+
+- [Composants](/docs/wire/essentials/components/) — enregistrement et découverte
+- [Événements](/docs/wire/advanced/events/) — `dispatch`, `@On`, écouteurs JS
+- [JavaScript](/docs/wire/js/runtime/) — API `$wire`

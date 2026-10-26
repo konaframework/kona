@@ -1,0 +1,143 @@
+---
+title: Chiffrement
+description: Chiffrez et déchiffrez des chaînes en AES-256-GCM avec la clé d’application (app.key / APP_KEY).
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Le **chiffrement** transforme des chaînes sensibles en texte chiffré que seule votre application peut lire, grâce à une **clé d’application** secrète. Utilisez-le pour les charges de cookie, les secrets stockés et toute valeur qui doit rester opaque au repos ou en transit à travers des couches non fiables.
+
+Artefact : `org.konaframework:kona-auth` (`org.konaframework.security.Encrypter`). `AuthServiceProvider` lie un `Encrypter` quand `app.key` est fixé.
+
+## Clé d’application
+
+La clé fait 32 octets bruts, d’habitude stockée en `base64:…` dans la config :
+
+| Source | Notes |
+|--------|--------|
+| Config `app.key` | Lue par `Encrypter.fromConfig` / `AuthServiceProvider` |
+| Environnement | Souvent reflétée comme `APP_KEY` vers cette clé de config dans votre bootstrap |
+
+### Générer avec grind (recommandé pour les apps)
+
+Depuis le répertoire de votre application :
+
+```bash
+./grind key:generate          # write APP_KEY into .env
+./grind key:generate --show   # print a key without writing
+./grind key:generate --force  # overwrite in production without prompting
+```
+
+`kona new` embarque déjà un `APP_KEY` aléatoire dans le `.env` généré. Utilisez `key:generate` quand vous avez copié `.env.example` à la main, fait tourner une clé, ou devez imprimer une clé pour un gestionnaire de secrets (`--show`). Comportement complet des drapeaux : [grind key:generate](../../grind/commands/#grind-keygenerate).
+
+### Générer dans le code
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.security.Encrypter
+
+val key = Encrypter.generateKey()  // "base64:...."
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+String key = Encrypter.generateKey();
+```
+
+</TabItem>
+</Tabs>
+
+Mettez-la dans la config avant le boot (ou assurez-vous que `.env` / `config/` alimente `app.key`) :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+.configure { it.set("app.key", Encrypter.generateKey()) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+app.configure(config -> config.set("app.key", Encrypter.generateKey()));
+```
+
+</TabItem>
+</Tabs>
+
+Ne commitez jamais de vraies clés de production. Faites tourner avec soin — le texte chiffré avec l’ancienne clé ne se déchiffrera pas après rotation sauf si vous rechiffrez. Utilisez `./grind key:generate` (avec `--force` en production) quand vous faites tourner la clé stockée dans `.env`.
+
+## Chiffrer et déchiffrer
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val encrypter = app.resolve(Encrypter::class.java)
+// or: Encrypter.fromBase64Key(app.config.getString("app.key")!!)
+
+val cipher = encrypter.encryptString("user@example.com")
+val plain = encrypter.decryptString(cipher)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Encrypter encrypter = app.resolve(Encrypter.class);
+String cipher = encrypter.encryptString("user@example.com");
+String plain = encrypter.decryptString(cipher);
+```
+
+</TabItem>
+</Tabs>
+
+Algorithme : **AES-256-GCM**. La charge utile est du JSON encodé en Base64 avec les champs Base64 `iv`, `value` et `tag`.
+
+## Créer un encrypter à la main
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val fromConfig = Encrypter.fromConfig(app.config)
+val fromKey = Encrypter.fromBase64Key("base64:…")
+val fromBytes = Encrypter(ByteArray(32) /* exactly 32 bytes */)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Encrypter.fromConfig(app.getConfig());
+Encrypter.fromBase64Key("base64:…");
+new Encrypter(keyBytes); // length must be 32
+```
+
+</TabItem>
+</Tabs>
+
+## Modes d’échec
+
+| Situation | Exception |
+|-----------|-----------|
+| `app.key` absent dans `fromConfig` | `EncryptionException` — « No application encryption key has been specified. » |
+| Mauvaise longueur de clé / Base64 invalide | `EncryptionException` — cipher non supporté ou longueur de clé incorrecte |
+| Texte chiffré altéré ou mauvaise clé | `EncryptionException` — déchiffrement impossible |
+| `AuthServiceProvider` avec une clé vide ou invalide | Encrypter laissé non lié ; résolvez plus tard après avoir fixé une clé valide |
+
+`EncryptionException` n’est pas vérifiée — attrapez-la aux frontières où vous acceptez du texte chiffré non fiable.
+
+## Quand chiffrer
+
+- Valeurs que vous ne voudriez pas lisibles dans les journaux, les cookies ou les colonnes de base
+- Charges de cookie de session avec le pilote cookie hors environnements locaux (combinez avec la configuration [session](../session/))
+
+Pour des valeurs sérialisables en JSON utilisez `encrypt(value)` / `decrypt(payload, MyType::class.java)` (Jackson). Préférez `encryptString` / `decryptString` pour les chaînes brutes.
+
+N’utilisez **pas** le chiffrement à la place du hachage de mot de passe. Les mots de passe vont avec [Hash / bcrypt](../authentication/#hashing).

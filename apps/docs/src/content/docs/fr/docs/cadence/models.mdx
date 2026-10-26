@@ -1,17 +1,17 @@
 ---
 title: Modèles
-description: Définissez des modèles Cadence, lisez et écrivez des lignes, castez des attributs, supprimez des lignes en douce, et paginez les résultats.
+description: Définissez des modèles Cadence, lisez et écrivez des lignes, castez les attributs, supprimez des lignes de façon logique et paginez les résultats.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Un **modèle** est une classe qui représente une table de base. Chaque instance tient une ligne : ses **attributs** sont les colonnes de la ligne, indexées par nom de colonne. Les modèles savent trouver des lignes, en insérer de nouvelles, mettre à jour les colonnes changées, et se supprimer. Ce style est parfois appelé *active record* : l’objet qui tient les données sait aussi comment les persister.
+Un **modèle** est une classe qui représente une table de base de données. Chaque instance porte une ligne : ses **attributs** sont les colonnes de la ligne, indexées par nom de colonne. Les modèles savent trouver des lignes, en insérer de nouvelles, mettre à jour les colonnes changées et se supprimer eux-mêmes. Ce style s’appelle parfois *active record* : l’objet qui porte les données sait aussi les persister.
 
-Les modèles lisent la base **globale** (consultez [Vue d’ensemble Cadence](../)), donc enregistrez `CadenceServiceProvider` ou appelez `Database.setAsGlobal()` avant de les utiliser.
+Les modèles lisent la base **globale** (consultez [Résumé de Cadence](../)), donc enregistrez `CadenceServiceProvider` ou appelez `Database.setAsGlobal()` avant de les utiliser.
 
 ## Définir un modèle
 
-Un modèle étend `Cadence<T>`, en passant sa propre classe comme `T`, et doit avoir un constructeur sans argument. Les modèles Kotlin ajoutent en général un objet compagnon pour que `User.find(1)` se lise naturellement ; les modèles Java gardent un champ statique `CadenceCompanion`.
+Un modèle étend `Cadence<T>`, en passant sa propre classe comme `T`, et doit avoir un constructeur sans argument. Les modèles Kotlin ajoutent d’habitude un objet companion pour que `User.find(1)` se lise naturellement ; les modèles Java gardent un champ statique `CadenceCompanion`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -59,19 +59,19 @@ public class User extends Cadence<User> {
 
 `./grind make:model User` écrit ce squelette pour vous sous `src/main/…/app/models/` (consultez [Migrations](../migrations/#grind-commands)).
 
-### Conventions que vous pouvez surcharger
+### Conventions que vous pouvez remplacer
 
 Chaque convention est une propriété ouverte (un getter en Java) sur `Cadence` :
 
 | Propriété | Défaut | Sens |
 |----------|---------|---------|
-| `table` | pluriel snake_case du nom de classe (`BlogPost` → `blog_posts`, `Category` → `categories`) | Nom de table |
+| `table` | pluriel en snake_case du nom de classe (`BlogPost` → `blog_posts`, `Category` → `categories`) | Nom de table |
 | `primaryKey` | `id` | Colonne de clé primaire |
-| `incrementing` | `true` | Relire la clé générée après l’insert |
+| `incrementing` | `true` | Relire la clé générée après l’insertion |
 | `timestamps` | `true` | Maintenir `created_at` / `updated_at` |
 | `createdAtColumn` / `updatedAtColumn` | `created_at` / `updated_at` | Noms des colonnes d’horodatage |
-| `fillable` | vide | Clés que `fill` peut régler |
-| `guarded` | `*` | Clés que `fill` refuse (`*` garde tout ce qui n’est pas fillable) |
+| `fillable` | vide | Clés que `fill` peut définir |
+| `guarded` | `*` | Clés que `fill` refuse (`*` protège tout ce qui n’est pas fillable) |
 | `casts` | vide | Colonne → `CastType` ou `CastsAttributes` |
 | `connectionName` | `null` (connexion par défaut) | Connexion nommée à utiliser |
 | `perPage` | `15` | Taille de page pour `paginate()` / `simplePaginate()` / `cursorPaginate()` |
@@ -105,21 +105,21 @@ User newest = User.QUERY.query().latest().first();
 </TabItem>
 </Tabs>
 
-`query()` renvoie un `ModelBuilder<T>`. Il accepte les mêmes contraintes que le [constructeur de requêtes](../query-builder/) (`where`, `whereIn`, `whereDate` / `whereYear` / …, `orWhereRaw`, `select` / `selectRaw` / `distinct`, `groupBy` / `having` / `havingRaw`, `orderBy`, `limit`, jointures, …) mais renvoie des instances de modèle au lieu de cartes. Appelez `toBase()` (ou `getQuery()`) pour obtenir le `QueryBuilder` sous-jacent, ou `toSql()` pour voir le SQL généré.
+`query()` renvoie un `ModelBuilder<T>`. Il accepte les mêmes contraintes que le [constructeur de requêtes](../query-builder/) (`where`, `whereIn`, `whereDate` / `whereYear` / …, `orWhereRaw`, `select` / `selectRaw` / `distinct`, `groupBy` / `having` / `havingRaw`, `orderBy`, `limit`, jointures, …) mais renvoie des instances de modèle au lieu de maps. Appelez `toBase()` (ou `getQuery()`) pour obtenir le `QueryBuilder` sous-jacent, ou `toSql()` pour voir le SQL généré.
 
 ### Attributs
 
-Lisez les attributs avec `getAttribute("name")`, l’opérateur d’index Kotlin `user["name"]`, le `user.attribute<String>("name")` typé, ou une [propriété de colonne](#column-properties). Réglez-les avec `setAttribute` ou `user["name"] = "Ada"`. Les lectures appliquent les casts ; `getRawAttribute` renvoie la valeur stockée intacte.
+Lisez les attributs avec `getAttribute("name")`, l’opérateur d’index Kotlin `user["name"]`, le typé `user.attribute<String>("name")`, ou une [propriété de colonne](#column-properties). Définissez-les avec `setAttribute` ou `user["name"] = "Ada"`. Les lectures appliquent les casts ; `getRawAttribute` renvoie la valeur stockée telle quelle.
 
-Cadence résout aussi les méthodes magiques `getFullNameAttribute()` pour les lectures et `setFullNameAttribute(value)` pour les écritures (utilisez `setRawAttribute` dans les mutateurs). `push()` sauve le modèle et sauve récursivement les modèles liés chargés. `Cadence.unguard()` / `reguard()` / `runUnguarded { … }` et `Cadence.runWithoutTimestamps { … }` contrôlent l’assignation de masse et les horodatages. `sole()` renvoie exactement un modèle ou lance `ModelNotFoundException` / `MultipleRecordsFoundException`.
+Cadence résout aussi les méthodes magiques de style Laravel : `getFullNameAttribute()` pour les lectures et `setFullNameAttribute(value)` pour les écritures (utilisez `setRawAttribute` dans les mutateurs). `push()` enregistre le modèle et enregistre récursivement les modèles liés déjà chargés. `Cadence.unguard()` / `reguard()` / `runUnguarded { … }` et `Cadence.runWithoutTimestamps { … }` reprennent les contrôles d’assignation de masse et d’horodatage d’Eloquent. `sole()` renvoie exactement un modèle, ou lance `ModelNotFoundException` / `MultipleRecordsFoundException`.
 
-Un modèle se souvient des valeurs avec lesquelles il a été chargé. `isDirty()` / `getDirty()` rapportent les attributs changés depuis, `getOriginal()` renvoie les valeurs chargées, et `toMap()` rend les attributs castés plus les relations chargées, prêt pour `Response.json(...)`.
+Un modèle se souvient des valeurs avec lesquelles il a été chargé. `isDirty()` / `getDirty()` signalent les attributs changés depuis, `getOriginal()` renvoie les valeurs chargées, et `toMap()` rend les attributs castés plus les relations chargées, prêts pour `Response.json(...)`.
 
 <a id="column-properties"></a>
 
 ### Propriétés de colonne
 
-Déclarez une colonne comme propriété Kotlin quand vous voulez que le compilateur connaisse son nom et son type. `column()` (alias `attr()`) lit et écrit à travers la carte d’attributs. Le nom de propriété est le nom de colonne sauf si vous passez une autre clé.
+Déclarez une colonne comme propriété Kotlin quand vous voulez que le compilateur connaisse son nom et son type. `column()` (alias `attr()`) lit et écrit à travers la map d’attributs. Le nom de la propriété est le nom de colonne, sauf si vous passez une autre clé.
 
 ```kotlin
 class User : Cadence<User>() {
@@ -136,7 +136,7 @@ if (user != null) {
 }
 ```
 
-`User.first()` est nullable. Après `if (user != null)`, Kotlin smart-caste `user`, donc `user.name` et `user.email` n’ont pas besoin de `?.`. Java appelle les `getName` / `setName` et `getEmail` / `setEmail` générés.
+`User.first()` est nullable. Après `if (user != null)`, Kotlin fait un smart-cast de `user`, donc `user.name` et `user.email` n’ont pas besoin de `?.`. Java appelle les `getName` / `setName` et `getEmail` / `setEmail` générés.
 
 ## Écrire des lignes
 
@@ -175,28 +175,28 @@ User.QUERY.destroy(4, 5, 6);
 </TabItem>
 </Tabs>
 
-`save()` insère un nouveau modèle ou met à jour un modèle chargé. À l’insert, il relit la clé générée dans `id`. À la mise à jour, il n’écrit que les attributs sales, et ne fait rien quand il n’y en a pas. Quand `timestamps` est actif, il règle `updated_at` à chaque écriture et `created_at` à l’insert, sauf si vous les réglez vous-même.
+`save()` insère un nouveau modèle ou met à jour un modèle chargé. À l’insertion, il relit la clé générée dans `id`. À la mise à jour, il n’écrit que les attributs modifiés, et ne fait rien quand il n’y en a aucun. Quand `timestamps` est actif, il pose `updated_at` à chaque écriture et `created_at` à l’insertion, sauf si vous les définissez vous-même.
 
 `fresh()` renvoie une copie fraîchement chargée de la ligne ; `refresh()` recharge l’instance courante sur place.
 
 ### Assignation de masse
 
-`create`, `fill` et `update` prennent une carte d’attributs. Pour empêcher un corps de requête de régler des colonnes que vous n’aviez pas prévues (`admin`, `id`), ils n’acceptent que les clés listées dans `fillable`. Avec le défaut `guarded = setOf("*")` et un `fillable` vide, toute clé lance `MassAssignmentException`. Utilisez `forceFill` quand vous voulez délibérément régler chaque clé, par exemple depuis du code de confiance.
+`create`, `fill` et `update` prennent une map d’attributs. Pour empêcher un corps de requête de définir des colonnes que vous n’aviez pas prévues (`admin`, `id`), ils n’acceptent que les clés listées dans `fillable`. Avec le défaut `guarded = setOf("*")` et un `fillable` vide, toute clé lance `MassAssignmentException`. Utilisez `forceFill` quand vous voulez délibérément définir chaque clé, par exemple depuis du code de confiance.
 
 ## Casts
 
-Un cast convertit une valeur de colonne stockée en un type pratique à la lecture. Déclarez les casts dans `casts` comme un `CastType` intégré ou une classe `CastsAttributes` personnalisée :
+Un cast convertit une valeur de colonne stockée en un type pratique à la lecture. Déclarez les casts dans `casts`, soit comme `CastType` intégré, soit comme classe `CastsAttributes` personnalisée :
 
 | `CastType` | Lu comme |
 |------------|---------|
 | `INT`, `LONG`, `DOUBLE` | `Int`, `Long`, `Double` |
 | `BOOLEAN` | `Boolean` (accepte `1`/`0`, `"true"`/`"false"`) |
 | `STRING` | `String` |
-| `JSON` | `Map` ou `List` depuis du texte JSON ; les cartes et listes sont réécrites en JSON |
+| `JSON` | `Map` ou `List` depuis du texte JSON ; les maps et les listes sont réécrites en JSON |
 | `DATETIME` | `java.time.LocalDateTime` |
 | `INSTANT` | `java.time.Instant` |
 
-Les colonnes d’horodatage (et `deleted_at` sur les modèles à suppression douce) sont castées en `Instant` automatiquement.
+Les colonnes d’horodatage (et `deleted_at` sur les modèles à suppression logique) sont castées en `Instant` automatiquement.
 
 ### Casts personnalisés
 
@@ -221,11 +221,11 @@ class Product : Cadence<Product>() {
 }
 ```
 
-Les surcharges Java renvoient `Map<String, Object>` depuis `getCasts()` pour que les enums et les instances de cast tiennent.
+Les surcharges Java renvoient `Map<String, Object>` depuis `getCasts()`, pour que les enums et les instances de cast y tiennent ensemble.
 
-## Portées globales
+## Scopes globaux
 
-Une **portée globale** est une contrainte appliquée à chaque requête d’un modèle — par exemple « seulement les lignes actives ». Enregistrez les portées sur le compagnon (Kotlin `init`) ou une fois au boot (Java). Les suppressions douces restent séparées (`withTrashed` / `onlyTrashed`) ; les portées globales s’empilent par-dessus.
+Un **scope global** est une contrainte appliquée à chaque requête d’un modèle — par exemple « seulement les lignes actives ». Enregistrez les scopes sur le companion (`init` en Kotlin) ou une fois au démarrage (Java). Les suppressions logiques restent à part (`withTrashed` / `onlyTrashed`) ; les scopes globaux s’empilent par-dessus.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -273,13 +273,13 @@ Member.QUERY.withoutGlobalScopes().get();
 </TabItem>
 </Tabs>
 
-`hasGlobalScope` / `getGlobalScope` / `getGlobalScopes` inspectent le registre. `removeGlobalScope` désenregistre une portée pour tout le processus (pas seulement une requête).
+`hasGlobalScope` / `getGlobalScope` / `getGlobalScopes` inspectent le registre. `removeGlobalScope` retire un scope pour tout le processus (pas seulement pour une requête).
 
 <a id="soft-deletes"></a>
 
-## Suppressions douces
+## Suppressions logiques
 
-Une **suppression douce** marque une ligne comme supprimée en réglant un horodatage `deleted_at` au lieu de la retirer, pour qu’elle puisse être restaurée. Implémentez l’interface `SoftDeletes` :
+Une **suppression logique** marque une ligne comme supprimée en posant un horodatage `deleted_at` au lieu de la retirer, pour pouvoir la restaurer. Implémentez l’interface `SoftDeletes` :
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -328,7 +328,7 @@ Surchargez `deletedAtColumn` pour utiliser un autre nom de colonne. Ajoutez la c
 
 ## Pagination
 
-`paginate(perPage, page)` exécute une requête de comptage plus une requête de page et renvoie un `Page<T>` :
+`paginate(perPage, page)` exécute une requête de compte plus une requête de page, et renvoie une `Page<T>` :
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -357,7 +357,7 @@ Response.json(page.toMap());
 </TabItem>
 </Tabs>
 
-Les numéros de page commencent à 1 ; les valeurs sous 1 sont traitées comme la page 1.
+Les numéros de page commencent à 1 ; les valeurs inférieures à 1 sont traitées comme la page 1.
 
 ### Pagination simple et par curseur
 
@@ -369,7 +369,7 @@ page.hasMorePages()
 page.toMap()   // data, per_page, current_page, has_more
 ```
 
-`cursorPaginate` parcourt une colonne ordonnée avec des curseurs opaques (pas de dérive d’offset sur les inserts) :
+`cursorPaginate` parcourt une colonne ordonnée avec des curseurs opaques (pas de dérive d’offset quand des lignes sont insérées) :
 
 ```kotlin
 val first = User.cursorPaginate(20)
@@ -377,9 +377,9 @@ val next = User.cursorPaginate(20, first.nextCursor)
 // CursorPage: data, per_page, next_cursor, prev_cursor
 ```
 
-## Suivi du sale après save
+## Suivi des modifications après l’enregistrement
 
-`isDirty` / `getDirty` décrivent les changements depuis le dernier chargement. Après un `save()` réussi, utilisez `wasChanged` / `getChanges` pour ce que ce save a persisté :
+`isDirty` / `getDirty` décrivent les changements depuis le dernier chargement. Après un `save()` réussi, utilisez `wasChanged` / `getChanges` pour ce que cet enregistrement a persisté :
 
 ```kotlin
 user["name"] = "Ada"
@@ -389,14 +389,16 @@ user.getChanges()         // map of persisted attributes
 user.save()               // no-op when clean → wasChanged() is false
 ```
 
+<a id="retrieving-or-creating"></a>
+
 ## Récupérer ou créer
 
-Quand vous voulez « trouver cette ligne, ou en faire une » en un seul appel :
+Quand vous voulez « trouver cette ligne, ou en fabriquer une » en un seul appel :
 
 | Appel | Comportement |
 |------|----------|
-| `firstOrNew(attributes)` | Renvoie la première correspondance, ou un nouveau modèle **non sauvé** rempli avec `attributes` |
-| `firstOrCreate(attributes, values)` | Renvoie la première correspondance, ou **crée** une ligne depuis `attributes` fusionné avec des `values` optionnelles |
+| `firstOrNew(attributes)` | Renvoie la première correspondance, ou un nouveau modèle **non enregistré** rempli avec `attributes` |
+| `firstOrCreate(attributes, values)` | Renvoie la première correspondance, ou **crée** une ligne à partir de `attributes` fusionné avec les `values` optionnelles |
 | `updateOrCreate(attributes, values)` | Met à jour la première correspondance avec `values`, ou crée `attributes + values` |
 
 <Tabs syncKey="lang">
@@ -434,7 +436,7 @@ Flight flight = Flight.QUERY.updateOrCreate(
 
 ## Upserts et insert-or-ignore
 
-Sur la requête de modèle (ou le [constructeur de requêtes](../query-builder/#upserts) de table) :
+Sur la requête du modèle (ou le [constructeur de requêtes](../query-builder/#upserts) de la table) :
 
 ```kotlin
 User.query().upsert(
@@ -457,11 +459,11 @@ User.query().insertOrIgnore(
 )
 ```
 
-`upsert` parcourt chaque ligne : quand une ligne correspondant à `uniqueBy` existe, il met à jour les colonnes listées (ou chaque colonne non unique quand `update` est omis) ; sinon il insère. Préférez un index unique sur ces colonnes dans le schéma pour que des écrivains concurrents ne se fassent pas la course.
+`upsert` parcourt chaque ligne : quand une ligne qui correspond à `uniqueBy` existe, il met à jour les colonnes listées (ou chaque colonne non unique quand `update` est omis) ; sinon il insère. Préférez un index unique sur ces colonnes dans le schéma, pour que des écritures concurrentes ne se disputent pas la ligne.
 
-## Portées de requête
+## Scopes de requête
 
-Les filtres réutilisables sont des méthodes ordinaires sur votre compagnon (ou des aides statiques en Java) qui renvoient un `ModelBuilder` :
+Les filtres réutilisables sont des méthodes ordinaires sur votre companion (ou des aides statiques en Java) qui renvoient un `ModelBuilder` :
 
 ```kotlin
 class User : Cadence<User>() {
@@ -474,7 +476,7 @@ class User : Cadence<User>() {
 User.admins().orderBy("name").get()
 ```
 
-Les portées en ligne utilisent `scope { … }` ou `when` / `unless` conditionnels :
+Les scopes en ligne utilisent `scope { … }` ou les conditionnels `when` / `unless` :
 
 ```kotlin
 User.query()
@@ -510,7 +512,7 @@ user.`is`(other)                               // same class + same non-null pri
 user.isNot(other)
 ```
 
-## Découper de grands ensembles de résultats
+## Découper les grands jeux de résultats
 
 ```kotlin
 User.query().orderBy("id").chunk(200) { batch ->
@@ -518,7 +520,7 @@ User.query().orderBy("id").chunk(200) { batch ->
 }
 ```
 
-Chaque morceau exécute une requête de page (`forPage`). Faites toujours `orderBy` sur une colonne stable pour que les pages ne sautent ni ne répètent des lignes sous des écritures concurrentes.
+Chaque tranche exécute une requête de page (`forPage`). Faites toujours un `orderBy` sur une colonne stable, pour que les pages ne sautent ni ne répètent des lignes sous des écritures concurrentes.
 
 ## Persistance silencieuse
 
@@ -526,7 +528,7 @@ Chaque morceau exécute une requête de page (`forPage`). Faites toujours `order
 
 ## Tronquer la table d’un modèle
 
-`User.truncate()` (ou `User.query().truncate()`) exécute `TRUNCATE TABLE` sur la table du modèle et retire chaque ligne. Il ignore les contraintes de requête et les portées de suppression douce — utilisez-le quand vous voulez une table vide, pas une suppression filtrée.
+`User.truncate()` (ou `User.query().truncate()`) exécute `TRUNCATE TABLE` sur la table du modèle et retire chaque ligne. Il ignore les contraintes de requête et les scopes de suppression logique — utilisez-le quand vous voulez une table vide, pas une suppression filtrée.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

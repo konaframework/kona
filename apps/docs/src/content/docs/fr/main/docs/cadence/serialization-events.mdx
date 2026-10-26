@@ -1,0 +1,180 @@
+---
+title: Sérialisation, collections et événements
+description: Convertissez des modèles en tableaux et JSON, travaillez avec CadenceCollection et écoutez les événements de cycle de vie.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Sérialisation
+
+Les modèles se transforment en maps et en JSON pour les API et les vues.
+
+| API | Rôle |
+|-----|------|
+| `toArray()` / `toMap()` | Attributs castés + relations chargées comme maps imbriquées |
+| `toJson()` | Chaîne JSON de `toMap()` |
+| `hidden` | Noms d’attributs omis de la sérialisation |
+| `visible` | Lorsqu’il n’est pas vide, seuls ces attributs sont inclus (moins les surcharges `hidden`) |
+| `appends` | Clés virtuelles remplies par `getAppendedAttribute` |
+| `makeHidden` / `makeVisible` / `setAppends` | Surcharges par instance |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class User : Cadence<User>() {
+    override val hidden = setOf("password")
+    override val appends = setOf("display_name")
+
+    override fun getAppendedAttribute(key: String): Any? =
+        if (key == "display_name") getAttribute("name") else null
+}
+
+val payload = user.toMap()
+Response.json(user.toMap())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class User extends Cadence<User> {
+    @Override
+    public Set<String> getHidden() {
+        return Set.of("password");
+    }
+
+    @Override
+    public Set<String> getAppends() {
+        return Set.of("display_name");
+    }
+
+    @Override
+    public Object getAppendedAttribute(String key) {
+        return "display_name".equals(key) ? getAttribute("name") : null;
+    }
+}
+
+Map<String, Object> payload = user.toMap();
+Response.json(user.toMap());
+```
+
+</TabItem>
+</Tabs>
+
+Les relations chargées apparaissent sous leurs noms de relation. Les horodatages de suppression douce et les autres colonnes castées utilisent leurs types Java castés dans la map (par exemple `Instant` pour `created_at` / `updated_at`, `LocalDateTime` pour les casts `datetime`). Vous pouvez assigner un [`KonaDate`](../../support/#dates) à ces colonnes ; Cadence stocke l’`Instant` sous-jacent.
+
+`toJson()` (et `Response.json(model.toArray())`) écrit ces valeurs comme des chaînes ISO-8601, donc `GET /api/users` ne déverse pas un objet Java Time brut :
+
+```json
+{"id":1,"name":"Ada","created_at":"2024-06-15T12:00:00Z","updated_at":"2024-06-15T12:00:00Z"}
+```
+
+## Collections
+
+`get()` renvoie une `List`. Préférez `getCollection()` lorsque vous voulez les aides Cadence :
+
+```kotlin
+val users = User.query().where("admin", true).getCollection()
+users.pluck("email")
+users.modelKeys()
+users.find(1)
+users.load("posts")
+users.loadMissing("roles")
+users.filter { it["admin"] == true }
+users.toArray()
+users.toMapKeyedById()
+```
+
+`CadenceCollection.of(list)` / `CadenceCollection.make(…)` enveloppent une liste existante. Les mutations qui chargent des relations mettent à jour les mêmes instances de modèle que vous tenez déjà.
+
+## Événements de cycle de vie
+
+`ModelDispatcher` est un registre à l’échelle du processus pour les hooks de persistance. Événements :
+
+| Événement | Quand |
+|-------|------|
+| `RETRIEVED` | Après qu’un modèle est hydraté depuis une ligne |
+| `CREATING` / `CREATED` | Avant / après l’insertion |
+| `UPDATING` / `UPDATED` | Avant / après la mise à jour |
+| `SAVING` / `SAVED` | Autour de chaque `save` (y compris les mises à jour sans effet) |
+| `DELETING` / `DELETED` | Autour de `delete` |
+| `TRASHED` | Suppression douce terminée |
+| `RESTORING` / `RESTORED` | Restauration de suppression douce |
+| `FORCE_DELETING` / `FORCE_DELETED` | Suppression permanente sur un modèle à suppression douce |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ModelDispatcher.listen(ModelEvent.CREATED) { model ->
+    logger.info("created {}#{}", model.javaClass.simpleName, model.getKey())
+}
+
+ModelDispatcher.withoutEvents {
+    user.save()   // no listeners run
+}
+
+user.saveQuietly()
+user.deleteQuietly()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ModelDispatcher.listen(ModelEvent.CREATED, model -> {
+    logger.info("created {}#{}", model.getClass().getSimpleName(), model.getKey());
+});
+
+ModelDispatcher.withoutEvents(() -> user.save());
+user.saveQuietly();
+user.deleteQuietly();
+```
+
+</TabItem>
+</Tabs>
+
+Appelez `ModelDispatcher.flush()` dans les tests pour effacer les écouteurs entre les cas. Les blocs `withoutEvents` imbriqués s’imbriquent en sécurité (un compteur de profondeur).
+
+### Classes observateur
+
+Pour des hooks à portée de modèle, étendez `ModelObserver` et enregistrez-le une fois :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class UserObserver : ModelObserver<User>() {
+    override fun creating(model: User) {
+        model["email"] = model["email"].toString().lowercase()
+    }
+
+    override fun deleted(model: User) {
+        logger.info("removed user {}", model.getKey())
+    }
+}
+
+User.observe(UserObserver())
+// or Cadence.observe(User::class.java, UserObserver())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class UserObserver extends ModelObserver<User> {
+    @Override
+    public void creating(User model) {
+        model.set("email", String.valueOf(model.get("email")).toLowerCase());
+    }
+}
+
+Cadence.observe(User.class, new UserObserver());
+// or User.QUERY.observe(new UserObserver());
+```
+
+</TabItem>
+</Tabs>
+
+Les observateurs ne reçoivent que les instances de leur type de modèle. Surchargez n’importe quelle méthode de cycle de vie (`retrieved`, `creating`, `created`, `updating`, `updated`, `saving`, `saved`, `deleting`, `deleted`, `trashed`, `restoring`, `restored`, `forceDeleting`, `forceDeleted`). En dessous ils s’enregistrent sur `ModelDispatcher`, donc `flush()` / `withoutEvents` / `saveQuietly` s’appliquent de la même façon.

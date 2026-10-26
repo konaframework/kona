@@ -1,0 +1,143 @@
+---
+title: Runtime JavaScript
+description: API globale Wire, $wire, hooks, morph, intercepteurs et ESM manuel.
+---
+
+Le runtime client de Wire est un bundle ESM/IIFE construit sur Alpine.js. La balise script par défaut charge Alpine + les plugins Wire et appelle `Wire.start()` sur `DOMContentLoaded`.
+
+## Globales
+
+Après le chargement du script :
+
+```js
+window.Wire
+window.Alpine
+```
+
+Événements de cycle de vie sur `document` :
+
+| Événement | Quand |
+|-------|------|
+| `brew:init` / `brew:initializing` | Avant que les plugins Alpine et les sélecteurs racine soient câblés — enregistrez hooks et directives ici |
+| `brew:initialized` | Après `Alpine.start()` et que les composants sont vivants |
+
+## Trouver des composants
+
+```js
+Wire.find(id)
+Wire.first()
+Wire.getByName('counter')
+Wire.all()
+Wire.navigate('/posts')
+Wire.dispatch('saved', { id: 1 })
+Wire.dispatchTo('counter', 'bump', {})
+Wire.on('saved', handler)
+```
+
+## `$wire`
+
+Chaque racine de composant expose `$wire` à travers Alpine (nom magique `wire`) :
+
+| API | Rôle |
+|-----|------|
+| `$wire.prop` | Lire / assigner l’état éphémère |
+| `$wire.$get(path)` | Lecture profonde |
+| `$wire.$set(path, value, live?)` | Écriture profonde ; `live` déclenche un aller-retour |
+| `$wire.$toggle(prop)` | Inverse un booléen |
+| `$wire.$call(method, …args)` | Invoque une action |
+| `$wire.method(…args)` | Identique à `$call` |
+| `$wire.$refresh()` | Re-rend |
+| `$wire.$commit()` | Vide les mises à jour en attente |
+| `$wire.$el` / `$wire.$id` | Élément racine / id |
+| `$wire.$watch(path, fn)` | Observe l’état |
+| `$wire.$hook(name, fn)` | Hook à portée de composant |
+| `$wire.$errors` | Sac de validation (`has` / `first` / `get` / `all` / `clear`) |
+| `$wire.$refs` / `$wire.$refs(name)` | Éléments marqués `wire:ref` |
+| `$wire.$dirty(path?)` | Si l’état éphémère diverge du dernier snapshot serveur |
+| `$wire.$on` / `$wire.$dispatch*` | Pont d’événements (consultez [Événements](/docs/wire/advanced/events/)) |
+| `$wire.$entangle(name, live?)` | Liaison bidirectionnelle Alpine ↔ Wire |
+| `$wire.$intercept` / `$interceptAction` / `$interceptMessage` / `$interceptRequest` | Intercepteurs de requête par composant |
+| `$wire.$js` | Accès aux aides d’évaluation JS en file |
+| `$wire.$island(name)` | Cible un re-rendu d’îlot (lorsque vous utilisez des îlots) |
+
+## Hooks
+
+```js
+document.addEventListener('brew:init', () => {
+  Wire.hook('commit', ({ component, respond }) => { /* … */ })
+  Wire.hook('request', ({ respond }) => { /* … */ })
+  Wire.hook('morph', ({ el, component }) => { /* … */ })
+  Wire.hook('morph.updating', ({ el, toEl, component }) => {})
+  Wire.hook('component.init', ({ component, cleanup }) => {})
+  Wire.hook('element.init', ({ el, component }) => {})
+  Wire.hook('effect', ({ component, effects }) => {})
+})
+```
+
+Sous-hooks de morph : `morph.updated`, `morph.removing`, `morph.removed`, `morph.adding`, `morph.added`.
+
+## Intercepteurs
+
+Préférez les intercepteurs pour le contrôle du cycle de vie des requêtes :
+
+```js
+Wire.interceptAction(({ action, onCancel }) => { /* … */ })
+Wire.interceptMessage(({ message, cancel, onSuccess }) => { /* … */ })
+Wire.interceptRequest(({ request, onError, onFailure }) => { /* … */ })
+```
+
+Les hooks hérités `request` / `commit` restent pour les intégrations plus anciennes.
+
+## Directives personnalisées
+
+```js
+Wire.directive('tooltip', ({ el, directive, component, cleanup }) => {
+  // wire:tooltip="…"
+})
+```
+
+## Directives intégrées
+
+| Groupe | Directives |
+|-------|------------|
+| Liaison | `wire:model` (+ modificateurs), `wire:show`, `wire:text`, `wire:bind:*` |
+| Actions | `wire:click`, `wire:submit`, tout `wire:<event>`, `wire:init`, `wire:confirm` |
+| UX | `wire:loading`, `wire:dirty`, `wire:offline`, `wire:cloak`, `wire:poll`, `wire:intersect`, `wire:sort` |
+| Morph | `wire:key`, `wire:ignore`, `wire:replace`, `wire:transition`, `wire:stream`, `wire:ref` |
+| Navigation | `wire:navigate`, `wire:current`, `wire:scroll` |
+| Îlots | `wire:island` (+ `.append` / `.prepend`) |
+
+## Comportement du morph
+
+- Clé par `wire:key` et `wire:id`
+- Respecte `wire:ignore` / `wire:ignore.self` / `wire:ignore.children`
+- `wire:replace` / `wire:replace.self` échange au lieu de morpher
+- `wire:transition` + `effects.transition` participent à l’API View Transitions lorsqu’elle est disponible
+- Les marqueurs de bloc de Crema gardent les boucles et les conditionnels stables
+
+## Erreurs
+
+| Réponse | Comportement client |
+|----------|------------------|
+| 419 (expiré / checksum) | Invite de page expirée pour rafraîchir |
+| 500 (lorsque `app.debug`) | Modale de debug avec les détails |
+| Personnalisé | `onError` / les intercepteurs de requête peuvent court-circuiter |
+
+## ESM manuel
+
+Si vous empaquetez Wire vous-même, posez `window.wireScriptConfig` (ou émettez `@wireScriptConfig`) et appelez `Wire.start()` après votre mise en place Alpine. Le démarrage automatique par défaut est sauté lorsque la config de script est présente.
+
+```js
+import { Wire, Alpine } from '@konaframework/wire'
+// optional: Alpine.plugin(yourPlugin)
+Wire.start()
+```
+
+Plugins Alpine empaquetés au démarrage : morph, intersect, sort, resize, collapse, anchor, focus, persist, mask.
+
+## Suite
+
+- [Couplage Alpine.js](/docs/wire/js/alpine/) — règles de coexistence
+- [Actions](/docs/wire/essentials/actions/) — méthodes serveur que `$wire` appelle
+- [Événements](/docs/wire/advanced/events/) — dispatch et écouteurs
+- [Formulaires](/docs/wire/essentials/forms/) — modificateurs `wire:model`

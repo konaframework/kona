@@ -1,0 +1,206 @@
+---
+title: Événements
+description: Dispatch serveur, écouteurs @On, événements navigateur wire:* et ponts d’événements Alpine ↔ Wire.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire a trois surfaces d’événements liées :
+
+1. **Événements DOM navigateur** — `wire:click`, `wire:keydown.enter`, `wire:trix-change` personnalisé, …
+2. **Événements de composant** — `dispatch(...)` sur le serveur, `@On` / `listeners()` sur le récepteur
+3. **JavaScript / Alpine** — `Wire.dispatch`, `$wire.$dispatch`, `x-on:….window`
+
+Ils partagent les noms exprès : un `dispatch('saved')` serveur devient un `CustomEvent` navigateur qu’Alpine et les autres composants peuvent entendre.
+
+## Événements navigateur (`wire:*`)
+
+Utilisez `wire:<event-name>` sur n’importe quel élément pour appeler une action serveur :
+
+```html
+<button wire:click="save">Save</button>
+<button wire:click.prevent="save">Save</button>
+<button wire:dblclick="edit">Edit</button>
+<input wire:keydown.enter="search" />
+<input wire:keydown.shift.enter="newline" />
+<div wire:keydown.escape.window="close"></div>
+<div wire:trix-change="updated"></div>
+<div wire:init="load">…</div>
+```
+
+Les modificateurs de touche incluent `.enter`, `.escape`, `.space`, `.tab`, `.shift`, `.ctrl`, `.alt`, `.meta` / `.cmd`, les flèches, `.page-up` / `.page-down` et `.slash`.
+
+| Modificateur | Rôle |
+|----------|------|
+| `.window` / `.document` | Écoute sur window / document |
+| `.outside` | Se déclenche lorsque l’événement arrive hors de l’élément |
+| `.self` | Seulement lorsque la cible de l’événement est l’élément |
+| `.once` | Retire l’écouteur après le premier déclenchement |
+| `.debounce.Xms` / `.throttle.Xms` | Limite le débit |
+| `.passive` / `.capture` | Options `addEventListener` |
+| `.camel` / `.dot` | Casse du nom d’événement |
+
+N’importe quel nom d’événement DOM fonctionne après `wire:`. Consultez [Actions](/docs/wire/essentials/actions/) pour les actions magiques et les dialogues de confirmation.
+
+## Dispatcher depuis le serveur
+
+Mettez un événement navigateur en file depuis une action :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun save() {
+    // …
+    dispatch("post-saved", "id" to postId)
+}
+
+fun notifySelf() {
+    dispatch("refresh-ui").self()
+}
+
+fun notifyChild() {
+    dispatch("filter-changed", "q" to query).to("search-panel")
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public void save() {
+    // …
+    dispatch("post-saved", Map.of("id", postId));
+}
+
+public void notifySelf() {
+    dispatch("refresh-ui").self();
+}
+
+public void notifyChild() {
+    dispatch("filter-changed", Map.of("q", query)).to("search-panel");
+}
+```
+
+</TabItem>
+</Tabs>
+
+Livraison fluide :
+
+| Méthode | Effet |
+|--------|--------|
+| `to("name")` / `to(Class)` / `component("name")` | Cible un composant par nom |
+| `self()` | Seulement ce composant |
+| `ref("name")` | Cible un `wire:ref` |
+| `el("selector")` | Cible un sélecteur CSS |
+
+Sérialisé dans `effects.dispatches` et livré par le client après le morph.
+
+## Écouter avec `@On` et `listeners()`
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.wire.On
+
+class Feed : Component() {
+    @On("post-saved")
+    fun onSaved(id: Long) { /* … */ }
+
+    @On("post-updated.{post.id}")
+    fun onThisPost() { /* dynamic placeholder from state */ }
+
+    override fun listeners() = mapOf(
+        "legacy-event" to "onLegacy",
+    )
+
+    fun onLegacy() { /* … */ }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.wire.On;
+
+public class Feed extends Component {
+    @On("post-saved")
+    public void onSaved(long id) { /* … */ }
+
+    @On("post-updated.{post.id}")
+    public void onThisPost() { /* … */ }
+
+    @Override
+    public Map<String, String> listeners() {
+        return Map.of("legacy-event", "onLegacy");
+    }
+
+    public void onLegacy() { /* … */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Au montage, Wire déshydrate les noms d’écouteurs dans `effects.listeners` afin que le client puisse router les événements. Les placeholders comme `{post.id}` sont résolus depuis les propriétés du composant.
+
+## Écouteurs d’enfant imbriqué
+
+Écoutez l’événement d’un enfant sur la balise parent :
+
+```html
+<wire:editor @post-saved="refreshList" />
+```
+
+La méthode parent s’exécute lorsque l’enfant dispatche `post-saved`.
+
+## JavaScript et Alpine
+
+```js
+// Global
+Wire.on('saved', (e) => console.log(e))
+Wire.dispatch('saved', { id: 1 })
+Wire.dispatchTo('counter', 'bump', {})
+
+// From Alpine / $wire
+$wire.$on('saved', () => {})
+$wire.$dispatch('saved', { id: 1 })
+$wire.$dispatchSelf('refresh-ui')
+$wire.$dispatchTo('search-panel', 'filter-changed', { q: 'brew' })
+$wire.$dispatchRef('panel', 'close')
+$wire.$dispatchEl('#toast', 'show', { text: 'Done' })
+```
+
+Alpine entend les événements Wire comme des `CustomEvent` window :
+
+```html
+<div x-data x-on:post-saved.window="toast = $event.detail">
+  …
+</div>
+```
+
+Les aides de modèle `$dispatch` / `$dispatchTo` / `$dispatchSelf` sont disponibles dans les expressions Alpine à l’intérieur d’une racine de composant.
+
+## Echo / diffusion
+
+`@On("echo:channel,Event")`, `echo-private:` et `echo-presence:` s’intègrent à l’adaptateur de diffusion de Kona lorsque Echo est présent sur la page. Consultez la documentation de diffusion de Kona pour la mise en place des canaux ; Wire ne fait que câbler les noms d’écouteurs dans le composant.
+
+## Tests
+
+```kotlin
+Wire.test("feed")
+    .call("save")
+    .assertDispatched("post-saved")
+    .assertDispatched("post-saved") { params -> params["id"] == 42L }
+    .assertNotDispatched("deleted")
+```
+
+Vous pouvez aussi `dispatch(...)` dans une instance testable pour exercer les handlers `@On` sans navigateur.
+
+## Suite
+
+- [Imbrication](/docs/wire/advanced/nesting/) — câblage d’événements parent/enfant
+- [Couplage Alpine.js](/docs/wire/js/alpine/) — `$wire` et `x-on`
+- [Runtime JavaScript](/docs/wire/js/runtime/) — hooks et intercepteurs

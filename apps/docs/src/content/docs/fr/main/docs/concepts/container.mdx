@@ -1,0 +1,253 @@
+---
+title: Conteneur
+description: Liez des services, résolvez-les par type ou par clé, et comprenez l’autowiring de constructeur, les durées de vie et les erreurs de résolution.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Le **conteneur** (`org.konaframework.core.Container`) est un registre de *comment créer* les objets dont votre application a besoin. Au lieu de construire les services à la main et de les faire passer dans chaque constructeur de votre application, vous dites au conteneur une fois comment un type est fait (une **liaison**), puis vous demandez ce type au conteneur partout où vous en avez besoin (**résoudre**). Le conteneur construit aussi des classes ordinaires tout seul en lisant leur constructeur, ce qu’on appelle l’**autowiring**.
+
+Chaque `Application` possède un conteneur, disponible comme `app.container` en Kotlin et `app.getContainer()` en Java. Les liaisons sont en général ajoutées dans la méthode `register` d’un provider et résolues dans `boot` ou au moment de la requête.
+
+## Clés
+
+En interne, chaque liaison est stockée sous une **clé chaîne**. Les méthodes basées sur la classe utilisent le nom de classe pleinement qualifié comme clé, donc `bind(Greeter::class.java, ...)` et `bind("com.example.Greeter", ...)` désignent la même entrée. La plupart du code devrait utiliser des classes ; les clés chaîne sont utiles pour des services nommés tels que `"app"` et `"config"`, que l’application enregistre pour vous.
+
+## Lier un service
+
+Une **fabrique** est une fonction qui reçoit le conteneur et renvoie une instance. Parce qu’elle reçoit le conteneur, une fabrique peut résoudre les propres dépendances du service.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val c = app.container
+
+// A new instance on every resolve
+c.bind(ReportBuilder::class.java) { ReportBuilder() }
+
+// One shared instance, created on first resolve
+c.singleton(Clock::class.java) { SystemClock() }
+
+// A factory that pulls in another service
+c.singleton(Mailer::class.java) { container -> SmtpMailer(container.make(Clock::class.java)) }
+
+// An interface bound to an implementation class, which the container autowires
+c.singleton(UserRepository::class.java, SqlUserRepository::class.java)
+
+// An object you already have
+c.instance(AppSettings::class.java, AppSettings(region = "eu"))
+
+// A string key
+c.singleton("greeter") { Greeter("Hello") }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Container c = app.getContainer();
+
+// A new instance on every resolve
+c.bind(ReportBuilder.class, container -> new ReportBuilder());
+
+// One shared instance, created on first resolve
+c.singleton(Clock.class, container -> new SystemClock());
+
+// A factory that pulls in another service
+c.singleton(Mailer.class, container -> new SmtpMailer(container.make(Clock.class)));
+
+// An interface bound to an implementation class, which the container autowires
+c.singleton(UserRepository.class, SqlUserRepository.class);
+
+// An object you already have
+c.instance(AppSettings.class, new AppSettings("eu"));
+
+// A string key
+c.singleton("greeter", container -> new Greeter("Hello"));
+```
+
+</TabItem>
+</Tabs>
+
+| Méthode | Durée de vie | Notes |
+|--------|----------|-------|
+| `bind(type, factory)` | nouvelle instance à chaque résolution | `bind(type, factory, true)` la rend partagée |
+| `bind(type, implClass)` | nouvelle instance à chaque résolution | `implClass` est autowiré ; troisième argument optionnel `shared` |
+| `singleton(type, factory)` | une instance partagée | Identique à `bind(..., shared = true)` |
+| `singleton(type, implClass)` | une instance partagée | `implClass` est autowiré une fois |
+| `instance(type, obj)` | l’objet donné | Enregistré immédiatement ; pas de fabrique |
+| `bind` / `singleton` / `instance` avec une clé `String` | comme ci-dessus | Pour les services nommés |
+
+Les fabriques sont **paresseuses** : rien n’est construit au moment de la liaison, seulement à la première résolution. Lier à nouveau la même clé remplace la liaison antérieure et écarte toute instance partagée déjà construite pour elle. Si la fabrique d’un singleton lance, rien n’est mis en cache et la résolution suivante réessaie.
+
+## Résoudre un service
+
+`make` et `resolve` sont deux noms pour la même opération, sur `Container` et `Application`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val clock = app.resolve(Clock::class.java)
+val mailer = app.container.make(Mailer::class.java)
+val greeter: Greeter = app.container.make("greeter")
+val known = app.container.bound(Clock::class.java)   // true
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Clock clock = app.resolve(Clock.class);
+Mailer mailer = app.getContainer().make(Mailer.class);
+Greeter greeter = app.getContainer().make("greeter");
+boolean known = app.getContainer().bound(Clock.class);   // true
+```
+
+</TabItem>
+</Tabs>
+
+Ce qui se passe dépend de comment vous demandez :
+
+- **Par classe** : si la classe (ou un alias d’elle) est liée, la liaison est utilisée. Sinon, le conteneur **autowire** une instance fraîche (décrit ci-dessous). Les instances autowirées ne sont pas mises en cache ; chaque résolution en construit une nouvelle. Liez la classe comme singleton si vous voulez le partage.
+- **Par clé chaîne** : la liaison doit exister. Il n’y a pas d’autowiring pour les clés chaîne ; une clé inconnue lance `BindingException: No binding for [key]`.
+
+`bound(key)` / `bound(type)` vous dit si une liaison explicite existe, sans rien construire.
+
+## Autowiring
+
+Lorsqu’on lui demande une classe non liée, le conteneur :
+
+1. Choisit un constructeur parmi les constructeurs **publics** de la classe (les constructeurs synthétiques générés par le compilateur sont ignorés) :
+   - s’il y en a exactement un annoté `@Inject`, celui-là ;
+   - sinon, celui qui a le **plus de paramètres**.
+2. Résout chaque type de paramètre depuis le conteneur, récursivement, avec les mêmes règles.
+3. Appelle le constructeur avec ces valeurs.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+interface Clock { fun now(): Instant }
+class SystemClock : Clock { override fun now(): Instant = Instant.now() }
+
+class AuditLog(private val clock: Clock)
+class UserService(private val audit: AuditLog, private val clock: Clock)
+
+app.container.singleton(Clock::class.java) { SystemClock() }
+
+// Neither AuditLog nor UserService is bound: both are autowired.
+val users = app.resolve(UserService::class.java)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public interface Clock { Instant now(); }
+public final class SystemClock implements Clock { public Instant now() { return Instant.now(); } }
+
+public final class AuditLog {
+    public AuditLog(Clock clock) { /* ... */ }
+}
+public final class UserService {
+    public UserService(AuditLog audit, Clock clock) { /* ... */ }
+}
+
+app.getContainer().singleton(Clock.class, c -> new SystemClock());
+
+// Neither AuditLog nor UserService is bound: both are autowired.
+UserService users = app.resolve(UserService.class);
+```
+
+</TabItem>
+</Tabs>
+
+### Choisir un constructeur avec `@Inject`
+
+Marquez le constructeur que le conteneur doit utiliser avec `org.konaframework.core.Inject`. Le conteneur reconnaît toute annotation dont le nom simple est `Inject`, donc `jakarta.inject.Inject` et `javax.inject.Inject` fonctionnent aussi s’ils sont déjà sur votre classpath.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class ReportService @Inject constructor(private val clock: Clock) {
+    constructor(clock: Clock, title: String) : this(clock)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public final class ReportService {
+    @Inject
+    public ReportService(Clock clock) { /* ... */ }
+
+    public ReportService(Clock clock, String title) { /* ... */ }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Sans `@Inject`, le conteneur prendrait le constructeur à deux paramètres et échouerait sur `String`.
+
+### Ce que l’autowiring ne fera pas
+
+- **Inventer des valeurs.** Un paramètre dont le type est un primitif ou vit dans `java.*`, `javax.*` ou `kotlin.*` (comme `String`, `Int`, `Duration`, `List`) doit être lié explicitement, sinon la construction échoue. Les valeurs de paramètres par défaut Kotlin ne sont pas utilisées non plus. Lisez ces valeurs depuis la config à l’intérieur d’une fabrique à la place.
+- **Choisir une implémentation.** Les interfaces et les classes abstraites ne peuvent pas être construites ; liez-les à une classe concrète ou à une fabrique.
+
+## Alias
+
+`alias(alias, abstract)` fait qu’une clé chaîne désigne une autre clé. Les recherches suivent les chaînes d’alias, et aliaser une clé vers elle-même lance `BindingException("[x] is aliased to itself.")`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+app.container.alias("clock", Clock::class.java.name)
+val clock: Clock = app.container.make("clock")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+app.getContainer().alias("clock", Clock.class.getName());
+Clock clock = app.getContainer().make("clock");
+```
+
+</TabItem>
+</Tabs>
+
+## Erreurs
+
+Tous les échecs de résolution lancent `org.konaframework.core.BindingException` (une exception non vérifiée), avec un message qui nomme le type :
+
+| Message | Cause | Correction |
+|---------|-------|-----|
+| `No binding for [key]` | Clé chaîne jamais liée | Liez-la, ou résolvez par classe |
+| `Target [X] is not instantiable.` | Interface, classe abstraite, ou pas de constructeur public | Liez `X` à une implémentation |
+| `Unresolvable dependency [java.lang.String] in class [X]` | Un paramètre de constructeur est un type de plateforme | Liez `X` avec une fabrique qui fournit la valeur |
+| `Target [X] has multiple @Inject constructors.` | Choix ambigu | Gardez un seul `@Inject` |
+| `Failed to build [X]: …` | Le constructeur lui-même a lancé | Voyez la cause attachée |
+| `Circular dependency detected: A -> B -> A` | `A` a besoin de `B`, qui a besoin de `A` | Restructurez, ou résolvez un côté paresseusement dans une méthode |
+
+`CircularDependencyException` est une sous-classe de `BindingException`, donc vous pouvez l’attraper spécifiquement. Les cycles sont détectés à travers l’autowiring et les fabriques.
+
+## Sûreté des fils
+
+Le conteneur peut être utilisé depuis plusieurs fils à la fois, ce qui compte parce que chaque requête HTTP tourne sur son propre fil virtuel. Les instances partagées sont construites sous un verrou, donc une fabrique de singleton s’exécute au plus une fois même sous un premier accès concurrent. Parce que ce verrou est partagé par tous les singletons, gardez les fabriques de singleton rapides : faites la mise en place lente (connexions réseau, grandes lectures de fichiers) dans `boot` plutôt qu’à l’intérieur d’une fabrique que des fils de requête peuvent attendre.
+
+## `flush`
+
+`flush()` retire chaque liaison, instance et alias, puis réenregistre le conteneur sous sa propre classe. Il retire aussi les entrées `Application` et `Config` que l’application a enregistrées. Il existe pour les tests qui réutilisent un conteneur ; le code de production ne devrait pas en avoir besoin.
+
+## Quand lier et quand autowirer
+
+- **Liez** les interfaces, tout ce qui a besoin de valeurs de configuration, tout ce qui doit être partagé (pools de connexions, clients, caches), et l’infrastructure Kona telle que `Router`.
+- **Autowirez** les classes simples dont les paramètres de constructeur sont eux-mêmes liés ou autowirables, comme les contrôleurs et les petits services de domaine.
+
+Consultez aussi [Application et providers](../application/) pour où les liaisons sont enregistrées pendant le boot.

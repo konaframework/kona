@@ -1,0 +1,136 @@
+---
+title: Démarrer avec Crema
+description: Rendez des vues HTML avec des modèles Crema depuis des contrôleurs Kotlin ou Java.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+**Crema** est le moteur de vues côté serveur de Kona. Vous écrivez des modèles sous `src/main/resources/views`, vous passez une map de données depuis un contrôleur, et Crema développe les directives `@` et les échos `{{ }}` en HTML. Les modèles utilisent les extensions `*.crema.html` ou `*.crema.kt` (texte brut avec la même syntaxe de directives).
+
+Crema s’est inspiré de menus de modèles côté serveur familiers ; tout ce qui suit cette phrase décrit Crema selon ses propres termes.
+
+## Ce qu’est une vue
+
+Une **vue** est un modèle nommé plus les données utilisées pour le rendre. Le nom est pointé (`home`, `posts.show`) et mappe vers un chemin de fichier sous la racine des vues (`home.crema.html`, `posts/show.crema.html`). Après le boot, l’[aide de vue](/docs/crema/view-helper/) résout ce nom à travers le moteur lié à l’application et renvoie une `View` (ou une `Response` HTML).
+
+Chemin de requête typique :
+
+1. Une route atteint une méthode de contrôleur.
+2. Le contrôleur appelle `view("welcome", …)` (Kotlin) ou `Views.make("welcome", …)` (Java).
+3. Crema charge le modèle, exécute les directives, échappe les échos et renvoie du HTML via `toResponse()`.
+
+## Échafaudage
+
+`kona new` (kit **web** par défaut) enregistre déjà `CremaServiceProvider` et livre une vue d’accueil. Ajoutez d’autres modèles avec grind :
+
+```bash
+./grind make:view home
+./grind make:view posts.show
+```
+
+Cela crée `src/main/resources/views/home.crema.html` et `src/main/resources/views/posts/show.crema.html`.
+
+## Modèle minimal
+
+```crema
+{{-- src/main/resources/views/home.crema.html --}}
+<h1>Hello {{ name }}</h1>
+```
+
+`{{ name }}` imprime l’entrée `name` de la map de données avec échappement HTML. Les valeurs manquantes ou nulles deviennent une chaîne vide.
+
+## Rendre depuis un contrôleur
+
+Enregistrez `CremaServiceProvider` (l’échafaudage web le fait) et démarrez l’application. Puis utilisez l’aide de vue :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.crema.view
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+
+class WelcomeController {
+    fun index(request: Request): Response =
+        view("welcome", mapOf("name" to "Kona")).toResponse()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.crema.Views;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import java.util.Map;
+
+public final class WelcomeController {
+    public Response index(Request request) {
+        return Views.make("welcome", Map.of("name", "Kona")).toResponse();
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+API de fabrique complète (share, `first`, existence, tableaux Java/Kotlin) : [Aide de vue](/docs/crema/view-helper/).
+
+## Chemins de vue et config
+
+| Réglage | Comportement |
+|---------|----------|
+| Racine par défaut | `{basePath}/src/main/resources/views` |
+| Repli | `build/resources/main/views`, puis l’ancien `resources/views` |
+| Surcharge | Clé de config `view.path` (chemin absolu ou relatif à l’application) |
+
+Les noms pointés deviennent des segments de chemin : `mail.orders.shipped` → `mail/orders/shipped.crema.html`. Crema essaie `.crema.html` d’abord, puis `.crema.kt`.
+
+## Données que le moteur cherche
+
+Certaines directives lisent des clés conventionnelles dans la même map de données (ou un contexte enfant). Vous les passez depuis le contrôleur ou le middleware :
+
+| Clé | Utilisée par |
+|-----|---------|
+| `_token` / `csrf_token` | `@csrf` |
+| `asset_url` / `assetUrl` | Préfixe de base `@asset` |
+| `__authenticated`, `auth_user`, `user` | `@auth` / `@guest` |
+| `__abilities` ou `can` | `@can` / `@cannot` |
+| `errors` | `@error('field')` |
+| `lang` | Surcharges `@lang` avant `Lang.get` |
+
+## Menu des directives
+
+| Zone | Directives |
+|------|------------|
+| Échos | `{{ }}`, `{!! !!}`, `@@`, `{{-- --}}` |
+| Layouts | `@extends`, `@section` / `@endsection` / `@show`, `@yield`, `@parent`, `@hasSection`, `@sectionMissing` |
+| Piles | `@push` / `@endpush`, `@prepend` / `@endprepend`, `@stack` |
+| Includes | `@include`, `@includeIf`, `@includeWhen`, `@includeUnless`, `@includeFirst`, `@once`, `@verbatim` |
+| Conditionnels | `@if` / `@elseif` / `@else` / `@endif`, `@unless`, `@isset`, `@empty` |
+| Boucles | `@while`, `@foreach` / `@each` / `@for`, `@forelse`, `loop.*` |
+| Auth | `@auth`, `@guest`, `@can`, `@cannot` |
+| Switch | `@switch` / `@case` / `@break` / `@default` / `@endswitch` |
+| Composants | `@component` / `@slot`, `<x-*>`, `<x-slot>` |
+| Aides | `@json`, `@csrf`, `@method`, `@asset`, `@lang`, `@vite`, `@error` |
+
+Tableaux complets : [Référence des directives](/docs/crema/directives/).
+
+## Surfaces liées
+
+- **[Wire](/docs/wire/)** — composants réactifs qui rendent des modèles Crema et gardent le navigateur synchronisé.
+- **[Inertia](/docs/inertia/)** — vue Crema racine optionnelle qui héberge une application de page côté client.
+- **[Vite / assets](/docs/assets/vite/)** — empaquetage ; l’aide `@vite` de Crema émet de fines balises script/link.
+
+## Étapes suivantes
+
+- [Aide de vue](/docs/crema/view-helper/) — `view()` / `Views`, share, `first`, réponses
+- [Rendu et données](/docs/crema/rendering/) — échos, échappement, expressions, `@json`, `@lang`
+- [Layouts et héritage](/docs/crema/layouts/) — `@extends`, sections, `@yield`, `@parent`
+- [Composants et slots](/docs/crema/components/) — vues réutilisables, slots nommés, balises `<x-*>`
+- [Structures de contrôle](/docs/crema/control-structures/) — conditionnels, boucles, auth
+- [Includes et partiels](/docs/crema/includes/) — fragments partagés
+- [Piles](/docs/crema/stacks/) — scripts et styles
+- [Formulaires](/docs/crema/forms/) — CSRF, usurpation de méthode, erreurs de champ

@@ -1,0 +1,94 @@
+---
+title: Autorisation
+description: Gates, policies, découverte et middleware Authorize.
+---
+
+L’autorisation répond : *cet utilisateur peut-il faire cela ?* Après que l’authentification a identifié l’utilisateur, les gates et les policies décident des capacités.
+
+## Chemin simple
+
+1. Résolvez `Gate` depuis le conteneur (enregistré par `AuthServiceProvider`) ou construisez-en un.
+2. Pointez le gate vers l’utilisateur courant avec `setUserResolver { auth.user() }`.
+3. `define` des capacités ou `policy` des classes de modèle ; appelez `allows` / `authorize` dans les handlers ou montez le middleware `Authorize`.
+
+```kotlin
+gate.define("edit-post") { user, args ->
+    val post = args.firstOrNull() as? Post ?: return@define false
+    user?.getAuthIdentifier() == post.ownerId
+}
+if (gate.allows("edit-post", post)) { /* … */ }
+gate.authorize("edit-post", post) // throws AuthorizationException (403)
+```
+
+```java
+gate.define("edit-post", (user, args) -> {
+    if (args.length == 0 || !(args[0] instanceof Post post)) return false;
+    return user != null && user.getAuthIdentifier().equals(post.ownerId);
+});
+gate.authorize("edit-post", post);
+```
+
+## API Gate
+
+| Méthode | Comportement |
+|--------|----------|
+| `define` | Enregistre un callback de capacité nommée |
+| `allows` / `denies` | Contrôle booléen (utilisateur courant ou utilisateur explicite) |
+| `any` / `none` | Combine plusieurs noms de capacité |
+| `authorize` | Lance `AuthorizationException` quand c’est refusé |
+| `before` | Court-circuit global (`null` continue ; `true`/`false` tranche) |
+| `policy` | Lie une `Policy` à une classe de modèle |
+| `discoverPolicy` | Charge `{SimpleName}Policy` depuis un paquet par convention |
+| `forUser` | Inspecteur borné (`allows` / `any` / `authorize` pour un utilisateur) |
+| `has` | Si un nom de capacité est défini |
+
+```kotlin
+gate.before { user, ability, _ ->
+    if (user is Admin) true else null
+}
+gate.any(listOf("edit", "publish"), post)
+gate.none(listOf("delete"), post)
+```
+
+## Policies
+
+```kotlin
+gate.policy(Post::class.java, object : Policy {
+    override fun before(user: Authenticatable?, ability: String): Boolean? =
+        if (ability == "admin") true else null
+
+    override fun authorize(user: Authenticatable?, ability: String, model: Any): Boolean {
+        val post = model as Post
+        return ability == "update" && user?.getAuthIdentifier() == post.ownerId
+    }
+})
+```
+
+Découverte par convention :
+
+```kotlin
+gate.discoverPolicy(Post::class.java, "app.policies") // loads app.policies.PostPolicy
+```
+
+Générez une ébauche avec grind :
+
+```bash
+./grind make:policy Post --model=Post
+./grind make:policy CommentPolicy --lang=java
+```
+
+## Middleware Authorize
+
+```kotlin
+router.put("/posts/{id}", handler).middleware(
+    Authorize(gate, "update") { request ->
+        arrayOf(Post.find(request.route("id")!!))
+    },
+)
+```
+
+Les contrôles refusés lancent `AuthorizationException` (HTTP 403).
+
+## Templates Crema
+
+Dans les vues, passez les capacités via `__abilities` ou une map `can` et utilisez `@can` / `@cannot` (voir [Structures de contrôle Crema](/docs/crema/control-structures/)). Les contrôles de template sont pilotés par les données — ils n’appellent pas `Gate` automatiquement.

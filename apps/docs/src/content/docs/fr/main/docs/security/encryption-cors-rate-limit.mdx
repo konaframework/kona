@@ -1,0 +1,32 @@
+---
+title: Chiffrement, CORS, en-têtes, limitation de débit
+description: Chiffrement par clé d’application, CORS, en-têtes de sécurité et throttling.
+---
+
+## Chiffrement
+
+Définissez `app.key` sur une valeur `base64:…` (`Encrypter.generateKey()`). Puis :
+
+```kotlin
+encrypter.encryptString("secret")
+encrypter.decryptString(payload)
+```
+
+Utilise AES-256-GCM.
+
+## CORS
+
+`CorsMiddleware(CorsConfig(…))` gère le preflight `OPTIONS` et applique origin, méthodes et en-têtes autorisés.
+
+## En-têtes de sécurité
+
+`SecurityHeadersMiddleware` ajoute des en-têtes de sécurité navigateur configurables.
+
+## Limitation de débit
+
+```kotlin
+rateLimiter.forName("api") { RateLimit(60, 60) }
+rateLimiter.attempt(key, maxAttempts, decaySeconds)
+```
+
+Le middleware `ThrottleRequests` renvoie **429** avec `Retry-After` lorsqu’un limiteur nommé est dépassé.

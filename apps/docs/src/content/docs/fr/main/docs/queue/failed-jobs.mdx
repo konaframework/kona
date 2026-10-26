@@ -1,0 +1,25 @@
+---
+title: Jobs en échec
+description: Listez, relancez et videz les jobs de file en échec.
+---
+
+Lorsqu’un job épuise ses essais, le worker l’enregistre via `FailedJobProvider`.
+
+```bash
+./grind queue:failed
+./grind queue:retry <id>
+./grind queue:retry --all
+./grind queue:flush
+```
+
+`queue:retry` **remet en file** la charge (les essais sont remis à zéro) sur la connexion et la file d’origine, puis oublie la ligne en échec.
+
+## Stockage durable des échecs
+
+| `queue.failed.driver` | Stockage |
+|-----------------------|---------|
+| `memory` (défaut) | Tas du processus |
+| `file` | JSON à `queue.failed.path` (défaut `storage/framework/failed_jobs.json`) |
+| `database` | Table `failed_jobs` (`queue.failed.table`) ; nécessite le `Database` de Cadence |
+
+Utilisez `file` ou `database` dès que les relances doivent survivre à un redémarrage du worker.

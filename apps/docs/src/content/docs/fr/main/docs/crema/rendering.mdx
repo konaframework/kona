@@ -1,0 +1,272 @@
+---
+title: Rendu et données
+description: Échos, échappement, HTML brut, expressions, JSON, chaînes de langue et balises Vite dans Crema.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Crema évalue les expressions contre la map de données que vous passez à `view` / `render` (et les maps imbriquées, les listes et les getters de style bean). Cette page couvre comment les valeurs deviennent du HTML — échappé ou brut — et les aides qui transforment les données en JSON, URL et chaînes de traduction. Pour créer des vues depuis les contrôleurs, consultez l’[Aide de vue](/docs/crema/view-helper/).
+
+## Passer des données
+
+Chaque rendu commence par une `Map<String, Any?>` (Kotlin) ou `Map<String, ?>` (Java). Les clés deviennent des noms de premier niveau dans le modèle :
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+view(
+    "posts.show",
+    mapOf(
+        "title" to "Hello",
+        "post" to post,
+        "tags" to listOf("kona", "jvm"),
+    ),
+).render()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Views.make(
+    "posts.show",
+    Map.of(
+        "title", "Hello",
+        "post", post,
+        "tags", List.of("kona", "jvm")
+    )
+).render();
+```
+
+</TabItem>
+</Tabs>
+
+```crema
+<h1>{{ title }}</h1>
+<p>{{ post.body }}</p>
+```
+
+Les chemins imbriqués utilisent des points : `post.body` parcourt les clés de map ou les getters sans argument (`getBody()`, `isActive()`, ou une méthode/un champ nommé `body`).
+
+`View.with(key, value)` / `with(map)` fusionne d’autres clés avant `render()`. Les contextes enfants (includes, boucles, composants) héritent des données parentes et peuvent superposer des variables de boucle ou des slots.
+
+## Échos échappés
+
+`{{ expr }}` imprime la valeur comme texte avec échappement HTML pour `&`, `<`, `>`, `"` et `'` :
+
+```crema
+<p>Hello {{ name }}</p>
+{{-- name = "<script>" → Hello &lt;script&gt; --}}
+```
+
+Les valeurs vides ou manquantes se rendent comme une chaîne vide — pas le littéral `null`.
+
+## HTML brut
+
+`{!! expr !!}` imprime sans échappement. Utilisez-le seulement pour du balisage de confiance que vous avez construit vous-même (ou déjà assaini) :
+
+```crema
+<div class="prose">{!! html !!}</div>
+```
+
+Les séquences `{!!` / `{{` non fermées sont des erreurs au moment du rendu.
+
+## `@` littéral et commentaires
+
+| Syntaxe | Résultat |
+|--------|--------|
+| `@@` | Un seul `@` dans la sortie (utile pour documenter des directives) |
+| `{{-- … --}}` | Commentaire — retiré avant tout autre traitement |
+
+```crema
+{{-- Never appears in HTML --}}
+<code>@@extends</code>
+```
+
+## Expressions
+
+Les échos et la plupart des arguments de directive acceptent un petit langage d’expression :
+
+| Sorte | Exemples |
+|------|----------|
+| Littéraux | `true`, `false`, `null` / `nil`, `42`, `3.5`, `'string'`, `"string"` |
+| Comparaisons | `==`, `!=`, `<`, `>`, `<=`, `>=` (les nombres se comparent numériquement ; sinon stringifiés) |
+| Logique | `and`, `or`, `not …`, `!…` |
+| Aides | `isset(name)`, `empty(name)`, `url(path)`, `route(name)`, `asset(path)`, `csrf_token()`, `old(key)`, `env(key)`, `config(key)`, `trans(key)` / `__(key)` / `lang(key)` |
+| Chemins | `user.name`, `errors.email` |
+
+```crema
+@if(count > 0 and ready)
+  Ready
+@endif
+
+{{ isset(name) }}
+{{ empty(items) }}
+{{ not ok }}
+{{ a == 1 or b == 2 }}
+```
+
+`isset(path)` est vrai lorsque la valeur résolue est non nulle. `empty(path)` est vrai lorsque la valeur n’est pas vraie (consultez [vérité](/docs/crema/control-structures/#truthiness)).
+
+Il n’y a pas d’exécution de code arbitraire dans les modèles — seulement ce sous-ensemble d’expressions, les aides d’écho ci-dessous, et l’accès aux propriétés.
+
+## Aides d’écho
+
+Appelez-les par nom dans `{{ }}` ou `{!! !!}`. Les arguments sont des expressions Crema ordinaires (littéraux chaîne, chemins, appels d’aide imbriqués). IntelliJ et kona-lsp complètent la liste complète à mesure que vous tapez.
+
+Écrivez **chaque** URL interne via `url(...)` (ou `route(...)` / `asset(...)`). Un `src="/branding/kona-logo.svg"` codé en dur touche toujours la racine de l’hôte et ignore `APP_URL`. Les démarreurs `kona new` utilisent déjà l’aide :
+
+```crema
+<img src="{{ url('/branding/kona-logo.svg') }}" alt="Kona" width="52" height="52" />
+<a href="{{ url('/login') }}">Log in</a>
+<form method="post" action="{{ url('/logout') }}">
+```
+
+| Aide | Résultat |
+|--------|--------|
+| `url(path)` | Joint `path` à la racine de l’application (`Url.url` / `APP_URL`). Les valeurs absolues `http://` / `https://` passent. Générateur manquant → un chemin enraciné (`/branding/…`). Chemin vide → `/`. |
+| `route(name)` | URL de route nommée (`Url.route`). Nom inconnu ou générateur manquant → un chemin enraciné depuis le nom. Nom vide → chaîne vide. |
+| `asset(path)` | URL d’asset public. Les slashes en tête sont tronqués. Préfixez avec `asset_url` ou `assetUrl` dans la map de données pour un CDN ; sinon `/path`. |
+| `csrf_token()` | Jeton CSRF de session depuis `_token` ou `csrf_token` dans la map de données. |
+| `old(key)` / `old(key, default)` | Ancienne saisie flashée depuis `old`, `_old_input` ou `oldInput`. |
+| `env(key)` / `env(key, default)` | Valeur d’environnement (`Env.get`). |
+| `config(key)` | Valeur de config depuis l’application démarrée (`Kona.app().config`). Application ou clé manquante → vide lorsqu’écho. |
+| `trans(key)` / `__(key)` / `lang(key)` | Chaîne de traduction (`Lang.get`). `lang` préfère une map `lang` dans les données de vue lorsqu’elle est présente. Un second argument optionnel est une map de remplacement (placeholders `:name`). |
+
+Variables conventionnelles que le moteur (ou votre contrôleur) peut mettre dans la map de données, aussi offertes à la complétion : `errors`, `user`, `auth_user`, `_token`, `asset_url`, `slot`, et `loop` / `loop.index` / `loop.iteration` / `loop.first` / `loop.last` / `loop.even` / `loop.odd` / `loop.count` / `loop.remaining` / `loop.depth` / `loop.parent`. Consultez [Métadonnées de boucle](/docs/crema/control-structures/#loop-metadata).
+
+```crema
+{{ url('/dashboard') }}
+{{ route('login') }}
+{{ asset('css/app.css') }}
+{{ csrf_token() }}
+<input value="{{ old('email') }}" />
+{{ config('app.name') }}
+{{ trans('messages.welcome') }}
+```
+
+Les **directives** `@asset`, `@csrf`, `@lang` et `@json` restent disponibles ; utilisez les aides d’écho lorsque la valeur appartient à un attribut ou à un balisage mixte. Consultez [Génération d’URL](/docs/http/url-generation/) pour `Url` / `route()` / `url()` en Kotlin et Java.
+
+## `@json`
+
+`@json($expr)` encode une valeur en JSON (Jackson). Utile dans `<script>` ou les attributs de données :
+
+```crema
+<script>
+  window.bootstrap = @json($user);
+</script>
+```
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "page",
+    mapOf("user" to mapOf("name" to "Ada", "id" to 1)),
+)
+// → window.bootstrap = {"name":"Ada","id":1};
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "page",
+    Map.of("user", Map.of("name", "Ada", "id", 1))
+);
+// → window.bootstrap = {"name":"Ada","id":1};
+```
+
+</TabItem>
+</Tabs>
+
+<a id="lang"></a>
+
+## `@lang`
+
+`@lang('key')` résout une chaîne de traduction. Crema préfère une map `lang` dans les données de vue lorsqu’elle est présente ; sinon il appelle `Lang.get` depuis `kona-support`.
+
+```crema
+@lang('messages.welcome')
+@lang('messages.hello', replace)
+```
+
+Le second argument optionnel est une expression qui s’évalue en une `Map` de remplacements. Les placeholders dans la chaîne utilisent la forme `:name` (`Hi :name` + `name → Ada` → `Hi Ada`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+crema.render(
+    "greet",
+    mapOf(
+        "replace" to mapOf("name" to "Ada"),
+        // or override a single key:
+        // "lang" to mapOf("messages.hello" to "Hi :name"),
+    ),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+crema.render(
+    "greet",
+    Map.of("replace", Map.of("name", "Ada"))
+);
+```
+
+</TabItem>
+</Tabs>
+
+Enregistrez `SupportServiceProvider` (ou appelez `Lang.setTranslator`) avant le rendu lorsque vous vous appuyez sur le traducteur global.
+
+<a id="asset"></a>
+
+## `@asset`
+
+`@asset('css/app.css')` construit une URL publique. Sans base dans la map de données il émet `/css/app.css`. Passez `asset_url` ou `assetUrl` pour préfixer un CDN :
+
+```crema
+<link rel="stylesheet" href="@asset('css/app.css')" />
+```
+
+Les slashes en tête de l’argument de chemin sont tronqués avant la jointure.
+
+<a id="vite"></a>
+
+## `@vite`
+
+`@vite('src/main/resources/js/app.js')` émet les balises script et feuille de style pour cette entrée. Les listes sont prises en charge :
+
+```crema
+@vite('src/main/resources/js/app.js')
+@vite(['src/main/resources/js/app.js', 'src/main/resources/css/app.css'])
+```
+
+Lorsque `CremaServiceProvider` a lié le manifeste Vite :
+
+- **`public/hot`** (origine du serveur de dev) → client Vite plus l’URL d’entrée sur cette origine, par exemple `http://127.0.0.1:5173/src/main/resources/js/app.js`.
+- **Manifeste** (`public/build/manifest.json` ou `public/build/.vite/manifest.json`) → fichiers hashés tels que `/build/assets/app-<hash>.js` et le CSS correspondant.
+
+Les entrées `.css` deviennent `<link rel="stylesheet">` ; les autres deviennent `<script type="module">`. Sans fichier hot ni manifeste, la directive retombe sur `/build/<entry>`. Ce placeholder n’est pas le fichier que Vite sert — lancez `npm run dev` ou `npm run build` d’abord. Consultez [Vite / empaquetage d’assets](/docs/assets/vite/) et [Inertia](/docs/inertia/).
+
+## Cas limites
+
+| Situation | Comportement |
+|-----------|----------|
+| Clé manquante dans `{{ name }}` | Chaîne vide |
+| Littéral `null` / `nil` | Chaîne vide lorsqu’écho |
+| Null imbriqué (`user.name` lorsque `user` est null) | Chaîne vide |
+| `{{` ou `{!!` non fermé | Le rendu lance |
+| Map contre bean | Les maps utilisent la recherche de clé ; les autres objets utilisent les getters / méthodes sans argument / champs publics |
+
+## Suite
+
+- [Layouts et héritage](/docs/crema/layouts/) — partager des coquilles HTML entre les pages
+- [Structures de contrôle](/docs/crema/control-structures/) — conditionnels et boucles sur les mêmes expressions
+- [Référence des directives](/docs/crema/directives/) — tableaux de directives complets

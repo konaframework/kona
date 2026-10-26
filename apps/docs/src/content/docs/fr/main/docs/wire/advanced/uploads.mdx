@@ -1,0 +1,89 @@
+---
+title: Envois de fichiers et plateforme
+description: WithFileUploads, stockage temporaire signé, pré-signature S3, styles, intersect, sort, Authorize et CSP.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Wire accepte les inputs fichier via `wire:model` lorsque le composant implémente `WithFileUploads`. Les envois vont vers un endpoint temporaire signé (ou un PUT pré-signé compatible S3), puis arrivent sur le composant comme des valeurs `TemporaryUploadedFile` que vous pouvez `store`, prévisualiser ou valider.
+
+## Démarrage rapide
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AvatarForm : Component(), WithFileUploads {
+    var photo: TemporaryUploadedFile? = null
+
+    fun save() {
+        photo?.store("avatars")
+    }
+
+    override fun template() = """
+        <form wire:submit="save">
+            <input type="file" wire:model="photo" />
+            <button type="submit">Save</button>
+        </form>
+    """.trimIndent()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AvatarForm extends Component implements WithFileUploads {
+    public TemporaryUploadedFile photo;
+
+    public void save() {
+        if (photo != null) photo.store("avatars");
+    }
+
+    @Override
+    public String template() {
+        return """
+            <form wire:submit="save">
+                <input type="file" wire:model="photo" />
+                <button type="submit">Save</button>
+            </form>
+            """;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Aides client : `$wire.$upload`, `$uploadMultiple`, `$cancelUpload`, `$removeUpload`. Événements de progression : `brew-upload-start|finish|error|cancel|progress` (et les alias `livewire-upload-*`).
+
+## Configuration
+
+| Clé | Rôle |
+| --- | --- |
+| `brew.temporary_file_upload.timeout` | Durée de vie de l’URL signée (secondes) |
+| `brew.temporary_file_upload.cleanup` | Supprime les fichiers temporaires plus vieux que N secondes |
+| `brew.temporary_file_upload.rules` | Règles globales (`file\|max:12288`) |
+| `brew.temporary_file_upload.disk` | `local` (défaut) ou `s3` |
+| `brew.temporary_file_upload.s3_endpoint` | URL de base pour les PUT compatibles S3 |
+| `brew.csp_safe` | Sert `brew.csp.min.js` |
+
+`WireManager.cleanupOldUploads()` retire les fichiers temporaires périmés. Les tests peuvent utiliser `UploadedFileFake.create(...)`.
+
+## Styles, modules JS, sort et intersect
+
+- CSS scopé / global et modules CSS via `SupportStyles` (effects.styles)
+- Modules JS de composant via `SupportJsModules` (effects.scripts)
+- Ressources multi-fichiers sous `brew/<name>.{js,css,global.css}`
+- `wire:sort` / `wire:sort:item` et `wire:intersect` (`.once`, `.half`, `.full`, …)
+
+## Authorize et plateforme
+
+```kotlin
+@Authorize("update", "post")
+fun save() { /* … */ }
+
+authorize("update", post)
+```
+
+Cette tranche inclut aussi le mémo de locale, les jetons de release, le middleware persistant / de mise à jour, les synthétiseurs de modèle Cadence, et les messages de debug de checksum lorsque `app.debug` est actif.

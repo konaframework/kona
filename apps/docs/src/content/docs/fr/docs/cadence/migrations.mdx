@@ -345,4 +345,4 @@ Toutes les commandes s’exécutent depuis le répertoire de l’application. Le
 
 `make:migration` accepte snake_case ou PascalCase (et un préfixe optionnel `{stamp}_` / `M{stamp}_` si vous avez besoin d’une seconde précise). Il écrit `database/migrations/{yyyy_MM_dd_HHmmss}_{snake_name}.kt` (ou `.java`, choisi par `--lang=` ou par des fichiers `.java` existants sous `app/`) avec une classe PascalCase et `@MigrationName`, puis ajoute la classe à `META-INF/kona/migrations`. Il refuse d’écraser un fichier existant (avance le tampon d’une seconde) et refuse une seconde classe avec le même nom PascalCase.
 
-`./grind make:model Flight --migration` crée le modèle et une migration horodatée `CreateFlightsTable` ensemble ; consultez [Seeders et factories](../seeders-factories/) pour `--factory` et `--seeder`.
+`./grind make:model Flight --migration` crée le modèle et une migration horodatée `CreateFlightsTable` ensemble ; consultez [Semeurs et fabriques](../seeders-factories/) pour `--factory` et `--seeder`.

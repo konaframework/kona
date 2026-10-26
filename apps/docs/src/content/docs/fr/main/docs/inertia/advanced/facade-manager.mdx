@@ -1,0 +1,21 @@
+---
+title: Façade et manager
+description: Responsabilités d’InertiaManager, ThreadLocals et échappement HtmlAttr.
+---
+
+## InertiaManager
+
+Il possède :
+
+- `version`, `rootView`, `rootHtml`, `cremaEngine`, `viteEntries`
+- `sharedProps` global (`ConcurrentHashMap`)
+- la `Request` courante en ThreadLocal et la map partagée par requête
+- `render` / `location` / `versionConflict` / `decorate` / `isInertiaRequest`
+
+## Façade
+
+`Inertia` est un détenteur à l’échelle du processus pour le manager actif. `InertiaServiceProvider.boot` appelle `Inertia.setManager`. Les tests doivent appeler `Inertia.reset()` (et `Vite.reset()`) dans `@AfterEach`.
+
+## HtmlAttr
+
+`HtmlAttr.escape` échappe `& < > " '` pour intégrer du JSON dans des attributs HTML (`pageAttr` / `@page`).

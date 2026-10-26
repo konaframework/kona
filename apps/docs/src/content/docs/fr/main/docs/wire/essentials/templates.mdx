@@ -1,0 +1,108 @@
+---
+title: Modèles Wire
+description: Vues Crema, balises brew, directives d’assets et marqueurs de morph.
+---
+
+Wire rend le HTML à travers **Crema**. Chaque composant doit produire un **élément racine unique**. Wire appose `wire:snapshot`, `wire:effects`, `wire:id` et `wire:name` sur cette racine.
+
+## Chemins de rendu
+
+1. `template()` — Crema inline sur la classe
+2. `render()` → `view("brew.todos", data)` ou `inline(source, data)`
+3. Fichier de convention `src/main/resources/views/wire/<name>.crema.html` lorsque les deux sont absents
+
+Dans les modèles, les propriétés publiques et les méthodes `@Computed` sont dans la portée comme données Crema.
+
+### Support IDE pour `template()` inline
+
+La coloration et la complétion Crema fonctionnent sur les fichiers `*.crema.html` et **à l’intérieur des chaînes inline**.
+
+**IntelliJ IDEA** (plugin Kona Idea) injecte Crema dans `Component.template()`, dans le paramètre `source` de `Component.inline` / `WireView.inline` (`@CremaTemplate`), et dans toute chaîne précédée de `// language=Crema`.
+
+**Cursor / VS Code** (extension vscode-crema) : les injections TextMate colorent Crema dans les blocs de texte Java/Kotlin `template()`, les arguments `inline(`, et les chaînes `language=Crema`. Attachez **kona-lsp** avec les langages de document `crema`, `java` et `kotlin` pour la complétion des directives `@`, de `wire:*` et des membres `{{` dans ces mêmes plages. Rechargez la fenêtre après l’installation ou la mise à jour de l’extension.
+
+```kotlin
+override fun template(): String =
+    // language=Crema
+    """
+        <div>
+            <p>Count: {{ count }}</p>
+            <button type="button" wire:click="decrement">-</button>
+            <button type="button" wire:click="increment">+</button>
+        </div>
+    """.trimIndent()
+```
+
+Les blocs de texte Java fonctionnent de la même façon — consultez `samples/wire-java` `Counter.template()`. Vous n’avez pas besoin du commentaire de langage lorsque la méthode est `template()` ou que l’appel est `inline(`.
+
+## Balises et directives
+
+| Surface | Exemple |
+|---------|---------|
+| Balise | `<wire:counter :start="1" />` |
+| Directive | `@wire('counter', ['start' => 1])` |
+| Emplacement des styles | `@wireStyles` |
+| Scripts | `@wireScripts` |
+| Config de script seulement | `@wireScriptConfig` (pour un empaquetage ESM manuel) |
+| Encodage JS | `@js($value)` |
+
+Lorsque `wire.inject_assets` est vrai, les réponses qui ressemblent à des documents HTML complets reçoivent styles et scripts injectés automatiquement si ces directives manquent.
+
+## Assets et routes
+
+| URL | Contenu |
+|-----|---------|
+| `/wire/wire.js` | Bundle lisible |
+| `/wire/wire.min.js` | Minifié (+ source map) |
+
+Les balises script incluent un hash anti-cache `?id=`, `data-csrf` et `data-update-uri="/wire/update"`. Surchargez les chemins avec `Wire.setUpdateRoute` / `Wire.setScriptRoute` lorsque vous avez besoin d’un point de montage personnalisé (`brew.path` nomme encore le défaut).
+
+Depuis Kotlin/Java :
+
+```kotlin
+Wire.styles()
+Wire.scripts()
+Wire.scriptConfig()
+```
+
+## Marqueurs de morph
+
+Avec `brew.inject_morph_markers` (vrai par défaut), Crema enveloppe les conditionnels et les boucles dans des marqueurs de commentaire HTML afin que le morph à clé puisse ajouter ou retirer des blocs sans déchirer le DOM voisin. Préférez `wire:key` sur les éléments de liste :
+
+```crema
+@foreach(items as item)
+    <li wire:key="item-{{ item.id }}">{{ item.title }}</li>
+@endforeach
+```
+
+## Conseils de layout
+
+- Gardez l’interface interactive à l’intérieur de la racine du composant ; Wire morph ce sous-arbre.
+- Utilisez `wire:ignore` (`.self` / `.children`) pour les îlots que Wire ne doit pas toucher (widgets tiers).
+- `wire:replace` force un remplacement complet au lieu d’un morph lorsque c’est nécessaire.
+
+## Page d’exemple
+
+```crema
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{ title }}</title>
+    @wireStyles
+</head>
+<body>
+    <h1>{{ title }}</h1>
+    <wire:counter :start="3" />
+    <wire:todos />
+    @wire('search')
+    @wireScripts
+</body>
+</html>
+```
+
+## Suite
+
+- [Composants](/docs/wire/essentials/components/) — auteur classe contre vue
+- [JavaScript](/docs/wire/js/runtime/) — comment le morph et `$wire` se comportent
+- [Cycle de vie](/docs/wire/essentials/lifecycle/) — hooks `rendering` / `rendered`
