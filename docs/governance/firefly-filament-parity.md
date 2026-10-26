@@ -4,7 +4,7 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-M28 is on `main`. M29 is the active schemas slice. Later rows stay `todo` until their milestone is the active one and has merged.
+M28 and M29 are on `main`. M30 is the actions slice. Later rows stay `todo` until their milestone has merged.
 
 ## M28 — support (`kona-firefly-support`)
 
@@ -34,11 +34,39 @@ Out of M28 (do not implement on the M28 branch): schemas, fields, actions, forms
 
 M31 notes (do not implement in M29): `Select` defaults to a combobox, and `.native()` opts into `<select>`. Date and time pickers default to Firefly’s crafted picker, and `.native()` opts into the HTML date/time input.
 
+## M30 — actions (`kona-firefly-actions`)
+
+| ID | Surface | Firefly | Status |
+|----|---------|---------|--------|
+| ACT-1 | `Action` / `ActionGroup`, `make`, `configureUsing` | `Action`, `ActionGroup` | done |
+| ACT-2 | Static value or `Get` closure | `label`, `icon`, `color`, `tooltip`, `badge`, `badgeColor`, `size`, `iconPosition`, `url`, `openUrlInNewTab`, `requiresConfirmation`, modal copy, `modalWidth`, redirect URLs | done |
+| ACT-3 | Visibility, disabled, authorization | `hidden`, `visible`, `disabled`, `authorize` boolean / predicate / ability + `Action.gate` | done |
+| ACT-4 | Icon, color, tooltip, badge, size, button styles, extra attributes | rendered on the trigger | done |
+| ACT-5 | Confirmation and modal copy | heading, description, submit, cancel, icon, close, autofocus, escape, overlay click | done |
+| ACT-6 | Mount `Dialog` | `modal`, `slideOver`, `slideOverStart`, `fullscreen`, Dialog widths, `modalDraggable` | done |
+| ACT-7 | URL actions | `url`, `openUrlInNewTab` | done |
+| ACT-8 | Modal schema content | `schema(...)` with layouts and primes | done |
+| ACT-9 | Schema and header placement | `ActionPlacement.SCHEMA`, `ActionPlacement.HEADER` | done |
+| ACT-10 | Server call and local open state | `wire:click`, `ffAction`, Alpine `open` | done |
+| ACT-11 | Handler lifecycle | `action`, `before`, `after`, `halt`, `failure`, redirect URLs, `arguments` | done |
+| ACT-12 | Action scaffold | `make:firefly-action`, Kotlin and `--lang=java` | done |
+
+Shipped modal content is the schema layouts and primes already on `main`. These Filament action helpers wait on a later milestone. They are not stubbed here:
+
+| Helper | Waits on |
+|--------|----------|
+| Form fields inside an action, `fillForm`, form data mutation, a disabled form, action `steps()` as a form wizard | M31 |
+| Infolist actions | M32 |
+| Record, bulk, and toolbar table actions | M33 |
+| Success and failure notifications | M34 |
+| Import and export actions | M37 |
+| Parent-dialog cancellation, sticky header/footer, modal alignment, extra window attributes, widths outside `sm`/`md`/`lg`/`xl`/`screen`, database transactions, rate limits | `Dialog` does not expose them, or no rate-limit/transaction API is wired into this module |
+
 ## Queued
 
 | Milestone | Filament packages | Firefly artifact | Status |
 |-----------|-------------------|------------------|--------|
-| M30 | `filament/actions` | `kona-firefly-actions` | todo |
+| M30 | `filament/actions` | `kona-firefly-actions` | done |
 | M31 | `filament/forms` | `kona-firefly-forms` | todo |
 | M32 | `filament/infolists` | `kona-firefly-infolists` | todo |
 | M33 | `filament/tables` | `kona-firefly-tables` | todo |
