@@ -4,7 +4,7 @@ Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). K
 
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
-M28 is on `main`. M29 is the active schemas slice. Later rows stay `todo` until their milestone is the active one and has merged.
+M28, M29, and M32 are on `main`. M33 is the tables slice. Later rows stay `todo` until their milestone has shipped.
 
 ## M28 — support (`kona-firefly-support`)
 
@@ -51,13 +51,33 @@ M31 notes (do not implement in M29): `Select` defaults to a combobox, and `.nati
 | TBL-11 | Scaffolds | `make:firefly-column`, `make:firefly-filter`, Kotlin and `--lang=java` | done |
 | TBL-12 | Typed action objects | Attach when M30 (`kona-firefly-actions`) is on `main`. Buttons stay `TableButton` until then | todo |
 
+## M32 — infolists (`kona-firefly-infolists`)
+
+Depends on `kona-firefly-schemas` and `kona-firefly-support` only. Layouts are schema `Section`, `Grid`, `Tabs`, and `Tab`. The code entry calls Shiki `createHighlighter` in the browser.
+
+| ID | Surface | Firefly | Status |
+|----|---------|---------|--------|
+| INF-1 | Infolist over a schema | `Infolist` | done |
+| INF-2 | Text entry | `TextEntry` | done |
+| INF-3 | Icon entry | `IconEntry` (`bool`, `whenTrue`, `whenFalse`) | done |
+| INF-4 | Image entry | `ImageEntry` (disk, visibility, and file check are data attributes) | done |
+| INF-5 | Color entry | `ColorEntry` | done |
+| INF-6 | Key-value entry | `KeyValueEntry` | done |
+| INF-7 | Code entry | `CodeEntry` + `ShikiCode` (`createHighlighter`) | done |
+| INF-8 | Repeatable entry | `RepeatableEntry`, `TableColumn` | done |
+| INF-9 | Shared entry helpers and static-or-closure setters | `Entry` | done |
+| INF-10 | Entry scaffold | `make:firefly-entry` | done |
+
+Left for later milestones (not implemented here): prefix and suffix actions that need `Action` (M30); record aggregates; private-disk temporary URLs; the forms code editor (M31); tables (M33).
+
 ## Queued
 
 | Milestone | Filament packages | Firefly artifact | Status |
 |-----------|-------------------|------------------|--------|
 | M30 | `filament/actions` | `kona-firefly-actions` | todo |
 | M31 | `filament/forms` | `kona-firefly-forms` | todo |
-| M32 | `filament/infolists` | `kona-firefly-infolists` | todo |
+| M32 | `filament/infolists` | `kona-firefly-infolists` | done |
+| M33 | `filament/tables` | `kona-firefly-tables` | todo |
 | M34 | notifications + widgets (Chart.js and ApexCharts) | `kona-firefly-notifications`, `kona-firefly-widgets` | todo |
 | M35 | panel, auth, navigation (`App` / `Side` / `Top`, depth 3) | `kona-firefly` | todo |
 | M36 | resources, including `--simple` | `kona-firefly` | todo |
