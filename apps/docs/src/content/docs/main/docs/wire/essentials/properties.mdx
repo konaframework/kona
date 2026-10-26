@@ -44,6 +44,15 @@ Scalars, lists/maps/sets, enums, `java.time` types, `BigDecimal` / `BigInteger`,
 
 Wrong types from the client raise a property-type mismatch (request rejected). Locked or unknown properties are refused.
 
+A Cadence model is public state as well. The snapshot keeps its class, primary key, connection, and attribute values. On the next request, Wire reloads the row when a global database is configured. With no global database, Wire rebuilds the model from those attributes, so the template still sees the same columns. Call methods on the model, including when the property is null:
+
+```crema
+{{ user?.getEmail() }}
+{{ user?.getAttribute('name') }}
+```
+
+`user.email` reads that column when the class has no `getEmail()` method. Java models use the same calls (`getEmail()`, `getAttribute("name")`).
+
 ## Bulk helpers
 
 | Method | Behaviour |
