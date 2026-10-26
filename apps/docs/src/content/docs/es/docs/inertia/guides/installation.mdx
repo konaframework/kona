@@ -1,0 +1,348 @@
+---
+title: Instalación
+description: Puesta en marcha de Inertia en Kona de extremo a extremo — grind install, andamiaje del frontend, middleware, Vite y la primera petición.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Esta guía te lleva de una app Kona vacía (o un kit recién creado) a una página de Inertia **que funciona**: HTML en la primera visita, JSON en las siguientes, con un cliente Vue / React / Svelte real.
+
+Los adaptadores de cliente, las opciones de visita y los ayudantes de formulario están documentados aguas arriba en **[inertiajs.com](https://inertiajs.com/)**. Este sitio documenta el lado del **servidor Kona** y cómo cableamos los clientes oficiales.
+
+---
+
+## Elige tu camino
+
+| Camino | Cuándo usarlo |
+|------|-------------|
+| **A. Kit de inicio** | App desde cero — todo andamiado |
+| **B. `./grind install inertia`** | App Kona existente — dependencia + frontend interactivo |
+| **C. Manual** | Quieres que cada archivo lo escribas a mano |
+
+Los caminos A y B son las rutas soportadas «sin pensar». El camino C está al final.
+
+---
+
+## Camino A — App nueva con el kit inertia
+
+```bash
+kona new my-app --kit=inertia
+# Java + React + Tailwind:
+kona new my-app --kit=inertia --lang=java --frontend=react --css=tailwind
+cd my-app
+```
+
+El kit incluye:
+
+- Dependencia Maven `org.konaframework:kona-inertia`
+- `InertiaServiceProvider` en la lista de proveedores
+- Configuración `inertia.root_view=app`, `inertia.version=1`
+- Shell raíz Crema `src/main/resources/views/app.crema.html`
+- Middleware `HandleInertia` empujado después del arranque
+- Bienvenida / login / dashboard de Crema (auth de sesión sin una página de login JS)
+- App Vite: **Vue 3** de forma predeterminada, o `--frontend=react|svelte`; CSS mediante `--css=tailwind|bootstrap|custom`
+
+### Ejecútalo
+
+```bash
+npm install
+npm run dev          # terminal 1 — Vite on :5173, writes public/hot
+./grind serve        # terminal 2 — Kona HTTP (default :4000)
+```
+
+Abre `http://127.0.0.1:4000/`. Deberías ver la página Welcome. En DevTools → Network, una carga de documento completo no tiene cabecera `X-Inertia`; después de la navegación del lado del cliente (cuando añadas enlaces), las peticiones incluyen `X-Inertia: true` y reciben JSON.
+
+Las apps generadas resuelven `org.konaframework` (incluido `kona-inertia`) desde **Maven Central**.
+
+---
+
+## Camino B — Añadir Inertia a una app existente
+
+### 1. Instala el paquete
+
+Desde la raíz de la app (directorio con `build.gradle.kts` / `build.gradle`):
+
+```bash
+./grind install inertia
+# or from anywhere under the app tree:
+kona grind install inertia
+```
+
+Eso siempre:
+
+1. Añade `implementation("org.konaframework:kona-inertia:…")` a Gradle.
+2. Añade `org.konaframework.inertia.InertiaServiceProvider` a `src/main/resources/META-INF/kona/providers`.
+
+Luego **andamia el frontend** (interactivo cuando hay un TTY):
+
+```text
+Which Inertia frontend stack should we scaffold?
+  [1] Vue 3 (@inertiajs/vue3)
+  [2] React (@inertiajs/react)
+  [3] Svelte (@inertiajs/svelte)
+  [4] Skip — I will wire the client myself
+```
+
+Los valores predeterminados no interactivos / de CI son **Vue 3**. Anúlalo cuando quieras:
+
+```bash
+./grind install inertia --frontend=vue
+./grind install inertia --frontend=react
+./grind install inertia --frontend=svelte
+./grind install inertia --frontend=none          # server package only
+./grind install inertia --frontend=vue --no-interactive
+```
+
+| Bandera | Significado |
+|------|---------|
+| `--frontend=` | `vue`, `react`, `svelte` o `none` |
+| `--no-interactive` | Nunca pregunta; usa `--frontend` o Vue predeterminado |
+| `--version=` | Fija la versión del artefacto Maven |
+| `--base=` | Raíz de la app si el cwd de grind está mal |
+
+El andamiaje escribe (cuando no es `none`):
+
+| Archivo | Papel |
+|------|------|
+| `package.json` | Vite + adaptador oficial `@inertiajs/*` |
+| `vite.config.js` | Build a `public/build` con manifiesto; `origin` de dev para hot |
+| `src/main/resources/js/app.(js\|jsx)` | Entrada `createInertiaApp` |
+| `src/main/resources/js/Pages/Welcome.*` | Componente de página de ejemplo |
+| `src/main/resources/views/app.crema.html` | Shell HTML raíz (**solo si falta**) |
+| `public/.gitkeep` | Directorio público para `hot` + `build/` |
+
+Refresca Gradle después de instalar:
+
+```bash
+./gradlew build
+# or restart ./grind serve
+```
+
+### 2. Configuración del servidor
+
+Pon esto antes o mientras registras proveedores (las apps de kit ya lo hacen):
+
+```kotlin
+.configure { cfg ->
+    cfg.set("inertia.root_view", "app")       // Crema view name
+    cfg.set("inertia.version", "1")         // asset version string
+    // optional:
+    // cfg.set("inertia.public_path", app.basePath.resolve("public").toString())
+    // cfg.set("inertia.root_html", "<!DOCTYPE html>…")  // instead of a Crema view
+}
+```
+
+| Clave | Propósito |
+|-----|---------|
+| `inertia.root_view` | Vista Crema que envuelve `{!! pageAttr !!}` + `{!! vite !!}` |
+| `inertia.root_html` | Cadena HTML cruda si no usas Crema |
+| `inertia.version` | Se compara en las visitas de Inertia; desajuste → `409` |
+| `inertia.public_path` | Directorio que contiene el `hot` de Vite y `build/` (predeterminado `<base>/public`) |
+
+Detalles: [Configuración](../../essentials/configuration/).
+
+**Nota de React:** la entrada del andamiaje JavaScript es `app.jsx`. Apunta las etiquetas Vite a ella:
+
+```kotlin
+.afterBoot { app ->
+    Inertia.manager().viteEntries = listOf("src/main/resources/js/app.jsx")
+}
+```
+
+(El `viteEntries` predeterminado es `src/main/resources/js/app.js`, que coincide con JavaScript de Vue/Svelte.)
+
+**TypeScript:** `kona new --kit=inertia --typescript` (alias `--ts`) escribe `app.ts` para Vue y Svelte, o `app.tsx` para React, y pone `viteEntries` en ese mismo camino. `--javascript` / `--js` conserva los archivos JavaScript. Gana la última de esas banderas. Vite sigue emitiendo `public/build`; el archivo fuente se queda bajo `src/main/resources/js/`.
+
+### 3. Registrar middleware
+
+`InertiaServiceProvider` debe arrancar **antes** de que empujes middleware para que exista `Inertia.manager()`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+.afterBoot { application ->
+    application.resolve(HttpKernel::class.java)
+        .pushMiddleware(HandleInertiaRequests())
+    // or your kit wrapper, e.g. HandleInertia()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+.afterBoot(application -> {
+    application.resolve(HttpKernel.class)
+        .pushMiddleware(new HandleInertiaRequests());
+});
+```
+
+</TabItem>
+</Tabs>
+
+Subclasifica `HandleInertiaRequests` para compartir props de flash/auth o anular `version(request)`. Consulta [Middleware](../../essentials/middleware/).
+
+### 4. Plantilla raíz
+
+Vista Crema `app` (el nombre debe coincidir con `inertia.root_view`):
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title inertia>Kona</title>
+    {!! vite !!}
+  </head>
+  <body>
+    <div id="app" data-page="{!! pageAttr !!}"></div>
+  </body>
+</html>
+```
+
+- `{!! vite !!}` — etiquetas script/link del archivo hot de Vite o del manifiesto de producción ([Vite y activos](../../advanced/vite/)).
+- `{!! pageAttr !!}` — objeto de página JSON escapado para la primera visita.
+- `#app` — elemento de montaje que esperan los adaptadores oficiales.
+
+### 5. Renderizar una página desde una ruta
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+router.get("/") {
+    Inertia.render(
+        "Pages/Welcome",
+        mapOf(
+            "title" to "Welcome",
+            "message" to "Inertia is running on Kona",
+        ),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+router.get("/", request ->
+    Inertia.render(
+        "Pages/Welcome",
+        Map.of(
+            "title", "Welcome",
+            "message", "Inertia is running on Kona"
+        )
+    )
+);
+```
+
+</TabItem>
+</Tabs>
+
+La cadena `"Pages/Welcome"` debe coincidir con un archivo bajo `js/Pages/` (por ejemplo `Welcome.vue`), tal como lo resuelve la función `resolve` de tu `createInertiaApp`.
+
+### 6. Instalar y ejecutar el frontend
+
+```bash
+npm install
+npm run dev          # keep running — creates public/hot
+./grind serve
+```
+
+Build de producción (sin servidor de desarrollo de Vite):
+
+```bash
+npm run build        # writes public/build/manifest.json
+./grind serve        # serves hashed assets via {!! vite !!}
+```
+
+### 7. Verificar de extremo a extremo
+
+1. **Primera visita** — `GET /` sin `X-Inertia` → `200` HTML, `#app[data-page]` presente, etiquetas del cliente Vite presentes cuando existe `public/hot`.
+2. **Visita de Inertia** — la misma URL con cabeceras:
+
+```http
+GET / HTTP/1.1
+X-Inertia: true
+X-Inertia-Version: 1
+```
+
+→ `200` JSON `{ "component", "props", "url", "version" }` más `X-Inertia: true`.
+
+3. **Desajuste de versión** — envía `X-Inertia-Version: stale` mientras la versión del servidor es `1` → `409` para que el cliente recargue a la fuerza ([Versionado de activos](../../advanced/versioning/)).
+
+4. Navegador — el componente Welcome renderiza las props `title` / `message`.
+
+Si el HTML tiene una sección de script de cuerpo vacía, Vite no está corriendo y aún no hay manifiesto de producción — arranca `npm run dev` o ejecuta `npm run build`.
+
+---
+
+## Qué significa «instalado» en el servidor
+
+| Pieza | Papel |
+|-------|------|
+| Artefacto `kona-inertia` | Fachada, gestor, middleware, proveedor |
+| `InertiaServiceProvider` | Enlaza `InertiaManager` + `AssetManifest` de Vite |
+| `HandleInertiaRequests` | Share por petición, comprobación de versión, cabeceras de respuesta |
+| Vista raíz / HTML | Shell del documento de la primera visita |
+| Claves de configuración | Vista raíz, versión, camino público |
+
+El descubrimiento de paquetes carga los proveedores listados en `META-INF/kona/providers` cuando la app arranca mediante grind. Consulta [Instalar paquetes](/docs/packages/install/) de Kona.
+
+---
+
+## Pilas de frontend (Inertia oficial)
+
+Kona no reimplementa el protocolo del navegador. Usa los adaptadores oficiales:
+
+| Pila | Paquetes | Aguas arriba |
+|-------|----------|----------|
+| Vue 3 | `@inertiajs/vue3`, `vue`, `@vitejs/plugin-vue` | [Puesta en marcha de Vue](https://inertiajs.com/client-side-setup) |
+| React | `@inertiajs/react`, `react`, `react-dom`, `@vitejs/plugin-react` | [Puesta en marcha de React](https://inertiajs.com/client-side-setup) |
+| Svelte | `@inertiajs/svelte`, `svelte`, `@sveltejs/vite-plugin-svelte` | [Puesta en marcha de Svelte](https://inertiajs.com/client-side-setup) |
+
+Los temas de cliente más profundos (formularios, recargas parciales, props diferidas, cuando estén disponibles en la versión de tu adaptador) viven en [inertiajs.com](https://inertiajs.com/). El trabajo de Kona son las respuestas HTML/JSON correctas y las props compartidas — consulta [Renderizado](../../essentials/rendering/), [Datos compartidos](../../essentials/shared-data/) y [Tu primera página](../first-page/).
+
+---
+
+## Camino C — Gradle manual (opcional)
+
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("org.konaframework:kona-http:0.1.1")
+    implementation("org.konaframework:kona-crema:0.1.1")
+    implementation("org.konaframework:kona-inertia:0.1.1")
+}
+```
+
+Registra `InertiaServiceProvider`, empuja el middleware, añade la vista raíz y luego ejecuta `./grind install inertia --frontend=vue` (reutiliza el andamiaje sin fallar si la dependencia existe) o copia a mano los archivos Vite de la tabla del camino B.
+
+---
+
+## Resolución de problemas
+
+| Síntoma | Causa probable |
+|---------|----------------|
+| `InertiaException` / sin gestor | Proveedor no registrado o middleware antes del arranque |
+| `{!! vite !!}` vacío | No hay `public/hot` ni manifiesto en `public/build/manifest.json` o `public/build/.vite/manifest.json` |
+| `GET /build/src/main/resources/js/app.js` 404 | Las etiquetas cayeron a `/build/` + el camino fuente. Arranca `npm run dev` (escribe `public/hot`) o `npm run build`, y recarga. Los scripts de dev salen del origen de Vite; los de producción son `/build/assets/<hash>.js` |
+| Página en blanco, error de consola «page not found» | El nombre del componente ≠ archivo bajo `js/Pages/` |
+| Siempre HTML completo en XHR | Falta `HandleInertiaRequests` o el cliente no envía `X-Inertia` |
+| `409` persistente | `X-Inertia-Version` del cliente ≠ `inertia.version` del servidor |
+| Activos de React 404 | `viteEntries` sigue apuntando a `app.js` en lugar de `app.jsx` |
+
+---
+
+## Siguiente
+
+- [Tu primera página](../first-page/) — recorrido de petición/respuesta
+- [Clientes de frontend](../frontend/) — cómo se montan las apps andamiadas
+- [Renderizar páginas](../../essentials/rendering/) — API `Inertia.render`
+- [Kit de inicio](../../dx/starter-kit/) — mapa de archivos del kit
+- [inertiajs.com](https://inertiajs.com/) — protocolo del cliente y adaptadores

@@ -1,0 +1,134 @@
+---
+title: Kits de inicio
+description: Instalador interactivo de kona new, kits, CSS y adaptadores de Inertia.
+---
+
+`kona new` genera una app Gradle con un CLI local `./grind`. Ejecútalo **sin argumentos** y siempre te recorre la pila (prompts en recuadro). Pasa un directorio o una bandera para saltar **solo ese paso**. `--no-interaction` es el único salto completo.
+
+```bash
+kona new                          # instalador interactivo — siempre pregunta
+kona new my-app                   # directorio fijado; sigue preguntando lang / kit / CSS / db / …
+kona new my-app --no-interaction  # valores predeterminados en silencio (kotlin, web, sqlite)
+kona new my-app --kit=api --lang=java --no-interaction
+kona new my-app --kit=inertia --frontend=react --css=tailwind
+kona new my-app --kit=inertia --frontend=vue --typescript
+kona new my-app --kit=wire --css=bootstrap --install-deps --migrate --seed
+```
+
+El kit predeterminado (cuando saltas el prompt de la pila) es **`web`** — vistas Crema. El CSS no interactivo se queda en **custom** (estilos en línea, sin npm) para que un primer `./grind serve` funcione con cero cadena de herramientas de JavaScript. El prompt interactivo de CSS predetermina **Tailwind CSS**.
+
+## Orden interactivo
+
+Sin `--no-interaction`, `kona new` pregunta solo los valores que aún no pasaste. Las terminales de IDE, Cursor y `CI=true` siguen preguntando — las respuestas se leen de stdin:
+
+1. **¿Dónde creamos la app?** — predeterminado `kona-app` (se salta si pasas un directorio)
+2. **Nombre de la app** — `APP_NAME` en `.env`; el predeterminado es Title Case de la carpeta (`my-app` → `My App`)
+3. **Lenguaje** — Kotlin (predeterminado) o Java
+4. **¿Qué estamos preparando?** — solo API, Crema, Wire o Inertia
+5. **Adaptador de Inertia** — Vue, React o Svelte (solo Inertia)
+6. **Lenguaje del frontend** — JavaScript (predeterminado) o TypeScript (solo Inertia; se salta cuando está `--typescript` / `--ts` o `--javascript` / `--js`)
+7. **CSS** — Tailwind, Bootstrap o custom (se salta para API)
+8. **Base de datos** — sqlite (predeterminado), h2, mysql, mariadb, pgsql, sqlsrv, oracle
+9. **¿Instalar dependencias ahora?** — wrapper de Gradle, más `npm` o `pnpm` cuando existe `package.json`
+10. **¿Ejecutar las migraciones iniciales?**
+11. **¿Ejecutar los seeders de la base de datos?**
+12. **Tarjeta de resumen** — luego confirma antes de escribir cualquier archivo
+
+Los valores predeterminados no interactivos completos solo con `--no-interaction` o `--no-interactive`. Los scripts deben pasar esa bandera; **`CI=true` no salta los prompts.** Con `--no-interaction` y sin directorio, la carpeta predeterminada es `kona-app`.
+
+Si stdin no es legible (tubería cerrada, EOF) y no optaste por salir, Kona imprime un **ERROR** que te dice que pases banderas o `--no-interaction` — no genera el andamiaje en silencio.
+
+## Banderas que saltan un paso
+
+| Bandera | Salta |
+|------|--------|
+| Argumento de directorio | «¿Dónde creamos la app?» |
+| `--name=` / `--app-name=` | Nombre de la app (`APP_NAME`) |
+| `--lang=kotlin\|java` | Lenguaje |
+| `--kit=` / `--preset=` | Pila (`web`, `api`, `crema`, `inertia`, `wire`; `brew` es un alias de Wire) |
+| `--frontend=vue\|react\|svelte` | Adaptador de Inertia |
+| `--typescript` / `--ts` | Lenguaje del frontend de Inertia → TypeScript |
+| `--javascript` / `--js` | Lenguaje del frontend de Inertia → JavaScript |
+| `--css=tailwind\|bootstrap\|custom` | CSS (alias `tw`, `bs`, `none` / `vanilla` / `plain`) |
+| `--database=` | Motor de base de datos |
+| `--install-deps` / `--no-install-deps` | Oferta de Gradle + npm/pnpm |
+| `--migrate` / `--no-migrate` | Migraciones iniciales |
+| `--seed` / `--no-seed` | Seeders |
+| `--no-interaction` / `--no-interactive` | Cada prompt; usa los predeterminados |
+
+`--install-deps=false`, `--migrate=no` y `--seed=0` son lo mismo que las formas `--no-*`.
+
+Tras un chip **DONE**, el cierre lista `cd`, `./grind serve` y (cuando saltaste migrate) `./grind migrate --seed`. Los kits con una app JS también imprimen `npm install && npm run dev`.
+
+## Kits
+
+| Kit | Dependencias | Qué obtienes |
+|-----|--------------|--------------|
+| `web` (predeterminado) | HTTP + grind + session/auth/queue/… + **crema** | Vista de bienvenida, login, dashboard, JSON `/api/health` |
+| `crema` | igual que `web` | Alias de `web` |
+| `api` | sin Crema | Bienvenida en texto plano `/` + salud JSON (sin tubería de CSS) |
+| `inertia` | + `kona-inertia` | Middleware de Inertia, shell raíz, Vite + Vue/React/Svelte, login/dashboard de Crema |
+| `wire` | + `kona-wire` | Landing de Crema con un `<wire:counter />` en vivo más login/dashboard |
+| `brew` | + `kona-wire` | Alias obsoleto de `wire` |
+
+Cada kit registra proveedores de Cadence, Redis, Session, Auth, Queue, Schedule y Mail; genera `APP_KEY` en `.env`; y aplica `StartSession` + CSRF (excepto `/api/*` y `/wire/*`) en `bootstrap.Middleware`.
+
+## CSS
+
+`--css` (y el prompt de CSS) se componen sobre el kit. Escriben una tubería Vite **real**, no un stub:
+
+| Valor | Qué se escribe |
+|-------|-----------------|
+| `custom` (predeterminado no interactivo) | Estilos en línea con la marca existente en las vistas Crema; las páginas de bienvenida de Inertia usan estilos en línea. Sin npm extra salvo que el kit ya tenga una app JS (Inertia). |
+| `tailwind` | `package.json` + Vite + Tailwind v4 (`@tailwindcss/vite`), `css/app.css` con el `@theme` de café, vistas Crema (o páginas Inertia) con utilidades, `@vite('src/main/resources/js/app.js')` |
+| `bootstrap` | Vite + Bootstrap 5, marcado Crema/Inertia con clases de Bootstrap |
+
+Crema y Wire con Tailwind o Bootstrap añaden `src/main/resources/js/app.js` que importa el CSS. Los adaptadores de Inertia importan el mismo archivo desde `app.js` / `app.jsx` (o `app.ts` / `app.tsx` cuando optas por TypeScript).
+
+La raíz web es el directorio del proyecto `public/` (`paths.public`). Los logos y `robots.txt` viven ahí. El build de producción de Vite escribe `public/build`. Las entradas de origen se quedan bajo `src/main/resources/js/`. `kona new` no crea `src/main/resources/public`.
+
+Sirve el CSS en desarrollo con Vite en marcha (`npm run dev`) junto a `./grind serve`. Producción: `npm run build` escribe `public/build`.
+
+## Adaptadores de Inertia
+
+| `--frontend` | Entrada JavaScript (predeterminada) | Entrada TypeScript | Paquetes |
+|--------------|----------------------------|------------------|----------|
+| `vue` (predeterminado) | `src/main/resources/js/app.js` | `src/main/resources/js/app.ts` | `@inertiajs/vue3` |
+| `react` | `src/main/resources/js/app.jsx` | `src/main/resources/js/app.tsx` | `@inertiajs/react` |
+| `svelte` | `src/main/resources/js/app.js` | `src/main/resources/js/app.ts` | `@inertiajs/svelte` |
+
+La misma ruta es el `rollupOptions.input` de Vite y `InertiaManager.viteEntries`, así que la clave del manifiesto coincide con la etiqueta que imprime `{!! vite !!}`.
+
+### Lenguaje del frontend
+
+JavaScript es el predeterminado. `kona new my-app --kit=inertia --no-interaction` no interactivo se queda en JavaScript.
+
+| Bandera | Efecto |
+|------|--------|
+| `--typescript` o `--ts` | Entrada TypeScript, `tsconfig.json` y `typescript` en `devDependencies` |
+| `--javascript` o `--js` | Forzar JavaScript |
+| Ambas | Gana la **última** bandera de la línea de comandos. `--typescript=false` selecciona JavaScript; `--javascript=false` selecciona TypeScript |
+
+API, Crema y Wire ignoran estas banderas y no preguntan. Solo Inertia muestra **Lenguaje del frontend** (después del prompt del adaptador).
+
+Andamiajes de TypeScript:
+
+- **Vue** — `app.ts`, `<script setup lang="ts">` en `Pages/Welcome.vue`, `env.d.ts`, `vue-tsc`, script `typecheck`
+- **React** — `app.tsx` y `Pages/Welcome.tsx`, `vite-env.d.ts`, `@types/react`, `@types/react-dom`
+- **Svelte** — `app.ts`, `<script lang="ts">` en `Pages/Welcome.svelte`, `vite-env.d.ts`, `svelte.config.js` con `vitePreprocess` para que `npm run build` pueda compilar la página
+
+`npm run build` sigue siendo Vite. `npm run typecheck` ejecuta `vue-tsc` (Vue) o `tsc` (React y Svelte).
+
+Landing, login y dashboard siguen llegando como **HTML de Crema** para que la auth de sesión funcione antes de que añadas más páginas de Inertia. `js/Pages/Welcome.*` es la página de cliente desde la que crecer.
+
+## Instalar, migrar, sembrar
+
+Cuando aceptas (o pasas `--install-deps`), `kona new` ejecuta `./gradlew --no-daemon help -q` en la app nueva y, si existe `package.json`, `npm install` (o `pnpm install` cuando está presente `pnpm-lock.yaml`). Los fallos imprimen un chip WARN y continúan.
+
+`--migrate` ejecuta `./grind migrate`. `--seed` ejecuta `./grind db:seed`. Si no hay base de datos, o grind falla, el instalador salta ese paso en lugar de abortar. El motor predeterminado es **sqlite** (`storage/database/database.sqlite`) para que migrate/seed puedan tener éxito en local sin un servidor.
+
+## Kotlin y Java
+
+Cada kit tiene esqueletos de Kotlin y Java (`--lang=kotlin|java`). Controladores, proveedores y rutas coinciden con el lenguaje que eliges; los activos compartidos (vistas, `package.json`) son neutros respecto al lenguaje.
+
+Las apps generadas resuelven artefactos `org.konaframework` desde **Maven Central**. Guías completas: [Wire](/docs/wire/), [Inertia](/docs/inertia/), [Vite](/docs/assets/vite/).

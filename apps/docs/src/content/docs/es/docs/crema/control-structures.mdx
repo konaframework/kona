@@ -1,0 +1,222 @@
+---
+title: Estructuras de control
+description: Condicionales, bucles, auth, capacidades, switch y metadatos de bucle en plantillas Crema.
+---
+
+Las directivas estructurales de Crema ramifican y repiten regiones de plantilla. Los bloques exteriores se expanden primero para que los bloques interiores vean las variables de bucle y el contexto hijo.
+
+## Verdad
+
+Las expresiones en `@if`, `@unless`, `@empty`, `@includeWhen` y similares tratan un valor como **verdadero** salvo que sea:
+
+- `null`
+- `false`
+- un número igual a `0`
+- una cadena vacía
+- una colección, mapa o array vacío
+
+Todo lo demás (incluidas cadenas no vacías, objetos y números distintos de cero) es verdadero.
+
+## Condicionales
+
+```crema
+@if(n == 1)
+  One
+@elseif(n == 2)
+  Two
+@else
+  Other
+@endif
+
+@unless(ok)
+  Hidden when ok is truthy
+@endunless
+
+@isset(name)
+  Name is present (non-null)
+@endisset
+
+@empty(items)
+  No items (not truthy)
+@endempty
+```
+
+| Directiva | Cierre | Significado |
+|-----------|--------|---------|
+| `@if(expr)` | `@endif` | Cuerpo cuando es verdadero; admite `@elseif` / `@else` |
+| `@unless(expr)` | `@endunless` | Cuerpo cuando no es verdadero |
+| `@isset(name)` | `@endisset` | Cuerpo cuando el valor resuelto no es null |
+| `@empty(expr)` | `@endempty` | Cuerpo cuando el valor no es verdadero |
+
+Los bloques `@if` anidados coinciden con el `@endif` correcto. `@hasSection` / `@sectionMissing` también cierran con `@endif` — consulta [Layouts](/docs/crema/layouts/).
+
+### Casos límite
+
+```crema
+@if(0)never@endif
+@if('')never@endif
+@if(nil)never@endif
+@if(items)has items@endif
+```
+
+Compara con cuidado: `==` y similares convierten ambos lados a cadena después de evaluar, salvo las comparaciones numéricas de `<` / `>` / `<=` / `>=` cuando ambos lados son números. `===` y `!==` no convierten a cadena: `null` sigue siendo null, y dos números coinciden por valor numérico.
+
+Dentro de `@if(user !== null)` el valor no es null, así que `user.getEmail()` y `user.email` lo leen directamente. `user?.getEmail()` es la misma lectura cuando `user` todavía podría ser null; un receptor null no renderiza nada. `user.email` en un modelo también lee una columna guardada con `getAttribute("email")` cuando la clase no tiene un método `getEmail()`.
+
+## `@while`
+
+```crema
+@while(loop.iteration <= n)
+  {{ loop.iteration }}
+@endwhile
+```
+
+Cada pasada inyecta un mapa `loop` en un contexto hijo **antes** de evaluar la condición, así que la primera comprobación ya ve `loop.iteration == 1`. Tope duro: **10 000** iteraciones.
+
+## `@foreach` / `@each` / `@for`
+
+### Forma de colección
+
+```crema
+@foreach(items as item)
+  <li>{{ item }} ({{ loop.iteration }})</li>
+@endforeach
+```
+
+`@each` / `@endeach` y `@for(items as item)…@endfor` se comportan igual. El `$` inicial en el nombre del ítem es opcional (`as $item`).
+
+### Forma con clave
+
+```crema
+@foreach(map as key => value)
+  {{ key }}={{ value }}
+@endforeach
+```
+
+En un `Map`, `key` / `value` son cada entrada. En una lista (u otro iterable), `key` es el índice con base cero y `value` es el elemento.
+
+### Rango y `@for` al estilo C
+
+```crema
+@for(i in 0..2)
+  {{ i }}
+@endfor
+
+@for(i = 0; i < n; i++)
+  {{ i }}
+@endfor
+```
+
+`0..2` es **inclusivo**. La forma al estilo C usa un límite superior estricto `<` (`i = 0; i < n; i++`).
+
+### Escalares y valores raros
+
+| Valor pasado a `@foreach` | Iteración |
+|----------------------------|-----------|
+| `null` | Cero iteraciones |
+| Colección / array / `IntRange` | Elementos |
+| `CharSequence` | Caracteres |
+| Cualquier otro valor suelto | Una iteración con ese valor |
+
+## Metadatos del bucle
+
+Cada iteración de bucle pone un mapa `loop` en el contexto hijo:
+
+| Clave | Significado |
+|-----|---------|
+| `index` | Índice con base cero |
+| `iteration` | Índice con base uno |
+| `first` / `last` | Booleanos |
+| `count` | Tamaño total de este bucle |
+| `remaining` | Ítems después de este |
+| `even` / `odd` | Según el índice con base cero |
+| `depth` | Profundidad de anidado (`1` en el bucle más externo) |
+| `parent` | Mapa del bucle exterior cuando está anidado, si no null |
+
+```crema
+@foreach(outer as o)
+  @foreach(inner as i)
+    depth={{ loop.depth }} parent={{ loop.parent.iteration }}
+  @endforeach
+@endforeach
+```
+
+## `@forelse`
+
+Como `@foreach`, pero exige una rama `@empty` cuando la colección no tiene ítems:
+
+```crema
+@forelse(items as item)
+  {{ item }}
+@empty
+  <p>None</p>
+@endforelse
+```
+
+Los bloques `@forelse` anidados coinciden con el `@empty` / `@endforelse` correcto. La rama vacía no recibe metadatos de bucle de un ítem «actual».
+
+## Auth e invitado
+
+```crema
+@auth
+  Signed in
+@endauth
+
+@guest
+  Please sign in
+@endguest
+```
+
+Un visitante se trata como autenticado cuando los datos de la vista tienen cualquiera de:
+
+- `__authenticated` verdadero
+- `auth_user` no null
+- `user` no null
+
+Pásalos desde el middleware o el controlador después de que corra tu capa de auth. Consulta [Autenticación](/docs/security/authentication/).
+
+## Capacidades
+
+```crema
+@can('edit')
+  <button>Edit</button>
+@endcan
+
+@cannot('edit')
+  <span>Read-only</span>
+@endcannot
+```
+
+Crema comprueba, en orden:
+
+1. `__abilities` como un `Set` / `List` que contiene la cadena de capacidad, o un `Map` cuyo valor para esa clave es verdadero
+2. Un mapa `can` en los datos (`can['edit']` verdadero)
+
+Conecta las policies reales mediante [Autorización](/docs/security/authorization/); estas directivas solo leen el mapa que proporcionas a la vista.
+
+## `@switch`
+
+```crema
+@switch(status)
+@case(1)
+  Open
+  @break
+@case(2)
+  Closed
+  @break
+@default
+  Unknown
+@endswitch
+```
+
+Los casos comparan valores **convertidos a cadena** (`"1"` coincide con `1`). `@break` detiene el brazo activo; sin él, es posible caer al texto del brazo siguiente hasta el próximo `@case` / `@default` / fin. `@default` corre cuando ningún caso coincidió.
+
+## Errores de campo
+
+`@error('field')…@enderror` se documenta con los formularios — consulta [Formularios](/docs/crema/forms/#field-errors).
+
+## Siguiente
+
+- [Includes y parciales](/docs/crema/includes/)
+- [Componentes y slots](/docs/crema/components/)
+- [Referencia de directivas](/docs/crema/directives/)

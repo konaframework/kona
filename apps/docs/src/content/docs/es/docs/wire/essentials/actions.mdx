@@ -1,0 +1,139 @@
+---
+title: Acciones de Wire
+description: Llama a métodos del servidor desde el navegador con wire:click, wire:submit y $wire.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Una **acción** es un método público de tu componente. El navegador la invoca con `wire:click`, otros eventos `wire:*`, `wire:submit` o `$wire.method()` desde Alpine.
+
+## Clic básico
+
+```html
+<button wire:click="increment">+</button>
+<button wire:click="add(5)">+5</button>
+<button wire:click="save('draft', true)">Save</button>
+```
+
+Los parámetros se codifican en JSON y se pasan por posición. Los parámetros finales se pueden resolver desde el contenedor de Kona (inyección de dependencias).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+fun increment() { count++ }
+
+fun add(amount: Int) { count += amount }
+
+fun save(label: String, notify: Boolean) { /* … */ }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public void increment() { count++; }
+
+public void add(int amount) { count += amount; }
+
+public void save(String label, boolean notify) { /* … */ }
+```
+
+</TabItem>
+</Tabs>
+
+## Valores de retorno
+
+Devuelve un valor y léelo desde JavaScript:
+
+```kotlin
+fun doubled(): Int = count * 2
+```
+
+```html
+<button x-data x-on:click="alert(await $wire.doubled())">Doubled?</button>
+```
+
+Los retornos viajan en `effects.returns`.
+
+## Acciones sin render
+
+Omite el re-render HTML cuando solo necesitas mutar estado o devolver un valor:
+
+```kotlin
+@Renderless
+fun clearQuietly() {
+    count = 0
+}
+```
+
+O llama a `skipRender()` / `renderless()` dentro del método. `forceRender()` hace que las llamadas posteriores de omisión no hagan nada en esa petición. El modificador de evento `.renderless` hace lo mismo desde la plantilla.
+
+## Acciones mágicas
+
+| Llamada | Efecto |
+|------|--------|
+| `$set('count', 1)` | Pone una propiedad |
+| `$toggle('open')` | Invierte un booleano |
+| `$refresh` | Vuelve a renderizar sin un método con nombre |
+| `$event` | Accede al evento DOM desde Alpine |
+
+```html
+<button wire:click="$set('count', 0)">Reset</button>
+<button wire:click="$toggle('open')">Toggle</button>
+<button wire:click="$refresh">Refresh</button>
+```
+
+## Cualquier evento DOM
+
+`wire:<event>` funciona para eventos nativos y personalizados:
+
+```html
+<input wire:keydown.enter="search" />
+<div wire:click.outside="close"></div>
+<input wire:trix-change="updated" />
+```
+
+### Modificadores de tecla
+
+`.enter`, `.escape`, `.space`, `.tab`, `.shift`, `.ctrl`, `.alt`, `.meta` / `.cmd`, `.up` / `.down` / `.left` / `.right`, `.page-up` / `.page-down`, `.slash` y combinaciones como `.shift.enter`.
+
+### Modificadores de evento
+
+`.prevent`, `.stop`, `.window`, `.document`, `.outside`, `.once`, `.self`, `.camel`, `.dot`, `.passive`, `.capture`, `.debounce` / `.debounce.500ms`, `.throttle` / `.throttle.500ms`.
+
+## Formularios
+
+```html
+<form wire:submit="save">
+    <input wire:model="email" />
+    <button type="submit">Save</button>
+</form>
+```
+
+`wire:submit` implica `.prevent`. Consulta [Formularios](/docs/wire/essentials/forms/) para los modificadores de `wire:model`.
+
+## Desde Alpine / `$wire`
+
+```js
+await $wire.save()
+await $wire.$call('add', 5)
+await $wire.$refresh()
+await $wire.$commit()
+```
+
+`$wire` también expone `$el`, `$id`, `$watch` y `$hook`.
+
+## Agrupación de peticiones
+
+Las interacciones se encolan por componente. Las actualizaciones en vivo de `wire:model` se fusionan; las acciones interrumpen o se encolan según el bus de peticiones de Wire para que los clics rápidos no compitan con el morph.
+
+## Lo que no se puede llamar
+
+Los métodos protected/private, `render` / `template` y los hooks de ciclo de vida (`mount`, `boot`, `updatedFoo`, …) no se pueden llamar desde el navegador. Los intentos lanzan errores de método no encontrado o de guarda del ciclo de vida.
+
+## Siguiente
+
+- [Formularios](/docs/wire/essentials/forms/) — detalles del enlace del modelo
+- [JavaScript](/docs/wire/js/runtime/) — API global `Wire` y hooks
+- [Ciclo de vida](/docs/wire/essentials/lifecycle/) — hooks alrededor de acciones y actualizaciones

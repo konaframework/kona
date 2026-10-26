@@ -1,0 +1,114 @@
+---
+title: Páginas
+description: Páginas del panel — título, acciones, una región de contenido, widgets y los tipos lista, crear, editar, ver, gestionar y personalizado.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Una página es una pantalla. Tiene un título, botones en la cabecera y el pie, una región de contenido y los widgets que coloques en ella. La región de contenido es donde va el formulario, el infolist o la tabla.
+
+Puedes llamar a `render()` en esa página desde una prueba. El panel es lo que convierte la misma página en una URL. En el ejemplo hello, Desk es una página personalizada en `/admin/desk`.
+
+<FireflyShot file="desk.png" description="La página Desk en http://127.0.0.1:4017/admin/desk, con el campo de nombre, el combobox de estado, el selector de vencimiento, el infolist, la tabla y la acción de cabecera Edit." />
+
+Los tipos viven en `org.konaframework.firefly` y `org.konaframework.firefly.widgets`. `PanelPage` extiende `Page`. `ListPage`, `CreatePage`, `EditPage`, `ViewPage`, `ManagePage` y `CustomPage` son las clases de página. `Dashboard` es un `Page` cuya clase de sección es `ff-page ff-dashboard`.
+
+## Cómo se sirve una página
+
+`Panel.mount` registra `GET /{prefix}/{slug}` para cada página descubierta desde `pages/` o pasada a `page(...)`. El `Desk` del ejemplo hello usa el slug `desk`, así que la ruta es `/admin/desk`. Cuando la petición está permitida, el panel renderiza el cromo y pone `page.render()` en el cuerpo.
+
+`navigationLabel()` es el texto de la barra lateral. El predeterminado es el slug, o `Dashboard` cuando el slug está vacío. Por eso una página titulada `Desk` puede seguir mostrando el enlace `desk` hasta que cambies el camino de la etiqueta. `parent("name")` anida la página bajo un ítem de navegación con ese nombre. Un padre ausente falla en el mount y nombra ambos ítems.
+
+## La página Desk
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Desk : CustomPage("desk") {
+    init {
+        title("Desk")
+        mountForm(
+            Schema.make().components(
+                TextInput.make("name"),
+                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+                DateTimePicker.make("due"),
+            ),
+        )
+        mountInfolist(Infolist.make().components(TextEntry.make("name")))
+        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
+        headerActions(
+            Action.make("edit").label("Edit").modal().modalHeading("Edit note").schema(TextInput.make("note")),
+        )
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Desk extends CustomPage {
+    public Desk() {
+        super("desk");
+        title("Desk");
+        mountForm(Schema.make().components(
+            TextInput.make("name"),
+            Select.make("status").options(Map.of("open", "Open", "done", "Done")),
+            DateTimePicker.make("due")
+        ));
+        mountInfolist(Infolist.make().components(TextEntry.make("name")));
+        table(Table.memory(row()).columns(TextColumn.make("name")));
+        headerActions(Action.make("edit").label("Edit").modal().modalHeading("Edit note").schema(TextInput.make("note")));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`mountForm` guarda el esquema como el formulario de la página. `mountInfolist` renderiza el infolist a HTML y guarda ese marcado. `table` y `headerActions` vienen de `Page`. El diálogo de la acción de editar está en el HTML y permanece cerrado hasta que Alpine lo abre.
+
+```bash
+./grind make:firefly-page Desk
+./grind make:firefly-page Desk --lang=java
+```
+
+El comando escribe un `CustomPage` con el nombre en minúsculas como slug y todavía sin formulario.
+
+## Métodos de Page
+
+| Método | Qué hace |
+|--------|----------------|
+| `title(value)` / `title(provider)` | Texto del encabezado, o un cierre que recibe `Get` |
+| `headerActions(...)` / `footerActions(...)` | Sustituye esa lista de acciones |
+| `widgets(...)` | Sustituye los widgets dibujados en `ff-page-widgets` |
+| `discoverWidgets(directory)` | Añade los widgets encontrados bajo `directory/widgets` |
+| `schema(schema)` | Región de contenido a partir de un esquema |
+| `form(schema)` | Región de contenido a partir de un esquema de formulario |
+| `infolistHtml(html)` | Región de contenido a partir de HTML de infolist |
+| `table(table)` | Región de contenido a partir de una tabla |
+| `render()` / `render(state)` | `<section class="ff-page">` con cabecera, contenido, widgets y pie |
+
+`PanelPage` añade:
+
+| Método | Qué hace |
+|--------|----------------|
+| `slug()` | El slug del constructor, o el nombre de la clase sin un `Page` final, en minúsculas |
+| `navigationLabel()` | Texto del slug, o `Dashboard` cuando el slug está vacío |
+| `parent(name)` | Padre de navegación. `parentName()` lo lee de vuelta |
+| `mountForm(schema)` | El mismo hueco que `form` |
+| `mountInfolist(infolist)` | Renderiza el infolist y guarda el HTML |
+
+Clases de sección: `ff-list`, `ff-create`, `ff-edit`, `ff-view`, `ff-manage`, `ff-custom`. Los títulos de respaldo coinciden con esos nombres (`List`, `Create`, `Edit`, `View`, `Manage`, `Custom`).
+
+`ManagePage` es la página que usa un recurso simple. Crear, editar, ver y borrar de ese recurso son acciones de cabecera. Lee [Recursos](/docs/firefly/resources/).
+
+## Widgets en la página
+
+`Page.render()` incluye `<div class="ff-page-widgets">`. Un widget que pasas a `widgets(...)` está en la página, no solo una cadena que renderizas al lado. El panel también copia los widgets descubiertos a la página de inicio (slug vacío) o a la primera página. Consulta [Widgets](/docs/firefly/widgets/).
+
+## Siguiente
+
+[Navegación](/docs/firefly/navigation/) es cómo esas páginas aparecen en la barra lateral y en la barra superior.

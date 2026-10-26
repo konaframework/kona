@@ -1,0 +1,101 @@
+---
+title: Pilas
+description: Empuja y antepone scripts y estilos en pilas con nombre desde vistas hijas y parciales.
+---
+
+Las **pilas** recogen fragmentos HTML de vistas hijas, includes y componentes, y luego los imprimen donde un layout llama a `@stack`. Uso típico: cada página empuja scripts propios; el layout los produce una vez antes de `</body>`.
+
+## Push y prepend
+
+```crema
+@push('scripts')
+  <script src="/app.js"></script>
+@endpush
+
+@prepend('scripts')
+  <script src="/vendor.js"></script>
+@endprepend
+```
+
+| Directiva | Efecto |
+|-----------|--------|
+| `@push('name')…@endpush` | Añade el fragmento al final de la pila |
+| `@prepend('name')…@endprepend` | Inserta el fragmento al principio de la pila |
+
+Los cuerpos se expanden al empujarlos (los ecos y las directivas anidadas corren en el contexto actual). Las directivas push/prepend no emiten nada en el sitio de la llamada — solo llenan la pila.
+
+## Renderizar la pila
+
+En el layout (o en cualquier ancestro que deba imprimir los fragmentos recogidos):
+
+```crema
+@stack('scripts')
+@stack('styles')
+```
+
+Orden cuando se usan push y prepend: **primero todos los fragmentos antepuestos** (cada prepend inserta en el índice 0, así que los prepend posteriores aparecen antes que los anteriores), luego **los fragmentos empujados en el orden de registro**.
+
+Ejemplo:
+
+```crema
+@prepend('scripts')A@endprepend
+@push('scripts')B@endpush
+@prepend('scripts')C@endprepend
+@stack('scripts')
+{{-- → CAB --}}
+```
+
+## Patrón de layout
+
+```crema
+{{-- layouts/app.crema.html --}}
+<html>
+  <head>
+    @stack('styles')
+  </head>
+  <body>
+    @yield('content')
+    @stack('scripts')
+  </body>
+</html>
+```
+
+```crema
+{{-- posts/show.crema.html --}}
+@extends('layouts.app')
+@section('content')
+  <article>…</article>
+@endsection
+@push('styles')
+  <link rel="stylesheet" href="/posts.css">
+@endpush
+@push('scripts')
+  <script src="/posts-show.js"></script>
+@endpush
+```
+
+Los push pueden vivir dentro de bloques `@section` o al lado; ambos se recogen antes de que el layout padre se renderice.
+
+## Parciales y componentes
+
+Los includes y los componentes comparten los mismos mapas de pila durante el render. Un `@push` dentro de `@include('partials.chart')` sigue apareciendo en el `@stack` del layout. Así un parcial registra sus propios assets una sola vez, sobre todo combinado con [`@once`](/docs/crema/includes/#once):
+
+```crema
+{{-- partials/chart.crema.html --}}
+@once
+  @push('scripts')
+    <script src="/chart-lib.js"></script>
+  @endpush
+@endonce
+<div class="chart" data-id="{{ id }}"></div>
+```
+
+## Pilas vacías
+
+`@stack('missing')` imprime una cadena vacía cuando no se empujó nada. No hace falta declarar las pilas de antemano.
+
+## Relacionado
+
+- [Layouts](/docs/crema/layouts/) — donde suelen vivir las pilas
+- [Renderizado](/docs/crema/rendering/#vite) — `@vite` para puntos de entrada empaquetados
+- [Formularios](/docs/crema/forms/) — los ayudantes CSRF y de método suelen estar junto a los formularios, no en las pilas

@@ -1,0 +1,93 @@
+---
+title: Empaquetado de assets con Vite
+description: Emite etiquetas de script y de hoja de estilos desde un manifiesto de Vite o el servidor de desarrollo de Vite.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+El **ayudante Vite** de Kona vive en `kona-crema` (`org.konaframework.crema.assets`) y se comparte con Inertia (`org.konaframework.inertia.assets` sigue siendo una fachada fina). Lee la salida estándar del build de Vite y el archivo hot opcional para que las directivas Crema `@vite` y las cáscaras de Inertia emitan las etiquetas correctas en desarrollo y en producción.
+
+## Disposición en disco
+
+```text
+public/
+  hot                         # dev only: full URL of the Vite dev server
+  build/
+    manifest.json             # preferred (scaffold sets build.manifest to this name)
+    .vite/manifest.json       # Vite’s default location when manifest is just `true`
+    assets/app-<hash>.js
+    assets/app-<hash>.css
+```
+
+## Emitir etiquetas
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Vite.tags("src/main/resources/js/app.js")
+// production (names come from the manifest `file` / `css` fields):
+// <link rel="stylesheet" href="/build/assets/app-<hash>.css">
+// <script type="module" src="/build/assets/app-<hash>.js"></script>
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Vite.tags("src/main/resources/js/app.js");
+```
+
+</TabItem>
+</Tabs>
+
+Cuando existe `public/hot` (contenido como `http://127.0.0.1:5173`), las etiquetas apuntan al servidor de desarrollo de Vite. La URL de entrada es el origen del servidor de desarrollo más la ruta de entrada que sirve Vite (la ruta relativa a la raíz del proyecto Vite — para el kit Inertia, `src/main/resources/js/app.js`):
+
+```html
+<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
+<script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
+```
+
+Una entrada `.css` se convierte en un enlace de hoja de estilos en ese mismo origen. Kona **no** pide `/build/` más la ruta de origen (`/build/src/main/resources/js/app.js` no es una URL de asset).
+
+Resuelve una sola URL:
+
+```kotlin
+Vite.asset("src/main/resources/js/app.js")
+// dev:    http://127.0.0.1:5173/src/main/resources/js/app.js
+// prod:   /build/assets/app-<hash>.js
+```
+
+`CremaServiceProvider` e `InertiaServiceProvider` enlazan `AssetManifest` a `vite.public_path`, o si no a `inertia.public_path` (predeterminado `<base>/public`, el mismo directorio que `paths.public`), y ponen la fachada `Vite`. También sirven ese directorio por HTTP, así que `/branding/…`, `/robots.txt` y `/build/assets/…` salen de una sola raíz web. Los archivos fuente como `src/main/resources/js/app.js` se quedan fuera de ese árbol.
+
+`@vite('…')` de Crema usa el mismo resolvedor cuando la fachada está enlazada. Si no hay archivo hot ni manifiesto, cae a `/build/<entry>`. Ese respaldo es solo un marcador — arranca el servidor de desarrollo o ejecuta un build de producción antes de esperar que el navegador cargue la entrada. Las cáscaras de Inertia (`{!! vite !!}`) dejan vacío el hueco de la etiqueta en ese caso, en lugar de emitir el marcador.
+
+## Ayuda de grind
+
+```bash
+./grind assets:vite
+```
+
+Imprime la misma lista de configuración (no se arranca ningún proceso).
+
+## Scripts típicos del frontend
+
+```json
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  }
+}
+```
+
+Apunta `build.outDir` de Vite a `public/build` y pon `build.manifest` en `'manifest.json'` (un `true` desnudo escribe `public/build/.vite/manifest.json`, que Kona también lee). El servidor de desarrollo debe escribir `public/hot` con su origen (por ejemplo `http://127.0.0.1:5173`) y borrar ese archivo al salir; un build de producción debe borrar un archivo hot viejo para que se use el manifiesto. El kit de inicio de Inertia (`kona new … --kit=inertia`) y `./grind install inertia` escriben un `package.json` y un `vite.config.js` con indentación de 2 espacios que hacen esto.
+
+```bash
+npm run dev     # public/hot → dev-server script URLs
+npm run build   # public/build/manifest.json → /build/assets/<hash>.*
+```
+
+## Vista raíz de Inertia
+
+Con `inertia.root_view` definido, la cáscara HTML recibe una cadena `vite` que puedes imprimir con `{!! vite !!}`. Entrada predeterminada: `src/main/resources/js/app.js` (`InertiaManager.viteEntries`).

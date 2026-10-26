@@ -1,0 +1,71 @@
+---
+title: Sesión
+description: Sesiones HTTP con drivers array, file, cookie y Redis.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Qué es una sesión
+
+Una sesión guarda datos entre peticiones para un navegador (o cliente) bajo un id de sesión. Kona adjunta la sesión a la petición como atributo `"session"` mediante el middleware `StartSession`.
+
+## Drivers
+
+Configura con `session.driver`:
+
+| Driver | Comportamiento |
+|--------|----------|
+| `array` / `memory` | Mapa en el proceso (pruebas / un solo proceso) |
+| `file` | Archivos JSON bajo `storage/framework/sessions` (o `session.files`) |
+| `cookie` | Carga JSON en la cookie de sesión (firmada o cifrada cuando `app.key` está definido) |
+| `redis` | Claves en una conexión Redis (`session.connection_prefix`, predeterminado `kona_session:`) |
+
+Para `redis`, registra `RedisServiceProvider` **antes** de `SessionServiceProvider` para que `SessionManager` pueda resolver un `RedisConnection` / `RedisManager` del contenedor.
+
+### Integridad de la cookie
+
+Las apps de `kona new` emiten un `APP_KEY` aleatorio y usan por defecto `session.driver=cookie`. Las cargas de la cookie se protegen así:
+
+1. **Cifradas** cuando hay un `Encrypter` enlazado (por ejemplo mediante `AuthServiceProvider` + `app.key`), o cuando `session.encrypt=true` más `app.key`.
+2. **Firmadas con HMAC** (`payload.mac`) cuando el cifrado está apagado pero `app.key` está definido.
+3. **Base64 plano** solo cuando no hay clave (pruebas / experimentos locales).
+
+Otras claves: `session.lifetime` (minutos), `session.cookie`, `session.path`, `session.secure`, `session.http_only`, `session.same_site`, `session.encrypt`.
+
+## Uso
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val session = request.session()!! // or getAttribute(StartSession.ATTRIBUTE) as Session
+session.put("user_id", 1)
+session.flash("status", "Saved")
+session.flashInput(mapOf("email" to "ada@example.com"))
+val email = request.old("email") // "ada@example.com" on the next request
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Session session = (Session) request.getAttribute(StartSession.ATTRIBUTE);
+session.put("user_id", 1);
+session.flash("status", "Saved");
+session.flashInput(Map.of("email", "ada@example.com"));
+String email = request.old("email"); // next request
+```
+
+</TabItem>
+</Tabs>
+
+### Flash de redirección, entrada anterior y URL previa
+
+`StartSession` también:
+
+1. Aplica las bolsas pendientes `Response.with` / `withInput` / `withErrors` antes de guardar (así `Response.redirect("/home").with("status", "Saved")` hace flash para la petición siguiente).
+2. Registra `_previous.url` en las respuestas GET correctas (lo usan `Response.back(request)` y la redirección de validación hacia atrás).
+
+Usa `session.flashInput(...)`, `session.old("field")` y `request.old("field")` para volver a mostrar valores del formulario después de un POST fallido. Los errores de validación hacen flash bajo la clave `errors`.
+
+`kona new` registra `SessionServiceProvider` y cablea `StartSession` más `VerifyCsrfToken` (excepto `/api/*` y `/wire/*`) en `bootstrap.Middleware`. Apps manuales: registra el provider, resuelve `SessionManager` y añade `StartSession(manager)` al kernel.

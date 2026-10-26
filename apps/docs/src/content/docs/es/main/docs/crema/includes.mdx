@@ -1,0 +1,96 @@
+---
+title: Includes y parciales
+description: Incluye plantillas parciales, bloques once y regiones verbatim en Crema.
+---
+
+Los **parciales** son vistas ordinarias pensadas para componerse dentro de otras plantillas — navegación, banners flash, fragmentos de campos de formulario. Crema no usa un tipo de archivo «fragmento» aparte: cualquier nombre de vista se puede incluir. Los includes comparten las secciones y las pilas del padre a través de un contexto de datos hijo (las claves del padre siguen visibles; el include puede leer el mismo `name`, `user`, y así sucesivamente).
+
+## Incluir siempre
+
+```crema
+@include('partials.nav')
+```
+
+Resuelve `src/main/resources/views/partials/nav.crema.html` (nombre con puntos → ruta). Las vistas ausentes lanzan `ViewNotFoundException`.
+
+```crema
+{{-- views/partials/nav.crema.html --}}
+<nav>
+  <a href="/">Home</a>
+  @auth
+    <a href="/account">Account</a>
+  @endauth
+</nav>
+```
+
+## Include opcional
+
+```crema
+@includeIf('optional.banner')
+```
+
+No renderiza nada cuando falta el archivo de vista (sin error). Úsalo para anulaciones de tema o paquetes opcionales.
+
+## Include condicional
+
+```crema
+@includeWhen(showBanner, 'partials.banner')
+@includeUnless(hideBanner, 'partials.banner')
+```
+
+| Directiva | Renderiza la vista cuando… |
+|-----------|------------------------|
+| `@includeWhen(expr, 'name')` | `expr` es verdadero |
+| `@includeUnless(expr, 'name')` | `expr` no es verdadero |
+
+## Primera vista disponible
+
+```crema
+@includeFirst(['theme.banner', 'partials.banner'])
+```
+
+Renderiza el primer nombre entre comillas que se resuelve; omite las vistas ausentes sin error. Si ninguna se resuelve, no emite nada.
+
+Útil para parciales del tipo «prefiere el tema, cae al predeterminado»:
+
+```crema
+@includeFirst([
+  'themes.current.flash',
+  'partials.flash',
+])
+```
+
+## `@once`
+
+```crema
+@once
+  <script>window.__konaFlash = true;</script>
+@endonce
+```
+
+El cuerpo se renderiza como máximo **una vez por pasada de render**, aunque el parcial que lo contiene se incluya muchas veces. Los cuerpos `@once` idénticos comparten la misma clave. Las pilas y las secciones siguen funcionando dentro del cuerpo en la primera pasada.
+
+## `@verbatim`
+
+```crema
+@verbatim
+  Document {{ this }} and @if(examples) literally.
+@endverbatim
+```
+
+Nada dentro de `@verbatim`…`@endverbatim` se procesa como Crema — los ecos y las directivas se dejan como texto. Úsalo en páginas de documentación o al incrustar ejemplos de plantilla dentro de un layout Crema.
+
+## Parciales frente a layouts frente a componentes
+
+| Enfoque | Cuándo usarlo |
+|----------|-------------|
+| `@include` | Trozos compartidos pequeños (nav, campo, franja de alerta) |
+| `@extends` / `@section` | Cáscaras de página completa con regiones con nombre — [Layouts](/docs/crema/layouts/) |
+| `@component` / `<x-*>` | Widgets reutilizables con un slot predeterminado y **slots con nombre** opcionales — [Componentes](/docs/crema/components/) |
+
+Los includes no aíslan las pilas: un `@push('scripts')` dentro de un parcial sigue cayendo en el `@stack('scripts')` del layout.
+
+## Siguiente
+
+- [Componentes y slots](/docs/crema/components/) — slots y etiquetas `<x-*>`
+- [Pilas](/docs/crema/stacks/) — recoger scripts desde parciales

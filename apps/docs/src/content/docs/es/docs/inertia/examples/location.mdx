@@ -1,0 +1,13 @@
+---
+title: Redirección de ubicación
+description: Envía a los usuarios a una URL externa desde una visita Inertia o clásica.
+---
+
+```kotlin
+router.get("/leave") {
+    Inertia.location("https://example.com")
+}
+```
+
+- Cliente Inertia → `409` + `X-Inertia-Location`
+- Navegador / no Inertia → `302` + `Location`

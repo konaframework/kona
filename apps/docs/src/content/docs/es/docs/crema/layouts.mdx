@@ -1,0 +1,120 @@
+---
+title: Layouts y herencia
+description: Construye layouts de página con @extends, @section, @yield, @parent, @show y comprobaciones de sección.
+---
+
+Los layouts permiten que las vistas hijas llenen regiones con nombre de una cáscara compartida — cromo del documento, marco de administración, envoltorio de correo, y así sucesivamente. Un hijo declara `@extends('layouts.app')`, llena secciones, y Crema renderiza el padre con esas secciones disponibles para `@yield`.
+
+## Layout padre
+
+```crema
+{{-- views/layouts/app.crema.html --}}
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>@yield('title', 'App')</title>
+    @stack('styles')
+  </head>
+  <body>
+    @hasSection('sidebar')
+      <aside>@yield('sidebar')</aside>
+    @endif
+    @sectionMissing('sidebar')
+      <aside>Default sidebar</aside>
+    @endif
+
+    <main>@yield('content')</main>
+
+    @stack('scripts')
+  </body>
+</html>
+```
+
+### `@yield`
+
+`@yield('name')` imprime la sección llamada `name`. Un segundo argumento entre comillas es el valor predeterminado cuando el hijo no definió la sección:
+
+```crema
+@yield('title', 'Untitled')
+@yield('content')
+```
+
+Si la sección existe, su cuerpo se expande en el contexto actual (los ecos y las directivas anidadas corren cuando se produce la sección). Si falta y no se da un valor predeterminado, Crema no emite nada.
+
+### Presencia de la sección
+
+| Directiva | El cuerpo corre cuando… |
+|-----------|-----------------|
+| `@hasSection('name')…@endif` | La sección se definió para este render |
+| `@sectionMissing('name')…@endif` | La sección no se definió |
+
+Comparten `@endif` con los bloques `@if` ordinarios y se anidan correctamente.
+
+## Vista hija
+
+```crema
+{{-- views/home.crema.html --}}
+@extends('layouts.app')
+
+@section('title', 'Home')
+
+@section('content')
+  <h1>Hello {{ name }}</h1>
+@endsection
+
+@push('scripts')
+  <script src="/home.js"></script>
+@endpush
+```
+
+Reglas prácticas:
+
+1. Pon `@extends('…')` en el hijo (nombre del layout entre comillas simples).
+2. Define cada región que el layout espera (`content`, `title`, …).
+3. Opcionalmente `@push` / `@prepend` hacia las pilas que el layout produce con `@stack`.
+
+Cuando un hijo extiende un layout, Crema primero recoge las secciones y los push de pila del hijo, y luego renderiza el padre. El contenido fuera de `@section` / `@push` en un hijo que extiende se descarta después de la recogida.
+
+## Formas de sección
+
+| Forma | Sintaxis | Notas |
+|------|--------|-------|
+| En línea | `@section('title', 'Home')` | Solo una cadena corta (entre comillas simples) |
+| Bloque | `@section('content') … @endsection` | Cuerpo guardado crudo; se expande al producirlo |
+| Show inmediato | `@section('s') … @show` | El cuerpo se expande de inmediato y luego se guarda |
+
+```crema
+@section('title', 'Home')
+
+@section('content')
+  <p>Long markup here.</p>
+@endsection
+
+@section('notice')
+  Visible {{ now }} and also stored
+@show
+```
+
+## `@parent`
+
+Cuando un hijo redefine una sección que una plantilla padre ya llenó, usa `@parent` dentro de la sección hija para conservar el texto anterior:
+
+```crema
+{{-- parent filled section content with PARENT --}}
+@section('content')
+  CHILD @parent MORE
+@endsection
+{{-- @yield('content') → CHILD PARENT MORE --}}
+```
+
+Crema guarda el cuerpo anterior de la sección como un búfer padre y sustituye `@parent` cuando se renderiza la sección. Si la sección hija está en blanco pero existe un búfer padre, se usa el búfer padre tal cual.
+
+## Cadena de herencia
+
+Los layouts pueden a su vez `@extends` otro layout. Cada nivel recoge secciones en el contexto de render compartido; las definiciones internas (hijas) anulan o envuelven las externas mediante `@parent`. Las pilas se comparten en todo el render — los push de cualquier nivel aparecen donde el layout más externo llama a `@stack`.
+
+## Relacionado
+
+- [Pilas](/docs/crema/stacks/) — `@push`, `@prepend`, `@stack`
+- [Includes y parciales](/docs/crema/includes/) — fragmentos reutilizables más pequeños, sin herencia completa
+- [Componentes y slots](/docs/crema/components/) — widgets reutilizables con slots con nombre

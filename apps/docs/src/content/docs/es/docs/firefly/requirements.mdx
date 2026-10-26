@@ -1,0 +1,38 @@
+---
+title: Requisitos
+description: JDK, Kona y las piezas que un panel Firefly necesita antes de instalarlo.
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
+Ya tienes una app Kona. Firefly no te pide instalar otro runtime al lado. Añades el módulo del panel, escribes un `Panel` y lo montas en el router que ya usas.
+
+Los ejemplos hello (`samples/hello-kotlin` y `samples/hello-java`) son esa app. `/` sigue siendo la página de bienvenida. El escritorio vive en `/admin`.
+
+<FireflyShot file="app-ready.png" description="La página de bienvenida de hello-kotlin en http://127.0.0.1:4017/, una app Kona que sirve una ruta antes de que abras el panel." />
+
+## Runtime
+
+| Requisito | Qué necesitas |
+|-----------|----------------|
+| **JDK** | 21 o más reciente. Kona usa virtual threads. |
+| **Una app Kona** | Creada con `kona new`, o un proyecto Gradle existente que ya depende de `org.konaframework`. |
+| **`kona` y `./grind`** | El CLI global crea la app. `./grind` dentro de la app la sirve y ejecuta `make:firefly-*`. |
+| **Navegador** | Un navegador actual. El HTML del panel es interactivo cuando Alpine arranca. |
+
+El artefacto del panel es `org.konaframework:kona-firefly`. Trae consigo los módulos de support, schema, action, infolist, table, form, notification y widget. No añades esas coordenadas una por una.
+
+## Qué espera encontrar el panel
+
+| Pieza | Por qué |
+|-------|---------|
+| HTTP y Crema | Las páginas son respuestas HTML. El kit registra esos providers. |
+| Sesión | El login, el restablecimiento de contraseña y los toasts de notificación usan la sesión. |
+| Cadence | Un recurso que llama a `model(...)` con un modelo Cadence puede construir un `ModelBuilder` desde `query()`. Los ejemplos hello también renderizan tablas desde filas en memoria, así las primeras pantallas funcionan antes de migrar. |
+| Wire | Los campos en vivo y los clics de acción se envían por Wire. El HTML del panel incluye esos hooks. |
+
+No necesitas Node para servir un panel. Chart.js y ApexCharts viajan dentro del módulo de widgets y se sirven desde `/_firefly/widgets/`.
+
+## Siguiente
+
+[Instalación](/docs/firefly/installation/) crea la app o añade la dependencia.

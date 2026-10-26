@@ -1,0 +1,51 @@
+---
+title: Lenguaje y soporte de editor
+description: Resalta plantillas Crema y conecta kona-lsp en tu editor.
+---
+
+Kona publica **soporte de editor** para plantillas Crema, así puedes editar `*.crema.html` y `*.crema.kt` con resaltado, completado de directivas `@` y atributos Wire `wire:*`, y avisos para tokens `@name` / `wire:*` desconocidos. Las cadenas inline `template()` de Wire en Java y Kotlin reciben los mismos colores y (con kona-lsp) los mismos completados. La misma gramática Crema y el LSP ayudan cuando escribes componentes Wire o layouts Crema usados por kits Inertia.
+
+## Qué obtienes
+
+| Pieza | Ubicación | Rol |
+|-------|-----------|-----|
+| Gramática TextMate | `ide-support/crema/` | Ámbitos compartidos para VS Code / Cursor |
+| Servidor de lenguaje | `modules/lsp` (`org.konaframework:kona-lsp`) | Completados + diagnósticos por stdio LSP |
+| Extensión de VS Code / Cursor | `ide-support/vscode-crema/` | Contribución de lenguaje + ayuda de configuración |
+| Plugin nativo de IntelliJ | [konaframework/kona-idea](https://github.com/konaframework/kona-idea) | Tipo de archivo Crema, completado de `@`/vista/DB, ventana de herramientas, Grind (sin LSP) |
+
+## Camino más rápido
+
+### IntelliJ IDEA
+
+Instala el zip de [Kona Idea](https://github.com/konaframework/kona-idea/releases) (**Install Plugin from Disk…**), reinicia y abre una vista `*.crema.html` — el lenguaje debe leer **Crema**. Detalles: [IntelliJ](/docs/language/intellij).
+
+### VS Code / Cursor
+
+1. Abre una vista Crema con la [extensión de VS Code](/docs/language/vscode) (gramática de `ide-support/crema/`).
+2. Construye el servidor de lenguaje una vez:
+
+   ```bash
+   ./gradlew :kona-lsp:jar
+   ```
+
+3. Apunta el cliente LSP a:
+
+   ```bash
+   java -jar modules/lsp/build/libs/kona-lsp-*.jar
+   ```
+
+Desde un proyecto de aplicación también puedes imprimir el mismo recordatorio sin arrancar un servidor:
+
+```bash
+./grind ide:lsp
+```
+
+## Guías progresivas
+
+1. [Gramática Crema](/docs/language/grammar) — qué se resalta y cómo sincronizar los archivos TextMate.
+2. [Servidor de lenguaje](/docs/language/lsp) — superficie del protocolo, uso de Kotlin/Java en pruebas, ejecutar el jar.
+3. [VS Code y Cursor](/docs/language/vscode) — instala el stub de la extensión y conecta `crema.lsp.jarPath`.
+4. [IntelliJ](/docs/language/intellij) — plugin nativo Kona Idea (sin LSP; preferido para IntelliJ).
+
+El comportamiento de las plantillas Crema (layouts, `@foreach`, stacks) está documentado en [Crema](/docs/crema).

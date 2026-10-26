@@ -1,0 +1,68 @@
+---
+title: Notificaciones
+description: Avisa a los usuarios por canales de correo, base de datos y log, con almacenamiento durable y estado de lectura.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Implementa `Notifiable` (enrutamiento por canal) y `Notification` (`via`, `toMail`, `toArray`), y luego envía mediante `NotificationSender`.
+
+## Inicio rápido
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class InvoicePaid : Notification() {
+    override fun via(notifiable: Notifiable) = listOf("mail", "database", "log")
+    override fun toMail(notifiable: Notifiable) = object : Mailable() { /* … */ }
+    override fun toArray(notifiable: Notifiable) = mapOf("status" to "paid")
+}
+
+app.resolve(NotificationSender::class.java).send(user, InvoicePaid())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+app.resolve(NotificationSender.class).send(user, new InvoicePaid());
+```
+
+</TabItem>
+</Tabs>
+
+Registra `MailServiceProvider` y después `NotificationServiceProvider`. Canales: `mail` (necesita `Mailer`), `database`, `log`. Cuando `QueueServiceProvider` está registrado y una notificación implementa `ShouldQueue`, la entrega pasa por `Bus`.
+
+## Persistencia del canal de base de datos
+
+`DatabaseChannel` guarda filas [NotificationRecord] (id, type, data, notifiable, `readAt`, marcas de tiempo).
+
+| `notifications.database.driver` | Comportamiento |
+|---------------------------------|----------------|
+| `memory` (predeterminado) | Almacén en el proceso; archivo JSON opcional vía `notifications.database.path` |
+| `file` / `json` | Igual que memory, con una ruta cuando está configurada |
+| `database` / `cadence` | Tabla de Cadence (predeterminada `notifications`) cuando `Database` está enlazado |
+
+```kotlin
+app.config.set("notifications.database.driver", "database")
+app.config.set("notifications.database.table", "notifications")
+app.register(CadenceServiceProvider())
+app.register(NotificationServiceProvider())
+```
+
+### No leídas / marcar como leídas
+
+```kotlin
+val db = app.resolve(DatabaseChannel::class.java)
+val unread = db.unread("user@example.com")
+db.markAsRead(unread.first().id)
+db.markAllAsRead("user@example.com")
+```
+
+```java
+DatabaseChannel db = app.resolve(DatabaseChannel.class);
+db.markAllAsRead("user@example.com");
+```
+
+También puedes construir `DatabaseChannel(path)` o `DatabaseChannel(store)` directamente en las pruebas.

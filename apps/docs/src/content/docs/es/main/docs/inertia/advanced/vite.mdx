@@ -1,0 +1,48 @@
+---
+title: Vite y assets
+description: Enlace de AssetManifest, archivo hot, manifest de producción y la fachada inertia.assets.Vite.
+---
+
+## Compartido con Crema
+
+La implementación vive en `org.konaframework.crema.assets`. Inertia reexporta una fachada en `org.konaframework.inertia.assets` para que los imports antiguos sigan funcionando:
+
+```kotlin
+import org.konaframework.inertia.assets.Vite
+import org.konaframework.inertia.assets.AssetManifest
+```
+
+`InertiaServiceProvider` enlaza `AssetManifest` a `vite.public_path` o `inertia.public_path` (predeterminado `<base>/public`) y llama a `Vite.setManifest` en el arranque. También sirve ese directorio, así un archivo con hash bajo `public/build/assets/` responde a `GET /build/assets/…`.
+
+## Desarrollo (`public/hot`)
+
+Si `public/hot` contiene una URL base (por ejemplo `http://127.0.0.1:5173`), la cáscara incluye el cliente de Vite y el módulo de entrada en ese origen:
+
+```html
+<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>
+<script type="module" src="http://127.0.0.1:5173/src/main/resources/js/app.js"></script>
+```
+
+La ruta después del origen es la entrada de Vite (`InertiaManager.viteEntries`), no un archivo bajo el directorio `/build/` de Kona. El `vite.config.js` del esqueleto escribe `public/hot` mientras `npm run dev` está en marcha y lo borra cuando el servidor de desarrollo se detiene.
+
+## Producción (manifest)
+
+Kona lee el primer archivo que exista:
+
+1. `public/build/manifest.json`
+2. `public/build/.vite/manifest.json` (el predeterminado de Vite cuando `build.manifest` es `true`)
+
+Los valores `file` y `css` de cada entrada se convierten en URL bajo `/build/`:
+
+```html
+<link rel="stylesheet" href="/build/assets/app-<hash>.css">
+<script type="module" src="/build/assets/app-<hash>.js"></script>
+```
+
+La ruta de origen nunca se prefija con `/build/`. `GET /build/src/main/resources/js/app.js` no es una URL de asset válida y no es lo que la cáscara emite cuando el archivo hot o el manifest están presentes.
+
+## En la vista raíz
+
+`{!! vite !!}` imprime las etiquetas de `InertiaManager.viteEntries`. Si faltan el archivo hot y el manifest, las etiquetas quedan vacías en las cáscaras HTML (las excepciones se tragan en esa ruta para que las primeras visitas sigan renderizando).
+
+Los ayudantes de la fachada lanzan `ViteException` cuando llamas a `Vite.tags` / `Vite.asset` sin un manifest enlazado — útil en pruebas.

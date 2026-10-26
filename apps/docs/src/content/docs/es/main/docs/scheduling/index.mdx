@@ -1,0 +1,75 @@
+---
+title: Programación de tareas
+description: Horarios estilo cron, bloqueos de solapamiento y comandos grind schedule.
+---
+
+Registra trabajo recurrente en un `Schedule` y luego ejecuta las tareas vencidas con grind. Combínalo con una entrada de cron del sistema que llame a `./grind schedule:run` cada minuto, o ejecuta `./grind schedule:work` como proceso de larga vida.
+
+Registra `ScheduleServiceProvider` en el arranque de tu aplicación.
+
+## Inicio rápido
+
+```kotlin
+val schedule = app.resolve(Schedule::class.java)
+schedule.everyMinute("heartbeat") { ping() }
+schedule.dailyAt("reports", hour = 8, minute = 0) { buildReports() }
+schedule.command("custom", "*/15 * * * *") { sync() }
+```
+
+```java
+Schedule schedule = app.resolve(Schedule.class);
+schedule.everyMinute("heartbeat", () -> ping());
+schedule.dailyAt("reports", 8, 0, () -> buildReports());
+```
+
+```bash
+./grind schedule:list
+./grind schedule:run
+./grind schedule:work --max=1 --sleep=60
+```
+
+## Ayudantes de frecuencia
+
+| Método | Cron |
+|--------|------|
+| `everyMinute` | `* * * * *` |
+| `everyFiveMinutes` | `*/5 * * * *` |
+| `everyTenMinutes` | `*/10 * * * *` |
+| `everyFifteenMinutes` | `*/15 * * * *` |
+| `everyThirtyMinutes` | `*/30 * * * *` |
+| `hourly` | `0 * * * *` |
+| `everyTwoHours` … `everySixHours` | `0 */n * * *` |
+| `daily` | `0 0 * * *` |
+| `dailyAt(name, hour, minute)` | `minute hour * * *` |
+| `weekly` | `0 0 * * 0` |
+| `monthly` | `0 0 1 * *` |
+| `command(name, expression, task)` | Cron personalizado de 5 campos |
+
+Los campos cron son `min hour dom month dow`. Átomos admitidos: `*`, números, listas (`0,30`), rangos (`1-5`) y pasos (`*/n`).
+
+## Solapamiento y servidores
+
+Cada registro devuelve un `ScheduledEvent` que puedes configurar:
+
+```kotlin
+schedule.everyFiveMinutes("invoice-sync") { syncInvoices() }
+    .withoutOverlapping(expiresMinutes = 10)
+
+schedule.hourly("cleanup") { purgeTemp() }
+    .onOneServer()          // file lock under storage/framework
+    .runInBackground()      // virtual thread; schedule:run returns immediately
+```
+
+- **withoutOverlapping** — omite si la ejecución anterior todavía tiene el mutex
+- **onOneServer** — bloqueo basado en archivo para que solo una máquina ejecute la tarea
+- **runInBackground** — arranca la tarea en un hilo virtual
+
+## Comandos grind
+
+| Comando | Comportamiento |
+|---------|----------|
+| `schedule:list` | Muestra los nombres de eventos registrados (y las banderas) |
+| `schedule:run` | Ejecuta los eventos vencidos en el minuto actual |
+| `schedule:work` | Bucle: ejecuta eventos vencidos, duerme (`--sleep=60`), ticks opcionales `--max` |
+
+Configuración típica de producción: cron del sistema `* * * * * cd /app && ./grind schedule:run`. Usa `schedule:work` cuando prefieras una sola JVM de larga vida en lugar de un cron por minuto.

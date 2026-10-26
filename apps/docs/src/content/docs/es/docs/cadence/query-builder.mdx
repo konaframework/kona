@@ -1,0 +1,210 @@
+---
+title: Constructor de consultas
+description: Construye consultas SQL de forma fluida con parámetros ligados — selecciones, filtros, joins, agregados y escrituras.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+El **constructor de consultas** (`org.konaframework.cadence.QueryBuilder`) arma una sentencia SQL a partir de llamadas a métodos. Trabaja sobre tablas planas y devuelve filas como `Map<String, Any?>` (nombre de columna → valor). Los modelos usan el mismo constructor por debajo, así que todo lo de aquí también funciona después de `User.query()`.
+
+Empieza una consulta desde la fachada `DB`, un `Database` o un `DatabaseConnection`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.DB
+
+val rows: List<Map<String, Any?>> = DB.table("users")
+    .where("votes", ">", 100)
+    .orWhere { it.where("name", "Ada").whereNotNull("email") }
+    .orderBy("name")
+    .limit(10)
+    .get()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.DB;
+import java.util.List;
+import java.util.Map;
+
+List<Map<String, Object>> rows = DB.table("users")
+    .where("votes", ">", 100)
+    .orWhere(q -> q.where("name", "Ada").whereNotNull("email"))
+    .orderBy("name")
+    .limit(10)
+    .get();
+```
+
+</TabItem>
+</Tabs>
+
+
+El constructor es **mutable**: cada llamada cambia el constructor y lo devuelve. Usa `copy()` para ramificar una consulta sin afectar la original.
+
+## Cómo llegan los valores a la base de datos
+
+Los valores nunca se pegan en el texto SQL. El constructor escribe un marcador `?` y envía el valor como parámetro JDBC; solo los nombres de tabla y columna aparecen en el SQL, entrecomillados por la gramática de la conexión (`"users"."id"`). `toSql()` muestra la sentencia y `getBindings()` muestra los valores:
+
+```kotlin
+val query = DB.table("users").where("email", "ada@example.com")
+query.toSql()        // select * from "users" where "email" = ?
+query.getBindings()  // [ada@example.com]
+```
+
+Los operadores se comprueban contra una lista permitida (`=`, `<`, `>`, `<=`, `>=`, `<>`, `!=`, `like`, `not like`, `ilike`, `not ilike`); cualquier otra cosa lanza `IllegalArgumentException`.
+
+## Seleccionar columnas
+
+| Llamada | SQL |
+|------|-----|
+| `select("id", "name")` | `select "id", "name"` (sustituye columnas anteriores) |
+| `addSelect("email")` | añade una columna |
+| `select("users.name as author")` | `"users"."name" as "author"` |
+| `selectRaw("count(*) as total")` | expresión cruda; lista de bindings opcional |
+| `distinct()` | `select distinct` |
+
+## Filtrar
+
+| Llamada | Significado |
+|------|---------|
+| `where("name", "Ada")` | `name = ?` |
+| `where("votes", ">=", 10)` | cualquier operador permitido |
+| `where("deleted_at", null)` | se vuelve `is null` (`!=` / `<>` con null se vuelven `is not null`) |
+| `where { … }` / `orWhere { … }` | grupo entre paréntesis |
+| `orWhere(column, value)` / `orWhere(column, op, value)` | unido con `or` |
+| `whereNull` / `whereNotNull` (y formas `or…`) | comprobaciones de null |
+| `whereIn("id", listOf(1, 2))` / `whereNotIn` (y formas `or…`) | pertenencia; una lista vacía no coincide con nada (`whereIn`) o coincide con todo (`whereNotIn`) |
+| `whereBetween("age", 18, 65)` | rango inclusivo |
+| `orWhereBetween` / `whereNotBetween` / `orWhereNotBetween` | variantes de between |
+| `whereColumn("a", "b")` / `whereColumn("a", ">", "b")` | compara dos columnas (sin bindings) |
+| `orWhereColumn(…)` | comparación de columnas unida con `or` |
+| `whereRaw("lower(email) = ?", listOf(email))` / `orWhereRaw` | fragmento crudo con bindings |
+| `whereDate("born_at", date)` / `whereDate(col, op, value)` | compara `cast(col as date)` (también `orWhereDate`) |
+| `whereDay` / `whereMonth` / `whereYear` | `extract(… from col)` contra un número (y formas `or…`) |
+| `whereTime("born_at", time)` / `whereTime(col, op, value)` | compara `cast(col as time)` (también `orWhereTime`) |
+| `when(condition) { … }` / `unless(condition) { … }` | aplica un consumidor anidado solo cuando se cumple la condición |
+| `tap { … }` | ejecuta un efecto lateral en el constructor y sigue encadenando |
+| `orWhereNull` / `orWhereNotNull` / `orWhereIn` / `orWhereNotIn` | igual que las formas `where…`, unidas con `or` (también en consultas de modelo) |
+
+Los ayudantes de fecha aceptan `java.sql.Date` / `java.time.LocalDate` (y cadenas que acepte el driver). Los ayudantes de hora aceptan `java.sql.Time` / `java.time.LocalTime`. Prefiere fechas civiles modernas en las pruebas — algunos drivers aplican reglas históricas de zona horaria al convertir marcas de tiempo muy antiguas a `time`.
+
+Estos filtros (y los ayudantes de select / group / having de abajo) se reflejan en `ModelBuilder`, así que `User.query().whereDate(…).groupBy(…).having(…)` funciona sin bajar a `getQuery()`.
+
+## Joins, agrupación, orden y paginación
+
+```kotlin
+DB.table("posts")
+    .join("users", "users.id", "=", "posts.user_id")       // inner join
+    .leftJoin("images", "images.post_id", "posts.id")      // operator defaults to "="
+    .rightJoin("authors", "authors.id", "posts.author_id")
+    .select("posts.title", "users.name as author")
+    .groupBy("posts.id", "users.name")
+    .having("posts.votes", ">", 5)
+    .orHaving("posts.votes", "=", 0)
+    .havingRaw("sum(posts.votes) > ?", listOf(10))
+    .orHavingRaw("count(*) = ?", listOf(1))
+    .orderBy("posts.created_at", "desc")                   // or orderByDesc / latest / oldest
+    .offset(20).limit(10)                                  // or skip / take / forPage(page, perPage)
+    .get()
+```
+
+| Llamada | Significado |
+|------|---------|
+| `groupBy("user_id", "status")` | `group by` de columnas entrecomilladas |
+| `having("total", ">", 10)` / `orHaving(…)` | cláusula having con un valor ligado |
+| `havingRaw("sum(votes) > ?", listOf(10))` / `orHavingRaw` | fragmento having crudo |
+
+`orderBy` acepta `asc` o `desc`. `latest()` y `oldest()` ordenan por `created_at` salvo que pases una columna. Un `limit` negativo quita el límite.
+
+## Leer resultados
+
+| Llamada | Devuelve |
+|------|---------|
+| `get()` | cada fila |
+| `first()` | la primera fila o `null` |
+| `find(id)` | la fila cuyo `id` (o la columna dada) coincide, o `null` |
+| `value("email")` | una columna de la primera fila |
+| `pluck("email")` | una columna de cada fila |
+| `pluck("name", "id")` | mapa con clave `id` → `name` |
+| `sole()` | exactamente una fila, o lanza |
+| `union` / `unionAll` / `crossJoin` | combina consultas / join cartesiano |
+| `count()`, `max(c)`, `min(c)`, `sum(c)`, `avg(c)` | agregados (`count()` es un `Long`) |
+| `exists()` / `doesntExist()` | si alguna fila coincide |
+| `paginate(perPage, page)` | un `Page` de filas más totales (consulta [Modelos](../models/#pagination)) |
+| `simplePaginate(perPage, page)` | un `SimplePage` sin conteo total |
+| `cursorPaginate(perPage, cursor, column)` | un `CursorPage` ordenado por `column` (predeterminado `id`) |
+| `chunk(size) { batch -> … }` | recorre páginas de mapas de `size` hasta agotarlas |
+| `cursor()` / `lazy(chunkSize)` | secuencias perezosas de filas (por lotes por debajo) |
+| `chunkById(size) { … }` / `lazyById(chunkSize)` | avanza con `where id > last` (más seguro en tablas grandes) |
+| `lockForUpdate()` / `sharedLock()` / `withoutLock()` | añade `for update` / `for share` al select |
+
+Empareja siempre `chunk` / `lazy` con un `orderBy` estable para que las páginas consecutivas se mantengan consistentes. Prefiere `chunkById` / `lazyById` cuando pueden insertarse o borrarse filas durante el recorrido. `sharedLock()` necesita un driver que acepte `FOR SHARE` (PostgreSQL); H2 puede rechazarlo al ejecutar aunque `toSql()` incluya la cláusula.
+
+## Escribir
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DB.table("users").insert(mapOf("name" to "Ada", "email" to "ada@example.com"))
+DB.table("users").insert(listOf(mapOf("name" to "Bob"), mapOf("name" to "Cy")))  // multi-row
+val id = DB.table("users").insertGetId(mapOf("name" to "Dee"))
+
+DB.table("users").where("id", id).update(mapOf("name" to "Dee Dee"))   // rows changed
+DB.table("users").where("id", id).increment("votes")                 // or increment("votes", 5)
+DB.table("users").where("votes", "<", 0).delete()
+DB.table("sessions").truncate()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DB.table("users").insert(Map.of("name", "Ada", "email", "ada@example.com"));
+DB.table("users").insert(List.of(Map.of("name", "Bob"), Map.of("name", "Cy")));
+Object id = DB.table("users").insertGetId(Map.of("name", "Dee"));
+
+DB.table("users").where("id", id).update(Map.of("name", "Dee Dee"));
+DB.table("users").where("id", id).increment("votes");
+DB.table("users").where("votes", "<", 0).delete();
+DB.table("sessions").truncate();
+```
+
+</TabItem>
+</Tabs>
+
+
+Los inserts de varias filas toman su lista de columnas de la primera fila; las claves ausentes en filas posteriores se escriben como `NULL`. `update` con un mapa vacío no hace nada y devuelve 0.
+
+### Upserts
+
+```kotlin
+DB.table("users").updateOrInsert(
+    mapOf("email" to "ada@example.com"),
+    mapOf("name" to "Ada"),
+)
+
+DB.table("users").upsert(
+    listOf(
+        mapOf("email" to "a@example.com", "name" to "A", "votes" to 1),
+        mapOf("email" to "b@example.com", "name" to "B", "votes" to 2),
+    ),
+    uniqueBy = listOf("email"),
+    update = listOf("name", "votes"),
+)
+
+DB.table("users").insertOrIgnore(
+    listOf(mapOf("email" to "a@example.com", "name" to "A")),
+    uniqueBy = listOf("email"),
+)
+```
+
+Estos ayudantes son portables entre drivers JDBC: cada fila se busca por las columnas únicas y luego se actualiza o se inserta. Pon un índice único en esas columnas en los esquemas de producción.
+
+## Errores
+
+Una sentencia que la base de datos rechaza lanza `QueryException` con el mensaje del driver, el SQL y los bindings. Construir una consulta sin tabla (`DB.connection().query().get()`) lanza `CadenceException`.

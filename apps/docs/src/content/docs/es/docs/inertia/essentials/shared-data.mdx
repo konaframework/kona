@@ -1,0 +1,75 @@
+---
+title: Datos compartidos
+description: Inertia.share global, share de middleware por petición y reglas de fusión.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+## Share global
+
+Vive durante la vida del proceso (o hasta que se limpia):
+
+```kotlin
+Inertia.share("appName", "Kona")
+Inertia.share(mapOf("features" to listOf("a", "b")))
+```
+
+```java
+Inertia.share("appName", "Kona");
+Inertia.share(Map.of("features", List.of("a", "b")));
+```
+
+Inspecciona con `Inertia.manager().shared()`. Limpia con `manager.clearShared()`.
+
+## Share por petición
+
+Subclase del middleware:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class HandleInertia : HandleInertiaRequests() {
+    override fun share(request: Request) = mapOf(
+        "path" to request.path,
+        "auth" to mapOf("user" to currentUser(request)),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class HandleInertia extends HandleInertiaRequests {
+    @Override
+    public Map<String, Object> share(Request request) {
+        return Map.of("path", request.getPath());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Por dentro esto llama a `manager.shareForRequest(props)` durante la petición. El mapa ThreadLocal se limpia cuando termina el middleware.
+
+## Orden de fusión
+
+1. `share` global
+2. Middleware / `shareForRequest`
+3. Props pasadas a `Inertia.render` (prioridad más alta)
+
+Claves duplicadas: gana la capa posterior. Prefiere poner metadatos estables de la app en el share global y el flash/auth específicos de la petición en el middleware, para que los controladores se queden delgados.
+
+## Patrones al estilo flash
+
+No hay una bolsa «flash» aparte en `kona-inertia`. El enfoque típico:
+
+1. Guarda el flash en la sesión desde un controlador o un filtro.
+2. En `share(request)`, lee y limpia esa clave de sesión hacia las props (por ejemplo `"flash" to mapOf("success" to …)`).
+3. Muéstralo en el cliente desde `usePage().props.flash` (APIs de los adaptadores Vue/React — consulta [inertiajs.com](https://inertiajs.com/shared-data)).
+
+## Probar props compartidas
+
+En pruebas unitarias, arranca un manager, llama a `share` / `shareForRequest`, renderiza con un `Request` explícito y afirma el mapa de props JSON. Consulta [Pruebas](../../dx/testing/).

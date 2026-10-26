@@ -1,0 +1,243 @@
+---
+title: Ayudante de vistas
+description: Crea, comparte y devuelve vistas Crema con view() y Views — la API de fábrica ligada a la app.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Después de que arranca `CremaServiceProvider`, Kona enlaza el `CremaEngine` de la app a una fábrica global. Los controladores y las rutas usan esa fábrica en lugar de resolver el motor a mano.
+
+- **Kotlin:** `view("name")` / `view("name", data)` de nivel superior → `View`
+- **Java:** `Views.make("name")` / `Views.make("name", data)` → `View`
+- **Cualquiera:** `Views.response(...)`, `Crema.view(...)` o `view(...).toResponse()` → `Response` HTML
+
+Esta página es la superficie pública completa de esa fábrica. La sintaxis de plantillas vive en [Renderizado y datos](/docs/crema/rendering/) y en las demás guías de Crema.
+
+## Dónde se sienta en la petición
+
+1. `CremaServiceProvider.register` construye un `CremaEngine` (buscador de archivos en la raíz de vistas) y lo pone en el contenedor.
+2. `CremaServiceProvider.boot` llama a `Views.setEngine(engine)`.
+3. Un controlador o un manejador de ruta llama a `view(...)` / `Views.make(...)`.
+4. Devuelves `toResponse()` (o `Views.response` / `Crema.view`) como la [Response](/docs/http/request-response/) HTTP. Los manejadores de hoy devuelven `Response`, no un `View` desnudo.
+
+Si llamas a `view` antes del arranque (o sin registrar Crema), obtienes `IllegalStateException: View engine not configured`.
+
+## Controlador mínimo
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.crema.view
+import org.konaframework.http.Request
+import org.konaframework.http.Response
+
+class WelcomeController {
+    fun index(request: Request): Response =
+        view("welcome", mapOf("name" to "Kona")).toResponse()
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.crema.Views;
+import org.konaframework.http.Request;
+import org.konaframework.http.Response;
+import java.util.Map;
+
+public final class WelcomeController {
+    public Response index(Request request) {
+        return Views.make("welcome", Map.of("name", "Kona")).toResponse();
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Los manejadores de ruta funcionan igual:
+
+```kotlin
+router.get("/") { view("welcome", mapOf("name" to "Kona")).toResponse() }
+```
+
+```java
+router.get("/", request -> Views.make("welcome", Map.of("name", "Kona")).toResponse());
+```
+
+## Superficie de la API
+
+### `view` / `Views.make`
+
+| Llamada | Resultado |
+|------|--------|
+| `view("home")` / `Views.make("home")` | `View` con datos vacíos |
+| `view("home", map)` / `Views.make("home", map)` | `View` con una copia de ese mapa de datos |
+
+Métodos de `View`:
+
+| Método | Comportamiento |
+|--------|----------|
+| `with(key, value)` | Pone una clave; devuelve el mismo `View` |
+| `with(map)` | Fusiona muchas claves |
+| `data()` | Instantánea de las claves ligadas a esta vista (no de los shares posteriores) |
+| `name` | Nombre canónico (`posts.show`) |
+| `render()` | Cadena HTML (datos compartidos fusionados) |
+| `toResponse(status = 200)` | `Response.html(...)` |
+
+### `Views.render` / `Views.response` / `Crema.view`
+
+| Llamada | Resultado |
+|------|--------|
+| `Views.render(name, data?)` | `String` HTML |
+| `Views.response(name, data?, status?)` | `Response` HTML |
+| `Crema.view(name, data?, status?)` | Igual que `Views.response` (motor enlazado) |
+| `Crema.view(engine, name, data?, status?)` | Igual, pero usa un `CremaEngine` explícito (pruebas / buscadores propios) |
+
+### Existencia y primera coincidencia
+
+| Llamada | Comportamiento |
+|------|----------|
+| `Views.exists(name)` | `true` cuando el buscador puede cargar la plantilla |
+| `Views.first(names, data?)` | Primer nombre resoluble; si no, `ViewNotFoundException` que lista los candidatos |
+| `CremaEngine.first(...)` | Igual en un motor local |
+
+Usa `first` cuando un tema o un inquilino puede sustituir una plantilla predeterminada:
+
+```kotlin
+return Views.first(
+    listOf("themes.$theme.home", "home"),
+    mapOf("title" to "Hi"),
+).toResponse()
+```
+
+```java
+return Views.first(
+    List.of("themes." + theme + ".home", "home"),
+    Map.of("title", "Hi")
+).toResponse();
+```
+
+### Datos compartidos
+
+Comparte claves una vez (proveedor de servicios, middleware o código de arranque). Cada `make` / `render` posterior las fusiona; **ganan los datos de la vista**.
+
+| Llamada | Comportamiento |
+|------|----------|
+| `Views.share(key, value)` | Una clave |
+| `Views.share(map)` | Muchas claves |
+| `Views.shared()` | Copia del mapa compartido actual |
+| `Views.flushShared()` | Limpia todas las claves compartidas |
+| `CremaEngine.share` / `shared` / `flushShared` | Igual en un motor local |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Views.share("appName", "Kona")
+Views.share(mapOf("locale" to "en"))
+
+// every view sees appName / locale unless overridden
+view("dashboard", mapOf("user" to user)).toResponse()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Views.share("appName", "Kona");
+Views.share(Map.of("locale", "en"));
+
+Views.make("dashboard", Map.of("user", user)).toResponse();
+```
+
+</TabItem>
+</Tabs>
+
+Para los renders basados en `CremaContext` (`engine.render(name, context)`), las claves compartidas rellenan solo las claves de contexto **ausentes**; las claves que ya están en el contexto se dejan quietas. Las secciones y las pilas de ese contexto se conservan.
+
+### Cableado de la fábrica (pruebas)
+
+| Llamada | Comportamiento |
+|------|----------|
+| `Views.setEngine(engine)` | Enlaza (también lo hace `CremaServiceProvider.boot`) |
+| `Views.clearEngine()` | Desenlaza (pruebas) |
+| `Views.engine()` | Motor enlazado, o lanza si no hay ninguno |
+| `Views.configured()` | Si hay un motor enlazado |
+
+## Nombres de vista: puntos y barras
+
+Los nombres se normalizan con `normalizeViewName`: las barras se vuelven puntos, y se recortan los separadores sueltos al inicio y al final.
+
+| Escribes | Canónico | Archivo (bajo la raíz de vistas) |
+|-----------|-----------|-------------------------|
+| `home` | `home` | `home.crema.html` |
+| `posts.show` | `posts.show` | `posts/show.crema.html` |
+| `posts/show` | `posts.show` | `posts/show.crema.html` |
+
+Tanto `Views.exists("posts.show")` como `Views.exists("posts/show")` son verdaderos para el mismo archivo. `MapViewFinder.put("posts/show", …)` en memoria también guarda bajo `posts.show`.
+
+## Devolver desde controladores y rutas
+
+Los controladores y los `Handler` devuelven `Response`. Convierte una vista de una de estas formas:
+
+```kotlin
+view("posts.show", mapOf("post" to post)).toResponse()
+view("posts.show", mapOf("post" to post)).toResponse(201)
+Views.response("posts.show", mapOf("post" to post))
+Crema.view("posts.show", mapOf("post" to post), 200)
+```
+
+```java
+Views.make("posts.show", Map.of("post", post)).toResponse();
+Views.make("posts.show", Map.of("post", post)).toResponse(201);
+Views.response("posts.show", Map.of("post", post));
+Crema.view("posts.show", Map.of("post", post), 200);
+```
+
+Acumula datos antes de responder:
+
+```kotlin
+return view("checkout")
+    .with("cart", cart)
+    .with(mapOf("tax" to tax, "total" to total))
+    .toResponse()
+```
+
+Combínalo con [Controladores](/docs/http/controllers/), [Enrutado](/docs/http/routing/) y [Petición y respuesta](/docs/http/request-response/).
+
+## Cuándo resolver `CremaEngine` tú mismo
+
+Prefiere `view` / `Views` en el código de la aplicación. Resuelve o construye `CremaEngine` cuando necesitas:
+
+- Un `ViewFinder` propio (pruebas con `MapViewFinder`, raíces alternativas)
+- Directivas / etiquetas registradas solo en ese motor (`directive`, `blockDirective`, `tag`)
+- `renderSource` para plantillas en línea
+- `Crema.view(engine, …)` sin tocar la fábrica global
+
+```kotlin
+val engine = CremaEngine(MapViewFinder().put("x", "Hi {{ name }}"))
+assertEquals("Hi Ada", engine.render("x", mapOf("name" to "Ada")))
+```
+
+## Trampas
+
+| Trampa | Qué hacer |
+|---------|------------|
+| `View engine not configured` | Registra `CremaServiceProvider` y `app.boot()` antes de llamar a `view` / `Views` |
+| Devolver un `View` desnudo desde un manejador | Llama a `toResponse()` — el kernel espera `Response` |
+| Los datos compartidos «no actualizan» un `View` ya construido | Las claves compartidas se fusionan en el momento del **render** mediante el motor; `View.data()` solo muestra las claves que pusiste con `with` / `make` |
+| Se ignora una clave de la vista | Un `with` posterior / una entrada del mapa de datos sustituye lo compartido; revisa erratas |
+| `ViewNotFoundException` | Confirma que el archivo está bajo la raíz de vistas con `.crema.html` o `.crema.kt`, y que el nombre coincide (`posts.show` ↔ `posts/show.crema.html`) |
+| Desajuste barra frente a punto en pruebas | Prefiere nombres con puntos en `MapViewFinder.put`, o cualquiera de las dos formas tras la normalización |
+| Llamar a `Views` desde una prueba unitaria sin enlace | `Views.setEngine(CremaEngine(...))` en el setup; `Views.clearEngine()` en el teardown |
+
+## Relacionado
+
+- [Empezar con Crema](/docs/crema/) — plantillas, rutas, andamiaje
+- [Renderizado y datos](/docs/crema/rendering/) — ecos, expresiones, `@json`, `@lang`
+- [Controladores](/docs/http/controllers/) — devolver respuestas desde las acciones
+- [Enrutado](/docs/http/routing/) — cablear manejadores
+- [Petición y respuesta](/docs/http/request-response/) — `Response.html` y compañía

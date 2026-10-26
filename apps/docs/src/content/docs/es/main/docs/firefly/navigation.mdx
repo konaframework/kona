@@ -1,0 +1,90 @@
+---
+title: Navegación
+description: Dónde dibuja un panel su navegación, hasta qué profundidad llega el árbol y cómo se fijan las etiquetas y las URL.
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+La navegación es la lista de enlaces que tu usuario realmente pulsa. Cada panel tiene un layout para ese árbol. Si nunca construyes el árbol tú mismo, `mount` lo construye a partir de las páginas y los recursos que descubrió.
+
+En el ejemplo hello eso significa un enlace para Desk, un grupo Notes y un grupo Orders. Las etiquetas salen del slug de la página y de la etiqueta del recurso, por eso puedes ver `desk` y `manage` hasta que pongas una etiqueta.
+
+<FireflyShot file="panel-navigation.png" description="La barra lateral de hello-kotlin en http://127.0.0.1:4017/admin/desk, con el enlace desk y los grupos Notes y Orders." />
+
+## Cómo dibujan los tres tipos
+
+| Tipo | Nivel 1 | Niveles 2 y 3 |
+|------|---------|----------------|
+| `NavigationType.APP` (el predeterminado) | Barra superior | Barra lateral, para los hijos del ítem de nivel 1 activo |
+| `NavigationType.SIDE` | Barra lateral | Barra lateral |
+| `NavigationType.TOP` | Barra superior | Barra superior |
+
+`topNavigation()` es `navigation(NavigationType.TOP)`. `navigation` acepta el enum o un cierre que recibe `Get`.
+
+El anidado se detiene en el nivel 3. Un cuarto nivel falla cuando el panel se monta, y el mensaje nombra el ítem. `cluster("Catalog")` añade un padre sin URL propia. `userMenu(...)` se renderiza en la barra superior, junto al chip del usuario. `spa(true)` añade `wire:navigate` en los enlaces que tienen URL.
+
+## Qué muestra el ejemplo hello
+
+El ejemplo nunca llama a `item`. El descubrimiento construye por tanto:
+
+- Un enlace por cada página. La etiqueta es `navigationLabel()`, que es el slug. El texto del enlace de Desk es `desk`. La URL es `/admin/desk`.
+- Un cluster por recurso. La etiqueta es `Resource.label()` (`Notes`, `Orders`). Cada página de ese recurso es un hijo. La etiqueta del hijo es el slug de la página: `manage` en notes, y `list`, `create`, `edit`, `view` en orders.
+
+Pon `label` en un `NavigationItem` cuando construyes el árbol tú mismo y quieres una palabra en lugar de un slug.
+
+## Construye un árbol tú mismo
+
+Una vez que se ha llamado a `item` o a `cluster`, mount no sustituye ese árbol por las páginas descubiertas.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val catalog = panel.cluster("Catalog")
+catalog.child(
+    NavigationItem("orders").label("Orders").url("/admin/orders/list"),
+)
+panel.userMenu(
+    NavigationItem("profile").label("Profile").url("/admin/profile"),
+)
+panel.navigation(NavigationType.SIDE)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+NavigationItem catalog = panel.cluster("Catalog");
+catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list"));
+panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile"));
+panel.navigation(NavigationType.SIDE);
+```
+
+</TabItem>
+</Tabs>
+
+## Métodos de NavigationItem
+
+Un nombre en blanco lanza `FireflyException` (`Navigation item name is blank`). Una etiqueta en blanco o una URL en blanco de un cierre lanzan y nombran el ítem.
+
+| Método | Qué hace |
+|--------|----------------|
+| `label(value)` / `label(provider)` | Texto visible. El predeterminado es el nombre |
+| `url(value)` / `url(provider)` | Destino del enlace. Vacío hasta que lo pongas |
+| `extraAttributes(map)` / `extraAttributes(provider)` | Atributos HTML del enlace. Un provider recibe `Get` |
+| `cluster(true)` | Marca el nodo como grupo |
+| `child(item)` | Añade un hijo y fija su profundidad |
+| `isCluster()` | Si se puso `cluster(true)` |
+| `labelText(get)` / `urlText(get)` / `attributes(get)` | Resuelve el cierre o el valor guardado |
+| `find(name)` | Este nodo o un descendiente con ese nombre |
+
+Estado activo: la ruta actual es igual a la URL del ítem, o empieza por esa URL más `/`. Una URL vacía o `/` nunca se trata como coincidencia de prefijo.
+
+## El chip del usuario
+
+El texto del chip es el id del guard del panel. Cuando ese id es null, el chip lee **Invitado**. El ejemplo hello llama a `authenticate(false)` y no inicia sesión a nadie, así que el chip lee Invitado. Los ítems de `userMenu` se renderizan junto a ese chip.
+
+## Siguiente
+
+[Acciones](/docs/firefly/actions/) son los botones de la cabecera de una página y dentro de un diálogo. La cáscara en la que se sientan esos enlaces es [Cromo del panel](/docs/firefly/chrome/).

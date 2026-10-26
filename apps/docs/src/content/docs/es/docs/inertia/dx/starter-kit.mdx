@@ -1,0 +1,46 @@
+---
+title: Starter kit
+description: Qué genera kona new --kit=inertia y cómo se relaciona con grind install.
+---
+
+```bash
+kona new my-app --kit=inertia
+kona new my-app --kit=inertia --lang=java --frontend=react --css=tailwind
+kona new my-app --kit=inertia --frontend=vue --typescript
+```
+
+El kit superpone las mismas piezas que [Instalación](../../guides/installation/) describe para una app que funciona. Las dependencias se resuelven desde **Maven Central**. `--frontend=vue|react|svelte` (Vue por defecto) y `--css=tailwind|bootstrap|custom` escriben una app Vite real — consulta [Starter kits](/docs/starter-kits/).
+
+JavaScript es el lenguaje de frontend predeterminado. `--typescript` o `--ts` lo activan (Vue `app.ts`, React `app.tsx`, Svelte `app.ts`). `--javascript` o `--js` fuerzan JavaScript. Si se pasan ambas familias, gana la última bandera. API, Crema y Wire ignoran la bandera. `kona new my-app --kit=inertia --no-interaction` no interactivo se queda en JavaScript.
+
+## Disposición
+
+| Área | Contenido |
+|------|-----------|
+| Gradle | `org.konaframework:kona-inertia` (+ Crema, HTTP, session, …) |
+| Arranque | `InertiaServiceProvider`, `inertia.root_view` / `inertia.version`, `viteEntries` del adaptador |
+| Middleware | `HandleInertia` empujado después del arranque |
+| HTTP | Welcome / login / dashboard de Crema para que la auth de sesión funcione el primer día |
+| Crema | `views/app.crema.html` con `{!! vite !!}` y `{!! pageAttr !!}` |
+| Frontend | Vue 3, React o Svelte + Vite (`package.json`, `vite.config.js`, `Pages/Welcome.*`). JavaScript por defecto; `--typescript` escribe `app.ts` / `app.tsx`, `tsconfig.json` y un script `typecheck` |
+| Público | `public/` en la raíz del proyecto (logo, `robots.txt`). La salida de producción de Vite es `public/build` |
+
+## Ejecutar
+
+```bash
+npm install
+npm run dev
+./grind serve
+```
+
+## Frente a `./grind install inertia`
+
+| | Kit (`kona new --kit=inertia`) | `./grind install inertia` |
+|--|-------------------------------|---------------------------|
+| Esqueleto de app nueva | Sí | No — apunta a una app existente |
+| Maven + provider | Sí | Sí |
+| Frontend | Vue / React / Svelte (`--frontend`) + CSS (`--css`) | Vue / React / Svelte / omitir, de forma interactiva |
+| Rutas / controlador Welcome | Sí | No — añade tu propia llamada render |
+| Clase de middleware | Envoltorio `HandleInertia` del kit | Tú empujas `HandleInertiaRequests` (o tu subclase) |
+
+Consulta también [Starter kits de Kona](/docs/starter-kits/).

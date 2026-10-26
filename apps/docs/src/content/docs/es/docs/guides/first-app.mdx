@@ -1,0 +1,123 @@
+---
+title: Tu primera app
+description: Crea una app con kona new, recorre el layout de src/main y sírvela con ./grind.
+---
+
+## Requisitos
+
+- JDK 21+
+- `kona` global en tu PATH ([Instalación](../installation/) — `curl …/scripts/install.sh | bash`)
+
+## Crear el proyecto
+
+```bash
+kona new hello-kona                 # still asks language, kit, CSS, database, …
+kona new hello-kona --no-interaction
+cd hello-kona
+```
+
+Usa `--lang=java` para un esqueleto Java. El kit predeterminado es **`web`** (vista de bienvenida Crema). Otros kits: `--kit=api`, `--kit=inertia`, `--kit=wire`. CSS: `--css=tailwind|bootstrap|custom`. Adaptadores de Inertia: `--frontend=vue|react|svelte`. Los frontends de Inertia son JavaScript salvo que pases `--typescript` (o `--ts`). Cada bandera omite solo ese paso. `kona new` sin argumentos es el instalador interactivo; se niega a sobrescribir un directorio existente.
+
+Deberías ver algo así:
+
+```text
+ DONE  Application created successfully.
+  Path         …/hello-kona
+  Language     kotlin
+  Stack        Crema · custom CSS
+  Database     sqlite
+  cd           hello-kona
+  serve        ./grind serve
+  migrate      ./grind migrate --seed
+```
+
+Ese archivo `./grind` forma parte del esqueleto. `kona grind …` es una comodidad global que encuentra este archivo por ti. Quienes contribuyen y navegan `samples/hello-*` dentro del checkout git de Kona **no** encontrarán `./grind` ahí — consulta [Instalación → Contribuir a Kona](../installation/#contributing-to-kona-optional).
+
+## Lo que obtuviste
+
+Todo lo que pertenece a la aplicación vive bajo `src/main` (más `public/`, `storage/` y `.env` en la raíz del proyecto):
+
+| Ruta | Rol |
+|------|------|
+| `./grind` / `grind.bat` | CLI **local de la app** (serve, make:controller, …) — lo escribe `kona new` |
+| `./gradlew` / `gradlew.bat` | Wrapper de Gradle — construye y ejecuta la app |
+| `README.md` | Notas propias del kit en la raíz del proyecto |
+| `package.json` / `vite.config.js` | Frontend Vite cuando CSS o Inertia están activos (`--typescript` también escribe `tsconfig.json`) |
+| `.env` / `.env.example` | `APP_NAME`, `APP_KEY` (generada), `APP_DEBUG`, `HOST`, `PORT`, … |
+| `src/main/kotlin/bootstrap/App` (o `…/java/…`) | Arranca Kona, registra providers, inicia HTTP |
+| `src/main/…/bootstrap/Middleware` | Sesión + CSRF (`/api/*` exceptuado); confianza en proxies/hosts |
+| `src/main/…/app/providers/` | Tu service provider |
+| `src/main/…/app/http/controllers/` | Controladores (`Welcome`, `Login`, `Dashboard`, `api/User`) |
+| `src/main/…/app/models/User` | Usuario Cadence (auth de sesión + API JSON) |
+| `src/main/…/database/migrations/` | `2000_01_01_000000_create_users_table` (clase `CreateUsersTable`, listada en `META-INF/kona/migrations`) |
+| `src/main/…/database/seeders/DatabaseSeeder` | Usuario de demostración para el inicio de sesión local |
+| `src/main/…/routes/WebRoutes` + `ApiRoutes` | Tablas de rutas web (`/`, `/login`, `/dashboard`) y `/api` |
+| `src/main/resources/config/` | Configuración JSON (`app`, `http`, `paths`, `session`) |
+| `src/main/resources/views/` | Vistas Crema (`welcome`, `login`, `dashboard` en los kits web) |
+| `public/` | Raíz de documentos HTTP (`branding/kona-logo.svg`, `robots.txt`, Vite `public/build`) |
+| `storage/` | Datos de runtime escribibles (logs, caché del framework) |
+| `build.gradle.kts` | HTTP, grind, extract, redis, session, auth, queue, schedule, mail, crema |
+
+`kona` en sí **no** se copia al proyecto. Solo `./grind` (más el wrapper de Gradle y las fuentes de la app) es local.
+
+### Ayudantes de ruta
+
+Después del arranque, resuelve directorios con los ayudantes de `Application` o la fachada `Paths`:
+
+```kotlin
+app.appPath("http", "controllers")
+app.storagePath("logs")
+app.configPath()
+Paths.view("welcome")
+Paths.publicDir()
+```
+
+Los valores predeterminados siguen el árbol de arriba; anúlalos con claves `paths.*` en `config/Paths` (registradas mediante `.configs(...)`).
+
+## Migrar, sembrar y servir
+
+Los kits web traen un modelo Cadence `User`, una migración `2000_01_01_000000_create_users_table` (clase `CreateUsersTable`) y un seeder de demostración:
+
+```bash
+./grind migrate --seed
+./grind serve
+```
+
+(O `./grind migrate` y luego `./grind db:seed` — el predeterminado del esqueleto es una base de datos H2 de **archivo** bajo `storage/database/`, así que ambos procesos comparten los mismos datos.)
+
+Abre `http://127.0.0.1:4000/` (o el `HOST`/`PORT` de `.env`). Detén con Ctrl+C.
+
+Con `APP_DEBUG=true` (predeterminado del esqueleto), la terminal muestra cada petición — método, ruta, estado y duración — a medida que golpeas la app. Consulta [Registro](../../http/logging/#request-access-lines-local-serve).
+
+`./grind serve` observa `src/main` y recarga el Kotlin/Java compilado (incluidas las clases Wire `template()`) sin reiniciar el servidor HTTP. Pasa `--no-watch` si quieres un hijo `./gradlew run` en su lugar.
+
+La página de aterrizaje con marca es HTML de `welcome.crema.html` (mediante `WelcomeController` en `/`). Inicia sesión en `/login` con el usuario de demostración **`demo@kona.test`** / **`password`**, y luego abre `/dashboard`. `/api/health` devuelve JSON `{"status":"ok"}`. `/api/users` y `/api/users/{id}` listan o muestran usuarios (los campos de contraseña están ocultos).
+
+El esqueleto `--kit=api` incluye el mismo modelo `User` y la API JSON sin las vistas de inicio de sesión de Crema.
+
+## Añadir un controlador
+
+```bash
+./grind make:controller Post
+```
+
+Luego registra una ruta en `src/main/…/routes/` que lo use. Los generadores escriben bajo `src/main/kotlin|java/app/…`.
+
+## Crear otra app más tarde
+
+Quédate en lo global — no uses grind para esto:
+
+```bash
+cd ..
+kona new shop --lang=java
+cd shop
+./grind serve
+```
+
+## Siguiente
+
+- [Despliegue](../deployment/) — `./grind deploy:systemd`, entorno, migrate
+- [Escalado](../scaling/) — varios procesos, pools, Redis, workers
+- [Aplicación y providers](../../concepts/application/)
+- [Enrutamiento](../../http/routing/)
+- [Comandos grind](../../grind/commands/)

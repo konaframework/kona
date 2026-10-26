@@ -1,0 +1,62 @@
+---
+title: Peticiones y respuestas
+description: Cáscaras HTML, visitas JSON, cabeceras y cómo Inertia detecta una petición del cliente.
+---
+
+## Detectar una petición Inertia
+
+`InertiaManager.isInertiaRequest(request)` es verdadero cuando la petición tiene una cabecera `X-Inertia` (cualquier valor). Los clientes oficiales envían `X-Inertia: true`.
+
+## Primera visita → HTML
+
+- Estado `200`
+- `Content-Type` HTML
+- Cuerpo: vista Crema raíz o `rootHtml`
+- Datos de la vista: `page` (JSON crudo), `pageAttr` (escapado para atributos HTML), `vite` (etiquetas script/link)
+- Sin cabecera de respuesta `X-Inertia` en la cáscara HTML plana
+
+El HTML raíz predeterminado (cuando no se usa Crema) incrusta `@page` dentro de `data-page='…'`.
+
+## Visita Inertia → JSON
+
+- Cuerpo: mapa JSON del objeto de página
+- `X-Inertia: true`
+- `Vary: X-Inertia`
+- `X-Inertia-Version` cuando la versión del manager no está vacía
+
+## Decoración
+
+Después de que corre el manejador de la ruta, el middleware llama a `manager.decorate(response)`. Si la respuesta ya tiene `X-Inertia: true` o `X-Inertia-Location`, y hay una versión, se añade `X-Inertia-Version`.
+
+## Render explícito de la petición
+
+```kotlin
+Inertia.render(request, "Pages/Show", mapOf("id" to 42))
+```
+
+Úsalo desde rutas de código que no están bajo `HandleInertiaRequests`, o cuando quieres un objeto de petición distinto del ThreadLocal actual.
+
+## Códigos de estado que verás
+
+| Estado | Significado |
+|--------|---------|
+| `200` | Cáscara HTML o página JSON |
+| `302` / `303` | Redirección ordinaria (clientes que no son Inertia); los adaptadores de Inertia siguen o convierten |
+| `409` | La versión de los assets no coincide, o `Inertia.location` para clientes Inertia ([Redirecciones](../../advanced/redirects/)) |
+
+## Resumen de negociación de contenido
+
+Siempre llamas a `Inertia.render` de la misma forma. El manager inspecciona la petición:
+
+```text
+X-Inertia present?
+  ├─ no  → HTML (root_view / root_html) + data-page
+  └─ yes → version OK? → JSON page
+                      └─ no → 409
+```
+
+## Relacionado
+
+- [Middleware](../middleware/) — dónde corren las comprobaciones de versión
+- [Plantilla raíz](../root-template/) — campos de la cáscara HTML
+- [Tu primera página](../../guides/first-page/) — ejemplo de extremo a extremo
