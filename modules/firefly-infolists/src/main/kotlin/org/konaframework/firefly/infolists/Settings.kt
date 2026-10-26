@@ -131,21 +131,8 @@ internal fun escapeHtml(text: String): String {
     return out.toString()
 }
 
-private val ATTR_NAME = Regex("^[A-Za-z_:][A-Za-z0-9_:.-]*$")
-
-internal fun extraAttrs(values: Map<String, String>?): String {
-    if (values == null || values.isEmpty()) return ""
-    val out = StringBuilder()
-    for ((key, value) in values) {
-        if (!ATTR_NAME.matches(key)) continue
-        out.append(' ')
-        out.append(key)
-        out.append("=\"")
-        out.append(escapeHtml(value))
-        out.append('"')
-    }
-    return out.toString()
-}
+internal fun extraAttrs(values: Map<String, String>?): String =
+    org.konaframework.firefly.schemas.htmlAttributes(values)
 
 internal fun attr(name: String, value: String?): String {
     if (value == null) return ""

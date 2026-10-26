@@ -316,8 +316,12 @@ class FireflyTablesTest {
         assertTrue(ColorColumn.make("swatch").render(mapOf("swatch" to "#fff"), "1", Cell { null }).contains("ff-color"))
         assertFalse(ColorColumn.make("swatch").render(mapOf("swatch" to ""), "1", Cell { null }).contains("background:"))
 
-        val box = CheckboxColumn.make("on")
-        assertTrue(box.render(mapOf("on" to true), "1", Cell { null }).contains("checked"))
+        val box = CheckboxColumn.make("on").extraInputAttributes(
+            mapOf("data-box" to "1", "" to "skip", "type" to "hidden", "name" to "x", "value" to "y"),
+        )
+        assertTrue(box.render(mapOf("on" to true), "1", Cell { null }).contains("data-box=\"1\""))
+        val boxClosure = CheckboxColumn.make("on").extraInputAttributes { mapOf("data-box" to "2") }
+        assertTrue(boxClosure.render(mapOf("on" to true), "1", Cell { null }).contains("data-box=\"2\""))
         assertFalse(box.disabled(true).render(mapOf("on" to false), "1", Cell { null }).contains("checked"))
         assertTrue(box.render(mapOf("on" to false), "1", Cell { null }).contains("disabled"))
 
@@ -327,6 +331,9 @@ class FireflyTablesTest {
         assertTrue(toggle.render(mapOf("on" to false), "1", Cell { null }).contains("aria-pressed=\"false\""))
 
         val select = SelectColumn.make("status").options(mapOf("open" to "Open", "shut" to "Shut"))
+            .extraInputAttributes(mapOf("data-pick" to "1"))
+        val selectClosure = SelectColumn.make("status").extraInputAttributes { mapOf("data-pick" to "2") }
+        assertTrue(selectClosure.render(emptyMap(), "1", Cell { null }).contains("data-pick=\"2\""))
         val selectHtml = select.render(mapOf("status" to "open"), "1", Cell { null })
         assertTrue(selectHtml.contains("selected"))
         assertTrue(selectHtml.contains("Shut"))
@@ -346,7 +353,10 @@ class FireflyTablesTest {
         assertTrue(filterHtml.contains("ff-filter-indicator"))
         assertTrue(filterHtml.contains("selected"))
         SelectFilter.configureUsing(null)
-        assertTrue(Filter.make("q").render(Cell { null }, null).contains("<input"))
+        val textFilter = Filter.make("q").extraInputAttributes(mapOf("data-q" to "1"))
+        assertTrue(textFilter.render(Cell { null }, null).contains("data-q=\"1\""))
+        val selectInput = SelectFilter.make("status").options(mapOf("open" to "Open")).extraInputAttributes { mapOf("data-s" to "2") }
+        assertTrue(selectInput.render(Cell { null }, null).contains("data-s=\"2\""))
         val plain = Filter.make("name").label { "Name" }.indicator { "Ind" }.defaultUsing { "Ada" }
             .options { mapOf("Ada" to "Ada") }
         assertEquals("Ada", plain.defaultValue(Cell { null }))

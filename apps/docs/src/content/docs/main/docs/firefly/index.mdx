@@ -45,7 +45,7 @@ Java projects use the same coordinates. Every public type in this package is cal
 | [`FireflyTheme`](/docs/firefly/themes/) | Colors, font, radius, and optional replacement HTML for a chrome slot |
 | [`KonaTheme`](/docs/firefly/themes/) | Built-in caramel theme (`id` is `kona`) |
 | [`Stylesheet`](/docs/firefly/themes/) | Turns a theme into CSS variables scoped under `.ff-panel` |
-| [`PanelShell`](/docs/firefly/chrome/) | Picks the theme, layout, hooks, and partial overrides, then renders |
+| [`Panel`](/docs/firefly/chrome/) | Picks the theme, layout, hooks, and partial overrides, then renders |
 | [`Dialog`](/docs/firefly/dialog/) | One dialog component: modal, sidebar, or fullscreen |
 | [`Action`](/docs/firefly/actions/) | Button, link, confirmation, and dialog body |
 | `Icon` | Inline SVG icons: `HOME`, `BARS`, `USER`, `X` |
@@ -56,7 +56,7 @@ Java projects use the same coordinates. Every public type in this package is cal
 Kotlin:
 
 ```kotlin
-val html = PanelShell()
+val html = Panel()
     .theme(KonaTheme())
     .hook(Hook.BODY_START, "<p>Welcome</p>")
     .render()
@@ -65,7 +65,7 @@ val html = PanelShell()
 Java:
 
 ```java
-String html = new PanelShell()
+String html = new Panel()
     .theme(new KonaTheme())
     .hook(Hook.BODY_START, "<p>Welcome</p>")
     .render();

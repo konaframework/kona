@@ -96,7 +96,7 @@ class FireflySupportTest {
 
     @Test
     fun chromeUsesThemeLayoutHooksAndOverrides() {
-        val shell = PanelShell()
+        val shell = Panel()
             .hook(Hook.SIDEBAR_START, "<b>nav</b>")
             .hook(Hook.FOOTER, "<i>foot</i>")
         val html = shell.render()
@@ -111,7 +111,7 @@ class FireflySupportTest {
             override fun tokens() = KonaTheme().tokens()
             override fun partial(slot: String) = if (slot == "sidebar") "<aside></aside>" else null
         }
-        assertThrows(FireflyException::class.java) { PanelShell().theme(bad).render() }
+        assertThrows(FireflyException::class.java) { Panel().theme(bad).render() }
 
         val customPartial = object : FireflyTheme {
             override fun id() = "partial"
@@ -119,11 +119,11 @@ class FireflySupportTest {
             override fun partial(slot: String) =
                 if (slot == "topbar") """<header class="ff-topbar"><!-- ff-hook:topbar.start -->T<!-- ff-hook:topbar.end --></header>""" else null
         }
-        val withTheme = PanelShell().theme(customPartial).hook(Hook.TOPBAR_START, "L").render()
+        val withTheme = Panel().theme(customPartial).hook(Hook.TOPBAR_START, "L").render()
         assertTrue(withTheme.contains(">L"))
         assertTrue(withTheme.contains("T"))
 
-        val overridden = PanelShell()
+        val overridden = Panel()
             .theme(customPartial)
             .overridePartial("topbar", """<header class="ff-topbar"><!-- ff-hook:topbar.start -->APP<!-- ff-hook:topbar.end --></header>""")
             .render()
@@ -133,7 +133,7 @@ class FireflySupportTest {
         val hooks = RenderHooks().add(Hook.FOOTER, "a").add(Hook.FOOTER, "b")
         assertEquals("ab", hooks.render(Hook.FOOTER))
 
-        val replaced = PanelShell().layout(object : PanelLayout {
+        val replaced = Panel().layout(object : PanelLayout {
             override fun render(context: ChromeContext) = "layout:" + context.theme.id()
         }).render()
         assertEquals("layout:kona", replaced)

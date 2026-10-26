@@ -30,7 +30,6 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
     internal val wrapFlag = BoolSetting(false)
     internal val inlineFlag = BoolSetting(false)
     internal val copyDuration = IntSetting()
-    internal val extraValue = MapSetting()
     internal val stateValue = AnySetting()
     private var above = emptyList<Component>()
     private var below = emptyList<Component>()
@@ -48,6 +47,11 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
     override fun description(value: String): T = self().also { super.description(value) }
 
     override fun description(value: Function<Get, String>): T = self().also { super.description(value) }
+
+    override fun extraAttributes(values: Map<String, String>): T = self().also { super.extraAttributes(values) }
+
+    override fun extraAttributes(provider: Function<Get, Map<String, String>>): T =
+        self().also { super.extraAttributes(provider) }
 
     fun placeholder(value: String): T = self().also { placeholderValue.set(value) }
 
@@ -98,10 +102,6 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
     fun copyableState(value: String): T = self().also { copyStateValue.set(value) }
 
     fun copyableState(value: Function<Get, String>): T = self().also { copyStateValue.set(value) }
-
-    fun extraAttributes(values: Map<String, String>): T = self().also { extraValue.set(values) }
-
-    fun extraAttributes(provider: Function<Get, Map<String, String>>): T = self().also { extraValue.set(provider) }
 
     fun helperText(value: String): T = self().also { helperValue.set(value) }
 
@@ -206,8 +206,7 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
             attr("data-ff-copy-state", copyStateValue.get(get)) +
             attr("data-ff-copy-duration", if (duration == null) null else duration.toString()) +
             flag("data-ff-wrap", wrapFlag.get(get)) +
-            flag("data-ff-inline-label", inlineFlag.get(get)) +
-            extraAttrs(extraValue.get(get))
+            flag("data-ff-inline-label", inlineFlag.get(get))
     }
 
     internal fun link(get: Get, inner: String): String {

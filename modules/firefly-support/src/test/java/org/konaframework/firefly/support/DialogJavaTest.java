@@ -19,13 +19,13 @@ public class DialogJavaTest {
         assertTrue(html.contains("ff-dialog-sidebar"));
         assertTrue(html.contains("ff-dialog-md"));
 
-        PanelShell shell = new PanelShell().theme(new KonaTheme()).hook(Hook.BODY_START, "hi");
+        Panel shell = new Panel().theme(new KonaTheme()).hook(Hook.BODY_START, "hi");
         assertTrue(shell.render().contains("hi"));
         assertEquals("kona", new KonaTheme().id());
         assertTrue(Icon.HOME.svg().contains("svg"));
         assertTrue(Icon.fromName("bars").svg().contains("ff-icon"));
 
-        String themed = new PanelShell()
+        String themed = new Panel()
             .theme(new HarborTheme())
             .layout(new DarkLayout())
             .render();

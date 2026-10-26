@@ -70,7 +70,7 @@ Action.gate((ability, component, schema) -> "edit".equals(ability));
 
 `placement(ActionPlacement.SCHEMA)` is the default and adds `ff-placement-schema`. `placement(ActionPlacement.HEADER)` adds `ff-placement-header`. That class is how a page tells a schema action from a header action. Both are still schema components, so you put header actions in the same tree.
 
-`extraAttributes` adds attributes. The name must be an HTML attribute name. `wire:click`, `x-data`, `type`, `href`, and `disabled` are reserved and throw. Values are escaped.
+`extraAttributes` merges attributes onto the component root. Pass a map or a closure. The name must be an HTML attribute name. `wire:click`, `x-data`, `type`, `href`, and `disabled` are reserved and throw. Values are escaped.
 
 ## Links
 

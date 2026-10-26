@@ -57,7 +57,6 @@ open class Action protected constructor(name: String) : Component(name) {
     private var beforeCallback: ActionCallback? = null
     private var afterCallback: ActionCallback? = null
     private var arguments: Map<String, Any?> = emptyMap()
-    private val extras = LinkedHashMap<String, String>()
 
     init {
         requireActionName(name)
@@ -72,6 +71,21 @@ open class Action protected constructor(name: String) : Component(name) {
 
     override fun label(value: Function<Get, String>): Action {
         super.label(value)
+        return this
+    }
+
+    override fun extraAttributes(values: Map<String, String>): Action {
+        checkAttributes(values)
+        super.extraAttributes(values)
+        return this
+    }
+
+    override fun extraAttributes(provider: Function<Get, Map<String, String>>): Action {
+        super.extraAttributes(Function { get ->
+            val values = provider.apply(get)
+            checkAttributes(values)
+            values
+        })
         return this
     }
 
@@ -265,13 +279,11 @@ open class Action protected constructor(name: String) : Component(name) {
 
     fun failureRedirectUrl(value: Function<Get, String>): Action = apply { failureRedirectSetting.setUsing(value) }
 
-    fun extraAttributes(values: Map<String, String>): Action = apply {
+    private fun checkAttributes(values: Map<String, String>) {
         for ((key, _) in values) {
             if (!ATTRIBUTE.matches(key)) throw FireflyException("Invalid attribute [$key]")
             if (RESERVED.contains(key)) throw FireflyException("Attribute [$key] is reserved")
         }
-        extras.clear()
-        extras.putAll(values)
     }
 
     fun halt(): Nothing = throw ActionHalt()
@@ -434,7 +446,7 @@ open class Action protected constructor(name: String) : Component(name) {
         val badge = badgeHtml(get)
         val disabled = disabledNow(schema)
         val classes = "ff-action-trigger ${styleClass()} ${placementClass()}"
-        val attrs = extraAttrs() + tooltipAttr(get) + colorAttr(get) + successAttr(get)
+        val attrs = tooltipAttr(get) + colorAttr(get) + successAttr(get)
         val aria = """ aria-label="${escapeHtml(text)}""""
         if (opens) {
             val disabledAttr = if (disabled) " disabled" else ""
@@ -480,18 +492,6 @@ open class Action protected constructor(name: String) : Component(name) {
         val url = successRedirectSetting.resolve(get)
         if (url == null) return ""
         return """ data-ff-success-url="${escapeHtml(url)}""""
-    }
-
-    private fun extraAttrs(): String {
-        val out = StringBuilder()
-        for ((key, value) in extras) {
-            out.append(" ")
-            out.append(key)
-            out.append("=\"")
-            out.append(escapeHtml(value))
-            out.append("\"")
-        }
-        return out.toString()
     }
 
     private fun styleClass(): String {
