@@ -42,6 +42,9 @@ class ResourceJavaTest {
         database();
         assertTrue(new Resource("shelf").model(Shelf.class).query() instanceof ModelBuilder);
         assertEquals("manage", notes.getPages().keySet().iterator().next());
+        assertEquals("Users", new Resource("user").label("User").pluralLabel());
+        assertEquals("People", new Resource("user").label("User").pluralLabel("People").pluralLabel());
+        assertEquals("Staff", new Resource("user").label("User").pluralLabel(get -> "Staff").pluralLabel());
     }
 
     private static Map<String, Object> row() {

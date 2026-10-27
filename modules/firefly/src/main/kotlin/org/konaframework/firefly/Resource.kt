@@ -23,6 +23,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private val managers = ArrayList<RelationManager>()
     private var labelLiteral: String? = null
     private var labelUsing: Function<Get, String>? = null
+    private var pluralLabelLiteral: String? = null
+    private var pluralLabelUsing: Function<Get, String>? = null
     private var modelClass: Class<*>? = null
     private var modelUsing: Function<Get, Class<*>?>? = null
     private var simpleFlag = false
@@ -55,6 +57,33 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         val value = labelLiteral
         if (value != null) return value
         return slug()
+    }
+
+    /**
+     * Plural resource title for list/manage page headers, navigation, and list breadcrumbs
+     * (Shamar `label` / Filament plural model label). Defaults to an English plural of [label].
+     */
+    fun pluralLabel(value: String): Resource = apply {
+        if (value.isBlank()) throw FireflyException("Resource plural label is blank")
+        pluralLabelLiteral = value
+        pluralLabelUsing = null
+    }
+
+    fun pluralLabel(value: Function<Get, String>): Resource = apply {
+        pluralLabelUsing = value
+        pluralLabelLiteral = null
+    }
+
+    fun pluralLabel(): String {
+        val using = pluralLabelUsing
+        if (using != null) {
+            val text = using.apply(SchemaBridge.open(emptyMap()))
+            if (text.isBlank()) throw FireflyException("Resource plural label is blank")
+            return text
+        }
+        val value = pluralLabelLiteral
+        if (value != null) return value
+        return englishPluralLabel(label())
     }
 
     fun model(type: Class<*>): Resource = apply {
@@ -197,8 +226,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     private fun applyManage(page: ManagePage, state: Map<String, Any?>) {
-        page.title(label())
-        page.breadcrumbs(resourceCrumbs(state, label()))
+        page.title(pluralLabel())
+        page.breadcrumbs(resourceCrumbs(state, pluralLabel()))
         val schema = form(liveSchema(state))
         val info = infolist(liveSchema(state))
         val built = table(listTable())
@@ -215,8 +244,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     private fun applyList(page: ListPage, state: Map<String, Any?>) {
-        page.title(label())
-        page.breadcrumbs(resourceCrumbs(state, label()))
+        page.title(pluralLabel())
+        page.breadcrumbs(resourceCrumbs(state, pluralLabel()))
         val built = table(listTable())
         applyTableQuery(built, state)
         val csrf = state["csrfField"] as? String ?: ""
@@ -327,7 +356,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         if (!home.isNullOrBlank()) crumbs.add(Breadcrumb.make("Dashboard", home))
         val list = state["resourceList"] as? String
         if (listHref && !list.isNullOrBlank()) {
-            crumbs.add(Breadcrumb.make(label(), list))
+            crumbs.add(Breadcrumb.make(pluralLabel(), list))
             crumbs.add(Breadcrumb.make(current))
         } else {
             crumbs.add(Breadcrumb.make(current))
@@ -404,4 +433,29 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun encodeQuery(value: String): String =
         java.net.URLEncoder.encode(value, Charsets.UTF_8)
+}
+
+/**
+ * English plural for resource titles. Leaves labels that already end in a simple `s`
+ * alone (`Orders`, `Notes`) so apps that set a plural [Resource.label] stay stable.
+ */
+internal fun englishPluralLabel(label: String): String {
+    if (label.isBlank()) return label
+    val trimmed = label.trimEnd()
+    val lower = trimmed.lowercase()
+    if (lower.length > 1 &&
+        lower.endsWith("s") &&
+        !lower.endsWith("ss") &&
+        !lower.endsWith("us") &&
+        !lower.endsWith("is")
+    ) {
+        return trimmed
+    }
+    if (lower.length > 1 && lower.endsWith("y") && lower[lower.length - 2] !in "aeiou") {
+        return trimmed.dropLast(1) + "ies"
+    }
+    if (Regex("""(?i)(s|x|z|ch|sh)$""").containsMatchIn(trimmed)) {
+        return trimmed + "es"
+    }
+    return trimmed + "s"
 }

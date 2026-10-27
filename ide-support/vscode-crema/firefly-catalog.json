@@ -422,6 +422,7 @@
         "label",
         "model",
         "pages",
+        "pluralLabel",
         "query",
         "relation",
         "relationManagers",
