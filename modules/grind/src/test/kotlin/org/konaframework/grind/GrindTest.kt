@@ -931,6 +931,33 @@ class GrindTest {
         assertEquals("make:firefly-resource", BuiltinCommandSpecs["make:firefly-resource"]!!.name)
         assertTrue(BuiltinCommandSpecs.descriptionFor("make:firefly-resource").isNotEmpty())
         assertEquals("", BuiltinCommandSpecs.descriptionFor("__no_such_builtin__"))
+        // SignatureParser.bind rejects missing args before run(); hit each command's own
+        // usage throw by calling the body directly (keeps 100% branch coverage).
+        val usageBodies = listOf<() -> Int>(
+            { MakeControllerCommand().run(emptyList()) },
+            { MakeModelCommand().run(emptyList()) },
+            { MakeFactoryCommand().run(emptyList()) },
+            { MakeSeederCommand().run(emptyList()) },
+            { MakeMigrationCommand().run(emptyList()) },
+            { MakeRequestCommand().run(emptyList()) },
+            { MakeViewCommand().run(emptyList()) },
+            { MakeMiddlewareCommand().run(emptyList()) },
+            { MakeResourceCommand().run(emptyList()) },
+            { MakePolicyCommand().run(emptyList()) },
+            { MakeFireflyLayoutCommand().run(emptyList()) },
+            { MakeFireflyActionCommand().run(emptyList()) },
+            { MakeFireflyEntryCommand().run(emptyList()) },
+            { MakeFireflyColumnCommand().run(emptyList()) },
+            { MakeFireflyFilterCommand().run(emptyList()) },
+            { MakeFireflyFieldCommand().run(emptyList()) },
+            { MakeFireflyWidgetCommand().run(emptyList()) },
+            { MakeFireflyPageCommand().run(emptyList()) },
+            { MakeFireflyThemeCommand().run(emptyList()) },
+            { FireflyPublishCommand().run(listOf("extra")) },
+        )
+        for (body in usageBodies) {
+            assertThrows(GrindException::class.java) { body() }
+        }
     }
 
     @Test

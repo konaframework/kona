@@ -124,12 +124,15 @@ class FireflyResourceTest {
 
             override fun getPages(): Map<String, Page> = mapOf("" to PanelPage(""))
         }
+        val emptyPages = object : Resource("empty") {
+            override fun getPages(): Map<String, Page> = emptyMap()
+        }
         val panel = Panel().path("admin").authenticate(false).navigation(NavigationType.SIDE)
             .resource(orders())
             .resource(notes())
             .resource(tools)
             .resource(home)
-            .resource(Resource("empty"))
+            .resource(emptyPages)
         panel.mount(router)
 
         // One sidebar entry per resource, linking to the list/manage/index page.

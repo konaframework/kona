@@ -44,9 +44,10 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 | Item | Value |
 |------|--------|
 | Branch | `fix/firefly-panel-browser-shell` (ship via PR + automerge squash) |
-| Base | Builds on `a4b887b8` *fix(firefly): serve the panel as a visible HTML document* |
+| Base | Rebased onto `origin/main` after **#237** (*resources override form/table/infolist/getPages*). Conflict merge: keep #237 hook API + this branch’s Shamar shell (one nav entry, New/row actions, titles). |
 | Desk smoke app | `/home/smaosa/desk` — separate git tree; **not** part of this repo. `kona.home=/home/smaosa/kona` (composite/`includeBuild`). `APP_URL=http://127.0.0.1:4000` → run with `PORT=4000` / that URL |
 | Merge habit | `gh pr merge --auto --squash`; never push `main`; never mutate rulesets |
+| PR | https://github.com/konaframework/kona/pull/240 — rebased; grind usage-guard tests restore 100% kover after `BuiltinCommandSpecs` validates before `run()` |
 
 ### What landed on this branch
 
