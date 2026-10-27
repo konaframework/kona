@@ -29,12 +29,16 @@ object Stylesheet {
               --ff-sidebar-width: ${tokens.sidebarWidth};
               --ff-topbar-height: ${tokens.topbarHeight};
               --ff-body: ${tokens.bodyBackground};
+              background: var(--ff-surface);
+              color: var(--ff-heading);
             }
             .ff-panel.ff-dark {
               --ff-primary: ${tokens.darkPrimary};
               --ff-surface: ${tokens.darkSurface};
               --ff-heading: ${tokens.darkHeading};
               --ff-body: ${tokens.darkSurface};
+              background: var(--ff-surface);
+              color: var(--ff-heading);
             }
         """.trimIndent()
         val extraBlock = if (extra.isEmpty()) "" else "\n.ff-panel {\n$extra\n}"

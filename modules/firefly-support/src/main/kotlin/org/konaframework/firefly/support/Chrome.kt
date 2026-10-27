@@ -17,15 +17,39 @@ class DefaultLayout : PanelLayout {
         val topbar = part(context, "topbar")
         val body = part(context, "body")
         val footer = part(context, "footer")
-        return """
+        val panel = """
             <div class="ff-panel">
-              <style>${context.css}</style>
               $sidebar
               $topbar
               $body
               $footer
             </div>
         """.trimIndent()
+        return """
+            <!DOCTYPE html>
+            <html lang="en">
+              <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <title>Firefly</title>
+                <style>${context.css}</style>
+              </head>
+              <body style="margin:0;background:${escAttr(context.theme.tokens().bodyBackground)}">
+                $panel
+              </body>
+            </html>
+        """.trimIndent()
+    }
+
+    private fun escAttr(value: String): String = buildString {
+        for (ch in value) {
+            when (ch) {
+                '&' -> append("&amp;")
+                '"' -> append("&quot;")
+                '<' -> append("&lt;")
+                else -> append(ch)
+            }
+        }
     }
 
     private fun part(context: ChromeContext, name: String): String {

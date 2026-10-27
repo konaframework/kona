@@ -66,16 +66,24 @@ After the check, each marker is replaced with the concatenated hook HTML. A hook
 
 ## What the default layout writes
 
-`DefaultLayout` writes:
+`DefaultLayout` writes a full HTML document. Theme CSS goes in `<head>`. The panel chrome sits in the body:
 
 ```html
-<div class="ff-panel">
-  <style>…theme CSS…</style>
-  …sidebar…
-  …topbar…
-  …body…
-  …footer…
-</div>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    …charset, viewport, title…
+    <style>…theme CSS…</style>
+  </head>
+  <body>
+    <div class="ff-panel">
+      …sidebar…
+      …topbar…
+      …body…
+      …footer…
+    </div>
+  </body>
+</html>
 ```
 
 If a slot were absent from the map it receives, it would throw `Missing partial [<name>]`. `Panel` always fills all four slots before calling the layout, so that failure is for a custom caller of `DefaultLayout` that omits a key.

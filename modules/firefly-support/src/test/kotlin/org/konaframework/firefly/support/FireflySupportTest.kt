@@ -100,10 +100,12 @@ class FireflySupportTest {
             .hook(Hook.SIDEBAR_START, "<b>nav</b>")
             .hook(Hook.FOOTER, "<i>foot</i>")
         val html = shell.render()
+        assertTrue(html.contains("<!DOCTYPE html>", ignoreCase = true))
         assertTrue(html.contains("ff-panel"))
         assertTrue(html.contains("<b>nav</b>"))
         assertTrue(html.contains("<i>foot</i>"))
         assertTrue(html.contains("ff-sidebar"))
+        assertTrue(html.contains("background: var(--ff-surface)"))
         assertEquals("", RenderHooks().render(Hook.BODY_START))
 
         val bad = object : FireflyTheme {

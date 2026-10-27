@@ -1,22 +1,46 @@
 /* Scoped compile of tailwind/input.css. Preflight is not applied outside .ff-panel. */
+.ff-panel {
+    display: grid;
+    grid-template-columns: var(--ff-sidebar-width) 1fr;
+    grid-template-rows: var(--ff-topbar-height) 1fr auto;
+    min-height: 100vh;
+    background: var(--ff-surface);
+    color: var(--ff-heading);
+    font-family: var(--ff-font);
+}
+
 .ff-panel .ff-btn {
     border-radius: var(--ff-radius);
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     font-weight: 500;
+    background: var(--ff-primary);
+    color: #fff;
+    border: 0;
+    cursor: pointer;
 }
 
 .ff-panel .ff-sidebar {
+    grid-row: 1 / -1;
     height: 100%;
     width: var(--ff-sidebar-width);
     flex-shrink: 0;
     overflow-y: auto;
+    background: var(--ff-surface);
+    border-right: 1px solid color-mix(in srgb, var(--ff-accent) 25%, transparent);
+    padding: 1rem;
+    box-sizing: border-box;
 }
 
 .ff-panel .ff-topbar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     height: var(--ff-topbar-height);
+    padding: 0 1rem;
+    background: var(--ff-surface);
+    border-bottom: 1px solid color-mix(in srgb, var(--ff-accent) 25%, transparent);
+    box-sizing: border-box;
 }
 
 .ff-panel .ff-body {
@@ -24,6 +48,18 @@
     flex: 1 1 0%;
     background: var(--ff-body);
     font-family: var(--ff-font);
+    padding: 1.5rem;
+    box-sizing: border-box;
+}
+
+.ff-panel .ff-footer {
+    padding: 0.75rem 1rem;
+    background: var(--ff-surface);
+    border-top: 1px solid color-mix(in srgb, var(--ff-accent) 25%, transparent);
+}
+
+.ff-panel .ff-entangle {
+    display: none;
 }
 
 .ff-panel .ff-dialog {
