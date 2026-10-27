@@ -33,6 +33,9 @@ class SoftReloadClassLoaderTest {
         assertTrue(SoftReloadClassLoader.preferChildClass("bootstrap.App"))
         assertTrue(SoftReloadClassLoader.preferChildClass("config.App"))
         assertTrue(SoftReloadClassLoader.preferChildClass("routes.WebRoutes"))
+        assertTrue(SoftReloadClassLoader.isExplodedClassUrl(temp.resolve("out/Hot.class").toUri().toURL()))
+        assertFalse(SoftReloadClassLoader.isExplodedClassUrl(java.net.URI.create("jar:file:/tmp/lib.jar!/Hot.class").toURL()))
+        assertFalse(SoftReloadClassLoader.isExplodedClassUrl(java.net.URI.create("http://example.test/Hot.class").toURL()))
     }
 
     @Test
@@ -61,6 +64,30 @@ class SoftReloadClassLoaderTest {
                 assertEquals("child-note", child.getResourceAsStream("note.txt")!!.reader().readText())
                 val notes = child.getResources("note.txt").toList().map { it.openStream().reader().readText() }
                 assertEquals(listOf("child-note", "parent-note"), notes)
+            }
+        }
+    }
+
+    @Test
+    fun dependencyJarOnChildStaysParentFirst() {
+        // Prefer-child names that only exist inside a child jar must not be defined by the child
+        // loader — that duplicates library types already visible on the parent and breaks
+        // GeneratedAppBuildTest / in-process inertia serve with LinkageError.
+        val jarDir = temp.resolve("jars")
+        Files.createDirectories(jarDir)
+        val classDir = temp.resolve("jar-classes")
+        compileMarker(classDir, "from-jar")
+        val jar = jarDir.resolve("hot.jar")
+        java.util.jar.JarOutputStream(Files.newOutputStream(jar)).use { jos ->
+            val entry = java.util.jar.JarEntry("hot/Marker.class")
+            jos.putNextEntry(entry)
+            Files.copy(classDir.resolve("hot/Marker.class"), jos)
+            jos.closeEntry()
+        }
+        URLClassLoader(arrayOf(classDir.toUri().toURL()), null).use { parent ->
+            val parentClass = parent.loadClass("hot.Marker")
+            SoftReloadClassLoader(arrayOf(jar.toUri().toURL()), parent).use { child ->
+                assertSame(parentClass, child.loadClass("hot.Marker"))
             }
         }
     }

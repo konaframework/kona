@@ -32,10 +32,17 @@ internal class SoftReloadClassLoader(
         synchronized(getClassLoadingLock(name)) {
             var loaded = findLoadedClass(name)
             if (loaded == null) {
-                loaded = try {
-                    findClass(name)
-                } catch (_: ClassNotFoundException) {
-                    null
+                // Only child-first for exploded app outputs. Dependency jars on konaClasspath
+                // must stay parent-first — otherwise in-process serve hits LinkageError when
+                // the grind JVM already loaded the same library types.
+                val classFile = name.replace('.', '/') + ".class"
+                val url = findResource(classFile)
+                if (url != null && isExplodedClassUrl(url)) {
+                    loaded = try {
+                        findClass(name)
+                    } catch (_: ClassNotFoundException) {
+                        null
+                    }
                 }
             }
             if (loaded == null) {
@@ -98,6 +105,19 @@ internal class SoftReloadClassLoader(
                 return false
             }
             return true
+        }
+
+        /** True when [url] points at a `.class` under an exploded directory, not inside a jar. */
+        fun isExplodedClassUrl(url: URL): Boolean {
+            val protocol = url.protocol
+            if (protocol == "jar") {
+                return false
+            }
+            if (protocol != "file") {
+                return false
+            }
+            val path = url.path
+            return !path.contains(".jar!") && !path.contains(".jar/")
         }
     }
 }
