@@ -162,6 +162,20 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-btn"))
         assertTrue(css.contains(".ff-panel .ff-table-wrap"))
         assertTrue(css.contains("--ff-shell: var(--ff-surface"))
+        assertTrue(css.contains("--ff-table-shadow:"))
+        assertTrue(css.contains("box-shadow: var(--ff-table-shadow)"))
+        assertTrue(css.contains("--ff-width-xl:"))
+        assertTrue(css.contains("max-width: var(--ff-width-xl)"))
+        assertTrue(css.contains("""[data-ff-max-width="xl"]"""))
+        assertTrue(css.contains("margin-left: auto"))
+        assertTrue(css.contains("margin-right: auto"))
+        // List/manage table wraps keep elevation; chrome strip is create/edit/view only.
+        assertTrue(css.contains("/* List/manage: keep the elevated white .ff-table-wrap card"))
+        assertFalse(
+            Regex(
+                """\.ff-list\s+\.ff-page-content\s*>\s*\.ff-table-wrap\s*,[^{]*\{[^}]*box-shadow:\s*none""",
+            ).containsMatchIn(css),
+        )
         assertTrue(css.contains(".ff-panel .ff-table-wrap .ff-table"))
         // Flat white table surface: toolbar / thead / pagination use --ff-card (not inset).
         assertTrue(
