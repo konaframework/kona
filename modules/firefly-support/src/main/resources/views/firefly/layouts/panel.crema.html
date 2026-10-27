@@ -1,0 +1,38 @@
+{{--
+  Firefly panel chrome layout (spike — not yet loaded by DefaultLayout).
+
+  Governance: docs/governance/firefly-views.md
+  When Phase A lands, DefaultLayout (or a Crema PanelLayout) renders this
+  view with: documentTitle, brandName, csrfToken, css, sidebar, topbar, body, footer,
+  themeInitScript, chromeScript. Keep ff-hook markers in partials that fill the slots.
+--}}
+<!DOCTYPE html>
+<html lang="en" class="ff-html">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    @if(csrfToken)
+      <meta name="csrf-token" content="{{ csrfToken }}" />
+    @endif
+    <title>{{ documentTitle }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Inter:ital,opsz,wght@0,400..700;1,400..700&display=swap" />
+    {!! themeInitScript !!}
+    <style>{!! css !!}</style>
+  </head>
+  <body class="ff-body-root">
+    <div class="ff-panel">
+      <div class="ff-backdrop" data-ff-backdrop aria-hidden="true"></div>
+      {!! sidebar !!}
+      <div class="ff-column">
+        {!! topbar !!}
+        <div class="ff-scroll">
+          {!! body !!}
+        </div>
+        {!! footer !!}
+      </div>
+    </div>
+    {!! chromeScript !!}
+  </body>
+</html>

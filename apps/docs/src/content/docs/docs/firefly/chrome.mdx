@@ -10,6 +10,8 @@ Change the frame around every screen when the default sidebar, top bar, body, or
 
 The class that draws the frame is `org.konaframework.firefly.support.Panel`. The class you mount on the router is `org.konaframework.firefly.Panel`, on [Panel](/docs/firefly/panel/). The support class picks HTML for each region, checks that the hook markers are still there, fills those markers, and asks a layout to wrap the result.
 
+**Direction:** new Firefly chrome and components use [Wire](/docs/wire/) classes with [Crema](/docs/crema/) views — the class holds config and behavior; the Crema file owns markup. Custom fields, columns, and widgets already follow that shape via `./grind make:firefly-field` (and siblings). The built-in document layout still renders from Kotlin today; migrating it to Crema is the next chrome step. Prefer overriding slots with Crema-backed HTML rather than growing string templates in the panel class.
+
 <FireflyShot file="panel-chrome.png" description="The panel chrome at http://127.0.0.1:4017/admin/desk, showing the sidebar, top bar, page body, and footer." />
 
 ## Call the support Panel

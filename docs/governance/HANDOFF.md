@@ -16,6 +16,7 @@ Paste this file (or its path) into a new chat so another agent can continue with
 6. [github-rulesets.md](github-rulesets.md) — **never** mutate rulesets (Law 9).
 7. [publishing.md](publishing.md) — Maven Local today; Maven Central prerequisites and blockers for `org.konaframework`.
 8. Sister IDE repo: [`konaframework/kona-idea` → `HANDOFF.md`](https://github.com/konaframework/kona-idea/blob/main/HANDOFF.md).
+9. [firefly-views.md](firefly-views.md) — **locked:** Firefly UI = Wire class + Crema view; no new Kotlin string HTML chrome.
 
 ## In-repo Wire / Inertia (remonorepo)
 
@@ -39,55 +40,42 @@ Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
-## Resume here (2026-10-27) — Firefly panel browser shell
+## Resume here (2026-10-27) — Firefly Wire + Crema views rule
 
 | Item | Value |
 |------|--------|
-| Branch | `fix/firefly-panel-browser-shell` (ship via PR + automerge squash) |
-| Base | Rebased onto `origin/main` after **#237** (*resources override form/table/infolist/getPages*). Conflict merge: keep #237 hook API + this branch’s Shamar shell (one nav entry, New/row actions, titles). |
-| Desk smoke app | `/home/smaosa/desk` — separate git tree; **not** part of this repo. `kona.home=/home/smaosa/kona` (composite/`includeBuild`). `APP_URL=http://127.0.0.1:4000` → run with `PORT=4000` / that URL |
+| Branch | `docs/firefly-wire-crema-rule` (rule + migration plan + chrome Crema spike; commit first, PR when Phase A wiring is ready or when docs-only lands) |
+| Base | `origin/main` after **#240** (Shamar-shaped panel browser shell) |
+| Locked rule | [firefly-views.md](firefly-views.md) — **Firefly chrome and UI are Wire components with Crema views; Kotlin describes structure/config; Crema owns markup.** Do not invent Kotlin string HTML for new chrome/components. |
+| Desk smoke app | `/home/smaosa/desk` — separate git tree; **not** part of this repo. `kona.home=/home/smaosa/kona`. `PORT=4000` → http://127.0.0.1:4000/admin |
 | Merge habit | `gh pr merge --auto --squash`; never push `main`; never mutate rulesets |
-| PR | https://github.com/konaframework/kona/pull/240 — rebased; grind usage-guard tests restore 100% kover after `BuiltinCommandSpecs` validates before `run()` |
 
-### What landed on this branch
+### Architectural directive (cemented)
 
-Shamar-shaped Firefly **admin chrome** and grind DX for a real browser panel:
+User rejection of “stay on Kotlin string HTML” is accepted. Filament puts layout in Livewire/Blade views; Shamar puts the admin shell in Edge partials + Wire. Kona Wire is already class + Crema (`Component` + `views/wire/….crema.html`). Firefly grind scaffolds already emit class + Crema for custom fields/columns/widgets. The gap is **built-in** chrome/tables/auth still rendered as Kotlin string templates (`DefaultLayout`, `Panel.kt` partials, `Table.kt`). Performance of string builders vs Crema is **not** a reason to keep Kotlin markup without a measured bench — UX parity is markup + CSS structure.
 
-- **Chrome / shell** — `AuthLayout`, document-backed panel HTML, expanded `firefly.css` / Tailwind tokens, theme footer heights, sidebar user footer, **avatar-only** user-menu trigger (name/email in dropdown), Guest/`?` avatar fallbacks.
-- **Auth** — panel login CSRF wiring; `Panel.reuseAppGuard()` / `reuseAppGuard("web")` binds the live Auth manager guard; `SimpleUser` / `InMemoryUserProvider` identity bits for chrome.
-- **Resources / nav** — resource pages contribute **one** sidebar nav item; create/edit/view/delete stay as **page / header / row actions** (not extra nav links). Panel discovery **skips** `resources/` (and related) so resource classes are not double-registered as panels.
-- **Grind** — built-in `--help` / `-h` via `BuiltinCommandSpecs`; reject unknown args; `make:firefly-resource` **UserResource**-style suffix; hot-reload **jar isolation** (`ClasspathIsolation` + ServeWatch) so Gradle `build/libs` jars do not lock under the watch classloader.
-- **CLI kit** — Firefly skeleton moves to `app/panels/admin/` (Java + Kotlin); starter `build.gradle.kts` templates gain `kona.home` composite-build hooks.
-- **Docs** — Firefly chrome / install / navigation / resources / themes / grind running-commands (and Dev mirrors) updated for the shell.
+**Next implementation milestone (recommended):** Phase A in [firefly-views.md](firefly-views.md) — wire `DefaultLayout` to `views/firefly/layouts/panel.crema.html` (spike file already on this branch; not loaded yet), add Crema to `:kona-firefly-support`, keep hook-marker contract, 100% coverage. Then B auth → C table partials → D field wrappers. Prefer branch `feat/firefly-wire-crema-chrome` for the wiring PR.
+
+### What is on this branch
+
+- [firefly-views.md](firefly-views.md) — locked rule, evidence, phased migration
+- Handoff + parity ledger + architecture map + public chrome guide note
+- Spike: `modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html` (unwired)
+
+### Parallel work (do not collide)
+
+- Table Shamar UI polish may live on `fix/firefly-table-shamar-ui` — rebase after this rule merges if both touch docs/Firefly tables.
+- Hot-reload polish worktree: `/home/smaosa/kona-hot-reload-polish` (`fix/grind-serve-hot-reload-polish`) — unrelated modules; keep separate PRs.
 
 ### Desk app notes (manual verify only)
 
 ```bash
-# From kona: publish or composite-build into desk
 cd /home/smaosa/desk
-# gradle.properties already has kona.home=/home/smaosa/kona
-./grind migrate && ./grind db:seed
-PORT=4000 ./grind serve   # or ./gradlew run with PORT=4000
+PORT=4000 ./grind serve
 # Open http://127.0.0.1:4000/admin  (demo@kona.test / password)
 ```
 
-Do **not** commit desk into kona. Restart serve yourself after framework rebuilds (agents must not manage long-running servers).
-
-### How to verify
-
-```bash
-cd /home/smaosa/kona
-git checkout fix/firefly-panel-browser-shell
-./gradlew :kona-firefly:test :kona-firefly-support:test :kona-firefly-widgets:test :kona-grind:test :kona-cli:test :kona-auth:test
-# Full gate when CI-like:
-./gradlew test koverVerify
-```
-
-### Known follow-ups (optional; not blockers for this PR)
-
-- After merge: rebase any parallel Firefly milestone branches that touch `modules/firefly*` / `modules/grind`.
-- Visual polish vs Shamar may still iterate (tokens, denser tables) — prefer small follow-up PRs.
-- Confirm desk still boots against Maven Local if someone drops `kona.home` (starter templates now document the composite path).
+Do **not** commit desk into kona. Restart serve yourself after framework rebuilds.
 
 ## Where we are (framework ledger)
 
@@ -199,10 +187,11 @@ Key paths: `modules/` (framework), `apps/docs/`, `js/wire/`, `docs/governance/`,
 
 ## Open gaps / next priorities
 
-1. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
-2. Confirm no conflicting open PRs.
-3. Pick remaining **deepen** slices from the Almasix ledger. Non-colliding milestones may proceed in parallel, each on its own branch. Do not start a milestone that depends on another until that dependency is on `main`. **M26 Wire** shipped on **0.3.0**.
-4. **Maven Central — `v0.2.0` shipped** (do not re-tag). **`0.2.1` version bump on `main` — do not tag until release cut.** Optional follow-ups:
+1. **Firefly Phase A (Wire + Crema chrome):** wire `DefaultLayout` to `views/firefly/layouts/panel.crema.html`, Crema dependency on support, 100% coverage — see [firefly-views.md](firefly-views.md). Branch suggestion: `feat/firefly-wire-crema-chrome`.
+2. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
+3. Confirm no conflicting open PRs.
+4. Pick remaining **deepen** slices from the Almasix ledger. Non-colliding milestones may proceed in parallel, each on its own branch. Do not start a milestone that depends on another until that dependency is on `main`. **M26 Wire** shipped on **0.3.0**.
+5. **Maven Central — `v0.2.0` shipped** (do not re-tag). **`0.2.1` version bump on `main` — do not tag until release cut.** Optional follow-ups:
    - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
    - Trusted Publishing (OIDC) still **not GA** — token + GPG. Full checklist: [publishing.md](publishing.md).
 
