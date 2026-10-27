@@ -6,7 +6,7 @@ description: Pass rows to Table.memory or a Cadence model to Table.cadence, name
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Name the columns, point the table at the rows, and call `render()`. You get the search box, the sort, the filters, and the pages in that HTML.
+Name the columns, point the table at the rows, and call `render()`. You get a list toolbar (search field with icon, filters, header buttons), sortable column headers, pagination with a record count, and an in-table empty state when there are no rows. `TextColumn` is searchable and sortable by default.
 
 Use `Table.memory` when the rows are already in your hand. The hello samples do that: one row, Ada, so the screen renders before a migration. Use `Table.cadence` when the rows are a Cadence model and you want `where` and `whereHas` on that model’s query.
 
@@ -55,7 +55,7 @@ String html = table.render();
 
 `Table.memory` keeps the rows in an in-memory query. `columns(...)` replaces the column list. `search`, `sort`, `page`, and `perPage` narrow what `load()` and `render()` return. Search matches columns you marked `searchable(true)`. Sort accepts `asc` or `desc` on a column you marked `sortable(true)`. You see the Ada row when the search is `ada`.
 
-`load()` returns the current page, the total, the summaries, and the groups. `render()` returns the same page as HTML. An empty page uses the heading from `empty("No records")` and the text from `emptyDescription(...)`. Both accept a fixed string or a closure.
+`load()` returns the current page, the total, the summaries, and the groups. `render()` returns the same page as HTML. An empty page shows “No records found.” inside the table body (override with `empty(...)` / `emptyDescription(...)`). Both accept a fixed string or a closure. Sort headers and pagination links use query-string `search`, `sort`, `direction`, `page`, and `perPage` so a panel list can round-trip without Wire.
 
 ## Choose where the rows come from
 

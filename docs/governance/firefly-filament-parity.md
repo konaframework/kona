@@ -2,6 +2,8 @@
 
 Source of truth for behavior: Filament 5 (Filament 4 panel API on Livewire 4). Kona names the product **Firefly**. This ledger is for agents. Public docs must not compare Firefly to Filament.
 
+**Views authoring (locked):** Firefly chrome and components are Wire + Crema — class for config/behavior, Crema for markup. Do not add new Kotlin string HTML for panel shells, tables, or field wrappers. Full rule and migration phases: [firefly-views.md](firefly-views.md).
+
 Status: `todo` · `done`. A row is `done` only when the method, test, and public doc exist in this repo.
 
 Verified on `origin/main` `252c78a4` (#225): support through panel (M28–M35) are on `main`. M36 resources ship on `milestone/M36-firefly-resources` and land on `main` when that PR merges. M37 and M38 stay queued. Do not implement the Mongo addon.

@@ -12,6 +12,7 @@ kotlin {
 }
 
 dependencies {
+    api(project(":kona-crema"))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

@@ -3,9 +3,14 @@ package org.konaframework.firefly.support
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.konaframework.crema.CremaEngine
+import org.konaframework.crema.MapViewFinder
+import org.konaframework.crema.ViewNotFoundException
+import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -16,17 +21,100 @@ class FireflySupportTest {
     }
 
     @Test
+    fun cremaClasspathFinderLoadsPanelLayout() {
+        val finder = ClasspathViewFinder(FireflyCrema::class.java.classLoader)
+        val source = finder.get("firefly.layouts.panel")
+        assertTrue(source.contains("ff-panel"))
+        assertTrue(source.contains("{!! sidebar !!}"))
+        assertThrows(ViewNotFoundException::class.java) { finder.get("firefly.layouts.missing") }
+
+        val temp = Files.createTempDirectory("ff-crema-kt")
+        try {
+            val views = temp.resolve("views/alt")
+            Files.createDirectories(views)
+            Files.writeString(views.resolve("shell.crema.kt"), "<div>kt</div>")
+            Files.writeString(temp.resolve("bare.crema.html"), "<b>ok</b>")
+            val loader = URLClassLoader(arrayOf(temp.toUri().toURL()), null)
+            val ktFinder = ClasspathViewFinder(
+                loader,
+                "views",
+                listOf(".crema.html", ".crema.kt"),
+            )
+            assertEquals("<div>kt</div>", ktFinder.get("alt.shell"))
+            val emptyRoot = ClasspathViewFinder(loader, root = "")
+            assertEquals("<b>ok</b>", emptyRoot.get("bare"))
+            assertThrows(ViewNotFoundException::class.java) {
+                ClasspathViewFinder(loader, root = "/").get("alt.shell")
+            }
+        } finally {
+            Files.walk(temp).sorted(Comparator.reverseOrder()).forEach(Files::deleteIfExists)
+        }
+
+        assertSame(FireflyCrema.engine(), FireflyCrema.engine())
+        val panel = FireflyCrema.renderPanel(
+            mapOf(
+                "documentTitle" to "T",
+                "brandName" to "B",
+                "csrfToken" to null,
+                "css" to "/*x*/",
+                "sidebar" to "<aside></aside>",
+                "topbar" to "<header></header>",
+                "body" to "<main></main>",
+                "footer" to "<footer></footer>",
+                "themeInitScript" to "<script>init</script>",
+                "chromeScript" to "<script>chrome</script>",
+                "bodyBackground" to "#fff",
+                "bodyColor" to "#111",
+            ),
+        )
+        assertTrue(panel.contains("<title>T</title>"))
+        assertTrue(panel.contains("ff-panel"))
+        assertFalse(panel.contains("""name="csrf-token""""))
+
+        val injected = CremaEngine(
+            MapViewFinder().put(
+                FireflyCrema.PANEL,
+                "<html>{!! body !!}</html>",
+            ),
+        )
+        val fromInjected = DefaultLayout(injected).render(
+            ChromeContext(
+                KonaTheme(),
+                RenderHooks(),
+                mapOf(
+                    "sidebar" to "<aside>s</aside>",
+                    "topbar" to "<header>t</header>",
+                    "body" to "<main>b</main>",
+                    "footer" to "<footer>f</footer>",
+                ),
+                "css",
+            ),
+        )
+        assertEquals("<html><main>b</main></html>", fromInjected)
+    }
+
+    @Test
     fun dialogModesWidthsAndDefaults() {
         val plain = Dialog.make("Hello").render()
         assertTrue(plain.contains("ff-dialog-modal"))
         assertTrue(plain.contains("""data-ff-align="top""""))
         assertTrue(plain.contains("data-ff-drag"))
         assertTrue(plain.contains("Hello"))
+        // Closed by default — fixed inset dialog must not cover the page.
+        assertTrue(plain.contains(" hidden"))
+        assertTrue(plain.contains("""aria-hidden="true""""))
+        assertFalse(plain.contains("""aria-modal="true""""))
+
+        val open = Dialog.make("Hello").render(open = true)
+        assertTrue(open.contains("""aria-modal="true""""))
+        assertFalse(open.contains(" hidden"))
+        assertFalse(open.contains("""aria-hidden="true""""))
 
         val end = Dialog.make("Edit").slideOver().draggable(false).render()
         assertTrue(end.contains("ff-dialog-sidebar"))
         assertTrue(end.contains("""data-ff-position="end""""))
         assertFalse(end.contains("data-ff-drag"))
+        assertTrue(end.contains(" hidden"))
 
         val start = Dialog.make("Edit").slideOverStart().render()
         assertTrue(start.contains("""data-ff-position="start""""))
@@ -68,12 +156,20 @@ class FireflySupportTest {
         assertTrue(css.contains("--ff-primary: #C9A57B"))
         assertTrue(css.contains(".ff-panel .ff-btn"))
         assertTrue(css.contains(".ff-panel .ff-table-wrap"))
+        assertTrue(css.contains(".ff-panel .ff-table-search-wrap"))
+        assertTrue(css.contains(".ff-panel .ff-pagination"))
+        assertTrue(css.contains(".ff-panel .ff-page-header-actions > .ff-schema"))
+        assertTrue(css.contains("flex-direction: row"))
         assertTrue(css.contains(".ff-panel .ff-sidebar-brand"))
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
         assertTrue(css.contains(".ff-panel .ff-page-heading"))
         assertTrue(css.contains(".ff-panel .ff-page-mode"))
         assertTrue(css.contains(".ff-panel .ff-action-outlined"))
         assertTrue(css.contains(".ff-panel .ff-row-actions"))
+        assertTrue(css.contains(".ff-panel .ff-dialog[hidden]"))
+        assertTrue(css.contains(".ff-panel .ff-table-button-dialog[hidden]"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-overlay"))
+        assertTrue(css.contains("pointer-events: none !important"))
         assertTrue(css.contains("[data-ff-color=\"danger\"]"))
         // Sidebar + main foot share one shell band (not a white --ff-card strip),
         // locked to the same fixed min-height so empty vs "Signed in as …" match.

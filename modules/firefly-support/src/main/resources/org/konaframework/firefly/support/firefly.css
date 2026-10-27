@@ -649,13 +649,24 @@ body.ff-body-root {
   color: var(--ff-body-subtle);
 }
 
-.ff-panel .ff-page-header-actions,
-.ff-panel .ff-page-footer > .ff-schema {
+.ff-panel .ff-page-header-actions {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   margin-left: auto;
+}
+
+/* Actions render inside an .ff-schema wrapper — keep them horizontal (Shamar page heading). */
+.ff-panel .ff-page-header-actions > .ff-schema,
+.ff-panel .ff-page-footer > .ff-schema {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
 }
 
 .ff-panel .ff-page-content {
@@ -930,7 +941,7 @@ body.ff-body-root {
   background: var(--ff-primary);
 }
 
-/* ——— Tables ——— */
+/* ——— Tables (Shamar list card) ——— */
 .ff-panel .ff-table-wrap {
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
@@ -941,17 +952,74 @@ body.ff-body-root {
 
 .ff-panel .ff-table-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 0.65rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--ff-card-border);
   background: var(--ff-inset);
 }
 
-.ff-panel .ff-table-search {
+.ff-panel .ff-table-toolbar-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.ff-panel .ff-table-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 14rem;
   min-width: 12rem;
-  flex: 1 1 12rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius);
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.ff-panel .ff-table-search-wrap:focus-within {
+  border-color: var(--ff-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-primary) 22%, transparent);
+}
+
+.ff-panel .ff-table-search-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-table-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0.25rem 0;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ff-heading);
+  outline: none;
+}
+
+.ff-panel .ff-table-search::placeholder {
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-table-toolbar-actions,
+.ff-panel .ff-table-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ff-panel .ff-table-scroll {
+  overflow-x: auto;
 }
 
 .ff-panel .ff-table {
@@ -970,6 +1038,45 @@ body.ff-body-root {
   text-transform: uppercase;
   background: var(--ff-inset);
   border-bottom: 1px solid var(--ff-card-border);
+  white-space: nowrap;
+}
+
+.ff-panel .ff-table-actions-head {
+  text-align: right;
+}
+
+.ff-panel .ff-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ff-panel .ff-table-sort:hover {
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-table-sort-indicator {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  opacity: 0.35;
+  transform: rotate(45deg);
+  translate: 0 -0.1rem;
+}
+
+.ff-panel .ff-table-sortable[data-ff-sort="asc"] .ff-table-sort-indicator {
+  opacity: 1;
+  transform: rotate(-135deg);
+  translate: 0 0.15rem;
+}
+
+.ff-panel .ff-table-sortable[data-ff-sort="desc"] .ff-table-sort-indicator {
+  opacity: 1;
+  transform: rotate(45deg);
 }
 
 .ff-panel .ff-table td {
@@ -985,6 +1092,100 @@ body.ff-body-root {
 
 .ff-panel .ff-table tbody tr:hover td {
   background: color-mix(in srgb, var(--ff-primary) 5%, transparent);
+}
+
+.ff-panel .ff-table-empty-row td {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--ff-body-subtle);
+  background: transparent;
+}
+
+.ff-panel .ff-table-empty-row:hover td {
+  background: transparent;
+}
+
+.ff-panel .ff-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-empty .ff-heading,
+.ff-panel .ff-empty h2,
+.ff-panel .ff-empty h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--ff-card-border);
+  background: var(--ff-inset);
+  font-size: 0.875rem;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-pagination-meta {
+  margin: 0;
+}
+
+.ff-panel .ff-pagination-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.ff-panel .ff-pagination-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-card);
+  color: var(--ff-heading);
+  text-decoration: none;
+  font-size: 0.8125rem;
+}
+
+.ff-panel .ff-pagination-link:hover {
+  background: var(--ff-hover);
+}
+
+.ff-panel .ff-pagination-link.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-page-size-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.35rem;
+  font-size: 0.75rem;
+}
+
+.ff-panel .ff-page-size {
+  min-height: 2rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-card);
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--ff-heading);
 }
 
 .ff-panel .ff-column {
@@ -1046,6 +1247,16 @@ body.ff-body-root {
   z-index: 50;
 }
 
+/* Closed dialogs (and Action/TableButton mounts) must not intercept clicks. */
+.ff-panel .ff-dialog[hidden],
+.ff-panel .ff-action-dialog[hidden],
+.ff-panel .ff-table-button-dialog[hidden],
+.ff-panel .ff-action-dialog[style*="display: none"],
+.ff-panel .ff-table-button-dialog[style*="display: none"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .ff-panel .ff-dialog-modal .ff-dialog-window {
   margin: 4rem auto 0;
   max-width: 32rem;
@@ -1056,6 +1267,7 @@ body.ff-body-root {
   padding: 1.1rem 1.2rem;
 }
 
+.ff-panel .ff-dialog-overlay,
 .ff-panel .ff-dialog-backdrop {
   position: absolute;
   inset: 0;

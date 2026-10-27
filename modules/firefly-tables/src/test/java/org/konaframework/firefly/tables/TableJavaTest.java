@@ -74,6 +74,23 @@ public class TableJavaTest {
     }
 
     @Test
+    void javaForModelOpensCadenceOrRejectsUnknown() {
+        String url = "jdbc:h2:mem:ffjavamodel" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE";
+        Database database = new Database().addConnection("default", new ConnectionConfig(url, "sa", ""));
+        database.connection().statement(
+            "create table ff_java_people (id bigint auto_increment primary key, name varchar(100))"
+        );
+        database.setAsGlobal();
+        Table<?, ?> table = Table.forModel(JavaPerson.class);
+        table.columns(TextColumn.make("name"));
+        assertTrue(table.render().contains("ff-table"));
+        org.junit.jupiter.api.Assertions.assertThrows(
+            org.konaframework.firefly.support.FireflyException.class,
+            () -> Table.forModel(Object.class)
+        );
+    }
+
+    @Test
     void javaReceivesAModelBuilder() {
         String url = "jdbc:h2:mem:ffjava" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE";
         Database database = new Database().addConnection("default", new ConnectionConfig(url, "sa", ""));
@@ -139,6 +156,23 @@ public class TableJavaTest {
         @Override
         public Set<String> getFillable() {
             return Set.of("customer_id", "total");
+        }
+    }
+
+    public static class JavaPerson extends Cadence<JavaPerson> {
+        @Override
+        public String getTable() {
+            return "ff_java_people";
+        }
+
+        @Override
+        public boolean getTimestamps() {
+            return false;
+        }
+
+        @Override
+        public Set<String> getFillable() {
+            return Set.of("name");
         }
     }
 }

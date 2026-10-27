@@ -407,17 +407,26 @@ class FireflyTablesTest {
         val modal = made.label("Edit").modal().schema(Text.make("Hello"))
         val modalHtml = modal.render(Cell { "Edit" }, true)
         assertTrue(modalHtml.contains("ff-dialog-modal"))
-        assertTrue(modalHtml.contains("x-data=\"ffAction('edit')\""))
+        assertTrue(modalHtml.contains("ff-table-button-mount"))
+        assertTrue(modalHtml.contains("ff-table-button-dialog"))
+        assertTrue(modalHtml.contains("""style="display:none""""))
+        assertTrue(modalHtml.contains(" x-cloak"))
+        assertTrue(modalHtml.contains("ff-table-button-dialog\" x-show=\"open\" x-cloak style=\"display:none\" hidden"))
         assertTrue(modalHtml.contains("\$wire.\$call('edit')"))
+        assertTrue(modalHtml.contains("""data-ff-action-boot="ffAction('edit')""""))
         assertTrue(modalHtml.contains("Hello"))
         val slide = TableButton.make("side").label { "Side ${it.get("name")}" }.slideOver()
-        assertTrue(slide.render(Cell { "Ada" }, false).contains("ff-dialog-sidebar"))
+        val slideHtml = slide.render(Cell { "Ada" }, false)
+        assertTrue(slideHtml.contains("ff-dialog-sidebar"))
+        assertTrue(slideHtml.contains("""style="display:none""""))
         val full = TableButton.make("full").fullscreen().disabled(true)
         assertTrue(full.render(Cell { null }, false).contains("ff-dialog-fullscreen"))
         assertTrue(full.render(Cell { null }, false).contains("disabled"))
+        assertTrue(full.render(Cell { null }, false).contains("ff-table-button-dialog"))
         val linked = TableButton.make("web").url("https://example.test").url { "https://example.test/a" }
         assertTrue(linked.render(Cell { null }, false).contains("href="))
         assertFalse(linked.render(Cell { null }, false).contains("ff-dialog"))
+        assertFalse(linked.render(Cell { null }, false).contains("ff-table-button-dialog"))
         val needs = TableButton.make("bulk").requiresSelection(true).disabled(false)
         assertTrue(needs.render(Cell { null }, true).contains("disabled"))
         assertFalse(needs.render(Cell { null }, false).contains("disabled"))
@@ -525,7 +534,7 @@ class FireflyTablesTest {
 
         val calls = Table.memory(rows).columns(
             TextColumn.make("name").sortable(true).toggleable(true),
-            TextColumn.make("on").toggleable(true),
+            TextColumn.make("on").sortable(false).toggleable(true),
         ).filters(Filter.make("name").attribute("name")).reorderable("score")
         calls.call("search", "Ada")
         calls.call("sort", "name")
@@ -583,7 +592,89 @@ class FireflyTablesTest {
         )
         assertThrows(FireflyException::class.java) { RecordStores.open(Ghost::class.java).query() }
         assertThrows(FireflyException::class.java) { RecordStores.open(NeedsArgs::class.java).query() }
+
+        // Shamar-shaped toolbar / sort / pagination / empty markup.
+        val noSearch = Table.memory(rows).columns(TextColumn.make("name").searchable(false).sortable(false))
+        assertTrue(noSearch.render().contains("ff-table-toolbar--empty") || noSearch.render().contains("hidden"))
+        assertFalse(noSearch.render().contains("ff-table-sort"))
+        val sorted = Table.memory(rows)
+            .columns(TextColumn.make("name"))
+            .search("Ada")
+            .sort("name", "desc")
+            .perPage(25)
+            .page(1)
+            .pageOptions(10, 25)
+        val sortedHtml = sorted.render()
+        assertTrue(sortedHtml.contains("ff-table-search-wrap"))
+        assertTrue(sortedHtml.contains("placeholder=\"Search…\""))
+        assertTrue(sortedHtml.contains("ff-table-sort"))
+        assertTrue(sortedHtml.contains("data-ff-sort=\"desc\""))
+        assertTrue(sortedHtml.contains("search=Ada") || sortedHtml.contains("search=Ada".replace("=", "=")))
+        assertTrue(sortedHtml.contains("direction=asc")) // next click flips to asc
+        assertTrue(sortedHtml.contains("ff-pagination-meta"))
+        assertTrue(sortedHtml.contains("records"))
+        val asc = Table.memory(rows).columns(TextColumn.make("name")).sort("name", "asc").perPage(1).page(2)
+        val ascHtml = asc.render()
+        assertTrue(ascHtml.contains("data-ff-sort=\"asc\""))
+        assertTrue(ascHtml.contains("page=1"))
+        assertTrue(ascHtml.contains("perPage=1"))
+        val empty = Table.memory(emptyList<Map<String, Any?>>()).columns(TextColumn.make("name"))
+        assertTrue(empty.render().contains("ff-table-empty-row"))
+        assertTrue(empty.render().contains("No records found."))
+        // Pagination href without search/sort at default page size; toolbar with filters but no search.
+        val pagedOnly = Table.memory(rows).columns(TextColumn.make("name").searchable(false).sortable(false)).page(2)
+        val pagedOnlyHtml = pagedOnly.render()
+        assertTrue(pagedOnlyHtml.contains("?page=1"))
+        assertFalse(pagedOnlyHtml.contains("perPage="))
+        val customSize = Table.memory(rows).columns(TextColumn.make("name").searchable(false)).perPage(1).page(2)
+        assertTrue(customSize.render().contains("perPage=1"))
+        val filterOnly = Table.memory(rows)
+            .columns(TextColumn.make("name").searchable(false))
+            .filters(Filter.make("status").attribute("status").options(mapOf("open" to "Open")))
+        assertTrue(filterOnly.render().contains("ff-table-filters"))
+        assertTrue(filterOnly.render().contains("ff-table-toolbar-actions"))
+        val buttonsOnly = Table.memory(rows)
+            .columns(TextColumn.make("name").searchable(false).sortable(false))
+            .headerButtons(TableButton.make("export").label("Export"))
+        assertTrue(buttonsOnly.render().contains("Export"))
+        val searchOnly = Table.memory(rows)
+            .columns(TextColumn.make("name").sortable(false))
+            .search("Bea")
+            .perPage(1)
+            .page(2)
+        val searchOnlyHtml = searchOnly.render()
+        assertTrue(searchOnlyHtml.contains("search=Bea"))
+        assertTrue(searchOnlyHtml.contains("page=1"))
+        assertFalse(searchOnlyHtml.contains("sort="))
+        val bothTools = Table.memory(rows)
+            .columns(TextColumn.make("name"))
+            .filters(Filter.make("status").attribute("status"))
+            .headerButtons(TableButton.make("export").label("Export"))
+        assertTrue(bothTools.render().contains("ff-table-toolbar-actions"))
+        assertTrue(bothTools.render().contains("Export"))
     }
+
+    @Test
+    fun forModelOpensCadenceStore() {
+        val url = "jdbc:h2:mem:ffmodel${System.nanoTime()};DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
+        val database = org.konaframework.cadence.Database().addConnection(
+            "default",
+            org.konaframework.cadence.ConnectionConfig(url, "sa", "", poolSize = 2),
+        )
+        database.connection().statement(
+            "create table ff_model_people (id bigint auto_increment primary key, name varchar(100))",
+        )
+        database.setAsGlobal()
+        val table = Table.forModel(ModelPerson::class.java).columns(TextColumn.make("name"))
+        assertTrue(table.render().contains("ff-table"))
+        assertThrows(FireflyException::class.java) { Table.forModel(Plain::class.java) }
+    }
+}
+
+private class ModelPerson : org.konaframework.cadence.Cadence<ModelPerson>() {
+    override val table = "ff_model_people"
+    override val timestamps = false
+    override val fillable = setOf("name")
 }
 
 private class Plain

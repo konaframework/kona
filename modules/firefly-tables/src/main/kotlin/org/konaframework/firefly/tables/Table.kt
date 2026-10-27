@@ -294,14 +294,32 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         !column.isHidden(cell) && column.name !in hiddenByUser
 
     private fun toolbar(cell: Cell): String {
-        val search = if (columnList.any { it.isSearchable(cell) }) {
-            """<input class="ff-table-search" value="${escapeHtml(searchTerm)}">"""
-        } else {
+        val searchable = columnList.any { it.isSearchable(cell) }
+        val search = if (!searchable) {
             ""
+        } else {
+            """
+            <div class="ff-table-search-wrap">
+              <svg class="ff-table-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0015.803 15.803z"/></svg>
+              <input class="ff-table-search" type="search" name="search" value="${escapeHtml(searchTerm)}" placeholder="Search…" aria-label="Search">
+            </div>
+            """.trimIndent()
         }
-        val filters = if (filterList.isEmpty()) "" else filterList.joinToString("") { it.render(cell, filterValue(it, cell)) }
+        val filters = if (filterList.isEmpty()) {
+            ""
+        } else {
+            """<div class="ff-table-filters">${filterList.joinToString("") { it.render(cell, filterValue(it, cell)) }}</div>"""
+        }
         val buttons = headerButtonList.joinToString("") { it.render(cell, selectedKeys.isEmpty()) }
-        return """<div class="ff-table-toolbar">$search$filters$buttons</div>"""
+        val tools = if (filterList.isEmpty() && buttons.isEmpty()) {
+            ""
+        } else {
+            """<div class="ff-table-toolbar-actions">$filters$buttons</div>"""
+        }
+        if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty()) {
+            return """<div class="ff-table-toolbar ff-table-toolbar--empty" hidden></div>"""
+        }
+        return """<div class="ff-table-toolbar"><form class="ff-table-toolbar-form" method="get">$search$tools</form></div>"""
     }
 
     private fun body(loaded: LoadedTable<T>, visible: List<Column>): String = when (layout) {
@@ -311,19 +329,51 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     private fun rows(loaded: LoadedTable<T>, visible: List<Column>): String {
-        val headers = visible.joinToString("") { """<th>${escapeHtml(it.heading(tableCell()))}</th>""" }
-        val selectHead = if (selectable) """<th><button type="button" x-on:click="${'$'}wire.${'$'}call('selectPage')"></button></th>""" else ""
-        val body = if (loaded.groups.isEmpty()) {
-            loaded.records.joinToString("") { recordRow(it, visible) }
-        } else {
-            loaded.groups.joinToString("") { (label, records) ->
-                val span = visible.size + if (selectable) 1 else 0
+        val cell = tableCell()
+        val headers = visible.joinToString("") { columnHeader(it, cell) }
+        val selectHead = if (selectable) """<th class="ff-table-select"><button type="button" x-on:click="${'$'}wire.${'$'}call('selectPage')" aria-label="Select page"></button></th>""" else ""
+        val actionHead = if (rowButtonList.isEmpty()) "" else """<th class="ff-table-actions-head">Actions</th>"""
+        val span = visible.size + (if (selectable) 1 else 0) + (if (rowButtonList.isEmpty()) 0 else 1)
+        val body = when {
+            loaded.isEmpty() -> {
+                """<tr class="ff-table-empty-row"><td colspan="$span">${emptyStateInner(cell)}</td></tr>"""
+            }
+            loaded.groups.isEmpty() -> loaded.records.joinToString("") { recordRow(it, visible) }
+            else -> loaded.groups.joinToString("") { (label, records) ->
                 """<tr class="ff-group"><th colspan="$span">${escapeHtml(label)}</th></tr>""" +
                     records.joinToString("") { recordRow(it, visible) }
             }
         }
-        return """<table class="ff-table"><thead><tr>$selectHead$headers</tr></thead><tbody>$body</tbody></table>"""
+        return """<div class="ff-table-scroll"><table class="ff-table"><thead><tr>$selectHead$headers$actionHead</tr></thead><tbody>$body</tbody></table></div>"""
     }
+
+    private fun columnHeader(column: Column, cell: Cell): String {
+        val label = escapeHtml(column.heading(cell))
+        if (!column.isSortable(cell)) {
+            return """<th scope="col">$label</th>"""
+        }
+        val active = sortColumn == column.name
+        val next = if (active && sortDirection == "asc") "desc" else "asc"
+        val state = when {
+            !active -> "idle"
+            sortDirection == "desc" -> "desc"
+            else -> "asc"
+        }
+        val href = sortHref(column.name, next)
+        return """<th scope="col" class="ff-table-sortable" data-ff-sort="$state"><a class="ff-table-sort" href="${escapeHtml(href)}" data-ff-sort-column="${escapeHtml(column.name)}" data-ff-sort-direction="$next">$label<span class="ff-table-sort-indicator" aria-hidden="true"></span></a></th>"""
+    }
+
+    private fun sortHref(column: String, direction: String): String {
+        val parts = ArrayList<String>()
+        if (searchTerm.isNotEmpty()) parts.add("search=${encodeQuery(searchTerm)}")
+        parts.add("sort=${encodeQuery(column)}")
+        parts.add("direction=$direction")
+        if (pageNumber > 1) parts.add("page=$pageNumber")
+        return "?" + parts.joinToString("&")
+    }
+
+    private fun encodeQuery(value: String): String =
+        java.net.URLEncoder.encode(value, Charsets.UTF_8)
 
     private fun recordRow(record: T, visible: List<Column>): String {
         val values = store.attributes(record)
@@ -376,8 +426,13 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     private fun emptyState(loaded: LoadedTable<T>, cell: Cell): String {
+        // Empty copy lives inside the table body (Shamar list). Keep a hidden sentinel for tests.
         if (!loaded.isEmpty()) return ""
-        val heading = emptyHeading.get(cell, "No records")
+        return """<div class="ff-table-empty" hidden>${emptyStateInner(cell)}</div>"""
+    }
+
+    private fun emptyStateInner(cell: Cell): String {
+        val heading = emptyHeading.get(cell, "No records found.")
         val state = EmptyState.make(heading)
         val description = emptyDescription.get(cell, "")
         if (description.isNotEmpty()) state.description(description)
@@ -386,23 +441,41 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     private fun pager(loaded: LoadedTable<T>): String {
         if (!paginate) return ""
+        val meta = """<p class="ff-pagination-meta">Page ${loaded.page} of ${loaded.lastPage} · ${loaded.total} records</p>"""
         val previous = if (loaded.page > 1) {
-            """<button type="button" data-ff-page="prev" x-on:click="${'$'}wire.${'$'}call('gotoPage', '${loaded.page - 1}')">Previous</button>"""
+            """<a class="ff-pagination-link" href="${escapeHtml(pageHref(loaded.page - 1))}" data-ff-page="prev">Previous</a>"""
         } else {
-            ""
+            """<span class="ff-pagination-link is-disabled" aria-disabled="true">Previous</span>"""
         }
         val next = if (loaded.hasMorePages()) {
-            """<button type="button" data-ff-page="next" x-on:click="${'$'}wire.${'$'}call('gotoPage', '${loaded.page + 1}')">Next</button>"""
+            """<a class="ff-pagination-link" href="${escapeHtml(pageHref(loaded.page + 1))}" data-ff-page="next">Next</a>"""
         } else {
-            ""
+            """<span class="ff-pagination-link is-disabled" aria-disabled="true">Next</span>"""
         }
         val sizes = if (pageSizes.isEmpty()) {
             ""
         } else {
-            pageSizes.joinToString("") { size -> """<option value="$size">$size</option>""" }
-                .let { """<select class="ff-page-size">$it</select>""" }
+            val options = pageSizes.joinToString("") { size ->
+                val selected = if (size == pageSize) " selected" else ""
+                """<option value="$size"$selected>$size</option>"""
+            }
+            """<label class="ff-page-size-label">Rows <select class="ff-page-size" name="perPage" onchange="this.form.submit()">$options</select></label>"""
         }
-        return """<nav class="ff-pagination">$previous<span>${loaded.page} / ${loaded.lastPage}</span>$next$sizes</nav>"""
+        val controls = """<div class="ff-pagination-controls">$previous$next$sizes</div>"""
+        return """<nav class="ff-pagination" data-ff-pagination aria-label="Pagination">$meta$controls</nav>"""
+    }
+
+    private fun pageHref(page: Int): String {
+        val parts = ArrayList<String>()
+        if (searchTerm.isNotEmpty()) parts.add("search=${encodeQuery(searchTerm)}")
+        val sorting = sortColumn
+        if (sorting != null) {
+            parts.add("sort=${encodeQuery(sorting)}")
+            parts.add("direction=$sortDirection")
+        }
+        parts.add("page=$page")
+        if (pageSize != 10) parts.add("perPage=$pageSize")
+        return "?" + parts.joinToString("&")
     }
 
     private fun filterValue(filter: Filter, cell: Cell): Any? =
@@ -455,6 +528,14 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
         @JvmStatic
         fun memory(vararg rows: Map<String, Any?>): Table<Map<String, Any?>, MemoryQuery> = memory(rows.toList())
+
+        /** Open a Cadence table for [model], or throw when the model has no record store. */
+        @JvmStatic
+        @Suppress("UNCHECKED_CAST")
+        fun forModel(model: Class<*>): Table<*, *> {
+            val store = RecordStores.open(model) as RecordStore<Any?, Any?>
+            return finish(Table(store))
+        }
 
         private fun <T, Q> finish(table: Table<T, Q>): Table<T, Q> {
             @Suppress("UNCHECKED_CAST")

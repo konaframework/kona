@@ -10,6 +10,8 @@ Change the frame around every screen when the default sidebar, top bar, body, or
 
 The class that draws the frame is `org.konaframework.firefly.support.Panel`. The class you mount on the router is `org.konaframework.firefly.Panel`, on [Panel](/docs/firefly/panel/). The support class picks HTML for each region, checks that the hook markers are still there, fills those markers, and asks a layout to wrap the result.
 
+**Direction:** Firefly chrome and components use [Wire](/docs/wire/) classes with [Crema](/docs/crema/) views — the class holds config and behavior; the Crema file owns markup. Custom fields, columns, and widgets already follow that shape via `./grind make:firefly-field` (and siblings). The built-in authenticated document shell follows the same rule: `DefaultLayout` is a thin adapter that packs partial data and renders `views/firefly/layouts/panel.crema.html` through Crema (`FireflyCrema` / `ClasspathViewFinder` in `:kona-firefly-support`). A Wire page-host component for the shell is not required for this slice — Crema from `DefaultLayout` is the first vertical cut. Prefer overriding slots with Crema-backed HTML rather than growing string templates in the panel class. Auth screens still use `AuthLayout` (Kotlin document) until the next chrome step.
+
 <FireflyShot file="panel-chrome.png" description="The panel chrome at http://127.0.0.1:4017/admin/desk, showing the sidebar, top bar, page body, and footer." />
 
 ## Call the support Panel
@@ -66,7 +68,7 @@ After the check, each marker is replaced with the concatenated hook HTML. A hook
 
 ## What the default layout writes
 
-`DefaultLayout` writes a full HTML document. Theme CSS and the Inter / DM Sans font links go in `<head>`, alongside a tiny no-flash script that applies the stored theme preference before the first paint. When a session is on the request, a `<meta name="csrf-token">` tag is written too so forms and Firefly Forms uploads can send `_token` / `X-CSRF-TOKEN`. The authenticated shell is a flex row: sidebar beside a column that holds the top bar, a scroll region for the body, and a pinned footer. A drawer backdrop and a small dependency-free behavior script (theme cycle, dropdown menus, mobile drawer) finish the document.
+`DefaultLayout` renders a full HTML document from the Crema layout `firefly.layouts.panel` (`modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html`). Kotlin only supplies the four slot partials (already hook-filled), theme CSS, CSRF token, title, body colors, and the theme-init / chrome behavior scripts. Theme CSS and the Inter / DM Sans font links go in `<head>`, alongside a tiny no-flash script that applies the stored theme preference before the first paint. When a session is on the request, a `<meta name="csrf-token">` tag is written too so forms and Firefly Forms uploads can send `_token` / `X-CSRF-TOKEN`. The authenticated shell is a flex row: sidebar beside a column that holds the top bar, a scroll region for the body, and a pinned footer. A drawer backdrop and a small dependency-free behavior script (theme cycle, dropdown menus, mobile drawer) finish the document.
 
 ```html
 <!DOCTYPE html>

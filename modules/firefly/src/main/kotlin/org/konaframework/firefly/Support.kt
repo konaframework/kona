@@ -28,6 +28,19 @@ internal object FireflyCsrf {
         return """<input type="hidden" name="_token" value="${escapeHtml(token)}" />"""
     }
 
+    /**
+     * When the request has a session token, require a matching `_token` (or `csrf-token`) field.
+     * Sessions without a token (tests / no StartSession) skip the check.
+     */
+    fun rejectIfInvalid(request: Request): org.konaframework.http.Response? {
+        val session = request.session() ?: return null
+        val expected = session.get(TOKEN_KEY) as? String ?: return null
+        if (expected.isBlank()) return null
+        val provided = request.input(TOKEN_KEY) ?: request.input("csrf-token") ?: request.header("X-CSRF-TOKEN")
+        if (provided != null && provided == expected) return null
+        return org.konaframework.http.Response.html("CSRF token mismatch", 419)
+    }
+
     private fun generate(): String {
         val bytes = ByteArray(32)
         random.nextBytes(bytes)
