@@ -62,12 +62,21 @@ open class Page {
         val formHtml = if (formSchema == null) "" else formSchema!!.render()
         val infoHtml = if (infolistMarkup == null) "" else infolistMarkup!!
         val tableHtml = if (contentTable == null) "" else contentTable!!.render()
-        return """<section class="${sectionClass()}"><header class="ff-page-header"><h1>${escapeHtml(title)}</h1><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        val mode = modeLabel()
+        val modeHtml = if (mode == null) {
+            ""
+        } else {
+            """<span class="ff-page-mode" data-ff-mode="${escapeHtml(mode)}">${escapeHtml(mode)}</span>"""
+        }
+        return """<section class="${sectionClass()}"><header class="ff-page-header"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
     }
 
     protected open fun sectionClass(): String = "ff-page"
 
     protected open fun fallbackTitle(): String = "Page"
+
+    /** Optional mode chip rendered beside the title (create / edit / detail). */
+    protected open fun modeLabel(): String? = null
 
     private fun renderActions(actions: List<Action>): String {
         if (actions.isEmpty()) return ""

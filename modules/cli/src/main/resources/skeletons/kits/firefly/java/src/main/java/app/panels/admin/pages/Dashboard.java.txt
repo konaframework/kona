@@ -1,0 +1,16 @@
+package app.panels.admin.pages;
+
+import org.konaframework.firefly.DashboardPage;
+import org.konaframework.firefly.schemas.Schema;
+import org.konaframework.firefly.schemas.Text;
+
+public class Dashboard extends DashboardPage {
+    public Dashboard() {
+        title("Dashboard");
+        schema(
+            new Schema().components(
+                Text.make("Welcome to your panel. Add pages under pages/ and resources under resources/.")
+            )
+        );
+    }
+}

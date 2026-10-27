@@ -22,74 +22,95 @@ constructor(
     private val classLoader: ClassLoader = GrindApplication::class.java.classLoader,
 ) {
     fun run(args: Array<String>): Int {
-        val (positional, options) = parseOptions(args.toList())
+        val (positional, options) = try {
+            parseOptions(args.toList())
+        } catch (ex: GrindException) {
+            GrindIO(color = GrindIO.detectColor()).error(ex.message ?: "grind error")
+            return 1
+        }
         val io = GrindIO.fromOptions(options)
         GrindLogging.hushConsole(io.verbosity == Verbosity.VERBOSE)
         if (positional.isEmpty() || positional[0] == "help" || positional[0] == "--help" || positional[0] == "-h") {
+            val stray = options.keys.firstOrNull { it !in SignatureParser.GLOBAL_OPTIONS }
+            if (stray != null) {
+                io.error("Unknown option [--$stray]")
+                return 1
+            }
             discoverCustomCommands(options)
             printHelp(io)
             return 0
         }
         discoverCustomCommands(options)
+        val command = positional[0]
+        val rest = positional.drop(1)
+        val flattened = rest + flatten(options)
+        val spec = BuiltinCommandSpecs[command]
+        if (spec != null && options.containsKey("help")) {
+            CommandHelp.print(io, spec)
+            return 0
+        }
         return try {
-            when (val command = positional[0]) {
-                "serve" -> ServeCommand().run(positional.drop(1) + flatten(options))
-                "route:list" -> RouteCommand(RouteCommand.Action.LIST).run(positional.drop(1) + flatten(options))
-                "route:cache" -> RouteCommand(RouteCommand.Action.CACHE).run(positional.drop(1) + flatten(options))
-                "route:clear" -> RouteCommand(RouteCommand.Action.CLEAR).run(positional.drop(1) + flatten(options))
-                "make:controller" -> MakeControllerCommand().run(positional.drop(1) + flatten(options))
-                "make:command" -> MakeCommandCommand().run(positional.drop(1) + flatten(options))
-                "make:resource" -> MakeResourceCommand().run(positional.drop(1) + flatten(options))
-                "make:middleware" -> MakeMiddlewareCommand().run(positional.drop(1) + flatten(options))
-                "make:policy" -> MakePolicyCommand().run(positional.drop(1) + flatten(options))
-                "make:request" -> MakeRequestCommand().run(positional.drop(1) + flatten(options))
-                "make:view" -> MakeViewCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-layout" -> MakeFireflyLayoutCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-action" -> MakeFireflyActionCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-entry" -> MakeFireflyEntryCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-column" -> MakeFireflyColumnCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-filter" -> MakeFireflyFilterCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-field" -> MakeFireflyFieldCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-widget" -> MakeFireflyWidgetCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-panel" -> MakeFireflyPanelCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-page" -> MakeFireflyPageCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-theme" -> MakeFireflyThemeCommand().run(positional.drop(1) + flatten(options))
-                "make:firefly-resource" -> MakeFireflyResourceCommand().run(positional.drop(1) + flatten(options))
-                "firefly:install" -> FireflyInstallCommand().run(positional.drop(1) + flatten(options))
-                "firefly:publish" -> FireflyPublishCommand().run(positional.drop(1) + flatten(options))
-                "make:model" -> MakeModelCommand().run(positional.drop(1) + flatten(options))
-                "make:migration" -> MakeMigrationCommand().run(positional.drop(1) + flatten(options))
-                "make:factory" -> MakeFactoryCommand().run(positional.drop(1) + flatten(options))
-                "make:seeder" -> MakeSeederCommand().run(positional.drop(1) + flatten(options))
-                "migrate" -> MigrateCommand(MigrateCommand.Action.MIGRATE).run(positional.drop(1) + flatten(options))
-                "migrate:rollback" -> MigrateCommand(MigrateCommand.Action.ROLLBACK).run(positional.drop(1) + flatten(options))
-                "migrate:reset" -> MigrateCommand(MigrateCommand.Action.RESET).run(positional.drop(1) + flatten(options))
-                "migrate:refresh" -> MigrateCommand(MigrateCommand.Action.REFRESH).run(positional.drop(1) + flatten(options))
-                "migrate:fresh" -> MigrateCommand(MigrateCommand.Action.FRESH).run(positional.drop(1) + flatten(options))
-                "migrate:status" -> MigrateCommand(MigrateCommand.Action.STATUS).run(positional.drop(1) + flatten(options))
-                "migrate:install" -> MigrateCommand(MigrateCommand.Action.INSTALL).run(positional.drop(1) + flatten(options))
-                "db:wipe" -> MigrateCommand(MigrateCommand.Action.WIPE).run(positional.drop(1) + flatten(options))
-                "db:seed" -> SeedCommand().run(positional.drop(1) + flatten(options))
-                "db:show" -> DatabaseInspectCommand(DatabaseInspectCommand.Action.SHOW).run(positional.drop(1) + flatten(options))
-                "db:table" -> DatabaseInspectCommand(DatabaseInspectCommand.Action.TABLE).run(positional.drop(1) + flatten(options))
-                "schema:dump" -> DatabaseInspectCommand(DatabaseInspectCommand.Action.DUMP).run(positional.drop(1) + flatten(options))
-                "queue:work" -> QueueWorkCommand().run(positional.drop(1) + flatten(options))
-                "queue:failed" -> QueueFailedCommand(QueueFailedCommand.Action.LIST).run(positional.drop(1) + flatten(options))
-                "queue:retry" -> QueueFailedCommand(QueueFailedCommand.Action.RETRY).run(positional.drop(1) + flatten(options))
-                "queue:flush" -> QueueFailedCommand(QueueFailedCommand.Action.FLUSH).run(positional.drop(1) + flatten(options))
-                "schedule:run" -> ScheduleRunCommand(ScheduleRunCommand.Action.RUN).run(positional.drop(1) + flatten(options))
-                "schedule:list" -> ScheduleRunCommand(ScheduleRunCommand.Action.LIST).run(positional.drop(1) + flatten(options))
-                "schedule:work" -> ScheduleRunCommand(ScheduleRunCommand.Action.WORK).run(positional.drop(1) + flatten(options))
-                "steam" -> SteamCommand().run(positional.drop(1) + flatten(options))
-                "assets:vite" -> AssetsViteCommand().run(positional.drop(1) + flatten(options))
-                "storage:link" -> StorageLinkCommand().run(positional.drop(1) + flatten(options))
-                "deploy:systemd" -> SystemdDeployCommand().run(positional.drop(1) + flatten(options))
-                "down" -> DownCommand().run(positional.drop(1) + flatten(options))
-                "up" -> UpCommand().run(positional.drop(1) + flatten(options))
-                "key:generate" -> KeyGenerateCommand().run(positional.drop(1) + flatten(options))
-                "ide:lsp" -> IdeLspCommand().run(positional.drop(1) + flatten(options))
-                "install" -> InstallCommand(basePath).run(positional.drop(1) + flatten(options))
-                "list" -> ListCommand(registry).run(positional.drop(1) + flatten(options))
+            if (spec != null) {
+                SignatureParser.bind(spec, rest, options)
+            }
+            when (command) {
+                "serve" -> ServeCommand().run(flattened)
+                "route:list" -> RouteCommand(RouteCommand.Action.LIST).run(flattened)
+                "route:cache" -> RouteCommand(RouteCommand.Action.CACHE).run(flattened)
+                "route:clear" -> RouteCommand(RouteCommand.Action.CLEAR).run(flattened)
+                "make:controller" -> MakeControllerCommand().run(flattened)
+                "make:command" -> MakeCommandCommand().run(flattened)
+                "make:resource" -> MakeResourceCommand().run(flattened)
+                "make:middleware" -> MakeMiddlewareCommand().run(flattened)
+                "make:policy" -> MakePolicyCommand().run(flattened)
+                "make:request" -> MakeRequestCommand().run(flattened)
+                "make:view" -> MakeViewCommand().run(flattened)
+                "make:firefly-layout" -> MakeFireflyLayoutCommand().run(flattened)
+                "make:firefly-action" -> MakeFireflyActionCommand().run(flattened)
+                "make:firefly-entry" -> MakeFireflyEntryCommand().run(flattened)
+                "make:firefly-column" -> MakeFireflyColumnCommand().run(flattened)
+                "make:firefly-filter" -> MakeFireflyFilterCommand().run(flattened)
+                "make:firefly-field" -> MakeFireflyFieldCommand().run(flattened)
+                "make:firefly-widget" -> MakeFireflyWidgetCommand().run(flattened)
+                "make:firefly-panel" -> MakeFireflyPanelCommand().run(flattened)
+                "make:firefly-page" -> MakeFireflyPageCommand().run(flattened)
+                "make:firefly-theme" -> MakeFireflyThemeCommand().run(flattened)
+                "make:firefly-resource" -> MakeFireflyResourceCommand().run(flattened)
+                "firefly:install" -> FireflyInstallCommand().run(flattened)
+                "firefly:publish" -> FireflyPublishCommand().run(flattened)
+                "make:model" -> MakeModelCommand().run(flattened)
+                "make:migration" -> MakeMigrationCommand().run(flattened)
+                "make:factory" -> MakeFactoryCommand().run(flattened)
+                "make:seeder" -> MakeSeederCommand().run(flattened)
+                "migrate" -> MigrateCommand(MigrateCommand.Action.MIGRATE).run(flattened)
+                "migrate:rollback" -> MigrateCommand(MigrateCommand.Action.ROLLBACK).run(flattened)
+                "migrate:reset" -> MigrateCommand(MigrateCommand.Action.RESET).run(flattened)
+                "migrate:refresh" -> MigrateCommand(MigrateCommand.Action.REFRESH).run(flattened)
+                "migrate:fresh" -> MigrateCommand(MigrateCommand.Action.FRESH).run(flattened)
+                "migrate:status" -> MigrateCommand(MigrateCommand.Action.STATUS).run(flattened)
+                "migrate:install" -> MigrateCommand(MigrateCommand.Action.INSTALL).run(flattened)
+                "db:wipe" -> MigrateCommand(MigrateCommand.Action.WIPE).run(flattened)
+                "db:seed" -> SeedCommand().run(flattened)
+                "db:show" -> DatabaseInspectCommand(DatabaseInspectCommand.Action.SHOW).run(flattened)
+                "db:table" -> DatabaseInspectCommand(DatabaseInspectCommand.Action.TABLE).run(flattened)
+                "schema:dump" -> DatabaseInspectCommand(DatabaseInspectCommand.Action.DUMP).run(flattened)
+                "queue:work" -> QueueWorkCommand().run(flattened)
+                "queue:failed" -> QueueFailedCommand(QueueFailedCommand.Action.LIST).run(flattened)
+                "queue:retry" -> QueueFailedCommand(QueueFailedCommand.Action.RETRY).run(flattened)
+                "queue:flush" -> QueueFailedCommand(QueueFailedCommand.Action.FLUSH).run(flattened)
+                "schedule:run" -> ScheduleRunCommand(ScheduleRunCommand.Action.RUN).run(flattened)
+                "schedule:list" -> ScheduleRunCommand(ScheduleRunCommand.Action.LIST).run(flattened)
+                "schedule:work" -> ScheduleRunCommand(ScheduleRunCommand.Action.WORK).run(flattened)
+                "steam" -> SteamCommand().run(flattened)
+                "assets:vite" -> AssetsViteCommand().run(flattened)
+                "storage:link" -> StorageLinkCommand().run(flattened)
+                "deploy:systemd" -> SystemdDeployCommand().run(flattened)
+                "down" -> DownCommand().run(flattened)
+                "up" -> UpCommand().run(flattened)
+                "key:generate" -> KeyGenerateCommand().run(flattened)
+                "ide:lsp" -> IdeLspCommand().run(flattened)
+                "install" -> InstallCommand(basePath).run(flattened)
+                "list" -> ListCommand(registry).run(flattened)
                 "new" -> {
                     io.error("Create applications with the global CLI: kona new")
                     io.warn("grind is app-local — run ./grind serve from inside a project.")
@@ -97,9 +118,9 @@ constructor(
                 }
                 else ->
                     if (GradleAliasCommand.isGradleToken(command)) {
-                        GradleAliasCommand.fromToken(command).run(positional.drop(1) + flatten(options))
+                        GradleAliasCommand.fromToken(command).run(flattened)
                     } else {
-                        runCustomOrUnknown(command, positional.drop(1) + flatten(options), io, options)
+                        runCustomOrUnknown(command, flattened, io, options)
                     }
             }
         } catch (ex: GrindException) {
@@ -205,6 +226,7 @@ internal fun parseOptions(args: List<String>): Pair<List<String>, Map<String, St
                         'a' -> options["all"] = "true"
                         'R' -> options["requests"] = "true"
                         'w' -> options["watch"] = "true"
+                        else -> throw GrindException("Unknown option [-$c]")
                     }
                 }
             }

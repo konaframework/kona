@@ -66,6 +66,7 @@ class FireflyWidgetsTest {
             .widgets(revenue, orders)
         val html = page.render()
         assertTrue(html.contains("ff-dashboard"))
+        assertTrue(html.contains("ff-page-heading"))
         assertTrue(html.contains("Shop"))
         assertTrue(html.contains("Create"))
         assertTrue(html.contains("Export"))
@@ -82,6 +83,14 @@ class FireflyWidgetsTest {
         assertTrue(revenue.render().contains("Revenue"))
         assertTrue(orders.render().contains("apexcharts.min.js"))
         assertFalse(orders.render().contains("chart.umd.js"))
+        // Mode chips are opt-in via modeLabel(); the base Page leaves them off.
+        assertFalse(html.contains("ff-page-mode"))
+        val badged = object : Page() {
+            override fun modeLabel(): String? = "edit"
+            override fun fallbackTitle(): String = "Record"
+        }.render()
+        assertTrue(badged.contains("""data-ff-mode="edit""""))
+        assertTrue(badged.contains("ff-page-mode"))
     }
 
     @Test

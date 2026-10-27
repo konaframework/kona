@@ -204,6 +204,46 @@ internal class GradleClassesCompiler(
     }
 }
 
+/**
+ * Soft reload keeps framework facades in the parent class loader while [AppLoader] swaps the
+ * child URLClassLoader. Call [reset] on each known facade when present so Firefly remounts panels
+ * (and Wire/Inertia drop stale managers) on the new [Application].
+ */
+internal object SoftReload {
+    val DEFAULT_FACADES = listOf(
+        "org.konaframework.firefly.Firefly",
+        "org.konaframework.wire.Wire",
+        "org.konaframework.inertia.Inertia",
+    )
+
+    fun resetFacades(
+        loader: ClassLoader = SoftReload::class.java.classLoader,
+        names: List<String> = DEFAULT_FACADES,
+    ) {
+        for (name in names) {
+            invokeReset(name, loader)
+        }
+    }
+
+    fun invokeReset(className: String, loader: ClassLoader): Boolean {
+        return try {
+            val type = Class.forName(className, false, loader)
+            type.getMethod("reset").invoke(null)
+            true
+        } catch (_: ClassNotFoundException) {
+            false
+        } catch (_: NoClassDefFoundError) {
+            false
+        } catch (_: NoSuchMethodException) {
+            false
+        } catch (_: ReflectiveOperationException) {
+            false
+        } catch (_: ExceptionInInitializerError) {
+            false
+        }
+    }
+}
+
 internal object ServeWatch {
     fun wantsWatch(options: Map<String, String>): Boolean {
         if (options["once"] == "true") {
@@ -270,6 +310,8 @@ internal object ServeWatch {
 
     fun boot(root: Path, options: Map<String, String>): Pair<AppLoader, Application> {
         Kona.reset()
+        // Firefly / Wire / Inertia keep process-wide state in the parent loader across URLClassLoader swaps.
+        SoftReload.resetFacades()
         val loader = AppLoader(root, options.getOrDefault("bootstrap", AppLoader.DEFAULT_BOOTSTRAP))
         val app = loader.create(arrayOf("--base=$root"))
         return loader to app
@@ -282,6 +324,9 @@ internal object ServeWatch {
         previousApp: Application,
         previousLoader: AppLoader,
     ): Pair<AppLoader, Application> {
+        // Release ZipFile/JarURLConnection handles on the previous generation before the next
+        // URLClassLoader opens Gradle outputs (ClasspathIsolation also avoids build/libs jars).
+        previousLoader.close()
         val (loader, app) = boot(root, options)
         server.replaceKernel(app.resolve(HttpKernel::class.java))
         dispose(previousApp, previousLoader)

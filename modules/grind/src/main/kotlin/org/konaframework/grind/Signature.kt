@@ -100,6 +100,10 @@ object SignatureParser {
         return CommandSignature(name, arguments, options, description)
     }
 
+    /** Options accepted on every grind command (verbosity, help, project root, …). */
+    val GLOBAL_OPTIONS: Set<String> =
+        setOf("isolated", "help", "h", "verbose", "quiet", "v", "q", "base", "bootstrap")
+
     fun bind(signature: CommandSignature, positional: List<String>, rawOptions: Map<String, String>): CommandInput {
         val args = linkedMapOf<String, String>()
         val lists = linkedMapOf<String, List<String>>()
@@ -119,7 +123,14 @@ object SignatureParser {
             }
         }
         if (index < positional.size) {
-            throw GrindException("Too many arguments for ${signature.name}")
+            throw GrindException("Unexpected argument [${positional[index]}] for ${signature.name}")
+        }
+        val allowed = signature.options.map { it.name }.toSet() + GLOBAL_OPTIONS
+        rawOptions.keys.forEach { key ->
+            if (key in allowed) return@forEach
+            // `--seed` aliases `--seeder` when the command declares seeder.
+            if (key == "seed" && "seeder" in allowed) return@forEach
+            throw GrindException("Unknown option [--$key] for ${signature.name}")
         }
         val opts = linkedMapOf<String, String>()
         signature.options.forEach { def ->
@@ -137,7 +148,7 @@ object SignatureParser {
                 }
             }
         }
-        listOf("isolated", "help", "verbose", "quiet", "v", "q", "base", "bootstrap").forEach { key ->
+        GLOBAL_OPTIONS.forEach { key ->
             rawOptions[key]?.let { opts.putIfAbsent(key, it) }
         }
         return CommandInput(args, lists, opts)

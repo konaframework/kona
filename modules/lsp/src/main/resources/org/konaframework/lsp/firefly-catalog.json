@@ -19,11 +19,16 @@
     "package" : "org.konaframework.firefly",
     "kind" : "page",
     "methods" : [ "discoverWidgets", "footerActions", "form", "headerActions", "infolistHtml", "mountForm", "mountInfolist", "navigationLabel", "parent", "parentName", "render", "schema", "slug", "table", "title", "widgets" ]
-  }, {
+  },   {
     "name" : "Dashboard",
     "package" : "org.konaframework.firefly.widgets",
     "kind" : "page",
     "methods" : [ "discoverWidgets", "footerActions", "form", "headerActions", "infolistHtml", "render", "schema", "table", "title", "widgets" ]
+  }, {
+    "name" : "DashboardPage",
+    "package" : "org.konaframework.firefly",
+    "kind" : "page",
+    "methods" : [ "discoverWidgets", "footerActions", "form", "headerActions", "infolistHtml", "mountForm", "mountInfolist", "navigationLabel", "parent", "parentName", "render", "schema", "slug", "table", "title", "widgets" ]
   }, {
     "name" : "EditPage",
     "package" : "org.konaframework.firefly",

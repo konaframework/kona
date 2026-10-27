@@ -24,10 +24,10 @@ Without `--no-interaction`, `kona new` asks only for values you did not already 
 1. **Where should we create the app?** — default `kona-app` (skipped if you pass a directory)
 2. **App name** — `APP_NAME` in `.env`; default is Title Case of the folder (`my-app` → `My App`)
 3. **Language** — Kotlin (default) or Java
-4. **What are we brewing?** — API only, Crema, Wire, or Inertia
+4. **What are we brewing?** — API only, Crema, Wire, Inertia, or Firefly
 5. **Inertia adapter** — Vue, React, or Svelte (Inertia only)
 6. **Frontend language** — JavaScript (default) or TypeScript (Inertia only; skipped when `--typescript` / `--ts` or `--javascript` / `--js` is set)
-7. **CSS** — Tailwind, Bootstrap, or custom (skipped for API)
+7. **CSS** — Tailwind, Bootstrap, or custom (skipped for API only; Firefly still asks so welcome and other non-panel pages get Vite)
 8. **Database** — sqlite (default), h2, mysql, mariadb, pgsql, sqlsrv, oracle
 9. **Install dependencies now?** — Gradle wrapper, plus `npm` or `pnpm` when `package.json` exists
 10. **Run initial migrations?**
@@ -45,7 +45,7 @@ If stdin is not readable (closed pipe, EOF) and you did not opt out, Kona prints
 | Directory argument | “Where should we create the app?” |
 | `--name=` / `--app-name=` | App name (`APP_NAME`) |
 | `--lang=kotlin\|java` | Language |
-| `--kit=` / `--preset=` | Stack (`web`, `api`, `crema`, `inertia`, `wire`; `brew` is a Wire alias) |
+| `--kit=` / `--preset=` | Stack (`web`, `api`, `crema`, `inertia`, `wire`, `firefly`; `brew` is a Wire alias) |
 | `--frontend=vue\|react\|svelte` | Inertia adapter |
 | `--typescript` / `--ts` | Inertia frontend language → TypeScript |
 | `--javascript` / `--js` | Inertia frontend language → JavaScript |
@@ -70,6 +70,7 @@ After a **DONE** chip, the outro lists `cd`, `./grind serve`, and (when you skip
 | `inertia` | + `kona-inertia` | Inertia middleware, root shell, Vite + Vue/React/Svelte, Crema login/dashboard |
 | `wire` | + `kona-wire` | Crema landing with a live `<wire:counter />` plus login/dashboard |
 | `brew` | + `kona-wire` | Deprecated alias of `wire` |
+| `firefly` | + `kona-firefly` (+ Wire) | Crema welcome/login/dashboard plus a mounted admin panel at `/admin` (`reuseAppGuard`, demo `demo@kona.test` / `password` at `/admin/login` after seed); Vite CSS stack for non-panel pages; panel chrome uses shipped `firefly.css` |
 
 Every kit registers Cadence, Redis, Session, Auth, Queue, Schedule, and Mail providers; generates `APP_KEY` in `.env`; and applies `StartSession` + CSRF (except `/api/*` and `/wire/*`) in `bootstrap.Middleware`.
 

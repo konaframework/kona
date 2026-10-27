@@ -54,10 +54,28 @@ tasks.register("konaClasspath") {
     group = "kona"
     description = "Print runtime classpath for grind serve --in-process"
     doLast {
+        // Prefer exploded classes/resources over build/libs jars so `./grind serve` watch
+        // can run `gradlew classes` / `:jar` without rewriting ZipFiles the JVM has mapped
+        // (avoids "ZipFile invalid LOC header (bad signature)" on soft reload).
+        fun expand(file: java.io.File): List<java.io.File> {
+            if (!file.isFile || !file.name.endsWith(".jar")) return listOf(file)
+            val libs = file.parentFile ?: return listOf(file)
+            if (libs.name != "libs") return listOf(file)
+            val buildDir = libs.parentFile ?: return listOf(file)
+            if (buildDir.name != "build") return listOf(file)
+            val exploded = listOf(
+                buildDir.resolve("classes/kotlin/main"),
+                buildDir.resolve("classes/java/main"),
+                buildDir.resolve("resources/main"),
+            ).filter { it.isDirectory }
+            return if (exploded.isEmpty()) listOf(file) else exploded
+        }
         val sep = System.getProperty("path.separator")
         println(
             sourceSets["main"].runtimeClasspath
                 .filter { it.exists() }
+                .flatMap { expand(it) }
+                .distinct()
                 .joinToString(sep) { it.absolutePath },
         )
     }

@@ -32,7 +32,7 @@ cd my-app
 
 Open `http://127.0.0.1:4000/`. Supported path: **install `kona` → `kona new` → `./grind serve`**.
 
-Drop `--no-interaction` if you want the installer to ask kit, language, CSS, and database. From a nested folder you can use `kona grind serve` instead of `./grind serve`.
+Drop `--no-interaction` if you want the installer to ask kit, language, CSS (skipped only for the API kit), and database. From a nested folder you can use `kona grind serve` instead of `./grind serve`.
 
 Generated apps resolve `org.konaframework` libraries from **[Maven Central](https://repo1.maven.org/maven2/org/konaframework/)**. You do not need a Kona source checkout to build or run an application.
 
@@ -95,7 +95,7 @@ kona new my-app --no-interaction
 kona new my-app --lang=java --no-interaction
 ```
 
-Interactive (asks directory, language, kit, CSS, database):
+Interactive (asks directory, language, kit, CSS — except API — database):
 
 ```bash
 kona new

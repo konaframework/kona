@@ -65,10 +65,12 @@ class NewCommandInteractiveTest {
         assertEquals("wire", NewStacks.kitId(NewStacks.WIRE))
         assertEquals("wire", NewStacks.kitId(NewStacks.BREW))
         assertEquals("inertia", NewStacks.kitId(NewStacks.INERTIA))
+        assertEquals("firefly", NewStacks.kitId(NewStacks.FIREFLY))
         assertEquals("web", NewStacks.kitId(NewStacks.CREMA))
         assertEquals("tailwind", NewStacks.cssId(NewStacks.CSS_TAILWIND))
         assertEquals("bootstrap", NewStacks.cssId(NewStacks.CSS_BOOTSTRAP))
         assertEquals("custom", NewStacks.cssId(NewStacks.CSS_CUSTOM))
+        assertTrue(NewStacks.KITS.contains(NewStacks.FIREFLY))
         assertEquals("react", NewStacks.frontendId(NewStacks.FE_REACT))
         assertEquals("svelte", NewStacks.frontendId(NewStacks.FE_SVELTE))
         assertEquals("vue", NewStacks.frontendId(NewStacks.FE_VUE))
@@ -129,6 +131,14 @@ class NewCommandInteractiveTest {
         assertEquals(
             "Crema · custom CSS",
             NewPlan(temp, "A", "kotlin", "web", "custom", "", db, false, false, false).stackLabel,
+        )
+        assertEquals(
+            "Firefly · Tailwind CSS",
+            NewPlan(temp, "A", "kotlin", "firefly", "tailwind", "", db, false, false, false).stackLabel,
+        )
+        assertEquals(
+            "Firefly · custom CSS",
+            NewPlan(temp, "A", "kotlin", "firefly", "custom", "", db, false, false, false).stackLabel,
         )
     }
 
@@ -806,6 +816,38 @@ class NewCommandInteractiveTest {
         assertTrue(Files.isRegularFile(app.resolve("src/main/java/app/wire/Counter.java")))
         assertTrue(Files.readString(app.resolve("package.json")).contains("bootstrap"))
         assertTrue(Files.readString(app.resolve("src/main/resources/views/welcome.crema.html")).contains("<wire:counter"))
+    }
+
+    @Test
+    fun fireflyKitPromptsCssAndScaffoldsVite() {
+        val app = temp.resolve("ff-desk")
+        // kit=firefly skips stack; defaults: app name, lang, CSS (Tailwind), db, install/migrate/seed, confirm
+        val recording = RecordingPrompts("\n".repeat(12))
+        val (cmd, _) = command("", prompts = recording)
+        assertEquals(0, cmd.run(listOf(app.toString(), "--kit=firefly")))
+        assertTrue(recording.choices.contains("CSS"))
+        assertTrue(Files.readString(app.resolve("build.gradle.kts")).contains("kona-firefly"))
+        assertTrue(Files.isRegularFile(app.resolve("src/main/kotlin/app/panels/admin/Panel.kt")))
+        assertTrue(Files.isDirectory(app.resolve("src/main/kotlin/app/panels/admin")))
+        assertFalse(Files.exists(app.resolve("src/main/kotlin/app/panels.admin")))
+        assertTrue(Files.isRegularFile(app.resolve("package.json")))
+        assertTrue(Files.readString(app.resolve("package.json")).contains("vite"))
+        assertTrue(Files.readString(app.resolve("package.json")).contains("tailwindcss"))
+        assertTrue(Files.isRegularFile(app.resolve("vite.config.js")))
+        assertTrue(Files.readString(app.resolve("src/main/resources/css/app.css")).contains("tailwindcss"))
+        assertTrue(Files.readString(app.resolve("src/main/resources/js/app.js")).contains("app.css"))
+        assertTrue(Files.readString(app.resolve("src/main/resources/views/welcome.crema.html")).contains("@vite"))
+    }
+
+    @Test
+    fun fireflyKitAcceptsCssFlagWithoutPrompt() {
+        val app = temp.resolve("ff-bs")
+        val recording = RecordingPrompts("\n".repeat(12))
+        val (cmd, _) = command("", prompts = recording)
+        assertEquals(0, cmd.run(listOf(app.toString(), "--kit=firefly", "--css=bootstrap")))
+        assertFalse(recording.choices.contains("CSS"))
+        assertTrue(Files.readString(app.resolve("package.json")).contains("bootstrap"))
+        assertTrue(Files.isRegularFile(app.resolve("vite.config.js")))
     }
 }
 

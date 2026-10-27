@@ -23,7 +23,7 @@ internal fun boolAttr(name: String, on: Boolean): String =
 internal fun entangle(path: String): String {
     val safe = if (path.matches(Regex("[A-Za-z0-9_.]+"))) path else ""
     val directive = if (safe.isEmpty()) "" else "@entangle($safe)"
-    return """<span class="ff-entangle" x-data="ffField" data-ff-path="${esc(path)}">$directive</span>"""
+    return """<span class="ff-entangle" x-data="ffField" data-ff-path="${esc(path)}" data-ff-entangle="$directive"></span>"""
 }
 
 internal fun textTag(tag: String, css: String, text: String?): String {

@@ -97,6 +97,7 @@ private val PANEL_ID = Regex("^[A-Za-z_][A-Za-z0-9_]*$")
 internal fun writePanel(base: Path, lang: String, id: String, path: String?) {
     if (id.isBlank()) throw GrindException("Panel id is blank")
     val segment = panelPackageSegment(id)
+    // Nested directories only — never a single `panels.$id` folder.
     val root = "app/panels/$segment"
     Names.write(base, Names.sourceFile(lang, root, "Panel"), "Firefly panel", panelSource(lang, segment, path))
     val language = if (lang == "java") "java" else "kotlin"
@@ -121,6 +122,8 @@ private fun panelSource(lang: String, id: String, path: String?): String {
             "    public Panel() {",
             "        id(\"$id\");",
             *pathLines.toTypedArray(),
+            "        reuseAppGuard();",
+            "        authenticate(true);",
             "    }",
             "}",
         )
@@ -132,6 +135,8 @@ private fun panelSource(lang: String, id: String, path: String?): String {
             "    init {",
             "        id(\"$id\")",
             *pathLines.toTypedArray(),
+            "        reuseAppGuard()",
+            "        authenticate(true)",
             "    }",
             "}",
         )

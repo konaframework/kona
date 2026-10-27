@@ -10,10 +10,16 @@ import java.util.function.Supplier
  * Registers panels and mounts them when the application boots.
  *
  * Panels under `app/panels` are discovered. Call [register] for a panel you build by hand.
+ *
+ * Soft reload (`grind serve` watch) builds a new [Application] while this object stays in the
+ * parent class loader. [prepare] / [mount] clear the prior mount so panels bind to the new router.
  */
 object Firefly {
     private val manual = ArrayList<Supplier<Panel>>()
     private val mounted = AtomicBoolean(false)
+
+    @Volatile
+    private var mountedApp: Application? = null
 
     /** Keeps [panel] and mounts it on the next [mount]. The same instance is used. */
     @JvmStatic
@@ -32,15 +38,30 @@ object Firefly {
     fun reset() {
         manual.clear()
         mounted.set(false)
+        mountedApp = null
+    }
+
+    /**
+     * Clears a stale mount when [app] is a new [Application] (grind soft reload).
+     * Call from [FireflyServiceProvider.register] before hand [register] calls so new
+     * manuals are not wiped by a later remount.
+     */
+    @JvmStatic
+    fun prepare(app: Application) {
+        val previous = mountedApp
+        if (previous != null && previous !== app) {
+            reset()
+        }
     }
 
     /**
      * Mounts hand-registered panels, then every panel class under `app/panels`
-     * and [FireflyConfig.discovery]. A second call does nothing.
+     * and [FireflyConfig.discovery]. A second call for the same [app] does nothing.
      * When the router is not bound yet, this returns and a later call can mount.
      */
     @JvmStatic
     fun mount(app: Application) {
+        prepare(app)
         if (!mounted.compareAndSet(false, true)) return
         if (!app.container.bound(Router::class.java)) {
             mounted.set(false)
@@ -62,6 +83,7 @@ object Firefly {
                 panel.mount(router)
             }
         }
+        mountedApp = app
     }
 
     private fun discover(app: Application): List<Panel> {

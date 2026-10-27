@@ -1,37 +1,1301 @@
-/* Scoped compile of tailwind/input.css. Preflight is not applied outside .ff-panel. */
-.ff-panel .ff-btn {
-    border-radius: var(--ff-radius);
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    font-weight: 500;
+/* Firefly panel chrome — Shamar-shaped layout, Kona coffee tokens.
+ * Panel screens: .ff-panel. Auth screens: .ff-auth (no sidebar/topbar).
+ * Authoring note: modules/firefly-support/tailwind/input.css is the Tailwind source;
+ * this file is the shipped stylesheet (hand-expanded to match Shamar’s admin shell). */
+
+html.ff-html,
+body.ff-body-root {
+  height: 100%;
 }
 
+body.ff-body-root {
+  overflow: hidden;
+}
+
+.ff-panel,
+.ff-auth {
+  --ff-body-text: #475569;
+  --ff-body-subtle: #64748b;
+  --ff-card: #ffffff;
+  --ff-card-border: #e2e8f0;
+  --ff-shell: color-mix(in srgb, var(--ff-primary) 8%, #ffffff);
+  --ff-hover: color-mix(in srgb, var(--ff-primary) 18%, #ffffff);
+  --ff-active: color-mix(in srgb, var(--ff-primary) 28%, #ffffff);
+  --ff-inset: color-mix(in srgb, var(--ff-primary) 10%, #f8fafc);
+  --ff-shadow: 0 1px 2px color-mix(in srgb, #0f172a 4%, transparent),
+    0 10px 28px color-mix(in srgb, #0f172a 8%, transparent);
+  color: var(--ff-body-text);
+  font-family: var(--ff-font);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ff-panel {
+  /* One continuous bottom chrome band: sidebar "Signed in as …" and main
+   * .ff-footer share this height whether content is present or empty.
+   * Sized for one .78rem/1.5 line + 0.85rem vertical pad + 1px top border
+   * under border-box (matches Shamar sidebar user py-3/text-xs feel). */
+  --ff-footer-height: calc(2.87rem + 1px);
+  display: flex;
+  flex-direction: row;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--ff-shell);
+}
+
+.ff-panel.ff-dark,
+.ff-auth.ff-dark,
+.ff-dark .ff-panel,
+.ff-dark .ff-auth {
+  --ff-body-text: #d1d5db;
+  --ff-body-subtle: #9ca3af;
+  --ff-card: #1f2937;
+  --ff-card-border: color-mix(in srgb, #4b5563 55%, transparent);
+  --ff-shell: #111827;
+  --ff-hover: color-mix(in srgb, var(--ff-primary) 22%, #1f2937);
+  --ff-active: color-mix(in srgb, var(--ff-primary) 32%, #1f2937);
+  --ff-inset: color-mix(in srgb, #1f2937 55%, #111827);
+  --ff-shadow: 0 1px 2px rgb(0 0 0 / 25%), 0 12px 32px rgb(0 0 0 / 35%);
+}
+
+.ff-panel.ff-dark,
+.ff-dark .ff-panel {
+  background: var(--ff-shell);
+}
+
+.ff-panel *,
+.ff-panel *::before,
+.ff-panel *::after,
+.ff-auth *,
+.ff-auth *::before,
+.ff-auth *::after {
+  box-sizing: border-box;
+}
+
+.ff-panel a,
+.ff-auth a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ff-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ff-panel h1,
+.ff-panel h2,
+.ff-panel h3,
+.ff-auth h1 {
+  color: var(--ff-heading);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.ff-panel h1,
+.ff-auth h1 {
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+/* ——— Column + scroll (Shamar flex shell) ——— */
+.ff-panel .ff-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ff-panel .ff-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ——— Sidebar ———
+ * Shamar admin shell: the sidebar shares the body background (no contrasting
+ * card strip). The brand block alone is elevated (card) and carries the brand
+ * top-accent, so it lines up with the topbar across the shell. */
 .ff-panel .ff-sidebar {
-    height: 100%;
-    width: var(--ff-sidebar-width);
-    flex-shrink: 0;
-    overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 var(--ff-sidebar-width);
+  width: var(--ff-sidebar-width);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--ff-shell);
 }
 
+.ff-panel .ff-sidebar-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 0 0 var(--ff-topbar-height);
+  min-height: var(--ff-topbar-height);
+  padding: 0 1.1rem;
+  background: var(--ff-card);
+  border-bottom: 1px solid var(--ff-card-border);
+  box-shadow:
+    inset 0 3px 0 0 var(--ff-primary),
+    0 1px 0 color-mix(in srgb, #0f172a 4%, transparent);
+}
+
+.ff-panel .ff-sidebar-brand .ff-brand {
+  font-size: 1.1rem;
+}
+
+.ff-panel .ff-sidebar-brand::before {
+  content: "";
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 0.45rem;
+  background:
+    linear-gradient(145deg, var(--ff-primary), color-mix(in srgb, var(--ff-accent) 70%, var(--ff-primary)));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ff-accent) 35%, transparent);
+  flex-shrink: 0;
+}
+
+/* Close button only appears inside the mobile drawer. */
+.ff-panel .ff-sidebar-close {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ff-body-text);
+  cursor: pointer;
+}
+
+.ff-panel .ff-sidebar-close:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-nav-side {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.75rem 0.65rem 1rem;
+}
+
+/* Chrome foot band — sidebar "Signed in as …" and main-column footer share one
+ * shell strip (Shamar sidebar user block + matching main foot). Not a white card.
+ * Fixed min-height keeps empty vs text rows the exact same height. */
+.ff-panel .ff-sidebar-foot,
+.ff-panel .ff-footer {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-height: var(--ff-footer-height);
+  padding: 0.85rem 1rem;
+  background: var(--ff-shell);
+  border-top: 1px solid color-mix(in srgb, var(--ff-card-border) 80%, transparent);
+  color: var(--ff-body-subtle);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.ff-panel .ff-sidebar-foot {
+  margin-top: auto;
+}
+
+.ff-panel .ff-sidebar-foot .ff-signed-in,
+.ff-panel .ff-footer .ff-signed-in {
+  color: var(--ff-heading);
+  font-weight: 650;
+}
+
+.ff-panel .ff-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.ff-panel .ff-nav-side .ff-nav-list .ff-nav-list {
+  margin: 0.2rem 0 0.45rem 0.55rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--ff-card-border);
+  gap: 0.1rem;
+}
+
+.ff-panel .ff-nav-item > a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.15rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 0.55rem;
+  color: var(--ff-body-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.ff-panel .ff-nav-item.ff-cluster > a {
+  color: var(--ff-body-subtle);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  min-height: 1.75rem;
+  padding-top: 0.65rem;
+  padding-bottom: 0.25rem;
+  cursor: default;
+}
+
+.ff-panel .ff-nav-item.ff-cluster > a:hover {
+  background: transparent;
+  color: var(--ff-body-subtle);
+}
+
+@media (hover: hover) {
+  .ff-panel .ff-nav-item:not(.ff-cluster) > a:hover {
+    background: var(--ff-hover);
+    color: var(--ff-heading);
+  }
+}
+
+.ff-panel .ff-nav-item.ff-active > a,
+.ff-panel .ff-nav-item:not(.ff-cluster) > a[href].ff-active {
+  background: var(--ff-active);
+  color: var(--ff-heading);
+  font-weight: 650;
+  box-shadow: inset 3px 0 0 0 var(--ff-primary);
+}
+
+/* ——— Topbar ——— */
 .ff-panel .ff-topbar {
-    display: flex;
-    align-items: center;
-    height: var(--ff-topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex: 0 0 var(--ff-topbar-height);
+  height: var(--ff-topbar-height);
+  min-height: var(--ff-topbar-height);
+  padding: 0 1.1rem;
+  background: var(--ff-card);
+  border-bottom: 1px solid var(--ff-card-border);
+  box-shadow:
+    inset 0 3px 0 0 var(--ff-primary),
+    0 1px 0 color-mix(in srgb, #0f172a 4%, transparent);
+  min-width: 0;
+  z-index: 20;
 }
 
+.ff-panel .ff-topbar-lead {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ff-panel .ff-brand {
+  color: var(--ff-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+/* Hamburger — mobile only; toggles the sidebar drawer. */
+.ff-panel .ff-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-left: -0.4rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ff-body-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-hamburger:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+/* Brand shown in the topbar only on mobile (desktop keeps it in the sidebar). */
+.ff-panel .ff-topbar-brand {
+  display: none;
+  align-items: center;
+  min-width: 0;
+}
+
+.ff-panel .ff-nav-top {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-x: auto;
+}
+
+.ff-panel .ff-nav-top .ff-nav-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.ff-panel .ff-nav-top .ff-nav-item > a {
+  white-space: nowrap;
+}
+
+/* ——— Topbar tools (theme toggle, notifications, user menu) ——— */
+.ff-panel .ff-user-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--ff-body-text);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-icon-btn:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-icon-btn .ff-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+/* Theme toggle shows one icon per preference. */
+.ff-panel .ff-theme-toggle .ff-theme-icon {
+  display: none;
+}
+
+.ff-panel .ff-theme-toggle[data-ff-theme="light"] .ff-theme-icon--light,
+.ff-panel .ff-theme-toggle[data-ff-theme="dark"] .ff-theme-icon--dark,
+.ff-panel .ff-theme-toggle[data-ff-theme="system"] .ff-theme-icon--system {
+  display: block;
+}
+
+/* Notification unread badge. */
+.ff-panel .ff-notif-badge {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  min-width: 1rem;
+  height: 1rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--ff-primary);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1rem;
+  text-align: center;
+}
+
+/* ——— Dropdown menus (notifications + user) ——— */
+.ff-panel .ff-menu {
+  position: relative;
+}
+
+.ff-panel .ff-menu-panel {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  min-width: 14rem;
+  max-width: 20rem;
+  padding: 0.35rem;
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.25rem);
+  box-shadow: var(--ff-shadow);
+  z-index: 50;
+}
+
+.ff-panel .ff-menu.ff-open .ff-menu-panel {
+  display: block;
+}
+
+.ff-panel .ff-menu-head {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--ff-card-border);
+  margin-bottom: 0.3rem;
+}
+
+.ff-panel .ff-menu-head .ff-menu-name {
+  display: block;
+  color: var(--ff-heading);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.ff-panel .ff-menu-head .ff-menu-sub {
+  display: block;
+  color: var(--ff-body-subtle);
+  font-size: 0.75rem;
+  margin-top: 0.1rem;
+}
+
+.ff-panel .ff-menu-link,
+.ff-panel .ff-menu-form > button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--ff-body-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ff-panel .ff-menu-link:hover,
+.ff-panel .ff-menu-form > button:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-menu-sep {
+  height: 1px;
+  margin: 0.3rem 0.4rem;
+  background: var(--ff-card-border);
+}
+
+.ff-panel .ff-menu-empty {
+  padding: 0.85rem 0.65rem;
+  color: var(--ff-body-subtle);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+/* User trigger — avatar initial only; name/email live in the dropdown. */
+.ff-panel .ff-user-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ff-heading);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ff-panel .ff-user-trigger:hover {
+  background: var(--ff-hover);
+}
+
+.ff-panel .ff-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  background: var(--ff-primary);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-tenants {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.ff-panel .ff-tenant {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-tenant.ff-active,
+.ff-panel .ff-tenant:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+/* ——— Mobile drawer backdrop ——— */
+.ff-panel .ff-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgb(15 23 42 / 38%);
+  z-index: 30;
+}
+
+/* ——— Body / pages ——— */
 .ff-panel .ff-body {
-    min-width: 0;
-    flex: 1 1 0%;
-    background: var(--ff-body);
-    font-family: var(--ff-font);
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--ff-shell);
+  padding: 1rem 1.15rem 1.75rem;
 }
 
+.ff-panel .ff-page,
+.ff-panel .ff-profile,
+.ff-panel .ff-relation {
+  max-width: 80rem;
+  margin: 0 auto;
+}
+
+.ff-panel .ff-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ff-panel .ff-page > h1,
+.ff-panel .ff-page .ff-page-heading,
+.ff-panel section.ff-page > :is(h1, .ff-heading) {
+  margin-bottom: 0.15rem;
+}
+
+.ff-panel .ff-page-header,
+.ff-panel .ff-page-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ff-panel .ff-page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ff-panel .ff-page-heading h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ff-heading);
+  line-height: 1.2;
+}
+
+.ff-panel .ff-page-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--ff-hover);
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-page-mode[data-ff-mode="create"] {
+  background: color-mix(in srgb, #16a34a 16%, var(--ff-card));
+  color: #15803d;
+}
+
+.ff-panel .ff-page-mode[data-ff-mode="edit"] {
+  background: color-mix(in srgb, #d97706 18%, var(--ff-card));
+  color: #b45309;
+}
+
+.ff-panel .ff-page-mode[data-ff-mode="detail"] {
+  background: color-mix(in srgb, var(--ff-body-subtle) 14%, var(--ff-card));
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-page-header-actions,
+.ff-panel .ff-page-footer > .ff-schema {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.ff-panel .ff-page-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ff-panel .ff-list .ff-page-content > .ff-table-wrap,
+.ff-panel .ff-list .ff-page-content > .ff-table,
+.ff-panel .ff-manage .ff-page-content > .ff-table-wrap,
+.ff-panel .ff-manage .ff-page-content > .ff-table,
+.ff-panel .ff-create .ff-page-content > .ff-schema,
+.ff-panel .ff-edit .ff-page-content > .ff-schema,
+.ff-panel .ff-view .ff-page-content > .ff-infolist {
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.15rem);
+  box-shadow: var(--ff-shadow);
+}
+
+.ff-panel .ff-create .ff-page-content > .ff-schema,
+.ff-panel .ff-edit .ff-page-content > .ff-schema,
+.ff-panel .ff-view .ff-page-content > .ff-infolist {
+  padding: 1.25rem;
+  max-width: 48rem;
+}
+
+.ff-panel .ff-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.ff-panel .ff-page-widgets {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+/* ——— Buttons ——— */
+/* Chrome controls (icon buttons, hamburger, user/menu triggers, sign-out) opt out
+ * of the primary-button look via these :not() guards and keep their own styles. */
+.ff-panel .ff-btn,
+.ff-panel .ff-action-button,
+.ff-panel .ff-page-header .ff-action-button,
+.ff-panel .ff-page-header .ff-action-trigger.ff-action-button,
+.ff-panel .ff-manage > .ff-page-header .ff-action-button,
+.ff-panel button[type="submit"]:not(.ff-menu-item):not(.ff-action-outlined):not(.ff-action-cancel),
+.ff-panel .ff-page-header button.ff-action-trigger:not(.ff-action-outlined):not(.ff-action-link):not(.ff-action-icon-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--ff-radius);
+  border: 1px solid transparent;
+  background: var(--ff-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 0 color-mix(in srgb, #000 8%, transparent);
+  transition: filter 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+
+.ff-panel .ff-btn:hover,
+.ff-panel .ff-action-button:hover,
+.ff-panel button[type="submit"]:not(.ff-menu-item):not(.ff-action-outlined):hover,
+.ff-panel .ff-page-header button.ff-action-trigger:not(.ff-action-outlined):hover {
+  filter: brightness(0.96);
+}
+
+.ff-panel .ff-action-outlined,
+.ff-panel .ff-action-cancel,
+.ff-panel a.ff-action-outlined,
+.ff-panel button.ff-action-outlined {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--ff-radius);
+  border: 1px solid var(--ff-card-border);
+  background: var(--ff-card);
+  color: var(--ff-heading);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  text-decoration: none;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.ff-panel .ff-action-outlined:hover,
+.ff-panel .ff-action-cancel:hover,
+.ff-panel a.ff-action-outlined:hover {
+  background: var(--ff-hover);
+  filter: none;
+}
+
+.ff-panel .ff-action-trigger[data-ff-color="danger"],
+.ff-panel .ff-action-outlined[data-ff-color="danger"],
+.ff-panel button.ff-action-trigger[data-ff-color="danger"] {
+  color: #b91c1c;
+  border-color: var(--ff-card-border);
+  background: var(--ff-card);
+  box-shadow: none;
+}
+
+.ff-panel .ff-action-trigger[data-ff-color="danger"]:hover,
+.ff-panel button.ff-action-trigger[data-ff-color="danger"]:hover {
+  background: color-mix(in srgb, #b91c1c 10%, var(--ff-card));
+  filter: none;
+}
+
+.ff-panel .ff-btn:disabled,
+.ff-panel button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ff-panel .ff-table-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--ff-radius);
+  border: 1px solid var(--ff-card-border);
+  background: var(--ff-card);
+  color: var(--ff-heading);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color 120ms ease;
+}
+
+.ff-panel .ff-table-button:hover {
+  background: var(--ff-hover);
+  filter: none;
+}
+
+/* ——— Forms / inputs ——— */
+.ff-panel .ff-input,
+.ff-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]),
+.ff-panel select,
+.ff-panel textarea {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-card);
+  color: var(--ff-heading);
+  font: inherit;
+  font-size: 0.875rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ff-panel textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.ff-panel .ff-input:focus,
+.ff-panel input:focus,
+.ff-panel select:focus,
+.ff-panel textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--ff-primary) 55%, var(--ff-card-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-primary) 22%, transparent);
+}
+
+.ff-panel .ff-label,
+.ff-panel label {
+  display: block;
+  margin: 0 0 0.35rem;
+  color: var(--ff-heading);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ff-panel .ff-helper,
+.ff-panel .ff-description,
+.ff-panel .ff-hint {
+  margin: 0.3rem 0 0;
+  color: var(--ff-body-subtle);
+  font-size: 0.8rem;
+}
+
+.ff-panel .ff-schema,
+.ff-panel .ff-section,
+.ff-panel .ff-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.ff-panel .ff-section,
+.ff-panel .ff-card,
+.ff-panel .ff-fieldset {
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.25rem);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--ff-shadow);
+}
+
+.ff-panel .ff-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.ff-panel .ff-combobox,
+.ff-panel .ff-picker,
+.ff-panel .ff-tags,
+.ff-panel .ff-key-value,
+.ff-panel .ff-filepond,
+.ff-panel .ff-repeater,
+.ff-panel .ff-builder,
+.ff-panel .ff-rich,
+.ff-panel .ff-code,
+.ff-panel .ff-markdown {
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius);
+  padding: 0.65rem 0.75rem;
+}
+
+.ff-panel .ff-entangle {
+  display: none !important;
+}
+
+.ff-panel [x-cloak] {
+  display: none !important;
+}
+
+.ff-panel input[type="checkbox"],
+.ff-panel input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--ff-primary);
+  cursor: pointer;
+}
+
+.ff-panel .ff-toggle {
+  width: 2.6rem;
+  height: 1.45rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ff-card-border);
+  position: relative;
+  cursor: pointer;
+}
+
+.ff-panel .ff-toggle[aria-pressed="true"] {
+  background: var(--ff-primary);
+}
+
+/* ——— Tables ——— */
+.ff-panel .ff-table-wrap {
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.25rem);
+  overflow: hidden;
+  box-shadow: var(--ff-shadow);
+}
+
+.ff-panel .ff-table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--ff-card-border);
+  background: var(--ff-inset);
+}
+
+.ff-panel .ff-table-search {
+  min-width: 12rem;
+  flex: 1 1 12rem;
+}
+
+.ff-panel .ff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ff-panel .ff-table th {
+  text-align: left;
+  padding: 0.7rem 1rem;
+  color: var(--ff-body-subtle);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--ff-inset);
+  border-bottom: 1px solid var(--ff-card-border);
+}
+
+.ff-panel .ff-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--ff-card-border);
+  color: var(--ff-heading);
+  vertical-align: middle;
+}
+
+.ff-panel .ff-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.ff-panel .ff-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--ff-primary) 5%, transparent);
+}
+
+.ff-panel .ff-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ff-panel .ff-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.ff-panel .ff-table-stack,
+.ff-panel .ff-table-grid {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.ff-panel .ff-table-grid {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.ff-panel .ff-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+/* ——— Infolists / widgets ——— */
+.ff-panel .ff-infolist,
+.ff-panel .ff-desk-widget,
+.ff-panel .ff-stats,
+.ff-panel .ff-account {
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.25rem);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--ff-shadow);
+}
+
+.ff-panel .ff-desk-widget {
+  color: var(--ff-body-subtle);
+  font-size: 0.9rem;
+}
+
+/* ——— Dialog ——— */
 .ff-panel .ff-dialog {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
 }
 
 .ff-panel .ff-dialog-modal .ff-dialog-window {
-    margin-top: 4rem;
+  margin: 4rem auto 0;
+  max-width: 32rem;
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.35rem);
+  box-shadow: var(--ff-shadow);
+  padding: 1.1rem 1.2rem;
+}
+
+.ff-panel .ff-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(15 23 42 / 35%);
+}
+
+/* ——— Profile (authenticated chrome) ——— */
+.ff-panel .ff-profile {
+  max-width: 40rem;
+  margin: 0 auto;
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.35rem);
+  padding: 1.35rem 1.4rem;
+  box-shadow: var(--ff-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* ——— Auth shell (guest document — Shamar auth-* shape) ——— */
+.ff-auth {
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--ff-shell);
+  color: var(--ff-body-text);
+}
+
+.ff-auth-shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  overflow: hidden;
+}
+
+.ff-auth-atmosphere {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(900px 520px at 8% 12%, color-mix(in srgb, var(--ff-primary) 18%, transparent), transparent 58%),
+    radial-gradient(780px 480px at 92% 86%, color-mix(in srgb, var(--ff-accent) 16%, transparent), transparent 55%),
+    var(--ff-shell);
+  animation: ff-auth-drift 18s ease-in-out infinite alternate;
+}
+
+.ff-auth-frame {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 26rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  animation: ff-auth-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ff-auth-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  text-align: center;
+}
+
+.ff-auth-brand__name {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 2.6rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--ff-heading);
+}
+
+.ff-auth-main {
+  display: block;
+}
+
+.ff-auth-panel {
+  padding: 1.35rem 1.35rem 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--ff-card-border) 85%, transparent);
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, var(--ff-card) 92%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--ff-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.ff-auth-title {
+  font-size: 1.15rem;
+  font-weight: 650;
+  color: var(--ff-heading);
+}
+
+.ff-auth-alert {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid var(--ff-primary);
+  background: color-mix(in srgb, var(--ff-primary) 14%, transparent);
+  color: color-mix(in srgb, var(--ff-accent) 70%, var(--ff-heading));
+  font-size: 0.92rem;
+  border-radius: 0 0.4rem 0.4rem 0;
+}
+
+.ff-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.ff-auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ff-auth-field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ff-heading);
+}
+
+.ff-auth-field input {
+  width: 100%;
+  border: 1px solid var(--ff-card-border);
+  border-radius: 0.55rem;
+  background: var(--ff-card);
+  color: var(--ff-heading);
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.8rem 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ff-auth-field input:focus {
+  border-color: color-mix(in srgb, var(--ff-primary) 70%, white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-primary) 22%, transparent);
+}
+
+.ff-auth-submit {
+  margin-top: 0.25rem;
+  appearance: none;
+  border: 0;
+  border-radius: 0.55rem;
+  background: var(--ff-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  transition: transform 0.18s ease, filter 0.18s ease, background 0.18s ease;
+}
+
+.ff-auth-submit:hover {
+  filter: brightness(1.02);
+  transform: translateY(-1px);
+}
+
+.ff-auth-submit:active {
+  transform: translateY(0);
+}
+
+@keyframes ff-auth-drift {
+  from { transform: scale(1) translate3d(0, 0, 0); }
+  to { transform: scale(1.04) translate3d(-1%, 0.8%, 0); }
+}
+
+@keyframes ff-auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ——— Relation managers ——— */
+.ff-panel .ff-relation {
+  margin-top: 1rem;
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.25rem);
+  padding: 1rem;
+  box-shadow: var(--ff-shadow);
+}
+
+/* ——— Manage header actions stack nicely ——— */
+.ff-panel .ff-manage .ff-page-header {
+  gap: 0.5rem;
+}
+
+/* ——— Mobile: sidebar becomes an off-canvas drawer (Shamar pattern) ——— */
+@media (max-width: 47.99rem) {
+  .ff-panel .ff-hamburger {
+    display: inline-flex;
+  }
+
+  .ff-panel .ff-topbar-brand {
+    display: flex;
+  }
+
+  .ff-panel .ff-sidebar-close {
+    display: inline-flex;
+  }
+
+  .ff-panel .ff-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    height: 100%;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 200ms ease;
+    border-right: 1px solid var(--ff-card-border);
+    box-shadow: 8px 0 32px color-mix(in srgb, #0f172a 22%, transparent);
+  }
+
+  .ff-panel.ff-sidebar-open .ff-sidebar {
+    transform: translateX(0);
+  }
+
+  .ff-panel.ff-sidebar-open .ff-backdrop {
+    display: block;
+  }
+
+  .ff-panel .ff-body {
+    padding: 0.85rem 0.9rem 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-panel .ff-sidebar {
+    transition: none;
+  }
 }

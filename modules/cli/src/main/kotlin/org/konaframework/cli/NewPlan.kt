@@ -32,6 +32,7 @@ internal data class NewPlan(
                 }
                 else -> "Crema"
             }
+            // API has no CSS stack. Firefly still scaffolds Vite for non-panel pages.
             if (kit == "api") return kitPart
             val cssPart = when (css) {
                 "tailwind" -> "Tailwind CSS"
@@ -49,7 +50,8 @@ internal object NewStacks {
     const val WIRE = "Wire (reactive UI)"
     const val BREW = "Wire (reactive UI)"
     const val INERTIA = "Inertia (SPA)"
-    val KITS = listOf(API, CREMA, WIRE, INERTIA)
+    const val FIREFLY = "Firefly (admin panel)"
+    val KITS = listOf(API, CREMA, WIRE, INERTIA, FIREFLY)
 
     const val CSS_TAILWIND = "Tailwind CSS"
     const val CSS_BOOTSTRAP = "Bootstrap"
@@ -76,6 +78,7 @@ internal object NewStacks {
             API -> "api"
             WIRE, BREW -> "wire"
             INERTIA -> "inertia"
+            FIREFLY -> "firefly"
             else -> "web"
         }
 
@@ -265,6 +268,8 @@ internal fun resolveNewPlan(
     val cssFlag = options["css"]?.let { parseCssFlag(it) }
     val css =
         when {
+            // API has no frontend CSS pipeline. Firefly still prompts/accepts --css for
+            // welcome and other non-panel pages (panel chrome stays framework-shipped).
             kit == "api" -> "custom"
             cssFlag != null -> cssFlag
             canPrompt -> NewStacks.cssId(prompts.choice("CSS", NewStacks.CSS, defaultIndex = 0))

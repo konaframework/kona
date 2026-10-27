@@ -11,8 +11,15 @@ import java.nio.file.Path
 /**
  * Loads pages, resources, and widgets from a panel directory.
  * A missing folder is empty. Explicit registration still works.
+ *
+ * Panel scanning walks [directory] but never descends into [PANEL_CHILD_FOLDERS]
+ * (`pages/`, `resources/`, `widgets/`) — those are loaded only via [pages],
+ * [resources], and [widgets] after a panel adopts its home directory.
  */
 object PanelDiscovery {
+    /** Child folders of a panel home; never treated as panel class locations. */
+    private val PANEL_CHILD_FOLDERS = setOf("pages", "resources", "widgets")
+
     private val PACKAGE_LINE = Regex("""(?:^|\n)\s*package\s+([A-Za-z_][A-Za-z0-9_.]*)""")
     private val CLASS_LINE = Regex(
         """(?:^|\n)\s*(?:public\s+|open\s+|internal\s+|final\s+|abstract\s+)*class\s+([A-Za-z_][A-Za-z0-9_]*)""",
@@ -36,27 +43,41 @@ object PanelDiscovery {
     @JvmStatic
     fun widgets(panelDirectory: Path): List<Widget> = WidgetDiscovery.discover(panelDirectory)
 
-    /** Panel classes that live directly under [directory], including nested packages. */
+    /**
+     * Panel classes under [directory], including nested packages.
+     * Skips `pages/`, `resources/`, and `widgets/` so resource/page/widget
+     * sources are never instantiated as panels.
+     */
     @JvmStatic
     fun panels(directory: Path): List<Panel> = panels(directory, Thread.currentThread().contextClassLoader)
 
     @JvmStatic
     fun panels(directory: Path, loader: ClassLoader): List<Panel> {
         if (!Files.exists(directory)) return emptyList()
-        return loadDirectory(directory, "panels", loader, Panel::class.java)
+        return loadDirectory(directory, "panels", loader, Panel::class.java, skipPanelChildFolders = true)
     }
 
     private fun <T> load(panelDirectory: Path, folder: String, loader: ClassLoader, type: Class<T>): List<T> {
         val dir = panelDirectory.resolve(folder)
         if (!Files.exists(dir)) return emptyList()
-        return loadDirectory(dir, folder, loader, type)
+        return loadDirectory(dir, folder, loader, type, skipPanelChildFolders = false)
     }
 
-    private fun <T> loadDirectory(dir: Path, folder: String, loader: ClassLoader, type: Class<T>): List<T> {
+    private fun <T> loadDirectory(
+        dir: Path,
+        folder: String,
+        loader: ClassLoader,
+        type: Class<T>,
+        skipPanelChildFolders: Boolean,
+    ): List<T> {
         if (!Files.isDirectory(dir)) throw FireflyException("Panel $folder path is not a directory [$dir]")
         val found = ArrayList<T>()
         Files.walk(dir).use { stream ->
-            val files = stream.filter { Files.isRegularFile(it) }.sorted().toList()
+            val files = stream
+                .filter { Files.isRegularFile(it) }
+                .filter { !skipPanelChildFolders || !underPanelChildFolder(dir, it) }
+                .sorted()
+                .toList()
             for (file in files) {
                 val filename = file.fileName.toString()
                 if (!filename.endsWith(".kt") && !filename.endsWith(".java")) continue
@@ -65,6 +86,17 @@ object PanelDiscovery {
             }
         }
         return found
+    }
+
+    /** True when [file] lives under a reserved panel child (`pages` / `resources` / `widgets`). */
+    private fun underPanelChildFolder(root: Path, file: Path): Boolean {
+        val relative = root.relativize(file)
+        val depth = relative.nameCount
+        if (depth < 2) return false
+        for (i in 0 until depth - 1) {
+            if (relative.getName(i).toString() in PANEL_CHILD_FOLDERS) return true
+        }
+        return false
     }
 
     private fun <T> loadFile(file: Path, filename: String, folder: String, loader: ClassLoader, type: Class<T>): T? {

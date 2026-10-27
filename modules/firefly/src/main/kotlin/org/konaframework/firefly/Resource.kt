@@ -7,6 +7,7 @@ import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.tables.RecordStores
 import org.konaframework.firefly.tables.Table
+import org.konaframework.firefly.tables.TableButton
 import org.konaframework.firefly.widgets.Page
 import java.util.function.Function
 
@@ -167,21 +168,26 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             applyList(page, state)
             return
         }
-        if (page is CreatePage || page is EditPage) {
-            page.mountForm(form(liveSchema(state)))
-        }
-        if (page is ViewPage) {
-            page.infolistHtml(viewMarkup(state))
+        if (page is CreatePage) {
+            applyCreate(page, state)
             return
         }
-        if (page is EditPage) page.infolistHtml(relationMarkup())
+        if (page is EditPage) {
+            applyEdit(page, state)
+            return
+        }
+        if (page is ViewPage) {
+            applyView(page, state)
+        }
     }
 
     private fun applyManage(page: ManagePage, state: Map<String, Any?>) {
+        page.title(label())
         val schema = form(liveSchema(state))
         val info = infolist(liveSchema(state))
         page.table(table(Table.memory()))
         page.mountForm(schema)
+        // Simple resources keep create/edit/view/delete as dialog header actions.
         page.headerActions(
             operation("create", "Create", schema.components()),
             operation("edit", "Edit", schema.components()),
@@ -191,11 +197,47 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     private fun applyList(page: ListPage, state: Map<String, Any?>) {
-        val schema = form(liveSchema(state))
-        page.table(table(Table.memory()))
+        page.title(label())
+        val built = table(Table.memory())
+        // Row actions — never sidebar links — open the record pages (Shamar list toolbar).
+        built.rowButtons(
+            TableButton.make("view").label("View").url("view"),
+            TableButton.make("edit").label("Edit").url("edit"),
+            TableButton.make("delete").label("Delete"),
+        )
+        page.table(built)
+        // Full-resource create is a header link — dialogs belong on simple/manage and delete.
+        page.headerActions(Action.make("create").label("New").url("create"))
+    }
+
+    private fun applyCreate(page: CreatePage, state: Map<String, Any?>) {
+        page.title("New ${label()}")
+        page.mountForm(form(liveSchema(state)))
         page.headerActions(
-            operation("create", "Create", schema.components()),
-            Action.make("delete").label("Delete").modal().modalHeading("Delete"),
+            Action.make("save").label("Create"),
+            Action.make("cancel").label("Cancel").url("list").outlined(),
+        )
+    }
+
+    private fun applyEdit(page: EditPage, state: Map<String, Any?>) {
+        page.title("Edit ${label()}")
+        page.mountForm(form(liveSchema(state)))
+        page.infolistHtml(relationMarkup())
+        page.headerActions(
+            Action.make("save").label("Save"),
+            Action.make("view").label("View").url("view").outlined(),
+            Action.make("cancel").label("Cancel").url("list").outlined(),
+            Action.make("delete").label("Delete").color("danger").modal().modalHeading("Delete"),
+        )
+    }
+
+    private fun applyView(page: ViewPage, state: Map<String, Any?>) {
+        page.title(label())
+        page.infolistHtml(viewMarkup(state))
+        page.headerActions(
+            Action.make("edit").label("Edit").url("edit"),
+            Action.make("back").label("Back to list").url("list").outlined(),
+            Action.make("delete").label("Delete").color("danger").modal().modalHeading("Delete"),
         )
     }
 

@@ -33,7 +33,7 @@ From the app directory, install Firefly and generate a panel. The provider mount
 
 `./grind install firefly` adds `org.konaframework:kona-firefly` next to your other Kona dependencies. It writes `config/Firefly`, which is the `firefly` config key. It writes `app.providers.FireflyServiceProvider` and records that class in `META-INF/kona/providers`. The framework provider ships in the Firefly artifact, so both are loaded on boot.
 
-The generated panel is `app/panels/admin/Panel`. Its id is `admin`, and `path` is not set, so the panel is served at `/admin`. `pages/`, `widgets/`, and `resources/` sit beside that class. The provider reads them.
+The generated panel is `app/panels/admin/Panel`. Its id is `admin`, and `path` is not set, so the panel is served at `/admin`. `pages/`, `widgets/`, and `resources/` sit beside that class. The provider reads them. The kit ships a `Dashboard` page (empty slug) so `GET /admin` is the panel home. If a panel has no empty-slug page, Firefly still mounts a welcome dashboard at the panel root.
 
 Pass `--id=` when the panel should live somewhere else. The prefix is that id until you also pass `--path=`.
 
@@ -72,15 +72,17 @@ The installer also adds `config.Firefly` to `bootstrap/App` when that file lists
 
 ## A new app
 
-`kona new desk --kit=firefly` writes a starter that already mounts one panel at `/admin`, because that class calls `path("admin")`. Use the kit when you want that starter. Use `./grind install firefly` when the app already exists.
+`kona new desk --kit=firefly` writes a starter that mounts one panel at `/admin` (id `admin`; path defaults to the id). The kit still asks for a CSS stack (or accepts `--css=`) the same way Crema and Wire do — default **Tailwind** — so welcome and other non-panel pages get Vite + `package.json`. Panel chrome does **not** use that app build: `DefaultLayout` / `AuthLayout` inject the framework-shipped `firefly.css` under `.ff-panel` and `.ff-auth`. Use the kit when you want that starter. Use `./grind install firefly` when the app already exists.
 
 ```bash
 kona new desk --kit=firefly
 cd desk
-./grind serve
+./grind migrate --seed
+npm install && npm run dev   # terminal 1 — Vite for welcome / other pages
+./grind serve                # terminal 2
 ```
 
-Open `http://127.0.0.1:4000/` for the welcome route and `http://127.0.0.1:4000/admin` for that kit panel.
+Open `http://127.0.0.1:4000/` for the welcome route and `http://127.0.0.1:4000/admin` for that kit panel. The panel reuses the application `web` guard (`reuseAppGuard()`), so sign in at `/admin/login` with the seeded demo user **`demo@kona.test`** / **`password`**. The same credentials work on the Crema `/login` page.
 
 Inside this repository, the hello samples depend on the module directly:
 
@@ -101,8 +103,8 @@ From the app directory, `./grind` accepts these Firefly commands. Pass `--lang=j
 | `firefly:install` | The same panel tree as `make:firefly-panel` |
 | `make:firefly-page Desk` | A `CustomPage` in that panel's `pages/` |
 | `make:firefly-widget Revenue` | A widget in that panel's `widgets/`, and a Crema view |
-| `make:firefly-resource Note --simple` | One Manage page in that panel's `resources/` |
-| `make:firefly-resource Order` | List, create, edit, and view pages, plus one relation manager |
+| `make:firefly-resource Note --simple` | `NoteResource` with one Manage page in that panel's `resources/` |
+| `make:firefly-resource Order` | `OrderResource` with list, create, edit, and view pages, plus one relation manager |
 | `make:firefly-field Price` | A field class and a Crema view under `app/firefly/fields/` |
 | `make:firefly-entry Note` | An infolist entry under `app/firefly/entries/` |
 | `make:firefly-column Name` | A table column under `app/firefly/columns/` |

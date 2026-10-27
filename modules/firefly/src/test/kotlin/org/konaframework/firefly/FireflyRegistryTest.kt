@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.konaframework.core.Application
 import org.konaframework.core.Config
+import org.konaframework.core.Kona
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.http.HttpServiceProvider
 import org.konaframework.http.Router
@@ -20,6 +21,7 @@ class FireflyRegistryTest {
     @AfterEach
     fun resetRegistry() {
         Firefly.reset()
+        Kona.reset()
     }
 
     @Test
@@ -149,6 +151,63 @@ class FireflyRegistryTest {
         assertTrue(broken.message!!.contains("no package"))
     }
 
+    /**
+     * Desk layout: Panel.kt beside resources/, pages/, widgets/. Panel scan must not
+     * Class.forName those children (uncompiled sources there used to crash serve).
+     */
+    @Test
+    fun panelScanSkipsResourcesPagesAndWidgetsFolders() {
+        val base = Files.createTempDirectory("firefly-skip-children")
+        val admin = base.resolve("src/main/kotlin/app/panels/admin")
+        Files.createDirectories(admin.resolve("pages"))
+        Files.createDirectories(admin.resolve("resources"))
+        Files.createDirectories(admin.resolve("widgets"))
+        Files.writeString(
+            admin.resolve("AdminDeskPanel.kt"),
+            "package org.konaframework.firefly\nclass AdminDeskPanel : Panel()\n",
+        )
+        // Unloadable — CNFE if panel scan walked into these folders.
+        Files.writeString(
+            admin.resolve("resources/MissingResource.kt"),
+            "package app.panels.admin.resources\nclass MissingResource\n",
+        )
+        Files.writeString(
+            admin.resolve("pages/MissingPage.kt"),
+            "package app.panels.admin.pages\nclass MissingPage\n",
+        )
+        Files.writeString(
+            admin.resolve("widgets/MissingWidget.kt"),
+            "package app.panels.admin.widgets\nclass MissingWidget\n",
+        )
+        val panels = PanelDiscovery.panels(base.resolve("src/main/kotlin/app/panels"), javaClass.classLoader)
+        assertEquals(1, panels.size)
+        assertTrue(panels.single() is AdminDeskPanel)
+    }
+
+    /** Resource under resources/ is adopted by the panel, never loaded as a Panel. */
+    @Test
+    fun bootsWithResourceUnderResourcesFolder() {
+        val base = Files.createTempDirectory("firefly-with-resource")
+        val admin = base.resolve("src/main/kotlin/app/panels/admin")
+        Files.createDirectories(admin.resolve("resources"))
+        Files.writeString(
+            admin.resolve("AdminDeskPanel.kt"),
+            "package org.konaframework.firefly\nclass AdminDeskPanel : Panel()\n",
+        )
+        Files.writeString(
+            admin.resolve("resources/FoundResource.kt"),
+            "package org.konaframework.firefly.discovered\nclass FoundResource : org.konaframework.firefly.Resource(\"notes\")\n",
+        )
+        Firefly.reset()
+        val app = Application.builder(base)
+            .withProvider(HttpServiceProvider())
+            .withProvider(FireflyServiceProvider())
+            .build()
+        val router = app.resolve(Router::class.java)
+        assertNotNull(router.find("GET", "/admin/login"))
+        assertNotNull(router.find("GET", "/admin/notes/all"))
+    }
+
     @Test
     fun mountWaitsUntilTheRouterIsBound() {
         val base = Files.createTempDirectory("firefly-router")
@@ -163,6 +222,108 @@ class FireflyRegistryTest {
         assertNotNull(app.resolve(Router::class.java).find("GET", "/billing/orders"))
         Firefly.mount(app)
     }
+
+    /**
+     * grind serve soft-reloads a new Application while Firefly stays in the parent loader.
+     * Without prepare/reset, mounted stays true and the new router has no panel routes (404).
+     */
+    @Test
+    fun remountsDiscoveredPanelsWhenANewApplicationBoots() {
+        val base = Files.createTempDirectory("firefly-soft-reload")
+        val admin = base.resolve("src/main/kotlin/app/panels/admin")
+        Files.createDirectories(admin.resolve("pages"))
+        Files.writeString(
+            admin.resolve("AdminDeskPanel.kt"),
+            "package org.konaframework.firefly\nclass AdminDeskPanel : Panel()\n",
+        )
+        Files.writeString(
+            admin.resolve("pages/FoundPage.kt"),
+            "package org.konaframework.firefly.discovered\nclass FoundPage : PanelPage(\"found\")\n",
+        )
+        Firefly.reset()
+        val first = Application.builder(base)
+            .withProvider(HttpServiceProvider())
+            .withProvider(FireflyServiceProvider())
+            .build()
+        assertNotNull(first.resolve(Router::class.java).find("GET", "/admin/found"))
+
+        val second = Application.builder(base)
+            .withProvider(HttpServiceProvider())
+            .withProvider(FireflyServiceProvider())
+            .build()
+        assertNotNull(second.resolve(Router::class.java).find("GET", "/admin/found"))
+        assertNotNull(second.resolve(Router::class.java).find("GET", "/admin/login"))
+    }
+
+    /** Hand [Firefly.register] after prepare must survive; prior app manuals must not. */
+    @Test
+    fun prepareDropsPriorManualsBeforeNewRegistration() {
+        Firefly.reset()
+        val firstBase = Files.createTempDirectory("firefly-manual-first")
+        val first = Application.builder(firstBase)
+            .withProvider(HttpServiceProvider())
+            .withProvider(
+                object : FireflyServiceProvider() {
+                    override fun register(app: Application) {
+                        super.register(app)
+                        Firefly.register(
+                            Panel().id("billing").authenticate(false).page(ListPage("orders")),
+                        )
+                    }
+                },
+            )
+            .build()
+        assertNotNull(first.resolve(Router::class.java).find("GET", "/billing/orders"))
+
+        val secondBase = Files.createTempDirectory("firefly-manual-second")
+        val second = Application.builder(secondBase)
+            .withProvider(HttpServiceProvider())
+            .withProvider(
+                object : FireflyServiceProvider() {
+                    override fun register(app: Application) {
+                        super.register(app)
+                        Firefly.register(
+                            Panel().id("ops").authenticate(false).page(ListPage("home")),
+                        )
+                    }
+                },
+            )
+            .build()
+        val router = second.resolve(Router::class.java)
+        assertNotNull(router.find("GET", "/ops/home"))
+        assertNull(router.find("GET", "/billing/orders"))
+    }
+
+    /**
+     * FireflyServiceProvider boots panels during Application.boot, before Kona.onBooted
+     * sets the facade. Panel constructors must not call Kona.app(); adoptHome supplies the
+     * panel directory so pages/widgets/resources still load.
+     */
+    @Test
+    fun providerDiscoversPanelsBeforeKonaAppFacadeIsReady() {
+        val base = Files.createTempDirectory("firefly-no-kona")
+        val admin = base.resolve("src/main/kotlin/app/panels/admin")
+        Files.createDirectories(admin.resolve("pages"))
+        Files.writeString(
+            admin.resolve("AdminDeskPanel.kt"),
+            "package org.konaframework.firefly\nclass AdminDeskPanel : Panel()\n",
+        )
+        Files.writeString(
+            admin.resolve("pages/FoundPage.kt"),
+            "package org.konaframework.firefly.discovered\nclass FoundPage : PanelPage(\"found\")\n",
+        )
+        Kona.reset()
+        Firefly.reset()
+        assertThrows<IllegalStateException> { Kona.app() }
+        val app = Application.builder(base)
+            .withProvider(HttpServiceProvider())
+            .withProvider(FireflyServiceProvider())
+            .build()
+        assertThrows<IllegalStateException> { Kona.app() }
+        val router = app.resolve(Router::class.java)
+        assertNotNull(router.find("GET", "/admin/found"))
+        assertNotNull(router.find("GET", "/admin/login"))
+    }
 }
 
 class BillingPanel : Panel() {
@@ -176,6 +337,15 @@ class BillingPanel : Panel() {
 class OpenPanel : Panel() {
     init {
         id("open")
+        authenticate(false)
+    }
+}
+
+/** Desk-shaped panel: id/brand only. Directory comes from [Panel.adoptHome] during discovery. */
+class AdminDeskPanel : Panel() {
+    init {
+        id("admin")
+        brand("Desk")
         authenticate(false)
     }
 }

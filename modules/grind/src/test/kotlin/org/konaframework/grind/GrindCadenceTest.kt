@@ -504,6 +504,10 @@ class GrindCadenceTest {
         assertEquals(1, grind("db:table", "--base=$project", boot).first)
         assertEquals(1, grind("db:table", "   ", "--base=$project", boot).first)
         assertEquals(1, grind("db:table", "missing", "--base=$project", boot).first)
+        // Bypass SignatureParser so table() still sees an empty positional list.
+        assertThrows(GrindException::class.java) {
+            DatabaseInspectCommand(DatabaseInspectCommand.Action.TABLE).run(listOf("--base=$project", boot))
+        }
 
         val dump = grind("schema:dump", "--base=$project", boot)
         assertEquals(0, dump.first)

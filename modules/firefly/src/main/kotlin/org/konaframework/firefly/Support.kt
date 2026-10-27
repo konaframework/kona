@@ -4,7 +4,36 @@ import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.http.Request
 import org.konaframework.http.Route
+import java.security.SecureRandom
+
+/** Session `_token` helpers for panel HTML (same key VerifyCsrfToken reads). */
+internal object FireflyCsrf {
+    const val TOKEN_KEY: String = "_token"
+
+    private val random = SecureRandom()
+
+    fun ensure(request: Request): String? {
+        val session = request.session() ?: return null
+        val existing = session.get(TOKEN_KEY) as? String
+        if (!existing.isNullOrBlank()) return existing
+        val generated = generate()
+        session.put(TOKEN_KEY, generated)
+        return generated
+    }
+
+    fun field(token: String?): String {
+        if (token.isNullOrBlank()) return ""
+        return """<input type="hidden" name="_token" value="${escapeHtml(token)}" />"""
+    }
+
+    private fun generate(): String {
+        val bytes = ByteArray(32)
+        random.nextBytes(bytes)
+        return bytes.joinToString("") { b -> "%02x".format(b) }
+    }
+}
 
 internal fun escapeHtml(text: String): String {
     val out = StringBuilder()

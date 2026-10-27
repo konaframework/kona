@@ -9,6 +9,8 @@ import org.konaframework.core.ServiceProvider
  */
 open class FireflyServiceProvider : ServiceProvider {
     override fun register(app: Application) {
+        // Soft reload keeps this object alive; drop the prior Application's mount first.
+        Firefly.prepare(app)
         FireflyConfig.discovery(app.config)
     }
 

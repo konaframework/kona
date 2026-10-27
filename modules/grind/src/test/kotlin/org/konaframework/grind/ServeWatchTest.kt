@@ -52,6 +52,28 @@ class ServeWatchTest {
     }
 
     @Test
+    fun softReloadResetsFacadesWhenPresent() {
+        SoftReloadProbe.calls = 0
+        SoftReloadThrowingProbe.calls = 0
+        val loader = javaClass.classLoader
+        assertTrue(SoftReload.invokeReset(SoftReloadProbe::class.java.name, loader))
+        assertEquals(1, SoftReloadProbe.calls)
+        assertFalse(SoftReload.invokeReset("org.konaframework.grind.MissingSoftReloadFacade", loader))
+        assertFalse(SoftReload.invokeReset(SoftReloadNoReset::class.java.name, loader))
+        assertFalse(SoftReload.invokeReset(SoftReloadThrowingProbe::class.java.name, loader))
+        assertEquals(1, SoftReloadThrowingProbe.calls)
+        // String name only — a class literal would run clinit before SoftReload.invokeReset.
+        assertFalse(SoftReload.invokeReset("org.konaframework.grind.SoftReloadBrokenInit", loader))
+        assertFalse(SoftReload.invokeReset("org.konaframework.grind.SoftReloadBrokenInit", loader))
+        SoftReload.resetFacades(
+            loader,
+            listOf(SoftReloadProbe::class.java.name, "org.konaframework.grind.MissingSoftReloadFacade"),
+        )
+        assertEquals(2, SoftReloadProbe.calls)
+        SoftReload.resetFacades(loader)
+    }
+
+    @Test
     fun watchableFilesAndSkipDirs() {
         assertTrue(SourceSnapshot.isWatchableFile(Path.of("App.kt")))
         assertTrue(SourceSnapshot.isWatchableFile(Path.of("Foo.JAVA")))
@@ -569,6 +591,44 @@ internal object FlipApp {
             throw RuntimeException()
         }
         return FixtureApp.create(args)
+    }
+}
+
+/** SoftReload success path — [reset] is reflective like Firefly/Wire facades. */
+internal object SoftReloadProbe {
+    @JvmStatic
+    var calls = 0
+
+    @JvmStatic
+    fun reset() {
+        calls++
+    }
+}
+
+internal object SoftReloadNoReset
+
+internal object SoftReloadThrowingProbe {
+    @JvmStatic
+    var calls = 0
+
+    @JvmStatic
+    fun reset() {
+        calls++
+        throw IllegalStateException("probe reset failed")
+    }
+}
+
+/**
+ * Fails on first initialization so SoftReload catches [ExceptionInInitializerError],
+ * then [NoClassDefFoundError] on a later load attempt.
+ */
+internal object SoftReloadBrokenInit {
+    init {
+        throw RuntimeException("broken facade clinit")
+    }
+
+    @JvmStatic
+    fun reset() {
     }
 }
 
