@@ -49,7 +49,9 @@ class AppLoader(
         stagedDirectory = staged.directory
         val dirs = staged.entries
         val urls = dirs.map { it.toUri().toURL() }.toTypedArray()
-        val loader = URLClassLoader(urls, AppLoader::class.java.classLoader)
+        // Child-first for app types so soft reload does not keep stale build/classes from the
+        // grind JVM classpath (./grind launches with full konaClasspath including app outputs).
+        val loader = SoftReloadClassLoader(urls, AppLoader::class.java.classLoader)
         classLoader = loader
         // So Wire convention lookup / SPI discovery see app classes during boot and on this thread.
         Thread.currentThread().contextClassLoader = loader
@@ -124,6 +126,15 @@ class AppLoader(
          * Runs `./gradlew -q konaClasspath` in [root] and splits the printed path list.
          * Returns empty when the wrapper or task is missing (API apps still work via parent CP).
          */
+        /** Drop the cached konaClasspath printout so the next soft reload re-resolves paths. */
+        fun invalidateClasspathCache(root: Path) {
+            try {
+                Files.deleteIfExists(root.resolve("build/kona-runtime.classpath"))
+            } catch (_: Exception) {
+                // Best-effort; a stale cache only slows composite-build freshness.
+            }
+        }
+
         fun gradleRuntimeClasspath(
             root: Path,
             starter: (Path, Path) -> Process? = Companion::startClasspathProcess,

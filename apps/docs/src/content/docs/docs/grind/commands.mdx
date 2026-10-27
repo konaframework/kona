@@ -43,13 +43,21 @@ On start, grind prints a Termwind box with the local URL (for example `http://12
 `./grind serve` is a **watch** server:
 
 1. If `build/classes` is empty, grind runs `./gradlew classes` once.
-2. It boots `bootstrap.App` inside the grind JVM (`AppLoader` + a child `URLClassLoader`) and starts `KonaHttpServer`.
-3. It polls `src/main` (and `.env`) for Kotlin, Java, Crema, and common resource changes. Editor swap files (`*~`, `*.swp`) are ignored.
-4. After a quiet debounce it runs incremental `./gradlew classes`. **Netty stays bound** — event loops and keep-alive connections are not torn down.
-5. On a successful compile, grind boots a new application (Cadence registers a fresh global `Database`), calls `KonaHttpServer.replaceKernel`, then closes the previous classloader and **that previous app’s** Cadence pools — not the new global. A Wire component save (for example `Counter`) must keep serving without `No global Database`.
-6. If compile or boot fails, the previous kernel keeps answering requests and grind prints the error.
+2. It boots `bootstrap.App` inside the grind JVM (`AppLoader` + a child-first `SoftReloadClassLoader`) and starts `KonaHttpServer`.
+3. It polls `src/main` (and `.env`) for Kotlin, Java, Crema, CSS/SCSS, JS, SVG, and other common resource changes. Editor swap files (`*~`, `*.swp`) are ignored. Panel sources under `src/main/kotlin/app/panels` (and Java) are on that tree — they reload like any other app class.
+4. After a quiet debounce it prints `Changed <file> — recompiling`, runs incremental `./gradlew classes`, and invalidates `build/kona-runtime.classpath` so composite/`kona.home` classpaths refresh. **Netty stays bound** — event loops and keep-alive connections are not torn down.
+5. On a successful compile, grind boots a new application (Cadence registers a fresh global `Database`), resets Firefly / Wire / Inertia facades so panels remount, calls `KonaHttpServer.replaceKernel`, then closes the previous classloader and **that previous app’s** Cadence pools — not the new global. Console prints `Reloaded`. A Wire component save (for example `Counter`) must keep serving without `No global Database`.
+6. If compile or boot fails, the previous kernel keeps answering requests and grind prints `Compile failed` / `Reload failed` with the error (add `--verbose` for a stack trace).
 
-That is a **soft** reload: one Netty process, one live app classloader at a time, no Java agent, no second application JVM. Wire inline `template()` blocks live on the component class, so a save that recompiles that class is enough — you do not restart the server. Crema view files under `src/main/resources` are included in the same watch.
+That is a **soft** reload: one Netty process, one live app classloader at a time, no Java agent, no second application JVM. The child loader prefers **application** classes and resources from the latest `build/classes` / `build/resources` even though `./grind` itself started with those directories on the parent classpath — otherwise saves would recompile while the browser kept serving stale bytecode. Framework types under `org.konaframework.*` stay on the parent so Firefly remount stays process-wide.
+
+Wire inline `template()` blocks live on the component class, so a save that recompiles that class is enough — you do not restart the server. Crema views and CSS under `src/main/resources` are included in the same watch.
+
+#### Soft-reload limits
+
+- **Framework checkout edits** (`kona.home` / `includeBuild`): changing Kona module sources requires restarting `./grind serve` (or `--no-watch` / a full process restart). Soft reload refreshes the **app**, not the grind JVM’s copy of `org.konaframework.*`.
+- **Vite / `public/hot` assets**: front-end HMR is still Vite’s job (`npm run dev`). Grind reloads server-rendered CSS/resources that Gradle copies into `build/resources`.
+- **Zip LOC / composite jars**: grind prefers exploded `build/classes` + `build/resources` (and stages mutable `build/libs` jars per generation) so `gradlew classes` does not rewrite ZipFiles the JVM still has mapped.
 
 `--in-process` still exists for scripts and tests that want a single boot with no poller. `--no-watch` is the old `gradlew run` child-process path.
 

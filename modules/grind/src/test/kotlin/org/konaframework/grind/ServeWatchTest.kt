@@ -86,6 +86,13 @@ class ServeWatchTest {
         assertTrue(SourceSnapshot.isWatchableFile(Path.of("app.properties")))
         assertTrue(SourceSnapshot.isWatchableFile(Path.of("build.kts")))
         assertTrue(SourceSnapshot.isWatchableFile(Path.of("note.txt")))
+        assertTrue(SourceSnapshot.isWatchableFile(Path.of("app.css")))
+        assertTrue(SourceSnapshot.isWatchableFile(Path.of("theme.scss")))
+        assertTrue(SourceSnapshot.isWatchableFile(Path.of("theme.sass")))
+        assertTrue(SourceSnapshot.isWatchableFile(Path.of("app.js")))
+        assertTrue(SourceSnapshot.isWatchableFile(Path.of("app.mjs")))
+        assertTrue(SourceSnapshot.isWatchableFile(Path.of("app.cjs")))
+        assertTrue(SourceSnapshot.isWatchableFile(Path.of("logo.svg")))
         assertTrue(SourceSnapshot.isWatchableFile(Path.of(".env")))
         assertTrue(SourceSnapshot.isWatchableFile(Path.of(".env.local")))
         assertFalse(SourceSnapshot.isWatchableFile(Path.of(".gitignore")))
@@ -288,6 +295,36 @@ class ServeWatchTest {
 
         val defaulted = runCatching { GradleClassesCompiler(windows = false).compile(temp) }
         assertTrue(defaulted.isSuccess || defaulted.exceptionOrNull() is GrindException)
+
+        val cached = temp.resolve("build/kona-runtime.classpath")
+        Files.createDirectories(cached.parent)
+        Files.writeString(cached, "/tmp/stale.jar")
+        val wiped = GradleClassesCompiler { _, _ -> ProcessBuilder("sh", "-c", "echo ok; exit 0").start() }
+        assertEquals(0, wiped.compile(temp).exitCode)
+        assertFalse(Files.exists(cached), "compile should invalidate kona-runtime.classpath")
+    }
+
+    @Test
+    fun changeLabelAndCompileFailureDetail() {
+        assertEquals("files", ServeWatch.changeLabel(emptyList()))
+        assertEquals("files", ServeWatch.changeLabel(listOf(Path.of("/"))))
+        assertEquals("Panel.kt", ServeWatch.changeLabel(listOf(Path.of("app/panels/admin/Panel.kt"))))
+        assertEquals(
+            "Panel.kt, app.css",
+            ServeWatch.changeLabel(
+                listOf(Path.of("Panel.kt"), Path.of("app.css")),
+            ),
+        )
+        assertEquals(
+            "a.kt, b.css, +1 more",
+            ServeWatch.changeLabel(listOf(Path.of("a.kt"), Path.of("b.css"), Path.of("c.js"))),
+        )
+        assertEquals("", ServeWatch.compileFailureDetail(""))
+        assertEquals("boom", ServeWatch.compileFailureDetail("  boom  "))
+        val long = "x".repeat(5000)
+        val clipped = ServeWatch.compileFailureDetail(long, limit = 100)
+        assertEquals(100, clipped.length)
+        assertTrue(long.endsWith(clipped))
     }
 
     @Test
@@ -447,9 +484,27 @@ class ServeWatchTest {
             io = GrindIO(PrintStream(flipOut), PrintStream(flipOut), color = false),
             watcher = flipWatcher,
             compiler = ProjectCompiler { CompileResult(0) },
-        ).run(listOf("--base=$flipBase", "--watch", "--bootstrap=${FlipApp::class.java.name}"))
-        assertTrue(flipOut.toString().contains("Reload failed"), flipOut.toString())
-        assertTrue(flipOut.toString().contains("RuntimeException"), flipOut.toString())
+        ).run(listOf("--base=$flipBase", "--watch", "--verbose", "--bootstrap=${FlipApp::class.java.name}"))
+        val flipLog = flipOut.toString()
+        assertTrue(flipLog.contains("Reload failed"), flipLog)
+        assertTrue(flipLog.contains("RuntimeException"), flipLog)
+        assertTrue(flipLog.contains("FlipApp.create"), flipLog)
+
+        BlankMessageApp.calls = 0
+        val blankPort = freePort()
+        val blankBase = fixtureProject(temp.resolve("watch-blank-msg"), "PORT=$blankPort\n")
+        val blankWatcher = ManualSourceWatcher()
+        val blankOut = ByteArrayOutputStream()
+        ServeCommand(
+            awaitShutdown = { blankWatcher.fire(Path.of("Blank.kt")) },
+            io = GrindIO(PrintStream(blankOut), PrintStream(blankOut), color = false),
+            watcher = blankWatcher,
+            compiler = ProjectCompiler { CompileResult(0) },
+        ).run(listOf("--base=$blankBase", "--watch", "--bootstrap=${BlankMessageApp::class.java.name}"))
+        val blankLog = blankOut.toString()
+        assertTrue(blankLog.contains("Reload failed"), blankLog)
+        assertTrue(blankLog.contains("RuntimeException"), blankLog)
+        assertTrue(blankLog.contains("Re-run with --verbose"), blankLog)
     }
 
     @Test
@@ -589,6 +644,19 @@ internal object FlipApp {
         calls++
         if (calls > 1) {
             throw RuntimeException()
+        }
+        return FixtureApp.create(args)
+    }
+}
+
+internal object BlankMessageApp {
+    var calls = 0
+
+    @JvmStatic
+    fun create(args: Array<String>): Application {
+        calls++
+        if (calls > 1) {
+            throw RuntimeException("   ")
         }
         return FixtureApp.create(args)
     }

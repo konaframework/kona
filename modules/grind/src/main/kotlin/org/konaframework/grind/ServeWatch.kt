@@ -33,6 +33,7 @@ internal data class FileStamp(val modified: Long, val size: Long)
 internal object SourceSnapshot {
     val EXTENSIONS = setOf(
         "kt", "java", "crema", "kts", "json", "properties", "yml", "yaml", "xml", "html", "txt",
+        "css", "scss", "sass", "js", "mjs", "cjs", "svg",
     )
     val SKIP_DIRS = setOf("build", ".git", "node_modules", ".gradle", "dist", ".idea", "out")
 
@@ -186,6 +187,9 @@ internal class GradleClassesCompiler(
     },
 ) : ProjectCompiler {
     override fun compile(root: Path): CompileResult {
+        // Composite/includeBuild apps rewrite exploded class dirs; drop the cached printout so
+        // AppLoader re-runs konaClasspath after a successful soft-reload compile.
+        AppLoader.invalidateClasspathCache(root)
         val command = GradleInvocation.command(root, "classes", windows)
         val process = try {
             start(command, root)
@@ -324,12 +328,40 @@ internal object ServeWatch {
         previousApp: Application,
         previousLoader: AppLoader,
     ): Pair<AppLoader, Application> {
+        AppLoader.invalidateClasspathCache(root)
         // Release ZipFile/JarURLConnection handles on the previous generation before the next
-        // URLClassLoader opens Gradle outputs (ClasspathIsolation also avoids build/libs jars).
+        // SoftReloadClassLoader opens Gradle outputs (ClasspathIsolation also avoids build/libs jars).
         previousLoader.close()
         val (loader, app) = boot(root, options)
         server.replaceKernel(app.resolve(HttpKernel::class.java))
         dispose(previousApp, previousLoader)
         return loader to app
+    }
+
+    /** Human-readable changed-file label for the serve console. */
+    fun changeLabel(paths: List<Path>): String {
+        if (paths.isEmpty()) {
+            return "files"
+        }
+        val names = paths.mapNotNull { it.fileName?.toString() }.distinct()
+        if (names.isEmpty()) {
+            return "files"
+        }
+        if (names.size == 1) {
+            return names[0]
+        }
+        if (names.size == 2) {
+            return "${names[0]}, ${names[1]}"
+        }
+        return "${names[0]}, ${names[1]}, +${names.size - 2} more"
+    }
+
+    /** Trim Gradle noise but keep enough of a failure for the terminal. */
+    fun compileFailureDetail(output: String, limit: Int = 4000): String {
+        val trimmed = output.trim()
+        if (trimmed.isEmpty()) {
+            return ""
+        }
+        return if (trimmed.length <= limit) trimmed else trimmed.takeLast(limit)
     }
 }
