@@ -214,6 +214,12 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
         assertTrue(css.contains(".ff-panel .ff-page-heading"))
         assertTrue(css.contains(".ff-panel .ff-page-mode"))
+        assertTrue(css.contains("--ff-width-7xl: 80rem"))
+        assertTrue(css.contains("--ff-content-max-width: var(--ff-width-7xl)"))
+        assertTrue(css.contains("max-width: var(--ff-content-max-width)"))
+        assertTrue(css.contains(""".ff-panel[data-ff-max-width="full"]"""))
+        assertTrue(css.contains(""".ff-panel .ff-page[data-ff-max-width="xl"]"""))
+        assertTrue(css.contains("max-width: none"))
         assertTrue(css.contains(".ff-panel .ff-action-outlined"))
         assertTrue(css.contains(".ff-panel .ff-row-actions"))
         assertTrue(css.contains(".ff-panel .ff-dialog[hidden]"))
@@ -387,6 +393,49 @@ class FireflySupportTest {
             ChromeMode.AUTH,
             ChromeContext(KonaTheme(), RenderHooks(), emptyMap(), "css", "tok", "T", "B", ChromeMode.AUTH).mode,
         )
+        assertEquals(
+            null,
+            ChromeContext(KonaTheme(), RenderHooks(), emptyMap(), "css", "tok", "T", "B", ChromeMode.PANEL).maxWidth,
+        )
+        assertEquals(
+            "full",
+            ChromeContext(
+                KonaTheme(),
+                RenderHooks(),
+                emptyMap(),
+                "css",
+                "tok",
+                "T",
+                "B",
+                ChromeMode.PANEL,
+                "full",
+            ).maxWidth,
+        )
+        assertEquals("7xl", MaxWidth.DEFAULT)
+        assertTrue(MaxWidth.TOKENS.contains("xl"))
+        assertEquals("full", MaxWidth.requireKnown("full"))
+        assertThrows(FireflyException::class.java) { MaxWidth.requireKnown("huge") }
+        assertThrows(FireflyException::class.java) { Panel().maxWidth("huge") }
+        val wideChrome = Panel().maxWidth("full").render()
+        assertTrue(wideChrome.contains("""class="ff-panel" data-ff-max-width="full""""))
+        assertTrue(Panel().render().contains("""class="ff-panel""""))
+        assertFalse(Panel().render().contains("""class="ff-panel" data-ff-max-width="""))
+        val blankWidth = DefaultLayout().render(
+            ChromeContext(
+                KonaTheme(),
+                RenderHooks(),
+                mapOf(
+                    "sidebar" to """<aside class="ff-sidebar"><!-- ff-hook:sidebar.start --><!-- ff-hook:sidebar.end --></aside>""",
+                    "topbar" to """<header class="ff-topbar"><!-- ff-hook:topbar.start --><!-- ff-hook:topbar.end --></header>""",
+                    "body" to """<main class="ff-body"><!-- ff-hook:body.start --><!-- ff-hook:body.end --></main>""",
+                    "footer" to """<footer class="ff-footer"><!-- ff-hook:footer --></footer>""",
+                ),
+                "css",
+                maxWidth = "   ",
+            ),
+        )
+        assertTrue(blankWidth.contains("""class="ff-panel""""))
+        assertFalse(blankWidth.contains("""class="ff-panel" data-ff-max-width="""))
         assertFalse(Panel().csrfToken("").render().contains("""name="csrf-token""""))
         assertFalse(Panel().csrfToken("   ").render().contains("""name="csrf-token""""))
         val authBlankCsrf = AuthLayout().render(

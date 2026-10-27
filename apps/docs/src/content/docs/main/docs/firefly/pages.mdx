@@ -90,6 +90,7 @@ The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defa
 | `form(schema)` | Content region from a form schema |
 | `infolistHtml(html)` | Content region from infolist HTML |
 | `table(table)` | Content region from a table |
+| `maxWidth(token)` | Cap this page’s content column (`xs`…`7xl`, `full`, `screen`, `prose`). Overrides the panel default. Emits `data-ff-max-width` on the section |
 | `render()` / `render(state)` | `<section class="ff-page">` with header, content, widgets, and footer |
 
 `PanelPage` adds:

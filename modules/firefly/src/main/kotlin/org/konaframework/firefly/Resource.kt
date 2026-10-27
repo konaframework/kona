@@ -5,6 +5,7 @@ import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.tables.RecordStores
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TableButton
@@ -30,6 +31,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private var simpleFlag = false
     private var tenantColumn: String? = null
     private var resolvedPages: List<PanelPage>? = null
+    private var maxWidthLiteral: String? = null
 
     fun slug(): String {
         if (slugValue.isNotEmpty()) return slugValue
@@ -152,6 +154,15 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         tenantColumn = column
     }
 
+    /**
+     * Default content max-width for this resource's pages (`xs`…`7xl`, `full`, `screen`, `prose`).
+     * Applied when each page renders unless the page already called [Page.maxWidth].
+     * Overrides the panel default for those pages.
+     */
+    fun maxWidth(width: String): Resource = apply {
+        maxWidthLiteral = MaxWidth.requireKnown(width)
+    }
+
     fun relation(manager: RelationManager): Resource = apply {
         if (simpleFlag) throw FireflyException("Simple resource [${slug()}] has no relation managers")
         managers.add(manager)
@@ -204,6 +215,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     private fun apply(page: PanelPage, state: Map<String, Any?>) {
+        val width = maxWidthLiteral
+        if (width != null) page.defaultMaxWidth(width)
         if (page is ManagePage) {
             applyManage(page, state)
             return

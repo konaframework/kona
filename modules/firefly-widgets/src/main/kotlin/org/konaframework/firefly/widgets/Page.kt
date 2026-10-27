@@ -3,6 +3,7 @@ package org.konaframework.firefly.widgets
 import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.tables.Table
 import java.util.function.Function
 
@@ -20,6 +21,8 @@ open class Page {
     private var formSchema: Schema? = null
     private var infolistMarkup: String? = null
     private var contentTable: Table<*, *>? = null
+    private var maxWidthValue: String? = null
+    private var maxWidthExplicit: Boolean = false
 
     fun title(value: String): Page = apply { titleSetting.setLiteral(value) }
 
@@ -62,6 +65,24 @@ open class Page {
 
     fun table(table: Table<*, *>): Page = apply { contentTable = table }
 
+    /**
+     * Cap this page's content column (`xs`…`7xl`, `full`, `screen`, `prose`).
+     * Overrides the panel default. Emits `data-ff-max-width` on the page section.
+     */
+    open fun maxWidth(width: String): Page = apply {
+        maxWidthValue = MaxWidth.requireKnown(width)
+        maxWidthExplicit = true
+    }
+
+    /**
+     * Resource (or other host) default when the page did not call [maxWidth].
+     * No-op if the page already set an explicit width.
+     */
+    open fun defaultMaxWidth(width: String): Page = apply {
+        if (maxWidthExplicit) return@apply
+        maxWidthValue = MaxWidth.requireKnown(width)
+    }
+
     fun render(): String = render(emptyMap())
 
     open fun render(state: Map<String, Any?>): String {
@@ -80,7 +101,13 @@ open class Page {
             """<span class="ff-page-mode" data-ff-mode="${escapeHtml(mode)}">${escapeHtml(mode)}</span>"""
         }
         val crumbs = renderBreadcrumbs()
-        return """<section class="${sectionClass()}"><header class="ff-page-header"><div class="ff-page-heading">$crumbs<h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        val widthAttr =
+            if (maxWidthValue == null) {
+                ""
+            } else {
+                """ data-ff-max-width="${escapeHtml(maxWidthValue!!)}""""
+            }
+        return """<section class="${sectionClass()}"$widthAttr><header class="ff-page-header"><div class="ff-page-heading">$crumbs<h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
     }
 
     private fun wrapInfolist(html: String): String {

@@ -163,11 +163,23 @@ The route is `/{prefix}/notes/manage` when the slug is `notes` and the page slug
 
 The hello samples mount a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
 
+## Content max width
+
+`Resource.maxWidth(token)` sets the default content column for every page of that resource (`xs`…`7xl`, `full`, `screen`, `prose`). It overrides the panel default when the page renders. A page that already called `maxWidth` keeps its own value. List and manage tables fill that column.
+
+```kotlin
+Resource("orders").model(Order::class.java).maxWidth("full")
+```
+
+```java
+new Resource("orders").model(Order.class).maxWidth("full");
+```
+
 ## What you build with
 
 | Type | Role |
 |------|------|
-| `Resource` | Model, form, infolist, table, actions, and pages |
+| `Resource` | Model, form, infolist, table, actions, and pages. Optional `maxWidth(token)` for the content column |
 | `label` / `pluralLabel` | Singular-or-base title vs list/nav plural heading (`pluralLabel` defaults from `label`) |
 | `RelationManager` | Related records on a full resource's edit and view pages. Set the label column with `titleAttribute` |
 | `ManagePage` | The single page of a simple resource |

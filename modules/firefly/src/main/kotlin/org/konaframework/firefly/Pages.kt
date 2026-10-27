@@ -45,6 +45,10 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
 
     fun mountInfolist(infolist: Infolist): PanelPage = apply { infolistHtml(infolist.render()) }
 
+    override fun maxWidth(width: String): PanelPage = apply { super.maxWidth(width) }
+
+    override fun defaultMaxWidth(width: String): PanelPage = apply { super.defaultMaxWidth(width) }
+
     /** Optional mode chip beside the page title (create / edit / detail), Shamar-style. */
     override fun modeLabel(): String? = null
 }

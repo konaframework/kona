@@ -16,6 +16,8 @@ class ChromeContext @JvmOverloads constructor(
     val documentTitle: String = "Firefly",
     val brandName: String = "Firefly",
     val mode: ChromeMode = ChromeMode.PANEL,
+    /** Panel default content max-width token (`xs`…`7xl`, `full`, `screen`, `prose`). */
+    val maxWidth: String? = null,
 )
 
 interface PanelLayout {
@@ -47,6 +49,7 @@ class DefaultLayout(
         val tokens = context.theme.tokens()
         val csrf = context.csrfToken?.takeUnless { it.isBlank() }
         val title = context.documentTitle.ifBlank { "Firefly" }
+        val maxWidth = context.maxWidth?.takeUnless { it.isBlank() }
         return crema.render(
             FireflyCrema.PANEL,
             mapOf(
@@ -62,6 +65,7 @@ class DefaultLayout(
                 "chromeScript" to CHROME_SCRIPT,
                 "bodyBackground" to tokens.bodyBackground,
                 "bodyColor" to tokens.heading,
+                "maxWidth" to maxWidth,
             ),
         )
     }
@@ -157,6 +161,7 @@ class Panel {
     private var documentTitle: String = "Firefly"
     private var brandName: String = "Firefly"
     private var mode: ChromeMode = ChromeMode.PANEL
+    private var maxWidth: String? = null
 
     fun theme(theme: FireflyTheme): Panel = apply { this.theme = theme }
 
@@ -173,6 +178,14 @@ class Panel {
     fun brandName(name: String): Panel = apply { brandName = name }
 
     fun mode(mode: ChromeMode): Panel = apply { this.mode = mode }
+
+    /**
+     * Default content max-width for pages and resources in this chrome
+     * (`xs`…`7xl`, `full`, `screen`, `prose`). Emits `data-ff-max-width` on `.ff-panel`.
+     */
+    fun maxWidth(width: String): Panel = apply {
+        this.maxWidth = MaxWidth.requireKnown(width)
+    }
 
     fun render(): String {
         val partials = linkedMapOf<String, String>()
@@ -201,6 +214,7 @@ class Panel {
                 documentTitle,
                 brandName,
                 mode,
+                maxWidth,
             ),
         )
     }

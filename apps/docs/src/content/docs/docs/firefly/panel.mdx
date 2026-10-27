@@ -57,6 +57,7 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 | `navigation` / `topNavigation()` | `NavigationType`. Default `APP`. See [Navigation](/docs/firefly/navigation/) |
 | `theme(FireflyTheme)` | Tokens and partials. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the shell arrangement |
+| `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`). Default is `7xl` (80rem). Pages and resources can override. Tables fill that column |
 | `hook(Hook, html)` | Appends HTML into a chrome hook |
 | `spa(true)` | Adds `wire:navigate` on links that have a URL |
 | `authenticate(false)` | Pages skip the login redirect. The hello samples do this |
@@ -77,6 +78,26 @@ The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the applica
 The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, and `/profile`, under the panel prefix. Pages require that guard unless you call `authenticate(false)`. Login and registration read `email` and `password` (registration also reads `name`). A missing field returns 422 HTML. A failed attempt returns 422 HTML and the message `Those credentials do not match`. With `reuseAppGuard`, panel `/register` does not create application users — seed or create them through the app Auth stack.
 
 When the guard has no id, the user chip reads **Guest**.
+
+## Content max width
+
+The page column defaults to **7xl** (80rem), centered in the body. List and manage tables stretch to **100%** of that column — they only shrink when you set a narrower max width on the panel, the page, or the resource.
+
+```kotlin
+Panel()
+    .id("admin")
+    .maxWidth("full") // or maxContentWidth("full")
+    .page(ListPage("orders").maxWidth("5xl"))
+```
+
+```java
+new Panel()
+    .id("admin")
+    .maxContentWidth("full")
+    .page(new ListPage("orders").maxWidth("5xl"));
+```
+
+Tokens: `xs`…`7xl`, `full`, `screen`, `prose`. An unknown token throws `FireflyException`. The panel emits `data-ff-max-width` on `.ff-panel`; a page or resource emits it on the page `<section>`. See [Pages](/docs/firefly/pages/) and [Resources](/docs/firefly/resources/).
 
 ## Pick a theme and a hook
 

@@ -110,6 +110,15 @@ class FireflyWidgetsTest {
         }.render()
         assertTrue(badged.contains("""data-ff-mode="edit""""))
         assertTrue(badged.contains("ff-page-mode"))
+        val capped = Page().title("Wide").maxWidth("full").render()
+        assertTrue(capped.contains("""data-ff-max-width="full""""))
+        val fromDefault = Page().title("Defaulted").defaultMaxWidth("xl").render()
+        assertTrue(fromDefault.contains("""data-ff-max-width="xl""""))
+        val explicitWins = Page().title("Page").maxWidth("sm").defaultMaxWidth("full").render()
+        assertTrue(explicitWins.contains("""data-ff-max-width="sm""""))
+        assertFalse(explicitWins.contains("""data-ff-max-width="full""""))
+        assertThrows<FireflyException> { Page().maxWidth("nope") }
+        assertThrows<FireflyException> { Page().defaultMaxWidth("nope") }
     }
 
     @Test

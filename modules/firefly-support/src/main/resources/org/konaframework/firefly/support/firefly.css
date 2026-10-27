@@ -30,7 +30,7 @@ body.ff-body-root {
   /* Soft elevation for table cards against --ff-shell (keeps flat white surface). */
   --ff-table-shadow: 0 1px 2px color-mix(in srgb, #0f172a 5%, transparent),
     0 6px 18px color-mix(in srgb, #0f172a 7%, transparent);
-  /* Component.maxWidth / data-ff-max-width tokens (Tailwind-compatible rem scale). */
+  /* Panel / page / resource / Component maxWidth tokens (Tailwind-compatible rem scale). */
   --ff-width-xs: 20rem;
   --ff-width-sm: 24rem;
   --ff-width-md: 28rem;
@@ -42,6 +42,8 @@ body.ff-body-root {
   --ff-width-5xl: 64rem;
   --ff-width-6xl: 72rem;
   --ff-width-7xl: 80rem;
+  /* Default page column; Panel.maxWidth / data-ff-max-width on .ff-panel overrides. */
+  --ff-content-max-width: var(--ff-width-7xl);
   color: var(--ff-body-text);
   font-family: var(--ff-font);
   font-size: 0.9375rem;
@@ -599,9 +601,56 @@ body.ff-body-root {
 
 .ff-panel .ff-page,
 .ff-panel .ff-profile {
-  max-width: 80rem;
+  max-width: var(--ff-content-max-width);
+  width: 100%;
   margin: 0 auto;
 }
+
+/* Panel.maxWidth("…") → data-ff-max-width on .ff-panel (default for every page). */
+.ff-panel[data-ff-max-width="xs"] { --ff-content-max-width: var(--ff-width-xs); }
+.ff-panel[data-ff-max-width="sm"] { --ff-content-max-width: var(--ff-width-sm); }
+.ff-panel[data-ff-max-width="md"] { --ff-content-max-width: var(--ff-width-md); }
+.ff-panel[data-ff-max-width="lg"] { --ff-content-max-width: var(--ff-width-lg); }
+.ff-panel[data-ff-max-width="xl"] { --ff-content-max-width: var(--ff-width-xl); }
+.ff-panel[data-ff-max-width="2xl"] { --ff-content-max-width: var(--ff-width-2xl); }
+.ff-panel[data-ff-max-width="3xl"] { --ff-content-max-width: var(--ff-width-3xl); }
+.ff-panel[data-ff-max-width="4xl"] { --ff-content-max-width: var(--ff-width-4xl); }
+.ff-panel[data-ff-max-width="5xl"] { --ff-content-max-width: var(--ff-width-5xl); }
+.ff-panel[data-ff-max-width="6xl"] { --ff-content-max-width: var(--ff-width-6xl); }
+.ff-panel[data-ff-max-width="7xl"] { --ff-content-max-width: var(--ff-width-7xl); }
+.ff-panel[data-ff-max-width="full"] { --ff-content-max-width: 100%; }
+.ff-panel[data-ff-max-width="screen"] { --ff-content-max-width: 100vw; }
+.ff-panel[data-ff-max-width="prose"] { --ff-content-max-width: 65ch; }
+
+/* Page / Resource.maxWidth("…") → data-ff-max-width on the section (overrides panel). */
+.ff-panel .ff-page[data-ff-max-width="xs"],
+.ff-panel .ff-profile[data-ff-max-width="xs"] { max-width: var(--ff-width-xs); }
+.ff-panel .ff-page[data-ff-max-width="sm"],
+.ff-panel .ff-profile[data-ff-max-width="sm"] { max-width: var(--ff-width-sm); }
+.ff-panel .ff-page[data-ff-max-width="md"],
+.ff-panel .ff-profile[data-ff-max-width="md"] { max-width: var(--ff-width-md); }
+.ff-panel .ff-page[data-ff-max-width="lg"],
+.ff-panel .ff-profile[data-ff-max-width="lg"] { max-width: var(--ff-width-lg); }
+.ff-panel .ff-page[data-ff-max-width="xl"],
+.ff-panel .ff-profile[data-ff-max-width="xl"] { max-width: var(--ff-width-xl); }
+.ff-panel .ff-page[data-ff-max-width="2xl"],
+.ff-panel .ff-profile[data-ff-max-width="2xl"] { max-width: var(--ff-width-2xl); }
+.ff-panel .ff-page[data-ff-max-width="3xl"],
+.ff-panel .ff-profile[data-ff-max-width="3xl"] { max-width: var(--ff-width-3xl); }
+.ff-panel .ff-page[data-ff-max-width="4xl"],
+.ff-panel .ff-profile[data-ff-max-width="4xl"] { max-width: var(--ff-width-4xl); }
+.ff-panel .ff-page[data-ff-max-width="5xl"],
+.ff-panel .ff-profile[data-ff-max-width="5xl"] { max-width: var(--ff-width-5xl); }
+.ff-panel .ff-page[data-ff-max-width="6xl"],
+.ff-panel .ff-profile[data-ff-max-width="6xl"] { max-width: var(--ff-width-6xl); }
+.ff-panel .ff-page[data-ff-max-width="7xl"],
+.ff-panel .ff-profile[data-ff-max-width="7xl"] { max-width: var(--ff-width-7xl); }
+.ff-panel .ff-page[data-ff-max-width="full"],
+.ff-panel .ff-profile[data-ff-max-width="full"] { max-width: 100%; }
+.ff-panel .ff-page[data-ff-max-width="screen"],
+.ff-panel .ff-profile[data-ff-max-width="screen"] { max-width: 100vw; }
+.ff-panel .ff-page[data-ff-max-width="prose"],
+.ff-panel .ff-profile[data-ff-max-width="prose"] { max-width: 65ch; }
 
 /* Relation managers fill the parent form/infolist width (Filament / Shamar). */
 .ff-panel .ff-relation {
@@ -738,12 +787,14 @@ body.ff-body-root {
   gap: 1rem;
 }
 
-/* List/manage: keep the elevated white .ff-table-wrap card (do not strip shadow here). */
+/* List/manage: elevated white .ff-table-wrap fills the page content max-width
+ * (panel / page / resource maxWidth only reduces it; do not strip table-card shadow). */
 .ff-panel .ff-list .ff-page-content > .ff-table-wrap,
 .ff-panel .ff-list .ff-page-content > .ff-table,
 .ff-panel .ff-manage .ff-page-content > .ff-table-wrap,
 .ff-panel .ff-manage .ff-page-content > .ff-table {
   width: 100%;
+  max-width: none;
 }
 
 /* Create/edit/view: shell shows through; Section / .ff-infolist cards provide elevation (no double card).

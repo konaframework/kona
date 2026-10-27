@@ -253,6 +253,29 @@ class FireflyResourceTest {
         assertThrows<FireflyException> { Resource().label { " " }.label() }
         assertThrows<FireflyException> { Resource().pluralLabel(" ") }
         assertThrows<FireflyException> { Resource().pluralLabel { " " }.pluralLabel() }
+        assertThrows<FireflyException> { Resource().maxWidth("huge") }
+        val widthRouter = Router()
+        Panel().path("admin").authenticate(false)
+            .resource(Resource("shelf").model(Shelf::class.java).maxWidth("full").simple())
+            .mount(widthRouter)
+        assertTrue(
+            send(widthRouter, "/admin/shelf/manage").contains("""class="ff-page ff-manage" data-ff-max-width="full""""),
+        )
+        val pageOverride = object : Resource("shelf") {
+            init {
+                model(Shelf::class.java)
+                maxWidth("full")
+                simple()
+            }
+
+            override fun getPages(): Map<String, Page> =
+                mapOf("manage" to ManagePage("manage").maxWidth("sm"))
+        }
+        val overrideRouter = Router()
+        Panel().path("admin").authenticate(false).resource(pageOverride).mount(overrideRouter)
+        val overrideHtml = send(overrideRouter, "/admin/shelf/manage")
+        assertTrue(overrideHtml.contains("""class="ff-page ff-manage" data-ff-max-width="sm""""))
+        assertFalse(overrideHtml.contains("""class="ff-page ff-manage" data-ff-max-width="full""""))
         assertThrows<FireflyException> { RelationManager(" ") }
         assertThrows<FireflyException> { RelationManager("lines").titleAttribute(" ") }
         assertThrows<FireflyException> { RelationManager("lines").titleAttribute { " " }.render() }
