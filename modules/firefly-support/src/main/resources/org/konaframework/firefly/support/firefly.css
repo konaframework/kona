@@ -1099,7 +1099,8 @@ body.ff-body-root {
   gap: 0.65rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--ff-card-border);
-  background: var(--ff-inset);
+  /* Continuous white table surface (not inset chrome). */
+  background: var(--ff-card);
 }
 
 .ff-panel .ff-table-toolbar-form {
@@ -1179,7 +1180,7 @@ body.ff-body-root {
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  background: var(--ff-inset);
+  background: var(--ff-card);
   border-bottom: 1px solid var(--ff-card-border);
   white-space: nowrap;
 }
@@ -1227,6 +1228,7 @@ body.ff-body-root {
   border-bottom: 1px solid var(--ff-card-border);
   color: var(--ff-heading);
   vertical-align: middle;
+  background: var(--ff-card);
 }
 
 .ff-panel .ff-table tr:last-child td {
@@ -1273,7 +1275,8 @@ body.ff-body-root {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-top: 1px solid var(--ff-card-border);
-  background: var(--ff-inset);
+  /* Same white table surface as toolbar/thead/tbody (not inset footer). */
+  background: var(--ff-card);
   font-size: 0.875rem;
   color: var(--ff-body-subtle);
 }
@@ -1639,14 +1642,15 @@ body.ff-body-root {
   }
 }
 
-/* ——— Relation managers ——— */
+/* ——— Relation managers ———
+ * Flat white table chrome via nested .ff-table-wrap only — do not wrap the
+ * table in an outer floating card (avoids card-in-card / border+shadow stack). */
 .ff-panel .ff-relation {
-  background: var(--ff-card);
-  border: 1px solid var(--ff-card-border);
-  border-radius: calc(var(--ff-radius) + 0.25rem);
-  padding: 1rem;
-  box-shadow: var(--ff-shadow);
-  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 /* ——— Manage header actions stack nicely ——— */
