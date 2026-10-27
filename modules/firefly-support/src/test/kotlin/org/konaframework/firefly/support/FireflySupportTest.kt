@@ -185,6 +185,10 @@ class FireflySupportTest {
             Regex("""\.ff-panel\s+\.ff-relation\s*\{[^}]*box-shadow:\s*none""")
                 .containsMatchIn(css),
         )
+        // List headers (including sort controls) are capital letters via CSS.
+        assertTrue(css.contains(".ff-panel .ff-table th"))
+        assertTrue(css.contains("text-transform: uppercase"))
+        assertTrue(css.contains(".ff-panel .ff-table-sort"))
         assertTrue(css.contains(".ff-panel .ff-breadcrumbs"))
         assertTrue(css.contains(".ff-panel .ff-entry .ff-label"))
         assertTrue(css.contains("grid-template-columns: repeat(var(--ff-cols"))
@@ -291,6 +295,9 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-dialog-open"))
         assertTrue(html.contains("data-ff-dialog-panel"))
         assertTrue(html.contains("ff-open"))
+        // Table soft-nav swaps .ff-table-wrap without a full document reload.
+        assertTrue(html.contains("ffTableNav"))
+        assertTrue(html.contains("data-ff-table-nav"))
         assertEquals("", RenderHooks().render(Hook.BODY_START))
 
         val auth = Panel()

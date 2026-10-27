@@ -302,7 +302,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             """
             <div class="ff-table-search-wrap">
               <svg class="ff-table-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0015.803 15.803z"/></svg>
-              <input class="ff-table-search" type="search" name="search" value="${escapeHtml(searchTerm)}" placeholder="Search…" aria-label="Search" wire:model.live.debounce.300ms="search" x-on:keydown.enter.prevent="${'$'}wire.${'$'}call('search', ${'$'}event.target.value)">
+              <input class="ff-table-search" type="search" name="search" value="${escapeHtml(searchTerm)}" placeholder="Search…" aria-label="Search">
             </div>
             """.trimIndent()
         }
@@ -320,8 +320,8 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty()) {
             return """<div class="ff-table-toolbar ff-table-toolbar--empty" hidden></div>"""
         }
-        // Wire-driven toolbar — avoid full-page GET reloads for search / filter / sort.
-        return """<div class="ff-table-toolbar"><div class="ff-table-toolbar-form">$search$tools</div></div>"""
+        // Query-string toolbar — chrome soft-nav swaps the wrap without a full document reload.
+        return """<div class="ff-table-toolbar"><form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$tools</form></div>"""
     }
 
     private fun body(loaded: LoadedTable<T>, visible: List<Column>): String = when (layout) {
@@ -361,9 +361,23 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             sortDirection == "desc" -> "desc"
             else -> "asc"
         }
-        // Wire call keeps the table on the page (Shamar / Livewire-style) instead of a full reload.
-        return """<th scope="col" class="ff-table-sortable" data-ff-sort="$state"><button type="button" class="ff-table-sort" data-ff-sort-column="${escapeHtml(column.name)}" data-ff-sort-direction="$next" x-on:click="${'$'}wire.${'$'}call('sort', '${escapeHtml(column.name)}', '$next')">$label<span class="ff-table-sort-indicator" aria-hidden="true"></span></button></th>"""
+        val href = sortHref(column.name, next)
+        // Query-string sort works without a Wire host; chrome soft-nav swaps .ff-table-wrap in place.
+        return """<th scope="col" class="ff-table-sortable" data-ff-sort="$state"><a class="ff-table-sort" href="${escapeHtml(href)}" data-ff-table-nav data-ff-sort-column="${escapeHtml(column.name)}" data-ff-sort-direction="$next">$label<span class="ff-table-sort-indicator" aria-hidden="true"></span></a></th>"""
     }
+
+    private fun sortHref(column: String, direction: String): String {
+        val parts = ArrayList<String>()
+        if (searchTerm.isNotEmpty()) parts.add("search=${encodeQuery(searchTerm)}")
+        parts.add("sort=${encodeQuery(column)}")
+        parts.add("direction=$direction")
+        if (pageNumber > 1) parts.add("page=$pageNumber")
+        if (pageSize != 10) parts.add("perPage=$pageSize")
+        return "?" + parts.joinToString("&")
+    }
+
+    private fun encodeQuery(value: String): String =
+        java.net.URLEncoder.encode(value, Charsets.UTF_8)
 
     private fun recordRow(record: T, visible: List<Column>): String {
         val values = store.attributes(record)
@@ -439,12 +453,12 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         if (!paginate) return ""
         val meta = """<p class="ff-pagination-meta">Page ${loaded.page} of ${loaded.lastPage} · ${loaded.total} records</p>"""
         val previous = if (loaded.page > 1) {
-            """<button type="button" class="ff-pagination-link" data-ff-page="prev" x-on:click="${'$'}wire.${'$'}call('gotoPage', '${loaded.page - 1}')">Previous</button>"""
+            """<a class="ff-pagination-link" href="${escapeHtml(pageHref(loaded.page - 1))}" data-ff-table-nav data-ff-page="prev">Previous</a>"""
         } else {
             """<span class="ff-pagination-link is-disabled" aria-disabled="true">Previous</span>"""
         }
         val next = if (loaded.hasMorePages()) {
-            """<button type="button" class="ff-pagination-link" data-ff-page="next" x-on:click="${'$'}wire.${'$'}call('gotoPage', '${loaded.page + 1}')">Next</button>"""
+            """<a class="ff-pagination-link" href="${escapeHtml(pageHref(loaded.page + 1))}" data-ff-table-nav data-ff-page="next">Next</a>"""
         } else {
             """<span class="ff-pagination-link is-disabled" aria-disabled="true">Next</span>"""
         }
@@ -456,7 +470,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 val selected = if (size == pageSize) " selected" else ""
                 """<option value="$size"$selected>$size</option>"""
             }
-            """<label class="ff-page-size-label">Rows <select class="ff-page-size" name="perPage" x-on:change="${'$'}wire.${'$'}call('perPage', ${'$'}event.target.value)">$options</select></label>"""
+            """<label class="ff-page-size-label">Rows <select class="ff-page-size" name="perPage" data-ff-table-nav-select>$options</select></label>"""
         }
         val controls = """<div class="ff-pagination-controls">$previous$links$next$sizes</div>"""
         return """<nav class="ff-pagination" data-ff-pagination aria-label="Pagination">$meta$controls</nav>"""
@@ -474,10 +488,23 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             val current = if (token == loaded.page) """ aria-current="page"""" else ""
             val active = if (token == loaded.page) " is-active" else ""
             out.append(
-                """<button type="button" class="ff-pagination-link$active"$current data-ff-page="$token" x-on:click="${'$'}wire.${'$'}call('gotoPage', '$token')">$token</button>""",
+                """<a class="ff-pagination-link$active"$current href="${escapeHtml(pageHref(token))}" data-ff-table-nav data-ff-page="$token">$token</a>""",
             )
         }
         return out.toString()
+    }
+
+    private fun pageHref(page: Int): String {
+        val parts = ArrayList<String>()
+        if (searchTerm.isNotEmpty()) parts.add("search=${encodeQuery(searchTerm)}")
+        val sorting = sortColumn
+        if (sorting != null) {
+            parts.add("sort=${encodeQuery(sorting)}")
+            parts.add("direction=$sortDirection")
+        }
+        parts.add("page=$page")
+        if (pageSize != 10) parts.add("perPage=$pageSize")
+        return "?" + parts.joinToString("&")
     }
 
     private fun paginationWindow(current: Int, last: Int): List<Int?> {
