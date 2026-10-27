@@ -85,8 +85,10 @@ class DefaultLayout(
 
         /**
          * Panel chrome behavior with no framework: 3-state theme cycle, dropdown
-         * menus (notifications + user), mobile sidebar drawer, and Action/TableButton
-         * dialogs (`data-ff-dialog-*`). Alpine is optional — dialogs open without it.
+         * menus (notifications + user), mobile sidebar drawer, Action/TableButton
+         * dialogs (`data-ff-dialog-*`), and table soft-nav (`data-ff-table-nav`) that
+         * swaps `.ff-table-wrap` via fetch without a full document reload.
+         * Alpine is optional — dialogs and table nav open without it.
          */
         internal const val CHROME_SCRIPT: String =
             "<script>(function(){" +
@@ -121,7 +123,25 @@ class DefaultLayout(
                 "if(t.closest('[data-ff-menu-panel]'))return;" +
                 "if(t.closest('[data-ff-sidebar-toggle]')){root.classList.add('ff-sidebar-open');return;}" +
                 "if(t.closest('[data-ff-sidebar-close]')||t.closest('[data-ff-backdrop]')){root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();return;}" +
+                "var nav=t.closest('a[data-ff-table-nav]');" +
+                "if(nav){ev.preventDefault();ffTableNav(nav.getAttribute('href'),nav.closest('.ff-table-wrap'));return;}" +
                 "closeMenus();closeDialogs();});" +
+                "function ffTableIndex(wrap){return Array.prototype.indexOf.call(document.querySelectorAll('.ff-table-wrap'),wrap);}" +
+                "function ffTableNav(href,wrap){if(!href)return;var idx=wrap?ffTableIndex(wrap):-1;" +
+                "fetch(href,{credentials:'same-origin',headers:{'X-Requested-With':'FF-Table'}}).then(function(r){return r.text();}).then(function(html){" +
+                "var doc=new DOMParser().parseFromString(html,'text/html');" +
+                "var next=idx>=0?doc.querySelectorAll('.ff-table-wrap')[idx]:doc.querySelector('.ff-table-wrap');" +
+                "var cur=idx>=0?document.querySelectorAll('.ff-table-wrap')[idx]:(wrap||document.querySelector('.ff-table-wrap'));" +
+                "if(next&&cur){cur.replaceWith(next);}try{history.pushState({},'',href);}catch(e){}" +
+                "}).catch(function(){location.href=href;});}" +
+                "document.addEventListener('submit',function(ev){var f=ev.target;if(!f||!f.matches||!f.matches('form[data-ff-table-nav]'))return;" +
+                "ev.preventDefault();var wrap=f.closest('.ff-table-wrap');var action=f.getAttribute('action')||location.pathname;" +
+                "var qs=new URLSearchParams(new FormData(f)).toString();ffTableNav(action+(qs?('?'+qs):''),wrap);});" +
+                "document.addEventListener('change',function(ev){var el=ev.target;if(!el||!el.matches||!el.matches('[data-ff-table-nav-select]'))return;" +
+                "var wrap=el.closest('.ff-table-wrap');var form=el.closest('form[data-ff-table-nav]');" +
+                "if(form){if(form.requestSubmit)form.requestSubmit();else form.submit();return;}" +
+                "var url=new URL(location.href);url.searchParams.set(el.name||'perPage',el.value);url.searchParams.set('page','1');" +
+                "ffTableNav(url.pathname+url.search,wrap);});" +
                 "document.addEventListener('keydown',function(ev){if(ev.key==='Escape'){" +
                 "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();}});" +
                 "})();</script>"

@@ -72,12 +72,11 @@ open class Filter(val name: String) {
             }
         }
         val extra = inputExtras.markup(cell)
-        val wire =
-            """ x-on:change="${'$'}wire.${'$'}call('applyFilter', '${escapeHtml(name)}', ${'$'}event.target.value)""""
+        // Named controls submit with the toolbar GET form; chrome soft-nav swaps the wrap.
         val control = if (choices.isEmpty()) {
-            """<input data-ff-filter="${escapeHtml(name)}" value="${escapeHtml(current)}"$extra$wire>"""
+            """<input name="${escapeHtml(name)}" data-ff-filter="${escapeHtml(name)}" value="${escapeHtml(current)}"$extra>"""
         } else {
-            """<select data-ff-filter="${escapeHtml(name)}"$extra$wire>$tags</select>"""
+            """<select name="${escapeHtml(name)}" data-ff-filter="${escapeHtml(name)}" data-ff-table-nav-select$extra>$tags</select>"""
         }
         val indicator = if (!active(value)) {
             ""
