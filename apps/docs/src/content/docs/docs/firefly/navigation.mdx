@@ -8,7 +8,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Decide where the links sit, then either let `mount` build the tree or write it yourself. Each panel has one layout for that tree. If you never call `item` or `cluster`, `mount` builds the tree from the pages and resources it discovered.
 
-On the hello samples that means a link for Desk, plus one sidebar entry each for Notes and Orders. Page labels come from the slug, so you may see `desk` until you set a label. Resource entries use `Resource.label()`, so those links read `Notes` and `Orders` and point at the resource index (list or manage). Create, edit, and view are **page header and row actions**, not extra sidebar links.
+On the hello samples that means a link for Desk, plus one sidebar entry each for Notes and Orders. Page labels come from the slug, so you may see `desk` until you set a label. Resource entries use `Resource.pluralLabel()` (from `label()` / `pluralLabel()`), so those links read `Notes` and `Orders` and point at the resource index (list or manage). Create, edit, and view are **page header and row actions**, not extra sidebar links.
 
 <FireflyShot file="panel-navigation.png" description="The hello-kotlin sidebar at http://127.0.0.1:4017/admin/desk, with the desk link and one entry each for Notes and Orders." />
 
@@ -31,7 +31,7 @@ With `SIDE` and `APP` the brand sits in the sidebar brand block; on small screen
 The samples never call `item`. Discovery therefore builds:
 
 - A link for each page. The label is `navigationLabel()`, which is the slug. Desk’s link text is `desk`. The URL is `/admin/desk` because that panel calls `path("admin")`. When `path` is omitted, the same page is `/{id}/desk`.
-- **One sidebar entry per resource.** The label is `Resource.label()` (`Notes`, `Orders`). The URL is the resource index: `/admin/notes/manage` for a simple resource, `/admin/orders/list` for a full resource. That entry stays highlighted on create, edit, and view because the panel matches the whole `/{prefix}/{resource}/…` subtree. Create / edit / view / delete are not navigation children.
+- **One sidebar entry per resource.** The label is `Resource.pluralLabel()` (`Notes`, `Orders`). The URL is the resource index: `/admin/notes/manage` for a simple resource, `/admin/orders/list` for a full resource. That entry stays highlighted on create, edit, and view because the panel matches the whole `/{prefix}/{resource}/…` subtree. Create / edit / view / delete are not navigation children.
 
 Use `cluster(...)` only when you want a **manual** group (for example Catalog → Orders). Resources themselves are never auto-clustered into list/create/edit/view children.
 

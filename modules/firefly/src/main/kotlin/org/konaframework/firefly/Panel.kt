@@ -307,7 +307,7 @@ open class Panel {
                 val indexSlug = if (index == null) "" else index.slug()
                 items.add(
                     NavigationItem(resource.slug())
-                        .label(resource.label())
+                        .label(resource.pluralLabel())
                         .url(panelUri(resolvedPrefix, resourcePagePath(resource.slug(), indexSlug)))
                         .matchPrefix(panelUri(resolvedPrefix, resource.slug())),
                 )
