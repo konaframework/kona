@@ -24,7 +24,7 @@ Path helpers: `app.appPath()`, `app.storagePath()`, `Paths.config()`, …
 ./gradlew run
 ```
 
-Demo login (web kits): `demo@kona.test` / `password` after migrate + seed.
+Demo login (web / Firefly kits): `demo@kona.test` / `password` after migrate + seed. Firefly also accepts those credentials at `/admin/login`.
 
 ## Production
 

@@ -1,6 +1,6 @@
 ---
 title: Resources
-description: Drop a resource in app/firefly/resources. simple() is one Manage page. Leave it off and you get list, create, edit, and view.
+description: Drop a resource in the panel resources/ folder. simple() is one Manage page. Leave it off and you get list, create, edit, and view — with one sidebar entry and page actions.
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
@@ -10,13 +10,15 @@ Add one class per record type, put it in the panel’s `resources/` folder, and 
 
 Call `simple()` when you want one Manage page. Leave it off when you want list, create, edit, and view as their own URLs. The hello samples use both. The click-through is on [A working app](/docs/firefly/working-app/). This page is the method list.
 
+The sidebar gets **one entry per resource** (the list or manage page). Create, edit, view, and delete are page-header and row actions — never separate sidebar links. See [Navigation](/docs/firefly/navigation/).
+
 The types live in `org.konaframework.firefly` (`kona-firefly`).
 
-<FireflyShot file="orders-list.png" description="The orders list at http://127.0.0.1:4017/admin/orders/list, with the orders table and a create action." />
+<FireflyShot file="orders-list.png" description="The orders list at http://127.0.0.1:4017/admin/orders/list, with the orders table, a New header action, and row actions." />
 
 ## Serve a full resource
 
-Put the class in `app/firefly/resources/`. Override `form`, `infolist`, `table`, and `getPages`. Leave `getPages()` alone and a full resource serves list, create, edit, and view.
+Put the class in `app/panels/{panel}/resources/` (or the discovered `resources/` beside your panel class). Override `form`, `infolist`, `table`, and `getPages`. Leave `getPages()` alone and a full resource serves list, create, edit, and view.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -89,7 +91,7 @@ public class OrderResource extends Resource {
 </TabItem>
 </Tabs>
 
-The page calls `form`, `table`, and `infolist` when it renders, so those methods can read the current tenant and `schema.record()`. The list page mounts the table and a create action. The create and edit pages mount the form. The view page mounts the infolist. Edit and view also render each relation manager. You open `/{prefix}/orders/list`. The prefix is the panel id when `path` is not set. The hello samples call `path("admin")`, so that URL is `/admin/orders/list`.
+The page calls `form`, `table`, and `infolist` when it renders, so those methods can read the current tenant and `schema.record()`. The list page mounts the table, a **New** header action that links to the create page, and row actions (View, Edit, Delete). The create page mounts the form plus Create / Cancel header actions. The edit page mounts the form, relation managers, and Save / View / Cancel / Delete. The view page mounts the infolist, relation managers, and Edit / Back to list / Delete. You open `/{prefix}/orders/list`. The prefix is the panel id when `path` is not set. The hello samples call `path("admin")`, so that URL is `/admin/orders/list`. The sidebar shows one **Orders** link to that list URL and keeps it active on create, edit, and view.
 
 `query()` chooses the store from the model type. A Cadence model returns a `ModelBuilder`. A document model fails and names `kona-firefly-document`, which is not part of this release. Any other type fails and tells you to use `Table.memory` for custom rows.
 
@@ -157,7 +159,7 @@ The route is `/{prefix}/notes/manage` when the slug is `notes` and the page slug
 
 ## Generate one
 
-`./grind make:firefly-resource Order` writes `app/panels/admin/resources/Order.kt` (or `.java`) with overrides for the form, infolist, table, and `getPages()`, plus one relation manager. `./grind make:firefly-resource Note --simple` writes the same schema overrides, calls `simple()`, and does not override `getPages()` or write a relation manager. Pass `--panel=billing` to write into another panel directory. The generated class calls `model(app.models.Order::class.java)`. Create that Cadence model, then let the panel discover the resource directory.
+`./grind make:firefly-resource Order` treats `Order` as the **model** name and writes `app/panels/admin/resources/OrderResource.kt` (or `.java`) with overrides for the form, infolist, table, and `getPages()`, plus one relation manager. Passing `OrderResource` already does not double-suffix. `./grind make:firefly-resource Note --simple` writes the same schema overrides, calls `simple()`, and does not override `getPages()` or write a relation manager. Pass `--panel=billing` to write into another panel directory. The generated class calls `model(app.models.Order::class.java)`. Create that Cadence model, then let the panel discover the resource directory.
 
 The hello samples mount a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
 

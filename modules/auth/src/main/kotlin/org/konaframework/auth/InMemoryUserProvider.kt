@@ -83,3 +83,8 @@ interface HasCredentials {
 interface HasEmail {
     fun getEmail(): String?
 }
+
+/** Optional display name, surfaced by panel chrome and other UI. */
+interface HasName {
+    fun getName(): String?
+}

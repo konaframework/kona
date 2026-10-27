@@ -1,36 +1,52 @@
 package org.konaframework.grind
 
-/** `grind make:firefly-resource <Name> [--simple]` writes a resource the panel discovers. */
+/**
+ * `grind make:firefly-resource <Model> [--simple]` writes a `*Resource` the panel discovers.
+ *
+ * Full resources declare list/create/edit/view pages. The panel sidebar gets **one** entry
+ * (the list). Create / edit / view / delete are page-header and row actions from [Resource.pages].
+ */
 class MakeFireflyResourceCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
-        if (positional.size != 1) throw GrindException("Usage: grind make:firefly-resource <Name> [--simple]")
-        val name = positional.first()
-        Names.requireClassName("resource", name)
+        if (positional.size != 1) {
+            throw GrindException("Usage: grind make:firefly-resource <Model> [--simple]  (writes ModelResource)")
+        }
+        val input = positional.first()
+        Names.requireClassName("resource", input)
+        val model = Names.modelNameFromResourceInput(input)
+        val className = Names.resourceClassName(input)
+        Names.requireClassName("model", model)
         val base = Names.base(options)
         val lang = Names.lang(base, options)
         val simple = options["simple"] == "true"
         val panel = panelIdFromOptions(options)
         Names.write(
             base,
-            Names.sourceFile(lang, "app/panels/$panel/resources", name),
+            Names.sourceFile(lang, "app/panels/$panel/resources", className),
             "Firefly resource",
-            resourceSource(name, lang, simple, panel),
+            resourceSource(className, model, lang, simple, panel),
         )
         return 0
     }
 }
 
-private fun resourceSource(name: String, lang: String, simple: Boolean, panel: String): String {
-    val slug = name.lowercase()
+private fun resourceSource(
+    className: String,
+    model: String,
+    lang: String,
+    simple: Boolean,
+    panel: String,
+): String {
+    val slug = model.lowercase()
     val pkg = "app.panels.$panel.resources"
-    if (lang == "java" && simple) return javaSimple(name, slug, pkg)
-    if (lang == "java") return javaFull(name, slug, pkg)
-    if (simple) return kotlinSimple(name, slug, pkg)
-    return kotlinFull(name, slug, pkg)
+    if (lang == "java" && simple) return javaSimple(className, model, slug, pkg)
+    if (lang == "java") return javaFull(className, model, slug, pkg)
+    if (simple) return kotlinSimple(className, model, slug, pkg)
+    return kotlinFull(className, model, slug, pkg)
 }
 
-private fun kotlinSimple(name: String, slug: String, pkg: String): String = lines(
+private fun kotlinSimple(className: String, model: String, slug: String, pkg: String): String = lines(
     "package $pkg",
     "",
     "import org.konaframework.firefly.Resource",
@@ -40,11 +56,11 @@ private fun kotlinSimple(name: String, slug: String, pkg: String): String = line
     "import org.konaframework.firefly.tables.Table",
     "import org.konaframework.firefly.tables.TextColumn",
     "",
-    "class $name : Resource(\"$slug\") {",
+    "class $className : Resource(\"$slug\") {",
     "    init {",
-    "        label(\"$name\")",
+    "        label(\"$model\")",
     "        simple()",
-    "        model(app.models.$name::class.java)",
+    "        model(app.models.$model::class.java)",
     "    }",
     "",
     "    override fun form(schema: Schema): Schema =",
@@ -58,7 +74,7 @@ private fun kotlinSimple(name: String, slug: String, pkg: String): String = line
     "}",
 )
 
-private fun kotlinFull(name: String, slug: String, pkg: String): String = lines(
+private fun kotlinFull(className: String, model: String, slug: String, pkg: String): String = lines(
     "package $pkg",
     "",
     "import org.konaframework.firefly.CreatePage",
@@ -74,13 +90,13 @@ private fun kotlinFull(name: String, slug: String, pkg: String): String = lines(
     "import org.konaframework.firefly.tables.TextColumn",
     "import org.konaframework.firefly.widgets.Page",
     "",
-    "class $name : Resource(\"$slug\") {",
+    "class $className : Resource(\"$slug\") {",
     "    init {",
-    "        label(\"$name\")",
-    "        model(app.models.$name::class.java)",
+    "        label(\"$model\")",
+    "        model(app.models.$model::class.java)",
     "        relation(",
     "            RelationManager(\"related\")",
-    "                .related(app.models.$name::class.java)",
+    "                .related(app.models.$model::class.java)",
     "                .titleAttribute(\"id\")",
     "                .table(Table.memory().columns(TextColumn.make(\"id\")))",
     "        )",
@@ -104,7 +120,7 @@ private fun kotlinFull(name: String, slug: String, pkg: String): String = lines(
     "}",
 )
 
-private fun javaSimple(name: String, slug: String, pkg: String): String = lines(
+private fun javaSimple(className: String, model: String, slug: String, pkg: String): String = lines(
     "package $pkg;",
     "",
     "import org.konaframework.firefly.Resource;",
@@ -114,12 +130,12 @@ private fun javaSimple(name: String, slug: String, pkg: String): String = lines(
     "import org.konaframework.firefly.tables.Table;",
     "import org.konaframework.firefly.tables.TextColumn;",
     "",
-    "public class $name extends Resource {",
-    "    public $name() {",
+    "public class $className extends Resource {",
+    "    public $className() {",
     "        super(\"$slug\");",
-    "        label(\"$name\");",
+    "        label(\"$model\");",
     "        simple();",
-    "        model(app.models.$name.class);",
+    "        model(app.models.$model.class);",
     "    }",
     "",
     "    @Override",
@@ -139,7 +155,7 @@ private fun javaSimple(name: String, slug: String, pkg: String): String = lines(
     "}",
 )
 
-private fun javaFull(name: String, slug: String, pkg: String): String = lines(
+private fun javaFull(className: String, model: String, slug: String, pkg: String): String = lines(
     "package $pkg;",
     "",
     "import org.konaframework.firefly.CreatePage;",
@@ -158,14 +174,14 @@ private fun javaFull(name: String, slug: String, pkg: String): String = lines(
     "import java.util.LinkedHashMap;",
     "import java.util.Map;",
     "",
-    "public class $name extends Resource {",
-    "    public $name() {",
+    "public class $className extends Resource {",
+    "    public $className() {",
     "        super(\"$slug\");",
-    "        label(\"$name\");",
-    "        model(app.models.$name.class);",
+    "        label(\"$model\");",
+    "        model(app.models.$model.class);",
     "        relation(",
     "            new RelationManager(\"related\")",
-    "                .related(app.models.$name.class)",
+    "                .related(app.models.$model.class)",
     "                .titleAttribute(\"id\")",
     "                .table(Table.memory().columns(TextColumn.make(\"id\")))",
     "        );",

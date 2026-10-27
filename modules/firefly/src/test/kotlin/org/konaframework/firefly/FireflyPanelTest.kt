@@ -6,8 +6,13 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.konaframework.auth.Auth
+import org.konaframework.auth.AuthManager
 import org.konaframework.auth.Authenticatable
 import org.konaframework.auth.Guard
+import org.konaframework.auth.HasCredentials
+import org.konaframework.auth.HasEmail
+import org.konaframework.auth.HasName
 import org.konaframework.firefly.discovered.BoomPage
 import org.konaframework.firefly.discovered.Desk
 import org.konaframework.firefly.discovered.FoundPage
@@ -84,7 +89,12 @@ class FireflyPanelTest {
         })
         panel.mount(router)
         assertEquals(302, send(router, "GET", "/admin/note").status)
-        assertTrue(send(router, "GET", "/admin/login").body.contains("ff-login"))
+        val loginHtml = send(router, "GET", "/admin/login").body
+        assertTrue(loginHtml.contains("ff-login"))
+        assertTrue(loginHtml.contains("ff-auth-shell"))
+        assertTrue(loginHtml.contains("ff-auth-form"))
+        assertFalse(loginHtml.contains("""class="ff-sidebar""""))
+        assertFalse(loginHtml.contains("""class="ff-topbar""""))
         assertTrue(send(router, "GET", "/admin/register").body.contains("ff-register"))
         assertEquals(422, send(router, "POST", "/admin/login", "email=&password=").status)
         assertEquals(422, send(router, "POST", "/admin/login", "email=ada@example.com&password=nope").status)
@@ -140,16 +150,25 @@ class FireflyPanelTest {
         assertTrue(html.contains(">Desk<"))
 
         val side = Router()
-        Panel().path("side").navigation(NavigationType.SIDE).authenticate(false).page(ListPage("one")).mount(side)
-        val sideHtml = send(side, "GET", "/side/login").body
-        assertFalse(sideHtml.contains("ff-nav-top"))
-        assertTrue(sideHtml.contains("ff-nav-side"))
+        Panel().path("side").brand("SideDesk").navigation(NavigationType.SIDE).authenticate(false).page(ListPage("one")).mount(side)
+        val sideHtml = send(side, "GET", "/side/one").body
+        assertFalse(sideHtml.contains("""class="ff-nav ff-nav-top""""))
+        assertTrue(sideHtml.contains("""class="ff-nav ff-nav-side""""))
+        assertTrue(sideHtml.contains("ff-sidebar-brand"))
+        assertTrue(sideHtml.contains(">SideDesk<"))
+        assertTrue(sideHtml.contains("ff-column"))
+        assertTrue(sideHtml.contains("ff-scroll"))
+        val sideLogin = send(side, "GET", "/side/login").body
+        assertTrue(sideLogin.contains("ff-auth-shell"))
+        assertTrue(sideLogin.contains("ff-auth-panel"))
+        assertFalse(sideLogin.contains("""class="ff-sidebar""""))
+        assertFalse(sideLogin.contains("""class="ff-topbar""""))
 
         val top = Router()
         Panel().path("top").topNavigation().authenticate(false).page(ListPage("one")).mount(top)
-        val topHtml = send(top, "GET", "/top/login").body
-        assertTrue(topHtml.contains("ff-nav-top"))
-        assertFalse(topHtml.contains("ff-nav-side"))
+        val topHtml = send(top, "GET", "/top/one").body
+        assertTrue(topHtml.contains("""class="ff-nav ff-nav-top""""))
+        assertFalse(topHtml.contains("""class="ff-nav ff-nav-side""""))
 
         val deep = NavigationItem("Desk")
         val tree = NavigationItem("Sales").child(NavigationItem("Orders").child(NavigationItem("Open").child(deep)))
@@ -198,8 +217,10 @@ class FireflyPanelTest {
         assertTrue(books.body.contains("ff-custom-layout"))
         assertTrue(books.body.contains("ff-cluster"))
         assertTrue(books.body.contains("data-nav=\"books\""))
-        assertTrue(books.body.contains("Pulse"))
         assertTrue(books.body.contains("ff-create"))
+        val home = send(router, "GET", "/staff", headers = mapOf("Host" to "ops.example:8080"))
+        assertTrue(home.body.contains("Pulse"))
+        assertTrue(home.body.contains("ff-dashboard"))
         assertTrue(send(router, "GET", "/staff/edit", headers = mapOf("Host" to "ops.example")).body.contains("ff-edit"))
         assertTrue(send(router, "GET", "/staff/view", headers = mapOf("Host" to "ops.example")).body.contains("ff-view"))
         assertTrue(send(router, "GET", "/staff/manage", headers = mapOf("Host" to "ops.example")).body.contains("ff-manage"))
@@ -219,6 +240,9 @@ class FireflyPanelTest {
         val reused = Panel().reuseAppGuard("web")
         assertTrue(reused.usesAppGuard())
         assertEquals("web", reused.guardName())
+        val custom = Panel().reuseAppGuard("web").guard(MemoryPanelGuard())
+        assertFalse(custom.usesAppGuard())
+        assertEquals("firefly-admin", custom.guardName())
         val taken = Router()
         taken.get("/admin/login") { Response.html("app-login") }.name("app.login")
         val collision = assertThrows<FireflyException> { Panel().mount(taken) }
@@ -309,13 +333,45 @@ class FireflyPanelTest {
         val memory = MemoryPanelGuard()
         assertFalse(memory.attempt("missing@example.com", "x"))
         memory.register("Ada", "ada@example.com", "secret")
+        assertNull(memory.name())
+        assertNull(memory.email())
         assertFalse(memory.attempt("ada@example.com", "nope"))
         assertTrue(memory.attempt("ada@example.com", "secret"))
         assertTrue(memory.check())
+        assertEquals("Ada", memory.name())
+        assertEquals("ada@example.com", memory.email())
         memory.logout()
         assertFalse(memory.check())
+        assertNull(memory.name())
+        assertNull(memory.email())
         assertEquals("Email is blank", memory.register("Ada", " ", "secret"))
         assertEquals("Password is blank", memory.register("Ada", "ada@example.com", " "))
+    }
+
+    @Test
+    fun reuseAppGuardAuthenticatesThroughAuthManager() {
+        val fake = FakeGuard()
+        fake.checked = false
+        fake.allow = false
+        fake.current = null
+        Auth.setManager(AuthManager().extend("web", fake))
+        try {
+            val router = Router()
+            Panel().path("admin").reuseAppGuard().page(PanelPage("")).mount(router)
+            assertEquals(302, send(router, "GET", "/admin").status)
+            assertEquals(422, send(router, "POST", "/admin/login", "email=demo@kona.test&password=password").status)
+            fake.allow = true
+            fake.checked = true
+            fake.current = "1"
+            assertEquals(302, send(router, "POST", "/admin/login", "email=demo@kona.test&password=password").status)
+            assertEquals(200, send(router, "GET", "/admin").status)
+            assertTrue(send(router, "GET", "/admin").body.contains("ff-user"))
+            assertTrue(send(router, "GET", "/admin/profile").body.contains("1"))
+            assertEquals(302, send(router, "POST", "/admin/profile").status)
+            assertFalse(fake.checked)
+        } finally {
+            Auth.clearManager()
+        }
     }
 
     @Test
@@ -367,6 +423,231 @@ class FireflyPanelTest {
         assertTrue(exploded.message!!.contains("BoomPage"))
     }
 
+    @Test
+    fun emptyPanelGetsADashboardHomeAndCsrfOnAuth() {
+        val router = Router()
+        Panel().path("admin").authenticate(false).brand("Desk").mount(router)
+        val home = send(router, "GET", "/admin")
+        assertEquals(200, home.status)
+        assertTrue(home.body.contains("ff-dashboard"))
+        assertTrue(home.body.contains("Welcome"))
+        assertFalse(home.body.contains("""name="csrf-token""""))
+
+        val bare = DashboardPage()
+        assertTrue(bare.render().contains("ff-dashboard"))
+        assertTrue(bare.render().contains(">Dashboard<"))
+        assertEquals("", FireflyCsrf.field(null))
+        assertEquals("", FireflyCsrf.field(""))
+        assertEquals("", FireflyCsrf.field("   "))
+        assertTrue(FireflyCsrf.field("abc").contains("abc"))
+
+        val session = object : org.konaframework.http.RequestSession {
+            private val data = linkedMapOf<String, Any?>("_token" to "   ")
+            override fun get(key: String): Any? = data[key]
+            override fun put(key: String, value: Any?): org.konaframework.http.RequestSession {
+                data[key] = value
+                return this
+            }
+            override fun flash(key: String, value: Any?): org.konaframework.http.RequestSession = this
+            override fun flashInput(input: Map<String, String>): org.konaframework.http.RequestSession = this
+            override fun old(key: String, default: String?): String? = default
+            override fun oldInput(): Map<String, String> = emptyMap()
+            override fun previousUrl(): String? = null
+            override fun setPreviousUrl(url: String): org.konaframework.http.RequestSession = this
+        }
+        val login = sendWithSession(router, "GET", "/admin/login", session)
+        assertTrue(login.body.contains("""name="csrf-token""""))
+        assertTrue(login.body.contains("""name="_token""""))
+        val token = session.get("_token") as String
+        assertTrue(token.isNotBlank())
+        assertTrue(token != "   ")
+        assertTrue(login.body.contains(token))
+        val page = sendWithSession(router, "GET", "/admin", session)
+        assertTrue(page.body.contains("""name="csrf-token""""))
+        assertTrue(page.body.contains(token))
+        val again = sendWithSession(router, "GET", "/admin/login", session)
+        assertTrue(again.body.contains(token))
+
+        session.put("_token", 42)
+        val regenerated = sendWithSession(router, "GET", "/admin/login", session)
+        val next = session.get("_token") as String
+        assertTrue(next.isNotBlank())
+        assertTrue(regenerated.body.contains(next))
+        assertTrue(next != "42")
+
+        val rooted = Router()
+        Panel().path("root").authenticate(false).item(
+            NavigationItem("home").label("Home").url("/"),
+        ).page(ListPage("one")).mount(rooted)
+        val rootNav = send(rooted, "GET", "/root/one").body
+        assertTrue(rootNav.contains("ff-nav"))
+        assertFalse(activeItem("/root/one", "/"))
+        assertTrue(activeItem("/root/one", "/root/one"))
+        assertFalse(activeItem("/root/one", "/other"))
+        assertFalse(activeItem("/root/one", ""))
+        assertTrue(activeItem("/root/one/extra", "/root/one"))
+        assertTrue(activeItem("/", "/"))
+
+        val beforeMount = Panel().path("admin").authenticate(false).navigation(NavigationType.APP)
+        assertTrue(beforeMount.render(Request("GET", "/admin")).contains("ff-panel"))
+    }
+
+    @Test
+    fun chromeToolsThemeNotificationsAndSignedIn() {
+        // Guest panel (no user id): sidebar footer reads "Guest" and the user menu
+        // omits the sign-out form. Theme toggle, notifications, drawer, and the
+        // no-flash scripts are all present.
+        val guestRouter = Router()
+        Panel().path("g").navigation(NavigationType.SIDE).authenticate(false).brand("Guesty")
+            .page(ListPage("one")).mount(guestRouter)
+        val guest = send(guestRouter, "GET", "/g/one").body
+        assertTrue(guest.contains("ff-sidebar-foot"))
+        assertTrue(guest.contains("Signed in as <span class=\"ff-signed-in\">Guest</span>"))
+        assertTrue(guest.contains("""class="ff-icon-btn ff-theme-toggle""""))
+        assertTrue(guest.contains("""data-ff-theme-toggle"""))
+        assertTrue(guest.contains("""data-ff-theme="system""""))
+        assertTrue(guest.contains("ff-theme-icon--light"))
+        assertTrue(guest.contains("ff-theme-icon--dark"))
+        assertTrue(guest.contains("ff-theme-icon--system"))
+        assertTrue(guest.contains("ff-notifications"))
+        assertTrue(guest.contains("You&#39;re all caught up.") || guest.contains("You're all caught up."))
+        assertTrue(guest.contains("""<button type="button" class="ff-hamburger""""))
+        assertTrue(guest.contains("data-ff-sidebar-toggle"))
+        assertTrue(guest.contains("data-ff-sidebar-close"))
+        assertTrue(guest.contains("""<div class="ff-backdrop" data-ff-backdrop"""))
+        assertTrue(guest.contains("""<span class="ff-avatar" aria-hidden="true">G</span>"""))
+        assertTrue(guest.contains("""<span class="ff-menu-name">Guest</span>"""))
+        assertFalse(guest.contains("ff-user-name"))
+        assertTrue(guest.contains("classList.toggle('ff-dark'"))
+        assertTrue(guest.contains("localStorage.setItem('ff-theme'"))
+        assertFalse(guest.contains(">Sign out<"))
+
+        // Signed-in panel: avatar falls back to "?" when the id has no letter/digit,
+        // the footer and menu show the id, and the sign-out form appears. User-menu
+        // links keep their url/active state and render without an href when url-less.
+        val signed = object : PanelGuard by MemoryPanelGuard() {
+            override fun check(): Boolean = true
+            override fun id(): String? = "@@@"
+        }
+        val signedRouter = Router()
+        Panel().path("s").navigation(NavigationType.SIDE).guard(signed)
+            .userMenu(
+                NavigationItem("Current").label("Current").url("/s/one"),
+                NavigationItem("Docs").label("Docs").url("/s/docs"),
+                NavigationItem("Here").label("Here"),
+            )
+            .page(ListPage("one")).mount(signedRouter)
+        val body = send(signedRouter, "GET", "/s/one").body
+        assertTrue(body.contains(">?<"))
+        assertTrue(body.contains("Signed in as <span class=\"ff-signed-in\">@@@</span>"))
+        assertTrue(body.contains("ff-menu-form"))
+        assertTrue(body.contains(">Sign out<"))
+        assertTrue(body.contains("""class="ff-menu-link ff-active""""))
+        assertTrue(body.contains("""href="/s/docs""""))
+        assertTrue(body.contains(">Here<"))
+
+        // TOP navigation keeps the brand in the bar and never mounts a sidebar/drawer.
+        val topRouter = Router()
+        Panel().path("t").topNavigation().authenticate(false).brand("Toply")
+            .page(ListPage("one")).mount(topRouter)
+        val top = send(topRouter, "GET", "/t/one").body
+        assertFalse(top.contains("""<button type="button" class="ff-hamburger""""))
+        assertFalse(top.contains("""<div class="ff-sidebar-foot">"""))
+        assertTrue(top.contains("""class="ff-brand">Toply<"""))
+        assertTrue(top.contains("ff-theme-toggle"))
+    }
+
+    @Test
+    fun chromeGreetsWithNameAndEmailNotId() {
+        // Full identity: the trigger is avatar-only, the dropdown carries name + email,
+        // and the numeric id never surfaces as a label.
+        val full = object : PanelGuard by MemoryPanelGuard() {
+            override fun check(): Boolean = true
+            override fun id(): String? = "7"
+            override fun name(): String? = "Demo User"
+            override fun email(): String? = "demo@kona.test"
+        }
+        val fullBody = renderPanel(full)
+        assertTrue(fullBody.contains("""<span class="ff-avatar" aria-hidden="true">D</span>"""))
+        assertFalse(fullBody.contains("ff-user-name"))
+        assertTrue(fullBody.contains("""<span class="ff-menu-name">Demo User</span>"""))
+        assertTrue(fullBody.contains("""<span class="ff-menu-sub">demo@kona.test</span>"""))
+        assertTrue(fullBody.contains("Signed in as <span class=\"ff-signed-in\">Demo User</span>"))
+        assertFalse(fullBody.contains(">7<"))
+        assertTrue(fullBody.contains(">Sign out<"))
+
+        // Email-only: the email becomes the dropdown headline and the avatar initial, and the
+        // sub-line falls back to the "Signed in as …" phrase instead of repeating the email.
+        val emailOnly = object : PanelGuard by MemoryPanelGuard() {
+            override fun check(): Boolean = true
+            override fun id(): String? = "7"
+            override fun name(): String? = null
+            override fun email(): String? = "demo@kona.test"
+        }
+        val emailBody = renderPanel(emailOnly)
+        assertTrue(emailBody.contains("""<span class="ff-avatar" aria-hidden="true">D</span>"""))
+        assertFalse(emailBody.contains("ff-user-name"))
+        assertTrue(emailBody.contains("""<span class="ff-menu-name">demo@kona.test</span>"""))
+        assertTrue(emailBody.contains("""<span class="ff-menu-sub">Signed in as demo@kona.test</span>"""))
+        assertFalse(emailBody.contains(">7<"))
+
+        // Blank fields are treated as absent: chrome falls back to "Guest" and drops sign-out.
+        val blank = object : PanelGuard by MemoryPanelGuard() {
+            override fun id(): String? = "   "
+            override fun name(): String? = " "
+            override fun email(): String? = ""
+        }
+        val blankBody = renderPanel(blank, authenticate = false)
+        assertTrue(blankBody.contains("""<span class="ff-avatar" aria-hidden="true">G</span>"""))
+        assertTrue(blankBody.contains("""<span class="ff-menu-name">Guest</span>"""))
+        assertFalse(blankBody.contains("ff-user-name"))
+        assertTrue(blankBody.contains("Signed in as <span class=\"ff-signed-in\">Guest</span>"))
+        assertFalse(blankBody.contains(">Sign out<"))
+    }
+
+    @Test
+    fun authGuardResolvesNameAndEmailForChrome() {
+        val fake = FakeGuard()
+        val adapter = AuthPanelGuard(fake)
+
+        // No user bound: chrome has nothing to greet with.
+        fake.userValue = null
+        assertNull(adapter.name())
+        assertNull(adapter.email())
+
+        // Contract-first: HasName / HasEmail win.
+        fake.userValue = NamedUser()
+        assertEquals("Demo User", adapter.name())
+        assertEquals("demo@kona.test", adapter.email())
+
+        // Contracts present but empty: fall back to the credential bag.
+        fake.userValue = NullContractUser()
+        assertEquals("Creds Name", adapter.name())
+        assertEquals("creds@kona.test", adapter.email())
+
+        // Credential bag only (no name/email contracts).
+        fake.userValue = CredsOnlyUser()
+        assertEquals("Only Creds", adapter.name())
+        assertEquals("only@kona.test", adapter.email())
+
+        // Everything empty: nothing to show.
+        fake.userValue = NullAllUser()
+        assertNull(adapter.name())
+        assertNull(adapter.email())
+
+        // Plain authenticatable exposes neither contract nor credentials.
+        fake.userValue = PlainUser()
+        assertNull(adapter.name())
+        assertNull(adapter.email())
+    }
+
+    private fun renderPanel(guard: PanelGuard, authenticate: Boolean = true): String {
+        val router = Router()
+        Panel().path("x").navigation(NavigationType.SIDE).authenticate(authenticate)
+            .guard(guard).page(ListPage("one")).mount(router)
+        return send(router, "GET", "/x/one").body
+    }
+
     private fun pageBundle(slug: String): ListPage {
         val page = ListPage(slug)
         page.title("Orders")
@@ -397,6 +678,19 @@ class FireflyPanelTest {
         return match.route.action.handle(Request(method, path, headers, emptyMap(), body))
     }
 
+    private fun sendWithSession(
+        router: Router,
+        method: String,
+        path: String,
+        session: org.konaframework.http.RequestSession,
+        body: String = "",
+    ): Response {
+        val match = router.find(method, path) ?: throw AssertionError("missing $method $path")
+        val request = Request(method, path, emptyMap(), emptyMap(), body)
+        request.setAttribute(Request.SESSION_ATTRIBUTE, session)
+        return match.route.action.handle(request)
+    }
+
     private fun writePage(dir: java.nio.file.Path, name: String, text: String) {
         val file = dir.resolve("pages").resolve(name)
         Files.createDirectories(file.parent)
@@ -422,6 +716,7 @@ private class FakeGuard : Guard {
     var allow: Boolean = false
     var current: String? = "ada"
     var checked: Boolean = true
+    var userValue: Authenticatable? = null
 
     override fun attempt(credentials: Map<String, Any?>, remember: Boolean): Boolean = allow
 
@@ -437,7 +732,7 @@ private class FakeGuard : Guard {
 
     override fun id(): Any? = current
 
-    override fun user(): Authenticatable? = null
+    override fun user(): Authenticatable? = userValue
 
     override fun setRequest(request: Request): Guard = this
 
@@ -448,4 +743,46 @@ private class FakeGuard : Guard {
     override fun once(credentials: Map<String, Any?>): Boolean = allow
 
     override fun onceUsingId(id: Any): Boolean = allow
+}
+
+private class NamedUser : Authenticatable, HasName, HasEmail {
+    override fun getAuthIdentifier(): Any = 7
+    override fun getAuthPassword(): String = ""
+    override fun getName(): String? = "Demo User"
+    override fun getEmail(): String? = "demo@kona.test"
+}
+
+private class NullContractUser : Authenticatable, HasName, HasEmail, HasCredentials {
+    override fun getAuthIdentifier(): Any = 7
+    override fun getAuthPassword(): String = ""
+    override fun getName(): String? = null
+    override fun getEmail(): String? = null
+    override fun getCredential(key: String): Any? = when (key) {
+        "name" -> "Creds Name"
+        "email" -> "creds@kona.test"
+        else -> null
+    }
+}
+
+private class NullAllUser : Authenticatable, HasName, HasEmail, HasCredentials {
+    override fun getAuthIdentifier(): Any = 7
+    override fun getAuthPassword(): String = ""
+    override fun getName(): String? = null
+    override fun getEmail(): String? = null
+    override fun getCredential(key: String): Any? = null
+}
+
+private class CredsOnlyUser : Authenticatable, HasCredentials {
+    override fun getAuthIdentifier(): Any = 7
+    override fun getAuthPassword(): String = ""
+    override fun getCredential(key: String): Any? = when (key) {
+        "name" -> "Only Creds"
+        "email" -> "only@kona.test"
+        else -> null
+    }
+}
+
+private class PlainUser : Authenticatable {
+    override fun getAuthIdentifier(): Any = 7
+    override fun getAuthPassword(): String = ""
 }

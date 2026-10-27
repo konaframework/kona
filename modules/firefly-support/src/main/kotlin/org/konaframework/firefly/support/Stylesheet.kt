@@ -19,7 +19,8 @@ object Stylesheet {
         }
         val tokens = theme.tokens()
         val variables = """
-            .ff-panel {
+            .ff-panel,
+            .ff-auth {
               --ff-primary: ${tokens.primary};
               --ff-accent: ${tokens.accent};
               --ff-surface: ${tokens.surface};
@@ -29,14 +30,22 @@ object Stylesheet {
               --ff-sidebar-width: ${tokens.sidebarWidth};
               --ff-topbar-height: ${tokens.topbarHeight};
               --ff-body: ${tokens.bodyBackground};
+            }
+            .ff-panel {
               background: var(--ff-surface);
               color: var(--ff-heading);
             }
-            .ff-panel.ff-dark {
+            .ff-panel.ff-dark,
+            .ff-auth.ff-dark,
+            .ff-dark .ff-panel,
+            .ff-dark .ff-auth {
               --ff-primary: ${tokens.darkPrimary};
               --ff-surface: ${tokens.darkSurface};
               --ff-heading: ${tokens.darkHeading};
               --ff-body: ${tokens.darkSurface};
+            }
+            .ff-panel.ff-dark,
+            .ff-dark .ff-panel {
               background: var(--ff-surface);
               color: var(--ff-heading);
             }

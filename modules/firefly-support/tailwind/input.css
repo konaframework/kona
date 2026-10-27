@@ -1,26 +1,42 @@
 @import "tailwindcss";
 
-/* Authoring source. The shipped stylesheet is firefly.css, scoped under .ff-panel. */
+/*
+ * Authoring source for Firefly panel CSS.
+ * The shipped stylesheet is src/main/resources/.../firefly.css — a Shamar-shaped
+ * panel chrome under .ff-panel and guest auth under .ff-auth (Kona coffee tokens).
+ * Expand this file with @apply / @theme when the Tailwind compile step is wired
+ * into the module build; until then firefly.css is the source of truth for the look.
+ */
+
+@custom-variant dark (&:where(.ff-panel.ff-dark, .ff-panel.ff-dark *, .ff-dark .ff-panel, .ff-dark .ff-panel *));
+
+@theme {
+  --color-ff-primary: #df8723;
+  --color-ff-accent: #74453f;
+  --color-ff-surface: #faf6f0;
+  --color-ff-heading: #2a1c10;
+}
+
 .ff-panel .ff-btn {
-    @apply rounded-lg px-3 py-2 text-sm font-medium;
+  @apply rounded-lg px-3 py-2 text-sm font-semibold;
 }
 
 .ff-panel .ff-sidebar {
-    @apply h-full shrink-0 overflow-y-auto;
+  @apply h-full shrink-0 overflow-y-auto;
 }
 
 .ff-panel .ff-topbar {
-    @apply flex items-center;
+  @apply flex items-center;
 }
 
 .ff-panel .ff-body {
-    @apply min-w-0 flex-1;
+  @apply min-w-0 flex-1;
 }
 
 .ff-panel .ff-dialog {
-    @apply fixed inset-0 z-50;
+  @apply fixed inset-0 z-50;
 }
 
 .ff-panel .ff-dialog-modal .ff-dialog-window {
-    @apply mt-16;
+  @apply mt-16;
 }

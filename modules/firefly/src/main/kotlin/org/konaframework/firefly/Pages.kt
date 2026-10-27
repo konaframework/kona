@@ -44,40 +44,63 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
     fun mountForm(schema: Schema): PanelPage = apply { form(schema) }
 
     fun mountInfolist(infolist: Infolist): PanelPage = apply { infolistHtml(infolist.render()) }
+
+    /** Optional mode chip beside the page title (create / edit / detail), Shamar-style. */
+    override fun modeLabel(): String? = null
 }
 
 open class ListPage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
     override fun sectionClass(): String = "ff-page ff-list"
 
     override fun fallbackTitle(): String = "List"
+
+    override fun modeLabel(): String? = null
 }
 
 open class CreatePage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
     override fun sectionClass(): String = "ff-page ff-create"
 
     override fun fallbackTitle(): String = "Create"
+
+    override fun modeLabel(): String? = "create"
 }
 
 open class EditPage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
     override fun sectionClass(): String = "ff-page ff-edit"
 
     override fun fallbackTitle(): String = "Edit"
+
+    override fun modeLabel(): String? = "edit"
 }
 
 open class ViewPage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
     override fun sectionClass(): String = "ff-page ff-view"
 
     override fun fallbackTitle(): String = "View"
+
+    override fun modeLabel(): String? = "detail"
 }
 
 open class ManagePage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
     override fun sectionClass(): String = "ff-page ff-manage"
 
     override fun fallbackTitle(): String = "Manage"
+
+    override fun modeLabel(): String? = null
 }
 
 open class CustomPage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
     override fun sectionClass(): String = "ff-page ff-custom"
 
     override fun fallbackTitle(): String = "Custom"
+}
+
+/**
+ * Panel home at the panel prefix (`GET /admin` when the id is `admin`).
+ * Slug is empty so [Panel] mounts it at the panel root.
+ */
+open class DashboardPage : PanelPage("") {
+    override fun sectionClass(): String = "ff-page ff-dashboard"
+
+    override fun fallbackTitle(): String = "Dashboard"
 }

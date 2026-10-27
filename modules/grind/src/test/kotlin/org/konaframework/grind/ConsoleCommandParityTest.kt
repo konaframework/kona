@@ -228,6 +228,16 @@ class ConsoleCommandParityTest {
         val optHelp = capture { CommandExecutor(temp).run(OptionalArrayCommand(), listOf("--help")) }
         assertEquals(0, optHelp.first)
         assertTrue(optHelp.second.contains("demo:opt"))
+
+        assertEquals(1, CommandExecutor(temp).run(GreetCommand(), listOf("Ada", "--foo")))
+        assertEquals(1, CommandExecutor(temp).run(PlainCommand(), listOf("extra")))
+        assertThrows(GrindException::class.java) {
+            SignatureParser.bind(
+                SignatureParser.parse("demo:greet {name}"),
+                listOf("Ada"),
+                mapOf("foo" to "true"),
+            )
+        }
     }
 
     @Test

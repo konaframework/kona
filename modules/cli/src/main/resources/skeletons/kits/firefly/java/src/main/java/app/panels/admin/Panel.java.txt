@@ -1,0 +1,13 @@
+package app.panels.admin;
+
+import org.konaframework.firefly.NavigationType;
+
+public class Panel extends org.konaframework.firefly.Panel {
+    public Panel() {
+        id("admin");
+        brand("Desk");
+        navigation(NavigationType.SIDE);
+        reuseAppGuard();
+        authenticate(true);
+    }
+}

@@ -22,7 +22,7 @@ Grind Console accepts the same shape of input whether you type it in a terminal,
 |------|--------|
 | `-v` / `--verbose` | Verbose diagnostics (`GrindIO.verbose`) |
 | `-q` / `--quiet` | Suppress normal stdout (errors still print) |
-| `--help` / `-h` | Empty argv / global help, or on a **custom** command: print signature help |
+| `--help` / `-h` | Global catalog, or on **any** command: print that command’s usage and exit `0` |
 | `--base=` | App root for discovery / loaders (and many built-ins) |
 | `--bootstrap=` | Bootstrap class for in-process boots (default `bootstrap.App`) |
 | `--isolated` | With isolatable custom commands: single-process lock |
@@ -30,11 +30,13 @@ Grind Console accepts the same shape of input whether you type it in a terminal,
 Option parsing rules (`parseOptions`):
 
 - `-v`, `-q`, `-h` set `verbose`, `quiet`, and `help`.
+- Known short clusters (`-m`, `-c`, `-r`, `-f`, `-s`, `-p`, `-a`, `-R`, `-w`) expand to long flags.
+- Any other short flag (for example `-z`) is an error.
 - `--name` sets `name=true`.
 - `--name=value` sets `name` to `value`.
 - Anything else is positional.
 
-Exit code **0** means success. **1** (and other non-zero values) means failure — missing args, unknown command, generator conflicts, Cadence errors surfaced as grind errors, and so on. Unknown built-in-style names print an error, show the help catalog, and exit `1`.
+Unrecognized long options and stray positionals are errors for every built-in and custom command (Gradle aliases still forward extra flags to Gradle). Exit code **0** means success. **1** (and other non-zero values) means failure — missing args, unknown option/argument, unknown command, generator conflicts, Cadence errors surfaced as grind errors, and so on. Unknown built-in-style names print an error, show the help catalog, and exit `1`.
 
 ### Empty argv and help
 
@@ -51,12 +53,14 @@ These discover custom commands, print the boxed “grind” usage catalog (built
 
 ```bash
 ./grind list
+./grind make:firefly-resource --help
 ./grind mail:digest --help
+./grind mail:digest -h
 ```
 
 `list` prints a two-column catalog: built-in names from `ListCommand.BUILTIN`, then registered custom commands (description, or signature when description is empty). Duplicate names are shown once.
 
-For one **custom** command, `--help` / `-h` prints a box with the name/description, the rendered signature, and argument/option help lines — then exits `0` without running `handle()`. Built-in commands generally use their own usage/`GrindException` messages rather than the custom-command help renderer.
+Every command accepts `--help` / `-h`. That prints a box with the name/description, usage line, and argument/option help — then exits `0` without running the command body.
 
 ## `kona grind` proxy
 

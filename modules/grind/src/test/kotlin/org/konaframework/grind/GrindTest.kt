@@ -781,13 +781,30 @@ class GrindTest {
         assertTrue(source.contains("class Panel"))
         assertTrue(source.contains("id(\"desk\")"))
         assertTrue(source.contains("path(\"\")"))
+        assertTrue(source.contains("reuseAppGuard()"))
+        assertTrue(source.contains("authenticate(true)"))
+        assertFalse(source.contains("Kona.app"))
+        assertFalse(source.contains("discover("))
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/panels/desk/pages/.gitkeep")))
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/panels/desk/widgets/.gitkeep")))
         assertTrue(Files.exists(base.resolve("src/main/kotlin/app/panels/desk/resources/.gitkeep")))
+        assertFalse(Files.exists(base.resolve("src/main/kotlin/app/panels.desk")))
+        assertEquals(
+            "src/main/kotlin/app/panels/admin/Panel.kt",
+            Names.sourceFile("kotlin", "app.panels.admin", "Panel"),
+        )
+        assertEquals(
+            "src/main/kotlin/app/panels/admin/Panel.kt",
+            Names.sourceFile("kotlin", "app/panels/admin", "Panel"),
+        )
         assertEquals(0, MakeFireflyPanelCommand().run(listOf("Panel", "--base=${temp.resolve("firefly-panel-named")}", "--lang=java")))
         val javaPanel = Files.readString(temp.resolve("firefly-panel-named/src/main/java/app/panels/admin/Panel.java"))
         assertTrue(javaPanel.contains("extends org.konaframework.firefly.Panel"))
+        assertTrue(javaPanel.contains("reuseAppGuard();"))
+        assertTrue(javaPanel.contains("authenticate(true);"))
         assertFalse(javaPanel.contains("path("))
+        assertTrue(Files.isDirectory(temp.resolve("firefly-panel-named/src/main/java/app/panels/admin")))
+        assertFalse(Files.exists(temp.resolve("firefly-panel-named/src/main/java/app/panels.admin")))
         assertEquals(0, MakeFireflyPanelCommand().run(listOf("--base=${temp.resolve("firefly-panel-java-path")}", "--lang=java", "--id=desk", "--path=staff")))
         assertTrue(Files.readString(temp.resolve("firefly-panel-java-path/src/main/java/app/panels/desk/Panel.java")).contains("path(\"staff\");"))
         assertThrows(GrindException::class.java) { MakeFireflyPanelCommand().run(listOf("Desk", "--base=$base")) }
@@ -832,25 +849,37 @@ class GrindTest {
         val base = temp.resolve("firefly-resource")
         Files.createDirectories(base)
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Category", "--base=$base", "--lang=kotlin", "--simple")))
-        val simple = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/Category.kt"))
+        val simple = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/CategoryResource.kt"))
+        assertTrue(simple.contains("class CategoryResource"))
         assertTrue(simple.contains("simple()"))
         assertTrue(simple.contains("override fun form"))
         assertTrue(simple.contains("model(app.models.Category::class.java)"))
+        assertTrue(simple.contains("label(\"Category\")"))
+        assertTrue(simple.contains("Resource(\"category\")"))
         assertFalse(simple.contains("getPages"))
         assertFalse(simple.contains("RelationManager"))
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Order", "--base=$base", "--lang=kotlin")))
-        val full = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/Order.kt"))
+        val full = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/OrderResource.kt"))
+        assertTrue(full.contains("class OrderResource"))
         assertTrue(full.contains("ListPage"))
         assertTrue(full.contains("override fun getPages"))
         assertTrue(full.contains("RelationManager"))
+        assertTrue(full.contains("model(app.models.Order::class.java)"))
         assertFalse(full.contains("simple()"))
+        assertEquals(0, MakeFireflyResourceCommand().run(listOf("UserResource", "--base=$base", "--lang=kotlin", "--simple")))
+        val noDouble = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/UserResource.kt"))
+        assertTrue(noDouble.contains("class UserResource"))
+        assertTrue(noDouble.contains("model(app.models.User::class.java)"))
+        assertFalse(Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/UserResourceResource.kt")))
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Note", "--base=$base", "--lang=java", "--simple")))
-        val javaSimple = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/Note.java"))
+        val javaSimple = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/NoteResource.java"))
+        assertTrue(javaSimple.contains("public class NoteResource"))
         assertTrue(javaSimple.contains("simple();"))
         assertTrue(javaSimple.contains("public Schema form"))
+        assertTrue(javaSimple.contains("model(app.models.Note.class);"))
         assertFalse(javaSimple.contains("getPages"))
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Invoice", "--base=$base", "--lang=java")))
-        val javaFull = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/Invoice.java"))
+        val javaFull = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/InvoiceResource.java"))
         assertTrue(javaFull.contains("new ViewPage"))
         assertTrue(javaFull.contains("public Map<String, Page> getPages"))
         assertTrue(javaFull.contains("new RelationManager"))
@@ -858,6 +887,50 @@ class GrindTest {
         assertThrows(GrindException::class.java) { MakeFireflyResourceCommand().run(listOf("Bad-Name", "--base=$base")) }
         assertEquals(1, GrindApplication().run(arrayOf("make:firefly-resource", "Category", "--base=$base", "--lang=kotlin", "--simple")))
         assertTrue(ListCommand.COMMANDS.any { it.first == "make:firefly-resource" })
+        assertEquals("UserResource", Names.resourceClassName("User"))
+        assertEquals("UserResource", Names.resourceClassName("UserResource"))
+        assertEquals("User", Names.modelNameFromResourceInput("UserResource"))
+        assertEquals("User", Names.modelNameFromResourceInput("User"))
+        assertEquals("Resource", Names.modelNameFromResourceInput("Resource"))
+    }
+
+    @Test
+    fun commandHelpAndUnknownArgs() {
+        val help = GrindApplication().run(arrayOf("make:firefly-resource", "--help"))
+        assertEquals(0, help)
+        assertEquals(0, GrindApplication().run(arrayOf("make:firefly-resource", "-h")))
+        assertEquals(0, GrindApplication().run(arrayOf("list", "--help")))
+        assertEquals(0, GrindApplication().run(arrayOf("make:controller", "--help")))
+        assertEquals(0, GrindApplication().run(arrayOf("serve", "--help")))
+        assertEquals(0, GrindApplication().run(arrayOf("assets:vite", "--help")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-resource", "User", "--foo")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:firefly-resource", "User", "extra")))
+        assertEquals(1, GrindApplication().run(arrayOf("list", "--foo")))
+        assertEquals(1, GrindApplication().run(arrayOf("make:controller", "User", "-z")))
+        assertEquals(1, GrindApplication().run(arrayOf("--foo")))
+        assertEquals(1, GrindApplication().run(arrayOf("help", "--foo")))
+        assertThrows(GrindException::class.java) { parseOptions(listOf("-z")) }
+        val sig = BuiltinCommandSpecs["make:firefly-resource"]!!
+        assertThrows(GrindException::class.java) {
+            SignatureParser.bind(sig, listOf("User"), mapOf("foo" to "true"))
+        }
+        assertThrows(GrindException::class.java) {
+            SignatureParser.bind(sig, listOf("User", "extra"), emptyMap())
+        }
+        // `--seed` is accepted when the signature declares `--seeder` (Laravel-style alias).
+        SignatureParser.bind(SignatureParser.parse("demo:seed {--seeder=}"), emptyList(), mapOf("seed" to "true"))
+        assertThrows(GrindException::class.java) {
+            SignatureParser.bind(
+                SignatureParser.parse("demo:force {--force}"),
+                emptyList(),
+                mapOf("seed" to "true"),
+            )
+        }
+        assertTrue(BuiltinCommandSpecs.ALL.containsKey("make:firefly-panel"))
+        assertTrue(BuiltinCommandSpecs.ALL.containsKey("migrate"))
+        assertEquals("make:firefly-resource", BuiltinCommandSpecs["make:firefly-resource"]!!.name)
+        assertTrue(BuiltinCommandSpecs.descriptionFor("make:firefly-resource").isNotEmpty())
+        assertEquals("", BuiltinCommandSpecs.descriptionFor("__no_such_builtin__"))
     }
 
     @Test

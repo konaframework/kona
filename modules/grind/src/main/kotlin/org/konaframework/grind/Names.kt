@@ -15,6 +15,24 @@ internal object Names {
     }
 
     /**
+     * Firefly / HTTP resource class from a model-oriented input:
+     * `User` → `UserResource`; `UserResource` is left unchanged (no double suffix).
+     */
+    fun resourceClassName(name: String): String =
+        if (name.endsWith("Resource")) name else "${name}Resource"
+
+    /**
+     * Cadence model name from `make:firefly-resource` input:
+     * `User` → `User`; `UserResource` → `User`.
+     */
+    fun modelNameFromResourceInput(name: String): String =
+        if (name.endsWith("Resource") && name.length > "Resource".length) {
+            name.removeSuffix("Resource")
+        } else {
+            name
+        }
+
+    /**
      * Accepts `create_flights_table`, `CreateFlightsTable`, optional `M{stamp}_` /
      * `{stamp}_` prefixes. Rejects path segments and punctuation.
      */
@@ -75,10 +93,13 @@ internal object Names {
 
     /**
      * Relative path for a type under the standard JVM source root.
-     * [packagePath] uses `/` separators matching the package (e.g. `app/http/controllers`).
+     * [packagePath] may use `/` or `.` separators (e.g. `app/http/controllers` or
+     * `app.panels.admin`); dots become nested directories — never a single `panels.admin` folder.
      */
-    fun sourceFile(lang: String, packagePath: String, fileName: String): String =
-        "${languageRoot(lang)}/$packagePath/$fileName.${extension(lang)}"
+    fun sourceFile(lang: String, packagePath: String, fileName: String): String {
+        val nested = packagePath.replace('.', '/').trim('/').replace(Regex("/+"), "/")
+        return "${languageRoot(lang)}/$nested/$fileName.${extension(lang)}"
+    }
 
     /** Crema / static views under the Maven resource root. */
     fun viewFile(dottedName: String): String =

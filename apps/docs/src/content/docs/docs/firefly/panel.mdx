@@ -72,9 +72,9 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 
 ## Sign-in and the guard
 
-The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the application guard name `web`) or `reuseAppGuard("name")`. `useAuthGuard(guard)` adapts an application `Guard`. Until you do that, the panel keeps its own `MemoryPanelGuard` and leaves the application’s login and session in place.
+The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the application guard name `web`) or `reuseAppGuard("name")`. `reuseAppGuard` wires login to `Auth.guard(name)` with the request bound on each attempt, so Cadence users and bcrypt hashes from `./grind db:seed` work at `/admin/login`. `useAuthGuard(guard)` adapts a concrete application `Guard`. Until you do either, the panel keeps its own `MemoryPanelGuard` (plain in-memory passwords from `/register`) and leaves the application’s login and session in place. The Firefly kit panel calls `reuseAppGuard()` and `authenticate(true)`.
 
-The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, and `/profile`, under the panel prefix. Pages require that guard unless you call `authenticate(false)`. Login and registration read `email` and `password` (registration also reads `name`). A missing field returns 422 HTML. A failed attempt returns 422 HTML and the message `Those credentials do not match`.
+The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, and `/profile`, under the panel prefix. Pages require that guard unless you call `authenticate(false)`. Login and registration read `email` and `password` (registration also reads `name`). A missing field returns 422 HTML. A failed attempt returns 422 HTML and the message `Those credentials do not match`. With `reuseAppGuard`, panel `/register` does not create application users — seed or create them through the app Auth stack.
 
 When the guard has no id, the user chip reads **Guest**.
 

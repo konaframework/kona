@@ -64,22 +64,106 @@ class FireflyResourceTest {
         val view = send(router, "/admin/orders/view")
         val manage = send(router, "/admin/notes/manage")
         assertTrue(list.contains("ff-list"))
-        assertTrue(list.contains("ff-dialog"))
+        assertTrue(list.contains(">Orders<"))
+        assertTrue(list.contains("""href="create""""))
+        assertTrue(list.contains(">New<"))
+        assertTrue(list.contains("ff-row-actions"))
+        assertTrue(list.contains("""href="view""""))
+        assertTrue(list.contains("""href="edit""""))
         assertTrue(list.contains("Ada"))
+        // Create is a page link on full resources — dialogs stay on simple/manage and delete.
+        // Full-resource create is a header link — dialogs belong on simple/manage and delete.
+        val listSection = list.substringAfter("""class="ff-page ff-list"""").substringBefore("</section>")
+        val headerActions = listSection.substringAfter("""class="ff-page-header-actions"""").substringBefore("</div>")
+        assertTrue(headerActions.contains("""href="create""""))
+        assertTrue(headerActions.contains("New"))
+        assertFalse(headerActions.contains("ff-dialog"))
+        assertFalse(headerActions.contains("ff-action-dialog"))
         assertTrue(create.contains("ff-create"))
+        assertTrue(create.contains("ff-page-mode"))
+        assertTrue(create.contains("data-ff-mode=\"create\""))
+        assertTrue(create.contains("New Orders"))
         assertTrue(create.contains("ff-combobox"))
+        assertTrue(create.contains("""href="list""""))
+        assertTrue(create.contains("Cancel"))
         assertTrue(edit.contains("ff-relation"))
+        assertTrue(edit.contains("data-ff-mode=\"edit\""))
+        assertTrue(edit.contains("Edit Orders"))
         assertTrue(edit.contains("data-ff-title=\"sku\""))
         assertTrue(edit.contains("data-ff-tone=\"info\""))
+        assertTrue(edit.contains("data-ff-color=\"danger\""))
         assertTrue(view.contains("ff-view"))
+        assertTrue(view.contains("data-ff-mode=\"detail\""))
         assertTrue(view.contains("ff-relation"))
         assertTrue(view.contains("data-ff-path=\"name\""))
+        assertTrue(view.contains("Back to list"))
         assertTrue(manage.contains("ff-picker"))
+        assertTrue(manage.contains("ff-dialog"))
         val query = orders.query()
         assertTrue(query is ModelBuilder<*>)
         assertTrue((query as ModelBuilder<*>).toSql().contains("ff_shelves"))
         val related = orders.relationManagers().single().query()
         assertTrue(related is ModelBuilder<*>)
+    }
+
+    @Test
+    fun resourcesGetOneSidebarEntryAndCrudStaysInPageActions() {
+        database()
+        val router = Router()
+        val tools = object : Resource("tools") {
+            init {
+                model { Shelf::class.java }
+            }
+
+            override fun getPages(): Map<String, Page> = mapOf("panel" to CustomPage("panel"))
+        }
+        val home = object : Resource("home") {
+            init {
+                model { Shelf::class.java }
+            }
+
+            override fun getPages(): Map<String, Page> = mapOf("" to PanelPage(""))
+        }
+        val panel = Panel().path("admin").authenticate(false).navigation(NavigationType.SIDE)
+            .resource(orders())
+            .resource(notes())
+            .resource(tools)
+            .resource(home)
+            .resource(Resource("empty"))
+        panel.mount(router)
+
+        // One sidebar entry per resource, linking to the list/manage/index page.
+        val list = send(router, "/admin/orders/list")
+        assertTrue(list.contains("""<a href="/admin/orders/list">Orders</a>"""))
+        assertEquals(1, countOf(list, """href="/admin/orders/list""""))
+        // Create / edit / view are NEVER standalone sidebar links.
+        assertFalse(list.contains("""href="/admin/orders/create""""))
+        assertFalse(list.contains("""href="/admin/orders/edit""""))
+        assertFalse(list.contains("""href="/admin/orders/view""""))
+        // Simple resource links to its manage page; custom/empty resources link to their index.
+        assertTrue(list.contains("""<a href="/admin/notes/manage">Notes</a>"""))
+        assertTrue(list.contains("""href="/admin/tools/panel""""))
+        assertTrue(list.contains("""href="/admin/home""""))
+        // A page-less resource still gets one entry, pointing at the resource root.
+        assertTrue(list.contains("""<a href="/admin/empty">empty</a>"""))
+        // Resources render as flat nav items, never CRUD clusters (no nav cluster markup).
+        assertFalse(list.contains("""class="ff-nav-item ff-cluster""""))
+        // Create lives in the page header actions (the list toolbar), not the sidebar.
+        val header = list.substringAfter("ff-page-header")
+        assertTrue(header.contains("New"))
+        assertTrue(header.contains("""href="create""""))
+        // Row actions sit on the table, still not in the sidebar.
+        assertTrue(list.contains("ff-row-actions"))
+        assertTrue(list.contains("""class="ff-table-button" href="view""""))
+        assertTrue(list.contains("""class="ff-table-button" href="edit""""))
+
+        // The single entry stays active across the resource's create/edit/view pages.
+        val create = send(router, "/admin/orders/create")
+        assertTrue(create.contains("""<li class="ff-nav-item ff-active"><a href="/admin/orders/list">Orders</a>"""))
+        assertTrue(send(router, "/admin/orders/edit").contains("ff-active"))
+        assertTrue(send(router, "/admin/orders/view").contains("ff-active"))
+        // Empty-slug resource pages mount at the resource root.
+        assertEquals(200, router.find("GET", "/admin/home")!!.route.action.handle(Request("GET", "/admin/home", emptyMap(), emptyMap(), "")).status)
     }
 
     @Test
@@ -184,6 +268,16 @@ class FireflyResourceTest {
 
     private fun orders(): Resource = OrdersResource()
 
+    private fun countOf(haystack: String, needle: String): Int {
+        var count = 0
+        var index = haystack.indexOf(needle)
+        while (index >= 0) {
+            count++
+            index = haystack.indexOf(needle, index + needle.length)
+        }
+        return count
+    }
+
     private fun send(router: Router, path: String): String {
         val match = router.find("GET", path) ?: throw AssertionError("missing $path")
         val response: Response = match.route.action.handle(Request("GET", path, emptyMap(), emptyMap(), ""))
@@ -276,3 +370,4 @@ private fun database() {
     database.connection().statement("create table ff_shelves (id bigint auto_increment primary key, name varchar(100))")
     database.setAsGlobal()
 }
+

@@ -17,6 +17,7 @@ Generate the panel, then set the id, the brand, and the path you want. The servi
 ./grind make:firefly-page Desk --panel=billing
 ./grind make:firefly-resource Note --simple --panel=billing
 ./grind make:firefly-resource Order --panel=billing
+# → NoteResource.kt / OrderResource.kt under app/panels/billing/resources/
 ```
 
 Pass `--lang=java` on each command when the app is Java. `--simple` writes one Manage page. Without `--simple`, the resource command writes list, create, edit, and view pages, plus one relation manager.
@@ -33,7 +34,8 @@ class Panel : org.konaframework.firefly.Panel() {
     init {
         id("billing")
         brand("Billing")
-        authenticate(false)
+        reuseAppGuard()
+        authenticate(true)
     }
 }
 ```
@@ -48,7 +50,8 @@ public class Panel extends org.konaframework.firefly.Panel {
     public Panel() {
         id("billing");
         brand("Billing");
-        authenticate(false);
+        reuseAppGuard();
+        authenticate(true);
     }
 }
 ```
@@ -56,7 +59,7 @@ public class Panel extends org.konaframework.firefly.Panel {
 </TabItem>
 </Tabs>
 
-The provider loads this class from `app/panels/billing/Panel.kt` (or `.java`) and then loads `pages/`, `widgets/`, and `resources/` in that same folder. Add `brand` and `authenticate` in the generated class. The generator already wrote `id`.
+The provider loads this class from `app/panels/billing/Panel.kt` (or `.java`) and then loads `pages/`, `widgets/`, and `resources/` in that same folder. The generator writes `id`, `reuseAppGuard()`, and `authenticate(true)` so `/billing/login` uses the seeded demo user. Call `authenticate(false)` only when the panel should stay open without a sign-in.
 
 ## Choose the URL prefix
 

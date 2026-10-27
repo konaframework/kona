@@ -8,7 +8,7 @@ class SimpleUser @JvmOverloads constructor(
     private val passwordHash: String,
     private val email: String? = null,
     private val attributes: MutableMap<String, Any?> = linkedMapOf(),
-) : Authenticatable, HasCredentials, HasEmail, org.konaframework.auth.passwords.HasPasswordEmail {
+) : Authenticatable, HasCredentials, HasEmail, HasName, org.konaframework.auth.passwords.HasPasswordEmail {
     private var rememberToken: String? = null
 
     init {
@@ -33,6 +33,8 @@ class SimpleUser @JvmOverloads constructor(
     }
 
     override fun getEmail(): String? = email ?: attributes["email"]?.toString()
+
+    override fun getName(): String? = attributes["name"]?.toString()
 
     fun setAttribute(key: String, value: Any?): SimpleUser {
         attributes[key] = value

@@ -39,25 +39,70 @@ Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
-## Where we are (2026-10-26)
+## Resume here (2026-10-27) — Firefly panel browser shell
+
+| Item | Value |
+|------|--------|
+| Branch | `fix/firefly-panel-browser-shell` (ship via PR + automerge squash) |
+| Base | Builds on `a4b887b8` *fix(firefly): serve the panel as a visible HTML document* |
+| Desk smoke app | `/home/smaosa/desk` — separate git tree; **not** part of this repo. `kona.home=/home/smaosa/kona` (composite/`includeBuild`). `APP_URL=http://127.0.0.1:4000` → run with `PORT=4000` / that URL |
+| Merge habit | `gh pr merge --auto --squash`; never push `main`; never mutate rulesets |
+
+### What landed on this branch
+
+Shamar-shaped Firefly **admin chrome** and grind DX for a real browser panel:
+
+- **Chrome / shell** — `AuthLayout`, document-backed panel HTML, expanded `firefly.css` / Tailwind tokens, theme footer heights, sidebar user footer, **avatar-only** user-menu trigger (name/email in dropdown), Guest/`?` avatar fallbacks.
+- **Auth** — panel login CSRF wiring; `Panel.reuseAppGuard()` / `reuseAppGuard("web")` binds the live Auth manager guard; `SimpleUser` / `InMemoryUserProvider` identity bits for chrome.
+- **Resources / nav** — resource pages contribute **one** sidebar nav item; create/edit/view/delete stay as **page / header / row actions** (not extra nav links). Panel discovery **skips** `resources/` (and related) so resource classes are not double-registered as panels.
+- **Grind** — built-in `--help` / `-h` via `BuiltinCommandSpecs`; reject unknown args; `make:firefly-resource` **UserResource**-style suffix; hot-reload **jar isolation** (`ClasspathIsolation` + ServeWatch) so Gradle `build/libs` jars do not lock under the watch classloader.
+- **CLI kit** — Firefly skeleton moves to `app/panels/admin/` (Java + Kotlin); starter `build.gradle.kts` templates gain `kona.home` composite-build hooks.
+- **Docs** — Firefly chrome / install / navigation / resources / themes / grind running-commands (and Dev mirrors) updated for the shell.
+
+### Desk app notes (manual verify only)
+
+```bash
+# From kona: publish or composite-build into desk
+cd /home/smaosa/desk
+# gradle.properties already has kona.home=/home/smaosa/kona
+./grind migrate && ./grind db:seed
+PORT=4000 ./grind serve   # or ./gradlew run with PORT=4000
+# Open http://127.0.0.1:4000/admin  (demo@kona.test / password)
+```
+
+Do **not** commit desk into kona. Restart serve yourself after framework rebuilds (agents must not manage long-running servers).
+
+### How to verify
+
+```bash
+cd /home/smaosa/kona
+git checkout fix/firefly-panel-browser-shell
+./gradlew :kona-firefly:test :kona-firefly-support:test :kona-firefly-widgets:test :kona-grind:test :kona-cli:test :kona-auth:test
+# Full gate when CI-like:
+./gradlew test koverVerify
+```
+
+### Known follow-ups (optional; not blockers for this PR)
+
+- After merge: rebase any parallel Firefly milestone branches that touch `modules/firefly*` / `modules/grind`.
+- Visual polish vs Shamar may still iterate (tokens, denser tables) — prefer small follow-up PRs.
+- Confirm desk still boots against Maven Local if someone drops `kona.home` (starter templates now document the composite path).
+
+## Where we are (framework ledger)
 
 | Item | Value |
 |------|--------|
 | Default branch | `main` — green; never push directly |
 | Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
-| `origin/main` | `252c78a4` (PR #225, M35 panel). #224 is M34. #223 is the grind Kover fix |
-| On `main` | M28–M35. M36 resources are this branch and land when the PR merges |
-| Active milestone | **M38 — Firefly IDE catalog**, on `milestone/M38-firefly-ide`. M34–M37 are on `main`. Release train **0.4.x** |
-| Queued | **M37–M38** not started. **M27 — Cadence Document / MongoDB** stays Kona **1.x** and human-gated. Do not implement the Mongo addon. Do not run M36–M38 in parallel |
+| On `main` | M28–M35 panel + adjacent Firefly stack; recent: panel provider install (#238), FR/ES docs (#239/#236) |
+| Active / queued | Confirm `MILESTONES.md` before starting a new milestone. Non-colliding work may parallel; do not collide with this panel-shell PR’s modules until it merges |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
-| App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Wire starter via package |
+| App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Firefly / Wire via kit |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
 | Docs versions | `starlight-versions`: **`{major}.x (Latest)`** (default current from `kona.version`), **Dev** (`main` tip archive) |
-| Docs i18n | Root English; locales `es` / `fr` / `zh-cn` (Introduction + Installation translated; else EN fallback) |
-| LSP | `kona-lsp` completes Crema `@`, Wire `wire:*`, and echo helpers inside `{{ }}` (IDEA-aligned `CremaEchoCatalog`) |
+| Docs i18n | Root English; locales `es` / `fr` / `zh-cn` |
 | Models | **Auto only** unless the human names a model for that turn |
-| Autopilot | Non-colliding milestones may proceed in parallel. After a merge, continue remaining milestones whose dependencies are on `main`, including ones already in progress. Do not pause for permission |
-| Firefly integration | Pages, widgets, and resources compose schemas, forms, infolists, actions, and tables. M35 discovers pages, widgets, and resources from the panel directory. M36 binds a model to those pages. M37 and M38 stay queued |
+| Autopilot | Non-colliding milestones may proceed in parallel. After a merge, continue remaining milestones whose dependencies are on `main` |
 | Merge habit | Enable automerge; squash-merge when CI green if automerge stalls |
 | Branch protection | Never push to `main`; never mutate GitHub rulesets (Law 9) |
 

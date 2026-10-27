@@ -24,6 +24,13 @@ class AppLoader(
     var classLoader: ClassLoader? = null
         private set
 
+    /** Per-boot staging directory for copied jars (null when only dirs / immutable jars). */
+    private var stagedDirectory: Path? = null
+
+    /**
+     * Logical classpath (app outputs + runtime deps). Used for emptiness checks; [create]
+     * materializes a Zip-safe copy via [ClasspathIsolation] before opening a ClassLoader.
+     */
     fun classpath(): List<Path> {
         val outputs = outputDirs()
         if (outputs.isEmpty()) {
@@ -33,10 +40,14 @@ class AppLoader(
     }
 
     fun create(args: Array<String>): Application {
-        val dirs = classpath()
+        val logical = classpath()
         if (outputDirs().isEmpty()) {
             throw GrindException("No compiled classes under $root/build — run ./gradlew classes first")
         }
+        close()
+        val staged = ClasspathIsolation.materialize(root, logical)
+        stagedDirectory = staged.directory
+        val dirs = staged.entries
         val urls = dirs.map { it.toUri().toURL() }.toTypedArray()
         val loader = URLClassLoader(urls, AppLoader::class.java.classLoader)
         classLoader = loader
@@ -45,14 +56,17 @@ class AppLoader(
         val clazz = try {
             Class.forName(bootstrapClass, true, loader)
         } catch (ex: ClassNotFoundException) {
+            close()
             throw GrindException("Bootstrap class [$bootstrapClass] not found in $dirs")
         }
         val method = try {
             clazz.getMethod("create", Array<String>::class.java)
         } catch (ex: NoSuchMethodException) {
+            close()
             throw GrindException("[$bootstrapClass] must declare static Application create(String[] args)")
         }
         if (!Modifier.isStatic(method.modifiers) || !Application::class.java.isAssignableFrom(method.returnType)) {
+            close()
             throw GrindException(
                 "[$bootstrapClass].create(String[]) must be static (@JvmStatic in Kotlin) and return Application",
             )
@@ -62,19 +76,25 @@ class AppLoader(
             discoverPackages(app, loader)
             app
         } catch (ex: InvocationTargetException) {
+            close()
             throw ex.targetException
         }
     }
 
     /** Closes the child [URLClassLoader] so reloaded app classes can be collected. */
     fun close() {
-        val loader = classLoader ?: return
+        val loader = classLoader
         classLoader = null
-        val current = Thread.currentThread()
-        if (current.contextClassLoader === loader) {
-            current.contextClassLoader = javaClass.classLoader
+        val staged = stagedDirectory
+        stagedDirectory = null
+        if (loader != null) {
+            val current = Thread.currentThread()
+            if (current.contextClassLoader === loader) {
+                current.contextClassLoader = javaClass.classLoader
+            }
+            (loader as URLClassLoader).close()
         }
-        (loader as URLClassLoader).close()
+        ClasspathIsolation.deleteQuietly(staged)
     }
 
     /**

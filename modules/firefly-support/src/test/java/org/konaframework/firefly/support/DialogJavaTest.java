@@ -28,10 +28,47 @@ public class DialogJavaTest {
         String themed = new Panel()
             .theme(new HarborTheme())
             .layout(new DarkLayout())
+            .csrfToken("java-tok")
+            .documentTitle("Ops")
+            .brandName("Ops")
+            .mode(ChromeMode.PANEL)
             .render();
         assertTrue(themed.contains("ff-panel ff-dark"));
         assertTrue(themed.contains("--ff-radius: 0.75rem"));
         assertTrue(themed.contains("box-shadow"));
+
+        // Hit each @JvmOverloads ChromeContext arity from Java
+        java.util.Map<String, String> empty = java.util.Map.of();
+        assertEquals(null, new ChromeContext(new KonaTheme(), new RenderHooks(), empty, "css").getCsrfToken());
+        assertEquals("tok", new ChromeContext(new KonaTheme(), new RenderHooks(), empty, "css", "tok").getCsrfToken());
+        assertEquals("Title", new ChromeContext(new KonaTheme(), new RenderHooks(), empty, "css", "tok", "Title").getDocumentTitle());
+        assertEquals("Brand", new ChromeContext(new KonaTheme(), new RenderHooks(), empty, "css", "tok", "Title", "Brand").getBrandName());
+        assertEquals(
+            ChromeMode.AUTH,
+            new ChromeContext(
+                new KonaTheme(),
+                new RenderHooks(),
+                empty,
+                "css",
+                "tok",
+                "Title",
+                "Brand",
+                ChromeMode.AUTH
+            ).getMode()
+        );
+
+        String auth = new Panel()
+            .mode(ChromeMode.AUTH)
+            .layout(new AuthLayout())
+            .brandName("JavaAuth")
+            .documentTitle("JavaAuth · Sign in")
+            .overridePartial(
+                "body",
+                "<main class=\"ff-auth-main\"><!-- ff-hook:body.start -->ok<!-- ff-hook:body.end --></main>"
+            )
+            .render();
+        assertTrue(auth.contains("ff-auth-shell"));
+        assertTrue(auth.contains("JavaAuth"));
     }
 }
 

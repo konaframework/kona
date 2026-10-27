@@ -22,6 +22,7 @@ class NavigationItem(val name: String) {
     private var attributesLiteral: Map<String, String> = emptyMap()
     private var attributesUsing: Function<Get, Map<String, String>>? = null
     private var clusterFlag: Boolean = false
+    private var matchPrefixValue: String? = null
     internal var depth: Int = 1
     internal val children = ArrayList<NavigationItem>()
 
@@ -61,6 +62,18 @@ class NavigationItem(val name: String) {
     }
 
     fun cluster(on: Boolean): NavigationItem = apply { clusterFlag = on }
+
+    /**
+     * Keeps this item highlighted across a whole URL subtree instead of only its own link.
+     * A resource nav entry points at its list page but stays active on create/edit/view too.
+     */
+    internal fun matchPrefix(value: String): NavigationItem = apply { matchPrefixValue = value }
+
+    internal fun isActive(path: String, get: Get): Boolean {
+        val prefix = matchPrefixValue
+        if (prefix != null) return activeItem(path, prefix)
+        return activeItem(path, urlText(get))
+    }
 
     fun child(item: NavigationItem): NavigationItem = apply {
         item.depth = depth + 1
@@ -128,7 +141,7 @@ internal fun renderItems(
     val ordered = items.sortedBy { it.labelText(get) }
     for (item in ordered) {
         val url = item.urlText(get)
-        val active = if (activeItem(path, url)) " ff-active" else ""
+        val active = if (item.isActive(path, get)) " ff-active" else ""
         val cluster = if (item.isCluster()) " ff-cluster" else ""
         val navigate = if (spa && url.isNotEmpty()) " wire:navigate" else ""
         val href = if (url.isEmpty()) "" else " href=\"${escapeHtml(url)}\""

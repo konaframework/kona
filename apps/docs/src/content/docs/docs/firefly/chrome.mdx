@@ -66,27 +66,60 @@ After the check, each marker is replaced with the concatenated hook HTML. A hook
 
 ## What the default layout writes
 
-`DefaultLayout` writes a full HTML document. Theme CSS goes in `<head>`. The panel chrome sits in the body:
+`DefaultLayout` writes a full HTML document. Theme CSS and the Inter / DM Sans font links go in `<head>`, alongside a tiny no-flash script that applies the stored theme preference before the first paint. When a session is on the request, a `<meta name="csrf-token">` tag is written too so forms and Firefly Forms uploads can send `_token` / `X-CSRF-TOKEN`. The authenticated shell is a flex row: sidebar beside a column that holds the top bar, a scroll region for the body, and a pinned footer. A drawer backdrop and a small dependency-free behavior script (theme cycle, dropdown menus, mobile drawer) finish the document.
 
 ```html
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="ff-html">
   <head>
-    …charset, viewport, title…
+    …charset, viewport, csrf meta, title…
+    …Google Fonts (Inter, DM Sans)…
+    <script>…apply stored ff-theme before paint…</script>
     <style>…theme CSS…</style>
   </head>
-  <body>
+  <body class="ff-body-root">
     <div class="ff-panel">
+      <div class="ff-backdrop" data-ff-backdrop></div>
       …sidebar…
-      …topbar…
-      …body…
-      …footer…
+      <div class="ff-column">
+        …topbar…
+        <div class="ff-scroll">
+          …body…
+        </div>
+        …footer…
+      </div>
     </div>
+    <script>…theme cycle, menus, drawer…</script>
   </body>
 </html>
 ```
 
+The sidebar shares the body background: it is **not** a contrasting card strip. Only the brand block and the top bar are raised (card surface with a brand top-accent), so they line up as one strip across the top. At the bottom, `.ff-sidebar-foot` and `.ff-footer` share the same shell background, padding, type, soft top border, and a fixed `--ff-footer-height` min-height so they read as one continuous chrome band — even when the main footer is empty and the sidebar shows **Signed in as …**. The sidebar width and top-bar height come from the theme tokens `--ff-sidebar-width` and `--ff-topbar-height`.
+
+With `NavigationType.SIDE` and `APP`, the brand label renders in `.ff-sidebar-brand` above the side nav, and the top bar shows a mobile-only brand beside the drawer toggle. `TOP` has no sidebar, so its brand stays in the top bar at every width.
+
+## Top bar tools and theme toggle
+
+Every panel page draws a tools cluster on the right of the top bar. These are plain HTML driven by data attributes, so themes and custom layouts keep rendering ordinary markup — the behavior script wires them up:
+
+| Control | Markup | Behavior |
+|---------|--------|----------|
+| Theme toggle | `<button data-ff-theme-toggle>` | Cycles `light → dark → system` and stores the choice under `localStorage['ff-theme']`. Adds/removes `ff-dark` on the document root |
+| Notifications | `<div data-ff-menu>` with a bell `data-ff-menu-trigger` | Opens a dropdown. With no backend wired it shows an empty state |
+| User menu | `<div class="ff-menu ff-user" data-ff-menu>` | Avatar initial + signed-in identifier; the dropdown holds the identifier, **Signed in as …**, a **Profile** link, any [`userMenu`](/docs/firefly/panel/) entries, and a **Sign out** form |
+| Drawer toggle | `<button class="ff-hamburger" data-ff-sidebar-toggle>` | Mobile only; slides the sidebar in. The backdrop and a close button (`data-ff-sidebar-close`) dismiss it |
+
+The sidebar also ends with a footer that reads **Signed in as _identifier_** (or **Guest** when no one is signed in), matching the identifier shown in the user menu.
+
+Three preferences, not two: `system` follows the operating system and tracks live changes to it; `light` and `dark` pin the choice. Because the preference lives in `localStorage` and is applied in `<head>`, a reload never flashes the wrong theme.
+
 If a slot were absent from the map it receives, it would throw `Missing partial [<name>]`. `Panel` always fills all four slots before calling the layout, so that failure is for a custom caller of `DefaultLayout` that omits a key.
+
+## Auth screens use a guest document
+
+Login, register, password reset, and email verify do **not** render the sidebar or top bar. The panel mounts those routes, then draws `AuthLayout`: a centered `.ff-auth-shell` with brand, atmosphere, and the form card. Authenticated pages (including profile) stay on `DefaultLayout`.
+
+Auth forms include a hidden `_token` field when a session is present, matching the same CSRF token the meta tag exposes on panel pages.
 
 ## Replace one partial
 
@@ -129,8 +162,12 @@ You see **Menu** at the top of the sidebar. Hooks still inject between the two c
 | `hooks` | The `RenderHooks` instance (already applied to the partials) |
 | `partials` | Map of slot name to HTML, markers already replaced |
 | `css` | The string from `Stylesheet.render(theme)` |
+| `csrfToken` | Session CSRF token when present, otherwise null |
+| `documentTitle` | `<title>` text |
+| `brandName` | Brand shown on auth and used as the default title |
+| `mode` | `ChromeMode.PANEL` or `ChromeMode.AUTH` |
 
-A layout may ignore `DefaultLayout` and place the partials itself. To use the dark tokens, put `ff-dark` on the same element as `ff-panel`:
+A layout may ignore `DefaultLayout` and place the partials itself. Dark tokens respond to `ff-dark` either on the panel element itself (`<div class="ff-panel ff-dark">`) or on any ancestor such as the document root (`<html class="ff-dark">`, which is what the built-in theme toggle sets). The example below pins dark on the panel element:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

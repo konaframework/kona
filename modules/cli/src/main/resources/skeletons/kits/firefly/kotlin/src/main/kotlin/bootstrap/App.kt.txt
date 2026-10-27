@@ -1,6 +1,5 @@
 package bootstrap
 
-import app.firefly.Panel as DeskPanel
 import app.providers.AppServiceProvider
 import config.App as AppConfig
 import config.Auth
@@ -66,7 +65,6 @@ object App {
         val router = app.resolve(Router::class.java)
         WebRoutes().register(router)
         ApiRoutes().register(router)
-        DeskPanel().mount(router)
         return app
     }
 

@@ -222,5 +222,7 @@ class BranchExhaustionTest {
         assertEquals("x@y.z", su.getEmail())
         assertEquals("x@y.z", su.getCredential("email"))
         assertNull(su.getCredential("nope"))
+        assertNull(su.getName())
+        assertEquals("Ada", SimpleUser(3, "h", null, mutableMapOf("name" to "Ada")).getName())
     }
 }
