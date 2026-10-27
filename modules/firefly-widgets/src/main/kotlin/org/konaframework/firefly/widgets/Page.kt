@@ -24,6 +24,12 @@ open class Page {
     private var maxWidthValue: String? = null
     private var maxWidthExplicit: Boolean = false
 
+    private companion object {
+        /** Matches one or more relation manager `<section class="ff-relation" …>…</section>` blocks. */
+        private val RELATION_SECTION =
+            Regex("""<section\b[^>]*\bff-relation\b[^>]*>[\s\S]*?</section>""")
+    }
+
     fun title(value: String): Page = apply { titleSetting.setLiteral(value) }
 
     fun title(provider: Function<Get, String>): Page = apply { titleSetting.setUsing(provider) }
@@ -113,7 +119,18 @@ open class Page {
     private fun wrapInfolist(html: String): String {
         if (html.isEmpty()) return ""
         if (html.contains("ff-infolist")) return html
+        // Edit mounts relations via infolistHtml; .ff-relation already owns a flat surface
+        // (.ff-table-wrap card). Wrapping that markup in .ff-infolist nests a second card (#271).
+        if (isRelationOnlyMarkup(html)) return html
         return """<div class="ff-infolist">$html</div>"""
+    }
+
+    /** True when [html] is only relation manager section(s) (no schema/infolist body). */
+    private fun isRelationOnlyMarkup(html: String): Boolean {
+        if (!html.contains("ff-relation")) return false
+        val withoutRelations =
+            RELATION_SECTION.replace(html, "")
+        return withoutRelations.isBlank()
     }
 
     private fun renderBreadcrumbs(): String {

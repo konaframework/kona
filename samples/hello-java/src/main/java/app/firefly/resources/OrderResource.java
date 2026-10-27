@@ -23,10 +23,6 @@ public class OrderResource extends Resource {
         super("orders");
         label("Orders");
         model(Order.class);
-        relation(new RelationManager("lines")
-            .related(Line.class)
-            .titleAttribute("sku")
-            .table(Table.memory(lineRow()).columns(TextColumn.make("sku"))));
     }
 
     @Override
@@ -42,6 +38,16 @@ public class OrderResource extends Resource {
     @Override
     public Table<?, ?> table(Table<?, ?> table) {
         return Table.memory(orderRow()).columns(TextColumn.make("name"));
+    }
+
+    @Override
+    public java.util.List<RelationManager> getRelations() {
+        return java.util.List.of(
+            new RelationManager("lines")
+                .related(Line.class)
+                .titleAttribute("sku")
+                .table(Table.memory(lineRow()).columns(TextColumn.make("sku")))
+        );
     }
 
     @Override

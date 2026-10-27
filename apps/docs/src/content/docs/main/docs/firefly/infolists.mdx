@@ -3,7 +3,7 @@ title: Infolists
 description: Show a record with entries instead of fields. On the Desk page that is the name entry. On orders, the view page mounts the order infolist.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Show a record when the screen should display a value, not collect one. Put the infolist on a view page, or anywhere you want a label and a value.
@@ -49,7 +49,7 @@ String html = page.render();
 
 `Infolist.make()` wraps a `Schema`. `components(...)` replaces the root list. `statePath` prefixes stored paths, so `name` lives at `user.name`. `fill` writes a map. `get` reads a dotted path. `schema()` returns the wrapped schema when you need `set` or partial render. `record` and `operation` are stored on that schema for the page that hosts the infolist. You see the name **Ada**.
 
-On a resource view page, the panel wraps the rendered markup in `.ff-infolist` and the stylesheet centers that column at the `xl` max width (`--ff-width-xl`, `36rem`) — the same width token as form create/edit. To tighten or widen a section inside the infolist, call `maxWidth("xl")` (or another token) on that component; see [Schemas](/docs/firefly/schemas/#max-width-xl-and-friends).
+On a resource view page, the panel wraps the rendered markup in `.ff-infolist`. That host fills the content column (`width: 100%`, no `xl` cap) — the same width model as list tables, reduced only by panel / page / resource `maxWidth`. Create and edit forms stay at the default `xl` column. To tighten or widen a section inside the infolist, call `maxWidth("xl")` (or another token) on that component; see [Schemas](/docs/firefly/schemas/#max-width-xl-and-friends).
 
 ## Pass a value or a closure
 

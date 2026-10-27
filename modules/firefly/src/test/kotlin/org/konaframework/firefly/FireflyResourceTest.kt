@@ -113,6 +113,9 @@ class FireflyResourceTest {
         assertTrue(list.contains("ff-table-toolbar") || list.contains("ff-table-search"))
         assertTrue(list.contains("ff-pagination") || list.contains("ff-table"))
         assertTrue(edit.contains("ff-relation"))
+        // Edit mounts relations only — must not nest them in an .ff-infolist card (#271).
+        // Match the host element (stylesheet comments also mention .ff-infolist).
+        assertFalse(edit.contains("""class="ff-infolist""""))
         assertTrue(edit.contains("data-ff-mode=\"edit\""))
         assertTrue(edit.contains("Edit Orders"))
         assertTrue(edit.contains("data-ff-title=\"sku\""))
@@ -121,6 +124,7 @@ class FireflyResourceTest {
         assertTrue(view.contains("ff-view"))
         assertTrue(view.contains("data-ff-mode=\"detail\""))
         assertTrue(view.contains("ff-relation"))
+        assertTrue(view.contains("""class="ff-infolist""""))
         assertTrue(view.contains("data-ff-path=\"name\""))
         assertTrue(view.contains("Back to list"))
         assertTrue(manage.contains("ff-picker"))

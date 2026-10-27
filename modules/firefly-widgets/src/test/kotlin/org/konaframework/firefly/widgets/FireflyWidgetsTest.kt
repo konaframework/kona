@@ -308,6 +308,17 @@ class FireflyWidgetsTest {
         assertTrue(Page().infolistHtml("<p>InfoBody</p>").render().contains("InfoBody"))
         assertTrue(Page().infolistHtml("<p>InfoBody</p>").render().contains("ff-infolist"))
         assertTrue(Page().infolistHtml("""<div class="ff-infolist"><p>Already</p></div>""").render().contains("Already"))
+        // Relation-only markup (edit page) must not nest inside an .ff-infolist card (#271).
+        val relationOnly =
+            """<section class="ff-relation" data-ff-relation="lines"><div class="ff-table-wrap">rows</div></section>"""
+        val relationHtml = Page().infolistHtml(relationOnly).render()
+        assertTrue(relationHtml.contains("ff-relation"))
+        assertTrue(relationHtml.contains("ff-table-wrap"))
+        assertFalse(relationHtml.contains("ff-infolist"))
+        // Schema + relation (view page) still gets the .ff-infolist host.
+        val viewMix =
+            """<div class="ff-schema"><div class="ff-entry">Ada</div></div>$relationOnly"""
+        assertTrue(Page().infolistHtml(viewMix).render().contains("ff-infolist"))
         assertTrue(empty.contains(">Page<"))
         assertFalse(empty.contains("ff-dashboard"))
         assertTrue(Page().title("Static").render().contains(">Static<"))

@@ -3,7 +3,7 @@ title: Schemas
 description: Build the tree for a screen, fill the state map, and call render(). The Desk form is a schema of the name, status, and due fields.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Build the tree for a screen, fill the state map, and call `render()`. Sections, text, fields, and buttons all sit in that tree. Live pieces bind with `wire:model` and `@entangle`.
@@ -87,7 +87,7 @@ The last call wins. `label("Title")` after a closure stores the fixed string and
 | `xl` | `--ff-width-xl` | `36rem` |
 | `full` / `screen` / `prose` | — | `100%` / `100vw` / `65ch` |
 
-Create, edit, and view pages also constrain the direct `.ff-schema` / `.ff-infolist` child of `.ff-page-content` to `--ff-width-xl`, with `width: 100%` and horizontal auto margins so the column stays centered when the shell is wider. That page rule is CSS-only; call `maxWidth(...)` on a section or entry when one component inside the page should use a different token.
+Create and edit pages constrain the direct `.ff-schema` / `.ff-resource-form` child of `.ff-page-content` to `--ff-width-xl`, with `width: 100%` and horizontal auto margins so the form column stays centered when the shell is wider. View infolists fill the content column instead (like list tables); only panel / page / resource `maxWidth` shrinks them. Those page rules are CSS-only; call `maxWidth(...)` on a section or entry when one component inside the page should use a different token.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
