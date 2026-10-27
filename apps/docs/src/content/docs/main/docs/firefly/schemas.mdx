@@ -77,6 +77,45 @@ Text.make("Hello").content(get -> "Hello");
 
 The last call wins. `label("Title")` after a closure stores the fixed string and drops the closure. The same shape is on `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight`, and `imageWidth`.
 
+### Max width (`xl` and friends)
+
+`maxWidth("xl")` (or a closure that returns a token) stores the value on the component and renders `data-ff-max-width="xl"` on its root. The panel stylesheet maps those tokens to CSS variables:
+
+| Token | CSS variable | Width |
+|-------|--------------|-------|
+| `xs` … `7xl` | `--ff-width-xs` … `--ff-width-7xl` | `20rem` … `80rem` (Tailwind-compatible) |
+| `xl` | `--ff-width-xl` | `36rem` |
+| `full` / `screen` / `prose` | — | `100%` / `100vw` / `65ch` |
+
+Create, edit, and view pages also constrain the direct `.ff-schema` / `.ff-infolist` child of `.ff-page-content` to `--ff-width-xl`, with `width: 100%` and horizontal auto margins so the column stays centered when the shell is wider. That page rule is CSS-only; call `maxWidth(...)` on a section or entry when one component inside the page should use a different token.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Section.make("Details").maxWidth("xl").schema(
+    Text.make("Name on file"),
+)
+Section.make("Wide").maxWidth("4xl").schema(
+    Text.make("Longer copy"),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Section.make("Details").maxWidth("xl").schema(
+    Text.make("Name on file")
+);
+Section.make("Wide").maxWidth("4xl").schema(
+    Text.make("Longer copy")
+);
+```
+
+</TabItem>
+</Tabs>
+
 `extraAttributes` merges HTML attributes onto the component root. Layouts, primes, actions, infolist entries, table columns, and form fields all have it. Pass a map or a closure. A name that is not an HTML attribute name is skipped. Values are escaped.
 
 <Tabs syncKey="lang">

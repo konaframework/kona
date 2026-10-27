@@ -49,6 +49,8 @@ String html = page.render();
 
 `Infolist.make()` wraps a `Schema`. `components(...)` replaces the root list. `statePath` prefixes stored paths, so `name` lives at `user.name`. `fill` writes a map. `get` reads a dotted path. `schema()` returns the wrapped schema when you need `set` or partial render. `record` and `operation` are stored on that schema for the page that hosts the infolist. You see the name **Ada**.
 
+On a resource view page, the panel wraps the rendered markup in `.ff-infolist` and the stylesheet centers that column at the `xl` max width (`--ff-width-xl`, `36rem`) — the same width token as form create/edit. To tighten or widen a section inside the infolist, call `maxWidth("xl")` (or another token) on that component; see [Schemas](/docs/firefly/schemas/#max-width-xl-and-friends).
+
 ## Pass a value or a closure
 
 Entry setters return the entry, so you can chain them. A setter accepts a fixed value or a `java.util.function.Function` (or a `Predicate` for flags). The function receives `Get`, the same reader a schema component uses.
