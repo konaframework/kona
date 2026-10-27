@@ -1,5 +1,7 @@
 package org.konaframework.firefly.support
 
+import org.konaframework.crema.CremaEngine
+
 enum class ChromeMode {
     PANEL,
     AUTH,
@@ -20,7 +22,20 @@ interface PanelLayout {
     fun render(context: ChromeContext): String
 }
 
-class DefaultLayout : PanelLayout {
+/**
+ * Default authenticated panel document.
+ *
+ * Phase A (Wire + Crema rule): markup lives in
+ * `views/firefly/layouts/panel.crema.html`. This class is the thin
+ * [PanelLayout] adapter — it validates partials, packs data, and asks Crema to
+ * render. A Wire page-host component is deferred; auth stays on [AuthLayout].
+ */
+class DefaultLayout(
+    private val crema: CremaEngine,
+) : PanelLayout {
+    /** Default engine: package Crema layouts via [FireflyCrema]. */
+    constructor() : this(FireflyCrema.engine())
+
     override fun render(context: ChromeContext): String {
         if (context.mode == ChromeMode.AUTH) {
             return AuthLayout().render(context)
@@ -29,59 +44,26 @@ class DefaultLayout : PanelLayout {
         val topbar = part(context, "topbar")
         val body = part(context, "body")
         val footer = part(context, "footer")
-        val panel = """
-            <div class="ff-panel">
-              <div class="ff-backdrop" data-ff-backdrop aria-hidden="true"></div>
-              $sidebar
-              <div class="ff-column">
-                $topbar
-                <div class="ff-scroll">
-                  $body
-                </div>
-                $footer
-              </div>
-            </div>
-        """.trimIndent()
-        val brand = context.theme.tokens().heading
-        val csrf = context.csrfToken
-        val meta =
-            if (csrf.isNullOrBlank()) {
-                ""
-            } else {
-                """<meta name="csrf-token" content="${escAttr(csrf)}" />"""
-            }
+        val tokens = context.theme.tokens()
+        val csrf = context.csrfToken?.takeUnless { it.isBlank() }
         val title = context.documentTitle.ifBlank { "Firefly" }
-        return """
-            <!DOCTYPE html>
-            <html lang="en" class="ff-html">
-              <head>
-                <meta charset="utf-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1" />
-                $meta
-                <title>${escAttr(title)}</title>
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-                <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Inter:ital,opsz,wght@0,400..700;1,400..700&display=swap" />
-                $THEME_INIT_SCRIPT
-                <style>${context.css}</style>
-              </head>
-              <body class="ff-body-root" style="margin:0;background:${escAttr(context.theme.tokens().bodyBackground)};color:${escAttr(brand)}">
-                $panel
-                $CHROME_SCRIPT
-              </body>
-            </html>
-        """.trimIndent()
-    }
-
-    private fun escAttr(value: String): String = buildString {
-        for (ch in value) {
-            when (ch) {
-                '&' -> append("&amp;")
-                '"' -> append("&quot;")
-                '<' -> append("&lt;")
-                else -> append(ch)
-            }
-        }
+        return crema.render(
+            FireflyCrema.PANEL,
+            mapOf(
+                "documentTitle" to title,
+                "brandName" to context.brandName,
+                "csrfToken" to csrf,
+                "css" to context.css,
+                "sidebar" to sidebar,
+                "topbar" to topbar,
+                "body" to body,
+                "footer" to footer,
+                "themeInitScript" to THEME_INIT_SCRIPT,
+                "chromeScript" to CHROME_SCRIPT,
+                "bodyBackground" to tokens.bodyBackground,
+                "bodyColor" to tokens.heading,
+            ),
+        )
     }
 
     private fun part(context: ChromeContext, name: String): String {

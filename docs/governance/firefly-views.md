@@ -45,13 +45,13 @@ Shamar’s admin shell is Edge + Wire/Alpine: e.g. `packages/adonis/resources/vi
 
 | Surface | Primary files |
 |---------|----------------|
-| Panel document + default chrome | `modules/firefly-support/.../Chrome.kt` (`DefaultLayout`), `AuthLayout.kt` |
+| Auth document shell | `modules/firefly-support/.../AuthLayout.kt` (still Kotlin HTML) |
 | Sidebar / topbar / user menu / auth forms | `modules/firefly/.../Panel.kt` (string partials) |
 | Tables (toolbar, scroll, pagination, cards) | `modules/firefly-tables/.../Table.kt` and neighbors |
 | Built-in form field chrome | `modules/firefly-forms` default `render` paths (custom fields already prefer `.view(...)`) |
 | Dialogs / some support widgets | `Dialog.kt` and related support HTML |
 
-`kona-firefly-support` currently has **no** Crema dependency — chrome cannot load views until support (or a thin chrome module) depends on Crema and resolves package views.
+**Phase A landed:** `:kona-firefly-support` depends on Crema. `DefaultLayout` renders `views/firefly/layouts/panel.crema.html` via `FireflyCrema` / `ClasspathViewFinder`. Wire page-host for the shell is deferred; auth remains Phase B.
 
 ## Migration sketch (phased)
 
@@ -63,14 +63,14 @@ Do **not** boil the ocean in one PR. Each phase: own branch, 100% coverage on to
 
 | Change | Notes |
 |--------|--------|
-| Add Crema dependency to `:kona-firefly-support` (or extract `kona-firefly-chrome`) | Package views under `views/firefly/layouts/` |
-| Ship `panel.crema.html` / `auth.crema.html` matching today’s DOM + hook markers | Keep `<!-- ff-hook:… -->` contract |
-| `PanelLayout` impl loads Crema (engine from app or bundled finder) | `DefaultLayout` becomes a thin adapter or delegates to Crema |
-| Wire: optional `FireflyChrome` / page host component | Full Wire page host can wait for phase B if chrome-only Crema lands first |
+| Add Crema dependency to `:kona-firefly-support` (or extract `kona-firefly-chrome`) | **Done** — `api(project(":kona-crema"))`; package views under `views/firefly/layouts/` |
+| Ship `panel.crema.html` / `auth.crema.html` matching today’s DOM + hook markers | **`panel.crema.html` done**; `auth.crema.html` → Phase B. Keep `<!-- ff-hook:… -->` contract |
+| `PanelLayout` impl loads Crema (engine from app or bundled finder) | **Done** — `DefaultLayout` + `FireflyCrema` / `ClasspathViewFinder` |
+| Wire: optional `FireflyChrome` / page host component | **Deferred** — Phase A is Crema invoked from `DefaultLayout` (documented first vertical slice) |
 
 **Risks:** Kover on new branches; CSS class stability for desk/Shamar polish PRs; tests that assert exact HTML strings need Crema-rendered fixtures.
 
-**Spike (this branch):** target markup file `modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html` — **not wired** into `DefaultLayout` yet. Wiring is the next implementation milestone.
+**Status:** Phase A wiring is on `feat/firefly-wire-crema-chrome`. Next: Phase B auth shell.
 
 ### Phase B — Auth shell
 

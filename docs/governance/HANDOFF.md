@@ -40,31 +40,32 @@ Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
-## Resume here (2026-10-27) — Firefly Wire + Crema views rule
+## Resume here (2026-10-27) — Firefly Phase A (Crema panel chrome)
 
 | Item | Value |
 |------|--------|
-| Branch | `docs/firefly-wire-crema-rule` (rule + migration plan + chrome Crema spike; commit first, PR when Phase A wiring is ready or when docs-only lands) |
+| Branch | `feat/firefly-wire-crema-chrome` (governance lock + Phase A wiring) |
 | Base | `origin/main` after **#240** (Shamar-shaped panel browser shell) |
-| Locked rule | [firefly-views.md](firefly-views.md) — **Firefly chrome and UI are Wire components with Crema views; Kotlin describes structure/config; Crema owns markup.** Do not invent Kotlin string HTML for new chrome/components. |
+| Locked rule | [firefly-views.md](firefly-views.md) — **Firefly chrome and UI are Wire components with Crema views; Kotlin describes structure/config; Crema owns markup.** |
+| Phase A | `DefaultLayout` → Crema `views/firefly/layouts/panel.crema.html` via `FireflyCrema` / `ClasspathViewFinder`. Wire page-host deferred. Hook markers unchanged. |
 | Desk smoke app | `/home/smaosa/desk` — separate git tree; **not** part of this repo. `kona.home=/home/smaosa/kona`. `PORT=4000` → http://127.0.0.1:4000/admin |
 | Merge habit | `gh pr merge --auto --squash`; never push `main`; never mutate rulesets |
 
 ### Architectural directive (cemented)
 
-User rejection of “stay on Kotlin string HTML” is accepted. Filament puts layout in Livewire/Blade views; Shamar puts the admin shell in Edge partials + Wire. Kona Wire is already class + Crema (`Component` + `views/wire/….crema.html`). Firefly grind scaffolds already emit class + Crema for custom fields/columns/widgets. The gap is **built-in** chrome/tables/auth still rendered as Kotlin string templates (`DefaultLayout`, `Panel.kt` partials, `Table.kt`). Performance of string builders vs Crema is **not** a reason to keep Kotlin markup without a measured bench — UX parity is markup + CSS structure.
+User rejection of “stay on Kotlin string HTML” is accepted. Filament puts layout in Livewire/Blade views; Shamar puts the admin shell in Edge partials + Wire. Kona Wire is already class + Crema (`Component` + `views/wire/….crema.html`). Firefly grind scaffolds already emit class + Crema for custom fields/columns/widgets. Built-in **panel document** chrome now renders from Crema; remaining Kotlin HTML: auth shell, `Panel.kt` partials, tables, built-in field wrappers, dialogs. Performance of string builders vs Crema is **not** a reason to keep Kotlin markup without a measured bench — UX parity is markup + CSS structure.
 
-**Next implementation milestone (recommended):** Phase A in [firefly-views.md](firefly-views.md) — wire `DefaultLayout` to `views/firefly/layouts/panel.crema.html` (spike file already on this branch; not loaded yet), add Crema to `:kona-firefly-support`, keep hook-marker contract, 100% coverage. Then B auth → C table partials → D field wrappers. Prefer branch `feat/firefly-wire-crema-chrome` for the wiring PR.
+**Next implementation milestone (recommended):** Phase B in [firefly-views.md](firefly-views.md) — auth shell to Crema. Then C table partials → D field wrappers. Keep table polish on `fix/firefly-table-shamar-ui` separate.
 
 ### What is on this branch
 
-- [firefly-views.md](firefly-views.md) — locked rule, evidence, phased migration
-- Handoff + parity ledger + architecture map + public chrome guide note
-- Spike: `modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html` (unwired)
+- [firefly-views.md](firefly-views.md) — locked rule; Phase A marked done
+- `:kona-firefly-support` → Crema; `DefaultLayout` + `panel.crema.html` wired
+- Public chrome guide updated (`apps/docs` …/firefly/chrome)
 
 ### Parallel work (do not collide)
 
-- Table Shamar UI polish may live on `fix/firefly-table-shamar-ui` — rebase after this rule merges if both touch docs/Firefly tables.
+- Table Shamar UI polish on `fix/firefly-table-shamar-ui` — do not rewrite tables on the chrome branch; rebase after either merges if both touch support CSS/tests.
 - Hot-reload polish worktree: `/home/smaosa/kona-hot-reload-polish` (`fix/grind-serve-hot-reload-polish`) — unrelated modules; keep separate PRs.
 
 ### Desk app notes (manual verify only)
@@ -187,9 +188,9 @@ Key paths: `modules/` (framework), `apps/docs/`, `js/wire/`, `docs/governance/`,
 
 ## Open gaps / next priorities
 
-1. **Firefly Phase A (Wire + Crema chrome):** wire `DefaultLayout` to `views/firefly/layouts/panel.crema.html`, Crema dependency on support, 100% coverage — see [firefly-views.md](firefly-views.md). Branch suggestion: `feat/firefly-wire-crema-chrome`.
+1. **Firefly Phase B (auth Crema):** move `AuthLayout` / auth form markup to `views/firefly/auth/*.crema.html` — see [firefly-views.md](firefly-views.md). Phase A (panel chrome Crema) is on `feat/firefly-wire-crema-chrome`.
 2. Cloudflare: redirect/retire `brew.konaframework.org` / `inertia.konaframework.org` (see docs-site.md).
-3. Confirm no conflicting open PRs.
+3. Confirm no conflicting open PRs (keep `fix/firefly-table-shamar-ui` separate from chrome).
 4. Pick remaining **deepen** slices from the Almasix ledger. Non-colliding milestones may proceed in parallel, each on its own branch. Do not start a milestone that depends on another until that dependency is on `main`. **M26 Wire** shipped on **0.3.0**.
 5. **Maven Central — `v0.2.0` shipped** (do not re-tag). **`0.2.1` version bump on `main` — do not tag until release cut.** Optional follow-ups:
    - File Count monthly limit (grace through **2026-11-17**): check Usage Center; request higher limit if needed. Checksum-of-`.asc` reduction needs Gradle 9 + vanniktech ≥0.37 (deferred).
