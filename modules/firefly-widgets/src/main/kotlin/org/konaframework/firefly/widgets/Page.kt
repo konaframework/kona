@@ -80,7 +80,14 @@ open class Page {
         val csrf = state["csrfField"] as? String ?: ""
         val action = state["formAction"] as? String
         val actionAttr = if (action.isNullOrBlank()) "" else """ action="${escapeHtml(action)}""""
-        return """<form id="ff-form" class="ff-resource-form" method="post"$actionAttr>$csrf$body</form>"""
+        val recordId = state["record"]?.toString()
+        val hiddenId =
+            if (recordId.isNullOrBlank()) {
+                ""
+            } else {
+                """<input type="hidden" name="id" value="${escapeHtml(recordId)}" />"""
+            }
+        return """<form id="ff-form" class="ff-resource-form" method="post"$actionAttr>$csrf$hiddenId$body</form>"""
     }
 
     protected open fun sectionClass(): String = "ff-page"

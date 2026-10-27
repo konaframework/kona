@@ -69,8 +69,8 @@ class FireflyResourceTest {
         assertTrue(list.contains("""href="create""""))
         assertTrue(list.contains(">New<"))
         assertTrue(list.contains("ff-row-actions"))
-        assertTrue(list.contains("""href="view""""))
-        assertTrue(list.contains("""href="edit""""))
+        assertTrue(list.contains("""href="view?id=1""""))
+        assertTrue(list.contains("""href="edit?id=1""""))
         assertTrue(list.contains("Ada"))
         // Create is a page link on full resources — dialogs stay on simple/manage and delete.
         // Full-resource create is a header link — dialogs belong on simple/manage and delete.
@@ -82,7 +82,8 @@ class FireflyResourceTest {
         assertFalse(headerActions.contains("ff-action-dialog"))
         // Row delete mounts a dialog; it must stay closed so the list stays clickable.
         assertTrue(list.contains("ff-table-button-dialog"))
-        assertTrue(list.contains("""ff-table-button-dialog" x-show="open" x-cloak style="display:none" hidden"""))
+        assertTrue(list.contains("""data-ff-dialog-panel"""))
+        assertTrue(list.contains("""ff-table-button-dialog" data-ff-dialog-panel x-show="open" x-cloak style="display:none" hidden"""))
         assertTrue(create.contains("ff-create"))
         assertTrue(create.contains("ff-page-mode"))
         assertTrue(create.contains("data-ff-mode=\"create\""))
@@ -167,14 +168,17 @@ class FireflyResourceTest {
         assertTrue(header.contains("""href="create""""))
         // Row actions sit on the table, still not in the sidebar.
         assertTrue(list.contains("ff-row-actions"))
-        assertTrue(list.contains("""class="ff-table-button" href="view""""))
-        assertTrue(list.contains("""class="ff-table-button" href="edit""""))
+        assertTrue(list.contains("""class="ff-table-button" href="view?id=1""""))
+        assertTrue(list.contains("""class="ff-table-button" href="edit?id=1""""))
 
         // The single entry stays active across the resource's create/edit/view pages.
         val create = send(router, "/admin/orders/create")
         assertTrue(create.contains("""<li class="ff-nav-item ff-active"><a href="/admin/orders/list">Orders</a>"""))
         assertTrue(send(router, "/admin/orders/edit").contains("ff-active"))
         assertTrue(send(router, "/admin/orders/view").contains("ff-active"))
+        // Dashboard (`/admin`) must not stay highlighted on resource pages.
+        assertFalse(list.contains("""<li class="ff-nav-item ff-active"><a href="/admin">Dashboard</a>"""))
+        assertTrue(send(router, "/admin").contains("""<li class="ff-nav-item ff-active"><a href="/admin">Dashboard</a>"""))
         // Empty-slug resource pages mount at the resource root.
         assertEquals(200, router.find("GET", "/admin/home")!!.route.action.handle(Request("GET", "/admin/home", emptyMap(), emptyMap(), "")).status)
     }
@@ -275,6 +279,90 @@ class FireflyResourceTest {
         assertTrue(both.render().contains("data-ff-tone=\"info\""))
         val closed = RelationManager("lines").extraAttributes { mapOf("data-ff-tone" to "info") }
         assertTrue(closed.render().contains("data-ff-tone=\"info\""))
+    }
+
+    @Test
+    fun editAndViewFillRecordAndDeleteRemovesIt() {
+        database()
+        val shelf = Shelf().fill(mapOf("name" to "LoadedShelf"))
+        shelf.save()
+        val id = shelf.getKey()!!.toString()
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(orders()).mount(router)
+
+        val edit = send(router, "/admin/orders/edit?id=$id")
+        assertTrue(edit.contains("""value="LoadedShelf""""), edit)
+        assertTrue(edit.contains("""name="id" value="$id""""), edit)
+        assertTrue(edit.contains("data-ff-dialog-open"), edit)
+        assertTrue(edit.contains("""action="delete""""), edit)
+
+        val view = send(router, "/admin/orders/view?id=$id")
+        assertTrue(view.contains("LoadedShelf"), view)
+        assertTrue(view.contains("data-ff-mode=\"detail\""), view)
+
+        val deleteMatch = router.find("POST", "/admin/orders/delete")!!
+        assertEquals(
+            422,
+            deleteMatch.route.action.handle(
+                Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), ""),
+            ).status,
+        )
+        assertEquals(
+            404,
+            deleteMatch.route.action.handle(
+                Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=99999"),
+            ).status,
+        )
+        val deleted = deleteMatch.route.action.handle(
+            Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=$id"),
+        )
+        assertEquals(302, deleted.status)
+        assertEquals("/admin/orders/list", deleted.headers["Location"])
+        assertEquals(0L, Shelf().newQuery().where("name", "LoadedShelf").count())
+
+        // Missing Cadence row leaves the form empty (find → null); blank record id is ignored.
+        val missing = send(router, "/admin/orders/edit?id=99999")
+        assertTrue(missing.contains("ff-edit"))
+        assertFalse(missing.contains("""value="LoadedShelf""""))
+        send(router, "/admin/orders/edit?id=")
+        val blankRecord = orders().pages().first { it is EditPage }.render(mapOf("record" to "  "))
+        assertTrue(blankRecord.contains("ff-edit"))
+
+        // Auth-gated delete redirects to login when signed out; proceeds when signed in.
+        val gated = Router()
+        val guard = MemoryPanelGuard()
+        Panel().path("admin").authenticate(true).guard(guard).resource(orders()).mount(gated)
+        assertEquals(
+            302,
+            gated.find("POST", "/admin/orders/delete")!!.route.action.handle(
+                Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=1"),
+            ).status,
+        )
+        guard.register("Ada", "ada@example.com", "secret")
+        guard.attempt("ada@example.com", "secret")
+        assertEquals(
+            404,
+            gated.find("POST", "/admin/orders/delete")!!.route.action.handle(
+                Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=1"),
+            ).status,
+        )
+        val session = FakeFireflySession().also { it.put("_token", "tok") }
+        assertEquals(
+            419,
+            deleteMatch.route.action.handle(
+                Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "_token=bad&id=1").also {
+                    it.setAttribute(Request.SESSION_ATTRIBUTE, session)
+                },
+            ).status,
+        )
+        val gatedDomain = Router()
+        Panel().path("admin").authenticate(false).domain("admin.test").resource(orders()).mount(gatedDomain)
+        assertEquals(
+            404,
+            gatedDomain.find("POST", "/admin/orders/delete")!!.route.action.handle(
+                Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=1"),
+            ).status,
+        )
     }
 
     @Test

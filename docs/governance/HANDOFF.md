@@ -58,13 +58,34 @@ User rejection of “stay on Kotlin string HTML” is accepted. Filament puts la
 
 **How chrome + tables relate now:** Crema owns the outer panel document (`DefaultLayout` → `panel.crema.html`). Table/list/create/edit UX (toolbar, empty row, POST `#ff-form` + submit header actions, horizontal actions, closed-by-default dialogs, denser `firefly.css`) stays Kotlin/CSS until Phase C moves table markup to Crema. Do not reintroduce Kotlin string HTML for the panel shell.
 
-**Next steps:** (1) green CI / PR + automerge this unified branch; (2) abandon or close `fix/firefly-table-shamar-ui` and `docs/firefly-wire-crema-rule` once this lands; (3) Phase B in [firefly-views.md](firefly-views.md) — auth shell to Crema; then C table partials → D field wrappers.
+**Next steps:** (1) green CI / PR + automerge this unified branch; (2) abandon or close `fix/firefly-table-shamar-ui` and `docs/firefly-wire-crema-rule` once this lands; (3) Phase B in [firefly-views.md](firefly-views.md) — auth shell to Crema; then C table partials → D field wrappers; (4) optional follow-up **`kona-heroicons`** (see below) — do not block this PR.
+
+### Layout file locations (Phase A)
+
+| Piece | Path |
+|-------|------|
+| Crema panel document | `modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html` |
+| Adapter | `DefaultLayout` in `modules/firefly-support/.../Chrome.kt` → `FireflyCrema.engine().render("firefly.layouts.panel", …)` |
+| Finder | `FireflyCrema` / `ClasspathViewFinder` in `FireflyCrema.kt` (classpath `views/`) |
+| Still Kotlin HTML | Auth shell (`AuthLayout.kt`); sidebar/topbar/body/footer **partials** + hooks in `Panel.kt` / `Chrome.kt` `builtin()`; tables, actions, dialogs, field wrappers |
+
+### Desk bugfixes on this branch (edit / delete / nav)
+
+- **Edit/View blank:** `Resource.liveSchema` now `RecordStores.find` + `schema.fill(attributes)`; row links are `edit?id=` / `view?id=`; `#ff-form` gets hidden `id`.
+- **Delete dialog:** Alpine was required but missing on DefaultLayout. Mounts use `data-ff-dialog-*`; `CHROME_SCRIPT` opens/closes. `Action.postForm` + `TableButton.confirmPost` POST to `…/delete` with CSRF.
+- **Dashboard always active:** `NavigationItem.isActive` without `matchPrefix` is **exact URL only** so `/admin` no longer matches `/admin/users`.
+
+### Heroicons follow-up (do not start on this PR)
+
+Kona already has a tiny `org.konaframework.firefly.support.Icon` (Java enum + path SVGs: HOME, BARS, USER, X) used by actions/panel chrome. That is **not** a blade-icons-style set.
+
+**Recommend:** ship a separate module later — e.g. `:kona-heroicons` / `org.konaframework.heroicons` — with named outline/solid icons, `Icon.of("heroicon-o-user")` / typed constants, and Firefly `Icon.fromName` delegating or accepting heroicon names. Spike shape: API + 2–3 icons + Java callable sample; full Heroicons dump is a dedicated PR. Keep firefly-support’s four chrome icons until the package exists.
 
 ### What is on this branch
 
 - [firefly-views.md](firefly-views.md) — locked rule; Phase A done (`FireflyCrema` / `ClasspathViewFinder` / `panel.crema.html`)
-- `:kona-firefly-support` — Crema `DefaultLayout`; dialog `render(open=false)` + `[hidden]` CSS so closed dialogs never cover the list
-- `:kona-firefly-tables` / actions / widgets / `:kona-firefly` — Shamar table chrome, create/edit POST save via `Action.submitForm`, horizontal header actions, resource list/create wiring
+- `:kona-firefly-support` — Crema `DefaultLayout`; dialog `render(open=false)` + `[hidden]` CSS; chrome script dialog open without Alpine
+- `:kona-firefly-tables` / actions / widgets / `:kona-firefly` — Shamar table chrome, create/edit POST save, edit/view record fill, delete POST + confirm dialogs, exact dashboard nav active
 - Public guides: chrome + resources/tables copy for POST save and list toolbar
 
 ### Parallel work (do not collide)
@@ -92,6 +113,7 @@ cd /home/smaosa/desk
 PORT=4000 ./grind serve
 # Open http://127.0.0.1:4000/admin  (demo@kona.test / password)
 # List: toolbar + empty state; New → create POST; closed manage dialogs must not block the list
+# Users: Edit/View show fields; Delete opens confirm; only Users nav item active (not Dashboard)
 ```
 
 Do **not** commit desk into kona. Restart serve yourself after framework rebuilds.

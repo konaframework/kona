@@ -411,7 +411,9 @@ class FireflyTablesTest {
         assertTrue(modalHtml.contains("ff-table-button-dialog"))
         assertTrue(modalHtml.contains("""style="display:none""""))
         assertTrue(modalHtml.contains(" x-cloak"))
-        assertTrue(modalHtml.contains("ff-table-button-dialog\" x-show=\"open\" x-cloak style=\"display:none\" hidden"))
+        assertTrue(modalHtml.contains("ff-table-button-dialog\" data-ff-dialog-panel x-show=\"open\" x-cloak style=\"display:none\" hidden"))
+        assertTrue(modalHtml.contains("data-ff-dialog-open"))
+        assertTrue(modalHtml.contains("data-ff-dialog-mount"))
         assertTrue(modalHtml.contains("\$wire.\$call('edit')"))
         assertTrue(modalHtml.contains("""data-ff-action-boot="ffAction('edit')""""))
         assertTrue(modalHtml.contains("Hello"))
@@ -427,6 +429,47 @@ class FireflyTablesTest {
         assertTrue(linked.render(Cell { null }, false).contains("href="))
         assertFalse(linked.render(Cell { null }, false).contains("ff-dialog"))
         assertFalse(linked.render(Cell { null }, false).contains("ff-table-button-dialog"))
+        val confirm = TableButton.make("delete").label("Delete").confirmPost(
+            "delete",
+            """<input type="hidden" name="_token" value="tok" />""",
+        )
+        val confirmHtml = confirm.render(Cell { path -> if (path == "key") "9" else null }, false)
+        assertTrue(confirmHtml.contains("""action="delete""""))
+        assertTrue(confirmHtml.contains("""name="id" value="9""""))
+        assertTrue(confirmHtml.contains("data-ff-dialog-open"))
+        assertTrue(confirmHtml.contains("ff-delete-form"))
+        val noKey = TableButton.make("delete").confirmPost(
+            "delete",
+            "",
+            heading = "Remove",
+            description = "",
+        ).render(Cell { null }, false)
+        assertTrue(noKey.contains("""action="delete""""))
+        assertFalse(noKey.contains("""name="id""""))
+        assertFalse(noKey.contains("ff-action-description"))
+        assertThrows(FireflyException::class.java) {
+            TableButton.make("x").confirmPost("", "")
+        }
+        // Exercise Table.rowActions cell paths (key / recordKey / . / column).
+        val withDelete = Table.memory(mapOf("id" to "7", "name" to "Ada"))
+            .columns(TextColumn.make("name"))
+            .rowButtons(
+                TableButton.make("delete").label("Delete").confirmPost(
+                    "delete",
+                    """<input type="hidden" name="_token" value="tok" />""",
+                ),
+            )
+        val listHtml = withDelete.render()
+        assertTrue(listHtml.contains("""name="id" value="7""""))
+        assertTrue(listHtml.contains("data-ff-dialog-mount"))
+        // Hit the recordKey arm of Table.rowActions cell lookup.
+        val viaRecordKey = Table.memory(mapOf("id" to "3", "name" to "Bea"))
+            .columns(TextColumn.make("name"))
+            .rowButtons(
+                TableButton.make("view").url { cell -> "view?id=${cell.get("recordKey")}" },
+            )
+            .render()
+        assertTrue(viaRecordKey.contains("""href="view?id=3""""))
         val needs = TableButton.make("bulk").requiresSelection(true).disabled(false)
         assertTrue(needs.render(Cell { null }, true).contains("disabled"))
         assertFalse(needs.render(Cell { null }, false).contains("disabled"))

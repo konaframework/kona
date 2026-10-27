@@ -194,7 +194,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             operation("create", "Create", schema.components()),
             operation("edit", "Edit", schema.components()),
             operation("view", "View", info.components()),
-            Action.make("delete").label("Delete").modal().modalHeading("Delete"),
+            deleteAction(state),
         )
     }
 
@@ -202,11 +202,12 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.title(label())
         val built = table(listTable())
         applyTableQuery(built, state)
+        val csrf = state["csrfField"] as? String ?: ""
         // Row actions — never sidebar links — open the record pages (Shamar list toolbar).
         built.rowButtons(
-            TableButton.make("view").label("View").url("view"),
-            TableButton.make("edit").label("Edit").url("edit"),
-            TableButton.make("delete").label("Delete"),
+            TableButton.make("view").label("View").url(rowRecordUrl("view")),
+            TableButton.make("edit").label("Edit").url(rowRecordUrl("edit")),
+            TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
         )
         page.table(built)
         // Full-resource create is a header link — dialogs belong on simple/manage and delete.
@@ -227,11 +228,13 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.title("Edit ${label()}")
         page.mountForm(form(liveSchema(state)))
         page.infolistHtml(relationMarkup())
+        val recordId = state["record"]?.toString().orEmpty()
+        val viewUrl = if (recordId.isEmpty()) "view" else "view?id=${encodeQuery(recordId)}"
         page.headerActions(
             Action.make("save").label("Save").submitForm("ff-form"),
-            Action.make("view").label("View").url("view").outlined(),
+            Action.make("view").label("View").url(viewUrl).outlined(),
             Action.make("cancel").label("Cancel").url("list").outlined(),
-            Action.make("delete").label("Delete").color("danger").modal().modalHeading("Delete"),
+            deleteAction(state),
         )
     }
 
@@ -285,10 +288,12 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyView(page: ViewPage, state: Map<String, Any?>) {
         page.title(label())
         page.infolistHtml(viewMarkup(state))
+        val recordId = state["record"]?.toString().orEmpty()
+        val editUrl = if (recordId.isEmpty()) "edit" else "edit?id=${encodeQuery(recordId)}"
         page.headerActions(
-            Action.make("edit").label("Edit").url("edit"),
+            Action.make("edit").label("Edit").url(editUrl),
             Action.make("back").label("Back to list").url("list").outlined(),
-            Action.make("delete").label("Delete").color("danger").modal().modalHeading("Delete"),
+            deleteAction(state),
         )
     }
 
@@ -298,9 +303,49 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         return action
     }
 
+    /**
+     * Confirm dialog that POSTs to the resource `delete` route with CSRF + record id.
+     * Opens via chrome `data-ff-dialog-*` (no Alpine required on DefaultLayout).
+     */
+    private fun deleteAction(state: Map<String, Any?>): Action {
+        val id = state["record"]?.toString().orEmpty()
+        val csrf = state["csrfField"] as? String ?: ""
+        val extras = buildString {
+            append(csrf)
+            if (id.isNotEmpty()) {
+                append("""<input type="hidden" name="id" value="${escapeHtml(id)}" />""")
+            }
+        }
+        return Action.make("delete")
+            .label("Delete")
+            .color("danger")
+            .requiresConfirmation()
+            .modalHeading("Delete")
+            .modalDescription("Delete this record permanently?")
+            .modalSubmitActionLabel("Delete")
+            .postForm("delete", extras)
+    }
+
+    /**
+     * Load the Cadence/memory record for edit/view and fill form/infolist state.
+     * [state] carries the route id under `record` (from `?id=` / `?record=`).
+     */
     private fun liveSchema(state: Map<String, Any?>): Schema {
         val schema = Schema.make()
-        if (state.containsKey("record")) schema.record(state["record"])
+        val raw = state["record"] ?: return schema
+        val key = raw.toString()
+        if (key.isBlank()) return schema
+        schema.record(raw)
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+            val found = store.find(key) ?: return schema
+            schema.record(found)
+            schema.key(key)
+            schema.fill(store.attributes(found))
+        } catch (_: FireflyException) {
+            // No model / store — keep the raw id for hooks that only need schema.record().
+        }
         return schema
     }
 
@@ -312,4 +357,12 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         for (manager in managers) out.append(manager.render())
         return out.toString()
     }
+
+    private fun rowRecordUrl(page: String): java.util.function.Function<org.konaframework.firefly.tables.Cell, String> =
+        java.util.function.Function { cell ->
+            "$page?id=${encodeQuery(cell.get("key").toString())}"
+        }
+
+    private fun encodeQuery(value: String): String =
+        java.net.URLEncoder.encode(value, Charsets.UTF_8)
 }

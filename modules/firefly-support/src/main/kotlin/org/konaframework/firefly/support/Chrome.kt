@@ -85,8 +85,8 @@ class DefaultLayout(
 
         /**
          * Panel chrome behavior with no framework: 3-state theme cycle, dropdown
-         * menus (notifications + user), and the mobile sidebar drawer. All driven
-         * by data attributes so themes and layouts can keep rendering plain HTML.
+         * menus (notifications + user), mobile sidebar drawer, and Action/TableButton
+         * dialogs (`data-ff-dialog-*`). Alpine is optional — dialogs open without it.
          */
         internal const val CHROME_SCRIPT: String =
             "<script>(function(){" +
@@ -98,21 +98,32 @@ class DefaultLayout(
                 "document.documentElement.classList.toggle('ff-dark',d);" +
                 "root.querySelectorAll('[data-ff-theme-toggle]').forEach(function(b){b.setAttribute('data-ff-theme',p);});}" +
                 "function closeMenus(){root.querySelectorAll('[data-ff-menu].ff-open').forEach(function(m){m.classList.remove('ff-open');});}" +
+                "function closeDialog(panel){if(!panel)return;panel.classList.remove('ff-open');" +
+                "panel.setAttribute('hidden','');panel.style.display='none';panel.setAttribute('aria-hidden','true');}" +
+                "function closeDialogs(){root.querySelectorAll('[data-ff-dialog-panel].ff-open').forEach(closeDialog);}" +
+                "function openDialog(panel){if(!panel)return;closeDialogs();panel.classList.add('ff-open');" +
+                "panel.removeAttribute('hidden');panel.style.display='block';panel.removeAttribute('aria-hidden');}" +
                 "apply(pref());" +
                 "media.addEventListener('change',function(){if(pref()==='system')apply('system');});" +
                 "document.addEventListener('click',function(ev){" +
                 "var t=ev.target;if(!t||!t.closest)return;" +
                 "if(t.closest('[data-ff-theme-toggle]')){var o=['light','dark','system'];" +
                 "var n=o[(o.indexOf(pref())+1)%o.length];try{localStorage.setItem('ff-theme',n);}catch(e){}apply(n);return;}" +
+                "var openBtn=t.closest('[data-ff-dialog-open]');" +
+                "if(openBtn){var mount=openBtn.closest('[data-ff-dialog-mount]');" +
+                "if(mount){openDialog(mount.querySelector('[data-ff-dialog-panel]'));}return;}" +
+                "if(t.closest('[data-ff-dialog-close]')||t.closest('.ff-dialog-overlay')){" +
+                "var dm=t.closest('[data-ff-dialog-mount]');if(dm){closeDialog(dm.querySelector('[data-ff-dialog-panel]'));}return;}" +
+                "if(t.closest('[data-ff-dialog-panel]'))return;" +
                 "var tr=t.closest('[data-ff-menu-trigger]');" +
                 "if(tr){var menu=tr.closest('[data-ff-menu]');var was=menu.classList.contains('ff-open');" +
                 "closeMenus();if(!was)menu.classList.add('ff-open');return;}" +
                 "if(t.closest('[data-ff-menu-panel]'))return;" +
                 "if(t.closest('[data-ff-sidebar-toggle]')){root.classList.add('ff-sidebar-open');return;}" +
-                "if(t.closest('[data-ff-sidebar-close]')||t.closest('[data-ff-backdrop]')){root.classList.remove('ff-sidebar-open');closeMenus();return;}" +
-                "closeMenus();});" +
+                "if(t.closest('[data-ff-sidebar-close]')||t.closest('[data-ff-backdrop]')){root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();return;}" +
+                "closeMenus();closeDialogs();});" +
                 "document.addEventListener('keydown',function(ev){if(ev.key==='Escape'){" +
-                "root.classList.remove('ff-sidebar-open');closeMenus();}});" +
+                "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();}});" +
                 "})();</script>"
     }
 }

@@ -1257,6 +1257,13 @@ body.ff-body-root {
   pointer-events: none !important;
 }
 
+/* Chrome script opens mounts with .ff-open (no Alpine required). */
+.ff-panel .ff-action-dialog.ff-open,
+.ff-panel .ff-table-button-dialog.ff-open {
+  display: block !important;
+  pointer-events: auto !important;
+}
+
 .ff-panel .ff-dialog-modal .ff-dialog-window {
   margin: 4rem auto 0;
   max-width: 32rem;

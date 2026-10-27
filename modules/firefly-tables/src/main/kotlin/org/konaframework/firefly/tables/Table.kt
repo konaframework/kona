@@ -380,7 +380,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val key = store.keyOf(record)
         val select = if (selectable) selectionCell(key) else ""
         val cells = visible.joinToString("") { """<td>${it.render(values, key, rowCell(values, it.name))}</td>""" }
-        val actions = rowActions(values)
+        val actions = rowActions(values, key)
         return """<tr data-ff-record="${escapeHtml(key)}">$select$cells$actions</tr>"""
     }
 
@@ -403,7 +403,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val fields = visible.joinToString("") { column ->
             """<div class="ff-stack-field"><span>${escapeHtml(column.heading(tableCell()))}</span>${column.render(values, key, rowCell(values, column.name))}</div>"""
         }
-        return """<article class="ff-table-card" data-ff-record="${escapeHtml(key)}">$select$fields${rowActions(values)}</article>"""
+        return """<article class="ff-table-card" data-ff-record="${escapeHtml(key)}">$select$fields${rowActions(values, key)}</article>"""
     }
 
     private fun selectionCell(key: String): String {
@@ -411,9 +411,15 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         return """<td><input type="checkbox"$checked x-on:click="${'$'}wire.${'$'}call('selectRecord', '${escapeHtml(key)}')"></td>"""
     }
 
-    private fun rowActions(values: Map<String, Any?>): String {
+    private fun rowActions(values: Map<String, Any?>, key: String): String {
         if (rowButtonList.isEmpty()) return ""
-        val html = rowButtonList.joinToString("") { it.render(rowCell(values, ""), selectedKeys.isEmpty()) }
+        val cell = Cell { path ->
+            when (path) {
+                "key", "recordKey" -> key
+                else -> values[path.removePrefix("/")]
+            }
+        }
+        val html = rowButtonList.joinToString("") { it.render(cell, selectedKeys.isEmpty()) }
         return """<td class="ff-row-actions">$html</td>"""
     }
 
