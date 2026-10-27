@@ -57,6 +57,8 @@ open class Action protected constructor(name: String) : Component(name) {
     private var beforeCallback: ActionCallback? = null
     private var afterCallback: ActionCallback? = null
     private var arguments: Map<String, Any?> = emptyMap()
+    /** When set, the trigger is a native submit button associated with that form id (Shamar save). */
+    private var submitFormId: String? = null
 
     init {
         requireActionName(name)
@@ -133,6 +135,17 @@ open class Action protected constructor(name: String) : Component(name) {
     fun outlined(): Action = apply { style = "outlined" }
 
     fun grouped(): Action = apply { style = "grouped" }
+
+    /**
+     * Render a native `<button type="submit" form="…">` so header actions can save a page form
+     * that lives outside the header (Shamar create/edit). Clears any URL so the button posts.
+     */
+    @JvmOverloads
+    fun submitForm(formId: String = "ff-form"): Action = apply {
+        if (formId.isBlank()) throw FireflyException("Submit form id is blank")
+        submitFormId = formId
+        urlSetting.clear()
+    }
 
     fun placement(placement: ActionPlacement): Action = apply { placementToken = placement }
 
@@ -451,6 +464,11 @@ open class Action protected constructor(name: String) : Component(name) {
         if (opens) {
             val disabledAttr = if (disabled) " disabled" else ""
             return """<button type="button" class="$classes" data-ff-action="$name"$aria$attrs$disabledAttr @click="open = true">$inner$badge</button>"""
+        }
+        val formId = submitFormId
+        if (formId != null) {
+            val disabledAttr = if (disabled) " disabled" else ""
+            return """<button type="submit" form="${escapeHtml(formId)}" class="$classes" data-ff-action="$name"$aria$attrs$disabledAttr>$inner$badge</button>"""
         }
         val link = urlSetting.resolve(get)
         if (link != null) {

@@ -53,6 +53,18 @@ class FireflyActionsTest {
     }
 
     @Test
+    fun submitFormRendersNativeSubmitAssociatedWithFormId() {
+        val save = Action.make("save").label("Create").submitForm("ff-form")
+        val html = page(save)
+        assertTrue(html.contains("""type="submit""""))
+        assertTrue(html.contains("""form="ff-form""""))
+        assertFalse(html.contains("wire:click"))
+        val locked = Action.make("save").label("Create").submitForm().disabled(true)
+        assertTrue(page(locked).contains(" disabled"))
+        assertThrows(FireflyException::class.java) { Action.make("bad").submitForm(" ") }
+    }
+
+    @Test
     fun labelClosureAndLiteral() {
         val save = Action.make("save")
         save.label { get -> if (get.get("/kind") == "org") "Organization" else "Person" }

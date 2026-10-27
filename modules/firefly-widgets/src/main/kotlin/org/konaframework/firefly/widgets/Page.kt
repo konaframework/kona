@@ -59,7 +59,7 @@ open class Page {
         val title = titleSetting.resolve(get) ?: fallbackTitle()
         val widgetSchema = Schema().fill(state).components(*widgetList.toTypedArray())
         val schemaHtml = if (contentSchema == null) "" else contentSchema!!.render()
-        val formHtml = if (formSchema == null) "" else formSchema!!.render()
+        val formHtml = wrapForm(if (formSchema == null) "" else formSchema!!.render(), state)
         val infoHtml = if (infolistMarkup == null) "" else infolistMarkup!!
         val tableHtml = if (contentTable == null) "" else contentTable!!.render()
         val mode = modeLabel()
@@ -69,6 +69,18 @@ open class Page {
             """<span class="ff-page-mode" data-ff-mode="${escapeHtml(mode)}">${escapeHtml(mode)}</span>"""
         }
         return """<section class="${sectionClass()}"><header class="ff-page-header"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+    }
+
+    /**
+     * Wrap mounted form schema in a native POST form (Shamar create/edit). Header save actions
+     * use `submitForm("ff-form")` so they post this form from outside the content region.
+     */
+    private fun wrapForm(body: String, state: Map<String, Any?>): String {
+        if (body.isEmpty()) return ""
+        val csrf = state["csrfField"] as? String ?: ""
+        val action = state["formAction"] as? String
+        val actionAttr = if (action.isNullOrBlank()) "" else """ action="${escapeHtml(action)}""""
+        return """<form id="ff-form" class="ff-resource-form" method="post"$actionAttr>$csrf$body</form>"""
     }
 
     protected open fun sectionClass(): String = "ff-page"

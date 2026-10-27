@@ -351,6 +351,13 @@ open class Panel {
             for (page in resource.pages()) {
                 val slug = resourcePagePath(resource.slug(), page.slug())
                 planned.add(Planned("GET", uri(slug), routeName("resources.$slug")) { request -> showPage(request, page) })
+                if (page is CreatePage || page is EditPage) {
+                    planned.add(
+                        Planned("POST", uri(slug), routeName("resources.$slug.store")) { request ->
+                            storeResource(request, resource, page)
+                        },
+                    )
+                }
             }
         }
     }
@@ -376,7 +383,73 @@ open class Panel {
         }
         val tenant = tenantId(request)
         return FireflyTenant.use(tenant) {
-            Response.html(draw(request, emptyMap(), page.render()))
+            Response.html(draw(request, emptyMap(), page.render(pageState(request))))
+        }
+    }
+
+    /** CSRF field, form action, and list query params for page/table render (Shamar). */
+    private fun pageState(request: Request): Map<String, Any?> {
+        val state = LinkedHashMap<String, Any?>()
+        state["csrfField"] = FireflyCsrf.field(FireflyCsrf.ensure(request))
+        state["formAction"] = request.path
+        val search = request.input("search")
+        if (!search.isNullOrBlank()) state["search"] = search
+        val sort = request.input("sort")
+        if (!sort.isNullOrBlank()) state["sort"] = sort
+        val direction = request.input("direction")
+        if (!direction.isNullOrBlank()) state["direction"] = direction
+        val page = request.input("page")
+        if (!page.isNullOrBlank()) state["page"] = page
+        val perPage = request.input("perPage")
+        if (!perPage.isNullOrBlank()) state["perPage"] = perPage
+        val record = request.input("id") ?: request.input("record")
+        if (!record.isNullOrBlank()) state["record"] = record
+        return state
+    }
+
+    /**
+     * Persist a create/edit form POST. Fields map onto the resource model via [RecordStores].
+     * Redirects to the resource list on success (Shamar after-create).
+     */
+    private fun storeResource(request: Request, resource: Resource, page: PanelPage): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        val tenant = tenantId(request)
+        return FireflyTenant.use(tenant) {
+            @Suppress("UNCHECKED_CAST")
+            val store = org.konaframework.firefly.tables.RecordStores.open(resource.boundModel())
+                as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+            val attrs = LinkedHashMap<String, Any?>()
+            for ((key, value) in request.all()) {
+                if (key == FireflyCsrf.TOKEN_KEY || key == "id" || key.startsWith("_")) continue
+                attrs[key] = value
+            }
+            val record = if (page is EditPage) {
+                val key = request.input("id") ?: request.input("record")
+                if (key.isNullOrBlank()) {
+                    return@use Response.html("Record id is required", 422)
+                }
+                val found = store.find(key)
+                if (found == null) return@use Response.html("Record not found", 404)
+                found
+            } else {
+                store.newRecord()
+            }
+            store.fill(record, attrs)
+            store.save(record)
+            val index = resource.pages().firstOrNull { it is ListPage }
+                ?: resource.pages().firstOrNull { it is ManagePage }
+            val listSlug = if (index == null) {
+                resource.slug()
+            } else {
+                resourcePagePath(resource.slug(), index.slug())
+            }
+            Response.redirect(uri(listSlug))
         }
     }
 

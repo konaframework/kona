@@ -2,6 +2,7 @@ package org.konaframework.firefly
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -84,8 +85,14 @@ class FireflyResourceTest {
         assertTrue(create.contains("data-ff-mode=\"create\""))
         assertTrue(create.contains("New Orders"))
         assertTrue(create.contains("ff-combobox"))
+        assertTrue(create.contains("""id="ff-form""""))
+        assertTrue(create.contains("""method="post""""))
+        assertTrue(create.contains("""type="submit""""))
+        assertTrue(create.contains("""form="ff-form""""))
         assertTrue(create.contains("""href="list""""))
         assertTrue(create.contains("Cancel"))
+        assertTrue(list.contains("ff-table-toolbar") || list.contains("ff-table-search"))
+        assertTrue(list.contains("ff-pagination") || list.contains("ff-table"))
         assertTrue(edit.contains("ff-relation"))
         assertTrue(edit.contains("data-ff-mode=\"edit\""))
         assertTrue(edit.contains("Edit Orders"))
@@ -267,6 +274,198 @@ class FireflyResourceTest {
         assertTrue(closed.render().contains("data-ff-tone=\"info\""))
     }
 
+    @Test
+    fun createPostPersistsRecordAndRedirectsToList() {
+        database()
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(orders()).mount(router)
+        assertNotNull(router.find("POST", "/admin/orders/create"))
+        val match = router.find("POST", "/admin/orders/create")!!
+        val response = match.route.action.handle(
+            Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "name=CreatedShelf"),
+        )
+        assertEquals(302, response.status)
+        assertEquals("/admin/orders/list", response.headers["Location"])
+        assertEquals(1L, Shelf().newQuery().where("name", "CreatedShelf").count())
+        val createGet = send(router, "/admin/orders/create")
+        assertTrue(createGet.contains("""id="ff-form""""))
+        assertTrue(createGet.contains("""type="submit""""))
+
+        // CSRF: session token present requires a matching field.
+        val session = FakeFireflySession()
+        session.put("_token", "good-token")
+        val badCsrf = match.route.action.handle(
+            Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "name=Nope").also {
+                it.setAttribute(Request.SESSION_ATTRIBUTE, session)
+            },
+        )
+        assertEquals(419, badCsrf.status)
+        val wrongCsrf = match.route.action.handle(
+            Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "_token=nope&name=Nope").also {
+                it.setAttribute(Request.SESSION_ATTRIBUTE, session)
+            },
+        )
+        assertEquals(419, wrongCsrf.status)
+        val goodCsrf = match.route.action.handle(
+            Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "_token=good-token&name=SafeShelf").also {
+                it.setAttribute(Request.SESSION_ATTRIBUTE, session)
+            },
+        )
+        assertEquals(302, goodCsrf.status)
+
+        // Edit POST needs an id; missing → 422, unknown → 404, known → update + redirect.
+        val editMatch = router.find("POST", "/admin/orders/edit")!!
+        assertEquals(
+            422,
+            editMatch.route.action.handle(
+                Request("POST", "/admin/orders/edit", emptyMap(), emptyMap(), "name=X"),
+            ).status,
+        )
+        assertEquals(
+            404,
+            editMatch.route.action.handle(
+                Request("POST", "/admin/orders/edit", emptyMap(), emptyMap(), "id=99999&name=X"),
+            ).status,
+        )
+        val created = Shelf().newQuery().where("name", "CreatedShelf").first()!!
+        val id = created.getKey()!!.toString()
+        val edited = editMatch.route.action.handle(
+            Request("POST", "/admin/orders/edit", emptyMap(), emptyMap(), "id=$id&name=RenamedShelf"),
+        )
+        assertEquals(302, edited.status)
+        assertEquals("/admin/orders/list", edited.headers["Location"])
+        assertEquals(1L, Shelf().newQuery().where("name", "RenamedShelf").count())
+
+        // List query params drive search/sort/page (and ignore bad values).
+        val listed = send(router, "/admin/orders/list?search=Renamed&sort=name&direction=desc&page=1&perPage=10")
+        assertTrue(listed.contains("ff-table"))
+        send(router, "/admin/orders/list?search=x&sort=missing&direction=sideways&page=0&perPage=0")
+        send(router, "/admin/orders/list?page=abc&perPage=abc")
+
+        // CSRF via header / alternate field; blank session token is ignored.
+        val blankTok = FakeFireflySession().also { it.put("_token", "  ") }
+        assertEquals(
+            302,
+            match.route.action.handle(
+                Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "name=BlankTok").also {
+                    it.setAttribute(Request.SESSION_ATTRIBUTE, blankTok)
+                },
+            ).status,
+        )
+        val headerOk = FakeFireflySession().also { it.put("_token", "hdr") }
+        assertEquals(
+            302,
+            match.route.action.handle(
+                Request(
+                    "POST",
+                    "/admin/orders/create",
+                    mapOf("X-CSRF-TOKEN" to "hdr"),
+                    emptyMap(),
+                    "name=HeaderShelf",
+                ).also { it.setAttribute(Request.SESSION_ATTRIBUTE, headerOk) },
+            ).status,
+        )
+        val altField = FakeFireflySession().also { it.put("_token", "alt") }
+        assertEquals(
+            302,
+            match.route.action.handle(
+                Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "csrf-token=alt&name=AltShelf").also {
+                    it.setAttribute(Request.SESSION_ATTRIBUTE, altField)
+                },
+            ).status,
+        )
+
+        // Create GET with session injects csrf field; query record id is accepted.
+        val getSession = FakeFireflySession()
+        val createWithCsrf = router.find("GET", "/admin/orders/create")!!.route.action.handle(
+            Request("GET", "/admin/orders/create", emptyMap(), emptyMap(), "").also {
+                it.setAttribute(Request.SESSION_ATTRIBUTE, getSession)
+            },
+        )
+        assertEquals(200, createWithCsrf.status)
+        assertTrue(createWithCsrf.body.contains("""name="_token""""))
+        send(router, "/admin/orders/edit?id=$id&record=$id")
+
+        // Resource whose columns are not searchable/sortable still accepts query params safely.
+        val locked = Router()
+        Panel().path("admin").authenticate(false).resource(LockedColumnsResource()).mount(locked)
+        send(locked, "/admin/orders/list?search=x&sort=name&direction=desc&page=2&perPage=5")
+        send(locked, "/admin/orders/list?sort=name") // direction defaults to asc
+
+        // Auth-required panel redirects create POST to login when unauthenticated.
+        val gated = Router()
+        Panel().path("secure").resource(orders()).mount(gated)
+        val gatedResp = gated.find("POST", "/secure/orders/create")!!.route.action.handle(
+            Request("POST", "/secure/orders/create", emptyMap(), emptyMap(), "name=Nope"),
+        )
+        assertEquals(302, gatedResp.status)
+        assertTrue(gatedResp.headers["Location"]!!.contains("login"))
+        // Authenticated create POST proceeds (authenticatePages && check() both true).
+        val open = object : PanelGuard by MemoryPanelGuard() {
+            override fun check(): Boolean = true
+            override fun id(): String? = "1"
+        }
+        val authed = Router()
+        Panel().path("secure").guard(open).resource(orders()).mount(authed)
+        assertEquals(
+            302,
+            authed.find("POST", "/secure/orders/create")!!.route.action.handle(
+                Request("POST", "/secure/orders/create", emptyMap(), emptyMap(), "name=AuthedShelf"),
+            ).status,
+        )
+
+        // Non-string session token is treated as absent (no CSRF reject).
+        val weird = FakeFireflySession().also { it.put("_token", 42) }
+        assertEquals(
+            302,
+            match.route.action.handle(
+                Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "name=WeirdTok").also {
+                    it.setAttribute(Request.SESSION_ATTRIBUTE, weird)
+                },
+            ).status,
+        )
+        val emptyTok = FakeFireflySession().also { it.put("_token", "") }
+        assertEquals(
+            302,
+            match.route.action.handle(
+                Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "name=EmptyTok").also {
+                    it.setAttribute(Request.SESSION_ATTRIBUTE, emptyTok)
+                },
+            ).status,
+        )
+
+        // Edit accepts `record=` and ignores underscore-prefixed fields; create-only resource redirects to slug.
+        assertEquals(
+            302,
+            editMatch.route.action.handle(
+                Request(
+                    "POST",
+                    "/admin/orders/edit",
+                    emptyMap(),
+                    emptyMap(),
+                    "record=$id&_method=PUT&name=RecordParamShelf",
+                ),
+            ).status,
+        )
+        val createOnly = Router()
+        Panel().path("admin").authenticate(false).resource(CreateOnlyResource()).mount(createOnly)
+        val createOnlyPost = createOnly.find("POST", "/admin/orders/create")!!.route.action.handle(
+            Request("POST", "/admin/orders/create", emptyMap(), emptyMap(), "name=OnlyCreate"),
+        )
+        assertEquals(302, createOnlyPost.status)
+        assertEquals("/admin/orders", createOnlyPost.headers["Location"])
+
+        // Domain gate rejects mismatched hosts on create POST.
+        val domainPanel = Router()
+        Panel().path("ops").domain("ops.example").authenticate(false).resource(orders()).mount(domainPanel)
+        assertEquals(
+            404,
+            domainPanel.find("POST", "/ops/orders/create")!!.route.action.handle(
+                Request("POST", "/ops/orders/create", mapOf("Host" to "wrong.example"), emptyMap(), "name=X"),
+            ).status,
+        )
+    }
+
     private fun notes(): Resource = NotesResource()
 
     private fun orders(): Resource = OrdersResource()
@@ -282,11 +481,58 @@ class FireflyResourceTest {
     }
 
     private fun send(router: Router, path: String): String {
-        val match = router.find("GET", path) ?: throw AssertionError("missing $path")
-        val response: Response = match.route.action.handle(Request("GET", path, emptyMap(), emptyMap(), ""))
+        val uri = path.substringBefore('?')
+        val query = path.substringAfter('?', "")
+        val params = if (query.isEmpty()) {
+            emptyMap()
+        } else {
+            query.split('&').filter { it.isNotBlank() }.associate { pair ->
+                val idx = pair.indexOf('=')
+                if (idx < 0) pair to "" else pair.substring(0, idx) to pair.substring(idx + 1)
+            }
+        }
+        val match = router.find("GET", uri) ?: throw AssertionError("missing $uri")
+        val response: Response = match.route.action.handle(Request("GET", uri, emptyMap(), params, ""))
         assertEquals(200, response.status)
         return response.body
     }
+}
+
+private class FakeFireflySession : org.konaframework.http.RequestSession {
+    private val values = LinkedHashMap<String, Any?>()
+    override fun get(key: String): Any? = values[key]
+    override fun put(key: String, value: Any?): org.konaframework.http.RequestSession {
+        values[key] = value
+        return this
+    }
+    override fun flash(key: String, value: Any?): org.konaframework.http.RequestSession = put(key, value)
+    override fun flashInput(input: Map<String, String>): org.konaframework.http.RequestSession = this
+    override fun old(key: String, default: String?): String? = default
+    override fun oldInput(): Map<String, String> = emptyMap()
+    override fun previousUrl(): String? = null
+    override fun setPreviousUrl(url: String): org.konaframework.http.RequestSession = this
+}
+
+private class LockedColumnsResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Shelf::class.java)
+    }
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.memory(mapOf("id" to "1", "name" to "Ada"))
+            .columns(TextColumn.make("name").searchable(false).sortable(false))
+}
+
+private class CreateOnlyResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Shelf::class.java)
+    }
+
+    override fun form(schema: Schema): Schema = schema.components(TextInput.make("name"))
+
+    override fun getPages(): Map<String, Page> = mapOf("create" to CreatePage("create"))
 }
 
 private class NotesResource : Resource("notes") {

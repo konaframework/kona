@@ -33,6 +33,11 @@ internal class TextSetting {
 
     fun isSet(): Boolean = using != null || literal != null
 
+    fun clear() {
+        literal = null
+        using = null
+    }
+
     fun resolve(get: Get): String? {
         val provider = using
         if (provider != null) return provider.apply(get)

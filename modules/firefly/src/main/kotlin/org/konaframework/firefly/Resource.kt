@@ -185,7 +185,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.title(label())
         val schema = form(liveSchema(state))
         val info = infolist(liveSchema(state))
-        page.table(table(Table.memory()))
+        val built = table(listTable())
+        applyTableQuery(built, state)
+        page.table(built)
         page.mountForm(schema)
         // Simple resources keep create/edit/view/delete as dialog header actions.
         page.headerActions(
@@ -198,7 +200,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun applyList(page: ListPage, state: Map<String, Any?>) {
         page.title(label())
-        val built = table(Table.memory())
+        val built = table(listTable())
+        applyTableQuery(built, state)
         // Row actions — never sidebar links — open the record pages (Shamar list toolbar).
         built.rowButtons(
             TableButton.make("view").label("View").url("view"),
@@ -213,8 +216,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyCreate(page: CreatePage, state: Map<String, Any?>) {
         page.title("New ${label()}")
         page.mountForm(form(liveSchema(state)))
+        // Native form submit (Shamar) — Create posts #ff-form; Cancel is a list link.
         page.headerActions(
-            Action.make("save").label("Create"),
+            Action.make("save").label("Create").submitForm("ff-form"),
             Action.make("cancel").label("Cancel").url("list").outlined(),
         )
     }
@@ -224,11 +228,53 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.mountForm(form(liveSchema(state)))
         page.infolistHtml(relationMarkup())
         page.headerActions(
-            Action.make("save").label("Save"),
+            Action.make("save").label("Save").submitForm("ff-form"),
             Action.make("view").label("View").url("view").outlined(),
             Action.make("cancel").label("Cancel").url("list").outlined(),
             Action.make("delete").label("Delete").color("danger").modal().modalHeading("Delete"),
         )
+    }
+
+    /** Prefer a Cadence-backed table when the resource has a model; otherwise an empty memory table. */
+    private fun listTable(): Table<*, *> {
+        return try {
+            Table.forModel(boundModel())
+        } catch (_: FireflyException) {
+            Table.memory()
+        }
+    }
+
+    private fun applyTableQuery(built: Table<*, *>, state: Map<String, Any?>) {
+        val search = state["search"] as? String
+        if (!search.isNullOrBlank()) built.search(search)
+        val sort = state["sort"] as? String
+        if (!sort.isNullOrBlank()) {
+            val rawDirection = state["direction"]
+            val descending = rawDirection != null && rawDirection.toString().equals("desc", ignoreCase = true)
+            try {
+                built.sort(sort, if (descending) "desc" else "asc")
+            } catch (_: FireflyException) {
+                // Unknown / non-sortable column — ignore.
+            }
+        }
+        val pageRaw = state["page"] as? String
+        val pageNumber = pageRaw?.toIntOrNull()
+        if (pageNumber != null) {
+            try {
+                built.page(pageNumber)
+            } catch (_: FireflyException) {
+                // Invalid page — keep default.
+            }
+        }
+        val perPageRaw = state["perPage"] as? String
+        val perPage = perPageRaw?.toIntOrNull()
+        if (perPage != null) {
+            try {
+                built.perPage(perPage)
+            } catch (_: FireflyException) {
+                // Invalid size — keep default.
+            }
+        }
     }
 
     private fun applyView(page: ViewPage, state: Map<String, Any?>) {
