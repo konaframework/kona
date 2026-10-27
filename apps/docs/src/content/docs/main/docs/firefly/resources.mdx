@@ -18,7 +18,7 @@ The types live in `org.konaframework.firefly` (`kona-firefly`).
 
 ## Serve a full resource
 
-Put the class in `app/panels/{panel}/resources/` (or the discovered `resources/` beside your panel class). Override `form`, `infolist`, `table`, and `getPages`. Leave `getPages()` alone and a full resource serves list, create, edit, and view.
+Put the class in `app/panels/{panel}/resources/` (or the discovered `resources/` beside your panel class). Override `form`, `infolist`, `table`, `getRelations`, and `getPages`. Leave `getPages()` alone and a full resource serves list, create, edit, and view. Prefer `getRelations()` for relation managers (same override style as the other hooks); fluent `relation(...)` in `init` still works for one-liners.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -28,7 +28,6 @@ class OrderResource : Resource("orders") {
     init {
         label("Orders")
         model(Order::class.java)
-        relation(RelationManager("lines").related(Line::class.java).titleAttribute("sku"))
     }
 
     override fun form(schema: Schema): Schema =
@@ -39,6 +38,10 @@ class OrderResource : Resource("orders") {
 
     override fun table(table: Table<*, *>): Table<*, *> =
         table.columns(TextColumn.make("name"))
+
+    override fun getRelations(): List<RelationManager> = listOf(
+        RelationManager("lines").related(Line::class.java).titleAttribute("sku"),
+    )
 
     override fun getPages(): Map<String, Page> = mapOf(
         "list" to ListPage("list"),
@@ -58,7 +61,6 @@ public class OrderResource extends Resource {
         super("orders");
         label("Orders");
         model(Order.class);
-        relation(new RelationManager("lines").related(Line.class).titleAttribute("sku"));
     }
 
     @Override
@@ -77,6 +79,13 @@ public class OrderResource extends Resource {
     }
 
     @Override
+    public List<RelationManager> getRelations() {
+        return List.of(
+            new RelationManager("lines").related(Line.class).titleAttribute("sku")
+        );
+    }
+
+    @Override
     public Map<String, Page> getPages() {
         Map<String, Page> pages = new LinkedHashMap<>();
         pages.put("list", new ListPage("list"));
@@ -91,7 +100,7 @@ public class OrderResource extends Resource {
 </TabItem>
 </Tabs>
 
-The page calls `form`, `table`, and `infolist` when it renders, so those methods can read the current tenant and `schema.record()`. Resource pages render a Shamar-style breadcrumb trail (Dashboard → resource → current title) above the page heading. List and manage page headings, the sidebar entry, and the list crumb use **`pluralLabel()`** (default: an English plural of `label()`, so `label("User")` shows **Users** without double-pluralizing an already-plural `label("Orders")`). Set `pluralLabel("People")` or `pluralLabel { … }` when the default inflection is wrong. Create and edit titles still use `label()` (`New User`, `Edit Orders`). The list page mounts the table (Wire-driven search, filters, column sort, numbered pagination, and an empty “No records found.” row when the result set is empty), a **New** header action that links to the create page, and row actions (View, Edit, Delete). The create page wraps the form in a native `POST` form (`#ff-form`, with a CSRF field when a session is present). The **Create** header action is a `type="submit"` button associated with that form; **Cancel** links back to the list. A successful create saves through the resource model’s record store and redirects to the list. The edit page loads the Cadence record from `?id=` into form state (`schema.fill`), mounts the same `#ff-form` pattern with a hidden `id`, and offers **Save** plus View / Cancel / Delete. Delete opens a confirm dialog via `data-ff-dialog-*` (no Alpine required) and posts to `…/delete`. The view page fills the infolist the same way, then mounts relation managers and Edit / Back to list / Delete. Override `getRelations()` for Filament-style class-based relation managers (they also merge with fluent `relation(...)`); relation managers span the full content width with flat table chrome (no outer floating card). Only the resource’s list (or manage) nav item stays active — Dashboard uses an exact path match. You open `/{prefix}/orders/list`. The prefix is the panel id when `path` is not set. The hello samples call `path("admin")`, so that URL is `/admin/orders/list`. The sidebar shows one **Orders** link to that list URL and keeps it active on create, edit, and view. Header actions stay in a horizontal row.
+The page calls `form`, `table`, and `infolist` when it renders, so those methods can read the current tenant and `schema.record()`. Resource pages render a Shamar-style breadcrumb trail (Dashboard → resource → current title) above the page heading. List and manage page headings, the sidebar entry, and the list crumb use **`pluralLabel()`** (default: an English plural of `label()`, so `label("User")` shows **Users** without double-pluralizing an already-plural `label("Orders")`). Set `pluralLabel("People")` or `pluralLabel { … }` when the default inflection is wrong. Create and edit titles still use `label()` (`New User`, `Edit Orders`). The list page mounts the table (Wire-driven search, filters, column sort, numbered pagination, and an empty “No records found.” row when the result set is empty), a **New** header action that links to the create page, and row actions (View, Edit, Delete). The create page wraps the form in a native `POST` form (`#ff-form`, with a CSRF field when a session is present). The **Create** header action is a `type="submit"` button associated with that form; **Cancel** links back to the list. A successful create saves through the resource model’s record store and redirects to the list. The edit page loads the Cadence record from `?id=` into form state (`schema.fill`), mounts the same `#ff-form` pattern with a hidden `id`, and offers **Save** plus View / Cancel / Delete. Delete opens a confirm dialog via `data-ff-dialog-*` (no Alpine required) and posts to `…/delete`. The view page fills the infolist the same way, then mounts relation managers and Edit / Back to list / Delete. Override `getRelations()` to declare relation managers (they also merge with fluent `relation(...)`); relation managers span the full content width with flat table chrome (no outer floating card on edit or view). Only the resource’s list (or manage) nav item stays active — Dashboard uses an exact path match. You open `/{prefix}/orders/list`. The prefix is the panel id when `path` is not set. The hello samples call `path("admin")`, so that URL is `/admin/orders/list`. The sidebar shows one **Orders** link to that list URL and keeps it active on create, edit, and view. Header actions stay in a horizontal row.
 
 `query()` chooses the store from the model type. A Cadence model returns a `ModelBuilder`. A document model fails and names `kona-firefly-document`, which is not part of this release. Any other type fails and tells you to use `Table.memory` for custom rows.
 

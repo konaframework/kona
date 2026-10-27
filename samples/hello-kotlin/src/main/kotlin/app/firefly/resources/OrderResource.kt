@@ -19,12 +19,6 @@ class OrderResource : Resource("orders") {
     init {
         label("Orders")
         model(Order::class.java)
-        relation(
-            RelationManager("lines")
-                .related(Line::class.java)
-                .titleAttribute("sku")
-                .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
-        )
     }
 
     override fun form(schema: Schema): Schema =
@@ -35,6 +29,13 @@ class OrderResource : Resource("orders") {
 
     override fun table(table: Table<*, *>): Table<*, *> =
         Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+
+    override fun getRelations(): List<RelationManager> = listOf(
+        RelationManager("lines")
+            .related(Line::class.java)
+            .titleAttribute("sku")
+            .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
+    )
 
     override fun getPages(): Map<String, Page> = mapOf(
         "list" to ListPage("list"),

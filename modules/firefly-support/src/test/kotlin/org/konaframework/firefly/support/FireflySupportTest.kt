@@ -169,6 +169,20 @@ class FireflySupportTest {
         assertTrue(css.contains("""[data-ff-max-width="xl"]"""))
         assertTrue(css.contains("margin-left: auto"))
         assertTrue(css.contains("margin-right: auto"))
+        // Create/edit forms stay at xl (including #ff-form / .ff-resource-form).
+        assertTrue(css.contains(".ff-resource-form"))
+        assertTrue(css.contains("max-width: var(--ff-width-xl)"))
+        // View/edit infolist hosts fill the content column (no xl cap) (#272).
+        assertTrue(
+            Regex(
+                """\.ff-view\s+\.ff-page-content\s*>\s*\.ff-infolist[\s\S]*?max-width:\s*none""",
+            ).containsMatchIn(css),
+        )
+        assertTrue(
+            Regex(
+                """\.ff-edit\s+\.ff-page-content\s*>\s*\.ff-infolist[\s\S]*?max-width:\s*none""",
+            ).containsMatchIn(css),
+        )
         // List/manage table wraps keep elevation; chrome strip is create/edit/view only.
         assertTrue(css.contains("/* List/manage: keep the elevated white .ff-table-wrap card"))
         assertFalse(

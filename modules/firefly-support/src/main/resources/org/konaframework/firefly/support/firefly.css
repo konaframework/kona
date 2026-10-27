@@ -797,13 +797,15 @@ body.ff-body-root {
   max-width: none;
 }
 
-/* Create/edit/view: shell shows through; Section / .ff-infolist cards provide elevation (no double card).
- * Default column is xl (--ff-width-xl = 36rem), width 100% + centered (parity with constrained forms).
+/* Create/edit: shell shows through; Section cards provide elevation (no double card).
+ * Default form column is xl (--ff-width-xl = 36rem), width 100% + centered.
+ * Native #ff-form wraps the schema — match .ff-resource-form as well as a bare .ff-schema.
  * Narrower/wider: Component.maxWidth("sm"|"md"|"lg"|"xl"|"2xl"|…) → data-ff-max-width (tokens below). */
 .ff-panel .ff-create .ff-page-content > .ff-schema,
 .ff-panel .ff-edit .ff-page-content > .ff-schema,
 .ff-panel .ff-view .ff-page-content > .ff-schema,
-.ff-panel .ff-view .ff-page-content > .ff-infolist {
+.ff-panel .ff-create .ff-page-content > .ff-resource-form,
+.ff-panel .ff-edit .ff-page-content > .ff-resource-form {
   background: transparent;
   border: none;
   box-shadow: none;
@@ -814,7 +816,16 @@ body.ff-body-root {
   margin-right: auto;
 }
 
-.ff-panel .ff-view .ff-page-content > .ff-infolist {
+/* View / infolist: fill the content column (panel/page/resource maxWidth only), like list tables (#272).
+ * Section cards inside still elevate; outer .ff-infolist is a transparent host (no nested card). */
+.ff-panel .ff-view .ff-page-content > .ff-infolist,
+.ff-panel .ff-edit .ff-page-content > .ff-infolist {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  max-width: none;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
