@@ -787,8 +787,8 @@ body.ff-body-root {
   gap: 1rem;
 }
 
-/* List/manage: elevated white .ff-table-wrap fills the page content max-width
- * (panel / page / resource maxWidth only reduces it; do not strip table-card shadow). */
+/* List/manage: keep the elevated white .ff-table-wrap card (do not strip shadow here).
+ * Tables fill the page content max-width (panel / page / resource maxWidth only reduces it). */
 .ff-panel .ff-list .ff-page-content > .ff-table-wrap,
 .ff-panel .ff-list .ff-page-content > .ff-table,
 .ff-panel .ff-manage .ff-page-content > .ff-table-wrap,
