@@ -422,6 +422,8 @@ class ServeWatchTest {
         )
         assertEquals(3, compiles.get())
         val log = out.toString()
+        assertTrue(log.contains("Changed"), log)
+        assertTrue(log.contains("Reloading"), log)
         assertTrue(log.contains("Reloaded"), log)
         assertTrue(log.contains("Watching src/main"), log)
         assertTrue(log.contains("Reload   save .kt"), log)

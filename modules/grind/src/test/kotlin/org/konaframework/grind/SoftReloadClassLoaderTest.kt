@@ -54,7 +54,7 @@ class SoftReloadClassLoaderTest {
                 val fresh = child.loadClass("hot.Marker")
                 assertNotSame(stale, fresh)
                 assertEquals("v2", fresh.getMethod("token").invoke(null))
-                // Second load hits findLoadedClass then resolveClass.
+                // Second load hits findLoadedClass then resolveClass again.
                 assertSame(fresh, child.loadClass("hot.Marker"))
                 // Framework-style names still delegate to parent (and stay identity-stable).
                 assertSame(String::class.java, child.loadClass("java.lang.String"))

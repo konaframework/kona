@@ -97,7 +97,9 @@ constructor(
         val watch = watcher.start(SourceSnapshot.roots(root)) { paths ->
             // Serialize compile+swap so overlapping saves cannot close the live loader mid-boot.
             synchronized(reloadLock) {
-                io.info("Changed ${ServeWatch.changeLabel(paths)} — recompiling")
+                // Clear three-beat UX: Changed → Reloading → Reloaded (or error).
+                io.info("Changed ${ServeWatch.changeLabel(paths)}")
+                io.info("Reloading…")
                 val result = compiler.compile(root)
                 if (result.exitCode != 0) {
                     io.error("Compile failed — still serving previous classes")

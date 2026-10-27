@@ -45,7 +45,7 @@ On start, grind prints a Termwind box with the local URL (for example `http://12
 1. If `build/classes` is empty, grind runs `./gradlew classes` once.
 2. It boots `bootstrap.App` inside the grind JVM (`AppLoader` + a child-first `SoftReloadClassLoader`) and starts `KonaHttpServer`.
 3. It polls `src/main` (and `.env`) for Kotlin, Java, Crema, CSS/SCSS, JS, SVG, and other common resource changes. Editor swap files (`*~`, `*.swp`) are ignored. Panel sources under `src/main/kotlin/app/panels` (and Java) are on that tree — they reload like any other app class.
-4. After a quiet debounce it prints `Changed <file> — recompiling`, runs incremental `./gradlew classes`, and invalidates `build/kona-runtime.classpath` so composite/`kona.home` classpaths refresh. **Netty stays bound** — event loops and keep-alive connections are not torn down.
+4. After a quiet debounce it prints `Changed <file>` then `Reloading…`, runs incremental `./gradlew classes`, and invalidates `build/kona-runtime.classpath` so composite/`kona.home` classpaths refresh. **Netty stays bound** — event loops and keep-alive connections are not torn down.
 5. On a successful compile, grind boots a new application (Cadence registers a fresh global `Database`), resets Firefly / Wire / Inertia facades so panels remount, calls `KonaHttpServer.replaceKernel`, then closes the previous classloader and **that previous app’s** Cadence pools — not the new global. Console prints `Reloaded`. A Wire component save (for example `Counter`) must keep serving without `No global Database`.
 6. If compile or boot fails, the previous kernel keeps answering requests and grind prints `Compile failed` / `Reload failed` with the error (add `--verbose` for a stack trace).
 

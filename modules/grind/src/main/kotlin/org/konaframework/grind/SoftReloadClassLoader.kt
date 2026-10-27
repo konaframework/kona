@@ -41,7 +41,7 @@ internal class SoftReloadClassLoader(
             if (loaded == null) {
                 return super.loadClass(name, resolve)
             }
-            // Always link app classes found on child URLs (soft reload identity).
+            // Link app classes from child URLs so soft-reload identity is stable across loads.
             resolveClass(loaded)
             return loaded
         }
