@@ -66,6 +66,19 @@ class FireflyResourceTest {
         val manage = send(router, "/admin/notes/manage")
         assertTrue(list.contains("ff-list"))
         assertTrue(list.contains(">Orders<"))
+        // Singular label() still renders a plural list/manage heading (Shamar).
+        val users = object : Resource("user") {
+            init {
+                label("User")
+                model(Shelf::class.java)
+            }
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "1")).columns(TextColumn.make("id"))
+        }
+        val userRouter = Router()
+        Panel().path("desk").authenticate(false).resource(users).mount(userRouter)
+        assertTrue(send(userRouter, "/desk/user/list").contains(">Users<"))
         assertTrue(list.contains("ff-breadcrumbs"))
         assertTrue(list.contains("""href="/admin""""))
         assertTrue(list.contains("""href="create""""))
@@ -160,8 +173,8 @@ class FireflyResourceTest {
         assertTrue(list.contains("""<a href="/admin/notes/manage">Notes</a>"""))
         assertTrue(list.contains("""href="/admin/tools/panel""""))
         assertTrue(list.contains("""href="/admin/home""""))
-        // A page-less resource still gets one entry, pointing at the resource root.
-        assertTrue(list.contains("""<a href="/admin/empty">empty</a>"""))
+        // A page-less resource still gets one entry, pointing at the resource root (plural nav label).
+        assertTrue(list.contains("""<a href="/admin/empty">empties</a>"""))
         // Resources render as flat nav items, never CRUD clusters (no nav cluster markup).
         assertFalse(list.contains("""class="ff-nav-item ff-cluster""""))
         // Create lives in the page header actions (the list toolbar), not the sidebar.
@@ -214,10 +227,32 @@ class FireflyResourceTest {
         assertTrue(Resource().infolist(Schema.make()).components().isEmpty())
         assertTrue(Resource().table(Table.memory()).render().contains("ff-table"))
         assertEquals("resource", Resource().label())
+        assertEquals("resources", Resource().pluralLabel())
         assertEquals("Notes", Resource().label("Notes").label())
+        assertEquals("Notes", Resource().label("Notes").pluralLabel())
+        assertEquals("Users", Resource().label("User").pluralLabel())
+        assertEquals("People", Resource().label("User").pluralLabel("People").pluralLabel())
+        assertEquals("Staff", Resource().label("User").pluralLabel { "Staff" }.pluralLabel())
         assertEquals("Desk", Resource().label { "Desk" }.label())
+        assertEquals("Desks", Resource().label { "Desk" }.pluralLabel())
+        assertEquals("Categories", englishPluralLabel("Category"))
+        assertEquals("Boxes", englishPluralLabel("Box"))
+        assertEquals("Buses", englishPluralLabel("Bus"))
+        assertEquals("Orders", englishPluralLabel("Orders"))
+        assertEquals("", englishPluralLabel(""))
+        assertEquals("   ", englishPluralLabel("   "))
+        assertEquals("As", englishPluralLabel("A"))
+        assertEquals("Classes", englishPluralLabel("Class"))
+        assertEquals("Crisises", englishPluralLabel("Crisis"))
+        assertEquals("Days", englishPluralLabel("Day"))
+        assertEquals("Branches", englishPluralLabel("Branch"))
+        assertEquals("Dishes", englishPluralLabel("Dish"))
+        assertEquals("Quizes", englishPluralLabel("Quiz"))
+        assertEquals("Users", englishPluralLabel("User "))
         assertThrows<FireflyException> { Resource().label(" ") }
         assertThrows<FireflyException> { Resource().label { " " }.label() }
+        assertThrows<FireflyException> { Resource().pluralLabel(" ") }
+        assertThrows<FireflyException> { Resource().pluralLabel { " " }.pluralLabel() }
         assertThrows<FireflyException> { RelationManager(" ") }
         assertThrows<FireflyException> { RelationManager("lines").titleAttribute(" ") }
         assertThrows<FireflyException> { RelationManager("lines").titleAttribute { " " }.render() }
