@@ -80,9 +80,15 @@ open class TableButton(val name: String) {
         if (schemaParts.isNotEmpty()) {
             dialog.body(Schema.make().components(*schemaParts.toTypedArray()).render())
         }
+        // Keep the dialog in the DOM for Wire/modal mounts, but never leave it interactive.
+        // Raw Dialog is position:fixed;inset:0 — without a closed wrapper it blocks the list page.
+        // style="display:none" + hidden + x-cloak work even when Alpine is not on DefaultLayout.
+        // Mount owns `open` (no nested x-data on the trigger) so @click can reveal the dialog.
         return """
-            <button type="button" class="ff-table-button" x-data="ffAction('${escapeHtml(name)}')" x-on:click="${'$'}wire.${'$'}call('${escapeHtml(name)}')"$disabledAttr>${escapeHtml(label)}</button>
-            ${dialog.render()}
+            <div class="ff-table-button-mount" x-data="{ open: false }">
+              <button type="button" class="ff-table-button" data-ff-action="${escapeHtml(name)}" @click="open = true" x-on:click="${'$'}wire.${'$'}call('${escapeHtml(name)}')"$disabledAttr>${escapeHtml(label)}</button>
+              <div class="ff-table-button-dialog" x-show="open" x-cloak style="display:none" hidden aria-hidden="true" data-ff-action-boot="ffAction('${escapeHtml(name)}')">${dialog.render(open = true)}</div>
+            </div>
         """.trimIndent()
     }
 

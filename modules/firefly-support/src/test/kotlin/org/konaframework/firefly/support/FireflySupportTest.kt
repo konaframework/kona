@@ -100,11 +100,21 @@ class FireflySupportTest {
         assertTrue(plain.contains("""data-ff-align="top""""))
         assertTrue(plain.contains("data-ff-drag"))
         assertTrue(plain.contains("Hello"))
+        // Closed by default — fixed inset dialog must not cover the page.
+        assertTrue(plain.contains(" hidden"))
+        assertTrue(plain.contains("""aria-hidden="true""""))
+        assertFalse(plain.contains("""aria-modal="true""""))
+
+        val open = Dialog.make("Hello").render(open = true)
+        assertTrue(open.contains("""aria-modal="true""""))
+        assertFalse(open.contains(" hidden"))
+        assertFalse(open.contains("""aria-hidden="true""""))
 
         val end = Dialog.make("Edit").slideOver().draggable(false).render()
         assertTrue(end.contains("ff-dialog-sidebar"))
         assertTrue(end.contains("""data-ff-position="end""""))
         assertFalse(end.contains("data-ff-drag"))
+        assertTrue(end.contains(" hidden"))
 
         val start = Dialog.make("Edit").slideOverStart().render()
         assertTrue(start.contains("""data-ff-position="start""""))
@@ -146,12 +156,20 @@ class FireflySupportTest {
         assertTrue(css.contains("--ff-primary: #C9A57B"))
         assertTrue(css.contains(".ff-panel .ff-btn"))
         assertTrue(css.contains(".ff-panel .ff-table-wrap"))
+        assertTrue(css.contains(".ff-panel .ff-table-search-wrap"))
+        assertTrue(css.contains(".ff-panel .ff-pagination"))
+        assertTrue(css.contains(".ff-panel .ff-page-header-actions > .ff-schema"))
+        assertTrue(css.contains("flex-direction: row"))
         assertTrue(css.contains(".ff-panel .ff-sidebar-brand"))
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
         assertTrue(css.contains(".ff-panel .ff-page-heading"))
         assertTrue(css.contains(".ff-panel .ff-page-mode"))
         assertTrue(css.contains(".ff-panel .ff-action-outlined"))
         assertTrue(css.contains(".ff-panel .ff-row-actions"))
+        assertTrue(css.contains(".ff-panel .ff-dialog[hidden]"))
+        assertTrue(css.contains(".ff-panel .ff-table-button-dialog[hidden]"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-overlay"))
+        assertTrue(css.contains("pointer-events: none !important"))
         assertTrue(css.contains("[data-ff-color=\"danger\"]"))
         // Sidebar + main foot share one shell band (not a white --ff-card strip),
         // locked to the same fixed min-height so empty vs "Signed in as …" match.

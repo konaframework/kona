@@ -276,6 +276,12 @@ open class Column protected constructor(val name: String) {
 }
 
 open class TextColumn protected constructor(name: String) : Column(name) {
+    init {
+        // Shamar list headers search and sort text columns by default.
+        searchable(true)
+        sortable(true)
+    }
+
     companion object {
         @JvmStatic
         fun make(name: String): TextColumn = finish(TextColumn(name))

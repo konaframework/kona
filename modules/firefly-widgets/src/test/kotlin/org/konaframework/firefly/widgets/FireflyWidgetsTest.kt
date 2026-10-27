@@ -260,7 +260,23 @@ class FireflyWidgetsTest {
         assertTrue(empty.contains("ff-page"))
         assertFalse(empty.contains("FormBody"))
         assertFalse(empty.contains("InfoBody"))
-        assertTrue(Page().form(Schema().components(Text.make("FormBody"))).render().contains("FormBody"))
+        val plainForm = Page().form(Schema().components(Text.make("FormBody"))).render()
+        assertTrue(plainForm.contains("FormBody"))
+        assertTrue(plainForm.contains("""id="ff-form""""))
+        assertTrue(plainForm.contains("""method="post""""))
+        assertFalse(plainForm.contains(" action="))
+        val csrfForm = Page().form(Schema().components(Text.make("FormBody"))).render(
+            mapOf(
+                "csrfField" to """<input type="hidden" name="_token" value="tok" />""",
+                "formAction" to "/admin/orders/create",
+            ),
+        )
+        assertTrue(csrfForm.contains("""name="_token""""))
+        assertTrue(csrfForm.contains("""action="/admin/orders/create""""))
+        val blankAction = Page().form(Schema().components(Text.make("FormBody"))).render(
+            mapOf("formAction" to "  ", "csrfField" to ""),
+        )
+        assertFalse(blankAction.contains(" action="))
         assertTrue(Page().infolistHtml("<p>InfoBody</p>").render().contains("InfoBody"))
         assertTrue(empty.contains(">Page<"))
         assertFalse(empty.contains("ff-dashboard"))
