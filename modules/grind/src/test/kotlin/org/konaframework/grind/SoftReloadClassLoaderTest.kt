@@ -36,6 +36,9 @@ class SoftReloadClassLoaderTest {
         assertTrue(SoftReloadClassLoader.isExplodedClassUrl(temp.resolve("out/Hot.class").toUri().toURL()))
         assertFalse(SoftReloadClassLoader.isExplodedClassUrl(java.net.URI.create("jar:file:/tmp/lib.jar!/Hot.class").toURL()))
         assertFalse(SoftReloadClassLoader.isExplodedClassUrl(java.net.URI.create("http://example.test/Hot.class").toURL()))
+        // file: URLs that still look nested under a jar path must not count as exploded.
+        assertFalse(SoftReloadClassLoader.isExplodedClassUrl(java.net.URI.create("file:/tmp/app.jar!/Hot.class").toURL()))
+        assertFalse(SoftReloadClassLoader.isExplodedClassUrl(java.net.URI.create("file:/tmp/app.jar/Hot.class").toURL()))
     }
 
     @Test
