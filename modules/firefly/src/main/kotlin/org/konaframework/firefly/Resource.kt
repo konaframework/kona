@@ -238,8 +238,13 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     /** Prefer a Cadence-backed table when the resource has a model; otherwise an empty memory table. */
     private fun listTable(): Table<*, *> {
         return try {
+            // Table.forModel succeeds without a Database; load() then throws CadenceException.
+            // Require a global Database before preferring Cadence (tests / pre-boot stay on memory).
+            org.konaframework.cadence.Database.global()
             Table.forModel(boundModel())
         } catch (_: FireflyException) {
+            Table.memory()
+        } catch (_: org.konaframework.cadence.CadenceException) {
             Table.memory()
         }
     }

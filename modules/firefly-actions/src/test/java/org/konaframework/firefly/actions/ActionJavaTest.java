@@ -33,6 +33,7 @@ public class ActionJavaTest {
         String html = schema.render();
         assertTrue(html.contains("org"));
         assertTrue(html.contains("ff-dialog-sidebar"));
+        assertTrue(html.contains("ff-action-dialog\" x-show=\"open\" x-cloak style=\"display:none\" hidden"));
         assertTrue(html.contains("Hello"));
         assertTrue(html.contains("title=\"Save\""));
         final boolean[] ran = {false};

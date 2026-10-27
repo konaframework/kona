@@ -80,6 +80,9 @@ class FireflyResourceTest {
         assertTrue(headerActions.contains("New"))
         assertFalse(headerActions.contains("ff-dialog"))
         assertFalse(headerActions.contains("ff-action-dialog"))
+        // Row delete mounts a dialog; it must stay closed so the list stays clickable.
+        assertTrue(list.contains("ff-table-button-dialog"))
+        assertTrue(list.contains("""ff-table-button-dialog" x-show="open" x-cloak style="display:none" hidden"""))
         assertTrue(create.contains("ff-create"))
         assertTrue(create.contains("ff-page-mode"))
         assertTrue(create.contains("data-ff-mode=\"create\""))

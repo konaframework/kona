@@ -216,6 +216,8 @@ class FireflyActionsTest {
         assertTrue(html.contains("@click=\"open = true\""))
         assertTrue(html.contains("@keydown.escape.window=\"open = false\""))
         assertTrue(html.contains("ff-dialog-overlay\" @click=\"open = false\""))
+        assertTrue(html.contains("ff-action-dialog\" x-show=\"open\" x-cloak style=\"display:none\" hidden"))
+        assertTrue(html.contains("""aria-modal="true""""))
         assertTrue(html.contains("ff-action-close"))
         assertTrue(html.contains(">Confirm<"))
         assertTrue(html.contains(">Cancel<"))
@@ -224,8 +226,12 @@ class FireflyActionsTest {
         assertTrue(html.contains("wire:click=\"save\""))
         assertTrue(html.contains("Save"))
         val mounted = save.mountDialog(Schema.make().components(save))
-        assertTrue(mounted.render().contains("ff-dialog-modal"))
-        assertFalse(mounted.render().contains("ff-dialog-overlay\" @click=\"open = false\""))
+        val mountedClosed = mounted.render()
+        assertTrue(mountedClosed.contains("ff-dialog-modal"))
+        assertTrue(mountedClosed.contains(" hidden"))
+        assertTrue(mountedClosed.contains("""aria-hidden="true""""))
+        assertFalse(mountedClosed.contains("ff-dialog-overlay\" @click=\"open = false\""))
+        assertTrue(mounted.render(open = true).contains("""aria-modal="true""""))
         assertThrows(FireflyException::class.java) { Action.make("save").mountDialog(Schema.make()) }
     }
 

@@ -342,9 +342,12 @@ open class Action protected constructor(name: String) : Component(name) {
         val opens = showsDialog(get)
         val trigger = triggerHtml(schema, get, opens)
         if (!opens) return trigger
-        val dialogHtml = decorate(buildDialog(schema, get).render())
+        // open=true: parent mount controls visibility (display:none / x-show). Closed dialogs must
+        // not use Dialog's default hidden chrome alone without a mount — that still covered the page
+        // when TableButton dumped raw Dialog HTML.
+        val dialogHtml = decorate(buildDialog(schema, get).render(open = true))
         val escape = if (closeEscape) """ @keydown.escape.window="open = false"""" else ""
-        return """<div class="ff-action-mount ${placementClass()}" x-data="{ open: false }"$escape>$trigger<div class="ff-action-dialog" x-show="open" style="display:none">$dialogHtml</div></div>"""
+        return """<div class="ff-action-mount ${placementClass()}" x-data="{ open: false }"$escape>$trigger<div class="ff-action-dialog" x-show="open" x-cloak style="display:none" hidden>$dialogHtml</div></div>"""
     }
 
     private fun renderNamedView(schema: Schema, named: String): String {

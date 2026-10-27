@@ -38,7 +38,13 @@ class Dialog private constructor(private val title: String) {
         this.width = width
     }
 
-    fun render(): String {
+    /**
+     * Render dialog chrome. Closed by default (`hidden`) so a raw dialog never covers the page.
+     * Callers that show the dialog via a parent (`x-show` / `display:none` mount) pass [open]=true
+     * so the dialog is interactive once that parent is revealed.
+     */
+    @JvmOverloads
+    fun render(open: Boolean = false): String {
         val modeClass = when (mode) {
             DialogMode.MODAL -> "ff-dialog-modal"
             DialogMode.SIDEBAR -> "ff-dialog-sidebar"
@@ -48,8 +54,13 @@ class Dialog private constructor(private val title: String) {
         val drag = if (canDrag) """ x-data="ffDialog" data-ff-drag="true"""" else ""
         val align = if (mode == DialogMode.MODAL) """ data-ff-align="top"""" else ""
         val side = if (mode == DialogMode.SIDEBAR) """ data-ff-position="$position"""" else ""
+        val closed = if (open) {
+            """ aria-modal="true""""
+        } else {
+            """ hidden aria-hidden="true""""
+        }
         return """
-            <div class="ff-dialog $modeClass ff-dialog-$width" role="dialog"$align$side$drag>
+            <div class="ff-dialog $modeClass ff-dialog-$width" role="dialog"$closed$align$side$drag>
               <div class="ff-dialog-overlay"></div>
               <div class="ff-dialog-window">
                 <header class="ff-dialog-header">${escapeHtml(title)}</header>

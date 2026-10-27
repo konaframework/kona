@@ -1247,6 +1247,16 @@ body.ff-body-root {
   z-index: 50;
 }
 
+/* Closed dialogs (and Action/TableButton mounts) must not intercept clicks. */
+.ff-panel .ff-dialog[hidden],
+.ff-panel .ff-action-dialog[hidden],
+.ff-panel .ff-table-button-dialog[hidden],
+.ff-panel .ff-action-dialog[style*="display: none"],
+.ff-panel .ff-table-button-dialog[style*="display: none"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 .ff-panel .ff-dialog-modal .ff-dialog-window {
   margin: 4rem auto 0;
   max-width: 32rem;
@@ -1257,6 +1267,7 @@ body.ff-body-root {
   padding: 1.1rem 1.2rem;
 }
 
+.ff-panel .ff-dialog-overlay,
 .ff-panel .ff-dialog-backdrop {
   position: absolute;
   inset: 0;

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DialogJavaTest {
@@ -18,6 +19,11 @@ public class DialogJavaTest {
         String html = Dialog.make("Java").slideOver().render();
         assertTrue(html.contains("ff-dialog-sidebar"));
         assertTrue(html.contains("ff-dialog-md"));
+        assertTrue(html.contains(" hidden"));
+        assertTrue(html.contains("aria-hidden=\"true\""));
+        String open = Dialog.make("Java").slideOver().render(true);
+        assertTrue(open.contains("aria-modal=\"true\""));
+        assertFalse(open.contains(" aria-hidden=\"true\""));
 
         Panel shell = new Panel().theme(new KonaTheme()).hook(Hook.BODY_START, "hi");
         assertTrue(shell.render().contains("hi"));
