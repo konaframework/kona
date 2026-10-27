@@ -645,6 +645,10 @@ class GrindTest {
         Files.createDirectories(cachedFile.parent)
         Files.writeString(cachedFile, a.toAbsolutePath().toString())
         assertEquals(listOf(a.toAbsolutePath()), AppLoader.gradleRuntimeClasspath(cachedProj).map { it.toAbsolutePath() })
+        AppLoader.invalidateClasspathCache(cachedProj)
+        assertFalse(Files.exists(cachedFile))
+        AppLoader.invalidateClasspathCache(cachedProj) // missing file is fine
+        AppLoader.invalidateClasspathCache(temp.resolve("no-such-project"))
 
         assertNull(AppLoader.resolveGradleWrapper(bare))
         val batOnly = fixtureProject(temp.resolve("bat"))

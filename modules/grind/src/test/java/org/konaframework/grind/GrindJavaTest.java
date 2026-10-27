@@ -98,7 +98,10 @@ class GrindJavaTest {
                                         "--bootstrap=" + FixtureApp.class.getName()));
         assertEquals(0, code);
         assertEquals(1, compiles.get());
-        assertTrue(out.toString().contains("Reloaded"));
+        String log = out.toString();
+        assertTrue(log.contains("Changed"), log);
+        assertTrue(log.contains("Reloading"), log);
+        assertTrue(log.contains("Reloaded"), log);
         CompileResult defaults = new CompileResult(7);
         assertEquals(7, defaults.getExitCode());
         assertEquals("", defaults.getOutput());

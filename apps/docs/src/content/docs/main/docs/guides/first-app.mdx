@@ -16,7 +16,7 @@ kona new hello-kona --no-interaction
 cd hello-kona
 ```
 
-Use `--lang=java` for a Java skeleton. The default kit is **`web`** (Crema welcome view). Other kits: `--kit=api`, `--kit=inertia`, `--kit=wire`. CSS: `--css=tailwind|bootstrap|custom`. Inertia adapters: `--frontend=vue|react|svelte`. Inertia frontends are JavaScript unless you pass `--typescript` (or `--ts`). Each flag skips only that step. `kona new` with no arguments is the interactive installer; it refuses to overwrite an existing directory.
+Use `--lang=java` for a Java skeleton. The default kit is **`web`** (Crema welcome view). Other kits: `--kit=api`, `--kit=inertia`, `--kit=wire`, `--kit=firefly`. CSS: `--css=tailwind|bootstrap|custom` (skipped only for `api` — Firefly still scaffolds Vite for welcome and other non-panel pages; panel chrome uses the shipped stylesheet). Inertia adapters: `--frontend=vue|react|svelte`. Inertia frontends are JavaScript unless you pass `--typescript` (or `--ts`). Each flag skips only that step. `kona new` with no arguments is the interactive installer; it refuses to overwrite an existing directory.
 
 You should see something like:
 
@@ -89,7 +89,7 @@ Open `http://127.0.0.1:4000/` (or the `HOST`/`PORT` from `.env`). Stop with Ctrl
 
 With `APP_DEBUG=true` (scaffold default), the terminal shows each request — method, path, status, and duration — as you hit the app. See [Logging](../../http/logging/#request-access-lines-local-serve).
 
-`./grind serve` watches `src/main` and reloads compiled Kotlin/Java (including Wire `template()` classes) without restarting the HTTP server. Pass `--no-watch` if you want a child `./gradlew run` instead.
+`./grind serve` watches `src/main` and soft-reloads compiled Kotlin/Java (including Wire `template()` classes and Firefly panels under `app/panels`) plus Crema/CSS resources without restarting the HTTP server. Console lines look like `Changed Panel.kt — recompiling` then `Reloaded`. Pass `--no-watch` if you want a child `./gradlew run` instead. Framework edits under `kona.home` still need a serve restart — see [serve soft reload](../grind/commands/#soft-reload-default).
 
 The branded landing page is HTML from `welcome.crema.html` (via `WelcomeController` on `/`). Sign in at `/login` with the demo user **`demo@kona.test`** / **`password`**, then open `/dashboard`. `/api/health` returns JSON `{"status":"ok"}`. `/api/users` and `/api/users/{id}` list or show users (password fields are hidden).
 

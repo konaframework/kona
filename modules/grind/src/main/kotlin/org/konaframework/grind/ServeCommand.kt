@@ -6,12 +6,11 @@ import org.konaframework.http.KonaHttpServer
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
-
 /**
  * `grind serve` — runs the Kona application found at (or above) `--base`.
  *
  * Default: **watch** — boot in-process, keep Netty up, and on `src/main` changes run incremental
- * `gradlew classes` then swap the app [java.net.URLClassLoader] / HTTP kernel (soft reload).
+ * `gradlew classes` then swap the app [SoftReloadClassLoader] / HTTP kernel (soft reload).
  * `--no-watch` restores `./gradlew run` (child JVM, full restart). `--in-process` boots once
  * without watching. `--once` returns after bind.
  *
@@ -93,30 +92,41 @@ constructor(
         val server = KonaHttpServer(app.resolve(HttpKernel::class.java), host, port)
         server.start()
         announce(host, port, ready = true, watching = true)
-        io.info("Watching src/main — save a .kt, .java, or .crema file to reload")
+        io.info("Watching src/main — save .kt / .java / .crema / .css (and resources) to reload")
+        val reloadLock = Any()
         val watch = watcher.start(SourceSnapshot.roots(root)) { paths ->
-            val file = paths.firstOrNull()?.fileName
-            val label = if (file == null) "files" else file.toString()
-            io.info("Changed $label — recompiling")
-            val result = compiler.compile(root)
-            if (result.exitCode != 0) {
-                io.error("Compile failed — still serving previous classes")
-                val detail = result.output.trim()
-                if (detail.isNotEmpty()) {
-                    io.error(detail.takeLast(4000))
+            // Serialize compile+swap so overlapping saves cannot close the live loader mid-boot.
+            synchronized(reloadLock) {
+                // Clear three-beat UX: Changed → Reloading → Reloaded (or error).
+                io.info("Changed ${ServeWatch.changeLabel(paths)}")
+                io.info("Reloading…")
+                val result = compiler.compile(root)
+                if (result.exitCode != 0) {
+                    io.error("Compile failed — still serving previous classes")
+                    val detail = ServeWatch.compileFailureDetail(result.output)
+                    if (detail.isNotEmpty()) {
+                        io.error(detail)
+                    }
+                    return@start
                 }
-                return@start
-            }
-            try {
-                GrindLogging.hushConsole(verbose)
-                val reloaded = ServeWatch.reload(root, options, server, app, loader)
-                loader = reloaded.first
-                app = reloaded.second
-                GrindLogging.hushConsole(verbose)
-                io.success("Reloaded")
-            } catch (ex: Exception) {
-                io.error("Reload failed — still serving previous classes")
-                io.error(ex.message ?: ex.javaClass.simpleName)
+                try {
+                    GrindLogging.hushConsole(verbose)
+                    val reloaded = ServeWatch.reload(root, options, server, app, loader)
+                    loader = reloaded.first
+                    app = reloaded.second
+                    GrindLogging.hushConsole(verbose)
+                    io.success("Reloaded")
+                } catch (ex: Exception) {
+                    io.error("Reload failed — still serving previous classes")
+                    val message = ex.message?.takeIf { it.isNotBlank() } ?: ex.javaClass.simpleName
+                    io.error(message)
+                    if (verbose) {
+                        // Prefer the head of the stack (app frames) over a truncated tail.
+                        io.error(ex.stackTraceToString().take(4000))
+                    } else {
+                        io.info("Re-run with --verbose for the full stack trace")
+                    }
+                }
             }
         }
         try {
@@ -150,7 +160,7 @@ constructor(
                 add("Bind     $host:$port")
             }
             if (watching) {
-                add("Reload   save .kt / .java / .crema")
+                add("Reload   save .kt / .java / .crema / .css")
             }
             add("Stop     Ctrl+C")
         }
