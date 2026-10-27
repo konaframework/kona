@@ -394,6 +394,15 @@ class FireflyPanelTest {
         val plain = Router()
         Panel().path("plain").authenticate(false).brand("A & B <ok> \"go\"").page(ListPage("one")).mount(plain)
         assertTrue(send(plain, "GET", "/plain/one").body.contains("A &amp; B &lt;ok&gt; &quot;go&quot;"))
+        val wide = Router()
+        Panel().path("wide").authenticate(false).maxContentWidth("full").page(ListPage("one")).mount(wide)
+        val wideHtml = send(wide, "GET", "/wide/one").body
+        assertTrue(wideHtml.contains("""data-ff-max-width="full""""))
+        assertTrue(wideHtml.contains("ff-list"))
+        assertThrows<FireflyException> { Panel().maxWidth("huge") }
+        val pageWide = Router()
+        Panel().path("pagewide").authenticate(false).page(ListPage("one").maxWidth("xl")).mount(pageWide)
+        assertTrue(send(pageWide, "GET", "/pagewide/one").body.contains("""data-ff-max-width="xl""""))
         assertEquals(422, send(plain, "POST", "/plain/login").status)
         assertEquals(422, send(plain, "POST", "/plain/login", "email=ada@example.com").status)
         assertEquals(422, send(plain, "POST", "/plain/login", "email=ada@example.com&password=").status)

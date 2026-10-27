@@ -33,6 +33,7 @@ class ResourceJavaTest {
         var match = router.find("GET", "/admin/notes/manage");
         String html = match.getRoute().getAction().handle(Request.get("/admin/notes/manage")).getBody();
         assertTrue(html.contains("ff-manage"));
+        assertTrue(html.contains("data-ff-max-width=\"7xl\""));
         assertTrue(html.contains("ff-dialog"));
         assertTrue(html.contains("ff-combobox"));
         assertTrue(html.contains("Ada"));
@@ -66,6 +67,7 @@ class ResourceJavaTest {
             super("notes");
             label("Notes");
             simple();
+            maxWidth("7xl");
             model(Shelf.class);
         }
 

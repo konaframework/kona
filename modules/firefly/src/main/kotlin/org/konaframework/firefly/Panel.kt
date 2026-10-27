@@ -11,6 +11,7 @@ import org.konaframework.firefly.support.FireflyTheme
 import org.konaframework.firefly.support.Hook
 import org.konaframework.firefly.support.Icon
 import org.konaframework.firefly.support.KonaTheme
+import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.support.PanelLayout
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.schemas.Text
@@ -62,6 +63,7 @@ open class Panel {
     private var mounted: Boolean = false
     private var resolvedPrefix: String = "admin"
     private var resolvedId: String = "admin"
+    private var maxWidthLiteral: String? = null
 
     fun id(value: String): Panel = apply {
         if (value.isBlank()) throw FireflyException("Panel id is blank")
@@ -119,6 +121,19 @@ open class Panel {
     fun theme(theme: FireflyTheme): Panel = apply { this.theme = theme }
 
     fun layout(layout: PanelLayout): Panel = apply { this.layout = layout }
+
+    /**
+     * Default content max-width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`).
+     * Pages and resources can narrow further with their own [org.konaframework.firefly.widgets.Page.maxWidth].
+     * Tables fill that column; only a page/resource max width shrinks them.
+     * Alias of Filament-style `maxContentWidth`.
+     */
+    fun maxWidth(width: String): Panel = apply {
+        maxWidthLiteral = MaxWidth.requireKnown(width)
+    }
+
+    /** Filament-shaped alias for [maxWidth]. */
+    fun maxContentWidth(width: String): Panel = maxWidth(width)
 
     fun hook(hook: Hook, html: String): Panel = apply { hooks.add(hook to html) }
 
@@ -238,6 +253,8 @@ open class Panel {
             .documentTitle(brand)
             .brandName(brand)
             .mode(ChromeMode.PANEL)
+        val width = maxWidthLiteral
+        if (width != null) chrome.maxWidth(width)
         for (hook in hooks) chrome.hook(hook.first, hook.second)
         val guard = activeGuard(request)
         val user = ChromeUser(guard.id(), guard.name(), guard.email())

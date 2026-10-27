@@ -24,6 +24,7 @@ public class PanelJavaTest {
         panel.navigation(NavigationType.SIDE);
         panel.authenticate(false);
         panel.spa(true);
+        panel.maxContentWidth("full");
         panel.page(new ListPage("orders"));
         panel.userMenu(new NavigationItem("Account").label("Account").url("/profile"));
         panel.mount(router, Map.of());
@@ -32,8 +33,10 @@ public class PanelJavaTest {
         assertEquals("java-app", welcome.getBody());
         Response orders = router.find("GET", "/orders").getRoute().getAction().handle(new Request("GET", "/orders"));
         assertTrue(orders.getBody().contains("ff-list"));
+        assertTrue(orders.getBody().contains("data-ff-max-width=\"full\""));
         assertTrue(panel.render(new Request("GET", "/orders"), Map.of("brand", "Java")).contains("Java"));
         assertTrue(panel.render(new Request("GET", "/orders")).contains("ff-panel"));
+        assertTrue(panel.render(new Request("GET", "/orders")).contains("data-ff-max-width=\"full\""));
         var dir = Files.createTempDirectory("firefly-java");
         assertEquals(0, PanelDiscovery.pages(dir).size());
         assertEquals(0, PanelDiscovery.pages(dir, Thread.currentThread().getContextClassLoader()).size());
