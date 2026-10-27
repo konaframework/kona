@@ -158,6 +158,28 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-table-wrap"))
         assertTrue(css.contains("--ff-shell: var(--ff-surface"))
         assertTrue(css.contains(".ff-panel .ff-table-wrap .ff-table"))
+        // Flat white table surface: toolbar / thead / pagination use --ff-card (not inset).
+        assertTrue(
+            Regex("""\.ff-panel\s+\.ff-table-toolbar\s*\{[^}]*background:\s*var\(--ff-card\)""")
+                .containsMatchIn(css),
+        )
+        assertTrue(
+            Regex("""\.ff-panel\s+\.ff-table\s+th\s*\{[^}]*background:\s*var\(--ff-card\)""")
+                .containsMatchIn(css),
+        )
+        assertTrue(
+            Regex("""\.ff-panel\s+\.ff-pagination\s*\{[^}]*background:\s*var\(--ff-card\)""")
+                .containsMatchIn(css),
+        )
+        // Relation managers: no outer floating card — .ff-table-wrap is the chrome.
+        assertTrue(
+            Regex("""\.ff-panel\s+\.ff-relation\s*\{[^}]*background:\s*transparent""")
+                .containsMatchIn(css),
+        )
+        assertTrue(
+            Regex("""\.ff-panel\s+\.ff-relation\s*\{[^}]*box-shadow:\s*none""")
+                .containsMatchIn(css),
+        )
         assertTrue(css.contains(".ff-panel .ff-breadcrumbs"))
         assertTrue(css.contains(".ff-panel .ff-entry .ff-label"))
         assertTrue(css.contains("grid-template-columns: repeat(var(--ff-cols"))
