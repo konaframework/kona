@@ -40,8 +40,10 @@ class KonaTheme : FireflyTheme {
         sidebarWidth = "16.5rem",
         topbarHeight = "3.75rem",
         bodyBackground = "#FAF6F0",
+        /* Dark chrome matches Shamar calm dark (gray shell / near-white headings).
+         * Primary stays latte so brand accents remain coffee-toned on gray surfaces. */
         darkPrimary = "#C9A57B",
-        darkSurface = "#1A120C",
-        darkHeading = "#E8D4B8",
+        darkSurface = "#1F2937",
+        darkHeading = "#F3F4F6",
     )
 }

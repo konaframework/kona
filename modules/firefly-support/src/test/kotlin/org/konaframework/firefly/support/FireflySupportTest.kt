@@ -154,6 +154,11 @@ class FireflySupportTest {
         val css = Stylesheet.render(KonaTheme())
         assertTrue(css.contains("--ff-primary: #DF8723"))
         assertTrue(css.contains("--ff-primary: #C9A57B"))
+        // Shamar calm dark: gray-800 shell / gray-900 cards / near-white headings.
+        assertTrue(css.contains("--ff-surface: #1F2937"))
+        assertTrue(css.contains("--ff-heading: #F3F4F6"))
+        assertTrue(css.contains("--ff-card: #111827"))
+        assertTrue(css.contains("--ff-shell: var(--ff-surface, #1f2937)"))
         assertTrue(css.contains(".ff-panel .ff-btn"))
         assertTrue(css.contains(".ff-panel .ff-table-wrap"))
         assertTrue(css.contains("--ff-shell: var(--ff-surface"))

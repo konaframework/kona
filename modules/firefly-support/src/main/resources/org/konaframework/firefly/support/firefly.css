@@ -50,18 +50,21 @@ body.ff-body-root {
   background: var(--ff-shell);
 }
 
+/* Calm dark (Shamar .dark): lighter shell, darker elevated cards. */
 .ff-panel.ff-dark,
 .ff-auth.ff-dark,
 .ff-dark .ff-panel,
 .ff-dark .ff-auth {
-  --ff-body-text: #d1d5db;
-  --ff-body-subtle: #9ca3af;
-  --ff-card: #1f2937;
-  --ff-card-border: color-mix(in srgb, #4b5563 55%, transparent);
-  --ff-shell: var(--ff-surface, #111827);
-  --ff-hover: color-mix(in srgb, var(--ff-primary) 22%, #1f2937);
-  --ff-active: color-mix(in srgb, var(--ff-primary) 32%, #1f2937);
-  --ff-inset: color-mix(in srgb, #1f2937 55%, #111827);
+  --ff-body-text: #d1d5db; /* gray-300 */
+  --ff-body-subtle: #9ca3af; /* gray-400 */
+  /* Elevated card = Shamar neutral-primary (gray-900), darker than shell. */
+  --ff-card: #111827;
+  --ff-card-border: color-mix(in srgb, #4b5563 55%, transparent); /* gray-600 @ 55% */
+  /* Shell tracks theme --ff-surface; fallback = Shamar shamar-shell (gray-800). */
+  --ff-shell: var(--ff-surface, #1f2937);
+  --ff-hover: color-mix(in srgb, #374151 50%, #111827); /* gray-700/900 */
+  --ff-active: color-mix(in srgb, var(--ff-primary) 28%, #111827);
+  --ff-inset: color-mix(in srgb, #1f2937 55%, #111827); /* surface-inset */
   --ff-shadow: 0 1px 2px rgb(0 0 0 / 25%), 0 12px 32px rgb(0 0 0 / 35%);
 }
 

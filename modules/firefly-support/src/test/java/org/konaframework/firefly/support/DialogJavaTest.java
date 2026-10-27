@@ -86,7 +86,7 @@ final class HarborTheme implements FireflyTheme {
             "#DF8723", "#74453F", "#FAF6F0", "#2A1C10",
             "ui-sans-serif, system-ui, sans-serif",
             "0.75rem", "18rem", "4rem", "#FAF6F0",
-            "#C9A57B", "#1A120C", "#E8D4B8"
+            "#C9A57B", "#1F2937", "#F3F4F6"
         );
     }
 
