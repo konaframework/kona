@@ -18,6 +18,8 @@ public class SchemaJavaTest {
         NameField name = new NameField();
         name.liveDebounce(250).afterStateUpdated((state, old, get, set) -> set.set("slug", "ada"));
         name.label(get -> "From Java");
+        assertTrue(Section.make().render(Schema.make()).contains("ff-section"));
+        assertTrue(Section.make("").columns(2).schema(Text.make("Solo")).render(Schema.make()).contains("data-ff-columns=\"2\""));
         Section details = Section.make("Details");
         details.label(get -> "Section");
         details.columns(get -> 2);

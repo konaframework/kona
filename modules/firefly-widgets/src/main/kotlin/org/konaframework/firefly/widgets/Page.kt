@@ -15,6 +15,7 @@ open class Page {
     private val header = ArrayList<Action>()
     private val footer = ArrayList<Action>()
     private val widgetList = ArrayList<Widget>()
+    private val crumbList = ArrayList<Breadcrumb>()
     private var contentSchema: Schema? = null
     private var formSchema: Schema? = null
     private var infolistMarkup: String? = null
@@ -23,6 +24,16 @@ open class Page {
     fun title(value: String): Page = apply { titleSetting.setLiteral(value) }
 
     fun title(provider: Function<Get, String>): Page = apply { titleSetting.setUsing(provider) }
+
+    fun breadcrumbs(vararg crumbs: Breadcrumb): Page = apply {
+        crumbList.clear()
+        crumbList.addAll(crumbs)
+    }
+
+    fun breadcrumbs(crumbs: List<Breadcrumb>): Page = apply {
+        crumbList.clear()
+        crumbList.addAll(crumbs)
+    }
 
     fun headerActions(vararg actions: Action): Page = apply {
         header.clear()
@@ -60,7 +71,7 @@ open class Page {
         val widgetSchema = Schema().fill(state).components(*widgetList.toTypedArray())
         val schemaHtml = if (contentSchema == null) "" else contentSchema!!.render()
         val formHtml = wrapForm(if (formSchema == null) "" else formSchema!!.render(), state)
-        val infoHtml = if (infolistMarkup == null) "" else infolistMarkup!!
+        val infoHtml = if (infolistMarkup == null) "" else wrapInfolist(infolistMarkup!!)
         val tableHtml = if (contentTable == null) "" else contentTable!!.render()
         val mode = modeLabel()
         val modeHtml = if (mode == null) {
@@ -68,7 +79,31 @@ open class Page {
         } else {
             """<span class="ff-page-mode" data-ff-mode="${escapeHtml(mode)}">${escapeHtml(mode)}</span>"""
         }
-        return """<section class="${sectionClass()}"><header class="ff-page-header"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        val crumbs = renderBreadcrumbs()
+        return """<section class="${sectionClass()}"><header class="ff-page-header"><div class="ff-page-heading">$crumbs<h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+    }
+
+    private fun wrapInfolist(html: String): String {
+        if (html.isEmpty()) return ""
+        if (html.contains("ff-infolist")) return html
+        return """<div class="ff-infolist">$html</div>"""
+    }
+
+    private fun renderBreadcrumbs(): String {
+        if (crumbList.isEmpty()) return ""
+        val out = StringBuilder("""<nav aria-label="Breadcrumb"><ol class="ff-breadcrumbs">""")
+        crumbList.forEachIndexed { index, crumb ->
+            val last = index == crumbList.lastIndex
+            if (index > 0) out.append("""<li class="ff-breadcrumb-sep" aria-hidden="true"></li>""")
+            val href = crumb.href
+            if (last || href.isNullOrBlank()) {
+                out.append("""<li class="ff-breadcrumb-current"><span>${escapeHtml(crumb.label)}</span></li>""")
+            } else {
+                out.append("""<li><a href="${escapeHtml(href)}">${escapeHtml(crumb.label)}</a></li>""")
+            }
+        }
+        out.append("</ol></nav>")
+        return out.toString()
     }
 
     /**

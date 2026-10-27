@@ -135,6 +135,12 @@ class FireflyFormsSupportTest {
         val empty = TextInput.make("")
         val tree = Schema.make().components(Section.make("box").schema(plain, hidden), skipped, empty)
         assertTrue(FieldValidation.validate(tree, listOf(Section.make("box").schema(plain, hidden), skipped, empty)).isEmpty() || true)
+        // Blank field name + explicit state path → attributeLabel is null; validation uses the path.
+        val nameless = TextInput.make("").required()
+        nameless.statePath("nameless_path")
+        val namelessSchema = Schema.make().components(nameless)
+        val namelessErrors = FieldValidation.validate(namelessSchema, listOf(nameless))
+        assertTrue(namelessErrors.containsKey("nameless_path"))
         val real = Schema.make().components(
             Section.make("box").schema(plain, hidden),
             skipped,

@@ -30,6 +30,7 @@ public class WidgetJavaTest {
         apex.options(Map.of("stroke", Map.of("curve", "smooth")));
         Page page = new Page();
         page.title("Java");
+        page.breadcrumbs(Breadcrumb.make("Home"), Breadcrumb.make("Java", "/java"));
         page.schema(new Schema().components(Text.make("Hello")));
         page.widgets(revenue, apex, StatsOverviewWidget.make("stats").stats(
             new Stat().label("Open").value("1").description(get -> "today")
@@ -40,6 +41,7 @@ public class WidgetJavaTest {
         assertTrue(html.contains("Hello"));
         assertTrue(html.contains("Open"));
         assertTrue(html.contains("data-ff-max-height=\"80px\""));
+        assertTrue(html.contains("ff-breadcrumbs"));
         assertTrue(AccountWidget.make("me").accountName(get -> "Ada").email("a@b.c").render().contains("Ada"));
         assertTrue(Widget.make("box").render().contains("ff-widget"));
         org.junit.jupiter.api.Assertions.assertThrows(org.konaframework.firefly.support.FireflyException.class, () -> TableWidget.make("empty").render());

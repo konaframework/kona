@@ -102,7 +102,7 @@ Then call `theme(HarborTheme())` on the panel. The sidebar picks up the inset sh
 `Stylesheet.render(theme)` returns a CSS string:
 
 1. A `.ff-panel { ... }` block of custom properties.
-2. A `.ff-panel.ff-dark { ... }` block that overrides primary, surface, heading, and body.
+2. A dark block that overrides primary, surface, heading, and body. It targets both the self-class (`.ff-panel.ff-dark`) and an ancestor root (`.ff-dark .ff-panel`), so toggling `ff-dark` on `<html>` is enough.
 3. The shipped component stylesheet.
 4. When `extraCss()` is non-blank after `trim()`, a trailing `.ff-panel { <extra> }` block.
 
@@ -113,6 +113,7 @@ Custom properties:
 | `--ff-primary` | `primary` / `darkPrimary` |
 | `--ff-accent` | `accent` |
 | `--ff-surface` | `surface` / `darkSurface` |
+| `--ff-shell` | Tracks `--ff-surface` so white `--ff-card` table wraps and sections contrast against the latte shell |
 | `--ff-heading` | `heading` / `darkHeading` |
 | `--ff-font` | `font` |
 | `--ff-radius` | `radius` |
@@ -120,7 +121,7 @@ Custom properties:
 | `--ff-topbar-height` | `topbarHeight` |
 | `--ff-body` | `bodyBackground` / `darkSurface` in the dark block |
 
-`DefaultLayout` emits `<div class="ff-panel">` without `ff-dark`. Dark tokens apply when the panel root also has the class `ff-dark`. A custom `PanelLayout` can add that class. See [Panel chrome](/docs/firefly/chrome/).
+`DefaultLayout` emits `<div class="ff-panel">` without `ff-dark`. The built-in top-bar theme toggle adds `ff-dark` to the document root and remembers the choice in `localStorage['ff-theme']` (`light` / `dark` / `system`), applied before first paint so a reload never flashes. Dark tokens also apply when the panel element itself carries `ff-dark`, which a custom `PanelLayout` can set. See [Panel chrome](/docs/firefly/chrome/).
 
 ## Keep extra CSS inside the panel
 
@@ -146,15 +147,19 @@ Empty or whitespace-only `extraCss()` is omitted. The check does not run.
 
 ## Shipped component classes
 
-The checked-in stylesheet (`firefly.css`) is the scoped result of the Tailwind CSS v4 authoring file `modules/firefly-support/tailwind/input.css`. Rules are descendants of `.ff-panel`. There is no preflight on the host `html` or `body`.
+The checked-in stylesheet (`firefly.css`) is the scoped result of the Tailwind CSS v4 authoring file `modules/firefly-support/tailwind/input.css`. Authenticated chrome rules are descendants of `.ff-panel`. Guest auth screens use `.ff-auth` (centered shell, no sidebar). There is no preflight on the host welcome page.
 
 | Selector | Effect |
 |----------|--------|
-| `.ff-panel .ff-btn` | Radius from `--ff-radius`, padding `0.5rem 0.75rem`, `0.875rem` / weight 500 |
-| `.ff-panel .ff-sidebar` | Full height, width `--ff-sidebar-width`, no shrink, vertical scroll |
-| `.ff-panel .ff-topbar` | Flex row, centered items, height `--ff-topbar-height` |
-| `.ff-panel .ff-body` | Flex grow, font `--ff-font`, background `--ff-body` |
+| `.ff-panel .ff-btn` | Primary filled button: radius from `--ff-radius`, weight 600 |
+| `.ff-panel .ff-sidebar` | Full-height shell column, width `--ff-sidebar-width`, brand strip + scrollable nav |
+| `.ff-panel .ff-sidebar-brand` | Logo mark + brand label above the side nav |
+| `.ff-panel .ff-sidebar-foot` / `.ff-panel .ff-footer` | Shared shell foot band (padding, type, soft border, fixed `--ff-footer-height`); not a white card |
+| `.ff-panel .ff-nav-item` | Pill links; active item uses `--ff-active` with a primary inset bar |
+| `.ff-panel .ff-topbar` | Card row with primary top edge, height `--ff-topbar-height` |
+| `.ff-panel .ff-body` | Shell background, scrollable page canvas |
+| `.ff-panel .ff-table-wrap` | Card around tables, toolbar, and row hover tint |
 | `.ff-panel .ff-dialog` | Fixed, inset 0, z-index 50 |
-| `.ff-panel .ff-dialog-modal .ff-dialog-window` | Top margin `4rem` |
+| `.ff-panel .ff-dialog-modal .ff-dialog-window` | Top margin `4rem`, elevated card |
 
-`Panel.render` places this CSS in a `<style>` element inside `.ff-panel`, so the variables and the component rules travel with the shell.
+`DefaultLayout` and `AuthLayout` put this CSS in a `<style>` element in the document `<head>`, with Inter / DM Sans linked from Google Fonts. Theme token variables apply to both `.ff-panel` and `.ff-auth`.

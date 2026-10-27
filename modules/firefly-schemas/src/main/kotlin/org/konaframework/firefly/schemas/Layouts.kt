@@ -59,6 +59,9 @@ class Fieldset private constructor(private val legend: String) : Component("") {
 class Section private constructor() : Component("") {
     private var asideFlag: Boolean = false
     private var formBeforeFlag: Boolean = false
+    private var collapsibleFlag: Boolean = false
+    private var collapsedFlag: Boolean = false
+    private var containedFlag: Boolean = true
     private var afterHeader = emptyList<Component>()
     private var footer = emptyList<Component>()
     private var beforeLabel = emptyList<Component>()
@@ -75,6 +78,56 @@ class Section private constructor() : Component("") {
     fun formBefore(on: Boolean): Section = apply { formBeforeFlag = on }
 
     fun isFormBefore(): Boolean = formBeforeFlag
+
+    /** Allow the user to collapse the section body (details/summary). */
+    fun collapsible(on: Boolean = true): Section = apply { collapsibleFlag = on }
+
+    fun isCollapsible(): Boolean = collapsibleFlag
+
+    /** Start collapsed when [collapsible] is on. */
+    fun collapsed(on: Boolean = true): Section = apply {
+        collapsedFlag = on
+        if (on) collapsibleFlag = true
+    }
+
+    fun isCollapsed(): Boolean = collapsedFlag
+
+    /** When false, skip the card chrome (useful inside an already-carded host). */
+    fun contained(on: Boolean): Section = apply { containedFlag = on }
+
+    fun isContained(): Boolean = containedFlag
+
+    fun card(on: Boolean): Section = contained(on)
+
+    override fun columns(count: Int): Section {
+        super.columns(count)
+        return this
+    }
+
+    override fun columns(provider: java.util.function.Function<Get, Int>): Section {
+        super.columns(provider)
+        return this
+    }
+
+    override fun heading(value: String): Section {
+        super.heading(value)
+        return this
+    }
+
+    override fun heading(value: java.util.function.Function<Get, String>): Section {
+        super.heading(value)
+        return this
+    }
+
+    override fun description(value: String): Section {
+        super.description(value)
+        return this
+    }
+
+    override fun description(value: java.util.function.Function<Get, String>): Section {
+        super.description(value)
+        return this
+    }
 
     fun schema(vararg components: Component): Section = apply { replaceChildren(components.toList()) }
 
@@ -123,12 +176,42 @@ class Section private constructor() : Component("") {
     override fun renderBody(schema: Schema): String {
         val aside = if (asideFlag) """ data-ff-aside="true"""" else ""
         val form = if (formBeforeFlag) """ data-ff-form-before="true"""" else ""
-        return """<section class="ff-section"$aside$form>${headingHtml(schema)}${descriptionHtml(schema)}${slot("after-header", afterHeader, schema)}${slot("before-label", beforeLabel, schema)}${labelHtml(schema)}${slot("after-label", afterLabel, schema)}${slot("above", aboveContent, schema)}<div class="ff-section-body">${childHtml(schema)}</div>${slot("below", belowContent, schema)}${slot("footer", footer, schema)}</section>"""
+        val contained = if (containedFlag) "" else """ data-ff-contained="false""""
+        val head = headingHtml(schema)
+        val desc = descriptionHtml(schema)
+        val headerBits =
+            "$head$desc${slot("after-header", afterHeader, schema)}${slot("before-label", beforeLabel, schema)}${labelHtml(schema)}${slot("after-label", afterLabel, schema)}${slot("above", aboveContent, schema)}"
+        val body = """<div class="ff-section-body">${childHtml(schema)}</div>${slot("below", belowContent, schema)}${slot("footer", footer, schema)}"""
+        // Outer Component.render already uses `.ff-component.ff-section` for the card — do not nest another `.ff-section`.
+        if (collapsibleFlag) {
+            val open = if (collapsedFlag) "" else " open"
+            val summary = if (head.isEmpty() && desc.isEmpty()) {
+                """<summary class="ff-section-summary">Section</summary>"""
+            } else {
+                """<summary class="ff-section-summary">$head$desc</summary>"""
+            }
+            val rest = if (head.isEmpty() && desc.isEmpty()) {
+                headerBits + body
+            } else {
+                """${slot("after-header", afterHeader, schema)}${slot("before-label", beforeLabel, schema)}${labelHtml(schema)}${slot("after-label", afterLabel, schema)}${slot("above", aboveContent, schema)}$body"""
+            }
+            return """<details class="ff-section-inner"$aside$form$contained$open>$summary$rest</details>"""
+        }
+        return """<div class="ff-section-inner"$aside$form$contained>$headerBits$body</div>"""
     }
 
     companion object {
         @JvmStatic
-        fun make(heading: String): Section = Component.finish(Section().also { it.heading(heading) })
+        fun make(): Section = make("")
+
+        @JvmStatic
+        fun make(heading: String): Section {
+            val section = Section()
+            if (heading.isNotEmpty()) {
+                section.heading(heading)
+            }
+            return finish(section)
+        }
 
         @JvmStatic
         fun configureUsing(block: Consumer<Section>?) = configure(Section::class.java, block)

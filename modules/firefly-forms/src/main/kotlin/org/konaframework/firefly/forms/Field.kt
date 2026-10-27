@@ -254,7 +254,11 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
 
     internal open fun extraErrors(schema: Schema): Map<String, List<String>> = emptyMap()
 
-    internal fun attributeLabel(schema: Schema): String? = validationAttributeText.get(Reads.of(schema, this))
+    internal fun attributeLabel(schema: Schema): String? {
+        val explicit = validationAttributeText.get(Reads.of(schema, this))
+        if (explicit != null) return explicit
+        return resolvedLabel(schema)
+    }
 
     internal fun stateValue(schema: Schema, path: String): Any? = schema.get(path)
 

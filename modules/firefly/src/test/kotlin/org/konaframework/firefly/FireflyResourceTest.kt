@@ -66,6 +66,8 @@ class FireflyResourceTest {
         val manage = send(router, "/admin/notes/manage")
         assertTrue(list.contains("ff-list"))
         assertTrue(list.contains(">Orders<"))
+        assertTrue(list.contains("ff-breadcrumbs"))
+        assertTrue(list.contains("""href="/admin""""))
         assertTrue(list.contains("""href="create""""))
         assertTrue(list.contains(">New<"))
         assertTrue(list.contains("ff-row-actions"))
@@ -279,6 +281,42 @@ class FireflyResourceTest {
         assertTrue(both.render().contains("data-ff-tone=\"info\""))
         val closed = RelationManager("lines").extraAttributes { mapOf("data-ff-tone" to "info") }
         assertTrue(closed.render().contains("data-ff-tone=\"info\""))
+
+        // Filament-style getRelations() declaration (issue #249).
+        val declared = object : Resource("orders") {
+            override fun getRelations(): List<RelationManager> =
+                listOf(RelationManager("lines").titleAttribute("sku"))
+        }.label("Orders").model(Shelf::class.java)
+        assertEquals(1, declared.relationManagers().size)
+        assertEquals("lines", declared.relationManagers().single().name())
+        // Merge fluent relation() with getRelations() (same name wins from declared).
+        val merged = object : Resource("orders") {
+            init {
+                relation(RelationManager("lines").titleAttribute("old"))
+                relation(RelationManager("items").titleAttribute("sku"))
+            }
+
+            override fun getRelations(): List<RelationManager> =
+                listOf(RelationManager("lines").titleAttribute("sku"))
+        }.label("Orders").model(Shelf::class.java)
+        assertEquals(setOf("lines", "items"), merged.relationManagers().map { it.name() }.toSet())
+        assertTrue(merged.relationManagers().first { it.name() == "lines" }.render().contains("""data-ff-title="sku""""))
+        val edit = declared.pages().first { it is EditPage }
+        val editHtml = edit.render(
+            mapOf(
+                "panelHome" to "/admin",
+                "resourceList" to "/admin/orders/list",
+            ),
+        )
+        assertTrue(editHtml.contains("ff-breadcrumbs"))
+        assertTrue(editHtml.contains("""href="/admin""""))
+        assertTrue(editHtml.contains("""href="/admin/orders/list""""))
+        assertTrue(editHtml.contains("ff-relation"))
+        assertThrows<FireflyException> {
+            object : Resource("notes") {
+                override fun getRelations(): List<RelationManager> = listOf(RelationManager("lines"))
+            }.simple()
+        }
     }
 
     @Test

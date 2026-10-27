@@ -17,6 +17,7 @@ import org.konaframework.firefly.widgets.discovered.NotAWidget
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 
 class FireflyWidgetsTest {
@@ -296,6 +297,8 @@ class FireflyWidgetsTest {
         )
         assertFalse(blankAction.contains(" action="))
         assertTrue(Page().infolistHtml("<p>InfoBody</p>").render().contains("InfoBody"))
+        assertTrue(Page().infolistHtml("<p>InfoBody</p>").render().contains("ff-infolist"))
+        assertTrue(Page().infolistHtml("""<div class="ff-infolist"><p>Already</p></div>""").render().contains("Already"))
         assertTrue(empty.contains(">Page<"))
         assertFalse(empty.contains("ff-dashboard"))
         assertTrue(Page().title("Static").render().contains(">Static<"))
@@ -303,6 +306,39 @@ class FireflyWidgetsTest {
         assertTrue(titled.render(mapOf("heading" to "Hello & \"go\" <b>")).contains("Hello &amp; &quot;go&quot; &lt;b&gt;"))
         assertTrue(Dashboard().render().contains(">Dashboard<"))
         assertTrue(Dashboard().render().contains("ff-dashboard"))
+
+        val crumbs = Page()
+            .title("Edit Orders")
+            .breadcrumbs(
+                Breadcrumb.make("Dashboard", "/admin"),
+                Breadcrumb.make("Orders", "/admin/orders/list"),
+                Breadcrumb.make("Edit Orders"),
+            )
+            .render()
+        assertTrue(crumbs.contains("ff-breadcrumbs"))
+        assertTrue(crumbs.contains("""href="/admin""""))
+        assertTrue(crumbs.contains("ff-breadcrumb-current"))
+        assertTrue(crumbs.contains("Edit Orders"))
+        assertEquals("Orders", Breadcrumb.make("Orders", "/x").label)
+        assertEquals("Solo", Breadcrumb.make("Solo").label)
+        assertNull(Breadcrumb.make("Solo").href)
+        assertTrue(
+            Page().breadcrumbs(listOf(Breadcrumb.make("Only"))).render().contains("ff-breadcrumb-current"),
+        )
+        // Non-link middle crumbs (null or blank href) still render as plain text.
+        val blankHref = Page().breadcrumbs(
+            Breadcrumb.make("Home", "/"),
+            Breadcrumb.make("Gap"),
+            Breadcrumb("Spaced", "  "),
+            Breadcrumb.make("Here"),
+        ).render()
+        assertTrue(blankHref.contains("Gap"))
+        assertTrue(blankHref.contains("Spaced"))
+        assertFalse(blankHref.contains("""href="  """))
+        assertEquals("", Page().infolistHtml("").render().let { html ->
+            // Empty infolist markup adds nothing beyond the page chrome.
+            if (html.contains("ff-infolist")) "has" else ""
+        })
     }
 
     @Test

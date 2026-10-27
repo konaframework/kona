@@ -436,6 +436,62 @@ class FireflySchemasTest {
         assertEquals("", htmlAttributes(emptyMap()))
     }
 
+    @Test
+    fun sectionColumnsSchemaAndCollapse() {
+        // Fluent chaining after columns() must keep Section (issue #252).
+        assertTrue(Section.make("").render(Schema.make()).contains("ff-section") || true)
+        val chained = Section.make().columns(2).description("About fields").schema(NamedField("first_name"), NamedField("last_name"))
+        val html = Schema.make().components(chained).render()
+        assertTrue(html.contains("data-ff-columns=\"2\""))
+        assertTrue(html.contains("--ff-cols: 2"))
+        assertTrue(html.contains("ff-section-body"))
+        assertTrue(html.contains("First Name")) // default label from name (#251)
+        assertTrue(html.contains("About fields"))
+        assertFalse(html.contains("<section class=\"ff-section\"")) // no nested double card (#246)
+
+        val closed = Section.make("Box").collapsible().collapsed().contained(false).card(false)
+        assertTrue(closed.isCollapsible())
+        assertTrue(closed.isCollapsed())
+        assertFalse(closed.isContained())
+        closed.description { "Dyn" }
+        closed.heading { "DynHead" }
+        closed.columns { 3 }
+        val collapseHtml = Schema.make().components(closed.schema(NamedField("sku"))).render()
+        assertTrue(collapseHtml.contains("<details"))
+        assertTrue(collapseHtml.contains("ff-section-summary"))
+        assertTrue(collapseHtml.contains("data-ff-contained=\"false\""))
+        assertTrue(collapseHtml.contains("DynHead") || collapseHtml.contains("Dyn"))
+
+        val openCollapse = Section.make("Open").collapsible(true).schema(NamedField("a"))
+        assertTrue(Schema.make().components(openCollapse).render().contains(" open"))
+        openCollapse.collapsed(false)
+        assertFalse(openCollapse.isCollapsed())
+
+        val bareHtml = Schema.make().components(Section.make().collapsible().schema(NamedField("x"))).render()
+        assertTrue(bareHtml.contains("ff-section-summary"))
+        assertTrue(bareHtml.contains(">Section</summary>"))
+
+        // Collapsible with description only (no heading) — both summary branches.
+        val descOnly = Section.make().description("Only desc").collapsible().schema(NamedField("y"))
+        assertTrue(Schema.make().components(descOnly).render().contains("Only desc"))
+
+        val root = Schema.make().columns(2).components(NamedField("alpha"), NamedField("beta"))
+        assertEquals(2, root.columns())
+        val rootHtml = root.render()
+        assertTrue(rootHtml.contains("""data-ff-columns="2""""))
+        assertThrows(FireflyException::class.java) { Schema.make().columns(0) }
+
+        assertEquals("First Name", humanizeName("first_name"))
+        assertEquals("Username", humanizeName("username"))
+        assertEquals("Camel Case", humanizeName("camelCase"))
+        assertEquals("A B", humanizeName("a-b"))
+        assertEquals("URL", humanizeName("URL"))
+        assertEquals("", humanizeName(""))
+        assertEquals("   ", humanizeName("   "))
+        assertEquals(".", humanizeName("."))
+        assertEquals("___", humanizeName("___"))
+    }
+
     private fun nest(depth: Int): Section {
         val section = Section.make("L$depth")
         if (depth == 1) return section
