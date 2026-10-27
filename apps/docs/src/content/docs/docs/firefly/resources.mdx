@@ -16,7 +16,7 @@ The types live in `org.konaframework.firefly` (`kona-firefly`).
 
 ## Serve a full resource
 
-Put the class in `app/firefly/resources/`. A full resource gets list, create, edit, and view pages. Call `page(...)` yourself, or leave the page list empty and `pages()` builds those four.
+Put the class in `app/firefly/resources/`. Override `form`, `infolist`, `table`, and `getPages`. Leave `getPages()` alone and a full resource serves list, create, edit, and view.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -26,11 +26,24 @@ class OrderResource : Resource("orders") {
     init {
         label("Orders")
         model(Order::class.java)
-        form(Schema.make().components(TextInput.make("name")))
-        infolist(Infolist.make().components(TextEntry.make("name")))
-        table(Table.memory().columns(TextColumn.make("name")))
         relation(RelationManager("lines").related(Line::class.java).titleAttribute("sku"))
     }
+
+    override fun form(schema: Schema): Schema =
+        schema.components(TextInput.make("name"))
+
+    override fun infolist(schema: Schema): Schema =
+        schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        table.columns(TextColumn.make("name"))
+
+    override fun getPages(): Map<String, Page> = mapOf(
+        "list" to ListPage("list"),
+        "create" to CreatePage("create"),
+        "edit" to EditPage("edit"),
+        "view" to ViewPage("view"),
+    )
 }
 ```
 
@@ -43,10 +56,32 @@ public class OrderResource extends Resource {
         super("orders");
         label("Orders");
         model(Order.class);
-        form(Schema.make().components(TextInput.make("name")));
-        infolist(Infolist.make().components(TextEntry.make("name")));
-        table(Table.memory().columns(TextColumn.make("name")));
         relation(new RelationManager("lines").related(Line.class).titleAttribute("sku"));
+    }
+
+    @Override
+    public Schema form(Schema schema) {
+        return schema.components(TextInput.make("name"));
+    }
+
+    @Override
+    public Schema infolist(Schema schema) {
+        return schema.components(TextEntry.make("name"));
+    }
+
+    @Override
+    public Table<?, ?> table(Table<?, ?> table) {
+        return Table.memory().columns(TextColumn.make("name"));
+    }
+
+    @Override
+    public Map<String, Page> getPages() {
+        Map<String, Page> pages = new LinkedHashMap<>();
+        pages.put("list", new ListPage("list"));
+        pages.put("create", new CreatePage("create"));
+        pages.put("edit", new EditPage("edit"));
+        pages.put("view", new ViewPage("view"));
+        return pages;
     }
 }
 ```
@@ -54,7 +89,7 @@ public class OrderResource extends Resource {
 </TabItem>
 </Tabs>
 
-The list page mounts the table and a create action. The create and edit pages mount the form. The view page mounts the infolist. Edit and view also render each relation manager. You open `/{prefix}/orders/list`. The prefix is the panel id when `path` is not set. The hello samples call `path("admin")`, so that URL is `/admin/orders/list`.
+The page calls `form`, `table`, and `infolist` when it renders, so those methods can read the current tenant and `schema.record()`. The list page mounts the table and a create action. The create and edit pages mount the form. The view page mounts the infolist. Edit and view also render each relation manager. You open `/{prefix}/orders/list`. The prefix is the panel id when `path` is not set. The hello samples call `path("admin")`, so that URL is `/admin/orders/list`.
 
 `query()` chooses the store from the model type. A Cadence model returns a `ModelBuilder`. A document model fails and names `kona-firefly-document`, which is not part of this release. Any other type fails and tells you to use `Table.memory` for custom rows.
 
@@ -62,7 +97,7 @@ The list page mounts the table and a create action. The create and edit pages mo
 
 <FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table and the Create, Edit, View, and Delete actions." />
 
-`simple()` keeps one `ManagePage`. Create, edit, view, and delete are header actions, and each one opens the existing dialog. Create and edit put the form schema in that dialog. View puts the infolist in it. Delete asks for confirmation in it. A simple resource rejects `relation(...)`.
+`simple()` keeps one `ManagePage`. You still override `form`, `infolist`, and `table`. You do not override `getPages()`. Create, edit, view, and delete are header actions, and each one opens the existing dialog. Create and edit put the form schema in that dialog. View puts the infolist in it. Delete asks for confirmation in it. A simple resource rejects `relation(...)`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -73,10 +108,16 @@ class NoteResource : Resource("notes") {
         label("Notes")
         simple()
         model(Note::class.java)
-        form(Schema.make().components(TextInput.make("name")))
-        infolist(Infolist.make().components(TextEntry.make("name")))
-        table(Table.memory().columns(TextColumn.make("name")))
     }
+
+    override fun form(schema: Schema): Schema =
+        schema.components(TextInput.make("name"))
+
+    override fun infolist(schema: Schema): Schema =
+        schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        table.columns(TextColumn.make("name"))
 }
 ```
 
@@ -90,9 +131,21 @@ public class NoteResource extends Resource {
         label("Notes");
         simple();
         model(Note.class);
-        form(Schema.make().components(TextInput.make("name")));
-        infolist(Infolist.make().components(TextEntry.make("name")));
-        table(Table.memory().columns(TextColumn.make("name")));
+    }
+
+    @Override
+    public Schema form(Schema schema) {
+        return schema.components(TextInput.make("name"));
+    }
+
+    @Override
+    public Schema infolist(Schema schema) {
+        return schema.components(TextEntry.make("name"));
+    }
+
+    @Override
+    public Table<?, ?> table(Table<?, ?> table) {
+        return Table.memory().columns(TextColumn.make("name"));
     }
 }
 ```
@@ -104,7 +157,9 @@ The route is `/{prefix}/notes/manage` when the slug is `notes` and the page slug
 
 ## Generate one
 
-`./grind make:firefly-resource Order` writes `app/panels/admin/resources/Order.kt` (or `.java`) with list, create, edit, and view pages plus one relation manager. `./grind make:firefly-resource Note --simple` writes one Manage page and does not write a relation manager. Pass `--panel=billing` to write into another panel directory. The generated class calls `model(app.models.Order::class.java)`. Create that Cadence model, then let the panel discover the resource directory.
+`./grind make:firefly-resource Order` writes `app/panels/admin/resources/Order.kt` (or `.java`) with overrides for the form, infolist, table, and `getPages()`, plus one relation manager. `./grind make:firefly-resource Note --simple` writes the same schema overrides, calls `simple()`, and does not override `getPages()` or write a relation manager. Pass `--panel=billing` to write into another panel directory. The generated class calls `model(app.models.Order::class.java)`. Create that Cadence model, then let the panel discover the resource directory.
+
+The hello samples mount a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
 
 ## What you build with
 

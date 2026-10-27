@@ -63,7 +63,7 @@
     "name" : "Resource",
     "package" : "org.konaframework.firefly",
     "kind" : "resource",
-    "methods" : [ "boundModel", "form", "infolist", "isSimple", "label", "model", "page", "pages", "query", "relation", "relationManagers", "simple", "slug", "table", "tenant" ]
+    "methods" : [ "boundModel", "form", "getPages", "infolist", "isSimple", "label", "model", "pages", "query", "relation", "relationManagers", "simple", "slug", "table", "tenant" ]
   }, {
     "name" : "RevenueChart",
     "package" : "org.konaframework.firefly.widgets",

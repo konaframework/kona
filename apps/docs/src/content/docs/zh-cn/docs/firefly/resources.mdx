@@ -14,18 +14,31 @@ import FireflyShot from '../../../../../components/FireflyShot.astro';
 
 ## 面板可以提供的资源
 
-把类放在面板的 `resources/` 文件夹。完整资源会得到列表、创建、编辑和查看页面。自己调用 `page(...)`，或者让页面列表为空，由 `pages()` 构建这四页。
+把类放在面板的 `resources/` 文件夹。覆盖 `form`、`infolist`、`table` 和 `getPages`。不覆盖 `getPages()` 时，完整资源提供列表、创建、编辑和查看页面。
 
 ```kotlin
 class OrderResource : Resource("orders") {
     init {
         label("Orders")
         model(Order::class.java)
-        form(Schema.make().components(TextInput.make("name")))
-        infolist(Infolist.make().components(TextEntry.make("name")))
-        table(Table.memory().columns(TextColumn.make("name")))
         relation(RelationManager("lines").related(Line::class.java).titleAttribute("sku"))
     }
+
+    override fun form(schema: Schema): Schema =
+        schema.components(TextInput.make("name"))
+
+    override fun infolist(schema: Schema): Schema =
+        schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        table.columns(TextColumn.make("name"))
+
+    override fun getPages(): Map<String, Page> = mapOf(
+        "list" to ListPage("list"),
+        "create" to CreatePage("create"),
+        "edit" to EditPage("edit"),
+        "view" to ViewPage("view"),
+    )
 }
 ```
 
@@ -35,21 +48,43 @@ public class OrderResource extends Resource {
         super("orders");
         label("Orders");
         model(Order.class);
-        form(Schema.make().components(TextInput.make("name")));
-        infolist(Infolist.make().components(TextEntry.make("name")));
-        table(Table.memory().columns(TextColumn.make("name")));
         relation(new RelationManager("lines").related(Line.class).titleAttribute("sku"));
+    }
+
+    @Override
+    public Schema form(Schema schema) {
+        return schema.components(TextInput.make("name"));
+    }
+
+    @Override
+    public Schema infolist(Schema schema) {
+        return schema.components(TextEntry.make("name"));
+    }
+
+    @Override
+    public Table<?, ?> table(Table<?, ?> table) {
+        return Table.memory().columns(TextColumn.make("name"));
+    }
+
+    @Override
+    public Map<String, Page> getPages() {
+        Map<String, Page> pages = new LinkedHashMap<>();
+        pages.put("list", new ListPage("list"));
+        pages.put("create", new CreatePage("create"));
+        pages.put("edit", new EditPage("edit"));
+        pages.put("view", new ViewPage("view"));
+        return pages;
     }
 }
 ```
 
-列表页挂载表格和一个创建动作。创建页和编辑页挂载表单。查看页挂载信息列表。编辑和查看还会渲染每个关联管理器。面板路由是 `/{prefix}/{resource}/{page}`，例如 `/admin/orders/list`。
+页面在渲染时调用 `form`、`table` 和 `infolist`，因此这些方法能读到当前租户和 `schema.record()`。列表页挂载表格和一个创建动作。创建页和编辑页挂载表单。查看页挂载信息列表。编辑和查看还会渲染每个关联管理器。面板路由是 `/{prefix}/{resource}/{page}`，例如 `/admin/orders/list`。
 
 `query()` 根据模型类型选择存储。Cadence 模型返回 `ModelBuilder`。文档模型会失败并指出 `kona-firefly-document`，它不属于这一发行版。任何其他类型都会失败，并告诉你对自定义行使用 `Table.memory`。
 
 ## 简单资源
 
-`simple()` 只保留一个 `ManagePage`。创建、编辑、查看和删除是页眉动作，每一个都打开已有的对话框。创建和编辑把表单模式放进该对话框。查看把信息列表放进去。删除在其中请求确认。简单资源拒绝 `relation(...)`。
+`simple()` 只保留一个 `ManagePage`。仍然覆盖 `form`、`infolist` 和 `table`，不要覆盖 `getPages()`。创建、编辑、查看和删除是页眉动作，每一个都打开已有的对话框。创建和编辑把表单模式放进该对话框。查看把信息列表放进去。删除在其中请求确认。简单资源拒绝 `relation(...)`。
 
 <FireflyShot file="notes-manage.png" description="笔记 Manage 页，位于 http://127.0.0.1:4017/admin/notes/manage，带笔记表格以及创建、编辑、查看和删除动作。" />
 ```kotlin
@@ -57,10 +92,16 @@ class NoteResource : Resource("notes") {
     init {
         simple()
         model(Note::class.java)
-        form(Schema.make().components(TextInput.make("name")))
-        infolist(Infolist.make().components(TextEntry.make("name")))
-        table(Table.memory().columns(TextColumn.make("name")))
     }
+
+    override fun form(schema: Schema): Schema =
+        schema.components(TextInput.make("name"))
+
+    override fun infolist(schema: Schema): Schema =
+        schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        table.columns(TextColumn.make("name"))
 }
 ```
 
@@ -68,7 +109,7 @@ class NoteResource : Resource("notes") {
 
 ## 生成一个
 
-`./grind make:firefly-resource Order` 会写入 `app/firefly/resources/Order.kt`（或 `.java`），带有列表、创建、编辑和查看页面，外加一个关联管理器。`./grind make:firefly-resource Note --simple` 只写一个 Manage 页面，不写关联管理器。生成的类会调用 `model(app.models.Order::class.java)`。先创建那个 Cadence 模型，再让面板发现资源目录。
+`./grind make:firefly-resource Order` 会写入 `app/firefly/resources/Order.kt`（或 `.java`），覆盖表单、信息列表、表格和 `getPages()`，外加一个关联管理器。`./grind make:firefly-resource Note --simple` 写入同样的模式覆盖并调用 `simple()`，不覆盖 `getPages()`，也不写关联管理器。生成的类会调用 `model(app.models.Order::class.java)`。先创建那个 Cadence 模型，再让面板发现资源目录。
 
 hello 示例在 `/admin` 挂载一个工作台面板，包含自定义页面、一个部件、一个简单的笔记资源，以及一个完整的订单资源。
 

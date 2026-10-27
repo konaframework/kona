@@ -5,7 +5,6 @@ import org.konaframework.firefly.Resource;
 import org.konaframework.firefly.forms.DateTimePicker;
 import org.konaframework.firefly.forms.Select;
 import org.konaframework.firefly.forms.TextInput;
-import org.konaframework.firefly.infolists.Infolist;
 import org.konaframework.firefly.infolists.TextEntry;
 import org.konaframework.firefly.schemas.Schema;
 import org.konaframework.firefly.tables.Table;
@@ -20,13 +19,25 @@ public class NoteResource extends Resource {
         label("Notes");
         simple();
         model(Note.class);
-        form(Schema.make().components(
+    }
+
+    @Override
+    public Schema form(Schema schema) {
+        return schema.components(
             TextInput.make("name"),
             Select.make("status").options(Map.of("open", "Open", "done", "Done")),
             DateTimePicker.make("due")
-        ));
-        infolist(Infolist.make().components(TextEntry.make("name")));
-        table(Table.memory(row()).columns(TextColumn.make("name")));
+        );
+    }
+
+    @Override
+    public Schema infolist(Schema schema) {
+        return schema.components(TextEntry.make("name"));
+    }
+
+    @Override
+    public Table<?, ?> table(Table<?, ?> table) {
+        return Table.memory(row()).columns(TextColumn.make("name"));
     }
 
     private static Map<String, Object> row() {

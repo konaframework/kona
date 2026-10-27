@@ -13,7 +13,7 @@ hello 示例是一个带两个资源的工作台。笔记是**简单**资源：�
 
 ## 简单资源
 
-`simple()` 只保留一个 `ManagePage`。示例 slug 是 `notes`，因此路由是 `/admin/notes/manage`。表单、信息列表和表格是页面和对话框使用的那些。示例里的表格是一行内存数据（`Ada`），因此屏幕在迁移之前就能渲染。当你用模型而不是 `Table.memory` 构建表格时，`model(Note::class.java)` 是 `query()` 使用的 Cadence 类型。
+`simple()` 只保留一个 `ManagePage`。示例 slug 是 `notes`，因此路由是 `/admin/notes/manage`。覆盖 `form`、`infolist` 和 `table`。页面在渲染时调用它们。示例里的表格是一行内存数据（`Ada`），因此屏幕在迁移之前就能渲染。当你用模型而不是 `Table.memory` 构建表格时，`model(Note::class.java)` 是 `query()` 使用的 Cadence 类型。
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -24,16 +24,19 @@ class NoteResource : Resource("notes") {
         label("Notes")
         simple()
         model(Note::class.java)
-        form(
-            Schema.make().components(
-                TextInput.make("name"),
-                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
-                DateTimePicker.make("due"),
-            ),
-        )
-        infolist(Infolist.make().components(TextEntry.make("name")))
-        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
     }
+
+    override fun form(schema: Schema): Schema = schema.components(
+        TextInput.make("name"),
+        Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+        DateTimePicker.make("due"),
+    )
+
+    override fun infolist(schema: Schema): Schema =
+        schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
 }
 ```
 
@@ -47,13 +50,25 @@ public class NoteResource extends Resource {
         label("Notes");
         simple();
         model(Note.class);
-        form(Schema.make().components(
+    }
+
+    @Override
+    public Schema form(Schema schema) {
+        return schema.components(
             TextInput.make("name"),
             Select.make("status").options(Map.of("open", "Open", "done", "Done")),
             DateTimePicker.make("due")
-        ));
-        infolist(Infolist.make().components(TextEntry.make("name")));
-        table(Table.memory(row()).columns(TextColumn.make("name")));
+        );
+    }
+
+    @Override
+    public Schema infolist(Schema schema) {
+        return schema.components(TextEntry.make("name"));
+    }
+
+    @Override
+    public Table<?, ?> table(Table<?, ?> table) {
+        return Table.memory(row()).columns(TextColumn.make("name"));
     }
 }
 ```
@@ -72,11 +87,11 @@ Java 示例把 `row()` 建成 `LinkedHashMap`，`id` 为 `1`，`name` 为 `Ada`�
 ./grind make:firefly-resource Note --simple --lang=java
 ```
 
-生成器会写入 `page(ManagePage("manage"))` 以及 `simple()`、一个名为 `name` 的文本字段，和 `model(app.models.Note.class)`。在项目编译之前创建那个 Cadence 模型。生成器的表格是没有种子行的 `Table.memory()`。
+生成器会写入 `simple()`，以及表单、信息列表和表格的覆盖、一个名为 `name` 的文本字段，和 `model(app.models.Note.class)`。它不覆盖 `getPages()`。在项目编译之前创建那个 Cadence 模型。生成器的表格在空的 `Table.memory()` 上调用 `columns`，没有种子行。
 
 ## 完整资源
 
-不调用 `simple()` 时，资源会得到列表、创建、编辑和查看页面。列表页挂载表格和一个创建动作。创建和编辑挂载表单。查看挂载信息列表。编辑和查看还会渲染每个关联管理器。
+不调用 `simple()` 时，覆盖 `getPages()`，提供列表、创建、编辑和查看页面。列表页挂载表格和一个创建动作。创建和编辑挂载表单。查看挂载信息列表。编辑和查看还会渲染每个关联管理器。
 
 <FireflyShot file="orders-list.png" description="订单列表，位于 http://127.0.0.1:4017/admin/orders/list，带订单表格和创建动作。" />
 
@@ -93,9 +108,6 @@ class OrderResource : Resource("orders") {
     init {
         label("Orders")
         model(Order::class.java)
-        form(Schema.make().components(TextInput.make("name")))
-        infolist(Infolist.make().components(TextEntry.make("name")))
-        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
         relation(
             RelationManager("lines")
                 .related(Line::class.java)
@@ -103,6 +115,22 @@ class OrderResource : Resource("orders") {
                 .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
         )
     }
+
+    override fun form(schema: Schema): Schema =
+        schema.components(TextInput.make("name"))
+
+    override fun infolist(schema: Schema): Schema =
+        schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+
+    override fun getPages(): Map<String, Page> = mapOf(
+        "list" to ListPage("list"),
+        "create" to CreatePage("create"),
+        "edit" to EditPage("edit"),
+        "view" to ViewPage("view"),
+    )
 }
 ```
 
@@ -115,13 +143,35 @@ public class OrderResource extends Resource {
         super("orders");
         label("Orders");
         model(Order.class);
-        form(Schema.make().components(TextInput.make("name")));
-        infolist(Infolist.make().components(TextEntry.make("name")));
-        table(Table.memory(orderRow()).columns(TextColumn.make("name")));
         relation(new RelationManager("lines")
             .related(Line.class)
             .titleAttribute("sku")
             .table(Table.memory(lineRow()).columns(TextColumn.make("sku"))));
+    }
+
+    @Override
+    public Schema form(Schema schema) {
+        return schema.components(TextInput.make("name"));
+    }
+
+    @Override
+    public Schema infolist(Schema schema) {
+        return schema.components(TextEntry.make("name"));
+    }
+
+    @Override
+    public Table<?, ?> table(Table<?, ?> table) {
+        return Table.memory(orderRow()).columns(TextColumn.make("name"));
+    }
+
+    @Override
+    public Map<String, Page> getPages() {
+        Map<String, Page> pages = new LinkedHashMap<>();
+        pages.put("list", new ListPage("list"));
+        pages.put("create", new CreatePage("create"));
+        pages.put("edit", new EditPage("edit"));
+        pages.put("view", new ViewPage("view"));
+        return pages;
     }
 }
 ```
@@ -134,7 +184,7 @@ public class OrderResource extends Resource {
 ./grind make:firefly-resource Order --lang=java
 ```
 
-生成器写入列表、创建、编辑和查看页面，以及一个名为 `related` 的关联管理器。hello 示例的管理器名为 `lines`，并指向 `Line`。
+生成器覆盖 `getPages()`，写入列表、创建、编辑和查看页面，以及一个名为 `related` 的关联管理器。hello 示例的管理器名为 `lines`，并指向 `Line`。
 
 ## 工作台页面和部件
 

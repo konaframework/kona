@@ -14,7 +14,7 @@ From the Kona repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :
 
 ## Add the simple notes resource
 
-Put the class in `app/firefly/resources/NoteResource`. `simple()` keeps a single `ManagePage`. The slug is `notes`, so the route is `/admin/notes/manage`. The form, infolist, and table are what the page and the dialogs use. The table is one in-memory row (`Ada`), so the screen renders before a migration. `model(Note::class.java)` is the Cadence type `query()` uses when you build the table from the model instead of `Table.memory`.
+Put the class in `app/firefly/resources/NoteResource`. `simple()` keeps a single `ManagePage`. The slug is `notes`, so the route is `/admin/notes/manage`. Override `form`, `infolist`, and `table`. The page calls them when it renders. The table is one in-memory row (`Ada`), so the screen renders before a migration. `model(Note::class.java)` is the Cadence type `query()` uses when you build the table from the model instead of `Table.memory`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -25,16 +25,19 @@ class NoteResource : Resource("notes") {
         label("Notes")
         simple()
         model(Note::class.java)
-        form(
-            Schema.make().components(
-                TextInput.make("name"),
-                Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
-                DateTimePicker.make("due"),
-            ),
-        )
-        infolist(Infolist.make().components(TextEntry.make("name")))
-        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
     }
+
+    override fun form(schema: Schema): Schema = schema.components(
+        TextInput.make("name"),
+        Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
+        DateTimePicker.make("due"),
+    )
+
+    override fun infolist(schema: Schema): Schema =
+        schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
 }
 ```
 
@@ -48,13 +51,25 @@ public class NoteResource extends Resource {
         label("Notes");
         simple();
         model(Note.class);
-        form(Schema.make().components(
+    }
+
+    @Override
+    public Schema form(Schema schema) {
+        return schema.components(
             TextInput.make("name"),
             Select.make("status").options(Map.of("open", "Open", "done", "Done")),
             DateTimePicker.make("due")
-        ));
-        infolist(Infolist.make().components(TextEntry.make("name")));
-        table(Table.memory(row()).columns(TextColumn.make("name")));
+        );
+    }
+
+    @Override
+    public Schema infolist(Schema schema) {
+        return schema.components(TextEntry.make("name"));
+    }
+
+    @Override
+    public Table<?, ?> table(Table<?, ?> table) {
+        return Table.memory(row()).columns(TextColumn.make("name"));
     }
 }
 ```
@@ -73,11 +88,11 @@ Generate the same shape from a standalone app:
 ./grind make:firefly-resource Note --simple --lang=java
 ```
 
-The generator writes `page(ManagePage("manage"))` as well as `simple()`, a text field named `name`, and `model(app.models.Note.class)`. Create that Cadence model before the project compiles. The generator’s table is `Table.memory()` with no seed row.
+The generator writes `simple()`, overrides for the form, infolist, and table, a text field named `name`, and `model(app.models.Note.class)`. It does not override `getPages()`. Create that Cadence model before the project compiles. The generator’s table calls `columns` on an empty `Table.memory()` and has no seed row.
 
 ## Add the full orders resource
 
-Leave `simple()` off. The resource gets list, create, edit, and view pages. The list page mounts the table and a create action. Create and edit mount the form. View mounts the infolist. Edit and view also render each relation manager.
+Leave `simple()` off. Override `getPages()` with list, create, edit, and view. The list page mounts the table and a create action. Create and edit mount the form. View mounts the infolist. Edit and view also render each relation manager.
 
 Put the class in `app/firefly/resources/OrderResource`.
 
@@ -89,9 +104,6 @@ class OrderResource : Resource("orders") {
     init {
         label("Orders")
         model(Order::class.java)
-        form(Schema.make().components(TextInput.make("name")))
-        infolist(Infolist.make().components(TextEntry.make("name")))
-        table(Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")))
         relation(
             RelationManager("lines")
                 .related(Line::class.java)
@@ -99,6 +111,22 @@ class OrderResource : Resource("orders") {
                 .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
         )
     }
+
+    override fun form(schema: Schema): Schema =
+        schema.components(TextInput.make("name"))
+
+    override fun infolist(schema: Schema): Schema =
+        schema.components(TextEntry.make("name"))
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+
+    override fun getPages(): Map<String, Page> = mapOf(
+        "list" to ListPage("list"),
+        "create" to CreatePage("create"),
+        "edit" to EditPage("edit"),
+        "view" to ViewPage("view"),
+    )
 }
 ```
 
@@ -111,13 +139,35 @@ public class OrderResource extends Resource {
         super("orders");
         label("Orders");
         model(Order.class);
-        form(Schema.make().components(TextInput.make("name")));
-        infolist(Infolist.make().components(TextEntry.make("name")));
-        table(Table.memory(orderRow()).columns(TextColumn.make("name")));
         relation(new RelationManager("lines")
             .related(Line.class)
             .titleAttribute("sku")
             .table(Table.memory(lineRow()).columns(TextColumn.make("sku"))));
+    }
+
+    @Override
+    public Schema form(Schema schema) {
+        return schema.components(TextInput.make("name"));
+    }
+
+    @Override
+    public Schema infolist(Schema schema) {
+        return schema.components(TextEntry.make("name"));
+    }
+
+    @Override
+    public Table<?, ?> table(Table<?, ?> table) {
+        return Table.memory(orderRow()).columns(TextColumn.make("name"));
+    }
+
+    @Override
+    public Map<String, Page> getPages() {
+        Map<String, Page> pages = new LinkedHashMap<>();
+        pages.put("list", new ListPage("list"));
+        pages.put("create", new CreatePage("create"));
+        pages.put("edit", new EditPage("edit"));
+        pages.put("view", new ViewPage("view"));
+        return pages;
     }
 }
 ```
@@ -138,7 +188,7 @@ public class OrderResource extends Resource {
 ./grind make:firefly-resource Order --lang=java
 ```
 
-The generator writes list, create, edit, and view pages and one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
+The generator overrides `getPages()` with list, create, edit, and view, and writes one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
 
 ## Open the Desk page
 
