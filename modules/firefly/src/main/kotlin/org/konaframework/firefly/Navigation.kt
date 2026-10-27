@@ -71,8 +71,10 @@ class NavigationItem(val name: String) {
 
     internal fun isActive(path: String, get: Get): Boolean {
         val prefix = matchPrefixValue
+        // matchPrefix: highlight across a subtree (resource list → create/edit/view).
         if (prefix != null) return activeItem(path, prefix)
-        return activeItem(path, urlText(get))
+        // Otherwise exact URL only — panel home `/admin` must not stay active on `/admin/users`.
+        return path == urlText(get)
     }
 
     fun child(item: NavigationItem): NavigationItem = apply {

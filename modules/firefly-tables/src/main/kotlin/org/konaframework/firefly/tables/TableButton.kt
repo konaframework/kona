@@ -26,6 +26,10 @@ open class TableButton(val name: String) {
     private var mode = ButtonMode.MODAL
     private var requiresSelection = false
     private val schemaParts = ArrayList<Component>()
+    private var postUrl: String? = null
+    private var formExtras: Function<Cell, String> = Function { "" }
+    private var confirmHeading: String? = null
+    private var confirmDescription: String = ""
 
     fun label(value: String): TableButton = apply { labelValue.set(value) }
 
@@ -60,6 +64,32 @@ open class TableButton(val name: String) {
         schemaParts.addAll(components)
     }
 
+    /**
+     * Row delete (and similar): open a confirm dialog that POSTs [actionUrl] with CSRF extras
+     * and the row key. Works without Alpine via chrome `data-ff-dialog-*`.
+     */
+    @JvmOverloads
+    fun confirmPost(
+        actionUrl: String,
+        csrfFieldHtml: String,
+        heading: String = "Delete",
+        description: String = "Delete this record permanently?",
+    ): TableButton = apply {
+        if (actionUrl.isBlank()) throw org.konaframework.firefly.support.FireflyException("Confirm post action is blank")
+        postUrl = actionUrl
+        confirmHeading = heading
+        confirmDescription = description
+        formExtras = Function { cell ->
+            val key = cell.get("key")?.toString().orEmpty()
+            buildString {
+                append(csrfFieldHtml)
+                if (key.isNotEmpty()) {
+                    append("""<input type="hidden" name="id" value="${escapeHtml(key)}" />""")
+                }
+            }
+        }
+    }
+
     fun isHidden(cell: Cell): Boolean = hiddenFlag.get(cell) || !visibleFlag.get(cell)
 
     fun render(cell: Cell, selectionEmpty: Boolean): String {
@@ -71,23 +101,44 @@ open class TableButton(val name: String) {
         if (href.isNotEmpty()) {
             return """<a class="ff-table-button" href="${escapeHtml(href)}"$disabledAttr>${escapeHtml(label)}</a>"""
         }
-        val dialog = Dialog.make(label)
+        val dialog = Dialog.make(confirmHeading ?: label)
         when (mode) {
             ButtonMode.MODAL -> dialog.modal()
             ButtonMode.SLIDE_OVER -> dialog.slideOver()
             ButtonMode.FULLSCREEN -> dialog.fullscreen()
         }
-        if (schemaParts.isNotEmpty()) {
+        val post = postUrl
+        if (post != null) {
+            val extras = formExtras.apply(cell)
+            val descriptionHtml =
+                if (confirmDescription.isEmpty()) {
+                    ""
+                } else {
+                    """<p class="ff-action-description">${escapeHtml(confirmDescription)}</p>"""
+                }
+            dialog.body(
+                """
+                $descriptionHtml
+                <form method="post" action="${escapeHtml(post)}" class="ff-delete-form">
+                  $extras
+                  <div class="ff-action-footer">
+                    <button type="submit" class="ff-action-submit">${escapeHtml(label)}</button>
+                    <button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button>
+                  </div>
+                </form>
+                """.trimIndent(),
+            )
+        } else if (schemaParts.isNotEmpty()) {
             dialog.body(Schema.make().components(*schemaParts.toTypedArray()).render())
         }
         // Keep the dialog in the DOM for Wire/modal mounts, but never leave it interactive.
         // Raw Dialog is position:fixed;inset:0 — without a closed wrapper it blocks the list page.
         // style="display:none" + hidden + x-cloak work even when Alpine is not on DefaultLayout.
-        // Mount owns `open` (no nested x-data on the trigger) so @click can reveal the dialog.
+        // data-ff-dialog-*: chrome script opens/closes without Alpine.
         return """
-            <div class="ff-table-button-mount" x-data="{ open: false }">
-              <button type="button" class="ff-table-button" data-ff-action="${escapeHtml(name)}" @click="open = true" x-on:click="${'$'}wire.${'$'}call('${escapeHtml(name)}')"$disabledAttr>${escapeHtml(label)}</button>
-              <div class="ff-table-button-dialog" x-show="open" x-cloak style="display:none" hidden aria-hidden="true" data-ff-action-boot="ffAction('${escapeHtml(name)}')">${dialog.render(open = true)}</div>
+            <div class="ff-table-button-mount" data-ff-dialog-mount x-data="{ open: false }">
+              <button type="button" class="ff-table-button" data-ff-action="${escapeHtml(name)}" data-ff-dialog-open @click="open = true" x-on:click="${'$'}wire.${'$'}call('${escapeHtml(name)}')"$disabledAttr>${escapeHtml(label)}</button>
+              <div class="ff-table-button-dialog" data-ff-dialog-panel x-show="open" x-cloak style="display:none" hidden aria-hidden="true" data-ff-action-boot="ffAction('${escapeHtml(name)}')">${dialog.render(open = true)}</div>
             </div>
         """.trimIndent()
     }

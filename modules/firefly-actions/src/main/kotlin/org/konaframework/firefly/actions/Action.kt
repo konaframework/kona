@@ -59,6 +59,9 @@ open class Action protected constructor(name: String) : Component(name) {
     private var arguments: Map<String, Any?> = emptyMap()
     /** When set, the trigger is a native submit button associated with that form id (Shamar save). */
     private var submitFormId: String? = null
+    /** When set, the dialog confirm control POSTs to this URL (delete / destructive confirms). */
+    private val postUrlSetting = TextSetting()
+    private var formExtrasHtml: String = ""
 
     init {
         requireActionName(name)
@@ -145,6 +148,20 @@ open class Action protected constructor(name: String) : Component(name) {
         if (formId.isBlank()) throw FireflyException("Submit form id is blank")
         submitFormId = formId
         urlSetting.clear()
+    }
+
+    /**
+     * Confirm button becomes a native POST form (CSRF + hidden fields in [extrasHtml]).
+     * Used for delete when Wire/Alpine are not mounted on the panel chrome.
+     */
+    @JvmOverloads
+    fun postForm(actionUrl: String, extrasHtml: String = ""): Action = apply {
+        if (actionUrl.isBlank()) throw FireflyException("Post form action is blank")
+        postUrlSetting.setLiteral(actionUrl)
+        formExtrasHtml = extrasHtml
+        submitFormId = null
+        requiresConfirmation(true)
+        modal(true)
     }
 
     fun placement(placement: ActionPlacement): Action = apply { placementToken = placement }
@@ -347,7 +364,9 @@ open class Action protected constructor(name: String) : Component(name) {
         // when TableButton dumped raw Dialog HTML.
         val dialogHtml = decorate(buildDialog(schema, get).render(open = true))
         val escape = if (closeEscape) """ @keydown.escape.window="open = false"""" else ""
-        return """<div class="ff-action-mount ${placementClass()}" x-data="{ open: false }"$escape>$trigger<div class="ff-action-dialog" x-show="open" x-cloak style="display:none" hidden>$dialogHtml</div></div>"""
+        // data-ff-dialog-*: chrome script opens/closes without Alpine (DefaultLayout has no Alpine).
+        // Alpine attrs remain for Wire-hosted mounts.
+        return """<div class="ff-action-mount ${placementClass()}" data-ff-dialog-mount x-data="{ open: false }"$escape>$trigger<div class="ff-action-dialog" data-ff-dialog-panel x-show="open" x-cloak style="display:none" hidden>$dialogHtml</div></div>"""
     }
 
     private fun renderNamedView(schema: Schema, named: String): String {
@@ -408,7 +427,7 @@ open class Action protected constructor(name: String) : Component(name) {
         }
         val schemaHtml = modalComponents.joinToString("") { it.render(schema) }
         val close = if (showClose) {
-            """<button type="button" class="ff-action-close" aria-label="Close" @click="open = false">${Icon.X.svg()}</button>"""
+            """<button type="button" class="ff-action-close" aria-label="Close" data-ff-dialog-close @click="open = false">${Icon.X.svg()}</button>"""
         } else {
             ""
         }
@@ -437,6 +456,10 @@ open class Action protected constructor(name: String) : Component(name) {
         val text = if (custom != null) custom else if (confirm.resolve(get)) "Confirm" else "Submit"
         val focus = if (autofocus) " autofocus" else ""
         val label = escapeHtml(text)
+        val post = postUrlSetting.resolve(get)
+        if (post != null) {
+            return """<form method="post" action="${escapeHtml(post)}" class="ff-action-post" style="display:inline">$formExtrasHtml<button type="submit" class="ff-action-submit"$focus>$label</button></form>"""
+        }
         val link = urlSetting.resolve(get)
         if (link != null) {
             val target = if (openInNewTab.resolve(get)) """ target="_blank" rel="noopener noreferrer"""" else ""
@@ -448,7 +471,7 @@ open class Action protected constructor(name: String) : Component(name) {
     private fun defaultCancel(get: Get): String {
         val custom = modalCancelSetting.resolve(get)
         val text = if (custom != null) custom else "Cancel"
-        return """<button type="button" class="ff-action-cancel" @click="open = false">${escapeHtml(text)}</button>"""
+        return """<button type="button" class="ff-action-cancel" data-ff-dialog-close @click="open = false">${escapeHtml(text)}</button>"""
     }
 
     private fun triggerHtml(schema: Schema, get: Get, opens: Boolean): String {
@@ -466,7 +489,7 @@ open class Action protected constructor(name: String) : Component(name) {
         val aria = """ aria-label="${escapeHtml(text)}""""
         if (opens) {
             val disabledAttr = if (disabled) " disabled" else ""
-            return """<button type="button" class="$classes" data-ff-action="$name"$aria$attrs$disabledAttr @click="open = true">$inner$badge</button>"""
+            return """<button type="button" class="$classes" data-ff-action="$name" data-ff-dialog-open$aria$attrs$disabledAttr @click="open = true">$inner$badge</button>"""
         }
         val formId = submitFormId
         if (formId != null) {
@@ -528,7 +551,7 @@ open class Action protected constructor(name: String) : Component(name) {
     private fun decorate(html: String): String {
         val marker = "<div class=\"ff-dialog-overlay\"></div>"
         val overlay = if (closeAway) {
-            "<div class=\"ff-dialog-overlay\" @click=\"open = false\"></div>"
+            "<div class=\"ff-dialog-overlay\" data-ff-dialog-close @click=\"open = false\"></div>"
         } else {
             marker
         }

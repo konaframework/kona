@@ -359,6 +359,12 @@ open class Panel {
                     )
                 }
             }
+            val deleteSlug = resourcePagePath(resource.slug(), "delete")
+            planned.add(
+                Planned("POST", uri(deleteSlug), routeName("resources.$deleteSlug")) { request ->
+                    deleteResource(request, resource)
+                },
+            )
         }
     }
 
@@ -408,6 +414,42 @@ open class Panel {
     }
 
     /**
+     * Delete a record by `id` / `record` and redirect to the resource list.
+     */
+    private fun deleteResource(request: Request, resource: Resource): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        val tenant = tenantId(request)
+        return FireflyTenant.use(tenant) {
+            val key = request.input("id") ?: request.input("record")
+            if (key.isNullOrBlank()) {
+                return@use Response.html("Record id is required", 422)
+            }
+            @Suppress("UNCHECKED_CAST")
+            val store = org.konaframework.firefly.tables.RecordStores.open(resource.boundModel())
+                as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+            val found = store.find(key) ?: return@use Response.html("Record not found", 404)
+            store.delete(found)
+            Response.redirect(uri(resourceListSlug(resource)))
+        }
+    }
+
+    private fun resourceListSlug(resource: Resource): String {
+        val index = resource.pages().firstOrNull { it is ListPage }
+            ?: resource.pages().firstOrNull { it is ManagePage }
+        return if (index == null) {
+            resource.slug()
+        } else {
+            resourcePagePath(resource.slug(), index.slug())
+        }
+    }
+
+    /**
      * Persist a create/edit form POST. Fields map onto the resource model via [RecordStores].
      * Redirects to the resource list on success (Shamar after-create).
      */
@@ -442,14 +484,7 @@ open class Panel {
             }
             store.fill(record, attrs)
             store.save(record)
-            val index = resource.pages().firstOrNull { it is ListPage }
-                ?: resource.pages().firstOrNull { it is ManagePage }
-            val listSlug = if (index == null) {
-                resource.slug()
-            } else {
-                resourcePagePath(resource.slug(), index.slug())
-            }
-            Response.redirect(uri(listSlug))
+            Response.redirect(uri(resourceListSlug(resource)))
         }
     }
 

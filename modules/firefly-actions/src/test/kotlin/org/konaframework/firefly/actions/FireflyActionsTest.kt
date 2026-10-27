@@ -214,9 +214,12 @@ class FireflyActionsTest {
         assertTrue(html.contains("ff-dialog-lg"))
         assertTrue(html.contains("data-ff-drag"))
         assertTrue(html.contains("@click=\"open = true\""))
+        assertTrue(html.contains("data-ff-dialog-open"))
+        assertTrue(html.contains("data-ff-dialog-mount"))
+        assertTrue(html.contains("data-ff-dialog-panel"))
         assertTrue(html.contains("@keydown.escape.window=\"open = false\""))
-        assertTrue(html.contains("ff-dialog-overlay\" @click=\"open = false\""))
-        assertTrue(html.contains("ff-action-dialog\" x-show=\"open\" x-cloak style=\"display:none\" hidden"))
+        assertTrue(html.contains("ff-dialog-overlay\" data-ff-dialog-close @click=\"open = false\""))
+        assertTrue(html.contains("ff-action-dialog\" data-ff-dialog-panel x-show=\"open\" x-cloak style=\"display:none\" hidden"))
         assertTrue(html.contains("""aria-modal="true""""))
         assertTrue(html.contains("ff-action-close"))
         assertTrue(html.contains(">Confirm<"))
@@ -230,9 +233,17 @@ class FireflyActionsTest {
         assertTrue(mountedClosed.contains("ff-dialog-modal"))
         assertTrue(mountedClosed.contains(" hidden"))
         assertTrue(mountedClosed.contains("""aria-hidden="true""""))
-        assertFalse(mountedClosed.contains("ff-dialog-overlay\" @click=\"open = false\""))
+        assertFalse(mountedClosed.contains("ff-dialog-overlay\" data-ff-dialog-close @click=\"open = false\""))
         assertTrue(mounted.render(open = true).contains("""aria-modal="true""""))
         assertThrows(FireflyException::class.java) { Action.make("save").mountDialog(Schema.make()) }
+
+        val delete = Action.make("delete").label("Delete").postForm("delete", """<input type="hidden" name="id" value="1" />""")
+        val deleteHtml = page(delete)
+        assertTrue(deleteHtml.contains("""action="delete""""))
+        assertTrue(deleteHtml.contains("""name="id" value="1""""))
+        assertTrue(deleteHtml.contains("ff-action-post"))
+        assertTrue(deleteHtml.contains(">Delete<"))
+        assertThrows(FireflyException::class.java) { Action.make("x").postForm("") }
     }
 
     @Test

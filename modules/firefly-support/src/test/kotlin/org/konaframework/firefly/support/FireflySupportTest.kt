@@ -168,8 +168,10 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-row-actions"))
         assertTrue(css.contains(".ff-panel .ff-dialog[hidden]"))
         assertTrue(css.contains(".ff-panel .ff-table-button-dialog[hidden]"))
+        assertTrue(css.contains(".ff-panel .ff-action-dialog.ff-open"))
         assertTrue(css.contains(".ff-panel .ff-dialog-overlay"))
         assertTrue(css.contains("pointer-events: none !important"))
+        assertTrue(css.contains("pointer-events: auto !important"))
         assertTrue(css.contains("[data-ff-color=\"danger\"]"))
         // Sidebar + main foot share one shell band (not a white --ff-card strip),
         // locked to the same fixed min-height so empty vs "Signed in as …" match.
@@ -253,6 +255,10 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-sidebar-toggle"))
         assertTrue(html.contains("data-ff-menu-trigger"))
         assertTrue(html.contains(DefaultLayout.THEME_INIT_SCRIPT))
+        // Dialog open/close without Alpine (Action / TableButton mounts).
+        assertTrue(html.contains("data-ff-dialog-open"))
+        assertTrue(html.contains("data-ff-dialog-panel"))
+        assertTrue(html.contains("ff-open"))
         assertEquals("", RenderHooks().render(Hook.BODY_START))
 
         val auth = Panel()

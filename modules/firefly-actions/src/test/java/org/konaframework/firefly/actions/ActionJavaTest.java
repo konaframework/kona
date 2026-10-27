@@ -33,9 +33,12 @@ public class ActionJavaTest {
         String html = schema.render();
         assertTrue(html.contains("org"));
         assertTrue(html.contains("ff-dialog-sidebar"));
-        assertTrue(html.contains("ff-action-dialog\" x-show=\"open\" x-cloak style=\"display:none\" hidden"));
+        assertTrue(html.contains("ff-action-dialog\" data-ff-dialog-panel x-show=\"open\" x-cloak style=\"display:none\" hidden"));
+        assertTrue(html.contains("data-ff-dialog-open"));
         assertTrue(html.contains("Hello"));
         assertTrue(html.contains("title=\"Save\""));
+        Action delete = Action.make("delete").label("Delete").postForm("delete", "<input type=\"hidden\" name=\"id\" value=\"1\" />");
+        assertTrue(Schema.make().components(delete).render().contains("ff-action-post"));
         final boolean[] ran = {false};
         save.modal(false);
         save.action((current, host) -> ran[0] = true);

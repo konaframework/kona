@@ -50,6 +50,24 @@ class FireflyWidgetsTest {
     }
 
     @Test
+    fun formWrapsHiddenRecordIdForEditPosts() {
+        val page = Page().form(Schema.make().components(Text.make("Hello")))
+        val edit = page.render(
+            mapOf(
+                "csrfField" to """<input type="hidden" name="_token" value="tok" />""",
+                "formAction" to "/admin/orders/edit",
+                "record" to "42",
+            ),
+        )
+        assertTrue(edit.contains("""id="ff-form""""))
+        assertTrue(edit.contains("""name="id" value="42""""))
+        assertTrue(edit.contains("""action="/admin/orders/edit""""))
+        assertTrue(edit.contains("Hello"))
+        val blank = page.render(mapOf("record" to "  "))
+        assertFalse(blank.contains("""name="id""""))
+    }
+
+    @Test
     fun chartsRenderOnAPageForBothEngines() {
         val revenue = RevenueChart()
         val orders = OrdersChart()
