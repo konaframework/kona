@@ -171,6 +171,14 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-dialog-overlay"))
         assertTrue(css.contains("pointer-events: none !important"))
         assertTrue(css.contains("[data-ff-color=\"danger\"]"))
+        // Shell tracks theme surface so white --ff-card list tables elevate (Shamar).
+        assertTrue(css.contains("--ff-shell: var(--ff-surface"))
+        assertTrue(css.contains("--ff-card: #ffffff"))
+        assertTrue(
+            Regex("""\.ff-panel\s+\.ff-table-wrap\s*\{[^}]*background:\s*var\(--ff-card\)""")
+                .containsMatchIn(css),
+        )
+        assertTrue(css.contains(".ff-panel .ff-table-wrap .ff-table"))
         // Sidebar + main foot share one shell band (not a white --ff-card strip),
         // locked to the same fixed min-height so empty vs "Signed in as …" match.
         assertTrue(css.contains(".ff-panel .ff-sidebar-foot"))

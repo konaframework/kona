@@ -16,9 +16,12 @@ body.ff-body-root {
 .ff-auth {
   --ff-body-text: #475569;
   --ff-body-subtle: #64748b;
+  /* Elevated card (Shamar neutral-primary): white against the theme surface. */
   --ff-card: #ffffff;
   --ff-card-border: #e2e8f0;
-  --ff-shell: color-mix(in srgb, var(--ff-primary) 8%, #ffffff);
+  /* Panel chrome tracks theme --ff-surface (latte), not a near-white mix — otherwise
+   * .ff-table-wrap’s white card has no contrast with the shell. */
+  --ff-shell: var(--ff-surface, color-mix(in srgb, var(--ff-primary) 8%, #ffffff));
   --ff-hover: color-mix(in srgb, var(--ff-primary) 18%, #ffffff);
   --ff-active: color-mix(in srgb, var(--ff-primary) 28%, #ffffff);
   --ff-inset: color-mix(in srgb, var(--ff-primary) 10%, #f8fafc);
@@ -55,7 +58,7 @@ body.ff-body-root {
   --ff-body-subtle: #9ca3af;
   --ff-card: #1f2937;
   --ff-card-border: color-mix(in srgb, #4b5563 55%, transparent);
-  --ff-shell: #111827;
+  --ff-shell: var(--ff-surface, #111827);
   --ff-hover: color-mix(in srgb, var(--ff-primary) 22%, #1f2937);
   --ff-active: color-mix(in srgb, var(--ff-primary) 32%, #1f2937);
   --ff-inset: color-mix(in srgb, #1f2937 55%, #111827);
@@ -941,13 +944,17 @@ body.ff-body-root {
   background: var(--ff-primary);
 }
 
-/* ——— Tables (Shamar list card) ——— */
+/* ——— Tables (Shamar list card: white --ff-card on --ff-shell surface) ——— */
 .ff-panel .ff-table-wrap {
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: calc(var(--ff-radius) + 0.25rem);
   overflow: hidden;
   box-shadow: var(--ff-shadow);
+}
+
+.ff-panel .ff-table-wrap .ff-table {
+  background: var(--ff-card);
 }
 
 .ff-panel .ff-table-toolbar {

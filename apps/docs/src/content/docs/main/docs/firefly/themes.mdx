@@ -120,6 +120,8 @@ Custom properties:
 | `--ff-topbar-height` | `topbarHeight` |
 | `--ff-body` | `bodyBackground` / `darkSurface` in the dark block |
 
+The shipped stylesheet also defines `--ff-shell` (panel chrome / list page background) as `var(--ff-surface)` and `--ff-card` (elevated white list table and form cards). `.ff-table-wrap` uses `--ff-card` so the table reads as a card against the latte surface.
+
 `DefaultLayout` emits `<div class="ff-panel">` without `ff-dark`. Dark tokens apply when the panel root also has the class `ff-dark`. A custom `PanelLayout` can add that class. See [Panel chrome](/docs/firefly/chrome/).
 
 ## Keep extra CSS inside the panel
