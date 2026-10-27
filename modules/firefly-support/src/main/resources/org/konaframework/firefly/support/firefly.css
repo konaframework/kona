@@ -16,9 +16,12 @@ body.ff-body-root {
 .ff-auth {
   --ff-body-text: #475569;
   --ff-body-subtle: #64748b;
+  /* Elevated card (Shamar neutral-primary): white against the theme surface. */
   --ff-card: #ffffff;
   --ff-card-border: #e2e8f0;
-  --ff-shell: color-mix(in srgb, var(--ff-primary) 8%, #ffffff);
+  /* Panel chrome tracks theme --ff-surface (latte), not a near-white mix — otherwise
+   * .ff-table-wrap’s white card has no contrast with the shell. */
+  --ff-shell: var(--ff-surface, color-mix(in srgb, var(--ff-primary) 8%, #ffffff));
   --ff-hover: color-mix(in srgb, var(--ff-primary) 18%, #ffffff);
   --ff-active: color-mix(in srgb, var(--ff-primary) 28%, #ffffff);
   --ff-inset: color-mix(in srgb, var(--ff-primary) 10%, #f8fafc);
@@ -55,7 +58,7 @@ body.ff-body-root {
   --ff-body-subtle: #9ca3af;
   --ff-card: #1f2937;
   --ff-card-border: color-mix(in srgb, #4b5563 55%, transparent);
-  --ff-shell: #111827;
+  --ff-shell: var(--ff-surface, #111827);
   --ff-hover: color-mix(in srgb, var(--ff-primary) 22%, #1f2937);
   --ff-active: color-mix(in srgb, var(--ff-primary) 32%, #1f2937);
   --ff-inset: color-mix(in srgb, #1f2937 55%, #111827);
@@ -576,10 +579,16 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-page,
-.ff-panel .ff-profile,
-.ff-panel .ff-relation {
+.ff-panel .ff-profile {
   max-width: 80rem;
   margin: 0 auto;
+}
+
+/* Relation managers fill the parent form/infolist width (Filament / Shamar). */
+.ff-panel .ff-relation {
+  max-width: none;
+  width: 100%;
+  margin: 1rem 0 0;
 }
 
 .ff-panel .ff-page {
@@ -601,6 +610,41 @@ body.ff-body-root {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.ff-panel .ff-breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-breadcrumbs a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ff-panel .ff-breadcrumbs a:hover {
+  color: var(--ff-primary);
+  text-decoration: underline;
+}
+
+.ff-panel .ff-breadcrumb-sep {
+  display: inline-flex;
+  width: 0.65rem;
+  height: 0.65rem;
+  opacity: 0.45;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='black'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M8.25 4.5l7.5 7.5-7.5 7.5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.ff-panel .ff-breadcrumb-current {
+  color: var(--ff-body);
 }
 
 .ff-panel .ff-page-heading {
@@ -679,20 +723,22 @@ body.ff-body-root {
 .ff-panel .ff-list .ff-page-content > .ff-table,
 .ff-panel .ff-manage .ff-page-content > .ff-table-wrap,
 .ff-panel .ff-manage .ff-page-content > .ff-table,
+/* Create/edit/view: shell shows through; Section / .ff-infolist cards provide elevation (no double card). */
 .ff-panel .ff-create .ff-page-content > .ff-schema,
 .ff-panel .ff-edit .ff-page-content > .ff-schema,
+.ff-panel .ff-view .ff-page-content > .ff-schema,
 .ff-panel .ff-view .ff-page-content > .ff-infolist {
-  background: var(--ff-card);
-  border: 1px solid var(--ff-card-border);
-  border-radius: calc(var(--ff-radius) + 0.15rem);
-  box-shadow: var(--ff-shadow);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  max-width: 48rem;
 }
 
-.ff-panel .ff-create .ff-page-content > .ff-schema,
-.ff-panel .ff-edit .ff-page-content > .ff-schema,
 .ff-panel .ff-view .ff-page-content > .ff-infolist {
-  padding: 1.25rem;
-  max-width: 48rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 }
 
 .ff-panel .ff-row-actions {
@@ -872,14 +918,14 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-schema,
-.ff-panel .ff-section,
 .ff-panel .ff-fieldset {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
 }
 
-.ff-panel .ff-section,
+/* Card chrome lives on the outer `.ff-component.ff-section` only — avoids nested white frames. */
+.ff-panel .ff-component.ff-section,
 .ff-panel .ff-card,
 .ff-panel .ff-fieldset {
   background: var(--ff-card);
@@ -889,10 +935,55 @@ body.ff-body-root {
   box-shadow: var(--ff-shadow);
 }
 
+.ff-panel .ff-component.ff-section[data-ff-contained="false"],
+.ff-panel .ff-component.ff-section:has(> .ff-section-inner[data-ff-contained="false"]) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.ff-panel .ff-section-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ff-panel .ff-section-summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-section-summary::-webkit-details-marker {
+  display: none;
+}
+
 .ff-panel .ff-section-body {
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+}
+
+/* Multi-column grids (schema root, section body, generic components). */
+.ff-panel .ff-schema[data-ff-columns],
+.ff-panel .ff-component[data-ff-columns]:not(.ff-section) {
+  display: grid;
+  grid-template-columns: repeat(var(--ff-cols, 1), minmax(0, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.ff-panel .ff-section[data-ff-columns] .ff-section-body {
+  display: grid;
+  grid-template-columns: repeat(var(--ff-cols, 1), minmax(0, 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.ff-panel .ff-component[data-ff-span="full"] {
+  grid-column: 1 / -1;
 }
 
 .ff-panel .ff-combobox,
@@ -941,13 +1032,65 @@ body.ff-body-root {
   background: var(--ff-primary);
 }
 
-/* ——— Tables (Shamar list card) ——— */
+/* ——— Tables (Shamar list card: white --ff-card on --ff-shell surface) ——— */
 .ff-panel .ff-table-wrap {
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: calc(var(--ff-radius) + 0.25rem);
   overflow: hidden;
   box-shadow: var(--ff-shadow);
+}
+
+.ff-panel .ff-table-wrap .ff-table {
+  background: var(--ff-card);
+}
+
+.ff-panel .ff-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.ff-panel .ff-pagination-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-card);
+  color: var(--ff-body);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ff-panel .ff-pagination-link.is-active,
+.ff-panel .ff-pagination-link[aria-current="page"] {
+  border-color: var(--ff-primary);
+  background: var(--ff-inset);
+  color: var(--ff-primary);
+  font-weight: 600;
+}
+
+.ff-panel .ff-pagination-link.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ff-panel .ff-pagination-ellipsis {
+  padding: 0 0.35rem;
+  color: var(--ff-body-subtle);
+  user-select: none;
 }
 
 .ff-panel .ff-table-toolbar {
@@ -1235,6 +1378,42 @@ body.ff-body-root {
   box-shadow: var(--ff-shadow);
 }
 
+.ff-panel .ff-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.35rem 0;
+}
+
+.ff-panel .ff-entry .ff-label {
+  display: block;
+  margin: 0;
+  color: var(--ff-body-subtle);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.ff-panel .ff-entry .ff-text,
+.ff-panel .ff-entry .ff-entry-value {
+  color: var(--ff-heading);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.ff-panel .ff-entry[data-ff-inline-label="true"] {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+}
+
+.ff-panel .ff-entry[data-ff-inline-label="true"] .ff-label {
+  min-width: 7rem;
+}
+
 .ff-panel .ff-desk-widget {
   color: var(--ff-body-subtle);
   font-size: 0.9rem;
@@ -1462,12 +1641,12 @@ body.ff-body-root {
 
 /* ——— Relation managers ——— */
 .ff-panel .ff-relation {
-  margin-top: 1rem;
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: calc(var(--ff-radius) + 0.25rem);
   padding: 1rem;
   box-shadow: var(--ff-shadow);
+  box-sizing: border-box;
 }
 
 /* ——— Manage header actions stack nicely ——— */

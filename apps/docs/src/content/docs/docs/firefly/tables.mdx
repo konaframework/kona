@@ -55,7 +55,7 @@ String html = table.render();
 
 `Table.memory` keeps the rows in an in-memory query. `columns(...)` replaces the column list. `search`, `sort`, `page`, and `perPage` narrow what `load()` and `render()` return. Search matches columns you marked `searchable(true)`. Sort accepts `asc` or `desc` on a column you marked `sortable(true)`. You see the Ada row when the search is `ada`.
 
-`load()` returns the current page, the total, the summaries, and the groups. `render()` returns the same page as HTML. An empty page shows “No records found.” inside the table body (override with `empty(...)` / `emptyDescription(...)`). Both accept a fixed string or a closure. Sort headers and pagination links use query-string `search`, `sort`, `direction`, `page`, and `perPage` so a panel list can round-trip without Wire.
+`load()` returns the current page, the total, the summaries, and the groups. `render()` returns the same page as HTML. An empty page shows “No records found.” inside the table body (override with `empty(...)` / `emptyDescription(...)`). Both accept a fixed string or a closure. Sort headers, search, filters, page links, and per-page size call Wire (`$wire.$call('sort' | 'search' | 'applyFilter' | 'gotoPage' | 'perPage', …)`) so the table updates in place without a full page reload. Pagination shows Previous / numbered pages (with ellipsis) / Next plus an optional rows selector.
 
 ## Choose where the rows come from
 

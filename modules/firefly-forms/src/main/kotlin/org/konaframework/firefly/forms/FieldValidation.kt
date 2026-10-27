@@ -22,7 +22,7 @@ object FieldValidation {
             val fieldRules = component.validationRules(schema)
             if (fieldRules.isNotEmpty()) rules[path] = fieldRules
             val label = component.attributeLabel(schema)
-            if (label != null) labels[path] = label
+            labels[path] = if (label == null) path.replace('_', ' ') else label
             for (rule in fieldRules) {
                 val message = component.messageFor(rule.substringBefore(':'))
                 if (message != null) {
@@ -38,11 +38,9 @@ object FieldValidation {
             val validator = Validator(data, rules)
             if (validator.fails()) {
                 for ((field, fieldErrors) in validator.errors()) {
-                    val label = labels[field]
-                    val rewritten = if (label == null) {
-                        fieldErrors
-                    } else {
-                        fieldErrors.map { it.replace("The ${field.replace('_', ' ')} field", "The $label field") }
+                    val label = labels.getValue(field)
+                    val rewritten = fieldErrors.map {
+                        it.replace("The ${field.replace('_', ' ')} field", "The $label field")
                     }
                     errors.getOrPut(field) { ArrayList() }.addAll(rewritten)
                 }

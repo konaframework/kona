@@ -43,3 +43,25 @@ internal fun isTruthy(value: Any?): Boolean {
     if (value is Collection<*>) return value.isNotEmpty()
     return true
 }
+
+/** Turn a field name into a title-case label: `first_name` → `First Name`. */
+internal fun humanizeName(name: String): String {
+    if (name.isBlank()) return name
+    val spaced = name
+        .replace(Regex("([a-z0-9])([A-Z])"), "$1 $2")
+        .replace(Regex("[._\\-]+"), " ")
+        .trim()
+    if (spaced.isEmpty()) return name
+    val out = StringBuilder()
+    for (part in spaced.split(Regex("\\s+"))) {
+        if (out.isNotEmpty()) out.append(' ')
+        val first = part[0]
+        if (first.isLowerCase()) {
+            out.append(first.titlecase())
+        } else {
+            out.append(first)
+        }
+        if (part.length > 1) out.append(part, 1, part.length)
+    }
+    return out.toString()
+}

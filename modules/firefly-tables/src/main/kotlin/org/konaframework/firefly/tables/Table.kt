@@ -204,6 +204,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             "gotoPage" -> page(number(arg(args, 0, name), name))
             "search" -> search(arg(args, 0, name))
             "sort" -> sort(arg(args, 0, name), if (args.size > 1) args[1] else "asc")
+            "perPage" -> perPage(number(arg(args, 0, name), name))
             "applyFilter" -> filter(arg(args, 0, name), blankToNull(arg(args, 1, name)))
             "toggleColumn" -> setValue(arg(args, 0, name), arg(args, 1, name), arg(args, 2, name))
             "setColumn" -> setValue(arg(args, 0, name), arg(args, 1, name), arg(args, 2, name))
@@ -301,7 +302,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             """
             <div class="ff-table-search-wrap">
               <svg class="ff-table-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0015.803 15.803z"/></svg>
-              <input class="ff-table-search" type="search" name="search" value="${escapeHtml(searchTerm)}" placeholder="Search…" aria-label="Search">
+              <input class="ff-table-search" type="search" name="search" value="${escapeHtml(searchTerm)}" placeholder="Search…" aria-label="Search" wire:model.live.debounce.300ms="search" x-on:keydown.enter.prevent="${'$'}wire.${'$'}call('search', ${'$'}event.target.value)">
             </div>
             """.trimIndent()
         }
@@ -319,7 +320,8 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty()) {
             return """<div class="ff-table-toolbar ff-table-toolbar--empty" hidden></div>"""
         }
-        return """<div class="ff-table-toolbar"><form class="ff-table-toolbar-form" method="get">$search$tools</form></div>"""
+        // Wire-driven toolbar — avoid full-page GET reloads for search / filter / sort.
+        return """<div class="ff-table-toolbar"><div class="ff-table-toolbar-form">$search$tools</div></div>"""
     }
 
     private fun body(loaded: LoadedTable<T>, visible: List<Column>): String = when (layout) {
@@ -359,21 +361,9 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             sortDirection == "desc" -> "desc"
             else -> "asc"
         }
-        val href = sortHref(column.name, next)
-        return """<th scope="col" class="ff-table-sortable" data-ff-sort="$state"><a class="ff-table-sort" href="${escapeHtml(href)}" data-ff-sort-column="${escapeHtml(column.name)}" data-ff-sort-direction="$next">$label<span class="ff-table-sort-indicator" aria-hidden="true"></span></a></th>"""
+        // Wire call keeps the table on the page (Shamar / Livewire-style) instead of a full reload.
+        return """<th scope="col" class="ff-table-sortable" data-ff-sort="$state"><button type="button" class="ff-table-sort" data-ff-sort-column="${escapeHtml(column.name)}" data-ff-sort-direction="$next" x-on:click="${'$'}wire.${'$'}call('sort', '${escapeHtml(column.name)}', '$next')">$label<span class="ff-table-sort-indicator" aria-hidden="true"></span></button></th>"""
     }
-
-    private fun sortHref(column: String, direction: String): String {
-        val parts = ArrayList<String>()
-        if (searchTerm.isNotEmpty()) parts.add("search=${encodeQuery(searchTerm)}")
-        parts.add("sort=${encodeQuery(column)}")
-        parts.add("direction=$direction")
-        if (pageNumber > 1) parts.add("page=$pageNumber")
-        return "?" + parts.joinToString("&")
-    }
-
-    private fun encodeQuery(value: String): String =
-        java.net.URLEncoder.encode(value, Charsets.UTF_8)
 
     private fun recordRow(record: T, visible: List<Column>): String {
         val values = store.attributes(record)
@@ -449,15 +439,16 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         if (!paginate) return ""
         val meta = """<p class="ff-pagination-meta">Page ${loaded.page} of ${loaded.lastPage} · ${loaded.total} records</p>"""
         val previous = if (loaded.page > 1) {
-            """<a class="ff-pagination-link" href="${escapeHtml(pageHref(loaded.page - 1))}" data-ff-page="prev">Previous</a>"""
+            """<button type="button" class="ff-pagination-link" data-ff-page="prev" x-on:click="${'$'}wire.${'$'}call('gotoPage', '${loaded.page - 1}')">Previous</button>"""
         } else {
             """<span class="ff-pagination-link is-disabled" aria-disabled="true">Previous</span>"""
         }
         val next = if (loaded.hasMorePages()) {
-            """<a class="ff-pagination-link" href="${escapeHtml(pageHref(loaded.page + 1))}" data-ff-page="next">Next</a>"""
+            """<button type="button" class="ff-pagination-link" data-ff-page="next" x-on:click="${'$'}wire.${'$'}call('gotoPage', '${loaded.page + 1}')">Next</button>"""
         } else {
             """<span class="ff-pagination-link is-disabled" aria-disabled="true">Next</span>"""
         }
+        val links = pageLinks(loaded)
         val sizes = if (pageSizes.isEmpty()) {
             ""
         } else {
@@ -465,23 +456,49 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 val selected = if (size == pageSize) " selected" else ""
                 """<option value="$size"$selected>$size</option>"""
             }
-            """<label class="ff-page-size-label">Rows <select class="ff-page-size" name="perPage" onchange="this.form.submit()">$options</select></label>"""
+            """<label class="ff-page-size-label">Rows <select class="ff-page-size" name="perPage" x-on:change="${'$'}wire.${'$'}call('perPage', ${'$'}event.target.value)">$options</select></label>"""
         }
-        val controls = """<div class="ff-pagination-controls">$previous$next$sizes</div>"""
+        val controls = """<div class="ff-pagination-controls">$previous$links$next$sizes</div>"""
         return """<nav class="ff-pagination" data-ff-pagination aria-label="Pagination">$meta$controls</nav>"""
     }
 
-    private fun pageHref(page: Int): String {
-        val parts = ArrayList<String>()
-        if (searchTerm.isNotEmpty()) parts.add("search=${encodeQuery(searchTerm)}")
-        val sorting = sortColumn
-        if (sorting != null) {
-            parts.add("sort=${encodeQuery(sorting)}")
-            parts.add("direction=$sortDirection")
+    /** Shamar-style numbered page links with ellipsis windows. */
+    private fun pageLinks(loaded: LoadedTable<T>): String {
+        if (loaded.lastPage <= 1) return ""
+        val out = StringBuilder()
+        for (token in paginationWindow(loaded.page, loaded.lastPage)) {
+            if (token == null) {
+                out.append("""<span class="ff-pagination-ellipsis" aria-hidden="true">…</span>""")
+                continue
+            }
+            val current = if (token == loaded.page) """ aria-current="page"""" else ""
+            val active = if (token == loaded.page) " is-active" else ""
+            out.append(
+                """<button type="button" class="ff-pagination-link$active"$current data-ff-page="$token" x-on:click="${'$'}wire.${'$'}call('gotoPage', '$token')">$token</button>""",
+            )
         }
-        parts.add("page=$page")
-        if (pageSize != 10) parts.add("perPage=$pageSize")
-        return "?" + parts.joinToString("&")
+        return out.toString()
+    }
+
+    private fun paginationWindow(current: Int, last: Int): List<Int?> {
+        if (last <= 7) return (1..last).map { it }
+        val pages = LinkedHashSet<Int>()
+        pages.add(1)
+        pages.add(last)
+        pages.add(current.coerceIn(1, last))
+        pages.add((current - 1).coerceIn(1, last))
+        pages.add((current + 1).coerceIn(1, last))
+        pages.add(2.coerceAtMost(last))
+        pages.add((last - 1).coerceAtLeast(1))
+        val sorted = pages.sorted()
+        val out = ArrayList<Int?>()
+        var prev = 0
+        for (p in sorted) {
+            if (prev > 0 && p - prev > 1) out.add(null)
+            out.add(p)
+            prev = p
+        }
+        return out
     }
 
     private fun filterValue(filter: Filter, cell: Cell): Any? =

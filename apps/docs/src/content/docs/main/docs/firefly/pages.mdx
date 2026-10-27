@@ -3,7 +3,7 @@ title: Pages
 description: Add a screen under the panel pages folder. The URL is /{prefix}/{slug}. The prefix is the panel id unless you set path.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Add a screen when the desk needs a page that is not a resource. Give it a title, buttons in the header and the footer, and a content region for the form, the infolist, or the table.
@@ -12,11 +12,11 @@ Call `render()` on that page from a test. The panel turns the same page into a U
 
 <FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
 
-The types live in `org.konaframework.firefly` and `org.konaframework.firefly.widgets`. `PanelPage` extends `Page`. `ListPage`, `CreatePage`, `EditPage`, `ViewPage`, `ManagePage`, and `CustomPage` are the page kinds. `Dashboard` is a `Page` whose section class is `ff-page ff-dashboard`.
+The types live in `org.konaframework.firefly` and `org.konaframework.firefly.widgets`. `PanelPage` extends `Page`. `ListPage`, `CreatePage`, `EditPage`, `ViewPage`, `ManagePage`, and `CustomPage` are the page kinds. `DashboardPage` is a `PanelPage` with an empty slug (`GET /{prefix}`). The widgets module also has a `Dashboard` page type whose section class is `ff-page ff-dashboard`.
 
 ## How the URL is chosen
 
-`Panel.mount` registers `GET /{prefix}/{slug}` for each page discovered from `pages/` or passed to `page(...)`. The prefix is the panel id when `path` is not set. The hello sample’s `Desk` uses slug `desk` and `path("admin")`, so the route is `/admin/desk`. When the request is allowed, the panel renders the chrome and puts `page.render()` in the body.
+`Panel.mount` registers `GET /{prefix}/{slug}` for each page discovered from `pages/` or passed to `page(...)`. An empty slug is the panel home (`GET /admin` when the prefix is `admin`). If no empty-slug page is registered, Firefly adds a welcome `DashboardPage` so the panel root always resolves. The hello sample’s `Desk` uses slug `desk` and `path("admin")`, so that route is `/admin/desk`. When the request is allowed, the panel renders the chrome and puts `page.render()` in the body.
 
 `navigationLabel()` is the sidebar text. The default is the slug, or `Dashboard` when the slug is empty. A page titled `Desk` still shows the link `desk` until you change the label. `parent("name")` nests the page under a navigation item with that name. A missing parent fails at mount and names both items.
 
@@ -82,6 +82,7 @@ The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defa
 | Method | What you get |
 |--------|----------------|
 | `title(value)` / `title(provider)` | Heading text, or a closure that receives `Get` |
+| `breadcrumbs(...)` | Shamar-style crumb trail above the heading (`Breadcrumb.make(label, href?)`) |
 | `headerActions(...)` / `footerActions(...)` | Replaces that action list |
 | `widgets(...)` | Replaces the widgets drawn in `ff-page-widgets` |
 | `discoverWidgets(directory)` | Appends widgets found under `directory/widgets` |
@@ -101,7 +102,7 @@ The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defa
 | `mountForm(schema)` | Same slot as `form` |
 | `mountInfolist(infolist)` | Renders the infolist and stores the HTML |
 
-Section classes: `ff-list`, `ff-create`, `ff-edit`, `ff-view`, `ff-manage`, `ff-custom`. Fallback titles match those names (`List`, `Create`, `Edit`, `View`, `Manage`, `Custom`).
+Section classes: `ff-list`, `ff-create`, `ff-edit`, `ff-view`, `ff-manage`, `ff-custom`. Fallback titles match those names (`List`, `Create`, `Edit`, `View`, `Manage`, `Custom`). Create, edit, and view pages also render a small mode chip (`create` / `edit` / `detail`) beside the title. When a resource wires the page, the title becomes the resource label (for example `New Orders`, `Edit Orders`).
 
 `ManagePage` is the page a simple resource uses. Create, edit, view, and delete for that resource are header actions. Read [Resources](/docs/firefly/resources/).
 

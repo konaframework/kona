@@ -165,12 +165,12 @@ open class Component protected constructor(val name: String) {
 
     fun columnSpan(provider: Function<Get, String>): Component = apply { columnSpanUsing = provider }
 
-    fun columns(count: Int): Component = apply {
+    open fun columns(count: Int): Component = apply {
         columnCount = count
         columnsUsing = null
     }
 
-    fun columns(provider: Function<Get, Int>): Component = apply { columnsUsing = provider }
+    open fun columns(provider: Function<Get, Int>): Component = apply { columnsUsing = provider }
 
     fun maxWidth(width: String): Component = apply {
         maxWidthValue = width
@@ -331,7 +331,9 @@ open class Component protected constructor(val name: String) {
         appendAttr(attrs, "id", componentId)
         appendAttr(attrs, "wire:key", componentKey)
         appendAttr(attrs, "data-ff-span", resolvedSpan(schema))
-        appendAttr(attrs, "data-ff-columns", resolvedColumns(schema))
+        val columns = resolvedColumns(schema)
+        appendAttr(attrs, "data-ff-columns", columns)
+        if (columns != null) attrs.append(""" style="--ff-cols: ${escapeHtml(columns)}"""")
         appendAttr(attrs, "data-ff-max-width", resolvedMaxWidth(schema))
         appendAttr(attrs, "data-ff-hidden-js", hiddenJsExpr)
         appendAttr(attrs, "data-ff-visible-js", visibleJsExpr)
@@ -381,9 +383,15 @@ open class Component protected constructor(val name: String) {
     }
 
     protected fun labelHtml(schema: Schema): String {
-        val text = labelValue.resolve(schema.getFor(this))
-        if (text == null) return ""
+        val text = resolvedLabel(schema) ?: return ""
         return """<span class="ff-label">${escapeHtml(text)}</span>"""
+    }
+
+    /** Explicit label, or a humanized field name when the component has a name. */
+    protected fun resolvedLabel(schema: Schema): String? {
+        if (labelValue.isSet()) return labelValue.resolve(schema.getFor(this))
+        if (name.isBlank()) return null
+        return humanizeName(name)
     }
 
     protected fun headingHtml(schema: Schema): String {

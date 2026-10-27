@@ -8,6 +8,7 @@ import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.tables.RecordStores
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TableButton
+import org.konaframework.firefly.widgets.Breadcrumb
 import org.konaframework.firefly.widgets.Page
 import java.util.function.Function
 
@@ -109,7 +110,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     @JvmOverloads
     fun simple(on: Boolean = true): Resource = apply {
-        if (on && managers.isNotEmpty()) {
+        if (on && (managers.isNotEmpty() || getRelations().isNotEmpty())) {
             throw FireflyException("Simple resource [${slug()}] has no relation managers")
         }
         simpleFlag = on
@@ -127,7 +128,21 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         managers.add(manager)
     }
 
-    fun relationManagers(): List<RelationManager> = managers.toList()
+    /**
+     * Filament-style class-based relation managers. Override on the resource instead of
+     * (or in addition to) calling [relation] from `init`.
+     */
+    open fun getRelations(): List<RelationManager> = emptyList()
+
+    fun relationManagers(): List<RelationManager> {
+        val declared = getRelations()
+        if (declared.isEmpty()) return managers.toList()
+        // simple() already rejects getRelations(); merge fluent relation() with overrides.
+        val merged = LinkedHashMap<String, RelationManager>()
+        for (manager in managers) merged[manager.name()] = manager
+        for (manager in declared) merged[manager.name()] = manager
+        return merged.values.toList()
+    }
 
     /**
      * Pages keyed by route slug. A simple resource returns one Manage page.
@@ -183,6 +198,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun applyManage(page: ManagePage, state: Map<String, Any?>) {
         page.title(label())
+        page.breadcrumbs(resourceCrumbs(state, label()))
         val schema = form(liveSchema(state))
         val info = infolist(liveSchema(state))
         val built = table(listTable())
@@ -200,6 +216,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun applyList(page: ListPage, state: Map<String, Any?>) {
         page.title(label())
+        page.breadcrumbs(resourceCrumbs(state, label()))
         val built = table(listTable())
         applyTableQuery(built, state)
         val csrf = state["csrfField"] as? String ?: ""
@@ -216,6 +233,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun applyCreate(page: CreatePage, state: Map<String, Any?>) {
         page.title("New ${label()}")
+        page.breadcrumbs(resourceCrumbs(state, "New ${label()}", listHref = true))
         page.mountForm(form(liveSchema(state)))
         // Native form submit (Shamar) — Create posts #ff-form; Cancel is a list link.
         page.headerActions(
@@ -226,6 +244,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun applyEdit(page: EditPage, state: Map<String, Any?>) {
         page.title("Edit ${label()}")
+        page.breadcrumbs(resourceCrumbs(state, "Edit ${label()}", listHref = true))
         page.mountForm(form(liveSchema(state)))
         page.infolistHtml(relationMarkup())
         val recordId = state["record"]?.toString().orEmpty()
@@ -287,6 +306,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun applyView(page: ViewPage, state: Map<String, Any?>) {
         page.title(label())
+        page.breadcrumbs(resourceCrumbs(state, label(), listHref = true))
         page.infolistHtml(viewMarkup(state))
         val recordId = state["record"]?.toString().orEmpty()
         val editUrl = if (recordId.isEmpty()) "edit" else "edit?id=${encodeQuery(recordId)}"
@@ -295,6 +315,24 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             Action.make("back").label("Back to list").url("list").outlined(),
             deleteAction(state),
         )
+    }
+
+    private fun resourceCrumbs(
+        state: Map<String, Any?>,
+        current: String,
+        listHref: Boolean = false,
+    ): List<Breadcrumb> {
+        val crumbs = ArrayList<Breadcrumb>()
+        val home = state["panelHome"] as? String
+        if (!home.isNullOrBlank()) crumbs.add(Breadcrumb.make("Dashboard", home))
+        val list = state["resourceList"] as? String
+        if (listHref && !list.isNullOrBlank()) {
+            crumbs.add(Breadcrumb.make(label(), list))
+            crumbs.add(Breadcrumb.make(current))
+        } else {
+            crumbs.add(Breadcrumb.make(current))
+        }
+        return crumbs
     }
 
     private fun operation(name: String, heading: String, components: List<Component>): Action {
@@ -352,9 +390,10 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun viewMarkup(state: Map<String, Any?>): String = infolist(liveSchema(state)).render() + relationMarkup()
 
     private fun relationMarkup(): String {
-        if (managers.isEmpty()) return ""
+        val all = relationManagers()
+        if (all.isEmpty()) return ""
         val out = StringBuilder()
-        for (manager in managers) out.append(manager.render())
+        for (manager in all) out.append(manager.render())
         return out.toString()
     }
 

@@ -15,6 +15,7 @@ class Schema {
     private var loaded: Boolean = false
     private var headingLevel: Int = 2
     private var crema: CremaEngine? = null
+    private var columnCount: Int? = null
     val partialKeys = ArrayList<String>()
 
     fun components(vararg components: Component): Schema = apply {
@@ -26,6 +27,14 @@ class Schema {
     }
 
     fun components(): List<Component> = roots.toList()
+
+    /** Root grid columns for top-level components (Shamar / Filament schema columns). */
+    fun columns(count: Int): Schema = apply {
+        if (count < 1) throw FireflyException("Schema columns must be at least 1")
+        columnCount = count
+    }
+
+    fun columns(): Int? = columnCount
 
     fun statePath(path: String): Schema = apply { statePath = path }
 
@@ -109,7 +118,9 @@ class Schema {
             return """<div class="ff-schema" data-ff-defer="true" data-ff-key="${escapeHtml(key!!)}">Loading</div>"""
         }
         val body = roots.joinToString("") { it.render(this) }
-        return """<div class="ff-schema">$body</div>"""
+        val cols = columnCount
+        val colAttr = if (cols == null) "" else """ data-ff-columns="$cols" style="--ff-cols: $cols""""
+        return """<div class="ff-schema"$colAttr>$body</div>"""
     }
 
     fun renderPartial(componentKey: String): String {

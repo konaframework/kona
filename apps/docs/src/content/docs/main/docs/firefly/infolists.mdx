@@ -3,7 +3,7 @@ title: Infolists
 description: Show a record with entries instead of fields. On the Desk page that is the name entry. On orders, the view page mounts the order infolist.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Show a record when the screen should display a value, not collect one. Put the infolist on a view page, or anywhere you want a label and a value.
@@ -77,7 +77,7 @@ name.placeholder(get -> "Empty");
 
 The last call wins. `state("Ada")` after a closure stores the literal and drops the closure.
 
-`label`, `heading`, and `description` are overridden on `Entry` and return the entry. Schema methods such as `hidden`, `visible`, and `live` still return the schema `Component`. Call those as statements, then continue with entry methods:
+`label`, `heading`, and `description` are overridden on `Entry` and return the entry. When you omit `label`, Firefly humanizes the entry name (`first_name` → “First Name”) so labels stay visible in the Shamar-style entry chrome. Schema methods such as `hidden`, `visible`, and `live` still return the schema `Component`. Call those as statements, then continue with entry methods:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

@@ -348,9 +348,27 @@ open class Panel {
             })
         }
         for (resource in resources) {
-            for (page in resource.pages()) {
+            val resourcePages = resource.pages()
+            val index = resourceIndexPage(resourcePages) ?: resourcePages.firstOrNull()
+            val listSlug = if (index == null) {
+                resource.slug()
+            } else {
+                resourcePagePath(resource.slug(), index.slug())
+            }
+            for (page in resourcePages) {
                 val slug = resourcePagePath(resource.slug(), page.slug())
-                planned.add(Planned("GET", uri(slug), routeName("resources.$slug")) { request -> showPage(request, page) })
+                planned.add(
+                    Planned("GET", uri(slug), routeName("resources.$slug")) { request ->
+                        showPage(
+                            request,
+                            page,
+                            mapOf(
+                                "panelHome" to uri(""),
+                                "resourceList" to uri(listSlug),
+                            ),
+                        )
+                    },
+                )
                 if (page is CreatePage || page is EditPage) {
                     planned.add(
                         Planned("POST", uri(slug), routeName("resources.$slug.store")) { request ->
@@ -381,7 +399,11 @@ open class Panel {
     private fun resourcePagePath(resourceSlug: String, pageSlug: String): String =
         if (pageSlug.isEmpty()) resourceSlug else "$resourceSlug/$pageSlug"
 
-    private fun showPage(request: Request, page: PanelPage): Response {
+    private fun showPage(
+        request: Request,
+        page: PanelPage,
+        extras: Map<String, Any?> = emptyMap(),
+    ): Response {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
@@ -389,15 +411,16 @@ open class Panel {
         }
         val tenant = tenantId(request)
         return FireflyTenant.use(tenant) {
-            Response.html(draw(request, emptyMap(), page.render(pageState(request))))
+            Response.html(draw(request, emptyMap(), page.render(pageState(request, extras))))
         }
     }
 
     /** CSRF field, form action, and list query params for page/table render (Shamar). */
-    private fun pageState(request: Request): Map<String, Any?> {
+    private fun pageState(request: Request, extras: Map<String, Any?>): Map<String, Any?> {
         val state = LinkedHashMap<String, Any?>()
         state["csrfField"] = FireflyCsrf.field(FireflyCsrf.ensure(request))
         state["formAction"] = request.path
+        state["panelHome"] = uri("")
         val search = request.input("search")
         if (!search.isNullOrBlank()) state["search"] = search
         val sort = request.input("sort")
@@ -410,6 +433,7 @@ open class Panel {
         if (!perPage.isNullOrBlank()) state["perPage"] = perPage
         val record = request.input("id") ?: request.input("record")
         if (!record.isNullOrBlank()) state["record"] = record
+        state.putAll(extras)
         return state
     }
 
