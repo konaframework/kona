@@ -112,15 +112,19 @@ class DefaultLayout(
                 "var on=!!(input&&input.value==='1');" +
                 "btn.setAttribute('aria-pressed',on?'true':'false');" +
                 "btn.setAttribute('aria-checked',on?'true':'false');});}" +
-                "function closeDialog(panel){if(!panel)return;resetDialogForms(panel);" +
+                // Drag sets position:fixed + margin:0 + left/top. Clear all of them on
+                // close/open so the next open restores stylesheet centering (#316).
+                "function resetDialogDrag(panel){if(!panel)return;" +
+                "panel.querySelectorAll('.ff-dialog-window').forEach(function(dlg){" +
+                "dlg.style.position='';dlg.style.margin='';dlg.style.left='';dlg.style.top='';dlg.style.transform='';});}" +
+                "function closeDialog(panel){if(!panel)return;resetDialogForms(panel);resetDialogDrag(panel);" +
                 "panel.classList.remove('ff-open');" +
                 "panel.setAttribute('hidden','');panel.style.display='none';panel.setAttribute('aria-hidden','true');}" +
                 "function closeDialogs(){root.querySelectorAll('[data-ff-dialog-panel].ff-open').forEach(closeDialog);}" +
                 "function openDialog(panel){if(!panel)return;closeDialogs();" +
                 "panel.classList.add('ff-open');" +
                 "panel.removeAttribute('hidden');panel.style.display='block';panel.removeAttribute('aria-hidden');" +
-                "var dlg=panel.querySelector('.ff-dialog[data-ff-drag=\"true\"] .ff-dialog-window');" +
-                "if(dlg){dlg.style.transform='';dlg.style.left='';dlg.style.top='';}}" +
+                "resetDialogDrag(panel);}" +
                 "function closePickers(except){root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(function(p){" +
                 "if(except&&p===except)return;p.classList.remove('ff-picker-open');" +
                 "var panel=p.querySelector('[data-ff-picker-panel]');if(panel){panel.setAttribute('hidden','');}});}" +
