@@ -250,6 +250,12 @@ class FireflySupportTest {
         assertTrue(css.contains("position: relative"))
         assertTrue(css.contains(".ff-panel .ff-dialog-header"))
         assertTrue(css.contains(".ff-panel .ff-dialog-body"))
+        // Create/action dialog chrome: compact close icon + primary Submit (type=button).
+        assertTrue(css.contains(".ff-panel .ff-action-close"))
+        assertTrue(css.contains(".ff-panel .ff-action-submit"))
+        assertTrue(css.contains(".ff-panel .ff-action-footer"))
+        assertTrue(css.contains(".ff-panel .ff-icon"))
+        assertTrue(Icon.X.svg().contains("""class="ff-icon""""))
         assertTrue(css.contains("[data-ff-color=\"danger\"]"))
         // Sidebar + main foot share one shell band (not a white --ff-card strip),
         // locked to the same fixed min-height so empty vs "Signed in as …" match.
