@@ -104,10 +104,20 @@ class DefaultLayout(
                 "document.documentElement.classList.toggle('ff-dark',d);" +
                 "root.querySelectorAll('[data-ff-theme-toggle]').forEach(function(b){b.setAttribute('data-ff-theme',p);});}" +
                 "function closeMenus(){root.querySelectorAll('[data-ff-menu].ff-open').forEach(function(m){m.classList.remove('ff-open');});}" +
-                "function closeDialog(panel){if(!panel)return;panel.classList.remove('ff-open');" +
+                "function resetDialogForms(panel){if(!panel)return;" +
+                "panel.querySelectorAll('form').forEach(function(f){try{f.reset();}catch(e){}});" +
+                "panel.querySelectorAll('[data-ff-toggle]').forEach(function(btn){" +
+                "var wrap=btn.closest('.ff-toggle-wrap')||btn.parentElement;" +
+                "var input=wrap&&wrap.querySelector('[data-ff-toggle-value]');" +
+                "var on=!!(input&&input.value==='1');" +
+                "btn.setAttribute('aria-pressed',on?'true':'false');" +
+                "btn.setAttribute('aria-checked',on?'true':'false');});}" +
+                "function closeDialog(panel){if(!panel)return;resetDialogForms(panel);" +
+                "panel.classList.remove('ff-open');" +
                 "panel.setAttribute('hidden','');panel.style.display='none';panel.setAttribute('aria-hidden','true');}" +
                 "function closeDialogs(){root.querySelectorAll('[data-ff-dialog-panel].ff-open').forEach(closeDialog);}" +
-                "function openDialog(panel){if(!panel)return;closeDialogs();panel.classList.add('ff-open');" +
+                "function openDialog(panel){if(!panel)return;closeDialogs();resetDialogForms(panel);" +
+                "panel.classList.add('ff-open');" +
                 "panel.removeAttribute('hidden');panel.style.display='block';panel.removeAttribute('aria-hidden');}" +
                 "apply(pref());" +
                 "media.addEventListener('change',function(){if(pref()==='system')apply('system');});" +
@@ -115,6 +125,13 @@ class DefaultLayout(
                 "var t=ev.target;if(!t||!t.closest)return;" +
                 "if(t.closest('[data-ff-theme-toggle]')){var o=['light','dark','system'];" +
                 "var n=o[(o.indexOf(pref())+1)%o.length];try{localStorage.setItem('ff-theme',n);}catch(e){}apply(n);return;}" +
+                "var toggle=t.closest('[data-ff-toggle]');" +
+                "if(toggle){var on=toggle.getAttribute('aria-pressed')!=='true';" +
+                "toggle.setAttribute('aria-pressed',on?'true':'false');" +
+                "toggle.setAttribute('aria-checked',on?'true':'false');" +
+                "var wrap=toggle.closest('.ff-toggle-wrap')||toggle.parentElement;" +
+                "var input=wrap&&wrap.querySelector('[data-ff-toggle-value]');" +
+                "if(input)input.value=on?'1':'0';return;}" +
                 "var openBtn=t.closest('[data-ff-dialog-open]');" +
                 "if(openBtn){var mount=openBtn.closest('[data-ff-dialog-mount]');" +
                 "if(mount){openDialog(mount.querySelector('[data-ff-dialog-panel]'));}return;}" +

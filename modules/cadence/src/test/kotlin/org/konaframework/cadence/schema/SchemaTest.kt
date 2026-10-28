@@ -97,6 +97,8 @@ class SchemaTest {
             string("role").default("it's member")
             string("nickname").nullable().default(null)
             timestamp("joined_at").useCurrent()
+            date("born_on").nullable()
+            dateTime("happened_at").nullable()
             timestamps()
             softDeletes()
         }

@@ -143,6 +143,8 @@ Two methods have different names in Java because their Kotlin names are Java key
 | `bigInteger(name)` | `BIGINT` | |
 | `boolean(name)` (Java: `bool`) | `BOOLEAN` | |
 | `timestamp(name)` | `TIMESTAMP` | |
+| `date(name)` | `DATE` | calendar date without time |
+| `dateTime(name)` | `DATETIME` (MySQL) / `TIMESTAMP` or `DATETIME2` elsewhere | date and time |
 | `foreignId(name)` | `BIGINT` | a key pointing at another table; chain `constrained()` |
 | `timestamps()` | `created_at`, `updated_at` | both nullable |
 | `softDeletes()` | `deleted_at` | nullable, used by [soft deletes](../models/#soft-deletes) |

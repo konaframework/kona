@@ -248,13 +248,15 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         // Row dialogs carry the record; the manage list itself stays table-only (no standing form).
         built.rowButtons(
             manageViewButton(),
-            manageEditButton(),
+            manageEditButton(csrf),
             TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
         )
         page.table(built)
         // Create alone lives in the header; Edit/View/Delete open from each row.
         page.headerActions(
-            operation("create", "Create", createForm.components()),
+            operation("create", "Create", createForm.components())
+                .postForm("create", csrf)
+                .modalSubmitActionLabel("Create"),
         )
     }
 
@@ -266,12 +268,12 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button></div>"""
         }
 
-    /** Row Edit: dialog with the filled form for that record. */
-    private fun manageEditButton(): TableButton =
+    /** Row Edit: dialog with the filled form for that record (native POST). */
+    private fun manageEditButton(csrf: String): TableButton =
         TableButton.make("edit").label("Edit").modal().body { cell ->
             val key = cell.get("key").toString()
             val markup = form(liveSchema(mapOf("record" to key))).render()
-            """$markup<div class="ff-action-footer"><button type="button" class="ff-action-submit" x-data="ffAction('edit')" wire:click="edit">Save</button><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button></div>"""
+            """<form method="post" action="edit" class="ff-action-form">$csrf<input type="hidden" name="id" value="${escapeHtml(key)}" /><div class="ff-action-schema">$markup</div><div class="ff-action-footer"><button type="submit" class="ff-action-submit">Save</button><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button></div></form>"""
         }
 
     private fun applyList(page: ListPage, state: Map<String, Any?>) {

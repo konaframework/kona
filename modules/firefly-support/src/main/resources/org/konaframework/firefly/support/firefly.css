@@ -1142,18 +1142,54 @@ body.ff-body-root {
   cursor: pointer;
 }
 
+.ff-panel .ff-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.ff-panel .ff-toggle-wrap[data-ff-inline="true"] {
+  margin-inline-start: 0.35rem;
+}
+
 .ff-panel .ff-toggle {
   width: 2.6rem;
   height: 1.45rem;
+  padding: 0;
   border: 0;
   border-radius: 999px;
   background: var(--ff-card-border);
   position: relative;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 120ms ease;
 }
 
-.ff-panel .ff-toggle[aria-pressed="true"] {
-  background: var(--ff-primary);
+.ff-panel .ff-toggle::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 22%);
+  transition: transform 120ms ease;
+}
+
+.ff-panel .ff-toggle:not([aria-pressed="true"]):not([aria-checked="true"]) {
+  background: var(--ff-off-color, var(--ff-card-border));
+}
+
+.ff-panel .ff-toggle[aria-pressed="true"],
+.ff-panel .ff-toggle[aria-checked="true"] {
+  background: var(--ff-on-color, var(--ff-primary));
+}
+
+.ff-panel .ff-toggle[aria-pressed="true"]::after,
+.ff-panel .ff-toggle[aria-checked="true"]::after {
+  transform: translateX(1.15rem);
 }
 
 /* ——— Tables (Shamar list card: white --ff-card on --ff-shell surface) ——— */

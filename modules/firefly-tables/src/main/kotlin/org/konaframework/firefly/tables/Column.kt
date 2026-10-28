@@ -298,6 +298,21 @@ open class TextColumn protected constructor(name: String) : Column(name) {
     }
 }
 
+/**
+ * Text column that renders as a badge by default (`TextColumn.badge(true)`).
+ * Prefer this when the column is always a status/chip; chain [color] for tone.
+ */
+open class BadgeColumn protected constructor(name: String) : TextColumn(name) {
+    init {
+        badge(true)
+    }
+
+    companion object {
+        @JvmStatic
+        fun make(name: String): BadgeColumn = finish(BadgeColumn(name))
+    }
+}
+
 open class IconColumn private constructor(name: String) : Column(name) {
     private var trueIcon = "user"
     private var falseIcon = "x"

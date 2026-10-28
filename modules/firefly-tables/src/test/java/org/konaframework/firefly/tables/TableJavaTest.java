@@ -64,6 +64,7 @@ public class TableJavaTest {
         Filter.configureUsing(Filter.class, null);
         IconColumn.make("on");
         ImageColumn.make("photo");
+        BadgeColumn.make("status");
         SelectColumn.make("status");
         SelectFilter.configureUsing((java.util.function.Consumer<SelectFilter>) null);
         Table.memory(Map.of("id", "1"));

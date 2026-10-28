@@ -256,6 +256,8 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-action-footer"))
         assertTrue(css.contains(".ff-panel .ff-icon"))
         assertTrue(Icon.X.svg().contains("""class="ff-icon""""))
+        assertTrue(css.contains(".ff-panel .ff-toggle::after"))
+        assertTrue(css.contains(".ff-panel .ff-toggle-wrap"))
         assertTrue(css.contains("[data-ff-color=\"danger\"]"))
         // Sidebar + main foot share one shell band (not a white --ff-card strip),
         // locked to the same fixed min-height so empty vs "Signed in as …" match.
@@ -345,6 +347,12 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-dialog-open"))
         assertTrue(html.contains("data-ff-dialog-panel"))
         assertTrue(html.contains("ff-open"))
+        // Form toggles flip without Alpine/Wire.
+        assertTrue(html.contains("data-ff-toggle"))
+        assertTrue(html.contains("data-ff-toggle-value"))
+        // Closing/opening a dialog resets forms so create/edit do not leak prior input.
+        assertTrue(html.contains("resetDialogForms"))
+        assertTrue(html.contains("f.reset()"))
         // Table soft-nav swaps .ff-table-wrap without a full document reload.
         assertTrue(html.contains("ffTableNav"))
         assertTrue(html.contains("data-ff-table-nav"))

@@ -26,6 +26,7 @@ class FireflyTablesTest {
         SelectFilter.configureUsing(null)
         TextColumn.configureUsing(null)
         Column.configureUsing(TextColumn::class.java, null)
+        Column.configureUsing(BadgeColumn::class.java, null)
     }
 
     @Test
@@ -244,6 +245,14 @@ class FireflyTablesTest {
         assertTrue(literalHtml.contains("x-data=\"ffColumn('name', true)\""))
         assertTrue(literalHtml.contains("ff-column-description"))
         assertTrue(literal.heading(Cell { null }).contains("Name"))
+        Column.configureUsing(BadgeColumn::class.java, null)
+        val badge = BadgeColumn.make("status").color("danger")
+        val badgeHtml = badge.render(mapOf("status" to "open"), "1", Cell { "open" })
+        assertTrue(badgeHtml.contains("ff-badge"))
+        assertTrue(badgeHtml.contains("open"))
+        Column.configureUsing(BadgeColumn::class.java) { it.label("Status") }
+        assertEquals("Status", BadgeColumn.make("status").heading(Cell { null }))
+        Column.configureUsing(BadgeColumn::class.java, null)
 
         val closure = TextColumn.make("name")
             .label { "Label ${it.get("search")}" }

@@ -244,6 +244,19 @@ class FireflyActionsTest {
         assertTrue(deleteHtml.contains("ff-action-post"))
         assertTrue(deleteHtml.contains(">Delete<"))
         assertThrows(FireflyException::class.java) { Action.make("x").postForm("") }
+        // Create/edit: schema fields must live inside the POST form (not a footer-only form).
+        val create = Action.make("create").label("Create").modal().modalHeading("Create")
+            .schema(Text.make("Hello"))
+            .postForm("create", """<input type="hidden" name="_token" value="t" />""")
+            .modalSubmitActionLabel("Create")
+        val createHtml = page(create)
+        assertTrue(createHtml.contains("""class="ff-action-form""""))
+        assertTrue(createHtml.contains("""method="post" action="create""""))
+        assertTrue(createHtml.contains("ff-action-schema"))
+        assertTrue(createHtml.contains("Hello"))
+        assertTrue(createHtml.contains("""type="submit""""))
+        assertFalse(createHtml.contains("ff-action-post"))
+        assertFalse(createHtml.contains("""wire:click="create""""))
     }
 
     @Test

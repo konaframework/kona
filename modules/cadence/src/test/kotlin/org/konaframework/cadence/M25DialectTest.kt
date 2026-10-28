@@ -54,10 +54,14 @@ class M25DialectTest {
         bp.json("meta")
         bp.boolean("active")
         bp.timestamp("joined_at")
+        bp.date("born_on")
+        bp.dateTime("happened_at")
 
         val pg = SchemaGrammar.POSTGRES
         assertTrue(pg.type(bp.columns.first { it.name == "id" }).contains("IDENTITY"))
         assertEquals("JSONB", pg.type(bp.columns.first { it.name == "meta" }))
+        assertEquals("DATE", pg.type(bp.columns.first { it.name == "born_on" }))
+        assertEquals("TIMESTAMP", pg.type(bp.columns.first { it.name == "happened_at" }))
         assertTrue(pg.compileDropIndex("users", "idx").contains("IF EXISTS"))
 
         val oracle = SchemaGrammar.ORACLE
@@ -65,6 +69,8 @@ class M25DialectTest {
         assertEquals("VARCHAR2(120)", oracle.type(bp.columns.first { it.name == "email" }))
         assertEquals("CLOB", oracle.type(bp.columns.first { it.name == "bio" }))
         assertEquals("NUMBER(1)", oracle.type(bp.columns.first { it.name == "active" }))
+        assertEquals("DATE", oracle.type(bp.columns.first { it.name == "born_on" }))
+        assertEquals("TIMESTAMP", oracle.type(bp.columns.first { it.name == "happened_at" }))
         assertEquals("1", oracle.literal(true))
         assertTrue(oracle.compileDropIfExists("users").contains("SQLCODE != -942"))
         assertTrue(oracle.compileRename("a", "b").contains("RENAME TO"))
@@ -74,11 +80,15 @@ class M25DialectTest {
         assertEquals("NVARCHAR(120)", sqlsrv.type(bp.columns.first { it.name == "email" }))
         assertEquals("NVARCHAR(MAX)", sqlsrv.type(bp.columns.first { it.name == "essay" }))
         assertEquals("BIT", sqlsrv.type(bp.columns.first { it.name == "active" }))
+        assertEquals("DATE", sqlsrv.type(bp.columns.first { it.name == "born_on" }))
+        assertEquals("DATETIME2", sqlsrv.type(bp.columns.first { it.name == "happened_at" }))
         assertTrue(sqlsrv.compileDropIndex("users", "idx").contains(" ON "))
         assertTrue(sqlsrv.compileRename("a", "b").contains("sp_rename"))
         assertTrue(sqlsrv.compileDropIfExists("users").startsWith("DROP TABLE IF EXISTS"))
 
         val mysql = SchemaGrammar.MYSQL
+        assertEquals("DATE", mysql.type(bp.columns.first { it.name == "born_on" }))
+        assertEquals("DATETIME", mysql.type(bp.columns.first { it.name == "happened_at" }))
         assertTrue(mysql.compileDropIndex("users", "idx").contains(" ON "))
         assertTrue(mysql.compileRename("a", "b").startsWith("RENAME TABLE"))
 

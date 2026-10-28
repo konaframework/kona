@@ -390,7 +390,14 @@ open class Toggle protected constructor(name: String) : Field<Toggle>(name) {
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val checked = value == true || value == "1" || value == "true"
-        return """<button type="button" class="ff-toggle" x-data="ffField" data-ff-path="${esc(path)}"${boolAttr("aria-pressed", checked)}${boolAttr("data-ff-inline", inlineFlag)}${attr("data-ff-on-color", onColorText)}${attr("data-ff-off-color", offColorText)}${attr("data-ff-on-icon", onIconText)}${attr("data-ff-off-icon", offIconText)}></button>"""
+        val stored = if (checked) "1" else "0"
+        val style = buildString {
+            if (onColorText != null) append("--ff-on-color:${esc(onColorText!!)};")
+            if (offColorText != null) append("--ff-off-color:${esc(offColorText!!)};")
+        }
+        val styleAttr = if (style.isEmpty()) "" else """ style="$style""""
+        // Hidden input submits with native forms; chrome `data-ff-toggle` flips without Alpine/Wire.
+        return """<span class="ff-toggle-wrap"${boolAttr("data-ff-inline", inlineFlag)}><input type="hidden" class="ff-toggle-input" name="${esc(path)}" value="$stored" data-ff-toggle-value /><button type="button" class="ff-toggle" data-ff-toggle role="switch" x-data="ffField" data-ff-path="${esc(path)}"$styleAttr${boolAttr("aria-pressed", checked)}${boolAttr("aria-checked", checked)}${attr("data-ff-on-color", onColorText)}${attr("data-ff-off-color", offColorText)}${attr("data-ff-on-icon", onIconText)}${attr("data-ff-off-icon", offIconText)}></button></span>"""
     }
 
     companion object {
