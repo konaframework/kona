@@ -223,6 +223,62 @@ class FireflyRegistryTest {
         Firefly.mount(app)
     }
 
+    @Test
+    fun mountRegistersCachedFontAndWidgetAssets() {
+        val base = Files.createTempDirectory("firefly-assets")
+        Firefly.reset()
+        val app = Application.builder(base)
+            .withProvider(HttpServiceProvider())
+            .withProvider(FireflyServiceProvider())
+            .build()
+        val router = app.resolve(Router::class.java)
+        val interUri = "${org.konaframework.firefly.support.FireflyFonts.PREFIX}/${org.konaframework.firefly.support.FireflyFonts.INTER}"
+        assertNotNull(router.find("GET", interUri))
+        val inter = router.resolve("GET", interUri)
+        val fontResponse = inter.route.action.handle(
+            org.konaframework.http.Request("GET", interUri).also { req ->
+                req.attributes.putAll(inter.parameters)
+            },
+        )
+        assertEquals(200, fontResponse.status)
+        assertEquals("font/woff2", fontResponse.headers["Content-Type"])
+        assertTrue(fontResponse.headers["Cache-Control"]!!.contains("immutable"))
+        assertTrue(fontResponse.bodyBytes().isNotEmpty())
+
+        assertEquals(404, FireflyAssets.fontResponse("nope.woff2").status)
+        assertEquals(404, FireflyAssets.widgetResponse("missing.js").status)
+        val widget = FireflyAssets.widgetResponse("ff-widget.js")
+        assertEquals(200, widget.status)
+        assertTrue(widget.headers["Content-Type"]!!.contains("javascript"))
+        assertTrue(widget.headers["Cache-Control"]!!.contains("immutable"))
+
+        // Handler branches when the {file} param is absent.
+        val missingParam = router.resolve("GET", interUri).route.action.handle(
+            org.konaframework.http.Request("GET", interUri),
+        )
+        assertEquals(404, missingParam.status)
+
+        val widgetUri = "/_firefly/widgets/ff-widget.js"
+        val widgetMatch = router.resolve("GET", widgetUri)
+        val widgetOk = widgetMatch.route.action.handle(
+            org.konaframework.http.Request("GET", widgetUri).also { it.attributes.putAll(widgetMatch.parameters) },
+        )
+        assertEquals(200, widgetOk.status)
+        val widgetMissingParam = widgetMatch.route.action.handle(org.konaframework.http.Request("GET", widgetUri))
+        assertEquals(404, widgetMissingParam.status)
+
+        org.konaframework.firefly.support.FireflyFonts.resetCache()
+        org.konaframework.firefly.support.FireflyFonts.resourceDirectory =
+            "/org/konaframework/firefly/support/fonts-missing/"
+        assertEquals(
+            404,
+            FireflyAssets.fontResponse(org.konaframework.firefly.support.FireflyFonts.INTER).status,
+        )
+        org.konaframework.firefly.support.FireflyFonts.resourceDirectory =
+            "/org/konaframework/firefly/support/fonts/"
+        org.konaframework.firefly.support.FireflyFonts.resetCache()
+    }
+
     /**
      * grind serve soft-reloads a new Application while Firefly stays in the parent loader.
      * Without prepare/reset, mounted stays true and the new router has no panel routes (404).

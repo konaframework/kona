@@ -263,7 +263,9 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-column"))
         assertTrue(css.contains("--ff-primary: #DF8723"))
         assertTrue(css.contains(".ff-auth {") || css.contains(".ff-auth,"))
-        assertTrue(css.contains("system-ui"))
+        assertTrue(css.contains("Inter"))
+        assertTrue(css.contains("@font-face"))
+        assertTrue(css.contains("/_firefly/fonts/inter-latin-wght-normal.woff2"))
         assertFalse(css.contains("fonts.googleapis.com"))
         assertFalse(Regex("(?m)^\\s*body\\s*\\{").containsMatchIn(css))
         assertEquals("", KonaTheme().extraCss())
@@ -319,9 +321,11 @@ class FireflySupportTest {
         assertFalse(afterScrollOpen.substring(0, scrollInnerEnd).contains("""class="ff-footer""""))
         assertTrue(html.contains("ff-sidebar"))
         assertTrue(html.contains("background: var(--ff-surface)"))
-        // No Google Fonts CDN — panel chrome must paint without a network round-trip.
+        // Self-hosted Inter/DM Sans — no Google Fonts CDN; fonts come from /_firefly/fonts.
         assertFalse(html.contains("fonts.googleapis.com"))
         assertFalse(html.contains("fonts.gstatic.com"))
+        assertTrue(html.contains("/_firefly/fonts/inter-latin-wght-normal.woff2"))
+        assertTrue(html.contains("@font-face"))
         // Dark no-flash init + chrome behavior scripts and the mobile drawer backdrop.
         assertTrue(html.contains("""<div class="ff-backdrop" data-ff-backdrop"""))
         assertTrue(html.contains("classList.toggle('ff-dark'"))

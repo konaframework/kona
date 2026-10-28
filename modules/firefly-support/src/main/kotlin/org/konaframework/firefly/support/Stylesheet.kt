@@ -51,7 +51,7 @@ object Stylesheet {
             }
         """.trimIndent()
         val extraBlock = if (extra.isEmpty()) "" else "\n.ff-panel {\n$extra\n}"
-        return variables + "\n" + componentCss.trim() + extraBlock
+        return FireflyFonts.css() + "\n" + variables + "\n" + componentCss.trim() + extraBlock
     }
 
     private val UNSCOPED = Regex("(?m)^\\s*body\\s*\\{")
