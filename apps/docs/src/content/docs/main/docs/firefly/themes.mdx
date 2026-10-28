@@ -156,11 +156,11 @@ The checked-in stylesheet (`firefly.css`) is the scoped result of the Tailwind C
 | `.ff-panel .ff-sidebar-brand` | Logo mark + brand label above the side nav |
 | `.ff-panel .ff-sidebar-foot` / `.ff-panel .ff-footer` | Shared shell foot band (padding, type, soft border, fixed `--ff-footer-height`); not a white card |
 | `.ff-panel .ff-nav-item` | Pill links; active item uses `--ff-active` with a primary inset bar |
-| `.ff-panel .ff-topbar` | Card row with primary top edge, height `--ff-topbar-height` |
+| `.ff-panel .ff-topbar` | Card row (no primary top ribbon), height `--ff-topbar-height` |
 | `.ff-panel .ff-body` | Shell background, scrollable page canvas |
 | `.ff-panel .ff-table-wrap` | White card around tables (`--ff-card`), subtle elevation via `--ff-table-shadow` |
 | `.ff-panel .ff-create` / `.ff-edit` / `.ff-view` content | Constrained to `--ff-width-xl` and centered; `[data-ff-max-width="…"]` overrides per component |
 | `.ff-panel .ff-dialog` | Fixed, inset 0, z-index 50 |
 | `.ff-panel .ff-dialog-modal .ff-dialog-window` | Top margin `4rem`, elevated card |
 
-`DefaultLayout` and `AuthLayout` put this CSS in a `<style>` element in the document `<head>`, with Inter / DM Sans linked from Google Fonts. Theme token variables apply to both `.ff-panel` and `.ff-auth`.
+`DefaultLayout` and `AuthLayout` put this CSS in a `<style>` element in the document `<head>` using the theme’s system font stack (no Google Fonts CDN). Theme token variables apply to both `.ff-panel` and `.ff-auth`.

@@ -597,4 +597,49 @@ class GrindCadenceTest {
             MigrateCommand.resolveRegistry(org.konaframework.core.Application.builder(temp.resolve("empty-app")).build(), emptyLoader)
         }
     }
+
+    @Test
+    fun withApplicationCompilesWhenGradleWrapperPresent() {
+        val withWrapper = databaseProject(temp.resolve("compile_first"), "grind_compile_first")
+        Files.writeString(withWrapper.resolve("gradlew"), "#!/bin/sh\nexit 0\n")
+        withWrapper.resolve("gradlew").toFile().setExecutable(true)
+        var compiles = 0
+        val compiler = ProjectCompiler {
+            compiles++
+            CompileResult(0, "ok")
+        }
+        MigrateCommand.withApplication(
+            mapOf(
+                "base" to withWrapper.toString(),
+                "bootstrap" to "org.konaframework.grind.CadenceFixtureApp",
+            ),
+            compiler,
+        ) { _, _ -> }
+        assertEquals(1, compiles)
+
+        val noWrapper = databaseProject(temp.resolve("no_wrapper"), "grind_no_wrapper")
+        var skipped = 0
+        MigrateCommand.withApplication(
+            mapOf(
+                "base" to noWrapper.toString(),
+                "bootstrap" to "org.konaframework.grind.CadenceFixtureApp",
+            ),
+            ProjectCompiler {
+                skipped++
+                CompileResult(0)
+            },
+        ) { _, _ -> }
+        assertEquals(0, skipped)
+
+        val fail = assertThrows(GrindException::class.java) {
+            MigrateCommand.compileApp(withWrapper, ProjectCompiler { CompileResult(7, "boom") })
+        }
+        assertTrue(fail.message!!.contains("Compile failed (exit 7)"))
+        assertTrue(fail.message!!.contains("boom"))
+        val blank = assertThrows(GrindException::class.java) {
+            MigrateCommand.compileApp(withWrapper, ProjectCompiler { CompileResult(3) })
+        }
+        assertTrue(blank.message!!.contains("Compile failed (exit 3)"))
+        assertFalse(blank.message!!.contains(":\n"))
+    }
 }

@@ -5,6 +5,13 @@ import org.konaframework.firefly.schemas.htmlAttributes
 import org.konaframework.firefly.support.FireflyException
 import java.util.function.Function
 
+/**
+ * Where panel navigation links sit in the chrome.
+ *
+ * - [APP] — level 1 in the sidebar; levels 2–3 of the active level-1 item in the top bar (Shamar shell).
+ * - [SIDE] — the full tree in the sidebar.
+ * - [TOP] — the full tree in the top bar (no sidebar).
+ */
 enum class NavigationType {
     APP,
     SIDE,

@@ -17,6 +17,9 @@ import org.konaframework.support.console.ConsoleIO
  * uses the [MigrationRegistry] bound in its container, or migrations discovered from
  * `META-INF/kona/migrations`, plus its [Database]. `--database=name` picks a named connection.
  *
+ * When the app has a Gradle wrapper, grind runs `./gradlew classes` first so newly generated
+ * or edited migrations under `src/` are on the classpath without a separate `gradlew install`.
+ *
  * `--force` is required when `app.env` is `production`. `--seed` / `--seeder` / `--seeder=Class`
  * on [Action.MIGRATE], [Action.FRESH], and [Action.REFRESH] run seeders in the same process
  * before the database is closed (so in-memory and file H2 both see migrated tables).
@@ -196,11 +199,22 @@ class MigrateCommand(private val action: Action) {
             return MigrationDiscovery.loadRegistry(loader)
         }
 
-        /** Boots the app found at or above `--base` in-process and hands it to [block]. */
-        internal fun withApplication(options: Map<String, String>, block: (Application, ClassLoader) -> Unit) {
+        /**
+         * Boots the app found at or above `--base` in-process and hands it to [block].
+         * When [root] has a Gradle wrapper, [compiler] runs `classes` first so migrate/seed
+         * see brand-new and edited migration (and seeder) sources immediately.
+         */
+        internal fun withApplication(
+            options: Map<String, String>,
+            compiler: ProjectCompiler = GradleClassesCompiler(),
+            block: (Application, ClassLoader) -> Unit,
+        ) {
             val start = Names.base(options)
             val root = ServeCommand.findProjectRoot(start)
                 ?: throw GrindException("No Kona application found at $start. Create one with: kona new")
+            if (AppLoader.resolveGradleWrapper(root) != null) {
+                compileApp(root, compiler)
+            }
             Kona.reset()
             val verbose = GrindLogging.wantsVerbose(options)
             GrindLogging.hushConsole(verbose)
@@ -208,6 +222,21 @@ class MigrateCommand(private val action: Action) {
             val app = loader.create(arrayOf("--base=$root"))
             GrindLogging.hushConsole(verbose)
             block(app, loader.classLoader!!)
+        }
+
+        /** Runs [compiler] so [AppLoader] can load current sources; fails with [GrindException] on non-zero exit. */
+        internal fun compileApp(root: java.nio.file.Path, compiler: ProjectCompiler) {
+            val result = compiler.compile(root)
+            if (result.exitCode != 0) {
+                val detail = result.output.trim()
+                throw GrindException(
+                    if (detail.isEmpty()) {
+                        "Compile failed (exit ${result.exitCode})"
+                    } else {
+                        "Compile failed (exit ${result.exitCode}):\n$detail"
+                    },
+                )
+            }
         }
 
         /** The container's [Database] when bound, otherwise one built from config; closed when [block] returns. */

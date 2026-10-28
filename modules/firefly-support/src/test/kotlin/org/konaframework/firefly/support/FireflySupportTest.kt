@@ -161,6 +161,8 @@ class FireflySupportTest {
         assertTrue(css.contains("--ff-shell: var(--ff-surface, #1f2937)"))
         assertTrue(css.contains(".ff-panel .ff-btn"))
         assertTrue(css.contains(".ff-panel .ff-table-wrap"))
+        // No primary top ribbon on topbar/sidebar-brand — leaves Wire navigate progress visible.
+        assertFalse(css.contains("inset 0 3px 0 0 var(--ff-primary)"))
         assertTrue(css.contains("--ff-shell: var(--ff-surface"))
         assertTrue(css.contains("--ff-table-shadow:"))
         assertTrue(css.contains("box-shadow: var(--ff-table-shadow)"))
@@ -261,7 +263,8 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-column"))
         assertTrue(css.contains("--ff-primary: #DF8723"))
         assertTrue(css.contains(".ff-auth {") || css.contains(".ff-auth,"))
-        assertTrue(css.contains("Inter"))
+        assertTrue(css.contains("system-ui"))
+        assertFalse(css.contains("fonts.googleapis.com"))
         assertFalse(Regex("(?m)^\\s*body\\s*\\{").containsMatchIn(css))
         assertEquals("", KonaTheme().extraCss())
         assertEquals(null, KonaTheme().partial("sidebar"))
@@ -316,8 +319,9 @@ class FireflySupportTest {
         assertFalse(afterScrollOpen.substring(0, scrollInnerEnd).contains("""class="ff-footer""""))
         assertTrue(html.contains("ff-sidebar"))
         assertTrue(html.contains("background: var(--ff-surface)"))
-        assertTrue(html.contains("fonts.googleapis.com"))
-        assertTrue(html.contains("family=Inter"))
+        // No Google Fonts CDN — panel chrome must paint without a network round-trip.
+        assertFalse(html.contains("fonts.googleapis.com"))
+        assertFalse(html.contains("fonts.gstatic.com"))
         // Dark no-flash init + chrome behavior scripts and the mobile drawer backdrop.
         assertTrue(html.contains("""<div class="ff-backdrop" data-ff-backdrop"""))
         assertTrue(html.contains("classList.toggle('ff-dark'"))
@@ -350,6 +354,7 @@ class FireflySupportTest {
         assertTrue(auth.contains(DefaultLayout.THEME_INIT_SCRIPT))
         assertTrue(auth.contains("Harbor"))
         assertTrue(auth.contains("""name="csrf-token" content="auth-tok""""))
+        assertFalse(auth.contains("fonts.googleapis.com"))
         assertFalse(auth.contains("""class="ff-sidebar""""))
         assertFalse(auth.contains("""class="ff-panel""""))
         assertTrue(DefaultLayout().render(

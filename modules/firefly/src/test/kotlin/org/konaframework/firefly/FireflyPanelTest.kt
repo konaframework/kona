@@ -141,13 +141,37 @@ class FireflyPanelTest {
         val html = send(app, "GET", "/admin/alpha").body
         assertTrue(html.contains("ff-nav-top"))
         assertTrue(html.contains("ff-nav-side"))
-        assertTrue(html.indexOf(">alpha<") < html.indexOf(">zeta<"))
+        // APP: L1 roots (alpha, zeta) in the sidebar; orders (child of alpha) in the top bar.
+        val sideStart = html.indexOf("""class="ff-nav ff-nav-side"""")
+        val topStart = html.indexOf("""class="ff-nav ff-nav-top"""")
+        assertTrue(sideStart >= 0 && topStart >= 0)
+        val sideChunk = html.substring(sideStart, html.indexOf("</nav>", sideStart))
+        val topChunk = html.substring(topStart, html.indexOf("</nav>", topStart))
+        assertTrue(sideChunk.contains(">alpha<"))
+        assertTrue(sideChunk.contains(">zeta<"))
+        assertTrue(sideChunk.indexOf(">alpha<") < sideChunk.indexOf(">zeta<"))
+        assertFalse(sideChunk.contains(">orders<"))
+        assertTrue(topChunk.contains(">orders<"))
+        assertFalse(topChunk.contains(">zeta<"))
         assertTrue(html.contains("ff-active"))
         assertTrue(html.contains("wire:navigate"))
         assertTrue(html.contains("data-menu=\"1\""))
         assertTrue(html.contains("ff-user-menu"))
         assertTrue(html.contains("WelcomeHook"))
         assertTrue(html.contains(">Desk<"))
+        // Leaf L1 with no children → top bar has no secondary nav.
+        val zetaHtml = send(app, "GET", "/admin/zeta").body
+        assertFalse(zetaHtml.contains("""class="ff-nav ff-nav-top""""))
+        assertTrue(zetaHtml.contains("""class="ff-nav ff-nav-side""""))
+        // Descendant URL still selects the owning L1 for the top bar.
+        val ordersHtml = send(app, "GET", "/admin/orders").body
+        assertTrue(ordersHtml.contains("""class="ff-nav ff-nav-top""""))
+        assertTrue(
+            ordersHtml.substring(
+                ordersHtml.indexOf("""class="ff-nav ff-nav-top""""),
+                ordersHtml.indexOf("</nav>", ordersHtml.indexOf("""class="ff-nav ff-nav-top"""")),
+            ).contains(">orders<"),
+        )
 
         val side = Router()
         Panel().path("side").brand("SideDesk").navigation(NavigationType.SIDE).authenticate(false).page(ListPage("one")).mount(side)

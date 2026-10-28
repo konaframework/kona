@@ -181,9 +181,10 @@ All generators accept `--lang=kotlin|java` (default: Java when `app/` already ha
 The migrate and seed commands:
 
 1. find the project at or above `--base` (default: current directory);
-2. load `build/classes` and call `create(String[])` on the bootstrap class (`--bootstrap=`, default `bootstrap.App`), so run `./gradlew classes` first;
-3. use the `MigrationRegistry` bound in the application container, or migrations listed in `META-INF/kona/migrations` (written by `make:migration`);
-4. use the container's `Database` (registered by `CadenceServiceProvider`), or build one from the `database` config section; `--database=name` selects a named connection.
+2. when `./gradlew` is present, run `./gradlew classes` so new or edited migrations (and seeders) under `src/` are compiled before boot — no separate `gradlew install` step;
+3. load `build/classes` and call `create(String[])` on the bootstrap class (`--bootstrap=`, default `bootstrap.App`);
+4. use the `MigrationRegistry` bound in the application container, or migrations listed in `META-INF/kona/migrations` (written by `make:migration`);
+5. use the container's `Database` (registered by `CadenceServiceProvider`), or build one from the `database` config section; `--database=name` selects a named connection.
 
 `migrate:fresh` and `db:wipe` drop **user** tables on that connection (foreign keys disabled, or `CASCADE` on PostgreSQL / Oracle). `--drop-views` also drops views. `--drop-types` drops user-defined types on engines that list them (PostgreSQL enums); it is a no-op on SQLite, H2, and MySQL. Bookkeeping tables such as SQLite's `sqlite_sequence` are not dropped.
 

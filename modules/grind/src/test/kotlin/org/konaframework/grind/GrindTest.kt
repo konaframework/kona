@@ -455,11 +455,18 @@ class GrindTest {
         assertEquals(1, destroyed.size, "finally always destroys the process tree")
 
         // Hook install fails while child already exited → return exitValue (0).
+        // Prefer waiting for a clean exit before force-destroy so CI does not race
+        // `true`/`exit 0` still being alive when isAlive is checked.
         val hookFailDead = ManagedProcessRunner(
             addShutdownHook = { throw IllegalStateException("shutting down") },
-            destroyTree = ProcessTrees::destroy,
+            destroyTree = { process ->
+                if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                    ProcessTrees.destroy(process)
+                    process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
+                }
+            },
         )
-        assertEquals(0, hookFailDead.run(listOf("true"), temp, emptyMap()))
+        assertEquals(0, hookFailDead.run(listOf("sh", "-c", "exit 0"), temp, emptyMap()))
 
         // Hook install fails while destroy leaves child alive → 143.
         val hookFailAlive = ManagedProcessRunner(
