@@ -241,20 +241,38 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyManage(page: ManagePage, state: Map<String, Any?>) {
         page.title(pluralLabel())
         page.breadcrumbs(resourceCrumbs(state, pluralLabel()))
-        val schema = form(liveSchema(state))
-        val info = infolist(liveSchema(state))
+        val createForm = form(Schema.make())
         val built = table(listTable())
         applyTableQuery(built, state)
+        val csrf = state["csrfField"] as? String ?: ""
+        // Row dialogs carry the record; the manage list itself stays table-only (no standing form).
+        built.rowButtons(
+            manageViewButton(),
+            manageEditButton(),
+            TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
+        )
         page.table(built)
-        page.mountForm(schema)
-        // Simple resources keep create/edit/view/delete as dialog header actions.
+        // Create alone lives in the header; Edit/View/Delete open from each row.
         page.headerActions(
-            operation("create", "Create", schema.components()),
-            operation("edit", "Edit", schema.components()),
-            operation("view", "View", info.components()),
-            deleteAction(state),
+            operation("create", "Create", createForm.components()),
         )
     }
+
+    /** Row View: dialog with the filled infolist for that record. */
+    private fun manageViewButton(): TableButton =
+        TableButton.make("view").label("View").modal().body { cell ->
+            val key = cell.get("key").toString()
+            val markup = infolist(liveSchema(mapOf("record" to key))).render()
+            """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button></div>"""
+        }
+
+    /** Row Edit: dialog with the filled form for that record. */
+    private fun manageEditButton(): TableButton =
+        TableButton.make("edit").label("Edit").modal().body { cell ->
+            val key = cell.get("key").toString()
+            val markup = form(liveSchema(mapOf("record" to key))).render()
+            """$markup<div class="ff-action-footer"><button type="button" class="ff-action-submit" x-data="ffAction('edit')" wire:click="edit">Save</button><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button></div>"""
+        }
 
     private fun applyList(page: ListPage, state: Map<String, Any?>) {
         page.title(pluralLabel())

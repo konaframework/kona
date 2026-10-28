@@ -1548,14 +1548,21 @@ body.ff-body-root {
   pointer-events: none !important;
 }
 
-/* Chrome script opens mounts with .ff-open (no Alpine required). */
+/* Chrome script opens mounts with .ff-open (no Alpine required).
+   Fixed + high z-index so the dialog stacks above the mobile drawer backdrop (z-30)
+   and the sidebar (z-40), even when the trigger lives deep in the table. */
 .ff-panel .ff-action-dialog.ff-open,
 .ff-panel .ff-table-button-dialog.ff-open {
   display: block !important;
   pointer-events: auto !important;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
 }
 
 .ff-panel .ff-dialog-modal .ff-dialog-window {
+  position: relative;
+  z-index: 1;
   margin: 4rem auto 0;
   max-width: 32rem;
   background: var(--ff-card);
@@ -1563,12 +1570,28 @@ body.ff-body-root {
   border-radius: calc(var(--ff-radius) + 0.35rem);
   box-shadow: var(--ff-shadow);
   padding: 1.1rem 1.2rem;
+  color: var(--ff-body-text);
+}
+
+.ff-panel .ff-dialog-header {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
 .ff-panel .ff-dialog-overlay,
 .ff-panel .ff-dialog-backdrop {
   position: absolute;
   inset: 0;
+  z-index: 0;
   background: rgb(15 23 42 / 35%);
 }
 

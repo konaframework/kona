@@ -244,6 +244,12 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-dialog-overlay"))
         assertTrue(css.contains("pointer-events: none !important"))
         assertTrue(css.contains("pointer-events: auto !important"))
+        // Open dialog mounts stack above the drawer backdrop; window paints above its overlay.
+        assertTrue(css.contains("z-index: 60"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-modal .ff-dialog-window"))
+        assertTrue(css.contains("position: relative"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-header"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-body"))
         assertTrue(css.contains("[data-ff-color=\"danger\"]"))
         // Sidebar + main foot share one shell band (not a white --ff-card strip),
         // locked to the same fixed min-height so empty vs "Signed in as …" match.

@@ -44,6 +44,20 @@ class FireflyResourceTest {
         assertTrue(html.contains("ff-picker"))
         assertTrue(html.contains("Ada"))
         assertFalse(html.contains("ff-relation"))
+        // Manage list is table-only — no standing #ff-form (create/edit live in dialogs).
+        assertFalse(html.contains("""id="ff-form""""))
+        assertFalse(html.contains("ff-resource-form"))
+        val headerActions = html.substringAfter("""class="ff-page-header-actions"""").substringBefore("</div>")
+        assertTrue(headerActions.contains("""data-ff-action="create""""))
+        assertFalse(headerActions.contains("""data-ff-action="edit""""))
+        assertFalse(headerActions.contains("""data-ff-action="view""""))
+        assertFalse(headerActions.contains("""data-ff-action="delete""""))
+        assertTrue(html.contains("ff-row-actions"))
+        assertTrue(html.contains("""data-ff-action="view""""))
+        assertTrue(html.contains("""data-ff-action="edit""""))
+        assertTrue(html.contains("""data-ff-action="delete""""))
+        assertTrue(html.contains("ff-table-button-dialog"))
+        assertTrue(html.contains("""data-ff-dialog-panel"""))
         assertThrows<FireflyException> { notes.relation(RelationManager("lines")) }
         assertThrows<FireflyException> {
             Resource("box").relation(RelationManager("lines")).simple()
@@ -306,11 +320,15 @@ class FireflyResourceTest {
         }
         explicit.model(Shelf::class.java)
         assertEquals(1, explicit.pages().size)
-        val late = LateForm()
+        // Manage fills form/infolist per row dialog (not from page ?id= state).
+        val late = object : LateForm() {
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "Ada", "name" to "Note")).columns(TextColumn.make("name"))
+        }
         val manage = late.pages().single()
         assertNull(late.seenRecord)
         assertNull(late.tenantAtForm)
-        manage.render(mapOf("record" to "Ada"))
+        manage.render()
         assertEquals("Ada", late.seenRecord)
         assertNull(late.tenantAtForm)
         FireflyTenant.use("acme") { manage.render() }
@@ -777,7 +795,7 @@ private class OrdersResource : Resource("orders") {
     )
 }
 
-private class LateForm : Resource("notes") {
+private open class LateForm : Resource("notes") {
     var seenRecord: Any? = null
     var tenantAtForm: String? = null
 

@@ -106,9 +106,9 @@ The page calls `form`, `table`, and `infolist` when it renders, so those methods
 
 ## Serve a simple resource
 
-<FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table and the Create, Edit, View, and Delete actions." />
+<FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table, a Create header action, and row View, Edit, and Delete actions." />
 
-`simple()` keeps one `ManagePage`. You still override `form`, `infolist`, and `table`. You do not override `getPages()`. Create, edit, view, and delete are header actions, and each one opens the existing dialog. Create and edit put the form schema in that dialog. View puts the infolist in it. Delete asks for confirmation in it. A simple resource rejects `relation(...)`.
+`simple()` keeps one `ManagePage`. You still override `form`, `infolist`, and `table`. You do not override `getPages()`. The manage page is **table-only** until an action opens a dialog — it does not mount a standing create/edit form. **Create** is the sole header action and opens a dialog with the empty form schema. **View**, **Edit**, and **Delete** are row actions: View opens the filled infolist, Edit opens the filled form, and Delete confirms in a dialog. A simple resource rejects `relation(...)`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
