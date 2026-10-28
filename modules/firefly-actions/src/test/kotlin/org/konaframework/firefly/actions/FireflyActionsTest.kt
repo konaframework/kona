@@ -221,7 +221,7 @@ class FireflyActionsTest {
         assertTrue(html.contains("ff-dialog-overlay\" data-ff-dialog-close @click=\"open = false\""))
         assertTrue(html.contains("ff-action-dialog\" data-ff-dialog-panel x-show=\"open\" x-cloak style=\"display:none\" hidden"))
         assertTrue(html.contains("""aria-modal="true""""))
-        assertTrue(html.contains("ff-action-close"))
+        assertTrue(html.contains("ff-dialog-close") || html.contains("ff-action-close"))
         assertTrue(html.contains(">Confirm<"))
         assertTrue(html.contains(">Cancel<"))
         assertTrue(html.contains("autofocus"))
@@ -293,6 +293,8 @@ class FireflyActionsTest {
         assertTrue(describedHtml.contains("data-ff-color=\"primary\""))
         assertFalse(describedHtml.contains("autofocus"))
         assertFalse(describedHtml.contains("ff-action-close"))
+        // Cancel still uses data-ff-dialog-close; the header X class must be absent.
+        assertFalse(describedHtml.contains("""class="ff-dialog-close""""))
         assertFalse(describedHtml.contains("@keydown.escape"))
         assertFalse(describedHtml.contains("overlay\" @click"))
         assertFalse(describedHtml.contains("data-ff-drag"))

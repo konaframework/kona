@@ -48,6 +48,12 @@ object FieldClock {
     }
 }
 
+enum class DatePickLevel {
+    DAY,
+    MONTH,
+    YEAR,
+}
+
 open class DateTimePicker protected constructor(
     name: String,
     private val withDate: Boolean,
@@ -64,6 +70,7 @@ open class DateTimePicker protected constructor(
     private var minutesStepCount: Int = 1
     private var secondsStepCount: Int = 1
     private var secondsFlag: Boolean = false
+    private var pickLevel: DatePickLevel = DatePickLevel.DAY
     private val minText = Phrase()
     private val maxText = Phrase()
     private val focusedText = Phrase()
@@ -120,11 +127,33 @@ open class DateTimePicker protected constructor(
         secondsStepCount = step
     }
 
+    fun seconds(): DateTimePicker = seconds(true)
+
     fun seconds(on: Boolean): DateTimePicker = apply {
         secondsFlag = on
         if (on && !formatText.contains('s')) formatText = "$formatText:s"
         if (on && !displayText.contains('s')) displayText = "$displayText:s"
     }
+
+    /** Day (default), month-only, or year-only selection (Flowbite pickLevel). */
+    fun pickLevel(level: DatePickLevel): DateTimePicker = apply {
+        pickLevel = level
+        when (level) {
+            DatePickLevel.MONTH -> {
+                formatText = "Y-m"
+                displayText = "M Y"
+                closeOnSelect = true
+            }
+            DatePickLevel.YEAR -> {
+                formatText = "Y"
+                displayText = "Y"
+                closeOnSelect = true
+            }
+            DatePickLevel.DAY -> Unit
+        }
+    }
+
+    fun pickLevel(): DatePickLevel = pickLevel
 
     fun minDate(value: String): DateTimePicker = apply { minText.set(value) }
 
@@ -258,12 +287,19 @@ open class DateTimePicker protected constructor(
         val focused = focusedDate(schema, stored)
         val disabledCsv = disabledList.joinToString(",")
         val kind = when {
+            pickLevel == DatePickLevel.MONTH -> "month"
+            pickLevel == DatePickLevel.YEAR -> "year"
             withDate && withTime -> "datetime"
             withTime -> "time"
             else -> "date"
         }
+        val startView = when (pickLevel) {
+            DatePickLevel.MONTH -> "months"
+            DatePickLevel.YEAR -> "years"
+            DatePickLevel.DAY -> "days"
+        }
         return buildString {
-            append("""<div class="ff-picker" data-ff-picker data-ff-picker-kind="$kind" data-ff-path="${esc(path)}"${boolAttr("data-ff-date", withDate)}${boolAttr("data-ff-time", withTime)}${attr("data-ff-format", formatText)}${attr("data-ff-display", displayText)}${attr("data-ff-locale", localeTag)}${attr("data-ff-zone", zoneId.id)} data-ff-first-day="$firstDay"${boolAttr("data-ff-close", closeOnSelect)} data-ff-hours-step="$hoursStepCount" data-ff-minutes-step="$minutesStepCount" data-ff-seconds-step="$secondsStepCount"${boolAttr("data-ff-seconds", secondsFlag)}${attr("data-ff-min", min)}${attr("data-ff-max", max)}${attr("data-ff-disabled", disabledCsv.ifBlank { null })}${attr("data-ff-state", stored)}${attr("data-ff-focused", focused.toString())}>""")
+            append("""<div class="ff-picker" data-ff-picker data-ff-picker-kind="$kind" data-ff-picker-view="$startView" data-ff-pick-level="${pickLevel.name.lowercase()}" data-ff-path="${esc(path)}"${boolAttr("data-ff-date", withDate)}${boolAttr("data-ff-time", withTime)}${attr("data-ff-format", formatText)}${attr("data-ff-display", displayText)}${attr("data-ff-locale", localeTag)}${attr("data-ff-zone", zoneId.id)} data-ff-first-day="$firstDay"${boolAttr("data-ff-close", closeOnSelect)} data-ff-hours-step="$hoursStepCount" data-ff-minutes-step="$minutesStepCount" data-ff-seconds-step="$secondsStepCount"${boolAttr("data-ff-seconds", secondsFlag)}${attr("data-ff-min", min)}${attr("data-ff-max", max)}${attr("data-ff-disabled", disabledCsv.ifBlank { null })}${attr("data-ff-state", stored)}${attr("data-ff-focused", focused.toString())}>""")
             append("""<div class="ff-picker-field" data-ff-picker-open>""")
             if (withDate) append("""<span class="ff-picker-icon" aria-hidden="true">${calendarIcon()}</span>""")
             append("""<input class="ff-input ff-picker-display" type="text" readonly tabindex="0" placeholder="${esc(placeholderFor())}" value="${esc(display(stored))}" data-ff-picker-display${extraInputMarkup(get)} />""")
@@ -273,22 +309,25 @@ open class DateTimePicker protected constructor(
             append("""<div class="ff-picker-panel" data-ff-picker-panel hidden>""")
             if (withDate) {
                 append("""<div class="ff-picker-nav">""")
-                append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-prev aria-label="Previous month">‹</button>""")
-                append("""<div class="ff-picker-caption" data-ff-picker-caption>${esc(monthCaption(focused))}</div>""")
-                append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-next aria-label="Next month">›</button>""")
+                append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-prev aria-label="Previous">‹</button>""")
+                append("""<button type="button" class="ff-picker-caption" data-ff-picker-caption data-ff-picker-view-up>${esc(monthCaption(focused))}</button>""")
+                append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-next aria-label="Next">›</button>""")
                 append("</div>")
-                append(weekdayHeader())
+                append("""<div class="ff-picker-weekdays" data-ff-picker-weekdays>${weekdayHeaderInner()}</div>""")
                 append(monthGrid(schema, focused, stored))
             }
             if (withTime) append(timeSpinners(stored))
             append("""<div class="ff-picker-actions">""")
             append("""<button type="button" class="ff-picker-today" data-ff-picker-today>Today</button>""")
             append("""<button type="button" class="ff-picker-clear" data-ff-picker-clear>Clear</button>""")
+            if (withTime) append("""<button type="button" class="ff-picker-ok" data-ff-picker-ok>OK</button>""")
             append("</div></div></div>")
         }
     }
 
     private fun placeholderFor(): String = when {
+        pickLevel == DatePickLevel.MONTH -> "Select month"
+        pickLevel == DatePickLevel.YEAR -> "Select year"
         withDate && withTime -> "Select date and time"
         withTime -> "Select time"
         else -> "Select date"
@@ -297,7 +336,7 @@ open class DateTimePicker protected constructor(
     private fun monthCaption(focused: LocalDate): String =
         focused.month.getDisplayName(TextStyle.FULL, locale()) + " " + focused.year
 
-    private fun weekdayHeader(): String {
+    private fun weekdayHeaderInner(): String {
         val locale = locale()
         val names = ArrayList<String>(7)
         val start = if (firstDay == 1) 1 else 7
@@ -305,9 +344,7 @@ open class DateTimePicker protected constructor(
             val day = java.time.DayOfWeek.of(((start - 1 + i) % 7) + 1)
             names.add(day.getDisplayName(TextStyle.SHORT, locale))
         }
-        return names.joinToString("", prefix = """<div class="ff-picker-weekdays">""", postfix = "</div>") {
-            """<span>${esc(it)}</span>"""
-        }
+        return names.joinToString("") { """<span>${esc(it)}</span>""" }
     }
 
     private fun monthGrid(schema: Schema, focused: LocalDate, stored: String): String {
@@ -342,24 +379,25 @@ open class DateTimePicker protected constructor(
         val time = timePart(stored) ?: LocalTime.MIDNIGHT
         return buildString {
             append("""<div class="ff-time" data-ff-picker-time>""")
-            append(spinner("hours", hourChoices(), time.hour))
+            append(spinner("hours", hourChoices(), time.hour, "Hours"))
             append("""<span class="ff-time-sep">:</span>""")
-            append(spinner("minutes", minuteChoices(), time.minute))
+            append(spinner("minutes", minuteChoices(), time.minute, "Minutes"))
             if (secondsFlag) {
                 append("""<span class="ff-time-sep">:</span>""")
-                append(spinner("seconds", secondChoices(), time.second))
+                append(spinner("seconds", secondChoices(), time.second, "Seconds"))
             }
             append("</div>")
         }
     }
 
-    private fun spinner(name: String, values: List<Int>, selected: Int): String = buildString {
-        append("""<select class="ff-time-$name" data-ff-$name="true" aria-label="$name">""")
+    private fun spinner(name: String, values: List<Int>, selected: Int, label: String): String = buildString {
+        append("""<label class="ff-time-select"><span class="ff-time-select-label">$label</span>""")
+        append("""<select class="ff-time-$name" data-ff-$name="true" aria-label="$label">""")
         for (value in values) {
             val sel = if (value == selected) " selected" else ""
             append("""<option value="$value"$sel>${value.toString().padStart(2, '0')}</option>""")
         }
-        append("</select>")
+        append("</select></label>")
     }
 
     private fun calendarIcon(): String =
@@ -470,6 +508,24 @@ object DatePicker {
 object TimePicker {
     @JvmStatic
     fun make(name: String): DateTimePicker = DateTimePicker.time(name)
+
+    @JvmStatic
+    fun configureUsing(block: Consumer<DateTimePicker>?) = DateTimePicker.configureUsing(block)
+}
+
+/** Month-only picker (`Y-m` storage). */
+object MonthPicker {
+    @JvmStatic
+    fun make(name: String): DateTimePicker = DateTimePicker.date(name).pickLevel(DatePickLevel.MONTH)
+
+    @JvmStatic
+    fun configureUsing(block: Consumer<DateTimePicker>?) = DateTimePicker.configureUsing(block)
+}
+
+/** Year-only picker (`Y` storage). */
+object YearPicker {
+    @JvmStatic
+    fun make(name: String): DateTimePicker = DateTimePicker.date(name).pickLevel(DatePickLevel.YEAR)
 
     @JvmStatic
     fun configureUsing(block: Consumer<DateTimePicker>?) = DateTimePicker.configureUsing(block)

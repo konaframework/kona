@@ -55,6 +55,8 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
 
     fun mask(value: String): TextInput = apply { maskText = value }
 
+    fun copyable(): TextInput = copyable(true)
+
     fun copyable(on: Boolean): TextInput = apply { copyableFlag = on }
 
     fun step(value: String): TextInput = apply { stepText = value }

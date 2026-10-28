@@ -93,25 +93,37 @@ open class Column protected constructor(val name: String) {
 
     fun width(value: Function<Cell, String>): Column = apply { widthValue.set(value) }
 
+    fun hidden(): Column = hidden(true)
+
     fun hidden(on: Boolean): Column = apply { hiddenFlag.set(on) }
 
     fun hidden(predicate: Predicate<Cell>): Column = apply { hiddenFlag.set(predicate) }
+
+    fun visible(): Column = visible(true)
 
     fun visible(on: Boolean): Column = apply { visibleFlag.set(on) }
 
     fun visible(predicate: Predicate<Cell>): Column = apply { visibleFlag.set(predicate) }
 
+    fun disabled(): Column = disabled(true)
+
     fun disabled(on: Boolean): Column = apply { disabledFlag.set(on) }
 
     fun disabled(predicate: Predicate<Cell>): Column = apply { disabledFlag.set(predicate) }
+
+    fun searchable(): Column = searchable(true)
 
     fun searchable(on: Boolean): Column = apply { searchableFlag.set(on) }
 
     fun searchable(predicate: Predicate<Cell>): Column = apply { searchableFlag.set(predicate) }
 
+    fun sortable(): Column = sortable(true)
+
     fun sortable(on: Boolean): Column = apply { sortableFlag.set(on) }
 
     fun sortable(predicate: Predicate<Cell>): Column = apply { sortableFlag.set(predicate) }
+
+    fun toggleable(): Column = toggleable(true)
 
     fun toggleable(on: Boolean): Column = apply { toggleableFlag.set(on) }
 
@@ -135,17 +147,28 @@ open class Column protected constructor(val name: String) {
 
     fun formatStateUsing(formatter: BiFunction<Any?, Cell, String>): Column = apply { this.formatter = formatter }
 
+    fun html(): Column = html(true)
+
     fun html(on: Boolean): Column = apply { html = on }
+
+    fun badge(): Column = badge(true)
 
     fun badge(on: Boolean): Column = apply { badge = on }
 
-    fun money(): Column = apply { style = TextStyle.MONEY }
+    fun money(): Column = apply {
+        style = TextStyle.MONEY
+        if (alignUsing == null && alignValue == Align.START) alignValue = Align.END
+    }
 
     fun date(): Column = apply { style = TextStyle.DATE }
 
     fun limit(characters: Int): Column = apply { limit = characters }
 
+    fun openUrlInNewTab(): Column = openUrlInNewTab(true)
+
     fun openUrlInNewTab(on: Boolean): Column = apply { newTab = on }
+
+    fun copyable(): Column = copyable(true)
 
     fun copyable(on: Boolean): Column = apply { copyable = on }
 
@@ -248,7 +271,7 @@ open class Column protected constructor(val name: String) {
         return """<a class="ff-column-link" href="${escapeHtml(href)}"$target>$text</a>"""
     }
 
-    private fun resolvedAlign(cell: Cell): Align {
+    internal fun resolvedAlign(cell: Cell): Align {
         val provider = alignUsing
         if (provider != null) return provider.apply(cell)
         return alignValue
@@ -276,12 +299,6 @@ open class Column protected constructor(val name: String) {
 }
 
 open class TextColumn protected constructor(name: String) : Column(name) {
-    init {
-        // Shamar list headers search and sort text columns by default.
-        searchable(true)
-        sortable(true)
-    }
-
     companion object {
         @JvmStatic
         fun make(name: String): TextColumn = finish(TextColumn(name))
@@ -383,17 +400,42 @@ open class ColorColumn private constructor(name: String) : Column(name) {
 
 open class CheckboxColumn private constructor(name: String) : Column(name) {
     private val inputExtras = InputAttributes()
+    private var editableUsing: Predicate<Cell>? = null
 
     fun extraInputAttributes(attributes: Map<String, String>): CheckboxColumn = apply { inputExtras.set(attributes) }
 
     fun extraInputAttributes(provider: Function<Cell, Map<String, String>>): CheckboxColumn =
         apply { inputExtras.set(provider) }
 
+    /**
+     * When false, the checkbox is readonly (no persist). Use for edit-permission gates:
+     * `.editable { cell -> canUpdate(cell) }`.
+     */
+    fun editable(): CheckboxColumn = editable(true)
+
+    fun editable(on: Boolean): CheckboxColumn = apply {
+        editableUsing = Predicate { on }
+    }
+
+    fun editable(predicate: Predicate<Cell>): CheckboxColumn = apply { editableUsing = predicate }
+
+    fun isEditable(cell: Cell): Boolean {
+        if (isDisabled(cell)) return false
+        val gate = editableUsing ?: return true
+        return gate.test(cell)
+    }
+
     override fun render(row: Map<String, Any?>, key: String, cell: Cell): String {
         val checked = if (truthy(row[name])) """ checked""" else ""
-        val disabled = if (isDisabled(cell)) """ disabled""" else ""
+        val canEdit = isEditable(cell)
+        val disabled = if (!canEdit) """ disabled""" else ""
         val extra = inputExtras.markup(cell)
-        return """<div class="ff-column ff-checkbox-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"><input type="checkbox"$checked$disabled$extra></div>"""
+        val change = if (canEdit) {
+            """ x-on:change="${'$'}wire.${'$'}call('toggleColumn', '${escapeHtml(key)}', '${escapeHtml(name)}', ${'$'}event.target.checked ? 'true' : 'false')""""
+        } else {
+            ""
+        }
+        return """<div class="ff-column ff-checkbox-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"><label class="ff-checkbox-wrap"><input class="ff-checkbox" type="checkbox"$checked$disabled$extra$change><span class="ff-checkbox-box" aria-hidden="true"></span></label></div>"""
     }
 
     companion object {

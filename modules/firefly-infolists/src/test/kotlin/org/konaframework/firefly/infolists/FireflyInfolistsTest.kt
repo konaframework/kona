@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -46,7 +47,8 @@ class FireflyInfolistsTest {
         assertTrue(html(plain).contains("x-data=\"ffEntry\""))
         val empty = TextEntry.make("title").placeholder("None <x>")
         assertTrue(html(empty).contains("None &lt;x&gt;"))
-        val oneBadge = TextEntry.make("title").badge(true).state("Hot")
+        val oneBadge = TextEntry.make("title").badge().state("Hot")
+        assertSame(oneBadge, oneBadge.badge())
         assertTrue(html(oneBadge).contains("data-ff-badge=\"true\""))
         val bullets = TextEntry.make("title").bulleted(true).state(listOf("a", "b"))
         assertTrue(html(bullets).contains("<ul"))
@@ -131,8 +133,10 @@ class FireflyInfolistsTest {
         entry.tooltip { "tip2" }
         entry.url("https://kona.test")
         entry.url { "https://kona.test/x" }
+        entry.openUrlInNewTab()
         entry.openUrlInNewTab(true)
         entry.openUrlInNewTab { true }
+        entry.copyable()
         entry.copyable(true)
         entry.copyable { true }
         entry.copyMessage("Copied")
@@ -161,8 +165,10 @@ class FireflyInfolistsTest {
         entry.alignCenter()
         entry.alignEnd()
         entry.alignJustify()
+        entry.wrap()
         entry.wrap(true)
         entry.wrap { true }
+        entry.inlineLabel()
         entry.inlineLabel(true)
         entry.inlineLabel { false }
         entry.badge { true }

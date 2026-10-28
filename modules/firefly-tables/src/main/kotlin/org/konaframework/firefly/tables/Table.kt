@@ -238,7 +238,14 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     private fun setValue(key: String, column: String, raw: String) {
-        column(column)
+        val col = column(column)
+        val record = store.find(key) ?: throw FireflyException("Unknown record [$key]")
+        val values = store.attributes(record)
+        val cell = rowCell(values, col.name)
+        if (col.isDisabled(cell)) throw FireflyException("Column [$column] is not editable for record [$key]")
+        if (col is CheckboxColumn && !col.isEditable(cell)) {
+            throw FireflyException("Column [$column] is not editable for record [$key]")
+        }
         val value: Any = when (raw) {
             "true" -> true
             "false" -> false
@@ -334,7 +341,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val cell = tableCell()
         val headers = visible.joinToString("") { columnHeader(it, cell) }
         val selectHead = if (selectable) """<th class="ff-table-select"><button type="button" x-on:click="${'$'}wire.${'$'}call('selectPage')" aria-label="Select page"></button></th>""" else ""
-        val actionHead = if (rowButtonList.isEmpty()) "" else """<th class="ff-table-actions-head">Actions</th>"""
+        val actionHead = if (rowButtonList.isEmpty()) "" else """<th class="ff-table-actions-head" data-ff-align="end">Actions</th>"""
         val span = visible.size + (if (selectable) 1 else 0) + (if (rowButtonList.isEmpty()) 0 else 1)
         val body = when {
             loaded.isEmpty() -> {
@@ -351,8 +358,10 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     private fun columnHeader(column: Column, cell: Cell): String {
         val label = escapeHtml(column.heading(cell))
+        val align = column.resolvedAlign(cell).name.lowercase()
+        val alignAttr = """ data-ff-align="$align""""
         if (!column.isSortable(cell)) {
-            return """<th scope="col">$label</th>"""
+            return """<th scope="col"$alignAttr>$label</th>"""
         }
         val active = sortColumn == column.name
         val next = if (active && sortDirection == "asc") "desc" else "asc"
@@ -363,7 +372,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         }
         val href = sortHref(column.name, next)
         // Query-string sort works without a Wire host; chrome soft-nav swaps .ff-table-wrap in place.
-        return """<th scope="col" class="ff-table-sortable" data-ff-sort="$state"><a class="ff-table-sort" href="${escapeHtml(href)}" data-ff-table-nav data-ff-sort-column="${escapeHtml(column.name)}" data-ff-sort-direction="$next">$label<span class="ff-table-sort-indicator" aria-hidden="true"></span></a></th>"""
+        return """<th scope="col" class="ff-table-sortable"$alignAttr data-ff-sort="$state"><a class="ff-table-sort" href="${escapeHtml(href)}" data-ff-table-nav data-ff-sort-column="${escapeHtml(column.name)}" data-ff-sort-direction="$next">$label<span class="ff-table-sort-indicator" aria-hidden="true"></span></a></th>"""
     }
 
     private fun sortHref(column: String, direction: String): String {

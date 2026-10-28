@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -307,7 +308,7 @@ class FireflyFormsSupportTest {
             .url()
             .type("text")
             .mask("999")
-            .copyable(true)
+            .copyable()
             .step("0.5")
             .minValue(1.0)
             .minValue { 1.5 }
@@ -481,7 +482,8 @@ class FireflyFormsSupportTest {
         select.getSearchResultsUsing { mapOf(it to it) }
         assertEquals("ko", select.search(schema, "ko").first().value)
         assertTrue(select.validationRules(schema).any { it.startsWith("in:") })
-        select.multiple(true)
+        select.multiple()
+        select.preload()
         assertFalse(select.validationRules(schema).any { it.startsWith("in:") })
         select.multiple(false).options { mapOf("a|b" to "A") }
         assertFalse(select.validationRules(schema).any { it.startsWith("in:") })
@@ -542,15 +544,48 @@ class FireflyFormsSupportTest {
         assertTrue(onHtml.contains("--ff-on-color:#DF8723"))
         assertTrue(Schema.make().components(toggle).fill(mapOf("ok" to "1")).render().contains("aria-pressed=\"true\""))
         assertTrue(Schema.make().components(toggle).fill(mapOf("ok" to "true")).render().contains("aria-pressed=\"true\""))
+        // JDBC/Cadence often returns int 1 for booleans — must stay on for edit forms (#300).
+        assertTrue(Schema.make().components(Toggle.make("ok")).fill(mapOf("ok" to 1)).render().contains("aria-pressed=\"true\""))
+        assertTrue(Schema.make().components(Toggle.make("ok")).fill(mapOf("ok" to 1L)).render().contains("""value="1""""))
+        assertTrue(Schema.make().components(Checkbox.make("ok")).fill(mapOf("ok" to 1)).render().contains("checked"))
         val offHtml = Schema.make().components(toggle).fill(mapOf("ok" to "no")).render()
         assertTrue(offHtml.contains("aria-pressed=\"false\""))
         assertTrue(offHtml.contains("""name="ok" value="0""""))
+        assertTrue(Schema.make().components(Checkbox.make("ok")).render().contains("ff-checkbox-wrap"))
+        assertTrue(Schema.make().components(Checkbox.make("ok")).render().contains("ff-checkbox-box"))
+        assertTrue(Schema.make().components(MonthPicker.make("month")).render().contains("data-ff-picker-kind=\"month\""))
+        assertTrue(Schema.make().components(YearPicker.make("year")).render().contains("data-ff-picker-kind=\"year\""))
+        assertTrue(Schema.make().components(DateTimePicker.make("at")).render().contains("data-ff-picker-ok"))
+        assertTrue(Schema.make().components(DatePicker.make("day")).render().contains("data-ff-picker-view-up"))
+        val timeHtmlCompact = Schema.make().components(DateTimePicker.make("at")).render()
+        assertTrue(timeHtmlCompact.contains("data-ff-hours"))
+        assertFalse(timeHtmlCompact.contains("size=\"5\""))
+        assertTrue(timeHtmlCompact.contains("ff-time-select"))
+        assertTrue(Schema.make().components(TextInput.make("n").required()).render().contains("required"))
+        val searchableSelect = Select.make("s")
+        assertSame(searchableSelect, searchableSelect.searchable())
+        val searchableList = CheckboxList.make("tags")
+        assertSame(searchableList, searchableList.searchable())
+        val inlineBox = Checkbox.make("c")
+        assertSame(inlineBox, inlineBox.inline())
+        val inlineToggleButtons = ToggleButtons.make("tb")
+        assertSame(inlineToggleButtons, inlineToggleButtons.inline())
+        val leveled = DatePicker.make("day").pickLevel(DatePickLevel.DAY)
+        assertEquals(DatePickLevel.DAY, leveled.pickLevel())
+        assertEquals(DatePickLevel.MONTH, DatePicker.make("m").pickLevel(DatePickLevel.MONTH).pickLevel())
+        assertEquals(DatePickLevel.YEAR, DatePicker.make("y").pickLevel(DatePickLevel.YEAR).pickLevel())
+        MonthPicker.configureUsing { it.locale("en-US") }
+        assertTrue(Schema.make().components(MonthPicker.make("m2")).render().contains("data-ff-picker-kind=\"month\""))
+        MonthPicker.configureUsing(null)
+        YearPicker.configureUsing { it.locale("en-US") }
+        assertTrue(Schema.make().components(YearPicker.make("y2")).render().contains("data-ff-picker-kind=\"year\""))
+        YearPicker.configureUsing(null)
         val checks = CheckboxList.make("colors")
             .options(mapOf("red" to "Red"))
             .options { mapOf("red" to "Red", "blue" to "Blue") }
             .descriptions(mapOf("red" to "Warm"))
             .searchable(true)
-            .bulkToggleable(true)
+            .bulkToggleable()
             .optionColumns(2)
             .gridDirection("column")
             .noSearchResultsMessage("None")
@@ -564,13 +599,13 @@ class FireflyFormsSupportTest {
         assertTrue(checkHtml.contains("disabled"))
         assertTrue(Schema.make().components(CheckboxList.make("colors").options(mapOf("red" to "Red"))).fill(mapOf("colors" to "red")).render().contains("checked"))
         assertThrows(FireflyException::class.java) { checks.optionColumns(0) }
-        val radio = Radio.make("kind").boolean().inline(true).descriptions(mapOf("true" to "Yep")).disableOptionWhen { it == "false" }
+        val radio = Radio.make("kind").boolean().inline().descriptions(mapOf("true" to "Yep")).disableOptionWhen { it == "false" }
         radio.options { mapOf("true" to "Yes", "false" to "No") }
         val radioHtml = Schema.make().components(radio).fill(mapOf("kind" to "true")).render()
         assertTrue(radioHtml.contains("type=\"radio\""))
         assertTrue(radioHtml.contains("checked"))
         assertTrue(radioHtml.contains("Yep"))
-        val buttons = ToggleButtons.make("size").boolean().inline(false).grouped(false).multiple(true).colors(mapOf("true" to "#DF8723")).icons(mapOf("true" to "check"))
+        val buttons = ToggleButtons.make("size").boolean().inline(false).grouped(false).multiple().colors(mapOf("true" to "#DF8723")).icons(mapOf("true" to "check"))
         buttons.options { mapOf("true" to "Yes") }
         val buttonHtml = Schema.make().components(buttons).fill(mapOf("size" to listOf("true"))).render()
         assertTrue(buttonHtml.contains("aria-pressed=\"true\""))
@@ -650,7 +685,7 @@ class FireflyFormsSupportTest {
         assertEquals(2, day.hourChoices()[1])
         day.minutesStep(15)
         assertEquals(listOf(0, 15, 30, 45), day.minuteChoices())
-        day.seconds(true)
+        day.seconds()
         assertTrue(day.validationRules(Schema.make().components(day)).any { it.startsWith("date_format:") })
         day.seconds(false)
         day.format("Y-m-d H:i:s").displayFormat("H:i:s").seconds(true)
@@ -766,7 +801,7 @@ class FireflyFormsSupportTest {
         assertTrue(mdHtml.contains("data-ff-lang=\"markdown\""))
         assertTrue(mdHtml.contains("ff-prose"))
         assertFalse(mdHtml.contains("data-ff-tool=\"image\""))
-        val code = CodeEditor.make("script").language("kotlin").wrap(true)
+        val code = CodeEditor.make("script").language("kotlin").wrap()
         assertEquals("kotlin", code.language())
         assertThrows(FireflyException::class.java) { code.language(" ") }
         val codeHtml = Schema.make().components(code).fill(mapOf("script" to "val a = 1")).render()

@@ -208,6 +208,12 @@ class FireflyTablesTest {
         assertEquals("fallback", configured.placeholder("fallback").heading(Cell { null }).let { "fallback" })
         TextColumn.configureUsing(null)
         assertFalse(TextColumn.make("title").isHidden(Cell { null }))
+        // Columns opt in — not searchable/sortable until asked (#311); zero-arg means true (#310).
+        assertFalse(TextColumn.make("title").isSearchable(Cell { null }))
+        assertFalse(TextColumn.make("title").isSortable(Cell { null }))
+        assertTrue(TextColumn.make("title").searchable().isSearchable(Cell { null }))
+        assertTrue(TextColumn.make("title").sortable().isSortable(Cell { null }))
+        assertTrue(TextColumn.make("title").hidden().isHidden(Cell { null }))
 
         val literal = TextColumn.make("name")
             .label("Name")
@@ -230,10 +236,10 @@ class FireflyTablesTest {
             .extraAttributes(mapOf("data-x" to "1"))
             .view("app.column")
             .html(false)
-            .badge(true)
+            .badge()
             .limit(20)
-            .openUrlInNewTab(true)
-            .copyable(true)
+            .openUrlInNewTab()
+            .copyable()
             .summarize(Summary.COUNT)
         val literalHtml = literal.render(mapOf("name" to "Ada"), "1", Cell { "Ada" })
         assertTrue(literalHtml.contains("ff-badge"))
@@ -244,7 +250,26 @@ class FireflyTablesTest {
         assertTrue(literalHtml.contains("@entangle(name)"))
         assertTrue(literalHtml.contains("x-data=\"ffColumn('name', true)\""))
         assertTrue(literalHtml.contains("ff-column-description"))
+        assertTrue(literalHtml.contains("""data-ff-align="center""""))
         assertTrue(literal.heading(Cell { null }).contains("Name"))
+        val moneyHead = Table.memory(listOf(mapOf("amt" to 12, "id" to "1")))
+            .columns(TextColumn.make("amt").money().label("Amount"))
+            .render()
+        assertTrue(moneyHead.contains("""data-ff-align="end""""))
+        assertTrue(moneyHead.contains("<th") && moneyHead.contains("""data-ff-align="end""""))
+        // money() leaves an explicit align / alignUsing alone.
+        assertTrue(
+            Table.memory(listOf(mapOf("amt" to 1, "id" to "1")))
+                .columns(TextColumn.make("amt").align(Align.CENTER).money())
+                .render()
+                .contains("""data-ff-align="center""""),
+        )
+        assertTrue(
+            Table.memory(listOf(mapOf("amt" to 1, "id" to "1")))
+                .columns(TextColumn.make("amt").align { Align.START }.money())
+                .render()
+                .contains("""data-ff-align="start""""),
+        )
         Column.configureUsing(BadgeColumn::class.java, null)
         val badge = BadgeColumn.make("status").color("danger")
         val badgeHtml = badge.render(mapOf("status" to "open"), "1", Cell { "open" })
@@ -274,7 +299,7 @@ class FireflyTablesTest {
             .align { Align.END }
             .extraAttributes { mapOf("data-y" to "2") }
             .formatStateUsing { state, get -> "${get.get(".")}|${get.get("")}|$state" }
-            .html(true)
+            .html()
             .openUrlInNewTab(false)
             .money()
         assertTrue(closure.render(mapOf("name" to "Ada"), "1", Cell { path -> if (path == "." || path == "") "Ada" else null }).contains("Ada|Ada|Ada"))
@@ -328,11 +353,20 @@ class FireflyTablesTest {
         val box = CheckboxColumn.make("on").extraInputAttributes(
             mapOf("data-box" to "1", "" to "skip", "type" to "hidden", "name" to "x", "value" to "y"),
         )
-        assertTrue(box.render(mapOf("on" to true), "1", Cell { null }).contains("data-box=\"1\""))
+        val boxHtml = box.render(mapOf("on" to true), "1", Cell { null })
+        assertTrue(boxHtml.contains("data-box=\"1\""))
+        assertTrue(boxHtml.contains("\$wire.\$call('toggleColumn'"))
+        assertTrue(boxHtml.contains("ff-checkbox-wrap"))
         val boxClosure = CheckboxColumn.make("on").extraInputAttributes { mapOf("data-box" to "2") }
         assertTrue(boxClosure.render(mapOf("on" to true), "1", Cell { null }).contains("data-box=\"2\""))
         assertFalse(box.disabled(true).render(mapOf("on" to false), "1", Cell { null }).contains("checked"))
         assertTrue(box.render(mapOf("on" to false), "1", Cell { null }).contains("disabled"))
+        assertFalse(box.render(mapOf("on" to true), "1", Cell { null }).contains("\$wire.\$call('toggleColumn'"))
+        val gated = CheckboxColumn.make("on").editable(false)
+        assertTrue(gated.render(mapOf("on" to true), "1", Cell { null }).contains("disabled"))
+        assertFalse(gated.render(mapOf("on" to true), "1", Cell { null }).contains("\$wire.\$call('toggleColumn'"))
+        assertFalse(gated.isEditable(Cell { null }))
+        assertTrue(CheckboxColumn.make("on").editable { true }.isEditable(Cell { null }))
 
         val toggle = ToggleColumn.make("on")
         assertTrue(toggle.render(mapOf("on" to true), "1", Cell { null }).contains("aria-pressed=\"true\""))
@@ -493,11 +527,18 @@ class FireflyTablesTest {
         val needs = TableButton.make("bulk").requiresSelection(true).disabled(false)
         assertTrue(needs.render(Cell { null }, true).contains("disabled"))
         assertFalse(needs.render(Cell { null }, false).contains("disabled"))
-        assertEquals("", TableButton.make("gone").hidden(true).render(Cell { null }, false))
+        assertEquals("", TableButton.make("gone").hidden().render(Cell { null }, false))
         assertEquals("", TableButton.make("gone").visible(false).render(Cell { null }, false))
         assertEquals("", TableButton.make("gone").hidden { true }.render(Cell { null }, false))
+        assertTrue(TableButton.make("show").visible().render(Cell { null }, false).contains("ff-table-button"))
         assertTrue(TableButton.make("show").visible { true }.render(Cell { null }, false).contains("ff-table-button"))
+        assertTrue(TableButton.make("soft").disabled().render(Cell { null }, false).contains("disabled"))
         assertTrue(TableButton.make("soft").disabled { true }.render(Cell { null }, false).contains("disabled"))
+        assertTrue(TextColumn.make("x").toggleable().isToggleable(Cell { null }))
+        assertTrue(CheckboxColumn.make("on").editable().isEditable(Cell { null }))
+        assertTrue(TextColumn.make("x").visible().let { !it.isHidden(Cell { null }) })
+        assertTrue(TextColumn.make("x").disabled().isDisabled(Cell { null }))
+        assertTrue(TextColumn.make("x").hidden().isHidden(Cell { null }))
 
         val rows = listOf(
             mapOf("id" to "1", "name" to "Ada", "status" to "open", "score" to 2, "city" to null, "on" to true),
@@ -609,6 +650,21 @@ class FireflyTablesTest {
         calls.call("selectRecord", "1")
         calls.call("toggleColumn", "1", "on", "false")
         calls.call("toggleColumn", "1", "on", "true")
+        val boxCalls = Table.memory(rows).columns(CheckboxColumn.make("on"), TextColumn.make("name"))
+        boxCalls.call("toggleColumn", "1", "on", "true")
+        boxCalls.call("toggleColumn", "1", "on", "false")
+        assertThrows(FireflyException::class.java) {
+            Table.memory(rows).columns(CheckboxColumn.make("on").editable(false)).call("toggleColumn", "1", "on", "true")
+        }
+        assertThrows(FireflyException::class.java) {
+            Table.memory(rows).columns(CheckboxColumn.make("on").disabled(true)).call("toggleColumn", "1", "on", "true")
+        }
+        assertThrows(FireflyException::class.java) { boxCalls.call("toggleColumn", "missing-key", "on", "true") }
+        assertTrue(truthy(listOf("x")))
+        assertFalse(truthy(emptyList<String>()))
+        assertTrue(truthy(Any()))
+        assertTrue(truthy("maybe"))
+        assertFalse(truthy(null))
         calls.call("setColumn", "1", "name", "Ada Lovelace")
         calls.call("toggleColumnVisibility", "name", "false")
         calls.call("toggleColumnVisibility", "name", "true")
@@ -661,7 +717,7 @@ class FireflyTablesTest {
         assertTrue(noSearch.render().contains("ff-table-toolbar--empty") || noSearch.render().contains("hidden"))
         assertFalse(noSearch.render().contains("ff-table-sort"))
         val sorted = Table.memory(rows)
-            .columns(TextColumn.make("name"))
+            .columns(TextColumn.make("name").searchable().sortable())
             .search("Ada")
             .sort("name", "desc")
             .perPage(25)
@@ -680,7 +736,7 @@ class FireflyTablesTest {
         assertTrue(sortedHtml.contains("ff-page-size"))
         assertTrue(sortedHtml.contains("data-ff-table-nav-select"))
         assertTrue(sortedHtml.contains("method=\"get\""))
-        val asc = Table.memory(rows).columns(TextColumn.make("name")).sort("name", "asc").perPage(1).page(2)
+        val asc = Table.memory(rows).columns(TextColumn.make("name").sortable()).sort("name", "asc").perPage(1).page(2)
         val ascHtml = asc.render()
         assertTrue(ascHtml.contains("data-ff-sort=\"asc\""))
         assertTrue(ascHtml.contains("?page=1") || ascHtml.contains("page=1"))
@@ -727,7 +783,7 @@ class FireflyTablesTest {
             .headerButtons(TableButton.make("export").label("Export"))
         assertTrue(buttonsOnly.render().contains("Export"))
         val searchOnly = Table.memory(rows)
-            .columns(TextColumn.make("name").sortable(false))
+            .columns(TextColumn.make("name").searchable().sortable(false))
             .search("Bea")
             .perPage(1)
             .page(2)
