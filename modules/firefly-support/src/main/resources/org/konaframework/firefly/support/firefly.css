@@ -214,6 +214,11 @@ body.ff-body-root {
   color: var(--ff-heading);
 }
 
+.ff-panel .ff-sidebar-close .ff-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
 .ff-panel .ff-nav-side {
   flex: 1 1 auto;
   min-height: 0;
@@ -416,6 +421,13 @@ body.ff-body-root {
 .ff-panel .ff-icon-btn:hover {
   background: var(--ff-hover);
   color: var(--ff-heading);
+}
+
+.ff-panel .ff-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  display: block;
 }
 
 .ff-panel .ff-icon-btn .ff-icon {
@@ -866,6 +878,9 @@ body.ff-body-root {
  * of the primary-button look via these :not() guards and keep their own styles. */
 .ff-panel .ff-btn,
 .ff-panel .ff-action-button,
+.ff-panel .ff-action-submit,
+.ff-panel a.ff-action-submit,
+.ff-panel button.ff-action-submit,
 .ff-panel .ff-page-header .ff-action-button,
 .ff-panel .ff-page-header .ff-action-trigger.ff-action-button,
 .ff-panel .ff-manage > .ff-page-header .ff-action-button,
@@ -886,11 +901,15 @@ body.ff-body-root {
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 1px 0 color-mix(in srgb, #000 8%, transparent);
+  text-decoration: none;
   transition: filter 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
 
 .ff-panel .ff-btn:hover,
 .ff-panel .ff-action-button:hover,
+.ff-panel .ff-action-submit:hover,
+.ff-panel a.ff-action-submit:hover,
+.ff-panel button.ff-action-submit:hover,
 .ff-panel button[type="submit"]:not(.ff-menu-item):not(.ff-action-outlined):hover,
 .ff-panel .ff-page-header button.ff-action-trigger:not(.ff-action-outlined):hover {
   filter: brightness(0.96);
@@ -1548,14 +1567,21 @@ body.ff-body-root {
   pointer-events: none !important;
 }
 
-/* Chrome script opens mounts with .ff-open (no Alpine required). */
+/* Chrome script opens mounts with .ff-open (no Alpine required).
+   Fixed + high z-index so the dialog stacks above the mobile drawer backdrop (z-30)
+   and the sidebar (z-40), even when the trigger lives deep in the table. */
 .ff-panel .ff-action-dialog.ff-open,
 .ff-panel .ff-table-button-dialog.ff-open {
   display: block !important;
   pointer-events: auto !important;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
 }
 
 .ff-panel .ff-dialog-modal .ff-dialog-window {
+  position: relative;
+  z-index: 1;
   margin: 4rem auto 0;
   max-width: 32rem;
   background: var(--ff-card);
@@ -1563,12 +1589,79 @@ body.ff-body-root {
   border-radius: calc(var(--ff-radius) + 0.35rem);
   box-shadow: var(--ff-shadow);
   padding: 1.1rem 1.2rem;
+  color: var(--ff-body-text);
+}
+
+.ff-panel .ff-dialog-header {
+  margin: 0 1.75rem 0.75rem 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* Action dialog close — compact icon control (Icon.X.svg has no intrinsic size). */
+.ff-panel .ff-action-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ff-body-text);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.ff-panel .ff-action-close:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-action-close .ff-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.ff-panel .ff-action-schema {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ff-panel .ff-action-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+  padding-top: 0.15rem;
+}
+
+.ff-panel .ff-action-description {
+  margin: 0;
+  color: var(--ff-body-subtle);
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .ff-panel .ff-dialog-overlay,
 .ff-panel .ff-dialog-backdrop {
   position: absolute;
   inset: 0;
+  z-index: 0;
   background: rgb(15 23 42 / 35%);
 }
 

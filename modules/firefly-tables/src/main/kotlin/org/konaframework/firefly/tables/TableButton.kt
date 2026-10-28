@@ -30,6 +30,7 @@ open class TableButton(val name: String) {
     private var formExtras: Function<Cell, String> = Function { "" }
     private var confirmHeading: String? = null
     private var confirmDescription: String = ""
+    private var bodyHtml: Function<Cell, String>? = null
 
     fun label(value: String): TableButton = apply { labelValue.set(value) }
 
@@ -62,6 +63,16 @@ open class TableButton(val name: String) {
     fun schema(vararg components: Component): TableButton = apply {
         schemaParts.clear()
         schemaParts.addAll(components)
+        bodyHtml = null
+    }
+
+    /**
+     * Custom dialog body per row (e.g. filled edit/view markup for a simple-resource manage page).
+     * Takes precedence over [schema] when set.
+     */
+    fun body(html: Function<Cell, String>): TableButton = apply {
+        bodyHtml = html
+        schemaParts.clear()
     }
 
     /**
@@ -128,8 +139,13 @@ open class TableButton(val name: String) {
                 </form>
                 """.trimIndent(),
             )
-        } else if (schemaParts.isNotEmpty()) {
-            dialog.body(Schema.make().components(*schemaParts.toTypedArray()).render())
+        } else {
+            val custom = bodyHtml
+            if (custom != null) {
+                dialog.body(custom.apply(cell))
+            } else if (schemaParts.isNotEmpty()) {
+                dialog.body(Schema.make().components(*schemaParts.toTypedArray()).render())
+            }
         }
         // Keep the dialog in the DOM for Wire/modal mounts, but never leave it interactive.
         // Raw Dialog is position:fixed;inset:0 — without a closed wrapper it blocks the list page.

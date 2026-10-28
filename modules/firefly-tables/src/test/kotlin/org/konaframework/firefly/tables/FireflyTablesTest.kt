@@ -417,6 +417,17 @@ class FireflyTablesTest {
         assertTrue(modalHtml.contains("\$wire.\$call('edit')"))
         assertTrue(modalHtml.contains("""data-ff-action-boot="ffAction('edit')""""))
         assertTrue(modalHtml.contains("Hello"))
+        val customBody = TableButton.make("view").label("View").modal().body { cell ->
+            "<p data-ff-row=\"${cell.get("key")}\">Row body</p>"
+        }
+        val customHtml = customBody.render(Cell { path -> if (path == "key") "42" else null }, false)
+        assertTrue(customHtml.contains("""data-ff-row="42""""))
+        assertTrue(customHtml.contains("Row body"))
+        assertFalse(customHtml.contains("Hello"))
+        // schema() clears a prior body(); body() clears schema parts.
+        val swapped = TableButton.make("swap").modal().body { "<em>gone</em>" }.schema(Text.make("Kept"))
+        assertTrue(swapped.render(Cell { null }, false).contains("Kept"))
+        assertFalse(swapped.render(Cell { null }, false).contains("gone"))
         val slide = TableButton.make("side").label { "Side ${it.get("name")}" }.slideOver()
         val slideHtml = slide.render(Cell { "Ada" }, false)
         assertTrue(slideHtml.contains("ff-dialog-sidebar"))
