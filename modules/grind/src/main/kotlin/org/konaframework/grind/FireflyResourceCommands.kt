@@ -1,16 +1,18 @@
 package org.konaframework.grind
 
 /**
- * `grind make:firefly-resource <Model> [--simple]` writes a `*Resource` the panel discovers.
+ * `grind make:firefly-resource <Model> [--simple]` writes a `*Resource` the panel discovers
+ * plus thin page subclasses under `{Resource}/pages/` (Filament-style).
  *
- * Full resources declare list/create/edit/view pages. The panel sidebar gets **one** entry
- * (the list). Create / edit / view / delete are page-header and row actions from [Resource.pages].
+ * Simple resources emit [ManagePage] and wire it from `getPages()`. Full resources emit
+ * list / create / edit / view pages. The panel sidebar gets **one** entry (list or manage);
+ * create / edit / view / delete remain page-header and row actions from [Resource.pages].
  */
 class MakeFireflyResourceCommand {
     fun run(args: List<String>): Int {
         val (positional, options) = parseOptions(args)
         if (positional.size != 1) {
-            throw GrindException("Usage: grind make:firefly-resource <Model> [--simple]  (writes ModelResource)")
+            throw GrindException("Usage: grind make:firefly-resource <Model> [--simple]  (writes ModelResource + pages)")
         }
         val input = positional.first()
         Names.requireClassName("resource", input)
@@ -21,40 +23,105 @@ class MakeFireflyResourceCommand {
         val lang = Names.lang(base, options)
         val simple = options["simple"] == "true"
         val panel = panelIdFromOptions(options)
+        val pkg = "app.panels.$panel.resources"
+        val pagesPkg = "$pkg.$className.pages"
+        val pagesDir = "app/panels/$panel/resources/$className/pages"
         Names.write(
             base,
             Names.sourceFile(lang, "app/panels/$panel/resources", className),
             "Firefly resource",
-            resourceSource(className, model, lang, simple, panel),
+            resourceSource(className, model, lang, simple, pkg, pagesPkg),
         )
+        writeResourcePages(base, lang, model, simple, pagesDir, pagesPkg)
         return 0
     }
 }
+
+private fun writeResourcePages(
+    base: java.nio.file.Path,
+    lang: String,
+    model: String,
+    simple: Boolean,
+    pagesDir: String,
+    pagesPkg: String,
+) {
+    val specs = if (simple) {
+        listOf(PageStub("Manage$model", "ManagePage", "manage"))
+    } else {
+        listOf(
+            PageStub("List$model", "ListPage", "list"),
+            PageStub("Create$model", "CreatePage", "create"),
+            PageStub("Edit$model", "EditPage", "edit"),
+            PageStub("View$model", "ViewPage", "view"),
+        )
+    }
+    for (stub in specs) {
+        Names.write(
+            base,
+            Names.sourceFile(lang, pagesDir, stub.className),
+            "Firefly resource page",
+            pageSource(lang, pagesPkg, stub),
+        )
+    }
+}
+
+private data class PageStub(val className: String, val baseClass: String, val slug: String)
+
+private fun pageSource(lang: String, pkg: String, stub: PageStub): String =
+    if (lang == "java") {
+        lines(
+            "package $pkg;",
+            "",
+            "import org.konaframework.firefly.${stub.baseClass};",
+            "",
+            "public class ${stub.className} extends ${stub.baseClass} {",
+            "    public ${stub.className}() {",
+            "        super(\"${stub.slug}\");",
+            "    }",
+            "}",
+        )
+    } else {
+        lines(
+            "package $pkg",
+            "",
+            "import org.konaframework.firefly.${stub.baseClass}",
+            "",
+            "class ${stub.className} : ${stub.baseClass}(\"${stub.slug}\")",
+        )
+    }
 
 private fun resourceSource(
     className: String,
     model: String,
     lang: String,
     simple: Boolean,
-    panel: String,
+    pkg: String,
+    pagesPkg: String,
 ): String {
     val slug = model.lowercase()
-    val pkg = "app.panels.$panel.resources"
-    if (lang == "java" && simple) return javaSimple(className, model, slug, pkg)
-    if (lang == "java") return javaFull(className, model, slug, pkg)
-    if (simple) return kotlinSimple(className, model, slug, pkg)
-    return kotlinFull(className, model, slug, pkg)
+    if (lang == "java" && simple) return javaSimple(className, model, slug, pkg, pagesPkg)
+    if (lang == "java") return javaFull(className, model, slug, pkg, pagesPkg)
+    if (simple) return kotlinSimple(className, model, slug, pkg, pagesPkg)
+    return kotlinFull(className, model, slug, pkg, pagesPkg)
 }
 
-private fun kotlinSimple(className: String, model: String, slug: String, pkg: String): String = lines(
+private fun kotlinSimple(
+    className: String,
+    model: String,
+    slug: String,
+    pkg: String,
+    pagesPkg: String,
+): String = lines(
     "package $pkg",
     "",
+    "import $pagesPkg.Manage$model",
     "import org.konaframework.firefly.Resource",
     "import org.konaframework.firefly.forms.TextInput",
     "import org.konaframework.firefly.infolists.TextEntry",
     "import org.konaframework.firefly.schemas.Schema",
     "import org.konaframework.firefly.tables.Table",
     "import org.konaframework.firefly.tables.TextColumn",
+    "import org.konaframework.firefly.widgets.Page",
     "",
     "class $className : Resource(\"$slug\") {",
     "    init {",
@@ -71,18 +138,28 @@ private fun kotlinSimple(className: String, model: String, slug: String, pkg: St
     "",
     "    override fun table(table: Table<*, *>): Table<*, *> =",
     "        table.columns(TextColumn.make(\"name\"))",
+    "",
+    "    override fun getPages(): Map<String, Page> = mapOf(",
+    "        \"manage\" to Manage$model(),",
+    "    )",
     "}",
 )
 
-private fun kotlinFull(className: String, model: String, slug: String, pkg: String): String = lines(
+private fun kotlinFull(
+    className: String,
+    model: String,
+    slug: String,
+    pkg: String,
+    pagesPkg: String,
+): String = lines(
     "package $pkg",
     "",
-    "import org.konaframework.firefly.CreatePage",
-    "import org.konaframework.firefly.EditPage",
-    "import org.konaframework.firefly.ListPage",
+    "import $pagesPkg.Create$model",
+    "import $pagesPkg.Edit$model",
+    "import $pagesPkg.List$model",
+    "import $pagesPkg.View$model",
     "import org.konaframework.firefly.RelationManager",
     "import org.konaframework.firefly.Resource",
-    "import org.konaframework.firefly.ViewPage",
     "import org.konaframework.firefly.forms.TextInput",
     "import org.konaframework.firefly.infolists.TextEntry",
     "import org.konaframework.firefly.schemas.Schema",
@@ -113,23 +190,34 @@ private fun kotlinFull(className: String, model: String, slug: String, pkg: Stri
     "    )",
     "",
     "    override fun getPages(): Map<String, Page> = mapOf(",
-    "        \"list\" to ListPage(\"list\"),",
-    "        \"create\" to CreatePage(\"create\"),",
-    "        \"edit\" to EditPage(\"edit\"),",
-    "        \"view\" to ViewPage(\"view\"),",
+    "        \"list\" to List$model(),",
+    "        \"create\" to Create$model(),",
+    "        \"edit\" to Edit$model(),",
+    "        \"view\" to View$model(),",
     "    )",
     "}",
 )
 
-private fun javaSimple(className: String, model: String, slug: String, pkg: String): String = lines(
+private fun javaSimple(
+    className: String,
+    model: String,
+    slug: String,
+    pkg: String,
+    pagesPkg: String,
+): String = lines(
     "package $pkg;",
     "",
+    "import $pagesPkg.Manage$model;",
     "import org.konaframework.firefly.Resource;",
     "import org.konaframework.firefly.forms.TextInput;",
     "import org.konaframework.firefly.infolists.TextEntry;",
     "import org.konaframework.firefly.schemas.Schema;",
     "import org.konaframework.firefly.tables.Table;",
     "import org.konaframework.firefly.tables.TextColumn;",
+    "import org.konaframework.firefly.widgets.Page;",
+    "",
+    "import java.util.LinkedHashMap;",
+    "import java.util.Map;",
     "",
     "public class $className extends Resource {",
     "    public $className() {",
@@ -153,18 +241,31 @@ private fun javaSimple(className: String, model: String, slug: String, pkg: Stri
     "    public Table<?, ?> table(Table<?, ?> table) {",
     "        return Table.memory().columns(TextColumn.make(\"name\"));",
     "    }",
+    "",
+    "    @Override",
+    "    public Map<String, Page> getPages() {",
+    "        Map<String, Page> pages = new LinkedHashMap<>();",
+    "        pages.put(\"manage\", new Manage$model());",
+    "        return pages;",
+    "    }",
     "}",
 )
 
-private fun javaFull(className: String, model: String, slug: String, pkg: String): String = lines(
+private fun javaFull(
+    className: String,
+    model: String,
+    slug: String,
+    pkg: String,
+    pagesPkg: String,
+): String = lines(
     "package $pkg;",
     "",
-    "import org.konaframework.firefly.CreatePage;",
-    "import org.konaframework.firefly.EditPage;",
-    "import org.konaframework.firefly.ListPage;",
+    "import $pagesPkg.Create$model;",
+    "import $pagesPkg.Edit$model;",
+    "import $pagesPkg.List$model;",
+    "import $pagesPkg.View$model;",
     "import org.konaframework.firefly.RelationManager;",
     "import org.konaframework.firefly.Resource;",
-    "import org.konaframework.firefly.ViewPage;",
     "import org.konaframework.firefly.forms.TextInput;",
     "import org.konaframework.firefly.infolists.TextEntry;",
     "import org.konaframework.firefly.schemas.Schema;",
@@ -210,10 +311,10 @@ private fun javaFull(className: String, model: String, slug: String, pkg: String
     "    @Override",
     "    public Map<String, Page> getPages() {",
     "        Map<String, Page> pages = new LinkedHashMap<>();",
-    "        pages.put(\"list\", new ListPage(\"list\"));",
-    "        pages.put(\"create\", new CreatePage(\"create\"));",
-    "        pages.put(\"edit\", new EditPage(\"edit\"));",
-    "        pages.put(\"view\", new ViewPage(\"view\"));",
+    "        pages.put(\"list\", new List$model());",
+    "        pages.put(\"create\", new Create$model());",
+    "        pages.put(\"edit\", new Edit$model());",
+    "        pages.put(\"view\", new View$model());",
     "        return pages;",
     "    }",
     "}",

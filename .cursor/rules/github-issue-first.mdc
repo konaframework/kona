@@ -8,7 +8,7 @@ alwaysApply: true
 When the user describes a **bug, UX defect, or product issue** to fix (including “Issue: …”):
 
 1. **Create a GitHub issue first** with `gh issue create` on `konaframework/kona` (clear title + body: current vs wanted behavior).
-2. **Then** implement on a dedicated branch, reference the issue (`Fixes #N` / `Closes #N` in commits/PR).
+2. **Then** implement on the shared Firefly panel branch (`fix/firefly-panel` — see `firefly-issue-branch.mdc`), reference the issue (`Fixes #N` / `Closes #N` in commits/PR). Do **not** open a new `fix/firefly-…` branch per issue while that general branch is still open.
 3. Do not start coding the fix before the issue exists and you have its number/URL.
 
 Does not apply to pure questions, docs-only clarifications, or “how do I…” without an ask to change the product.

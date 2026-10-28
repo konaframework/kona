@@ -72,6 +72,8 @@ The default is `lg`, so the class `ff-dialog-lg` is present until you change it.
 
 Dragging is also omitted when the mode is fullscreen, even if `draggable(true)` was called. Modal and sidebar dialogs include `data-ff-drag="true"` on the root and `data-ff-dialog-drag-handle` on the header. Firefly chrome moves `.ff-dialog-window` on pointer drag (no Alpine required).
 
+Drag position does not stick. Closing or reopening a dialog clears the inline `position`, `margin`, `left`, and `top` that drag wrote, so the window returns to its stylesheet center every time you open it.
+
 The modal window is offset by the stylesheet: `.ff-dialog-modal .ff-dialog-window` has a top margin of `4rem`. That is the top alignment. Sidebar and fullscreen windows do not get that margin.
 
 ## Set a default for later dialogs
