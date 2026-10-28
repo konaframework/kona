@@ -68,14 +68,14 @@ After the check, each marker is replaced with the concatenated hook HTML. A hook
 
 ## What the default layout writes
 
-`DefaultLayout` renders a full HTML document from the Crema layout `firefly.layouts.panel` (`modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html`). Kotlin only supplies the four slot partials (already hook-filled), theme CSS, CSRF token, title, body colors, and the theme-init / chrome behavior scripts. Theme CSS and the Inter / DM Sans font links go in `<head>`, alongside a tiny no-flash script that applies the stored theme preference before the first paint. When a session is on the request, a `<meta name="csrf-token">` tag is written too so forms and Firefly Forms uploads can send `_token` / `X-CSRF-TOKEN`. The authenticated shell is a flex row: sidebar beside a column that holds the top bar, a scroll region for the body, and a pinned footer. A drawer backdrop and a small dependency-free behavior script (theme cycle, dropdown menus, mobile drawer) finish the document.
+`DefaultLayout` renders a full HTML document from the Crema layout `firefly.layouts.panel` (`modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html`). Kotlin only supplies the four slot partials (already hook-filled), theme CSS, CSRF token, title, body colors, and the theme-init / chrome behavior scripts. Theme CSS goes in `<head>` (system font stack only — no Google Fonts CDN), alongside a tiny no-flash script that applies the stored theme preference before the first paint. When a session is on the request, a `<meta name="csrf-token">` tag is written too so forms and Firefly Forms uploads can send `_token` / `X-CSRF-TOKEN`. The authenticated shell is a flex row: sidebar beside a column that holds the top bar, a scroll region for the body, and a pinned footer. A drawer backdrop and a small dependency-free behavior script (theme cycle, dropdown menus, mobile drawer) finish the document.
 
 ```html
 <!DOCTYPE html>
 <html lang="en" class="ff-html">
   <head>
     …charset, viewport, csrf meta, title…
-    …Google Fonts (Inter, DM Sans)…
+    …theme CSS (system fonts)…
     <script>…apply stored ff-theme before paint…</script>
     <style>…theme CSS…</style>
   </head>

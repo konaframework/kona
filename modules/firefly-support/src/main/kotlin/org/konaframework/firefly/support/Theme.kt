@@ -35,7 +35,8 @@ class KonaTheme : FireflyTheme {
         accent = "#74453F",
         surface = "#FAF6F0",
         heading = "#2A1C10",
-        font = "\"Inter\", \"DM Sans\", ui-sans-serif, system-ui, sans-serif",
+        // System stack only — no Google Fonts CDN (cold panel load must not wait on the network).
+        font = "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
         radius = "0.55rem",
         sidebarWidth = "16.5rem",
         topbarHeight = "3.75rem",

@@ -25,9 +25,6 @@ class AuthLayout : PanelLayout {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 $meta
                 <title>${escAttr(title)}</title>
-                <link rel="preconnect" href="https://fonts.googleapis.com" />
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-                <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Inter:ital,opsz,wght@0,400..700;1,400..700&display=swap" />
                 ${DefaultLayout.THEME_INIT_SCRIPT}
                 <style>${context.css}</style>
               </head>
