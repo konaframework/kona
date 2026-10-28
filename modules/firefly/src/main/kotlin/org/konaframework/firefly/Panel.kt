@@ -722,9 +722,19 @@ open class Panel {
             )
             lead.append("""<span class="ff-brand ff-topbar-brand">${escapeHtml(brand)}</span>""")
         }
-        if (type != NavigationType.SIDE) {
-            val nested = type == NavigationType.TOP
-            lead.append("""<nav class="ff-nav ff-nav-top">${renderItems(items, path, spaMode, get, nested)}</nav>""")
+        // APP: nested levels of the active L1 root (Shamar topbar secondary). TOP: full tree.
+        when (type) {
+            NavigationType.TOP ->
+                lead.append("""<nav class="ff-nav ff-nav-top">${renderItems(items, path, spaMode, get, true)}</nav>""")
+            NavigationType.APP -> {
+                val nested = appTop(path, get)
+                if (nested.isNotEmpty()) {
+                    lead.append(
+                        """<nav class="ff-nav ff-nav-top">${renderItems(nested, path, spaMode, get, true)}</nav>""",
+                    )
+                }
+            }
+            NavigationType.SIDE -> Unit
         }
         lead.append("</div>")
         return lead.toString()
@@ -736,8 +746,9 @@ open class Panel {
         val brandBlock =
             """<div class="ff-sidebar-brand"><span class="ff-brand">${escapeHtml(brand)}</span>""" +
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
-        val nodes = if (type == NavigationType.APP) appSide(path) else items
-        val nav = """<nav class="ff-nav ff-nav-side">${renderItems(nodes, path, spaMode, get, true)}</nav>"""
+        // APP: L1 roots only (children go to the top bar). SIDE: full nested tree in the sidebar.
+        val nested = type == NavigationType.SIDE
+        val nav = """<nav class="ff-nav ff-nav-side">${renderItems(items, path, spaMode, get, nested)}</nav>"""
         return brandBlock + nav + sidebarFootHtml(user)
     }
 
@@ -746,13 +757,25 @@ open class Panel {
         return """<div class="ff-sidebar-foot">Signed in as <span class="ff-signed-in">${escapeHtml(user.primary)}</span></div>"""
     }
 
-    private fun appSide(path: String): List<NavigationItem> {
+    /**
+     * Children of the active level-1 item for [NavigationType.APP] top navigation.
+     * Active root is the last L1 whose own URL or any descendant matches [path]; otherwise the first L1.
+     */
+    private fun appTop(path: String, get: Get): List<NavigationItem> {
         if (items.isEmpty()) return emptyList()
         var active: NavigationItem? = null
         for (item in items) {
-            if (activeItem(path, item.urlText(SchemaBridge.open(emptyMap())))) active = item
+            if (itemOrDescendantActive(item, path, get)) active = item
         }
         return (active ?: items.first()).children
+    }
+
+    private fun itemOrDescendantActive(item: NavigationItem, path: String, get: Get): Boolean {
+        if (item.isActive(path, get)) return true
+        for (child in item.children) {
+            if (itemOrDescendantActive(child, path, get)) return true
+        }
+        return false
     }
 
     private fun tenantId(request: Request): String? {
