@@ -370,11 +370,13 @@ open class Checkbox protected constructor(name: String) : Field<Checkbox>(name) 
 }
 
 open class Toggle protected constructor(name: String) : Field<Toggle>(name) {
-    private var inlineFlag: Boolean = false
+    private var inlineFlag: Boolean = true
     private var onColorText: String? = null
     private var offColorText: String? = null
     private var onIconText: String? = null
     private var offIconText: String? = null
+
+    fun inline(): Toggle = inline(true)
 
     fun inline(on: Boolean): Toggle = apply { inlineFlag = on }
 
@@ -388,6 +390,12 @@ open class Toggle protected constructor(name: String) : Field<Toggle>(name) {
 
     override fun kind(): String = "toggle"
 
+    /** When inline (default), label sits beside the switch — suppress the block label above. */
+    override fun fieldLabelHtml(schema: Schema, required: Boolean): String {
+        if (inlineFlag) return ""
+        return super.fieldLabelHtml(schema, required)
+    }
+
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val checked = value == true || value == "1" || value == "true"
         val stored = if (checked) "1" else "0"
@@ -396,8 +404,31 @@ open class Toggle protected constructor(name: String) : Field<Toggle>(name) {
             if (offColorText != null) append("--ff-off-color:${esc(offColorText!!)};")
         }
         val styleAttr = if (style.isEmpty()) "" else """ style="$style""""
-        // Hidden input submits with native forms; chrome `data-ff-toggle` flips without Alpine/Wire.
-        return """<span class="ff-toggle-wrap"${boolAttr("data-ff-inline", inlineFlag)}><input type="hidden" class="ff-toggle-input" name="${esc(path)}" value="$stored" data-ff-toggle-value /><button type="button" class="ff-toggle" data-ff-toggle role="switch" x-data="ffField" data-ff-path="${esc(path)}"$styleAttr${boolAttr("aria-pressed", checked)}${boolAttr("aria-checked", checked)}${attr("data-ff-on-color", onColorText)}${attr("data-ff-off-color", offColorText)}${attr("data-ff-on-icon", onIconText)}${attr("data-ff-off-icon", offIconText)}></button></span>"""
+        val icon = if (checked) onIconText else offIconText
+        val iconHtml = if (icon.isNullOrBlank()) {
+            ""
+        } else {
+            """<span class="ff-toggle-icon" data-ff-icon="${esc(icon)}" aria-hidden="true"></span>"""
+        }
+        val required = isEffectivelyRequired(get)
+        val label = if (inlineFlag) inlineLabelHtml(schema, required) else ""
+        // Hidden input submits 0/1; chrome `data-ff-toggle` flips track + value (Shamar-style switch).
+        return buildString {
+            append("""<span class="ff-toggle-wrap"${boolAttr("data-ff-inline", inlineFlag)}$styleAttr>""")
+            append("""<input type="hidden" class="ff-toggle-input" name="${esc(path)}" value="$stored" data-ff-toggle-value />""")
+            append("""<button type="button" class="ff-toggle" data-ff-toggle role="switch" x-data="ffField" data-ff-path="${esc(path)}"${boolAttr("aria-pressed", checked)}${boolAttr("aria-checked", checked)}${attr("data-ff-on-color", onColorText)}${attr("data-ff-off-color", offColorText)}${attr("data-ff-on-icon", onIconText)}${attr("data-ff-off-icon", offIconText)}>""")
+            append("""<span class="ff-toggle-track"><span class="ff-toggle-thumb">$iconHtml</span></span>""")
+            append("</button>")
+            append(label)
+            append("</span>")
+        }
+    }
+
+    private fun inlineLabelHtml(schema: Schema, required: Boolean): String {
+        val text = resolvedLabel(schema).orEmpty()
+        if (text.isEmpty() && !required) return ""
+        val mark = if (required) """<span class="ff-required-mark" aria-hidden="true">*</span>""" else ""
+        return """<span class="ff-toggle-label">${esc(text)}$mark</span>"""
     }
 
     companion object {

@@ -99,6 +99,17 @@ class Schema {
         }
     }
 
+    /** Write [Component.defaultValue] / [Component.defaultUsing] for paths not yet in the store. */
+    fun seedDefaults(): Schema = apply {
+        for (component in walk()) {
+            val path = component.absolutePath() ?: continue
+            if (path.isBlank()) continue
+            if (store.contains(path)) continue
+            val provided = component.provideDefault(getFor(component))
+            if (provided.first) store.write(path, provided.second)
+        }
+    }
+
     fun dehydrate(): Map<String, Any?> {
         val out = LinkedHashMap<String, Any?>()
         for (component in walk()) {
@@ -117,6 +128,9 @@ class Schema {
             if (key == null) throw FireflyException("Deferred schema is missing a key")
             return """<div class="ff-schema" data-ff-defer="true" data-ff-key="${escapeHtml(key!!)}">Loading</div>"""
         }
+        // Seed missing paths from defaultValue / defaultUsing (create forms).
+        // Only writes absent keys; does not re-fire afterStateHydrated (call hydrate() for that).
+        seedDefaults()
         val body = roots.joinToString("") { it.render(this) }
         val cols = columnCount
         val colAttr = if (cols == null) "" else """ data-ff-columns="$cols" style="--ff-cols: $cols""""

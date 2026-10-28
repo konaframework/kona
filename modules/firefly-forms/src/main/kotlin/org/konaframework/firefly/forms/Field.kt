@@ -151,14 +151,14 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
 
     fun belowContent(value: Function<Get, String>): T = self().apply { belowText.set(value) }
 
-    fun required(): T = required(true)
+    open fun required(): T = required(true)
 
-    fun required(on: Boolean): T = self().apply {
+    open fun required(on: Boolean): T = self().apply {
         requiredSwitch.set(on)
         if (on) nullableFlag = false
     }
 
-    fun required(predicate: Predicate<Get>): T = self().apply {
+    open fun required(predicate: Predicate<Get>): T = self().apply {
         requiredSwitch.set(predicate)
         nullableFlag = false
     }
@@ -284,11 +284,10 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
     }
 
     protected fun chrome(schema: Schema, get: Get, path: String, value: Any?): String {
-        val required = requiredSwitch.get(get) || markRequired
+        val required = isEffectivelyRequired(get)
         return buildString {
             append(textTag("div", "ff-above", aboveText.get(get)))
-            append(labelHtml(schema))
-            if (required) append("""<span class="ff-required-mark">*</span>""")
+            append(fieldLabelHtml(schema, required))
             append(textTag("p", "ff-hint", hintText.get(get)))
             val hintButton = hintAction
             if (hintButton != null) append(hintButton.render(schema))
@@ -318,6 +317,19 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
             append(textTag("div", "ff-below", belowText.get(get)))
         }
     }
+
+    /**
+     * Label with an inline red required mark when needed (Shamar-style).
+     * Falls back to [labelHtml] when there is no label text and the field is optional.
+     */
+    protected open fun fieldLabelHtml(schema: Schema, required: Boolean): String {
+        val text = resolvedLabel(schema).orEmpty()
+        if (text.isEmpty() && !required) return ""
+        val mark = if (required) """<span class="ff-required-mark" aria-hidden="true">*</span>""" else ""
+        return """<label class="ff-label">${esc(text)}$mark</label>"""
+    }
+
+    protected fun isEffectivelyRequired(get: Get): Boolean = requiredSwitch.get(get) || markRequired
 
     internal open fun control(schema: Schema, get: Get, path: String, value: Any?): String = ""
 

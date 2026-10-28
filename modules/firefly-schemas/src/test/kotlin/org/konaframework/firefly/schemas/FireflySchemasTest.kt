@@ -371,6 +371,23 @@ class FireflySchemasTest {
     }
 
     @Test
+    fun seedDefaultsOnRender() {
+        val seeded = Schema.make().components(
+            NamedField("title").defaultValue("Draft"),
+            NamedField("body"),
+            NamedField("ignored").statePath(""),
+            NamedField(""),
+        )
+        seeded.render()
+        assertEquals("Draft", seeded.get("title"))
+        assertNull(seeded.get("body"))
+        val filled = Schema.make().components(NamedField("title").defaultValue("Draft")).fill(mapOf("title" to "Keep"))
+        filled.render()
+        assertEquals("Keep", filled.get("title"))
+        Schema.make().components(NamedField("solo")).seedDefaults()
+    }
+
+    @Test
     fun coverageGaps() {
         assertEquals("row", Schema.make().record("row").record())
         assertFalse(Schema.make().isLoadingDeferred())
