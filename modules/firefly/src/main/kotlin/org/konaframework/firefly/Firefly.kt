@@ -68,6 +68,7 @@ object Firefly {
             return
         }
         val router = app.resolve(Router::class.java)
+        FireflyAssets.register(router)
         val hands = ArrayList<Panel>()
         val seen = HashSet<String>()
         for (supplier in manual) {

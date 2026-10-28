@@ -163,4 +163,4 @@ The checked-in stylesheet (`firefly.css`) is the scoped result of the Tailwind C
 | `.ff-panel .ff-dialog` | Fixed, inset 0, z-index 50 |
 | `.ff-panel .ff-dialog-modal .ff-dialog-window` | Top margin `4rem`, elevated card |
 
-`DefaultLayout` and `AuthLayout` put this CSS in a `<style>` element in the document `<head>` using the theme’s system font stack (no Google Fonts CDN). Theme token variables apply to both `.ff-panel` and `.ff-auth`.
+`DefaultLayout` and `AuthLayout` put this CSS in a `<style>` element in the document `<head>`, including `@font-face` for Inter and DM Sans from `/_firefly/fonts/` (immutable browser cache; no Google Fonts CDN). Theme token variables apply to both `.ff-panel` and `.ff-auth`.
