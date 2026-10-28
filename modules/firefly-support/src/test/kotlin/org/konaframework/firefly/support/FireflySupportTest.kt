@@ -161,6 +161,8 @@ class FireflySupportTest {
         assertTrue(css.contains("--ff-shell: var(--ff-surface, #1f2937)"))
         assertTrue(css.contains(".ff-panel .ff-btn"))
         assertTrue(css.contains(".ff-panel .ff-table-wrap"))
+        // No primary top ribbon on topbar/sidebar-brand — leaves Wire navigate progress visible.
+        assertFalse(css.contains("inset 0 3px 0 0 var(--ff-primary)"))
         assertTrue(css.contains("--ff-shell: var(--ff-surface"))
         assertTrue(css.contains("--ff-table-shadow:"))
         assertTrue(css.contains("box-shadow: var(--ff-table-shadow)"))
