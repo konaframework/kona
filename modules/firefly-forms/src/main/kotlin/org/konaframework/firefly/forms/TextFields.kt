@@ -4,6 +4,7 @@ import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
 import java.util.function.Function
+import java.util.function.Predicate
 
 open class TextInput protected constructor(name: String) : Field<TextInput>(name) {
     private var inputType: String = "text"
@@ -192,6 +193,15 @@ open class Textarea protected constructor(name: String) : Field<Textarea>(name) 
     private var autosizeFlag: Boolean = false
     private val minLengthValue = IntPhrase()
     private val maxLengthValue = IntPhrase()
+
+    /** Same as [Field.required] — listed on Textarea for discoverability. */
+    override fun required(): Textarea = super.required()
+
+    /** Same as [Field.required] — listed on Textarea for discoverability. */
+    override fun required(on: Boolean): Textarea = super.required(on)
+
+    /** Same as [Field.required] — listed on Textarea for discoverability. */
+    override fun required(predicate: Predicate<Get>): Textarea = super.required(predicate)
 
     fun rows(count: Int): Textarea = apply {
         if (count < 1) throw FireflyException("Textarea rows must be at least 1")

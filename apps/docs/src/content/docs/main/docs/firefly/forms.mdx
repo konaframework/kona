@@ -107,7 +107,7 @@ These methods are on the field base. Every concrete field has them.
 
 `unique("users", "email")` and `exists("users", "email")` add those rules. Without a database checker they fail closed.
 
-`Textarea.make("body")` takes `rows`, `cols`, `autosize`, `minLength`, and `maxLength`. `Hidden.make("token")` renders a hidden input and no label.
+`Textarea.make("body")` takes `rows`, `cols`, `autosize`, `minLength`, `maxLength`, and the same `required()` chain as other fields. `Hidden.make("token")` renders a hidden input and no label.
 
 `TagsInput.make("tags")` splits a string on the separator (`,` by default) and renders one chip per tag. `suggestions`, `splitKeys`, `reorderable`, and `color` are optional. `tags(raw)` returns the list.
 
@@ -221,28 +221,36 @@ Select.make("authorId")
 
 `createOptionForm` and `createOptionUsing` open a support `Dialog` and create an option from the submitted map. An action wrapper around that dialog is `createOptionAction`.
 
-`Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` takes on and off colors and icons. `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.relationship(name, titleAttribute)` loads options the same way a select does. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
+`Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` is a Shamar-style switch (track + thumb); it defaults to `inline()` with the label beside the control, and takes on/off colors and icons. `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.relationship(name, titleAttribute)` loads options the same way a select does. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
 
 ## Dates and times
 
-`DatePicker`, `TimePicker`, and `DateTimePicker` are one component with date, time, or both. The default control is Firefly’s own picker: a month grid and, when the field has a time, hour and minute spinners. There is no third-party date library. The due field on the Desk page is that picker.
+`DatePicker`, `TimePicker`, `DateTimePicker`, and `DateRangePicker` are separate field types. The default control is a flatpickr-inspired popup (month grid, time selects, Today / Clear) driven by Firefly chrome — no Alpine required. The panel stays closed until the field is clicked. There is no third-party date library. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, or `type="datetime-local"`.
+
+`DateRangePicker` stores `"start to end"` (same date format as `DatePicker`) and highlights the range in the calendar.
 
 <FireflyShot file="form-date-picker.png" description="The due field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as the crafted month grid with hour and minute controls." />
-
-`.native()` (Java: `useNative(true)`) switches to `type="date"`, `type="time"`, or `type="datetime-local"`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-DateTimePicker.make("due").native()
+DatePicker.make("day")
+TimePicker.make("startsAt")
+DateTimePicker.make("due")
+DateRangePicker.make("window")
+DateTimePicker.make("legacy").native()
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-DateTimePicker.make("due").useNative(true);
+DatePicker.make("day");
+TimePicker.make("startsAt");
+DateTimePicker.make("due");
+DateRangePicker.make("window");
+DateTimePicker.make("legacy").useNative(true);
 ```
 
 </TabItem>
@@ -276,6 +284,8 @@ day.normalize(LocalDate.of(2024, 3, 10));
 </Tabs>
 
 `firstDayOfWeek` is 0 (Sunday) or 1 (Monday). `hoursStep`, `minutesStep`, and `secondsStep` must stay inside their ranges. `defaultFocusedDate` opens the grid on that day. `FieldClock.pinToday` fixes “today” in tests.
+
+Required labels put a red `*` inline next to the label text. `Textarea.required()` matches other text fields. `defaultValue` / `defaultUsing` seed create forms when `Schema.render()` runs (missing paths only). `Toggle` defaults to an inline Shamar-style switch (track + thumb beside the label).
 
 ## Rich text, markdown, and code
 

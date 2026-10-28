@@ -68,8 +68,13 @@ class FireflyFormsJavaTest {
         ToggleButtons.make("mode");
         DateTimePicker.configureUsing(null);
         DateTimePicker.make("at");
-        DateTimePicker.date("day");
-        DateTimePicker.time("when");
+        DatePicker.make("day");
+        TimePicker.make("when");
+        DateRangePicker.configureUsing(null);
+        DateRangePicker.make("span");
+        DateTimePicker.date("day2");
+        DateTimePicker.time("when2");
+        Textarea.make("bio").required(true);
         RichEditor.configureUsing(null);
         RichEditor.make("body");
         MarkdownEditor.configureUsing(null);

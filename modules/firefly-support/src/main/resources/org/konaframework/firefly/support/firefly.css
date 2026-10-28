@@ -1025,12 +1025,26 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-label,
-.ff-panel label {
-  display: block;
+.ff-panel label.ff-label {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.2rem;
   margin: 0 0 0.35rem;
   color: var(--ff-heading);
   font-size: 0.8rem;
   font-weight: 600;
+}
+
+.ff-panel .ff-required-mark {
+  color: #dc2626;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ff-panel.ff-dark .ff-required-mark,
+:where(.ff-dark) .ff-panel .ff-required-mark {
+  color: #f87171;
 }
 
 .ff-panel .ff-helper,
@@ -1111,7 +1125,6 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-combobox,
-.ff-panel .ff-picker,
 .ff-panel .ff-tags,
 .ff-panel .ff-key-value,
 .ff-panel .ff-filepond,
@@ -1124,6 +1137,216 @@ body.ff-body-root {
   border: 1px solid var(--ff-card-border);
   border-radius: var(--ff-radius);
   padding: 0.65rem 0.75rem;
+}
+
+/* Flatpickr-inspired date / time / datetime / range pickers */
+.ff-panel .ff-picker {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.ff-panel .ff-picker-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  cursor: pointer;
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius);
+  padding: 0 0.75rem;
+  min-height: 2.5rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ff-panel .ff-picker.ff-picker-open .ff-picker-field,
+.ff-panel .ff-picker-field:focus-within {
+  border-color: var(--ff-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-primary) 28%, transparent);
+}
+
+.ff-panel .ff-picker-icon {
+  display: inline-flex;
+  color: var(--ff-body-subtle);
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-picker-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--ff-body-subtle);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-picker-display {
+  flex: 1;
+  min-width: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.55rem 0 !important;
+  cursor: pointer;
+}
+
+.ff-panel .ff-picker-panel {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  min-width: min(100%, 18.5rem);
+  width: max(100%, 18.5rem);
+  max-width: 22rem;
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.15rem);
+  box-shadow: var(--ff-shadow);
+  padding: 0.75rem;
+}
+
+.ff-panel .ff-picker-panel[hidden] {
+  display: none !important;
+}
+
+.ff-panel .ff-picker-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.ff-panel .ff-picker-caption {
+  font-weight: 700;
+  color: var(--ff-heading);
+  font-size: 0.9rem;
+}
+
+.ff-panel .ff-picker-nav-btn {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--ff-radius);
+  background: transparent;
+  color: var(--ff-heading);
+  cursor: pointer;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.ff-panel .ff-picker-nav-btn:hover {
+  background: var(--ff-hover);
+}
+
+.ff-panel .ff-picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.15rem;
+  margin-bottom: 0.25rem;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.15rem;
+}
+
+.ff-panel .ff-day {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: 0.45rem;
+  min-height: 2rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ff-heading);
+  cursor: pointer;
+  padding: 0;
+}
+
+.ff-panel .ff-day:hover:not(:disabled):not(.ff-day-selected) {
+  background: var(--ff-hover);
+}
+
+.ff-panel .ff-day-outside {
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-day-disabled,
+.ff-panel .ff-day:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ff-panel .ff-day-in-range {
+  background: color-mix(in srgb, var(--ff-primary) 18%, transparent);
+  border-radius: 0;
+}
+
+.ff-panel .ff-day-selected,
+.ff-panel .ff-day.ff-day-selected {
+  background: var(--ff-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ff-panel .ff-time {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.ff-panel .ff-time select {
+  border: 1px solid var(--ff-card-border);
+  border-radius: var(--ff-radius);
+  background: var(--ff-card);
+  color: var(--ff-heading);
+  padding: 0.35rem 0.45rem;
+  font: inherit;
+}
+
+.ff-panel .ff-time-sep {
+  color: var(--ff-body-subtle);
+  font-weight: 600;
+}
+
+.ff-panel .ff-picker-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.ff-panel .ff-picker-today,
+.ff-panel .ff-picker-clear {
+  border-radius: var(--ff-radius);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+}
+
+.ff-panel .ff-picker-today {
+  border: 0;
+  background: var(--ff-primary);
+  color: #fff;
+}
+
+.ff-panel .ff-picker-clear {
+  border: 1px solid var(--ff-card-border);
+  background: var(--ff-card);
+  color: var(--ff-heading);
 }
 
 .ff-panel .ff-entangle {
@@ -1145,51 +1368,97 @@ body.ff-body-root {
 .ff-panel .ff-toggle-wrap {
   display: inline-flex;
   align-items: center;
+  gap: 0.65rem;
   vertical-align: middle;
 }
 
 .ff-panel .ff-toggle-wrap[data-ff-inline="true"] {
-  margin-inline-start: 0.35rem;
+  margin-inline-start: 0;
+}
+
+.ff-panel .ff-toggle-label {
+  color: var(--ff-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
 }
 
 .ff-panel .ff-toggle {
-  width: 2.6rem;
-  height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  width: 2.75rem;
+  height: 1.5rem;
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: var(--ff-card-border);
+  background: transparent;
   position: relative;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background-color 120ms ease;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.ff-panel .ff-toggle::after {
-  content: "";
+.ff-panel .ff-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ff-primary) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.ff-panel .ff-toggle-track {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ff-off-color, #cbd5e1);
+  position: relative;
+  transition: background-color 140ms ease;
+  box-shadow: inset 0 0 0 1px rgb(15 23 42 / 8%);
+}
+
+.ff-panel .ff-toggle-thumb {
   position: absolute;
   top: 0.15rem;
   left: 0.15rem;
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.2rem;
+  height: 1.2rem;
   border-radius: 999px;
   background: #fff;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 22%);
-  transition: transform 120ms ease;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 28%);
+  transition: transform 140ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.ff-panel .ff-toggle:not([aria-pressed="true"]):not([aria-checked="true"]) {
-  background: var(--ff-off-color, var(--ff-card-border));
+.ff-panel .ff-toggle-icon {
+  font-size: 0.65rem;
+  line-height: 1;
+  color: var(--ff-body-subtle);
 }
 
-.ff-panel .ff-toggle[aria-pressed="true"],
-.ff-panel .ff-toggle[aria-checked="true"] {
+.ff-panel .ff-toggle[aria-pressed="true"] .ff-toggle-track,
+.ff-panel .ff-toggle[aria-checked="true"] .ff-toggle-track {
   background: var(--ff-on-color, var(--ff-primary));
 }
 
-.ff-panel .ff-toggle[aria-pressed="true"]::after,
-.ff-panel .ff-toggle[aria-checked="true"]::after {
-  transform: translateX(1.15rem);
+.ff-panel .ff-toggle[aria-pressed="true"] .ff-toggle-thumb,
+.ff-panel .ff-toggle[aria-checked="true"] .ff-toggle-thumb {
+  transform: translateX(1.25rem);
+}
+
+.ff-panel .ff-toggle-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ——— Tables (Shamar list card: white --ff-card on --ff-shell surface) ——— */
