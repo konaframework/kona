@@ -46,7 +46,7 @@ Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/ko
 |------|--------|
 | Branch | `firefly-panel-polish` (shared issue carrier; sync with `main` before new issues) |
 | Worktree | `/home/smaosa/konaframework` |
-| Issues | #300 Toggle JDBC `1` hydration · #301 Dialog header/X/drag · #302 DatePicker Flowbite views/time/OK/Today · #303 Checkbox UI · #304 Month/Year pickers · #305 CheckboxColumn editable+persist · #306 debounced search · #307 header align |
+| Issues | #300–#307 shipped on PR #308; follow-ups #309–#314 (infolist align, zero-arg booleans, column search/sort defaults, search focus, datepicker NaN, compact time) |
 | Verify | `./gradlew :kona-firefly-forms:test :kona-firefly-tables:test :kona-firefly-support:test :kona-firefly-actions:test :kona-firefly:test` + matching `koverVerify` |
 | Merge habit | `gh pr merge --auto --squash`; never push `main`; never mutate rulesets |
 

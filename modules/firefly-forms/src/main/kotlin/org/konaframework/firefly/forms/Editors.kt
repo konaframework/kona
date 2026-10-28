@@ -210,6 +210,8 @@ open class CodeEditor protected constructor(name: String) : Field<CodeEditor>(na
 
     fun language(): String = languageName
 
+    fun wrap(): CodeEditor = wrap(true)
+
     fun wrap(on: Boolean): CodeEditor = apply { wrapFlag = on }
 
     override fun kind(): String = "code-editor"

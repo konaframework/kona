@@ -993,7 +993,7 @@ body.ff-body-root {
 
 /* ——— Forms / inputs ——— */
 .ff-panel .ff-input,
-.ff-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]),
+.ff-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not(.ff-table-search),
 .ff-panel select,
 .ff-panel textarea {
   display: block;
@@ -1197,14 +1197,14 @@ body.ff-body-root {
   z-index: 60;
   top: calc(100% + 0.35rem);
   left: 0;
-  min-width: min(100%, 18.5rem);
-  width: max(100%, 18.5rem);
-  max-width: 22rem;
+  min-width: min(100%, 16.5rem);
+  width: max(100%, 16.5rem);
+  max-width: 18.5rem;
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: calc(var(--ff-radius) + 0.15rem);
   box-shadow: var(--ff-shadow);
-  padding: 0.75rem;
+  padding: 0.5rem;
 }
 
 .ff-panel .ff-picker-panel[hidden] {
@@ -1245,69 +1245,9 @@ body.ff-body-root {
 .ff-panel .ff-picker-grid-months .ff-day,
 .ff-panel .ff-picker-grid-years .ff-day,
 .ff-panel .ff-picker-grid-decades .ff-day {
-  min-height: 2.4rem;
-  padding: 0.35rem;
-}
-
-.ff-panel .ff-time-wheels {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 0.45rem;
-  padding: 0.55rem 0.25rem 0.35rem;
-  margin-top: 0.35rem;
-  border-top: 1px solid var(--ff-card-border);
-}
-
-.ff-panel .ff-time-wheel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.ff-panel .ff-time-wheel-label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ff-body-subtle);
-}
-
-.ff-panel .ff-time-wheels select {
-  min-width: 3.4rem;
-  height: 8rem;
-  text-align: center;
-  text-align-last: center;
-  overflow-y: auto;
-  scroll-snap-type: y mandatory;
-  border: 1px solid var(--ff-card-border);
-  border-radius: calc(var(--ff-radius) + 0.15rem);
-  background:
-    linear-gradient(to bottom, color-mix(in srgb, var(--ff-card) 92%, transparent), transparent 28%),
-    linear-gradient(to top, color-mix(in srgb, var(--ff-card) 92%, transparent), transparent 28%),
-    var(--ff-card);
-  color: var(--ff-heading);
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  padding: 0.15rem 0;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
-.ff-panel .ff-time-wheels select option {
-  scroll-snap-align: center;
-  padding: 0.35rem 0.45rem;
-  text-align: center;
-}
-
-.ff-panel .ff-time-wheels .ff-time-sep {
-  align-self: center;
-  margin-top: 1.15rem;
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--ff-heading);
+  min-height: 1.85rem;
+  padding: 0.2rem;
+  font-size: 0.8rem;
 }
 
 .ff-panel .ff-picker-ok {
@@ -1317,14 +1257,16 @@ body.ff-body-root {
   color: #fff;
   font: inherit;
   font-weight: 600;
-  font-size: 0.85rem;
-  padding: 0.55rem 0.75rem;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.7rem;
   cursor: pointer;
-  grid-column: 1 / -1;
+  margin-left: auto;
+  justify-self: end;
 }
 
 .ff-panel .ff-picker-actions:has(.ff-picker-ok) {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
 }
 
 .ff-panel .ff-picker-nav-btn {
@@ -1357,7 +1299,7 @@ body.ff-body-root {
 .ff-panel .ff-picker-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 0.15rem;
+  gap: 0.1rem;
 }
 
 .ff-panel .ff-day {
@@ -1365,10 +1307,10 @@ body.ff-body-root {
   -webkit-appearance: none;
   border: 0;
   background: transparent;
-  border-radius: 0.45rem;
-  min-height: 2rem;
+  border-radius: 0.35rem;
+  min-height: 1.65rem;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: var(--ff-heading);
   cursor: pointer;
   padding: 0;
@@ -1402,31 +1344,54 @@ body.ff-body-root {
 
 .ff-panel .ff-time {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  gap: 0.35rem;
-  margin-top: 0.65rem;
+  gap: 0.3rem;
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--ff-card-border);
+}
+
+.ff-panel .ff-time-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.ff-panel .ff-time-select-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ff-body-subtle);
 }
 
 .ff-panel .ff-time select {
+  width: auto;
+  min-width: 3rem;
+  min-height: 2rem;
   border: 1px solid var(--ff-card-border);
   border-radius: var(--ff-radius);
   background: var(--ff-card);
   color: var(--ff-heading);
-  padding: 0.35rem 0.45rem;
+  padding: 0.25rem 0.35rem;
   font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
 }
 
 .ff-panel .ff-time-sep {
   color: var(--ff-body-subtle);
   font-weight: 600;
+  padding-bottom: 0.35rem;
 }
 
 .ff-panel .ff-picker-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
 }
 
 .ff-panel .ff-picker-today,
@@ -1434,8 +1399,8 @@ body.ff-body-root {
   border-radius: var(--ff-radius);
   font: inherit;
   font-weight: 600;
-  font-size: 0.85rem;
-  padding: 0.55rem 0.75rem;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.55rem;
   cursor: pointer;
 }
 
@@ -1721,11 +1686,13 @@ body.ff-body-root {
   gap: 0.5rem;
   flex: 1 1 14rem;
   min-width: 12rem;
+  max-width: 22rem;
   min-height: 2.5rem;
-  padding: 0.35rem 0.65rem;
+  padding: 0 0.75rem;
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: var(--ff-radius);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
   transition: box-shadow 120ms ease, border-color 120ms ease;
 }
 
@@ -1739,27 +1706,35 @@ body.ff-body-root {
   height: 1rem;
   flex-shrink: 0;
   color: var(--ff-body-subtle);
+  pointer-events: none;
 }
 
 .ff-panel .ff-table-search {
+  display: block;
   flex: 1 1 auto;
+  width: auto;
+  max-width: none;
   min-width: 0;
-  border: 0;
-  background: transparent;
-  padding: 0.25rem 0;
+  min-height: 2.4rem;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0.4rem 0;
   font: inherit;
   font-size: 0.875rem;
   color: var(--ff-heading);
   outline: none;
 }
 
-.ff-panel .ff-table-search::placeholder {
-  color: var(--ff-body-subtle);
+.ff-panel .ff-table-search:focus {
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
-.ff-panel .ff-table-search-wrap {
-  max-width: 22rem;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+.ff-panel .ff-table-search::placeholder {
+  color: var(--ff-body-subtle);
 }
 
 .ff-panel .ff-table-toolbar-actions,
@@ -1803,6 +1778,16 @@ body.ff-body-root {
 .ff-panel .ff-table-actions-head,
 .ff-panel .ff-row-actions {
   text-align: right;
+}
+
+/* Dialogs/infolists mount inside .ff-row-actions — do not inherit end-align (#309). */
+.ff-panel .ff-row-actions .ff-action-dialog,
+.ff-panel .ff-row-actions .ff-table-button-dialog,
+.ff-panel .ff-row-actions .ff-dialog,
+.ff-panel .ff-dialog-body,
+.ff-panel .ff-action-schema,
+.ff-panel .ff-infolist {
+  text-align: start;
 }
 
 .ff-panel .ff-table th[data-ff-align="end"] .ff-table-sort {
@@ -2012,6 +1997,19 @@ body.ff-body-root {
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.35rem 0;
+  text-align: start;
+}
+
+.ff-panel .ff-entry[data-ff-align="center"] {
+  text-align: center;
+}
+
+.ff-panel .ff-entry[data-ff-align="end"] {
+  text-align: end;
+}
+
+.ff-panel .ff-entry[data-ff-align="justify"] {
+  text-align: justify;
 }
 
 .ff-panel .ff-entry .ff-label {

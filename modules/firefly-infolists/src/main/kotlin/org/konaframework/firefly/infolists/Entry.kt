@@ -83,9 +83,13 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
 
     fun url(value: Function<Get, String>): T = self().also { urlValue.set(value) }
 
+    fun openUrlInNewTab(): T = openUrlInNewTab(true)
+
     fun openUrlInNewTab(on: Boolean): T = self().also { openNewTab.set(on) }
 
     fun openUrlInNewTab(predicate: Predicate<Get>): T = self().also { openNewTab.set(predicate) }
+
+    fun copyable(): T = copyable(true)
 
     fun copyable(on: Boolean): T = self().also { copyableFlag.set(on) }
 
@@ -141,9 +145,13 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
 
     fun alignJustify(): T = alignment("justify")
 
+    fun wrap(): T = wrap(true)
+
     fun wrap(on: Boolean): T = self().also { wrapFlag.set(on) }
 
     fun wrap(predicate: Predicate<Get>): T = self().also { wrapFlag.set(predicate) }
+
+    fun inlineLabel(): T = inlineLabel(true)
 
     fun inlineLabel(on: Boolean): T = self().also { inlineFlag.set(on) }
 

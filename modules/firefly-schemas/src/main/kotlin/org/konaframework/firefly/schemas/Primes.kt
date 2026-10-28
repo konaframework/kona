@@ -19,6 +19,8 @@ class Text private constructor(private var body: String) : Component("") {
 
     fun content(provider: Function<Get, String>): Text = apply { bodyUsing = provider }
 
+    fun badge(): Text = badge(true)
+
     fun badge(on: Boolean): Text = apply { badgeFlag = on }
 
     fun isBadge(): Boolean = badgeFlag

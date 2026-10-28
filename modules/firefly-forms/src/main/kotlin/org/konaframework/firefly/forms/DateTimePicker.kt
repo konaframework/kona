@@ -127,6 +127,8 @@ open class DateTimePicker protected constructor(
         secondsStepCount = step
     }
 
+    fun seconds(): DateTimePicker = seconds(true)
+
     fun seconds(on: Boolean): DateTimePicker = apply {
         secondsFlag = on
         if (on && !formatText.contains('s')) formatText = "$formatText:s"
@@ -376,7 +378,7 @@ open class DateTimePicker protected constructor(
     private fun timeSpinners(stored: String): String {
         val time = timePart(stored) ?: LocalTime.MIDNIGHT
         return buildString {
-            append("""<div class="ff-time ff-time-wheels" data-ff-picker-time>""")
+            append("""<div class="ff-time" data-ff-picker-time>""")
             append(spinner("hours", hourChoices(), time.hour, "Hours"))
             append("""<span class="ff-time-sep">:</span>""")
             append(spinner("minutes", minuteChoices(), time.minute, "Minutes"))
@@ -389,8 +391,8 @@ open class DateTimePicker protected constructor(
     }
 
     private fun spinner(name: String, values: List<Int>, selected: Int, label: String): String = buildString {
-        append("""<label class="ff-time-wheel"><span class="ff-time-wheel-label">$label</span>""")
-        append("""<select class="ff-time-$name" data-ff-$name="true" aria-label="$label" size="5">""")
+        append("""<label class="ff-time-select"><span class="ff-time-select-label">$label</span>""")
+        append("""<select class="ff-time-$name" data-ff-$name="true" aria-label="$label">""")
         for (value in values) {
             val sel = if (value == selected) " selected" else ""
             append("""<option value="$value"$sel>${value.toString().padStart(2, '0')}</option>""")

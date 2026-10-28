@@ -84,9 +84,15 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         descriptions.putAll(map)
     }
 
+    fun searchable(): Select = searchable(true)
+
     fun searchable(on: Boolean): Select = apply { searchableFlag = on }
 
+    fun multiple(): Select = multiple(true)
+
     fun multiple(on: Boolean): Select = apply { multipleFlag = on }
+
+    fun preload(): Select = preload(true)
 
     fun preload(on: Boolean): Select = apply { preloadFlag = on }
 
@@ -341,6 +347,8 @@ open class Checkbox protected constructor(name: String) : Field<Checkbox>(name) 
     private var inlineFlag: Boolean = false
     private var acceptedFlag: Boolean = false
 
+    fun inline(): Checkbox = inline(true)
+
     fun inline(on: Boolean): Checkbox = apply { inlineFlag = on }
 
     fun accepted(): Checkbox = apply { acceptedFlag = true }
@@ -468,7 +476,11 @@ open class CheckboxList protected constructor(name: String) : Field<CheckboxList
         descriptions.putAll(map)
     }
 
+    fun searchable(): CheckboxList = searchable(true)
+
     fun searchable(on: Boolean): CheckboxList = apply { searchableFlag = on }
+
+    fun bulkToggleable(): CheckboxList = bulkToggleable(true)
 
     fun bulkToggleable(on: Boolean): CheckboxList = apply { bulkFlag = on }
 
@@ -545,6 +557,8 @@ open class Radio protected constructor(name: String) : Field<Radio>(name) {
         descriptions.putAll(map)
     }
 
+    fun inline(): Radio = inline(true)
+
     fun inline(on: Boolean): Radio = apply { inlineFlag = on }
 
     fun boolean(): Radio = options(mapOf("true" to "Yes", "false" to "No"))
@@ -600,9 +614,13 @@ open class ToggleButtons protected constructor(name: String) : Field<ToggleButto
         icons.putAll(map)
     }
 
+    fun inline(): ToggleButtons = inline(true)
+
     fun inline(on: Boolean): ToggleButtons = apply { inlineFlag = on }
 
     fun grouped(on: Boolean): ToggleButtons = apply { groupedFlag = on }
+
+    fun multiple(): ToggleButtons = multiple(true)
 
     fun multiple(on: Boolean): ToggleButtons = apply { multipleFlag = on }
 

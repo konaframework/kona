@@ -36,6 +36,8 @@ class Fieldset private constructor(private val legend: String) : Component("") {
 
     override fun kind(): String = "fieldset"
 
+    fun required(): Fieldset = required(true)
+
     fun required(on: Boolean): Fieldset = apply { requiredFlag = on }
 
     fun isRequired(): Boolean = requiredFlag

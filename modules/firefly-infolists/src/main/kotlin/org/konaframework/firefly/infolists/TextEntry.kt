@@ -31,6 +31,8 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
 
     override fun kind(): String = "text"
 
+    fun badge(): TextEntry = badge(true)
+
     fun badge(on: Boolean): TextEntry = apply { badgeFlag.set(on) }
 
     fun badge(predicate: Predicate<Get>): TextEntry = apply { badgeFlag.set(predicate) }

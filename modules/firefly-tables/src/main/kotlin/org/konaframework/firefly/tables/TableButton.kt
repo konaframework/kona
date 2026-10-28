@@ -36,13 +36,19 @@ open class TableButton(val name: String) {
 
     fun label(value: Function<Cell, String>): TableButton = apply { labelValue.set(value) }
 
+    fun hidden(): TableButton = hidden(true)
+
     fun hidden(on: Boolean): TableButton = apply { hiddenFlag.set(on) }
 
     fun hidden(predicate: Predicate<Cell>): TableButton = apply { hiddenFlag.set(predicate) }
 
+    fun visible(): TableButton = visible(true)
+
     fun visible(on: Boolean): TableButton = apply { visibleFlag.set(on) }
 
     fun visible(predicate: Predicate<Cell>): TableButton = apply { visibleFlag.set(predicate) }
+
+    fun disabled(): TableButton = disabled(true)
 
     fun disabled(on: Boolean): TableButton = apply { disabledFlag.set(on) }
 

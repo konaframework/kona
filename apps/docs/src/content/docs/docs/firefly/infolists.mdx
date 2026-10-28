@@ -3,7 +3,7 @@ title: Infolists
 description: Show a record with entries instead of fields. On the Desk page that is the name entry. On orders, the view page mounts the order infolist.
 ---
 
-import FireflyShot from '../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Show a record when the screen should display a value, not collect one. Put the infolist on a view page, or anywhere you want a label and a value.
@@ -113,7 +113,7 @@ name.live();
 | `copyable`, `copyMessage`, `copyMessageDuration`, `copyableState` | Copy affordance on the entry |
 | `helperText`, `hint`, `hintColor`, `hintIcon` | Secondary text and hint |
 | `prefix`, `suffix` | Text around the value |
-| `alignment`, `alignStart`, `alignCenter`, `alignEnd`, `alignJustify` | Text alignment |
+| `alignment`, `alignStart`, `alignCenter`, `alignEnd`, `alignJustify` | Text alignment (default start/justify — not inherited from table Actions `end` align) |
 | `wrap`, `inlineLabel` | Wrapping and an inline label |
 | `extraAttributes` | HTML attributes on the component root. A map or a closure. Names that are not HTML attribute names are skipped |
 | `aboveContent`, `belowContent` | Schema components rendered around the value |

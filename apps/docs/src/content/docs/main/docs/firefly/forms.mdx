@@ -133,7 +133,7 @@ These methods are on the field base. Every concrete field has them.
 ```kotlin
 val status = Select.make("status")
     .options(mapOf("open" to "Open", "done" to "Done"))
-    .searchable(true)
+    .searchable()
     .placeholder("Pick one")
 ```
 
@@ -143,7 +143,7 @@ val status = Select.make("status")
 ```java
 Select status = Select.make("status")
     .options(Map.of("open", "Open", "done", "Done"))
-    .searchable(true)
+    .searchable()
     .placeholder("Pick one");
 ```
 
@@ -175,7 +175,7 @@ Select.make("status")
 
 <FireflyShot file="form-native-select.png" description="The status field from the Desk form at http://127.0.0.1:4017/admin/desk, rendered with native() as a native select of Open and Done." />
 
-`options { get -> mapOf("a" to "A") }` loads options from a closure. `optionsFrom(records, "title", "id")` reads a list of maps. `boolean()` uses Yes and No. `multiple(true)`, `preload`, `optionsLimit`, `maxItems`, `searchDebounce`, `position`, and the loading, searching, empty, and search-prompt strings configure the combobox. `getOptionLabelUsing` and `getSearchResultsUsing` replace the label and the search. `disableOptionWhen` disables one option. `allowHtml(true)` keeps HTML in a native option label.
+`options { get -> mapOf("a" to "A") }` loads options from a closure. `optionsFrom(records, "title", "id")` reads a list of maps. `boolean()` uses Yes and No. `multiple()`, `preload()`, `optionsLimit`, `maxItems`, `searchDebounce`, `position`, and the loading, searching, empty, and search-prompt strings configure the combobox. Zero-arg boolean chainables (`searchable()`, `required()`, `hidden()`, …) mean yes; pass `false` to turn off. `getOptionLabelUsing` and `getSearchResultsUsing` replace the label and the search. `disableOptionWhen` disables one option. `allowHtml(true)` keeps HTML in a native option label.
 
 `descriptions` adds a line under each option. A static option list adds an `in:` rule when the field is not multiple and the values contain neither a comma nor a pipe.
 
@@ -225,7 +225,7 @@ Select.make("authorId")
 
 ## Dates and times
 
-`DatePicker`, `TimePicker`, `DateTimePicker`, `MonthPicker`, `YearPicker`, and `DateRangePicker` are separate field types. The default control is a Flowbite-style popup driven by Firefly chrome — no Alpine and no third-party date library. Click the caption to drill days → months → years → decades. Date-only selection closes the panel; datetime keeps it open until **OK**. **Today** jumps the calendar focus and, for datetime, fills the time wheels with now. Click outside the popup to close it. Optional `.seconds(true)` adds a seconds wheel. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, or `type="datetime-local"`. `MonthPicker` / `YearPicker` store `Y-m` / `Y`.
+`DatePicker`, `TimePicker`, `DateTimePicker`, `MonthPicker`, `YearPicker`, and `DateRangePicker` are separate field types. The default control is a Flowbite-style popup driven by Firefly chrome — no Alpine and no third-party date library. Click the caption to drill days → months → years → decades; picking a year returns to months, then a month to days. Date-only selection closes the panel; datetime keeps it open until **OK** (right-aligned). Compact hour/minute dropdowns keep the popup small; `.seconds()` adds seconds. **Today** jumps the calendar focus and, for datetime, fills time with now. Click outside the popup to close it. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, or `type="datetime-local"`. `MonthPicker` / `YearPicker` store `Y-m` / `Y`.
 
 `DateRangePicker` stores `"start to end"` (same date format as `DatePicker`) and highlights the range in the calendar.
 

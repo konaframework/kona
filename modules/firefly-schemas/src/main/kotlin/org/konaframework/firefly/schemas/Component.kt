@@ -75,12 +75,16 @@ open class Component protected constructor(val name: String) {
 
     open fun description(value: Function<Get, String>): Component = apply { descriptionValue.setUsing(value) }
 
+    fun hidden(): Component = hidden(true)
+
     fun hidden(on: Boolean): Component = apply {
         hiddenFlag = on
         hiddenUsing = null
     }
 
     fun hidden(predicate: Predicate<Get>): Component = apply { hiddenUsing = predicate }
+
+    fun visible(): Component = visible(true)
 
     fun visible(on: Boolean): Component = apply {
         visibleFlag = on
@@ -146,6 +150,8 @@ open class Component protected constructor(val name: String) {
 
     fun debounce(milliseconds: Int): Component = liveDebounce(milliseconds)
 
+    fun disabled(): Component = disabled(true)
+
     fun disabled(on: Boolean): Component = apply {
         disabledFlag = on
         disabledUsing = null
@@ -183,7 +189,11 @@ open class Component protected constructor(val name: String) {
 
     fun view(name: String): Component = apply { viewName = name }
 
+    fun dehydrated(): Component = dehydrated(true)
+
     fun dehydrated(on: Boolean): Component = apply { dehydratedFlag = on }
+
+    fun dehydratedWhenHidden(): Component = dehydratedWhenHidden(true)
 
     fun dehydratedWhenHidden(on: Boolean): Component = apply { dehydratedWhenHiddenFlag = on }
 

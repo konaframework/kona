@@ -73,9 +73,12 @@ class FireflySchemasTest {
         }.afterStateUpdatedJs("watch").afterStateHydrated { state, _, _ ->
             assertEquals("Ada", state)
         }.beforeStateDehydrated { _, _, _ -> }
-        val hidden = NamedField("secret").hidden(true).defaultValue("x")
-        val kept = NamedField("kept").hidden(true).dehydratedWhenHidden(true).defaultValue("y")
+        val hidden = NamedField("secret").hidden().defaultValue("x")
+        val kept = NamedField("kept").hidden(true).dehydratedWhenHidden().defaultValue("y")
         val skipped = NamedField("skip").dehydrated(false).defaultValue("z")
+        assertTrue(NamedField("vis").visible().let { true })
+        assertTrue(NamedField("dis").disabled().let { true })
+        assertTrue(NamedField("dehyd").dehydrated().let { true })
         val computed = NamedField("computed").defaultUsing { it.get("../name") }
         val schema = Schema.make().statePath("user").components(name, hidden, kept, skipped, computed)
         schema.hydrate()
@@ -195,7 +198,7 @@ class FireflySchemasTest {
         assertTrue(section.isFormBefore())
         val grid = Grid.make(2).schema(section)
         val flex = Flex.make().schema(Text.make("flex"))
-        val field = Fieldset.make("Name").required(true).schema(Text.make("n"))
+        val field = Fieldset.make("Name").required().schema(Text.make("n"))
         assertTrue(field.isRequired())
         assertFalse(Fieldset.make("Optional").isRequired())
         val tabs = Tabs.make().tabs(
@@ -261,7 +264,7 @@ class FireflySchemasTest {
         assertTrue(html.contains("height=\"10\""))
         assertTrue(html.contains("ff-icon"))
         assertEquals("sm", Text.make("t").size("sm").getSize())
-        assertTrue(Text.make("t").badge(true).isBadge())
+        assertTrue(Text.make("t").badge().isBadge())
         assertEquals("t", Text.make("t").getContent())
         assertEquals("sm", list.getSize())
         assertNull(UnorderedList.make().getSize())
