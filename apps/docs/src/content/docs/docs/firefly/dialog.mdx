@@ -3,7 +3,7 @@ title: Dialog
 description: Call Dialog.make, pick modal, sidebar, or fullscreen, and render the HTML. The page that embeds it decides when it opens.
 ---
 
-import FireflyShot from '../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Open a window on top of a page for a confirmation, a short form, or a side panel. There is one component, `Dialog`. Pick a mode, a width, a title, and a body, then call `render()`.
@@ -48,7 +48,9 @@ You get a modal titled **Edit category** with the body `Name`. The title is HTML
 | `slideOverStart()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="start"` |
 | `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | none of the align, position, or drag attributes |
 
-The root element always has `role="dialog"`. Inside it: an overlay (`ff-dialog-overlay`), a window (`ff-dialog-window`), a header (`ff-dialog-header`) with the title, and a body (`ff-dialog-body`).
+The root element always has `role="dialog"`. Inside it: an overlay (`ff-dialog-overlay`), a window (`ff-dialog-window`), a header (`ff-dialog-header`) with the title and a close button (`ff-dialog-close`), and a body (`ff-dialog-body`).
+
+Resource create / view / edit / delete actions all mount this same official `Dialog`. `Action.modalCloseButton(false)` calls `Dialog.closeButton(false)` to hide the header X.
 
 Calling `modal()` after `slideOver()` switches the mode back to modal. The stored sidebar position is left as it was and is not rendered on a modal.
 
@@ -68,11 +70,7 @@ The default is `lg`, so the class `ff-dialog-lg` is present until you change it.
 
 `draggable(true)` is the default. `draggable(false)` removes the drag attributes.
 
-Dragging is also omitted when the mode is fullscreen, even if `draggable(true)` was called. Modal and sidebar dialogs include:
-
-```html
-x-data="ffDialog" data-ff-drag="true"
-```
+Dragging is also omitted when the mode is fullscreen, even if `draggable(true)` was called. Modal and sidebar dialogs include `data-ff-drag="true"` on the root and `data-ff-dialog-drag-handle` on the header. Firefly chrome moves `.ff-dialog-window` on pointer drag (no Alpine required).
 
 The modal window is offset by the stylesheet: `.ff-dialog-modal .ff-dialog-window` has a top margin of `4rem`. That is the top alignment. Sidebar and fullscreen windows do not get that margin.
 

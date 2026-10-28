@@ -23,7 +23,10 @@ public class DialogJavaTest {
         assertTrue(html.contains("aria-hidden=\"true\""));
         String open = Dialog.make("Java").slideOver().render(true);
         assertTrue(open.contains("aria-modal=\"true\""));
-        assertFalse(open.contains(" aria-hidden=\"true\""));
+        assertFalse(open.contains("role=\"dialog\" hidden"));
+        assertFalse(open.contains("role=\"dialog\" aria-hidden=\"true\""));
+        assertTrue(open.contains("ff-dialog-close"));
+        assertTrue(open.contains("data-ff-dialog-drag-handle"));
 
         Panel shell = new Panel().theme(new KonaTheme()).hook(Hook.BODY_START, "hi");
         assertTrue(shell.render().contains("hi"));

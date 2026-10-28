@@ -139,7 +139,10 @@ open class Column protected constructor(val name: String) {
 
     fun badge(on: Boolean): Column = apply { badge = on }
 
-    fun money(): Column = apply { style = TextStyle.MONEY }
+    fun money(): Column = apply {
+        style = TextStyle.MONEY
+        if (alignUsing == null && alignValue == Align.START) alignValue = Align.END
+    }
 
     fun date(): Column = apply { style = TextStyle.DATE }
 
@@ -248,7 +251,7 @@ open class Column protected constructor(val name: String) {
         return """<a class="ff-column-link" href="${escapeHtml(href)}"$target>$text</a>"""
     }
 
-    private fun resolvedAlign(cell: Cell): Align {
+    internal fun resolvedAlign(cell: Cell): Align {
         val provider = alignUsing
         if (provider != null) return provider.apply(cell)
         return alignValue
@@ -383,17 +386,40 @@ open class ColorColumn private constructor(name: String) : Column(name) {
 
 open class CheckboxColumn private constructor(name: String) : Column(name) {
     private val inputExtras = InputAttributes()
+    private var editableUsing: Predicate<Cell>? = null
 
     fun extraInputAttributes(attributes: Map<String, String>): CheckboxColumn = apply { inputExtras.set(attributes) }
 
     fun extraInputAttributes(provider: Function<Cell, Map<String, String>>): CheckboxColumn =
         apply { inputExtras.set(provider) }
 
+    /**
+     * When false, the checkbox is readonly (no persist). Use for edit-permission gates:
+     * `.editable { cell -> canUpdate(cell) }`.
+     */
+    fun editable(on: Boolean): CheckboxColumn = apply {
+        editableUsing = Predicate { on }
+    }
+
+    fun editable(predicate: Predicate<Cell>): CheckboxColumn = apply { editableUsing = predicate }
+
+    fun isEditable(cell: Cell): Boolean {
+        if (isDisabled(cell)) return false
+        val gate = editableUsing ?: return true
+        return gate.test(cell)
+    }
+
     override fun render(row: Map<String, Any?>, key: String, cell: Cell): String {
         val checked = if (truthy(row[name])) """ checked""" else ""
-        val disabled = if (isDisabled(cell)) """ disabled""" else ""
+        val canEdit = isEditable(cell)
+        val disabled = if (!canEdit) """ disabled""" else ""
         val extra = inputExtras.markup(cell)
-        return """<div class="ff-column ff-checkbox-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"><input type="checkbox"$checked$disabled$extra></div>"""
+        val change = if (canEdit) {
+            """ x-on:change="${'$'}wire.${'$'}call('toggleColumn', '${escapeHtml(key)}', '${escapeHtml(name)}', ${'$'}event.target.checked ? 'true' : 'false')""""
+        } else {
+            ""
+        }
+        return """<div class="ff-column ff-checkbox-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"><label class="ff-checkbox-wrap"><input class="ff-checkbox" type="checkbox"$checked$disabled$extra$change><span class="ff-checkbox-box" aria-hidden="true"></span></label></div>"""
     }
 
     companion object {

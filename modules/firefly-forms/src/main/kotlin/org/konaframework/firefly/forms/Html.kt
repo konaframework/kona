@@ -1,5 +1,10 @@
 package org.konaframework.firefly.forms
 
+import org.konaframework.core.Config
+
+/** Form/control truthy: JDBC ints, booleans, and common string forms. */
+internal fun fieldTruthy(value: Any?): Boolean = Config.toBoolean(value) == true
+
 internal fun esc(text: String): String = buildString {
     for (ch in text) {
         when (ch) {

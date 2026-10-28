@@ -3,7 +3,7 @@ title: Forms
 description: Put fields on a schema, fill the state, and render the HTML. Select is a combobox until you call native(). DateTimePicker is the crafted picker until you call native().
 ---
 
-import FireflyShot from '../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Put fields on a schema when the screen needs a name, a status, or a due date. Fill the schema, then `render()` returns the HTML. Wire and Alpine keep the value in sync after the page loads.
@@ -221,11 +221,11 @@ Select.make("authorId")
 
 `createOptionForm` and `createOptionUsing` open a support `Dialog` and create an option from the submitted map. An action wrapper around that dialog is `createOptionAction`.
 
-`Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` is a Shamar-style switch (track + thumb); it defaults to `inline()` with the label beside the control, and takes on/off colors and icons. `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.relationship(name, titleAttribute)` loads options the same way a select does. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
+`Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` is a Shamar-style switch (track + thumb); it defaults to `inline()` with the label beside the control, and takes on/off colors and icons. Edit hydration treats JDBC `1` / `0` (and common yes/no strings) as booleans so a true column stays on when the edit dialog opens. `Checkbox` uses a custom box (not the browser default). `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.relationship(name, titleAttribute)` loads options the same way a select does. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
 
 ## Dates and times
 
-`DatePicker`, `TimePicker`, `DateTimePicker`, and `DateRangePicker` are separate field types. The default control is a flatpickr-inspired popup (month grid, time selects, Today / Clear) driven by Firefly chrome — no Alpine required. The panel stays closed until the field is clicked. There is no third-party date library. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, or `type="datetime-local"`.
+`DatePicker`, `TimePicker`, `DateTimePicker`, `MonthPicker`, `YearPicker`, and `DateRangePicker` are separate field types. The default control is a Flowbite-style popup driven by Firefly chrome — no Alpine and no third-party date library. Click the caption to drill days → months → years → decades. Date-only selection closes the panel; datetime keeps it open until **OK**. **Today** jumps the calendar focus and, for datetime, fills the time wheels with now. Click outside the popup to close it. Optional `.seconds(true)` adds a seconds wheel. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, or `type="datetime-local"`. `MonthPicker` / `YearPicker` store `Y-m` / `Y`.
 
 `DateRangePicker` stores `"start to end"` (same date format as `DatePicker`) and highlights the range in the calendar.
 

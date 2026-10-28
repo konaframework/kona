@@ -40,6 +40,16 @@ Stub only: `apps/wire-docs/README.md`, `apps/inertia-docs/README.md`. **Archived
 
 Other product repo: sister IDE [`konaframework/kona-idea`](https://github.com/konaframework/kona-idea). Do **not** put handoff in `~/hello-kona`.
 
+## Resume here (2026-10-28) — Firefly panel polish (#300–#307)
+
+| Item | Value |
+|------|--------|
+| Branch | `firefly-panel-polish` (shared issue carrier; sync with `main` before new issues) |
+| Worktree | `/home/smaosa/konaframework` |
+| Issues | #300 Toggle JDBC `1` hydration · #301 Dialog header/X/drag · #302 DatePicker Flowbite views/time/OK/Today · #303 Checkbox UI · #304 Month/Year pickers · #305 CheckboxColumn editable+persist · #306 debounced search · #307 header align |
+| Verify | `./gradlew :kona-firefly-forms:test :kona-firefly-tables:test :kona-firefly-support:test :kona-firefly-actions:test :kona-firefly:test` + matching `koverVerify` |
+| Merge habit | `gh pr merge --auto --squash`; never push `main`; never mutate rulesets |
+
 ## Resume here (2026-10-27) — Firefly Crema chrome + Shamar tables (unified)
 
 | Item | Value |

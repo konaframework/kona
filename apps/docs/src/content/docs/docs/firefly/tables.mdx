@@ -3,7 +3,7 @@ title: Tables
 description: Pass rows to Table.memory or a Cadence model to Table.cadence, name the columns, and render the list. The notes page shows one row, Ada.
 ---
 
-import FireflyShot from '../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Name the columns, point the table at the rows, and call `render()`. You get a list toolbar (search field with icon, filters, header buttons), sortable column headers, pagination with a record count, and an in-table empty state when there are no rows. `TextColumn` is searchable and sortable by default.
@@ -125,7 +125,7 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 | `IconColumn.make(name)` | An icon for a true or false state |
 | `ImageColumn.make(name)` | An image with `alt`, `imageHeight`, and `imageWidth` |
 | `ColorColumn.make(name)` | A color swatch |
-| `CheckboxColumn.make(name)` | A checkbox bound to the row |
+| `CheckboxColumn.make(name)` | A checkbox bound to the row. Editable cells call Wire `toggleColumn` and persist immediately; `.editable(false)` / `.editable { … }` makes the cell readonly when the user cannot update the record |
 | `ToggleColumn.make(name)` | A toggle that calls `$wire.$call('toggleColumn', ...)` |
 | `SelectColumn.make(name)` | A select that calls `$wire.$call('setColumn', ...)` |
 
@@ -154,7 +154,9 @@ TextColumn.make("name").label(cell -> "Name").extraAttributes(Map.of("data-col",
 </TabItem>
 </Tabs>
 
-`money()` formats a number as dollars and cents. `date()` formats a date, instant, or timestamp. `align(Align.END)` sets the column alignment.
+`money()` formats a number as dollars and cents and defaults the column (and its header) to `Align.END`. `date()` formats a date, instant, or timestamp. `align(Align.END)` / `Align.CENTER` sets both the cell and the `<th>` via `data-ff-align`. The Actions header is right-aligned the same way.
+
+Search is instant: typing in the toolbar search field debounces (~280ms) and soft-navigates the table without pressing Enter.
 
 Each column renders `x-data="ffColumn('name', true)"` and `@entangle(name)`.
 

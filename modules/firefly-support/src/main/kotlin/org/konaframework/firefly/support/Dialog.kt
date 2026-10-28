@@ -13,6 +13,7 @@ class Dialog private constructor(private val title: String) {
     private var mode: DialogMode = DialogMode.MODAL
     private var position: String = "end"
     private var draggable: Boolean = true
+    private var showClose: Boolean = true
     private var width: String = "lg"
 
     fun body(html: String): Dialog = apply { body = html }
@@ -33,6 +34,9 @@ class Dialog private constructor(private val title: String) {
 
     fun draggable(on: Boolean): Dialog = apply { draggable = on }
 
+    /** Header close (X). Default true for every official dialog. */
+    fun closeButton(on: Boolean): Dialog = apply { showClose = on }
+
     fun width(width: String): Dialog = apply {
         if (width !in WIDTHS) throw FireflyException("Unknown dialog width [$width]")
         this.width = width
@@ -51,7 +55,7 @@ class Dialog private constructor(private val title: String) {
             DialogMode.FULLSCREEN -> "ff-dialog-fullscreen"
         }
         val canDrag = draggable && mode != DialogMode.FULLSCREEN
-        val drag = if (canDrag) """ x-data="ffDialog" data-ff-drag="true"""" else ""
+        val drag = if (canDrag) """ data-ff-drag="true"""" else ""
         val align = if (mode == DialogMode.MODAL) """ data-ff-align="top"""" else ""
         val side = if (mode == DialogMode.SIDEBAR) """ data-ff-position="$position"""" else ""
         val closed = if (open) {
@@ -59,11 +63,16 @@ class Dialog private constructor(private val title: String) {
         } else {
             """ hidden aria-hidden="true""""
         }
+        val close = if (showClose) {
+            """<button type="button" class="ff-dialog-close" aria-label="Close" data-ff-dialog-close>${Icon.X.svg()}</button>"""
+        } else {
+            ""
+        }
         return """
             <div class="ff-dialog $modeClass ff-dialog-$width" role="dialog"$closed$align$side$drag>
               <div class="ff-dialog-overlay"></div>
               <div class="ff-dialog-window">
-                <header class="ff-dialog-header">${escapeHtml(title)}</header>
+                <header class="ff-dialog-header"${if (canDrag) """ data-ff-dialog-drag-handle""" else ""}><span class="ff-dialog-title">${escapeHtml(title)}</span>$close</header>
                 <div class="ff-dialog-body">$body</div>
               </div>
             </div>

@@ -244,7 +244,26 @@ class FireflyTablesTest {
         assertTrue(literalHtml.contains("@entangle(name)"))
         assertTrue(literalHtml.contains("x-data=\"ffColumn('name', true)\""))
         assertTrue(literalHtml.contains("ff-column-description"))
+        assertTrue(literalHtml.contains("""data-ff-align="center""""))
         assertTrue(literal.heading(Cell { null }).contains("Name"))
+        val moneyHead = Table.memory(listOf(mapOf("amt" to 12, "id" to "1")))
+            .columns(TextColumn.make("amt").money().label("Amount"))
+            .render()
+        assertTrue(moneyHead.contains("""data-ff-align="end""""))
+        assertTrue(moneyHead.contains("<th") && moneyHead.contains("""data-ff-align="end""""))
+        // money() leaves an explicit align / alignUsing alone.
+        assertTrue(
+            Table.memory(listOf(mapOf("amt" to 1, "id" to "1")))
+                .columns(TextColumn.make("amt").align(Align.CENTER).money())
+                .render()
+                .contains("""data-ff-align="center""""),
+        )
+        assertTrue(
+            Table.memory(listOf(mapOf("amt" to 1, "id" to "1")))
+                .columns(TextColumn.make("amt").align { Align.START }.money())
+                .render()
+                .contains("""data-ff-align="start""""),
+        )
         Column.configureUsing(BadgeColumn::class.java, null)
         val badge = BadgeColumn.make("status").color("danger")
         val badgeHtml = badge.render(mapOf("status" to "open"), "1", Cell { "open" })
@@ -328,11 +347,20 @@ class FireflyTablesTest {
         val box = CheckboxColumn.make("on").extraInputAttributes(
             mapOf("data-box" to "1", "" to "skip", "type" to "hidden", "name" to "x", "value" to "y"),
         )
-        assertTrue(box.render(mapOf("on" to true), "1", Cell { null }).contains("data-box=\"1\""))
+        val boxHtml = box.render(mapOf("on" to true), "1", Cell { null })
+        assertTrue(boxHtml.contains("data-box=\"1\""))
+        assertTrue(boxHtml.contains("\$wire.\$call('toggleColumn'"))
+        assertTrue(boxHtml.contains("ff-checkbox-wrap"))
         val boxClosure = CheckboxColumn.make("on").extraInputAttributes { mapOf("data-box" to "2") }
         assertTrue(boxClosure.render(mapOf("on" to true), "1", Cell { null }).contains("data-box=\"2\""))
         assertFalse(box.disabled(true).render(mapOf("on" to false), "1", Cell { null }).contains("checked"))
         assertTrue(box.render(mapOf("on" to false), "1", Cell { null }).contains("disabled"))
+        assertFalse(box.render(mapOf("on" to true), "1", Cell { null }).contains("\$wire.\$call('toggleColumn'"))
+        val gated = CheckboxColumn.make("on").editable(false)
+        assertTrue(gated.render(mapOf("on" to true), "1", Cell { null }).contains("disabled"))
+        assertFalse(gated.render(mapOf("on" to true), "1", Cell { null }).contains("\$wire.\$call('toggleColumn'"))
+        assertFalse(gated.isEditable(Cell { null }))
+        assertTrue(CheckboxColumn.make("on").editable { true }.isEditable(Cell { null }))
 
         val toggle = ToggleColumn.make("on")
         assertTrue(toggle.render(mapOf("on" to true), "1", Cell { null }).contains("aria-pressed=\"true\""))
@@ -609,6 +637,21 @@ class FireflyTablesTest {
         calls.call("selectRecord", "1")
         calls.call("toggleColumn", "1", "on", "false")
         calls.call("toggleColumn", "1", "on", "true")
+        val boxCalls = Table.memory(rows).columns(CheckboxColumn.make("on"), TextColumn.make("name"))
+        boxCalls.call("toggleColumn", "1", "on", "true")
+        boxCalls.call("toggleColumn", "1", "on", "false")
+        assertThrows(FireflyException::class.java) {
+            Table.memory(rows).columns(CheckboxColumn.make("on").editable(false)).call("toggleColumn", "1", "on", "true")
+        }
+        assertThrows(FireflyException::class.java) {
+            Table.memory(rows).columns(CheckboxColumn.make("on").disabled(true)).call("toggleColumn", "1", "on", "true")
+        }
+        assertThrows(FireflyException::class.java) { boxCalls.call("toggleColumn", "missing-key", "on", "true") }
+        assertTrue(truthy(listOf("x")))
+        assertFalse(truthy(emptyList<String>()))
+        assertTrue(truthy(Any()))
+        assertTrue(truthy("maybe"))
+        assertFalse(truthy(null))
         calls.call("setColumn", "1", "name", "Ada Lovelace")
         calls.call("toggleColumnVisibility", "name", "false")
         calls.call("toggleColumnVisibility", "name", "true")

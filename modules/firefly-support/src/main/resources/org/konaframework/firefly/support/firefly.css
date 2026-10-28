@@ -1223,6 +1223,108 @@ body.ff-body-root {
   font-weight: 700;
   color: var(--ff-heading);
   font-size: 0.9rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--ff-radius);
+  font: inherit;
+}
+
+.ff-panel .ff-picker-caption:hover {
+  background: var(--ff-hover);
+}
+
+.ff-panel .ff-picker-grid-months,
+.ff-panel .ff-picker-grid-years,
+.ff-panel .ff-picker-grid-decades {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+}
+
+.ff-panel .ff-picker-grid-months .ff-day,
+.ff-panel .ff-picker-grid-years .ff-day,
+.ff-panel .ff-picker-grid-decades .ff-day {
+  min-height: 2.4rem;
+  padding: 0.35rem;
+}
+
+.ff-panel .ff-time-wheels {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.25rem 0.35rem;
+  margin-top: 0.35rem;
+  border-top: 1px solid var(--ff-card-border);
+}
+
+.ff-panel .ff-time-wheel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ff-panel .ff-time-wheel-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ff-body-subtle);
+}
+
+.ff-panel .ff-time-wheels select {
+  min-width: 3.4rem;
+  height: 8rem;
+  text-align: center;
+  text-align-last: center;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.15rem);
+  background:
+    linear-gradient(to bottom, color-mix(in srgb, var(--ff-card) 92%, transparent), transparent 28%),
+    linear-gradient(to top, color-mix(in srgb, var(--ff-card) 92%, transparent), transparent 28%),
+    var(--ff-card);
+  color: var(--ff-heading);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding: 0.15rem 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.ff-panel .ff-time-wheels select option {
+  scroll-snap-align: center;
+  padding: 0.35rem 0.45rem;
+  text-align: center;
+}
+
+.ff-panel .ff-time-wheels .ff-time-sep {
+  align-self: center;
+  margin-top: 1.15rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-picker-ok {
+  border: 0;
+  border-radius: var(--ff-radius);
+  background: var(--ff-heading);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.75rem;
+  cursor: pointer;
+  grid-column: 1 / -1;
+}
+
+.ff-panel .ff-picker-actions:has(.ff-picker-ok) {
+  grid-template-columns: 1fr 1fr;
 }
 
 .ff-panel .ff-picker-nav-btn {
@@ -1357,12 +1459,81 @@ body.ff-body-root {
   display: none !important;
 }
 
-.ff-panel input[type="checkbox"],
 .ff-panel input[type="radio"] {
   width: 1rem;
   height: 1rem;
   accent-color: var(--ff-primary);
   cursor: pointer;
+}
+
+.ff-panel .ff-checkbox-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.ff-panel .ff-checkbox-wrap[data-ff-inline="true"] {
+  margin-inline-start: 0.15rem;
+}
+
+.ff-panel .ff-checkbox {
+  position: absolute;
+  opacity: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.ff-panel .ff-checkbox-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 1.5px solid var(--ff-card-border);
+  border-radius: 0.3rem;
+  background: var(--ff-card);
+  box-shadow: inset 0 1px 1px rgb(15 23 42 / 4%);
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.ff-panel .ff-checkbox-box::after {
+  content: "";
+  width: 0.35rem;
+  height: 0.6rem;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform 100ms ease;
+  margin-top: -0.1rem;
+}
+
+.ff-panel .ff-checkbox:checked + .ff-checkbox-box {
+  background: var(--ff-primary);
+  border-color: var(--ff-primary);
+}
+
+.ff-panel .ff-checkbox:checked + .ff-checkbox-box::after {
+  transform: rotate(45deg) scale(1);
+}
+
+.ff-panel .ff-checkbox:focus-visible + .ff-checkbox-box {
+  outline: 2px solid color-mix(in srgb, var(--ff-primary) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.ff-panel .ff-checkbox:disabled + .ff-checkbox-box {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ff-panel .ff-checkbox-column .ff-checkbox-wrap {
+  margin: 0 auto;
 }
 
 .ff-panel .ff-toggle-wrap {
@@ -1586,6 +1757,11 @@ body.ff-body-root {
   color: var(--ff-body-subtle);
 }
 
+.ff-panel .ff-table-search-wrap {
+  max-width: 22rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
+}
+
 .ff-panel .ff-table-toolbar-actions,
 .ff-panel .ff-table-filters {
   display: flex;
@@ -1615,6 +1791,23 @@ body.ff-body-root {
   background: var(--ff-card);
   border-bottom: 1px solid var(--ff-card-border);
   white-space: nowrap;
+}
+
+.ff-panel .ff-table th[data-ff-align="center"],
+.ff-panel .ff-table td .ff-column[data-ff-align="center"] {
+  text-align: center;
+}
+
+.ff-panel .ff-table th[data-ff-align="end"],
+.ff-panel .ff-table td .ff-column[data-ff-align="end"],
+.ff-panel .ff-table-actions-head,
+.ff-panel .ff-row-actions {
+  text-align: right;
+}
+
+.ff-panel .ff-table th[data-ff-align="end"] .ff-table-sort {
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .ff-panel .ff-table-actions-head {
@@ -1889,20 +2082,73 @@ body.ff-body-root {
   z-index: 1;
   margin: 4rem auto 0;
   max-width: 32rem;
+  width: min(32rem, calc(100vw - 2rem));
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: calc(var(--ff-radius) + 0.35rem);
   box-shadow: var(--ff-shadow);
   padding: 1.1rem 1.2rem;
   color: var(--ff-body-text);
+  will-change: left, top;
+}
+
+.ff-panel .ff-dialog[data-ff-drag="true"] .ff-dialog-window {
+  touch-action: none;
 }
 
 .ff-panel .ff-dialog-header {
-  margin: 0 1.75rem 0.75rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
   font-size: 1.05rem;
   font-weight: 650;
   letter-spacing: -0.01em;
   color: var(--ff-heading);
+  user-select: none;
+}
+
+.ff-panel .ff-dialog-header[data-ff-dialog-drag-handle] {
+  cursor: grab;
+}
+
+.ff-panel .ff-dialog-header[data-ff-dialog-drag-handle]:active {
+  cursor: grabbing;
+}
+
+.ff-panel .ff-dialog-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ff-panel .ff-dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ff-body-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-dialog-close:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-dialog-close .ff-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.ff-panel .ff-dialog-window {
+  position: relative;
 }
 
 .ff-panel .ff-dialog-body {

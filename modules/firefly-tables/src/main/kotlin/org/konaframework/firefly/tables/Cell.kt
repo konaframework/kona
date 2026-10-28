@@ -100,10 +100,11 @@ internal fun escapeHtml(text: String): String {
 }
 
 internal fun truthy(value: Any?): Boolean {
-    if (value == null) return false
-    if (value is Boolean) return value
-    if (value is String) return value.isNotEmpty()
-    if (value is Number) return value.toDouble() != 0.0
-    if (value is Collection<*>) return value.isNotEmpty()
-    return true
+    org.konaframework.core.Config.toBoolean(value)?.let { return it }
+    return when (value) {
+        null -> false
+        is Collection<*> -> value.isNotEmpty()
+        // Non-boolean strings already failed coercion only when non-empty / unknown tokens.
+        else -> true
+    }
 }

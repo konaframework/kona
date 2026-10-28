@@ -107,14 +107,18 @@ class FireflySupportTest {
 
         val open = Dialog.make("Hello").render(open = true)
         assertTrue(open.contains("""aria-modal="true""""))
-        assertFalse(open.contains(" hidden"))
-        assertFalse(open.contains("""aria-hidden="true""""))
+        assertFalse(open.contains("""role="dialog" hidden"""))
+        assertTrue(open.contains("ff-dialog-close"))
+        assertTrue(open.contains("data-ff-dialog-drag-handle"))
+        assertTrue(open.contains("ff-dialog-title"))
+        assertFalse(Dialog.make("Hello").closeButton(false).render(open = true).contains("ff-dialog-close"))
 
         val end = Dialog.make("Edit").slideOver().draggable(false).render()
         assertTrue(end.contains("ff-dialog-sidebar"))
         assertTrue(end.contains("""data-ff-position="end""""))
         assertFalse(end.contains("data-ff-drag"))
         assertTrue(end.contains(" hidden"))
+        assertFalse(end.contains("data-ff-dialog-drag-handle"))
 
         val start = Dialog.make("Edit").slideOverStart().render()
         assertTrue(start.contains("""data-ff-position="start""""))
@@ -251,7 +255,12 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-dialog-header"))
         assertTrue(css.contains(".ff-panel .ff-dialog-body"))
         // Create/action dialog chrome: compact close icon + primary Submit (type=button).
-        assertTrue(css.contains(".ff-panel .ff-action-close"))
+        assertTrue(css.contains(".ff-panel .ff-action-close") || css.contains(".ff-panel .ff-dialog-close"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-close"))
+        assertTrue(css.contains("[data-ff-dialog-drag-handle]"))
+        assertTrue(css.contains(".ff-picker-caption"))
+        assertTrue(css.contains(".ff-checkbox-box"))
+        assertTrue(css.contains("th[data-ff-align=\"end\"]"))
         assertTrue(css.contains(".ff-panel .ff-action-submit"))
         assertTrue(css.contains(".ff-panel .ff-action-footer"))
         assertTrue(css.contains(".ff-panel .ff-icon"))
@@ -355,8 +364,12 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-toggle-value"))
         assertTrue(html.contains("data-ff-picker"))
         assertTrue(html.contains("closePickers"))
+        assertTrue(html.contains("rebuildView"))
         assertTrue(html.contains("rebuildGrid"))
-        // Closing/opening a dialog resets forms so create/edit do not leak prior input.
+        assertTrue(html.contains("searchTimers"))
+        assertTrue(html.contains("ff-table-search"))
+        assertTrue(html.contains("data-ff-dialog-drag-handle") || html.contains("dragState"))
+        // Closing a dialog resets forms so create/edit do not leak prior input.
         assertTrue(html.contains("resetDialogForms"))
         assertTrue(html.contains("f.reset()"))
         // Table soft-nav swaps .ff-table-wrap without a full document reload.

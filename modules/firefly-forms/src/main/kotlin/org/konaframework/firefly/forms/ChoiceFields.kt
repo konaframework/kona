@@ -354,8 +354,13 @@ open class Checkbox protected constructor(name: String) : Field<Checkbox>(name) 
     }
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
-        val checked = value == true || value == "1" || value == "true" || value == "on" || value == "yes"
-        return """<input class="ff-input ff-checkbox" type="checkbox" name="${esc(path)}" value="1"${if (checked) " checked" else ""}${boolAttr("data-ff-inline", inlineFlag)}${extraInputMarkup(get)} />"""
+        val checked = fieldTruthy(value)
+        return buildString {
+            append("""<label class="ff-checkbox-wrap"${boolAttr("data-ff-inline", inlineFlag)}>""")
+            append("""<input class="ff-checkbox" type="checkbox" name="${esc(path)}" value="1"${if (checked) " checked" else ""}${extraInputMarkup(get)} />""")
+            append("""<span class="ff-checkbox-box" aria-hidden="true"></span>""")
+            append("</label>")
+        }
     }
 
     companion object {
@@ -397,7 +402,7 @@ open class Toggle protected constructor(name: String) : Field<Toggle>(name) {
     }
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
-        val checked = value == true || value == "1" || value == "true"
+        val checked = fieldTruthy(value)
         val stored = if (checked) "1" else "0"
         val style = buildString {
             if (onColorText != null) append("--ff-on-color:${esc(onColorText!!)};")
