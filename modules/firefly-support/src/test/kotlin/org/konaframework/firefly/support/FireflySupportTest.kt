@@ -380,6 +380,11 @@ class FireflySupportTest {
         assertTrue(html.contains("button[data-ff-year]"))
         assertTrue(html.contains("setSelectionRange"))
         assertTrue(html.contains("data-ff-dialog-drag-handle") || html.contains("dragState"))
+        // Drag leave position:fixed + margin:0; reopen must clear them so the window
+        // returns to stylesheet centering (#316).
+        assertTrue(html.contains("resetDialogDrag"))
+        assertTrue(html.contains("dlg.style.position=''"))
+        assertTrue(html.contains("dlg.style.margin=''"))
         // Closing a dialog resets forms so create/edit do not leak prior input.
         assertTrue(html.contains("resetDialogForms"))
         assertTrue(html.contains("f.reset()"))
