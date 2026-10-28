@@ -1,0 +1,2 @@
+Inter and DM Sans font files are licensed under the SIL Open Font License 1.1.
+Vendored from @fontsource-variable/inter and @fontsource-variable/dm-sans (latin wght).
