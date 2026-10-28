@@ -64,6 +64,10 @@ class FireflyResourceTest {
         assertTrue(html.contains("""method="post" action="edit""""))
         assertFalse(html.contains("""wire:click="create""""))
         assertFalse(html.contains("""wire:click="edit""""))
+        // Field names must be flat (`name`), not nested under the action (`create.name`).
+        assertTrue(html.contains("""name="name""""))
+        assertFalse(html.contains("""name="create.name""""))
+        assertFalse(html.contains("""name="edit.name""""))
         assertThrows<FireflyException> { notes.relation(RelationManager("lines")) }
         assertThrows<FireflyException> {
             Resource("box").relation(RelationManager("lines")).simple()
@@ -512,6 +516,29 @@ class FireflyResourceTest {
         assertEquals(302, updated.status)
         assertEquals("/admin/notes/manage", updated.headers["Location"])
         assertEquals(1L, Shelf().newQuery().where("name", "SimpleUpdated").count())
+        // Legacy dotted action paths still map onto columns.
+        val dotted = create.route.action.handle(
+            Request(
+                "POST",
+                "/admin/notes/create",
+                emptyMap(),
+                emptyMap(),
+                "create.name=DottedCreated",
+            ),
+        )
+        assertEquals(302, dotted.status)
+        assertEquals(1L, Shelf().newQuery().where("name", "DottedCreated").count())
+        val editDotted = edit.route.action.handle(
+            Request(
+                "POST",
+                "/admin/notes/edit",
+                emptyMap(),
+                emptyMap(),
+                "id=$id&edit.name=EditDotted",
+            ),
+        )
+        assertEquals(302, editDotted.status)
+        assertEquals(1L, Shelf().newQuery().where("name", "EditDotted").count())
         // Manage + Create pages: do not double-register the create store route.
         val hybrid = Router()
         Panel().path("desk").authenticate(false).resource(

@@ -257,6 +257,8 @@ class FireflyActionsTest {
         assertTrue(createHtml.contains("""type="submit""""))
         assertFalse(createHtml.contains("ff-action-post"))
         assertFalse(createHtml.contains("""wire:click="create""""))
+        // Named schema children must POST as flat keys (not create.Hello).
+        assertFalse(createHtml.contains("""name="create."""))
     }
 
     @Test

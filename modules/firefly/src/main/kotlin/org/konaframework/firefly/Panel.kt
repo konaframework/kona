@@ -530,7 +530,8 @@ open class Panel {
             val attrs = LinkedHashMap<String, Any?>()
             for ((key, value) in request.all()) {
                 if (key == FireflyCsrf.TOKEN_KEY || key == "id" || key.startsWith("_")) continue
-                attrs[key] = value
+                // Action modal fields used to nest under create./edit. — map to column names.
+                attrs[storeAttributeKey(key)] = value
             }
             val record = if (page is EditPage) {
                 val key = request.input("id") ?: request.input("record")
@@ -548,6 +549,14 @@ open class Panel {
             Response.redirect(uri(resourceListSlug(resource)))
         }
     }
+
+    /** Map posted field names onto model attributes (`create.name` → `name`). */
+    private fun storeAttributeKey(raw: String): String =
+        if (raw.startsWith("create.") || raw.startsWith("edit.")) {
+            raw.substringAfterLast('.')
+        } else {
+            raw
+        }
 
     private fun loginGet(request: Request): Response {
         val denied = gate(request)

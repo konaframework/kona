@@ -425,7 +425,6 @@ open class Action protected constructor(name: String) : Component(name) {
         } else {
             """<p class="ff-action-description">${escapeHtml(description)}</p>"""
         }
-        val schemaHtml = modalComponents.joinToString("") { it.render(schema) }
         val close = if (showClose) {
             """<button type="button" class="ff-action-close" aria-label="Close" data-ff-dialog-close @click="open = false">${Icon.X.svg()}</button>"""
         } else {
@@ -436,8 +435,12 @@ open class Action protected constructor(name: String) : Component(name) {
         // Create/edit: one native form wraps fields + footer so inputs POST with Submit.
         // Confirm-only (delete): empty schema keeps a mini form around the submit button.
         if (post != null && modalComponents.isNotEmpty()) {
+            // Flat field names (`name`, not `create.name`) so Cadence/store columns match.
+            val schemaHtml = Schema.make().components(*modalComponents.toTypedArray()).render()
+            syncChildren()
             return """$close$icon$descriptionHtml<form method="post" action="${escapeHtml(post)}" class="ff-action-form">$formExtrasHtml<div class="ff-action-schema">$schemaHtml</div><div class="ff-action-footer">$footer</div></form>"""
         }
+        val schemaHtml = modalComponents.joinToString("") { it.render(schema) }
         return """$close$icon$descriptionHtml<div class="ff-action-schema">$schemaHtml</div><div class="ff-action-footer">$footer</div>"""
     }
 
