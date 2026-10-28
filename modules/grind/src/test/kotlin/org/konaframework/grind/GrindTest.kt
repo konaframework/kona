@@ -867,37 +867,82 @@ class GrindTest {
         assertTrue(simple.contains("model(app.models.Category::class.java)"))
         assertTrue(simple.contains("label(\"Category\")"))
         assertTrue(simple.contains("Resource(\"category\")"))
-        assertFalse(simple.contains("getPages"))
+        assertTrue(simple.contains("override fun getPages"))
+        assertTrue(simple.contains("ManageCategory()"))
         assertFalse(simple.contains("RelationManager"))
+        val managePage = Files.readString(
+            base.resolve("src/main/kotlin/app/panels/admin/resources/CategoryResource/pages/ManageCategory.kt"),
+        )
+        assertTrue(managePage.contains("class ManageCategory : ManagePage(\"manage\")"))
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Order", "--base=$base", "--lang=kotlin")))
         val full = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/OrderResource.kt"))
         assertTrue(full.contains("class OrderResource"))
-        assertTrue(full.contains("ListPage"))
+        assertTrue(full.contains("ListOrder()"))
+        assertTrue(full.contains("CreateOrder()"))
+        assertTrue(full.contains("EditOrder()"))
+        assertTrue(full.contains("ViewOrder()"))
         assertTrue(full.contains("override fun getPages"))
         assertTrue(full.contains("override fun getRelations"))
         assertTrue(full.contains("RelationManager"))
         assertFalse(full.contains("relation("))
         assertTrue(full.contains("model(app.models.Order::class.java)"))
         assertFalse(full.contains("simple()"))
+        assertTrue(
+            Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/OrderResource/pages/ListOrder.kt"))
+                .contains("ListPage(\"list\")"),
+        )
+        assertTrue(
+            Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/OrderResource/pages/CreateOrder.kt")),
+        )
+        assertTrue(
+            Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/OrderResource/pages/EditOrder.kt")),
+        )
+        assertTrue(
+            Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/OrderResource/pages/ViewOrder.kt")),
+        )
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("UserResource", "--base=$base", "--lang=kotlin", "--simple")))
         val noDouble = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/UserResource.kt"))
         assertTrue(noDouble.contains("class UserResource"))
         assertTrue(noDouble.contains("model(app.models.User::class.java)"))
+        assertTrue(noDouble.contains("ManageUser()"))
         assertFalse(Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/UserResourceResource.kt")))
+        assertTrue(
+            Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/UserResource/pages/ManageUser.kt")),
+        )
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Note", "--base=$base", "--lang=java", "--simple")))
         val javaSimple = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/NoteResource.java"))
         assertTrue(javaSimple.contains("public class NoteResource"))
         assertTrue(javaSimple.contains("simple();"))
         assertTrue(javaSimple.contains("public Schema form"))
         assertTrue(javaSimple.contains("model(app.models.Note.class);"))
-        assertFalse(javaSimple.contains("getPages"))
+        assertTrue(javaSimple.contains("public Map<String, Page> getPages"))
+        assertTrue(javaSimple.contains("new ManageNote()"))
+        assertTrue(
+            Files.readString(base.resolve("src/main/java/app/panels/admin/resources/NoteResource/pages/ManageNote.java"))
+                .contains("extends ManagePage"),
+        )
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Invoice", "--base=$base", "--lang=java")))
         val javaFull = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/InvoiceResource.java"))
-        assertTrue(javaFull.contains("new ViewPage"))
+        assertTrue(javaFull.contains("new ViewInvoice()"))
+        assertTrue(javaFull.contains("new ListInvoice()"))
+        assertTrue(javaFull.contains("new CreateInvoice()"))
+        assertTrue(javaFull.contains("new EditInvoice()"))
         assertTrue(javaFull.contains("public Map<String, Page> getPages"))
         assertTrue(javaFull.contains("getRelations()"))
         assertTrue(javaFull.contains("new RelationManager"))
         assertFalse(javaFull.contains("relation("))
+        assertTrue(
+            Files.exists(base.resolve("src/main/java/app/panels/admin/resources/InvoiceResource/pages/ListInvoice.java")),
+        )
+        assertTrue(
+            Files.exists(base.resolve("src/main/java/app/panels/admin/resources/InvoiceResource/pages/CreateInvoice.java")),
+        )
+        assertTrue(
+            Files.exists(base.resolve("src/main/java/app/panels/admin/resources/InvoiceResource/pages/EditInvoice.java")),
+        )
+        assertTrue(
+            Files.exists(base.resolve("src/main/java/app/panels/admin/resources/InvoiceResource/pages/ViewInvoice.java")),
+        )
         assertThrows(GrindException::class.java) { MakeFireflyResourceCommand().run(listOf("--base=$base")) }
         assertThrows(GrindException::class.java) { MakeFireflyResourceCommand().run(listOf("Bad-Name", "--base=$base")) }
         assertEquals(1, GrindApplication().run(arrayOf("make:firefly-resource", "Category", "--base=$base", "--lang=kotlin", "--simple")))
