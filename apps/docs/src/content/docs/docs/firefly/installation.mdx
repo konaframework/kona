@@ -103,8 +103,8 @@ From the app directory, `./grind` accepts these Firefly commands. Pass `--lang=j
 | `firefly:install` | The same panel tree as `make:firefly-panel` |
 | `make:firefly-page Desk` | A `CustomPage` in that panel's `pages/` |
 | `make:firefly-widget Revenue` | A widget in that panel's `widgets/`, and a Crema view |
-| `make:firefly-resource Note --simple` | `NoteResource` with one Manage page in that panel's `resources/` |
-| `make:firefly-resource Order` | `OrderResource` with list, create, edit, and view pages, plus one relation manager |
+| `make:firefly-resource Note --simple` | `NoteResource` plus `NoteResource/pages/ManageNote`, wired from `getPages()` |
+| `make:firefly-resource Order` | `OrderResource` plus List/Create/Edit/View page stubs under `OrderResource/pages/`, plus one relation manager |
 | `make:firefly-field Price` | A field class and a Crema view under `app/firefly/fields/` |
 | `make:firefly-entry Note` | An infolist entry under `app/firefly/entries/` |
 | `make:firefly-column Name` | A table column under `app/firefly/columns/` |
