@@ -11,6 +11,8 @@ enum class ColumnType {
     BIG_INTEGER,
     BOOLEAN,
     TIMESTAMP,
+    DATE,
+    DATE_TIME,
 }
 
 /** One column inside a [Blueprint]; modifiers return `this` so they chain from Kotlin and Java. */
@@ -131,6 +133,12 @@ class Blueprint(val table: String) {
     fun boolean(name: String): ColumnDefinition = add(name, ColumnType.BOOLEAN)
 
     fun timestamp(name: String): ColumnDefinition = add(name, ColumnType.TIMESTAMP)
+
+    /** Calendar date without a time of day (`DATE`). */
+    fun date(name: String): ColumnDefinition = add(name, ColumnType.DATE)
+
+    /** Date and time (`DATETIME` / `TIMESTAMP` depending on the engine). */
+    fun dateTime(name: String): ColumnDefinition = add(name, ColumnType.DATE_TIME)
 
     /** `BIGINT` column meant to reference another table's `id`; chain [ColumnDefinition.constrained]. */
     fun foreignId(name: String): ColumnDefinition = add(name, ColumnType.BIG_INTEGER)

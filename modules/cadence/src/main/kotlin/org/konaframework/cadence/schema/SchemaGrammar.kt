@@ -24,6 +24,8 @@ open class SchemaGrammar @JvmOverloads constructor(val identifiers: Grammar = Gr
         ColumnType.BIG_INTEGER -> "BIGINT"
         ColumnType.BOOLEAN -> "BOOLEAN"
         ColumnType.TIMESTAMP -> "TIMESTAMP"
+        ColumnType.DATE -> "DATE"
+        ColumnType.DATE_TIME -> "TIMESTAMP"
     }
 
     open fun column(column: ColumnDefinition): String {
@@ -250,6 +252,8 @@ open class MySqlSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = G
         ColumnType.JSON -> "JSON"
         ColumnType.BOOLEAN -> "TINYINT(1)"
         ColumnType.TIMESTAMP -> "TIMESTAMP"
+        ColumnType.DATE -> "DATE"
+        ColumnType.DATE_TIME -> "DATETIME"
         else -> super.type(column)
     }
 
@@ -330,6 +334,8 @@ class OracleSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Gramm
         ColumnType.BIG_INTEGER -> "NUMBER(19)"
         ColumnType.BOOLEAN -> "NUMBER(1)"
         ColumnType.TIMESTAMP -> "TIMESTAMP"
+        ColumnType.DATE -> "DATE"
+        ColumnType.DATE_TIME -> "TIMESTAMP"
     }
 
     override fun literal(value: Any?): String = when (value) {
@@ -362,6 +368,8 @@ class SqlServerSchemaGrammar @JvmOverloads constructor(identifiers: Grammar = Gr
         ColumnType.BIG_INTEGER -> "BIGINT"
         ColumnType.BOOLEAN -> "BIT"
         ColumnType.TIMESTAMP -> "DATETIME2"
+        ColumnType.DATE -> "DATE"
+        ColumnType.DATE_TIME -> "DATETIME2"
     }
 
     override fun literal(value: Any?): String = when (value) {

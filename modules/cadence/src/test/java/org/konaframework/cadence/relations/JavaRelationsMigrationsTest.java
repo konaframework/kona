@@ -90,6 +90,8 @@ class JavaRelationsMigrationsTest {
                 table.bool("pinned").withDefault(false);
                 table.text("notes").nullable();
                 table.timestamp("seen_at").useCurrent();
+                table.date("labeled_on").nullable();
+                table.dateTime("reviewed_at").nullable();
             });
             schema.create("tag_team", table -> {
                 table.foreignId("team_id").constrained();

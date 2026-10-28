@@ -58,6 +58,16 @@ class FireflyResourceTest {
         assertTrue(html.contains("""data-ff-action="delete""""))
         assertTrue(html.contains("ff-table-button-dialog"))
         assertTrue(html.contains("""data-ff-dialog-panel"""))
+        // Create/edit dialogs use native POST forms (not Wire-only Submit).
+        assertTrue(html.contains("""class="ff-action-form""""))
+        assertTrue(html.contains("""method="post" action="create""""))
+        assertTrue(html.contains("""method="post" action="edit""""))
+        assertFalse(html.contains("""wire:click="create""""))
+        assertFalse(html.contains("""wire:click="edit""""))
+        // Field names must be flat (`name`), not nested under the action (`create.name`).
+        assertTrue(html.contains("""name="name""""))
+        assertFalse(html.contains("""name="create.name""""))
+        assertFalse(html.contains("""name="edit.name""""))
         assertThrows<FireflyException> { notes.relation(RelationManager("lines")) }
         assertThrows<FireflyException> {
             Resource("box").relation(RelationManager("lines")).simple()
@@ -78,6 +88,10 @@ class FireflyResourceTest {
         val edit = send(router, "/admin/orders/edit")
         val view = send(router, "/admin/orders/view")
         val manage = send(router, "/admin/notes/manage")
+        // Simple resource manage dialogs POST to create/edit store routes (no CreatePage/EditPage GET).
+        assertNotNull(router.find("POST", "/admin/notes/create"))
+        assertNotNull(router.find("POST", "/admin/notes/edit"))
+        assertTrue(manage.contains("""method="post" action="create""""))
         assertTrue(list.contains("ff-list"))
         assertTrue(list.contains(">Orders<"))
         // Singular label() still renders a plural list/manage heading (Shamar).
@@ -481,6 +495,67 @@ class FireflyResourceTest {
                 Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=1"),
             ).status,
         )
+    }
+
+    @Test
+    fun simpleManageCreateAndEditPostPersistAndRedirect() {
+        database()
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(notes()).mount(router)
+        val create = router.find("POST", "/admin/notes/create")!!
+        val created = create.route.action.handle(
+            Request("POST", "/admin/notes/create", emptyMap(), emptyMap(), "name=SimpleCreated"),
+        )
+        assertEquals(302, created.status)
+        assertEquals("/admin/notes/manage", created.headers["Location"])
+        val id = Shelf().newQuery().where("name", "SimpleCreated").value("id")!!.toString()
+        val edit = router.find("POST", "/admin/notes/edit")!!
+        val updated = edit.route.action.handle(
+            Request("POST", "/admin/notes/edit", emptyMap(), emptyMap(), "id=$id&name=SimpleUpdated"),
+        )
+        assertEquals(302, updated.status)
+        assertEquals("/admin/notes/manage", updated.headers["Location"])
+        assertEquals(1L, Shelf().newQuery().where("name", "SimpleUpdated").count())
+        // Legacy dotted action paths still map onto columns.
+        val dotted = create.route.action.handle(
+            Request(
+                "POST",
+                "/admin/notes/create",
+                emptyMap(),
+                emptyMap(),
+                "create.name=DottedCreated",
+            ),
+        )
+        assertEquals(302, dotted.status)
+        assertEquals(1L, Shelf().newQuery().where("name", "DottedCreated").count())
+        val editDotted = edit.route.action.handle(
+            Request(
+                "POST",
+                "/admin/notes/edit",
+                emptyMap(),
+                emptyMap(),
+                "id=$id&edit.name=EditDotted",
+            ),
+        )
+        assertEquals(302, editDotted.status)
+        assertEquals(1L, Shelf().newQuery().where("name", "EditDotted").count())
+        // Manage + Create pages: do not double-register the create store route.
+        val hybrid = Router()
+        Panel().path("desk").authenticate(false).resource(
+            object : Resource("mix") {
+                init {
+                    model(Shelf::class.java)
+                }
+
+                override fun getPages(): Map<String, Page> = mapOf(
+                    "manage" to ManagePage("manage"),
+                    "create" to CreatePage("create"),
+                    "edit" to EditPage("edit"),
+                )
+            },
+        ).mount(hybrid)
+        assertNotNull(hybrid.find("POST", "/desk/mix/create"))
+        assertNotNull(hybrid.find("POST", "/desk/mix/edit"))
     }
 
     @Test

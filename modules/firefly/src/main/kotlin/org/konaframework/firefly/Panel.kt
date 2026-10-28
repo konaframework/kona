@@ -394,6 +394,26 @@ open class Panel {
                     )
                 }
             }
+            // Simple resources only GET ManagePage — still need create/edit store POSTs for dialogs.
+            val hasManage = resourcePages.any { it is ManagePage }
+            val hasCreate = resourcePages.any { it is CreatePage }
+            val hasEdit = resourcePages.any { it is EditPage }
+            if (hasManage && !hasCreate) {
+                val createSlug = resourcePagePath(resource.slug(), "create")
+                planned.add(
+                    Planned("POST", uri(createSlug), routeName("resources.$createSlug.store")) { request ->
+                        storeResource(request, resource, CreatePage("create"))
+                    },
+                )
+            }
+            if (hasManage && !hasEdit) {
+                val editSlug = resourcePagePath(resource.slug(), "edit")
+                planned.add(
+                    Planned("POST", uri(editSlug), routeName("resources.$editSlug.store")) { request ->
+                        storeResource(request, resource, EditPage("edit"))
+                    },
+                )
+            }
             val deleteSlug = resourcePagePath(resource.slug(), "delete")
             planned.add(
                 Planned("POST", uri(deleteSlug), routeName("resources.$deleteSlug")) { request ->
@@ -510,7 +530,8 @@ open class Panel {
             val attrs = LinkedHashMap<String, Any?>()
             for ((key, value) in request.all()) {
                 if (key == FireflyCsrf.TOKEN_KEY || key == "id" || key.startsWith("_")) continue
-                attrs[key] = value
+                // Action modal fields used to nest under create./edit. — map to column names.
+                attrs[storeAttributeKey(key)] = value
             }
             val record = if (page is EditPage) {
                 val key = request.input("id") ?: request.input("record")
@@ -528,6 +549,14 @@ open class Panel {
             Response.redirect(uri(resourceListSlug(resource)))
         }
     }
+
+    /** Map posted field names onto model attributes (`create.name` → `name`). */
+    private fun storeAttributeKey(raw: String): String =
+        if (raw.startsWith("create.") || raw.startsWith("edit.")) {
+            raw.substringAfterLast('.')
+        } else {
+            raw
+        }
 
     private fun loginGet(request: Request): Response {
         val denied = gate(request)

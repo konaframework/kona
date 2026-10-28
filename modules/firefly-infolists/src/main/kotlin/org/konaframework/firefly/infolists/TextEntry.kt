@@ -85,6 +85,9 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
 
     fun words(provider: Function<Get, Int>): TextEntry = apply { wordLimit.set(provider) }
 
+    /** Render the state as trusted HTML (same as [html] with `true`). */
+    fun html(): TextEntry = html(true)
+
     fun html(on: Boolean): TextEntry = apply { htmlFlag.set(on) }
 
     fun html(predicate: Predicate<Get>): TextEntry = apply { htmlFlag.set(predicate) }
