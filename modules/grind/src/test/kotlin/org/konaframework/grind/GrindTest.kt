@@ -891,8 +891,8 @@ class GrindTest {
         assertTrue(full.contains("EditOrder()"))
         assertTrue(full.contains("ViewOrder()"))
         assertTrue(full.contains("override fun getPages"))
-        assertTrue(full.contains("override fun getRelations"))
-        assertTrue(full.contains("RelationManager"))
+        assertTrue(full.contains("override fun getRelations(): List<RelationManager> = listOf()"))
+        assertFalse(full.contains("Table.memory().columns(TextColumn.make(\"id\"))"), "no fake memory relation stub")
         assertFalse(full.contains("relation("))
         assertTrue(full.contains("model(app.models.Order::class.java)"))
         assertFalse(full.contains("simple()"))
@@ -941,7 +941,9 @@ class GrindTest {
         assertTrue(javaFull.contains("new EditInvoice()"))
         assertTrue(javaFull.contains("public Map<String, Page> getPages"))
         assertTrue(javaFull.contains("getRelations()"))
-        assertTrue(javaFull.contains("new RelationManager"))
+        assertTrue(javaFull.contains("java.util.List.of()"))
+        assertFalse(javaFull.contains("new RelationManager(\"related\")"), "no fake memory relation stub")
+        assertTrue(javaFull.contains("make:firefly-relation-manager InvoiceResource"))
         assertFalse(javaFull.contains("relation("))
         assertTrue(
             Files.exists(base.resolve("src/main/java/app/panels/admin/resources/invoice/pages/ListInvoice.java")),

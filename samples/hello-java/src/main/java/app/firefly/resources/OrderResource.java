@@ -46,7 +46,7 @@ public class OrderResource extends Resource {
         return List.of(
             new RelationManager("lines")
                 .related(Line.class)
-                .titleAttribute("sku")
+                .recordTitleAttribute("sku")
                 .table(Table.forModel(Line.class).columns(TextColumn.make("sku").label("SKU").searchable()))
                 .form(Schema.make().components(TextInput.make("sku").label("SKU").required()))
         );

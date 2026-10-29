@@ -33,7 +33,7 @@ class OrderResource : Resource("orders") {
     override fun getRelations(): List<RelationManager> = listOf(
         RelationManager("lines")
             .related(Line::class.java)
-            .titleAttribute("sku")
+            .recordTitleAttribute("sku")
             .table(
                 Table.forModel(Line::class.java).columns(TextColumn.make("sku").label("SKU").searchable()),
             )
