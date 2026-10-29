@@ -200,7 +200,17 @@ class DefaultLayout(
                 "panel.classList.remove('ff-open');" +
                 "panel.setAttribute('hidden','');panel.style.display='none';panel.setAttribute('aria-hidden','true');}" +
                 "function closeDialogs(){root.querySelectorAll('[data-ff-dialog-panel].ff-open').forEach(closeDialog);}" +
-                "function openDialog(panel){if(!panel)return;closeDialogs();" +
+                // Row-action dialogs live inside a display:none menu until the ⋯ opens. Hoist the
+                // panel under .ff-panel so record-click / menu-item open can show it (#398).
+                "function hoistDialogPanel(panel){if(!panel||panel.getAttribute('data-ff-dialog-hoisted')==='true')return;" +
+                "if(!panel.closest('[data-ff-menu-panel]'))return;" +
+                "var mount=panel.closest('[data-ff-dialog-mount]');" +
+                "panel.setAttribute('data-ff-dialog-hoisted','true');" +
+                "if(mount){var hid=mount.getAttribute('data-ff-hoist-id');" +
+                "if(!hid){hid='ff-dlg-'+Math.random().toString(36).slice(2,10);mount.setAttribute('data-ff-hoist-id',hid);}" +
+                "panel.setAttribute('data-ff-dialog-mount-id',hid);}" +
+                "root.appendChild(panel);}" +
+                "function openDialog(panel){if(!panel)return;closeDialogs();hoistDialogPanel(panel);" +
                 "panel.classList.add('ff-open');" +
                 "panel.removeAttribute('hidden');panel.style.display='block';panel.removeAttribute('aria-hidden');" +
                 "resetDialogDrag(panel);}" +
@@ -217,14 +227,28 @@ class DefaultLayout(
                 "if(p.getAttribute('data-ff-date')==='true'){var lvl=p.getAttribute('data-ff-pick-level');" +
                 "setPickerView(p,lvl==='month'?'months':lvl==='year'?'years':'days');" +
                 "rebuildView(p,parseYmd(p.getAttribute('data-ff-focused'))||{y:(new Date()).getFullYear(),m:(new Date()).getMonth()+1,d:1});}}" +
+                "function clearComboboxPanel(panel){if(!panel)return;" +
+                "panel.style.position='';panel.style.top='';panel.style.left='';panel.style.right='';" +
+                "panel.style.bottom='';panel.style.width='';panel.style.minWidth='';panel.style.maxWidth='';panel.style.zIndex='';}" +
+                "function positionCombobox(c){if(!c)return;var panel=c.querySelector('[data-ff-combobox-panel]');" +
+                "var field=c.querySelector('[data-ff-combobox-open]')||c.querySelector('.ff-combobox-field');" +
+                "if(!panel||!field||panel.hasAttribute('hidden'))return;" +
+                "var rect=field.getBoundingClientRect();var pad=8;var gap=4;var preferTop=c.getAttribute('data-ff-position')==='top';" +
+                "panel.style.position='fixed';panel.style.right='auto';panel.style.bottom='auto';panel.style.zIndex='1400';" +
+                "var width=Math.max(rect.width,10);panel.style.width=Math.round(width)+'px';panel.style.minWidth=Math.round(width)+'px';" +
+                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-width-pad)))+'px';" +
+                "var height=panel.offsetHeight||0;var below=rect.bottom+gap;var above=rect.top-height-gap;" +
+                "var top;if(preferTop&&above>=pad)top=above;else if(below+height<=window.innerHeight-pad)top=below;" +
+                "else if(above>=pad)top=above;else top=Math.max(pad,below);" +
+                "panel.style.top=Math.round(top)+'px';}" +
                 "function closeComboboxes(except){root.querySelectorAll('[data-ff-combobox].ff-combobox-open').forEach(function(c){" +
                 "if(except&&c===except)return;c.classList.remove('ff-combobox-open');" +
-                "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel)panel.setAttribute('hidden','');" +
+                "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel){panel.setAttribute('hidden','');clearComboboxPanel(panel);}" +
                 "var display=c.querySelector('[data-ff-combobox-display]');if(display){display.setAttribute('aria-expanded','false');" +
                 "if(c.getAttribute('data-ff-searchable')==='true'){" +
                 "display.value=c.getAttribute('data-ff-multiple')==='true'?'':comboboxDisplay(c);}}});}" +
                 "function openCombobox(c){if(!c)return;closePickers();closeComboboxes(c);c.classList.add('ff-combobox-open');" +
-                "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel)panel.removeAttribute('hidden');" +
+                "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel){panel.removeAttribute('hidden');positionCombobox(c);}" +
                 "var display=c.querySelector('[data-ff-combobox-display]');if(display){display.setAttribute('aria-expanded','true');" +
                 "if(c.getAttribute('data-ff-searchable')==='true'){display.value='';display.focus();filterCombobox(c,'');}}}" +
                 "function comboboxValues(c){var raw=c.getAttribute('data-ff-state')||'';if(!raw)return[];return raw.split(',').map(function(x){return x.trim();}).filter(Boolean);}" +
@@ -242,6 +266,10 @@ class DefaultLayout(
                 "function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;');}" +
                 "function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}" +
                 "function cssEscape(s){try{return CSS.escape(s);}catch(e){return String(s).replace(/\\\\/g,'\\\\\\\\').replace(/\"/g,'\\\\\"');}}" +
+                "function dialogPanelFor(mount){if(!mount)return null;" +
+                "var local=mount.querySelector('[data-ff-dialog-panel]');if(local)return local;" +
+                "var hid=mount.getAttribute('data-ff-hoist-id');if(!hid)return null;" +
+                "return root.querySelector('[data-ff-dialog-panel][data-ff-dialog-mount-id=\"'+cssEscape(hid)+'\"]');}" +
                 "function syncCombobox(c){var hidden=c.querySelector('[data-ff-combobox-value]');" +
                 "var vals=comboboxValues(c);if(hidden)hidden.value=vals.join(',');" +
                 "var multi=c.getAttribute('data-ff-multiple')==='true';" +
@@ -267,7 +295,7 @@ class DefaultLayout(
                 "(enabled?'':' data-ff-enabled=\"false\"')+'><span class=\"ff-option-text\">'+escHtml(label)+'</span><span class=\"ff-option-check\" aria-hidden=\"true\">'+optionCheckSvg()+'</span></li>';}).join('');" +
                 "list.innerHTML=html;list.style.display=html?'':'none';" +
                 "var empty=c.querySelector('[data-ff-combobox-empty]');if(empty){if(html)empty.setAttribute('hidden','');else empty.removeAttribute('hidden');}" +
-                "syncCombobox(c);}" +
+                "syncCombobox(c);if(c.classList.contains('ff-combobox-open'))positionCombobox(c);}" +
                 "function remoteFilterCombobox(c,query){var field=c.getAttribute('data-ff-path')||'';var empty=c.querySelector('[data-ff-combobox-empty]');" +
                 "var list=c.querySelector('[data-ff-combobox-options]');var searching=c.getAttribute('data-ff-searching')||'Searching';" +
                 "if(empty){empty.textContent=searching;empty.removeAttribute('hidden');}if(list)list.style.display='none';" +
@@ -285,7 +313,8 @@ class DefaultLayout(
                 "var value=(li.getAttribute('data-ff-value')||'').toLowerCase();" +
                 "var show=!needle||label.indexOf(needle)>=0||value.indexOf(needle)>=0;li.style.display=show?'':'none';if(show)any=true;});" +
                 "var empty=c.querySelector('[data-ff-combobox-empty]');if(empty){if(any)empty.setAttribute('hidden','');else empty.removeAttribute('hidden');}" +
-                "var list=c.querySelector('[data-ff-combobox-options]');if(list)list.style.display=any?'':'none';}" +
+                "var list=c.querySelector('[data-ff-combobox-options]');if(list)list.style.display=any?'':'none';" +
+                "if(c.classList.contains('ff-combobox-open'))positionCombobox(c);}" +
 
                 "function pad2(n){return(n<10?'0':'')+n;}" +
                 "function parseYmd(s){if(!s)return null;var m=/^(\\d{4})-(\\d{2})-(\\d{2})/.exec(s);if(!m)return null;" +
@@ -527,7 +556,7 @@ class DefaultLayout(
                 "if(bulkBtn.disabled||!bs||(!bs.all&&!bs.keys.length))return;" +
                 "var bm=bw.querySelector('[data-ff-bulk-mount=\"'+cssEscape(bulkBtn.getAttribute('data-ff-bulk-run')||'')+'\"]');" +
                 "var bf=bm&&bm.querySelector('form[data-ff-bulk-form]');if(!bf)return;fillBulk(bf,bs);closeMenus();" +
-                "var bp=bm.querySelector('[data-ff-dialog-panel]');if(bp){openDialog(bp);return;}" +
+                "var bp=dialogPanelFor(bm);if(bp){openDialog(bp);return;}" +
                 "bulkSubmit(bf);bf.submit();return;}" +
                 // View→Edit (and similar): close current dialog and open another mount in the same row (#376).
                 "var switchBtn=t.closest('[data-ff-dialog-switch]');" +
@@ -536,12 +565,13 @@ class DefaultLayout(
                 "if(switchRow&&switchName){var switchMount=null;" +
                 "switchRow.querySelectorAll('[data-ff-dialog-mount]').forEach(function(m){" +
                 "if(m.querySelector('[data-ff-dialog-open][data-ff-action=\"'+switchName+'\"]'))switchMount=m;});" +
-                "if(switchMount)openDialog(switchMount.querySelector('[data-ff-dialog-panel]'));}return;}" +
+                "if(switchMount)openDialog(dialogPanelFor(switchMount));}return;}" +
                 "var openBtn=t.closest('[data-ff-dialog-open]');" +
                 "if(openBtn){var mount=openBtn.closest('[data-ff-dialog-mount]');" +
-                "if(mount){openDialog(mount.querySelector('[data-ff-dialog-panel]'));}return;}" +
+                "if(mount){openDialog(dialogPanelFor(mount));}return;}" +
+                // After hoist, the panel is under .ff-panel — close via the panel itself (#398).
                 "if(t.closest('[data-ff-dialog-close]')||t.closest('.ff-dialog-overlay')){" +
-                "var dm=t.closest('[data-ff-dialog-mount]');if(dm){closeDialog(dm.querySelector('[data-ff-dialog-panel]'));}return;}" +
+                "var closing=t.closest('[data-ff-dialog-panel]');if(closing)closeDialog(closing);return;}" +
                 // Outside the picker/combobox (including elsewhere in a dialog) closes popups.
                 "if(!t.closest('[data-ff-picker]'))closePickers();" +
                 "if(!t.closest('[data-ff-combobox]'))closeComboboxes();" +
@@ -620,9 +650,11 @@ class DefaultLayout(
                 "ev.preventDefault();ev.target.click();return;}" +
                 "if(ev.key==='Escape'){" +
                 "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();}});" +
-                "function repositionOpenRowMenus(){root.querySelectorAll('.ff-row-action-menu.ff-open').forEach(positionRowMenu);}" +
-                "window.addEventListener('scroll',repositionOpenRowMenus,true);" +
-                "window.addEventListener('resize',repositionOpenRowMenus);" +
+                "function repositionFloating(){" +
+                "root.querySelectorAll('.ff-row-action-menu.ff-open').forEach(positionRowMenu);" +
+                "root.querySelectorAll('[data-ff-combobox].ff-combobox-open').forEach(positionCombobox);}" +
+                "window.addEventListener('scroll',repositionFloating,true);" +
+                "window.addEventListener('resize',repositionFloating);" +
                 "})();</script>"
     }
 }

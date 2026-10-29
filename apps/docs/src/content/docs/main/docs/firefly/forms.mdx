@@ -123,7 +123,7 @@ These methods are on the field base. Every concrete field has them.
 
 ## Choices
 
-`Select` renders a combobox by default: a display field, a hidden input that posts the value, and an option list the panel chrome opens, filters, and selects (same shape as the date picker — no Alpine required). Call `.native()` when you want a browser `<select>`. In Java the method is `useNative(true)`, because `native` is a keyword. `.native(false)` and `useNative(false)` keep the combobox. The status field on the Desk page is the combobox: Open and Done.
+`Select` renders a combobox by default: a display field, a hidden input that posts the value, and an option list the panel chrome opens, filters, and selects (same shape as the date picker — no Alpine required). When the list opens, chrome pins it with `position: fixed` so it floats above a short modal instead of being clipped by the dialog’s scroll area (same idea as the row-action ⋯ menu). Call `.native()` when you want a browser `<select>`. In Java the method is `useNative(true)`, because `native` is a keyword. `.native(false)` and `useNative(false)` keep the combobox. The status field on the Desk page is the combobox: Open and Done.
 
 <FireflyShot file="form-combobox.png" description="The status field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as a combobox with Open and Done." />
 

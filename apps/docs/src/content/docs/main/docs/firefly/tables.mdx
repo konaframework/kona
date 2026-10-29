@@ -440,7 +440,7 @@ table.contentGrid(Map.of("md", 2, "xl", 3));
 
 ## Click a row
 
-Rows are clickable by default when a **View** or **Edit** row button exists (Filament-shaped). Click prefers **View**, then **Edit**. The click opens that button’s dialog or follows its URL. Clicks on the ⋯ menu, action buttons, checkboxes, and links inside cells do not fire the row click.
+Rows are clickable by default when a **View** or **Edit** row button exists (Filament-shaped). Click prefers **View**, then **Edit**. The click opens that button’s dialog or follows its URL — including when those actions live inside the grouped ⋯ menu (chrome hoists the dialog panel out of the closed menu so the modal can paint). Clicks on the ⋯ menu, action buttons, checkboxes, and links inside cells do not fire the row click.
 
 Override the target with `recordUrl` or `recordAction`. Turn row clicks off with `recordClickable(false)`.
 
