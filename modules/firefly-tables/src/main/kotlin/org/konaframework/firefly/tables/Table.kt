@@ -289,12 +289,14 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         for (filter in filterList) {
             filter.apply(query as Any, store, filterValue(filter, cell))
         }
-        val searchable = columnList.filter { it.isSearchable(cell) }.map { it.name }
+        val searchable = columnList.filter { it.isSearchable(cell) }.map { it.queryName() }
         if (searchTerm.isNotEmpty()) store.search(query, searchTerm, searchable)
         val grouped = groupColumn
         if (grouped != null) store.sort(query, grouped, "asc")
         val sorting = sortColumn
-        if (sorting != null) store.sort(query, sorting, sortDirection)
+        if (sorting != null) {
+            store.sort(query, column(sorting).queryName(), sortDirection)
+        }
         return query
     }
 

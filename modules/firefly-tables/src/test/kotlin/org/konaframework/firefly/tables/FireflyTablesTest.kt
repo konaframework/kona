@@ -278,7 +278,36 @@ class FireflyTablesTest {
         // Filament/Shamar dotted make path (up to 4 levels) (#350).
         val dotted = TextColumn.make("project.name").label("Project")
         assertEquals("project", dotted.relationshipName())
+        assertEquals("name", dotted.relationshipTitleAttribute())
+        assertEquals("project.name", dotted.queryName())
+        assertEquals("name", TextColumn.make("name").queryName())
         assertEquals("Project", dotted.heading(Cell { null }))
+        // Memory searchable/sortable digs nested maps for dotted query names (#366).
+        val nestedRows = Table.memory(
+            listOf(
+                mapOf("id" to "1", "name" to "T1", "project" to mapOf("name" to "Alpha")),
+                mapOf("id" to "2", "name" to "T2", "project" to mapOf("name" to "Beta")),
+            ),
+        ).columns(TextColumn.make("project.name").searchable().sortable(), TextColumn.make("name").searchable())
+        assertEquals(listOf("T1"), nestedRows.search("Alpha").load().records.map { it["name"] })
+        assertEquals(
+            listOf("T1", "T2"),
+            nestedRows.search("").sort("project.name", "asc").load().records.map { it["name"] },
+        )
+        assertEquals(
+            listOf("T2", "T1"),
+            nestedRows.sort("project.name", "desc").load().records.map { it["name"] },
+        )
+        // dig() stops when a mid-path value is not a map (#366).
+        assertEquals(
+            0,
+            Table.memory(listOf(mapOf("id" to "1", "project" to "plain")))
+                .columns(TextColumn.make("project.name").searchable())
+                .search("plain")
+                .load()
+                .records
+                .size,
+        )
         assertTrue(
             dotted.render(
                 mapOf("project" to mapOf("id" to 7, "name" to "Desk")),

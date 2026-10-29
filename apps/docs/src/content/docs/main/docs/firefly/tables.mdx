@@ -140,7 +140,7 @@ TextColumn.make("project.name").label("Project")
 TextColumn.make("owner.company.region.name").label("Region")
 ```
 
-Cadence tables eager-load the relation path. You can still call `.relationship("project", "name")` on an FK column name when you need the old shape. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
+Cadence tables eager-load the relation path. You can still call `.relationship("project", "name")` on an FK column name when you need the old shape. Mark those columns `searchable()` / `sortable()` the same way as local attributes: search uses a correlated `exists` on the relation (including nested paths), and sort left-joins BelongsTo relations so `order by` targets the related table column. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

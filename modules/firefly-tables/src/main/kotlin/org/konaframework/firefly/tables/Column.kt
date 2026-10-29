@@ -188,6 +188,17 @@ open class Column protected constructor(val name: String) {
 
     fun relationshipName(): String? = relationshipName
 
+    fun relationshipTitleAttribute(): String? = relationshipTitleAttribute
+
+    /**
+     * Attribute path used for SQL search/sort: `relation.title` when this column
+     * is a relationship (including dotted `project.name`), otherwise [name].
+     */
+    fun queryName(): String {
+        val rel = relationshipName
+        return if (rel == null) name else "$rel.${relationshipTitleAttribute!!}"
+    }
+
     /**
      * When [name] is a dotted path (`project.name` … four segments max), bind
      * [relationship] automatically so make-time Filament/Shamar syntax works.

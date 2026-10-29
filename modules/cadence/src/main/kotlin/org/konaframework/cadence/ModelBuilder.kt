@@ -397,6 +397,17 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
     fun orWhereHas(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
         addHas(OR, relation, constraint, negate = false)
 
+    /**
+     * `exists (…)` SQL correlating this model to [relation], for composing OR groups
+     * (e.g. Firefly table search across related columns) without a nested ModelBuilder where.
+     */
+    fun existsClause(relation: String): Pair<String, List<Any?>> = existsClause(relation, null)
+
+    fun existsClause(relation: String, constraint: Consumer<ModelBuilder<*>>?): Pair<String, List<Any?>> {
+        val subquery = existenceQuery(relation, constraint, Aggregate.EXISTS)
+        return "exists (${subquery.toSql()})" to subquery.getBindings()
+    }
+
     @JvmOverloads
     fun whereDoesntHave(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
         addHas(AND, relation, constraint, negate = true)
