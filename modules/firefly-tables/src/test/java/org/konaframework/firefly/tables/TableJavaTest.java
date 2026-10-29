@@ -62,7 +62,7 @@ public class TableJavaTest {
         Column.configureUsing(TextColumn.class, null);
         Filter.make("name");
         Filter.configureUsing(Filter.class, null);
-        IconColumn.make("on");
+        IconColumn.make("on").bool();
         ImageColumn.make("photo");
         BadgeColumn.make("status");
         SelectColumn.make("status");

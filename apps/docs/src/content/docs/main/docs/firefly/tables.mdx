@@ -3,7 +3,7 @@ title: Tables
 description: Pass rows to Table.memory or a Cadence model to Table.cadence, name the columns, and render the list. The notes page shows one row, Ada.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Name the columns, point the table at the rows, and call `render()`. You get a list toolbar (search field with icon, filters, header buttons), sortable column headers when opted in, pagination with a record count, and an in-table empty state when there are no rows. Columns are not searchable or sortable until you call `searchable()` / `sortable()` (zero-arg means true).
@@ -122,7 +122,7 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 |------|----------------|
 | `TextColumn.make(name)` | Text, money, or a date. `badge`, `limit`, `html`, `url`, `icon`, `color`, `prefix`, `suffix`, `placeholder` |
 | `BadgeColumn.make(name)` | Same as `TextColumn` with `badge(true)` already on — status chips; chain `color(...)` for tone |
-| `IconColumn.make(name)` | An icon for a true or false state |
+| `IconColumn.make(name)` | An icon; chain `.boolean()` (Kotlin) / `.bool()` (Java) for check/cross on truthy state |
 | `ImageColumn.make(name)` | An image with `alt`, `imageHeight`, and `imageWidth` |
 | `ColorColumn.make(name)` | A color swatch |
 | `CheckboxColumn.make(name)` | A checkbox bound to the row. Editable cells call Wire `toggleColumn` and persist immediately; `.editable(false)` / `.editable { … }` makes the cell readonly when the user cannot update the record |

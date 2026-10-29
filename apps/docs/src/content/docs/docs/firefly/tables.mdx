@@ -122,7 +122,7 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 |------|----------------|
 | `TextColumn.make(name)` | Text, money, or a date. `badge`, `limit`, `html`, `url`, `icon`, `color`, `prefix`, `suffix`, `placeholder` |
 | `BadgeColumn.make(name)` | Same as `TextColumn` with `badge(true)` already on — status chips; chain `color(...)` for tone |
-| `IconColumn.make(name)` | An icon for a true or false state |
+| `IconColumn.make(name)` | An icon; chain `.boolean()` (Kotlin) / `.bool()` (Java) for check/cross on truthy state |
 | `ImageColumn.make(name)` | An image with `alt`, `imageHeight`, and `imageWidth` |
 | `ColorColumn.make(name)` | A color swatch |
 | `CheckboxColumn.make(name)` | A checkbox bound to the row. Editable cells call Wire `toggleColumn` and persist immediately; `.editable(false)` / `.editable { … }` makes the cell readonly when the user cannot update the record |

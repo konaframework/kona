@@ -3,7 +3,7 @@ title: Resources
 description: Drop a resource in the panel resources/ folder. simple() is one Manage page. Leave it off and you get list, create, edit, and view — with one sidebar entry and page actions.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Add one class per record type, put it in the panel’s `resources/` folder, and discovery serves it. Bind a model, a form, an infolist, and a table on that class.
@@ -178,7 +178,7 @@ app/panels/admin/resources/order/
 
 Package is `app.panels.admin.resources.order` (pages under `.pages`). Group under the lowercase **model** name so the JVM never confuses a class with a package. The resource’s `getPages()` returns those page instances, and a stub relation manager is included. Passing `OrderResource` already does not double-suffix. `./grind make:firefly-resource Note --simple` writes `resources/note/NoteResource` plus `note/pages/ManageNote`.
 
-Without flags, form / table / infolist stub a single `name` text field. Pass **`--generate`** to boot the app, load `app.models.Order`, introspect that model’s database table, and emit components for the columns (skipping primary key and timestamps on the form; mapping booleans → `Toggle`, dates → `DatePicker` / `DateTimePicker`, long text → `Textarea`). `--generate` fails if the model class, table, or database is missing — it does not fall back to the `name` stub. Run `./grind migrate` first. Pass `--panel=billing` for another panel directory. Page stubs register only through `getPages()` (panel `pages/` discovery does not load them).
+Without flags, form / table / infolist stub a single `name` text field. Pass **`--generate`** to boot the app, load `app.models.Order`, introspect that model’s database table, and emit components for the columns (skipping primary key and timestamps on the form). Booleans / `TINYINT(1)` / `BIT` / `NUMBER(1)` map to form `Toggle`, table `IconColumn.make(...).boolean()`, and infolist `IconEntry.make(...).boolean()`. Dates → `DatePicker` / `DateTimePicker`, long text → `Textarea`. `--generate` fails if the model class, table, or database is missing — it does not fall back to the `name` stub. Run `./grind migrate` first. Pass `--panel=billing` for another panel directory. Page stubs register only through `getPages()` (panel `pages/` discovery does not load them).
 
 The hello samples mount a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
 

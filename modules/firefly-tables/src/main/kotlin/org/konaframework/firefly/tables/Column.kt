@@ -333,17 +333,36 @@ open class BadgeColumn protected constructor(name: String) : TextColumn(name) {
 open class IconColumn private constructor(name: String) : Column(name) {
     private var trueIcon = "user"
     private var falseIcon = "x"
+    private var booleanMode = false
 
     fun trueIcon(name: String): IconColumn = apply { trueIcon = name }
 
     fun falseIcon(name: String): IconColumn = apply { falseIcon = name }
 
+    /**
+     * Treats the cell as a boolean (check / cross icons). Truthy for [Boolean], numbers,
+     * and `"1"` / `"true"` / `"yes"`. Kotlin: [boolean]; Java: [bool] (`boolean` is a keyword).
+     */
+    fun boolean(): IconColumn = apply { booleanMode = true }
+
+    /** Java-friendly alias for [boolean]. */
+    @JvmName("bool")
+    fun bool(): IconColumn = boolean()
+
     override fun render(row: Map<String, Any?>, key: String, cell: Cell): String {
         val state = row[name]
-        val icon = when (state) {
-            null -> ""
-            is Boolean -> if (state) trueIcon else falseIcon
-            else -> state.toString()
+        val icon = if (booleanMode) {
+            when {
+                state == null -> ""
+                truthy(state) -> trueIcon
+                else -> falseIcon
+            }
+        } else {
+            when (state) {
+                null -> ""
+                is Boolean -> if (state) trueIcon else falseIcon
+                else -> state.toString()
+            }
         }
         val html = if (icon.isEmpty()) "" else Icon.fromName(icon).svg()
         return """<div class="ff-column ff-icon-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})">$html</div>"""

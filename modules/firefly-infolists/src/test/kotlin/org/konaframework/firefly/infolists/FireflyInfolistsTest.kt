@@ -397,7 +397,7 @@ class FireflyInfolistsTest {
 
     @Test
     fun iconImageColorKeyAndCode() {
-        val yes = IconEntry.make("ok").bool(true).state(true)
+        val yes = IconEntry.make("ok").boolean().state(true)
         assertTrue(html(yes).contains("success"))
         assertTrue(html(yes).contains("ff-sr\">true"))
         val no = IconEntry.make("ok").bool(true).state(false)

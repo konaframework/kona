@@ -113,8 +113,18 @@ internal object FireflyResourceGenerate {
         return when (kind) {
             FieldKind.TOGGLE -> MappedColumn(
                 form = GeneratedComponent("Toggle", "org.konaframework.firefly.forms.Toggle", name),
-                table = GeneratedComponent("ToggleColumn", "org.konaframework.firefly.tables.ToggleColumn", name),
-                entry = GeneratedComponent("TextEntry", "org.konaframework.firefly.infolists.TextEntry", name),
+                table = GeneratedComponent(
+                    "IconColumn",
+                    "org.konaframework.firefly.tables.IconColumn",
+                    name,
+                    callSuffix = ".boolean()",
+                ),
+                entry = GeneratedComponent(
+                    "IconEntry",
+                    "org.konaframework.firefly.infolists.IconEntry",
+                    name,
+                    callSuffix = ".boolean()",
+                ),
             )
             FieldKind.DATE -> MappedColumn(
                 form = GeneratedComponent("DatePicker", "org.konaframework.firefly.forms.DatePicker", name),
@@ -151,12 +161,21 @@ internal object FireflyResourceGenerate {
         return FieldKind.TEXT
     }
 
-    private fun isBooleanSqlType(type: String, size: Int): Boolean =
-        type.contains("BOOL") || type == "BIT" || (type == "TINYINT" && size == 1)
+    /**
+     * JDBC [SchemaColumn.type] names across Cadence engines (H2, Postgres, MySQL, SQLite,
+     * SQL Server, Oracle): BOOLEAN/BOOL, BIT, TINYINT(1), NUMBER(1) / NUMERIC(1) / DECIMAL(1).
+     */
+    private fun isBooleanSqlType(type: String, size: Int): Boolean {
+        if (type.contains("BOOL")) return true
+        if (type == "BIT") return true
+        if (type == "TINYINT" && size == 1) return true
+        if (size == 1 && (type == "NUMBER" || type == "NUMERIC" || type == "DECIMAL")) return true
+        return false
+    }
 
     private fun isDateTimeSqlType(type: String): Boolean {
         if (type.contains("TIMESTAMP")) return true
-        if (type.contains("DATETIME")) return true
+        if (type.contains("DATETIME")) return true // DATETIME, DATETIME2
         return type == "TIMESTAMPTZ"
     }
 
@@ -174,8 +193,13 @@ internal object FireflyResourceGenerate {
     }
 }
 
-internal data class GeneratedComponent(val type: String, val importFqcn: String, val name: String) {
-    fun callExpr(): String = "$type.make(\"$name\")"
+internal data class GeneratedComponent(
+    val type: String,
+    val importFqcn: String,
+    val name: String,
+    val callSuffix: String = "",
+) {
+    fun callExpr(): String = "$type.make(\"$name\")$callSuffix"
 }
 
 internal data class ResourceFieldSet(
