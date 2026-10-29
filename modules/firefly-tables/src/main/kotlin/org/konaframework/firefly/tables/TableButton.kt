@@ -120,8 +120,15 @@ open class TableButton(val name: String) {
         if (isHidden(cell)) return ""
         val label = labelValue.get(cell, name)
         val href = urlValue.get(cell, "")
-        val disabled = disabledFlag.get(cell) || (requiresSelection && selectionEmpty)
-        val disabledAttr = if (disabled) """ disabled""" else ""
+        val locked = disabledFlag.get(cell)
+        val disabled = locked || (requiresSelection && selectionEmpty)
+        // The chrome script re-enables selection-bound buttons as rows are checked in the browser.
+        val selectionAttrs = when {
+            !requiresSelection -> ""
+            locked -> """ data-ff-requires-selection data-ff-selection-locked"""
+            else -> """ data-ff-requires-selection"""
+        }
+        val disabledAttr = (if (disabled) """ disabled""" else "") + selectionAttrs
         val triggerClass = if (menuItem) "ff-menu-link" else "ff-table-button"
         if (href.isNotEmpty()) {
             // data-ff-action lets row clicks target this link by name (#377).

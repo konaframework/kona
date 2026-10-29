@@ -159,6 +159,7 @@ class FireflySupportTest {
             Icon.USER,
             Icon.CHECK,
             Icon.X,
+            Icon.TRASH,
             Icon.ARROWS_POINTING_OUT,
             Icon.ARROWS_POINTING_IN,
         ).forEach { icon ->
@@ -169,6 +170,7 @@ class FireflySupportTest {
         assertEquals(Icon.USER, Icon.fromName("user"))
         assertEquals(Icon.CHECK, Icon.fromName("check"))
         assertEquals(Icon.X, Icon.fromName("x"))
+        assertEquals(Icon.TRASH, Icon.fromName("trash"))
         assertEquals(Icon.ARROWS_POINTING_OUT, Icon.fromName("arrows-pointing-out"))
         assertEquals(Icon.ARROWS_POINTING_OUT, Icon.fromName("arrows_pointing_out"))
         assertEquals(Icon.ARROWS_POINTING_IN, Icon.fromName("arrows-pointing-in"))

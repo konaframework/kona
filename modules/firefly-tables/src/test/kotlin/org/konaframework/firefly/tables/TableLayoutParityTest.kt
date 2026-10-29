@@ -31,7 +31,7 @@ class TableLayoutParityTest {
         assertTrue(html.contains("ff-table-mobile-sort"), html)
         assertTrue(html.contains("data-ff-mobile-sort"), html)
         assertTrue(html.contains("Name · Asc"), html)
-        assertTrue(html.contains("ff-table-select-input"), html)
+        assertTrue(html.contains("data-ff-select-record"), html)
 
         val off =
             Table.memory(rows)
@@ -67,8 +67,8 @@ class TableLayoutParityTest {
         assertTrue(html.contains("ff-stack-label"), html)
         assertTrue(html.contains("ff-table-card-main"), html)
         assertTrue(html.contains("""<div class="ff-row-actions">"""), html)
-        assertTrue(html.contains("ff-table-select-page"), html)
-        assertTrue(html.contains("""<div class="ff-table-select">"""), html)
+        assertTrue(html.contains("data-ff-select-page"), html)
+        assertTrue(html.contains("""<div class="ff-table-select ff-table-card-select">"""), html)
 
         val cleared =
             Table.memory(rows)

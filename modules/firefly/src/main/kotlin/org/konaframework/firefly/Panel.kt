@@ -24,9 +24,15 @@ import org.konaframework.http.Request
 import org.konaframework.http.RequestSession
 import org.konaframework.http.Response
 import org.konaframework.http.Router
+import java.net.URLEncoder
 import java.nio.file.Path
 import java.util.function.Function
 import org.konaframework.firefly.support.Panel as Chrome
+import org.konaframework.firefly.tables.BulkActionResult
+
+private const val BULK_ACTION = "_bulk_action"
+private const val BULK_KEYS = "_bulk_keys"
+private const val BULK_ALL = "_bulk_all"
 
 /**
  * A mounted Firefly panel. Adding this module does not register routes.
@@ -383,6 +389,9 @@ open class Panel {
             planned.add(Planned("GET", uri(page.slug()), routeName("pages." + page.slug().ifEmpty { "dashboard" })) { request ->
                 showPage(request, page)
             })
+            planned.add(Planned("POST", uri(page.slug()), routeName("pages." + page.slug().ifEmpty { "dashboard" } + ".bulk")) { request ->
+                bulkAction(request, page)
+            })
         }
         for (resource in resources) {
             val resourcePages = resource.pages()
@@ -410,6 +419,13 @@ open class Panel {
                     planned.add(
                         Planned("POST", uri(slug), routeName("resources.$slug.store")) { request ->
                             storeResource(request, resource, page)
+                        },
+                    )
+                } else {
+                    // List / manage tables post their bulk-action forms back to the page URL.
+                    planned.add(
+                        Planned("POST", uri(slug), routeName("resources.$slug.bulk")) { request ->
+                            bulkAction(request, page, mapOf("panelHome" to uri(""), "resourceList" to uri(listSlug)))
                         },
                     )
                 }
@@ -490,6 +506,54 @@ open class Panel {
         return FireflyTenant.use(tenant) {
             Response.html(draw(request, emptyMap(), page.render(pageState(request, extras))))
         }
+    }
+
+    /**
+     * Run a table bulk action posted from [page] (`_bulk_action`, comma-separated `_bulk_keys`,
+     * `_bulk_all=1` for every matching record), flash the result, and redirect back.
+     */
+    private fun bulkAction(request: Request, page: PanelPage, extras: Map<String, Any?> = emptyMap()): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        val name = request.input(BULK_ACTION)
+        if (name.isNullOrBlank()) return Response.html("Bulk action is required", 422)
+        val tenant = tenantId(request)
+        return FireflyTenant.use(tenant) {
+            page.prepare(pageState(request, extras))
+            val table = page.mountedTable() ?: return@use Response.html("Page has no table", 404)
+            val keys = request.input(BULK_KEYS).orEmpty().split(',').map { it.trim() }
+            val data = request.all().filterKeys { !it.startsWith("_") && it !in request.query }
+            val result = try {
+                table.runBulkAction(name, keys, data, request.input(BULK_ALL) == "1")
+            } catch (e: FireflyException) {
+                return@use Response.html(escapeHtml(e.message!!), 422)
+            }
+            flashBulk(request, result)
+            val query = request.query.entries.joinToString("&") { (key, value) ->
+                "${URLEncoder.encode(key, Charsets.UTF_8)}=${URLEncoder.encode(value, Charsets.UTF_8)}"
+            }
+            Response.redirect(if (query.isEmpty()) request.path else "${request.path}?$query")
+        }
+    }
+
+    /** Filament bulk notification: success, warning when some records failed, danger when none succeeded. */
+    private fun flashBulk(request: Request, result: BulkActionResult) {
+        val session = request.session() ?: return
+        val title = result.notificationTitle()
+        if (title == null && result.messages.isEmpty()) return
+        val toast = FireflyNotification.make("bulk-${result.action}").title(title ?: "Bulk action finished")
+        if (result.messages.isNotEmpty()) toast.body(result.messages.joinToString(" "))
+        when {
+            result.isSuccessful() -> toast.success()
+            result.successCount > 0 -> toast.warning()
+            else -> toast.danger()
+        }
+        toast.send(session)
     }
 
     /** CSRF field, form action, and list query params for page/table render (Shamar). */
