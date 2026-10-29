@@ -31,7 +31,6 @@ open class TableButton(val name: String) {
     private var confirmHeading: String? = null
     private var confirmDescription: String = ""
     private var bodyHtml: Function<Cell, String>? = null
-    private var fullPageUrlValue: Function<Cell, String>? = null
 
     fun label(value: String): TableButton = apply { labelValue.set(value) }
 
@@ -82,11 +81,6 @@ open class TableButton(val name: String) {
         schemaParts.clear()
     }
 
-    /** Header “Open in full page” link for the dialog (Shamar). */
-    fun fullPageUrl(value: String): TableButton = apply { fullPageUrlValue = Function { value } }
-
-    fun fullPageUrl(value: Function<Cell, String>): TableButton = apply { fullPageUrlValue = value }
-
     /**
      * Row delete (and similar): open a confirm dialog that POSTs [actionUrl] with CSRF extras
      * and the row key. Works without Alpine via chrome `data-ff-dialog-*`.
@@ -115,6 +109,12 @@ open class TableButton(val name: String) {
 
     fun isHidden(cell: Cell): Boolean = hiddenFlag.get(cell) || !visibleFlag.get(cell)
 
+    /** Resolved href when this button is a link; null for dialog mounts (#377). */
+    internal fun urlFor(cell: Cell): String? {
+        val href = urlValue.get(cell, "")
+        return href.takeIf { it.isNotEmpty() }
+    }
+
     @JvmOverloads
     open fun render(cell: Cell, selectionEmpty: Boolean, menuItem: Boolean = false): String {
         if (isHidden(cell)) return ""
@@ -124,7 +124,8 @@ open class TableButton(val name: String) {
         val disabledAttr = if (disabled) """ disabled""" else ""
         val triggerClass = if (menuItem) "ff-menu-link" else "ff-table-button"
         if (href.isNotEmpty()) {
-            return """<a class="$triggerClass" href="${escapeHtml(href)}"$disabledAttr>${escapeHtml(label)}</a>"""
+            // data-ff-action lets row clicks target this link by name (#377).
+            return """<a class="$triggerClass" href="${escapeHtml(href)}" data-ff-action="${escapeHtml(name)}"$disabledAttr>${escapeHtml(label)}</a>"""
         }
         val dialog = Dialog.make(confirmHeading ?: label)
         when (mode) {
@@ -132,8 +133,6 @@ open class TableButton(val name: String) {
             ButtonMode.SLIDE_OVER -> dialog.slideOver()
             ButtonMode.FULLSCREEN -> dialog.fullscreen()
         }
-        val pageUrl = fullPageUrlValue?.apply(cell)
-        if (!pageUrl.isNullOrBlank()) dialog.fullPageUrl(pageUrl)
         val post = postUrl
         if (post != null) {
             val extras = formExtras.apply(cell)

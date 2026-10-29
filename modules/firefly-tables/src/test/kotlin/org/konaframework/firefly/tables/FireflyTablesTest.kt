@@ -746,22 +746,13 @@ class FireflyTablesTest {
         assertTrue(modalHtml.contains("\$wire.\$call('edit')"))
         assertTrue(modalHtml.contains("""data-ff-action-boot="ffAction('edit')""""))
         assertTrue(modalHtml.contains("Hello"))
-        val customBody = TableButton.make("view").label("View").modal()
-            .fullPageUrl("view?id=42")
-            .body { cell ->
-                "<p data-ff-row=\"${cell.get("key")}\">Row body</p>"
-            }
+        val customBody = TableButton.make("view").label("View").modal().body { cell ->
+            "<p data-ff-row=\"${cell.get("key")}\">Row body</p>"
+        }
         val customHtml = customBody.render(Cell { path -> if (path == "key") "42" else null }, false)
         assertTrue(customHtml.contains("""data-ff-row="42""""))
         assertTrue(customHtml.contains("Row body"))
-        assertTrue(customHtml.contains("Open in full page"))
-        assertTrue(customHtml.contains("""href="view?id=42""""))
         assertFalse(customHtml.contains("Hello"))
-        val pageFn = TableButton.make("view2").modal()
-            .fullPageUrl { cell -> "view?id=${cell.get("key")}" }
-            .body { "x" }
-            .render(Cell { path -> if (path == "key") "7" else null }, false)
-        assertTrue(pageFn.contains("""href="view?id=7""""))
         // schema() clears a prior body(); body() clears schema parts.
         val swapped = TableButton.make("swap").modal().body { "<em>gone</em>" }.schema(Text.make("Kept"))
         assertTrue(swapped.render(Cell { null }, false).contains("Kept"))
@@ -1136,6 +1127,113 @@ class FireflyTablesTest {
         val table = Table.forModel(ModelPerson::class.java).columns(TextColumn.make("name"))
         assertTrue(table.render().contains("ff-table"))
         assertThrows(FireflyException::class.java) { Table.forModel(Plain::class.java) }
+    }
+
+    @Test
+    fun recordClickDefaultsToViewThenEditAndHonorsOverrides() {
+        val rows = listOf(mapOf("id" to "1", "name" to "Ada"))
+        val viewUrl =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(
+                    TableButton.make("view").label("View").url { "view?id=${it.get("key")}" },
+                    TableButton.make("edit").label("Edit").url { "edit?id=${it.get("key")}" },
+                )
+                .render()
+        assertTrue(viewUrl.contains("""data-ff-record-url="view?id=1""""), viewUrl)
+        assertTrue(viewUrl.contains("""data-ff-action="view""""), viewUrl)
+        assertTrue(viewUrl.contains("""tabindex="0""""), viewUrl)
+
+        val editOnly =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(TableButton.make("edit").label("Edit").modal().body { "form" })
+                .render()
+        assertTrue(editOnly.contains("""data-ff-record-action="edit""""), editOnly)
+
+        val customUrl =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(TableButton.make("view").label("View").url("view?id=1"))
+                .recordUrl("custom?id=1")
+                .render()
+        assertTrue(customUrl.contains("""data-ff-record-url="custom?id=1""""), customUrl)
+
+        val customFn =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .recordUrl { cell -> "go/${cell.get("key")}" }
+                .render()
+        assertTrue(customFn.contains("""data-ff-record-url="go/1""""), customFn)
+
+        val actionOverride =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(
+                    TableButton.make("view").label("View").modal().body { "v" },
+                    TableButton.make("edit").label("Edit").modal().body { "e" },
+                )
+                .recordAction("edit")
+                .render()
+        assertTrue(actionOverride.contains("""data-ff-record-action="edit""""), actionOverride)
+
+        val actionFn =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(TableButton.make("view").label("View").modal().body { "v" })
+                .recordAction { "view" }
+                .render()
+        assertTrue(actionFn.contains("""data-ff-record-action="view""""), actionFn)
+
+        val off =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(TableButton.make("view").label("View").url("view?id=1"))
+                .recordClickable(false)
+                .render()
+        assertFalse(off.contains("data-ff-record-url"), off)
+        assertFalse(off.contains("data-ff-record-action"), off)
+        val onAgain =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(TableButton.make("view").label("View").url("view?id=1"))
+                .recordClickable(false)
+                .recordClickable(true)
+                .render()
+        assertTrue(onAgain.contains("""data-ff-record-url="view?id=1""""), onAgain)
+
+        val blankUrl =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .recordUrl("  ")
+                .render()
+        assertFalse(blankUrl.contains("data-ff-record-url"), blankUrl)
+
+        val blankAction =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .recordAction("  ")
+                .render()
+        assertFalse(blankAction.contains("data-ff-record-action"), blankAction)
+
+        val hiddenView =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(
+                    TableButton.make("view").label("View").url("view?id=1").hidden(true),
+                    TableButton.make("edit").label("Edit").url("edit?id=1"),
+                )
+                .render()
+        assertTrue(hiddenView.contains("""data-ff-record-url="edit?id=1""""), hiddenView)
+
+        val stack =
+            Table.memory(rows)
+                .columns(TextColumn.make("name"))
+                .rowButtons(TableButton.make("view").label("View").url("view?id=1"))
+                .layout(TableLayout.STACK)
+                .render()
+        assertTrue(stack.contains("""data-ff-record-url="view?id=1""""), stack)
+        assertTrue(stack.contains("ff-table-card"), stack)
     }
 }
 

@@ -16,7 +16,6 @@ class Dialog private constructor(private val title: String) {
     private var showClose: Boolean = true
     private var expandable: Boolean = true
     private var resizable: Boolean = true
-    private var fullPageHref: String? = null
     private var width: String = "lg"
 
     fun body(html: String): Dialog = apply { body = html }
@@ -52,9 +51,6 @@ class Dialog private constructor(private val title: String) {
      */
     fun resizable(on: Boolean): Dialog = apply { resizable = on }
 
-    /** Optional “Open in full page” header link (Shamar). */
-    fun fullPageUrl(href: String?): Dialog = apply { fullPageHref = href?.takeIf { it.isNotBlank() } }
-
     fun width(width: String): Dialog = apply {
         if (width !in WIDTHS) throw FireflyException("Unknown dialog width [$width]")
         this.width = width
@@ -84,12 +80,6 @@ class Dialog private constructor(private val title: String) {
             """ hidden aria-hidden="true""""
         }
         val headerActions = StringBuilder("""<div class="ff-dialog-header-actions">""")
-        val page = fullPageHref
-        if (page != null) {
-            headerActions.append(
-                """<a class="ff-dialog-full-page" href="${escapeHtml(page)}">Open in full page</a>""",
-            )
-        }
         if (canExpand) {
             headerActions.append(
                 """<button type="button" class="ff-dialog-expand" aria-label="Toggle fullscreen" data-ff-dialog-expand>${Icon.ARROWS_POINTING_OUT.svg()}</button>""",

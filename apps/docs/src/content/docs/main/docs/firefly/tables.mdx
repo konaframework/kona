@@ -225,6 +225,34 @@ Filter.make("name").query((query, value) -> {
 
 `layout(TableLayout.ROWS)` is the table. `TableLayout.STACK` and `TableLayout.GRID` render the same records as cards. `poll("10s")` or `poll("500ms")` adds `wire:poll` on the root.
 
+## Click a row
+
+Rows are clickable by default when a **View** or **Edit** row button exists (Filament-shaped). Click prefers **View**, then **Edit**. The click opens that button’s dialog or follows its URL. Clicks on the ⋯ menu, action buttons, checkboxes, and links inside cells do not fire the row click.
+
+Override the target with `recordUrl` or `recordAction`. Turn row clicks off with `recordClickable(false)`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+// Default: View if present, else Edit — no call needed when those row buttons exist.
+table.recordUrl { cell -> "view?id=${cell.get("key")}" }
+table.recordAction("view")
+table.recordClickable(false)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.recordUrl(cell -> "view?id=" + cell.get("key"));
+table.recordAction("view");
+table.recordClickable(false);
+```
+
+</TabItem>
+</Tabs>
+
 ## Put a button on the header or the row
 
 A button renders through `Dialog` and can include a schema. `label("Export")` and `label { cell -> "Edit ${cell.get("name")}" }` set the text. `modal()`, `slideOver()`, and `fullscreen()` choose the dialog. `schema(Text.make("Go"))` is the dialog body. `url("https://example.test")` renders a link. `requiresSelection(true)` disables the button while no row is selected.

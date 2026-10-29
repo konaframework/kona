@@ -2247,6 +2247,14 @@ body.ff-body-root {
   font-size: 0.875rem;
 }
 
+/* Clickable records — View/Edit by default, or recordUrl / recordAction (#377). */
+.ff-panel .ff-table tr[data-ff-record-url],
+.ff-panel .ff-table tr[data-ff-record-action],
+.ff-panel .ff-table-card[data-ff-record-url],
+.ff-panel .ff-table-card[data-ff-record-action] {
+  cursor: pointer;
+}
+
 .ff-panel .ff-table th {
   text-align: left;
   padding: 0.7rem 1rem;
@@ -2745,24 +2753,6 @@ body.ff-body-root {
   white-space: nowrap;
 }
 
-.ff-panel .ff-dialog-full-page {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 0.35rem;
-  padding: 0.35rem 0.55rem;
-  border-radius: 0.5rem;
-  color: var(--ff-body-subtle);
-  font-size: 0.8125rem;
-  font-weight: 550;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.ff-panel .ff-dialog-full-page:hover {
-  background: var(--ff-hover);
-  color: var(--ff-heading);
-}
-
 .ff-panel .ff-dialog-expand,
 .ff-panel .ff-dialog-close {
   display: inline-flex;
@@ -2795,17 +2785,45 @@ body.ff-body-root {
   position: relative;
 }
 
+/* Only the content region scrolls; footer stays pinned to the window (#374). */
 .ff-panel .ff-dialog-body {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0;
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   max-width: 100%;
-  padding: 1rem 1.15rem 1.1rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ff-panel .ff-dialog-body > :not(.ff-action-footer) {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  padding: 1rem 1.15rem;
+}
+
+.ff-panel .ff-dialog-body > .ff-action-form,
+.ff-panel .ff-dialog-body > .ff-delete-form,
+.ff-panel .ff-dialog-body > form.ff-action-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ff-panel .ff-dialog-body > .ff-action-form > :not(.ff-action-footer),
+.ff-panel .ff-dialog-body > .ff-delete-form > :not(.ff-action-footer),
+.ff-panel .ff-dialog-body > form.ff-action-form > :not(.ff-action-footer) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1rem 1.15rem;
 }
 
 .ff-panel .ff-dialog-resize {
@@ -2885,16 +2903,17 @@ body.ff-body-root {
   padding-top: 0.15rem;
 }
 
-/* Shamar dialog footer: divider + actions flush right (#372). */
+/* Dialog footer stays fixed under the scroll region (#372 / #374). */
 .ff-panel .ff-dialog-body > .ff-action-footer,
 .ff-panel .ff-dialog-body > .ff-action-form > .ff-action-footer,
 .ff-panel .ff-dialog-body > form > .ff-action-footer,
 .ff-panel .ff-dialog-body > .ff-delete-form > .ff-action-footer {
   flex: 0 0 auto;
-  margin: 0.35rem -1.15rem -1.1rem;
+  margin: 0;
   padding: 0.85rem 1.15rem;
   border-top: 1px solid var(--ff-card-border);
   background: var(--ff-card);
+  z-index: 1;
 }
 
 .ff-panel .ff-action-description {

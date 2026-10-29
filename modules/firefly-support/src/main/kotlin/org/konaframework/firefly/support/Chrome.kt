@@ -319,7 +319,7 @@ class DefaultLayout(
                 "rwin.style.width=rr.width+'px';rwin.style.height=rr.height+'px';rwin.style.maxWidth='none';rwin.style.maxHeight='none';" +
                 "rwin.setPointerCapture&&rwin.setPointerCapture(ev.pointerId);ev.preventDefault();return;}" +
                 "var handle=ev.target&&ev.target.closest&&ev.target.closest('[data-ff-dialog-drag-handle]');" +
-                "if(!handle||ev.target.closest('[data-ff-dialog-close],[data-ff-dialog-expand],.ff-dialog-header-actions a'))return;" +
+                "if(!handle||ev.target.closest('[data-ff-dialog-close],[data-ff-dialog-expand]'))return;" +
                 "var win=handle.closest('.ff-dialog-window');if(!win||win.classList.contains('ff-dialog-expanded'))return;" +
                 "var rect=win.getBoundingClientRect();dragState={win:win,ox:ev.clientX-rect.left,oy:ev.clientY-rect.top};" +
                 "win.style.position='fixed';win.style.margin='0';win.style.left=rect.left+'px';win.style.top=rect.top+'px';" +
@@ -394,6 +394,24 @@ class DefaultLayout(
                 "if(picker.getAttribute('data-ff-time')!=='true')closePickers();}" +
                 "return;}" +
                 "return;}" +
+                // Whole-row click: navigate or trigger View/Edit (skip interactive children) (#377).
+                "var recordRow=t.closest('[data-ff-record-url],[data-ff-record-action]');" +
+                "if(recordRow&&!t.closest('a,button,input,label,select,textarea,summary,.ff-row-actions,[data-ff-menu],[data-ff-dialog-mount],[data-ff-column-toggle]')){" +
+                "var recordUrl=recordRow.getAttribute('data-ff-record-url');" +
+                "if(recordUrl){window.location.assign(recordUrl);return;}" +
+                "var recordAction=recordRow.getAttribute('data-ff-record-action');" +
+                "if(recordAction){var recordTrigger=recordRow.querySelector('[data-ff-dialog-open][data-ff-action=\"'+recordAction+'\"]')" +
+                "||recordRow.querySelector('a[data-ff-action=\"'+recordAction+'\"]')" +
+                "||recordRow.querySelector('[data-ff-action=\"'+recordAction+'\"]');" +
+                "if(recordTrigger){recordTrigger.click();}return;}}" +
+                // View→Edit (and similar): close current dialog and open another mount in the same row (#376).
+                "var switchBtn=t.closest('[data-ff-dialog-switch]');" +
+                "if(switchBtn){var switchName=switchBtn.getAttribute('data-ff-dialog-switch')||'';" +
+                "var switchRow=switchBtn.closest('.ff-row-actions')||switchBtn.closest('tr');" +
+                "if(switchRow&&switchName){var switchMount=null;" +
+                "switchRow.querySelectorAll('[data-ff-dialog-mount]').forEach(function(m){" +
+                "if(m.querySelector('[data-ff-dialog-open][data-ff-action=\"'+switchName+'\"]'))switchMount=m;});" +
+                "if(switchMount)openDialog(switchMount.querySelector('[data-ff-dialog-panel]'));}return;}" +
                 "var openBtn=t.closest('[data-ff-dialog-open]');" +
                 "if(openBtn){var mount=openBtn.closest('[data-ff-dialog-mount]');" +
                 "if(mount){openDialog(mount.querySelector('[data-ff-dialog-panel]'));}return;}" +
@@ -443,7 +461,10 @@ class DefaultLayout(
                 "if(form){if(form.requestSubmit)form.requestSubmit();else form.submit();return;}" +
                 "var url=new URL(location.href);url.searchParams.set(el.name||'perPage',el.value);url.searchParams.set('page','1');" +
                 "ffTableNav(url.pathname+url.search,wrap);});" +
-                "document.addEventListener('keydown',function(ev){if(ev.key==='Escape'){" +
+                "document.addEventListener('keydown',function(ev){" +
+                "if(ev.key==='Enter'&&ev.target&&ev.target.matches&&ev.target.matches('[data-ff-record-url],[data-ff-record-action]')){" +
+                "ev.preventDefault();ev.target.click();return;}" +
+                "if(ev.key==='Escape'){" +
                 "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();}});" +
                 "function repositionOpenRowMenus(){root.querySelectorAll('.ff-row-action-menu.ff-open').forEach(positionRowMenu);}" +
                 "window.addEventListener('scroll',repositionOpenRowMenus,true);" +

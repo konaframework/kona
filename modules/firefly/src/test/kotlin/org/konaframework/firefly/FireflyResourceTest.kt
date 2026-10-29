@@ -183,6 +183,9 @@ class FireflyResourceTest {
         assertTrue(html.contains("""data-ff-action="delete""""))
         assertTrue(html.contains("ff-table-button-dialog"))
         assertTrue(html.contains("""data-ff-dialog-panel"""))
+        assertTrue(html.contains("""data-ff-dialog-switch="edit""""), html)
+        // Drop-in row click defaults to View action (#377).
+        assertTrue(html.contains("""data-ff-record-action="view""""), html)
         // Create/edit dialogs use native POST forms (not Wire-only Submit).
         assertTrue(html.contains("""class="ff-action-form""""))
         assertTrue(html.contains("""method="post" action="create""""))
@@ -217,12 +220,14 @@ class FireflyResourceTest {
         assertNotNull(router.find("POST", "/admin/notes/create"))
         assertNotNull(router.find("POST", "/admin/notes/edit"))
         assertTrue(manage.contains("""method="post" action="create""""))
-        assertTrue(manage.contains("Open in full page"), manage)
-        assertTrue(manage.contains("""href="view?id="""), manage)
-        assertTrue(manage.contains("""href="edit?id="""), manage)
-        assertTrue(manage.contains(">Edit</a>") || manage.contains("ff-action-submit"), manage)
+        assertFalse(manage.contains("Open in full page"), manage)
+        // Simple View footer Edit switches to the row Edit modal (#376).
+        assertTrue(manage.contains("""data-ff-dialog-switch="edit""""), manage)
+        assertTrue(manage.contains("""class="ff-action-submit" data-ff-dialog-switch="edit""""), manage)
         assertTrue(manage.contains("data-ff-dialog-expand"), manage)
         assertTrue(manage.contains("data-ff-dialog-resize"), manage)
+        // Full-resource View page Edit still goes to the edit page.
+        assertTrue(view.contains("""href="edit""") || view.contains("""href="edit?id="""), view)
         assertTrue(list.contains("ff-list"))
         assertTrue(list.contains(">Orders<"))
         // Singular label() still renders a plural list/manage heading (Shamar).
@@ -246,6 +251,7 @@ class FireflyResourceTest {
         assertTrue(list.contains("ff-row-action-menu") || list.contains("ff-table-more"))
         assertTrue(list.contains("""href="view?id=1""""))
         assertTrue(list.contains("""href="edit?id=1""""))
+        assertTrue(list.contains("""data-ff-record-url="view?id=1""""), list)
         assertTrue(list.contains("Ada"))
         // Create is a page link on full resources — dialogs stay on simple/manage and delete.
         // Full-resource create is a header link — dialogs belong on simple/manage and delete.
