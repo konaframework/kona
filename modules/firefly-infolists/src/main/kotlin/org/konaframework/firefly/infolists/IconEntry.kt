@@ -106,10 +106,22 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
         if (isBlank(state)) return """<span class="ff-placeholder">${escapeHtml(placeholderValue.get(get) ?: "")}</span>"""
         val items = if (state is Collection<*>) state.map { it } else listOf(state)
         val breaks = breakFlag.get(get)
+        val asBool = booleanFlag.get(get)
         val body = items.joinToString("") { item ->
             val icon = iconFor(item, get)
             val color = colorFor(item, get)
-            val piece = """<span class="ff-icon-item"${attr("data-ff-color", color)}>${iconHtml(icon)}${accessText(item, get)}</span>"""
+            val chip = if (asBool && item != null) {
+                val cls = if (truthy(item)) "is-true" else "is-false"
+                """ ff-boolean ff-boolean--icon-only $cls"""
+            } else {
+                ""
+            }
+            val mark = if (asBool && !icon.isNullOrEmpty()) {
+                """<span class="ff-boolean__mark" aria-hidden="true">${iconHtml(icon)}</span>"""
+            } else {
+                iconHtml(icon)
+            }
+            val piece = """<span class="ff-icon-item$chip"${attr("data-ff-color", color)}>$mark${accessText(item, get)}</span>"""
             if (breaks) """<div class="ff-icon-row">$piece</div>""" else piece
         }
         return """<div class="ff-icons"${attr("data-ff-size", sizeValue.get(get))}${flag("data-ff-line-breaks", breaks)}>$body</div>"""
@@ -125,7 +137,7 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
         if (state == null) return null
         if (truthy(state)) {
             if (hideTrue.get(get)) return null
-            return trueIconValue.get(get) ?: "user"
+            return trueIconValue.get(get) ?: "check"
         }
         if (hideFalse.get(get)) return null
         return falseIconValue.get(get) ?: "x"
@@ -138,7 +150,8 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
         if (painted != null) return painted
         if (!booleanFlag.get(get) || state == null) return null
         if (truthy(state)) return trueColorValue.get(get) ?: "success"
-        return falseColorValue.get(get) ?: "danger"
+        // Soft false (Shamar is-false), not danger red.
+        return falseColorValue.get(get) ?: "gray"
     }
 
     private fun accessText(state: Any?, get: Get): String {

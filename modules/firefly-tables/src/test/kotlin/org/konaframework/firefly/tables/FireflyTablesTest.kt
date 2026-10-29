@@ -15,7 +15,12 @@ import org.konaframework.firefly.support.FireflyException
 import java.sql.Timestamp
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Date
+import java.util.Locale
 
 class FireflyTablesTest {
     @AfterEach
@@ -405,17 +410,52 @@ class FireflyTablesTest {
 
         val dated = TextColumn.make("at").date()
         val instant = Instant.parse("2020-01-02T03:04:05Z")
-        assertTrue(dated.render(mapOf("at" to instant), "1", Cell { null }).contains("2020-01-02"))
-        assertTrue(dated.render(mapOf("at" to LocalDate.parse("2020-01-02")), "1", Cell { null }).contains("2020-01-02"))
-        assertTrue(dated.render(mapOf("at" to Timestamp.from(instant)), "1", Cell { null }).contains("2020-01-02"))
-        assertTrue(dated.render(mapOf("at" to Date.from(instant)), "1", Cell { null }).contains("2020-01-02"))
+        val locale = Locale.getDefault()
+        val zone = ZoneId.systemDefault()
+        val mediumDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
+        val mediumDateTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale)
+        val humanDate = LocalDate.parse("2020-01-02").format(mediumDate)
+        val humanInstant = instant.atZone(zone).format(mediumDate)
+        val datedInstant = dated.render(mapOf("at" to instant), "1", Cell { null })
+        assertTrue(datedInstant.contains(humanInstant))
+        assertTrue(datedInstant.contains("""title="${instant}""""))
+        assertTrue(dated.render(mapOf("at" to LocalDate.parse("2020-01-02")), "1", Cell { null }).contains(humanDate))
+        assertTrue(dated.render(mapOf("at" to Timestamp.from(instant)), "1", Cell { null }).contains(humanInstant))
+        assertTrue(dated.render(mapOf("at" to Date.from(instant)), "1", Cell { null }).contains(humanInstant))
         assertTrue(dated.render(mapOf("at" to "today"), "1", Cell { null }).contains("today"))
+        assertTrue(dated.render(mapOf("at" to "2020-01-02"), "1", Cell { null }).contains(humanDate))
         assertEquals(
             "",
             TextColumn.make("at").date().render(mapOf("at" to null), "1", Cell { null }).let { html ->
                 if (html.contains(">today<")) "no" else ""
             },
         )
+        val dateTimed = TextColumn.make("at").dateTime()
+        val humanDt = LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(mediumDateTime)
+        val dtHtml = dateTimed.render(mapOf("at" to LocalDateTime.of(2020, 1, 2, 15, 45)), "1", Cell { null })
+        assertTrue(dtHtml.contains(humanDt))
+        assertTrue(dtHtml.contains("""title="2020-01-02T15:45""""))
+        val localDateAtStart = LocalDate.parse("2020-01-02").atStartOfDay(zone).format(mediumDateTime)
+        assertTrue(
+            dateTimed.render(mapOf("at" to LocalDate.parse("2020-01-02")), "1", Cell { null }).contains(localDateAtStart),
+        )
+        val sqlDate = java.sql.Date.valueOf("2020-01-02")
+        assertTrue(dated.render(mapOf("at" to sqlDate), "1", Cell { null }).contains(humanDate))
+        assertTrue(dateTimed.render(mapOf("at" to sqlDate), "1", Cell { null }).contains(localDateAtStart))
+        assertTrue(
+            dateTimed.render(mapOf("at" to instant), "1", Cell { null })
+                .contains(instant.atZone(zone).format(mediumDateTime)),
+        )
+        assertTrue(
+            dated.render(mapOf("at" to "2020-01-02T03:04:05Z"), "1", Cell { null })
+                .contains(Instant.parse("2020-01-02T03:04:05Z").atZone(zone).format(mediumDate)),
+        )
+        assertTrue(
+            dateTimed.render(mapOf("at" to "2020-01-02 15:45:00"), "1", Cell { null })
+                .contains(LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(mediumDateTime)),
+        )
+        assertTrue(dated.render(mapOf("at" to 42), "1", Cell { null }).contains("42"))
+        assertFalse(TextColumn.make("name").render(mapOf("name" to "x"), "1", Cell { null }).contains("title="))
 
         val limited = TextColumn.make("name").limit(3)
         assertTrue(limited.render(mapOf("name" to "Hello"), "1", Cell { null }).contains("Hel…"))
@@ -430,8 +470,12 @@ class FireflyTablesTest {
         assertTrue(icon.render(mapOf("flag" to "user"), "1", Cell { null }).contains("ff-icon"))
         assertFalse(icon.render(mapOf("flag" to null), "1", Cell { null }).contains("<svg"))
         val asBool = IconColumn.make("flag").boolean()
-        assertTrue(asBool.render(mapOf("flag" to 1), "1", Cell { null }).contains("ff-icon"))
-        assertTrue(asBool.render(mapOf("flag" to 0), "1", Cell { null }).contains("ff-icon"))
+        val yesHtml = asBool.render(mapOf("flag" to 1), "1", Cell { null })
+        assertTrue(yesHtml.contains("ff-boolean"))
+        assertTrue(yesHtml.contains("is-true"))
+        assertTrue(yesHtml.contains("ff-icon"))
+        val noHtml = asBool.render(mapOf("flag" to 0), "1", Cell { null })
+        assertTrue(noHtml.contains("is-false"))
         assertTrue(asBool.render(mapOf("flag" to "yes"), "1", Cell { null }).contains("ff-icon"))
         assertFalse(asBool.render(mapOf("flag" to null), "1", Cell { null }).contains("<svg"))
         assertSame(asBool, asBool.bool())

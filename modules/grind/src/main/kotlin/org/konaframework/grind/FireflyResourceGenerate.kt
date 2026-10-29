@@ -197,29 +197,58 @@ internal object FireflyResourceGenerate {
             )
             FieldKind.DATE -> MappedColumn(
                 form = GeneratedComponent("DatePicker", "org.konaframework.firefly.forms.DatePicker", name),
-                table = textColumn(name, toggleHidden = false),
-                entry = GeneratedComponent("TextEntry", "org.konaframework.firefly.infolists.TextEntry", name),
+                table = textColumn(name, date = true),
+                entry = GeneratedComponent(
+                    "TextEntry",
+                    "org.konaframework.firefly.infolists.TextEntry",
+                    name,
+                    callSuffix = ".date()",
+                ),
             )
             FieldKind.DATETIME -> MappedColumn(
                 form = GeneratedComponent("DateTimePicker", "org.konaframework.firefly.forms.DateTimePicker", name),
-                table = textColumn(name, toggleHidden = true),
-                entry = GeneratedComponent("TextEntry", "org.konaframework.firefly.infolists.TextEntry", name),
+                table = textColumn(name, toggleHidden = true, dateTime = true),
+                entry = GeneratedComponent(
+                    "TextEntry",
+                    "org.konaframework.firefly.infolists.TextEntry",
+                    name,
+                    callSuffix = ".dateTime()",
+                ),
             )
             FieldKind.TEXTAREA -> MappedColumn(
                 form = GeneratedComponent("Textarea", "org.konaframework.firefly.forms.Textarea", name),
-                table = textColumn(name, toggleHidden = false),
+                table = textColumn(name),
                 entry = GeneratedComponent("TextEntry", "org.konaframework.firefly.infolists.TextEntry", name),
             )
-            FieldKind.TEXT -> MappedColumn(
-                form = GeneratedComponent("TextInput", "org.konaframework.firefly.forms.TextInput", name),
-                table = textColumn(name, toggleHidden = name in timestampNames),
-                entry = GeneratedComponent("TextEntry", "org.konaframework.firefly.infolists.TextEntry", name),
-            )
+            FieldKind.TEXT -> {
+                val stamp = name in timestampNames
+                MappedColumn(
+                    form = GeneratedComponent("TextInput", "org.konaframework.firefly.forms.TextInput", name),
+                    table = textColumn(name, toggleHidden = stamp, dateTime = stamp),
+                    entry = GeneratedComponent(
+                        "TextEntry",
+                        "org.konaframework.firefly.infolists.TextEntry",
+                        name,
+                        callSuffix = if (stamp) ".dateTime()" else "",
+                    ),
+                )
+            }
         }
     }
 
-    private fun textColumn(name: String, toggleHidden: Boolean): GeneratedComponent {
-        val suffix = if (toggleHidden) ".toggleable().toggledHiddenByDefault()" else ""
+    private fun textColumn(
+        name: String,
+        toggleHidden: Boolean = false,
+        date: Boolean = false,
+        dateTime: Boolean = false,
+    ): GeneratedComponent {
+        val suffix = buildString {
+            when {
+                dateTime -> append(".dateTime()")
+                date -> append(".date()")
+            }
+            if (toggleHidden) append(".toggleable().toggledHiddenByDefault()")
+        }
         return GeneratedComponent(
             "TextColumn",
             "org.konaframework.firefly.tables.TextColumn",

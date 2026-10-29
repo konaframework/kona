@@ -399,9 +399,12 @@ class FireflyInfolistsTest {
     fun iconImageColorKeyAndCode() {
         val yes = IconEntry.make("ok").boolean().state(true)
         assertTrue(html(yes).contains("success"))
+        assertTrue(html(yes).contains("ff-boolean"))
+        assertTrue(html(yes).contains("is-true"))
         assertTrue(html(yes).contains("ff-sr\">true"))
         val no = IconEntry.make("ok").bool(true).state(false)
-        assertTrue(html(no).contains("danger"))
+        assertTrue(html(no).contains("gray"))
+        assertTrue(html(no).contains("is-false"))
         assertTrue(html(no).contains("ff-sr\">false"))
         val named = IconEntry.make("ok").whenTrue("user", "success").whenFalse("x", "danger").trueIcon("user").falseIcon("x").trueColor("success").falseColor("danger").state(true)
         assertTrue(html(named).contains("<svg"))

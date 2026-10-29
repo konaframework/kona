@@ -6,6 +6,10 @@ import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.support.Icon
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Date
 import java.util.Locale
 import java.util.function.BiFunction
@@ -23,6 +27,7 @@ enum class TextStyle {
     PLAIN,
     MONEY,
     DATE,
+    DATE_TIME,
 }
 
 open class Column protected constructor(val name: String) {
@@ -197,6 +202,9 @@ open class Column protected constructor(val name: String) {
 
     fun date(): Column = apply { style = TextStyle.DATE }
 
+    /** Human-readable date and time (e.g. `Jan 15, 2024, 3:45 PM`); hover shows the raw value. */
+    fun dateTime(): Column = apply { style = TextStyle.DATE_TIME }
+
     fun limit(characters: Int): Column = apply { limit = characters }
 
     fun openUrlInNewTab(): Column = openUrlInNewTab(true)
@@ -228,8 +236,8 @@ open class Column protected constructor(val name: String) {
         val formatted = format(state, cell)
         val described = descriptionValue.get(cell, "")
         val description = if (described.isEmpty()) "" else """<p class="ff-column-description">${escapeHtml(described)}</p>"""
-        val tip = tooltipValue.get(cell, "")
-        val tooltip = if (tip.isEmpty()) "" else """ data-ff-tooltip="${escapeHtml(tip)}""""
+        val tip = tooltipValue.get(cell, "").ifEmpty { temporalRawTip(row[name]) }
+        val tooltip = if (tip.isEmpty()) "" else """ title="${escapeHtml(tip)}" data-ff-tooltip="${escapeHtml(tip)}""""
         val viewAttr = if (viewName == null) "" else """ data-ff-view="${escapeHtml(viewName!!)}""""
         val copy = if (copyable) """ data-ff-copyable="true"""" else ""
         val width = widthValue.get(cell, "")
@@ -255,7 +263,8 @@ open class Column protected constructor(val name: String) {
         } else {
             when (style) {
                 TextStyle.MONEY -> money(state)
-                TextStyle.DATE -> date(state)
+                TextStyle.DATE -> humanDate(state, withTime = false)
+                TextStyle.DATE_TIME -> humanDate(state, withTime = true)
                 TextStyle.PLAIN -> plain(state)
             }
         }
@@ -276,13 +285,55 @@ open class Column protected constructor(val name: String) {
         else -> state.toString()
     }
 
-    private fun date(state: Any?): String = when (state) {
-        null -> ""
-        is Instant -> state.toString()
-        is LocalDate -> state.toString()
-        is java.sql.Timestamp -> state.toInstant().toString()
-        is Date -> Instant.ofEpochMilli(state.time).toString()
-        else -> state.toString()
+    /** Shamar-style medium date (`Jan 15, 2024`) or date+time (`Jan 15, 2024, 3:45 PM`). */
+    private fun humanDate(state: Any?, withTime: Boolean): String {
+        if (state == null) return ""
+        val zone = ZoneId.systemDefault()
+        val locale = Locale.getDefault()
+        val formatter = if (withTime) {
+            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale)
+        } else {
+            DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
+        }
+        return when (state) {
+            is LocalDate ->
+                if (withTime) state.atStartOfDay(zone).format(formatter) else state.format(formatter)
+            is LocalDateTime -> state.atZone(zone).format(formatter)
+            is Instant -> state.atZone(zone).format(formatter)
+            is java.sql.Timestamp -> state.toInstant().atZone(zone).format(formatter)
+            is java.sql.Date -> {
+                val local = state.toLocalDate()
+                if (withTime) local.atStartOfDay(zone).format(formatter) else local.format(formatter)
+            }
+            is Date -> Instant.ofEpochMilli(state.time).atZone(zone).format(formatter)
+            is String -> {
+                val parsed = parseTemporal(state, zone) ?: return state
+                parsed.format(formatter)
+            }
+            else -> state.toString()
+        }
+    }
+
+    private fun temporalRawTip(state: Any?): String {
+        if (style != TextStyle.DATE && style != TextStyle.DATE_TIME) return ""
+        if (state == null) return ""
+        return state.toString()
+    }
+
+    private fun parseTemporal(text: String, zone: ZoneId): java.time.ZonedDateTime? {
+        try {
+            return Instant.parse(text).atZone(zone)
+        } catch (_: Exception) {
+        }
+        try {
+            return LocalDateTime.parse(text.replace(' ', 'T')).atZone(zone)
+        } catch (_: Exception) {
+        }
+        try {
+            return LocalDate.parse(text).atStartOfDay(zone)
+        } catch (_: Exception) {
+        }
+        return null
     }
 
     private fun limit(text: String): String {
@@ -383,7 +434,9 @@ open class BadgeColumn protected constructor(name: String) : TextColumn(name) {
 }
 
 open class IconColumn private constructor(name: String) : Column(name) {
-    private var trueIcon = "user"
+    /** Shamar boolean true mark (check). */
+    private var trueIcon = "check"
+    /** Soft false mark (X), paired with [trueIcon]. */
     private var falseIcon = "x"
     private var booleanMode = false
 
@@ -392,7 +445,7 @@ open class IconColumn private constructor(name: String) : Column(name) {
     fun falseIcon(name: String): IconColumn = apply { falseIcon = name }
 
     /**
-     * Treats the cell as a boolean (check / cross icons). Truthy for [Boolean], numbers,
+     * Treats the cell as a boolean (Shamar check / cross chips). Truthy for [Boolean], numbers,
      * and `"1"` / `"true"` / `"yes"`. Kotlin: [boolean]; Java: [bool] (`boolean` is a keyword).
      */
     fun boolean(): IconColumn = apply { booleanMode = true }
@@ -416,7 +469,16 @@ open class IconColumn private constructor(name: String) : Column(name) {
                 else -> state.toString()
             }
         }
-        val html = if (icon.isEmpty()) "" else Icon.fromName(icon).svg()
+        val html = when {
+            icon.isEmpty() -> ""
+            booleanMode -> {
+                val on = truthy(state)
+                val cls = if (on) "is-true" else "is-false"
+                val word = if (on) "true" else "false"
+                """<span class="ff-boolean ff-boolean--icon-only $cls"><span class="ff-boolean__mark" aria-hidden="true">${Icon.fromName(icon).svg()}</span><span class="ff-sr">$word</span></span>"""
+            }
+            else -> Icon.fromName(icon).svg()
+        }
         return """<div class="ff-column ff-icon-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})">$html</div>"""
     }
 

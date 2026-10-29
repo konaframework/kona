@@ -68,16 +68,23 @@ class FireflyResourceGenerateTest {
         assertTrue(fields.table.any { it.name == "published" && it.callExpr().endsWith(".boolean()") })
         assertTrue(
             fields.table.any {
-                it.name == "published_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+                it.name == "published_at" &&
+                    it.callExpr().contains(".dateTime()") &&
+                    it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
             },
         )
         assertTrue(
             fields.table.any {
-                it.name == "created_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+                it.name == "created_at" &&
+                    it.callExpr().contains(".dateTime()") &&
+                    it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
             },
         )
+        assertTrue(fields.table.any { it.name == "due_on" && it.callExpr().contains(".date()") })
         assertTrue(fields.infolist.any { it.name == "published" && it.type == "IconEntry" })
         assertTrue(fields.infolist.any { it.name == "published" && it.callExpr().endsWith(".boolean()") })
+        assertTrue(fields.infolist.any { it.name == "due_on" && it.callExpr().endsWith(".date()") })
+        assertTrue(fields.infolist.any { it.name == "published_at" && it.callExpr().endsWith(".dateTime()") })
         assertFalse(fields.table.any { it.name == "id" })
         assertEquals(2, fields.formColumns)
     }
@@ -215,7 +222,14 @@ class FireflyResourceGenerateTest {
         )
         assertTrue(
             stamps.table.any {
-                it.name == "created_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+                it.name == "created_at" &&
+                    it.callExpr().contains(".dateTime()") &&
+                    it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+            },
+        )
+        assertTrue(
+            stamps.infolist.any {
+                it.name == "created_at" && it.callExpr().endsWith(".dateTime()")
             },
         )
         assertTrue(stamps.form.any { it.callExpr().contains("Select.make(\"team\").label(\"People\").relationship(\"people\", \"name\")") })
