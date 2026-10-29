@@ -12,19 +12,31 @@ import org.konaframework.firefly.tables.TextColumn
 
 class NoteResource : Resource("notes") {
     init {
-        label("Notes")
+        label("Note")
         simple()
         model(Note::class.java)
+        formColumns(2)
+        infolistColumns(2)
     }
 
-    override fun form(schema: Schema): Schema = schema.components(
-        TextInput.make("name"),
-        Select.make("status").options(mapOf("open" to "Open", "done" to "Done")),
-        DateTimePicker.make("due"),
-    )
+    override fun form(schema: Schema): Schema =
+        schema.components(
+            TextInput.make("name").label("Name").required(),
+            Select.make("status").label("Status").options(mapOf("open" to "Open", "done" to "Done")),
+            DateTimePicker.make("due").label("Due"),
+        )
 
-    override fun infolist(schema: Schema): Schema = schema.components(TextEntry.make("name"))
+    override fun infolist(schema: Schema): Schema =
+        schema.components(
+            TextEntry.make("name").label("Name"),
+            TextEntry.make("status").label("Status"),
+            TextEntry.make("due").label("Due"),
+        )
 
     override fun table(table: Table<*, *>): Table<*, *> =
-        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+        table.columns(
+            TextColumn.make("name").label("Name").searchable().sortable(),
+            TextColumn.make("status").label("Status").badge(),
+            TextColumn.make("due").label("Due"),
+        )
 }

@@ -42,6 +42,8 @@ class AppSmokeTest {
         assertEquals("{\"status\":\"ok\"}", health.getBody());
         Response desk = kernel.handle(Request.get("/admin/desk"));
         Response notes = kernel.handle(Request.get("/admin/notes/manage"));
+        Response tasks = kernel.handle(Request.get("/admin/tasks/manage"));
+        Response projects = kernel.handle(Request.get("/admin/projects/manage"));
         Response orders = kernel.handle(Request.get("/admin/orders/edit"));
         assertEquals(200, desk.getStatus());
         assertTrue(desk.getBody().contains("ff-combobox"), desk.getBody());
@@ -49,6 +51,16 @@ class AppSmokeTest {
         assertTrue(desk.getBody().contains("ff-dialog"), desk.getBody());
         assertTrue(desk.getBody().contains("ff-desk-widget"), desk.getBody());
         assertTrue(notes.getBody().contains("ff-manage"), notes.getBody());
+        assertTrue(notes.getBody().contains("Ada"), notes.getBody());
+        assertEquals(200, tasks.getStatus());
+        assertTrue(tasks.getBody().contains("ff-combobox"), tasks.getBody());
+        assertTrue(tasks.getBody().contains("data-ff-combobox"), tasks.getBody());
+        assertTrue(tasks.getBody().contains("data-ff-relationship=\"project\""), tasks.getBody());
+        assertTrue(tasks.getBody().contains("Desk"), tasks.getBody());
+        assertTrue(tasks.getBody().contains("Lab"), tasks.getBody());
+        assertTrue(tasks.getBody().contains("Wire combobox"), tasks.getBody());
+        assertEquals(200, projects.getStatus());
+        assertTrue(projects.getBody().contains("Desk"), projects.getBody());
         assertTrue(orders.getBody().contains("ff-relation"), orders.getBody());
     }
 

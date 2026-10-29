@@ -29,6 +29,12 @@ Thumbs.db
 !modules/cli/src/main/resources/skeletons/**/env.txt
 *.log
 
+# Sample H2 / SQLite databases (created on boot / migrate)
+samples/**/storage/database/*.mv.db
+samples/**/storage/database/*.trace.db
+samples/**/storage/database/*.lock.db
+samples/**/storage/database/*.sqlite
+
 # Coverage / test
 .kover/
 coverage/

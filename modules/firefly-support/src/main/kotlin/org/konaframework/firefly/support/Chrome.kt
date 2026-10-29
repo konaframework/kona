@@ -90,9 +90,10 @@ class DefaultLayout(
         /**
          * Panel chrome behavior with no framework: 3-state theme cycle, dropdown
          * menus (notifications + user), mobile sidebar drawer, Action/TableButton
-         * dialogs (`data-ff-dialog-*`), and table soft-nav (`data-ff-table-nav`) that
-         * swaps `.ff-table-wrap` via fetch without a full document reload.
-         * Alpine is optional — dialogs and table nav open without it.
+         * dialogs (`data-ff-dialog-*`), Select combobox (`data-ff-combobox`), date
+         * pickers, and table soft-nav (`data-ff-table-nav`) that swaps
+         * `.ff-table-wrap` via fetch without a full document reload.
+         * Alpine is optional — dialogs, combobox, and table nav open without it.
          */
         internal const val CHROME_SCRIPT: String =
             "<script>(function(){" +
@@ -111,7 +112,8 @@ class DefaultLayout(
                 "var input=wrap&&wrap.querySelector('[data-ff-toggle-value]');" +
                 "var on=!!(input&&input.value==='1');" +
                 "btn.setAttribute('aria-pressed',on?'true':'false');" +
-                "btn.setAttribute('aria-checked',on?'true':'false');});}" +
+                "btn.setAttribute('aria-checked',on?'true':'false');});" +
+                "panel.querySelectorAll('[data-ff-combobox]').forEach(function(box){syncCombobox(box);});}" +
                 // Drag sets position:fixed + margin:0 + left/top. Clear all of them on
                 // close/open so the next open restores stylesheet centering (#316).
                 "function resetDialogDrag(panel){if(!panel)return;" +
@@ -128,8 +130,36 @@ class DefaultLayout(
                 "function closePickers(except){root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(function(p){" +
                 "if(except&&p===except)return;p.classList.remove('ff-picker-open');" +
                 "var panel=p.querySelector('[data-ff-picker-panel]');if(panel){panel.setAttribute('hidden','');}});}" +
-                "function openPicker(p){if(!p)return;closePickers(p);p.classList.add('ff-picker-open');" +
+                "function openPicker(p){if(!p)return;closeComboboxes();closePickers(p);p.classList.add('ff-picker-open');" +
                 "var panel=p.querySelector('[data-ff-picker-panel]');if(panel)panel.removeAttribute('hidden');}" +
+                "function closeComboboxes(except){root.querySelectorAll('[data-ff-combobox].ff-combobox-open').forEach(function(c){" +
+                "if(except&&c===except)return;c.classList.remove('ff-combobox-open');" +
+                "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel)panel.setAttribute('hidden','');" +
+                "var display=c.querySelector('[data-ff-combobox-display]');if(display){display.setAttribute('aria-expanded','false');" +
+                "if(c.getAttribute('data-ff-searchable')==='true')display.value=comboboxDisplay(c);}});}" +
+                "function openCombobox(c){if(!c)return;closePickers();closeComboboxes(c);c.classList.add('ff-combobox-open');" +
+                "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel)panel.removeAttribute('hidden');" +
+                "var display=c.querySelector('[data-ff-combobox-display]');if(display){display.setAttribute('aria-expanded','true');" +
+                "if(c.getAttribute('data-ff-searchable')==='true'){display.value='';display.focus();filterCombobox(c,'');}}}" +
+                "function comboboxValues(c){var raw=c.getAttribute('data-ff-state')||'';if(!raw)return[];return raw.split(',').map(function(x){return x.trim();}).filter(Boolean);}" +
+                "function comboboxDisplay(c){var vals=comboboxValues(c);if(!vals.length)return'';var labels=[];" +
+                "c.querySelectorAll('.ff-option').forEach(function(li){if(vals.indexOf(li.getAttribute('data-ff-value')||'')>=0)" +
+                "labels.push(li.getAttribute('data-ff-label')||li.textContent||'');});" +
+                "return labels.length?labels.join(', '):vals.join(', ');}" +
+                "function syncCombobox(c){var hidden=c.querySelector('[data-ff-combobox-value]');" +
+                "var vals=comboboxValues(c);if(hidden)hidden.value=vals.join(',');" +
+                "var display=c.querySelector('[data-ff-combobox-display]');if(display&&!c.classList.contains('ff-combobox-open'))display.value=comboboxDisplay(c);" +
+                "c.querySelectorAll('.ff-option').forEach(function(li){var on=vals.indexOf(li.getAttribute('data-ff-value')||'')>=0;li.classList.toggle('ff-selected',on);});}" +
+                "function setComboboxValue(c,value,label){var multi=c.getAttribute('data-ff-multiple')==='true';var vals=comboboxValues(c);" +
+                "if(multi){var i=vals.indexOf(value);if(i>=0)vals.splice(i,1);else{var max=+(c.getAttribute('data-ff-max-items')||'0');" +
+                "if(max>0&&vals.length>=max)return;vals.push(value);}}" +
+                "else{vals=value?[value]:[];}" +
+                "c.setAttribute('data-ff-state',vals.join(','));syncCombobox(c);if(!multi)closeComboboxes();}" +
+                "function filterCombobox(c,query){var needle=(query||'').toLowerCase();var any=false;" +
+                "c.querySelectorAll('.ff-option').forEach(function(li){var label=(li.getAttribute('data-ff-label')||li.textContent||'').toLowerCase();" +
+                "var value=(li.getAttribute('data-ff-value')||'').toLowerCase();" +
+                "var show=!needle||label.indexOf(needle)>=0||value.indexOf(needle)>=0;li.style.display=show?'':'none';if(show)any=true;});" +
+                "var empty=c.querySelector('[data-ff-combobox-empty]');if(empty){if(any)empty.setAttribute('hidden','');else empty.removeAttribute('hidden');}}" +
                 "function pad2(n){return(n<10?'0':'')+n;}" +
                 "function parseYmd(s){if(!s)return null;var m=/^(\\d{4})-(\\d{2})-(\\d{2})/.exec(s);if(!m)return null;" +
                 "return{y:+m[1],m:+m[2],d:+m[3]};}" +
@@ -204,8 +234,13 @@ class DefaultLayout(
                 "return day+' '+readTime(p);}" +
                 "apply(pref());" +
                 "media.addEventListener('change',function(){if(pref()==='system')apply('system');});" +
-                "var searchTimers={};" +
-                "document.addEventListener('input',function(ev){var el=ev.target;if(!el||!el.matches||!el.matches('.ff-table-search'))return;" +
+                "var searchTimers={};var comboTimers={};" +
+                "document.addEventListener('input',function(ev){var el=ev.target;if(!el||!el.matches)return;" +
+                "if(el.matches('[data-ff-combobox-display]')){var box=el.closest('[data-ff-combobox]');if(!box)return;" +
+                "if(!box.classList.contains('ff-combobox-open'))openCombobox(box);" +
+                "var wait=+(box.getAttribute('data-ff-debounce')||'300');var key=box.getAttribute('data-ff-path')||'combo';" +
+                "clearTimeout(comboTimers[key]);comboTimers[key]=setTimeout(function(){filterCombobox(box,el.value);},wait);return;}" +
+                "if(!el.matches('.ff-table-search'))return;" +
                 "var form=el.closest('form[data-ff-table-nav]');if(!form)return;var id=ffTableIndex(form.closest('.ff-table-wrap'));" +
                 "clearTimeout(searchTimers[id]);searchTimers[id]=setTimeout(function(){" +
                 "if(form.requestSubmit)form.requestSubmit();else form.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));},280);});" +
@@ -231,6 +266,14 @@ class DefaultLayout(
                 "if(input)input.value=on?'1':'0';" +
                 "var icon=toggle.querySelector('.ff-toggle-icon');var ic=on?toggle.getAttribute('data-ff-on-icon'):toggle.getAttribute('data-ff-off-icon');" +
                 "if(icon&&ic)icon.setAttribute('data-ff-icon',ic);return;}" +
+                "var combo=t.closest('[data-ff-combobox]');" +
+                "if(combo){" +
+                "var opt=t.closest('.ff-option');" +
+                "if(opt&&opt.getAttribute('data-ff-enabled')!=='false'){" +
+                "setComboboxValue(combo,opt.getAttribute('data-ff-value')||'',opt.getAttribute('data-ff-label')||opt.textContent||'');return;}" +
+                "if(t.closest('[data-ff-combobox-open]')&&!t.closest('[data-ff-combobox-panel]')){" +
+                "if(combo.classList.contains('ff-combobox-open')){closeComboboxes();}else{openCombobox(combo);}return;}" +
+                "return;}" +
                 "var picker=t.closest('[data-ff-picker]');" +
                 "if(picker){" +
                 "if(t.closest('[data-ff-picker-open]')&&!t.closest('[data-ff-picker-panel]')){" +
@@ -273,18 +316,19 @@ class DefaultLayout(
                 "if(mount){openDialog(mount.querySelector('[data-ff-dialog-panel]'));}return;}" +
                 "if(t.closest('[data-ff-dialog-close]')||t.closest('.ff-dialog-overlay')){" +
                 "var dm=t.closest('[data-ff-dialog-mount]');if(dm){closeDialog(dm.querySelector('[data-ff-dialog-panel]'));}return;}" +
-                // Outside the picker (including elsewhere in a dialog) closes the calendar popup.
+                // Outside the picker/combobox (including elsewhere in a dialog) closes popups.
                 "if(!t.closest('[data-ff-picker]'))closePickers();" +
+                "if(!t.closest('[data-ff-combobox]'))closeComboboxes();" +
                 "if(t.closest('[data-ff-dialog-panel]'))return;" +
                 "var tr=t.closest('[data-ff-menu-trigger]');" +
                 "if(tr){var menu=tr.closest('[data-ff-menu]');var was=menu.classList.contains('ff-open');" +
                 "closeMenus();if(!was)menu.classList.add('ff-open');return;}" +
                 "if(t.closest('[data-ff-menu-panel]'))return;" +
                 "if(t.closest('[data-ff-sidebar-toggle]')){root.classList.add('ff-sidebar-open');return;}" +
-                "if(t.closest('[data-ff-sidebar-close]')||t.closest('[data-ff-backdrop]')){root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();return;}" +
+                "if(t.closest('[data-ff-sidebar-close]')||t.closest('[data-ff-backdrop]')){root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();return;}" +
                 "var nav=t.closest('a[data-ff-table-nav]');" +
                 "if(nav){ev.preventDefault();ffTableNav(nav.getAttribute('href'),nav.closest('.ff-table-wrap'));return;}" +
-                "closeMenus();closeDialogs();closePickers();});" +
+                "closeMenus();closeDialogs();closePickers();closeComboboxes();});" +
                 "function ffTableIndex(wrap){return Array.prototype.indexOf.call(document.querySelectorAll('.ff-table-wrap'),wrap);}" +
                 "function ffTableNav(href,wrap,restoreSearch){if(!href)return;var idx=wrap?ffTableIndex(wrap):-1;" +
                 "var live=wrap&&wrap.querySelector('.ff-table-search');" +
@@ -313,7 +357,7 @@ class DefaultLayout(
                 "var url=new URL(location.href);url.searchParams.set(el.name||'perPage',el.value);url.searchParams.set('page','1');" +
                 "ffTableNav(url.pathname+url.search,wrap);});" +
                 "document.addEventListener('keydown',function(ev){if(ev.key==='Escape'){" +
-                "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();}});" +
+                "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();}});" +
                 "})();</script>"
     }
 }

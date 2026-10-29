@@ -16,37 +16,39 @@ import org.konaframework.firefly.tables.TextColumn;
 import org.konaframework.firefly.widgets.Page;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class OrderResource extends Resource {
     public OrderResource() {
         super("orders");
-        label("Orders");
+        label("Order");
         model(Order.class);
     }
 
     @Override
     public Schema form(Schema schema) {
-        return schema.components(TextInput.make("name"));
+        return schema.components(TextInput.make("name").label("Name").required());
     }
 
     @Override
     public Schema infolist(Schema schema) {
-        return schema.components(TextEntry.make("name"));
+        return schema.components(TextEntry.make("name").label("Name"));
     }
 
     @Override
     public Table<?, ?> table(Table<?, ?> table) {
-        return Table.memory(orderRow()).columns(TextColumn.make("name"));
+        return table.columns(TextColumn.make("name").label("Name").searchable().sortable());
     }
 
     @Override
-    public java.util.List<RelationManager> getRelations() {
-        return java.util.List.of(
+    public List<RelationManager> getRelations() {
+        return List.of(
             new RelationManager("lines")
                 .related(Line.class)
                 .titleAttribute("sku")
-                .table(Table.memory(lineRow()).columns(TextColumn.make("sku")))
+                .table(Table.forModel(Line.class).columns(TextColumn.make("sku").label("SKU").searchable()))
+                .form(Schema.make().components(TextInput.make("sku").label("SKU").required()))
         );
     }
 
@@ -58,19 +60,5 @@ public class OrderResource extends Resource {
         pages.put("edit", new EditPage("edit"));
         pages.put("view", new ViewPage("view"));
         return pages;
-    }
-
-    private static Map<String, Object> orderRow() {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("id", "1");
-        row.put("name", "Ada");
-        return row;
-    }
-
-    private static Map<String, Object> lineRow() {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("id", "1");
-        row.put("sku", "A");
-        return row;
     }
 }

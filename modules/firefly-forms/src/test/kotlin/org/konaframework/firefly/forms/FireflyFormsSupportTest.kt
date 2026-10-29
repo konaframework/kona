@@ -471,9 +471,33 @@ class FireflyFormsSupportTest {
         val schema = Schema.make().components(select).fill(mapOf("kind" to "org"))
         val html = schema.render()
         assertTrue(html.contains("ff-combobox"))
+        assertTrue(html.contains("data-ff-combobox"))
+        assertTrue(html.contains("data-ff-combobox-value"))
+        assertTrue(html.contains("data-ff-combobox-display"))
+        assertTrue(html.contains("data-ff-combobox-panel"))
+        assertTrue(html.contains("""name="kind""""))
         assertFalse(html.contains("<select"))
         assertTrue(html.contains("ORG"))
         assertTrue(html.contains("data-ff-enabled=\"false\""))
+        // Empty preload + no options: no <li>, empty message visible (#338).
+        val emptyPreload = Select.make("kind").preload(false).options(emptyMap()).noSearchResultsMessage("None yet")
+        val emptyHtml = Schema.make().components(emptyPreload).render()
+        assertFalse(emptyHtml.contains("""role="option""""))
+        assertTrue(emptyHtml.contains("""data-ff-combobox-empty>None yet"""))
+        assertFalse(emptyHtml.contains("""data-ff-combobox-empty hidden"""))
+        // Selected id not in options → display falls back to the raw value.
+        val orphan = Select.make("kind").options(mapOf("a" to "Ada"))
+        assertTrue(Schema.make().components(orphan).fill(mapOf("kind" to "missing")).render().contains("""value="missing""""))
+        val multiOrphan = Select.make("kind").multiple().options(mapOf("a" to "Ada"))
+        assertTrue(
+            Schema.make().components(multiOrphan).fill(mapOf("kind" to listOf("x", "y"))).render()
+                .contains("""value="x,y""""),
+        )
+        val multiKnown = Select.make("kind").multiple().options(mapOf("a" to "Ada", "b" to "Bee"))
+        assertTrue(
+            Schema.make().components(multiKnown).fill(mapOf("kind" to listOf("a", "b"))).render()
+                .contains("Ada, Bee"),
+        )
         assertEquals(1, select.resolvedOptions(schema).size)
         select.optionsLimit(10)
         assertEquals(2, select.resolvedOptions(schema).size)
@@ -501,7 +525,10 @@ class FireflyFormsSupportTest {
         val quiet = Select.make("kind").native().selectablePlaceholder(false).options(mapOf("a" to "A")).disableOptionWhen { false }
         val quietHtml = Schema.make().components(quiet).fill(mapOf("kind" to 1)).render()
         assertTrue(quietHtml.contains("disabled") || quietHtml.contains("<option"))
-        assertTrue(Schema.make().components(Select.make("kind").options(mapOf("a" to "A")).searchable(false)).render().let { !it.contains("role=\"combobox\"") })
+        val quietSearch = Schema.make().components(Select.make("kind").options(mapOf("a" to "A")).searchable(false)).render()
+        assertTrue(quietSearch.contains("role=\"combobox\""))
+        assertTrue(quietSearch.contains(" readonly"))
+        assertTrue(quietSearch.contains("data-ff-searchable=\"false\""))
         val records = Select.make("author").optionsFrom(
             listOf(mapOf("id" to 1, "name" to "Ada"), mapOf("name" to "Skip"), mapOf("id" to 2)),
             "name",

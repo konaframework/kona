@@ -21,6 +21,8 @@ From the Kona **repository root** (not from this directory alone):
 ./gradlew :hello-kotlin:test
 ```
 
+On boot the Desk panel migrates and (when empty) seeds demo Firefly data: **Projects**, **Tasks** (Select.relationship → Project combobox), **Notes**, and **Orders** / lines. Open `http://127.0.0.1:4000/admin/tasks/manage` and use **Create** to exercise the combobox. Set `FIREFLY_SAMPLE_SEED=false` to skip migrate/seed.
+
 ## Want `./grind`?
 
 Install the global CLI and scaffold a standalone app:

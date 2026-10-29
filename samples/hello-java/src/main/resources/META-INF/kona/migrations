@@ -1,0 +1,5 @@
+database.migrations.CreateNotesTable
+database.migrations.CreateProjectsTable
+database.migrations.CreateTasksTable
+database.migrations.CreateOrdersTable
+database.migrations.CreateLinesTable

@@ -10,40 +10,42 @@ import org.konaframework.firefly.schemas.Schema;
 import org.konaframework.firefly.tables.Table;
 import org.konaframework.firefly.tables.TextColumn;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class NoteResource extends Resource {
     public NoteResource() {
         super("notes");
-        label("Notes");
+        label("Note");
         simple();
         model(Note.class);
+        formColumns(2);
+        infolistColumns(2);
     }
 
     @Override
     public Schema form(Schema schema) {
         return schema.components(
-            TextInput.make("name"),
-            Select.make("status").options(Map.of("open", "Open", "done", "Done")),
-            DateTimePicker.make("due")
+            TextInput.make("name").label("Name").required(),
+            Select.make("status").label("Status").options(Map.of("open", "Open", "done", "Done")),
+            DateTimePicker.make("due").label("Due")
         );
     }
 
     @Override
     public Schema infolist(Schema schema) {
-        return schema.components(TextEntry.make("name"));
+        return schema.components(
+            TextEntry.make("name").label("Name"),
+            TextEntry.make("status").label("Status"),
+            TextEntry.make("due").label("Due")
+        );
     }
 
     @Override
     public Table<?, ?> table(Table<?, ?> table) {
-        return Table.memory(row()).columns(TextColumn.make("name"));
-    }
-
-    private static Map<String, Object> row() {
-        Map<String, Object> row = new LinkedHashMap<>();
-        row.put("id", "1");
-        row.put("name", "Ada");
-        return row;
+        return table.columns(
+            TextColumn.make("name").label("Name").searchable().sortable(),
+            TextColumn.make("status").label("Status").badge(),
+            TextColumn.make("due").label("Due")
+        );
     }
 }
