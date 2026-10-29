@@ -11,4 +11,11 @@ When the user describes a **bug, UX defect, or product issue** to fix (including
 2. **Then** implement on the shared Firefly panel branch (`fix/firefly-panel` — see `firefly-issue-branch.mdc`), reference the issue (`Fixes #N` / `Closes #N` in commits/PR). Do **not** open a new `fix/firefly-…` branch per issue while that general branch is still open.
 3. Do not start coding the fix before the issue exists and you have its number/URL.
 
+## Closing keywords (hard)
+
+- Put bare `Fixes #N` (or `Closes #N`) on its own line in the **PR body** and in the **squash/merge commit message**. Never wrap it in backticks, parentheses, or markdown code.
+- After merge, **verify** each referenced issue is `CLOSED`. If GitHub did not auto-close it, close it with `gh issue close N` and a comment linking the merged PR.
+- Do **not** close a PR that is the only carrier of `Fixes #N` (e.g. “superseded”) until the replacement PR’s body has bare `Fixes #N` lines and you have confirmed the issues will close on merge — or close those issues yourself when the fix lands.
+- Do not treat “PR merged” as “issue resolved” without that check.
+
 Does not apply to pure questions, docs-only clarifications, or “how do I…” without an ask to change the product.
