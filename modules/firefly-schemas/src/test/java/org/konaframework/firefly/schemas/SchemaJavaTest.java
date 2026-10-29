@@ -3,6 +3,8 @@ package org.konaframework.firefly.schemas;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -20,6 +22,11 @@ public class SchemaJavaTest {
         name.label(get -> "From Java");
         assertTrue(Section.make().render(Schema.make()).contains("ff-section"));
         assertTrue(Section.make("").columns(2).schema(Text.make("Solo")).render(Schema.make()).contains("data-ff-columns=\"2\""));
+        assertEquals(2, ColumnLayout.two().primary());
+        assertEquals(3, ColumnLayout.of(3).primary());
+        assertEquals(2, ColumnLayout.from(Map.of("md", 2)).primary());
+        assertTrue(Schema.make().columns().components(Text.make("Solo")).render().contains("--ff-cols-lg: 2"));
+        assertTrue(Schema.make().columns(Map.of("sm", 2)).components(Text.make("Solo")).render().contains("--ff-cols-sm: 2"));
         Section details = Section.make("Details");
         details.label(get -> "Section");
         details.columns(get -> 2);

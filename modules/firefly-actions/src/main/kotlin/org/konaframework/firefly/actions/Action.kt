@@ -460,8 +460,8 @@ open class Action protected constructor(name: String) : Component(name) {
                         Schema.make()
                             .record(form.record())
                             .components(*form.components().toTypedArray())
-                    val cols = form.columns()
-                    if (cols != null) rebuilt.columns(cols)
+                    val layout = form.columnLayout()
+                    if (layout != null) rebuilt.columns(layout)
                     rebuilt.render()
                 } else {
                     Schema.make().components(*modalComponents.toTypedArray()).render()

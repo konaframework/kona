@@ -438,12 +438,12 @@ class FireflyResourceTest {
         Panel().path("admin").authenticate(false).resource(gridResource).mount(gridRouter)
         val gridManage = send(gridRouter, "/admin/shelf/manage")
         assertTrue(gridManage.contains("ff-manage") || gridManage.contains("ff-row-actions"))
-        // Create header dialog and row Edit dialog both honor formColumns (#358).
+        // Create header dialog and row Edit dialog both honor formColumns (#358 / #367).
         assertTrue(gridManage.contains("""data-ff-columns="2""""))
-        assertTrue(gridManage.contains("""--ff-cols: 2"""))
+        assertTrue(gridManage.contains("--ff-cols: 1") && gridManage.contains("--ff-cols-lg: 2"), gridManage)
         val createDialog = gridManage.substringAfter("""action="create"""").substringBefore("""action="edit"""")
         assertTrue(createDialog.contains("""data-ff-columns="2""""))
-        assertTrue(createDialog.contains("""--ff-cols: 2"""))
+        assertTrue(createDialog.contains("--ff-cols: 1") && createDialog.contains("--ff-cols-lg: 2"), createDialog)
         val widthRouter = Router()
         Panel().path("admin").authenticate(false)
             .resource(Resource("shelf").model(Shelf::class.java).maxWidth("full").simple())

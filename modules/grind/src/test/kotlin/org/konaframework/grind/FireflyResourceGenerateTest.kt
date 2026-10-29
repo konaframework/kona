@@ -359,7 +359,7 @@ class FireflyResourceGenerateTest {
         assertTrue(kotlin.contains("TextInput.make(\"title\")"))
         assertTrue(kotlin.contains("IconColumn.make(\"published\").boolean()"))
         assertTrue(kotlin.contains("IconEntry.make(\"published\").boolean()"))
-        assertTrue(kotlin.contains("schema.columns(2).components("))
+        assertTrue(kotlin.contains("schema.columns().components("))
         assertTrue(kotlin.contains("TextColumn.make(\"title\").searchable().sortable()"))
         assertTrue(kotlin.contains("import org.konaframework.firefly.forms.Toggle"))
         assertTrue(kotlin.contains("import org.konaframework.firefly.tables.IconColumn"))

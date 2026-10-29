@@ -178,7 +178,7 @@ app/panels/admin/resources/order/
 
 Package is `app.panels.admin.resources.order` (pages under `.pages`). Group under the lowercase **model** name so the JVM never confuses a class with a package. The resource’s `getPages()` returns those page instances, and a stub relation manager is included. Passing `OrderResource` already does not double-suffix. `./grind make:firefly-resource Note --simple` writes `resources/note/NoteResource` plus `note/pages/ManageNote`.
 
-Without flags, form / table / infolist stub a single `name` text field. Pass **`--generate`** to boot the app, load `app.models.Order`, introspect that model’s database table, and emit components for the columns (skipping primary key and timestamps on the form). Booleans / `TINYINT(1)` / `BIT` / `NUMBER(1)` map to form `Toggle`, table `IconColumn.make(...).boolean()`, and infolist `IconEntry.make(...).boolean()`. Dates → `DatePicker` / `DateTimePicker` on the form, with table `TextColumn.date()` / `dateTime()` and matching `TextEntry` formatters. Long text → `Textarea`. Timestamp table columns get `.dateTime().toggleable().toggledHiddenByDefault()`. `--generate` fails if the model class, table, or database is missing — it does not fall back to the `name` stub. Run `./grind migrate` first. Pass `--panel=billing` for another panel directory. Page stubs register only through `getPages()` (panel `pages/` discovery does not load them).
+Without flags, form / table / infolist stub a single `name` text field and `schema.columns()` (two columns from `lg` up; mobile stays one). Pass **`--generate`** to boot the app, load `app.models.Order`, introspect that model’s database table, and emit components for the columns (skipping primary key and timestamps on the form). Booleans / `TINYINT(1)` / `BIT` / `NUMBER(1)` map to form `Toggle`, table `IconColumn.make(...).boolean()`, and infolist `IconEntry.make(...).boolean()`. Dates → `DatePicker` / `DateTimePicker` on the form, with table `TextColumn.date()` / `dateTime()` and matching `TextEntry` formatters. Long text → `Textarea`. Timestamp table columns get `.dateTime().toggleable().toggledHiddenByDefault()`. `--generate` fails if the model class, table, or database is missing — it does not fall back to the `name` stub. Run `./grind migrate` first. Pass `--panel=billing` for another panel directory. Page stubs register only through `getPages()` (panel `pages/` discovery does not load them).
 
 The hello samples mount a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
 
@@ -198,7 +198,7 @@ new Resource("orders").model(Order.class).maxWidth("full");
 
 | Type | Role |
 |------|------|
-| `Resource` | Model, form, infolist, table, actions, and pages. Optional `maxWidth(token)` for the content column |
+| `Resource` | Model, form, infolist, table, actions, and pages. Optional `maxWidth(token)`, `formColumns(n)`, `infolistColumns(n)` (integer counts apply from `lg`; mobile stays one column) |
 | `label` / `pluralLabel` | Singular-or-base title vs list/nav plural heading (`pluralLabel` defaults from `label`) |
 | `RelationManager` | Related records on a full resource's edit and view pages. Set the label column with `titleAttribute` |
 | `ManagePage` | The single page of a simple resource |

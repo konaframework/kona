@@ -275,7 +275,7 @@ class FireflyActionsTest {
             .modalSubmitActionLabel("Create")
         val withColumnsHtml = page(withColumns)
         assertTrue(withColumnsHtml.contains("""data-ff-columns="2""""))
-        assertTrue(withColumnsHtml.contains("""--ff-cols: 2"""))
+        assertTrue(withColumnsHtml.contains("--ff-cols: 1") && withColumnsHtml.contains("--ff-cols-lg: 2"), withColumnsHtml)
         val self = Action.make("loop")
         assertThrows(FireflyException::class.java) {
             self.schema(Schema.make().components(self))

@@ -127,7 +127,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     /**
      * Grid columns for [form] schemas (Shamar / Filament `columns`). Applied before
-     * [form] when non-null. Generated resources default to 2 via `schema.columns(2)`.
+     * [form] when non-null. Integer count applies from `lg` up (mobile stays 1).
+     * Generated resources default to 2 via `schema.columns()`.
      */
     fun formColumns(count: Int): Resource = apply {
         if (count < 1) throw FireflyException("Form columns must be at least 1")
