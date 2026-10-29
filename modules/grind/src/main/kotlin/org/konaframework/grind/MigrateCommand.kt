@@ -204,11 +204,11 @@ class MigrateCommand(private val action: Action) {
          * When [root] has a Gradle wrapper, [compiler] runs `classes` first so migrate/seed
          * see brand-new and edited migration (and seeder) sources immediately.
          */
-        internal fun withApplication(
+        internal fun <T> withApplication(
             options: Map<String, String>,
             compiler: ProjectCompiler = GradleClassesCompiler(),
-            block: (Application, ClassLoader) -> Unit,
-        ) {
+            block: (Application, ClassLoader) -> T,
+        ): T {
             val start = Names.base(options)
             val root = ServeCommand.findProjectRoot(start)
                 ?: throw GrindException("No Kona application found at $start. Create one with: kona new")
@@ -221,7 +221,7 @@ class MigrateCommand(private val action: Action) {
             val loader = AppLoader(root, options.getOrDefault("bootstrap", AppLoader.DEFAULT_BOOTSTRAP))
             val app = loader.create(arrayOf("--base=$root"))
             GrindLogging.hushConsole(verbose)
-            block(app, loader.classLoader!!)
+            return block(app, loader.classLoader!!)
         }
 
         /** Runs [compiler] so [AppLoader] can load current sources; fails with [GrindException] on non-zero exit. */
@@ -240,13 +240,13 @@ class MigrateCommand(private val action: Action) {
         }
 
         /** The container's [Database] when bound, otherwise one built from config; closed when [block] returns. */
-        internal fun withDatabase(app: Application, block: (Database) -> Unit) {
+        internal fun <T> withDatabase(app: Application, block: (Database) -> T): T {
             val database = if (app.container.bound(Database::class.java)) {
                 app.resolve(Database::class.java)
             } else {
                 Database.fromConfig(app.config)
             }
-            database.use(block)
+            return database.use(block)
         }
     }
 }
