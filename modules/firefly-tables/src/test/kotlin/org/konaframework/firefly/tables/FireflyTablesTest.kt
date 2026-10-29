@@ -276,6 +276,43 @@ class FireflyTablesTest {
                 },
             ).contains("Desk"),
         )
+        // Filament/Shamar dotted make path (up to 4 levels) (#350).
+        val dotted = TextColumn.make("project.name").label("Project")
+        assertEquals("project", dotted.relationshipName())
+        assertEquals("Project", dotted.heading(Cell { null }))
+        assertTrue(
+            dotted.render(
+                mapOf("project" to mapOf("id" to 7, "name" to "Desk")),
+                "1",
+                Cell { path -> if (path == "project" || path == "/project") mapOf("name" to "Desk") else null },
+            ).contains("Desk"),
+        )
+        val deep = TextColumn.make("owner.company.region.name").label("Region")
+        assertEquals("owner.company.region", deep.relationshipName())
+        assertTrue(
+            deep.render(
+                mapOf(
+                    "owner" to mapOf(
+                        "company" to mapOf("region" to mapOf("name" to "Nord")),
+                    ),
+                ),
+                "1",
+                Cell { path ->
+                    when (path) {
+                        "owner", "/owner" -> mapOf("company" to mapOf("region" to mapOf("name" to "Nord")))
+                        else -> null
+                    }
+                },
+            ).contains("Nord"),
+        )
+        assertThrows(FireflyException::class.java) { TextColumn.make("a.b.c.d.e") }
+        assertThrows(FireflyException::class.java) { TextColumn.make("project.") }
+        val already = TextColumn.make("project_id").relationship("project", "name")
+        already.bindDottedRelationshipPath()
+        assertEquals("project", already.relationshipName())
+        assertNull(Column.digMap(emptyMap(), ""))
+        assertEquals("Ada", Column.digMap(mapOf("name" to "Ada"), "name"))
+        assertNull(Column.digMap(mapOf("project" to mapOf<String, Any?>()), "project.name"))
         val deskHtml = related.render(
             mapOf("project_id" to 7, "project" to mapOf("id" to 7, "name" to "Desk")),
             "1",
@@ -472,13 +509,21 @@ class FireflyTablesTest {
         val asBool = IconColumn.make("flag").boolean()
         val yesHtml = asBool.render(mapOf("flag" to 1), "1", Cell { null })
         assertTrue(yesHtml.contains("ff-boolean"))
+        assertTrue(yesHtml.contains("ff-boolean--icon-only"))
+        assertTrue(yesHtml.contains("ff-boolean__mark"))
         assertTrue(yesHtml.contains("is-true"))
-        assertTrue(yesHtml.contains("ff-icon"))
+        assertTrue(yesHtml.contains("M4.5 12.75l6 6 9-13.5"))
+        assertTrue(yesHtml.contains("stroke-width=\"2.25\""))
+        assertFalse(yesHtml.contains("ff-boolean--custom"))
         val noHtml = asBool.render(mapOf("flag" to 0), "1", Cell { null })
         assertTrue(noHtml.contains("is-false"))
+        assertTrue(noHtml.contains("M6 18L18 6M6 6l12 12"))
+        assertFalse(noHtml.contains("danger"))
         assertTrue(asBool.render(mapOf("flag" to "yes"), "1", Cell { null }).contains("ff-icon"))
         assertFalse(asBool.render(mapOf("flag" to null), "1", Cell { null }).contains("<svg"))
         assertSame(asBool, asBool.bool())
+        val customBool = IconColumn.make("flag").boolean().trueIcon("user").falseIcon("x")
+        assertTrue(customBool.render(mapOf("flag" to true), "1", Cell { null }).contains("ff-boolean--custom"))
 
         val image = ImageColumn.make("photo").alt("Alt").imageHeight(10).imageWidth(12)
         assertTrue(image.render(mapOf("photo" to "https://example.test/a.png"), "1", Cell { null }).contains("ff-image"))

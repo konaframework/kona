@@ -585,8 +585,8 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     private fun rowCell(values: Map<String, Any?>, column: String): Cell = Cell { path ->
         when (path) {
-            ".", "" -> values[column]
-            else -> values[path.removePrefix("/")]
+            ".", "" -> Column.digMap(values, column)
+            else -> Column.digMap(values, path.removePrefix("/"))
         }
     }
 

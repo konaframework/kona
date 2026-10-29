@@ -131,7 +131,14 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 
 `searchable()` / `searchable(true)` includes the column in search. `sortable()` allows `sort(name)`. Zero-arg boolean chainables mean yes; pass `false` to turn off. `toggleable()` lets the caller hide the column. `hidden()` and `visible(false)` leave it out of the render. `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN`, and `MAX` add a footer value.
 
-`formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
+Related titles use a dotted make path (Filament/Shamar shape), up to four levels:
+
+```kotlin
+TextColumn.make("project.name").label("Project")
+TextColumn.make("owner.company.region.name").label("Region")
+```
+
+Cadence tables eager-load the relation path (`with("project")`, `with("owner.company.region")`). You can still call `.relationship("project", "name")` on an FK column name when you need the old shape. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

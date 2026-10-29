@@ -8,7 +8,8 @@ public final class Icon {
     }
 
     public String svg() {
-        return "<svg class=\"ff-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\"><path d=\""
+        // stroke-width 2.25 + round caps match Shamar boolean-value SVGs (size via CSS).
+        return "<svg class=\"ff-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\""
             + HtmlKt.escapeHtml(path) + "\"/></svg>";
     }
 

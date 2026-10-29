@@ -86,7 +86,7 @@ name.live()
 
 状态解析：来自 `state(...)` 的字面量或闭包获胜。在可重复项内部，`author.name` 这样的点分名称从该项读取。否则条目在其绝对路径上读取 `schema.get`。
 
-已知图标名（`home`、`bars`、`user`、`x`）渲染内联 SVG。任何其他名称存为 `data-ff-icon`，并且不抛出。
+已知图标名（`home`、`bars`、`user`、`check`、`x`）渲染内联 SVG。任何其他名称存为 `data-ff-icon`，并且不抛出。
 
 ## 文本
 
@@ -108,7 +108,7 @@ TextEntry.make("title")
 
 ## 图标
 
-`IconEntry.make("ok")` 为状态显示一个图标。`bool(true)` 把状态当作布尔：真值使用真图标（`user`，颜色 `success`），假值使用假图标（`x`，颜色 `danger`）。`whenTrue("user", "success")` 和 `whenFalse("x", "danger")` 同时设置图标和颜色。`trueIcon`、`falseIcon`、`trueColor` 和 `falseColor` 覆盖一侧。`hideTrueIcon()` 和 `hideFalseIcon()` 省略该图标。`size` 接受 `xs`、`sm`、`md`、`lg` 和 `xl`。
+`IconEntry.make("ok")` 为状态显示一个图标。`bool(true)` 把状态当作布尔：真值使用真图标（`check`，颜色 `success`），假值使用假图标（`x`，颜色 `gray`），渲染为软色芯片。`whenTrue("check", "success")` 和 `whenFalse("x", "gray")` 同时设置图标和颜色。`trueIcon`、`falseIcon`、`trueColor` 和 `falseColor` 覆盖一侧。`hideTrueIcon()` 和 `hideFalseIcon()` 省略该图标。`size` 接受 `xs`、`sm`、`md`、`lg` 和 `xl`。
 
 方法名是 `bool`，因为 `boolean` 是 Java 关键字。成对的辅助方法是 `whenTrue` 和 `whenFalse`。
 

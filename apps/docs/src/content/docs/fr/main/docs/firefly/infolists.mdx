@@ -121,7 +121,7 @@ name.live();
 
 Résolution de l’état : un littéral ou une fermeture de `state(...)` l’emporte. À l’intérieur d’un item répétable, un nom pointé tel que `author.name` est lu depuis cet item. Sinon l’entrée lit `schema.get` à son chemin absolu.
 
-Les noms d’icônes connus (`home`, `bars`, `user`, `x`) rendent un SVG en ligne. Tout autre nom est stocké comme `data-ff-icon` et ne lance pas.
+Les noms d’icônes connus (`home`, `bars`, `user`, `check`, `x`) rendent un SVG en ligne. Tout autre nom est stocké comme `data-ff-icon` et ne lance pas.
 
 ## Afficher du texte
 
@@ -166,7 +166,7 @@ TextEntry.make("title")
 
 ## Afficher une icône
 
-`IconEntry.make("ok")` montre une icône pour l’état. `bool(true)` traite l’état comme un booléen : une valeur truthy utilise l’icône vraie (`user`, couleur `success`) et une valeur fausse utilise l’icône fausse (`x`, couleur `danger`). `whenTrue("user", "success")` et `whenFalse("x", "danger")` règlent à la fois l’icône et la couleur. `trueIcon`, `falseIcon`, `trueColor` et `falseColor` surchargent un côté. `hideTrueIcon()` et `hideFalseIcon()` omettent cette icône. `size` accepte `xs`, `sm`, `md`, `lg` et `xl`.
+`IconEntry.make("ok")` montre une icône pour l’état. `bool(true)` traite l’état comme un booléen : une valeur truthy utilise l’icône vraie (`check`, couleur `success`) et une valeur fausse utilise l’icône fausse (`x`, couleur `gray`) en pastille douce. `whenTrue("check", "success")` et `whenFalse("x", "gray")` règlent à la fois l’icône et la couleur. `trueIcon`, `falseIcon`, `trueColor` et `falseColor` surchargent un côté. `hideTrueIcon()` et `hideFalseIcon()` omettent cette icône. `size` accepte `xs`, `sm`, `md`, `lg` et `xl`.
 
 La méthode est `bool`, parce que `boolean` est un mot-clé Java. Les aides de paire sont `whenTrue` et `whenFalse`.
 

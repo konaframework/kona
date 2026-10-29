@@ -110,18 +110,17 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
         val body = items.joinToString("") { item ->
             val icon = iconFor(item, get)
             val color = colorFor(item, get)
-            val chip = if (asBool && item != null) {
+            val mark = if (asBool && item != null && !icon.isNullOrEmpty()) {
                 val cls = if (truthy(item)) "is-true" else "is-false"
-                """ ff-boolean ff-boolean--icon-only $cls"""
-            } else {
-                ""
-            }
-            val mark = if (asBool && !icon.isNullOrEmpty()) {
-                """<span class="ff-boolean__mark" aria-hidden="true">${iconHtml(icon)}</span>"""
+                val custom = if (icon == "check" || icon == "x") "" else " ff-boolean--custom"
+                """<span class="ff-boolean$custom ff-boolean--icon-only $cls"><span class="ff-boolean__mark" aria-hidden="true">${iconHtml(icon)}</span></span>"""
+            } else if (asBool && item != null) {
+                val cls = if (truthy(item)) "is-true" else "is-false"
+                """<span class="ff-boolean ff-boolean--icon-only $cls"></span>"""
             } else {
                 iconHtml(icon)
             }
-            val piece = """<span class="ff-icon-item$chip"${attr("data-ff-color", color)}>$mark${accessText(item, get)}</span>"""
+            val piece = """<span class="ff-icon-item"${attr("data-ff-color", color)}>$mark${accessText(item, get)}</span>"""
             if (breaks) """<div class="ff-icon-row">$piece</div>""" else piece
         }
         return """<div class="ff-icons"${attr("data-ff-size", sizeValue.get(get))}${flag("data-ff-line-breaks", breaks)}>$body</div>"""

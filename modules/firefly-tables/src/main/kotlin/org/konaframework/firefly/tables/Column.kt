@@ -172,20 +172,41 @@ open class Column protected constructor(val name: String) {
     fun formatStateUsing(formatter: BiFunction<Any?, Cell, String>): Column = apply { this.formatter = formatter }
 
     /**
-     * Show a related record’s [titleAttribute] instead of the foreign-key value
-     * (Filament/Shamar `TextColumn::make('project.name')` shape). The table eager-loads
-     * [name] on Cadence queries. Defaults the heading to a humanized relation name.
+     * Show a related record’s [titleAttribute] instead of the foreign-key value.
+     * Prefer the Filament/Shamar dotted make path when possible:
+     * `TextColumn.make("project.name")` (up to four levels, e.g. `a.b.c.d`).
+     * The table eager-loads [name] on Cadence queries (`with("project")` /
+     * `with("a.b.c")`). Defaults the heading to a humanized relation name.
      */
     fun relationship(name: String, titleAttribute: String): Column = apply {
         if (name.isBlank()) throw FireflyException("Column relationship name is blank")
         if (titleAttribute.isBlank()) throw FireflyException("Column relationship title attribute is blank")
         relationshipName = name
         relationshipTitleAttribute = titleAttribute
-        if (!labelValue.isAssigned()) label(humanizeName(name))
+        if (!labelValue.isAssigned()) label(humanizeName(name.substringBefore('.')))
         formatStateUsing { state, cell -> relationshipTitle(cell, name, titleAttribute, state) }
     }
 
     fun relationshipName(): String? = relationshipName
+
+    /**
+     * When [name] is a dotted path (`project.name` … four segments max), bind
+     * [relationship] automatically so make-time Filament/Shamar syntax works.
+     */
+    internal fun bindDottedRelationshipPath() {
+        if (relationshipName != null) return
+        if (!name.contains('.')) return
+        val parts = name.split('.')
+        if (parts.size > MAX_RELATION_DEPTH) {
+            throw FireflyException(
+                "Column path [$name] has ${parts.size} segments; maximum is $MAX_RELATION_DEPTH",
+            )
+        }
+        if (parts.any { it.isBlank() }) {
+            throw FireflyException("Column path [$name] has a blank segment")
+        }
+        relationship(parts.dropLast(1).joinToString("."), parts.last())
+    }
 
     fun html(): Column = html(true)
 
@@ -232,11 +253,11 @@ open class Column protected constructor(val name: String) {
     fun heading(cell: Cell): String = labelValue.get(cell, humanizeName(name))
 
     open fun render(row: Map<String, Any?>, key: String, cell: Cell): String {
-        val state = row[name]
+        val state = digMap(row, name)
         val formatted = format(state, cell)
         val described = descriptionValue.get(cell, "")
         val description = if (described.isEmpty()) "" else """<p class="ff-column-description">${escapeHtml(described)}</p>"""
-        val tip = tooltipValue.get(cell, "").ifEmpty { temporalRawTip(row[name]) }
+        val tip = tooltipValue.get(cell, "").ifEmpty { temporalRawTip(state) }
         val tooltip = if (tip.isEmpty()) "" else """ title="${escapeHtml(tip)}" data-ff-tooltip="${escapeHtml(tip)}""""
         val viewAttr = if (viewName == null) "" else """ data-ff-view="${escapeHtml(viewName!!)}""""
         val copy = if (copyable) """ data-ff-copyable="true"""" else ""
@@ -377,22 +398,50 @@ open class Column protected constructor(val name: String) {
             configurers[type] = block
         }
 
+        /** Dotted relation + attribute paths support up to this many segments (`a.b.c.d`). */
+        const val MAX_RELATION_DEPTH: Int = 4
+
         internal fun <T : Column> finish(column: T): T {
             configurers[column.javaClass]?.accept(column)
             return column
         }
 
         internal fun relationshipTitle(cell: Cell, relation: String, titleAttribute: String, fallback: Any?): String {
-            val related = cell.get(relation) ?: cell.get("/$relation")
+            val related = digCell(cell, relation)
             val title = attributeOf(related, titleAttribute)
             if (title != null) return title.toString()
             return fallback?.toString().orEmpty()
         }
 
+        /** Resolve a dotted path against a row map (`project.name`, `a.b.c.d`). */
+        internal fun digMap(row: Map<String, Any?>, path: String): Any? {
+            if (path.isEmpty()) return null
+            if (!path.contains('.')) return row[path]
+            var current: Any? = row
+            for (part in path.split('.')) {
+                current = attributeOf(current, part) ?: return null
+            }
+            return current
+        }
+
+        private fun digCell(cell: Cell, path: String): Any? {
+            val parts = path.split('.')
+            var current: Any? = null
+            for ((index, part) in parts.withIndex()) {
+                current = if (index == 0) {
+                    cell.get(part) ?: cell.get("/$part")
+                } else {
+                    attributeOf(current, part)
+                }
+                if (current == null) return null
+            }
+            return current
+        }
+
         private fun attributeOf(related: Any?, name: String): Any? = when (related) {
             null -> null
             is Map<*, *> -> related[name]
-            is Cadence<*> -> related.getAttribute(name)
+            is Cadence<*> -> related.getRelations()[name] ?: related.getAttribute(name)
             else -> {
                 val method = related.javaClass.methods.firstOrNull { it.name == name && it.parameterCount == 0 }
                 method?.invoke(related)
@@ -404,7 +453,11 @@ open class Column protected constructor(val name: String) {
 open class TextColumn protected constructor(name: String) : Column(name) {
     companion object {
         @JvmStatic
-        fun make(name: String): TextColumn = finish(TextColumn(name))
+        fun make(name: String): TextColumn {
+            val column = finish(TextColumn(name))
+            column.bindDottedRelationshipPath()
+            return column
+        }
 
         @JvmStatic
         fun configureUsing(block: Consumer<TextColumn>?) {
@@ -429,7 +482,11 @@ open class BadgeColumn protected constructor(name: String) : TextColumn(name) {
 
     companion object {
         @JvmStatic
-        fun make(name: String): BadgeColumn = finish(BadgeColumn(name))
+        fun make(name: String): BadgeColumn {
+            val column = finish(BadgeColumn(name))
+            column.bindDottedRelationshipPath()
+            return column
+        }
     }
 }
 
@@ -475,7 +532,8 @@ open class IconColumn private constructor(name: String) : Column(name) {
                 val on = truthy(state)
                 val cls = if (on) "is-true" else "is-false"
                 val word = if (on) "true" else "false"
-                """<span class="ff-boolean ff-boolean--icon-only $cls"><span class="ff-boolean__mark" aria-hidden="true">${Icon.fromName(icon).svg()}</span><span class="ff-sr">$word</span></span>"""
+                val custom = if (icon == "check" || icon == "x") "" else " ff-boolean--custom"
+                """<span class="ff-boolean$custom ff-boolean--icon-only $cls"><span class="ff-boolean__mark" aria-hidden="true">${Icon.fromName(icon).svg()}</span><span class="ff-sr">$word</span></span>"""
             }
             else -> Icon.fromName(icon).svg()
         }

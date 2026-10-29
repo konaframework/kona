@@ -88,7 +88,7 @@ table.modifyQueryUsing(query -> query
 | 类型 | 作用 |
 |------|------|
 | `TextColumn.make(name)` | 文本、金额或日期。`badge`、`limit`、`html`、`url`、`icon`、`color`、`prefix`、`suffix`、`placeholder` |
-| `IconColumn.make(name)` | 真或假状态的图标 |
+| `IconColumn.make(name)` | 图标；链式 `.boolean()` / `.bool()` 在真值上显示软色 check/X 芯片 |
 | `ImageColumn.make(name)` | 带 `alt`、`imageHeight` 和 `imageWidth` 的图片 |
 | `ColorColumn.make(name)` | 色块 |
 | `CheckboxColumn.make(name)` | 绑定到行的复选框 |

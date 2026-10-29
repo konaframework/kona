@@ -167,13 +167,13 @@ internal object FireflyResourceGenerate {
                 table = GeneratedComponent(
                     "TextColumn",
                     "org.konaframework.firefly.tables.TextColumn",
-                    name,
-                    callSuffix = ".relationship(\"$relation\", \"name\")",
+                    "$relation.name",
+                    callSuffix = ".label(\"$label\")",
                 ),
                 entry = GeneratedComponent(
                     "TextEntry",
                     "org.konaframework.firefly.infolists.TextEntry",
-                    name,
+                    "$relation.name",
                     callSuffix = ".label(\"$label\")",
                 ),
             )

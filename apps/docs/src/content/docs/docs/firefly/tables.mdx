@@ -133,7 +133,14 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 
 Column headings default to a humanized form of the attribute name (`published_at` → `Published At`). CSS still uppercases the header, so you see **PUBLISHED AT**, not `PUBLISHED_AT`. Override with `label(...)` when you need a custom title.
 
-`formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
+Related titles use a dotted make path (Filament/Shamar shape), up to four levels:
+
+```kotlin
+TextColumn.make("project.name").label("Project")
+TextColumn.make("owner.company.region.name").label("Region")
+```
+
+Cadence tables eager-load the relation path. You can still call `.relationship("project", "name")` on an FK column name when you need the old shape. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

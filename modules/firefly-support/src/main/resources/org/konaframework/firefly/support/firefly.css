@@ -435,7 +435,7 @@ body.ff-body-root {
   height: 1.15rem;
 }
 
-/* Shamar boolean chip (IconColumn.boolean / IconEntry.boolean) */
+/* Shamar .shamar-boolean chip (IconColumn.boolean / IconEntry.boolean) */
 .ff-panel .ff-boolean {
   display: inline-flex;
   align-items: center;
@@ -448,6 +448,10 @@ body.ff-body-root {
   line-height: 1.2;
   border: 1px solid transparent;
   vertical-align: middle;
+}
+
+.ff-panel .ff-boolean--custom {
+  padding-left: 0.35rem;
 }
 
 .ff-panel .ff-boolean--icon-only {
@@ -466,34 +470,37 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-boolean__mark .ff-icon {
-  width: 0.875rem;
-  height: 0.875rem;
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.25;
 }
 
 .ff-panel .ff-boolean.is-true {
-  background: color-mix(in srgb, #16a34a 12%, transparent);
-  color: #15803d;
-  border-color: color-mix(in srgb, #15803d 18%, transparent);
+  /* Shamar --color-success-soft / --color-success-strong */
+  background: #ecfdf5;
+  color: #047857;
+  border-color: color-mix(in srgb, #047857 18%, transparent);
 }
 
 .ff-panel .ff-boolean.is-false {
-  background: color-mix(in srgb, var(--ff-body-subtle) 12%, transparent);
+  /* Shamar --color-badge-neutral + --color-body-subtle (not danger red) */
+  background: #f3f4f6;
   color: var(--ff-body-subtle);
   border-color: color-mix(in srgb, var(--ff-card-border) 80%, transparent);
 }
 
 .ff-dark .ff-panel .ff-boolean.is-true,
 .ff-panel.ff-dark .ff-boolean.is-true {
-  background: color-mix(in srgb, #4ade80 16%, transparent);
-  color: #86efac;
-  border-color: color-mix(in srgb, #4ade80 22%, transparent);
+  background: #064e3b;
+  color: #6ee7b7;
+  border-color: color-mix(in srgb, #6ee7b7 18%, transparent);
 }
 
 .ff-dark .ff-panel .ff-boolean.is-false,
 .ff-panel.ff-dark .ff-boolean.is-false {
-  background: color-mix(in srgb, #6b7280 18%, transparent);
+  background: color-mix(in srgb, #374151 45%, #111827);
   color: #9ca3af;
-  border-color: color-mix(in srgb, #4b5563 55%, transparent);
+  border-color: color-mix(in srgb, var(--ff-card-border) 80%, transparent);
 }
 
 /* Theme toggle shows one icon per preference. */
