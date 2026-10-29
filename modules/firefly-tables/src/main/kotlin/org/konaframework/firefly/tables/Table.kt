@@ -48,12 +48,11 @@ class LoadedTable<T>(
 
 open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private val columnList = ArrayList<Column>()
-    private val filterList = ArrayList<Filter>()
+    private val filterSet = TableFilters()
     private val headerButtonList = ArrayList<TableButton>()
     private val rowButtonList = ArrayList<TableButton>()
     private val groupList = ArrayList<TableGroup>()
     private val hooks = ArrayList<Consumer<Q>>()
-    private val filterValues = LinkedHashMap<String, Any?>()
     private val selectedKeys = LinkedHashSet<String>()
     private val hiddenByUser = LinkedHashSet<String>()
     private val emptyHeading = TextSetting()
@@ -85,7 +84,6 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private var maxSelectable: Int? = null
     private var currentPageOnly = false
     private var groupsOnly = false
-    private var deselectOnFilter = true
 
     /**
      * Attach columns and optional layout components ([org.konaframework.firefly.tables.layout.Split],
@@ -132,9 +130,126 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         }
     }
 
-    fun filters(vararg filters: Filter): Table<T, Q> = apply {
-        filterList.clear()
-        filterList.addAll(filters)
+    fun filters(vararg filters: Filter): Table<T, Q> = apply { filterSet.set(filters.toList()) }
+
+    /** Filters with a layout (Filament `filters([...], layout: FiltersLayout::Modal)`). */
+    fun filters(layout: FiltersLayout, vararg filters: Filter): Table<T, Q> = apply {
+        filterSet.set(filters.toList())
+        filterSet.layout(layout)
+    }
+
+    fun filtersLayout(layout: FiltersLayout): Table<T, Q> = apply { filterSet.layout(layout) }
+
+    /** Grid columns of the filters form (dropdown width grows with the count unless set). */
+    fun filtersFormColumns(count: Int): Table<T, Q> = apply { filterSet.formColumns(count) }
+
+    /** Dropdown width token: `xs`, `sm`, `md`, `lg`, `xl`, `2xl` … `7xl`. */
+    fun filtersFormWidth(width: String): Table<T, Q> = apply { filterSet.formWidth(width) }
+
+    /** Scroll the filters form past this height (`24rem`, `400px`). */
+    fun filtersFormMaxHeight(height: String): Table<T, Q> = apply { filterSet.formMaxHeight(height) }
+
+    /** Arrange filters in headed sections; unnamed filters follow the sections. */
+    fun filtersFormSchema(vararg sections: FilterSection): Table<T, Q> = apply { filterSet.sections(sections.toList()) }
+
+    fun filtersFormHeading(heading: String): Table<T, Q> = apply { filterSet.heading(heading) }
+
+    /**
+     * Deferred (default): changes apply with the Apply button. `false`: every change
+     * re-queries immediately (soft-nav, the popover stays open).
+     */
+    @JvmOverloads
+    fun deferFilters(on: Boolean = true): Table<T, Q> = apply { filterSet.defer(on) }
+
+    /** Remember filter state in the session between visits ([filtersSessionKey] names the slot). */
+    @JvmOverloads
+    fun persistFiltersInSession(on: Boolean = true): Table<T, Q> = apply { filterSet.persist(on, null) }
+
+    fun filtersSessionKey(key: String): Table<T, Q> = apply { filterSet.persist(filterSet.persistsInSession(), key) }
+
+    /** Default true: searching or changing the filter state clears the record selection. */
+    @JvmOverloads
+    fun deselectAllRecordsWhenFiltered(on: Boolean = true): Table<T, Q> = apply { filterSet.deselectOnFilter(on) }
+
+    /** Hide the active-filter chips bar. */
+    @JvmOverloads
+    fun hiddenFilterIndicators(on: Boolean = true): Table<T, Q> = apply { filterSet.hideIndicators(on) }
+
+    fun filtersResetActionPosition(position: FiltersResetActionPosition): Table<T, Q> = apply {
+        filterSet.resetPosition(position)
+    }
+
+    /** Customize the funnel trigger (label, icon, style, badge, hidden). */
+    fun filtersTriggerAction(block: Consumer<FilterAction>): Table<T, Q> = apply { filterSet.trigger(block) }
+
+    fun filtersApplyAction(block: Consumer<FilterAction>): Table<T, Q> = apply { filterSet.apply(block) }
+
+    fun filtersResetAction(block: Consumer<FilterAction>): Table<T, Q> = apply { filterSet.reset(block) }
+
+    /** The × that clears every active filter from the indicators bar. */
+    fun filtersRemoveAllAction(block: Consumer<FilterAction>): Table<T, Q> = apply { filterSet.removeAll(block) }
+
+    /** Filter configuration and state (layout, defer, session, indicators). */
+    fun filterSet(): TableFilters = filterSet
+
+    /** Set a filter's form state (schema filters: field → value). */
+    fun filterState(name: String, data: Map<String, Any?>): Table<T, Q> = filtering {
+        filterSet.setData(name, FilterData.of(data))
+    }
+
+    fun filterData(name: String): FilterData = filterSet.data(filterSet.filter(name), tableCell())
+
+    /** Clear one filter (its default does not come back until [resetFilters]). */
+    fun removeFilter(name: String): Table<T, Q> = filtering { filterSet.remove(name, emptyList(), tableCell()) }
+
+    /** Clear only [fields] of a schema filter (indicator `removeField`). */
+    fun removeFilterFields(name: String, vararg fields: String): Table<T, Q> = filtering {
+        filterSet.remove(name, fields.toList(), tableCell())
+    }
+
+    fun removeAllFilters(): Table<T, Q> = filtering { filterSet.removeAll(tableCell()) }
+
+    /** Back to each filter's default state. */
+    fun resetFilters(): Table<T, Q> = filtering { filterSet.resetAll() }
+
+    /**
+     * Apply `filters` / `filters.*` query-string (or session) input. Returns false when the
+     * input carries no filter state, so callers can fall back to a stored copy.
+     */
+    fun applyFilterQuery(input: Map<String, Any?>): Boolean {
+        var applied = false
+        filtering { applied = filterSet.applyInput(input) }
+        return applied
+    }
+
+    /** Current explicit filter state as query-string pairs (empty while defaults apply). */
+    fun filterQuery(): Map<String, String> = LinkedHashMap(filterSet.query(tableCell()).toMap())
+
+    /** Options of a [SelectFilter] matching [search] (remote combobox search); empty for other filters. */
+    fun filterOptions(name: String, search: String): Map<String, String> {
+        val filter = filterSet.filters().firstOrNull { it.name == name } as? SelectFilter ?: return emptyMap()
+        return filter.options(tableCell(), store, search.ifBlank { null })
+    }
+
+    fun filterIndicators(): List<FilterIndicator> = filterSet.indicators(tableCell(), store).map { it.second }
+
+    /**
+     * Find one record through the table query (hooks + filters), skipping filters marked
+     * [Filter.excludeWhenResolvingRecord]. Null when filtered out or missing.
+     */
+    fun resolveRecord(key: String): T? {
+        val query = store.query()
+        hooks.forEach { it.accept(query) }
+        filterSet.applyTo(query, store, tableCell(), resolving = true)
+        store.constrain(query, store.keyName(), "=", key)
+        return store.list(query).firstOrNull()
+    }
+
+    private fun filtering(block: () -> Unit): Table<T, Q> = apply {
+        val cell = tableCell()
+        val before = filterSet.snapshot(cell)
+        block()
+        if (filterSet.deselectsOnFilter() && before != filterSet.snapshot(cell)) selectedKeys.clear()
     }
 
     fun headerButtons(vararg buttons: TableButton): Table<T, Q> = apply {
@@ -304,9 +419,6 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     @JvmOverloads
     fun selectGroupsOnly(on: Boolean = true): Table<T, Q> = apply { groupsOnly = on }
 
-    /** Default true: searching or filtering clears the selection. */
-    fun deselectAllRecordsWhenFiltered(on: Boolean): Table<T, Q> = apply { deselectOnFilter = on }
-
     /**
      * Run bulk action [name] against [keys] (or every record matching the current search,
      * filters, and query hooks when [allMatching]). [data] carries the dialog's submitted fields.
@@ -375,10 +487,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         pollInterval = interval
     }
 
-    fun filter(name: String, value: Any?): Table<T, Q> = apply {
-        if (filterList.none { it.name == name }) throw FireflyException("Unknown filter [$name]")
-        if (value == null) filterValues.remove(name) else filterValues[name] = value
-    }
+    fun filter(name: String, value: Any?): Table<T, Q> = filtering { filterSet.setValue(name, value) }
 
     fun select(key: String): Table<T, Q> = apply {
         if (!selectedKeys.remove(key)) selectedKeys.add(key)
@@ -421,10 +530,13 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         return """
             <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$stackedAttr$composedAttr$gridAttr$pollAttr${selectionAttrs(loaded)}>
               ${toolbar(cell, loaded)}
+              ${filterSet.aboveHtml(filterView(cell))}
+              ${filterSet.indicatorsHtml(filterView(cell))}
               ${body(loaded, visible)}
               ${footer(loaded)}
               ${emptyState(loaded, cell)}
               ${pager(loaded)}
+              ${filterSet.belowHtml(filterView(cell))}
             </div>
         """.trimIndent()
     }
@@ -440,6 +552,9 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             "sort" -> sort(arg(args, 0, name), if (args.size > 1) args[1] else "asc")
             "perPage" -> perPage(number(arg(args, 0, name), name))
             "applyFilter" -> filter(arg(args, 0, name), blankToNull(arg(args, 1, name)))
+            "removeFilter" -> removeFilter(arg(args, 0, name))
+            "removeAllFilters" -> removeAllFilters()
+            "resetFilters" -> resetFilters()
             "toggleColumn" -> setValue(arg(args, 0, name), arg(args, 1, name), arg(args, 2, name))
             "setColumn" -> setValue(arg(args, 0, name), arg(args, 1, name), arg(args, 2, name))
             "moveRecord" -> move(arg(args, 0, name), number(arg(args, 1, name), name))
@@ -492,9 +607,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         eagerLoadRelationships(query)
         val cell = tableCell()
         hooks.forEach { it.accept(query) }
-        for (filter in filterList) {
-            filter.apply(query as Any, store, filterValue(filter, cell))
-        }
+        filterSet.applyTo(query, store, cell, resolving = false)
         val searchable = columnList.filter { it.isSearchable(cell) }.map { it.queryName() }
         if (searchTerm.isNotEmpty()) store.search(query, searchTerm, searchable)
         val grouped = groupColumn
@@ -553,7 +666,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         if (!isSelectable()) return ""
         val max = maxSelectable?.let { """ data-ff-max-selectable="$it"""" }.orEmpty()
         val groups = if (groupsOnly) """ data-ff-select-groups-only="true"""" else ""
-        return """ data-ff-selectable data-ff-total="${loaded.total}" data-ff-deselect-on-filter="$deselectOnFilter"$max$groups"""
+        return """ data-ff-selectable data-ff-total="${loaded.total}" data-ff-deselect-on-filter="${filterSet.deselectsOnFilter()}"$max$groups"""
     }
 
     /** Filament-style bulk area: dropdown group trigger(s) and loose action buttons, plus hidden forms/dialogs. */
@@ -611,21 +724,20 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             </div>
             """.trimIndent()
         }
-        val filters = if (filterList.isEmpty()) {
-            ""
-        } else {
-            """<div class="ff-table-filters">${filterList.joinToString("") { it.render(cell, filterValue(it, cell)) }}</div>"""
-        }
+        val filterView = filterView(cell)
+        val filters = filterSet.triggerHtml(filterView)
         val buttons = headerButtonList.joinToString("") { it.render(cell, selectedKeys.isEmpty()) }
-        val tools = if (filterList.isEmpty() && buttons.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) {
+        val tools = if (filters.isEmpty() && buttons.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) {
             ""
         } else {
             """<div class="ff-table-toolbar-actions">$mobileSort$columnToggle$filters$buttons</div>"""
         }
-        if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) return ""
+        if (!searchable && filters.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) return ""
         val columnsHidden = columnsQueryHiddenInput(cell)
+        val filterHidden = filterSet.hiddenInputs(cell)
         // Query-string toolbar — chrome soft-nav swaps the wrap without a full document reload.
-        return """<form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$columnsHidden$tools</form>"""
+        // Filter panels carry their own GET form, so they render after the toolbar form (forms can't nest).
+        return """<form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$columnsHidden$filterHidden$tools</form>${filterSet.panelHtml(filterView)}"""
     }
 
     /**
@@ -755,7 +867,27 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         if (pageNumber > 1) parts.add("page=$pageNumber")
         if (pageSize != 10) parts.add("perPage=$pageSize")
         appendColumnsQuery(parts)
+        appendFilterQuery(parts)
         return "?" + parts.joinToString("&")
+    }
+
+    private fun appendFilterQuery(parts: ArrayList<String>) {
+        for ((key, value) in filterSet.query(tableCell())) parts.add("${encodeQuery(key)}=${encodeQuery(value)}")
+    }
+
+    /** Search / sort / page size / columns the filters form and indicator links carry (page resets to 1). */
+    private fun filterView(cell: Cell): TableFilters.View {
+        val base = ArrayList<Pair<String, String>>()
+        if (searchTerm.isNotEmpty()) base.add("search" to searchTerm)
+        val sorting = sortColumn
+        if (sorting != null) {
+            base.add("sort" to sorting)
+            base.add("direction" to sortDirection)
+        }
+        if (pageSize != 10) base.add("perPage" to pageSize.toString())
+        val cols = columnsQueryValue(cell)
+        if (cols != null) base.add("columns" to cols)
+        return TableFilters.View(cell, store, base)
     }
 
     private fun appendColumnsQuery(parts: ArrayList<String>) {
@@ -1032,6 +1164,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         parts.add("page=$page")
         if (pageSize != 10) parts.add("perPage=$pageSize")
         appendColumnsQuery(parts)
+        appendFilterQuery(parts)
         return "?" + parts.joinToString("&")
     }
 
@@ -1056,9 +1189,6 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         return out
     }
 
-    private fun filterValue(filter: Filter, cell: Cell): Any? =
-        if (filterValues.containsKey(filter.name)) filterValues[filter.name] else filter.defaultValue(cell)
-
     private fun column(name: String): Column =
         columnList.firstOrNull { it.name == name } ?: throw FireflyException("Unknown column [$name]")
 
@@ -1067,8 +1197,17 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             "search" -> searchTerm
             "page" -> pageNumber
             "sort" -> sortColumn
-            else -> filterValues[path]
+            else -> filterStateAt(path)
         }
+    }
+
+    /** Table closures read a filter's value by name (`filters.x` fields as `x.field`). */
+    private fun filterStateAt(path: String): Any? {
+        val name = path.substringBefore('.')
+        val filter = filterSet.filters().firstOrNull { it.name == name } ?: return null
+        val field = if (path.contains('.')) path.substringAfter('.') else FilterData.VALUE
+        val stored = filterSet.data(filter, Cell { null })
+        return stored.get(field)
     }
 
     private fun rowCell(values: Map<String, Any?>, column: String): Cell = Cell { path ->

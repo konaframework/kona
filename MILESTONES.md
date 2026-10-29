@@ -1134,7 +1134,9 @@ Chainable configuration methods accept a static value or a closure. The closure 
 
 - [x] `org.konaframework:kona-firefly-tables` in the monorepo, the BOM, and the CI coverage gate
 - [x] Columns: text, icon, image, color, checkbox, toggle, select
-- [x] Filters: attribute, select, ternary, trashed
+- [x] Filters: attribute, select (static, relationship, searchable, multiple, preload), ternary (labels, nullable), trashed, custom schema filters, grouped filter queries and `baseQuery` (#381)
+- [x] Filter state and chrome: indicators, deferred and live apply, session persistence, five layouts, form columns and sections, action customizers, `deselectAllRecordsWhenFiltered`, resource list and manage wiring (#381)
+- [ ] Query builder filter: core constraints and OR-of-AND groups shipped (#381); count operators, deeper nesting, per-rule chips tracked in #384
 - [x] Search, sort, pagination, empty state, row selection, summaries
 - [x] Grouping, reorder, stack and grid layouts, polling
 - [x] Static-or-closure chainable setters, including `default` and `defaultUsing`

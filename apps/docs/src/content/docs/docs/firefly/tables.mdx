@@ -177,41 +177,37 @@ Each column renders `x-data="ffColumn('name', true)"` and `@entangle(name)`.
 
 ## Add a filter
 
-`filters(...)` replaces the filter list. `filter(name, value)` applies one. An empty value clears it.
-
-| Type | What you call |
-|------|----------------|
-| `Filter.make(name)` | Matches one attribute. `attribute` and `operator` choose the column and the comparison |
-| `SelectFilter.make(name)` | A select of options. `options(map)` or `options { cell -> map }` |
-| `TernaryFilter.make(name)` | `true`, `false`, or `blank` |
-| `TrashedFilter.make()` | `with`, `only`, or the default that hides trashed rows |
-
-`default("open")` stores a fixed value. `defaultUsing { "Ada" }` stores a closure that runs when the filter reads its default.
-
-`query { query, value -> ... }` receives the table’s native query and the current filter value. On a memory table that query is `MemoryQuery`. On a Cadence table it is `ModelBuilder`. `extraInputAttributes` lands on the filter’s input or select.
+`filters(...)` lists the filters a table offers. The toolbar gets a funnel button, active filters show as removable chips above the rows, and the state is kept in the URL.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-Filter.make("name").query { query, value ->
-    (query as MemoryQuery).where("name", value)
-}.extraInputAttributes(mapOf("data-filter" to "name"))
+Table.cadence(Book::class.java)
+    .columns(TextColumn.make("title"), TextColumn.make("status"))
+    .filters(
+        SelectFilter.make("status").options(mapOf("draft" to "Draft", "published" to "Published")),
+        TernaryFilter.make("in_stock"),
+        TrashedFilter.make(),
+    )
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-Filter.make("name").query((query, value) -> {
-    ((MemoryQuery) query).where("name", value);
-}).extraInputAttributes(Map.of("data-filter", "name"));
+Table.cadence(Book.class)
+    .columns(TextColumn.make("title"), TextColumn.make("status"))
+    .filters(
+        SelectFilter.make("status").options(Map.of("draft", "Draft", "published", "Published")),
+        TernaryFilter.make("in_stock"),
+        TrashedFilter.make());
 ```
 
 </TabItem>
 </Tabs>
 
-`./grind make:firefly-filter Status` writes a filter class and a Crema view under `app/firefly/filters`. `--lang=java` writes Java.
+Checkbox and toggle filters, relationship selects, custom filter forms, the query builder, layouts, deferred versus live apply, and session persistence are covered step by step in [Table filters](/docs/firefly/table-filters/).
 
 ## Page, select, group, and lay out the rows
 

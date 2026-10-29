@@ -62,7 +62,7 @@ class DefaultLayout(
                 "body" to body,
                 "footer" to footer,
                 "themeInitScript" to THEME_INIT_SCRIPT,
-                "chromeScript" to CHROME_SCRIPT,
+                "chromeScript" to CHROME_SCRIPT + FILTERS_SCRIPT,
                 "bodyBackground" to tokens.bodyBackground,
                 "bodyColor" to tokens.heading,
                 "maxWidth" to maxWidth,
@@ -97,6 +97,11 @@ class DefaultLayout(
          * table bulk selection (`data-ff-select-*`, `data-ff-bulk-*`).
          * Alpine is optional — dialogs, combobox, and table nav open without it.
          */
+        /** Table filter panels, live filters, and the query builder (`data-ff-filters-*`, `data-ff-qb-*`). */
+        internal val FILTERS_SCRIPT: String by lazy {
+            "<script>" + Stylesheet.readCss("/org/konaframework/firefly/support/table-filters.js").trim() + "</script>"
+        }
+
         internal const val CHROME_SCRIPT: String =
             "<script>(function(){" +
                 "var root=document.querySelector('.ff-panel');if(!root)return;" +
@@ -521,7 +526,9 @@ class DefaultLayout(
                 "if(t.closest('[data-ff-sidebar-toggle]')){root.classList.add('ff-sidebar-open');return;}" +
                 "if(t.closest('[data-ff-sidebar-close]')||t.closest('[data-ff-backdrop]')){root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();return;}" +
                 "var nav=t.closest('a[data-ff-table-nav]');" +
-                "if(nav){ev.preventDefault();ffTableNav(nav.getAttribute('href'),nav.closest('.ff-table-wrap'));return;}" +
+                "if(nav){ev.preventDefault();var nw=nav.closest('.ff-table-wrap');" +
+                "if(nw&&nav.hasAttribute('data-ff-filter-nav')&&nw.getAttribute('data-ff-deselect-on-filter')==='true')clearSel(nw);" +
+                "ffTableNav(nav.getAttribute('href'),nw);return;}" +
                 "closeMenus();closeDialogs();closePickers();closeComboboxes();});" +
                 "function ffTableIndex(wrap){return Array.prototype.indexOf.call(document.querySelectorAll('.ff-table-wrap'),wrap);}" +
                 "function ffTableNav(href,wrap,restoreSearch){if(!href)return;var idx=wrap?ffTableIndex(wrap):-1;" +

@@ -125,7 +125,10 @@ Shipped modal content is the schema layouts and primes already on `main`. These 
 | ID | Surface | Firefly | Status |
 |----|---------|---------|--------|
 | TBL-1 | Columns | `TextColumn`, `IconColumn`, `ImageColumn`, `ColorColumn`, `CheckboxColumn`, `ToggleColumn`, `SelectColumn` | done |
-| TBL-2 | Filters | `Filter`, `SelectFilter`, `TernaryFilter`, `TrashedFilter` | done |
+| TBL-2 | Filters: types | `Filter` (checkbox, `toggle`, `textInput`, `schema(...)`, `modifyFormFieldUsing`), `SelectFilter` (static and relationship options, `searchable`, `multiple`, `preload`, `placeholder`, defaults, `attribute`, empty relationship option), `TernaryFilter` (labels, `nullable`, `queries`), `TrashedFilter` (soft deletes) | done (#381) |
+| TBL-2a | Filters: query path | Each filter query is grouped (`whereNested` on `ModelBuilder`, nested groups on `MemoryQuery`); `baseQuery` on the outer query; `resolveRecord` / `excludeWhenResolvingRecord`; SQL null semantics on `MemoryQuery` | done (#381) |
+| TBL-2b | Filters: state and chrome | Indicators (`indicator`, `indicateUsing`, per-field removal, remove all, `hiddenFilterIndicators`); `deferFilters` vs live; `persistFiltersInSession` / `filtersSessionKey`; layouts `DROPDOWN`, `MODAL`, `ABOVE_CONTENT`, `ABOVE_CONTENT_COLLAPSIBLE`, `BELOW_CONTENT`; `filtersFormColumns` / width / max height / sections; trigger, apply, reset, remove-all action customizers; `deselectAllRecordsWhenFiltered`; URL state and soft navigation on resource list and manage pages; `TableState.apply` for custom pages | done (#381) |
+| TBL-2c | Filters: query builder | `QueryBuilderFilter` with text, number, date, boolean, select, relationship constraints, inverse operators, OR-of-AND groups | partial: relationship count operators, deeper nesting, per-rule chips, searchable relationship values, `getSearchResultsUsing` tracked in #384 |
 | TBL-3 | Search, sort, pagination, empty state | `search`, `sort`, `page`, `perPage`, `empty` | done |
 | TBL-4 | Row selection state | `selectable`, `select`, `selected` | done |
 | TBL-5 | Summaries | `summarize` `COUNT`, `SUM`, `AVG`, `MIN`, `MAX` | done |

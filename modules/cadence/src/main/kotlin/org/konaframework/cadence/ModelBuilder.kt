@@ -220,6 +220,25 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
 
     fun orWhere(group: Consumer<QueryBuilder>): ModelBuilder<T> = apply { query.orWhere(group) }
 
+    /**
+     * Parenthesized `and (…)` group whose callback receives a model builder, so relation
+     * constraints (`whereHas`) compose inside the group (Eloquent `where(fn (Builder $q) => …)`).
+     * Soft-delete and global scopes stay on the outer builder.
+     */
+    fun whereNested(group: Consumer<ModelBuilder<T>>): ModelBuilder<T> = apply {
+        query.where { nested -> group.accept(nestedBuilder(nested)) }
+    }
+
+    /** `or (…)` counterpart of [whereNested]. */
+    fun orWhereNested(group: Consumer<ModelBuilder<T>>): ModelBuilder<T> = apply {
+        query.orWhere { nested -> group.accept(nestedBuilder(nested)) }
+    }
+
+    private fun nestedBuilder(nested: QueryBuilder): ModelBuilder<T> = ModelBuilder(model, nested).also {
+        it.withoutAllGlobalScopes = true
+        it.trashed = Trashed.INCLUDE
+    }
+
     fun whereNull(column: String): ModelBuilder<T> = apply { query.whereNull(column) }
 
     fun orWhereNull(column: String): ModelBuilder<T> = apply { query.orWhereNull(column) }
