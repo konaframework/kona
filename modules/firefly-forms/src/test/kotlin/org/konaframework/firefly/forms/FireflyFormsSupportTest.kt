@@ -654,10 +654,10 @@ class FireflyFormsSupportTest {
         val buttons = ToggleButtons.make("size").boolean().inline(false).grouped(false).multiple().colors(mapOf("true" to "#DF8723")).icons(mapOf("true" to "check"))
         buttons.options { mapOf("true" to "Yes") }
         val buttonHtml = Schema.make().components(buttons).fill(mapOf("size" to listOf("true"))).render()
-        assertTrue(buttonHtml.contains("aria-pressed=\"true\""))
+        assertTrue(buttonHtml.contains("ff-toggle-button is-active"))
         assertTrue(buttonHtml.contains("data-ff-color"))
-        assertTrue(Schema.make().components(ToggleButtons.make("size").options(mapOf("a" to "A"))).fill(mapOf("size" to "a")).render().contains("aria-pressed=\"true\""))
-        assertTrue(Schema.make().components(ToggleButtons.make("size").options(mapOf("a" to "A"))).render().contains("aria-pressed=\"false\""))
+        assertTrue(Schema.make().components(ToggleButtons.make("size").options(mapOf("a" to "A"))).fill(mapOf("size" to "a")).render().contains("ff-toggle-button is-active"))
+        assertFalse(Schema.make().components(ToggleButtons.make("size").options(mapOf("a" to "A"))).render().contains("is-active"))
         Checkbox.configureUsing { it.inline(true) }
         Toggle.configureUsing { it.inline(true) }
         CheckboxList.configureUsing { it.searchable(true) }
@@ -806,8 +806,8 @@ class FireflyFormsSupportTest {
         rich.json()
         assertTrue(rich.sanitize(dirty).contains("<script"))
         val richHtml = Schema.make().components(rich).fill(mapOf("body" to "<p>Hi</p>")).render()
-        assertTrue(richHtml.contains("ff-toolbar-sticky"))
-        assertTrue(richHtml.contains("ff-bubble"))
+        assertTrue(richHtml.contains("shamar-rich-editor--simple"))
+        assertTrue(richHtml.contains("data-ff-rich-host"))
         assertTrue(richHtml.contains("ff-prose"))
         assertTrue(richHtml.contains("data-ff-editor=\"tiptap\""))
         assertTrue(richHtml.contains("ff-dialog"))

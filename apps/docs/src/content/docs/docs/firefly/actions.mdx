@@ -189,7 +189,7 @@ ActionGroup group = ActionGroup.make(List.of(save)).label("More").button();
 </TabItem>
 </Tabs>
 
-`dropdown()` is the default. The trigger toggles Alpine `open`. The menu starts hidden. `button()` lays the actions in a row (`ff-action-group-inline`). Groups take `label`, `icon`, `color`, `tooltip`, `placement`, `hidden`, `visible`, `disabled`, and `authorize` the same way an action does. `disabled(true)` disables the dropdown trigger. On an inline group it sets `aria-disabled="true"`.
+`dropdown()` is the default. The trigger is an outlined button with a chevron. Clicking it opens the menu below the button; clicking outside or pressing Escape closes it. The menu starts hidden. `button()` lays the actions in a row (`ff-action-group-inline`). Groups take `label`, `icon`, `color`, `tooltip`, `placement`, `hidden`, `visible`, `disabled`, and `authorize` the same way an action does. `disabled(true)` disables the dropdown trigger. On an inline group it sets `aria-disabled="true"`.
 
 `configureUsing` on `Action` or `ActionGroup` runs for every later `make()` of that class. Pass `null` to clear it. It does not apply to a subclass you construct yourself.
 

@@ -1,0 +1,479 @@
+/* TipTap Simple Editor chrome — tokens & toolbar match tiptap-ui-components */
+
+.shamar-re-simple {
+  --tt-brand-color-100: rgba(222, 219, 255, 1);
+  --tt-brand-color-200: rgba(195, 189, 255, 1);
+  --tt-brand-color-500: rgba(98, 41, 255, 1);
+  --tt-brand-color-600: rgba(84, 0, 229, 1);
+  --tt-gray-light-a-50: rgba(56, 56, 56, 0.04);
+  --tt-gray-light-a-100: rgba(15, 22, 36, 0.05);
+  --tt-gray-light-a-200: rgba(37, 39, 45, 0.1);
+  --tt-gray-light-a-400: rgba(40, 44, 51, 0.42);
+  --tt-gray-light-a-600: rgba(36, 39, 46, 0.78);
+  --tt-gray-light-a-900: rgba(29, 30, 32, 0.98);
+  --tt-gray-light-100: rgba(244, 244, 245, 1);
+  --tt-gray-light-200: rgba(234, 234, 235, 1);
+  --tt-gray-light-300: rgba(213, 214, 215, 1);
+  --tt-radius-md: 0.5rem;
+  --tt-radius-lg: 0.75rem;
+  --tt-toolbar-height: 2.75rem;
+  --tt-toolbar-bg-color: #ffffff;
+  --tt-toolbar-border-color: var(--tt-gray-light-a-100);
+  --tt-button-hover-bg-color: var(--tt-gray-light-200);
+  --tt-button-active-bg-color: var(--tt-gray-light-a-200);
+  --tt-button-active-bg-color-emphasized: var(--tt-brand-color-100);
+  --tt-button-active-icon-color: var(--tt-brand-color-500);
+  --tt-button-default-icon-color: var(--tt-gray-light-a-600);
+  --tt-button-hover-icon-color: var(--tt-gray-light-a-900);
+  --tt-shadow-elevated-md: 0 2px 6px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.08);
+  --tt-theme-text: var(--tt-gray-light-a-900);
+
+  border: 1px solid var(--tt-gray-light-a-200);
+  border-radius: 0.75rem;
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 14rem;
+  color: var(--tt-theme-text);
+  font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+}
+
+:where(.dark, .dark *) .shamar-re-simple,
+.shamar-re-simple[data-theme='dark'] {
+  --tt-brand-color-100: rgba(43, 25, 102, 1);
+  --tt-brand-color-200: rgba(56, 0, 153, 1);
+  --tt-brand-color-500: rgba(122, 82, 255, 1);
+  --tt-gray-light-a-100: rgba(231, 231, 243, 0.07);
+  --tt-gray-light-a-200: rgba(238, 238, 246, 0.11);
+  --tt-gray-light-a-600: rgba(247, 247, 253, 0.64);
+  --tt-gray-light-a-900: rgba(255, 255, 255, 0.96);
+  --tt-gray-light-100: rgba(32, 32, 34, 1);
+  --tt-gray-light-200: rgba(45, 45, 47, 1);
+  --tt-gray-light-300: rgba(70, 70, 73, 1);
+  --tt-toolbar-bg-color: #000;
+  --tt-toolbar-border-color: var(--tt-gray-light-a-100);
+  --tt-button-hover-bg-color: var(--tt-gray-light-200);
+  --tt-button-active-bg-color: rgba(238, 238, 246, 0.11);
+  --tt-button-active-bg-color-emphasized: rgba(43, 25, 102, 1);
+  --tt-button-active-icon-color: var(--tt-brand-color-500);
+  --tt-button-default-icon-color: rgba(247, 247, 253, 0.64);
+  --tt-button-hover-icon-color: rgba(255, 255, 255, 0.96);
+  background: #0e0e11;
+  color: #f5f5f5;
+  border-color: var(--tt-gray-light-a-200);
+}
+
+.shamar-rich-editor--simple.is-invalid .shamar-re-simple {
+  border-color: var(--color-fg-danger, #e11d48);
+}
+
+/* —— Fixed toolbar (TipTap data-variant="fixed") —— */
+.shamar-re-simple__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: var(--tt-toolbar-height);
+  width: 100%;
+  padding: 0 0.5rem;
+  background: var(--tt-toolbar-bg-color);
+  border-bottom: 1px solid var(--tt-toolbar-border-color);
+  z-index: 10;
+  position: sticky;
+  top: 0;
+}
+
+.shamar-re-simple__toolbar-scroll {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.shamar-re-simple__toolbar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.shamar-re-simple__toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 0.25rem;
+}
+
+.shamar-re-simple__group {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+}
+
+.shamar-re-simple__sep {
+  width: 1px;
+  height: 1.25rem;
+  background: var(--tt-gray-light-a-200);
+  margin: 0 0.2rem;
+  flex-shrink: 0;
+}
+
+.shamar-re-simple__btn {
+  border: none;
+  background: transparent;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0.5rem;
+  border-radius: var(--tt-radius-lg);
+  cursor: pointer;
+  font: inherit;
+  color: var(--tt-button-default-icon-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.shamar-re-simple__btn .shamar-re-doc-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+.shamar-re-simple__btn:hover {
+  background: var(--tt-button-hover-bg-color);
+  color: var(--tt-button-hover-icon-color);
+}
+
+.shamar-re-simple__btn.is-active,
+.shamar-re-simple__btn[data-active-state='on'],
+.shamar-re-simple__btn[data-state='open'] {
+  background: var(--tt-button-active-bg-color-emphasized);
+  color: var(--tt-button-active-icon-color);
+}
+
+.shamar-re-simple__btn.is-active:hover,
+.shamar-re-simple__btn[data-active-state='on']:hover,
+.shamar-re-simple__btn[data-state='open']:hover {
+  background: var(--tt-brand-color-200);
+  color: var(--tt-brand-color-600);
+}
+
+.shamar-re-simple__btn--dropdown {
+  min-width: 2.35rem;
+  padding-inline: 0.35rem 0.25rem;
+}
+
+.shamar-re-simple__chevron {
+  display: inline-flex;
+  opacity: 0.7;
+}
+
+.shamar-re-simple__chevron .shamar-re-doc-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.shamar-re-simple__dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Popovers / menus */
+.shamar-re-simple__popover {
+  min-width: 11rem;
+  padding: 0.35rem;
+  border-radius: var(--tt-radius-lg);
+  border: 1px solid var(--tt-gray-light-a-200);
+  background: var(--tt-toolbar-bg-color);
+  box-shadow: var(--tt-shadow-elevated-md);
+  z-index: 1100;
+}
+
+.shamar-re-simple__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: var(--tt-radius-md);
+  padding: 0.45rem 0.55rem;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--tt-button-default-icon-color);
+  cursor: pointer;
+  text-align: left;
+}
+
+.shamar-re-simple__menu-item .shamar-re-doc-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.shamar-re-simple__menu-item:hover,
+.shamar-re-simple__menu-item.is-active {
+  background: var(--tt-button-active-bg-color-emphasized);
+  color: var(--tt-button-active-icon-color);
+}
+
+.shamar-re-simple__highlight {
+  min-width: 12rem;
+}
+
+.shamar-re-simple__swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 1.5rem);
+  gap: 0.35rem;
+  padding: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.shamar-re-simple__swatch {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.shamar-re-simple__swatch:hover {
+  outline: 2px solid var(--tt-brand-color-500);
+  outline-offset: 1px;
+}
+
+.shamar-re-simple__link-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 16rem;
+  padding: 0.5rem;
+}
+
+.shamar-re-simple__input {
+  width: 100%;
+  border: 1px solid var(--tt-gray-light-a-200);
+  border-radius: var(--tt-radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.4rem 0.55rem;
+  outline: none;
+}
+
+.shamar-re-simple__input:focus {
+  border-color: var(--tt-brand-color-500);
+  box-shadow: 0 0 0 2px var(--tt-brand-color-100);
+}
+
+.shamar-re-simple__link-actions,
+.shamar-re-simple__search-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.shamar-re-simple__btn-text {
+  border: none;
+  background: transparent;
+  color: var(--tt-brand-color-500);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--tt-radius-md);
+}
+
+.shamar-re-simple__btn-text:hover {
+  background: var(--tt-brand-color-100);
+}
+
+/* Surface + prose (DM Sans like TipTap demo) */
+.shamar-re-simple__surface {
+  position: relative;
+  flex: 1;
+  min-height: 10rem;
+  background: #fff;
+}
+
+:where(.dark, .dark *) .shamar-re-simple__surface {
+  background: #0e0e11;
+}
+
+.shamar-re-simple__editor {
+  max-width: var(--container-7xl, 80rem);
+  width: 100%;
+  margin-inline: auto;
+  padding: 1.75rem 1.5rem 2.5rem;
+  box-sizing: border-box;
+}
+
+.shamar-re-simple__prose {
+  outline: none;
+  min-height: 8rem;
+  font-family: 'DM Sans', Inter, 'Segoe UI', system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: inherit;
+}
+
+.shamar-re-simple__prose p {
+  margin: 0.45rem 0;
+}
+
+.shamar-re-simple__prose h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 1rem 0 0.5rem;
+}
+
+.shamar-re-simple__prose h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0.9rem 0 0.4rem;
+}
+
+.shamar-re-simple__prose h3 {
+  font-size: 1.15rem;
+  font-weight: 650;
+  line-height: 1.35;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.shamar-re-simple__prose blockquote {
+  border-left: 3px solid var(--tt-gray-light-a-200);
+  margin: 0.6rem 0;
+  padding-left: 0.85rem;
+  color: var(--tt-gray-light-a-600);
+}
+
+.shamar-re-simple__prose pre {
+  background: var(--tt-gray-light-100);
+  border-radius: var(--tt-radius-md);
+  padding: 0.75rem 0.9rem;
+  overflow-x: auto;
+  font-size: 0.875rem;
+}
+
+.shamar-re-simple__prose code {
+  font-size: 0.9em;
+  background: var(--tt-gray-light-100);
+  border-radius: 0.25rem;
+  padding: 0.1em 0.3em;
+}
+
+.shamar-re-simple__prose pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.shamar-re-simple__prose ul,
+.shamar-re-simple__prose ol {
+  padding-left: 1.35rem;
+  margin: 0.45rem 0;
+}
+
+.shamar-re-simple__prose ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.15rem;
+}
+
+.shamar-re-simple__prose ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.shamar-re-simple__prose ul[data-type='taskList'] li > label {
+  margin-top: 0.25rem;
+}
+
+.shamar-re-simple__prose mark {
+  border-radius: 0.2em;
+  padding: 0.05em 0.15em;
+}
+
+.shamar-re-simple__prose .is-empty::before {
+  color: var(--tt-gray-light-a-400);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.shamar-re-simple__link {
+  color: var(--tt-brand-color-500);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.shamar-re-simple__image {
+  max-width: 100%;
+  border-radius: var(--tt-radius-md);
+  margin: 0.5rem 0;
+  height: auto;
+}
+
+/* Find & replace */
+.shamar-re-simple__search {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  left: auto;
+  width: min(22rem, calc(100% - 1.3rem));
+  padding: 0.65rem;
+  border-radius: var(--tt-radius-lg);
+  border: 1px solid var(--tt-gray-light-a-200);
+  background: var(--tt-toolbar-bg-color);
+  box-shadow: var(--tt-shadow-elevated-md);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.shamar-re-simple__search-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.shamar-re-simple__search-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.shamar-re-simple__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--tt-gray-light-a-600);
+  cursor: pointer;
+  user-select: none;
+}
+
+.shamar-re-simple__search-status {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--tt-gray-light-a-400);
+}
+
+@media screen and (max-width: 480px) {
+  .shamar-re-simple__editor {
+    padding: 1rem 1rem 2rem;
+  }
+}

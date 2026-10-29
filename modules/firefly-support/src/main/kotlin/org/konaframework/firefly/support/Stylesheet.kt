@@ -9,7 +9,9 @@ object Stylesheet {
         return text
     }
 
-    private val componentCss: String by lazy { readCss() + "\n" + readCss(FILTERS_CSS) }
+    private val componentCss: String by lazy {
+        readCss() + "\n" + readCss(FILTERS_CSS) + "\n" + readCss(WIDGETS_CSS) + "\n" + readCss(RICH_EDITOR_CSS)
+    }
 
     @JvmStatic
     fun render(theme: FireflyTheme): String {
@@ -57,4 +59,6 @@ object Stylesheet {
     private val UNSCOPED = Regex("(?m)^\\s*body\\s*\\{")
     private const val DEFAULT_CSS = "/org/konaframework/firefly/support/firefly.css"
     private const val FILTERS_CSS = "/org/konaframework/firefly/support/table-filters.css"
+    private const val WIDGETS_CSS = "/org/konaframework/firefly/support/form-widgets.css"
+    private const val RICH_EDITOR_CSS = "/org/konaframework/firefly/support/rich-editor/simple.css"
 }

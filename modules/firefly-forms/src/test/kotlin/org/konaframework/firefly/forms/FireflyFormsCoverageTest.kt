@@ -109,7 +109,7 @@ class FireflyFormsCoverageTest {
         val checks = CheckboxList.make("tags").options(mapOf("a" to "A"))
         assertTrue(Schema.make().components(checks).fill(mapOf("tags" to listOf(null, "a"))).render().contains("checked"))
         val buttons = ToggleButtons.make("mode").multiple(true).options(mapOf("a" to "A"))
-        assertTrue(Schema.make().components(buttons).fill(mapOf("mode" to listOf(null, "a"))).render().contains("aria-pressed=\"true\""))
+        assertTrue(Schema.make().components(buttons).fill(mapOf("mode" to listOf(null, "a"))).render().contains("ff-toggle-button is-active"))
         val plain = TextInput.make("title")
         val required = TextInput.make("full_name").required().rule("email").validationMessages(mapOf("required" to "Need", "email" to "Bad"))
         val rows = Repeater.make("members").simple(TextInput.make("name")).minItems(1)

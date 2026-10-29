@@ -344,7 +344,9 @@ open class FileUpload protected constructor(name: String) : Field<FileUpload>(na
         val paths = pathsOf(value)
         return buildString {
             append("""<div class="ff-filepond" x-data="ffFilePond" data-ff-path="${esc(path)}" data-ff-upload="${FireflyUploads.PATH}"${attr("data-ff-disk", diskName)}${attr("data-ff-directory", directoryName)}${attr("data-ff-visibility", visibilityName)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-image", imageFlag)}${boolAttr("data-ff-avatar", avatarFlag)}${boolAttr("data-ff-image-editor", imageEditorFlag)}${attr("data-ff-aspect", if (aspectRatios.isEmpty()) null else aspectRatios.joinToString(","))}${attr("data-ff-editor-mode", editorMode)}${attr("data-ff-editor-fill", editorFill)}${attr("data-ff-viewport-width", editorViewportWidth?.toString())}${attr("data-ff-viewport-height", editorViewportHeight?.toString())}${attr("data-ff-preview-height", previewHeight?.toString())}${attr("data-ff-resize-mode", resizeMode)}${attr("data-ff-resize-width", resizeWidth?.toString())}${attr("data-ff-resize-height", resizeHeight?.toString())}${attr("data-ff-crop", cropRatio)}${boolAttr("data-ff-upscale", resizeUpscale)}${boolAttr("data-ff-exif", exifFlag)}${boolAttr("data-ff-download", downloadableFlag)}${boolAttr("data-ff-open", openableFlag)}${boolAttr("data-ff-preview", previewableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}${boolAttr("data-ff-append", appendFlag)}${boolAttr("data-ff-store", storeFlag)}${boolAttr("data-ff-move", moveFlag)}${boolAttr("data-ff-preserve", preserveFlag)}${boolAttr("data-ff-tamper", tamperFlag)}${boolAttr("data-ff-paste", pasteFlag)}${boolAttr("data-ff-fetch", fetchInfoFlag)} data-ff-parallel="$maxParallel"${attr("data-ff-layout", panelLayoutText)}${attr("data-ff-panel-aspect", panelAspect)}${attr("data-ff-upload-position", uploadButtonPosition)}${attr("data-ff-remove-position", removeButtonPosition)}${attr("data-ff-progress-position", progressPosition)}${attr("data-ff-loading-position", loadingPosition)}${attr("data-ff-uploading", uploadingMessageText)}${attr("data-ff-accept", if (accepted.isEmpty()) null else accepted.joinToString(","))}${attr("data-ff-names", namesState)}>""")
-            append("""<input class="filepond" type="file"${if (multipleFlag) " multiple" else ""}${extraInputMarkup(get)} />""")
+            val stored = if (multipleFlag) FormJson.encode(paths) else paths.firstOrNull() ?: ""
+            append("""<input type="hidden" name="${esc(path)}" value="${esc(stored)}" data-ff-upload-value />""")
+            append("""<input class="filepond" type="file"${if (multipleFlag) " multiple" else ""}${attr("accept", if (accepted.isEmpty()) null else accepted.joinToString(","))}${extraInputMarkup(get)} />""")
             for (item in paths) append("""<span class="ff-file" data-ff-path="${esc(item)}"></span>""")
             val browse = browseAction
             if (browse != null) append(browse.render(schema))
@@ -352,7 +354,8 @@ open class FileUpload protected constructor(name: String) : Field<FileUpload>(na
         }
     }
 
-    private fun pathsOf(value: Any?): List<String> {
+    private fun pathsOf(raw: Any?): List<String> {
+        val value = FormJson.decode(raw)
         if (value == null) return emptyList()
         if (value is Collection<*>) {
             val out = ArrayList<String>()

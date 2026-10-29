@@ -103,19 +103,19 @@ These methods are on the field base. Every concrete field has them.
 
 `TextInput` is a single-line control. `email()`, `url()`, `numeric()`, `integer()`, `password()`, `tel()`, and `type("search")` set the input type and the matching validation rule. `telRegex` replaces the default telephone pattern. Call `telRegex` before `tel()` when you want your own pattern.
 
-`revealable(true)` adds a show button on passwords. `copyable(true)` adds a copy button. `mask`, `step`, `minValue`, `maxValue`, `minLength`, `maxLength`, `length`, `regex`, `notRegex`, and `datalist` configure the control. `stripCharacters("-")` or `stripCharacters { value -> value.trim() }` changes the stored text before it is rendered.
+`revealable(true)` adds a show button on passwords. It sits inside the input group on the right; clicking it switches the input between hidden and plain text and swaps the eye icon. `copyable(true)` adds a copy button in the same place. It copies the current value to the clipboard and shows a check mark for a moment. `mask`, `step`, `minValue`, `maxValue`, `minLength`, `maxLength`, `length`, `regex`, `notRegex`, and `datalist` configure the control. `stripCharacters("-")` or `stripCharacters { value -> value.trim() }` changes the stored text before it is rendered.
 
 `unique("users", "email")` and `exists("users", "email")` add those rules. Without a database checker they fail closed.
 
 `Textarea.make("body")` takes `rows`, `cols`, `autosize`, `minLength`, `maxLength`, and the same `required()` chain as other fields. `Hidden.make("token")` renders a hidden input and no label.
 
-`TagsInput.make("tags")` splits a string on the separator (`,` by default) and renders one chip per tag. `suggestions`, `splitKeys`, `reorderable`, and `color` are optional. `tags(raw)` returns the list.
+`TagsInput.make("tags")` splits a string on the separator (`,` by default) and renders one chip per tag. In the browser, type a tag and press Enter (or any key from `splitKeys`) to add a chip. Each chip has a remove button, and Backspace in an empty input removes the last chip. A hidden input posts the joined value. `suggestions`, `splitKeys`, `reorderable`, and `color` are optional. `tags(raw)` returns the list.
 
-`ColorPicker.make("ink")` stores a color. `hex()`, `rgb()`, and `hsl()` pick the format and the validation pattern.
+`ColorPicker.make("ink")` stores a color. The control is a swatch next to a text input. Pick from the swatch and the text updates in the chosen format; type a value and the swatch follows. `hex()`, `rgb()`, and `hsl()` pick the format and the validation pattern.
 
-`Slider.make("volume")` defaults to 0–100 with step 1. `minValue`, `maxValue`, `step`, `decimalPlaces`, and `tooltips` adjust it. Values are clamped and rounded.
+`Slider.make("volume")` defaults to 0–100 with step 1. The filled part of the track and the thumb use the panel primary color. `minValue`, `maxValue`, `step`, `decimalPlaces`, and `tooltips` adjust it. Values are clamped and rounded.
 
-`KeyValue.make("meta")` edits a map of strings. `keyLabel`, `valueLabel`, `keyPlaceholder`, `valuePlaceholder`, and `addActionLabel` accept a string or a closure. `addable`, `deletable`, `editableKeys`, `editableValues`, and `reorderable` toggle the controls. `pairs(raw)` reads the map.
+`KeyValue.make("meta")` edits a map of strings. `keyLabel`, `valueLabel`, `keyPlaceholder`, `valuePlaceholder`, and `addActionLabel` accept a string or a closure. `addable`, `deletable`, `editableKeys`, `editableValues`, and `reorderable` toggle the controls. `pairs(raw)` reads the map. Each pair is a row with a key input, a value input, and a delete button. The add button below the rows appends an empty pair. The field posts the pairs as one JSON object.
 
 `Placeholder.make("note").content("Thanks")` renders HTML and does not dehydrate. `content { get -> "Hello" }` is the closure form. `saved(true)` turns dehydration back on.
 
@@ -229,7 +229,9 @@ Select.make("authorId")
 
 `DatePicker`, `TimePicker`, `DateTimePicker`, `MonthPicker`, `YearPicker`, and `DateRangePicker` are separate field types. The default control is a Flowbite-style popup driven by Firefly chrome — no Alpine and no third-party date library. Click the caption to drill days → months → years → decades; picking a year returns to months, then a month to days. Date-only selection closes the panel; datetime keeps it open until **OK** (right-aligned). Compact hour/minute dropdowns keep the popup small; `.seconds()` adds seconds. **Today** jumps the calendar focus and, for datetime, fills time with now. Click outside the popup to close it. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, or `type="datetime-local"`. `MonthPicker` / `YearPicker` store `Y-m` / `Y`.
 
-`DateRangePicker` stores `"start to end"` (same date format as `DatePicker`) and highlights the range in the calendar.
+`MonthPicker` opens straight onto a grid of months and `YearPicker` onto a grid of years, so you never see a day grid for those fields.
+
+`DateRangePicker` stores `"start to end"` (same date format as `DatePicker`). Its popup shows two months side by side. The first click sets the start. While you move the pointer, the days up to the hovered date are shaded. The second click sets the end and closes the popup. A hint below the grids reads the current range.
 
 <FireflyShot file="form-date-picker.png" description="The due field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as the crafted month grid with hour and minute controls." />
 
@@ -293,15 +295,17 @@ Required labels put a red `*` inline next to the label text. `Textarea.required(
 
 `RichEditor` emits a TipTap surface: a grouped sticky toolbar, a bubble menu, and a `.ff-prose` body. Link, image, and custom blocks open the support `Dialog`. `json()` stores JSON. The default is HTML, passed through a sanitizer that strips scripts, styles, iframes, `on*` attributes, and `javascript:` URLs. `disableToolbarButtons`, `mergeTags`, `mentions`, and `customBlocks` configure the toolbar. File attachments name a disk and directory. `editBlockAction` renders an `Action` for a custom block. The block’s edit control still opens the support `Dialog`.
 
-`MarkdownEditor` is a Write | Preview pair. Write uses CodeMirror with the markdown language. Preview renders a GitHub-flavored subset (fences, tables, lists, task lists, headings, links, images) into the same `.ff-prose` class, then sanitizes it.
+In the panel the field mounts the Shamar simple editor: the same toolbar, bubble menu, and prose styles, including dark mode. Firefly serves the editor script from `/_firefly/rich-editor/simple.js`, so no CDN setup is needed for the editor itself. Toolbar buttons named in `disableToolbarButtons` are hidden. The field keeps a hidden input in sync, so the HTML (or JSON) posts with the form.
 
-`CodeEditor` uses CodeMirror 6 and the Shiki language set. `language("kotlin")` selects the grammar. `CodeEditor.languages()` lists the ids shipped with the module. `wrap(true)` wraps long lines. This editor is not a rich-text surface.
+`MarkdownEditor` is a Write | Preview pair with a GitHub-style toolbar (headings, bold, italic, link, code, quote, lists). Write is a plain textarea. Preview renders the markdown with markdown-it into the same `.ff-prose` class, then sanitizes it. Switch tabs to compare.
 
-The page script looks for `FilePond` and for a `FireflyEditors` object (TipTap, CodeMirror, Shiki, markdown-it). When those scripts are on the page, the field mounts them. The upload path still posts if FilePond is absent.
+`CodeEditor` highlights code with Shiki. You type in a textarea; a Shiki-highlighted layer sits under it and follows each keystroke, in light or dark theme to match the panel. Tab inserts indentation instead of leaving the field. `language("kotlin")` selects the grammar. `CodeEditor.languages()` lists the ids shipped with the module. `wrap(true)` wraps long lines. This editor is not a rich-text surface.
+
+The panel loads markdown-it, Shiki, and FilePond as ES modules the first time a field needs them. Until a library loads, the plain textarea or file input still works and still posts.
 
 ## Uploads
 
-`FileUpload` posts to `POST /_firefly/uploads` through the filesystem. Register the route once:
+`FileUpload` renders a FilePond drop area. A dropped file goes to `POST /_firefly/uploads` right away, and the returned path lands in a hidden input that posts with the form (a JSON array when `multiple(true)` is set). When the application binds `FilesystemManager` (the filesystem provider), `Firefly.mount` registers that route for you. It only accepts uploads from a user signed in to a panel, with a valid CSRF token. Outside a panel, register the route yourself:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -322,7 +326,7 @@ FireflyUploads.register(router, name -> filesystems.disk(name));
 
 The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file with the original name, then returns JSON `{ "path", "name" }`. `commit(schema, disks)` copies the temporary file into `directory()` (or moves it when `moveFiles(true)` is set), applies `preserveFilenames` or `getUploadedFileNameForStorageUsing`, and stores the final path on the field. `storeFileNamesIn` writes the original names to another state path. `storeFiles(false)` leaves the temporary path in place.
 
-`image()` accepts image types. `avatar()` also turns on the image editor, a compact layout, and a 1:1 crop when you have not set aspect ratios. The editor is FilePond’s image editor. `maxSize` and `minSize` are kilobytes. `minFiles` and `maxFiles` count files. `acceptedFileTypes` takes `image/*`, a mime type, `.png`, or a bare extension.
+`image()` accepts image types and shows a preview. `avatar()` also turns on the image editor, a compact circular drop area, and a 1:1 crop when you have not set aspect ratios. The editor is FilePond’s image editor. `maxSize` and `minSize` are kilobytes. `minFiles` and `maxFiles` count files. `acceptedFileTypes` takes `image/*`, a mime type, `.png`, or a bare extension.
 
 `preventFilePathTampering(true)` rejects `..`, absolute paths, `.ffmeta` files, and paths outside the directory or `firefly-temporary/`. Mount `VerifyCsrfToken` from `kona-session` on `POST /_firefly/uploads`. The field script sends `X-CSRF-TOKEN` from a `csrf-token` meta tag and `_token`. Pass a checker as the third argument to `register` when you want the route itself to reject a bad token.
 
@@ -332,7 +336,11 @@ The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file wi
 
 `Repeater.make("members").simple(TextInput.make("name").required())` edits a list of maps. `schema(...)` replaces the item blueprint. `addItem`, `removeItem`, `cloneItem`, and `moveItem` update the schema state and run `afterStateUpdated`. `orderColumn("sort")` writes 1-based positions. `itemLabel` is a string or a function of the index and `Get`. `grid`, `minItems`, `maxItems`, `defaultItems`, `collapsible`, and `collapsed` change the layout. `relationship("members")` stores the relation name on the repeater. It does not load related records by itself.
 
+In the panel each item is a card. Its header shows the item label ("Item 1" by default, numbered live) and buttons to move the item up or down, clone it, delete it, and collapse it. Turn those off with `reorderable(false)`, `cloneable(false)`, `deletable(false)`, and `collapsible(false)`. The add button below the list appends an item. Add hides when `maxItems` is reached and delete hides at `minItems`. The repeater posts all items as one JSON list under its name.
+
 `Builder.make("blocks").blocks(BuilderBlock("hero", "Hero", listOf(TextInput.make("title"))))` edits a list of typed blocks. `addBlock(schema, "hero")` appends one. `blockNumbers(true)` prefixes the label with the index. `addBetweenAction` renders an action between blocks.
+
+In the panel the add button opens a menu that lists each block by label. Picking one appends a card of that block type. Block cards share the repeater header buttons. The builder posts a JSON list of `{ "type", "data" }` objects.
 
 ## Validate
 

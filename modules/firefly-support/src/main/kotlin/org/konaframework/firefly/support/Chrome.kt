@@ -62,7 +62,7 @@ class DefaultLayout(
                 "body" to body,
                 "footer" to footer,
                 "themeInitScript" to THEME_INIT_SCRIPT,
-                "chromeScript" to CHROME_SCRIPT + FILTERS_SCRIPT,
+                "chromeScript" to CHROME_SCRIPT + FILTERS_SCRIPT + WIDGETS_SCRIPT,
                 "bodyBackground" to tokens.bodyBackground,
                 "bodyColor" to tokens.heading,
                 "maxWidth" to maxWidth,
@@ -100,6 +100,10 @@ class DefaultLayout(
         /** Table filter panels, live filters, and the query builder (`data-ff-filters-*`, `data-ff-qb-*`). */
         internal val FILTERS_SCRIPT: String by lazy {
             "<script>" + Stylesheet.readCss("/org/konaframework/firefly/support/table-filters.js").trim() + "</script>"
+        }
+
+        internal val WIDGETS_SCRIPT: String by lazy {
+            "<script>" + Stylesheet.readCss("/org/konaframework/firefly/support/form-widgets.js").trim() + "</script>"
         }
 
         internal const val CHROME_SCRIPT: String =
@@ -206,10 +210,13 @@ class DefaultLayout(
                 "win.style.width='calc(100vw - 2rem)';win.style.height='calc(100dvh - 2rem)';win.style.maxWidth='none';win.style.maxHeight='none';}" +
                 "else{win.style.position='';win.style.margin='';win.style.left='';win.style.top='';win.style.width='';win.style.height='';win.style.maxWidth='';win.style.maxHeight='';}}" +
                 "function closePickers(except){root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(function(p){" +
-                "if(except&&p===except)return;p.classList.remove('ff-picker-open');" +
+                "if(except&&p===except)return;p.classList.remove('ff-picker-open');p.removeAttribute('data-ff-range-pending');p.removeAttribute('data-ff-range-hover');" +
                 "var panel=p.querySelector('[data-ff-picker-panel]');if(panel){panel.setAttribute('hidden','');}});}" +
                 "function openPicker(p){if(!p)return;closeComboboxes();closePickers(p);p.classList.add('ff-picker-open');" +
-                "var panel=p.querySelector('[data-ff-picker-panel]');if(panel)panel.removeAttribute('hidden');}" +
+                "var panel=p.querySelector('[data-ff-picker-panel]');if(panel)panel.removeAttribute('hidden');" +
+                "if(p.getAttribute('data-ff-date')==='true'){var lvl=p.getAttribute('data-ff-pick-level');" +
+                "setPickerView(p,lvl==='month'?'months':lvl==='year'?'years':'days');" +
+                "rebuildView(p,parseYmd(p.getAttribute('data-ff-focused'))||{y:(new Date()).getFullYear(),m:(new Date()).getMonth()+1,d:1});}}" +
                 "function closeComboboxes(except){root.querySelectorAll('[data-ff-combobox].ff-combobox-open').forEach(function(c){" +
                 "if(except&&c===except)return;c.classList.remove('ff-combobox-open');" +
                 "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel)panel.setAttribute('hidden','');" +
@@ -295,29 +302,38 @@ class DefaultLayout(
                 "function pickerView(p){return p.getAttribute('data-ff-picker-view')||'days';}" +
                 "function setPickerView(p,v){p.setAttribute('data-ff-picker-view',v);}" +
                 "function monthShort(m,locale){try{return new Date(2000,m-1,1).toLocaleString(locale||undefined,{month:'short'});}catch(e){return String(m);}}" +
-                "function rebuildView(p,focus){var grid=p.querySelector('[data-ff-picker-grid]');if(!grid)return;" +
-                "var view=pickerView(p);var kind=p.getAttribute('data-ff-picker-kind')||'date';var locale=p.getAttribute('data-ff-locale');" +
-                "var weekdays=p.querySelector('[data-ff-picker-weekdays]');if(weekdays)weekdays.style.display=view==='days'?'grid':'none';" +
-                "var cap=p.querySelector('[data-ff-picker-caption]');var html='';var state=p.getAttribute('data-ff-state')||'';" +
-                "if(view==='days'){var firstDay=+(p.getAttribute('data-ff-first-day')||'1');var dis=disabledSet(p);" +
-                "var start=null,end=null,selected=null;" +
-                "if(kind==='range'){var bits=state.split(/\\s+to\\s+|\\s+–\\s+|\\s+-\\s+|\\//);if(bits.length===2){start=bits[0].trim().slice(0,10);end=bits[1].trim().slice(0,10);}}" +
-                "else{selected=(parseYmd(state)||null);if(selected)selected=ymd(selected);}" +
+                "function rangeBounds(p){var pend=p.getAttribute('data-ff-range-pending');" +
+                "if(pend){var hv=p.getAttribute('data-ff-range-hover')||pend;return hv<pend?{s:hv,e:pend,preview:true}:{s:pend,e:hv,preview:true};}" +
+                "var bits=(p.getAttribute('data-ff-state')||'').split(/\\s+to\\s+|\\s+–\\s+|\\s+-\\s+|\\//);" +
+                "if(bits.length===2)return{s:bits[0].trim().slice(0,10),e:bits[1].trim().slice(0,10),preview:false};return{s:null,e:null,preview:false};}" +
+                "function daysHtml(p,focus){var kind=p.getAttribute('data-ff-picker-kind')||'date';var firstDay=+(p.getAttribute('data-ff-first-day')||'1');" +
+                "var dis=disabledSet(p);var html='';var rb=kind==='range'?rangeBounds(p):null;var selected=null;" +
+                "if(!rb){selected=parseYmd(p.getAttribute('data-ff-state')||'');if(selected)selected=ymd(selected);}" +
                 "var first=new Date(focus.y,focus.m-1,1);var dow=first.getDay();" +
                 "var lead=firstDay===1?((dow+6)%7):dow;var cursor=new Date(focus.y,focus.m-1,1-lead);" +
                 "for(var i=0;i<42;i++){var cy=cursor.getFullYear(),cm=cursor.getMonth()+1,cd=cursor.getDate();" +
                 "var iso=cy+'-'+pad2(cm)+'-'+pad2(cd);var outside=cm!==focus.m;var disabled=!!dis[iso]||outOfBounds(p,iso);" +
+                "cursor.setDate(cursor.getDate()+1);" +
+                "if(rb&&outside){html+='<span class=\"ff-day ff-day-empty\" aria-hidden=\"true\"></span>';continue;}" +
                 "var cls='ff-day';if(outside)cls+=' ff-day-outside';if(disabled)cls+=' ff-day-disabled';" +
-                "if(kind==='range'){if(start&&end&&iso>=start&&iso<=end)cls+=' ff-day-in-range';if(iso===start||iso===end)cls+=' ff-day-selected';}" +
+                "if(rb){if(rb.s&&rb.e&&iso>rb.s&&iso<rb.e)cls+=rb.preview?' ff-range-preview':' ff-day-in-range';" +
+                "if(iso===rb.s)cls+=' ff-day-selected ff-range-start';if(iso===rb.e)cls+=' ff-day-selected ff-range-end';}" +
                 "else if(selected&&iso===selected)cls+=' ff-day-selected';" +
-                "html+='<button type=\"button\" class=\"'+cls+'\" data-ff-day=\"'+iso+'\"'+(disabled?' disabled':'')+'>'+cd+'</button>';" +
-                "cursor.setDate(cursor.getDate()+1);}grid.className='ff-picker-grid';if(cap)cap.textContent=monthName(focus.y,focus.m,locale);}" +
+                "html+='<button type=\"button\" class=\"'+cls+'\" data-ff-day=\"'+iso+'\"'+(disabled?' disabled':'')+'>'+cd+'</button>';}" +
+                "return html;}" +
+                "function rebuildView(p,focus){var grid=p.querySelector('[data-ff-picker-grid]');if(!grid)return;" +
+                "var view=pickerView(p);var kind=p.getAttribute('data-ff-picker-kind')||'date';var locale=p.getAttribute('data-ff-locale');" +
+                "var weekdays=p.querySelector('[data-ff-picker-weekdays]');if(weekdays)weekdays.style.display=view==='days'?'grid':'none';" +
+                "var cap=p.querySelector('[data-ff-picker-caption]');var html='';var state=p.getAttribute('data-ff-state')||'';" +
+                "if(view==='days'){html=daysHtml(p,focus);grid.className='ff-picker-grid';if(cap)cap.textContent=monthName(focus.y,focus.m,locale);" +
+                "var g2=p.querySelector('[data-ff-picker-grid-next]');if(g2){var nx=addMonths(focus,1);g2.innerHTML=daysHtml(p,nx);" +
+                "var c2=p.querySelector('[data-ff-picker-caption-next]');if(c2)c2.textContent=monthName(nx.y,nx.m,locale);}}" +
                 "else if(view==='months'){grid.className='ff-picker-grid ff-picker-grid-months';" +
-                "for(var m=1;m<=12;m++){var sel=(focus.m===m)?' ff-day-selected':'';" +
+                "for(var m=1;m<=12;m++){var sel=(kind==='month'?state===focus.y+'-'+pad2(m):focus.m===m)?' ff-day-selected':'';" +
                 "html+='<button type=\"button\" class=\"ff-day'+sel+'\" data-ff-month=\"'+m+'\">'+monthShort(m,locale)+'</button>';}" +
                 "if(cap)cap.textContent=String(focus.y);}" +
                 "else if(view==='years'){grid.className='ff-picker-grid ff-picker-grid-years';var y0=Math.floor(focus.y/12)*12;" +
-                "for(var y=y0;y<y0+12;y++){var sel=(focus.y===y)?' ff-day-selected':'';" +
+                "for(var y=y0;y<y0+12;y++){var sel=(kind==='year'?state===String(y):focus.y===y)?' ff-day-selected':'';" +
                 "html+='<button type=\"button\" class=\"ff-day'+sel+'\" data-ff-year=\"'+y+'\">'+y+'</button>';}" +
                 "if(cap)cap.textContent=y0+' – '+(y0+11);}" +
                 "else{grid.className='ff-picker-grid ff-picker-grid-decades';var d0=Math.floor(focus.y/100)*100;" +
@@ -342,6 +358,7 @@ class DefaultLayout(
                 "function setPickerValue(p,stored,focusOverride){p.setAttribute('data-ff-state',stored||'');" +
                 "var hidden=p.querySelector('[data-ff-picker-value]');if(hidden)hidden.value=stored||'';" +
                 "var display=p.querySelector('[data-ff-picker-display]');if(display)display.value=formatDisplay(p,stored||'');" +
+                "var hint=p.querySelector('[data-ff-range-hint]');if(hint)hint.textContent=stored?formatDisplay(p,stored):'Select a start date';" +
                 "var focus=focusOverride||parseYmd(stored)||parseYmd(p.getAttribute('data-ff-focused'))||{y:(new Date()).getFullYear(),m:(new Date()).getMonth()+1,d:1};" +
                 "if(p.getAttribute('data-ff-date')==='true')rebuildView(p,focus);}" +
                 "function composeValue(p,dayIso){var hasDate=p.getAttribute('data-ff-date')==='true';var hasTime=p.getAttribute('data-ff-time')==='true';" +
@@ -483,10 +500,11 @@ class DefaultLayout(
                 "var decadeBtn=t.closest('button[data-ff-decade]');if(decadeBtn){var fd={y:+decadeBtn.getAttribute('data-ff-decade'),m:1,d:1};setPickerView(picker,'years');rebuildView(picker,fd);return;}" +
                 "var dayBtn=t.closest('button[data-ff-day]');" +
                 "if(dayBtn&&!dayBtn.disabled&&dayBtn.getAttribute('data-ff-day')){var day=dayBtn.getAttribute('data-ff-day');var kind=picker.getAttribute('data-ff-picker-kind');" +
-                "if(kind==='range'){var st=picker.getAttribute('data-ff-state')||'';var parts=st.split(/\\s+to\\s+/);" +
-                "if(!st||parts.length!==2||(parts[0]&&parts[1]&&parts[0]!==parts[1])){setPickerValue(picker,day+' to '+day);}" +
-                "else{var a=parts[0].slice(0,10);var b=day;if(b<a){var tmp=a;a=b;b=tmp;}setPickerValue(picker,a+' to '+b);" +
-                "if(a!==b)closePickers();}}" +
+                "if(kind==='range'){var pend=picker.getAttribute('data-ff-range-pending');var keep=parseYmd(picker.getAttribute('data-ff-focused'));" +
+                "if(!pend){picker.setAttribute('data-ff-range-pending',day);picker.removeAttribute('data-ff-range-hover');" +
+                "var rh=picker.querySelector('[data-ff-range-hint]');if(rh)rh.textContent='Select an end date';rebuildView(picker,keep||parseYmd(day));}" +
+                "else{var a=pend;var b=day;if(b<a){var tmp=a;a=b;b=tmp;}picker.removeAttribute('data-ff-range-pending');picker.removeAttribute('data-ff-range-hover');" +
+                "setPickerValue(picker,a+' to '+b,keep);closePickers();}}" +
                 "else{setPickerValue(picker,composeValue(picker,day));" +
                 "if(picker.getAttribute('data-ff-time')!=='true')closePickers();}" +
                 "return;}" +
@@ -593,6 +611,10 @@ class DefaultLayout(
                 "if(form){if(form.requestSubmit)form.requestSubmit();else form.submit();return;}" +
                 "var url=new URL(location.href);url.searchParams.set(el.name||'perPage',el.value);url.searchParams.set('page','1');" +
                 "ffTableNav(url.pathname+url.search,wrap);});" +
+                "document.addEventListener('mouseover',function(ev){var db=ev.target&&ev.target.closest?ev.target.closest('button[data-ff-day]'):null;if(!db)return;" +
+                "var rp=db.closest('[data-ff-picker]');if(!rp||!rp.getAttribute('data-ff-range-pending'))return;var hd=db.getAttribute('data-ff-day');" +
+                "if(rp.getAttribute('data-ff-range-hover')===hd)return;rp.setAttribute('data-ff-range-hover',hd);" +
+                "rebuildView(rp,parseYmd(rp.getAttribute('data-ff-focused'))||parseYmd(hd));});" +
                 "document.addEventListener('keydown',function(ev){" +
                 "if(ev.key==='Enter'&&ev.target&&ev.target.matches&&ev.target.matches('[data-ff-record-url],[data-ff-record-action]')){" +
                 "ev.preventDefault();ev.target.click();return;}" +

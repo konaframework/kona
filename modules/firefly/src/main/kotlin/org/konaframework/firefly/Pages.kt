@@ -3,6 +3,7 @@ package org.konaframework.firefly
 import org.konaframework.firefly.infolists.Infolist
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.widgets.Page
+import java.util.function.Function
 
 /**
  * A page the panel can route to. List, create, edit, view, manage, and custom pages are pages.
@@ -11,6 +12,7 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
     private var parentName: String? = null
     private var boundSlug: String? = null
     private var onShow: ((Map<String, Any?>) -> Unit)? = null
+    private var submitHandler: Function<Map<String, String>, String>? = null
 
     fun slug(): String {
         val bound = boundSlug
@@ -47,6 +49,17 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
     fun parentName(): String? = parentName
 
     fun mountForm(schema: Schema): PanelPage = apply { form(schema) }
+
+    /**
+     * Handle the mounted form when it posts back to this page. [handler] receives the posted fields
+     * and returns the notification title; without a handler the title is "Form submitted".
+     */
+    fun onFormSubmit(handler: Function<Map<String, String>, String>): PanelPage = apply { submitHandler = handler }
+
+    internal fun submitForm(input: Map<String, String>): String {
+        val handler = submitHandler ?: return "Form submitted"
+        return handler.apply(input)
+    }
 
     fun mountInfolist(infolist: Infolist): PanelPage = apply { infolistHtml(infolist.render()) }
 

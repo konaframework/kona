@@ -392,6 +392,10 @@ open class Panel {
             planned.add(Planned("POST", uri(page.slug()), routeName("pages." + page.slug().ifEmpty { "dashboard" } + ".bulk")) { request ->
                 bulkAction(request, page)
             })
+            val optionsSlug = if (page.slug().isEmpty()) "form-options" else page.slug() + "/form-options"
+            planned.add(Planned("GET", uri(optionsSlug), routeName("pages.$optionsSlug")) { request ->
+                pageFormOptions(request, page)
+            })
         }
         for (resource in resources) {
             val resourcePages = resource.pages()
@@ -632,7 +636,10 @@ open class Panel {
         val csrfError = FireflyCsrf.rejectIfInvalid(request)
         if (csrfError != null) return csrfError
         val name = request.input(BULK_ACTION)
-        if (name.isNullOrBlank()) return Response.html("Bulk action is required", 422)
+        if (name.isNullOrBlank()) {
+            if (page.mountedForm() != null) return pageFormSubmit(request, page)
+            return Response.html("Bulk action is required", 422)
+        }
         val tenant = tenantId(request)
         return FireflyTenant.use(tenant) {
             page.prepare(pageState(request, extras))
@@ -650,6 +657,36 @@ open class Panel {
             }
             Response.redirect(if (query.isEmpty()) request.path else "${request.path}?$query")
         }
+    }
+
+    /**
+     * A custom page's mounted form posted to the page (Enter key or a `submitForm` action).
+     * Hands the posted fields to [PanelPage.onFormSubmit], flashes its notification, and redirects back.
+     */
+    private fun pageFormSubmit(request: Request, page: PanelPage): Response {
+        val input = request.all().filterKeys { it != FireflyCsrf.TOKEN_KEY && !it.startsWith("_") && it !in request.query }
+        val title = FireflyTenant.use(tenantId(request)) { page.submitForm(input) }
+        val session = request.session()
+        if (session != null) FireflyNotification.make("page-form").title(title).success().send(session)
+        return Response.redirect(request.path)
+    }
+
+    /** JSON options for a custom page's relationship / searchable Select (`{page}/form-options`). */
+    private fun pageFormOptions(request: Request, page: PanelPage): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        val form = page.mountedForm() ?: return Response.json(emptyList<Any>())
+        val select = form.component(request.input("field").orEmpty()) as? org.konaframework.firefly.forms.Select
+            ?: return Response.json(emptyList<Any>())
+        val options = FireflyTenant.use(tenantId(request)) { select.search(form, request.input("q").orEmpty()) }
+        return Response.json(
+            options.map { option ->
+                linkedMapOf("value" to option.value, "label" to option.label, "enabled" to option.enabled)
+            },
+        )
     }
 
     /** Filament bulk notification: success, warning when some records failed, danger when none succeeded. */
@@ -890,6 +927,9 @@ open class Panel {
         bindAppGuard?.invoke(request)
         return panelGuard
     }
+
+    /** True when [request] comes from a signed-in user of this panel (FileUpload temp uploads). */
+    internal fun allowsUpload(request: Request): Boolean = gate(request) == null && activeGuard(request).check()
 
     private fun gate(request: Request): Response? {
         val expected = resolveDomain(SchemaBridge.open(emptyMap()))

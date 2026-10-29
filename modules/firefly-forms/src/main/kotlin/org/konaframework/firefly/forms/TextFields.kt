@@ -151,7 +151,9 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val shown = if (value == null) "" else normalizeText(value.toString())
         val listId = if (datalistValues.isEmpty()) null else "$path-list"
+        val actions = revealableFlag || copyableFlag
         val builder = StringBuilder()
+        if (actions) builder.append("""<div class="ff-input-group" data-ff-input-group>""")
         builder.append("""<input class="ff-input"${inputAttrs(get, inputType, path, shown)}""")
         builder.append(attr("list", listId))
         builder.append(attr("step", stepText))
@@ -163,8 +165,15 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
         val maxLength = maxLengthValue.get(get)
         if (maxLength != null) builder.append(attr("maxlength", maxLength.toString()))
         builder.append(" />")
-        if (revealableFlag) builder.append("""<button type="button" class="ff-reveal" data-ff-reveal="true">Show</button>""")
-        if (copyableFlag) builder.append("""<button type="button" class="ff-copy" data-ff-copy="true">Copy</button>""")
+        if (revealableFlag) {
+            builder.append("""<button type="button" class="ff-input-action ff-reveal" data-ff-reveal="true" aria-label="Show password" aria-pressed="false" title="Show password">""")
+            builder.append("""<span class="ff-reveal-show">${FormIcons.svg(FormIcons.EYE)}</span><span class="ff-reveal-hide">${FormIcons.svg(FormIcons.EYE_SLASH)}</span></button>""")
+        }
+        if (copyableFlag) {
+            builder.append("""<button type="button" class="ff-input-action ff-copy" data-ff-copy="true" aria-label="Copy" title="Copy">""")
+            builder.append("""<span class="ff-copy-idle">${FormIcons.svg(FormIcons.CLIPBOARD)}</span><span class="ff-copy-done">${FormIcons.svg(FormIcons.CHECK)}</span></button>""")
+        }
+        if (actions) builder.append("</div>")
         if (listId != null) {
             builder.append("""<datalist id="${esc(listId)}">""")
             for (item in datalistValues) builder.append("""<option value="${esc(item)}"></option>""")
@@ -313,17 +322,25 @@ open class TagsInput protected constructor(name: String) : Field<TagsInput>(name
 
     override fun kind(): String = "tags-input"
 
+    private fun chip(tag: String): String =
+        """<span class="ff-tag" data-ff-tag="${esc(tag)}"><span class="ff-tag-label">${esc(tag)}</span>${FormIcons.button("ff-tag-remove", "Remove", "data-ff-tag-remove", FormIcons.X_MARK)}</span>"""
+
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val tags = tags(value)
         val keys = if (splitKeys.isEmpty()) "Enter" else splitKeys.joinToString(",")
+        val listId = if (suggestions.isEmpty()) null else "$path-suggestions"
         return buildString {
-            append("""<div class="ff-tags" x-data="ffTags" data-ff-path="${esc(path)}"${attr("data-ff-separator", separatorText)}${attr("data-ff-split", keys)}${boolAttr("data-ff-reorder", reorderableFlag)}${attr("data-ff-color", colorText)}>""")
-            for (tag in tags) append("""<span class="ff-tag">${esc(tag)}</span>""")
-            append("""<input class="ff-input" type="text"${attr("placeholder", placeholderValue(schema))}${extraInputMarkup(get)} />""")
-            if (suggestions.isNotEmpty()) {
-                append("""<ul class="ff-suggestions">""")
-                for (item in suggestions) append("""<li>${esc(item)}</li>""")
-                append("</ul>")
+            append("""<div class="ff-tags" x-data="ffTags" data-ff-tags data-ff-path="${esc(path)}"${attr("data-ff-separator", separatorText)}${attr("data-ff-split", keys)}${boolAttr("data-ff-reorder", reorderableFlag)}${attr("data-ff-color", colorText)}>""")
+            append("""<input type="hidden" name="${esc(path)}" value="${esc(tags.joinToString(separatorText))}" data-ff-tags-value />""")
+            append("""<div class="ff-tags-field">""")
+            for (tag in tags) append(chip(tag))
+            append("""<input class="ff-tags-input" type="text" data-ff-tags-input${attr("list", listId)}${attr("placeholder", placeholderValue(schema) ?: "Add tag…")}${extraInputMarkup(get)} />""")
+            append("</div>")
+            append("""<template data-ff-tags-template>${chip("")}</template>""")
+            if (listId != null) {
+                append("""<datalist id="${esc(listId)}" class="ff-suggestions">""")
+                for (item in suggestions) append("""<option value="${esc(item)}"></option>""")
+                append("</datalist>")
             }
             append("</div>")
         }
@@ -378,7 +395,20 @@ open class ColorPicker protected constructor(name: String) : Field<ColorPicker>(
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val shown = if (value == null) "" else value.toString()
-        return """<input class="ff-input ff-color" x-data="ffColor"${inputAttrs(get, "text", path, shown)} data-ff-format="${esc(formatName)}" />"""
+        val swatch = if (HEX.matches(shown)) shown.lowercase() else "#000000"
+        val placeholder = when (formatName) {
+            "rgb" -> "rgb(0, 0, 0)"
+            "hsl" -> "hsl(0, 0%, 0%)"
+            else -> "#000000"
+        }
+        return buildString {
+            append("""<div class="ff-color" x-data="ffColor" data-ff-color data-ff-format="${esc(formatName)}">""")
+            append("""<input type="color" class="ff-color-swatch" value="$swatch" aria-label="Pick color" data-ff-color-swatch />""")
+            append("""<input class="ff-input ff-color-value" data-ff-color-value${inputAttrs(get, "text", path, shown)}""")
+            if (placeholderValue(schema) == null) append(""" placeholder="$placeholder"""")
+            append(" />")
+            append("</div>")
+        }
     }
 
     companion object {
@@ -439,7 +469,24 @@ open class Slider protected constructor(name: String) : Field<Slider>(name) {
             else -> null
         }
         val shown = if (numeric == null) minNumber else normalize(numeric)
-        return """<input class="ff-input ff-slider" x-data="ffSlider"${inputAttrs(get, "range", path, shown.toString())} min="$minNumber" max="$maxNumber" step="$stepNumber"${boolAttr("data-ff-tooltips", tooltipsFlag)} />"""
+        val text = display(shown)
+        return buildString {
+            append("""<div class="ff-slider-wrap" data-ff-slider>""")
+            append("""<input class="ff-slider" x-data="ffSlider"${inputAttrs(get, "range", path, text)} min="${display(minNumber)}" max="${display(maxNumber)}" step="${display(stepNumber)}"${boolAttr("data-ff-tooltips", tooltipsFlag)} data-ff-slider-input style="--ff-slider-fill: ${fill(shown)}%" />""")
+            append("""<output class="ff-slider-value" data-ff-slider-value>${esc(text)}</output>""")
+            append("</div>")
+        }
+    }
+
+    private fun display(value: Double): String {
+        if (value == value.toLong().toDouble()) return value.toLong().toString()
+        return value.toString()
+    }
+
+    private fun fill(value: Double): String {
+        val span = maxNumber - minNumber
+        if (span <= 0.0) return "0"
+        return display(Math.round((value - minNumber) / span * 1000.0) / 10.0)
     }
 
     companion object {
@@ -492,9 +539,10 @@ open class KeyValue protected constructor(name: String) : Field<KeyValue>(name) 
     fun reorderable(on: Boolean): KeyValue = apply { reorderableFlag = on }
 
     fun pairs(raw: Any?): List<Pair<String, String>> {
-        if (raw !is Map<*, *>) return emptyList()
+        val decoded = FormJson.decode(raw)
+        if (decoded !is Map<*, *>) return emptyList()
         val out = ArrayList<Pair<String, String>>()
-        for ((key, value) in raw) {
+        for ((key, value) in decoded) {
             if (key is String) {
                 val text = if (value == null) "" else value.toString()
                 out.add(key to text)
@@ -507,17 +555,38 @@ open class KeyValue protected constructor(name: String) : Field<KeyValue>(name) 
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val rows = pairs(value)
+        val keyLabel = keyLabelText.get(get) ?: "Key"
+        val valueLabel = valueLabelText.get(get) ?: "Value"
         return buildString {
-            append("""<div class="ff-key-value" x-data="ffKeyValue" data-ff-path="${esc(path)}"${boolAttr("data-ff-addable", addableFlag)}${boolAttr("data-ff-deletable", deletableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}>""")
-            append("""<div class="ff-key-value-head"><span>${esc(keyLabelText.get(get) ?: "Key")}</span><span>${esc(valueLabelText.get(get) ?: "Value")}</span></div>""")
-            for ((key, cell) in rows) {
-                val keyMode = if (editableKeysFlag) "" else " readonly"
-                val valueMode = if (editableValuesFlag) "" else " readonly"
-                val inputExtra = extraInputMarkup(get)
-                append("""<div class="ff-key-value-row"><input class="ff-input" value="${esc(key)}"$keyMode${attr("placeholder", keyPlaceholderText.get(get))}$inputExtra /><input class="ff-input" value="${esc(cell)}"$valueMode${attr("placeholder", valuePlaceholderText.get(get))}$inputExtra /></div>""")
-            }
-            if (addableFlag) append("""<button type="button" class="ff-key-value-add">${esc(addLabelText.get(get) ?: "Add row")}</button>""")
+            append("""<div class="ff-key-value" x-data="ffKeyValue" data-ff-key-value data-ff-path="${esc(path)}"${boolAttr("data-ff-addable", addableFlag)}${boolAttr("data-ff-deletable", deletableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}>""")
+            append("""<input type="hidden" name="${esc(path)}" value="${esc(FormJson.encode(rows.associate { it }))}" data-ff-key-value-value />""")
+            append("""<div class="ff-key-value-head"><span>${esc(keyLabel)}</span><span>${esc(valueLabel)}</span><span class="ff-key-value-head-actions"></span></div>""")
+            append("""<div class="ff-key-value-rows" data-ff-key-value-rows>""")
+            for ((key, cell) in rows) append(row(get, key, cell, keyLabel, valueLabel))
             append("</div>")
+            append("""<template data-ff-key-value-template>${row(get, "", "", keyLabel, valueLabel)}</template>""")
+            if (addableFlag) {
+                append("""<button type="button" class="ff-action-outlined ff-key-value-add" data-ff-key-value-add>${FormIcons.svg(FormIcons.PLUS)}<span>${esc(addLabelText.get(get) ?: "Add row")}</span></button>""")
+            }
+            append("</div>")
+        }
+    }
+
+    private fun row(get: Get, key: String, cell: String, keyLabel: String, valueLabel: String): String {
+        val keyMode = if (editableKeysFlag) "" else " readonly"
+        val valueMode = if (editableValuesFlag) "" else " readonly"
+        val inputExtra = extraInputMarkup(get)
+        return buildString {
+            append("""<div class="ff-key-value-row" data-ff-key-value-row>""")
+            append("""<input class="ff-input" type="text" value="${esc(key)}" data-ff-key-value-key$keyMode placeholder="${esc(keyPlaceholderText.get(get) ?: keyLabel)}"$inputExtra />""")
+            append("""<input class="ff-input" type="text" value="${esc(cell)}" data-ff-key-value-cell$valueMode placeholder="${esc(valuePlaceholderText.get(get) ?: valueLabel)}"$inputExtra />""")
+            append("""<div class="ff-key-value-row-actions">""")
+            if (reorderableFlag) {
+                append(FormIcons.button("ff-icon-button", "Move up", "data-ff-key-value-up", FormIcons.ARROW_UP))
+                append(FormIcons.button("ff-icon-button", "Move down", "data-ff-key-value-down", FormIcons.ARROW_DOWN))
+            }
+            if (deletableFlag) append(FormIcons.button("ff-icon-button ff-icon-button-danger", "Remove", "data-ff-key-value-remove", FormIcons.TRASH))
+            append("</div></div>")
         }
     }
 

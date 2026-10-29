@@ -321,20 +321,24 @@ class Tabs private constructor() : Component("") {
 
     override fun renderBody(schema: Schema): String {
         val tabs = allChildren().filterIsInstance<Tab>()
+        val selected = if (active in tabs.indices) active else 0
         val buttons = StringBuilder()
-        var index = 0
-        while (index < tabs.size) {
-            val current = if (index == active) """ aria-current="true"""" else ""
-            buttons.append("""<button type="button" class="ff-tab"$current>${escapeHtml(tabs[index].title())}</button>""")
-            index += 1
+        val panes = StringBuilder()
+        for ((index, tab) in tabs.withIndex()) {
+            val on = index == selected
+            val current = if (on) """ aria-current="true"""" else ""
+            buttons.append("""<button type="button" class="ff-tab-trigger" role="tab" data-ff-tab-trigger="$index" aria-selected="$on"$current>${escapeHtml(tab.title())}</button>""")
+            if (panels) {
+                val hidden = if (on) "" else " hidden"
+                panes.append("""<div class="ff-tab-pane" role="tabpanel" data-ff-tab-pane="$index"$hidden>${tab.render(schema)}</div>""")
+            }
         }
         val query = if (persistQuery) """ data-ff-tab-query="true"""" else ""
         val scrollAttr = if (scroll) """ data-ff-scrollable="true"""" else ""
         val verticalAttr = if (verticalFlag) """ data-ff-vertical="true"""" else ""
         val property = livewirePropertyName
         val propertyAttr = if (property == null) "" else """ data-ff-livewire="${escapeHtml(property)}""""
-        val panelHtml = if (panels) childHtml(schema) else ""
-        return """<div class="ff-tabs"$query$scrollAttr$verticalAttr$propertyAttr>${hooks(startHooks)}<div class="ff-tab-list">$buttons</div>$panelHtml${hooks(endHooks)}</div>"""
+        return """<div class="ff-tabs" data-ff-tabs$query$scrollAttr$verticalAttr$propertyAttr>${hooks(startHooks)}<div class="ff-tab-list" role="tablist">$buttons</div>$panes${hooks(endHooks)}</div>"""
     }
 
     companion object {

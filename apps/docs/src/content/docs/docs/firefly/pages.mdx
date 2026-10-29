@@ -101,11 +101,55 @@ The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defa
 | `navigationLabel()` | Slug text, or `Dashboard` when the slug is empty |
 | `parent(name)` | Navigation parent. `parentName()` reads it back |
 | `mountForm(schema)` | Same slot as `form` |
+| `mountedForm()` | The mounted form schema, or `null` |
+| `onFormSubmit(handler)` | Runs when the mounted form posts back. The handler gets the posted fields and returns the notification title |
 | `mountInfolist(infolist)` | Renders the infolist and stores the HTML |
 
 Section classes: `ff-list`, `ff-create`, `ff-edit`, `ff-view`, `ff-manage`, `ff-custom`. Fallback titles match those names (`List`, `Create`, `Edit`, `View`, `Manage`, `Custom`). Create, edit, and view pages also render a small mode chip (`create` / `edit` / `detail`) beside the title. When a resource wires the page, the title becomes the resource label (for example `New Orders`, `Edit Orders`).
 
 `ManagePage` is the page a simple resource uses. Create is a header dialog; View, Edit, and Delete open from each table row. Read [Resources](/docs/firefly/resources/).
+
+## Submit the page form
+
+Pressing Enter in a field of the mounted form posts the form to the page URL. The panel checks the CSRF token, then calls the handler you passed to `onFormSubmit`. The handler receives the posted fields. The CSRF token, keys that start with `_`, and query-string keys are left out. The handler returns the title of the success notification. The panel then redirects back to the page, and you see that notification.
+
+Without a handler the notification reads **Form submitted**.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class SettingsPage : PanelPage("settings") {
+    init {
+        mountForm(Schema.make().components(TextInput.make("title")))
+        onFormSubmit { input ->
+            Settings.save(input.getValue("title"))
+            "Settings saved"
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class SettingsPage extends PanelPage {
+    public SettingsPage() {
+        super("settings");
+        mountForm(Schema.make().components(TextInput.make("title")));
+        onFormSubmit(input -> {
+            Settings.save(input.get("title"));
+            return "Settings saved";
+        });
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+A searchable or relationship `Select` on the mounted form loads its options from `GET {page}/form-options?field=name&q=text`. For the dashboard page (empty slug), the path is `form-options`. The route applies the panel domain and sign-in checks, then returns JSON objects with `value`, `label`, and `enabled`.
 
 ## Put a widget on the page
 

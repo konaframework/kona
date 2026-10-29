@@ -90,16 +90,12 @@ open class Repeater protected constructor(name: String) : Field<Repeater>(name) 
     }
 
     fun items(schema: Schema): List<Map<String, Any?>> {
-        val value = schema.get(fieldPath())
+        val value = FormJson.decode(schema.get(fieldPath()))
         if (value !is List<*>) return emptyList()
         val out = ArrayList<Map<String, Any?>>()
         for (item in value) {
             if (item is Map<*, *>) {
-                val row = LinkedHashMap<String, Any?>()
-                for ((key, cell) in item) {
-                    if (key is String) row[key] = cell
-                }
-                out.add(row)
+                out.add(stringKeys(item))
             } else {
                 out.add(linkedMapOf())
             }
@@ -162,28 +158,41 @@ open class Repeater protected constructor(name: String) : Field<Repeater>(name) 
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val rows = items(schema)
+        val flags = ItemFlags(reorderableFlag, cloneableFlag, deletableFlag, collapsibleFlag, collapsedFlag)
+        val numbered = itemLabelUsing == null && itemLabelText.get(get) == null
         return buildString {
-            append("""<div class="ff-repeater" x-data="ffRepeater" data-ff-path="${esc(path)}"${boolAttr("data-ff-addable", addableFlag)}${boolAttr("data-ff-deletable", deletableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}${boolAttr("data-ff-cloneable", cloneableFlag)}${boolAttr("data-ff-collapsible", collapsibleFlag)}${boolAttr("data-ff-collapsed", collapsedFlag)}${attr("data-ff-grid", gridCount?.toString())}${attr("data-ff-order", orderColumnName)}${attr("data-ff-relationship", relationName)}>""")
+            append("""<div class="ff-repeater" x-data="ffRepeater" data-ff-repeater data-ff-path="${esc(path)}"${boolAttr("data-ff-addable", addableFlag)}${boolAttr("data-ff-deletable", deletableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}${boolAttr("data-ff-cloneable", cloneableFlag)}${boolAttr("data-ff-collapsible", collapsibleFlag)}${boolAttr("data-ff-collapsed", collapsedFlag)}${attr("data-ff-grid", gridCount?.toString())}${attr("data-ff-order", orderColumnName)}${attr("data-ff-relationship", relationName)}${attr("data-ff-min", minCount?.toString())}${attr("data-ff-max", maxCount?.toString())}${attr("data-ff-label-template", if (numbered) "Item {n}" else null)}>""")
+            append("""<input type="hidden" name="${esc(path)}" value="${esc(FormJson.encode(rows))}" data-ff-repeater-value />""")
+            append("""<ol class="ff-repeater-items" data-ff-repeater-items>""")
             for ((index, row) in rows.withIndex()) {
-                append("""<div class="ff-repeater-item" data-ff-index="$index"><span class="ff-repeater-label">${esc(labelFor(index, get))}</span>""")
-                for (child in blueprint) {
-                    if (child is Field<*>) {
-                        val itemPath = "$path.$index.${child.name}"
-                        append(child.renderAt(schema, itemPath, row[child.name]))
-                    }
-                }
-                val removing = deleteAction
-                if (removing != null) append(removing.render(schema))
-                val cloning = cloneAction
-                if (cloning != null) append(cloning.render(schema))
-                for (extra in extraItemActions) append(extra.render(schema))
-                append("</div>")
+                append(itemHtml(schema, path, index.toString(), labelFor(index, get), row, flags))
             }
-            if (addableFlag) append("""<button type="button" data-ff-repeater-add="true">${esc(addLabelText.get(get) ?: "Add")}</button>""")
+            append("</ol>")
+            append("""<template data-ff-repeater-template>${itemHtml(schema, path, INDEX_TOKEN, labelFor(rows.size, get), emptyMap(), flags)}</template>""")
+            if (addableFlag) {
+                append("""<button type="button" class="ff-action-outlined ff-repeater-add" data-ff-repeater-add="true">${FormIcons.svg(FormIcons.PLUS)}<span>${esc(addLabelText.get(get) ?: "Add")}</span></button>""")
+            }
             val adding = addAction
             if (adding != null) append(adding.render(schema))
             append("</div>")
         }
+    }
+
+    private fun itemHtml(schema: Schema, path: String, index: String, label: String, row: Map<String, Any?>, flags: ItemFlags): String = buildString {
+        val columns = gridCount
+        val gridStyle = if (columns == null) "" else """ style="--ff-item-cols: $columns""""
+        append(itemOpen("ff-repeater-item", "data-ff-repeater-item", index, flags))
+        append(itemHead(label, flags))
+        append("""<div class="ff-repeater-item-body"$gridStyle>""")
+        for (child in blueprint) {
+            if (child is Field<*>) append(child.renderItem(schema, "$path.$index.${child.name}", row[child.name]))
+        }
+        val removing = deleteAction
+        if (removing != null) append(removing.render(schema))
+        val cloning = cloneAction
+        if (cloning != null) append(cloning.render(schema))
+        for (extra in extraItemActions) append(extra.render(schema))
+        append("</div></li>")
     }
 
     private fun labelFor(index: Int, get: Get): String {
@@ -258,17 +267,11 @@ open class Builder protected constructor(name: String) : Field<Builder>(name) {
     fun addBetweenAction(action: Action): Builder = apply { betweenAction = action }
 
     fun items(schema: Schema): List<Map<String, Any?>> {
-        val value = schema.get(fieldPath())
+        val value = FormJson.decode(schema.get(fieldPath()))
         if (value !is List<*>) return emptyList()
         val out = ArrayList<Map<String, Any?>>()
         for (item in value) {
-            if (item is Map<*, *>) {
-                val row = LinkedHashMap<String, Any?>()
-                for ((key, cell) in item) {
-                    if (key is String) row[key] = cell
-                }
-                out.add(row)
-            }
+            if (item is Map<*, *>) out.add(stringKeys(item))
         }
         return out
     }
@@ -295,8 +298,11 @@ open class Builder protected constructor(name: String) : Field<Builder>(name) {
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val rows = items(schema)
+        val flags = ItemFlags(reorderableFlag, cloneableFlag, deletableFlag, collapsibleFlag, false)
         return buildString {
-            append("""<div class="ff-builder" x-data="ffBuilder" data-ff-path="${esc(path)}"${boolAttr("data-ff-addable", addableFlag)}${boolAttr("data-ff-deletable", deletableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}${boolAttr("data-ff-cloneable", cloneableFlag)}${boolAttr("data-ff-collapsible", collapsibleFlag)}${boolAttr("data-ff-numbers", numbersFlag)}>""")
+            append("""<div class="ff-builder" x-data="ffBuilder" data-ff-builder data-ff-path="${esc(path)}"${boolAttr("data-ff-addable", addableFlag)}${boolAttr("data-ff-deletable", deletableFlag)}${boolAttr("data-ff-reorder", reorderableFlag)}${boolAttr("data-ff-cloneable", cloneableFlag)}${boolAttr("data-ff-collapsible", collapsibleFlag)}${boolAttr("data-ff-numbers", numbersFlag)}${attr("data-ff-min", minCount?.toString())}${attr("data-ff-max", maxCount?.toString())}>""")
+            append("""<input type="hidden" name="${esc(path)}" value="${esc(FormJson.encode(rows))}" data-ff-builder-value />""")
+            append("""<ol class="ff-repeater-items ff-builder-items" data-ff-repeater-items>""")
             for ((index, row) in rows.withIndex()) {
                 if (index > 0) {
                     val between = betweenAction
@@ -304,29 +310,38 @@ open class Builder protected constructor(name: String) : Field<Builder>(name) {
                 }
                 val rawType = row["type"]
                 val type = if (rawType == null) "" else rawType.toString()
-                val block = blocks.firstOrNull { it.name == type }
-                val number = if (numbersFlag) "${index + 1}. " else ""
-                val title = if (block == null) type else block.label
-                append("""<div class="ff-builder-item" data-ff-type="${esc(type)}"><span class="ff-builder-label">$number${esc(title)}</span>""")
                 val data = row["data"]
-                val map = if (data is Map<*, *>) data else emptyMap<Any?, Any?>()
-                if (block != null) {
-                    for (child in block.schema) {
-                        if (child is Field<*>) {
-                            val cell = map[child.name]
-                            append(child.renderAt(schema, "$path.$index.data.${child.name}", cell))
-                        }
-                    }
-                }
-                append("</div>")
+                val map = if (data is Map<*, *>) stringKeys(data) else emptyMap()
+                append(blockHtml(schema, path, index.toString(), index, type, map, flags))
+            }
+            append("</ol>")
+            for (block in blocks) {
+                append("""<template data-ff-builder-template="${esc(block.name)}">${blockHtml(schema, path, INDEX_TOKEN, rows.size, block.name, emptyMap(), flags)}</template>""")
             }
             if (addableFlag) {
-                append("""<div class="ff-builder-picker">""")
-                for (block in blocks) append("""<button type="button" data-ff-block="${esc(block.name)}">${esc(block.label)}</button>""")
-                append("""<span class="ff-builder-add">${esc(addLabelText.get(get) ?: "Add block")}</span></div>""")
+                append("""<div class="ff-builder-add" data-ff-builder-picker>""")
+                append("""<button type="button" class="ff-action-outlined ff-builder-add-trigger" data-ff-builder-toggle aria-haspopup="menu">${FormIcons.svg(FormIcons.PLUS)}<span>${esc(addLabelText.get(get) ?: "Add block")}</span></button>""")
+                append("""<div class="ff-builder-menu" role="menu" data-ff-builder-menu hidden>""")
+                for (block in blocks) append("""<button type="button" class="ff-builder-menu-item" role="menuitem" data-ff-block="${esc(block.name)}">${esc(block.label)}</button>""")
+                append("</div></div>")
             }
             append("</div>")
         }
+    }
+
+    private fun blockHtml(schema: Schema, path: String, index: String, position: Int, type: String, data: Map<String, Any?>, flags: ItemFlags): String = buildString {
+        val block = blocks.firstOrNull { it.name == type }
+        val number = if (numbersFlag) "${position + 1}. " else ""
+        val title = if (block == null) type else block.label
+        append(itemOpen("ff-repeater-item ff-builder-item", """data-ff-builder-item data-ff-type="${esc(type)}"""", index, flags))
+        append(itemHead("$number$title", flags))
+        append("""<div class="ff-repeater-item-body">""")
+        if (block != null) {
+            for (child in block.schema) {
+                if (child is Field<*>) append(child.renderItem(schema, "$path.$index.data.${child.name}", data[child.name]))
+            }
+        }
+        append("</div></li>")
     }
 
     companion object {
@@ -338,4 +353,44 @@ open class Builder protected constructor(name: String) : Field<Builder>(name) {
         @JvmStatic
         fun make(name: String): Builder = maker.make(name)
     }
+}
+
+internal const val INDEX_TOKEN = "__INDEX__"
+
+/** Item header controls shared by [Repeater] and [Builder] items. */
+internal class ItemFlags(
+    val reorder: Boolean,
+    val clone: Boolean,
+    val delete: Boolean,
+    val collapse: Boolean,
+    val collapsed: Boolean,
+)
+
+internal fun itemOpen(css: String, marker: String, index: String, flags: ItemFlags): String {
+    val collapsed = if (flags.collapse && flags.collapsed) """ data-ff-collapsed="true"""" else ""
+    return """<li class="$css" $marker data-ff-index="$index"$collapsed>"""
+}
+
+internal fun itemHead(label: String, flags: ItemFlags): String = buildString {
+    append("""<div class="ff-repeater-item-head">""")
+    if (flags.reorder) {
+        append("""<div class="ff-repeater-item-order">""")
+        append(FormIcons.button("ff-icon-button", "Move up", "data-ff-item-up", FormIcons.ARROW_UP))
+        append(FormIcons.button("ff-icon-button", "Move down", "data-ff-item-down", FormIcons.ARROW_DOWN))
+        append("</div>")
+    }
+    append("""<span class="ff-repeater-label" data-ff-item-label>${esc(label)}</span>""")
+    append("""<div class="ff-repeater-item-actions">""")
+    if (flags.clone) append(FormIcons.button("ff-icon-button", "Clone", "data-ff-item-clone", FormIcons.DUPLICATE))
+    if (flags.delete) append(FormIcons.button("ff-icon-button ff-icon-button-danger", "Delete", "data-ff-item-delete", FormIcons.TRASH))
+    if (flags.collapse) append(FormIcons.button("ff-icon-button ff-item-collapse", "Collapse", "data-ff-item-collapse", FormIcons.CHEVRON_DOWN))
+    append("</div></div>")
+}
+
+internal fun stringKeys(map: Map<*, *>): Map<String, Any?> {
+    val row = LinkedHashMap<String, Any?>()
+    for ((key, cell) in map) {
+        if (key is String) row[key] = cell
+    }
+    return row
 }

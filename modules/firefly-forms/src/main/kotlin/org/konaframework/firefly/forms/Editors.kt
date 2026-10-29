@@ -91,24 +91,12 @@ open class RichEditor protected constructor(name: String) : Field<RichEditor>(na
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val shown = if (value == null) "" else value.toString()
+        val clean = if (jsonFlag) shown else sanitize(shown)
+        val tools = groups.flatten().filter { it !in disabledTools }
         return buildString {
-            append("""<div class="ff-rich" x-data="ffRichEditor" data-ff-path="${esc(path)}" data-ff-editor="tiptap"${boolAttr("data-ff-json", jsonFlag)}${boolAttr("data-ff-resizable", resizableFlag)}${attr("data-ff-disk", attachmentsDisk.get(get))}${attr("data-ff-directory", attachmentsDirectory.get(get))}${attr("data-ff-visibility", attachmentsVisibility.get(get))}${attr("data-ff-merge", if (mergeTags.isEmpty()) null else mergeTags.joinToString(","))}${attr("placeholder", placeholderValue(schema))}${extraInputMarkup(get)}>""")
-            append("""<div class="ff-toolbar ff-toolbar-sticky">""")
-            for (group in groups) {
-                append("""<div class="ff-toolbar-group">""")
-                for (tool in group) {
-                    if (tool in disabledTools) continue
-                    append("""<button type="button" data-ff-tool="${esc(tool)}">${esc(tool)}</button>""")
-                }
-                append("</div>")
-            }
-            append("</div>")
-            append("""<div class="ff-bubble">""")
-            for (tool in BUBBLE) append("""<button type="button" data-ff-tool="${esc(tool)}">${esc(tool)}</button>""")
-            append("</div>")
-            append("""<div class="ff-prose">${if (jsonFlag) esc(shown) else sanitize(shown)}</div>""")
-            append(Dialog.make("Link").body("""<input class="ff-input" data-ff-link-url="true" /><input class="ff-input" data-ff-link-label="true" />""").render())
-            append(Dialog.make("Image").body("""<input class="ff-input" data-ff-image-url="true" /><input class="ff-input" data-ff-image-alt="true" />""").render())
+            append("""<div class="ff-rich shamar-rich-editor shamar-rich-editor--simple" x-data="ffRichEditor" data-ff-rich-editor data-ff-path="${esc(path)}" data-ff-editor="tiptap"${boolAttr("data-ff-json", jsonFlag)}${boolAttr("data-ff-resizable", resizableFlag)}${attr("data-ff-disk", attachmentsDisk.get(get))}${attr("data-ff-directory", attachmentsDirectory.get(get))}${attr("data-ff-visibility", attachmentsVisibility.get(get))}${attr("data-ff-merge", if (mergeTags.isEmpty()) null else mergeTags.joinToString(","))}${attr("data-ff-toolbar", tools.joinToString(","))}${attr("data-ff-disabled-tools", if (disabledTools.isEmpty()) null else disabledTools.joinToString(","))}${attr("placeholder", placeholderValue(schema))}${extraInputMarkup(get)}>""")
+            append("""<input type="hidden" name="${esc(path)}" value="${esc(clean)}" data-ff-rich-value />""")
+            append("""<div class="ff-rich-host" data-ff-rich-host><div class="ff-rich-loading ff-prose">${if (jsonFlag) esc(shown) else clean}</div></div>""")
             for (block in blocks) {
                 append(Dialog.make(block.label).body(block.schema.render()).render())
                 val edit = blockActions[block.name]
@@ -119,7 +107,6 @@ open class RichEditor protected constructor(name: String) : Field<RichEditor>(na
     }
 
     companion object {
-        private val BUBBLE = listOf("bold", "italic", "underline", "strike", "link")
         private val DEFAULT_GROUPS = listOf(
             listOf("undo", "redo"),
             listOf("bold", "italic", "underline", "strike", "subscript", "superscript", "highlight"),
@@ -173,22 +160,58 @@ open class MarkdownEditor protected constructor(name: String) : Field<MarkdownEd
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val shown = if (value == null) "" else value.toString()
         return buildString {
-            append("""<div class="ff-markdown" x-data="ffMarkdown" data-ff-path="${esc(path)}" data-ff-editor="codemirror" data-ff-lang="markdown" data-ff-markdown="gfm"${attr("data-ff-disk", attachmentsDisk.get(get))}${attr("data-ff-directory", attachmentsDirectory.get(get))}>""")
-            append("""<div class="ff-markdown-switch"><button type="button" data-ff-mode="write">Write</button><button type="button" data-ff-mode="preview">Preview</button></div>""")
-            append("""<div class="ff-toolbar">""")
+            append("""<div class="ff-markdown" x-data="ffMarkdown" data-ff-markdown-editor data-ff-path="${esc(path)}" data-ff-editor="codemirror" data-ff-lang="markdown" data-ff-markdown="gfm"${attr("data-ff-disk", attachmentsDisk.get(get))}${attr("data-ff-directory", attachmentsDirectory.get(get))}>""")
+            append("""<div class="ff-markdown-head">""")
+            append("""<div class="ff-markdown-tabs" role="tablist">""")
+            append("""<button type="button" class="ff-markdown-tab" role="tab" aria-selected="true" data-ff-mode="write">Write</button>""")
+            append("""<button type="button" class="ff-markdown-tab" role="tab" aria-selected="false" data-ff-mode="preview">Preview</button>""")
+            append("</div>")
+            append("""<div class="ff-markdown-toolbar" role="toolbar" aria-label="Formatting" data-ff-markdown-toolbar>""")
             for (tool in tools) {
                 if (tool in disabledTools) continue
-                append("""<button type="button" data-ff-tool="${esc(tool)}">${esc(tool)}</button>""")
+                val title = TOOL_TITLES[tool] ?: tool
+                append("""<button type="button" class="ff-markdown-tool" data-ff-tool="${esc(tool)}" aria-label="${esc(title)}" title="${esc(title)}">${esc(TOOL_GLYPHS[tool] ?: tool)}</button>""")
             }
+            append("</div></div>")
+            append("""<div class="ff-markdown-body">""")
+            append("""<textarea class="ff-markdown-input" name="${esc(path)}" rows="8" spellcheck="true" data-ff-write="true"${attr("placeholder", placeholderValue(schema))}${extraInputMarkup(get)}>${esc(shown)}</textarea>""")
+            append("""<div class="ff-markdown-preview" data-ff-markdown-preview hidden>${preview(shown)}</div>""")
             append("</div>")
-            append("""<textarea class="ff-input" data-ff-write="true"${extraInputMarkup(get)}>${esc(shown)}</textarea>""")
-            append(preview(shown))
+            append("""<div class="ff-markdown-foot">Markdown is supported</div>""")
             append("</div>")
         }
     }
 
     companion object {
-        private val DEFAULT_TOOLS = listOf("bold", "italic", "strike", "link", "image", "code", "list", "quote")
+        private val DEFAULT_TOOLS = listOf("heading", "bold", "italic", "strike", "quote", "code", "link", "image", "list", "ordered")
+        private val TOOL_TITLES = mapOf(
+            "heading" to "Heading",
+            "bold" to "Bold",
+            "italic" to "Italic",
+            "strike" to "Strikethrough",
+            "quote" to "Quote",
+            "code" to "Code",
+            "link" to "Link",
+            "image" to "Image",
+            "list" to "Bulleted list",
+            "ordered" to "Numbered list",
+            "task" to "Task list",
+            "table" to "Table",
+        )
+        private val TOOL_GLYPHS = mapOf(
+            "heading" to "H",
+            "bold" to "B",
+            "italic" to "I",
+            "strike" to "S",
+            "quote" to "❝",
+            "code" to "</>",
+            "link" to "🔗",
+            "image" to "▣",
+            "list" to "•",
+            "ordered" to "1.",
+            "task" to "☑",
+            "table" to "▦",
+        )
         private val maker = Maker { name -> MarkdownEditor(name) }
 
         @JvmStatic
@@ -218,7 +241,14 @@ open class CodeEditor protected constructor(name: String) : Field<CodeEditor>(na
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
         val shown = if (value == null) "" else value.toString()
-        return """<div class="ff-code" x-data="ffCodeEditor" data-ff-path="${esc(path)}" data-ff-editor="codemirror" data-ff-highlighter="shiki"${attr("data-ff-language", languageName)}${boolAttr("data-ff-wrap", wrapFlag)}><textarea class="ff-input"${extraInputMarkup(get)}>${esc(shown)}</textarea></div>"""
+        return buildString {
+            append("""<div class="ff-code-editor" x-data="ffCodeEditor" data-ff-code-editor data-ff-path="${esc(path)}" data-ff-editor="codemirror" data-ff-highlighter="shiki"${attr("data-ff-language", languageName)}${boolAttr("data-ff-wrap", wrapFlag)}>""")
+            append("""<div class="ff-code-editor-head"><span class="ff-code-editor-lang">${esc(languageName)}</span></div>""")
+            append("""<div class="ff-code-editor-body">""")
+            append("""<pre class="ff-code-editor-highlight" aria-hidden="true" data-ff-code-highlight><code>${esc(shown)}</code></pre>""")
+            append("""<textarea class="ff-code-editor-input" name="${esc(path)}" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="${if (wrapFlag) "soft" else "off"}" data-ff-code-input${attr("placeholder", placeholderValue(schema))}${extraInputMarkup(get)}>${esc(shown)}</textarea>""")
+            append("</div></div>")
+        }
     }
 
     companion object {

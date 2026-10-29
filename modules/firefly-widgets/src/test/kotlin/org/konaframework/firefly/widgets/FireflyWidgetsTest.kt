@@ -54,6 +54,8 @@ class FireflyWidgetsTest {
     fun formWrapsHiddenRecordIdForEditPosts() {
         val page = Page().form(Schema.make().components(Text.make("Hello")))
         org.junit.jupiter.api.Assertions.assertNull(page.mountedTable())
+        org.junit.jupiter.api.Assertions.assertNotNull(page.mountedForm())
+        org.junit.jupiter.api.Assertions.assertNull(Page().mountedForm())
         val listed = org.konaframework.firefly.tables.Table.memory(mapOf("id" to "1"))
         org.junit.jupiter.api.Assertions.assertSame(listed, Page().table(listed).mountedTable())
         val edit = page.render(
