@@ -1,0 +1,640 @@
+---
+title: Relation managers
+description: Manage a record's related rows from its edit and view pages. Create, edit, delete, associate, dissociate, attach with pivot data, detach, restore, and force delete — all scoped to the owner record through its Cadence relationship.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A relation manager is a table of related records that sits under a full resource's edit and view pages. Open a project, and its tasks are listed right below the project form. You can add a task, edit one in a dialog, move an existing task onto this project, or remove it — without leaving the page.
+
+The manager is driven by a real Cadence relationship on the owner model. The table only ever shows the owner's rows, and every change goes through a panel `POST` route that checks the CSRF token, the tenant, and your authorization rules before it touches the database.
+
+This page starts with the smallest manager and adds one capability at a time. Relation manager classes live in `org.konaframework.firefly` (`kona-firefly`).
+
+## Before you start
+
+You need three things:
+
+1. A **full** resource (list, create, edit, view). Simple resources keep everything in one dialog and do not mount relation managers.
+2. A Cadence **owner model** with a relationship method, for example `Project.tasks()`.
+3. A Cadence **related model**, for example `Task`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Project : Cadence<Project>() {
+    override val table = "projects"
+
+    fun tasks(): HasMany<Task> = hasMany(Task::class.java)
+}
+
+class Task : Cadence<Task>() {
+    override val table = "tasks"
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Project extends Cadence<Project> {
+    @Override
+    public String getTable() { return "projects"; }
+
+    public HasMany<Task> tasks() { return hasMany(Task.class); }
+}
+
+public class Task extends Cadence<Task> {
+    @Override
+    public String getTable() { return "tasks"; }
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Your first relation manager
+
+Generate one with grind. Pass the resource, the relationship method name, and the column that names a related record:
+
+```bash
+./grind make:firefly-relation-manager ProjectResource tasks title
+```
+
+That writes `app/panels/admin/resources/project/relations/TasksRelationManager.kt` (or `.java` in a Java app):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.panels.admin.resources.project.relations
+
+import org.konaframework.firefly.RelationAction
+import org.konaframework.firefly.RelationBulkAction
+import org.konaframework.firefly.RelationManager
+import org.konaframework.firefly.forms.TextInput
+import org.konaframework.firefly.tables.BulkActionGroup
+import org.konaframework.firefly.tables.TextColumn
+
+class TasksRelationManager : RelationManager("tasks") {
+    init {
+        recordTitleAttribute("title")
+        form { schema -> schema.components(TextInput.make("title").required()) }
+        table { table -> table.columns(TextColumn.make("title").searchable().sortable()) }
+        headerActions(RelationAction.create())
+        actions(RelationAction.view(), RelationAction.edit(), RelationAction.delete())
+        bulkActions(BulkActionGroup.make(RelationBulkAction.delete()))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.panels.admin.resources.project.relations;
+
+import org.konaframework.firefly.RelationAction;
+import org.konaframework.firefly.RelationBulkAction;
+import org.konaframework.firefly.RelationManager;
+import org.konaframework.firefly.forms.TextInput;
+import org.konaframework.firefly.tables.BulkActionGroup;
+import org.konaframework.firefly.tables.TextColumn;
+
+public class TasksRelationManager extends RelationManager {
+    public TasksRelationManager() {
+        super("tasks");
+        recordTitleAttribute("title");
+        form(schema -> schema.components(TextInput.make("title").required()));
+        table(table -> table.columns(TextColumn.make("title").searchable().sortable()));
+        headerActions(RelationAction.create());
+        actions(RelationAction.view(), RelationAction.edit(), RelationAction.delete());
+        bulkActions(BulkActionGroup.make(RelationBulkAction.delete()));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Then return it from the resource's `getRelations()`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class ProjectResource : Resource("projects") {
+    init {
+        model(Project::class.java)
+    }
+
+    override fun getRelations(): List<RelationManager> = listOf(TasksRelationManager())
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class ProjectResource extends Resource {
+    public ProjectResource() {
+        super("projects");
+        model(Project.class);
+    }
+
+    @Override
+    public List<RelationManager> getRelations() {
+        return List.of(new TasksRelationManager());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Open `/admin/projects/edit?id=1`. Under the project form you now see a **Tasks** section with a **New task** button, a searchable table of that project's tasks, View / Edit / Delete on each row, and a bulk **Delete selected** menu.
+
+### What each piece means
+
+- `RelationManager("tasks")` names the relationship method. Firefly calls `project.tasks()` to find the related model (`Task`) and to scope the query, so you never pass `Task::class.java` yourself.
+- `recordTitleAttribute("title")` is the column used when a single task is named: in dialog headings, in the associate/attach picker, and as the default table column.
+- `form { … }` is the schema for the create and edit dialogs. `table { … }` receives a table already bound to `Task` and scoped to the owner; add columns, filters, and sorting as you would on any [table](/docs/firefly/tables/).
+- `headerActions`, `actions`, and `bulkActions` are the buttons above the table, on each row, and in the bulk menu.
+
+Every one of these is optional. A bare `RelationManager("tasks")` already lists the owner's tasks in an `id` column (the default record title attribute) with the default actions for its relationship type (see [Default actions](#default-actions)). Bulk actions you configure inside `table { … }` are used when you do not call `bulkActions(...)`.
+
+### Inline managers
+
+For small managers you can skip the class and configure one inline:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun getRelations(): List<RelationManager> = listOf(
+    RelationManager("tasks")
+        .recordTitleAttribute("title")
+        .form { schema -> schema.components(TextInput.make("title").required()) },
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override
+public List<RelationManager> getRelations() {
+    return List.of(
+        new RelationManager("tasks")
+            .recordTitleAttribute("title")
+            .form(schema -> schema.components(TextInput.make("title").required()))
+    );
+}
+```
+
+</TabItem>
+</Tabs>
+
+## How it works
+
+When an edit or view page renders, Firefly:
+
+1. Loads the owner record from `?id=` (inside the current tenant, when the panel has tenancy).
+2. Asks the owner for the relationship and builds a `ModelBuilder` for the related model, constrained to the owner's rows. For a has-many that is `tasks.project_id = ?`; for a many-to-many it joins through the pivot table; morph relations also match the type column.
+3. Renders the table with the related rows, and the header, row, and bulk actions you allowed.
+
+Every action posts to one route per operation:
+
+| Route | Does |
+| --- | --- |
+| `POST /{panel}/{resource}/relations/create` | Create a related record (and attach it, for many-to-many) |
+| `POST …/relations/edit` | Save a related record (and its pivot fields) |
+| `POST …/relations/delete` | Delete a related record |
+| `POST …/relations/associate` / `dissociate` | Set / clear the foreign key on an existing record |
+| `POST …/relations/attach` / `detach` | Add / remove pivot rows |
+| `POST …/relations/restore` / `force-delete` | Soft delete recovery and permanent delete |
+| `POST …/relations/bulk` | Run a bulk action on the selected rows |
+| `GET …/relations/options` | Search the associate / attach picker (`q=`), returns JSON |
+
+Each request carries `relation`, `owner`, and `page` in the query string. Firefly re-checks the owner, the tenant, read-only mode, and every authorization rule on the server, so hiding a button is never the only line of defence. On success you land back on the same page with the same manager tab open and a success notification. A validation failure comes back as a danger notification with the messages. A denied action answers `403`, and a missing owner or record answers `404`.
+
+## Default actions
+
+If you do not call `headerActions`, `actions`, or `bulkActions`, the manager picks defaults from the relationship type:
+
+| Relationship | Header | Row | Bulk |
+| --- | --- | --- | --- |
+| `HasMany`, `MorphMany` | Create, Associate | View, Edit, Dissociate, Delete | Dissociate, Delete |
+| `BelongsToMany`, `MorphToMany` | Create, Attach | View, Edit, Detach, Delete | Detach, Delete |
+| `HasManyThrough` | — | View, Edit, Delete | Delete |
+
+When the related model uses `SoftDeletes`, the defaults also add **Restore** and **Force delete** rows and bulk actions, and the table gets a trashed filter.
+
+Calling any of the three methods replaces that list only. So `headerActions(RelationAction.create())` removes **Associate** from the header but keeps the default row and bulk actions.
+
+## Creating and editing
+
+`RelationAction.create()` opens a dialog with the manager form. On submit, Firefly validates the fields, saves a new related record through the relationship (the foreign key and morph type are filled for you), and refreshes the table. `RelationAction.edit()` opens the same form filled with the row.
+
+Each action can change its own wording and data:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+headerActions(
+    RelationAction.create()
+        .label("Add task")
+        .modalHeading("Add a task to this project")
+        .modalDescription("The task is assigned to this project right away.")
+        .modalSubmitActionLabel("Add")
+        .successNotificationTitle("Task added")
+        .mutateFormDataUsing { data -> data + ("status" to "open") }
+        .slideOver(),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+headerActions(
+    RelationAction.create()
+        .label("Add task")
+        .modalHeading("Add a task to this project")
+        .modalDescription("The task is assigned to this project right away.")
+        .modalSubmitActionLabel("Add")
+        .successNotificationTitle("Task added")
+        .mutateFormDataUsing(data -> {
+            var copy = new java.util.HashMap<>(data);
+            copy.put("status", "open");
+            return copy;
+        })
+        .slideOver()
+);
+```
+
+</TabItem>
+</Tabs>
+
+`form { … }` on an action replaces the manager form for that action only. `before { context -> … }` and `after { context -> … }` run around the save.
+
+### Viewing with an infolist
+
+`RelationAction.view()` shows the record read-only. By default it renders the manager form's fields as text entries. Give the manager an infolist to control that view:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+infolist { schema ->
+    schema.components(
+        TextEntry.make("title"),
+        TextEntry.make("due_on").date(),
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+infolist(schema -> schema.components(
+    TextEntry.make("title"),
+    TextEntry.make("due_on").date()
+));
+```
+
+</TabItem>
+</Tabs>
+
+## Has-many: associate and dissociate
+
+A has-many relationship stores the owner key on the related row (`tasks.project_id`). **Associate** picks an existing task and sets its `project_id` to this project. **Dissociate** clears `project_id` but keeps the task. The foreign key column must be nullable for dissociate to work.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+headerActions(
+    RelationAction.create(),
+    RelationAction.associate()
+        .multiple()
+        .recordSelectSearchColumns("title", "code")
+        .recordSelectOptionsQuery { query, _ -> (query as ModelBuilder<*>).whereNull("project_id") },
+)
+actions(RelationAction.edit(), RelationAction.dissociate(), RelationAction.delete())
+bulkActions(BulkActionGroup.make(DissociateBulkAction.make(), RelationBulkAction.delete()))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+headerActions(
+    RelationAction.create(),
+    RelationAction.associate()
+        .multiple()
+        .recordSelectSearchColumns("title", "code")
+        .recordSelectOptionsQuery((query, context) -> ((ModelBuilder<?>) query).whereNull("project_id"))
+);
+actions(RelationAction.edit(), RelationAction.dissociate(), RelationAction.delete());
+bulkActions(BulkActionGroup.make(DissociateBulkAction.make(), RelationBulkAction.delete()));
+```
+
+</TabItem>
+</Tabs>
+
+The picker searches the record title attribute plus any `recordSelectSearchColumns`, and leaves out rows already on this owner. It preloads the first 50 options; change that with `recordSelectOptionsLimit(n)`, or call `preloadRecordSelect(false)` to wait until the user types. `multiple()` lets one submit associate several records.
+
+Generate this shape with `--associate`:
+
+```bash
+./grind make:firefly-relation-manager ProjectResource tasks title --associate
+```
+
+## Many-to-many: attach, detach, and pivot data
+
+A many-to-many relationship links rows through a pivot table (`project_user`). **Attach** adds a pivot row for an existing user; **Detach** removes the pivot row and keeps the user.
+
+Declare the pivot columns you want to read and write with `pivotColumns(...)`. They show up as ordinary table columns, and fields with the same names in the attach form and the edit form are saved to the pivot instead of the related record:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class MembersRelationManager : RelationManager("members") {
+    init {
+        recordTitleAttribute("name")
+        pivotColumns("role")
+        form { schema -> schema.components(TextInput.make("name").required(), TextInput.make("role")) }
+        table { table -> table.columns(TextColumn.make("name").searchable(), TextColumn.make("role")) }
+        headerActions(
+            RelationAction.attach()
+                .multiple()
+                .form { schema -> schema.components(TextInput.make("role").required()) },
+        )
+        actions(RelationAction.edit(), RelationAction.detach())
+        bulkActions(BulkActionGroup.make(DetachBulkAction.make()))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class MembersRelationManager extends RelationManager {
+    public MembersRelationManager() {
+        super("members");
+        recordTitleAttribute("name");
+        pivotColumns("role");
+        form(schema -> schema.components(TextInput.make("name").required(), TextInput.make("role")));
+        table(table -> table.columns(TextColumn.make("name").searchable(), TextColumn.make("role")));
+        headerActions(
+            RelationAction.attach()
+                .multiple()
+                .form(schema -> schema.components(TextInput.make("role").required()))
+        );
+        actions(RelationAction.edit(), RelationAction.detach());
+        bulkActions(BulkActionGroup.make(DetachBulkAction.make()));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+The attach picker leaves out users already attached. Call `allowDuplicates()` on the attach action when the same record may be attached more than once. **Create** on a many-to-many manager saves a new user and attaches it in one step, writing any pivot fields from the form.
+
+Generate this shape with `--attach`:
+
+```bash
+./grind make:firefly-relation-manager ProjectResource members name --attach
+```
+
+## Deleting and soft deletes
+
+**Delete** removes the related record. On a many-to-many manager, the pivot row is removed first. When the related model uses `SoftDeletes`, delete only sets `deleted_at` (and the pivot row stays, so restoring brings the link back).
+
+With soft deletes, the manager:
+
+- adds a trashed filter (without, with, or only trashed records),
+- shows **Restore** and **Force delete** on trashed rows only,
+- adds `RestoreBulkAction` and `ForceDeleteBulkAction` to the bulk menu.
+
+The trashed filter is added even when you configure the table yourself (unless it already has one). Restore and force delete actions are only defaults, so if you write your own action lists, include them yourself:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+table { table -> table.columns(TextColumn.make("title")) }
+actions(RelationAction.edit(), RelationAction.delete(), RelationAction.restore(), RelationAction.forceDelete())
+bulkActions(
+    BulkActionGroup.make(RelationBulkAction.delete(), RestoreBulkAction.make(), ForceDeleteBulkAction.make()),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table(table -> table.columns(TextColumn.make("title")));
+actions(RelationAction.edit(), RelationAction.delete(), RelationAction.restore(), RelationAction.forceDelete());
+bulkActions(BulkActionGroup.make(RelationBulkAction.delete(), RestoreBulkAction.make(), ForceDeleteBulkAction.make()));
+```
+
+</TabItem>
+</Tabs>
+
+`--soft-deletes` on the generator writes these lists and an explicit `filters(TrashedFilter.make())`. Flags combine: `--associate --soft-deletes` or `--attach --soft-deletes`.
+
+## Bulk actions
+
+Relation bulk actions are ordinary [table bulk actions](/docs/firefly/tables/#bulk-actions): selection checkboxes, select all across pages, confirmation, and a summary notification. They only act on rows that belong to the owner. A row that has disappeared, that you are not allowed to touch, or that is not trashed (for restore) is counted as failed and named in the notification.
+
+| Bulk action | Does |
+| --- | --- |
+| `RelationBulkAction.delete()` | Delete (or soft delete) the selected rows |
+| `DissociateBulkAction.make()` | Clear the foreign key (has-many) |
+| `DetachBulkAction.make()` | Remove pivot rows (many-to-many) |
+| `RestoreBulkAction.make()` | Restore trashed rows |
+| `ForceDeleteBulkAction.make()` | Permanently delete |
+
+You can mix them with your own `BulkAction`s and groups. A relation bulk action that does not fit the relationship (detach on a has-many) is hidden.
+
+## Titles, labels, and badges
+
+The section heading defaults to the relationship name in words (`teamTasks` → **Team tasks**). The model label used in buttons and headings is the singular (`New team task`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RelationManager("tasks")
+    .title("Work items")
+    .modelLabel("work item")
+    .pluralModelLabel("work items")
+    .recordTitle { record -> "#${(record as Task).getAttribute("code")}" }
+    .badge { context -> (context.owner as Project).tasks().get().size.toString() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new RelationManager("tasks")
+    .title("Work items")
+    .modelLabel("work item")
+    .pluralModelLabel("work items")
+    .recordTitle(record -> "#" + ((Task) record).getAttribute("code"))
+    .badge(context -> String.valueOf(((Project) context.getOwner()).tasks().get().size()));
+```
+
+</TabItem>
+</Tabs>
+
+`recordTitle` overrides `recordTitleAttribute` wherever one record is named. `badge` shows a count or short label beside the heading and on the tab. `inverseRelationship("project")` records the relationship back to the owner for your own code to read.
+
+## Narrowing the query
+
+`modifyQueryUsing` receives the owner-scoped `ModelBuilder` before the table runs. Add conditions, eager loads, or ordering; the owner constraint always stays:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RelationManager("tasks").modifyQueryUsing { query, _ ->
+    (query as ModelBuilder<*>).where("status", "<>", "archived").orderBy("due_on")
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new RelationManager("tasks").modifyQueryUsing((query, context) ->
+    ((ModelBuilder<?>) query).where("status", "<>", "archived").orderBy("due_on"));
+```
+
+</TabItem>
+</Tabs>
+
+The same narrowing applies on every `POST`: a record outside the modified query answers `404`.
+
+## Read-only on view pages
+
+On a view page, a manager is read-only by default: only **View** shows, and there is no bulk menu. Every mutating route answers `403` when posted from a read-only page. Opt in to editing from the view page with `readOnly(false)`, or force read-only everywhere with `readOnly(true)`.
+
+## Authorization
+
+Gate each operation with a predicate. Row operations receive the row as `context.record`; header operations receive `null`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RelationManager("tasks")
+    .canCreate { context -> currentUser().isManager() }
+    .canEdit { context -> context.get("status") != "done" }
+    .canDelete { _ -> false }
+    .canViewForRecord { context -> (context.owner as Project).getAttribute("archived") != true }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new RelationManager("tasks")
+    .canCreate(context -> currentUser().isManager())
+    .canEdit(context -> !"done".equals(context.get("status")))
+    .canDelete(context -> false)
+    .canViewForRecord(context -> !Boolean.TRUE.equals(((Project) context.getOwner()).getAttribute("archived")));
+```
+
+</TabItem>
+</Tabs>
+
+There is a `can…` method for every operation: `canView`, `canCreate`, `canEdit`, `canDelete`, `canAssociate`, `canDissociate`, `canAttach`, `canDetach`, `canRestore`, `canForceDelete`, or `can(RelationOperation.X, predicate)`. `canViewForRecord` hides the whole manager for an owner. On an action, `authorize { … }` adds a further check, while `hidden { … }` and `visible { … }` only change what is shown. Denied operations hide their buttons and answer `403` on `POST`.
+
+## Several managers
+
+Return more than one manager and they render as tabs under the form, each with its own badge. The open tab is kept in the URL (`&relation=members`), so redirects after an action and shared links come back to the same tab.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+override fun getRelations(): List<RelationManager> = listOf(
+    TasksRelationManager(),
+    MembersRelationManager(),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Override
+public List<RelationManager> getRelations() {
+    return List.of(new TasksRelationManager(), new MembersRelationManager());
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Supported relationships
+
+| Cadence relationship | List | Create | Edit / delete | Associate / dissociate | Attach / detach |
+| --- | --- | --- | --- | --- | --- |
+| `HasMany` | yes | yes | yes | yes | — |
+| `MorphMany` | yes | yes | yes | yes | — |
+| `BelongsToMany` | yes | yes (attaches) | yes (with pivot) | — | yes |
+| `MorphToMany` | yes | yes (attaches) | yes (with pivot) | — | yes |
+| `HasManyThrough` | yes | — | yes | — | — |
+
+Any other relationship type, or a manager table built with `Table.memory`, fails when the page renders with a message naming the relationship. A relation manager always works on the related Cadence model.
+
+## Generator reference
+
+```bash
+./grind make:firefly-relation-manager <Resource> <relationship> <titleAttribute> \
+    [--associate] [--attach] [--soft-deletes] [--panel=admin] [--lang=kotlin|java]
+```
+
+| Option | Adds |
+| --- | --- |
+| `--associate` | Associate header action, Dissociate row and bulk actions |
+| `--attach` | Attach header action, Detach row and bulk actions |
+| `--soft-deletes` | Trashed filter, Restore and Force delete row and bulk actions |
+| `--panel=` | Writes under `app/panels/{panel}/resources/{model}/relations/` |
+| `--lang=` | Kotlin or Java source (defaults to the app's language) |
+
+The generator refuses to overwrite an existing file.
+
+## API reference
+
+| `RelationManager` | Purpose |
+| --- | --- |
+| `RelationManager(name)` | Relationship method on the owner model |
+| `recordTitleAttribute(column)` / `recordTitle { record -> … }` | How one related record is named |
+| `title`, `modelLabel`, `pluralModelLabel`, `badge` | Heading, button wording, and tab badge |
+| `form`, `infolist`, `table` | Schemas and table, each as a value or a builder function |
+| `headerActions`, `actions`, `bulkActions` | Replace the default action lists |
+| `pivotColumns(...)` | Pivot fields shown and saved on many-to-many managers |
+| `modifyQueryUsing { query, context -> … }` | Narrow the owner-scoped `ModelBuilder` |
+| `readOnly(Boolean)` | Override the view-page default |
+| `can…`, `canViewForRecord` | Authorization |
+| `inverseRelationship(name)` | The relationship back to the owner |
+
+| `RelationAction` factory | Operation |
+| --- | --- |
+| `create()`, `view()`, `edit()`, `delete()` | Related record CRUD |
+| `associate()`, `dissociate()` | Has-many foreign key |
+| `attach()`, `detach()` | Many-to-many pivot |
+| `restore()`, `forceDelete()` | Soft deletes |
+
+`RelationAction` options: `label`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `successNotificationTitle`, `hidden`, `visible`, `authorize`, `form`, `mutateFormDataUsing`, `before`, `after`, `slideOver`, and for associate / attach `multiple`, `preloadRecordSelect`, `recordSelectOptionsLimit`, `recordSelectOptionsQuery`, `recordSelectSearchColumns`, `allowDuplicates`.

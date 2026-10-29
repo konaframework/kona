@@ -33,6 +33,26 @@ M34 notifications and widgets are done. M35 panel, auth, navigation, and pages a
 | RES-3 | Simple resource: one Manage page; create, edit, view, and delete run in the existing Dialog | M36 | done |
 | RES-4 | A resource is not done if the form, infolist, table, and actions exist only as separate samples | M36 | done |
 
+### Relation managers (#390)
+
+| ID | Filament surface | Firefly | Status |
+|----|------------------|---------|--------|
+| REL-1 | Owner-scoped relationship query | `RelationBinding` scopes `HasMany`, `MorphMany`, `BelongsToMany`, `MorphToMany`, `HasManyThrough` on `ModelBuilder`; memory tables rejected | done (#390) |
+| REL-2 | Create / view / edit / delete modals | `RelationAction.create/view/edit/delete` dialogs posting to `{panel}/{resource}/relations/{op}`; create on many-to-many attaches | done (#390) |
+| REL-3 | Associate / dissociate | `RelationAction.associate/dissociate`, `DissociateBulkAction`; picker via `relations/options` (search, `multiple`, `preloadRecordSelect`, `recordSelectOptionsLimit`, `recordSelectOptionsQuery`, `recordSelectSearchColumns`) | done (#390) |
+| REL-4 | Attach / detach with pivot | `RelationAction.attach/detach`, `DetachBulkAction`, `pivotColumns`, pivot fields on attach and edit, `allowDuplicates` | done (#390) |
+| REL-5 | Header, row, bulk actions | `headerActions`, `actions`, `bulkActions` reuse `TableButton` / `BulkAction` / filters / layouts; defaults per relationship type | done (#390) |
+| REL-6 | Form and infolist | `form(Schema \| Function)`, `infolist(Schema \| Function)`; per-action `form`, `mutateFormDataUsing`, `before`/`after`, labels, modal heading/description/submit, `slideOver` | done (#390) |
+| REL-7 | Multiple managers | Tabs with badges; active tab in `?relation=` | done (#390) |
+| REL-8 | Read-only on view page | Default read-only on `ViewPage`; `readOnly(Boolean)`; mutating routes answer 403 | done (#390) |
+| REL-9 | Soft deletes | Auto `TrashedFilter`, `RelationAction.restore/forceDelete`, `RestoreBulkAction`, `ForceDeleteBulkAction` | done (#390) |
+| REL-10 | Query and titles | `modifyQueryUsing`, `recordTitleAttribute`, `recordTitle`, `title`, `modelLabel`, `pluralModelLabel`, `badge`, `inverseRelationship` (stored) | done (#390) |
+| REL-11 | Authorization | `can{View,Create,Edit,Delete,Associate,Dissociate,Attach,Detach,Restore,ForceDelete}`, `canViewForRecord`, action `authorize`/`hidden`/`visible`; re-checked on POST | done (#390) |
+| REL-12 | Generator | `make:firefly-relation-manager {resource} {relationship} {title} --attach --associate --soft-deletes` (Kotlin and Java) | done (#390) |
+| REL-13 | Modal UX: inline field errors on reopen, create another, custom `recordSelect` | — | deferred (#391) |
+| REL-14 | `RelationGroup`, combined tabs with content, lazy tabs | — | deferred (#392) |
+| REL-15 | Inverse relationship scoping, reorderable relation tables | — | deferred (#393) |
+
 ## M28 — support (`kona-firefly-support`)
 
 | ID | Filament surface | Firefly | Status |

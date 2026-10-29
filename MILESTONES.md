@@ -1284,7 +1284,7 @@ Artifact: `kona-firefly`. M35 is on `main`. Includes `--simple` resources and th
 
 - [x] List, create, edit, view, and manage pages are the resource's pages
 - [x] The resource form schema, infolist, table, and actions are reachable from those pages
-- [x] Relation managers on a full resource
+- [x] Relation managers on a full resource: owner-scoped Cadence query, create / view / edit / delete, associate / dissociate, attach / detach with pivot, soft deletes, defaults per relationship type, read-only view pages, authorization, tabs, and `make:firefly-relation-manager` (#390; follow-ups #391, #392, #393)
 - [x] The model type selects the query (`ModelBuilder` for a Cadence model; the document addon later for a document model)
 - [x] A simple resource uses one Manage page whose create, edit, view, and delete run in the existing Dialog
 - [x] `make:firefly-resource` and `--simple`, with Kotlin and Java samples that open the resource pages
