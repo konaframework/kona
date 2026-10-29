@@ -238,6 +238,11 @@ class FireflySupportTest {
         assertTrue(css.contains("overflow-wrap: anywhere"))
         assertTrue(css.contains("word-break: break-word"))
         assertTrue(css.contains(""".ff-panel .ff-entry[data-ff-wrap="false"]""") || css.contains("data-ff-wrap=\"false\""))
+        // View/manage dialogs live under .ff-row-actions-inner { white-space: nowrap } — reset (#370).
+        assertTrue(css.contains(".ff-panel .ff-row-actions .ff-table-button-dialog") || css.contains(".ff-row-actions .ff-dialog"))
+        val dialogReset = css.indexOf("Dialogs/infolists mount inside .ff-row-actions")
+        assertTrue(dialogReset >= 0, "missing dialog inherit reset block")
+        assertTrue(css.substring(dialogReset, dialogReset + 500).contains("white-space: normal"))
         assertTrue(css.contains(".ff-picker-ok") && css.contains("margin-left: auto"))
         assertTrue(css.contains(".ff-panel .ff-combobox-panel"))
         assertTrue(css.contains(".ff-panel .ff-combobox.ff-combobox-open"))

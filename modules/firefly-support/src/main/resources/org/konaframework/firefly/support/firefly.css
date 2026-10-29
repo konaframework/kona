@@ -2272,7 +2272,8 @@ body.ff-body-root {
   text-align: right;
 }
 
-/* Dialogs/infolists mount inside .ff-row-actions — do not inherit end-align (#309). */
+/* Dialogs/infolists mount inside .ff-row-actions — do not inherit end-align (#309)
+ * or the Actions cell's white-space: nowrap (#370), which otherwise clips long entry text. */
 .ff-panel .ff-row-actions .ff-action-dialog,
 .ff-panel .ff-row-actions .ff-table-button-dialog,
 .ff-panel .ff-row-actions .ff-dialog,
@@ -2280,6 +2281,7 @@ body.ff-body-root {
 .ff-panel .ff-action-schema,
 .ff-panel .ff-infolist {
   text-align: start;
+  white-space: normal;
 }
 
 .ff-panel .ff-table th[data-ff-align="end"] .ff-table-sort {
@@ -2569,8 +2571,9 @@ body.ff-body-root {
   font-size: 0.95rem;
   font-weight: 500;
   line-height: 1.4;
-  /* Values justify by default; long tokens wrap inside modals/containers (#368). */
+  /* Values justify by default; long tokens wrap inside modals/containers (#368 / #370). */
   text-align: justify;
+  white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
   max-width: 100%;
@@ -2746,7 +2749,8 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-schema[data-ff-columns] > .ff-component,
-.ff-panel .ff-component[data-ff-columns] > .ff-component {
+.ff-panel .ff-component[data-ff-columns] > .ff-component,
+.ff-panel .ff-section[data-ff-columns] .ff-section-body > .ff-component {
   min-width: 0;
   max-width: 100%;
 }
