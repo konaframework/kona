@@ -309,6 +309,9 @@ class FireflyWidgetsTest {
         )
         assertFalse(blankAction.contains(" action="))
         assertTrue(Page().infolistHtml("<p>InfoBody</p>").render().contains("InfoBody"))
+        val related = Page().infolistHtml("<p>Info</p>").relationsHtml("""<section class="ff-relation">Rel</section>""").render()
+        assertTrue(related.contains("""<p>Info</p></div><section class="ff-relation">Rel</section>""") || related.indexOf("Rel") > related.indexOf("Info"), related)
+        assertFalse(related.contains("""<div class="ff-infolist"><section class="ff-relation">"""))
         assertTrue(Page().infolistHtml("<p>InfoBody</p>").render().contains("ff-infolist"))
         assertTrue(Page().infolistHtml("""<div class="ff-infolist"><p>Already</p></div>""").render().contains("Already"))
         // Relation-only markup (edit page) must not nest inside an .ff-infolist card (#271).

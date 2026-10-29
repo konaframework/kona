@@ -502,6 +502,10 @@ class FireflySupportTest {
         assertTrue(html.contains("filterCombobox"))
         assertTrue(html.contains("remoteFilterCombobox"))
         assertTrue(html.contains("formOptionsUrl"))
+        // Relation pickers search their own endpoint; relation tabs switch panels in place.
+        assertTrue(html.contains("data-ff-search-url"))
+        assertTrue(html.contains("[data-ff-relation-tab]"))
+        assertTrue(html.contains("searchParams.set('relation'"))
         assertTrue(html.contains("setComboboxValue"))
         assertTrue(html.contains("renderComboboxChips"))
         assertTrue(html.contains("data-ff-combobox-remove"))

@@ -64,8 +64,21 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     private var createAction: Action? = null
     private var editForm: Schema? = null
     private var createUsing: Function<Map<String, Any?>, String>? = null
+    private var searchUrlText: String? = null
 
     fun options(map: Map<String, String>): Select = apply { options.set(map) }
+
+    /**
+     * Remote search endpoint for typed queries (`q=<term>` is appended). It returns the same JSON
+     * list as the resource `form-options` route: `[{"value", "label", "enabled"}]`.
+     */
+    fun searchUrl(url: String): Select = apply {
+        if (url.isBlank()) throw FireflyException("Select search url is blank")
+        searchUrlText = url
+        searchableFlag = true
+    }
+
+    fun searchUrl(): String? = searchUrlText
 
     fun options(provider: Function<Get, Map<String, String>>): Select = apply { options.set(provider) }
 
@@ -334,7 +347,7 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
             // Picker-shaped shell: display + hidden value + panel. Chrome.js opens/filters/selects
             // without Alpine so manage Create/Edit dialogs work (#338).
             append(
-                """<div class="ff-combobox" data-ff-combobox x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-options-limit", limitAttr)}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}${attr("data-ff-state", stored.ifBlank { null })}>""",
+                """<div class="ff-combobox" data-ff-combobox x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-options-limit", limitAttr)}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}${attr("data-ff-search-url", searchUrlText)}${attr("data-ff-state", stored.ifBlank { null })}>""",
             )
             append("""<div class="ff-combobox-field" data-ff-combobox-open>""")
             if (multipleFlag) {

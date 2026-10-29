@@ -206,6 +206,9 @@ class FireflyResourceTest {
     @Test
     fun fullResourcePagesExposeFormInfolistTableActionsAndRelations() {
         database()
+        val owner = Shelf().fill(mapOf("name" to "Owner"))
+        owner.save()
+        val ownerId = owner.getKey().toString()
         val orders = orders()
         assertFalse(orders.isSimple())
         val pages = orders.pages()
@@ -214,8 +217,8 @@ class FireflyResourceTest {
         Panel().path("admin").authenticate(false).resource(orders).resource(notes()).mount(router)
         val list = send(router, "/admin/orders/list")
         val create = send(router, "/admin/orders/create")
-        val edit = send(router, "/admin/orders/edit")
-        val view = send(router, "/admin/orders/view")
+        val edit = send(router, "/admin/orders/edit?id=$ownerId")
+        val view = send(router, "/admin/orders/view?id=$ownerId")
         val manage = send(router, "/admin/notes/manage")
         // Simple resource manage dialogs POST to create/edit store routes (no CreatePage/EditPage GET).
         assertNotNull(router.find("POST", "/admin/notes/create"))
@@ -576,7 +579,8 @@ class FireflyResourceTest {
         assertTrue(editHtml.contains("ff-breadcrumbs"))
         assertTrue(editHtml.contains("""href="/admin""""))
         assertTrue(editHtml.contains("""href="/admin/orders/list""""))
-        assertTrue(editHtml.contains("ff-relation"))
+        // No saved owner record: nothing to relate, so no manager renders.
+        assertFalse(editHtml.contains("data-ff-relation="))
         assertThrows<FireflyException> {
             object : Resource("notes") {
                 override fun getRelations(): List<RelationManager> = listOf(RelationManager("lines"))
@@ -1127,10 +1131,11 @@ private class OrdersResource : Resource("orders") {
         model { Shelf::class.java }
         relation(
             RelationManager("lines")
-                .related(Shelf::class.java)
+                .related(ShelfLine::class.java)
                 .titleAttribute("sku")
                 .extraAttributes(mapOf("data-ff-tone" to "info"))
-                .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
+                .form(Schema.make().components(TextInput.make("sku").required()))
+                .table { table -> table.columns(TextColumn.make("sku")) },
         )
     }
 
@@ -1176,6 +1181,14 @@ class Shelf : Cadence<Shelf>() {
     override val table = "ff_shelves"
     override val timestamps = false
     override val fillable = setOf("name")
+
+    fun lines() = hasMany(ShelfLine::class.java, "shelf_id")
+}
+
+class ShelfLine : Cadence<ShelfLine>() {
+    override val table = "ff_shelf_lines"
+    override val timestamps = false
+    override val fillable = setOf("shelf_id", "sku")
 }
 
 class ProjectShelf : Cadence<ProjectShelf>() {
@@ -1198,6 +1211,9 @@ private fun database() {
     val url = "jdbc:h2:mem:ffres${System.nanoTime()};DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
     val database = Database().addConnection("default", ConnectionConfig(url, "sa", "", poolSize = 2))
     database.connection().statement("create table ff_shelves (id bigint auto_increment primary key, name varchar(100))")
+    database.connection().statement(
+        "create table ff_shelf_lines (id bigint auto_increment primary key, shelf_id bigint, sku varchar(100))",
+    )
     database.setAsGlobal()
 }
 

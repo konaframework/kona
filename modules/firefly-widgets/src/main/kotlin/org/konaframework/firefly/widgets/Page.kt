@@ -20,6 +20,7 @@ open class Page {
     private var contentSchema: Schema? = null
     private var formSchema: Schema? = null
     private var infolistMarkup: String? = null
+    private var relationsMarkup: String = ""
     private var contentTable: Table<*, *>? = null
     private var maxWidthValue: String? = null
     private var maxWidthExplicit: Boolean = false
@@ -69,6 +70,9 @@ open class Page {
 
     fun infolistHtml(html: String): Page = apply { infolistMarkup = html }
 
+    /** Relation manager markup, rendered after the form/infolist without an infolist card around it. */
+    fun relationsHtml(html: String): Page = apply { relationsMarkup = html }
+
     fun table(table: Table<*, *>): Page = apply { contentTable = table }
 
     /** The table mounted with [table], or null. The panel runs bulk actions against it. */
@@ -117,7 +121,7 @@ open class Page {
                 """ data-ff-max-width="${escapeHtml(maxWidthValue!!)}""""
             }
         // Crumbs on their own top row; heading + mode chip share the next row with actions (#359).
-        return """<section class="${sectionClass()}"$widthAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        return """<section class="${sectionClass()}"$widthAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$relationsMarkup$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
     }
 
     private fun wrapInfolist(html: String): String {

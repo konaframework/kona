@@ -415,8 +415,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyEdit(page: EditPage, state: Map<String, Any?>) {
         page.title("Edit ${label()}")
         page.breadcrumbs(resourceCrumbs(state, "Edit ${label()}", listHref = true))
-        page.mountForm(prepareForm(liveSchema(state)))
-        page.infolistHtml(relationMarkup())
+        val schema = prepareForm(liveSchema(state))
+        page.mountForm(schema)
+        page.relationsHtml(relationMarkup(schema.record(), page, state))
         val recordId = state["record"]?.toString().orEmpty()
         val viewUrl = if (recordId.isEmpty()) "view" else "view?id=${encodeQuery(recordId)}"
         page.headerActions(
@@ -448,7 +449,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyView(page: ViewPage, state: Map<String, Any?>) {
         page.title(label())
         page.breadcrumbs(resourceCrumbs(state, label(), listHref = true))
-        page.infolistHtml(viewMarkup(state))
+        val schema = prepareInfolist(liveSchema(state))
+        page.infolistHtml(schema.render())
+        page.relationsHtml(relationMarkup(schema.record(), page, state))
         val recordId = state["record"]?.toString().orEmpty()
         val editUrl = if (recordId.isEmpty()) "edit" else "edit?id=${encodeQuery(recordId)}"
         page.headerActions(
@@ -544,15 +547,60 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         return schema
     }
 
-    private fun viewMarkup(state: Map<String, Any?>): String =
-        prepareInfolist(liveSchema(state)).render() + relationMarkup()
+    /**
+     * Relation managers for a saved Cadence [owner] on the edit / view [page]. Several managers
+     * render as tabs; the `relation` query value picks the active one (its table gets [state]).
+     * Without a saved owner (missing row, no model) there is nothing to relate, so nothing renders.
+     */
+    private fun relationMarkup(owner: Any?, page: PanelPage, state: Map<String, Any?>): String {
+        if (owner !is org.konaframework.cadence.Cadence<*> || owner.getKey() == null) return ""
+        val csrf = state["csrfField"] as? String ?: ""
+        val resourceBase = state["resourceBase"]
+        val base = if (resourceBase == null) RELATIONS_PATH else "$resourceBase/$RELATIONS_PATH"
+        val runtimes = relationManagers()
+            .map { it.bind(owner, page, base, csrf) }
+            .filter { it.manager.visibleFor(it) }
+        if (runtimes.isEmpty()) return ""
+        val requested = state["relation"]?.toString()
+        val active = runtimes.firstOrNull { it.manager.name() == requested } ?: runtimes.first()
+        if (runtimes.size == 1) return active.manager.renderFor(active, state, true)
+        val tabs = StringBuilder()
+        val panels = StringBuilder()
+        for (runtime in runtimes) {
+            val manager = runtime.manager
+            val current = runtime === active
+            val name = escapeHtml(manager.name())
+            val href = "?id=${encodeQuery(runtime.ownerKey)}&relation=${encodeQuery(manager.name())}"
+            val badge = manager.badgeFor(runtime)
+            val badgeHtml = if (badge == null) "" else """<span class="ff-relation-badge">${escapeHtml(badge)}</span>"""
+            tabs.append(
+                """<a class="ff-relation-tab" role="tab" href="${escapeHtml(href)}" data-ff-relation-tab="$name" aria-selected="$current">""" +
+                    """${escapeHtml(manager.title())}$badgeHtml</a>""",
+            )
+            val hidden = if (current) "" else " hidden"
+            panels.append(
+                """<div class="ff-relation-panel" role="tabpanel" data-ff-relation-panel="$name"$hidden>""" +
+                    manager.renderFor(runtime, state, current) + "</div>",
+            )
+        }
+        return """<section class="ff-relation-managers" data-ff-relation-managers>""" +
+            """<nav class="ff-relation-tabs" role="tablist">$tabs</nav>$panels</section>"""
+    }
 
-    private fun relationMarkup(): String {
-        val all = relationManagers()
-        if (all.isEmpty()) return ""
-        val out = StringBuilder()
-        for (manager in all) out.append(manager.render())
-        return out.toString()
+    /** The record a relation POST belongs to, or null when missing or outside the current tenant. */
+    internal fun relationOwner(key: String): org.konaframework.cadence.Cadence<*>? {
+        @Suppress("UNCHECKED_CAST")
+        val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+        val found = store.find(key) as? org.konaframework.cadence.Cadence<*> ?: return null
+        val column = tenantColumn
+        val tenant = FireflyTenant.id()
+        if (column != null && tenant != null && found.getAttribute(column)?.toString() != tenant) return null
+        return found
+    }
+
+    internal companion object {
+        /** Relation POST / options routes under the resource (`{panel}/{resource}/relations/…`). */
+        const val RELATIONS_PATH = "relations"
     }
 
     private fun rowRecordUrl(page: String): java.util.function.Function<org.konaframework.firefly.tables.Cell, String> =

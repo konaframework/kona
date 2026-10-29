@@ -411,6 +411,7 @@ open class Panel {
                             mapOf(
                                 "panelHome" to uri(""),
                                 "resourceList" to uri(listSlug),
+                                "resourceBase" to uri(resource.slug()),
                             ),
                         )
                     },
@@ -462,7 +463,117 @@ open class Panel {
                     formOptions(request, resource)
                 },
             )
+            if (resourcePages.any { it is EditPage || it is ViewPage }) relationRoutes(planned, resource)
         }
+    }
+
+    /**
+     * Relation manager endpoints under `{resource}/relations/`: one POST per operation, the bulk
+     * POST, and the associate / attach picker search. Query `relation`, `owner`, and `page` name
+     * the manager, the owner record, and the edit / view page to return to.
+     */
+    private fun relationRoutes(planned: MutableList<Planned>, resource: Resource) {
+        val base = resource.slug() + "/" + Resource.RELATIONS_PATH
+        for (operation in RelationOperation.entries) {
+            if (operation == RelationOperation.VIEW) continue
+            val slug = "$base/${operation.token}"
+            planned.add(
+                Planned("POST", uri(slug), routeName("resources.$slug")) { request ->
+                    relationPost(request, resource, operation)
+                },
+            )
+        }
+        planned.add(
+            Planned("GET", uri("$base/options"), routeName("resources.$base/options")) { request ->
+                relationOptions(request, resource)
+            },
+        )
+    }
+
+    private fun relationPost(request: Request, resource: Resource, operation: RelationOperation): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        val tenant = tenantId(request)
+        return FireflyTenant.use(tenant) {
+            val runtime = relationRuntime(request, resource)
+            if (runtime !is RelationRuntime) return@use runtime as Response
+            val back = uri(resourcePagePath(resource.slug(), runtime.pageSlug)) +
+                "?id=${URLEncoder.encode(runtime.ownerKey, Charsets.UTF_8)}" +
+                "&relation=${URLEncoder.encode(runtime.manager.name(), Charsets.UTF_8)}"
+            val input = request.all().filterKeys { it !in request.query && it != FireflyCsrf.TOKEN_KEY }
+            if (operation == RelationOperation.BULK) {
+                if (runtime.readOnly) return@use Response.html("Relation is read-only here", 403)
+                val name = input[BULK_ACTION]
+                if (name.isNullOrBlank()) return@use Response.html("Bulk action is required", 422)
+                val table = runtime.manager.table(runtime, emptyMap())
+                val keys = input[BULK_KEYS].orEmpty().split(',').map { it.trim() }
+                val data = input.filterKeys { !it.startsWith("_") }
+                val result = try {
+                    RelationScope.with(runtime) { table.runBulkAction(name, keys, data, input[BULK_ALL] == "1") }
+                } catch (e: FireflyException) {
+                    return@use Response.html(escapeHtml(e.message!!), 422)
+                }
+                flashBulk(request, result)
+                return@use Response.redirect(back)
+            }
+            val outcome = runtime.manager.perform(runtime, operation, input)
+            if (outcome.status == 403 || outcome.status == 404) return@use Response.html(escapeHtml(outcome.title), outcome.status)
+            val session = request.session()
+            if (session != null) {
+                val toast = FireflyNotification.make("relation-${operation.token}").title(outcome.title)
+                if (outcome.messages.isNotEmpty()) toast.body(outcome.messages.joinToString(" "))
+                if (outcome.isSuccessful()) toast.success() else toast.danger()
+                toast.send(session)
+            }
+            Response.redirect(back)
+        }
+    }
+
+    /** Picker options for associate / attach: `[{value, label, enabled}]`, searched by `q`. */
+    private fun relationOptions(request: Request, resource: Resource): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        val tenant = tenantId(request)
+        return FireflyTenant.use(tenant) {
+            val runtime = relationRuntime(request, resource)
+            if (runtime !is RelationRuntime) return@use runtime as Response
+            val operation = RelationOperation.fromToken(request.input("op").orEmpty())
+            if (operation != RelationOperation.ASSOCIATE && operation != RelationOperation.ATTACH) {
+                return@use Response.html("Unknown picker operation", 422)
+            }
+            val options = runtime.manager.options(runtime, operation, request.input("q").orEmpty()).map { (value, label) ->
+                linkedMapOf("value" to value, "label" to label, "enabled" to true)
+            }
+            Response.json(options)
+        }
+    }
+
+    /** The manager bound to the posted owner on its page, or the error [Response] to return. */
+    private fun relationRuntime(request: Request, resource: Resource): Any {
+        val pageSlug = request.query["page"].orEmpty()
+        val page = resource.pages().firstOrNull { it.slug() == pageSlug && (it is EditPage || it is ViewPage) }
+            ?: return Response.html("Unknown relation page", 422)
+        val name = request.query["relation"].orEmpty()
+        val manager = resource.relationManagers().firstOrNull { it.name() == name }
+            ?: return Response.html("Unknown relation", 404)
+        val key = request.query["owner"].orEmpty()
+        val owner = (if (key.isBlank()) null else resource.relationOwner(key))
+            ?: return Response.html("Record not found", 404)
+        val runtime = try {
+            manager.bind(owner, page, uri(resource.slug() + "/" + Resource.RELATIONS_PATH), "")
+        } catch (e: FireflyException) {
+            return Response.html(escapeHtml(e.message!!), 422)
+        }
+        if (!manager.visibleFor(runtime)) return Response.html("Not authorized", 403)
+        return runtime
     }
 
     /** JSON options for relationship (and searchable) Select comboboxes. */
@@ -579,6 +690,8 @@ open class Panel {
         }
         val record = request.input("id") ?: request.input("record")
         if (!record.isNullOrBlank()) state["record"] = record
+        val relation = request.input("relation")
+        if (!relation.isNullOrBlank()) state["relation"] = relation
         // Table filters: `filters` (state marker / reset) and `filters.<name>[.<field>]`.
         state["filterInput"] = request.all().filterKeys { it == "filters" || it.startsWith("filters.") }
         val session = request.session()
