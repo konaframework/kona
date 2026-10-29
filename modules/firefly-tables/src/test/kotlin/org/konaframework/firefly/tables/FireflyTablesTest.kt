@@ -253,6 +253,97 @@ class FireflyTablesTest {
         assertTrue(literalHtml.contains("ff-column-description"))
         assertTrue(literalHtml.contains("""data-ff-align="center""""))
         assertTrue(literal.heading(Cell { null }).contains("Name"))
+        assertEquals("Published At", TextColumn.make("published_at").heading(Cell { null }))
+        assertEquals("First Name", TextColumn.make("first_name").heading(Cell { null }))
+        val related = TextColumn.make("project_id").relationship("project", "name")
+        assertEquals("Project", related.heading(Cell { null }))
+        assertEquals("project", related.relationshipName())
+        assertTrue(
+            related.render(
+                mapOf("project_id" to 7, "project" to mapOf("id" to 7, "name" to "Desk")),
+                "1",
+                Cell { path ->
+                    when (path) {
+                        "project" -> mapOf("id" to 7, "name" to "Desk")
+                        "project_id" -> 7
+                        else -> null
+                    }
+                },
+            ).contains("Desk"),
+        )
+        val deskHtml = related.render(
+            mapOf("project_id" to 7, "project" to mapOf("id" to 7, "name" to "Desk")),
+            "1",
+            Cell { path -> if (path == "project") mapOf("id" to 7, "name" to "Desk") else 7 },
+        )
+        assertTrue(deskHtml.contains("Desk"))
+        assertFalse(deskHtml.contains(">7</"))
+        assertEquals("Project", TextColumn.make("project_id").label("Project").relationship("project", "name").heading(Cell { null }))
+        assertThrows(FireflyException::class.java) { TextColumn.make("x").relationship(" ", "name") }
+        assertThrows(FireflyException::class.java) { TextColumn.make("x").relationship("project", " ") }
+        assertEquals("7", Column.relationshipTitle(Cell { null }, "project", "name", 7))
+        assertEquals(
+            "",
+            Column.relationshipTitle(
+                Cell { if (it == "project") mapOf("id" to 1) else null },
+                "project",
+                "name",
+                null,
+            ),
+        )
+        assertEquals(
+            "fb",
+            Column.relationshipTitle(
+                Cell { if (it == "project") mapOf("id" to 1) else null },
+                "project",
+                "name",
+                "fb",
+            ),
+        )
+        assertEquals(
+            "Ada",
+            Column.relationshipTitle(
+                Cell { if (it == "author") object {
+                    fun name(): String = "Ada"
+                } else null },
+                "author",
+                "name",
+                null,
+            ),
+        )
+        assertEquals(
+            "fb",
+            Column.relationshipTitle(Cell { if (it == "author") Any() else null }, "author", "name", "fb"),
+        )
+        assertEquals(
+            "ViaSlash",
+            Column.relationshipTitle(
+                Cell { if (it == "/project") mapOf("name" to "ViaSlash") else null },
+                "project",
+                "name",
+                null,
+            ),
+        )
+        // Memory tables with relationship() skip Cadence with() (non-ModelBuilder query).
+        assertTrue(
+            Table.memory(mapOf("id" to "1", "project_id" to 7, "project" to mapOf("name" to "Desk")))
+                .columns(TextColumn.make("project_id").relationship("project", "name"))
+                .render()
+                .contains("Desk"),
+        )
+        val stamped = TextColumn.make("created_at").toggleable().toggledHiddenByDefault()
+        assertTrue(stamped.isToggledHiddenByDefault())
+        assertTrue(stamped.isToggleable(Cell { null }))
+        assertFalse(TextColumn.make("shown").toggledHiddenByDefault(false).isToggledHiddenByDefault())
+        val hiddenStampHtml = Table.memory(listOf(mapOf("id" to "1", "name" to "Ada", "created_at" to "2020-01-01")))
+            .columns(
+                TextColumn.make("name"),
+                TextColumn.make("created_at").toggleable().toggledHiddenByDefault(),
+            )
+            .render()
+        assertTrue(hiddenStampHtml.contains(">Name<"))
+        assertFalse(hiddenStampHtml.contains(">Created At<"))
+        assertFalse(hiddenStampHtml.contains("2020-01-01"))
         val moneyHead = Table.memory(listOf(mapOf("amt" to 12, "id" to "1")))
             .columns(TextColumn.make("amt").money().label("Amount"))
             .render()
@@ -531,6 +622,31 @@ class FireflyTablesTest {
             )
             .render()
         assertTrue(viaRecordKey.contains("""href="view?id=3""""))
+        // Two+ row buttons group into a ⋯ menu by default.
+        val grouped = Table.memory(mapOf("id" to "9", "name" to "Cy"))
+            .columns(TextColumn.make("name"))
+            .rowButtons(
+                TableButton.make("view").label("View").url("view?id=9"),
+                TableButton.make("edit").label("Edit").url("edit?id=9"),
+                TableButton.make("delete").label("Delete").confirmPost("delete", ""),
+            )
+            .render()
+        assertTrue(grouped.contains("ff-row-action-menu"))
+        assertTrue(grouped.contains("ff-table-more"))
+        assertTrue(grouped.contains("""href="view?id=9""""))
+        assertTrue(grouped.contains("""href="edit?id=9""""))
+        assertTrue(grouped.contains("ff-menu-link"))
+        val flat = Table.memory(mapOf("id" to "9", "name" to "Cy"))
+            .columns(TextColumn.make("name"))
+            .groupRowActions(false)
+            .rowButtons(
+                TableButton.make("view").label("View").url("view?id=9"),
+                TableButton.make("edit").label("Edit").url("edit?id=9"),
+            )
+            .render()
+        assertFalse(flat.contains("ff-row-action-menu"))
+        assertTrue(flat.contains("ff-table-button"))
+        assertEquals("", TableButton.group().render(Cell { null }, false))
         val needs = TableButton.make("bulk").requiresSelection(true).disabled(false)
         assertTrue(needs.render(Cell { null }, true).contains("disabled"))
         assertFalse(needs.render(Cell { null }, false).contains("disabled"))

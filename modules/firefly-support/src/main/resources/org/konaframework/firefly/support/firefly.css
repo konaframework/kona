@@ -541,6 +541,37 @@ body.ff-body-root {
   text-align: center;
 }
 
+/* Row-action ⋯ menu (default when a table has two or more row buttons). */
+.ff-panel .ff-row-action-menu {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.ff-panel .ff-row-action-menu .ff-table-more {
+  min-width: 2rem;
+  padding-inline: 0.45rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+
+.ff-panel .ff-row-action-menu .ff-menu-panel {
+  min-width: 10rem;
+  max-width: 16rem;
+  text-align: start;
+}
+
+.ff-panel .ff-row-action-menu .ff-menu-link,
+.ff-panel .ff-row-action-menu .ff-table-button-mount {
+  display: block;
+  width: 100%;
+}
+
+.ff-panel .ff-row-action-menu .ff-table-button-mount > .ff-menu-link {
+  width: 100%;
+  text-align: left;
+}
+
 /* User trigger — avatar initial only; name/email live in the dropdown. */
 .ff-panel .ff-user-trigger {
   display: inline-flex;

@@ -502,6 +502,7 @@ class FireflySchemasTest {
         assertThrows(FireflyException::class.java) { Schema.make().columns(0) }
 
         assertEquals("First Name", humanizeName("first_name"))
+        assertEquals("Published At", humanizeName("published_at"))
         assertEquals("Username", humanizeName("username"))
         assertEquals("Camel Case", humanizeName("camelCase"))
         assertEquals("A B", humanizeName("a-b"))

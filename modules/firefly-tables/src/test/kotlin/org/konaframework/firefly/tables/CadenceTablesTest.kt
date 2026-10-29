@@ -67,6 +67,43 @@ class CadenceTablesTest {
         assertEquals(listOf("Ada"), options.get().map { it.getAttribute("label") })
         assertTrue(table.relationship(Account::class.java).toSql().contains("ff_accounts"))
 
+        // FK column.relationship() eager-loads and renders the related title.
+        val orderTable = Table.cadence(Order::class.java)
+            .columns(TextColumn.make("customer_id").relationship("customer", "name"))
+        val orderHtml = orderTable.render()
+        assertTrue(orderHtml.contains("Ada") || orderHtml.contains("Bea") || orderHtml.contains("Cy") || orderHtml.contains("Dee"))
+        assertTrue(orderHtml.contains(">Customer<") || orderHtml.contains("Customer"))
+        assertTrue(orderTable.load().records.first().relationLoaded("customer"))
+        val orderStore = CadenceRecordStore(Order::class.java)
+        val firstOrder = orderTable.load().records.first()
+        val attrs = orderStore.attributes(firstOrder)
+        assertTrue(attrs.containsKey("customer"))
+        assertTrue(attrs["customer"] is Map<*, *>)
+        val relatedCustomer = firstOrder.getRelation("customer") as Customer
+        assertEquals(
+            relatedCustomer.getAttribute("name")?.toString(),
+            Column.relationshipTitle(
+                Cell { if (it == "customer") relatedCustomer else null },
+                "customer",
+                "name",
+                null,
+            ),
+        )
+        firstOrder.setRelation("customer", null)
+        assertNull(orderStore.attributes(firstOrder)["customer"])
+        firstOrder.setRelation("tag", "plain")
+        assertEquals("plain", orderStore.attributes(firstOrder)["tag"])
+        val withOrders = Table.cadence(Customer::class.java)
+            .columns(TextColumn.make("name"), TextColumn.make("id").relationship("orders", "total"))
+            .load()
+        val customerAttrs = CadenceRecordStore(Customer::class.java).attributes(withOrders.records.first())
+        assertTrue(customerAttrs["orders"] is List<*>)
+        // Mixed collection members (non-Cadence) keep their raw value.
+        withOrders.records.first().setRelation("mixed", listOf("x", withOrders.records.first()))
+        val mixed = CadenceRecordStore(Customer::class.java).attributes(withOrders.records.first())["mixed"] as List<*>
+        assertEquals("x", mixed[0])
+        assertTrue(mixed[1] is Map<*, *>)
+
         table.search("Ada").sort("name", "desc")
         assertEquals("Ada", table.load().records.single().getAttribute("name"))
         customers.search(customers.query(), "", emptyList())

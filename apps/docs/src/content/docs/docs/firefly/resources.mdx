@@ -108,7 +108,7 @@ The page calls `form`, `table`, and `infolist` when it renders, so those methods
 
 <FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table, a Create header action, and row View, Edit, and Delete actions." />
 
-`simple()` keeps one manage page. You still override `form`, `infolist`, and `table`. Leaving `getPages()` alone uses the framework `ManagePage`. The generator instead writes a thin `Manage{Model}` subclass and returns it from `getPages()` so you have a class to customize. The manage page is **table-only** until an action opens a dialog — it does not mount a standing create/edit form. **Create** is the sole header action and opens a dialog with the empty form schema. **View**, **Edit**, and **Delete** are row actions: View opens the filled infolist, Edit opens the filled form, and Delete confirms in a dialog. A simple resource rejects `relation(...)`.
+`simple()` keeps one manage page. You still override `form`, `infolist`, and `table`. Leaving `getPages()` alone uses the framework `ManagePage`. The generator instead writes a thin `Manage{Model}` subclass and returns it from `getPages()` so you have a class to customize. The manage page is **table-only** until an action opens a dialog — it does not mount a standing create/edit form. **Create** is the sole header action and opens a dialog with the form schema on a prototype model (so `Select.relationship` can load options). **View**, **Edit**, and **Delete** are row actions: View opens the filled infolist, Edit opens the filled form (or a prototype when the row is not in the store yet), and Delete confirms in a dialog. A simple resource rejects `relation(...)`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -178,7 +178,7 @@ app/panels/admin/resources/order/
 
 Package is `app.panels.admin.resources.order` (pages under `.pages`). Group under the lowercase **model** name so the JVM never confuses a class with a package. The resource’s `getPages()` returns those page instances, and a stub relation manager is included. Passing `OrderResource` already does not double-suffix. `./grind make:firefly-resource Note --simple` writes `resources/note/NoteResource` plus `note/pages/ManageNote`.
 
-Without flags, form / table / infolist stub a single `name` text field. Pass **`--generate`** to boot the app, load `app.models.Order`, introspect that model’s database table, and emit components for the columns (skipping primary key and timestamps on the form). Booleans / `TINYINT(1)` / `BIT` / `NUMBER(1)` map to form `Toggle`, table `IconColumn.make(...).boolean()`, and infolist `IconEntry.make(...).boolean()`. Dates → `DatePicker` / `DateTimePicker`, long text → `Textarea`. `--generate` fails if the model class, table, or database is missing — it does not fall back to the `name` stub. Run `./grind migrate` first. Pass `--panel=billing` for another panel directory. Page stubs register only through `getPages()` (panel `pages/` discovery does not load them).
+Without flags, form / table / infolist stub a single `name` text field (searchable and sortable on the table) and `schema.columns(2)` on the form and infolist. Pass **`--generate`** to boot the app, load `app.models.Order`, introspect that model’s database table, and emit components for the columns (skipping primary key and timestamps on the form). Booleans / `TINYINT(1)` / `BIT` / `NUMBER(1)`, plus SQLite `INTEGER` columns with boolean-ish names (`active`, `is_*`, …), map to form `Toggle`, table `IconColumn.make(...).boolean()`, and infolist `IconEntry.make(...).boolean()`. Foreign-key columns (`project_id` / JDBC imported keys) become form `Select.make(...).label(...).relationship(...)` and table `TextColumn.make(...).relationship(...)` (related title, not the raw id). Dates → `DatePicker` / `DateTimePicker`, long text → `Textarea`. Timestamp table columns get `toggleable().toggledHiddenByDefault()` so the list stays compact. The first `name` / `title` / `label` (or first data column) is `searchable().sortable()`. `--generate` fails if the model class, table, or database is missing — it does not fall back to the `name` stub. Run `./grind migrate` first. Pass `--panel=billing` for another panel directory. Page stubs register only through `getPages()` (panel `pages/` discovery does not load them).
 
 The hello samples mount a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
 
@@ -194,11 +194,23 @@ Resource("orders").model(Order::class.java).maxWidth("full")
 new Resource("orders").model(Order.class).maxWidth("full");
 ```
 
+## Form and infolist grid columns
+
+`Resource.formColumns(n)` and `Resource.infolistColumns(n)` set the schema grid before `form` / `infolist` run (Shamar / Filament `columns`). Generated resources already call `schema.columns(2)` inside those hooks; use the resource API when you want a resource-wide default without editing every override.
+
+```kotlin
+Resource("orders").model(Order::class.java).formColumns(2).infolistColumns(3)
+```
+
+```java
+new Resource("orders").model(Order.class).formColumns(2).infolistColumns(3);
+```
+
 ## What you build with
 
 | Type | Role |
 |------|------|
-| `Resource` | Model, form, infolist, table, actions, and pages. Optional `maxWidth(token)` for the content column |
+| `Resource` | Model, form, infolist, table, actions, and pages. Optional `maxWidth(token)`, `formColumns(n)`, `infolistColumns(n)` |
 | `label` / `pluralLabel` | Singular-or-base title vs list/nav plural heading (`pluralLabel` defaults from `label`) |
 | `RelationManager` | Related records on a full resource's edit and view pages. Set the label column with `titleAttribute` |
 | `ManagePage` | The single page of a simple resource |

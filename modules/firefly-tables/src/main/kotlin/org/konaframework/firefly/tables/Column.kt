@@ -1,5 +1,8 @@
 package org.konaframework.firefly.tables
 
+import org.konaframework.cadence.Cadence
+import org.konaframework.firefly.schemas.humanizeName
+import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.support.Icon
 import java.time.Instant
 import java.time.LocalDate
@@ -39,6 +42,7 @@ open class Column protected constructor(val name: String) {
     private val searchableFlag = FlagSetting(false)
     private val sortableFlag = FlagSetting(false)
     private val toggleableFlag = FlagSetting(false)
+    private var toggledHiddenByDefaultFlag = false
     private var alignValue = Align.START
     private var alignUsing: Function<Cell, Align>? = null
     private var extra: Map<String, String> = emptyMap()
@@ -52,6 +56,8 @@ open class Column protected constructor(val name: String) {
     private var newTab = false
     private var copyable = false
     private val summaryOps = ArrayList<Summary>()
+    private var relationshipName: String? = null
+    private var relationshipTitleAttribute: String? = null
 
     fun label(value: String): Column = apply { labelValue.set(value) }
 
@@ -129,6 +135,19 @@ open class Column protected constructor(val name: String) {
 
     fun toggleable(predicate: Predicate<Cell>): Column = apply { toggleableFlag.set(predicate) }
 
+    /**
+     * Marks the column toggleable and initially hidden in the column picker
+     * (Filament-style `toggleable(isToggledHiddenByDefault: true)`).
+     */
+    fun toggledHiddenByDefault(): Column = toggledHiddenByDefault(true)
+
+    fun toggledHiddenByDefault(on: Boolean): Column = apply {
+        toggledHiddenByDefaultFlag = on
+        if (on) toggleableFlag.set(true)
+    }
+
+    fun isToggledHiddenByDefault(): Boolean = toggledHiddenByDefaultFlag
+
     fun align(value: Align): Column = apply {
         alignValue = value
         alignUsing = null
@@ -146,6 +165,22 @@ open class Column protected constructor(val name: String) {
     fun view(name: String): Column = apply { viewName = name }
 
     fun formatStateUsing(formatter: BiFunction<Any?, Cell, String>): Column = apply { this.formatter = formatter }
+
+    /**
+     * Show a related record’s [titleAttribute] instead of the foreign-key value
+     * (Filament/Shamar `TextColumn::make('project.name')` shape). The table eager-loads
+     * [name] on Cadence queries. Defaults the heading to a humanized relation name.
+     */
+    fun relationship(name: String, titleAttribute: String): Column = apply {
+        if (name.isBlank()) throw FireflyException("Column relationship name is blank")
+        if (titleAttribute.isBlank()) throw FireflyException("Column relationship title attribute is blank")
+        relationshipName = name
+        relationshipTitleAttribute = titleAttribute
+        if (!labelValue.isAssigned()) label(humanizeName(name))
+        formatStateUsing { state, cell -> relationshipTitle(cell, name, titleAttribute, state) }
+    }
+
+    fun relationshipName(): String? = relationshipName
 
     fun html(): Column = html(true)
 
@@ -186,7 +221,7 @@ open class Column protected constructor(val name: String) {
 
     fun isDisabled(cell: Cell): Boolean = disabledFlag.get(cell)
 
-    fun heading(cell: Cell): String = labelValue.get(cell, name)
+    fun heading(cell: Cell): String = labelValue.get(cell, humanizeName(name))
 
     open fun render(row: Map<String, Any?>, key: String, cell: Cell): String {
         val state = row[name]
@@ -294,6 +329,23 @@ open class Column protected constructor(val name: String) {
         internal fun <T : Column> finish(column: T): T {
             configurers[column.javaClass]?.accept(column)
             return column
+        }
+
+        internal fun relationshipTitle(cell: Cell, relation: String, titleAttribute: String, fallback: Any?): String {
+            val related = cell.get(relation) ?: cell.get("/$relation")
+            val title = attributeOf(related, titleAttribute)
+            if (title != null) return title.toString()
+            return fallback?.toString().orEmpty()
+        }
+
+        private fun attributeOf(related: Any?, name: String): Any? = when (related) {
+            null -> null
+            is Map<*, *> -> related[name]
+            is Cadence<*> -> related.getAttribute(name)
+            else -> {
+                val method = related.javaClass.methods.firstOrNull { it.name == name && it.parameterCount == 0 }
+                method?.invoke(related)
+            }
         }
     }
 }

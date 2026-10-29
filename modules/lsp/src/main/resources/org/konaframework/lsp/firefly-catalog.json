@@ -459,9 +459,11 @@
       "methods": [
         "boundModel",
         "form",
+        "formColumns",
         "getPages",
         "getRelations",
         "infolist",
+        "infolistColumns",
         "isSimple",
         "label",
         "maxWidth",

@@ -32,6 +32,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private var tenantColumn: String? = null
     private var resolvedPages: List<PanelPage>? = null
     private var maxWidthLiteral: String? = null
+    private var formColumnCount: Int? = null
+    private var infolistColumnCount: Int? = null
 
     fun slug(): String {
         if (slugValue.isNotEmpty()) return slugValue
@@ -122,6 +124,27 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     /**
+     * Grid columns for [form] schemas (Shamar / Filament `columns`). Applied before
+     * [form] when non-null. Generated resources default to 2 via `schema.columns(2)`.
+     */
+    fun formColumns(count: Int): Resource = apply {
+        if (count < 1) throw FireflyException("Form columns must be at least 1")
+        formColumnCount = count
+    }
+
+    fun formColumns(): Int? = formColumnCount
+
+    /**
+     * Grid columns for [infolist] schemas. Applied before [infolist] when non-null.
+     */
+    fun infolistColumns(count: Int): Resource = apply {
+        if (count < 1) throw FireflyException("Infolist columns must be at least 1")
+        infolistColumnCount = count
+    }
+
+    fun infolistColumns(): Int? = infolistColumnCount
+
+    /**
      * Form for create, edit, and the manage dialogs. The base returns [schema] unchanged.
      * Called when a page renders.
      */
@@ -132,6 +155,20 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
      * Called when a page renders.
      */
     open fun infolist(schema: Schema): Schema = schema
+
+    /** Applies [formColumns] then [form]. */
+    private fun prepareForm(schema: Schema): Schema {
+        val count = formColumnCount
+        if (count != null) schema.columns(count)
+        return form(schema)
+    }
+
+    /** Applies [infolistColumns] then [infolist]. */
+    private fun prepareInfolist(schema: Schema): Schema {
+        val count = infolistColumnCount
+        if (count != null) schema.columns(count)
+        return infolist(schema)
+    }
 
     /**
      * Table for list and manage. [table] is empty. The base returns it unchanged.
@@ -241,7 +278,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyManage(page: ManagePage, state: Map<String, Any?>) {
         page.title(pluralLabel())
         page.breadcrumbs(resourceCrumbs(state, pluralLabel()))
-        val createForm = form(Schema.make())
+        // Prototype record so Select.relationship can load options in the create dialog (#337).
+        val createForm = prepareForm(liveSchema(emptyMap()))
         val built = table(listTable())
         applyTableQuery(built, state)
         val csrf = state["csrfField"] as? String ?: ""
@@ -254,7 +292,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.table(built)
         // Create alone lives in the header; Edit/View/Delete open from each row.
         page.headerActions(
-            operation("create", "Create", createForm.components())
+            operation("create", "Create", createForm)
                 .postForm("create", csrf)
                 .modalSubmitActionLabel("Create"),
         )
@@ -264,7 +302,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun manageViewButton(): TableButton =
         TableButton.make("view").label("View").modal().body { cell ->
             val key = cell.get("key").toString()
-            val markup = infolist(liveSchema(mapOf("record" to key))).render()
+            val markup = prepareInfolist(liveSchema(mapOf("record" to key))).render()
             """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button></div>"""
         }
 
@@ -272,7 +310,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun manageEditButton(csrf: String): TableButton =
         TableButton.make("edit").label("Edit").modal().body { cell ->
             val key = cell.get("key").toString()
-            val markup = form(liveSchema(mapOf("record" to key))).render()
+            val markup = prepareForm(liveSchema(mapOf("record" to key))).render()
             """<form method="post" action="edit" class="ff-action-form">$csrf<input type="hidden" name="id" value="${escapeHtml(key)}" /><div class="ff-action-schema">$markup</div><div class="ff-action-footer"><button type="submit" class="ff-action-submit">Save</button><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button></div></form>"""
         }
 
@@ -296,7 +334,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyCreate(page: CreatePage, state: Map<String, Any?>) {
         page.title("New ${label()}")
         page.breadcrumbs(resourceCrumbs(state, "New ${label()}", listHref = true))
-        page.mountForm(form(liveSchema(state)))
+        page.mountForm(prepareForm(liveSchema(state)))
         // Native form submit (Shamar) — Create posts #ff-form; Cancel is a list link.
         page.headerActions(
             Action.make("save").label("Create").submitForm("ff-form"),
@@ -307,7 +345,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyEdit(page: EditPage, state: Map<String, Any?>) {
         page.title("Edit ${label()}")
         page.breadcrumbs(resourceCrumbs(state, "Edit ${label()}", listHref = true))
-        page.mountForm(form(liveSchema(state)))
+        page.mountForm(prepareForm(liveSchema(state)))
         page.infolistHtml(relationMarkup())
         val recordId = state["record"]?.toString().orEmpty()
         val viewUrl = if (recordId.isEmpty()) "view" else "view?id=${encodeQuery(recordId)}"
@@ -397,9 +435,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         return crumbs
     }
 
-    private fun operation(name: String, heading: String, components: List<Component>): Action {
+    private fun operation(name: String, heading: String, form: Schema): Action {
         val action = Action.make(name).label(heading).modal().modalHeading(heading)
-        if (components.isNotEmpty()) action.schema(*components.toTypedArray())
+        if (form.components().isNotEmpty()) action.schema(form)
         return action
     }
 
@@ -429,27 +467,44 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     /**
      * Load the Cadence/memory record for edit/view and fill form/infolist state.
      * [state] carries the route id under `record` (from `?id=` / `?record=`).
+     * Create / blank id binds a prototype model so [Select.relationship] can resolve options (#337).
      */
     private fun liveSchema(state: Map<String, Any?>): Schema {
         val schema = Schema.make()
-        val raw = state["record"] ?: return schema
-        val key = raw.toString()
-        if (key.isBlank()) return schema
-        schema.record(raw)
+        val raw = state["record"]
+        val key = raw?.toString().orEmpty()
+        // Preserve raw route ids for hooks when there is no model/store (e.g. memory-only resources).
+        if (key.isNotBlank()) schema.record(raw)
         try {
             @Suppress("UNCHECKED_CAST")
             val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
-            val found = store.find(key) ?: return schema
-            schema.record(found)
-            schema.key(key)
-            schema.fill(store.attributes(found))
+            if (key.isNotBlank()) {
+                try {
+                    val found = store.find(key)
+                    if (found != null) {
+                        schema.record(found)
+                        schema.key(key)
+                        schema.fill(store.attributes(found))
+                        return schema
+                    }
+                } catch (_: RuntimeException) {
+                    // Fall through to a prototype model below.
+                }
+                // Missing row still needs a model prototype so Select.relationship can resolve (#337).
+                schema.record(store.newRecord())
+                schema.key(key)
+                return schema
+            }
+            // Create: prototype model so Select.relationship can resolve options (#337).
+            schema.record(store.newRecord())
         } catch (_: FireflyException) {
-            // No model / store — keep the raw id for hooks that only need schema.record().
+            // No model / store — leave schema with the raw record (if any).
         }
         return schema
     }
 
-    private fun viewMarkup(state: Map<String, Any?>): String = infolist(liveSchema(state)).render() + relationMarkup()
+    private fun viewMarkup(state: Map<String, Any?>): String =
+        prepareInfolist(liveSchema(state)).render() + relationMarkup()
 
     private fun relationMarkup(): String {
         val all = relationManagers()

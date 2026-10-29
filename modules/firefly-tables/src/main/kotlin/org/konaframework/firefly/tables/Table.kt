@@ -65,10 +65,17 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private var groupColumn: String? = null
     private var reorderColumn: String? = null
     private var pollInterval: String? = null
+    private var groupRowActionsFlag = true
 
     fun columns(vararg columns: Column): Table<T, Q> = apply {
         columnList.clear()
         columnList.addAll(columns)
+        // Seed Filament-style toggle-hidden defaults once when columns are attached.
+        for (column in columnList) {
+            if (column.isToggledHiddenByDefault()) {
+                hiddenByUser.add(column.name)
+            }
+        }
     }
 
     fun filters(vararg filters: Filter): Table<T, Q> = apply {
@@ -85,6 +92,12 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         rowButtonList.clear()
         rowButtonList.addAll(buttons)
     }
+
+    /**
+     * When true (default), two or more [rowButtons] render inside a ⋯ dropdown.
+     * Pass false to show each action as its own button.
+     */
+    fun groupRowActions(on: Boolean = true): Table<T, Q> = apply { groupRowActionsFlag = on }
 
     fun groups(vararg groups: TableGroup): Table<T, Q> = apply {
         groupList.clear()
@@ -255,6 +268,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     private fun prepare(query: Q): Q {
+        eagerLoadRelationships(query)
         val cell = tableCell()
         hooks.forEach { it.accept(query) }
         for (filter in filterList) {
@@ -267,6 +281,16 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val sorting = sortColumn
         if (sorting != null) store.sort(query, sorting, sortDirection)
         return query
+    }
+
+    /** Cadence queries: `with()` every [Column.relationship] so titles resolve without N+1. */
+    @Suppress("UNCHECKED_CAST")
+    private fun eagerLoadRelationships(query: Q) {
+        val names = columnList.mapNotNull { it.relationshipName() }.distinct()
+        if (names.isEmpty()) return
+        if (query is ModelBuilder<*>) {
+            (query as ModelBuilder<Cadence<*>>).with(*names.toTypedArray())
+        }
     }
 
     private fun baseQuery(): Q {
@@ -432,7 +456,14 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 else -> values[path.removePrefix("/")]
             }
         }
-        val html = rowButtonList.joinToString("") { it.render(cell, selectedKeys.isEmpty()) }
+        val emptySelection = selectedKeys.isEmpty()
+        val buttons =
+            if (groupRowActionsFlag && rowButtonList.size > 1) {
+                listOf(TableButton.group(*rowButtonList.toTypedArray()))
+            } else {
+                rowButtonList
+            }
+        val html = buttons.joinToString("") { it.render(cell, emptySelection) }
         return """<td class="ff-row-actions">$html</td>"""
     }
 

@@ -195,3 +195,5 @@ If you are changing Kona itself and want an app to pick up unpublished modules:
 ```
 
 You do **not** need these steps to try Kona after a normal `kona new`.
+
+**IntelliJ:** after framework changes, reload the Gradle project so the IDE classpath tracks the composite/`kona.home` modules (or freshly published Maven Local jars). If completion still misses APIs such as `TextColumn.date()`, invalidate caches — the editor may still index an older JAR.

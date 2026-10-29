@@ -109,14 +109,16 @@ open class TableButton(val name: String) {
 
     fun isHidden(cell: Cell): Boolean = hiddenFlag.get(cell) || !visibleFlag.get(cell)
 
-    fun render(cell: Cell, selectionEmpty: Boolean): String {
+    @JvmOverloads
+    open fun render(cell: Cell, selectionEmpty: Boolean, menuItem: Boolean = false): String {
         if (isHidden(cell)) return ""
         val label = labelValue.get(cell, name)
         val href = urlValue.get(cell, "")
         val disabled = disabledFlag.get(cell) || (requiresSelection && selectionEmpty)
         val disabledAttr = if (disabled) """ disabled""" else ""
+        val triggerClass = if (menuItem) "ff-menu-link" else "ff-table-button"
         if (href.isNotEmpty()) {
-            return """<a class="ff-table-button" href="${escapeHtml(href)}"$disabledAttr>${escapeHtml(label)}</a>"""
+            return """<a class="$triggerClass" href="${escapeHtml(href)}"$disabledAttr>${escapeHtml(label)}</a>"""
         }
         val dialog = Dialog.make(confirmHeading ?: label)
         when (mode) {
@@ -159,7 +161,7 @@ open class TableButton(val name: String) {
         // data-ff-dialog-*: chrome script opens/closes without Alpine.
         return """
             <div class="ff-table-button-mount" data-ff-dialog-mount x-data="{ open: false }">
-              <button type="button" class="ff-table-button" data-ff-action="${escapeHtml(name)}" data-ff-dialog-open @click="open = true" x-on:click="${'$'}wire.${'$'}call('${escapeHtml(name)}')"$disabledAttr>${escapeHtml(label)}</button>
+              <button type="button" class="$triggerClass" data-ff-action="${escapeHtml(name)}" data-ff-dialog-open @click="open = true" x-on:click="${'$'}wire.${'$'}call('${escapeHtml(name)}')"$disabledAttr>${escapeHtml(label)}</button>
               <div class="ff-table-button-dialog" data-ff-dialog-panel x-show="open" x-cloak style="display:none" hidden aria-hidden="true" data-ff-action-boot="ffAction('${escapeHtml(name)}')">${dialog.render(open = true)}</div>
             </div>
         """.trimIndent()
@@ -174,6 +176,10 @@ open class TableButton(val name: String) {
             configurer?.accept(button)
             return button
         }
+
+        /** Groups [buttons] under a ⋯ trigger (default resource row actions). */
+        @JvmStatic
+        fun group(vararg buttons: TableButton): TableButton = ActionMenuButton(buttons.toList())
 
         @JvmStatic
         fun configureUsing(block: Consumer<TableButton>?) {

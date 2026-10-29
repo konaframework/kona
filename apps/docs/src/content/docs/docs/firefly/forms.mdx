@@ -185,7 +185,7 @@ Select.make("status")
 
 `relationship(name, titleAttribute)` reads the related records on the schema’s record. `name` is the relationship. `titleAttribute` is the label field. Pass a closure as `modifyQueryUsing` when you need to narrow the query. `getOptionLabelFromRecordUsing` replaces the label with a value taken from each record.
 
-Put the owner model on the schema with `record(...)` before the options are read. When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query. `.native()` still opts into `<select>`. The default remains the combobox.
+Put the owner model on the schema with `record(...)` before the options are read. Resource create and manage Create/Edit dialogs bind a prototype (or loaded) model for you when the resource has `model(...)`, so `Select.relationship(...).preload()` renders the combobox with related options — not a nested text field labeled by the foreign-key name. When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query. `.native()` still opts into `<select>`. The default remains the combobox.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

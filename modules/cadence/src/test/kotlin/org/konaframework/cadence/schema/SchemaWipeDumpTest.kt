@@ -5,6 +5,7 @@ import org.konaframework.cadence.Database
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -49,6 +50,31 @@ class SchemaWipeDumpTest {
         assertTrue(cols.any { it.name.equals("email", ignoreCase = true) && !it.nullable })
         assertTrue(cols.any { it.name.equals("name", ignoreCase = true) && it.nullable })
         assertTrue(schema.primaryKey("authors").any { it.equals("id", ignoreCase = true) })
+        val fks = schema.foreignKeys("books")
+        assertTrue(fks.any { it.column.equals("author_id", ignoreCase = true) })
+        assertTrue(fks.any { it.referencedTable.equals("authors", ignoreCase = true) })
+        assertTrue(schema.foreignKeys("authors").isEmpty())
+        assertTrue(schema.foreignKeys("missing").isEmpty())
+        assertNull(schemaForeignKeyFromJdbc(null, "authors", "id"))
+        assertNull(schemaForeignKeyFromJdbc("author_id", null, "id"))
+        assertEquals(
+            SchemaForeignKey("author_id", "authors", "id"),
+            schemaForeignKeyFromJdbc("author_id", "authors", null),
+        )
+        assertEquals(
+            SchemaForeignKey("author_id", "authors", "pk"),
+            schemaForeignKeyFromJdbc("author_id", "authors", "pk"),
+        )
+        assertEquals(
+            listOf(SchemaForeignKey("author_id", "authors", "id")),
+            importedKeysFromRows(
+                listOf(
+                    Triple(null, "authors", "id"),
+                    Triple("author_id", null, "id"),
+                    Triple("author_id", "authors", null),
+                ),
+            ),
+        )
         assertTrue(schema.columns("missing").isEmpty())
         assertTrue(schema.primaryKey("missing").isEmpty())
 

@@ -35,6 +35,8 @@ internal class TextSetting {
         if (assigned) return literal
         return fallback
     }
+
+    fun isAssigned(): Boolean = assigned
 }
 
 internal class FlagSetting(default: Boolean) {

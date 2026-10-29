@@ -51,6 +51,8 @@ open class Action protected constructor(name: String) : Component(name) {
     private var autofocus: Boolean = true
     private var draggable: Boolean = true
     private var modalComponents: List<Component> = emptyList()
+    /** When set (via [schema] with a [Schema]), modal body keeps that schema’s record for relationship Selects. */
+    private var modalForm: Schema? = null
     private var submitAction: Action? = null
     private var cancelAction: Action? = null
     private var footerActions: List<Action> = emptyList()
@@ -268,7 +270,21 @@ open class Action protected constructor(name: String) : Component(name) {
         for (component in components) {
             if (component === this) throw FireflyException("Action [$name] cannot contain itself")
         }
+        modalForm = null
         modalComponents = components.toList()
+        syncChildren()
+    }
+
+    /**
+     * Dialog body from a full [Schema] (keeps [Schema.record] so `Select.relationship` can resolve
+     * options on create/manage dialogs).
+     */
+    fun schema(form: Schema): Action = apply {
+        for (component in form.components()) {
+            if (component === this) throw FireflyException("Action [$name] cannot contain itself")
+        }
+        modalForm = form
+        modalComponents = form.components()
         syncChildren()
     }
 
@@ -434,7 +450,18 @@ open class Action protected constructor(name: String) : Component(name) {
         // Close (X) lives on the official Dialog header — not duplicated in the body.
         if (post != null && modalComponents.isNotEmpty()) {
             // Flat field names (`name`, not `create.name`) so Cadence/store columns match.
-            val schemaHtml = Schema.make().components(*modalComponents.toTypedArray()).render()
+            // Prefer [modalForm] so relationship Selects keep the resource model record (#337).
+            // Fresh Schema re-roots fields (flat `name`, not `create.name`) and copies the record.
+            val form = modalForm
+            val schemaHtml =
+                if (form != null) {
+                    Schema.make()
+                        .record(form.record())
+                        .components(*form.components().toTypedArray())
+                        .render()
+                } else {
+                    Schema.make().components(*modalComponents.toTypedArray()).render()
+                }
             syncChildren()
             return """$icon$descriptionHtml<form method="post" action="${escapeHtml(post)}" class="ff-action-form">$formExtrasHtml<div class="ff-action-schema">$schemaHtml</div><div class="ff-action-footer">$footer</div></form>"""
         }

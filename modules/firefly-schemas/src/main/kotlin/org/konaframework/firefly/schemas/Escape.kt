@@ -45,7 +45,7 @@ internal fun isTruthy(value: Any?): Boolean {
 }
 
 /** Turn a field name into a title-case label: `first_name` → `First Name`. */
-internal fun humanizeName(name: String): String {
+fun humanizeName(name: String): String {
     if (name.isBlank()) return name
     val spaced = name
         .replace(Regex("([a-z0-9])([A-Z])"), "$1 $2")
