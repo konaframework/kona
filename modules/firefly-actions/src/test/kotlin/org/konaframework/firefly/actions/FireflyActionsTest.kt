@@ -268,6 +268,14 @@ class FireflyActionsTest {
         val withFormHtml = page(withForm)
         assertTrue(withFormHtml.contains("Keep"))
         assertTrue(withFormHtml.contains("""class="ff-action-form""""))
+        // Rebuilt modal Schema must keep columns() so create matches edit layout (#358).
+        val withColumns = Action.make("create").label("Create").modal().modalHeading("Create")
+            .schema(Schema.make().columns(2).components(Text.make("A"), Text.make("B")))
+            .postForm("create", "")
+            .modalSubmitActionLabel("Create")
+        val withColumnsHtml = page(withColumns)
+        assertTrue(withColumnsHtml.contains("""data-ff-columns="2""""))
+        assertTrue(withColumnsHtml.contains("""--ff-cols: 2"""))
         val self = Action.make("loop")
         assertThrows(FireflyException::class.java) {
             self.schema(Schema.make().components(self))

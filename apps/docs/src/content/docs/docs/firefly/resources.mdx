@@ -108,7 +108,7 @@ The page calls `form`, `table`, and `infolist` when it renders, so those methods
 
 <FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table, a Create header action, and row View, Edit, and Delete actions." />
 
-`simple()` keeps one manage page. You still override `form`, `infolist`, and `table`. Leaving `getPages()` alone uses the framework `ManagePage`. The generator instead writes a thin `Manage{Model}` subclass and returns it from `getPages()` so you have a class to customize. The manage page is **table-only** until an action opens a dialog — it does not mount a standing create/edit form. **Create** is the sole header action and opens a dialog with the form schema on a prototype model (so `Select.relationship` can load options). **View**, **Edit**, and **Delete** are row actions: View opens the filled infolist, Edit opens the filled form (or a prototype when the row is not in the store yet), and Delete confirms in a dialog. A simple resource rejects `relation(...)`.
+`simple()` keeps one manage page. You still override `form`, `infolist`, and `table`. Leaving `getPages()` alone uses the framework `ManagePage`. The generator instead writes a thin `Manage{Model}` subclass and returns it from `getPages()` so you have a class to customize. The manage page is **table-only** until an action opens a dialog — it does not mount a standing create/edit form. **Create** is the sole header action and opens a dialog with the form schema on a prototype model (so `Select.relationship` can load options). **View**, **Edit**, and **Delete** are row actions: View opens the filled infolist, Edit opens the filled form (or a prototype when the row is not in the store yet), and Delete confirms in a dialog. Create and Edit dialogs use the same prepared form schema — including `formColumns(n)` / `schema.columns(n)` — so the field grid matches. A simple resource rejects `relation(...)`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -196,7 +196,7 @@ new Resource("orders").model(Order.class).maxWidth("full");
 
 ## Form and infolist grid columns
 
-`Resource.formColumns(n)` and `Resource.infolistColumns(n)` set the schema grid before `form` / `infolist` run (Shamar / Filament `columns`). Generated resources already call `schema.columns(2)` inside those hooks; use the resource API when you want a resource-wide default without editing every override.
+`Resource.formColumns(n)` and `Resource.infolistColumns(n)` set the schema grid before `form` / `infolist` run (Shamar / Filament `columns`). That grid applies on full create/edit pages and on simple/manage Create and Edit dialogs alike. Generated resources already call `schema.columns(2)` inside those hooks; use the resource API when you want a resource-wide default without editing every override.
 
 ```kotlin
 Resource("orders").model(Order::class.java).formColumns(2).infolistColumns(3)
