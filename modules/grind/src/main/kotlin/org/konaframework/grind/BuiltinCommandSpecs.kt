@@ -33,7 +33,7 @@ internal object BuiltinCommandSpecs {
         "make:firefly-panel {name?} {--id=} {--path=} {--lang=}",
         "make:firefly-page {name} {--panel=} {--lang=}",
         "make:firefly-theme {name} {--lang=}",
-        "make:firefly-resource {name} {--simple} {--panel=} {--lang=}",
+        "make:firefly-resource {name} {--simple} {--generate} {--panel=} {--lang=} {--database=} {--bootstrap=}",
         "firefly:install {--id=} {--path=} {--lang=}",
         "firefly:publish",
         "make:model {name} {--migration} {--controller} {--resource} {--api} {--requests} {--factory} {--seeder} {--seed} {--policy} {--all} {--lang=}",

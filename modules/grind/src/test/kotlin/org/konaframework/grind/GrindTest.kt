@@ -860,7 +860,8 @@ class GrindTest {
         val base = temp.resolve("firefly-resource")
         Files.createDirectories(base)
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Category", "--base=$base", "--lang=kotlin", "--simple")))
-        val simple = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/CategoryResource.kt"))
+        val simple = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/category/CategoryResource.kt"))
+        assertTrue(simple.contains("package app.panels.admin.resources.category"))
         assertTrue(simple.contains("class CategoryResource"))
         assertTrue(simple.contains("simple()"))
         assertTrue(simple.contains("override fun form"))
@@ -869,6 +870,7 @@ class GrindTest {
         assertTrue(simple.contains("Resource(\"category\")"))
         assertTrue(simple.contains("override fun getPages"))
         assertTrue(simple.contains("ManageCategory()"))
+        assertTrue(simple.contains("TextInput.make(\"name\")"))
         assertFalse(simple.contains("RelationManager"))
         assertTrue(simple.contains("import app.panels.admin.resources.category.pages.ManageCategory"))
         val managePage = Files.readString(
@@ -876,10 +878,12 @@ class GrindTest {
         )
         assertTrue(managePage.contains("package app.panels.admin.resources.category.pages"))
         assertTrue(managePage.contains("class ManageCategory : ManagePage(\"manage\")"))
-        // JVM forbids nesting pages under the Resource class FQN (#321).
-        assertFalse(Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/CategoryResource/pages")))
+        // Group under resources/{model}/ — never under the Resource class FQN (#321 / #323).
+        assertFalse(Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/CategoryResource.kt")))
+        assertFalse(Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/CategoryResource")))
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Order", "--base=$base", "--lang=kotlin")))
-        val full = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/OrderResource.kt"))
+        val full = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/order/OrderResource.kt"))
+        assertTrue(full.contains("package app.panels.admin.resources.order"))
         assertTrue(full.contains("class OrderResource"))
         assertTrue(full.contains("import app.panels.admin.resources.order.pages.ListOrder"))
         assertTrue(full.contains("ListOrder()"))
@@ -906,7 +910,7 @@ class GrindTest {
             Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/order/pages/ViewOrder.kt")),
         )
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("UserResource", "--base=$base", "--lang=kotlin", "--simple")))
-        val noDouble = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/UserResource.kt"))
+        val noDouble = Files.readString(base.resolve("src/main/kotlin/app/panels/admin/resources/user/UserResource.kt"))
         assertTrue(noDouble.contains("class UserResource"))
         assertTrue(noDouble.contains("model(app.models.User::class.java)"))
         assertTrue(noDouble.contains("ManageUser()"))
@@ -915,7 +919,8 @@ class GrindTest {
             Files.exists(base.resolve("src/main/kotlin/app/panels/admin/resources/user/pages/ManageUser.kt")),
         )
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Note", "--base=$base", "--lang=java", "--simple")))
-        val javaSimple = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/NoteResource.java"))
+        val javaSimple = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/note/NoteResource.java"))
+        assertTrue(javaSimple.contains("package app.panels.admin.resources.note;"))
         assertTrue(javaSimple.contains("public class NoteResource"))
         assertTrue(javaSimple.contains("simple();"))
         assertTrue(javaSimple.contains("public Schema form"))
@@ -928,7 +933,8 @@ class GrindTest {
                 .contains("extends ManagePage"),
         )
         assertEquals(0, MakeFireflyResourceCommand().run(listOf("Invoice", "--base=$base", "--lang=java")))
-        val javaFull = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/InvoiceResource.java"))
+        val javaFull = Files.readString(base.resolve("src/main/java/app/panels/admin/resources/invoice/InvoiceResource.java"))
+        assertTrue(javaFull.contains("package app.panels.admin.resources.invoice;"))
         assertTrue(javaFull.contains("new ViewInvoice()"))
         assertTrue(javaFull.contains("new ListInvoice()"))
         assertTrue(javaFull.contains("new CreateInvoice()"))
