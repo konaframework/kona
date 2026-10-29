@@ -17,24 +17,27 @@ import org.konaframework.firefly.widgets.Page
 
 class OrderResource : Resource("orders") {
     init {
-        label("Orders")
+        label("Order")
         model(Order::class.java)
     }
 
     override fun form(schema: Schema): Schema =
-        schema.components(TextInput.make("name"))
+        schema.components(TextInput.make("name").label("Name").required())
 
     override fun infolist(schema: Schema): Schema =
-        schema.components(TextEntry.make("name"))
+        schema.components(TextEntry.make("name").label("Name"))
 
     override fun table(table: Table<*, *>): Table<*, *> =
-        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+        table.columns(TextColumn.make("name").label("Name").searchable().sortable())
 
     override fun getRelations(): List<RelationManager> = listOf(
         RelationManager("lines")
             .related(Line::class.java)
             .titleAttribute("sku")
-            .table(Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku"))),
+            .table(
+                Table.forModel(Line::class.java).columns(TextColumn.make("sku").label("SKU").searchable()),
+            )
+            .form(Schema.make().components(TextInput.make("sku").label("SKU").required())),
     )
 
     override fun getPages(): Map<String, Page> = mapOf(
