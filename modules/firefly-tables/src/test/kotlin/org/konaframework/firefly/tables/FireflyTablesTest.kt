@@ -255,6 +255,82 @@ class FireflyTablesTest {
         assertTrue(literal.heading(Cell { null }).contains("Name"))
         assertEquals("Published At", TextColumn.make("published_at").heading(Cell { null }))
         assertEquals("First Name", TextColumn.make("first_name").heading(Cell { null }))
+        val related = TextColumn.make("project_id").relationship("project", "name")
+        assertEquals("Project", related.heading(Cell { null }))
+        assertEquals("project", related.relationshipName())
+        assertTrue(
+            related.render(
+                mapOf("project_id" to 7, "project" to mapOf("id" to 7, "name" to "Desk")),
+                "1",
+                Cell { path ->
+                    when (path) {
+                        "project" -> mapOf("id" to 7, "name" to "Desk")
+                        "project_id" -> 7
+                        else -> null
+                    }
+                },
+            ).contains("Desk"),
+        )
+        val deskHtml = related.render(
+            mapOf("project_id" to 7, "project" to mapOf("id" to 7, "name" to "Desk")),
+            "1",
+            Cell { path -> if (path == "project") mapOf("id" to 7, "name" to "Desk") else 7 },
+        )
+        assertTrue(deskHtml.contains("Desk"))
+        assertFalse(deskHtml.contains(">7</"))
+        assertEquals("Project", TextColumn.make("project_id").label("Project").relationship("project", "name").heading(Cell { null }))
+        assertThrows(FireflyException::class.java) { TextColumn.make("x").relationship(" ", "name") }
+        assertThrows(FireflyException::class.java) { TextColumn.make("x").relationship("project", " ") }
+        assertEquals("7", Column.relationshipTitle(Cell { null }, "project", "name", 7))
+        assertEquals(
+            "",
+            Column.relationshipTitle(
+                Cell { if (it == "project") mapOf("id" to 1) else null },
+                "project",
+                "name",
+                null,
+            ),
+        )
+        assertEquals(
+            "fb",
+            Column.relationshipTitle(
+                Cell { if (it == "project") mapOf("id" to 1) else null },
+                "project",
+                "name",
+                "fb",
+            ),
+        )
+        assertEquals(
+            "Ada",
+            Column.relationshipTitle(
+                Cell { if (it == "author") object {
+                    fun name(): String = "Ada"
+                } else null },
+                "author",
+                "name",
+                null,
+            ),
+        )
+        assertEquals(
+            "fb",
+            Column.relationshipTitle(Cell { if (it == "author") Any() else null }, "author", "name", "fb"),
+        )
+        assertEquals(
+            "ViaSlash",
+            Column.relationshipTitle(
+                Cell { if (it == "/project") mapOf("name" to "ViaSlash") else null },
+                "project",
+                "name",
+                null,
+            ),
+        )
+        // Memory tables with relationship() skip Cadence with() (non-ModelBuilder query).
+        assertTrue(
+            Table.memory(mapOf("id" to "1", "project_id" to 7, "project" to mapOf("name" to "Desk")))
+                .columns(TextColumn.make("project_id").relationship("project", "name"))
+                .render()
+                .contains("Desk"),
+        )
         val stamped = TextColumn.make("created_at").toggleable().toggledHiddenByDefault()
         assertTrue(stamped.isToggledHiddenByDefault())
         assertTrue(stamped.isToggleable(Cell { null }))

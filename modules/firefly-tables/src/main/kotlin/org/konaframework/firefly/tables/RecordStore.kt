@@ -306,7 +306,23 @@ open class CadenceRecordStore<T : Cadence<T>>(
         }
     }
 
-    override fun attributes(record: T): Map<String, Any?> = LinkedHashMap(record.getAttributes())
+    override fun attributes(record: T): Map<String, Any?> {
+        val out = LinkedHashMap(record.getAttributes())
+        // Expose eager-loaded relations so TextColumn.relationship / dotted cells can resolve titles.
+        for ((name, value) in record.getRelations()) {
+            out[name] = relationAttribute(value)
+        }
+        return out
+    }
+
+    private fun relationAttribute(value: Any?): Any? = when (value) {
+        null -> null
+        is Cadence<*> -> LinkedHashMap(value.getAttributes())
+        is Collection<*> -> value.map { item ->
+            if (item is Cadence<*>) LinkedHashMap(item.getAttributes()) else item
+        }
+        else -> value
+    }
 
     private fun prototype(): T = try {
         val constructor = modelClass.getDeclaredConstructor()

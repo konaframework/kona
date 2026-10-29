@@ -268,6 +268,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     private fun prepare(query: Q): Q {
+        eagerLoadRelationships(query)
         val cell = tableCell()
         hooks.forEach { it.accept(query) }
         for (filter in filterList) {
@@ -280,6 +281,16 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val sorting = sortColumn
         if (sorting != null) store.sort(query, sorting, sortDirection)
         return query
+    }
+
+    /** Cadence queries: `with()` every [Column.relationship] so titles resolve without N+1. */
+    @Suppress("UNCHECKED_CAST")
+    private fun eagerLoadRelationships(query: Q) {
+        val names = columnList.mapNotNull { it.relationshipName() }.distinct()
+        if (names.isEmpty()) return
+        if (query is ModelBuilder<*>) {
+            (query as ModelBuilder<Cadence<*>>).with(*names.toTypedArray())
+        }
     }
 
     private fun baseQuery(): Q {

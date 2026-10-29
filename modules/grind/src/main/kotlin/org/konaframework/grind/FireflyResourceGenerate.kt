@@ -156,15 +156,26 @@ internal object FireflyResourceGenerate {
         val name = column.name
         if (foreign != null) {
             val relation = relationName(foreign)
+            val label = relationLabel(relation)
             return MappedColumn(
                 form = GeneratedComponent(
                     "Select",
                     "org.konaframework.firefly.forms.Select",
                     name,
+                    callSuffix = ".label(\"$label\").relationship(\"$relation\", \"name\")",
+                ),
+                table = GeneratedComponent(
+                    "TextColumn",
+                    "org.konaframework.firefly.tables.TextColumn",
+                    name,
                     callSuffix = ".relationship(\"$relation\", \"name\")",
                 ),
-                table = GeneratedComponent("TextColumn", "org.konaframework.firefly.tables.TextColumn", name),
-                entry = GeneratedComponent("TextEntry", "org.konaframework.firefly.infolists.TextEntry", name),
+                entry = GeneratedComponent(
+                    "TextEntry",
+                    "org.konaframework.firefly.infolists.TextEntry",
+                    name,
+                    callSuffix = ".label(\"$label\")",
+                ),
             )
         }
         val kind = resolveKind(column, cast)
@@ -297,6 +308,10 @@ internal object FireflyResourceGenerate {
         val table = foreign.referencedTable
         return if (table.length > 1 && table.endsWith("s")) table.dropLast(1) else table
     }
+
+    /** `project` → `Project` for Select/TextEntry labels. */
+    private fun relationLabel(relation: String): String =
+        relation.take(1).uppercase() + relation.drop(1)
 }
 
 internal data class GeneratedComponent(

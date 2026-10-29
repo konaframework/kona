@@ -114,9 +114,16 @@ class FireflyResourceGenerateTest {
         assertTrue(fields.form.any { it.name == "project_id" && it.type == "Select" })
         assertTrue(
             fields.form.any {
+                it.name == "project_id" &&
+                    it.callExpr().contains(".label(\"Project\").relationship(\"project\", \"name\")")
+            },
+        )
+        assertTrue(
+            fields.table.any {
                 it.name == "project_id" && it.callExpr().contains(".relationship(\"project\", \"name\")")
             },
         )
+        assertTrue(fields.infolist.any { it.name == "project_id" && it.callExpr().contains(".label(\"Project\")") })
         assertTrue(fields.form.any { it.name == "active" && it.type == "Toggle" })
         assertTrue(fields.form.any { it.name == "is_done" && it.type == "Toggle" })
         assertTrue(fields.form.any { it.name == "has_cover" && it.type == "Toggle" })
@@ -140,7 +147,16 @@ class FireflyResourceGenerateTest {
             },
             setOf("id"),
         )
-        assertTrue(guessed.form.any { it.callExpr().contains("Select.make(\"author_id\").relationship(\"author\", \"name\")") })
+        assertTrue(
+            guessed.form.any {
+                it.callExpr().contains("Select.make(\"author_id\").label(\"Author\").relationship(\"author\", \"name\")")
+            },
+        )
+        assertTrue(
+            guessed.table.any {
+                it.name == "author_id" && it.callExpr().contains(".relationship(\"author\", \"name\")")
+            },
+        )
         assertTrue(guessed.table.any { it.name == "label" && it.callExpr().contains(".searchable().sortable()") })
         // First data column searchable when no name/title/label; FK relation from table stem without trailing s.
         val firstCol = FireflyResourceGenerate.mapColumns(
@@ -158,7 +174,8 @@ class FireflyResourceGenerateTest {
             mapOf("org_id" to org.konaframework.cadence.schema.SchemaForeignKey("org_id", "org", "id")),
         )
         assertTrue(firstCol.table.any { it.name == "sku" && it.callExpr().contains(".searchable().sortable()") })
-        assertTrue(firstCol.form.any { it.callExpr().contains(".relationship(\"org\", \"name\")") })
+        assertTrue(firstCol.form.any { it.callExpr().contains(".label(\"Org\").relationship(\"org\", \"name\")") })
+        assertTrue(firstCol.table.any { it.callExpr().contains(".relationship(\"org\", \"name\")") })
         // Non-integer boolean-ish names stay text; bare `_id` is not guessed as a relation.
         val plain = FireflyResourceGenerate.mapColumns(
             listOf(
@@ -201,8 +218,8 @@ class FireflyResourceGenerateTest {
                 it.name == "created_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
             },
         )
-        assertTrue(stamps.form.any { it.callExpr().contains("Select.make(\"team\").relationship(\"people\", \"name\")") })
-        assertTrue(stamps.form.any { it.callExpr().contains("Select.make(\"owner\").relationship(\"s\", \"name\")") })
+        assertTrue(stamps.form.any { it.callExpr().contains("Select.make(\"team\").label(\"People\").relationship(\"people\", \"name\")") })
+        assertTrue(stamps.form.any { it.callExpr().contains("Select.make(\"owner\").label(\"S\").relationship(\"s\", \"name\")") })
         // Fillable must include boss for the relationName(users→user) path.
         val bosses = FireflyResourceGenerate.mapColumns(
             listOf(
@@ -217,7 +234,7 @@ class FireflyResourceGenerateTest {
             setOf("id"),
             mapOf("boss" to org.konaframework.cadence.schema.SchemaForeignKey("boss", "users", "id")),
         )
-        assertTrue(bosses.form.any { it.callExpr().contains("Select.make(\"boss\").relationship(\"user\", \"name\")") })
+        assertTrue(bosses.form.any { it.callExpr().contains("Select.make(\"boss\").label(\"User\").relationship(\"user\", \"name\")") })
         val shortFk = FireflyResourceGenerate.mapColumns(
             listOf(
                 SchemaColumn("id", "BIGINT", false, "", 19),
@@ -231,7 +248,7 @@ class FireflyResourceGenerateTest {
             setOf("id"),
             mapOf("_id" to org.konaframework.cadence.schema.SchemaForeignKey("_id", "users", "id")),
         )
-        assertTrue(shortFk.form.any { it.callExpr().contains("Select.make(\"_id\").relationship(\"user\", \"name\")") })
+        assertTrue(shortFk.form.any { it.callExpr().contains("Select.make(\"_id\").label(\"User\").relationship(\"user\", \"name\")") })
         // INTEGER that is not a boolean hint stays TextInput.
         val notBool = FireflyResourceGenerate.mapColumns(
             listOf(
