@@ -223,7 +223,60 @@ Filter.make("name").query((query, value) -> {
 
 `reorderable("score")` then `move(key, index)` writes the new order into that attribute.
 
-`layout(TableLayout.ROWS)` is the table. `TableLayout.STACK` and `TableLayout.GRID` render the same records as cards. `poll("10s")` or `poll("500ms")` adds `wire:poll` on the root.
+`layout(TableLayout.ROWS)` is the default table. `TableLayout.STACK` and `TableLayout.GRID` render the same records as cards (stack is a single column of cards; grid fills a responsive card grid). `poll("10s")` or `poll("500ms")` adds `wire:poll` on the root.
+
+## Mobile cards, content grid, and Split / Stack
+
+On small screens, ROWS become **cards** by default: each cell shows its column label above the value, and a **Sort** dropdown appears when any visible column is sortable. That is `stackedOnMobile(true)` (the default). Pass `stackedOnMobile(false)` to keep a horizontal scroll table on phones.
+
+`contentGrid(mapOf("md" to 2, "xl" to 3))` turns the list into a card grid: one column on the smallest size, then the counts you set from each breakpoint upward (`sm` … `2xl`, plus `default`). It sets `TableLayout.GRID` and paints the same card chrome as stack/grid layouts (selection checkbox, field labels, row actions).
+
+Compose a row with layout components under `org.konaframework.firefly.tables.layout`:
+
+- `Split.make(...)` — children sit in a row; `from("md")` stacks them below that breakpoint.
+- `Stack.make(...)` — vertical stack; `space(1|2|3)`, `alignment(Align.END)`, `visibleFrom("md")`.
+- `Grid.make(2).schema(...)` — equal CSS-grid tracks inside one record (from `lg` up).
+- `Column.grow(false)` — keep intrinsic width inside a Split instead of sharing leftover space.
+
+Pass Split / Stack / Grid into `columns(...)` mixed with ordinary columns. Search, sort, and filters still use the flattened leaf columns.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+table
+    .columns(
+        Split.make(
+            TextColumn.make("name").label("Name").searchable().sortable().grow(false),
+            Stack.make(
+                TextColumn.make("phone").label("Phone"),
+                TextColumn.make("email").label("Email"),
+            ).space(1).visibleFrom("md"),
+        ).from("md"),
+    )
+    .stackedOnMobile() // default true — cards on small screens
+    .contentGrid(mapOf("md" to 2, "xl" to 3)) // optional record grid
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.columns(
+    Split.make(
+        TextColumn.make("name").label("Name").searchable().sortable().grow(false),
+        Stack.make(
+            TextColumn.make("phone").label("Phone"),
+            TextColumn.make("email").label("Email")
+        ).space(1).visibleFrom("md")
+    ).from("md")
+);
+table.stackedOnMobile(true);
+table.contentGrid(Map.of("md", 2, "xl", 3));
+```
+
+</TabItem>
+</Tabs>
 
 ## Click a row
 

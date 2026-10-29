@@ -62,6 +62,7 @@ open class Column protected constructor(val name: String) {
     private val summaryOps = ArrayList<Summary>()
     private var relationshipName: String? = null
     private var relationshipTitleAttribute: String? = null
+    private var growFlag = true
 
     fun label(value: String): Column = apply { labelValue.set(value) }
 
@@ -250,6 +251,15 @@ open class Column protected constructor(val name: String) {
     fun summarize(operation: Summary): Column = apply { summaryOps.add(operation) }
 
     fun summaries(): List<Summary> = summaryOps.toList()
+
+    /**
+     * When false inside a [org.konaframework.firefly.tables.layout.Split], the column
+     * keeps intrinsic width instead of sharing leftover flex space.
+     */
+    @JvmOverloads
+    fun grow(on: Boolean = true): Column = apply { growFlag = on }
+
+    fun grows(): Boolean = growFlag
 
     open fun isHidden(cell: Cell): Boolean = hiddenFlag.get(cell) || !visibleFlag.get(cell)
 

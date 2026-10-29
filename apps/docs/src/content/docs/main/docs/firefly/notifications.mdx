@@ -12,6 +12,8 @@ Build the message, then call `send`. The types live in `org.konaframework.firefl
 
 Chainable setters accept a static value or a closure. The closure receives the schema `Get` for the current state.
 
+Resource create, edit, and delete POSTs already flash a success toast for you (`Created`, `Saved`, or `Deleted`) when the request has a session. The panel shell pulls that flash on the next HTML response and paints a stacked toast in the top-right corner.
+
 <FireflyShot file="saved-toast.png" description="A success toast titled Saved on a Firefly panel page, such as after a save on http://127.0.0.1:4017/admin/notes/manage." />
 
 ## Flash a toast
@@ -46,6 +48,11 @@ notice.duration(6);
 notice.extraAttributes(get -> Map.of("data-lang", "java"));
 notice.send(session, Map.of());
 String html = FireflyNotification.pull(session);
+
+// Resource defaults (also used by the panel after create / edit / delete):
+FireflyToasts.created(session);
+FireflyToasts.saved(session);
+FireflyToasts.deleted(session);
 ```
 
 </TabItem>
@@ -57,9 +64,29 @@ You see a success toast titled **Saved**. `make()` assigns a random id. `make(id
 
 `duration` is a whole number of seconds. The default is `6`. A negative duration throws `FireflyException`.
 
-`send(session)` writes one map onto the session flash key `firefly.notifications`. `send(session, state)` evaluates closures against that state map. `FireflyNotification.render(session)` reads the flash and returns the toast HTML and leaves the key in place. `pull(session)` returns the same HTML and then forgets the key.
+`send(session)` writes one map onto the session flash key `firefly.notifications`. `send(session, state)` evaluates closures against that state map. `FireflyNotification.render(session)` reads the flash and returns the toast HTML and leaves the key in place. `pull(session)` returns the same HTML and then forgets the key (or clears it on a plain `RequestSession`).
 
-Each toast is a `<div class="ff-notification" role="status">` with `data-ff-status`, `data-ff-color`, and `data-ff-duration`. `extraAttributes` are written on that element. Action HTML is rendered from the actions you attached.
+Convenience helpers flash the default resource copy in one call:
+
+| Helper | Title | Status |
+|--------|-------|--------|
+| `FireflyToasts.saved(session)` | Saved | success |
+| `FireflyToasts.created(session)` | Created | success |
+| `FireflyToasts.deleted(session)` | Deleted | success |
+
+You can still chain `.title(...)`, `.body(...)`, and status helpers yourself when you need custom copy.
+
+### Toast chrome
+
+`render` / `pull` wrap every flashed toast in `<div class="ff-notifications" data-ff-notifications aria-live="polite">`. Each toast is:
+
+- `<div class="ff-notification" role="status">` with `data-ff-status`, `data-ff-color`, and `data-ff-duration`
+- a status accent bar, circular icon (status SVG by default, or a named `Icon` / literal string when you set `icon`)
+- title, optional body, optional action row
+- a dismiss control (`data-ff-notification-dismiss`)
+- a progress bar that drains over `data-ff-duration` seconds (omitted when duration is `0`)
+
+Panel chrome CSS places the stack fixed in the top-right, with enter/leave motion, status colors (`success` / `info` / `warning` / `danger`), and dark-panel variants. The chrome script arms each toast: show animation, click-to-dismiss, and auto-dismiss from `data-ff-duration`. `extraAttributes` are written on the toast element. Action HTML is rendered from the actions you attached.
 
 ## List notices in the bell
 

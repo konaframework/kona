@@ -8,6 +8,9 @@ import org.konaframework.cadence.Database;
 import org.konaframework.cadence.ModelBuilder;
 import org.konaframework.cadence.relations.HasMany;
 import org.konaframework.firefly.schemas.Text;
+import org.konaframework.firefly.tables.layout.Grid;
+import org.konaframework.firefly.tables.layout.Split;
+import org.konaframework.firefly.tables.layout.Stack;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,6 +80,33 @@ public class TableJavaTest {
         TableButton edit = TableButton.make("edit").label("Edit").url("edit");
         assertTrue(view.render(Cell.of(path -> null), false).contains("ff-table-button"));
         assertTrue(TableButton.group(view, edit).render(Cell.of(path -> null), false).contains("ff-row-action-menu"));
+    }
+
+    @Test
+    void javaBuildsSplitStackContentGridAndStackedOnMobile() {
+        Map<String, Object> ada = new LinkedHashMap<>();
+        ada.put("id", "1");
+        ada.put("name", "Ada");
+        ada.put("email", "ada@x.test");
+        ada.put("phone", "111");
+        Table<Map<String, Object>, MemoryQuery> table = Table.memory(List.of(ada));
+        table.columns(
+            Split.make(
+                TextColumn.make("name").label("Name").sortable().grow(false),
+                Stack.make(
+                    TextColumn.make("phone").label("Phone"),
+                    TextColumn.make("email").label("Email")
+                ).space(1).alignment(Align.END).visibleFrom("md")
+            ).from("md")
+        );
+        table.stackedOnMobile(true);
+        table.contentGrid(Map.of("md", 2, "xl", 3));
+        String html = table.render();
+        assertTrue(html.contains("ff-layout-split"));
+        assertTrue(html.contains("ff-layout-stack"));
+        assertTrue(html.contains("data-ff-content-grid"));
+        assertTrue(html.contains("data-ff-stacked-mobile=\"true\""));
+        assertTrue(Grid.make(2).schema(TextColumn.make("name")).flattenColumns().size() >= 1);
     }
 
     @Test

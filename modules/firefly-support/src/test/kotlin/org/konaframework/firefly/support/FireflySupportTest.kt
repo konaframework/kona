@@ -255,6 +255,12 @@ class FireflySupportTest {
         assertTrue(css.contains("grid-column: span var(--ff-span"))
         assertTrue(css.contains(".ff-panel .ff-table-search-wrap"))
         assertTrue(css.contains(":not(.ff-table-search)"))
+        assertTrue(css.contains(".ff-panel .ff-table-card"))
+        assertTrue(css.contains(".ff-panel .ff-layout-split"))
+        assertTrue(css.contains(".ff-panel .ff-layout-stack"))
+        assertTrue(css.contains("data-ff-stacked-mobile"))
+        assertTrue(css.contains(".ff-panel .ff-table-mobile-sort"))
+        assertTrue(css.contains("ff-table-grid[data-ff-content-grid]") || css.contains("data-ff-content-grid"))
         assertTrue(css.contains(".ff-panel .ff-row-actions .ff-dialog") || css.contains(".ff-row-actions .ff-action-dialog"))
         assertTrue(css.contains(".ff-panel .ff-entry[data-ff-align=\"justify\"]") || css.contains(".ff-entry[data-ff-align=\"justify\"]"))
         assertTrue(css.contains("overflow-wrap: anywhere"))
@@ -457,6 +463,14 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-record-action"))
         assertTrue(html.contains("recordTrigger"))
         assertTrue(html.contains("ff-open"))
+        // Processing buttons + toast arming (#380).
+        assertTrue(html.contains("markLoading"))
+        assertTrue(html.contains("ff-spinner"))
+        assertTrue(html.contains("data-ff-loading"))
+        assertTrue(html.contains("armNotifications"))
+        assertTrue(html.contains("data-ff-notification-dismiss"))
+        assertTrue(html.contains(".ff-notification"))
+        assertTrue(html.contains("@keyframes ff-spin") || html.contains("ff-spin"))
         // Form toggles flip without Alpine/Wire.
         assertTrue(html.contains("data-ff-toggle"))
         assertTrue(html.contains("data-ff-toggle-value"))
@@ -495,6 +509,7 @@ class FireflySupportTest {
         // Table soft-nav swaps .ff-table-wrap without a full document reload.
         assertTrue(html.contains("ffTableNav"))
         assertTrue(html.contains("data-ff-table-nav"))
+        assertTrue(html.contains("data-ff-mobile-sort"))
         assertTrue(html.contains("data-ff-column-toggle"))
         assertEquals("", RenderHooks().render(Hook.BODY_START))
 

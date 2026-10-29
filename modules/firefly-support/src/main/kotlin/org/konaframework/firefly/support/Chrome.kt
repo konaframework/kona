@@ -91,14 +91,60 @@ class DefaultLayout(
          * Panel chrome behavior with no framework: 3-state theme cycle, dropdown
          * menus (notifications + user), mobile sidebar drawer, Action/TableButton
          * dialogs (`data-ff-dialog-*`), Select combobox (`data-ff-combobox`), date
-         * pickers, and table soft-nav (`data-ff-table-nav`) that swaps
-         * `.ff-table-wrap` via fetch without a full document reload.
+         * pickers, table soft-nav (`data-ff-table-nav`) that swaps
+         * `.ff-table-wrap` via fetch without a full document reload,
+         * processing/loading buttons on mutate submits, and toast auto-dismiss.
          * Alpine is optional — dialogs, combobox, and table nav open without it.
          */
         internal const val CHROME_SCRIPT: String =
             "<script>(function(){" +
                 "var root=document.querySelector('.ff-panel');if(!root)return;" +
                 "var media=window.matchMedia('(prefers-color-scheme: dark)');" +
+                "function spinnerHtml(){return '<span class=\"ff-spinner\" aria-hidden=\"true\"></span>';}" +
+                "function markLoading(el){if(!el||el.getAttribute('data-ff-loading')==='true')return false;" +
+                "el.setAttribute('data-ff-loading','true');el.setAttribute('aria-busy','true');" +
+                "if('disabled' in el)el.disabled=true;else{el.setAttribute('aria-disabled','true');}" +
+                "el.classList.add('ff-loading');" +
+                "if(!el.querySelector(':scope > .ff-spinner'))el.insertAdjacentHTML('afterbegin',spinnerHtml());" +
+                "return true;}" +
+                "function isExcludedTrigger(el){return !!(el.closest('[data-ff-dialog-switch],[data-ff-dialog-close]')||" +
+                "el.classList.contains('ff-action-cancel')||el.matches('a.ff-action-submit,a.ff-action-trigger'));}" +
+                "function isProcessingTrigger(el){if(!el||isExcludedTrigger(el))return false;" +
+                "if(el.matches('button.ff-action-submit,button.ff-action-trigger[type=\"submit\"],button.ff-action-trigger[form],'+" +
+                "'button[type=\"submit\"]:not(.ff-menu-item):not(.ff-action-cancel):not(.ff-action-outlined)'))return true;" +
+                "if(el.matches('button.ff-action-submit,button.ff-action-trigger')&&(el.getAttribute('wire:click')||" +
+                "(el.getAttribute('x-data')||'').indexOf('ffAction')>=0))return true;" +
+                "return false;}" +
+                "function isMutatingForm(f){return !!(f&&f.matches&&(f.matches('.ff-action-form,.ff-delete-form,.ff-action-post,form#ff-form')||" +
+                "f.querySelector('.ff-action-schema')));}" +
+                "function armNotifications(){var stack=root.querySelector('[data-ff-notifications]');if(!stack)return;" +
+                "stack.querySelectorAll('.ff-notification').forEach(function(el){" +
+                "if(el.getAttribute('data-ff-toast-armed')==='true')return;el.setAttribute('data-ff-toast-armed','true');" +
+                "el.classList.add('ff-notification-enter');" +
+                "requestAnimationFrame(function(){el.classList.add('ff-notification-show');});" +
+                "function dismiss(){if(el.getAttribute('data-ff-leaving')==='true')return;" +
+                "el.setAttribute('data-ff-leaving','true');el.classList.remove('ff-notification-show');" +
+                "el.classList.add('ff-notification-leave');" +
+                "setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);" +
+                "if(stack&&!stack.querySelector('.ff-notification'))stack.remove();},220);}" +
+                "var btn=el.querySelector('[data-ff-notification-dismiss]');if(btn)btn.addEventListener('click',dismiss);" +
+                "var secs=+(el.getAttribute('data-ff-duration')||'6');" +
+                "if(secs>0){var t=setTimeout(dismiss,secs*1000);el.addEventListener('mouseenter',function(){clearTimeout(t);}, {once:true});}" +
+                "});}" +
+                "armNotifications();" +
+                "document.addEventListener('click',function(ev){var t=ev.target;if(!t||!t.closest)return;" +
+                "var btn=t.closest('button');if(!btn||!isProcessingTrigger(btn))return;" +
+                "if(btn.type==='submit'||btn.getAttribute('type')==='submit'||btn.hasAttribute('form'))return;" +
+                "if(btn.getAttribute('data-ff-loading')==='true'){ev.preventDefault();ev.stopPropagation();return;}" +
+                "markLoading(btn);},true);" +
+                "document.addEventListener('submit',function(ev){var f=ev.target;if(!f||!f.matches||!f.matches('form'))return;" +
+                "if(f.matches('form[data-ff-table-nav]'))return;" +
+                "var btn=ev.submitter||f.querySelector('button[type=\"submit\"],button.ff-action-submit,button.ff-action-trigger[type=\"submit\"]');" +
+                "if(btn&&btn.getAttribute('data-ff-loading')==='true'){ev.preventDefault();return;}" +
+                "if(!isMutatingForm(f)&&!(btn&&isProcessingTrigger(btn)))return;" +
+                "if(btn&&isExcludedTrigger(btn))return;" +
+                "if(btn){if(!markLoading(btn)){ev.preventDefault();}}" +
+                "},true);" +
                 "function pref(){try{var v=localStorage.getItem('ff-theme');" +
                 "return v==='light'||v==='dark'||v==='system'?v:'system';}catch(e){return 'system';}}" +
                 "function apply(p){var d=p==='dark'||(p!=='light'&&media.matches);" +
@@ -456,6 +502,11 @@ class DefaultLayout(
                 "var shown=[];wrap.querySelectorAll('[data-ff-column-toggle]').forEach(function(box){if(box.checked)shown.push(box.getAttribute('data-ff-column-toggle')||'');});" +
                 "var url=new URL(location.href);url.searchParams.set('columns',shown.filter(Boolean).join(','));url.searchParams.set('page','1');" +
                 "ffTableNav(url.pathname+url.search,wrap);return;}" +
+                "if(el.matches('[data-ff-mobile-sort]')){var wrap=el.closest('.ff-table-wrap');if(!wrap)return;" +
+                "var parts=(el.value||'').split(':');var url=new URL(location.href);" +
+                "if(parts[0]){url.searchParams.set('sort',parts[0]);url.searchParams.set('direction',parts[1]||'asc');}" +
+                "else{url.searchParams.delete('sort');url.searchParams.delete('direction');}" +
+                "url.searchParams.set('page','1');ffTableNav(url.pathname+url.search,wrap);return;}" +
                 "if(!el.matches('[data-ff-table-nav-select]'))return;" +
                 "var wrap=el.closest('.ff-table-wrap');var form=el.closest('form[data-ff-table-nav]');" +
                 "if(form){if(form.requestSubmit)form.requestSubmit();else form.submit();return;}" +
