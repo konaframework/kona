@@ -308,13 +308,25 @@ open class DateTimePicker protected constructor(
             append("""<input type="hidden" name="${esc(path)}" value="${esc(stored)}" data-ff-picker-value />""")
             append("""<div class="ff-picker-panel" data-ff-picker-panel hidden>""")
             if (withDate) {
+                val caption = when (pickLevel) {
+                    DatePickLevel.MONTH -> focused.year.toString()
+                    DatePickLevel.YEAR -> yearSpan(focused).let { "${it.first} – ${it.last}" }
+                    DatePickLevel.DAY -> monthCaption(focused)
+                }
                 append("""<div class="ff-picker-nav">""")
                 append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-prev aria-label="Previous">‹</button>""")
-                append("""<button type="button" class="ff-picker-caption" data-ff-picker-caption data-ff-picker-view-up>${esc(monthCaption(focused))}</button>""")
+                append("""<button type="button" class="ff-picker-caption" data-ff-picker-caption data-ff-picker-view-up>${esc(caption)}</button>""")
                 append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-next aria-label="Next">›</button>""")
                 append("</div>")
-                append("""<div class="ff-picker-weekdays" data-ff-picker-weekdays>${weekdayHeaderInner()}</div>""")
-                append(monthGrid(schema, focused, stored))
+                val weekdaysStyle = if (pickLevel == DatePickLevel.DAY) "" else """ style="display:none""""
+                append("""<div class="ff-picker-weekdays" data-ff-picker-weekdays$weekdaysStyle>${weekdayHeaderInner()}</div>""")
+                append(
+                    when (pickLevel) {
+                        DatePickLevel.MONTH -> monthsGrid(focused, stored)
+                        DatePickLevel.YEAR -> yearsGrid(focused, stored)
+                        DatePickLevel.DAY -> monthGrid(schema, focused, stored)
+                    },
+                )
             }
             if (withTime) append(timeSpinners(stored))
             append("""<div class="ff-picker-actions">""")
@@ -375,6 +387,40 @@ open class DateTimePicker protected constructor(
         }
     }
 
+    private fun yearSpan(focused: LocalDate): IntRange {
+        val first = Math.floorDiv(focused.year, 12) * 12
+        return first..(first + 11)
+    }
+
+    /** Month-only grid: twelve short month names; the stored `Y-m` month is selected. */
+    private fun monthsGrid(focused: LocalDate, stored: String): String {
+        val locale = locale()
+        val chosen = Regex("""^(\d{4})-(\d{2})""").find(stored)
+        return buildString {
+            append("""<div class="ff-picker-grid ff-picker-grid-months" data-ff-picker-grid data-ff-month="${focused.year}-${focused.monthValue.toString().padStart(2, '0')}">""")
+            for (month in 1..12) {
+                val on = chosen != null && chosen.groupValues[1].toInt() == focused.year && chosen.groupValues[2].toInt() == month
+                val name = java.time.Month.of(month).getDisplayName(TextStyle.SHORT, locale)
+                append("""<button type="button" class="ff-day${if (on) " ff-day-selected" else ""}" data-ff-month="$month">${esc(name)}</button>""")
+            }
+            append("</div>")
+        }
+    }
+
+    /** Year-only grid: a twelve-year page around the focused year; the stored `Y` is selected. */
+    private fun yearsGrid(focused: LocalDate, stored: String): String {
+        val chosen = stored.take(4).toIntOrNull()
+        return buildString {
+            append("""<div class="ff-picker-grid ff-picker-grid-years" data-ff-picker-grid data-ff-month="${focused.year}-${focused.monthValue.toString().padStart(2, '0')}">""")
+            val first = yearSpan(focused).first
+            for (offset in 0 until 12) {
+                val year = first + offset
+                append("""<button type="button" class="ff-day${if (year == chosen) " ff-day-selected" else ""}" data-ff-year="$year">$year</button>""")
+            }
+            append("</div>")
+        }
+    }
+
     private fun timeSpinners(stored: String): String {
         val time = timePart(stored) ?: LocalTime.MIDNIGHT
         return buildString {
@@ -409,6 +455,11 @@ open class DateTimePicker protected constructor(
         if (fromExplicit != null) return fromExplicit
         val fromState = parseDate(stored)
         if (fromState != null) return fromState
+        val partial = Regex("""^(\d{4})(?:-(\d{2}))?$""").find(stored.trim())
+        if (partial != null) {
+            val month = partial.groupValues[2].ifEmpty { "1" }.toInt()
+            if (month in 1..12) return LocalDate.of(partial.groupValues[1].toInt(), month, 1)
+        }
         return FieldClock.today()
     }
 
@@ -615,13 +666,24 @@ open class DateRangePicker protected constructor(name: String) : Field<DateRange
             append("""<input class="ff-input ff-picker-display" type="text" readonly tabindex="0" placeholder="Select date range" value="${esc(display(stored))}" data-ff-picker-display />""")
             append("</div>")
             append("""<input type="hidden" name="${esc(path)}" value="${esc(stored)}" data-ff-picker-value />""")
-            append("""<div class="ff-picker-panel" data-ff-picker-panel hidden>""")
+            val next = focused.withDayOfMonth(1).plusMonths(1)
+            val nextCaption = next.month.getDisplayName(TextStyle.FULL, locale) + " " + next.year
+            append("""<div class="ff-picker-panel ff-range-panel" data-ff-picker-panel hidden>""")
+            append("""<div class="ff-range-months">""")
+            append("""<div class="ff-range-month">""")
             append("""<div class="ff-picker-nav"><button type="button" class="ff-picker-nav-btn" data-ff-picker-prev aria-label="Previous month">‹</button>""")
-            append("""<div class="ff-picker-caption" data-ff-picker-caption>${esc(caption)}</div>""")
+            append("""<div class="ff-picker-caption" data-ff-picker-caption>${esc(caption)}</div><span class="ff-picker-nav-spacer"></span></div>""")
+            append(rangeWeekdays(locale))
+            append(rangeGrid(focused, parts, "data-ff-picker-grid"))
+            append("</div>")
+            append("""<div class="ff-range-month">""")
+            append("""<div class="ff-picker-nav"><span class="ff-picker-nav-spacer"></span><div class="ff-picker-caption" data-ff-picker-caption-next>${esc(nextCaption)}</div>""")
             append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-next aria-label="Next month">›</button></div>""")
             append(rangeWeekdays(locale))
-            append(rangeGrid(focused, parts))
-            append("""<div class="ff-picker-actions"><button type="button" class="ff-picker-today" data-ff-picker-today>Today</button>""")
+            append(rangeGrid(next, parts, "data-ff-picker-grid-next"))
+            append("</div></div>")
+            append("""<div class="ff-picker-actions"><span class="ff-range-hint" data-ff-range-hint>${esc(if (parts == null) "Select a start date" else display(stored))}</span>""")
+            append("""<button type="button" class="ff-picker-today" data-ff-picker-today>Today</button>""")
             append("""<button type="button" class="ff-picker-clear" data-ff-picker-clear>Clear</button></div></div></div>""")
         }
     }
@@ -641,7 +703,7 @@ open class DateRangePicker protected constructor(name: String) : Field<DateRange
         }
     }
 
-    private fun rangeGrid(focused: LocalDate, parts: Pair<String, String>?): String {
+    private fun rangeGrid(focused: LocalDate, parts: Pair<String, String>?, marker: String): String {
         val startSel = parseRangeDay(parts?.first)
         val endSel = parseRangeDay(parts?.second)
         val first = focused.withDayOfMonth(1)
@@ -652,7 +714,7 @@ open class DateRangePicker protected constructor(name: String) : Field<DateRange
         val lead = Math.floorMod(first.dayOfWeek.value - weekAnchor, 7)
         var cursor = first.minusDays(lead.toLong())
         return buildString {
-            append("""<div class="ff-picker-grid" data-ff-picker-grid data-ff-month="${focused.year}-${focused.monthValue.toString().padStart(2, '0')}">""")
+            append("""<div class="ff-picker-grid" $marker data-ff-month="${focused.year}-${focused.monthValue.toString().padStart(2, '0')}">""")
             repeat(42) {
                 val classes = ArrayList<String>(4)
                 classes.add("ff-day")
@@ -661,6 +723,8 @@ open class DateRangePicker protected constructor(name: String) : Field<DateRange
                     classes.add("ff-day-in-range")
                 }
                 if (cursor == startSel || cursor == endSel) classes.add("ff-day-selected")
+                if (cursor == startSel) classes.add("ff-range-start")
+                if (cursor == endSel) classes.add("ff-range-end")
                 append("""<button type="button" class="${classes.joinToString(" ")}" data-ff-day="$cursor">${cursor.dayOfMonth}</button>""")
                 cursor = cursor.plusDays(1)
             }

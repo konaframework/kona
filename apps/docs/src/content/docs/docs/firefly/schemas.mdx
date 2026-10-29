@@ -187,10 +187,10 @@ Reach for a layout when one field after another is not enough. A section, a grid
 |------|----------------|
 | `Grid.make(columns)` | Column grid. `schema(...)` sets the children |
 | `Flex.make()` | Row of children |
-| `Fieldset.make(legend)` | Group with a legend. `required(true)` marks it |
+| `Fieldset.make(legend)` | Group with a legend and a thin border. It keeps the background of the card it sits in. `required(true)` marks it |
 | `Section.make()` / `Section.make(heading)` | Optional heading and description; slots `afterHeader`, `beforeLabel`, `afterLabel`, `aboveContent`, `belowContent`, `footer`. `columns()` / `columns(N)` / `columns(mapOf(...))` lays children in a responsive grid (mobile stays 1 unless you set `default`) and stays chainable into `.schema(...)`. `collapsible()` / `collapsed()` use a details/summary body. `contained(false)` / `card(false)` skip the card chrome when the host is already a card. `aside(true)` and `formBefore(true)` add data attributes |
 | `Schema.make().columns()` / `.columns(N)` / `.columns(map)` | Root grid for top-level components. Default with no call is one column; no-arg `columns()` means two from `lg` up; breakpoint maps use `default` / `sm` / `md` / `lg` / `xl` / `2xl` |
-| `Tabs.make()` | `tabs(...)`, `activeTab`, `vertical`, `scrollable`, `persistTabInQueryString` |
+| `Tabs.make()` | `tabs(...)`, `activeTab`, `vertical`, `scrollable`, `persistTabInQueryString`. Clicking a tab shows its pane and hides the others. An `activeTab` index outside the tab list falls back to the first tab. `tabPanels(false)` renders only the tab buttons |
 | `Tab.make(label)` | One panel. `badge`, `badgeIcon`, `deferBadge` |
 | `Wizard.make()` | `steps(...)`, `nextStep`, `previousStep`, `goToStep`. `skippable(true)` allows a jump |
 | `WizardStep.make(label)` | One step. `icon`, `completedIcon`, `formWrapper` |

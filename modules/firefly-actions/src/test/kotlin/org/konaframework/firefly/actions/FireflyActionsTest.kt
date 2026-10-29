@@ -488,7 +488,8 @@ class FireflyActionsTest {
         assertTrue(html.contains("ff-icon"))
         assertTrue(html.contains("color:var(--ff-primary)"))
         assertTrue(html.contains("title=\"Menu\""))
-        assertTrue(html.contains("open = !open"))
+        assertTrue(html.contains("data-ff-menu-trigger"))
+        assertTrue(html.contains("ff-action-group-chevron"))
         assertTrue(html.contains("wire:click=\"save\""))
         assertTrue(group.isAuthorized(host(group)))
         val inline = ActionGroup.make(listOf(save)).button().placement(ActionPlacement.SCHEMA)
@@ -498,8 +499,8 @@ class FireflyActionsTest {
         assertEquals(ActionPlacement.SCHEMA, inline.placement())
         val plain = ActionGroup.make(save)
         val plainHtml = page(plain)
-        assertTrue(plainHtml.contains("ff-action-group-trigger\" @click=\"open = !open\"></button>"))
-        assertFalse(plainHtml.contains("ff-icon"))
+        assertTrue(plainHtml.contains("aria-haspopup=\"menu\"><svg class=\"ff-icon ff-action-group-chevron\""))
+        assertEquals(1, Regex("class=\"ff-icon").findAll(plainHtml).count())
         assertFalse(plainHtml.contains("title="))
         assertFalse(plainHtml.contains("data-ff-color"))
         val denied = ActionGroup.make(save).authorize(false)
@@ -512,9 +513,9 @@ class FireflyActionsTest {
         val inlineLocked = ActionGroup.make(save).button().disabled(true)
         assertTrue(page(inlineLocked).contains("aria-disabled=\"true\""))
         ActionGroup.configureUsing { it.icon("user") }
-        assertTrue(page(ActionGroup.make(save)).contains("ff-icon"))
+        assertEquals(2, Regex("class=\"ff-icon").findAll(page(ActionGroup.make(save))).count())
         ActionGroup.configureUsing(null)
-        assertFalse(page(ActionGroup.make(save)).contains("ff-icon"))
+        assertEquals(1, Regex("class=\"ff-icon").findAll(page(ActionGroup.make(save))).count())
         assertThrows(FireflyException::class.java) { page(ActionGroup.make(save).icon("nope")) }
         val gated = ActionGroup.make(save).authorize("view")
         Action.gate { ability, _, _ -> ability == "view" }

@@ -36,6 +36,18 @@ internal class OptionSource {
     fun isClosure(): Boolean = using != null
 }
 
+/** Checked option values from a collection, posted JSON array text, or a single value. */
+internal fun selectedValues(value: Any?): Set<String> {
+    val decoded = FormJson.decode(value)
+    if (decoded == null) return emptySet()
+    if (decoded is Collection<*>) {
+        val out = LinkedHashSet<String>()
+        for (item in decoded) out.add(if (item == null) "" else item.toString())
+        return out
+    }
+    return setOf(decoded.toString())
+}
+
 open class Select protected constructor(name: String) : Field<Select>(name) {
     private val options = OptionSource()
     private val descriptions = LinkedHashMap<String, String>()
@@ -612,27 +624,25 @@ open class CheckboxList protected constructor(name: String) : Field<CheckboxList
     override fun kind(): String = "checkbox-list"
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
-        val selected = when (value) {
-            is Collection<*> -> {
-                val out = LinkedHashSet<String>()
-                for (item in value) {
-                    if (item == null) out.add("") else out.add(item.toString())
-                }
-                out
-            }
-            null -> emptySet()
-            else -> setOf(value.toString())
-        }
+        val selected = selectedValues(value)
         val disable = disableWhen
         return buildString {
-            append("""<div class="ff-checkbox-list" data-ff-columns="$optionColumnCount"${attr("data-ff-direction", directionText)}${boolAttr("data-ff-searchable", searchableFlag)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)}${attr("data-ff-relationship", relation?.name)}>""")
-            if (searchableFlag) append("""<input class="ff-input" type="text"${attr("placeholder", searchPromptText)}${extraInputMarkup(get)} />""")
-            if (bulkFlag) append("""<button type="button" class="ff-bulk-toggle">Select all</button>""")
+            append("""<div class="ff-checkbox-list" data-ff-checkbox-list data-ff-columns="$optionColumnCount" style="--ff-option-cols: $optionColumnCount"${attr("data-ff-direction", directionText)}${boolAttr("data-ff-searchable", searchableFlag)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)}${attr("data-ff-relationship", relation?.name)}>""")
+            append("""<input type="hidden" name="${esc(path)}" value="${esc(FormJson.encode(selected.toList()))}" data-ff-checkbox-list-value />""")
+            if (searchableFlag || bulkFlag) {
+                append("""<div class="ff-checkbox-list-tools">""")
+                if (searchableFlag) append("""<input class="ff-input ff-checkbox-list-search" type="search" data-ff-checkbox-list-search${attr("placeholder", searchPromptText)}${extraInputMarkup(get)} />""")
+                if (bulkFlag) append("""<button type="button" class="ff-link-button ff-bulk-toggle" data-ff-checkbox-list-bulk data-ff-select-label="Select all" data-ff-deselect-label="Deselect all">Select all</button>""")
+                append("</div>")
+            }
+            append("""<div class="ff-checkbox-list-options">""")
             for ((optionValue, label) in options.get(get)) {
                 val enabled = if (disable == null) true else !disable.test(optionValue)
                 val checked = if (optionValue in selected) " checked" else ""
-                append("""<label class="ff-check"><input type="checkbox" name="${esc(path)}" value="${esc(optionValue)}"$checked${if (enabled) "" else " disabled"}${extraInputMarkup(get)} />${esc(label)}${textTag("small", "ff-option-description", descriptions[optionValue])}</label>""")
+                append("""<label class="ff-choice-option" data-ff-option-label="${esc(label.lowercase())}"><input class="ff-choice-input" type="checkbox" value="${esc(optionValue)}" data-ff-checkbox-list-option$checked${if (enabled) "" else " disabled"}${extraInputMarkup(get)} /><span class="ff-choice-text"><span class="ff-choice-label">${esc(label)}</span>${textTag("small", "ff-option-description", descriptions[optionValue])}</span></label>""")
             }
+            append("</div>")
+            if (searchableFlag) append("""<p class="ff-checkbox-list-empty" data-ff-checkbox-list-empty hidden>${esc(emptyMessageText)}</p>""")
             append("</div>")
         }
     }
@@ -677,11 +687,11 @@ open class Radio protected constructor(name: String) : Field<Radio>(name) {
         val current = value?.toString()
         val disable = disableWhen
         return buildString {
-            append("""<div class="ff-radio"${boolAttr("data-ff-inline", inlineFlag)}>""")
+            append("""<div class="ff-radio" role="radiogroup"${boolAttr("data-ff-inline", inlineFlag)}>""")
             for ((optionValue, label) in options.get(get)) {
                 val enabled = if (disable == null) true else !disable.test(optionValue)
                 val checked = if (optionValue == current) " checked" else ""
-                append("""<label class="ff-check"><input type="radio" name="${esc(path)}" value="${esc(optionValue)}"$checked${if (enabled) "" else " disabled"}${extraInputMarkup(get)} />${esc(label)}${textTag("small", "ff-option-description", descriptions[optionValue])}</label>""")
+                append("""<label class="ff-choice-option"><input class="ff-choice-input" type="radio" name="${esc(path)}" value="${esc(optionValue)}"$checked${if (enabled) "" else " disabled"}${extraInputMarkup(get)} /><span class="ff-choice-text"><span class="ff-choice-label">${esc(label)}</span>${textTag("small", "ff-option-description", descriptions[optionValue])}</span></label>""")
             }
             append("</div>")
         }
@@ -735,22 +745,18 @@ open class ToggleButtons protected constructor(name: String) : Field<ToggleButto
     override fun kind(): String = "toggle-buttons"
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
-        val selected = when (value) {
-            is Collection<*> -> {
-                val out = LinkedHashSet<String>()
-                for (item in value) {
-                    if (item == null) out.add("") else out.add(item.toString())
-                }
-                out
-            }
-            null -> emptySet()
-            else -> setOf(value.toString())
-        }
+        val selected = selectedValues(value)
+        val type = if (multipleFlag) "checkbox" else "radio"
+        val nameAttr = if (multipleFlag) "" else """ name="${esc(path)}""""
         return buildString {
-            append("""<div class="ff-toggle-buttons"${boolAttr("data-ff-inline", inlineFlag)}${boolAttr("data-ff-grouped", groupedFlag)}${boolAttr("data-ff-multiple", multipleFlag)}>""")
+            append("""<div class="ff-toggle-buttons" data-ff-toggle-buttons role="${if (multipleFlag) "group" else "radiogroup"}"${boolAttr("data-ff-inline", inlineFlag)}${boolAttr("data-ff-grouped", groupedFlag)}${boolAttr("data-ff-multiple", multipleFlag)}>""")
+            if (multipleFlag) append("""<input type="hidden" name="${esc(path)}" value="${esc(FormJson.encode(selected.toList()))}" data-ff-toggle-buttons-value />""")
             for ((optionValue, label) in options.get(get)) {
                 val pressed = optionValue in selected
-                append("""<button type="button" class="ff-toggle-button" data-ff-value="${esc(optionValue)}"${boolAttr("aria-pressed", pressed)}${attr("data-ff-color", colors[optionValue])}${attr("data-ff-icon", icons[optionValue])}>${esc(label)}</button>""")
+                val css = if (pressed) "ff-toggle-button is-active" else "ff-toggle-button"
+                append("""<label class="$css" data-ff-value="${esc(optionValue)}"${attr("data-ff-color", colors[optionValue])}${attr("data-ff-icon", icons[optionValue])}>""")
+                append("""<input class="ff-toggle-button-input" type="$type"$nameAttr value="${esc(optionValue)}" data-ff-toggle-button${if (pressed) " checked" else ""}${extraInputMarkup(get)} />""")
+                append("""<span class="ff-toggle-button-label">${esc(label)}</span></label>""")
             }
             append("</div>")
         }

@@ -271,9 +271,14 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
         return chrome(schema, get, path, value)
     }
 
-    internal open fun renderAt(schema: Schema, path: String, value: Any?): String {
+    /**
+     * Full field chrome (label, hint, helper) at a repeater / builder item [path]. Input `name`s become
+     * `data-ff-name` so only the parent's hidden JSON value posts.
+     */
+    internal fun renderItem(schema: Schema, path: String, value: Any?): String {
         val get = Reads.of(schema, this)
-        return control(schema, get, path, value)
+        val html = chrome(schema, get, path, value)
+        return """<div class="ff-component ff-${kind()} ff-item-field">${NAME_ATTR.replace(html, "$1data-ff-name=\"")}</div>"""
     }
 
     protected fun fieldPath(): String {
@@ -371,5 +376,6 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
 
     companion object {
         private val RESERVED_INPUT = setOf("type", "name", "value")
+        private val NAME_ATTR = Regex("""(\s)name="""")
     }
 }

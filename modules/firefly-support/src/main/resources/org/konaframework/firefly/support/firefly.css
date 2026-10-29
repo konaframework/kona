@@ -1159,7 +1159,7 @@ body.ff-body-root {
 
 /* ——— Forms / inputs ——— */
 .ff-panel .ff-input,
-.ff-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not(.ff-table-search),
+.ff-panel input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="color"]):not(.ff-table-search),
 .ff-panel select,
 .ff-panel textarea {
   display: block;
@@ -1230,8 +1230,7 @@ body.ff-body-root {
 
 /* Card chrome lives on the outer `.ff-component.ff-section` only — avoids nested white frames. */
 .ff-panel .ff-component.ff-section,
-.ff-panel .ff-card,
-.ff-panel .ff-fieldset {
+.ff-panel .ff-card {
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: calc(var(--ff-radius) + 0.25rem);
@@ -1349,20 +1348,6 @@ body.ff-body-root {
 
 .ff-panel .ff-component[data-ff-span]:not([data-ff-span="full"]) {
   grid-column: span var(--ff-span, 1);
-}
-
-.ff-panel .ff-tags,
-.ff-panel .ff-key-value,
-.ff-panel .ff-filepond,
-.ff-panel .ff-repeater,
-.ff-panel .ff-builder,
-.ff-panel .ff-rich,
-.ff-panel .ff-code,
-.ff-panel .ff-markdown {
-  background: var(--ff-card);
-  border: 1px solid var(--ff-card-border);
-  border-radius: var(--ff-radius);
-  padding: 0.65rem 0.75rem;
 }
 
 /* Select combobox — Shamar-shaped dropdown (Chrome.js, no Alpine required) */
@@ -1882,7 +1867,7 @@ body.ff-body-root {
   margin-inline-start: 0.15rem;
 }
 
-.ff-panel .ff-checkbox {
+.ff-panel input.ff-checkbox {
   position: absolute;
   opacity: 0;
   width: 1.15rem;

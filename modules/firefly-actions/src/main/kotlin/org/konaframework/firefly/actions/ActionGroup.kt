@@ -84,7 +84,8 @@ open class ActionGroup protected constructor() : Component("") {
         val place = "ff-placement-${placementToken.token}"
         val items = childHtml(schema)
         if (menu) {
-            return """<div class="ff-action-group ff-action-group-dropdown $place" x-data="{ open: false }"><button type="button" class="ff-action-group-trigger"$title$colorAttr$styleAttr$buttonDisabled @click="open = !open">$iconHtml$labelHtml</button><div class="ff-action-group-menu" x-show="open" style="display:none">$items</div></div>"""
+            val chevron = """<svg class="ff-icon ff-action-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>"""
+            return """<div class="ff-menu ff-action-group ff-action-group-dropdown $place" data-ff-menu><button type="button" class="ff-action-outlined ff-action-group-trigger" data-ff-menu-trigger aria-haspopup="menu"$title$colorAttr$styleAttr$buttonDisabled>$iconHtml$labelHtml$chevron</button><div class="ff-menu-panel ff-action-group-menu" data-ff-menu-panel role="menu">$items</div></div>"""
         }
         return """<div class="ff-action-group ff-action-group-inline $place"$colorAttr$styleAttr$ariaDisabled><span class="ff-action-group-label"$title>$iconHtml$labelHtml</span><div class="ff-action-group-items">$items</div></div>"""
     }

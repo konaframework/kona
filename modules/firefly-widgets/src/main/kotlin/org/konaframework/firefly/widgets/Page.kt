@@ -78,6 +78,9 @@ open class Page {
     /** The table mounted with [table], or null. The panel runs bulk actions against it. */
     fun mountedTable(): Table<*, *>? = contentTable
 
+    /** The form schema mounted with [form], or null. The panel answers its Select searches and submits. */
+    fun mountedForm(): Schema? = formSchema
+
     /**
      * Cap this page's content column (`xs`…`7xl`, `full`, `screen`, `prose`).
      * Overrides the panel default. Emits `data-ff-max-width` on the page section.

@@ -24,7 +24,22 @@ object FireflyAssets {
             val file = request.route("file") ?: return@Handler Response.text("Not Found", 404)
             widgetResponse(file)
         })
+        router.get("/_firefly/rich-editor/{file}", Handler { request ->
+            val file = request.route("file") ?: return@Handler Response.text("Not Found", 404)
+            richEditorResponse(file)
+        })
     }
+
+    internal fun richEditorResponse(file: String): Response {
+        if (file !in RICH_EDITOR_FILES) return Response.text("Not Found", 404)
+        val stream = FireflyAssets::class.java.getResourceAsStream("/org/konaframework/firefly/support/rich-editor/$file")
+        val bytes = stream.readAllBytes()
+        stream.close()
+        return Response(200, "", linkedMapOf("Content-Type" to "application/javascript; charset=utf-8", "Cache-Control" to "public, max-age=3600"))
+            .withBodyBytes(bytes)
+    }
+
+    private val RICH_EDITOR_FILES = setOf("simple.js", "icons.js")
 
     internal fun fontResponse(file: String): Response {
         if (!FireflyFonts.allowed(file)) {

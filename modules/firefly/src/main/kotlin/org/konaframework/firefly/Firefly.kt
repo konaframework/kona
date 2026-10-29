@@ -1,9 +1,14 @@
 package org.konaframework.firefly
 
 import org.konaframework.core.Application
+import org.konaframework.filesystem.FilesystemManager
+import org.konaframework.firefly.forms.FireflyUploads
+import org.konaframework.firefly.forms.UploadDisks
+import org.konaframework.http.Request
 import org.konaframework.http.Router
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.function.Function
 import java.util.function.Supplier
 
 /**
@@ -81,10 +86,20 @@ object Firefly {
         }
         for (panel in discover(app)) {
             if (seen.add(panel.javaClass.name)) {
+                hands.add(panel)
                 panel.mount(router)
             }
         }
+        if (app.container.bound(FilesystemManager::class.java)) {
+            val files = app.resolve(FilesystemManager::class.java)
+            FireflyUploads.register(router, UploadDisks { files.disk(it) }, Function { request -> uploadAllowed(request, hands) })
+        }
         mountedApp = app
+    }
+
+    internal fun uploadAllowed(request: Request, panels: List<Panel>): Boolean {
+        if (FireflyCsrf.rejectIfInvalid(request) != null) return false
+        return panels.any { it.allowsUpload(request) }
     }
 
     private fun discover(app: Application): List<Panel> {
