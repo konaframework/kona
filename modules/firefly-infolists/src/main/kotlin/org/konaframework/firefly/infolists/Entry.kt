@@ -200,7 +200,14 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
         if (frame != null) return digName(frame, name)
         val path = absolutePath()
         if (path == null) return null
-        return schema.get(path)
+        val stored = schema.get(path)
+        if (stored != null) return stored
+        // Dotted paths: dig the Cadence/map record when the store was filled without nested relations (#361).
+        if (name.contains('.')) {
+            val dug = digName(schema.record(), name)
+            if (dug != null) return dug
+        }
+        return stored
     }
 
     internal fun entryAttrs(get: Get): String {

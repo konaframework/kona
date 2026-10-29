@@ -158,11 +158,13 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
      */
     open fun infolist(schema: Schema): Schema = schema
 
-    /** Applies [formColumns] then [form]. */
+    /** Applies [formColumns] then [form], then loads dotted Cadence relations into state (#361). */
     private fun prepareForm(schema: Schema): Schema {
         val count = formColumnCount
         if (count != null) schema.columns(count)
-        return form(schema)
+        form(schema)
+        hydrateDottedRelations(schema)
+        return schema
     }
 
     /**
@@ -176,11 +178,47 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         return select.search(schema, query)
     }
 
-    /** Applies [infolistColumns] then [infolist]. */
+    /** Applies [infolistColumns] then [infolist], then loads dotted Cadence relations into state (#361). */
     private fun prepareInfolist(schema: Schema): Schema {
         val count = infolistColumnCount
         if (count != null) schema.columns(count)
-        return infolist(schema)
+        infolist(schema)
+        hydrateDottedRelations(schema)
+        return schema
+    }
+
+    /**
+     * `TextEntry.make("project.name")` (and form counterparts) need the related model on the
+     * schema record and nested maps in the state store. [liveSchema] finds without `with()`,
+     * so load missing relation paths from dotted component names and refill attributes.
+     */
+    private fun hydrateDottedRelations(schema: Schema) {
+        val record = schema.record()
+        if (record !is org.konaframework.cadence.Cadence<*>) return
+        val relations = LinkedHashSet<String>()
+        for (component in schema.walk()) {
+            val path = component.name
+            if (!path.contains('.')) continue
+            val parts = path.split('.')
+            // Skip invalid / over-deep dotted names (entries reject these at make; forms may not).
+            if (parts.size > org.konaframework.firefly.tables.Column.MAX_RELATION_DEPTH) continue
+            if (parts.any { it.isBlank() }) continue
+            relations.add(parts.dropLast(1).joinToString("."))
+        }
+        if (relations.isEmpty()) return
+        try {
+            record.loadMissing(*relations.toTypedArray())
+        } catch (_: RuntimeException) {
+            return
+        }
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+            @Suppress("UNCHECKED_CAST")
+            schema.fill(store.attributes(record as Any))
+        } catch (_: FireflyException) {
+            // No model store — relations stay on the record for dig fallbacks.
+        }
     }
 
     /**

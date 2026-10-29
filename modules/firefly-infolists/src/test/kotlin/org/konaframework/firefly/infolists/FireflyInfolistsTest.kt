@@ -732,6 +732,15 @@ class FireflyInfolistsTest {
         )
         assertNull(digName(mapOf("a" to mapOf("b" to 1)), "a.b.c.d.e"))
         assertNull(digName(mapOf("a" to "x"), "a."))
+        assertNull(attributeOf(null, "x"))
+        assertNull(attributeOf(mapOf("a" to 1), "missing"))
+        assertEquals("z", attributeOf(mapOf("a" to "z"), "a"))
+        // Bean getter segment (non-map / non-Cadence).
+        class Holder {
+            fun title(): String = "Held"
+        }
+        assertEquals("Held", attributeOf(Holder(), "title"))
+        assertNull(attributeOf(Holder(), "missing"))
         assertThrows(FireflyException::class.java) { TextEntry.make("a.b.c.d.e") }
         assertThrows(FireflyException::class.java) { TextEntry.make("project.") }
         val dotted = TextEntry.make("project.name").label("Project")
@@ -741,6 +750,28 @@ class FireflyInfolistsTest {
                 .render()
                 .contains("Desk"),
         )
+        // Cadence record dig when state store has no nested relation map (#361).
+        class RelHost : org.konaframework.cadence.Cadence<RelHost>() {
+            override val table = "ff_rel_hosts"
+            override val timestamps = false
+        }
+        val host = RelHost()
+        host.setRelation("project", mapOf("name" to "FromRelation"))
+        val cadenceHtml =
+            Schema.make()
+                .record(host)
+                .components(TextEntry.make("project.name").label("Project"))
+                .render()
+        assertTrue(cadenceHtml.contains("FromRelation"), cadenceHtml)
+        assertEquals("FromRelation", digName(host, "project.name"))
+        assertEquals("Ada", attributeOf(host.apply { setAttribute("name", "Ada") }, "name"))
+        // Dotted dig miss (no relation / no store) still renders a blank placeholder (#361).
+        val missHtml =
+            Schema.make()
+                .record(RelHost())
+                .components(TextEntry.make("project.name").placeholder("—"))
+                .render()
+        assertTrue(missHtml.contains("—") || missHtml.contains("ff-placeholder"), missHtml)
         val item = mapOf("a" to mapOf("b" to 1), "s" to "text")
         assertEquals(MISS, itemLookup(item, ""))
         assertEquals(MISS, itemLookup(item, "."))

@@ -88,6 +88,68 @@ class FireflyResourceTest {
     }
 
     @Test
+    fun viewInfolistResolvesDottedRelationTextEntry() {
+        databaseWithProjects()
+        val project = ProjectShelf().forceFill(mapOf("name" to "Alpine Softshell"))
+        project.save()
+        val task = TaskShelf().forceFill(mapOf("project_id" to project.getKey(), "name" to "Sew"))
+        task.save()
+        val taskId = task.getKey()!!.toString()
+        val tasks = object : Resource("task") {
+            init {
+                label("Task")
+                model(TaskShelf::class.java)
+            }
+
+            override fun form(schema: Schema): Schema =
+                schema.components(
+                    TextInput.make("name"),
+                    // hydrateDottedRelations skips over-deep / blank dotted form names (#361).
+                    TextInput.make("a.b.c.d.e"),
+                    TextInput.make("project."),
+                )
+
+            override fun infolist(schema: Schema): Schema =
+                schema.components(
+                    TextEntry.make("name").label("Name"),
+                    TextEntry.make("project.name").label("Project"),
+                )
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to taskId, "name" to "Sew"))
+                    .columns(TextColumn.make("name"))
+        }
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(tasks).mount(router)
+        val view = send(router, "/admin/task/view?id=$taskId")
+        assertTrue(view.contains("Alpine Softshell"), view)
+        assertTrue(view.contains(">Project<") || view.contains("Project"), view)
+        // Create still renders after hydrate skips invalid dotted form paths.
+        assertTrue(send(router, "/admin/task/create").contains("ff-create"))
+        // Manage View dialog also hydrates dotted paths (#361).
+        val simple = object : Resource("task") {
+            init {
+                label("Task")
+                simple()
+                model(TaskShelf::class.java)
+            }
+
+            override fun form(schema: Schema): Schema = schema.components(TextInput.make("name"))
+
+            override fun infolist(schema: Schema): Schema =
+                schema.components(TextEntry.make("project.name").label("Project"))
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to taskId, "name" to "Sew"))
+                    .columns(TextColumn.make("name"))
+        }
+        val manageRouter = Router()
+        Panel().path("desk").authenticate(false).resource(simple).mount(manageRouter)
+        val manage = send(manageRouter, "/desk/task/manage")
+        assertTrue(manage.contains("Alpine Softshell"), manage)
+    }
+
+    @Test
     fun simpleResourceKeepsCreateEditViewAndDeleteInDialogs() {
         val notes = notes()
         assertTrue(notes.form(Schema.make()).components().isNotEmpty())

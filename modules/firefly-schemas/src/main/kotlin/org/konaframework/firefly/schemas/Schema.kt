@@ -158,7 +158,8 @@ class Schema {
         }
     }
 
-    internal fun walk(): List<Component> {
+    /** Depth-first list of every mounted component (roots and nested children). */
+    fun walk(): List<Component> {
         val out = ArrayList<Component>()
         fun visit(component: Component) {
             out.add(component)

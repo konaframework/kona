@@ -228,18 +228,26 @@ internal fun digName(item: Any?, name: String): Any? {
     if (name.isEmpty()) return item
     val parts = name.split('.')
     if (parts.size > MAX_RELATION_DEPTH) return null
-    var current = item
+    var current: Any? = item
     for (part in parts) {
         if (part.isEmpty()) return null
-        current = when (current) {
-            is Map<*, *> -> {
-                if (!current.containsKey(part)) return null
-                current[part]
-            }
-            else -> return null
-        }
+        current = attributeOf(current, part) ?: return null
     }
     return current
+}
+
+/** Resolve one path segment on a map, Cadence model, or bean (tables [Column] parity, #361). */
+internal fun attributeOf(related: Any?, name: String): Any? = when (related) {
+    null -> null
+    is Map<*, *> -> {
+        if (!related.containsKey(name)) null else related[name]
+    }
+    is org.konaframework.cadence.Cadence<*> ->
+        related.getRelations()[name] ?: related.getAttribute(name)
+    else -> {
+        val method = related.javaClass.methods.firstOrNull { it.name == name && it.parameterCount == 0 }
+        method?.invoke(related)
+    }
 }
 
 /** Throws when a dotted entry name exceeds [MAX_RELATION_DEPTH]. */
