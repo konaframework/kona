@@ -113,7 +113,8 @@ open class Page {
             } else {
                 """ data-ff-max-width="${escapeHtml(maxWidthValue!!)}""""
             }
-        return """<section class="${sectionClass()}"$widthAttr><header class="ff-page-header"><div class="ff-page-heading">$crumbs<h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        // Crumbs on their own top row; heading + mode chip share the next row with actions (#359).
+        return """<section class="${sectionClass()}"$widthAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
     }
 
     private fun wrapInfolist(html: String): String {

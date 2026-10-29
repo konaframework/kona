@@ -791,13 +791,27 @@ body.ff-body-root {
   margin-bottom: 0.15rem;
 }
 
-.ff-panel .ff-page-header,
+/* Crumbs full-width on top; heading + actions on the next row (Shamar detail header). */
+.ff-panel .ff-page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+}
+
+.ff-panel .ff-page-header > nav {
+  width: 100%;
+  min-width: 0;
+}
+
+.ff-panel .ff-page-toolbar,
 .ff-panel .ff-page-footer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  width: 100%;
 }
 
 .ff-panel .ff-breadcrumbs {
@@ -805,7 +819,7 @@ body.ff-body-root {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  margin: 0 0 0.35rem;
+  margin: 0;
   padding: 0;
   list-style: none;
   font-size: 0.75rem;
@@ -2771,7 +2785,7 @@ body.ff-body-root {
   box-shadow: none;
 }
 
-/* ——— Manage header actions stack nicely ——— */
+/* ——— Manage header: slightly tighter crumb → toolbar gap ——— */
 .ff-panel .ff-manage .ff-page-header {
   gap: 0.5rem;
 }

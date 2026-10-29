@@ -247,6 +247,8 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-sidebar-brand"))
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
         assertTrue(css.contains(".ff-panel .ff-page-heading"))
+        assertTrue(css.contains(".ff-panel .ff-page-toolbar"))
+        assertTrue(css.contains(".ff-panel .ff-page-header > nav"))
         assertTrue(css.contains(".ff-panel .ff-page-mode"))
         assertTrue(css.contains("--ff-width-7xl: 80rem"))
         assertTrue(css.contains("--ff-content-max-width: var(--ff-width-7xl)"))

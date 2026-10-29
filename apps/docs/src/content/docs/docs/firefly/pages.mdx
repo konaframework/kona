@@ -82,7 +82,7 @@ The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defa
 | Method | What you get |
 |--------|----------------|
 | `title(value)` / `title(provider)` | Heading text, or a closure that receives `Get` |
-| `breadcrumbs(...)` | Shamar-style crumb trail above the heading (`Breadcrumb.make(label, href?)`) |
+| `breadcrumbs(...)` | Crumb trail on its own row above the heading (`Breadcrumb.make(label, href?)`). The bold title and header actions share the next toolbar row |
 | `headerActions(...)` / `footerActions(...)` | Replaces that action list |
 | `widgets(...)` | Replaces the widgets drawn in `ff-page-widgets` |
 | `discoverWidgets(directory)` | Appends widgets found under `directory/widgets` |
