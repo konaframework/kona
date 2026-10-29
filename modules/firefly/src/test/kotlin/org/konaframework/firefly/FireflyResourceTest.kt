@@ -783,6 +783,9 @@ class FireflyResourceTest {
         assertTrue(listed.contains("ff-table"))
         send(router, "/admin/orders/list?search=x&sort=missing&direction=sideways&page=0&perPage=0")
         send(router, "/admin/orders/list?page=abc&perPage=abc")
+        // Soft-nav column visibility (?columns=) for toggleable table columns (#363).
+        send(router, "/admin/orders/list?columns=name")
+        send(router, "/admin/orders/list?columns=")
 
         // CSRF via header / alternate field; blank session token is ignored.
         val blankTok = FakeFireflySession().also { it.put("_token", "  ") }

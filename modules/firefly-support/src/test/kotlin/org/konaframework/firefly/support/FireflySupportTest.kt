@@ -243,6 +243,8 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-option.ff-selected"))
         assertTrue(css.contains(".ff-panel .ff-pagination"))
         assertTrue(css.contains(".ff-panel .ff-page-header-actions > .ff-schema"))
+        assertTrue(css.contains(".ff-panel .ff-column-toggle"))
+        assertTrue(css.contains(".ff-panel .ff-column-toggle-panel"))
         assertTrue(css.contains("flex-direction: row"))
         assertTrue(css.contains(".ff-panel .ff-sidebar-brand"))
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
@@ -439,6 +441,7 @@ class FireflySupportTest {
         // Table soft-nav swaps .ff-table-wrap without a full document reload.
         assertTrue(html.contains("ffTableNav"))
         assertTrue(html.contains("data-ff-table-nav"))
+        assertTrue(html.contains("data-ff-column-toggle"))
         assertEquals("", RenderHooks().render(Hook.BODY_START))
 
         val auth = Panel()

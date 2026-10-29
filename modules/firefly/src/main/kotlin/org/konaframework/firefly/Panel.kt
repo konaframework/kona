@@ -488,6 +488,11 @@ open class Panel {
         if (!page.isNullOrBlank()) state["page"] = page
         val perPage = request.input("perPage")
         if (!perPage.isNullOrBlank()) state["perPage"] = perPage
+        // Present even when empty so list soft-nav can hide all toggleable columns (#363).
+        val columns = request.input("columns")
+        if (columns != null) {
+            state["columns"] = columns
+        }
         val record = request.input("id") ?: request.input("record")
         if (!record.isNullOrBlank()) state["record"] = record
         state.putAll(extras)

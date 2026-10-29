@@ -383,8 +383,46 @@ class FireflyTablesTest {
             )
             .render()
         assertTrue(hiddenStampHtml.contains(">Name<"))
-        assertFalse(hiddenStampHtml.contains(">Created At<"))
+        // Header cell absent; picker still lists the label for re-showing (#363).
+        assertFalse(hiddenStampHtml.contains("<th") && hiddenStampHtml.substringAfter("<thead>").substringBefore("</thead>").contains("Created At"))
         assertFalse(hiddenStampHtml.contains("2020-01-01"))
+        assertTrue(hiddenStampHtml.contains("ff-column-toggle"))
+        assertTrue(hiddenStampHtml.contains("data-ff-column-toggle=\"created_at\""))
+        assertTrue(hiddenStampHtml.contains("name=\"columns\""))
+        assertTrue(hiddenStampHtml.contains("Created At")) // option label only
+        val revealed = Table.memory(listOf(mapOf("id" to "1", "name" to "Ada", "created_at" to "2020-01-01")))
+            .columns(
+                TextColumn.make("name").toggleable(),
+                TextColumn.make("created_at").toggleable().toggledHiddenByDefault(),
+            )
+            .applyToggleableVisibility(listOf("name", "created_at"))
+            .render()
+        assertTrue(revealed.substringAfter("<thead>").substringBefore("</thead>").contains("Created At"), revealed)
+        assertTrue(revealed.contains("2020-01-01"), revealed)
+        assertTrue(revealed.contains("""data-ff-column-toggle="created_at" checked""") || revealed.contains("created_at\" checked"), revealed)
+        assertTrue(revealed.contains("""value="name,created_at""""), revealed)
+        val stillHidden = Table.memory(listOf(mapOf("id" to "1", "name" to "Ada", "created_at" to "stamp")))
+            .columns(
+                TextColumn.make("name").toggleable(),
+                TextColumn.make("created_at").toggleable().toggledHiddenByDefault(),
+            )
+            .applyToggleableVisibility(listOf("name"))
+            .render()
+        assertFalse(stillHidden.substringAfter("<thead>").substringBefore("</thead>").contains("Created At"), stillHidden)
+        assertFalse(stillHidden.contains(">stamp<") || stillHidden.contains("stamp</td>"), stillHidden)
+        // applyToggleableVisibility null / blanks / non-toggleable columns (#363).
+        val picker = Table.memory(listOf(mapOf("id" to "1", "name" to "Ada", "created_at" to "stamp", "note" to "n")))
+            .columns(
+                TextColumn.make("name").toggleable(),
+                TextColumn.make("created_at").toggleable().toggledHiddenByDefault(),
+                TextColumn.make("note"),
+            )
+        picker.applyToggleableVisibility(null)
+        assertFalse(picker.render().substringAfter("<thead>").substringBefore("</thead>").contains("Created At"))
+        picker.applyToggleableVisibility(listOf("name", "  ", "", "note", "created_at"))
+        val pickerRevealed = picker.render()
+        assertTrue(pickerRevealed.substringAfter("<thead>").substringBefore("</thead>").contains("Created At"), pickerRevealed)
+        assertTrue(pickerRevealed.contains("stamp"), pickerRevealed)
         val moneyHead = Table.memory(listOf(mapOf("amt" to 12, "id" to "1")))
             .columns(TextColumn.make("amt").money().label("Amount"))
             .render()

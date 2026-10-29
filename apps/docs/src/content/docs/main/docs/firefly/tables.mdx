@@ -129,7 +129,7 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 | `ToggleColumn.make(name)` | A toggle that calls `$wire.$call('toggleColumn', ...)` |
 | `SelectColumn.make(name)` | A select that calls `$wire.$call('setColumn', ...)` |
 
-`searchable()` / `searchable(true)` includes the column in search. `sortable()` allows `sort(name)`. Zero-arg boolean chainables mean yes; pass `false` to turn off. `toggleable()` lets the caller hide the column. `toggledHiddenByDefault()` (or `toggledHiddenByDefault(true)`) marks it toggleable and starts it hidden — useful for timestamps so the list stays readable. `hidden()` and `visible(false)` leave it out of the render. `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN`, and `MAX` add a footer value.
+`searchable()` / `searchable(true)` includes the column in search. `sortable()` allows `sort(name)`. Zero-arg boolean chainables mean yes; pass `false` to turn off. `toggleable()` adds the column to the toolbar **Columns** picker so users can show or hide it. `toggledHiddenByDefault()` (or `toggledHiddenByDefault(true)`) marks it toggleable and starts it hidden — useful for timestamps so the list stays readable until someone checks them in the picker. Soft-nav keeps the choice in the `columns` query string. `hidden()` and `visible(false)` leave it out of the render entirely (not in the picker). `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN`, and `MAX` add a footer value.
 
 Column headings default to a humanized form of the attribute name (`published_at` → `Published At`). CSS still uppercases the header, so you see **PUBLISHED AT**, not `PUBLISHED_AT`. Override with `label(...)` when you need a custom title.
 

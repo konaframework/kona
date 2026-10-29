@@ -453,6 +453,11 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
                 // Invalid size — keep default.
             }
         }
+        // Soft-nav column picker: `?columns=name,created_at` (#363).
+        val columnsRaw = state["columns"] as? String
+        if (columnsRaw != null) {
+            built.applyToggleableVisibility(columnsRaw.split(','))
+        }
     }
 
     private fun applyView(page: ViewPage, state: Map<String, Any?>) {
