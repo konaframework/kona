@@ -88,7 +88,7 @@ Generate the same shape from a standalone app:
 ./grind make:firefly-resource Note --simple --lang=java
 ```
 
-The generator writes `simple()`, overrides for the form, infolist, and table, a text field named `name`, `model(app.models.Note.class)`, `NoteResource/pages/ManageNote`, and `getPages()` returning `ManageNote()`. Create that Cadence model before the project compiles. The generator’s table calls `columns` on an empty `Table.memory()` and has no seed row.
+The generator writes `simple()`, overrides for the form, infolist, and table, a text field named `name`, `model(app.models.Note.class)`, `note/pages/ManageNote`, and `getPages()` returning `ManageNote()`. Create that Cadence model before the project compiles. The generator’s table calls `columns` on an empty `Table.memory()` and has no seed row.
 
 ## Add the full orders resource
 
@@ -188,8 +188,7 @@ public class OrderResource extends Resource {
 ./grind make:firefly-resource Order --lang=java
 ```
 
-That writes `OrderResource` plus `OrderResource/pages/` stubs (`ListOrder`, `CreateOrder`, `EditOrder`, `ViewOrder`). The generator’s `getPages()` returns those page instances, and writes one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
-
+That writes `OrderResource` plus `order/pages/` stubs (`ListOrder`, `CreateOrder`, `EditOrder`, `ViewOrder`). The generator’s `getPages()` returns those page instances, and writes one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
 ## Open the Desk page
 
 <FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
