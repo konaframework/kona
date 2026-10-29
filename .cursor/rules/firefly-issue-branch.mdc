@@ -9,8 +9,9 @@ When implementing user-reported Firefly (or closely related grind/Firefly docs) 
 
 1. **Reuse one general branch** for the current batch of panel issues: `fix/firefly-panel` (create from up-to-date `main` if it does not exist locally/remotely).
 2. **Do not** open a new `fix/firefly-…` branch and PR per issue while that general branch is still open / unmerged.
-3. Land each issue as commits on `fix/firefly-panel`, updating the **same** pull request (`Fixes #N` for every issue in the batch).
+3. Land each issue as commits on `fix/firefly-panel`, updating the **same** pull request with a bare `Fixes #N` line per issue (see `github-issue-first.mdc` closing keywords).
 4. Only start a fresh general branch after `fix/firefly-panel` has merged to `main` (or a human renames/closes it).
 5. Milestone branches (`milestone/M…`) and non-Firefly work stay on their own branches; this rule does not collapse unrelated modules onto the Firefly panel branch.
+6. After the shared PR merges, verify every batched issue is closed; do not leave orphans from bad `Fixes` formatting or squash-message loss.
 
 Still follow GitHub-issue-first: create the issue, then commit on the shared branch with `Fixes #N`.
