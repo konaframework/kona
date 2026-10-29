@@ -60,6 +60,31 @@ class FireflyResourceTest {
         assertTrue(html.contains(">Project<"))
         assertFalse(html.contains(">project_id<"))
         assertFalse(html.contains("<select"))
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(tasks).mount(router)
+        val match = router.find("GET", "/admin/task/form-options") ?: throw AssertionError("missing form-options")
+        val body = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("field" to "project_id", "q" to "Lab"), ""),
+        ).body
+        assertTrue(body.contains("Lab"))
+        assertTrue(body.contains("\"value\""))
+        assertTrue(body.contains("\"label\""))
+        val miss = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("field" to "project_id", "q" to "Nope"), ""),
+        ).body
+        assertTrue(miss.contains("[]") || !miss.contains("Desk"))
+        val blankField = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("q" to "Lab"), ""),
+        ).body
+        assertTrue(blankField.contains("[]"))
+        val unknownField = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("field" to "missing", "q" to "Lab"), ""),
+        ).body
+        assertTrue(unknownField.contains("[]"))
+        val noQuery = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("field" to "project_id"), ""),
+        ).body
+        assertTrue(noQuery.contains("Desk") || noQuery.contains("Lab") || noQuery.contains("["))
     }
 
     @Test

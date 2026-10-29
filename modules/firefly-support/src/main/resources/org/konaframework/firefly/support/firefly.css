@@ -1226,6 +1226,10 @@ body.ff-body-root {
   grid-column: 1 / -1;
 }
 
+.ff-panel .ff-component[data-ff-span]:not([data-ff-span="full"]) {
+  grid-column: span var(--ff-span, 1);
+}
+
 .ff-panel .ff-tags,
 .ff-panel .ff-key-value,
 .ff-panel .ff-filepond,

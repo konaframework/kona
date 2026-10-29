@@ -81,7 +81,7 @@ public class InfolistJavaTest {
         assertTrue(html.contains("ff-section"));
         assertTrue(html.contains("ff-grid"));
         assertTrue(html.contains("ff-tab"));
-        assertTrue(html.contains("2024-06-15"));
+        assertTrue(html.contains("June 15, 2024"));
         assertTrue(html.contains("data-ff-shiki=\"shiki\""));
         assertTrue(html.contains("ffEntry"));
         assertTrue(html.contains("latte"));

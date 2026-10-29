@@ -3,7 +3,7 @@ title: Schemas
 description: Build the tree for a screen, fill the state map, and call render(). The Desk form is a schema of the name, status, and due fields.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Build the tree for a screen, fill the state map, and call `render()`. Sections, text, fields, and buttons all sit in that tree. Live pieces bind with `wire:model` and `@entangle`.
@@ -76,6 +76,8 @@ Text.make("Hello").content(get -> "Hello");
 </Tabs>
 
 The last call wins. `label("Title")` after a closure stores the fixed string and drops the closure. The same shape is on `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight`, and `imageWidth`.
+
+`columnSpan(2)` (or any positive int) sets `data-ff-span` and `--ff-span` so the component spans that many columns of the parent grid. `columnSpan("full")` and the convenience `columnSpanFull()` stretch across the whole row (`grid-column: 1 / -1`).
 
 ### Max width (`xl` and friends)
 

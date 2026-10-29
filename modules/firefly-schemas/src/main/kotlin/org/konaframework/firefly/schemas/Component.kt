@@ -171,6 +171,9 @@ open class Component protected constructor(val name: String) {
 
     fun columnSpan(provider: Function<Get, String>): Component = apply { columnSpanUsing = provider }
 
+    /** Same as [columnSpan] `"full"` — occupy every column of the parent grid. */
+    fun columnSpanFull(): Component = columnSpan("full")
+
     open fun columns(count: Int): Component = apply {
         columnCount = count
         columnsUsing = null
@@ -340,10 +343,15 @@ open class Component protected constructor(val name: String) {
         appendAttr(attrs, "data-ff-path", path)
         appendAttr(attrs, "id", componentId)
         appendAttr(attrs, "wire:key", componentKey)
-        appendAttr(attrs, "data-ff-span", resolvedSpan(schema))
+        val span = resolvedSpan(schema)
+        appendAttr(attrs, "data-ff-span", span)
         val columns = resolvedColumns(schema)
         appendAttr(attrs, "data-ff-columns", columns)
-        if (columns != null) attrs.append(""" style="--ff-cols: ${escapeHtml(columns)}"""")
+        val styleBits = ArrayList<String>()
+        if (columns != null) styleBits.add("--ff-cols: ${escapeHtml(columns)}")
+        val spanCols = span?.toIntOrNull()
+        if (spanCols != null && spanCols > 0) styleBits.add("--ff-span: $spanCols")
+        if (styleBits.isNotEmpty()) attrs.append(""" style="${styleBits.joinToString("; ")}"""")
         appendAttr(attrs, "data-ff-max-width", resolvedMaxWidth(schema))
         appendAttr(attrs, "data-ff-hidden-js", hiddenJsExpr)
         appendAttr(attrs, "data-ff-visible-js", visibleJsExpr)

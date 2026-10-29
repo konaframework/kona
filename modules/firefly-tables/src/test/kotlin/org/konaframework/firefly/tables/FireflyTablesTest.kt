@@ -18,7 +18,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.Date
 import java.util.Locale
 
@@ -447,12 +446,12 @@ class FireflyTablesTest {
 
         val dated = TextColumn.make("at").date()
         val instant = Instant.parse("2020-01-02T03:04:05Z")
-        val locale = Locale.getDefault()
         val zone = ZoneId.systemDefault()
-        val mediumDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
-        val mediumDateTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale)
-        val humanDate = LocalDate.parse("2020-01-02").format(mediumDate)
-        val humanInstant = instant.atZone(zone).format(mediumDate)
+        val humanDateFmt = DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH)
+        val humanDateTimeFmt = DateTimeFormatter.ofPattern("MMMM d, yyyy, h:mm a", Locale.ENGLISH)
+        val humanDate = LocalDate.parse("2020-01-02").format(humanDateFmt)
+        assertEquals("January 2, 2020", humanDate)
+        val humanInstant = instant.atZone(zone).format(humanDateFmt)
         val datedInstant = dated.render(mapOf("at" to instant), "1", Cell { null })
         assertTrue(datedInstant.contains(humanInstant))
         assertTrue(datedInstant.contains("""title="${instant}""""))
@@ -468,11 +467,11 @@ class FireflyTablesTest {
             },
         )
         val dateTimed = TextColumn.make("at").dateTime()
-        val humanDt = LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(mediumDateTime)
+        val humanDt = LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(humanDateTimeFmt)
         val dtHtml = dateTimed.render(mapOf("at" to LocalDateTime.of(2020, 1, 2, 15, 45)), "1", Cell { null })
         assertTrue(dtHtml.contains(humanDt))
         assertTrue(dtHtml.contains("""title="2020-01-02T15:45""""))
-        val localDateAtStart = LocalDate.parse("2020-01-02").atStartOfDay(zone).format(mediumDateTime)
+        val localDateAtStart = LocalDate.parse("2020-01-02").atStartOfDay(zone).format(humanDateTimeFmt)
         assertTrue(
             dateTimed.render(mapOf("at" to LocalDate.parse("2020-01-02")), "1", Cell { null }).contains(localDateAtStart),
         )
@@ -481,19 +480,41 @@ class FireflyTablesTest {
         assertTrue(dateTimed.render(mapOf("at" to sqlDate), "1", Cell { null }).contains(localDateAtStart))
         assertTrue(
             dateTimed.render(mapOf("at" to instant), "1", Cell { null })
-                .contains(instant.atZone(zone).format(mediumDateTime)),
+                .contains(instant.atZone(zone).format(humanDateTimeFmt)),
         )
         assertTrue(
             dated.render(mapOf("at" to "2020-01-02T03:04:05Z"), "1", Cell { null })
-                .contains(Instant.parse("2020-01-02T03:04:05Z").atZone(zone).format(mediumDate)),
+                .contains(Instant.parse("2020-01-02T03:04:05Z").atZone(zone).format(humanDateFmt)),
         )
         assertTrue(
             dateTimed.render(mapOf("at" to "2020-01-02 15:45:00"), "1", Cell { null })
-                .contains(LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(mediumDateTime)),
+                .contains(LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(humanDateTimeFmt)),
         )
         assertTrue(dated.render(mapOf("at" to 42), "1", Cell { null }).contains("42"))
         assertFalse(TextColumn.make("name").render(mapOf("name" to "x"), "1", Cell { null }).contains("title="))
-
+        // Name hints humanize PLAIN columns (due_on / created_at) without an explicit .date() call.
+        assertTrue(
+            TextColumn.make("due_on").render(mapOf("due_on" to "2026-01-02"), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
+        assertTrue(
+            TextColumn.make("start_date").render(mapOf("start_date" to "2026-01-02"), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
+        assertTrue(
+            TextColumn.make("date").render(mapOf("date" to "2026-01-02"), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
+        assertTrue(
+            TextColumn.make("created_at")
+                .render(mapOf("created_at" to LocalDateTime.of(2026, 1, 2, 15, 45)), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
+        assertTrue(
+            TextColumn.make("event_datetime")
+                .render(mapOf("event_datetime" to LocalDateTime.of(2026, 1, 2, 15, 45)), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
         val limited = TextColumn.make("name").limit(3)
         assertTrue(limited.render(mapOf("name" to "Hello"), "1", Cell { null }).contains("Hel…"))
         assertTrue(limited.render(mapOf("name" to "Yo"), "1", Cell { null }).contains("Yo"))

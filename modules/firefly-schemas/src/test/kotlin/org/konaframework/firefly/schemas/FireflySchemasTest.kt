@@ -3,7 +3,9 @@ package org.konaframework.firefly.schemas
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -357,6 +359,17 @@ class FireflySchemasTest {
         assertTrue(html.contains("About org"))
         assertTrue(html.contains("data-ff-columns=\"3\""))
         assertTrue(html.contains("data-ff-span=\"full\""))
+        val spanned = NamedField("roomy").columnSpan(2)
+        assertTrue(Schema.make().components(spanned).render().contains("data-ff-span=\"2\""))
+        assertTrue(Schema.make().components(spanned).render().contains("--ff-span: 2"))
+        assertSame(spanned, spanned.columnSpanFull())
+        assertTrue(Schema.make().components(NamedField("wide").columnSpanFull()).render().contains("data-ff-span=\"full\""))
+        val zeroSpan = Schema.make().components(NamedField("tight").columnSpan(0)).render()
+        assertTrue(zeroSpan.contains("data-ff-span=\"0\""))
+        assertFalse(zeroSpan.contains("--ff-span:"))
+        val lookup = Schema.make().components(NamedField("email"))
+        assertNotNull(lookup.component("email"))
+        assertNull(lookup.component("missing"))
         assertTrue(html.contains("data-ff-max-width=\"md\""))
         assertTrue(html.contains("ff-disabled"))
         assertTrue(html.contains("Hello Ada"))

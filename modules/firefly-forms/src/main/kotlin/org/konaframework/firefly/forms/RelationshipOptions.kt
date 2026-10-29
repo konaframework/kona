@@ -16,29 +16,59 @@ internal class OpenedRelation(val query: Any, val records: List<Any?>)
  */
 internal object RelationshipOptions {
     fun open(owner: Any, name: String, modify: Consumer<Any?>?): OpenedRelation {
+        val query = openQuery(owner, name, modify)
+        return OpenedRelation(query, recordsOf(query))
+    }
+
+    /**
+     * Search related records for a combobox. Unlike [open], applies a title `like` filter when
+     * possible and never inherits the preload option cap from the Select — [limit] is the search
+     * result cap (or null for uncapped).
+     */
+    fun search(
+        owner: Any,
+        name: String,
+        title: String,
+        modify: Consumer<Any?>?,
+        needle: String,
+        limit: Int?,
+    ): List<Any?> {
+        val query = openQuery(owner, name, modify)
+        val pushed = applyTitleSearch(query, title, needle)
+        var rows = recordsOf(query)
+        if (!pushed && needle.isNotBlank()) {
+            val q = needle.lowercase()
+            rows = rows.filter { record ->
+                val raw = recordAttribute(record, title)
+                val label = if (raw == null) "" else raw.toString()
+                label.lowercase().contains(q) || recordKey(record).lowercase().contains(q)
+            }
+        }
+        if (limit != null && rows.size > limit) rows = rows.take(limit)
+        return rows
+    }
+
+    private fun openQuery(owner: Any, name: String, modify: Consumer<Any?>?): Any {
         val method = owner.javaClass.methods.firstOrNull { it.name == name && it.parameterCount == 0 }
             ?: throw FireflyException("Unknown relationship [$name] on [${owner.javaClass.name}]")
         val returned = method.invoke(owner)
             ?: throw FireflyException("Relationship [$name] on [${owner.javaClass.name}] returned null")
         if (returned is Relation<*, *>) {
-            return loadCadence(returned.related.javaClass, modify)
+            return cadenceQuery(returned.related.javaClass, modify)
         }
         if (isDocumentModel(returned.javaClass)) {
             val query = documentQuery(returned)
             if (query is ModelBuilder<*>) {
                 throw documentError(returned.javaClass)
             }
-            return finish(query, modify)
+            if (modify != null) modify.accept(query)
+            return query
         }
         if (returned is ModelBuilder<*> && isDocumentModel(owner.javaClass)) {
             throw documentError(owner.javaClass)
         }
-        return finish(returned, modify)
-    }
-
-    private fun finish(query: Any, modify: Consumer<Any?>?): OpenedRelation {
-        if (modify != null) modify.accept(query)
-        return OpenedRelation(query, recordsOf(query))
+        if (modify != null) modify.accept(returned)
+        return returned
     }
 
     private fun documentQuery(model: Any): Any {
@@ -51,11 +81,32 @@ internal object RelationshipOptions {
         FireflyException("Document model [${type.name}] needs kona-firefly-document on the classpath")
 
     @Suppress("UNCHECKED_CAST")
-    private fun loadCadence(model: Class<*>, modify: Consumer<Any?>?): OpenedRelation {
+    private fun cadenceQuery(model: Class<*>, modify: Consumer<Any?>?): Any {
         val store = RecordStores.open(model) as RecordStore<Any, Any>
         val query = store.query()
         if (modify != null) modify.accept(query)
-        return OpenedRelation(query, store.list(query))
+        return query
+    }
+
+    /**
+     * Returns true when the query itself was constrained (SQL `like`).
+     * Blank needles leave the query untouched and return false so callers skip client filtering too.
+     */
+    private fun applyTitleSearch(query: Any, title: String, needle: String): Boolean {
+        if (needle.isBlank()) return false
+        val pattern = "%$needle%"
+        if (query is ModelBuilder<*>) {
+            query.where(title, "like", pattern)
+            return true
+        }
+        val method = query.javaClass.methods.firstOrNull { method ->
+            method.name == "where" &&
+                method.parameterCount == 3 &&
+                method.parameterTypes[0] == String::class.java &&
+                method.parameterTypes[1] == String::class.java
+        } ?: return false
+        method.invoke(query, title, "like", pattern)
+        return true
     }
 
     private fun recordsOf(query: Any): List<Any?> {

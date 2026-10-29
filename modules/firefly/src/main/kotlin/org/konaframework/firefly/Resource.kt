@@ -1,6 +1,8 @@
 package org.konaframework.firefly
 
 import org.konaframework.firefly.actions.Action
+import org.konaframework.firefly.forms.FieldOption
+import org.konaframework.firefly.forms.Select
 import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
@@ -161,6 +163,17 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         val count = formColumnCount
         if (count != null) schema.columns(count)
         return form(schema)
+    }
+
+    /**
+     * Combobox search for a named [Select] on the create/edit form. Relationship Selects query
+     * past [org.konaframework.firefly.forms.Select.preloadLimit]; static option maps filter in memory.
+     */
+    internal fun searchFormOptions(field: String, query: String): List<FieldOption> {
+        if (field.isBlank()) return emptyList()
+        val schema = prepareForm(liveSchema(emptyMap()))
+        val select = schema.component(field) as? Select ?: return emptyList()
+        return select.search(schema, query)
     }
 
     /** Applies [infolistColumns] then [infolist]. */

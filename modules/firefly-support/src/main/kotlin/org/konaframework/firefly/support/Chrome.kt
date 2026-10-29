@@ -186,7 +186,29 @@ class DefaultLayout(
                 "if(opt)opt.setAttribute('data-ff-label',label);}}}" +
                 "else{vals=value?[value]:[];}" +
                 "c.setAttribute('data-ff-state',vals.join(','));syncCombobox(c);if(!multi)closeComboboxes();}" +
-                "function filterCombobox(c,query){var needle=(query||'').toLowerCase();var any=false;" +
+                "function formOptionsUrl(field,query){var path=location.pathname.replace(/\\/$/,'');" +
+                "path=path.replace(/\\/(manage|create|edit|list|view)$/,'');" +
+                "return path+'/form-options?field='+encodeURIComponent(field||'')+'&q='+encodeURIComponent(query||'');}" +
+                "function optionCheckSvg(){return '<svg class=\"ff-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\"><path d=\"M4.5 12.75l6 6 9-13.5\"/></svg>';}" +
+                "function renderComboboxOptions(c,items){var list=c.querySelector('[data-ff-combobox-options]');if(!list)return;" +
+                "var vals=comboboxValues(c);var html=(items||[]).map(function(it){var value=String(it.value==null?'':it.value);var label=String(it.label==null?'':it.label);" +
+                "var on=vals.indexOf(value)>=0;var enabled=it.enabled!==false;var css=on?'ff-option ff-selected':'ff-option';" +
+                "return '<li class=\"'+css+'\" role=\"option\" aria-selected=\"'+(on?'true':'false')+'\" data-ff-value=\"'+escAttr(value)+'\" data-ff-label=\"'+escAttr(label)+'\"'+" +
+                "(enabled?'':' data-ff-enabled=\"false\"')+'><span class=\"ff-option-text\">'+escHtml(label)+'</span><span class=\"ff-option-check\" aria-hidden=\"true\">'+optionCheckSvg()+'</span></li>';}).join('');" +
+                "list.innerHTML=html;list.style.display=html?'':'none';" +
+                "var empty=c.querySelector('[data-ff-combobox-empty]');if(empty){if(html)empty.setAttribute('hidden','');else empty.removeAttribute('hidden');}" +
+                "syncCombobox(c);}" +
+                "function remoteFilterCombobox(c,query){var field=c.getAttribute('data-ff-path')||'';var empty=c.querySelector('[data-ff-combobox-empty]');" +
+                "var list=c.querySelector('[data-ff-combobox-options]');var searching=c.getAttribute('data-ff-searching')||'Searching';" +
+                "if(empty){empty.textContent=searching;empty.removeAttribute('hidden');}if(list)list.style.display='none';" +
+                "var seq=(+(c.getAttribute('data-ff-search-seq')||'0'))+1;c.setAttribute('data-ff-search-seq',String(seq));" +
+                "fetch(formOptionsUrl(field,query),{credentials:'same-origin',headers:{'Accept':'application/json','X-Requested-With':'FF-Select'}})" +
+                ".then(function(r){return r.json();}).then(function(items){if(String(seq)!==c.getAttribute('data-ff-search-seq'))return;" +
+                "if(empty)empty.textContent=c.getAttribute('data-ff-empty')||'No results found';renderComboboxOptions(c,items);})" +
+                ".catch(function(){if(String(seq)!==c.getAttribute('data-ff-search-seq'))return;" +
+                "if(empty){empty.textContent=c.getAttribute('data-ff-empty')||'No results found';empty.removeAttribute('hidden');}if(list){list.innerHTML='';list.style.display='none';}});}" +
+                "function filterCombobox(c,query){if(c.getAttribute('data-ff-relationship')){remoteFilterCombobox(c,query);return;}" +
+                "var needle=(query||'').toLowerCase();var any=false;" +
                 "c.querySelectorAll('.ff-option').forEach(function(li){var label=(li.getAttribute('data-ff-label')||'').toLowerCase();" +
                 "var value=(li.getAttribute('data-ff-value')||'').toLowerCase();" +
                 "var show=!needle||label.indexOf(needle)>=0||value.indexOf(needle)>=0;li.style.display=show?'':'none';if(show)any=true;});" +

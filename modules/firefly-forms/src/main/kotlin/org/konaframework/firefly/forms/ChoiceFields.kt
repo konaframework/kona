@@ -222,9 +222,8 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         return null
     }
 
-    private fun optionsFromRecords(records: List<Any?>, title: String): List<FieldOption> {
+    private fun optionsFromRecords(records: List<Any?>, title: String, limit: Int? = effectiveOptionsLimit()): List<FieldOption> {
         var rows = records
-        val limit = effectiveOptionsLimit()
         if (limit != null && rows.size > limit) rows = rows.take(limit)
         val disable = disableWhen
         val labels = labelUsing
@@ -243,9 +242,8 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         }
     }
 
-    private fun optionsFromPairs(entries: List<Map.Entry<String, String>>): List<FieldOption> {
+    private fun optionsFromPairs(entries: List<Map.Entry<String, String>>, limit: Int? = effectiveOptionsLimit()): List<FieldOption> {
         var rows = entries
-        val limit = effectiveOptionsLimit()
         if (limit != null && rows.size > limit) rows = rows.take(limit)
         val disable = disableWhen
         val labels = labelUsing
@@ -256,13 +254,41 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         }
     }
 
+    /**
+     * Resolve options for a typed search. Relationship Selects query the related store (beyond
+     * [preloadLimit]); static option maps filter the full set. [getSearchResultsUsing] wins when set.
+     */
     fun search(schema: Schema, query: String): List<FieldOption> {
         val provider = searchUsing
         if (provider != null) {
             return provider.apply(query).map { (value, label) -> FieldOption(value, label, true, descriptions[value]) }
         }
+        val binding = relation
+        val owner = schema.record()
+        if (binding != null && owner != null) {
+            val get = Reads.of(schema, this)
+            val nameProvider = relationNameUsing
+            val titleProvider = relationTitleUsing
+            val name = if (nameProvider == null) binding.name else nameProvider.apply(get)
+            val title = if (titleProvider == null) binding.titleAttribute else titleProvider.apply(get)
+            val limit = effectiveOptionsLimit()
+            val rows = RelationshipOptions.search(
+                owner,
+                name,
+                title,
+                binding.modify,
+                query,
+                if (limit == null) DEFAULT_PRELOAD_LIMIT else limit,
+            )
+            return optionsFromRecords(rows, title, limit = null)
+        }
         val needle = query.lowercase()
-        return resolvedOptions(schema).filter { it.label.lowercase().contains(needle) || it.value.lowercase().contains(needle) }
+        val all = optionsFromPairs(options.get(Reads.of(schema, this)).entries.toList(), limit = null)
+        if (needle.isEmpty()) {
+            val cap = effectiveOptionsLimit()
+            return if (cap == null) all else all.take(cap)
+        }
+        return all.filter { it.label.lowercase().contains(needle) || it.value.lowercase().contains(needle) }
     }
 
     override fun kind(): String = "select"

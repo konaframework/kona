@@ -80,8 +80,9 @@ class FireflyInfolistsTest {
         assertTrue(mdHtml.contains("<em>em</em>"))
         assertTrue(mdHtml.contains("data-ff-prose=\"true\""))
         val dated = TextEntry.make("title").date().dateTooltip().timezone("UTC").state(LocalDate.of(2024, 6, 15))
-        assertTrue(html(dated).contains("2024-06-15"))
+        assertTrue(html(dated).contains("June 15, 2024"))
         assertTrue(html(dated).contains("data-ff-date-tooltip"))
+        assertTrue(html(dated).contains("2024-06-15"))
         val clock = TextEntry.make("title").dateTime("yyyy").timezone { "UTC" }.state(Instant.parse("2024-06-15T12:00:00Z"))
         assertTrue(html(clock).contains("2024"))
         val time = TextEntry.make("title").time().state(LocalDateTime.of(2024, 6, 15, 8, 30))
@@ -94,7 +95,27 @@ class FireflyInfolistsTest {
         val num = TextEntry.make("title").numeric(1).state(1.26)
         assertTrue(html(num).contains("1.3"))
         assertTrue(html(TextEntry.make("title").date("yyyy-MM-dd").state(LocalDate.of(2024, 6, 15))).contains("2024-06-15"))
-        assertTrue(html(TextEntry.make("title").dateTime().state(LocalDateTime.of(2024, 6, 15, 8, 30))).contains("2024-06-15 08:30"))
+        assertTrue(
+            html(TextEntry.make("title").dateTime().state(LocalDateTime.of(2024, 6, 15, 8, 30)))
+                .contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("created_at").state(LocalDateTime.of(2024, 6, 15, 8, 30)))
+                .contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("due_on").state(LocalDate.of(2024, 6, 15))).contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("start_date").state("2024-06-15")).contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("date").state(LocalDate.of(2024, 6, 15))).contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("event_datetime").state(LocalDateTime.of(2024, 6, 15, 8, 30)))
+                .contains("June 15, 2024"),
+        )
         assertTrue(html(TextEntry.make("title").time("HH:mm").state(LocalDateTime.of(2024, 6, 15, 8, 30))).contains("08:30"))
         assertTrue(html(TextEntry.make("title").money().state(3)).contains("USD 3.00"))
         val whole = TextEntry.make("title").numeric().state(1.6)
@@ -244,6 +265,12 @@ class FireflyInfolistsTest {
         assertTrue(temporalText(OffsetDateTime.parse("2024-06-15T12:00:00+02:00"), "HH:mm", zone).isNotEmpty())
         assertTrue(temporalText(ZonedDateTime.parse("2024-06-15T12:00:00+02:00[Europe/Paris]"), "yyyy", zone).contains("2024"))
         assertTrue(temporalText(Date.from(Instant.parse("2024-06-15T12:00:00Z")), "yyyy", zone).contains("2024"))
+        assertTrue(
+            temporalText(java.sql.Timestamp.from(Instant.parse("2024-06-15T12:00:00Z")), "yyyy", zone).contains("2024"),
+        )
+        assertEquals("2024-06-15", temporalText(java.sql.Date.valueOf("2024-06-15"), "yyyy-MM-dd", zone))
+        // LocalDate + time pattern falls back to start-of-day formatting.
+        assertTrue(temporalText(LocalDate.of(2024, 6, 15), "MMMM d, yyyy, h:mm a", zone).contains("June 15, 2024"))
         assertEquals("2024-06-15T12:00:00Z", temporalText("2024-06-15T12:00:00Z", "yyyy-MM-dd'T'HH:mm:ssX", zone))
         assertEquals("nope", temporalText("nope", "yyyy", zone))
         assertEquals("true", temporalText(true, "yyyy", zone))

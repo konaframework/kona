@@ -175,6 +175,9 @@ class Schema {
         return null
     }
 
+    /** Public lookup by absolute state path (e.g. Select field name for form-options search). */
+    fun component(path: String): Component? = find(path)
+
     internal fun getFor(component: Component): Get = Get { relative ->
         if (relative.isEmpty() || relative == "." || relative == "..") return@Get null
         val resolved = resolve(component, relative)

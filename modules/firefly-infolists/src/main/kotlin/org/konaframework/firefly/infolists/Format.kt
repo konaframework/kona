@@ -35,19 +35,29 @@ internal fun zoneOf(name: String?): ZoneId {
 
 internal fun temporalText(state: Any?, pattern: String, zone: ZoneId): String {
     val formatter = try {
-        DateTimeFormatter.ofPattern(pattern)
+        DateTimeFormatter.ofPattern(pattern, Locale.ENGLISH)
     } catch (ex: IllegalArgumentException) {
         throw FireflyException("Unknown date pattern [$pattern]")
     }
     return when (state) {
-        is LocalDate -> state.format(formatter)
+        is LocalDate -> formatLocalDate(state, formatter, zone)
         is LocalDateTime -> state.format(formatter)
         is Instant -> state.atZone(zone).format(formatter)
         is OffsetDateTime -> state.format(formatter)
         is ZonedDateTime -> state.format(formatter)
+        is java.sql.Timestamp -> state.toInstant().atZone(zone).format(formatter)
+        is java.sql.Date -> formatLocalDate(state.toLocalDate(), formatter, zone)
         is Date -> state.toInstant().atZone(zone).format(formatter)
         is String -> formatParsed(state, formatter, zone)
         else -> stringify(state)
+    }
+}
+
+private fun formatLocalDate(date: LocalDate, formatter: DateTimeFormatter, zone: ZoneId): String {
+    return try {
+        date.format(formatter)
+    } catch (_: DateTimeException) {
+        date.atStartOfDay(zone).format(formatter)
     }
 }
 

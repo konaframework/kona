@@ -3,7 +3,7 @@ title: Tables
 description: Pass rows to Table.memory or a Cadence model to Table.cadence, name the columns, and render the list. The notes page shows one row, Ada.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Name the columns, point the table at the rows, and call `render()`. You get a list toolbar (search field with icon, filters, header buttons), sortable column headers when opted in, pagination with a record count, and an in-table empty state when there are no rows. Columns are not searchable or sortable until you call `searchable()` / `sortable()` (zero-arg means true).
@@ -129,7 +129,9 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 | `ToggleColumn.make(name)` | A toggle that calls `$wire.$call('toggleColumn', ...)` |
 | `SelectColumn.make(name)` | A select that calls `$wire.$call('setColumn', ...)` |
 
-`searchable()` / `searchable(true)` includes the column in search. `sortable()` allows `sort(name)`. Zero-arg boolean chainables mean yes; pass `false` to turn off. `toggleable()` lets the caller hide the column. `hidden()` and `visible(false)` leave it out of the render. `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN`, and `MAX` add a footer value.
+`searchable()` / `searchable(true)` includes the column in search. `sortable()` allows `sort(name)`. Zero-arg boolean chainables mean yes; pass `false` to turn off. `toggleable()` lets the caller hide the column. `toggledHiddenByDefault()` (or `toggledHiddenByDefault(true)`) marks it toggleable and starts it hidden — useful for timestamps so the list stays readable. `hidden()` and `visible(false)` leave it out of the render. `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN`, and `MAX` add a footer value.
+
+Column headings default to a humanized form of the attribute name (`published_at` → `Published At`). CSS still uppercases the header, so you see **PUBLISHED AT**, not `PUBLISHED_AT`. Override with `label(...)` when you need a custom title.
 
 Related titles use a dotted make path (Filament/Shamar shape), up to four levels:
 
@@ -138,7 +140,7 @@ TextColumn.make("project.name").label("Project")
 TextColumn.make("owner.company.region.name").label("Region")
 ```
 
-Cadence tables eager-load the relation path (`with("project")`, `with("owner.company.region")`). You can still call `.relationship("project", "name")` on an FK column name when you need the old shape. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
+Cadence tables eager-load the relation path. You can still call `.relationship("project", "name")` on an FK column name when you need the old shape. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -161,7 +163,11 @@ TextColumn.make("name").label(cell -> "Name").extraAttributes(Map.of("data-col",
 </TabItem>
 </Tabs>
 
-`money()` formats a number as dollars and cents and defaults the column (and its header) to `Align.END`. `date()` and `dateTime()` format a date, instant, or timestamp for people (medium locale style, for example `Jan 15, 2024` or `Jan 15, 2024, 3:45 PM`). Hover shows the raw value in a tooltip. `IconColumn.boolean()` paints a soft green check chip or a muted X chip. Row action menus (`⋮`) use a fixed overlay so they float above a short table instead of clipping inside `.ff-table-wrap`. `align(Align.END)` / `Align.CENTER` sets both the cell and the `<th>` via `data-ff-align`. The Actions header is right-aligned the same way.
+`money()` formats a number as dollars and cents and defaults the column (and its header) to `Align.END`. `date()` and `dateTime()` format a date, instant, or timestamp for people using PHP-style `F j, Y` (for example `January 2, 2026` or `January 2, 2026, 3:45 PM`). Hover shows the raw value in a tooltip. Columns named like `due_on`, `start_date`, or `created_at` / `updated_at` humanize even without an explicit `.date()` / `.dateTime()` call. `IconColumn.boolean()` paints a soft green check chip or a muted X chip. Row action menus (`⋮`) use a fixed overlay so they float above a short table instead of clipping inside `.ff-table-wrap`. `align(Align.END)` / `Align.CENTER` sets both the cell and the `<th>` via `data-ff-align`. The Actions header is right-aligned the same way.
+
+`relationship("project", "name")` on a foreign-key column (for example `project_id`) shows the related record’s title attribute instead of the raw id, labels the heading from the relation name (**Project**), and tells Cadence tables to `with("project")` so the list is not N+1. Generated resources emit this for FK columns.
+
+If IntelliJ does not offer `date()` / `dateTime()` (or other new Firefly APIs) in completion, the IDE is almost always resolving an older published JAR instead of your composite/`kona.home` checkout. Refresh the Gradle project (**Reload All Gradle Projects**), confirm the module dependency points at the included build (not only Maven Local / Central), then **Invalidate Caches** if the index still looks stale. `./gradlew :kona-firefly-tables:compileKotlin` (or a full `./gradlew classes`) after pulling framework changes keeps class files current for the IDE.
 
 Search is instant: typing in the toolbar search field debounces (~280ms) and soft-navigates the table without pressing Enter. Soft-nav restores focus and the caret in the search box so typing is not interrupted. The control is a single bordered field with the icon inside.
 
@@ -222,6 +228,8 @@ Filter.make("name").query((query, value) -> {
 ## Put a button on the header or the row
 
 A button renders through `Dialog` and can include a schema. `label("Export")` and `label { cell -> "Edit ${cell.get("name")}" }` set the text. `modal()`, `slideOver()`, and `fullscreen()` choose the dialog. `schema(Text.make("Go"))` is the dialog body. `url("https://example.test")` renders a link. `requiresSelection(true)` disables the button while no row is selected.
+
+When a table has **two or more** row buttons, Firefly groups them under a ⋯ (kebab) menu by default so the actions column stays narrow. Call `groupRowActions(false)` to show each action as its own button. Resource manage/list pages use the grouped menu for View / Edit / Delete.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

@@ -108,6 +108,19 @@ class CadenceTablesTest {
                 "fallback",
             ),
         )
+        // Cadence attributeOf: relation hit vs attribute fallback (elvis both sides).
+        val solo = Customer()
+        solo.setAttribute("name", "Solo")
+        assertNull(solo.getRelations()["name"])
+        assertEquals(
+            "Solo",
+            Column.relationshipTitle(Cell { if (it == "c") solo else null }, "c", "name", "?"),
+        )
+        solo.setRelation("tag", "vip")
+        assertEquals(
+            "vip",
+            Column.relationshipTitle(Cell { if (it == "c") solo else null }, "c", "tag", "?"),
+        )
         // Mixed collection members (non-Cadence) keep their raw value.
         withOrders.records.first().setRelation("mixed", listOf("x", withOrders.records.first()))
         val mixed = CadenceRecordStore(Customer::class.java).attributes(withOrders.records.first())["mixed"] as List<*>

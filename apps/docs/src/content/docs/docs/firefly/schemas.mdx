@@ -77,6 +77,8 @@ Text.make("Hello").content(get -> "Hello");
 
 The last call wins. `label("Title")` after a closure stores the fixed string and drops the closure. The same shape is on `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight`, and `imageWidth`.
 
+`columnSpan(2)` (or any positive int) sets `data-ff-span` and `--ff-span` so the component spans that many columns of the parent grid. `columnSpan("full")` and the convenience `columnSpanFull()` stretch across the whole row (`grid-column: 1 / -1`).
+
 ### Max width (`xl` and friends)
 
 `maxWidth("xl")` (or a closure that returns a token) stores the value on the component and renders `data-ff-max-width="xl"` on its root. The panel stylesheet maps those tokens to CSS variables:

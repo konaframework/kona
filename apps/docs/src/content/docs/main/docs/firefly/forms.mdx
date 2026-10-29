@@ -3,7 +3,7 @@ title: Forms
 description: Put fields on a schema, fill the state, and render the HTML. Select is a combobox until you call native(). DateTimePicker is the crafted picker until you call native().
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Put fields on a schema when the screen needs a name, a status, or a due date. Fill the schema, then `render()` returns the HTML. Wire and Alpine keep the value in sync after the page loads.
@@ -175,7 +175,7 @@ Select.make("status")
 
 <FireflyShot file="form-native-select.png" description="The status field from the Desk form at http://127.0.0.1:4017/admin/desk, rendered with native() as a native select of Open and Done." />
 
-`options { get -> mapOf("a" to "A") }` loads options from a closure. `optionsFrom(records, "title", "id")` reads a list of maps. `boolean()` uses Yes and No. `multiple()` turns the combobox into a tags input (chips for each selected value; options stay highlighted with a tick). `preload()` embeds options for client filter; when preload is on and you have not set a limit, Firefly caps the list at 50 (`Select.DEFAULT_PRELOAD_LIMIT`). Raise or lower that with `optionsLimit(n)` or `preloadLimit(n)`. `maxItems`, `searchDebounce`, `position`, and the loading, searching, empty (`noSearchResultsMessage`, default “No results found”), and search-prompt strings configure the panel. Zero-arg boolean chainables (`searchable()`, `required()`, `hidden()`, …) mean yes; pass `false` to turn off. `getOptionLabelUsing` and `getSearchResultsUsing` replace the label and the search. `disableOptionWhen` disables one option. `allowHtml(true)` keeps HTML in a native option label. `native()` keeps the browser `<select>`.
+`options { get -> mapOf("a" to "A") }` loads options from a closure. `optionsFrom(records, "title", "id")` reads a list of maps. `boolean()` uses Yes and No. `multiple()` turns the combobox into a tags input (chips for each selected value; options stay highlighted with a tick). `preload()` embeds options for the first paint; when preload is on and you have not set a limit, Firefly caps that seed list at 50 (`Select.DEFAULT_PRELOAD_LIMIT`). Raise or lower that with `optionsLimit(n)` or `preloadLimit(n)`. For **relationship** Selects, typing in the combobox always searches the backend (`GET …/form-options?field=…&q=…`) — preload does not trap search inside the seed set. Static `options(...)` maps still filter in the browser. `maxItems`, `searchDebounce`, `position`, and the loading, searching, empty (`noSearchResultsMessage`, default “No results found”), and search-prompt strings configure the panel. Zero-arg boolean chainables (`searchable()`, `required()`, `hidden()`, …) mean yes; pass `false` to turn off. `getOptionLabelUsing` and `getSearchResultsUsing` replace the label and the search. `disableOptionWhen` disables one option. `allowHtml(true)` keeps HTML in a native option label. `native()` keeps the browser `<select>`.
 
 `descriptions` adds a line under each option. A static option list adds an `in:` rule when the field is not multiple and the values contain neither a comma nor a pipe.
 
