@@ -435,6 +435,17 @@ class FireflyWidgetsTest {
         assertThrows<FireflyException> { WidgetScripts.source("/_firefly/widgets/missing.js") }
     }
 
+    @Test
+    fun classicWidgetScriptsHaveNoModuleExport() {
+        // Served as plain <script src> (not type=module); top-level export throws in Chromium (#386).
+        for (path in listOf(WidgetScripts.WIDGET, WidgetScripts.CHART)) {
+            val source = WidgetScripts.source(path)
+            assertFalse(source.lines().any { it.trimStart().startsWith("export ") }, path)
+            assertTrue(source.trimStart().startsWith("(function"), path)
+        }
+        assertTrue(Widget.make("box").render().contains("""<script src="/_firefly/widgets/ff-widget.js"></script>"""))
+    }
+
     private fun writeWidget(file: java.nio.file.Path, packageName: String, declaration: String) {
         val source = if (declaration.startsWith("abstract") || declaration.startsWith("class") || declaration.contains(" class ")) {
             "package $packageName\n$declaration\n"
