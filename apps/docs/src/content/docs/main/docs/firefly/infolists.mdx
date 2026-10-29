@@ -127,7 +127,7 @@ Known icon names (`home`, `bars`, `user`, `check`, `x`) render inline SVG. Any o
 
 ## Show text
 
-`TextEntry.make("title")` renders plain text. Nested attributes use the same dotted path as table columns (up to four levels): `TextEntry.make("project.name").label("Project")` reads `project.name` from filled state or a nested map. A list can be a badge, a bullet list, or line breaks. `limitList` with `expandableLimitedList(true)` keeps the extra items and marks them `data-ff-extra`. Without that flag, the tail becomes `+N`.
+`TextEntry.make("title")` renders plain text. Nested attributes use the same dotted path as table columns (up to four levels): `TextEntry.make("project.name").label("Project")` reads `project.name` from filled state, a nested map, or the schema’s Cadence record. On a resource view (or manage View dialog), Firefly loads that relation onto the record and refills state so the entry is not blank. A list can be a badge, a bullet list, or line breaks. `limitList` with `expandableLimitedList(true)` keeps the extra items and marks them `data-ff-extra`. Without that flag, the tail becomes `+N`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -164,11 +164,11 @@ TextEntry.make("title")
 </TabItem>
 </Tabs>
 
-`markdown(true)` renders a small Markdown subset (emphasis, code, links, and fenced blocks). **`html()`** (or `html(true)`) leaves the string as trusted HTML instead of escaping it — use only for content you control. `date()`, `dateTime()`, and `time()` format a temporal value. Call them with a pattern, or with no arguments to use `yyyy-MM-dd`, `yyyy-MM-dd HH:mm`, and `HH:mm`. `since()` renders a relative phrase against the current instant. `timezone` sets the zone. `dateTooltip()` adds `data-ff-date-tooltip`. `money()` defaults to USD. `money("EUR")` selects a currency. `numeric()` prints a number. `numeric(2)` sets the decimal places. `formatStateUsing` replaces the formatted text with the closure’s string.
+`markdown(true)` renders a small Markdown subset (emphasis, code, links, and fenced blocks). **`html()`** (or `html(true)`) leaves the string as trusted HTML instead of escaping it — use only for content you control. `date()`, `dateTime()`, and `time()` format a temporal value. Call them with a pattern, or with no arguments to use human `F j, Y` (`January 2, 2026`), `F j, Y` plus time (`January 2, 2026, 3:45 PM`), and `HH:mm`. Instant, `LocalDateTime`, JDBC timestamps, epoch millis, and SQL-style strings (`2024-06-15 08:30:00`) all humanize the same way as table `TextColumn.dateTime()`. Entries named like `due_on` or `created_at` humanize even without `.date()` / `.dateTime()`. `since()` renders a relative phrase against the current instant. `timezone` sets the zone. `dateTooltip()` adds `data-ff-date-tooltip`. `money()` defaults to USD. `money("EUR")` selects a currency. `numeric()` prints a number. `numeric(2)` sets the decimal places. `formatStateUsing` replaces the formatted text with the closure’s string.
 
 ## Show an icon
 
-`IconEntry.make("ok")` shows an icon for the state. `boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean: a truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) as a soft Shamar chip. `whenTrue("check", "success")` and `whenFalse("x", "gray")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon. `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
+`IconEntry.make("ok")` shows an icon for the state. `boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean: a truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) inside a Shamar Yes/No toggle pill (circular mark + visible label; not crushed by SVG glyph sizing). Defaults are `trueLabel("Yes")` / `falseLabel("No")`; blank labels fall back to an icon-only circle. `whenTrue("check", "success")` and `whenFalse("x", "gray")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon (the Yes/No label still shows). `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
 
 Kotlin prefers `boolean()`. Java uses `bool(true)` because `boolean` is a keyword. The pair helpers are `whenTrue` and `whenFalse`.
 

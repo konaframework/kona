@@ -60,6 +60,93 @@ class FireflyResourceTest {
         assertTrue(html.contains(">Project<"))
         assertFalse(html.contains(">project_id<"))
         assertFalse(html.contains("<select"))
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(tasks).mount(router)
+        val match = router.find("GET", "/admin/task/form-options") ?: throw AssertionError("missing form-options")
+        val body = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("field" to "project_id", "q" to "Lab"), ""),
+        ).body
+        assertTrue(body.contains("Lab"))
+        assertTrue(body.contains("\"value\""))
+        assertTrue(body.contains("\"label\""))
+        val miss = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("field" to "project_id", "q" to "Nope"), ""),
+        ).body
+        assertTrue(miss.contains("[]") || !miss.contains("Desk"))
+        val blankField = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("q" to "Lab"), ""),
+        ).body
+        assertTrue(blankField.contains("[]"))
+        val unknownField = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("field" to "missing", "q" to "Lab"), ""),
+        ).body
+        assertTrue(unknownField.contains("[]"))
+        val noQuery = match.route.action.handle(
+            Request("GET", "/admin/task/form-options", emptyMap(), mapOf("field" to "project_id"), ""),
+        ).body
+        assertTrue(noQuery.contains("Desk") || noQuery.contains("Lab") || noQuery.contains("["))
+    }
+
+    @Test
+    fun viewInfolistResolvesDottedRelationTextEntry() {
+        databaseWithProjects()
+        val project = ProjectShelf().forceFill(mapOf("name" to "Alpine Softshell"))
+        project.save()
+        val task = TaskShelf().forceFill(mapOf("project_id" to project.getKey(), "name" to "Sew"))
+        task.save()
+        val taskId = task.getKey()!!.toString()
+        val tasks = object : Resource("task") {
+            init {
+                label("Task")
+                model(TaskShelf::class.java)
+            }
+
+            override fun form(schema: Schema): Schema =
+                schema.components(
+                    TextInput.make("name"),
+                    // hydrateDottedRelations skips over-deep / blank dotted form names (#361).
+                    TextInput.make("a.b.c.d.e"),
+                    TextInput.make("project."),
+                )
+
+            override fun infolist(schema: Schema): Schema =
+                schema.components(
+                    TextEntry.make("name").label("Name"),
+                    TextEntry.make("project.name").label("Project"),
+                )
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to taskId, "name" to "Sew"))
+                    .columns(TextColumn.make("name"))
+        }
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(tasks).mount(router)
+        val view = send(router, "/admin/task/view?id=$taskId")
+        assertTrue(view.contains("Alpine Softshell"), view)
+        assertTrue(view.contains(">Project<") || view.contains("Project"), view)
+        // Create still renders after hydrate skips invalid dotted form paths.
+        assertTrue(send(router, "/admin/task/create").contains("ff-create"))
+        // Manage View dialog also hydrates dotted paths (#361).
+        val simple = object : Resource("task") {
+            init {
+                label("Task")
+                simple()
+                model(TaskShelf::class.java)
+            }
+
+            override fun form(schema: Schema): Schema = schema.components(TextInput.make("name"))
+
+            override fun infolist(schema: Schema): Schema =
+                schema.components(TextEntry.make("project.name").label("Project"))
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to taskId, "name" to "Sew"))
+                    .columns(TextColumn.make("name"))
+        }
+        val manageRouter = Router()
+        Panel().path("desk").authenticate(false).resource(simple).mount(manageRouter)
+        val manage = send(manageRouter, "/desk/task/manage")
+        assertTrue(manage.contains("Alpine Softshell"), manage)
     }
 
     @Test
@@ -351,6 +438,12 @@ class FireflyResourceTest {
         Panel().path("admin").authenticate(false).resource(gridResource).mount(gridRouter)
         val gridManage = send(gridRouter, "/admin/shelf/manage")
         assertTrue(gridManage.contains("ff-manage") || gridManage.contains("ff-row-actions"))
+        // Create header dialog and row Edit dialog both honor formColumns (#358 / #367).
+        assertTrue(gridManage.contains("""data-ff-columns="2""""))
+        assertTrue(gridManage.contains("--ff-cols: 1") && gridManage.contains("--ff-cols-lg: 2"), gridManage)
+        val createDialog = gridManage.substringAfter("""action="create"""").substringBefore("""action="edit"""")
+        assertTrue(createDialog.contains("""data-ff-columns="2""""))
+        assertTrue(createDialog.contains("--ff-cols: 1") && createDialog.contains("--ff-cols-lg: 2"), createDialog)
         val widthRouter = Router()
         Panel().path("admin").authenticate(false)
             .resource(Resource("shelf").model(Shelf::class.java).maxWidth("full").simple())
@@ -690,6 +783,9 @@ class FireflyResourceTest {
         assertTrue(listed.contains("ff-table"))
         send(router, "/admin/orders/list?search=x&sort=missing&direction=sideways&page=0&perPage=0")
         send(router, "/admin/orders/list?page=abc&perPage=abc")
+        // Soft-nav column visibility (?columns=) for toggleable table columns (#363).
+        send(router, "/admin/orders/list?columns=name")
+        send(router, "/admin/orders/list?columns=")
 
         // CSRF via header / alternate field; blank session token is ignored.
         val blankTok = FakeFireflySession().also { it.put("_token", "  ") }

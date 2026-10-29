@@ -16,7 +16,7 @@ open class MemoryQuery internal constructor(source: List<Map<String, Any?>>) {
 
     fun where(field: String, operator: String, value: Any?): MemoryQuery = apply {
         val op = operator.lowercase()
-        predicates.add { row -> matches(row[field], op, value) }
+        predicates.add { row -> matches(dig(row, field), op, value) }
     }
 
     fun orderBy(field: String, direction: String = "asc"): MemoryQuery = apply {
@@ -32,7 +32,7 @@ open class MemoryQuery internal constructor(source: List<Map<String, Any?>>) {
         val needle = term.lowercase()
         predicates.add { row ->
             columns.any { column ->
-                val value = row[column] ?: return@any false
+                val value = dig(row, column) ?: return@any false
                 value.toString().lowercase().contains(needle)
             }
         }
@@ -90,10 +90,23 @@ open class MemoryQuery internal constructor(source: List<Map<String, Any?>>) {
 
     private fun compareRows(left: Map<String, Any?>, right: Map<String, Any?>): Int {
         for ((field, direction) in sorts) {
-            val compared = compare(left[field], right[field])
+            val compared = compare(dig(left, field), dig(right, field))
             if (compared != 0) return if (direction == "desc") -compared else compared
         }
         return 0
+    }
+
+    /** Nested map dig for dotted paths (`project.name`) used by searchable/sortable relation columns. */
+    private fun dig(row: Map<String, Any?>, path: String): Any? {
+        if (!path.contains('.')) return row[path]
+        var current: Any? = row
+        for (segment in path.split('.')) {
+            current = when (current) {
+                is Map<*, *> -> current[segment]
+                else -> return null
+            }
+        }
+        return current
     }
 
     private fun matches(actual: Any?, operator: String, expected: Any?): Boolean {

@@ -15,7 +15,7 @@ class Schema {
     private var loaded: Boolean = false
     private var headingLevel: Int = 2
     private var crema: CremaEngine? = null
-    private var columnCount: Int? = null
+    private var columnLayout: ColumnLayout? = null
     val partialKeys = ArrayList<String>()
 
     fun components(vararg components: Component): Schema = apply {
@@ -28,13 +28,30 @@ class Schema {
 
     fun components(): List<Component> = roots.toList()
 
-    /** Root grid columns for top-level components (Shamar / Filament schema columns). */
-    fun columns(count: Int): Schema = apply {
-        if (count < 1) throw FireflyException("Schema columns must be at least 1")
-        columnCount = count
+    /**
+     * Root grid columns (Shamar / Filament). No arguments → **2** columns from `lg` up;
+     * smaller viewports stay 1 column. Omit [columns] entirely for a single-column stack.
+     */
+    fun columns(): Schema = apply { columnLayout = ColumnLayout.two() }
+
+    /** Integer columns from the `lg` breakpoint up; below `lg` the grid stays 1 column. */
+    fun columns(count: Int): Schema = apply { columnLayout = ColumnLayout.of(count) }
+
+    /**
+     * Per-breakpoint column counts (`default`, `sm`, `md`, `lg`, `xl`, `2xl`).
+     * Unset smaller breakpoints cascade from `default` (or 1).
+     */
+    fun columns(breakpoints: Map<String, Int>): Schema = apply {
+        columnLayout = ColumnLayout.from(breakpoints)
     }
 
-    fun columns(): Int? = columnCount
+    fun columns(layout: ColumnLayout): Schema = apply { columnLayout = layout }
+
+    /** Responsive layout when [columns] was called; otherwise `null` (single-column stack). */
+    fun columnLayout(): ColumnLayout? = columnLayout
+
+    /** Primary (`lg`) column count when a layout is set; otherwise `null`. */
+    fun columnCount(): Int? = columnLayout?.primary()
 
     fun statePath(path: String): Schema = apply { statePath = path }
 
@@ -132,8 +149,13 @@ class Schema {
         // Only writes absent keys; does not re-fire afterStateHydrated (call hydrate() for that).
         seedDefaults()
         val body = roots.joinToString("") { it.render(this) }
-        val cols = columnCount
-        val colAttr = if (cols == null) "" else """ data-ff-columns="$cols" style="--ff-cols: $cols""""
+        val layout = columnLayout
+        val colAttr =
+            if (layout == null) {
+                ""
+            } else {
+                """ data-ff-columns="${layout.dataValue()}" style="${layout.styleAttribute()}""""
+            }
         return """<div class="ff-schema"$colAttr>$body</div>"""
     }
 
@@ -158,7 +180,8 @@ class Schema {
         }
     }
 
-    internal fun walk(): List<Component> {
+    /** Depth-first list of every mounted component (roots and nested children). */
+    fun walk(): List<Component> {
         val out = ArrayList<Component>()
         fun visit(component: Component) {
             out.add(component)
@@ -174,6 +197,9 @@ class Schema {
         }
         return null
     }
+
+    /** Public lookup by absolute state path (e.g. Select field name for form-options search). */
+    fun component(path: String): Component? = find(path)
 
     internal fun getFor(component: Component): Get = Get { relative ->
         if (relative.isEmpty() || relative == "." || relative == "..") return@Get null

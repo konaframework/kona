@@ -341,6 +341,12 @@ class RelationsTest {
             listOf("Ada"),
             Author.whereHas("books") { it.where("title", "Notes") }.get().map { it["name"] },
         )
+        val (existsSql, existsBindings) = Author.query().existsClause("books") { nested ->
+            nested.where("title", "Notes")
+        }
+        assertTrue(existsSql.startsWith("exists ("))
+        assertTrue(existsBindings.isNotEmpty())
+        assertTrue(Author.query().existsClause("profile").first.startsWith("exists ("))
         assertEquals(
             listOf("Bob"),
             Author.whereDoesntHave("books") { it.where("title", "Notes") }.orderBy("name").get().map { it["name"] },

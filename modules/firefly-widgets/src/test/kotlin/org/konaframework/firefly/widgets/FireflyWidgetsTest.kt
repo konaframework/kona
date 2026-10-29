@@ -339,6 +339,12 @@ class FireflyWidgetsTest {
         assertTrue(crumbs.contains("""href="/admin""""))
         assertTrue(crumbs.contains("ff-breadcrumb-current"))
         assertTrue(crumbs.contains("Edit Orders"))
+        // Crumbs above the toolbar; heading shares the toolbar row with actions (#359).
+        assertTrue(crumbs.contains("ff-page-toolbar"))
+        assertTrue(crumbs.indexOf("ff-breadcrumbs") < crumbs.indexOf("ff-page-toolbar"))
+        assertTrue(crumbs.indexOf("ff-page-heading") > crumbs.indexOf("ff-page-toolbar"))
+        assertTrue(crumbs.indexOf("</h1>") > crumbs.indexOf("ff-page-toolbar"))
+        assertTrue(crumbs.indexOf("ff-page-header-actions") > crumbs.indexOf("ff-page-toolbar"))
         assertEquals("Orders", Breadcrumb.make("Orders", "/x").label)
         assertEquals("Solo", Breadcrumb.make("Solo").label)
         assertNull(Breadcrumb.make("Solo").href)

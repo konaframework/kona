@@ -9,7 +9,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.Date
 import java.util.Locale
 import java.util.function.BiFunction
@@ -189,6 +188,17 @@ open class Column protected constructor(val name: String) {
 
     fun relationshipName(): String? = relationshipName
 
+    fun relationshipTitleAttribute(): String? = relationshipTitleAttribute
+
+    /**
+     * Attribute path used for SQL search/sort: `relation.title` when this column
+     * is a relationship (including dotted `project.name`), otherwise [name].
+     */
+    fun queryName(): String {
+        val rel = relationshipName
+        return if (rel == null) name else "$rel.${relationshipTitleAttribute!!}"
+    }
+
     /**
      * When [name] is a dotted path (`project.name` … four segments max), bind
      * [relationship] automatically so make-time Filament/Shamar syntax works.
@@ -221,9 +231,10 @@ open class Column protected constructor(val name: String) {
         if (alignUsing == null && alignValue == Align.START) alignValue = Align.END
     }
 
+    /** Human date (`January 2, 2026` / PHP `F j, Y`); hover shows the raw value. */
     fun date(): Column = apply { style = TextStyle.DATE }
 
-    /** Human-readable date and time (e.g. `Jan 15, 2024, 3:45 PM`); hover shows the raw value. */
+    /** Human date and time (`January 2, 2026, 3:45 PM`); hover shows the raw value. */
     fun dateTime(): Column = apply { style = TextStyle.DATE_TIME }
 
     fun limit(characters: Int): Column = apply { limit = characters }
@@ -282,7 +293,7 @@ open class Column protected constructor(val name: String) {
         val raw = if (custom != null) {
             custom.apply(state, cell)
         } else {
-            when (style) {
+            when (effectiveStyle()) {
                 TextStyle.MONEY -> money(state)
                 TextStyle.DATE -> humanDate(state, withTime = false)
                 TextStyle.DATE_TIME -> humanDate(state, withTime = true)
@@ -306,16 +317,11 @@ open class Column protected constructor(val name: String) {
         else -> state.toString()
     }
 
-    /** Shamar-style medium date (`Jan 15, 2024`) or date+time (`Jan 15, 2024, 3:45 PM`). */
+    /** PHP `F j, Y` (`January 2, 2026`) or date+time (`January 2, 2026, 3:45 PM`). */
     private fun humanDate(state: Any?, withTime: Boolean): String {
         if (state == null) return ""
         val zone = ZoneId.systemDefault()
-        val locale = Locale.getDefault()
-        val formatter = if (withTime) {
-            DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale)
-        } else {
-            DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
-        }
+        val formatter = if (withTime) HUMAN_DATE_TIME else HUMAN_DATE
         return when (state) {
             is LocalDate ->
                 if (withTime) state.atStartOfDay(zone).format(formatter) else state.format(formatter)
@@ -335,8 +341,14 @@ open class Column protected constructor(val name: String) {
         }
     }
 
+    private fun effectiveStyle(): TextStyle {
+        if (style != TextStyle.PLAIN) return style
+        return inferTemporalStyle(name) ?: TextStyle.PLAIN
+    }
+
     private fun temporalRawTip(state: Any?): String {
-        if (style != TextStyle.DATE && style != TextStyle.DATE_TIME) return ""
+        val active = effectiveStyle()
+        if (active != TextStyle.DATE && active != TextStyle.DATE_TIME) return ""
         if (state == null) return ""
         return state.toString()
     }
@@ -391,7 +403,22 @@ open class Column protected constructor(val name: String) {
     }
 
     companion object {
+        private val HUMAN_DATE: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH)
+        private val HUMAN_DATE_TIME: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("MMMM d, yyyy, h:mm a", Locale.ENGLISH)
+
         private val configurers = HashMap<Class<*>, Consumer<Column>?>()
+
+        /** Name hints (`due_on`, `created_at`, `start_date`) so PLAIN columns still humanize. */
+        internal fun inferTemporalStyle(columnName: String): TextStyle? {
+            val leaf = columnName.substringAfterLast('.').lowercase()
+            return when {
+                leaf.endsWith("_at") || leaf.contains("datetime") -> TextStyle.DATE_TIME
+                leaf.endsWith("_on") || leaf.endsWith("_date") || leaf == "date" -> TextStyle.DATE
+                else -> null
+            }
+        }
 
         @JvmStatic
         fun configureUsing(type: Class<out Column>, block: Consumer<Column>?) {
@@ -495,14 +522,22 @@ open class IconColumn private constructor(name: String) : Column(name) {
     private var trueIcon = "check"
     /** Soft false mark (X), paired with [trueIcon]. */
     private var falseIcon = "x"
+    /** Visible pill text for true (Shamar default Yes). Empty → icon-only circle. */
+    private var trueLabelText = "Yes"
+    /** Visible pill text for false (Shamar default No). Empty → icon-only circle. */
+    private var falseLabelText = "No"
     private var booleanMode = false
 
     fun trueIcon(name: String): IconColumn = apply { trueIcon = name }
 
     fun falseIcon(name: String): IconColumn = apply { falseIcon = name }
 
+    fun trueLabel(label: String): IconColumn = apply { trueLabelText = label }
+
+    fun falseLabel(label: String): IconColumn = apply { falseLabelText = label }
+
     /**
-     * Treats the cell as a boolean (Shamar check / cross chips). Truthy for [Boolean], numbers,
+     * Treats the cell as a boolean (Shamar Yes/No toggle pills). Truthy for [Boolean], numbers,
      * and `"1"` / `"true"` / `"yes"`. Kotlin: [boolean]; Java: [bool] (`boolean` is a keyword).
      */
     fun boolean(): IconColumn = apply { booleanMode = true }
@@ -531,9 +566,20 @@ open class IconColumn private constructor(name: String) : Column(name) {
             booleanMode -> {
                 val on = truthy(state)
                 val cls = if (on) "is-true" else "is-false"
-                val word = if (on) "true" else "false"
+                val label = if (on) trueLabelText else falseLabelText
+                val iconOnly = label.isBlank()
+                val onlyClass = if (iconOnly) " ff-boolean--icon-only" else ""
                 val custom = if (icon == "check" || icon == "x") "" else " ff-boolean--custom"
-                """<span class="ff-boolean$custom ff-boolean--icon-only $cls"><span class="ff-boolean__mark" aria-hidden="true">${Icon.fromName(icon).svg()}</span><span class="ff-sr">$word</span></span>"""
+                val mark =
+                    """<span class="ff-boolean__mark" aria-hidden="true">${Icon.fromName(icon).svg()}</span>"""
+                val labelHtml =
+                    if (iconOnly) {
+                        val word = if (on) "true" else "false"
+                        """<span class="ff-sr">$word</span>"""
+                    } else {
+                        """<span class="ff-boolean__label">${escapeHtml(label)}</span>"""
+                    }
+                """<span class="ff-boolean$custom$onlyClass $cls">$mark$labelHtml</span>"""
             }
             else -> Icon.fromName(icon).svg()
         }

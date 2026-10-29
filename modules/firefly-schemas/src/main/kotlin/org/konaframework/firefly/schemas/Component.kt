@@ -33,7 +33,7 @@ open class Component protected constructor(val name: String) {
     private var disabledUsing: Predicate<Get>? = null
     private var columnSpanValue: String? = null
     private var columnSpanUsing: Function<Get, String>? = null
-    private var columnCount: Int? = null
+    private var columnLayout: ColumnLayout? = null
     private var columnsUsing: Function<Get, Int>? = null
     private var maxWidthValue: String? = null
     private var maxWidthUsing: Function<Get, String>? = null
@@ -171,12 +171,37 @@ open class Component protected constructor(val name: String) {
 
     fun columnSpan(provider: Function<Get, String>): Component = apply { columnSpanUsing = provider }
 
-    open fun columns(count: Int): Component = apply {
-        columnCount = count
+    /** Same as [columnSpan] `"full"` — occupy every column of the parent grid. */
+    fun columnSpanFull(): Component = columnSpan("full")
+
+    /** No-arg → **2** columns from `lg` up (mobile stays 1). */
+    open fun columns(): Component = apply {
+        columnLayout = ColumnLayout.two()
         columnsUsing = null
     }
 
-    open fun columns(provider: Function<Get, Int>): Component = apply { columnsUsing = provider }
+    /** Integer columns from `lg` up; below `lg` the grid stays 1 column. */
+    open fun columns(count: Int): Component = apply {
+        columnLayout = ColumnLayout.of(count)
+        columnsUsing = null
+    }
+
+    /** Per-breakpoint counts (`default`, `sm`, `md`, `lg`, `xl`, `2xl`). */
+    open fun columns(breakpoints: Map<String, Int>): Component = apply {
+        columnLayout = ColumnLayout.from(breakpoints)
+        columnsUsing = null
+    }
+
+    open fun columns(layout: ColumnLayout): Component = apply {
+        columnLayout = layout
+        columnsUsing = null
+    }
+
+    /** Dynamic integer columns (applied as `lg`, same as [columns] `(Int)`). */
+    open fun columns(provider: Function<Get, Int>): Component = apply {
+        columnsUsing = provider
+        columnLayout = null
+    }
 
     fun maxWidth(width: String): Component = apply {
         maxWidthValue = width
@@ -340,10 +365,17 @@ open class Component protected constructor(val name: String) {
         appendAttr(attrs, "data-ff-path", path)
         appendAttr(attrs, "id", componentId)
         appendAttr(attrs, "wire:key", componentKey)
-        appendAttr(attrs, "data-ff-span", resolvedSpan(schema))
-        val columns = resolvedColumns(schema)
-        appendAttr(attrs, "data-ff-columns", columns)
-        if (columns != null) attrs.append(""" style="--ff-cols: ${escapeHtml(columns)}"""")
+        val span = resolvedSpan(schema)
+        appendAttr(attrs, "data-ff-span", span)
+        val layout = resolvedColumnLayout(schema)
+        if (layout != null) {
+            appendAttr(attrs, "data-ff-columns", layout.dataValue())
+        }
+        val styleBits = ArrayList<String>()
+        if (layout != null) styleBits.add(layout.styleAttribute())
+        val spanCols = span?.toIntOrNull()
+        if (spanCols != null && spanCols > 0) styleBits.add("--ff-span: $spanCols")
+        if (styleBits.isNotEmpty()) attrs.append(""" style="${styleBits.joinToString("; ")}"""")
         appendAttr(attrs, "data-ff-max-width", resolvedMaxWidth(schema))
         appendAttr(attrs, "data-ff-hidden-js", hiddenJsExpr)
         appendAttr(attrs, "data-ff-visible-js", visibleJsExpr)
@@ -429,12 +461,10 @@ open class Component protected constructor(val name: String) {
         return columnSpanValue
     }
 
-    private fun resolvedColumns(schema: Schema): String? {
+    private fun resolvedColumnLayout(schema: Schema): ColumnLayout? {
         val provider = columnsUsing
-        if (provider != null) return provider.apply(schema.getFor(this)).toString()
-        val count = columnCount
-        if (count == null) return null
-        return count.toString()
+        if (provider != null) return ColumnLayout.of(provider.apply(schema.getFor(this)))
+        return columnLayout
     }
 
     private fun resolvedMaxWidth(schema: Schema): String? {

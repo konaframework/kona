@@ -3,7 +3,9 @@ package org.konaframework.firefly.schemas
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -357,6 +359,17 @@ class FireflySchemasTest {
         assertTrue(html.contains("About org"))
         assertTrue(html.contains("data-ff-columns=\"3\""))
         assertTrue(html.contains("data-ff-span=\"full\""))
+        val spanned = NamedField("roomy").columnSpan(2)
+        assertTrue(Schema.make().components(spanned).render().contains("data-ff-span=\"2\""))
+        assertTrue(Schema.make().components(spanned).render().contains("--ff-span: 2"))
+        assertSame(spanned, spanned.columnSpanFull())
+        assertTrue(Schema.make().components(NamedField("wide").columnSpanFull()).render().contains("data-ff-span=\"full\""))
+        val zeroSpan = Schema.make().components(NamedField("tight").columnSpan(0)).render()
+        assertTrue(zeroSpan.contains("data-ff-span=\"0\""))
+        assertFalse(zeroSpan.contains("--ff-span:"))
+        val lookup = Schema.make().components(NamedField("email"))
+        assertNotNull(lookup.component("email"))
+        assertNull(lookup.component("missing"))
         assertTrue(html.contains("data-ff-max-width=\"md\""))
         assertTrue(html.contains("ff-disabled"))
         assertTrue(html.contains("Hello Ada"))
@@ -463,7 +476,9 @@ class FireflySchemasTest {
         val chained = Section.make().columns(2).description("About fields").schema(NamedField("first_name"), NamedField("last_name"))
         val html = Schema.make().components(chained).render()
         assertTrue(html.contains("data-ff-columns=\"2\""))
-        assertTrue(html.contains("--ff-cols: 2"))
+        // Integer columns → lg=2; mobile/default stays 1 (#367).
+        assertTrue(html.contains("--ff-cols: 1"), html)
+        assertTrue(html.contains("--ff-cols-lg: 2"), html)
         assertTrue(html.contains("ff-section-body"))
         assertTrue(html.contains("First Name")) // default label from name (#251)
         assertTrue(html.contains("About fields"))
@@ -496,10 +511,63 @@ class FireflySchemasTest {
         assertTrue(Schema.make().components(descOnly).render().contains("Only desc"))
 
         val root = Schema.make().columns(2).components(NamedField("alpha"), NamedField("beta"))
-        assertEquals(2, root.columns())
+        assertEquals(2, root.columnCount())
+        assertNotNull(root.columnLayout())
         val rootHtml = root.render()
         assertTrue(rootHtml.contains("""data-ff-columns="2""""))
+        assertTrue(rootHtml.contains("--ff-cols: 1") && rootHtml.contains("--ff-cols-lg: 2"), rootHtml)
+        // No-arg columns() means 2 at lg (#367).
+        val two = Schema.make().columns().components(NamedField("a"))
+        assertEquals(2, two.columnCount())
+        assertTrue(two.render().contains("--ff-cols-lg: 2"))
+        // Default (no columns()) is a single-column stack — no grid attrs (#367).
+        assertFalse(Schema.make().components(NamedField("solo")).render().contains("data-ff-columns"))
+        // Breakpoint map (#367).
+        val responsive = Schema.make().columns(mapOf("md" to 2, "xl" to 4)).components(NamedField("r"))
+        val responsiveHtml = responsive.render()
+        assertTrue(responsiveHtml.contains("--ff-cols-md: 2"), responsiveHtml)
+        assertTrue(responsiveHtml.contains("--ff-cols-xl: 4"), responsiveHtml)
+        assertTrue(responsiveHtml.contains("--ff-cols: 1"), responsiveHtml)
         assertThrows(FireflyException::class.java) { Schema.make().columns(0) }
+        assertThrows(FireflyException::class.java) { Schema.make().columns(emptyMap()) }
+        assertThrows(FireflyException::class.java) { Schema.make().columns(mapOf("tablet" to 2)) }
+        assertThrows(FireflyException::class.java) { Schema.make().columns(mapOf("md" to 0)) }
+        // Section no-arg / map / layout chaining (#367).
+        assertTrue(
+            Schema.make().components(Section.make().columns().schema(NamedField("s"))).render()
+                .contains("--ff-cols-lg: 2"),
+        )
+        assertTrue(
+            Schema.make().components(
+                Section.make().columns(mapOf("sm" to 2)).schema(NamedField("s2")),
+            ).render().contains("--ff-cols-sm: 2"),
+        )
+        assertTrue(
+            Schema.make().components(
+                Section.make().columns(ColumnLayout.of(3)).schema(NamedField("s3")),
+            ).render().contains("--ff-cols-lg: 3"),
+        )
+        assertEquals(1, ColumnLayout.from(mapOf("default" to 1, "lg" to 3)).resolved()["default"])
+        assertEquals(2, ColumnLayout.two().primary())
+        assertEquals(1, ColumnLayout.from(mapOf("default" to 1)).primary())
+        assertEquals(2, ColumnLayout.from(mapOf("md" to 2)).primary())
+        assertNull(Schema.make().columnCount())
+        assertTrue(
+            Schema.make().columns(ColumnLayout.of(4)).components(NamedField("w")).render()
+                .contains("--ff-cols-lg: 4"),
+        )
+        // Component no-arg / map / layout (#367).
+        assertTrue(
+            Schema.make().components(NamedField("c").columns()).render().contains("--ff-cols-lg: 2"),
+        )
+        assertTrue(
+            Schema.make().components(NamedField("c2").columns(mapOf("xl" to 3))).render()
+                .contains("--ff-cols-xl: 3"),
+        )
+        assertTrue(
+            Schema.make().components(NamedField("c3").columns(ColumnLayout.of(5))).render()
+                .contains("--ff-cols-lg: 5"),
+        )
 
         assertEquals("First Name", humanizeName("first_name"))
         assertEquals("Published At", humanizeName("published_at"))

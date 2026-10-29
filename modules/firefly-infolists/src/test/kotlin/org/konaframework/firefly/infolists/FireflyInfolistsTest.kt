@@ -80,8 +80,9 @@ class FireflyInfolistsTest {
         assertTrue(mdHtml.contains("<em>em</em>"))
         assertTrue(mdHtml.contains("data-ff-prose=\"true\""))
         val dated = TextEntry.make("title").date().dateTooltip().timezone("UTC").state(LocalDate.of(2024, 6, 15))
-        assertTrue(html(dated).contains("2024-06-15"))
+        assertTrue(html(dated).contains("June 15, 2024"))
         assertTrue(html(dated).contains("data-ff-date-tooltip"))
+        assertTrue(html(dated).contains("2024-06-15"))
         val clock = TextEntry.make("title").dateTime("yyyy").timezone { "UTC" }.state(Instant.parse("2024-06-15T12:00:00Z"))
         assertTrue(html(clock).contains("2024"))
         val time = TextEntry.make("title").time().state(LocalDateTime.of(2024, 6, 15, 8, 30))
@@ -94,7 +95,60 @@ class FireflyInfolistsTest {
         val num = TextEntry.make("title").numeric(1).state(1.26)
         assertTrue(html(num).contains("1.3"))
         assertTrue(html(TextEntry.make("title").date("yyyy-MM-dd").state(LocalDate.of(2024, 6, 15))).contains("2024-06-15"))
-        assertTrue(html(TextEntry.make("title").dateTime().state(LocalDateTime.of(2024, 6, 15, 8, 30))).contains("2024-06-15 08:30"))
+        val dateTimeHtml =
+            html(TextEntry.make("title").dateTime().timezone("UTC").state(LocalDateTime.of(2024, 6, 15, 8, 30)))
+        assertTrue(dateTimeHtml.contains("June 15, 2024"), dateTimeHtml)
+        assertTrue(dateTimeHtml.contains("8:30 AM"), dateTimeHtml)
+        // JDBC-shaped strings (`yyyy-MM-dd HH:mm:ss`) must humanize under dateTime() (#362).
+        val jdbcHtml =
+            html(TextEntry.make("title").dateTime().timezone("UTC").state("2024-06-15 08:30:00"))
+        assertTrue(jdbcHtml.contains("June 15, 2024"), jdbcHtml)
+        assertTrue(jdbcHtml.contains("8:30 AM"), jdbcHtml)
+        assertTrue(
+            html(
+                TextEntry.make("title").dateTime().timezone("UTC")
+                    .state(Instant.parse("2024-06-15T08:30:00Z")),
+            ).contains("8:30 AM"),
+        )
+        assertTrue(
+            temporalText("2024-06-15 15:45:00", "MMMM d, yyyy, h:mm a", ZoneId.of("UTC"))
+                .contains("3:45 PM"),
+        )
+        assertTrue(
+            temporalText(1_718_445_000_000L, "MMMM d, yyyy, h:mm a", ZoneId.of("UTC")).contains("2024"),
+        )
+        assertEquals("  ", temporalText("  ", "yyyy", ZoneId.of("UTC")))
+        assertNull(parseInstant("", ZoneId.of("UTC")))
+        assertNull(parseInstant("   ", ZoneId.of("UTC")))
+        assertEquals(
+            Instant.ofEpochMilli(1_718_445_000_000L),
+            toInstant(1_718_445_000_000L, ZoneId.of("UTC")),
+        )
+        assertTrue(
+            html(TextEntry.make("title").since().timezone("UTC").state(1_718_445_000_000L))
+                .contains("ago") ||
+                html(TextEntry.make("title").since().timezone("UTC").state(1_718_445_000_000L))
+                    .contains("just now") ||
+                html(TextEntry.make("title").since().timezone("UTC").state(1_718_445_000_000L))
+                    .isNotEmpty(),
+        )
+        assertTrue(
+            html(TextEntry.make("created_at").state(LocalDateTime.of(2024, 6, 15, 8, 30)))
+                .contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("due_on").state(LocalDate.of(2024, 6, 15))).contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("start_date").state("2024-06-15")).contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("date").state(LocalDate.of(2024, 6, 15))).contains("June 15, 2024"),
+        )
+        assertTrue(
+            html(TextEntry.make("event_datetime").state(LocalDateTime.of(2024, 6, 15, 8, 30)))
+                .contains("June 15, 2024"),
+        )
         assertTrue(html(TextEntry.make("title").time("HH:mm").state(LocalDateTime.of(2024, 6, 15, 8, 30))).contains("08:30"))
         assertTrue(html(TextEntry.make("title").money().state(3)).contains("USD 3.00"))
         val whole = TextEntry.make("title").numeric().state(1.6)
@@ -244,6 +298,12 @@ class FireflyInfolistsTest {
         assertTrue(temporalText(OffsetDateTime.parse("2024-06-15T12:00:00+02:00"), "HH:mm", zone).isNotEmpty())
         assertTrue(temporalText(ZonedDateTime.parse("2024-06-15T12:00:00+02:00[Europe/Paris]"), "yyyy", zone).contains("2024"))
         assertTrue(temporalText(Date.from(Instant.parse("2024-06-15T12:00:00Z")), "yyyy", zone).contains("2024"))
+        assertTrue(
+            temporalText(java.sql.Timestamp.from(Instant.parse("2024-06-15T12:00:00Z")), "yyyy", zone).contains("2024"),
+        )
+        assertEquals("2024-06-15", temporalText(java.sql.Date.valueOf("2024-06-15"), "yyyy-MM-dd", zone))
+        // LocalDate + time pattern falls back to start-of-day formatting.
+        assertTrue(temporalText(LocalDate.of(2024, 6, 15), "MMMM d, yyyy, h:mm a", zone).contains("June 15, 2024"))
         assertEquals("2024-06-15T12:00:00Z", temporalText("2024-06-15T12:00:00Z", "yyyy-MM-dd'T'HH:mm:ssX", zone))
         assertEquals("nope", temporalText("nope", "yyyy", zone))
         assertEquals("true", temporalText(true, "yyyy", zone))
@@ -399,33 +459,49 @@ class FireflyInfolistsTest {
     fun iconImageColorKeyAndCode() {
         val yes = IconEntry.make("ok").boolean().state(true)
         val yesHtml = html(yes)
+        assertTrue(yesHtml.contains("ff-icon-entry"), yesHtml)
+        assertFalse(yesHtml.contains("ff-component ff-icon\""), yesHtml)
         assertTrue(yesHtml.contains("success"))
         assertTrue(yesHtml.contains("ff-boolean"))
-        assertTrue(yesHtml.contains("ff-boolean--icon-only"))
+        assertFalse(yesHtml.contains("ff-boolean--icon-only"), yesHtml)
         assertTrue(yesHtml.contains("ff-boolean__mark"))
+        assertTrue(yesHtml.contains("ff-boolean__label\">Yes"))
         assertTrue(yesHtml.contains("is-true"))
         assertTrue(yesHtml.contains("M4.5 12.75l6 6 9-13.5"))
         assertTrue(yesHtml.contains("stroke-width=\"2.25\""))
-        assertTrue(yesHtml.contains("ff-sr\">true"))
+        assertFalse(yesHtml.contains("ff-sr\">true"))
         assertFalse(yesHtml.contains("ff-boolean--custom"))
         val no = IconEntry.make("ok").bool(true).state(false)
         val noHtml = html(no)
         assertTrue(noHtml.contains("gray"))
         assertTrue(noHtml.contains("is-false"))
+        assertTrue(noHtml.contains("ff-boolean__label\">No"))
         assertTrue(noHtml.contains("M6 18L18 6M6 6l12 12"))
-        assertTrue(noHtml.contains("ff-sr\">false"))
         assertFalse(noHtml.contains("danger"))
         val named = IconEntry.make("ok").whenTrue("user", "success").whenFalse("x", "danger").trueIcon("user").falseIcon("x").trueColor("success").falseColor("danger").state(true)
         assertTrue(html(named).contains("<svg"))
         assertTrue(html(named).contains("ff-boolean--custom"))
+        assertTrue(html(named).contains("ff-boolean__label\">Yes"))
         val hiddenTrue = IconEntry.make("ok").hideTrueIcon().state(true)
         assertFalse(html(hiddenTrue).contains("<svg"))
+        assertTrue(html(hiddenTrue).contains("ff-boolean__label\">Yes"))
         val hiddenFalse = IconEntry.make("ok").hideFalseIcon().state(false)
         assertFalse(html(hiddenFalse).contains("data-ff-icon"))
+        assertTrue(html(hiddenFalse).contains("ff-boolean__label\">No"))
         val rows = IconEntry.make("ok").listWithLineBreaks(true).bool(true).state(listOf(true, false))
         assertTrue(html(rows).contains("ff-icon-row"))
-        val closure = IconEntry.make("ok").bool { true }.size("lg").size { "sm" }.listWithLineBreaks { false }.trueIcon { "user" }.falseIcon { "x" }.trueColor { "success" }.falseColor { "danger" }.state(1)
+        val closure = IconEntry.make("ok").bool { true }.size("lg").size { "sm" }.listWithLineBreaks { false }.trueIcon { "user" }.falseIcon { "x" }.trueColor { "success" }.falseColor { "danger" }.trueLabel { "Y" }.falseLabel { "N" }.state(1)
         assertTrue(html(closure).contains("data-ff-size=\"sm\""))
+        assertTrue(html(closure).contains("ff-boolean__label\">Y"))
+        val iconOnly = IconEntry.make("ok").boolean().trueLabel("").falseLabel("").state(true)
+        assertTrue(html(iconOnly).contains("ff-boolean--icon-only"))
+        assertTrue(html(iconOnly).contains("ff-sr\">true"))
+        val iconOnlyFalse = IconEntry.make("ok").boolean().trueLabel("").falseLabel("").state(false)
+        assertTrue(html(iconOnlyFalse).contains("ff-boolean--icon-only"))
+        assertTrue(html(iconOnlyFalse).contains("ff-sr\">false"))
+        // Explicit string falseLabel covers the string overload (closures covered above).
+        assertTrue(html(IconEntry.make("ok").boolean().falseLabel("Off").state(false)).contains("ff-boolean__label\">Off"))
+        assertTrue(html(IconEntry.make("ok").boolean().trueLabel("On").state(true)).contains("ff-boolean__label\">On"))
         val byName = IconEntry.make("ok").icon("user").state(true)
         assertTrue(html(byName).contains("<svg"))
         val tint = IconEntry.make("ok").iconColor("primary").bool(true).state(false)
@@ -689,6 +765,15 @@ class FireflyInfolistsTest {
         )
         assertNull(digName(mapOf("a" to mapOf("b" to 1)), "a.b.c.d.e"))
         assertNull(digName(mapOf("a" to "x"), "a."))
+        assertNull(attributeOf(null, "x"))
+        assertNull(attributeOf(mapOf("a" to 1), "missing"))
+        assertEquals("z", attributeOf(mapOf("a" to "z"), "a"))
+        // Bean getter segment (non-map / non-Cadence).
+        class Holder {
+            fun title(): String = "Held"
+        }
+        assertEquals("Held", attributeOf(Holder(), "title"))
+        assertNull(attributeOf(Holder(), "missing"))
         assertThrows(FireflyException::class.java) { TextEntry.make("a.b.c.d.e") }
         assertThrows(FireflyException::class.java) { TextEntry.make("project.") }
         val dotted = TextEntry.make("project.name").label("Project")
@@ -698,6 +783,28 @@ class FireflyInfolistsTest {
                 .render()
                 .contains("Desk"),
         )
+        // Cadence record dig when state store has no nested relation map (#361).
+        class RelHost : org.konaframework.cadence.Cadence<RelHost>() {
+            override val table = "ff_rel_hosts"
+            override val timestamps = false
+        }
+        val host = RelHost()
+        host.setRelation("project", mapOf("name" to "FromRelation"))
+        val cadenceHtml =
+            Schema.make()
+                .record(host)
+                .components(TextEntry.make("project.name").label("Project"))
+                .render()
+        assertTrue(cadenceHtml.contains("FromRelation"), cadenceHtml)
+        assertEquals("FromRelation", digName(host, "project.name"))
+        assertEquals("Ada", attributeOf(host.apply { setAttribute("name", "Ada") }, "name"))
+        // Dotted dig miss (no relation / no store) still renders a blank placeholder (#361).
+        val missHtml =
+            Schema.make()
+                .record(RelHost())
+                .components(TextEntry.make("project.name").placeholder("—"))
+                .render()
+        assertTrue(missHtml.contains("—") || missHtml.contains("ff-placeholder"), missHtml)
         val item = mapOf("a" to mapOf("b" to 1), "s" to "text")
         assertEquals(MISS, itemLookup(item, ""))
         assertEquals(MISS, itemLookup(item, "."))

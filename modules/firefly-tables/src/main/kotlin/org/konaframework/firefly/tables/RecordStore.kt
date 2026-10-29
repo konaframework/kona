@@ -2,6 +2,8 @@ package org.konaframework.firefly.tables
 
 import org.konaframework.cadence.Cadence
 import org.konaframework.cadence.ModelBuilder
+import org.konaframework.cadence.relations.BelongsTo
+import org.konaframework.cadence.relations.EagerLoader
 import org.konaframework.firefly.support.FireflyException
 import java.util.function.Function
 
@@ -247,9 +249,13 @@ open class CadenceRecordStore<T : Cadence<T>>(
 
     override fun search(query: ModelBuilder<T>, term: String, columns: List<String>) {
         if (term.isEmpty() || columns.isEmpty()) return
+        // Group ORs so filters stay AND-ed: WHERE … AND (name LIKE ? OR exists (project…)).
         query.where { group ->
             columns.forEachIndexed { index, column ->
-                if (index == 0) {
+                if (column.contains('.')) {
+                    val (sql, bindings) = relationExistsClause(query, column, term)
+                    if (index == 0) group.whereRaw(sql, bindings) else group.orWhereRaw(sql, bindings)
+                } else if (index == 0) {
                     group.where(column, "like", "%$term%")
                 } else {
                     group.orWhere(column, "like", "%$term%")
@@ -263,7 +269,74 @@ open class CadenceRecordStore<T : Cadence<T>>(
         if (normalized != "asc" && normalized != "desc") {
             throw FireflyException("Sort direction must be asc or desc")
         }
-        query.orderBy(column, normalized)
+        if (!column.contains('.')) {
+            query.orderBy(column, normalized)
+            return
+        }
+        sortRelated(query, column, normalized)
+    }
+
+    /**
+     * `project.name` → exists (select 1 from projects where … and name like ?).
+     * Nested paths nest whereHas inside the exists constraint (#366).
+     */
+    private fun relationExistsClause(
+        query: ModelBuilder<T>,
+        column: String,
+        term: String,
+    ): Pair<String, List<Any?>> {
+        val relationPath = column.substringBeforeLast('.')
+        val attribute = column.substringAfterLast('.')
+        val parts = relationPath.split('.')
+        return query.existsClause(parts[0]) { related ->
+            constrainRelationSearch(related, parts.drop(1), attribute, term)
+        }
+    }
+
+    private fun constrainRelationSearch(
+        query: ModelBuilder<*>,
+        remainingRelation: List<String>,
+        attribute: String,
+        term: String,
+    ) {
+        if (remainingRelation.isEmpty()) {
+            query.where(attribute, "like", "%$term%")
+            return
+        }
+        val head = remainingRelation.first()
+        val tail = remainingRelation.drop(1)
+        query.whereHas(head) { nested -> constrainRelationSearch(nested, tail, attribute, term) }
+    }
+
+    /** Left-join BelongsTo chain and order by the related attribute (#366). */
+    private fun sortRelated(query: ModelBuilder<T>, column: String, direction: String) {
+        val parts = column.split('.')
+        val attribute = parts.last()
+        val relationNames = parts.dropLast(1)
+        var parent: Cadence<*> = prototype()
+        var leftTable = parent.table
+        for (relationName in relationNames) {
+            val rel = EagerLoader.relationOf(parent, relationName)
+            if (rel !is BelongsTo<*>) {
+                throw FireflyException(
+                    "Sortable nested column [$column] requires BelongsTo relations " +
+                        "(got ${rel.javaClass.simpleName} for [$relationName])",
+                )
+            }
+            val rightTable = rel.related.table
+            query.leftJoin(
+                rightTable,
+                "$leftTable.${rel.foreignKey}",
+                "=",
+                "$rightTable.${rel.ownerKey}",
+            )
+            leftTable = rightTable
+            parent = rel.related
+        }
+        if (!query.toBase().hasSelectColumns()) {
+            query.select("${prototype().table}.*")
+        }
+        query.orderBy("$leftTable.$attribute", direction)
     }
 
     override fun paginate(query: ModelBuilder<T>, page: Int, perPage: Int): TablePage<T> {

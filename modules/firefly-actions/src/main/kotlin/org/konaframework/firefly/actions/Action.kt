@@ -451,14 +451,18 @@ open class Action protected constructor(name: String) : Component(name) {
         if (post != null && modalComponents.isNotEmpty()) {
             // Flat field names (`name`, not `create.name`) so Cadence/store columns match.
             // Prefer [modalForm] so relationship Selects keep the resource model record (#337).
-            // Fresh Schema re-roots fields (flat `name`, not `create.name`) and copies the record.
+            // Fresh Schema re-roots fields (flat `name`, not `create.name`) and copies the record
+            // + column grid so create dialogs match edit (`formColumns` / schema.columns) (#358).
             val form = modalForm
             val schemaHtml =
                 if (form != null) {
-                    Schema.make()
-                        .record(form.record())
-                        .components(*form.components().toTypedArray())
-                        .render()
+                    val rebuilt =
+                        Schema.make()
+                            .record(form.record())
+                            .components(*form.components().toTypedArray())
+                    val layout = form.columnLayout()
+                    if (layout != null) rebuilt.columns(layout)
+                    rebuilt.render()
                 } else {
                     Schema.make().components(*modalComponents.toTypedArray()).render()
                 }

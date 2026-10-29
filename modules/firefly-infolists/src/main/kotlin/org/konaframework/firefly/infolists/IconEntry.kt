@@ -15,16 +15,19 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
     private val falseIconValue = TextSetting()
     private val trueColorValue = TextSetting()
     private val falseColorValue = TextSetting()
+    private val trueLabelValue = TextSetting()
+    private val falseLabelValue = TextSetting()
     private val sizeValue = TextSetting()
 
-    override fun kind(): String = "icon"
+    /** Distinct from schema `SchemaIcon` / SVG `.ff-icon` so the entry root is not glyph-sized. */
+    override fun kind(): String = "icon-entry"
 
     fun bool(on: Boolean): IconEntry = apply { booleanFlag.set(on) }
 
     fun bool(predicate: Predicate<Get>): IconEntry = apply { booleanFlag.set(predicate) }
 
     /**
-     * Treats the state as a boolean: truthy → true icon/color, falsey → false icon/color.
+     * Treats the state as a boolean: Shamar Yes/No toggle pill (check/X mark + label).
      * Kotlin alias for [bool]`(true)`. Java callers use [bool]`(true)` (`boolean` is a keyword).
      */
     fun boolean(): IconEntry = bool(true)
@@ -81,6 +84,28 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
         falseColorValue.set(color)
     }
 
+    /** Visible pill text for true (default Yes). Blank → icon-only circle. */
+    fun trueLabel(label: String): IconEntry = apply {
+        booleanFlag.set(true)
+        trueLabelValue.set(label)
+    }
+
+    fun trueLabel(label: Function<Get, String>): IconEntry = apply {
+        booleanFlag.set(true)
+        trueLabelValue.set(label)
+    }
+
+    /** Visible pill text for false (default No). Blank → icon-only circle. */
+    fun falseLabel(label: String): IconEntry = apply {
+        booleanFlag.set(true)
+        falseLabelValue.set(label)
+    }
+
+    fun falseLabel(label: Function<Get, String>): IconEntry = apply {
+        booleanFlag.set(true)
+        falseLabelValue.set(label)
+    }
+
     fun hideTrueIcon(): IconEntry = apply {
         booleanFlag.set(true)
         hideTrue.set(true)
@@ -110,13 +135,29 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
         val body = items.joinToString("") { item ->
             val icon = iconFor(item, get)
             val color = colorFor(item, get)
-            val mark = if (asBool && item != null && !icon.isNullOrEmpty()) {
-                val cls = if (truthy(item)) "is-true" else "is-false"
-                val custom = if (icon == "check" || icon == "x") "" else " ff-boolean--custom"
-                """<span class="ff-boolean$custom ff-boolean--icon-only $cls"><span class="ff-boolean__mark" aria-hidden="true">${iconHtml(icon)}</span></span>"""
-            } else if (asBool && item != null) {
-                val cls = if (truthy(item)) "is-true" else "is-false"
-                """<span class="ff-boolean ff-boolean--icon-only $cls"></span>"""
+            val mark = if (asBool && item != null) {
+                val on = truthy(item)
+                val cls = if (on) "is-true" else "is-false"
+                val configured = if (on) trueLabelValue.get(get) else falseLabelValue.get(get)
+                val label = configured ?: if (on) "Yes" else "No"
+                val iconOnly = label.isBlank()
+                val onlyClass = if (iconOnly) " ff-boolean--icon-only" else ""
+                val custom =
+                    if (!icon.isNullOrEmpty() && icon != "check" && icon != "x") " ff-boolean--custom" else ""
+                val markHtml =
+                    if (!icon.isNullOrEmpty()) {
+                        """<span class="ff-boolean__mark" aria-hidden="true">${iconHtml(icon)}</span>"""
+                    } else {
+                        ""
+                    }
+                val labelHtml =
+                    if (iconOnly) {
+                        val word = if (on) "true" else "false"
+                        """<span class="ff-sr">$word</span>"""
+                    } else {
+                        """<span class="ff-boolean__label">${escapeHtml(label)}</span>"""
+                    }
+                """<span class="ff-boolean$custom$onlyClass $cls">$markHtml$labelHtml</span>"""
             } else {
                 iconHtml(icon)
             }
@@ -156,10 +197,8 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
     private fun accessText(state: Any?, get: Get): String {
         val tip = tooltipValue.get(get)
         if (tip != null) return """<span class="ff-sr">${escapeHtml(tip)}</span>"""
-        if (booleanFlag.get(get)) {
-            val word = if (truthy(state)) "true" else "false"
-            return """<span class="ff-sr">$word</span>"""
-        }
+        // Boolean Yes/No (or icon-only sr text) lives inside `.ff-boolean` (#360).
+        if (booleanFlag.get(get)) return ""
         if (state is String) return """<span class="ff-sr">${escapeHtml(state)}</span>"""
         return ""
     }

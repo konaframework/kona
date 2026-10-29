@@ -101,8 +101,23 @@ class Section private constructor() : Component("") {
 
     fun card(on: Boolean): Section = contained(on)
 
+    override fun columns(): Section {
+        super.columns()
+        return this
+    }
+
     override fun columns(count: Int): Section {
         super.columns(count)
+        return this
+    }
+
+    override fun columns(breakpoints: Map<String, Int>): Section {
+        super.columns(breakpoints)
+        return this
+    }
+
+    override fun columns(layout: ColumnLayout): Section {
+        super.columns(layout)
         return this
     }
 

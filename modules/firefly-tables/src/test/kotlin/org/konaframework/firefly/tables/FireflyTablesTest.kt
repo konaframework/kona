@@ -18,7 +18,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.Date
 import java.util.Locale
 
@@ -279,7 +278,36 @@ class FireflyTablesTest {
         // Filament/Shamar dotted make path (up to 4 levels) (#350).
         val dotted = TextColumn.make("project.name").label("Project")
         assertEquals("project", dotted.relationshipName())
+        assertEquals("name", dotted.relationshipTitleAttribute())
+        assertEquals("project.name", dotted.queryName())
+        assertEquals("name", TextColumn.make("name").queryName())
         assertEquals("Project", dotted.heading(Cell { null }))
+        // Memory searchable/sortable digs nested maps for dotted query names (#366).
+        val nestedRows = Table.memory(
+            listOf(
+                mapOf("id" to "1", "name" to "T1", "project" to mapOf("name" to "Alpha")),
+                mapOf("id" to "2", "name" to "T2", "project" to mapOf("name" to "Beta")),
+            ),
+        ).columns(TextColumn.make("project.name").searchable().sortable(), TextColumn.make("name").searchable())
+        assertEquals(listOf("T1"), nestedRows.search("Alpha").load().records.map { it["name"] })
+        assertEquals(
+            listOf("T1", "T2"),
+            nestedRows.search("").sort("project.name", "asc").load().records.map { it["name"] },
+        )
+        assertEquals(
+            listOf("T2", "T1"),
+            nestedRows.sort("project.name", "desc").load().records.map { it["name"] },
+        )
+        // dig() stops when a mid-path value is not a map (#366).
+        assertEquals(
+            0,
+            Table.memory(listOf(mapOf("id" to "1", "project" to "plain")))
+                .columns(TextColumn.make("project.name").searchable())
+                .search("plain")
+                .load()
+                .records
+                .size,
+        )
         assertTrue(
             dotted.render(
                 mapOf("project" to mapOf("id" to 7, "name" to "Desk")),
@@ -384,8 +412,46 @@ class FireflyTablesTest {
             )
             .render()
         assertTrue(hiddenStampHtml.contains(">Name<"))
-        assertFalse(hiddenStampHtml.contains(">Created At<"))
+        // Header cell absent; picker still lists the label for re-showing (#363).
+        assertFalse(hiddenStampHtml.contains("<th") && hiddenStampHtml.substringAfter("<thead>").substringBefore("</thead>").contains("Created At"))
         assertFalse(hiddenStampHtml.contains("2020-01-01"))
+        assertTrue(hiddenStampHtml.contains("ff-column-toggle"))
+        assertTrue(hiddenStampHtml.contains("data-ff-column-toggle=\"created_at\""))
+        assertTrue(hiddenStampHtml.contains("name=\"columns\""))
+        assertTrue(hiddenStampHtml.contains("Created At")) // option label only
+        val revealed = Table.memory(listOf(mapOf("id" to "1", "name" to "Ada", "created_at" to "2020-01-01")))
+            .columns(
+                TextColumn.make("name").toggleable(),
+                TextColumn.make("created_at").toggleable().toggledHiddenByDefault(),
+            )
+            .applyToggleableVisibility(listOf("name", "created_at"))
+            .render()
+        assertTrue(revealed.substringAfter("<thead>").substringBefore("</thead>").contains("Created At"), revealed)
+        assertTrue(revealed.contains("2020-01-01"), revealed)
+        assertTrue(revealed.contains("""data-ff-column-toggle="created_at" checked""") || revealed.contains("created_at\" checked"), revealed)
+        assertTrue(revealed.contains("""value="name,created_at""""), revealed)
+        val stillHidden = Table.memory(listOf(mapOf("id" to "1", "name" to "Ada", "created_at" to "stamp")))
+            .columns(
+                TextColumn.make("name").toggleable(),
+                TextColumn.make("created_at").toggleable().toggledHiddenByDefault(),
+            )
+            .applyToggleableVisibility(listOf("name"))
+            .render()
+        assertFalse(stillHidden.substringAfter("<thead>").substringBefore("</thead>").contains("Created At"), stillHidden)
+        assertFalse(stillHidden.contains(">stamp<") || stillHidden.contains("stamp</td>"), stillHidden)
+        // applyToggleableVisibility null / blanks / non-toggleable columns (#363).
+        val picker = Table.memory(listOf(mapOf("id" to "1", "name" to "Ada", "created_at" to "stamp", "note" to "n")))
+            .columns(
+                TextColumn.make("name").toggleable(),
+                TextColumn.make("created_at").toggleable().toggledHiddenByDefault(),
+                TextColumn.make("note"),
+            )
+        picker.applyToggleableVisibility(null)
+        assertFalse(picker.render().substringAfter("<thead>").substringBefore("</thead>").contains("Created At"))
+        picker.applyToggleableVisibility(listOf("name", "  ", "", "note", "created_at"))
+        val pickerRevealed = picker.render()
+        assertTrue(pickerRevealed.substringAfter("<thead>").substringBefore("</thead>").contains("Created At"), pickerRevealed)
+        assertTrue(pickerRevealed.contains("stamp"), pickerRevealed)
         val moneyHead = Table.memory(listOf(mapOf("amt" to 12, "id" to "1")))
             .columns(TextColumn.make("amt").money().label("Amount"))
             .render()
@@ -447,12 +513,12 @@ class FireflyTablesTest {
 
         val dated = TextColumn.make("at").date()
         val instant = Instant.parse("2020-01-02T03:04:05Z")
-        val locale = Locale.getDefault()
         val zone = ZoneId.systemDefault()
-        val mediumDate = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
-        val mediumDateTime = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale)
-        val humanDate = LocalDate.parse("2020-01-02").format(mediumDate)
-        val humanInstant = instant.atZone(zone).format(mediumDate)
+        val humanDateFmt = DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH)
+        val humanDateTimeFmt = DateTimeFormatter.ofPattern("MMMM d, yyyy, h:mm a", Locale.ENGLISH)
+        val humanDate = LocalDate.parse("2020-01-02").format(humanDateFmt)
+        assertEquals("January 2, 2020", humanDate)
+        val humanInstant = instant.atZone(zone).format(humanDateFmt)
         val datedInstant = dated.render(mapOf("at" to instant), "1", Cell { null })
         assertTrue(datedInstant.contains(humanInstant))
         assertTrue(datedInstant.contains("""title="${instant}""""))
@@ -468,11 +534,11 @@ class FireflyTablesTest {
             },
         )
         val dateTimed = TextColumn.make("at").dateTime()
-        val humanDt = LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(mediumDateTime)
+        val humanDt = LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(humanDateTimeFmt)
         val dtHtml = dateTimed.render(mapOf("at" to LocalDateTime.of(2020, 1, 2, 15, 45)), "1", Cell { null })
         assertTrue(dtHtml.contains(humanDt))
         assertTrue(dtHtml.contains("""title="2020-01-02T15:45""""))
-        val localDateAtStart = LocalDate.parse("2020-01-02").atStartOfDay(zone).format(mediumDateTime)
+        val localDateAtStart = LocalDate.parse("2020-01-02").atStartOfDay(zone).format(humanDateTimeFmt)
         assertTrue(
             dateTimed.render(mapOf("at" to LocalDate.parse("2020-01-02")), "1", Cell { null }).contains(localDateAtStart),
         )
@@ -481,19 +547,41 @@ class FireflyTablesTest {
         assertTrue(dateTimed.render(mapOf("at" to sqlDate), "1", Cell { null }).contains(localDateAtStart))
         assertTrue(
             dateTimed.render(mapOf("at" to instant), "1", Cell { null })
-                .contains(instant.atZone(zone).format(mediumDateTime)),
+                .contains(instant.atZone(zone).format(humanDateTimeFmt)),
         )
         assertTrue(
             dated.render(mapOf("at" to "2020-01-02T03:04:05Z"), "1", Cell { null })
-                .contains(Instant.parse("2020-01-02T03:04:05Z").atZone(zone).format(mediumDate)),
+                .contains(Instant.parse("2020-01-02T03:04:05Z").atZone(zone).format(humanDateFmt)),
         )
         assertTrue(
             dateTimed.render(mapOf("at" to "2020-01-02 15:45:00"), "1", Cell { null })
-                .contains(LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(mediumDateTime)),
+                .contains(LocalDateTime.of(2020, 1, 2, 15, 45).atZone(zone).format(humanDateTimeFmt)),
         )
         assertTrue(dated.render(mapOf("at" to 42), "1", Cell { null }).contains("42"))
         assertFalse(TextColumn.make("name").render(mapOf("name" to "x"), "1", Cell { null }).contains("title="))
-
+        // Name hints humanize PLAIN columns (due_on / created_at) without an explicit .date() call.
+        assertTrue(
+            TextColumn.make("due_on").render(mapOf("due_on" to "2026-01-02"), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
+        assertTrue(
+            TextColumn.make("start_date").render(mapOf("start_date" to "2026-01-02"), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
+        assertTrue(
+            TextColumn.make("date").render(mapOf("date" to "2026-01-02"), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
+        assertTrue(
+            TextColumn.make("created_at")
+                .render(mapOf("created_at" to LocalDateTime.of(2026, 1, 2, 15, 45)), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
+        assertTrue(
+            TextColumn.make("event_datetime")
+                .render(mapOf("event_datetime" to LocalDateTime.of(2026, 1, 2, 15, 45)), "1", Cell { null })
+                .contains("January 2, 2026"),
+        )
         val limited = TextColumn.make("name").limit(3)
         assertTrue(limited.render(mapOf("name" to "Hello"), "1", Cell { null }).contains("Hel…"))
         assertTrue(limited.render(mapOf("name" to "Yo"), "1", Cell { null }).contains("Yo"))
@@ -508,15 +596,18 @@ class FireflyTablesTest {
         assertFalse(icon.render(mapOf("flag" to null), "1", Cell { null }).contains("<svg"))
         val asBool = IconColumn.make("flag").boolean()
         val yesHtml = asBool.render(mapOf("flag" to 1), "1", Cell { null })
+        assertTrue(yesHtml.contains("ff-icon-column"), yesHtml)
         assertTrue(yesHtml.contains("ff-boolean"))
-        assertTrue(yesHtml.contains("ff-boolean--icon-only"))
+        assertFalse(yesHtml.contains("ff-boolean--icon-only"), yesHtml)
         assertTrue(yesHtml.contains("ff-boolean__mark"))
+        assertTrue(yesHtml.contains("ff-boolean__label\">Yes"))
         assertTrue(yesHtml.contains("is-true"))
         assertTrue(yesHtml.contains("M4.5 12.75l6 6 9-13.5"))
         assertTrue(yesHtml.contains("stroke-width=\"2.25\""))
         assertFalse(yesHtml.contains("ff-boolean--custom"))
         val noHtml = asBool.render(mapOf("flag" to 0), "1", Cell { null })
         assertTrue(noHtml.contains("is-false"))
+        assertTrue(noHtml.contains("ff-boolean__label\">No"))
         assertTrue(noHtml.contains("M6 18L18 6M6 6l12 12"))
         assertFalse(noHtml.contains("danger"))
         assertTrue(asBool.render(mapOf("flag" to "yes"), "1", Cell { null }).contains("ff-icon"))
@@ -524,6 +615,14 @@ class FireflyTablesTest {
         assertSame(asBool, asBool.bool())
         val customBool = IconColumn.make("flag").boolean().trueIcon("user").falseIcon("x")
         assertTrue(customBool.render(mapOf("flag" to true), "1", Cell { null }).contains("ff-boolean--custom"))
+        val labeled = IconColumn.make("flag").boolean().trueLabel("On").falseLabel("Off")
+        assertTrue(labeled.render(mapOf("flag" to true), "1", Cell { null }).contains("ff-boolean__label\">On"))
+        assertTrue(labeled.render(mapOf("flag" to false), "1", Cell { null }).contains("ff-boolean__label\">Off"))
+        val iconOnly = IconColumn.make("flag").boolean().trueLabel("").falseLabel("")
+        assertTrue(iconOnly.render(mapOf("flag" to true), "1", Cell { null }).contains("ff-boolean--icon-only"))
+        assertTrue(iconOnly.render(mapOf("flag" to true), "1", Cell { null }).contains("ff-sr\">true"))
+        assertTrue(iconOnly.render(mapOf("flag" to false), "1", Cell { null }).contains("ff-boolean--icon-only"))
+        assertTrue(iconOnly.render(mapOf("flag" to false), "1", Cell { null }).contains("ff-sr\">false"))
 
         val image = ImageColumn.make("photo").alt("Alt").imageHeight(10).imageWidth(12)
         assertTrue(image.render(mapOf("photo" to "https://example.test/a.png"), "1", Cell { null }).contains("ff-image"))
@@ -815,6 +914,7 @@ class FireflyTablesTest {
         assertTrue(html.contains("ff-group"))
         assertTrue(html.contains("ff-table-summaries"))
         assertTrue(html.contains("ff-row-actions"))
+        assertTrue(html.contains("ff-row-actions-inner"), html)
         assertFalse(html.contains(">secret<"))
         table.select("1")
         assertTrue(table.render().contains("checked"))

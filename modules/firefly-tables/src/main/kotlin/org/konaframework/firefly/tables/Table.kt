@@ -70,11 +70,26 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     fun columns(vararg columns: Column): Table<T, Q> = apply {
         columnList.clear()
         columnList.addAll(columns)
-        // Seed Filament-style toggle-hidden defaults once when columns are attached.
+        // Seed Filament-style toggle-hidden defaults when columns are attached (#363).
+        hiddenByUser.clear()
         for (column in columnList) {
             if (column.isToggledHiddenByDefault()) {
                 hiddenByUser.add(column.name)
             }
+        }
+    }
+
+    /**
+     * Apply the `columns` query-string list of **visible** toggleable column names.
+     * Null leaves [toggledHiddenByDefault] seeding alone. Used by resource list soft-nav (#363).
+     */
+    fun applyToggleableVisibility(visibleNames: Collection<String>?): Table<T, Q> = apply {
+        if (visibleNames == null) return@apply
+        val cell = tableCell()
+        val wanted = visibleNames.map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        for (column in columnList) {
+            if (!column.isToggleable(cell)) continue
+            if (column.name in wanted) hiddenByUser.remove(column.name) else hiddenByUser.add(column.name)
         }
     }
 
@@ -274,12 +289,14 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         for (filter in filterList) {
             filter.apply(query as Any, store, filterValue(filter, cell))
         }
-        val searchable = columnList.filter { it.isSearchable(cell) }.map { it.name }
+        val searchable = columnList.filter { it.isSearchable(cell) }.map { it.queryName() }
         if (searchTerm.isNotEmpty()) store.search(query, searchTerm, searchable)
         val grouped = groupColumn
         if (grouped != null) store.sort(query, grouped, "asc")
         val sorting = sortColumn
-        if (sorting != null) store.sort(query, sorting, sortDirection)
+        if (sorting != null) {
+            store.sort(query, column(sorting).queryName(), sortDirection)
+        }
         return query
     }
 
@@ -327,6 +344,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     private fun toolbar(cell: Cell): String {
         val searchable = columnList.any { it.isSearchable(cell) }
+        val columnToggle = columnToggleHtml(cell)
         val search = if (!searchable) {
             ""
         } else {
@@ -343,16 +361,49 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             """<div class="ff-table-filters">${filterList.joinToString("") { it.render(cell, filterValue(it, cell)) }}</div>"""
         }
         val buttons = headerButtonList.joinToString("") { it.render(cell, selectedKeys.isEmpty()) }
-        val tools = if (filterList.isEmpty() && buttons.isEmpty()) {
+        val tools = if (filterList.isEmpty() && buttons.isEmpty() && columnToggle.isEmpty()) {
             ""
         } else {
-            """<div class="ff-table-toolbar-actions">$filters$buttons</div>"""
+            """<div class="ff-table-toolbar-actions">$columnToggle$filters$buttons</div>"""
         }
-        if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty()) {
+        if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty()) {
             return """<div class="ff-table-toolbar ff-table-toolbar--empty" hidden></div>"""
         }
+        val columnsHidden = columnsQueryHiddenInput(cell)
         // Query-string toolbar — chrome soft-nav swaps the wrap without a full document reload.
-        return """<div class="ff-table-toolbar"><form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$tools</form></div>"""
+        return """<div class="ff-table-toolbar"><form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$columnsHidden$tools</form></div>"""
+    }
+
+    /** Columns picker for [Column.toggleable] / [Column.toggledHiddenByDefault] (#363). */
+    private fun columnToggleHtml(cell: Cell): String {
+        val toggleable = columnList.filter { it.isToggleable(cell) }
+        if (toggleable.isEmpty()) return ""
+        val options = toggleable.joinToString("") { column ->
+            val checked = if (column.name !in hiddenByUser) " checked" else ""
+            val label = escapeHtml(column.heading(cell))
+            """<label class="ff-column-toggle-option"><input type="checkbox" data-ff-column-toggle="${escapeHtml(column.name)}"$checked /><span>$label</span></label>"""
+        }
+        return """
+            <details class="ff-column-toggle">
+              <summary class="ff-column-toggle-trigger" aria-label="Toggle columns">
+                <svg class="ff-column-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125z"/></svg>
+                <span>Columns</span>
+              </summary>
+              <div class="ff-column-toggle-panel" role="group" aria-label="Toggle columns">$options</div>
+            </details>
+        """.trimIndent()
+    }
+
+    private fun columnsQueryHiddenInput(cell: Cell): String {
+        val value = columnsQueryValue(cell) ?: return ""
+        return """<input type="hidden" name="columns" value="${escapeHtml(value)}" data-ff-columns-state />"""
+    }
+
+    /** Comma-separated visible toggleable column names, or null when none are toggleable. */
+    private fun columnsQueryValue(cell: Cell): String? {
+        val toggleable = columnList.filter { it.isToggleable(cell) }
+        if (toggleable.isEmpty()) return null
+        return toggleable.filter { it.name !in hiddenByUser }.joinToString(",") { it.name }
     }
 
     private fun body(loaded: LoadedTable<T>, visible: List<Column>): String = when (layout) {
@@ -406,7 +457,13 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         parts.add("direction=$direction")
         if (pageNumber > 1) parts.add("page=$pageNumber")
         if (pageSize != 10) parts.add("perPage=$pageSize")
+        appendColumnsQuery(parts)
         return "?" + parts.joinToString("&")
+    }
+
+    private fun appendColumnsQuery(parts: ArrayList<String>) {
+        val cols = columnsQueryValue(tableCell()) ?: return
+        parts.add("columns=${encodeQuery(cols)}")
     }
 
     private fun encodeQuery(value: String): String =
@@ -464,7 +521,9 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 rowButtonList
             }
         val html = buttons.joinToString("") { it.render(cell, emptySelection) }
-        return """<td class="ff-row-actions">$html</td>"""
+        // Keep flex on an inner wrapper — display:flex on the <td> breaks collapsed
+        // row borders (disjoint rules vs other columns on narrow/scroll viewports) (#365).
+        return """<td class="ff-row-actions"><div class="ff-row-actions-inner">$html</div></td>"""
     }
 
     private fun footer(loaded: LoadedTable<T>): String {
@@ -544,6 +603,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         }
         parts.add("page=$page")
         if (pageSize != 10) parts.add("perPage=$pageSize")
+        appendColumnsQuery(parts)
         return "?" + parts.joinToString("&")
     }
 

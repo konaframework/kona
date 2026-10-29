@@ -108,6 +108,19 @@ class CadenceTablesTest {
                 "fallback",
             ),
         )
+        // Cadence attributeOf: relation hit vs attribute fallback (elvis both sides).
+        val solo = Customer()
+        solo.setAttribute("name", "Solo")
+        assertNull(solo.getRelations()["name"])
+        assertEquals(
+            "Solo",
+            Column.relationshipTitle(Cell { if (it == "c") solo else null }, "c", "name", "?"),
+        )
+        solo.setRelation("tag", "vip")
+        assertEquals(
+            "vip",
+            Column.relationshipTitle(Cell { if (it == "c") solo else null }, "c", "tag", "?"),
+        )
         // Mixed collection members (non-Cadence) keep their raw value.
         withOrders.records.first().setRelation("mixed", listOf("x", withOrders.records.first()))
         val mixed = CadenceRecordStore(Customer::class.java).attributes(withOrders.records.first())["mixed"] as List<*>
@@ -178,6 +191,44 @@ class CadenceTablesTest {
         })
         hooked.filter("name", "Ada")
         assertEquals("Ada", hooked.load().records.single().getAttribute("name"))
+
+        // Nested searchable/sortable (`customer.name`) uses exists / BelongsTo join (#366).
+        val byCustomer = Table.cadence(Order::class.java)
+            .columns(
+                TextColumn.make("customer.name").searchable().sortable(),
+                TextColumn.make("total").searchable(),
+            )
+        val searchSql = orderStore.query()
+        orderStore.search(searchSql, "Ada", listOf("total", "customer.name"))
+        assertTrue(searchSql.toSql().contains("exists"), searchSql.toSql())
+        assertFalse(searchSql.toSql().contains("\"customer\".\"name\""), searchSql.toSql())
+        val (existsSql, existsBindings) = orderStore.query().existsClause("customer") { nested ->
+            nested.where("name", "like", "%Ada%")
+        }
+        assertTrue(existsSql.startsWith("exists ("))
+        assertTrue(existsBindings.isNotEmpty())
+        // Multi-segment relation path nests whereHas inside exists (#366).
+        val nestedSearch = orderStore.query()
+        orderStore.search(nestedSearch, "10", listOf("customer.orders.total"))
+        assertTrue(nestedSearch.toSql().contains("exists"), nestedSearch.toSql())
+        byCustomer.search("Ada")
+        val adaOrders = byCustomer.load().records
+        assertTrue(adaOrders.isNotEmpty())
+        assertTrue(adaOrders.all { (it.getRelation("customer") as Customer).getAttribute("name") == "Ada" })
+        byCustomer.search("").sort("customer.name", "asc")
+        assertTrue(byCustomer.load().records.isNotEmpty())
+        val sortSql = orderStore.query()
+        orderStore.sort(sortSql, "customer.name", "asc")
+        assertTrue(sortSql.toSql().contains("left join"), sortSql.toSql())
+        assertTrue(sortSql.toSql().contains("order by"), sortSql.toSql())
+        // Pre-selected query still sorts; duplicate join of same related table is skipped (#366).
+        val preselected = orderStore.query().select("ff_orders.*")
+        orderStore.sort(preselected, "customer.name", "desc")
+        assertTrue(preselected.toSql().contains("left join"), preselected.toSql())
+        // HasMany path is not sortable via join (#366).
+        assertThrows(FireflyException::class.java) {
+            customers.sort(customers.query(), "orders.total", "asc")
+        }
     }
 }
 

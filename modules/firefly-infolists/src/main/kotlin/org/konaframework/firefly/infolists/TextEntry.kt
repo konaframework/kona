@@ -225,14 +225,25 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
     private fun plain(item: Any?, get: Get): String {
         val zone = zoneOf(zoneValue.get(get))
         val pattern = patternValue.get(get)
-        return when (mode) {
+        val active = effectiveMode()
+        return when (active) {
             Mode.PLAIN -> stringify(item)
-            Mode.DATE -> temporalText(item, pattern ?: "yyyy-MM-dd", zone)
-            Mode.DATE_TIME -> temporalText(item, pattern ?: "yyyy-MM-dd HH:mm", zone)
+            Mode.DATE -> temporalText(item, pattern ?: HUMAN_DATE, zone)
+            Mode.DATE_TIME -> temporalText(item, pattern ?: HUMAN_DATE_TIME, zone)
             Mode.TIME -> temporalText(item, pattern ?: "HH:mm", zone)
             Mode.SINCE -> sinceText(item, zone)
             Mode.MONEY -> moneyText(item, currencyValue.get(get) ?: "USD")
             Mode.NUMERIC -> numericText(item, decimalsValue.get(get) ?: 0)
+        }
+    }
+
+    private fun effectiveMode(): Mode {
+        if (mode != Mode.PLAIN) return mode
+        val leaf = name.substringAfterLast('.').lowercase()
+        return when {
+            leaf.endsWith("_at") || leaf.contains("datetime") -> Mode.DATE_TIME
+            leaf.endsWith("_on") || leaf.endsWith("_date") || leaf == "date" -> Mode.DATE
+            else -> Mode.PLAIN
         }
     }
 
@@ -262,6 +273,12 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
     private enum class Mode { PLAIN, DATE, DATE_TIME, TIME, SINCE, MONEY, NUMERIC }
 
     companion object {
+        /** PHP `F j, Y` — e.g. `January 2, 2026`. */
+        private const val HUMAN_DATE = "MMMM d, yyyy"
+
+        /** PHP `F j, Y g:i A` — e.g. `January 2, 2026, 3:45 PM`. */
+        private const val HUMAN_DATE_TIME = "MMMM d, yyyy, h:mm a"
+
         @JvmStatic
         fun make(name: String): TextEntry {
             requireRelationDepth(name)

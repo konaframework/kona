@@ -420,7 +420,27 @@ open class Panel {
                     deleteResource(request, resource)
                 },
             )
+            val optionsSlug = resource.slug() + "/form-options"
+            planned.add(
+                Planned("GET", uri(optionsSlug), routeName("resources.$optionsSlug")) { request ->
+                    formOptions(request, resource)
+                },
+            )
         }
+    }
+
+    /** JSON options for relationship (and searchable) Select comboboxes. */
+    private fun formOptions(request: Request, resource: Resource): Response {
+        val field = request.input("field").orEmpty()
+        val query = request.input("q").orEmpty()
+        val options = resource.searchFormOptions(field, query).map { option ->
+            linkedMapOf(
+                "value" to option.value,
+                "label" to option.label,
+                "enabled" to option.enabled,
+            )
+        }
+        return Response.json(options)
     }
 
     /** The page a resource nav entry links to: its list, else manage, else first page. */
@@ -468,6 +488,11 @@ open class Panel {
         if (!page.isNullOrBlank()) state["page"] = page
         val perPage = request.input("perPage")
         if (!perPage.isNullOrBlank()) state["perPage"] = perPage
+        // Present even when empty so list soft-nav can hide all toggleable columns (#363).
+        val columns = request.input("columns")
+        if (columns != null) {
+            state["columns"] = columns
+        }
         val record = request.input("id") ?: request.input("record")
         if (!record.isNullOrBlank()) state["record"] = record
         state.putAll(extras)

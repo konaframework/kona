@@ -147,6 +147,159 @@ class RelationshipSelectTest {
         val blankTitle = Select.make("authorId").relationship(Function<Get, String> { "author" }, NullText())
         assertEquals("", blankTitle.resolvedOptions(Schema.make().record(DocHolder())).single().label)
     }
+
+    @Test
+    fun relationshipSearchLooksPastPreloadLimit() {
+        database()
+        val authors = org.konaframework.firefly.tables.CadenceRecordStore(RelAuthor::class.java)
+        authors.save(authors.fill(authors.newRecord(), mapOf("name" to "Ada", "active" to true)))
+        authors.save(authors.fill(authors.newRecord(), mapOf("name" to "Grace", "active" to true)))
+        authors.save(authors.fill(authors.newRecord(), mapOf("name" to "Lin", "active" to true)))
+        authors.save(authors.fill(authors.newRecord(), mapOf("name" to "Zoe", "active" to true)))
+        val select = Select.make("authorId").relationship("author", "name").preloadLimit(2)
+        val schema = Schema.make().components(select).record(RelPost())
+        assertEquals(2, select.resolvedOptions(schema).size)
+        val hits = select.search(schema, "Zoe")
+        assertEquals(listOf("Zoe"), hits.map { it.label })
+        assertTrue(select.search(schema, "a").any { it.label == "Ada" })
+        assertTrue(select.search(schema, "a").any { it.label == "Grace" })
+        // Empty needle still caps to the search/preload limit.
+        assertEquals(2, select.search(schema, "").size)
+        val dynamic = Select.make("authorId")
+            .relationship(Function<Get, String> { "author" }, Function<Get, String> { "name" })
+            .preloadLimit(1)
+        assertEquals(1, dynamic.search(Schema.make().components(dynamic).record(RelPost()), "a").size)
+        val cadenceModified = Select.make("authorId").relationship("author", "name") { query ->
+            @Suppress("UNCHECKED_CAST")
+            (query as ModelBuilder<RelAuthor>).where("active", true)
+        }.preloadLimit(10)
+        assertTrue(
+            cadenceModified.search(Schema.make().components(cadenceModified).record(RelPost()), "Ada")
+                .any { it.label == "Ada" },
+        )
+    }
+
+    @Test
+    fun relationshipSearchFallsBackToInMemoryFilter() {
+        val paper = DocPaper()
+        val select = Select.make("authorId").relationship("author", "name").optionsLimit(10)
+        val schema = Schema.make().components(select).record(paper)
+        // OptionQuery.where is 2-arg, so search filters labels in memory past any SQL push-down.
+        assertEquals(listOf("Grace"), select.search(schema, "Grace").map { it.label })
+        assertTrue(select.search(schema, "").any { it.label == "Ada" })
+        val likeShelf = LikeShelf()
+        val likeSelect = Select.make("authorId").relationship("author", "name")
+        val likeSchema = Schema.make().components(likeSelect).record(likeShelf)
+        assertEquals(listOf("Ada"), likeSelect.search(likeSchema, "Ada").map { it.label })
+        assertTrue(likeSelect.search(likeSchema, "missing").isEmpty())
+        // Uncapped RelationshipOptions.search + blank title attributes.
+        val blankTitles = RelationshipOptions.search(
+            ListShelf(),
+            "author",
+            "missing",
+            null,
+            "1",
+            null,
+        )
+        assertEquals(1, blankTitles.size)
+        val limited = RelationshipOptions.search(
+            ListShelf(),
+            "author",
+            "name",
+            null,
+            "",
+            1,
+        )
+        assertEquals(1, limited.size)
+        val noOwner = Select.make("authorId").relationship("author", "name")
+        assertTrue(noOwner.search(Schema.make().components(noOwner), "Ada").isEmpty())
+        val modified = Select.make("authorId").relationship("author", "name") { query ->
+            (query as OptionQuery).where("name", "Ada")
+        }
+        assertEquals(
+            listOf("Ada"),
+            modified.search(Schema.make().components(modified).record(DocPaper()), "").map { it.label },
+        )
+        // Document model path (DocHolder.author → DocAuthor.query → OptionQuery) with and without modify.
+        val fromDoc = Select.make("authorId").relationship("author", "name")
+        assertEquals(
+            listOf("Ada"),
+            fromDoc.search(Schema.make().components(fromDoc).record(DocHolder()), "Ada").map { it.label },
+        )
+        val fromDocModified = Select.make("authorId").relationship("author", "name") { query ->
+            (query as OptionQuery).where("name", "Ada")
+        }
+        assertEquals(
+            listOf("Ada"),
+            fromDocModified.search(Schema.make().components(fromDocModified).record(DocHolder()), "").map { it.label },
+        )
+        val badWhere = Select.make("authorId").relationship("author", "name")
+        assertEquals(
+            listOf("Ada"),
+            badWhere.search(Schema.make().components(badWhere).record(BadWhereShelf()), "Ada").map { it.label },
+        )
+        val uncappedRel = Select.make("authorId").relationship("author", "name").preload(false)
+        assertEquals(
+            listOf("Ada"),
+            uncappedRel.search(Schema.make().components(uncappedRel).record(ListShelf()), "Ada").map { it.label },
+        )
+        val listModified = Select.make("authorId").relationship("author", "name") { query ->
+            (query as ListQuery).touched = true
+        }
+        assertEquals(
+            listOf("Ada"),
+            listModified.search(Schema.make().components(listModified).record(ListShelf()), "Ada").map { it.label },
+        )
+    }
+
+    @Test
+    fun staticOptionSearchIgnoresPreloadCapWhenQuerying() {
+        val many = (1..5).associate { it.toString() to "Item $it" }
+        val capped = Select.make("kind").preload(true).preloadLimit(2).options(many)
+        val schema = Schema.make().components(capped)
+        assertEquals(2, capped.resolvedOptions(schema).size)
+        assertEquals(listOf("Item 5"), capped.search(schema, "Item 5").map { it.label })
+        assertEquals(2, capped.search(schema, "").size)
+        val uncapped = Select.make("kind").preload(false).options(many)
+        assertEquals(5, uncapped.search(Schema.make().components(uncapped), "").size)
+    }
+}
+
+private class LikeQuery(private val rows: List<Map<String, Any?>>) {
+    private var filtered: List<Map<String, Any?>> = rows
+
+    fun where(column: String, operator: String, value: Any?): LikeQuery = apply {
+        val needle = value.toString().trim('%').lowercase()
+        filtered = rows.filter {
+            operator.equals("like", ignoreCase = true) &&
+                (it[column]?.toString().orEmpty().lowercase().contains(needle) ||
+                    it["id"]?.toString().orEmpty().lowercase().contains(needle))
+        }
+    }
+
+    fun get(): List<Map<String, Any?>> = filtered
+}
+
+private class LikeShelf {
+    fun author(): LikeQuery =
+        LikeQuery(
+            listOf(
+                mapOf("id" to "1", "name" to "Ada"),
+                mapOf("id" to "2", "name" to "Grace"),
+            ),
+        )
+}
+
+/** Has a `where` method whose first parameter is not String — skips SQL push-down. */
+private class BadWhereQuery(private val rows: List<Map<String, Any?>>) {
+    fun where(column: Int, operator: String, value: Any?): BadWhereQuery = this
+
+    fun get(): List<Map<String, Any?>> = rows
+}
+
+private class BadWhereShelf {
+    fun author(): BadWhereQuery =
+        BadWhereQuery(listOf(mapOf("id" to "1", "name" to "Ada"), mapOf("id" to "2", "name" to "Grace")))
 }
 
 private class WithId {
@@ -225,6 +378,8 @@ private class DirectBuilder {
 }
 
 private class ListQuery(private val rows: List<Map<String, Any?>>) {
+    var touched: Boolean = false
+
     fun list(): List<Map<String, Any?>> = rows
 }
 

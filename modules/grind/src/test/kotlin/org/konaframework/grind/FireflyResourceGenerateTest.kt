@@ -36,6 +36,8 @@ class FireflyResourceGenerateTest {
         assertEquals(listOf("TextEntry"), stub.infolist.map { it.type })
         assertEquals(2, stub.formColumns)
         assertEquals(2, stub.infolistColumns)
+        assertEquals("schema.columns()", schemaColumnsCall(2))
+        assertEquals("schema.columns(3)", schemaColumnsCall(3))
     }
 
     @Test
@@ -359,7 +361,7 @@ class FireflyResourceGenerateTest {
         assertTrue(kotlin.contains("TextInput.make(\"title\")"))
         assertTrue(kotlin.contains("IconColumn.make(\"published\").boolean()"))
         assertTrue(kotlin.contains("IconEntry.make(\"published\").boolean()"))
-        assertTrue(kotlin.contains("schema.columns(2).components("))
+        assertTrue(kotlin.contains("schema.columns().components("))
         assertTrue(kotlin.contains("TextColumn.make(\"title\").searchable().sortable()"))
         assertTrue(kotlin.contains("import org.konaframework.firefly.forms.Toggle"))
         assertTrue(kotlin.contains("import org.konaframework.firefly.tables.IconColumn"))
