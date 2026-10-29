@@ -262,20 +262,29 @@ internal object ServeWatch {
         return true
     }
 
+    /**
+     * Ensures app classes exist before in-process boot.
+     *
+     * - Empty `build/classes`: always compile (first boot / fixtures that materialize outputs).
+     * - Gradle wrapper present: always compile even when classes already exist, so brand-new
+       sources (e.g. `make:firefly-resource` under `resources/{model}/`) are not ClassNotFound (#327).
+     * - Fixture trees with classes but no wrapper: skip (injected compilers cover reload paths).
+     */
     fun ensureClasses(root: Path, compiler: ProjectCompiler) {
-        if (AppLoader(root).classpath().isNotEmpty()) {
-            return
-        }
-        val result = compiler.compile(root)
-        if (result.exitCode != 0) {
-            val detail = result.output.trim()
-            throw GrindException(
-                if (detail.isEmpty()) {
-                    "Compile failed (exit ${result.exitCode})"
-                } else {
-                    "Compile failed (exit ${result.exitCode}):\n$detail"
-                },
-            )
+        val empty = AppLoader(root).classpath().isEmpty()
+        val hasWrapper = AppLoader.resolveGradleWrapper(root) != null
+        if (empty || hasWrapper) {
+            val result = compiler.compile(root)
+            if (result.exitCode != 0) {
+                val detail = result.output.trim()
+                throw GrindException(
+                    if (detail.isEmpty()) {
+                        "Compile failed (exit ${result.exitCode})"
+                    } else {
+                        "Compile failed (exit ${result.exitCode}):\n$detail"
+                    },
+                )
+            }
         }
         if (AppLoader(root).classpath().isEmpty()) {
             throw GrindException("No compiled classes under $root/build — run ./gradlew classes first")

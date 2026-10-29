@@ -330,7 +330,24 @@ class ServeWatchTest {
     @Test
     fun ensureClassesAndDispose() {
         val withClasses = fixtureProject(temp.resolve("has-classes"))
-        ServeWatch.ensureClasses(withClasses) { CompileResult(99, "should-not-run") }
+        var compiledWithoutWrapper = false
+        ServeWatch.ensureClasses(withClasses) {
+            compiledWithoutWrapper = true
+            CompileResult(99, "should-not-run")
+        }
+        assertFalse(compiledWithoutWrapper)
+
+        val withWrapper = fixtureProject(temp.resolve("has-wrapper"))
+        Files.writeString(withWrapper.resolve("gradlew"), "#!/bin/sh\n")
+        var compiledWithWrapper = false
+        ServeWatch.ensureClasses(withWrapper) {
+            compiledWithWrapper = true
+            CompileResult(0)
+        }
+        assertTrue(compiledWithWrapper)
+        assertThrows(GrindException::class.java) {
+            ServeWatch.ensureClasses(withWrapper) { CompileResult(1, "stale-sources") }
+        }
 
         val missing = temp.resolve("missing-classes")
         Files.createDirectories(missing)

@@ -60,7 +60,9 @@ object PanelDiscovery {
     private fun <T> load(panelDirectory: Path, folder: String, loader: ClassLoader, type: Class<T>): List<T> {
         val dir = panelDirectory.resolve(folder)
         if (!Files.exists(dir)) return emptyList()
-        return loadDirectory(dir, folder, loader, type, skipPanelChildFolders = false)
+        // Resource page stubs live under resources/{model}/pages/ and register via getPages() only.
+        val skipNested = if (folder == "resources") setOf("pages") else emptySet()
+        return loadDirectory(dir, folder, loader, type, skipPanelChildFolders = false, skipNestedFolders = skipNested)
     }
 
     private fun <T> loadDirectory(
@@ -69,13 +71,15 @@ object PanelDiscovery {
         loader: ClassLoader,
         type: Class<T>,
         skipPanelChildFolders: Boolean,
+        skipNestedFolders: Set<String> = emptySet(),
     ): List<T> {
         if (!Files.isDirectory(dir)) throw FireflyException("Panel $folder path is not a directory [$dir]")
         val found = ArrayList<T>()
         Files.walk(dir).use { stream ->
             val files = stream
                 .filter { Files.isRegularFile(it) }
-                .filter { !skipPanelChildFolders || !underPanelChildFolder(dir, it) }
+                .filter { !skipPanelChildFolders || !underNamedFolder(dir, it, PANEL_CHILD_FOLDERS) }
+                .filter { skipNestedFolders.isEmpty() || !underNamedFolder(dir, it, skipNestedFolders) }
                 .sorted()
                 .toList()
             for (file in files) {
@@ -88,13 +92,13 @@ object PanelDiscovery {
         return found
     }
 
-    /** True when [file] lives under a reserved panel child (`pages` / `resources` / `widgets`). */
-    private fun underPanelChildFolder(root: Path, file: Path): Boolean {
+    /** True when [file] lives under a path segment in [names] relative to [root] (not the file itself). */
+    private fun underNamedFolder(root: Path, file: Path, names: Set<String>): Boolean {
         val relative = root.relativize(file)
         val depth = relative.nameCount
         if (depth < 2) return false
         for (i in 0 until depth - 1) {
-            if (relative.getName(i).toString() in PANEL_CHILD_FOLDERS) return true
+            if (relative.getName(i).toString() in names) return true
         }
         return false
     }
