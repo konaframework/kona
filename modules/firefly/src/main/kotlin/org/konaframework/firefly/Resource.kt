@@ -278,7 +278,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyManage(page: ManagePage, state: Map<String, Any?>) {
         page.title(pluralLabel())
         page.breadcrumbs(resourceCrumbs(state, pluralLabel()))
-        val createForm = prepareForm(Schema.make())
+        // Prototype record so Select.relationship can load options in the create dialog (#337).
+        val createForm = prepareForm(liveSchema(emptyMap()))
         val built = table(listTable())
         applyTableQuery(built, state)
         val csrf = state["csrfField"] as? String ?: ""
@@ -291,7 +292,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.table(built)
         // Create alone lives in the header; Edit/View/Delete open from each row.
         page.headerActions(
-            operation("create", "Create", createForm.components())
+            operation("create", "Create", createForm)
                 .postForm("create", csrf)
                 .modalSubmitActionLabel("Create"),
         )
@@ -434,9 +435,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         return crumbs
     }
 
-    private fun operation(name: String, heading: String, components: List<Component>): Action {
+    private fun operation(name: String, heading: String, form: Schema): Action {
         val action = Action.make(name).label(heading).modal().modalHeading(heading)
-        if (components.isNotEmpty()) action.schema(*components.toTypedArray())
+        if (form.components().isNotEmpty()) action.schema(form)
         return action
     }
 
@@ -466,22 +467,38 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     /**
      * Load the Cadence/memory record for edit/view and fill form/infolist state.
      * [state] carries the route id under `record` (from `?id=` / `?record=`).
+     * Create / blank id binds a prototype model so [Select.relationship] can resolve options (#337).
      */
     private fun liveSchema(state: Map<String, Any?>): Schema {
         val schema = Schema.make()
-        val raw = state["record"] ?: return schema
-        val key = raw.toString()
-        if (key.isBlank()) return schema
-        schema.record(raw)
+        val raw = state["record"]
+        val key = raw?.toString().orEmpty()
+        // Preserve raw route ids for hooks when there is no model/store (e.g. memory-only resources).
+        if (key.isNotBlank()) schema.record(raw)
         try {
             @Suppress("UNCHECKED_CAST")
             val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
-            val found = store.find(key) ?: return schema
-            schema.record(found)
-            schema.key(key)
-            schema.fill(store.attributes(found))
+            if (key.isNotBlank()) {
+                try {
+                    val found = store.find(key)
+                    if (found != null) {
+                        schema.record(found)
+                        schema.key(key)
+                        schema.fill(store.attributes(found))
+                        return schema
+                    }
+                } catch (_: RuntimeException) {
+                    // Fall through to a prototype model below.
+                }
+                // Missing row still needs a model prototype so Select.relationship can resolve (#337).
+                schema.record(store.newRecord())
+                schema.key(key)
+                return schema
+            }
+            // Create: prototype model so Select.relationship can resolve options (#337).
+            schema.record(store.newRecord())
         } catch (_: FireflyException) {
-            // No model / store — keep the raw id for hooks that only need schema.record().
+            // No model / store — leave schema with the raw record (if any).
         }
         return schema
     }

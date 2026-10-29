@@ -259,6 +259,19 @@ class FireflyActionsTest {
         assertFalse(createHtml.contains("""wire:click="create""""))
         // Named schema children must POST as flat keys (not create.Hello).
         assertFalse(createHtml.contains("""name="create."""))
+
+        // schema(Schema) keeps the form so callers can attach a record for relationship fields (#337).
+        val withForm = Action.make("create").label("Create").modal().modalHeading("Create")
+            .schema(Schema.make().record("owner").components(Text.make("Keep")))
+            .postForm("create", "")
+            .modalSubmitActionLabel("Create")
+        val withFormHtml = page(withForm)
+        assertTrue(withFormHtml.contains("Keep"))
+        assertTrue(withFormHtml.contains("""class="ff-action-form""""))
+        val self = Action.make("loop")
+        assertThrows(FireflyException::class.java) {
+            self.schema(Schema.make().components(self))
+        }
     }
 
     @Test

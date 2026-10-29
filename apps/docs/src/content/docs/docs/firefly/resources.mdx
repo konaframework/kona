@@ -108,7 +108,7 @@ The page calls `form`, `table`, and `infolist` when it renders, so those methods
 
 <FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table, a Create header action, and row View, Edit, and Delete actions." />
 
-`simple()` keeps one manage page. You still override `form`, `infolist`, and `table`. Leaving `getPages()` alone uses the framework `ManagePage`. The generator instead writes a thin `Manage{Model}` subclass and returns it from `getPages()` so you have a class to customize. The manage page is **table-only** until an action opens a dialog — it does not mount a standing create/edit form. **Create** is the sole header action and opens a dialog with the empty form schema. **View**, **Edit**, and **Delete** are row actions: View opens the filled infolist, Edit opens the filled form, and Delete confirms in a dialog. A simple resource rejects `relation(...)`.
+`simple()` keeps one manage page. You still override `form`, `infolist`, and `table`. Leaving `getPages()` alone uses the framework `ManagePage`. The generator instead writes a thin `Manage{Model}` subclass and returns it from `getPages()` so you have a class to customize. The manage page is **table-only** until an action opens a dialog — it does not mount a standing create/edit form. **Create** is the sole header action and opens a dialog with the form schema on a prototype model (so `Select.relationship` can load options). **View**, **Edit**, and **Delete** are row actions: View opens the filled infolist, Edit opens the filled form (or a prototype when the row is not in the store yet), and Delete confirms in a dialog. A simple resource rejects `relation(...)`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

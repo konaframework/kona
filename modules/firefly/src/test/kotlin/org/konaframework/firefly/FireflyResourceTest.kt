@@ -27,6 +27,37 @@ import org.konaframework.http.Router
 
 class FireflyResourceTest {
     @Test
+    fun manageCreateDialogRendersRelationshipSelectCombobox() {
+        databaseWithProjects()
+        ProjectShelf().forceFill(mapOf("name" to "Desk")).save()
+        ProjectShelf().forceFill(mapOf("name" to "Lab")).save()
+        val tasks = object : Resource("task") {
+            init {
+                label("Task")
+                simple()
+                model(TaskShelf::class.java)
+            }
+
+            override fun form(schema: Schema): Schema =
+                schema.components(Select.make("project_id").label("Project").relationship("project", "name").preload())
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "1", "project_id" to "1")).columns(
+                    TextColumn.make("project_id").relationship("project", "name"),
+                )
+        }
+        val html = tasks.pages().single().render()
+        assertTrue(html.contains("ff-combobox"))
+        assertTrue(html.contains("""data-ff-relationship="project""""))
+        assertTrue(html.contains("""data-ff-preload="true""""))
+        assertTrue(html.contains("ff-option"))
+        assertTrue(html.contains("Desk"))
+        assertTrue(html.contains("Lab"))
+        assertTrue(html.contains(">Project<"))
+        assertFalse(html.contains(">project_id<"))
+    }
+
+    @Test
     fun simpleResourceKeepsCreateEditViewAndDeleteInDialogs() {
         val notes = notes()
         assertTrue(notes.form(Schema.make()).components().isNotEmpty())
@@ -924,12 +955,42 @@ class Shelf : Cadence<Shelf>() {
     override val fillable = setOf("name")
 }
 
+class ProjectShelf : Cadence<ProjectShelf>() {
+    override val table = "ff_projects"
+    override val timestamps = false
+    override val fillable = setOf("name")
+}
+
+class TaskShelf : Cadence<TaskShelf>() {
+    override val table = "ff_tasks"
+    override val timestamps = false
+    override val fillable = setOf("project_id", "name")
+
+    fun project() = belongsTo(ProjectShelf::class.java, "project_id")
+}
+
 class Paper : org.konaframework.cadence.document.Document()
 
 private fun database() {
     val url = "jdbc:h2:mem:ffres${System.nanoTime()};DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
     val database = Database().addConnection("default", ConnectionConfig(url, "sa", "", poolSize = 2))
     database.connection().statement("create table ff_shelves (id bigint auto_increment primary key, name varchar(100))")
+    database.setAsGlobal()
+}
+
+private fun databaseWithProjects() {
+    val url = "jdbc:h2:mem:ffresproj${System.nanoTime()};DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
+    val database = Database().addConnection("default", ConnectionConfig(url, "sa", "", poolSize = 2))
+    database.connection().statement(
+        """
+        create table ff_projects (id bigint auto_increment primary key, name varchar(100));
+        create table ff_tasks (
+            id bigint auto_increment primary key,
+            project_id bigint,
+            name varchar(100)
+        )
+        """.trimIndent(),
+    )
     database.setAsGlobal()
 }
 

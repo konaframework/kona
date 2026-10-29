@@ -165,7 +165,7 @@ Action.make("edit").schema(
 </TabItem>
 </Tabs>
 
-`schema()` with no components does not open a dialog. Inputs arrive with [Forms](/docs/firefly/forms/). On the Desk page the Edit action uses `schema(TextInput.make("note"))`, so the dialog body is a note field.
+`schema()` with no components does not open a dialog. Pass a full `Schema` with `schema(form)` when the dialog needs that schema’s `record()` — manage Create uses this so `Select.relationship` can resolve options. Inputs arrive with [Forms](/docs/firefly/forms/). On the Desk page the Edit action uses `schema(TextInput.make("note"))`, so the dialog body is a note field.
 
 ## Group several actions
 
