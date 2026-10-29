@@ -27,6 +27,31 @@ data class SchemaColumn(
     }
 }
 
+/** Foreign key as reported by JDBC [DatabaseMetaData.getImportedKeys]. */
+data class SchemaForeignKey(
+    val column: String,
+    val referencedTable: String,
+    val referencedColumn: String,
+)
+
+/** Builds a [SchemaForeignKey] from JDBC imported-key columns (null names are skipped). */
+internal fun schemaForeignKeyFromJdbc(
+    column: String?,
+    referencedTable: String?,
+    referencedColumn: String?,
+): SchemaForeignKey? {
+    if (column == null || referencedTable == null) return null
+    return SchemaForeignKey(column, referencedTable, referencedColumn ?: "id")
+}
+
+/** Maps JDBC imported-key row triples to [SchemaForeignKey] (null names dropped). */
+internal fun importedKeysFromRows(
+    rows: List<Triple<String?, String?, String?>>,
+): List<SchemaForeignKey> =
+    rows.mapNotNull { (column, referencedTable, referencedColumn) ->
+        schemaForeignKeyFromJdbc(column, referencedTable, referencedColumn)
+    }
+
 /**
  * Runs DDL against one JDBC [connection]. Kotlin callers use the receiver DSL
  * (`schema.create("users") { id(); string("email").unique() }`); Java callers pass a
@@ -114,6 +139,25 @@ class Schema @JvmOverloads constructor(
                     }
                     keys.sortedBy { it.first }.forEach { add(it.second) }
                 }
+            }
+        }
+
+    /** Imported foreign keys of [table] (empty when the driver reports none). */
+    fun foreignKeys(table: String): List<SchemaForeignKey> =
+        firstNonEmpty(table) { name ->
+            connection.metaData.getImportedKeys(null, connection.schema, name).use { rs ->
+                val rows = buildList {
+                    while (rs.next()) {
+                        add(
+                            Triple(
+                                rs.getString("FKCOLUMN_NAME"),
+                                rs.getString("PKTABLE_NAME"),
+                                rs.getString("PKCOLUMN_NAME"),
+                            ),
+                        )
+                    }
+                }
+                importedKeysFromRows(rows)
             }
         }
 

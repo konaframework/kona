@@ -72,6 +72,11 @@ public class TableJavaTest {
         TernaryFilter.make("on");
         ToggleColumn.make("on");
         TrashedFilter.make();
+        // JVM overloads: 2-arg render + TableButton.group static forwarder.
+        TableButton view = TableButton.make("view").label("View").url("view");
+        TableButton edit = TableButton.make("edit").label("Edit").url("edit");
+        assertTrue(view.render(Cell.of(path -> null), false).contains("ff-table-button"));
+        assertTrue(TableButton.group(view, edit).render(Cell.of(path -> null), false).contains("ff-row-action-menu"));
     }
 
     @Test

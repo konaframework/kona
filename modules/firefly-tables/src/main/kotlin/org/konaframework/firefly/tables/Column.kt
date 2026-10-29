@@ -1,5 +1,6 @@
 package org.konaframework.firefly.tables
 
+import org.konaframework.firefly.schemas.humanizeName
 import org.konaframework.firefly.support.Icon
 import java.time.Instant
 import java.time.LocalDate
@@ -39,6 +40,7 @@ open class Column protected constructor(val name: String) {
     private val searchableFlag = FlagSetting(false)
     private val sortableFlag = FlagSetting(false)
     private val toggleableFlag = FlagSetting(false)
+    private var toggledHiddenByDefaultFlag = false
     private var alignValue = Align.START
     private var alignUsing: Function<Cell, Align>? = null
     private var extra: Map<String, String> = emptyMap()
@@ -129,6 +131,19 @@ open class Column protected constructor(val name: String) {
 
     fun toggleable(predicate: Predicate<Cell>): Column = apply { toggleableFlag.set(predicate) }
 
+    /**
+     * Marks the column toggleable and initially hidden in the column picker
+     * (Filament-style `toggleable(isToggledHiddenByDefault: true)`).
+     */
+    fun toggledHiddenByDefault(): Column = toggledHiddenByDefault(true)
+
+    fun toggledHiddenByDefault(on: Boolean): Column = apply {
+        toggledHiddenByDefaultFlag = on
+        if (on) toggleableFlag.set(true)
+    }
+
+    fun isToggledHiddenByDefault(): Boolean = toggledHiddenByDefaultFlag
+
     fun align(value: Align): Column = apply {
         alignValue = value
         alignUsing = null
@@ -186,7 +201,7 @@ open class Column protected constructor(val name: String) {
 
     fun isDisabled(cell: Cell): Boolean = disabledFlag.get(cell)
 
-    fun heading(cell: Cell): String = labelValue.get(cell, name)
+    fun heading(cell: Cell): String = labelValue.get(cell, humanizeName(name))
 
     open fun render(row: Map<String, Any?>, key: String, cell: Cell): String {
         val state = row[name]

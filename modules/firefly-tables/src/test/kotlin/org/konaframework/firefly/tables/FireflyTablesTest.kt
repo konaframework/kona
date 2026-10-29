@@ -253,6 +253,21 @@ class FireflyTablesTest {
         assertTrue(literalHtml.contains("ff-column-description"))
         assertTrue(literalHtml.contains("""data-ff-align="center""""))
         assertTrue(literal.heading(Cell { null }).contains("Name"))
+        assertEquals("Published At", TextColumn.make("published_at").heading(Cell { null }))
+        assertEquals("First Name", TextColumn.make("first_name").heading(Cell { null }))
+        val stamped = TextColumn.make("created_at").toggleable().toggledHiddenByDefault()
+        assertTrue(stamped.isToggledHiddenByDefault())
+        assertTrue(stamped.isToggleable(Cell { null }))
+        assertFalse(TextColumn.make("shown").toggledHiddenByDefault(false).isToggledHiddenByDefault())
+        val hiddenStampHtml = Table.memory(listOf(mapOf("id" to "1", "name" to "Ada", "created_at" to "2020-01-01")))
+            .columns(
+                TextColumn.make("name"),
+                TextColumn.make("created_at").toggleable().toggledHiddenByDefault(),
+            )
+            .render()
+        assertTrue(hiddenStampHtml.contains(">Name<"))
+        assertFalse(hiddenStampHtml.contains(">Created At<"))
+        assertFalse(hiddenStampHtml.contains("2020-01-01"))
         val moneyHead = Table.memory(listOf(mapOf("amt" to 12, "id" to "1")))
             .columns(TextColumn.make("amt").money().label("Amount"))
             .render()
@@ -531,6 +546,31 @@ class FireflyTablesTest {
             )
             .render()
         assertTrue(viaRecordKey.contains("""href="view?id=3""""))
+        // Two+ row buttons group into a ⋯ menu by default.
+        val grouped = Table.memory(mapOf("id" to "9", "name" to "Cy"))
+            .columns(TextColumn.make("name"))
+            .rowButtons(
+                TableButton.make("view").label("View").url("view?id=9"),
+                TableButton.make("edit").label("Edit").url("edit?id=9"),
+                TableButton.make("delete").label("Delete").confirmPost("delete", ""),
+            )
+            .render()
+        assertTrue(grouped.contains("ff-row-action-menu"))
+        assertTrue(grouped.contains("ff-table-more"))
+        assertTrue(grouped.contains("""href="view?id=9""""))
+        assertTrue(grouped.contains("""href="edit?id=9""""))
+        assertTrue(grouped.contains("ff-menu-link"))
+        val flat = Table.memory(mapOf("id" to "9", "name" to "Cy"))
+            .columns(TextColumn.make("name"))
+            .groupRowActions(false)
+            .rowButtons(
+                TableButton.make("view").label("View").url("view?id=9"),
+                TableButton.make("edit").label("Edit").url("edit?id=9"),
+            )
+            .render()
+        assertFalse(flat.contains("ff-row-action-menu"))
+        assertTrue(flat.contains("ff-table-button"))
+        assertEquals("", TableButton.group().render(Cell { null }, false))
         val needs = TableButton.make("bulk").requiresSelection(true).disabled(false)
         assertTrue(needs.render(Cell { null }, true).contains("disabled"))
         assertFalse(needs.render(Cell { null }, false).contains("disabled"))

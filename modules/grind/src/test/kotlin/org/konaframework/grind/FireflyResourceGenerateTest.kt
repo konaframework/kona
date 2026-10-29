@@ -32,7 +32,10 @@ class FireflyResourceGenerateTest {
         assertEquals(listOf("TextInput"), stub.form.map { it.type })
         assertEquals(listOf("name"), stub.form.map { it.name })
         assertEquals(listOf("TextColumn"), stub.table.map { it.type })
+        assertTrue(stub.table[0].callExpr().contains(".searchable().sortable()"))
         assertEquals(listOf("TextEntry"), stub.infolist.map { it.type })
+        assertEquals(2, stub.formColumns)
+        assertEquals(2, stub.infolistColumns)
     }
 
     @Test
@@ -60,11 +63,189 @@ class FireflyResourceGenerateTest {
         )
         assertFalse(fields.form.any { it.name == "id" || it.name == "created_at" || it.name == "deleted_at" })
         assertTrue(fields.table.any { it.name == "title" && it.type == "TextColumn" })
+        assertTrue(fields.table.any { it.name == "title" && it.callExpr().contains(".searchable().sortable()") })
         assertTrue(fields.table.any { it.name == "published" && it.type == "IconColumn" })
         assertTrue(fields.table.any { it.name == "published" && it.callExpr().endsWith(".boolean()") })
+        assertTrue(
+            fields.table.any {
+                it.name == "published_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+            },
+        )
+        assertTrue(
+            fields.table.any {
+                it.name == "created_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+            },
+        )
         assertTrue(fields.infolist.any { it.name == "published" && it.type == "IconEntry" })
         assertTrue(fields.infolist.any { it.name == "published" && it.callExpr().endsWith(".boolean()") })
         assertFalse(fields.table.any { it.name == "id" })
+        assertEquals(2, fields.formColumns)
+    }
+
+    @Test
+    fun mapColumnsMapsSqliteIntegerBooleansAndForeignKeys() {
+        val model = object : Cadence<GeneratePost>() {
+            override val table: String = "tasks"
+            override val timestamps: Boolean = false
+            override val fillable: Set<String> = setOf(
+                "project_id", "active", "is_done", "has_cover", "can_edit", "was_sent",
+                "should_notify", "ready_flag", "title", "sku",
+            )
+        }
+        val fields = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "INTEGER", false, "", 0),
+                SchemaColumn("project_id", "INTEGER", false, "", 0),
+                SchemaColumn("title", "TEXT", false, "", 0),
+                SchemaColumn("active", "INTEGER", false, "", 0),
+                SchemaColumn("is_done", "INTEGER", false, "", 0),
+                SchemaColumn("has_cover", "INT", false, "", 0),
+                SchemaColumn("can_edit", "BIGINT", false, "", 0),
+                SchemaColumn("was_sent", "INTEGER", false, "", 0),
+                SchemaColumn("should_notify", "INTEGER", false, "", 0),
+                SchemaColumn("ready_flag", "INTEGER", false, "", 0),
+                SchemaColumn("sku", "VARCHAR", false, "", 32),
+                SchemaColumn("notes", "TEXT", true, "", 0),
+            ),
+            model,
+            setOf("id"),
+            mapOf("project_id" to org.konaframework.cadence.schema.SchemaForeignKey("project_id", "projects", "id")),
+        )
+        assertTrue(fields.form.any { it.name == "project_id" && it.type == "Select" })
+        assertTrue(
+            fields.form.any {
+                it.name == "project_id" && it.callExpr().contains(".relationship(\"project\", \"name\")")
+            },
+        )
+        assertTrue(fields.form.any { it.name == "active" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "is_done" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "has_cover" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "can_edit" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "was_sent" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "should_notify" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "ready_flag" && it.type == "Toggle" })
+        assertTrue(fields.table.any { it.name == "active" && it.callExpr().endsWith(".boolean()") })
+        assertTrue(fields.table.any { it.name == "title" && it.callExpr().contains(".searchable().sortable()") })
+        // Guess FK from column name when JDBC reports none.
+        val guessed = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("author_id", "BIGINT", false, "", 19),
+                SchemaColumn("label", "VARCHAR", false, "", 255),
+            ),
+            object : Cadence<GeneratePost>() {
+                override val table: String = "posts"
+                override val timestamps: Boolean = false
+                override val fillable: Set<String> = setOf("author_id", "label")
+            },
+            setOf("id"),
+        )
+        assertTrue(guessed.form.any { it.callExpr().contains("Select.make(\"author_id\").relationship(\"author\", \"name\")") })
+        assertTrue(guessed.table.any { it.name == "label" && it.callExpr().contains(".searchable().sortable()") })
+        // First data column searchable when no name/title/label; FK relation from table stem without trailing s.
+        val firstCol = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("sku", "VARCHAR", false, "", 32),
+                SchemaColumn("org_id", "BIGINT", false, "", 19),
+            ),
+            object : Cadence<GeneratePost>() {
+                override val table: String = "items"
+                override val timestamps: Boolean = false
+                override val fillable: Set<String> = setOf("sku", "org_id")
+            },
+            setOf("id"),
+            mapOf("org_id" to org.konaframework.cadence.schema.SchemaForeignKey("org_id", "org", "id")),
+        )
+        assertTrue(firstCol.table.any { it.name == "sku" && it.callExpr().contains(".searchable().sortable()") })
+        assertTrue(firstCol.form.any { it.callExpr().contains(".relationship(\"org\", \"name\")") })
+        // Non-integer boolean-ish names stay text; bare `_id` is not guessed as a relation.
+        val plain = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("active", "VARCHAR", false, "", 8),
+                SchemaColumn("_id", "BIGINT", false, "", 19),
+            ),
+            object : Cadence<GeneratePost>() {
+                override val table: String = "flags"
+                override val timestamps: Boolean = false
+                override val fillable: Set<String> = setOf("active", "_id")
+            },
+            setOf("id"),
+        )
+        assertTrue(plain.form.any { it.name == "active" && it.type == "TextInput" })
+        assertTrue(plain.form.any { it.name == "_id" && it.type == "TextInput" })
+        assertFalse(plain.form.any { it.name == "_id" && it.type == "Select" })
+        // Timestamp-named VARCHAR still toggle-hidden; FK column without `_id` uses table stem.
+        val stamps = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("created_at", "VARCHAR", true, "", 32),
+                SchemaColumn("team", "BIGINT", false, "", 19),
+                SchemaColumn("owner", "BIGINT", false, "", 19),
+            ),
+            object : Cadence<GeneratePost>() {
+                override val table: String = "jobs"
+                override val timestamps: Boolean = true
+                override val fillable: Set<String> = setOf("team", "owner")
+            },
+            setOf("id"),
+            mapOf(
+                "team" to org.konaframework.cadence.schema.SchemaForeignKey("team", "people", "id"),
+                "owner" to org.konaframework.cadence.schema.SchemaForeignKey("owner", "s", "id"),
+                "boss" to org.konaframework.cadence.schema.SchemaForeignKey("boss", "users", "id"),
+            ),
+        )
+        assertTrue(
+            stamps.table.any {
+                it.name == "created_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+            },
+        )
+        assertTrue(stamps.form.any { it.callExpr().contains("Select.make(\"team\").relationship(\"people\", \"name\")") })
+        assertTrue(stamps.form.any { it.callExpr().contains("Select.make(\"owner\").relationship(\"s\", \"name\")") })
+        // Fillable must include boss for the relationName(users→user) path.
+        val bosses = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("boss", "BIGINT", false, "", 19),
+            ),
+            object : Cadence<GeneratePost>() {
+                override val table: String = "jobs"
+                override val timestamps: Boolean = false
+                override val fillable: Set<String> = setOf("boss")
+            },
+            setOf("id"),
+            mapOf("boss" to org.konaframework.cadence.schema.SchemaForeignKey("boss", "users", "id")),
+        )
+        assertTrue(bosses.form.any { it.callExpr().contains("Select.make(\"boss\").relationship(\"user\", \"name\")") })
+        val shortFk = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("_id", "BIGINT", false, "", 19),
+            ),
+            object : Cadence<GeneratePost>() {
+                override val table: String = "jobs"
+                override val timestamps: Boolean = false
+                override val fillable: Set<String> = setOf("_id")
+            },
+            setOf("id"),
+            mapOf("_id" to org.konaframework.cadence.schema.SchemaForeignKey("_id", "users", "id")),
+        )
+        assertTrue(shortFk.form.any { it.callExpr().contains("Select.make(\"_id\").relationship(\"user\", \"name\")") })
+        // INTEGER that is not a boolean hint stays TextInput.
+        val notBool = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("count", "INTEGER", false, "", 0),
+            ),
+            object : Cadence<GeneratePost>() {
+                override val table: String = "stats"
+                override val timestamps: Boolean = false
+                override val fillable: Set<String> = setOf("count")
+            },
+            setOf("id"),
+        )
+        assertTrue(notBool.form.any { it.name == "count" && it.type == "TextInput" })
     }
 
     @Test
@@ -143,6 +324,8 @@ class FireflyResourceGenerateTest {
         assertTrue(kotlin.contains("TextInput.make(\"title\")"))
         assertTrue(kotlin.contains("IconColumn.make(\"published\").boolean()"))
         assertTrue(kotlin.contains("IconEntry.make(\"published\").boolean()"))
+        assertTrue(kotlin.contains("schema.columns(2).components("))
+        assertTrue(kotlin.contains("TextColumn.make(\"title\").searchable().sortable()"))
         assertTrue(kotlin.contains("import org.konaframework.firefly.forms.Toggle"))
         assertTrue(kotlin.contains("import org.konaframework.firefly.tables.IconColumn"))
         assertTrue(kotlin.contains("import org.konaframework.firefly.infolists.IconEntry"))

@@ -246,6 +246,8 @@ class FireflySupportTest {
         assertTrue(css.contains("max-width: none"))
         assertTrue(css.contains(".ff-panel .ff-action-outlined"))
         assertTrue(css.contains(".ff-panel .ff-row-actions"))
+        assertTrue(css.contains(".ff-panel .ff-row-action-menu"))
+        assertTrue(css.contains(".ff-panel .ff-row-action-menu .ff-table-more"))
         assertTrue(css.contains(".ff-panel .ff-dialog[hidden]"))
         assertTrue(css.contains(".ff-panel .ff-table-button-dialog[hidden]"))
         assertTrue(css.contains(".ff-panel .ff-action-dialog.ff-open"))

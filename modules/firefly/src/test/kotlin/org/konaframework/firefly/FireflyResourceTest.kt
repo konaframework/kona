@@ -53,6 +53,8 @@ class FireflyResourceTest {
         assertFalse(headerActions.contains("""data-ff-action="view""""))
         assertFalse(headerActions.contains("""data-ff-action="delete""""))
         assertTrue(html.contains("ff-row-actions"))
+        assertTrue(html.contains("ff-row-action-menu"))
+        assertTrue(html.contains("ff-table-more"))
         assertTrue(html.contains("""data-ff-action="view""""))
         assertTrue(html.contains("""data-ff-action="edit""""))
         assertTrue(html.contains("""data-ff-action="delete""""))
@@ -112,6 +114,7 @@ class FireflyResourceTest {
         assertTrue(list.contains("""href="create""""))
         assertTrue(list.contains(">New<"))
         assertTrue(list.contains("ff-row-actions"))
+        assertTrue(list.contains("ff-row-action-menu") || list.contains("ff-table-more"))
         assertTrue(list.contains("""href="view?id=1""""))
         assertTrue(list.contains("""href="edit?id=1""""))
         assertTrue(list.contains("Ada"))
@@ -213,10 +216,11 @@ class FireflyResourceTest {
         val header = list.substringAfter("ff-page-header")
         assertTrue(header.contains("New"))
         assertTrue(header.contains("""href="create""""))
-        // Row actions sit on the table, still not in the sidebar.
+        // Row actions sit on the table (⋯ menu by default), still not in the sidebar.
         assertTrue(list.contains("ff-row-actions"))
-        assertTrue(list.contains("""class="ff-table-button" href="view?id=1""""))
-        assertTrue(list.contains("""class="ff-table-button" href="edit?id=1""""))
+        assertTrue(list.contains("ff-row-action-menu"))
+        assertTrue(list.contains("""href="view?id=1""""))
+        assertTrue(list.contains("""href="edit?id=1""""))
 
         // The single entry stays active across the resource's create/edit/view pages.
         val create = send(router, "/admin/orders/create")
@@ -286,6 +290,31 @@ class FireflyResourceTest {
         assertThrows<FireflyException> { Resource().pluralLabel(" ") }
         assertThrows<FireflyException> { Resource().pluralLabel { " " }.pluralLabel() }
         assertThrows<FireflyException> { Resource().maxWidth("huge") }
+        assertThrows<FireflyException> { Resource().formColumns(0) }
+        assertThrows<FireflyException> { Resource().infolistColumns(0) }
+        val grid = Resource("shelf").model(Shelf::class.java).formColumns(2).infolistColumns(3)
+        assertEquals(2, grid.formColumns())
+        assertEquals(3, grid.infolistColumns())
+        // formColumns / infolistColumns apply when pages mount (prepareForm / prepareInfolist).
+        val gridResource = object : Resource("shelf") {
+            init {
+                model(Shelf::class.java)
+                formColumns(2)
+                infolistColumns(2)
+                simple()
+            }
+
+            override fun form(schema: Schema): Schema = schema.components(TextInput.make("name"))
+
+            override fun infolist(schema: Schema): Schema = schema.components(TextEntry.make("name"))
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
+        }
+        val gridRouter = Router()
+        Panel().path("admin").authenticate(false).resource(gridResource).mount(gridRouter)
+        val gridManage = send(gridRouter, "/admin/shelf/manage")
+        assertTrue(gridManage.contains("ff-manage") || gridManage.contains("ff-row-actions"))
         val widthRouter = Router()
         Panel().path("admin").authenticate(false)
             .resource(Resource("shelf").model(Shelf::class.java).maxWidth("full").simple())
