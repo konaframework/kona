@@ -36,6 +36,8 @@ class FireflyResourceGenerateTest {
         assertEquals(listOf("TextEntry"), stub.infolist.map { it.type })
         assertEquals(2, stub.formColumns)
         assertEquals(2, stub.infolistColumns)
+        assertEquals("schema.columns()", schemaColumnsCall(2))
+        assertEquals("schema.columns(3)", schemaColumnsCall(3))
     }
 
     @Test

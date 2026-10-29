@@ -409,6 +409,6 @@ private fun javaFull(
 }
 
 /** Emit `schema.columns()` when count is 2 (no-arg default); otherwise `schema.columns(n)`. */
-private fun schemaColumnsCall(count: Int): String =
+internal fun schemaColumnsCall(count: Int): String =
     if (count == 2) "schema.columns()" else "schema.columns($count)"
 
