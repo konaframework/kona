@@ -999,8 +999,9 @@ body.ff-body-root {
 .ff-panel [data-ff-max-width="screen"] { max-width: 100vw; width: 100%; }
 .ff-panel [data-ff-max-width="prose"] { max-width: 65ch; width: 100%; margin-left: auto; margin-right: auto; }
 
-.ff-panel .ff-row-actions {
-  display: flex;
+/* Actions <td> must stay table-cell so row borders share one rule with siblings (#365). */
+.ff-panel .ff-row-actions-inner {
+  display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;

@@ -885,6 +885,7 @@ class FireflyTablesTest {
         assertTrue(html.contains("ff-group"))
         assertTrue(html.contains("ff-table-summaries"))
         assertTrue(html.contains("ff-row-actions"))
+        assertTrue(html.contains("ff-row-actions-inner"), html)
         assertFalse(html.contains(">secret<"))
         table.select("1")
         assertTrue(table.render().contains("checked"))

@@ -260,6 +260,8 @@ class FireflySupportTest {
         assertTrue(css.contains("max-width: none"))
         assertTrue(css.contains(".ff-panel .ff-action-outlined"))
         assertTrue(css.contains(".ff-panel .ff-row-actions"))
+        assertTrue(css.contains(".ff-panel .ff-row-actions-inner"))
+        assertTrue(css.contains("display: inline-flex"))
         assertTrue(css.contains(".ff-panel .ff-row-action-menu"))
         assertTrue(css.contains(".ff-panel .ff-row-action-menu .ff-table-more"))
         assertTrue(css.contains(".ff-panel .ff-row-action-menu .ff-menu-panel"))

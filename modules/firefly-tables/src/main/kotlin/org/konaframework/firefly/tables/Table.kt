@@ -519,7 +519,9 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 rowButtonList
             }
         val html = buttons.joinToString("") { it.render(cell, emptySelection) }
-        return """<td class="ff-row-actions">$html</td>"""
+        // Keep flex on an inner wrapper — display:flex on the <td> breaks collapsed
+        // row borders (disjoint rules vs other columns on narrow/scroll viewports) (#365).
+        return """<td class="ff-row-actions"><div class="ff-row-actions-inner">$html</div></td>"""
     }
 
     private fun footer(loaded: LoadedTable<T>): String {
