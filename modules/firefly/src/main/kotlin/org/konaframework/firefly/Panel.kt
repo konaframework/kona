@@ -2,6 +2,8 @@ package org.konaframework.firefly
 
 import org.konaframework.auth.Auth
 import org.konaframework.auth.Guard
+import org.konaframework.firefly.notifications.FireflyNotification
+import org.konaframework.firefly.notifications.FireflyToasts
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.support.AuthLayout
 import org.konaframework.firefly.support.ChromeMode
@@ -19,6 +21,7 @@ import org.konaframework.firefly.schemas.htmlAttributes
 import org.konaframework.firefly.widgets.Widget
 import org.konaframework.http.Handler
 import org.konaframework.http.Request
+import org.konaframework.http.RequestSession
 import org.konaframework.http.Response
 import org.konaframework.http.Router
 import java.nio.file.Path
@@ -262,7 +265,24 @@ open class Panel {
         chrome.hook(Hook.TOPBAR_END, tenantHtml(request) + userHtml(request, request.path, user, get))
         chrome.hook(Hook.SIDEBAR_START, sideHtml(type, request.path, brand, user, get))
         chrome.hook(Hook.BODY_START, body)
+        val toasts = flashToasts(request)
+        if (toasts.isNotEmpty()) chrome.hook(Hook.BODY_END, toasts)
         return chrome.render()
+    }
+
+    /** Pull flashed Firefly toasts for this response (session flash key `firefly.notifications`). */
+    private fun flashToasts(request: Request): String {
+        val session = request.session() ?: return ""
+        return try {
+            FireflyNotification.pull(session)
+        } catch (_: FireflyException) {
+            ""
+        }
+    }
+
+    private fun flashNotice(request: Request, notice: (RequestSession) -> Unit) {
+        val session = request.session() ?: return
+        notice(session)
     }
 
     private fun drawAuth(request: Request, title: String, body: String): String {
@@ -521,6 +541,7 @@ open class Panel {
                 as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
             val found = store.find(key) ?: return@use Response.html("Record not found", 404)
             store.delete(found)
+            flashNotice(request, FireflyToasts::deleted)
             Response.redirect(uri(resourceListSlug(resource)))
         }
     }
@@ -571,6 +592,11 @@ open class Panel {
             }
             store.fill(record, attrs)
             store.save(record)
+            if (page is EditPage) {
+                flashNotice(request, FireflyToasts::saved)
+            } else {
+                flashNotice(request, FireflyToasts::created)
+            }
             Response.redirect(uri(resourceListSlug(resource)))
         }
     }

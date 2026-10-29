@@ -1057,6 +1057,32 @@ body.ff-body-root {
   filter: brightness(0.96);
 }
 
+
+/* Processing / loading state on mutate actions (#380) */
+.ff-panel .ff-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-top-color: currentColor;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  animation: ff-spin 0.7s linear infinite;
+}
+
+.ff-panel .ff-loading,
+.ff-panel [data-ff-loading="true"],
+.ff-panel button:disabled.ff-action-submit,
+.ff-panel button:disabled.ff-action-trigger {
+  opacity: 0.72;
+  cursor: wait;
+  pointer-events: none;
+}
+
+@keyframes ff-spin {
+  to { transform: rotate(360deg); }
+}
+
+
 .ff-panel .ff-action-outlined,
 .ff-panel .ff-action-cancel,
 .ff-panel a.ff-action-outlined,
@@ -3164,8 +3190,208 @@ body.ff-body-root {
   }
 }
 
+
+/* ——— Toast notifications (session flash) ——— */
+.ff-panel .ff-notifications {
+  position: fixed;
+  z-index: 1200;
+  top: calc(var(--ff-topbar-height, 3.5rem) + 0.75rem);
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: min(24rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.ff-panel .ff-notification {
+  pointer-events: auto;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 0.65rem 0.75rem;
+  padding: 0.85rem 0.85rem 0.95rem 0.75rem;
+  border-radius: calc(var(--ff-radius) + 0.15rem);
+  background: var(--ff-card, var(--ff-surface));
+  color: var(--ff-heading);
+  border: 1px solid var(--ff-card-border, color-mix(in srgb, var(--ff-heading) 12%, transparent));
+  box-shadow:
+    0 10px 30px color-mix(in srgb, #0f172a 14%, transparent),
+    0 1px 0 color-mix(in srgb, #fff 40%, transparent) inset;
+  overflow: hidden;
+  opacity: 0;
+  transform: translate3d(0.75rem, -0.35rem, 0) scale(0.98);
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ff-panel .ff-notification.ff-notification-show {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.ff-panel .ff-notification.ff-notification-leave {
+  opacity: 0;
+  transform: translate3d(0.5rem, -0.25rem, 0) scale(0.98);
+}
+
+.ff-panel .ff-notification-accent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.28rem;
+  background: var(--ff-toast-accent, var(--ff-primary));
+}
+
+.ff-panel .ff-notification[data-ff-status="success"],
+.ff-panel .ff-notification[data-ff-color="success"] {
+  --ff-toast-accent: #16a34a;
+  --ff-toast-icon-bg: color-mix(in srgb, #16a34a 16%, transparent);
+  --ff-toast-icon: #15803d;
+}
+
+.ff-panel .ff-notification[data-ff-status="info"],
+.ff-panel .ff-notification[data-ff-color="info"] {
+  --ff-toast-accent: #2563eb;
+  --ff-toast-icon-bg: color-mix(in srgb, #2563eb 16%, transparent);
+  --ff-toast-icon: #1d4ed8;
+}
+
+.ff-panel .ff-notification[data-ff-status="warning"],
+.ff-panel .ff-notification[data-ff-color="warning"] {
+  --ff-toast-accent: #d97706;
+  --ff-toast-icon-bg: color-mix(in srgb, #d97706 18%, transparent);
+  --ff-toast-icon: #b45309;
+}
+
+.ff-panel .ff-notification[data-ff-status="danger"],
+.ff-panel .ff-notification[data-ff-color="danger"] {
+  --ff-toast-accent: #dc2626;
+  --ff-toast-icon-bg: color-mix(in srgb, #dc2626 16%, transparent);
+  --ff-toast-icon: #b91c1c;
+}
+
+.ff-panel .ff-notification-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: var(--ff-toast-icon-bg, color-mix(in srgb, var(--ff-primary) 16%, transparent));
+  color: var(--ff-toast-icon, var(--ff-primary));
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-notification-icon svg.ff-icon {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.ff-panel .ff-notification-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-top: 0.1rem;
+}
+
+.ff-panel .ff-notification-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-notification-body {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ff-body-text, color-mix(in srgb, var(--ff-heading) 72%, transparent));
+}
+
+.ff-panel .ff-notification-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.ff-panel .ff-notification-dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -0.15rem -0.2rem 0 0;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: color-mix(in srgb, var(--ff-heading) 55%, transparent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-notification-dismiss:hover,
+.ff-panel .ff-notification-dismiss:focus-visible {
+  background: var(--ff-hover, color-mix(in srgb, var(--ff-heading) 8%, transparent));
+  color: var(--ff-heading);
+  outline: none;
+}
+
+.ff-panel .ff-notification-dismiss svg.ff-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.ff-panel .ff-notification-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0.18rem;
+  background: color-mix(in srgb, var(--ff-toast-accent, var(--ff-primary)) 18%, transparent);
+}
+
+.ff-panel .ff-notification-progress > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: var(--ff-toast-accent, var(--ff-primary));
+  animation-name: ff-toast-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes ff-toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.ff-dark .ff-panel .ff-notification,
+.ff-panel.ff-dark .ff-notification {
+  background: color-mix(in srgb, var(--ff-surface) 92%, #000);
+  box-shadow: 0 12px 32px color-mix(in srgb, #000 45%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ff-panel .ff-sidebar {
     transition: none;
+  }
+
+  .ff-panel .ff-spinner {
+    animation: none;
+    border-top-color: transparent;
+  }
+
+  .ff-panel .ff-notification {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .ff-panel .ff-notification-progress > span {
+    animation: none;
   }
 }

@@ -8,6 +8,8 @@ import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.schemas.htmlAttributes
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.support.Icon
+import org.konaframework.http.RequestSession
 import org.konaframework.notifications.DatabaseChannel
 import org.konaframework.notifications.Notifiable
 import org.konaframework.notifications.Notification
@@ -92,9 +94,9 @@ open class FireflyNotification private constructor(private val id: String) {
 
     fun danger(): FireflyNotification = status("danger")
 
-    fun send(session: Session): FireflyNotification = send(session, emptyMap())
+    fun send(session: RequestSession): FireflyNotification = send(session, emptyMap())
 
-    fun send(session: Session, state: Map<String, Any?>): FireflyNotification {
+    fun send(session: RequestSession, state: Map<String, Any?>): FireflyNotification {
         val payload = toMap(state)
         val existing = session.get(FLASH_KEY)
         val list = ArrayList<Map<String, Any?>>()
@@ -261,7 +263,7 @@ open class FireflyNotification private constructor(private val id: String) {
         }
 
         @JvmStatic
-        fun render(session: Session): String {
+        fun render(session: RequestSession): String {
             val existing = session.get(FLASH_KEY)
             if (existing == null) return ""
             if (existing !is List<*>) throw FireflyException("Session flash [$FLASH_KEY] is not a list")
@@ -269,11 +271,21 @@ open class FireflyNotification private constructor(private val id: String) {
             for (item in existing) {
                 if (item is Map<*, *>) out.append(toastFrom(item))
             }
-            return out.toString()
+            if (out.isEmpty()) return ""
+            return """<div class="ff-notifications" data-ff-notifications aria-live="polite">$out</div>"""
         }
 
         @JvmStatic
-        fun pull(session: Session): String = render(session).also { session.forget(FLASH_KEY) }
+        fun pull(session: RequestSession): String {
+            val html = render(session)
+            if (html.isEmpty()) return html
+            if (session is Session) {
+                session.forget(FLASH_KEY)
+            } else {
+                session.put(FLASH_KEY, null)
+            }
+            return html
+        }
 
         private fun text(item: Map<*, *>, key: String, fallback: String): String {
             val value = item[key]
@@ -314,11 +326,38 @@ open class FireflyNotification private constructor(private val id: String) {
             attributes: Map<String, String>,
             actions: String,
         ): String {
-            val iconHtml = if (icon.isEmpty()) "" else """<span class="ff-notification-icon">${escapeHtml(icon)}</span>"""
+            val iconHtml = """<span class="ff-notification-icon" aria-hidden="true">${iconMarkup(icon, status)}</span>"""
             val bodyHtml = if (body.isEmpty()) "" else """<p class="ff-notification-body">${escapeHtml(body)}</p>"""
             val actionHtml = if (actions.isEmpty()) "" else """<div class="ff-notification-actions">$actions</div>"""
-            return """<div class="ff-notification" data-ff-status="${escapeHtml(status)}" data-ff-color="${escapeHtml(color)}" data-ff-duration="$duration" role="status"${htmlAttributes(attributes)}>$iconHtml<p class="ff-notification-title">${escapeHtml(title)}</p>$bodyHtml$actionHtml</div>"""
+            val progress =
+                if (duration <= 0) {
+                    ""
+                } else {
+                    """<div class="ff-notification-progress" aria-hidden="true"><span style="animation-duration:${duration}s"></span></div>"""
+                }
+            return """<div class="ff-notification" data-ff-status="${escapeHtml(status)}" data-ff-color="${escapeHtml(color)}" data-ff-duration="$duration" role="status"${htmlAttributes(attributes)}><span class="ff-notification-accent" aria-hidden="true"></span>$iconHtml<div class="ff-notification-main"><p class="ff-notification-title">${escapeHtml(title)}</p>$bodyHtml$actionHtml</div><button type="button" class="ff-notification-dismiss" data-ff-notification-dismiss aria-label="Dismiss">${Icon.X.svg()}</button>$progress</div>"""
         }
+
+        private fun iconMarkup(icon: String, status: String): String {
+            if (icon.isNotEmpty()) {
+                val named = namedIcon(icon)
+                if (named != null) return named.svg()
+                return escapeHtml(icon)
+            }
+            return when (status) {
+                "success" -> Icon.CHECK.svg()
+                "danger" -> Icon.X.svg()
+                "warning" -> WARNING_SVG
+                else -> INFO_SVG
+            }
+        }
+
+        private fun namedIcon(name: String): Icon? =
+            try {
+                Icon.fromName(name)
+            } catch (_: FireflyException) {
+                null
+            }
 
         private fun copyMap(item: Map<*, *>): Map<String, Any?> {
             val copy = linkedMapOf<String, Any?>()
@@ -330,5 +369,11 @@ open class FireflyNotification private constructor(private val id: String) {
             if (value.isBlank()) throw FireflyException("Notification title is blank")
             return value
         }
+
+        private const val INFO_SVG: String =
+            "<svg class=\"ff-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M11.25 11.25h.008v.008H11.25zm.75 3.75v-3.75m0-3.75h.008v.008H12z\"/><circle cx=\"12\" cy=\"12\" r=\"9\"/></svg>"
+
+        private const val WARNING_SVG: String =
+            "<svg class=\"ff-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v3.75m0 3.75h.008v.008H12z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z\"/></svg>"
     }
 }

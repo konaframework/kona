@@ -615,12 +615,26 @@ class FireflyResourceTest {
                 Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=99999"),
             ).status,
         )
+        val deleteSession = FakeFireflySession()
         val deleted = deleteMatch.route.action.handle(
-            Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=$id"),
+            Request("POST", "/admin/orders/delete", emptyMap(), emptyMap(), "id=$id").also {
+                it.setAttribute(Request.SESSION_ATTRIBUTE, deleteSession)
+            },
         )
         assertEquals(302, deleted.status)
         assertEquals("/admin/orders/list", deleted.headers["Location"])
+        assertToastFlashed(deleteSession, "Deleted")
         assertEquals(0L, Shelf().newQuery().where("name", "LoadedShelf").count())
+        // Flashed toast is pulled into the next panel HTML.
+        val listMatch = router.find("GET", "/admin/orders/list")!!
+        val listHtml = listMatch.route.action.handle(
+            Request("GET", "/admin/orders/list", emptyMap(), emptyMap(), "").also {
+                it.setAttribute(Request.SESSION_ATTRIBUTE, deleteSession)
+            },
+        ).body
+        assertTrue(listHtml.contains("ff-notifications"), listHtml)
+        assertTrue(listHtml.contains("Deleted"), listHtml)
+        assertTrue(listHtml.contains("data-ff-status=\"success\""), listHtml)
 
         // Missing Cadence row leaves the form empty (find → null); blank record id is ignored.
         val missing = send(router, "/admin/orders/edit?id=99999")
@@ -673,18 +687,26 @@ class FireflyResourceTest {
         val router = Router()
         Panel().path("admin").authenticate(false).resource(notes()).mount(router)
         val create = router.find("POST", "/admin/notes/create")!!
+        val createSession = FakeFireflySession()
         val created = create.route.action.handle(
-            Request("POST", "/admin/notes/create", emptyMap(), emptyMap(), "name=SimpleCreated"),
+            Request("POST", "/admin/notes/create", emptyMap(), emptyMap(), "name=SimpleCreated").also {
+                it.setAttribute(Request.SESSION_ATTRIBUTE, createSession)
+            },
         )
         assertEquals(302, created.status)
         assertEquals("/admin/notes/manage", created.headers["Location"])
+        assertToastFlashed(createSession, "Created")
         val id = Shelf().newQuery().where("name", "SimpleCreated").value("id")!!.toString()
         val edit = router.find("POST", "/admin/notes/edit")!!
+        val editSession = FakeFireflySession()
         val updated = edit.route.action.handle(
-            Request("POST", "/admin/notes/edit", emptyMap(), emptyMap(), "id=$id&name=SimpleUpdated"),
+            Request("POST", "/admin/notes/edit", emptyMap(), emptyMap(), "id=$id&name=SimpleUpdated").also {
+                it.setAttribute(Request.SESSION_ATTRIBUTE, editSession)
+            },
         )
         assertEquals(302, updated.status)
         assertEquals("/admin/notes/manage", updated.headers["Location"])
+        assertToastFlashed(editSession, "Saved")
         assertEquals(1L, Shelf().newQuery().where("name", "SimpleUpdated").count())
         // Legacy dotted action paths still map onto columns.
         val dotted = create.route.action.handle(
@@ -952,6 +974,15 @@ class FireflyResourceTest {
         val response: Response = match.route.action.handle(Request("GET", uri, emptyMap(), params, ""))
         assertEquals(200, response.status)
         return response.body
+    }
+
+    private fun assertToastFlashed(session: FakeFireflySession, title: String) {
+        val flash = session.get(org.konaframework.firefly.notifications.FireflyNotification.FLASH_KEY)
+        assertTrue(flash is List<*>, "expected toast flash list, got $flash")
+        val titles = (flash as List<*>).mapNotNull { item ->
+            (item as? Map<*, *>)?.get("title")?.toString()
+        }
+        assertTrue(titles.contains(title), "expected title [$title] in $titles")
     }
 }
 

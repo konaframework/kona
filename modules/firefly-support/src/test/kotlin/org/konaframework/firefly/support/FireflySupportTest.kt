@@ -457,6 +457,14 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-record-action"))
         assertTrue(html.contains("recordTrigger"))
         assertTrue(html.contains("ff-open"))
+        // Processing buttons + toast arming (#380).
+        assertTrue(html.contains("markLoading"))
+        assertTrue(html.contains("ff-spinner"))
+        assertTrue(html.contains("data-ff-loading"))
+        assertTrue(html.contains("armNotifications"))
+        assertTrue(html.contains("data-ff-notification-dismiss"))
+        assertTrue(html.contains(".ff-notification"))
+        assertTrue(html.contains("@keyframes ff-spin") || html.contains("ff-spin"))
         // Form toggles flip without Alpine/Wire.
         assertTrue(html.contains("data-ff-toggle"))
         assertTrue(html.contains("data-ff-toggle-value"))

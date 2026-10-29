@@ -11,10 +11,12 @@ import org.konaframework.notifications.DatabaseChannel
 import org.konaframework.notifications.Notifiable
 import org.konaframework.notifications.Notification
 import org.konaframework.notifications.NotificationSender
+import org.konaframework.http.RequestSession
 import org.konaframework.session.ArraySessionStore
 import org.konaframework.session.StoreSession
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 
 class FireflyNotificationsTest {
@@ -38,9 +40,13 @@ class FireflyNotificationsTest {
         first.send(session)
         val second = FireflyNotification.make("two").title("Next").info().send(session)
         val html = FireflyNotification.render(session)
+        assertTrue(html.contains("ff-notifications"))
+        assertTrue(html.contains("data-ff-notifications"))
         assertTrue(html.contains("Saved &amp; &quot;ok&quot;"))
         assertTrue(html.contains("Line &lt;1&gt;"))
         assertTrue(html.contains("ff-notification-icon"))
+        assertTrue(html.contains("ff-notification-dismiss"))
+        assertTrue(html.contains("ff-notification-progress"))
         assertTrue(html.contains("data-ff-status=\"success\""))
         assertTrue(html.contains("data-ff-duration=\"4\""))
         assertTrue(html.contains("data-kind=\"toast\""))
@@ -55,13 +61,49 @@ class FireflyNotificationsTest {
     }
 
     @Test
+    fun savedCreatedDeletedHelpers() {
+        val session = session()
+        FireflyToasts.saved(session)
+        FireflyToasts.created(session)
+        FireflyToasts.deleted(session)
+        val html = FireflyNotification.pull(session)
+        assertTrue(html.contains("Saved"))
+        assertTrue(html.contains("Created"))
+        assertTrue(html.contains("Deleted"))
+        assertTrue(html.contains("data-ff-status=\"success\""))
+    }
+
+    @Test
+    fun pullClearsPlainRequestSession() {
+        val bag = LinkedHashMap<String, Any?>()
+        val session = object : RequestSession {
+            override fun get(key: String): Any? = bag[key]
+            override fun put(key: String, value: Any?): RequestSession {
+                bag[key] = value
+                return this
+            }
+            override fun flash(key: String, value: Any?): RequestSession = put(key, value)
+            override fun flashInput(input: Map<String, String>): RequestSession = this
+            override fun old(key: String, default: String?): String? = default
+            override fun oldInput(): Map<String, String> = emptyMap()
+            override fun previousUrl(): String? = null
+            override fun setPreviousUrl(url: String): RequestSession = this
+        }
+        assertEquals("", FireflyNotification.pull(session))
+        FireflyNotification.make("n").title("Hi").success().send(session)
+        assertTrue(FireflyNotification.pull(session).contains("Hi"))
+        assertNull(session.get(FireflyNotification.FLASH_KEY))
+    }
+
+    @Test
     fun closuresStatusColorsAndDefaults() {
         val plain = FireflyNotification.make("plain").title("Hello")
         val plainHtml = plain.render()
         assertTrue(plainHtml.contains("data-ff-color=\"info\""))
         assertTrue(plainHtml.contains("data-ff-duration=\"6\""))
         assertFalse(plainHtml.contains("ff-notification-body"))
-        assertFalse(plainHtml.contains("ff-notification-icon"))
+        assertTrue(plainHtml.contains("ff-notification-icon"))
+        assertTrue(plainHtml.contains("ff-notification-accent"))
         assertFalse(plain.toMap().containsKey("body"))
         assertFalse(plain.toMap().containsKey("icon"))
         assertFalse(plain.toMap().containsKey("attributes"))
@@ -82,6 +124,7 @@ class FireflyNotificationsTest {
         assertTrue(html.contains("data-ff-status=\"warning\""))
         assertTrue(html.contains("data-ff-duration=\"3\""))
         assertTrue(html.contains("data-role=\"admin\""))
+        assertTrue(html.contains("bell"))
         assertTrue(colored.toMap(mapOf("name" to "Ada")).containsKey("body"))
 
         val danger = FireflyNotification.make("danger").title("Stop").body("").icon("x").danger()
@@ -89,6 +132,24 @@ class FireflyNotificationsTest {
         assertTrue(danger.render().contains("data-ff-color=\"danger\""))
         assertFalse(danger.toMap().containsKey("body"))
         assertTrue(danger.toMap().containsKey("icon"))
+        assertTrue(danger.render().contains("ff-icon"))
+
+        val dangerDefault = FireflyNotification.make("danger-default").title("Boom").danger().render()
+        assertTrue(dangerDefault.contains("ff-notification-icon"))
+        assertTrue(dangerDefault.contains("data-ff-status=\"danger\""))
+
+        val warningDefault = FireflyNotification.make("warn-default").title("Careful").warning().render()
+        assertTrue(warningDefault.contains("ff-notification-icon"))
+        assertTrue(warningDefault.contains("data-ff-status=\"warning\""))
+
+        val successDefault = FireflyNotification.make("ok-default").title("Nice").success().render()
+        assertTrue(successDefault.contains("ff-icon"))
+
+        val named = FireflyNotification.make("named").title("Ok").icon("check").success().render()
+        assertTrue(named.contains("ff-icon"))
+
+        val zero = FireflyNotification.make("zero").title("Stay").duration(0).success().render()
+        assertFalse(zero.contains("ff-notification-progress"))
     }
 
     @Test
@@ -121,6 +182,9 @@ class FireflyNotificationsTest {
         val html = FireflyNotification.render(session)
         assertTrue(html.contains("Kept"))
         assertTrue(html.contains("Added"))
+        session.forget(FireflyNotification.FLASH_KEY)
+        session.put(FireflyNotification.FLASH_KEY, listOf("skip-only", 1, true))
+        assertEquals("", FireflyNotification.render(session))
     }
 
     @Test
