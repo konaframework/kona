@@ -3679,6 +3679,7 @@ body.ff-body-root {
 .ff-panel.ff-dark .ff-notification {
   background: color-mix(in srgb, var(--ff-surface) 92%, #000);
   box-shadow: 0 12px 32px color-mix(in srgb, #000 45%, transparent);
+}
 
 /* ——— Table bulk selection + bulk actions ——— */
 .ff-panel .ff-table th.ff-table-select,
