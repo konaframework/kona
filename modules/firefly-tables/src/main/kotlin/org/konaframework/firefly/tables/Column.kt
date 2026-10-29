@@ -511,14 +511,22 @@ open class IconColumn private constructor(name: String) : Column(name) {
     private var trueIcon = "check"
     /** Soft false mark (X), paired with [trueIcon]. */
     private var falseIcon = "x"
+    /** Visible pill text for true (Shamar default Yes). Empty → icon-only circle. */
+    private var trueLabelText = "Yes"
+    /** Visible pill text for false (Shamar default No). Empty → icon-only circle. */
+    private var falseLabelText = "No"
     private var booleanMode = false
 
     fun trueIcon(name: String): IconColumn = apply { trueIcon = name }
 
     fun falseIcon(name: String): IconColumn = apply { falseIcon = name }
 
+    fun trueLabel(label: String): IconColumn = apply { trueLabelText = label }
+
+    fun falseLabel(label: String): IconColumn = apply { falseLabelText = label }
+
     /**
-     * Treats the cell as a boolean (Shamar check / cross chips). Truthy for [Boolean], numbers,
+     * Treats the cell as a boolean (Shamar Yes/No toggle pills). Truthy for [Boolean], numbers,
      * and `"1"` / `"true"` / `"yes"`. Kotlin: [boolean]; Java: [bool] (`boolean` is a keyword).
      */
     fun boolean(): IconColumn = apply { booleanMode = true }
@@ -547,9 +555,20 @@ open class IconColumn private constructor(name: String) : Column(name) {
             booleanMode -> {
                 val on = truthy(state)
                 val cls = if (on) "is-true" else "is-false"
-                val word = if (on) "true" else "false"
+                val label = if (on) trueLabelText else falseLabelText
+                val iconOnly = label.isBlank()
+                val onlyClass = if (iconOnly) " ff-boolean--icon-only" else ""
                 val custom = if (icon == "check" || icon == "x") "" else " ff-boolean--custom"
-                """<span class="ff-boolean$custom ff-boolean--icon-only $cls"><span class="ff-boolean__mark" aria-hidden="true">${Icon.fromName(icon).svg()}</span><span class="ff-sr">$word</span></span>"""
+                val mark =
+                    """<span class="ff-boolean__mark" aria-hidden="true">${Icon.fromName(icon).svg()}</span>"""
+                val labelHtml =
+                    if (iconOnly) {
+                        val word = if (on) "true" else "false"
+                        """<span class="ff-sr">$word</span>"""
+                    } else {
+                        """<span class="ff-boolean__label">${escapeHtml(label)}</span>"""
+                    }
+                """<span class="ff-boolean$custom$onlyClass $cls">$mark$labelHtml</span>"""
             }
             else -> Icon.fromName(icon).svg()
         }

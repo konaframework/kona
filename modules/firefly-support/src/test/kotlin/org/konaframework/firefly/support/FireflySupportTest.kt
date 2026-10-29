@@ -268,6 +268,8 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-boolean.is-false"))
         assertTrue(css.contains(".ff-panel .ff-boolean--icon-only"))
         assertTrue(css.contains(".ff-panel .ff-boolean__mark"))
+        assertTrue(css.contains(".ff-panel .ff-boolean__label"))
+        assertTrue(css.contains(".ff-panel .ff-sr"))
         assertTrue(css.contains(".ff-panel .ff-icons"))
         assertTrue(css.contains(".ff-panel .ff-component.ff-icon-entry"))
         assertTrue(css.contains("background: #ecfdf5"))

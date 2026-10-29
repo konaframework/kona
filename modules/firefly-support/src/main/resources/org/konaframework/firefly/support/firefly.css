@@ -437,17 +437,17 @@ body.ff-body-root {
   height: 1.15rem;
 }
 
-/* Shamar .shamar-boolean chip (IconColumn.boolean / IconEntry.boolean) */
+/* Shamar .shamar-boolean toggle pill (IconColumn.boolean / IconEntry.boolean) */
 .ff-panel .ff-boolean {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.4rem;
   width: fit-content;
   max-width: 100%;
   flex: 0 0 auto;
   border-radius: 9999px;
-  padding: 0.2rem 0.65rem 0.2rem 0.3rem;
+  padding: 0.2rem 0.7rem 0.2rem 0.3rem;
   font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.2;
@@ -460,9 +460,11 @@ body.ff-body-root {
   padding-left: 0.35rem;
 }
 
+/* Empty trueLabel/falseLabel → circular mark-only chip */
 .ff-panel .ff-boolean--icon-only {
   padding: 0.3rem;
   aspect-ratio: 1 / 1;
+  justify-content: center;
 }
 
 .ff-panel .ff-boolean__mark {
@@ -480,6 +482,22 @@ body.ff-body-root {
   width: 14px;
   height: 14px;
   stroke-width: 2.25;
+}
+
+.ff-panel .ff-boolean__label {
+  white-space: nowrap;
+}
+
+.ff-panel .ff-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .ff-panel .ff-boolean.is-true {
