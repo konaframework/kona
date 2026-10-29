@@ -1246,13 +1246,14 @@ body.ff-body-root {
 .ff-panel .ff-combobox-field {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
   width: 100%;
   cursor: pointer;
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: var(--ff-radius);
-  padding: 0 0.75rem;
+  padding: 0.25rem 0.65rem 0.25rem 0.75rem;
   min-height: 2.5rem;
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
@@ -1263,15 +1264,71 @@ body.ff-body-root {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-primary) 28%, transparent);
 }
 
+.ff-panel .ff-combobox-chips {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.ff-panel .ff-combobox-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+  padding: 0.15rem 0.2rem 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ff-primary) 18%, transparent);
+  color: var(--ff-primary);
+  font-size: 0.75rem;
+  font-weight: 550;
+  line-height: 1.25;
+}
+
+.ff-panel .ff-combobox-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ff-panel .ff-combobox-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ff-panel .ff-combobox-chip-remove:hover {
+  background: color-mix(in srgb, var(--ff-primary) 18%, transparent);
+}
+
 .ff-panel .ff-combobox-display {
   flex: 1;
   min-width: 0;
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  padding: 0.55rem 0 !important;
+  padding: 0.45rem 0 !important;
   min-height: 0 !important;
   cursor: inherit;
+  /* --ff-body is a surface token; option/display text must use heading/body-text. */
+  color: var(--ff-heading) !important;
+}
+
+.ff-panel .ff-combobox-display--multi {
+  flex: 1 1 6rem;
+  min-width: 4rem;
 }
 
 .ff-panel .ff-combobox-caret {
@@ -1320,20 +1377,49 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-option {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
   padding: 0.45rem 0.65rem;
   border-radius: calc(var(--ff-radius) - 2px);
   cursor: pointer;
-  color: var(--ff-body);
+  color: var(--ff-heading);
+  font-size: 0.875rem;
+  text-align: left;
+  background: transparent;
 }
 
 .ff-panel .ff-option:hover {
-  background: color-mix(in srgb, var(--ff-primary) 14%, transparent);
+  background: var(--ff-hover);
 }
 
 .ff-panel .ff-option.ff-selected {
-  background: color-mix(in srgb, var(--ff-primary) 22%, transparent);
-  font-weight: 600;
+  color: var(--ff-primary);
+  font-weight: 550;
+  background: color-mix(in srgb, var(--ff-primary) 14%, transparent);
+}
+
+.ff-panel .ff-option-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.ff-panel .ff-option-check {
+  display: none;
+  flex-shrink: 0;
+  color: var(--ff-primary);
+  line-height: 0;
+}
+
+.ff-panel .ff-option.ff-selected .ff-option-check {
+  display: inline-flex;
+}
+
+.ff-panel .ff-option-check .ff-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .ff-panel .ff-option[data-ff-enabled="false"] {
@@ -1351,7 +1437,7 @@ body.ff-body-root {
 .ff-panel .ff-combobox-empty {
   padding: 0.65rem;
   color: var(--ff-body-subtle);
-  font-size: 0.9em;
+  font-size: 0.8125rem;
   text-align: center;
 }
 

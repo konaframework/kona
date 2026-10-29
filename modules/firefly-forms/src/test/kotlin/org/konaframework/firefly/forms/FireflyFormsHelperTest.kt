@@ -138,6 +138,15 @@ class FireflyFormsHelperTest {
         val limitedOptions = limited.resolvedOptions(Schema.make().components(limited).record(shelf))
         assertEquals(1, limitedOptions.size)
         assertFalse(limitedOptions.first().enabled)
+        // Preload off → no default cap on relationship options (#349).
+        val uncapped = Select.make("authorId").relationship("author", "name").preload(false)
+        assertTrue(uncapped.resolvedOptions(Schema.make().components(uncapped).record(shelf)).size >= 2)
+        // Explicit limit larger than the related set leaves every row.
+        val wide = Select.make("authorId").relationship("author", "name").optionsLimit(50)
+        assertEquals(
+            uncapped.resolvedOptions(Schema.make().components(uncapped).record(shelf)).size,
+            wide.resolvedOptions(Schema.make().components(wide).record(shelf)).size,
+        )
         val named = Select.make("authorId").relationship({ "author" }, { "name" }) { query ->
             (query as OptionQuery).where("name", "Grace")
         }
