@@ -27,7 +27,8 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
     internal val alignmentValue = TextSetting()
     internal val openNewTab = BoolSetting(false)
     internal val copyableFlag = BoolSetting(false)
-    internal val wrapFlag = BoolSetting(false)
+    /** Default on so long values wrap inside modals/containers (#368). */
+    internal val wrapFlag = BoolSetting(true)
     internal val inlineFlag = BoolSetting(false)
     internal val copyDuration = IntSetting()
     internal val stateValue = AnySetting()
@@ -211,7 +212,8 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
     }
 
     internal fun entryAttrs(get: Get): String {
-        val align = alignmentValue.get(get)
+        // Default justify so long prose fills the column evenly (#368).
+        val align = alignmentValue.get(get) ?: "justify"
         val duration = copyDuration.get(get)
         return attr("data-ff-color", colorValue.get(get)) +
             attr("data-ff-align", align) +
@@ -220,7 +222,7 @@ open class Entry<T : Entry<T>> protected constructor(name: String) : EntryHost<T
             attr("data-ff-copy-message", copyMessageValue.get(get)) +
             attr("data-ff-copy-state", copyStateValue.get(get)) +
             attr("data-ff-copy-duration", if (duration == null) null else duration.toString()) +
-            flag("data-ff-wrap", wrapFlag.get(get)) +
+            attr("data-ff-wrap", if (wrapFlag.get(get)) "true" else "false") +
             flag("data-ff-inline-label", inlineFlag.get(get))
     }
 
