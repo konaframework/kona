@@ -264,6 +264,7 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
     companion object {
         @JvmStatic
         fun make(name: String): TextEntry {
+            requireRelationDepth(name)
             val entry = TextEntry(name)
             finish(entry)
             return entry

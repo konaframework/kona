@@ -398,13 +398,26 @@ class FireflyInfolistsTest {
     @Test
     fun iconImageColorKeyAndCode() {
         val yes = IconEntry.make("ok").boolean().state(true)
-        assertTrue(html(yes).contains("success"))
-        assertTrue(html(yes).contains("ff-sr\">true"))
+        val yesHtml = html(yes)
+        assertTrue(yesHtml.contains("success"))
+        assertTrue(yesHtml.contains("ff-boolean"))
+        assertTrue(yesHtml.contains("ff-boolean--icon-only"))
+        assertTrue(yesHtml.contains("ff-boolean__mark"))
+        assertTrue(yesHtml.contains("is-true"))
+        assertTrue(yesHtml.contains("M4.5 12.75l6 6 9-13.5"))
+        assertTrue(yesHtml.contains("stroke-width=\"2.25\""))
+        assertTrue(yesHtml.contains("ff-sr\">true"))
+        assertFalse(yesHtml.contains("ff-boolean--custom"))
         val no = IconEntry.make("ok").bool(true).state(false)
-        assertTrue(html(no).contains("danger"))
-        assertTrue(html(no).contains("ff-sr\">false"))
+        val noHtml = html(no)
+        assertTrue(noHtml.contains("gray"))
+        assertTrue(noHtml.contains("is-false"))
+        assertTrue(noHtml.contains("M6 18L18 6M6 6l12 12"))
+        assertTrue(noHtml.contains("ff-sr\">false"))
+        assertFalse(noHtml.contains("danger"))
         val named = IconEntry.make("ok").whenTrue("user", "success").whenFalse("x", "danger").trueIcon("user").falseIcon("x").trueColor("success").falseColor("danger").state(true)
         assertTrue(html(named).contains("<svg"))
+        assertTrue(html(named).contains("ff-boolean--custom"))
         val hiddenTrue = IconEntry.make("ok").hideTrueIcon().state(true)
         assertFalse(html(hiddenTrue).contains("<svg"))
         val hiddenFalse = IconEntry.make("ok").hideFalseIcon().state(false)
@@ -667,6 +680,24 @@ class FireflyInfolistsTest {
         assertNull(digName("root", "a"))
         assertNull(digName(mapOf("a" to "b"), "missing"))
         assertEquals("Jane", digName(mapOf("author" to mapOf("name" to "Jane")), "author.name"))
+        assertEquals(
+            "Nord",
+            digName(
+                mapOf("a" to mapOf("b" to mapOf("c" to mapOf("d" to "Nord")))),
+                "a.b.c.d",
+            ),
+        )
+        assertNull(digName(mapOf("a" to mapOf("b" to 1)), "a.b.c.d.e"))
+        assertNull(digName(mapOf("a" to "x"), "a."))
+        assertThrows(FireflyException::class.java) { TextEntry.make("a.b.c.d.e") }
+        assertThrows(FireflyException::class.java) { TextEntry.make("project.") }
+        val dotted = TextEntry.make("project.name").label("Project")
+        assertTrue(
+            Schema.make().components(dotted)
+                .fill(mapOf("project" to mapOf("name" to "Desk")))
+                .render()
+                .contains("Desk"),
+        )
         val item = mapOf("a" to mapOf("b" to 1), "s" to "text")
         assertEquals(MISS, itemLookup(item, ""))
         assertEquals(MISS, itemLookup(item, "."))

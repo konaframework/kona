@@ -104,7 +104,22 @@ class DefaultLayout(
                 "function apply(p){var d=p==='dark'||(p!=='light'&&media.matches);" +
                 "document.documentElement.classList.toggle('ff-dark',d);" +
                 "root.querySelectorAll('[data-ff-theme-toggle]').forEach(function(b){b.setAttribute('data-ff-theme',p);});}" +
-                "function closeMenus(){root.querySelectorAll('[data-ff-menu].ff-open').forEach(function(m){m.classList.remove('ff-open');});}" +
+                "function clearMenuPanel(panel){if(!panel)return;" +
+                "panel.style.position='';panel.style.top='';panel.style.left='';panel.style.right='';" +
+                "panel.style.width='';panel.style.minWidth='';panel.style.maxWidth='';panel.style.zIndex='';" +
+                "panel.style.display='';panel.style.visibility='';}" +
+                "function closeMenus(){root.querySelectorAll('[data-ff-menu].ff-open').forEach(function(m){" +
+                "m.classList.remove('ff-open');clearMenuPanel(m.querySelector('[data-ff-menu-panel]'));});}" +
+                "function positionRowMenu(menu){if(!menu||!menu.classList.contains('ff-row-action-menu'))return;" +
+                "var panel=menu.querySelector('[data-ff-menu-panel]');var trigger=menu.querySelector('[data-ff-menu-trigger]');" +
+                "if(!panel||!trigger)return;var rect=trigger.getBoundingClientRect();var pad=8;var gap=4;" +
+                "panel.style.position='fixed';panel.style.right='auto';panel.style.zIndex='1100';" +
+                "panel.style.minWidth='10rem';" +
+                "var width=Math.max(panel.offsetWidth||160,160);var height=panel.offsetHeight||0;" +
+                "var top=rect.bottom+gap;if(top+height>window.innerHeight-pad){var above=rect.top-height-gap;if(above>=pad)top=above;}" +
+                "var left=rect.right-width;left=Math.min(Math.max(pad,left),Math.max(pad,window.innerWidth-width-pad));" +
+                "panel.style.top=Math.round(top)+'px';panel.style.left=Math.round(left)+'px';" +
+                "panel.style.width=Math.round(width)+'px';}" +
                 "function resetDialogForms(panel){if(!panel)return;" +
                 "panel.querySelectorAll('form').forEach(function(f){try{f.reset();}catch(e){}});" +
                 "panel.querySelectorAll('[data-ff-toggle]').forEach(function(btn){" +
@@ -136,30 +151,48 @@ class DefaultLayout(
                 "if(except&&c===except)return;c.classList.remove('ff-combobox-open');" +
                 "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel)panel.setAttribute('hidden','');" +
                 "var display=c.querySelector('[data-ff-combobox-display]');if(display){display.setAttribute('aria-expanded','false');" +
-                "if(c.getAttribute('data-ff-searchable')==='true')display.value=comboboxDisplay(c);}});}" +
+                "if(c.getAttribute('data-ff-searchable')==='true'){" +
+                "display.value=c.getAttribute('data-ff-multiple')==='true'?'':comboboxDisplay(c);}}});}" +
                 "function openCombobox(c){if(!c)return;closePickers();closeComboboxes(c);c.classList.add('ff-combobox-open');" +
                 "var panel=c.querySelector('[data-ff-combobox-panel]');if(panel)panel.removeAttribute('hidden');" +
                 "var display=c.querySelector('[data-ff-combobox-display]');if(display){display.setAttribute('aria-expanded','true');" +
                 "if(c.getAttribute('data-ff-searchable')==='true'){display.value='';display.focus();filterCombobox(c,'');}}}" +
                 "function comboboxValues(c){var raw=c.getAttribute('data-ff-state')||'';if(!raw)return[];return raw.split(',').map(function(x){return x.trim();}).filter(Boolean);}" +
-                "function comboboxDisplay(c){var vals=comboboxValues(c);if(!vals.length)return'';var labels=[];" +
-                "c.querySelectorAll('.ff-option').forEach(function(li){if(vals.indexOf(li.getAttribute('data-ff-value')||'')>=0)" +
-                "labels.push(li.getAttribute('data-ff-label')||li.textContent||'');});" +
-                "return labels.length?labels.join(', '):vals.join(', ');}" +
+                "function comboboxLabelFor(c,value){var opt=c.querySelector('.ff-option[data-ff-value=\"'+cssEscape(value)+'\"]');" +
+                "if(opt)return opt.getAttribute('data-ff-label')||'';" +
+                "var chip=c.querySelector('.ff-combobox-chip[data-ff-value=\"'+cssEscape(value)+'\"]');" +
+                "return chip?(chip.getAttribute('data-ff-label')||chip.textContent||value):value;}" +
+                "function comboboxDisplay(c){var vals=comboboxValues(c);if(!vals.length)return'';" +
+                "return vals.map(function(v){return comboboxLabelFor(c,v);}).join(', ');}" +
+                "function renderComboboxChips(c){var wrap=c.querySelector('[data-ff-combobox-chips]');if(!wrap)return;" +
+                "var vals=comboboxValues(c);wrap.innerHTML=vals.map(function(v){var label=comboboxLabelFor(c,v);" +
+                "return '<span class=\"ff-combobox-chip\" data-ff-value=\"'+escAttr(v)+'\" data-ff-label=\"'+escAttr(label)+'\">'+" +
+                "'<span class=\"ff-combobox-chip-label\">'+escHtml(label)+'</span>'+" +
+                "'<button type=\"button\" class=\"ff-combobox-chip-remove\" data-ff-combobox-remove aria-label=\"Remove '+escAttr(label)+'\">&times;</button></span>';}).join('');}" +
+                "function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;');}" +
+                "function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}" +
+                "function cssEscape(s){try{return CSS.escape(s);}catch(e){return String(s).replace(/\\\\/g,'\\\\\\\\').replace(/\"/g,'\\\\\"');}}" +
                 "function syncCombobox(c){var hidden=c.querySelector('[data-ff-combobox-value]');" +
                 "var vals=comboboxValues(c);if(hidden)hidden.value=vals.join(',');" +
-                "var display=c.querySelector('[data-ff-combobox-display]');if(display&&!c.classList.contains('ff-combobox-open'))display.value=comboboxDisplay(c);" +
-                "c.querySelectorAll('.ff-option').forEach(function(li){var on=vals.indexOf(li.getAttribute('data-ff-value')||'')>=0;li.classList.toggle('ff-selected',on);});}" +
+                "var multi=c.getAttribute('data-ff-multiple')==='true';" +
+                "var display=c.querySelector('[data-ff-combobox-display]');" +
+                "if(display&&!c.classList.contains('ff-combobox-open'))display.value=multi?'':comboboxDisplay(c);" +
+                "if(multi)renderComboboxChips(c);" +
+                "c.querySelectorAll('.ff-option').forEach(function(li){var on=vals.indexOf(li.getAttribute('data-ff-value')||'')>=0;" +
+                "li.classList.toggle('ff-selected',on);li.setAttribute('aria-selected',on?'true':'false');});}" +
                 "function setComboboxValue(c,value,label){var multi=c.getAttribute('data-ff-multiple')==='true';var vals=comboboxValues(c);" +
                 "if(multi){var i=vals.indexOf(value);if(i>=0)vals.splice(i,1);else{var max=+(c.getAttribute('data-ff-max-items')||'0');" +
-                "if(max>0&&vals.length>=max)return;vals.push(value);}}" +
+                "if(max>0&&vals.length>=max)return;vals.push(value);if(label){var opt=c.querySelector('.ff-option[data-ff-value=\"'+cssEscape(value)+'\"]');" +
+                "if(opt)opt.setAttribute('data-ff-label',label);}}}" +
                 "else{vals=value?[value]:[];}" +
                 "c.setAttribute('data-ff-state',vals.join(','));syncCombobox(c);if(!multi)closeComboboxes();}" +
                 "function filterCombobox(c,query){var needle=(query||'').toLowerCase();var any=false;" +
-                "c.querySelectorAll('.ff-option').forEach(function(li){var label=(li.getAttribute('data-ff-label')||li.textContent||'').toLowerCase();" +
+                "c.querySelectorAll('.ff-option').forEach(function(li){var label=(li.getAttribute('data-ff-label')||'').toLowerCase();" +
                 "var value=(li.getAttribute('data-ff-value')||'').toLowerCase();" +
                 "var show=!needle||label.indexOf(needle)>=0||value.indexOf(needle)>=0;li.style.display=show?'':'none';if(show)any=true;});" +
-                "var empty=c.querySelector('[data-ff-combobox-empty]');if(empty){if(any)empty.setAttribute('hidden','');else empty.removeAttribute('hidden');}}" +
+                "var empty=c.querySelector('[data-ff-combobox-empty]');if(empty){if(any)empty.setAttribute('hidden','');else empty.removeAttribute('hidden');}" +
+                "var list=c.querySelector('[data-ff-combobox-options]');if(list)list.style.display=any?'':'none';}" +
+
                 "function pad2(n){return(n<10?'0':'')+n;}" +
                 "function parseYmd(s){if(!s)return null;var m=/^(\\d{4})-(\\d{2})-(\\d{2})/.exec(s);if(!m)return null;" +
                 "return{y:+m[1],m:+m[2],d:+m[3]};}" +
@@ -268,9 +301,12 @@ class DefaultLayout(
                 "if(icon&&ic)icon.setAttribute('data-ff-icon',ic);return;}" +
                 "var combo=t.closest('[data-ff-combobox]');" +
                 "if(combo){" +
+                "var rm=t.closest('[data-ff-combobox-remove]');" +
+                "if(rm){var chip=rm.closest('.ff-combobox-chip');" +
+                "if(chip){setComboboxValue(combo,chip.getAttribute('data-ff-value')||'',chip.getAttribute('data-ff-label')||'');}return;}" +
                 "var opt=t.closest('.ff-option');" +
                 "if(opt&&opt.getAttribute('data-ff-enabled')!=='false'){" +
-                "setComboboxValue(combo,opt.getAttribute('data-ff-value')||'',opt.getAttribute('data-ff-label')||opt.textContent||'');return;}" +
+                "setComboboxValue(combo,opt.getAttribute('data-ff-value')||'',opt.getAttribute('data-ff-label')||'');return;}" +
                 "if(t.closest('[data-ff-combobox-open]')&&!t.closest('[data-ff-combobox-panel]')){" +
                 "if(combo.classList.contains('ff-combobox-open')){closeComboboxes();}else{openCombobox(combo);}return;}" +
                 "return;}" +
@@ -322,7 +358,7 @@ class DefaultLayout(
                 "if(t.closest('[data-ff-dialog-panel]'))return;" +
                 "var tr=t.closest('[data-ff-menu-trigger]');" +
                 "if(tr){var menu=tr.closest('[data-ff-menu]');var was=menu.classList.contains('ff-open');" +
-                "closeMenus();if(!was)menu.classList.add('ff-open');return;}" +
+                "closeMenus();if(!was){menu.classList.add('ff-open');positionRowMenu(menu);}return;}" +
                 "if(t.closest('[data-ff-menu-panel]'))return;" +
                 "if(t.closest('[data-ff-sidebar-toggle]')){root.classList.add('ff-sidebar-open');return;}" +
                 "if(t.closest('[data-ff-sidebar-close]')||t.closest('[data-ff-backdrop]')){root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();return;}" +
@@ -358,6 +394,9 @@ class DefaultLayout(
                 "ffTableNav(url.pathname+url.search,wrap);});" +
                 "document.addEventListener('keydown',function(ev){if(ev.key==='Escape'){" +
                 "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();}});" +
+                "function repositionOpenRowMenus(){root.querySelectorAll('.ff-row-action-menu.ff-open').forEach(positionRowMenu);}" +
+                "window.addEventListener('scroll',repositionOpenRowMenus,true);" +
+                "window.addEventListener('resize',repositionOpenRowMenus);" +
                 "})();</script>"
     }
 }

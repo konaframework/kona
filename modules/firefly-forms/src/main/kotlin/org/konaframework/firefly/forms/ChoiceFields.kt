@@ -51,7 +51,7 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     private var positionText: String = "bottom"
     private var loadingMessageText: String = "Loading"
     private var searchingMessageText: String = "Searching"
-    private var emptyMessageText: String = "No results"
+    private var emptyMessageText: String = "No results found"
     private var searchPromptText: String = "Search"
     private var labelUsing: Function<String, String>? = null
     private var searchUsing: Function<String, Map<String, String>>? = null
@@ -108,10 +108,17 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
 
     fun selectablePlaceholder(on: Boolean): Select = apply { selectablePlaceholderFlag = on }
 
+    /**
+     * Caps how many options are resolved/preloaded. When [preload] is on and this is unset,
+     * Firefly uses [DEFAULT_PRELOAD_LIMIT] (50).
+     */
     fun optionsLimit(count: Int): Select = apply {
         if (count < 1) throw FireflyException("Options limit must be at least 1")
         optionsLimitCount = count
     }
+
+    /** Alias for [optionsLimit] — maximum options embedded when [preload] is true. */
+    fun preloadLimit(count: Int): Select = optionsLimit(count)
 
     fun maxItems(count: Int): Select = apply {
         if (count < 1) throw FireflyException("Max items must be at least 1")
@@ -208,9 +215,16 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         return optionsFromPairs(options.get(get).entries.toList())
     }
 
+    private fun effectiveOptionsLimit(): Int? {
+        val explicit = optionsLimitCount
+        if (explicit != null) return explicit
+        if (preloadFlag) return DEFAULT_PRELOAD_LIMIT
+        return null
+    }
+
     private fun optionsFromRecords(records: List<Any?>, title: String): List<FieldOption> {
         var rows = records
-        val limit = optionsLimitCount
+        val limit = effectiveOptionsLimit()
         if (limit != null && rows.size > limit) rows = rows.take(limit)
         val disable = disableWhen
         val labels = labelUsing
@@ -231,7 +245,7 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
 
     private fun optionsFromPairs(entries: List<Map.Entry<String, String>>): List<FieldOption> {
         var rows = entries
-        val limit = optionsLimitCount
+        val limit = effectiveOptionsLimit()
         if (limit != null && rows.size > limit) rows = rows.take(limit)
         val disable = disableWhen
         val labels = labelUsing
@@ -288,16 +302,22 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     ): String = buildString {
             val inputExtra = extraInputMarkup(get)
             val stored = if (multipleFlag) selected.joinToString(",") else selected.firstOrNull().orEmpty()
-            val display = displayLabel(choices, selected)
+            val display = if (multipleFlag) "" else displayLabel(choices, selected)
             val prompt = placeholderValue(schema).orEmpty().ifBlank { searchPromptText }
+            val limitAttr = effectiveOptionsLimit()?.toString()
             // Picker-shaped shell: display + hidden value + panel. Chrome.js opens/filters/selects
             // without Alpine so manage Create/Edit dialogs work (#338).
             append(
-                """<div class="ff-combobox" data-ff-combobox x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}${attr("data-ff-state", stored.ifBlank { null })}>""",
+                """<div class="ff-combobox" data-ff-combobox x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-options-limit", limitAttr)}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}${attr("data-ff-state", stored.ifBlank { null })}>""",
             )
             append("""<div class="ff-combobox-field" data-ff-combobox-open>""")
+            if (multipleFlag) {
+                append("""<div class="ff-combobox-chips" data-ff-combobox-chips>""")
+                append(chipMarkup(choices, selected))
+                append("</div>")
+            }
             append(
-                """<input class="ff-input ff-combobox-display" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off"${attr("placeholder", prompt)} value="${esc(display)}" data-ff-combobox-display${if (searchableFlag) "" else " readonly"}$inputExtra />""",
+                """<input class="ff-input ff-combobox-display${if (multipleFlag) " ff-combobox-display--multi" else ""}" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off"${attr("placeholder", prompt)} value="${esc(display)}" data-ff-combobox-display${if (searchableFlag) "" else " readonly"}$inputExtra />""",
             )
             append("""<span class="ff-combobox-caret" aria-hidden="true"></span>""")
             append("</div>")
@@ -308,10 +328,11 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
             // the panel shows the empty message until a search provider fills options later.
             if (preloadFlag || choices.isNotEmpty()) {
                 for (option in choices) {
-                    val css = if (option.value in selected) "ff-option ff-selected" else "ff-option"
+                    val on = option.value in selected
+                    val css = if (on) "ff-option ff-selected" else "ff-option"
                     val label = if (allowHtmlFlag) option.label else esc(option.label)
                     append(
-                        """<li class="$css" role="option" data-ff-value="${esc(option.value)}" data-ff-label="${esc(option.label)}"${boolAttr("data-ff-enabled", option.enabled)}>${label}${textTag("small", "ff-option-description", option.description)}</li>""",
+                        """<li class="$css" role="option" aria-selected="${if (on) "true" else "false"}" data-ff-value="${esc(option.value)}" data-ff-label="${esc(option.label)}"${boolAttr("data-ff-enabled", option.enabled)}><span class="ff-option-text">$label${textTag("small", "ff-option-description", option.description)}</span><span class="ff-option-check" aria-hidden="true">$OPTION_CHECK</span></li>""",
                     )
                 }
             }
@@ -323,11 +344,22 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
             append("</div>")
     }
 
+    private fun chipMarkup(choices: List<FieldOption>, selected: Set<String>): String = buildString {
+        for (value in selected) {
+            val match = choices.firstOrNull { it.value == value }
+            val label = if (match != null) match.label else value
+            append(
+                """<span class="ff-combobox-chip" data-ff-value="${esc(value)}" data-ff-label="${esc(label)}"><span class="ff-combobox-chip-label">${esc(label)}</span><button type="button" class="ff-combobox-chip-remove" data-ff-combobox-remove aria-label="Remove ${esc(label)}">&times;</button></span>""",
+            )
+        }
+    }
+
+    /** Single-select display text (multiple uses chips instead). */
     private fun displayLabel(choices: List<FieldOption>, selected: Set<String>): String {
         if (selected.isEmpty()) return ""
         val labels = choices.filter { it.value in selected }.map { it.label }
-        if (labels.isNotEmpty()) return if (multipleFlag) labels.joinToString(", ") else labels.first()
-        return if (multipleFlag) selected.joinToString(", ") else selected.first()
+        if (labels.isNotEmpty()) return labels.first()
+        return selected.first()
     }
 
     private fun nativeSelect(path: String, choices: List<FieldOption>, selected: Set<String>, inputExtra: String): String = buildString {
@@ -362,6 +394,12 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
     }
 
     companion object {
+        /** Default cap on preloaded options when [optionsLimit] / [preloadLimit] is unset. */
+        const val DEFAULT_PRELOAD_LIMIT: Int = 50
+
+        private const val OPTION_CHECK =
+            """<svg class="ff-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4.5 12.75l6 6 9-13.5"/></svg>"""
+
         private val maker = Maker { name -> Select(name) }
 
         @JvmStatic

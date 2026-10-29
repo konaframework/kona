@@ -98,6 +98,16 @@ class CadenceTablesTest {
             .load()
         val customerAttrs = CadenceRecordStore(Customer::class.java).attributes(withOrders.records.first())
         assertTrue(customerAttrs["orders"] is List<*>)
+        // Nested dig uses Cadence.getRelations() for mid-path segments (#350).
+        val customerWithOrders = withOrders.records.first()
+        assertNotNull(
+            Column.relationshipTitle(
+                Cell { if (it == "customer") customerWithOrders else null },
+                "customer.orders",
+                "total",
+                "fallback",
+            ),
+        )
         // Mixed collection members (non-Cadence) keep their raw value.
         withOrders.records.first().setRelation("mixed", listOf("x", withOrders.records.first()))
         val mixed = CadenceRecordStore(Customer::class.java).attributes(withOrders.records.first())["mixed"] as List<*>

@@ -68,16 +68,23 @@ class FireflyResourceGenerateTest {
         assertTrue(fields.table.any { it.name == "published" && it.callExpr().endsWith(".boolean()") })
         assertTrue(
             fields.table.any {
-                it.name == "published_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+                it.name == "published_at" &&
+                    it.callExpr().contains(".dateTime()") &&
+                    it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
             },
         )
         assertTrue(
             fields.table.any {
-                it.name == "created_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+                it.name == "created_at" &&
+                    it.callExpr().contains(".dateTime()") &&
+                    it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
             },
         )
+        assertTrue(fields.table.any { it.name == "due_on" && it.callExpr().contains(".date()") })
         assertTrue(fields.infolist.any { it.name == "published" && it.type == "IconEntry" })
         assertTrue(fields.infolist.any { it.name == "published" && it.callExpr().endsWith(".boolean()") })
+        assertTrue(fields.infolist.any { it.name == "due_on" && it.callExpr().endsWith(".date()") })
+        assertTrue(fields.infolist.any { it.name == "published_at" && it.callExpr().endsWith(".dateTime()") })
         assertFalse(fields.table.any { it.name == "id" })
         assertEquals(2, fields.formColumns)
     }
@@ -120,10 +127,14 @@ class FireflyResourceGenerateTest {
         )
         assertTrue(
             fields.table.any {
-                it.name == "project_id" && it.callExpr().contains(".relationship(\"project\", \"name\")")
+                it.name == "project.name" && it.callExpr() == "TextColumn.make(\"project.name\").label(\"Project\")"
             },
         )
-        assertTrue(fields.infolist.any { it.name == "project_id" && it.callExpr().contains(".label(\"Project\")") })
+        assertTrue(
+            fields.infolist.any {
+                it.name == "project.name" && it.callExpr() == "TextEntry.make(\"project.name\").label(\"Project\")"
+            },
+        )
         assertTrue(fields.form.any { it.name == "active" && it.type == "Toggle" })
         assertTrue(fields.form.any { it.name == "is_done" && it.type == "Toggle" })
         assertTrue(fields.form.any { it.name == "has_cover" && it.type == "Toggle" })
@@ -154,7 +165,7 @@ class FireflyResourceGenerateTest {
         )
         assertTrue(
             guessed.table.any {
-                it.name == "author_id" && it.callExpr().contains(".relationship(\"author\", \"name\")")
+                it.name == "author.name" && it.callExpr().contains("TextColumn.make(\"author.name\")")
             },
         )
         assertTrue(guessed.table.any { it.name == "label" && it.callExpr().contains(".searchable().sortable()") })
@@ -175,7 +186,7 @@ class FireflyResourceGenerateTest {
         )
         assertTrue(firstCol.table.any { it.name == "sku" && it.callExpr().contains(".searchable().sortable()") })
         assertTrue(firstCol.form.any { it.callExpr().contains(".label(\"Org\").relationship(\"org\", \"name\")") })
-        assertTrue(firstCol.table.any { it.callExpr().contains(".relationship(\"org\", \"name\")") })
+        assertTrue(firstCol.table.any { it.callExpr().contains("TextColumn.make(\"org.name\")") })
         // Non-integer boolean-ish names stay text; bare `_id` is not guessed as a relation.
         val plain = FireflyResourceGenerate.mapColumns(
             listOf(
@@ -215,7 +226,14 @@ class FireflyResourceGenerateTest {
         )
         assertTrue(
             stamps.table.any {
-                it.name == "created_at" && it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+                it.name == "created_at" &&
+                    it.callExpr().contains(".dateTime()") &&
+                    it.callExpr().contains(".toggleable().toggledHiddenByDefault()")
+            },
+        )
+        assertTrue(
+            stamps.infolist.any {
+                it.name == "created_at" && it.callExpr().endsWith(".dateTime()")
             },
         )
         assertTrue(stamps.form.any { it.callExpr().contains("Select.make(\"team\").label(\"People\").relationship(\"people\", \"name\")") })

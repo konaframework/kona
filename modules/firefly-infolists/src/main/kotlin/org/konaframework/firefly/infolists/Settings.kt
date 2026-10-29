@@ -220,16 +220,40 @@ internal object ItemFrame {
 
 internal val MISS = Any()
 
+/** Max dotted segments for entry/column relation paths (`a.b.c.d`). */
+internal const val MAX_RELATION_DEPTH: Int = 4
+
 internal fun digName(item: Any?, name: String): Any? {
     if (item == null) return null
     if (name.isEmpty()) return item
+    val parts = name.split('.')
+    if (parts.size > MAX_RELATION_DEPTH) return null
     var current = item
-    for (part in name.split('.')) {
-        if (current !is Map<*, *>) return null
-        if (!current.containsKey(part)) return null
-        current = current[part]
+    for (part in parts) {
+        if (part.isEmpty()) return null
+        current = when (current) {
+            is Map<*, *> -> {
+                if (!current.containsKey(part)) return null
+                current[part]
+            }
+            else -> return null
+        }
     }
     return current
+}
+
+/** Throws when a dotted entry name exceeds [MAX_RELATION_DEPTH]. */
+internal fun requireRelationDepth(name: String) {
+    if (!name.contains('.')) return
+    val parts = name.split('.')
+    if (parts.size > MAX_RELATION_DEPTH) {
+        throw org.konaframework.firefly.support.FireflyException(
+            "Entry path [$name] has ${parts.size} segments; maximum is $MAX_RELATION_DEPTH",
+        )
+    }
+    if (parts.any { it.isBlank() }) {
+        throw org.konaframework.firefly.support.FireflyException("Entry path [$name] has a blank segment")
+    }
 }
 
 internal fun itemLookup(item: Map<String, Any?>, path: String): Any? {

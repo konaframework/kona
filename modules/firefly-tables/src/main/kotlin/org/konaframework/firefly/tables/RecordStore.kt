@@ -315,13 +315,27 @@ open class CadenceRecordStore<T : Cadence<T>>(
         return out
     }
 
-    private fun relationAttribute(value: Any?): Any? = when (value) {
-        null -> null
-        is Cadence<*> -> LinkedHashMap(value.getAttributes())
-        is Collection<*> -> value.map { item ->
-            if (item is Cadence<*>) LinkedHashMap(item.getAttributes()) else item
+    private fun relationAttribute(value: Any?, seen: MutableSet<Int> = HashSet()): Any? {
+        return when (value) {
+            null -> null
+            is Cadence<*> -> {
+                val id = System.identityHashCode(value)
+                // Break cycles (belongsTo back-references) so nested dig paths stay finite (#350).
+                if (!seen.add(id)) {
+                    LinkedHashMap(value.getAttributes())
+                } else {
+                    val out = LinkedHashMap(value.getAttributes())
+                    for ((name, nested) in value.getRelations()) {
+                        out[name] = relationAttribute(nested, seen)
+                    }
+                    out
+                }
+            }
+            is Collection<*> -> value.map { item ->
+                if (item is Cadence<*>) relationAttribute(item, seen) else item
+            }
+            else -> value
         }
-        else -> value
     }
 
     private fun prototype(): T = try {

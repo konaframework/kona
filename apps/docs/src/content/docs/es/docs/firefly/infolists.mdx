@@ -121,7 +121,7 @@ name.live();
 
 Resolución del estado: gana un literal o un cierre de `state(...)`. Dentro de un elemento repetible, un nombre con puntos como `author.name` se lee de ese elemento. Si no, la entrada lee `schema.get` en su camino absoluto.
 
-Los nombres de icono conocidos (`home`, `bars`, `user`, `x`) renderizan SVG en línea. Cualquier otro nombre se guarda como `data-ff-icon` y no lanza.
+Los nombres de icono conocidos (`home`, `bars`, `user`, `check`, `x`) renderizan SVG en línea. Cualquier otro nombre se guarda como `data-ff-icon` y no lanza.
 
 ## Texto
 
@@ -164,7 +164,7 @@ TextEntry.make("title")
 
 ## Icono
 
-`IconEntry.make("ok")` muestra un icono para el estado. `bool(true)` trata el estado como un booleano: un valor truthy usa el icono verdadero (`user`, color `success`) y un valor falso usa el icono falso (`x`, color `danger`). `whenTrue("user", "success")` y `whenFalse("x", "danger")` ponen icono y color. `trueIcon`, `falseIcon`, `trueColor` y `falseColor` anulan un lado. `hideTrueIcon()` y `hideFalseIcon()` omiten ese icono. `size` acepta `xs`, `sm`, `md`, `lg` y `xl`.
+`IconEntry.make("ok")` muestra un icono para el estado. `bool(true)` trata el estado como un booleano: un valor truthy usa el icono verdadero (`check`, color `success`) y un valor falso usa el icono falso (`x`, color `gray`) como chip suave. `whenTrue("check", "success")` y `whenFalse("x", "gray")` ponen icono y color. `trueIcon`, `falseIcon`, `trueColor` y `falseColor` anulan un lado. `hideTrueIcon()` y `hideFalseIcon()` omiten ese icono. `size` acepta `xs`, `sm`, `md`, `lg` y `xl`.
 
 El método es `bool`, porque `boolean` es una palabra clave de Java. Los ayudantes de par son `whenTrue` y `whenFalse`.
 

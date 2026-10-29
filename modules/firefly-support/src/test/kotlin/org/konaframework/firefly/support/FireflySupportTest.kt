@@ -143,12 +143,13 @@ class FireflySupportTest {
 
     @Test
     fun iconsAndUnknownName() {
-        listOf(Icon.HOME, Icon.BARS, Icon.USER, Icon.X).forEach { icon ->
+        listOf(Icon.HOME, Icon.BARS, Icon.USER, Icon.CHECK, Icon.X).forEach { icon ->
             assertTrue(icon.svg().contains(icon.path))
         }
         assertEquals(Icon.HOME, Icon.fromName("HoMe"))
         assertEquals(Icon.BARS, Icon.fromName("bars"))
         assertEquals(Icon.USER, Icon.fromName("user"))
+        assertEquals(Icon.CHECK, Icon.fromName("check"))
         assertEquals(Icon.X, Icon.fromName("x"))
         assertThrows(FireflyException::class.java) { Icon.fromName("nope") }
     }
@@ -233,6 +234,11 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-picker-ok") && css.contains("margin-left: auto"))
         assertTrue(css.contains(".ff-panel .ff-combobox-panel"))
         assertTrue(css.contains(".ff-panel .ff-combobox.ff-combobox-open"))
+        assertTrue(css.contains(".ff-panel .ff-option"))
+        assertTrue(css.contains("color: var(--ff-heading)"))
+        assertTrue(css.contains(".ff-panel .ff-option-check"))
+        assertTrue(css.contains(".ff-panel .ff-combobox-chip"))
+        assertTrue(css.contains(".ff-panel .ff-combobox-chips"))
         assertTrue(css.contains(".ff-panel .ff-option.ff-selected"))
         assertTrue(css.contains(".ff-panel .ff-pagination"))
         assertTrue(css.contains(".ff-panel .ff-page-header-actions > .ff-schema"))
@@ -251,6 +257,22 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-row-actions"))
         assertTrue(css.contains(".ff-panel .ff-row-action-menu"))
         assertTrue(css.contains(".ff-panel .ff-row-action-menu .ff-table-more"))
+        assertTrue(css.contains(".ff-panel .ff-row-action-menu .ff-menu-panel"))
+        assertTrue(css.contains("position: fixed"))
+        assertTrue(css.contains("z-index: 1100"))
+        assertTrue(css.contains(".ff-panel .ff-boolean"))
+        assertTrue(css.contains(".ff-panel .ff-boolean.is-true"))
+        assertTrue(css.contains(".ff-panel .ff-boolean.is-false"))
+        assertTrue(css.contains(".ff-panel .ff-boolean--icon-only"))
+        assertTrue(css.contains(".ff-panel .ff-boolean__mark"))
+        assertTrue(css.contains("background: #ecfdf5"))
+        assertTrue(css.contains("color: #047857"))
+        assertTrue(css.contains("background: #f3f4f6"))
+        assertTrue(css.contains("background: #064e3b"))
+        assertTrue(css.contains("color: #6ee7b7"))
+        assertTrue(Icon.CHECK.svg().contains("stroke-width=\"2.25\""))
+        assertTrue(Icon.CHECK.path.contains("M4.5 12.75l6 6 9-13.5"))
+        assertTrue(Icon.X.path.contains("M6 18L18 6M6 6l12 12"))
         assertTrue(css.contains(".ff-panel .ff-dialog[hidden]"))
         assertTrue(css.contains(".ff-panel .ff-table-button-dialog[hidden]"))
         assertTrue(css.contains(".ff-panel .ff-action-dialog.ff-open"))
@@ -367,6 +389,8 @@ class FireflySupportTest {
         assertTrue(html.contains("localStorage.getItem('ff-theme')"))
         assertTrue(html.contains("data-ff-sidebar-toggle"))
         assertTrue(html.contains("data-ff-menu-trigger"))
+        assertTrue(html.contains("positionRowMenu"))
+        assertTrue(html.contains("ff-row-action-menu"))
         assertTrue(html.contains(DefaultLayout.THEME_INIT_SCRIPT))
         // Dialog open/close without Alpine (Action / TableButton mounts).
         assertTrue(html.contains("data-ff-dialog-open"))
@@ -382,6 +406,8 @@ class FireflySupportTest {
         assertTrue(html.contains("openCombobox"))
         assertTrue(html.contains("filterCombobox"))
         assertTrue(html.contains("setComboboxValue"))
+        assertTrue(html.contains("renderComboboxChips"))
+        assertTrue(html.contains("data-ff-combobox-remove"))
         assertTrue(html.contains("rebuildView"))
         assertTrue(html.contains("rebuildGrid"))
         assertTrue(html.contains("searchTimers"))

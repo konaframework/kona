@@ -489,18 +489,37 @@ class FireflyFormsSupportTest {
         val orphan = Select.make("kind").options(mapOf("a" to "Ada"))
         assertTrue(Schema.make().components(orphan).fill(mapOf("kind" to "missing")).render().contains("""value="missing""""))
         val multiOrphan = Select.make("kind").multiple().options(mapOf("a" to "Ada"))
-        assertTrue(
-            Schema.make().components(multiOrphan).fill(mapOf("kind" to listOf("x", "y"))).render()
-                .contains("""value="x,y""""),
-        )
+        val multiOrphanHtml = Schema.make().components(multiOrphan).fill(mapOf("kind" to listOf("x", "y"))).render()
+        assertTrue(multiOrphanHtml.contains("""value="x,y""""))
+        assertTrue(multiOrphanHtml.contains("ff-combobox-chips"))
+        assertTrue(multiOrphanHtml.contains("ff-combobox-chip"))
         val multiKnown = Select.make("kind").multiple().options(mapOf("a" to "Ada", "b" to "Bee"))
-        assertTrue(
-            Schema.make().components(multiKnown).fill(mapOf("kind" to listOf("a", "b"))).render()
-                .contains("Ada, Bee"),
-        )
+        val multiKnownHtml = Schema.make().components(multiKnown).fill(mapOf("kind" to listOf("a", "b"))).render()
+        assertTrue(multiKnownHtml.contains("ff-combobox-chip-label\">Ada"))
+        assertTrue(multiKnownHtml.contains("ff-combobox-chip-label\">Bee"))
+        assertTrue(multiKnownHtml.contains("ff-option-check"))
+        assertTrue(multiKnownHtml.contains("""aria-selected="true""""))
+        assertTrue(multiKnownHtml.contains("data-ff-multiple=\"true\""))
         assertEquals(1, select.resolvedOptions(schema).size)
         select.optionsLimit(10)
         assertEquals(2, select.resolvedOptions(schema).size)
+        // Preload defaults to a 50-option cap when optionsLimit is unset (#349).
+        val many = (1..60).associate { "k$it" to "Label $it" }
+        val capped = Select.make("kind").preload(true).options(many)
+        assertEquals(Select.DEFAULT_PRELOAD_LIMIT, capped.resolvedOptions(Schema.make().components(capped)).size)
+        val roomy = Select.make("kind").preload(true).preloadLimit(10).options(many)
+        assertEquals(10, roomy.resolvedOptions(Schema.make().components(roomy)).size)
+        val unlimitedSearch = Select.make("kind").preload(false).options(many)
+        assertEquals(60, unlimitedSearch.resolvedOptions(Schema.make().components(unlimitedSearch)).size)
+        assertTrue(
+            Schema.make().components(Select.make("kind").options(emptyMap())).render()
+                .contains("No results found"),
+        )
+        // Multiple with no selection still renders the chips host.
+        assertTrue(
+            Schema.make().components(Select.make("kind").multiple().options(mapOf("a" to "Ada"))).render()
+                .contains("data-ff-combobox-chips"),
+        )
         select.options(mapOf("a" to "Ada"))
         assertTrue(select.search(schema, "a").any { it.value == "a" })
         select.getSearchResultsUsing { mapOf(it to it) }
