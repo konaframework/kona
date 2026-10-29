@@ -102,13 +102,15 @@ class SchemaTest {
             timestamps()
             softDeletes()
         }
-        schema.create("posts") {
-            id()
-            foreignId("user_id").constrained().cascadeOnDelete()
-            foreignId("editor_id").nullable().constrained("users").nullOnDelete().onUpdate("cascade")
-            string("title")
-            index(listOf("user_id", "title"), "posts_owner_title")
-            unique("title", "editor_id")
+        schema.create("posts") { table ->
+            table.id()
+            table.foreignId("user_id").constrained().cascadeOnDelete()
+            table.foreignId("editor_id").nullable().constrained("users").nullOnDelete().onUpdate("cascade")
+            table.string("title")
+            table.date("due_on").nullable()
+            table.dateTime("reviewed_at").nullable()
+            table.index(listOf("user_id", "title"), "posts_owner_title")
+            table.unique("title", "editor_id")
         }
 
         assertTrue(schema.hasTable("users"))

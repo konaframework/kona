@@ -127,24 +127,25 @@ class MakeMigrationCommand @JvmOverloads constructor(
     private fun kotlinStub(className: String, stem: String, mode: Mode, table: String?): String {
         val (up, down) = when (mode) {
             Mode.CREATE -> listOf(
-                "schema.create(\"$table\") {",
-                "    id()",
-                "    // string(\"name\")",
-                "    // boolean(\"active\").default(false)",
-                "    // date(\"due_on\").nullable()",
-                "    // dateTime(\"published_at\").nullable()",
-                "    timestamps()",
+                "schema.create(\"$table\") { table ->",
+                "    table.id()",
+                "    // table.string(\"name\")",
+                "    // table.boolean(\"active\").default(false)",
+                "    // table.date(\"due_on\").nullable()",
+                "    // table.dateTime(\"published_at\").nullable()",
+                "    table.timestamps()",
                 "}",
             ) to listOf("schema.dropIfExists(\"$table\")")
             Mode.ALTER -> listOf(
-                "schema.table(\"$table\") {",
-                "    // string(\"nickname\").nullable()",
-                "    // date(\"labeled_on\").nullable()",
-                "    // dateTime(\"reviewed_at\").nullable()",
+                "schema.table(\"$table\") { table ->",
+                "    // table.string(\"nickname\").nullable()",
+                "    // table.date(\"labeled_on\").nullable()",
+                "    // table.dateTime(\"reviewed_at\").nullable()",
                 "}",
-            ) to listOf("schema.table(\"$table\") {", "    // dropColumn(\"nickname\")", "}")
-            Mode.BLANK -> listOf("// schema.create(\"table\") { id(); date(\"due_on\"); dateTime(\"published_at\") }") to
-                listOf("// schema.dropIfExists(\"table\")")
+            ) to listOf("schema.table(\"$table\") { table ->", "    // table.dropColumn(\"nickname\")", "}")
+            Mode.BLANK -> listOf(
+                "// schema.create(\"table\") { table -> table.id(); table.date(\"due_on\"); table.dateTime(\"published_at\") }",
+            ) to listOf("// schema.dropIfExists(\"table\")")
         }
         return lines(
             "package database.migrations",

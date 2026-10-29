@@ -36,10 +36,15 @@ class Schema @JvmOverloads constructor(
     val connection: Connection,
     val grammar: SchemaGrammar = SchemaGrammar.forProduct(connection.metaData.databaseProductName),
 ) {
+    /**
+     * Creates [table]. Prefer `schema.create("posts") { table -> table.date("due_on") }`
+     * (Laravel-style [Blueprint] parameter — best for IDE completion). Java uses the same shape.
+     */
     fun create(table: String, definition: TableDefinition) {
         execute(grammar.compileCreate(Blueprint(table).also { definition.define(it) }))
     }
 
+    /** Receiver shorthand: `schema.create("posts") { date("due_on") }` — same as [create] with an explicit `table` parameter. */
     @JvmSynthetic
     fun create(table: String, block: Blueprint.() -> Unit) {
         create(table, TableDefinition { it.block() })
@@ -50,6 +55,7 @@ class Schema @JvmOverloads constructor(
         execute(grammar.compileAlter(Blueprint(table).also { definition.define(it) }))
     }
 
+    /** Receiver shorthand for [table] with an explicit [Blueprint] parameter. */
     @JvmSynthetic
     fun table(table: String, block: Blueprint.() -> Unit) {
         table(table, TableDefinition { it.block() })
