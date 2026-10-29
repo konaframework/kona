@@ -95,9 +95,42 @@ class FireflyInfolistsTest {
         val num = TextEntry.make("title").numeric(1).state(1.26)
         assertTrue(html(num).contains("1.3"))
         assertTrue(html(TextEntry.make("title").date("yyyy-MM-dd").state(LocalDate.of(2024, 6, 15))).contains("2024-06-15"))
+        val dateTimeHtml =
+            html(TextEntry.make("title").dateTime().timezone("UTC").state(LocalDateTime.of(2024, 6, 15, 8, 30)))
+        assertTrue(dateTimeHtml.contains("June 15, 2024"), dateTimeHtml)
+        assertTrue(dateTimeHtml.contains("8:30 AM"), dateTimeHtml)
+        // JDBC-shaped strings (`yyyy-MM-dd HH:mm:ss`) must humanize under dateTime() (#362).
+        val jdbcHtml =
+            html(TextEntry.make("title").dateTime().timezone("UTC").state("2024-06-15 08:30:00"))
+        assertTrue(jdbcHtml.contains("June 15, 2024"), jdbcHtml)
+        assertTrue(jdbcHtml.contains("8:30 AM"), jdbcHtml)
         assertTrue(
-            html(TextEntry.make("title").dateTime().state(LocalDateTime.of(2024, 6, 15, 8, 30)))
-                .contains("June 15, 2024"),
+            html(
+                TextEntry.make("title").dateTime().timezone("UTC")
+                    .state(Instant.parse("2024-06-15T08:30:00Z")),
+            ).contains("8:30 AM"),
+        )
+        assertTrue(
+            temporalText("2024-06-15 15:45:00", "MMMM d, yyyy, h:mm a", ZoneId.of("UTC"))
+                .contains("3:45 PM"),
+        )
+        assertTrue(
+            temporalText(1_718_445_000_000L, "MMMM d, yyyy, h:mm a", ZoneId.of("UTC")).contains("2024"),
+        )
+        assertEquals("  ", temporalText("  ", "yyyy", ZoneId.of("UTC")))
+        assertNull(parseInstant("", ZoneId.of("UTC")))
+        assertNull(parseInstant("   ", ZoneId.of("UTC")))
+        assertEquals(
+            Instant.ofEpochMilli(1_718_445_000_000L),
+            toInstant(1_718_445_000_000L, ZoneId.of("UTC")),
+        )
+        assertTrue(
+            html(TextEntry.make("title").since().timezone("UTC").state(1_718_445_000_000L))
+                .contains("ago") ||
+                html(TextEntry.make("title").since().timezone("UTC").state(1_718_445_000_000L))
+                    .contains("just now") ||
+                html(TextEntry.make("title").since().timezone("UTC").state(1_718_445_000_000L))
+                    .isNotEmpty(),
         )
         assertTrue(
             html(TextEntry.make("created_at").state(LocalDateTime.of(2024, 6, 15, 8, 30)))

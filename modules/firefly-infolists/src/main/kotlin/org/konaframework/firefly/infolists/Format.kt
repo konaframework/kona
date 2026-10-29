@@ -41,13 +41,15 @@ internal fun temporalText(state: Any?, pattern: String, zone: ZoneId): String {
     }
     return when (state) {
         is LocalDate -> formatLocalDate(state, formatter, zone)
-        is LocalDateTime -> state.format(formatter)
+        // Zone the local time so dateTime() patterns match table TextColumn.dateTime() (#362).
+        is LocalDateTime -> state.atZone(zone).format(formatter)
         is Instant -> state.atZone(zone).format(formatter)
-        is OffsetDateTime -> state.format(formatter)
-        is ZonedDateTime -> state.format(formatter)
+        is OffsetDateTime -> state.atZoneSameInstant(zone).format(formatter)
+        is ZonedDateTime -> state.withZoneSameInstant(zone).format(formatter)
         is java.sql.Timestamp -> state.toInstant().atZone(zone).format(formatter)
         is java.sql.Date -> formatLocalDate(state.toLocalDate(), formatter, zone)
         is Date -> state.toInstant().atZone(zone).format(formatter)
+        is Number -> Instant.ofEpochMilli(state.toLong()).atZone(zone).format(formatter)
         is String -> formatParsed(state, formatter, zone)
         else -> stringify(state)
     }
@@ -68,28 +70,31 @@ private fun formatParsed(text: String, formatter: DateTimeFormatter, zone: ZoneI
 }
 
 internal fun parseInstant(text: String, zone: ZoneId): Instant? {
+    val trimmed = text.trim()
+    if (trimmed.isEmpty()) return null
     try {
-        return Instant.parse(text)
+        return Instant.parse(trimmed)
     } catch (ex: DateTimeParseException) {
         // try the next shape
     }
     try {
-        return OffsetDateTime.parse(text).toInstant()
+        return OffsetDateTime.parse(trimmed).toInstant()
     } catch (ex: DateTimeParseException) {
         // try the next shape
     }
     try {
-        return ZonedDateTime.parse(text).toInstant()
+        return ZonedDateTime.parse(trimmed).toInstant()
+    } catch (ex: DateTimeParseException) {
+        // try the next shape
+    }
+    // JDBC / MySQL / H2 often emit `yyyy-MM-dd HH:mm:ss` — same as TextColumn (#362).
+    try {
+        return LocalDateTime.parse(trimmed.replace(' ', 'T')).atZone(zone).toInstant()
     } catch (ex: DateTimeParseException) {
         // try the next shape
     }
     try {
-        return LocalDateTime.parse(text).atZone(zone).toInstant()
-    } catch (ex: DateTimeParseException) {
-        // try the next shape
-    }
-    try {
-        return LocalDate.parse(text).atStartOfDay(zone).toInstant()
+        return LocalDate.parse(trimmed).atStartOfDay(zone).toInstant()
     } catch (ex: DateTimeParseException) {
         return null
     }
@@ -104,6 +109,7 @@ internal fun toInstant(state: Any?, zone: ZoneId): Instant? {
         is LocalDateTime -> state.atZone(zone).toInstant()
         is LocalDate -> state.atStartOfDay(zone).toInstant()
         is Date -> state.toInstant()
+        is Number -> Instant.ofEpochMilli(state.toLong())
         is String -> parseInstant(state, zone)
         else -> null
     }
