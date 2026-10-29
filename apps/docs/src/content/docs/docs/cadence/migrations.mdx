@@ -53,18 +53,18 @@ import org.konaframework.cadence.schema.Schema
 @MigrationName("2026_10_20_141530_create_posts_table")
 class CreatePostsTable : Migration {
     override fun up(schema: Schema) {
-        schema.create("posts") {
-            id()
-            foreignId("user_id").constrained().cascadeOnDelete()
-            string("title", 200)
-            text("body").nullable()
-            boolean("published").default(false)
-            integer("votes").default(0)
-            date("due_on").nullable()
-            dateTime("published_at").nullable()
-            timestamps()
-            softDeletes()
-            index("user_id", "published")
+        schema.create("posts") { table ->
+            table.id()
+            table.foreignId("user_id").constrained().cascadeOnDelete()
+            table.string("title", 200)
+            table.text("body").nullable()
+            table.boolean("published").default(false)
+            table.integer("votes").default(0)
+            table.date("due_on").nullable()
+            table.dateTime("published_at").nullable()
+            table.timestamps()
+            table.softDeletes()
+            table.index("user_id", "published")
         }
     }
 
@@ -114,7 +114,20 @@ class CreatePostsTable implements Migration {
 </Tabs>
 
 
-In Kotlin, the block passed to `create` and `table` has the table definition (a `Blueprint`) as its receiver, so you call `id()` directly. In Java, the lambda receives the `Blueprint` as a parameter (`table -> table.id()`).
+Column helpers live on **`Blueprint`** (the same idea as Laravel’s `$table`). Prefer naming that parameter so the IDE lists every column type when you type `table.`:
+
+```kotlin
+schema.create("projects") { table ->
+    table.id()
+    table.string("name")
+    table.boolean("active")
+    table.date("start_date")
+    table.dateTime("published_at").nullable()
+    table.timestamps()
+}
+```
+
+Kotlin also accepts a **receiver** shorthand (`schema.create("projects") { id(); date("start_date") }`) where `this` is the blueprint — same methods, no `table.` prefix. Java always takes the blueprint as a lambda parameter (`table -> table.date(...)`).
 
 Two methods have different names in Java because their Kotlin names are Java keywords: `boolean(name)` is `bool(name)`, and the `default(value)` modifier is `withDefault(value)`.
 
