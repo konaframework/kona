@@ -579,6 +579,10 @@ open class Panel {
         }
         val record = request.input("id") ?: request.input("record")
         if (!record.isNullOrBlank()) state["record"] = record
+        // Table filters: `filters` (state marker / reset) and `filters.<name>[.<field>]`.
+        state["filterInput"] = request.all().filterKeys { it == "filters" || it.startsWith("filters.") }
+        val session = request.session()
+        if (session != null) state["filterSession"] = session
         state.putAll(extras)
         return state
     }

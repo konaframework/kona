@@ -176,6 +176,11 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
      */
     internal fun searchFormOptions(field: String, query: String): List<FieldOption> {
         if (field.isBlank()) return emptyList()
+        if (field.startsWith("filters.")) {
+            return table(listTable()).filterOptions(field.removePrefix("filters."), query).map { (value, label) ->
+                FieldOption(value, label, true, null)
+            }
+        }
         val schema = prepareForm(liveSchema(emptyMap()))
         val select = schema.component(field) as? Select ?: return emptyList()
         return select.search(schema, query)
@@ -437,41 +442,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     }
 
     private fun applyTableQuery(built: Table<*, *>, state: Map<String, Any?>) {
-        val search = state["search"] as? String
-        if (!search.isNullOrBlank()) built.search(search)
-        val sort = state["sort"] as? String
-        if (!sort.isNullOrBlank()) {
-            val rawDirection = state["direction"]
-            val descending = rawDirection != null && rawDirection.toString().equals("desc", ignoreCase = true)
-            try {
-                built.sort(sort, if (descending) "desc" else "asc")
-            } catch (_: FireflyException) {
-                // Unknown / non-sortable column — ignore.
-            }
-        }
-        val pageRaw = state["page"] as? String
-        val pageNumber = pageRaw?.toIntOrNull()
-        if (pageNumber != null) {
-            try {
-                built.page(pageNumber)
-            } catch (_: FireflyException) {
-                // Invalid page — keep default.
-            }
-        }
-        val perPageRaw = state["perPage"] as? String
-        val perPage = perPageRaw?.toIntOrNull()
-        if (perPage != null) {
-            try {
-                built.perPage(perPage)
-            } catch (_: FireflyException) {
-                // Invalid size — keep default.
-            }
-        }
-        // Soft-nav column picker: `?columns=name,created_at` (#363).
-        val columnsRaw = state["columns"] as? String
-        if (columnsRaw != null) {
-            built.applyToggleableVisibility(columnsRaw.split(','))
-        }
+        TableState.apply(built, state, "firefly.tables.${slug()}.filters")
     }
 
     private fun applyView(page: ViewPage, state: Map<String, Any?>) {

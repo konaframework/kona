@@ -1,0 +1,461 @@
+---
+title: Table filters
+description: Narrow a Firefly table with checkbox, select, ternary, trashed, custom-form, and query builder filters. State lives in the URL, can persist in the session, and shows as removable chips.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A filter is a small form that narrows the rows a table shows. You declare filters on the table, and Firefly takes care of the rest: a funnel button in the toolbar, the filter form, the query that runs against your rows, a chip for every active filter, and the URL that remembers it all.
+
+This page starts with one checkbox and builds up. Every example works on a memory table (`Table.memory`) and on a Cadence table (`Table.cadence`). The filter types live in `org.konaframework.firefly.tables` (`kona-firefly-tables`).
+
+## Your first filter
+
+Give the table a `filters(...)` list. The simplest filter is a checkbox that adds one condition to the query when it is checked.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Table.cadence(Book::class.java)
+    .columns(TextColumn.make("title"), TextColumn.make("status"))
+    .filters(
+        Filter.make("published").label("Only published").attribute("published"),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Table.cadence(Book.class)
+    .columns(TextColumn.make("title"), TextColumn.make("status"))
+    .filters(
+        Filter.make("published").label("Only published").attribute("published"));
+```
+
+</TabItem>
+</Tabs>
+
+When the box is checked, Firefly adds `published = true` to the query. `operator("!=")` changes the comparison. Calling `attribute` is optional when you write the query yourself, which is the next step.
+
+### Write the query yourself
+
+`queryUsing { query, data -> ... }` hands you the table's native query and the filter's form data. On a Cadence table the query is a `ModelBuilder`; on a memory table it is a `MemoryQuery`. Both have the same `where` family, so the same code reads naturally on either.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Filter.make("recent")
+    .label("Added this year")
+    .queryUsing { query, _ -> (query as ModelBuilder<*>).whereYear("created_at", 2026) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Filter.make("recent")
+    .label("Added this year")
+    .queryUsing((query, data) -> ((ModelBuilder<?>) query).whereYear("created_at", 2026));
+```
+
+</TabItem>
+</Tabs>
+
+Each filter's query runs inside its own parenthesized group. If your filter adds `orWhere` clauses, they stay inside that group and cannot widen the rest of the table's query.
+
+### Checkbox, toggle, or text
+
+A plain filter renders a checkbox. Call `toggle()` for a switch, or `textInput()` for a free-text field whose value is compared to the attribute.
+
+```kotlin
+Filter.make("featured").toggle().attribute("featured")
+Filter.make("isbn").textInput().attribute("isbn").operator("like")
+```
+
+## Pick from a list with `SelectFilter`
+
+`SelectFilter` shows a select. The chosen value constrains the attribute with the same name as the filter, or the one you pass to `attribute(...)`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+SelectFilter.make("status")
+    .options(mapOf("draft" to "Draft", "reviewing" to "Reviewing", "published" to "Published"))
+    .placeholder("Any status")
+    .default("published")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SelectFilter.make("status")
+    .options(Map.of("draft", "Draft", "reviewing", "Reviewing", "published", "Published"))
+    .placeholder("Any status")
+    .defaultState("published");
+```
+
+</TabItem>
+</Tabs>
+
+`default` is a reserved word in Java, so Java code calls `defaultState(...)`. Both spellings do the same thing: the filter starts active, and the user can clear it.
+
+The options can also come from a function, `options { cell -> mapOf(...) }`, when they depend on the current user or tenant.
+
+### Several values at once
+
+`multiple()` lets the user pick more than one option. The query becomes `whereIn`. A default for a multi-select is a list.
+
+```kotlin
+SelectFilter.make("status").multiple().options(statuses).default(listOf("draft", "reviewing"))
+```
+
+### Options from a relationship
+
+`relationship(name, titleAttribute)` reads its options from a Cadence relationship on the table's model and filters with `whereHas`. With `multiple()`, a record matches when it is related to any of the chosen records.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+SelectFilter.make("author")
+    .relationship("author", "name")
+    .searchable()
+    .preload()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SelectFilter.make("author")
+    .relationship("author", "name")
+    .searchable()
+    .preload();
+```
+
+</TabItem>
+</Tabs>
+
+- `searchable()` turns the select into a combobox that asks the server for matching options as the user types. On a resource page this uses the resource's `form-options` endpoint with `field=filters.author`.
+- `preload()` loads the first page of options when the form renders, so the list is not empty before the user types. `optionsLimit(50)` caps how many come back.
+- `relationship("author", "name") { query -> ... }` takes a third argument that receives the related `ModelBuilder`, so you can scope the options (for example, only active authors).
+- `hasEmptyOption()` adds a "None" choice that matches records with no related record. `emptyRelationshipOptionLabel("Unassigned")` renames it.
+
+## Yes, no, or either with `TernaryFilter`
+
+A ternary filter has three states: the placeholder (no constraint), true, and false.
+
+```kotlin
+TernaryFilter.make("in_stock")
+    .placeholder("All books")
+    .trueLabel("In stock")
+    .falseLabel("Sold out")
+```
+
+For a column that is "set" when it holds any value, like `email_verified_at`, call `nullable()`. True then means `is not null` and false means `is null`.
+
+When the true and false cases need different queries, pass them in:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TernaryFilter.make("verified").queries(
+    { query, _ -> (query as ModelBuilder<*>).whereNotNull("email_verified_at") },
+    { query, _ -> (query as ModelBuilder<*>).whereNull("email_verified_at") },
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TernaryFilter.make("verified").queries(
+    (query, data) -> ((ModelBuilder<?>) query).whereNotNull("email_verified_at"),
+    (query, data) -> ((ModelBuilder<?>) query).whereNull("email_verified_at"));
+```
+
+</TabItem>
+</Tabs>
+
+A third `FilterQuery` argument runs when the placeholder is chosen.
+
+## Show deleted records with `TrashedFilter`
+
+For a model that uses soft deletes, `TrashedFilter.make()` gives the user three choices: without deleted records (the default), with deleted records, and only deleted records. It works by switching the table's query between `withoutTrashed`, `withTrashed`, and `onlyTrashed`, so it applies to the whole query rather than to one group.
+
+```kotlin
+.filters(TrashedFilter.make())
+```
+
+Because it changes the outer query, `table.resolveRecord(key)` also finds deleted records while "with" or "only" is chosen (see [Base queries](#base-queries) below).
+
+## Build a filter from your own form
+
+When one control is not enough, give the filter a schema. Any form component works, and the data arrives keyed by field name.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Filter.make("published_between")
+    .schema(DatePicker.make("from"), DatePicker.make("until"))
+    .queryUsing { query, data ->
+        val q = query as ModelBuilder<*>
+        data.string("from")?.let { q.whereDate("published_at", ">=", it) }
+        data.string("until")?.let { q.whereDate("published_at", "<=", it) }
+    }
+    .indicateUsing { data ->
+        buildList {
+            data.string("from")?.let { add(FilterIndicator.make("From $it").removeField("from")) }
+            data.string("until")?.let { add(FilterIndicator.make("Until $it").removeField("until")) }
+        }
+    }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Filter.make("published_between")
+    .schema(DatePicker.make("from"), DatePicker.make("until"))
+    .queryUsing((query, data) -> {
+        ModelBuilder<?> q = (ModelBuilder<?>) query;
+        if (data.string("from") != null) q.whereDate("published_at", ">=", data.string("from"));
+        if (data.string("until") != null) q.whereDate("published_at", "<=", data.string("until"));
+    })
+    .indicateUsing(data -> {
+        List<FilterIndicator> chips = new ArrayList<>();
+        if (data.string("from") != null) chips.add(FilterIndicator.make("From " + data.string("from")).removeField("from"));
+        if (data.string("until") != null) chips.add(FilterIndicator.make("Until " + data.string("until")).removeField("until"));
+        return chips;
+    });
+```
+
+</TabItem>
+</Tabs>
+
+`FilterData` gives you typed reads: `string(key)`, `list(key)` for multi-values, `bool(key)`, `filled(key)`, and `value()` for single-control filters.
+
+`columns(2)` lays the schema out in a grid, and `columnSpan(2)` or `columnSpanFull()` sizes the filter itself inside the filter form.
+
+### Adjust the generated field
+
+Single-control filters build their own field. `modifyFormFieldUsing { field -> ... }` lets you change it without writing a schema:
+
+```kotlin
+SelectFilter.make("status").options(statuses).modifyFormFieldUsing { field ->
+    field.label("Workflow state").helperText("Draft books are hidden from readers").inline(true)
+}
+```
+
+`FilterField` also has `placeholder`, `hiddenLabel()`, and `extraInputAttributes(map)`.
+
+## Active filter chips
+
+Every active filter shows a chip above the records, and each chip has an × that clears it. A "Remove all" link clears every filter at once. Both are plain links, so they work with the keyboard and with JavaScript turned off.
+
+The chip text comes from the filter's label and value ("Status: Published"). You can change it three ways:
+
+- `indicator("Published only")` sets fixed text.
+- `indicateUsing { data -> ... }` returns a string, a `FilterIndicator`, a list of indicators, or `null` for no chip.
+- `FilterIndicator.make(label)` takes `removeField("from")` so the × clears only part of a schema filter, `removable(false)` to hide the ×, and `color("success")` to tint the chip.
+
+`hiddenFilterIndicators()` hides the chip bar entirely.
+
+## Apply on click, or as the user types
+
+By default the filter form has an **Apply** button, and nothing changes until the user clicks it. That keeps a slow query from running on every keystroke.
+
+`deferFilters(false)` switches to live mode: the table refreshes as soon as a control changes, with text input debounced. In both modes only the table region is swapped, so the page does not reload and the filter dropdown reopens with focus where it was.
+
+A **Reset** action restores every filter to its default (not to empty). `filtersResetActionPosition(FiltersResetActionPosition.FOOTER)` moves it from the form header to the footer.
+
+## Where the form appears
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+table.filters(FiltersLayout.ABOVE_CONTENT_COLLAPSIBLE, statusFilter, authorFilter)
+    .filtersFormColumns(2)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.filters(FiltersLayout.ABOVE_CONTENT_COLLAPSIBLE, statusFilter, authorFilter)
+    .filtersFormColumns(2);
+```
+
+</TabItem>
+</Tabs>
+
+| Layout | What the user sees |
+|--------|--------------------|
+| `DROPDOWN` (default) | A funnel button with a count badge; the form opens in a popover under it |
+| `MODAL` | The same button opens the form in a dialog |
+| `ABOVE_CONTENT` | The form sits between the toolbar and the records, always open |
+| `ABOVE_CONTENT_COLLAPSIBLE` | The form sits above the records, collapsed behind the funnel button; the open state is remembered for the tab |
+| `BELOW_CONTENT` | The form sits under the records and the pagination |
+
+You can also call `filtersLayout(...)` separately. More form controls:
+
+- `filtersFormColumns(n)` sets the grid. For the dropdown it also picks a sensible popover width (one column is narrow, four columns is wide). `filtersFormWidth("4xl")` overrides it, and `filtersFormMaxHeight("24rem")` makes a long form scroll.
+- `filtersFormHeading("Narrow the list")` renames the form heading.
+- `filtersFormSchema(...)` groups filters into sections:
+
+```kotlin
+table.filtersFormSchema(
+    FilterSection.make("Catalogue").filters("status", "author").columns(2),
+    FilterSection.make("Dates").description("Publication window").filters("published_between").columnSpanFull(),
+)
+```
+
+Filters not named in any section are listed after the sections.
+
+## Restyle the filter buttons
+
+Four actions belong to the filter UI. Each customizer receives a `FilterAction` with `label`, `icon`, `color`, `button()`, `link()`, `iconButton()`, `tooltip`, `hidden()`, and `extraAttributes(map)`.
+
+```kotlin
+table
+    .filtersTriggerAction { it.button().label("Filter") }
+    .filtersApplyAction { it.label("Show results").icon("check") }
+    .filtersResetAction { it.link().label("Clear") }
+    .filtersRemoveAllAction { it.tooltip("Clear all filters") }
+```
+
+`icon(name)` takes a name from Firefly's icon set (`home`, `bars`, `user`, `check`, `x`, `trash`, `arrows-pointing-out`, `arrows-pointing-in`); an unknown name fails when the table renders, so a typo shows up immediately. The trigger keeps its funnel icon unless you choose another. `filtersTriggerAction { it.badge(false) }` hides the active-filter count on the funnel button.
+
+## Filter state lives in the URL
+
+Filter state is a set of query-string parameters, so a filtered list can be bookmarked, shared, or opened in a new tab:
+
+| Parameter | Meaning |
+|-----------|---------|
+| `filters=1` | The URL carries explicit filter state, so defaults do not apply |
+| `filters.status=published` | A single-value filter |
+| `filters.status=draft,reviewing` | A multi-select filter (comma-joined) |
+| `filters.published_between.from=2026-01-01` | One field of a schema filter |
+| `filters=reset` | Go back to the defaults |
+
+Without any `filters` parameter, defaults apply. Sorting, paging, search, and the column picker keep the filter parameters in their links.
+
+### Remember filters in the session
+
+`persistFiltersInSession()` saves the state each time the user changes it, and restores it when they come back to the list without filter parameters. Resource pages key the session entry by resource; `filtersSessionKey("books.archive")` sets your own key when two tables would otherwise share one.
+
+```kotlin
+table.persistFiltersInSession()
+```
+
+### Clear the selection when filters change
+
+When rows are selectable for [bulk actions](/docs/firefly/tables/#bulk-actions), changing a filter clears the selection, because the selected rows may no longer be visible. Call `deselectAllRecordsWhenFiltered(false)` to keep it.
+
+## Base queries
+
+Some filters need to change the whole query, not one group of it. `baseQuery { query, data -> ... }` runs on the outer query before the grouped filter queries. `TrashedFilter` works this way.
+
+Base queries also run in `table.resolveRecord(key)`, which finds one record by key under the current filter state. A filter that widens the query (for example, to include archived records) therefore widens the lookup too. If a filter's base query should not apply during that lookup, call `excludeWhenResolvingRecord()` on it.
+
+## Query builder
+
+`QueryBuilderFilter` lets the user compose their own conditions. Each condition picks a constraint (a column), an operator, and a value. Conditions in one group are joined with **and**; groups are joined with **or**.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+QueryBuilderFilter.make("advanced").constraints(
+    TextConstraint.make("title"),
+    NumberConstraint.make("pages"),
+    DateConstraint.make("published_at"),
+    BooleanConstraint.make("in_stock"),
+    SelectConstraint.make("status").options(statuses).multiple(),
+    RelationshipConstraint.make("author").titleAttribute("name").multiple(),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+QueryBuilderFilter.make("advanced").constraints(
+    TextConstraint.make("title"),
+    NumberConstraint.make("pages"),
+    DateConstraint.make("published_at"),
+    BooleanConstraint.make("in_stock"),
+    SelectConstraint.make("status").options(statuses).multiple(),
+    RelationshipConstraint.make("author").titleAttribute("name").multiple());
+```
+
+</TabItem>
+</Tabs>
+
+| Constraint | Operators |
+|------------|-----------|
+| `TextConstraint` | contains, starts with, ends with, equals, is filled |
+| `NumberConstraint` | equals, is minimum, is maximum, is filled |
+| `DateConstraint` | is after, is before, is date, is month, is year, is filled |
+| `BooleanConstraint` | is true |
+| `SelectConstraint` | is, is filled |
+| `RelationshipConstraint` | is related to, has |
+
+Every operator can be inverted ("does not contain", "is not filled", "does not have"). A condition with an invalid value, such as letters in a number field, is ignored rather than failing the page. The chip reads the rules back in words, for example "Title contains Kona and Pages is minimum 200".
+
+The builder is a filter like any other, so it sits in the same form, works with deferred and live mode, and is stored in the URL as `filters.advanced=…`.
+
+## On resource pages
+
+Resource list and manage pages wire everything for you: return the table from `table(...)` and the URL state, session persistence, searchable option lookups, and soft navigation all work.
+
+For a table on a custom `Page`, apply the request state yourself with `TableState.apply`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val table = Table.cadence(Book::class.java).filters(statusFilter).persistFiltersInSession()
+TableState.apply(table, state, "reports.books.filters")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Table<?, ?> table = Table.cadence(Book.class).filters(statusFilter).persistFiltersInSession();
+TableState.apply(table, state, "reports.books.filters");
+```
+
+</TabItem>
+</Tabs>
+
+`state` is the page state map Firefly passes to your page. The third argument is the session key used when the table persists filters and has no `filtersSessionKey` of its own.
+
+## Drive filters from code
+
+The same state is available without a request, which is handy in tests and in Wire components:
+
+| Call | What it does |
+|------|--------------|
+| `filter("status", "draft")` | Set a single-value filter |
+| `filterState("published_between", mapOf("from" to "2026-01-01"))` | Set a schema filter's fields |
+| `filterData("status")` | Read a filter's current `FilterData` |
+| `removeFilter("status")` / `removeFilterFields(name, "from")` | Clear a filter or some of its fields |
+| `removeAllFilters()` / `resetFilters()` | Clear everything, or go back to the defaults |
+| `applyFilterQuery(map)` | Apply `filters.*` query parameters; returns whether any were present |
+| `filterQuery()` | The current state as query parameters |
+| `filterIndicators()` | The chips that would render |
+| `filterOptions("author", "ad")` | Search a select filter's options |
+
+## Generate a filter class
+
+`./grind make:firefly-filter Status` writes a reusable filter class under `app/firefly/filters`: a checkbox filter on the `status` attribute that you can extend like any other filter, then pass to `filters(Status())`. Add `--lang=java` for Java.

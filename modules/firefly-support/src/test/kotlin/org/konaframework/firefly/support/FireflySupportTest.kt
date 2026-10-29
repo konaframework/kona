@@ -21,6 +21,24 @@ class FireflySupportTest {
     }
 
     @Test
+    fun bundledStylesheetClosesEveryRule() {
+        val css = Stylesheet.render(KonaTheme()).replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "")
+        val open = ArrayList<String>()
+        for (line in css.lines()) {
+            val trimmed = line.trimStart()
+            if (line == trimmed && trimmed.startsWith(".") && open.isNotEmpty() && !open.last().startsWith("@")) {
+                throw AssertionError("rule [$trimmed] starts inside unclosed [${open.last()}]")
+            }
+            for (ch in line) {
+                if (ch == '{') open.add(trimmed)
+                if (ch == '}') open.removeAt(open.size - 1)
+            }
+        }
+        assertEquals(emptyList<String>(), open)
+        assertTrue(css.contains(".ff-filters-dropdown"))
+    }
+
+    @Test
     fun cremaClasspathFinderLoadsPanelLayout() {
         val finder = ClasspathViewFinder(FireflyCrema::class.java.classLoader)
         val source = finder.get("firefly.layouts.panel")

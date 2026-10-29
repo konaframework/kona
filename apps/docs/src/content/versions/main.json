@@ -661,6 +661,10 @@
           "slug": "docs/firefly/tables"
         },
         {
+          "label": "Table filters",
+          "slug": "docs/firefly/table-filters"
+        },
+        {
           "label": "Notifications",
           "slug": "docs/firefly/notifications"
         },
