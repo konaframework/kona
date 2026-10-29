@@ -15,8 +15,8 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
     private val falseIconValue = TextSetting()
     private val trueColorValue = TextSetting()
     private val falseColorValue = TextSetting()
-    private val trueLabelValue = TextSetting().also { it.set("Yes") }
-    private val falseLabelValue = TextSetting().also { it.set("No") }
+    private val trueLabelValue = TextSetting()
+    private val falseLabelValue = TextSetting()
     private val sizeValue = TextSetting()
 
     /** Distinct from schema `SchemaIcon` / SVG `.ff-icon` so the entry root is not glyph-sized. */
@@ -138,7 +138,8 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
             val mark = if (asBool && item != null) {
                 val on = truthy(item)
                 val cls = if (on) "is-true" else "is-false"
-                val label = if (on) trueLabelValue.get(get).orEmpty() else falseLabelValue.get(get).orEmpty()
+                val configured = if (on) trueLabelValue.get(get) else falseLabelValue.get(get)
+                val label = configured ?: if (on) "Yes" else "No"
                 val iconOnly = label.isBlank()
                 val onlyClass = if (iconOnly) " ff-boolean--icon-only" else ""
                 val custom =
