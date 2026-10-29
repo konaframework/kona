@@ -6,6 +6,7 @@ import org.konaframework.firefly.schemas.EmptyState
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
 import java.util.function.Consumer
+import java.util.function.Function
 
 enum class TableLayout {
     ROWS,
@@ -66,6 +67,9 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private var reorderColumn: String? = null
     private var pollInterval: String? = null
     private var groupRowActionsFlag = true
+    private var recordClickDisabled = false
+    private var recordUrlUsing: Function<Cell, String>? = null
+    private var recordActionUsing: Function<Cell, String>? = null
 
     fun columns(vararg columns: Column): Table<T, Q> = apply {
         columnList.clear()
@@ -113,6 +117,50 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
      * Pass false to show each action as its own button.
      */
     fun groupRowActions(on: Boolean = true): Table<T, Q> = apply { groupRowActionsFlag = on }
+
+    /**
+     * Whole-row click navigates to this URL (Filament `recordUrl`). Clears [recordAction].
+     * Pass blank to fall through to the default View-then-Edit behavior.
+     */
+    fun recordUrl(url: String): Table<T, Q> = apply {
+        recordClickDisabled = false
+        recordActionUsing = null
+        recordUrlUsing = Function { url }
+    }
+
+    fun recordUrl(url: Function<Cell, String>): Table<T, Q> = apply {
+        recordClickDisabled = false
+        recordActionUsing = null
+        recordUrlUsing = url
+    }
+
+    /**
+     * Whole-row click runs the named row [TableButton] (Filament `recordAction`) —
+     * opens its dialog or follows its link. Clears [recordUrl].
+     */
+    fun recordAction(name: String): Table<T, Q> = apply {
+        recordClickDisabled = false
+        recordUrlUsing = null
+        recordActionUsing = Function { name }
+    }
+
+    fun recordAction(name: Function<Cell, String>): Table<T, Q> = apply {
+        recordClickDisabled = false
+        recordUrlUsing = null
+        recordActionUsing = name
+    }
+
+    /**
+     * When false, rows are not clickable even if View/Edit actions exist.
+     * Default true: click View if present, otherwise Edit (#377).
+     */
+    fun recordClickable(on: Boolean = true): Table<T, Q> = apply {
+        recordClickDisabled = !on
+        if (!on) {
+            recordUrlUsing = null
+            recordActionUsing = null
+        }
+    }
 
     fun groups(vararg groups: TableGroup): Table<T, Q> = apply {
         groupList.clear()
@@ -475,7 +523,8 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val select = if (selectable) selectionCell(key) else ""
         val cells = visible.joinToString("") { """<td>${it.render(values, key, rowCell(values, it.name))}</td>""" }
         val actions = rowActions(values, key)
-        return """<tr data-ff-record="${escapeHtml(key)}">$select$cells$actions</tr>"""
+        val click = recordClickAttrs(rowActionCell(values, key))
+        return """<tr data-ff-record="${escapeHtml(key)}"$click>$select$cells$actions</tr>"""
     }
 
     private fun cards(loaded: LoadedTable<T>, visible: List<Column>, className: String): String {
@@ -497,7 +546,8 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val fields = visible.joinToString("") { column ->
             """<div class="ff-stack-field"><span>${escapeHtml(column.heading(tableCell()))}</span>${column.render(values, key, rowCell(values, column.name))}</div>"""
         }
-        return """<article class="ff-table-card" data-ff-record="${escapeHtml(key)}">$select$fields${rowActions(values, key)}</article>"""
+        val click = recordClickAttrs(rowActionCell(values, key))
+        return """<article class="ff-table-card" data-ff-record="${escapeHtml(key)}"$click>$select$fields${rowActions(values, key)}</article>"""
     }
 
     private fun selectionCell(key: String): String {
@@ -505,14 +555,54 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         return """<td><input type="checkbox"$checked x-on:click="${'$'}wire.${'$'}call('selectRecord', '${escapeHtml(key)}')"></td>"""
     }
 
-    private fun rowActions(values: Map<String, Any?>, key: String): String {
-        if (rowButtonList.isEmpty()) return ""
-        val cell = Cell { path ->
+    private fun rowActionCell(values: Map<String, Any?>, key: String): Cell =
+        Cell { path ->
             when (path) {
                 "key", "recordKey" -> key
                 else -> values[path.removePrefix("/")]
             }
         }
+
+    /**
+     * Filament-shaped row click: explicit [recordUrl] / [recordAction], else View then Edit (#377).
+     */
+    private fun recordClickAttrs(cell: Cell): String {
+        if (recordClickDisabled) return ""
+        val urlUsing = recordUrlUsing
+        if (urlUsing != null) {
+            val url = urlUsing.apply(cell).trim()
+            if (url.isEmpty()) return ""
+            return """ data-ff-record-url="${escapeHtml(url)}" tabindex="0""""
+        }
+        val actionUsing = recordActionUsing
+        if (actionUsing != null) {
+            val action = actionUsing.apply(cell).trim()
+            if (action.isEmpty()) return ""
+            return """ data-ff-record-action="${escapeHtml(action)}" tabindex="0""""
+        }
+        val target = defaultRecordClick(cell) ?: return ""
+        val url = target.url
+        if (url != null) return """ data-ff-record-url="${escapeHtml(url)}" tabindex="0""""
+        return """ data-ff-record-action="${escapeHtml(target.action)}" tabindex="0""""
+    }
+
+    private data class RecordClick(val url: String? = null, val action: String = "")
+
+    /** Prefer View, then Edit — URL buttons yield [RecordClick.url], dialogs yield [RecordClick.action]. */
+    private fun defaultRecordClick(cell: Cell): RecordClick? {
+        for (name in listOf("view", "edit")) {
+            val button = rowButtonList.firstOrNull { it.name == name } ?: continue
+            if (button.isHidden(cell)) continue
+            val href = button.urlFor(cell)
+            if (href != null) return RecordClick(url = href)
+            return RecordClick(action = name)
+        }
+        return null
+    }
+
+    private fun rowActions(values: Map<String, Any?>, key: String): String {
+        if (rowButtonList.isEmpty()) return ""
+        val cell = rowActionCell(values, key)
         val emptySelection = selectedKeys.isEmpty()
         val buttons =
             if (groupRowActionsFlag && rowButtonList.size > 1) {

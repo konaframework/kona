@@ -348,6 +348,8 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel svg.ff-icon"))
         assertTrue(css.contains(".ff-panel > .ff-column"))
         assertTrue(css.contains(".ff-panel .ff-table .ff-icon-column"))
+        assertTrue(css.contains("tr[data-ff-record-url]") || css.contains("data-ff-record-url"))
+        assertTrue(css.contains("cursor: pointer"))
         assertTrue(css.contains("width: fit-content"))
         assertTrue(Icon.X.svg().contains("""class="ff-icon""""))
         assertTrue(css.contains(".ff-panel .ff-toggle-thumb"))
@@ -451,6 +453,9 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-dialog-panel"))
         assertTrue(html.contains("data-ff-dialog-switch"))
         assertTrue(html.contains("switchMount"))
+        assertTrue(html.contains("data-ff-record-url"))
+        assertTrue(html.contains("data-ff-record-action"))
+        assertTrue(html.contains("recordTrigger"))
         assertTrue(html.contains("ff-open"))
         // Form toggles flip without Alpine/Wire.
         assertTrue(html.contains("data-ff-toggle"))

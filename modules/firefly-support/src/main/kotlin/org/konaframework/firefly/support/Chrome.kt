@@ -394,6 +394,16 @@ class DefaultLayout(
                 "if(picker.getAttribute('data-ff-time')!=='true')closePickers();}" +
                 "return;}" +
                 "return;}" +
+                // Whole-row click: navigate or trigger View/Edit (skip interactive children) (#377).
+                "var recordRow=t.closest('[data-ff-record-url],[data-ff-record-action]');" +
+                "if(recordRow&&!t.closest('a,button,input,label,select,textarea,summary,.ff-row-actions,[data-ff-menu],[data-ff-dialog-mount],[data-ff-column-toggle]')){" +
+                "var recordUrl=recordRow.getAttribute('data-ff-record-url');" +
+                "if(recordUrl){window.location.assign(recordUrl);return;}" +
+                "var recordAction=recordRow.getAttribute('data-ff-record-action');" +
+                "if(recordAction){var recordTrigger=recordRow.querySelector('[data-ff-dialog-open][data-ff-action=\"'+recordAction+'\"]')" +
+                "||recordRow.querySelector('a[data-ff-action=\"'+recordAction+'\"]')" +
+                "||recordRow.querySelector('[data-ff-action=\"'+recordAction+'\"]');" +
+                "if(recordTrigger){recordTrigger.click();}return;}}" +
                 // View→Edit (and similar): close current dialog and open another mount in the same row (#376).
                 "var switchBtn=t.closest('[data-ff-dialog-switch]');" +
                 "if(switchBtn){var switchName=switchBtn.getAttribute('data-ff-dialog-switch')||'';" +
@@ -451,7 +461,10 @@ class DefaultLayout(
                 "if(form){if(form.requestSubmit)form.requestSubmit();else form.submit();return;}" +
                 "var url=new URL(location.href);url.searchParams.set(el.name||'perPage',el.value);url.searchParams.set('page','1');" +
                 "ffTableNav(url.pathname+url.search,wrap);});" +
-                "document.addEventListener('keydown',function(ev){if(ev.key==='Escape'){" +
+                "document.addEventListener('keydown',function(ev){" +
+                "if(ev.key==='Enter'&&ev.target&&ev.target.matches&&ev.target.matches('[data-ff-record-url],[data-ff-record-action]')){" +
+                "ev.preventDefault();ev.target.click();return;}" +
+                "if(ev.key==='Escape'){" +
                 "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();}});" +
                 "function repositionOpenRowMenus(){root.querySelectorAll('.ff-row-action-menu.ff-open').forEach(positionRowMenu);}" +
                 "window.addEventListener('scroll',repositionOpenRowMenus,true);" +

@@ -184,6 +184,8 @@ class FireflyResourceTest {
         assertTrue(html.contains("ff-table-button-dialog"))
         assertTrue(html.contains("""data-ff-dialog-panel"""))
         assertTrue(html.contains("""data-ff-dialog-switch="edit""""), html)
+        // Drop-in row click defaults to View action (#377).
+        assertTrue(html.contains("""data-ff-record-action="view""""), html)
         // Create/edit dialogs use native POST forms (not Wire-only Submit).
         assertTrue(html.contains("""class="ff-action-form""""))
         assertTrue(html.contains("""method="post" action="create""""))
@@ -249,6 +251,7 @@ class FireflyResourceTest {
         assertTrue(list.contains("ff-row-action-menu") || list.contains("ff-table-more"))
         assertTrue(list.contains("""href="view?id=1""""))
         assertTrue(list.contains("""href="edit?id=1""""))
+        assertTrue(list.contains("""data-ff-record-url="view?id=1""""), list)
         assertTrue(list.contains("Ada"))
         // Create is a page link on full resources — dialogs stay on simple/manage and delete.
         // Full-resource create is a header link — dialogs belong on simple/manage and delete.

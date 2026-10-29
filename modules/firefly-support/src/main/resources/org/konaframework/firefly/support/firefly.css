@@ -2247,6 +2247,14 @@ body.ff-body-root {
   font-size: 0.875rem;
 }
 
+/* Clickable records — View/Edit by default, or recordUrl / recordAction (#377). */
+.ff-panel .ff-table tr[data-ff-record-url],
+.ff-panel .ff-table tr[data-ff-record-action],
+.ff-panel .ff-table-card[data-ff-record-url],
+.ff-panel .ff-table-card[data-ff-record-action] {
+  cursor: pointer;
+}
+
 .ff-panel .ff-table th {
   text-align: left;
   padding: 0.7rem 1rem;

@@ -109,6 +109,12 @@ open class TableButton(val name: String) {
 
     fun isHidden(cell: Cell): Boolean = hiddenFlag.get(cell) || !visibleFlag.get(cell)
 
+    /** Resolved href when this button is a link; null for dialog mounts (#377). */
+    internal fun urlFor(cell: Cell): String? {
+        val href = urlValue.get(cell, "")
+        return href.takeIf { it.isNotEmpty() }
+    }
+
     @JvmOverloads
     open fun render(cell: Cell, selectionEmpty: Boolean, menuItem: Boolean = false): String {
         if (isHidden(cell)) return ""
@@ -118,7 +124,8 @@ open class TableButton(val name: String) {
         val disabledAttr = if (disabled) """ disabled""" else ""
         val triggerClass = if (menuItem) "ff-menu-link" else "ff-table-button"
         if (href.isNotEmpty()) {
-            return """<a class="$triggerClass" href="${escapeHtml(href)}"$disabledAttr>${escapeHtml(label)}</a>"""
+            // data-ff-action lets row clicks target this link by name (#377).
+            return """<a class="$triggerClass" href="${escapeHtml(href)}" data-ff-action="${escapeHtml(name)}"$disabledAttr>${escapeHtml(label)}</a>"""
         }
         val dialog = Dialog.make(confirmHeading ?: label)
         when (mode) {
