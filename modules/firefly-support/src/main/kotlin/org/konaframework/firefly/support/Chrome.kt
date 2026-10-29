@@ -265,12 +265,14 @@ class DefaultLayout(
                 "var list=c.querySelector('[data-ff-combobox-options]');var searching=c.getAttribute('data-ff-searching')||'Searching';" +
                 "if(empty){empty.textContent=searching;empty.removeAttribute('hidden');}if(list)list.style.display='none';" +
                 "var seq=(+(c.getAttribute('data-ff-search-seq')||'0'))+1;c.setAttribute('data-ff-search-seq',String(seq));" +
-                "fetch(formOptionsUrl(field,query),{credentials:'same-origin',headers:{'Accept':'application/json','X-Requested-With':'FF-Select'}})" +
+                "var su=c.getAttribute('data-ff-search-url');" +
+                "var surl=su?(su+(su.indexOf('?')<0?'?':'&')+'q='+encodeURIComponent(query||'')):formOptionsUrl(field,query);" +
+                "fetch(surl,{credentials:'same-origin',headers:{'Accept':'application/json','X-Requested-With':'FF-Select'}})" +
                 ".then(function(r){return r.json();}).then(function(items){if(String(seq)!==c.getAttribute('data-ff-search-seq'))return;" +
                 "if(empty)empty.textContent=c.getAttribute('data-ff-empty')||'No results found';renderComboboxOptions(c,items);})" +
                 ".catch(function(){if(String(seq)!==c.getAttribute('data-ff-search-seq'))return;" +
                 "if(empty){empty.textContent=c.getAttribute('data-ff-empty')||'No results found';empty.removeAttribute('hidden');}if(list){list.innerHTML='';list.style.display='none';}});}" +
-                "function filterCombobox(c,query){if(c.getAttribute('data-ff-relationship')){remoteFilterCombobox(c,query);return;}" +
+                "function filterCombobox(c,query){if(c.getAttribute('data-ff-relationship')||c.getAttribute('data-ff-search-url')){remoteFilterCombobox(c,query);return;}" +
                 "var needle=(query||'').toLowerCase();var any=false;" +
                 "c.querySelectorAll('.ff-option').forEach(function(li){var label=(li.getAttribute('data-ff-label')||'').toLowerCase();" +
                 "var value=(li.getAttribute('data-ff-value')||'').toLowerCase();" +
@@ -421,6 +423,13 @@ class DefaultLayout(
                 "document.addEventListener('pointerup',function(){dragState=null;resizeState=null;});" +
                 "document.addEventListener('click',function(ev){" +
                 "var t=ev.target;if(!t||!t.closest)return;" +
+                // Relation manager tabs: switch panels in place and keep ?relation= in the URL.
+                "var relTab=t.closest('[data-ff-relation-tab]');" +
+                "if(relTab){var relBox=relTab.closest('[data-ff-relation-managers]');if(relBox){ev.preventDefault();" +
+                "var relName=relTab.getAttribute('data-ff-relation-tab')||'';" +
+                "relBox.querySelectorAll('[data-ff-relation-tab]').forEach(function(x){x.setAttribute('aria-selected',x===relTab?'true':'false');});" +
+                "relBox.querySelectorAll('[data-ff-relation-panel]').forEach(function(p){if(p.getAttribute('data-ff-relation-panel')===relName)p.removeAttribute('hidden');else p.setAttribute('hidden','');});" +
+                "try{var ru=new URL(location.href);ru.searchParams.set('relation',relName);history.replaceState({},'',ru.pathname+ru.search);}catch(e){}}return;}" +
                 "var expandBtn=t.closest('[data-ff-dialog-expand]');" +
                 "if(expandBtn){toggleDialogExpand(expandBtn.closest('.ff-dialog-window'));return;}" +
                 "if(t.closest('[data-ff-theme-toggle]')){var o=['light','dark','system'];" +

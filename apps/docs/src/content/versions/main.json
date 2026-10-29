@@ -677,6 +677,10 @@
           "slug": "docs/firefly/resources"
         },
         {
+          "label": "Relation managers",
+          "slug": "docs/firefly/relation-managers"
+        },
+        {
           "label": "Tenancy",
           "slug": "docs/firefly/tenancy"
         },

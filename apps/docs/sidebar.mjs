@@ -284,6 +284,7 @@ export async function buildSidebar() {
         { label: 'Notifications', translations: { es: 'Notificaciones', fr: 'Notifications', 'zh-CN': '通知' }, slug: 'docs/firefly/notifications' },
         { label: 'Widgets', translations: { es: 'Widgets', fr: 'Widgets', 'zh-CN': '小部件' }, slug: 'docs/firefly/widgets' },
         { label: 'Resources', translations: { es: 'Recursos', fr: 'Ressources', 'zh-CN': '资源' }, slug: 'docs/firefly/resources' },
+        { label: 'Relation managers', translations: { es: 'Gestores de relaciones', fr: 'Gestionnaires de relations', 'zh-CN': '关联管理器' }, slug: 'docs/firefly/relation-managers' },
         { label: 'Tenancy', translations: { es: 'Tenencia', fr: 'Multi-locataire', 'zh-CN': '多租户' }, slug: 'docs/firefly/tenancy' },
         { label: 'Plugins', translations: { es: 'Plugins', fr: 'Plugins', 'zh-CN': '插件' }, slug: 'docs/firefly/plugins' },
         { label: 'Import and export', translations: { es: 'Importación y exportación', fr: 'Import et export', 'zh-CN': '导入与导出' }, slug: 'docs/firefly/import-export' },

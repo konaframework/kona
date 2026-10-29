@@ -84,6 +84,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private var maxSelectable: Int? = null
     private var currentPageOnly = false
     private var groupsOnly = false
+    private val persistentQuery = LinkedHashMap<String, String>()
 
     /**
      * Attach columns and optional layout components ([org.konaframework.firefly.tables.layout.Split],
@@ -325,6 +326,17 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     fun modifyQueryUsing(hook: Consumer<Q>): Table<T, Q> = apply { hooks.add(hook) }
 
+    /**
+     * Query-string pairs every sort, page, search, and filter link keeps — for example the
+     * `id` of the record a relation table belongs to. Replaces earlier values.
+     */
+    fun persistQueryParameters(values: Map<String, String>): Table<T, Q> = apply {
+        persistentQuery.clear()
+        persistentQuery.putAll(values)
+    }
+
+    fun persistedQueryParameters(): Map<String, String> = LinkedHashMap(persistentQuery)
+
     fun search(term: String): Table<T, Q> = apply { searchTerm = term }
 
     fun sort(column: String, direction: String = "asc"): Table<T, Q> = apply {
@@ -444,7 +456,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val max = maxSelectable
         if (max != null && requested.size > max) throw FireflyException("Select at most $max records")
         val records = requested
-            .map { key -> BulkRecord(key, store.find(key)?.let { store.attributes(it) }) }
+            .map { key -> BulkRecord(key, scopedFind(key)?.let { store.attributes(it) }) }
             .filter { record -> record.attributes == null || isRecordSelectable(record.attributes, record.key) }
         val grouped = groupColumn
         if (groupsOnly && grouped != null) {
@@ -460,9 +472,21 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     private fun deleteRecord(key: String): Boolean {
-        val record = store.find(key) ?: return false
+        val record = scopedFind(key) ?: return false
         store.delete(record)
         return true
+    }
+
+    /**
+     * Selected keys resolve through [modifyQueryUsing] hooks, so a posted key outside the
+     * table's query (another owner's related record) counts as missing.
+     */
+    private fun scopedFind(key: String): T? {
+        val found = store.find(key) ?: return null
+        if (hooks.isEmpty()) return found
+        val query = baseQuery()
+        store.constrain(query, store.keyName(), "=", store.attributes(found)[store.keyName()])
+        return store.list(query).firstOrNull()
     }
 
     private fun isRecordSelectable(values: Map<String, Any?>, key: String): Boolean {
@@ -735,9 +759,12 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         if (!searchable && filters.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) return ""
         val columnsHidden = columnsQueryHiddenInput(cell)
         val filterHidden = filterSet.hiddenInputs(cell)
+        val persistedHidden = persistentQuery.entries.joinToString("") { (key, value) ->
+            """<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}" />"""
+        }
         // Query-string toolbar — chrome soft-nav swaps the wrap without a full document reload.
         // Filter panels carry their own GET form, so they render after the toolbar form (forms can't nest).
-        return """<form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$columnsHidden$filterHidden$tools</form>${filterSet.panelHtml(filterView)}"""
+        return """<form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$persistedHidden$search$columnsHidden$filterHidden$tools</form>${filterSet.panelHtml(filterView)}"""
     }
 
     /**
@@ -860,7 +887,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     private fun sortHref(column: String, direction: String): String {
-        val parts = ArrayList<String>()
+        val parts = persistedParts()
         if (searchTerm.isNotEmpty()) parts.add("search=${encodeQuery(searchTerm)}")
         parts.add("sort=${encodeQuery(column)}")
         parts.add("direction=$direction")
@@ -876,8 +903,11 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     /** Search / sort / page size / columns the filters form and indicator links carry (page resets to 1). */
+    private fun persistedParts(): ArrayList<String> =
+        persistentQuery.entries.mapTo(ArrayList()) { (key, value) -> "${encodeQuery(key)}=${encodeQuery(value)}" }
+
     private fun filterView(cell: Cell): TableFilters.View {
-        val base = ArrayList<Pair<String, String>>()
+        val base = persistentQuery.entries.mapTo(ArrayList()) { it.key to it.value }
         if (searchTerm.isNotEmpty()) base.add("search" to searchTerm)
         val sorting = sortColumn
         if (sorting != null) {
@@ -1154,7 +1184,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     private fun pageHref(page: Int): String {
-        val parts = ArrayList<String>()
+        val parts = persistedParts()
         if (searchTerm.isNotEmpty()) parts.add("search=${encodeQuery(searchTerm)}")
         val sorting = sortColumn
         if (sorting != null) {

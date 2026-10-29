@@ -76,6 +76,7 @@ constructor(
                 "make:firefly-page" -> MakeFireflyPageCommand().run(flattened)
                 "make:firefly-theme" -> MakeFireflyThemeCommand().run(flattened)
                 "make:firefly-resource" -> MakeFireflyResourceCommand().run(flattened)
+                "make:firefly-relation-manager" -> MakeFireflyRelationManagerCommand().run(flattened)
                 "firefly:install" -> FireflyInstallCommand().run(flattened)
                 "firefly:publish" -> FireflyPublishCommand().run(flattened)
                 "make:model" -> MakeModelCommand().run(flattened)

@@ -66,6 +66,12 @@ open class TableButton(val name: String) {
 
     fun requiresSelection(on: Boolean): TableButton = apply { requiresSelection = on }
 
+    /** Dialog heading when it should differ from the trigger label (`Edit task` behind `Edit`). */
+    fun modalHeading(value: String): TableButton = apply {
+        if (value.isBlank()) throw org.konaframework.firefly.support.FireflyException("Modal heading is blank")
+        confirmHeading = value
+    }
+
     fun schema(vararg components: Component): TableButton = apply {
         schemaParts.clear()
         schemaParts.addAll(components)

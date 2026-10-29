@@ -3454,6 +3454,94 @@ body.ff-body-root {
   box-shadow: none;
 }
 
+/* Heading + header actions (New, Associate, Attach) sit above the table, outside its toolbar form. */
+.ff-panel .ff-relation-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.ff-panel .ff-relation-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-relation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ff-panel .ff-relation-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  background: color-mix(in srgb, var(--ff-primary) 16%, transparent);
+  color: var(--ff-accent);
+}
+
+.ff-panel.ff-dark .ff-relation-badge,
+.ff-dark .ff-panel .ff-relation-badge {
+  color: #E8D4B8;
+}
+
+/* Several managers on one record: tabs over one visible panel (Filament relation tabs). */
+.ff-panel .ff-relation-managers {
+  margin-top: 1rem;
+}
+
+.ff-panel .ff-relation-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--ff-heading) 12%, transparent);
+}
+
+.ff-panel .ff-relation-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--ff-heading) 70%, transparent);
+  text-decoration: none;
+}
+
+.ff-panel .ff-relation-tab:hover {
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-relation-tab[aria-selected="true"] {
+  border-bottom-color: var(--ff-primary);
+  color: var(--ff-primary);
+}
+
+.ff-panel .ff-relation-panel[hidden] {
+  display: none;
+}
+
+.ff-panel .ff-relation-panel > .ff-relation {
+  margin-top: 0;
+}
+
 /* ——— Manage header: slightly tighter crumb → toolbar gap ——— */
 .ff-panel .ff-manage .ff-page-header {
   gap: 0.5rem;
