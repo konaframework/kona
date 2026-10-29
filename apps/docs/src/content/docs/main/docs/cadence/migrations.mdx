@@ -60,7 +60,8 @@ class CreatePostsTable : Migration {
             text("body").nullable()
             boolean("published").default(false)
             integer("votes").default(0)
-            timestamp("published_at").nullable()
+            date("due_on").nullable()
+            dateTime("published_at").nullable()
             timestamps()
             softDeletes()
             index("user_id", "published")
@@ -94,7 +95,8 @@ class CreatePostsTable implements Migration {
             table.text("body").nullable();
             table.bool("published").withDefault(false);
             table.integer("votes").withDefault(0);
-            table.timestamp("published_at").nullable();
+            table.date("due_on").nullable();
+            table.dateTime("published_at").nullable();
             table.timestamps();
             table.softDeletes();
             table.index("user_id", "published");

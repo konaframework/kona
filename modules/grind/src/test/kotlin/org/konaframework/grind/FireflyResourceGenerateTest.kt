@@ -60,7 +60,10 @@ class FireflyResourceGenerateTest {
         )
         assertFalse(fields.form.any { it.name == "id" || it.name == "created_at" || it.name == "deleted_at" })
         assertTrue(fields.table.any { it.name == "title" && it.type == "TextColumn" })
-        assertTrue(fields.table.any { it.name == "published" && it.type == "ToggleColumn" })
+        assertTrue(fields.table.any { it.name == "published" && it.type == "IconColumn" })
+        assertTrue(fields.table.any { it.name == "published" && it.callExpr().endsWith(".boolean()") })
+        assertTrue(fields.infolist.any { it.name == "published" && it.type == "IconEntry" })
+        assertTrue(fields.infolist.any { it.name == "published" && it.callExpr().endsWith(".boolean()") })
         assertFalse(fields.table.any { it.name == "id" })
     }
 
@@ -138,8 +141,11 @@ class FireflyResourceGenerateTest {
         )
         assertTrue(kotlin.contains("Toggle.make(\"published\")"))
         assertTrue(kotlin.contains("TextInput.make(\"title\")"))
-        assertTrue(kotlin.contains("ToggleColumn.make(\"published\")"))
+        assertTrue(kotlin.contains("IconColumn.make(\"published\").boolean()"))
+        assertTrue(kotlin.contains("IconEntry.make(\"published\").boolean()"))
         assertTrue(kotlin.contains("import org.konaframework.firefly.forms.Toggle"))
+        assertTrue(kotlin.contains("import org.konaframework.firefly.tables.IconColumn"))
+        assertTrue(kotlin.contains("import org.konaframework.firefly.infolists.IconEntry"))
         val java = resourceSource(
             "PostResource",
             "Post",
@@ -150,6 +156,8 @@ class FireflyResourceGenerateTest {
             fields,
         )
         assertTrue(java.contains("Toggle.make(\"published\")"))
+        assertTrue(java.contains("IconColumn.make(\"published\").boolean()"))
+        assertTrue(java.contains("IconEntry.make(\"published\").boolean()"))
         assertTrue(java.contains("new ListPost()"))
     }
 
@@ -230,7 +238,13 @@ class FireflyResourceGenerateTest {
                 SchemaColumn("active", "BOOLEAN", false, "", 1),
                 SchemaColumn("flag", "BIT", false, "", 1),
                 SchemaColumn("tiny", "TINYINT", false, "", 1),
+                SchemaColumn("oracle_flag", "NUMBER", false, "", 1),
+                SchemaColumn("numeric_flag", "NUMERIC", false, "", 1),
+                SchemaColumn("decimal_flag", "DECIMAL", false, "", 1),
+                SchemaColumn("wide_number", "NUMBER", false, "", 10),
+                SchemaColumn("float_one", "FLOAT", false, "", 1),
                 SchemaColumn("wide_tiny", "TINYINT", false, "", 4),
+                SchemaColumn("when_dt2", "DATETIME2", true, "", 0),
                 SchemaColumn("payload", "VARCHAR", true, "", 255),
                 SchemaColumn("blobby", "BLOB", true, "", 0),
                 SchemaColumn("large", "CHARACTER LARGE OBJECT", true, "", 0),
@@ -259,7 +273,15 @@ class FireflyResourceGenerateTest {
         assertTrue(fields.form.any { it.name == "active" && it.type == "Toggle" })
         assertTrue(fields.form.any { it.name == "flag" && it.type == "Toggle" })
         assertTrue(fields.form.any { it.name == "tiny" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "oracle_flag" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "numeric_flag" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "decimal_flag" && it.type == "Toggle" })
+        assertTrue(fields.form.any { it.name == "wide_number" && it.type == "TextInput" })
+        assertTrue(fields.form.any { it.name == "float_one" && it.type == "TextInput" })
+        assertTrue(fields.infolist.any { it.name == "tiny" && it.callExpr() == "IconEntry.make(\"tiny\").boolean()" })
+        assertTrue(fields.table.any { it.name == "tiny" && it.callExpr() == "IconColumn.make(\"tiny\").boolean()" })
         assertTrue(fields.form.any { it.name == "wide_tiny" && it.type == "TextInput" })
+        assertTrue(fields.form.any { it.name == "when_dt2" && it.type == "DateTimePicker" })
         assertTrue(fields.form.any { it.name == "payload" && it.type == "Textarea" })
         assertTrue(fields.form.any { it.name == "blobby" && it.type == "Textarea" })
         assertTrue(fields.form.any { it.name == "large" && it.type == "Textarea" })

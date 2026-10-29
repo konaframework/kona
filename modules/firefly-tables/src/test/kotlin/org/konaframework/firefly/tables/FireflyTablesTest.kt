@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -337,6 +338,12 @@ class FireflyTablesTest {
         assertTrue(icon.render(mapOf("flag" to false), "1", Cell { null }).contains("ff-icon"))
         assertTrue(icon.render(mapOf("flag" to "user"), "1", Cell { null }).contains("ff-icon"))
         assertFalse(icon.render(mapOf("flag" to null), "1", Cell { null }).contains("<svg"))
+        val asBool = IconColumn.make("flag").boolean()
+        assertTrue(asBool.render(mapOf("flag" to 1), "1", Cell { null }).contains("ff-icon"))
+        assertTrue(asBool.render(mapOf("flag" to 0), "1", Cell { null }).contains("ff-icon"))
+        assertTrue(asBool.render(mapOf("flag" to "yes"), "1", Cell { null }).contains("ff-icon"))
+        assertFalse(asBool.render(mapOf("flag" to null), "1", Cell { null }).contains("<svg"))
+        assertSame(asBool, asBool.bool())
 
         val image = ImageColumn.make("photo").alt("Alt").imageHeight(10).imageWidth(12)
         assertTrue(image.render(mapOf("photo" to "https://example.test/a.png"), "1", Cell { null }).contains("ff-image"))

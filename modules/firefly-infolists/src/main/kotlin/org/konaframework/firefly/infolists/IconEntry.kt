@@ -23,6 +23,12 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
 
     fun bool(predicate: Predicate<Get>): IconEntry = apply { booleanFlag.set(predicate) }
 
+    /**
+     * Treats the state as a boolean: truthy → true icon/color, falsey → false icon/color.
+     * Kotlin alias for [bool]`(true)`. Java callers use [bool]`(true)` (`boolean` is a keyword).
+     */
+    fun boolean(): IconEntry = bool(true)
+
     fun whenTrue(icon: String, color: String): IconEntry = apply {
         booleanFlag.set(true)
         trueIconValue.set(icon)
