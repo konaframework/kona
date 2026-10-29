@@ -51,7 +51,6 @@ open class Action protected constructor(name: String) : Component(name) {
     private var expandableFlag: Boolean = true
     private var autofocus: Boolean = true
     private var draggable: Boolean = true
-    private val modalFullPageSetting = TextSetting()
     private var modalComponents: List<Component> = emptyList()
     /** When set (via [schema] with a [Schema]), modal body keeps that schema’s record for relationship Selects. */
     private var modalForm: Schema? = null
@@ -269,11 +268,6 @@ open class Action protected constructor(name: String) : Component(name) {
     /** Header maximize / restore control (Shamar). Default on for modal / slide-over. */
     fun modalExpandable(on: Boolean): Action = apply { expandableFlag = on }
 
-    /** Header “Open in full page” link for the dialog (Shamar). */
-    fun modalFullPageUrl(value: String): Action = apply { modalFullPageSetting.setLiteral(value) }
-
-    fun modalFullPageUrl(value: Function<Get, String>): Action = apply { modalFullPageSetting.setUsing(value) }
-
     fun modalAutofocus(on: Boolean): Action = apply { autofocus = on }
 
     fun schema(vararg components: Component): Action = apply {
@@ -434,8 +428,6 @@ open class Action protected constructor(name: String) : Component(name) {
         dialog.draggable(draggable)
         dialog.closeButton(showClose)
         dialog.expandable(expandableFlag)
-        val page = modalFullPageSetting.resolve(get)
-        if (page != null) dialog.fullPageUrl(page)
         dialog.body(dialogBody(schema, get))
         return dialog
     }

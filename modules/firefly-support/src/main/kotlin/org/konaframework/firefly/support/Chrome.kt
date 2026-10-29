@@ -319,7 +319,7 @@ class DefaultLayout(
                 "rwin.style.width=rr.width+'px';rwin.style.height=rr.height+'px';rwin.style.maxWidth='none';rwin.style.maxHeight='none';" +
                 "rwin.setPointerCapture&&rwin.setPointerCapture(ev.pointerId);ev.preventDefault();return;}" +
                 "var handle=ev.target&&ev.target.closest&&ev.target.closest('[data-ff-dialog-drag-handle]');" +
-                "if(!handle||ev.target.closest('[data-ff-dialog-close],[data-ff-dialog-expand],.ff-dialog-header-actions a'))return;" +
+                "if(!handle||ev.target.closest('[data-ff-dialog-close],[data-ff-dialog-expand]'))return;" +
                 "var win=handle.closest('.ff-dialog-window');if(!win||win.classList.contains('ff-dialog-expanded'))return;" +
                 "var rect=win.getBoundingClientRect();dragState={win:win,ox:ev.clientX-rect.left,oy:ev.clientY-rect.top};" +
                 "win.style.position='fixed';win.style.margin='0';win.style.left=rect.left+'px';win.style.top=rect.top+'px';" +

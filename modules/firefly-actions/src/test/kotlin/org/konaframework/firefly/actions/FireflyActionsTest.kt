@@ -230,19 +230,10 @@ class FireflyActionsTest {
         assertTrue(html.contains("x-data=\"ffAction('save')\""))
         assertTrue(html.contains("wire:click=\"save\""))
         assertTrue(html.contains("Save"))
-        val withPage = page(
-            Action.make("open").label("Open").requiresConfirmation()
-                .modalFullPageUrl("/admin/notes/1")
-                .modalExpandable(false),
+        val noExpand = page(
+            Action.make("open").label("Open").requiresConfirmation().modalExpandable(false),
         )
-        assertTrue(withPage.contains("Open in full page"))
-        assertTrue(withPage.contains("""href="/admin/notes/1""""))
-        assertFalse(withPage.contains("data-ff-dialog-expand"))
-        val withPageFn = page(
-            Action.make("open2").label("Open").requiresConfirmation()
-                .modalFullPageUrl { "/admin/notes/2" },
-        )
-        assertTrue(withPageFn.contains("""href="/admin/notes/2""""))
+        assertFalse(noExpand.contains("data-ff-dialog-expand"))
         val mounted = save.mountDialog(Schema.make().components(save))
         val mountedClosed = mounted.render()
         assertTrue(mountedClosed.contains("ff-dialog-modal"))

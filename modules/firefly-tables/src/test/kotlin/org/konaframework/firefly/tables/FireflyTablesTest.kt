@@ -746,22 +746,13 @@ class FireflyTablesTest {
         assertTrue(modalHtml.contains("\$wire.\$call('edit')"))
         assertTrue(modalHtml.contains("""data-ff-action-boot="ffAction('edit')""""))
         assertTrue(modalHtml.contains("Hello"))
-        val customBody = TableButton.make("view").label("View").modal()
-            .fullPageUrl("view?id=42")
-            .body { cell ->
-                "<p data-ff-row=\"${cell.get("key")}\">Row body</p>"
-            }
+        val customBody = TableButton.make("view").label("View").modal().body { cell ->
+            "<p data-ff-row=\"${cell.get("key")}\">Row body</p>"
+        }
         val customHtml = customBody.render(Cell { path -> if (path == "key") "42" else null }, false)
         assertTrue(customHtml.contains("""data-ff-row="42""""))
         assertTrue(customHtml.contains("Row body"))
-        assertTrue(customHtml.contains("Open in full page"))
-        assertTrue(customHtml.contains("""href="view?id=42""""))
         assertFalse(customHtml.contains("Hello"))
-        val pageFn = TableButton.make("view2").modal()
-            .fullPageUrl { cell -> "view?id=${cell.get("key")}" }
-            .body { "x" }
-            .render(Cell { path -> if (path == "key") "7" else null }, false)
-        assertTrue(pageFn.contains("""href="view?id=7""""))
         // schema() clears a prior body(); body() clears schema parts.
         val swapped = TableButton.make("swap").modal().body { "<em>gone</em>" }.schema(Text.make("Kept"))
         assertTrue(swapped.render(Cell { null }, false).contains("Kept"))

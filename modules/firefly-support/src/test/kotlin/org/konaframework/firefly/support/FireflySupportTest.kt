@@ -115,16 +115,6 @@ class FireflySupportTest {
         assertTrue(open.contains("data-ff-dialog-expand"))
         assertTrue(open.contains("data-ff-dialog-resize"))
         assertFalse(open.contains("Open in full page"))
-        assertTrue(
-            Dialog.make("Hello").fullPageUrl("/admin/notes/1").render(open = true)
-                .contains("""href="/admin/notes/1""""),
-        )
-        assertTrue(
-            Dialog.make("Hello").fullPageUrl("/admin/notes/1").render(open = true)
-                .contains("Open in full page"),
-        )
-        assertFalse(Dialog.make("Hello").fullPageUrl("").render(open = true).contains("Open in full page"))
-        assertFalse(Dialog.make("Hello").fullPageUrl(null).render(open = true).contains("Open in full page"))
         assertFalse(Dialog.make("Hello").closeButton(false).render(open = true).contains("ff-dialog-close"))
         assertFalse(Dialog.make("Hello").expandable(false).render(open = true).contains("data-ff-dialog-expand"))
         assertFalse(Dialog.make("Hello").resizable(false).render(open = true).contains("data-ff-dialog-resize"))
@@ -340,10 +330,11 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-dialog-header"))
         assertTrue(css.contains(".ff-panel .ff-dialog-body"))
         assertTrue(css.contains(".ff-panel .ff-dialog-header-actions"))
-        assertTrue(css.contains(".ff-panel .ff-dialog-full-page"))
         assertTrue(css.contains(".ff-panel .ff-dialog-expand"))
         assertTrue(css.contains(".ff-panel .ff-dialog-resize"))
         assertTrue(css.contains("ff-dialog-expanded"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-body > :not(.ff-action-footer)"))
+        assertTrue(css.contains("overflow: hidden"))
         // Create/action dialog chrome: compact close icon + primary Submit (type=button).
         assertTrue(css.contains(".ff-panel .ff-action-close") || css.contains(".ff-panel .ff-dialog-close"))
         assertTrue(css.contains(".ff-panel .ff-dialog-close"))

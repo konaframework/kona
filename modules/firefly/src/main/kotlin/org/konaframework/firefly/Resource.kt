@@ -352,24 +352,20 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     /** Row View: dialog with the filled infolist for that record. */
     private fun manageViewButton(): TableButton =
-        TableButton.make("view").label("View").modal()
-            .fullPageUrl { cell -> "view?id=${encodeQuery(cell.get("key").toString())}" }
-            .body { cell ->
-                val key = cell.get("key").toString()
-                val markup = prepareInfolist(liveSchema(mapOf("record" to key))).render()
-                val editHref = escapeHtml("edit?id=${encodeQuery(key)}")
-                """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button><a class="ff-action-submit" href="$editHref">Edit</a></div>"""
-            }
+        TableButton.make("view").label("View").modal().body { cell ->
+            val key = cell.get("key").toString()
+            val markup = prepareInfolist(liveSchema(mapOf("record" to key))).render()
+            val editHref = escapeHtml("edit?id=${encodeQuery(key)}")
+            """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button><a class="ff-action-submit" href="$editHref">Edit</a></div>"""
+        }
 
     /** Row Edit: dialog with the filled form for that record (native POST). */
     private fun manageEditButton(csrf: String): TableButton =
-        TableButton.make("edit").label("Edit").modal()
-            .fullPageUrl { cell -> "edit?id=${encodeQuery(cell.get("key").toString())}" }
-            .body { cell ->
-                val key = cell.get("key").toString()
-                val markup = prepareForm(liveSchema(mapOf("record" to key))).render()
-                """<form method="post" action="edit" class="ff-action-form">$csrf<input type="hidden" name="id" value="${escapeHtml(key)}" /><div class="ff-action-schema">$markup</div><div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button><button type="submit" class="ff-action-submit">Save</button></div></form>"""
-            }
+        TableButton.make("edit").label("Edit").modal().body { cell ->
+            val key = cell.get("key").toString()
+            val markup = prepareForm(liveSchema(mapOf("record" to key))).render()
+            """<form method="post" action="edit" class="ff-action-form">$csrf<input type="hidden" name="id" value="${escapeHtml(key)}" /><div class="ff-action-schema">$markup</div><div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button><button type="submit" class="ff-action-submit">Save</button></div></form>"""
+        }
 
     private fun applyList(page: ListPage, state: Map<String, Any?>) {
         page.title(pluralLabel())
