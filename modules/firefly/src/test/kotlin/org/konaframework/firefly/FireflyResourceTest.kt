@@ -48,13 +48,18 @@ class FireflyResourceTest {
         }
         val html = tasks.pages().single().render()
         assertTrue(html.contains("ff-combobox"))
+        assertTrue(html.contains("data-ff-combobox"))
+        assertTrue(html.contains("data-ff-combobox-value"))
+        assertTrue(html.contains("""name="project_id""""))
         assertTrue(html.contains("""data-ff-relationship="project""""))
         assertTrue(html.contains("""data-ff-preload="true""""))
         assertTrue(html.contains("ff-option"))
+        assertTrue(html.contains("""data-ff-label="Desk""""))
         assertTrue(html.contains("Desk"))
         assertTrue(html.contains("Lab"))
         assertTrue(html.contains(">Project<"))
         assertFalse(html.contains(">project_id<"))
+        assertFalse(html.contains("<select"))
     }
 
     @Test

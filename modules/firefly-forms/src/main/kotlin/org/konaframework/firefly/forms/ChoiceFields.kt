@@ -287,18 +287,47 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         binding: RelationBinding?,
     ): String = buildString {
             val inputExtra = extraInputMarkup(get)
-            append("""<div class="ff-combobox" x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}${if (searchableFlag) "" else inputExtra}>""")
-            if (searchableFlag) append("""<input class="ff-input" type="text" role="combobox"${attr("placeholder", placeholderValue(schema))}$inputExtra />""")
-            append("""<ul class="ff-options">""")
-            for (option in choices) {
-                val css = if (option.value in selected) "ff-option ff-selected" else "ff-option"
-                val label = if (allowHtmlFlag) option.label else esc(option.label)
-                append("""<li class="$css" data-ff-value="${esc(option.value)}"${boolAttr("data-ff-enabled", option.enabled)}>${label}${textTag("small", "ff-option-description", option.description)}</li>""")
+            val stored = if (multipleFlag) selected.joinToString(",") else selected.firstOrNull().orEmpty()
+            val display = displayLabel(choices, selected)
+            val prompt = placeholderValue(schema).orEmpty().ifBlank { searchPromptText }
+            // Picker-shaped shell: display + hidden value + panel. Chrome.js opens/filters/selects
+            // without Alpine so manage Create/Edit dialogs work (#338).
+            append(
+                """<div class="ff-combobox" data-ff-combobox x-data="ffCombobox" data-ff-path="${esc(path)}"${boolAttr("data-ff-searchable", searchableFlag)}${boolAttr("data-ff-multiple", multipleFlag)}${boolAttr("data-ff-preload", preloadFlag)}${attr("data-ff-position", positionText)}${attr("data-ff-loading", loadingMessageText)}${attr("data-ff-searching", searchingMessageText)}${attr("data-ff-empty", emptyMessageText)}${attr("data-ff-prompt", searchPromptText)} data-ff-debounce="$searchDebounceMs"${attr("data-ff-max-items", maxItemsCount?.toString())}${attr("data-ff-relationship", binding?.name)}${attr("data-ff-title", binding?.titleAttribute)}${attr("data-ff-state", stored.ifBlank { null })}>""",
+            )
+            append("""<div class="ff-combobox-field" data-ff-combobox-open>""")
+            append(
+                """<input class="ff-input ff-combobox-display" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off"${attr("placeholder", prompt)} value="${esc(display)}" data-ff-combobox-display${if (searchableFlag) "" else " readonly"}$inputExtra />""",
+            )
+            append("""<span class="ff-combobox-caret" aria-hidden="true"></span>""")
+            append("</div>")
+            append("""<input type="hidden" name="${esc(path)}" value="${esc(stored)}" data-ff-combobox-value />""")
+            append("""<div class="ff-combobox-panel" data-ff-combobox-panel hidden>""")
+            append("""<ul class="ff-options" data-ff-combobox-options role="listbox">""")
+            // Preload embeds options for client filter; when preload is off and the list is empty
+            // the panel shows the empty message until a search provider fills options later.
+            if (preloadFlag || choices.isNotEmpty()) {
+                for (option in choices) {
+                    val css = if (option.value in selected) "ff-option ff-selected" else "ff-option"
+                    val label = if (allowHtmlFlag) option.label else esc(option.label)
+                    append(
+                        """<li class="$css" role="option" data-ff-value="${esc(option.value)}" data-ff-label="${esc(option.label)}"${boolAttr("data-ff-enabled", option.enabled)}>${label}${textTag("small", "ff-option-description", option.description)}</li>""",
+                    )
+                }
             }
             append("</ul>")
+            append("""<div class="ff-combobox-empty" data-ff-combobox-empty${if (choices.isEmpty()) "" else " hidden"}>${esc(emptyMessageText)}</div>""")
+            append("</div>")
             append(optionDialog("Create option", createForm))
             append(optionDialog("Edit option", editForm))
             append("</div>")
+    }
+
+    private fun displayLabel(choices: List<FieldOption>, selected: Set<String>): String {
+        if (selected.isEmpty()) return ""
+        val labels = choices.filter { it.value in selected }.map { it.label }
+        if (labels.isNotEmpty()) return if (multipleFlag) labels.joinToString(", ") else labels.first()
+        return if (multipleFlag) selected.joinToString(", ") else selected.first()
     }
 
     private fun nativeSelect(path: String, choices: List<FieldOption>, selected: Set<String>, inputExtra: String): String = buildString {

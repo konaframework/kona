@@ -123,7 +123,7 @@ These methods are on the field base. Every concrete field has them.
 
 ## Choices
 
-`Select` renders a combobox (`ff-combobox`). Call `.native()` when you want a native `<select>`. In Java the method is `useNative(true)`, because `native` is a keyword. `.native(false)` and `useNative(false)` keep the combobox. The status field on the Desk page is the combobox: Open and Done.
+`Select` renders a combobox by default: a display field, a hidden input that posts the value, and an option list the panel chrome opens, filters, and selects (same shape as the date picker — no Alpine required). Call `.native()` when you want a browser `<select>`. In Java the method is `useNative(true)`, because `native` is a keyword. `.native(false)` and `useNative(false)` keep the combobox. The status field on the Desk page is the combobox: Open and Done.
 
 <FireflyShot file="form-combobox.png" description="The status field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as a combobox with Open and Done." />
 
@@ -185,7 +185,9 @@ Select.make("status")
 
 `relationship(name, titleAttribute)` reads the related records on the schema’s record. `name` is the relationship. `titleAttribute` is the label field. Pass a closure as `modifyQueryUsing` when you need to narrow the query. `getOptionLabelFromRecordUsing` replaces the label with a value taken from each record.
 
-Put the owner model on the schema with `record(...)` before the options are read. Resource create and manage Create/Edit dialogs bind a prototype (or loaded) model for you when the resource has `model(...)`, so `Select.relationship(...).preload()` renders the combobox with related options — not a nested text field labeled by the foreign-key name. When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query. `.native()` still opts into `<select>`. The default remains the combobox.
+Put the owner model on the schema with `record(...)` before the options are read. Resource create and manage Create/Edit dialogs bind a prototype (or loaded) model for you when the resource has `model(...)`, so `Select.relationship(...).preload()` renders the same combobox with related options — labels from the title attribute, or from `getOptionLabelFromRecordUsing` when you set a closure. When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query.
+
+By default Select is a searchable dropdown (display field, hidden posted value, option list). Panel chrome opens, filters, and selects without Alpine. Call `native()` only when you want a browser `<select>`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
