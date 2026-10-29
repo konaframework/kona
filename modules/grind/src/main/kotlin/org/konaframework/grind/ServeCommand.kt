@@ -60,6 +60,7 @@ constructor(
     }
 
     private fun serveInProcess(root: Path, options: Map<String, String>): Int {
+        ServeWatch.ensureClasses(root, compiler)
         Kona.reset()
         val verbose = GrindLogging.wantsVerbose(options)
         GrindLogging.hushConsole(verbose)

@@ -300,6 +300,20 @@ class FireflyPanelTest {
         assertEquals(2, pages.size)
         assertEquals(2, PanelDiscovery.resources(panelDir, javaClass.classLoader).size)
         assertEquals(1, PanelDiscovery.widgets(panelDir).size)
+        // Grouped resources/{model}/Resource + pages/ stubs: discover Resource only (#327).
+        val grouped = root.resolve("grouped")
+        Files.createDirectories(grouped.resolve("resources/note/pages"))
+        Files.writeString(
+            grouped.resolve("resources/note/NestedNoteResource.kt"),
+            "package org.konaframework.firefly.discovered.note\nclass NestedNoteResource : Resource(\"notes\")\n",
+        )
+        Files.writeString(
+            grouped.resolve("resources/note/pages/ManageNote.kt"),
+            "package org.konaframework.firefly.discovered.note.pages\nclass ManageNote\n",
+        )
+        val nested = PanelDiscovery.resources(grouped, javaClass.classLoader)
+        assertEquals(1, nested.size)
+        assertEquals("notes", nested.single().slug())
         val router = Router()
         val panel = Panel().path("admin").authenticate(false).discover(panelDir)
         panel.mount(router)
