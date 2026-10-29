@@ -183,6 +183,7 @@ class FireflyResourceTest {
         assertTrue(html.contains("""data-ff-action="delete""""))
         assertTrue(html.contains("ff-table-button-dialog"))
         assertTrue(html.contains("""data-ff-dialog-panel"""))
+        assertTrue(html.contains("""data-ff-dialog-switch="edit""""), html)
         // Create/edit dialogs use native POST forms (not Wire-only Submit).
         assertTrue(html.contains("""class="ff-action-form""""))
         assertTrue(html.contains("""method="post" action="create""""))
@@ -218,10 +219,13 @@ class FireflyResourceTest {
         assertNotNull(router.find("POST", "/admin/notes/edit"))
         assertTrue(manage.contains("""method="post" action="create""""))
         assertFalse(manage.contains("Open in full page"), manage)
-        assertTrue(manage.contains("""href="edit?id="""), manage)
-        assertTrue(manage.contains(">Edit</a>") || manage.contains("ff-action-submit"), manage)
+        // Simple View footer Edit switches to the row Edit modal (#376).
+        assertTrue(manage.contains("""data-ff-dialog-switch="edit""""), manage)
+        assertTrue(manage.contains("""class="ff-action-submit" data-ff-dialog-switch="edit""""), manage)
         assertTrue(manage.contains("data-ff-dialog-expand"), manage)
         assertTrue(manage.contains("data-ff-dialog-resize"), manage)
+        // Full-resource View page Edit still goes to the edit page.
+        assertTrue(view.contains("""href="edit""") || view.contains("""href="edit?id="""), view)
         assertTrue(list.contains("ff-list"))
         assertTrue(list.contains(">Orders<"))
         // Singular label() still renders a plural list/manage heading (Shamar).

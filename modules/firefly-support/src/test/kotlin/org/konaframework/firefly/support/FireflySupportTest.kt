@@ -449,6 +449,8 @@ class FireflySupportTest {
         // Dialog open/close without Alpine (Action / TableButton mounts).
         assertTrue(html.contains("data-ff-dialog-open"))
         assertTrue(html.contains("data-ff-dialog-panel"))
+        assertTrue(html.contains("data-ff-dialog-switch"))
+        assertTrue(html.contains("switchMount"))
         assertTrue(html.contains("ff-open"))
         // Form toggles flip without Alpine/Wire.
         assertTrue(html.contains("data-ff-toggle"))

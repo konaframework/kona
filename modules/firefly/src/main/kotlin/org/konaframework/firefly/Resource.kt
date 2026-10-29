@@ -350,13 +350,15 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         )
     }
 
-    /** Row View: dialog with the filled infolist for that record. */
+    /**
+     * Row View: dialog with the filled infolist for that record (simple/manage only).
+     * Footer Edit switches to this row’s Edit modal via [data-ff-dialog-switch].
+     * Full resources open View/Edit as pages — see [applyView] header Edit → edit page (#376).
+     */
     private fun manageViewButton(): TableButton =
         TableButton.make("view").label("View").modal().body { cell ->
-            val key = cell.get("key").toString()
-            val markup = prepareInfolist(liveSchema(mapOf("record" to key))).render()
-            val editHref = escapeHtml("edit?id=${encodeQuery(key)}")
-            """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button><a class="ff-action-submit" href="$editHref">Edit</a></div>"""
+            val markup = prepareInfolist(liveSchema(mapOf("record" to cell.get("key").toString()))).render()
+            """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button><button type="button" class="ff-action-submit" data-ff-dialog-switch="edit">Edit</button></div>"""
         }
 
     /** Row Edit: dialog with the filled form for that record (native POST). */

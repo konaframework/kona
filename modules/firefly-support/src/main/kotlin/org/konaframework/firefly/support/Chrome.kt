@@ -394,6 +394,14 @@ class DefaultLayout(
                 "if(picker.getAttribute('data-ff-time')!=='true')closePickers();}" +
                 "return;}" +
                 "return;}" +
+                // View→Edit (and similar): close current dialog and open another mount in the same row (#376).
+                "var switchBtn=t.closest('[data-ff-dialog-switch]');" +
+                "if(switchBtn){var switchName=switchBtn.getAttribute('data-ff-dialog-switch')||'';" +
+                "var switchRow=switchBtn.closest('.ff-row-actions')||switchBtn.closest('tr');" +
+                "if(switchRow&&switchName){var switchMount=null;" +
+                "switchRow.querySelectorAll('[data-ff-dialog-mount]').forEach(function(m){" +
+                "if(m.querySelector('[data-ff-dialog-open][data-ff-action=\"'+switchName+'\"]'))switchMount=m;});" +
+                "if(switchMount)openDialog(switchMount.querySelector('[data-ff-dialog-panel]'));}return;}" +
                 "var openBtn=t.closest('[data-ff-dialog-open]');" +
                 "if(openBtn){var mount=openBtn.closest('[data-ff-dialog-mount]');" +
                 "if(mount){openDialog(mount.querySelector('[data-ff-dialog-panel]'));}return;}" +
