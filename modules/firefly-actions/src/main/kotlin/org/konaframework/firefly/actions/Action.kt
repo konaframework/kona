@@ -48,8 +48,10 @@ open class Action protected constructor(name: String) : Component(name) {
     private var closeEscape: Boolean = true
     /** Official Dialog header close (`ff-dialog-close`). Default on. */
     private var showClose: Boolean = true
+    private var expandableFlag: Boolean = true
     private var autofocus: Boolean = true
     private var draggable: Boolean = true
+    private val modalFullPageSetting = TextSetting()
     private var modalComponents: List<Component> = emptyList()
     /** When set (via [schema] with a [Schema]), modal body keeps that schema’s record for relationship Selects. */
     private var modalForm: Schema? = null
@@ -264,6 +266,14 @@ open class Action protected constructor(name: String) : Component(name) {
 
     fun modalCloseButton(on: Boolean): Action = apply { showClose = on }
 
+    /** Header maximize / restore control (Shamar). Default on for modal / slide-over. */
+    fun modalExpandable(on: Boolean): Action = apply { expandableFlag = on }
+
+    /** Header “Open in full page” link for the dialog (Shamar). */
+    fun modalFullPageUrl(value: String): Action = apply { modalFullPageSetting.setLiteral(value) }
+
+    fun modalFullPageUrl(value: Function<Get, String>): Action = apply { modalFullPageSetting.setUsing(value) }
+
     fun modalAutofocus(on: Boolean): Action = apply { autofocus = on }
 
     fun schema(vararg components: Component): Action = apply {
@@ -423,6 +433,9 @@ open class Action protected constructor(name: String) : Component(name) {
         }
         dialog.draggable(draggable)
         dialog.closeButton(showClose)
+        dialog.expandable(expandableFlag)
+        val page = modalFullPageSetting.resolve(get)
+        if (page != null) dialog.fullPageUrl(page)
         dialog.body(dialogBody(schema, get))
         return dialog
     }
@@ -487,7 +500,8 @@ open class Action protected constructor(name: String) : Component(name) {
         val cancel = cancelAction
         val cancelHtml = if (cancel != null) cancel.render(schema) else defaultCancel(get)
         val extra = footerActions.joinToString("") { it.render(schema) }
-        return submitHtml + cancelHtml + extra
+        // Shamar: secondary (cancel) then primary (submit), both flush right (#372).
+        return cancelHtml + submitHtml + extra
     }
 
     private fun defaultSubmit(get: Get): String {

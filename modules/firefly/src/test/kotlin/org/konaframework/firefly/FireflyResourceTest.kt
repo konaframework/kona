@@ -217,6 +217,12 @@ class FireflyResourceTest {
         assertNotNull(router.find("POST", "/admin/notes/create"))
         assertNotNull(router.find("POST", "/admin/notes/edit"))
         assertTrue(manage.contains("""method="post" action="create""""))
+        assertTrue(manage.contains("Open in full page"), manage)
+        assertTrue(manage.contains("""href="view?id="""), manage)
+        assertTrue(manage.contains("""href="edit?id="""), manage)
+        assertTrue(manage.contains(">Edit</a>") || manage.contains("ff-action-submit"), manage)
+        assertTrue(manage.contains("data-ff-dialog-expand"), manage)
+        assertTrue(manage.contains("data-ff-dialog-resize"), manage)
         assertTrue(list.contains("ff-list"))
         assertTrue(list.contains(">Orders<"))
         // Singular label() still renders a plural list/manage heading (Shamar).

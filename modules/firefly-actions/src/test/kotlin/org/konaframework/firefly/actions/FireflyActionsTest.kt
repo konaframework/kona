@@ -224,10 +224,25 @@ class FireflyActionsTest {
         assertTrue(html.contains("ff-dialog-close") || html.contains("ff-action-close"))
         assertTrue(html.contains(">Confirm<"))
         assertTrue(html.contains(">Cancel<"))
+        // Shamar footer order: Cancel (secondary) then Confirm (primary).
+        assertTrue(html.indexOf(">Cancel<") < html.indexOf(">Confirm<"), html)
         assertTrue(html.contains("autofocus"))
         assertTrue(html.contains("x-data=\"ffAction('save')\""))
         assertTrue(html.contains("wire:click=\"save\""))
         assertTrue(html.contains("Save"))
+        val withPage = page(
+            Action.make("open").label("Open").requiresConfirmation()
+                .modalFullPageUrl("/admin/notes/1")
+                .modalExpandable(false),
+        )
+        assertTrue(withPage.contains("Open in full page"))
+        assertTrue(withPage.contains("""href="/admin/notes/1""""))
+        assertFalse(withPage.contains("data-ff-dialog-expand"))
+        val withPageFn = page(
+            Action.make("open2").label("Open").requiresConfirmation()
+                .modalFullPageUrl { "/admin/notes/2" },
+        )
+        assertTrue(withPageFn.contains("""href="/admin/notes/2""""))
         val mounted = save.mountDialog(Schema.make().components(save))
         val mountedClosed = mounted.render()
         assertTrue(mountedClosed.contains("ff-dialog-modal"))
