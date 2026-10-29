@@ -2,7 +2,8 @@ package org.konaframework.grind
 
 /**
  * `grind make:firefly-resource <Model> [--simple]` writes a `*Resource` the panel discovers
- * plus thin page subclasses under `{Resource}/pages/` (Filament-style).
+ * plus thin page subclasses under `{model}/pages/` (not under `{Resource}/`, which would
+ * collide with the resource class FQN on the JVM — #321).
  *
  * Simple resources emit [ManagePage] and wire it from `getPages()`. Full resources emit
  * list / create / edit / view pages. The panel sidebar gets **one** entry (list or manage);
@@ -24,8 +25,10 @@ class MakeFireflyResourceCommand {
         val simple = options["simple"] == "true"
         val panel = panelIdFromOptions(options)
         val pkg = "app.panels.$panel.resources"
-        val pagesPkg = "$pkg.$className.pages"
-        val pagesDir = "app/panels/$panel/resources/$className/pages"
+        // Lowercase model segment — never nest under the Resource class name (#321).
+        val modelPkg = model.lowercase()
+        val pagesPkg = "$pkg.$modelPkg.pages"
+        val pagesDir = "app/panels/$panel/resources/$modelPkg/pages"
         Names.write(
             base,
             Names.sourceFile(lang, "app/panels/$panel/resources", className),
