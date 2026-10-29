@@ -1,6 +1,0 @@
-2026-10-28 21:24:41.497946+03:00 jdbc[3]: exception
-org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "notes" not found (this database is empty); SQL statement:
-select * from "notes" where "id" = ? limit 1 [42104-232]
-2026-10-28 21:24:41.553961+03:00 jdbc[3]: exception
-org.h2.jdbc.JdbcSQLSyntaxErrorException: Table "notes" not found (this database is empty); SQL statement:
-select * from "notes" where "id" = ? limit 1 [42104-232]
