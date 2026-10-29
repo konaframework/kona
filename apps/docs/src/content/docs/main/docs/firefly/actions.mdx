@@ -277,7 +277,7 @@ public class Rename extends Action {
 
 Form fields, fill, and validation are on [Forms](/docs/firefly/forms/). Put a schema layout in `schema(...)` when the dialog only needs text, sections, or a wizard chrome.
 
-Infolist entries and table columns are their own pages. This module does not attach an action to a record, a bulk selection, or a toolbar. Row and header buttons on a table are `TableButton` on [Tables](/docs/firefly/tables/).
+Infolist entries and table columns are their own pages. This module does not attach an action to a record or a toolbar. Row and header buttons on a table are `TableButton` on [Tables](/docs/firefly/tables/). Actions that run on the checked rows of a table are `BulkAction` (see [Bulk actions](/docs/firefly/tables/#bulk-actions)).
 
 This module does not send notifications, import or export rows, wrap `call` in a database transaction, or rate-limit the handler. Toasts are on [Notifications](/docs/firefly/notifications/). CSV is on [Import and export](/docs/firefly/import-export/).
 

@@ -9,6 +9,8 @@ import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.tables.RecordStores
+import org.konaframework.firefly.tables.BulkActionGroup
+import org.konaframework.firefly.tables.DeleteBulkAction
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TableButton
 import org.konaframework.firefly.widgets.Breadcrumb
@@ -341,6 +343,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             manageEditButton(csrf),
             TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
         )
+        defaultBulkActions(built)
         page.table(built)
         // Create alone lives in the header; Edit/View/Delete open from each row.
         page.headerActions(
@@ -369,6 +372,12 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             """<form method="post" action="edit" class="ff-action-form">$csrf<input type="hidden" name="id" value="${escapeHtml(key)}" /><div class="ff-action-schema">$markup</div><div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button><button type="submit" class="ff-action-submit">Save</button></div></form>"""
         }
 
+    /** Bulk delete in a "Bulk actions" dropdown unless [table] already configured bulk actions. */
+    private fun defaultBulkActions(built: Table<*, *>) {
+        if (built.isBulkActionsConfigured()) return
+        built.bulkActions(BulkActionGroup.make(DeleteBulkAction.make()))
+    }
+
     private fun applyList(page: ListPage, state: Map<String, Any?>) {
         page.title(pluralLabel())
         page.breadcrumbs(resourceCrumbs(state, pluralLabel()))
@@ -381,6 +390,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             TableButton.make("edit").label("Edit").url(rowRecordUrl("edit")),
             TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
         )
+        defaultBulkActions(built)
         page.table(built)
         // Full-resource create is a header link — dialogs belong on simple/manage and delete.
         page.headerActions(Action.make("create").label("New").url("create"))

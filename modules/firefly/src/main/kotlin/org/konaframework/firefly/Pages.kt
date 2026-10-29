@@ -26,9 +26,14 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
     internal fun onShow(hook: (Map<String, Any?>) -> Unit): PanelPage = apply { onShow = hook }
 
     override fun render(state: Map<String, Any?>): String {
+        prepare(state)
+        return super.render(state)
+    }
+
+    /** Run the resource hook that builds this page's table/form for [state] without rendering. */
+    internal fun prepare(state: Map<String, Any?>) {
         val hook = onShow
         if (hook != null) hook.invoke(state)
-        return super.render(state)
     }
 
     open fun navigationLabel(): String {

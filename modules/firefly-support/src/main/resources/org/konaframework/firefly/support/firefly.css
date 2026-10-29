@@ -3679,6 +3679,190 @@ body.ff-body-root {
 .ff-panel.ff-dark .ff-notification {
   background: color-mix(in srgb, var(--ff-surface) 92%, #000);
   box-shadow: 0 12px 32px color-mix(in srgb, #000 45%, transparent);
+
+/* ——— Table bulk selection + bulk actions ——— */
+.ff-panel .ff-table th.ff-table-select,
+.ff-panel .ff-table td.ff-table-select {
+  width: 1%;
+  padding-inline: 1rem 0.25rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ff-panel .ff-table-checkbox {
+  vertical-align: middle;
+}
+
+.ff-panel .ff-group .ff-table-checkbox {
+  margin-inline-end: 0.6rem;
+}
+
+.ff-panel .ff-checkbox:indeterminate + .ff-checkbox-box {
+  background: var(--ff-primary);
+  border-color: var(--ff-primary);
+}
+
+.ff-panel .ff-checkbox:indeterminate + .ff-checkbox-box::after {
+  width: 0.55rem;
+  height: 0;
+  margin-top: 0;
+  border-width: 0 0 2px 0;
+  transform: none;
+}
+
+.ff-panel .ff-table tbody tr.ff-selected td {
+  background: color-mix(in srgb, var(--ff-primary) 8%, var(--ff-card));
+}
+
+.ff-panel .ff-table-card.ff-selected {
+  border-color: var(--ff-primary);
+  box-shadow: 0 0 0 1px var(--ff-primary);
+}
+
+.ff-panel .ff-table-card-select {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ff-panel .ff-table-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.ff-panel .ff-table-toolbar-row > .ff-table-toolbar-form {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.ff-panel .ff-table-bulk,
+.ff-panel .ff-table-bulk-triggers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ff-panel .ff-table-bulk .ff-table-button,
+.ff-panel .ff-bulk-trigger {
+  min-height: 2.5rem;
+  padding-inline: 0.75rem;
+}
+
+.ff-panel .ff-bulk-trigger .ff-icon,
+.ff-panel .ff-bulk-action .ff-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.ff-panel .ff-bulk-chevron {
+  width: 0.9rem;
+  height: 0.9rem;
+  opacity: 0.6;
+}
+
+.ff-panel .ff-bulk-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: var(--ff-primary);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ff-panel .ff-bulk-count[hidden] {
+  display: none;
+}
+
+.ff-panel .ff-bulk-menu .ff-menu-panel {
+  left: 0;
+  right: auto;
+  min-width: 13rem;
+}
+
+.ff-panel .ff-bulk-menu .ff-menu-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ff-panel .ff-bulk-action[data-ff-color="danger"] {
+  color: #b91c1c;
+}
+
+.ff-panel .ff-menu-link.ff-bulk-action[data-ff-color="danger"]:hover {
+  background: color-mix(in srgb, #b91c1c 10%, var(--ff-card));
+  color: #b91c1c;
+}
+
+.ff-panel .ff-bulk-link {
+  border: 0;
+  background: transparent;
+  color: var(--ff-primary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ff-panel .ff-menu-link:disabled,
+.ff-panel .ff-bulk-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ff-panel .ff-action-submit[data-ff-color="danger"] {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+.ff-panel .ff-table-selection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--ff-card-border);
+  background: color-mix(in srgb, var(--ff-primary) 6%, var(--ff-card));
+  color: var(--ff-heading);
+  font-size: 0.8125rem;
+}
+
+.ff-panel .ff-table-selection[hidden],
+.ff-panel .ff-table-selection-link[hidden] {
+  display: none;
+}
+
+.ff-panel .ff-table-selection-count {
+  font-weight: 600;
+}
+
+.ff-panel .ff-table-selection-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ff-primary);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ff-panel .ff-table-selection-link:hover {
+  text-decoration: underline;
+}
+
+.ff-panel .ff-table-selection-link[data-ff-deselect-all] {
+  margin-inline-start: auto;
+  color: var(--ff-body-subtle);
 }
 
 @media (prefers-reduced-motion: reduce) {

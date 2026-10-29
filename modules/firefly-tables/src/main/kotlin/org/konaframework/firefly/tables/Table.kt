@@ -10,6 +10,7 @@ import org.konaframework.firefly.tables.layout.LayoutComponent
 import org.konaframework.firefly.tables.layout.LayoutRenderContext
 import java.util.function.Consumer
 import java.util.function.Function
+import java.util.function.Predicate
 
 enum class TableLayout {
     ROWS,
@@ -77,6 +78,14 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private var contentGridLayout: ColumnLayout? = null
     /** Top-level column defs: plain [Column] and/or [LayoutComponent] (Split/Stack/Grid). */
     private val columnDefs = ArrayList<Any>()
+    private val bulkEntries = ArrayList<BulkActionEntry>()
+    private var bulkConfigured = false
+    private var checkboxPosition = RecordCheckboxPosition.BEFORE_CELLS
+    private var selectableUsing: Predicate<Cell>? = null
+    private var maxSelectable: Int? = null
+    private var currentPageOnly = false
+    private var groupsOnly = false
+    private var deselectOnFilter = true
 
     /**
      * Attach columns and optional layout components ([org.konaframework.firefly.tables.layout.Split],
@@ -251,6 +260,104 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     fun selectable(on: Boolean): Table<T, Q> = apply { selectable = on }
 
+    /** Row checkboxes render when [selectable] is on or any bulk action is configured. */
+    fun isSelectable(): Boolean = selectable || bulkEntries.isNotEmpty()
+
+    /**
+     * Toolbar bulk actions: each [BulkActionGroup] renders as a dropdown, each loose [BulkAction]
+     * as a button beside it. Configuring bulk actions turns on row selection.
+     * Calling with no entries clears them and opts out of resource defaults.
+     */
+    fun bulkActions(vararg entries: BulkActionEntry): Table<T, Q> = apply {
+        bulkEntries.clear()
+        bulkEntries.addAll(entries)
+        bulkConfigured = true
+    }
+
+    /** Shorthand for `bulkActions(BulkActionGroup.make(...))`. */
+    fun groupedBulkActions(vararg actions: BulkAction): Table<T, Q> = bulkActions(BulkActionGroup.make(*actions))
+
+    fun bulkActionEntries(): List<BulkActionEntry> = bulkEntries.toList()
+
+    /** True once [bulkActions] was called (even with no entries). */
+    fun isBulkActionsConfigured(): Boolean = bulkConfigured
+
+    fun bulkAction(name: String): BulkAction =
+        bulkEntries.flatMap { it.bulkActions() }.firstOrNull { it.name == name }
+            ?: throw FireflyException("Unknown bulk action [$name]")
+
+    fun checkboxPosition(position: RecordCheckboxPosition): Table<T, Q> = apply { checkboxPosition = position }
+
+    /** Rows failing [predicate] render a disabled checkbox and are skipped by bulk actions. */
+    fun checkIfRecordIsSelectableUsing(predicate: Predicate<Cell>): Table<T, Q> = apply { selectableUsing = predicate }
+
+    fun maxSelectableRecords(max: Int): Table<T, Q> = apply {
+        if (max < 1) throw FireflyException("Max selectable records must be at least 1")
+        maxSelectable = max
+    }
+
+    /** Hide the "Select all N" control so selection stays on the current page. */
+    @JvmOverloads
+    fun selectCurrentPageOnly(on: Boolean = true): Table<T, Q> = apply { currentPageOnly = on }
+
+    /** Only one group's records may be selected at a time (grouped tables). */
+    @JvmOverloads
+    fun selectGroupsOnly(on: Boolean = true): Table<T, Q> = apply { groupsOnly = on }
+
+    /** Default true: searching or filtering clears the selection. */
+    fun deselectAllRecordsWhenFiltered(on: Boolean): Table<T, Q> = apply { deselectOnFilter = on }
+
+    /**
+     * Run bulk action [name] against [keys] (or every record matching the current search,
+     * filters, and query hooks when [allMatching]). [data] carries the dialog's submitted fields.
+     */
+    @JvmOverloads
+    fun runBulkAction(
+        name: String,
+        keys: List<String>,
+        data: Map<String, Any?> = emptyMap(),
+        allMatching: Boolean = false,
+    ): BulkActionResult {
+        val action = bulkAction(name)
+        val cell = tableCell()
+        if (action.isHidden(cell) || action.isDisabled(cell)) {
+            throw FireflyException("Bulk action [$name] is not available")
+        }
+        val requested = if (allMatching) {
+            store.list(prepare(store.query())).map { store.keyOf(it) }
+        } else {
+            keys.filter { it.isNotBlank() }.distinct()
+        }
+        if (requested.isEmpty()) throw FireflyException("Bulk action [$name] needs at least one selected record")
+        val max = maxSelectable
+        if (max != null && requested.size > max) throw FireflyException("Select at most $max records")
+        val records = requested
+            .map { key -> BulkRecord(key, store.find(key)?.let { store.attributes(it) }) }
+            .filter { record -> record.attributes == null || isRecordSelectable(record.attributes, record.key) }
+        val grouped = groupColumn
+        if (groupsOnly && grouped != null) {
+            val groups = records.mapNotNull { it.attributes }.map { it[grouped]?.toString() }.distinct()
+            if (groups.size > 1) throw FireflyException("Select records from one group at a time")
+        }
+        return action.execute(
+            records,
+            data,
+            { key -> deleteRecord(key) },
+            { record -> rowActionCell(record.attributes.orEmpty(), record.key) },
+        )
+    }
+
+    private fun deleteRecord(key: String): Boolean {
+        val record = store.find(key) ?: return false
+        store.delete(record)
+        return true
+    }
+
+    private fun isRecordSelectable(values: Map<String, Any?>, key: String): Boolean {
+        val using = selectableUsing ?: return true
+        return using.test(rowActionCell(values, key))
+    }
+
     fun reorderable(column: String): Table<T, Q> = apply { reorderColumn = column }
 
     fun empty(heading: String): Table<T, Q> = apply { emptyHeading.set(heading) }
@@ -312,8 +419,8 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val composedAttr = if (usesComposedLayout()) """ data-ff-composed="true"""" else ""
         val gridAttr = if (contentGridLayout != null) """ data-ff-content-grid="true"""" else ""
         return """
-            <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$stackedAttr$composedAttr$gridAttr$pollAttr>
-              ${toolbar(cell)}
+            <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$stackedAttr$composedAttr$gridAttr$pollAttr${selectionAttrs(loaded)}>
+              ${toolbar(cell, loaded)}
               ${body(loaded, visible)}
               ${footer(loaded)}
               ${emptyState(loaded, cell)}
@@ -441,7 +548,56 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private fun shown(column: Column, cell: Cell): Boolean =
         !column.isHidden(cell) && column.name !in hiddenByUser
 
-    private fun toolbar(cell: Cell): String {
+    /** Chrome reads these to keep the selection, enforce limits, and offer "Select all N". */
+    private fun selectionAttrs(loaded: LoadedTable<T>): String {
+        if (!isSelectable()) return ""
+        val max = maxSelectable?.let { """ data-ff-max-selectable="$it"""" }.orEmpty()
+        val groups = if (groupsOnly) """ data-ff-select-groups-only="true"""" else ""
+        return """ data-ff-selectable data-ff-total="${loaded.total}" data-ff-deselect-on-filter="$deselectOnFilter"$max$groups"""
+    }
+
+    /** Filament-style bulk area: dropdown group trigger(s) and loose action buttons, plus hidden forms/dialogs. */
+    private fun bulkHtml(cell: Cell): String {
+        val triggers = StringBuilder()
+        for (entry in bulkEntries) {
+            if (entry is BulkActionGroup) {
+                triggers.append(entry.render(cell))
+            } else {
+                entry.bulkActions().filter { !it.isHidden(cell) }.forEach { triggers.append(it.renderTrigger(cell, menuItem = false)) }
+            }
+        }
+        if (triggers.isEmpty()) return ""
+        val mounts = bulkEntries.flatMap { it.bulkActions() }.filter { !it.isHidden(cell) }.joinToString("") { it.renderMount(cell) }
+        return """<div class="ff-table-bulk" data-ff-bulk><div class="ff-table-bulk-triggers">$triggers</div><div class="ff-table-bulk-mounts">$mounts</div></div>"""
+    }
+
+    /** "N records selected · Select all M · Deselect all" — shown by the chrome once rows are selected. */
+    private fun selectionBar(loaded: LoadedTable<T>): String {
+        if (!isSelectable()) return ""
+        val withinMax = maxSelectable?.let { loaded.total <= it } ?: true
+        val all = if (!currentPageOnly && !groupsOnly && withinMax) {
+            """<button type="button" class="ff-table-selection-link" data-ff-select-all-matching hidden>Select all ${loaded.total}</button>"""
+        } else {
+            ""
+        }
+        return """<div class="ff-table-selection" data-ff-selection role="status" hidden><span class="ff-table-selection-count" data-ff-selection-count></span>$all<button type="button" class="ff-table-selection-link" data-ff-deselect-all>Deselect all</button></div>"""
+    }
+
+    private fun toolbar(cell: Cell, loaded: LoadedTable<T>): String {
+        val bulk = bulkHtml(cell)
+        val selection = selectionBar(loaded)
+        val form = toolbarForm(cell)
+        val toolbar = when {
+            bulk.isEmpty() && form.isEmpty() -> """<div class="ff-table-toolbar ff-table-toolbar--empty" hidden></div>"""
+            bulk.isEmpty() -> """<div class="ff-table-toolbar">$form</div>"""
+            // Bulk forms are POST forms — keep them outside the GET toolbar form.
+            else -> """<div class="ff-table-toolbar"><div class="ff-table-toolbar-row">$bulk$form</div></div>"""
+        }
+        return toolbar + selection
+    }
+
+    /** Search, column picker, filters, and header buttons — empty when the table has none. */
+    private fun toolbarForm(cell: Cell): String {
         val searchable = columnList.any { it.isSearchable(cell) }
         val columnToggle = columnToggleHtml(cell)
         val mobileSort = mobileSortHtml(cell)
@@ -466,12 +622,10 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         } else {
             """<div class="ff-table-toolbar-actions">$mobileSort$columnToggle$filters$buttons</div>"""
         }
-        if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) {
-            return """<div class="ff-table-toolbar ff-table-toolbar--empty" hidden></div>"""
-        }
+        if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) return ""
         val columnsHidden = columnsQueryHiddenInput(cell)
         // Query-string toolbar — chrome soft-nav swaps the wrap without a full document reload.
-        return """<div class="ff-table-toolbar"><form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$columnsHidden$tools</form></div>"""
+        return """<form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$columnsHidden$tools</form>"""
     }
 
     /**
@@ -556,20 +710,22 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private fun rows(loaded: LoadedTable<T>, visible: List<Column>): String {
         val cell = tableCell()
         val headers = visible.joinToString("") { columnHeader(it, cell) }
-        val selectHead = if (selectable) """<th class="ff-table-select"><button type="button" class="ff-table-select-page" x-on:click="${'$'}wire.${'$'}call('selectPage')" aria-label="Select page"></button></th>""" else ""
+        val selecting = isSelectable()
+        val selectHead = if (selecting) selectPageHead(loaded) else ""
         val actionHead = if (rowButtonList.isEmpty()) "" else """<th class="ff-table-actions-head" data-ff-align="end">Actions</th>"""
-        val span = visible.size + (if (selectable) 1 else 0) + (if (rowButtonList.isEmpty()) 0 else 1)
+        val span = visible.size + (if (selecting) 1 else 0) + (if (rowButtonList.isEmpty()) 0 else 1)
         val body = when {
             loaded.isEmpty() -> {
                 """<tr class="ff-table-empty-row"><td colspan="$span">${emptyStateInner(cell)}</td></tr>"""
             }
-            loaded.groups.isEmpty() -> loaded.records.joinToString("") { recordRow(it, visible) }
+            loaded.groups.isEmpty() -> loaded.records.joinToString("") { recordRow(it, visible, null) }
             else -> loaded.groups.joinToString("") { (label, records) ->
-                """<tr class="ff-group"><th colspan="$span">${escapeHtml(label)}</th></tr>""" +
-                    records.joinToString("") { recordRow(it, visible) }
+                """<tr class="ff-group"><th colspan="$span">${groupSelect(label, records)}${escapeHtml(label)}</th></tr>""" +
+                    records.joinToString("") { recordRow(it, visible, label) }
             }
         }
-        return """<div class="ff-table-scroll"><table class="ff-table"><thead><tr>$selectHead$headers$actionHead</tr></thead><tbody>$body</tbody></table></div>"""
+        val head = if (checkboxPosition == RecordCheckboxPosition.AFTER_CELLS) "$headers$selectHead" else "$selectHead$headers"
+        return """<div class="ff-table-scroll"><table class="ff-table"><thead><tr>$head$actionHead</tr></thead><tbody>$body</tbody></table></div>"""
     }
 
     private fun columnHeader(column: Column, cell: Cell): String {
@@ -610,18 +766,55 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private fun encodeQuery(value: String): String =
         java.net.URLEncoder.encode(value, Charsets.UTF_8)
 
-    private fun recordRow(record: T, visible: List<Column>): String {
+    private fun recordRow(record: T, visible: List<Column>, group: String?): String {
         val values = store.attributes(record)
         val key = store.keyOf(record)
-        val select = if (selectable) selectionMarkup(key, asTableCell = true) else ""
+        val select = if (isSelectable()) """<td class="ff-table-select" data-label="">${selectionBox(values, key)}</td>""" else ""
         val cells = visible.joinToString("") { column ->
             val label = escapeHtml(column.heading(tableCell()))
             """<td data-label="$label">${column.render(values, key, rowCell(values, column.name))}</td>"""
         }
         val actions = rowActions(values, key, asTableCell = true)
         val click = recordClickAttrs(rowActionCell(values, key))
-        return """<tr data-ff-record="${escapeHtml(key)}"$click>$select$cells$actions</tr>"""
+        val selected = if (select.isNotEmpty() && key in selectedKeys) """ class="ff-selected"""" else ""
+        val groupAttr = group?.let { """ data-ff-group="${escapeHtml(it)}"""" }.orEmpty()
+        val row = if (checkboxPosition == RecordCheckboxPosition.AFTER_CELLS) "$cells$select" else "$select$cells"
+        return """<tr data-ff-record="${escapeHtml(key)}"$selected$groupAttr$click>$row$actions</tr>"""
     }
+
+    /** Header checkbox: toggles every selectable row on this page (indeterminate set by the chrome). */
+    private fun selectPageHead(loaded: LoadedTable<T>): String {
+        // Group-only selection uses each group header's checkbox instead.
+        if (groupsOnly) return """<th class="ff-table-select" scope="col"></th>"""
+        return """<th class="ff-table-select" scope="col">${selectPageBox(loaded)}</th>"""
+    }
+
+    private fun selectPageBox(loaded: LoadedTable<T>): String {
+        val keys = loaded.records
+            .map { store.attributes(it) to store.keyOf(it) }
+            .filter { (values, key) -> isRecordSelectable(values, key) }
+            .map { it.second }
+        val checked = if (keys.isNotEmpty() && keys.all { it in selectedKeys }) " checked" else ""
+        val disabled = if (keys.isEmpty()) " disabled" else ""
+        return checkbox("data-ff-select-page$checked$disabled", "Select all on this page")
+    }
+
+    private fun groupSelect(label: String, records: List<T>): String {
+        if (!isSelectable()) return ""
+        val selectableCount = records.count { isRecordSelectable(store.attributes(it), store.keyOf(it)) }
+        val disabled = if (selectableCount == 0) " disabled" else ""
+        return checkbox("""data-ff-select-group="${escapeHtml(label)}"$disabled""", "Select group $label")
+    }
+
+    private fun selectionBox(values: Map<String, Any?>, key: String): String {
+        val allowed = isRecordSelectable(values, key)
+        val checked = if (allowed && key in selectedKeys) " checked" else ""
+        val disabled = if (allowed) "" else " disabled"
+        return checkbox("""data-ff-select-record value="${escapeHtml(key)}"$checked$disabled""", "Select row")
+    }
+
+    private fun checkbox(attrs: String, label: String): String =
+        """<label class="ff-checkbox-wrap ff-table-checkbox"><input type="checkbox" class="ff-checkbox" $attrs aria-label="${escapeHtml(label)}"><span class="ff-checkbox-box" aria-hidden="true"></span></label>"""
 
     private fun cards(loaded: LoadedTable<T>, visible: List<Column>, className: String): String {
         val cell = tableCell()
@@ -629,10 +822,10 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             loaded.isEmpty() -> {
                 """<div class="ff-table-card ff-table-card--empty">${emptyStateInner(cell)}</div>"""
             }
-            loaded.groups.isEmpty() -> loaded.records.joinToString("") { card(it, visible) }
+            loaded.groups.isEmpty() -> loaded.records.joinToString("") { card(it, visible, null) }
             else -> loaded.groups.joinToString("") { (label, records) ->
-                """<h3 class="ff-group">${escapeHtml(label)}</h3>""" +
-                    records.joinToString("") { card(it, visible) }
+                """<h3 class="ff-group">${groupSelect(label, records)}${escapeHtml(label)}</h3>""" +
+                    records.joinToString("") { card(it, visible, label) }
             }
         }
         val grid = contentGridLayout
@@ -644,18 +837,20 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 """ data-ff-content-grid="true" data-ff-columns="${grid.dataValue()}""""
             }
         val selectPage =
-            if (!selectable || loaded.isEmpty()) {
+            if (!isSelectable() || loaded.isEmpty() || groupsOnly) {
                 ""
             } else {
-                """<div class="ff-table-card-select-page"><button type="button" class="ff-table-select-page" x-on:click="${'$'}wire.${'$'}call('selectPage')" aria-label="Select page">Select page</button></div>"""
+                """<div class="ff-table-card-select-page">${selectPageBox(loaded)}<span>Select all on this page</span></div>"""
             }
         return """<div class="$className"$gridData$style>$selectPage$content</div>"""
     }
 
-    private fun card(record: T, visible: List<Column>): String {
+    private fun card(record: T, visible: List<Column>, group: String?): String {
         val values = store.attributes(record)
         val key = store.keyOf(record)
-        val select = if (selectable) selectionMarkup(key, asTableCell = false) else ""
+        val select = if (isSelectable()) """<div class="ff-table-select ff-table-card-select">${selectionBox(values, key)}</div>""" else ""
+        val selected = if (select.isNotEmpty() && key in selectedKeys) " ff-selected" else ""
+        val groupAttr = group?.let { """ data-ff-group="${escapeHtml(it)}"""" }.orEmpty()
         val fields =
             if (usesComposedLayout()) {
                 composedFields(values, key)
@@ -666,7 +861,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             }
         val actions = rowActions(values, key, asTableCell = false)
         val click = recordClickAttrs(rowActionCell(values, key))
-        return """<article class="ff-table-card" data-ff-record="${escapeHtml(key)}"$click><div class="ff-table-card-main">$select<div class="ff-table-card-body">$fields</div></div>$actions</article>"""
+        return """<article class="ff-table-card$selected" data-ff-record="${escapeHtml(key)}"$groupAttr$click><div class="ff-table-card-main">$select<div class="ff-table-card-body">$fields</div></div>$actions</article>"""
     }
 
     private fun composedFields(values: Map<String, Any?>, key: String): String {
@@ -690,17 +885,6 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 }
                 else -> throw FireflyException("Unexpected table column def ${def.javaClass.name}")
             }
-        }
-    }
-
-    private fun selectionMarkup(key: String, asTableCell: Boolean): String {
-        val checked = if (key in selectedKeys) """ checked""" else ""
-        val input =
-            """<input type="checkbox" class="ff-table-select-input"$checked x-on:click="${'$'}wire.${'$'}call('selectRecord', '${escapeHtml(key)}')" aria-label="Select record">"""
-        return if (asTableCell) {
-            """<td class="ff-table-select" data-label="">$input</td>"""
-        } else {
-            """<div class="ff-table-select">$input</div>"""
         }
     }
 

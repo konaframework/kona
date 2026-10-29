@@ -17,6 +17,7 @@ import org.konaframework.firefly.forms.TextInput
 import org.konaframework.firefly.infolists.TextEntry
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.tables.BulkAction
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TextColumn
 import org.konaframework.firefly.widgets.Dashboard
@@ -945,6 +946,84 @@ class FireflyResourceTest {
         )
     }
 
+    @Test
+    fun bulkActionsPostBackToTheirPageAndFlashResults() {
+        database()
+        val ids = listOf("BulkA", "BulkB", "BulkC").map { name ->
+            Shelf().fill(mapOf("name" to name)).also { it.save() }.getKey()!!.toString()
+        }
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(ShelvesResource()).resource(notes()).page(BulkPage()).page(PlainPage()).mount(router)
+
+        // Resource list/manage tables get a default Bulk actions → Delete selected dropdown.
+        val list = send(router, "/admin/shelves/list")
+        assertTrue(list.contains("ff-bulk-trigger"), list)
+        assertTrue(list.contains("""data-ff-bulk-run="delete""""))
+        assertTrue(send(router, "/admin/notes/manage").contains("data-ff-select-page"))
+        // A resource table() that configures bulkActions keeps its own (here: none).
+        val optedOut = Router()
+        Panel().path("admin").authenticate(false).resource(NoBulkResource()).mount(optedOut)
+        assertFalse(send(optedOut, "/admin/orders/list").contains("""class="ff-table-bulk""""))
+
+        fun post(router: Router, path: String, body: String, query: Map<String, String> = emptyMap(), session: FakeFireflySession? = null): Response {
+            val match = router.find("POST", path) ?: throw AssertionError("missing POST $path")
+            val request = Request("POST", path, emptyMap(), query, body)
+            if (session != null) request.setAttribute(Request.SESSION_ATTRIBUTE, session)
+            return match.route.action.handle(request)
+        }
+
+        val session = FakeFireflySession()
+        val deleted = post(router, "/admin/shelves/list", "_bulk_action=delete&_bulk_keys=${ids[0]},${ids[1]}", mapOf("search" to "Bulk"), session)
+        assertEquals(302, deleted.status)
+        assertEquals("/admin/shelves/list?search=Bulk", deleted.headers["Location"])
+        assertToastFlashed(session, "Deleted")
+        assertEquals(1L, Shelf().newQuery().where("name", "like", "Bulk%").count())
+
+        // Partial failure → warning toast; nothing succeeded → danger toast.
+        val partial = FakeFireflySession()
+        post(router, "/admin/shelves/list", "_bulk_action=delete&_bulk_keys=${ids[2]},${ids[0]}", session = partial)
+        assertToastFlashed(partial, "1 of 2 deleted")
+        val none = FakeFireflySession()
+        post(router, "/admin/shelves/list", "_bulk_action=delete&_bulk_keys=${ids[0]}", session = none)
+        assertToastFlashed(none, "Nothing was deleted")
+
+        // Custom page: callback receives keys + dialog data; select-all-matching ignores keys.
+        val custom = FakeFireflySession()
+        val ran = post(router, "/admin/bulk-page", "_bulk_action=stamp&_bulk_keys=1, 2&note=hi&_token=", session = custom)
+        assertEquals("/admin/bulk-page", ran.headers["Location"])
+        assertEquals(listOf("1", "2", "hi"), BulkPage.seen)
+        post(router, "/admin/bulk-page", "_bulk_action=stamp&_bulk_all=1")
+        assertEquals(listOf("1", "2", "3", null), BulkPage.seen)
+        // Messages without a title still toast; no title + no messages flashes nothing.
+        val untitled = FakeFireflySession()
+        post(router, "/admin/bulk-page", "_bulk_action=report&_bulk_keys=1", session = untitled)
+        assertToastFlashed(untitled, "Bulk action finished")
+        val quiet = FakeFireflySession()
+        post(router, "/admin/bulk-page", "_bulk_action=stamp&_bulk_keys=1", session = quiet)
+        assertNull(quiet.get(org.konaframework.firefly.notifications.FireflyNotification.FLASH_KEY))
+
+        // Guards: missing action, unknown action / empty selection, page without a table, CSRF, auth, domain.
+        assertEquals(422, post(router, "/admin/bulk-page", "_bulk_keys=1").status)
+        assertEquals(422, post(router, "/admin/bulk-page", "_bulk_action=nope&_bulk_keys=1").status)
+        assertEquals(422, post(router, "/admin/bulk-page", "_bulk_action=stamp").status)
+        assertEquals(404, post(router, "/admin/plain-page", "_bulk_action=stamp&_bulk_keys=1").status)
+        val tokenSession = FakeFireflySession().also { it.put("_token", "tok") }
+        assertEquals(419, post(router, "/admin/bulk-page", "_bulk_action=stamp&_bulk_keys=1&_token=bad", session = tokenSession).status)
+        val gated = Router()
+        Panel().path("admin").authenticate(true).guard(MemoryPanelGuard()).page(BulkPage()).mount(gated)
+        assertEquals(302, post(gated, "/admin/bulk-page", "_bulk_action=stamp&_bulk_keys=1").status)
+        val signedIn = Router()
+        val account = MemoryPanelGuard().also {
+            it.register("Ada", "ada@example.com", "secret")
+            it.attempt("ada@example.com", "secret")
+        }
+        Panel().path("admin").authenticate(true).guard(account).page(BulkPage()).mount(signedIn)
+        assertEquals("/admin/bulk-page", post(signedIn, "/admin/bulk-page", "_bulk_action=stamp&_bulk_keys=1").headers["Location"])
+        val domain = Router()
+        Panel().path("admin").authenticate(false).domain("admin.test").page(BulkPage()).mount(domain)
+        assertEquals(404, post(domain, "/admin/bulk-page", "_bulk_action=stamp&_bulk_keys=1").status)
+    }
+
     private fun notes(): Resource = NotesResource()
 
     private fun orders(): Resource = OrdersResource()
@@ -1138,3 +1217,48 @@ private fun databaseWithProjects() {
     database.setAsGlobal()
 }
 
+
+private class BulkPage : CustomPage("bulk-page") {
+    init {
+        table(
+            Table.memory(
+                mapOf("id" to "1", "name" to "One"),
+                mapOf("id" to "2", "name" to "Two"),
+                mapOf("id" to "3", "name" to "Three"),
+            )
+                .columns(TextColumn.make("name"))
+                .bulkActions(
+                    BulkAction.make("stamp").action { context -> seen = context.keys() + context.get("note") },
+                    BulkAction.make("report").action { it.reportBulkProcessingFailure("x", "Skipped one") },
+                ),
+        )
+    }
+
+    companion object {
+        var seen: List<Any?> = emptyList()
+    }
+}
+
+private class PlainPage : CustomPage("plain-page")
+
+private class NoBulkResource : Resource("orders") {
+    init {
+        label("Orders")
+        model(Shelf::class.java)
+    }
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name")).bulkActions()
+}
+
+private class ShelvesResource : Resource("shelves") {
+    init {
+        label("Shelves")
+        model(Shelf::class.java)
+    }
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        Table.cadence(Shelf::class.java).columns(TextColumn.make("name").searchable())
+
+    override fun getPages(): Map<String, Page> = mapOf("list" to ListPage("list"))
+}

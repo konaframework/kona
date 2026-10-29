@@ -71,6 +71,9 @@ open class Page {
 
     fun table(table: Table<*, *>): Page = apply { contentTable = table }
 
+    /** The table mounted with [table], or null. The panel runs bulk actions against it. */
+    fun mountedTable(): Table<*, *>? = contentTable
+
     /**
      * Cap this page's content column (`xs`…`7xl`, `full`, `screen`, `prose`).
      * Overrides the panel default. Emits `data-ff-max-width` on the page section.
