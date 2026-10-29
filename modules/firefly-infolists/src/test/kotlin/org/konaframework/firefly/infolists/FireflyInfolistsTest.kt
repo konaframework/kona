@@ -45,6 +45,10 @@ class FireflyInfolistsTest {
         val plain = TextEntry.make("title").state("Ada <Dev>")
         assertTrue(html(plain).contains("Ada &lt;Dev&gt;"))
         assertTrue(html(plain).contains("x-data=\"ffEntry\""))
+        // Default justify + wrap so long values fit containers (#368).
+        assertTrue(html(plain).contains("""data-ff-align="justify""""), html(plain))
+        assertTrue(html(plain).contains("""data-ff-wrap="true""""), html(plain))
+        assertTrue(html(TextEntry.make("title").wrap(false).state("x")).contains("""data-ff-wrap="false""""))
         val empty = TextEntry.make("title").placeholder("None <x>")
         assertTrue(html(empty).contains("None &lt;x&gt;"))
         val oneBadge = TextEntry.make("title").badge().state("Hot")

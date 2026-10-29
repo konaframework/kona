@@ -2532,6 +2532,9 @@ body.ff-body-root {
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.35rem 0;
+  /* Keep grid/dialog children from forcing horizontal overflow (#368). */
+  min-width: 0;
+  max-width: 100%;
   text-align: start;
 }
 
@@ -2555,14 +2558,55 @@ body.ff-body-root {
   font-weight: 600;
   letter-spacing: 0.01em;
   text-transform: none;
+  text-align: start;
 }
 
 .ff-panel .ff-entry .ff-text,
-.ff-panel .ff-entry .ff-entry-value {
+.ff-panel .ff-entry .ff-entry-value,
+.ff-panel .ff-entry .ff-value,
+.ff-panel .ff-entry .ff-text-items {
   color: var(--ff-heading);
   font-size: 0.95rem;
   font-weight: 500;
   line-height: 1.4;
+  /* Values justify by default; long tokens wrap inside modals/containers (#368). */
+  text-align: justify;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.ff-panel .ff-entry[data-ff-align="start"] .ff-text,
+.ff-panel .ff-entry[data-ff-align="start"] .ff-entry-value,
+.ff-panel .ff-entry[data-ff-align="start"] .ff-value,
+.ff-panel .ff-entry[data-ff-align="start"] .ff-text-items {
+  text-align: start;
+}
+
+.ff-panel .ff-entry[data-ff-align="center"] .ff-text,
+.ff-panel .ff-entry[data-ff-align="center"] .ff-entry-value,
+.ff-panel .ff-entry[data-ff-align="center"] .ff-value,
+.ff-panel .ff-entry[data-ff-align="center"] .ff-text-items {
+  text-align: center;
+}
+
+.ff-panel .ff-entry[data-ff-align="end"] .ff-text,
+.ff-panel .ff-entry[data-ff-align="end"] .ff-entry-value,
+.ff-panel .ff-entry[data-ff-align="end"] .ff-value,
+.ff-panel .ff-entry[data-ff-align="end"] .ff-text-items {
+  text-align: end;
+}
+
+.ff-panel .ff-entry[data-ff-wrap="false"] .ff-text,
+.ff-panel .ff-entry[data-ff-wrap="false"] .ff-entry-value,
+.ff-panel .ff-entry[data-ff-wrap="false"] .ff-value,
+.ff-panel .ff-entry[data-ff-wrap="false"] .ff-text-items {
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ff-panel .ff-entry[data-ff-inline-label="true"] {
@@ -2688,6 +2732,23 @@ body.ff-body-root {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.ff-panel .ff-dialog-body .ff-schema,
+.ff-panel .ff-dialog-body .ff-infolist,
+.ff-panel .ff-action-schema .ff-schema,
+.ff-panel .ff-action-schema .ff-infolist {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ff-panel .ff-schema[data-ff-columns] > .ff-component,
+.ff-panel .ff-component[data-ff-columns] > .ff-component {
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Action dialog close — compact icon control (Icon.X.svg has no intrinsic size). */
