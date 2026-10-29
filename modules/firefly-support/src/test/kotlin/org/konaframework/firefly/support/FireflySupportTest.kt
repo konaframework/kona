@@ -111,7 +111,23 @@ class FireflySupportTest {
         assertTrue(open.contains("ff-dialog-close"))
         assertTrue(open.contains("data-ff-dialog-drag-handle"))
         assertTrue(open.contains("ff-dialog-title"))
+        assertTrue(open.contains("ff-dialog-header-actions"))
+        assertTrue(open.contains("data-ff-dialog-expand"))
+        assertTrue(open.contains("data-ff-dialog-resize"))
+        assertFalse(open.contains("Open in full page"))
+        assertTrue(
+            Dialog.make("Hello").fullPageUrl("/admin/notes/1").render(open = true)
+                .contains("""href="/admin/notes/1""""),
+        )
+        assertTrue(
+            Dialog.make("Hello").fullPageUrl("/admin/notes/1").render(open = true)
+                .contains("Open in full page"),
+        )
+        assertFalse(Dialog.make("Hello").fullPageUrl("").render(open = true).contains("Open in full page"))
+        assertFalse(Dialog.make("Hello").fullPageUrl(null).render(open = true).contains("Open in full page"))
         assertFalse(Dialog.make("Hello").closeButton(false).render(open = true).contains("ff-dialog-close"))
+        assertFalse(Dialog.make("Hello").expandable(false).render(open = true).contains("data-ff-dialog-expand"))
+        assertFalse(Dialog.make("Hello").resizable(false).render(open = true).contains("data-ff-dialog-resize"))
 
         val end = Dialog.make("Edit").slideOver().draggable(false).render()
         assertTrue(end.contains("ff-dialog-sidebar"))
@@ -119,6 +135,8 @@ class FireflySupportTest {
         assertFalse(end.contains("data-ff-drag"))
         assertTrue(end.contains(" hidden"))
         assertFalse(end.contains("data-ff-dialog-drag-handle"))
+        assertTrue(end.contains("data-ff-dialog-expand"))
+        assertFalse(end.contains("data-ff-dialog-resize"))
 
         val start = Dialog.make("Edit").slideOverStart().render()
         assertTrue(start.contains("""data-ff-position="start""""))
@@ -128,6 +146,8 @@ class FireflySupportTest {
         assertTrue(full.contains("ff-dialog-screen"))
         assertFalse(full.contains("data-ff-drag"))
         assertFalse(full.contains("data-ff-align"))
+        assertFalse(full.contains("data-ff-dialog-expand"))
+        assertFalse(full.contains("data-ff-dialog-resize"))
 
         Dialog.configureUsing { dialog -> dialog.width("sm").body("<p>ok</p>") }
         val configured = Dialog.make("Saved").render()
@@ -143,7 +163,15 @@ class FireflySupportTest {
 
     @Test
     fun iconsAndUnknownName() {
-        listOf(Icon.HOME, Icon.BARS, Icon.USER, Icon.CHECK, Icon.X).forEach { icon ->
+        listOf(
+            Icon.HOME,
+            Icon.BARS,
+            Icon.USER,
+            Icon.CHECK,
+            Icon.X,
+            Icon.ARROWS_POINTING_OUT,
+            Icon.ARROWS_POINTING_IN,
+        ).forEach { icon ->
             assertTrue(icon.svg().contains(icon.path))
         }
         assertEquals(Icon.HOME, Icon.fromName("HoMe"))
@@ -151,6 +179,10 @@ class FireflySupportTest {
         assertEquals(Icon.USER, Icon.fromName("user"))
         assertEquals(Icon.CHECK, Icon.fromName("check"))
         assertEquals(Icon.X, Icon.fromName("x"))
+        assertEquals(Icon.ARROWS_POINTING_OUT, Icon.fromName("arrows-pointing-out"))
+        assertEquals(Icon.ARROWS_POINTING_OUT, Icon.fromName("arrows_pointing_out"))
+        assertEquals(Icon.ARROWS_POINTING_IN, Icon.fromName("arrows-pointing-in"))
+        assertEquals(Icon.ARROWS_POINTING_IN, Icon.fromName("arrows_pointing_in"))
         assertThrows(FireflyException::class.java) { Icon.fromName("nope") }
     }
 
@@ -307,10 +339,16 @@ class FireflySupportTest {
         assertTrue(css.contains("position: relative"))
         assertTrue(css.contains(".ff-panel .ff-dialog-header"))
         assertTrue(css.contains(".ff-panel .ff-dialog-body"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-header-actions"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-full-page"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-expand"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-resize"))
+        assertTrue(css.contains("ff-dialog-expanded"))
         // Create/action dialog chrome: compact close icon + primary Submit (type=button).
         assertTrue(css.contains(".ff-panel .ff-action-close") || css.contains(".ff-panel .ff-dialog-close"))
         assertTrue(css.contains(".ff-panel .ff-dialog-close"))
         assertTrue(css.contains("[data-ff-dialog-drag-handle]"))
+        assertTrue(css.contains("justify-content: flex-end"))
         assertTrue(css.contains(".ff-picker-caption"))
         assertTrue(css.contains(".ff-checkbox-box"))
         assertTrue(css.contains("th[data-ff-align=\"end\"]"))
@@ -448,6 +486,11 @@ class FireflySupportTest {
         assertTrue(html.contains("resetDialogDrag"))
         assertTrue(html.contains("dlg.style.position=''"))
         assertTrue(html.contains("dlg.style.margin=''"))
+        assertTrue(html.contains("toggleDialogExpand"))
+        assertTrue(html.contains("ff-dialog-expanded"))
+        assertTrue(html.contains("resizeState"))
+        assertTrue(html.contains("data-ff-dialog-resize"))
+        assertTrue(html.contains("data-ff-dialog-expand"))
         // Closing a dialog resets forms so create/edit do not leak prior input.
         assertTrue(html.contains("resetDialogForms"))
         assertTrue(html.contains("f.reset()"))

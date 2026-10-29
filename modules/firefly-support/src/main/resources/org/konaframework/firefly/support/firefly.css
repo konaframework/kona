@@ -2660,16 +2660,44 @@ body.ff-body-root {
 .ff-panel .ff-dialog-modal .ff-dialog-window {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
   margin: 4rem auto 0;
   max-width: 32rem;
   width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 5rem);
   background: var(--ff-card);
   border: 1px solid var(--ff-card-border);
   border-radius: calc(var(--ff-radius) + 0.35rem);
   box-shadow: var(--ff-shadow);
-  padding: 1.1rem 1.2rem;
+  padding: 0;
   color: var(--ff-body-text);
-  will-change: left, top;
+  overflow: hidden;
+  will-change: left, top, width, height;
+}
+
+.ff-panel .ff-dialog-sm.ff-dialog-modal .ff-dialog-window {
+  max-width: 24rem;
+  width: min(24rem, calc(100vw - 2rem));
+}
+
+.ff-panel .ff-dialog-md.ff-dialog-modal .ff-dialog-window {
+  max-width: 28rem;
+  width: min(28rem, calc(100vw - 2rem));
+}
+
+.ff-panel .ff-dialog-xl.ff-dialog-modal .ff-dialog-window {
+  max-width: 36rem;
+  width: min(36rem, calc(100vw - 2rem));
+}
+
+.ff-panel .ff-dialog-screen.ff-dialog-modal .ff-dialog-window,
+.ff-panel .ff-dialog-modal .ff-dialog-window.ff-dialog-expanded {
+  margin: 1rem auto;
+  max-width: none;
+  width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
+  height: calc(100dvh - 2rem);
 }
 
 .ff-panel .ff-dialog[data-ff-drag="true"] .ff-dialog-window {
@@ -2681,7 +2709,10 @@ body.ff-body-root {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin: 0 0 0.75rem;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--ff-card-border);
   font-size: 1.05rem;
   font-weight: 650;
   letter-spacing: -0.01em;
@@ -2700,8 +2731,39 @@ body.ff-body-root {
 .ff-panel .ff-dialog-title {
   flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.ff-panel .ff-dialog-header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ff-panel .ff-dialog-full-page {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.5rem;
+  color: var(--ff-body-subtle);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ff-panel .ff-dialog-full-page:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-dialog-expand,
 .ff-panel .ff-dialog-close {
   display: inline-flex;
   align-items: center;
@@ -2717,11 +2779,13 @@ body.ff-body-root {
   flex-shrink: 0;
 }
 
+.ff-panel .ff-dialog-expand:hover,
 .ff-panel .ff-dialog-close:hover {
   background: var(--ff-hover);
   color: var(--ff-heading);
 }
 
+.ff-panel .ff-dialog-expand svg.ff-icon,
 .ff-panel .ff-dialog-close svg.ff-icon {
   width: 1.05rem;
   height: 1.05rem;
@@ -2735,9 +2799,30 @@ body.ff-body-root {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
   max-width: 100%;
+  padding: 1rem 1.15rem 1.1rem;
   overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.ff-panel .ff-dialog-resize {
+  position: absolute;
+  right: 0.15rem;
+  bottom: 0.15rem;
+  z-index: 3;
+  width: 0.95rem;
+  height: 0.95rem;
+  cursor: nwse-resize;
+  background:
+    linear-gradient(135deg, transparent 45%, var(--ff-card-border) 45%, var(--ff-card-border) 55%, transparent 55%),
+    linear-gradient(135deg, transparent 65%, var(--ff-card-border) 65%, var(--ff-card-border) 75%, transparent 75%);
+}
+
+.ff-panel .ff-dialog-window.ff-dialog-expanded .ff-dialog-resize {
+  display: none;
 }
 
 .ff-panel .ff-dialog-body .ff-schema,
@@ -2794,9 +2879,22 @@ body.ff-body-root {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.55rem;
   margin-top: 0.15rem;
   padding-top: 0.15rem;
+}
+
+/* Shamar dialog footer: divider + actions flush right (#372). */
+.ff-panel .ff-dialog-body > .ff-action-footer,
+.ff-panel .ff-dialog-body > .ff-action-form > .ff-action-footer,
+.ff-panel .ff-dialog-body > form > .ff-action-footer,
+.ff-panel .ff-dialog-body > .ff-delete-form > .ff-action-footer {
+  flex: 0 0 auto;
+  margin: 0.35rem -1.15rem -1.1rem;
+  padding: 0.85rem 1.15rem;
+  border-top: 1px solid var(--ff-card-border);
+  background: var(--ff-card);
 }
 
 .ff-panel .ff-action-description {

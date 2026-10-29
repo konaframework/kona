@@ -14,6 +14,9 @@ class Dialog private constructor(private val title: String) {
     private var position: String = "end"
     private var draggable: Boolean = true
     private var showClose: Boolean = true
+    private var expandable: Boolean = true
+    private var resizable: Boolean = true
+    private var fullPageHref: String? = null
     private var width: String = "lg"
 
     fun body(html: String): Dialog = apply { body = html }
@@ -37,6 +40,21 @@ class Dialog private constructor(private val title: String) {
     /** Header close (X). Default true for every official dialog. */
     fun closeButton(on: Boolean): Dialog = apply { showClose = on }
 
+    /**
+     * Header maximize / restore control (Shamar). Default on for modal and slide-over;
+     * ignored when the presentation mode is already [DialogMode.FULLSCREEN].
+     */
+    fun expandable(on: Boolean): Dialog = apply { expandable = on }
+
+    /**
+     * Corner resize handle so the user can size the window freely (Shamar).
+     * Default on for modal; off for slide-over and fullscreen presentation.
+     */
+    fun resizable(on: Boolean): Dialog = apply { resizable = on }
+
+    /** Optional “Open in full page” header link (Shamar). */
+    fun fullPageUrl(href: String?): Dialog = apply { fullPageHref = href?.takeIf { it.isNotBlank() } }
+
     fun width(width: String): Dialog = apply {
         if (width !in WIDTHS) throw FireflyException("Unknown dialog width [$width]")
         this.width = width
@@ -55,6 +73,8 @@ class Dialog private constructor(private val title: String) {
             DialogMode.FULLSCREEN -> "ff-dialog-fullscreen"
         }
         val canDrag = draggable && mode != DialogMode.FULLSCREEN
+        val canExpand = expandable && mode != DialogMode.FULLSCREEN
+        val canResize = resizable && mode == DialogMode.MODAL
         val drag = if (canDrag) """ data-ff-drag="true"""" else ""
         val align = if (mode == DialogMode.MODAL) """ data-ff-align="top"""" else ""
         val side = if (mode == DialogMode.SIDEBAR) """ data-ff-position="$position"""" else ""
@@ -63,17 +83,37 @@ class Dialog private constructor(private val title: String) {
         } else {
             """ hidden aria-hidden="true""""
         }
-        val close = if (showClose) {
-            """<button type="button" class="ff-dialog-close" aria-label="Close" data-ff-dialog-close>${Icon.X.svg()}</button>"""
-        } else {
-            ""
+        val headerActions = StringBuilder("""<div class="ff-dialog-header-actions">""")
+        val page = fullPageHref
+        if (page != null) {
+            headerActions.append(
+                """<a class="ff-dialog-full-page" href="${escapeHtml(page)}">Open in full page</a>""",
+            )
         }
+        if (canExpand) {
+            headerActions.append(
+                """<button type="button" class="ff-dialog-expand" aria-label="Toggle fullscreen" data-ff-dialog-expand>${Icon.ARROWS_POINTING_OUT.svg()}</button>""",
+            )
+        }
+        if (showClose) {
+            headerActions.append(
+                """<button type="button" class="ff-dialog-close" aria-label="Close" data-ff-dialog-close>${Icon.X.svg()}</button>""",
+            )
+        }
+        headerActions.append("</div>")
+        val resize =
+            if (canResize) {
+                """<span class="ff-dialog-resize" data-ff-dialog-resize aria-hidden="true"></span>"""
+            } else {
+                ""
+            }
         return """
             <div class="ff-dialog $modeClass ff-dialog-$width" role="dialog"$closed$align$side$drag>
               <div class="ff-dialog-overlay"></div>
               <div class="ff-dialog-window">
-                <header class="ff-dialog-header"${if (canDrag) """ data-ff-dialog-drag-handle""" else ""}><span class="ff-dialog-title">${escapeHtml(title)}</span>$close</header>
+                <header class="ff-dialog-header"${if (canDrag) """ data-ff-dialog-drag-handle""" else ""}><span class="ff-dialog-title">${escapeHtml(title)}</span>$headerActions</header>
                 <div class="ff-dialog-body">$body</div>
+                $resize
               </div>
             </div>
         """.trimIndent()

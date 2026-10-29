@@ -131,9 +131,15 @@ class DefaultLayout(
                 "panel.querySelectorAll('[data-ff-combobox]').forEach(function(box){syncCombobox(box);});}" +
                 // Drag sets position:fixed + margin:0 + left/top. Clear all of them on
                 // close/open so the next open restores stylesheet centering (#316).
+                "function setExpandIcon(win,on){var btn=win&&win.querySelector('[data-ff-dialog-expand]');if(!btn)return;" +
+                "btn.setAttribute('aria-pressed',on?'true':'false');" +
+                "btn.setAttribute('aria-label',on?'Restore':'Toggle fullscreen');" +
+                "var path=btn.querySelector('path');if(!path)return;" +
+                "path.setAttribute('d',on?'M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25':'M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15');}" +
                 "function resetDialogDrag(panel){if(!panel)return;" +
                 "panel.querySelectorAll('.ff-dialog-window').forEach(function(dlg){" +
-                "dlg.style.position='';dlg.style.margin='';dlg.style.left='';dlg.style.top='';dlg.style.transform='';});}" +
+                "dlg.classList.remove('ff-dialog-expanded');setExpandIcon(dlg,false);" +
+                "dlg.style.position='';dlg.style.margin='';dlg.style.left='';dlg.style.top='';dlg.style.width='';dlg.style.height='';dlg.style.maxWidth='';dlg.style.maxHeight='';dlg.style.transform='';});}" +
                 "function closeDialog(panel){if(!panel)return;resetDialogForms(panel);resetDialogDrag(panel);" +
                 "panel.classList.remove('ff-open');" +
                 "panel.setAttribute('hidden','');panel.style.display='none';panel.setAttribute('aria-hidden','true');}" +
@@ -142,6 +148,11 @@ class DefaultLayout(
                 "panel.classList.add('ff-open');" +
                 "panel.removeAttribute('hidden');panel.style.display='block';panel.removeAttribute('aria-hidden');" +
                 "resetDialogDrag(panel);}" +
+                "function toggleDialogExpand(win){if(!win)return;var on=!win.classList.contains('ff-dialog-expanded');" +
+                "win.classList.toggle('ff-dialog-expanded',on);setExpandIcon(win,on);" +
+                "if(on){win.style.position='fixed';win.style.margin='0';win.style.left='1rem';win.style.top='1rem';" +
+                "win.style.width='calc(100vw - 2rem)';win.style.height='calc(100dvh - 2rem)';win.style.maxWidth='none';win.style.maxHeight='none';}" +
+                "else{win.style.position='';win.style.margin='';win.style.left='';win.style.top='';win.style.width='';win.style.height='';win.style.maxWidth='';win.style.maxHeight='';}}" +
                 "function closePickers(except){root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(function(p){" +
                 "if(except&&p===except)return;p.classList.remove('ff-picker-open');" +
                 "var panel=p.querySelector('[data-ff-picker-panel]');if(panel){panel.setAttribute('hidden','');}});}" +
@@ -299,17 +310,31 @@ class DefaultLayout(
                 "var form=el.closest('form[data-ff-table-nav]');if(!form)return;var id=ffTableIndex(form.closest('.ff-table-wrap'));" +
                 "clearTimeout(searchTimers[id]);searchTimers[id]=setTimeout(function(){" +
                 "if(form.requestSubmit)form.requestSubmit();else form.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));},280);});" +
-                "var dragState=null;" +
-                "document.addEventListener('pointerdown',function(ev){var handle=ev.target&&ev.target.closest&&ev.target.closest('[data-ff-dialog-drag-handle]');" +
-                "if(!handle||ev.target.closest('[data-ff-dialog-close]'))return;var win=handle.closest('.ff-dialog-window');if(!win)return;" +
+                "var dragState=null;var resizeState=null;" +
+                "document.addEventListener('pointerdown',function(ev){" +
+                "var resize=ev.target&&ev.target.closest&&ev.target.closest('[data-ff-dialog-resize]');" +
+                "if(resize){var rwin=resize.closest('.ff-dialog-window');if(!rwin||rwin.classList.contains('ff-dialog-expanded'))return;" +
+                "var rr=rwin.getBoundingClientRect();resizeState={win:rwin,x:ev.clientX,y:ev.clientY,w:rr.width,h:rr.height};" +
+                "rwin.style.position='fixed';rwin.style.margin='0';rwin.style.left=rr.left+'px';rwin.style.top=rr.top+'px';" +
+                "rwin.style.width=rr.width+'px';rwin.style.height=rr.height+'px';rwin.style.maxWidth='none';rwin.style.maxHeight='none';" +
+                "rwin.setPointerCapture&&rwin.setPointerCapture(ev.pointerId);ev.preventDefault();return;}" +
+                "var handle=ev.target&&ev.target.closest&&ev.target.closest('[data-ff-dialog-drag-handle]');" +
+                "if(!handle||ev.target.closest('[data-ff-dialog-close],[data-ff-dialog-expand],.ff-dialog-header-actions a'))return;" +
+                "var win=handle.closest('.ff-dialog-window');if(!win||win.classList.contains('ff-dialog-expanded'))return;" +
                 "var rect=win.getBoundingClientRect();dragState={win:win,ox:ev.clientX-rect.left,oy:ev.clientY-rect.top};" +
                 "win.style.position='fixed';win.style.margin='0';win.style.left=rect.left+'px';win.style.top=rect.top+'px';" +
                 "win.setPointerCapture&&win.setPointerCapture(ev.pointerId);ev.preventDefault();});" +
-                "document.addEventListener('pointermove',function(ev){if(!dragState)return;" +
+                "document.addEventListener('pointermove',function(ev){" +
+                "if(resizeState){var nw=Math.max(280,resizeState.w+(ev.clientX-resizeState.x));" +
+                "var nh=Math.max(200,resizeState.h+(ev.clientY-resizeState.y));" +
+                "resizeState.win.style.width=nw+'px';resizeState.win.style.height=nh+'px';return;}" +
+                "if(!dragState)return;" +
                 "dragState.win.style.left=(ev.clientX-dragState.ox)+'px';dragState.win.style.top=(ev.clientY-dragState.oy)+'px';});" +
-                "document.addEventListener('pointerup',function(){dragState=null;});" +
+                "document.addEventListener('pointerup',function(){dragState=null;resizeState=null;});" +
                 "document.addEventListener('click',function(ev){" +
                 "var t=ev.target;if(!t||!t.closest)return;" +
+                "var expandBtn=t.closest('[data-ff-dialog-expand]');" +
+                "if(expandBtn){toggleDialogExpand(expandBtn.closest('.ff-dialog-window'));return;}" +
                 "if(t.closest('[data-ff-theme-toggle]')){var o=['light','dark','system'];" +
                 "var n=o[(o.indexOf(pref())+1)%o.length];try{localStorage.setItem('ff-theme',n);}catch(e){}apply(n);return;}" +
                 "var toggle=t.closest('[data-ff-toggle]');" +

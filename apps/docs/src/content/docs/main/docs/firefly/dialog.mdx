@@ -48,13 +48,23 @@ You get a modal titled **Edit category** with the body `Name`. The title is HTML
 | `slideOverStart()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="start"` |
 | `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | none of the align, position, or drag attributes |
 
-The root element always has `role="dialog"`. Inside it: an overlay (`ff-dialog-overlay`), a window (`ff-dialog-window`), a header (`ff-dialog-header`) with the title and a close button (`ff-dialog-close`), and a body (`ff-dialog-body`).
+The root element always has `role="dialog"`. Inside it: an overlay (`ff-dialog-overlay`), a window (`ff-dialog-window`), a header (`ff-dialog-header`) with the title and header actions, a body (`ff-dialog-body`), and — for modals — a resize handle.
 
-Resource create / view / edit / delete actions all mount this same official `Dialog`. `Action.modalCloseButton(false)` calls `Dialog.closeButton(false)` to hide the header X.
+Header actions (Shamar-shaped) sit in `.ff-dialog-header-actions`:
+
+| Control | Markup | Default |
+|---------|--------|---------|
+| Open in full page | `a.ff-dialog-full-page` | only when `fullPageUrl(...)` is set |
+| Maximize / restore | `button.ff-dialog-expand` (`data-ff-dialog-expand`) | on for modal and slide-over; off for `fullscreen()` presentation |
+| Close | `button.ff-dialog-close` | on (`closeButton(false)` hides it) |
+
+The header has a bottom divider. Footer actions inside the body (`.ff-action-footer`) sit under a top divider and are flush **right** (secondary then primary — Cancel / Close, then Submit / Edit).
+
+Resource create / view / edit / delete actions all mount this same official `Dialog`. `Action.modalCloseButton(false)` calls `Dialog.closeButton(false)` to hide the header X. `Action.modalFullPageUrl` / `TableButton.fullPageUrl` set the full-page link. `Action.modalExpandable(false)` / `Dialog.expandable(false)` hide the maximize control. `Dialog.resizable(false)` hides the corner resize handle.
 
 Calling `modal()` after `slideOver()` switches the mode back to modal. The stored sidebar position is left as it was and is not rendered on a modal.
 
-`width("screen")` changes the width class to `ff-dialog-screen`. Fullscreen is `fullscreen()`.
+`width("screen")` changes the width class to `ff-dialog-screen`. Presentation `fullscreen()` is a dedicated mode (no drag, expand, or resize). The maximize button toggles an expanded modal without changing the mode.
 
 ## Set the width
 

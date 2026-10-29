@@ -31,6 +31,7 @@ open class TableButton(val name: String) {
     private var confirmHeading: String? = null
     private var confirmDescription: String = ""
     private var bodyHtml: Function<Cell, String>? = null
+    private var fullPageUrlValue: Function<Cell, String>? = null
 
     fun label(value: String): TableButton = apply { labelValue.set(value) }
 
@@ -81,6 +82,11 @@ open class TableButton(val name: String) {
         schemaParts.clear()
     }
 
+    /** Header “Open in full page” link for the dialog (Shamar). */
+    fun fullPageUrl(value: String): TableButton = apply { fullPageUrlValue = Function { value } }
+
+    fun fullPageUrl(value: Function<Cell, String>): TableButton = apply { fullPageUrlValue = value }
+
     /**
      * Row delete (and similar): open a confirm dialog that POSTs [actionUrl] with CSRF extras
      * and the row key. Works without Alpine via chrome `data-ff-dialog-*`.
@@ -126,6 +132,8 @@ open class TableButton(val name: String) {
             ButtonMode.SLIDE_OVER -> dialog.slideOver()
             ButtonMode.FULLSCREEN -> dialog.fullscreen()
         }
+        val pageUrl = fullPageUrlValue?.apply(cell)
+        if (!pageUrl.isNullOrBlank()) dialog.fullPageUrl(pageUrl)
         val post = postUrl
         if (post != null) {
             val extras = formExtras.apply(cell)
@@ -141,8 +149,8 @@ open class TableButton(val name: String) {
                 <form method="post" action="${escapeHtml(post)}" class="ff-delete-form">
                   $extras
                   <div class="ff-action-footer">
-                    <button type="submit" class="ff-action-submit">${escapeHtml(label)}</button>
                     <button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button>
+                    <button type="submit" class="ff-action-submit">${escapeHtml(label)}</button>
                   </div>
                 </form>
                 """.trimIndent(),
