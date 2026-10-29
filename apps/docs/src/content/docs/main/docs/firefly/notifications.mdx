@@ -78,7 +78,7 @@ You can still chain `.title(...)`, `.body(...)`, and status helpers yourself whe
 
 ### Toast chrome
 
-`render` / `pull` wrap every flashed toast in `<div class="ff-notifications" data-ff-notifications aria-live="polite">`. Each toast is:
+`render` / `pull` wrap every flashed toast in `<div class="ff-toast-stack" data-ff-notifications aria-live="polite">` (not the topbar bell’s `.ff-notifications` menu). Each toast is:
 
 - `<div class="ff-notification" role="status">` with `data-ff-status`, `data-ff-color`, and `data-ff-duration`
 - a status accent bar, circular icon (status SVG by default, or a named `Icon` / literal string when you set `icon`)

@@ -1464,6 +1464,8 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-combobox-panel {
+  /* Default absolute; Chrome.js switches to position:fixed when open so the
+     panel escapes modal overflow (same pattern as action-group / row menus) (#399). */
   position: absolute;
   z-index: 40;
   left: 0;
@@ -1476,6 +1478,10 @@ body.ff-body-root {
   border-radius: var(--ff-radius);
   box-shadow: 0 10px 28px color-mix(in srgb, var(--ff-heading) 18%, transparent);
   padding: 0.35rem;
+}
+
+.ff-panel .ff-combobox.ff-combobox-open .ff-combobox-panel {
+  z-index: 1400;
 }
 
 .ff-panel .ff-combobox[data-ff-position="top"] .ff-combobox-panel {
@@ -3570,8 +3576,9 @@ body.ff-body-root {
   }
 }
 
-/* ——— Toast notifications (session flash) ——— */
-.ff-panel .ff-notifications {
+/* ——— Toast notifications (session flash) ———
+   Use .ff-toast-stack only — .ff-notifications is the topbar bell menu (#397). */
+.ff-panel .ff-toast-stack[data-ff-notifications] {
   position: fixed;
   z-index: 1200;
   top: calc(var(--ff-topbar-height, 3.5rem) + 0.75rem);

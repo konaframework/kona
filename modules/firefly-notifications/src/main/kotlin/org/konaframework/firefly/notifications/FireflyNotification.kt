@@ -272,7 +272,8 @@ open class FireflyNotification private constructor(private val id: String) {
                 if (item is Map<*, *>) out.append(toastFrom(item))
             }
             if (out.isEmpty()) return ""
-            return """<div class="ff-notifications" data-ff-notifications aria-live="polite">$out</div>"""
+            // Toast stack uses ff-toast-stack — not ff-notifications (bell menu in the topbar) (#397).
+            return """<div class="ff-toast-stack" data-ff-notifications aria-live="polite">$out</div>"""
         }
 
         @JvmStatic

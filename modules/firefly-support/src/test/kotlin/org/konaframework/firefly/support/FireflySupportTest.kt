@@ -472,6 +472,10 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-sidebar-toggle"))
         assertTrue(html.contains("data-ff-menu-trigger"))
         assertTrue(html.contains("positionRowMenu"))
+        assertTrue(html.contains("hoistDialogPanel"))
+        assertTrue(html.contains("dialogPanelFor"))
+        assertTrue(html.contains("positionCombobox"))
+        assertTrue(html.contains("repositionFloating"))
         assertTrue(html.contains("ff-row-action-menu"))
         assertTrue(html.contains(DefaultLayout.THEME_INIT_SCRIPT))
         // Dialog open/close without Alpine (Action / TableButton mounts).
