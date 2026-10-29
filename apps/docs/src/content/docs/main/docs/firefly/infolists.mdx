@@ -3,7 +3,7 @@ title: Infolists
 description: Show a record with entries instead of fields. On the Desk page that is the name entry. On orders, the view page mounts the order infolist.
 ---
 
-import FireflyShot from '../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Show a record when the screen should display a value, not collect one. Put the infolist on a view page, or anywhere you want a label and a value.
@@ -168,7 +168,7 @@ TextEntry.make("title")
 
 ## Show an icon
 
-`IconEntry.make("ok")` shows an icon for the state. `boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean: a truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) as a soft Shamar chip. `whenTrue("check", "success")` and `whenFalse("x", "gray")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon. `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
+`IconEntry.make("ok")` shows an icon for the state. `boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean: a truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) as a soft Shamar chip (circular mark, correct aspect — not crushed by SVG glyph sizing). `whenTrue("check", "success")` and `whenFalse("x", "gray")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon. `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
 
 Kotlin prefers `boolean()`. Java uses `bool(true)` because `boolean` is a keyword. The pair helpers are `whenTrue` and `whenFalse`.
 

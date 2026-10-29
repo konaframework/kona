@@ -168,7 +168,7 @@ TextEntry.make("title")
 
 ## Show an icon
 
-`IconEntry.make("ok")` shows an icon for the state. `boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean: a truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) as a soft Shamar chip. `whenTrue("check", "success")` and `whenFalse("x", "gray")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon. `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
+`IconEntry.make("ok")` shows an icon for the state. `boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean: a truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) as a soft Shamar chip (circular mark, correct aspect — not crushed by SVG glyph sizing). `whenTrue("check", "success")` and `whenFalse("x", "gray")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon. `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
 
 Kotlin prefers `boolean()`. Java uses `bool(true)` because `boolean` is a keyword. The pair helpers are `whenTrue` and `whenFalse`.
 

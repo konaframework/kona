@@ -17,7 +17,8 @@ class IconEntry private constructor(name: String) : Entry<IconEntry>(name) {
     private val falseColorValue = TextSetting()
     private val sizeValue = TextSetting()
 
-    override fun kind(): String = "icon"
+    /** Distinct from schema `SchemaIcon` / SVG `.ff-icon` so the entry root is not glyph-sized. */
+    override fun kind(): String = "icon-entry"
 
     fun bool(on: Boolean): IconEntry = apply { booleanFlag.set(on) }
 

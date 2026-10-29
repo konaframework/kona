@@ -529,6 +529,7 @@ class FireflyTablesTest {
         assertFalse(icon.render(mapOf("flag" to null), "1", Cell { null }).contains("<svg"))
         val asBool = IconColumn.make("flag").boolean()
         val yesHtml = asBool.render(mapOf("flag" to 1), "1", Cell { null })
+        assertTrue(yesHtml.contains("ff-icon-column"), yesHtml)
         assertTrue(yesHtml.contains("ff-boolean"))
         assertTrue(yesHtml.contains("ff-boolean--icon-only"))
         assertTrue(yesHtml.contains("ff-boolean__mark"))

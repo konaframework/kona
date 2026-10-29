@@ -128,8 +128,9 @@ body.ff-body-root {
   line-height: 1.25;
 }
 
-/* ——— Column + scroll (Shamar flex shell) ——— */
-.ff-panel .ff-column {
+/* ——— Column + scroll (Shamar flex shell) ———
+ * Only the panel's direct content column — not table cell `.ff-column` wrappers. */
+.ff-panel > .ff-column {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -214,7 +215,7 @@ body.ff-body-root {
   color: var(--ff-heading);
 }
 
-.ff-panel .ff-sidebar-close .ff-icon {
+.ff-panel .ff-sidebar-close svg.ff-icon {
   width: 1.05rem;
   height: 1.05rem;
 }
@@ -423,14 +424,15 @@ body.ff-body-root {
   color: var(--ff-heading);
 }
 
-.ff-panel .ff-icon {
+/* SVG glyph marks only — never size layout roots that happen to use "icon" in a class. */
+.ff-panel svg.ff-icon {
   width: 1.15rem;
   height: 1.15rem;
   flex-shrink: 0;
   display: block;
 }
 
-.ff-panel .ff-icon-btn .ff-icon {
+.ff-panel .ff-icon-btn svg.ff-icon {
   width: 1.15rem;
   height: 1.15rem;
 }
@@ -439,8 +441,11 @@ body.ff-body-root {
 .ff-panel .ff-boolean {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
+  width: fit-content;
   max-width: 100%;
+  flex: 0 0 auto;
   border-radius: 9999px;
   padding: 0.2rem 0.65rem 0.2rem 0.3rem;
   font-size: 0.8125rem;
@@ -448,6 +453,7 @@ body.ff-body-root {
   line-height: 1.2;
   border: 1px solid transparent;
   vertical-align: middle;
+  box-sizing: border-box;
 }
 
 .ff-panel .ff-boolean--custom {
@@ -456,6 +462,7 @@ body.ff-body-root {
 
 .ff-panel .ff-boolean--icon-only {
   padding: 0.3rem;
+  aspect-ratio: 1 / 1;
 }
 
 .ff-panel .ff-boolean__mark {
@@ -469,7 +476,7 @@ body.ff-body-root {
   background: color-mix(in srgb, currentColor 14%, transparent);
 }
 
-.ff-panel .ff-boolean__mark .ff-icon {
+.ff-panel .ff-boolean__mark svg.ff-icon {
   width: 14px;
   height: 14px;
   stroke-width: 2.25;
@@ -1428,7 +1435,7 @@ body.ff-body-root {
   display: inline-flex;
 }
 
-.ff-panel .ff-option-check .ff-icon {
+.ff-panel .ff-option-check svg.ff-icon {
   width: 1rem;
   height: 1rem;
 }
@@ -2262,10 +2269,53 @@ body.ff-body-root {
   color: var(--ff-heading);
 }
 
-.ff-panel .ff-column {
+/* Table / infolist cell content — must not inherit shell `.ff-panel > .ff-column`. */
+.ff-panel .ff-table .ff-column,
+.ff-panel .ff-entry .ff-column {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+}
+
+.ff-panel .ff-table .ff-icon-column {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ff-panel .ff-icons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ff-panel .ff-icon-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+}
+
+.ff-panel .ff-icon-row {
+  display: flex;
+  width: fit-content;
+}
+
+.ff-panel .ff-component.ff-icon-entry {
+  width: auto;
+  max-width: 100%;
 }
 
 .ff-panel .ff-badge {
@@ -2457,7 +2507,7 @@ body.ff-body-root {
   color: var(--ff-heading);
 }
 
-.ff-panel .ff-dialog-close .ff-icon {
+.ff-panel .ff-dialog-close svg.ff-icon {
   width: 1.05rem;
   height: 1.05rem;
 }
@@ -2496,7 +2546,7 @@ body.ff-body-root {
   color: var(--ff-heading);
 }
 
-.ff-panel .ff-action-close .ff-icon {
+.ff-panel .ff-action-close svg.ff-icon {
   width: 1.05rem;
   height: 1.05rem;
 }
