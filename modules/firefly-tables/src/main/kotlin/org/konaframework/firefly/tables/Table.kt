@@ -2,9 +2,12 @@ package org.konaframework.firefly.tables
 
 import org.konaframework.cadence.Cadence
 import org.konaframework.cadence.ModelBuilder
+import org.konaframework.firefly.schemas.ColumnLayout
 import org.konaframework.firefly.schemas.EmptyState
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.tables.layout.LayoutComponent
+import org.konaframework.firefly.tables.layout.LayoutRenderContext
 import java.util.function.Consumer
 import java.util.function.Function
 
@@ -70,10 +73,33 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private var recordClickDisabled = false
     private var recordUrlUsing: Function<Cell, String>? = null
     private var recordActionUsing: Function<Cell, String>? = null
+    private var stackedOnMobileFlag = true
+    private var contentGridLayout: ColumnLayout? = null
+    /** Top-level column defs: plain [Column] and/or [LayoutComponent] (Split/Stack/Grid). */
+    private val columnDefs = ArrayList<Any>()
 
-    fun columns(vararg columns: Column): Table<T, Q> = apply {
+    /**
+     * Attach columns and optional layout components ([org.konaframework.firefly.tables.layout.Split],
+     * [org.konaframework.firefly.tables.layout.Stack], [org.konaframework.firefly.tables.layout.Grid]).
+     */
+    fun columns(vararg items: Any): Table<T, Q> = apply {
         columnList.clear()
-        columnList.addAll(columns)
+        columnDefs.clear()
+        for (item in items) {
+            when (item) {
+                is Column -> {
+                    columnDefs.add(item)
+                    columnList.add(item)
+                }
+                is LayoutComponent -> {
+                    columnDefs.add(item)
+                    columnList.addAll(item.flattenColumns())
+                }
+                else -> throw FireflyException(
+                    "Table.columns expects Column or layout Split/Stack/Grid; got ${item.javaClass.name}",
+                )
+            }
+        }
         // Seed Filament-style toggle-hidden defaults when columns are attached (#363).
         hiddenByUser.clear()
         for (column in columnList) {
@@ -202,7 +228,26 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     fun pageOptions(vararg options: Int): Table<T, Q> = apply { pageSizes = options.toList() }
 
-    fun layout(value: TableLayout): Table<T, Q> = apply { layout = value }
+    fun layout(value: TableLayout): Table<T, Q> = apply {
+        layout = value
+        if (value != TableLayout.GRID) contentGridLayout = null
+    }
+
+    /**
+     * On small viewports, ROWS become card/stack (label above value). Default **true**
+     * so manage/list tables stay readable on phones without an opt-in.
+     */
+    @JvmOverloads
+    fun stackedOnMobile(on: Boolean = true): Table<T, Q> = apply { stackedOnMobileFlag = on }
+
+    /**
+     * Arrange records in a responsive card grid (1 column on the smallest size).
+     * Example: `contentGrid(mapOf("md" to 2, "xl" to 3))`.
+     */
+    fun contentGrid(breakpoints: Map<String, Int>): Table<T, Q> = apply {
+        contentGridLayout = ColumnLayout.from(breakpoints)
+        layout = TableLayout.GRID
+    }
 
     fun selectable(on: Boolean): Table<T, Q> = apply { selectable = on }
 
@@ -262,8 +307,12 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val cell = tableCell()
         val pollAttr = if (pollInterval == null) "" else """ wire:poll.$pollInterval"""
         val visible = columnList.filter { shown(it, cell) }
+        val stackedAttr =
+            if (stackedOnMobileFlag) """ data-ff-stacked-mobile="true"""" else """ data-ff-stacked-mobile="false""""
+        val composedAttr = if (usesComposedLayout()) """ data-ff-composed="true"""" else ""
+        val gridAttr = if (contentGridLayout != null) """ data-ff-content-grid="true"""" else ""
         return """
-            <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$pollAttr>
+            <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$stackedAttr$composedAttr$gridAttr$pollAttr>
               ${toolbar(cell)}
               ${body(loaded, visible)}
               ${footer(loaded)}
@@ -272,6 +321,8 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             </div>
         """.trimIndent()
     }
+
+    private fun usesComposedLayout(): Boolean = columnDefs.any { it is LayoutComponent }
 
     fun call(name: String, vararg args: String): Table<T, Q> = apply {
         when (name) {
@@ -393,6 +444,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private fun toolbar(cell: Cell): String {
         val searchable = columnList.any { it.isSearchable(cell) }
         val columnToggle = columnToggleHtml(cell)
+        val mobileSort = mobileSortHtml(cell)
         val search = if (!searchable) {
             ""
         } else {
@@ -409,17 +461,48 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             """<div class="ff-table-filters">${filterList.joinToString("") { it.render(cell, filterValue(it, cell)) }}</div>"""
         }
         val buttons = headerButtonList.joinToString("") { it.render(cell, selectedKeys.isEmpty()) }
-        val tools = if (filterList.isEmpty() && buttons.isEmpty() && columnToggle.isEmpty()) {
+        val tools = if (filterList.isEmpty() && buttons.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) {
             ""
         } else {
-            """<div class="ff-table-toolbar-actions">$columnToggle$filters$buttons</div>"""
+            """<div class="ff-table-toolbar-actions">$mobileSort$columnToggle$filters$buttons</div>"""
         }
-        if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty()) {
+        if (!searchable && filterList.isEmpty() && headerButtonList.isEmpty() && columnToggle.isEmpty() && mobileSort.isEmpty()) {
             return """<div class="ff-table-toolbar ff-table-toolbar--empty" hidden></div>"""
         }
         val columnsHidden = columnsQueryHiddenInput(cell)
         // Query-string toolbar — chrome soft-nav swaps the wrap without a full document reload.
         return """<div class="ff-table-toolbar"><form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$search$columnsHidden$tools</form></div>"""
+    }
+
+    /**
+     * Sort dropdown for stacked / card layouts when header sort links are hidden on small screens.
+     */
+    private fun mobileSortHtml(cell: Cell): String {
+        // contentGrid forces GRID layout, so layout != ROWS already covers it.
+        val needsMobileSort =
+            stackedOnMobileFlag || layout != TableLayout.ROWS || usesComposedLayout()
+        if (!needsMobileSort) return ""
+        val sortable = columnList.filter { shown(it, cell) && it.isSortable(cell) }
+        if (sortable.isEmpty()) return ""
+        val options = StringBuilder()
+        options.append("""<option value="">Sort</option>""")
+        for (column in sortable) {
+            val label = escapeHtml(column.heading(cell))
+            val ascSelected = if (sortColumn == column.name && sortDirection == "asc") " selected" else ""
+            val descSelected = if (sortColumn == column.name && sortDirection == "desc") " selected" else ""
+            options.append(
+                """<option value="${escapeHtml(column.name)}:asc"$ascSelected>$label · Asc</option>""",
+            )
+            options.append(
+                """<option value="${escapeHtml(column.name)}:desc"$descSelected>$label · Desc</option>""",
+            )
+        }
+        return """
+            <label class="ff-table-mobile-sort">
+              <span class="ff-table-mobile-sort-label">Sort</span>
+              <select class="ff-table-mobile-sort-select" data-ff-table-nav-select data-ff-mobile-sort aria-label="Sort records">$options</select>
+            </label>
+        """.trimIndent()
     }
 
     /** Columns picker for [Column.toggleable] / [Column.toggledHiddenByDefault] (#363). */
@@ -454,16 +537,26 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         return toggleable.filter { it.name !in hiddenByUser }.joinToString(",") { it.name }
     }
 
-    private fun body(loaded: LoadedTable<T>, visible: List<Column>): String = when (layout) {
-        TableLayout.ROWS -> rows(loaded, visible)
-        TableLayout.STACK -> cards(loaded, visible, "ff-table-stack")
-        TableLayout.GRID -> cards(loaded, visible, "ff-table-grid")
+    private fun body(loaded: LoadedTable<T>, visible: List<Column>): String {
+        if (usesComposedLayout() || contentGridLayout != null) {
+            val className = when {
+                contentGridLayout != null || layout == TableLayout.GRID -> "ff-table-grid"
+                layout == TableLayout.STACK -> "ff-table-stack"
+                else -> "ff-table-stack"
+            }
+            return cards(loaded, visible, className)
+        }
+        return when (layout) {
+            TableLayout.ROWS -> rows(loaded, visible)
+            TableLayout.STACK -> cards(loaded, visible, "ff-table-stack")
+            TableLayout.GRID -> cards(loaded, visible, "ff-table-grid")
+        }
     }
 
     private fun rows(loaded: LoadedTable<T>, visible: List<Column>): String {
         val cell = tableCell()
         val headers = visible.joinToString("") { columnHeader(it, cell) }
-        val selectHead = if (selectable) """<th class="ff-table-select"><button type="button" x-on:click="${'$'}wire.${'$'}call('selectPage')" aria-label="Select page"></button></th>""" else ""
+        val selectHead = if (selectable) """<th class="ff-table-select"><button type="button" class="ff-table-select-page" x-on:click="${'$'}wire.${'$'}call('selectPage')" aria-label="Select page"></button></th>""" else ""
         val actionHead = if (rowButtonList.isEmpty()) "" else """<th class="ff-table-actions-head" data-ff-align="end">Actions</th>"""
         val span = visible.size + (if (selectable) 1 else 0) + (if (rowButtonList.isEmpty()) 0 else 1)
         val body = when {
@@ -520,39 +613,95 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private fun recordRow(record: T, visible: List<Column>): String {
         val values = store.attributes(record)
         val key = store.keyOf(record)
-        val select = if (selectable) selectionCell(key) else ""
-        val cells = visible.joinToString("") { """<td>${it.render(values, key, rowCell(values, it.name))}</td>""" }
-        val actions = rowActions(values, key)
+        val select = if (selectable) selectionMarkup(key, asTableCell = true) else ""
+        val cells = visible.joinToString("") { column ->
+            val label = escapeHtml(column.heading(tableCell()))
+            """<td data-label="$label">${column.render(values, key, rowCell(values, column.name))}</td>"""
+        }
+        val actions = rowActions(values, key, asTableCell = true)
         val click = recordClickAttrs(rowActionCell(values, key))
         return """<tr data-ff-record="${escapeHtml(key)}"$click>$select$cells$actions</tr>"""
     }
 
     private fun cards(loaded: LoadedTable<T>, visible: List<Column>, className: String): String {
-        val content = if (loaded.groups.isEmpty()) {
-            loaded.records.joinToString("") { card(it, visible) }
-        } else {
-            loaded.groups.joinToString("") { (label, records) ->
+        val cell = tableCell()
+        val content = when {
+            loaded.isEmpty() -> {
+                """<div class="ff-table-card ff-table-card--empty">${emptyStateInner(cell)}</div>"""
+            }
+            loaded.groups.isEmpty() -> loaded.records.joinToString("") { card(it, visible) }
+            else -> loaded.groups.joinToString("") { (label, records) ->
                 """<h3 class="ff-group">${escapeHtml(label)}</h3>""" +
                     records.joinToString("") { card(it, visible) }
             }
         }
-        return """<div class="$className">$content</div>"""
+        val grid = contentGridLayout
+        val style = if (grid == null) "" else """ style="${grid.styleAttribute()}""""
+        val gridData =
+            if (grid == null) {
+                ""
+            } else {
+                """ data-ff-content-grid="true" data-ff-columns="${grid.dataValue()}""""
+            }
+        val selectPage =
+            if (!selectable || loaded.isEmpty()) {
+                ""
+            } else {
+                """<div class="ff-table-card-select-page"><button type="button" class="ff-table-select-page" x-on:click="${'$'}wire.${'$'}call('selectPage')" aria-label="Select page">Select page</button></div>"""
+            }
+        return """<div class="$className"$gridData$style>$selectPage$content</div>"""
     }
 
     private fun card(record: T, visible: List<Column>): String {
         val values = store.attributes(record)
         val key = store.keyOf(record)
-        val select = if (selectable) selectionCell(key) else ""
-        val fields = visible.joinToString("") { column ->
-            """<div class="ff-stack-field"><span>${escapeHtml(column.heading(tableCell()))}</span>${column.render(values, key, rowCell(values, column.name))}</div>"""
-        }
+        val select = if (selectable) selectionMarkup(key, asTableCell = false) else ""
+        val fields =
+            if (usesComposedLayout()) {
+                composedFields(values, key)
+            } else {
+                visible.joinToString("") { column ->
+                    """<div class="ff-stack-field"><span class="ff-stack-label">${escapeHtml(column.heading(tableCell()))}</span><div class="ff-stack-value">${column.render(values, key, rowCell(values, column.name))}</div></div>"""
+                }
+            }
+        val actions = rowActions(values, key, asTableCell = false)
         val click = recordClickAttrs(rowActionCell(values, key))
-        return """<article class="ff-table-card" data-ff-record="${escapeHtml(key)}"$click>$select$fields${rowActions(values, key)}</article>"""
+        return """<article class="ff-table-card" data-ff-record="${escapeHtml(key)}"$click><div class="ff-table-card-main">$select<div class="ff-table-card-body">$fields</div></div>$actions</article>"""
     }
 
-    private fun selectionCell(key: String): String {
+    private fun composedFields(values: Map<String, Any?>, key: String): String {
+        val tableCell = tableCell()
+        val ctx = LayoutRenderContext(
+            values = values,
+            key = key,
+            tableCell = tableCell,
+            rowCellFor = { name -> rowCell(values, name) },
+            shown = { column -> shown(column, tableCell) },
+        )
+        return columnDefs.joinToString("") { def ->
+            when (def) {
+                is LayoutComponent -> def.render(ctx)
+                is Column -> {
+                    if (!shown(def, tableCell)) {
+                        ""
+                    } else {
+                        """<div class="ff-stack-field"><span class="ff-stack-label">${escapeHtml(def.heading(tableCell))}</span><div class="ff-stack-value">${def.render(values, key, rowCell(values, def.name))}</div></div>"""
+                    }
+                }
+                else -> throw FireflyException("Unexpected table column def ${def.javaClass.name}")
+            }
+        }
+    }
+
+    private fun selectionMarkup(key: String, asTableCell: Boolean): String {
         val checked = if (key in selectedKeys) """ checked""" else ""
-        return """<td><input type="checkbox"$checked x-on:click="${'$'}wire.${'$'}call('selectRecord', '${escapeHtml(key)}')"></td>"""
+        val input =
+            """<input type="checkbox" class="ff-table-select-input"$checked x-on:click="${'$'}wire.${'$'}call('selectRecord', '${escapeHtml(key)}')" aria-label="Select record">"""
+        return if (asTableCell) {
+            """<td class="ff-table-select" data-label="">$input</td>"""
+        } else {
+            """<div class="ff-table-select">$input</div>"""
+        }
     }
 
     private fun rowActionCell(values: Map<String, Any?>, key: String): Cell =
@@ -600,7 +749,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         return null
     }
 
-    private fun rowActions(values: Map<String, Any?>, key: String): String {
+    private fun rowActions(values: Map<String, Any?>, key: String, asTableCell: Boolean): String {
         if (rowButtonList.isEmpty()) return ""
         val cell = rowActionCell(values, key)
         val emptySelection = selectedKeys.isEmpty()
@@ -611,9 +760,14 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                 rowButtonList
             }
         val html = buttons.joinToString("") { it.render(cell, emptySelection) }
+        val inner = """<div class="ff-row-actions-inner">$html</div>"""
         // Keep flex on an inner wrapper — display:flex on the <td> breaks collapsed
         // row borders (disjoint rules vs other columns on narrow/scroll viewports) (#365).
-        return """<td class="ff-row-actions"><div class="ff-row-actions-inner">$html</div></td>"""
+        return if (asTableCell) {
+            """<td class="ff-row-actions" data-label="Actions">$inner</td>"""
+        } else {
+            """<div class="ff-row-actions">$inner</div>"""
+        }
     }
 
     private fun footer(loaded: LoadedTable<T>): String {
