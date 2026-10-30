@@ -332,6 +332,8 @@ class FireflySupportTest {
         val widgets = Stylesheet.readCss("/org/konaframework/firefly/support/form-widgets.css")
         assertTrue(widgets.contains("border-top-left-radius: 0 !important"), "prefix join must beat input:not(...)")
         assertTrue(widgets.contains("border-top-right-radius: var(--ff-radius) !important"), "reveal suffix must round outer edge")
+        assertTrue(widgets.contains(".ff-panel .ff-color-column > span.ff-color"), "ColorColumn swatch sizing")
+        assertTrue(widgets.contains(".ff-panel .ff-swatch"), "ColorEntry swatch sizing")
         assertTrue(css.contains("ff-column-money") && css.contains("tabular-nums"))
         assertTrue(css.contains(".ff-panel .ff-combobox-panel"))
         assertTrue(css.contains(".ff-panel .ff-combobox.ff-combobox-open"))
