@@ -11,9 +11,25 @@ import org.konaframework.cadence.Cadence
 import org.konaframework.cadence.ConnectionConfig
 import org.konaframework.cadence.Database
 import org.konaframework.cadence.ModelBuilder
+import org.konaframework.firefly.forms.Checkbox
+import org.konaframework.firefly.forms.CodeEditor
+import org.konaframework.firefly.forms.ColorPicker
+import org.konaframework.firefly.forms.DatePicker
 import org.konaframework.firefly.forms.DateTimePicker
+import org.konaframework.firefly.forms.Hidden
+import org.konaframework.firefly.forms.KeyValue
+import org.konaframework.firefly.forms.MarkdownEditor
+import org.konaframework.firefly.forms.Placeholder
+import org.konaframework.firefly.forms.RichEditor
 import org.konaframework.firefly.forms.Select
 import org.konaframework.firefly.forms.TextInput
+import org.konaframework.firefly.forms.TimePicker
+import org.konaframework.firefly.forms.Toggle
+import org.konaframework.firefly.forms.ViewField
+import org.konaframework.firefly.infolists.CodeEntry
+import org.konaframework.firefly.infolists.ColorEntry
+import org.konaframework.firefly.infolists.IconEntry
+import org.konaframework.firefly.infolists.KeyValueEntry
 import org.konaframework.firefly.infolists.TextEntry
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
@@ -148,6 +164,92 @@ class FireflyResourceTest {
         Panel().path("desk").authenticate(false).resource(simple).mount(manageRouter)
         val manage = send(manageRouter, "/desk/task/manage")
         assertTrue(manage.contains("Alpine Softshell"), manage)
+    }
+
+    @Test
+    fun viewDerivesInfolistFromFormWhenInfolistMissing() {
+        val resource = object : Resource("books") {
+            init {
+                label("Book")
+            }
+
+            override fun form(schema: Schema): Schema =
+                schema.components(
+                    TextInput.make("title"),
+                    TextInput.make("price").currency("EUR"),
+                    Toggle.make("published"),
+                    ColorPicker.make("cover"),
+                    DatePicker.make("released"),
+                    TimePicker.make("opens"),
+                    DateTimePicker.make("updated"),
+                    MarkdownEditor.make("blurb"),
+                    RichEditor.make("body"),
+                    CodeEditor.make("script"),
+                    KeyValue.make("meta"),
+                    Select.make("kind").options(mapOf("soft" to "Soft")),
+                    Hidden.make("token"),
+                    Placeholder.make("hint"),
+                    ViewField.make("aside"),
+                    TextInput.make(""),
+                )
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "1", "title" to "Kona")).columns(TextColumn.make("title"))
+        }
+        val router = Router()
+        Panel().path("admin").authenticate(false).resource(resource).mount(router)
+        val view = send(router, "/admin/books/view?id=1")
+        assertTrue(view.contains("""class="ff-infolist""""), view)
+        assertTrue(view.contains("data-ff-path=\"title\""), view)
+        assertTrue(view.contains("data-ff-path=\"price\""), view)
+        assertTrue(view.contains("ff-text-money") || view.contains("data-ff-currency"), view)
+        assertTrue(view.contains("data-ff-path=\"published\""), view)
+        assertTrue(view.contains("data-ff-path=\"cover\""), view)
+        assertTrue(view.contains("data-ff-path=\"released\""), view)
+        assertFalse(view.contains("data-ff-path=\"token\""), view)
+        assertFalse(view.contains("data-ff-path=\"hint\""), view)
+        assertFalse(view.contains("data-ff-path=\"aside\""), view)
+
+        val mapped = FormInfolist.entriesFrom(
+            Schema.make().components(
+                TextInput.make("price").currency("USD"),
+                Checkbox.make("ok"),
+                Toggle.make("on"),
+                ColorPicker.make("swatch"),
+                KeyValue.make("meta"),
+                CodeEditor.make("src"),
+                MarkdownEditor.make("md"),
+                RichEditor.make("html"),
+                DatePicker.make("day"),
+                TimePicker.make("when"),
+                DateTimePicker.make("at"),
+                Select.make("kind"),
+                Hidden.make("x"),
+                Placeholder.make("p"),
+                ViewField.make("v"),
+                TextInput.make(""),
+            ),
+        )
+        assertTrue(mapped.any { it is TextEntry && it.name == "price" })
+        assertTrue(mapped.any { it is IconEntry && it.name == "ok" })
+        assertTrue(mapped.any { it is IconEntry && it.name == "on" })
+        assertTrue(mapped.any { it is ColorEntry && it.name == "swatch" })
+        assertTrue(mapped.any { it is KeyValueEntry && it.name == "meta" })
+        assertTrue(mapped.any { it is CodeEntry && it.name == "src" })
+        assertTrue(mapped.any { it is TextEntry && it.name == "md" })
+        assertTrue(mapped.any { it is TextEntry && it.name == "html" })
+        assertTrue(mapped.any { it is TextEntry && it.name == "day" })
+        assertTrue(mapped.any { it is TextEntry && it.name == "when" })
+        assertTrue(mapped.any { it is TextEntry && it.name == "at" })
+        assertTrue(mapped.any { it is TextEntry && it.name == "kind" })
+        assertTrue(mapped.none { it.name == "x" || it.name == "p" || it.name == "v" || it.name.isEmpty() })
+        // Placeholder defaults to saved(false); call entryFor directly so the chrome-skip branch is covered.
+        assertNull(FormInfolist.entryFor(Placeholder.make("hint")))
+        assertNull(FormInfolist.entryFor(Hidden.make("token")))
+        assertNull(FormInfolist.entryFor(ViewField.make("aside")))
+        assertNull(FormInfolist.entryFor(TextInput.make("")))
+        assertTrue(FormInfolist.fill(Schema.make(), Schema.make()).components().isEmpty())
+        assertEquals(0, FormInfolist.entriesFrom(Schema.make()).size)
     }
 
     @Test
