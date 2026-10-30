@@ -307,6 +307,9 @@ export async function buildSidebar() {
             { label: 'Currency input', translations: { es: 'Moneda', fr: 'Devise', 'zh-CN': '货币输入' }, slug: 'docs/firefly/forms/currency-input' },
             { label: 'Hidden', translations: { es: 'Oculto', fr: 'Masqué', 'zh-CN': '隐藏字段' }, slug: 'docs/firefly/forms/hidden' },
             { label: 'Placeholder', translations: { es: 'Marcador', fr: 'Espace réservé', 'zh-CN': '占位内容' }, slug: 'docs/firefly/forms/placeholder' },
+            { label: 'View field', translations: { es: 'Campo de vista', fr: 'Champ vue', 'zh-CN': '视图字段' }, slug: 'docs/firefly/forms/view-field' },
+            { label: 'Modal table select', translations: { es: 'Selector de tabla modal', fr: 'Sélection table modale', 'zh-CN': '模态表选择' }, slug: 'docs/firefly/forms/modal-table-select' },
+            { label: 'Morph to select', translations: { es: 'Selector morph', fr: 'Sélection morph', 'zh-CN': '多态选择' }, slug: 'docs/firefly/forms/morph-to-select' },
           ],
         },
         {
