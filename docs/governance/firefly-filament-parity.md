@@ -93,7 +93,7 @@ Shipped fields extend `Component` in this module. Schemas and support were not e
 | FRM-6 | Placeholder and view | `Placeholder`, `ViewField` | done |
 | FRM-7 | Select combobox, `.native()` for `<select>` | `Select` | done |
 | FRM-8 | Checkbox, toggle, radio, checkbox list, toggle buttons | those classes | done |
-| FRM-9 | Date and time, crafted picker, `.native()` for the HTML input, `java.time`, date-only in the app zone | `DatePicker`, `TimePicker`, `DateTimePicker`, `FieldClock` | done |
+| FRM-9 | Date and time, crafted picker, `.native()` for the HTML input, `java.time`, date-only in the app zone | `DatePicker`, `TimePicker`, `DateTimePicker`, `WeekPicker`, `MonthPicker`, `YearPicker`, `FieldClock` | done |
 | FRM-10 | Rich editor, TipTap toolbar and bubble menu, dialog for link, image, and blocks | `RichEditor` | done |
 | FRM-11 | Markdown Write \| Preview, CodeMirror markdown, sanitized `.ff-prose` | `MarkdownEditor` | done |
 | FRM-12 | Code editor, CodeMirror 6 and the Shiki language catalog | `CodeEditor` | done |

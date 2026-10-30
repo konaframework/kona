@@ -13,6 +13,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.format.TextStyle
+import java.time.temporal.WeekFields
 import java.util.Locale
 import java.util.function.Consumer
 import java.util.function.Function
@@ -50,6 +51,7 @@ object FieldClock {
 
 enum class DatePickLevel {
     DAY,
+    WEEK,
     MONTH,
     YEAR,
 }
@@ -135,10 +137,16 @@ open class DateTimePicker protected constructor(
         if (on && !displayText.contains('s')) displayText = "$displayText:s"
     }
 
-    /** Day (default), month-only, or year-only selection (Flowbite pickLevel). */
+    /** Day (default), week (ISO `Y-Www`), month-only, or year-only selection. */
     fun pickLevel(level: DatePickLevel): DateTimePicker = apply {
         pickLevel = level
         when (level) {
+            DatePickLevel.WEEK -> {
+                formatText = "Y-Ww"
+                displayText = "'Week' W, Y"
+                closeOnSelect = true
+                firstDay = 1
+            }
             DatePickLevel.MONTH -> {
                 formatText = "Y-m"
                 displayText = "M Y"
@@ -203,6 +211,7 @@ open class DateTimePicker protected constructor(
     fun normalize(raw: Any?): String? {
         if (raw == null) return null
         if (raw is String && raw.isBlank()) return null
+        if (pickLevel == DatePickLevel.WEEK) return normalizeWeek(raw)
         val date = when (raw) {
             is LocalDate -> raw
             is LocalDateTime -> raw.toLocalDate()
@@ -248,6 +257,11 @@ open class DateTimePicker protected constructor(
 
     fun display(stored: String?): String {
         if (stored.isNullOrBlank()) return ""
+        if (pickLevel == DatePickLevel.WEEK) {
+            val week = normalizeWeek(stored) ?: return ""
+            val parts = week.split("-W", limit = 2)
+            return "Week ${parts[1].toInt()}, ${parts[0]}"
+        }
         val normalized = normalize(stored) ?: return ""
         val pattern = DateTimeFormatter.ofPattern(Dates.toJava(formatText))
         if (!withDate) {
@@ -267,7 +281,8 @@ open class DateTimePicker protected constructor(
 
     override fun validationRules(schema: Schema): List<String> {
         val out = ArrayList(super.validationRules(schema))
-        out.add("date_format:$formatText")
+        if (pickLevel == DatePickLevel.WEEK) out.add("""regex:^\d{4}-W\d{2}$""")
+        else out.add("date_format:$formatText")
         return out
     }
 
@@ -277,6 +292,7 @@ open class DateTimePicker protected constructor(
         val max = maxText.get(get)
         if (nativeFlag) {
             val htmlType = when {
+                pickLevel == DatePickLevel.WEEK -> "week"
                 withDate && withTime -> "datetime-local"
                 withTime -> "time"
                 else -> "date"
@@ -287,6 +303,7 @@ open class DateTimePicker protected constructor(
         val focused = focusedDate(schema, stored)
         val disabledCsv = disabledList.joinToString(",")
         val kind = when {
+            pickLevel == DatePickLevel.WEEK -> "week"
             pickLevel == DatePickLevel.MONTH -> "month"
             pickLevel == DatePickLevel.YEAR -> "year"
             withDate && withTime -> "datetime"
@@ -296,7 +313,7 @@ open class DateTimePicker protected constructor(
         val startView = when (pickLevel) {
             DatePickLevel.MONTH -> "months"
             DatePickLevel.YEAR -> "years"
-            DatePickLevel.DAY -> "days"
+            DatePickLevel.WEEK, DatePickLevel.DAY -> "days"
         }
         return buildString {
             append("""<div class="ff-picker" data-ff-picker data-ff-picker-kind="$kind" data-ff-picker-view="$startView" data-ff-pick-level="${pickLevel.name.lowercase()}" data-ff-path="${esc(path)}"${boolAttr("data-ff-date", withDate)}${boolAttr("data-ff-time", withTime)}${attr("data-ff-format", formatText)}${attr("data-ff-display", displayText)}${attr("data-ff-locale", localeTag)}${attr("data-ff-zone", zoneId.id)} data-ff-first-day="$firstDay"${boolAttr("data-ff-close", closeOnSelect)} data-ff-hours-step="$hoursStepCount" data-ff-minutes-step="$minutesStepCount" data-ff-seconds-step="$secondsStepCount"${boolAttr("data-ff-seconds", secondsFlag)}${attr("data-ff-min", min)}${attr("data-ff-max", max)}${attr("data-ff-disabled", disabledCsv.ifBlank { null })}${attr("data-ff-state", stored)}${attr("data-ff-focused", focused.toString())}>""")
@@ -311,19 +328,22 @@ open class DateTimePicker protected constructor(
                 val caption = when (pickLevel) {
                     DatePickLevel.MONTH -> focused.year.toString()
                     DatePickLevel.YEAR -> yearSpan(focused).let { "${it.first} – ${it.last}" }
-                    DatePickLevel.DAY -> monthCaption(focused)
+                    DatePickLevel.WEEK, DatePickLevel.DAY -> monthCaption(focused)
                 }
                 append("""<div class="ff-picker-nav">""")
                 append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-prev aria-label="Previous">‹</button>""")
                 append("""<button type="button" class="ff-picker-caption" data-ff-picker-caption data-ff-picker-view-up>${esc(caption)}</button>""")
                 append("""<button type="button" class="ff-picker-nav-btn" data-ff-picker-next aria-label="Next">›</button>""")
                 append("</div>")
-                val weekdaysStyle = if (pickLevel == DatePickLevel.DAY) "" else """ style="display:none""""
-                append("""<div class="ff-picker-weekdays" data-ff-picker-weekdays$weekdaysStyle>${weekdayHeaderInner()}</div>""")
+                val weekdaysStyle = if (pickLevel == DatePickLevel.DAY || pickLevel == DatePickLevel.WEEK) "" else """ style="display:none""""
+                val weekdaysClass = if (pickLevel == DatePickLevel.WEEK) " ff-picker-weekdays-weeks" else ""
+                val weekdayLead = if (pickLevel == DatePickLevel.WEEK) """<span aria-hidden="true"></span>""" else ""
+                append("""<div class="ff-picker-weekdays$weekdaysClass" data-ff-picker-weekdays$weekdaysStyle>$weekdayLead${weekdayHeaderInner()}</div>""")
                 append(
                     when (pickLevel) {
                         DatePickLevel.MONTH -> monthsGrid(focused, stored)
                         DatePickLevel.YEAR -> yearsGrid(focused, stored)
+                        DatePickLevel.WEEK -> weekGrid(schema, focused, stored)
                         DatePickLevel.DAY -> monthGrid(schema, focused, stored)
                     },
                 )
@@ -338,6 +358,7 @@ open class DateTimePicker protected constructor(
     }
 
     private fun placeholderFor(): String = when {
+        pickLevel == DatePickLevel.WEEK -> "Select week"
         pickLevel == DatePickLevel.MONTH -> "Select month"
         pickLevel == DatePickLevel.YEAR -> "Select year"
         withDate && withTime -> "Select date and time"
@@ -382,6 +403,42 @@ open class DateTimePicker protected constructor(
                 append("""<button type="button" class="$css" data-ff-day="$cursor"$disabledAttr>${cursor.dayOfMonth}</button>""")
                 cursor = cursor.plusDays(1)
                 cell += 1
+            }
+            append("</div>")
+        }
+    }
+
+    /** ISO-week grid: week-number gutter + 7 day columns; stores `YYYY-Www`. */
+    private fun weekGrid(schema: Schema, focused: LocalDate, stored: String): String {
+        val selectedWeek = WEEK_TOKEN.find(stored.trim())?.let {
+            "%04d-W%02d".format(it.groupValues[1].toInt(), it.groupValues[2].toInt())
+        }
+        val first = focused.withDayOfMonth(1)
+        val lead = Math.floorMod(first.dayOfWeek.value - 1, 7)
+        val start = first.minusDays(lead.toLong())
+        val wf = WeekFields.ISO
+        return buildString {
+            append("""<div class="ff-picker-grid ff-picker-grid-weeks" data-ff-picker-grid data-ff-month="${focused.year}-${focused.monthValue.toString().padStart(2, '0')}">""")
+            var cursor = start
+            repeat(6) {
+                val token = isoWeekOf(cursor)
+                val weekNum = cursor.get(wf.weekOfWeekBasedYear())
+                append("""<button type="button" class="ff-picker-weeknum" data-ff-week="$token" aria-label="Week $weekNum">$weekNum</button>""")
+                repeat(7) {
+                    val outside = cursor.month != focused.month
+                    val disabled = isDisabled(cursor, schema)
+                    val inWeek = selectedWeek == token
+                    val css = buildString {
+                        append("ff-day")
+                        if (outside) append(" ff-day-outside")
+                        if (disabled) append(" ff-day-disabled")
+                        if (inWeek) append(" ff-week-selected")
+                        if (inWeek && cursor.dayOfWeek.value == 1) append(" ff-day-selected")
+                    }
+                    val disabledAttr = if (disabled) " disabled" else ""
+                    append("""<button type="button" class="$css" data-ff-day="$cursor" data-ff-week="$token"$disabledAttr>${cursor.dayOfMonth}</button>""")
+                    cursor = cursor.plusDays(1)
+                }
             }
             append("</div>")
         }
@@ -453,6 +510,9 @@ open class DateTimePicker protected constructor(
         val explicit = focusedText.get(Reads.of(schema, this))
         val fromExplicit = parseDate(explicit)
         if (fromExplicit != null) return fromExplicit
+        if (pickLevel == DatePickLevel.WEEK) {
+            dateFromIsoWeek(stored)?.let { return it }
+        }
         val fromState = parseDate(stored)
         if (fromState != null) return fromState
         val partial = Regex("""^(\d{4})(?:-(\d{2}))?$""").find(stored.trim())
@@ -465,11 +525,43 @@ open class DateTimePicker protected constructor(
 
     private fun nativeValue(stored: String): String {
         if (stored.isBlank()) return ""
+        if (pickLevel == DatePickLevel.WEEK) return normalizeWeek(stored) ?: stored
         if (withDate && withTime) {
             val local = Dates.parseDateTime(stored, formatText) ?: return stored
             return local.toString()
         }
         return stored
+    }
+
+    private fun normalizeWeek(raw: Any): String? = when (raw) {
+        is LocalDate -> isoWeekOf(raw)
+        is LocalDateTime -> isoWeekOf(raw.toLocalDate())
+        is OffsetDateTime -> isoWeekOf(raw.atZoneSameInstant(appZoneForDate()).toLocalDate())
+        is ZonedDateTime -> isoWeekOf(raw.withZoneSameInstant(appZoneForDate()).toLocalDate())
+        is Instant -> isoWeekOf(raw.atZone(appZoneForDate()).toLocalDate())
+        is String -> {
+            val match = WEEK_TOKEN.find(raw.trim())
+            if (match != null) {
+                "%04d-W%02d".format(match.groupValues[1].toInt(), match.groupValues[2].toInt())
+            } else {
+                val date = datePart(raw) ?: parseDate(raw)
+                if (date != null) isoWeekOf(date) else null
+            }
+        }
+        is LocalTime -> throw FireflyException("Week value is missing a day")
+        else -> throw FireflyException("Unsupported week value [${raw.javaClass.name}]")
+    }
+
+    private fun dateFromIsoWeek(stored: String): LocalDate? {
+        val match = WEEK_TOKEN.find(stored.trim()) ?: return null
+        val year = match.groupValues[1].toInt()
+        val week = match.groupValues[2].toInt()
+        if (week !in 1..53) return null
+        return try {
+            LocalDate.parse("%04d-W%02d-1".format(year, week), DateTimeFormatter.ISO_WEEK_DATE)
+        } catch (_: DateTimeParseException) {
+            null
+        }
     }
 
     private fun appZoneForDate(): ZoneId = if (withDate && !withTime) FieldClock.appZone() else zoneId
@@ -508,6 +600,7 @@ open class DateTimePicker protected constructor(
     }
 
     companion object {
+        private val WEEK_TOKEN = Regex("""^(\d{4})-W(\d{2})$""", RegexOption.IGNORE_CASE)
         private val maker = Maker { name -> DateTimePicker(name, true, true) }
 
         @JvmStatic
@@ -521,6 +614,13 @@ open class DateTimePicker protected constructor(
 
         @JvmStatic
         fun time(name: String): DateTimePicker = maker.finish(DateTimePicker(name, false, true))
+
+        internal fun isoWeekOf(date: LocalDate): String {
+            val wf = WeekFields.ISO
+            val year = date.get(wf.weekBasedYear())
+            val week = date.get(wf.weekOfWeekBasedYear())
+            return "%04d-W%02d".format(year, week)
+        }
 
         private fun defaultFormat(date: Boolean, time: Boolean): String {
             if (date && time) return "Y-m-d H:i"
@@ -559,6 +659,15 @@ object DatePicker {
 object TimePicker {
     @JvmStatic
     fun make(name: String): DateTimePicker = DateTimePicker.time(name)
+
+    @JvmStatic
+    fun configureUsing(block: Consumer<DateTimePicker>?) = DateTimePicker.configureUsing(block)
+}
+
+/** ISO week picker (`YYYY-Www` storage). */
+object WeekPicker {
+    @JvmStatic
+    fun make(name: String): DateTimePicker = DateTimePicker.date(name).pickLevel(DatePickLevel.WEEK)
 
     @JvmStatic
     fun configureUsing(block: Consumer<DateTimePicker>?) = DateTimePicker.configureUsing(block)

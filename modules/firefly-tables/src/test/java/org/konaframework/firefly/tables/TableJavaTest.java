@@ -45,7 +45,9 @@ public class TableJavaTest {
         Table<Map<String, Object>, MemoryQuery> table = Table.memory(List.of(ada, bea));
         table.columns(
             TextColumn.make("name").label(cell -> "Name").sortable(true).searchable(true),
-            TextColumn.make("score").money().summarize(Summary.SUM)
+            TextColumn.make("score").money().summarize(Summary.SUM),
+            TextColumn.make("eur").currency("EUR"),
+            TextColumn.make("kes").money("KES", "en-KE")
         );
         table.filters(SelectFilter.make("name").attribute("name").options(Map.of("Ada", "Ada")));
         table.headerButtons(TableButton.make("export").label("Export").modal().schema(Text.make("Go")));

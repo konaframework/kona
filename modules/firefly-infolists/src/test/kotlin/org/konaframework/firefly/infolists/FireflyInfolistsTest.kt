@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.konaframework.firefly.schemas.Component
+import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Grid
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.schemas.Section
@@ -95,7 +96,7 @@ class FireflyInfolistsTest {
         val ago = TextEntry.make("title").since().state(Instant.parse("2024-06-13T12:00:00Z"))
         assertTrue(html(ago).contains("2 days ago"))
         val cash = TextEntry.make("title").money("USD").state(12)
-        assertTrue(html(cash).contains("USD 12.00"))
+        assertTrue(html(cash).contains("$12.00"))
         val num = TextEntry.make("title").numeric(1).state(1.26)
         assertTrue(html(num).contains("1.3"))
         assertTrue(html(TextEntry.make("title").date("yyyy-MM-dd").state(LocalDate.of(2024, 6, 15))).contains("2024-06-15"))
@@ -154,7 +155,10 @@ class FireflyInfolistsTest {
                 .contains("June 15, 2024"),
         )
         assertTrue(html(TextEntry.make("title").time("HH:mm").state(LocalDateTime.of(2024, 6, 15, 8, 30))).contains("08:30"))
-        assertTrue(html(TextEntry.make("title").money().state(3)).contains("USD 3.00"))
+        assertTrue(html(TextEntry.make("title").money().state(3)).contains("$3.00"))
+        assertTrue(html(TextEntry.make("title").currency("EUR").state(12)).contains("€12.00"))
+        assertTrue(html(TextEntry.make("price").money("KES", "en-KE", 0).state(100)).contains("ff-text-money"))
+        assertTrue(html(TextEntry.make("price").money("USD").state(3)).contains("""data-ff-currency="USD""""))
         val whole = TextEntry.make("title").numeric().state(1.6)
         assertTrue(html(whole).contains("2"))
         val custom = TextEntry.make("title").formatStateUsing { "Custom" }.state("ignored")
@@ -336,8 +340,9 @@ class FireflyInfolistsTest {
         assertNotNullInstant(parseInstant("2024-06-15", zone))
         assertNull(parseInstant("nope", zone))
         assertNull(toInstant(true, zone))
-        assertEquals("USD 1.50", moneyText(1.5, "USD"))
-        assertEquals("USD 2.00", moneyText(2, "USD"))
+        assertEquals("$1.50", moneyText(1.5, "USD"))
+        assertEquals("$2.00", moneyText(2, "USD"))
+        assertEquals("€3.00", moneyText(3, "EUR", "en-US", 2))
         assertEquals("nope", moneyText("nope", "USD"))
         assertEquals("NaN", moneyText(Double.NaN, "USD"))
         assertEquals("Infinity", moneyText(Double.POSITIVE_INFINITY, "USD"))
@@ -348,6 +353,18 @@ class FireflyInfolistsTest {
         assertEquals(3.0, toNumber(3))
         assertEquals(1.5, toNumber("1.5"))
         assertNull(toNumber("x"))
+        assertNull(toNumber(Double.NaN))
+        assertNull(toNumber(Float.POSITIVE_INFINITY))
+        assertTrue(html(TextEntry.make("price").money { "" }.state(4)).contains("$4.00"))
+        @Suppress("UNCHECKED_CAST")
+        val nullCurrency = java.util.function.Function { _: Get -> null } as java.util.function.Function<Get, String>
+        assertTrue(html(TextEntry.make("price").money(nullCurrency).state(4)).contains("$4.00"))
+        assertTrue(html(TextEntry.make("price").money { "  " }.state(4)).contains("$4.00"))
+        assertTrue(html(TextEntry.make("price").money { "EUR" }.state(5)).contains("€5.00"))
+        assertNull(toNumber(Double.NaN))
+        assertNull(toNumber(Float.NEGATIVE_INFINITY))
+        assertNull(toNumber(Float.NaN))
+        assertEquals(7.0, toNumber(7L))
         EntryClock.frozen = null
         assertTrue(sinceText(LocalDate.of(2020, 1, 1), zone).contains("ago"))
         assertThrows(FireflyException::class.java) { zoneOf("Nope/Zone") }

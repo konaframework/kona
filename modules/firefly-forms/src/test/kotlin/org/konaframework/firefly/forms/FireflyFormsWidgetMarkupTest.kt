@@ -35,6 +35,21 @@ class FireflyFormsWidgetMarkupTest {
     }
 
     @Test
+    fun weekPickerRendersIsoWeekGrid() {
+        val week = html(WeekPicker.make("sprint"), mapOf("sprint" to "2026-W14"))
+        assertTrue(week.contains("data-ff-picker-kind=\"week\""))
+        assertTrue(week.contains("ff-picker-grid-weeks"))
+        assertTrue(week.contains("ff-picker-weekdays-weeks"))
+        assertTrue(week.contains("""data-ff-week="2026-W14""""))
+        assertTrue(week.contains("ff-week-selected"))
+        assertTrue(week.contains("ff-picker-weeknum"))
+        assertTrue(week.contains("Select week"))
+        assertTrue(week.contains("""value="Week 14, 2026""""))
+        assertFalse(html(WeekPicker.make("sprint")).contains("ff-week-selected"))
+        assertTrue(html(WeekPicker.make("sprint").native()).contains("""type="week""""))
+    }
+
+    @Test
     fun colorPickerKeepsSwatchAndValueInSync() {
         val hex = html(ColorPicker.make("color"), mapOf("color" to "#DF8723"))
         assertTrue(hex.contains("""value="#df8723" aria-label="Pick color""""))
