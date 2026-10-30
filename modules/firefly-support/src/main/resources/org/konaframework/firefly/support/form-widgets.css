@@ -553,7 +553,7 @@
   box-sizing: border-box;
   flex: 1 1 auto;
   min-width: 0;
-  border-right: 0;
+  border-right: 0 !important;
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
 }
@@ -577,19 +577,20 @@
   cursor: pointer;
 }
 
-.ff-panel .ff-input-action:last-child {
-  border-radius: 0 var(--ff-radius) var(--ff-radius) 0;
+/* Outer right edge of the last reveal/copy action matches the control radius.
+   !important beats the high-specificity base input/button rules in firefly.css. */
+.ff-panel .ff-input-group > .ff-input-action:last-child {
+  border-top-right-radius: var(--ff-radius) !important;
+  border-bottom-right-radius: var(--ff-radius) !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
 }
 
-/* Affixed control already owns the outer right radius via .ff-suffix. */
+/* External .ff-suffix owns the outer right radius — keep the action square. */
 .ff-panel .ff-control.has-suffix > .ff-input-group > .ff-input-action:last-child {
-  border-right: 0;
-  border-radius: 0;
-}
-
-/* Prefixed control: input-group is the middle/right segment. */
-.ff-panel .ff-control.has-prefix:not(.has-suffix) > .ff-input-group > .ff-input-action:last-child {
-  border-radius: 0 var(--ff-radius) var(--ff-radius) 0;
+  border-right: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
 }
 
 .ff-panel .ff-control:has(> .ff-input-group):focus-within {
@@ -610,6 +611,51 @@
 .ff-panel .ff-input-action:hover {
   background: var(--ff-hover);
   color: var(--ff-heading);
+}
+
+/*
+ * Affix join (#426): the base `.ff-panel input:not(...)` rule is more specific than
+ * `.ff-control.has-prefix > .ff-input`, so left/right radii must be forced here
+ * (widgets CSS loads after firefly.css).
+ */
+.ff-panel .ff-control.has-prefix > .ff-input,
+.ff-panel .ff-control.has-prefix > input,
+.ff-panel .ff-control.has-prefix > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-prefix > .ff-input-group > input,
+.ff-panel .ff-control.has-prefix > select.ff-input,
+.ff-panel .ff-control.has-prefix > textarea.ff-input {
+  border-left: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+}
+
+.ff-panel .ff-control.has-suffix > .ff-input,
+.ff-panel .ff-control.has-suffix > input,
+.ff-panel .ff-control.has-suffix > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-suffix > .ff-input-group > input,
+.ff-panel .ff-control.has-suffix > select.ff-input,
+.ff-panel .ff-control.has-suffix > textarea.ff-input {
+  border-right: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.ff-panel .ff-control.has-prefix > .ff-prefix,
+.ff-panel .ff-control.has-prefix > .ff-prefix-icon {
+  border-right: 0 !important;
+  border-top-left-radius: var(--ff-radius) !important;
+  border-bottom-left-radius: var(--ff-radius) !important;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+.ff-panel .ff-control.has-suffix > .ff-suffix,
+.ff-panel .ff-control.has-suffix > .ff-suffix-icon {
+  border-left: 0 !important;
+  border-top-right-radius: var(--ff-radius) !important;
+  border-bottom-right-radius: var(--ff-radius) !important;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
 }
 
 .ff-panel .ff-reveal .ff-reveal-hide,
