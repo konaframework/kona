@@ -270,6 +270,15 @@ class DefaultLayout(
                 "var local=mount.querySelector('[data-ff-dialog-panel]');if(local)return local;" +
                 "var hid=mount.getAttribute('data-ff-hoist-id');if(!hid)return null;" +
                 "return root.querySelector('[data-ff-dialog-panel][data-ff-dialog-mount-id=\"'+cssEscape(hid)+'\"]');}" +
+                "function mountForPanel(panel){if(!panel)return null;" +
+                "var mid=panel.getAttribute('data-ff-dialog-mount-id');" +
+                "if(mid)return root.querySelector('[data-ff-dialog-mount][data-ff-hoist-id=\"'+cssEscape(mid)+'\"]');" +
+                "return panel.closest('[data-ff-dialog-mount]');}" +
+                "function switchScope(from){var panel=from&&from.closest('[data-ff-dialog-panel]');" +
+                "var mount=mountForPanel(panel)||(from&&from.closest('[data-ff-dialog-mount]'));" +
+                "if(mount){var scope=mount.closest('.ff-row-actions')||mount.closest('[data-ff-record]')||mount.closest('tr');" +
+                "if(scope)return scope;}" +
+                "return from&&(from.closest('.ff-row-actions')||from.closest('[data-ff-record]')||from.closest('tr'));}" +
                 "function syncCombobox(c){var hidden=c.querySelector('[data-ff-combobox-value]');" +
                 "var vals=comboboxValues(c);if(hidden)hidden.value=vals.join(',');" +
                 "var multi=c.getAttribute('data-ff-multiple')==='true';" +
@@ -559,9 +568,10 @@ class DefaultLayout(
                 "var bp=dialogPanelFor(bm);if(bp){openDialog(bp);return;}" +
                 "bulkSubmit(bf);bf.submit();return;}" +
                 // View→Edit (and similar): close current dialog and open another mount in the same row (#376).
+                // After hoist the panel is under .ff-panel — resolve the row via the source mount (#401).
                 "var switchBtn=t.closest('[data-ff-dialog-switch]');" +
                 "if(switchBtn){var switchName=switchBtn.getAttribute('data-ff-dialog-switch')||'';" +
-                "var switchRow=switchBtn.closest('.ff-row-actions')||switchBtn.closest('tr');" +
+                "var switchRow=switchScope(switchBtn);" +
                 "if(switchRow&&switchName){var switchMount=null;" +
                 "switchRow.querySelectorAll('[data-ff-dialog-mount]').forEach(function(m){" +
                 "if(m.querySelector('[data-ff-dialog-open][data-ff-action=\"'+switchName+'\"]'))switchMount=m;});" +
