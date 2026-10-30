@@ -176,8 +176,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
      */
     internal fun searchFormOptions(field: String, query: String): List<FieldOption> {
         if (field.isBlank()) return emptyList()
-        if (field.startsWith("filters.")) {
-            return table(listTable()).filterOptions(field.removePrefix("filters."), query).map { (value, label) ->
+        stripFilterQueryPrefix(field)?.let { filterField ->
+            return table(listTable()).filterOptions(filterField, query).map { (value, label) ->
                 FieldOption(value, label, true, null)
             }
         }
@@ -622,6 +622,15 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun encodeQuery(value: String): String =
         java.net.URLEncoder.encode(value, Charsets.UTF_8)
+
+    /** `filters.status` or `ordersFilters.status` → `status` (for combobox option search). */
+    private fun stripFilterQueryPrefix(field: String): String? {
+        if (field.startsWith("filters.")) return field.removePrefix("filters.")
+        val marker = "Filters."
+        val at = field.indexOf(marker)
+        if (at > 0) return field.substring(at + marker.length)
+        return null
+    }
 }
 
 /**

@@ -88,6 +88,30 @@ class FireflyTableFiltersTest {
             Request("GET", "/admin/people/form-options", emptyMap(), mapOf("field" to "filters.ghost", "q" to ""), ""),
         ).body
         assertEquals("[]", missing.trim())
+        val namespaced = match.route.action.handle(
+            Request("GET", "/admin/people/form-options", emptyMap(), mapOf("field" to "ordersFilters.status", "q" to "ope"), ""),
+        ).body
+        assertTrue(namespaced.contains("\"open\"") && !namespaced.contains("\"draft\""), namespaced)
+    }
+
+    @Test
+    fun queryStringIdentifierKeepsTablesIndependent() {
+        val router = mount(NamespacedPeopleResource())
+        val html = send(
+            router,
+            "/admin/people/list",
+            mapOf(
+                "ordersFilters" to "1",
+                "ordersFilters.status" to "open",
+                "filters" to "1",
+                "filters.status" to "draft",
+            ),
+        )
+        assertTrue(html.contains("""data-ff-filters-prefix="ordersFilters""""), html)
+        assertTrue(html.contains("""name="ordersFilters.status""""), html)
+        assertTrue(html.contains("""data-ff-record="1"""") && html.contains("""data-ff-record="3""""), html)
+        assertFalse(html.contains("""data-ff-record="2""""), html)
+        assertFalse(html.contains("""name="filters.status""""), html)
     }
 
     private fun mount(resource: Resource): Router {
@@ -128,6 +152,16 @@ private class PeopleResource(private val persist: Boolean, manage: Boolean = fal
     }
 
     override fun table(table: Table<*, *>): Table<*, *> = people(persist)
+}
+
+private class NamespacedPeopleResource : Resource("people") {
+    init {
+        label("People")
+        model(FilterPerson::class.java)
+    }
+
+    override fun table(table: Table<*, *>): Table<*, *> =
+        people(persist = false).queryStringIdentifier("orders")
 }
 
 class FilterPerson : Cadence<FilterPerson>() {

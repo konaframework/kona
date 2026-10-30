@@ -168,6 +168,21 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     fun filtersSessionKey(key: String): Table<T, Q> = apply { filterSet.persist(filterSet.persistsInSession(), key) }
 
+    /**
+     * Namespace this table's filter query keys so multiple filtered tables on one page
+     * do not share `filters` / `filters.*` (#388). Example: `queryStringIdentifier("orders")`
+     * uses `ordersFilters=1` and `ordersFilters.status=…`. Blank clears the namespace.
+     */
+    fun queryStringIdentifier(id: String): Table<T, Q> = apply {
+        val trimmed = id.trim()
+        if (trimmed.isNotEmpty() && !QUERY_ID.matches(trimmed)) {
+            throw FireflyException("queryStringIdentifier must be a letter followed by letters, digits, or underscores")
+        }
+        filterSet.queryStringIdentifier(trimmed.ifEmpty { null })
+    }
+
+    fun queryStringIdentifier(): String? = filterSet.queryStringIdentifier()
+
     /** Default true: searching or changing the filter state clears the record selection. */
     @JvmOverloads
     fun deselectAllRecordsWhenFiltered(on: Boolean = true): Table<T, Q> = apply { filterSet.deselectOnFilter(on) }
@@ -551,8 +566,14 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             if (stackedOnMobileFlag) """ data-ff-stacked-mobile="true"""" else """ data-ff-stacked-mobile="false""""
         val composedAttr = if (usesComposedLayout()) """ data-ff-composed="true"""" else ""
         val gridAttr = if (contentGridLayout != null) """ data-ff-content-grid="true"""" else ""
+        val filtersPrefix =
+            if (filterSet.isEmpty()) {
+                ""
+            } else {
+                """ data-ff-filters-prefix="${escapeHtml(filterSet.queryPrefix())}""""
+            }
         return """
-            <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$stackedAttr$composedAttr$gridAttr$pollAttr${selectionAttrs(loaded)}>
+            <div class="ff-table-wrap" data-ff-layout="${layout.name.lowercase()}"$stackedAttr$composedAttr$gridAttr$pollAttr$filtersPrefix${selectionAttrs(loaded)}>
               ${toolbar(cell, loaded)}
               ${filterSet.aboveHtml(filterView(cell))}
               ${filterSet.indicatorsHtml(filterView(cell))}
@@ -764,7 +785,13 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         }
         // Query-string toolbar — chrome soft-nav swaps the wrap without a full document reload.
         // Filter panels carry their own GET form, so they render after the toolbar form (forms can't nest).
-        return """<form class="ff-table-toolbar-form" method="get" data-ff-table-nav>$persistedHidden$search$columnsHidden$filterHidden$tools</form>${filterSet.panelHtml(filterView)}"""
+        val prefixAttr =
+            if (filterSet.isEmpty()) {
+                ""
+            } else {
+                """ data-ff-filters-prefix="${escapeHtml(filterSet.queryPrefix())}""""
+            }
+        return """<form class="ff-table-toolbar-form" method="get" data-ff-table-nav$prefixAttr>$persistedHidden$search$columnsHidden$filterHidden$tools</form>${filterSet.panelHtml(filterView)}"""
     }
 
     /**
@@ -1259,6 +1286,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
 
     companion object {
         private val POLL = Regex("\\d+(ms|s)")
+        private val QUERY_ID = Regex("^[A-Za-z][A-Za-z0-9_]*$")
         private var configurer: Consumer<Table<*, *>>? = null
 
         @JvmStatic

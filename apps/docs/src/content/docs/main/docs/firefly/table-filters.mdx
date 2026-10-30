@@ -336,7 +336,7 @@ table
 
 ## Filter state lives in the URL
 
-Filter state is a set of query-string parameters, so a filtered list can be bookmarked, shared, or opened in a new tab:
+Filter state is a set of query-string parameters, so a filtered list can be bookmarked, shared, or opened in a new tab. The default prefix is `filters`:
 
 | Parameter | Meaning |
 |-----------|---------|
@@ -347,6 +347,22 @@ Filter state is a set of query-string parameters, so a filtered list can be book
 | `filters=reset` | Go back to the defaults |
 
 Without any `filters` parameter, defaults apply. Sorting, paging, search, and the column picker keep the filter parameters in their links.
+
+### Multiple tables on one page
+
+When two filtered tables share a page, give each a `queryStringIdentifier(...)` so their keys do not collide. The identifier becomes the prefix `{id}Filters` (for example `ordersFilters.status`):
+
+```kotlin
+ordersTable.queryStringIdentifier("orders")
+archiveTable.queryStringIdentifier("archive")
+```
+
+```java
+ordersTable.queryStringIdentifier("orders");
+archiveTable.queryStringIdentifier("archive");
+```
+
+Blank clears the namespace (back to `filters`). Identifiers must start with a letter and may contain letters, digits, and underscores.
 
 ### Remember filters in the session
 

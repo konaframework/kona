@@ -140,6 +140,12 @@ public class TableFiltersJavaTest {
         assertTrue(html.contains("data-ff-filters-layout=\"collapsible\""), html);
         assertTrue(html.contains("Refine"));
         assertTrue(table.filterSet().persistsInSession());
+        table.queryStringIdentifier("orders");
+        assertEquals("orders", table.queryStringIdentifier());
+        assertEquals("ordersFilters", table.filterSet().queryPrefix());
+        table.applyFilterQuery(Map.of("ordersFilters", "1", "ordersFilters.active", "false"));
+        assertEquals("1", table.filterQuery().get("ordersFilters"));
+        assertTrue(table.render().contains("data-ff-filters-prefix=\"ordersFilters\""));
         table.resetFilters();
         assertTrue(table.filterQuery().isEmpty());
         table.filtersLayout(FiltersLayout.DROPDOWN).hiddenFilterIndicators().deselectAllRecordsWhenFiltered(false).deferFilters(false);

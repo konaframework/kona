@@ -273,9 +273,15 @@
       proxy.name = name;
       proxy.value = Array.prototype.filter.call(select.options, function (o) { return o.selected && o.value; }).map(function (o) { return o.value; }).join(',');
     });
-    // With filters=1 an absent field already means "not set"; keep blank fields out of the URL.
+    // With {prefix}=1 an absent field already means "not set"; keep blank fields out of the URL.
+    var prefixRoot = form.getAttribute('data-ff-filters-prefix');
+    if (!prefixRoot) {
+      var scoped = form.closest('[data-ff-filters-prefix]');
+      prefixRoot = scoped ? scoped.getAttribute('data-ff-filters-prefix') : null;
+    }
+    var prefix = (prefixRoot || 'filters') + '.';
     var blank = Array.prototype.filter.call(form.elements, function (el) {
-      return el.name && el.name.indexOf('filters.') === 0 && !el.disabled && el.value === '' && el.type !== 'checkbox' && (el.type !== 'radio' || el.checked);
+      return el.name && el.name.indexOf(prefix) === 0 && !el.disabled && el.value === '' && el.type !== 'checkbox' && (el.type !== 'radio' || el.checked);
     });
     blank.forEach(function (el) { el.disabled = true; });
     setTimeout(function () { blank.forEach(function (el) { el.disabled = false; }); }, 0);

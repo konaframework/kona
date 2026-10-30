@@ -9,9 +9,11 @@ import java.util.function.Consumer
  * Filter state + chrome for one [Table]: query-string / session serialization, per-filter
  * query groups, indicators, and the dropdown / modal / above / below layouts.
  *
- * Query-string shape: `filters=1` marks explicit state (absent fields mean "cleared"),
- * `filters=reset` restores defaults; single-control filters use `filters.{name}`, schema
- * filters `filters.{name}.{field}`. Without `filters`, defaults (or the session copy) apply.
+ * Query-string shape: `{prefix}=1` marks explicit state (absent fields mean "cleared"),
+ * `{prefix}=reset` restores defaults; single-control filters use `{prefix}.{name}`, schema
+ * filters `{prefix}.{name}.{field}`. The default prefix is `filters`; [queryStringIdentifier]
+ * namespaces it as `{id}Filters` so multiple tables on one page do not share keys (#388).
+ * Without the sentinel, defaults (or the session copy) apply.
  */
 class TableFilters internal constructor() {
     private val list = ArrayList<Filter>()
@@ -33,6 +35,7 @@ class TableFilters internal constructor() {
     private val resetAction = FilterAction("reset", "Reset").link()
     private val removeAllAction = FilterAction("removeAll", "Remove all filters").iconButton()
     private var headingText = "Filters"
+    private var queryIdentifier: String? = null
 
     internal fun set(filters: List<Filter>) {
         list.clear()
@@ -43,6 +46,23 @@ class TableFilters internal constructor() {
     fun filters(): List<Filter> = list.toList()
 
     fun isEmpty(): Boolean = list.isEmpty()
+
+    /**
+     * Namespace filter query keys for this table. Blank clears the namespace (back to `filters`).
+     * Non-blank values become `{id}Filters` / `{id}Filters.{name}` (#388).
+     */
+    internal fun queryStringIdentifier(id: String?) {
+        val trimmed = id?.trim().orEmpty()
+        queryIdentifier = trimmed.ifEmpty { null }
+    }
+
+    fun queryStringIdentifier(): String? = queryIdentifier
+
+    /** Query-string sentinel / prefix (`filters` or `{id}Filters`). */
+    fun queryPrefix(): String {
+        val id = queryIdentifier
+        return if (id.isNullOrBlank()) DEFAULT_SENTINEL else "${id}Filters"
+    }
 
     internal fun layout(value: FiltersLayout) {
         layout = value
@@ -165,11 +185,12 @@ class TableFilters internal constructor() {
     }
 
     /**
-     * Read `filters` / `filters.*` keys. Returns false when the input carries no filter state
-     * (caller may restore a session copy).
+     * Read `{prefix}` / `{prefix}.*` keys. Returns false when the input carries no filter state
+     * for this table's [queryPrefix] (caller may restore a session copy).
      */
     internal fun applyInput(input: Map<String, Any?>): Boolean {
-        val raw = input[SENTINEL] ?: return false
+        val sentinel = queryPrefix()
+        val raw = input[sentinel] ?: return false
         val mode = raw.toString()
         if (mode == RESET) {
             resetAll()
@@ -178,12 +199,12 @@ class TableFilters internal constructor() {
         explicit.clear()
         explicitMode = true
         for (filter in list) {
-            val single = input["$SENTINEL.${filter.name}"]
-            val prefix = "$SENTINEL.${filter.name}."
+            val single = input["$sentinel.${filter.name}"]
+            val fieldPrefix = "$sentinel.${filter.name}."
             val fields = LinkedHashMap<String, Any?>()
             if (single != null) fields[FilterData.VALUE] = single
             for ((key, value) in input) {
-                if (key.startsWith(prefix)) fields[key.removePrefix(prefix)] = value
+                if (key.startsWith(fieldPrefix)) fields[key.removePrefix(fieldPrefix)] = value
             }
             explicit[filter.name] = if (filter.hasSchema()) {
                 FilterData(fields.filterKeys { it != FilterData.VALUE })
@@ -197,17 +218,19 @@ class TableFilters internal constructor() {
     /** Query-string pairs for the current state; empty when state is implicit (defaults). */
     fun query(cell: Cell): List<Pair<String, String>> {
         if (!explicitMode) return emptyList()
+        val sentinel = queryPrefix()
         val out = ArrayList<Pair<String, String>>()
-        out.add(SENTINEL to "1")
+        out.add(sentinel to "1")
         for (filter in list) out.addAll(pairs(filter, data(filter, cell)))
         return out
     }
 
     private fun pairs(filter: Filter, data: FilterData): List<Pair<String, String>> {
+        val sentinel = queryPrefix()
         val out = ArrayList<Pair<String, String>>()
         for (key in data.keys()) {
             if (!data.filled(key)) continue
-            val name = if (key == FilterData.VALUE) "$SENTINEL.${filter.name}" else "$SENTINEL.${filter.name}.$key"
+            val name = if (key == FilterData.VALUE) "$sentinel.${filter.name}" else "$sentinel.${filter.name}.$key"
             out.add(name to serialize(data.get(key)))
         }
         return out
@@ -238,7 +261,9 @@ class TableFilters internal constructor() {
             if (filter.isHidden(cell)) continue
             val data = data(filter, cell)
             if (!filter.isActive(data)) continue
-            for (indicator in filter.indicators(FilterRenderContext(cell, data, store, filter.name))) out.add(filter to indicator)
+            for (indicator in filter.indicators(FilterRenderContext(cell, data, store, filter.name, queryPrefix()))) {
+                out.add(filter to indicator)
+            }
         }
         return out
     }
@@ -301,7 +326,7 @@ class TableFilters internal constructor() {
         val removeAll = if (removeAllAction.isHidden()) {
             ""
         } else {
-            val href = view.href(listOf(SENTINEL to "1"))
+            val href = view.href(listOf(queryPrefix() to "1"))
             """<a class="${removeAllAction.classes("ff-filter-indicators-remove-all")}" href="${escapeHtml(href)}" data-ff-table-nav data-ff-filter-nav aria-label="${escapeHtml(removeAllAction.label())}"${removeAllAction.attributes()}>${removeAllAction.inner(removeAllAction.iconSvg(X))}</a>"""
         }
         return """<div class="ff-filter-indicators" data-ff-filter-indicators><span class="ff-filter-indicators-label">Active filters</span><div class="ff-filter-indicators-list">$chips</div>$removeAll</div>"""
@@ -315,7 +340,7 @@ class TableFilters internal constructor() {
 
     private fun removedQuery(cell: Cell, name: String, fields: List<String>): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>()
-        out.add(SENTINEL to "1")
+        out.add(queryPrefix() to "1")
         for (filter in list) {
             val current = data(filter, cell)
             val next = when {
@@ -334,11 +359,12 @@ class TableFilters internal constructor() {
         val hidden = view.base.joinToString("") { (key, value) ->
             """<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}" />"""
         }
-        val sentinel = """<input type="hidden" name="$SENTINEL" value="1" data-ff-filters-sentinel />"""
+        val prefix = queryPrefix()
+        val sentinel = """<input type="hidden" name="$prefix" value="1" data-ff-filters-sentinel />"""
         val reset = if (resetAction.isHidden()) {
             ""
         } else {
-            val href = view.href(listOf(SENTINEL to RESET))
+            val href = view.href(listOf(prefix to RESET))
             """<a href="${escapeHtml(href)}" class="${resetAction.classes("ff-filters-reset")}" data-ff-filters-reset${resetAction.attributes()}>${resetAction.inner(resetAction.iconSvg(""))}</a>"""
         }
         val headerReset = if (resetPosition == FiltersResetActionPosition.HEADER) reset else ""
@@ -357,14 +383,16 @@ class TableFilters internal constructor() {
         val footer = if (apply.isEmpty() && footerReset.isEmpty()) "" else """<div class="ff-filters-footer">$apply$footerReset</div>"""
         val deselect = if (deselectOnFilter) """ data-ff-deselect-on-filter="true"""" else ""
         val maxHeight = formMaxHeight?.let { """ style="max-height: ${escapeHtml(it)}"""" }.orEmpty()
-        return """<form class="ff-filters-form" method="get" data-ff-table-nav data-ff-filters-form data-ff-filters-live="${!deferred}"$deselect>$hidden$sentinel$header<div class="ff-filters-body"$maxHeight>${fields(view)}</div>$footer</form>"""
+        val prefixAttr = """ data-ff-filters-prefix="${escapeHtml(prefix)}""""
+        return """<form class="ff-filters-form" method="get" data-ff-table-nav data-ff-filters-form data-ff-filters-live="${!deferred}"$deselect$prefixAttr>$hidden$sentinel$header<div class="ff-filters-body"$maxHeight>${fields(view)}</div>$footer</form>"""
     }
 
     private fun fields(view: View): String {
         val rendered = LinkedHashMap<String, String>()
+        val prefix = queryPrefix()
         for (filter in list) {
             if (filter.isHidden(view.cell)) continue
-            val context = FilterRenderContext(view.cell, data(filter, view.cell), view.store, filter.name)
+            val context = FilterRenderContext(view.cell, data(filter, view.cell), view.store, filter.name, prefix)
             rendered[filter.name] = filter.renderField(context)
         }
         val placed = HashSet<String>()
@@ -422,7 +450,12 @@ class TableFilters internal constructor() {
     }
 
     companion object {
-        const val SENTINEL = "filters"
+        /** Default query-string prefix when [queryStringIdentifier] is unset. */
+        const val DEFAULT_SENTINEL = "filters"
+
+        /** @see DEFAULT_SENTINEL */
+        const val SENTINEL = DEFAULT_SENTINEL
+
         const val RESET = "reset"
         private val WIDTH_REM = linkedMapOf(
             "xs" to "20rem",

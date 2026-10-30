@@ -21,10 +21,14 @@ class FilterRenderContext internal constructor(
     val data: FilterData,
     internal val store: RecordStore<*, *>?,
     private val filterName: String,
+    private val queryPrefix: String = TableFilters.DEFAULT_SENTINEL,
 ) {
-    /** Query-string name of [field]: `filters.{filter}` for [FilterData.VALUE], else `filters.{filter}.{field}`. */
+    /** Query-string prefix for this table (`filters` or `{id}Filters`). */
+    fun queryPrefix(): String = queryPrefix
+
+    /** Query-string name of [field]: `{prefix}.{filter}` for [FilterData.VALUE], else `{prefix}.{filter}.{field}`. */
     fun inputName(field: String = FilterData.VALUE): String =
-        if (field == FilterData.VALUE) "filters.$filterName" else "filters.$filterName.$field"
+        if (field == FilterData.VALUE) "$queryPrefix.$filterName" else "$queryPrefix.$filterName.$field"
 }
 
 /**
@@ -324,11 +328,12 @@ open class Filter(val name: String) {
     protected fun inputExtrasMarkup(cell: Cell): String = inputExtras.markup(cell)
 
     private fun renderSchema(context: FilterRenderContext): String {
-        val schema = Schema.make().statePath("filters.$name")
+        val prefix = context.queryPrefix()
+        val schema = Schema.make().statePath("$prefix.$name")
         val columns = schemaColumns
         if (columns != null) schema.columns(columns)
         schema.components(*schemaParts.toTypedArray())
-        schema.fill(context.data.toMap().mapKeys { (field, _) -> "filters.$name.$field" })
+        schema.fill(context.data.toMap().mapKeys { (field, _) -> "$prefix.$name.$field" })
         val heading = """<p class="ff-filter-heading">${escapeHtml(heading(context.cell))}</p>"""
         return heading + schema.render()
     }

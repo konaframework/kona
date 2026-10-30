@@ -506,6 +506,43 @@ class TableFiltersTest {
         assertEquals(listOf("Bea"), names(table))
         assertEquals(FilterData.single("draft"), table.filterData("status"))
     }
+
+    @Test
+    fun queryStringIdentifierNamespacesFilterKeys() {
+        val left = people(SelectFilter.make("status").options(mapOf("open" to "Open", "shut" to "Shut")))
+            .queryStringIdentifier("orders")
+        val right = people(SelectFilter.make("status").options(mapOf("open" to "Open", "shut" to "Shut")))
+            .queryStringIdentifier("archive")
+        assertEquals("orders", left.queryStringIdentifier())
+        assertEquals("ordersFilters", left.filterSet().queryPrefix())
+        assertTrue(left.applyFilterQuery(mapOf("ordersFilters" to "1", "ordersFilters.status" to "open")))
+        assertFalse(left.applyFilterQuery(mapOf("filters" to "1", "filters.status" to "shut")))
+        assertEquals(mapOf("ordersFilters" to "1", "ordersFilters.status" to "open"), left.filterQuery())
+        assertEquals(listOf("Ada", "Cy"), names(left))
+        // Shared page query: each table only applies its own prefix.
+        val shared = mapOf(
+            "ordersFilters" to "1",
+            "ordersFilters.status" to "open",
+            "archiveFilters" to "1",
+            "archiveFilters.status" to "shut",
+        )
+        assertTrue(left.applyFilterQuery(shared))
+        assertTrue(right.applyFilterQuery(shared))
+        assertEquals(listOf("Ada", "Cy"), names(left))
+        assertEquals(listOf("Dee"), names(right))
+        val html = left.render()
+        assertTrue(html.contains("""data-ff-filters-prefix="ordersFilters""""), html)
+        assertTrue(html.contains("""name="ordersFilters.status""""), html)
+        assertFalse(html.contains("""name="filters.status""""), html)
+        assertThrows(FireflyException::class.java) { people().queryStringIdentifier("1bad") }
+        assertThrows(FireflyException::class.java) { people().queryStringIdentifier("bad-id") }
+        people().queryStringIdentifier("orders").queryStringIdentifier("")
+        assertNull(people().queryStringIdentifier("x").queryStringIdentifier("").queryStringIdentifier())
+        assertEquals(
+            "ordersFilters.x.min",
+            FilterRenderContext(Cell { null }, FilterData.single(null), null, "x", "ordersFilters").inputName("min"),
+        )
+    }
 }
 
 private class StubStore : RecordStore<String, StringBuilder> {
