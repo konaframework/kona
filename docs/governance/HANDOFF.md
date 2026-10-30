@@ -203,7 +203,7 @@ Schemas, forms, infolists, actions, and tables can render on their own for tests
 - Horizon / queue metrics dashboard
 - Cross-process batch `then`/`catch` callbacks (durable counts only)
 - Lazy collections / higher-order proxies
-- Full Carbon locale / human-diff surface
+- Full multi-locale Carbon human-diff packs (English `diffForHumans` shipped on `KonaDate`, #411)
 - ~~`make:migration` auto-register into `MigrationRegistry`~~ — done (`META-INF/kona/migrations` + `MigrationDiscovery`; see #150)
 - Pivot / morph-pivot `make:model` stubs — defer until Cadence pivot model surface is first-class
 
