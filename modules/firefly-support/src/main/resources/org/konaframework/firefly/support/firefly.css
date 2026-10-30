@@ -1675,19 +1675,70 @@ body.ff-body-root {
   background: var(--ff-hover);
 }
 
+/* Month / year / decade: 12 cells → 4 rows × 3 columns, near-square popup (#408). */
 .ff-panel .ff-picker-grid-months,
 .ff-panel .ff-picker-grid-years,
 .ff-panel .ff-picker-grid-decades {
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.35rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  min-height: 14rem;
 }
 
 .ff-panel .ff-picker-grid-months .ff-day,
 .ff-panel .ff-picker-grid-years .ff-day,
 .ff-panel .ff-picker-grid-decades .ff-day {
-  min-height: 1.85rem;
-  padding: 0.2rem;
-  font-size: 0.8rem;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  padding: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Week picker: week-number gutter + 7 day columns (#408). */
+.ff-panel .ff-picker-grid-weeks {
+  grid-template-columns: 1.75rem repeat(7, 1fr);
+  gap: 0.15rem 0.1rem;
+}
+
+.ff-panel .ff-picker-weeknum {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ff-body-subtle);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 650;
+  min-height: 1.65rem;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 0.35rem;
+}
+
+.ff-panel .ff-picker-weeknum:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-day.ff-week-selected {
+  background: color-mix(in srgb, var(--ff-primary) 18%, transparent);
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-day.ff-week-selected.ff-day-selected {
+  background: var(--ff-primary);
+  color: #fff;
+}
+
+.ff-panel .ff-picker-weekdays-weeks {
+  grid-template-columns: 1.75rem repeat(7, 1fr);
 }
 
 .ff-panel .ff-picker-ok {
