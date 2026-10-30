@@ -46,6 +46,9 @@ class ResourceJavaTest {
         assertEquals("Users", new Resource("user").label("User").pluralLabel());
         assertEquals("People", new Resource("user").label("User").pluralLabel("People").pluralLabel());
         assertEquals("Staff", new Resource("user").label("User").pluralLabel(get -> "Staff").pluralLabel());
+        Schema formOnly = Schema.make().components(TextInput.make("name"), TextInput.make("price").currency("USD"));
+        assertEquals(2, FormInfolist.entriesFrom(formOnly).size());
+        assertTrue(FormInfolist.fill(Schema.make(), formOnly).components().size() >= 2);
     }
 
     private static Map<String, Object> row() {
