@@ -474,6 +474,8 @@ class FireflySupportTest {
         assertTrue(html.contains("positionRowMenu"))
         assertTrue(html.contains("hoistDialogPanel"))
         assertTrue(html.contains("dialogPanelFor"))
+        assertTrue(html.contains("mountForPanel"))
+        assertTrue(html.contains("switchScope"))
         assertTrue(html.contains("positionCombobox"))
         assertTrue(html.contains("repositionFloating"))
         assertTrue(html.contains("ff-row-action-menu"))
