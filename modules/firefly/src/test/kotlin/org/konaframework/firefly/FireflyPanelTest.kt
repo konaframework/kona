@@ -524,10 +524,12 @@ class FireflyPanelTest {
 
         val rooted = Router()
         Panel().path("root").authenticate(false).item(
-            NavigationItem("home").label("Home").url("/"),
+            NavigationItem("home").label("Home").url("/").icon("home"),
         ).page(ListPage("one")).mount(rooted)
         val rootNav = send(rooted, "GET", "/root/one").body
         assertTrue(rootNav.contains("ff-nav"))
+        assertTrue(rootNav.contains("ff-nav-icon"))
+        assertTrue(rootNav.contains("ff-nav-label"))
         assertFalse(activeItem("/root/one", "/"))
         assertTrue(activeItem("/root/one", "/root/one"))
         assertFalse(activeItem("/root/one", "/other"))
@@ -537,6 +539,114 @@ class FireflyPanelTest {
 
         val beforeMount = Panel().path("admin").authenticate(false).navigation(NavigationType.APP)
         assertTrue(beforeMount.render(Request("GET", "/admin")).contains("ff-panel"))
+
+        val dashRouter = Router()
+        val kpis = org.konaframework.firefly.widgets.StatsOverviewWidget.make("kpis").apply {
+            lazy(false)
+            pollingInterval(null)
+            stats(org.konaframework.firefly.widgets.Stat().label("Orders").value("3"))
+        }
+        val dash = DashboardPage().apply {
+            title("Home")
+            icon("home")
+            columns(3)
+            filtersForm(Schema().components(Text.make("period")))
+            widgets(kpis)
+        }
+        Panel().path("desk").authenticate(false).page(dash).mount(dashRouter)
+        val desk = send(dashRouter, "GET", "/desk").body
+        assertTrue(desk.contains("Orders"))
+        assertTrue(desk.contains("data-ff-dashboard-columns"))
+        assertTrue(desk.contains("ff-nav-icon"))
+        assertTrue(desk.contains("period") || desk.contains("ff-filters") || desk.contains("ff-dashboard-filters"))
+        val fragment = send(dashRouter, "GET", "/desk/widgets/kpis").body
+        assertTrue(fragment.contains("Orders"))
+        assertTrue(fragment.contains("ff-stat") || fragment.contains("ff-dashboard-widget"))
+        assertEquals(404, send(dashRouter, "GET", "/desk/widgets/missing").status)
+
+        // Route attribute + query input for widgetId; blank id → 422; auth redirect; domain gate.
+        val match = dashRouter.find("GET", "/desk/widgets/kpis")!!
+        val withRoute = Request("GET", "/desk/widgets/kpis").also { it.attributes["widgetId"] = "kpis" }
+        assertTrue(match.route.action.handle(withRoute).body.contains("Orders"))
+        val withInput = Request("GET", "/desk/widgets/x", emptyMap(), mapOf("widgetId" to "kpis"), "")
+        assertTrue(match.route.action.handle(withInput).body.contains("Orders"))
+        // Blank route attr falls through; trailing slash /widgets/ → null id → 422.
+        val blankId = Request("GET", "/desk/widgets/").also { it.attributes["widgetId"] = "  " }
+        assertEquals(422, match.route.action.handle(blankId).status)
+        val noMarker = Request("GET", "/desk/home")
+        assertEquals(422, match.route.action.handle(noMarker).status)
+
+        val authWidgets = Router()
+        val lockedPanel = Panel().path("locked").page(
+            DashboardPage().apply {
+                widgets(
+                    Widget.make("pulse").heading("Pulse").apply {
+                        lazy(false)
+                        pollingInterval(null)
+                    },
+                )
+            },
+        )
+        lockedPanel.mount(authWidgets)
+        assertEquals(302, send(authWidgets, "GET", "/locked/widgets/pulse").status)
+        assertEquals(302, send(authWidgets, "POST", "/locked/register", "name=Ada&email=ada-w@example.com&password=secret").status)
+        assertEquals(302, send(authWidgets, "POST", "/locked/login", "email=ada-w@example.com&password=secret").status)
+        val unlocked = send(authWidgets, "GET", "/locked/widgets/pulse")
+        assertEquals(200, unlocked.status)
+        assertTrue(unlocked.body.contains("Pulse") || unlocked.body.contains("ff-widget"))
+
+        val gated = Router()
+        Panel().path("ops").domain("ops.example").authenticate(false).page(
+            DashboardPage().apply {
+                widgets(Widget.make("g").heading("G").apply { lazy(false); pollingInterval(null) })
+            },
+        ).mount(gated)
+        assertEquals(404, send(gated, "GET", "/ops/widgets/g").status)
+        assertEquals(
+            200,
+            send(gated, "GET", "/ops/widgets/g", headers = mapOf("Host" to "ops.example")).status,
+        )
+
+        // Clear dashboard pages so showWidget returns "Dashboard not found".
+        val cleared = Router()
+        val panelCleared = Panel().path("cleared").authenticate(false).page(
+            DashboardPage().apply {
+                widgets(Widget.make("gone").apply { lazy(false); pollingInterval(null) })
+            },
+        )
+        panelCleared.mount(cleared)
+        val pagesField = Panel::class.java.getDeclaredField("pages")
+        pagesField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        (pagesField.get(panelCleared) as MutableList<*>).clear()
+        val goneMatch = cleared.find("GET", "/cleared/widgets/gone")!!
+        val goneResponse = goneMatch.route.action.handle(Request("GET", "/cleared/widgets/gone"))
+        assertEquals(404, goneResponse.status)
+        assertTrue(goneResponse.body.contains("Dashboard not found"))
+
+        // Resource + page nav icons; NavigationItem icon provider / missing icon fallback.
+        val iconRouter = Router()
+        val projects = object : Resource("projects") {
+            init {
+                icon("folder")
+                simple()
+            }
+        }
+        Panel().path("icons").authenticate(false)
+            .resource(projects)
+            .page(ListPage("reports").icon("chart-bar"))
+            .mount(iconRouter)
+        val iconHtml = send(iconRouter, "GET", "/icons/reports").body
+        assertTrue(iconHtml.contains("ff-nav-icon"))
+        assertTrue(iconHtml.contains("Projects") || iconHtml.contains("projects"))
+
+        val get = SchemaBridge.open(emptyMap())
+        val viaProvider = NavigationItem("dyn").label("Dyn").url("/dyn").icon { "users" }
+        assertTrue(viaProvider.iconName(get).contains("users"))
+        assertTrue(NavigationItem("blank").icon { "  " }.iconName(get).contains("squares-2x2"))
+        val missingIcon = NavigationItem("bad").label("Bad").url("/bad").icon("not-a-real-icon-zzzzzz")
+        val navHtml = renderItems(listOf(missingIcon), "/bad", false, get, false)
+        assertTrue(navHtml.contains("ff-nav-icon"))
     }
 
     @Test

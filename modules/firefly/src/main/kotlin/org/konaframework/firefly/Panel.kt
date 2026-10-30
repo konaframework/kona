@@ -330,9 +330,13 @@ open class Panel {
         }
         if (items.isEmpty()) {
             for (page in pages) {
+                val isHome = page.slug().isEmpty()
                 val node = NavigationItem(page.slug().ifEmpty { "dashboard" })
                     .label(page.navigationLabel())
                     .url(panelUri(resolvedPrefix, page.slug()))
+                    .dashboard(isHome)
+                val pageIcon = page.navigationIcon()
+                if (!pageIcon.isNullOrBlank()) node.icon(pageIcon)
                 val parent = page.parentName()
                 if (parent == null) {
                     items.add(node)
@@ -349,12 +353,13 @@ open class Panel {
                 val resourcePages = resource.pages()
                 val index = resourceIndexPage(resourcePages)
                 val indexSlug = if (index == null) "" else index.slug()
-                items.add(
-                    NavigationItem(resource.slug())
-                        .label(resource.pluralLabel())
-                        .url(panelUri(resolvedPrefix, resourcePagePath(resource.slug(), indexSlug)))
-                        .matchPrefix(panelUri(resolvedPrefix, resource.slug())),
-                )
+                val node = NavigationItem(resource.slug())
+                    .label(resource.pluralLabel())
+                    .url(panelUri(resolvedPrefix, resourcePagePath(resource.slug(), indexSlug)))
+                    .matchPrefix(panelUri(resolvedPrefix, resource.slug()))
+                val resourceIcon = resource.navigationIcon()
+                if (!resourceIcon.isNullOrBlank()) node.icon(resourceIcon)
+                items.add(node)
             }
         }
         if (widgets.isNotEmpty()) {
@@ -386,6 +391,11 @@ open class Panel {
     }
 
     private fun pageRoutes(planned: MutableList<Planned>) {
+        planned.add(
+            Planned("GET", uri("widgets/{widgetId}"), routeName("widgets.show")) { request ->
+                showWidget(request, widgetIdFrom(request))
+            },
+        )
         for (page in pages) {
             planned.add(Planned("GET", uri(page.slug()), routeName("pages." + page.slug().ifEmpty { "dashboard" })) { request ->
                 showPage(request, page)
@@ -620,7 +630,65 @@ open class Panel {
         }
         val tenant = tenantId(request)
         return FireflyTenant.use(tenant) {
-            Response.html(draw(request, emptyMap(), page.render(pageState(request, extras))))
+            Response.html(draw(request, emptyMap(), page.render(pageState(request, dashboardExtras(extras)))))
+        }
+    }
+
+    private fun widgetIdFrom(request: Request): String? {
+        val routed = request.route("widgetId") ?: request.input("widgetId")
+        if (!routed.isNullOrBlank()) return routed
+        val marker = "/widgets/"
+        val idx = request.path.indexOf(marker)
+        if (idx < 0) return null
+        val rest = request.path.substring(idx + marker.length).trim('/')
+        return rest.substringBefore('/').ifBlank { null }
+    }
+
+    /** Fragment HTML for one dashboard widget (lazy load / polling). */
+    private fun showWidget(request: Request, widgetId: String?): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        if (widgetId.isNullOrBlank()) return Response.html("Widget id is required", 422)
+        val decoded = java.net.URLDecoder.decode(widgetId, Charsets.UTF_8)
+        val home = pages.firstOrNull { it.slug().isEmpty() }
+            ?: return Response.html("Dashboard not found", 404)
+        val widget = home.findWidget(decoded)
+            ?: return Response.html("Widget not found", 404)
+        val tenant = tenantId(request)
+        return FireflyTenant.use(tenant) {
+            val state = pageState(
+                request,
+                dashboardExtras(
+                    mapOf(
+                        "hydrateWidget" to decoded,
+                        "hydrateWidgets" to true,
+                    ),
+                ),
+            )
+            home.prepare(state)
+            Response.html(widget.render(state))
+        }
+    }
+
+    private fun dashboardExtras(extras: Map<String, Any?>): Map<String, Any?> {
+        val out = LinkedHashMap<String, Any?>()
+        out["widgetRefreshBase"] = uri("").trimEnd('/')
+        out["navigationCards"] = navigationCards()
+        out.putAll(extras)
+        return out
+    }
+
+    private fun navigationCards(): List<org.konaframework.firefly.widgets.NavigationCard> {
+        val get = SchemaBridge.open(emptyMap())
+        return items.map { item ->
+            org.konaframework.firefly.widgets.NavigationCard(
+                label = item.labelText(get),
+                href = item.urlText(get),
+                icon = item.iconName(get),
+            )
         }
     }
 

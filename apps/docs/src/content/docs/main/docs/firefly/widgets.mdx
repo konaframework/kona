@@ -1,18 +1,87 @@
 ---
 title: Widgets
-description: Put a stat, a chart, or your own block in app/firefly/widgets. Discovery places it on the Desk page in the hello samples.
+description: Dashboard grid, stats, charts, list and card widgets, lazy loading, and polling — mount with widgets(...) or discover from widgets/.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Put a stat, a chart, a table, or a paragraph on a page. Call `widgets(...)` on the page, or drop a class in the panel’s `widgets/` folder and let discovery place it.
+Put a stat, a chart, a short list, a tip card, or a custom block on a page. Call `widgets(...)` on the page, or drop a class in the panel’s `widgets/` folder and let discovery place it on the empty-slug dashboard.
 
 The hello sample’s `DeskWidget` is `app/firefly/widgets/DeskWidget`. It renders a paragraph that reads “Open orders”. Discovery finds it and puts it on the Desk page, because Desk is the first page. You see it inside `<div class="ff-page-widgets">`.
 
 Chart.js is the default chart engine. Pass `ChartEngine.APEX_CHARTS` when you want ApexCharts. The types live in `org.konaframework.firefly.widgets` (`kona-firefly-widgets`). `extraAttributes` is on every widget. Chart filters also accept `extraInputAttributes`.
 
 <FireflyShot file="desk-widget.png" description="The Desk widget on the Desk page at http://127.0.0.1:4017/admin/desk, the paragraph that reads Open orders." />
+
+## Dashboard layout
+
+`DashboardPage` (panel home, empty slug) and the widgets-module `Dashboard` type emit a responsive widget grid. Call `columns(1)` … `columns(4)` (default **3**). The page section gets `data-ff-dashboard-columns`, and CSS lays out `.ff-page-widgets` as that many columns (with responsive breakpoints). Use each widget’s `columnSpan(...)` / `columnSpanFull()` so a stats strip or nav cards can span the row.
+
+`filtersForm(Schema)` mounts a GET form above the grid. Field values land in the query string and page state so widgets can read filters while rendering.
+
+Widgets are sorted by `sort()` (ascending) before render. When the widget list is empty and there is no page content schema, the dashboard shows the welcome card. With only widgets configured, that welcome card is omitted.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DashboardPage()
+    .title("Home")
+    .columns(3)
+    .filtersForm(
+        Schema().components(
+            Select.make("period").options(
+                mapOf("today" to "Today", "mtd" to "MTD", "all" to "All"),
+            ),
+        ),
+    )
+    .widgets(
+        StatsOverviewWidget.make("kpis").columnSpanFull(),
+        ListWidget.make("recent").sort(20),
+        NavigationCardsWidget.make("nav"),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DashboardPage dash = new DashboardPage();
+dash.title("Home");
+dash.columns(3);
+dash.filtersForm(new Schema().components(
+    Select.make("period").options(Map.of("today", "Today", "mtd", "MTD", "all", "All"))
+));
+dash.widgets(
+    StatsOverviewWidget.make("kpis").columnSpanFull(),
+    ListWidget.make("recent").sort(20),
+    NavigationCardsWidget.make("nav")
+);
+```
+
+</TabItem>
+</Tabs>
+
+## Widget shell: sort, lazy, polling, visibility
+
+Every widget inherits chainable dashboard controls:
+
+| API | Behavior |
+|-----|----------|
+| `sort(Int)` | Order in the grid (lower first). Default `0`. `NavigationCardsWidget` defaults to `1000` and full span. |
+| `lazy(Boolean)` / `isLazy()` | Defer the body until the shell is visible (IntersectionObserver). Needs a refresh URL. |
+| `pollingInterval("5s" \| "500ms" \| null)` | Re-fetch the widget fragment on that interval. Pass `null` to disable. |
+| `canView(Predicate)` / `canView(Boolean)` | Skip the widget when false. |
+| `refreshUrl(String?)` | Fragment URL. The panel sets this to `/{prefix}/widgets/{name}` when mounting. |
+
+`StatsOverviewWidget` defaults to `lazy(true)` and `pollingInterval("5s")` unless you override them on the instance.
+
+The shell markup includes heading, description, lazy placeholder, and `data-ff-refresh-url` / `data-ff-polling-interval` / `data-ff-lazy` for `ff-widget.js`.
+
+### Fragment route
+
+`GET /{panelPrefix}/widgets/{widgetId}` returns HTML for one widget (lazy hydrate and polling). Query parameters feed the same filter state as the dashboard page. Missing widgets return 404; a blank id returns 422. Authenticated panels require a signed-in guard, same as other pages.
 
 ## Place widgets on a page
 
@@ -52,15 +121,19 @@ String html = page.render();
 </TabItem>
 </Tabs>
 
-`Page.render()` returns `<section class="ff-page">` with a header, the content region, `<div class="ff-page-widgets">`, and a footer. You see the Orders stat and the charts under the page body. `Dashboard` uses `ff-page ff-dashboard` and the fallback title `Dashboard`. The content region is filled by `schema(...)`, `form(...)`, `infolistHtml(...)`, or `table(...)`. Widgets render in the widgets region.
+`Page.render()` returns `<section class="ff-page">` with a header, the content region, `<div class="ff-page-widgets">`, and a footer. You see the Orders stat and the charts under the page body. `Dashboard` / `DashboardPage` use `ff-page ff-dashboard` and the fallback title `Dashboard`. The content region is filled by `schema(...)`, `form(...)`, `infolistHtml(...)`, or `table(...)`. Widgets render in the widgets region.
 
-`widgets(...)` replaces the widget list. `discoverWidgets(panelDirectory)` appends every widget found under `panelDirectory/widgets`.
+`widgets(...)` replaces the widget list. `discoverWidgets(panelDirectory)` appends every widget found under `panelDirectory/widgets`. Panel discovery attaches discovered widgets to the empty-slug home when you call `Panel.discover`.
 
 A widget’s own `render()` returns the same HTML you would get by placing that one widget in a schema. Use it in tests and when you embed a widget outside a page.
 
 ## Add a stat
 
-`Stat` needs a label and a value. A blank label throws `Stat label is blank`. A blank value throws `Stat value is blank`. Description, color, icon, and `chart` (a list of numbers) are optional. `StatsOverviewWidget.make(name).stats(...)` renders one `<article class="ff-stat">` per stat. An empty stats list throws `FireflyException`.
+`Stat` needs a label and a value. A blank label throws `Stat label is blank`. A blank value throws `Stat value is blank`. Description, color, icon, and `chart` (a list of numbers) are optional. `Stat.url(...)` makes the value (and label) a link; optional new-tab behavior follows the same pattern as other Firefly links.
+
+`StatsOverviewWidget.make(name).stats(...)` renders one `<article class="ff-stat">` per stat. An empty stats list throws `FireflyException`.
+
+`columns(Int)` or `columns(Map breakpoint→Int)` drives the stats grid via CSS variables on `.ff-stats` (default / `sm` / `md` / …). When columns are unset, Firefly applies the auto heuristic from the number of stats (`autoStatsOverviewColumns`). `formatCompactNumber` helps large counters in playground-style dashboards.
 
 ## Add a chart
 
@@ -101,6 +174,66 @@ The markup is `<div class="ff-chart">` with `data-ff-engine` (`chartjs` or `apex
 
 `ChartWidget.configureUsing` runs for every later `ChartWidget.make`. Pass `null` to clear it.
 
+## List, card, and navigation cards
+
+**`ListWidget`** — compact card + table for a few recent rows (default limit 5). Declare `columns({ label, attribute })` and `records(...)` (or a provider). The first column links when a record has a `url`. Prefer `TableWidget` when you need a full Firefly table.
+
+**`CardWidget`** — free-form body via `html(String)` or `html(provider)`. Empty content shows a short empty message.
+
+**`NavigationCardsWidget`** — grid of `{ label, href, icon? }` cards. You can pass `cards(...)` yourself; otherwise the panel injects navigation roots at render. Icons use [kona-icons](/docs/icons/) (`heroicon-o-…` or a short name). Default `sort` is `1000` with full column span.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ListWidget.make("recent")
+    .heading("Recent projects")
+    .columns(
+        listOf(
+            mapOf("label" to "Name", "attribute" to "name"),
+            mapOf("label" to "Status", "attribute" to "status"),
+        ),
+    )
+    .records { get ->
+        listOf(mapOf("name" to "Alpha", "status" to "Open", "url" to "/admin/projects/1"))
+    }
+
+CardWidget.make("tip").html("<p>Ship the dashboard first.</p>")
+
+NavigationCardsWidget.make("roots")
+    .cards(
+        listOf(
+            NavigationCard("Projects", "/admin/projects", "folder"),
+            NavigationCard("Tasks", "/admin/tasks", "clipboard-document-list"),
+        ),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ListWidget.make("recent")
+    .heading("Recent projects")
+    .columns(List.of(
+        Map.of("label", "Name", "attribute", "name"),
+        Map.of("label", "Status", "attribute", "status")
+    ))
+    .records(get -> List.of(
+        Map.of("name", "Alpha", "status", "Open", "url", "/admin/projects/1")
+    ));
+
+CardWidget.make("tip").html("<p>Ship the dashboard first.</p>");
+
+NavigationCardsWidget.make("roots").cards(List.of(
+    new NavigationCard("Projects", "/admin/projects", "folder"),
+    new NavigationCard("Tasks", "/admin/tasks", "clipboard-document-list")
+));
+```
+
+</TabItem>
+</Tabs>
+
 ## Embed a table or an account card
 
 `TableWidget.make(name).table(table)` renders the same table HTML as `Table.render()`. A missing table throws `FireflyException`. The table still needs a record `id`.
@@ -111,7 +244,7 @@ The markup is `<div class="ff-chart">` with `data-ff-engine` (`chartjs` or `apex
 
 `WidgetDiscovery.discover(panelDirectory)` reads `panelDirectory/widgets`. A missing directory returns an empty list. A path that exists and is not a directory throws `FireflyException`. Each `.kt` or `.java` file must declare a package and a class whose name matches the file name. The class must already be on the classpath and must have a public no-arg constructor. Abstract classes and types that are not widgets are skipped. A missing package, a missing class declaration, a name that does not match the file, a class that is not on the classpath, or a constructor that fails throws `FireflyException` and names the file.
 
-In the hello samples, `Panel.discover` does this for you. `DeskWidget` lands on `/admin/desk`.
+In the hello samples, `Panel.discover` does this for you. Discovered widgets attach to the empty-slug dashboard. `DeskWidget` lands on `/admin/desk` when that page hosts them explicitly.
 
 ## Generate a widget
 
@@ -126,10 +259,13 @@ The command writes `app/panels/admin/widgets/Revenue.kt` (or `app/panels/billing
 
 | Type | Role |
 |------|------|
-| `Widget` | Base widget. `make(name)`, `label`, `heading`, `description`, `extraAttributes` |
-| `Page` / `Dashboard` | Title, header and footer actions, schema or table, and widgets |
-| `Stat` / `StatsOverviewWidget` | One or more stat cards |
+| `Widget` | Base widget. `make(name)`, `label`, `heading`, `description`, `sort`, `lazy`, `pollingInterval`, `canView`, `extraAttributes` |
+| `Page` / `Dashboard` / `DashboardPage` | Title, header and footer actions, schema or table, `columns`, `filtersForm`, and widgets |
+| `Stat` / `StatsOverviewWidget` | Stat cards with optional URL, compact numbers, and responsive columns |
 | `ChartWidget` | Chart.js by default, ApexCharts when you set the engine |
+| `ListWidget` | Compact recent-rows table |
+| `CardWidget` | Custom HTML card body |
+| `NavigationCardsWidget` | Link cards for panel roots |
 | `TableWidget` | Embeds a Firefly table |
 | `AccountWidget` | Name, email, and avatar |
 | `WidgetDiscovery` | Loads widgets from a panel `widgets/` directory |

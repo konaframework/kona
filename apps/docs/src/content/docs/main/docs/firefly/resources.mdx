@@ -3,7 +3,7 @@ title: Resources
 description: Drop a resource in the panel resources/ folder. simple() is one Manage page. Leave it off and you get list, create, edit, and view — with one sidebar entry and page actions.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Add one class per record type, put it in the panel’s `resources/` folder, and discovery serves it. Bind a model, a form, an infolist, and a table on that class. If you define `form` but skip `infolist`, View (and manage View dialogs) derive a readonly infolist that **keeps the form’s layout** — root `schema.columns(...)` / `formColumns` (including breakpoint maps), sections, tabs, grids, fieldsets, column spans, and nested structure — while mapping fields to matching entry types (text, money, dates, toggles, colors, …). Hidden and chrome-only fields are skipped; empty layout wrappers drop out.
@@ -214,6 +214,7 @@ new Resource("orders").model(Order.class).formColumns(2).infolistColumns(3);
 |------|------|
 | `Resource` | Model, form, infolist, table, actions, and pages. Optional `maxWidth(token)`, `formColumns(n)`, `infolistColumns(n)` |
 | `label` / `pluralLabel` | Singular-or-base title vs list/nav plural heading (`pluralLabel` defaults from `label`) |
+| `icon` | Sidebar icon via kona-icons (short name or `heroicon-o-…`). Unset → `squares-2x2` |
 | `RelationManager` | Related records on a full resource's edit and view pages, scoped to the owner through a Cadence relationship. See [Relation managers](/docs/firefly/relation-managers/) |
 | `ManagePage` | The single page of a simple resource |
 | `query()` | `ModelBuilder` for a Cadence model |

@@ -514,18 +514,22 @@ class FireflyResourceTest {
 
         // One sidebar entry per resource, linking to the list/manage/index page.
         val list = send(router, "/admin/orders/list")
-        assertTrue(list.contains("""<a href="/admin/orders/list">Orders</a>"""))
+        assertTrue(list.contains("""href="/admin/orders/list""""))
+        assertTrue(list.contains("Orders"))
+        assertTrue(list.contains("ff-nav-icon"))
         assertEquals(1, countOf(list, """href="/admin/orders/list""""))
         // Create / edit / view are NEVER standalone sidebar links.
         assertFalse(list.contains("""href="/admin/orders/create""""))
         assertFalse(list.contains("""href="/admin/orders/edit""""))
         assertFalse(list.contains("""href="/admin/orders/view""""))
         // Simple resource links to its manage page; custom/empty resources link to their index.
-        assertTrue(list.contains("""<a href="/admin/notes/manage">Notes</a>"""))
+        assertTrue(list.contains("""href="/admin/notes/manage""""))
+        assertTrue(list.contains("Notes"))
         assertTrue(list.contains("""href="/admin/tools/panel""""))
         assertTrue(list.contains("""href="/admin/home""""))
         // A page-less resource still gets one entry, pointing at the resource root (plural nav label).
-        assertTrue(list.contains("""<a href="/admin/empty">empties</a>"""))
+        assertTrue(list.contains("""href="/admin/empty""""))
+        assertTrue(list.contains("empties"))
         // Resources render as flat nav items, never CRUD clusters (no nav cluster markup).
         assertFalse(list.contains("""class="ff-nav-item ff-cluster""""))
         // Create lives in the page header actions (the list toolbar), not the sidebar.
@@ -540,12 +544,16 @@ class FireflyResourceTest {
 
         // The single entry stays active across the resource's create/edit/view pages.
         val create = send(router, "/admin/orders/create")
-        assertTrue(create.contains("""<li class="ff-nav-item ff-active"><a href="/admin/orders/list">Orders</a>"""))
+        assertTrue(create.contains("""<li class="ff-nav-item ff-active"><a href="/admin/orders/list""""))
+        assertTrue(create.contains("Orders"))
         assertTrue(send(router, "/admin/orders/edit").contains("ff-active"))
         assertTrue(send(router, "/admin/orders/view").contains("ff-active"))
         // Dashboard (`/admin`) must not stay highlighted on resource pages.
-        assertFalse(list.contains("""<li class="ff-nav-item ff-active"><a href="/admin">Dashboard</a>"""))
-        assertTrue(send(router, "/admin").contains("""<li class="ff-nav-item ff-active"><a href="/admin">Dashboard</a>"""))
+        assertFalse(list.contains("""<li class="ff-nav-item ff-active"><a href="/admin""""))
+        val dashboard = send(router, "/admin")
+        assertTrue(dashboard.contains("""<li class="ff-nav-item ff-active"><a href="/admin""""))
+        assertTrue(dashboard.contains("Dashboard"))
+        assertTrue(dashboard.contains("ff-nav-icon"))
         // Empty-slug resource pages mount at the resource root.
         assertEquals(200, router.find("GET", "/admin/home")!!.route.action.handle(Request("GET", "/admin/home", emptyMap(), emptyMap(), "")).status)
     }

@@ -18,7 +18,9 @@ The types live in `org.konaframework.firefly` and `org.konaframework.firefly.wid
 
 `Panel.mount` registers `GET /{prefix}/{slug}` for each page discovered from `pages/` or passed to `page(...)`. An empty slug is the panel home (`GET /admin` when the prefix is `admin`). If no empty-slug page is registered, Firefly adds a welcome `DashboardPage` so the panel root always resolves. The hello sample’s `Desk` uses slug `desk` and `path("admin")`, so that route is `/admin/desk`. When the request is allowed, the panel renders the chrome and puts `page.render()` in the body.
 
-`navigationLabel()` is the sidebar text. The default is the slug, or `Dashboard` when the slug is empty. A page titled `Desk` still shows the link `desk` until you change the label. `parent("name")` nests the page under a navigation item with that name. A missing parent fails at mount and names both items.
+`navigationLabel()` is the sidebar text. The default is the slug, or `Dashboard` when the slug is empty. A page titled `Desk` still shows the link `desk` until you change the label. `icon(...)` sets the sidebar icon (kona-icons); unset pages use the home icon on the dashboard and `squares-2x2` otherwise. `parent("name")` nests the page under a navigation item with that name. A missing parent fails at mount and names both items.
+
+`DashboardPage` also accepts `columns(1..4)` (default 3) and `filtersForm(Schema)` for the widget grid — see [Widgets](/docs/firefly/widgets/).
 
 ## Write the Desk page
 

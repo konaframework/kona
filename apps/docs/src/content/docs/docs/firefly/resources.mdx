@@ -214,6 +214,7 @@ new Resource("orders").model(Order.class).formColumns(2).infolistColumns(3);
 |------|------|
 | `Resource` | Model, form, infolist, table, actions, and pages. Optional `maxWidth(token)`, `formColumns(n)`, `infolistColumns(n)` |
 | `label` / `pluralLabel` | Singular-or-base title vs list/nav plural heading (`pluralLabel` defaults from `label`) |
+| `icon` | Sidebar icon via kona-icons (short name or `heroicon-o-…`). Unset → `squares-2x2` |
 | `RelationManager` | Related records on a full resource's edit and view pages, scoped to the owner through a Cadence relationship. See [Relation managers](/docs/firefly/relation-managers/) |
 | `ManagePage` | The single page of a simple resource |
 | `query()` | `ModelBuilder` for a Cadence model |

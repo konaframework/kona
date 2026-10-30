@@ -30,6 +30,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private var labelUsing: Function<Get, String>? = null
     private var pluralLabelLiteral: String? = null
     private var pluralLabelUsing: Function<Get, String>? = null
+    private var iconLiteral: String? = null
     private var modelClass: Class<*>? = null
     private var modelUsing: Function<Get, Class<*>?>? = null
     private var simpleFlag = false
@@ -93,6 +94,11 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         if (value != null) return value
         return englishPluralLabel(label())
     }
+
+    /** Navigation icon (kona-icons name or short alias). Unset → `heroicon-o-squares-2x2`. */
+    fun icon(name: String): Resource = apply { iconLiteral = name }
+
+    fun navigationIcon(): String? = iconLiteral
 
     fun model(type: Class<*>): Resource = apply {
         modelClass = type

@@ -3,6 +3,7 @@ package org.konaframework.firefly.widgets
 import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.support.MaxWidth
 import org.konaframework.firefly.tables.Table
 import java.util.function.Function
@@ -19,11 +20,14 @@ open class Page {
     private val crumbList = ArrayList<Breadcrumb>()
     private var contentSchema: Schema? = null
     private var formSchema: Schema? = null
+    private var filtersFormSchema: Schema? = null
     private var infolistMarkup: String? = null
     private var relationsMarkup: String = ""
     private var contentTable: Table<*, *>? = null
     private var maxWidthValue: String? = null
     private var maxWidthExplicit: Boolean = false
+    /** Dashboard grid columns (1–4). Only emitted when [emitDashboardColumns] is true. */
+    private var dashboardColumns: Int = 3
 
     private companion object {
         /** Matches one or more relation manager `<section class="ff-relation" …>…</section>` blocks. */
@@ -64,9 +68,33 @@ open class Page {
         widgetList.addAll(WidgetDiscovery.discover(panelDirectory))
     }
 
+    /** Widgets mounted with [widgets] / discovery (sorted copy not applied). */
+    fun mountedWidgets(): List<Widget> = widgetList.toList()
+
+    fun findWidget(id: String): Widget? = widgetList.firstOrNull { it.name == id }
+
     fun schema(schema: Schema): Page = apply { contentSchema = schema }
 
     fun form(schema: Schema): Page = apply { formSchema = schema }
+
+    /**
+     * Optional dashboard filters form (Shamar `filtersForm` / Filament `HasFiltersForm`).
+     * Rendered as GET above the widget grid; field values live in the query string / page state.
+     */
+    open fun filtersForm(schema: Schema): Page = apply { filtersFormSchema = schema }
+
+    fun mountedFiltersForm(): Schema? = filtersFormSchema
+
+    /**
+     * Responsive grid columns for dashboard widgets (Shamar `DashboardPage.columns`, 1–4).
+     * Default is 3 on [Dashboard].
+     */
+    open fun columns(count: Int): Page = apply {
+        if (count < 1 || count > 4) throw FireflyException("Dashboard columns must be 1–4, got [$count]")
+        dashboardColumns = count
+    }
+
+    fun columns(): Int = dashboardColumns
 
     fun infolistHtml(html: String): Page = apply { infolistMarkup = html }
 
@@ -105,11 +133,15 @@ open class Page {
         WidgetAssets.reset()
         val get = WidgetBridge.open(state)
         val title = titleSetting.resolve(get) ?: fallbackTitle()
-        val widgetSchema = Schema().fill(state).components(*widgetList.toTypedArray())
+        val visible = widgetList
+            .filter { it.visibleFor(get) }
+            .sortedBy { it.sort() }
+        val widgetSchema = Schema().fill(state).components(*visible.toTypedArray())
         val schemaHtml = if (contentSchema == null) "" else contentSchema!!.render()
         val formHtml = wrapForm(if (formSchema == null) "" else formSchema!!.render(), state)
         val infoHtml = if (infolistMarkup == null) "" else wrapInfolist(infolistMarkup!!)
         val tableHtml = if (contentTable == null) "" else contentTable!!.render()
+        val filtersHtml = renderFiltersForm(state)
         val mode = modeLabel()
         val modeHtml = if (mode == null) {
             ""
@@ -123,9 +155,36 @@ open class Page {
             } else {
                 """ data-ff-max-width="${escapeHtml(maxWidthValue!!)}""""
             }
+        val columnsAttr = if (emitDashboardColumns()) {
+            """ data-ff-dashboard-columns="$dashboardColumns""""
+        } else {
+            ""
+        }
+        val widgetsHtml = if (visible.isEmpty() && emitDashboardColumns()) {
+            """<div class="ff-dashboard-empty">No dashboard widgets configured.</div>"""
+        } else {
+            widgetSchema.render()
+        }
         // Crumbs on their own top row; heading + mode chip share the next row with actions (#359).
-        return """<section class="${sectionClass()}"$widthAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$relationsMarkup$tableHtml</div><div class="ff-page-widgets">${widgetSchema.render()}</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        return """<section class="${sectionClass()}"$widthAttr$columnsAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$relationsMarkup$tableHtml</div>$filtersHtml<div class="ff-page-widgets">$widgetsHtml</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
     }
+
+    private fun renderFiltersForm(state: Map<String, Any?>): String {
+        val schema = filtersFormSchema ?: return ""
+        val body = schema.fill(state).render()
+        val home = state["panelHome"]
+        val action = if (home != null) {
+            home.toString()
+        } else {
+            val formAction = state["formAction"]
+            if (formAction == null) "" else formAction.toString()
+        }
+        val actionAttr = if (action.isBlank()) "" else """ action="${escapeHtml(action)}""""
+        return """<form class="ff-dashboard-filters" method="get"$actionAttr><div class="ff-dashboard-filters-fields">$body</div><button type="submit" class="ff-btn">Apply</button></form>"""
+    }
+
+    /** True for [Dashboard] / dashboard pages that use the fixed widget grid. */
+    protected open fun emitDashboardColumns(): Boolean = false
 
     private fun wrapInfolist(html: String): String {
         if (html.isEmpty()) return ""
@@ -197,4 +256,16 @@ open class Dashboard : Page() {
     override fun sectionClass(): String = "ff-page ff-dashboard"
 
     override fun fallbackTitle(): String = "Dashboard"
+
+    override fun emitDashboardColumns(): Boolean = true
+
+    override fun columns(count: Int): Dashboard {
+        super.columns(count)
+        return this
+    }
+
+    override fun filtersForm(schema: Schema): Dashboard {
+        super.filtersForm(schema)
+        return this
+    }
 }

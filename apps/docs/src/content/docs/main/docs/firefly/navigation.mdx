@@ -3,14 +3,16 @@ title: Navigation
 description: Leave discovery to build the sidebar, or call item and cluster yourself when you want different labels and URLs.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Decide where the links sit, then either let `mount` build the tree or write it yourself. Each panel has one layout for that tree. If you never call `item` or `cluster`, `mount` builds the tree from the pages and resources it discovered.
 
-On the hello samples that means a link for Desk, a Notes group, and an Orders group. Page labels come from the slug, so you may see `desk` and `manage` until you set a label. Resource groups use `label`, so those groups read `Notes` and `Orders`.
+Every nav link shows an icon from [kona-icons](/docs/icons/) (`Icons.svg`). Set `icon("folder")` or `icon("heroicon-o-folder")` on a `NavigationItem`, `PanelPage`, or `Resource`. Short names resolve to `heroicon-o-{name}`. When unset, the dashboard home uses `heroicon-o-home` and every other item uses `heroicon-o-squares-2x2`.
 
-<FireflyShot file="panel-navigation.png" description="The hello-kotlin sidebar at http://127.0.0.1:4017/admin/desk, with the desk link and the Notes and Orders groups." />
+On the hello samples that means a link for Desk, plus one sidebar entry each for Notes and Orders. Page labels come from the slug, so you may see `desk` until you set a label. Resource entries use `Resource.pluralLabel()` (from `label()` / `pluralLabel()`), so those links read `Notes` and `Orders` and point at the resource index (list or manage). Create, edit, and view are **page header and row actions**, not extra sidebar links.
+
+<FireflyShot file="panel-navigation.png" description="The hello-kotlin sidebar at http://127.0.0.1:4017/admin/desk, with the desk link and one entry each for Notes and Orders." />
 
 ## Pick where the links sit
 
@@ -22,14 +24,18 @@ On the hello samples that means a link for Desk, a Notes group, and an Orders gr
 
 `topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
 
-Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` adds a parent with no URL of its own. `userMenu(...)` renders in the top bar, next to the user chip. `spa(true)` adds `wire:navigate` on links that have a URL.
+Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` adds a parent with no URL of its own. `userMenu(...)` entries render inside the user-menu dropdown in the top bar. `spa(true)` adds `wire:navigate` on links that have a URL.
+
+With `SIDE` and `APP` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar and has no sidebar or drawer.
 
 ## What the hello samples show
 
 The samples never call `item`. Discovery therefore builds:
 
 - A link for each page. The label is `navigationLabel()`, which is the slug. Desk’s link text is `desk`. The URL is `/admin/desk` because that panel calls `path("admin")`. When `path` is omitted, the same page is `/{id}/desk`.
-- A cluster per resource. The label is `Resource.label()` (`Notes`, `Orders`). Each page of that resource is a child. The child label is the page slug: `manage` on notes, and `list`, `create`, `edit`, `view` on orders.
+- **One sidebar entry per resource.** The label is `Resource.pluralLabel()` (`Notes`, `Orders`). The URL is the resource index: `/admin/notes/manage` for a simple resource, `/admin/orders/list` for a full resource. That entry stays highlighted on create, edit, and view because the panel matches the whole `/{prefix}/{resource}/…` subtree. Create / edit / view / delete are not navigation children.
+
+Use `cluster(...)` only when you want a **manual** group (for example Catalog → Orders). Resources themselves are never auto-clustered into list/create/edit/view children.
 
 Set `label` on a `NavigationItem` when you build the tree yourself and want a word instead of a slug.
 
@@ -43,10 +49,10 @@ Once `item` or `cluster` has been called, mount keeps that tree. It does not rep
 ```kotlin
 val catalog = panel.cluster("Catalog")
 catalog.child(
-    NavigationItem("orders").label("Orders").url("/admin/orders/list"),
+    NavigationItem("orders").label("Orders").url("/admin/orders/list").icon("shopping-bag"),
 )
 panel.userMenu(
-    NavigationItem("profile").label("Profile").url("/admin/profile"),
+    NavigationItem("profile").label("Profile").url("/admin/profile").icon("user"),
 )
 panel.navigation(NavigationType.SIDE)
 ```
@@ -56,15 +62,15 @@ panel.navigation(NavigationType.SIDE)
 
 ```java
 NavigationItem catalog = panel.cluster("Catalog");
-catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list"));
-panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile"));
+catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list").icon("shopping-bag"));
+panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile").icon("user"));
 panel.navigation(NavigationType.SIDE);
 ```
 
 </TabItem>
 </Tabs>
 
-You see **Orders** in the sidebar, linking to `/admin/orders/list`, and **Profile** beside the user chip.
+You see **Orders** in the sidebar, linking to `/admin/orders/list`, and **Profile** inside the user menu.
 
 ## Methods on NavigationItem
 
@@ -74,18 +80,25 @@ A blank name throws `FireflyException` (`Navigation item name is blank`). A blan
 |--------|----------------|
 | `label(value)` / `label(provider)` | Visible text. The default is the name |
 | `url(value)` / `url(provider)` | Link target. Empty until you set it |
+| `icon(value)` / `icon(provider)` | kona-icons name (short or `heroicon-o-…`). Unset → home / squares-2x2 default |
 | `extraAttributes(map)` / `extraAttributes(provider)` | HTML attributes on the link. A provider receives `Get` |
 | `cluster(true)` | Marks the node as a group |
 | `child(item)` | Appends a child and sets its depth |
 | `isCluster()` | Whether `cluster(true)` was set |
-| `labelText(get)` / `urlText(get)` / `attributes(get)` | Resolves the closure or the stored value |
+| `labelText(get)` / `urlText(get)` / `attributes(get)` / `iconName(get)` | Resolves the closure or the stored value |
 | `find(name)` | This node or a descendant with that name |
+
+`PanelPage.icon(...)` and `Resource.icon(...)` feed the auto-built tree the same way when you leave discovery to mount the sidebar.
 
 Active state: the current path equals the item URL, or starts with that URL plus `/`. An empty URL or `/` is never treated as a prefix match.
 
-## The user chip
+## The user menu and signed-in footer
 
-The chip text is the panel guard’s id. When that id is null, the chip reads **Guest**. The hello samples call `authenticate(false)` and do not sign anyone in, so the chip reads Guest. `userMenu` items render beside that chip.
+The top bar ends with a tools cluster: a theme toggle, a notifications bell, and the user menu. The user menu shows an avatar (the first letter or digit of the signed-in identifier) and that identifier. Opening it reveals the identifier again, a **Signed in as …** line, a **Profile** link, your `userMenu(...)` entries, and — when someone is signed in — a **Sign out** form that posts to the profile route.
+
+The panel guard’s id is the identifier. When it is null the menu and the sidebar footer read **Guest**, and no sign-out form is shown. The hello samples call `authenticate(false)` and do not sign anyone in, so they read Guest.
+
+On `SIDE` and `APP` panels the sidebar also ends with a **Signed in as _identifier_** footer (`.ff-sidebar-foot`), matching the identifier in the menu. That block and the main-column `.ff-footer` share the shell background, type, soft top border, and fixed `--ff-footer-height` so they read as one bottom chrome band even when one side has no text.
 
 ## Next
 

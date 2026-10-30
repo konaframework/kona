@@ -44,6 +44,9 @@ public class WidgetJavaTest {
         assertTrue(html.contains("ff-breadcrumbs"));
         assertTrue(AccountWidget.make("me").accountName(get -> "Ada").email("a@b.c").render().contains("Ada"));
         assertTrue(Widget.make("box").render().contains("ff-widget"));
+        assertTrue(ListWidget.make("recent").heading("Recent").render().contains("ff-list-widget"));
+        assertTrue(CardWidget.make("tip").html("<p>hi</p>").render().contains("ff-card-widget"));
+        assertTrue(NavigationCardsWidget.make("nav").render().contains("ff-nav-cards-widget"));
         org.junit.jupiter.api.Assertions.assertThrows(org.konaframework.firefly.support.FireflyException.class, () -> TableWidget.make("empty").render());
     }
 
