@@ -31,7 +31,15 @@ import org.konaframework.firefly.infolists.ColorEntry
 import org.konaframework.firefly.infolists.IconEntry
 import org.konaframework.firefly.infolists.KeyValueEntry
 import org.konaframework.firefly.infolists.TextEntry
+import org.konaframework.firefly.schemas.Fieldset
+import org.konaframework.firefly.schemas.Flex
+import org.konaframework.firefly.schemas.Grid
 import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.schemas.Section
+import org.konaframework.firefly.schemas.Tab
+import org.konaframework.firefly.schemas.Tabs
+import org.konaframework.firefly.schemas.Wizard
+import org.konaframework.firefly.schemas.WizardStep
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.tables.BulkAction
 import org.konaframework.firefly.tables.Table
@@ -174,22 +182,31 @@ class FireflyResourceTest {
             }
 
             override fun form(schema: Schema): Schema =
-                schema.components(
-                    TextInput.make("title"),
-                    TextInput.make("price").currency("EUR"),
-                    Toggle.make("published"),
-                    ColorPicker.make("cover"),
-                    DatePicker.make("released"),
-                    TimePicker.make("opens"),
-                    DateTimePicker.make("updated"),
-                    MarkdownEditor.make("blurb"),
-                    RichEditor.make("body"),
-                    CodeEditor.make("script"),
-                    KeyValue.make("meta"),
-                    Select.make("kind").options(mapOf("soft" to "Soft")),
-                    Hidden.make("token"),
-                    Placeholder.make("hint"),
-                    ViewField.make("aside"),
+                schema.columns(mapOf("md" to 2, "lg" to 3)).components(
+                    Section.make("Details").columns(2).schema(
+                        TextInput.make("title").columnSpan(2).label("Title"),
+                        TextInput.make("price").currency("EUR").columnSpan(1),
+                        Toggle.make("published"),
+                        ColorPicker.make("cover"),
+                    ),
+                    Tabs.make().tabs(
+                        Tab.make("Schedule").schema(
+                            DatePicker.make("released"),
+                            TimePicker.make("opens"),
+                            DateTimePicker.make("updated"),
+                        ),
+                        Tab.make("Body").schema(
+                            MarkdownEditor.make("blurb"),
+                            RichEditor.make("body"),
+                            CodeEditor.make("script"),
+                            KeyValue.make("meta"),
+                            Select.make("kind").options(mapOf("soft" to "Soft")),
+                        ),
+                    ),
+                    Grid.make(2).schema(TextInput.make("isbn").columnSpanFull()),
+                    Fieldset.make("Flags").schema(Checkbox.make("featured")),
+                    Flex.make().schema(TextInput.make("tag")),
+                    Section.make("Secrets").schema(Hidden.make("token"), Placeholder.make("hint"), ViewField.make("aside")),
                     TextInput.make(""),
                 )
 
@@ -200,12 +217,25 @@ class FireflyResourceTest {
         Panel().path("admin").authenticate(false).resource(resource).mount(router)
         val view = send(router, "/admin/books/view?id=1")
         assertTrue(view.contains("""class="ff-infolist""""), view)
+        assertTrue(view.contains("""data-ff-columns="3""""), view)
+        assertTrue(view.contains("--ff-cols-md: 2"), view)
+        assertTrue(view.contains("--ff-cols-lg: 3"), view)
+        assertTrue(view.contains("ff-section"), view)
+        assertTrue(view.contains("Details"), view)
+        assertTrue(view.contains("data-ff-span=\"2\""), view)
+        assertTrue(view.contains("ff-tabs"), view)
+        assertTrue(view.contains("Schedule"), view)
+        assertTrue(view.contains("ff-grid"), view)
+        assertTrue(view.contains("ff-fieldset"), view)
+        assertTrue(view.contains("ff-flex"), view)
         assertTrue(view.contains("data-ff-path=\"title\""), view)
         assertTrue(view.contains("data-ff-path=\"price\""), view)
         assertTrue(view.contains("ff-text-money") || view.contains("data-ff-currency"), view)
         assertTrue(view.contains("data-ff-path=\"published\""), view)
         assertTrue(view.contains("data-ff-path=\"cover\""), view)
         assertTrue(view.contains("data-ff-path=\"released\""), view)
+        assertTrue(view.contains("data-ff-path=\"featured\""), view)
+        assertFalse(view.contains("Secrets"), view)
         assertFalse(view.contains("data-ff-path=\"token\""), view)
         assertFalse(view.contains("data-ff-path=\"hint\""), view)
         assertFalse(view.contains("data-ff-path=\"aside\""), view)
@@ -243,6 +273,29 @@ class FireflyResourceTest {
         assertTrue(mapped.any { it is TextEntry && it.name == "at" })
         assertTrue(mapped.any { it is TextEntry && it.name == "kind" })
         assertTrue(mapped.none { it.name == "x" || it.name == "p" || it.name == "v" || it.name.isEmpty() })
+        val layout = FormInfolist.entriesFrom(
+            Schema.make().components(
+                Section.make("Box").columns(2).schema(TextInput.make("a").columnSpan(2)),
+                Tabs.make().tabs(Tab.make("One").schema(TextInput.make("b"))),
+                Wizard.make().steps(WizardStep.make("Start").schema(TextInput.make("c"))),
+                Section.make("Empty").schema(Hidden.make("gone")),
+                Tabs.make().tabs(Tab.make("Blank").schema(Hidden.make("h"))),
+                Wizard.make().steps(WizardStep.make("Blank").schema(Hidden.make("w"))),
+                Tabs.make().children(TextInput.make("not-a-tab")),
+                Wizard.make().children(TextInput.make("not-a-step")),
+                org.konaframework.firefly.schemas.Callout.make("Note"),
+                org.konaframework.firefly.schemas.Callout.make("With").children(TextInput.make("note")),
+            ),
+        )
+        assertEquals(5, layout.size)
+        assertTrue(layout[0] is Section)
+        assertTrue(layout[1] is Tabs)
+        assertTrue(layout[2] is Wizard)
+        assertTrue(layout.filterIsInstance<org.konaframework.firefly.schemas.Callout>().size == 2)
+        assertTrue(
+            layout.filterIsInstance<org.konaframework.firefly.schemas.Callout>()
+                .any { callout -> callout.children().any { child -> child.name == "note" } },
+        )
         // Placeholder defaults to saved(false); call entryFor directly so the chrome-skip branch is covered.
         assertNull(FormInfolist.entryFor(Placeholder.make("hint")))
         assertNull(FormInfolist.entryFor(Hidden.make("token")))
@@ -250,6 +303,28 @@ class FireflyResourceTest {
         assertNull(FormInfolist.entryFor(TextInput.make("")))
         assertTrue(FormInfolist.fill(Schema.make(), Schema.make()).components().isEmpty())
         assertEquals(0, FormInfolist.entriesFrom(Schema.make()).size)
+        val withRootCols = FormInfolist.fill(
+            Schema.make(),
+            Schema.make().columns(3).components(TextInput.make("n")),
+        )
+        assertEquals("3", withRootCols.columnLayout()!!.dataValue())
+        assertEquals(3, withRootCols.columnCount())
+
+        val viaFormColumns = object : Resource("cols") {
+            init {
+                label("Col")
+                formColumns(3)
+            }
+
+            override fun form(schema: Schema): Schema = schema.components(TextInput.make("name"))
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "1", "name" to "A")).columns(TextColumn.make("name"))
+        }
+        val colsRouter = Router()
+        Panel().path("cols").authenticate(false).resource(viaFormColumns).mount(colsRouter)
+        val colsView = send(colsRouter, "/cols/cols/view?id=1")
+        assertTrue(colsView.contains("""data-ff-columns="3""""), colsView)
     }
 
     @Test

@@ -197,6 +197,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         if (schema.components().isEmpty()) {
             val formOnly = Schema.make().record(schema.record())
             schema.key()?.let { formOnly.key(it) }
+            // Match prepareForm so formColumns / schema.columns() on the form carry into View (#418).
+            val formCount = formColumnCount
+            if (formCount != null) formOnly.columns(formCount)
             form(formOnly)
             FormInfolist.fill(schema, formOnly)
         }

@@ -342,6 +342,44 @@ open class Component protected constructor(val name: String) {
 
     internal open fun allChildren(): List<Component> = childList.toList()
 
+    /** Direct schema-body children (not Section/Callout slots). */
+    fun children(): List<Component> = childList.toList()
+
+    /** Replace schema-body children (used when remapping a form layout into an infolist). */
+    fun children(vararg components: Component): Component = apply { replaceChildren(components.toList()) }
+
+    /**
+     * Copies column span, columns grid, max width, and label / heading / description onto [target]
+     * so a derived infolist entry keeps the form field’s layout chrome.
+     */
+    fun copyPresentationOnto(target: Component): Component {
+        val spanUsing = columnSpanUsing
+        if (spanUsing != null) {
+            target.columnSpan(spanUsing)
+        } else {
+            val span = columnSpanValue
+            if (span != null) target.columnSpan(span)
+        }
+        val colsUsing = columnsUsing
+        if (colsUsing != null) {
+            target.columns(colsUsing)
+        } else {
+            val layout = columnLayout
+            if (layout != null) target.columns(layout)
+        }
+        val widthUsing = maxWidthUsing
+        if (widthUsing != null) {
+            target.maxWidth(widthUsing)
+        } else {
+            val width = maxWidthValue
+            if (width != null) target.maxWidth(width)
+        }
+        labelValue.copyOnto(target.labelValue)
+        headingValue.copyOnto(target.headingValue)
+        descriptionValue.copyOnto(target.descriptionValue)
+        return target
+    }
+
     protected fun attachOwned(next: List<Component>) {
         val schema = owner
         if (schema == null) return
@@ -533,6 +571,16 @@ internal class TextValue {
         val provider = using
         if (provider != null) return provider.apply(get)
         return literal
+    }
+
+    fun copyOnto(other: TextValue) {
+        val provider = using
+        if (provider != null) {
+            other.setUsing(provider)
+            return
+        }
+        val text = literal
+        if (text != null) other.setLiteral(text)
     }
 }
 

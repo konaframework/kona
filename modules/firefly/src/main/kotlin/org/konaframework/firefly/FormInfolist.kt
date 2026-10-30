@@ -19,24 +19,43 @@ import org.konaframework.firefly.infolists.IconEntry
 import org.konaframework.firefly.infolists.KeyValueEntry
 import org.konaframework.firefly.infolists.TextEntry
 import org.konaframework.firefly.schemas.Component
+import org.konaframework.firefly.schemas.Fieldset
+import org.konaframework.firefly.schemas.Flex
+import org.konaframework.firefly.schemas.Grid
 import org.konaframework.firefly.schemas.Schema
+import org.konaframework.firefly.schemas.Section
+import org.konaframework.firefly.schemas.Tab
+import org.konaframework.firefly.schemas.Tabs
+import org.konaframework.firefly.schemas.Wizard
+import org.konaframework.firefly.schemas.WizardStep
 
 /**
- * Builds readonly infolist entries from a form schema (Filament-style fallback when a
- * resource or relation manager defines [Resource.form] / a relation form but no infolist).
+ * Builds a readonly infolist from a form schema (Filament-style fallback when a resource or
+ * relation manager defines [Resource.form] / a relation form but no infolist).
+ *
+ * Layout is preserved: root [Schema.columns] (count or breakpoints), [Section], [Tabs], [Grid],
+ * column spans, and nested structure stay in place; dehydrated fields map to matching entry types.
+ * Hidden and chrome-only fields are skipped.
  */
 object FormInfolist {
-    /** Dehydrated form fields mapped to infolist entries (skips hidden / chrome-only fields). */
+    /**
+     * Top-level form components remapped for View — layout containers keep their structure;
+     * leaf fields become entries.
+     */
     @JvmStatic
     fun entriesFrom(form: Schema): List<Component> =
-        form.walk()
-            .filterIsInstance<Field<*>>()
-            .filter { it.isDehydrated() }
-            .mapNotNull { entryFor(it) }
+        form.components().mapNotNull { mapNode(it) }
 
-    /** Append [entriesFrom] onto [target] when that list is non-empty. */
+    /**
+     * Copy the form’s root column grid onto [target] when set, then append [entriesFrom]
+     * when that list is non-empty.
+     */
     @JvmStatic
     fun fill(target: Schema, form: Schema): Schema {
+        val layout = form.columnLayout()
+        if (layout != null) {
+            target.columns(layout)
+        }
         val entries = entriesFrom(form)
         if (entries.isNotEmpty()) {
             target.components(*entries.toTypedArray())
@@ -58,6 +77,52 @@ object FormInfolist {
             is TextInput -> textInputEntry(field)
             else -> TextEntry.make(field.name)
         }
+    }
+
+    private fun mapNode(component: Component): Component? {
+        when (component) {
+            is Field<*> -> {
+                if (!component.isDehydrated()) return null
+                val entry = entryFor(component) ?: return null
+                return component.copyPresentationOnto(entry)
+            }
+            is Section -> return remapContainer(component) { kids -> component.schema(*kids) }
+            is Grid -> return remapContainer(component) { kids -> component.schema(*kids) }
+            is Flex -> return remapContainer(component) { kids -> component.schema(*kids) }
+            is Fieldset -> return remapContainer(component) { kids -> component.schema(*kids) }
+            is Tab -> return remapContainer(component) { kids -> component.schema(*kids) }
+            is WizardStep -> return remapContainer(component) { kids -> component.schema(*kids) }
+            is Tabs -> {
+                val tabs = component.children().mapNotNull { child ->
+                    if (child !is Tab) return@mapNotNull null
+                    mapNode(child) as? Tab
+                }
+                if (tabs.isEmpty()) return null
+                component.tabs(*tabs.toTypedArray())
+                return component
+            }
+            is Wizard -> {
+                val steps = component.children().mapNotNull { child ->
+                    if (child !is WizardStep) return@mapNotNull null
+                    mapNode(child) as? WizardStep
+                }
+                if (steps.isEmpty()) return null
+                component.steps(*steps.toTypedArray())
+                return component
+            }
+            else -> {
+                val kids = component.children()
+                if (kids.isEmpty()) return component
+                return remapContainer(component) { mapped -> component.children(*mapped) }
+            }
+        }
+    }
+
+    private fun remapContainer(component: Component, apply: (Array<Component>) -> Unit): Component? {
+        val mapped = component.children().mapNotNull { mapNode(it) }
+        if (mapped.isEmpty()) return null
+        apply(mapped.toTypedArray())
+        return component
     }
 
     private fun dateEntry(field: DateTimePicker): TextEntry {
