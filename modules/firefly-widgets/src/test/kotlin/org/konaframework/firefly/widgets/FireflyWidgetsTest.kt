@@ -532,10 +532,28 @@ class FireflyWidgetsTest {
         assertTrue(dash.contains("ff-dashboard-filters"))
         assertTrue(dash.contains("Yes"))
         assertFalse(dash.contains("Nope"))
+        // Widgets must be direct grid children — not trapped in one `.ff-schema` column (#434).
+        assertTrue(dash.contains("""<div class="ff-page-widgets"><div class="ff-component"""))
+        assertFalse(dash.contains("""<div class="ff-page-widgets"><div class="ff-schema""""))
         assertThrows<FireflyException> { Dashboard().columns(0) }
         assertTrue(Dashboard().render().contains("No dashboard widgets configured"))
         assertEquals(listOf(shown), Dashboard().widgets(shown).mountedWidgets())
         assertSame(shown, Dashboard().widgets(shown).findWidget("open"))
+
+        val wideStats = StatsOverviewWidget.make("wide").apply {
+            lazy(false)
+            pollingInterval(null)
+            stats(Stat().label("A").value("1"))
+        }
+        val narrowChart = ChartWidget.make("narrow").apply {
+            type("bar")
+            columnSpan(1)
+            heading("Narrow")
+        }
+        val spanned = Dashboard().columns(3).widgets(wideStats, narrowChart).render()
+        assertTrue(spanned.contains("""data-ff-span="full""""))
+        assertTrue(spanned.contains("""data-ff-span="1""""))
+        assertTrue(spanned.contains("""data-ff-dashboard-columns="3""""))
     }
 
     @Test

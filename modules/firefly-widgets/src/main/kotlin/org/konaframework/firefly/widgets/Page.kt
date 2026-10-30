@@ -160,13 +160,31 @@ open class Page {
         } else {
             ""
         }
-        val widgetsHtml = if (visible.isEmpty() && emitDashboardColumns()) {
-            """<div class="ff-dashboard-empty">No dashboard widgets configured.</div>"""
-        } else {
-            widgetSchema.render()
+        // Render widget roots as direct `.ff-page-widgets` grid children (Shamar dashboard.edge).
+        // Schema.render() would wrap them in a single `.ff-schema` flex column, so the dashboard
+        // grid would see one child ~1 column wide and crush stats / leave empty space (#434).
+        val widgetsHtml = when {
+            visible.isEmpty() && emitDashboardColumns() -> {
+                """<div class="ff-dashboard-empty">No dashboard widgets configured.</div>"""
+            }
+            visible.isEmpty() -> ""
+            else -> visible.joinToString("") { it.render(widgetSchema) }
         }
+        val pageBody = schemaHtml + formHtml + infoHtml + relationsMarkup + tableHtml
+        val contentHtml =
+            if (pageBody.isEmpty()) {
+                ""
+            } else {
+                """<div class="ff-page-content">$pageBody</div>"""
+            }
+        val widgetsBlock =
+            if (widgetsHtml.isEmpty()) {
+                ""
+            } else {
+                """<div class="ff-page-widgets">$widgetsHtml</div>"""
+            }
         // Crumbs on their own top row; heading + mode chip share the next row with actions (#359).
-        return """<section class="${sectionClass()}"$widthAttr$columnsAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header><div class="ff-page-content">$schemaHtml$formHtml$infoHtml$relationsMarkup$tableHtml</div>$filtersHtml<div class="ff-page-widgets">$widgetsHtml</div><footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
+        return """<section class="${sectionClass()}"$widthAttr$columnsAttr><header class="ff-page-header">$crumbs<div class="ff-page-toolbar"><div class="ff-page-heading"><h1>${escapeHtml(title)}</h1>$modeHtml</div><div class="ff-page-header-actions">${renderActions(header)}</div></div></header>$contentHtml$filtersHtml$widgetsBlock<footer class="ff-page-footer">${renderActions(footer)}</footer></section>"""
     }
 
     private fun renderFiltersForm(state: Map<String, Any?>): String {
