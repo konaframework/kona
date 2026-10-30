@@ -3,6 +3,7 @@ package org.konaframework.firefly.widgets
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.icons.Icons
 import java.util.function.Function
 import kotlin.math.floor
 import kotlin.math.max
@@ -62,30 +63,64 @@ open class Stat {
         val icon = iconSetting.resolve(get)
         val href = urlSetting.resolve(get)
         val points = resolvedChart(get)
+        val hasChart = points.isNotEmpty()
+        val colorAttr = if (color == null || color.isEmpty()) "" else """ data-ff-color="${escapeHtml(color)}""""
         val descriptionHtml = if (description == null || description.isEmpty()) {
             ""
         } else {
-            """<p class="ff-stat-description">${escapeHtml(description)}</p>"""
+            """<p class="ff-stat-description"><span>${escapeHtml(description)}</span></p>"""
         }
-        val colorAttr = if (color == null || color.isEmpty()) "" else """ data-ff-color="${escapeHtml(color)}""""
-        val iconHtml = if (icon == null || icon.isEmpty()) "" else """<span class="ff-stat-icon">${escapeHtml(icon)}</span>"""
-        val chartAttr = if (points.isEmpty()) "" else """ data-ff-chart="${escapeHtml(points.joinToString(",") { it.toString() })}""""
+        val iconHtml = if (icon == null || icon.isEmpty()) {
+            ""
+        } else {
+            """<span class="ff-stat-icon">${renderStatIcon(icon)}</span>"""
+        }
         val labelHtml = """<p class="ff-stat-label">${escapeHtml(label)}</p>"""
         val valueHtml = """<p class="ff-stat-value">${escapeHtml(value)}</p>"""
-        val inner = "$iconHtml$labelHtml$valueHtml$descriptionHtml"
-        val body = if (href.isNullOrBlank()) {
-            inner
+        val padClass = if (hasChart) "ff-stat-pad ff-stat-pad--chart" else "ff-stat-pad"
+        val main = """
+            <div class="$padClass">
+              <div class="ff-stat-row">
+                <div class="ff-stat-main">$labelHtml$valueHtml</div>
+                $iconHtml
+              </div>
+              $descriptionHtml
+            </div>
+        """.trimIndent()
+        val chartHtml = if (!hasChart) {
+            ""
         } else {
-            val target = if (openUrlInNewTabFlag) """ target="_blank" rel="noopener noreferrer"""" else ""
-            """<a class="ff-stat-link" href="${escapeHtml(href)}"$target>$inner</a>"""
+            val series = escapeHtml(points.joinToString(",") { it.toString() })
+            """<div class="ff-stat-chart" data-ff-sparkline="$series" data-ff-sparkline-color="${escapeHtml(color ?: "primary")}"><div class="ff-stat-sparkline"></div></div>"""
         }
-        return """<article class="ff-stat"$colorAttr$chartAttr>$body</article>"""
+        val classes = "ff-stat" + if (!href.isNullOrBlank()) " ff-stat--link" else ""
+        val inner = main + chartHtml
+        if (href.isNullOrBlank()) {
+            return """<article class="$classes"$colorAttr>$inner</article>"""
+        }
+        val target = if (openUrlInNewTabFlag) """ target="_blank" rel="noopener noreferrer"""" else ""
+        return """<a class="$classes ff-stat-link" href="${escapeHtml(href)}"$target$colorAttr>$inner</a>"""
     }
 
     private fun resolvedChart(get: Get): List<Number> {
         val provider = chartUsing
         if (provider != null) return provider.apply(get)
         return chartLiteral
+    }
+
+    companion object {
+        private fun renderStatIcon(name: String): String {
+            val resolved = NavIcons.resolve(name)
+            return try {
+                Icons.svg(resolved).className("ff-stat-icon-svg").toHtml()
+            } catch (_: Exception) {
+                try {
+                    Icons.svg(NavIcons.DEFAULT).className("ff-stat-icon-svg").toHtml()
+                } catch (_: Exception) {
+                    escapeHtml(name)
+                }
+            }
+        }
     }
 }
 
@@ -114,6 +149,7 @@ open class StatsOverviewWidget protected constructor(name: String) : Widget(name
     private var columnsLiteral: Any? = null
 
     init {
+        columnSpanFull()
         applyDashboardDefaults(lazyDefault = true, pollingDefault = "5s")
     }
 
@@ -149,8 +185,13 @@ open class StatsOverviewWidget protected constructor(name: String) : Widget(name
         } else {
             statList.joinToString("") { it.render(get) }
         }
-        val inner = """<div class="ff-stats" style="$style" data-ff-stats-grid="1">$cards</div>"""
-        return WidgetAssets.tag(WidgetScripts.WIDGET) + wrapDashboardBody(schema, inner)
+        val head = headingHtml(schema) + descriptionHtml(schema)
+        val grid = """<div class="ff-stats" style="$style" data-ff-stats-grid="1">$cards</div>"""
+        val inner = """<div class="ff-stats-overview">$head$grid</div>"""
+        return WidgetAssets.tag(WidgetScripts.WIDGET) +
+            WidgetAssets.tag(WidgetScripts.APEX) +
+            WidgetAssets.tag(WidgetScripts.CHART) +
+            wrapDashboardBody(schema, inner)
     }
 
     companion object {

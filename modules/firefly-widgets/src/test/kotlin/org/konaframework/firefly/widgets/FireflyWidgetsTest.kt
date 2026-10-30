@@ -196,8 +196,9 @@ class FireflyWidgetsTest {
         val apexDonut = ChartWidget.make("ad").type("donut").engine(ChartEngine.APEX_CHARTS)
         assertTrue(apexDonut.render().contains("data-ff-library-type=\"donut\""))
         val bars = ChartWidget.make("bars").type("bar")
-        assertTrue(bars.render().contains("data-ff-engine=\"chartjs\""))
+        assertTrue(bars.render().contains("data-ff-engine=\"apexcharts\""))
         assertTrue(bars.render().contains("data-ff-library-type=\"bar\""))
+        assertTrue(bars.render().contains("ff-widget-card"))
         assertFalse(bars.render().contains("data-ff-max-height"))
         assertFalse(bars.render().contains("ff-chart-filter"))
 
@@ -251,7 +252,8 @@ class FireflyWidgetsTest {
         assertTrue(statsHtml.contains("ff-stat-description"))
         assertTrue(statsHtml.contains("data-ff-color=\"success\""))
         assertTrue(statsHtml.contains("ff-stat-icon"))
-        assertTrue(statsHtml.contains("data-ff-chart=\"1,2\""))
+        assertTrue(statsHtml.contains("data-ff-sparkline=\"1,2\""))
+        assertTrue(statsHtml.contains("ff-widget-card") || statsHtml.contains("ff-stats-overview"))
         assertTrue(statsHtml.contains("Users"))
         assertTrue(statsHtml.contains(">9<"))
         assertThrows<FireflyException> { StatsOverviewWidget.make("empty").render() }
@@ -260,6 +262,10 @@ class FireflyWidgetsTest {
         assertFalse(bare.render(WidgetBridge.open(emptyMap())).contains("ff-stat-description"))
         assertFalse(bare.render(WidgetBridge.open(emptyMap())).contains("data-ff-color"))
         assertFalse(bare.render(WidgetBridge.open(emptyMap())).contains("ff-stat-icon"))
+        val sparkDefault = Stat().label("Trend").value("2").chart(listOf(1, 3, 2))
+        val sparkHtml = sparkDefault.render(WidgetBridge.open(emptyMap()))
+        assertTrue(sparkHtml.contains("""data-ff-sparkline-color="primary""""))
+        assertTrue(sparkHtml.contains("ff-stat-sparkline"))
 
         assertThrows<FireflyException> { TableWidget.make("rows").render() }
         val table = TableWidget.make("rows").extraAttributes(mapOf("data-t" to "1")).table(
@@ -283,6 +289,7 @@ class FireflyWidgetsTest {
         assertTrue(accountHtml.contains("Bea"))
         assertTrue(accountHtml.contains("bea@example.com"))
         assertTrue(accountHtml.contains("ff-account-avatar"))
+        assertTrue(accountHtml.contains("ff-widget-card"))
         val blanks = AccountWidget.make("blank").accountName("Ada").email("").avatar("")
         assertFalse(blanks.render().contains("ff-account-email"))
         val namedOnly = AccountWidget.make("me").accountName("Ada")
@@ -438,6 +445,7 @@ class FireflyWidgetsTest {
         assertTrue(WidgetScripts.source(WidgetScripts.WIDGET).contains("ffWidget"))
         assertTrue(WidgetScripts.source(WidgetScripts.WIDGET).contains("ffDashboardWidget"))
         assertTrue(WidgetScripts.source(WidgetScripts.CHART).contains("mountFireflyChart"))
+        assertTrue(WidgetScripts.source(WidgetScripts.CHART).contains("mountFireflySparkline"))
         assertTrue(WidgetScripts.source(WidgetScripts.CHART_JS).contains("Chart.js v4.4.6"))
         assertTrue(WidgetScripts.source(WidgetScripts.APEX).contains("ApexCharts"))
         assertThrows<FireflyException> { WidgetScripts.source("/_firefly/widgets/missing.js") }

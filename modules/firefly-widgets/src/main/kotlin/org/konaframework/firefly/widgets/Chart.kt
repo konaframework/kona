@@ -16,8 +16,8 @@ enum class ChartEngine {
 class ChartSeries(val name: String, val data: List<Number>)
 
 /**
- * Chart widget. The default engine is Chart.js. [ChartEngine.APEX_CHARTS] loads ApexCharts
- * instead. `options` are passed through to the selected library.
+ * Chart widget. The default engine is ApexCharts (Shamar). Pass [ChartEngine.CHART_JS]
+ * for Chart.js. `options` are passed through to the selected library.
  */
 open class ChartWidget protected constructor(name: String) : Widget(name) {
     private var engineLiteral: ChartEngine? = null
@@ -131,7 +131,7 @@ open class ChartWidget protected constructor(name: String) : Widget(name) {
         if (provider != null) return provider.apply(get)
         val chosen = engineLiteral
         if (chosen != null) return chosen
-        return ChartEngine.CHART_JS
+        return ChartEngine.APEX_CHARTS
     }
 
     override fun renderBody(schema: Schema): String {
@@ -158,8 +158,10 @@ open class ChartWidget protected constructor(name: String) : Widget(name) {
                 "options" to options,
             ),
         )
+        val head = headingHtml(schema) + descriptionHtml(schema)
         val chart = """<div class="ff-chart" data-ff-engine="$engineName" data-ff-type="${escapeHtml(chartType)}" data-ff-library-type="${escapeHtml(libraryType)}"$heightAttr>${filterHtml(get, filters, active)}<canvas></canvas><div class="ff-chart-target"></div><script type="application/json" class="ff-chart-config">$config</script></div>"""
-        return scripts + wrapDashboardBody(schema, chart)
+        val card = """<div class="ff-chart-widget ff-widget-card">$head$chart</div>"""
+        return scripts + wrapDashboardBody(schema, card)
     }
 
     private fun scriptsFor(engine: ChartEngine): String {
@@ -304,6 +306,7 @@ internal fun escapeJson(text: String): String {
 /** Chart.js bar chart used by the Kotlin sample. */
 class RevenueChart : ChartWidget("revenue") {
     init {
+        engine(ChartEngine.CHART_JS)
         type("bar")
         categories(listOf("Mon", "Tue", "Wed"))
         series(listOf(ChartSeries("Revenue", listOf(10, 20, 15))))

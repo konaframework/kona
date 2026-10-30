@@ -63,7 +63,9 @@ open class AccountWidget protected constructor(name: String) : Widget(name) {
         } else {
             """<img class="ff-account-avatar" src="${escapeHtml(avatar)}" alt=""/>"""
         }
-        val inner = """<div class="ff-account">$avatarHtml<p class="ff-account-name">${escapeHtml(account)}</p>$emailHtml</div>"""
+        val head = headingHtml(schema) + descriptionHtml(schema)
+        val body = """<div class="ff-account">$avatarHtml<p class="ff-account-name">${escapeHtml(account)}</p>$emailHtml</div>"""
+        val inner = """<div class="ff-account-widget ff-widget-card">$head$body</div>"""
         return WidgetAssets.tag(WidgetScripts.WIDGET) + wrapDashboardBody(schema, inner)
     }
 
@@ -142,7 +144,7 @@ open class ListWidget protected constructor(name: String) : Widget(name) {
             }
             """<div class="ff-list-widget-scroll"><table class="ff-list-widget-table"><thead><tr>$head</tr></thead><tbody>$body</tbody></table></div>"""
         }
-        val inner = """<div class="ff-list-widget ff-desk-widget">$headChrome$table</div>"""
+        val inner = """<div class="ff-list-widget ff-widget-card">$headChrome$table</div>"""
         return WidgetAssets.tag(WidgetScripts.WIDGET) + wrapDashboardBody(schema, inner)
     }
 
@@ -210,7 +212,8 @@ open class CardWidget protected constructor(name: String) : Widget(name) {
         } else {
             """<div class="ff-card-widget-body">$content</div>"""
         }
-        val inner = """<div class="ff-card-widget ff-desk-widget">$body</div>"""
+        val head = headingHtml(schema) + descriptionHtml(schema)
+        val inner = """<div class="ff-card-widget ff-widget-card">$head$body</div>"""
         return WidgetAssets.tag(WidgetScripts.WIDGET) + wrapDashboardBody(schema, inner)
     }
 
@@ -296,7 +299,8 @@ open class NavigationCardsWidget protected constructor(name: String) : Widget(na
                 """<a class="ff-nav-card" href="${escapeHtml(card.href)}"><span class="ff-nav-card-icon">$iconHtml</span><span class="ff-nav-card-label">${escapeHtml(card.label)}</span><span class="ff-nav-card-hint">Open ${escapeHtml(card.label)}</span></a>"""
             }.let { """<div class="ff-nav-cards">$it</div>""" }
         }
-        val inner = """<div class="ff-nav-cards-widget ff-desk-widget">$grid</div>"""
+        val head = headingHtml(schema) + descriptionHtml(schema)
+        val inner = """<div class="ff-nav-cards-widget ff-widget-card">$head$grid</div>"""
         return WidgetAssets.tag(WidgetScripts.WIDGET) + wrapDashboardBody(schema, inner)
     }
 

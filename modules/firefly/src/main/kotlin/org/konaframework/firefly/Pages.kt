@@ -128,6 +128,11 @@ open class CustomPage @JvmOverloads constructor(slug: String? = null) : PanelPag
  * Slug is empty so [Panel] mounts it at the panel root.
  */
 open class DashboardPage : PanelPage("") {
+    init {
+        // Dashboards fill the panel body; individual pages can still narrow with maxWidth.
+        maxWidth("full")
+    }
+
     override fun sectionClass(): String = "ff-page ff-dashboard"
 
     override fun fallbackTitle(): String = "Dashboard"
