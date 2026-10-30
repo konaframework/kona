@@ -1079,6 +1079,11 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
 }
 
+/* If a schema wrapper ever appears, dissolve it so widgets stay grid items (#434). */
+.ff-panel .ff-page-widgets > .ff-schema {
+  display: contents;
+}
+
 /* Dashboard fixed columns (Shamar dashboard.edge 1–4). */
 .ff-panel .ff-dashboard .ff-page-widgets {
   width: 100%;
