@@ -1760,16 +1760,16 @@ body.ff-body-root {
   background: var(--ff-hover);
 }
 
-/* Month / year / decade: 12 cells → 4 rows × 3 columns, near-square popup (#408). */
+/* Month / year / decade: 12 cells → 4 columns × 3 rows (Jan–Apr / May–Aug / Sep–Dec) (#420). */
 .ff-panel .ff-picker-grid-months,
 .ff-panel .ff-picker-grid-years,
 .ff-panel .ff-picker-grid-decades {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   gap: 0.45rem;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 3;
   width: 100%;
-  min-height: 14rem;
+  min-height: 12rem;
 }
 
 .ff-panel .ff-picker-grid-months .ff-day,

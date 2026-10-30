@@ -307,7 +307,9 @@ class FireflySupportTest {
         assertTrue(dialogReset >= 0, "missing dialog inherit reset block")
         assertTrue(css.substring(dialogReset, dialogReset + 500).contains("white-space: normal"))
         assertTrue(css.contains(".ff-picker-ok") && css.contains("margin-left: auto"))
-        assertTrue(css.contains("ff-picker-grid-months") && css.contains("repeat(3, minmax(0, 1fr))"))
+        // Month/year/decade pickers: 4 columns × 3 rows (#420).
+        assertTrue(css.contains("ff-picker-grid-months") && css.contains("grid-template-columns: repeat(4, minmax(0, 1fr))"))
+        assertTrue(css.contains("ff-picker-grid-years") && css.contains("grid-template-rows: repeat(3, minmax(0, 1fr))"))
         assertTrue(css.contains("ff-picker-grid-weeks") && css.contains("ff-picker-weeknum"))
         assertTrue(css.contains("ff-week-selected"))
         assertTrue(css.contains(".ff-panel .ff-control.has-prefix") && css.contains(".ff-panel .ff-prefix"))
