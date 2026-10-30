@@ -8,6 +8,7 @@ dependencies {
     api(project(":kona-core"))
     api(project(":kona-http"))
     api(project(":kona-support"))
+    api(project(":kona-icons"))
     api(libs.jackson.databind)
     implementation(libs.jackson.module.kotlin)
 

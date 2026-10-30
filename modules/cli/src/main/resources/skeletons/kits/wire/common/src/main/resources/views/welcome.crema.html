@@ -37,10 +37,11 @@
       .lede { font-size: 1.125rem; line-height: 1.6; margin: 0 0 2rem; max-width: 34rem; opacity: 0.9; }
       .actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 2.5rem; }
       .btn {
-        display: inline-flex; align-items: center; justify-content: center;
+        display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
         padding: 0.75rem 1.2rem; border-radius: 0.55rem; font-weight: 600;
         text-decoration: none; border: 1px solid transparent;
       }
+      .btn-icon { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
       .btn-primary { background: var(--caramel); color: #fff; }
       .btn-primary:hover { filter: brightness(1.05); }
       .btn-ghost { background: transparent; color: var(--accent); border-color: #d8c4a8; }
@@ -89,9 +90,9 @@
         Click the counter — no full page reload.
       </p>
       <div class="actions">
-        <a class="btn btn-primary" href="{{ url('/login') }}">Sign in</a>
-        <a class="btn btn-ghost" href="{{ url('/dashboard') }}">Dashboard</a>
-        <a class="btn btn-ghost" href="https://docs.konaframework.org/docs/wire/">Wire docs</a>
+        <a class="btn btn-primary" href="{{ url('/login') }}">{!! icon('heroicon-o-arrow-right-end-on-rectangle', 'btn-icon') !!}Sign in</a>
+        <a class="btn btn-ghost" href="{{ url('/dashboard') }}">{!! icon('heroicon-o-home', 'btn-icon') !!}Dashboard</a>
+        <a class="btn btn-ghost" href="https://docs.konaframework.org/docs/wire/">{!! icon('heroicon-o-book-open', 'btn-icon') !!}Wire docs</a>
       </div>
 
       <section class="brew-card">

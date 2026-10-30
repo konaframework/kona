@@ -417,8 +417,8 @@ class BulkActionGroup private constructor(private val actions: List<BulkAction>)
     }
 
     companion object {
-        private const val CHEVRON =
-            """<svg class="ff-bulk-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>"""
+        private val CHEVRON: String =
+            org.konaframework.icons.Icons.svg("heroicon-o-chevron-down").className("ff-bulk-chevron").toHtml()
 
         @JvmStatic
         fun make(vararg actions: BulkAction): BulkActionGroup = BulkActionGroup(actions.toList())

@@ -133,6 +133,7 @@ Write **every** in-app URL through `url(...)` (or `route(...)` / `asset(...)`). 
 | `env(key)` / `env(key, default)` | Environment value (`Env.get`). |
 | `config(key)` | Config value from the booted application (`Kona.app().config`). Missing app or key → empty when echoed. |
 | `trans(key)` / `__(key)` / `lang(key)` | Translation string (`Lang.get`). `lang` prefers a `lang` map in the view data when present. Optional second argument is a replacement map (`:name` placeholders). |
+| `icon(name)` / `icon(name, class)` | Inline SVG from [`kona-icons`](/docs/support/icons/) (Heroicons by default). **Must** be echoed with `{!! !!}` so the markup is not escaped. |
 
 Conventional variables the engine (or your controller) may put in the data map, also offered in completion: `errors`, `user`, `auth_user`, `_token`, `asset_url`, `slot`, and `loop` / `loop.index` / `loop.iteration` / `loop.first` / `loop.last` / `loop.even` / `loop.odd` / `loop.count` / `loop.remaining` / `loop.depth` / `loop.parent`. See [Loop metadata](/docs/crema/control-structures/#loop-metadata).
 
@@ -144,6 +145,7 @@ Conventional variables the engine (or your controller) may put in the data map, 
 <input value="{{ old('email') }}" />
 {{ config('app.name') }}
 {{ trans('messages.welcome') }}
+{!! icon('heroicon-o-bell', 'w-5 h-5') !!}
 ```
 
 The `@asset`, `@csrf`, `@lang`, and `@json` **directives** remain available; use the echo helpers when the value belongs in an attribute or mixed markup. See [URL generation](/docs/http/url-generation/) for `Url` / `route()` / `url()` in Kotlin and Java.

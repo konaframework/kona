@@ -15,10 +15,12 @@
       .sub{margin:0 0 1.5rem;opacity:.85}
       label{display:block;font-size:.9rem;font-weight:600;margin:0 0 .35rem}
       input{width:100%;padding:.7rem .8rem;border:1px solid #d8c4a8;border-radius:.5rem;margin-bottom:1rem;font:inherit}
-      button{width:100%;padding:.75rem;border:0;border-radius:.55rem;background:var(--caramel);color:#fff;font-weight:700;cursor:pointer}
+      button{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:.45rem;padding:.75rem;border:0;border-radius:.55rem;background:var(--caramel);color:#fff;font-weight:700;cursor:pointer}
       button:hover{filter:brightness(1.05)}
+      button .btn-icon{width:1.15rem;height:1.15rem}
       .err{background:#fde8e4;color:#8a2f24;padding:.75rem .9rem;border-radius:.5rem;margin-bottom:1rem;font-size:.95rem}
-      .back{display:inline-block;margin-top:1.25rem;color:var(--caramel);text-decoration:none}
+      .back{display:inline-flex;align-items:center;gap:.35rem;margin-top:1.25rem;color:var(--caramel);text-decoration:none}
+      .back .btn-icon{width:1.1rem;height:1.1rem}
     </style>
   </head>
   <body>
@@ -38,9 +40,9 @@
         <input id="email" name="email" type="email" value="{{ email }}" required autocomplete="username" />
         <label for="password">Password</label>
         <input id="password" name="password" type="password" required autocomplete="current-password" />
-        <button type="submit">Sign in</button>
+        <button type="submit">{!! icon('heroicon-o-arrow-right-end-on-rectangle', 'btn-icon') !!}Sign in</button>
       </form>
-      <a class="back" href="{{ url('/') }}">← Back home</a>
+      <a class="back" href="{{ url('/') }}">{!! icon('heroicon-o-arrow-left', 'btn-icon') !!}Back home</a>
     </div>
   </body>
 </html>

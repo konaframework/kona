@@ -62,7 +62,7 @@ class DefaultLayout(
                 "body" to body,
                 "footer" to footer,
                 "themeInitScript" to THEME_INIT_SCRIPT,
-                "chromeScript" to CHROME_SCRIPT + FILTERS_SCRIPT + WIDGETS_SCRIPT,
+                "chromeScript" to chromeScript() + FILTERS_SCRIPT + WIDGETS_SCRIPT,
                 "bodyBackground" to tokens.bodyBackground,
                 "bodyColor" to tokens.heading,
                 "maxWidth" to maxWidth,
@@ -106,7 +106,7 @@ class DefaultLayout(
             "<script>" + Stylesheet.readCss("/org/konaframework/firefly/support/form-widgets.js").trim() + "</script>"
         }
 
-        internal const val CHROME_SCRIPT: String =
+        internal fun chromeScript(): String =
             "<script>(function(){" +
                 "var root=document.querySelector('.ff-panel');if(!root)return;" +
                 "var media=window.matchMedia('(prefers-color-scheme: dark)');" +
@@ -331,7 +331,9 @@ class DefaultLayout(
                 "function formOptionsUrl(field,query){var path=location.pathname.replace(/\\/$/,'');" +
                 "path=path.replace(/\\/(manage|create|edit|list|view)$/,'');" +
                 "return path+'/form-options?field='+encodeURIComponent(field||'')+'&q='+encodeURIComponent(query||'');}" +
-                "function optionCheckSvg(){return '<svg class=\"ff-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" aria-hidden=\"true\"><path d=\"M4.5 12.75l6 6 9-13.5\"/></svg>';}" +
+                "function optionCheckSvg(){return '" +
+                Icon.CHECK.svg().replace("\\", "\\\\").replace("'", "\\'").replace("\n", "") +
+                "';}" +
                 "function renderComboboxOptions(c,items){var list=c.querySelector('[data-ff-combobox-options]');if(!list)return;" +
                 "var vals=comboboxValues(c);var html=(items||[]).map(function(it){var value=String(it.value==null?'':it.value);var label=String(it.label==null?'':it.label);" +
                 "var on=vals.indexOf(value)>=0;var enabled=it.enabled!==false;var css=on?'ff-option ff-selected':'ff-option';" +
