@@ -6,7 +6,6 @@ import org.konaframework.cadence.SoftDeletes
 import org.konaframework.firefly.forms.Field
 import org.konaframework.firefly.forms.FieldValidation
 import org.konaframework.firefly.forms.Select
-import org.konaframework.firefly.infolists.TextEntry
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.schemas.htmlAttributes
@@ -493,8 +492,7 @@ open class RelationManager(private val name: String) {
         if (using != null) {
             using.apply(schema)
         } else {
-            val entries = formFields(formSchema(null, record)).map { field -> TextEntry.make(field.name) }
-            schema.components(*entries.toTypedArray())
+            FormInfolist.fill(schema, formSchema(null, record))
         }
         val canEdit = rowActions(runtime).any { it.operation == RelationOperation.EDIT } && !runtime.readOnly
         val editSwitch = if (canEdit) """<button type="button" class="ff-action-submit" data-ff-dialog-switch="edit">Edit</button>""" else ""

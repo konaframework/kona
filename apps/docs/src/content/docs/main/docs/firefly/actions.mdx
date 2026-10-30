@@ -8,10 +8,6 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Add a button or a link when the user should save, delete, or open a dialog. The same object can show a schema inside the shared [dialog](/docs/firefly/dialog/) and call a server method when the dialog is submitted.
 
-### Loading on processing actions
-
-When the user clicks a mutate control — dialog **Save** / **Create** / **Confirm** (`.ff-action-submit`), a header `submitForm()` button, delete confirm submit, or another POST action trigger — panel chrome marks that button `disabled`, `aria-busy="true"`, and `data-ff-loading="true"`, and shows a spinner until the navigation finishes. Cancel, Close, and dialog-switch Edit are excluded so they stay instant. This covers both Alpine/`wire:click` buttons and native form submits.
-
 Actions live in `org.konaframework.firefly.actions` (`kona-firefly-actions`). On the hello samples, `app/firefly/pages/Desk` puts an Edit action in the header. That action opens a dialog with a note field.
 
 <FireflyShot file="header-action.png" description="The Edit header action on the Desk page at http://127.0.0.1:4017/admin/desk." />
@@ -146,7 +142,7 @@ Submit text is `Confirm` when confirmation is on, otherwise `Submit`, unless `mo
 
 ## Put a schema in the dialog
 
-`schema(Text.make("Hello"))` renders those components in the dialog body. Layouts and primes from the schema module work, including a wizard:
+`schema(Text.make("Hello"))` renders those components in the dialog body. The body is a plain white surface (no nested shadowed card). A `Section` inside the modal keeps spacing and padding without drawing a second card. Layouts and primes from the schema module work, including a wizard:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

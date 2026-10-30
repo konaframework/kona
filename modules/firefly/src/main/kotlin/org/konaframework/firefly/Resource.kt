@@ -186,11 +186,20 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         return select.search(schema, query)
     }
 
-    /** Applies [infolistColumns] then [infolist], then loads dotted Cadence relations into state (#361). */
+    /**
+     * Applies [infolistColumns] then [infolist], then loads dotted Cadence relations into state (#361).
+     * When [infolist] adds no components, derive readonly entries from [form] (#417).
+     */
     private fun prepareInfolist(schema: Schema): Schema {
         val count = infolistColumnCount
         if (count != null) schema.columns(count)
         infolist(schema)
+        if (schema.components().isEmpty()) {
+            val formOnly = Schema.make().record(schema.record())
+            schema.key()?.let { formOnly.key(it) }
+            form(formOnly)
+            FormInfolist.fill(schema, formOnly)
+        }
         hydrateDottedRelations(schema)
         return schema
     }
