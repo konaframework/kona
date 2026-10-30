@@ -6,9 +6,9 @@ Living audit of `kona-support` Collections, `Arr`, `Str` / `Stringable`, and `Ko
 
 | Meta | Value |
 |------|--------|
-| Last audit | 2026-10-16 |
+| Last audit | 2026-10-30 |
 | Baseline | M4 support utilities |
-| Active deepen | **closed** — Collection deepen + Arr/Str/Date gaps |
+| Active deepen | **closed** — Collection deepen + Arr/Str/Date gaps; KonaDate Carbon-class #411 |
 
 ---
 
@@ -54,7 +54,11 @@ Living audit of `kona-support` Collections, `Arr`, `Str` / `Stringable`, and `Ko
 | `startOfDay` / `endOfDay` / `setTimezone` | **done** | deepen |
 | `isSameDay` / `diffInDays` | **done** | deepen |
 | ISO-8601 JSON (`Instant` / `KonaDate` / java.time) | **done** | HTTP `JsonSupport` + `Json` mapper |
-| Full Carbon locale/human diff | **deferred** | intentional |
+| create / yesterday / tomorrow / unit getters-setters | **done** | #411 |
+| startOf/endOf second→year (week/quarter) | **done** | #411 |
+| between / weekday / today / min-max / closest | **done** | #411 |
+| English `diffForHumans` / `ago` / `fromNow` / `age` | **done** | #411 |
+| Full multi-locale human-diff packs | **deferred** | intentional |
 
 ## 5. Public docs
 
@@ -67,3 +71,4 @@ Living audit of `kona-support` Collections, `Arr`, `Str` / `Stringable`, and `Ko
 | Date | Notes |
 |------|-------|
 | 2026-10-16 | Collection/Arr/Str/Date deepen + Java regressions + 100% kover |
+| 2026-10-30 | KonaDate Carbon-class deepen (create, boundaries, between, English human diff) #411 |
