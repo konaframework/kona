@@ -45,8 +45,34 @@ class FireflyFormsWidgetMarkupTest {
         assertTrue(week.contains("ff-picker-weeknum"))
         assertTrue(week.contains("Select week"))
         assertTrue(week.contains("""value="Week 14, 2026""""))
+        // Full Mon–Sun row highlighted, not a single day (#422).
+        assertEquals(7, Regex("""ff-week-selected ff-day-selected""").findAll(week).count())
+        assertTrue(week.contains("ff-week-start"))
+        assertTrue(week.contains("ff-week-end"))
         assertFalse(html(WeekPicker.make("sprint")).contains("ff-week-selected"))
         assertTrue(html(WeekPicker.make("sprint").native()).contains("""type="week""""))
+    }
+
+    @Test
+    fun weekPickerSundayStartAlignsRowsAndHighlightsFullWeek() {
+        val week = html(
+            WeekPicker.make("sprint").weekStartsOnSunday(),
+            mapOf("sprint" to "2026-W14"),
+        )
+        assertTrue(week.contains("""data-ff-first-day="0""""))
+        // Sunday-based W14 starts 2026-03-29; focus derives from the stored week token.
+        assertTrue(week.contains("""data-ff-focused="2026-03-29""""))
+        assertTrue(week.contains("""data-ff-day="2026-03-29" data-ff-week="2026-W14""""))
+        assertTrue(week.contains("""data-ff-day="2026-04-04" data-ff-week="2026-W14""""))
+        assertEquals(7, Regex("""ff-week-selected ff-day-selected""").findAll(week).count())
+        val grid = week.substringAfter("ff-picker-grid-weeks").substringBefore("</div>")
+        assertTrue(grid.indexOf("""data-ff-day="2026-03-29"""") < grid.indexOf("""data-ff-day="2026-03-30""""))
+    }
+
+    @Test
+    fun weekPickerDropsInvalidIsoWeekFiftyThreeWhenFocusing() {
+        // 2024 has no ISO week 53 — parse fails and focus falls back without crashing.
+        assertTrue(html(WeekPicker.make("sprint"), mapOf("sprint" to "2024-W53")).contains("ff-picker-grid-weeks"))
     }
 
     @Test

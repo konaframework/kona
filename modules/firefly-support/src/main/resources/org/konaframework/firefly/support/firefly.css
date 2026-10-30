@@ -1780,14 +1780,21 @@ body.ff-body-root {
   color: var(--ff-heading);
 }
 
-.ff-panel .ff-day.ff-week-selected {
-  background: color-mix(in srgb, var(--ff-primary) 18%, transparent);
-  color: var(--ff-heading);
-}
-
+/* Selected week: paint the whole Sun–Sat / Mon–Sun row (#422). */
+.ff-panel .ff-day.ff-week-selected,
 .ff-panel .ff-day.ff-week-selected.ff-day-selected {
   background: var(--ff-primary);
   color: #fff;
+  font-weight: 600;
+  border-radius: 0;
+}
+
+.ff-panel .ff-day.ff-week-selected.ff-week-start {
+  border-radius: 0.35rem 0 0 0.35rem;
+}
+
+.ff-panel .ff-day.ff-week-selected.ff-week-end {
+  border-radius: 0 0.35rem 0.35rem 0;
 }
 
 .ff-panel .ff-picker-weekdays-weeks {
