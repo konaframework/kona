@@ -540,29 +540,37 @@
 .ff-panel .ff-toggle-button.is-active[data-ff-color="success"] { background: color-mix(in srgb, #16a34a 14%, transparent); border-color: #16a34a; color: #15803d; }
 .ff-panel .ff-toggle-button.is-active[data-ff-color="info"] { background: color-mix(in srgb, #2563eb 14%, transparent); border-color: #2563eb; color: #1d4ed8; }
 
-/* ——— Input groups: password reveal + copy (Shamar affix action) ——— */
+/* ——— Input groups: password reveal + copy (Shamar affix action) (#426) ——— */
 .ff-panel .ff-input-group {
   display: flex;
   align-items: stretch;
   width: 100%;
+  min-width: 0;
 }
 
 .ff-panel .ff-input-group > .ff-input,
 .ff-panel .ff-input-group > input {
+  box-sizing: border-box;
   flex: 1 1 auto;
   min-width: 0;
+  border-right: 0;
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
 }
 
 .ff-panel .ff-input-action {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  align-self: stretch;
   padding: 0 0.65rem;
-  min-height: 0;
+  min-height: 2.4rem;
+  margin: 0;
   border: 1px solid var(--ff-card-border);
   border-left: 0;
+  border-radius: 0;
   background: var(--ff-inset, var(--ff-hover));
   color: var(--ff-body-subtle);
   box-shadow: none;
@@ -570,8 +578,33 @@
 }
 
 .ff-panel .ff-input-action:last-child {
-  border-top-right-radius: var(--ff-radius);
-  border-bottom-right-radius: var(--ff-radius);
+  border-radius: 0 var(--ff-radius) var(--ff-radius) 0;
+}
+
+/* Affixed control already owns the outer right radius via .ff-suffix. */
+.ff-panel .ff-control.has-suffix > .ff-input-group > .ff-input-action:last-child {
+  border-right: 0;
+  border-radius: 0;
+}
+
+/* Prefixed control: input-group is the middle/right segment. */
+.ff-panel .ff-control.has-prefix:not(.has-suffix) > .ff-input-group > .ff-input-action:last-child {
+  border-radius: 0 var(--ff-radius) var(--ff-radius) 0;
+}
+
+.ff-panel .ff-control:has(> .ff-input-group):focus-within {
+  border-radius: var(--ff-radius);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-primary) 22%, transparent);
+}
+
+.ff-panel .ff-control:has(> .ff-input-group):focus-within > .ff-input-group > .ff-input,
+.ff-panel .ff-control:has(> .ff-input-group):focus-within > .ff-input-group > input {
+  box-shadow: none;
+  border-color: color-mix(in srgb, var(--ff-primary) 55%, var(--ff-card-border));
+}
+
+.ff-panel .ff-control:has(> .ff-input-group):focus-within > .ff-input-group > .ff-input-action {
+  border-color: color-mix(in srgb, var(--ff-primary) 55%, var(--ff-card-border));
 }
 
 .ff-panel .ff-input-action:hover {

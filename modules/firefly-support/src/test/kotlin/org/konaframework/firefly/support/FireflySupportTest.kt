@@ -319,6 +319,11 @@ class FireflySupportTest {
         assertTrue(css.contains("ff-week-selected"))
         assertTrue(css.contains("ff-week-start") && css.contains("ff-week-end"))
         assertTrue(css.contains(".ff-panel .ff-control.has-prefix") && css.contains(".ff-panel .ff-prefix"))
+        // Prefix/suffix join the input without a border/radius step (#426).
+        assertTrue(css.contains("border-left: 0") && css.contains("border-right: 0"))
+        assertTrue(css.contains("border-radius: var(--ff-radius) 0 0 var(--ff-radius)"))
+        assertTrue(css.contains("border-radius: 0 var(--ff-radius) var(--ff-radius) 0"))
+        assertTrue(css.contains(".ff-panel .ff-control.has-suffix > .ff-input-group > .ff-input-action:last-child"))
         assertTrue(css.contains("ff-column-money") && css.contains("tabular-nums"))
         assertTrue(css.contains(".ff-panel .ff-combobox-panel"))
         assertTrue(css.contains(".ff-panel .ff-combobox.ff-combobox-open"))
