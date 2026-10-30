@@ -1,0 +1,100 @@
+---
+title: Toggle
+description: "Toggle switch with inline label, on/off colors, and icons."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Toggle` is a switch control. By default it is `inline()` with the label beside the track. A hidden input posts `1` or `0`. The visible control is a `role="switch"` button that chrome flips via `data-ff-toggle`.
+
+<FireflyShot file="form-toggle.png" description="Toggle active field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Toggle.make("active")
+    .label("Active")
+    .onColor("#DF8723")
+    .offColor("#9ca3af")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Toggle.make("active")
+    .label("Active")
+    .onColor("#DF8723")
+    .offColor("#9ca3af");
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `inline()` / `inline(on)` | Label beside the switch (default `true`). When inline, the block label above is suppressed |
+| `onColor` / `offColor` | CSS colors for the track (`--ff-on-color` / `--ff-off-color`) |
+| `onIcon` / `offIcon` | Icon names shown on the thumb when on / off |
+
+Truthy hydration matches other boolean fields. Required marks appear next to the inline label when `required()` is set.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Toggle.make("featured")
+    .label("Featured")
+    .inline(false)
+    .onIcon("heroicon-m-check")
+    .offIcon("heroicon-m-x-mark")
+    .required()
+
+Toggle.make("notify")
+    .label("Email me")
+    .onColor("#16a34a")
+    .live()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Toggle.make("featured")
+    .label("Featured")
+    .inline(false)
+    .onIcon("heroicon-m-check")
+    .offIcon("heroicon-m-x-mark")
+    .required();
+
+Toggle.make("notify")
+    .label("Email me")
+    .onColor("#16a34a")
+    .live();
+```
+
+</TabItem>
+</Tabs>
+
+## Layout notes
+
+- Inline (default): only the switch + inline label render; `fieldLabelHtml` returns empty so you do not get a duplicate title above.
+- Block (`inline(false)`): standard field label above the switch.
+
+For a plain checkbox chrome, use [`Checkbox`](/docs/firefly/forms/checkbox/). For segmented multi-option buttons, use [`ToggleButtons`](/docs/firefly/forms/toggle-buttons/).
+
+## Configure defaults
+
+`Toggle.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Checkbox](/docs/firefly/forms/checkbox/)
+- [Toggle buttons](/docs/firefly/forms/toggle-buttons/)

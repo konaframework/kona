@@ -1,0 +1,80 @@
+---
+title: Modal table select
+description: "ModalTableSelect stores selected record keys from a hosted Firefly table."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ModalTableSelect` opens (or embeds) a Firefly `Table` and writes the selected record key — or a list of keys when `multiple(true)` — into form state. Wire a table with `table(source)`, then call `choose(schema, key)` from your action handler when the user confirms a selection. There is no Playground demo for this field yet.
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val products = Table.make(/* … */)
+
+ModalTableSelect.make("productId")
+    .label("Product")
+    .table(products)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Table<?, ?> products = Table.make(/* … */);
+
+ModalTableSelect.make("productId")
+    .label("Product")
+    .table(products);
+```
+
+</TabItem>
+</Tabs>
+
+The rendered control is a `.ff-modal-table` host with a `Choose` action and the hosted table HTML. Selection is applied through `choose`, not through a native `<select>`.
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `table(Table)` | Hosts the table for render + `select(key)` |
+| `multiple(true)` | Store a `List` of keys; otherwise the last selected key |
+| `choose(schema, key)` | Runs `table.select(key)`, writes the result onto the schema path, returns the selected keys |
+
+`kind()` is `"modal-table-select"`. Calling `choose` without a hosted table throws `FireflyException("Modal table select has no table")`.
+
+## Confirming a choice
+
+Wire the Choose action (or your own handler) to invoke `choose` with the Livewire / request key for the clicked row:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val field = ModalTableSelect.make("productId").table(products).multiple(true)
+
+// Inside an action / Livewire handler:
+field.choose(schema, rowKey)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ModalTableSelect field = ModalTableSelect.make("productId").table(products).multiple(true);
+
+// Inside an action / Livewire handler:
+field.choose(schema, rowKey);
+```
+
+</TabItem>
+</Tabs>
+
+## Defaults
+
+`ModalTableSelect.configureUsing { … }` sets defaults for later `make()` calls. Pass `null` to clear.
+
+See [Tables](/docs/firefly/tables/) for building the hosted table, and [Forms overview](/docs/firefly/forms/) for shared field helpers.

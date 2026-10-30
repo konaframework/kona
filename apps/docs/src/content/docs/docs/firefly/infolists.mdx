@@ -1,6 +1,6 @@
 ---
 title: Infolists
-description: Show a record with entries instead of fields. On the Desk page that is the name entry. On orders, the view page mounts the order infolist.
+description: "Show a record with entries instead of fields. Mount an infolist on a view page, then pick text, icon, image, color, code, key-value, or repeatable entries."
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
@@ -13,6 +13,18 @@ The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists
 Each entry is a `div.ff-entry` with `x-data="ffEntry"`. That Alpine factory is registered by the schema script. Copyable state and live binding use it.
 
 <FireflyShot file="notes-infolist.png" description="The name infolist on the Desk page at http://127.0.0.1:4017/admin/desk." />
+
+## Entry types
+
+| Entry | Use it for |
+|-------|------------|
+| [Text entry](/docs/firefly/infolists/text-entry/) | Labels, money, dates, badges, markdown, HTML |
+| [Icon entry](/docs/firefly/infolists/icon-entry/) | Glyphs and boolean Yes/No pills |
+| [Image entry](/docs/firefly/infolists/image-entry/) | Photos, avatars, stacked galleries |
+| [Color entry](/docs/firefly/infolists/color-entry/) | CSS color swatches |
+| [Code entry](/docs/firefly/infolists/code-entry/) | Syntax-highlighted source (Shiki) |
+| [Key-value entry](/docs/firefly/infolists/key-value-entry/) | Maps as a two-column table |
+| [Repeatable entry](/docs/firefly/infolists/repeatable-entry/) | Lists of nested entries or a table |
 
 ## Render an infolist
 
@@ -79,7 +91,7 @@ name.placeholder(get -> "Empty");
 
 The last call wins. `state("Ada")` after a closure stores the literal and drops the closure.
 
-`label`, `heading`, and `description` are overridden on `Entry` and return the entry. When you omit `label`, Firefly humanizes the entry name (`first_name` → “First Name”) so labels stay visible in the Shamar-style entry chrome. Schema methods such as `hidden`, `visible`, and `live` still return the schema `Component`. Call those as statements, then continue with entry methods:
+`label`, `heading`, and `description` are overridden on `Entry` and return the entry. When you omit `label`, Firefly humanizes the entry name (`first_name` → “First Name”) so labels stay visible. Schema methods such as `hidden`, `visible`, and `live` still return the schema `Component`. Call those as statements, then continue with entry methods:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -113,167 +125,17 @@ name.live();
 | `copyable`, `copyMessage`, `copyMessageDuration`, `copyableState` | Copy affordance on the entry |
 | `helperText`, `hint`, `hintColor`, `hintIcon` | Secondary text and hint |
 | `prefix`, `suffix` | Text around the value |
-| `alignment`, `alignStart`, `alignCenter`, `alignEnd`, `alignJustify` | Text alignment (default **justify**; labels stay start). Not inherited from table Actions `end` align |
-| `wrap`, `inlineLabel` | Wrapping (default **on** so long values fit view/manage modals and page containers — including dialogs opened from a table Actions cell) and an inline label |
+| `alignment`, `alignStart`, `alignCenter`, `alignEnd`, `alignJustify` | Text alignment (default **justify**; labels stay start) |
+| `wrap`, `inlineLabel` | Wrapping (default **on** so long values fit view/manage modals and page containers) and an inline label |
 | `extraAttributes` | HTML attributes on the component root. A map or a closure. Names that are not HTML attribute names are skipped |
 | `aboveContent`, `belowContent` | Schema components rendered around the value |
 | `state` | Literal value, or a closure. A literal wins over the schema path |
 
 `configureUsing` on an entry class runs for every later `make()` of that class. Pass `null` to clear it.
 
-State resolution: a literal or closure from `state(...)` wins. Inside a repeatable item, a dotted name such as `author.name` is read from that item. Otherwise the entry reads `schema.get` at its absolute path.
+State resolution: a literal or closure from `state(...)` wins. Inside a repeatable item, a dotted name such as `author.name` is read from that item. Otherwise the entry reads `schema.get` at its absolute path. Nested attributes use the same dotted path as table columns (up to four levels).
 
 Known icon names (`home`, `bars`, `user`, `check`, `x`) render inline SVG. Any other name is stored as `data-ff-icon` and does not throw.
-
-## Show text
-
-`TextEntry.make("title")` renders plain text. Nested attributes use the same dotted path as table columns (up to four levels): `TextEntry.make("project.name").label("Project")` reads `project.name` from filled state, a nested map, or the schema’s Cadence record. On a resource view (or manage View dialog), Firefly loads that relation onto the record and refills state so the entry is not blank. A list can be a badge, a bullet list, or line breaks. `limitList` with `expandableLimitedList(true)` keeps the extra items and marks them `data-ff-extra`. Without that flag, the tail becomes `+N`.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-TextEntry.make("title")
-    .badge(true)
-    .size("lg")
-    .weight("bold")
-    .prose(true)
-    .lineClamp(3)
-    .limit(80)
-    .words(12)
-    .state("A short title")
-    .extraAttributes(mapOf("data-entry" to "title"))
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-TextEntry.make("title")
-    .badge(true)
-    .size("lg")
-    .weight("bold")
-    .prose(true)
-    .lineClamp(3)
-    .limit(80)
-    .words(12)
-    .state("A short title")
-    .extraAttributes(Map.of("data-entry", "title"));
-```
-
-</TabItem>
-</Tabs>
-
-`markdown(true)` renders a small Markdown subset (emphasis, code, links, and fenced blocks). **`html()`** (or `html(true)`) leaves the string as trusted HTML instead of escaping it — use only for content you control. `date()`, `dateTime()`, and `time()` format a temporal value. Call them with a pattern, or with no arguments to use human `F j, Y` (`January 2, 2026`), `F j, Y` plus time (`January 2, 2026, 3:45 PM`), and `HH:mm`. Instant, `LocalDateTime`, JDBC timestamps, epoch millis, and SQL-style strings (`2024-06-15 08:30:00`) all humanize the same way as table `TextColumn.dateTime()`. Entries named like `due_on` or `created_at` humanize even without `.date()` / `.dateTime()`. `since()` renders a relative phrase against the current instant. `timezone` sets the zone. `dateTooltip()` adds `data-ff-date-tooltip`. `money()` / `currency("USD")` formats with `NumberFormat` currency style (symbol + amount). `money("EUR")` or `currency("KES", "en-KE", 0)` selects the code, locale, and precision. `numeric()` prints a number. `numeric(2)` sets the decimal places. `formatStateUsing` replaces the formatted text with the closure’s string.
-
-## Show an icon
-
-`IconEntry.make("ok")` shows an icon for the state. `boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean: a truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) inside a Shamar Yes/No toggle pill (circular mark + visible label; not crushed by SVG glyph sizing). Defaults are `trueLabel("Yes")` / `falseLabel("No")`; blank labels fall back to an icon-only circle. `whenTrue("check", "success")` and `whenFalse("x", "gray")` set both icon and color. `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` override one side. `hideTrueIcon()` and `hideFalseIcon()` omit that icon (the Yes/No label still shows). `size` accepts `xs`, `sm`, `md`, `lg`, and `xl`.
-
-Kotlin prefers `boolean()`. Java uses `bool(true)` because `boolean` is a keyword. The pair helpers are `whenTrue` and `whenFalse`.
-
-## Show an image
-
-`ImageEntry.make("photo")` renders `<img>` tags. `height` and `imageHeight` set the height. `width` and `imageWidth` set the width. `size` and `imageSize` set both. `circular` and `square` add shape flags. `alt`, `defaultImageUrl`, and `extraImgAttributes` change the tag. `stacked`, `overlap`, and `ring` describe a stack. `limit` with `limitedRemainingText(true)` appends `+N`. `limitedRemainingTextSeparate` and `limitedRemainingTextSize` style that remainder.
-
-`disk`, `visibility`, and `checkFileExistence` are data attributes on the entry (`data-ff-disk`, `data-ff-visibility`, `data-ff-check-file`). This module does not open a disk or sign a temporary URL. A relative or absolute URL string is rendered as `src`. When `checkFileExistence` is true, a blank source is dropped.
-
-## Show a color
-
-`ColorEntry.make("ink")` renders a swatch. A CSS color (`#df8723`, `rgb(...)`, `hsl(...)`, or a plain name made of letters) becomes `background-color`. Anything else is marked `data-ff-invalid`. `copyable(true)` comes from the shared entry helper and sets `data-ff-copyable`.
-
-## Show a key-value map
-
-`KeyValueEntry.make("meta")` renders a map as a table. `keyLabel` and `valueLabel` rename the headers (defaults are `Key` and `Value`). `emptyMessage` is the placeholder when the map is empty (default `No values`). A null key is skipped.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-KeyValueEntry.make("meta")
-    .keyLabel("Field")
-    .valueLabel("Detail")
-    .state(mapOf("city" to "Kona"))
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-KeyValueEntry.make("meta")
-    .keyLabel("Field")
-    .valueLabel("Detail")
-    .state(Map.of("city", "Kona"));
-```
-
-</TabItem>
-</Tabs>
-
-You see a table with the header **Field** / **Detail** and the row city / Kona.
-
-## Show code
-
-`CodeEntry.make("snippet")` sends the raw source and a grammar name to the browser. The entry is `data-ff-shiki="shiki"` and includes a JSON payload. The browser script calls Shiki `createHighlighter`, then `codeToHtml`. Light and dark themes default to `github-light` and `github-dark`.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-CodeEntry.make("snippet")
-    .language("kotlin")
-    .lightTheme("github-light")
-    .darkTheme("github-dark")
-    .state("val name = \"Ada\"")
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-CodeEntry.make("snippet")
-    .language("kotlin")
-    .lightTheme("github-light")
-    .darkTheme("github-dark")
-    .state("val name = \"Ada\"");
-```
-
-</TabItem>
-</Tabs>
-
-`language` is an alias of `grammar`. A string with no grammar uses `html`. A map or a list uses `json`. `jsonFlags` is passed to the JSON writer: bit 1 tags hex, bit 64 leaves slashes unescaped when clear, and bit 128 pretty-prints.
-
-`ShikiCode.source()` returns the browser script. `ShikiCode.manifest()` returns `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`. Load that script next to a Shiki build that exports `createHighlighter`. The same grammar names and themes are the ones a CodeMirror editor would load. Call `highlightCodeEntry(root, shiki)` with the Shiki module.
-
-## Repeat an entry
-
-`RepeatableEntry.make("comments")` repeats its child schema once per item. State may be one map or a list of maps. Empty maps and values that are not maps are skipped. A dotted child name is read from the current item.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-RepeatableEntry.make("comments")
-    .contained(true)
-    .grid(2)
-    .schema(TextEntry.make("title"))
-    .state(listOf(mapOf("title" to "First")))
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-RepeatableEntry.make("comments")
-    .contained(true)
-    .grid(2)
-    .schema(TextEntry.make("title"))
-    .state(java.util.List.of(java.util.Map.of("title", "First")));
-```
-
-</TabItem>
-</Tabs>
-
-`table(TableColumn.make("Title"))` renders a table. `hiddenHeaderLabel()` hides that header with the `ff-sr` class. Child schema components, including `Text.make`, render in the cells. The default empty placeholder is `No items`.
 
 ## Lay entries out
 

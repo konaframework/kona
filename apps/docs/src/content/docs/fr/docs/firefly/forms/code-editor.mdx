@@ -1,0 +1,96 @@
+---
+title: Code editor
+description: "CodeEditor with language highlighting and soft wrap."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`CodeEditor` is a plaintext editor with a highlighted layer under the textarea (CodeMirror / Shiki attributes on the host). It is not a rich-text or markdown surface. Default language is `plaintext`.
+
+<FireflyShot file="form-code-editor.png" description="CodeEditor snippet field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CodeEditor.make("snippet")
+    .label("Snippet")
+    .language("kotlin")
+    .wrap(true)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CodeEditor.make("snippet")
+    .label("Snippet")
+    .language("kotlin")
+    .wrap(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `language(value)` | Grammar id (non-blank; throws if empty) |
+| `language()` | Current language string |
+| `wrap()` / `wrap(on)` | Soft wrap (`wrap="soft"` vs `wrap="off"`) |
+| `CodeEditor.languages()` | Ids shipped with the module (`FormAssets.languages()`) |
+
+The head shows the current language label. The highlight `<pre>` mirrors the textarea content for display; the textarea is what posts.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CodeEditor.make("json")
+    .label("Payload")
+    .language("json")
+    .wrap(false)
+    .placeholder("{ }")
+    .helperText("Must be valid JSON on the server")
+
+val langs = CodeEditor.languages()
+// includes ids such as kotlin, java, json, typescript, …
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CodeEditor.make("json")
+    .label("Payload")
+    .language("json")
+    .wrap(false)
+    .placeholder("{ }")
+    .helperText("Must be valid JSON on the server");
+
+List<String> langs = CodeEditor.languages();
+```
+
+</TabItem>
+</Tabs>
+
+## Languages
+
+`CodeEditor.languages()` reads the module’s `shiki-languages.txt` resource (for example `kotlin`, `java`, `json`, `typescript`, `yaml`). Pass any of those ids to `language(...)`. Blank language strings throw. The host attributes include `data-ff-editor="codemirror"` and `data-ff-highlighter="shiki"`.
+
+For markdown with preview, use [`MarkdownEditor`](/docs/firefly/forms/markdown-editor/). For formatted prose, use [`RichEditor`](/docs/firefly/forms/rich-editor/).
+
+## Configure defaults
+
+`CodeEditor.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Rich editor](/docs/firefly/forms/rich-editor/)
+- [Markdown editor](/docs/firefly/forms/markdown-editor/)
+- [Textarea](/docs/firefly/forms/textarea/)

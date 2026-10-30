@@ -1,0 +1,100 @@
+---
+title: Currency input
+description: "CurrencyInput alias and TextInput.currency for numeric money fields with a symbol prefix."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`CurrencyInput` is an alias that builds a `TextInput` already configured with `currency(...)`. The control is numeric, uses a step from the precision (default `0.01`), and adds a currency-symbol **prefix** when you have not set `prefix` or `prefixIcon`.
+
+<FireflyShot file="form-currency-input.png" description="CurrencyInput price field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val price = CurrencyInput.make("price", "USD")
+    .label("Price")
+    .required()
+
+// Same result:
+TextInput.make("price").currency("USD")
+TextInput.make("price").currency("KES", "en-KE", 2)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput price = CurrencyInput.make("price", "USD")
+    .label("Price")
+    .required();
+
+TextInput.make("price").currency("USD");
+TextInput.make("price").currency("KES", "en-KE", 2);
+```
+
+</TabItem>
+</Tabs>
+
+`CurrencyInput.make(name)` defaults the code to `"USD"`. `CurrencyInput.configureUsing` forwards to `TextInput.configureUsing`.
+
+## Currency options
+
+`currency(code, locale?, precision?)` on `TextInput`:
+
+| Detail | Behavior |
+|--------|----------|
+| Precision | Rejects negative values |
+| Numeric mode | Calls `numeric()` |
+| Step | `1` when precision is 0, otherwise `0.01` unless `step` was already set |
+| Prefix | Currency symbol from `CurrencyFormat` when prefix / prefix icon are unset |
+| Introspection | `currencyOptions()` returns the stored `CurrencyOptions` |
+
+Affix chrome paints as a joined input group (`.ff-control.has-prefix`). Data attributes `data-ff-currency`, `data-ff-currency-locale`, and `data-ff-currency-precision` are written on the input for client formatting.
+
+You still have every `TextInput` method (`minValue`, `maxValue`, `step`, `required`, `revealable`, …).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CurrencyInput.make("fee", "EUR")
+    .minValue(0.0)
+    .maxValue(10_000.0)
+    .prefix("€") // your prefix wins over the auto symbol
+
+TextInput.make("points")
+    .currency("JPY", "ja-JP", 0)
+    .step("1")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CurrencyInput.make("fee", "EUR")
+    .minValue(0.0)
+    .maxValue(10_000.0)
+    .prefix("€");
+
+TextInput.make("points")
+    .currency("JPY", "ja-JP", 0)
+    .step("1");
+```
+
+</TabItem>
+</Tabs>
+
+## Validation
+
+Because the field is a numeric `TextInput`, validation includes `numeric` (or `integer` when step is `1`) plus any `min:` / `max:` rules from `minValue` / `maxValue`. Add `required()` as needed.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Text input](/docs/firefly/forms/text-input/)
+- [Slider](/docs/firefly/forms/slider/)

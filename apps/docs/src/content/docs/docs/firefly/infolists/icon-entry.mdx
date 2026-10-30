@@ -1,0 +1,110 @@
+---
+title: Icon entry
+description: "Show an icon glyph or a boolean Yes/No pill from record state in a Firefly infolist."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`IconEntry` renders icons from state. Use a string icon name, or treat the value as a boolean and paint a Yes/No pill. The entry kind is `icon-entry` so the root is not sized like a lone SVG glyph. It inherits every helper on [Entry](/docs/firefly/infolists/#helpers-on-every-entry).
+
+<FireflyShot file="infolist-icon-entry.png" description="An icon entry showing a boolean Yes pill with a check mark." />
+
+## Icon from state
+
+When the state is a string, that string is the icon name. Known names (`home`, `bars`, `user`, `check`, `x`, and the rest of the Firefly icon set) render inline SVG; other names become `data-ff-icon`. You can also set `icon(...)` from the shared entry helpers to force one glyph for every item.
+
+| Method | Effect |
+|--------|--------|
+| `size(token)` | `xs`, `sm`, `md`, `lg`, `xl` (aliases `small` → `sm`, …) |
+| `listWithLineBreaks(true)` | Stack each icon in its own row |
+| `icon(name)` | Shared helper — overrides state-as-name |
+| `color` / `iconColor` | Paint color on the icon item |
+| `tooltip` | Screen-reader text beside the glyph |
+| `placeholder` | Shown when state is blank |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+IconEntry.make("glyph")
+    .label("Role")
+    .size("lg")
+    .state("user")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+IconEntry.make("glyph")
+    .label("Role")
+    .size("lg")
+    .state("user");
+```
+
+</TabItem>
+</Tabs>
+
+A collection of names renders multiple icons in `.ff-icons`. With `listWithLineBreaks(true)`, each sits in `.ff-icon-row`.
+
+## Boolean Yes / No
+
+`boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean. A truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) inside a Yes/No toggle pill (circular mark + visible label). Defaults are `trueLabel("Yes")` / `falseLabel("No")`; blank labels fall back to an icon-only circle with screen-reader text.
+
+Truthy means `Boolean true`, a non-zero number, or the strings `"1"`, `"true"`, `"yes"` (case-insensitive). Anything else that is not null is treated as true.
+
+Kotlin prefers `boolean()`. Java uses `bool(true)` because `boolean` is a keyword.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+IconEntry.make("active")
+    .label("Active")
+    .boolean()
+    .whenTrue("check", "success")
+    .whenFalse("x", "gray")
+    .trueLabel("On")
+    .falseLabel("Off")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+IconEntry.make("active")
+    .label("Active")
+    .bool(true)
+    .whenTrue("check", "success")
+    .whenFalse("x", "gray")
+    .trueLabel("On")
+    .falseLabel("Off");
+```
+
+</TabItem>
+</Tabs>
+
+## Boolean options
+
+| Method | Effect |
+|--------|--------|
+| `boolean()` / `bool(true)` | Enable boolean mode |
+| `whenTrue(icon, color)` | True icon + color (also enables boolean mode) |
+| `whenFalse(icon, color)` | False icon + color |
+| `trueIcon` / `falseIcon` | Override one side’s icon |
+| `trueColor` / `falseColor` | Override one side’s color |
+| `trueLabel` / `falseLabel` | Pill text (blank → icon-only) |
+| `hideTrueIcon()` / `hideFalseIcon()` | Omit that side’s mark; label still shows |
+
+Shared `color` / `iconColor` on the entry override the boolean colors when set. Closures are accepted for icons, colors, and labels.
+
+## Defaults for every make
+
+`IconEntry.configureUsing { entry -> entry.size("md") }` runs for every later `make()`. Pass `null` to clear it.
+
+## See also
+
+- [Infolists overview](/docs/firefly/infolists/)
+- [Text entry](/docs/firefly/infolists/text-entry/) — badges for status text
+- [Image entry](/docs/firefly/infolists/image-entry/)

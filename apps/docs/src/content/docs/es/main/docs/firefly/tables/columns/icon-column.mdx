@@ -1,0 +1,130 @@
+---
+title: Icon column
+description: "Render an icon or a boolean Yes/No pill in a Firefly table cell."
+---
+
+import FireflyShot from '../../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+An `IconColumn` paints an icon in the cell. There are two modes:
+
+1. **Icon from state** — the cell value is an icon name (or a `Boolean` that picks the true/false icon).
+2. **Boolean mode** — `boolean()` (Kotlin) or `bool()` (Java) treats the cell as a Yes/No pill with mark + label.
+
+Use boolean mode for active flags you want to display without editing. Use plain icon mode for type indicators, severity marks, or any attribute that already stores an icon name.
+
+<FireflyShot file="column-icon.png" description="An icon column with Yes/No boolean pills." />
+
+## Icon from state
+
+Without boolean mode:
+
+- `null` → empty cell
+- `Boolean` → `trueIcon` / `falseIcon` (defaults `check` / `x`)
+- any other value → `toString()` is treated as the icon name and resolved through Firefly’s icon registry
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+IconColumn.make("kind")
+    .label("Type")
+
+// Row stores icon names: "file", "folder", "link", …
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+IconColumn.make("kind")
+    .label("Type");
+```
+
+</TabItem>
+</Tabs>
+
+Override the boolean-ish icons even in this mode when the attribute is a raw `Boolean`:
+
+| Method | Default | Effect |
+|--------|---------|--------|
+| `trueIcon(name)` | `"check"` | Icon when state is true |
+| `falseIcon(name)` | `"x"` | Icon when state is false |
+
+## Boolean mode
+
+`boolean()` / `bool()` switches to Yes/No pills. Truthy values (`Boolean`, non-zero numbers, `"1"` / `"true"` / `"yes"`) get the true side; otherwise the false side. Null still renders empty.
+
+| Method | Default | Effect |
+|--------|---------|--------|
+| `trueLabel(String)` | `"Yes"` | Visible pill text when true; blank → icon-only circle |
+| `falseLabel(String)` | `"No"` | Visible pill text when false; blank → icon-only circle |
+| `trueIcon(String)` | `"check"` | Mark on the true pill |
+| `falseIcon(String)` | `"x"` | Mark on the false pill |
+
+Blank labels keep a screen-reader word (`true` / `false`) while showing only the mark. Custom icon names (anything other than `check` / `x`) add a `ff-boolean--custom` class for theme styling.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+IconColumn.make("active")
+    .boolean()
+    .trueIcon("check")
+    .falseIcon("x")
+    .trueLabel("On")
+    .falseLabel("Off")
+
+// Icon-only circles:
+IconColumn.make("verified")
+    .boolean()
+    .trueLabel("")
+    .falseLabel("")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+IconColumn.make("active")
+    .bool()
+    .trueIcon("check")
+    .falseIcon("x")
+    .trueLabel("On")
+    .falseLabel("Off");
+
+IconColumn.make("verified")
+    .bool()
+    .trueLabel("")
+    .falseLabel("");
+```
+
+</TabItem>
+</Tabs>
+
+The pill stays content-sized in the cell (not full width).
+
+## Shared helpers
+
+| Method | Effect |
+|--------|--------|
+| `label(...)` | Heading |
+| `tooltip(...)` / `description(...)` | Shell tips |
+| `align(Align)` / `width(String)` | Layout |
+| `searchable()` / `sortable()` | When the underlying attribute should participate in toolbar search/sort |
+| `hidden()` / `visible(...)` / `disabled(...)` | Visibility |
+| `toggleable()` / `toggledHiddenByDefault()` | Column picker |
+| `extraAttributes(...)` | Attributes on the outer `ff-icon-column` div |
+
+## Tips
+
+- Prefer [Toggle column](/docs/firefly/tables/columns/toggle-column/) or [Checkbox column](/docs/firefly/tables/columns/checkbox-column/) when operators must flip the value from the list.
+- Keep icon names aligned with the icons your panel theme registers so missing marks do not surprise you in production.
+- For status chips with text, prefer [Badge column](/docs/firefly/tables/columns/badge-column/) over inventing icon-only codes.
+
+## See also
+
+- [Toggle column](/docs/firefly/tables/columns/toggle-column/)
+- [Checkbox column](/docs/firefly/tables/columns/checkbox-column/)
+- [Badge column](/docs/firefly/tables/columns/badge-column/)
+- [Tables](/docs/firefly/tables/)

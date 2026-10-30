@@ -1,0 +1,57 @@
+---
+title: Date range picker
+description: "DateRangePicker dual-month calendar that stores start to end."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`DateRangePicker` stores a range as `"start to end"` using the configured date format (default `Y-m-d`). The popup shows two months; the first click sets the start, the second sets the end.
+
+<FireflyShot file="form-date-range-picker.png" description="DateRangePicker window field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DateRangePicker.make("window")
+    .label("Window")
+    .minDate("2024-01-01")
+    .maxDate("2024-12-31")
+    .weekStartsOnMonday()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DateRangePicker.make("window")
+    .label("Window")
+    .minDate("2024-01-01")
+    .maxDate("2024-12-31")
+    .weekStartsOnMonday();
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `format` / `displayFormat` | Storage vs display patterns |
+| `locale` | Calendar locale |
+| `firstDayOfWeek` / `weekStartsOnMonday` / `weekStartsOnSunday` | Week start |
+| `minDate` / `maxDate` | Bounds |
+| `defaultFocusedDate` | Initial focus |
+| `disabledDates(list)` | Blocked days |
+| `normalize` / `display` | Parse / format the stored range |
+
+Separators accepted when reading: ` to `, ` – `, ` - `, and a single `/`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Date and time picker](/docs/firefly/forms/date-time-picker/)

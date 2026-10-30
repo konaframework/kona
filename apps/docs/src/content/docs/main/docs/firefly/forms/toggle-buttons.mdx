@@ -1,0 +1,97 @@
+---
+title: Toggle buttons
+description: "ToggleButtons segmented control for single or multiple choices with colors and icons."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ToggleButtons` renders a row (or stack) of button-styled choices. Single-select uses radio inputs under each button; `multiple()` uses checkboxes and posts a JSON array via a hidden input.
+
+<FireflyShot file="form-toggle-buttons.png" description="ToggleButtons priority field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ToggleButtons.make("priority")
+    .label("Priority")
+    .options(mapOf("low" to "Low", "med" to "Medium", "high" to "High"))
+    .colors(mapOf("high" to "danger"))
+    .icons(mapOf("high" to "heroicon-m-exclamation-triangle"))
+    .grouped(true)
+    .inline()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ToggleButtons.make("priority")
+    .label("Priority")
+    .options(Map.of("low", "Low", "med", "Medium", "high", "High"))
+    .colors(Map.of("high", "danger"))
+    .icons(Map.of("high", "heroicon-m-exclamation-triangle"))
+    .grouped(true)
+    .inline(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `options(Map)` / `options(Function)` | Choice map |
+| `colors(Map)` / `icons(Map)` | Per-value color / icon (`data-ff-color` / `data-ff-icon`) |
+| `inline()` / `inline(on)` | Horizontal layout (default `true`) |
+| `grouped(on)` | Joined button group (default `true`) |
+| `multiple()` / `multiple(on)` | Multi-select; posts JSON array |
+| `boolean()` | Yes / No (`"true"` / `"false"`) |
+
+Selected values hydrate from a collection, JSON array text, or a single scalar via the shared `selectedValues` helper.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ToggleButtons.make("flags")
+    .label("Flags")
+    .options(mapOf("a" to "Alpha", "b" to "Beta", "c" to "Gamma"))
+    .multiple()
+    .grouped(false)
+    .inline(false)
+
+ToggleButtons.make("confirm").boolean().required()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ToggleButtons.make("flags")
+    .label("Flags")
+    .options(Map.of("a", "Alpha", "b", "Beta", "c", "Gamma"))
+    .multiple(true)
+    .grouped(false)
+    .inline(false);
+
+ToggleButtons.make("confirm").boolean().required();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure defaults
+
+`ToggleButtons.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Radio](/docs/firefly/forms/radio/)
+- [Toggle](/docs/firefly/forms/toggle/)
+- [Checkbox list](/docs/firefly/forms/checkbox-list/)

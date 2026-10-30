@@ -419,6 +419,15 @@ open class Column protected constructor(val name: String) {
         return alignValue
     }
 
+    /** HTML attributes from [extraAttributes] for specialized column shells. */
+    protected fun docsExtra(cell: Cell): String {
+        val extras = resolvedExtra(cell)
+        if (extras.isEmpty()) return ""
+        return extras.entries.joinToString("") { (attr, value) ->
+            """ ${escapeHtml(attr)}="${escapeHtml(value)}""""
+        }
+    }
+
     private fun resolvedExtra(cell: Cell): Map<String, String> {
         val provider = extraUsing
         if (provider != null) return provider.apply(cell)
@@ -606,7 +615,7 @@ open class IconColumn private constructor(name: String) : Column(name) {
             }
             else -> Icon.fromName(icon).svg()
         }
-        return """<div class="ff-column ff-icon-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})">$html</div>"""
+        return """<div class="ff-column ff-icon-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})"${docsExtra(cell)}>$html</div>"""
     }
 
     companion object {
@@ -632,11 +641,11 @@ open class ImageColumn private constructor(name: String) : Column(name) {
         val src = row[name]?.toString().orEmpty()
         val alt = escapeHtml(altValue.get(cell, ""))
         if (src.isEmpty()) {
-            return """<div class="ff-column ff-image-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"></div>"""
+            return """<div class="ff-column ff-image-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})"${docsExtra(cell)}></div>"""
         }
         val heightAttr = if (height == null) "" else """ height="$height""""
         val widthAttr = if (width == null) "" else """ width="$width""""
-        return """<div class="ff-column ff-image-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"><img class="ff-image" src="${escapeHtml(src)}" alt="$alt"$heightAttr$widthAttr></div>"""
+        return """<div class="ff-column ff-image-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})"${docsExtra(cell)}><img class="ff-image" src="${escapeHtml(src)}" alt="$alt"$heightAttr$widthAttr></div>"""
     }
 
     companion object {
@@ -649,7 +658,7 @@ open class ColorColumn private constructor(name: String) : Column(name) {
     override fun render(row: Map<String, Any?>, key: String, cell: Cell): String {
         val color = row[name]?.toString().orEmpty()
         val swatch = if (color.isEmpty()) "" else """<span class="ff-color" style="background:${escapeHtml(color)}"></span>"""
-        return """<div class="ff-column ff-color-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})">$swatch</div>"""
+        return """<div class="ff-column ff-color-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})"${docsExtra(cell)}>$swatch</div>"""
     }
 
     companion object {
@@ -695,7 +704,7 @@ open class CheckboxColumn private constructor(name: String) : Column(name) {
         } else {
             ""
         }
-        return """<div class="ff-column ff-checkbox-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"><label class="ff-checkbox-wrap"><input class="ff-checkbox" type="checkbox"$checked$disabled$extra$change><span class="ff-checkbox-box" aria-hidden="true"></span></label></div>"""
+        return """<div class="ff-column ff-checkbox-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})"${docsExtra(cell)}><label class="ff-checkbox-wrap"><input class="ff-checkbox" type="checkbox"$checked$disabled$extra$change><span class="ff-checkbox-box" aria-hidden="true"></span></label></div>"""
     }
 
     companion object {
@@ -709,7 +718,7 @@ open class ToggleColumn private constructor(name: String) : Column(name) {
         val on = truthy(row[name])
         val next = if (on) "false" else "true"
         val pressed = if (on) "true" else "false"
-        return """<div class="ff-column ff-toggle-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"><button type="button" aria-pressed="$pressed" x-on:click="${'$'}wire.${'$'}call('toggleColumn', '${escapeHtml(key)}', '${escapeHtml(name)}', '$next')"></button></div>"""
+        return """<div class="ff-column ff-toggle-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})"${docsExtra(cell)}><button type="button" aria-pressed="$pressed" x-on:click="${'$'}wire.${'$'}call('toggleColumn', '${escapeHtml(key)}', '${escapeHtml(name)}', '$next')"></button></div>"""
     }
 
     companion object {
@@ -743,7 +752,7 @@ open class SelectColumn private constructor(name: String) : Column(name) {
             """<option value="${escapeHtml(value)}"$selected>${escapeHtml(label)}</option>"""
         }
         val extra = inputExtras.markup(cell)
-        return """<div class="ff-column ff-select-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-entangle="@entangle(${escapeHtml(name)})"><select$extra x-on:change="${'$'}wire.${'$'}call('setColumn', '${escapeHtml(key)}', '${escapeHtml(name)}', ${'$'}event.target.value)">$tags</select></div>"""
+        return """<div class="ff-column ff-select-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})"${docsExtra(cell)}><select$extra x-on:change="${'$'}wire.${'$'}call('setColumn', '${escapeHtml(key)}', '${escapeHtml(name)}', ${'$'}event.target.value)">$tags</select></div>"""
     }
 
     private fun resolved(cell: Cell): Map<String, String> {

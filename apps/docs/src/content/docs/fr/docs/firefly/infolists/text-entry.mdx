@@ -1,0 +1,160 @@
+---
+title: Text entry
+description: "Display plain text, badges, lists, money, dates, markdown, or trusted HTML in a Firefly infolist."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`TextEntry` is the default way to show a string, number, date, or list on a view page. It inherits every helper on [Entry](/docs/firefly/infolists/#helpers-on-every-entry) (`label`, `state`, `placeholder`, `url`, `copyable`, and the rest). Reach for it first; switch to icon, image, color, or code only when those shapes fit better.
+
+<FireflyShot file="infolist-text-entry.png" description="A text entry showing a name value with label and helper text." />
+
+## Make a text entry
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextEntry.make("title")
+    .label("Title")
+    .state("A short title")
+    .size("lg")
+    .weight("bold")
+    .fontFamily("sans")
+    .prose(true)
+    .lineClamp(3)
+    .limit(80)
+    .words(12)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry.make("title")
+    .label("Title")
+    .state("A short title")
+    .size("lg")
+    .weight("bold")
+    .fontFamily("sans")
+    .prose(true)
+    .lineClamp(3)
+    .limit(80)
+    .words(12);
+```
+
+</TabItem>
+</Tabs>
+
+Nested attributes use a dotted path (up to four levels): `TextEntry.make("project.name").label("Project")` reads `project.name` from filled state, a nested map, or the schema’s Cadence record. On a resource view (or manage View dialog), Firefly loads that relation onto the record and refills state so the entry is not blank.
+
+## Typography options
+
+| Method | Effect |
+|--------|--------|
+| `size` | `xs`, `sm`, `md`, `lg`, `xl` (aliases `small` → `sm`, `medium`/`base` → `md`, `large` → `lg`) |
+| `weight` | `thin`, `light`, `normal`, `medium`, `semibold`, `bold`, `extrabold` |
+| `fontFamily` | `sans`, `serif`, `mono` |
+| `prose(true)` | Prose styling flag on the text host |
+| `lineClamp(n)` | Clamp to `n` lines |
+| `limit(chars)` | Truncate plain text to that many characters |
+| `words(count)` | Truncate to that many words |
+
+## Badges and lists
+
+`badge(true)` paints each item as a chip. Collections can render as bullets (`bulleted(true)`), line breaks (`listWithLineBreaks(true)`), or a comma-separated string when neither is set.
+
+`limitList(n)` caps how many items show. With `expandableLimitedList(true)`, the extra items stay in the DOM marked `data-ff-extra`. Without that flag, the tail becomes `+N`.
+
+| Method | Effect |
+|--------|--------|
+| `badge` / `badge(true)` | Chip per item |
+| `bulleted(true)` | `<ul class="ff-bullets">` |
+| `listWithLineBreaks(true)` | One `.ff-text-item` per value |
+| `limitList(n)` | Cap visible items |
+| `expandableLimitedList(true)` | Keep extras in the DOM as `data-ff-extra` |
+
+<FireflyShot file="infolist-text-entry-badge.png" description="A text entry rendering status values as badges." />
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextEntry.make("tags")
+    .badge(true)
+    .bulleted(true)
+    .limitList(3)
+    .expandableLimitedList(true)
+    .state(listOf("alpha", "beta", "gamma", "delta"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry.make("tags")
+    .badge(true)
+    .bulleted(true)
+    .limitList(3)
+    .expandableLimitedList(true)
+    .state(List.of("alpha", "beta", "gamma", "delta"));
+```
+
+</TabItem>
+</Tabs>
+
+## Markdown and HTML
+
+`markdown(true)` renders a small Markdown subset (emphasis, code, links, and fenced blocks). **`html()`** (or `html(true)`) leaves the string as trusted HTML instead of escaping it — use only for content you control.
+
+## Dates, money, and numbers
+
+| Method | Effect |
+|--------|--------|
+| `date()` / `date(pattern)` | Human date (`MMMM d, yyyy`) or custom pattern |
+| `dateTime()` / `dateTime(pattern)` | Date + time (`MMMM d, yyyy, h:mm a`) |
+| `time()` / `time(pattern)` | Time (`HH:mm` by default) |
+| `since()` | Relative phrase against the current instant |
+| `timezone(zone)` | Zone id for temporal formatting |
+| `dateTooltip()` / `dateTooltip(pattern)` | `data-ff-date-tooltip` (default `yyyy-MM-dd`) |
+| `money` / `currency` | Currency style via `NumberFormat` |
+| `numeric()` / `numeric(decimals)` | Number formatting |
+| `formatStateUsing` | Replace the formatted text with the closure’s string |
+
+Instant, `LocalDateTime`, JDBC timestamps, epoch millis, and SQL-style strings (`2024-06-15 08:30:00`) all humanize. Entries named like `due_on` or `created_at` humanize even without `.date()` / `.dateTime()`.
+
+`money()` / `currency("USD")` formats with currency style. `money("EUR")` or `currency("KES", "en-KE", 0)` selects the code, locale, and precision.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextEntry.make("created_at").dateTime()
+TextEntry.make("price").money("USD")
+TextEntry.make("score").numeric(1)
+TextEntry.make("label").formatStateUsing { get -> get.get("label").toString().uppercase() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextEntry.make("created_at").dateTime();
+TextEntry.make("price").money("USD");
+TextEntry.make("score").numeric(1);
+TextEntry.make("label").formatStateUsing(get -> get.get("label").toString().toUpperCase());
+```
+
+</TabItem>
+</Tabs>
+
+## Defaults for every make
+
+`TextEntry.configureUsing { entry -> entry.size("sm") }` runs for every later `make()`. Pass `null` to clear it.
+
+## See also
+
+- [Infolists overview](/docs/firefly/infolists/) for shared helpers and layout
+- [Icon entry](/docs/firefly/infolists/icon-entry/)
+- [Code entry](/docs/firefly/infolists/code-entry/)

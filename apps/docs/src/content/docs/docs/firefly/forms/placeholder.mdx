@@ -1,0 +1,94 @@
+---
+title: Placeholder
+description: "Read-only Placeholder content that does not dehydrate by default."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Placeholder` shows static or computed text in the form layout. It is not an editable control. `make` sets `saved(false)` so the value is not written on dehydrate unless you call `saved(true)`.
+
+<FireflyShot file="form-placeholder.png" description="Placeholder hint field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Placeholder.make("hint")
+    .label("Note")
+    .content("Thanks for registering")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Placeholder.make("hint")
+    .label("Note")
+    .content("Thanks for registering");
+```
+
+</TabItem>
+</Tabs>
+
+The body is a `.ff-placeholder` div. Content is HTML-escaped.
+
+## Content
+
+| Method | Effect |
+|--------|--------|
+| `content(String)` | Fixed text |
+| `content(Function<Get, String>)` | Computed from form state via `Get` |
+| `saved(true)` | Turn dehydration back on (`saved` aliases `dehydrated`) |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Placeholder.make("greet")
+    .label("Greeting")
+    .content {{ get -> "Hello, " + (get.get("name") ?: "guest") }}
+
+Placeholder.make("summary")
+    .content {{ get ->
+        val count = get.get("items")
+        "You have $count items"
+    }}
+    .saved(true)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Placeholder.make("greet")
+    .label("Greeting")
+    .content(get -> "Hello, " + Objects.toString(get.get("name"), "guest"));
+
+Placeholder.make("summary")
+    .content(get -> "You have " + get.get("items") + " items")
+    .saved(true);
+```
+
+</TabItem>
+</Tabs>
+
+Use a closure when the copy depends on other field state (for example after `live()` updates on a sibling). Prefer [`Hidden`](/docs/firefly/forms/hidden/) when the value must post without visible chrome.
+
+## Dehydration
+
+`make` calls `saved(false)` before the configure pipeline, so placeholders skip dehydrate by default. A field-level `configureUsing` (or a later `saved(true)` on the instance) can turn dehydration back on — `saved` is an alias of `dehydrated`.
+
+`kind()` is `"placeholder"`. The control ignores the schema value for display — only `content(...)` is painted.
+
+## Configure defaults
+
+`Placeholder.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Hidden](/docs/firefly/forms/hidden/)
+- [Text input](/docs/firefly/forms/text-input/)
