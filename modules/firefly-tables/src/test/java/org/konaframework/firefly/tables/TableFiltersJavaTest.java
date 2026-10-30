@@ -96,6 +96,11 @@ public class TableFiltersJavaTest {
         TernaryFilter defaulted = TernaryFilter.make("d").defaultState().query((query, value) -> { }).queryUsing((query, data) -> { });
         assertTrue(defaulted.isActive(FilterData.single("true")));
 
+        TextConstraint named = TextConstraint.make("name").insensitive().operators(
+            new ConstraintOperator("contains", "contains", "does not contain"),
+            new ConstraintOperator("soundex", "sounds like", "does not sound like", true,
+                (query, store, rule, column) -> store.constrain(query, column, "like", "%" + rule.value() + "%"))
+        );
         QueryBuilderFilter rules = QueryBuilderFilter.make("rules")
             .label("Rules")
             .indicator("Rules on")
@@ -104,18 +109,25 @@ public class TableFiltersJavaTest {
             .columnSpanFull()
             .visible(true)
             .hidden(false)
+            .constraintPickerWidth("16rem")
             .constraints(
-                TextConstraint.make("name"),
+                named,
                 NumberConstraint.make("score"),
                 BooleanConstraint.make("active"),
                 SelectConstraint.make("status").label("Status").attribute("status").options(Map.of("open", "Open")).multiple(),
                 RelationshipConstraint.make("team").label("Team").titleAttribute("name").multiple().optionsLimit(10)
             );
         assertEquals(5, rules.constraints().size());
+        assertEquals(2, named.operators().size());
         assertEquals("is", new ConstraintOperator("is", "is", "is not").getLabel());
 
+        SelectFilter custom = SelectFilter.make("who").attribute("name").searchable()
+            .getSearchResultsUsing((search, cell) -> Map.of("Ada", "Ada Lovelace"))
+            .getOptionLabelUsing((key, cell) -> "Ada Lovelace");
+        assertEquals(Map.of("Ada", "Ada Lovelace"), custom.options(none, null, "a", null));
+
         Table<Map<String, Object>, MemoryQuery> table = table()
-            .filters(FiltersLayout.ABOVE_CONTENT_COLLAPSIBLE, status, active, rules)
+            .filters(FiltersLayout.ABOVE_CONTENT_COLLAPSIBLE, status, active, rules, custom)
             .filtersFormColumns(2)
             .filtersFormWidth("2xl")
             .filtersFormMaxHeight("30rem")
@@ -140,6 +152,12 @@ public class TableFiltersJavaTest {
         assertTrue(html.contains("data-ff-filters-layout=\"collapsible\""), html);
         assertTrue(html.contains("Refine"));
         assertTrue(table.filterSet().persistsInSession());
+        table.queryStringIdentifier("orders");
+        assertEquals("orders", table.queryStringIdentifier());
+        assertEquals("ordersFilters", table.filterSet().queryPrefix());
+        table.applyFilterQuery(Map.of("ordersFilters", "1", "ordersFilters.active", "false"));
+        assertEquals("1", table.filterQuery().get("ordersFilters"));
+        assertTrue(table.render().contains("data-ff-filters-prefix=\"ordersFilters\""));
         table.resetFilters();
         assertTrue(table.filterQuery().isEmpty());
         table.filtersLayout(FiltersLayout.DROPDOWN).hiddenFilterIndicators().deselectAllRecordsWhenFiltered(false).deferFilters(false);

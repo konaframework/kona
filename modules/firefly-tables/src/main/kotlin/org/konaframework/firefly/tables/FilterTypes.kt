@@ -23,6 +23,8 @@ open class SelectFilter protected constructor(name: String) : Filter(name) {
     private var relationModify: Consumer<Any>? = null
     private var emptyOptionFlag = false
     private var emptyOptionLabel = "None"
+    private var searchResultsUsing: java.util.function.BiFunction<String, Cell, Map<String, String>>? = null
+    private var optionLabelUsing: java.util.function.BiFunction<String, Cell, String?>? = null
 
     @JvmOverloads
     fun multiple(on: Boolean = true): SelectFilter = apply { multipleFlag = on }
@@ -67,6 +69,18 @@ open class SelectFilter protected constructor(name: String) : Filter(name) {
         emptyOptionLabel = label
         emptyOptionFlag = true
     }
+
+    /**
+     * Options from neither a static map nor a [relationship] (Filament `getSearchResultsUsing`).
+     * Receives the search string and table [Cell]; pair with [searchable] so the combobox
+     * hits `form-options`. [getOptionLabelUsing] labels selected keys that are not in the search page.
+     */
+    fun getSearchResultsUsing(hook: java.util.function.BiFunction<String, Cell, Map<String, String>>): SelectFilter =
+        apply { searchResultsUsing = hook }
+
+    /** Label for a selected option key when it is not in the current search results. */
+    fun getOptionLabelUsing(hook: java.util.function.BiFunction<String, Cell, String?>): SelectFilter =
+        apply { optionLabelUsing = hook }
 
     // Covariant setters so `SelectFilter.make(...).label(...).<SelectFilter setter>()` chains.
     override fun label(value: String): SelectFilter = apply { super.label(value) }
@@ -155,9 +169,13 @@ open class SelectFilter protected constructor(name: String) : Filter(name) {
         }
     }
 
-    /** Options shown in the dropdown (static, or loaded from the relationship through [store]). */
+    /** Options shown in the dropdown (static, relationship, or [getSearchResultsUsing]). */
     @JvmOverloads
     fun options(cell: Cell, store: RecordStore<*, *>?, search: String? = null, keys: Collection<String>? = null): Map<String, String> {
+        val searchHook = searchResultsUsing
+        if (searchHook != null) {
+            return customOptions(cell, search.orEmpty(), keys)
+        }
         val relation = relationName
         val base: Map<String, String> = if (relation == null || store == null) {
             val all = resolvedOptions(cell)
@@ -173,6 +191,27 @@ open class SelectFilter protected constructor(name: String) : Filter(name) {
         val out = LinkedHashMap<String, String>()
         out[EMPTY] = emptyOptionLabel
         out.putAll(base)
+        return out
+    }
+
+    private fun customOptions(cell: Cell, search: String, keys: Collection<String>?): Map<String, String> {
+        val found = LinkedHashMap(searchResultsUsing!!.apply(search, cell))
+        if (keys != null) {
+            val labels = optionLabelUsing
+            val out = LinkedHashMap<String, String>()
+            for (key in keys) {
+                if (key == EMPTY) {
+                    out[EMPTY] = emptyOptionLabel
+                    continue
+                }
+                out[key] = found[key] ?: labels?.apply(key, cell) ?: key
+            }
+            return out
+        }
+        if (!emptyOptionFlag) return found
+        val out = LinkedHashMap<String, String>()
+        out[EMPTY] = emptyOptionLabel
+        out.putAll(found)
         return out
     }
 
@@ -192,8 +231,11 @@ open class SelectFilter protected constructor(name: String) : Filter(name) {
         val placeholder = field.placeholderText ?: placeholderText ?: if (multipleFlag) "Select options" else "All"
         val extra = inputExtrasMarkup(cell) + extraAttributes(field)
         val name = escapeHtml(context.inputName())
-        val remote = relationName != null && searchableFlag && context.store != null
-        val choices = if (relationName != null && !preloadFlag && searchableFlag) {
+        val customRemote = searchResultsUsing != null && searchableFlag
+        val relationRemote = relationName != null && searchableFlag && context.store != null
+        val remote = customRemote || relationRemote
+        val lazyChoices = (relationName != null || searchResultsUsing != null) && !preloadFlag && searchableFlag
+        val choices = if (lazyChoices) {
             if (selected.isEmpty()) emptyMap() else options(cell, context.store, keys = selected - EMPTY)
         } else {
             options(cell, context.store)
@@ -210,7 +252,8 @@ open class SelectFilter protected constructor(name: String) : Filter(name) {
             multiple = multipleFlag,
             searchable = searchableFlag,
             allowClear = selectablePlaceholderFlag && !multipleFlag,
-            remoteRelation = if (remote) relationName else null,
+            remoteRelation = if (relationRemote) relationName else null,
+            remote = remote,
             extra = extra,
         )
     }
@@ -479,14 +522,19 @@ internal object FilterSelectMarkup {
         searchable: Boolean,
         allowClear: Boolean,
         remoteRelation: String?,
+        remote: Boolean,
         extra: String,
     ): String = buildString {
         val stored = selected.joinToString(",")
         val display = if (multiple) "" else selected.firstOrNull()?.let { choices[it] ?: it }.orEmpty()
-        val remote = remoteRelation?.let { """ data-ff-relationship="${escapeHtml(it)}"""" }.orEmpty()
+        val remoteAttr = when {
+            remoteRelation != null -> """ data-ff-relationship="${escapeHtml(remoteRelation)}""""
+            remote -> """ data-ff-remote="true""""
+            else -> ""
+        }
         val state = if (stored.isEmpty()) "" else """ data-ff-state="${escapeHtml(stored)}""""
         append(
-            """<div class="ff-combobox ff-filter-combobox" data-ff-combobox data-ff-path="$name" data-ff-searchable="$searchable" data-ff-multiple="$multiple" data-ff-preload="true" data-ff-empty="No results found" data-ff-searching="Searching" data-ff-debounce="300"$remote$state>""",
+            """<div class="ff-combobox ff-filter-combobox" data-ff-combobox data-ff-path="$name" data-ff-searchable="$searchable" data-ff-multiple="$multiple" data-ff-preload="true" data-ff-empty="No results found" data-ff-searching="Searching" data-ff-debounce="300"$remoteAttr$state>""",
         )
         append("""<div class="ff-combobox-field" data-ff-combobox-open>""")
         if (multiple) {

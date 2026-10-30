@@ -730,12 +730,20 @@ open class Panel {
         if (!record.isNullOrBlank()) state["record"] = record
         val relation = request.input("relation")
         if (!relation.isNullOrBlank()) state["relation"] = relation
-        // Table filters: `filters` (state marker / reset) and `filters.<name>[.<field>]`.
-        state["filterInput"] = request.all().filterKeys { it == "filters" || it.startsWith("filters.") }
+        // Table filters: `filters` / `{id}Filters` sentinels and `{prefix}.<name>[.<field>]` (#388).
+        state["filterInput"] = request.all().filterKeys { isFilterQueryKey(it) }
         val session = request.session()
         if (session != null) state["filterSession"] = session
         state.putAll(extras)
         return state
+    }
+
+    /** True for `filters` / `filters.*` and namespaced `{id}Filters` / `{id}Filters.*` (#388). */
+    private fun isFilterQueryKey(key: String): Boolean {
+        if (key == "filters" || key.startsWith("filters.")) return true
+        if (key.endsWith("Filters")) return true
+        val dot = key.indexOf("Filters.")
+        return dot > 0
     }
 
     /**

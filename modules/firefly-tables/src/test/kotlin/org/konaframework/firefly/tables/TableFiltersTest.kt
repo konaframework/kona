@@ -155,6 +155,56 @@ class TableFiltersTest {
         assertNull(status.relationshipName())
         assertThrows(FireflyException::class.java) { status.optionsLimit(0) }
 
+        val catalog = mapOf("Ada" to "Ada Lovelace", "Bea" to "Beatrice", "Cy" to "Cy")
+        val fromSearch = SelectFilter.make("who").attribute("name")
+            .searchable()
+            .getSearchResultsUsing { search, _ ->
+                catalog.filter { (key, label) ->
+                    search.isBlank() || key.contains(search, true) || label.contains(search, true)
+                }
+            }
+            .getOptionLabelUsing { key, _ -> catalog[key] }
+        val fromSearchTable = people(fromSearch)
+        assertEquals(mapOf("Ada" to "Ada Lovelace"), fromSearchTable.filterOptions("who", "Ada"))
+        fromSearchTable.filter("who", "Ada")
+        assertEquals(listOf("Ada"), names(fromSearchTable))
+        assertEquals("Who: Ada Lovelace", fromSearchTable.filterIndicators().single().label)
+        val fromSearchHtml = fromSearchTable.render()
+        assertTrue(fromSearchHtml.contains("""data-ff-remote="true""""), fromSearchHtml)
+        assertTrue(fromSearchHtml.contains("""data-ff-label="Ada Lovelace""""), fromSearchHtml)
+        // Lazy remote: selected labels resolve through getOptionLabelUsing without preloading the catalog.
+        assertTrue(
+            fromSearch.options(Cell { null }, null, keys = listOf("Ada", SelectFilter.EMPTY)).let {
+                it["Ada"] == "Ada Lovelace" && it[SelectFilter.EMPTY] == "None"
+            },
+        )
+        val withEmpty = SelectFilter.make("pick").hasEmptyOption().emptyRelationshipOptionLabel("Nobody")
+            .getSearchResultsUsing { _, _ -> catalog }
+        assertEquals("Nobody", withEmpty.options(Cell { null }, null)[SelectFilter.EMPTY])
+        assertEquals(catalog, withEmpty.options(Cell { null }, null).filterKeys { it != SelectFilter.EMPTY })
+        val unlabeled = SelectFilter.make("id").getSearchResultsUsing { _, _ -> emptyMap() }
+            .getOptionLabelUsing { _, _ -> null }
+        assertEquals(mapOf("missing" to "missing"), unlabeled.options(Cell { null }, null, keys = listOf("missing")))
+        val noLabelHook = SelectFilter.make("id2").getSearchResultsUsing { _, _ -> emptyMap() }
+        assertEquals(mapOf("missing" to "missing"), noLabelHook.options(Cell { null }, null, keys = listOf("missing")))
+        val labeled = SelectFilter.make("id3").getSearchResultsUsing { _, _ -> emptyMap() }
+            .getOptionLabelUsing { key, _ -> "L-$key" }
+        assertEquals(mapOf("missing" to "L-missing"), labeled.options(Cell { null }, null, keys = listOf("missing")))
+        assertEquals(mapOf("Ada" to "Ada Lovelace"), labeled.options(Cell { null }, null, keys = listOf("Ada")).let {
+            // key present in search results wins over the label hook
+            SelectFilter.make("id4").getSearchResultsUsing { _, _ -> catalog }
+                .getOptionLabelUsing { _, _ -> "ignored" }
+                .options(Cell { null }, null, keys = listOf("Ada"))
+        })
+        val lazyRemote = SelectFilter.make("lazy").attribute("name").searchable()
+            .getSearchResultsUsing { _, _ -> catalog }
+        assertFalse(people(lazyRemote).render().contains(">Ada Lovelace<"))
+        assertTrue(people(lazyRemote).render().contains("""data-ff-remote="true""""))
+        assertTrue(people(lazyRemote).filter("lazy", "Ada").render().contains("""data-ff-label="Ada Lovelace""""))
+        val preloaded = SelectFilter.make("ready").attribute("name").searchable().preload()
+            .getSearchResultsUsing { _, _ -> catalog }
+        assertTrue(people(preloaded).render().contains(">Ada Lovelace<"))
+
         val team = SelectFilter.make("team").relationship("team", "name").hasEmptyOption()
         val teams = people(team)
         assertEquals("team", team.relationshipName())
@@ -441,8 +491,14 @@ class TableFiltersTest {
 
     @Test
     fun queryBuilderInMemory() {
-        val builder = QueryBuilderFilter.make("query").label("Advanced").constraintPickerColumns(2).constraints(
-            TextConstraint.make("name"),
+        val builder = QueryBuilderFilter.make("query").label("Advanced").constraintPickerColumns(2).constraintPickerWidth("18rem").constraints(
+            TextConstraint.make("name").operators(
+                ConstraintOperator("contains", "contains", "does not contain"),
+                ConstraintOperator("equals", "equals", "does not equal"),
+                ConstraintOperator("soundex", "sounds like", "does not sound like") { query, store, rule, column ->
+                    store.constrain(query, column, "like", "%${rule.value().orEmpty()}%")
+                },
+            ),
             NumberConstraint.make("score"),
             DateConstraint.make("joined"),
             BooleanConstraint.make("active"),
@@ -451,10 +507,14 @@ class TableFiltersTest {
         )
         assertEquals(6, builder.constraints().size)
         assertThrows(FireflyException::class.java) { builder.constraintPickerColumns(0) }
+        assertThrows(FireflyException::class.java) { builder.constraintPickerWidth("wide") }
+        assertThrows(FireflyException::class.java) { TextConstraint.make("n").operators(*emptyArray()) }
         assertThrows(FireflyException::class.java) { RelationshipConstraint.make("team").optionsLimit(0) }
         val table = people(builder)
         val empty = table.render()
         assertTrue(empty.contains("data-ff-qb-picker-columns=\"2\""), empty)
+        assertTrue(empty.contains("--ff-qb-picker-width: 18rem"), empty)
+        assertTrue(empty.contains("""value="soundex""""), empty)
         assertTrue(empty.contains("data-ff-qb-group-template"))
         assertTrue(empty.contains("""<option value="state">State</option>"""))
         assertTrue(empty.contains("""data-ff-qb-novalue="true""""))
@@ -463,6 +523,17 @@ class TableFiltersTest {
             return names(table)
         }
         assertEquals(listOf("Bea", "Dee"), run("name:contains:e"))
+        assertEquals(listOf("Ada"), run("name:soundex:Ada"))
+        val store = MemoryRecordStore(listOf(mapOf("name" to "Ada")))
+        @Suppress("UNCHECKED_CAST")
+        val typed = store as RecordStore<Any?, Any?>
+        // Unknown / hookless custom keys are ignored by apply.
+        builder.constraints().first { it.name == "name" }
+            .apply(store.query(), typed, QueryRule("name", "missing", false, listOf("x")))
+        TextConstraint.make("name").operators(
+            ConstraintOperator("contains", "contains", "does not contain"),
+            ConstraintOperator("noop", "noop", "not"),
+        ).apply(store.query(), typed, QueryRule("name", "noop", false, listOf("x")))
         assertEquals(listOf("Bea", "Cy"), run("score:isMin:40"))
         assertEquals(listOf("Ada", "Bea"), run("joined:isYear:2024"))
         assertEquals(listOf("Ada", "Dee"), run("active:isTrue:"))
@@ -479,12 +550,39 @@ class TableFiltersTest {
         assertTrue(html.contains("""data-ff-qb-constraint="name""""), html)
         assertTrue(html.contains("""value="a b,c""""))
         assertTrue(html.contains("""<option value="!isTrue" data-ff-qb-novalue="true" selected>is false</option>"""))
-        assertEquals("Advanced: Name contains a b,c or Active is false", table.filterIndicators().single().let { "Advanced: " + it.label })
+        assertEquals(
+            listOf("Name contains a b,c", "Active is false"),
+            table.filterIndicators().map { it.label },
+        )
+        table.removeFilterFields("query", "__qb:0:0")
+        assertEquals(listOf("Active is false"), table.filterIndicators().map { it.label })
+        table.removeFilterFields("query", "__qb:0:0")
+        assertTrue(table.filterIndicators().isEmpty())
+        table.applyFilterQuery(mapOf("filters" to "1", "filters.query" to "name:contains:a"))
+        // Non-qb / malformed rule coordinates fall through or are ignored.
+        table.removeFilterFields("query", "ghost", "__qb:0", "__qb:x:0", "__qb:0:x", "__other:0:0")
+        assertEquals(listOf("Name contains a"), table.filterIndicators().map { it.label })
         assertEquals("a b,c", QueryRule("name", "contains", false, listOf("a b,c")).value())
         assertNull(QueryRule("active", "isTrue", false, emptyList()).value())
         val overridden = people(QueryBuilderFilter.make("q").constraints(TextConstraint.make("name")).indicator("Custom rules"))
         overridden.applyFilterQuery(mapOf("filters" to "1", "filters.q" to "name:contains:a"))
         assertEquals("Custom rules", overridden.filterIndicators().single().label)
+        val text = TextConstraint.make("name").label("Name").attribute("name").insensitive()
+        val insensitive = people(QueryBuilderFilter.make("q").constraints(text))
+        insensitive.applyFilterQuery(mapOf("filters" to "1", "filters.q" to "name:contains:ADA"))
+        assertEquals(listOf("Ada"), names(insensitive))
+        insensitive.applyFilterQuery(mapOf("filters" to "1", "filters.q" to "name:equals:ada"))
+        assertEquals(listOf("Ada"), names(insensitive))
+        insensitive.applyFilterQuery(mapOf("filters" to "1", "filters.q" to "name:!contains:z"))
+        assertEquals(listOf("Ada", "Bea", "Cy", "Dee"), names(insensitive))
+        assertEquals(
+            listOf("Ada"),
+            MemoryQuery(listOf(mapOf("name" to "Ada"))).where("name", "ilike", "ada").get().map { it["name"] },
+        )
+        assertEquals(
+            emptyList<String>(),
+            MemoryQuery(listOf(mapOf("name" to "Ada"))).where("name", "not ilike", "ada").get().map { it["name"] as String },
+        )
         val described = SelectConstraint.make("status").options(mapOf("open" to "Open"))
         assertEquals("Status is Open, x", described.describe(null, QueryRule("status", "is", false, listOf("open", "x"))))
         assertEquals("Status", described.describe(null, QueryRule("status", "nope", false, emptyList())))
@@ -505,6 +603,43 @@ class TableFiltersTest {
         table.call("applyFilter", "status", "draft")
         assertEquals(listOf("Bea"), names(table))
         assertEquals(FilterData.single("draft"), table.filterData("status"))
+    }
+
+    @Test
+    fun queryStringIdentifierNamespacesFilterKeys() {
+        val left = people(SelectFilter.make("status").options(mapOf("open" to "Open", "shut" to "Shut")))
+            .queryStringIdentifier("orders")
+        val right = people(SelectFilter.make("status").options(mapOf("open" to "Open", "shut" to "Shut")))
+            .queryStringIdentifier("archive")
+        assertEquals("orders", left.queryStringIdentifier())
+        assertEquals("ordersFilters", left.filterSet().queryPrefix())
+        assertTrue(left.applyFilterQuery(mapOf("ordersFilters" to "1", "ordersFilters.status" to "open")))
+        assertFalse(left.applyFilterQuery(mapOf("filters" to "1", "filters.status" to "shut")))
+        assertEquals(mapOf("ordersFilters" to "1", "ordersFilters.status" to "open"), left.filterQuery())
+        assertEquals(listOf("Ada", "Cy"), names(left))
+        // Shared page query: each table only applies its own prefix.
+        val shared = mapOf(
+            "ordersFilters" to "1",
+            "ordersFilters.status" to "open",
+            "archiveFilters" to "1",
+            "archiveFilters.status" to "shut",
+        )
+        assertTrue(left.applyFilterQuery(shared))
+        assertTrue(right.applyFilterQuery(shared))
+        assertEquals(listOf("Ada", "Cy"), names(left))
+        assertEquals(listOf("Dee"), names(right))
+        val html = left.render()
+        assertTrue(html.contains("""data-ff-filters-prefix="ordersFilters""""), html)
+        assertTrue(html.contains("""name="ordersFilters.status""""), html)
+        assertFalse(html.contains("""name="filters.status""""), html)
+        assertThrows(FireflyException::class.java) { people().queryStringIdentifier("1bad") }
+        assertThrows(FireflyException::class.java) { people().queryStringIdentifier("bad-id") }
+        people().queryStringIdentifier("orders").queryStringIdentifier("")
+        assertNull(people().queryStringIdentifier("x").queryStringIdentifier("").queryStringIdentifier())
+        assertEquals(
+            "ordersFilters.x.min",
+            FilterRenderContext(Cell { null }, FilterData.single(null), null, "x", "ordersFilters").inputName("min"),
+        )
     }
 }
 

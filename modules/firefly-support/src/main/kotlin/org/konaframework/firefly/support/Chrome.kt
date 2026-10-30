@@ -353,7 +353,7 @@ class DefaultLayout(
                 "if(empty)empty.textContent=c.getAttribute('data-ff-empty')||'No results found';renderComboboxOptions(c,items);})" +
                 ".catch(function(){if(String(seq)!==c.getAttribute('data-ff-search-seq'))return;" +
                 "if(empty){empty.textContent=c.getAttribute('data-ff-empty')||'No results found';empty.removeAttribute('hidden');}if(list){list.innerHTML='';list.style.display='none';}});}" +
-                "function filterCombobox(c,query){if(c.getAttribute('data-ff-relationship')||c.getAttribute('data-ff-search-url')){remoteFilterCombobox(c,query);return;}" +
+                "function filterCombobox(c,query){if(c.getAttribute('data-ff-relationship')||c.getAttribute('data-ff-search-url')||c.getAttribute('data-ff-remote')==='true'){remoteFilterCombobox(c,query);return;}" +
                 "var needle=(query||'').toLowerCase();var any=false;" +
                 "c.querySelectorAll('.ff-option').forEach(function(li){var label=(li.getAttribute('data-ff-label')||'').toLowerCase();" +
                 "var value=(li.getAttribute('data-ff-value')||'').toLowerCase();" +

@@ -45,6 +45,11 @@ class FireflyFormsWidgetMarkupTest {
         assertTrue(week.contains("ff-picker-weeknum"))
         assertTrue(week.contains("Select week"))
         assertTrue(week.contains("""value="Week 14, 2026""""))
+        // Lead spacer before weekday labels so headers align with weeknum + 7 days (#427).
+        assertTrue(
+            week.contains("""ff-picker-weekdays-weeks" data-ff-picker-weekdays><span aria-hidden="true"></span>"""),
+            week,
+        )
         // Full Mon–Sun row highlighted, not a single day (#422).
         assertEquals(7, Regex("""ff-week-selected ff-day-selected""").findAll(week).count())
         assertTrue(week.contains("ff-week-start"))

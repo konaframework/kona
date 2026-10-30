@@ -1212,7 +1212,7 @@ body.ff-body-root {
   color: #f87171;
 }
 
-/* Input group: currency/prefix + suffix affixes (#410). */
+/* Input group: currency/prefix + suffix affixes (#410, #426). */
 .ff-panel .ff-control {
   position: relative;
   display: flex;
@@ -1233,11 +1233,14 @@ body.ff-body-root {
   width: auto;
 }
 
+/* Join prefix/input/suffix as one continuous control: drop adjacent borders + outer radii. */
 .ff-panel .ff-control.has-prefix > .ff-input,
 .ff-panel .ff-control.has-prefix > input.ff-input,
 .ff-panel .ff-control.has-prefix > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-prefix > .ff-input-group > input,
 .ff-panel .ff-control.has-prefix > select.ff-input,
 .ff-panel .ff-control.has-prefix > textarea.ff-input {
+  border-left: 0;
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
@@ -1245,8 +1248,10 @@ body.ff-body-root {
 .ff-panel .ff-control.has-suffix > .ff-input,
 .ff-panel .ff-control.has-suffix > input.ff-input,
 .ff-panel .ff-control.has-suffix > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-suffix > .ff-input-group > input,
 .ff-panel .ff-control.has-suffix > select.ff-input,
 .ff-panel .ff-control.has-suffix > textarea.ff-input {
+  border-right: 0;
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -1255,15 +1260,18 @@ body.ff-body-root {
 .ff-panel .ff-suffix,
 .ff-panel .ff-prefix-icon,
 .ff-panel .ff-suffix-icon {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
+  min-height: 2.4rem;
   padding: 0 0.75rem;
   border: 1px solid var(--ff-card-border);
   background: color-mix(in srgb, var(--ff-shell) 65%, var(--ff-card));
   color: var(--ff-body-subtle);
   font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -1271,15 +1279,59 @@ body.ff-body-root {
 .ff-panel .ff-control.has-prefix > .ff-prefix,
 .ff-panel .ff-control.has-prefix > .ff-prefix-icon {
   border-right: 0;
-  border-top-left-radius: var(--ff-radius);
-  border-bottom-left-radius: var(--ff-radius);
+  border-radius: var(--ff-radius) 0 0 var(--ff-radius);
 }
 
 .ff-panel .ff-control.has-suffix > .ff-suffix,
 .ff-panel .ff-control.has-suffix > .ff-suffix-icon {
   border-left: 0;
-  border-top-right-radius: var(--ff-radius);
-  border-bottom-right-radius: var(--ff-radius);
+  border-radius: 0 var(--ff-radius) var(--ff-radius) 0;
+}
+
+/* Password reveal / copy sit before an external text suffix — keep the join square. */
+.ff-panel .ff-control.has-suffix > .ff-input-group > .ff-input-action:last-child {
+  border-right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Focus ring wraps the whole affixed control, not only the input segment. */
+.ff-panel .ff-control.has-prefix:focus-within > .ff-prefix,
+.ff-panel .ff-control.has-prefix:focus-within > .ff-prefix-icon,
+.ff-panel .ff-control.has-suffix:focus-within > .ff-suffix,
+.ff-panel .ff-control.has-suffix:focus-within > .ff-suffix-icon,
+.ff-panel .ff-control.has-prefix:focus-within > .ff-input,
+.ff-panel .ff-control.has-prefix:focus-within > input.ff-input,
+.ff-panel .ff-control.has-prefix:focus-within > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-prefix:focus-within > select.ff-input,
+.ff-panel .ff-control.has-prefix:focus-within > textarea.ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > .ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > input.ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > select.ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > textarea.ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > .ff-input-group > .ff-input-action,
+.ff-panel .ff-control.has-prefix:focus-within > .ff-input-group > .ff-input-action {
+  border-color: color-mix(in srgb, var(--ff-primary) 55%, var(--ff-card-border));
+}
+
+.ff-panel .ff-control.has-prefix:focus-within > .ff-input,
+.ff-panel .ff-control.has-prefix:focus-within > input.ff-input,
+.ff-panel .ff-control.has-prefix:focus-within > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > .ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > input.ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-prefix:focus-within > select.ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > select.ff-input,
+.ff-panel .ff-control.has-prefix:focus-within > textarea.ff-input,
+.ff-panel .ff-control.has-suffix:focus-within > textarea.ff-input {
+  box-shadow: none;
+}
+
+.ff-panel .ff-control.has-prefix:focus-within,
+.ff-panel .ff-control.has-suffix:focus-within {
+  border-radius: var(--ff-radius);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ff-primary) 22%, transparent);
 }
 
 .ff-panel .ff-prefix-icon,
@@ -1797,10 +1849,6 @@ body.ff-body-root {
   border-radius: 0 0.35rem 0.35rem 0;
 }
 
-.ff-panel .ff-picker-weekdays-weeks {
-  grid-template-columns: 1.75rem repeat(7, 1fr);
-}
-
 .ff-panel .ff-picker-ok {
   border: 0;
   border-radius: var(--ff-radius);
@@ -1853,7 +1901,11 @@ body.ff-body-root {
   gap: 0.1rem;
 }
 
-/* After base 7-col day grid — compound selectors so 4×3 / week layouts win (#420). */
+/* After base 7-col day grid — compound selectors so 4×3 / week layouts win (#420, #427). */
+.ff-panel .ff-picker-weekdays.ff-picker-weekdays-weeks {
+  grid-template-columns: 1.75rem repeat(7, 1fr);
+}
+
 .ff-panel .ff-picker-grid.ff-picker-grid-months,
 .ff-panel .ff-picker-grid.ff-picker-grid-years,
 .ff-panel .ff-picker-grid.ff-picker-grid-decades {
