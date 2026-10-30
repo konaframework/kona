@@ -142,6 +142,24 @@ class DefaultLayout(
                 "if(secs>0){var t=setTimeout(dismiss,secs*1000);el.addEventListener('mouseenter',function(){clearTimeout(t);}, {once:true});}" +
                 "});}" +
                 "armNotifications();" +
+                // TextInput.mask → data-ff-mask (Alpine/Filament tokens: 9 digit, a letter, * alnum) (#407).
+                "var maskSlots={'9':/[0-9]/,'a':/[a-zA-Z]/,'*':/[a-zA-Z0-9]/};" +
+                "function formatMask(template,input){if(!template)return input||'';var ti=0,ii=0,out='',raw=String(input||'');" +
+                "while(ti<template.length&&ii<raw.length){var tc=template.charAt(ti),ic=raw.charAt(ii),slot=maskSlots[tc];" +
+                "if(slot){if(slot.test(ic)){out+=ic;ti++;}ii++;}" +
+                "else{out+=tc;ti++;if(ic===tc)ii++;}}return out;}" +
+                "function applyMask(el,restoreCursor){if(!el)return;var template=el.getAttribute('data-ff-mask');if(!template)return;" +
+                "var prev=el.getAttribute('data-ff-mask-last');" +
+                "if(prev!=null&&prev.length-el.value.length===1){el.setAttribute('data-ff-mask-last',el.value);return;}" +
+                "var raw=el.value;var cursor=typeof el.selectionStart==='number'?el.selectionStart:raw.length;" +
+                "var before=raw.slice(0,cursor);var formatted=formatMask(template,raw);" +
+                "el.value=formatted;el.setAttribute('data-ff-mask-last',formatted);" +
+                "if(restoreCursor!==false&&el===document.activeElement){try{var pos=formatMask(template,before).length;el.setSelectionRange(pos,pos);}catch(e){}}}" +
+                "function armMasks(scope){(scope||root).querySelectorAll('[data-ff-mask]').forEach(function(el){" +
+                "if(el.getAttribute('data-ff-mask-armed')==='true')return;el.setAttribute('data-ff-mask-armed','true');applyMask(el,false);});}" +
+                "armMasks();" +
+                "document.addEventListener('input',function(ev){var el=ev.target;if(el&&el.matches&&el.matches('[data-ff-mask]'))applyMask(el,true);},true);" +
+                "document.addEventListener('focusout',function(ev){var el=ev.target;if(el&&el.matches&&el.matches('[data-ff-mask]'))applyMask(el,false);},true);" +
                 "document.addEventListener('click',function(ev){var t=ev.target;if(!t||!t.closest)return;" +
                 "var btn=t.closest('button');if(!btn||!isProcessingTrigger(btn))return;" +
                 "if(btn.type==='submit'||btn.getAttribute('type')==='submit'||btn.hasAttribute('form'))return;" +
@@ -213,7 +231,7 @@ class DefaultLayout(
                 "function openDialog(panel){if(!panel)return;closeDialogs();hoistDialogPanel(panel);" +
                 "panel.classList.add('ff-open');" +
                 "panel.removeAttribute('hidden');panel.style.display='block';panel.removeAttribute('aria-hidden');" +
-                "resetDialogDrag(panel);}" +
+                "resetDialogDrag(panel);armMasks(panel);}" +
                 "function toggleDialogExpand(win){if(!win)return;var on=!win.classList.contains('ff-dialog-expanded');" +
                 "win.classList.toggle('ff-dialog-expanded',on);setExpandIcon(win,on);" +
                 "if(on){win.style.position='fixed';win.style.margin='0';win.style.left='1rem';win.style.top='1rem';" +

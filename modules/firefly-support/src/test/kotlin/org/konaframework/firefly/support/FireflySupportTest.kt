@@ -489,6 +489,10 @@ class FireflySupportTest {
         assertTrue(html.contains("positionPicker"))
         assertTrue(html.contains("clearFloatingPanel"))
         assertTrue(html.contains("repositionFloating"))
+        assertTrue(html.contains("formatMask"))
+        assertTrue(html.contains("applyMask"))
+        assertTrue(html.contains("armMasks"))
+        assertTrue(html.contains("data-ff-mask"))
         assertTrue(html.contains("ff-row-action-menu"))
         assertTrue(html.contains(DefaultLayout.THEME_INIT_SCRIPT))
         // Dialog open/close without Alpine (Action / TableButton mounts).
