@@ -1,0 +1,44 @@
+---
+title: Color entry
+description: "Show CSS color values as swatches in a Firefly infolist."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ColorEntry` turns a color string (or a list of them) into swatches.
+
+<FireflyShot file="infolist-color-entry.png" description="A color entry showing a caramel swatch for brand ink." />
+
+## Make a color entry
+
+A CSS color (`#df8723`, `rgb(...)`, `hsl(...)`, or a plain name made of letters) becomes `background-color`. Anything else is marked `data-ff-invalid`. Empty state shows the shared `placeholder`.
+
+`copyable(true)` comes from the shared entry helper and sets `data-ff-copyable` on the colors host. Shared `url` wraps each swatch in a link.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ColorEntry.make("ink")
+    .label("Brand")
+    .copyable(true)
+    .state("#DF8723")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ColorEntry.make("ink")
+    .label("Brand")
+    .copyable(true)
+    .state("#DF8723");
+```
+
+</TabItem>
+</Tabs>
+
+`ColorEntry.configureUsing` applies defaults to every later `make()`. Pass `null` to clear it.
+
+See also [Infolists overview](/docs/firefly/infolists/).

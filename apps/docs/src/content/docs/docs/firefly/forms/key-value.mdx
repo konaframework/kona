@@ -1,0 +1,58 @@
+---
+title: Key value
+description: "KeyValue editor for string maps with add, delete, edit, and reorder rows."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`KeyValue` edits a map of strings. The field posts one JSON object. Each pair is a row with key and value inputs.
+
+<FireflyShot file="form-key-value.png" description="KeyValue meta field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+KeyValue.make("meta")
+    .label("Meta")
+    .keyLabel("Key")
+    .valueLabel("Value")
+    .addActionLabel("Add row")
+    .reorderable(true)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KeyValue.make("meta")
+    .label("Meta")
+    .keyLabel("Key")
+    .valueLabel("Value")
+    .addActionLabel("Add row")
+    .reorderable(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `keyLabel` / `valueLabel` | Header labels (string or `Get` closure) |
+| `keyPlaceholder` / `valuePlaceholder` | Input placeholders |
+| `addActionLabel` | Add-button label |
+| `addable` / `deletable` | Show add / remove (default true) |
+| `editableKeys` / `editableValues` | Readonly toggles (default true) |
+| `reorderable(on)` | Move up / down |
+| `pairs(raw)` | Decode stored JSON into pairs |
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Repeater](/docs/firefly/forms/repeater/)
+- [Builder](/docs/firefly/forms/builder/)

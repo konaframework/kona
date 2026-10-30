@@ -1,0 +1,58 @@
+---
+title: Toggle buttons
+description: "ToggleButtons segmented control for single or multiple choices with colors and icons."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ToggleButtons` renders a row (or stack) of button-styled choices. Single-select uses radio inputs; `multiple()` uses checkboxes and posts a JSON array.
+
+<FireflyShot file="form-toggle-buttons.png" description="ToggleButtons priority field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ToggleButtons.make("priority")
+    .label("Priority")
+    .options(mapOf("low" to "Low", "med" to "Medium", "high" to "High"))
+    .colors(mapOf("high" to "danger"))
+    .icons(mapOf("high" to "heroicon-m-exclamation-triangle"))
+    .grouped(true)
+    .inline()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ToggleButtons.make("priority")
+    .label("Priority")
+    .options(Map.of("low", "Low", "med", "Medium", "high", "High"))
+    .grouped(true)
+    .inline(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `options(Map)` / `options(Function)` | Choice map |
+| `colors(Map)` / `icons(Map)` | Per-value color / icon |
+| `inline()` / `inline(on)` | Horizontal layout (default true) |
+| `grouped(on)` | Joined button group (default true) |
+| `multiple()` / `multiple(on)` | Multi-select |
+| `boolean()` | Yes / No |
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Radio](/docs/firefly/forms/radio/)
+- [Toggle](/docs/firefly/forms/toggle/)
+- [Checkbox list](/docs/firefly/forms/checkbox-list/)

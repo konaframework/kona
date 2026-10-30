@@ -601,7 +601,11 @@ class FireflyTablesTest {
         assertTrue(TextColumn.make("name").visible(false).isHidden(Cell { null }))
 
         val icon = IconColumn.make("flag").trueIcon("user").falseIcon("x")
-        assertTrue(icon.render(mapOf("flag" to true), "1", Cell { null }).contains("ff-icon"))
+            .extraAttributes(mapOf("data-ff-docs" to "column-icon"))
+        val iconHtml = icon.render(mapOf("flag" to true), "1", Cell { null })
+        assertTrue(iconHtml.contains("ff-icon"))
+        assertTrue(iconHtml.contains("""data-ff-docs="column-icon""""), iconHtml)
+        assertTrue(iconHtml.contains("""data-ff-path="flag""""), iconHtml)
         assertTrue(icon.render(mapOf("flag" to false), "1", Cell { null }).contains("ff-icon"))
         assertTrue(icon.render(mapOf("flag" to "user"), "1", Cell { null }).contains("ff-icon"))
         assertFalse(icon.render(mapOf("flag" to null), "1", Cell { null }).contains("<svg"))
@@ -636,7 +640,10 @@ class FireflyTablesTest {
         assertTrue(iconOnly.render(mapOf("flag" to false), "1", Cell { null }).contains("ff-sr\">false"))
 
         val image = ImageColumn.make("photo").alt("Alt").imageHeight(10).imageWidth(12)
-        assertTrue(image.render(mapOf("photo" to "https://example.test/a.png"), "1", Cell { null }).contains("ff-image"))
+            .extraAttributes(mapOf("data-ff-docs" to "column-image"))
+        val imageHtml = image.render(mapOf("photo" to "https://example.test/a.png"), "1", Cell { null })
+        assertTrue(imageHtml.contains("ff-image"))
+        assertTrue(imageHtml.contains("""data-ff-docs="column-image""""), imageHtml)
         assertTrue(image.render(mapOf("photo" to "https://example.test/a.png"), "1", Cell { null }).contains("height=\"10\""))
         val bare = ImageColumn.make("photo").alt { "A" }
         val bareHtml = bare.render(mapOf("photo" to "https://example.test/a.png"), "1", Cell { null })
@@ -644,14 +651,21 @@ class FireflyTablesTest {
         assertFalse(bareHtml.contains("width="))
         assertTrue(ImageColumn.make("photo").render(mapOf("photo" to ""), "1", Cell { null }).contains("ff-image-column"))
 
-        assertTrue(ColorColumn.make("swatch").render(mapOf("swatch" to "#fff"), "1", Cell { null }).contains("ff-color"))
+        val colorHtml = ColorColumn.make("swatch").extraAttributes(mapOf("data-ff-docs" to "column-color"))
+            .render(mapOf("swatch" to "#fff"), "1", Cell { null })
+        assertTrue(colorHtml.contains("ff-color"))
+        assertTrue(colorHtml.contains("""data-ff-docs="column-color""""), colorHtml)
         assertFalse(ColorColumn.make("swatch").render(mapOf("swatch" to ""), "1", Cell { null }).contains("background:"))
 
-        val box = CheckboxColumn.make("on").extraInputAttributes(
-            mapOf("data-box" to "1", "" to "skip", "type" to "hidden", "name" to "x", "value" to "y"),
-        )
+        val box = CheckboxColumn.make("on").apply {
+            extraAttributes(mapOf("data-ff-docs" to "column-checkbox"))
+            extraInputAttributes(
+                mapOf("data-box" to "1", "" to "skip", "type" to "hidden", "name" to "x", "value" to "y"),
+            )
+        }
         val boxHtml = box.render(mapOf("on" to true), "1", Cell { null })
         assertTrue(boxHtml.contains("data-box=\"1\""))
+        assertTrue(boxHtml.contains("""data-ff-docs="column-checkbox""""), boxHtml)
         assertTrue(boxHtml.contains("\$wire.\$call('toggleColumn'"))
         assertTrue(boxHtml.contains("ff-checkbox-wrap"))
         val boxClosure = CheckboxColumn.make("on").extraInputAttributes { mapOf("data-box" to "2") }
@@ -665,13 +679,17 @@ class FireflyTablesTest {
         assertFalse(gated.isEditable(Cell { null }))
         assertTrue(CheckboxColumn.make("on").editable { true }.isEditable(Cell { null }))
 
-        val toggle = ToggleColumn.make("on")
-        assertTrue(toggle.render(mapOf("on" to true), "1", Cell { null }).contains("aria-pressed=\"true\""))
+        val toggle = ToggleColumn.make("on").extraAttributes(mapOf("data-ff-docs" to "column-toggle"))
+        val toggleHtml = toggle.render(mapOf("on" to true), "1", Cell { null })
+        assertTrue(toggleHtml.contains("aria-pressed=\"true\""))
+        assertTrue(toggleHtml.contains("""data-ff-docs="column-toggle""""), toggleHtml)
         assertTrue(toggle.render(mapOf("on" to true), "1", Cell { null }).contains("\$wire.\$call('toggleColumn'"))
         assertTrue(toggle.render(mapOf("on" to false), "1", Cell { null }).contains("aria-pressed=\"false\""))
 
-        val select = SelectColumn.make("status").options(mapOf("open" to "Open", "shut" to "Shut"))
-            .extraInputAttributes(mapOf("data-pick" to "1"))
+        val select = SelectColumn.make("status").options(mapOf("open" to "Open", "shut" to "Shut")).apply {
+            extraAttributes(mapOf("data-ff-docs" to "column-select"))
+            extraInputAttributes(mapOf("data-pick" to "1"))
+        }
         val selectClosure = SelectColumn.make("status").extraInputAttributes { mapOf("data-pick" to "2") }
         assertTrue(selectClosure.render(emptyMap(), "1", Cell { null }).contains("data-pick=\"2\""))
         val selectHtml = select.render(mapOf("status" to "open"), "1", Cell { null })

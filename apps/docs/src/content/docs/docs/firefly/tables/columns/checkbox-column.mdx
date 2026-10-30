@@ -1,0 +1,40 @@
+---
+title: Checkbox column
+description: "Bind a boolean attribute to an editable checkbox that persists through Wire."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`CheckboxColumn` renders a checkbox bound to the row attribute. Editable cells call Wire `toggleColumn` and persist immediately.
+
+<FireflyShot file="column-checkbox.png" description="A checkbox column for an active flag on each row." />
+
+## Editable gates
+
+By default the checkbox is editable. `.editable(false)` or `.editable { cell -> ... }` makes the cell readonly when the user cannot update the record. Disabled columns (`disabled()`) are never editable. `extraInputAttributes` merges onto the `<input>` (`type`, `name`, and `value` stay owned by the control).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CheckboxColumn.make("active")
+    .label("Active")
+    .editable { cell -> cell.get("/can_update") == true }
+    .extraInputAttributes(mapOf("aria-label" to "Active"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CheckboxColumn.make("active")
+    .label("Active")
+    .editable(cell -> Boolean.TRUE.equals(cell.get("/can_update")))
+    .extraInputAttributes(Map.of("aria-label", "Active"));
+```
+
+</TabItem>
+</Tabs>
+
+Truthy state (`Boolean`, non-zero numbers, `"1"` / `"true"` / `"yes"`) checks the box. See [Tables](/docs/firefly/tables/) for bulk selection checkboxes — those are separate from this column type.

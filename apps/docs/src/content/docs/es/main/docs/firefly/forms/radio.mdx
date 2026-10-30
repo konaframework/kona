@@ -1,0 +1,70 @@
+---
+title: Radio
+description: "Radio group for a single choice, with inline layout and boolean() helper."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Radio` posts one selected value from an options map.
+
+<FireflyShot file="form-radio.png" description="Radio channel field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Radio.make("channel")
+    .label("Channel")
+    .options(mapOf("email" to "Email", "sms" to "SMS"))
+    .descriptions(mapOf("sms" to "Carrier rates may apply"))
+    .inline()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Radio.make("channel")
+    .label("Channel")
+    .options(Map.of("email", "Email", "sms", "SMS"))
+    .inline(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `options(Map)` / `options(Function)` | Choice map |
+| `descriptions(Map)` | Secondary text |
+| `inline()` / `inline(on)` | Horizontal layout |
+| `boolean()` | Yes / No |
+| `disableOptionWhen` | Disable by value |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Radio.make("ok").boolean().required()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Radio.make("ok").boolean().required();
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Select](/docs/firefly/forms/select/)
+- [Toggle buttons](/docs/firefly/forms/toggle-buttons/)

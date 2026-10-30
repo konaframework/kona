@@ -1,0 +1,44 @@
+---
+title: Key-value entry
+description: "Render a map as a two-column table in a Firefly infolist."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`KeyValueEntry` expects a `Map` and paints it as a table with key and value columns.
+
+<FireflyShot file="infolist-key-value-entry.png" description="A key-value entry table with Field and Detail headers." />
+
+## Headers and empty state
+
+`keyLabel` and `valueLabel` rename the headers (defaults are `Key` and `Value`). `emptyMessage` is an alias of `placeholder` when the map is empty (default text `No values`). A null key is skipped. Non-map state renders as empty.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+KeyValueEntry.make("meta")
+    .keyLabel("Field")
+    .valueLabel("Detail")
+    .emptyMessage("Nothing yet")
+    .state(mapOf("city" to "Kona", "lane" to "north"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KeyValueEntry.make("meta")
+    .keyLabel("Field")
+    .valueLabel("Detail")
+    .emptyMessage("Nothing yet")
+    .state(Map.of("city", "Kona", "lane", "north"));
+```
+
+</TabItem>
+</Tabs>
+
+You see a table with the header **Field** / **Detail** and rows for each map entry. Values are stringified and escaped.
+
+See also [Infolists overview](/docs/firefly/infolists/).

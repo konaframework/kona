@@ -1,0 +1,70 @@
+---
+title: Color picker
+description: "ColorPicker with hex, rgb, or hsl format and swatch + text control."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ColorPicker` stores a color string. The UI is a swatch next to a text input. Format helpers set both the placeholder and the validation regex.
+
+<FireflyShot file="form-color-picker.png" description="ColorPicker color field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ColorPicker.make("color")
+    .label("Brand color")
+    .hex()
+    .required()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ColorPicker.make("color")
+    .label("Brand color")
+    .hex()
+    .required();
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `hex()` | `#RRGGBB` (default) |
+| `rgb()` | `rgb(r, g, b)` |
+| `hsl()` | `hsl(h, s%, l%)` |
+| `format()` | Current format name |
+| `normalize(raw)` | Returns the string if it matches the format, else null |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ColorPicker.make("ink").rgb()
+ColorPicker.make("wash").hsl()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ColorPicker.make("ink").rgb();
+ColorPicker.make("wash").hsl();
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Slider](/docs/firefly/forms/slider/)

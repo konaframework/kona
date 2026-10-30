@@ -1,0 +1,51 @@
+---
+title: Checkbox
+description: "Single Checkbox with inline layout and accepted() validation."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Checkbox` posts a boolean-like value (`1` when checked). Use it for agreements and simple on/off flags when a switch is not needed.
+
+<FireflyShot file="form-checkbox.png" description="Checkbox agree field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Checkbox.make("agree")
+    .label("I agree to the terms")
+    .accepted()
+    .required()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Checkbox.make("agree")
+    .label("I agree to the terms")
+    .accepted()
+    .required();
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `inline()` / `inline(on)` | Compact horizontal layout |
+| `accepted()` | Adds the `accepted` validation rule |
+
+Edit hydration treats common truthy JDBC / string values as checked.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Toggle](/docs/firefly/forms/toggle/)
+- [Checkbox list](/docs/firefly/forms/checkbox-list/)

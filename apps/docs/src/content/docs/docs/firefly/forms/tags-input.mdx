@@ -1,0 +1,59 @@
+---
+title: Tags input
+description: "TagsInput chip field with separator, suggestions, split keys, and reorder."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`TagsInput` edits a list of strings as chips. A hidden input posts the tags joined by the separator (`,` by default).
+
+<FireflyShot file="form-tags-input.png" description="TagsInput tags field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TagsInput.make("tags")
+    .label("Tags")
+    .suggestions("kona", "firefly", "panel")
+    .splitKeys("Enter", ",")
+    .reorderable(true)
+    .color("primary")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TagsInput.make("tags")
+    .label("Tags")
+    .suggestions("kona", "firefly", "panel")
+    .splitKeys("Enter", ",")
+    .reorderable(true)
+    .color("primary");
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `separator(value)` | Join / split character (non-empty) |
+| `suggestions(...)` | Datalist suggestions |
+| `splitKeys(...)` | Keys that commit a chip (default Enter) |
+| `reorderable(on)` | Drag / reorder chips |
+| `color(value)` | Chip color token |
+| `tags(raw)` | Parse a stored value into a `List<String>` |
+
+Type a tag and press a split key to add a chip. Each chip has a remove control; Backspace in an empty input removes the last chip.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Select](/docs/firefly/forms/select/)
+- [Checkbox list](/docs/firefly/forms/checkbox-list/)

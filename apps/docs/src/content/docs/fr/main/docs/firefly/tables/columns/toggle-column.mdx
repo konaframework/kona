@@ -1,0 +1,34 @@
+---
+title: Toggle column
+description: "Flip a boolean attribute with a pressable toggle that calls Wire toggleColumn."
+---
+
+import FireflyShot from '../../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ToggleColumn` renders a button with `aria-pressed` from the cell value. A click calls `$wire.$call('toggleColumn', key, name, next)`.
+
+<FireflyShot file="column-toggle.png" description="A toggle column flipping published state per row." />
+
+## Make a toggle column
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ToggleColumn.make("published")
+    .label("Published")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ToggleColumn.make("published")
+    .label("Published");
+```
+
+</TabItem>
+</Tabs>
+
+Truthy state presses the toggle on; a click sends the opposite `"true"` / `"false"` string. Prefer [Checkbox column](/docs/firefly/tables/columns/checkbox-column/) when you need an editable gate or extra input attributes.

@@ -1,0 +1,77 @@
+---
+title: Icon entry
+description: "Show an icon glyph or a boolean Yes/No pill from record state in a Firefly infolist."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`IconEntry` renders icons from state. Use a string icon name, or treat the value as a boolean and paint a Yes/No pill.
+
+<FireflyShot file="infolist-icon-entry.png" description="An icon entry showing a boolean Yes pill with a check mark." />
+
+## Icon from state
+
+When the state is a string, that string is the icon name. Known names (`home`, `bars`, `user`, `check`, `x`) render inline SVG; other names become `data-ff-icon`. You can also set `icon(...)` from the shared entry helpers.
+
+`size` accepts `xs`, `sm`, `md`, `lg`, `xl`. `listWithLineBreaks(true)` stacks multiple icons vertically.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+IconEntry.make("glyph")
+    .size("lg")
+    .state("user")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+IconEntry.make("glyph")
+    .size("lg")
+    .state("user");
+```
+
+</TabItem>
+</Tabs>
+
+## Boolean Yes / No
+
+`boolean()` (Kotlin) or `bool(true)` (Java) treats the state as a boolean. A truthy value uses the true icon (`check`, color `success`) and a false value uses the false icon (`x`, color `gray`) inside a Yes/No toggle pill (circular mark + visible label). Defaults are `trueLabel("Yes")` / `falseLabel("No")`; blank labels fall back to an icon-only circle.
+
+Truthy means `Boolean true`, a non-zero number, or the strings `"1"`, `"true"`, `"yes"` (case-insensitive).
+
+Kotlin prefers `boolean()`. Java uses `bool(true)` because `boolean` is a keyword.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+IconEntry.make("active")
+    .boolean()
+    .whenTrue("check", "success")
+    .whenFalse("x", "gray")
+    .trueLabel("On")
+    .falseLabel("Off")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+IconEntry.make("active")
+    .bool(true)
+    .whenTrue("check", "success")
+    .whenFalse("x", "gray")
+    .trueLabel("On")
+    .falseLabel("Off");
+```
+
+</TabItem>
+</Tabs>
+
+`whenTrue("check", "success")` and `whenFalse("x", "gray")` set both icon and color. Override one side with `trueIcon`, `falseIcon`, `trueColor`, and `falseColor` (string or `Function<Get, String>`). `hideTrueIcon()` and `hideFalseIcon()` omit that icon (the Yes/No label still shows). Shared `color` / `iconColor` on the entry override the boolean colors when set.
+
+See also [Infolists overview](/docs/firefly/infolists/).

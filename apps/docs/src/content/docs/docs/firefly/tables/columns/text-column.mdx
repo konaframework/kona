@@ -1,0 +1,69 @@
+---
+title: Text column
+description: "Show text, money, dates, badges, links, and custom formatting in a Firefly table."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`TextColumn` is the general-purpose column. It inherits search, sort, toggle, align, summarize, and the shared column helpers from [Tables](/docs/firefly/tables/).
+
+<FireflyShot file="column-text.png" description="A text column showing names in a notes list." />
+
+## Make a text column
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextColumn.make("name")
+    .label("Name")
+    .searchable()
+    .sortable()
+    .placeholder("—")
+    .limit(40)
+    .prefix("#")
+    .copyable()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextColumn.make("name")
+    .label("Name")
+    .searchable()
+    .sortable()
+    .placeholder("—")
+    .limit(40)
+    .prefix("#")
+    .copyable();
+```
+
+</TabItem>
+</Tabs>
+
+Headings default to a humanized attribute name (`published_at` → `Published At`). Override with `label(...)`. `description`, `tooltip`, `suffix`, `color`, `icon`, `url`, `openUrlInNewTab`, `width`, `html()`, and `badge()` are available on every text column. `formatStateUsing { state, cell -> ... }` replaces the formatted cell string.
+
+## Money and dates
+
+`money()` / `currency("USD")` formats with `NumberFormat` currency style (default USD, US locale, 2 fraction digits) and defaults alignment to `Align.END`. Pass a code, locale, and precision — for example `money("EUR")` or `currency("KES", "en-KE", 0)`. Non-numeric values stay as raw text.
+
+`date()` and `dateTime()` format a date, instant, or timestamp for people (`January 2, 2026` or `January 2, 2026, 3:45 PM`). Hover shows the raw value in a tooltip. Columns named like `due_on`, `start_date`, or `created_at` / `updated_at` humanize even without an explicit `.date()` / `.dateTime()` call.
+
+## Relationships
+
+Related titles use a dotted make path, up to four levels:
+
+```kotlin
+TextColumn.make("project.name").label("Project")
+TextColumn.make("owner.company.region.name").label("Region")
+```
+
+Cadence tables eager-load the relation path. You can still call `.relationship("project", "name")` on an FK column name. Mark those columns `searchable()` / `sortable()` the same way as local attributes.
+
+## Shared column flags
+
+`searchable()`, `sortable()`, `toggleable()`, `toggledHiddenByDefault()`, `hidden()`, `visible(false)`, `disabled()`, `align(Align.END)`, `grow(false)` inside a Split, and `summarize(Summary.SUM)` (also `COUNT`, `AVG`, `MIN`, `MAX`) work on text columns. See [Tables](/docs/firefly/tables/) for toolbar and summary behavior.
+
+Prefer [Badge column](/docs/firefly/tables/columns/badge-column/) when the cell is always a status chip.

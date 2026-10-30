@@ -1,0 +1,48 @@
+---
+title: Code entry
+description: "Display syntax-highlighted source with Shiki in a Firefly infolist."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`CodeEntry` sends the raw source and a grammar name to the browser. The entry is `data-ff-shiki="shiki"` and includes a JSON payload. The browser script calls Shiki `createHighlighter`, then `codeToHtml`.
+
+<FireflyShot file="infolist-code-entry.png" description="A code entry highlighting a short Kotlin snippet." />
+
+## Language and themes
+
+`language` is an alias of `grammar`. Light and dark themes default to `github-light` and `github-dark`. A string with no grammar uses `html`. A map or a list uses `json`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CodeEntry.make("snippet")
+    .language("kotlin")
+    .lightTheme("github-light")
+    .darkTheme("github-dark")
+    .state("val name = \"Ada\"")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CodeEntry.make("snippet")
+    .language("kotlin")
+    .lightTheme("github-light")
+    .darkTheme("github-dark")
+    .state("val name = \"Ada\"");
+```
+
+</TabItem>
+</Tabs>
+
+`jsonFlags` is passed to the JSON writer when state is a map or iterable: bit 1 tags hex, bit 64 leaves slashes unescaped when clear, and bit 128 pretty-prints.
+
+## Browser script
+
+`ShikiCode.source()` returns the browser script. `ShikiCode.manifest()` returns `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`. Load that script next to a Shiki build that exports `createHighlighter`. Call `highlightCodeEntry(root, shiki)` with the Shiki module.
+
+See also [Infolists overview](/docs/firefly/infolists/).

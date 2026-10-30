@@ -1,0 +1,79 @@
+---
+title: Repeatable entry
+description: "Repeat child entries for each map in a list, as cards or as a table."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`RepeatableEntry` repeats its child schema once per item. State may be one map or a list of maps. Empty maps and values that are not maps are skipped. A dotted child name is read from the current item.
+
+<FireflyShot file="infolist-repeatable-entry.png" description="A repeatable entry listing comment titles in a contained grid." />
+
+## Schema and layout
+
+`schema(...)` replaces the child components. `contained(true)` (default) wraps items. `grid(n)` lays items in that many columns. The default empty placeholder is `No items` (override with `placeholder`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RepeatableEntry.make("comments")
+    .contained(true)
+    .grid(2)
+    .schema(TextEntry.make("title"))
+    .state(listOf(mapOf("title" to "First"), mapOf("title" to "Second")))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+RepeatableEntry.make("comments")
+    .contained(true)
+    .grid(2)
+    .schema(TextEntry.make("title"))
+    .state(List.of(Map.of("title", "First"), Map.of("title", "Second")));
+```
+
+</TabItem>
+</Tabs>
+
+## Table mode
+
+`table(TableColumn.make("Title"), ...)` renders a table. Header labels come from each `TableColumn`. `hiddenHeaderLabel()` hides that header with the `ff-sr` class. Child schema components render in the cells in declaration order — one child per column.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RepeatableEntry.make("lines")
+    .table(
+        TableColumn.make("Title"),
+        TableColumn.make("Qty").hiddenHeaderLabel(),
+    )
+    .schema(
+        TextEntry.make("title"),
+        TextEntry.make("qty"),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+RepeatableEntry.make("lines")
+    .table(
+        TableColumn.make("Title"),
+        TableColumn.make("Qty").hiddenHeaderLabel()
+    )
+    .schema(
+        TextEntry.make("title"),
+        TextEntry.make("qty")
+    );
+```
+
+</TabItem>
+</Tabs>
+
+See also [Infolists overview](/docs/firefly/infolists/) and [Text entry](/docs/firefly/infolists/text-entry/).

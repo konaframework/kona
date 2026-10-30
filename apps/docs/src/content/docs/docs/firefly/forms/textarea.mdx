@@ -1,0 +1,88 @@
+---
+title: Textarea
+description: "Multi-line Textarea with rows, cols, autosize, and length validation."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A `Textarea` stores multi-line text. It shares the field chrome and `required()` chain with every other field.
+
+<FireflyShot file="form-textarea.png" description="Textarea bio field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val bio = Textarea.make("bio")
+    .label("Bio")
+    .rows(5)
+    .placeholder("A short introduction")
+    .required()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Textarea bio = Textarea.make("bio")
+    .label("Bio")
+    .rows(5)
+    .placeholder("A short introduction")
+    .required();
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `rows(count)` | Visible rows (minimum 1) |
+| `cols(count)` | Optional `cols` attribute (minimum 1) |
+| `autosize(on)` | Grows with content when true |
+| `minLength(value)` / `maxLength(value)` | Length rules |
+| `required()` / `required(on)` / `required(predicate)` | Same as the field base |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Textarea.make("notes")
+    .rows(4)
+    .cols(40)
+    .autosize(true)
+    .minLength(10)
+    .maxLength(2000)
+    .helperText("Shown on the public profile")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Textarea.make("notes")
+    .rows(4)
+    .cols(40)
+    .autosize(true)
+    .minLength(10)
+    .maxLength(2000)
+    .helperText("Shown on the public profile");
+```
+
+</TabItem>
+</Tabs>
+
+## Validation
+
+`minLength` and `maxLength` add `min:` / `max:` rules alongside `required` when set. Combine with `liveDebounce` when a preview should update while typing.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Text input](/docs/firefly/forms/text-input/)
+- [Markdown editor](/docs/firefly/forms/markdown-editor/)
+- [Rich editor](/docs/firefly/forms/rich-editor/)

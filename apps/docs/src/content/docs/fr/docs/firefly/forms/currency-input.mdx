@@ -1,0 +1,82 @@
+---
+title: Currency input
+description: "CurrencyInput alias and TextInput.currency for numeric money fields with a symbol prefix."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`CurrencyInput` is an alias that builds a `TextInput` already configured with `currency(...)`. The control is numeric, uses a step from the precision (default `0.01`), and adds a currency-symbol **prefix** when you have not set `prefix` or `prefixIcon`.
+
+<FireflyShot file="form-currency-input.png" description="CurrencyInput price field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val price = CurrencyInput.make("price", "USD")
+    .label("Price")
+    .required()
+
+// Same result:
+TextInput.make("price").currency("USD")
+TextInput.make("price").currency("KES", "en-KE", 2)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput price = CurrencyInput.make("price", "USD")
+    .label("Price")
+    .required();
+
+TextInput.make("price").currency("USD");
+TextInput.make("price").currency("KES", "en-KE", 2);
+```
+
+</TabItem>
+</Tabs>
+
+`CurrencyInput.make(name)` defaults the code to `"USD"`. `CurrencyInput.configureUsing` forwards to `TextInput.configureUsing`.
+
+## Options
+
+`currency(code, locale?, precision?)` on `TextInput`:
+
+- Rejects negative precision.
+- Sets `numeric()` and a step (`1` when precision is 0, otherwise `0.01` unless you already set `step`).
+- Stores currency options readable via `currencyOptions()`.
+- Affix chrome paints as a joined input group (`.ff-control.has-prefix`).
+
+You still have every `TextInput` method (`minValue`, `maxValue`, `step`, `required`, …).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CurrencyInput.make("fee", "EUR")
+    .minValue(0.0)
+    .maxValue(10_000.0)
+    .prefix("€") // your prefix wins over the auto symbol
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CurrencyInput.make("fee", "EUR")
+    .minValue(0.0)
+    .maxValue(10_000.0)
+    .prefix("€");
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Text input](/docs/firefly/forms/text-input/)

@@ -1,0 +1,55 @@
+---
+title: Markdown editor
+description: "MarkdownEditor with Write/Preview tabs, toolbar, and file attachments."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`MarkdownEditor` is a Write | Preview pair. Write is a textarea; Preview renders GitHub-flavored markdown into `.ff-prose` and sanitizes it.
+
+<FireflyShot file="form-markdown-editor.png" description="MarkdownEditor markdown field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+MarkdownEditor.make("markdown")
+    .label("Notes")
+    .toolbarButtons("heading", "bold", "italic", "link", "list")
+    .fileAttachmentsDisk("local")
+    .fileAttachmentsDirectory("md")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+MarkdownEditor.make("markdown")
+    .label("Notes")
+    .toolbarButtons("heading", "bold", "italic", "link", "list")
+    .fileAttachmentsDisk("local")
+    .fileAttachmentsDirectory("md");
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `toolbarButtons(...)` | Replace the tool list |
+| `disableToolbarButtons(...)` | Hide tools |
+| `fileAttachmentsDisk` / `fileAttachmentsDirectory` | Attachment storage |
+| `preview(source)` | Render markdown to HTML |
+
+Default tools: `heading`, `bold`, `italic`, `strike`, `quote`, `code`, `link`, `image`, `list`, `ordered`. Extra glyphs exist for `task` and `table` when you add them to the toolbar.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Rich editor](/docs/firefly/forms/rich-editor/)
+- [Code editor](/docs/firefly/forms/code-editor/)

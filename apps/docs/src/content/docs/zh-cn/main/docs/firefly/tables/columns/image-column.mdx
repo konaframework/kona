@@ -1,0 +1,45 @@
+---
+title: Image column
+description: "Show an image URL as an img tag in a Firefly table cell."
+---
+
+import FireflyShot from '../../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ImageColumn` reads a URL string from the row and renders `<img class="ff-image">`. An empty source renders an empty column shell.
+
+<FireflyShot file="column-image.png" description="An image column showing avatar thumbnails." />
+
+## Size and alt
+
+`alt(...)` sets the accessibility text (string or `Function<Cell, String>`). `imageHeight(pixels)` and `imageWidth(pixels)` set integer pixel attributes on the tag.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ImageColumn.make("avatar")
+    .label("Photo")
+    .alt { cell -> cell.get("name")?.toString() ?: "Avatar" }
+    .imageHeight(40)
+    .imageWidth(40)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ImageColumn.make("avatar")
+    .label("Photo")
+    .alt(cell -> {
+        Object name = cell.get("name");
+        return name == null ? "Avatar" : name.toString();
+    })
+    .imageHeight(40)
+    .imageWidth(40);
+```
+
+</TabItem>
+</Tabs>
+
+See [Tables](/docs/firefly/tables/) for search, sort, and layout options that apply to every column type.

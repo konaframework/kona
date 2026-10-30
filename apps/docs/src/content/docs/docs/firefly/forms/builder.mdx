@@ -1,0 +1,78 @@
+---
+title: Builder
+description: "Builder for typed block lists with a block picker menu."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Builder` edits a list of typed blocks. Each block has a name, label, and nested schema. Stored rows look like `{ "type", "data" }`.
+
+<FireflyShot file="form-builder.png" description="Builder blocks field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Builder.make("blocks")
+    .label("Blocks")
+    .blocks(
+        BuilderBlock(
+            "hero",
+            "Hero",
+            listOf(TextInput.make("title").label("Title").required()),
+        ),
+        BuilderBlock(
+            "quote",
+            "Quote",
+            listOf(Textarea.make("text").label("Text")),
+        ),
+    )
+    .blockNumbers(true)
+    .reorderable(true)
+    .cloneable(true)
+    .addActionLabel("Add block")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Builder.make("blocks")
+    .label("Blocks")
+    .blocks(
+        new BuilderBlock("hero", "Hero", List.of(
+            TextInput.make("title").label("Title").required()
+        )),
+        new BuilderBlock("quote", "Quote", List.of(
+            Textarea.make("text").label("Text")
+        ))
+    )
+    .blockNumbers(true)
+    .reorderable(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `blocks(BuilderBlock...)` | Available block types |
+| `addable` / `deletable` / `reorderable` / `cloneable` / `collapsible` | Item controls |
+| `blockNumbers(on)` | Prefix labels with index |
+| `minItems` / `maxItems` | Counts |
+| `addActionLabel` | Picker trigger label |
+| `addBetweenAction` | Action rendered between blocks |
+| `items` / `addBlock(schema, type)` | Read / append |
+
+The add control opens a menu of block labels. Picking one appends a card of that type.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Repeater](/docs/firefly/forms/repeater/)
+- [Rich editor](/docs/firefly/forms/rich-editor/)

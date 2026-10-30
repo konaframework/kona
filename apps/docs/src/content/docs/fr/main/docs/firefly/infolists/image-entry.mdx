@@ -1,0 +1,54 @@
+---
+title: Image entry
+description: "Render one or more images from URLs in a Firefly infolist, with size, shape, and stack options."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ImageEntry` renders `<img>` tags from string URLs (or a collection of them).
+
+<FireflyShot file="infolist-image-entry.png" description="An image entry showing a circular avatar." />
+
+## Size and shape
+
+`height` / `imageHeight` set height. `width` / `imageWidth` set width. `size` / `imageSize` set both. Pass an `Int` (pixels) or a CSS length string. `circular(true)` and `square(true)` add shape flags. `alt` sets the accessibility text. `defaultImageUrl` is used when state is blank. `extraImgAttributes` merges onto each `<img>`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ImageEntry.make("photo")
+    .circular(true)
+    .size(64)
+    .alt("Profile photo")
+    .defaultImageUrl("/images/avatar.png")
+    .state("/uploads/ada.png")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ImageEntry.make("photo")
+    .circular(true)
+    .size(64)
+    .alt("Profile photo")
+    .defaultImageUrl("/images/avatar.png")
+    .state("/uploads/ada.png");
+```
+
+</TabItem>
+</Tabs>
+
+## Stacks and limits
+
+`stacked(true)`, `overlap(n)`, and `ring(...)` describe a stacked gallery. `limit(n)` with `limitedRemainingText(true)` appends `+N`. `limitedRemainingTextSeparate` and `limitedRemainingTextSize` style that remainder (`xs` … `xl`).
+
+## Disk attributes
+
+`disk`, `visibility`, and `checkFileExistence` are data attributes on the entry (`data-ff-disk`, `data-ff-visibility`, `data-ff-check-file`). This module does not open a disk or sign a temporary URL. A relative or absolute URL string is rendered as `src`. When `checkFileExistence` is true (the default), a blank source is dropped.
+
+Wrap images in a link with shared `url` / `openUrlInNewTab` from [Entry](/docs/firefly/infolists/#helpers-on-every-entry).
+
+See also [Infolists overview](/docs/firefly/infolists/).

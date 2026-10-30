@@ -1,0 +1,58 @@
+---
+title: Slider
+description: "Slider range input with min, max, step, decimal places, and tooltips."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Slider` posts a numeric value clamped between min and max (defaults 0–100, step 1).
+
+<FireflyShot file="form-slider.png" description="Slider score field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Slider.make("score")
+    .label("Score")
+    .minValue(0.0)
+    .maxValue(10.0)
+    .step(0.5)
+    .decimalPlaces(1)
+    .tooltips(true)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Slider.make("score")
+    .label("Score")
+    .minValue(0.0)
+    .maxValue(10.0)
+    .step(0.5)
+    .decimalPlaces(1)
+    .tooltips(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `minValue` / `maxValue` | Range bounds |
+| `step` | Positive step size |
+| `decimalPlaces` | Round after normalize |
+| `tooltips(on)` | Show value tooltip while dragging |
+| `normalize(raw)` | Clamp and round a double |
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Text input](/docs/firefly/forms/text-input/)
+- [Currency input](/docs/firefly/forms/currency-input/)

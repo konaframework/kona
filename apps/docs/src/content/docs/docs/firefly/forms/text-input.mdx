@@ -1,0 +1,209 @@
+---
+title: Text input
+description: "Single-line TextInput: email, password, numeric, currency, masks, length rules, and more."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A `TextInput` is a single-line control on a Firefly form schema. Call `TextInput.make("name")` to bind the state key, then chain label, type helpers, and validation. The rendered control sits inside the shared field chrome (label, hint, prefix, suffix, helper).
+
+<FireflyShot file="form-text-input.png" description="TextInput name field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val name = TextInput.make("name")
+    .label("Name")
+    .required()
+    .placeholder("Ada Lovelace")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput name = TextInput.make("name")
+    .label("Name")
+    .required()
+    .placeholder("Ada Lovelace");
+```
+
+</TabItem>
+</Tabs>
+
+Put the field on a schema with `Schema.make().components(name)`, fill state with `schema.fill(...)`, then `schema.render()`.
+
+## Input types
+
+Type helpers set the HTML `type` and matching validation rules:
+
+| Method | Effect |
+|--------|--------|
+| `email()` | `type="email"`, adds `email` rule |
+| `url()` | `type="url"`, adds `url` rule |
+| `numeric()` | `type="number"`, `inputMode("decimal")`, `numeric` rule |
+| `integer()` | `type="number"`, `inputMode("numeric")`, step `1`, `integer` rule |
+| `password()` | `type="password"` |
+| `tel()` | `type="tel"`, default tel regex unless `telRegex` already set |
+| `telRegex(pattern)` | Replaces the telephone pattern (call before `tel()` to own the pattern) |
+| `url()` | URL input |
+| `type(value)` | Arbitrary input type (for example `"search"`) |
+| `currency(code, locale?, precision?)` | Numeric + step from precision + currency-symbol prefix when unset |
+
+<FireflyShot file="form-text-input-email.png" description="TextInput email() field on the Playground form." />
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextInput.make("email").email().required()
+TextInput.make("website").url()
+TextInput.make("age").integer().minValue(0.0).maxValue(120.0)
+TextInput.make("amount").numeric().step("0.01")
+TextInput.make("phone").tel()
+TextInput.make("phone").telRegex("^[0-9]+$").tel()
+TextInput.make("q").type("search")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput.make("email").email().required();
+TextInput.make("website").url();
+TextInput.make("age").integer().minValue(0.0).maxValue(120.0);
+TextInput.make("amount").numeric().step("0.01");
+TextInput.make("phone").tel();
+TextInput.make("q").type("search");
+```
+
+</TabItem>
+</Tabs>
+
+For a dedicated currency field, prefer [`CurrencyInput`](/docs/firefly/forms/currency-input/) (`CurrencyInput.make("price", "USD")` or `TextInput.make("price").currency("USD")`).
+
+## Password reveal and copy
+
+`revealable(true)` adds a show/hide button on password fields. `copyable()` / `copyable(true)` adds a clipboard button.
+
+<FireflyShot file="form-text-input-password.png" description="Revealable password TextInput on the Playground form." />
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextInput.make("password")
+    .password()
+    .revealable(true)
+    .required()
+
+TextInput.make("apiKey")
+    .copyable()
+    .readOnly(true)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput.make("password")
+    .password()
+    .revealable(true)
+    .required();
+
+TextInput.make("apiKey")
+    .copyable(true)
+    .readOnly(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Length, range, mask, and pattern
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextInput.make("code")
+    .mask("999-999")
+    .length(7)
+    .regex("^[0-9-]+$")
+    .notRegex("[a-z]")
+    .minLength(3)
+    .maxLength(32)
+    .minValue(1.0)
+    .maxValue(99.0)
+    .step("1")
+    .datalist("alpha", "beta")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput.make("code")
+    .mask("999-999")
+    .length(7)
+    .regex("^[0-9-]+$")
+    .notRegex("[a-z]")
+    .minLength(3)
+    .maxLength(32)
+    .minValue(1.0)
+    .maxValue(99.0)
+    .step("1")
+    .datalist("alpha", "beta");
+```
+
+</TabItem>
+</Tabs>
+
+- `minLength` / `maxLength` / `length` also accept a `Function<Get, Int>` closure.
+- `minValue` / `maxValue` accept a `Double` or `Function<Get, Double>`.
+- `stripCharacters("-")` removes listed characters before display; `stripCharacters { value -> value.trim() }` runs a custom stripper.
+- `unique("users", "email")` and `exists("users", "email")` add those rules (fail closed without a database checker).
+- `inputType()` returns the current HTML type string.
+
+## Validation and live updates
+
+Rules come from the type helpers plus `required()`, `nullable()`, `rule(...)`, and `rules(...)` on the field base. Use `live()`, `liveOnBlur()`, or `liveDebounce(ms)` from the schema component when the panel should re-render on change.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextInput.make("slug")
+    .required()
+    .regex("^[a-z0-9-]+$")
+    .unique("posts", "slug")
+    .liveOnBlur()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput.make("slug")
+    .required()
+    .regex("^[a-z0-9-]+$")
+    .unique("posts", "slug")
+    .liveOnBlur();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure defaults
+
+`TextInput.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Textarea](/docs/firefly/forms/textarea/)
+- [Currency input](/docs/firefly/forms/currency-input/)
+- [Hidden](/docs/firefly/forms/hidden/)

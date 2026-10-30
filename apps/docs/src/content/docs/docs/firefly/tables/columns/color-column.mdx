@@ -1,0 +1,34 @@
+---
+title: Color column
+description: "Paint a CSS color swatch from a cell value in a Firefly table."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ColorColumn` turns the cell string into a `<span class="ff-color">` with that value as `background`. Empty state renders no swatch.
+
+<FireflyShot file="column-color.png" description="A color column showing brand color swatches." />
+
+## Make a color column
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ColorColumn.make("ink")
+    .label("Color")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ColorColumn.make("ink")
+    .label("Color");
+```
+
+</TabItem>
+</Tabs>
+
+Pass a CSS color string in the row (`#DF8723`, `rgb(223, 135, 35)`, and so on). Chain shared column helpers (`label`, `tooltip`, `toggleable`) as needed from [Tables](/docs/firefly/tables/).

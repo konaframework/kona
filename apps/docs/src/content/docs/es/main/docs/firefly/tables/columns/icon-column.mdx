@@ -1,0 +1,50 @@
+---
+title: Icon column
+description: "Render an icon or a boolean Yes/No pill in a Firefly table cell."
+---
+
+import FireflyShot from '../../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`IconColumn` paints an icon from the cell value. Use boolean mode for a Yes/No pill.
+
+<FireflyShot file="column-icon.png" description="An icon column with Yes/No boolean pills." />
+
+## Icon from state
+
+Without boolean mode, a string state is the icon name. `Boolean` values pick the true or false icon (`check` / `x` by default). Null renders empty.
+
+## Boolean mode
+
+`boolean()` (Kotlin) or `bool()` (Java) treats the cell as a boolean. Truthy values (`Boolean`, non-zero numbers, `"1"` / `"true"` / `"yes"`) get the true icon and label; otherwise the false side.
+
+Defaults are `trueLabel("Yes")` / `falseLabel("No")`. Blank labels fall back to an icon-only circle. Override with `trueIcon`, `falseIcon`, `trueLabel`, and `falseLabel`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+IconColumn.make("active")
+    .boolean()
+    .trueIcon("check")
+    .falseIcon("x")
+    .trueLabel("On")
+    .falseLabel("Off")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+IconColumn.make("active")
+    .bool()
+    .trueIcon("check")
+    .falseIcon("x")
+    .trueLabel("On")
+    .falseLabel("Off");
+```
+
+</TabItem>
+</Tabs>
+
+The pill stays content-sized in the cell (not full width). Shared `label`, `searchable`, and `sortable` from [Column](/docs/firefly/tables/) still apply when you need them on the header.

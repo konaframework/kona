@@ -1,0 +1,70 @@
+---
+title: Checkbox list
+description: "CheckboxList for multi-select options with search, bulk toggle, and columns."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`CheckboxList` posts a JSON array of selected values. Options come from a map, a closure, or a relationship.
+
+<FireflyShot file="form-checkbox-list.png" description="CheckboxList roles field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CheckboxList.make("roles")
+    .label("Roles")
+    .options(mapOf(
+        "admin" to "Admin",
+        "editor" to "Editor",
+        "viewer" to "Viewer",
+    ))
+    .searchable()
+    .bulkToggleable()
+    .optionColumns(2)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CheckboxList.make("roles")
+    .label("Roles")
+    .options(Map.of(
+        "admin", "Admin",
+        "editor", "Editor",
+        "viewer", "Viewer"
+    ))
+    .searchable(true)
+    .bulkToggleable(true)
+    .optionColumns(2);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `options(Map)` / `options(Function)` | Choice map |
+| `descriptions(Map)` | Secondary text per option |
+| `searchable()` / `searchable(on)` | Filter box |
+| `bulkToggleable()` / `bulkToggleable(on)` | Select all / deselect all |
+| `optionColumns(count)` | CSS grid columns (minimum 1) |
+| `gridDirection(direction)` | Grid direction attribute (default `"row"`) |
+| `noSearchResultsMessage` / `searchPrompt` | Search UI copy |
+| `disableOptionWhen` | Disable by value |
+| `relationship(name, titleAttribute)` | Load options from a relation |
+| `relation()` | Current `RelationBinding` |
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Select](/docs/firefly/forms/select/)
+- [Checkbox](/docs/firefly/forms/checkbox/)
+- [Toggle buttons](/docs/firefly/forms/toggle-buttons/)

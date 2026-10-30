@@ -1,0 +1,47 @@
+---
+title: Badge column
+description: "A text column that always renders as a badge chip in a Firefly table."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`BadgeColumn` is `TextColumn` with `badge(true)` already on. Prefer it when the column is always a status or chip; chain `color(...)` for tone.
+
+<FireflyShot file="column-badge.png" description="A badge column showing status chips in a list." />
+
+## Make a badge column
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+BadgeColumn.make("status")
+    .label("Status")
+    .color { cell ->
+        when (cell.get("status")) {
+            "published" -> "success"
+            "draft" -> "gray"
+            else -> "warning"
+        }
+    }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+BadgeColumn.make("status")
+    .label("Status")
+    .color(cell -> {
+        Object status = cell.get("status");
+        if ("published".equals(status)) return "success";
+        if ("draft".equals(status)) return "gray";
+        return "warning";
+    });
+```
+
+</TabItem>
+</Tabs>
+
+Everything from [Text column](/docs/firefly/tables/columns/text-column/) still applies: search, sort, money, dates, relationships, `formatStateUsing`, and shared helpers. Dotted relationship paths bind the same way as on `TextColumn`.

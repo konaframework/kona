@@ -1,0 +1,48 @@
+---
+title: Select column
+description: "Change a row attribute from an inline select that calls Wire setColumn."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`SelectColumn` renders a `<select>` of options. Changing the value calls `$wire.$call('setColumn', key, name, value)`.
+
+<FireflyShot file="column-select.png" description="A select column choosing status options inline." />
+
+## Options
+
+`options(mapOf(...))` sets a fixed map of value → label. `options { cell -> ... }` builds the map per cell. `extraInputAttributes` merges onto the `<select>`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+SelectColumn.make("status")
+    .label("Status")
+    .options(
+        mapOf(
+            "draft" to "Draft",
+            "published" to "Published",
+            "archived" to "Archived",
+        ),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SelectColumn.make("status")
+    .label("Status")
+    .options(Map.of(
+        "draft", "Draft",
+        "published", "Published",
+        "archived", "Archived"
+    ));
+```
+
+</TabItem>
+</Tabs>
+
+The current row value is selected when it matches an option key. See [Tables](/docs/firefly/tables/) for filters when you need toolbar filtering instead of inline edits.

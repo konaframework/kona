@@ -1,0 +1,142 @@
+---
+title: Select
+description: "Searchable Select combobox (default) or native browser select, with options, relationships, and create-option flows."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Select` is a choice field. By default it renders a combobox: a display input, a hidden posted value, and an option panel. Call `native()` (Java: `useNative(true)`) for a browser `<select>`.
+
+<FireflyShot file="form-select.png" description="Searchable Select status field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val status = Select.make("status")
+    .label("Status")
+    .options(mapOf("open" to "Open", "done" to "Done"))
+    .searchable()
+    .placeholder("Pick one")
+    .required()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Select status = Select.make("status")
+    .label("Status")
+    .options(Map.of("open", "Open", "done", "Done"))
+    .searchable()
+    .placeholder("Pick one")
+    .required();
+```
+
+</TabItem>
+</Tabs>
+
+<FireflyShot file="form-select-open.png" description="Select status field opened as a combobox on the Playground form." />
+
+## Options and search
+
+| Method | Effect |
+|--------|--------|
+| `options(Map)` / `options(Function<Get, Map>)` | Static or dynamic option map |
+| `optionsFrom(records, title, key)` | Build options from a list of maps |
+| `boolean()` | Yes / No (`true` / `false`) |
+| `descriptions(Map)` | Extra line under each option |
+| `searchable()` / `searchable(on)` | Filterable combobox (default on) |
+| `searchUrl(url)` | Remote search (`q=` appended); enables searchable |
+| `multiple()` / `multiple(on)` | Multi-select chips |
+| `preload()` / `preload(on)` | Embed options on first paint (default on) |
+| `optionsLimit(n)` / `preloadLimit(n)` | Cap preloaded options (default 50 when preload is on) |
+| `maxItems(n)` | Cap selected items when multiple |
+| `searchDebounce(ms)` | Debounce typed search (default 300) |
+| `position(value)` | Panel position (default `"bottom"`) |
+| `loadingMessage` / `searchingMessage` / `noSearchResultsMessage` / `searchPrompt` | Panel copy |
+| `getOptionLabelUsing` | Replace label for a value |
+| `getSearchResultsUsing` | Custom search map |
+| `disableOptionWhen` | Disable options by value |
+| `allowHtml(on)` | Keep HTML in option labels |
+| `selectablePlaceholder(on)` | Empty option on native select |
+| `native()` / `native(on)` | Browser `<select>` (Java: `useNative`) |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Select.make("tags")
+    .options(mapOf("a" to "Alpha", "b" to "Beta"))
+    .multiple()
+    .maxItems(3)
+    .preloadLimit(20)
+    .noSearchResultsMessage("Nothing matches")
+
+Select.make("legacy")
+    .options(mapOf("x" to "X"))
+    .native()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Select.make("tags")
+    .options(Map.of("a", "Alpha", "b", "Beta"))
+    .multiple(true)
+    .maxItems(3)
+    .preloadLimit(20);
+
+Select.make("legacy")
+    .options(Map.of("x", "X"))
+    .useNative(true);
+```
+
+</TabItem>
+</Tabs>
+
+Static option lists add an `in:` validation rule when the field is not multiple and values contain neither `,` nor `|`.
+
+## Relationships
+
+`relationship(name, titleAttribute)` reads related records from the schema’s `record(...)`. Optional `modify` / `modifyQueryUsing` narrows the query. `getOptionLabelFromRecordUsing` builds labels from each record. Relationship selects stay searchable with preload; typing searches beyond the seed list.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Select.make("authorId")
+    .relationship("author", "name") {{ query ->
+        // narrow the related query when needed
+    }}
+    .getOptionLabelFromRecordUsing {{ record -> "Author" }}
+    .createOptionForm(createSchema)
+    .createOptionUsing {{ data -> /* return new id */ "1" }}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Select.make("authorId")
+    .relationship("author", "name", query -> {{ }})
+    .getOptionLabelFromRecordUsing(record -> "Author")
+    .createOptionForm(createSchema)
+    .createOptionUsing(data -> "1");
+```
+
+</TabItem>
+</Tabs>
+
+Also available: `createOptionAction`, `editOptionForm`, `createOption`, `searchUrl`, `resolvedOptions`, `search`, `relation()`, `prepareRelationship`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Checkbox list](/docs/firefly/forms/checkbox-list/)
+- [Radio](/docs/firefly/forms/radio/)
+- [Toggle buttons](/docs/firefly/forms/toggle-buttons/)
