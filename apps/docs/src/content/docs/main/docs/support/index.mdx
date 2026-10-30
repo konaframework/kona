@@ -59,23 +59,23 @@ Str.padLeft("7", 3, "0")         // 007
 
 ## Dates
 
-`KonaDate` is the fluent date/time type in `kona-support`. It wraps a UTC `Instant` plus a zone used for calendar math and formatting. JSON (`Response.json`, Cadence `toJson`, `org.konaframework.support.json.Json.stringify`) encodes a `KonaDate` as an ISO-8601 string — the same shape used for `Instant` and the other `java.time` types.
+`KonaDate` is the fluent date/time type in `kona-support` — a convenient wrapper over a UTC `Instant` plus a zone used for calendar math and formatting. JSON (`Response.json`, Cadence `toJson`, `org.konaframework.support.json.Json.stringify`) encodes a `KonaDate` as an ISO-8601 string — the same shape used for `Instant` and the other `java.time` types.
+
+### Create and parse
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-val d = KonaDate.parse("2024-01-15T12:30:00Z")
-d.addMonths(1).startOfDay().toDateString()
-d.diffInDays(d.subDays(2))
-d.isSameDay(d.addHours(3))
-d.timezone()
-d.toIso()                 // 2024-01-15T12:30:00Z
-d.setTimezone(ZoneId.of("Africa/Nairobi")).toDateTimeString()
-
 KonaDate.now()
 KonaDate.today()
+KonaDate.yesterday()
+KonaDate.tomorrow()
+KonaDate.create(2024, 1, 15, 12, 30, 0)
+KonaDate.createFromDate(2024, 1, 15)
+KonaDate.createFromTimestamp(1_704_000_000)
 KonaDate.ofInstant(user["created_at"] as Instant)
+KonaDate.parse("2024-01-15T12:30:00Z")
 KonaDate.parse("2024-01-15 12:30:00")
 KonaDate.parse("2024-01-15")
 KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15))
@@ -85,18 +85,58 @@ KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15))
 <TabItem label="Java">
 
 ```java
-KonaDate d = KonaDate.parse("2024-01-15T12:30:00Z");
-d.addMonths(1).startOfDay().toDateString();
-d.toIso();
-d.timezone();
+KonaDate.now();
+KonaDate.today();
+KonaDate.yesterday();
+KonaDate.tomorrow();
+KonaDate.create(2024, 1, 15, 12, 30, 0);
+KonaDate.createFromDate(2024, 1, 15);
+KonaDate.createFromTimestamp(1_704_000_000L);
 KonaDate.ofInstant((Instant) user.get("created_at"));
+KonaDate.parse("2024-01-15T12:30:00Z");
 KonaDate.ofLocalDate(LocalDate.of(2024, 1, 15), ZoneOffset.UTC);
 ```
 
 </TabItem>
 </Tabs>
 
-Parse accepts ISO instants (`…Z`), offset and zoned strings, `yyyy-MM-dd HH:mm:ss` / `T` local datetimes (read as UTC), and calendar dates. Arithmetic: `add` / `sub` seconds, minutes, hours, days, weeks, months, years. Boundaries: `startOfDay` / `endOfDay`. Comparisons: `isBefore` / `isAfter` / `isSameDay` / `isPast` / `isFuture`. Format: `format(pattern)`, `toDateString`, `toDateTimeString`, `toIso` / `toIso8601String`.
+Parse accepts ISO instants (`…Z`), offset and zoned strings, `yyyy-MM-dd HH:mm:ss` / `T` local datetimes (read as UTC), and calendar dates. Set the process default with `KonaDate.setDefaultTimezone(zone)` (apps usually wire this from `app.timezone`).
+
+### Mutate, boundaries, and zones
+
+```kotlin
+val d = KonaDate.parse("2024-01-15T12:30:00Z")
+d.addMonths(1).startOfMonth().toDateString()
+d.endOfWeek().toDateTimeString()
+d.startOfQuarter().quarter()
+d.setHour(9).setMinute(0)
+d.setTimezone(ZoneId.of("Africa/Nairobi")).toDateTimeString() // same instant, new zone
+d.shiftTimezone(ZoneId.of("Africa/Nairobi"))                  // keep wall clock
+d.utc().toIso()
+```
+
+Arithmetic: `add` / `sub` (and singular `addDay` / `subMonth`, …) for milliseconds through years. Boundaries: `startOf` / `endOf` for second, minute, hour, day, ISO week (Monday–Sunday), month, quarter, and year. Getters: `year`, `month`, `day`, `hour`, `minute`, `second`, `dayOfWeek`, `weekOfYear`, `quarter`, …
+
+### Compare and humanize
+
+```kotlin
+d.isBefore(other)
+d.eq(other) / d.gt(other) / d.lte(other)
+d.between(start, end)                 // inclusive by default
+d.betweenExcluded(start, end)
+d.isWeekend() / d.isMonday()
+d.isToday() / d.isYesterday() / d.isCurrentMonth()
+d.min(other) / d.max(other)
+d.closest(a, b) / d.farthest(a, b)
+d.diffInDays(other)
+d.diffInHours(other, absolute = true)
+d.age()                               // whole years until now
+d.diffForHumans()                     // "3 hours ago" / "1 day from now"
+d.diffForHumans(other)                // "2 weeks before" / "after"
+d.ago() / d.fromNow()
+```
+
+`diffForHumans` is English today (largest calendar unit first: years → months → weeks → days → hours → minutes → seconds). Format helpers: `format(pattern)`, `toDateString`, `toFormattedDateString`, `toDateTimeString`, `toTimeString`, `toIso` / `toIso8601String`, `toRfc3339String`.
 
 HTTP JSON example:
 
