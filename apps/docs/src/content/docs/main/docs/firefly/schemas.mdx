@@ -89,7 +89,7 @@ The last call wins. `label("Title")` after a closure stores the fixed string and
 | `xl` | `--ff-width-xl` | `36rem` |
 | `full` / `screen` / `prose` | — | `100%` / `100vw` / `65ch` |
 
-Create and edit pages constrain the direct `.ff-schema` / `.ff-resource-form` child of `.ff-page-content` to `--ff-width-xl`, with `width: 100%` and horizontal auto margins so the form column stays centered when the shell is wider. View infolists fill the content column instead (like list tables); only panel / page / resource `maxWidth` shrinks them. Those page rules are CSS-only; call `maxWidth(...)` on a section or entry when one component inside the page should use a different token.
+Create and edit pages let the direct `.ff-schema` / `.ff-resource-form` child of `.ff-page-content` fill the content column (same as relation managers and list tables). View infolists do the same; only panel / page / resource `maxWidth` shrinks the outer column. Those page rules are CSS-only; call `maxWidth(...)` on a section or entry when one component inside the page should use a narrower token.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

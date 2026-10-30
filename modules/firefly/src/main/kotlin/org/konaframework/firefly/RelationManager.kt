@@ -228,13 +228,16 @@ open class RelationManager(private val name: String) {
     /** Unscoped query over the related model (no owner). Owner-scoped tables come from the resource pages. */
     fun query(): Any = RecordStores.open(boundModel()).query() as Any
 
-    /** Standalone markup without an owner record: the configured table and form, unscoped. */
+    /**
+     * Standalone markup without an owner record (playground / docs previews).
+     * Renders the configured table under a relation heading — create/edit [form] schemas
+     * stay on dialogs when owner-bound and are not dumped under the table (#403).
+     */
     fun render(): String {
         val table = tableRef
         val tableHtml = if (table == null) "" else table.render()
-        val form = formTemplate
-        val formHtml = if (form == null) "" else form.render()
-        return """<section class="ff-relation" data-ff-relation="${escapeHtml(name)}" data-ff-title="${escapeHtml(titleText())}"${attributeText()}>$tableHtml$formHtml</section>"""
+        return """<section class="ff-relation" data-ff-relation="${escapeHtml(name)}" data-ff-title="${escapeHtml(titleText())}"${attributeText()}>""" +
+            """<header class="ff-relation-header"><h2 class="ff-relation-heading">${escapeHtml(title())}</h2></header>$tableHtml</section>"""
     }
 
     // ——— Owner-bound runtime ———

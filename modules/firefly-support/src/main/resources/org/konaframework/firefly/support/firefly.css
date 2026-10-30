@@ -950,9 +950,10 @@ body.ff-body-root {
 }
 
 /* Create/edit: shell shows through; Section cards provide elevation (no double card).
- * Default form column is xl (--ff-width-xl = 36rem), width 100% + centered.
+ * Form fills the content column like relation managers / list tables (#406) — panel /
+ * page / resource maxWidth is the only outer cap.
  * Native #ff-form wraps the schema — match .ff-resource-form as well as a bare .ff-schema.
- * Narrower/wider: Component.maxWidth("sm"|"md"|"lg"|"xl"|"2xl"|…) → data-ff-max-width (tokens below). */
+ * Narrower: Component.maxWidth("sm"|"md"|"lg"|"xl"|"2xl"|…) → data-ff-max-width (tokens below). */
 .ff-panel .ff-create .ff-page-content > .ff-schema,
 .ff-panel .ff-edit .ff-page-content > .ff-schema,
 .ff-panel .ff-view .ff-page-content > .ff-schema,
@@ -962,10 +963,8 @@ body.ff-body-root {
   border: none;
   box-shadow: none;
   padding: 0;
-  max-width: var(--ff-width-xl);
+  max-width: none;
   width: 100%;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 /* View / infolist: fill the content column (panel/page/resource maxWidth only), like list tables (#272).
@@ -1622,6 +1621,8 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-picker-panel {
+  /* Default absolute; Chrome.js switches to position:fixed when open so the
+     panel escapes modal overflow and clamps into the viewport (#405). */
   position: absolute;
   z-index: 60;
   top: calc(100% + 0.35rem);
@@ -1634,6 +1635,16 @@ body.ff-body-root {
   border-radius: calc(var(--ff-radius) + 0.15rem);
   box-shadow: var(--ff-shadow);
   padding: 0.5rem;
+}
+
+.ff-panel .ff-picker.ff-picker-open .ff-picker-panel {
+  z-index: 1400;
+}
+
+.ff-panel .ff-picker-panel.ff-range-panel {
+  min-width: min(100%, 32rem);
+  width: max-content;
+  max-width: min(36rem, calc(100vw - 1rem));
 }
 
 .ff-panel .ff-picker-panel[hidden] {

@@ -218,9 +218,18 @@ class FireflySupportTest {
         assertTrue(css.contains("""[data-ff-max-width="xl"]"""))
         assertTrue(css.contains("margin-left: auto"))
         assertTrue(css.contains("margin-right: auto"))
-        // Create/edit forms stay at xl (including #ff-form / .ff-resource-form).
+        // Create/edit forms fill the content column like relation managers (#406).
         assertTrue(css.contains(".ff-resource-form"))
-        assertTrue(css.contains("max-width: var(--ff-width-xl)"))
+        assertTrue(
+            Regex(
+                """\.ff-edit\s+\.ff-page-content\s*>\s*\.ff-resource-form[\s\S]*?max-width:\s*none""",
+            ).containsMatchIn(css),
+        )
+        assertTrue(
+            Regex(
+                """\.ff-create\s+\.ff-page-content\s*>\s*\.ff-resource-form[\s\S]*?max-width:\s*none""",
+            ).containsMatchIn(css),
+        )
         // View/edit infolist hosts fill the content column (no xl cap) (#272).
         assertTrue(
             Regex(
@@ -477,7 +486,13 @@ class FireflySupportTest {
         assertTrue(html.contains("mountForPanel"))
         assertTrue(html.contains("switchScope"))
         assertTrue(html.contains("positionCombobox"))
+        assertTrue(html.contains("positionPicker"))
+        assertTrue(html.contains("clearFloatingPanel"))
         assertTrue(html.contains("repositionFloating"))
+        assertTrue(html.contains("formatMask"))
+        assertTrue(html.contains("applyMask"))
+        assertTrue(html.contains("armMasks"))
+        assertTrue(html.contains("data-ff-mask"))
         assertTrue(html.contains("ff-row-action-menu"))
         assertTrue(html.contains(DefaultLayout.THEME_INIT_SCRIPT))
         // Dialog open/close without Alpine (Action / TableButton mounts).

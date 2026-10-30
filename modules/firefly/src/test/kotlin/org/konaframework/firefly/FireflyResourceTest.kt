@@ -533,20 +533,23 @@ class FireflyResourceTest {
         val empty = RelationManager("lines")
         assertEquals("lines", empty.name())
         assertTrue(empty.render().contains("data-ff-title=\"id\""))
+        assertTrue(empty.render().contains("ff-relation-heading"))
         assertFalse(empty.render().contains("ff-input"))
         val tableOnly = RelationManager("lines").titleAttribute("sku").table(
             Table.memory(mapOf("id" to "1", "sku" to "A")).columns(TextColumn.make("sku")),
         )
         assertTrue(tableOnly.render().contains(">A<") || tableOnly.render().contains("A"))
+        // Form schemas are for owner-bound dialogs — standalone render must not dump them (#403).
         val formOnly = RelationManager("lines").titleAttribute { "sku" }.form(
             Schema.make().components(TextInput.make("sku")),
         )
-        assertTrue(formOnly.render().contains("ff-input"))
+        assertFalse(formOnly.render().contains("ff-input"))
         val both = RelationManager("lines")
             .extraAttributes(mapOf("data-ff-tone" to "info"))
             .table(Table.memory(mapOf("id" to "2", "sku" to "B")).columns(TextColumn.make("sku")))
             .form(Schema.make().components(TextInput.make("sku")))
         assertTrue(both.render().contains("data-ff-tone=\"info\""))
+        assertFalse(both.render().contains("""name="sku""""))
         val closed = RelationManager("lines").extraAttributes { mapOf("data-ff-tone" to "info") }
         assertTrue(closed.render().contains("data-ff-tone=\"info\""))
 
