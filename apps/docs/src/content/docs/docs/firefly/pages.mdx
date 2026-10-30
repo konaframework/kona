@@ -121,11 +121,12 @@ Without a handler the notification reads **Form submitted**.
 <TabItem label="Kotlin">
 
 ```kotlin
-class SettingsPage : PanelPage("settings") {
+class Settings : SettingsPage() {
     init {
+        canSave { guard -> guard.check() }
         mountForm(Schema.make().components(TextInput.make("title")))
         onFormSubmit { input ->
-            Settings.save(input.getValue("title"))
+            AppSettings.save(input)
             "Settings saved"
         }
     }
@@ -136,12 +137,12 @@ class SettingsPage : PanelPage("settings") {
 <TabItem label="Java">
 
 ```java
-public class SettingsPage extends PanelPage {
-    public SettingsPage() {
-        super("settings");
+public class Settings extends SettingsPage {
+    public Settings() {
+        canSave(PanelGuard::check);
         mountForm(Schema.make().components(TextInput.make("title")));
         onFormSubmit(input -> {
-            Settings.save(input.get("title"));
+            AppSettings.save(input);
             return "Settings saved";
         });
     }
@@ -151,7 +152,61 @@ public class SettingsPage extends PanelPage {
 </TabItem>
 </Tabs>
 
+`SettingsPage` defaults to slug `settings`, title **Settings**, icon `cog`, and max width `7xl`. When `canSave` returns false, the panel rejects the form POST with 403. Call `canSave` before `mountForm` if you chain Fluent methods that return `PanelPage`.
+
 A searchable or relationship `Select` on the mounted form loads its options from `GET {page}/form-options?field=name&q=text`. For the dashboard page (empty slug), the path is `form-options`. The route applies the panel domain and sign-in checks, then returns JSON objects with `value`, `label`, and `enabled`.
+
+## Profile
+
+Every panel mounts `GET`/`POST /{prefix}/profile` and `POST /{prefix}/logout`. The default `ProfilePage` shows name, email, and optional password change. It fills from `PanelGuard` and saves through `MemoryPanelGuard.updateProfile`. Apps that `reuseAppGuard` should subclass and persist via Auth/Cadence.
+
+Resolution order: `Panel.profilePage(...)` → `Firefly.defaultProfilePage(...)` → built-in `ProfilePage`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AccountProfile : ProfilePage() {
+    override fun formSchema(): Schema =
+        Schema().components(
+            TextInput.make("name").label("Name").required(),
+            TextInput.make("email").label("Email").email().required(),
+            TextInput.make("phone").label("Phone"),
+            TextInput.make("password").label("New password").password(),
+            TextInput.make("password_confirmation").label("Confirm password").password(),
+        )
+}
+
+Panel().profilePage(AccountProfile())
+// or for every panel that does not set its own:
+Firefly.defaultProfilePage { AccountProfile() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AccountProfile extends ProfilePage {
+    @Override
+    protected Schema formSchema() {
+        return new Schema().components(
+            TextInput.make("name").label("Name").required(),
+            TextInput.make("email").label("Email").email().required(),
+            TextInput.make("phone").label("Phone"),
+            TextInput.make("password").label("New password").password(),
+            TextInput.make("password_confirmation").label("Confirm password").password()
+        );
+    }
+}
+
+new Panel().profilePage(new AccountProfile());
+Firefly.defaultProfilePage(AccountProfile::new);
+```
+
+</TabItem>
+</Tabs>
+
+Sign out in the user menu posts to `/logout`, so profile POST can save the form.
 
 ## Put a widget on the page
 

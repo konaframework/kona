@@ -86,6 +86,33 @@ class MemoryPanelGuard : PanelGuard {
         if (account == null) return false
         return account.verified
     }
+
+    /**
+     * Update the signed-in account. Optional [newPassword] replaces the password when non-null.
+     * Changing email re-keys the account map and keeps the session on the new email.
+     */
+    fun updateProfile(name: String, email: String, newPassword: String?): String? {
+        val id = current
+        if (id == null) return "Not signed in"
+        val account = users[id]
+        if (account == null) {
+            current = null
+            return "Not signed in"
+        }
+        if (name.isBlank()) return "Name is blank"
+        if (email.isBlank()) return "Email is blank"
+        if (email != id && users.containsKey(email)) return "Email is already registered"
+        val password =
+            if (newPassword != null && newPassword.isNotBlank()) {
+                newPassword
+            } else {
+                account.password
+            }
+        users.remove(id)
+        users[email] = Account(name, email, password, account.verified)
+        current = email
+        return null
+    }
 }
 
 /**

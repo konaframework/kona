@@ -181,7 +181,8 @@ body.ff-body-root {
   font-size: 1.1rem;
 }
 
-.ff-panel .ff-sidebar-brand::before {
+/* Gradient mark only when no logo image is present. */
+.ff-panel .ff-sidebar-brand:not(.ff-sidebar-brand--logo)::before {
   content: "";
   width: 1.55rem;
   height: 1.55rem;
@@ -190,6 +191,46 @@ body.ff-body-root {
     linear-gradient(145deg, var(--ff-primary), color-mix(in srgb, var(--ff-accent) 70%, var(--ff-primary)));
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ff-accent) 35%, transparent);
   flex-shrink: 0;
+}
+
+.ff-panel .ff-brand-mark,
+.ff-auth .ff-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ff-panel .ff-brand-logo,
+.ff-auth .ff-brand-logo {
+  display: none;
+  height: var(--ff-logo-height, 2rem);
+  width: auto;
+  max-width: 9rem;
+  object-fit: contain;
+}
+
+.ff-panel:not(.ff-dark) .ff-brand-logo--light,
+.ff-auth:not(.ff-dark) .ff-brand-logo--light,
+html:not(.ff-dark) .ff-panel .ff-brand-logo--light,
+html:not(.ff-dark) .ff-auth .ff-brand-logo--light {
+  display: block;
+}
+
+.ff-panel.ff-dark .ff-brand-logo--dark,
+.ff-auth.ff-dark .ff-brand-logo--dark,
+html.ff-dark .ff-panel .ff-brand-logo--dark,
+html.ff-dark .ff-auth .ff-brand-logo--dark {
+  display: block;
+}
+
+.ff-panel .ff-sidebar-copyright,
+.ff-auth .ff-auth-copyright {
+  margin: 0;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--ff-heading) 55%, transparent);
 }
 
 /* Close button only appears inside the mobile drawer. */
@@ -3789,6 +3830,12 @@ body.ff-body-root {
   text-align: center;
 }
 
+.ff-auth-brand .ff-brand-mark {
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.ff-auth-brand .ff-brand,
 .ff-auth-brand__name {
   margin: 0;
   font-size: clamp(2rem, 5vw, 2.6rem);
@@ -3796,6 +3843,11 @@ body.ff-body-root {
   letter-spacing: -0.03em;
   line-height: 1.08;
   color: var(--ff-heading);
+}
+
+.ff-auth-brand .ff-brand-logo {
+  max-width: 12rem;
+  height: var(--ff-logo-height, 2.5rem);
 }
 
 .ff-auth-main {

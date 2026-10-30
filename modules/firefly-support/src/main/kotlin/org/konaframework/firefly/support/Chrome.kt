@@ -18,6 +18,8 @@ class ChromeContext @JvmOverloads constructor(
     val mode: ChromeMode = ChromeMode.PANEL,
     /** Panel default content max-width token (`xs`…`7xl`, `full`, `screen`, `prose`). */
     val maxWidth: String? = null,
+    /** Resolved panel branding (logos, colors, display mode). */
+    val branding: FireflyBranding = FireflyBranding.DEFAULT,
 )
 
 interface PanelLayout {
@@ -752,6 +754,7 @@ class Panel {
     private var brandName: String = "Firefly"
     private var mode: ChromeMode = ChromeMode.PANEL
     private var maxWidth: String? = null
+    private var branding: FireflyBranding = FireflyBranding.DEFAULT
 
     fun theme(theme: FireflyTheme): Panel = apply { this.theme = theme }
 
@@ -766,6 +769,11 @@ class Panel {
     fun documentTitle(title: String): Panel = apply { documentTitle = title }
 
     fun brandName(name: String): Panel = apply { brandName = name }
+
+    fun branding(value: FireflyBranding): Panel = apply {
+        branding = value
+        brandName = value.brandName
+    }
 
     fun mode(mode: ChromeMode): Panel = apply { this.mode = mode }
 
@@ -799,12 +807,13 @@ class Panel {
                 theme,
                 hooks,
                 partials,
-                Stylesheet.render(theme),
+                Stylesheet.render(theme, branding),
                 csrfToken,
                 documentTitle,
                 brandName,
                 mode,
                 maxWidth,
+                branding,
             ),
         )
     }

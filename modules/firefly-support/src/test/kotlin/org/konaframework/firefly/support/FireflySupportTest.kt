@@ -648,7 +648,8 @@ class FireflySupportTest {
                 mode = ChromeMode.AUTH,
             ),
         )
-        assertTrue(escapedAuth.contains("ff-auth-brand__name"))
+        assertTrue(escapedAuth.contains("ff-auth-brand"))
+        assertTrue(escapedAuth.contains("ff-brand-mark"))
         assertTrue(escapedAuth.contains("&amp;"))
         assertTrue(escapedAuth.contains("&lt;"))
         assertTrue(escapedAuth.contains("&quot;"))

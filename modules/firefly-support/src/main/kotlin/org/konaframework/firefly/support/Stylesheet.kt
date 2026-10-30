@@ -14,24 +14,41 @@ object Stylesheet {
     }
 
     @JvmStatic
-    fun render(theme: FireflyTheme): String {
+    @JvmOverloads
+    fun render(theme: FireflyTheme, branding: FireflyBranding? = null): String {
         val extra = theme.extraCss().trim()
         if (extra.isNotEmpty() && UNSCOPED.containsMatchIn(extra)) {
             throw FireflyException("Theme [${theme.id()}] CSS must stay under .ff-panel")
         }
         val tokens = theme.tokens()
+        val primary: String
+        val accent: String
+        val font: String
+        val logoHeight: String
+        if (branding == null) {
+            primary = tokens.primary
+            accent = tokens.accent
+            font = tokens.font
+            logoHeight = "2rem"
+        } else {
+            primary = resolveThemeColor(branding.primaryColor, tokens.primary)
+            accent = resolveThemeColor(branding.accentColor, tokens.accent)
+            font = if (branding.fontFamily.isBlank()) tokens.font else branding.fontFamily
+            logoHeight = branding.logoHeight
+        }
         val variables = """
             .ff-panel,
             .ff-auth {
-              --ff-primary: ${tokens.primary};
-              --ff-accent: ${tokens.accent};
+              --ff-primary: $primary;
+              --ff-accent: $accent;
               --ff-surface: ${tokens.surface};
               --ff-heading: ${tokens.heading};
-              --ff-font: ${tokens.font};
+              --ff-font: $font;
               --ff-radius: ${tokens.radius};
               --ff-sidebar-width: ${tokens.sidebarWidth};
               --ff-topbar-height: ${tokens.topbarHeight};
               --ff-body: ${tokens.bodyBackground};
+              --ff-logo-height: $logoHeight;
             }
             .ff-panel {
               background: var(--ff-surface);
@@ -52,8 +69,15 @@ object Stylesheet {
               color: var(--ff-heading);
             }
         """.trimIndent()
+        val brandingBlock = if (branding == null) "" else "\n" + buildBrandingCss(branding)
+        val fontLink =
+            if (branding == null || branding.fontUrl.isNullOrBlank()) {
+                ""
+            } else {
+                "\n/* font: ${branding.fontUrl} */"
+            }
         val extraBlock = if (extra.isEmpty()) "" else "\n.ff-panel {\n$extra\n}"
-        return FireflyFonts.css() + "\n" + variables + "\n" + componentCss.trim() + extraBlock
+        return FireflyFonts.css() + fontLink + "\n" + variables + brandingBlock + "\n" + componentCss.trim() + extraBlock
     }
 
     private val UNSCOPED = Regex("(?m)^\\s*body\\s*\\{")

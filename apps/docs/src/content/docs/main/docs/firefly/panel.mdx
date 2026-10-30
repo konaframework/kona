@@ -3,7 +3,7 @@ title: Panel
 description: Set the id, path, and brand on the panel class. If path is omitted, the URL prefix is the panel id.
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Set the id, the URL prefix, and the brand. The class you write extends `org.konaframework.firefly.Panel`. After `./grind install firefly`, the provider mounts every panel under `app/panels` on boot. `./grind make:firefly-panel` writes that class.
@@ -54,6 +54,9 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 | Method | What you get |
 |--------|----------------|
 | `id` / `path` / `brand` / `domain` | String or `Get` closure. Id defaults to `admin`. If `path` is omitted, the prefix is the id. Brand defaults to `Firefly` |
+| `branding(PanelBranding)` / `logo` / `logoDark` / `logoHeight` / `brandDisplay` | Chrome brand mark: name, light/dark logos, height, `BrandDisplay` (`BOTH` / `LOGO` / `NAME`), copyright, fonts, primary/accent colors. See [Branding](#branding) |
+| `resolveBrandingOverrides(...)` | Runtime overlay (settings DB, company logo). Merged over panel branding; fonts stay on panel defaults |
+| `profilePage(ProfilePage)` | Per-panel account page. See [Pages](/docs/firefly/pages/#profile) |
 | `navigation` / `topNavigation()` | `NavigationType`. Default `APP`. See [Navigation](/docs/firefly/navigation/) |
 | `theme(FireflyTheme)` | Tokens and partials. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
 | `layout(PanelLayout)` | Replaces the shell arrangement |
@@ -71,11 +74,57 @@ If a path is already routed, `mount` throws `FireflyException` and names both ha
 | `render(request)` | The chrome for a request, without a page body |
 | `guardName()` | `firefly-{id}`, or the name you passed to `reuseAppGuard` |
 
+## Branding
+
+`brand("Desk")` still sets the display name. Prefer `branding(PanelBranding(...))` when you also want logos, copyright, or colors. Shorthand helpers: `logo`, `logoDark`, `logoHeight`, `brandLogoOnly()`, `brandNameOnly()`, `brandLogoAndName()`.
+
+Each chrome and auth render builds an effective `FireflyBranding`: panel defaults, then `resolveBrandingOverrides` when you set one. Overrides may change name, logos, height, display mode, copyright, and colors — not fonts (`googleFont` / `fontFamily` / `fontUrl` stay on the panel). Logo-only mode falls back to the name when no logo URL is set. When `copyright` is set, it appears in the sidebar footer and on auth screens.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Panel()
+    .branding(
+        PanelBranding(
+            name = "Desk",
+            logo = "/branding/kona-logo.svg",
+            logoDark = "/branding/kona-logo-dark.svg",
+            brandDisplay = BrandDisplay.BOTH,
+            copyright = "© Desk",
+            primaryColor = "#DF8723",
+            accentColor = "#74453F",
+        ),
+    )
+    .resolveBrandingOverrides { AppSettings.toPanelBranding() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new Panel()
+    .branding(PanelBranding.builder()
+        .name("Desk")
+        .logo("/branding/kona-logo.svg")
+        .brandDisplay(BrandDisplay.BOTH)
+        .copyright("© Desk")
+        .primaryColor("#DF8723")
+        .accentColor("#74453F")
+        .build())
+    .resolveBrandingOverrides(ctx -> AppSettings.toPanelBranding());
+```
+
+</TabItem>
+</Tabs>
+
+`hello-kotlin` and `hello-java` ship a Settings branding form that writes an in-memory `AppSettings` store; the panel reads it through `resolveBrandingOverrides`. Persist the same fields on Cadence when you need them across restarts.
+
 ## Sign-in and the guard
 
-The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the application guard name `web`) or `reuseAppGuard("name")`. `useAuthGuard(guard)` adapts an application `Guard`. Until you do that, the panel keeps its own `MemoryPanelGuard` and leaves the application’s login and session in place.
+The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the application guard name `web`) or `reuseAppGuard("name")`. `reuseAppGuard` wires login to `Auth.guard(name)` with the request bound on each attempt, so Cadence users and bcrypt hashes from `./grind db:seed` work at `/admin/login`. `useAuthGuard(guard)` adapts a concrete application `Guard`. Until you do either, the panel keeps its own `MemoryPanelGuard` (plain in-memory passwords from `/register`) and leaves the application’s login and session in place. The Firefly kit panel calls `reuseAppGuard()` and `authenticate(true)`.
 
-The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, and `/profile`, under the panel prefix. Pages require that guard unless you call `authenticate(false)`. Login and registration read `email` and `password` (registration also reads `name`). A missing field returns 422 HTML. A failed attempt returns 422 HTML and the message `Those credentials do not match`.
+The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, `/profile`, and `/logout` (POST), under the panel prefix. Pages require that guard unless you call `authenticate(false)`. Login and registration read `email` and `password` (registration also reads `name`). A missing field returns 422 HTML. A failed attempt returns 422 HTML and the message `Those credentials do not match`. With `reuseAppGuard`, panel `/register` does not create application users — seed or create them through the app Auth stack. Sign out posts to `/logout`; profile POST saves the account form.
 
 When the guard has no id, the user chip reads **Guest**.
 
