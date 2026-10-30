@@ -291,8 +291,8 @@ class CadenceFiltersTest {
         // (featured and price <= 10) or (status is draft)
         assertEquals(listOf("Engines", "Notes", "Orphan"), run("featured:isTrue:;price:isMax:10|status:is:draft"))
         assertEquals(
-            "Featured is true and Price is at most 10 or Status is Draft",
-            table.filterIndicators().single().label,
+            listOf("Featured is true", "Price is at most 10", "Status is Draft"),
+            table.filterIndicators().map { it.label },
         )
         run("author:isRelatedTo:${ada.getKey()},${bea.getKey()}")
         assertEquals("Author is Ada, Bea", table.filterIndicators().single().label)

@@ -196,8 +196,8 @@ open class MemoryQuery internal constructor(source: List<Map<String, Any?>>) {
         operator == "not-null" -> actual != null
         actual == null -> false
         else -> when (operator) {
-            "like" -> like(actual, expected, false)
-            "not like" -> like(actual, expected, true)
+            "like", "ilike" -> like(actual, expected, false)
+            "not like", "not ilike" -> like(actual, expected, true)
             "=", "==" -> same(actual, expected)
             "!=", "<>" -> !same(actual, expected)
             "in" -> within(actual, expected)
@@ -293,7 +293,7 @@ open class MemoryQuery internal constructor(source: List<Map<String, Any?>>) {
     companion object {
         private val ISO_DATE = Regex("(\\d{4})-(\\d{2})-(\\d{2})")
         private val COMPARISONS = setOf("=", "==", "!=", "<>", ">", ">=", "<", "<=")
-        private val OPERATORS = COMPARISONS + setOf("null", "not-null", "like", "not like", "in", "not in")
+        private val OPERATORS = COMPARISONS + setOf("null", "not-null", "like", "not like", "ilike", "not ilike", "in", "not in")
     }
 }
 

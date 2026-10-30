@@ -141,10 +141,39 @@ SelectFilter.make("author")
 </TabItem>
 </Tabs>
 
-- `searchable()` turns the select into a combobox that asks the server for matching options as the user types. On a resource page this uses the resource's `form-options` endpoint with `field=filters.author`.
+- `searchable()` turns the select into a combobox that asks the server for matching options as the user types. On a resource page this uses the resource's `form-options` endpoint with `field=filters.author` (or `{id}Filters.author` when the table uses [queryStringIdentifier](#multiple-tables-on-one-page)).
 - `preload()` loads the first page of options when the form renders, so the list is not empty before the user types. `optionsLimit(50)` caps how many come back.
 - `relationship("author", "name") { query -> ... }` takes a third argument that receives the related `ModelBuilder`, so you can scope the options (for example, only active authors).
 - `hasEmptyOption()` adds a "None" choice that matches records with no related record. `emptyRelationshipOptionLabel("Unassigned")` renames it.
+
+### Options from a search callback
+
+When options come from neither a static map nor a relationship, use `getSearchResultsUsing` (and usually `searchable()`). `getOptionLabelUsing` labels a selected key that is not in the current search page:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+SelectFilter.make("owner")
+    .attribute("owner_id")
+    .searchable()
+    .getSearchResultsUsing { search, _ -> directory.search(search) }
+    .getOptionLabelUsing { key, _ -> directory.label(key) }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SelectFilter.make("owner")
+    .attribute("owner_id")
+    .searchable()
+    .getSearchResultsUsing((search, cell) -> directory.search(search))
+    .getOptionLabelUsing((key, cell) -> directory.label(key));
+```
+
+</TabItem>
+</Tabs>
 
 ## Yes, no, or either with `TernaryFilter`
 
@@ -425,7 +454,9 @@ QueryBuilderFilter.make("advanced").constraints(
 | `SelectConstraint` | is, is filled |
 | `RelationshipConstraint` | is related to, has |
 
-Every operator can be inverted ("does not contain", "is not filled", "does not have"). A condition with an invalid value, such as letters in a number field, is ignored rather than failing the page. The chip reads the rules back in words, for example "Title contains Kona and Pages is minimum 200".
+Every operator can be inverted ("does not contain", "is not filled", "does not have"). A condition with an invalid value, such as letters in a number field, is ignored rather than failing the page. Each rule becomes its own removable chip (for example "Title contains Kona" and "Pages is at least 200").
+
+`TextConstraint.make("title").insensitive()` matches without regard to letter case (`ilike` on SQL stores).
 
 The builder is a filter like any other, so it sits in the same form, works with deferred and live mode, and is stored in the URL as `filters.advanced=…`.
 

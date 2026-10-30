@@ -59,6 +59,16 @@ abstract class QueryConstraint protected constructor(val name: String) {
 
 /** Text: contains, starts with, ends with, equals, is filled (and inverses). */
 open class TextConstraint protected constructor(name: String) : QueryConstraint(name) {
+    private var insensitiveFlag = false
+
+    /** Use case-insensitive matching (`ilike` on SQL; memory `like` is already case-insensitive). */
+    @JvmOverloads
+    fun insensitive(on: Boolean = true): TextConstraint = apply { insensitiveFlag = on }
+
+    override fun label(value: String): TextConstraint = apply { super.label(value) }
+
+    override fun attribute(name: String): TextConstraint = apply { super.attribute(name) }
+
     override fun kind(): String = "text"
 
     override fun operators(): List<ConstraintOperator> = listOf(
@@ -71,12 +81,23 @@ open class TextConstraint protected constructor(name: String) : QueryConstraint(
 
     override fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
         val value = rule.value().orEmpty()
-        val like = if (rule.negated) "not like" else "like"
+        val like = when {
+            insensitiveFlag && rule.negated -> "not ilike"
+            insensitiveFlag -> "ilike"
+            rule.negated -> "not like"
+            else -> "like"
+        }
         when (rule.operator) {
             "contains" -> store.constrain(query, column(), like, "%$value%")
             "startsWith" -> store.constrain(query, column(), like, "$value%")
             "endsWith" -> store.constrain(query, column(), like, "%$value")
-            "equals" -> store.constrain(query, column(), if (rule.negated) "!=" else "=", value)
+            "equals" -> {
+                if (insensitiveFlag) {
+                    store.constrain(query, column(), like, value)
+                } else {
+                    store.constrain(query, column(), if (rule.negated) "!=" else "=", value)
+                }
+            }
             else -> filled(query, store, rule.negated)
         }
     }
@@ -374,10 +395,28 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
         if (hasIndicatorOverride()) return super.indicators(context)
         val groups = groups(context.data)
         if (groups.isEmpty()) return emptyList()
-        val text = groups.joinToString(" or ") { rules ->
-            rules.joinToString(" and ") { rule -> constraint(rule.constraint).describe(context.store, rule) }
+        val out = ArrayList<FilterIndicator>()
+        groups.forEachIndexed { groupIndex, rules ->
+            rules.forEachIndexed { ruleIndex, rule ->
+                out.add(
+                    FilterIndicator.make(constraint(rule.constraint).describe(context.store, rule))
+                        .removeField(ruleField(groupIndex, ruleIndex)),
+                )
+            }
         }
-        return listOf(FilterIndicator.make(text))
+        return out
+    }
+
+    override fun applyIndicatorRemoval(data: FilterData, fields: List<String>): FilterData {
+        if (fields.isEmpty()) return FilterData(emptyMap())
+        val targets = fields.mapNotNull { parseRuleField(it) }.toSet()
+        if (targets.isEmpty()) return data.without(fields)
+        val next = groups(data).mapIndexedNotNull { groupIndex, rules ->
+            val kept = rules.filterIndexed { ruleIndex, _ -> (groupIndex to ruleIndex) !in targets }
+            kept.ifEmpty { null }
+        }
+        if (next.isEmpty()) return FilterData(emptyMap())
+        return FilterData.single(encode(next))
     }
 
     override fun renderControl(context: FilterRenderContext, field: FilterField): String {
@@ -432,6 +471,8 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
     private fun decode(value: String): String = URLDecoder.decode(value, Charsets.UTF_8)
 
     companion object {
+        private const val RULE_FIELD = "__qb"
+
         @JvmStatic
         fun make(name: String): QueryBuilderFilter = finish(QueryBuilderFilter(name))
 
@@ -443,6 +484,16 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
                 val values = rule.values.joinToString(",") { URLEncoder.encode(it, Charsets.UTF_8) }
                 "${URLEncoder.encode(rule.constraint, Charsets.UTF_8)}:$op:$values"
             }
+        }
+
+        private fun ruleField(groupIndex: Int, ruleIndex: Int): String = "$RULE_FIELD:$groupIndex:$ruleIndex"
+
+        private fun parseRuleField(field: String): Pair<Int, Int>? {
+            val parts = field.split(':')
+            if (parts.size != 3 || parts[0] != RULE_FIELD) return null
+            val group = parts[1].toIntOrNull() ?: return null
+            val rule = parts[2].toIntOrNull() ?: return null
+            return group to rule
         }
     }
 }

@@ -105,7 +105,7 @@ public class TableFiltersJavaTest {
             .visible(true)
             .hidden(false)
             .constraints(
-                TextConstraint.make("name"),
+                TextConstraint.make("name").insensitive(),
                 NumberConstraint.make("score"),
                 BooleanConstraint.make("active"),
                 SelectConstraint.make("status").label("Status").attribute("status").options(Map.of("open", "Open")).multiple(),
@@ -114,8 +114,13 @@ public class TableFiltersJavaTest {
         assertEquals(5, rules.constraints().size());
         assertEquals("is", new ConstraintOperator("is", "is", "is not").getLabel());
 
+        SelectFilter custom = SelectFilter.make("who").attribute("name").searchable()
+            .getSearchResultsUsing((search, cell) -> Map.of("Ada", "Ada Lovelace"))
+            .getOptionLabelUsing((key, cell) -> "Ada Lovelace");
+        assertEquals(Map.of("Ada", "Ada Lovelace"), custom.options(none, null, "a", null));
+
         Table<Map<String, Object>, MemoryQuery> table = table()
-            .filters(FiltersLayout.ABOVE_CONTENT_COLLAPSIBLE, status, active, rules)
+            .filters(FiltersLayout.ABOVE_CONTENT_COLLAPSIBLE, status, active, rules, custom)
             .filtersFormColumns(2)
             .filtersFormWidth("2xl")
             .filtersFormMaxHeight("30rem")

@@ -249,6 +249,13 @@ open class Filter(val name: String) {
     /** Chips with table context (store-backed labels); defaults to [indicators] `(cell, data)`. */
     open fun indicators(context: FilterRenderContext): List<FilterIndicator> = indicators(context.cell, context.data)
 
+    /**
+     * Apply an indicator × removal to [data]. Default drops the named schema fields (or the whole
+     * filter when [fields] is empty). Query-builder chips pass rule coordinates here.
+     */
+    open fun applyIndicatorRemoval(data: FilterData, fields: List<String>): FilterData =
+        if (fields.isEmpty()) FilterData(emptyMap()) else data.without(fields)
+
     /** Active-filter chips for [data]; empty when inactive. */
     open fun indicators(cell: Cell, data: FilterData): List<FilterIndicator> {
         val custom = indicateUsing

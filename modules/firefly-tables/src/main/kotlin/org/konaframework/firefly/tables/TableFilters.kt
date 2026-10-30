@@ -162,7 +162,7 @@ class TableFilters internal constructor() {
         val filter = filter(name)
         val current = data(filter, cell)
         freeze(cell)
-        explicit[name] = if (fields.isEmpty()) FilterData(emptyMap()) else current.without(fields)
+        explicit[name] = filter.applyIndicatorRemoval(current, fields.toList())
     }
 
     internal fun removeAll(cell: Cell) {
@@ -343,11 +343,7 @@ class TableFilters internal constructor() {
         out.add(queryPrefix() to "1")
         for (filter in list) {
             val current = data(filter, cell)
-            val next = when {
-                filter.name != name -> current
-                fields.isEmpty() -> FilterData(emptyMap())
-                else -> current.without(fields)
-            }
+            val next = if (filter.name != name) current else filter.applyIndicatorRemoval(current, fields)
             out.addAll(pairs(filter, next))
         }
         return out
