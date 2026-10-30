@@ -6,7 +6,7 @@ description: "Repeater for lists of mapped items with add, delete, clone, reorde
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`Repeater` edits a list of maps. Each item uses the same field blueprint. The field posts one JSON array under its name.
+`Repeater` edits a list of maps. Each item uses the same field blueprint. The field posts one JSON array under its name. Items support add, delete, clone, reorder, and collapse chrome.
 
 <FireflyShot file="form-repeater.png" description="Repeater notes field on the Playground form." />
 
@@ -42,11 +42,14 @@ Repeater.make("notes")
         TextInput.make("title").label("Title").required(),
         Textarea.make("body").label("Body")
     )
+    .addable(true)
     .reorderable(true)
     .cloneable(true)
+    .collapsible(true)
     .minItems(1)
     .maxItems(10)
-    .defaultItems(1);
+    .defaultItems(1)
+    .addActionLabel("Add note");
 ```
 
 </TabItem>
@@ -59,18 +62,61 @@ Repeater.make("notes")
 | Method | Effect |
 |--------|--------|
 | `schema(...)` / `simple(field)` | Item blueprint |
-| `addable` / `deletable` / `reorderable` / `cloneable` | Item controls |
-| `collapsible` / `collapsed` | Collapse chrome |
-| `grid(count)` | Columns inside each item |
-| `minItems` / `maxItems` / `defaultItems` | Counts |
-| `orderColumn` | Write 1-based sort positions |
-| `relationship(name)` | Store relation name (does not load records alone) |
+| `addable` / `deletable` / `reorderable` / `cloneable` | Item controls (add/delete default `true`) |
+| `collapsible` / `collapsed` | Collapse chrome; start collapsed when both on |
+| `grid(count)` | Columns inside each item (`--ff-item-cols`; minimum 1) |
+| `minItems` / `maxItems` / `defaultItems` | Counts (`defaultItems` seeds empty maps) |
+| `orderColumn` | Write 1-based sort positions into each row |
+| `relationship(name)` | Store relation name attribute (does not load records alone) |
 | `itemLabel` | Fixed label or `(index, Get) -> String` |
-| `addActionLabel` | Add button copy |
-| `addAction` / `deleteAction` / `cloneAction` / `extraItemActions` | Extra `Action`s |
-| `items` / `addItem` / `removeItem` / `cloneItem` / `moveItem` | Mutate schema state |
+| `addActionLabel` | Add button copy (default `"Add"`) |
+| `addAction` / `deleteAction` / `cloneAction` / `extraItemActions` | Extra `Action`s rendered with items |
+| `items` / `addItem` / `removeItem` / `cloneItem` / `moveItem` | Read / mutate schema state |
 
-Child fields marked `distinct()` reject duplicate values across items. Required children are checked in `extraErrors`.
+When `itemLabel` is unset, labels default to `Item 1`, `Item 2`, … and the template uses `Item {n}`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Repeater.make("lineItems")
+    .simple(TextInput.make("sku").label("SKU").distinct().required())
+    .grid(2)
+    .orderColumn("position")
+    .itemLabel {{ index, get -> "Line ${index + 1}" }}
+    .minItems(1)
+    .maxItems(50)
+    .collapsed(true)
+    .collapsible(true)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Repeater.make("lineItems")
+    .simple(TextInput.make("sku").label("SKU").distinct().required())
+    .grid(2)
+    .orderColumn("position")
+    .itemLabel((index, get) -> "Line " + (index + 1))
+    .minItems(1)
+    .maxItems(50)
+    .collapsed(true)
+    .collapsible(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Validation
+
+`extraErrors` enforces `minItems` / `maxItems`. Child fields marked `distinct()` reject duplicate non-empty values across items. Required children produce path errors like `notes.0.title`. Programmatic helpers (`addItem`, `removeItem`, `cloneItem`, `moveItem`) throw when an index is missing.
+
+For typed heterogeneous blocks, use [`Builder`](/docs/firefly/forms/builder/). For flat string maps, use [`KeyValue`](/docs/firefly/forms/key-value/).
+
+## Configure defaults
+
+`Repeater.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
 
 ## See also
 

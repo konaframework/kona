@@ -6,19 +6,20 @@ description: "Render a map as a two-column table in a Firefly infolist."
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`KeyValueEntry` expects a `Map` and paints it as a table with key and value columns.
+`KeyValueEntry` expects a `Map` and paints it as a two-column table. It inherits every helper on [Entry](/docs/firefly/infolists/#helpers-on-every-entry) (`label`, `state`, `placeholder`, and the rest). Use it for metadata bags, settings snapshots, or any record field that is already a string-keyed map.
 
 <FireflyShot file="infolist-key-value-entry.png" description="A key-value entry table with Field and Detail headers." />
 
-## Headers and empty state
+## Make a key-value entry
 
-`keyLabel` and `valueLabel` rename the headers (defaults are `Key` and `Value`). `emptyMessage` is an alias of `placeholder` when the map is empty (default text `No values`). A null key is skipped. Non-map state renders as empty.
+Call `KeyValueEntry.make("meta")`, rename the headers if you want, and pass a map as state (or fill it on the schema).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 KeyValueEntry.make("meta")
+    .label("Metadata")
     .keyLabel("Field")
     .valueLabel("Detail")
     .emptyMessage("Nothing yet")
@@ -30,6 +31,7 @@ KeyValueEntry.make("meta")
 
 ```java
 KeyValueEntry.make("meta")
+    .label("Metadata")
     .keyLabel("Field")
     .valueLabel("Detail")
     .emptyMessage("Nothing yet")
@@ -39,6 +41,58 @@ KeyValueEntry.make("meta")
 </TabItem>
 </Tabs>
 
-You see a table with the header **Field** / **Detail** and rows for each map entry. Values are stringified and escaped.
+You see a table with the header **Field** / **Detail** and one row per map entry. Keys and values are stringified and HTML-escaped. Row order follows the map’s iteration order (`LinkedHashMap` keeps insertion order).
 
-See also [Infolists overview](/docs/firefly/infolists/).
+## Headers and empty state
+
+| Method | Effect |
+|--------|--------|
+| `keyLabel(text)` | Header for the key column (default `Key`) |
+| `valueLabel(text)` | Header for the value column (default `Value`) |
+| `emptyMessage(text)` | Alias of `placeholder` when the map is empty (default `No values`) |
+| `placeholder(text)` | Same empty copy as `emptyMessage` |
+| `state(map)` / filled schema | Must be a `Map`; anything else renders empty |
+
+Both `keyLabel` and `valueLabel` also accept a `Function<Get, String>` so the header can depend on the current reader. A null key is skipped. Nested maps and lists in values are stringified with `toString()`, not expanded into nested tables.
+
+## Closures and binding
+
+Prefer filling the parent schema when the map comes from Cadence or a resource record. Explicit `state` is useful in samples and unit tests.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+KeyValueEntry.make("meta")
+    .keyLabel { "Field" }
+    .valueLabel { get -> get.get("valueHeading")?.toString() ?: "Detail" }
+    .emptyMessage { "No metadata on this record" }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KeyValueEntry.make("meta")
+    .keyLabel(get -> "Field")
+    .valueLabel(get -> {
+        Object heading = get.get("valueHeading");
+        return heading == null ? "Detail" : heading.toString();
+    })
+    .emptyMessage(get -> "No metadata on this record");
+```
+
+</TabItem>
+</Tabs>
+
+Dotted names work like other entries: `KeyValueEntry.make("order.meta")` reads `order.meta` from filled state or the schema’s Cadence record.
+
+## Defaults for every make
+
+`KeyValueEntry.configureUsing { entry -> entry.keyLabel("Name").valueLabel("Value") }` runs for every later `make()`. Pass `null` to clear it.
+
+## See also
+
+- [Infolists overview](/docs/firefly/infolists/)
+- [Repeatable entry](/docs/firefly/infolists/repeatable-entry/) — lists of maps as cards or a table
+- [Text entry](/docs/firefly/infolists/text-entry/)

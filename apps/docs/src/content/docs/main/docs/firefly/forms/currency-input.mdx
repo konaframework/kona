@@ -42,16 +42,21 @@ TextInput.make("price").currency("KES", "en-KE", 2);
 
 `CurrencyInput.make(name)` defaults the code to `"USD"`. `CurrencyInput.configureUsing` forwards to `TextInput.configureUsing`.
 
-## Options
+## Currency options
 
 `currency(code, locale?, precision?)` on `TextInput`:
 
-- Rejects negative precision.
-- Sets `numeric()` and a step (`1` when precision is 0, otherwise `0.01` unless you already set `step`).
-- Stores currency options readable via `currencyOptions()`.
-- Affix chrome paints as a joined input group (`.ff-control.has-prefix`).
+| Detail | Behavior |
+|--------|----------|
+| Precision | Rejects negative values |
+| Numeric mode | Calls `numeric()` |
+| Step | `1` when precision is 0, otherwise `0.01` unless `step` was already set |
+| Prefix | Currency symbol from `CurrencyFormat` when prefix / prefix icon are unset |
+| Introspection | `currencyOptions()` returns the stored `CurrencyOptions` |
 
-You still have every `TextInput` method (`minValue`, `maxValue`, `step`, `required`, …).
+Affix chrome paints as a joined input group (`.ff-control.has-prefix`). Data attributes `data-ff-currency`, `data-ff-currency-locale`, and `data-ff-currency-precision` are written on the input for client formatting.
+
+You still have every `TextInput` method (`minValue`, `maxValue`, `step`, `required`, `revealable`, …).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -61,6 +66,10 @@ CurrencyInput.make("fee", "EUR")
     .minValue(0.0)
     .maxValue(10_000.0)
     .prefix("€") // your prefix wins over the auto symbol
+
+TextInput.make("points")
+    .currency("JPY", "ja-JP", 0)
+    .step("1")
 ```
 
 </TabItem>
@@ -71,12 +80,21 @@ CurrencyInput.make("fee", "EUR")
     .minValue(0.0)
     .maxValue(10_000.0)
     .prefix("€");
+
+TextInput.make("points")
+    .currency("JPY", "ja-JP", 0)
+    .step("1");
 ```
 
 </TabItem>
 </Tabs>
 
+## Validation
+
+Because the field is a numeric `TextInput`, validation includes `numeric` (or `integer` when step is `1`) plus any `min:` / `max:` rules from `minValue` / `maxValue`. Add `required()` as needed.
+
 ## See also
 
 - [Forms overview](/docs/firefly/forms/)
 - [Text input](/docs/firefly/forms/text-input/)
+- [Slider](/docs/firefly/forms/slider/)

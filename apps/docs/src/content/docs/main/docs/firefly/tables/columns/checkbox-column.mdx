@@ -6,13 +6,46 @@ description: "Bind a boolean attribute to an editable checkbox that persists thr
 import FireflyShot from '../../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`CheckboxColumn` renders a checkbox bound to the row attribute. Editable cells call Wire `toggleColumn` and persist immediately.
+A `CheckboxColumn` binds a boolean-ish row attribute to a single checkbox in the cell. When the cell is editable, changing the box calls Wire `toggleColumn` with `"true"` or `"false"` and persists immediately. When it is not editable, the input is `disabled` and no change handler is attached.
+
+This is the column type for per-row flags you want to edit inline. It is not the same as the table’s bulk selection checkboxes in the toolbar — those select rows for bulk actions.
 
 <FireflyShot file="column-checkbox.png" description="A checkbox column for an active flag on each row." />
 
+## Add the column
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CheckboxColumn.make("active")
+    .label("Active")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CheckboxColumn.make("active")
+    .label("Active");
+```
+
+</TabItem>
+</Tabs>
+
+Truthy state checks the box: `Boolean`, non-zero numbers, and `"1"` / `"true"` / `"yes"`. Null and other values leave it unchecked.
+
 ## Editable gates
 
-By default the checkbox is editable. `.editable(false)` or `.editable { cell -> ... }` makes the cell readonly when the user cannot update the record. Disabled columns (`disabled()`) are never editable. `extraInputAttributes` merges onto the `<input>` (`type`, `name`, and `value` stay owned by the control).
+By default every cell is editable. Use `editable` when only some operators or rows may change the value:
+
+| Method | Effect |
+|--------|--------|
+| `editable()` / `editable(true)` | Always editable (default behavior) |
+| `editable(false)` | Always readonly |
+| `editable(Predicate<Cell>)` | Per-cell gate; return `true` to allow persist |
+
+`disabled()` on the column always wins: `isEditable(cell)` returns `false` when the column is disabled for that cell, even if the editable predicate would allow it.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -37,4 +70,31 @@ CheckboxColumn.make("active")
 </TabItem>
 </Tabs>
 
-Truthy state (`Boolean`, non-zero numbers, `"1"` / `"true"` / `"yes"`) checks the box. See [Tables](/docs/firefly/tables/) for bulk selection checkboxes — those are separate from this column type.
+## Extra input attributes
+
+`extraInputAttributes(Map)` or `extraInputAttributes { cell -> ... }` merges onto the `<input>`. Ownership of `type`, checked state, and the Wire change handler stays with Firefly — use extras for `aria-label`, `data-*`, or similar.
+
+`extraAttributes` (inherited from `Column`) applies to the outer `ff-checkbox-column` shell, not the input.
+
+## Shared helpers
+
+| Method | Effect |
+|--------|--------|
+| `label(...)` | Heading |
+| `tooltip(...)` / `description(...)` | Shell tips |
+| `align(Align)` / `width(String)` | Layout |
+| `hidden()` / `visible(...)` / `disabled(...)` | Visibility and hard disable |
+| `toggleable()` / `toggledHiddenByDefault()` | Column picker |
+| `extraAttributes(...)` | Attributes on the outer div |
+
+## Tips
+
+- Prefer [Toggle column](/docs/firefly/tables/columns/toggle-column/) when you want a switch UI without an edit gate.
+- Prefer [Icon column](/docs/firefly/tables/columns/icon-column/) boolean mode for read-only Yes/No pills.
+- Keep form fields ([Checkbox](/docs/firefly/forms/checkbox/), [Toggle](/docs/firefly/forms/toggle/)) for create/edit schemas; this column is for list inline edits.
+
+## See also
+
+- [Toggle column](/docs/firefly/tables/columns/toggle-column/)
+- [Icon column](/docs/firefly/tables/columns/icon-column/)
+- [Tables](/docs/firefly/tables/)

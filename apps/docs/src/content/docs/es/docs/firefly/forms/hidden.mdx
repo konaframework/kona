@@ -6,16 +6,23 @@ description: "Hidden field that posts a value without visible chrome."
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`Hidden` renders a hidden HTML input and skips the visible label chrome. Use it for tokens, parent ids, or other state that must post with the form.
+`Hidden` renders a hidden HTML input and skips the visible label chrome. Use it for tokens, parent ids, or other state that must post with the form but should not appear in the layout.
+
+There is no Playground screenshot for this control — it has no visible field chrome.
 
 ## Add the field
+
+Call `Hidden.make("name")` to bind the state key, put the field on a schema, then fill state before render:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 val token = Hidden.make("token")
+
+val schema = Schema.make().components(token)
 schema.fill(mapOf("token" to "abc123"))
+schema.render()
 ```
 
 </TabItem>
@@ -23,7 +30,10 @@ schema.fill(mapOf("token" to "abc123"))
 
 ```java
 Hidden token = Hidden.make("token");
+
+Schema schema = Schema.make().components(token);
 schema.fill(Map.of("token", "abc123"));
+schema.render();
 ```
 
 </TabItem>
@@ -31,9 +41,51 @@ schema.fill(Map.of("token", "abc123"));
 
 ## Behavior
 
-- `kind()` is `"hidden"`.
-- The control is `<input type="hidden" …>` with the same Wire entanglement as other fields.
-- Shared helpers (`rule`, `dehydrated` / `saved`, `formatStateUsing`, …) still apply; there is no type-specific API beyond `make` / `configureUsing`.
+| Detail | Effect |
+|--------|--------|
+| `kind()` | `"hidden"` |
+| Markup | `<input type="hidden" …>` with the same Wire entanglement as other fields |
+| Label chrome | Not painted (the field still has a name in schema state) |
+| Type-specific API | None beyond `make` / `configureUsing` |
+
+Shared helpers from the field base still apply: `rule(...)`, `rules(...)`, `dehydrated` / `saved`, `formatStateUsing`, `default`, `disabled`, and live-update helpers.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Hidden.make("parentId")
+    .defaultValue("0")
+    .dehydrated(true)
+
+Hidden.make("csrf")
+    .rule("required")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Hidden.make("parentId")
+    .defaultValue("0")
+    .dehydrated(true);
+
+Hidden.make("csrf")
+    .rule("required");
+```
+
+</TabItem>
+</Tabs>
+
+Prefer [`Placeholder`](/docs/firefly/forms/placeholder/) when you need read-only visible copy, and [`TextInput`](/docs/firefly/forms/text-input/) when the value should be editable.
+
+## Rendering
+
+`renderBody` writes entanglement markup plus the hidden input. The posted name is the field path; the value is the current schema state string (empty when unset). There is no `control(...)` chrome wrapper — hidden fields intentionally skip the visible label / hint / helper stack.
+
+## Configure defaults
+
+`Hidden.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
 
 ## See also
 

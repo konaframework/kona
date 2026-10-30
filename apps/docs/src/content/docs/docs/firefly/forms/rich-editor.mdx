@@ -6,7 +6,7 @@ description: "RichEditor TipTap surface with toolbar groups, mentions, merge tag
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`RichEditor` is a rich-text surface with a grouped toolbar. The default storage is sanitized HTML; call `json()` to store JSON instead.
+`RichEditor` is a rich-text surface with a grouped toolbar. The default storage is sanitized HTML; call `json()` to store JSON instead. The panel loads the editor script from `/_firefly/rich-editor/simple.js`.
 
 <FireflyShot file="form-rich-editor.png" description="RichEditor body field on the Playground form." />
 
@@ -45,17 +45,24 @@ RichEditor.make("body")
 |--------|--------|
 | `toolbarButtons(groups)` | Replace default button groups (`List<List<String>>`) |
 | `disableToolbarButtons(...)` | Hide tools by name |
-| `json()` / `html()` | Storage mode |
+| `json()` / `html()` | Storage mode (`json` skips HTML sanitizer) |
 | `resizable(on)` | Resize handle |
 | `fileAttachmentsDisk` / `Directory` / `Visibility` | Attachment storage (string or `Get`) |
-| `mergeTags(...)` | Insertable merge tags |
-| `mentions(...)` / `mentions(provider)` | Mention list or search |
-| `mention(query)` | Resolve mentions |
-| `customBlocks(EditorBlock...)` | Named blocks with schemas |
-| `editBlockAction(name, action)` | Action beside a block |
+| `mergeTags(...)` | Insertable merge tags (`data-ff-merge`) |
+| `mentions(...)` / `mentions(provider)` | Static list or search function |
+| `mention(query)` | Resolve mentions for a query |
+| `customBlocks(EditorBlock...)` | Named blocks with nested schemas |
+| `editBlockAction(name, action)` | Action beside a block dialog |
 | `sanitize(html)` | Clean HTML when not in JSON mode |
 
-Default toolbar groups include undo/redo, marks, headings, alignment, lists, link, image, and table. The panel serves the editor script from `/_firefly/rich-editor/simple.js`.
+Default toolbar groups:
+
+1. `undo`, `redo`
+2. `bold`, `italic`, `underline`, `strike`, `subscript`, `superscript`, `highlight`
+3. `h1`, `h2`, `h3`
+4. `align-left`, `align-center`, `align-right`, `align-justify`
+5. `bullet`, `ordered`, `blockquote`, `code`
+6. `link`, `image`, `table`
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -65,11 +72,17 @@ RichEditor.make("body")
     .disableToolbarButtons("table", "code")
     .mergeTags("name", "email")
     .mentions("ada", "grace")
+    .fileAttachmentsVisibility("public")
     .customBlocks(
-        EditorBlock("callout", "Callout", Schema.make().components(
-            TextInput.make("text").label("Text")
-        ))
+        EditorBlock(
+            "callout",
+            "Callout",
+            Schema.make().components(
+                TextInput.make("text").label("Text"),
+            ),
+        ),
     )
+    .placeholder("Start writing…")
 ```
 
 </TabItem>
@@ -79,14 +92,34 @@ RichEditor.make("body")
 RichEditor.make("body")
     .disableToolbarButtons("table", "code")
     .mergeTags("name", "email")
-    .mentions("ada", "grace");
+    .mentions("ada", "grace")
+    .fileAttachmentsVisibility("public")
+    .customBlocks(
+        new EditorBlock(
+            "callout",
+            "Callout",
+            Schema.make().components(
+                TextInput.make("text").label("Text")
+            )
+        )
+    )
+    .placeholder("Start writing…");
 ```
 
 </TabItem>
 </Tabs>
+
+## Mentions and blocks
+
+`mentions(vararg)` filters case-insensitively on `mention(query)`. `mentions(Function)` replaces that list with a custom provider. Custom blocks render a dialog per `EditorBlock`; `editBlockAction` attaches an extra `Action` for a named block.
+
+## Configure defaults
+
+`RichEditor.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
 
 ## See also
 
 - [Forms overview](/docs/firefly/forms/)
 - [Markdown editor](/docs/firefly/forms/markdown-editor/)
 - [Code editor](/docs/firefly/forms/code-editor/)
+- [Builder](/docs/firefly/forms/builder/)

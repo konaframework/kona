@@ -6,11 +6,15 @@ description: "Paint a CSS color swatch from a cell value in a Firefly table."
 import FireflyShot from '../../../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`ColorColumn` turns the cell string into a `<span class="ff-color">` with that value as `background`. Empty state renders no swatch.
+A `ColorColumn` shows a small color swatch for each row. The cell value is treated as a CSS color string and applied as the swatch `background`. Use it for brand palettes, theme tokens, product colors, or any attribute that already stores a paint value (`#DF8723`, `rgb(...)`, `hsl(...)`, named colors, and so on).
+
+Empty or missing values render the column shell with no swatch — nothing is invented for null.
 
 <FireflyShot file="column-color.png" description="A color column showing brand color swatches." />
 
-## Make a color column
+## Add the column
+
+Call `ColorColumn.make("attribute")` with the row key that holds the color string, then chain shared column helpers as needed.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -18,6 +22,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 ```kotlin
 ColorColumn.make("ink")
     .label("Color")
+    .tooltip("Brand ink")
+    .toggleable()
 ```
 
 </TabItem>
@@ -25,10 +31,88 @@ ColorColumn.make("ink")
 
 ```java
 ColorColumn.make("ink")
-    .label("Color");
+    .label("Color")
+    .tooltip("Brand ink")
+    .toggleable();
 ```
 
 </TabItem>
 </Tabs>
 
-Pass a CSS color string in the row (`#DF8723`, `rgb(223, 135, 35)`, and so on). Chain shared column helpers (`label`, `tooltip`, `toggleable`) as needed from [Tables](/docs/firefly/tables/).
+Put the column on a table with the other columns in your resource or page schema. The heading defaults to a humanized attribute name (`ink` → `Ink`); override with `label(...)`.
+
+## Cell values
+
+The renderer reads `row[name]` as a string and builds:
+
+```html
+<span class="ff-color" style="background:…"></span>
+```
+
+Pass whatever CSS accepts as a background value:
+
+| Example value | Typical use |
+|---------------|-------------|
+| `#DF8723` | Hex brand color |
+| `#74453F` | Accent hex |
+| `rgb(223, 135, 35)` | RGB from a picker |
+| `hsl(32, 75%, 50%)` | HSL from a picker |
+| `rebeccapurple` | Named CSS color |
+
+Store the same formats your [Color picker](/docs/firefly/forms/color-picker/) field writes (`hex()`, `rgb()`, or `hsl()`) so edit forms and list tables stay aligned.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+// Row maps with ink stored as hex from ColorPicker.make("ink").hex()
+table.columns(
+    TextColumn.make("name").label("Name").searchable(),
+    ColorColumn.make("ink").label("Ink"),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.columns(
+    TextColumn.make("name").label("Name").searchable(),
+    ColorColumn.make("ink").label("Ink")
+);
+```
+
+</TabItem>
+</Tabs>
+
+## Shared column helpers
+
+`ColorColumn` extends `Column`, so the usual header and layout helpers apply:
+
+| Method | Effect |
+|--------|--------|
+| `label(String)` / `label(Function)` | Column heading |
+| `tooltip(String)` / `tooltip(Function)` | Hover tip on the cell shell |
+| `description(String)` / `description(Function)` | Secondary line under the swatch |
+| `width(String)` | Inline width on the shell |
+| `align(Align)` | `START`, `CENTER`, or `END` |
+| `hidden()` / `visible(false)` | Drop the column for a cell or always |
+| `toggleable()` / `toggledHiddenByDefault()` | Column picker visibility |
+| `extraAttributes(Map)` | Extra HTML attributes on the shell |
+| `grow(false)` | Keep intrinsic width inside a Split |
+
+Search and sort are usually not meaningful for raw color strings; leave `searchable()` / `sortable()` off unless your query layer treats the attribute specially.
+
+## Empty state and tips
+
+- **Null / blank** — no `<span class="ff-color">` is emitted; the `ff-color-column` wrapper remains.
+- **Invalid CSS** — the value is still written into `style="background:…"`. Prefer validating on the form (`ColorPicker` format helpers) so list rows stay trustworthy.
+- **Accessibility** — a swatch alone does not announce the color name. Pair with a [Text column](/docs/firefly/tables/columns/text-column/) for the hex string, or set `tooltip(...)` / `description(...)` when operators need the raw value.
+- **Defaults** — register a per-type finisher with `Column.configureUsing(ColorColumn::class.java) { column -> ... }` so every new `make(...)` gets shared labels or toggle defaults.
+
+## See also
+
+- [Tables](/docs/firefly/tables/)
+- [Text column](/docs/firefly/tables/columns/text-column/)
+- [Image column](/docs/firefly/tables/columns/image-column/)
+- [Color picker](/docs/firefly/forms/color-picker/)

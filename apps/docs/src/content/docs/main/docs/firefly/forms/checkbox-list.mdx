@@ -6,7 +6,7 @@ description: "CheckboxList for multi-select options with search, bulk toggle, an
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`CheckboxList` posts a JSON array of selected values. Options come from a map, a closure, or a relationship.
+`CheckboxList` posts a JSON array of selected values. Options come from a map, a `Get` closure, or a relationship binding. Each option is a checkbox with an optional description line.
 
 <FireflyShot file="form-checkbox-list.png" description="CheckboxList roles field on the Playground form." />
 
@@ -53,14 +53,62 @@ CheckboxList.make("roles")
 |--------|--------|
 | `options(Map)` / `options(Function)` | Choice map |
 | `descriptions(Map)` | Secondary text per option |
-| `searchable()` / `searchable(on)` | Filter box |
-| `bulkToggleable()` / `bulkToggleable(on)` | Select all / deselect all |
-| `optionColumns(count)` | CSS grid columns (minimum 1) |
+| `searchable()` / `searchable(on)` | Filter box (default off) |
+| `bulkToggleable()` / `bulkToggleable(on)` | Select all / deselect all button |
+| `optionColumns(count)` | CSS grid columns (minimum 1; sets `--ff-option-cols`) |
 | `gridDirection(direction)` | Grid direction attribute (default `"row"`) |
-| `noSearchResultsMessage` / `searchPrompt` | Search UI copy |
+| `noSearchResultsMessage` / `searchPrompt` | Search UI copy (defaults `"No results"` / `"Search"`) |
 | `disableOptionWhen` | Disable by value |
-| `relationship(name, titleAttribute)` | Load options from a relation |
+| `relationship(name, titleAttribute)` | Store a `RelationBinding` for option loading |
 | `relation()` | Current `RelationBinding` |
+
+Selected state hydrates from a collection, JSON array text, or a single value.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CheckboxList.make("skills")
+    .options(mapOf("kt" to "Kotlin", "jv" to "Java", "ts" to "TypeScript"))
+    .descriptions(mapOf("kt" to "Preferred"))
+    .searchable()
+    .searchPrompt("Filter skills")
+    .noSearchResultsMessage("No skills match")
+    .disableOptionWhen {{ value -> value == "ts" }}
+    .optionColumns(3)
+    .gridDirection("row")
+
+CheckboxList.make("tags")
+    .relationship("tags", "name")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+CheckboxList.make("skills")
+    .options(Map.of("kt", "Kotlin", "jv", "Java", "ts", "TypeScript"))
+    .descriptions(Map.of("kt", "Preferred"))
+    .searchable(true)
+    .searchPrompt("Filter skills")
+    .noSearchResultsMessage("No skills match")
+    .disableOptionWhen(value -> "ts".equals(value))
+    .optionColumns(3);
+
+CheckboxList.make("tags")
+    .relationship("tags", "name");
+```
+
+</TabItem>
+</Tabs>
+
+## Tools row
+
+When searchable or bulk toggle is on, a tools row appears above the options. Search filters client-side by option label. Bulk toggle flips every enabled checkbox and updates the hidden JSON value.
+
+## Configure defaults
+
+`CheckboxList.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
 
 ## See also
 

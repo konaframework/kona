@@ -6,7 +6,7 @@ description: "Slider range input with min, max, step, decimal places, and toolti
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`Slider` posts a numeric value clamped between min and max (defaults 0–100, step 1).
+`Slider` posts a numeric value clamped between min and max. Defaults are min `0`, max `100`, and step `1`. The control is an HTML `range` input plus a live `<output>` showing the current value.
 
 <FireflyShot file="form-slider.png" description="Slider score field on the Playground form." />
 
@@ -45,11 +45,59 @@ Slider.make("score")
 
 | Method | Effect |
 |--------|--------|
-| `minValue` / `maxValue` | Range bounds |
-| `step` | Positive step size |
-| `decimalPlaces` | Round after normalize |
-| `tooltips(on)` | Show value tooltip while dragging |
-| `normalize(raw)` | Clamp and round a double |
+| `minValue(Double)` | Lower bound (default `0.0`) |
+| `maxValue(Double)` | Upper bound (default `100.0`) |
+| `step(Double)` | Positive step size (throws if ≤ 0) |
+| `decimalPlaces(Int)` | Round after normalize (throws if negative) |
+| `tooltips(on)` | Sets `data-ff-tooltips` for a value tip while dragging |
+| `normalize(raw)` | Clamp and round a `Double` |
+
+When the stored value is missing or non-numeric, the control shows the minimum. Fill percentage is painted with `--ff-slider-fill`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Slider.make("volume")
+    .label("Volume")
+    .minValue(0.0)
+    .maxValue(1.0)
+    .step(0.01)
+    .decimalPlaces(2)
+    .helperText("0 = mute, 1 = full")
+
+val clamped = Slider.make("tmp").minValue(0.0).maxValue(10.0).normalize(42.0)
+// clamped == 10.0
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Slider.make("volume")
+    .label("Volume")
+    .minValue(0.0)
+    .maxValue(1.0)
+    .step(0.01)
+    .decimalPlaces(2)
+    .helperText("0 = mute, 1 = full");
+
+double clamped = Slider.make("tmp").minValue(0.0).maxValue(10.0).normalize(42.0);
+// clamped == 10.0
+```
+
+</TabItem>
+</Tabs>
+
+## Validation and live updates
+
+Use `required()`, `rule(...)`, and sibling field helpers as usual. Call `live()` or `liveDebounce(ms)` when other fields should react to the slider value.
+
+For typed money amounts, prefer [`CurrencyInput`](/docs/firefly/forms/currency-input/). For free numeric entry, use [`TextInput.numeric()`](/docs/firefly/forms/text-input/).
+
+## Configure defaults
+
+`Slider.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
 
 ## See also
 

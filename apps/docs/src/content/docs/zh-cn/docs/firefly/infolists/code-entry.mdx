@@ -6,19 +6,20 @@ description: "Display syntax-highlighted source with Shiki in a Firefly infolist
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`CodeEntry` sends the raw source and a grammar name to the browser. The entry is `data-ff-shiki="shiki"` and includes a JSON payload. The browser script calls Shiki `createHighlighter`, then `codeToHtml`.
+`CodeEntry` shows source on a view page. The server escapes the text into a `<pre><code>` block and attaches a JSON payload. The browser script calls Shiki `createHighlighter`, then `codeToHtml`. The entry inherits every helper on [Entry](/docs/firefly/infolists/#helpers-on-every-entry).
 
 <FireflyShot file="infolist-code-entry.png" description="A code entry highlighting a short Kotlin snippet." />
 
-## Language and themes
+## Make a code entry
 
-`language` is an alias of `grammar`. Light and dark themes default to `github-light` and `github-dark`. A string with no grammar uses `html`. A map or a list uses `json`.
+Set a grammar (or use the `language` alias), optional themes, and the source string.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 CodeEntry.make("snippet")
+    .label("Handler")
     .language("kotlin")
     .lightTheme("github-light")
     .darkTheme("github-dark")
@@ -30,6 +31,7 @@ CodeEntry.make("snippet")
 
 ```java
 CodeEntry.make("snippet")
+    .label("Handler")
     .language("kotlin")
     .lightTheme("github-light")
     .darkTheme("github-dark")
@@ -39,10 +41,69 @@ CodeEntry.make("snippet")
 </TabItem>
 </Tabs>
 
-`jsonFlags` is passed to the JSON writer when state is a map or iterable: bit 1 tags hex, bit 64 leaves slashes unescaped when clear, and bit 128 pretty-prints.
+The host is `div.ff-code` with `data-ff-shiki="shiki"`, `data-ff-grammar`, `data-ff-light-theme`, and `data-ff-dark-theme`. A `<script type="application/json" class="ff-shiki-payload">` carries the same engine, grammar, and themes for the highlighter.
+
+## Language and themes
+
+| Method | Effect |
+|--------|--------|
+| `grammar(name)` | Shiki grammar id (for example `kotlin`, `java`, `json`) |
+| `language(name)` | Alias of `grammar` |
+| `lightTheme(name)` | Light theme (default `github-light`) |
+| `darkTheme(name)` | Dark theme (default `github-dark`) |
+| `jsonFlags(bits)` | JSON writer flags when state is a map or iterable |
+| `placeholder` | Shown when state is blank |
+| `configureUsing { … }` | Defaults for every later `make()`; pass `null` to clear |
+
+If you omit the grammar: a plain string defaults to `html`; a map or a list defaults to `json`. Themes and grammar also accept `Function<Get, String>`.
+
+## Maps and lists as JSON
+
+When state is a `Map` or an `Iterable`, Firefly serializes it to JSON before highlighting. Use `jsonFlags` to tune that writer:
+
+| Bit | When set |
+|-----|----------|
+| `1` | Tag hex-like numbers |
+| `64` | Leave `/` unescaped (when clear, slashes are escaped) |
+| `128` | Pretty-print with newlines and indentation |
+
+`jsonFlags(128)` is the usual pretty-print choice for readable payloads.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+CodeEntry.make("payload")
+    .language("json")
+    .jsonFlags(128)
+    .state(linkedMapOf("id" to 1, "name" to "Ada"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Map<String, Object> payload = new LinkedHashMap<>();
+payload.put("id", 1);
+payload.put("name", "Ada");
+CodeEntry.make("payload")
+    .language("json")
+    .jsonFlags(128)
+    .state(payload);
+```
+
+</TabItem>
+</Tabs>
 
 ## Browser script
 
-`ShikiCode.source()` returns the browser script. `ShikiCode.manifest()` returns `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`. Load that script next to a Shiki build that exports `createHighlighter`. Call `highlightCodeEntry(root, shiki)` with the Shiki module.
+`ShikiCode.source()` returns the browser script shipped with `kona-firefly-infolists`. `ShikiCode.manifest()` returns `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`. Load that script next to a Shiki build that exports `createHighlighter`. Call `highlightCodeEntry(root, shiki)` with the Shiki module so each `.ff-code` host is replaced with highlighted HTML.
 
-See also [Infolists overview](/docs/firefly/infolists/).
+## Defaults for every make
+
+`CodeEntry.configureUsing { entry -> entry.language("kotlin") }` runs for every later `make()`. Pass `null` to clear it.
+
+## See also
+
+- [Infolists overview](/docs/firefly/infolists/)
+- [Text entry](/docs/firefly/infolists/text-entry/) — markdown / trusted HTML without Shiki

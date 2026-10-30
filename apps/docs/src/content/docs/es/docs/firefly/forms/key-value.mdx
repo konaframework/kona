@@ -6,7 +6,7 @@ description: "KeyValue editor for string maps with add, delete, edit, and reorde
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`KeyValue` edits a map of strings. The field posts one JSON object. Each pair is a row with key and value inputs.
+`KeyValue` edits a map of strings. The field posts one JSON object. Each pair is a row with key and value inputs, optional reorder controls, and a remove button.
 
 <FireflyShot file="form-key-value.png" description="KeyValue meta field on the Playground form." />
 
@@ -43,16 +43,67 @@ KeyValue.make("meta")
 
 | Method | Effect |
 |--------|--------|
-| `keyLabel` / `valueLabel` | Header labels (string or `Get` closure) |
-| `keyPlaceholder` / `valuePlaceholder` | Input placeholders |
-| `addActionLabel` | Add-button label |
-| `addable` / `deletable` | Show add / remove (default true) |
-| `editableKeys` / `editableValues` | Readonly toggles (default true) |
-| `reorderable(on)` | Move up / down |
-| `pairs(raw)` | Decode stored JSON into pairs |
+| `keyLabel` / `valueLabel` | Header labels (string or `Get` closure; defaults `"Key"` / `"Value"`) |
+| `keyPlaceholder` / `valuePlaceholder` | Input placeholders (fall back to the labels) |
+| `addActionLabel` | Add-button label (default `"Add row"`) |
+| `addable` / `deletable` | Show add / remove (default `true`) |
+| `editableKeys` / `editableValues` | When `false`, key or value inputs are `readonly` (default `true`) |
+| `reorderable(on)` | Move up / down buttons |
+| `pairs(raw)` | Decode stored JSON into `List<Pair<String, String>>` |
+
+Non-map stored values decode to an empty pair list. Only string keys are kept.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+KeyValue.make("headers")
+    .keyLabel("Header")
+    .valueLabel("Value")
+    .keyPlaceholder("X-Custom")
+    .valuePlaceholder("…")
+    .addable(true)
+    .deletable(true)
+    .editableKeys(true)
+    .editableValues(true)
+    .reorderable(true)
+    .addActionLabel {{ get -> "Add header" }}
+
+val pairs = KeyValue.make("tmp").pairs("""{"a":"1","b":"2"}""")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+KeyValue.make("headers")
+    .keyLabel("Header")
+    .valueLabel("Value")
+    .keyPlaceholder("X-Custom")
+    .valuePlaceholder("…")
+    .addable(true)
+    .deletable(true)
+    .editableKeys(false)
+    .reorderable(true)
+    .addActionLabel(get -> "Add header");
+```
+
+</TabItem>
+</Tabs>
+
+## Interaction
+
+The add button appends an empty row from a `<template>`. Delete removes a row. Reorder moves a row up or down. The hidden input always holds the full JSON map.
+
+For nested field schemas per item, use [`Repeater`](/docs/firefly/forms/repeater/). For typed block lists, use [`Builder`](/docs/firefly/forms/builder/).
+
+## Configure defaults
+
+`KeyValue.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
 
 ## See also
 
 - [Forms overview](/docs/firefly/forms/)
 - [Repeater](/docs/firefly/forms/repeater/)
 - [Builder](/docs/firefly/forms/builder/)
+- [Tags input](/docs/firefly/forms/tags-input/)

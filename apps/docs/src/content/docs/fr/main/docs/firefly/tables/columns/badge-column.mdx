@@ -6,11 +6,13 @@ description: "A text column that always renders as a badge chip in a Firefly tab
 import FireflyShot from '../../../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`BadgeColumn` is `TextColumn` with `badge(true)` already on. Prefer it when the column is always a status or chip; chain `color(...)` for tone.
+A `BadgeColumn` is a [Text column](/docs/firefly/tables/columns/text-column/) with `badge(true)` already applied. The formatted cell value is wrapped in `<span class="ff-badge">…</span>`. Prefer this type when the column is always a status or chip; use `TextColumn.make(...).badge()` only when some rows should opt into badges dynamically.
+
+Chain `color(...)` to tint the chip text. The color value is a CSS color string applied with an inline `color` style (same paint path as other text columns).
 
 <FireflyShot file="column-badge.png" description="A badge column showing status chips in a list." />
 
-## Make a badge column
+## Add the column
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -19,10 +21,10 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 BadgeColumn.make("status")
     .label("Status")
     .color { cell ->
-        when (cell.get("status")) {
-            "published" -> "success"
-            "draft" -> "gray"
-            else -> "warning"
+        when (cell.get("status")?.toString()) {
+            "published" -> "#16a34a"
+            "draft" -> "#6b7280"
+            else -> "#d97706"
         }
     }
 ```
@@ -35,13 +37,79 @@ BadgeColumn.make("status")
     .label("Status")
     .color(cell -> {
         Object status = cell.get("status");
-        if ("published".equals(status)) return "success";
-        if ("draft".equals(status)) return "gray";
-        return "warning";
+        if ("published".equals(status)) return "#16a34a";
+        if ("draft".equals(status)) return "#6b7280";
+        return "#d97706";
     });
 ```
 
 </TabItem>
 </Tabs>
 
-Everything from [Text column](/docs/firefly/tables/columns/text-column/) still applies: search, sort, money, dates, relationships, `formatStateUsing`, and shared helpers. Dotted relationship paths bind the same way as on `TextColumn`.
+Dotted relationship paths bind the same way as on `TextColumn` (up to four segments), including make-time paths like `BadgeColumn.make("order.status")`.
+
+## Formatting inside the badge
+
+Everything from [Text column](/docs/firefly/tables/columns/text-column/) still applies inside the chip:
+
+| Helper | Role on a badge |
+|--------|-----------------|
+| `formatStateUsing { state, cell -> ... }` | Replace the displayed string |
+| `placeholder(...)` | Shown when the formatted value is empty |
+| `prefix(...)` / `suffix(...)` | Wrapped around the escaped (or HTML) body |
+| `limit(n)` | Truncate before the badge wrap |
+| `icon(...)` | SVG mark before the text |
+| `url(...)` / `openUrlInNewTab()` | Link the badge contents |
+| `html(true)` | Allow trusted HTML in the formatted body |
+| `money()` / `date()` / `dateTime()` | Formatters still run before the badge wrap |
+| `searchable()` / `sortable()` | Toolbar search and sort |
+| `relationship(...)` or dotted `make` | Related title as the chip text |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+BadgeColumn.make("role")
+    .label("Role")
+    .formatStateUsing { state, _ -> state?.toString()?.replaceFirstChar { it.uppercase() } ?: "" }
+    .icon("shield")
+    .searchable()
+    .sortable()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+BadgeColumn.make("role")
+    .label("Role")
+    .formatStateUsing((state, cell) -> {
+        if (state == null) return "";
+        String s = state.toString();
+        if (s.isEmpty()) return s;
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    })
+    .icon("shield")
+    .searchable()
+    .sortable();
+```
+
+</TabItem>
+</Tabs>
+
+## When to use TextColumn.badge()
+
+Use `TextColumn.make("x").badge()` when the same attribute is sometimes plain text and sometimes a chip, or when you already hold a `TextColumn` reference. Use `BadgeColumn` when the column is always a chip so the intent is obvious at the call site.
+
+## Tips
+
+- Keep status vocabularies small and map each value to a distinct CSS color so operators can scan the list quickly.
+- Pair with [Select column](/docs/firefly/tables/columns/select-column/) when operators should change status inline; keep `BadgeColumn` read-only for display.
+- `copyable()` still marks the shell for clipboard helpers when you need to copy the underlying status string.
+
+## See also
+
+- [Text column](/docs/firefly/tables/columns/text-column/)
+- [Select column](/docs/firefly/tables/columns/select-column/)
+- [Icon column](/docs/firefly/tables/columns/icon-column/)
+- [Tables](/docs/firefly/tables/)

@@ -179,6 +179,21 @@ async function main() {
     await setTheme(page, theme);
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('.ff-panel', { timeout: 30000 });
+    // Ensure ColorColumn / ColorEntry swatches have size even if panel CSS lagging Playground jar.
+    await page.addStyleTag({
+      content: `
+        .ff-panel .ff-color-column { display:inline-flex; align-items:center; gap:.35rem; min-height:1.5rem; }
+        .ff-panel .ff-color-column > span.ff-color {
+          display:inline-block; width:1.25rem; height:1.25rem; border-radius:9999px;
+          border:1px solid color-mix(in srgb, var(--ff-card-border) 85%, transparent); flex-shrink:0;
+        }
+        .ff-panel .ff-colors { display:inline-flex; flex-wrap:wrap; gap:.35rem; align-items:center; }
+        .ff-panel .ff-swatch {
+          display:inline-block; width:1.5rem; height:1.5rem; border-radius:.4rem;
+          border:1px solid var(--ff-card-border);
+        }
+      `,
+    });
     const editors2 = page.locator('summary, .ff-section-summary').filter({ hasText: /Editors/i }).first();
     if (await editors2.count()) await editors2.click().catch(() => null);
     for (const scene of scenes) {

@@ -6,13 +6,15 @@ description: "Change a row attribute from an inline select that calls Wire setCo
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`SelectColumn` renders a `<select>` of options. Changing the value calls `$wire.$call('setColumn', key, name, value)`.
+A `SelectColumn` renders an inline `<select>` for a row attribute. Changing the value calls `$wire.$call('setColumn', key, name, value)` so the panel can persist the new option immediately.
+
+Use it for small, fixed vocabularies (status, priority, role) where operators should edit without opening a full form. Prefer toolbar [filters](/docs/firefly/tables/) when you only need to narrow the query, not mutate rows.
 
 <FireflyShot file="column-select.png" description="A select column choosing status options inline." />
 
-## Options
+## Add the column
 
-`options(mapOf(...))` sets a fixed map of value → label. `options { cell -> ... }` builds the map per cell. `extraInputAttributes` merges onto the `<select>`.
+Provide options as a value → label map. The current row value is selected when it matches an option key.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -45,4 +47,70 @@ SelectColumn.make("status")
 </TabItem>
 </Tabs>
 
-The current row value is selected when it matches an option key. See [Tables](/docs/firefly/tables/) for filters when you need toolbar filtering instead of inline edits.
+## Options API
+
+| Method | Effect |
+|--------|--------|
+| `options(Map<String, String>)` | Fixed value → label map (order preserved via `LinkedHashMap`) |
+| `options(Function<Cell, Map<String, String>>)` | Build the map per cell (for example role-dependent choices) |
+| `extraInputAttributes(Map)` / `extraInputAttributes(Function)` | Merge onto the `<select>` (not the outer shell) |
+
+Calling `options(map)` clears any previous per-cell provider, and calling `options(provider)` clears a previous fixed map.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+SelectColumn.make("priority")
+    .label("Priority")
+    .options { cell ->
+        if (cell.get("/is_vip") == true) {
+            mapOf("p0" to "P0", "p1" to "P1", "p2" to "P2")
+        } else {
+            mapOf("p1" to "P1", "p2" to "P2", "p3" to "P3")
+        }
+    }
+    .extraInputAttributes(mapOf("aria-label" to "Priority"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+SelectColumn.make("priority")
+    .label("Priority")
+    .options(cell -> {
+        if (Boolean.TRUE.equals(cell.get("/is_vip"))) {
+            return Map.of("p0", "P0", "p1", "P1", "p2", "P2");
+        }
+        return Map.of("p1", "P1", "p2", "P2", "p3", "P3");
+    })
+    .extraInputAttributes(Map.of("aria-label", "Priority"));
+```
+
+</TabItem>
+</Tabs>
+
+## Shared helpers
+
+| Method | Effect |
+|--------|--------|
+| `label(...)` | Heading |
+| `tooltip(...)` / `description(...)` | Shell tips |
+| `align(Align)` / `width(String)` | Layout |
+| `hidden()` / `visible(...)` / `disabled(...)` | Visibility (`disabled` flags the shell; prefer omitting options the user must not pick) |
+| `toggleable()` / `toggledHiddenByDefault()` | Column picker |
+| `extraAttributes(...)` | Attributes on the outer `ff-select-column` div |
+
+## Tips
+
+- Keep option keys stable (store `"published"`, display `"Published"`) so filters, badges, and forms share one vocabulary.
+- Pair a read-only [Badge column](/docs/firefly/tables/columns/badge-column/) on detail views with this select on list views when edit and display layouts differ.
+- If the row value is missing from the option map, no option is marked selected until the operator picks one.
+
+## See also
+
+- [Badge column](/docs/firefly/tables/columns/badge-column/)
+- [Text column](/docs/firefly/tables/columns/text-column/)
+- [Tables](/docs/firefly/tables/)
+- [Select](/docs/firefly/forms/select/) (form field for create/edit schemas)

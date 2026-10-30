@@ -6,11 +6,13 @@ description: "Flip a boolean attribute with a pressable toggle that calls Wire t
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`ToggleColumn` renders a button with `aria-pressed` from the cell value. A click calls `$wire.$call('toggleColumn', key, name, next)`.
+A `ToggleColumn` renders a pressable switch for a boolean-ish row attribute. The control uses `aria-pressed` from the current cell value. Each click calls Wire `$wire.$call('toggleColumn', key, name, next)` with the opposite `"true"` or `"false"` string so the panel can persist the change immediately.
+
+Use it for published flags, featured rows, and other on/off attributes where a switch affordance fits better than a checkbox.
 
 <FireflyShot file="column-toggle.png" description="A toggle column flipping published state per row." />
 
-## Make a toggle column
+## Add the column
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -31,4 +33,65 @@ ToggleColumn.make("published")
 </TabItem>
 </Tabs>
 
-Truthy state presses the toggle on; a click sends the opposite `"true"` / `"false"` string. Prefer [Checkbox column](/docs/firefly/tables/columns/checkbox-column/) when you need an editable gate or extra input attributes.
+The heading defaults to a humanized name (`published` → `Published`). Chain `label`, `tooltip`, `align`, and the other shared helpers from [Tables](/docs/firefly/tables/) as needed.
+
+## How state is read and written
+
+Truthy cell values press the toggle on. Truthiness matches the rest of Firefly tables:
+
+- `Boolean.TRUE`
+- Non-zero numbers
+- Strings `"1"`, `"true"`, `"yes"` (case as stored in the row)
+
+Everything else (including null) is off. A click always sends the opposite next value as a string (`"false"` when currently on, `"true"` when off). The host Wire action (`toggleColumn`) is responsible for updating storage and refreshing the row.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+table.columns(
+    TextColumn.make("title").searchable().sortable(),
+    ToggleColumn.make("published").label("Live"),
+    ToggleColumn.make("featured").label("Featured").align(Align.CENTER),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.columns(
+    TextColumn.make("title").searchable().sortable(),
+    ToggleColumn.make("published").label("Live"),
+    ToggleColumn.make("featured").label("Featured").align(Align.CENTER)
+);
+```
+
+</TabItem>
+</Tabs>
+
+## Shared helpers
+
+| Method | Effect |
+|--------|--------|
+| `label(...)` | Column heading |
+| `tooltip(...)` / `description(...)` | Tips and secondary text on the shell |
+| `align(Align)` | Cell alignment |
+| `width(String)` | Shell width |
+| `hidden()` / `visible(...)` / `disabled(...)` | Visibility and disabled flag on the shell |
+| `toggleable()` / `toggledHiddenByDefault()` | Column picker |
+| `extraAttributes(...)` | Extra attributes on the outer `ff-toggle-column` div |
+
+`ToggleColumn` does not expose an `editable(...)` gate. Prefer [Checkbox column](/docs/firefly/tables/columns/checkbox-column/) when you need per-row edit permission or extra attributes on the control itself.
+
+## Tips
+
+- **Display-only booleans** — use [Icon column](/docs/firefly/tables/columns/icon-column/) with `boolean()` / `bool()` when the user should not flip the value from the table.
+- **Bulk updates** — toolbar bulk actions are separate from this inline toggle; see [Tables](/docs/firefly/tables/).
+- **Accessibility** — the button exposes `aria-pressed`; keep a clear `label(...)` so the column header names the attribute.
+
+## See also
+
+- [Checkbox column](/docs/firefly/tables/columns/checkbox-column/)
+- [Icon column](/docs/firefly/tables/columns/icon-column/)
+- [Tables](/docs/firefly/tables/)

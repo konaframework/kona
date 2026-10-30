@@ -6,7 +6,7 @@ description: "Radio group for a single choice, with inline layout and boolean() 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`Radio` posts one selected value from an options map.
+`Radio` posts one selected value from an options map (or a `Get` closure that returns a map). Each option is a labeled radio input inside a `role="radiogroup"`.
 
 <FireflyShot file="form-radio.png" description="Radio channel field on the Playground form." />
 
@@ -30,6 +30,7 @@ Radio.make("channel")
 Radio.make("channel")
     .label("Channel")
     .options(Map.of("email", "Email", "sms", "SMS"))
+    .descriptions(Map.of("sms", "Carrier rates may apply"))
     .inline(true);
 ```
 
@@ -40,17 +41,27 @@ Radio.make("channel")
 
 | Method | Effect |
 |--------|--------|
-| `options(Map)` / `options(Function)` | Choice map |
-| `descriptions(Map)` | Secondary text |
-| `inline()` / `inline(on)` | Horizontal layout |
-| `boolean()` | Yes / No |
-| `disableOptionWhen` | Disable by value |
+| `options(Map)` / `options(Function<Get, Map>)` | Choice map (static or dynamic) |
+| `descriptions(Map)` | Secondary text under each label |
+| `inline()` / `inline(on)` | Horizontal layout (`data-ff-inline`) |
+| `boolean()` | Yes / No with values `"true"` / `"false"` |
+| `disableOptionWhen(Predicate<String>)` | Disable options by value |
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 Radio.make("ok").boolean().required()
+
+Radio.make("plan")
+    .options {{ get ->
+        mapOf(
+            "free" to "Free",
+            "pro" to "Pro",
+        )
+    }}
+    .disableOptionWhen {{ value -> value == "legacy" }}
+    .helperText("Pick a billing plan")
 ```
 
 </TabItem>
@@ -58,13 +69,29 @@ Radio.make("ok").boolean().required()
 
 ```java
 Radio.make("ok").boolean().required();
+
+Radio.make("plan")
+    .options(get -> Map.of("free", "Free", "pro", "Pro"))
+    .disableOptionWhen(value -> "legacy".equals(value))
+    .helperText("Pick a billing plan");
 ```
 
 </TabItem>
 </Tabs>
+
+## Validation and live updates
+
+Add `required()` when a selection is mandatory. Dynamic `options(Function)` rebuild when the form re-renders after `live()` / `liveOnBlur()` / `liveDebounce(ms)` on related fields.
+
+For searchable multi-select, use [`Select`](/docs/firefly/forms/select/) or [`CheckboxList`](/docs/firefly/forms/checkbox-list/). For button chrome, use [`ToggleButtons`](/docs/firefly/forms/toggle-buttons/).
+
+## Configure defaults
+
+`Radio.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
 
 ## See also
 
 - [Forms overview](/docs/firefly/forms/)
 - [Select](/docs/firefly/forms/select/)
 - [Toggle buttons](/docs/firefly/forms/toggle-buttons/)
+- [Checkbox list](/docs/firefly/forms/checkbox-list/)

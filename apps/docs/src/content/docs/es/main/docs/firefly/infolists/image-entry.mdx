@@ -6,19 +6,20 @@ description: "Render one or more images from URLs in a Firefly infolist, with si
 import FireflyShot from '../../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`ImageEntry` renders `<img>` tags from string URLs (or a collection of them).
+`ImageEntry` renders `<img>` tags from string URLs (or a collection of them). It inherits every helper on [Entry](/docs/firefly/infolists/#helpers-on-every-entry). Use it for avatars, product photos, and small galleries on a view page.
 
 <FireflyShot file="infolist-image-entry.png" description="An image entry showing a circular avatar." />
 
-## Size and shape
+## Make an image entry
 
-`height` / `imageHeight` set height. `width` / `imageWidth` set width. `size` / `imageSize` set both. Pass an `Int` (pixels) or a CSS length string. `circular(true)` and `square(true)` add shape flags. `alt` sets the accessibility text. `defaultImageUrl` is used when state is blank. `extraImgAttributes` merges onto each `<img>`.
+Set size, shape, alt text, and an optional fallback URL when state is blank.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 ImageEntry.make("photo")
+    .label("Avatar")
     .circular(true)
     .size(64)
     .alt("Profile photo")
@@ -31,6 +32,7 @@ ImageEntry.make("photo")
 
 ```java
 ImageEntry.make("photo")
+    .label("Avatar")
     .circular(true)
     .size(64)
     .alt("Profile photo")
@@ -41,14 +43,84 @@ ImageEntry.make("photo")
 </TabItem>
 </Tabs>
 
+Each image is `img.ff-image` inside `div.ff-images`. Shared `url` / `openUrlInNewTab` wrap each `<img>` in a link.
+
+## Size and shape
+
+| Method | Effect |
+|--------|--------|
+| `height` / `imageHeight` | Height as `Int` pixels or a CSS length string |
+| `width` / `imageWidth` | Width as `Int` pixels or a CSS length string |
+| `size` / `imageSize` | Sets height and width together |
+| `circular(true)` | Adds `data-ff-circular` (round crop in CSS) |
+| `square(true)` | Adds `data-ff-square` |
+| `alt(text)` | Accessibility text on every `<img>` |
+| `defaultImageUrl(url)` | Used when state is blank or an item is empty |
+| `extraImgAttributes(map)` | Merged onto each `<img>` |
+
+`Int` overloads append `px`. Closures (`Function<Get, String>` / `Predicate<Get>`) work on the same setters.
+
 ## Stacks and limits
 
-`stacked(true)`, `overlap(n)`, and `ring(...)` describe a stacked gallery. `limit(n)` with `limitedRemainingText(true)` appends `+N`. `limitedRemainingTextSeparate` and `limitedRemainingTextSize` style that remainder (`xs` … `xl`).
+| Method | Effect |
+|--------|--------|
+| `stacked(true)` | Stacked gallery flag (`data-ff-stacked`) |
+| `overlap(n)` | Overlap amount (`data-ff-overlap`) |
+| `ring(...)` | Ring token or CSS length (`data-ff-ring`) |
+| `limit(n)` | Show at most `n` sources |
+| `limitedRemainingText(true)` | Append `+N` for the hidden count |
+| `limitedRemainingTextSeparate` | Style the remainder as a separate chip |
+| `limitedRemainingTextSize` | Remainder size: `xs` … `xl` (aliases `small` → `sm`, …) |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ImageEntry.make("gallery")
+    .stacked(true)
+    .overlap(8)
+    .ring(2)
+    .size(40)
+    .limit(3)
+    .limitedRemainingText(true)
+    .limitedRemainingTextSize("sm")
+    .state(listOf("/a.png", "/b.png", "/c.png", "/d.png"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ImageEntry.make("gallery")
+    .stacked(true)
+    .overlap(8)
+    .ring(2)
+    .size(40)
+    .limit(3)
+    .limitedRemainingText(true)
+    .limitedRemainingTextSize("sm")
+    .state(List.of("/a.png", "/b.png", "/c.png", "/d.png"));
+```
+
+</TabItem>
+</Tabs>
 
 ## Disk attributes
 
-`disk`, `visibility`, and `checkFileExistence` are data attributes on the entry (`data-ff-disk`, `data-ff-visibility`, `data-ff-check-file`). This module does not open a disk or sign a temporary URL. A relative or absolute URL string is rendered as `src`. When `checkFileExistence` is true (the default), a blank source is dropped.
+| Method | Effect |
+|--------|--------|
+| `disk(name)` | Emitted as `data-ff-disk` |
+| `visibility(value)` | Emitted as `data-ff-visibility` |
+| `checkFileExistence(on)` | Default `true`; blank sources are dropped |
 
-Wrap images in a link with shared `url` / `openUrlInNewTab` from [Entry](/docs/firefly/infolists/#helpers-on-every-entry).
+This module does not open a disk or sign a temporary URL. A relative or absolute URL string is rendered as `src`. Panel or storage layers may read the data attributes later; the entry itself only paints what you pass.
 
-See also [Infolists overview](/docs/firefly/infolists/).
+## Defaults for every make
+
+`ImageEntry.configureUsing { entry -> entry.circular(true).size(48) }` runs for every later `make()`. Pass `null` to clear it.
+
+## See also
+
+- [Infolists overview](/docs/firefly/infolists/)
+- [Icon entry](/docs/firefly/infolists/icon-entry/)
+- [Text entry](/docs/firefly/infolists/text-entry/)
