@@ -491,6 +491,9 @@ open class TrashedFilter protected constructor() : TernaryFilter("trashed") {
 
 /** Shared `<select>` / combobox markup for select-shaped filters (matches Firefly form chrome). */
 internal object FilterSelectMarkup {
+    private val OPTION_CHECK: String =
+        org.konaframework.icons.Icons.svg("heroicon-o-check").className("ff-icon").toHtml()
+
     fun native(
         name: String,
         choices: Map<String, String>,
@@ -563,6 +566,6 @@ internal object FilterSelectMarkup {
 
     private fun option(value: String, label: String, on: Boolean): String {
         val css = if (on) "ff-option ff-selected" else "ff-option"
-        return """<li class="$css" role="option" aria-selected="$on" data-ff-value="${escapeHtml(value)}" data-ff-label="${escapeHtml(label)}"><span class="ff-option-text">${escapeHtml(label)}</span><span class="ff-option-check" aria-hidden="true"><svg class="ff-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4.5 12.75l6 6 9-13.5"/></svg></span></li>"""
+        return """<li class="$css" role="option" aria-selected="$on" data-ff-value="${escapeHtml(value)}" data-ff-label="${escapeHtml(label)}"><span class="ff-option-text">${escapeHtml(label)}</span><span class="ff-option-check" aria-hidden="true">$OPTION_CHECK</span></li>"""
     }
 }

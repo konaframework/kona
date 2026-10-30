@@ -757,6 +757,7 @@ class GrindTest {
         assertTrue(source.contains("class Banner"))
         assertTrue(view.contains("x-data=\"ffField\""))
         assertTrue(view.contains("@entangle"))
+        assertTrue(view.contains("icon('heroicon-o-squares-2x2'"))
         assertEquals(0, MakeFireflyLayoutCommand().run(listOf("Notice", "--base=$base", "--lang=java")))
         assertTrue(Files.exists(base.resolve("src/main/java/app/firefly/layouts/Notice.java")))
         assertEquals(1, GrindApplication().run(arrayOf("make:firefly-layout", "--base=$base")))

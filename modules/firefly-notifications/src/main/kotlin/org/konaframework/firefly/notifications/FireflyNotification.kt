@@ -371,10 +371,10 @@ open class FireflyNotification private constructor(private val id: String) {
             return value
         }
 
-        private const val INFO_SVG: String =
-            "<svg class=\"ff-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M11.25 11.25h.008v.008H11.25zm.75 3.75v-3.75m0-3.75h.008v.008H12z\"/><circle cx=\"12\" cy=\"12\" r=\"9\"/></svg>"
+        private val INFO_SVG: String =
+            org.konaframework.icons.Icons.svg("heroicon-o-information-circle").className("ff-icon").toHtml()
 
-        private const val WARNING_SVG: String =
-            "<svg class=\"ff-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.25\" aria-hidden=\"true\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 9v3.75m0 3.75h.008v.008H12z\"/><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z\"/></svg>"
+        private val WARNING_SVG: String =
+            org.konaframework.icons.Icons.svg("heroicon-o-exclamation-triangle").className("ff-icon").toHtml()
     }
 }

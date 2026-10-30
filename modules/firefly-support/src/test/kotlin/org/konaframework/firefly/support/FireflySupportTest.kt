@@ -555,6 +555,8 @@ class FireflySupportTest {
         assertTrue(html.contains("setComboboxValue"))
         assertTrue(html.contains("renderComboboxChips"))
         assertTrue(html.contains("data-ff-combobox-remove"))
+        assertTrue(html.contains("optionCheckSvg"))
+        assertTrue(html.contains("ff-icon"))
         assertTrue(html.contains("rebuildView"))
         assertTrue(html.contains("rebuildGrid"))
         assertTrue(html.contains("isoWeekOf"))

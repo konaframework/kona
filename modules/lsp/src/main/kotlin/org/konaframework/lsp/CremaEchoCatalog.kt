@@ -26,6 +26,7 @@ object CremaEchoCatalog {
             Item("trans", "trans('')", "trans(key) · Crema helper", true),
             Item("__", "__('')", "__(key) · Crema helper", true),
             Item("lang", "lang('')", "lang(key) · Crema helper", true),
+            Item("icon", "icon('')", "icon(name, class?) · Crema helper", true),
             Item("isset", "isset()", "isset(name) · Crema helper", true),
             Item("empty", "empty()", "empty(name) · Crema helper", true),
         )
