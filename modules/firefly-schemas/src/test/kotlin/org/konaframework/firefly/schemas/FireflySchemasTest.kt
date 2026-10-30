@@ -627,6 +627,52 @@ class FireflySchemasTest {
         assertNull(CurrencyFormat.toFinite(Float.NEGATIVE_INFINITY))
     }
 
+    @Test
+    fun copyPresentationOntoAndChildrenRemapLayoutChrome() {
+        val source = NamedField("title")
+            .label("Title")
+            .heading("Head")
+            .description("About")
+            .columnSpan(2)
+            .columns(3)
+            .maxWidth("lg")
+        val target = NamedField("title")
+        assertSame(target, source.copyPresentationOnto(target))
+        val html = Schema.make().components(target).render()
+        assertTrue(html.contains("Title"))
+        assertTrue(html.contains("Head"))
+        assertTrue(html.contains("About"))
+        assertTrue(html.contains("data-ff-span=\"2\""))
+        assertTrue(html.contains("data-ff-columns=\"3\""))
+        assertTrue(html.contains("data-ff-max-width=\"lg\""))
+
+        val dynamic = NamedField("dyn")
+            .label { "L" }
+            .heading { "H" }
+            .description { "D" }
+            .columnSpan { "full" }
+            .columns { 4 }
+            .maxWidth { "sm" }
+        val dynTarget = NamedField("dyn")
+        dynamic.copyPresentationOnto(dynTarget)
+        val dynHtml = Schema.make().components(dynTarget).render()
+        assertTrue(dynHtml.contains(">L<") || dynHtml.contains("L"))
+        assertTrue(dynHtml.contains("data-ff-span=\"full\""))
+        assertTrue(dynHtml.contains("data-ff-columns=\"4\""))
+        assertTrue(dynHtml.contains("data-ff-max-width=\"sm\""))
+
+        val plain = NamedField("plain")
+        val blank = NamedField("blank")
+        assertSame(blank, plain.copyPresentationOnto(blank))
+        assertTrue(plain.children().isEmpty())
+        val parent = Section.make("Wrap")
+        parent.children(NamedField("a"), NamedField("b"))
+        assertEquals(2, parent.children().size)
+        parent.children(NamedField("only"))
+        assertEquals(1, parent.children().size)
+        assertEquals("only", parent.children()[0].name)
+    }
+
     private fun nest(depth: Int): Section {
         val section = Section.make("L$depth")
         if (depth == 1) return section
