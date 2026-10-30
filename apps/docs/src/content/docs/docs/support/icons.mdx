@@ -1,0 +1,93 @@
+---
+title: Icons
+description: SVG icon sets with Heroicons by default and drop-in custom sets.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`kona-icons` is the shared SVG icon layer for Kona apps and first-party UI (Firefly, Crema chrome, and your own views). Add the dependency, then resolve icons by name.
+
+```kotlin
+implementation("org.konaframework:kona-icons")
+```
+
+## Heroicons (default)
+
+Heroicons v2 ships on the classpath. Names use the `heroicon` prefix plus a style letter:
+
+| Prefix | Style | Example |
+| --- | --- | --- |
+| `heroicon-o-…` | Outline (24×24) | `heroicon-o-bell` |
+| `heroicon-s-…` | Solid (24×24) | `heroicon-s-home` |
+| `heroicon-m-…` | Mini (20×20) | `heroicon-m-check` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.icons.Icons
+
+val html = Icons.svg("heroicon-o-bell")
+    .className("w-5 h-5 text-amber-700")
+    .attr("aria-hidden", "true")
+    .toHtml()
+
+// Bare file names resolve against the default set (Heroicons):
+Icons.svg("o-user").toHtml()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.icons.Icons;
+
+String html = Icons.svg("heroicon-o-bell")
+    .className("w-5 h-5")
+    .attr("aria-hidden", "true")
+    .toHtml();
+```
+
+</TabItem>
+</Tabs>
+
+`Icons.has("heroicon-o-bell")` checks availability without rendering. `Icons.all()` returns registered sets.
+
+## Drop-in icon sets
+
+Register another set with a unique **prefix** and either classpath directories or filesystem paths (Blade Icons `Factory::add` shape):
+
+```kotlin
+Icons.add(
+    "lucide",
+    IconSetOptions(
+        prefix = "lucide",
+        classpath = "icons/lucide",           // src/main/resources/icons/lucide/*.svg
+        // path = Path.of("resources/svg"),  // or filesystem
+        className = "icon",
+        attributes = mapOf("aria-hidden" to "true"),
+        fallback = "circle",                  // set-local fallback file name
+    ),
+)
+
+Icons.svg("lucide-activity").toHtml()
+```
+
+Optional global fallback when every set miss fails:
+
+```kotlin
+Icons.setFallback("heroicon-o-question-mark-circle")
+```
+
+`Icons.setDefault("lucide")` makes bare names (no prefix) resolve against that set. `Icons.reset()` clears registrations (useful in tests); the next `svg` / `ensureDefaults` call restores Heroicons.
+
+## Firefly short names
+
+Firefly’s `org.konaframework.firefly.support.Icon` remains as a thin facade for panel chrome. Short names such as `home`, `bars`, `check`, and `trash` map to outline Heroicons and render with the `ff-icon` CSS class. New application code should call `Icons` directly.
+
+## Packaging your own set
+
+1. Put `.svg` files under a classpath folder (for example `src/main/resources/icons/acme/`).
+2. Depend on `kona-icons`.
+3. Call `Icons.add("acme", IconSetOptions(prefix = "acme", classpath = "icons/acme"))` during boot (or from a `ServiceProvider`).
+4. Reference icons as `acme-widget-name`.

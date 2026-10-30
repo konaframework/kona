@@ -13,6 +13,7 @@ kotlin {
 
 dependencies {
     api(project(":kona-crema"))
+    api(project(":kona-icons"))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

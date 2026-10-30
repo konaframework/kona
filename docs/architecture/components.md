@@ -14,6 +14,7 @@ Kona is a full-stack, developer-friendly web framework for the Java/Kotlin ecosy
 | **Crema** | Blade / Prism | Prism | Server-side templates with layouts, directives, components |
 | **drip** | Axios / HTTP client | HTTP client | Fluent HTTP client/SDK |
 | **Wire** | Livewire | — | Reactive server components (HTML over JSON; `wire:*` attributes) |
+| **Icons** (`kona-icons`) | Blade Icons | — | SVG icon sets (Heroicons default; drop-in prefixes/paths) for Firefly, Crema, and apps |
 | **Firefly** | Filament | — | Application panels on Wire (`kona-firefly-support`, `kona-firefly-schemas`, `kona-firefly-actions`, `kona-firefly-infolists`, `kona-firefly-tables`; later panel artifacts) |
 
 ## Ecosystem conventions
