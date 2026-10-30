@@ -253,6 +253,10 @@ open class Page {
 }
 
 open class Dashboard : Page() {
+    init {
+        maxWidth("full")
+    }
+
     override fun sectionClass(): String = "ff-page ff-dashboard"
 
     override fun fallbackTitle(): String = "Dashboard"

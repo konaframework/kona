@@ -10,13 +10,15 @@ Put a stat, a chart, a short list, a tip card, or a custom block on a page. Call
 
 The hello sample’s `DeskWidget` is `app/firefly/widgets/DeskWidget`. It renders a paragraph that reads “Open orders”. Discovery finds it and puts it on the Desk page, because Desk is the first page. You see it inside `<div class="ff-page-widgets">`.
 
-Chart.js is the default chart engine. Pass `ChartEngine.APEX_CHARTS` when you want ApexCharts. The types live in `org.konaframework.firefly.widgets` (`kona-firefly-widgets`). `extraAttributes` is on every widget. Chart filters also accept `extraInputAttributes`.
+ApexCharts is the default chart engine (Shamar). Pass `ChartEngine.CHART_JS` when you want Chart.js. Put both engines on one dashboard by setting `engine(...)` per widget. The types live in `org.konaframework.firefly.widgets` (`kona-firefly-widgets`). `extraAttributes` is on every widget. Chart filters also accept `extraInputAttributes`.
+
+Every chart, list, card, account, and navigation-cards widget renders inside a white `.ff-widget-card` shell so widgets float on the panel surface. Stats overview cards are themselves white KPI tiles (Shamar `.shamar-stat-card`).
 
 <FireflyShot file="desk-widget.png" description="The Desk widget on the Desk page at http://127.0.0.1:4017/admin/desk, the paragraph that reads Open orders." />
 
 ## Dashboard layout
 
-`DashboardPage` (panel home, empty slug) and the widgets-module `Dashboard` type emit a responsive widget grid. Call `columns(1)` … `columns(4)` (default **3**). The page section gets `data-ff-dashboard-columns`, and CSS lays out `.ff-page-widgets` as that many columns (with responsive breakpoints). Use each widget’s `columnSpan(...)` / `columnSpanFull()` so a stats strip or nav cards can span the row.
+`DashboardPage` (panel home, empty slug) and the widgets-module `Dashboard` type emit a responsive widget grid and default to `maxWidth("full")` so the grid fills the panel body. Call `columns(1)` … `columns(4)` (default **3**). The page section gets `data-ff-dashboard-columns`, and CSS lays out `.ff-page-widgets` like Shamar (`1` → one column; `2` → `sm:2`; `3`/`4` → `sm:2` then `xl:3`/`xl:4`). Use each widget’s `columnSpan(...)` / `columnSpanFull()` so a stats strip or nav cards can span the row. `StatsOverviewWidget` and `NavigationCardsWidget` default to full span.
 
 `filtersForm(Schema)` mounts a GET form above the grid. Field values land in the query string and page state so widgets can read filters while rendering.
 
@@ -262,7 +264,7 @@ The command writes `app/panels/admin/widgets/Revenue.kt` (or `app/panels/billing
 | `Widget` | Base widget. `make(name)`, `label`, `heading`, `description`, `sort`, `lazy`, `pollingInterval`, `canView`, `extraAttributes` |
 | `Page` / `Dashboard` / `DashboardPage` | Title, header and footer actions, schema or table, `columns`, `filtersForm`, and widgets |
 | `Stat` / `StatsOverviewWidget` | Stat cards with optional URL, compact numbers, and responsive columns |
-| `ChartWidget` | Chart.js by default, ApexCharts when you set the engine |
+| `ChartWidget` | ApexCharts by default, Chart.js when you set `ChartEngine.CHART_JS` |
 | `ListWidget` | Compact recent-rows table |
 | `CardWidget` | Custom HTML card body |
 | `NavigationCardsWidget` | Link cards for panel roots |
