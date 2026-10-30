@@ -315,6 +315,11 @@ class FireflySupportTest {
         assertTrue(css.contains("grid-template-rows: repeat(3, minmax(0, 1fr))"))
         assertTrue(css.contains(".ff-panel .ff-picker-grid.ff-picker-grid-years"))
         assertTrue(css.contains(".ff-panel .ff-picker-grid.ff-picker-grid-weeks"))
+        // Weekday header with weeknums must beat the base 7-col weekdays rule (#427).
+        val weekdays7 = css.indexOf(".ff-panel .ff-picker-weekdays {\n  display: grid;\n  grid-template-columns: repeat(7, 1fr);")
+        val weekdaysWeeks = css.indexOf(".ff-panel .ff-picker-weekdays.ff-picker-weekdays-weeks")
+        assertTrue(weekdays7 >= 0 && weekdaysWeeks > weekdays7, "week header 8-col must follow base 7-col weekdays")
+        assertTrue(css.contains("1.75rem repeat(7, 1fr)"))
         assertTrue(css.contains("ff-picker-weeknum"))
         assertTrue(css.contains("ff-week-selected"))
         assertTrue(css.contains("ff-week-start") && css.contains("ff-week-end"))

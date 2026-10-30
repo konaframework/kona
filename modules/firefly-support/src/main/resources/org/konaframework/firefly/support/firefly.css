@@ -1849,10 +1849,6 @@ body.ff-body-root {
   border-radius: 0 0.35rem 0.35rem 0;
 }
 
-.ff-panel .ff-picker-weekdays-weeks {
-  grid-template-columns: 1.75rem repeat(7, 1fr);
-}
-
 .ff-panel .ff-picker-ok {
   border: 0;
   border-radius: var(--ff-radius);
@@ -1905,7 +1901,11 @@ body.ff-body-root {
   gap: 0.1rem;
 }
 
-/* After base 7-col day grid — compound selectors so 4×3 / week layouts win (#420). */
+/* After base 7-col day grid — compound selectors so 4×3 / week layouts win (#420, #427). */
+.ff-panel .ff-picker-weekdays.ff-picker-weekdays-weeks {
+  grid-template-columns: 1.75rem repeat(7, 1fr);
+}
+
 .ff-panel .ff-picker-grid.ff-picker-grid-months,
 .ff-panel .ff-picker-grid.ff-picker-grid-years,
 .ff-panel .ff-picker-grid.ff-picker-grid-decades {
