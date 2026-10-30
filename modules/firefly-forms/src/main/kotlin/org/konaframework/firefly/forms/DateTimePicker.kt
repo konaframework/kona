@@ -3,6 +3,7 @@ package org.konaframework.firefly.forms
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -408,23 +409,28 @@ open class DateTimePicker protected constructor(
         }
     }
 
-    /** ISO-week grid: week-number gutter + 7 day columns; stores `YYYY-Www`. */
+    /**
+     * Week grid: week-number gutter + 7 day columns aligned to [firstDay]
+     * (Sunday→Saturday or Monday→Sunday). One week token per row; the whole
+     * selected week is highlighted (#422). Stores `YYYY-Www` for that week system.
+     */
     private fun weekGrid(schema: Schema, focused: LocalDate, stored: String): String {
         val selectedWeek = WEEK_TOKEN.find(stored.trim())?.let {
             "%04d-W%02d".format(it.groupValues[1].toInt(), it.groupValues[2].toInt())
         }
         val first = focused.withDayOfMonth(1)
-        val lead = Math.floorMod(first.dayOfWeek.value - 1, 7)
+        val weekAnchor = if (firstDay == 1) 1 else 7
+        val lead = Math.floorMod(first.dayOfWeek.value - weekAnchor, 7)
         val start = first.minusDays(lead.toLong())
-        val wf = WeekFields.ISO
+        val wf = weekFields()
         return buildString {
             append("""<div class="ff-picker-grid ff-picker-grid-weeks" data-ff-picker-grid data-ff-month="${focused.year}-${focused.monthValue.toString().padStart(2, '0')}">""")
             var cursor = start
             repeat(6) {
-                val token = isoWeekOf(cursor)
+                val token = weekTokenOf(cursor)
                 val weekNum = cursor.get(wf.weekOfWeekBasedYear())
                 append("""<button type="button" class="ff-picker-weeknum" data-ff-week="$token" aria-label="Week $weekNum">$weekNum</button>""")
-                repeat(7) {
+                repeat(7) { dayInWeek ->
                     val outside = cursor.month != focused.month
                     val disabled = isDisabled(cursor, schema)
                     val inWeek = selectedWeek == token
@@ -432,8 +438,11 @@ open class DateTimePicker protected constructor(
                         append("ff-day")
                         if (outside) append(" ff-day-outside")
                         if (disabled) append(" ff-day-disabled")
-                        if (inWeek) append(" ff-week-selected")
-                        if (inWeek && cursor.dayOfWeek.value == 1) append(" ff-day-selected")
+                        if (inWeek) {
+                            append(" ff-week-selected ff-day-selected")
+                            if (dayInWeek == 0) append(" ff-week-start")
+                            if (dayInWeek == 6) append(" ff-week-end")
+                        }
                     }
                     val disabledAttr = if (disabled) " disabled" else ""
                     append("""<button type="button" class="$css" data-ff-day="$cursor" data-ff-week="$token"$disabledAttr>${cursor.dayOfMonth}</button>""")
@@ -442,6 +451,14 @@ open class DateTimePicker protected constructor(
             }
             append("</div>")
         }
+    }
+
+    private fun weekFields(): WeekFields =
+        if (firstDay == 1) WeekFields.ISO else WeekFields.of(DayOfWeek.SUNDAY, 1)
+
+    private fun weekTokenOf(date: LocalDate): String {
+        val wf = weekFields()
+        return "%04d-W%02d".format(date.get(wf.weekBasedYear()), date.get(wf.weekOfWeekBasedYear()))
     }
 
     private fun yearSpan(focused: LocalDate): IntRange {
@@ -534,18 +551,18 @@ open class DateTimePicker protected constructor(
     }
 
     private fun normalizeWeek(raw: Any): String? = when (raw) {
-        is LocalDate -> isoWeekOf(raw)
-        is LocalDateTime -> isoWeekOf(raw.toLocalDate())
-        is OffsetDateTime -> isoWeekOf(raw.atZoneSameInstant(appZoneForDate()).toLocalDate())
-        is ZonedDateTime -> isoWeekOf(raw.withZoneSameInstant(appZoneForDate()).toLocalDate())
-        is Instant -> isoWeekOf(raw.atZone(appZoneForDate()).toLocalDate())
+        is LocalDate -> weekTokenOf(raw)
+        is LocalDateTime -> weekTokenOf(raw.toLocalDate())
+        is OffsetDateTime -> weekTokenOf(raw.atZoneSameInstant(appZoneForDate()).toLocalDate())
+        is ZonedDateTime -> weekTokenOf(raw.withZoneSameInstant(appZoneForDate()).toLocalDate())
+        is Instant -> weekTokenOf(raw.atZone(appZoneForDate()).toLocalDate())
         is String -> {
             val match = WEEK_TOKEN.find(raw.trim())
             if (match != null) {
                 "%04d-W%02d".format(match.groupValues[1].toInt(), match.groupValues[2].toInt())
             } else {
                 val date = datePart(raw) ?: parseDate(raw)
-                if (date != null) isoWeekOf(date) else null
+                if (date != null) weekTokenOf(date) else null
             }
         }
         is LocalTime -> throw FireflyException("Week value is missing a day")
@@ -558,8 +575,16 @@ open class DateTimePicker protected constructor(
         val week = match.groupValues[2].toInt()
         if (week !in 1..53) return null
         return try {
-            LocalDate.parse("%04d-W%02d-1".format(year, week), DateTimeFormatter.ISO_WEEK_DATE)
-        } catch (_: DateTimeParseException) {
+            if (firstDay == 1) {
+                LocalDate.parse("%04d-W%02d-1".format(year, week), DateTimeFormatter.ISO_WEEK_DATE)
+            } else {
+                val wf = WeekFields.of(DayOfWeek.SUNDAY, 1)
+                LocalDate.of(year, 6, 1)
+                    .with(wf.weekBasedYear(), year.toLong())
+                    .with(wf.weekOfWeekBasedYear(), week.toLong())
+                    .with(wf.dayOfWeek(), 1)
+            }
+        } catch (_: RuntimeException) {
             null
         }
     }
