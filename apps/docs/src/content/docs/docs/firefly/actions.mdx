@@ -142,7 +142,7 @@ Submit text is `Confirm` when confirmation is on, otherwise `Submit`, unless `mo
 
 ## Put a schema in the dialog
 
-`schema(Text.make("Hello"))` renders those components in the dialog body. Layouts and primes from the schema module work, including a wizard:
+`schema(Text.make("Hello"))` renders those components in the dialog body. The body is a plain white surface (no nested shadowed card). A `Section` inside the modal keeps spacing and padding without drawing a second card. Layouts and primes from the schema module work, including a wizard:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">

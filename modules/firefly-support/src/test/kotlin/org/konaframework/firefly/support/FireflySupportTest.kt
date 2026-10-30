@@ -375,6 +375,11 @@ class FireflySupportTest {
         assertTrue(css.contains("ff-dialog-expanded"))
         assertTrue(css.contains(".ff-panel .ff-dialog-body > :not(.ff-action-footer)"))
         assertTrue(css.contains("overflow: hidden"))
+        // Modal body: plain surface, no nested section/card chrome (#415).
+        assertTrue(css.contains(".ff-panel .ff-dialog-body .ff-component.ff-section"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-body .ff-card"))
+        assertTrue(css.contains("box-shadow: none"))
+        assertTrue(css.contains(".ff-panel .ff-dialog-body .ff-component.ff-section .ff-section-inner"))
         // Create/action dialog chrome: compact close icon + primary Submit (type=button).
         assertTrue(css.contains(".ff-panel .ff-action-close") || css.contains(".ff-panel .ff-dialog-close"))
         assertTrue(css.contains(".ff-panel .ff-dialog-close"))
