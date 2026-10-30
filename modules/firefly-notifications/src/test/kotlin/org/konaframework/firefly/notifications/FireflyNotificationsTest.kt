@@ -125,7 +125,8 @@ class FireflyNotificationsTest {
         assertTrue(html.contains("data-ff-status=\"warning\""))
         assertTrue(html.contains("data-ff-duration=\"3\""))
         assertTrue(html.contains("data-role=\"admin\""))
-        assertTrue(html.contains("bell"))
+        assertTrue(html.contains("<svg"), html)
+        assertTrue(html.contains("ff-icon"), html)
         assertTrue(colored.toMap(mapOf("name" to "Ada")).containsKey("body"))
 
         val danger = FireflyNotification.make("danger").title("Stop").body("").icon("x").danger()
