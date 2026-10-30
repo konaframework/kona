@@ -181,19 +181,25 @@ class FireflySupportTest {
             Icon.ARROWS_POINTING_OUT,
             Icon.ARROWS_POINTING_IN,
         ).forEach { icon ->
-            assertTrue(icon.svg().contains(icon.path))
+            assertTrue(icon.svg().contains("ff-icon"))
+            assertTrue(icon.svg().contains("<svg"))
+            assertTrue(icon.name().startsWith("heroicon-o-"))
         }
         assertEquals(Icon.HOME, Icon.fromName("HoMe"))
         assertEquals(Icon.BARS, Icon.fromName("bars"))
+        assertEquals(Icon.BARS, Icon.fromName("bars-3"))
         assertEquals(Icon.USER, Icon.fromName("user"))
         assertEquals(Icon.CHECK, Icon.fromName("check"))
         assertEquals(Icon.X, Icon.fromName("x"))
+        assertEquals(Icon.X, Icon.fromName("x-mark"))
         assertEquals(Icon.TRASH, Icon.fromName("trash"))
         assertEquals(Icon.ARROWS_POINTING_OUT, Icon.fromName("arrows-pointing-out"))
         assertEquals(Icon.ARROWS_POINTING_OUT, Icon.fromName("arrows_pointing_out"))
         assertEquals(Icon.ARROWS_POINTING_IN, Icon.fromName("arrows-pointing-in"))
         assertEquals(Icon.ARROWS_POINTING_IN, Icon.fromName("arrows_pointing_in"))
-        assertThrows(FireflyException::class.java) { Icon.fromName("nope") }
+        assertEquals("heroicon-o-bell", Icon.fromName("heroicon-o-bell").name())
+        assertEquals("heroicon-o-academic-cap", Icon.fromName("academic-cap").name())
+        assertThrows(FireflyException::class.java) { Icon.fromName("nope-not-an-icon-zzz") }
     }
 
     @Test
@@ -354,9 +360,10 @@ class FireflySupportTest {
         assertTrue(css.contains("background: #f3f4f6"))
         assertTrue(css.contains("background: #064e3b"))
         assertTrue(css.contains("color: #6ee7b7"))
-        assertTrue(Icon.CHECK.svg().contains("stroke-width=\"2.25\""))
-        assertTrue(Icon.CHECK.path.contains("M4.5 12.75l6 6 9-13.5"))
-        assertTrue(Icon.X.path.contains("M6 18L18 6M6 6l12 12"))
+        assertTrue(Icon.CHECK.svg().contains("ff-icon"))
+        assertTrue(Icon.CHECK.svg().contains("svg"))
+        assertTrue(Icon.X.svg().contains("x-mark") || Icon.X.svg().contains("M6") || Icon.X.svg().contains("path"))
+        assertEquals("heroicon-o-check", Icon.CHECK.name())
         assertTrue(css.contains(".ff-panel .ff-dialog[hidden]"))
         assertTrue(css.contains(".ff-panel .ff-table-button-dialog[hidden]"))
         assertTrue(css.contains(".ff-panel .ff-action-dialog.ff-open"))

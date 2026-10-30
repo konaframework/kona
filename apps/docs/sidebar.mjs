@@ -161,6 +161,7 @@ export async function buildSidebar() {
         { label: 'Search', translations: { es: 'Búsqueda', fr: 'Recherche', 'zh-CN': '搜索' }, slug: 'docs/search' },
         { label: 'Task scheduling', translations: { es: 'Programación de tareas', fr: 'Planification des tâches', 'zh-CN': '任务调度' }, slug: 'docs/scheduling' },
         { label: 'Support utilities', translations: { es: 'Utilidades de soporte', fr: 'Utilitaires de support', 'zh-CN': '支持工具' }, slug: 'docs/support' },
+        { label: 'Icons', translations: { es: 'Iconos', fr: 'Icônes', 'zh-CN': '图标' }, slug: 'docs/support/icons' },
       ],
     },
     {

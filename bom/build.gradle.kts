@@ -14,6 +14,7 @@ dependencies {
         api(project(":kona-auth"))
         api(project(":kona-session"))
         api(project(":kona-support"))
+        api(project(":kona-icons"))
         api(project(":kona-redis"))
         api(project(":kona-cache"))
         api(project(":kona-crema"))
