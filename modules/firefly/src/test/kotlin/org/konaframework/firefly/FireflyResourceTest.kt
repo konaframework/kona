@@ -182,7 +182,7 @@ class FireflyResourceTest {
             }
 
             override fun form(schema: Schema): Schema =
-                schema.components(
+                schema.columns(mapOf("md" to 2, "lg" to 3)).components(
                     Section.make("Details").columns(2).schema(
                         TextInput.make("title").columnSpan(2).label("Title"),
                         TextInput.make("price").currency("EUR").columnSpan(1),
@@ -217,9 +217,11 @@ class FireflyResourceTest {
         Panel().path("admin").authenticate(false).resource(resource).mount(router)
         val view = send(router, "/admin/books/view?id=1")
         assertTrue(view.contains("""class="ff-infolist""""), view)
+        assertTrue(view.contains("""data-ff-columns="3""""), view)
+        assertTrue(view.contains("--ff-cols-md: 2"), view)
+        assertTrue(view.contains("--ff-cols-lg: 3"), view)
         assertTrue(view.contains("ff-section"), view)
         assertTrue(view.contains("Details"), view)
-        assertTrue(view.contains("data-ff-columns"), view)
         assertTrue(view.contains("data-ff-span=\"2\""), view)
         assertTrue(view.contains("ff-tabs"), view)
         assertTrue(view.contains("Schedule"), view)
@@ -301,6 +303,28 @@ class FireflyResourceTest {
         assertNull(FormInfolist.entryFor(TextInput.make("")))
         assertTrue(FormInfolist.fill(Schema.make(), Schema.make()).components().isEmpty())
         assertEquals(0, FormInfolist.entriesFrom(Schema.make()).size)
+        val withRootCols = FormInfolist.fill(
+            Schema.make(),
+            Schema.make().columns(3).components(TextInput.make("n")),
+        )
+        assertEquals("3", withRootCols.columnLayout()!!.dataValue())
+        assertEquals(3, withRootCols.columnCount())
+
+        val viaFormColumns = object : Resource("cols") {
+            init {
+                label("Col")
+                formColumns(3)
+            }
+
+            override fun form(schema: Schema): Schema = schema.components(TextInput.make("name"))
+
+            override fun table(table: Table<*, *>): Table<*, *> =
+                Table.memory(mapOf("id" to "1", "name" to "A")).columns(TextColumn.make("name"))
+        }
+        val colsRouter = Router()
+        Panel().path("cols").authenticate(false).resource(viaFormColumns).mount(colsRouter)
+        val colsView = send(colsRouter, "/cols/cols/view?id=1")
+        assertTrue(colsView.contains("""data-ff-columns="3""""), colsView)
     }
 
     @Test

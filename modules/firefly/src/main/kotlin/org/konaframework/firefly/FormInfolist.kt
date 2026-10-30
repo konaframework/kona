@@ -33,8 +33,9 @@ import org.konaframework.firefly.schemas.WizardStep
  * Builds a readonly infolist from a form schema (Filament-style fallback when a resource or
  * relation manager defines [Resource.form] / a relation form but no infolist).
  *
- * Layout is preserved: [Section], [Tabs], [Grid], column spans, and nested structure stay in
- * place; dehydrated fields map to matching entry types. Hidden and chrome-only fields are skipped.
+ * Layout is preserved: root [Schema.columns] (count or breakpoints), [Section], [Tabs], [Grid],
+ * column spans, and nested structure stay in place; dehydrated fields map to matching entry types.
+ * Hidden and chrome-only fields are skipped.
  */
 object FormInfolist {
     /**
@@ -45,9 +46,16 @@ object FormInfolist {
     fun entriesFrom(form: Schema): List<Component> =
         form.components().mapNotNull { mapNode(it) }
 
-    /** Append [entriesFrom] onto [target] when that list is non-empty. */
+    /**
+     * Copy the form’s root column grid onto [target] when set, then append [entriesFrom]
+     * when that list is non-empty.
+     */
     @JvmStatic
     fun fill(target: Schema, form: Schema): Schema {
+        val layout = form.columnLayout()
+        if (layout != null) {
+            target.columns(layout)
+        }
         val entries = entriesFrom(form)
         if (entries.isNotEmpty()) {
             target.components(*entries.toTypedArray())

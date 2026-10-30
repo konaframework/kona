@@ -6,7 +6,7 @@ description: Drop a resource in the panel resources/ folder. simple() is one Man
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Add one class per record type, put it in the panel’s `resources/` folder, and discovery serves it. Bind a model, a form, an infolist, and a table on that class. If you define `form` but skip `infolist`, View (and manage View dialogs) derive a readonly infolist that **keeps the form’s layout** — sections, tabs, grids, fieldsets, column spans, and nested structure — while mapping fields to matching entry types (text, money, dates, toggles, colors, …). Hidden and chrome-only fields are skipped; empty layout wrappers drop out.
+Add one class per record type, put it in the panel’s `resources/` folder, and discovery serves it. Bind a model, a form, an infolist, and a table on that class. If you define `form` but skip `infolist`, View (and manage View dialogs) derive a readonly infolist that **keeps the form’s layout** — root `schema.columns(...)` / `formColumns` (including breakpoint maps), sections, tabs, grids, fieldsets, column spans, and nested structure — while mapping fields to matching entry types (text, money, dates, toggles, colors, …). Hidden and chrome-only fields are skipped; empty layout wrappers drop out.
 
 Call `simple()` when you want one Manage page. Leave it off when you want list, create, edit, and view as their own URLs. The hello samples use both. The click-through is on [A working app](/docs/firefly/working-app/). This page is the method list.
 
