@@ -491,8 +491,14 @@ class TableFiltersTest {
 
     @Test
     fun queryBuilderInMemory() {
-        val builder = QueryBuilderFilter.make("query").label("Advanced").constraintPickerColumns(2).constraints(
-            TextConstraint.make("name"),
+        val builder = QueryBuilderFilter.make("query").label("Advanced").constraintPickerColumns(2).constraintPickerWidth("18rem").constraints(
+            TextConstraint.make("name").operators(
+                ConstraintOperator("contains", "contains", "does not contain"),
+                ConstraintOperator("equals", "equals", "does not equal"),
+                ConstraintOperator("soundex", "sounds like", "does not sound like") { query, store, rule, column ->
+                    store.constrain(query, column, "like", "%${rule.value().orEmpty()}%")
+                },
+            ),
             NumberConstraint.make("score"),
             DateConstraint.make("joined"),
             BooleanConstraint.make("active"),
@@ -501,10 +507,14 @@ class TableFiltersTest {
         )
         assertEquals(6, builder.constraints().size)
         assertThrows(FireflyException::class.java) { builder.constraintPickerColumns(0) }
+        assertThrows(FireflyException::class.java) { builder.constraintPickerWidth("wide") }
+        assertThrows(FireflyException::class.java) { TextConstraint.make("n").operators(*emptyArray()) }
         assertThrows(FireflyException::class.java) { RelationshipConstraint.make("team").optionsLimit(0) }
         val table = people(builder)
         val empty = table.render()
         assertTrue(empty.contains("data-ff-qb-picker-columns=\"2\""), empty)
+        assertTrue(empty.contains("--ff-qb-picker-width: 18rem"), empty)
+        assertTrue(empty.contains("""value="soundex""""), empty)
         assertTrue(empty.contains("data-ff-qb-group-template"))
         assertTrue(empty.contains("""<option value="state">State</option>"""))
         assertTrue(empty.contains("""data-ff-qb-novalue="true""""))
@@ -513,6 +523,17 @@ class TableFiltersTest {
             return names(table)
         }
         assertEquals(listOf("Bea", "Dee"), run("name:contains:e"))
+        assertEquals(listOf("Ada"), run("name:soundex:Ada"))
+        val store = MemoryRecordStore(listOf(mapOf("name" to "Ada")))
+        @Suppress("UNCHECKED_CAST")
+        val typed = store as RecordStore<Any?, Any?>
+        // Unknown / hookless custom keys are ignored by apply.
+        builder.constraints().first { it.name == "name" }
+            .apply(store.query(), typed, QueryRule("name", "missing", false, listOf("x")))
+        TextConstraint.make("name").operators(
+            ConstraintOperator("contains", "contains", "does not contain"),
+            ConstraintOperator("noop", "noop", "not"),
+        ).apply(store.query(), typed, QueryRule("name", "noop", false, listOf("x")))
         assertEquals(listOf("Bea", "Cy"), run("score:isMin:40"))
         assertEquals(listOf("Ada", "Bea"), run("joined:isYear:2024"))
         assertEquals(listOf("Ada", "Dee"), run("active:isTrue:"))

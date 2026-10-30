@@ -467,7 +467,7 @@
 }
 
 .ff-panel .ff-qb-add {
-  max-width: 14rem;
+  max-width: var(--ff-qb-picker-width, 14rem);
 }
 
 .ff-panel .ff-qb-remove-group,

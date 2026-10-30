@@ -5,8 +5,26 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.function.Consumer
 
+/** Applies a custom [ConstraintOperator] to the store query (`column` is the constraint attribute). */
+fun interface ConstraintOperatorApply {
+    fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule, column: String)
+}
+
 /** One operator of a [QueryConstraint]: `key` is submitted; `!key` is the inverse. */
-class ConstraintOperator @JvmOverloads constructor(val key: String, val label: String, val inverseLabel: String, val needsValue: Boolean = true)
+class ConstraintOperator @JvmOverloads constructor(
+    val key: String,
+    val label: String,
+    val inverseLabel: String,
+    val needsValue: Boolean = true,
+    private val applyUsing: ConstraintOperatorApply? = null,
+) {
+    /** Run a custom apply hook when set; returns false so the constraint uses its built-in apply. */
+    fun applyCustom(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule, column: String): Boolean {
+        val hook = applyUsing ?: return false
+        hook.apply(query, store, rule, column)
+        return true
+    }
+}
 
 /** One rule: constraint name, operator key, inverse flag, and values. */
 class QueryRule(val constraint: String, val operator: String, val negated: Boolean, val values: List<String>) {
@@ -20,11 +38,22 @@ class QueryRule(val constraint: String, val operator: String, val negated: Boole
 abstract class QueryConstraint protected constructor(val name: String) {
     private var labelText: String? = null
     private var attributeName: String? = null
+    private var operatorOverride: List<ConstraintOperator>? = null
 
     open fun label(value: String): QueryConstraint = apply { labelText = value }
 
     /** Column to constrain (default: the constraint name). */
     open fun attribute(name: String): QueryConstraint = apply { attributeName = name }
+
+    /**
+     * Replace the built-in operator list (Filament `->operators([...])`). Custom operators that
+     * supply an [ConstraintOperatorApply] run that hook; others still use the constraint's
+     * built-in [applyDefault] when the key matches.
+     */
+    open fun operators(vararg ops: ConstraintOperator): QueryConstraint = apply {
+        if (ops.isEmpty()) throw FireflyException("operators must not be empty")
+        operatorOverride = ops.toList()
+    }
 
     fun heading(): String = labelText ?: Filter.humanize(name)
 
@@ -32,10 +61,21 @@ abstract class QueryConstraint protected constructor(val name: String) {
 
     abstract fun kind(): String
 
-    abstract fun operators(): List<ConstraintOperator>
+    fun operators(): List<ConstraintOperator> = operatorOverride ?: defaultOperators()
 
-    /** Constrain [query] for one rule. */
-    abstract fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule)
+    /** Built-in operators when [operators] has not replaced them. */
+    protected abstract fun defaultOperators(): List<ConstraintOperator>
+
+    /** Constrain [query] for one rule (custom operator hooks first, then [applyDefault]). */
+    fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
+        val op = operator(rule.operator) ?: return
+        if (op.applyCustom(query, store, rule, column())) return
+        if (defaultOperators().none { it.key == rule.operator }) return
+        applyDefault(query, store, rule)
+    }
+
+    /** Built-in query for this constraint's default operator keys. */
+    protected abstract fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule)
 
     /** Value control (no `name`: the builder serializes rules into one field). */
     open fun inputHtml(store: RecordStore<*, *>?, values: List<String>): String =
@@ -69,9 +109,11 @@ open class TextConstraint protected constructor(name: String) : QueryConstraint(
 
     override fun attribute(name: String): TextConstraint = apply { super.attribute(name) }
 
+    override fun operators(vararg ops: ConstraintOperator): TextConstraint = apply { super.operators(*ops) }
+
     override fun kind(): String = "text"
 
-    override fun operators(): List<ConstraintOperator> = listOf(
+    override fun defaultOperators(): List<ConstraintOperator> = listOf(
         ConstraintOperator("contains", "contains", "does not contain"),
         ConstraintOperator("startsWith", "starts with", "does not start with"),
         ConstraintOperator("endsWith", "ends with", "does not end with"),
@@ -79,7 +121,7 @@ open class TextConstraint protected constructor(name: String) : QueryConstraint(
         ConstraintOperator("isFilled", "is filled", "is blank", needsValue = false),
     )
 
-    override fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
+    override fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
         val value = rule.value().orEmpty()
         val like = when {
             insensitiveFlag && rule.negated -> "not ilike"
@@ -124,7 +166,7 @@ open class TextConstraint protected constructor(name: String) : QueryConstraint(
 open class NumberConstraint protected constructor(name: String) : QueryConstraint(name) {
     override fun kind(): String = "number"
 
-    override fun operators(): List<ConstraintOperator> = listOf(
+    override fun defaultOperators(): List<ConstraintOperator> = listOf(
         ConstraintOperator("equals", "equals", "does not equal"),
         ConstraintOperator("isMin", "is at least", "is less than"),
         ConstraintOperator("isMax", "is at most", "is more than"),
@@ -133,7 +175,7 @@ open class NumberConstraint protected constructor(name: String) : QueryConstrain
 
     override fun accepts(operator: String, value: String): Boolean = value.trim().toDoubleOrNull() != null
 
-    override fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
+    override fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
         if (rule.operator == "isFilled") {
             store.constrain(query, column(), if (rule.negated) "null" else "not-null", null)
             return
@@ -161,7 +203,7 @@ open class NumberConstraint protected constructor(name: String) : QueryConstrain
 open class DateConstraint protected constructor(name: String) : QueryConstraint(name) {
     override fun kind(): String = "date"
 
-    override fun operators(): List<ConstraintOperator> = listOf(
+    override fun defaultOperators(): List<ConstraintOperator> = listOf(
         ConstraintOperator("isAfter", "is after", "is not after"),
         ConstraintOperator("isBefore", "is before", "is not before"),
         ConstraintOperator("isDate", "is date", "is not date"),
@@ -170,7 +212,7 @@ open class DateConstraint protected constructor(name: String) : QueryConstraint(
         ConstraintOperator("isFilled", "is filled", "is blank", needsValue = false),
     )
 
-    override fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
+    override fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
         val value = rule.value().orEmpty()
         val equal = if (rule.negated) "!=" else "="
         when (rule.operator) {
@@ -213,10 +255,10 @@ open class DateConstraint protected constructor(name: String) : QueryConstraint(
 open class BooleanConstraint protected constructor(name: String) : QueryConstraint(name) {
     override fun kind(): String = "boolean"
 
-    override fun operators(): List<ConstraintOperator> =
+    override fun defaultOperators(): List<ConstraintOperator> =
         listOf(ConstraintOperator("isTrue", "is true", "is false", needsValue = false))
 
-    override fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
+    override fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
         store.constrain(query, column(), "=", !rule.negated)
     }
 
@@ -244,12 +286,12 @@ open class SelectConstraint protected constructor(name: String) : QueryConstrain
 
     override fun kind(): String = "select"
 
-    override fun operators(): List<ConstraintOperator> = listOf(
+    override fun defaultOperators(): List<ConstraintOperator> = listOf(
         ConstraintOperator("is", "is", "is not"),
         ConstraintOperator("isFilled", "is filled", "is blank", needsValue = false),
     )
 
-    override fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
+    override fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
         if (rule.operator == "is") {
             store.constrain(query, column(), if (rule.negated) "not in" else "in", rule.values)
             return
@@ -302,12 +344,12 @@ open class RelationshipConstraint protected constructor(name: String) : QueryCon
 
     override fun kind(): String = "relationship"
 
-    override fun operators(): List<ConstraintOperator> = listOf(
+    override fun defaultOperators(): List<ConstraintOperator> = listOf(
         ConstraintOperator("isRelatedTo", "is", "is not"),
         ConstraintOperator("has", "has any", "has none", needsValue = false),
     )
 
-    override fun apply(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
+    override fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
         if (rule.operator == "isRelatedTo") {
             store.constrainRelationship(query, name, rule.values, rule.negated)
             return
@@ -340,6 +382,7 @@ open class RelationshipConstraint protected constructor(name: String) : QueryCon
 open class QueryBuilderFilter protected constructor(name: String) : Filter(name) {
     private val constraintList = ArrayList<QueryConstraint>()
     private var pickerColumns = 1
+    private var pickerWidth: String? = null
 
     fun constraints(vararg constraints: QueryConstraint): QueryBuilderFilter = apply {
         constraintList.clear()
@@ -349,6 +392,12 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
     fun constraintPickerColumns(count: Int): QueryBuilderFilter = apply {
         if (count < 1) throw FireflyException("Constraint picker columns must be at least 1")
         pickerColumns = count
+    }
+
+    /** Max width of the "Add rule…" constraint picker (CSS length like `18rem`). */
+    fun constraintPickerWidth(value: String): QueryBuilderFilter = apply {
+        if (!PICKER_WIDTH.matches(value)) throw FireflyException("Constraint picker width must be a CSS length like 18rem")
+        pickerWidth = value
     }
 
     fun constraints(): List<QueryConstraint> = constraintList.toList()
@@ -428,8 +477,9 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
             """<template data-ff-qb-template="${escapeHtml(constraint.name)}">${ruleHtml(context.store, constraint, null)}</template>"""
         }
         val groupTemplate = """<template data-ff-qb-group-template>${groupHtml(context.store, emptyList())}</template>"""
+        val width = pickerWidth?.let { """ style="--ff-qb-picker-width: ${escapeHtml(it)}"""" }.orEmpty()
         return fieldLabel(field.labelText ?: heading(context.cell), field) +
-            """<div class="ff-qb" data-ff-qb data-ff-qb-picker-columns="$pickerColumns"><input type="hidden" name="$name" value="${escapeHtml(stored)}" data-ff-qb-state data-ff-filter-input /><div class="ff-qb-groups" data-ff-qb-groups>$groupsHtml</div><button type="button" class="ff-qb-add-group" data-ff-qb-add-group>Add “or” group</button>$templates$groupTemplate</div>"""
+            """<div class="ff-qb" data-ff-qb data-ff-qb-picker-columns="$pickerColumns"$width><input type="hidden" name="$name" value="${escapeHtml(stored)}" data-ff-qb-state data-ff-filter-input /><div class="ff-qb-groups" data-ff-qb-groups>$groupsHtml</div><button type="button" class="ff-qb-add-group" data-ff-qb-add-group>Add “or” group</button>$templates$groupTemplate</div>"""
     }
 
     private fun groupHtml(store: RecordStore<*, *>?, rules: List<QueryRule>): String {
@@ -472,6 +522,7 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
 
     companion object {
         private const val RULE_FIELD = "__qb"
+        private val PICKER_WIDTH = Regex("\\d+(\\.\\d+)?(px|rem|em|vh|%)")
 
         @JvmStatic
         fun make(name: String): QueryBuilderFilter = finish(QueryBuilderFilter(name))

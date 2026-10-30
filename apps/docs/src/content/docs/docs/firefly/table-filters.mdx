@@ -458,6 +458,8 @@ Every operator can be inverted ("does not contain", "is not filled", "does not h
 
 `TextConstraint.make("title").insensitive()` matches without regard to letter case (`ilike` on SQL stores).
 
+`constraintPickerWidth("18rem")` sizes the "Add rule…" control. Replace a constraint's operators with `operators(...)` (including a custom `ConstraintOperator` that supplies an apply hook) when you need keys beyond the built-ins — see the Java sample in `TableFiltersJavaTest`.
+
 The builder is a filter like any other, so it sits in the same form, works with deferred and live mode, and is stored in the URL as `filters.advanced=…`.
 
 ## On resource pages

@@ -96,6 +96,11 @@ public class TableFiltersJavaTest {
         TernaryFilter defaulted = TernaryFilter.make("d").defaultState().query((query, value) -> { }).queryUsing((query, data) -> { });
         assertTrue(defaulted.isActive(FilterData.single("true")));
 
+        TextConstraint named = TextConstraint.make("name").insensitive().operators(
+            new ConstraintOperator("contains", "contains", "does not contain"),
+            new ConstraintOperator("soundex", "sounds like", "does not sound like", true,
+                (query, store, rule, column) -> store.constrain(query, column, "like", "%" + rule.value() + "%"))
+        );
         QueryBuilderFilter rules = QueryBuilderFilter.make("rules")
             .label("Rules")
             .indicator("Rules on")
@@ -104,14 +109,16 @@ public class TableFiltersJavaTest {
             .columnSpanFull()
             .visible(true)
             .hidden(false)
+            .constraintPickerWidth("16rem")
             .constraints(
-                TextConstraint.make("name").insensitive(),
+                named,
                 NumberConstraint.make("score"),
                 BooleanConstraint.make("active"),
                 SelectConstraint.make("status").label("Status").attribute("status").options(Map.of("open", "Open")).multiple(),
                 RelationshipConstraint.make("team").label("Team").titleAttribute("name").multiple().optionsLimit(10)
             );
         assertEquals(5, rules.constraints().size());
+        assertEquals(2, named.operators().size());
         assertEquals("is", new ConstraintOperator("is", "is", "is not").getLabel());
 
         SelectFilter custom = SelectFilter.make("who").attribute("name").searchable()
