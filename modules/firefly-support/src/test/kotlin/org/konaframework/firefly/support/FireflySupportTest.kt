@@ -477,6 +477,8 @@ class FireflySupportTest {
         assertTrue(html.contains("mountForPanel"))
         assertTrue(html.contains("switchScope"))
         assertTrue(html.contains("positionCombobox"))
+        assertTrue(html.contains("positionPicker"))
+        assertTrue(html.contains("clearFloatingPanel"))
         assertTrue(html.contains("repositionFloating"))
         assertTrue(html.contains("ff-row-action-menu"))
         assertTrue(html.contains(DefaultLayout.THEME_INIT_SCRIPT))

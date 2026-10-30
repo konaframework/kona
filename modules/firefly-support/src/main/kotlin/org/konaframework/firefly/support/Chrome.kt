@@ -219,17 +219,34 @@ class DefaultLayout(
                 "if(on){win.style.position='fixed';win.style.margin='0';win.style.left='1rem';win.style.top='1rem';" +
                 "win.style.width='calc(100vw - 2rem)';win.style.height='calc(100dvh - 2rem)';win.style.maxWidth='none';win.style.maxHeight='none';}" +
                 "else{win.style.position='';win.style.margin='';win.style.left='';win.style.top='';win.style.width='';win.style.height='';win.style.maxWidth='';win.style.maxHeight='';}}" +
+                "function clearFloatingPanel(panel){if(!panel)return;" +
+                "panel.style.position='';panel.style.top='';panel.style.left='';panel.style.right='';" +
+                "panel.style.bottom='';panel.style.width='';panel.style.minWidth='';panel.style.maxWidth='';panel.style.zIndex='';}" +
+                "function positionPicker(p){if(!p)return;var panel=p.querySelector('[data-ff-picker-panel]');" +
+                "var field=p.querySelector('[data-ff-picker-open]')||p.querySelector('.ff-picker-field');" +
+                "if(!panel||!field||panel.hasAttribute('hidden'))return;" +
+                "var rect=field.getBoundingClientRect();var pad=8;var gap=4;var preferTop=p.getAttribute('data-ff-position')==='top';" +
+                "panel.style.position='fixed';panel.style.right='auto';panel.style.bottom='auto';panel.style.zIndex='1400';" +
+                // Measure intrinsic width (range panels are wider), then clamp into the viewport (#405).
+                "panel.style.width='';panel.style.minWidth='';panel.style.maxWidth='';" +
+                "var natural=Math.max(panel.offsetWidth||0,Math.min(rect.width,296),264);" +
+                "var maxW=Math.max(pad,window.innerWidth-2*pad);if(natural>maxW)natural=maxW;" +
+                "panel.style.width=Math.round(natural)+'px';" +
+                "panel.style.left=Math.round(Math.min(Math.max(pad,rect.left),Math.max(pad,window.innerWidth-natural-pad)))+'px';" +
+                "var height=panel.offsetHeight||0;var below=rect.bottom+gap;var above=rect.top-height-gap;" +
+                "var top;if(preferTop&&above>=pad)top=above;else if(below+height<=window.innerHeight-pad)top=below;" +
+                "else if(above>=pad)top=above;else top=Math.max(pad,Math.min(below,window.innerHeight-height-pad));" +
+                "panel.style.top=Math.round(top)+'px';}" +
                 "function closePickers(except){root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(function(p){" +
                 "if(except&&p===except)return;p.classList.remove('ff-picker-open');p.removeAttribute('data-ff-range-pending');p.removeAttribute('data-ff-range-hover');" +
-                "var panel=p.querySelector('[data-ff-picker-panel]');if(panel){panel.setAttribute('hidden','');}});}" +
+                "var panel=p.querySelector('[data-ff-picker-panel]');if(panel){panel.setAttribute('hidden','');clearFloatingPanel(panel);}});}" +
                 "function openPicker(p){if(!p)return;closeComboboxes();closePickers(p);p.classList.add('ff-picker-open');" +
                 "var panel=p.querySelector('[data-ff-picker-panel]');if(panel)panel.removeAttribute('hidden');" +
                 "if(p.getAttribute('data-ff-date')==='true'){var lvl=p.getAttribute('data-ff-pick-level');" +
                 "setPickerView(p,lvl==='month'?'months':lvl==='year'?'years':'days');" +
-                "rebuildView(p,parseYmd(p.getAttribute('data-ff-focused'))||{y:(new Date()).getFullYear(),m:(new Date()).getMonth()+1,d:1});}}" +
-                "function clearComboboxPanel(panel){if(!panel)return;" +
-                "panel.style.position='';panel.style.top='';panel.style.left='';panel.style.right='';" +
-                "panel.style.bottom='';panel.style.width='';panel.style.minWidth='';panel.style.maxWidth='';panel.style.zIndex='';}" +
+                "rebuildView(p,parseYmd(p.getAttribute('data-ff-focused'))||{y:(new Date()).getFullYear(),m:(new Date()).getMonth()+1,d:1});}" +
+                "positionPicker(p);}" +
+                "function clearComboboxPanel(panel){clearFloatingPanel(panel);}" +
                 "function positionCombobox(c){if(!c)return;var panel=c.querySelector('[data-ff-combobox-panel]');" +
                 "var field=c.querySelector('[data-ff-combobox-open]')||c.querySelector('.ff-combobox-field');" +
                 "if(!panel||!field||panel.hasAttribute('hidden'))return;" +
@@ -378,7 +395,8 @@ class DefaultLayout(
                 "for(var d=d0;d<d0+120;d+=10){var sel=(focus.y>=d&&focus.y<d+10)?' ff-day-selected':'';" +
                 "html+='<button type=\"button\" class=\"ff-day'+sel+'\" data-ff-decade=\"'+d+'\">'+d+'</button>';}" +
                 "if(cap)cap.textContent=d0+' – '+(d0+119);}" +
-                "grid.innerHTML=html;grid.setAttribute('data-ff-month',focus.y+'-'+pad2(focus.m));p.setAttribute('data-ff-focused',ymd(focus));}" +
+                "grid.innerHTML=html;grid.setAttribute('data-ff-month',focus.y+'-'+pad2(focus.m));p.setAttribute('data-ff-focused',ymd(focus));" +
+                "if(p.classList.contains('ff-picker-open'))positionPicker(p);}" +
                 "function rebuildGrid(p,focus){rebuildView(p,focus);}" +
                 "function syncTimeSelects(p,dateObj){var h=p.querySelector('[data-ff-hours]');var m=p.querySelector('[data-ff-minutes]');var s=p.querySelector('[data-ff-seconds]');" +
                 "if(h)h.value=String(dateObj.getHours());if(m)m.value=String(dateObj.getMinutes());if(s)s.value=String(dateObj.getSeconds());}" +
@@ -662,7 +680,8 @@ class DefaultLayout(
                 "root.classList.remove('ff-sidebar-open');closeMenus();closeDialogs();closePickers();closeComboboxes();}});" +
                 "function repositionFloating(){" +
                 "root.querySelectorAll('.ff-row-action-menu.ff-open').forEach(positionRowMenu);" +
-                "root.querySelectorAll('[data-ff-combobox].ff-combobox-open').forEach(positionCombobox);}" +
+                "root.querySelectorAll('[data-ff-combobox].ff-combobox-open').forEach(positionCombobox);" +
+                "root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(positionPicker);}" +
                 "window.addEventListener('scroll',repositionFloating,true);" +
                 "window.addEventListener('resize',repositionFloating);" +
                 "})();</script>"

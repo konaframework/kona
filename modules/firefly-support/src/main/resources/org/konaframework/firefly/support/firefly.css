@@ -1622,6 +1622,8 @@ body.ff-body-root {
 }
 
 .ff-panel .ff-picker-panel {
+  /* Default absolute; Chrome.js switches to position:fixed when open so the
+     panel escapes modal overflow and clamps into the viewport (#405). */
   position: absolute;
   z-index: 60;
   top: calc(100% + 0.35rem);
@@ -1634,6 +1636,16 @@ body.ff-body-root {
   border-radius: calc(var(--ff-radius) + 0.15rem);
   box-shadow: var(--ff-shadow);
   padding: 0.5rem;
+}
+
+.ff-panel .ff-picker.ff-picker-open .ff-picker-panel {
+  z-index: 1400;
+}
+
+.ff-panel .ff-picker-panel.ff-range-panel {
+  min-width: min(100%, 32rem);
+  width: max-content;
+  max-width: min(36rem, calc(100vw - 1rem));
 }
 
 .ff-panel .ff-picker-panel[hidden] {
