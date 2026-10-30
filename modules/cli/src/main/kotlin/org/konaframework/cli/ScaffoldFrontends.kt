@@ -568,9 +568,9 @@ internal object ScaffoldFrontends {
                           <h1 class="text-4xl font-bold text-accent mb-4">$title</h1>
                           <p class="text-lg opacity-90 mb-8">$lede</p>
                           <div class="flex flex-wrap gap-3 mb-10">
-                            <a class="px-4 py-3 rounded-lg bg-caramel text-white font-semibold" href="{{ url('/login') }}">Sign in</a>
-                            <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="{{ url('/dashboard') }}">Dashboard</a>
-                            <a class="px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="$docsHref">$docsLabel</a>
+                            <a class="inline-flex items-center gap-2 px-4 py-3 rounded-lg bg-caramel text-white font-semibold" href="{{ url('/login') }}">{!! icon('heroicon-o-arrow-right-end-on-rectangle', 'w-5 h-5') !!}Sign in</a>
+                            <a class="inline-flex items-center gap-2 px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="{{ url('/dashboard') }}">{!! icon('heroicon-o-home', 'w-5 h-5') !!}Dashboard</a>
+                            <a class="inline-flex items-center gap-2 px-4 py-3 rounded-lg border border-latte text-accent font-semibold" href="$docsHref">{!! icon('heroicon-o-book-open', 'w-5 h-5') !!}$docsLabel</a>
                           </div>
                           __BREW__
                           <div class="p-4 rounded-xl bg-white/60 border border-latte text-sm">
@@ -604,9 +604,9 @@ internal object ScaffoldFrontends {
                           <h1 class="display-6">$title</h1>
                           <p class="lead">$lede</p>
                           <div class="d-flex flex-wrap gap-2 mb-4">
-                            <a class="btn btn-primary" href="{{ url('/login') }}">Sign in</a>
-                            <a class="btn btn-outline-secondary" href="{{ url('/dashboard') }}">Dashboard</a>
-                            <a class="btn btn-outline-secondary" href="$docsHref">$docsLabel</a>
+                            <a class="btn btn-primary d-inline-flex align-items-center gap-2" href="{{ url('/login') }}">{!! icon('heroicon-o-arrow-right-end-on-rectangle') !!} Sign in</a>
+                            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="{{ url('/dashboard') }}">{!! icon('heroicon-o-home') !!} Dashboard</a>
+                            <a class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" href="$docsHref">{!! icon('heroicon-o-book-open') !!} $docsLabel</a>
                           </div>
                           __BREW__
                           <div class="card">
@@ -656,9 +656,9 @@ internal object ScaffoldFrontends {
                         <input class="w-full mb-4 p-2 border border-latte rounded-lg" id="email" name="email" type="email" value="{{ email }}" required autocomplete="username" />
                         <label class="block text-sm font-semibold mb-1" for="password">Password</label>
                         <input class="w-full mb-4 p-2 border border-latte rounded-lg" id="password" name="password" type="password" required autocomplete="current-password" />
-                        <button class="w-full py-3 rounded-lg bg-caramel text-white font-bold" type="submit">Sign in</button>
+                        <button class="w-full inline-flex items-center justify-center gap-2 py-3 rounded-lg bg-caramel text-white font-bold" type="submit">{!! icon('heroicon-o-arrow-right-end-on-rectangle', 'w-5 h-5') !!}Sign in</button>
                       </form>
-                      <a class="inline-block mt-5 text-caramel" href="{{ url('/') }}">← Back home</a>
+                      <a class="inline-flex items-center gap-1 mt-5 text-caramel" href="{{ url('/') }}">{!! icon('heroicon-o-arrow-left', 'w-4 h-4') !!}Back home</a>
                     </div>
                   </body>
                 </html>
@@ -694,9 +694,9 @@ internal object ScaffoldFrontends {
                           <label class="form-label" for="password">Password</label>
                           <input class="form-control" id="password" name="password" type="password" required autocomplete="current-password" />
                         </div>
-                        <button class="btn btn-primary w-100" type="submit">Sign in</button>
+                        <button class="btn btn-primary w-100 d-inline-flex align-items-center justify-content-center gap-2" type="submit">{!! icon('heroicon-o-arrow-right-end-on-rectangle') !!} Sign in</button>
                       </form>
-                      <a class="d-inline-block mt-3" href="{{ url('/') }}">← Back home</a>
+                      <a class="d-inline-flex align-items-center gap-1 mt-3" href="{{ url('/') }}">{!! icon('heroicon-o-arrow-left') !!} Back home</a>
                     </div>
                   </body>
                 </html>
@@ -721,7 +721,7 @@ internal object ScaffoldFrontends {
                         <img src="{{ url('/branding/kona-logo.svg') }}" alt="" width="36" height="36" />
                         {{ name }}
                       </a>
-                      <a class="text-caramel" href="https://docs.konaframework.org/">Docs</a>
+                      <a class="inline-flex items-center gap-1 text-caramel" href="https://docs.konaframework.org/">{!! icon('heroicon-o-book-open', 'w-4 h-4') !!}Docs</a>
                     </header>
                     <main class="max-w-xl mx-auto px-6 py-10">
                       <h1 class="text-3xl font-bold text-accent mb-4">Dashboard</h1>
@@ -731,7 +731,7 @@ internal object ScaffoldFrontends {
                       </div>
                       <form method="post" action="{{ url('/logout') }}">
                         @csrf
-                        <button class="px-4 py-2 rounded-lg bg-accent text-white font-semibold" type="submit">Sign out</button>
+                        <button class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white font-semibold" type="submit">{!! icon('heroicon-o-arrow-left-start-on-rectangle', 'w-5 h-5') !!}Sign out</button>
                       </form>
                     </main>
                   </body>
@@ -753,7 +753,7 @@ internal object ScaffoldFrontends {
                         <img src="{{ url('/branding/kona-logo.svg') }}" alt="" width="36" height="36" />
                         {{ name }}
                       </a>
-                      <a href="https://docs.konaframework.org/">Docs</a>
+                      <a class="d-inline-flex align-items-center gap-1" href="https://docs.konaframework.org/">{!! icon('heroicon-o-book-open') !!} Docs</a>
                     </header>
                     <main class="container py-5" style="max-width: 40rem;">
                       <h1 class="h3">Dashboard</h1>
@@ -765,7 +765,7 @@ internal object ScaffoldFrontends {
                       </div>
                       <form method="post" action="{{ url('/logout') }}">
                         @csrf
-                        <button class="btn btn-dark" type="submit">Sign out</button>
+                        <button class="btn btn-dark d-inline-flex align-items-center gap-2" type="submit">{!! icon('heroicon-o-arrow-left-start-on-rectangle') !!} Sign out</button>
                       </form>
                     </main>
                   </body>

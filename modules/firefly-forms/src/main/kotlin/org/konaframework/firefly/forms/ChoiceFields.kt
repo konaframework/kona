@@ -448,8 +448,8 @@ open class Select protected constructor(name: String) : Field<Select>(name) {
         /** Default cap on preloaded options when [optionsLimit] / [preloadLimit] is unset. */
         const val DEFAULT_PRELOAD_LIMIT: Int = 50
 
-        private const val OPTION_CHECK =
-            """<svg class="ff-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4.5 12.75l6 6 9-13.5"/></svg>"""
+        private val OPTION_CHECK: String =
+            org.konaframework.icons.Icons.svg("heroicon-o-check").className("ff-icon").toHtml()
 
         private val maker = Maker { name -> Select(name) }
 

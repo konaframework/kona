@@ -193,4 +193,24 @@ class CremaHelpersTest {
         )
         assertEquals("""<a href="https://app.test/">home</a>""", crema.render("link"))
     }
+
+    @Test
+    fun iconHelperRendersSvgFromKonaIcons() {
+        assertTrue(CremaHelpers.HELPERS.any { it.name == "icon" })
+        assertTrue(CremaHelpers.isCallable("icon"))
+        assertEquals("", CremaHelpers.icon(null))
+        assertEquals("", CremaHelpers.icon("  "))
+        val bare = CremaHelpers.icon("heroicon-o-bell")
+        assertTrue(bare.contains("<svg"), bare)
+        assertTrue(bare.contains("viewBox"), bare)
+        val styled = CremaHelpers.icon("heroicon-o-home", "w-5 h-5")
+        assertTrue(styled.contains("w-5 h-5"), styled)
+        assertEquals(bare, CremaHelpers.call("icon", listOf("heroicon-o-bell"), CremaContext()))
+        val finder = MapViewFinder()
+        finder.put("bell", "{!! icon('heroicon-o-bell', 'mark') !!}")
+        val html = CremaEngine(finder).render("bell")
+        assertTrue(html.contains("<svg"), html)
+        assertTrue(html.contains("mark"), html)
+        assertFalse(html.contains("&lt;svg"), html)
+    }
 }

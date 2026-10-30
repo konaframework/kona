@@ -3,6 +3,7 @@ package org.konaframework.crema
 import org.konaframework.core.Env
 import org.konaframework.core.Kona
 import org.konaframework.http.Url
+import org.konaframework.icons.Icons
 import org.konaframework.support.lang.Lang
 
 /**
@@ -37,6 +38,7 @@ object CremaHelpers {
             Helper("trans", "trans(key)", "trans('')", "Translation string"),
             Helper("__", "__(key)", "__('')", "Translation string"),
             Helper("lang", "lang(key)", "lang('')", "Translation string"),
+            Helper("icon", "icon(name, class?)", "icon('')", "Inline SVG from kona-icons (use {!! !!})"),
             Helper("isset", "isset(name)", "isset()", "True when the path is non-null", callable = false),
             Helper("empty", "empty(name)", "empty()", "True when the value is not truthy", callable = false),
         )
@@ -138,6 +140,7 @@ object CremaHelpers {
             "config" -> config(stringArg(args, 0) ?: "")
             "trans", "__" -> trans(stringArg(args, 0) ?: "", args.getOrNull(1))
             "lang" -> lang(stringArg(args, 0) ?: "", args.getOrNull(1), context)
+            "icon" -> icon(stringArg(args, 0), stringArg(args, 1))
             else -> null
         }
 
@@ -227,6 +230,23 @@ object CremaHelpers {
             return (override[key] ?: "").toString()
         }
         return trans(key, replace)
+    }
+
+    /**
+     * Renders an SVG from [kona-icons](org.konaframework.icons.Icons).
+     * Echo with `{!! icon('heroicon-o-bell') !!}` so the markup is not escaped.
+     */
+    @JvmStatic
+    fun icon(name: String?, className: String? = null): String {
+        val trimmed = name?.trim().orEmpty()
+        if (trimmed.isEmpty()) {
+            return ""
+        }
+        val svg = Icons.svg(trimmed)
+        if (!className.isNullOrBlank()) {
+            svg.className(className.trim())
+        }
+        return svg.toHtml()
     }
 
     internal fun rooted(path: String): String {

@@ -189,6 +189,7 @@ class CremaAnalyzerTest {
         assertTrue(loop.any { it.label == "loop.index" }, loop.toString())
         assertTrue(loop.any { it.label == "loop.remaining" }, loop.toString())
         assertTrue(CremaEchoCatalog.completions("").any { it.name == "csrf_token" })
+        assertTrue(CremaEchoCatalog.completions("").any { it.name == "icon" })
         assertTrue(CremaEchoCatalog.HELPERS.all { it.helper })
         assertTrue(CremaEchoCatalog.VARIABLES.none { it.helper })
         assertEquals("loop.", CremaAnalyzer.echoPrefixAt("{{ loop.", 8))

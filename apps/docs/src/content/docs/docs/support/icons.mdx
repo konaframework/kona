@@ -1,25 +1,21 @@
 ---
 title: Icons
-description: SVG icon sets with Heroicons by default and drop-in custom sets.
+description: Render Heroicons (and custom SVG sets) from Kotlin, Java, or Crema views.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`kona-icons` is the shared SVG icon layer for Kona apps and first-party UI (Firefly, Crema chrome, and your own views). Add the dependency, then resolve icons by name.
+`kona-icons` is the shared SVG icon layer for Kona apps and first-party UI (Firefly chrome, Crema views, grind scaffolds). Heroicons v2 ship on the classpath; you can register more sets the same way Blade Icons does.
 
 ```kotlin
 implementation("org.konaframework:kona-icons")
 ```
 
-## Heroicons (default)
+Crema already depends on `kona-icons`, so any kit that pulls in `kona-crema` can call the `icon()` helper in templates without an extra dependency.
 
-Heroicons v2 ships on the classpath. Names use the `heroicon` prefix plus a style letter:
+## Resolve and render (Kotlin / Java)
 
-| Prefix | Style | Example |
-| --- | --- | --- |
-| `heroicon-o-…` | Outline (24×24) | `heroicon-o-bell` |
-| `heroicon-s-…` | Solid (24×24) | `heroicon-s-home` |
-| `heroicon-m-…` | Mini (20×20) | `heroicon-m-check` |
+Call `Icons.svg(name)` to load an icon, then chain attributes and print HTML with `toHtml()` (or use the value in a string template — `Svg.toString()` is the same markup).
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -32,7 +28,7 @@ val html = Icons.svg("heroicon-o-bell")
     .attr("aria-hidden", "true")
     .toHtml()
 
-// Bare file names resolve against the default set (Heroicons):
+// Bare style+name resolves against the default set (Heroicons):
 Icons.svg("o-user").toHtml()
 ```
 
@@ -51,11 +47,62 @@ String html = Icons.svg("heroicon-o-bell")
 </TabItem>
 </Tabs>
 
-`Icons.has("heroicon-o-bell")` checks availability without rendering. `Icons.all()` returns registered sets.
+`Icons.has("heroicon-o-bell")` checks availability without rendering. `Icons.all()` returns registered sets. Missing names throw `IconNotFoundException` unless a fallback is configured.
+
+## Render an icon in a Crema view
+
+Use the `icon` echo helper and **raw** braces so the SVG is not HTML-escaped:
+
+```crema
+{{-- Outline bell, optional CSS class --}}
+{!! icon('heroicon-o-bell') !!}
+{!! icon('heroicon-o-home', 'w-5 h-5 text-caramel') !!}
+
+<button type="submit" class="btn">
+  {!! icon('heroicon-o-check', 'btn-icon') !!}
+  Save
+</button>
+```
+
+| Form | Meaning |
+| --- | --- |
+| `{!! icon('heroicon-o-bell') !!}` | Inline SVG for that Heroicon |
+| `{!! icon('o-bell') !!}` | Same, via the default set |
+| `{!! icon('heroicon-o-bell', 'my-class') !!}` | Extra `class` on the root `<svg>` |
+| `{{ icon('heroicon-o-bell') }}` | Escapes the markup — do **not** use for icons |
+
+Empty or blank names render nothing. Unknown names throw at render time (same as `Icons.svg`).
+
+From a controller or layout Kotlin class you can also pass pre-rendered markup into the view:
+
+```kotlin
+view(
+    "dashboard",
+    mapOf(
+        "statusIcon" to Icons.svg("heroicon-o-check-circle").className("status-ok").toHtml(),
+    ),
+)
+```
+
+```crema
+{!! statusIcon !!}
+```
+
+## Heroicons (default)
+
+Names use the `heroicon` prefix plus a style letter:
+
+| Prefix | Style | Example |
+| --- | --- | --- |
+| `heroicon-o-…` | Outline (24×24) | `heroicon-o-bell` |
+| `heroicon-s-…` | Solid (24×24) | `heroicon-s-home` |
+| `heroicon-m-…` | Mini (20×20) | `heroicon-m-check` |
+
+Browse the set at [heroicons.com](https://heroicons.com). File names on the classpath match the site (`o-bell.svg`, `s-home.svg`, …).
 
 ## Drop-in icon sets
 
-Register another set with a unique **prefix** and either classpath directories or filesystem paths (Blade Icons `Factory::add` shape):
+Register another set with a unique **prefix** and either classpath directories or filesystem paths:
 
 ```kotlin
 Icons.add(
@@ -83,11 +130,11 @@ Icons.setFallback("heroicon-o-question-mark-circle")
 
 ## Firefly short names
 
-Firefly’s `org.konaframework.firefly.support.Icon` remains as a thin facade for panel chrome. Short names such as `home`, `bars`, `check`, and `trash` map to outline Heroicons and render with the `ff-icon` CSS class. New application code should call `Icons` directly.
+Firefly’s `org.konaframework.firefly.support.Icon` remains a thin facade for panel chrome. Short names such as `home`, `bars`, `check`, and `trash` map to outline Heroicons and render with the `ff-icon` CSS class. New application code and Crema views should call `Icons` / `icon()` directly.
 
 ## Packaging your own set
 
 1. Put `.svg` files under a classpath folder (for example `src/main/resources/icons/acme/`).
-2. Depend on `kona-icons`.
+2. Depend on `kona-icons` (or `kona-crema`, which already brings it).
 3. Call `Icons.add("acme", IconSetOptions(prefix = "acme", classpath = "icons/acme"))` during boot (or from a `ServiceProvider`).
-4. Reference icons as `acme-widget-name`.
+4. Reference icons as `acme-widget-name` in Kotlin/Java or `{!! icon('acme-widget-name') !!}` in Crema.

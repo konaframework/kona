@@ -68,9 +68,13 @@ class MakeFireflyLayoutCommand {
         }
 
         private fun view(name: String): String = """
-            {{-- Layout: $name --}}
+            {{-- Layout: $name — use {!! icon('heroicon-o-…') !!} for SVG from kona-icons --}}
             <div class="ff-layout" x-data="ffField" data-ff-path="{{ path }}">
               @entangle({{ path }})
+              <header class="ff-layout-heading">
+                {!! icon('heroicon-o-squares-2x2', 'ff-icon') !!}
+                <span>{{ label }}</span>
+              </header>
               {{ content }}
             </div>
         """.trimIndent() + "\n"

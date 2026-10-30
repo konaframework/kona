@@ -24,6 +24,7 @@ import org.konaframework.http.Request
 import org.konaframework.http.RequestSession
 import org.konaframework.http.Response
 import org.konaframework.http.Router
+import org.konaframework.icons.Icons
 import java.net.URLEncoder
 import java.nio.file.Path
 import java.util.function.Function
@@ -1235,14 +1236,14 @@ private class ChromeUser(id: String?, name: String?, email: String?) {
         if (this.email != null && this.email != primary) this.email else "Signed in as $primary"
 }
 
-private const val SUN_ICON =
-    """<svg class="ff-icon ff-theme-icon ff-theme-icon--light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>"""
+private val SUN_ICON: String =
+    Icons.svg("heroicon-o-sun").className("ff-icon ff-theme-icon ff-theme-icon--light").toHtml()
 
-private const val MOON_ICON =
-    """<svg class="ff-icon ff-theme-icon ff-theme-icon--dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>"""
+private val MOON_ICON: String =
+    Icons.svg("heroicon-o-moon").className("ff-icon ff-theme-icon ff-theme-icon--dark").toHtml()
 
-private const val SYSTEM_ICON =
-    """<svg class="ff-icon ff-theme-icon ff-theme-icon--system" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25H5.25A2.25 2.25 0 013 15V6.75A2.25 2.25 0 015.25 4.5h13.5A2.25 2.25 0 0121 6.75V15a2.25 2.25 0 01-2.25 2.25H15M9 17.25v1.5c0 .621.504 1.125 1.125 1.125h3.75c.621 0 1.125-.504 1.125-1.125v-1.5M9 17.25h6"/></svg>"""
+private val SYSTEM_ICON: String =
+    Icons.svg("heroicon-o-computer-desktop").className("ff-icon ff-theme-icon ff-theme-icon--system").toHtml()
 
-private const val BELL_ICON =
-    """<svg class="ff-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>"""
+private val BELL_ICON: String =
+    Icons.svg("heroicon-o-bell").className("ff-icon").toHtml()
