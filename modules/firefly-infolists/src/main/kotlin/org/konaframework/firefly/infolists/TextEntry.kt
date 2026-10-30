@@ -21,6 +21,8 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
     private val zoneValue = TextSetting()
     private val tooltipPattern = TextSetting()
     private val currencyValue = TextSetting()
+    private val currencyLocaleValue = TextSetting()
+    private val currencyPrecisionValue = IntSetting()
     private val listLimit = IntSetting()
     private val charLimit = IntSetting()
     private val wordLimit = IntSetting()
@@ -146,17 +148,23 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
 
     fun dateTooltip(pattern: Function<Get, String>): TextEntry = apply { tooltipPattern.set(pattern) }
 
-    fun money(): TextEntry = apply { mode = Mode.MONEY }
-
-    fun money(currency: String): TextEntry = apply {
+    @JvmOverloads
+    fun money(currency: String = "USD", locale: String? = null, precision: Int = 2): TextEntry = apply {
         mode = Mode.MONEY
         currencyValue.set(currency)
+        if (locale != null) currencyLocaleValue.set(locale)
+        currencyPrecisionValue.set(precision)
     }
 
     fun money(currency: Function<Get, String>): TextEntry = apply {
         mode = Mode.MONEY
         currencyValue.set(currency)
     }
+
+    /** Alias for [money] (Shamar `TextEntry.currency` parity). */
+    @JvmOverloads
+    fun currency(code: String = "USD", locale: String? = null, precision: Int = 2): TextEntry =
+        money(code, locale, precision)
 
     fun numeric(): TextEntry = apply { mode = Mode.NUMERIC }
 
@@ -176,7 +184,14 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
         val state = resolvedState(schema, get)
         if (isBlank(state)) return placeholderHtml(get)
         val items = if (state is Collection<*>) state.map { it } else listOf(state)
-        return """<div class="ff-text"${textAttrs(get)}>${renderItems(items, get, state)}</div>"""
+        val moneyClass = if (effectiveMode() == Mode.MONEY) " ff-text-money" else ""
+        val moneyAttr = if (effectiveMode() == Mode.MONEY) {
+            val code = currencyValue.get(get)?.takeIf { it.isNotBlank() } ?: "USD"
+            """ data-ff-currency="${escapeHtml(code)}""""
+        } else {
+            ""
+        }
+        return """<div class="ff-text$moneyClass"${textAttrs(get)}$moneyAttr>${renderItems(items, get, state)}</div>"""
     }
 
     private fun renderItems(items: List<Any?>, get: Get, sample: Any?): String {
@@ -232,7 +247,12 @@ class TextEntry private constructor(name: String) : Entry<TextEntry>(name) {
             Mode.DATE_TIME -> temporalText(item, pattern ?: HUMAN_DATE_TIME, zone)
             Mode.TIME -> temporalText(item, pattern ?: "HH:mm", zone)
             Mode.SINCE -> sinceText(item, zone)
-            Mode.MONEY -> moneyText(item, currencyValue.get(get) ?: "USD")
+            Mode.MONEY -> moneyText(
+                item,
+                currencyValue.get(get)?.takeIf { it.isNotBlank() } ?: "USD",
+                currencyLocaleValue.get(get),
+                currencyPrecisionValue.get(get) ?: 2,
+            )
             Mode.NUMERIC -> numericText(item, decimalsValue.get(get) ?: 0)
         }
     }

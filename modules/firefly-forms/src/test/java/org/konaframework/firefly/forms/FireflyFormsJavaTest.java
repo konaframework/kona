@@ -112,5 +112,13 @@ class FireflyFormsJavaTest {
         ModalTableSelect.make("pick").table(Table.memory(java.util.List.of())).multiple(false);
         MorphToSelect.configureUsing(null);
         MorphToSelect.make("link").titleAttribute("name").type("posts", store);
+        TextInput cash = TextInput.make("price").currency();
+        assertEquals("USD", cash.currencyOptions().getCode());
+        assertTrue(Schema.make().components(cash).render().contains("data-ff-currency=\"USD\""));
+        assertTrue(Schema.make().components(TextInput.make("eur").currency("EUR")).render().contains("data-ff-currency=\"EUR\""));
+        assertTrue(Schema.make().components(TextInput.make("kes").currency("KES", "en-KE")).render().contains("data-ff-currency=\"KES\""));
+        assertTrue(Schema.make().components(CurrencyInput.make("fee")).render().contains("data-ff-currency=\"USD\""));
+        assertTrue(Schema.make().components(CurrencyInput.make("feeKes", "KES")).render().contains("data-ff-currency=\"KES\""));
+        CurrencyInput.configureUsing(null);
     }
 }

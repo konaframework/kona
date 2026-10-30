@@ -1212,6 +1212,91 @@ body.ff-body-root {
   color: #f87171;
 }
 
+/* Input group: currency/prefix + suffix affixes (#410). */
+.ff-panel .ff-control {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.ff-panel .ff-control > .ff-input,
+.ff-panel .ff-control > input.ff-input,
+.ff-panel .ff-control > .ff-input-group,
+.ff-panel .ff-control > .ff-picker,
+.ff-panel .ff-control > .ff-combobox,
+.ff-panel .ff-control > select.ff-input,
+.ff-panel .ff-control > textarea.ff-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.ff-panel .ff-control.has-prefix > .ff-input,
+.ff-panel .ff-control.has-prefix > input.ff-input,
+.ff-panel .ff-control.has-prefix > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-prefix > select.ff-input,
+.ff-panel .ff-control.has-prefix > textarea.ff-input {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.ff-panel .ff-control.has-suffix > .ff-input,
+.ff-panel .ff-control.has-suffix > input.ff-input,
+.ff-panel .ff-control.has-suffix > .ff-input-group > .ff-input,
+.ff-panel .ff-control.has-suffix > select.ff-input,
+.ff-panel .ff-control.has-suffix > textarea.ff-input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ff-panel .ff-prefix,
+.ff-panel .ff-suffix,
+.ff-panel .ff-prefix-icon,
+.ff-panel .ff-suffix-icon {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 0.75rem;
+  border: 1px solid var(--ff-card-border);
+  background: color-mix(in srgb, var(--ff-shell) 65%, var(--ff-card));
+  color: var(--ff-body-subtle);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ff-panel .ff-control.has-prefix > .ff-prefix,
+.ff-panel .ff-control.has-prefix > .ff-prefix-icon {
+  border-right: 0;
+  border-top-left-radius: var(--ff-radius);
+  border-bottom-left-radius: var(--ff-radius);
+}
+
+.ff-panel .ff-control.has-suffix > .ff-suffix,
+.ff-panel .ff-control.has-suffix > .ff-suffix-icon {
+  border-left: 0;
+  border-top-right-radius: var(--ff-radius);
+  border-bottom-right-radius: var(--ff-radius);
+}
+
+.ff-panel .ff-prefix-icon,
+.ff-panel .ff-suffix-icon {
+  padding: 0 0.65rem;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-column-money .ff-value,
+.ff-panel .ff-text-money .ff-value,
+.ff-panel .ff-column[data-ff-currency],
+.ff-panel .ff-text[data-ff-currency] {
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+}
+
 .ff-panel .ff-helper,
 .ff-panel .ff-description,
 .ff-panel .ff-hint {

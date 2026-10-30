@@ -304,6 +304,8 @@ class FireflySupportTest {
         assertTrue(css.contains("ff-picker-grid-months") && css.contains("repeat(3, minmax(0, 1fr))"))
         assertTrue(css.contains("ff-picker-grid-weeks") && css.contains("ff-picker-weeknum"))
         assertTrue(css.contains("ff-week-selected"))
+        assertTrue(css.contains(".ff-panel .ff-control.has-prefix") && css.contains(".ff-panel .ff-prefix"))
+        assertTrue(css.contains("ff-column-money") && css.contains("tabular-nums"))
         assertTrue(css.contains(".ff-panel .ff-combobox-panel"))
         assertTrue(css.contains(".ff-panel .ff-combobox.ff-combobox-open"))
         assertTrue(css.contains(".ff-panel .ff-option"))

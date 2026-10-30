@@ -1,6 +1,8 @@
 package org.konaframework.firefly.tables
 
 import org.konaframework.cadence.Cadence
+import org.konaframework.firefly.schemas.CurrencyFormat
+import org.konaframework.firefly.schemas.CurrencyOptions
 import org.konaframework.firefly.schemas.humanizeName
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.support.Icon
@@ -56,6 +58,7 @@ open class Column protected constructor(val name: String) {
     private var html = false
     private var badge = false
     private var style = TextStyle.PLAIN
+    private var currencyOptions: CurrencyOptions = CurrencyOptions()
     private var limit: Int? = null
     private var newTab = false
     private var copyable = false
@@ -227,10 +230,18 @@ open class Column protected constructor(val name: String) {
 
     fun badge(on: Boolean): Column = apply { badge = on }
 
-    fun money(): Column = apply {
+    /** Format as currency (default USD). Defaults alignment to [Align.END] when unset. */
+    @JvmOverloads
+    fun money(code: String = "USD", locale: String? = null, precision: Int = 2): Column = apply {
         style = TextStyle.MONEY
+        currencyOptions = CurrencyFormat.options(code, locale, precision)
         if (alignUsing == null && alignValue == Align.START) alignValue = Align.END
     }
+
+    /** Alias for [money] (Shamar `TextColumn.currency` parity). */
+    @JvmOverloads
+    fun currency(code: String = "USD", locale: String? = null, precision: Int = 2): Column =
+        money(code, locale, precision)
 
     /** Human date (`January 2, 2026` / PHP `F j, Y`); hover shows the raw value. */
     fun date(): Column = apply { style = TextStyle.DATE }
@@ -290,8 +301,14 @@ open class Column protected constructor(val name: String) {
             """ ${escapeHtml(attr)}="${escapeHtml(value)}""""
         }
         val disabled = if (isDisabled(cell)) """ data-ff-disabled="true"""" else ""
+        val moneyAttr = if (effectiveStyle() == TextStyle.MONEY) {
+            """ data-ff-currency="${escapeHtml(currencyOptions.code)}""""
+        } else {
+            ""
+        }
+        val columnClass = if (effectiveStyle() == TextStyle.MONEY) "ff-column ff-column-money" else "ff-column"
         return """
-            <div class="ff-column" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})" data-ff-align="${align.name.lowercase()}"$tooltip$viewAttr$copy$widthAttr$disabled$extraAttr>
+            <div class="$columnClass" x-data="ffColumn('${escapeHtml(name)}', true)" data-ff-path="${escapeHtml(name)}" data-ff-entangle="@entangle(${escapeHtml(name)})" data-ff-align="${align.name.lowercase()}"$moneyAttr$tooltip$viewAttr$copy$widthAttr$disabled$extraAttr>
               $formatted
               $description
             </div>
@@ -321,11 +338,7 @@ open class Column protected constructor(val name: String) {
 
     private fun plain(state: Any?): String = state?.toString().orEmpty()
 
-    private fun money(state: Any?): String = when (state) {
-        null -> ""
-        is Number -> "$" + String.format(Locale.US, "%.2f", state.toDouble())
-        else -> state.toString()
-    }
+    private fun money(state: Any?): String = CurrencyFormat.formatOrRaw(state, currencyOptions)
 
     /** PHP `F j, Y` (`January 2, 2026`) or date+time (`January 2, 2026, 3:45 PM`). */
     private fun humanDate(state: Any?, withTime: Boolean): String {

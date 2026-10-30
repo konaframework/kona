@@ -1,5 +1,6 @@
 package org.konaframework.firefly.infolists
 
+import org.konaframework.firefly.schemas.CurrencyFormat
 import org.konaframework.firefly.support.FireflyException
 import java.time.DateTimeException
 import java.time.Duration
@@ -154,10 +155,8 @@ private fun finite(value: Double): Double? {
     return value
 }
 
-internal fun moneyText(state: Any?, currency: String): String {
-    val number = toNumber(state)
-    if (number == null) return stringify(state)
-    return currency + " " + String.format(Locale.US, "%.2f", number)
+internal fun moneyText(state: Any?, currency: String, locale: String? = null, precision: Int = 2): String {
+    return CurrencyFormat.formatOrRaw(state, CurrencyFormat.options(currency, locale, precision))
 }
 
 internal fun numericText(state: Any?, decimals: Int): String {

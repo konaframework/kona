@@ -1,5 +1,7 @@
 package org.konaframework.firefly.forms
 
+import org.konaframework.firefly.schemas.CurrencyFormat
+import org.konaframework.firefly.schemas.CurrencyOptions
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
@@ -24,6 +26,7 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
     private var telPattern: String? = null
     private var uniqueRule: String? = null
     private var existsRule: String? = null
+    private var currencyOptions: CurrencyOptions? = null
 
     fun email(): TextInput = apply { inputType = "email" }
 
@@ -37,6 +40,25 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
         inputMode("numeric")
         stepText = "1"
     }
+
+    /**
+     * Numeric currency field. Sets `numeric()`, a step from [precision], and a currency-symbol
+     * prefix when none is configured (Shamar `TextInput.currency` parity).
+     */
+    @JvmOverloads
+    fun currency(code: String = "USD", locale: String? = null, precision: Int = 2): TextInput = apply {
+        if (precision < 0) throw FireflyException("Currency precision cannot be negative")
+        val opts = CurrencyFormat.options(code, locale, precision)
+        currencyOptions = opts
+        numeric()
+        if (stepText == null) stepText = if (opts.precision == 0) "1" else "0.01"
+        if (prefixUnset() && prefixIconUnset()) {
+            prefix(CurrencyFormat.symbol(opts.code, opts.locale))
+        }
+    }
+
+    fun currencyOptions(): CurrencyOptions? = currencyOptions
+
 
     fun password(): TextInput = apply { inputType = "password" }
 
@@ -158,6 +180,12 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
         builder.append(attr("list", listId))
         builder.append(attr("step", stepText))
         builder.append(attr("data-ff-mask", maskText))
+        val currency = currencyOptions
+        if (currency != null) {
+            builder.append(attr("data-ff-currency", currency.code))
+            builder.append(attr("data-ff-currency-locale", currency.locale))
+            builder.append(""" data-ff-currency-precision="${currency.precision}"""")
+        }
         val min = minNumber.get(get)
         if (min != null) builder.append(attr("min", trimNumber(min)))
         val max = maxNumber.get(get)
@@ -196,6 +224,16 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
             return value.toString()
         }
     }
+}
+
+/** Currency-oriented [TextInput] (`numeric` + currency symbol prefix). */
+object CurrencyInput {
+    @JvmStatic
+    @JvmOverloads
+    fun make(name: String, code: String = "USD"): TextInput = TextInput.make(name).currency(code)
+
+    @JvmStatic
+    fun configureUsing(block: java.util.function.Consumer<TextInput>?) = TextInput.configureUsing(block)
 }
 
 open class Textarea protected constructor(name: String) : Field<Textarea>(name) {

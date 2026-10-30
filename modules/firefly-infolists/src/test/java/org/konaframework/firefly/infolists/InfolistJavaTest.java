@@ -99,6 +99,11 @@ public class InfolistJavaTest {
         assertTrue(ShikiCode.manifest().contains("codemirror"));
         assertEquals("A", TableColumn.make("A").label());
         assertTrue(Text.make("Hello").render(Schema.make()).contains("Hello"));
+        TextEntry cash = TextEntry.make("price").money().state(12);
+        assertTrue(Schema.make().components(cash).render().contains("$12.00"));
+        assertTrue(Schema.make().components(TextEntry.make("price").money("EUR").state(5)).render().contains("€5.00"));
+        assertTrue(Schema.make().components(TextEntry.make("price").currency().state(3)).render().contains("$3.00"));
+        assertTrue(Schema.make().components(TextEntry.make("price").currency("KES", "en-KE").state(100)).render().contains("ff-text-money"));
     }
 }
 

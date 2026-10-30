@@ -137,6 +137,12 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
 
     fun inlinePrefix(on: Boolean): T = self().apply { inlinePrefixFlag = on }
 
+    /** True when neither a fixed nor a closure prefix has been configured. */
+    protected fun prefixUnset(): Boolean = prefixText.isUnset()
+
+    /** True when neither a fixed nor a closure prefix icon has been configured. */
+    protected fun prefixIconUnset(): Boolean = prefixIconText.isUnset()
+
     fun aboveContent(value: String): T = self().apply { aboveText.set(value) }
 
     fun aboveContent(value: Function<Get, String>): T = self().apply { aboveText.set(value) }
@@ -300,20 +306,30 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
             val hintIcon = hintIconText.get(get)
             if (hintColor != null) append("""<span class="ff-hint-color" data-ff-hint-color="${esc(hintColor)}"></span>""")
             if (hintIcon != null) append("""<span class="ff-hint-icon" data-ff-hint-icon="${esc(hintIcon)}"></span>""")
-            append("""<div class="ff-control${if (inlinePrefixFlag) " ff-inline-prefix" else ""}">""")
-            append(entangle(path))
-            val prefixButton = prefixAction
-            if (prefixButton != null) append(prefixButton.render(schema))
-            append(textTag("span", "ff-prefix", prefixText.get(get)))
+            val prefixLabel = prefixText.get(get)
+            val suffixLabel = suffixText.get(get)
             val prefixIcon = prefixIconText.get(get)
+            val suffixIcon = suffixIconText.get(get)
+            val prefixButton = prefixAction
+            val suffixButton = suffixAction
+            val hasPrefix = !prefixLabel.isNullOrEmpty() || prefixIcon != null || prefixButton != null
+            val hasSuffix = !suffixLabel.isNullOrEmpty() || suffixIcon != null || suffixButton != null
+            val controlClass = buildString {
+                append("ff-control")
+                if (hasPrefix) append(" has-prefix")
+                if (hasSuffix) append(" has-suffix")
+                if (inlinePrefixFlag) append(" ff-inline-prefix")
+            }
+            append("""<div class="$controlClass">""")
+            append(entangle(path))
+            if (prefixButton != null) append(prefixButton.render(schema))
+            if (!prefixLabel.isNullOrEmpty()) append("""<span class="ff-prefix" aria-hidden="true">${esc(prefixLabel)}</span>""")
             if (prefixIcon != null) {
                 append("""<span class="ff-prefix-icon" data-ff-icon="${esc(prefixIcon)}"${attr("data-ff-icon-color", prefixIconColorText.get(get))}></span>""")
             }
             append(control(schema, get, path, value))
-            append(textTag("span", "ff-suffix", suffixText.get(get)))
-            val suffixButton = suffixAction
+            if (!suffixLabel.isNullOrEmpty()) append("""<span class="ff-suffix" aria-hidden="true">${esc(suffixLabel)}</span>""")
             if (suffixButton != null) append(suffixButton.render(schema))
-            val suffixIcon = suffixIconText.get(get)
             if (suffixIcon != null) {
                 append("""<span class="ff-suffix-icon" data-ff-icon="${esc(suffixIcon)}"${attr("data-ff-icon-color", suffixIconColorText.get(get))}></span>""")
             }

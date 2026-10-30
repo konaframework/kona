@@ -62,6 +62,16 @@ public class SchemaJavaTest {
         assertTrue(UnorderedList.make("one").render(schema).contains("ff-list"));
     }
 
+    @Test
+    void javaCurrencyFormatOverloads() {
+        assertEquals("USD", CurrencyFormat.options().getCode());
+        assertEquals("EUR", CurrencyFormat.options("eur").getCode());
+        assertEquals("USD", CurrencyFormat.options("USD", "en-US").getCode());
+        assertEquals("$", CurrencyFormat.symbol("USD"));
+        assertEquals("$1.50", CurrencyFormat.format(1.5));
+        assertEquals("$7.00", CurrencyFormat.formatOrRaw(7));
+    }
+
     public static class NameField extends Component {
         public NameField() {
             super("name");

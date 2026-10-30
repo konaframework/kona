@@ -18,6 +18,8 @@ internal class Phrase {
         literal = null
     }
 
+    fun isUnset(): Boolean = literal == null && using == null
+
     fun get(get: Get): String? {
         val provider = using
         if (provider != null) return provider.apply(get)

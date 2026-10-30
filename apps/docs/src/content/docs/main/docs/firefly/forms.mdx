@@ -103,6 +103,8 @@ These methods are on the field base. Every concrete field has them.
 
 `TextInput` is a single-line control. `email()`, `url()`, `numeric()`, `integer()`, `password()`, `tel()`, and `type("search")` set the input type and the matching validation rule. `telRegex` replaces the default telephone pattern. Call `telRegex` before `tel()` when you want your own pattern.
 
+`TextInput.currency("USD")` (or `CurrencyInput.make("price", "KES")`) turns the field into a numeric currency control: `type="number"`, a step from the precision (default `0.01`), and a currency-symbol **prefix** when you have not set `prefix` / `prefixIcon`. Optional `locale` and `precision` arguments mirror table and infolist money formatting. Affix chrome (`.ff-control.has-prefix` / `.ff-prefix`) paints as a joined input group.
+
 `revealable(true)` adds a show button on passwords. It sits inside the input group on the right; clicking it switches the input between hidden and plain text and swaps the eye icon. `copyable(true)` adds a copy button in the same place. It copies the current value to the clipboard and shows a check mark for a moment. `mask("9999 9999 9999 9999")` (and similar) writes `data-ff-mask` and panel chrome formats as you type — Alpine/Filament tokens: `9` digit, `a` letter, `*` alphanumeric; any other character is a literal (spaces, dashes). Credit-card and phone patterns work without Alpine. `step`, `minValue`, `maxValue`, `minLength`, `maxLength`, `length`, `regex`, `notRegex`, and `datalist` configure the control. `stripCharacters("-")` or `stripCharacters { value -> value.trim() }` changes the stored text before it is rendered.
 
 `unique("users", "email")` and `exists("users", "email")` add those rules. Without a database checker they fail closed.
