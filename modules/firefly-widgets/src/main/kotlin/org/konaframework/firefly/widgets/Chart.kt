@@ -158,7 +158,8 @@ open class ChartWidget protected constructor(name: String) : Widget(name) {
                 "options" to options,
             ),
         )
-        return """$scripts<div class="ff-chart" data-ff-engine="$engineName" data-ff-type="${escapeHtml(chartType)}" data-ff-library-type="${escapeHtml(libraryType)}"$heightAttr>${filterHtml(get, filters, active)}<canvas></canvas><div class="ff-chart-target"></div><script type="application/json" class="ff-chart-config">$config</script></div>"""
+        val chart = """<div class="ff-chart" data-ff-engine="$engineName" data-ff-type="${escapeHtml(chartType)}" data-ff-library-type="${escapeHtml(libraryType)}"$heightAttr>${filterHtml(get, filters, active)}<canvas></canvas><div class="ff-chart-target"></div><script type="application/json" class="ff-chart-config">$config</script></div>"""
+        return scripts + wrapDashboardBody(schema, chart)
     }
 
     private fun scriptsFor(engine: ChartEngine): String {

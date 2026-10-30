@@ -16,6 +16,7 @@ dependencies {
     api(project(":kona-firefly-schemas"))
     api(project(":kona-firefly-actions"))
     api(project(":kona-firefly-tables"))
+    api(project(":kona-icons"))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

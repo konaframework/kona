@@ -26,6 +26,26 @@ object Firefly {
     @Volatile
     private var mountedApp: Application? = null
 
+    @Volatile
+    private var defaultProfile: Supplier<ProfilePage>? = null
+
+    /**
+     * Global default [ProfilePage] for panels that do not call [Panel.profilePage].
+     * Cleared by [reset].
+     */
+    @JvmStatic
+    fun defaultProfilePage(page: ProfilePage): Firefly = apply {
+        defaultProfile = Supplier { page }
+    }
+
+    /** Builds a profile page when a panel needs the global default. */
+    @JvmStatic
+    fun defaultProfilePage(provider: Supplier<ProfilePage>): Firefly = apply {
+        defaultProfile = provider
+    }
+
+    internal fun resolveDefaultProfilePage(): ProfilePage? = defaultProfile?.get()
+
     /** Keeps [panel] and mounts it on the next [mount]. The same instance is used. */
     @JvmStatic
     fun register(panel: Panel): Firefly = apply {
@@ -42,6 +62,7 @@ object Firefly {
     @JvmStatic
     fun reset() {
         manual.clear()
+        defaultProfile = null
         mounted.set(false)
         mountedApp = null
     }

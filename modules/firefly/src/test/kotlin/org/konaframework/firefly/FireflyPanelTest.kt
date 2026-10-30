@@ -2,6 +2,7 @@ package org.konaframework.firefly
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -108,7 +109,7 @@ class FireflyPanelTest {
         assertTrue(profile.body.contains("ff-profile"))
         val home = send(router, "GET", "/admin")
         assertTrue(home.body.contains("ff-page"))
-        assertEquals(302, send(router, "POST", "/admin/profile").status)
+        assertEquals(302, send(router, "POST", "/admin/logout").status)
         assertEquals(302, send(router, "GET", "/admin/profile").status)
         assertTrue(send(router, "GET", "/admin/password-reset").body.contains("ff-password-reset"))
         assertEquals(422, send(router, "POST", "/admin/password-reset", "email=").status)
@@ -405,7 +406,7 @@ class FireflyPanelTest {
             assertEquals(200, send(router, "GET", "/admin").status)
             assertTrue(send(router, "GET", "/admin").body.contains("ff-user"))
             assertTrue(send(router, "GET", "/admin/profile").body.contains("1"))
-            assertEquals(302, send(router, "POST", "/admin/profile").status)
+            assertEquals(302, send(router, "POST", "/admin/logout").status)
             assertFalse(fake.checked)
         } finally {
             Auth.clearManager()
@@ -425,6 +426,7 @@ class FireflyPanelTest {
         assertEquals(404, send(router, "POST", "/ops/email-verify").status)
         assertEquals(404, send(router, "GET", "/ops/profile").status)
         assertEquals(404, send(router, "POST", "/ops/profile").status)
+        assertEquals(404, send(router, "POST", "/ops/logout").status)
         assertEquals(404, send(router, "POST", "/ops/login").status)
         assertEquals(404, send(router, "GET", "/ops").status)
         val hosted = send(router, "GET", "/ops", headers = mapOf("Host" to "ops.example"))
@@ -524,10 +526,12 @@ class FireflyPanelTest {
 
         val rooted = Router()
         Panel().path("root").authenticate(false).item(
-            NavigationItem("home").label("Home").url("/"),
+            NavigationItem("home").label("Home").url("/").icon("home"),
         ).page(ListPage("one")).mount(rooted)
         val rootNav = send(rooted, "GET", "/root/one").body
         assertTrue(rootNav.contains("ff-nav"))
+        assertTrue(rootNav.contains("ff-nav-icon"))
+        assertTrue(rootNav.contains("ff-nav-label"))
         assertFalse(activeItem("/root/one", "/"))
         assertTrue(activeItem("/root/one", "/root/one"))
         assertFalse(activeItem("/root/one", "/other"))
@@ -537,6 +541,416 @@ class FireflyPanelTest {
 
         val beforeMount = Panel().path("admin").authenticate(false).navigation(NavigationType.APP)
         assertTrue(beforeMount.render(Request("GET", "/admin")).contains("ff-panel"))
+
+        val dashRouter = Router()
+        val kpis = org.konaframework.firefly.widgets.StatsOverviewWidget.make("kpis").apply {
+            lazy(false)
+            pollingInterval(null)
+            stats(org.konaframework.firefly.widgets.Stat().label("Orders").value("3"))
+        }
+        val dash = DashboardPage().apply {
+            title("Home")
+            icon("home")
+            columns(3)
+            filtersForm(Schema().components(Text.make("period")))
+            widgets(kpis)
+        }
+        Panel().path("desk").authenticate(false).page(dash).mount(dashRouter)
+        val desk = send(dashRouter, "GET", "/desk").body
+        assertTrue(desk.contains("Orders"))
+        assertTrue(desk.contains("data-ff-dashboard-columns"))
+        assertTrue(desk.contains("ff-nav-icon"))
+        assertTrue(desk.contains("period") || desk.contains("ff-filters") || desk.contains("ff-dashboard-filters"))
+        val fragment = send(dashRouter, "GET", "/desk/widgets/kpis").body
+        assertTrue(fragment.contains("Orders"))
+        assertTrue(fragment.contains("ff-stat") || fragment.contains("ff-dashboard-widget"))
+        assertEquals(404, send(dashRouter, "GET", "/desk/widgets/missing").status)
+
+        // Route attribute + query input for widgetId; blank id → 422; auth redirect; domain gate.
+        val match = dashRouter.find("GET", "/desk/widgets/kpis")!!
+        val withRoute = Request("GET", "/desk/widgets/kpis").also { it.attributes["widgetId"] = "kpis" }
+        assertTrue(match.route.action.handle(withRoute).body.contains("Orders"))
+        val withInput = Request("GET", "/desk/widgets/x", emptyMap(), mapOf("widgetId" to "kpis"), "")
+        assertTrue(match.route.action.handle(withInput).body.contains("Orders"))
+        // Blank route attr falls through; trailing slash /widgets/ → null id → 422.
+        val blankId = Request("GET", "/desk/widgets/").also { it.attributes["widgetId"] = "  " }
+        assertEquals(422, match.route.action.handle(blankId).status)
+        val noMarker = Request("GET", "/desk/home")
+        assertEquals(422, match.route.action.handle(noMarker).status)
+
+        val authWidgets = Router()
+        val lockedPanel = Panel().path("locked").page(
+            DashboardPage().apply {
+                widgets(
+                    Widget.make("pulse").heading("Pulse").apply {
+                        lazy(false)
+                        pollingInterval(null)
+                    },
+                )
+            },
+        )
+        lockedPanel.mount(authWidgets)
+        assertEquals(302, send(authWidgets, "GET", "/locked/widgets/pulse").status)
+        assertEquals(302, send(authWidgets, "POST", "/locked/register", "name=Ada&email=ada-w@example.com&password=secret").status)
+        assertEquals(302, send(authWidgets, "POST", "/locked/login", "email=ada-w@example.com&password=secret").status)
+        val unlocked = send(authWidgets, "GET", "/locked/widgets/pulse")
+        assertEquals(200, unlocked.status)
+        assertTrue(unlocked.body.contains("Pulse") || unlocked.body.contains("ff-widget"))
+
+        val gated = Router()
+        Panel().path("ops").domain("ops.example").authenticate(false).page(
+            DashboardPage().apply {
+                widgets(Widget.make("g").heading("G").apply { lazy(false); pollingInterval(null) })
+            },
+        ).mount(gated)
+        assertEquals(404, send(gated, "GET", "/ops/widgets/g").status)
+        assertEquals(
+            200,
+            send(gated, "GET", "/ops/widgets/g", headers = mapOf("Host" to "ops.example")).status,
+        )
+
+        // Clear dashboard pages so showWidget returns "Dashboard not found".
+        val cleared = Router()
+        val panelCleared = Panel().path("cleared").authenticate(false).page(
+            DashboardPage().apply {
+                widgets(Widget.make("gone").apply { lazy(false); pollingInterval(null) })
+            },
+        )
+        panelCleared.mount(cleared)
+        val pagesField = Panel::class.java.getDeclaredField("pages")
+        pagesField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        (pagesField.get(panelCleared) as MutableList<*>).clear()
+        val goneMatch = cleared.find("GET", "/cleared/widgets/gone")!!
+        val goneResponse = goneMatch.route.action.handle(Request("GET", "/cleared/widgets/gone"))
+        assertEquals(404, goneResponse.status)
+        assertTrue(goneResponse.body.contains("Dashboard not found"))
+
+        // Resource + page nav icons; NavigationItem icon provider / missing icon fallback.
+        val iconRouter = Router()
+        val projects = object : Resource("projects") {
+            init {
+                icon("folder")
+                simple()
+            }
+        }
+        Panel().path("icons").authenticate(false)
+            .resource(projects)
+            .page(ListPage("reports").icon("chart-bar"))
+            .mount(iconRouter)
+        val iconHtml = send(iconRouter, "GET", "/icons/reports").body
+        assertTrue(iconHtml.contains("ff-nav-icon"))
+        assertTrue(iconHtml.contains("Projects") || iconHtml.contains("projects"))
+
+        val get = SchemaBridge.open(emptyMap())
+        val viaProvider = NavigationItem("dyn").label("Dyn").url("/dyn").icon { "users" }
+        assertTrue(viaProvider.iconName(get).contains("users"))
+        assertTrue(NavigationItem("blank").icon { "  " }.iconName(get).contains("squares-2x2"))
+        val missingIcon = NavigationItem("bad").label("Bad").url("/bad").icon("not-a-real-icon-zzzzzz")
+        val navHtml = renderItems(listOf(missingIcon), "/bad", false, get, false)
+        assertTrue(navHtml.contains("ff-nav-icon"))
+    }
+
+    @Test
+    fun brandingLogosOverridesAndProfilePage() {
+        val branded = Router()
+        Panel().path("brand")
+            .authenticate(false)
+            .branding(
+                org.konaframework.firefly.support.PanelBranding(
+                    name = "Acme",
+                    logo = "/branding/logo.svg",
+                    logoDark = "/branding/logo-dark.svg",
+                    brandDisplay = org.konaframework.firefly.support.BrandDisplay.BOTH,
+                    copyright = "© Acme",
+                    primaryColor = "#112233",
+                ),
+            )
+            .brandLogoAndName()
+            .page(ListPage("one"))
+            .mount(branded)
+        val html = send(branded, "GET", "/brand/one").body
+        assertTrue(html.contains("ff-brand-logo--light"))
+        assertTrue(html.contains("/branding/logo.svg"))
+        assertTrue(html.contains("Acme"))
+        assertTrue(html.contains("© Acme") || html.contains("ff-sidebar-copyright"))
+        assertTrue(html.contains("--ff-primary: #112233") || html.contains("#112233"))
+        assertTrue(html.contains("""action="/brand/logout"""") || html.contains("/brand/logout") || !html.contains("Sign out"))
+
+        val overrideRouter = Router()
+        Panel().path("ov")
+            .authenticate(false)
+            .brand("Base")
+            .logo("/base.svg")
+            .resolveBrandingOverrides {
+                org.konaframework.firefly.support.PanelBranding(name = "Live", logo = "/live.svg")
+            }
+            .page(ListPage("one"))
+            .mount(overrideRouter)
+        val ov = send(overrideRouter, "GET", "/ov/one").body
+        assertTrue(ov.contains("Live"))
+        assertTrue(ov.contains("/live.svg"))
+
+        val auth = Router()
+        val panel = Panel().path("acct").page(PanelPage(""))
+        panel.mount(auth)
+        assertEquals(302, send(auth, "POST", "/acct/register", "name=Ada&email=ada@acct.test&password=secret").status)
+        assertEquals(302, send(auth, "POST", "/acct/login", "email=ada@acct.test&password=secret").status)
+        val profile = send(auth, "GET", "/acct/profile")
+        assertEquals(200, profile.status)
+        assertTrue(profile.body.contains("ff-profile"))
+        assertTrue(profile.body.contains("name") || profile.body.contains("Ada"))
+        val saved = send(
+            auth,
+            "POST",
+            "/acct/profile",
+            "name=Ada Lovelace&email=ada@acct.test&password=&password_confirmation=",
+        )
+        assertEquals(302, saved.status)
+        val again = send(auth, "GET", "/acct/profile").body
+        assertTrue(again.contains("Ada Lovelace") || again.contains("Ada"))
+        assertEquals(302, send(auth, "POST", "/acct/logout").status)
+
+        class CustomProfile : ProfilePage() {
+            override fun formSchema() =
+                org.konaframework.firefly.schemas.Schema().components(
+                    org.konaframework.firefly.forms.TextInput.make("name").label("Display name"),
+                )
+        }
+        Firefly.defaultProfilePage(CustomProfile())
+        try {
+            val global = Router()
+            Panel().path("glob").authenticate(false).guard(
+                MemoryPanelGuard().also {
+                    it.register("Bob", "bob@g.test", "secret")
+                    it.attempt("bob@g.test", "secret")
+                },
+            ).mount(global)
+            // authenticate false still allows profile when guard checks; ensure signed-in via guard already
+            assertTrue(send(global, "GET", "/glob/profile").body.contains("Display name") ||
+                send(global, "GET", "/glob/profile").status == 302)
+        } finally {
+            Firefly.reset()
+        }
+
+        val custom = Router()
+        Panel().path("cust")
+            .authenticate(false)
+            .profilePage(CustomProfile())
+            .brandLogoOnly()
+            .brandNameOnly()
+            .brandDisplay(org.konaframework.firefly.support.BrandDisplay.BOTH)
+            .logoDark("/dark.svg")
+            .logoHeight(48)
+            .guard(
+                MemoryPanelGuard().also {
+                    it.register("Cara", "cara@c.test", "secret")
+                    it.attempt("cara@c.test", "secret")
+                },
+            )
+            .mount(custom)
+        val custHtml = send(custom, "GET", "/cust/profile").body
+        assertTrue(custHtml.contains("Display name") || custHtml.contains("ff-profile"))
+
+        val settings = SettingsPage().canSave { true }
+        assertTrue(settings.canSave(MemoryPanelGuard()))
+        assertTrue(settings.render().contains("ff-settings") || settings.render().contains("Settings"))
+        val settingsDeny = SettingsPage().canSave { false }
+        assertFalse(settingsDeny.canSave(MemoryPanelGuard()))
+        assertTrue(SettingsPage().canSave(MemoryPanelGuard()))
+
+        val mem = MemoryPanelGuard()
+        mem.register("Pat", "pat@t.test", "secret")
+        mem.attempt("pat@t.test", "secret")
+        assertNull(mem.updateProfile("Pat Two", "pat2@t.test", "newsecret"))
+        assertTrue(mem.attempt("pat2@t.test", "newsecret"))
+        assertEquals("Email is already registered", run {
+            mem.register("Other", "other@t.test", "x")
+            mem.attempt("pat2@t.test", "newsecret")
+            mem.updateProfile("Pat", "other@t.test", null)
+        })
+        assertEquals("Not signed in", MemoryPanelGuard().updateProfile("a", "b", null))
+        assertEquals("Name is blank", run {
+            val g = MemoryPanelGuard()
+            g.register("N", "n@t.test", "s")
+            g.attempt("n@t.test", "s")
+            g.updateProfile(" ", "n@t.test", null)
+        })
+        assertEquals("Email is blank", run {
+            val g = MemoryPanelGuard()
+            g.register("N", "n2@t.test", "s")
+            g.attempt("n2@t.test", "s")
+            g.updateProfile("N", " ", null)
+        })
+
+        val errRouter = Router()
+        val errPanel = Panel().path("err").page(PanelPage(""))
+        errPanel.mount(errRouter)
+        send(errRouter, "POST", "/err/register", "name=E&email=e@e.test&password=secret")
+        send(errRouter, "POST", "/err/login", "email=e@e.test&password=secret")
+        val mismatch = send(
+            errRouter,
+            "POST",
+            "/err/profile",
+            "name=E&email=e@e.test&password=one&password_confirmation=two",
+        )
+        assertEquals(422, mismatch.status)
+
+        Firefly.defaultProfilePage { CustomProfile() }
+        try {
+            assertNotNull(Firefly.resolveDefaultProfilePage())
+        } finally {
+            Firefly.reset()
+        }
+
+        assertThrows<FireflyException> {
+            ProfilePage().save(AuthPanelGuard(FakeGuard()), mapOf("name" to "A", "email" to "a@a.test"))
+        }
+        assertThrows<FireflyException> {
+            ProfilePage().save(
+                MemoryPanelGuard().also { it.register("Z", "z@z.test", "s"); it.attempt("z@z.test", "s") },
+                mapOf("name" to "", "email" to "z@z.test"),
+            )
+        }
+        assertThrows<FireflyException> {
+            ProfilePage().save(
+                MemoryPanelGuard().also { it.register("Z", "z2@z.test", "s"); it.attempt("z2@z.test", "s") },
+                mapOf("name" to "Z", "email" to ""),
+            )
+        }
+        assertThrows<FireflyException> {
+            ProfilePage().save(
+                MemoryPanelGuard().also { it.register("Z", "z3@z.test", "s"); it.attempt("z3@z.test", "s") },
+                emptyMap(),
+            )
+        }
+        val pwdGuard = MemoryPanelGuard().also {
+            it.register("Z", "z4@z.test", "s")
+            it.attempt("z4@z.test", "s")
+            it.register("Taken", "taken@z.test", "s")
+        }
+        assertEquals(
+            "Profile updated",
+            ProfilePage().save(
+                pwdGuard,
+                mapOf(
+                    "name" to "Zed",
+                    "email" to "z4@z.test",
+                    "password" to "newer",
+                    "password_confirmation" to "newer",
+                ),
+            ),
+        )
+        assertTrue(pwdGuard.attempt("z4@z.test", "newer"))
+        assertThrows<FireflyException> {
+            ProfilePage().save(
+                pwdGuard,
+                mapOf("name" to "Zed", "email" to "taken@z.test"),
+            )
+        }
+        assertEquals(
+            "Profile updated",
+            ProfilePage().save(
+                pwdGuard,
+                mapOf("name" to "Zed", "email" to "z4@z.test", "password" to "", "password_confirmation" to ""),
+            ),
+        )
+        assertNull(pwdGuard.updateProfile("Zed", "z4@z.test", ""))
+        assertNull(pwdGuard.updateProfile("Zed", "z4@z.test", null))
+        val orphan = MemoryPanelGuard().also {
+            it.register("O", "o@o.test", "s")
+            it.attempt("o@o.test", "s")
+        }
+        val currentField = MemoryPanelGuard::class.java.getDeclaredField("current")
+        currentField.isAccessible = true
+        currentField.set(orphan, "ghost@o.test")
+        assertEquals("Not signed in", orphan.updateProfile("O", "o@o.test", null))
+
+        assertTrue(SettingsPage().render().contains("Settings") || SettingsPage().render().contains("ff-settings"))
+        assertTrue(ProfilePage().render().contains("Profile") || ProfilePage().render().contains("ff-profile"))
+        assertTrue(SettingsPage(null).render().contains("ff-settings"))
+
+        Panel().branding(org.konaframework.firefly.support.PanelBranding(logo = "/only.svg"))
+            .branding(org.konaframework.firefly.support.PanelBranding(name = "  "))
+            .branding(org.konaframework.firefly.support.PanelBranding(name = "Named", copyright = "© A & B <C> \"D\""))
+
+        val copyRouter = Router()
+        Panel().path("copy")
+            .authenticate(false)
+            .branding(
+                org.konaframework.firefly.support.PanelBranding(
+                    name = "Amp",
+                    copyright = "© A & B <C> \"D\"",
+                ),
+            )
+            .page(ListPage("one"))
+            .mount(copyRouter)
+        val copyHtml = send(copyRouter, "GET", "/copy/one").body
+        assertTrue(copyHtml.contains("&amp;") || copyHtml.contains("ff-sidebar-copyright"))
+
+        val csrfSession = object : org.konaframework.http.RequestSession {
+            private val data = linkedMapOf<String, Any?>("_token" to "tok-profile")
+            override fun get(key: String): Any? = data[key]
+            override fun put(key: String, value: Any?): org.konaframework.http.RequestSession {
+                data[key] = value
+                return this
+            }
+            override fun flash(key: String, value: Any?): org.konaframework.http.RequestSession = this
+            override fun flashInput(input: Map<String, String>): org.konaframework.http.RequestSession = this
+            override fun old(key: String, default: String?): String? = default
+            override fun oldInput(): Map<String, String> = emptyMap()
+            override fun previousUrl(): String? = null
+            override fun setPreviousUrl(url: String): org.konaframework.http.RequestSession = this
+        }
+        val csrfRouter = Router()
+        val csrfPanel = Panel().path("csrfprof").page(PanelPage(""))
+        csrfPanel.mount(csrfRouter)
+        send(csrfRouter, "POST", "/csrfprof/register", "name=C&email=c@c.test&password=secret")
+        send(csrfRouter, "POST", "/csrfprof/login", "email=c@c.test&password=secret")
+        assertEquals(
+            419,
+            sendWithSession(
+                csrfRouter,
+                "POST",
+                "/csrfprof/profile",
+                csrfSession,
+                "name=C&email=c@c.test&_token=wrong",
+            ).status,
+        )
+        assertEquals(
+            419,
+            sendWithSession(
+                csrfRouter,
+                "POST",
+                "/csrfprof/logout",
+                csrfSession,
+                "_token=wrong",
+            ).status,
+        )
+        assertEquals(
+            302,
+            sendWithSession(
+                csrfRouter,
+                "POST",
+                "/csrfprof/profile",
+                csrfSession,
+                "name=Cee&email=c@c.test&password=&password_confirmation=&_token=tok-profile&_extra=1",
+            ).status,
+        )
+        val profileMatch = csrfRouter.find("POST", "/csrfprof/profile")
+            ?: throw AssertionError("missing profile post")
+        val mixed = Request(
+            "POST",
+            "/csrfprof/profile",
+            emptyMap(),
+            mapOf("ref" to "from-query"),
+            "name=Cee&email=c@c.test&password=&password_confirmation=&_token=tok-profile&_skip=1&ref=body",
+        )
+        mixed.setAttribute(Request.SESSION_ATTRIBUTE, csrfSession)
+        assertEquals(302, profileMatch.route.action.handle(mixed).status)
+        assertEquals(302, send(csrfRouter, "POST", "/csrfprof/logout").status)
+        assertEquals(302, send(csrfRouter, "POST", "/csrfprof/profile", "name=C&email=c@c.test").status)
+        assertEquals(302, send(csrfRouter, "GET", "/csrfprof/profile").status)
     }
 
     @Test

@@ -74,7 +74,17 @@ class FireflyPageFormTest {
         Panel().path("admin").authenticate(false)
             .page(PanelPage("settings").mountForm(form()).onFormSubmit(Function { input -> seen.add(input); "Settings saved" }))
             .page(PanelPage("defaults").mountForm(form()))
+            .page(
+                SettingsPage("prefs").canSave { false }
+                    .mountForm(form()).onFormSubmit(Function { "Prefs saved" }),
+            )
+            .page(
+                SettingsPage("open-prefs").canSave { true }
+                    .mountForm(form()).onFormSubmit(Function { "Open prefs" }),
+            )
             .mount(router)
+        assertEquals(403, send(router, "POST", "/admin/prefs", body = "title=x").status)
+        assertEquals(302, send(router, "POST", "/admin/open-prefs", body = "title=x").status)
         val session = PageFormSession()
         val saved = send(router, "POST", "/admin/settings", mapOf("tab" to "1"), "title=Hi&status=open&_token=&_bulk_action=&tab=1", session)
         assertEquals(302, saved.status)

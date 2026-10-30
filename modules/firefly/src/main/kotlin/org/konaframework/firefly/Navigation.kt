@@ -3,6 +3,8 @@ package org.konaframework.firefly
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.htmlAttributes
 import org.konaframework.firefly.support.FireflyException
+import org.konaframework.firefly.widgets.NavIcons
+import org.konaframework.icons.Icons
 import java.util.function.Function
 
 /**
@@ -26,10 +28,13 @@ class NavigationItem(val name: String) {
     private var labelUsing: Function<Get, String>? = null
     private var urlLiteral: String = ""
     private var urlUsing: Function<Get, String>? = null
+    private var iconLiteral: String? = null
+    private var iconUsing: Function<Get, String>? = null
     private var attributesLiteral: Map<String, String> = emptyMap()
     private var attributesUsing: Function<Get, Map<String, String>>? = null
     private var clusterFlag: Boolean = false
     private var matchPrefixValue: String? = null
+    private var dashboardFlag: Boolean = false
     internal var depth: Int = 1
     internal val children = ArrayList<NavigationItem>()
 
@@ -56,6 +61,30 @@ class NavigationItem(val name: String) {
     fun url(provider: Function<Get, String>): NavigationItem = apply {
         urlUsing = provider
         urlLiteral = ""
+    }
+
+    /**
+     * Navigation icon via kona-icons (`heroicon-o-folder` or short `folder`).
+     * Unset items use [NavIcons.HOME] for the dashboard root and [NavIcons.DEFAULT] otherwise.
+     */
+    fun icon(value: String): NavigationItem = apply {
+        iconLiteral = value
+        iconUsing = null
+    }
+
+    fun icon(provider: Function<Get, String>): NavigationItem = apply {
+        iconUsing = provider
+        iconLiteral = null
+    }
+
+    /** Marks this item as the panel home so the default icon is [NavIcons.HOME]. */
+    internal fun dashboard(on: Boolean = true): NavigationItem = apply { dashboardFlag = on }
+
+    fun iconName(get: Get): String {
+        val provider = iconUsing
+        val raw = if (provider != null) provider.apply(get) else iconLiteral
+        if (!raw.isNullOrBlank()) return NavIcons.resolve(raw)
+        return NavIcons.defaultForDashboard(dashboardFlag || name == "dashboard")
     }
 
     fun extraAttributes(values: Map<String, String>): NavigationItem = apply {
@@ -154,8 +183,14 @@ internal fun renderItems(
         val cluster = if (item.isCluster()) " ff-cluster" else ""
         val navigate = if (spa && url.isNotEmpty()) " wire:navigate" else ""
         val href = if (url.isEmpty()) "" else " href=\"${escapeHtml(url)}\""
+        val iconName = item.iconName(get)
+        val iconHtml = try {
+            Icons.svg(iconName).className("ff-nav-icon").attr("aria-hidden", "true").toHtml()
+        } catch (_: Exception) {
+            Icons.svg(NavIcons.DEFAULT).className("ff-nav-icon").attr("aria-hidden", "true").toHtml()
+        }
         out.append(
-            """<li class="ff-nav-item$cluster$active"><a$href$navigate${htmlAttributes(item.attributes(get))}>${escapeHtml(item.labelText(get))}</a>""",
+            """<li class="ff-nav-item$cluster$active"><a$href$navigate${htmlAttributes(item.attributes(get))}><span class="ff-nav-icon-wrap">$iconHtml</span><span class="ff-nav-label">${escapeHtml(item.labelText(get))}</span></a>""",
         )
         if (nested) out.append(renderItems(item.children, path, spa, get, true))
         out.append("</li>")

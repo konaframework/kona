@@ -181,7 +181,8 @@ body.ff-body-root {
   font-size: 1.1rem;
 }
 
-.ff-panel .ff-sidebar-brand::before {
+/* Gradient mark only when no logo image is present. */
+.ff-panel .ff-sidebar-brand:not(.ff-sidebar-brand--logo)::before {
   content: "";
   width: 1.55rem;
   height: 1.55rem;
@@ -190,6 +191,46 @@ body.ff-body-root {
     linear-gradient(145deg, var(--ff-primary), color-mix(in srgb, var(--ff-accent) 70%, var(--ff-primary)));
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ff-accent) 35%, transparent);
   flex-shrink: 0;
+}
+
+.ff-panel .ff-brand-mark,
+.ff-auth .ff-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ff-panel .ff-brand-logo,
+.ff-auth .ff-brand-logo {
+  display: none;
+  height: var(--ff-logo-height, 2rem);
+  width: auto;
+  max-width: 9rem;
+  object-fit: contain;
+}
+
+.ff-panel:not(.ff-dark) .ff-brand-logo--light,
+.ff-auth:not(.ff-dark) .ff-brand-logo--light,
+html:not(.ff-dark) .ff-panel .ff-brand-logo--light,
+html:not(.ff-dark) .ff-auth .ff-brand-logo--light {
+  display: block;
+}
+
+.ff-panel.ff-dark .ff-brand-logo--dark,
+.ff-auth.ff-dark .ff-brand-logo--dark,
+html.ff-dark .ff-panel .ff-brand-logo--dark,
+html.ff-dark .ff-auth .ff-brand-logo--dark {
+  display: block;
+}
+
+.ff-panel .ff-sidebar-copyright,
+.ff-auth .ff-auth-copyright {
+  margin: 0;
+  padding: 0.65rem 1.1rem;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, var(--ff-heading) 55%, transparent);
 }
 
 /* Close button only appears inside the mobile drawer. */
@@ -271,7 +312,7 @@ body.ff-body-root {
 .ff-panel .ff-nav-item > a {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   min-height: 2.15rem;
   padding: 0.4rem 0.7rem;
   border-radius: 0.55rem;
@@ -279,6 +320,29 @@ body.ff-body-root {
   font-size: 0.875rem;
   font-weight: 500;
   transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.ff-panel .ff-nav-icon-wrap {
+  display: inline-flex;
+  flex: 0 0 1rem;
+  width: 1rem;
+  height: 1rem;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.ff-panel .ff-nav-icon {
+  width: 1rem;
+  height: 1rem;
+  display: block;
+}
+
+.ff-panel .ff-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ff-panel .ff-nav-item.ff-cluster > a {
@@ -1012,6 +1076,214 @@ body.ff-body-root {
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+/* Dashboard fixed columns (Shamar dashboard.edge 1–4). */
+.ff-panel .ff-dashboard[data-ff-dashboard-columns="1"] .ff-page-widgets {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ff-panel .ff-dashboard[data-ff-dashboard-columns="2"] .ff-page-widgets {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.ff-panel .ff-dashboard[data-ff-dashboard-columns="3"] .ff-page-widgets,
+.ff-panel .ff-dashboard[data-ff-dashboard-columns="4"] .ff-page-widgets {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .ff-panel .ff-dashboard[data-ff-dashboard-columns="2"] .ff-page-widgets,
+  .ff-panel .ff-dashboard[data-ff-dashboard-columns="3"] .ff-page-widgets,
+  .ff-panel .ff-dashboard[data-ff-dashboard-columns="4"] .ff-page-widgets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .ff-panel .ff-dashboard[data-ff-dashboard-columns="3"] .ff-page-widgets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ff-panel .ff-dashboard[data-ff-dashboard-columns="4"] .ff-page-widgets {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ff-panel .ff-dashboard-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  background: var(--ff-card);
+  border: 1px solid var(--ff-card-border);
+  border-radius: calc(var(--ff-radius) + 0.25rem);
+  box-shadow: var(--ff-shadow);
+}
+
+.ff-panel .ff-dashboard-filters-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  flex: 1 1 12rem;
+}
+
+.ff-panel .ff-dashboard-empty,
+.ff-panel .ff-widget-empty,
+.ff-panel .ff-widget-placeholder {
+  color: var(--ff-body-subtle);
+  font-size: 0.875rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--ff-card-border);
+  border-radius: var(--ff-radius);
+}
+
+.ff-panel .ff-dashboard-widget {
+  min-width: 0;
+}
+
+.ff-panel .ff-stats {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(var(--ff-stats-cols, 1), minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .ff-panel .ff-stats {
+    grid-template-columns: repeat(var(--ff-stats-cols-sm, var(--ff-stats-cols, 1)), minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .ff-panel .ff-stats {
+    grid-template-columns: repeat(var(--ff-stats-cols-md, var(--ff-stats-cols-sm, var(--ff-stats-cols, 1))), minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .ff-panel .ff-stats {
+    grid-template-columns: repeat(var(--ff-stats-cols-lg, var(--ff-stats-cols-md, var(--ff-stats-cols-sm, var(--ff-stats-cols, 1)))), minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .ff-panel .ff-stats {
+    grid-template-columns: repeat(var(--ff-stats-cols-xl, var(--ff-stats-cols-lg, var(--ff-stats-cols-md, var(--ff-stats-cols-sm, var(--ff-stats-cols, 1))))), minmax(0, 1fr));
+  }
+}
+
+.ff-panel .ff-stat-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ff-panel .ff-stat-link:hover .ff-stat-value {
+  color: var(--ff-primary);
+}
+
+.ff-panel .ff-list-widget-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ff-panel .ff-list-widget-table th {
+  text-align: start;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ff-body-subtle);
+  border-bottom: 1px solid var(--ff-card-border);
+  padding: 0.5rem 0.4rem;
+}
+
+.ff-panel .ff-list-widget-table td {
+  border-bottom: 1px solid color-mix(in srgb, var(--ff-card-border) 60%, transparent);
+  padding: 0.55rem 0.4rem;
+  color: var(--ff-body-text);
+}
+
+.ff-panel .ff-list-widget-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.ff-panel .ff-list-widget-link {
+  font-weight: 600;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-list-widget-link:hover {
+  color: var(--ff-primary);
+}
+
+.ff-panel .ff-nav-cards {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 640px) {
+  .ff-panel .ff-nav-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .ff-panel .ff-nav-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.ff-panel .ff-nav-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1.1rem 1.15rem;
+  border-radius: calc(var(--ff-radius) + 0.15rem);
+  border: 1px solid var(--ff-card-border);
+  background: color-mix(in srgb, var(--ff-hover) 35%, var(--ff-card));
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ff-panel .ff-nav-card:hover {
+  border-color: color-mix(in srgb, var(--ff-primary) 40%, var(--ff-card-border));
+}
+
+.ff-panel .ff-nav-card-icon {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.65rem;
+  color: var(--ff-primary);
+  margin-bottom: 0.35rem;
+}
+
+.ff-panel .ff-nav-card-icon .ff-nav-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ff-panel .ff-nav-card-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ff-heading);
+}
+
+.ff-panel .ff-nav-card:hover .ff-nav-card-label {
+  color: var(--ff-primary);
+}
+
+.ff-panel .ff-nav-card-hint {
+  font-size: 0.8rem;
+  color: var(--ff-body-subtle);
 }
 
 /* ——— Buttons ——— */
@@ -3558,6 +3830,12 @@ body.ff-body-root {
   text-align: center;
 }
 
+.ff-auth-brand .ff-brand-mark {
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.ff-auth-brand .ff-brand,
 .ff-auth-brand__name {
   margin: 0;
   font-size: clamp(2rem, 5vw, 2.6rem);
@@ -3565,6 +3843,11 @@ body.ff-body-root {
   letter-spacing: -0.03em;
   line-height: 1.08;
   color: var(--ff-heading);
+}
+
+.ff-auth-brand .ff-brand-logo {
+  max-width: 12rem;
+  height: var(--ff-logo-height, 2.5rem);
 }
 
 .ff-auth-main {

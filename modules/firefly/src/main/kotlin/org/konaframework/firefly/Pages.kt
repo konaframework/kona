@@ -13,6 +13,7 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
     private var boundSlug: String? = null
     private var onShow: ((Map<String, Any?>) -> Unit)? = null
     private var submitHandler: Function<Map<String, String>, String>? = null
+    private var iconLiteral: String? = null
 
     fun slug(): String {
         val bound = boundSlug
@@ -43,6 +44,11 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
         if (slug.isEmpty()) return "Dashboard"
         return slug
     }
+
+    /** Navigation icon (kona-icons name or short alias). Unset → dashboard home / squares-2x2 default. */
+    fun icon(name: String): PanelPage = apply { iconLiteral = name }
+
+    fun navigationIcon(): String? = iconLiteral
 
     fun parent(name: String): PanelPage = apply { parentName = name }
 
@@ -125,4 +131,16 @@ open class DashboardPage : PanelPage("") {
     override fun sectionClass(): String = "ff-page ff-dashboard"
 
     override fun fallbackTitle(): String = "Dashboard"
+
+    override fun emitDashboardColumns(): Boolean = true
+
+    override fun columns(count: Int): DashboardPage {
+        super.columns(count)
+        return this
+    }
+
+    override fun filtersForm(schema: Schema): DashboardPage {
+        super.filtersForm(schema)
+        return this
+    }
 }

@@ -6,7 +6,12 @@ package org.konaframework.firefly.support
  */
 class AuthLayout : PanelLayout {
     override fun render(context: ChromeContext): String {
-        val brand = context.brandName
+        val branding = run {
+            val b = context.branding
+            val name = if (context.brandName.isBlank()) b.brandName else context.brandName
+            if (name == b.brandName) b else b.copy(brandName = name)
+        }
+        val brand = branding.brandName
         val title = context.documentTitle.ifBlank { brand }
         val body = context.partials["body"] ?: throw FireflyException("Missing partial [body]")
         val csrf = context.csrfToken
@@ -16,7 +21,28 @@ class AuthLayout : PanelLayout {
             } else {
                 """<meta name="csrf-token" content="${escAttr(csrf)}" />"""
             }
+        val fontLink =
+            if (branding.fontUrl.isNullOrBlank()) {
+                ""
+            } else {
+                val pre =
+                    if (branding.fontPreconnect) {
+                        """<link rel="preconnect" href="https://fonts.googleapis.com" />
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />"""
+                    } else {
+                        ""
+                    }
+                """$pre
+                <link rel="stylesheet" href="${escAttr(branding.fontUrl)}" />"""
+            }
         val heading = context.theme.tokens().heading
+        val mark = brandMarkHtml(branding, "ff-auth-brand__mark")
+        val copyright =
+            if (branding.copyrightText.isNullOrBlank()) {
+                ""
+            } else {
+                """<p class="ff-auth-copyright">${escAttr(branding.copyrightText)}</p>"""
+            }
         return """
             <!DOCTYPE html>
             <html lang="en">
@@ -25,6 +51,7 @@ class AuthLayout : PanelLayout {
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
                 $meta
                 <title>${escAttr(title)}</title>
+                $fontLink
                 ${DefaultLayout.THEME_INIT_SCRIPT}
                 <style>${context.css}</style>
               </head>
@@ -33,9 +60,10 @@ class AuthLayout : PanelLayout {
                   <div class="ff-auth-atmosphere" aria-hidden="true"></div>
                   <div class="ff-auth-frame">
                     <header class="ff-auth-brand">
-                      <p class="ff-auth-brand__name">${escAttr(brand)}</p>
+                      $mark
                     </header>
                     $body
+                    $copyright
                   </div>
                 </div>
               </body>

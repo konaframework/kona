@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Decide where the links sit, then either let `mount` build the tree or write it yourself. Each panel has one layout for that tree. If you never call `item` or `cluster`, `mount` builds the tree from the pages and resources it discovered.
 
+Every nav link shows an icon from [kona-icons](/docs/icons/) (`Icons.svg`). Set `icon("folder")` or `icon("heroicon-o-folder")` on a `NavigationItem`, `PanelPage`, or `Resource`. Short names resolve to `heroicon-o-{name}`. When unset, the dashboard home uses `heroicon-o-home` and every other item uses `heroicon-o-squares-2x2`.
+
 On the hello samples that means a link for Desk, plus one sidebar entry each for Notes and Orders. Page labels come from the slug, so you may see `desk` until you set a label. Resource entries use `Resource.pluralLabel()` (from `label()` / `pluralLabel()`), so those links read `Notes` and `Orders` and point at the resource index (list or manage). Create, edit, and view are **page header and row actions**, not extra sidebar links.
 
 <FireflyShot file="panel-navigation.png" description="The hello-kotlin sidebar at http://127.0.0.1:4017/admin/desk, with the desk link and one entry each for Notes and Orders." />
@@ -47,10 +49,10 @@ Once `item` or `cluster` has been called, mount keeps that tree. It does not rep
 ```kotlin
 val catalog = panel.cluster("Catalog")
 catalog.child(
-    NavigationItem("orders").label("Orders").url("/admin/orders/list"),
+    NavigationItem("orders").label("Orders").url("/admin/orders/list").icon("shopping-bag"),
 )
 panel.userMenu(
-    NavigationItem("profile").label("Profile").url("/admin/profile"),
+    NavigationItem("profile").label("Profile").url("/admin/profile").icon("user"),
 )
 panel.navigation(NavigationType.SIDE)
 ```
@@ -60,8 +62,8 @@ panel.navigation(NavigationType.SIDE)
 
 ```java
 NavigationItem catalog = panel.cluster("Catalog");
-catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list"));
-panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile"));
+catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list").icon("shopping-bag"));
+panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile").icon("user"));
 panel.navigation(NavigationType.SIDE);
 ```
 
@@ -78,12 +80,15 @@ A blank name throws `FireflyException` (`Navigation item name is blank`). A blan
 |--------|----------------|
 | `label(value)` / `label(provider)` | Visible text. The default is the name |
 | `url(value)` / `url(provider)` | Link target. Empty until you set it |
+| `icon(value)` / `icon(provider)` | kona-icons name (short or `heroicon-o-…`). Unset → home / squares-2x2 default |
 | `extraAttributes(map)` / `extraAttributes(provider)` | HTML attributes on the link. A provider receives `Get` |
 | `cluster(true)` | Marks the node as a group |
 | `child(item)` | Appends a child and sets its depth |
 | `isCluster()` | Whether `cluster(true)` was set |
-| `labelText(get)` / `urlText(get)` / `attributes(get)` | Resolves the closure or the stored value |
+| `labelText(get)` / `urlText(get)` / `attributes(get)` / `iconName(get)` | Resolves the closure or the stored value |
 | `find(name)` | This node or a descendant with that name |
+
+`PanelPage.icon(...)` and `Resource.icon(...)` feed the auto-built tree the same way when you leave discovery to mount the sidebar.
 
 Active state: the current path equals the item URL, or starts with that URL plus `/`. An empty URL or `/` is never treated as a prefix match.
 

@@ -6,15 +6,22 @@ import org.konaframework.firefly.notifications.FireflyNotification
 import org.konaframework.firefly.notifications.FireflyToasts
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.support.AuthLayout
+import org.konaframework.firefly.support.BrandDisplay
+import org.konaframework.firefly.support.BrandingOverrideContext
 import org.konaframework.firefly.support.ChromeMode
 import org.konaframework.firefly.support.DefaultLayout
+import org.konaframework.firefly.support.FireflyBranding
 import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.support.FireflyTheme
 import org.konaframework.firefly.support.Hook
 import org.konaframework.firefly.support.Icon
 import org.konaframework.firefly.support.KonaTheme
 import org.konaframework.firefly.support.MaxWidth
+import org.konaframework.firefly.support.PanelBranding
 import org.konaframework.firefly.support.PanelLayout
+import org.konaframework.firefly.support.brandMarkHtml
+import org.konaframework.firefly.support.mergePanelBranding
+import org.konaframework.firefly.support.resolveEffectiveBranding
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.schemas.Text
 import org.konaframework.firefly.schemas.htmlAttributes
@@ -49,6 +56,9 @@ open class Panel {
     private var pathExplicit: Boolean = false
     private var brandLiteral: String = "Firefly"
     private var brandUsing: Function<Get, String>? = null
+    private var panelBranding: PanelBranding = PanelBranding()
+    private var brandingOverrides: Function<BrandingOverrideContext, PanelBranding?>? = null
+    private var profilePageOverride: ProfilePage? = null
     private var domainLiteral: String? = null
     private var domainUsing: Function<Get, String>? = null
     private var navigationLiteral: NavigationType = NavigationType.APP
@@ -101,11 +111,45 @@ open class Panel {
         if (value.isBlank()) throw FireflyException("Panel brand is blank")
         brandLiteral = value
         brandUsing = null
+        panelBranding = panelBranding.copy(name = value)
     }
 
     fun brand(provider: Function<Get, String>): Panel = apply {
         brandUsing = provider
     }
+
+    /** Merge panel chrome branding (Shamar `panel.branding(...)`). */
+    fun branding(value: PanelBranding): Panel = apply {
+        panelBranding = mergePanelBranding(panelBranding, value)!!
+        val name = panelBranding.name?.trim().orEmpty()
+        if (name.isEmpty()) return@apply
+        brandLiteral = name
+        brandUsing = null
+    }
+
+    fun brandDisplay(mode: BrandDisplay): Panel = branding(PanelBranding(brandDisplay = mode))
+
+    fun brandLogoOnly(): Panel = brandDisplay(BrandDisplay.LOGO)
+
+    fun brandNameOnly(): Panel = brandDisplay(BrandDisplay.NAME)
+
+    fun brandLogoAndName(): Panel = brandDisplay(BrandDisplay.BOTH)
+
+    fun logo(url: String): Panel = branding(PanelBranding(logo = url))
+
+    fun logoDark(url: String): Panel = branding(PanelBranding(logoDark = url))
+
+    fun logoHeight(value: Any): Panel = branding(PanelBranding(logoHeight = value))
+
+    /**
+     * Runtime branding overrides (DB settings, company logo, etc.).
+     * Merged over [branding] when rendering shell and auth.
+     */
+    fun resolveBrandingOverrides(resolver: Function<BrandingOverrideContext, PanelBranding?>): Panel =
+        apply { brandingOverrides = resolver }
+
+    /** Per-panel [ProfilePage]. Wins over [Firefly.defaultProfilePage]. */
+    fun profilePage(page: ProfilePage): Panel = apply { profilePageOverride = page }
 
     fun domain(value: String): Panel = apply {
         if (value.isBlank()) throw FireflyException("Panel domain is blank")
@@ -256,21 +300,22 @@ open class Panel {
     private fun draw(request: Request, state: Map<String, Any?>, body: String): String {
         val get = SchemaBridge.open(state)
         val type = resolveNavigation(get)
-        val brand = resolveBrand(get)
+        val branding = effectiveBranding(request)
+        val brand = branding.brandName
         val token = FireflyCsrf.ensure(request)
         val chrome = Chrome().theme(theme).layout(layout)
             .csrfToken(token)
             .documentTitle(brand)
-            .brandName(brand)
+            .branding(branding)
             .mode(ChromeMode.PANEL)
         val width = maxWidthLiteral
         if (width != null) chrome.maxWidth(width)
         for (hook in hooks) chrome.hook(hook.first, hook.second)
         val guard = activeGuard(request)
         val user = ChromeUser(guard.id(), guard.name(), guard.email())
-        chrome.hook(Hook.TOPBAR_START, topHtml(type, request.path, brand, get))
+        chrome.hook(Hook.TOPBAR_START, topHtml(type, request.path, branding, get))
         chrome.hook(Hook.TOPBAR_END, tenantHtml(request) + userHtml(request, request.path, user, get))
-        chrome.hook(Hook.SIDEBAR_START, sideHtml(type, request.path, brand, user, get))
+        chrome.hook(Hook.SIDEBAR_START, sideHtml(type, request.path, branding, user, get))
         chrome.hook(Hook.BODY_START, body)
         val toasts = flashToasts(request)
         if (toasts.isNotEmpty()) chrome.hook(Hook.BODY_END, toasts)
@@ -293,14 +338,15 @@ open class Panel {
     }
 
     private fun drawAuth(request: Request, title: String, body: String): String {
-        val brand = resolveBrand(SchemaBridge.open(emptyMap()))
+        val branding = effectiveBranding(request)
+        val brand = branding.brandName
         val token = FireflyCsrf.ensure(request)
         return Chrome()
             .theme(theme)
             .layout(AuthLayout())
             .csrfToken(token)
             .documentTitle("$brand · $title")
-            .brandName(brand)
+            .branding(branding)
             .mode(ChromeMode.AUTH)
             .overridePartial("body", """<main class="ff-auth-main"><!-- ff-hook:body.start -->$body<!-- ff-hook:body.end --></main>""")
             .render()
@@ -330,9 +376,13 @@ open class Panel {
         }
         if (items.isEmpty()) {
             for (page in pages) {
+                val isHome = page.slug().isEmpty()
                 val node = NavigationItem(page.slug().ifEmpty { "dashboard" })
                     .label(page.navigationLabel())
                     .url(panelUri(resolvedPrefix, page.slug()))
+                    .dashboard(isHome)
+                val pageIcon = page.navigationIcon()
+                if (!pageIcon.isNullOrBlank()) node.icon(pageIcon)
                 val parent = page.parentName()
                 if (parent == null) {
                     items.add(node)
@@ -349,12 +399,13 @@ open class Panel {
                 val resourcePages = resource.pages()
                 val index = resourceIndexPage(resourcePages)
                 val indexSlug = if (index == null) "" else index.slug()
-                items.add(
-                    NavigationItem(resource.slug())
-                        .label(resource.pluralLabel())
-                        .url(panelUri(resolvedPrefix, resourcePagePath(resource.slug(), indexSlug)))
-                        .matchPrefix(panelUri(resolvedPrefix, resource.slug())),
-                )
+                val node = NavigationItem(resource.slug())
+                    .label(resource.pluralLabel())
+                    .url(panelUri(resolvedPrefix, resourcePagePath(resource.slug(), indexSlug)))
+                    .matchPrefix(panelUri(resolvedPrefix, resource.slug()))
+                val resourceIcon = resource.navigationIcon()
+                if (!resourceIcon.isNullOrBlank()) node.icon(resourceIcon)
+                items.add(node)
             }
         }
         if (widgets.isNotEmpty()) {
@@ -383,9 +434,15 @@ open class Panel {
         planned.add(Planned("POST", uri("email-verify"), routeName("verify.store")) { request -> verifyPost(request) })
         planned.add(Planned("GET", uri("profile"), routeName("profile")) { request -> profileGet(request) })
         planned.add(Planned("POST", uri("profile"), routeName("profile.store")) { request -> profilePost(request) })
+        planned.add(Planned("POST", uri("logout"), routeName("logout")) { request -> logoutPost(request) })
     }
 
     private fun pageRoutes(planned: MutableList<Planned>) {
+        planned.add(
+            Planned("GET", uri("widgets/{widgetId}"), routeName("widgets.show")) { request ->
+                showWidget(request, widgetIdFrom(request))
+            },
+        )
         for (page in pages) {
             planned.add(Planned("GET", uri(page.slug()), routeName("pages." + page.slug().ifEmpty { "dashboard" })) { request ->
                 showPage(request, page)
@@ -620,7 +677,65 @@ open class Panel {
         }
         val tenant = tenantId(request)
         return FireflyTenant.use(tenant) {
-            Response.html(draw(request, emptyMap(), page.render(pageState(request, extras))))
+            Response.html(draw(request, emptyMap(), page.render(pageState(request, dashboardExtras(extras)))))
+        }
+    }
+
+    private fun widgetIdFrom(request: Request): String? {
+        val routed = request.route("widgetId") ?: request.input("widgetId")
+        if (!routed.isNullOrBlank()) return routed
+        val marker = "/widgets/"
+        val idx = request.path.indexOf(marker)
+        if (idx < 0) return null
+        val rest = request.path.substring(idx + marker.length).trim('/')
+        return rest.substringBefore('/').ifBlank { null }
+    }
+
+    /** Fragment HTML for one dashboard widget (lazy load / polling). */
+    private fun showWidget(request: Request, widgetId: String?): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        if (widgetId.isNullOrBlank()) return Response.html("Widget id is required", 422)
+        val decoded = java.net.URLDecoder.decode(widgetId, Charsets.UTF_8)
+        val home = pages.firstOrNull { it.slug().isEmpty() }
+            ?: return Response.html("Dashboard not found", 404)
+        val widget = home.findWidget(decoded)
+            ?: return Response.html("Widget not found", 404)
+        val tenant = tenantId(request)
+        return FireflyTenant.use(tenant) {
+            val state = pageState(
+                request,
+                dashboardExtras(
+                    mapOf(
+                        "hydrateWidget" to decoded,
+                        "hydrateWidgets" to true,
+                    ),
+                ),
+            )
+            home.prepare(state)
+            Response.html(widget.render(state))
+        }
+    }
+
+    private fun dashboardExtras(extras: Map<String, Any?>): Map<String, Any?> {
+        val out = LinkedHashMap<String, Any?>()
+        out["widgetRefreshBase"] = uri("").trimEnd('/')
+        out["navigationCards"] = navigationCards()
+        out.putAll(extras)
+        return out
+    }
+
+    private fun navigationCards(): List<org.konaframework.firefly.widgets.NavigationCard> {
+        val get = SchemaBridge.open(emptyMap())
+        return items.map { item ->
+            org.konaframework.firefly.widgets.NavigationCard(
+                label = item.labelText(get),
+                href = item.urlText(get),
+                icon = item.iconName(get),
+            )
         }
     }
 
@@ -665,6 +780,9 @@ open class Panel {
      * Hands the posted fields to [PanelPage.onFormSubmit], flashes its notification, and redirects back.
      */
     private fun pageFormSubmit(request: Request, page: PanelPage): Response {
+        if (page is SettingsPage && !page.canSave(activeGuard(request))) {
+            return Response.html("You cannot save settings", 403)
+        }
         val input = request.all().filterKeys { it != FireflyCsrf.TOKEN_KEY && !it.startsWith("_") && it !in request.query }
         val title = FireflyTenant.use(tenantId(request)) { page.submitForm(input) }
         val session = request.session()
@@ -919,17 +1037,49 @@ open class Panel {
         if (denied != null) return denied
         val guard = activeGuard(request)
         if (!guard.check()) return Response.redirect(uri("login"))
-        val id = guard.id()
-        val shown = if (id == null) "" else id
-        return Response.html(shell(request, """<section class="ff-profile"><h1>Profile</h1><p>$shown</p></section>"""))
+        val page = resolveProfilePage()
+        val state = pageState(request, page.fill(guard))
+        return Response.html(shell(request, page.render(state)))
     }
 
     private fun profilePost(request: Request): Response {
         val denied = gate(request)
         if (denied != null) return denied
+        val guard = activeGuard(request)
+        if (!guard.check()) return Response.redirect(uri("login"))
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        val page = resolveProfilePage()
+        val input = LinkedHashMap<String, String>()
+        for ((key, value) in request.all()) {
+            if (key == FireflyCsrf.TOKEN_KEY) continue
+            if (key.startsWith("_")) continue
+            if (key in request.query) continue
+            input[key] = value
+        }
+        return try {
+            val title = page.save(guard, input)
+            val session = request.session()
+            if (session != null) FireflyNotification.make("profile").title(title).success().send(session)
+            Response.redirect(uri("profile"))
+        } catch (e: FireflyException) {
+            Response.html(shell(request, page.render(pageState(request, page.fill(guard) + input + mapOf("error" to e.message)))), 422)
+        }
+    }
+
+    private fun logoutPost(request: Request): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
         activeGuard(request).logout()
         return Response.redirect(uri("login"))
     }
+
+    private fun resolveProfilePage(): ProfilePage =
+        profilePageOverride
+            ?: Firefly.resolveDefaultProfilePage()
+            ?: ProfilePage()
 
     /** Binds the request onto the app Auth guard when this panel reuses it. */
     private fun activeGuard(request: Request): PanelGuard {
@@ -1020,17 +1170,17 @@ open class Panel {
         VERIFY("ff-email-verify", "Verify email", "email-verify", "Verify email"),
     }
 
-    private fun topHtml(type: NavigationType, path: String, brand: String, get: Get): String {
+    private fun topHtml(type: NavigationType, path: String, branding: FireflyBranding, get: Get): String {
         val lead = StringBuilder("""<div class="ff-topbar-lead">""")
         // SIDE/APP own a sidebar, so the bar gets a drawer toggle + a mobile-only brand.
         // TOP has no sidebar, so its brand stays visible in the bar on every width.
         if (type == NavigationType.TOP) {
-            lead.append("""<span class="ff-brand">${escapeHtml(brand)}</span>""")
+            lead.append(brandMarkHtml(branding))
         } else {
             lead.append(
                 """<button type="button" class="ff-hamburger" data-ff-sidebar-toggle aria-label="Open navigation">${Icon.BARS.svg()}</button>""",
             )
-            lead.append("""<span class="ff-brand ff-topbar-brand">${escapeHtml(brand)}</span>""")
+            lead.append(brandMarkHtml(branding, "ff-topbar-brand"))
         }
         // APP: nested levels of the active L1 root (Shamar topbar secondary). TOP: full tree.
         when (type) {
@@ -1050,21 +1200,29 @@ open class Panel {
         return lead.toString()
     }
 
-    private fun sideHtml(type: NavigationType, path: String, brand: String, user: ChromeUser, get: Get): String {
+    private fun sideHtml(type: NavigationType, path: String, branding: FireflyBranding, user: ChromeUser, get: Get): String {
         if (type == NavigationType.TOP) return ""
         // Brand block is the elevated top strip; it carries the drawer close button on mobile.
+        val logoClass = if (branding.showLogo) " ff-sidebar-brand--logo" else ""
         val brandBlock =
-            """<div class="ff-sidebar-brand"><span class="ff-brand">${escapeHtml(brand)}</span>""" +
+            """<div class="ff-sidebar-brand$logoClass">${brandMarkHtml(branding)}""" +
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
         // APP: L1 roots only (children go to the top bar). SIDE: full nested tree in the sidebar.
         val nested = type == NavigationType.SIDE
         val nav = """<nav class="ff-nav ff-nav-side">${renderItems(items, path, spaMode, get, nested)}</nav>"""
-        return brandBlock + nav + sidebarFootHtml(user)
+        return brandBlock + nav + sidebarFootHtml(user, branding)
     }
 
     /** Sidebar footer with the "Signed in as …" line (Shamar sidebar user block). */
-    private fun sidebarFootHtml(user: ChromeUser): String {
-        return """<div class="ff-sidebar-foot">Signed in as <span class="ff-signed-in">${escapeHtml(user.primary)}</span></div>"""
+    private fun sidebarFootHtml(user: ChromeUser, branding: FireflyBranding): String {
+        val copyrightText = branding.copyrightText
+        val copyright =
+            if (copyrightText.isNullOrBlank()) {
+                ""
+            } else {
+                """<p class="ff-sidebar-copyright">${escapeHtml(copyrightText)}</p>"""
+            }
+        return """<div class="ff-sidebar-foot">$copyright<span>Signed in as <span class="ff-signed-in">${escapeHtml(user.primary)}</span></span></div>"""
     }
 
     /**
@@ -1115,7 +1273,7 @@ open class Panel {
         val signOut =
             if (user.signedIn) {
                 val token = FireflyCsrf.ensure(request)
-                """<div class="ff-menu-sep"></div><form class="ff-menu-form" method="post" action="${escapeHtml(uri("profile"))}">${FireflyCsrf.field(token)}<button type="submit" class="ff-menu-item">Sign out</button></form>"""
+                """<div class="ff-menu-sep"></div><form class="ff-menu-form" method="post" action="${escapeHtml(uri("logout"))}">${FireflyCsrf.field(token)}<button type="submit" class="ff-menu-item">Sign out</button></form>"""
             } else {
                 ""
             }
@@ -1199,6 +1357,23 @@ open class Panel {
             return value
         }
         return brandLiteral
+    }
+
+    private fun effectiveBranding(request: Request): FireflyBranding {
+        val get = SchemaBridge.open(emptyMap())
+        // [brand] / [brandUsing] remain the display-name source of truth.
+        val name = resolveBrand(get)
+        val config = panelBranding.copy(name = name)
+        val guard = activeGuard(request)
+        val override =
+            brandingOverrides?.apply(
+                BrandingOverrideContext(
+                    panelId = resolvedId,
+                    companyId = tenantId(request),
+                    userId = guard.id(),
+                ),
+            )
+        return resolveEffectiveBranding(config, override)
     }
 
     private fun resolveDomain(get: Get): String? {

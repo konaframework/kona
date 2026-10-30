@@ -17,7 +17,9 @@ import org.konaframework.firefly.widgets.discovered.NotAWidget
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 
 class FireflyWidgetsTest {
@@ -434,10 +436,215 @@ class FireflyWidgetsTest {
     @Test
     fun assetSources() {
         assertTrue(WidgetScripts.source(WidgetScripts.WIDGET).contains("ffWidget"))
+        assertTrue(WidgetScripts.source(WidgetScripts.WIDGET).contains("ffDashboardWidget"))
         assertTrue(WidgetScripts.source(WidgetScripts.CHART).contains("mountFireflyChart"))
         assertTrue(WidgetScripts.source(WidgetScripts.CHART_JS).contains("Chart.js v4.4.6"))
         assertTrue(WidgetScripts.source(WidgetScripts.APEX).contains("ApexCharts"))
         assertThrows<FireflyException> { WidgetScripts.source("/_firefly/widgets/missing.js") }
+    }
+
+    @Test
+    fun dashboardOrganizationAndNewWidgetKinds() {
+        assertEquals(5000, parsePollingIntervalMs("5s"))
+        assertEquals(500, parsePollingIntervalMs("500ms"))
+        assertNull(parsePollingIntervalMs(null))
+        assertNull(parsePollingIntervalMs("nope"))
+        assertEquals("12.8M", formatCompactNumber(12_847_320))
+        assertEquals("1K", formatCompactNumber(1000))
+        assertEquals("-2B", formatCompactNumber(-2_000_000_000))
+        assertEquals(3, autoStatsOverviewColumns(2))
+        assertEquals(4, autoStatsOverviewColumns(4))
+        assertEquals("heroicon-o-home", NavIcons.resolve("home"))
+        assertEquals(NavIcons.DEFAULT, NavIcons.resolve(null))
+        assertEquals(NavIcons.HOME, NavIcons.defaultForDashboard(true))
+
+        val list = ListWidget.make("recent").apply {
+            sort(40)
+            heading("Recent")
+            description("Latest")
+            columns(ListWidgetColumn("Name", "name"), ListWidgetColumn("Sku", "meta.sku"))
+            limit(2)
+            records(
+                listOf(
+                    mapOf("name" to "Ada", "meta" to mapOf("sku" to "A1"), "url" to "/a"),
+                    mapOf("name" to "Bea", "meta" to mapOf("sku" to "B1")),
+                    mapOf("name" to "Cara"),
+                ),
+            )
+        }
+        val listHtml = list.render()
+        assertTrue(listHtml.contains("Ada"))
+        assertTrue(listHtml.contains("ff-list-widget-link"))
+        assertTrue(listHtml.contains("A1"))
+        assertFalse(listHtml.contains("Cara"))
+
+        val card = CardWidget.make("tip").apply {
+            html("<p>Hello</p>")
+            heading("Tip")
+        }
+        assertTrue(card.render().contains("Hello"))
+        assertTrue(CardWidget.make("empty").render().contains("No card content"))
+
+        val nav = NavigationCardsWidget.make("nav")
+            .cards(listOf(NavigationCard("Projects", "/admin/project", "folder")))
+        val navHtml = nav.render()
+        assertTrue(navHtml.contains("Projects"))
+        assertTrue(navHtml.contains("ff-nav-card"))
+        assertTrue(navHtml.contains("ff-nav-icon"))
+        assertTrue(NavigationCardsWidget.make("empty-nav").render().contains("No resources"))
+
+        val stats = StatsOverviewWidget.make("kpis").apply {
+            lazy(false)
+            pollingInterval(null)
+            columns(5)
+            stats(Stat().label("N").value("1").url("/x").openUrlInNewTab())
+        }
+        val statsHtml = stats.render()
+        assertTrue(statsHtml.contains("ff-stat-link"))
+        assertTrue(statsHtml.contains("--ff-stats-cols-sm: 5"))
+        assertTrue(statsHtml.contains("""href="/x""""))
+
+        val deferred = StatsOverviewWidget.make("lazy").apply {
+            refreshUrl("/admin/widgets/lazy")
+            stats(Stat().label("Hidden").value("9"))
+        }
+        assertTrue(deferred.render().contains("Loading"))
+        assertTrue(
+            deferred.render(mapOf("hydrateWidget" to "lazy")).contains("Hidden"),
+        )
+
+        val hidden = Widget.make("secret").canView(false).heading("Nope")
+        val shown = Widget.make("open").sort(1).heading("Yes")
+        val dash = Dashboard()
+            .columns(2)
+            .filtersForm(Schema().components(Text.make("Period")))
+            .widgets(hidden, shown)
+            .render(mapOf("panelHome" to "/admin"))
+        assertTrue(dash.contains("data-ff-dashboard-columns=\"2\""))
+        assertTrue(dash.contains("ff-dashboard-filters"))
+        assertTrue(dash.contains("Yes"))
+        assertFalse(dash.contains("Nope"))
+        assertThrows<FireflyException> { Dashboard().columns(0) }
+        assertTrue(Dashboard().render().contains("No dashboard widgets configured"))
+        assertEquals(listOf(shown), Dashboard().widgets(shown).mountedWidgets())
+        assertSame(shown, Dashboard().widgets(shown).findWidget("open"))
+    }
+
+    @Test
+    fun dashboardWidgetCoverageEdges() {
+        assertNull(parsePollingIntervalMs(""))
+        assertNull(parsePollingIntervalMs("-1s"))
+        assertEquals(0, parsePollingIntervalMs("0s"))
+        assertEquals(1500, parsePollingIntervalMs("1.5s"))
+        assertEquals("999", formatCompactNumber(999))
+        assertEquals("1B", formatCompactNumber(1_000_000_000))
+        assertEquals("1.5K", formatCompactNumber(1500))
+        assertEquals(3, autoStatsOverviewColumns(0))
+        assertEquals(3, autoStatsOverviewColumns(3))
+        assertEquals(3, autoStatsOverviewColumns(5))
+        assertEquals(4, autoStatsOverviewColumns(7))
+        assertEquals(1, clampStatsOverviewColumns(0))
+        assertEquals(12, clampStatsOverviewColumns(99))
+        assertEquals(mapOf("default" to 1, "sm" to 3), resolveStatsOverviewColumns(null, 2))
+        assertEquals(mapOf("default" to 1, "sm" to 2), resolveStatsOverviewColumns(2, 0))
+        assertTrue(resolveStatsOverviewColumns(mapOf("lg" to 4)).containsKey("default"))
+        assertEquals(mapOf("default" to 1, "sm" to 3), resolveStatsOverviewColumns(mapOf(1 to 2), 2))
+        assertEquals(mapOf("default" to 1, "sm" to 3), resolveStatsOverviewColumns("nope", 1))
+        assertTrue(statsOverviewGridStyle(mapOf("default" to 1, "md" to 2)).contains("--ff-stats-cols-md"))
+        assertTrue(statsOverviewGridStyle(resolveStatsOverviewColumns(5, 4)).contains("--ff-stats-cols-sm: 5"))
+        assertEquals("heroicon-o-folder", NavIcons.resolve("heroicon-o-folder"))
+        assertEquals(NavIcons.DEFAULT, NavIcons.defaultForDashboard(false))
+
+        val w = Widget.make("meta").apply {
+            canView { true }
+            pollingInterval(null)
+            pollingInterval("2s")
+            refreshUrl("/r")
+            lazy(true)
+        }
+        assertEquals("2s", w.pollingInterval())
+        assertEquals(2000, w.pollingIntervalMs())
+        assertEquals("/r", w.refreshUrl())
+        assertTrue(w.isLazy())
+        assertTrue(w.visibleFor(WidgetBridge.open(emptyMap())))
+        w.applyDashboardDefaults(false, null)
+        assertTrue(w.isLazy())
+        val fresh = Widget.make("fresh")
+        fresh.applyDashboardDefaults(true, "5s")
+        assertTrue(fresh.isLazy())
+        assertEquals("5s", fresh.pollingInterval())
+        assertTrue(
+            Widget.make("hydrated").apply { lazy(true); refreshUrl("/x") }
+                .render(mapOf("hydrateWidgets" to true))
+                .contains("ff-dashboard-widget"),
+        )
+        assertTrue(
+            Widget.make("poll-blank").apply { pollingInterval("  ") }.pollingInterval().isNullOrBlank(),
+        )
+
+        val list = ListWidget.make("rows").apply {
+            columns(listOf(ListWidgetColumn("Name", "name"), ListWidgetColumn("Deep", "a.b")))
+            records { listOf(mapOf("name" to "", "a" to "not-map"), mapOf("name" to null, "a" to mapOf("b" to mapOf("c" to 1)))) }
+            limit(0)
+            extraAttributes(mapOf("data-l" to "1"))
+        }
+        assertTrue(list.render().contains("No records to display"))
+        list.limit(5)
+        list.records(emptyList())
+        assertTrue(list.render().contains("No records to display"))
+        list.records(listOf(mapOf("name" to "Z", "a" to mapOf("b" to "deep"))))
+        assertTrue(list.render().contains("deep"))
+        list.refreshUrl("/admin/widgets/rows")
+        list.lazy(true)
+        assertTrue(list.render().contains("Loading") || list.render().contains("ff-widget-placeholder"))
+
+        val card = CardWidget.make("c").apply {
+            html { "from-get" }
+            extraAttributes(mapOf("data-c" to "1"))
+            refreshUrl("/admin/widgets/c")
+            lazy(true)
+        }
+        assertTrue(card.render(mapOf("hydrateWidget" to "c")).contains("from-get"))
+        assertTrue(card.render().contains("Loading") || card.render().contains("ff-widget-placeholder"))
+
+        val nav = NavigationCardsWidget.make("n").apply {
+            emptyMessage("None yet")
+            cards { listOf(NavigationCard("A", "/a", "not-a-real-icon-zzzz")) }
+            extraAttributes(mapOf("data-n" to "1"))
+        }
+        assertTrue(nav.render().contains("Open A"))
+        nav.cards(emptyList())
+        assertTrue(
+            nav.render(mapOf("navigationCards" to listOf(mapOf("label" to "B", "href" to "/b", "icon" to "users"))))
+                .contains("B"),
+        )
+        assertTrue(
+            nav.render(mapOf("navigationCards" to listOf(NavigationCard("C", "/c"), mapOf("x" to 1), "skip")))
+                .contains("C"),
+        )
+        assertTrue(nav.render(mapOf("navigationCards" to emptyList<Any>())).contains("None yet"))
+
+        val linked = Stat().label("L").value("1").url { "/dyn" }.openUrlInNewTab(false)
+        assertTrue(linked.render(WidgetBridge.open(emptyMap())).contains("""href="/dyn""""))
+        assertFalse(linked.render(WidgetBridge.open(emptyMap())).contains("noopener"))
+
+        val mapped = StatsOverviewWidget.make("map").apply {
+            lazy(false)
+            pollingInterval(null)
+            columns(mapOf("sm" to 2, "lg" to 4))
+            stats(Stat().label("S").value("1"))
+        }
+        assertTrue(mapped.render().contains("--ff-stats-cols-lg: 4"))
+        assertTrue(mapped.render().contains("--ff-stats-cols-sm: 2"))
+
+        val dash = Dashboard().filtersForm(Schema())
+        assertNotNull(dash.mountedFiltersForm())
+        assertEquals(3, dash.columns())
+        dash.columns(4)
+        assertEquals(4, dash.columns())
+        dash.render() // empty filters schema still renders without throwing
+        assertTrue(Dashboard().filtersForm(Schema().components(Text.make("Period"))).render().contains("Apply"))
+        assertTrue(Page().form(Schema().components(Text.make("F"))).mountedForm() != null)
     }
 
     @Test
