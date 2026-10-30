@@ -499,8 +499,19 @@ class RelationManagerTest {
         val badged = mount(projects(tasks().badge("7")))
         assertTrue(page(badged, "edit", p1).contains("""<span class="ff-relation-badge">7</span>"""))
 
-        // Standalone render without an owner still works (legacy API).
-        assertTrue(RelationManager("tasks").form(Schema.make().components(TextInput.make("name"))).render().contains("ff-input"))
+        // Standalone render: heading + table only — form schemas stay for owner-bound dialogs (#403).
+        val preview =
+            RelationManager("tasks")
+                .title("Tasks")
+                .table(
+                    Table.memory(mapOf("id" to "1", "name" to "Preview")).columns(TextColumn.make("name")),
+                )
+                .form(Schema.make().components(TextInput.make("name")))
+                .render()
+        assertTrue(preview.contains("""data-ff-relation="tasks""""), preview)
+        assertTrue(preview.contains("""ff-relation-heading">Tasks"""), preview)
+        assertTrue(preview.contains("Preview") || preview.contains("ff-table"), preview)
+        assertFalse(preview.contains("""name="name""""), preview)
         assertThrows<FireflyException> { RelationManager("tasks").bind("not a model", null, "relations", "") }
         assertThrows<FireflyException> { RelationManager("tasks").bind(RmProject(), null, "relations", "") }
         val runtime = RelationManager("tasks").bind(p1, null, "relations", "")
