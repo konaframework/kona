@@ -15,6 +15,7 @@ import org.konaframework.crema.FileViewFinder
 import org.konaframework.firefly.support.FireflyException
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Locale
 
 class NamedField(name: String) : Component(name)
 
@@ -579,6 +580,51 @@ class FireflySchemasTest {
         assertEquals("   ", humanizeName("   "))
         assertEquals(".", humanizeName("."))
         assertEquals("___", humanizeName("___"))
+    }
+
+    @Test
+    fun currencyFormatUsesNumberFormatSymbols() {
+        assertEquals("USD", CurrencyFormat.options(null).code)
+        assertEquals("USD", CurrencyFormat.options("  ").code)
+        assertEquals("EUR", CurrencyFormat.options("eur").code)
+        assertEquals(0, CurrencyFormat.options("USD", null, -2).precision)
+        assertNull(CurrencyFormat.options("USD", "  ").locale)
+        assertEquals("en-US", CurrencyFormat.options("USD", " en-US ").locale)
+        assertEquals("$", CurrencyFormat.symbol("USD", "en-US"))
+        assertEquals("$", CurrencyFormat.symbol("USD")) // JvmOverloads 1-arg
+        assertEquals("NOPE", CurrencyFormat.symbol("NOPE"))
+        assertEquals("USD", CurrencyFormat.symbol(""))
+        assertEquals("USD", CurrencyFormat.symbol("   "))
+        assertEquals("USD", CurrencyFormat.options("USD", "en-US").code) // JvmOverloads 2-arg
+        assertEquals("$1.50", CurrencyFormat.format(1.5, CurrencyFormat.options("USD", "en-US")))
+        assertEquals("$2.00", CurrencyFormat.format(2)) // JvmOverloads 1-arg
+        assertEquals("€12.00", CurrencyFormat.format(12, CurrencyFormat.options("EUR", "en-US")))
+        assertNull(CurrencyFormat.format(null))
+        assertNull(CurrencyFormat.format(""))
+        assertNull(CurrencyFormat.format(" "))
+        assertNull(CurrencyFormat.format("n/a"))
+        assertNull(CurrencyFormat.format(Double.NaN))
+        assertNull(CurrencyFormat.format(Double.POSITIVE_INFINITY))
+        assertEquals("", CurrencyFormat.formatOrRaw(null))
+        assertEquals("", CurrencyFormat.formatOrRaw("  "))
+        assertEquals("raw", CurrencyFormat.formatOrRaw("raw"))
+        assertEquals("true", CurrencyFormat.formatOrRaw(true))
+        assertEquals("$7.00", CurrencyFormat.formatOrRaw(7)) // JvmOverloads 1-arg
+        assertEquals("$3.00", CurrencyFormat.formatOrRaw(3, CurrencyFormat.options("USD")))
+        assertTrue(CurrencyFormat.symbol("KES", "en-KE").isNotBlank())
+        assertEquals(Locale.US, CurrencyFormat.localeOf(null))
+        assertEquals(Locale.US, CurrencyFormat.localeOf("  "))
+        assertEquals(Locale.forLanguageTag("fr-FR"), CurrencyFormat.localeOf("fr-FR"))
+        // Invalid ISO code falls back to symbol + fixed decimals.
+        assertTrue(CurrencyFormat.format(2, CurrencyFormat.options("ZZZ", "en-US"))!!.contains("2.00"))
+        assertEquals(1.5, CurrencyFormat.toFinite(1.5f))
+        assertEquals(2.0, CurrencyFormat.toFinite(2))
+        assertEquals(4.0, CurrencyFormat.toFinite("4"))
+        assertNull(CurrencyFormat.toFinite("  "))
+        assertNull(CurrencyFormat.toFinite("nope"))
+        assertNull(CurrencyFormat.toFinite(true))
+        assertNull(CurrencyFormat.toFinite(Double.NaN))
+        assertNull(CurrencyFormat.toFinite(Float.NEGATIVE_INFINITY))
     }
 
     private fun nest(depth: Int): Section {

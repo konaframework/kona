@@ -103,6 +103,8 @@ These methods are on the field base. Every concrete field has them.
 
 `TextInput` is a single-line control. `email()`, `url()`, `numeric()`, `integer()`, `password()`, `tel()`, and `type("search")` set the input type and the matching validation rule. `telRegex` replaces the default telephone pattern. Call `telRegex` before `tel()` when you want your own pattern.
 
+`TextInput.currency("USD")` (or `CurrencyInput.make("price", "KES")`) turns the field into a numeric currency control: `type="number"`, a step from the precision (default `0.01`), and a currency-symbol **prefix** when you have not set `prefix` / `prefixIcon`. Optional `locale` and `precision` arguments mirror table and infolist money formatting. Affix chrome (`.ff-control.has-prefix` / `.ff-prefix`) paints as a joined input group.
+
 `revealable(true)` adds a show button on passwords. It sits inside the input group on the right; clicking it switches the input between hidden and plain text and swaps the eye icon. `copyable(true)` adds a copy button in the same place. It copies the current value to the clipboard and shows a check mark for a moment. `mask`, `step`, `minValue`, `maxValue`, `minLength`, `maxLength`, `length`, `regex`, `notRegex`, and `datalist` configure the control. `stripCharacters("-")` or `stripCharacters { value -> value.trim() }` changes the stored text before it is rendered.
 
 `unique("users", "email")` and `exists("users", "email")` add those rules. Without a database checker they fail closed.
@@ -227,9 +229,9 @@ Select.make("authorId")
 
 ## Dates and times
 
-`DatePicker`, `TimePicker`, `DateTimePicker`, `MonthPicker`, `YearPicker`, and `DateRangePicker` are separate field types. The default control is a Flowbite-style popup driven by Firefly chrome — no Alpine and no third-party date library. Click the caption to drill days → months → years → decades; picking a year returns to months, then a month to days. Date-only selection closes the panel; datetime keeps it open until **OK** (right-aligned). Compact hour/minute dropdowns keep the popup small; `.seconds()` adds seconds. **Today** jumps the calendar focus and, for datetime, fills time with now. Click outside the popup to close it. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, or `type="datetime-local"`. `MonthPicker` / `YearPicker` store `Y-m` / `Y`.
+`DatePicker`, `TimePicker`, `DateTimePicker`, `WeekPicker`, `MonthPicker`, `YearPicker`, and `DateRangePicker` are separate field types. The default control is a Flowbite-style popup driven by Firefly chrome — no Alpine and no third-party date library. Click the caption to drill days → months → years → decades; picking a year returns to months, then a month to days. Date-only selection closes the panel; datetime keeps it open until **OK** (right-aligned). Compact hour/minute dropdowns keep the popup small; `.seconds()` adds seconds. **Today** jumps the calendar focus and, for datetime, fills time with now. Click outside the popup to close it. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, `type="week"`, or `type="datetime-local"`.
 
-`MonthPicker` opens straight onto a grid of months and `YearPicker` onto a grid of years, so you never see a day grid for those fields.
+`WeekPicker` stores an ISO week as `YYYY-Www` (for example `2026-W14`). Its calendar shows a week-number gutter beside the day grid; click a week number or any day in that week to select it. `MonthPicker` / `YearPicker` store `Y-m` / `Y`. Both open straight onto a **4×3** near-square grid of twelve months or years (no day grid).
 
 `DateRangePicker` stores `"start to end"` (same date format as `DatePicker`). Its popup shows two months side by side. The first click sets the start. While you move the pointer, the days up to the hovered date are shaded. The second click sets the end and closes the popup. A hint below the grids reads the current range.
 
@@ -240,6 +242,9 @@ Select.make("authorId")
 
 ```kotlin
 DatePicker.make("day")
+WeekPicker.make("sprint")
+MonthPicker.make("billing")
+YearPicker.make("fiscal")
 TimePicker.make("startsAt")
 DateTimePicker.make("due")
 DateRangePicker.make("window")
@@ -251,6 +256,9 @@ DateTimePicker.make("legacy").native()
 
 ```java
 DatePicker.make("day");
+WeekPicker.make("sprint");
+MonthPicker.make("billing");
+YearPicker.make("fiscal");
 TimePicker.make("startsAt");
 DateTimePicker.make("due");
 DateRangePicker.make("window");

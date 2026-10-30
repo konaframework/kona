@@ -509,9 +509,18 @@ class FireflyTablesTest {
         assertFalse(closure.isSortable(Cell { null }))
 
         val money = TextColumn.make("amount").money()
-        assertTrue(money.render(mapOf("amount" to 1.5), "1", Cell { null }).contains("$1.50"))
+        val moneyHtml = money.render(mapOf("amount" to 1.5), "1", Cell { null })
+        assertTrue(moneyHtml.contains("$1.50"))
+        assertTrue(moneyHtml.contains("ff-column-money"))
+        assertTrue(moneyHtml.contains("""data-ff-currency="USD""""))
         assertTrue(money.render(mapOf("amount" to "n/a"), "1", Cell { null }).contains("n/a"))
         assertTrue(money.placeholder("none").render(mapOf("amount" to null), "1", Cell { null }).contains("none"))
+        val euro = TextColumn.make("amount").currency("EUR")
+        assertTrue(euro.render(mapOf("amount" to 12), "1", Cell { null }).contains("€12.00"))
+        assertTrue(
+            TextColumn.make("amount").money("USD", "en-US", 0).render(mapOf("amount" to 9), "1", Cell { null })
+                .contains("$9"),
+        )
 
         val dated = TextColumn.make("at").date()
         val instant = Instant.parse("2020-01-02T03:04:05Z")
