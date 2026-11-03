@@ -10,7 +10,7 @@
     "width": 1440,
     "height": 2200
   },
-  "padding": 64,
+  "padding": 36,
   "scenes": [
     {
       "name": "section-login",
