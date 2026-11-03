@@ -21,6 +21,7 @@ enum class RelationOperation(val token: String, val mutates: Boolean) {
     DETACH("detach", true),
     RESTORE("restore", true),
     FORCE_DELETE("force-delete", true),
+    REORDER("reorder", true),
     BULK("bulk", true),
     ;
 
@@ -66,6 +67,9 @@ class RelationContext internal constructor(
         is Map<*, *> -> current[attribute]
         else -> null
     }
+
+    /** Inverse relationship name on the related model, when the manager configured one. */
+    fun inverseRelationship(): String? = manager.inverseRelationship()
 }
 
 /**

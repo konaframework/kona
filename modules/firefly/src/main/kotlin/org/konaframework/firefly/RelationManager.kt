@@ -62,6 +62,7 @@ open class RelationManager(private val name: String) {
     private var queryModifier: BiConsumer<Any, RelationContext>? = null
     private val pivotColumnList = ArrayList<String>()
     private var lazyFlag = false
+    private var reorderColumnName: String? = null
     private val scopedTables: MutableSet<Table<*, *>> = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
 
     init {
@@ -184,6 +185,19 @@ open class RelationManager(private val name: String) {
 
     fun isLazy(): Boolean = lazyFlag
 
+    /**
+     * Enable drag-reorder of related rows by [column] (Filament `reorderable`).
+     * Has-many: [column] is on the related model. Many-to-many: [column] is a pivot column
+     * (also registered via [pivotColumns] when missing).
+     */
+    fun reorderable(column: String): RelationManager = apply {
+        if (column.isBlank()) throw FireflyException("Reorder column is blank")
+        reorderColumnName = RelationBinding.ident(column)
+        if (column !in pivotColumnList) pivotColumnList.add(RelationBinding.ident(column))
+    }
+
+    fun reorderColumn(): String? = reorderColumnName
+
     fun badge(value: String): RelationManager = apply { badgeUsing = Function { value } }
 
     /** Tab / heading badge for the owner (for example a count of related rows). Null hides it. */
@@ -302,6 +316,8 @@ open class RelationManager(private val name: String) {
         }
         built.persistQueryParameters(mapOf("id" to runtime.ownerKey, "relation" to name))
         built.rowButtons(*rowButtons(runtime, flash).toTypedArray())
+        val orderCol = reorderColumnName
+        if (orderCol != null) built.reorderable(orderCol)
         if (bulkEntryList == null && built.isBulkActionsConfigured()) bulkEntryList = built.bulkActionEntries()
         if (runtime.readOnly) {
             built.bulkActions()
@@ -320,6 +336,14 @@ open class RelationManager(private val name: String) {
             throw FireflyException("Relation operation [${operation.token}] is not a single-record POST")
         }
         if (runtime.readOnly) return RelationOutcome.denied("Relation [$name] is read-only here")
+        if (operation == RelationOperation.REORDER) {
+            val column = reorderColumnName ?: return RelationOutcome.denied("Relation [$name] is not reorderable")
+            if (!allows(operation, runtime.context(operation, null))) return RelationOutcome.denied("Not authorized")
+            val keys = input["_reorder_keys"].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            if (keys.isEmpty()) return RelationOutcome.failed("Reorder keys are required")
+            runtime.binding.reorder(column, keys)
+            return RelationOutcome.done("Reordered")
+        }
         val action = actionFor(operation, runtime) ?: return RelationOutcome.denied("${operation.token} is not available on relation [$name]")
         val binding = runtime.binding
         return when (operation) {
@@ -401,6 +425,7 @@ open class RelationManager(private val name: String) {
             RelationOperation.ASSOCIATE, RelationOperation.DISSOCIATE -> kind.isOneToMany()
             RelationOperation.ATTACH, RelationOperation.DETACH -> kind.isManyToMany()
             RelationOperation.RESTORE, RelationOperation.FORCE_DELETE -> runtime.binding.softDeletes()
+            RelationOperation.REORDER -> reorderColumnName != null
             else -> true
         }
     }
@@ -574,6 +599,7 @@ open class RelationManager(private val name: String) {
             search,
             action.limit(),
             action.allowsDuplicates(),
+            inverseName,
         ) { builder -> query?.accept(builder, context) }
     }
 
@@ -622,7 +648,15 @@ open class RelationManager(private val name: String) {
         val query = action.optionsQuery()
         val context = runtime.context(action.operation, null)
         val pk = RelationBinding.ident(runtime.binding.related.primaryKey)
-        return runtime.binding.candidates(action.operation, titleText(), emptyList(), "", 1, action.allowsDuplicates()) { builder ->
+        return runtime.binding.candidates(
+            action.operation,
+            titleText(),
+            emptyList(),
+            "",
+            1,
+            action.allowsDuplicates(),
+            inverseName,
+        ) { builder ->
             query?.accept(builder, context)
             builder.where("${RelationBinding.ident(runtime.binding.related.table)}.$pk", RelationBinding.coerce(key))
         }.firstOrNull()
@@ -733,6 +767,8 @@ open class RelationManager(private val name: String) {
                 ?: throw FireflyException("Relation manager [$name] table must use the related Cadence model (Table.forModel)")
             runtime.binding.scope(builder, pivotColumnList)
             modifyQuery(builder, runtime)
+            val order = reorderColumnName
+            if (order != null) builder.orderBy(order)
         }
     }
 

@@ -51,7 +51,7 @@ M34 notifications and widgets are done. M35 panel, auth, navigation, and pages a
 | REL-12 | Generator | `make:firefly-relation-manager {resource} {relationship} {title} --attach --associate --soft-deletes` (Kotlin and Java) | done (#390) |
 | REL-13 | Modal UX: inline field errors on reopen, create another, custom `recordSelect` | `createAnother`, `recordSelect`, dialog reopen with field errors + old input (`?dialog=` / `dialog_id`) | done (#391) |
 | REL-14 | `RelationGroup`, combined tabs with content, lazy tabs | `RelationGroup.make`, `combinedRelationManagerTabsWithContent`, `contentTabLabel`, `RelationManager.lazy` | done (#392) |
-| REL-15 | Inverse relationship scoping, reorderable relation tables | — | deferred (#393) |
+| REL-15 | Inverse relationship scoping, reorderable relation tables | `inverseRelationship` scopes associate/attach candidates via `whereDoesntHave`; `reorderable(column)` + `RelationOperation.REORDER` | done (#393) |
 
 ## M28 — support (`kona-firefly-support`)
 

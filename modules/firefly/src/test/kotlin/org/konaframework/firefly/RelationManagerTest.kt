@@ -41,10 +41,10 @@ class RelationManagerTest {
         val connection = database.connection()
         connection.statement("create table rm_projects (id bigint auto_increment primary key, name varchar(100), team varchar(20))")
         connection.statement(
-            "create table rm_tasks (id bigint auto_increment primary key, project_id bigint, name varchar(100), deleted_at timestamp)",
+            "create table rm_tasks (id bigint auto_increment primary key, project_id bigint, name varchar(100), sort_order int, deleted_at timestamp)",
         )
         connection.statement("create table rm_users (id bigint auto_increment primary key, name varchar(100))")
-        connection.statement("create table rm_project_user (project_id bigint, user_id bigint, role varchar(20))")
+        connection.statement("create table rm_project_user (project_id bigint, user_id bigint, role varchar(20), sort_order int)")
         connection.statement(
             "create table rm_comments (id bigint auto_increment primary key, commentable_type varchar(50), commentable_id bigint, body varchar(100))",
         )
@@ -1076,6 +1076,115 @@ class RelationManagerTest {
         assertTrue(badSession.old.isEmpty())
     }
 
+    @Test
+    fun inverseRelationshipScopesCandidatesAndReorderPersists() {
+        val alpha = task(p1, "Alpha")
+        val beta = task(p1, "Beta")
+        val loose = task(null, "Loose")
+        task(p2, "Other")
+        val withInverse = tasks().inverseRelationship("project").reorderable("sort_order")
+        assertEquals("sort_order", withInverse.reorderColumn())
+        assertThrows<FireflyException> { tasks().reorderable(" ") }
+        val ctx = RelationContext(withInverse, p1, null, RelationOperation.VIEW, "edit", false)
+        assertEquals("project", ctx.inverseRelationship())
+
+        val router = mount(projects(withInverse))
+        val optionsBody = options(router, p1, "associate", "")
+        assertTrue(optionsBody.contains("Loose"), optionsBody)
+        assertTrue(optionsBody.contains("Other"), optionsBody)
+        assertFalse(optionsBody.contains("\"label\":\"Alpha\""), optionsBody)
+
+        relationPost(router, "associate", p1, "recordId=${loose.getKey()}")
+        assertEquals(p1.getKey().toString(), reload(loose).getAttribute("project_id").toString())
+
+        val session = RmSession()
+        val reordered = relationPost(
+            router,
+            "reorder",
+            p1,
+            "_reorder_keys=${beta.getKey()},${alpha.getKey()},${loose.getKey()}",
+            session = session,
+        )
+        assertEquals(302, reordered.status)
+        assertToast(session, "Reordered", "success")
+        assertEquals(0, reload(beta).getAttribute("sort_order"))
+        assertEquals(1, reload(alpha).getAttribute("sort_order"))
+        assertEquals(2, reload(loose).getAttribute("sort_order"))
+        val emptyKeys = relationPost(router, "reorder", p1, "_reorder_keys=", session = session)
+        assertEquals(302, emptyKeys.status)
+        assertToast(session, "Reorder keys are required", "danger")
+        assertEquals(403, relationPost(router, "reorder", p1, "_reorder_keys=1", page = "view").status)
+
+        val ada = user("Ada")
+        val bob = user("Bob")
+        val membersOrdered = members().reorderable("sort_order")
+        val memberRouter = mount(projects(membersOrdered))
+        relationPost(memberRouter, "attach", p1, "recordId=${ada.getKey()},${bob.getKey()}&role=dev", relation = "members")
+        relationPost(
+            memberRouter,
+            "reorder",
+            p1,
+            "_reorder_keys=${bob.getKey()},${ada.getKey()}",
+            relation = "members",
+            session = session,
+        )
+        assertToast(session, "Reordered", "success")
+        assertEquals(
+            0,
+            org.konaframework.cadence.DB.table("rm_project_user").where("user_id", bob.getKey()).first()!!["sort_order"],
+        )
+        assertEquals(
+            1,
+            org.konaframework.cadence.DB.table("rm_project_user").where("user_id", ada.getKey()).first()!!["sort_order"],
+        )
+        assertEquals(403, relationPost(router, "reorder", p1, "_reorder_keys=1", relation = "tasks", page = "view").status)
+        assertEquals(404, relationPost(memberRouter, "reorder", p1, "_reorder_keys=1", relation = "tasks").status)
+
+        // Reorder column already listed as a pivot column; unauthorized / not-reorderable managers.
+        members().pivotColumns("role", "sort_order").reorderable("sort_order")
+        assertEquals(403, relationPost(mount(projects(tasks())), "reorder", p1, "_reorder_keys=1").status)
+        val gated = tasks().reorderable("sort_order").can(RelationOperation.REORDER) { false }
+        assertEquals(403, relationPost(mount(projects(gated)), "reorder", p1, "_reorder_keys=${alpha.getKey()}").status)
+        val bound = withInverse.bind(p1, EditPage("edit"), "relations", "")
+        withInverse.perform(bound, RelationOperation.REORDER, mapOf("_reorder_keys" to "99999,${alpha.getKey()}"))
+        assertEquals(
+            "Reorder keys are required",
+            withInverse.perform(bound, RelationOperation.REORDER, emptyMap()).title,
+        )
+        assertTrue(withInverse.supports(RelationOperation.REORDER, bound))
+        assertFalse(tasks().supports(RelationOperation.REORDER, tasks().bind(p1, EditPage("edit"), "relations", "")))
+        // Inverse on attach (with and without duplicates) exercises candidate exclusion branches.
+        val cy = user("Cy")
+        val invMembers = members().inverseRelationship("projects")
+        val invRouter = mount(projects(invMembers))
+        val invOptions = options(invRouter, p1, "attach", "", relation = "members")
+        assertTrue(invOptions.contains("Cy") || invOptions.contains(cy.getKey().toString()), invOptions)
+        val dup = members().inverseRelationship("projects").headerActions(
+            RelationAction.attach().allowDuplicates().form { schema -> schema.components(TextInput.make("role")) },
+        )
+        val dupRuntime = dup.bind(p1, EditPage("edit"), "relations", "")
+        assertTrue(dup.options(dupRuntime, RelationOperation.ATTACH, "").isNotEmpty())
+        // Has-many-through still reports supports() for unrelated ops.
+        val through = RelationManager("checks").recordTitleAttribute("name").related(RmCheck::class.java)
+        assertFalse(through.supports(RelationOperation.CREATE, through.bind(p1, EditPage("edit"), "relations", "")))
+        // Inverse set but operation is neither associate nor attach → else arm (no inverse exclusion).
+        assertTrue(
+            dupRuntime.binding.candidates(RelationOperation.CREATE, "name", emptyList(), "", 5, false, "projects") { }
+                .isNotEmpty(),
+        )
+        // ATTACH + duplicates=true + inverse → !duplicates is false (skips whereDoesntHave).
+        assertTrue(
+            dupRuntime.binding.candidates(RelationOperation.ATTACH, "name", emptyList(), "", 5, true, "projects") { }
+                .isNotEmpty(),
+        )
+        // ATTACH + duplicates=false + inverse → !duplicates is true (applies whereDoesntHave).
+        assertTrue(
+            invMembers.bind(p1, EditPage("edit"), "relations", "")
+                .binding.candidates(RelationOperation.ATTACH, "name", emptyList(), "", 5, false, "projects") { }
+                .isNotEmpty(),
+        )
+    }
+
     // ——— Fixtures ———
 
     private fun tasks(): RelationManager = RelationManager("tasks")
@@ -1221,13 +1330,17 @@ class RmProject : Cadence<RmProject>() {
 class RmTask : Cadence<RmTask>(), SoftDeletes {
     override val table = "rm_tasks"
     override val timestamps = false
-    override val fillable = setOf("project_id", "name")
+    override val fillable = setOf("project_id", "name", "sort_order")
+
+    fun project() = belongsTo(RmProject::class.java, "project_id")
 }
 
 class RmUser : Cadence<RmUser>() {
     override val table = "rm_users"
     override val timestamps = false
     override val fillable = setOf("name")
+
+    fun projects() = belongsToMany(RmProject::class.java, "rm_project_user", "user_id", "project_id")
 }
 
 class RmComment : Cadence<RmComment>() {

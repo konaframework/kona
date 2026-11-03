@@ -67,7 +67,8 @@ internal class RelationBinding(val owner: Cadence<*>, val name: String) {
 
     /**
      * Rows a picker may offer: not yet associated / attached to the owner, searched by
-     * [title] and [searchColumns], ordered by title.
+     * [title] and [searchColumns], ordered by title. When [inverse] is set, exclusion uses
+     * `whereDoesntHave(inverse)` scoped to this owner (Filament `$inverseRelationship`).
      */
     fun candidates(
         operation: RelationOperation,
@@ -76,11 +77,24 @@ internal class RelationBinding(val owner: Cadence<*>, val name: String) {
         search: String,
         limit: Int,
         duplicates: Boolean,
+        inverse: String?,
         modify: (ModelBuilder<*>) -> Unit,
     ): List<Cadence<*>> {
         val query = related.newQuery()
         val relation = probe
-        if (operation == RelationOperation.ASSOCIATE) {
+        val excludeViaInverse = when {
+            inverse.isNullOrBlank() -> false
+            operation == RelationOperation.ASSOCIATE -> true
+            operation == RelationOperation.ATTACH -> !duplicates
+            else -> false
+        }
+        if (excludeViaInverse) {
+            val ownerKey = owner.getKey()
+            val ownerPk = ident(owner.primaryKey)
+            query.whereDoesntHave(inverse!!) { ownerQuery ->
+                ownerQuery.where(ownerPk, ownerKey)
+            }
+        } else if (operation == RelationOperation.ASSOCIATE) {
             val one = requireOneToMany(relation)
             val fk = "$relatedTable.${ident(one.foreignKey)}"
             val morph = morphOf(one)
@@ -110,6 +124,22 @@ internal class RelationBinding(val owner: Cadence<*>, val name: String) {
         query.orderBy(title)
         query.limit(limit)
         return query.get()
+    }
+
+    /** Persist a new order for related rows ([column] on the related model or pivot). */
+    fun reorder(column: String, orderedKeys: List<String>) {
+        val name = ident(column)
+        if (kind.isManyToMany()) {
+            orderedKeys.forEachIndexed { position, key ->
+                updatePivot(key, mapOf(name to position))
+            }
+            return
+        }
+        orderedKeys.forEachIndexed { position, key ->
+            val record = find(key, withTrashed = false) { } ?: return@forEachIndexed
+            record.forceFill(mapOf(name to position))
+            record.save()
+        }
     }
 
     /** A related record in the owner's scope; [withTrashed] also finds soft-deleted rows. */

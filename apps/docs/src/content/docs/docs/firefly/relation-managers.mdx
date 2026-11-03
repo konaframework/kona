@@ -551,7 +551,77 @@ new RelationManager("tasks")
 </TabItem>
 </Tabs>
 
-`recordTitle` overrides `recordTitleAttribute` wherever one record is named. `badge` shows a count or short label beside the heading and on the tab. `inverseRelationship("project")` records the relationship back to the owner for your own code to read.
+`recordTitle` overrides `recordTitleAttribute` wherever one record is named. `badge` shows a count or short label beside the heading and on the tab.
+
+## Inverse relationship (associate / attach pickers)
+
+When a related row can belong to only one owner (or you want attach options to hide rows already linked through the inverse), name the relationship **on the related model** that points back to the owner. Firefly then scopes associate and attach candidates with Cadence `whereDoesntHave(inverse)` for that owner, instead of only checking the foreign key or pivot on this side:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+// Task.project() → BelongsTo Project
+RelationManager("tasks")
+    .recordTitleAttribute("name")
+    .inverseRelationship("project")
+    .headerActions(RelationAction.associate())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+// Task.project() → BelongsTo Project
+new RelationManager("tasks")
+    .recordTitleAttribute("name")
+    .inverseRelationship("project")
+    .headerActions(RelationAction.associate());
+```
+
+</TabItem>
+</Tabs>
+
+For many-to-many, use the inverse BelongsToMany name (for example `projects` on `User`). Attach with `allowDuplicates()` keeps candidates that are already attached; without duplicates, inverse exclusion still applies. `RelationContext.inverseRelationship()` exposes the same name in hooks and authorization predicates.
+
+## Reorderable related rows
+
+`reorderable("sort_order")` turns on table drag-reorder for the manager. Has-many writes the column on the related model; many-to-many writes it on the pivot (the column is registered for pivot save when it is not already in `pivotColumns`). The list query orders by that column, and a successful reorder posts `_reorder_keys` as a comma-separated list of primary keys in the new order (`RelationOperation.REORDER`):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RelationManager("tasks")
+    .recordTitleAttribute("name")
+    .reorderable("sort_order")
+    .table { table -> table.columns(TextColumn.make("name")) }
+
+RelationManager("members")
+    .recordTitleAttribute("name")
+    .pivotColumns("role")
+    .reorderable("sort_order") // pivot column
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new RelationManager("tasks")
+    .recordTitleAttribute("name")
+    .reorderable("sort_order")
+    .table(table -> table.columns(TextColumn.make("name")));
+
+new RelationManager("members")
+    .recordTitleAttribute("name")
+    .pivotColumns("role")
+    .reorderable("sort_order"); // pivot column
+```
+
+</TabItem>
+</Tabs>
+
+Gate reordering with `can(RelationOperation.REORDER) { … }`. Managers without `reorderable` answer `403` on reorder posts; view-page read-only still blocks mutation.
 
 ## Narrowing the query
 
@@ -612,7 +682,7 @@ new RelationManager("tasks")
 </TabItem>
 </Tabs>
 
-There is a `can…` method for every operation: `canView`, `canCreate`, `canEdit`, `canDelete`, `canAssociate`, `canDissociate`, `canAttach`, `canDetach`, `canRestore`, `canForceDelete`, or `can(RelationOperation.X, predicate)`. `canViewForRecord` hides the whole manager for an owner. On an action, `authorize { … }` adds a further check, while `hidden { … }` and `visible { … }` only change what is shown. Denied operations hide their buttons and answer `403` on `POST`.
+There is a `can…` method for every operation: `canView`, `canCreate`, `canEdit`, `canDelete`, `canAssociate`, `canDissociate`, `canAttach`, `canDetach`, `canRestore`, `canForceDelete`, or `can(RelationOperation.X, predicate)` (including `RelationOperation.REORDER`). `canViewForRecord` hides the whole manager for an owner. On an action, `authorize { … }` adds a further check, while `hidden { … }` and `visible { … }` only change what is shown. Denied operations hide their buttons and answer `403` on `POST`.
 
 ## Several managers
 
@@ -683,7 +753,8 @@ The generator refuses to overwrite an existing file.
 | `modifyQueryUsing { query, context -> … }` | Narrow the owner-scoped `ModelBuilder` |
 | `readOnly(Boolean)` | Override the view-page default |
 | `can…`, `canViewForRecord` | Authorization |
-| `inverseRelationship(name)` | The relationship back to the owner |
+| `inverseRelationship(name)` | Related-model relationship back to the owner; scopes associate/attach candidates |
+| `reorderable(column)` / `reorderColumn()` | Drag-reorder via related or pivot column (`RelationOperation.REORDER`) |
 
 | `RelationAction` factory | Operation |
 | --- | --- |

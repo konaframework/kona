@@ -76,6 +76,8 @@ class RelationManagerJavaTest {
         RelationGroup group = RelationGroup.make("Team", new RelationManager("members").recordTitleAttribute("name"));
         assertEquals("Team", group.label());
         assertEquals(1, group.managers().size());
+        assertEquals("sort_order", new RelationManager("tasks").reorderable("sort_order").reorderColumn());
+        assertEquals(RelationOperation.REORDER, RelationOperation.fromToken("reorder"));
         List<RelationAction> all = List.of(
             RelationAction.create(), RelationAction.view(), RelationAction.edit(), RelationAction.delete(),
             RelationAction.associate(), RelationAction.dissociate(), RelationAction.detach(),
@@ -90,6 +92,8 @@ class RelationManagerJavaTest {
         public TasksRelationManager() {
             super("tasks");
             recordTitleAttribute("name");
+            inverseRelationship("project");
+            reorderable("sort_order");
             form(schema -> schema.components(TextInput.make("name").required()));
             infolist(schema -> schema.components(TextEntry.make("name")));
             table(table -> table.columns(TextColumn.make("name").searchable()));
@@ -154,10 +158,12 @@ class RelationManagerJavaTest {
         Database database = new Database().addConnection("default", new ConnectionConfig(url, "sa", "", null, 2));
         database.connection().statement("create table rm_projects (id bigint auto_increment primary key, name varchar(100), team varchar(20))");
         database.connection().statement(
-            "create table rm_tasks (id bigint auto_increment primary key, project_id bigint, name varchar(100), deleted_at timestamp)"
+            "create table rm_tasks (id bigint auto_increment primary key, project_id bigint, name varchar(100), sort_order int, deleted_at timestamp)"
         );
         database.connection().statement("create table rm_users (id bigint auto_increment primary key, name varchar(100))");
-        database.connection().statement("create table rm_project_user (project_id bigint, user_id bigint, role varchar(20))");
+        database.connection().statement(
+            "create table rm_project_user (project_id bigint, user_id bigint, role varchar(20), sort_order int)"
+        );
         database.setAsGlobal();
     }
 }
