@@ -221,7 +221,7 @@ Every action posts to one route per operation:
 | `POST …/relations/bulk` | Run a bulk action on the selected rows |
 | `GET …/relations/options` | Search the associate / attach picker (`q=`), returns JSON |
 
-Each request carries `relation`, `owner`, and `page` in the query string. Firefly re-checks the owner, the tenant, read-only mode, and every authorization rule on the server, so hiding a button is never the only line of defence. On success you land back on the same page with the same manager tab open and a success notification. A validation failure comes back as a danger notification with the messages. A denied action answers `403`, and a missing owner or record answers `404`.
+Each request carries `relation`, `owner`, and `page` in the query string. Firefly re-checks the owner, the tenant, read-only mode, and every authorization rule on the server, so hiding a button is never the only line of defence. On success you land back on the same page with the same manager tab open and a success notification. A validation failure redirects back with a danger notification, reopens the dialog (`?dialog=create` or `?dialog=edit&dialog_id=…`), restores the old input, and shows each field’s error under that field. A denied action answers `403`, and a missing owner or record answers `404`.
 
 ## Default actions
 
@@ -239,7 +239,7 @@ Calling any of the three methods replaces that list only. So `headerActions(Rela
 
 ## Creating and editing
 
-`RelationAction.create()` opens a dialog with the manager form. On submit, Firefly validates the fields, saves a new related record through the relationship (the foreign key and morph type are filled for you), and refreshes the table. `RelationAction.edit()` opens the same form filled with the row.
+`RelationAction.create()` opens a dialog with the manager form. On submit, Firefly validates the fields, saves a new related record through the relationship (the foreign key and morph type are filled for you), and refreshes the table. The create dialog also offers **Create & create another**, which saves and reopens an empty create dialog — call `createAnother(false)` to hide it. `RelationAction.edit()` opens the same form filled with the row.
 
 Each action can change its own wording and data:
 
@@ -254,6 +254,7 @@ headerActions(
         .modalDescription("The task is assigned to this project right away.")
         .modalSubmitActionLabel("Add")
         .successNotificationTitle("Task added")
+        .createAnother()
         .mutateFormDataUsing { data -> data + ("status" to "open") }
         .slideOver(),
 )
@@ -270,6 +271,7 @@ headerActions(
         .modalDescription("The task is assigned to this project right away.")
         .modalSubmitActionLabel("Add")
         .successNotificationTitle("Task added")
+        .createAnother()
         .mutateFormDataUsing(data -> {
             var copy = new java.util.HashMap<>(data);
             copy.put("status", "open");
@@ -325,6 +327,7 @@ headerActions(
     RelationAction.create(),
     RelationAction.associate()
         .multiple()
+        .recordSelect { select -> select.placeholder("Choose a task") }
         .recordSelectSearchColumns("title", "code")
         .recordSelectOptionsQuery { query, _ -> (query as ModelBuilder<*>).whereNull("project_id") },
 )
@@ -340,6 +343,7 @@ headerActions(
     RelationAction.create(),
     RelationAction.associate()
         .multiple()
+        .recordSelect(select -> select.placeholder("Choose a task"))
         .recordSelectSearchColumns("title", "code")
         .recordSelectOptionsQuery((query, context) -> ((ModelBuilder<?>) query).whereNull("project_id"))
 );
@@ -350,7 +354,7 @@ bulkActions(BulkActionGroup.make(DissociateBulkAction.make(), RelationBulkAction
 </TabItem>
 </Tabs>
 
-The picker searches the record title attribute plus any `recordSelectSearchColumns`, and leaves out rows already on this owner. It preloads the first 50 options; change that with `recordSelectOptionsLimit(n)`, or call `preloadRecordSelect(false)` to wait until the user types. `multiple()` lets one submit associate several records.
+The picker searches the record title attribute plus any `recordSelectSearchColumns`, and leaves out rows already on this owner. It preloads the first 50 options; change that with `recordSelectOptionsLimit(n)`, or call `preloadRecordSelect(false)` to wait until the user types. `multiple()` lets one submit associate several records. Customize the picker field itself with `recordSelect { select -> … }` (placeholder, option labels, and any other `Select` chain).
 
 Generate this shape with `--associate`:
 
@@ -641,4 +645,4 @@ The generator refuses to overwrite an existing file.
 | `attach()`, `detach()` | Many-to-many pivot |
 | `restore()`, `forceDelete()` | Soft deletes |
 
-`RelationAction` options: `label`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `successNotificationTitle`, `hidden`, `visible`, `authorize`, `form`, `mutateFormDataUsing`, `before`, `after`, `slideOver`, and for associate / attach `multiple`, `preloadRecordSelect`, `recordSelectOptionsLimit`, `recordSelectOptionsQuery`, `recordSelectSearchColumns`, `allowDuplicates`.
+`RelationAction` options: `label`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `successNotificationTitle`, `hidden`, `visible`, `authorize`, `form`, `mutateFormDataUsing`, `before`, `after`, `slideOver`, `createAnother` (create), and for associate / attach `multiple`, `preloadRecordSelect`, `recordSelect`, `recordSelectOptionsLimit`, `recordSelectOptionsQuery`, `recordSelectSearchColumns`, `allowDuplicates`.

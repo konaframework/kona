@@ -740,6 +740,13 @@ class DefaultLayout(
                 "root.querySelectorAll('[data-ff-picker].ff-picker-open').forEach(positionPicker);}" +
                 "window.addEventListener('scroll',repositionFloating,true);" +
                 "window.addEventListener('resize',repositionFloating);" +
+                // Reopen a dialog after redirect (`?dialog=create` / `?dialog=edit&dialog_id=…`) (#391).
+                "(function openDialogFromQuery(){var params=new URLSearchParams(location.search);var dialog=params.get('dialog');" +
+                "if(!dialog)return;var id=params.get('dialog_id');var btn=null;" +
+                "if(id){var row=root.querySelector('[data-ff-record=\"'+cssEscape(id)+'\"]');" +
+                "if(row)btn=row.querySelector('[data-ff-dialog-open][data-ff-action=\"'+cssEscape(dialog)+'\"]');}" +
+                "if(!btn)btn=root.querySelector('[data-ff-dialog-open][data-ff-action=\"'+cssEscape(dialog)+'\"]');" +
+                "if(btn)setTimeout(function(){btn.click();},0);})();" +
                 "})();</script>"
     }
 }

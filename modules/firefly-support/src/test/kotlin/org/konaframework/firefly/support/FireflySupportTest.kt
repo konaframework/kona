@@ -539,6 +539,8 @@ class FireflySupportTest {
         assertTrue(html.contains("data-ff-dialog-open"))
         assertTrue(html.contains("data-ff-dialog-panel"))
         assertTrue(html.contains("data-ff-dialog-switch"))
+        assertTrue(html.contains("openDialogFromQuery"))
+        assertTrue(html.contains("params.get('dialog')"))
         assertTrue(html.contains("switchMount"))
         assertTrue(html.contains("data-ff-record-url"))
         assertTrue(html.contains("data-ff-record-action"))

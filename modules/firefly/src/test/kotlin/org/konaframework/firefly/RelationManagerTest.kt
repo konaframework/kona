@@ -125,13 +125,25 @@ class RelationManagerTest {
 
         val invalid = relationPost(router, "create", p1, "name=", session = session)
         assertEquals(302, invalid.status)
+        assertEquals(
+            "/admin/projects/edit?id=${p1.getKey()}&relation=tasks&dialog=create",
+            invalid.headers["Location"],
+        )
         assertToast(session, "Please fix the form", "danger")
         assertEquals(0L, RmTask().newQuery().where("name", "").count())
+        @Suppress("UNCHECKED_CAST")
+        val createErrors = session.get(RelationManager.ERRORS_FLASH) as Map<String, List<String>>
+        assertTrue(createErrors["name"]!!.isNotEmpty())
+        assertEquals("", session.old("name"))
 
         relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=Alpha2", session = session)
         assertEquals("Alpha2", RmTask().newQuery().withTrashed().where("id", alpha.getKey()).first()!!.getAttribute("name"))
         assertToast(session, "Saved", "success")
-        assertEquals(302, relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=").status)
+        val editInvalid = relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=", session = session)
+        assertEquals(302, editInvalid.status)
+        assertTrue(editInvalid.headers["Location"]!!.contains("dialog=edit"))
+        assertTrue(editInvalid.headers["Location"]!!.contains("dialog_id=${alpha.getKey()}"))
+        assertToast(session, "Please fix the form", "danger")
         assertEquals(404, relationPost(router, "edit", p1, "id=${gamma.getKey()}&name=Stolen").status, "other owner's row")
         assertEquals(404, relationPost(router, "edit", p1, "name=NoId").status)
 
@@ -139,7 +151,8 @@ class RelationManagerTest {
         assertToast(session, "Associated", "success")
         assertEquals(p1.getKey().toString(), reload(gamma).getAttribute("project_id").toString())
         assertEquals(p1.getKey().toString(), reload(loose).getAttribute("project_id").toString())
-        relationPost(router, "associate", p1, "recordId=", session = session)
+        val emptyAssociate = relationPost(router, "associate", p1, "recordId=", session = session)
+        assertTrue(emptyAssociate.headers["Location"]!!.contains("dialog=associate"))
         assertToast(session, "Select at least one task", "danger")
         relationPost(router, "associate", p1, "recordId=99999", session = session)
         assertToast(session, "task [99999] cannot be associated", "danger")
@@ -765,6 +778,126 @@ class RelationManagerTest {
         assertEquals("v", RelationContext(RelationManager("tasks"), p1, row, RelationOperation.VIEW, "edit", false).get("name"))
     }
 
+    @Test
+    fun modalUxCreateAnotherRecordSelectAndFieldErrors() {
+        val alpha = task(p1, "Alpha")
+        val manager = RelationManager("tasks")
+            .recordTitleAttribute("name")
+            // Empty-name field exercises absolutePath() ?: name when applying flash errors.
+            .form { schema -> schema.components(TextInput.make("name").required(), TextInput.make("")) }
+            .table { table -> table.columns(TextColumn.make("name")) }
+            .headerActions(
+                RelationAction.create(),
+                RelationAction.associate()
+                    .recordSelect { select -> select.placeholder("Pick a task") },
+            )
+            .actions(RelationAction.view(), RelationAction.edit(), RelationAction.delete())
+        val router = mount(projects(manager))
+        val edit = page(router, "edit", p1)
+        assertTrue(edit.contains("Create &amp; create another") || edit.contains("Create & create another"), edit)
+        assertTrue(edit.contains("Pick a task"), edit)
+
+        val noAnother = mount(
+            projects(
+                tasks().headerActions(RelationAction.create().createAnother(false), RelationAction.associate()),
+            ),
+        )
+        assertFalse(page(noAnother, "edit", p1).contains("Create & create another"))
+        assertFalse(page(noAnother, "edit", p1).contains("Create &amp; create another"))
+
+        val session = RmSession()
+        val again = relationPost(router, "create", p1, "name=Kept&_create_another=1", session = session)
+        assertEquals(302, again.status)
+        assertEquals(
+            "/admin/projects/edit?id=${p1.getKey()}&relation=tasks&dialog=create",
+            again.headers["Location"],
+        )
+        assertToast(session, "Created", "success")
+        assertNotNull(RmTask().newQuery().where("name", "Kept").first())
+
+        relationPost(router, "create", p1, "name=Draft", session = session)
+        assertToast(session, "Created", "success")
+        val invalid = relationPost(router, "create", p1, "name=", session = session)
+        assertTrue(invalid.headers["Location"]!!.endsWith("dialog=create"))
+        assertToast(session, "Please fix the form", "danger")
+        @Suppress("UNCHECKED_CAST")
+        val createErrors = session.get(RelationManager.ERRORS_FLASH) as Map<String, List<String>>
+        assertTrue(createErrors["name"]!!.isNotEmpty())
+
+        val editInvalid = relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=", session = session)
+        assertEquals(302, editInvalid.status, editInvalid.body)
+        val editLoc = editInvalid.headers["Location"]
+        assertNotNull(editLoc)
+        assertTrue(editLoc!!.contains("dialog=edit"), editLoc)
+        assertTrue(editLoc.contains("dialog_id=${alpha.getKey()}"), editLoc)
+        assertToast(session, "Please fix the form", "danger")
+
+        // Page GETs with a session arm CSRF — assert markup after the POSTs above.
+        val reopened = page(router, "edit", p1, mapOf("dialog" to "create"), session)
+        assertTrue(reopened.contains("""data-ff-invalid="true""""), reopened)
+        assertTrue(reopened.contains("ff-helper"), reopened)
+        val editPage = page(
+            router,
+            "edit",
+            p1,
+            mapOf("dialog" to "edit", "dialog_id" to alpha.getKey().toString()),
+            session,
+        )
+        assertTrue(editPage.contains("""data-ff-invalid="true""""), editPage)
+
+        assertTrue(RelationAction.create().allowsCreateAnother())
+        assertFalse(RelationAction.create().createAnother(false).allowsCreateAnother())
+        assertNotNull(RelationAction.attach().recordSelect { it }.recordSelectCustomizer())
+
+        // createAnother(false) ignores a posted `_create_another` flag.
+        val noAgainSession = RmSession()
+        val noAgain = relationPost(
+            noAnother,
+            "create",
+            p1,
+            "name=Once&_create_another=1",
+            session = noAgainSession,
+        )
+        assertEquals(302, noAgain.status)
+        assertFalse(noAgain.headers["Location"]!!.contains("dialog="))
+        assertToast(noAgainSession, "Created", "success")
+
+        // Flash with errors but no old input; dialog without a session; blank dialogId ignored.
+        val errOnly = RmSession()
+        errOnly.flash(RelationManager.ERRORS_FLASH, mapOf("name" to listOf("Required")))
+        val errHtml = page(router, "edit", p1, mapOf("dialog" to "create", "dialog_id" to "  "), errOnly)
+        assertTrue(errHtml.contains("""data-ff-invalid="true""""), errHtml)
+        val noSessionDialog = page(router, "edit", p1, mapOf("dialog" to "create"))
+        assertTrue(noSessionDialog.contains("ff-action-form"))
+        assertNull(RelationFormFlash.from(emptyMap()))
+        assertNull(RelationFormFlash.from(mapOf("dialog" to "  ")))
+        assertNull(RelationFormFlash.from(mapOf("dialog" to null)))
+        val blankId = RelationFormFlash.from(mapOf("dialog" to "create", "dialogId" to "  "))
+        assertNotNull(blankId)
+        assertNull(blankId!!.recordId)
+        val flash = RelationFormFlash.from(
+            mapOf(
+                "dialog" to "edit",
+                "dialogId" to alpha.getKey().toString(),
+                "filterSession" to errOnly,
+            ),
+        )
+        assertNotNull(flash)
+        assertTrue(flash!!.matches("edit", alpha.getKey().toString()))
+        assertFalse(flash.matches("create", null))
+        assertFalse(flash.matches("edit", "other"))
+        // Non-map under the errors key falls through to an empty error map.
+        errOnly.flash(RelationManager.ERRORS_FLASH, "not-a-map")
+        val castMiss = RelationFormFlash.from(mapOf("dialog" to "create", "filterSession" to errOnly))
+        assertNotNull(castMiss)
+        assertTrue(castMiss!!.errors.isEmpty())
+        // Non-session under filterSession is ignored.
+        val badSession = RelationFormFlash.from(mapOf("dialog" to "create", "filterSession" to "nope"))
+        assertNotNull(badSession)
+        assertTrue(badSession!!.errors.isEmpty())
+        assertTrue(badSession.old.isEmpty())
+    }
+
     // ——— Fixtures ———
 
     private fun tasks(): RelationManager = RelationManager("tasks")
@@ -810,12 +943,14 @@ class RelationManagerTest {
         org.konaframework.cadence.DB.table("rm_project_user")
             .where("project_id", project.getKey()).where("user_id", user.getKey()).first()?.get("role")
 
-    private fun page(router: Router, slug: String, owner: RmProject): String =
-        get(router, "/admin/projects/$slug", mapOf("id" to owner.getKey().toString()))
+    private fun page(router: Router, slug: String, owner: RmProject, query: Map<String, String> = emptyMap(), session: RequestSession? = null): String =
+        get(router, "/admin/projects/$slug", mapOf("id" to owner.getKey().toString()) + query, session)
 
-    private fun get(router: Router, path: String, query: Map<String, String>): String {
+    private fun get(router: Router, path: String, query: Map<String, String>, session: RequestSession? = null): String {
         val match = router.find("GET", path) ?: throw AssertionError("missing $path")
-        val response = match.route.action.handle(Request("GET", path, emptyMap(), query, ""))
+        val request = Request("GET", path, emptyMap(), query, "")
+        if (session != null) request.setAttribute(Request.SESSION_ATTRIBUTE, session)
+        val response = match.route.action.handle(request)
         assertEquals(200, response.status, response.body)
         return response.body
     }
@@ -871,12 +1006,16 @@ class RelationManagerTest {
 
 class RmSession : RequestSession {
     private val values = LinkedHashMap<String, Any?>()
+    private val old = LinkedHashMap<String, String>()
     override fun get(key: String): Any? = values[key]
     override fun put(key: String, value: Any?): RequestSession = apply { values[key] = value }
     override fun flash(key: String, value: Any?): RequestSession = put(key, value)
-    override fun flashInput(input: Map<String, String>): RequestSession = this
-    override fun old(key: String, default: String?): String? = default
-    override fun oldInput(): Map<String, String> = emptyMap()
+    override fun flashInput(input: Map<String, String>): RequestSession = apply {
+        old.clear()
+        old.putAll(input)
+    }
+    override fun old(key: String, default: String?): String? = old[key] ?: default
+    override fun oldInput(): Map<String, String> = LinkedHashMap(old)
     override fun previousUrl(): String? = null
     override fun setPreviousUrl(url: String): RequestSession = this
 }

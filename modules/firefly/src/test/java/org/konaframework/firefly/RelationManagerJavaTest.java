@@ -41,9 +41,13 @@ class RelationManagerJavaTest {
         assertTrue(edit.contains("data-ff-relation-tab=\"tasks\""));
         assertTrue(edit.contains("data-ff-relation-tab=\"members\""));
         assertTrue(edit.contains(">New task<"));
+        assertTrue(edit.contains("Create &amp; create another") || edit.contains("Create & create another"));
 
         assertEquals(302, post(router, "create", "tasks", owner, "name=Write+docs").getStatus());
         assertNotNull(new RmTask().newQuery().where("name", "Write docs").first());
+        Response createAnother = post(router, "create", "tasks", owner, "name=Again&_create_another=1");
+        assertEquals(302, createAnother.getStatus());
+        assertTrue(createAnother.getHeaders().get("Location").contains("dialog=create"));
         assertEquals(302, post(router, "attach", "members", owner, "recordId=" + bob.getKey() + "&role=lead").getStatus());
         assertEquals("lead", DB.table("rm_project_user").where("user_id", bob.getKey()).first().get("role"));
         assertEquals(302, post(router, "bulk", "members", owner, "_bulk_action=detach&_bulk_keys=" + bob.getKey()).getStatus());
@@ -58,8 +62,11 @@ class RelationManagerJavaTest {
         assertEquals("forceDelete", ForceDeleteBulkAction.make().getName());
         assertEquals("delete", RelationBulkAction.delete().getName());
         assertEquals(RelationOperation.ATTACH, RelationOperation.fromToken("attach"));
-        RelationAction attach = RelationAction.attach().multiple().preloadRecordSelect().allowDuplicates().slideOver();
+        RelationAction attach = RelationAction.attach().multiple().preloadRecordSelect().allowDuplicates().slideOver()
+            .recordSelect(select -> select.placeholder("Choose member"));
         assertSame(RelationOperation.ATTACH, attach.getOperation());
+        RelationAction create = RelationAction.create().createAnother(false);
+        assertEquals("New task", create.getLabel("task"));
         List<RelationAction> all = List.of(
             RelationAction.create(), RelationAction.view(), RelationAction.edit(), RelationAction.delete(),
             RelationAction.associate(), RelationAction.dissociate(), RelationAction.detach(),

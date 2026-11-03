@@ -19,6 +19,7 @@ import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TableButton
 import org.konaframework.firefly.tables.TextColumn
 import org.konaframework.firefly.tables.TrashedFilter
+import org.konaframework.http.RequestSession
 import java.net.URLEncoder
 import java.util.Collections
 import java.util.EnumMap
@@ -266,9 +267,10 @@ open class RelationManager(private val name: String) {
 
     /** The section for one owner. [state] carries table query state when [active]. */
     internal fun renderFor(runtime: RelationRuntime, state: Map<String, Any?>, active: Boolean): String {
-        val table = table(runtime, if (active) state else emptyMap())
+        val flash = RelationFormFlash.from(state)
+        val table = table(runtime, if (active) state else emptyMap(), flash)
         val tableHtml = RelationScope.with(runtime) { table.render() }
-        val headerHtml = headerButtons(runtime).joinToString("") { it.render(Cell { null }, true) }
+        val headerHtml = headerButtons(runtime, flash).joinToString("") { it.render(Cell { null }, true) }
         val badge = badgeFor(runtime)
         val badgeHtml = if (badge == null) "" else """<span class="ff-relation-badge">${escapeHtml(badge)}</span>"""
         val readOnlyAttr = if (runtime.readOnly) """ data-ff-read-only="true"""" else ""
@@ -278,14 +280,14 @@ open class RelationManager(private val name: String) {
     }
 
     /** The owner-scoped table with actions, bulk actions, and (when given) query state applied. */
-    internal fun table(runtime: RelationRuntime, state: Map<String, Any?>): Table<*, *> {
+    internal fun table(runtime: RelationRuntime, state: Map<String, Any?>, flash: RelationFormFlash? = null): Table<*, *> {
         val built = freshTable(runtime.binding)
         scopeOnce(built)
         if (runtime.binding.softDeletes() && built.filterSet().filters().none { it is TrashedFilter }) {
             built.filters(*(built.filterSet().filters() + TrashedFilter.make()).toTypedArray())
         }
         built.persistQueryParameters(mapOf("id" to runtime.ownerKey, "relation" to name))
-        built.rowButtons(*rowButtons(runtime).toTypedArray())
+        built.rowButtons(*rowButtons(runtime, flash).toTypedArray())
         if (bulkEntryList == null && built.isBulkActionsConfigured()) bulkEntryList = built.bulkActionEntries()
         if (runtime.readOnly) {
             built.bulkActions()
@@ -311,19 +313,20 @@ open class RelationManager(private val name: String) {
                 val context = runtime.context(operation, null)
                 if (!permitted(operation, action, context)) return RelationOutcome.denied("Not authorized")
                 val submission = submitted(formSchema(action, binding.store().newRecord()), input)
-                val data = submission.data ?: return submission.invalid()
+                val data = submission.data ?: return submission.invalid(operation.token)
                 val (attributes, pivot) = split(action.mutate(data), runtime)
                 action.runBefore(context)
                 val created = binding.create(attributes, pivot)
                 action.runAfter(runtime.context(operation, created))
-                RelationOutcome.done(action.successTitle())
+                val again = action.allowsCreateAnother() && input[CREATE_ANOTHER] == "1"
+                RelationOutcome.done(action.successTitle(), createAnother = again)
             }
             RelationOperation.EDIT -> {
                 val record = scopedRecord(runtime, input, withTrashed = true) ?: return RelationOutcome.missing()
                 val context = runtime.context(operation, record)
                 if (!permitted(operation, action, context)) return RelationOutcome.denied("Not authorized")
                 val submission = submitted(formSchema(action, record), input)
-                val data = submission.data ?: return submission.invalid()
+                val data = submission.data ?: return submission.invalid(operation.token, input["id"])
                 val (attributes, pivot) = split(action.mutate(data), runtime)
                 action.runBefore(context)
                 record.fill(attributes)
@@ -429,7 +432,7 @@ open class RelationManager(private val name: String) {
     private fun permitted(operation: RelationOperation, action: RelationAction, context: RelationContext): Boolean =
         allows(operation, context) && action.permits(context)
 
-    private fun headerButtons(runtime: RelationRuntime): List<TableButton> {
+    private fun headerButtons(runtime: RelationRuntime, flash: RelationFormFlash?): List<TableButton> {
         val context = runtime.context(RelationOperation.CREATE, null)
         return headerActions(runtime).filter { action ->
             action.operation.mutates && supports(action.operation, runtime) &&
@@ -438,12 +441,12 @@ open class RelationManager(private val name: String) {
             val button = TableButton.make(action.operation.token)
                 .label(action.getLabel(modelLabel()))
                 .modalHeading(action.heading(modelLabel()))
-                .body { _ -> headerBody(runtime, action) }
+                .body { _ -> headerBody(runtime, action, flash) }
             if (action.isSlideOver()) button.slideOver() else button.modal()
         }
     }
 
-    private fun rowButtons(runtime: RelationRuntime): List<TableButton> {
+    private fun rowButtons(runtime: RelationRuntime, flash: RelationFormFlash?): List<TableButton> {
         val label = modelLabel()
         return rowActions(runtime).filter { supports(it.operation, runtime) }.map { action ->
             val operation = action.operation
@@ -451,7 +454,7 @@ open class RelationManager(private val name: String) {
             button.visible(Predicate { cell -> rowShows(runtime, action, cell) })
             when (operation) {
                 RelationOperation.VIEW -> button.modalHeading(action.heading(label)).body { cell -> viewBody(runtime, cell) }
-                RelationOperation.EDIT -> button.modalHeading(action.heading(label)).body { cell -> editBody(runtime, action, cell) }
+                RelationOperation.EDIT -> button.modalHeading(action.heading(label)).body { cell -> editBody(runtime, action, cell, flash) }
                 else -> button.confirmPost(runtime.url(operation), runtime.csrf, action.heading(label), action.description())
             }
             if (action.isSlideOver()) button.slideOver()
@@ -472,16 +475,18 @@ open class RelationManager(private val name: String) {
 
     // ——— Dialog bodies ———
 
-    private fun headerBody(runtime: RelationRuntime, action: RelationAction): String {
+    private fun headerBody(runtime: RelationRuntime, action: RelationAction, flash: RelationFormFlash?): String {
         val operation = action.operation
-        val fields = if (operation == RelationOperation.CREATE) {
-            formSchema(action, runtime.binding.store().newRecord()).render()
+        val schema = if (operation == RelationOperation.CREATE) {
+            formSchema(action, runtime.binding.store().newRecord())
         } else {
-            pickerSchema(runtime, action).render()
+            pickerSchema(runtime, action)
         }
+        if (flash != null && flash.matches(operation.token, null)) applyFlash(schema, flash)
         val description = action.description()
         val intro = if (description.isEmpty()) "" else """<p class="ff-action-description">${escapeHtml(description)}</p>"""
-        return intro + postForm(runtime.url(operation), runtime.csrf, "", fields, action.submitLabel())
+        val createAnother = operation == RelationOperation.CREATE && action.allowsCreateAnother()
+        return intro + postForm(runtime.url(operation), runtime.csrf, "", schema.render(), action.submitLabel(), createAnother)
     }
 
     private fun viewBody(runtime: RelationRuntime, cell: Cell): String {
@@ -499,22 +504,36 @@ open class RelationManager(private val name: String) {
         return """${schema.render()}<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button>$editSwitch</div>"""
     }
 
-    private fun editBody(runtime: RelationRuntime, action: RelationAction, cell: Cell): String {
+    private fun editBody(runtime: RelationRuntime, action: RelationAction, cell: Cell, flash: RelationFormFlash?): String {
         val key = cell.get("key").toString()
         val record = runtime.binding.find(key, withTrashed = true) { modifyQuery(it, runtime) } ?: return ""
         val schema = formSchema(action, record).fill(attributesOf(record, cell))
+        if (flash != null && flash.matches(RelationOperation.EDIT.token, key)) applyFlash(schema, flash)
         val hidden = """<input type="hidden" name="id" value="${escapeHtml(key)}" />"""
         return postForm(runtime.url(RelationOperation.EDIT), runtime.csrf, hidden, schema.render(), action.submitLabel())
     }
 
-    private fun postForm(url: String, csrf: String, hidden: String, fields: String, submit: String): String =
-        """<form method="post" action="${escapeHtml(url)}" class="ff-action-form">$csrf$hidden<div class="ff-action-schema">$fields</div>""" +
+    private fun postForm(
+        url: String,
+        csrf: String,
+        hidden: String,
+        fields: String,
+        submit: String,
+        createAnother: Boolean = false,
+    ): String {
+        val another = if (!createAnother) {
+            ""
+        } else {
+            """<button type="submit" name="$CREATE_ANOTHER" value="1" class="ff-action-submit ff-action-create-another">${escapeHtml(CREATE_ANOTHER_LABEL)}</button>"""
+        }
+        return """<form method="post" action="${escapeHtml(url)}" class="ff-action-form">$csrf$hidden<div class="ff-action-schema">$fields</div>""" +
             """<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button>""" +
-            """<button type="submit" class="ff-action-submit">${escapeHtml(submit)}</button></div></form>"""
+            """<button type="submit" class="ff-action-submit">${escapeHtml(submit)}</button>$another</div></form>"""
+    }
 
     /** Record picker (`recordId`) for associate / attach, plus the action's extra fields. */
     private fun pickerSchema(runtime: RelationRuntime, action: RelationAction): Schema {
-        val select = Select.make(RECORD_ID).label(capitalized(modelLabel())).required()
+        var select = Select.make(RECORD_ID).label(capitalized(modelLabel())).required()
             .multiple(action.isMultiple())
             .searchUrl(runtime.optionsUrl(action.operation))
             .preload(action.preloads())
@@ -523,6 +542,8 @@ open class RelationManager(private val name: String) {
             for (record in candidates(runtime, action, "")) options[keyOf(record)] = recordTitle(record)
             select.options(options)
         }
+        val customize = action.recordSelectCustomizer()
+        if (customize != null) select = customize.apply(select)
         val schema = Schema.make().record(runtime.binding.store().newRecord()).components(select)
         val extra = action.formBuilder() ?: return schema
         val fields = extra.apply(Schema.make()).components()
@@ -545,14 +566,28 @@ open class RelationManager(private val name: String) {
     /** Associate / attach the posted `recordId` value(s). */
     private fun link(runtime: RelationRuntime, operation: RelationOperation, action: RelationAction, input: Map<String, String>): RelationOutcome {
         val keys = input[RECORD_ID].orEmpty().split(',').map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-        if (keys.isEmpty()) return RelationOutcome.failed("Select at least one ${modelLabel()}")
+        if (keys.isEmpty()) {
+            val message = "Select at least one ${modelLabel()}"
+            return RelationOutcome.failed(
+                message,
+                listOf(message),
+                fieldErrors = mapOf(RECORD_ID to listOf(message)),
+                oldInput = input,
+                reopen = operation.token,
+            )
+        }
         val extras = action.formBuilder()?.apply(Schema.make())
-        val submission = if (extras == null) Submission(emptyMap(), emptyList()) else submitted(extras, input)
-        val data = submission.data ?: return submission.invalid()
+        val submission = if (extras == null) Submission(emptyMap(), emptyMap(), input) else submitted(extras, input)
+        val data = submission.data ?: return submission.invalid(operation.token)
         val allowed = candidates(runtime, action, "").associateBy { keyOf(it) }
         val chosen = ArrayList<Cadence<*>>()
         for (key in keys) {
-            val record = allowed[key] ?: lookupCandidate(runtime, action, key) ?: return RelationOutcome.failed("${modelLabel()} [$key] cannot be ${if (operation == RelationOperation.ATTACH) "attached" else "associated"}")
+            val record = allowed[key] ?: lookupCandidate(runtime, action, key)
+                ?: return RelationOutcome.failed(
+                    "${modelLabel()} [$key] cannot be ${if (operation == RelationOperation.ATTACH) "attached" else "associated"}",
+                    oldInput = input,
+                    reopen = operation.token,
+                )
             val context = runtime.context(operation, record)
             if (!permitted(operation, action, context)) return RelationOutcome.denied("Not authorized")
             chosen.add(record)
@@ -606,12 +641,39 @@ open class RelationManager(private val name: String) {
         }
         schema.fill(data)
         val errors = FieldValidation.validate(schema, schema.components())
-        if (errors.isNotEmpty()) return Submission(null, errors.values.flatten())
-        return Submission(data, emptyList())
+        if (errors.isNotEmpty()) return Submission(null, errors, input)
+        return Submission(data, emptyMap(), input)
     }
 
-    private class Submission(val data: Map<String, Any?>?, val errors: List<String>) {
-        fun invalid(): RelationOutcome = RelationOutcome.failed("Please fix the form", errors)
+    /** Fill old input and put per-field error text under each invalid field. */
+    private fun applyFlash(schema: Schema, flash: RelationFormFlash) {
+        if (flash.old.isNotEmpty()) {
+            val values = LinkedHashMap<String, Any?>()
+            for ((key, value) in flash.old) values[key] = value
+            schema.fill(values)
+        }
+        for (field in formFields(schema)) {
+            val path = field.absolutePath() ?: field.name
+            val messages = flash.errors[path] ?: continue
+            field.helperText(messages.joinToString(" "))
+            field.extraAttributes(mapOf("data-ff-invalid" to "true"))
+        }
+    }
+
+    private class Submission(
+        val data: Map<String, Any?>?,
+        val fieldErrors: Map<String, List<String>>,
+        val input: Map<String, String>,
+    ) {
+        fun invalid(reopen: String, recordId: String? = null): RelationOutcome =
+            RelationOutcome.failed(
+                "Please fix the form",
+                fieldErrors.values.flatten(),
+                fieldErrors = fieldErrors,
+                oldInput = input,
+                reopen = reopen,
+                recordId = recordId,
+            )
     }
 
     /** Model attributes and pivot values; only many-to-many managers have pivot values. */
@@ -701,6 +763,14 @@ open class RelationManager(private val name: String) {
         /** Field name of the associate / attach record picker (Filament `recordId`). */
         const val RECORD_ID: String = "recordId"
 
+        /** Posted when the create dialog's "Create & create another" button is used. */
+        const val CREATE_ANOTHER: String = "_create_another"
+
+        private const val CREATE_ANOTHER_LABEL: String = "Create & create another"
+
+        /** Session flash key for validation errors (matches `StoreSession.ERRORS`). */
+        const val ERRORS_FLASH: String = "errors"
+
         private fun templateOf(template: Schema): Function<Schema, Schema> = Function { schema ->
             schema.components(*template.components().toTypedArray())
             val layout = template.columnLayout()
@@ -771,17 +841,70 @@ internal class RelationOutcome private constructor(
     val status: Int,
     val title: String,
     val messages: List<String>,
+    val fieldErrors: Map<String, List<String>> = emptyMap(),
+    val oldInput: Map<String, String> = emptyMap(),
+    val reopen: String? = null,
+    val recordId: String? = null,
+    val createAnother: Boolean = false,
 ) {
     fun isSuccessful(): Boolean = status == 200
 
     companion object {
-        fun done(title: String) = RelationOutcome(200, title, emptyList())
+        fun done(title: String, createAnother: Boolean = false) =
+            RelationOutcome(200, title, emptyList(), createAnother = createAnother)
 
-        fun failed(title: String, messages: List<String> = emptyList()) = RelationOutcome(422, title, messages)
+        fun failed(
+            title: String,
+            messages: List<String> = emptyList(),
+            fieldErrors: Map<String, List<String>> = emptyMap(),
+            oldInput: Map<String, String> = emptyMap(),
+            reopen: String? = null,
+            recordId: String? = null,
+        ) = RelationOutcome(422, title, messages, fieldErrors, oldInput, reopen, recordId)
 
         fun denied(title: String) = RelationOutcome(403, title, emptyList())
 
         fun missing() = RelationOutcome(404, "Record not found", emptyList())
+    }
+}
+
+/**
+ * Old input + field errors for reopening a relation dialog after a failed POST
+ * (or an empty create dialog after "create another").
+ */
+internal class RelationFormFlash(
+    val operation: String,
+    val recordId: String?,
+    val errors: Map<String, List<String>>,
+    val old: Map<String, String>,
+) {
+    fun matches(operationToken: String, recordId: String?): Boolean {
+        if (operation != operationToken) return false
+        return this.recordId == recordId
+    }
+
+    companion object {
+        fun from(state: Map<String, Any?>): RelationFormFlash? {
+            val rawDialog = state["dialog"] ?: return null
+            val operation = rawDialog.toString().trim()
+            if (operation.isEmpty()) return null
+            val rawId = state["dialogId"]
+            val recordId = if (rawId == null) {
+                null
+            } else {
+                rawId.toString().trim().ifEmpty { null }
+            }
+            val session = state["filterSession"] as? RequestSession
+            val flashed = session?.get(RelationManager.ERRORS_FLASH)
+            val errors = if (flashed is Map<*, *>) {
+                @Suppress("UNCHECKED_CAST")
+                flashed as Map<String, List<String>>
+            } else {
+                emptyMap()
+            }
+            val old = if (session == null) emptyMap() else session.oldInput()
+            return RelationFormFlash(operation, recordId, errors, old)
+        }
     }
 }
 

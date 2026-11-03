@@ -1860,6 +1860,10 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   font-size: 0.8rem;
 }
 
+.ff-panel [data-ff-invalid="true"] .ff-helper {
+  color: var(--ff-danger, #b91c1c);
+}
+
 .ff-panel .ff-schema,
 .ff-panel .ff-fieldset {
   display: flex;

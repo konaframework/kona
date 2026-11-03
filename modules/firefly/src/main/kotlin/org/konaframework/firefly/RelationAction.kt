@@ -1,6 +1,7 @@
 package org.konaframework.firefly
 
 import org.konaframework.cadence.Cadence
+import org.konaframework.firefly.forms.Select
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.support.FireflyException
 import java.util.function.BiConsumer
@@ -91,6 +92,8 @@ class RelationAction private constructor(val operation: RelationOperation) {
     private var afterHook: Consumer<RelationContext>? = null
     private var duplicates = false
     private var slideOverFlag = false
+    private var createAnotherFlag = true
+    private var recordSelectUsing: Function<Select, Select>? = null
 
     fun label(value: String): RelationAction = apply { labelText = requireText(value, "label") }
 
@@ -153,6 +156,19 @@ class RelationAction private constructor(val operation: RelationOperation) {
     @JvmOverloads
     fun slideOver(on: Boolean = true): RelationAction = apply { slideOverFlag = on }
 
+    /**
+     * Create: show a second submit that saves and reopens an empty create dialog
+     * (Filament `createAnother`). Off by default only when [on] is false.
+     */
+    @JvmOverloads
+    fun createAnother(on: Boolean = true): RelationAction = apply { createAnotherFlag = on }
+
+    /**
+     * Attach / associate: customize the record picker [Select] (placeholder, labels, …)
+     * after Firefly wires search URL, preload, and multiple (Filament `recordSelect`).
+     */
+    fun recordSelect(customize: Function<Select, Select>): RelationAction = apply { recordSelectUsing = customize }
+
     fun getLabel(modelLabel: String): String {
         val custom = labelText
         if (custom != null) return custom
@@ -196,6 +212,10 @@ class RelationAction private constructor(val operation: RelationOperation) {
     internal fun allowsDuplicates(): Boolean = duplicates
 
     internal fun isSlideOver(): Boolean = slideOverFlag
+
+    internal fun allowsCreateAnother(): Boolean = createAnotherFlag
+
+    internal fun recordSelectCustomizer(): Function<Select, Select>? = recordSelectUsing
 
     internal fun mutate(data: Map<String, Any?>): Map<String, Any?> {
         val using = mutateUsing ?: return data

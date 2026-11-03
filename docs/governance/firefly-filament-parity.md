@@ -49,7 +49,7 @@ M34 notifications and widgets are done. M35 panel, auth, navigation, and pages a
 | REL-10 | Query and titles | `modifyQueryUsing`, `recordTitleAttribute`, `recordTitle`, `title`, `modelLabel`, `pluralModelLabel`, `badge`, `inverseRelationship` (stored) | done (#390) |
 | REL-11 | Authorization | `can{View,Create,Edit,Delete,Associate,Dissociate,Attach,Detach,Restore,ForceDelete}`, `canViewForRecord`, action `authorize`/`hidden`/`visible`; re-checked on POST | done (#390) |
 | REL-12 | Generator | `make:firefly-relation-manager {resource} {relationship} {title} --attach --associate --soft-deletes` (Kotlin and Java) | done (#390) |
-| REL-13 | Modal UX: inline field errors on reopen, create another, custom `recordSelect` | — | deferred (#391) |
+| REL-13 | Modal UX: inline field errors on reopen, create another, custom `recordSelect` | `createAnother`, `recordSelect`, dialog reopen with field errors + old input (`?dialog=` / `dialog_id`) | done (#391) |
 | REL-14 | `RelationGroup`, combined tabs with content, lazy tabs | — | deferred (#392) |
 | REL-15 | Inverse relationship scoping, reorderable relation tables | — | deferred (#393) |
 
