@@ -8,7 +8,7 @@ Generated apps resolve `org.konaframework:…` from Maven Central. The curl inst
 
 ## Last published release — `0.4.0`
 
-**Status:** cut in progress / shipping. Tag `v0.4.0` → `release.yml` uploads; complete Portal **Publish** when `VALIDATED`. Prior cuts on Central: `0.3.0` (Wire rename), `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0`. **Do not** re-tag or republish a prior version. Sister repos remain archived.
+**Status:** **uploaded** via tag `v0.4.0` / `release.yml`. Complete Portal **Publish** when the deployment is `VALIDATED`, then confirm [Central search](https://search.maven.org/solrsearch/select?q=g:org.konaframework+AND+v:0.4.0). Prior cuts on Central: `0.3.0` (Wire rename), `0.2.1`, `0.2.0`, `0.1.1`, `0.1.0`. **Do not** re-tag or republish a prior version. Sister repos remain archived.
 
 ## `main` vs Central
 
