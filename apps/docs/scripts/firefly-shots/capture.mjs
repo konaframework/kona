@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 /**
  * Capture Firefly docs screenshots from the sample app (light + dark).
+ *
+ * Padding matches the surface the subject sits on: sample the parent
+ * background (white card → white pad; panel surface → that color), then
+ * extend the element crop. Never invent a theme cream ring.
+ *
  * Usage:
  *   PLAYGROUND_URL=http://127.0.0.1:4001 node capture.mjs
- * Optional: SCENE=form-text-input,panel-chrome
- * Requires seeded firefly-app (demo@kona.test / password).
+ * Optional: SCENE=form-text-input,section-panel-chrome
  */
 import { chromium } from 'playwright';
 import sharp from 'sharp';
@@ -18,18 +22,12 @@ const outDir = join(root, 'public/images/firefly');
 const manifest = JSON.parse(readFileSync(join(__dirname, 'scenes.json'), 'utf8'));
 const baseUrl = process.env.PLAYGROUND_URL || manifest.baseUrl;
 const only = process.env.SCENE ? new Set(process.env.SCENE.split(',')) : null;
-/** Outer padding around the subject, in CSS pixels (scaled for deviceScaleFactor). */
-const padCss = Number(process.env.SHOT_PADDING || manifest.padding || 64);
+/** CSS pixels of margin around the subject. */
+const padCss = Number(process.env.SHOT_PADDING || manifest.padding || 28);
 const deviceScale = 2;
-/** Sharp operate on device pixels. */
-const pad = Math.round(padCss * deviceScale);
+const padPx = Math.round(padCss * deviceScale);
 
 mkdirSync(outDir, { recursive: true });
-
-const THEME_PAD = {
-  light: { r: 248, g: 245, b: 240, alpha: 255 },
-  dark: { r: 15, g: 23, b: 42, alpha: 255 },
-};
 
 async function login(page) {
   await page.goto(`${baseUrl}${manifest.login.path}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -67,7 +65,6 @@ function pathMatches(currentUrl, path) {
   try {
     const u = new URL(currentUrl);
     const want = path.split('?')[0];
-    // Exact pathname match (avoid /admin matching /admin/project).
     return u.pathname === want || u.pathname === `${want}/`;
   } catch (_) {
     return false;
@@ -119,7 +116,7 @@ async function runBefore(page, scene) {
   }
 }
 
-function clipFromBoxes(boxes, viewport, edgePad = 0) {
+function clipFromBoxes(boxes, viewport, edgePad) {
   const valid = boxes.filter(Boolean);
   if (!valid.length) return null;
   let minX = Infinity;
@@ -132,8 +129,6 @@ function clipFromBoxes(boxes, viewport, edgePad = 0) {
     maxX = Math.max(maxX, b.x + b.width);
     maxY = Math.max(maxY, b.y + b.height);
   }
-  // Only a tiny page-edge pad for open menus; real margin is added in writePadded
-  // so neighboring form fields are not pulled into the crop.
   const x = Math.max(0, minX - edgePad);
   const y = Math.max(0, minY - edgePad);
   const width = Math.min(viewport.width - x, maxX - minX + edgePad * 2);
@@ -142,11 +137,65 @@ function clipFromBoxes(boxes, viewport, edgePad = 0) {
   return { x, y, width, height };
 }
 
+/**
+ * Color of the surface behind the subject.
+ * Prefer painted ancestors (.ff-section / cards) over the page body cream.
+ * Fall back to a 1×1 page sample just inside the nearest opaque parent.
+ */
+async function sampleSurface(page, loc) {
+  const fromCss = await loc.evaluate((el) => {
+    const parse = (bg) => {
+      if (!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') return null;
+      const m = bg.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)/i);
+      if (!m) return null;
+      const a = m[4] == null ? 1 : Number(m[4]);
+      if (a < 0.5) return null;
+      return {
+        r: Math.round(Number(m[1])),
+        g: Math.round(Number(m[2])),
+        b: Math.round(Number(m[3])),
+        alpha: 255,
+      };
+    };
+    const prefer = (n) => {
+      const cls = (n.className || '').toString();
+      return /ff-section(?!-)|ff-card|ff-widget-card|ff-table-card|ff-panel-card/.test(cls);
+    };
+    let preferred = null;
+    let first = null;
+    let n = el;
+    while (n && n.nodeType === 1) {
+      const bg = parse(getComputedStyle(n).backgroundColor);
+      if (bg) {
+        if (!first) first = bg;
+        if (prefer(n)) {
+          preferred = bg;
+          break;
+        }
+      }
+      n = n.parentElement;
+    }
+    return preferred || first;
+  });
+  if (fromCss) return fromCss;
+
+  // Pixel sample: one CSS pixel above the subject (still on the same card when inset).
+  const box = await loc.boundingBox();
+  if (!box) return { r: 255, g: 255, b: 255, alpha: 255 };
+  const x = Math.min(manifest.viewport.width - 1, Math.max(0, box.x + Math.min(8, box.width / 2)));
+  const y = Math.min(manifest.viewport.height - 1, Math.max(0, box.y - 2));
+  const buf = await page.screenshot({
+    type: 'png',
+    clip: { x, y, width: 1, height: 1 },
+  });
+  const { data } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  return { r: data[0], g: data[1], b: data[2], alpha: 255 };
+}
+
 async function captureElement(page, scene, theme) {
-  const fullPage = scene.fullPage === true;
-  if (fullPage) {
+  if (scene.fullPage === true) {
     const buf = await page.screenshot({ type: 'png', fullPage: false });
-    await writePadded(buf, scene.name, theme);
+    await writeShot(buf, scene.name, theme, null);
     return true;
   }
 
@@ -163,10 +212,10 @@ async function captureElement(page, scene, theme) {
   } catch (_) {}
   await runBefore(page, scene);
 
-  // Prefer the field chrome (label + control) so pads frame a complete input.
+  // Prefer the nearest field/entry/column chrome (ff-component controls or ff-field).
   if (!scene.closest && !scene.fullBleed) {
     const field = loc.locator(
-      "xpath=ancestor-or-self::*[contains(@class,'ff-field') or contains(@class,'ff-component') or contains(@class,'ff-entry') or contains(@class,'ff-column') or @data-ff-docs][1]",
+      "xpath=ancestor-or-self::*[contains(@class,'ff-text-input') or contains(@class,'ff-field') or contains(@class,'ff-entry') or contains(@class,'ff-column') or contains(@class,'ff-component')][1]",
     );
     if (await field.count()) loc = field.first();
   }
@@ -189,7 +238,9 @@ async function captureElement(page, scene, theme) {
     if (await panel.count()) boxes.push(await panel.boundingBox());
   }
   if (scene.closest) {
-    const wrap = loc.locator(`xpath=ancestor::*[contains(@class,'ff-table-wrap') or contains(@class,'ff-table') or contains(@class,'ff-panel') or contains(@class,'ff-page')][1]`);
+    const wrap = loc.locator(
+      `xpath=ancestor::*[contains(@class,'ff-table-wrap') or contains(@class,'ff-table') or contains(@class,'ff-panel') or contains(@class,'ff-page')][1]`,
+    );
     if (await wrap.count()) {
       boxes.length = 0;
       boxes.push(await wrap.first().boundingBox());
@@ -202,64 +253,46 @@ async function captureElement(page, scene, theme) {
     }
   }
 
-  // Paint a solid ring via box-shadow (included in element screenshots) so the
-  // subject never sits flush against the PNG edge without swallowing neighbors.
-  const ring = THEME_PAD[theme] || THEME_PAD.light;
-  const ringCss = `rgba(${ring.r},${ring.g},${ring.b},1)`;
-  await loc.evaluate(
-    (el, { pad, color }) => {
-      el.setAttribute('data-ff-shot-target', '1');
-      el.style.setProperty('box-shadow', `0 0 0 ${pad}px ${color}`, 'important');
-      el.style.setProperty('border-radius', getComputedStyle(el).borderRadius || '0.5rem', 'important');
-    },
-    { pad: padCss, color: ringCss },
-  );
+  const surface = await sampleSurface(page, loc);
+  const edgePad = scene.pad != null ? Number(scene.pad) : padCss;
 
-  // Component fields: element screenshot + solid pad (avoids neighboring fields).
-  // Open menus / section composites: page clip + solid pad.
   let buf;
-  try {
-    if (!openUi && !scene.closest && !scene.fullBleed && scene.compose !== 'clip') {
-      buf = await loc.screenshot({ type: 'png', timeout: 10000 });
-    } else {
-      const clip = clipFromBoxes(boxes, manifest.viewport, openUi ? 8 : padCss);
-      if (!clip) {
-        console.warn(`skip ${scene.name} (${theme}): empty box`);
-        return false;
-      }
-      const maxH = scene.maxHeight || 1100;
-      clip.height = Math.min(clip.height, maxH);
-      buf = await page.screenshot({ type: 'png', clip });
+  if (openUi || scene.closest || scene.compose === 'clip' || scene.fullBleed) {
+    // Large/composited shots: clip real page pixels around the subject.
+    const clip = clipFromBoxes(boxes, manifest.viewport, edgePad);
+    if (!clip) {
+      console.warn(`skip ${scene.name} (${theme}): empty box`);
+      return false;
     }
-  } finally {
-    await loc.evaluate((el) => {
-      el.removeAttribute('data-ff-shot-target');
-      el.style.removeProperty('box-shadow');
-    }).catch(() => null);
+    clip.height = Math.min(clip.height, scene.maxHeight || 1100);
+    buf = await page.screenshot({ type: 'png', clip });
+    await writeShot(buf, scene.name, theme, null);
+  } else {
+    // Field shots: capture the control, then pad with its real surface color
+    // (white card → white) so neighbors are not pulled into the crop.
+    buf = await loc.screenshot({ type: 'png', timeout: 10000 });
+    await writeShot(buf, scene.name, theme, surface);
   }
-  await writePadded(buf, scene.name, theme);
   return true;
 }
 
-/**
- * Keep the clipped region intact and add a solid theme margin so controls
- * never sit flush against the PNG border.
- */
-async function writePadded(buf, name, theme) {
-  const bg = THEME_PAD[theme] || THEME_PAD.light;
-  const out = await sharp(buf)
-    .extend({
-      top: pad,
-      bottom: pad,
-      left: pad,
-      right: pad,
-      background: bg,
-    })
-    .png()
-    .toBuffer();
+async function writeShot(buf, name, theme, surface) {
+  let out = buf;
+  if (surface) {
+    out = await sharp(buf)
+      .extend({
+        top: padPx,
+        bottom: padPx,
+        left: padPx,
+        right: padPx,
+        background: surface,
+      })
+      .png()
+      .toBuffer();
+  }
   const path = join(outDir, `${name}-${theme}.png`);
   await sharp(out).png().toFile(path);
-  console.log('wrote', path.replace(root + '/', ''));
+  console.log('wrote', path.replace(root + '/', ''), surface ? `pad=${JSON.stringify(surface)}` : 'page-clip');
 }
 
 async function injectSwatchCss(page) {
@@ -283,7 +316,7 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: manifest.viewport,
-    deviceScaleFactor: 2,
+    deviceScaleFactor: deviceScale,
   });
   const page = await context.newPage();
   await login(page);

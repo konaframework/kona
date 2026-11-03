@@ -103,12 +103,13 @@ starlight-tabs [role='tabpanel'][hidden] {
   display: block;
   width: 100%;
   margin: 0;
-  padding: 1.25rem;
+  padding: 0;
   border: 1px solid var(--sl-color-hairline);
   border-radius: 0.75rem;
-  background: var(--sl-color-bg-nav);
+  background: transparent;
   cursor: zoom-in;
   text-align: left;
+  overflow: hidden;
 }
 
 .firefly-shot__trigger:hover,
