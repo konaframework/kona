@@ -135,7 +135,17 @@ open class CadenceCompanion<T : Cadence<T>>(
 
     fun has(relation: String): ModelBuilder<T> = query().has(relation)
 
+    fun has(relation: String, operator: String, count: Int): ModelBuilder<T> =
+        query().has(relation, operator, count)
+
     fun doesntHave(relation: String): ModelBuilder<T> = query().doesntHave(relation)
+
+    fun doesntHave(relation: String, operator: String, count: Int): ModelBuilder<T> =
+        query().doesntHave(relation, operator, count)
+
+    @JvmOverloads
+    fun orHas(relation: String, operator: String = ">=", count: Int = 1): ModelBuilder<T> =
+        query().orHas(relation, operator, count)
 
     fun withTrashed(): ModelBuilder<T> = query().withTrashed()
 

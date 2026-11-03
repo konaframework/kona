@@ -113,24 +113,56 @@
     if (input.multiple) {
       return Array.prototype.filter.call(input.options, function (o) { return o.selected && o.value; }).map(function (o) { return o.value; });
     }
+    if (input.hasAttribute('data-ff-combobox-value')) {
+      return input.value ? input.value.split(',').filter(Boolean) : [];
+    }
     return input.value ? [input.value] : [];
   }
 
-  function serializeBuilder(qb) {
-    var groups = [];
-    qb.querySelectorAll('[data-ff-qb-group]').forEach(function (group) {
-      var rules = [];
-      group.querySelectorAll('[data-ff-qb-rule]').forEach(function (rule) {
-        var op = rule.querySelector('[data-ff-qb-operator]');
-        var choice = op && op.options[op.selectedIndex];
-        if (!choice) return;
-        var needs = choice.getAttribute('data-ff-qb-novalue') !== 'true';
-        var values = ruleValues(rule);
-        if (needs && !values.length) return;
-        rules.push(enc(rule.getAttribute('data-ff-qb-constraint')) + ':' + op.value + ':' + values.map(enc).join(','));
-      });
-      if (rules.length) groups.push(rules.join(';'));
+  function encodeRule(rule) {
+    var op = rule.querySelector('[data-ff-qb-operator]');
+    var choice = op && op.options[op.selectedIndex];
+    if (!choice) return '';
+    var needs = choice.getAttribute('data-ff-qb-novalue') !== 'true';
+    var values = ruleValues(rule);
+    if (needs && !values.length) return '';
+    return enc(rule.getAttribute('data-ff-qb-constraint')) + ':' + op.value + ':' + values.map(enc).join(',');
+  }
+
+  function rulesContainer(group) {
+    return Array.prototype.find.call(group.children, function (c) {
+      return c.hasAttribute && c.hasAttribute('data-ff-qb-rules');
+    }) || group.querySelector('[data-ff-qb-rules]');
+  }
+
+  function serializeGroup(group) {
+    var or = group.getAttribute('data-ff-qb-or') === 'true';
+    var box = rulesContainer(group);
+    if (!box) return '';
+    var kids = [];
+    Array.prototype.forEach.call(box.children, function (child) {
+      if (child.hasAttribute('data-ff-qb-rule')) {
+        var encoded = encodeRule(child);
+        if (encoded) kids.push(encoded);
+      } else if (child.hasAttribute('data-ff-qb-group')) {
+        var nested = serializeGroup(child);
+        if (nested) kids.push('(' + nested + ')');
+      }
     });
+    if (!kids.length) return '';
+    return kids.join(or ? '|' : ';');
+  }
+
+  function serializeBuilder(qb) {
+    var root = qb.querySelector('[data-ff-qb-groups]');
+    var groups = [];
+    if (root) {
+      Array.prototype.forEach.call(root.children, function (group) {
+        if (!group.hasAttribute || !group.hasAttribute('data-ff-qb-group')) return;
+        var expr = serializeGroup(group);
+        if (expr) groups.push(expr);
+      });
+    }
     var state = qb.querySelector('[data-ff-qb-state]');
     var next = groups.join('|');
     if (state && state.value !== next) {
@@ -154,6 +186,30 @@
     var holder = document.createElement('div');
     holder.innerHTML = tpl.innerHTML;
     return holder.firstElementChild;
+  }
+
+  function appendRule(qb, group, name) {
+    var rule = cloneTemplate(qb, 'template[data-ff-qb-template="' + name.replace(/"/g, '\\"') + '"]');
+    if (!rule) return;
+    rulesContainer(group).appendChild(rule);
+    syncOperator(rule);
+    var focus = rule.querySelector('[data-ff-qb-input], [data-ff-combobox-display]');
+    if (focus && focus.focus) focus.focus();
+    serializeBuilder(qb);
+  }
+
+  function filterPicker(picker, query) {
+    var needle = (query || '').toLowerCase();
+    var any = false;
+    picker.querySelectorAll('[data-ff-qb-pick]').forEach(function (btn) {
+      var label = (btn.textContent || '').toLowerCase();
+      var show = !needle || label.indexOf(needle) >= 0;
+      if (show) { btn.removeAttribute('hidden'); any = true; } else btn.setAttribute('hidden', '');
+    });
+    var menu = picker.querySelector('[data-ff-qb-picker-menu]');
+    if (menu) {
+      if (any) menu.removeAttribute('hidden'); else menu.setAttribute('hidden', '');
+    }
   }
 
   // ---- events ----
@@ -194,13 +250,47 @@
       return;
     }
 
+    var addNested = t.closest('[data-ff-qb-add-nested]');
+    if (addNested) {
+      var qbN = addNested.closest('[data-ff-qb]');
+      var parent = addNested.closest('[data-ff-qb-group]');
+      var parentOr = parent && parent.getAttribute('data-ff-qb-or') === 'true';
+      var nested = cloneTemplate(qbN, parentOr
+        ? 'template[data-ff-qb-group-template]'
+        : 'template[data-ff-qb-nested-or-template]');
+      if (nested && parent) {
+        rulesContainer(parent).appendChild(nested);
+        serializeBuilder(qbN);
+      }
+      return;
+    }
+
+    var pick = t.closest('[data-ff-qb-pick]');
+    if (pick) {
+      var qbP = pick.closest('[data-ff-qb]');
+      var groupP = pick.closest('[data-ff-qb-group]');
+      var pickName = pick.getAttribute('data-ff-qb-pick');
+      if (qbP && groupP && pickName) {
+        appendRule(qbP, groupP, pickName);
+        var search = groupP.querySelector('[data-ff-qb-add-search]');
+        if (search) search.value = '';
+        var menu = groupP.querySelector('[data-ff-qb-picker-menu]');
+        if (menu) menu.setAttribute('hidden', '');
+      }
+      return;
+    }
+
     var removeGroup = t.closest('[data-ff-qb-remove-group]');
     if (removeGroup) {
       var qbG = removeGroup.closest('[data-ff-qb]');
-      var groups = qbG.querySelectorAll('[data-ff-qb-group]');
       var mine = removeGroup.closest('[data-ff-qb-group]');
-      if (groups.length > 1) mine.remove();
-      else mine.querySelector('[data-ff-qb-rules]').innerHTML = '';
+      var parentRules = mine && mine.parentElement;
+      var top = qbG.querySelector('[data-ff-qb-groups]');
+      var siblings = parentRules === top
+        ? Array.prototype.filter.call(top.children, function (c) { return c.hasAttribute('data-ff-qb-group'); })
+        : Array.prototype.filter.call(parentRules.children, function (c) { return c.hasAttribute('data-ff-qb-group') || c.hasAttribute('data-ff-qb-rule'); });
+      if (siblings.length > 1 || parentRules !== top) mine.remove();
+      else rulesContainer(mine).innerHTML = '';
       serializeBuilder(qbG);
       return;
     }
@@ -213,7 +303,10 @@
       return;
     }
 
-    if (!t.closest('[data-ff-filters-layout="dropdown"]') && !t.closest('[data-ff-combobox-panel],[data-ff-picker-panel]')) closeDropdowns(null);
+    if (!t.closest('[data-ff-qb-picker]') && !t.closest('[data-ff-filters-layout="dropdown"]') && !t.closest('[data-ff-combobox-panel],[data-ff-picker-panel]')) {
+      document.querySelectorAll('[data-ff-qb-picker-menu]').forEach(function (m) { m.setAttribute('hidden', ''); });
+      closeDropdowns(null);
+    }
   });
 
   document.addEventListener('change', function (ev) {
@@ -225,13 +318,7 @@
         var name = el.value;
         el.value = '';
         if (!name) return;
-        var rule = cloneTemplate(qb, 'template[data-ff-qb-template="' + name.replace(/"/g, '\\"') + '"]');
-        if (!rule) return;
-        el.closest('[data-ff-qb-group]').querySelector('[data-ff-qb-rules]').appendChild(rule);
-        syncOperator(rule);
-        var focus = rule.querySelector('[data-ff-qb-input]');
-        if (focus && focus.focus) focus.focus();
-        serializeBuilder(qb);
+        appendRule(qb, el.closest('[data-ff-qb-group]'), name);
         return;
       }
       if (el.matches('[data-ff-qb-operator]')) syncOperator(el.closest('[data-ff-qb-rule]'));
@@ -246,10 +333,23 @@
     var el = ev.target;
     if (!el || !el.closest) return;
     var qb = el.closest('[data-ff-qb]');
-    if (qb) { serializeBuilder(qb); return; }
+    if (qb) {
+      if (el.matches('[data-ff-qb-add-search]')) {
+        filterPicker(el.closest('[data-ff-qb-picker]'), el.value);
+        return;
+      }
+      serializeBuilder(qb);
+      return;
+    }
     if (el.matches('input[type="text"],input[type="search"],input[type="number"],input:not([type]),textarea')) {
       scheduleLive(el.closest('form[data-ff-filters-live="true"]'), 450);
     }
+  });
+
+  document.addEventListener('focusin', function (ev) {
+    var el = ev.target;
+    if (!el || !el.matches || !el.matches('[data-ff-qb-add-search]')) return;
+    filterPicker(el.closest('[data-ff-qb-picker]'), el.value);
   });
 
   // Remember which panel was open so live updates reopen it after the soft-nav swap.

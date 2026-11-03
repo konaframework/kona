@@ -241,10 +241,22 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     /** Current explicit filter state as query-string pairs (empty while defaults apply). */
     fun filterQuery(): Map<String, String> = LinkedHashMap(filterSet.query(tableCell()).toMap())
 
-    /** Options of a [SelectFilter] matching [search] (remote combobox search); empty for other filters. */
+    /**
+     * Options of a [SelectFilter] matching [search], or of a [RelationshipConstraint] addressed as
+     * `queryBuilderName.constraintName` (remote query-builder relationship pickers).
+     */
     fun filterOptions(name: String, search: String): Map<String, String> {
-        val filter = filterSet.filters().firstOrNull { it.name == name } as? SelectFilter ?: return emptyMap()
-        return filter.options(tableCell(), store, search.ifBlank { null })
+        val select = filterSet.filters().firstOrNull { it.name == name } as? SelectFilter
+        if (select != null) return select.options(tableCell(), store, search.ifBlank { null })
+        val dot = name.indexOf('.')
+        if (dot > 0) {
+            val filterName = name.substring(0, dot)
+            val constraintName = name.substring(dot + 1)
+            val qb = filterSet.filters().firstOrNull { it.name == filterName } as? QueryBuilderFilter
+            val rel = qb?.constraintNamed(constraintName) as? RelationshipConstraint
+            if (rel != null) return rel.searchOptions(store, search.ifBlank { null })
+        }
+        return emptyMap()
     }
 
     fun filterIndicators(): List<FilterIndicator> = filterSet.indicators(tableCell(), store).map { it.second }

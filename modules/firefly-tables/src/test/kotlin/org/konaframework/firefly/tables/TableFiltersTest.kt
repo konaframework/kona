@@ -66,6 +66,21 @@ class TableFiltersTest {
         assertEquals(3, count { store.constrainRelationship(it, "team", null, false) })
         assertEquals(1, count { store.constrainRelationship(it, "tags", null, false) })
         assertEquals(1, count { store.constrainRelationship(it, "team", null, true) })
+        assertEquals(1, count { store.constrainRelationshipCount(it, "tags", ">=", 1) })
+        assertEquals(3, count { store.constrainRelationshipCount(it, "team", ">", 0) })
+        assertEquals(0, count { store.constrainRelationshipCount(it, "team", ">", 5) })
+        assertEquals(3, count { store.constrainRelationshipCount(it, "team", "=", 1) })
+        assertEquals(1, count { store.constrainRelationshipCount(it, "team", "=", 0) })
+        assertEquals(1, count { store.constrainRelationshipCount(it, "team", "<", 1) })
+        assertEquals(4, count { store.constrainRelationshipCount(it, "team", "<", 2) })
+        assertEquals(4, count { store.constrainRelationshipCount(it, "team", "<=", 1) })
+        assertEquals(3, count { store.constrainRelationshipCount(it, "tags", "<=", 0) })
+        assertEquals(1, count { store.constrainRelationshipCount(it, "team", "!=", 1) })
+        assertEquals(1, count { store.constrainRelationshipCount(it, "team", "<>", 1) })
+        assertEquals(3, count { store.constrainRelationshipCount(it, "team", "<>", 0) })
+        assertThrows(FireflyException::class.java) {
+            store.query().also { store.constrainRelationshipCount(it, "team", "~", 1) }.get()
+        }
         assertEquals(1, count { store.constrainDate(it, "joined", "date", ">", "2024-02-01") })
         assertEquals(1, count { store.constrainDate(it, "joined", "day", "=", 9) })
         assertEquals(1, count { store.constrainDate(it, "joined", "month", "=", 7) })
@@ -97,6 +112,7 @@ class TableFiltersTest {
         assertEquals("grouped", query.toString())
         assertThrows(FireflyException::class.java) { store.constrainDate(query, "at", "date", "=", "x") }
         assertThrows(FireflyException::class.java) { store.constrainRelationship(query, "team", null, false) }
+        assertThrows(FireflyException::class.java) { store.constrainRelationshipCount(query, "team", ">=", 1) }
         assertThrows(FireflyException::class.java) { store.relationshipOptions("team", "name", null, null, null, null) }
     }
 
@@ -491,7 +507,9 @@ class TableFiltersTest {
 
     @Test
     fun queryBuilderInMemory() {
-        val builder = QueryBuilderFilter.make("query").label("Advanced").constraintPickerColumns(2).constraintPickerWidth("18rem").constraints(
+        val builder = QueryBuilderFilter.make("query").label("Advanced").constraintPickerColumns(2).constraintPickerWidth("18rem")
+            .searchableConstraintPicker()
+            .constraints(
             TextConstraint.make("name").operators(
                 ConstraintOperator("contains", "contains", "does not contain"),
                 ConstraintOperator("equals", "equals", "does not equal"),
@@ -504,8 +522,9 @@ class TableFiltersTest {
             BooleanConstraint.make("active"),
             SelectConstraint.make("state").attribute("status").label("State").options(mapOf("open" to "Open", "shut" to "Shut")),
             RelationshipConstraint.make("team").titleAttribute("name").multiple(false).optionsLimit(5).modifyOptionsQueryUsing { },
+            RelationshipConstraint.make("tags").titleAttribute("name").multiple().searchable().preload().optionsLimit(5),
         )
-        assertEquals(6, builder.constraints().size)
+        assertEquals(7, builder.constraints().size)
         assertThrows(FireflyException::class.java) { builder.constraintPickerColumns(0) }
         assertThrows(FireflyException::class.java) { builder.constraintPickerWidth("wide") }
         assertThrows(FireflyException::class.java) { TextConstraint.make("n").operators(*emptyArray()) }
@@ -514,10 +533,19 @@ class TableFiltersTest {
         val empty = table.render()
         assertTrue(empty.contains("data-ff-qb-picker-columns=\"2\""), empty)
         assertTrue(empty.contains("--ff-qb-picker-width: 18rem"), empty)
+        assertTrue(empty.contains("""data-ff-qb-searchable-picker="true""""), empty)
+        assertTrue(empty.contains("data-ff-qb-pick=\"state\""), empty)
         assertTrue(empty.contains("""value="soundex""""), empty)
         assertTrue(empty.contains("data-ff-qb-group-template"))
-        assertTrue(empty.contains("""<option value="state">State</option>"""))
+        assertTrue(empty.contains("data-ff-qb-nested-or-template"))
+        assertTrue(empty.contains("data-ff-qb-add-nested"))
         assertTrue(empty.contains("""data-ff-qb-novalue="true""""))
+        assertTrue(empty.contains("data-ff-relationship=\"tags\""), empty)
+        assertTrue(empty.contains("data-ff-path=\"filters.query.tags\""), empty)
+        assertEquals(mapOf("x" to "Urgent"), table.filterOptions("query.tags", "urg"))
+        assertTrue(table.filterOptions("query.ghost", "").isEmpty())
+        assertTrue(RelationshipConstraint.make("tags").multiple().operators().any { it.key == "hasMin" })
+        assertFalse(RelationshipConstraint.make("team").multiple(false).operators().any { it.key == "hasMin" })
         fun run(rules: String): List<String> {
             table.applyFilterQuery(mapOf("filters" to "1", "filters.query" to rules))
             return names(table)
@@ -539,8 +567,30 @@ class TableFiltersTest {
         assertEquals(listOf("Ada", "Dee"), run("active:isTrue:"))
         assertEquals(listOf("Ada", "Cy", "Dee"), run("state:is:open,shut"))
         assertEquals(listOf("Ada", "Cy"), run("team:isRelatedTo:t1"))
+        assertEquals(listOf("Dee"), run("tags:hasMin:1"))
+        assertEquals(listOf("Ada", "Bea", "Cy"), run("tags:!hasMin:1"))
+        assertEquals(listOf("Ada", "Bea", "Cy", "Dee"), run("tags:hasMax:1"))
+        assertEquals(listOf("Dee"), run("tags:hasCount:1"))
+        assertEquals(listOf("Ada", "Bea", "Cy"), run("tags:!hasCount:1"))
         assertEquals(listOf("Cy"), run("name:!isFilled:|name:equals:Cy"))
         assertEquals(listOf("Ada", "Dee"), run("active:isTrue:;score:isMax:10"))
+        // Nested: not-active AND (score >= 40 OR name equals Cy) → Bea (inactive, high score)
+        assertEquals(listOf("Bea"), run("active:!isTrue:;(score:isMin:40|name:equals:Cy)"))
+        val nested = QueryBuilderFilter.encodeNode(
+            QueryNode.And(
+                listOf(
+                    QueryNode.Leaf(QueryRule("active", "isTrue", true, emptyList())),
+                    QueryNode.Or(
+                        listOf(
+                            QueryNode.Leaf(QueryRule("score", "isMin", false, listOf("40"))),
+                            QueryNode.Leaf(QueryRule("name", "equals", false, listOf("Cy"))),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        assertEquals("active:!isTrue:;(score:isMin:40|name:equals:Cy)", nested)
+        assertEquals(listOf("Bea"), run(nested))
         val encoded = QueryBuilderFilter.encode(
             listOf(listOf(QueryRule("name", "contains", false, listOf("a b,c"))), listOf(QueryRule("active", "isTrue", true, emptyList()))),
         )
@@ -589,6 +639,135 @@ class TableFiltersTest {
         assertEquals("Team is not t1", RelationshipConstraint.make("team").describe(null, QueryRule("team", "isRelatedTo", true, listOf("t1"))))
         assertTrue(RelationshipConstraint.make("team").inputHtml(null, emptyList()).contains("<select"))
         assertTrue(TextConstraint.make("name").inputHtml(null, listOf("x")).contains("value=\"x\""))
+        val tagsRel = RelationshipConstraint.make("tags").searchable().preload(false)
+        assertTrue(tagsRel.isSearchable())
+        assertFalse(tagsRel.isPreload())
+        assertEquals("name", tagsRel.titleAttribute())
+        assertNull(tagsRel.modifyOptionsQuery())
+        assertEquals(50, tagsRel.optionsLimit())
+        assertFalse(tagsRel.accepts("hasMin", "nope"))
+        assertFalse(tagsRel.accepts("hasMin", "-1"))
+        assertTrue(tagsRel.accepts("hasMin", "0"))
+        assertTrue(tagsRel.accepts("isRelatedTo", "x"))
+        assertTrue(tagsRel.inputHtml(null, emptyList(), "filters.query.tags").contains("data-ff-combobox"))
+        assertTrue(tagsRel.inputHtml(null, emptyList(), null).contains("data-ff-combobox"))
+        val mem = MemoryRecordStore(rows)
+        assertTrue(tagsRel.inputHtml(mem, emptyList(), "filters.query.tags").contains("data-ff-combobox"))
+        assertTrue(tagsRel.inputHtml(mem, listOf("x"), "filters.query.tags").contains("Urgent"))
+        assertTrue(
+            RelationshipConstraint.make("tags").searchable().preload()
+                .inputHtml(mem, emptyList(), "filters.query.tags")
+                .contains("Urgent"),
+        )
+        assertTrue(tagsRel.searchOptions(null, "x").isEmpty())
+        assertEquals(mapOf("x" to "Urgent"), tagsRel.searchOptions(mem, "urg"))
+        assertEquals(listOf("Dee"), run("tags:!hasMax:0"))
+        assertEquals(listOf("Ada", "Bea", "Cy", "Dee"), run("tags:!hasCount:2"))
+        assertEquals(emptyList<String>(), builder.groups(FilterData(emptyMap())))
+        assertEquals(FilterData(emptyMap()), builder.applyIndicatorRemoval(FilterData(emptyMap()), emptyList()))
+        assertEquals(FilterData(emptyMap()), builder.applyIndicatorRemoval(FilterData(emptyMap()), listOf("__qb:0:0")))
+        assertEquals(FilterData(emptyMap()), builder.applyIndicatorRemoval(FilterData.single("name:contains:a"), listOf("__qb:0:0")))
+        assertEquals(
+            FilterData.single("name:contains:a"),
+            builder.applyIndicatorRemoval(FilterData.single("name:contains:a"), listOf("ghost")),
+        )
+        // Nested UI chrome + groups() over a nested OR.
+        table.applyFilterQuery(mapOf("filters" to "1", "filters.query" to "active:!isTrue:;(score:isMin:40|name:equals:Cy)"))
+        assertEquals(1, builder.groups(table.filterData("query")).size)
+        assertTrue(builder.groups(table.filterData("query")).first().size >= 2)
+        val nestedHtml = table.render()
+        assertTrue(nestedHtml.contains("""data-ff-qb-or="true""""), nestedHtml)
+        assertTrue(nestedHtml.contains("""data-ff-qb-constraint="score""""), nestedHtml)
+        assertEquals(mapOf("x" to "Urgent"), table.filterOptions("query.tags", ""))
+        assertTrue(table.filterOptions("status", "x").isEmpty())
+        assertTrue(table.filterOptions("query.name", "").isEmpty())
+        assertTrue(table.filterOptions("missing.tags", "").isEmpty())
+        assertTrue(QueryNode.And(emptyList()).isEmpty())
+        assertTrue(QueryNode.Or(emptyList()).isEmpty())
+        assertFalse(QueryNode.Leaf(QueryRule("n", "equals", false, listOf("x"))).isEmpty())
+        assertEquals(4, run("name:contains:").size)
+        assertEquals(4, run("(name:equals:Ada").size)
+        assertEquals(listOf("Ada"), run("(name:equals:Ada)"))
+        assertEquals(4, run("()").size)
+        assertEquals(4, run("()|()").size)
+        assertEquals(listOf("Ada"), run("name:equals:Ada;()"))
+        assertEquals(
+            "name:equals:Ada|active:isTrue:",
+            QueryBuilderFilter.encodeNode(
+                QueryNode.Or(
+                    listOf(
+                        QueryNode.Leaf(QueryRule("name", "equals", false, listOf("Ada"))),
+                        QueryNode.And(listOf(QueryNode.Leaf(QueryRule("active", "isTrue", false, emptyList())))),
+                    ),
+                ),
+            ),
+        )
+        assertEquals(listOf("Ada", "Bea", "Cy"), run("name:equals:Ada|(score:isMin:40|name:equals:Cy)"))
+        table.applyFilterQuery(mapOf("filters" to "1", "filters.query" to "name:equals:Ada|(score:isMin:40|name:equals:Cy)"))
+        assertTrue(table.filterIndicators().size >= 2)
+        assertEquals(listOf("Ada", "Bea"), run("name:contains:a;"))
+        // Whitespace around rules still parses.
+        assertEquals(listOf("Ada"), run(" name:equals:Ada "))
+        // Trailing junk after a complete expression is dropped.
+        assertEquals(4, run("name:equals:Ada)").size)
+        assertEquals(4, run("   ").size)
+        assertNull(builder.tree(FilterData.single("")))
+        assertNull(builder.tree(FilterData.single("   ")))
+        assertEquals(4, run("|").size)
+        assertEquals(4, run("(").size)
+        assertEquals(4, run("(name:equals:Ada").size)
+        assertEquals(listOf("Ada", "Bea"), run("name:equals:Ada | name:equals:Bea"))
+        assertEquals(listOf("Ada"), run("name:equals:Ada ; active:isTrue:"))
+        assertEquals(
+            "name:contains:a;(score:isMin:1|active:isTrue:)",
+            QueryBuilderFilter.encodeNode(
+                QueryNode.And(
+                    listOf(
+                        QueryNode.Leaf(QueryRule("name", "contains", false, listOf("a"))),
+                        QueryNode.Or(
+                            listOf(
+                                QueryNode.Leaf(QueryRule("score", "isMin", false, listOf("1"))),
+                                QueryNode.Leaf(QueryRule("active", "isTrue", false, emptyList())),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        // Nested OR wrapped in parentheses when encoded under an AND.
+        assertEquals(
+            "score:isMin:1;(name:contains:a|active:isTrue:)",
+            QueryBuilderFilter.encodeNode(
+                QueryNode.And(
+                    listOf(
+                        QueryNode.Leaf(QueryRule("score", "isMin", false, listOf("1"))),
+                        QueryNode.Or(
+                            listOf(
+                                QueryNode.Leaf(QueryRule("name", "contains", false, listOf("a"))),
+                                QueryNode.Leaf(QueryRule("active", "isTrue", false, emptyList())),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        // Nested AND wrapped when encoded under an OR.
+        assertEquals(
+            "name:contains:a|(active:isTrue:;score:isMin:1)",
+            QueryBuilderFilter.encodeNode(
+                QueryNode.Or(
+                    listOf(
+                        QueryNode.Leaf(QueryRule("name", "contains", false, listOf("a"))),
+                        QueryNode.And(
+                            listOf(
+                                QueryNode.Leaf(QueryRule("active", "isTrue", false, emptyList())),
+                                QueryNode.Leaf(QueryRule("score", "isMin", false, listOf("1"))),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
     }
 
     @Test

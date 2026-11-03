@@ -336,6 +336,28 @@ class RelationsTest {
         bob.genres().attach(sci)
 
         assertEquals(listOf("Ada", "Bob"), Author.has("books").orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Ada"), Author.has("books", ">=", 2).orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Bob"), Author.has("books", "=", 1).orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Ada"), Author.has("books", "!=", 1).orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Ada"), Author.has("books", "<>", 1).orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Bob"), Author.has("books", "<", 2).orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Bob"), Author.has("books", "<=", 1).orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Ada"), Author.has("books", ">", 1).orderBy("name").get().map { it["name"] })
+        assertEquals(listOf("Bob"), Author.doesntHave("books", ">=", 2).orderBy("name").get().map { it["name"] })
+        assertEquals(
+            listOf("Ada", "Bob"),
+            Author.query().where("name", "Nobody").orHas("books").orderBy("name").get().map { it["name"] },
+        )
+        assertEquals(
+            listOf("Ada", "Bob"),
+            Author.orHas("books", ">=", 1).orderBy("name").get().map { it["name"] },
+        )
+        assertEquals(
+            listOf("Ada", "Bob"),
+            Author.orHas("books").orderBy("name").get().map { it["name"] },
+        )
+        assertThrows(CadenceException::class.java) { Author.has("books", "~~", 1).get() }
+        assertThrows(CadenceException::class.java) { Author.has("books", ">=", -1).get() }
         assertEquals(listOf("Bob"), Author.doesntHave("profile").orderBy("name").get().map { it["name"] })
         assertEquals(
             listOf("Ada"),

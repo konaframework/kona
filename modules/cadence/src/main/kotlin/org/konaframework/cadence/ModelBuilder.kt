@@ -435,9 +435,23 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
     fun orWhereDoesntHave(relation: String, constraint: Consumer<ModelBuilder<*>>? = null): ModelBuilder<T> =
         addHas(OR, relation, constraint, negate = true)
 
-    fun has(relation: String): ModelBuilder<T> = whereHas(relation)
+    fun has(relation: String): ModelBuilder<T> = has(relation, ">=", 1)
+
+    /**
+     * Related-row count comparison (Eloquent `has($relation, $operator, $count)`).
+     * Uses a correlated `(select count(*) …) $operator ?` predicate.
+     */
+    fun has(relation: String, operator: String, count: Int): ModelBuilder<T> =
+        addHasCount(AND, relation, operator, count)
 
     fun doesntHave(relation: String): ModelBuilder<T> = whereDoesntHave(relation)
+
+    /** Inverse of [has] with a count: `not ((select count(*) …) $operator ?)`. */
+    fun doesntHave(relation: String, operator: String, count: Int): ModelBuilder<T> =
+        addHasCount(AND, relation, operator, count, negate = true)
+
+    fun orHas(relation: String, operator: String = ">=", count: Int = 1): ModelBuilder<T> =
+        addHasCount(OR, relation, operator, count)
 
     // ---- reads ----
 
@@ -723,6 +737,31 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
         return this
     }
 
+    private fun addHasCount(
+        boolean: String,
+        relation: String,
+        operator: String,
+        count: Int,
+        negate: Boolean = false,
+    ): ModelBuilder<T> {
+        if (count < 0) throw CadenceException("has() count must be >= 0")
+        val op = countOperator(operator)
+        val rel = EagerLoader.relationOf(model, relation)
+        if (rel is MorphTo) {
+            throw CadenceException("MorphTo does not support has() with a count comparison")
+        }
+        val subquery = existenceQuery(relation, null, Aggregate.COUNT)
+        val comparison = "(${subquery.toSql()}) $op ?"
+        val sql = if (negate) "not ($comparison)" else comparison
+        val bindings = subquery.getBindings() + count
+        if (boolean == AND) {
+            query.whereRaw(sql, bindings)
+        } else {
+            query.orWhereRaw(sql, bindings)
+        }
+        return this
+    }
+
     /**
      * MorphTo existence: OR across registered [MorphMap] types (Laravel `whereHas` / `whereHasMorph`).
      * Requires at least one morph alias registration.
@@ -876,6 +915,11 @@ class ModelBuilder<T : Cadence<T>> internal constructor(
     private enum class Aggregate { COUNT, EXISTS, SUM, AVG, MAX, MIN }
 
     private companion object {
+        fun countOperator(operator: String): String = when (operator) {
+            "=", "!=", "<>", "<", "<=", ">", ">=" -> operator
+            else -> throw CadenceException("Unsupported has() operator [$operator]")
+        }
+
         const val AND = "and"
         const val OR = "or"
 

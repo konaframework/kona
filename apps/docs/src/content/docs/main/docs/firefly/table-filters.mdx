@@ -3,7 +3,7 @@ title: Table filters
 description: "Narrow a Firefly table with checkbox, select, ternary, trashed, custom-form, and query builder filters. State lives in the URL, can persist in the session, and shows as removable chips."
 ---
 
-import FireflyShot from '../../../../../components/FireflyShot.astro';
+import FireflyShot from '../../../../components/FireflyShot.astro';
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
@@ -456,13 +456,17 @@ QueryBuilderFilter.make("advanced").constraints(
 | `DateConstraint` | is after, is before, is date, is month, is year, is filled |
 | `BooleanConstraint` | is true |
 | `SelectConstraint` | is, is filled |
-| `RelationshipConstraint` | is related to, has |
+| `RelationshipConstraint` | is related to, has; with `multiple()` also has minimum / maximum / exactly |
 
 Every operator can be inverted ("does not contain", "is not filled", "does not have"). A condition with an invalid value, such as letters in a number field, is ignored rather than failing the page. Each rule becomes its own removable chip (for example "Title contains Kona" and "Pages is at least 200").
 
+Groups join with **or**; rules inside a group join with **and**. Nest deeper with parentheses in the URL state (`active:!isTrue:;(score:isMin:40|name:equals:Cy)`), or use **Add nested group** in the UI.
+
 `TextConstraint.make("title").insensitive()` matches without regard to letter case (`ilike` on SQL stores).
 
-`constraintPickerWidth("18rem")` sizes the "Add rule…" control. Replace a constraint's operators with `operators(...)` (including a custom `ConstraintOperator` that supplies an apply hook) when you need keys beyond the built-ins — see the Java sample in `TableFiltersJavaTest`.
+`constraintPickerWidth("18rem")` sizes the "Add rule…" control. `searchableConstraintPicker()` turns that control into a typeahead for long constraint lists. On a relationship constraint, `searchable()` / `preload()` match `SelectFilter` (options load through the table `form-options` route as `filters.advanced.author`).
+
+Replace a constraint's operators with `operators(...)` (including a custom `ConstraintOperator` that supplies an apply hook) when you need keys beyond the built-ins — see the Java sample in `TableFiltersJavaTest`.
 
 The builder is a filter like any other, so it sits in the same form, works with deferred and live mode, and is stored in the URL as `filters.advanced=…`.
 

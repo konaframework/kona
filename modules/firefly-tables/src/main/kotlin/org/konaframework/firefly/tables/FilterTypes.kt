@@ -513,6 +513,7 @@ internal object FilterSelectMarkup {
     }
 
     /** Same shell as the form `Select` combobox so chrome opens, filters, and chips it without Alpine. */
+    @JvmOverloads
     fun combobox(
         name: String,
         choices: Map<String, String>,
@@ -524,6 +525,10 @@ internal object FilterSelectMarkup {
         remoteRelation: String?,
         remote: Boolean,
         extra: String,
+        /** When true, omit the field `name` and mark the hidden value as a query-builder input. */
+        queryBuilder: Boolean = false,
+        /** Overrides `data-ff-path` (form-options field); defaults to [name]. */
+        optionsPath: String? = null,
     ): String = buildString {
         val stored = selected.joinToString(",")
         val display = if (multiple) "" else selected.firstOrNull()?.let { choices[it] ?: it }.orEmpty()
@@ -533,8 +538,9 @@ internal object FilterSelectMarkup {
             else -> ""
         }
         val state = if (stored.isEmpty()) "" else """ data-ff-state="${escapeHtml(stored)}""""
+        val path = escapeHtml(optionsPath ?: name)
         append(
-            """<div class="ff-combobox ff-filter-combobox" data-ff-combobox data-ff-path="$name" data-ff-searchable="$searchable" data-ff-multiple="$multiple" data-ff-preload="true" data-ff-empty="No results found" data-ff-searching="Searching" data-ff-debounce="300"$remoteAttr$state>""",
+            """<div class="ff-combobox ff-filter-combobox" data-ff-combobox data-ff-path="$path" data-ff-searchable="$searchable" data-ff-multiple="$multiple" data-ff-preload="true" data-ff-empty="No results found" data-ff-searching="Searching" data-ff-debounce="300"$remoteAttr$state>""",
         )
         append("""<div class="ff-combobox-field" data-ff-combobox-open>""")
         if (multiple) {
@@ -553,7 +559,11 @@ internal object FilterSelectMarkup {
             """<input class="ff-input ff-combobox-display$multiClass" type="text" role="combobox" aria-expanded="false" aria-autocomplete="list" autocomplete="off" placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(display)}" data-ff-combobox-display$readonly$extra />""",
         )
         append("""<span class="ff-combobox-caret" aria-hidden="true"></span></div>""")
-        append("""<input type="hidden" name="$name" value="${escapeHtml(stored)}" data-ff-combobox-value data-ff-filter-input />""")
+        if (queryBuilder) {
+            append("""<input type="hidden" value="${escapeHtml(stored)}" data-ff-combobox-value data-ff-qb-input />""")
+        } else {
+            append("""<input type="hidden" name="$name" value="${escapeHtml(stored)}" data-ff-combobox-value data-ff-filter-input />""")
+        }
         append("""<div class="ff-combobox-panel" data-ff-combobox-panel hidden><ul class="ff-options" data-ff-combobox-options role="listbox">""")
         if (allowClear) {
             append(option("", placeholder, selected.isEmpty()))

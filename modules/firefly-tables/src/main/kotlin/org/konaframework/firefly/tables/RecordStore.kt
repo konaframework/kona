@@ -65,6 +65,14 @@ interface RecordStore<T, Q> {
     }
 
     /**
+     * Related-row count comparison (`>=`, `<=`, `=`, `!=`, `<`, `>`). Used by query-builder
+     * `hasMin` / `hasMax` / `hasCount` (Filament `RelationshipConstraint` when `multiple()`).
+     */
+    fun constrainRelationshipCount(query: Q, relation: String, operator: String, count: Int) {
+        throw FireflyException("Record store does not support relationship count constraints")
+    }
+
+    /**
      * Related record key → [titleAttribute] label, ordered by title (relationship Select filters).
      * [keys] limits the result to those related keys (indicator labels).
      */
@@ -237,6 +245,21 @@ open class MemoryRecordStore(
         }
     }
 
+    override fun constrainRelationshipCount(query: MemoryQuery, relation: String, operator: String, count: Int) {
+        query.whereRow { row ->
+            val n = relatedKeys(row, relation).size
+            when (operator) {
+                ">=" -> n >= count
+                ">" -> n > count
+                "<=" -> n <= count
+                "<" -> n < count
+                "=" -> n == count
+                "!=", "<>" -> n != count
+                else -> throw FireflyException("Unknown relationship count operator [$operator]")
+            }
+        }
+    }
+
     override fun relationshipOptions(
         relation: String,
         titleAttribute: String,
@@ -386,6 +409,10 @@ open class CadenceRecordStore<T : Cadence<T>>(
         val relatedKey = relatedKeyColumn(rel)
         val constraint = Consumer<ModelBuilder<*>> { related -> related.whereIn(relatedKey, coerceKeys(keys)) }
         if (negate) query.whereDoesntHave(relation, constraint) else query.whereHas(relation, constraint)
+    }
+
+    override fun constrainRelationshipCount(query: ModelBuilder<T>, relation: String, operator: String, count: Int) {
+        query.has(relation, operator, count)
     }
 
     override fun relationshipOptions(
