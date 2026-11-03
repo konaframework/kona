@@ -110,16 +110,22 @@ public class TableFiltersJavaTest {
             .visible(true)
             .hidden(false)
             .constraintPickerWidth("16rem")
+            .searchableConstraintPicker()
             .constraints(
                 named,
                 NumberConstraint.make("score"),
                 BooleanConstraint.make("active"),
                 SelectConstraint.make("status").label("Status").attribute("status").options(Map.of("open", "Open")).multiple(),
-                RelationshipConstraint.make("team").label("Team").titleAttribute("name").multiple().optionsLimit(10)
+                RelationshipConstraint.make("team").label("Team").titleAttribute("name").multiple().searchable().preload().optionsLimit(10)
             );
+        assertTrue(RelationshipConstraint.make("team").multiple().operators().stream().anyMatch(op -> op.getKey().equals("hasMin")));
         assertEquals(5, rules.constraints().size());
         assertEquals(2, named.operators().size());
         assertEquals("is", new ConstraintOperator("is", "is", "is not").getLabel());
+        assertEquals(
+            "name:contains:a",
+            QueryBuilderFilter.encodeNode(new QueryNode.Leaf(new QueryRule("name", "contains", false, java.util.List.of("a"))))
+        );
 
         SelectFilter custom = SelectFilter.make("who").attribute("name").searchable()
             .getSearchResultsUsing((search, cell) -> Map.of("Ada", "Ada Lovelace"))

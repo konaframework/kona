@@ -26,6 +26,7 @@ import java.util.function.Function
  */
 open class Resource @JvmOverloads constructor(private val slugValue: String = "") {
     private val managers = ArrayList<RelationManager>()
+    private val groups = ArrayList<RelationGroup>()
     private var labelLiteral: String? = null
     private var labelUsing: Function<Get, String>? = null
     private var pluralLabelLiteral: String? = null
@@ -39,6 +40,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private var maxWidthLiteral: String? = null
     private var formColumnCount: Int? = null
     private var infolistColumnCount: Int? = null
+    private var combinedRelationTabs = false
+    private var contentTabLabelText: String? = null
 
     fun slug(): String {
         if (slugValue.isNotEmpty()) return slugValue
@@ -255,7 +258,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     @JvmOverloads
     fun simple(on: Boolean = true): Resource = apply {
-        if (on && (managers.isNotEmpty() || getRelations().isNotEmpty())) {
+        if (on && (managers.isNotEmpty() || groups.isNotEmpty() || getRelations().isNotEmpty() || getRelationGroups().isNotEmpty())) {
             throw FireflyException("Simple resource [${slug()}] has no relation managers")
         }
         simpleFlag = on
@@ -282,20 +285,68 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         managers.add(manager)
     }
 
+    /** Add a [RelationGroup] (several managers under one top-level tab). */
+    fun relationGroup(group: RelationGroup): Resource = apply {
+        if (simpleFlag) throw FireflyException("Simple resource [${slug()}] has no relation managers")
+        groups.add(group)
+    }
+
+    /**
+     * When true, the edit form / view infolist shares the relation tab strip as the first tab
+     * (Filament `hasCombinedRelationManagerTabsWithContent`).
+     */
+    @JvmOverloads
+    fun combinedRelationManagerTabsWithContent(on: Boolean = true): Resource = apply {
+        combinedRelationTabs = on
+    }
+
+    fun hasCombinedRelationManagerTabsWithContent(): Boolean = combinedRelationTabs
+
+    /** Label of the form / infolist tab when [hasCombinedRelationManagerTabsWithContent] is on. */
+    fun contentTabLabel(value: String): Resource = apply {
+        if (value.isBlank()) throw FireflyException("Content tab label is blank")
+        contentTabLabelText = value
+    }
+
+    fun getContentTabLabel(): String = contentTabLabelText ?: "Content"
+
     /**
      * Filament-style class-based relation managers. Override on the resource instead of
      * (or in addition to) calling [relation] from `init`.
      */
     open fun getRelations(): List<RelationManager> = emptyList()
 
+    /**
+     * Filament-style relation groups. Override instead of (or in addition to) [relationGroup].
+     */
+    open fun getRelationGroups(): List<RelationGroup> = emptyList()
+
+    /** Flat list of every manager (including those inside groups) for POST / options routes. */
     fun relationManagers(): List<RelationManager> {
-        val declared = getRelations()
-        if (declared.isEmpty()) return managers.toList()
-        // simple() already rejects getRelations(); merge fluent relation() with overrides.
         val merged = LinkedHashMap<String, RelationManager>()
-        for (manager in managers) merged[manager.name()] = manager
-        for (manager in declared) merged[manager.name()] = manager
+        for (entry in relationEntries()) {
+            for (manager in entry.managers()) merged[manager.name()] = manager
+        }
         return merged.values.toList()
+    }
+
+    /** Top-level tab entries: singles and groups, fluent then overrides. */
+    internal fun relationEntries(): List<RelationEntry> {
+        val groupedNames = HashSet<String>()
+        val out = ArrayList<RelationEntry>()
+        for (group in groups + getRelationGroups()) {
+            out.add(RelationEntry.Group(group))
+            for (manager in group.managers()) groupedNames.add(manager.name())
+        }
+        val singles = LinkedHashMap<String, RelationManager>()
+        for (manager in managers) {
+            if (manager.name() !in groupedNames) singles[manager.name()] = manager
+        }
+        for (manager in getRelations()) {
+            if (manager.name() !in groupedNames) singles[manager.name()] = manager
+        }
+        for (manager in singles.values) out.add(RelationEntry.Single(manager))
+        return out
     }
 
     /**
@@ -434,8 +485,14 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.title("Edit ${label()}")
         page.breadcrumbs(resourceCrumbs(state, "Edit ${label()}", listHref = true))
         val schema = prepareForm(liveSchema(state))
-        page.mountForm(schema)
-        page.relationsHtml(relationMarkup(schema.record(), page, state))
+        if (combinedRelationTabs) {
+            page.relationsHtml(
+                relationMarkup(schema.record(), page, state, contentHtml = wrapResourceForm(schema.render(), state)),
+            )
+        } else {
+            page.mountForm(schema)
+            page.relationsHtml(relationMarkup(schema.record(), page, state))
+        }
         val recordId = state["record"]?.toString().orEmpty()
         val viewUrl = if (recordId.isEmpty()) "view" else "view?id=${encodeQuery(recordId)}"
         page.headerActions(
@@ -468,8 +525,12 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.title(label())
         page.breadcrumbs(resourceCrumbs(state, label(), listHref = true))
         val schema = prepareInfolist(liveSchema(state))
-        page.infolistHtml(schema.render())
-        page.relationsHtml(relationMarkup(schema.record(), page, state))
+        if (combinedRelationTabs) {
+            page.relationsHtml(relationMarkup(schema.record(), page, state, contentHtml = schema.render()))
+        } else {
+            page.infolistHtml(schema.render())
+            page.relationsHtml(relationMarkup(schema.record(), page, state))
+        }
         val recordId = state["record"]?.toString().orEmpty()
         val editUrl = if (recordId.isEmpty()) "edit" else "edit?id=${encodeQuery(recordId)}"
         page.headerActions(
@@ -567,42 +628,163 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     /**
      * Relation managers for a saved Cadence [owner] on the edit / view [page]. Several managers
-     * render as tabs; the `relation` query value picks the active one (its table gets [state]).
-     * Without a saved owner (missing row, no model) there is nothing to relate, so nothing renders.
+     * (and optional [RelationGroup]s) render as tabs; the `relation` query value picks the active
+     * manager (its table gets [state]). When [contentHtml] is set, the form / infolist is the
+     * first tab (`relation` empty or `content`). Without a saved owner nothing renders.
      */
-    private fun relationMarkup(owner: Any?, page: PanelPage, state: Map<String, Any?>): String {
+    private fun relationMarkup(
+        owner: Any?,
+        page: PanelPage,
+        state: Map<String, Any?>,
+        contentHtml: String? = null,
+    ): String {
         if (owner !is org.konaframework.cadence.Cadence<*> || owner.getKey() == null) return ""
         val csrf = state["csrfField"] as? String ?: ""
         val resourceBase = state["resourceBase"]
         val base = if (resourceBase == null) RELATIONS_PATH else "$resourceBase/$RELATIONS_PATH"
-        val runtimes = relationManagers()
-            .map { it.bind(owner, page, base, csrf) }
-            .filter { it.manager.visibleFor(it) }
-        if (runtimes.isEmpty()) return ""
+        val entries = ArrayList<BoundEntry>()
+        for (entry in relationEntries()) {
+            when (entry) {
+                is RelationEntry.Single -> {
+                    val runtime = entry.manager.bind(owner, page, base, csrf)
+                    if (entry.manager.visibleFor(runtime)) entries.add(BoundEntry.Single(runtime))
+                }
+                is RelationEntry.Group -> {
+                    val runtimes = entry.group.managers()
+                        .map { it.bind(owner, page, base, csrf) }
+                        .filter { it.manager.visibleFor(it) }
+                    if (runtimes.isNotEmpty()) entries.add(BoundEntry.Group(entry.group.label(), runtimes))
+                }
+            }
+        }
+        val hasContent = !contentHtml.isNullOrEmpty()
+        if (entries.isEmpty() && !hasContent) return ""
         val requested = state["relation"]?.toString()
-        val active = runtimes.firstOrNull { it.manager.name() == requested } ?: runtimes.first()
-        if (runtimes.size == 1) return active.manager.renderFor(active, state, true)
+        val contentActive = hasContent && (requested.isNullOrBlank() || requested == CONTENT_TAB)
+        val activeRuntime = when {
+            contentActive -> null
+            else -> findActiveRuntime(entries, requested)
+        }
+        val ownerKey = owner.getKey().toString()
+        // One manager, no content tab, no groups → bare section (no tab strip).
+        if (!hasContent && entries.size == 1 && entries[0] is BoundEntry.Single) {
+            val runtime = (entries[0] as BoundEntry.Single).runtime
+            return runtime.manager.renderFor(runtime, state, true)
+        }
         val tabs = StringBuilder()
         val panels = StringBuilder()
-        for (runtime in runtimes) {
+        if (hasContent) {
+            val href = "?id=${encodeQuery(ownerKey)}&relation=$CONTENT_TAB"
+            tabs.append(
+                """<a class="ff-relation-tab" role="tab" href="${escapeHtml(href)}" data-ff-relation-tab="$CONTENT_TAB" aria-selected="$contentActive">""" +
+                    """${escapeHtml(getContentTabLabel())}</a>""",
+            )
+            val hidden = if (contentActive) "" else " hidden"
+            panels.append(
+                """<div class="ff-relation-panel" role="tabpanel" data-ff-relation-panel="$CONTENT_TAB"$hidden>""" +
+                    """<div class="ff-relation-content">$contentHtml</div></div>""",
+            )
+        }
+        for (entry in entries) {
+            when (entry) {
+                is BoundEntry.Single -> {
+                    val runtime = entry.runtime
+                    val manager = runtime.manager
+                    val current = !contentActive && runtime === activeRuntime
+                    val name = escapeHtml(manager.name())
+                    val href = "?id=${encodeQuery(ownerKey)}&relation=${encodeQuery(manager.name())}"
+                    val badge = manager.badgeFor(runtime)
+                    val badgeHtml = if (badge == null) "" else """<span class="ff-relation-badge">${escapeHtml(badge)}</span>"""
+                    tabs.append(
+                        """<a class="ff-relation-tab" role="tab" href="${escapeHtml(href)}" data-ff-relation-tab="$name" aria-selected="$current">""" +
+                            """${escapeHtml(manager.title())}$badgeHtml</a>""",
+                    )
+                    val hidden = if (current) "" else " hidden"
+                    panels.append(
+                        """<div class="ff-relation-panel" role="tabpanel" data-ff-relation-panel="$name"$hidden>""" +
+                            manager.renderFor(runtime, state, current) + "</div>",
+                    )
+                }
+                is BoundEntry.Group -> {
+                    val groupActive = !contentActive && entry.runtimes.any { it === activeRuntime }
+                    val first = entry.runtimes.first()
+                    val activeInGroup = if (groupActive) {
+                        entry.runtimes.first { it === activeRuntime }
+                    } else {
+                        first
+                    }
+                    val href = "?id=${encodeQuery(ownerKey)}&relation=${encodeQuery(activeInGroup.manager.name())}"
+                    val groupKey = escapeHtml("group-" + entry.label.lowercase().replace(' ', '-'))
+                    tabs.append(
+                        """<a class="ff-relation-tab" role="tab" href="${escapeHtml(href)}" data-ff-relation-tab="$groupKey" aria-selected="$groupActive">""" +
+                            """${escapeHtml(entry.label)}</a>""",
+                    )
+                    val hidden = if (groupActive) "" else " hidden"
+                    panels.append(
+                        """<div class="ff-relation-panel" role="tabpanel" data-ff-relation-panel="$groupKey"$hidden>""" +
+                            renderGroup(entry, activeInGroup, state, ownerKey) + "</div>",
+                    )
+                }
+            }
+        }
+        return """<section class="ff-relation-managers" data-ff-relation-managers>""" +
+            """<nav class="ff-relation-tabs" role="tablist">$tabs</nav>$panels</section>"""
+    }
+
+    private fun renderGroup(
+        entry: BoundEntry.Group,
+        active: RelationRuntime,
+        state: Map<String, Any?>,
+        ownerKey: String,
+    ): String {
+        if (entry.runtimes.size == 1) {
+            return active.manager.renderFor(active, state, true)
+        }
+        val tabs = StringBuilder()
+        val panels = StringBuilder()
+        for (runtime in entry.runtimes) {
             val manager = runtime.manager
             val current = runtime === active
             val name = escapeHtml(manager.name())
-            val href = "?id=${encodeQuery(runtime.ownerKey)}&relation=${encodeQuery(manager.name())}"
+            val href = "?id=${encodeQuery(ownerKey)}&relation=${encodeQuery(manager.name())}"
             val badge = manager.badgeFor(runtime)
             val badgeHtml = if (badge == null) "" else """<span class="ff-relation-badge">${escapeHtml(badge)}</span>"""
             tabs.append(
-                """<a class="ff-relation-tab" role="tab" href="${escapeHtml(href)}" data-ff-relation-tab="$name" aria-selected="$current">""" +
+                """<a class="ff-relation-tab ff-relation-nested-tab" role="tab" href="${escapeHtml(href)}" data-ff-relation-tab="$name" aria-selected="$current">""" +
                     """${escapeHtml(manager.title())}$badgeHtml</a>""",
             )
             val hidden = if (current) "" else " hidden"
             panels.append(
-                """<div class="ff-relation-panel" role="tabpanel" data-ff-relation-panel="$name"$hidden>""" +
+                """<div class="ff-relation-panel ff-relation-nested-panel" role="tabpanel" data-ff-relation-panel="$name"$hidden>""" +
                     manager.renderFor(runtime, state, current) + "</div>",
             )
         }
-        return """<section class="ff-relation-managers" data-ff-relation-managers>""" +
-            """<nav class="ff-relation-tabs" role="tablist">$tabs</nav>$panels</section>"""
+        return """<div class="ff-relation-group" data-ff-relation-group="${escapeHtml(entry.label)}">""" +
+            """<nav class="ff-relation-tabs ff-relation-nested-tabs" role="tablist">$tabs</nav>$panels</div>"""
+    }
+
+    private fun findActiveRuntime(entries: List<BoundEntry>, requested: String?): RelationRuntime? {
+        if (!requested.isNullOrBlank() && requested != CONTENT_TAB) {
+            for (entry in entries) {
+                when (entry) {
+                    is BoundEntry.Single -> if (entry.runtime.manager.name() == requested) return entry.runtime
+                    is BoundEntry.Group -> {
+                        val match = entry.runtimes.firstOrNull { it.manager.name() == requested }
+                        if (match != null) return match
+                    }
+                }
+            }
+        }
+        val first = entries.firstOrNull() ?: return null
+        return when (first) {
+            is BoundEntry.Single -> first.runtime
+            is BoundEntry.Group -> first.runtimes.first()
+        }
+    }
+
+    private sealed class BoundEntry {
+        class Single(val runtime: RelationRuntime) : BoundEntry()
+        class Group(val label: String, val runtimes: List<RelationRuntime>) : BoundEntry()
     }
 
     /** The record a relation POST belongs to, or null when missing or outside the current tenant. */
@@ -619,6 +801,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     internal companion object {
         /** Relation POST / options routes under the resource (`{panel}/{resource}/relations/…`). */
         const val RELATIONS_PATH = "relations"
+
+        /** Query value for the form / infolist tab when relation tabs are combined with content. */
+        const val CONTENT_TAB: String = "content"
     }
 
     private fun rowRecordUrl(page: String): java.util.function.Function<org.konaframework.firefly.tables.Cell, String> =
@@ -628,6 +813,10 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     private fun encodeQuery(value: String): String =
         java.net.URLEncoder.encode(value, Charsets.UTF_8)
+
+    /** Same `#ff-form` chrome [org.konaframework.firefly.widgets.Page] uses when mounting a form. */
+    private fun wrapResourceForm(body: String, state: Map<String, Any?>): String =
+        wrapCombinedResourceForm(body, state)
 
     /** `filters.status` or `ordersFilters.status` → `status` (for combobox option search). */
     private fun stripFilterQueryPrefix(field: String): String? {
@@ -662,4 +851,22 @@ internal fun englishPluralLabel(label: String): String {
         return trimmed + "es"
     }
     return trimmed + "s"
+}
+
+/** Form chrome for combined content tabs — package-visible for coverage of missing state keys. */
+internal fun wrapCombinedResourceForm(body: String, state: Map<String, Any?>): String {
+    val csrf = when (val value = state["csrfField"]) {
+        null -> ""
+        else -> value.toString()
+    }
+    val action = when (val value = state["formAction"]) {
+        null -> ""
+        else -> escapeHtml(value.toString())
+    }
+    val recordId = when (val value = state["record"]) {
+        null -> ""
+        else -> escapeHtml(value.toString())
+    }
+    return """<form id="ff-form" class="ff-resource-form" method="post" action="$action">$csrf""" +
+        """<input type="hidden" name="id" value="$recordId" />$body</form>"""
 }

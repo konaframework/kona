@@ -288,6 +288,16 @@ class CadenceFiltersTest {
         assertEquals(listOf("Orbits", "Orphan"), run("author:!isRelatedTo:${ada.getKey()}"))
         assertEquals(listOf("Engines", "Notes", "Orbits"), run("author:has:"))
         assertEquals(listOf("Orphan"), run("author:!has:"))
+        val byBooks = QueryBuilderFilter.make("books").constraints(
+            RelationshipConstraint.make("books").titleAttribute("title").multiple(),
+        )
+        val authors = Table.cadence(FilterAuthor::class.java).columns(TextColumn.make("name")).filters(byBooks)
+        authors.applyFilterQuery(mapOf("filters" to "1", "filters.books" to "books:hasMin:2"))
+        assertEquals(listOf("Ada"), authors.load().records.map { it["name"].toString() })
+        authors.applyFilterQuery(mapOf("filters" to "1", "filters.books" to "books:hasMax:1"))
+        assertEquals(listOf("Bea", "Cy"), authors.load().records.map { it["name"].toString() }.sorted())
+        authors.applyFilterQuery(mapOf("filters" to "1", "filters.books" to "books:hasCount:0"))
+        assertEquals(listOf("Cy"), authors.load().records.map { it["name"].toString() })
         // (featured and price <= 10) or (status is draft)
         assertEquals(listOf("Engines", "Notes", "Orphan"), run("featured:isTrue:;price:isMax:10|status:is:draft"))
         assertEquals(

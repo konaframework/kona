@@ -1860,6 +1860,10 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   font-size: 0.8rem;
 }
 
+.ff-panel [data-ff-invalid="true"] .ff-helper {
+  color: var(--ff-danger, #b91c1c);
+}
+
 .ff-panel .ff-schema,
 .ff-panel .ff-fieldset {
   display: flex;
@@ -4284,6 +4288,31 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 .ff-panel .ff-relation-panel > .ff-relation {
   margin-top: 0;
+}
+
+.ff-panel .ff-relation-nested-tabs {
+  margin-top: 0.25rem;
+  margin-bottom: 0.75rem;
+  border-bottom-style: dashed;
+}
+
+.ff-panel .ff-relation-nested-tab {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.ff-panel .ff-relation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.ff-panel .ff-relation-lazy-hint {
+  margin: 0;
+  padding: 1.25rem 0.5rem;
+  color: var(--ff-body-subtle);
+  font-size: 0.9rem;
+  text-align: center;
 }
 
 /* ——— Manage header: slightly tighter crumb → toolbar gap ——— */

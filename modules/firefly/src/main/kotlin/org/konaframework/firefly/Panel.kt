@@ -585,14 +585,29 @@ open class Panel {
             }
             val outcome = runtime.manager.perform(runtime, operation, input)
             if (outcome.status == 403 || outcome.status == 404) return@use Response.html(escapeHtml(outcome.title), outcome.status)
+            var location = back
+            if (outcome.createAnother) {
+                location += "&dialog=${RelationOperation.CREATE.token}"
+            } else if (outcome.reopen != null) {
+                location += "&dialog=${URLEncoder.encode(outcome.reopen, Charsets.UTF_8)}"
+                val recordId = outcome.recordId
+                if (!recordId.isNullOrBlank()) {
+                    location += "&dialog_id=${URLEncoder.encode(recordId, Charsets.UTF_8)}"
+                }
+            }
             val session = request.session()
             if (session != null) {
                 val toast = FireflyNotification.make("relation-${operation.token}").title(outcome.title)
                 if (outcome.messages.isNotEmpty()) toast.body(outcome.messages.joinToString(" "))
                 if (outcome.isSuccessful()) toast.success() else toast.danger()
                 toast.send(session)
+                if (outcome.fieldErrors.isNotEmpty()) session.flash(RelationManager.ERRORS_FLASH, outcome.fieldErrors)
+                if (outcome.oldInput.isNotEmpty()) session.flashInput(outcome.oldInput)
             }
-            Response.redirect(back)
+            var response = Response.redirect(location)
+            if (outcome.fieldErrors.isNotEmpty()) response = response.withErrors(outcome.fieldErrors)
+            if (outcome.oldInput.isNotEmpty()) response = response.withInput(outcome.oldInput)
+            response
         }
     }
 
@@ -848,6 +863,10 @@ open class Panel {
         if (!record.isNullOrBlank()) state["record"] = record
         val relation = request.input("relation")
         if (!relation.isNullOrBlank()) state["relation"] = relation
+        val dialog = request.input("dialog")
+        if (!dialog.isNullOrBlank()) state["dialog"] = dialog
+        val dialogId = request.input("dialog_id")
+        if (!dialogId.isNullOrBlank()) state["dialogId"] = dialogId
         // Table filters: `filters` / `{id}Filters` sentinels and `{prefix}.<name>[.<field>]` (#388).
         state["filterInput"] = request.all().filterKeys { isFilterQueryKey(it) }
         val session = request.session()

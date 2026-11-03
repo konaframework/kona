@@ -32,6 +32,22 @@ class QueryRule(val constraint: String, val operator: String, val negated: Boole
 }
 
 /**
+ * Parsed query-builder expression tree. Flat `a;b|c` is an [Or] of [And]s; parentheses nest
+ * (`a;(b|c)` is an [And] of a leaf and an [Or]).
+ */
+sealed class QueryNode {
+    data class Leaf(val rule: QueryRule) : QueryNode()
+    data class And(val children: List<QueryNode>) : QueryNode()
+    data class Or(val children: List<QueryNode>) : QueryNode()
+
+    fun isEmpty(): Boolean = when (this) {
+        is Leaf -> false
+        is And -> children.isEmpty()
+        is Or -> children.isEmpty()
+    }
+}
+
+/**
  * A column or relationship the [QueryBuilderFilter] can constrain (Filament query-builder
  * constraints). Subclasses define operators, the value input, and the query.
  */
@@ -77,8 +93,12 @@ abstract class QueryConstraint protected constructor(val name: String) {
     /** Built-in query for this constraint's default operator keys. */
     protected abstract fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule)
 
-    /** Value control (no `name`: the builder serializes rules into one field). */
-    open fun inputHtml(store: RecordStore<*, *>?, values: List<String>): String =
+    /**
+     * Value control (no `name`: the builder serializes rules into one field).
+     * [optionsPath] is the form-options field for searchable relationship pickers
+     * (`filters.query.author`).
+     */
+    open fun inputHtml(store: RecordStore<*, *>?, values: List<String>, optionsPath: String? = null): String =
         """<input class="ff-input" type="text" data-ff-qb-input value="${escapeHtml(values.firstOrNull().orEmpty())}" aria-label="Value" />"""
 
     /** Whether a submitted [value] is usable for [operator]; invalid rules are dropped, not run. */
@@ -190,7 +210,7 @@ open class NumberConstraint protected constructor(name: String) : QueryConstrain
         store.constrain(query, column(), operator, value)
     }
 
-    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>): String =
+    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>, optionsPath: String?): String =
         """<input class="ff-input" type="number" step="any" data-ff-qb-input value="${escapeHtml(values.firstOrNull().orEmpty())}" aria-label="Value" />"""
 
     companion object {
@@ -225,7 +245,7 @@ open class DateConstraint protected constructor(name: String) : QueryConstraint(
         }
     }
 
-    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>): String =
+    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>, optionsPath: String?): String =
         """<input class="ff-input" type="date" data-ff-qb-input value="${escapeHtml(values.firstOrNull().orEmpty())}" aria-label="Value" />"""
 
     override fun accepts(operator: String, value: String): Boolean = when (operator) {
@@ -262,7 +282,7 @@ open class BooleanConstraint protected constructor(name: String) : QueryConstrai
         store.constrain(query, column(), "=", !rule.negated)
     }
 
-    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>): String = ""
+    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>, optionsPath: String?): String = ""
 
     companion object {
         @JvmStatic
@@ -299,7 +319,7 @@ open class SelectConstraint protected constructor(name: String) : QueryConstrain
         store.constrain(query, column(), if (rule.negated) "null" else "not-null", null)
     }
 
-    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>): String =
+    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>, optionsPath: String?): String =
         selectInput(choices, values, multipleFlag)
 
     override fun describeValue(store: RecordStore<*, *>?, values: List<String>): String =
@@ -321,17 +341,27 @@ open class SelectConstraint protected constructor(name: String) : QueryConstrain
     }
 }
 
-/** Relationship: has any related record / is related to (and inverses). */
+/** Relationship: has any related record / is related to (and inverses); count ops when [multiple]. */
 open class RelationshipConstraint protected constructor(name: String) : QueryConstraint(name) {
     private var titleAttribute = "name"
     private var multipleFlag = true
     private var modify: Consumer<Any>? = null
     private var limit = 50
+    private var searchableFlag = false
+    private var preloadFlag = false
 
     fun titleAttribute(name: String): RelationshipConstraint = apply { titleAttribute = name }
 
     @JvmOverloads
     fun multiple(on: Boolean = true): RelationshipConstraint = apply { multipleFlag = on }
+
+    /** Searchable value combobox (Filament `searchable()`); options load via table `form-options`. */
+    @JvmOverloads
+    fun searchable(on: Boolean = true): RelationshipConstraint = apply { searchableFlag = on }
+
+    /** Prefill options when [searchable] (Filament `preload()`). */
+    @JvmOverloads
+    fun preload(on: Boolean = true): RelationshipConstraint = apply { preloadFlag = on }
 
     fun modifyOptionsQueryUsing(hook: Consumer<Any>): RelationshipConstraint = apply { modify = hook }
 
@@ -344,22 +374,96 @@ open class RelationshipConstraint protected constructor(name: String) : QueryCon
 
     override fun kind(): String = "relationship"
 
-    override fun defaultOperators(): List<ConstraintOperator> = listOf(
-        ConstraintOperator("isRelatedTo", "is", "is not"),
-        ConstraintOperator("has", "has any", "has none", needsValue = false),
-    )
+    fun isSearchable(): Boolean = searchableFlag
 
-    override fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
-        if (rule.operator == "isRelatedTo") {
-            store.constrainRelationship(query, name, rule.values, rule.negated)
-            return
-        }
-        store.constrainRelationship(query, name, null, rule.negated)
+    fun isPreload(): Boolean = preloadFlag
+
+    fun titleAttribute(): String = titleAttribute
+
+    fun modifyOptionsQuery(): Consumer<Any>? = modify
+
+    fun optionsLimit(): Int = limit
+
+    override fun defaultOperators(): List<ConstraintOperator> {
+        val base = listOf(
+            ConstraintOperator("isRelatedTo", "is", "is not"),
+            ConstraintOperator("has", "has any", "has none", needsValue = false),
+        )
+        if (!multipleFlag) return base
+        return base + listOf(
+            ConstraintOperator("hasMin", "has minimum", "has fewer than"),
+            ConstraintOperator("hasMax", "has maximum", "has more than"),
+            ConstraintOperator("hasCount", "has exactly", "does not have exactly"),
+        )
     }
 
-    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>): String {
+    override fun accepts(operator: String, value: String): Boolean = when (operator) {
+        "hasMin", "hasMax", "hasCount" -> value.trim().toIntOrNull()?.let { it >= 0 } == true
+        else -> true
+    }
+
+    override fun applyDefault(query: Any, store: RecordStore<Any?, Any?>, rule: QueryRule) {
+        when (rule.operator) {
+            "isRelatedTo" -> store.constrainRelationship(query, name, rule.values, rule.negated)
+            "has" -> store.constrainRelationship(query, name, null, rule.negated)
+            "hasMin", "hasMax", "hasCount" -> {
+                val count = rule.values.first().trim().toInt()
+                val operator = when (rule.operator) {
+                    "hasMin" -> if (rule.negated) "<" else ">="
+                    "hasMax" -> if (rule.negated) ">" else "<="
+                    else -> if (rule.negated) "!=" else "="
+                }
+                store.constrainRelationshipCount(query, name, operator, count)
+            }
+        }
+    }
+
+    override fun inputHtml(store: RecordStore<*, *>?, values: List<String>, optionsPath: String?): String {
+        if (searchableFlag) {
+            val choices = when {
+                store == null -> emptyMap()
+                preloadFlag || values.isNotEmpty() -> {
+                    val preloaded = if (preloadFlag) {
+                        store.relationshipOptions(name, titleAttribute, modify, null, limit, null)
+                    } else {
+                        emptyMap()
+                    }
+                    val selected = if (values.isNotEmpty()) {
+                        store.relationshipOptions(name, titleAttribute, modify, null, null, values)
+                    } else {
+                        emptyMap()
+                    }
+                    LinkedHashMap<String, String>().apply {
+                        putAll(preloaded)
+                        putAll(selected)
+                    }
+                }
+                else -> emptyMap()
+            }
+            val remote = store != null
+            return FilterSelectMarkup.combobox(
+                name = optionsPath.orEmpty(),
+                choices = choices,
+                selected = values.toSet(),
+                placeholder = "Choose…",
+                multiple = multipleFlag,
+                searchable = true,
+                allowClear = !multipleFlag,
+                remoteRelation = if (remote) name else null,
+                remote = remote,
+                extra = "",
+                queryBuilder = true,
+                optionsPath = optionsPath,
+            )
+        }
         val choices = store?.relationshipOptions(name, titleAttribute, modify, null, limit, null).orEmpty()
         return SelectConstraint.selectInput(choices, values, multipleFlag)
+    }
+
+    /** Options for remote search (`Table.filterOptions` on `queryBuilder.constraint`). */
+    fun searchOptions(store: RecordStore<*, *>?, search: String?): Map<String, String> {
+        if (store == null) return emptyMap()
+        return store.relationshipOptions(name, titleAttribute, modify, search, limit, null)
     }
 
     override fun describeValue(store: RecordStore<*, *>?, values: List<String>): String {
@@ -376,13 +480,14 @@ open class RelationshipConstraint protected constructor(name: String) : QueryCon
 /**
  * Advanced filter (Filament `QueryBuilder`): users add rules — constraint, operator
  * (or its inverse), value — inside groups. Rules in a group are `and`-ed; groups are `or`-ed.
- * State is one query-string field: groups split by `|`, rules by `;`, `constraint:op:v1,v2`
+ * Parentheses nest deeper (`a;(b|c)`). State is one query-string field: `|` / `;` / `constraint:op:v1,v2`
  * with URL-encoded parts and `!op` for the inverse.
  */
 open class QueryBuilderFilter protected constructor(name: String) : Filter(name) {
     private val constraintList = ArrayList<QueryConstraint>()
     private var pickerColumns = 1
     private var pickerWidth: String? = null
+    private var searchablePicker = false
 
     fun constraints(vararg constraints: QueryConstraint): QueryBuilderFilter = apply {
         constraintList.clear()
@@ -400,7 +505,14 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
         pickerWidth = value
     }
 
+    /** Searchable "Add rule…" picker for long constraint lists. */
+    @JvmOverloads
+    fun searchableConstraintPicker(on: Boolean = true): QueryBuilderFilter = apply { searchablePicker = on }
+
     fun constraints(): List<QueryConstraint> = constraintList.toList()
+
+    /** Named constraint (for `Table.filterOptions("query.author", …)`). */
+    fun constraintNamed(name: String): QueryConstraint? = constraintList.firstOrNull { it.name == name }
 
     override fun label(value: String): QueryBuilderFilter = apply { super.label(value) }
 
@@ -420,38 +532,57 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
 
     override fun kind(cell: Cell): String = "query-builder"
 
-    /** Parsed `or` groups of `and` rules; unknown constraints, operators, and empty values are dropped. */
-    fun groups(data: FilterData): List<List<QueryRule>> {
-        val raw = data.string(FilterData.VALUE) ?: return emptyList()
-        return raw.split('|').map { group ->
-            group.split(';').mapNotNull { parse(it) }
-        }.filter { it.isNotEmpty() }
+    /** Expression tree for [data]; empty when inactive. */
+    fun tree(data: FilterData): QueryNode? {
+        // [FilterData.string] already trims and maps blanks to null.
+        val raw = data.string(FilterData.VALUE) ?: return null
+        val parsed = parseExpression(raw) ?: return null
+        return ensureGrouped(parsed)
     }
 
-    override fun isActive(data: FilterData): Boolean = groups(data).isNotEmpty()
+    /** Keep a top-level OR of AND groups so indicator paths stay `__qb:group:rule`. */
+    private fun ensureGrouped(node: QueryNode): QueryNode = when (node) {
+        is QueryNode.Or -> QueryNode.Or(
+            node.children.map { child ->
+                when (child) {
+                    is QueryNode.And -> child
+                    is QueryNode.Or -> child
+                    is QueryNode.Leaf -> QueryNode.And(listOf(child))
+                }
+            },
+        )
+        is QueryNode.And -> QueryNode.Or(listOf(node))
+        is QueryNode.Leaf -> QueryNode.Or(listOf(QueryNode.And(listOf(node))))
+    }
+
+    /**
+     * Flat `or` groups of `and` rules when the expression has no nested parentheses;
+     * otherwise each top-level OR child is expanded to its leaf rules only when that child is a flat AND.
+     * Prefer [tree] for nested expressions.
+     */
+    fun groups(data: FilterData): List<List<QueryRule>> {
+        val root = tree(data) ?: return emptyList()
+        return flattenOrOfAnd(root)
+    }
+
+    override fun isActive(data: FilterData): Boolean = tree(data) != null
 
     override fun applyToQuery(query: Any, store: RecordStore<*, *>, data: FilterData) {
         @Suppress("UNCHECKED_CAST")
         val typed = store as RecordStore<Any?, Any?>
-        groups(data).forEachIndexed { index, rules ->
-            typed.group(query, index > 0) { inner ->
-                for (rule in rules) constraint(rule.constraint).apply(inner as Any, typed, rule)
-            }
-        }
+        // Caller ([Filter.apply]) only invokes this when [isActive]; tree is therefore non-null.
+        applyNode(query, typed, tree(data)!!, orJoin = false)
     }
 
     override fun indicators(context: FilterRenderContext): List<FilterIndicator> {
         if (hasIndicatorOverride()) return super.indicators(context)
-        val groups = groups(context.data)
-        if (groups.isEmpty()) return emptyList()
+        val root = tree(context.data) ?: return emptyList()
         val out = ArrayList<FilterIndicator>()
-        groups.forEachIndexed { groupIndex, rules ->
-            rules.forEachIndexed { ruleIndex, rule ->
-                out.add(
-                    FilterIndicator.make(constraint(rule.constraint).describe(context.store, rule))
-                        .removeField(ruleField(groupIndex, ruleIndex)),
-                )
-            }
+        walkLeaves(root, emptyList()) { path, rule ->
+            out.add(
+                FilterIndicator.make(constraint(rule.constraint).describe(context.store, rule))
+                    .removeField(ruleField(path)),
+            )
         }
         return out
     }
@@ -460,35 +591,90 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
         if (fields.isEmpty()) return FilterData(emptyMap())
         val targets = fields.mapNotNull { parseRuleField(it) }.toSet()
         if (targets.isEmpty()) return data.without(fields)
-        val next = groups(data).mapIndexedNotNull { groupIndex, rules ->
-            val kept = rules.filterIndexed { ruleIndex, _ -> (groupIndex to ruleIndex) !in targets }
-            kept.ifEmpty { null }
-        }
-        if (next.isEmpty()) return FilterData(emptyMap())
-        return FilterData.single(encode(next))
+        val root = tree(data) ?: return FilterData(emptyMap())
+        val next = removeLeaves(root, emptyList(), targets) ?: return FilterData(emptyMap())
+        return FilterData.single(encodeNode(next))
     }
 
     override fun renderControl(context: FilterRenderContext, field: FilterField): String {
         val name = escapeHtml(context.inputName())
         val stored = context.data.string(FilterData.VALUE).orEmpty()
-        val groups = groups(context.data).ifEmpty { listOf(emptyList()) }
-        val groupsHtml = groups.joinToString("") { rules -> groupHtml(context.store, rules) }
-        val templates = constraintList.joinToString("") { constraint ->
-            """<template data-ff-qb-template="${escapeHtml(constraint.name)}">${ruleHtml(context.store, constraint, null)}</template>"""
+        val root = tree(context.data)
+        val groupsHtml = if (root == null) {
+            groupHtml(context.store, emptyList(), context.inputName(), orGroup = false)
+        } else {
+            // [tree] always wraps as a top-level OR of groups.
+            (root as QueryNode.Or).children.joinToString("") { child ->
+                renderChildGroup(context.store, child, context.inputName())
+            }
         }
-        val groupTemplate = """<template data-ff-qb-group-template>${groupHtml(context.store, emptyList())}</template>"""
+        val optionsPathPrefix = context.inputName()
+        val templates = constraintList.joinToString("") { c ->
+            """<template data-ff-qb-template="${escapeHtml(c.name)}">${ruleHtml(context.store, c, null, optionsPathPrefix)}</template>"""
+        }
+        val groupTemplate =
+            """<template data-ff-qb-group-template>${groupHtml(context.store, emptyList(), optionsPathPrefix, orGroup = false)}</template>"""
+        val nestedOrTemplate =
+            """<template data-ff-qb-nested-or-template>${groupHtml(context.store, emptyList(), optionsPathPrefix, orGroup = true)}</template>"""
         val width = pickerWidth?.let { """ style="--ff-qb-picker-width: ${escapeHtml(it)}"""" }.orEmpty()
+        val searchable = if (searchablePicker) """ data-ff-qb-searchable-picker="true"""" else ""
         return fieldLabel(field.labelText ?: heading(context.cell), field) +
-            """<div class="ff-qb" data-ff-qb data-ff-qb-picker-columns="$pickerColumns"$width><input type="hidden" name="$name" value="${escapeHtml(stored)}" data-ff-qb-state data-ff-filter-input /><div class="ff-qb-groups" data-ff-qb-groups>$groupsHtml</div><button type="button" class="ff-qb-add-group" data-ff-qb-add-group>Add “or” group</button>$templates$groupTemplate</div>"""
+            """<div class="ff-qb" data-ff-qb data-ff-qb-picker-columns="$pickerColumns"$searchable$width><input type="hidden" name="$name" value="${escapeHtml(stored)}" data-ff-qb-state data-ff-filter-input /><div class="ff-qb-groups" data-ff-qb-groups>$groupsHtml</div><button type="button" class="ff-qb-add-group" data-ff-qb-add-group>Add “or” group</button>$templates$groupTemplate$nestedOrTemplate</div>"""
     }
 
-    private fun groupHtml(store: RecordStore<*, *>?, rules: List<QueryRule>): String {
-        val rows = rules.joinToString("") { rule -> ruleHtml(store, constraint(rule.constraint), rule) }
-        val picker = constraintList.joinToString("") { """<option value="${escapeHtml(it.name)}">${escapeHtml(it.heading())}</option>""" }
-        return """<div class="ff-qb-group" data-ff-qb-group><div class="ff-qb-rules" data-ff-qb-rules>$rows</div><div class="ff-qb-group-actions"><select class="ff-input ff-qb-add" data-ff-qb-add aria-label="Add rule"><option value="">Add rule…</option>$picker</select><button type="button" class="ff-qb-remove-group" data-ff-qb-remove-group>Remove group</button></div></div>"""
+    private fun renderChildGroup(store: RecordStore<*, *>?, node: QueryNode, optionsPathPrefix: String): String =
+        when (node) {
+            is QueryNode.And -> groupHtml(
+                store,
+                node.children.mapNotNull { (it as? QueryNode.Leaf)?.rule },
+                optionsPathPrefix,
+                orGroup = false,
+                nested = node.children.filter { it !is QueryNode.Leaf },
+            )
+            is QueryNode.Or -> groupHtml(
+                store,
+                emptyList(),
+                optionsPathPrefix,
+                orGroup = true,
+                nested = node.children,
+            )
+            is QueryNode.Leaf -> renderChildGroup(store, QueryNode.And(listOf(node)), optionsPathPrefix)
+        }
+
+    private fun groupHtml(
+        store: RecordStore<*, *>?,
+        rules: List<QueryRule>,
+        optionsPathPrefix: String,
+        orGroup: Boolean,
+        nested: List<QueryNode> = emptyList(),
+    ): String {
+        val rows = rules.joinToString("") { rule -> ruleHtml(store, constraint(rule.constraint), rule, optionsPathPrefix) }
+        val nestedHtml = nested.joinToString("") { renderChildGroup(store, it, optionsPathPrefix) }
+        val picker = pickerHtml()
+        val orAttr = if (orGroup) """ data-ff-qb-or="true"""" else ""
+        val nestLabel = if (orGroup) "or" else "and"
+        return """<div class="ff-qb-group" data-ff-qb-group$orAttr><div class="ff-qb-rules" data-ff-qb-rules>$rows$nestedHtml</div><div class="ff-qb-group-actions">$picker<button type="button" class="ff-qb-add-nested" data-ff-qb-add-nested aria-label="Add nested $nestLabel group">Add nested group</button><button type="button" class="ff-qb-remove-group" data-ff-qb-remove-group>Remove group</button></div></div>"""
     }
 
-    private fun ruleHtml(store: RecordStore<*, *>?, constraint: QueryConstraint, rule: QueryRule?): String {
+    private fun pickerHtml(): String {
+        val options = constraintList.joinToString("") {
+            """<option value="${escapeHtml(it.name)}">${escapeHtml(it.heading())}</option>"""
+        }
+        if (!searchablePicker) {
+            return """<select class="ff-input ff-qb-add" data-ff-qb-add aria-label="Add rule"><option value="">Add rule…</option>$options</select>"""
+        }
+        val items = constraintList.joinToString("") {
+            """<button type="button" class="ff-qb-picker-option" data-ff-qb-pick="${escapeHtml(it.name)}" hidden>${escapeHtml(it.heading())}</button>"""
+        }
+        return """<div class="ff-qb-picker" data-ff-qb-picker><input class="ff-input ff-qb-add" type="search" data-ff-qb-add-search placeholder="Add rule…" aria-label="Add rule" autocomplete="off" /><div class="ff-qb-picker-menu" data-ff-qb-picker-menu hidden>$items</div></div>"""
+    }
+
+    private fun ruleHtml(
+        store: RecordStore<*, *>?,
+        constraint: QueryConstraint,
+        rule: QueryRule?,
+        optionsPathPrefix: String,
+    ): String {
         val selected = rule?.let { if (it.negated) "!${it.operator}" else it.operator }
         val operators = constraint.operators().flatMap { op ->
             listOf("${op.key}" to op.label, "!${op.key}" to op.inverseLabel).map { (key, label) -> Triple(key, label, op.needsValue) }
@@ -499,21 +685,110 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
             """<option value="${escapeHtml(key)}" data-ff-qb-novalue="${!needsValue}"$mark>${escapeHtml(label)}</option>"""
         }
         val needsValue = operators.first { it.first == current }.third
-        val input = constraint.inputHtml(store, rule?.values.orEmpty())
+        val path = "$optionsPathPrefix.${constraint.name}"
+        val input = constraint.inputHtml(store, rule?.values.orEmpty(), path)
         val hidden = if (needsValue) "" else " hidden"
         return """<div class="ff-qb-rule" data-ff-qb-rule data-ff-qb-constraint="${escapeHtml(constraint.name)}" data-ff-qb-kind="${constraint.kind()}"><span class="ff-qb-rule-label">${escapeHtml(constraint.heading())}</span><select class="ff-input ff-qb-operator" data-ff-qb-operator aria-label="Operator">$options</select><span class="ff-qb-value" data-ff-qb-value$hidden>$input</span><button type="button" class="ff-qb-remove" data-ff-qb-remove aria-label="Remove rule">×</button></div>"""
     }
 
+    private fun applyNode(query: Any, store: RecordStore<Any?, Any?>, node: QueryNode, orJoin: Boolean) {
+        when (node) {
+            is QueryNode.Leaf -> constraint(node.rule.constraint).apply(query, store, node.rule)
+            is QueryNode.And -> store.group(query, orJoin) { inner ->
+                node.children.forEach { child -> applyNode(inner as Any, store, child, orJoin = false) }
+            }
+            is QueryNode.Or -> store.group(query, orJoin) { inner ->
+                node.children.forEachIndexed { index, child ->
+                    // Leaf arms need their own group so `orJoin` can attach as orWhereNested.
+                    val arm = if (child is QueryNode.Leaf) QueryNode.And(listOf(child)) else child
+                    applyNode(inner as Any, store, arm, orJoin = index > 0)
+                }
+            }
+        }
+    }
+
+    private fun flattenOrOfAnd(node: QueryNode): List<List<QueryRule>> =
+        (node as QueryNode.Or).children.map { flattenAnd(it) }.filter { it.isNotEmpty() }
+
+    private fun flattenAnd(node: QueryNode): List<QueryRule> = when (node) {
+        is QueryNode.Leaf -> listOf(node.rule)
+        is QueryNode.And -> node.children.flatMap { flattenAnd(it) }
+        is QueryNode.Or -> node.children.flatMap { flattenAnd(it) }
+    }
+
+    private fun walkLeaves(node: QueryNode, path: List<Int>, visit: (List<Int>, QueryRule) -> Unit) {
+        when (node) {
+            is QueryNode.Leaf -> visit(path, node.rule)
+            is QueryNode.And -> node.children.forEachIndexed { i, child -> walkLeaves(child, path + i, visit) }
+            is QueryNode.Or -> node.children.forEachIndexed { i, child -> walkLeaves(child, path + i, visit) }
+        }
+    }
+
+    private fun removeLeaves(node: QueryNode, path: List<Int>, targets: Set<List<Int>>): QueryNode? {
+        when (node) {
+            is QueryNode.Leaf -> return if (path in targets) null else node
+            is QueryNode.And -> {
+                val kept = node.children.mapIndexedNotNull { i, child -> removeLeaves(child, path + i, targets) }
+                return when {
+                    kept.isEmpty() -> null
+                    kept.size == 1 -> kept[0]
+                    else -> QueryNode.And(kept)
+                }
+            }
+            is QueryNode.Or -> {
+                val kept = node.children.mapIndexedNotNull { i, child -> removeLeaves(child, path + i, targets) }
+                return when {
+                    kept.isEmpty() -> null
+                    kept.size == 1 -> kept[0]
+                    else -> QueryNode.Or(kept)
+                }
+            }
+        }
+    }
+
     private fun constraint(name: String): QueryConstraint = constraintList.first { it.name == name }
 
-    private fun parse(raw: String): QueryRule? {
+    private fun parseExpression(raw: String): QueryNode? {
+        val parser = ExpressionParser(raw, ::parseRule)
+        return try {
+            normalize(parser.parse())
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
+
+    private fun normalize(node: QueryNode): QueryNode? = when (node) {
+        is QueryNode.Leaf -> node
+        is QueryNode.And -> {
+            val kids = node.children.mapNotNull { normalize(it) }
+            when {
+                kids.isEmpty() -> null
+                kids.size == 1 -> kids[0]
+                else -> QueryNode.And(kids)
+            }
+        }
+        is QueryNode.Or -> {
+            val kids = node.children.mapNotNull { normalize(it) }
+            when {
+                kids.isEmpty() -> null
+                kids.size == 1 -> kids[0]
+                else -> QueryNode.Or(kids)
+            }
+        }
+    }
+
+    private fun parseRule(raw: String): QueryRule? {
         val parts = raw.split(':')
         if (parts.size < 2) return null
         val constraint = constraintList.firstOrNull { it.name == decode(parts[0]) } ?: return null
         val negated = parts[1].startsWith("!")
         val key = parts[1].removePrefix("!")
         val op = constraint.operator(key) ?: return null
-        val values = if (parts.size > 2) parts.drop(2).joinToString(":").split(',').map { decode(it) }.filter { it.isNotEmpty() } else emptyList()
+        val values = if (parts.size > 2) {
+            parts.drop(2).joinToString(":").split(',').map { decode(it) }.filter { it.isNotEmpty() }
+        } else {
+            emptyList()
+        }
         if (op.needsValue && (values.isEmpty() || values.any { !constraint.accepts(key, it) })) return null
         return QueryRule(constraint.name, key, negated, values)
     }
@@ -527,24 +802,113 @@ open class QueryBuilderFilter protected constructor(name: String) : Filter(name)
         @JvmStatic
         fun make(name: String): QueryBuilderFilter = finish(QueryBuilderFilter(name))
 
-        /** Serialize rules into the query-string format the builder UI writes. */
+        /** Serialize flat OR-of-AND groups (legacy / tests). */
         @JvmStatic
         fun encode(groups: List<List<QueryRule>>): String = groups.joinToString("|") { rules ->
-            rules.joinToString(";") { rule ->
-                val op = if (rule.negated) "!${rule.operator}" else rule.operator
-                val values = rule.values.joinToString(",") { URLEncoder.encode(it, Charsets.UTF_8) }
-                "${URLEncoder.encode(rule.constraint, Charsets.UTF_8)}:$op:$values"
+            rules.joinToString(";") { encodeRule(it) }
+        }
+
+        /** Serialize an arbitrary [QueryNode] (`a;(b|c)` nesting). */
+        @JvmStatic
+        fun encodeNode(node: QueryNode): String = encodeNodeInner(node, wrap = false)
+
+        private fun encodeNodeInner(node: QueryNode, wrap: Boolean): String = when (node) {
+            is QueryNode.Leaf -> encodeRule(node.rule)
+            is QueryNode.And -> {
+                val body = node.children.joinToString(";") { child ->
+                    encodeNodeInner(child, wrap = child is QueryNode.Or)
+                }
+                if (wrap) "($body)" else body
+            }
+            is QueryNode.Or -> {
+                val body = node.children.joinToString("|") { child ->
+                    encodeNodeInner(child, wrap = child is QueryNode.And && child.children.size > 1)
+                }
+                if (wrap) "($body)" else body
             }
         }
 
-        private fun ruleField(groupIndex: Int, ruleIndex: Int): String = "$RULE_FIELD:$groupIndex:$ruleIndex"
+        private fun encodeRule(rule: QueryRule): String {
+            val op = if (rule.negated) "!${rule.operator}" else rule.operator
+            val values = rule.values.joinToString(",") { URLEncoder.encode(it, Charsets.UTF_8) }
+            return "${URLEncoder.encode(rule.constraint, Charsets.UTF_8)}:$op:$values"
+        }
 
-        private fun parseRuleField(field: String): Pair<Int, Int>? {
+        private fun ruleField(path: List<Int>): String = "$RULE_FIELD:" + path.joinToString(":")
+
+        private fun parseRuleField(field: String): List<Int>? {
             val parts = field.split(':')
-            if (parts.size != 3 || parts[0] != RULE_FIELD) return null
-            val group = parts[1].toIntOrNull() ?: return null
-            val rule = parts[2].toIntOrNull() ?: return null
-            return group to rule
+            if (parts.size < 2 || parts[0] != RULE_FIELD) return null
+            return parts.drop(1).map { it.toIntOrNull() ?: return null }
+        }
+    }
+
+    /** Recursive descent: `expr := term ('|' term)*`, `term := factor (';' factor)*`, `factor := rule | '(' expr ')'`. */
+    private class ExpressionParser(private val raw: String, private val ruleOf: (String) -> QueryRule?) {
+        private var i = 0
+
+        fun parse(): QueryNode {
+            skip()
+            val node = parseExpr()
+            skip()
+            if (i < raw.length) throw IllegalArgumentException("trailing")
+            return node
+        }
+
+        private fun parseExpr(): QueryNode {
+            val parts = ArrayList<QueryNode>()
+            parseTerm()?.let { parts.add(it) }
+            while (true) {
+                skip()
+                if (!match('|')) break
+                parseTerm()?.let { parts.add(it) }
+            }
+            if (parts.isEmpty()) throw IllegalArgumentException("empty")
+            return if (parts.size == 1) parts[0] else QueryNode.Or(parts)
+        }
+
+        private fun parseTerm(): QueryNode? {
+            val parts = ArrayList<QueryNode>()
+            parseFactor()?.let { parts.add(it) }
+            while (true) {
+                skip()
+                if (!match(';')) break
+                parseFactor()?.let { parts.add(it) }
+            }
+            if (parts.isEmpty()) return null
+            return if (parts.size == 1) parts[0] else QueryNode.And(parts)
+        }
+
+        private fun parseFactor(): QueryNode? {
+            skip()
+            if (match('(')) {
+                skip()
+                if (i < raw.length && raw[i] == ')') {
+                    i++
+                    return QueryNode.And(emptyList())
+                }
+                val inner = parseExpr()
+                skip()
+                if (!match(')')) throw IllegalArgumentException(")")
+                return inner
+            }
+            val start = i
+            while (i < raw.length && raw[i] !in ";|()") i++
+            val token = raw.substring(start, i).trim()
+            if (token.isEmpty()) return null
+            return ruleOf(token)?.let { QueryNode.Leaf(it) }
+        }
+
+        private fun match(c: Char): Boolean {
+            if (i < raw.length && raw[i] == c) {
+                i++
+                return true
+            }
+            return false
+        }
+
+        private fun skip() {
+            while (i < raw.length && raw[i].isWhitespace()) i++
         }
     }
 }

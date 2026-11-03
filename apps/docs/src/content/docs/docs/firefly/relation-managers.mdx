@@ -221,7 +221,54 @@ Every action posts to one route per operation:
 | `POST …/relations/bulk` | Run a bulk action on the selected rows |
 | `GET …/relations/options` | Search the associate / attach picker (`q=`), returns JSON |
 
-Each request carries `relation`, `owner`, and `page` in the query string. Firefly re-checks the owner, the tenant, read-only mode, and every authorization rule on the server, so hiding a button is never the only line of defence. On success you land back on the same page with the same manager tab open and a success notification. A validation failure comes back as a danger notification with the messages. A denied action answers `403`, and a missing owner or record answers `404`.
+Each request carries `relation`, `owner`, and `page` in the query string. Firefly re-checks the owner, the tenant, read-only mode, and every authorization rule on the server, so hiding a button is never the only line of defence. On success you land back on the same page with the same manager tab open and a success notification. A validation failure redirects back with a danger notification, reopens the dialog (`?dialog=create` or `?dialog=edit&dialog_id=…`), restores the old input, and shows each field’s error under that field. A denied action answers `403`, and a missing owner or record answers `404`.
+
+## Several managers, groups, and combined tabs
+
+More than one manager on a resource renders as tabs under the form. The active tab is `?relation=<name>`.
+
+Group managers under one top-level tab with `RelationGroup.make("Label", managerA, managerB)` (fluent `relationGroup(…)` or `getRelationGroups()`). Inside the group, nested tabs pick the active manager.
+
+Put the edit form / view infolist on the same tab strip with `combinedRelationManagerTabsWithContent()` and optional `contentTabLabel("Details")`. The content tab uses `?relation=content` (selected by default).
+
+Skip building inactive tables until their tab is selected with `RelationManager.lazy()` — inactive lazy panels show a short placeholder instead of the table.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+relation(TasksRelationManager().lazy())
+relationGroup(
+    RelationGroup.make(
+        "Team",
+        MembersRelationManager(),
+        RolesRelationManager(),
+    ),
+)
+combinedRelationManagerTabsWithContent()
+contentTabLabel("Project")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+combinedRelationManagerTabsWithContent();
+contentTabLabel("Project");
+
+@Override
+public List<RelationManager> getRelations() {
+    return List.of(new TasksRelationManager().lazy());
+}
+
+@Override
+public List<RelationGroup> getRelationGroups() {
+    return List.of(RelationGroup.make("Team", new MembersRelationManager(), new RolesRelationManager()));
+}
+```
+
+</TabItem>
+</Tabs>
 
 ## Default actions
 
@@ -239,7 +286,7 @@ Calling any of the three methods replaces that list only. So `headerActions(Rela
 
 ## Creating and editing
 
-`RelationAction.create()` opens a dialog with the manager form. On submit, Firefly validates the fields, saves a new related record through the relationship (the foreign key and morph type are filled for you), and refreshes the table. `RelationAction.edit()` opens the same form filled with the row.
+`RelationAction.create()` opens a dialog with the manager form. On submit, Firefly validates the fields, saves a new related record through the relationship (the foreign key and morph type are filled for you), and refreshes the table. The create dialog also offers **Create & create another**, which saves and reopens an empty create dialog — call `createAnother(false)` to hide it. `RelationAction.edit()` opens the same form filled with the row.
 
 Each action can change its own wording and data:
 
@@ -254,6 +301,7 @@ headerActions(
         .modalDescription("The task is assigned to this project right away.")
         .modalSubmitActionLabel("Add")
         .successNotificationTitle("Task added")
+        .createAnother()
         .mutateFormDataUsing { data -> data + ("status" to "open") }
         .slideOver(),
 )
@@ -270,6 +318,7 @@ headerActions(
         .modalDescription("The task is assigned to this project right away.")
         .modalSubmitActionLabel("Add")
         .successNotificationTitle("Task added")
+        .createAnother()
         .mutateFormDataUsing(data -> {
             var copy = new java.util.HashMap<>(data);
             copy.put("status", "open");
@@ -325,6 +374,7 @@ headerActions(
     RelationAction.create(),
     RelationAction.associate()
         .multiple()
+        .recordSelect { select -> select.placeholder("Choose a task") }
         .recordSelectSearchColumns("title", "code")
         .recordSelectOptionsQuery { query, _ -> (query as ModelBuilder<*>).whereNull("project_id") },
 )
@@ -340,6 +390,7 @@ headerActions(
     RelationAction.create(),
     RelationAction.associate()
         .multiple()
+        .recordSelect(select -> select.placeholder("Choose a task"))
         .recordSelectSearchColumns("title", "code")
         .recordSelectOptionsQuery((query, context) -> ((ModelBuilder<?>) query).whereNull("project_id"))
 );
@@ -350,7 +401,7 @@ bulkActions(BulkActionGroup.make(DissociateBulkAction.make(), RelationBulkAction
 </TabItem>
 </Tabs>
 
-The picker searches the record title attribute plus any `recordSelectSearchColumns`, and leaves out rows already on this owner. It preloads the first 50 options; change that with `recordSelectOptionsLimit(n)`, or call `preloadRecordSelect(false)` to wait until the user types. `multiple()` lets one submit associate several records.
+The picker searches the record title attribute plus any `recordSelectSearchColumns`, and leaves out rows already on this owner. It preloads the first 50 options; change that with `recordSelectOptionsLimit(n)`, or call `preloadRecordSelect(false)` to wait until the user types. `multiple()` lets one submit associate several records. Customize the picker field itself with `recordSelect { select -> … }` (placeholder, option labels, and any other `Select` chain).
 
 Generate this shape with `--associate`:
 
@@ -500,7 +551,77 @@ new RelationManager("tasks")
 </TabItem>
 </Tabs>
 
-`recordTitle` overrides `recordTitleAttribute` wherever one record is named. `badge` shows a count or short label beside the heading and on the tab. `inverseRelationship("project")` records the relationship back to the owner for your own code to read.
+`recordTitle` overrides `recordTitleAttribute` wherever one record is named. `badge` shows a count or short label beside the heading and on the tab.
+
+## Inverse relationship (associate / attach pickers)
+
+When a related row can belong to only one owner (or you want attach options to hide rows already linked through the inverse), name the relationship **on the related model** that points back to the owner. Firefly then scopes associate and attach candidates with Cadence `whereDoesntHave(inverse)` for that owner, instead of only checking the foreign key or pivot on this side:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+// Task.project() → BelongsTo Project
+RelationManager("tasks")
+    .recordTitleAttribute("name")
+    .inverseRelationship("project")
+    .headerActions(RelationAction.associate())
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+// Task.project() → BelongsTo Project
+new RelationManager("tasks")
+    .recordTitleAttribute("name")
+    .inverseRelationship("project")
+    .headerActions(RelationAction.associate());
+```
+
+</TabItem>
+</Tabs>
+
+For many-to-many, use the inverse BelongsToMany name (for example `projects` on `User`). Attach with `allowDuplicates()` keeps candidates that are already attached; without duplicates, inverse exclusion still applies. `RelationContext.inverseRelationship()` exposes the same name in hooks and authorization predicates.
+
+## Reorderable related rows
+
+`reorderable("sort_order")` turns on table drag-reorder for the manager. Has-many writes the column on the related model; many-to-many writes it on the pivot (the column is registered for pivot save when it is not already in `pivotColumns`). The list query orders by that column, and a successful reorder posts `_reorder_keys` as a comma-separated list of primary keys in the new order (`RelationOperation.REORDER`):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RelationManager("tasks")
+    .recordTitleAttribute("name")
+    .reorderable("sort_order")
+    .table { table -> table.columns(TextColumn.make("name")) }
+
+RelationManager("members")
+    .recordTitleAttribute("name")
+    .pivotColumns("role")
+    .reorderable("sort_order") // pivot column
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new RelationManager("tasks")
+    .recordTitleAttribute("name")
+    .reorderable("sort_order")
+    .table(table -> table.columns(TextColumn.make("name")));
+
+new RelationManager("members")
+    .recordTitleAttribute("name")
+    .pivotColumns("role")
+    .reorderable("sort_order"); // pivot column
+```
+
+</TabItem>
+</Tabs>
+
+Gate reordering with `can(RelationOperation.REORDER) { … }`. Managers without `reorderable` answer `403` on reorder posts; view-page read-only still blocks mutation.
 
 ## Narrowing the query
 
@@ -561,7 +682,7 @@ new RelationManager("tasks")
 </TabItem>
 </Tabs>
 
-There is a `can…` method for every operation: `canView`, `canCreate`, `canEdit`, `canDelete`, `canAssociate`, `canDissociate`, `canAttach`, `canDetach`, `canRestore`, `canForceDelete`, or `can(RelationOperation.X, predicate)`. `canViewForRecord` hides the whole manager for an owner. On an action, `authorize { … }` adds a further check, while `hidden { … }` and `visible { … }` only change what is shown. Denied operations hide their buttons and answer `403` on `POST`.
+There is a `can…` method for every operation: `canView`, `canCreate`, `canEdit`, `canDelete`, `canAssociate`, `canDissociate`, `canAttach`, `canDetach`, `canRestore`, `canForceDelete`, or `can(RelationOperation.X, predicate)` (including `RelationOperation.REORDER`). `canViewForRecord` hides the whole manager for an owner. On an action, `authorize { … }` adds a further check, while `hidden { … }` and `visible { … }` only change what is shown. Denied operations hide their buttons and answer `403` on `POST`.
 
 ## Several managers
 
@@ -632,7 +753,8 @@ The generator refuses to overwrite an existing file.
 | `modifyQueryUsing { query, context -> … }` | Narrow the owner-scoped `ModelBuilder` |
 | `readOnly(Boolean)` | Override the view-page default |
 | `can…`, `canViewForRecord` | Authorization |
-| `inverseRelationship(name)` | The relationship back to the owner |
+| `inverseRelationship(name)` | Related-model relationship back to the owner; scopes associate/attach candidates |
+| `reorderable(column)` / `reorderColumn()` | Drag-reorder via related or pivot column (`RelationOperation.REORDER`) |
 
 | `RelationAction` factory | Operation |
 | --- | --- |
@@ -641,4 +763,4 @@ The generator refuses to overwrite an existing file.
 | `attach()`, `detach()` | Many-to-many pivot |
 | `restore()`, `forceDelete()` | Soft deletes |
 
-`RelationAction` options: `label`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `successNotificationTitle`, `hidden`, `visible`, `authorize`, `form`, `mutateFormDataUsing`, `before`, `after`, `slideOver`, and for associate / attach `multiple`, `preloadRecordSelect`, `recordSelectOptionsLimit`, `recordSelectOptionsQuery`, `recordSelectSearchColumns`, `allowDuplicates`.
+`RelationAction` options: `label`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `successNotificationTitle`, `hidden`, `visible`, `authorize`, `form`, `mutateFormDataUsing`, `before`, `after`, `slideOver`, `createAnother` (create), and for associate / attach `multiple`, `preloadRecordSelect`, `recordSelect`, `recordSelectOptionsLimit`, `recordSelectOptionsQuery`, `recordSelectSearchColumns`, `allowDuplicates`.

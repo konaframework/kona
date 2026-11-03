@@ -351,6 +351,7 @@ class CadenceB6ParityTest {
 
         MorphMap.clear()
         assertThrows(CadenceException::class.java) { B6Comment.whereHas("commentable").count() }
+        assertThrows(CadenceException::class.java) { B6Comment.has("commentable", ">=", 1).count() }
 
         Relation.morphMap(mapOf("books" to B6Book::class.java))
         assertThrows(CadenceException::class.java) {

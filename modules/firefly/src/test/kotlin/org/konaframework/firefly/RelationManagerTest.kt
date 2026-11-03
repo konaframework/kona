@@ -41,10 +41,10 @@ class RelationManagerTest {
         val connection = database.connection()
         connection.statement("create table rm_projects (id bigint auto_increment primary key, name varchar(100), team varchar(20))")
         connection.statement(
-            "create table rm_tasks (id bigint auto_increment primary key, project_id bigint, name varchar(100), deleted_at timestamp)",
+            "create table rm_tasks (id bigint auto_increment primary key, project_id bigint, name varchar(100), sort_order int, deleted_at timestamp)",
         )
         connection.statement("create table rm_users (id bigint auto_increment primary key, name varchar(100))")
-        connection.statement("create table rm_project_user (project_id bigint, user_id bigint, role varchar(20))")
+        connection.statement("create table rm_project_user (project_id bigint, user_id bigint, role varchar(20), sort_order int)")
         connection.statement(
             "create table rm_comments (id bigint auto_increment primary key, commentable_type varchar(50), commentable_id bigint, body varchar(100))",
         )
@@ -125,13 +125,25 @@ class RelationManagerTest {
 
         val invalid = relationPost(router, "create", p1, "name=", session = session)
         assertEquals(302, invalid.status)
+        assertEquals(
+            "/admin/projects/edit?id=${p1.getKey()}&relation=tasks&dialog=create",
+            invalid.headers["Location"],
+        )
         assertToast(session, "Please fix the form", "danger")
         assertEquals(0L, RmTask().newQuery().where("name", "").count())
+        @Suppress("UNCHECKED_CAST")
+        val createErrors = session.get(RelationManager.ERRORS_FLASH) as Map<String, List<String>>
+        assertTrue(createErrors["name"]!!.isNotEmpty())
+        assertEquals("", session.old("name"))
 
         relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=Alpha2", session = session)
         assertEquals("Alpha2", RmTask().newQuery().withTrashed().where("id", alpha.getKey()).first()!!.getAttribute("name"))
         assertToast(session, "Saved", "success")
-        assertEquals(302, relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=").status)
+        val editInvalid = relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=", session = session)
+        assertEquals(302, editInvalid.status)
+        assertTrue(editInvalid.headers["Location"]!!.contains("dialog=edit"))
+        assertTrue(editInvalid.headers["Location"]!!.contains("dialog_id=${alpha.getKey()}"))
+        assertToast(session, "Please fix the form", "danger")
         assertEquals(404, relationPost(router, "edit", p1, "id=${gamma.getKey()}&name=Stolen").status, "other owner's row")
         assertEquals(404, relationPost(router, "edit", p1, "name=NoId").status)
 
@@ -139,7 +151,8 @@ class RelationManagerTest {
         assertToast(session, "Associated", "success")
         assertEquals(p1.getKey().toString(), reload(gamma).getAttribute("project_id").toString())
         assertEquals(p1.getKey().toString(), reload(loose).getAttribute("project_id").toString())
-        relationPost(router, "associate", p1, "recordId=", session = session)
+        val emptyAssociate = relationPost(router, "associate", p1, "recordId=", session = session)
+        assertTrue(emptyAssociate.headers["Location"]!!.contains("dialog=associate"))
         assertToast(session, "Select at least one task", "danger")
         relationPost(router, "associate", p1, "recordId=99999", session = session)
         assertToast(session, "task [99999] cannot be associated", "danger")
@@ -765,6 +778,413 @@ class RelationManagerTest {
         assertEquals("v", RelationContext(RelationManager("tasks"), p1, row, RelationOperation.VIEW, "edit", false).get("name"))
     }
 
+    @Test
+    fun relationGroupCombinedTabsAndLazyManagers() {
+        task(p1, "Alpha")
+        val comments = RelationManager("comments")
+            .recordTitleAttribute("body")
+            .related(RmComment::class.java)
+            .form { schema -> schema.components(TextInput.make("body").required()) }
+            .table { table -> table.columns(TextColumn.make("body")) }
+            .headerActions(RelationAction.create())
+            .actions(RelationAction.view(), RelationAction.edit(), RelationAction.delete())
+        val tags = RelationManager("tags")
+            .recordTitleAttribute("name")
+            .related(RmTag::class.java)
+            .form { schema -> schema.components(TextInput.make("name").required()) }
+            .table { table -> table.columns(TextColumn.make("name")) }
+            .headerActions(RelationAction.attach())
+            .actions(RelationAction.view(), RelationAction.detach(), RelationAction.delete())
+        val tasksLazy = tasks().lazy()
+        val resource = projects(tasksLazy, members())
+            .relationGroup(RelationGroup.make("Notes", comments, tags))
+            .combinedRelationManagerTabsWithContent()
+            .contentTabLabel("Project")
+        assertTrue(resource.hasCombinedRelationManagerTabsWithContent())
+        assertEquals("Project", resource.getContentTabLabel())
+        assertEquals(setOf("tasks", "members", "comments", "tags"), resource.relationManagers().map { it.name() }.toSet())
+        assertThrows<FireflyException> { RelationGroup.make(" ", tasksLazy) }
+        assertThrows<FireflyException> { RelationGroup.make("Empty") }
+        assertThrows<FireflyException> { RelationGroup.make("Dup", comments, comments) }
+        assertEquals("Notes", RelationGroup.make("Notes", comments).label())
+        assertTrue(tasksLazy.isLazy())
+        assertFalse(tasks().lazy(false).isLazy())
+
+        val router = mount(resource)
+        val edit = page(router, "edit", p1)
+        assertTrue(edit.contains("""data-ff-relation-tab="content""""), edit)
+        assertTrue(edit.contains(">Project<"), edit)
+        assertTrue(edit.contains("""id="ff-form""""), edit)
+        assertTrue(edit.contains("""data-ff-relation-tab="group-notes""""), edit)
+        assertTrue(edit.contains(">Notes<"), edit)
+        assertTrue(edit.contains("""data-ff-lazy="true""""), edit)
+        assertTrue(edit.contains("Open this tab to load tasks"), edit)
+        assertTrue(edit.contains("""data-ff-relation-tab="content" aria-selected="true""""), edit)
+
+        val tasksTab = page(router, "edit", p1, mapOf("relation" to "tasks"))
+        assertFalse(tasksTab.contains("""data-ff-lazy="true""""), tasksTab)
+        assertTrue(tasksTab.contains("Alpha"), tasksTab)
+
+        val notes = page(router, "edit", p1, mapOf("relation" to "comments"))
+        assertTrue(notes.contains("""data-ff-relation-group="Notes""""), notes)
+        assertTrue(notes.contains("""data-ff-relation="comments""""), notes)
+        assertTrue(notes.contains("ff-relation-nested-tabs"), notes)
+        assertTrue(notes.contains("""data-ff-relation-tab="tags""""), notes)
+
+        val tagsTab = page(router, "edit", p1, mapOf("relation" to "tags"))
+        assertTrue(tagsTab.contains("""data-ff-relation="tags""""), tagsTab)
+
+        val view = page(router, "view", p1)
+        assertTrue(view.contains("""data-ff-relation-tab="content""""), view)
+        assertTrue(view.contains("ff-relation-content"), view)
+
+        // Class-based getRelationGroups + default content tab label.
+        val declared = object : Resource("projects") {
+            init {
+                label("Project")
+                model(RmProject::class.java)
+                combinedRelationManagerTabsWithContent()
+            }
+            override fun form(schema: Schema) = schema.components(TextInput.make("name"))
+            override fun getRelations(): List<RelationManager> = listOf(tasks())
+            override fun getRelationGroups(): List<RelationGroup> =
+                listOf(RelationGroup.make("More", comments))
+        }
+        assertEquals("Content", declared.getContentTabLabel())
+        val declaredEdit = page(mount(declared), "edit", p1)
+        assertTrue(declaredEdit.contains("""data-ff-relation-tab="content""""), declaredEdit)
+        assertTrue(declaredEdit.contains("""data-ff-relation-tab="group-more""""), declaredEdit)
+        assertThrows<FireflyException> { declared.contentTabLabel(" ") }
+        assertThrows<FireflyException> { Resource("m").relation(tasks()).simple() }
+        assertThrows<FireflyException> {
+            Resource("gonly").relationGroup(RelationGroup.make("G", comments)).simple()
+        }
+        assertThrows<FireflyException> {
+            Resource("x").relation(tasks()).relationGroup(RelationGroup.make("G", comments)).simple()
+        }
+        assertThrows<FireflyException> {
+            Resource("y").simple().relationGroup(RelationGroup.make("G", comments))
+        }
+        assertThrows<FireflyException> {
+            object : Resource("g") {
+                override fun getRelationGroups() = listOf(RelationGroup.make("G", comments))
+            }.simple()
+        }
+        assertThrows<FireflyException> {
+            object : Resource("r") {
+                override fun getRelations() = listOf(tasks())
+            }.simple()
+        }
+        Resource("z").simple(false).relation(tasks())
+        Resource("ok").simple()
+
+        // Manager listed both fluently and inside a group is only shown in the group.
+        val overlap = projects(comments)
+            .relationGroup(RelationGroup.make("Notes", comments))
+        assertEquals(listOf("comments"), overlap.relationManagers().map { it.name() })
+        assertEquals(1, overlap.relationEntries().size)
+        val overlapDeclared = object : Resource("projects") {
+            init {
+                label("Project")
+                model(RmProject::class.java)
+            }
+            override fun form(schema: Schema) = schema.components(TextInput.make("name"))
+            override fun getRelations() = listOf(comments)
+            override fun getRelationGroups() = listOf(RelationGroup.make("Notes", comments))
+        }
+        assertEquals(1, overlapDeclared.relationEntries().size)
+
+        // Invisible managers drop the group; combined with no managers still shows content.
+        val gated = RelationManager("comments")
+            .recordTitleAttribute("body")
+            .related(RmComment::class.java)
+            .canViewForRecord { false }
+        val contentOnlyResource = projects()
+            .relationGroup(RelationGroup.make("Hidden", gated))
+            .combinedRelationManagerTabsWithContent()
+            .contentTabLabel("Only")
+        val contentOnly = mount(contentOnlyResource)
+        val contentPage = page(contentOnly, "edit", p1)
+        assertTrue(contentPage.contains("""data-ff-relation-tab="content""""), contentPage)
+        assertFalse(contentPage.contains("group-hidden"), contentPage)
+        assertTrue(contentPage.contains("""id="ff-form""""), contentPage)
+        val missingOnContent = page(contentOnly, "edit", p1, mapOf("relation" to "missing"))
+        assertTrue(missingOnContent.contains("""data-ff-relation-tab="content""""), missingOnContent)
+
+        // Sole group (no singles) still gets a tab strip, not a bare section.
+        val groupOnly = mount(projects().relationGroup(RelationGroup.make("Notes", comments, tags)))
+        val groupOnlyHtml = page(groupOnly, "edit", p1)
+        assertTrue(groupOnlyHtml.contains("""data-ff-relation-tab="group-notes""""), groupOnlyHtml)
+        assertTrue(groupOnlyHtml.contains("ff-relation-nested-tabs"), groupOnlyHtml)
+
+        // Nested badge + unknown relation falls back to the first entry.
+        val badged = comments.badge("3")
+        val nested = mount(
+            projects(tasks()).relationGroup(RelationGroup.make("Notes", badged, tags)),
+        )
+        val nestedHtml = page(nested, "edit", p1, mapOf("relation" to "nope"))
+        assertTrue(nestedHtml.contains("""ff-relation-badge">3"""), nestedHtml)
+        val unknownCombined = page(router, "edit", p1, mapOf("relation" to "missing"))
+        assertTrue(unknownCombined.contains("ff-relation-managers"), unknownCombined)
+        // Without combined tabs, relation=content is ignored and the first manager wins.
+        val plain = mount(projects(tasks(), members()))
+        assertTrue(page(plain, "edit", p1, mapOf("relation" to Resource.CONTENT_TAB)).contains("""data-ff-relation="tasks""""))
+
+        // Empty form body still combines.
+        val emptyForm = mount(
+            object : Resource("projects") {
+                init {
+                    label("Project")
+                    model(RmProject::class.java)
+                    combinedRelationManagerTabsWithContent()
+                    relation(tasks())
+                }
+                override fun form(schema: Schema): Schema = schema
+            },
+        )
+        assertTrue(page(emptyForm, "edit", p1).contains("ff-relation-managers"))
+
+        val bare = wrapCombinedResourceForm("fields", emptyMap())
+        assertTrue(bare.contains("""action="""""), bare)
+        assertTrue(bare.contains("""value="""""), bare)
+        val filled = wrapCombinedResourceForm(
+            "fields",
+            mapOf("csrfField" to "<t>", "formAction" to "/edit", "record" to "9"),
+        )
+        assertTrue(filled.contains("action=\"/edit\""), filled)
+        assertTrue(filled.contains("""value="9""""), filled)
+        assertTrue(filled.contains("<t>"), filled)
+    }
+
+    @Test
+    fun modalUxCreateAnotherRecordSelectAndFieldErrors() {
+        val alpha = task(p1, "Alpha")
+        val manager = RelationManager("tasks")
+            .recordTitleAttribute("name")
+            // Empty-name field exercises absolutePath() ?: name when applying flash errors.
+            .form { schema -> schema.components(TextInput.make("name").required(), TextInput.make("")) }
+            .table { table -> table.columns(TextColumn.make("name")) }
+            .headerActions(
+                RelationAction.create(),
+                RelationAction.associate()
+                    .recordSelect { select -> select.placeholder("Pick a task") },
+            )
+            .actions(RelationAction.view(), RelationAction.edit(), RelationAction.delete())
+        val router = mount(projects(manager))
+        val edit = page(router, "edit", p1)
+        assertTrue(edit.contains("Create &amp; create another") || edit.contains("Create & create another"), edit)
+        assertTrue(edit.contains("Pick a task"), edit)
+
+        val noAnother = mount(
+            projects(
+                tasks().headerActions(RelationAction.create().createAnother(false), RelationAction.associate()),
+            ),
+        )
+        assertFalse(page(noAnother, "edit", p1).contains("Create & create another"))
+        assertFalse(page(noAnother, "edit", p1).contains("Create &amp; create another"))
+
+        val session = RmSession()
+        val again = relationPost(router, "create", p1, "name=Kept&_create_another=1", session = session)
+        assertEquals(302, again.status)
+        assertEquals(
+            "/admin/projects/edit?id=${p1.getKey()}&relation=tasks&dialog=create",
+            again.headers["Location"],
+        )
+        assertToast(session, "Created", "success")
+        assertNotNull(RmTask().newQuery().where("name", "Kept").first())
+
+        relationPost(router, "create", p1, "name=Draft", session = session)
+        assertToast(session, "Created", "success")
+        val invalid = relationPost(router, "create", p1, "name=", session = session)
+        assertTrue(invalid.headers["Location"]!!.endsWith("dialog=create"))
+        assertToast(session, "Please fix the form", "danger")
+        @Suppress("UNCHECKED_CAST")
+        val createErrors = session.get(RelationManager.ERRORS_FLASH) as Map<String, List<String>>
+        assertTrue(createErrors["name"]!!.isNotEmpty())
+
+        val editInvalid = relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=", session = session)
+        assertEquals(302, editInvalid.status, editInvalid.body)
+        val editLoc = editInvalid.headers["Location"]
+        assertNotNull(editLoc)
+        assertTrue(editLoc!!.contains("dialog=edit"), editLoc)
+        assertTrue(editLoc.contains("dialog_id=${alpha.getKey()}"), editLoc)
+        assertToast(session, "Please fix the form", "danger")
+
+        // Page GETs with a session arm CSRF — assert markup after the POSTs above.
+        val reopened = page(router, "edit", p1, mapOf("dialog" to "create"), session)
+        assertTrue(reopened.contains("""data-ff-invalid="true""""), reopened)
+        assertTrue(reopened.contains("ff-helper"), reopened)
+        val editPage = page(
+            router,
+            "edit",
+            p1,
+            mapOf("dialog" to "edit", "dialog_id" to alpha.getKey().toString()),
+            session,
+        )
+        assertTrue(editPage.contains("""data-ff-invalid="true""""), editPage)
+
+        assertTrue(RelationAction.create().allowsCreateAnother())
+        assertFalse(RelationAction.create().createAnother(false).allowsCreateAnother())
+        assertNotNull(RelationAction.attach().recordSelect { it }.recordSelectCustomizer())
+
+        // createAnother(false) ignores a posted `_create_another` flag.
+        val noAgainSession = RmSession()
+        val noAgain = relationPost(
+            noAnother,
+            "create",
+            p1,
+            "name=Once&_create_another=1",
+            session = noAgainSession,
+        )
+        assertEquals(302, noAgain.status)
+        assertFalse(noAgain.headers["Location"]!!.contains("dialog="))
+        assertToast(noAgainSession, "Created", "success")
+
+        // Flash with errors but no old input; dialog without a session; blank dialogId ignored.
+        val errOnly = RmSession()
+        errOnly.flash(RelationManager.ERRORS_FLASH, mapOf("name" to listOf("Required")))
+        val errHtml = page(router, "edit", p1, mapOf("dialog" to "create", "dialog_id" to "  "), errOnly)
+        assertTrue(errHtml.contains("""data-ff-invalid="true""""), errHtml)
+        val noSessionDialog = page(router, "edit", p1, mapOf("dialog" to "create"))
+        assertTrue(noSessionDialog.contains("ff-action-form"))
+        assertNull(RelationFormFlash.from(emptyMap()))
+        assertNull(RelationFormFlash.from(mapOf("dialog" to "  ")))
+        assertNull(RelationFormFlash.from(mapOf("dialog" to null)))
+        val blankId = RelationFormFlash.from(mapOf("dialog" to "create", "dialogId" to "  "))
+        assertNotNull(blankId)
+        assertNull(blankId!!.recordId)
+        val flash = RelationFormFlash.from(
+            mapOf(
+                "dialog" to "edit",
+                "dialogId" to alpha.getKey().toString(),
+                "filterSession" to errOnly,
+            ),
+        )
+        assertNotNull(flash)
+        assertTrue(flash!!.matches("edit", alpha.getKey().toString()))
+        assertFalse(flash.matches("create", null))
+        assertFalse(flash.matches("edit", "other"))
+        // Non-map under the errors key falls through to an empty error map.
+        errOnly.flash(RelationManager.ERRORS_FLASH, "not-a-map")
+        val castMiss = RelationFormFlash.from(mapOf("dialog" to "create", "filterSession" to errOnly))
+        assertNotNull(castMiss)
+        assertTrue(castMiss!!.errors.isEmpty())
+        // Non-session under filterSession is ignored.
+        val badSession = RelationFormFlash.from(mapOf("dialog" to "create", "filterSession" to "nope"))
+        assertNotNull(badSession)
+        assertTrue(badSession!!.errors.isEmpty())
+        assertTrue(badSession.old.isEmpty())
+    }
+
+    @Test
+    fun inverseRelationshipScopesCandidatesAndReorderPersists() {
+        val alpha = task(p1, "Alpha")
+        val beta = task(p1, "Beta")
+        val loose = task(null, "Loose")
+        task(p2, "Other")
+        val withInverse = tasks().inverseRelationship("project").reorderable("sort_order")
+        assertEquals("sort_order", withInverse.reorderColumn())
+        assertThrows<FireflyException> { tasks().reorderable(" ") }
+        val ctx = RelationContext(withInverse, p1, null, RelationOperation.VIEW, "edit", false)
+        assertEquals("project", ctx.inverseRelationship())
+
+        val router = mount(projects(withInverse))
+        val optionsBody = options(router, p1, "associate", "")
+        assertTrue(optionsBody.contains("Loose"), optionsBody)
+        assertTrue(optionsBody.contains("Other"), optionsBody)
+        assertFalse(optionsBody.contains("\"label\":\"Alpha\""), optionsBody)
+
+        relationPost(router, "associate", p1, "recordId=${loose.getKey()}")
+        assertEquals(p1.getKey().toString(), reload(loose).getAttribute("project_id").toString())
+
+        val session = RmSession()
+        val reordered = relationPost(
+            router,
+            "reorder",
+            p1,
+            "_reorder_keys=${beta.getKey()},${alpha.getKey()},${loose.getKey()}",
+            session = session,
+        )
+        assertEquals(302, reordered.status)
+        assertToast(session, "Reordered", "success")
+        assertEquals(0, reload(beta).getAttribute("sort_order"))
+        assertEquals(1, reload(alpha).getAttribute("sort_order"))
+        assertEquals(2, reload(loose).getAttribute("sort_order"))
+        val emptyKeys = relationPost(router, "reorder", p1, "_reorder_keys=", session = session)
+        assertEquals(302, emptyKeys.status)
+        assertToast(session, "Reorder keys are required", "danger")
+        assertEquals(403, relationPost(router, "reorder", p1, "_reorder_keys=1", page = "view").status)
+
+        val ada = user("Ada")
+        val bob = user("Bob")
+        val membersOrdered = members().reorderable("sort_order")
+        val memberRouter = mount(projects(membersOrdered))
+        relationPost(memberRouter, "attach", p1, "recordId=${ada.getKey()},${bob.getKey()}&role=dev", relation = "members")
+        relationPost(
+            memberRouter,
+            "reorder",
+            p1,
+            "_reorder_keys=${bob.getKey()},${ada.getKey()}",
+            relation = "members",
+            session = session,
+        )
+        assertToast(session, "Reordered", "success")
+        assertEquals(
+            0,
+            org.konaframework.cadence.DB.table("rm_project_user").where("user_id", bob.getKey()).first()!!["sort_order"],
+        )
+        assertEquals(
+            1,
+            org.konaframework.cadence.DB.table("rm_project_user").where("user_id", ada.getKey()).first()!!["sort_order"],
+        )
+        assertEquals(403, relationPost(router, "reorder", p1, "_reorder_keys=1", relation = "tasks", page = "view").status)
+        assertEquals(404, relationPost(memberRouter, "reorder", p1, "_reorder_keys=1", relation = "tasks").status)
+
+        // Reorder column already listed as a pivot column; unauthorized / not-reorderable managers.
+        members().pivotColumns("role", "sort_order").reorderable("sort_order")
+        assertEquals(403, relationPost(mount(projects(tasks())), "reorder", p1, "_reorder_keys=1").status)
+        val gated = tasks().reorderable("sort_order").can(RelationOperation.REORDER) { false }
+        assertEquals(403, relationPost(mount(projects(gated)), "reorder", p1, "_reorder_keys=${alpha.getKey()}").status)
+        val bound = withInverse.bind(p1, EditPage("edit"), "relations", "")
+        withInverse.perform(bound, RelationOperation.REORDER, mapOf("_reorder_keys" to "99999,${alpha.getKey()}"))
+        assertEquals(
+            "Reorder keys are required",
+            withInverse.perform(bound, RelationOperation.REORDER, emptyMap()).title,
+        )
+        assertTrue(withInverse.supports(RelationOperation.REORDER, bound))
+        assertFalse(tasks().supports(RelationOperation.REORDER, tasks().bind(p1, EditPage("edit"), "relations", "")))
+        // Inverse on attach (with and without duplicates) exercises candidate exclusion branches.
+        val cy = user("Cy")
+        val invMembers = members().inverseRelationship("projects")
+        val invRouter = mount(projects(invMembers))
+        val invOptions = options(invRouter, p1, "attach", "", relation = "members")
+        assertTrue(invOptions.contains("Cy") || invOptions.contains(cy.getKey().toString()), invOptions)
+        val dup = members().inverseRelationship("projects").headerActions(
+            RelationAction.attach().allowDuplicates().form { schema -> schema.components(TextInput.make("role")) },
+        )
+        val dupRuntime = dup.bind(p1, EditPage("edit"), "relations", "")
+        assertTrue(dup.options(dupRuntime, RelationOperation.ATTACH, "").isNotEmpty())
+        // Has-many-through still reports supports() for unrelated ops.
+        val through = RelationManager("checks").recordTitleAttribute("name").related(RmCheck::class.java)
+        assertFalse(through.supports(RelationOperation.CREATE, through.bind(p1, EditPage("edit"), "relations", "")))
+        // Inverse set but operation is neither associate nor attach → else arm (no inverse exclusion).
+        assertTrue(
+            dupRuntime.binding.candidates(RelationOperation.CREATE, "name", emptyList(), "", 5, false, "projects") { }
+                .isNotEmpty(),
+        )
+        // ATTACH + duplicates=true + inverse → !duplicates is false (skips whereDoesntHave).
+        assertTrue(
+            dupRuntime.binding.candidates(RelationOperation.ATTACH, "name", emptyList(), "", 5, true, "projects") { }
+                .isNotEmpty(),
+        )
+        // ATTACH + duplicates=false + inverse → !duplicates is true (applies whereDoesntHave).
+        assertTrue(
+            invMembers.bind(p1, EditPage("edit"), "relations", "")
+                .binding.candidates(RelationOperation.ATTACH, "name", emptyList(), "", 5, false, "projects") { }
+                .isNotEmpty(),
+        )
+    }
+
     // ——— Fixtures ———
 
     private fun tasks(): RelationManager = RelationManager("tasks")
@@ -810,12 +1230,14 @@ class RelationManagerTest {
         org.konaframework.cadence.DB.table("rm_project_user")
             .where("project_id", project.getKey()).where("user_id", user.getKey()).first()?.get("role")
 
-    private fun page(router: Router, slug: String, owner: RmProject): String =
-        get(router, "/admin/projects/$slug", mapOf("id" to owner.getKey().toString()))
+    private fun page(router: Router, slug: String, owner: RmProject, query: Map<String, String> = emptyMap(), session: RequestSession? = null): String =
+        get(router, "/admin/projects/$slug", mapOf("id" to owner.getKey().toString()) + query, session)
 
-    private fun get(router: Router, path: String, query: Map<String, String>): String {
+    private fun get(router: Router, path: String, query: Map<String, String>, session: RequestSession? = null): String {
         val match = router.find("GET", path) ?: throw AssertionError("missing $path")
-        val response = match.route.action.handle(Request("GET", path, emptyMap(), query, ""))
+        val request = Request("GET", path, emptyMap(), query, "")
+        if (session != null) request.setAttribute(Request.SESSION_ATTRIBUTE, session)
+        val response = match.route.action.handle(request)
         assertEquals(200, response.status, response.body)
         return response.body
     }
@@ -871,12 +1293,16 @@ class RelationManagerTest {
 
 class RmSession : RequestSession {
     private val values = LinkedHashMap<String, Any?>()
+    private val old = LinkedHashMap<String, String>()
     override fun get(key: String): Any? = values[key]
     override fun put(key: String, value: Any?): RequestSession = apply { values[key] = value }
     override fun flash(key: String, value: Any?): RequestSession = put(key, value)
-    override fun flashInput(input: Map<String, String>): RequestSession = this
-    override fun old(key: String, default: String?): String? = default
-    override fun oldInput(): Map<String, String> = emptyMap()
+    override fun flashInput(input: Map<String, String>): RequestSession = apply {
+        old.clear()
+        old.putAll(input)
+    }
+    override fun old(key: String, default: String?): String? = old[key] ?: default
+    override fun oldInput(): Map<String, String> = LinkedHashMap(old)
     override fun previousUrl(): String? = null
     override fun setPreviousUrl(url: String): RequestSession = this
 }
@@ -904,13 +1330,17 @@ class RmProject : Cadence<RmProject>() {
 class RmTask : Cadence<RmTask>(), SoftDeletes {
     override val table = "rm_tasks"
     override val timestamps = false
-    override val fillable = setOf("project_id", "name")
+    override val fillable = setOf("project_id", "name", "sort_order")
+
+    fun project() = belongsTo(RmProject::class.java, "project_id")
 }
 
 class RmUser : Cadence<RmUser>() {
     override val table = "rm_users"
     override val timestamps = false
     override val fillable = setOf("name")
+
+    fun projects() = belongsToMany(RmProject::class.java, "rm_project_user", "user_id", "project_id")
 }
 
 class RmComment : Cadence<RmComment>() {

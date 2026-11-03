@@ -38,12 +38,22 @@ class RelationManagerJavaTest {
         new Panel().path("admin").authenticate(false).resource(new Projects()).mount(router);
         String edit = get(router, "/admin/projects/edit", Map.of("id", owner));
         assertTrue(edit.contains("data-ff-relation-managers"));
+        assertTrue(edit.contains("data-ff-relation-tab=\"content\""));
+        assertTrue(edit.contains(">Details<"));
         assertTrue(edit.contains("data-ff-relation-tab=\"tasks\""));
-        assertTrue(edit.contains("data-ff-relation-tab=\"members\""));
-        assertTrue(edit.contains(">New task<"));
+        assertTrue(edit.contains("data-ff-relation-tab=\"group-team\""));
+        assertTrue(edit.contains(">Team<"));
+        // Lazy tasks are a placeholder until selected; create-another lives on the create dialog body.
+        assertTrue(edit.contains("data-ff-lazy=\"true\"") || edit.contains("Open this tab to load"));
+        String tasksTab = get(router, "/admin/projects/edit", Map.of("id", owner, "relation", "tasks"));
+        assertTrue(tasksTab.contains(">New task<"));
+        assertTrue(tasksTab.contains("Create &amp; create another") || tasksTab.contains("Create & create another"));
 
         assertEquals(302, post(router, "create", "tasks", owner, "name=Write+docs").getStatus());
         assertNotNull(new RmTask().newQuery().where("name", "Write docs").first());
+        Response createAnother = post(router, "create", "tasks", owner, "name=Again&_create_another=1");
+        assertEquals(302, createAnother.getStatus());
+        assertTrue(createAnother.getHeaders().get("Location").contains("dialog=create"));
         assertEquals(302, post(router, "attach", "members", owner, "recordId=" + bob.getKey() + "&role=lead").getStatus());
         assertEquals("lead", DB.table("rm_project_user").where("user_id", bob.getKey()).first().get("role"));
         assertEquals(302, post(router, "bulk", "members", owner, "_bulk_action=detach&_bulk_keys=" + bob.getKey()).getStatus());
@@ -58,8 +68,16 @@ class RelationManagerJavaTest {
         assertEquals("forceDelete", ForceDeleteBulkAction.make().getName());
         assertEquals("delete", RelationBulkAction.delete().getName());
         assertEquals(RelationOperation.ATTACH, RelationOperation.fromToken("attach"));
-        RelationAction attach = RelationAction.attach().multiple().preloadRecordSelect().allowDuplicates().slideOver();
+        RelationAction attach = RelationAction.attach().multiple().preloadRecordSelect().allowDuplicates().slideOver()
+            .recordSelect(select -> select.placeholder("Choose member"));
         assertSame(RelationOperation.ATTACH, attach.getOperation());
+        RelationAction create = RelationAction.create().createAnother(false);
+        assertEquals("New task", create.getLabel("task"));
+        RelationGroup group = RelationGroup.make("Team", new RelationManager("members").recordTitleAttribute("name"));
+        assertEquals("Team", group.label());
+        assertEquals(1, group.managers().size());
+        assertEquals("sort_order", new RelationManager("tasks").reorderable("sort_order").reorderColumn());
+        assertEquals(RelationOperation.REORDER, RelationOperation.fromToken("reorder"));
         List<RelationAction> all = List.of(
             RelationAction.create(), RelationAction.view(), RelationAction.edit(), RelationAction.delete(),
             RelationAction.associate(), RelationAction.dissociate(), RelationAction.detach(),
@@ -74,6 +92,8 @@ class RelationManagerJavaTest {
         public TasksRelationManager() {
             super("tasks");
             recordTitleAttribute("name");
+            inverseRelationship("project");
+            reorderable("sort_order");
             form(schema -> schema.components(TextInput.make("name").required()));
             infolist(schema -> schema.components(TextEntry.make("name")));
             table(table -> table.columns(TextColumn.make("name").searchable()));
@@ -90,6 +110,8 @@ class RelationManagerJavaTest {
             super("projects");
             label("Project");
             model(RmProject.class);
+            combinedRelationManagerTabsWithContent();
+            contentTabLabel("Details");
         }
 
         @Override
@@ -99,13 +121,20 @@ class RelationManagerJavaTest {
 
         @Override
         public List<RelationManager> getRelations() {
+            return List.of(new TasksRelationManager().lazy());
+        }
+
+        @Override
+        public List<RelationGroup> getRelationGroups() {
             return List.of(
-                new TasksRelationManager(),
-                new RelationManager("members")
-                    .recordTitleAttribute("name")
-                    .pivotColumns("role")
-                    .table(table -> table.columns(TextColumn.make("name"), TextColumn.make("role")))
-                    .headerActions(RelationAction.attach().form(schema -> schema.components(TextInput.make("role"))))
+                RelationGroup.make(
+                    "Team",
+                    new RelationManager("members")
+                        .recordTitleAttribute("name")
+                        .pivotColumns("role")
+                        .table(table -> table.columns(TextColumn.make("name"), TextColumn.make("role")))
+                        .headerActions(RelationAction.attach().form(schema -> schema.components(TextInput.make("role"))))
+                )
             );
         }
     }
@@ -129,10 +158,12 @@ class RelationManagerJavaTest {
         Database database = new Database().addConnection("default", new ConnectionConfig(url, "sa", "", null, 2));
         database.connection().statement("create table rm_projects (id bigint auto_increment primary key, name varchar(100), team varchar(20))");
         database.connection().statement(
-            "create table rm_tasks (id bigint auto_increment primary key, project_id bigint, name varchar(100), deleted_at timestamp)"
+            "create table rm_tasks (id bigint auto_increment primary key, project_id bigint, name varchar(100), sort_order int, deleted_at timestamp)"
         );
         database.connection().statement("create table rm_users (id bigint auto_increment primary key, name varchar(100))");
-        database.connection().statement("create table rm_project_user (project_id bigint, user_id bigint, role varchar(20))");
+        database.connection().statement(
+            "create table rm_project_user (project_id bigint, user_id bigint, role varchar(20), sort_order int)"
+        );
         database.setAsGlobal();
     }
 }
