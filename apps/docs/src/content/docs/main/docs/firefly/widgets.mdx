@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Put a stat, a chart, a short list, a tip card, or a custom block on a page. Call `widgets(...)` on the page, or drop a class in the panel’s `widgets/` folder and let discovery place it on the empty-slug dashboard.
 
+<FireflyShot file="section-widgets.png" description="Dashboard widgets with stats and charts." />
+
 The hello sample’s `DeskWidget` is `app/firefly/widgets/DeskWidget`. It renders a paragraph that reads “Open orders”. Discovery finds it and puts it on the Desk page, because Desk is the first page. You see it inside `<div class="ff-page-widgets">`.
 
 ApexCharts is the default chart engine (Shamar). Pass `ChartEngine.CHART_JS` when you want Chart.js. Put both engines on one dashboard by setting `engine(...)` per widget. The types live in `org.konaframework.firefly.widgets` (`kona-firefly-widgets`). `extraAttributes` is on every widget. Chart filters also accept `extraInputAttributes`.

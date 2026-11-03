@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Build the tree for a screen, fill the state map, and call `render()`. Sections, text, fields, and buttons all sit in that tree. Live pieces bind with `wire:model` and `@entangle`.
 
+<FireflyShot file="section-schemas.png" description="Schema and form layout on the Playground." />
+
 Use a schema when a screen is more than one control. On the Desk page the form is a name field, a status field, and a due field. The types live in `org.konaframework.firefly.schemas` (`kona-firefly-schemas`).
 
 <FireflyShot file="schema-section.png" description="The Desk form at http://127.0.0.1:4017/admin/desk, a schema of the name, status, and due fields." />

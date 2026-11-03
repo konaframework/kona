@@ -1,19 +1,22 @@
 ---
-
-title: 一个能工作的应用
-description: "hello 示例的简单笔记资源和完整订单资源、会响应的路由，以及生成它们的命令。"
+title: A working app
+description: "Open hello-kotlin or hello-java, read the notes and orders resources, and hit the routes those samples already answer."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="notes-manage.png" description="笔记 Manage 页，位于 http://127.0.0.1:4017/admin/notes/manage，带笔记表格以及创建、编辑、查看和删除动作。" />
+Open `samples/hello-kotlin` or `samples/hello-java` and click through the panel. Those classes call `path("admin")`, so the screens are under `/admin`. A panel from `make:firefly-panel` uses its id as the prefix until you set `path`. Notes are a simple resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a full resource: list, create, edit, and view are their own URLs, and line items sit on the edit and view pages.
 
-hello 示例是一个带两个资源的工作台。笔记是**简单**资源：一个 Manage 页面，创建、编辑、查看和删除在对话框里打开。订单是**完整**资源：分开的列表、创建、编辑和查看页面，外加行项目的关联管理器。两个示例都在仓库里，分别是 `samples/hello-kotlin` 和 `samples/hello-java`。
+<FireflyShot file="section-working-app.png" description="Running Firefly admin panel." />
 
-## 简单资源
+From the Kona repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :hello-java:run`. The app listens on `127.0.0.1` and port `4000` unless `HOST` or `PORT` is set. Then open the routes in the table at the bottom of this page.
 
-`simple()` 只保留一个 `ManagePage`。示例 slug 是 `notes`，因此路由是 `/admin/notes/manage`。覆盖 `form`、`infolist` 和 `table`。页面在渲染时调用它们。示例里的表格是一行内存数据（`Ada`），因此屏幕在迁移之前就能渲染。当你用模型而不是 `Table.memory` 构建表格时，`model(Note::class.java)` 是 `query()` 使用的 Cadence 类型。
+<FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table and the Create, Edit, View, and Delete actions." />
+
+## Add the simple notes resource
+
+Put the class in `app/firefly/resources/NoteResource`. `simple()` keeps a single `ManagePage`. The slug is `notes`, so the route is `/admin/notes/manage`. Override `form`, `infolist`, and `table`. The page calls them when it renders. The table is one in-memory row (`Ada`), so the screen renders before a migration. `model(Note::class.java)` is the Cadence type `query()` uses when you build the table from the model instead of `Table.memory`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -76,30 +79,25 @@ public class NoteResource extends Resource {
 </TabItem>
 </Tabs>
 
-Java 示例把 `row()` 建成 `LinkedHashMap`，`id` 为 `1`，`name` 为 `Ada`。`Select` 是组合框。`DateTimePicker` 是 Firefly 自己的日期和时间控件。两者都写在[表单](/docs/firefly/forms/)里。
+The Java sample builds `row()` as a `LinkedHashMap` with `id` `1` and `name` `Ada`. `Select` draws a combobox. `DateTimePicker` draws Firefly’s own date and time control. Both are on [Forms](/docs/firefly/forms/).
 
-创建、编辑和查看把该模式或信息列表放进共享对话框。删除在同一个对话框里请求确认。简单资源拒绝 `relation(...)`。
+Create, edit, and view put that schema or infolist in the shared dialog. Delete asks for confirmation in the same dialog. A simple resource rejects `relation(...)`.
 
-用同样的形状生成：
+Generate the same shape from a standalone app:
 
 ```bash
 ./grind make:firefly-resource Note --simple
 ./grind make:firefly-resource Note --simple --lang=java
 ```
 
-生成器会写入 `simple()`，以及表单、信息列表和表格的覆盖、一个名为 `name` 的文本字段，和 `model(app.models.Note.class)`。它不覆盖 `getPages()`。在项目编译之前创建那个 Cadence 模型。生成器的表格在空的 `Table.memory()` 上调用 `columns`，没有种子行。
+That writes `NoteResource` (model name `Note`, no double suffix if you pass `NoteResource`) and `note/pages/ManageNote`. The generator writes `simple()`, overrides for the form, infolist, and table, a text field named `name`, `model(app.models.Note.class)`, and `getPages()` returning `ManageNote()`. Create that Cadence model before the project compiles. The generator’s table calls `columns` on an empty `Table.memory()` and has no seed row.
 
-## 完整资源
+## Add the full orders resource
 
-不调用 `simple()` 时，覆盖 `getPages()`，提供列表、创建、编辑和查看页面。列表页挂载表格和一个创建动作。创建和编辑挂载表单。查看挂载信息列表。编辑和查看还会渲染每个关联管理器。
+Leave `simple()` off. Override `getPages()` with list, create, edit, and view. The sidebar shows one **Orders** entry pointing at the list. The list page mounts the table, a **New** header action linking to create, and View / Edit / Delete row actions. Create and edit mount the form (with Save / Cancel header actions). View mounts the infolist. Edit and view also render each relation manager.
 
-<FireflyShot file="orders-list.png" description="订单列表，位于 http://127.0.0.1:4017/admin/orders/list，带订单表格和创建动作。" />
+Put the class in `app/firefly/resources/OrderResource`.
 
-<FireflyShot file="orders-create.png" description="订单创建页，位于 http://127.0.0.1:4017/admin/orders/create，带名称字段。" />
-
-<FireflyShot file="orders-edit.png" description="订单编辑页，位于 http://127.0.0.1:4017/admin/orders/edit，带名称字段和明细关系。" />
-
-<FireflyShot file="orders-view.png" description="订单查看页，位于 http://127.0.0.1:4017/admin/orders/view，带名称信息列表和明细关系。" />
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
@@ -179,46 +177,55 @@ public class OrderResource extends Resource {
 </TabItem>
 </Tabs>
 
+<FireflyShot file="orders-list.png" description="The orders list at http://127.0.0.1:4017/admin/orders/list, with the orders table and a create action." />
+
+<FireflyShot file="orders-create.png" description="The orders create page at http://127.0.0.1:4017/admin/orders/create, with the name field." />
+
+<FireflyShot file="orders-edit.png" description="The orders edit page at http://127.0.0.1:4017/admin/orders/edit, with the name field and the lines relation." />
+
+<FireflyShot file="orders-view.png" description="The orders view page at http://127.0.0.1:4017/admin/orders/view, with the name infolist and the lines relation." />
+
 ```bash
 ./grind make:firefly-resource Order
 ./grind make:firefly-resource Order --lang=java
 ```
 
-生成器覆盖 `getPages()`，写入列表、创建、编辑和查看页面，以及一个名为 `related` 的关联管理器。hello 示例的管理器名为 `lines`，并指向 `Line`。
+That writes `OrderResource` plus `order/pages/` stubs (`ListOrder`, `CreateOrder`, `EditOrder`, `ViewOrder`). The generator’s `getPages()` returns those page instances, and writes one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
 
-## 工作台页面和部件
+## Open the Desk page
 
-`pages/Desk` 是一个 `CustomPage`，表单字段与笔记相同，还有信息列表、一行的表格，以及打开对话框的页眉动作。`widgets/DeskWidget` 渲染一小段文字。发现把该部件放在第一页，也就是 Desk。
+<FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
 
-<FireflyShot file="desk.png" description="Desk 页，位于 http://127.0.0.1:4017/admin/desk，带名称字段、状态组合框、到期选择器、信息列表、表格和编辑页眉动作。" />
+`app/firefly/pages/Desk` is a `CustomPage` with the same form fields as notes, an infolist, a one-row table, and a header action that opens a dialog. `app/firefly/widgets/DeskWidget` renders a short paragraph. Discovery places that widget on the first page, which is Desk.
+
 ```bash
 ./grind make:firefly-page Desk
 ./grind make:firefly-widget Desk
 ```
 
-## 会响应的路由
+## Routes that respond
 
-在 hello 示例上，这些 GET 路由返回 200：
+On the hello samples these GET routes return 200:
 
-| 路由 | 页面 |
-|------|------|
-| `/` | 欢迎路由，在面板之外 |
+| Route | Page |
+|-------|------|
+| `/` | The welcome route, outside the panel |
 | `/admin/desk` | Desk |
-| `/admin/notes/manage` | 笔记 |
-| `/admin/orders/list` | 订单列表 |
-| `/admin/orders/create` | 订单创建 |
-| `/admin/orders/edit` | 订单编辑 |
-| `/admin/orders/view` | 订单查看 |
+| `/admin/notes/manage` | Notes |
+| `/admin/orders/list` | Orders list |
+| `/admin/orders/create` | Orders create |
+| `/admin/orders/edit` | Orders edit |
+| `/admin/orders/view` | Orders view |
 
-## 你今天会看到什么
+## What you will see in the browser
 
-该示例在浏览器里有几处尚未完成。在调试你自己的应用之前值得知道：
+A few things on that sample are unfinished in the browser. Check these before you debug your own app:
 
-- 对话框标记在页面里，对话框保持关闭，直到 Alpine 打开它。笔记页上的创建、编辑、查看和删除不会仅凭第一次 HTML 响应就弹开。
-- Alpine 绑定还没运行时，`@entangle(...)` 仍可能显示为原始文本。
-- 页面的导航标签来自页面 slug。Desk 链接可能读成 `desk`，笔记子项可能读成 `manage`，即使页面标题或资源标签是一个词。资源分组使用 `label`，因此分组读成 `Notes` 和 `Orders`。
-- 示例调用 `authenticate(false)`。面板守卫没有已登录 id 时，用户芯片显示 **访客**。
+- Dialog markup is in the page, and the dialog stays closed until Alpine opens it. Create, edit, view, and delete on the notes page do not pop open from the first HTML response alone.
+- `@entangle(...)` can still appear as raw text when the Alpine binding has not run.
+- Navigation labels for pages come from the page slug. The Desk link can read `desk` until you override it. Each resource contributes **one** sidebar entry from `label()` (`Notes`, `Orders`), pointing at manage or list — not create/edit/view children.
+- The sample calls `authenticate(false)`. The user chip reads **Guest** when the panel guard has no signed-in id.
 
-## 下一步
+## Next
 
-组件页面从[面板](/docs/firefly/panel/)开始。[资源](/docs/firefly/resources/) 是上面两个类的完整方法列表。
+The component pages start at [Panel](/docs/firefly/panel/). [Resources](/docs/firefly/resources/) lists the methods on the two classes above.

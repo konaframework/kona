@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Change the frame around every screen when the default sidebar, top bar, body, or footer is close and you want a different sidebar, a banner, or your own wrapper.
 
+<FireflyShot file="section-chrome.png" description="Top chrome and user menu." />
+
 The class that draws the frame is `org.konaframework.firefly.support.Panel`. The class you mount on the router is `org.konaframework.firefly.Panel`, on [Panel](/docs/firefly/panel/). The support class picks HTML for each region, checks that the hook markers are still there, fills those markers, and asks a layout to wrap the result.
 
 **Direction:** Firefly chrome and components use [Wire](/docs/wire/) classes with [Crema](/docs/crema/) views — the class holds config and behavior; the Crema file owns markup. Custom fields, columns, and widgets already follow that shape via `./grind make:firefly-field` (and siblings). The built-in authenticated document shell follows the same rule: `DefaultLayout` is a thin adapter that packs partial data and renders `views/firefly/layouts/panel.crema.html` through Crema (`FireflyCrema` / `ClasspathViewFinder` in `:kona-firefly-support`). A Wire page-host component for the shell is not required for this slice — Crema from `DefaultLayout` is the first vertical cut. Prefer overriding slots with Crema-backed HTML rather than growing string templates in the panel class. Auth screens still use `AuthLayout` (Kotlin document) until the next chrome step.

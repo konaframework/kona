@@ -1,18 +1,20 @@
 ---
-title: Schémas
-description: "Construisez l’arbre d’un écran, remplissez la map d’état et appelez render(). Le formulaire Desk est un schéma des champs name, status et due."
+title: Schemas
+description: "Build the tree for a screen, fill the state map, and call render(). The Desk form is a schema of the name, status, and due fields."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Construisez l’arbre d’un écran, remplissez la map d’état et appelez `render()`. Les sections, le texte, les champs et les boutons se placent tous dans cet arbre. Les pièces live se lient avec `wire:model` et `@entangle`.
+Build the tree for a screen, fill the state map, and call `render()`. Sections, text, fields, and buttons all sit in that tree. Live pieces bind with `wire:model` and `@entangle`.
 
-Utilisez un schéma lorsqu’un écran est plus qu’un contrôle. Sur la page Desk le formulaire est un champ name, un champ status et un champ due. Les types vivent dans `org.konaframework.firefly.schemas` (`kona-firefly-schemas`).
+<FireflyShot file="section-schemas.png" description="Schema and form layout on the Playground." />
 
-<FireflyShot file="schema-section.png" description="Le formulaire Desk à http://127.0.0.1:4017/admin/desk, un schéma des champs name, status et due." />
+Use a schema when a screen is more than one control. On the Desk page the form is a name field, a status field, and a due field. The types live in `org.konaframework.firefly.schemas` (`kona-firefly-schemas`).
 
-## En construire un et le rendre
+<FireflyShot file="schema-section.png" description="The Desk form at http://127.0.0.1:4017/admin/desk, a schema of the name, status, and due fields." />
+
+## Build one and render it
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -43,13 +45,13 @@ String html = schema.render();
 </TabItem>
 </Tabs>
 
-`Schema.make()` démarre un arbre vide. `statePath("user")` préfixe chaque composant racine, donc un champ nommé `name` est stocké à `user.name`. `components(...)` remplace la liste racine et lie chaque composant au schéma. `hydrate()` écrit les défauts dans les chemins manquants. `render()` renvoie un `<div class="ff-schema">`. Vous voyez la section Profile et le texte Hello.
+`Schema.make()` starts an empty tree. `statePath("user")` prefixes every root component, so a field named `name` is stored at `user.name`. `components(...)` replaces the root list and binds each component to the schema. `hydrate()` writes defaults into missing paths. `render()` returns a `<div class="ff-schema">`. You see the Profile section and the text Hello.
 
-`get` et `set` utilisent des chemins pointés. `set` renvoie les clés de rendu partiel de cette mise à jour. Un composant qui a appelé `live()`, `liveOnBlur()` ou `liveDebounce(...)` contribue son propre chemin.
+`get` and `set` use dotted paths. `set` returns the partial-render keys for that update. A component that called `live()`, `liveOnBlur()`, or `liveDebounce(...)` contributes its own path.
 
-## Passer une valeur ou une fermeture
+## Pass a value or a closure
 
-La plupart des setters chaînés acceptent une valeur fixe ou une fermeture. La fermeture reçoit `Get`, le même lecteur que le schéma utilise dans `afterStateUpdated`. `Get.get` résout un chemin relatif au conteneur du composant. Un chemin qui commence par `/` est absolu.
+Most chainable setters accept a fixed value or a closure. The closure receives `Get`, the same reader the schema uses inside `afterStateUpdated`. `Get.get` resolves a path relative to the component’s container. A path that starts with `/` is absolute.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -75,9 +77,50 @@ Text.make("Hello").content(get -> "Hello");
 </TabItem>
 </Tabs>
 
-Le dernier appel gagne. `label("Title")` après une fermeture stocke la chaîne fixe et abandonne la fermeture. La même forme est sur `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight` et `imageWidth`.
+The last call wins. `label("Title")` after a closure stores the fixed string and drops the closure. The same shape is on `heading`, `description`, `hidden`, `visible`, `disabled`, `columnSpan`, `columns`, `maxWidth`, `content`, `size`, `url`, `alt`, `imageHeight`, and `imageWidth`.
 
-`extraAttributes` fusionne des attributs HTML sur la racine du composant. Les layouts, primes, actions, entrées d’infolist, colonnes de tableau et champs de formulaire l’ont tous. Passez une map ou une fermeture. Un nom qui n’est pas un nom d’attribut HTML est sauté. Les valeurs sont échappées.
+`columnSpan(2)` (or any positive int) sets `data-ff-span` and `--ff-span` so the component spans that many columns of the parent grid. `columnSpan("full")` and the convenience `columnSpanFull()` stretch across the whole row (`grid-column: 1 / -1`).
+
+### Max width (`xl` and friends)
+
+`maxWidth("xl")` (or a closure that returns a token) stores the value on the component and renders `data-ff-max-width="xl"` on its root. The panel stylesheet maps those tokens to CSS variables:
+
+| Token | CSS variable | Width |
+|-------|--------------|-------|
+| `xs` … `7xl` | `--ff-width-xs` … `--ff-width-7xl` | `20rem` … `80rem` (Tailwind-compatible) |
+| `xl` | `--ff-width-xl` | `36rem` |
+| `full` / `screen` / `prose` | — | `100%` / `100vw` / `65ch` |
+
+Create and edit pages let the direct `.ff-schema` / `.ff-resource-form` child of `.ff-page-content` fill the content column (same as relation managers and list tables). View infolists do the same; only panel / page / resource `maxWidth` shrinks the outer column. Those page rules are CSS-only; call `maxWidth(...)` on a section or entry when one component inside the page should use a narrower token.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Section.make("Details").maxWidth("xl").schema(
+    Text.make("Name on file"),
+)
+Section.make("Wide").maxWidth("4xl").schema(
+    Text.make("Longer copy"),
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Section.make("Details").maxWidth("xl").schema(
+    Text.make("Name on file")
+);
+Section.make("Wide").maxWidth("4xl").schema(
+    Text.make("Longer copy")
+);
+```
+
+</TabItem>
+</Tabs>
+
+`extraAttributes` merges HTML attributes onto the component root. Layouts, primes, actions, infolist entries, table columns, and form fields all have it. Pass a map or a closure. A name that is not an HTML attribute name is skipped. Values are escaped.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -98,9 +141,9 @@ Text.make("note").extraAttributes(get -> Map.of("data-kind", "note"));
 </TabItem>
 </Tabs>
 
-`hidden(true)` et `visible(false)` prennent encore un booléen. `hidden { ... }` et `visible { ... }` se recalculent lorsque le schéma se rend ou lorsque `isHidden` s’exécute.
+`hidden(true)` and `visible(false)` still take a boolean. `hidden { ... }` and `visible { ... }` recompute when the schema renders or when `isHidden` runs.
 
-## Lire et écrire l’état
+## Read and write state
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -121,41 +164,42 @@ schema.get("user.city"); // "Kona"
 </TabItem>
 </Tabs>
 
-À l’intérieur d’un composant sous `statePath("user")` :
+Inside a component under `statePath("user")`:
 
-| Appel | Résultat |
+| Call | Result |
 |------|--------|
-| `get("name")` | le frère à `user.name` |
-| `get("../name")` | encore `user.name` — `..` ne quitte pas le préfixe du schéma |
-| `get("/user.city")` | lecture absolue |
+| `get("name")` | the sibling at `user.name` |
+| `get("../name")` | still `user.name` — `..` does not leave the schema prefix |
+| `get("/user.city")` | absolute read |
 | `get(".")`, `get("..")`, `get("")` | `null` |
 
-`defaultValue("Ada")` écrit ce littéral pendant `hydrate()` lorsque le chemin est vide. `defaultUsing { get -> get.get("../name") }` écrit le résultat de la fermeture. Un second `hydrate()` laisse une valeur existante en place.
+`defaultValue("Ada")` writes that literal during `hydrate()` when the path is empty. `defaultUsing { get -> get.get("../name") }` writes the closure’s result. A second `hydrate()` leaves an existing value in place.
 
-`dehydrate()` renvoie une map des chemins qui doivent être enregistrés. Un composant caché est omis sauf `dehydratedWhenHidden(true)`. `dehydrated(false)` omet le composant même lorsqu’il est visible.
+`dehydrate()` returns a map of paths that should be saved. A hidden component is omitted unless `dehydratedWhenHidden(true)`. `dehydrated(false)` omits the component even when it is visible.
 
-`afterStateUpdated` s’exécute après `set` lorsque le chemin correspond à un composant. Le hook reçoit la nouvelle valeur, l’ancienne valeur, `Get` et `Set`. `set.set("slug", "bea", false)` écrit un frère et saute le hook de mise à jour de ce frère.
+`afterStateUpdated` runs after `set` when the path matches a component. The hook receives the new value, the old value, `Get`, and `Set`. `set.set("slug", "bea", false)` writes a sibling and skips that sibling’s update hook.
 
-## Disposer l’écran
+## Lay the screen out
 
-Prenez un layout lorsque un champ après l’autre ne suffit pas. Une section, une grille, des onglets ou un assistant est encore un composant de schéma. La page Desk empile un formulaire, une infolist et un tableau dans le corps.
+Reach for a layout when one field after another is not enough. A section, a grid, tabs, or a wizard is still a schema component. The Desk page stacks a form, an infolist, and a table in the body.
 
-<FireflyShot file="schema-layout.png" description="Le corps de la page Desk à http://127.0.0.1:4017/admin/desk, avec le formulaire, l’infolist name et le tableau des notes l’un après l’autre." />
+<FireflyShot file="schema-layout.png" description="The Desk page body at http://127.0.0.1:4017/admin/desk, with the form, the name infolist, and the notes table one after another." />
 
-| Type | Ce que vous appelez |
+| Type | What you call |
 |------|----------------|
-| `Grid.make(columns)` | Grille de colonnes. `schema(...)` pose les enfants |
-| `Flex.make()` | Rangée d’enfants |
-| `Fieldset.make(legend)` | Groupe avec une légende. `required(true)` le marque |
-| `Section.make(heading)` | Titre, description et slots : `afterHeader`, `beforeLabel`, `afterLabel`, `aboveContent`, `belowContent`, `footer`. `aside(true)` et `formBefore(true)` ajoutent des attributs de données |
-| `Tabs.make()` | `tabs(...)`, `activeTab`, `vertical`, `scrollable`, `persistTabInQueryString` |
-| `Tab.make(label)` | Un panneau. `badge`, `badgeIcon`, `deferBadge` |
-| `Wizard.make()` | `steps(...)`, `nextStep`, `previousStep`, `goToStep`. `skippable(true)` autorise un saut |
-| `WizardStep.make(label)` | Une étape. `icon`, `completedIcon`, `formWrapper` |
-| `Callout.make(heading)` | `info()`, `success()`, `warning()`, `danger()`, ou `status(...)`. `color` surcharge la couleur du statut |
-| `EmptyState.make(heading)` | Titre plus un `footer` optionnel |
+| `Grid.make(columns)` | Column grid. `schema(...)` sets the children |
+| `Flex.make()` | Row of children |
+| `Fieldset.make(legend)` | Group with a legend and a thin border. It keeps the background of the card it sits in. `required(true)` marks it |
+| `Section.make()` / `Section.make(heading)` | Optional heading and description; slots `afterHeader`, `beforeLabel`, `afterLabel`, `aboveContent`, `belowContent`, `footer`. `columns()` / `columns(N)` / `columns(mapOf(...))` lays children in a responsive grid (mobile stays 1 unless you set `default`) and stays chainable into `.schema(...)`. `collapsible()` / `collapsed()` use a details/summary body. `contained(false)` / `card(false)` skip the card chrome when the host is already a card. `aside(true)` and `formBefore(true)` add data attributes |
+| `Schema.make().columns()` / `.columns(N)` / `.columns(map)` | Root grid for top-level components. Default with no call is one column; no-arg `columns()` means two from `lg` up; breakpoint maps use `default` / `sm` / `md` / `lg` / `xl` / `2xl` |
+| `Tabs.make()` | `tabs(...)`, `activeTab`, `vertical`, `scrollable`, `persistTabInQueryString`. Clicking a tab shows its pane and hides the others. An `activeTab` index outside the tab list falls back to the first tab. `tabPanels(false)` renders only the tab buttons |
+| `Tab.make(label)` | One panel. `badge`, `badgeIcon`, `deferBadge` |
+| `Wizard.make()` | `steps(...)`, `nextStep`, `previousStep`, `goToStep`. `skippable(true)` allows a jump |
+| `WizardStep.make(label)` | One step. `icon`, `completedIcon`, `formWrapper` |
+| `Callout.make(heading)` | `info()`, `success()`, `warning()`, `danger()`, or `status(...)`. `color` overrides the status color |
+| `EmptyState.make(heading)` | Heading plus an optional `footer` |
 
-`configureUsing` sur un layout s’exécute pour chaque `make()` suivant de cette classe. Passez `null` pour l’effacer.
+`configureUsing` on a layout runs for every later `make()` of that class. Pass `null` to clear it.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -174,13 +218,13 @@ Section.configureUsing(section -> { section.aside(true); });
 </TabItem>
 </Tabs>
 
-Le niveau de titre commence à 2. `rootHeadingLevel` change le départ. Les sections imbriquées l’incrémentent, et le niveau s’arrête à 6.
+Heading level starts at 2. `rootHeadingLevel` changes the start. Nested sections increment it, and the level stops at 6.
 
-## Texte, icônes, images et listes
+## Text, icons, images, and lists
 
-`Text.make(content)` rend un paragraphe. `content`, `size`, `badge(true)` et `js()` le changent. `SchemaIcon.make("home")` inline une icône du jeu de support (`home`, `bars`, `user`, `x`). `Image.make(url)` prend `alt`, `url`, `imageHeight`, `imageWidth` et `imageSize`. `UnorderedList.make("one", "two")` rend les éléments. `items { listOf("Kona") }` les remplace au moment du rendu.
+`Text.make(content)` renders a paragraph. `content`, `size`, `badge(true)`, and `js()` change it. `SchemaIcon.make("home")` inlines an icon from the support set (`home`, `bars`, `user`, `x`). `Image.make(url)` takes `alt`, `url`, `imageHeight`, `imageWidth`, and `imageSize`. `UnorderedList.make("one", "two")` renders the items. `items { listOf("Kona") }` replaces them at render time.
 
-## Lier un champ pour qu’il se mette à jour en direct
+## Bind a field so it updates live
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -207,13 +251,13 @@ field.lazy();
 </TabItem>
 </Tabs>
 
-`live()` rend `wire:model.live`. `liveOnBlur()` et `lazy()` rendent `wire:model.blur`. `liveDebounce(400)` rend `wire:model.live.debounce.400ms`. Chacun pose aussi `data-ff-entangle="@entangle(path)"`. `afterStateUpdatedJs("watch")` stocke l’expression sur `data-ff-updated-js`. La page n’évalue pas cette chaîne sur le serveur.
+`live()` renders `wire:model.live`. `liveOnBlur()` and `lazy()` render `wire:model.blur`. `liveDebounce(400)` renders `wire:model.live.debounce.400ms`. Each also sets `data-ff-entangle="@entangle(path)"`. `afterStateUpdatedJs("watch")` stores the expression on `data-ff-updated-js`. The page does not evaluate that string on the server.
 
-`hiddenJs` et `visibleJs` stockent des expressions navigateur de la même façon.
+`hiddenJs` and `visibleJs` store browser expressions the same way.
 
-## Écrire votre propre composant
+## Write your own component
 
-Sous-classez `Component`. Le nom du constructeur est la clé d’état. Placez la classe là où la page ou la ressource peut la référencer. `discover` ne scanne pas un dossier de layouts.
+Subclass `Component`. The constructor name is the state key. Put the class where the page or resource can reference it. `discover` does not scan a layouts folder.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -234,22 +278,22 @@ public class NameField extends Component {
 </TabItem>
 </Tabs>
 
-`view("notes.banner")` rend cette vue Crema lorsque `Schema.crema(engine)` est posé. La vue reçoit `path`, `content` et `label`. Sans moteur, le rendu émet `<div data-ff-view="notes.banner">`.
+`view("notes.banner")` renders that Crema view when `Schema.crema(engine)` is set. The view receives `path`, `content`, and `label`. Without an engine, render emits `<div data-ff-view="notes.banner">`.
 
 ```bash
 ./grind make:firefly-layout Banner
 ```
 
-La commande écrit une classe de layout et une vue Crema sous `app/firefly/layouts`. `--lang=java` écrit une classe Java. La vue utilise `x-data="ffField"` et `@entangle`.
+The command writes a layout class and a Crema view under `app/firefly/layouts`. `--lang=java` writes a Java class. The view uses `x-data="ffField"` and `@entangle`.
 
-## Fabriques Alpine
+## Alpine factories
 
-`AlpineScripts.source()` est le script qui enregistre `ffField`, `ffEntry`, `ffColumn` et `ffAction`. Ces fabriques entanglent l’état avec `$wire.$entangle` et appellent les actions serveur avec `$wire.$call`. Enregistrez ce script sur l’instance Alpine que la page a déjà démarrée.
+`AlpineScripts.source()` is the script that registers `ffField`, `ffEntry`, `ffColumn`, and `ffAction`. Those factories entangle state with `$wire.$entangle` and call server actions with `$wire.$call`. Register that script on the Alpine instance the page already started.
 
-## Différer un schéma lourd
+## Defer a heavy schema
 
-`deferLoading(true)` fait que `render()` renvoie un placeholder de chargement jusqu’à `loadDeferred()`. Le schéma a besoin de `key(...)`. Un schéma différé sans clé lance `FireflyException` (`Deferred schema is missing a key`).
+`deferLoading(true)` makes `render()` return a loading placeholder until `loadDeferred()`. The schema needs `key(...)`. A deferred schema with no key throws `FireflyException` (`Deferred schema is missing a key`).
 
-## Ce que vous ajoutez sur une autre page
+## What you add on another page
 
-Les inputs tels qu’un select ou un sélecteur de date sont sur [Formulaires](/docs/firefly/forms/). Les boutons et les dialogues de confirmation sont sur [Actions](/docs/firefly/actions/). Ce module est l’arbre et l’état sur lesquels ces pièces se placent.
+Inputs such as a select or a date picker are on [Forms](/docs/firefly/forms/). Buttons and confirmation dialogs are on [Actions](/docs/firefly/actions/). This module is the tree and the state those pieces sit on.

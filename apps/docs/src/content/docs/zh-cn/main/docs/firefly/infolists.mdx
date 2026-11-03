@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Show a record when the screen should display a value, not collect one. Put the infolist on a view page, or anywhere you want a label and a value.
 
+<FireflyShot file="section-infolists.png" description="Infolist entries on the Playground." />
+
 The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). They sit on the schema tree from [Schemas](/docs/firefly/schemas/), so a section, a grid, and tabs are the same layouts you already use. On the Desk page the infolist is a single name entry. On orders, the view page at `/admin/orders/view` mounts the order infolist. Both classes live under `app/firefly/`.
 
 Each entry is a `div.ff-entry` with `x-data="ffEntry"`. That Alpine factory is registered by the schema script. Copyable state and live binding use it.

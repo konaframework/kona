@@ -3,7 +3,11 @@ title: Tenancy, plugins, and import
 description: "Jump to the page that adds a tenant menu, a plugin, or a CSV import. The kit itself is installed on the Installation page."
 ---
 
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+
 Open the page for the job you are doing. Each one is a separate step on the panel you already mounted.
+
+<FireflyShot file="section-kit.png" description="Playground kit surface." />
 
 - [Tenancy](/docs/firefly/tenancy/) adds the tenant menu and `Resource.tenant`, so a resource filters rows for the selected tenant.
 - [Plugins](/docs/firefly/plugins/) is a class you pass to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts.

@@ -3,7 +3,11 @@ title: Table filters
 description: "Narrow a Firefly table with checkbox, select, ternary, trashed, custom-form, and query builder filters. State lives in the URL, can persist in the session, and shows as removable chips."
 ---
 
+import FireflyShot from '../../../../components/FireflyShot.astro';
+
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+<FireflyShot file="section-table-filters.png" description="Table filters toolbar." />
 
 A filter is a small form that narrows the rows a table shows. You declare filters on the table, and Firefly takes care of the rest: a funnel button in the toolbar, the filter form, the query that runs against your rows, a chip for every active filter, and the URL that remembers it all.
 

@@ -1,27 +1,34 @@
 ---
-
-title: 主题与 CSS
-description: "FireflyTheme、KonaTheme 记号、作用域 CSS 变量，以及让主题 CSS 留在面板内的规则。"
+title: Themes and CSS
+description: "Implement FireflyTheme, pass it to theme(), and keep your extra CSS inside .ff-panel. The hello samples use the shipped KonaTheme."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="themed-panel.png" description="hello-kotlin 面板，位于 http://127.0.0.1:4017/admin/desk，侧栏和页面穿着随附主题。" />
+Change the colors, the type, and any extra CSS inside the frame. Implement `FireflyTheme`, then pass an instance to `theme(...)` on the panel you mount.
 
-**主题**是 `FireflyTheme` 的一个实现。它提供一个 id、一个 `ThemeTokens` 对象、可选的外框槽 HTML，以及可选的额外 CSS。`Stylesheet.render` 把记号变成 `.ff-panel` 上的 CSS 自定义属性。随附样式表里的组件规则只匹配 `.ff-panel` 的后代，因此从未渲染面板的页面不会套上 Firefly 的按钮、侧栏或对话框规则。
+<FireflyShot file="section-themes.png" description="Theme toggle in the panel chrome." />
 
-## FireflyTheme
+The theme supplies an id, a `ThemeTokens` object, optional HTML for one chrome slot, and optional extra CSS. `Stylesheet.render` turns the tokens into CSS custom properties on `.ff-panel`. Rules in the shipped stylesheet only match inside `.ff-panel`, so a page that never renders a panel leaves Firefly’s buttons, sidebar, and dialogs alone.
 
-| 方法 | 默认 | 含义 |
-|------|------|------|
-| `id(): String` | 必需 | 错误消息里使用的短名 |
-| `tokens(): ThemeTokens` | 必需 | 颜色、字体和尺寸记号 |
-| `partial(slot: String): String?` | `null` | `sidebar`、`topbar`、`body` 或 `footer` 的替换 HTML。`null` 保留内置局部 |
-| `extraCss(): String` | `""` | 额外规则。Firefly 把非空值包进 `.ff-panel { ... }` |
+The hello samples use the shipped theme. You see it on `/admin/desk`.
 
-用 Kotlin 或 Java 实现该接口。你不必在任何地方登记这个类。把实例传给 `Panel.theme(...)`。
+<FireflyShot file="themed-panel.png" description="The hello-kotlin panel at http://127.0.0.1:4017/admin/desk wearing the shipped theme on the sidebar and the page." />
 
-Kotlin：
+## Implement FireflyTheme
+
+| Method | Default | What you return |
+|--------|---------|-----------------|
+| `id(): String` | required | Short name used in error messages |
+| `tokens(): ThemeTokens` | required | Color, type, and size tokens |
+| `partial(slot: String): String?` | `null` | Replacement HTML for `sidebar`, `topbar`, `body`, or `footer`. `null` keeps the built-in partial |
+| `extraCss(): String` | `""` | Extra rules. Firefly wraps a non-empty value in `.ff-panel { ... }` |
+
+Pass an instance to `Panel.theme(...)`. `./grind make:firefly-theme Harbor` writes the class under `app/firefly/themes/`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class HarborTheme : FireflyTheme {
@@ -38,8 +45,8 @@ class HarborTheme : FireflyTheme {
         topbarHeight = "4rem",
         bodyBackground = "#FAF6F0",
         darkPrimary = "#C9A57B",
-        darkSurface = "#1A120C",
-        darkHeading = "#E8D4B8",
+        darkSurface = "#1F2937",
+        darkHeading = "#F3F4F6",
     )
 
     override fun extraCss(): String =
@@ -47,7 +54,8 @@ class HarborTheme : FireflyTheme {
 }
 ```
 
-Java：
+</TabItem>
+<TabItem label="Java">
 
 ```java
 public final class HarborTheme implements FireflyTheme {
@@ -58,7 +66,7 @@ public final class HarborTheme implements FireflyTheme {
             "#DF8723", "#74453F", "#FAF6F0", "#2A1C10",
             "ui-sans-serif, system-ui, sans-serif",
             "0.75rem", "18rem", "4rem", "#FAF6F0",
-            "#C9A57B", "#1A120C", "#E8D4B8"
+            "#C9A57B", "#1F2937", "#F3F4F6"
         );
     }
 
@@ -68,82 +76,93 @@ public final class HarborTheme implements FireflyTheme {
 }
 ```
 
-`ThemeTokens` 是一个类，有这十二个构造参数，顺序如上。每个字段是公开的 `val`（Java getter）。值按你提供的样子插入 CSS。Firefly 不校验记号是否是合法的 CSS 颜色。
+</TabItem>
+</Tabs>
 
-## KonaTheme
+Then call `theme(HarborTheme())` on the panel. The sidebar picks up the inset shadow, and the primary color is `#DF8723`.
 
-`KonaTheme` 是内置主题。`id()` 返回 `kona`。你从不调用 `theme(...)` 时，`Panel` 使用它。
+`ThemeTokens` is a class with those twelve constructor parameters, in that order. Each field is a public `val` (a Java getter). Values are inserted into CSS as you provide them. Firefly does not validate that a token is a legal CSS color.
 
-| 记号 | 浅色值 | 深色记号 | 深色值 |
-|------|--------|----------|--------|
+## Use the shipped KonaTheme
+
+`KonaTheme` is the built-in theme. `id()` returns `kona`. `Panel` uses it when you never call `theme(...)`. The hello samples leave it in place.
+
+| Token | Light value | Dark token | Dark value |
+|-------|-------------|------------|------------|
 | primary | `#DF8723` | darkPrimary | `#C9A57B` |
-| accent | `#74453F` | — | 深色块里 accent 不变 |
-| surface | `#FAF6F0` | darkSurface | `#1A120C` |
-| heading | `#2A1C10` | darkHeading | `#E8D4B8` |
-| font | `ui-sans-serif, system-ui, sans-serif` | — | |
+| accent | `#74453F` | — | accent is unchanged in the dark block |
+| surface | `#FAF6F0` | darkSurface | `#1F2937` |
+| heading | `#2A1C10` | darkHeading | `#F3F4F6` |
+| font | `"Inter", "DM Sans", ui-sans-serif, system-ui, sans-serif` (self-hosted woff2) | — | |
 | radius | `0.5rem` | — | |
 | sidebarWidth | `16rem` | — | |
 | topbarHeight | `4rem` | — | |
-| bodyBackground | `#FAF6F0` | 写成 `--ff-body` | 深色块从 `darkSurface` 设置 `--ff-body` |
+| bodyBackground | `#FAF6F0` | written as `--ff-body` | dark block sets `--ff-body` from `darkSurface` |
 
-## Stylesheet.render
+## Read Stylesheet.render
 
-`Stylesheet.render(theme)` 返回一段 CSS 字符串：
+`Stylesheet.render(theme)` returns a CSS string:
 
-1. 自定义属性的 `.ff-panel { ... }` 块。
-2. 覆盖 primary、surface、heading 和 body 的 `.ff-panel.ff-dark { ... }` 块。
-3. 随附的组件样式表。
-4. 当 `extraCss()` 在 `trim()` 之后非空白时，尾部的 `.ff-panel { <extra> }` 块。
+1. A `.ff-panel { ... }` block of custom properties.
+2. A dark block that overrides primary, surface, heading, and body. It targets both the self-class (`.ff-panel.ff-dark`) and an ancestor root (`.ff-dark .ff-panel`), so toggling `ff-dark` on `<html>` is enough.
+3. The shipped component stylesheet.
+4. When `extraCss()` is non-blank after `trim()`, a trailing `.ff-panel { <extra> }` block.
 
-自定义属性：
+Custom properties:
 
-| 属性 | 记号 |
-|------|------|
+| Property | Token |
+|----------|--------|
 | `--ff-primary` | `primary` / `darkPrimary` |
 | `--ff-accent` | `accent` |
 | `--ff-surface` | `surface` / `darkSurface` |
+| `--ff-shell` | Tracks `--ff-surface` so white `--ff-card` table wraps and sections contrast against the latte shell |
 | `--ff-heading` | `heading` / `darkHeading` |
 | `--ff-font` | `font` |
 | `--ff-radius` | `radius` |
 | `--ff-sidebar-width` | `sidebarWidth` |
 | `--ff-topbar-height` | `topbarHeight` |
-| `--ff-body` | `bodyBackground` / 深色块里的 `darkSurface` |
+| `--ff-body` | `bodyBackground` / `darkSurface` in the dark block |
 
-`DefaultLayout` 发出不带 `ff-dark` 的 `<div class="ff-panel">`。面板根同时有类 `ff-dark` 时，深色记号才生效。自定义 `PanelLayout` 可以加上该类。见[面板外框](/docs/firefly/chrome/)。
+`DefaultLayout` emits `<div class="ff-panel">` without `ff-dark`. The built-in top-bar theme toggle adds `ff-dark` to the document root and remembers the choice in `localStorage['ff-theme']` (`light` / `dark` / `system`), applied before first paint so a reload never flashes. Dark tokens also apply when the panel element itself carries `ff-dark`, which a custom `PanelLayout` can set. See [Panel chrome](/docs/firefly/chrome/).
 
-## 额外 CSS 必须留在面板内
+## Keep extra CSS inside the panel
 
-trim 之后，如果 `extraCss()` 非空，并且任一行在行首匹配 `body` 后接 `{`（允许前导空白），`Stylesheet.render` 会抛出 `FireflyException`：
+After trim, if `extraCss()` is non-empty and any line matches `body` followed by `{` at the start of the line (leading whitespace allowed), `Stylesheet.render` throws `FireflyException`:
 
 ```text
 Theme [<id>] CSS must stay under .ff-panel
 ```
 
-这会被拒绝：
+This is rejected:
 
 ```css
 body { background: red; }
 ```
 
-这会被接受，因为选择器不是裸的 `body` 规则：
+This is accepted, because the selector is not a bare `body` rule:
 
 ```css
 .ff-sidebar { background: var(--ff-surface); }
 ```
 
-空的或只有空白的 `extraCss()` 会被省略。检查不会运行。
+Empty or whitespace-only `extraCss()` is omitted. The check does not run.
 
-## 随附的组件类
+## Shipped component classes
 
-签入的样式表（`firefly.css`）是 Tailwind CSS v4 编写文件 `modules/firefly-support/tailwind/input.css` 的作用域结果。规则是 `.ff-panel` 的后代。宿主的 `html` 或 `body` 上没有 preflight。
+The checked-in stylesheet (`firefly.css`) is the scoped result of the Tailwind CSS v4 authoring file `modules/firefly-support/tailwind/input.css`. Authenticated chrome rules are descendants of `.ff-panel`. Guest auth screens use `.ff-auth` (centered shell, no sidebar). There is no preflight on the host welcome page.
 
-| 选择器 | 效果 |
-|--------|------|
-| `.ff-panel .ff-btn` | 圆角来自 `--ff-radius`，内边距 `0.5rem 0.75rem`，`0.875rem` / 字重 500 |
-| `.ff-panel .ff-sidebar` | 全高，宽度 `--ff-sidebar-width`，不收缩，纵向滚动 |
-| `.ff-panel .ff-topbar` | 弹性行，项目居中，高度 `--ff-topbar-height` |
-| `.ff-panel .ff-body` | 弹性增长，字体 `--ff-font`，背景 `--ff-body` |
-| `.ff-panel .ff-dialog` | 固定，inset 0，z-index 50 |
-| `.ff-panel .ff-dialog-modal .ff-dialog-window` | 上边距 `4rem` |
+| Selector | Effect |
+|----------|--------|
+| `.ff-panel .ff-btn` | Primary filled button: radius from `--ff-radius`, weight 600 |
+| `.ff-panel .ff-sidebar` | Full-height shell column, width `--ff-sidebar-width`, brand strip + scrollable nav |
+| `.ff-panel .ff-sidebar-brand` | Logo mark + brand label above the side nav |
+| `.ff-panel .ff-sidebar-foot` / `.ff-panel .ff-footer` | Shared shell foot band (padding, type, soft border, fixed `--ff-footer-height`); not a white card |
+| `.ff-panel .ff-nav-item` | Pill links; active item uses `--ff-active` with a primary inset bar |
+| `.ff-panel .ff-topbar` | Card row (no primary top ribbon), height `--ff-topbar-height` |
+| `.ff-panel .ff-body` | Shell background, scrollable page canvas |
+| `.ff-panel .ff-table-wrap` | White card around tables (`--ff-card`), subtle elevation via `--ff-table-shadow` |
+| `.ff-panel .ff-create` / `.ff-edit` / `.ff-view` content | Fills the content column (like relation managers); `[data-ff-max-width="…"]` narrows a component |
+| `.ff-panel .ff-dialog` | Fixed, inset 0, z-index 50 |
+| `.ff-panel .ff-dialog-modal .ff-dialog-window` | Top margin `4rem`, elevated card |
 
-`Panel.render` 把这段 CSS 放在 `.ff-panel` 内部的 `<style>` 元素里，因此变量和组件规则随外壳一起走。
+`DefaultLayout` and `AuthLayout` put this CSS in a `<style>` element in the document `<head>`, including `@font-face` for Inter and DM Sans from `/_firefly/fonts/` (immutable browser cache; no Google Fonts CDN). Theme token variables apply to both `.ff-panel` and `.ff-auth`.

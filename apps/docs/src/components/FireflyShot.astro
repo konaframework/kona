@@ -3,10 +3,7 @@
  * Firefly docs screenshot. The `file` prop is the scene name
  * (`desk-panel.png`). The images on disk are the pair
  * `<name>-light.png` and `<name>-dark.png`. Both must exist.
- * The light file shows in the light theme and the dark file shows
- * in the dark theme. The alt text and the caption are the scene
- * description. A missing file becomes a placeholder whose only
- * visible text is that description.
+ * Click opens a fullscreen lightbox; Esc or backdrop closes it.
  */
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -45,13 +42,25 @@ const base = import.meta.env.BASE_URL.endsWith('/')
   : `${import.meta.env.BASE_URL}/`;
 const lightSrc = `${base}images/firefly/${lightFile}`;
 const darkSrc = `${base}images/firefly/${darkFile}`;
+const shotId = `ff-shot-${stem}`;
 ---
 
 {
   both ? (
-    <figure class="firefly-shot">
-      <img class="firefly-shot__img firefly-shot__img--light dark:sl-hidden" src={lightSrc} alt={description} />
-      <img class="firefly-shot__img firefly-shot__img--dark light:sl-hidden" src={darkSrc} alt={description} />
+    <figure class="firefly-shot" data-ff-shot={shotId}>
+      <button
+        type="button"
+        class="firefly-shot__trigger"
+        aria-label={`View full screen: ${description}`}
+        data-ff-shot-open
+        data-ff-shot-light={lightSrc}
+        data-ff-shot-dark={darkSrc}
+        data-ff-shot-alt={description}
+      >
+        <img class="firefly-shot__img firefly-shot__img--light dark:sl-hidden" src={lightSrc} alt={description} />
+        <img class="firefly-shot__img firefly-shot__img--dark light:sl-hidden" src={darkSrc} alt={description} />
+        <span class="firefly-shot__hint" aria-hidden="true">Click to expand</span>
+      </button>
       <figcaption>{description}</figcaption>
     </figure>
   ) : (
@@ -60,3 +69,59 @@ const darkSrc = `${base}images/firefly/${darkFile}`;
     </figure>
   )
 }
+
+<script>
+  function themeIsDark(): boolean {
+    const root = document.documentElement;
+    const attr = root.getAttribute('data-theme');
+    if (attr === 'dark') return true;
+    if (attr === 'light') return false;
+    return root.classList.contains('dark') || matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function ensureLightbox(): HTMLDialogElement {
+    let dialog = document.getElementById('ff-shot-lightbox') as HTMLDialogElement | null;
+    if (dialog) return dialog;
+    dialog = document.createElement('dialog');
+    dialog.id = 'ff-shot-lightbox';
+    dialog.className = 'firefly-shot-lightbox';
+    dialog.innerHTML = `
+      <form method="dialog" class="firefly-shot-lightbox__bar">
+        <button type="submit" class="firefly-shot-lightbox__close" aria-label="Close full screen">Close</button>
+      </form>
+      <img class="firefly-shot-lightbox__img" alt="" />
+    `;
+    document.body.appendChild(dialog);
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    return dialog;
+  }
+
+  function openShot(btn: HTMLElement) {
+    const light = btn.getAttribute('data-ff-shot-light') || '';
+    const dark = btn.getAttribute('data-ff-shot-dark') || '';
+    const alt = btn.getAttribute('data-ff-shot-alt') || '';
+    const dialog = ensureLightbox();
+    const img = dialog.querySelector('.firefly-shot-lightbox__img') as HTMLImageElement | null;
+    if (!img) return;
+    img.src = themeIsDark() ? dark : light;
+    img.alt = alt;
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement | null;
+    const btn = target?.closest?.('[data-ff-shot-open]') as HTMLElement | null;
+    if (!btn) return;
+    event.preventDefault();
+    openShot(btn);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    const dialog = document.getElementById('ff-shot-lightbox') as HTMLDialogElement | null;
+    if (dialog?.open) dialog.close();
+  });
+</script>

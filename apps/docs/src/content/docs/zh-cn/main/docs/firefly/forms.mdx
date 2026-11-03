@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Put fields on a schema when a screen needs a name, a status, or a due date. Fill the schema, then `render()` returns the HTML. Wire and Alpine keep values in sync after the page loads.
 
+<FireflyShot file="section-forms.png" description="Forms surface on the Playground." />
+
 Fields live in `org.konaframework.firefly.forms` (`kona-firefly-forms`). Each field is a schema component, so it sits in the same tree as a section or a tab and uses the same live modifiers (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`). Place the schema on a page, or render it into a view you already have.
 
 ## Quick start

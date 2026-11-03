@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Open `samples/hello-kotlin` or `samples/hello-java` and click through the panel. Those classes call `path("admin")`, so the screens are under `/admin`. A panel from `make:firefly-panel` uses its id as the prefix until you set `path`. Notes are a simple resource: one Manage page, and create, edit, view, and delete open in a dialog. Orders are a full resource: list, create, edit, and view are their own URLs, and line items sit on the edit and view pages.
 
+<FireflyShot file="section-working-app.png" description="Running Firefly admin panel." />
+
 From the Kona repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :hello-java:run`. The app listens on `127.0.0.1` and port `4000` unless `HOST` or `PORT` is set. Then open the routes in the table at the bottom of this page.
 
 <FireflyShot file="notes-manage.png" description="The notes Manage page at http://127.0.0.1:4017/admin/notes/manage, with the notes table and the Create, Edit, View, and Delete actions." />
@@ -88,11 +90,11 @@ Generate the same shape from a standalone app:
 ./grind make:firefly-resource Note --simple --lang=java
 ```
 
-The generator writes `simple()`, overrides for the form, infolist, and table, a text field named `name`, `model(app.models.Note.class)`, `note/pages/ManageNote`, and `getPages()` returning `ManageNote()`. Create that Cadence model before the project compiles. The generator’s table calls `columns` on an empty `Table.memory()` and has no seed row.
+That writes `NoteResource` (model name `Note`, no double suffix if you pass `NoteResource`) and `note/pages/ManageNote`. The generator writes `simple()`, overrides for the form, infolist, and table, a text field named `name`, `model(app.models.Note.class)`, and `getPages()` returning `ManageNote()`. Create that Cadence model before the project compiles. The generator’s table calls `columns` on an empty `Table.memory()` and has no seed row.
 
 ## Add the full orders resource
 
-Leave `simple()` off. Override `getPages()` with list, create, edit, and view. The list page mounts the table and a create action. Create and edit mount the form. View mounts the infolist. Edit and view also render each relation manager.
+Leave `simple()` off. Override `getPages()` with list, create, edit, and view. The sidebar shows one **Orders** entry pointing at the list. The list page mounts the table, a **New** header action linking to create, and View / Edit / Delete row actions. Create and edit mount the form (with Save / Cancel header actions). View mounts the infolist. Edit and view also render each relation manager.
 
 Put the class in `app/firefly/resources/OrderResource`.
 
@@ -189,6 +191,7 @@ public class OrderResource extends Resource {
 ```
 
 That writes `OrderResource` plus `order/pages/` stubs (`ListOrder`, `CreateOrder`, `EditOrder`, `ViewOrder`). The generator’s `getPages()` returns those page instances, and writes one relation manager named `related`. The hello sample’s manager is named `lines` and points at `Line`.
+
 ## Open the Desk page
 
 <FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
@@ -220,7 +223,7 @@ A few things on that sample are unfinished in the browser. Check these before yo
 
 - Dialog markup is in the page, and the dialog stays closed until Alpine opens it. Create, edit, view, and delete on the notes page do not pop open from the first HTML response alone.
 - `@entangle(...)` can still appear as raw text when the Alpine binding has not run.
-- Navigation labels for pages come from the page slug. The Desk link can read `desk`, and the notes child can read `manage`, even when the page title or the resource label is a word. Resource groups use `label`, so the groups read `Notes` and `Orders`.
+- Navigation labels for pages come from the page slug. The Desk link can read `desk` until you override it. Each resource contributes **one** sidebar entry from `label()` (`Notes`, `Orders`), pointing at manage or list — not create/edit/view children.
 - The sample calls `authenticate(false)`. The user chip reads **Guest** when the panel guard has no signed-in id.
 
 ## Next

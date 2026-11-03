@@ -1,88 +1,133 @@
 ---
-title: Cromo del panel
-description: "Slots del panel, hooks de render, anulaciones de parciales y layouts propios."
+title: Panel chrome
+description: "Change the sidebar, top bar, body, or footer around every screen. Keep the hook markers, or render throws."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="panel-chrome.png" description="El cromo del panel en http://127.0.0.1:4017/admin/desk, mostrando la barra lateral, la barra superior, el cuerpo de la página y el pie." />
+Change the frame around every screen when the default sidebar, top bar, body, or footer is close and you want a different sidebar, a banner, or your own wrapper.
 
-El cromo del panel es el marco alrededor de cada pantalla: barra lateral, barra superior, cuerpo y pie. Lo tocas cuando el marco predeterminado está cerca pero quieres otra barra lateral, un banner o tu propio envoltorio.
+<FireflyShot file="section-chrome.png" description="Top chrome and user menu." />
 
-La clase que dibuja el marco es `org.konaframework.firefly.support.Panel`. La clase que montas en el router es `org.konaframework.firefly.Panel`, documentada en [Panel](/docs/firefly/panel/). La clase de soporte elige el HTML de cada región, comprueba que los marcadores de hook siguen ahí, rellena esos marcadores y pide a un layout que envuelva el resultado.
+The class that draws the frame is `org.konaframework.firefly.support.Panel`. The class you mount on the router is `org.konaframework.firefly.Panel`, on [Panel](/docs/firefly/panel/). The support class picks HTML for each region, checks that the hook markers are still there, fills those markers, and asks a layout to wrap the result.
 
-## Panel
+**Direction:** Firefly chrome and components use [Wire](/docs/wire/) classes with [Crema](/docs/crema/) views — the class holds config and behavior; the Crema file owns markup. Custom fields, columns, and widgets already follow that shape via `./grind make:firefly-field` (and siblings). The built-in authenticated document shell follows the same rule: `DefaultLayout` is a thin adapter that packs partial data and renders `views/firefly/layouts/panel.crema.html` through Crema (`FireflyCrema` / `ClasspathViewFinder` in `:kona-firefly-support`). A Wire page-host component for the shell is not required for this slice — Crema from `DefaultLayout` is the first vertical cut. Prefer overriding slots with Crema-backed HTML rather than growing string templates in the panel class. Auth screens still use `AuthLayout` (Kotlin document) until the next chrome step.
 
-| Método | Comportamiento |
-|--------|----------|
-| `theme(FireflyTheme)` | Tema usado para tokens, CSS y parciales del tema. Predeterminado: `KonaTheme` |
-| `layout(PanelLayout)` | Sustituye el envoltorio. Predeterminado: `DefaultLayout`. Una llamada posterior sustituye el layout anterior |
-| `hook(Hook, String)` | Añade HTML para ese hook. Varias llamadas al mismo hook se concatenan, en orden |
-| `overridePartial(slot, html)` | HTML de la app para un slot. Gana sobre el parcial del tema y el parcial integrado |
-| `render(): String` | Resuelve cada slot y luego `layout.render(...)` |
+<FireflyShot file="panel-chrome.png" description="The panel chrome at http://127.0.0.1:4017/admin/desk, showing the sidebar, top bar, page body, and footer." />
 
-Slots, en orden: `sidebar`, `topbar`, `body`, `footer`.
+## Call the support Panel
 
-Para cada slot, `render` elige la primera fuente que existe:
+| Method | What you get |
+|--------|----------------|
+| `theme(FireflyTheme)` | Theme used for tokens, CSS, and theme partials. Default: `KonaTheme` |
+| `layout(PanelLayout)` | Replaces the wrapper. Default: `DefaultLayout`. A later call replaces the earlier layout |
+| `hook(Hook, String)` | Appends HTML for that hook. Several calls for the same hook concatenate, in order |
+| `overridePartial(slot, html)` | App HTML for one slot. Wins over the theme partial and the built-in partial |
+| `render(): String` | Resolves every slot, then `layout.render(...)` |
 
-1. `overridePartial` de ese slot, cuando lo pusiste.
-2. `theme.partial(slot)`, cuando devuelve no null.
-3. El parcial integrado.
+Slots, in order: `sidebar`, `topbar`, `body`, `footer`.
 
-Los nombres de slot desconocidos pasados a `overridePartial` se guardan y se ignoran, porque solo se resuelven los cuatro slots.
+For each slot, `render` picks the first source that exists:
 
-## Marcadores de hook
+1. `overridePartial` for that slot, when you set one.
+2. `theme.partial(slot)`, when it returns non-null.
+3. The built-in partial.
 
-Cada parcial elegido debe seguir conteniendo los marcadores de su slot. El texto del marcador es exacto, incluido el comentario:
+Unknown slot names passed to `overridePartial` are stored and ignored, because only the four slots are resolved.
 
-| Slot | Marcadores exigidos |
+## Keep the hook markers
+
+Every chosen partial must still contain the markers for its slot. The marker text is exact, including the comment:
+
+| Slot | Required markers |
 |------|------------------|
-| `sidebar` | `<!-- ff-hook:sidebar.start -->` y `<!-- ff-hook:sidebar.end -->` |
-| `topbar` | `<!-- ff-hook:topbar.start -->` y `<!-- ff-hook:topbar.end -->` |
-| `body` | `<!-- ff-hook:body.start -->` y `<!-- ff-hook:body.end -->` |
+| `sidebar` | `<!-- ff-hook:sidebar.start -->` and `<!-- ff-hook:sidebar.end -->` |
+| `topbar` | `<!-- ff-hook:topbar.start -->` and `<!-- ff-hook:topbar.end -->` |
+| `body` | `<!-- ff-hook:body.start -->` and `<!-- ff-hook:body.end -->` |
 | `footer` | `<!-- ff-hook:footer -->` |
 
-Si falta algún marcador, `render` lanza `FireflyException`:
+If any marker is missing, `render` throws `FireflyException`:
 
 ```text
 Partial [<slot>] is missing markers [<marker>, ...]
 ```
 
-La cáscara no se renderiza. Arregla el parcial para que los comentarios sigan en el HTML, incluso cuando tu marcado los rodea.
+The shell does not render. Put the comments back in the HTML, including when your markup surrounds them.
 
-Después de la comprobación, cada marcador se sustituye por el HTML de hook concatenado. Un hook que nunca rellenaste se convierte en una cadena vacía, así que el comentario desaparece.
+After the check, each marker is replaced with the concatenated hook HTML. A hook you never filled becomes an empty string, so the comment disappears.
 
-Valores de `Hook`: `SIDEBAR_START`, `SIDEBAR_END`, `TOPBAR_START`, `TOPBAR_END`, `BODY_START`, `BODY_END`, `FOOTER`. Cada uno tiene una cadena `marker` (`sidebar.start`, y así sucesivamente).
+`Hook` values: `SIDEBAR_START`, `SIDEBAR_END`, `TOPBAR_START`, `TOPBAR_END`, `BODY_START`, `BODY_END`, `FOOTER`. Each has a `marker` string (`sidebar.start`, and so on).
 
-## Parciales integrados
+## Built-in partials
 
-| Slot | Elemento |
+| Slot | Element |
 |------|---------|
 | sidebar | `<aside class="ff-sidebar">` |
 | topbar | `<header class="ff-topbar">` |
 | body | `<main class="ff-body">` |
 | footer | `<footer class="ff-footer">` |
 
-## Layout predeterminado
+## What the default layout writes
 
-`DefaultLayout` escribe:
+`DefaultLayout` renders a full HTML document from the Crema layout `firefly.layouts.panel` (`modules/firefly-support/src/main/resources/views/firefly/layouts/panel.crema.html`). Kotlin only supplies the four slot partials (already hook-filled), theme CSS, CSRF token, title, body colors, and the theme-init / chrome behavior scripts. Theme CSS goes in `<head>` with self-hosted Inter / DM Sans `@font-face` rules (served from `/_firefly/fonts/` with immutable cache headers — not Google Fonts CDN), alongside a tiny no-flash script that applies the stored theme preference before the first paint. When a session is on the request, a `<meta name="csrf-token">` tag is written too so forms and Firefly Forms uploads can send `_token` / `X-CSRF-TOKEN`. The authenticated shell is a flex row: sidebar beside a column that holds the top bar, a scroll region for the body, and a pinned footer. A drawer backdrop and a small dependency-free behavior script (theme cycle, dropdown menus, mobile drawer) finish the document.
 
 ```html
-<div class="ff-panel">
-  <style>…theme CSS…</style>
-  …sidebar…
-  …topbar…
-  …body…
-  …footer…
-</div>
+<!DOCTYPE html>
+<html lang="en" class="ff-html">
+  <head>
+    …charset, viewport, csrf meta, title…
+    …theme CSS + local Inter/DM Sans faces…
+    <script>…apply stored ff-theme before paint…</script>
+    <style>…theme CSS…</style>
+  </head>
+  <body class="ff-body-root">
+    <div class="ff-panel">
+      <div class="ff-backdrop" data-ff-backdrop></div>
+      …sidebar…
+      <div class="ff-column">
+        …topbar…
+        <div class="ff-scroll">
+          …body…
+        </div>
+        …footer…
+      </div>
+    </div>
+    <script>…theme cycle, menus, drawer…</script>
+  </body>
+</html>
 ```
 
-Si un slot faltara en el mapa que recibe, lanzaría `Missing partial [<name>]`. `Panel` siempre rellena los cuatro slots antes de llamar al layout, así que ese fallo es para un llamador propio de `DefaultLayout` que omite una clave.
+The sidebar shares the body background: it is **not** a contrasting card strip. Only the brand block and the top bar are raised (card surface, no primary top ribbon — so Wire navigate progress stays visible), so they line up as one strip across the top. At the bottom, `.ff-sidebar-foot` and `.ff-footer` share the same shell background, padding, type, soft top border, and a fixed `--ff-footer-height` min-height so they read as one continuous chrome band — even when the main footer is empty and the sidebar shows **Signed in as …**. The sidebar width and top-bar height come from the theme tokens `--ff-sidebar-width` and `--ff-topbar-height`.
 
-## Sustituir un parcial
+With `NavigationType.SIDE` and `APP`, the brand label renders in `.ff-sidebar-brand` above the side nav, and the top bar shows a mobile-only brand beside the drawer toggle. `TOP` has no sidebar, so its brand stays in the top bar at every width.
 
-La anulación debe conservar los marcadores. Esta barra lateral añade una etiqueta y sigue aceptando hooks:
+## Top bar tools and theme toggle
+
+Every panel page draws a tools cluster on the right of the top bar. These are plain HTML driven by data attributes, so themes and custom layouts keep rendering ordinary markup — the behavior script wires them up:
+
+| Control | Markup | Behavior |
+|---------|--------|----------|
+| Theme toggle | `<button data-ff-theme-toggle>` | Cycles `light → dark → system` and stores the choice under `localStorage['ff-theme']`. Adds/removes `ff-dark` on the document root |
+| Notifications | `<div data-ff-menu>` with a bell `data-ff-menu-trigger` | Opens a dropdown. With no backend wired it shows an empty state |
+| User menu | `<div class="ff-menu ff-user" data-ff-menu>` | Avatar initial + signed-in identifier; the dropdown holds the identifier, **Signed in as …**, a **Profile** link, any [`userMenu`](/docs/firefly/panel/) entries, and a **Sign out** form |
+| Drawer toggle | `<button class="ff-hamburger" data-ff-sidebar-toggle>` | Mobile only; slides the sidebar in. The backdrop and a close button (`data-ff-sidebar-close`) dismiss it |
+
+The sidebar also ends with a footer that reads **Signed in as _identifier_** (or **Guest** when no one is signed in), matching the identifier shown in the user menu.
+
+Three preferences, not two: `system` follows the operating system and tracks live changes to it; `light` and `dark` pin the choice. Because the preference lives in `localStorage` and is applied in `<head>`, a reload never flashes the wrong theme.
+
+If a slot were absent from the map it receives, it would throw `Missing partial [<name>]`. `Panel` always fills all four slots before calling the layout, so that failure is for a custom caller of `DefaultLayout` that omits a key.
+
+## Auth screens use a guest document
+
+Login, register, password reset, and email verify do **not** render the sidebar or top bar. The panel mounts those routes, then draws `AuthLayout`: a centered `.ff-auth-shell` with brand, atmosphere, and the form card. Authenticated pages (including profile) stay on `DefaultLayout`.
+
+Auth forms include a hidden `_token` field when a session is present, matching the same CSRF token the meta tag exposes on panel pages.
+
+## Replace one partial
+
+The override must keep the markers. This sidebar adds a label and still accepts hooks:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -107,20 +152,26 @@ Panel shell = new Panel().overridePartial(
 </TabItem>
 </Tabs>
 
-Un tema puede aportar el mismo HTML desde `partial("sidebar")`. Una anulación de la app sigue ganando cuando existen ambas.
+You see **Menu** at the top of the sidebar. Hooks still inject between the two comments. A theme can supply the same HTML from `partial("sidebar")`. An app override still wins when both exist.
 
-## Sustituir el layout
+`./grind firefly:publish` copies the sidebar partial to `resources/views/firefly/sidebar.crema.html` so you can edit it in the app. Keep the markers.
 
-`PanelLayout.render` recibe un `ChromeContext`:
+## Replace the layout
 
-| Campo | Contenido |
+`PanelLayout.render` receives a `ChromeContext`:
+
+| Field | Contents |
 |-------|----------|
-| `theme` | El `FireflyTheme` de la cáscara |
-| `hooks` | La instancia de `RenderHooks` (ya aplicada a los parciales) |
-| `partials` | Mapa de nombre de slot a HTML, con los marcadores ya sustituidos |
-| `css` | La cadena de `Stylesheet.render(theme)` |
+| `theme` | The `FireflyTheme` on the shell |
+| `hooks` | The `RenderHooks` instance (already applied to the partials) |
+| `partials` | Map of slot name to HTML, markers already replaced |
+| `css` | The string from `Stylesheet.render(theme)` |
+| `csrfToken` | Session CSRF token when present, otherwise null |
+| `documentTitle` | `<title>` text |
+| `brandName` | Brand shown on auth and used as the default title |
+| `mode` | `ChromeMode.PANEL` or `ChromeMode.AUTH` |
 
-Un layout puede ignorar `DefaultLayout` y colocar los parciales él mismo. Para usar los tokens oscuros, pon `ff-dark` en el mismo elemento que `ff-panel`:
+A layout may ignore `DefaultLayout` and place the partials itself. Dark tokens respond to `ff-dark` either on the panel element itself (`<div class="ff-panel ff-dark">`) or on any ancestor such as the document root (`<html class="ff-dark">`, which is what the built-in theme toggle sets). The example below pins dark on the panel element:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -175,4 +226,4 @@ new Panel().layout(new DarkLayout()).render();
 </TabItem>
 </Tabs>
 
-`layout(...)` después de `theme(...)` no descarta el tema. El tema sigue aportando tokens, CSS y parciales de tema. Solo cambia el envoltorio.
+`layout(...)` after `theme(...)` keeps the theme. The theme still supplies tokens, CSS, and theme partials. Only the wrapper changes. Read [Themes and CSS](/docs/firefly/themes/) for the tokens those classes use.

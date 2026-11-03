@@ -1,22 +1,24 @@
 ---
 title: Tenancy
-description: "Ajoutez un lien de tenant dans la barre du haut, puis nommez la colonne sur la ressource pour que query() filtre les lignes de ce tenant."
+description: "Add a tenant link in the top bar, then name the column on the resource so query() filters that tenant’s rows."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Ajoutez un tenant lorsqu’un panneau sert plus d’un client et qu’une ressource ne doit interroger que les lignes de ce client. Le lien est un libellé dans la barre du haut. L’id est ce sur quoi la requête courante filtre.
+Add a tenant when one panel serves more than one customer and a resource should only query that customer’s rows. The link is a label in the top bar. The id is what the current request filters on.
 
-Vous ajoutez le tenant. Votre ressource nomme la colonne. Le lien définit `?tenant=acme`. Pendant le rendu de cette requête, `FireflyTenant.id()` vaut `acme`.
+<FireflyShot file="section-tenancy.png" description="Sidebar area used for tenant switching." />
 
-<FireflyShot file="tenant-menu.png" description="Une barre haute de panneau avec un lien de tenant libellé Acme qui définit le paramètre de requête tenant à acme." />
+You add the tenant. Your resource names the column. The link sets `?tenant=acme`. While that request renders, `FireflyTenant.id()` is `acme`.
 
-## Filtrer une ressource par le tenant sélectionné
+<FireflyShot file="tenant-menu.png" description="A panel top bar with a tenant link labeled Acme that sets the tenant query parameter to acme." />
 
-`tenant(Tenant("acme").label("Acme"))` ajoute le lien. Une ressource qui appelle `tenant("tenant_id")` ajoute cette colonne à `query()` lorsque l’id est défini. Un modèle Cadence renvoie toujours un `ModelBuilder`. Un id de tenant inconnu échoue sur la page et nomme l’id.
+## Filter a resource by the selected tenant
 
-Un id de tenant vide ou un libellé vide lance `FireflyException`. Un nom de colonne vide lance `Tenant column is blank`.
+`tenant(Tenant("acme").label("Acme"))` adds the link. A resource that calls `tenant("tenant_id")` adds that column to `query()` when the id is set. A Cadence model still returns a `ModelBuilder`. An unknown tenant id fails at the page and names the id.
+
+A blank tenant id or a blank label throws `FireflyException`. A blank column name throws `Tenant column is blank`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -37,19 +39,19 @@ new Resource("orders").model(Order.class).tenant("tenant_id");
 </TabItem>
 </Tabs>
 
-Ouvrez `/admin/orders/list?tenant=acme`. La requête orders inclut `tenant_id`. `label` accepte une chaîne ou une fermeture qui reçoit `Get`. `FireflyTenant.use(id) { ... }` définit l’id pour le thread courant et restaure la valeur précédente lorsque le bloc revient. `mount` le fait déjà autour de la réponse de page. Appelez `use` vous-même dans un test.
+Open `/admin/orders/list?tenant=acme`. The orders query includes `tenant_id`. `label` accepts a string or a closure that receives `Get`. `FireflyTenant.use(id) { ... }` sets the id for the current thread and restores the previous value when the block returns. `mount` already does that around the page response. Call `use` yourself in a test.
 
-`FireflyTenant.id()` est null lorsque la chaîne de requête n’a pas de paramètre `tenant`.
+`FireflyTenant.id()` is null when the query string has no `tenant` parameter.
 
-## Méthodes
+## Methods
 
-| Type | Méthodes |
+| Type | Methods |
 |------|---------|
 | `Tenant` | `label(value)`, `label(provider)`, `label()` |
 | `Panel` | `tenant(tenant)` |
 | `Resource` | `tenant(column)` |
 | `FireflyTenant` | `id()`, `use(id, supplier)` |
 
-## Suite
+## Next
 
-[Plugins](/docs/firefly/plugins/) étendent le même panneau. Passez la classe à `plugin(...)`.
+[Plugins](/docs/firefly/plugins/) extend the same panel. Pass the class to `plugin(...)`.
