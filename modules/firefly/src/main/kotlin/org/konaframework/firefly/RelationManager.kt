@@ -61,6 +61,7 @@ open class RelationManager(private val name: String) {
     private var ownerGate: Predicate<RelationContext>? = null
     private var queryModifier: BiConsumer<Any, RelationContext>? = null
     private val pivotColumnList = ArrayList<String>()
+    private var lazyFlag = false
     private val scopedTables: MutableSet<Table<*, *>> = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
 
     init {
@@ -174,6 +175,15 @@ open class RelationManager(private val name: String) {
 
     fun isReadOnly(page: PanelPage?): Boolean = readOnlyFlag ?: (page is ViewPage)
 
+    /**
+     * Skip rendering this manager's table until its tab is selected (Filament `isLazy`).
+     * Inactive lazy panels show a placeholder; the next `?relation=` request loads the table.
+     */
+    @JvmOverloads
+    fun lazy(on: Boolean = true): RelationManager = apply { lazyFlag = on }
+
+    fun isLazy(): Boolean = lazyFlag
+
     fun badge(value: String): RelationManager = apply { badgeUsing = Function { value } }
 
     /** Tab / heading badge for the owner (for example a count of related rows). Null hides it. */
@@ -267,6 +277,10 @@ open class RelationManager(private val name: String) {
 
     /** The section for one owner. [state] carries table query state when [active]. */
     internal fun renderFor(runtime: RelationRuntime, state: Map<String, Any?>, active: Boolean): String {
+        if (lazyFlag && !active) {
+            return """<section class="ff-relation ff-relation-lazy" data-ff-relation="${escapeHtml(name)}" data-ff-title="${escapeHtml(titleText())}" data-ff-lazy="true"${attributeText()}>""" +
+                """<p class="ff-relation-lazy-hint">Open this tab to load ${escapeHtml(pluralModelLabel())}.</p></section>"""
+        }
         val flash = RelationFormFlash.from(state)
         val table = table(runtime, if (active) state else emptyMap(), flash)
         val tableHtml = RelationScope.with(runtime) { table.render() }

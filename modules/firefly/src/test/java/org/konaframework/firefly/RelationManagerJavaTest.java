@@ -38,10 +38,16 @@ class RelationManagerJavaTest {
         new Panel().path("admin").authenticate(false).resource(new Projects()).mount(router);
         String edit = get(router, "/admin/projects/edit", Map.of("id", owner));
         assertTrue(edit.contains("data-ff-relation-managers"));
+        assertTrue(edit.contains("data-ff-relation-tab=\"content\""));
+        assertTrue(edit.contains(">Details<"));
         assertTrue(edit.contains("data-ff-relation-tab=\"tasks\""));
-        assertTrue(edit.contains("data-ff-relation-tab=\"members\""));
-        assertTrue(edit.contains(">New task<"));
-        assertTrue(edit.contains("Create &amp; create another") || edit.contains("Create & create another"));
+        assertTrue(edit.contains("data-ff-relation-tab=\"group-team\""));
+        assertTrue(edit.contains(">Team<"));
+        // Lazy tasks are a placeholder until selected; create-another lives on the create dialog body.
+        assertTrue(edit.contains("data-ff-lazy=\"true\"") || edit.contains("Open this tab to load"));
+        String tasksTab = get(router, "/admin/projects/edit", Map.of("id", owner, "relation", "tasks"));
+        assertTrue(tasksTab.contains(">New task<"));
+        assertTrue(tasksTab.contains("Create &amp; create another") || tasksTab.contains("Create & create another"));
 
         assertEquals(302, post(router, "create", "tasks", owner, "name=Write+docs").getStatus());
         assertNotNull(new RmTask().newQuery().where("name", "Write docs").first());
@@ -67,6 +73,9 @@ class RelationManagerJavaTest {
         assertSame(RelationOperation.ATTACH, attach.getOperation());
         RelationAction create = RelationAction.create().createAnother(false);
         assertEquals("New task", create.getLabel("task"));
+        RelationGroup group = RelationGroup.make("Team", new RelationManager("members").recordTitleAttribute("name"));
+        assertEquals("Team", group.label());
+        assertEquals(1, group.managers().size());
         List<RelationAction> all = List.of(
             RelationAction.create(), RelationAction.view(), RelationAction.edit(), RelationAction.delete(),
             RelationAction.associate(), RelationAction.dissociate(), RelationAction.detach(),
@@ -97,6 +106,8 @@ class RelationManagerJavaTest {
             super("projects");
             label("Project");
             model(RmProject.class);
+            combinedRelationManagerTabsWithContent();
+            contentTabLabel("Details");
         }
 
         @Override
@@ -106,13 +117,20 @@ class RelationManagerJavaTest {
 
         @Override
         public List<RelationManager> getRelations() {
+            return List.of(new TasksRelationManager().lazy());
+        }
+
+        @Override
+        public List<RelationGroup> getRelationGroups() {
             return List.of(
-                new TasksRelationManager(),
-                new RelationManager("members")
-                    .recordTitleAttribute("name")
-                    .pivotColumns("role")
-                    .table(table -> table.columns(TextColumn.make("name"), TextColumn.make("role")))
-                    .headerActions(RelationAction.attach().form(schema -> schema.components(TextInput.make("role"))))
+                RelationGroup.make(
+                    "Team",
+                    new RelationManager("members")
+                        .recordTitleAttribute("name")
+                        .pivotColumns("role")
+                        .table(table -> table.columns(TextColumn.make("name"), TextColumn.make("role")))
+                        .headerActions(RelationAction.attach().form(schema -> schema.components(TextInput.make("role"))))
+                )
             );
         }
     }

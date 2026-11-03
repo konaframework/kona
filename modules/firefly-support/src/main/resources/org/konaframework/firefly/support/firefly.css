@@ -4290,6 +4290,31 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   margin-top: 0;
 }
 
+.ff-panel .ff-relation-nested-tabs {
+  margin-top: 0.25rem;
+  margin-bottom: 0.75rem;
+  border-bottom-style: dashed;
+}
+
+.ff-panel .ff-relation-nested-tab {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+}
+
+.ff-panel .ff-relation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.ff-panel .ff-relation-lazy-hint {
+  margin: 0;
+  padding: 1.25rem 0.5rem;
+  color: var(--ff-body-subtle);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 /* ——— Manage header: slightly tighter crumb → toolbar gap ——— */
 .ff-panel .ff-manage .ff-page-header {
   gap: 0.5rem;

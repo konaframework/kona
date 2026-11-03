@@ -223,6 +223,53 @@ Every action posts to one route per operation:
 
 Each request carries `relation`, `owner`, and `page` in the query string. Firefly re-checks the owner, the tenant, read-only mode, and every authorization rule on the server, so hiding a button is never the only line of defence. On success you land back on the same page with the same manager tab open and a success notification. A validation failure redirects back with a danger notification, reopens the dialog (`?dialog=create` or `?dialog=edit&dialog_id=…`), restores the old input, and shows each field’s error under that field. A denied action answers `403`, and a missing owner or record answers `404`.
 
+## Several managers, groups, and combined tabs
+
+More than one manager on a resource renders as tabs under the form. The active tab is `?relation=<name>`.
+
+Group managers under one top-level tab with `RelationGroup.make("Label", managerA, managerB)` (fluent `relationGroup(…)` or `getRelationGroups()`). Inside the group, nested tabs pick the active manager.
+
+Put the edit form / view infolist on the same tab strip with `combinedRelationManagerTabsWithContent()` and optional `contentTabLabel("Details")`. The content tab uses `?relation=content` (selected by default).
+
+Skip building inactive tables until their tab is selected with `RelationManager.lazy()` — inactive lazy panels show a short placeholder instead of the table.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+relation(TasksRelationManager().lazy())
+relationGroup(
+    RelationGroup.make(
+        "Team",
+        MembersRelationManager(),
+        RolesRelationManager(),
+    ),
+)
+combinedRelationManagerTabsWithContent()
+contentTabLabel("Project")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+combinedRelationManagerTabsWithContent();
+contentTabLabel("Project");
+
+@Override
+public List<RelationManager> getRelations() {
+    return List.of(new TasksRelationManager().lazy());
+}
+
+@Override
+public List<RelationGroup> getRelationGroups() {
+    return List.of(RelationGroup.make("Team", new MembersRelationManager(), new RolesRelationManager()));
+}
+```
+
+</TabItem>
+</Tabs>
+
 ## Default actions
 
 If you do not call `headerActions`, `actions`, or `bulkActions`, the manager picks defaults from the relationship type:

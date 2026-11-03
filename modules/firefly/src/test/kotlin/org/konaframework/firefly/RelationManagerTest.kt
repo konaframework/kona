@@ -779,6 +779,184 @@ class RelationManagerTest {
     }
 
     @Test
+    fun relationGroupCombinedTabsAndLazyManagers() {
+        task(p1, "Alpha")
+        val comments = RelationManager("comments")
+            .recordTitleAttribute("body")
+            .related(RmComment::class.java)
+            .form { schema -> schema.components(TextInput.make("body").required()) }
+            .table { table -> table.columns(TextColumn.make("body")) }
+            .headerActions(RelationAction.create())
+            .actions(RelationAction.view(), RelationAction.edit(), RelationAction.delete())
+        val tags = RelationManager("tags")
+            .recordTitleAttribute("name")
+            .related(RmTag::class.java)
+            .form { schema -> schema.components(TextInput.make("name").required()) }
+            .table { table -> table.columns(TextColumn.make("name")) }
+            .headerActions(RelationAction.attach())
+            .actions(RelationAction.view(), RelationAction.detach(), RelationAction.delete())
+        val tasksLazy = tasks().lazy()
+        val resource = projects(tasksLazy, members())
+            .relationGroup(RelationGroup.make("Notes", comments, tags))
+            .combinedRelationManagerTabsWithContent()
+            .contentTabLabel("Project")
+        assertTrue(resource.hasCombinedRelationManagerTabsWithContent())
+        assertEquals("Project", resource.getContentTabLabel())
+        assertEquals(setOf("tasks", "members", "comments", "tags"), resource.relationManagers().map { it.name() }.toSet())
+        assertThrows<FireflyException> { RelationGroup.make(" ", tasksLazy) }
+        assertThrows<FireflyException> { RelationGroup.make("Empty") }
+        assertThrows<FireflyException> { RelationGroup.make("Dup", comments, comments) }
+        assertEquals("Notes", RelationGroup.make("Notes", comments).label())
+        assertTrue(tasksLazy.isLazy())
+        assertFalse(tasks().lazy(false).isLazy())
+
+        val router = mount(resource)
+        val edit = page(router, "edit", p1)
+        assertTrue(edit.contains("""data-ff-relation-tab="content""""), edit)
+        assertTrue(edit.contains(">Project<"), edit)
+        assertTrue(edit.contains("""id="ff-form""""), edit)
+        assertTrue(edit.contains("""data-ff-relation-tab="group-notes""""), edit)
+        assertTrue(edit.contains(">Notes<"), edit)
+        assertTrue(edit.contains("""data-ff-lazy="true""""), edit)
+        assertTrue(edit.contains("Open this tab to load tasks"), edit)
+        assertTrue(edit.contains("""data-ff-relation-tab="content" aria-selected="true""""), edit)
+
+        val tasksTab = page(router, "edit", p1, mapOf("relation" to "tasks"))
+        assertFalse(tasksTab.contains("""data-ff-lazy="true""""), tasksTab)
+        assertTrue(tasksTab.contains("Alpha"), tasksTab)
+
+        val notes = page(router, "edit", p1, mapOf("relation" to "comments"))
+        assertTrue(notes.contains("""data-ff-relation-group="Notes""""), notes)
+        assertTrue(notes.contains("""data-ff-relation="comments""""), notes)
+        assertTrue(notes.contains("ff-relation-nested-tabs"), notes)
+        assertTrue(notes.contains("""data-ff-relation-tab="tags""""), notes)
+
+        val tagsTab = page(router, "edit", p1, mapOf("relation" to "tags"))
+        assertTrue(tagsTab.contains("""data-ff-relation="tags""""), tagsTab)
+
+        val view = page(router, "view", p1)
+        assertTrue(view.contains("""data-ff-relation-tab="content""""), view)
+        assertTrue(view.contains("ff-relation-content"), view)
+
+        // Class-based getRelationGroups + default content tab label.
+        val declared = object : Resource("projects") {
+            init {
+                label("Project")
+                model(RmProject::class.java)
+                combinedRelationManagerTabsWithContent()
+            }
+            override fun form(schema: Schema) = schema.components(TextInput.make("name"))
+            override fun getRelations(): List<RelationManager> = listOf(tasks())
+            override fun getRelationGroups(): List<RelationGroup> =
+                listOf(RelationGroup.make("More", comments))
+        }
+        assertEquals("Content", declared.getContentTabLabel())
+        val declaredEdit = page(mount(declared), "edit", p1)
+        assertTrue(declaredEdit.contains("""data-ff-relation-tab="content""""), declaredEdit)
+        assertTrue(declaredEdit.contains("""data-ff-relation-tab="group-more""""), declaredEdit)
+        assertThrows<FireflyException> { declared.contentTabLabel(" ") }
+        assertThrows<FireflyException> { Resource("m").relation(tasks()).simple() }
+        assertThrows<FireflyException> {
+            Resource("gonly").relationGroup(RelationGroup.make("G", comments)).simple()
+        }
+        assertThrows<FireflyException> {
+            Resource("x").relation(tasks()).relationGroup(RelationGroup.make("G", comments)).simple()
+        }
+        assertThrows<FireflyException> {
+            Resource("y").simple().relationGroup(RelationGroup.make("G", comments))
+        }
+        assertThrows<FireflyException> {
+            object : Resource("g") {
+                override fun getRelationGroups() = listOf(RelationGroup.make("G", comments))
+            }.simple()
+        }
+        assertThrows<FireflyException> {
+            object : Resource("r") {
+                override fun getRelations() = listOf(tasks())
+            }.simple()
+        }
+        Resource("z").simple(false).relation(tasks())
+        Resource("ok").simple()
+
+        // Manager listed both fluently and inside a group is only shown in the group.
+        val overlap = projects(comments)
+            .relationGroup(RelationGroup.make("Notes", comments))
+        assertEquals(listOf("comments"), overlap.relationManagers().map { it.name() })
+        assertEquals(1, overlap.relationEntries().size)
+        val overlapDeclared = object : Resource("projects") {
+            init {
+                label("Project")
+                model(RmProject::class.java)
+            }
+            override fun form(schema: Schema) = schema.components(TextInput.make("name"))
+            override fun getRelations() = listOf(comments)
+            override fun getRelationGroups() = listOf(RelationGroup.make("Notes", comments))
+        }
+        assertEquals(1, overlapDeclared.relationEntries().size)
+
+        // Invisible managers drop the group; combined with no managers still shows content.
+        val gated = RelationManager("comments")
+            .recordTitleAttribute("body")
+            .related(RmComment::class.java)
+            .canViewForRecord { false }
+        val contentOnlyResource = projects()
+            .relationGroup(RelationGroup.make("Hidden", gated))
+            .combinedRelationManagerTabsWithContent()
+            .contentTabLabel("Only")
+        val contentOnly = mount(contentOnlyResource)
+        val contentPage = page(contentOnly, "edit", p1)
+        assertTrue(contentPage.contains("""data-ff-relation-tab="content""""), contentPage)
+        assertFalse(contentPage.contains("group-hidden"), contentPage)
+        assertTrue(contentPage.contains("""id="ff-form""""), contentPage)
+        val missingOnContent = page(contentOnly, "edit", p1, mapOf("relation" to "missing"))
+        assertTrue(missingOnContent.contains("""data-ff-relation-tab="content""""), missingOnContent)
+
+        // Sole group (no singles) still gets a tab strip, not a bare section.
+        val groupOnly = mount(projects().relationGroup(RelationGroup.make("Notes", comments, tags)))
+        val groupOnlyHtml = page(groupOnly, "edit", p1)
+        assertTrue(groupOnlyHtml.contains("""data-ff-relation-tab="group-notes""""), groupOnlyHtml)
+        assertTrue(groupOnlyHtml.contains("ff-relation-nested-tabs"), groupOnlyHtml)
+
+        // Nested badge + unknown relation falls back to the first entry.
+        val badged = comments.badge("3")
+        val nested = mount(
+            projects(tasks()).relationGroup(RelationGroup.make("Notes", badged, tags)),
+        )
+        val nestedHtml = page(nested, "edit", p1, mapOf("relation" to "nope"))
+        assertTrue(nestedHtml.contains("""ff-relation-badge">3"""), nestedHtml)
+        val unknownCombined = page(router, "edit", p1, mapOf("relation" to "missing"))
+        assertTrue(unknownCombined.contains("ff-relation-managers"), unknownCombined)
+        // Without combined tabs, relation=content is ignored and the first manager wins.
+        val plain = mount(projects(tasks(), members()))
+        assertTrue(page(plain, "edit", p1, mapOf("relation" to Resource.CONTENT_TAB)).contains("""data-ff-relation="tasks""""))
+
+        // Empty form body still combines.
+        val emptyForm = mount(
+            object : Resource("projects") {
+                init {
+                    label("Project")
+                    model(RmProject::class.java)
+                    combinedRelationManagerTabsWithContent()
+                    relation(tasks())
+                }
+                override fun form(schema: Schema): Schema = schema
+            },
+        )
+        assertTrue(page(emptyForm, "edit", p1).contains("ff-relation-managers"))
+
+        val bare = wrapCombinedResourceForm("fields", emptyMap())
+        assertTrue(bare.contains("""action="""""), bare)
+        assertTrue(bare.contains("""value="""""), bare)
+        val filled = wrapCombinedResourceForm(
+            "fields",
+            mapOf("csrfField" to "<t>", "formAction" to "/edit", "record" to "9"),
+        )
+        assertTrue(filled.contains("action=\"/edit\""), filled)
+        assertTrue(filled.contains("""value="9""""), filled)
+        assertTrue(filled.contains("<t>"), filled)
+    }
+
+    @Test
     fun modalUxCreateAnotherRecordSelectAndFieldErrors() {
         val alpha = task(p1, "Alpha")
         val manager = RelationManager("tasks")
