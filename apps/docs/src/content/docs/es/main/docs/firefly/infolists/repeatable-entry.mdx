@@ -1,0 +1,135 @@
+---
+title: Repeatable entry
+description: "Repeat child entries for each map in a list, as cards or as a table."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`RepeatableEntry` repeats its child schema once per item. State may be one map or a list of maps. Empty maps and values that are not maps are skipped. A dotted child name is read from the current item while that item is on the stack. The entry inherits every helper on [Entry](/docs/firefly/infolists/#helpers-on-every-entry).
+
+<FireflyShot file="infolist-repeatable-entry.png" description="A repeatable entry listing comment titles in a contained grid." />
+
+## Schema and layout
+
+`schema(...)` replaces the child components. `contained(true)` (default) wraps items. `grid(n)` lays items in that many columns. The default empty placeholder is `No items` (override with `placeholder`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RepeatableEntry.make("comments")
+    .label("Comments")
+    .contained(true)
+    .grid(2)
+    .schema(
+        TextEntry.make("title").label("Title"),
+        TextEntry.make("author").label("Author"),
+    )
+    .state(
+        listOf(
+            mapOf("title" to "First", "author" to "Ada"),
+            mapOf("title" to "Second", "author" to "Grace"),
+        ),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+RepeatableEntry.make("comments")
+    .label("Comments")
+    .contained(true)
+    .grid(2)
+    .schema(
+        TextEntry.make("title").label("Title"),
+        TextEntry.make("author").label("Author")
+    )
+    .state(List.of(
+        Map.of("title", "First", "author", "Ada"),
+        Map.of("title", "Second", "author", "Grace")
+    ));
+```
+
+</TabItem>
+</Tabs>
+
+Each item is an `<article class="ff-repeatable-item" data-ff-index="…">` inside `div.ff-repeatable`. Contained and grid flags become `data-ff-contained` and `data-ff-grid`.
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `schema(components…)` | Replace child entries / components |
+| `contained(true)` | Wrap items (default `true`) |
+| `grid(n)` | Column count for the card layout |
+| `table(columns…)` | Switch to table mode with those headers |
+| `placeholder` / empty state | Default copy `No items` |
+| `state` | One map or a list of maps |
+| `configureUsing { … }` | Defaults for every later `make()`; pass `null` to clear |
+
+A single non-empty map is treated as a one-item list. Null keys inside a map are dropped when the row is normalized.
+
+## Table mode
+
+`table(TableColumn.make("Title"), …)` renders a table. Header labels come from each `TableColumn`. `hiddenHeaderLabel()` hides that header with the `ff-sr` class (still available to assistive tech). Child schema components render in the cells in declaration order — one child per column.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RepeatableEntry.make("lines")
+    .table(
+        TableColumn.make("Title"),
+        TableColumn.make("Qty").hiddenHeaderLabel(),
+    )
+    .schema(
+        TextEntry.make("title"),
+        TextEntry.make("qty"),
+    )
+    .state(
+        listOf(
+            mapOf("title" to "Beans", "qty" to 2),
+            mapOf("title" to "Filter", "qty" to 1),
+        ),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+RepeatableEntry.make("lines")
+    .table(
+        TableColumn.make("Title"),
+        TableColumn.make("Qty").hiddenHeaderLabel()
+    )
+    .schema(
+        TextEntry.make("title"),
+        TextEntry.make("qty")
+    )
+    .state(List.of(
+        Map.of("title", "Beans", "qty", 2),
+        Map.of("title", "Filter", "qty", 1)
+    ));
+```
+
+</TabItem>
+</Tabs>
+
+`TableColumn.make(label)` builds a header. `hiddenHeaderLabel()` or `hiddenHeaderLabel(true)` marks it visually hidden; `isHeaderHidden()` and `label()` read those settings when you need them in tests.
+
+## How child state resolves
+
+While a row renders, Firefly pushes that map onto an item frame. Child entries read dotted names from the current item first, then fall back to the parent schema. That is why `TextEntry.make("title")` inside the repeatable shows each comment’s title, not a top-level `title` field.
+
+## Defaults for every make
+
+`RepeatableEntry.configureUsing { entry -> entry.contained(true).grid(1) }` runs for every later `make()`. Pass `null` to clear it.
+
+## See also
+
+- [Infolists overview](/docs/firefly/infolists/)
+- [Text entry](/docs/firefly/infolists/text-entry/)
+- [Key-value entry](/docs/firefly/infolists/key-value-entry/) — one map as a two-column table

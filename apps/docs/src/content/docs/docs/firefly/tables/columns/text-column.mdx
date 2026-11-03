@@ -1,0 +1,217 @@
+---
+title: Text column
+description: "Show text, money, dates, badges, links, and custom formatting in a Firefly table."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`TextColumn` is the general-purpose Firefly table column. It formats a row attribute as text (or HTML), then optionally paints color/icon, wraps a link, and/or shows a badge. It inherits search, sort, toggle, align, summarize, and the shared column helpers from [Tables](/docs/firefly/tables/).
+
+Start here for names, titles, descriptions, money, and dates. Prefer specialized columns when the cell is always an image, color swatch, icon, checkbox, toggle, or inline select.
+
+<FireflyShot file="column-text.png" description="A text column showing names in a notes list." />
+
+## Add the column
+
+Call `TextColumn.make("attribute")`, then chain the helpers you need. Headings default to a humanized attribute name (`published_at` → `Published At`).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextColumn.make("name")
+    .label("Name")
+    .searchable()
+    .sortable()
+    .placeholder("—")
+    .limit(40)
+    .prefix("#")
+    .copyable()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextColumn.make("name")
+    .label("Name")
+    .searchable()
+    .sortable()
+    .placeholder("—")
+    .limit(40)
+    .prefix("#")
+    .copyable();
+```
+
+</TabItem>
+</Tabs>
+
+## Display helpers
+
+| Method | Effect |
+|--------|--------|
+| `label(String)` / `label(Function)` | Column heading |
+| `description(...)` | Secondary `<p class="ff-column-description">` under the value |
+| `tooltip(...)` | `title` / `data-ff-tooltip` on the shell (date columns also tip the raw value) |
+| `placeholder(...)` | Shown when the formatted value is empty |
+| `prefix(...)` / `suffix(...)` | Strings wrapped around the body |
+| `color(...)` | CSS color on a `ff-column-color` span |
+| `icon(...)` | Icon name rendered before the text |
+| `url(...)` / `openUrlInNewTab()` | Wrap the body in `<a class="ff-column-link">` |
+| `width(...)` | Inline width on the shell |
+| `limit(characters)` | Truncate with an ellipsis (`…`) |
+| `html()` / `html(true)` | Skip HTML escaping of the formatted body (trusted content only) |
+| `badge()` / `badge(true)` | Wrap in `<span class="ff-badge">` |
+| `copyable()` | Marks the shell `data-ff-copyable="true"` |
+| `formatStateUsing { state, cell -> ... }` | Replace the default formatter entirely |
+| `view(name)` | Sets `data-ff-view` for custom front-end hooks |
+| `extraAttributes(...)` | Extra HTML attributes on the shell |
+
+`formatStateUsing` receives the raw state and the `Cell`, and must return the string to display (before limit / escape / prefix / paint / link / badge).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextColumn.make("email")
+    .label("Email")
+    .url { cell -> "mailto:${cell.get("email")}" }
+    .copyable()
+    .icon("mail")
+
+TextColumn.make("bio")
+    .limit(80)
+    .formatStateUsing { state, _ -> state?.toString()?.trim().orEmpty() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextColumn.make("email")
+    .label("Email")
+    .url(cell -> "mailto:" + cell.get("email"))
+    .copyable()
+    .icon("mail");
+
+TextColumn.make("bio")
+    .limit(80)
+    .formatStateUsing((state, cell) -> state == null ? "" : state.toString().trim());
+```
+
+</TabItem>
+</Tabs>
+
+## Money and dates
+
+`money()` / `currency("USD")` formats with currency style (default USD, US locale, 2 fraction digits) and defaults alignment to `Align.END` when you have not set alignment yet. Pass a code, locale, and precision — for example `money("EUR")` or `currency("KES", "en-KE", 0)`. Non-numeric values stay as raw text. Money cells also get `ff-column-money` and `data-ff-currency`.
+
+`date()` and `dateTime()` format a date, instant, or timestamp for people (`January 2, 2026` or `January 2, 2026, 3:45 PM`). Hover shows the raw value in a tooltip. Supported inputs include `LocalDate`, `LocalDateTime`, `Instant`, `java.util.Date`, SQL date/timestamp, and common ISO-ish strings.
+
+Columns named like `due_on`, `start_date`, or `created_at` / `updated_at` (and leaves containing `datetime`) humanize even without an explicit `.date()` / `.dateTime()` call — name hints infer the style while `style` is still plain.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextColumn.make("price").money("USD").sortable()
+TextColumn.make("total").currency("EUR", "fr-FR", 2)
+TextColumn.make("due_on").date().sortable()
+TextColumn.make("published_at").dateTime()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextColumn.make("price").money("USD").sortable();
+TextColumn.make("total").currency("EUR", "fr-FR", 2);
+TextColumn.make("due_on").date().sortable();
+TextColumn.make("published_at").dateTime();
+```
+
+</TabItem>
+</Tabs>
+
+## Relationships
+
+Related titles use a dotted make path, up to four segments (`a.b.c.d`):
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextColumn.make("project.name").label("Project")
+TextColumn.make("owner.company.region.name").label("Region")
+
+// Equivalent on an FK column name:
+TextColumn.make("project_id").relationship("project", "name")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextColumn.make("project.name").label("Project");
+TextColumn.make("owner.company.region.name").label("Region");
+TextColumn.make("project_id").relationship("project", "name");
+```
+
+</TabItem>
+</Tabs>
+
+Cadence tables eager-load the relation path (`with("project")`, nested paths as needed). The heading defaults to a humanized relation name when you bind `relationship(...)`. Mark those columns `searchable()` / `sortable()` the same way as local attributes — `queryName()` becomes `relation.title` for SQL search/sort.
+
+Paths deeper than four segments, or with a blank segment, throw at make time.
+
+## Shared column flags
+
+| Method | Effect |
+|--------|--------|
+| `searchable()` / `sortable()` | Toolbar search and sort (boolean or per-cell predicate) |
+| `toggleable()` / `toggledHiddenByDefault()` | Column picker; hidden-by-default also marks toggleable |
+| `hidden()` / `visible(...)` | Drop or show the column |
+| `disabled(...)` | Sets `data-ff-disabled` on the shell |
+| `align(Align)` / `align { cell -> ... }` | `START`, `CENTER`, `END` |
+| `grow(false)` | Inside a Split, keep intrinsic width instead of sharing flex space |
+| `summarize(Summary.SUM)` | Footer ops: also `COUNT`, `AVG`, `MIN`, `MAX` |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextColumn.make("amount")
+    .money()
+    .sortable()
+    .summarize(Summary.SUM)
+    .toggledHiddenByDefault()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextColumn.make("amount")
+    .money()
+    .sortable()
+    .summarize(Summary.SUM)
+    .toggledHiddenByDefault();
+```
+
+</TabItem>
+</Tabs>
+
+## Configure defaults
+
+`TextColumn.configureUsing { column -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+Prefer [Badge column](/docs/firefly/tables/columns/badge-column/) when the cell is always a status chip.
+
+## See also
+
+- [Badge column](/docs/firefly/tables/columns/badge-column/)
+- [Color column](/docs/firefly/tables/columns/color-column/)
+- [Image column](/docs/firefly/tables/columns/image-column/)
+- [Icon column](/docs/firefly/tables/columns/icon-column/)
+- [Tables](/docs/firefly/tables/)

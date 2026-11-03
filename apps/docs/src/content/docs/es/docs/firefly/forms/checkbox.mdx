@@ -1,0 +1,99 @@
+---
+title: Checkbox
+description: "Single Checkbox with inline layout and accepted() validation."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Checkbox` is a single boolean-like control. When checked it posts `value="1"`; unchecked boxes do not post a value unless other schema machinery fills them. Use it for agreements and simple on/off flags when a switch is not needed.
+
+<FireflyShot file="form-checkbox.png" description="Checkbox agree field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Checkbox.make("agree")
+    .label("I agree to the terms")
+    .accepted()
+    .required()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Checkbox.make("agree")
+    .label("I agree to the terms")
+    .accepted()
+    .required();
+```
+
+</TabItem>
+</Tabs>
+
+Put the field on a schema with `Schema.make().components(...)`, fill state with `schema.fill(...)`, then `schema.render()`.
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `inline()` / `inline(on)` | Compact horizontal layout (`data-ff-inline`) |
+| `accepted()` | Adds the `accepted` validation rule |
+
+Edit hydration treats common truthy JDBC / string values as checked via the shared field truthy helper (`1`, `true`, `on`, `yes`, and similar).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Checkbox.make("newsletter")
+    .label("Send me product updates")
+    .inline()
+    .helperText("You can unsubscribe at any time")
+
+Checkbox.make("tos")
+    .label("Accept terms of service")
+    .accepted()
+    .live()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Checkbox.make("newsletter")
+    .label("Send me product updates")
+    .inline(true)
+    .helperText("You can unsubscribe at any time");
+
+Checkbox.make("tos")
+    .label("Accept terms of service")
+    .accepted()
+    .live();
+```
+
+</TabItem>
+</Tabs>
+
+## Validation
+
+`accepted()` adds the `accepted` rule (the value must be present and truthy). Combine with `required()`, `nullable()`, `rule(...)`, and `rules(...)` from the field base. Use `live()`, `liveOnBlur()`, or `liveDebounce(ms)` when the panel should re-render on change.
+
+The rendered control is a label wrapping a checkbox input (`value="1"`) plus a styled `.ff-checkbox-box`. `kind()` is `"checkbox"`.
+
+For multi-select option lists, use [`CheckboxList`](/docs/firefly/forms/checkbox-list/). For a switch chrome, use [`Toggle`](/docs/firefly/forms/toggle/).
+
+## Configure defaults
+
+`Checkbox.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Toggle](/docs/firefly/forms/toggle/)
+- [Checkbox list](/docs/firefly/forms/checkbox-list/)
+- [Radio](/docs/firefly/forms/radio/)

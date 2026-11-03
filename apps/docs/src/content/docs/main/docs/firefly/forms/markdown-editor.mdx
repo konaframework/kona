@@ -1,0 +1,107 @@
+---
+title: Markdown editor
+description: "MarkdownEditor with Write/Preview tabs, toolbar, and file attachments."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`MarkdownEditor` is a Write | Preview pair. Write is a textarea; Preview renders GitHub-flavored markdown through `MarkdownHtml.render` into the preview pane. The footer notes that markdown is supported.
+
+<FireflyShot file="form-markdown-editor.png" description="MarkdownEditor markdown field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+MarkdownEditor.make("markdown")
+    .label("Notes")
+    .toolbarButtons("heading", "bold", "italic", "link", "list")
+    .fileAttachmentsDisk("local")
+    .fileAttachmentsDirectory("md")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+MarkdownEditor.make("markdown")
+    .label("Notes")
+    .toolbarButtons("heading", "bold", "italic", "link", "list")
+    .fileAttachmentsDisk("local")
+    .fileAttachmentsDirectory("md");
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `toolbarButtons(...)` | Replace the tool list |
+| `disableToolbarButtons(...)` | Hide tools by name |
+| `fileAttachmentsDisk` / `fileAttachmentsDirectory` | Attachment storage (string or `Get` closure) |
+| `preview(source)` | Render markdown source to HTML |
+
+Default tools: `heading`, `bold`, `italic`, `strike`, `quote`, `code`, `link`, `image`, `list`, `ordered`. Extra glyphs exist for `task` and `table` when you add them to the toolbar.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+MarkdownEditor.make("readme")
+    .label("README")
+    .placeholder("Write markdown…")
+    .toolbarButtons(
+        "heading", "bold", "italic", "strike",
+        "quote", "code", "link", "image",
+        "list", "ordered", "task", "table",
+    )
+    .disableToolbarButtons("table")
+    .fileAttachmentsDisk {{ get -> "local" }}
+    .fileAttachmentsDirectory("uploads/md")
+
+val html = MarkdownEditor.make("tmp").preview("# Hello")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+MarkdownEditor.make("readme")
+    .label("README")
+    .placeholder("Write markdown…")
+    .toolbarButtons(
+        "heading", "bold", "italic", "strike",
+        "quote", "code", "link", "image",
+        "list", "ordered", "task", "table"
+    )
+    .disableToolbarButtons("table")
+    .fileAttachmentsDisk("local")
+    .fileAttachmentsDirectory("uploads/md");
+
+String html = MarkdownEditor.make("tmp").preview("# Hello");
+```
+
+</TabItem>
+</Tabs>
+
+## Write and preview
+
+The Write tab owns the posted `<textarea>`. Switching to Preview hides the textarea and shows HTML from `preview(...)`. Toolbar buttons insert formatting into the write surface. Attachment disk / directory attributes are exposed as `data-ff-disk` and `data-ff-directory` for the client uploader.
+
+For WYSIWYG HTML, use [`RichEditor`](/docs/firefly/forms/rich-editor/). For highlighted source without markdown semantics, use [`CodeEditor`](/docs/firefly/forms/code-editor/).
+
+## Configure defaults
+
+`MarkdownEditor.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Rich editor](/docs/firefly/forms/rich-editor/)
+- [Code editor](/docs/firefly/forms/code-editor/)
+- [Textarea](/docs/firefly/forms/textarea/)

@@ -1,0 +1,103 @@
+---
+title: Image column
+description: "Show an image URL as an img tag in a Firefly table cell."
+---
+
+import FireflyShot from '../../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+An `ImageColumn` reads a URL (or path) string from the row and renders `<img class="ff-image">` inside the cell. Use it for avatars, product thumbnails, cover art, and other visual keys that are already stored as URLs.
+
+An empty or missing source renders the `ff-image-column` shell with no `<img>` — the layout still reserves the column without a broken image icon.
+
+<FireflyShot file="column-image.png" description="An image column showing avatar thumbnails." />
+
+## Add the column
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ImageColumn.make("avatar")
+    .label("Photo")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ImageColumn.make("avatar")
+    .label("Photo");
+```
+
+</TabItem>
+</Tabs>
+
+The attribute value becomes the `src`. Absolute `https://…` URLs and app-relative paths both work when the browser can resolve them.
+
+## Size and alt text
+
+| Method | Effect |
+|--------|--------|
+| `alt(String)` | Static `alt` attribute |
+| `alt(Function<Cell, String>)` | Per-row `alt` from other cell data |
+| `imageHeight(pixels)` | Integer `height` on the `<img>` |
+| `imageWidth(pixels)` | Integer `width` on the `<img>` |
+
+Always set meaningful `alt` text when the image conveys information (for example the person’s name). Decorative marks can use an empty string if that matches your accessibility policy.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ImageColumn.make("avatar")
+    .label("Photo")
+    .alt { cell -> cell.get("name")?.toString() ?: "Avatar" }
+    .imageHeight(40)
+    .imageWidth(40)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ImageColumn.make("avatar")
+    .label("Photo")
+    .alt(cell -> {
+        Object name = cell.get("name");
+        return name == null ? "Avatar" : name.toString();
+    })
+    .imageHeight(40)
+    .imageWidth(40);
+```
+
+</TabItem>
+</Tabs>
+
+Height and width are HTML attributes (pixels). CSS in your theme can still constrain or round the `.ff-image` class; the attributes help reserve space while the file loads.
+
+## Shared helpers
+
+| Method | Effect |
+|--------|--------|
+| `label(...)` | Heading |
+| `tooltip(...)` / `description(...)` | Shell tips and secondary line |
+| `align(Align)` / `width(String)` | Cell layout |
+| `hidden()` / `visible(...)` / `disabled(...)` | Visibility |
+| `toggleable()` / `toggledHiddenByDefault()` | Column picker |
+| `extraAttributes(...)` | Extra attributes on the outer shell |
+
+Search and sort on raw URL strings are rarely useful; keep them off unless you intentionally query the path.
+
+## Tips
+
+- Pair with a [Text column](/docs/firefly/tables/columns/text-column/) for the person’s name beside the avatar.
+- Prefer storing stable CDN or media URLs from a [File upload](/docs/firefly/forms/file-upload/) field so list rows stay fast and cacheable.
+- Square `imageHeight` / `imageWidth` (for example `40`) keep avatar grids even; covers often use a wider width only.
+
+## See also
+
+- [Text column](/docs/firefly/tables/columns/text-column/)
+- [Icon column](/docs/firefly/tables/columns/icon-column/)
+- [Tables](/docs/firefly/tables/)
+- [File upload](/docs/firefly/forms/file-upload/)

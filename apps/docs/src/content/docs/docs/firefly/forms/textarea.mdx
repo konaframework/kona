@@ -1,0 +1,100 @@
+---
+title: Textarea
+description: "Multi-line Textarea with rows, cols, autosize, and length validation."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A `Textarea` stores multi-line text. It shares the field chrome (label, hint, helper) and `required()` chain with every other field. Default height is 3 rows.
+
+<FireflyShot file="form-textarea.png" description="Textarea bio field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val bio = Textarea.make("bio")
+    .label("Bio")
+    .rows(5)
+    .placeholder("A short introduction")
+    .required()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Textarea bio = Textarea.make("bio")
+    .label("Bio")
+    .rows(5)
+    .placeholder("A short introduction")
+    .required();
+```
+
+</TabItem>
+</Tabs>
+
+Put the field on a schema with `Schema.make().components(bio)`, fill state with `schema.fill(...)`, then `schema.render()`.
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `rows(count)` | Visible rows (minimum 1; throws if lower) |
+| `cols(count)` | Optional HTML `cols` attribute (minimum 1) |
+| `autosize(on)` | Sets `data-ff-autosize` so the control can grow with content |
+| `minLength(value)` / `maxLength(value)` | Length rules (`min:` / `max:`) |
+| `required()` / `required(on)` / `required(predicate)` | Same as the field base (also listed on Textarea for discoverability) |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Textarea.make("notes")
+    .rows(4)
+    .cols(40)
+    .autosize(true)
+    .minLength(10)
+    .maxLength(2000)
+    .helperText("Shown on the public profile")
+    .placeholder("Write a few sentences…")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Textarea.make("notes")
+    .rows(4)
+    .cols(40)
+    .autosize(true)
+    .minLength(10)
+    .maxLength(2000)
+    .helperText("Shown on the public profile")
+    .placeholder("Write a few sentences…");
+```
+
+</TabItem>
+</Tabs>
+
+## Validation and live updates
+
+`minLength` and `maxLength` add `min:` / `max:` rules alongside `required` when set. Combine with `liveDebounce(ms)` when a preview should update while typing, or `liveOnBlur()` for cheaper refreshes.
+
+Default `rows` is `3`. Calling `rows` or `cols` below `1` throws. `autosize(true)` sets `data-ff-autosize` so panel chrome can grow the control with content.
+
+For formatted long text, prefer [`MarkdownEditor`](/docs/firefly/forms/markdown-editor/) or [`RichEditor`](/docs/firefly/forms/rich-editor/). For a single line, use [`TextInput`](/docs/firefly/forms/text-input/).
+
+## Configure defaults
+
+`Textarea.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Text input](/docs/firefly/forms/text-input/)
+- [Markdown editor](/docs/firefly/forms/markdown-editor/)
+- [Rich editor](/docs/firefly/forms/rich-editor/)

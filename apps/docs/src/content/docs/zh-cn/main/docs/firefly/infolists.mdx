@@ -1,18 +1,35 @@
 ---
-
-title: 信息列表
-description: 用文本、图标、图片、颜色、键值行、代码和可重复条目展示一条记录。
+title: Infolists
+description: "Show a record with entries instead of fields. Mount an infolist on a view page, then pick text, icon, image, color, code, key-value, or repeatable entries."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="notes-infolist.png" description="Desk 页上的名称信息列表，位于 http://127.0.0.1:4017/admin/desk。" />
+Show a record when the screen should display a value, not collect one. Put the infolist on a view page, or anywhere you want a label and a value.
 
-信息列表读取状态并渲染它。它不收集输入。类型位于 `org.konaframework.firefly.infolists`（`kona-firefly-infolists`）。它们坐在[模式](/docs/firefly/schemas/)的树上，因此节、网格和标签页是你已经使用的同一套布局组件。
+The types live in `org.konaframework.firefly.infolists` (`kona-firefly-infolists`). They sit on the schema tree from [Schemas](/docs/firefly/schemas/), so a section, a grid, and tabs are the same layouts you already use. On the Desk page the infolist is a single name entry. On orders, the view page at `/admin/orders/view` mounts the order infolist. Both classes live under `app/firefly/`.
 
-每个条目是带 `x-data="ffEntry"` 的 `div.ff-entry`。该 Alpine 工厂由模式脚本登记。可复制状态和实时绑定使用它。
+Each entry is a `div.ff-entry` with `x-data="ffEntry"`. That Alpine factory is registered by the schema script. Copyable state and live binding use it.
 
-## 一次调用里的信息列表
+<FireflyShot file="notes-infolist.png" description="The name infolist on the Desk page at http://127.0.0.1:4017/admin/desk." />
+
+## Entry types
+
+| Entry | Use it for |
+|-------|------------|
+| [Text entry](/docs/firefly/infolists/text-entry/) | Labels, money, dates, badges, markdown, HTML |
+| [Icon entry](/docs/firefly/infolists/icon-entry/) | Glyphs and boolean Yes/No pills |
+| [Image entry](/docs/firefly/infolists/image-entry/) | Photos, avatars, stacked galleries |
+| [Color entry](/docs/firefly/infolists/color-entry/) | CSS color swatches |
+| [Code entry](/docs/firefly/infolists/code-entry/) | Syntax-highlighted source (Shiki) |
+| [Key-value entry](/docs/firefly/infolists/key-value-entry/) | Maps as a two-column table |
+| [Repeatable entry](/docs/firefly/infolists/repeatable-entry/) | Lists of nested entries or a table |
+
+## Render an infolist
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val page = Infolist.make()
@@ -26,6 +43,9 @@ page.hydrate()
 val html = page.render()
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Infolist page = Infolist.make()
     .statePath("user")
@@ -36,11 +56,19 @@ page.hydrate();
 String html = page.render();
 ```
 
-`Infolist.make()` 包装一个 `Schema`。`components(...)` 替换根列表。`statePath` 给存储路径加前缀，因此 `name` 位于 `user.name`。`fill` 写入一张映射。`get` 读取点分路径。需要 `set` 或部分渲染时，`schema()` 返回被包装的模式。`record` 和 `operation` 存在该模式上，供承载信息列表的页面使用。
+</TabItem>
+</Tabs>
 
-## 值与闭包
+`Infolist.make()` wraps a `Schema`. `components(...)` replaces the root list. `statePath` prefixes stored paths, so `name` lives at `user.name`. `fill` writes a map. `get` reads a dotted path. `schema()` returns the wrapped schema when you need `set` or partial render. `record` and `operation` are stored on that schema for the page that hosts the infolist. You see the name **Ada**.
 
-条目设置器返回条目，因此可以链式调用。设置器接受固定值或 `java.util.function.Function`（标志则是 `Predicate`）。函数接收 `Get`，也就是模式组件使用的同一个读取器。
+On a resource view page, the panel wraps the rendered markup in `.ff-infolist`. That host fills the content column (`width: 100%`, no `xl` cap) — the same width model as list tables, reduced only by panel / page / resource `maxWidth`. Create and edit forms stay at the default `xl` column. To tighten or widen a section inside the infolist, call `maxWidth("xl")` (or another token) on that component; see [Schemas](/docs/firefly/schemas/#max-width-xl-and-friends).
+
+## Pass a value or a closure
+
+Entry setters return the entry, so you can chain them. A setter accepts a fixed value or a `java.util.function.Function` (or a `Predicate` for flags). The function receives `Get`, the same reader a schema component uses.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val name = TextEntry.make("name")
@@ -49,15 +77,24 @@ name.state(java.util.function.Function { get -> get.get("../name") })
 name.placeholder { "Empty" }
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 TextEntry name = TextEntry.make("name");
 name.state("Ada");
 name.placeholder(get -> "Empty");
 ```
 
-最后一次调用获胜。闭包之后的 `state("Ada")` 存储字面量并丢掉闭包。
+</TabItem>
+</Tabs>
 
-`label`、`heading` 和 `description` 在 `Entry` 上被覆盖并返回条目。`hidden`、`visible` 和 `live` 等模式方法仍然返回模式 `Component`。把那些当作语句调用，然后继续条目方法：
+The last call wins. `state("Ada")` after a closure stores the literal and drops the closure.
+
+`label`, `heading`, and `description` are overridden on `Entry` and return the entry. When you omit `label`, Firefly humanizes the entry name (`first_name` → “First Name”) so labels stay visible. Schema methods such as `hidden`, `visible`, and `live` still return the schema `Component`. Call those as statements, then continue with entry methods:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val name = TextEntry.make("name").state("Ada")
@@ -65,107 +102,47 @@ name.hidden { get -> get.get("/draft") == true }
 name.live()
 ```
 
-## 共享的条目辅助方法
+</TabItem>
+<TabItem label="Java">
 
-| 方法 | 作用 |
-|------|------|
-| `placeholder` | 状态为空时的文字 |
-| `color`、`icon`、`iconColor`、`iconPosition` | 呈现。图标位置是 `before` 或 `after` |
-| `tooltip` | 屏幕阅读器文字 |
-| `url`、`openUrlInNewTab` | 把值包在链接里 |
-| `copyable`、`copyMessage`、`copyMessageDuration`、`copyableState` | 条目上的复制能力 |
-| `helperText`、`hint`、`hintColor`、`hintIcon` | 次要文字和提示 |
-| `prefix`、`suffix` | 值周围的文字 |
-| `alignment`、`alignStart`、`alignCenter`、`alignEnd`、`alignJustify` | 文本对齐 |
-| `wrap`、`inlineLabel` | 换行和内联标签 |
-| `extraAttributes` | 组件根上的 HTML 属性。映射或闭包。不是 HTML 属性名的名称会被跳过 |
-| `aboveContent`、`belowContent` | 渲染在值周围的模式组件 |
-| `state` | 字面量，或闭包。字面量优先于模式路径 |
-
-条目类上的 `configureUsing` 对该类之后每一次 `make()` 运行。传入 `null` 可以清除它。
-
-状态解析：来自 `state(...)` 的字面量或闭包获胜。在可重复项内部，`author.name` 这样的点分名称从该项读取。否则条目在其绝对路径上读取 `schema.get`。
-
-已知图标名（`home`、`bars`、`user`、`check`、`x`）渲染内联 SVG。任何其他名称存为 `data-ff-icon`，并且不抛出。
-
-## 文本
-
-`TextEntry.make("title")` 渲染纯文本。列表可以是徽章、项目符号列表或换行。`limitList` 配合 `expandableLimitedList(true)` 保留多余项并把它们标为 `data-ff-extra`。没有该标志时，尾部变成 `+N`。
-
-```kotlin
-TextEntry.make("title")
-    .badge(true)
-    .size("lg")
-    .weight("bold")
-    .prose(true)
-    .lineClamp(3)
-    .limit(80)
-    .words(12)
-    .state("A short title")
+```java
+TextEntry name = TextEntry.make("name").state("Ada");
+name.hidden(get -> Boolean.TRUE.equals(get.get("/draft")));
+name.live();
 ```
 
-`markdown(true)` 渲染一小部分 Markdown（强调、代码、链接和围栏块）。`html(true)` 把字符串保留为 HTML。`date()`、`dateTime()` 和 `time()` 格式化时间值。带模式调用它们，或不带参数使用 `yyyy-MM-dd`、`yyyy-MM-dd HH:mm` 和 `HH:mm`。`since()` 相对当前时刻渲染相对短语。`timezone` 设置时区。`dateTooltip()` 加上 `data-ff-date-tooltip`。`money()` 默认 USD。`money("EUR")` 选择货币。`numeric()` 打印数字。`numeric(2)` 设置小数位。`formatStateUsing` 用闭包的字符串替换格式化后的文本。
+</TabItem>
+</Tabs>
 
-## 图标
+## Helpers on every entry
 
-`IconEntry.make("ok")` 为状态显示一个图标。`bool(true)` 把状态当作布尔：真值使用真图标（`check`，颜色 `success`），假值使用假图标（`x`，颜色 `gray`），渲染为软色芯片。`whenTrue("check", "success")` 和 `whenFalse("x", "gray")` 同时设置图标和颜色。`trueIcon`、`falseIcon`、`trueColor` 和 `falseColor` 覆盖一侧。`hideTrueIcon()` 和 `hideFalseIcon()` 省略该图标。`size` 接受 `xs`、`sm`、`md`、`lg` 和 `xl`。
+| Method | What you get |
+|--------|----------------|
+| `placeholder` | Text when the state is empty |
+| `color`, `icon`, `iconColor`, `iconPosition` | Presentation. Icon position is `before` or `after` |
+| `tooltip` | Screen-reader text |
+| `url`, `openUrlInNewTab` | Wrap the value in a link |
+| `copyable`, `copyMessage`, `copyMessageDuration`, `copyableState` | Copy affordance on the entry |
+| `helperText`, `hint`, `hintColor`, `hintIcon` | Secondary text and hint |
+| `prefix`, `suffix` | Text around the value |
+| `alignment`, `alignStart`, `alignCenter`, `alignEnd`, `alignJustify` | Text alignment (default **justify**; labels stay start) |
+| `wrap`, `inlineLabel` | Wrapping (default **on** so long values fit view/manage modals and page containers) and an inline label |
+| `extraAttributes` | HTML attributes on the component root. A map or a closure. Names that are not HTML attribute names are skipped |
+| `aboveContent`, `belowContent` | Schema components rendered around the value |
+| `state` | Literal value, or a closure. A literal wins over the schema path |
 
-方法名是 `bool`，因为 `boolean` 是 Java 关键字。成对的辅助方法是 `whenTrue` 和 `whenFalse`。
+`configureUsing` on an entry class runs for every later `make()` of that class. Pass `null` to clear it.
 
-## 图片
+State resolution: a literal or closure from `state(...)` wins. Inside a repeatable item, a dotted name such as `author.name` is read from that item. Otherwise the entry reads `schema.get` at its absolute path. Nested attributes use the same dotted path as table columns (up to four levels).
 
-`ImageEntry.make("photo")` 渲染 `<img>` 标签。`height` 和 `imageHeight` 设置高度。`width` 和 `imageWidth` 设置宽度。`size` 和 `imageSize` 同时设置两者。`circular` 和 `square` 加上形状标志。`alt`、`defaultImageUrl` 和 `extraImgAttributes` 改变标签。`stacked`、`overlap` 和 `ring` 描述一叠。`limit` 配合 `limitedRemainingText(true)` 追加 `+N`。`limitedRemainingTextSeparate` 和 `limitedRemainingTextSize` 设置该余数的样式。
+Known icon names (`home`, `bars`, `user`, `check`, `x`) render inline SVG. Any other name is stored as `data-ff-icon` and does not throw.
 
-`disk`、`visibility` 和 `checkFileExistence` 是条目上的数据属性（`data-ff-disk`、`data-ff-visibility`、`data-ff-check-file`）。这个模块不打开磁盘，也不签发临时 URL。相对或绝对 URL 字符串渲染为 `src`。`checkFileExistence` 为真时，空白来源会被丢掉。
+## Lay entries out
 
-## 颜色
+Place entries inside the schema layouts. Use `Section`, `Grid`, and `Tabs` from the schema module.
 
-`ColorEntry.make("ink")` 渲染色块。CSS 颜色（`#df8723`、`rgb(...)`、`hsl(...)`，或由字母组成的普通名称）变成 `background-color`。其他一切标为 `data-ff-invalid`。`copyable(true)` 来自共享条目辅助方法，并设置 `data-ff-copyable`。
-
-## 键值
-
-`KeyValueEntry.make("meta")` 把映射渲染成表格。`keyLabel` 和 `valueLabel` 重命名表头（默认是 `Key` 和 `Value`）。映射为空时 `emptyMessage` 是占位（默认 `No values`）。null 键会被跳过。
-
-```kotlin
-KeyValueEntry.make("meta")
-    .keyLabel("Field")
-    .valueLabel("Detail")
-    .state(mapOf("city" to "Kona"))
-```
-
-## 代码
-
-`CodeEntry.make("snippet")` 把原始源码和语法名发给浏览器。条目是 `data-ff-shiki="shiki"`，并包含 JSON 载荷。浏览器脚本调用 Shiki 的 `createHighlighter`，然后 `codeToHtml`。浅色和深色主题默认是 `github-light` 和 `github-dark`。
-
-```kotlin
-CodeEntry.make("snippet")
-    .language("kotlin")
-    .lightTheme("github-light")
-    .darkTheme("github-dark")
-    .state("val name = \"Ada\"")
-```
-
-`language` 是 `grammar` 的别名。没有语法的字符串使用 `html`。映射或列表使用 `json`。`jsonFlags` 传给 JSON 写入器：第 1 位标记十六进制，第 64 位清除时不转义斜杠，第 128 位美化打印。
-
-`ShikiCode.source()` 返回浏览器脚本。`ShikiCode.manifest()` 返回 `{"highlighter":"shiki","editor":"codemirror","method":"createHighlighter"}`。把该脚本加载在导出 `createHighlighter` 的 Shiki 构建旁边。同样的语法名和主题是 CodeMirror 编辑器会加载的那些。用 Shiki 模块调用 `highlightCodeEntry(root, shiki)`。
-
-## 可重复
-
-`RepeatableEntry.make("comments")` 为每一项重复一次子模式。状态可以是一张映射或映射列表。空映射和不是映射的值会被跳过。点分的子名称从当前项读取。
-
-```kotlin
-RepeatableEntry.make("comments")
-    .contained(true)
-    .grid(2)
-    .schema(TextEntry.make("title"))
-    .state(listOf(mapOf("title" to "First")))
-```
-
-`table(TableColumn.make("Title"))` 渲染表格。`hiddenHeaderLabel()` 用 `ff-sr` 类隐藏该表头。子模式组件，包括 `Text.make`，在单元格里渲染。默认空占位是 `No items`。
-
-## 布局
-
-把条目放进模式布局里。不要构建第二种节类型。
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Infolist.make().components(
@@ -178,6 +155,9 @@ Infolist.make().components(
 )
 ```
 
+</TabItem>
+<TabItem label="Java">
+
 ```java
 Infolist.make().components(
     Section.make("Profile").schema(
@@ -187,9 +167,15 @@ Infolist.make().components(
 );
 ```
 
-## 你自己的条目
+</TabItem>
+</Tabs>
 
-子类化 `Entry`，并同时设置 `view` 和 `meta("ff-view", ...)`，这样模式会渲染 Crema 视图。
+## Write your own entry
+
+Subclass `Entry` and set both `view` and `meta("ff-view", ...)` so the schema renders the Crema view.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 class NoteEntry(name: String) : Entry<NoteEntry>(name) {
@@ -199,6 +185,9 @@ class NoteEntry(name: String) : Entry<NoteEntry>(name) {
     }
 }
 ```
+
+</TabItem>
+<TabItem label="Java">
 
 ```java
 public class NoteEntry extends Entry<NoteEntry> {
@@ -210,8 +199,15 @@ public class NoteEntry extends Entry<NoteEntry> {
 }
 ```
 
-`./grind make:firefly-entry Note` 写入 `app/firefly/entries/Note.kt` 和一份使用 `x-data="ffEntry"` 与 `@entangle` 的 Crema 视图。`--lang=java` 写入 Java 类。视图名是 `firefly.entries.note`。
+</TabItem>
+</Tabs>
 
-## 前缀与后缀
+```bash
+./grind make:firefly-entry Note
+```
 
-`prefix` 和 `suffix` 是文字，或返回文字的闭包。它们不是动作按钮。计数或平均值这样的记录汇总不是条目上的方法。表格列可以用 `summarize` 汇总 — 见[表格](/docs/firefly/tables/)。代码编辑器是表单字段 — 见[表单](/docs/firefly/forms/)。
+The command writes `app/firefly/entries/Note.kt` and a Crema view that uses `x-data="ffEntry"` and `@entangle`. `--lang=java` writes a Java class. The view name is `firefly.entries.note`. Reference the class from the infolist. `discover` does not scan `entries/`.
+
+## Prefix, suffix, and what lives elsewhere
+
+`prefix` and `suffix` are text, or a closure that returns text. They are not action buttons. A count or an average belongs on a table column: call `summarize` on [Tables](/docs/firefly/tables/). A code editor is a form field on [Forms](/docs/firefly/forms/).

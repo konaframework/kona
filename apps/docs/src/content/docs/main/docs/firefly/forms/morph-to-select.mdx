@@ -1,0 +1,85 @@
+---
+title: Morph to select
+description: "MorphToSelect picks a polymorphic type and record id from registered record stores."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`MorphToSelect` is a polymorphic picker. Register each concrete type with `type(alias, store)`, optionally filter with `modifyQueryUsing`, and set which attribute becomes the option label with `titleAttribute` (default `"name"`). The stored value is a map `{ type, id }`. There is no Playground stamp for this field yet.
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+MorphToSelect.make("owner")
+    .label("Owner")
+    .titleAttribute("name")
+    .type("user", userStore)
+    .type("team", teamStore)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+MorphToSelect.make("owner")
+    .label("Owner")
+    .titleAttribute("name")
+    .type("user", userStore)
+    .type("team", teamStore);
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `titleAttribute(value)` | Attribute used as the option label (default `name`) |
+| `type(alias, store)` | Register a morph alias and its `RecordStore` |
+| `modifyQueryUsing(Consumer)` | Hook applied to each store query before listing |
+| `optionsFor(type)` | Returns `Map<id, label>` for a registered type |
+| `selectType(schema, type, id)` | Writes `{ type, id }` onto the field path; returns that map |
+
+`kind()` is `"morph-select"`. Unknown aliases throw `FireflyException("Unknown morph type […]")` from `optionsFor` / `selectType`.
+
+## Selecting a record
+
+When the UI chooses a type and id, call `selectType` so the schema state matches what dehydrate expects:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val field = MorphToSelect.make("owner")
+    .type("user", userStore)
+    .type("team", teamStore)
+
+field.selectType(schema, "user", "42")
+// schema state: mapOf("type" to "user", "id" to "42")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+MorphToSelect field = MorphToSelect.make("owner")
+    .type("user", userStore)
+    .type("team", teamStore);
+
+field.selectType(schema, "user", "42");
+```
+
+</TabItem>
+</Tabs>
+
+The control markup is a `.ff-morph` list of options for the current type (`data-ff-type`). Empty type state renders an empty option list.
+
+## Defaults
+
+`MorphToSelect.configureUsing { … }` applies to every later `make()`. Pass `null` to clear it.
+
+See [Forms overview](/docs/firefly/forms/) for shared helpers.

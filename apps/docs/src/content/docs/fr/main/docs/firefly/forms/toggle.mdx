@@ -1,0 +1,73 @@
+---
+title: Toggle
+description: "Toggle switch with inline label, on/off colors, and icons."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Toggle` is a switch control. By default it is `inline()` with the label beside the track. A hidden input posts `1` or `0`.
+
+<FireflyShot file="form-toggle.png" description="Toggle active field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Toggle.make("active")
+    .label("Active")
+    .onColor("#DF8723")
+    .offColor("#9ca3af")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Toggle.make("active")
+    .label("Active")
+    .onColor("#DF8723")
+    .offColor("#9ca3af");
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `inline()` / `inline(on)` | Label beside the switch (default true). When inline, the block label above is suppressed |
+| `onColor` / `offColor` | CSS colors for the track |
+| `onIcon` / `offIcon` | Icon names shown on the thumb |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Toggle.make("featured")
+    .inline(false)
+    .onIcon("heroicon-m-check")
+    .offIcon("heroicon-m-x-mark")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Toggle.make("featured")
+    .inline(false)
+    .onIcon("heroicon-m-check")
+    .offIcon("heroicon-m-x-mark");
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Checkbox](/docs/firefly/forms/checkbox/)
+- [Toggle buttons](/docs/firefly/forms/toggle-buttons/)

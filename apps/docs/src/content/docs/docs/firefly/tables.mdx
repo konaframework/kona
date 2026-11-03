@@ -1,6 +1,6 @@
 ---
 title: Tables
-description: Pass rows to Table.memory or a Cadence model to Table.cadence, name the columns, and render the list. The notes page shows one row, Ada.
+description: "Pass rows to Table.memory or a Cadence model to Table.cadence, name the columns, and render the list. The notes page shows one row, Ada."
 ---
 
 import FireflyShot from '../../../../components/FireflyShot.astro';
@@ -13,6 +13,21 @@ Use `Table.memory` when the rows are already in your hand. The hello samples do 
 The types live in `org.konaframework.firefly.tables` (`kona-firefly-tables`). On the notes page the table is `Table.memory(...).columns(TextColumn.make("name"))` inside `app/firefly/resources/NoteResource`.
 
 <FireflyShot file="notes-table.png" description="The notes table at http://127.0.0.1:4017/admin/notes/manage, with the Ada row in the name column." />
+
+## Column types
+
+| Column | Guide |
+|--------|-------|
+| `TextColumn` | [Text column](/docs/firefly/tables/columns/text-column/) |
+| `BadgeColumn` | [Badge column](/docs/firefly/tables/columns/badge-column/) |
+| `IconColumn` | [Icon column](/docs/firefly/tables/columns/icon-column/) |
+| `ImageColumn` | [Image column](/docs/firefly/tables/columns/image-column/) |
+| `ColorColumn` | [Color column](/docs/firefly/tables/columns/color-column/) |
+| `CheckboxColumn` | [Checkbox column](/docs/firefly/tables/columns/checkbox-column/) |
+| `ToggleColumn` | [Toggle column](/docs/firefly/tables/columns/toggle-column/) |
+| `SelectColumn` | [Select column](/docs/firefly/tables/columns/select-column/) |
+
+<FireflyShot file="table-columns-strip.png" description="A strip of Firefly table column types side by side." />
 
 ## Render a table
 
@@ -118,29 +133,20 @@ A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `Mode
 
 ## Pick a column
 
-| Type | What you call |
-|------|----------------|
-| `TextColumn.make(name)` | Text, money, or a date. `badge`, `limit`, `html`, `url`, `icon`, `color`, `prefix`, `suffix`, `placeholder` |
-| `BadgeColumn.make(name)` | Same as `TextColumn` with `badge(true)` already on — status chips; chain `color(...)` for tone |
-| `IconColumn.make(name)` | An icon; chain `.boolean()` (Kotlin) / `.bool()` (Java) for a Shamar check/X chip on truthy state |
-| `ImageColumn.make(name)` | An image with `alt`, `imageHeight`, and `imageWidth` |
-| `ColorColumn.make(name)` | A color swatch |
-| `CheckboxColumn.make(name)` | A checkbox bound to the row. Editable cells call Wire `toggleColumn` and persist immediately; `.editable(false)` / `.editable { … }` makes the cell readonly when the user cannot update the record |
-| `ToggleColumn.make(name)` | A toggle that calls `$wire.$call('toggleColumn', ...)` |
-| `SelectColumn.make(name)` | A select that calls `$wire.$call('setColumn', ...)` |
+Open a column guide for the full API. Shared flags below apply to every type.
 
 `searchable()` / `searchable(true)` includes the column in search. `sortable()` allows `sort(name)`. Zero-arg boolean chainables mean yes; pass `false` to turn off. `toggleable()` adds the column to the toolbar **Columns** picker so users can show or hide it. `toggledHiddenByDefault()` (or `toggledHiddenByDefault(true)`) marks it toggleable and starts it hidden — useful for timestamps so the list stays readable until someone checks them in the picker. Soft-nav keeps the choice in the `columns` query string. `hidden()` and `visible(false)` leave it out of the render entirely (not in the picker). `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN`, and `MAX` add a footer value.
 
 Column headings default to a humanized form of the attribute name (`published_at` → `Published At`). CSS still uppercases the header, so you see **PUBLISHED AT**, not `PUBLISHED_AT`. Override with `label(...)` when you need a custom title.
 
-Related titles use a dotted make path (Filament/Shamar shape), up to four levels:
+Related titles use a dotted make path, up to four levels — details on [Text column](/docs/firefly/tables/columns/text-column/):
 
 ```kotlin
 TextColumn.make("project.name").label("Project")
 TextColumn.make("owner.company.region.name").label("Region")
 ```
 
-Cadence tables eager-load the relation path. You can still call `.relationship("project", "name")` on an FK column name when you need the old shape. Mark those columns `searchable()` / `sortable()` the same way as local attributes: search uses a correlated `exists` on the relation (including nested paths), and sort left-joins BelongsTo relations so `order by` targets the related table column. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
+Cadence tables eager-load the relation path. You can still call `.relationship("project", "name")` on an FK column name. Mark those columns `searchable()` / `sortable()` the same way as local attributes: search uses a correlated `exists` on the relation (including nested paths), and sort left-joins BelongsTo relations so `order by` targets the related table column. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -163,7 +169,7 @@ TextColumn.make("name").label(cell -> "Name").extraAttributes(Map.of("data-col",
 </TabItem>
 </Tabs>
 
-`money()` / `currency("USD")` formats a number with `NumberFormat` currency style (default USD, US locale, 2 fraction digits) and defaults the column (and its header) to `Align.END`. Pass a code, locale, and precision — for example `money("EUR")` or `currency("KES", "en-KE", 0)`. Non-numeric values stay as raw text. `date()` and `dateTime()` format a date, instant, or timestamp for people using PHP-style `F j, Y` (for example `January 2, 2026` or `January 2, 2026, 3:45 PM`). Hover shows the raw value in a tooltip. Columns named like `due_on`, `start_date`, or `created_at` / `updated_at` humanize even without an explicit `.date()` / `.dateTime()` call. `IconColumn.boolean()` paints a Shamar Yes/No toggle pill (check/X mark in a circular badge plus the label inside a capsule). Defaults are `trueLabel("Yes")` / `falseLabel("No")`; blank labels fall back to an icon-only circle. The pill stays content-sized in the cell (not full width). Row action menus (`⋮`) use a fixed overlay so they float above a short table instead of clipping inside `.ff-table-wrap`. `align(Align.END)` / `Align.CENTER` sets both the cell and the `<th>` via `data-ff-align`. The Actions header is right-aligned the same way.
+`align(Align.END)` / `Align.CENTER` sets both the cell and the `<th>` via `data-ff-align`. The Actions header is right-aligned the same way. Row action menus (`⋮`) use a fixed overlay so they float above a short table instead of clipping inside `.ff-table-wrap`.
 
 `relationship("project", "name")` on a foreign-key column (for example `project_id`) shows the related record’s title attribute instead of the raw id, labels the heading from the relation name (**Project**), and tells Cadence tables to `with("project")` so the list is not N+1. Generated resources emit this for FK columns.
 
@@ -440,7 +446,7 @@ table.contentGrid(Map.of("md", 2, "xl", 3));
 
 ## Click a row
 
-Rows are clickable by default when a **View** or **Edit** row button exists (Filament-shaped). Click prefers **View**, then **Edit**. The click opens that button’s dialog or follows its URL. Clicks on the ⋯ menu, action buttons, checkboxes, and links inside cells do not fire the row click.
+Rows are clickable by default when a **View** or **Edit** row button exists. Click prefers **View**, then **Edit**. The click opens that button’s dialog or follows its URL. Clicks on the ⋯ menu, action buttons, checkboxes, and links inside cells do not fire the row click.
 
 Override the target with `recordUrl` or `recordAction`. Turn row clicks off with `recordClickable(false)`.
 

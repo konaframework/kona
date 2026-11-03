@@ -1,0 +1,104 @@
+---
+title: Color entry
+description: "Show CSS color values as swatches in a Firefly infolist."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ColorEntry` turns a color string — or a list of them — into swatches on a view page. It inherits every helper on [Entry](/docs/firefly/infolists/#helpers-on-every-entry) (`label`, `state`, `placeholder`, `url`, `copyable`, and the rest). Use it when the record stores brand ink, a status color, or a small palette the reader should see, not edit.
+
+<FireflyShot file="infolist-color-entry.png" description="A color entry showing a caramel swatch for brand ink." />
+
+## Make a color entry
+
+Call `ColorEntry.make("ink")` with the state key, then chain label and state. A CSS color becomes `background-color` on a `.ff-swatch` span. Empty state shows the shared `placeholder`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ColorEntry.make("ink")
+    .label("Brand")
+    .copyable(true)
+    .helperText("Primary brand ink")
+    .state("#DF8723")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ColorEntry.make("ink")
+    .label("Brand")
+    .copyable(true)
+    .helperText("Primary brand ink")
+    .state("#DF8723");
+```
+
+</TabItem>
+</Tabs>
+
+You see a single caramel swatch. Shared `url` wraps each swatch in a link; `openUrlInNewTab(true)` opens that link in a new tab.
+
+## Accepted color strings
+
+Only safe CSS color forms paint a background. Anything else is still rendered as a swatch but marked `data-ff-invalid="true"` with no `style`.
+
+| Form | Example |
+|------|---------|
+| Hex | `#df8723`, `#abc`, `#RRGGBBAA` |
+| `rgb` / `rgba` | `rgb(223, 135, 35)` |
+| `hsl` / `hsla` | `hsl(28, 75%, 51%)` |
+| Named | letters only, up to 32 chars (`tomato`, `rebeccapurple`) |
+
+Whitespace around the value is trimmed. Empty or blank state uses the placeholder instead of a swatch.
+
+## Lists of colors
+
+Pass a collection and each item becomes its own swatch inside `.ff-colors`. Invalid items keep their `data-ff-invalid` mark beside valid ones.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ColorEntry.make("palette")
+    .label("Palette")
+    .state(listOf("#DF8723", "#74453F", "not-a-color"))
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ColorEntry.make("palette")
+    .label("Palette")
+    .state(List.of("#DF8723", "#74453F", "not-a-color"));
+```
+
+</TabItem>
+</Tabs>
+
+## Options that matter most
+
+| Method | Effect |
+|--------|--------|
+| `make(name)` | Bind the state key (dotted path up to four levels) |
+| `state` / filled schema | Color string or collection of strings |
+| `placeholder` | Shown when state is blank |
+| `copyable(true)` | Sets `data-ff-copyable` on the colors host |
+| `url` / `openUrlInNewTab` | Wrap each swatch in an anchor |
+| `label` / `helperText` / `hint` | Shared entry chrome |
+| `configureUsing { … }` | Defaults for every later `make()`; pass `null` to clear |
+
+`ColorEntry` has no entry-specific setters beyond what `Entry` already provides. Typography, badges, and money helpers live on [Text entry](/docs/firefly/infolists/text-entry/), not here.
+
+## Defaults for every make
+
+`ColorEntry.configureUsing { entry -> entry.copyable(true) }` runs for every later `make()`. Pass `null` to clear it.
+
+## See also
+
+- [Infolists overview](/docs/firefly/infolists/)
+- [Text entry](/docs/firefly/infolists/text-entry/)
+- [Icon entry](/docs/firefly/infolists/icon-entry/)

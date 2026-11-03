@@ -1,0 +1,142 @@
+---
+title: Builder
+description: "Builder for typed block lists with a block picker menu."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Builder` edits a list of typed blocks. Each block has a name, label, and nested schema (`BuilderBlock`). Stored rows look like `{ "type": "…", "data": { … } }`. The add control opens a menu of block labels.
+
+<FireflyShot file="form-builder.png" description="Builder blocks field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Builder.make("blocks")
+    .label("Blocks")
+    .blocks(
+        BuilderBlock(
+            "hero",
+            "Hero",
+            listOf(TextInput.make("title").label("Title").required()),
+        ),
+        BuilderBlock(
+            "quote",
+            "Quote",
+            listOf(Textarea.make("text").label("Text")),
+        ),
+    )
+    .blockNumbers(true)
+    .reorderable(true)
+    .cloneable(true)
+    .addActionLabel("Add block")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Builder.make("blocks")
+    .label("Blocks")
+    .blocks(
+        new BuilderBlock("hero", "Hero", List.of(
+            TextInput.make("title").label("Title").required()
+        )),
+        new BuilderBlock("quote", "Quote", List.of(
+            Textarea.make("text").label("Text")
+        ))
+    )
+    .blockNumbers(true)
+    .reorderable(true)
+    .cloneable(true)
+    .addActionLabel("Add block");
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `blocks(BuilderBlock...)` | Available block types |
+| `addable` / `deletable` / `reorderable` / `cloneable` / `collapsible` | Item controls (add/delete default `true`) |
+| `blockNumbers(on)` | Prefix labels with `1. `, `2. `, … |
+| `minItems` / `maxItems` | Block counts |
+| `addActionLabel` | Picker trigger label (default `"Add block"`) |
+| `addBetweenAction` | `Action` rendered between existing blocks |
+| `items(schema)` | Read decoded rows |
+| `addBlock(schema, type)` | Append a row for a known block name |
+
+`addBlock` throws when `type` is not in `blocks(...)`. Nested fields render under `path.$index.data.$childName`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val builder = Builder.make("page")
+    .blocks(
+        BuilderBlock("hero", "Hero", listOf(
+            TextInput.make("title").label("Title").required(),
+            Textarea.make("subtitle").label("Subtitle"),
+        )),
+        BuilderBlock("cta", "Call to action", listOf(
+            TextInput.make("label").label("Label"),
+            TextInput.make("url").label("URL").url(),
+        )),
+    )
+    .minItems(1)
+    .maxItems(20)
+    .collapsible(true)
+    .addActionLabel {{ get -> "Insert block" }}
+
+// Later, after the schema exists:
+// builder.addBlock(schema, "hero")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Builder builder = Builder.make("page")
+    .blocks(
+        new BuilderBlock("hero", "Hero", List.of(
+            TextInput.make("title").label("Title").required(),
+            Textarea.make("subtitle").label("Subtitle")
+        )),
+        new BuilderBlock("cta", "Call to action", List.of(
+            TextInput.make("label").label("Label"),
+            TextInput.make("url").label("URL").url()
+        ))
+    )
+    .minItems(1)
+    .maxItems(20)
+    .collapsible(true)
+    .addActionLabel(get -> "Insert block");
+
+// builder.addBlock(schema, "hero");
+```
+
+</TabItem>
+</Tabs>
+
+## Validation
+
+`extraErrors` enforces `minItems` / `maxItems` with messages about blocks. Picking a menu item appends an empty `data` map for that type. Item chrome matches the repeater head (reorder, clone, delete, collapse).
+
+For homogeneous item maps, use [`Repeater`](/docs/firefly/forms/repeater/). For rich text with inline custom blocks, see [`RichEditor.customBlocks`](/docs/firefly/forms/rich-editor/).
+
+## Configure defaults
+
+`Builder.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Repeater](/docs/firefly/forms/repeater/)
+- [Rich editor](/docs/firefly/forms/rich-editor/)
+- [Key value](/docs/firefly/forms/key-value/)

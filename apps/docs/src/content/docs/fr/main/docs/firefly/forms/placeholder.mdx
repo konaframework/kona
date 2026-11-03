@@ -1,0 +1,53 @@
+---
+title: Placeholder
+description: "Read-only Placeholder content that does not dehydrate by default."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Placeholder` shows static or computed text in the form layout. It is not an editable control. `make` sets `saved(false)` so the value is not written on dehydrate unless you call `saved(true)`.
+
+<FireflyShot file="form-placeholder.png" description="Placeholder hint field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Placeholder.make("hint")
+    .label("Note")
+    .content("Thanks for registering")
+
+Placeholder.make("greet")
+    .content {{ get -> "Hello, " + (get.get("name") ?: "guest") }}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Placeholder.make("hint")
+    .label("Note")
+    .content("Thanks for registering");
+
+Placeholder.make("greet")
+    .content(get -> "Hello");
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `content(String)` | Fixed text |
+| `content(Function<Get, String>)` | Computed from form state |
+| `saved(true)` | Turn dehydration back on |
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Hidden](/docs/firefly/forms/hidden/)

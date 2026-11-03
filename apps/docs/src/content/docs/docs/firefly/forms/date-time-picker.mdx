@@ -1,0 +1,147 @@
+---
+title: Date and time picker
+description: "DateTimePicker plus DatePicker, TimePicker, WeekPicker, MonthPicker, and YearPicker aliases."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`DateTimePicker` is the crafted calendar / time popup. Aliases wrap the same class with different date/time flags or pick levels:
+
+| Factory | Storage (default) | Notes |
+|---------|-------------------|--------|
+| `DateTimePicker.make` | `Y-m-d H:i` | Date + time |
+| `DatePicker.make` / `DateTimePicker.date` | `Y-m-d` | Date only |
+| `TimePicker.make` / `DateTimePicker.time` | `H:i` | Time only |
+| `WeekPicker.make` | `YYYY-Www` | `pickLevel(WEEK)` |
+| `MonthPicker.make` | `Y-m` | `pickLevel(MONTH)` |
+| `YearPicker.make` | `Y` | `pickLevel(YEAR)` |
+
+<FireflyShot file="form-date-time-picker.png" description="DateTimePicker published field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DatePicker.make("due").label("Due").required()
+TimePicker.make("remindAt").label("Remind at")
+DateTimePicker.make("published").label("Published").seconds()
+WeekPicker.make("sprint")
+MonthPicker.make("billing")
+YearPicker.make("fiscal")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DatePicker.make("due").label("Due").required();
+TimePicker.make("remindAt").label("Remind at");
+DateTimePicker.make("published").label("Published").seconds(true);
+WeekPicker.make("sprint");
+MonthPicker.make("billing");
+YearPicker.make("fiscal");
+```
+
+</TabItem>
+</Tabs>
+
+<FireflyShot file="form-date-picker.png" description="DatePicker due field on the Playground form." />
+
+<FireflyShot file="form-date-picker-open.png" description="DatePicker due field with the month grid open." />
+
+<FireflyShot file="form-time-picker.png" description="TimePicker remind_at field on the Playground form." />
+
+## Popup behavior
+
+The default control is a Firefly chrome popup (not a native input). Date-only selection can close the panel; datetime keeps it open until **OK**. **Today** focuses today (and fills current time for datetime). Click outside to close. Call `native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, `type="week"`, or `type="datetime-local"`.
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `format(pattern)` / `displayFormat(pattern)` | Storage vs display patterns |
+| `timezone(id)` / `zone()` | Zone for date-time values |
+| `locale(tag)` | Calendar locale |
+| `firstDayOfWeek` (`0` Sunday or `1` Monday) / `weekStartsOnMonday()` / `weekStartsOnSunday()` | Week start |
+| `closeOnDateSelection(on)` | Close after picking a day |
+| `hoursStep` / `minutesStep` / `secondsStep` | Spinner steps |
+| `seconds()` / `seconds(on)` | Include seconds in format + UI |
+| `pickLevel(DatePickLevel)` | `DAY`, `WEEK`, `MONTH`, `YEAR` |
+| `minDate` / `maxDate` | Bounds (string or `Get` closure) |
+| `defaultFocusedDate` | Initial grid focus |
+| `disabledDates(list)` / `disabledDates(predicate)` | Blocked days |
+| `native()` / `native(on)` | Native HTML input |
+| `normalize` / `display` | Convert server values ↔ strings |
+| `hasDate()` / `hasTime()` / `pickLevel()` | Introspection |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DatePicker.make("day")
+    .minDate("2024-03-01")
+    .maxDate {{ "2024-03-31" }}
+    .weekStartsOnMonday()
+    .disabledDates(listOf("2024-03-10"))
+    .defaultFocusedDate("2024-03-15")
+    .displayFormat("M j, Y")
+
+DateTimePicker.make("due")
+    .timezone("Africa/Nairobi")
+    .hoursStep(1)
+    .minutesStep(15)
+    .seconds(true)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DatePicker.make("day")
+    .minDate("2024-03-01")
+    .weekStartsOnMonday()
+    .disabledDates(List.of("2024-03-10"));
+
+DateTimePicker.make("due")
+    .timezone("Africa/Nairobi")
+    .minutesStep(15)
+    .seconds(true)
+    .useNative(false);
+```
+
+</TabItem>
+</Tabs>
+
+## Week, month, and year
+
+`WeekPicker` stores `YYYY-Www`. Default weeks are Monday–Sunday; `weekStartsOnSunday()` uses Sunday–Saturday. `MonthPicker` / `YearPicker` open on a twelve-cell grid.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DateTimePicker.date("sprint").pickLevel(DatePickLevel.WEEK)
+// same as WeekPicker.make("sprint")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DateTimePicker.date("sprint").pickLevel(DatePickLevel.WEEK);
+```
+
+</TabItem>
+</Tabs>
+
+## Validation and zones
+
+Validation uses `date_format:$format` (or a week regex). Date-only values use `FieldClock.appZone()`; date-time uses the field timezone. `FieldClock.pinToday` fixes “today” in tests. `FieldClock.appZone(...)` sets the application zone.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Date range picker](/docs/firefly/forms/date-range-picker/)

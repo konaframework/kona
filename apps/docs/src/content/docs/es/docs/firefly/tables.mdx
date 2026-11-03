@@ -1,20 +1,35 @@
 ---
-title: Tablas
-description: Muestra registros en una tabla de Firefly con columnas, filtros, búsqueda, orden, páginas y botones de fila.
+title: Tables
+description: "Pass rows to Table.memory or a Cadence model to Table.cadence, name the columns, and render the list. The notes page shows one row, Ada."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="notes-table.png" description="La tabla de notes en http://127.0.0.1:4017/admin/notes/manage, con la fila Ada en la columna de nombre." />
+Name the columns, point the table at the rows, and call `render()`. You get a list toolbar (search field with icon, filters, header buttons), sortable column headers when opted in, pagination with a record count, and an in-table empty state when there are no rows. Columns are not searchable or sortable until you call `searchable()` / `sortable()` (zero-arg means true).
 
-Una tabla es la lista de registros de una página. Describes las columnas, y Firefly dibuja el cuadro de búsqueda, el orden, los filtros y las páginas. `render()` devuelve ese HTML.
+Use `Table.memory` when the rows are already in your hand. The hello samples do that: one row, Ada, so the screen renders before a migration. Use `Table.cadence` when the rows are a Cadence model and you want `where` and `whereHas` on that model’s query.
 
-Usas `Table.memory` cuando las filas ya están en tu mano. El ejemplo hello hace eso: una fila, Ada, para que la pantalla se renderice antes de una migración. Usas `Table.cadence` cuando las filas son un modelo Cadence y quieres `where` y `whereHas` en la consulta de ese modelo.
+The types live in `org.konaframework.firefly.tables` (`kona-firefly-tables`). On the notes page the table is `Table.memory(...).columns(TextColumn.make("name"))` inside `app/firefly/resources/NoteResource`.
 
-Los tipos viven en `org.konaframework.firefly.tables` (`kona-firefly-tables`).
+<FireflyShot file="notes-table.png" description="The notes table at http://127.0.0.1:4017/admin/notes/manage, with the Ada row in the name column." />
 
-## Una tabla en una llamada
+## Column types
+
+| Column | Guide |
+|--------|-------|
+| `TextColumn` | [Text column](/docs/firefly/tables/columns/text-column/) |
+| `BadgeColumn` | [Badge column](/docs/firefly/tables/columns/badge-column/) |
+| `IconColumn` | [Icon column](/docs/firefly/tables/columns/icon-column/) |
+| `ImageColumn` | [Image column](/docs/firefly/tables/columns/image-column/) |
+| `ColorColumn` | [Color column](/docs/firefly/tables/columns/color-column/) |
+| `CheckboxColumn` | [Checkbox column](/docs/firefly/tables/columns/checkbox-column/) |
+| `ToggleColumn` | [Toggle column](/docs/firefly/tables/columns/toggle-column/) |
+| `SelectColumn` | [Select column](/docs/firefly/tables/columns/select-column/) |
+
+<FireflyShot file="table-columns-strip.png" description="A strip of Firefly table column types side by side." />
+
+## Render a table
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -26,7 +41,7 @@ val table = Table.memory(
         mapOf("id" to "2", "name" to "Bea", "score" to 4),
     ),
 ).columns(
-    TextColumn.make("name").label("Name").searchable(true).sortable(true),
+    TextColumn.make("name").label("Name").searchable().sortable(),
     TextColumn.make("score").money().summarize(Summary.SUM),
 )
 table.search("ada").sort("name").page(1).perPage(10)
@@ -43,7 +58,7 @@ ada.put("name", "Ada");
 ada.put("score", 2);
 Table<Map<String, Object>, MemoryQuery> table = Table.memory(List.of(ada));
 table.columns(
-    TextColumn.make("name").label(cell -> "Name").sortable(true).searchable(true),
+    TextColumn.make("name").label(cell -> "Name").sortable().searchable(),
     TextColumn.make("score").money().summarize(Summary.SUM)
 );
 table.search("ada").sort("name", "asc").page(1);
@@ -53,13 +68,13 @@ String html = table.render();
 </TabItem>
 </Tabs>
 
-`Table.memory` conserva las filas en una consulta en memoria. `columns(...)` sustituye la lista de columnas. `search`, `sort`, `page` y `perPage` estrechan lo que devuelven `load()` y `render()`. La búsqueda coincide con las columnas que marcaste `searchable(true)`. El orden acepta `asc` o `desc` en una columna que marcaste `sortable(true)`.
+`Table.memory` keeps the rows in an in-memory query. `columns(...)` replaces the column list. `search`, `sort`, `page`, and `perPage` narrow what `load()` and `render()` return. Search matches columns you marked `searchable(true)`. Sort accepts `asc` or `desc` on a column you marked `sortable(true)`. You see the Ada row when the search is `ada`.
 
-`load()` devuelve la página actual, el total, los resúmenes y los grupos. `render()` devuelve la misma página como HTML. Una página vacía usa el encabezado de `empty("No records")` y el texto de `emptyDescription(...)`. Ambos aceptan una cadena fija o un cierre.
+`load()` returns the current page, the total, the summaries, and the groups. `render()` returns the same page as HTML. An empty page shows “No records found.” inside the table body (override with `empty(...)` / `emptyDescription(...)`). Both accept a fixed string or a closure. Sort headers, search, filters, page links, and per-page size call Wire (`$wire.$call('sort' | 'search' | 'applyFilter' | 'gotoPage' | 'perPage', …)`) so the table updates in place without a full page reload. Pagination shows Previous / numbered pages (with ellipsis) / Next plus an optional rows selector.
 
-## De dónde vienen los registros
+## Choose where the rows come from
 
-Usa `Table.memory` cuando los registros ya son una lista de mapas. `modifyQueryUsing` recibe un `MemoryQuery`. Esa consulta filtra, ordena, busca y pagina la lista.
+Use `Table.memory` when the records are already a list of maps. `modifyQueryUsing` receives a `MemoryQuery`. That query filters, sorts, searches, and paginates the list.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -80,7 +95,7 @@ table.modifyQueryUsing(query -> query.where("name", "!=", "hidden"));
 </TabItem>
 </Tabs>
 
-Usa `Table.cadence(Customer::class.java)` cuando los registros son un modelo Cadence. `modifyQueryUsing` recibe el `ModelBuilder` de ese modelo. `where`, `whereHas`, `join`, `with` y `scope` corren en la consulta del modelo.
+Use `Table.cadence(Customer::class.java)` when the records are a Cadence model. `modifyQueryUsing` receives that model’s `ModelBuilder`. `where`, `whereHas`, `join`, `with`, and `scope` run on the model query.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -110,106 +125,358 @@ table.modifyQueryUsing(query -> query
 </TabItem>
 </Tabs>
 
-`relationship(Account.class)` construye una consulta de opciones relacionadas. Pasa un cierre cuando esa consulta necesita su propio `where` o `whereHas`.
+`relationship(Account.class)` builds a query of related options. Pass a closure when that query needs its own `where` or `whereHas`.
 
-`extraAttributes` en una columna fusiona atributos HTML en la raíz de la columna. Sirven un mapa o un cierre que recibe la celda. `extraInputAttributes` hace lo mismo para una columna o un filtro que renderiza su propio input o select. `type`, `name` y `value` siguen siendo de ese control.
+`extraAttributes` on a column merges HTML attributes onto the column root. A map or a closure that receives the cell both work. `extraInputAttributes` does the same for a column or filter that renders its own input or select. `type`, `name`, and `value` stay owned by that control.
 
-Una lista que tienes en memoria se queda en `MemoryQuery`. Un modelo Cadence se queda en `ModelBuilder`. Un modelo de documento falla, y el mensaje nombra `kona-firefly-document`. Ese módulo no forma parte de esta versión. Cualquier otro tipo falla y te dice que uses `Table.memory` para filas propias.
+A list you hold in memory stays on `MemoryQuery`. A Cadence model stays on `ModelBuilder`. A document model fails, and the message names `kona-firefly-document`. That module is not part of this release. Any other type fails and tells you to use `Table.memory` for custom rows.
 
-## Columnas
+## Pick a column
 
-| Tipo | Papel |
-|------|------|
-| `TextColumn.make(name)` | Texto, dinero o una fecha. `badge`, `limit`, `html`, `url`, `icon`, `color`, `prefix`, `suffix`, `placeholder` |
-| `IconColumn.make(name)` | Un icono; encadena `.boolean()` / `.bool()` para un chip check/X suave |
-| `ImageColumn.make(name)` | Una imagen con `alt`, `imageHeight` e `imageWidth` |
-| `ColorColumn.make(name)` | Una muestra de color |
-| `CheckboxColumn.make(name)` | Una casilla ligada a la fila |
-| `ToggleColumn.make(name)` | Un interruptor que llama a `$wire.$call('toggleColumn', ...)` |
-| `SelectColumn.make(name)` | Un select que llama a `$wire.$call('setColumn', ...)` |
+Open a column guide for the full API. Shared flags below apply to every type.
 
-`searchable(true)` incluye la columna en la búsqueda. `sortable(true)` permite `sort(name)`. `toggleable(true)` deja que el llamador oculte la columna. `hidden(true)` y `visible(false)` la dejan fuera del render. `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN` y `MAX` añaden un valor de pie.
+`searchable()` / `searchable(true)` includes the column in search. `sortable()` allows `sort(name)`. Zero-arg boolean chainables mean yes; pass `false` to turn off. `toggleable()` adds the column to the toolbar **Columns** picker so users can show or hide it. `toggledHiddenByDefault()` (or `toggledHiddenByDefault(true)`) marks it toggleable and starts it hidden — useful for timestamps so the list stays readable until someone checks them in the picker. Soft-nav keeps the choice in the `columns` query string. `hidden()` and `visible(false)` leave it out of the render entirely (not in the picker). `summarize(Summary.COUNT)`, `SUM`, `AVG`, `MIN`, and `MAX` add a footer value.
 
-`formatStateUsing` recibe el estado de la celda y un `Cell`. `Cell.get` lee un camino. Un camino que empieza por `/` es absoluto.
+Column headings default to a humanized form of the attribute name (`published_at` → `Published At`). CSS still uppercases the header, so you see **PUBLISHED AT**, not `PUBLISHED_AT`. Override with `label(...)` when you need a custom title.
+
+Related titles use a dotted make path, up to four levels — details on [Text column](/docs/firefly/tables/columns/text-column/):
+
+```kotlin
+TextColumn.make("project.name").label("Project")
+TextColumn.make("owner.company.region.name").label("Region")
+```
+
+Cadence tables eager-load the relation path. You can still call `.relationship("project", "name")` on an FK column name. Mark those columns `searchable()` / `sortable()` the same way as local attributes: search uses a correlated `exists` on the relation (including nested paths), and sort left-joins BelongsTo relations so `order by` targets the related table column. `formatStateUsing` receives the cell state and a `Cell`. `Cell.get` reads a path. A path that starts with `/` is absolute.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-TextColumn.make("name").label { cell ->
-    if (cell.get("/kind") == "org") "Organization" else "Name"
-}
+TextColumn.make("name")
+    .label { cell ->
+        if (cell.get("/kind") == "org") "Organization" else "Name"
+    }
+    .extraAttributes(mapOf("data-col" to "name"))
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-TextColumn.make("name").label(cell -> "Name");
+TextColumn.make("name").label(cell -> "Name").extraAttributes(Map.of("data-col", "name"));
 ```
 
 </TabItem>
 </Tabs>
 
-`money()` formatea un número como dólares y centavos. `date()` formatea una fecha, un instant o una marca de tiempo. `align(Align.END)` pone la alineación de la columna.
+`align(Align.END)` / `Align.CENTER` sets both the cell and the `<th>` via `data-ff-align`. The Actions header is right-aligned the same way. Row action menus (`⋮`) use a fixed overlay so they float above a short table instead of clipping inside `.ff-table-wrap`.
 
-Cada columna renderiza `x-data="ffColumn('name', true)"` y `@entangle(name)`.
+`relationship("project", "name")` on a foreign-key column (for example `project_id`) shows the related record’s title attribute instead of the raw id, labels the heading from the relation name (**Project**), and tells Cadence tables to `with("project")` so the list is not N+1. Generated resources emit this for FK columns.
 
-`./grind make:firefly-column Name` escribe una clase de columna y una vista Crema bajo `app/firefly/columns`. `--lang=java` escribe Java. La vista usa `ffColumn`, `@entangle` y `$wire.$call`.
+If IntelliJ does not offer `date()` / `dateTime()` (or other new Firefly APIs) in completion, the IDE is almost always resolving an older published JAR instead of your composite/`kona.home` checkout. Refresh the Gradle project (**Reload All Gradle Projects**), confirm the module dependency points at the included build (not only Maven Local / Central), then **Invalidate Caches** if the index still looks stale. `./gradlew :kona-firefly-tables:compileKotlin` (or a full `./gradlew classes`) after pulling framework changes keeps class files current for the IDE.
 
-## Filtros
+Search is instant: typing in the toolbar search field debounces (~280ms) and soft-navigates the table without pressing Enter. Soft-nav restores focus and the caret in the search box so typing is not interrupted. The control is a single bordered field with the icon inside.
 
-`filters(...)` sustituye la lista de filtros. `filter(name, value)` aplica uno. Un valor vacío lo limpia.
+Each column renders `x-data="ffColumn('name', true)"` and `@entangle(name)`.
 
-| Tipo | Papel |
-|------|------|
-| `Filter.make(name)` | Coincide con un atributo. `attribute` y `operator` eligen la columna y la comparación |
-| `SelectFilter.make(name)` | Un select de opciones. `options(map)` u `options { cell -> map }` |
-| `TernaryFilter.make(name)` | `true`, `false` o `blank` |
-| `TrashedFilter.make()` | `with`, `only`, o el predeterminado que oculta las filas en la papelera |
+`./grind make:firefly-column Name` writes a column class and a Crema view under `app/firefly/columns`. `--lang=java` writes Java. The view uses `ffColumn`, `@entangle`, and `$wire.$call`. Reference the class from the table. `discover` does not scan `columns/`.
 
-`default("open")` guarda un valor fijo. `defaultUsing { "Ada" }` guarda un cierre que corre cuando el filtro lee su predeterminado.
+## Add a filter
 
-`query { query, value -> ... }` recibe la consulta nativa de la tabla y el valor actual del filtro. En una tabla de memoria esa consulta es `MemoryQuery`. En una tabla Cadence es `ModelBuilder`.
+`filters(...)` lists the filters a table offers. The toolbar gets a funnel button, active filters show as removable chips above the rows, and the state is kept in the URL.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-Filter.make("name").query { query, value ->
-    (query as MemoryQuery).where("name", value)
-}
+Table.cadence(Book::class.java)
+    .columns(TextColumn.make("title"), TextColumn.make("status"))
+    .filters(
+        SelectFilter.make("status").options(mapOf("draft" to "Draft", "published" to "Published")),
+        TernaryFilter.make("in_stock"),
+        TrashedFilter.make(),
+    )
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-Filter.make("name").query((query, value) -> {
-    ((MemoryQuery) query).where("name", value);
-});
+Table.cadence(Book.class)
+    .columns(TextColumn.make("title"), TextColumn.make("status"))
+    .filters(
+        SelectFilter.make("status").options(Map.of("draft", "Draft", "published", "Published")),
+        TernaryFilter.make("in_stock"),
+        TrashedFilter.make());
 ```
 
 </TabItem>
 </Tabs>
 
-`./grind make:firefly-filter Status` escribe una clase de filtro y una vista Crema bajo `app/firefly/filters`. `--lang=java` escribe Java.
+Checkbox and toggle filters, relationship selects, custom filter forms, the query builder, layouts, deferred versus live apply, and session persistence are covered step by step in [Table filters](/docs/firefly/table-filters/).
 
-## Páginas, selección, grupos y disposición
+## Page, select, group, and lay out the rows
 
-`paginated(true)` es el predeterminado. `page(1)` y `perPage(10)` eligen la ventana. `pageOptions(10, 25)` lista los tamaños de página en el HTML. Los números de página empiezan en 1.
+`paginated(true)` is the default. `page(1)` and `perPage(10)` choose the window. `pageOptions(10, 25)` lists the page sizes in the HTML. Page numbers start at 1.
 
-`selectable(true)` añade una casilla en cada fila. `select(key)` alterna esa clave. `selected()` devuelve las claves. Seleccionar de nuevo cada clave de la página actual limpia esas claves.
+Row checkboxes and the actions that use them are covered under [Bulk actions](#bulk-actions) below.
 
-`groups(TableGroup.make("status"))` y `groupedBy("status")` parten la página en grupos. `label("Status")` o `label { cell -> ... }` pone el encabezado del grupo.
+`groups(TableGroup.make("status"))` and `groupedBy("status")` split the page into groups. `label("Status")` or `label { cell -> ... }` sets the group heading.
 
-`reorderable("score")` y luego `move(key, index)` escribe el nuevo orden en ese atributo.
+`reorderable("score")` then `move(key, index)` writes the new order into that attribute.
 
-`layout(TableLayout.ROWS)` es la tabla. `TableLayout.STACK` y `TableLayout.GRID` renderizan los mismos registros como tarjetas. `poll("10s")` o `poll("500ms")` añade `wire:poll` en la raíz.
+`layout(TableLayout.ROWS)` is the default table. `TableLayout.STACK` and `TableLayout.GRID` render the same records as cards (stack is a single column of cards; grid fills a responsive card grid). `poll("10s")` or `poll("500ms")` adds `wire:poll` on the root.
 
-## Botones de fila y de cabecera
+## Bulk actions
 
-Un botón se renderiza mediante `Dialog` y puede incluir un esquema. `label("Export")` y `label { cell -> "Edit ${cell.get("name")}" }` ponen el texto. `modal()`, `slideOver()` y `fullscreen()` eligen el diálogo. `schema(Text.make("Go"))` es el cuerpo del diálogo. `url("https://example.test")` renderiza un enlace. `requiresSelection(true)` desactiva el botón mientras no hay ninguna fila seleccionada.
+A bulk action runs once on every row the user has checked. Add one with `bulkActions(...)` and the table puts a checkbox at the start of each row, a "select this page" checkbox in the header, and the action buttons above the table.
+
+### Your first bulk action
+
+`DeleteBulkAction` is ready to use. It asks for confirmation, deletes each checked row through the table's record store, and reports how many rows went away.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Table.cadence(Note::class.java)
+    .columns(TextColumn.make("title"))
+    .bulkActions(
+        BulkActionGroup.make(DeleteBulkAction.make()),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Table.cadence(Note.class)
+    .columns(TextColumn.make("title"))
+    .bulkActions(
+        BulkActionGroup.make(DeleteBulkAction.make())
+    );
+```
+
+</TabItem>
+</Tabs>
+
+Here is what the user sees:
+
+1. Each row has a checkbox. The header checkbox checks every row on the page. When only some rows are checked, the header checkbox shows a dash (the indeterminate state).
+2. The **Bulk actions** button above the table is disabled until a row is checked. Once rows are checked, a small badge on the button shows the count.
+3. A bar under the toolbar reads "3 records selected". It also has **Select all 42**, which selects every row that matches the current search and filters, even on other pages, and **Deselect all**.
+4. Choosing **Delete selected** opens a confirmation dialog. **Delete** posts the selection, the rows are removed, and a toast says **Deleted**.
+
+Checked rows stay checked while the user moves between pages and changes sort. A search or filter change clears them, because the old selection may no longer match. Call `deselectAllRecordsWhenFiltered(false)` to keep them.
+
+Resource list and manage pages get this **Bulk actions → Delete selected** menu on their own. If your resource's `table()` calls `bulkActions(...)`, your list replaces the default. Call `bulkActions()` with no arguments to turn bulk actions off for that resource.
+
+### Write your own action
+
+`BulkAction.make(name)` takes a name that is unique within the table. `action { context -> ... }` runs when the user confirms.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+BulkAction.make("archive")
+    .label("Archive")
+    .icon("check")
+    .color("warning")
+    .requiresConfirmation()
+    .successNotificationTitle("Archived")
+    .deselectRecordsAfterCompletion()
+    .action { context ->
+        for (record in context.records()) {
+            archiveNote(record["id"])
+        }
+    }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+BulkAction.make("archive")
+    .label("Archive")
+    .icon("check")
+    .color("warning")
+    .requiresConfirmation()
+    .successNotificationTitle("Archived")
+    .deselectRecordsAfterCompletion()
+    .action(context -> {
+        for (Map<String, Object> record : context.records()) {
+            archiveNote(record.get("id"));
+        }
+    });
+```
+
+</TabItem>
+</Tabs>
+
+The `context` gives you the selection:
+
+| Call | Returns |
+|---|---|
+| `keys()` | The checked record keys, as strings |
+| `records()` | Each checked record's attributes as a map. Rows that were deleted after the page loaded are left out |
+| `eachChunk { chunk -> ... }` | The records in chunks of `chunkSelectedRecords(n)` (all at once when no size is set) |
+| `get("field")` / `data()` | Values from the action's dialog form (see below) |
+| `delete(key)` / `deleteAll()` | Deletes through the table's record store. `deleteAll()` counts rows that are already gone as failures |
+| `reportBulkProcessingFailure(key, message)` | Marks one record as failed and adds a message to the toast |
+
+When an action does not need the records themselves, call `fetchSelectedRecords(false)` so `records()` stays empty and only `keys()` is filled. This saves a lookup per row.
+
+The default label comes from the name: `archiveAll` becomes "Archive all". `label { cell -> ... }`, `hidden()`, `visible { cell -> ... }`, and `disabled()` work the same way as on `TableButton`. A disabled action stays greyed out even when rows are checked. `tooltip("...")` adds a hover title. `button()` (the default) and `link()` choose the trigger style. `url(...)` posts the selection to another path, which you need when the table lives somewhere other than the page that renders it.
+
+### Ask for input first
+
+`schema(...)` puts fields in the action's dialog. Their values come back through `context.get(name)`.
+
+```kotlin
+BulkAction.make("reassign")
+    .modalHeading("Move to another owner")
+    .modalDescription("The checked notes move to this person.")
+    .modalSubmitActionLabel("Move")
+    .schema(TextInput.make("owner"))
+    .action { context -> moveNotes(context.keys(), context.get("owner")) }
+```
+
+`requiresConfirmation()` without a schema shows "Are you sure you would like to do this?" with **Confirm** and **Cancel**. `modalCancelActionLabel("Keep")` renames the cancel button. An action with neither confirmation nor a schema runs as soon as it is clicked.
+
+### Group actions in a dropdown
+
+`BulkActionGroup.make(...)` puts actions in one dropdown. Its trigger is labelled "Bulk actions" by default; `label("Manage")`, `icon(...)`, and `color(...)` change it. Actions you pass straight to `bulkActions(...)` render as their own buttons next to the dropdown:
+
+```kotlin
+table.bulkActions(
+    BulkActionGroup.make(DeleteBulkAction.make(), archive),
+    BulkAction.make("export").label("Export"),
+)
+```
+
+`groupedBulkActions(a, b)` is a shortcut for `bulkActions(BulkActionGroup.make(a, b))`.
+
+### Check each record
+
+`authorizeIndividualRecords { cell -> ... }` runs before the action for each checked record. Records that fail are skipped and counted, and the toast says "2 selected records were not authorized." Pass a second closure to write your own message: `authorizeIndividualRecords({ cell -> ... }) { counts -> "Skipped ${counts.failureCount}" }`.
+
+When some records fail (because of authorization, `reportBulkProcessingFailure`, or a delete of a row that is already gone), the toast is a warning that shows the messages. When nothing succeeds, it is a danger toast. Set the titles with `successNotificationTitle("...")` and `failureNotificationTitle { counts -> "${counts.successCount} of ${counts.totalCount} archived" }`.
+
+### Control what can be selected
+
+| Call | Effect |
+|---|---|
+| `selectable(true)` | Show checkboxes without any bulk action. `selected()` returns the keys selected on the server |
+| `checkIfRecordIsSelectableUsing { cell -> ... }` | Rows that return `false` get a disabled checkbox and are never sent to an action |
+| `maxSelectableRecords(10)` | Stops the user at 10 checked rows. The server rejects larger posts too |
+| `selectCurrentPageOnly()` | Hides **Select all N**, so a selection never reaches past the visible page |
+| `selectGroupsOnly()` | With `groups(...)`, every group heading gets its own checkbox and a selection stays inside one group |
+| `checkboxPosition(RecordCheckboxPosition.AFTER_CELLS)` | Moves the checkbox column to the end of the row |
+| `deselectAllRecordsWhenFiltered(false)` | Keeps the selection across search and filter changes |
+
+Card layouts (`TableLayout.STACK`, `TableLayout.GRID`, `contentGrid(...)`, and stacked mobile rows) show the same checkbox in the corner of each card, plus a "Select all on this page" checkbox above the cards.
+
+### How the post works
+
+The chrome script keeps the selection in the browser tab and posts a small form to the page's own URL with `_bulk_action`, `_bulk_keys` (comma separated), `_bulk_all=1` for "select all", the CSRF token, and any dialog fields. The panel finds the table on that page, calls `table.runBulkAction(...)`, flashes the toast, and redirects back with the same query string, so the user stays on the same page, sort, and filters.
+
+You can run an action yourself, for a test or a console command:
+
+```kotlin
+val result = table.runBulkAction("archive", listOf("1", "2"))
+result.successCount       // 2
+result.notificationTitle() // "Archived"
+```
+
+From Java, `table.runBulkAction("archive", List.of("1", "2"))` works the same way. Pass `data` and `allMatching` as the third and fourth arguments when you need them.
+
+## Mobile cards, content grid, and Split / Stack
+
+On small screens, ROWS become **cards** by default: each cell shows its column label above the value, and a **Sort** dropdown appears when any visible column is sortable. That is `stackedOnMobile(true)` (the default). Pass `stackedOnMobile(false)` to keep a horizontal scroll table on phones.
+
+`contentGrid(mapOf("md" to 2, "xl" to 3))` turns the list into a card grid: one column on the smallest size, then the counts you set from each breakpoint upward (`sm` … `2xl`, plus `default`). It sets `TableLayout.GRID` and paints the same card chrome as stack/grid layouts (selection checkbox, field labels, row actions).
+
+Compose a row with layout components under `org.konaframework.firefly.tables.layout`:
+
+- `Split.make(...)` — children sit in a row; `from("md")` stacks them below that breakpoint.
+- `Stack.make(...)` — vertical stack; `space(1|2|3)`, `alignment(Align.END)`, `visibleFrom("md")`.
+- `Grid.make(2).schema(...)` — equal CSS-grid tracks inside one record (from `lg` up).
+- `Column.grow(false)` — keep intrinsic width inside a Split instead of sharing leftover space.
+
+Pass Split / Stack / Grid into `columns(...)` mixed with ordinary columns. Search, sort, and filters still use the flattened leaf columns.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+table
+    .columns(
+        Split.make(
+            TextColumn.make("name").label("Name").searchable().sortable().grow(false),
+            Stack.make(
+                TextColumn.make("phone").label("Phone"),
+                TextColumn.make("email").label("Email"),
+            ).space(1).visibleFrom("md"),
+        ).from("md"),
+    )
+    .stackedOnMobile() // default true — cards on small screens
+    .contentGrid(mapOf("md" to 2, "xl" to 3)) // optional record grid
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.columns(
+    Split.make(
+        TextColumn.make("name").label("Name").searchable().sortable().grow(false),
+        Stack.make(
+            TextColumn.make("phone").label("Phone"),
+            TextColumn.make("email").label("Email")
+        ).space(1).visibleFrom("md")
+    ).from("md")
+);
+table.stackedOnMobile(true);
+table.contentGrid(Map.of("md", 2, "xl", 3));
+```
+
+</TabItem>
+</Tabs>
+
+## Click a row
+
+Rows are clickable by default when a **View** or **Edit** row button exists. Click prefers **View**, then **Edit**. The click opens that button’s dialog or follows its URL. Clicks on the ⋯ menu, action buttons, checkboxes, and links inside cells do not fire the row click.
+
+Override the target with `recordUrl` or `recordAction`. Turn row clicks off with `recordClickable(false)`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+// Default: View if present, else Edit — no call needed when those row buttons exist.
+table.recordUrl { cell -> "view?id=${cell.get("key")}" }
+table.recordAction("view")
+table.recordClickable(false)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.recordUrl(cell -> "view?id=" + cell.get("key"));
+table.recordAction("view");
+table.recordClickable(false);
+```
+
+</TabItem>
+</Tabs>
+
+## Put a button on the header or the row
+
+A button renders through `Dialog` and can include a schema. `label("Export")` and `label { cell -> "Edit ${cell.get("name")}" }` set the text. `modal()`, `slideOver()`, and `fullscreen()` choose the dialog. `schema(Text.make("Go"))` is the dialog body. `url("https://example.test")` renders a link. `requiresSelection(true)` disables the button while no row is selected.
+
+When a table has **two or more** row buttons, Firefly groups them under a ⋯ (kebab) menu by default so the actions column stays narrow. Call `groupRowActions(false)` to show each action as its own button. Resource manage/list pages use the grouped menu for View / Edit / Delete.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -235,6 +502,6 @@ table.headerButtons(
 </TabItem>
 </Tabs>
 
-El marcado del botón usa `ffAction` y `$wire.$call`. Los objetos de acción tipados se adjuntan cuando el módulo de acciones está en `main`.
+You see **Export** above the table. With `requiresSelection(true)` it stays disabled until a row is checked, and it turns back off when the selection is cleared. The button markup uses `ffAction` and `$wire.$call`. To run something on each checked row, use a [bulk action](#bulk-actions) instead.
 
-`configureUsing` en `Table`, `TableButton`, `Column`, `TextColumn`, `Filter` y `SelectFilter` corre para cada `make()` posterior. Pasa `null` para limpiarlo.
+`configureUsing` on `Table`, `TableButton`, `Column`, `TextColumn`, `Filter`, and `SelectFilter` runs for every later `make()`. Pass `null` to clear it.

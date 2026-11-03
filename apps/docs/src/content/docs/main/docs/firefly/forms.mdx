@@ -1,18 +1,16 @@
 ---
 title: Forms
-description: Put fields on a schema, fill the state, and render the HTML. Select is a combobox until you call native(). DateTimePicker is the crafted picker until you call native().
+description: "Build Firefly forms from schema fields — overview of every field type and the helpers shared by all of them."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Put fields on a schema when the screen needs a name, a status, or a due date. Fill the schema, then `render()` returns the HTML. Wire and Alpine keep the value in sync after the page loads.
+Put fields on a schema when a screen needs a name, a status, or a due date. Fill the schema, then `render()` returns the HTML. Wire and Alpine keep values in sync after the page loads.
 
 Fields live in `org.konaframework.firefly.forms` (`kona-firefly-forms`). Each field is a schema component, so it sits in the same tree as a section or a tab and uses the same live modifiers (`live`, `liveOnBlur`, `liveDebounce`, `hidden`, `visible`, `dehydrated`, `afterStateUpdated`). Place the schema on a page, or render it into a view you already have.
 
-On the hello samples the Desk page and the notes form both use a text field, a status combobox, and a due date picker. The files are `app/firefly/pages/Desk` and `app/firefly/resources/NoteResource`.
-
-## Add a text field
+## Quick start
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -41,35 +39,73 @@ String html = schema.render();
 </TabItem>
 </Tabs>
 
-`make("name")` sets the state key. `render()` wraps the control in the field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. You see a Name field filled with Ada. Live fields also emit `wire:model` on the schema wrapper. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Leave `Alpine.start()` to that instance. Until that script runs, `@entangle(...)` can still show as raw text in the page.
+`make("name")` sets the state key. `render()` wraps the control in field chrome: label, hint, prefix, suffix, helper text, and a span with `x-data="ffField"` plus `@entangle(name)`. Call `registerFirefly` and `registerFireflyForms` on the Alpine instance the page already started. Leave `Alpine.start()` to that instance.
 
-`FormAssets.script()` and `FormAssets.stylesheet()` are the field script and the field CSS. Prose from the rich text and markdown editors uses the caramel accent `#DF8723` through `--ff-primary`.
+`FormAssets.script()` and `FormAssets.stylesheet()` are the field script and CSS. Prose from the rich-text and markdown editors uses the caramel accent `#DF8723` through `--ff-primary`.
 
-Most chainable setters take a fixed value or a closure. The closure receives `Get`.
+Most chainable setters take a fixed value or a closure that receives `Get`. The last call wins. When you never call `label`, Firefly humanizes the field name (`first_name` → “First Name”).
 
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
+## Field catalog
 
-```kotlin
-name.label("Name")
-name.label { get -> if (get.get("/kind") == "org") "Organization" else "Name" }
-name.placeholder { "Ada Lovelace" }
-name.helperText("Shown on the invoice")
-```
+Each page documents that field’s public API with Kotlin and Java examples.
 
-</TabItem>
-<TabItem label="Java">
+### Text and values
 
-```java
-name.label("Name");
-name.label(get -> "Organization");
-name.helperText("Shown on the invoice");
-```
+| Field | Guide |
+|-------|--------|
+| `TextInput` | [Text input](/docs/firefly/forms/text-input/) |
+| `Textarea` | [Textarea](/docs/firefly/forms/textarea/) |
+| `CurrencyInput` / `TextInput.currency` | [Currency input](/docs/firefly/forms/currency-input/) |
+| `TagsInput` | [Tags input](/docs/firefly/forms/tags-input/) |
+| `Hidden` | [Hidden](/docs/firefly/forms/hidden/) |
+| `Placeholder` | [Placeholder](/docs/firefly/forms/placeholder/) |
+| `KeyValue` | [Key value](/docs/firefly/forms/key-value/) |
+| `ColorPicker` | [Color picker](/docs/firefly/forms/color-picker/) |
+| `Slider` | [Slider](/docs/firefly/forms/slider/) |
 
-</TabItem>
-</Tabs>
+### Choices
 
-The last call wins. A string replaces a closure, and a closure replaces a string. When you never call `label`, Firefly humanizes the field name (`first_name` → “First Name”) so the form still shows a label.
+| Field | Guide |
+|-------|--------|
+| `Select` | [Select](/docs/firefly/forms/select/) |
+| `Checkbox` | [Checkbox](/docs/firefly/forms/checkbox/) |
+| `Toggle` | [Toggle](/docs/firefly/forms/toggle/) |
+| `CheckboxList` | [Checkbox list](/docs/firefly/forms/checkbox-list/) |
+| `Radio` | [Radio](/docs/firefly/forms/radio/) |
+| `ToggleButtons` | [Toggle buttons](/docs/firefly/forms/toggle-buttons/) |
+
+### Dates and times
+
+| Field | Guide |
+|-------|--------|
+| `DateTimePicker`, `DatePicker`, `TimePicker`, `WeekPicker`, `MonthPicker`, `YearPicker` | [Date and time picker](/docs/firefly/forms/date-time-picker/) |
+| `DateRangePicker` | [Date range picker](/docs/firefly/forms/date-range-picker/) |
+
+### Editors and uploads
+
+| Field | Guide |
+|-------|--------|
+| `RichEditor` | [Rich editor](/docs/firefly/forms/rich-editor/) |
+| `MarkdownEditor` | [Markdown editor](/docs/firefly/forms/markdown-editor/) |
+| `CodeEditor` | [Code editor](/docs/firefly/forms/code-editor/) |
+| `FileUpload` | [File upload](/docs/firefly/forms/file-upload/) |
+
+### Nested structures
+
+| Field | Guide |
+|-------|--------|
+| `Repeater` | [Repeater](/docs/firefly/forms/repeater/) |
+| `Builder` | [Builder](/docs/firefly/forms/builder/) |
+
+### Custom / relational picks
+
+| Field | Guide |
+|-------|--------|
+| `ViewField` | [View field](/docs/firefly/forms/view-field/) |
+| `ModalTableSelect` | [Modal table select](/docs/firefly/forms/modal-table-select/) |
+| `MorphToSelect` | [Morph to select](/docs/firefly/forms/morph-to-select/) |
+
+<FireflyShot file="form-text-input.png" description="TextInput name field on the Playground form." />
 
 ## Helpers on every field
 
@@ -81,6 +117,7 @@ These methods are on the field base. Every concrete field has them.
 | `helperText`, `hint`, `hintColor`, `hintIcon` | Text under or beside the control |
 | `placeholder` | Input placeholder |
 | `prefix`, `suffix`, `prefixIcon`, `suffixIcon` | Text or icon inside the control |
+| `prefixIconColor`, `suffixIconColor` | Icon colors |
 | `inlinePrefix`, `aboveContent`, `belowContent` | Extra chrome |
 | `required()`, `required(false)`, `required { get -> ... }` | Adds the `required` rule. A required field is not nullable |
 | `markAsRequired` | Shows the asterisk without the rule |
@@ -92,263 +129,35 @@ These methods are on the field base. Every concrete field has them.
 | `validationMessages` | Message per rule name |
 | `saved(false)` | Same as `dehydrated(false)` |
 | `formatStateUsing`, `dehydrateStateUsing` | Change the value written by `dehydrate()` |
-| `extraAttributes` | HTML attributes merged onto the component root. A map or a closure. Invalid names are skipped |
-| `extraInputAttributes` | HTML attributes on the input, textarea, select, or editor control. A map or a closure. `type`, `name`, and `value` stay owned by the field |
+| `extraAttributes` | HTML attributes on the component root |
+| `extraInputAttributes` | HTML attributes on the control (`type`, `name`, and `value` stay owned by the field) |
+| `prefixAction`, `suffixAction`, `hintAction` | Render an `Action` beside chrome |
 
 `hidden`, `visible`, `live`, `liveOnBlur`, `liveDebounce`, and `afterStateUpdated` stay on the schema component. Call them on the field. They return the component base, so in Java finish the field chain before calling `live()`.
 
-`prefixAction`, `suffixAction`, and `hintAction` take an `Action`. They are under [Actions on a field](#actions-on-a-field).
-
-## Text, tags, color, and maps
-
-`TextInput` is a single-line control. `email()`, `url()`, `numeric()`, `integer()`, `password()`, `tel()`, and `type("search")` set the input type and the matching validation rule. `telRegex` replaces the default telephone pattern. Call `telRegex` before `tel()` when you want your own pattern.
-
-`TextInput.currency("USD")` (or `CurrencyInput.make("price", "KES")`) turns the field into a numeric currency control: `type="number"`, a step from the precision (default `0.01`), and a currency-symbol **prefix** when you have not set `prefix` / `prefixIcon`. Optional `locale` and `precision` arguments mirror table and infolist money formatting. Affix chrome (`.ff-control.has-prefix` / `.ff-prefix`) paints as a joined input group.
-
-`revealable(true)` adds a show button on passwords. It sits inside the input group on the right; clicking it switches the input between hidden and plain text and swaps the eye icon. `copyable(true)` adds a copy button in the same place. It copies the current value to the clipboard and shows a check mark for a moment. `mask("9999 9999 9999 9999")` (and similar) writes `data-ff-mask` and panel chrome formats as you type — Alpine/Filament tokens: `9` digit, `a` letter, `*` alphanumeric; any other character is a literal (spaces, dashes). Credit-card and phone patterns work without Alpine. `step`, `minValue`, `maxValue`, `minLength`, `maxLength`, `length`, `regex`, `notRegex`, and `datalist` configure the control. `stripCharacters("-")` or `stripCharacters { value -> value.trim() }` changes the stored text before it is rendered.
-
-`unique("users", "email")` and `exists("users", "email")` add those rules. Without a database checker they fail closed.
-
-`Textarea.make("body")` takes `rows`, `cols`, `autosize`, `minLength`, `maxLength`, and the same `required()` chain as other fields. `Hidden.make("token")` renders a hidden input and no label.
-
-`TagsInput.make("tags")` splits a string on the separator (`,` by default) and renders one chip per tag. In the browser, type a tag and press Enter (or any key from `splitKeys`) to add a chip. Each chip has a remove button, and Backspace in an empty input removes the last chip. A hidden input posts the joined value. `suggestions`, `splitKeys`, `reorderable`, and `color` are optional. `tags(raw)` returns the list.
-
-`ColorPicker.make("ink")` stores a color. The control is a swatch next to a text input. Pick from the swatch and the text updates in the chosen format; type a value and the swatch follows. `hex()`, `rgb()`, and `hsl()` pick the format and the validation pattern.
-
-`Slider.make("volume")` defaults to 0–100 with step 1. The filled part of the track and the thumb use the panel primary color. `minValue`, `maxValue`, `step`, `decimalPlaces`, and `tooltips` adjust it. Values are clamped and rounded.
-
-`KeyValue.make("meta")` edits a map of strings. `keyLabel`, `valueLabel`, `keyPlaceholder`, `valuePlaceholder`, and `addActionLabel` accept a string or a closure. `addable`, `deletable`, `editableKeys`, `editableValues`, and `reorderable` toggle the controls. `pairs(raw)` reads the map. Each pair is a row with a key input, a value input, and a delete button. The add button below the rows appends an empty pair. The field posts the pairs as one JSON object.
-
-`Placeholder.make("note").content("Thanks")` renders HTML and does not dehydrate. `content { get -> "Hello" }` is the closure form. `saved(true)` turns dehydration back on.
-
-`ViewField.make("bio").viewName("bios.card")` renders a Crema view when the schema has an engine. The view receives the state path. Without an engine the field emits `data-ff-view`.
-
-## Choices
-
-`Select` renders a combobox by default: a display field, a hidden input that posts the value, and an option list the panel chrome opens, filters, and selects (same shape as the date picker — no Alpine required). When the list opens, chrome pins it with `position: fixed` so it floats above a short modal instead of being clipped by the dialog’s scroll area (same idea as the row-action ⋯ menu). Call `.native()` when you want a browser `<select>`. In Java the method is `useNative(true)`, because `native` is a keyword. `.native(false)` and `useNative(false)` keep the combobox. The status field on the Desk page is the combobox: Open and Done.
-
-<FireflyShot file="form-combobox.png" description="The status field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as a combobox with Open and Done." />
-
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-val status = Select.make("status")
-    .options(mapOf("open" to "Open", "done" to "Done"))
-    .searchable()
-    .placeholder("Pick one")
+name.label("Name")
+name.label { get -> if (get.get("/kind") == "org") "Organization" else "Name" }
+name.placeholder { "Ada Lovelace" }
+name.helperText("Shown on the invoice")
+name.prefixAction(Action.make("prefix").label("Prefix"))
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-Select status = Select.make("status")
-    .options(Map.of("open", "Open", "done", "Done"))
-    .searchable()
-    .placeholder("Pick one");
+name.label("Name");
+name.label(get -> "Organization");
+name.helperText("Shown on the invoice");
+name.prefixAction(Action.make("prefix").label("Prefix"));
 ```
 
 </TabItem>
 </Tabs>
-
-Call `.native()` on that same field when the control should be a plain select:
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-Select.make("status")
-    .options(mapOf("open" to "Open", "done" to "Done"))
-    .native()
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-Select.make("status")
-    .options(Map.of("open", "Open", "done", "Done"))
-    .useNative(true);
-```
-
-</TabItem>
-</Tabs>
-
-<FireflyShot file="form-native-select.png" description="The status field from the Desk form at http://127.0.0.1:4017/admin/desk, rendered with native() as a native select of Open and Done." />
-
-`options { get -> mapOf("a" to "A") }` loads options from a closure. `optionsFrom(records, "title", "id")` reads a list of maps. `boolean()` uses Yes and No. `multiple()` turns the combobox into a tags input (chips for each selected value; options stay highlighted with a tick). `preload()` embeds options for the first paint; when preload is on and you have not set a limit, Firefly caps that seed list at 50 (`Select.DEFAULT_PRELOAD_LIMIT`). Raise or lower that with `optionsLimit(n)` or `preloadLimit(n)`. For **relationship** Selects, typing in the combobox always searches the backend (`GET …/form-options?field=…&q=…`) — preload does not trap search inside the seed set. Static `options(...)` maps still filter in the browser. `maxItems`, `searchDebounce`, `position`, and the loading, searching, empty (`noSearchResultsMessage`, default “No results found”), and search-prompt strings configure the panel. Zero-arg boolean chainables (`searchable()`, `required()`, `hidden()`, …) mean yes; pass `false` to turn off. `getOptionLabelUsing` and `getSearchResultsUsing` replace the label and the search. `disableOptionWhen` disables one option. `allowHtml(true)` keeps HTML in a native option label. `native()` keeps the browser `<select>`.
-
-`descriptions` adds a line under each option. A static option list adds an `in:` rule when the field is not multiple and the values contain neither a comma nor a pipe.
-
-`extraAttributes` lands on the field root. `extraInputAttributes` lands on the select control. `type`, `name`, and `value` stay owned by the field.
-
-## Load options from a relationship
-
-`relationship(name, titleAttribute)` reads the related records on the schema’s record. `name` is the relationship. `titleAttribute` is the label field. Pass a closure as `modifyQueryUsing` when you need to narrow the query. `getOptionLabelFromRecordUsing` replaces the label with a value taken from each record.
-
-Put the owner model on the schema with `record(...)` before the options are read. Resource create and manage Create/Edit dialogs bind a prototype (or loaded) model for you when the resource has `model(...)`, so `Select.relationship(...).preload()` renders the same combobox with related options — labels from the title attribute, or from `getOptionLabelFromRecordUsing` when you set a closure. When the related model is a Cadence model, the closure receives a `ModelBuilder`, so `where`, `whereHas`, `join`, `with`, and scopes run on that builder. When the related model is not a Cadence model, the closure receives that model's own query.
-
-By default Select is a searchable dropdown (display field, hidden posted value, option list). Panel chrome opens, filters, and selects without Alpine. Call `native()` only when you want a browser `<select>`.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-Select.make("authorId")
-    .relationship("author", "name") { query ->
-        val authors = query as ModelBuilder<Author>
-        authors.where("active", true).whereHas("posts") { posts ->
-            posts.where("title", "Yes")
-        }
-    }
-    .getOptionLabelFromRecordUsing { record ->
-        "Dr " + (record as Author).getAttribute("name")
-    }
-    .extraAttributes(mapOf("data-field" to "author"))
-    .extraInputAttributes(mapOf("data-ff-extra" to "1"))
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-Select.make("authorId")
-    .relationship("author", "name", query -> { })
-    .getOptionLabelFromRecordUsing(record -> "Ada")
-    .extraAttributes(Map.of("data-field", "author"))
-    .extraInputAttributes(Map.of("data-ff-extra", "1"));
-```
-
-</TabItem>
-</Tabs>
-
-`createOptionForm` and `createOptionUsing` open a support `Dialog` and create an option from the submitted map. An action wrapper around that dialog is `createOptionAction`.
-
-`Checkbox`, `Toggle`, `Radio`, `CheckboxList`, and `ToggleButtons` are the other choice fields. `accepted()` on a checkbox adds the `accepted` rule. `Toggle` is a Shamar-style switch (track + thumb); it defaults to `inline()` with the label beside the control, and takes on/off colors and icons. Edit hydration treats JDBC `1` / `0` (and common yes/no strings) as booleans so a true column stays on when the edit dialog opens. `Checkbox` uses a custom box (not the browser default). `Radio.boolean()` and `ToggleButtons.boolean()` use Yes and No. `CheckboxList.relationship(name, titleAttribute)` loads options the same way a select does. `CheckboxList.optionColumns` sets the grid (`columns` on the component base is separate). `bulkToggleable` adds a select-all button.
-
-## Dates and times
-
-`DatePicker`, `TimePicker`, `DateTimePicker`, `WeekPicker`, `MonthPicker`, `YearPicker`, and `DateRangePicker` are separate field types. The default control is a Flowbite-style popup driven by Firefly chrome — no Alpine and no third-party date library. When the popup opens, chrome pins it with `position: fixed` (same idea as the combobox) so it floats above a short modal and shifts horizontally to stay in the viewport. Click the caption to drill days → months → years → decades; picking a year returns to months, then a month to days. Date-only selection closes the panel; datetime keeps it open until **OK** (right-aligned). Compact hour/minute dropdowns keep the popup small; `.seconds()` adds seconds. **Today** jumps the calendar focus and, for datetime, fills time with now. Click outside the popup to close it. Use `.native()` (Java: `useNative(true)`) for `type="date"`, `type="time"`, `type="week"`, or `type="datetime-local"`.
-
-`WeekPicker` stores a week as `YYYY-Www` (for example `2026-W14`). By default weeks are ISO (Monday–Sunday); `.weekStartsOnSunday()` / `.firstDayOfWeek(0)` uses Sunday–Saturday instead. The calendar aligns each row to that week start, and selecting a week highlights all seven days. A week-number gutter sits beside the day grid — click a week number or any day in that week. `MonthPicker` / `YearPicker` store `Y-m` / `Y`. Both open straight onto a **4 columns × 3 rows** grid of twelve months or years (Jan–Apr / May–Aug / Sep–Dec — no day grid).
-
-`DateRangePicker` stores `"start to end"` (same date format as `DatePicker`). Its popup shows two months side by side. The first click sets the start. While you move the pointer, the days up to the hovered date are shaded. The second click sets the end and closes the popup. A hint below the grids reads the current range.
-
-<FireflyShot file="form-date-picker.png" description="The due field on the Desk page at http://127.0.0.1:4017/admin/desk, opened as the crafted month grid with hour and minute controls." />
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-DatePicker.make("day")
-WeekPicker.make("sprint")
-MonthPicker.make("billing")
-YearPicker.make("fiscal")
-TimePicker.make("startsAt")
-DateTimePicker.make("due")
-DateRangePicker.make("window")
-DateTimePicker.make("legacy").native()
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-DatePicker.make("day");
-WeekPicker.make("sprint");
-MonthPicker.make("billing");
-YearPicker.make("fiscal");
-TimePicker.make("startsAt");
-DateTimePicker.make("due");
-DateRangePicker.make("window");
-DateTimePicker.make("legacy").useNative(true);
-```
-
-</TabItem>
-</Tabs>
-
-<FireflyShot file="form-native-date.png" description="The due field from the Desk form at http://127.0.0.1:4017/admin/desk, rendered with native() as a native datetime-local input." />
-
-Server values use `java.time`. A date-only value stays in the application zone (`FieldClock.appZone`). A date-time uses the field’s `timezone`. `LocalDate` and `LocalDateTime` are written with the storage format (`Y-m-d`, `H:i`, or `Y-m-d H:i`). `seconds(true)` appends seconds. `displayFormat` is what the text input shows.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-val day = DatePicker.make("day")
-    .minDate("2024-03-01")
-    .maxDate { "2024-03-31" }
-    .weekStartsOnMonday()
-    .disabledDates(listOf("2024-03-10"))
-day.normalize(LocalDate.of(2024, 3, 10)) // "2024-03-10"
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-DateTimePicker day = DatePicker.make("day").useNative(false).minDate("2024-03-01");
-day.normalize(LocalDate.of(2024, 3, 10));
-```
-
-</TabItem>
-</Tabs>
-
-`firstDayOfWeek` is 0 (Sunday) or 1 (Monday). `hoursStep`, `minutesStep`, and `secondsStep` must stay inside their ranges. `defaultFocusedDate` opens the grid on that day. `FieldClock.pinToday` fixes “today” in tests.
-
-Required labels put a red `*` inline next to the label text. `Textarea.required()` matches other text fields. `defaultValue` / `defaultUsing` seed create forms when `Schema.render()` runs (missing paths only). `Toggle` defaults to an inline Shamar-style switch (track + thumb beside the label).
-
-## Rich text, markdown, and code
-
-`RichEditor` emits a TipTap surface: a grouped sticky toolbar, a bubble menu, and a `.ff-prose` body. Link, image, and custom blocks open the support `Dialog`. `json()` stores JSON. The default is HTML, passed through a sanitizer that strips scripts, styles, iframes, `on*` attributes, and `javascript:` URLs. `disableToolbarButtons`, `mergeTags`, `mentions`, and `customBlocks` configure the toolbar. File attachments name a disk and directory. `editBlockAction` renders an `Action` for a custom block. The block’s edit control still opens the support `Dialog`.
-
-In the panel the field mounts the Shamar simple editor: the same toolbar, bubble menu, and prose styles, including dark mode. Firefly serves the editor script from `/_firefly/rich-editor/simple.js`, so no CDN setup is needed for the editor itself. Toolbar buttons named in `disableToolbarButtons` are hidden. The field keeps a hidden input in sync, so the HTML (or JSON) posts with the form.
-
-`MarkdownEditor` is a Write | Preview pair with a GitHub-style toolbar (headings, bold, italic, link, code, quote, lists). Write is a plain textarea. Preview renders the markdown with markdown-it into the same `.ff-prose` class, then sanitizes it. Switch tabs to compare.
-
-`CodeEditor` highlights code with Shiki. You type in a textarea; a Shiki-highlighted layer sits under it and follows each keystroke, in light or dark theme to match the panel. Tab inserts indentation instead of leaving the field. `language("kotlin")` selects the grammar. `CodeEditor.languages()` lists the ids shipped with the module. `wrap(true)` wraps long lines. This editor is not a rich-text surface.
-
-The panel loads markdown-it, Shiki, and FilePond as ES modules the first time a field needs them. Until a library loads, the plain textarea or file input still works and still posts.
-
-## Uploads
-
-`FileUpload` renders a FilePond drop area. A dropped file goes to `POST /_firefly/uploads` right away, and the returned path lands in a hidden input that posts with the form (a JSON array when `multiple(true)` is set). When the application binds `FilesystemManager` (the filesystem provider), `Firefly.mount` registers that route for you. It only accepts uploads from a user signed in to a panel, with a valid CSRF token. Outside a panel, register the route yourself:
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-FireflyUploads.register(router, UploadDisks { name -> filesystems.disk(name) })
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-FireflyUploads.register(router, name -> filesystems.disk(name));
-```
-
-</TabItem>
-</Tabs>
-
-The handler writes `firefly-temporary/{id}.ext` plus a sibling `.ffmeta` file with the original name, then returns JSON `{ "path", "name" }`. `commit(schema, disks)` copies the temporary file into `directory()` (or moves it when `moveFiles(true)` is set), applies `preserveFilenames` or `getUploadedFileNameForStorageUsing`, and stores the final path on the field. `storeFileNamesIn` writes the original names to another state path. `storeFiles(false)` leaves the temporary path in place.
-
-`image()` accepts image types and shows a preview. `avatar()` also turns on the image editor, a compact circular drop area, and a 1:1 crop when you have not set aspect ratios. The editor is FilePond’s image editor. `maxSize` and `minSize` are kilobytes. `minFiles` and `maxFiles` count files. `acceptedFileTypes` takes `image/*`, a mime type, `.png`, or a bare extension.
-
-`preventFilePathTampering(true)` rejects `..`, absolute paths, `.ffmeta` files, and paths outside the directory or `firefly-temporary/`. Mount `VerifyCsrfToken` from `kona-session` on `POST /_firefly/uploads`. The field script sends `X-CSRF-TOKEN` from a `csrf-token` meta tag and `_token`. Pass a checker as the third argument to `register` when you want the route itself to reject a bad token.
-
-`browse` and `browseAction` list files already stored on the disk. They are under [Browsing stored files](#browsing-stored-files).
-
-## Repeater and builder
-
-`Repeater.make("members").simple(TextInput.make("name").required())` edits a list of maps. `schema(...)` replaces the item blueprint. `addItem`, `removeItem`, `cloneItem`, and `moveItem` update the schema state and run `afterStateUpdated`. `orderColumn("sort")` writes 1-based positions. `itemLabel` is a string or a function of the index and `Get`. `grid`, `minItems`, `maxItems`, `defaultItems`, `collapsible`, and `collapsed` change the layout. `relationship("members")` stores the relation name on the repeater. It does not load related records by itself.
-
-In the panel each item is a card. Its header shows the item label ("Item 1" by default, numbered live) and buttons to move the item up or down, clone it, delete it, and collapse it. Turn those off with `reorderable(false)`, `cloneable(false)`, `deletable(false)`, and `collapsible(false)`. The add button below the list appends an item. Add hides when `maxItems` is reached and delete hides at `minItems`. The repeater posts all items as one JSON list under its name.
-
-`Builder.make("blocks").blocks(BuilderBlock("hero", "Hero", listOf(TextInput.make("title"))))` edits a list of typed blocks. `addBlock(schema, "hero")` appends one. `blockNumbers(true)` prefixes the label with the index. `addBetweenAction` renders an action between blocks.
-
-In the panel the add button opens a menu that lists each block by label. Picking one appends a card of that block type. Block cards share the repeater header buttons. The builder posts a JSON list of `{ "type", "data" }` objects.
 
 ## Validate
 
@@ -382,105 +191,8 @@ From the application directory:
 
 The command writes a class that extends the field base and a Crema view with `x-data="ffField"` and `@entangle`. Kotlin is the default. `--lang=java` writes a Java subclass. The files land under `fields/`. Reference the class from a page or a resource. `discover` does not scan that folder.
 
-## Actions on a field
+## Related
 
-Prefix, suffix, and hint buttons are `Action` values from `org.konaframework.firefly.actions`. The field renders the action next to that piece of chrome.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-TextInput.make("title")
-    .prefixAction(Action.make("prefix").label("Prefix"))
-    .suffixAction(Action.make("suffix").label("Suffix"))
-    .hintAction(Action.make("hint").label("Hint"))
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-TextInput.make("title")
-    .prefixAction(Action.make("prefix").label("Prefix"))
-    .suffixAction(Action.make("suffix").label("Suffix"))
-    .hintAction(Action.make("hint").label("Hint"));
-```
-
-</TabItem>
-</Tabs>
-
-A repeater renders add, delete, clone, and extra item actions beside the item controls:
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-Repeater.make("rows")
-    .addAction(Action.make("addRow").label("Add"))
-    .deleteAction(Action.make("deleteRow").label("Delete"))
-    .cloneAction(Action.make("cloneRow").label("Clone"))
-    .extraItemActions(Action.make("extraRow").label("Extra"))
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-Repeater.make("rows")
-    .addAction(Action.make("addRow").label("Add"))
-    .deleteAction(Action.make("deleteRow").label("Delete"))
-    .cloneAction(Action.make("cloneRow").label("Clone"))
-    .extraItemActions(Action.make("extraRow").label("Extra"));
-```
-
-</TabItem>
-</Tabs>
-
-`Builder.addBetweenAction` renders an action between blocks. A rich-text custom block keeps its `Dialog` and can also carry `editBlockAction`, which renders an `Action` for that block. `Select.createOptionAction` does the same for the create-option button. `createOptionForm` and `createOptionUsing` still run the create flow.
-
-## Pick a record from a table
-
-`ModalTableSelect` hosts a `Table`. `choose` toggles a record key and stores the selection on the field. `multiple(true)` stores every selected key.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-val people = Table.memory(mapOf("id" to "1", "name" to "Ada")).columns(TextColumn.make("name"))
-ModalTableSelect.make("person").table(people)
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-Table<Map<String, Object>, MemoryQuery> people =
-    Table.memory(List.of(Map.of("id", "1", "name", "Ada"))).columns(TextColumn.make("name"));
-ModalTableSelect.make("person").table(people);
-```
-
-</TabItem>
-</Tabs>
-
-`MorphToSelect` maps a type name to a record store. `selectType` stores `type` and `id`. `optionsFor` lists that type, and `modifyQueryUsing` narrows the query.
-
-<Tabs syncKey="lang">
-<TabItem label="Kotlin">
-
-```kotlin
-MorphToSelect.make("link").titleAttribute("name").type("posts", posts)
-```
-
-</TabItem>
-<TabItem label="Java">
-
-```java
-MorphToSelect.make("link").titleAttribute("name").type("posts", posts);
-```
-
-</TabItem>
-</Tabs>
-
-## Browse stored files
-
-`FileUpload.browseAction` renders an action beside the upload. `browse(disk)` lists files already stored under `directory()` and skips `*.ffmeta` paths. `chooseBrowsed` writes the chosen path into the same field state. Rename and delete of stored folders are not methods on this field.
+- [Schemas and layouts](/docs/firefly/schemas/) — sections, tabs, and nesting
+- [Actions](/docs/firefly/actions/) — buttons used as prefix, suffix, hint, and repeater actions
+- [Resources](/docs/firefly/resources/) — forms on create and edit pages

@@ -1,0 +1,92 @@
+---
+title: Rich editor
+description: "RichEditor TipTap surface with toolbar groups, mentions, merge tags, and custom blocks."
+---
+
+import FireflyShot from '../../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`RichEditor` is a rich-text surface with a grouped toolbar. The default storage is sanitized HTML; call `json()` to store JSON instead.
+
+<FireflyShot file="form-rich-editor.png" description="RichEditor body field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RichEditor.make("body")
+    .label("Body")
+    .required()
+    .resizable(true)
+    .fileAttachmentsDisk("local")
+    .fileAttachmentsDirectory("editor")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+RichEditor.make("body")
+    .label("Body")
+    .required()
+    .resizable(true)
+    .fileAttachmentsDisk("local")
+    .fileAttachmentsDirectory("editor");
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `toolbarButtons(groups)` | Replace default button groups (`List<List<String>>`) |
+| `disableToolbarButtons(...)` | Hide tools by name |
+| `json()` / `html()` | Storage mode |
+| `resizable(on)` | Resize handle |
+| `fileAttachmentsDisk` / `Directory` / `Visibility` | Attachment storage (string or `Get`) |
+| `mergeTags(...)` | Insertable merge tags |
+| `mentions(...)` / `mentions(provider)` | Mention list or search |
+| `mention(query)` | Resolve mentions |
+| `customBlocks(EditorBlock...)` | Named blocks with schemas |
+| `editBlockAction(name, action)` | Action beside a block |
+| `sanitize(html)` | Clean HTML when not in JSON mode |
+
+Default toolbar groups include undo/redo, marks, headings, alignment, lists, link, image, and table. The panel serves the editor script from `/_firefly/rich-editor/simple.js`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+RichEditor.make("body")
+    .disableToolbarButtons("table", "code")
+    .mergeTags("name", "email")
+    .mentions("ada", "grace")
+    .customBlocks(
+        EditorBlock("callout", "Callout", Schema.make().components(
+            TextInput.make("text").label("Text")
+        ))
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+RichEditor.make("body")
+    .disableToolbarButtons("table", "code")
+    .mergeTags("name", "email")
+    .mentions("ada", "grace");
+```
+
+</TabItem>
+</Tabs>
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Markdown editor](/docs/firefly/forms/markdown-editor/)
+- [Code editor](/docs/firefly/forms/code-editor/)

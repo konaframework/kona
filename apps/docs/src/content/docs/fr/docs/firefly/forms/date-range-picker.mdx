@@ -1,0 +1,106 @@
+---
+title: Date range picker
+description: "DateRangePicker dual-month calendar that stores start to end."
+---
+
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`DateRangePicker` stores a range as `"start to end"` using the configured date format (default storage `Y-m-d`, default display `M j, Y`). The popup shows two months side by side; the first click sets the start, the second sets the end.
+
+<FireflyShot file="form-date-range-picker.png" description="DateRangePicker window field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DateRangePicker.make("window")
+    .label("Window")
+    .minDate("2024-01-01")
+    .maxDate("2024-12-31")
+    .weekStartsOnMonday()
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DateRangePicker.make("window")
+    .label("Window")
+    .minDate("2024-01-01")
+    .maxDate("2024-12-31")
+    .weekStartsOnMonday();
+```
+
+</TabItem>
+</Tabs>
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `format(pattern)` | Storage pattern (default `Y-m-d`) |
+| `displayFormat(pattern)` | Display pattern (default `M j, Y`) |
+| `locale(tag)` | Calendar locale |
+| `firstDayOfWeek` (`0` Sunday or `1` Monday) | Week start (default Monday) |
+| `weekStartsOnMonday()` / `weekStartsOnSunday()` | Convenience week start |
+| `minDate` / `maxDate` | Bounds (string) |
+| `defaultFocusedDate` | Initial month focus |
+| `disabledDates(list)` | Blocked day strings |
+| `normalize(raw)` | Parse supported separators into `"start to end"` |
+| `display(stored)` | Format the stored range for the readonly input |
+
+Separators accepted when reading: ` to `, ` – `, ` - `, and a single `/`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DateRangePicker.make("trip")
+    .label("Trip")
+    .format("Y-m-d")
+    .displayFormat("M j, Y")
+    .locale("en-US")
+    .weekStartsOnSunday()
+    .disabledDates(listOf("2024-07-04"))
+    .defaultFocusedDate("2024-07-01")
+    .helperText("Pick arrival and departure")
+
+val stored = DateRangePicker.make("tmp").normalize("2024-01-01 / 2024-01-07")
+// stored == "2024-01-01 to 2024-01-07"
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DateRangePicker.make("trip")
+    .label("Trip")
+    .format("Y-m-d")
+    .displayFormat("M j, Y")
+    .locale("en-US")
+    .weekStartsOnSunday()
+    .disabledDates(List.of("2024-07-04"))
+    .defaultFocusedDate("2024-07-01");
+
+String stored = DateRangePicker.make("tmp").normalize("2024-01-01 / 2024-01-07");
+// stored.equals("2024-01-01 to 2024-01-07")
+```
+
+</TabItem>
+</Tabs>
+
+## Popup behavior
+
+The field shows a readonly display input and a dual-month panel. Hint text guides “Select a start date” until both ends are chosen. **Today** focuses today; **Clear** empties the range. Unlike the single [`DateTimePicker`](/docs/firefly/forms/date-time-picker/), there is no native HTML mode on this class.
+
+## Configure defaults
+
+`DateRangePicker.configureUsing { field -> ... }` runs for every new `make(...)` until you clear it with `configureUsing(null)`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Date and time picker](/docs/firefly/forms/date-time-picker/)

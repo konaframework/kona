@@ -1,0 +1,55 @@
+---
+title: View field
+description: "ViewField embeds a named Crema view inside a Firefly form schema."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`ViewField` is a form field whose body comes from a named Crema view instead of a built-in control. Call `viewName(...)` (or the shared `view(...)` helper) so the schema can resolve the template at render time. There is no Playground stamp for this field yet — the markup is whatever your view returns.
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+ViewField.make("summary")
+    .label("Summary")
+    .viewName("panels/admin/partials/order-summary")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+ViewField.make("summary")
+    .label("Summary")
+    .viewName("panels/admin/partials/order-summary");
+```
+
+</TabItem>
+</Tabs>
+
+Put the field on a schema with the other components. At render, Firefly calls `schema.renderView(viewKey, mapOf("path" to fieldPath))`. If the view is missing, the body falls back to an empty `<div data-ff-view="…">`.
+
+## Options
+
+| Method | Effect |
+|--------|--------|
+| `viewName(name)` | Sets the Crema view key and also calls `view(name)` on the field |
+| `viewKey()` | Returns the stored key (nullable) |
+| Shared field helpers | `label`, `helperText`, `visible`, `hidden`, `columnSpan`, and the rest of the field base |
+
+`kind()` is `"view-field"`. The field still participates in entanglement via its path, so Livewire can keep state in sync around the custom markup.
+
+## Defaults
+
+`ViewField.configureUsing { … }` applies to every later `make()`. Pass `null` to clear it.
+
+```kotlin
+ViewField.configureUsing { field ->
+    field.columnSpan("full")
+}
+```
+
+See also [Forms overview](/docs/firefly/forms/) for shared helpers and validation.

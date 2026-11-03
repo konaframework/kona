@@ -1,0 +1,117 @@
+---
+title: File upload
+description: "FileUpload with FilePond, disks, image/avatar editors, and commit into storage."
+---
+
+import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`FileUpload` renders a FilePond drop area. Dropped files go to `POST /_firefly/uploads`; the returned path is stored in a hidden input that posts with the form.
+
+<FireflyShot file="form-file-upload.png" description="FileUpload avatar field on the Playground form." />
+
+## Add the field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+FileUpload.make("avatar")
+    .label("Avatar")
+    .avatar()
+    .disk("local")
+    .directory("avatars")
+    .maxSize(2048)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FileUpload.make("avatar")
+    .label("Avatar")
+    .avatar()
+    .disk("local")
+    .directory("avatars")
+    .maxSize(2048);
+```
+
+</TabItem>
+</Tabs>
+
+When the application binds `FilesystemManager`, `Firefly.mount` registers the upload route. Outside a panel:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+FireflyUploads.register(router, UploadDisks {{ name -> filesystems.disk(name) }})
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FireflyUploads.register(router, name -> filesystems.disk(name));
+```
+
+</TabItem>
+</Tabs>
+
+## Storage and commit
+
+Temporary files land under `firefly-temporary/`. Call `commit(schema, disks)` to copy (or move) into `directory()`, apply naming, visibility, and size / type checks.
+
+| Method | Effect |
+|--------|--------|
+| `disk` / `directory` / `visibility` | Target filesystem |
+| `multiple` / `maxFiles` / `minFiles` | Multi-file constraints |
+| `acceptedFileTypes(...)` | `image/*`, mime, `.png`, or extension |
+| `maxSize` / `minSize` | Kilobytes |
+| `image()` / `avatar()` | Image accept + avatar editor defaults |
+| `imageEditor` / aspect / mode / viewport / fill | Editor chrome |
+| `imagePreviewHeight` / resize / crop / upscale / EXIF | Image processing flags |
+| `downloadable` / `openable` / `previewable` / `reorderable` | File actions |
+| `appendFiles` / `storeFiles` / `moveFiles` / `preserveFilenames` | Persist behavior |
+| `preventFilePathTampering` | Reject `..`, absolute, `.ffmeta`, out-of-dir paths |
+| `pasteable` / `fetchFileInformation` / `maxParallelUploads` | UX |
+| `panelLayout` / `panelAspectRatio` / button & progress positions | Layout |
+| `uploadingMessage` / `storeFileNamesIn` | Copy / sidecar state |
+| `browseAction` / `browse` / `chooseBrowsed` | Pick existing files |
+| `getUploadedFileNameForStorageUsing` | Custom stored name |
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+FileUpload.make("docs")
+    .multiple(true)
+    .acceptedFileTypes("application/pdf", ".docx")
+    .maxFiles(5)
+    .storeFileNamesIn("docNames")
+    .moveFiles(true)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+FileUpload.make("docs")
+    .multiple(true)
+    .acceptedFileTypes("application/pdf", ".docx")
+    .maxFiles(5)
+    .storeFileNamesIn("docNames")
+    .moveFiles(true);
+```
+
+</TabItem>
+</Tabs>
+
+## Validation
+
+Required empty uploads and tampered paths surface through `extraErrors`. Mount CSRF protection on the upload route; the field script sends `X-CSRF-TOKEN` and `_token`.
+
+## See also
+
+- [Forms overview](/docs/firefly/forms/)
+- [Rich editor](/docs/firefly/forms/rich-editor/)
