@@ -133,9 +133,9 @@ Do **not** commit desk into kona. Restart serve yourself after framework rebuild
 | Item | Value |
 |------|--------|
 | Default branch | `main` — green; never push directly |
-| Repo version | `kona.version` **0.3.0**. M26 (Kona Wire) has shipped on that train. Do not tag **0.4.x** unless a human asks. |
-| On `main` | M28–M35 panel + adjacent Firefly stack; recent: panel provider install (#238), FR/ES docs (#239/#236) |
-| Active / queued | Confirm `MILESTONES.md` before starting a new milestone. Non-colliding work may parallel; do not collide with this panel-shell PR’s modules until it merges |
+| Repo version | `kona.version` **0.4.0** (Firefly admin panel train). Tag `v0.4.0` when cutting the Central release. |
+| On `main` | Firefly M28–M38 + polish (panel, resources, relation managers, tables/filters, docs, icons); Wire M26 remains on prior `0.3.0` |
+| Active / queued | Confirm `MILESTONES.md` before starting a new milestone. Non-colliding work may parallel |
 | Ledgers | Cadence / Security / HTTP / Queue-Schedule / Support deepen batches **closed** (#87–#91 + governance #92) |
 | App layout | Default `kona new` is **web** (Crema welcome); `--kit=api` / `--kit=inertia` / Firefly / Wire via kit |
 | Docs brand | Light caramel `#DF8723` / accent `#74453F`; dark latte `#C9A57B`; cream headings `#E8D4B8` |
@@ -192,7 +192,7 @@ Schemas, forms, infolists, actions, and tables can render on their own for tests
 
 **Remonorepo done (#138):** Wire + Inertia are in-tree (`modules/wire`, `modules/inertia`, samples, `js/wire`). Docs unified into `apps/docs` (Frontend → Wire / Inertia). **Human Cloudflare follow-up:** redirect `brew.konaframework.org` → `/docs/wire/`, `inertia.konaframework.org` → `/docs/inertia/`; retire Workers `kona-wire-docs` / `kona-inertia-docs` (see [docs-site.md](docs-site.md)).
 
-**Repo version:** `gradle.properties` `kona.version` is **0.3.0** (M26). Confirm Maven Central before describing a version as downloadable. Do not tag Firefly **0.4.x** unless a human asks. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
+**Repo version:** `gradle.properties` `kona.version` is **0.4.0** (Firefly panel train). Confirm Maven Central after Portal **Publish** before describing the version as downloadable. Sister IDE: [`kona-idea`](https://github.com/konaframework/kona-idea) latest tag tracked in that repo’s `HANDOFF.md`.
 
 **Recently closed:** [#150](https://github.com/konaframework/kona/issues/150) grind/Cadence/Wire parity — `make:model` `-mcrfspaR` / `--api` / `--requests` companions (#151 + seal PR), `META-INF/kona/migrations` + `MigrationDiscovery` auto-register, schema `longText`/`json`, quiet grind launcher + serve banner (#152), `@CremaTemplate` / `// language=Crema` for inline Wire templates.
 
