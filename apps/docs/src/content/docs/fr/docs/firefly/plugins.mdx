@@ -1,22 +1,24 @@
 ---
 title: Plugins
-description: "Passez une classe à plugin() lorsqu’une bannière, une marque ou une page supplémentaire doit voyager avec le panneau. register s’exécute maintenant. boot s’exécute au montage."
+description: "Pass a class to plugin() when a banner, a brand, or an extra page should travel with the panel. register runs now. boot runs at mount."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Écrivez une classe qui reçoit le panneau et appelle les mêmes méthodes que vous appelleriez depuis l’app. Utilisez-en une lorsqu’une bannière, une marque ou une page supplémentaire doit voyager avec le panneau.
+Write a class that receives the panel and calls the same methods you would call from the app. Use one when a banner, a brand, or an extra page should travel with the panel.
 
-Passez l’instance à `plugin(...)`. `register` s’exécute tout de suite. `boot` s’exécute lorsque le panneau se monte. Gardez la classe dans l’app. Il n’y a pas de catalogue d’où installer.
+<FireflyShot file="section-plugins.png" description="Panel navigation where plugins attach." />
 
-<FireflyShot file="plugin-banner.png" description="Un corps de panneau avec le texte Banner qu’un hook de plugin ajoute à la fin du corps." />
+Pass the instance to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts. Keep the class in the app. There is no catalog to install from.
 
-## Enregistrer le plugin
+<FireflyShot file="plugin-banner.png" description="A panel body with the Banner text a plugin hook appends at the end of the body." />
 
-`register` s’exécute dans `plugin(...)`. `boot` s’exécute lorsque le panneau se monte, avant le routage des pages. Un second plugin avec le même `id()` lance `FireflyException` et nomme l’id. `configureUsing` s’exécute sur l’instance avant `register`. Passez `null` pour l’effacer. `view("plugins/banner.crema.html")` stocke un chemin de vue sur le plugin. Un chemin vide lance `Plugin view path is blank`. `view()` renvoie ce chemin, ou null si vous n’en avez jamais défini.
+## Register the plugin
 
-Le `id()` par défaut est le nom simple de la classe, en minuscules.
+`register` runs inside `plugin(...)`. `boot` runs when the panel mounts, before pages are routed. A second plugin with the same `id()` throws `FireflyException` and names the id. `configureUsing` runs on the instance before `register`. Pass `null` to clear it. `view("plugins/banner.crema.html")` stores a view path on the plugin. A blank path throws `Plugin view path is blank`. `view()` returns that path, or null when you never set one.
+
+The default `id()` is the simple class name, lowercased.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -57,18 +59,18 @@ public class BannerPlugin extends FireflyPlugin {
 </TabItem>
 </Tabs>
 
-Après `mount`, le corps se termine par le texte **Banner**. `Hook` vit dans `org.konaframework.firefly.support`. Les marqueurs de hook et les partiels sont sur [Chrome du panneau](/docs/firefly/chrome/).
+After `mount`, the body ends with the text **Banner**. `Hook` lives in `org.konaframework.firefly.support`. The hook markers and partials are on [Panel chrome](/docs/firefly/chrome/).
 
-## Méthodes
+## Methods
 
-| Méthode | Ce que vous obtenez |
+| Method | What you get |
 |--------|----------------|
-| `id()` | Nom stable. Les ids en double échouent à `plugin` |
-| `view(path)` / `view()` | Stocke et lit un chemin de vue Crema |
-| `register(panel)` | S’exécute tout de suite |
-| `boot(panel)` | S’exécute au début de `mount` |
-| `configureUsing` | Hook statique pour chaque appel `plugin(...)` ultérieur |
+| `id()` | Stable name. Duplicate ids fail at `plugin` |
+| `view(path)` / `view()` | Stores and reads a Crema view path |
+| `register(panel)` | Runs immediately |
+| `boot(panel)` | Runs at the start of `mount` |
+| `configureUsing` | Static hook for every later `plugin(...)` call |
 
-## Suite
+## Next
 
-[Import et export](/docs/firefly/import-export/) déplace des lignes via une action de dialogue et un job de file.
+[Import and export](/docs/firefly/import-export/) moves rows through a dialog action and a queue job.

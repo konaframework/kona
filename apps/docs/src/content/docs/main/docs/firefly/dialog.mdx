@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Open a window on top of a page for a confirmation, a short form, or a side panel. There is one component, `Dialog`. Pick a mode, a width, a title, and a body, then call `render()`.
 
+<FireflyShot file="section-dialog.png" description="Action confirmation dialog." />
+
 The dialog does not open itself, and it does not post to the server. The page that embeds the HTML decides when it is shown. On the Desk page the Edit action’s dialog is in the first response and stays closed until the button opens it.
 
 <FireflyShot file="dialog.png" description="The Edit dialog on the Desk page at http://127.0.0.1:4017/admin/desk, opened from the Edit header action, with a note field inside." />

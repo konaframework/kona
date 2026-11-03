@@ -1,20 +1,22 @@
 ---
 title: Notifications
-description: "Envoyez un toast après une sauvegarde, stockez le même message pour la cloche, ou diffusez-le afin qu’une autre page ouverte puisse se rafraîchir."
+description: "Send a toast after a save, store the same message for the bell, or broadcast it so another open page can refresh."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Envoyez un court message lorsqu’une sauvegarde se termine. Le plus courant est un toast. Vous pouvez aussi stocker le même message pour une cloche, ou le diffuser afin qu’une autre page ouverte puisse se rafraîchir.
+Send a short message when a save finishes. The usual one is a toast. You can also store the same message for a bell, or broadcast it so another open page can refresh.
 
-Construisez le message, puis appelez `send`. Les types vivent dans `org.konaframework.firefly.notifications` (`kona-firefly-notifications`). Le module utilise le store flash de session, `DatabaseChannel` et `BroadcastManager` que vous avez déjà.
+<FireflyShot file="section-notifications.png" description="Panel top bar where notifications appear." />
 
-Les setters chaînés acceptent une valeur statique ou une fermeture. La fermeture reçoit le `Get` de schéma pour l’état courant.
+Build the message, then call `send`. The types live in `org.konaframework.firefly.notifications` (`kona-firefly-notifications`). The module uses the session flash store, `DatabaseChannel`, and `BroadcastManager` you already have.
 
-<FireflyShot file="saved-toast.png" description="Un toast de succès titré Saved sur une page de panneau Firefly, par exemple après une sauvegarde sur http://127.0.0.1:4017/admin/notes/manage." />
+Chainable setters accept a static value or a closure. The closure receives the schema `Get` for the current state.
 
-## Flasher un toast
+<FireflyShot file="saved-toast.png" description="A success toast titled Saved on a Firefly panel page, such as after a save on http://127.0.0.1:4017/admin/notes/manage." />
+
+## Flash a toast
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -51,17 +53,17 @@ String html = FireflyNotification.pull(session);
 </TabItem>
 </Tabs>
 
-Vous voyez un toast de succès titré **Saved**. `make()` assigne un id aléatoire. `make(id)` utilise l’id que vous passez. Un id vide lance `FireflyException` avec `Notification id is blank`. Un titre vide lance `Notification title is blank` ou `Notification [<id>] title is blank` lorsque la valeur est résolue au moment de l’envoi.
+You see a success toast titled **Saved**. `make()` assigns a random id. `make(id)` uses the id you pass. A blank id throws `FireflyException` with `Notification id is blank`. A blank title throws `Notification title is blank` or `Notification [<id>] title is blank` when the value is resolved at send time.
 
-`success()`, `info()`, `warning()` et `danger()` posent le statut. Le statut par défaut est `info`. La couleur suit le statut sauf si vous appelez `color` vous-même. Une couleur explicite reste en place lorsque vous appelez ensuite `success()`.
+`success()`, `info()`, `warning()`, and `danger()` set the status. The default status is `info`. Color follows the status unless you call `color` yourself. An explicit color stays in place when you later call `success()`.
 
-`duration` est un nombre entier de secondes. Le défaut est `6`. Une durée négative lance `FireflyException`.
+`duration` is a whole number of seconds. The default is `6`. A negative duration throws `FireflyException`.
 
-`send(session)` écrit une map sur la clé flash de session `firefly.notifications`. `send(session, state)` évalue les fermetures contre cette map d’état. `FireflyNotification.render(session)` lit le flash et renvoie le HTML du toast et laisse la clé en place. `pull(session)` renvoie le même HTML puis oublie la clé.
+`send(session)` writes one map onto the session flash key `firefly.notifications`. `send(session, state)` evaluates closures against that state map. `FireflyNotification.render(session)` reads the flash and returns the toast HTML and leaves the key in place. `pull(session)` returns the same HTML and then forgets the key.
 
-Chaque toast est un `<div class="ff-notification" role="status">` avec `data-ff-status`, `data-ff-color` et `data-ff-duration`. `extraAttributes` sont écrits sur cet élément. Le HTML d’action est rendu depuis les actions que vous avez attachées.
+Each toast is a `<div class="ff-notification" role="status">` with `data-ff-status`, `data-ff-color`, and `data-ff-duration`. `extraAttributes` are written on that element. Action HTML is rendered from the actions you attached.
 
-## Lister les avis dans la cloche
+## List notices in the bell
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -90,11 +92,11 @@ bell.markAllAsRead();
 </TabItem>
 </Tabs>
 
-`sendToDatabase` accepte un `DatabaseChannel` ou un `NotificationSender`. La ligne stockée garde le titre, le statut, la couleur, la durée, le corps, l’icône, les attributs et le HTML d’action rendu.
+`sendToDatabase` accepts a `DatabaseChannel` or a `NotificationSender`. The stored row keeps the title, status, color, duration, body, icon, attributes, and the rendered action HTML.
 
-`NotificationBell` liste les lignes de ce notifiable. `render()` renvoie `<div class="ff-notification-bell" wire:poll.30s>` avec un compte de lignes non lues et un `<li>` par enregistrement. `data-ff-unread` vaut `true` ou `false`. Lorsqu’une ligne n’a pas de titre, l’élément de liste utilise le nom de type de notification.
+`NotificationBell` lists that notifiable’s rows. `render()` returns `<div class="ff-notification-bell" wire:poll.30s>` with a count of unread rows and one `<li>` per record. `data-ff-unread` is `true` or `false`. When a row has no title, the list item uses the notification type name.
 
-## Rafraîchir une page lorsqu’une diffusion arrive
+## Refresh a page when a broadcast arrives
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -115,16 +117,16 @@ String marker = new BroadcastRefresh().channel("desk").event("firefly.notificati
 </TabItem>
 </Tabs>
 
-`broadcast` envoie à travers `BroadcastManager` sur le nom de canal que vous avez posé. Un canal vide lance `FireflyException`.
+`broadcast` sends through `BroadcastManager` on the channel name you set. A blank channel throws `FireflyException`.
 
-`BroadcastRefresh` marque une page qui doit se rafraîchir lorsque cette diffusion arrive. Placez le marqueur dans la page. `render()` renvoie `<div class="ff-broadcast-refresh" wire:poll.15s>` avec `data-ff-channel` et `data-ff-event`. L’événement défaut est `firefly.notification` lorsque vous n’en posez pas. Un canal vide ou un événement vide lance `FireflyException`.
+`BroadcastRefresh` marks a page that should refresh when that broadcast arrives. Put the marker in the page. `render()` returns `<div class="ff-broadcast-refresh" wire:poll.15s>` with `data-ff-channel` and `data-ff-event`. The event defaults to `firefly.notification` when you do not set one. A blank channel or a blank event throws `FireflyException`.
 
-`configureUsing` s’exécute pour chaque appel `make()` suivant. Passez `null` pour l’effacer.
+`configureUsing` runs for every later `make()` call. Pass `null` to clear it.
 
-## Ce avec quoi vous construisez
+## What you build with
 
-| Type | Rôle |
+| Type | Role |
 |------|------|
-| `FireflyNotification` | Toast, charge de base et charge de diffusion |
-| `NotificationBell` | Rend les lignes de base pour un notifiable |
-| `BroadcastRefresh` | Marque une page avec le canal et l’événement à surveiller |
+| `FireflyNotification` | Toast, database payload, and broadcast payload |
+| `NotificationBell` | Renders database rows for one notifiable |
+| `BroadcastRefresh` | Marks a page with the channel and event to watch |

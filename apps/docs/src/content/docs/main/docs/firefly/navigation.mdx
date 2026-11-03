@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Decide where the links sit, then either let `mount` build the tree or write it yourself. Each panel has one layout for that tree. If you never call `item` or `cluster`, `mount` builds the tree from the pages and resources it discovered.
 
+<FireflyShot file="section-navigation.png" description="Panel sidebar navigation." />
+
 Every nav link shows an icon from [kona-icons](/docs/icons/) (`Icons.svg`). Set `icon("folder")` or `icon("heroicon-o-folder")` on a `NavigationItem`, `PanelPage`, or `Resource`. Short names resolve to `heroicon-o-{name}`. When unset, the dashboard home uses `heroicon-o-home` and every other item uses `heroicon-o-squares-2x2`.
 
 On the hello samples that means a link for Desk, plus one sidebar entry each for Notes and Orders. Page labels come from the slug, so you may see `desk` until you set a label. Resource entries use `Resource.pluralLabel()` (from `label()` / `pluralLabel()`), so those links read `Notes` and `Orders` and point at the resource index (list or manage). Create, edit, and view are **page header and row actions**, not extra sidebar links.

@@ -1,21 +1,24 @@
 ---
-
-title: 租户
-description: "在面板上显示租户菜单，并把资源查询限定到选中的租户。"
+title: Tenancy
+description: "Add a tenant link in the top bar, then name the column on the resource so query() filters that tenant’s rows."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="tenant-menu.png" description="面板顶栏，带标为 Acme 的租户链接，把租户查询参数设为 acme。" />
+Add a tenant when one panel serves more than one customer and a resource should only query that customer’s rows. The link is a label in the top bar. The id is what the current request filters on.
 
-租户是顶栏里的一个标签，以及为当前请求存储的一个 id。面板不会创建数据库。你的资源决定这个 id 过滤哪一列。
+<FireflyShot file="section-tenancy.png" description="Sidebar area used for tenant switching." />
 
-## 请求如何使用它
+You add the tenant. Your resource names the column. The link sets `?tenant=acme`. While that request renders, `FireflyTenant.id()` is `acme`.
 
-`tenant(Tenant("acme").label("Acme"))` 加上一条链接。链接设置 `?tenant=acme`。该请求渲染期间，`FireflyTenant.id()` 是 `acme`。调用了 `tenant("tenant_id")` 的资源会在 id 已设置时把该列加进 `query()`。Cadence 模型仍然返回 `ModelBuilder`。未知的租户 id 会在页面上失败，并指出这个 id。
+<FireflyShot file="tenant-menu.png" description="A panel top bar with a tenant link labeled Acme that sets the tenant query parameter to acme." />
 
-空白的租户 id 或空白标签会抛出 `FireflyException`。空白列名会抛出 `Tenant column is blank`。
+## Filter a resource by the selected tenant
+
+`tenant(Tenant("acme").label("Acme"))` adds the link. A resource that calls `tenant("tenant_id")` adds that column to `query()` when the id is set. A Cadence model still returns a `ModelBuilder`. An unknown tenant id fails at the page and names the id.
+
+A blank tenant id or a blank label throws `FireflyException`. A blank column name throws `Tenant column is blank`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -36,19 +39,19 @@ new Resource("orders").model(Order.class).tenant("tenant_id");
 </TabItem>
 </Tabs>
 
-`label` 接受字符串或接收 `Get` 的闭包。`FireflyTenant.use(id) { ... }` 为当前线程设置 id，并在块返回时恢复先前的值。`mount` 已经在页面响应周围这样做。在测试里自己调用 `use`。
+Open `/admin/orders/list?tenant=acme`. The orders query includes `tenant_id`. `label` accepts a string or a closure that receives `Get`. `FireflyTenant.use(id) { ... }` sets the id for the current thread and restores the previous value when the block returns. `mount` already does that around the page response. Call `use` yourself in a test.
 
-查询字符串没有 `tenant` 参数时，`FireflyTenant.id()` 为 null。
+`FireflyTenant.id()` is null when the query string has no `tenant` parameter.
 
-## 方法
+## Methods
 
-| 类型 | 方法 |
-|------|------|
-| `Tenant` | `label(value)`、`label(provider)`、`label()` |
+| Type | Methods |
+|------|---------|
+| `Tenant` | `label(value)`, `label(provider)`, `label()` |
 | `Panel` | `tenant(tenant)` |
 | `Resource` | `tenant(column)` |
-| `FireflyTenant` | `id()`、`use(id, supplier)` |
+| `FireflyTenant` | `id()`, `use(id, supplier)` |
 
-## 下一步
+## Next
 
-[插件](/docs/firefly/plugins/) 在没有注册表的情况下扩展同一个面板。
+[Plugins](/docs/firefly/plugins/) extend the same panel. Pass the class to `plugin(...)`.

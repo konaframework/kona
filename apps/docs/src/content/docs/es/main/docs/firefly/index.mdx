@@ -1,70 +1,72 @@
 ---
-title: Introducción
-description: "Construye el escritorio que la gente usa para encontrar un registro, cambiarlo y ver que se guardó. Escribes las pantallas en Kotlin o Java y las abres bajo /admin."
+title: Introduction
+description: "Firefly is Kona's admin panel. You describe screens in Kotlin or Java, and the app serves each panel under its id."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import FilamentNod from '../../../../../../components/FilamentNod.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Usa esta guía cuando quieras un escritorio para quienes operan la app: encontrar un registro, cambiarlo y ver que se guardó. Escribe las pantallas en Kotlin o Java, ponlas junto al panel y abre `/admin`.
+Firefly is Kona's admin panel. You describe a screen in Kotlin or Java. Kona renders it on the server, and [Wire](/docs/wire/) keeps the fields in step with the browser.
 
-Firefly dibuja el HTML en el servidor. Los botones, los diálogos y los campos en vivo se quedan en el navegador a través de [Wire](/docs/wire/) y Alpine. Cuando añades una columna o un botón, lo añades en la clase.
+<FireflyShot file="section-index.png" description="Firefly admin panel overview." />
 
-<FireflyShot file="desk-panel.png" description="El panel de hello-kotlin en http://127.0.0.1:4017/admin/desk, con la barra lateral y la página Desk en el cuerpo." />
+A panel is a class. After you install Firefly, the app finds every panel under `app/panels` when it boots. If you do not set `path`, the URL prefix is the panel id. `path("admin")` serves that panel at `/admin`. `path("")` serves it at the site root.
+
+<FireflyShot file="desk-panel.png" description="The hello-kotlin panel at http://127.0.0.1:4017/admin/desk, with the sidebar and the Desk page in the body." />
 
 <FilamentNod>
 
-Firefly se apoya en [Filament](https://filamentphp.com/). La forma en que Filament encaja un panel — recursos, formularios, tablas y cómo esas piezas se componen — dio forma a buena parte de lo que puedes hacer aquí. Somos nuestro propio panel para Kona. Lo escribes en Kotlin y llamas a los mismos tipos desde Java. Los campos en vivo pasan por [Kona Wire](/docs/wire/), las vistas por [Crema](/docs/crema/) y los registros por [Cadence](/docs/cadence/).
+Firefly stands on the shoulders of [Filament](https://filamentphp.com/). The way Filament fits a panel together — resources, forms, tables, and how those pieces compose — shaped a lot of what you can do here. We’re our own panel for Kona. You write it in Kotlin, and you call the same types from Java. Live fields go through [Kona Wire](/docs/wire/), views through [Crema](/docs/crema/), and records through [Cadence](/docs/cadence/).
 
 </FilamentNod>
 
-Usa un panel para el escritorio. Deja una página pública o una API JSON en una ruta Kona normal. Añadir el módulo no toca esas rutas. Las URLs aparecen cuando tu `Panel` llama a `mount`.
+Use a panel for the people who run the app. A public page or a JSON API stays on an ordinary Kona route. Installing Firefly registers those panel URLs when the app boots.
 
-También puedes llamar a `render()` en un esquema, un formulario o una tabla y dejar ese HTML en una vista o en una prueba. El panel es lo que convierte esas piezas en URLs, una barra lateral y una pantalla de inicio de sesión.
+You can also call `render()` on a schema, a form, or a table and place that HTML in a view or a test. The panel is what turns those pieces into URLs, a sidebar, and a sign-in screen.
 
-## Qué pones en la app
+## What you put in the app
 
-Crea `app/firefly/Panel`. Extiende `org.konaframework.firefly.Panel`. `discover` lee tres carpetas junto a ese archivo:
+`./grind install firefly` writes the config and a service provider. `./grind make:firefly-panel` writes the panel class under `app/panels/{id}/`. The provider loads that class, and the class loads three folders beside it:
 
-| Carpeta | Pon esto aquí |
+| Folder | Put this here |
 |--------|----------------|
-| `pages/` | Una pantalla que diseñas, como la página Desk |
-| `widgets/` | Una estadística, un gráfico o un bloque en una página |
-| `resources/` | Una clase por tipo de registro, como notes u orders |
+| `pages/` | A screen you design, such as a Desk page |
+| `widgets/` | A stat, a chart, or a block on a page |
+| `resources/` | One class per record type, such as notes or orders |
 
-`samples/hello-kotlin` y `samples/hello-java` tienen esa disposición, montada en `/admin`. Estas páginas siguen el ejemplo de Kotlin. El ejemplo de Java tiene las mismas pantallas.
+`samples/hello-kotlin` and `samples/hello-java` are an older layout under `app/firefly`, and those classes call `path("admin")`, so they are served at `/admin`. These pages follow the Kotlin sample. The Java sample has the same screens.
 
-En esa app puedes abrir:
+On that app you can open:
 
-- `/` — la página de bienvenida, fuera del panel
-- `/admin/desk` — la página Desk: un formulario, un infolist, una tabla, una acción de cabecera y un widget
-- `/admin/notes/manage` — un recurso simple. Una página. Crear, editar, ver y borrar se abren en un diálogo
-- `/admin/orders/list`, `/admin/orders/create`, `/admin/orders/edit`, `/admin/orders/view` — un recurso completo, con líneas en editar y ver
+- `/` — the welcome page, outside the panel
+- `/admin/desk` — the Desk page: a form, an infolist, a table, a header action, and a widget
+- `/admin/notes/manage` — a simple resource. One page. Create, edit, view, and delete open in a dialog
+- `/admin/orders/list`, `/admin/orders/create`, `/admin/orders/edit`, `/admin/orders/view` — a full resource, with line items on edit and view
 
-Deja un recurso en `resources/`. El descubrimiento lo recoge. Llama a `page`, `widget` o `resource` tú mismo solo cuando quieras saltarte la carpeta.
+Drop a resource in `resources/`. Discovery picks it up. Call `page`, `widget`, or `resource` yourself only when you want to skip the folder.
 
-## Dónde viven los tipos
+## Where the types live
 
-Depende de `org.konaframework:kona-firefly`. Esa coordenada trae los demás módulos de Firefly. Abre un módulo cuando quieras el paquete de un tipo:
+Depend on `org.konaframework:kona-firefly`. That coordinate brings the other Firefly modules with it. Open a module when you want the package for a type:
 
-- `kona-firefly` — el panel, las páginas, los recursos, la navegación, la tenencia, los plugins, la importación y la exportación, y `Firefly.test`
-- `kona-firefly-schemas` — el árbol de componentes y su mapa de estado. Las secciones, las cuadrículas, las pestañas y el texto plano viven aquí
-- `kona-firefly-forms` — campos en ese árbol, incluido el select de combobox y el selector de fecha propio, con validación
-- `kona-firefly-infolists` — entradas de solo lectura: texto, iconos, imágenes y las otras formas de mostrar un registro
-- `kona-firefly-tables` — columnas, filtros, búsqueda, orden y páginas
-- `kona-firefly-actions` — un botón o un enlace, el diálogo que puede abrir y el método de servidor al que llama
-- `kona-firefly-notifications` — un toast, una campana de base de datos y un marcador de refresco por broadcast
-- `kona-firefly-widgets` — estadísticas, gráficos y bloques propios en una página
-- `kona-firefly-support` — el diálogo, los iconos, los tokens de tema y `FireflyException`. Los otros módulos dependen de él, así que tu app solo depende de `kona-firefly`
+- `kona-firefly` — the panel, pages, resources, navigation, tenancy, plugins, import and export, and `Firefly.test`
+- `kona-firefly-schemas` — the component tree and its state map. Sections, grids, tabs, and plain text live here
+- `kona-firefly-forms` — fields on that tree, including the combobox select and the crafted date picker, with validation
+- `kona-firefly-infolists` — read-only entries: text, icons, images, and the other ways to show a record
+- `kona-firefly-tables` — columns, filters, search, sort, and pages
+- `kona-firefly-actions` — a button or a link, the dialog it can open, and the server method it calls
+- `kona-firefly-notifications` — a toast, a database bell, and a broadcast refresh marker
+- `kona-firefly-widgets` — stats, charts, and custom blocks on a page
+- `kona-firefly-support` — the dialog, icons, theme tokens, and `FireflyException`. The other modules depend on it, so your app depends on `kona-firefly` only
 
-## Cuando quieres un plugin, un tema o una prueba
+## When you want a plugin, a theme, or a test
 
-Pasa un plugin a `plugin(...)`. `register` corre de inmediato. `boot` corre cuando el panel se monta. Dentro de esos métodos llamas a los mismos métodos del panel que llama la app: una marca, un hook, una página. Deja la clase en la app cuando el comportamiento pertenece a esa app. Lee [Plugins](/docs/firefly/plugins/).
+Pass a plugin to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts. Inside those methods you call the same panel methods the app calls: a brand, a hook, a page. Keep the class in the app when the behavior belongs to that app. Read [Plugins](/docs/firefly/plugins/).
 
-El aspecto publicado es `KonaTheme`. `Stylesheet.render` escribe los colores y la tipografía como propiedades CSS personalizadas en `.ff-panel`. Las reglas de los componentes solo coinciden dentro de esa clase. Para cambiar el aspecto, implementa `FireflyTheme` y pásalo a `theme(...)`. `extraCss()` se envuelve en `.ff-panel { ... }`, así que tus reglas se quedan dentro del panel. El ejemplo hello usa el tema publicado. Lee [Temas y CSS](/docs/firefly/themes/).
+The shipped look is `KonaTheme`. `Stylesheet.render` writes the colors and type as CSS custom properties on `.ff-panel`. Component rules match only inside that class. To change the look, implement `FireflyTheme` and pass it to `theme(...)`. `extraCss()` is wrapped in `.ff-panel { ... }`, so your rules stay inside the panel. The hello sample uses the shipped theme. Read [Themes and CSS](/docs/firefly/themes/).
 
-`Firefly.test` lee HTML que ya renderizaste. Vive en `org.konaframework.firefly.testing`.
+`Firefly.test` reads HTML you already rendered. It lives in `org.konaframework.firefly.testing`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -91,13 +93,13 @@ Firefly.test(page)
 </TabItem>
 </Tabs>
 
-`assertSee` falla cuando falta el texto. `assertFormField` busca `data-ff-path`. `assertTable` quiere tanto `ff-table` como el texto. `assertDialog` quiere tanto `ff-dialog` como el título. `Firefly.test(html)` comprueba una cadena. Las mismas afirmaciones están en [Importación y exportación](/docs/firefly/import-export/).
+`assertSee` fails when the text is missing. `assertFormField` looks for `data-ff-path`. `assertTable` wants both `ff-table` and the text. `assertDialog` wants both `ff-dialog` and the title. `Firefly.test(html)` checks a string. The same assertions are on [Import and export](/docs/firefly/import-export/).
 
-## Lee estas páginas en orden
+## Read these pages in order
 
-1. [Requisitos](/docs/firefly/requirements/) — JDK 21 y la app Kona que ya tienes.
-2. [Instalación](/docs/firefly/installation/) — `kona new --kit=firefly`, o añade el módulo a una app existente.
-3. [Registrar un panel](/docs/firefly/registration/) — el archivo `Panel`, las tres carpetas y `discover`.
-4. [Una app que funciona](/docs/firefly/working-app/) — el recurso de notes y el de orders en hello-kotlin y hello-java.
+1. [Requirements](/docs/firefly/requirements/) — JDK 21 and the Kona app you already have.
+2. [Installation](/docs/firefly/installation/) — `./grind install firefly`, then generate a panel.
+3. [Register a panel](/docs/firefly/registration/) — the generated `Panel`, its folders, and `Firefly.register`.
+4. [A working app](/docs/firefly/working-app/) — the notes resource and the orders resource in hello-kotlin and hello-java.
 
-Después, abre la página de la pieza que estás añadiendo. [Panel](/docs/firefly/panel/) es la clase que montas. Kotlin y Java llaman a los mismos tipos. Los ejemplos están en las pestañas de idioma. La clase que extiendes es `Panel`. El paquete es `org.konaframework`.
+After that, open the page for the piece you are adding. [Panel](/docs/firefly/panel/) is the class you mount. Kotlin and Java call the same types. The examples sit in the language tabs. The class you extend is `Panel`. The package is `org.konaframework`.

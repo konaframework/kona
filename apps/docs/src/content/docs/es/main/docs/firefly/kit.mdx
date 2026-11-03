@@ -1,12 +1,16 @@
 ---
-title: Tenencia, plugins e importación
-description: "Enlaces a tenencia, plugins, e importación y exportación."
+title: Tenancy, plugins, and import
+description: "Jump to the page that adds a tenant menu, a plugin, or a CSV import. The kit itself is installed on the Installation page."
 ---
 
-Tres temas están junto al panel, y cada uno tiene su propia página. Abre la que necesites.
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
 
-- [Tenencia](/docs/firefly/tenancy/) es el menú de inquilinos y `Resource.tenant`.
-- [Plugins](/docs/firefly/plugins/) es `FireflyPlugin.register` y `boot`.
-- [Importación y exportación](/docs/firefly/import-export/) son los trabajos CSV, y `Firefly.test` para una página ya renderizada.
+Open the page for the job you are doing. Each one is a separate step on the panel you already mounted.
 
-`kona new desk --kit=firefly` es la ruta de instalación. Está cubierta en [Instalación](/docs/firefly/installation/). No es un runtime aparte.
+<FireflyShot file="section-kit.png" description="Playground kit surface." />
+
+- [Tenancy](/docs/firefly/tenancy/) adds the tenant menu and `Resource.tenant`, so a resource filters rows for the selected tenant.
+- [Plugins](/docs/firefly/plugins/) is a class you pass to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts.
+- [Import and export](/docs/firefly/import-export/) writes and reads CSV through a dialog action and a queue job, and shows `Firefly.test` on a rendered page.
+
+`kona new desk --kit=firefly` is the install path. Follow it on [Installation](/docs/firefly/installation/).
