@@ -3688,9 +3688,12 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
 /* Chrome script opens mounts with .ff-open (no Alpine required).
    Fixed + high z-index so the dialog stacks above the mobile drawer backdrop (z-30)
-   and the sidebar (z-40), even when the trigger lives deep in the table. */
+   and the sidebar (z-40), even when the trigger lives deep in the table.
+   .ff-closing keeps the mount painted through the exit transition (#445). */
 .ff-panel .ff-action-dialog.ff-open,
-.ff-panel .ff-table-button-dialog.ff-open {
+.ff-panel .ff-table-button-dialog.ff-open,
+.ff-panel .ff-action-dialog.ff-closing,
+.ff-panel .ff-table-button-dialog.ff-closing {
   display: block !important;
   pointer-events: auto !important;
   position: fixed;
@@ -3698,7 +3701,13 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   z-index: 60;
 }
 
-.ff-panel .ff-dialog-modal .ff-dialog-window {
+.ff-panel .ff-action-dialog.ff-closing,
+.ff-panel .ff-table-button-dialog.ff-closing {
+  pointer-events: none !important;
+}
+
+.ff-panel .ff-dialog-modal .ff-dialog-window,
+.ff-panel .ff-dialog-fullscreen .ff-dialog-window {
   position: relative;
   z-index: 1;
   display: flex;
@@ -3714,7 +3723,28 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   padding: 0;
   color: var(--ff-body-text);
   overflow: hidden;
-  will-change: left, top, width, height;
+  will-change: left, top, width, height, opacity, transform;
+  opacity: 0;
+  transform: translate3d(0, 0.85rem, 0) scale(0.97);
+  transition:
+    opacity 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ff-panel .ff-open .ff-dialog-modal .ff-dialog-window,
+.ff-panel .ff-open .ff-dialog-fullscreen .ff-dialog-window {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.ff-panel .ff-dialog-fullscreen .ff-dialog-window,
+.ff-panel .ff-dialog-screen.ff-dialog-fullscreen .ff-dialog-window {
+  margin: 1rem auto;
+  max-width: none;
+  width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
+  height: calc(100dvh - 2rem);
+  border-radius: calc(var(--ff-radius) + 0.2rem);
 }
 
 .ff-panel .ff-dialog-sm.ff-dialog-modal .ff-dialog-window {
@@ -3999,6 +4029,13 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   inset: 0;
   z-index: 0;
   background: rgb(15 23 42 / 35%);
+  opacity: 0;
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ff-panel .ff-open .ff-dialog-overlay,
+.ff-panel .ff-open .ff-dialog-backdrop {
+  opacity: 1;
 }
 
 /* ——— Profile (authenticated chrome) ——— */
@@ -4746,5 +4783,15 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 
   .ff-panel .ff-notification-progress > span {
     animation: none;
+  }
+
+  .ff-panel .ff-dialog-overlay,
+  .ff-panel .ff-dialog-backdrop,
+  .ff-panel .ff-dialog-modal .ff-dialog-window,
+  .ff-panel .ff-dialog-fullscreen .ff-dialog-window,
+  .ff-panel .ff-dialog-sidebar .ff-dialog-window {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }

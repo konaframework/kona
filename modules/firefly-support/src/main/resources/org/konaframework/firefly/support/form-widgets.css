@@ -16,7 +16,17 @@
   box-shadow: -12px 0 32px rgb(15 23 42 / 18%);
   color: var(--ff-body-text);
   overflow: hidden;
-  animation: ff-slide-in-end 180ms ease-out;
+  will-change: transform, opacity;
+  opacity: 0;
+  transform: translate3d(100%, 0, 0);
+  transition:
+    opacity 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ff-panel .ff-open .ff-dialog-sidebar .ff-dialog-window {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
 }
 
 .ff-panel .ff-dialog-sidebar[data-ff-position="start"] .ff-dialog-window {
@@ -25,7 +35,11 @@
   border-left: 0;
   border-right: 1px solid var(--ff-card-border);
   box-shadow: 12px 0 32px rgb(15 23 42 / 18%);
-  animation-name: ff-slide-in-start;
+  transform: translate3d(-100%, 0, 0);
+}
+
+.ff-panel .ff-open .ff-dialog-sidebar[data-ff-position="start"] .ff-dialog-window {
+  transform: translate3d(0, 0, 0);
 }
 
 .ff-panel .ff-dialog-sm.ff-dialog-sidebar .ff-dialog-window { width: min(22rem, 100vw); }
@@ -36,16 +50,6 @@
 
 .ff-panel .ff-dialog-sidebar .ff-dialog-body > :not(.ff-action-footer) {
   overflow-y: auto;
-}
-
-@keyframes ff-slide-in-end {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes ff-slide-in-start {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
 }
 
 /* ——— Schema primes and layouts ——— */
