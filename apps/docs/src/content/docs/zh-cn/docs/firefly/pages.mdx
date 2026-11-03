@@ -1,25 +1,30 @@
 ---
-
-title: 页面
-description: "面板页面 — 标题、动作、内容区域、部件，以及列表、创建、编辑、查看、管理和自定义类型。"
+title: Pages
+description: "Add a screen under the panel pages folder. The URL is /{prefix}/{slug}. The prefix is the panel id unless you set path."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="desk.png" description="Desk 页，位于 http://127.0.0.1:4017/admin/desk，带名称字段、状态组合框、到期选择器、信息列表、表格和编辑页眉动作。" />
+Add a screen when the desk needs a page that is not a resource. Give it a title, buttons in the header and the footer, and a content region for the form, the infolist, or the table.
 
-页面是面板路由提供的屏幕。它有标题、页眉动作、页脚动作、一个内容区域，以及可选的部件。内容区域挂载模式、表单、信息列表或表格。单独渲染这些部分对测试和嵌入仍然有效。把页面变成 URL 的是面板。
+<FireflyShot file="section-pages.png" description="Custom page header on the Playground." />
 
-类型位于 `org.konaframework.firefly` 和 `org.konaframework.firefly.widgets`。`PanelPage` 扩展 `Page`。`ListPage`、`CreatePage`、`EditPage`、`ViewPage`、`ManagePage` 和 `CustomPage` 是页面种类。`Dashboard` 是一个 `Page`，其节类是 `ff-page ff-dashboard`。
+Call `render()` on that page from a test. The panel turns the same page into a URL. In the hello samples, Desk is a custom page at `/admin/desk` because that panel calls `path("admin")`. The file is `app/firefly/pages/Desk`. A page you generate with `make:firefly-page` is served under the panel id until you set `path`.
 
-## 页面如何被提供
+<FireflyShot file="desk.png" description="The Desk page at http://127.0.0.1:4017/admin/desk, with the name field, the status combobox, the due picker, the infolist, the table, and the Edit header action." />
 
-`Panel.mount` 为从 `pages/` 发现或传给 `page(...)` 的每个页面登记 `GET /{prefix}/{slug}`。hello 示例的 `Desk` 使用 slug `desk`，因此路由是 `/admin/desk`。请求被允许时，面板渲染外框并把 `page.render()` 放进正文。
+The types live in `org.konaframework.firefly` and `org.konaframework.firefly.widgets`. `PanelPage` extends `Page`. `ListPage`, `CreatePage`, `EditPage`, `ViewPage`, `ManagePage`, and `CustomPage` are the page kinds. `DashboardPage` is a `PanelPage` with an empty slug (`GET /{prefix}`). The widgets module also has a `Dashboard` page type whose section class is `ff-page ff-dashboard`.
 
-`navigationLabel()` 是侧栏文本。默认是 slug，slug 为空时是 `Dashboard`。这就是为什么标题为 `Desk` 的页面在你改变标签路径之前，链接仍可能显示 `desk`。`parent("name")` 把页面嵌到具有该名称的导航项下。缺少父项会在挂载时失败，并写出两项的名字。
+## How the URL is chosen
 
-## Desk 页面
+`Panel.mount` registers `GET /{prefix}/{slug}` for each page discovered from `pages/` or passed to `page(...)`. An empty slug is the panel home (`GET /admin` when the prefix is `admin`). If no empty-slug page is registered, Firefly adds a welcome `DashboardPage` so the panel root always resolves. The hello sample’s `Desk` uses slug `desk` and `path("admin")`, so that route is `/admin/desk`. When the request is allowed, the panel renders the chrome and puts `page.render()` in the body.
+
+`navigationLabel()` is the sidebar text. The default is the slug, or `Dashboard` when the slug is empty. A page titled `Desk` still shows the link `desk` until you change the label. `icon(...)` sets the sidebar icon (kona-icons); unset pages use the home icon on the dashboard and `squares-2x2` otherwise. `parent("name")` nests the page under a navigation item with that name. A missing parent fails at mount and names both items.
+
+`DashboardPage` also accepts `columns(1..4)` (default 3) and `filtersForm(Schema)` for the widget grid — see [Widgets](/docs/firefly/widgets/).
+
+## Write the Desk page
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -67,47 +72,148 @@ public class Desk extends CustomPage {
 </TabItem>
 </Tabs>
 
-`mountForm` 把模式存为页面表单。`mountInfolist` 把信息列表渲染成 HTML 并存储该标记。`table` 和 `headerActions` 来自 `Page`。编辑动作的对话框在 HTML 里，并保持关闭，直到 Alpine 打开它。
+`mountForm` stores the schema as the page form. You see the name field, the status combobox, and the due picker. `mountInfolist` renders the infolist to HTML and stores that markup. `table` and `headerActions` come from `Page`. The edit action’s dialog is in the HTML and stays closed until Alpine opens it.
 
 ```bash
 ./grind make:firefly-page Desk
-./grind make:firefly-page Desk --lang=java
+./grind make:firefly-page Desk --panel=billing --lang=java
 ```
 
-该命令写入一个 `CustomPage`，slug 是小写名称，并且还没有表单。
+The command writes a `CustomPage` in `app/panels/{panel}/pages/`. `--panel` defaults to `admin`. The slug is the lowercased name. The generated class has no form yet.
 
-## Page 上的方法
+## Methods on Page
 
-| 方法 | 它做什么 |
-|------|----------|
-| `title(value)` / `title(provider)` | 标题文本，或接收 `Get` 的闭包 |
-| `headerActions(...)` / `footerActions(...)` | 替换该动作列表 |
-| `widgets(...)` | 替换画在 `ff-page-widgets` 里的部件 |
-| `discoverWidgets(directory)` | 追加在 `directory/widgets` 下找到的部件 |
-| `schema(schema)` | 来自模式的内容区域 |
-| `form(schema)` | 来自表单模式的内容区域 |
-| `infolistHtml(html)` | 来自信息列表 HTML 的内容区域 |
-| `table(table)` | 来自表格的内容区域 |
-| `render()` / `render(state)` | 带页眉、内容、部件和页脚的 `<section class="ff-page">` |
+| Method | What you get |
+|--------|----------------|
+| `title(value)` / `title(provider)` | Heading text, or a closure that receives `Get` |
+| `breadcrumbs(...)` | Crumb trail on its own row above the heading (`Breadcrumb.make(label, href?)`). The bold title and header actions share the next toolbar row |
+| `headerActions(...)` / `footerActions(...)` | Replaces that action list |
+| `widgets(...)` | Replaces the widgets drawn in `ff-page-widgets` |
+| `discoverWidgets(directory)` | Appends widgets found under `directory/widgets` |
+| `schema(schema)` | Content region from a schema |
+| `form(schema)` | Content region from a form schema |
+| `infolistHtml(html)` | Content region from infolist HTML |
+| `table(table)` | Content region from a table |
+| `maxWidth(token)` | Cap this page’s content column (`xs`…`7xl`, `full`, `screen`, `prose`). Overrides the panel default. Emits `data-ff-max-width` on the section |
+| `render()` / `render(state)` | `<section class="ff-page">` with header, content, widgets, and footer |
 
-`PanelPage` 增加：
+`PanelPage` adds:
 
-| 方法 | 它做什么 |
-|------|----------|
-| `slug()` | 构造器 slug，或去掉尾部 `Page` 后小写的类名 |
-| `navigationLabel()` | slug 文本，slug 为空时是 `Dashboard` |
-| `parent(name)` | 导航父项。`parentName()` 把它读回来 |
-| `mountForm(schema)` | 与 `form` 同一个槽 |
-| `mountInfolist(infolist)` | 渲染信息列表并存储 HTML |
+| Method | What you get |
+|--------|----------------|
+| `slug()` | The constructor slug, or the class name without a trailing `Page`, lowercased |
+| `navigationLabel()` | Slug text, or `Dashboard` when the slug is empty |
+| `parent(name)` | Navigation parent. `parentName()` reads it back |
+| `mountForm(schema)` | Same slot as `form` |
+| `mountedForm()` | The mounted form schema, or `null` |
+| `onFormSubmit(handler)` | Runs when the mounted form posts back. The handler gets the posted fields and returns the notification title |
+| `mountInfolist(infolist)` | Renders the infolist and stores the HTML |
 
-节类：`ff-list`、`ff-create`、`ff-edit`、`ff-view`、`ff-manage`、`ff-custom`。回退标题与这些名字匹配（`List`、`Create`、`Edit`、`View`、`Manage`、`Custom`）。
+Section classes: `ff-list`, `ff-create`, `ff-edit`, `ff-view`, `ff-manage`, `ff-custom`. Fallback titles match those names (`List`, `Create`, `Edit`, `View`, `Manage`, `Custom`). Create, edit, and view pages also render a small mode chip (`create` / `edit` / `detail`) beside the title. When a resource wires the page, the title becomes the resource label (for example `New Orders`, `Edit Orders`).
 
-`ManagePage` 是简单资源使用的页面。该资源的创建、编辑、查看和删除是页眉动作。请读[资源](/docs/firefly/resources/)。
+`ManagePage` is the page a simple resource uses. Create is a header dialog; View, Edit, and Delete open from each table row. Read [Resources](/docs/firefly/resources/).
 
-## 页面上的部件
+## Submit the page form
 
-`Page.render()` 包含 `<div class="ff-page-widgets">`。你传给 `widgets(...)` 的部件在页面里，不只是你在旁边渲染的字符串。面板也会把发现到的部件复制到主页（空 slug）或第一页。见[部件](/docs/firefly/widgets/)。
+Pressing Enter in a field of the mounted form posts the form to the page URL. The panel checks the CSRF token, then calls the handler you passed to `onFormSubmit`. The handler receives the posted fields. The CSRF token, keys that start with `_`, and query-string keys are left out. The handler returns the title of the success notification. The panel then redirects back to the page, and you see that notification.
 
-## 下一步
+Without a handler the notification reads **Form submitted**.
 
-[导航](/docs/firefly/navigation/) 说明这些页面如何出现在侧栏和顶栏。
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Settings : SettingsPage() {
+    init {
+        canSave { guard -> guard.check() }
+        mountForm(Schema.make().components(TextInput.make("title")))
+        onFormSubmit { input ->
+            AppSettings.save(input)
+            "Settings saved"
+        }
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Settings extends SettingsPage {
+    public Settings() {
+        canSave(PanelGuard::check);
+        mountForm(Schema.make().components(TextInput.make("title")));
+        onFormSubmit(input -> {
+            AppSettings.save(input);
+            return "Settings saved";
+        });
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+`SettingsPage` defaults to slug `settings`, title **Settings**, icon `cog`, and max width `7xl`. When `canSave` returns false, the panel rejects the form POST with 403. Call `canSave` before `mountForm` if you chain Fluent methods that return `PanelPage`.
+
+A searchable or relationship `Select` on the mounted form loads its options from `GET {page}/form-options?field=name&q=text`. For the dashboard page (empty slug), the path is `form-options`. The route applies the panel domain and sign-in checks, then returns JSON objects with `value`, `label`, and `enabled`.
+
+## Profile
+
+Every panel mounts `GET`/`POST /{prefix}/profile` and `POST /{prefix}/logout`. The default `ProfilePage` shows name, email, and optional password change. It fills from `PanelGuard` and saves through `MemoryPanelGuard.updateProfile`. Apps that `reuseAppGuard` should subclass and persist via Auth/Cadence.
+
+Resolution order: `Panel.profilePage(...)` → `Firefly.defaultProfilePage(...)` → built-in `ProfilePage`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class AccountProfile : ProfilePage() {
+    override fun formSchema(): Schema =
+        Schema().components(
+            TextInput.make("name").label("Name").required(),
+            TextInput.make("email").label("Email").email().required(),
+            TextInput.make("phone").label("Phone"),
+            TextInput.make("password").label("New password").password(),
+            TextInput.make("password_confirmation").label("Confirm password").password(),
+        )
+}
+
+Panel().profilePage(AccountProfile())
+// or for every panel that does not set its own:
+Firefly.defaultProfilePage { AccountProfile() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class AccountProfile extends ProfilePage {
+    @Override
+    protected Schema formSchema() {
+        return new Schema().components(
+            TextInput.make("name").label("Name").required(),
+            TextInput.make("email").label("Email").email().required(),
+            TextInput.make("phone").label("Phone"),
+            TextInput.make("password").label("New password").password(),
+            TextInput.make("password_confirmation").label("Confirm password").password()
+        );
+    }
+}
+
+new Panel().profilePage(new AccountProfile());
+Firefly.defaultProfilePage(AccountProfile::new);
+```
+
+</TabItem>
+</Tabs>
+
+Sign out in the user menu posts to `/logout`, so profile POST can save the form.
+
+## Put a widget on the page
+
+`Page.render()` includes `<div class="ff-page-widgets">`. A widget you pass to `widgets(...)` is in the page. The panel also copies discovered widgets onto the home page (empty slug) or the first page. See [Widgets](/docs/firefly/widgets/).
+
+## Next
+
+[Navigation](/docs/firefly/navigation/) is how those pages show up in the sidebar and the top bar.

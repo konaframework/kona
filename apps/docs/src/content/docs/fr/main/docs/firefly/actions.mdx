@@ -1,18 +1,20 @@
 ---
 title: Actions
-description: "Ajoutez un bouton ou un lien, ouvrez le dialogue partagé depuis celui-ci, et exécutez une méthode serveur quand l’utilisateur envoie. La page Desk utilise une action Edit dans l’en-tête."
+description: "Add a button or a link, open the shared dialog from it, and run a server method when the user submits. The Desk page uses an Edit action in the header."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Ajoutez un bouton ou un lien quand l’utilisateur doit enregistrer, supprimer, ou ouvrir un dialogue. Le même objet peut montrer un schéma dans le [dialogue](/docs/firefly/dialog/) partagé et appeler une méthode serveur quand le dialogue est envoyé.
+Add a button or a link when the user should save, delete, or open a dialog. The same object can show a schema inside the shared [dialog](/docs/firefly/dialog/) and call a server method when the dialog is submitted.
 
-Les actions vivent dans `org.konaframework.firefly.actions` (`kona-firefly-actions`). Sur les exemples hello, `app/firefly/pages/Desk` place une action Edit dans l’en-tête. Cette action ouvre un dialogue avec un champ note.
+<FireflyShot file="section-actions.png" description="Page header actions on the Playground." />
 
-<FireflyShot file="header-action.png" description="L’action d’en-tête Edit sur la page Desk à http://127.0.0.1:4017/admin/desk." />
+Actions live in `org.konaframework.firefly.actions` (`kona-firefly-actions`). On the hello samples, `app/firefly/pages/Desk` puts an Edit action in the header. That action opens a dialog with a note field.
 
-## Rendre un bouton
+<FireflyShot file="header-action.png" description="The Edit header action on the Desk page at http://127.0.0.1:4017/admin/desk." />
+
+## Render a button
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -33,15 +35,15 @@ String html = Schema.make().components(save).render();
 </TabItem>
 </Tabs>
 
-`make` prend le nom de l’action. Le nom est une lettre ou `_`, puis des lettres, des chiffres et `_`. `save` et `save_record` sont valides. `bad-name` lance `FireflyException`.
+`make` takes the action name. The name is a letter or `_`, then letters, digits, and `_`. `save` and `save_record` are valid. `bad-name` throws `FireflyException`.
 
-Vous voyez un bouton **Save**. Il a `x-data="ffAction('save')"` et `wire:click="save"`. `ffAction` est la fabrique Alpine déjà enregistrée avec Wire. Sa méthode `run()` appelle `$wire.$call` avec le nom de l’action. Le bouton utilise `wire:click` pour l’appel serveur et monte la fabrique pour qu’un autre contrôle puisse appeler `run()`.
+You see a **Save** button. It has `x-data="ffAction('save')"` and `wire:click="save"`. `ffAction` is the Alpine factory already registered with Wire. Its `run()` method calls `$wire.$call` with the action name. The button uses `wire:click` for the server call and mounts the factory so another control can call `run()`.
 
-`call(schema)` exécute cette méthode serveur dans le processus. Sans handler `action { ... }` et sans URL, elle lance `FireflyException` (`Action [save] has no handler`).
+`call(schema)` runs that server method in-process. With no `action { ... }` handler and no URL, it throws `FireflyException` (`Action [save] has no handler`).
 
-## Passer une valeur ou une fermeture
+## Pass a value or a closure
 
-Les setters de texte et de drapeaux prennent une valeur fixe ou une fermeture. La fermeture reçoit `Get`, le même lecteur qu’un composant de schéma utilise. Un chemin qui commence par `/` est absolu. Les autres chemins sont relatifs au conteneur de l’action.
+Text and flag setters take a fixed value or a closure. The closure receives `Get`, the same reader a schema component uses. A path that starts with `/` is absolute. Other paths are relative to the action’s container.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -63,15 +65,15 @@ save.label(get -> "org".equals(get.get("/kind")) ? "Save organization" : "Save")
 </TabItem>
 </Tabs>
 
-Le dernier appel l’emporte. `label("Save")` après une fermeture stocke la chaîne fixe. La même forme est sur `icon`, `color`, `tooltip`, `badge`, `badgeColor`, `size`, `iconPosition`, `url`, `openUrlInNewTab`, `requiresConfirmation`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `modalCancelActionLabel`, `modalIcon`, `modalIconColor`, `modalWidth`, `successRedirectUrl` et `failureRedirectUrl`.
+The last call wins. `label("Save")` after a closure stores the fixed string. The same shape is on `icon`, `color`, `tooltip`, `badge`, `badgeColor`, `size`, `iconPosition`, `url`, `openUrlInNewTab`, `requiresConfirmation`, `modalHeading`, `modalDescription`, `modalSubmitActionLabel`, `modalCancelActionLabel`, `modalIcon`, `modalIconColor`, `modalWidth`, `successRedirectUrl`, and `failureRedirectUrl`.
 
-`hidden`, `visible` et `disabled` viennent de la base de composant de schéma, donc ils prennent déjà un booléen ou un prédicat. Ils renvoient la base de composant. Appelez-les sur leur propre ligne quand vous voulez garder le type `Action` pour l’appel suivant.
+`hidden`, `visible`, and `disabled` come from the schema component base, so they already take a boolean or a predicate. They return the component base. Call them on their own line when you want to keep the `Action` type for the next call.
 
-## Afficher, cacher, désactiver ou autoriser
+## Show, hide, disable, or authorize
 
-`hidden(true)` et `visible(false)` rendent une coquille d’action vide avec la classe `ff-hidden`. Le bouton n’est pas dans le HTML. `disabled(true)` garde le bouton et règle l’attribut `disabled`. Un lien désactivé utilise `aria-disabled="true"` et omet `href`. `call` lance `Action [save] is hidden` ou `Action [save] is disabled` avant que le handler s’exécute.
+`hidden(true)` and `visible(false)` render an empty action shell with the class `ff-hidden`. The button is not in the HTML. `disabled(true)` keeps the button and sets the `disabled` attribute. A disabled link uses `aria-disabled="true"` and omits `href`. `call` throws `Action [save] is hidden` or `Action [save] is disabled` before the handler runs.
 
-`authorize(false)` cache l’action. `authorize { get -> get.get("/ok") == true }` la cache quand le prédicat est faux. `authorize("edit")` demande `Action.gate`. Sans gate installée, une capacité nommée est refusée et l’action est cachée. Une gate qui renvoie vrai la montre.
+`authorize(false)` hides the action. `authorize { get -> get.get("/ok") == true }` hides it when the predicate is false. `authorize("edit")` asks `Action.gate`. With no gate installed, a named ability is denied and the action is hidden. A gate that returns true shows it.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -90,59 +92,59 @@ Action.gate((ability, component, schema) -> "edit".equals(ability));
 </TabItem>
 </Tabs>
 
-`authorize(true)`, un prédicat et une capacité nommée s’appliquent tous. Tout refus cache l’action. `Action.gate(null)` efface la gate. La gate est à l’échelle du processus.
+`authorize(true)`, a predicate, and a named ability all apply. Any denial hides the action. `Action.gate(null)` clears the gate. The gate is process-wide.
 
-## Régler l’icône, la couleur, l’infobulle, le badge et la taille
+## Set the icon, color, tooltip, badge, and size
 
-`icon("home")` inline une icône de l’ensemble de support : `home`, `bars`, `user`, `x`. Tout autre nom lance `Unknown icon [<name>]`. `iconPosition("before")` est le défaut. `iconPosition("after")` dessine l’icône après l’étiquette. Tout le reste lance `Unknown icon position [<value>]`.
+`icon("home")` inlines an icon from the support set: `home`, `bars`, `user`, `x`. Any other name throws `Unknown icon [<name>]`. `iconPosition("before")` is the default. `iconPosition("after")` draws the icon after the label. Anything else throws `Unknown icon position [<value>]`.
 
-`iconButton()` garde l’étiquette dans `aria-label` et n’affiche pas le texte. `button()` est le défaut. `link()` ajoute `ff-action-link` sur un bouton qui appelle encore le serveur. `outlined()` et `grouped()` règlent `ff-action-outlined` et `ff-action-grouped`.
+`iconButton()` keeps the label in `aria-label` and does not show the text. `button()` is the default. `link()` adds `ff-action-link` on a button that still calls the server. `outlined()` and `grouped()` set `ff-action-outlined` and `ff-action-grouped`.
 
-`color("primary")`, `color("accent")` et `color("heading")` règlent `color` sur la variable de thème `--ff-primary`, `--ff-accent` ou `--ff-heading`, et stockent le nom sur `data-ff-color`. Toute autre couleur est stockée seulement sur `data-ff-color`. `size` accepte `xs`, `sm`, `md`, `lg` ou `xl` et règle `font-size`. Tout le reste lance `Unknown action size [<value>]`.
+`color("primary")`, `color("accent")`, and `color("heading")` set `color` to the theme variable `--ff-primary`, `--ff-accent`, or `--ff-heading`, and store the name on `data-ff-color`. Any other color is stored on `data-ff-color` only. `size` accepts `xs`, `sm`, `md`, `lg`, or `xl` and sets `font-size`. Anything else throws `Unknown action size [<value>]`.
 
-`tooltip` est l’attribut `title`. `badge` est un `<span class="ff-action-badge">`. `badgeColor` règle `data-ff-color` sur ce span.
+`tooltip` is the `title` attribute. `badge` is a `<span class="ff-action-badge">`. `badgeColor` sets `data-ff-color` on that span.
 
-`placement(ActionPlacement.SCHEMA)` est le défaut et ajoute `ff-placement-schema`. `placement(ActionPlacement.HEADER)` ajoute `ff-placement-header`. Cette classe est la façon dont une page distingue une action de schéma d’une action d’en-tête. Les deux restent des composants de schéma, donc vous placez les actions d’en-tête dans le même arbre.
+`placement(ActionPlacement.SCHEMA)` is the default and adds `ff-placement-schema`. `placement(ActionPlacement.HEADER)` adds `ff-placement-header`. That class is how a page tells a schema action from a header action. Both are still schema components, so you put header actions in the same tree.
 
-`extraAttributes` fusionne des attributs sur la racine du composant. Passez une carte ou une fermeture. Le nom doit être un nom d’attribut HTML. `wire:click`, `x-data`, `type`, `href` et `disabled` sont réservés et lancent. Les valeurs sont échappées.
+`extraAttributes` merges attributes onto the component root. Pass a map or a closure. The name must be an HTML attribute name. `wire:click`, `x-data`, `type`, `href`, and `disabled` are reserved and throw. Values are escaped.
 
-## En faire un lien
+## Make it a link
 
-`url("https://example.test")` rend un `<a>` au lieu d’un bouton serveur. `openUrlInNewTab(true)` ajoute `target="_blank"` et `rel="noopener noreferrer"`. L’ancre monte encore `ffAction`. Elle n’utilise pas `wire:click`. `call` renvoie l’URL et n’exécute pas le handler. Une URL vide lance `Action [name] URL is empty`.
+`url("https://example.test")` renders an `<a>` instead of a server button. `openUrlInNewTab(true)` adds `target="_blank"` and `rel="noopener noreferrer"`. The anchor still mounts `ffAction`. It does not use `wire:click`. `call` returns the URL and does not run the handler. An empty URL throws `Action [name] URL is empty`.
 
-## Ouvrir le dialogue
+## Open the dialog
 
-`requiresConfirmation()`, `modal()`, `slideOver()`, `slideOverStart()`, `fullscreen()`, `modalHeading`, `modalDescription` ou `schema(...)` avec au moins un composant ouvre `Dialog`. Le déclencheur utilise Alpine `open` et n’appelle pas le serveur. Le bouton d’envoi utilise `wire:click` et `ffAction`.
+`requiresConfirmation()`, `modal()`, `slideOver()`, `slideOverStart()`, `fullscreen()`, `modalHeading`, `modalDescription`, or `schema(...)` with at least one component opens `Dialog`. The trigger uses Alpine `open` and does not call the server. The submit button uses `wire:click` and `ffAction`.
 
-| Appel | Ce que vous voyez |
+| Call | What you see |
 |------|----------------|
-| défaut quand un dialogue est montré | `modal()`, aligné en haut, largeur `lg` |
-| `slideOver()` | barre latérale depuis la fin |
-| `slideOverStart()` | barre latérale depuis le début |
-| `fullscreen()` | plein écran, pas déplacé |
-| `modalWidth("sm" \| "md" \| "lg" \| "xl" \| "screen")` | classe de largeur seulement |
-| `modalDraggable(false)` | pas de marqueur de glissement |
+| default when a dialog is shown | `modal()`, top aligned, width `lg` |
+| `slideOver()` | sidebar from the end |
+| `slideOverStart()` | sidebar from the start |
+| `fullscreen()` | fullscreen, not dragged |
+| `modalWidth("sm" \| "md" \| "lg" \| "xl" \| "screen")` | width class only |
+| `modalDraggable(false)` | no drag marker |
 
-`modalWidth` utilise les largeurs que `Dialog` accepte. Toute autre largeur lance `Unknown dialog width [<value>]`. `width("screen")` reste une modale. Le plein écran est `fullscreen()`.
+`modalWidth` uses the widths `Dialog` accepts. Any other width throws `Unknown dialog width [<value>]`. `width("screen")` stays a modal. Fullscreen is `fullscreen()`.
 
-`Dialog.configureUsing` s’exécute encore, parce que l’action appelle `Dialog.make`. `mountDialog(schema)` renvoie ce `Dialog`. Une action sans dialogue lance `Action [name] has no dialog`.
+`Dialog.configureUsing` still runs, because the action calls `Dialog.make`. `mountDialog(schema)` returns that `Dialog`. An action with no dialog throws `Action [name] has no dialog`.
 
-La page enveloppe le dialogue dans `x-data="{ open: false }"`. Défauts :
+The page wraps the dialog in `x-data="{ open: false }"`. Defaults:
 
-- un clic sur l’overlay règle `open` à false (`closeModalByClickingAway(false)` laisse l’overlay tranquille)
-- Échap règle `open` à false (`closeModalByEscaping(false)` omet le listener)
-- un bouton de fermeture utilise l’icône `x` (`modalCloseButton(false)` le retire)
-- le contrôle d’envoi a `autofocus` (`modalAutofocus(false)` le retire)
+- overlay click sets `open` to false (`closeModalByClickingAway(false)` leaves the overlay alone)
+- Escape sets `open` to false (`closeModalByEscaping(false)` omits the listener)
+- a close button uses the `x` icon (`modalCloseButton(false)` removes it)
+- the submit control has `autofocus` (`modalAutofocus(false)` removes it)
 
-`modal(false)` et `modalHidden(true)` sautent le dialogue. Le déclencheur appelle le serveur directement.
+`modal(false)` and `modalHidden(true)` skip the dialog. The trigger calls the server directly.
 
-Le texte d’envoi est `Confirm` quand la confirmation est active, sinon `Submit`, sauf si `modalSubmitActionLabel` est réglé. Le texte d’annulation est `Cancel` sauf si `modalCancelActionLabel` est réglé. Le titre du dialogue est `modalHeading`, puis l’étiquette, puis le nom de l’action.
+Submit text is `Confirm` when confirmation is on, otherwise `Submit`, unless `modalSubmitActionLabel` is set. Cancel text is `Cancel` unless `modalCancelActionLabel` is set. The dialog title is `modalHeading`, then the label, then the action name.
 
-`modalSubmitAction` et `modalCancelAction` remplacent ces boutons par d’autres actions. `extraModalFooterActions` en ajoute d’autres. Passer l’action elle-même lance `Action [name] cannot contain itself` (ou `cannot submit itself` / `cannot cancel itself`).
+`modalSubmitAction` and `modalCancelAction` replace those buttons with other actions. `extraModalFooterActions` adds more. Passing the action itself throws `Action [name] cannot contain itself` (or `cannot submit itself` / `cannot cancel itself`).
 
-## Mettre un schéma dans le dialogue
+## Put a schema in the dialog
 
-`schema(Text.make("Hello"))` rend ces composants dans le corps du dialogue. Les dispositions et les primes du module de schéma fonctionnent, y compris un assistant :
+`schema(Text.make("Hello"))` renders those components in the dialog body. The body is a plain white surface (no nested shadowed card). A `Section` inside the modal keeps spacing and padding without drawing a second card. Layouts and primes from the schema module work, including a wizard:
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -165,9 +167,9 @@ Action.make("edit").schema(
 </TabItem>
 </Tabs>
 
-`schema()` sans composants n’ouvre pas de dialogue. Les saisies arrivent avec [Formulaires](/docs/firefly/forms/). Sur la page Desk, l’action Edit utilise `schema(TextInput.make("note"))`, donc le corps du dialogue est un champ note.
+`schema()` with no components does not open a dialog. Pass a full `Schema` with `schema(form)` when the dialog needs that schema’s `record()` — manage Create uses this so `Select.relationship` can resolve options. Inputs arrive with [Forms](/docs/firefly/forms/). On the Desk page the Edit action uses `schema(TextInput.make("note"))`, so the dialog body is a note field.
 
-## Grouper plusieurs actions
+## Group several actions
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -189,11 +191,11 @@ ActionGroup group = ActionGroup.make(List.of(save)).label("More").button();
 </TabItem>
 </Tabs>
 
-`dropdown()` est le défaut. Le déclencheur bascule Alpine `open`. Le menu commence caché. `button()` dispose les actions en ligne (`ff-action-group-inline`). Les groupes prennent `label`, `icon`, `color`, `tooltip`, `placement`, `hidden`, `visible`, `disabled` et `authorize` de la même façon qu’une action. `disabled(true)` désactive le déclencheur du menu. Sur un groupe en ligne il règle `aria-disabled="true"`.
+`dropdown()` is the default. The trigger is an outlined button with a chevron. Clicking it opens the menu below the button; clicking outside or pressing Escape closes it. The menu starts hidden. `button()` lays the actions in a row (`ff-action-group-inline`). Groups take `label`, `icon`, `color`, `tooltip`, `placement`, `hidden`, `visible`, `disabled`, and `authorize` the same way an action does. `disabled(true)` disables the dropdown trigger. On an inline group it sets `aria-disabled="true"`.
 
-`configureUsing` sur `Action` ou `ActionGroup` s’exécute pour chaque `make()` ultérieur de cette classe. Passez `null` pour l’effacer. Il ne s’applique pas à une sous-classe que vous construisez vous-même.
+`configureUsing` on `Action` or `ActionGroup` runs for every later `make()` of that class. Pass `null` to clear it. It does not apply to a subclass you construct yourself.
 
-## Exécuter le handler
+## Run the handler
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -224,15 +226,15 @@ ActionResult result = save.call(schema);
 </TabItem>
 </Tabs>
 
-Ordre en cas de succès : `before`, le handler, `after`. Le `status` du résultat est `success`. `url` est réglé pour une action lien. `redirectUrl` est ce lien, ou `successRedirectUrl` pour un handler. Le bouton porte aussi `data-ff-success-url` quand une URL de succès est réglée. `call` renvoie le résultat. Votre appelant envoie le navigateur vers `redirectUrl`.
+Order on success: `before`, the handler, `after`. The result `status` is `success`. `url` is set for a link action. `redirectUrl` is that link, or `successRedirectUrl` for a handler. The button also carries `data-ff-success-url` when a success URL is set. `call` returns the result. Your caller sends the browser to `redirectUrl`.
 
-`halt()` lance `ActionHalt`, saute `after`, et `call` renvoie le statut `halted` avec le message `Action halted`. `failure("nope")` lance `ActionFailure`, saute `after`, et `call` renvoie le statut `failed` avec ce message et `failureRedirectUrl`. Toute autre exception quitte `call`.
+`halt()` throws `ActionHalt`, skips `after`, and `call` returns status `halted` with the message `Action halted`. `failure("nope")` throws `ActionFailure`, skips `after`, and `call` returns status `failed` with that message and `failureRedirectUrl`. Any other exception leaves `call`.
 
-`argument("id")` lit la carte passée à `arguments`. Un changement ultérieur de la carte d’origine ne change pas la valeur stockée. Une clé manquante vaut `null`.
+`argument("id")` reads the map passed to `arguments`. A later change to the original map does not change the stored value. A missing key is `null`.
 
-## Écrire votre propre action
+## Write your own action
 
-Sous-classez `Action`. Le nom du constructeur est le nom de méthode Wire. Le générateur écrit la classe sous `app/firefly/actions`. Référencez-la depuis une page ou une ressource. `discover` ne scanne pas ce dossier.
+Subclass `Action`. The constructor name is the Wire method name. The generator writes the class under `app/firefly/actions`. Reference it from a page or a resource. `discover` does not scan that folder.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -261,20 +263,20 @@ public class Rename extends Action {
 </TabItem>
 </Tabs>
 
-`view("notes.action")` rend cette vue Crema quand `Schema.crema(engine)` est réglé. La vue reçoit `path`, `name`, `label` et `content`. Sans moteur, le rendu émet `<div data-ff-view="notes.action">`. Une action cachée ne rend pas la vue.
+`view("notes.action")` renders that Crema view when `Schema.crema(engine)` is set. The view receives `path`, `name`, `label`, and `content`. Without an engine, render emits `<div data-ff-view="notes.action">`. A hidden action does not render the view.
 
 ```bash
 ./grind make:firefly-action SaveRecord
 ```
 
-`--lang=java` écrit une classe Java. La vue ouvre un drapeau Alpine local `open` et envoie avec `x-data="ffAction('saveRecord')"` et `wire:click="saveRecord"`.
+`--lang=java` writes a Java class. The view opens a local Alpine `open` flag and submits with `x-data="ffAction('saveRecord')"` and `wire:click="saveRecord"`.
 
-## Ce que vous faites sur une autre page
+## What you do on another page
 
-Les champs de formulaire, le remplissage et la validation sont sur [Formulaires](/docs/firefly/forms/). Mettez une disposition de schéma dans `schema(...)` quand le dialogue n’a besoin que de texte, de sections ou d’un chrome d’assistant.
+Form fields, fill, and validation are on [Forms](/docs/firefly/forms/). Put a schema layout in `schema(...)` when the dialog only needs text, sections, or a wizard chrome.
 
-Les entrées d’infolist et les colonnes de tableau ont leurs propres pages. Ce module n’attache pas une action à un enregistrement, une sélection en masse ou une barre d’outils. Les boutons de ligne et d’en-tête d’un tableau sont `TableButton` sur [Tableaux](/docs/firefly/tables/).
+Infolist entries and table columns are their own pages. This module does not attach an action to a record or a toolbar. Row and header buttons on a table are `TableButton` on [Tables](/docs/firefly/tables/). Actions that run on the checked rows of a table are `BulkAction` (see [Bulk actions](/docs/firefly/tables/#bulk-actions)).
 
-Ce module n’envoie pas de notifications, n’importe ni n’exporte de lignes, n’enveloppe pas `call` dans une transaction de base, et ne limite pas le débit du handler. Les toasts sont sur [Notifications](/docs/firefly/notifications/). Le CSV est sur [Import et export](/docs/firefly/import-export/).
+This module does not send notifications, import or export rows, wrap `call` in a database transaction, or rate-limit the handler. Toasts are on [Notifications](/docs/firefly/notifications/). CSV is on [Import and export](/docs/firefly/import-export/).
 
-`Dialog` n’a pas de pile, pas d’en-tête ou de pied collant, et pas d’attributs supplémentaires sur la fenêtre. Une action ne peut pas annuler un dialogue parent ni changer l’alignement de la modale. L’alignement reste le défaut du dialogue, qui est le haut pour une modale.
+`Dialog` has no stack, no sticky header or footer, and no extra attributes on the window. An action cannot cancel a parent dialog or change the modal alignment. The alignment stays the dialog default, which is top for a modal.

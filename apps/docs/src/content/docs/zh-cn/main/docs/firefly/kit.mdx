@@ -1,12 +1,16 @@
 ---
-title: 租户、插件与导入
-description: "指向租户、插件，以及导入和导出。"
+title: Tenancy, plugins, and import
+description: "Jump to the page that adds a tenant menu, a plugin, or a CSV import. The kit itself is installed on the Installation page."
 ---
 
-三个主题位于面板旁边，各自有自己的页面。打开你需要的那一页。
+import FireflyShot from '../../../../../../components/FireflyShot.astro';
 
-- [租户](/docs/firefly/tenancy/) 是租户菜单和 `Resource.tenant`。
-- [插件](/docs/firefly/plugins/) 是 `FireflyPlugin.register` 和 `boot`。
-- [导入和导出](/docs/firefly/import-export/) 是 CSV 任务，以及用于已渲染页面的 `Firefly.test`。
+Open the page for the job you are doing. Each one is a separate step on the panel you already mounted.
 
-`kona new desk --kit=firefly` 是安装路径。它写在[安装](/docs/firefly/installation/)。它不是单独的运行时。
+<FireflyShot file="section-kit.png" description="Playground kit surface." />
+
+- [Tenancy](/docs/firefly/tenancy/) adds the tenant menu and `Resource.tenant`, so a resource filters rows for the selected tenant.
+- [Plugins](/docs/firefly/plugins/) is a class you pass to `plugin(...)`. `register` runs immediately. `boot` runs when the panel mounts.
+- [Import and export](/docs/firefly/import-export/) writes and reads CSV through a dialog action and a queue job, and shows `Firefly.test` on a rendered page.
+
+`kona new desk --kit=firefly` is the install path. Follow it on [Installation](/docs/firefly/installation/).

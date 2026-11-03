@@ -1,20 +1,22 @@
 ---
-title: Diálogo
-description: "El diálogo compartido de Firefly — modal, barra lateral y pantalla completa — incluyendo ancho, arrastre y configureUsing."
+title: Dialog
+description: "Call Dialog.make, pick modal, sidebar, or fullscreen, and render the HTML. The page that embeds it decides when it opens."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="dialog.png" description="El diálogo Edit de la página Desk en http://127.0.0.1:4017/admin/desk, abierto desde la acción de cabecera Edit, con un campo de nota dentro." />
+Open a window on top of a page for a confirmation, a short form, or a side panel. There is one component, `Dialog`. Pick a mode, a width, a title, and a body, then call `render()`.
 
-Un diálogo es la ventana que se abre encima de una página. Lo usas para una confirmación, un formulario corto o un panel lateral. Hay un solo componente, `Dialog`. Eliges un modo, un ancho, un título y un cuerpo, y `render()` devuelve el HTML.
+<FireflyShot file="section-dialog.png" description="Action confirmation dialog." />
 
-El diálogo no se abre solo, y no hace POST al servidor. La página que incrusta el HTML decide cuándo se muestra. En la página Desk el diálogo de la acción Edit está en la primera respuesta y permanece cerrado hasta que el botón lo abre.
+The dialog does not open itself, and it does not post to the server. The page that embeds the HTML decides when it is shown. On the Desk page the Edit action’s dialog is in the first response and stays closed until the button opens it.
 
-## Crear uno
+<FireflyShot file="dialog.png" description="The Edit dialog on the Desk page at http://127.0.0.1:4017/admin/desk, opened from the Edit header action, with a note field inside." />
 
-`Dialog.make(title)` devuelve un diálogo. El modo predeterminado es modal, el ancho predeterminado es `lg` y el arrastre está activo. `configureUsing`, si está definido, corre sobre el diálogo nuevo antes de que `make` vuelva.
+## Create one
+
+`Dialog.make(title)` returns a dialog. The default mode is modal, the default width is `lg`, and dragging is on. `configureUsing`, if set, runs on the new dialog before `make` returns.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -37,48 +39,57 @@ String html = Dialog.make("Edit category")
 </TabItem>
 </Tabs>
 
-El título se escapa para HTML. `A & B <tag> "q"` se convierte en `A &amp; B &lt;tag&gt; &quot;q&quot;`. El cuerpo se inserta como la cadena que pasaste. Escapa el HTML del cuerpo tú mismo cuando viene de un usuario.
+You get a modal titled **Edit category** with the body `Name`. The title is HTML-escaped. `A & B <tag> "q"` becomes `A &amp; B &lt;tag&gt; &quot;q&quot;`. The body is inserted as the string you passed. Escape body HTML yourself when it comes from a user.
 
-## Modos
+## Choose the mode
 
-| Llamada | Clases de la raíz | Atributos extra |
+| Call | Root classes | Extra attributes |
 |------|----------------|------------------|
 | `modal()` | `ff-dialog ff-dialog-modal ff-dialog-<width>` | `data-ff-align="top"` |
 | `slideOver()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="end"` |
 | `slideOverStart()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="start"` |
-| `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | ninguno de los atributos de alineación, posición o arrastre |
+| `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | none of the align, position, or drag attributes |
 
-El elemento raíz siempre tiene `role="dialog"`. Dentro: una superposición (`ff-dialog-overlay`), una ventana (`ff-dialog-window`), una cabecera (`ff-dialog-header`) con el título y un cuerpo (`ff-dialog-body`).
+The root element always has `role="dialog"`. Inside it: an overlay (`ff-dialog-overlay`), a window (`ff-dialog-window`), a header (`ff-dialog-header`) with the title and header actions, a body (`ff-dialog-body`), and — for modals — a resize handle.
 
-Llamar a `modal()` después de `slideOver()` vuelve a cambiar el modo a modal. La posición de barra lateral guardada se queda como estaba y no se renderiza en un modal.
+Header actions (Shamar-shaped) sit in `.ff-dialog-header-actions`:
 
-`width("screen")` solo cambia la clase de ancho a `ff-dialog-screen`. No pone el diálogo a pantalla completa. Pantalla completa es `fullscreen()`.
+| Control | Markup | Default |
+|---------|--------|---------|
+| Maximize / restore | `button.ff-dialog-expand` (`data-ff-dialog-expand`) | on for modal and slide-over; off for `fullscreen()` presentation |
+| Close | `button.ff-dialog-close` | on (`closeButton(false)` hides it) |
 
-## Ancho
+The header has a bottom divider. The dialog body scrolls on long content; `.ff-action-footer` stays pinned at the bottom of the window under a top divider, flush **right** (secondary then primary — Cancel / Close, then Submit / Edit).
 
-`width` acepta `sm`, `md`, `lg`, `xl` o `screen`. Cualquier otra cosa lanza `FireflyException`:
+Resource create / view / edit / delete actions all mount this same official `Dialog`. `Action.modalCloseButton(false)` calls `Dialog.closeButton(false)` to hide the header X. `Action.modalExpandable(false)` / `Dialog.expandable(false)` hide the maximize control. `Dialog.resizable(false)` hides the corner resize handle.
+
+Calling `modal()` after `slideOver()` switches the mode back to modal. The stored sidebar position is left as it was and is not rendered on a modal.
+
+`width("screen")` changes the width class to `ff-dialog-screen`. Presentation `fullscreen()` is a dedicated mode (no drag, expand, or resize). The maximize button toggles an expanded modal without changing the mode.
+
+## Set the width
+
+`width` accepts `sm`, `md`, `lg`, `xl`, or `screen`. Anything else throws `FireflyException`:
 
 ```text
 Unknown dialog width [<value>]
 ```
 
-El predeterminado es `lg`, así que la clase `ff-dialog-lg` está presente hasta que la cambies. La clase de ancho también se renderiza en los diálogos de barra lateral y de pantalla completa.
+The default is `lg`, so the class `ff-dialog-lg` is present until you change it. The width class is rendered for sidebar and fullscreen dialogs as well.
 
-## Arrastre
+## Turn dragging on or off
 
-`draggable(true)` es el predeterminado. `draggable(false)` quita los atributos de arrastre.
+`draggable(true)` is the default. `draggable(false)` removes the drag attributes.
 
-El arrastre también se omite cuando el modo es pantalla completa, aunque se haya llamado a `draggable(true)`. Los diálogos modal y de barra lateral incluyen:
+Dragging is also omitted when the mode is fullscreen, even if `draggable(true)` was called. Modal and sidebar dialogs include `data-ff-drag="true"` on the root and `data-ff-dialog-drag-handle` on the header. Firefly chrome moves `.ff-dialog-window` on pointer drag (no Alpine required).
 
-```html
-x-data="ffDialog" data-ff-drag="true"
-```
+Drag position does not stick. Closing or reopening a dialog clears the inline `position`, `margin`, `left`, and `top` that drag wrote, so the window returns to its stylesheet center every time you open it.
 
-La ventana modal se desplaza por la hoja de estilos: `.ff-dialog-modal .ff-dialog-window` tiene un margen superior de `4rem`. Esa es la alineación superior. Las ventanas de barra lateral y de pantalla completa no reciben ese margen.
+The modal window is offset by the stylesheet: `.ff-dialog-modal .ff-dialog-window` has a top margin of `4rem`. That is the top alignment. Sidebar and fullscreen windows do not get that margin.
 
-## configureUsing
+## Set a default for later dialogs
 
-`Dialog.configureUsing` guarda un `Consumer<Dialog>` usado por las llamadas posteriores a `make`. Pasa `null` para limpiarlo. El ajuste es estático y lo comparte cada `make` del proceso hasta que lo sustituyes o lo limpias.
+`Dialog.configureUsing` stores one `Consumer<Dialog>` used by later `make` calls. Pass `null` to clear it. The setting is static and shared by every `make` in the process until you replace or clear it.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -101,10 +112,10 @@ Dialog.configureUsing(null);
 </TabItem>
 </Tabs>
 
-El HTML del ejemplo contiene `ff-dialog-sidebar`, `ff-dialog-md` y `data-ff-position="end"`. No contiene `data-ff-align`.
+The example’s HTML contains `ff-dialog-sidebar`, `ff-dialog-md`, and `data-ff-position="end"`. It does not contain `data-ff-align`.
 
-Un configurador corre antes de tus propias llamadas, así que un `width("xl")` posterior en esa instancia sustituye el ancho configurado.
+A configurer runs before your own calls, so a later `width("xl")` on that instance replaces the configured width.
 
-## Acciones
+## Open it from an action
 
-[Acciones](/docs/firefly/actions/) abren este diálogo. `slideOver()`, `slideOverStart()`, `fullscreen()` y el modal predeterminado llaman a `Dialog.make`. La acción aporta el título, el ancho y el cuerpo.
+[Actions](/docs/firefly/actions/) open this dialog. `slideOver()`, `slideOverStart()`, `fullscreen()`, and the default modal call `Dialog.make`. The action supplies the title, the width, and the body. On the Desk page, the Edit header action opens a dialog with a note field.

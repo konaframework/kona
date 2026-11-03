@@ -1,40 +1,49 @@
 ---
-
-title: 导航
-description: "面板把导航画在哪里、树可以有多深，以及标签和 URL 如何设置。"
+title: Navigation
+description: "Leave discovery to build the sidebar, or call item and cluster yourself when you want different labels and URLs."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="panel-navigation.png" description="hello-kotlin 侧栏，位于 http://127.0.0.1:4017/admin/desk，带 desk 链接以及 Notes 和 Orders 分组。" />
+Decide where the links sit, then either let `mount` build the tree or write it yourself. Each panel has one layout for that tree. If you never call `item` or `cluster`, `mount` builds the tree from the pages and resources it discovered.
 
-导航是面板外框里的链接树。每个面板有一种 `NavigationType`。项是 `NavigationItem` 节点。你自己不调用 `item` 时，`mount` 从页面和资源构建这棵树。
+<FireflyShot file="section-navigation.png" description="Panel sidebar navigation." />
 
-## 三种类型如何绘制
+Every nav link shows an icon from [kona-icons](/docs/icons/) (`Icons.svg`). Set `icon("folder")` or `icon("heroicon-o-folder")` on a `NavigationItem`, `PanelPage`, or `Resource`. Short names resolve to `heroicon-o-{name}`. When unset, the dashboard home uses `heroicon-o-home` and every other item uses `heroicon-o-squares-2x2`.
 
-| 类型 | 第 1 级 | 第 2 级和第 3 级 |
-|------|---------|------------------|
-| `NavigationType.APP`（默认） | 侧栏 | 顶栏，针对当前第 1 级项的子项 |
-| `NavigationType.SIDE` | 侧栏 | 侧栏 |
-| `NavigationType.TOP` | 顶栏 | 顶栏 |
+On the hello samples that means a link for Desk, plus one sidebar entry each for Notes and Orders. Page labels come from the slug, so you may see `desk` until you set a label. Resource entries use `Resource.pluralLabel()` (from `label()` / `pluralLabel()`), so those links read `Notes` and `Orders` and point at the resource index (list or manage). Create, edit, and view are **page header and row actions**, not extra sidebar links.
 
-`topNavigation()` 就是 `navigation(NavigationType.TOP)`。`navigation` 接受枚举或接收 `Get` 的闭包。
+<FireflyShot file="panel-navigation.png" description="The hello-kotlin sidebar at http://127.0.0.1:4017/admin/desk, with the desk link and one entry each for Notes and Orders." />
 
-嵌套停在第 3 级。第四级在面板挂载时失败，消息会写出该项的名字。`cluster("Catalog")` 加上一个自己没有 URL 的父节点。`userMenu(...)` 渲染在顶栏，紧挨用户芯片。`spa(true)` 在有 URL 的链接上加上 `wire:navigate`。
+## Pick where the links sit
 
-## hello 示例显示什么
+| Type | Level 1 | Levels 2 and 3 |
+|------|---------|----------------|
+| `NavigationType.APP` (the default) | Sidebar | Top bar, for the active level-1 item’s children |
+| `NavigationType.SIDE` | Sidebar | Sidebar |
+| `NavigationType.TOP` | Top bar | Top bar |
 
-示例从不调用 `item`。因此发现构建的是：
+`topNavigation()` is `navigation(NavigationType.TOP)`. `navigation` accepts the enum or a closure that receives `Get`.
 
-- 每个页面一条链接。标签是 `navigationLabel()`，也就是 slug。Desk 的链接文本是 `desk`。URL 是 `/admin/desk`。
-- 每个资源一个分组。标签是 `Resource.label()`（`Notes`、`Orders`）。该资源的每个页面是一个子项。子项标签是页面 slug：笔记上是 `manage`，订单上是 `list`、`create`、`edit`、`view`。
+Nesting stops at level 3. A fourth level fails when the panel mounts, and the message names the item. `cluster("Catalog")` adds a parent with no URL of its own. `userMenu(...)` entries render inside the user-menu dropdown in the top bar. `spa(true)` adds `wire:navigate` on links that have a URL.
 
-当你自己构建树并想要一个词而不是 slug 时，在 `NavigationItem` 上设置 `label`。
+With `SIDE` and `APP` the brand sits in the sidebar brand block; on small screens the sidebar collapses into a drawer that the top-bar toggle opens. `TOP` keeps the brand and the whole tree in the top bar and has no sidebar or drawer.
 
-## 自己构建一棵树
+## What the hello samples show
 
-一旦调用了 `item` 或 `cluster`，挂载不会用发现到的页面替换那棵树。
+The samples never call `item`. Discovery therefore builds:
+
+- A link for each page. The label is `navigationLabel()`, which is the slug. Desk’s link text is `desk`. The URL is `/admin/desk` because that panel calls `path("admin")`. When `path` is omitted, the same page is `/{id}/desk`.
+- **One sidebar entry per resource.** The label is `Resource.pluralLabel()` (`Notes`, `Orders`). The URL is the resource index: `/admin/notes/manage` for a simple resource, `/admin/orders/list` for a full resource. That entry stays highlighted on create, edit, and view because the panel matches the whole `/{prefix}/{resource}/…` subtree. Create / edit / view / delete are not navigation children.
+
+Use `cluster(...)` only when you want a **manual** group (for example Catalog → Orders). Resources themselves are never auto-clustered into list/create/edit/view children.
+
+Set `label` on a `NavigationItem` when you build the tree yourself and want a word instead of a slug.
+
+## Build the tree yourself
+
+Once `item` or `cluster` has been called, mount keeps that tree. It does not replace it with the discovered pages.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -42,10 +51,10 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 ```kotlin
 val catalog = panel.cluster("Catalog")
 catalog.child(
-    NavigationItem("orders").label("Orders").url("/admin/orders/list"),
+    NavigationItem("orders").label("Orders").url("/admin/orders/list").icon("shopping-bag"),
 )
 panel.userMenu(
-    NavigationItem("profile").label("Profile").url("/admin/profile"),
+    NavigationItem("profile").label("Profile").url("/admin/profile").icon("user"),
 )
 panel.navigation(NavigationType.SIDE)
 ```
@@ -55,35 +64,44 @@ panel.navigation(NavigationType.SIDE)
 
 ```java
 NavigationItem catalog = panel.cluster("Catalog");
-catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list"));
-panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile"));
+catalog.child(new NavigationItem("orders").label("Orders").url("/admin/orders/list").icon("shopping-bag"));
+panel.userMenu(new NavigationItem("profile").label("Profile").url("/admin/profile").icon("user"));
 panel.navigation(NavigationType.SIDE);
 ```
 
 </TabItem>
 </Tabs>
 
-## NavigationItem 上的方法
+You see **Orders** in the sidebar, linking to `/admin/orders/list`, and **Profile** inside the user menu.
 
-空白名称会抛出 `FireflyException`（`Navigation item name is blank`）。来自闭包的空白标签或空白 URL 会抛出并指出该项。
+## Methods on NavigationItem
 
-| 方法 | 它做什么 |
-|------|----------|
-| `label(value)` / `label(provider)` | 可见文本。默认是名称 |
-| `url(value)` / `url(provider)` | 链接目标。设置之前为空 |
-| `extraAttributes(map)` / `extraAttributes(provider)` | 链接上的 HTML 属性。提供者接收 `Get` |
-| `cluster(true)` | 把节点标成一组 |
-| `child(item)` | 追加一个子项并设置其深度 |
-| `isCluster()` | 是否设置了 `cluster(true)` |
-| `labelText(get)` / `urlText(get)` / `attributes(get)` | 解析闭包或已存储的值 |
-| `find(name)` | 本节点或具有该名称的后代 |
+A blank name throws `FireflyException` (`Navigation item name is blank`). A blank label or a blank URL from a closure throws and names the item.
 
-活动状态：当前路径等于该项 URL，或以该 URL 加 `/` 开头。空 URL 或 `/` 从不被当作前缀匹配。
+| Method | What you get |
+|--------|----------------|
+| `label(value)` / `label(provider)` | Visible text. The default is the name |
+| `url(value)` / `url(provider)` | Link target. Empty until you set it |
+| `icon(value)` / `icon(provider)` | kona-icons name (short or `heroicon-o-…`). Unset → home / squares-2x2 default |
+| `extraAttributes(map)` / `extraAttributes(provider)` | HTML attributes on the link. A provider receives `Get` |
+| `cluster(true)` | Marks the node as a group |
+| `child(item)` | Appends a child and sets its depth |
+| `isCluster()` | Whether `cluster(true)` was set |
+| `labelText(get)` / `urlText(get)` / `attributes(get)` / `iconName(get)` | Resolves the closure or the stored value |
+| `find(name)` | This node or a descendant with that name |
 
-## 用户芯片
+`PanelPage.icon(...)` and `Resource.icon(...)` feed the auto-built tree the same way when you leave discovery to mount the sidebar.
 
-芯片文本是面板守卫的 id。该 id 为 null 时，芯片显示 **访客**。hello 示例调用 `authenticate(false)` 并且不让任何人登录，因此芯片显示访客。`userMenu` 项渲染在该芯片旁边。
+Active state: the current path equals the item URL, or starts with that URL plus `/`. An empty URL or `/` is never treated as a prefix match.
 
-## 下一步
+## The user menu and signed-in footer
 
-[动作](/docs/firefly/actions/) 是页面页眉和对话框内部的按钮。这些链接所在的外壳是[面板外框](/docs/firefly/chrome/)。
+The top bar ends with a tools cluster: a theme toggle, a notifications bell, and the user menu. The user menu shows an avatar (the first letter or digit of the signed-in identifier) and that identifier. Opening it reveals the identifier again, a **Signed in as …** line, a **Profile** link, your `userMenu(...)` entries, and — when someone is signed in — a **Sign out** form that posts to the profile route.
+
+The panel guard’s id is the identifier. When it is null the menu and the sidebar footer read **Guest**, and no sign-out form is shown. The hello samples call `authenticate(false)` and do not sign anyone in, so they read Guest.
+
+On `SIDE` and `APP` panels the sidebar also ends with a **Signed in as _identifier_** footer (`.ff-sidebar-foot`), matching the identifier in the menu. That block and the main-column `.ff-footer` share the shell background, type, soft top border, and fixed `--ff-footer-height` so they read as one bottom chrome band even when one side has no text.
+
+## Next
+
+[Actions](/docs/firefly/actions/) are the buttons on a page header and inside a dialog. The shell those links sit in is [Panel chrome](/docs/firefly/chrome/).

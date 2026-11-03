@@ -1,36 +1,43 @@
 ---
-title: Registrar un panel
-description: "Escribe app/firefly/Panel, apunta discover a esa carpeta y llama a mount después de tus propias rutas. Las páginas, los widgets y los recursos se cargan desde las carpetas junto a la clase."
+title: Register a panel
+description: "Generate the panel, set its id and path, and let the provider discover app/panels. Call Firefly.register when you want to pass a panel by hand."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Escribe la clase del panel, apunta `discover` a su carpeta y llama a `mount`. Después, deja una página, un widget o un recurso en la carpeta que le corresponde. La siguiente petición puede servirlo.
+Generate the panel, then set the id, the brand, and the path you want. The service provider from `./grind install firefly` finds every panel class under `app/panels` and mounts it on boot.
 
-La clase de tu app es `app.firefly.Panel`. Extiende `org.konaframework.firefly.Panel`. Los ejemplos hello y `kona new --kit=firefly` parten de esa clase.
+<FireflyShot file="section-registration.png" description="Registered panel brand in the sidebar." />
 
-<FireflyShot file="panel-directory.png" description="El directorio app/firefly de hello-kotlin, con Panel.kt, pages/, widgets/ y resources/." />
+<FireflyShot file="panel-directory.png" description="The hello-kotlin app/firefly directory, showing Panel.kt, pages/, widgets/, and resources/." />
 
-## Escribe el archivo del panel
+## Generate the panel
 
-Pon esta clase en `src/main/kotlin/app/firefly/Panel.kt`, o en `src/main/java/app/firefly/Panel.java`. El id aparece en los nombres de ruta y en el guard `firefly-desk`. La ruta es el prefijo de URL. `authenticate(false)` deja las pantallas públicas, que es como se publican los ejemplos hello. `discover` carga las carpetas hijas.
+```bash
+./grind make:firefly-panel --id=billing
+./grind make:firefly-page Desk --panel=billing
+./grind make:firefly-resource Note --simple --panel=billing
+./grind make:firefly-resource Order --panel=billing
+# → NoteResource.kt / OrderResource.kt under app/panels/billing/resources/
+```
+
+Pass `--lang=java` on each command when the app is Java. `--simple` writes one Manage page. Without `--simple`, the resource command writes list, create, edit, and view pages, plus one relation manager.
+
+The panel class looks like this. `path` is absent, so the prefix is `billing` and the Desk page is `/billing/desk`.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-package app.firefly
-
-import org.konaframework.core.Kona
+package app.panels.billing
 
 class Panel : org.konaframework.firefly.Panel() {
     init {
-        id("desk")
-        path("admin")
-        brand("Desk")
-        authenticate(false)
-        discover(Kona.app().basePath("src/main/kotlin/app/firefly"))
+        id("billing")
+        brand("Billing")
+        reuseAppGuard()
+        authenticate(true)
     }
 }
 ```
@@ -39,17 +46,14 @@ class Panel : org.konaframework.firefly.Panel() {
 <TabItem label="Java">
 
 ```java
-package app.firefly;
-
-import org.konaframework.core.Kona;
+package app.panels.billing;
 
 public class Panel extends org.konaframework.firefly.Panel {
     public Panel() {
-        id("desk");
-        path("admin");
-        brand("Desk");
-        authenticate(false);
-        discover(Kona.app().basePath("src/main/java/app/firefly"));
+        id("billing");
+        brand("Billing");
+        reuseAppGuard();
+        authenticate(true);
     }
 }
 ```
@@ -57,48 +61,109 @@ public class Panel extends org.konaframework.firefly.Panel {
 </TabItem>
 </Tabs>
 
-`./grind make:firefly-panel` escribe solo `id` y `path`. Añade `brand`, `authenticate` y `discover` tú mismo cuando generes la clase. `./grind firefly:install` escribe esa misma clase más corta. El kit escribe la clase completa de arriba.
+The provider loads this class from `app/panels/billing/Panel.kt` (or `.java`) and then loads `pages/`, `widgets/`, and `resources/` in that same folder. The generator writes `id`, `reuseAppGuard()`, and `authenticate(true)` so `/billing/login` uses the seeded demo user. Call `authenticate(false)` only when the panel should stay open without a sign-in.
 
-## Móntalo después de tus propias rutas
+## Choose the URL prefix
 
-hello-kotlin importa `app.firefly.Panel` como `DeskPanel` para que el nombre quede claro en `bootstrap/App.kt`. hello-java construye `app.firefly.Panel`. Ambas llamadas van después de las rutas de bienvenida, así que `/` sigue siendo la página de bienvenida.
+Leave `path` unset and the prefix is the panel id. These three are the choices:
+
+| Call | Prefix |
+|------|--------|
+| `path` omitted, id `billing` | `/billing` |
+| `path("admin")` | `/admin` |
+| `path("")` | the site root |
+
+`path("admin")` and `path("/admin/")` both serve `/admin`. `path("")` and `path("/")` both serve the site root. A root panel registers each page, auth screen, and resource page by name. It does not register a catch-all.
+
+Two panels can mount on one router when their prefixes differ. One can omit `path` and use its id. Another can call `path("admin")` or `path("")`.
+
+## Register a panel by hand
+
+Panels under `app/panels` do not need a manual call. When you build a panel in code, call `Firefly.register` from `app.providers.FireflyServiceProvider`. That class extends the framework provider. `register` runs before any provider boots, so the panel is mounted with the discovered ones.
+
+`Firefly.register(Panel)` keeps that instance. `Firefly.register(Supplier<Panel>)` builds the panel when the app mounts.
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
-import app.firefly.Panel as DeskPanel
+package app.providers
 
-WebRoutes().register(router)
-ApiRoutes().register(router)
-DeskPanel().mount(router)
+import org.konaframework.core.Application
+import org.konaframework.firefly.Firefly
+import org.konaframework.firefly.ListPage
+import org.konaframework.firefly.Panel
+
+class FireflyServiceProvider : org.konaframework.firefly.FireflyServiceProvider() {
+    override fun register(app: Application) {
+        super.register(app)
+        Firefly.register(
+            Panel().id("billing").authenticate(false).page(ListPage("orders")),
+        )
+        Firefly.register {
+            Panel().id("ops").path("").authenticate(false).page(ListPage("home"))
+        }
+    }
+}
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```java
-new WebRoutes().register(router);
-new ApiRoutes().register(router);
-new app.firefly.Panel().mount(router);
+package app.providers;
+
+import org.konaframework.core.Application;
+import org.konaframework.firefly.Firefly;
+import org.konaframework.firefly.ListPage;
+import org.konaframework.firefly.Panel;
+
+public class FireflyServiceProvider extends org.konaframework.firefly.FireflyServiceProvider {
+    @Override
+    public void register(Application app) {
+        super.register(app);
+        Firefly.register(new Panel().id("billing").authenticate(false).page(new ListPage("orders")));
+        Firefly.register(() -> new Panel().id("ops").path("").authenticate(false).page(new ListPage("home")));
+    }
+}
 ```
 
 </TabItem>
 </Tabs>
 
-`mount` registra las rutas GET y POST del panel. Llamarlo dos veces lanza `FireflyException` y nombra el id del panel. Si una ruta ya está ocupada, `mount` lanza y nombra ambos manejadores. La ruta existente se queda. Un panel no registra `/_firefly/` ni `/wire/update`.
+The billing panel has no `path`, so orders are at `/billing/orders`. The ops panel calls `path("")`, so home is at `/home`. A class you pass to `Firefly.register` is not mounted a second time when discovery finds the same class under `app/panels`.
 
-## Qué carga discover
+## What discovery loads
 
-`discover(panelDirectory)` lee tres carpetas. Una carpeta ausente está vacía. Un archivo debe declarar un paquete y una clase cuyo nombre coincida con el archivo. Esa clase ya debe estar en el classpath y debe tener un constructor sin argumentos. Las clases abstractas y los tipos que no corresponden se saltan.
+A missing folder is empty. A file must declare a package and a class whose name matches the file. That class must already be on the classpath and must have a no-arg constructor. Abstract classes and unrelated types are skipped.
 
-| Carpeta | Tipo cargado |
+| Folder | Loaded type |
 |--------|-------------|
-| `pages/` | `PanelPage` (`CustomPage`, y las páginas de lista, crear, editar, ver y manage) |
+| `pages/` | `PanelPage` (`CustomPage`, and the list, create, edit, view, and manage pages) |
 | `widgets/` | `Widget` |
 | `resources/` | `Resource` |
 
-hello-kotlin usa exactamente esas tres carpetas:
+For a generated billing panel the tree is:
+
+```text
+app/panels/billing/Panel.kt
+app/panels/billing/pages/Desk.kt
+app/panels/billing/widgets/Revenue.kt
+app/panels/billing/resources/Note.kt
+app/panels/billing/resources/Order.kt
+```
+
+Java uses the same names under `src/main/java/app/panels/billing/`.
+
+Fields, entries, columns, filters, actions, layouts, and themes are written under `app/firefly/` (`fields/`, `entries/`, `columns/`, `filters/`, `actions/`, `layouts/`, `themes/`). Discovery does not scan those folders. Reference those classes from a page, a resource, or `theme(...)`.
+
+You can still call `page`, `widget`, and `resource` on the panel.
+
+Discovered widgets land on the page whose slug is empty, or on the first page when no page has an empty slug.
+
+## The hello samples
+
+`samples/hello-kotlin` and `samples/hello-java` still construct `app.firefly.Panel` and call `mount` after the welcome routes. Those classes call `path("admin")`, so their screens are under `/admin`. A panel you generate with `make:firefly-panel` uses its id until you set `path`.
 
 ```text
 app/firefly/Panel.kt
@@ -108,27 +173,10 @@ app/firefly/resources/NoteResource.kt
 app/firefly/resources/OrderResource.kt
 ```
 
-hello-java usa los mismos nombres bajo `src/main/java/app/firefly/`.
+With `path("admin")` the sample URLs are `/admin/desk`, `/admin/notes/manage`, and `/admin/orders/list`. Auth screens (`/login`, `/register`, `/password-reset`, `/email-verify`, `/profile`) are registered under the panel prefix even when `authenticate(false)` skips the redirect.
 
-Los generadores de campos, entradas, columnas, filtros, acciones, diseños y temas escriben carpetas hermanas (`fields/`, `entries/`, `columns/`, `filters/`, `actions/`, `layouts/`, `themes/`). `discover` no escanea esas carpetas. Referencia esas clases desde una página, un recurso o `theme(...)`.
+`mount` registers the panel’s GET and POST paths. Calling it twice on the same instance throws `FireflyException` and names the panel id. If a path is already taken, `mount` throws and names both handlers. A panel does not register `/_firefly/` or `/wire/update`.
 
-Todavía puedes llamar a `page`, `widget` y `resource` en el panel. No hay un registro de toda la app.
+## Next
 
-Los widgets descubiertos caen en la página cuyo slug está vacío, o en la primera página cuando ninguna tiene el slug vacío. En los ejemplos hello esa primera página es `Desk`, así que `DeskWidget` se renderiza en `/admin/desk`.
-
-## URLs que obtienes con path("admin")
-
-| URL | Pantalla |
-|-----|--------|
-| `/admin/desk` | La página Desk personalizada |
-| `/admin/notes/manage` | El recurso simple de notes |
-| `/admin/orders/list` | Lista de orders |
-| `/admin/orders/create` | Crear orders |
-| `/admin/orders/edit` | Editar orders |
-| `/admin/orders/view` | Ver orders |
-
-`path("")` sirve las mismas pantallas en la raíz del sitio. Las pantallas de auth (`/admin/login`, `/admin/register`, `/admin/password-reset`, `/admin/email-verify`, `/admin/profile`) se registran aunque `authenticate(false)` se salte la redirección.
-
-## Siguiente
-
-[Una app que funciona](/docs/firefly/working-app/) llena `resources/` con las clases de notes y orders de los ejemplos hello.
+[A working app](/docs/firefly/working-app/) walks the notes and orders screens in the hello samples.

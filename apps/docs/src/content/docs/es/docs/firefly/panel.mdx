@@ -1,29 +1,30 @@
 ---
 title: Panel
-description: "La clase Panel — id, path, brand, guard, tema, hooks y mount."
+description: "Set the id, path, and brand on the panel class. If path is omitted, the URL prefix is the panel id."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-`Panel` es el objeto que configuras y montas. El archivo de tu app es `app/firefly/Panel`, y la clase que extiende es `org.konaframework.firefly.Panel`.
+Set the id, the URL prefix, and the brand. The class you write extends `org.konaframework.firefly.Panel`. After `./grind install firefly`, the provider mounts every panel under `app/panels` on boot. `./grind make:firefly-panel` writes that class.
 
-Añadir el módulo no registra rutas por sí solo. Las rutas aparecen cuando llamas a `mount`. El cromo, la barra lateral y la barra superior, es una segunda clase con el mismo nombre simple, `org.konaframework.firefly.support.Panel`. Esa se documenta en [Cromo del panel](/docs/firefly/chrome/). La clase que escribes es la de `org.konaframework.firefly`.
+<FireflyShot file="section-panel-chrome.png" description="Panel chrome with sidebar, top bar, and content shell." />
 
-<FireflyShot file="desk-panel.png" description="El panel hello-kotlin en http://127.0.0.1:4017/admin/desk, con la barra lateral y la página Desk en el cuerpo." />
+The chrome, the sidebar and the top bar, is a second class with the same simple name, `org.konaframework.firefly.support.Panel`. That one is on [Panel chrome](/docs/firefly/chrome/). The class you write is the one in `org.konaframework.firefly`.
 
-Los setters encadenables aceptan un valor estático o un cierre. El cierre recibe el `Get` del esquema. Un id, brand, domain o nombre de guard en blanco lanza `FireflyException` y nombra el campo.
+<FireflyShot file="desk-panel.png" description="The hello-kotlin panel at http://127.0.0.1:4017/admin/desk, with the sidebar and the Desk page in the body." />
 
-## Un panel en una llamada
+Chainable setters accept a static value or a closure. The closure receives the schema `Get`. A blank id, brand, domain, or guard name throws `FireflyException` and names the field.
+
+## Mount a panel
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```kotlin
 val panel = Panel()
-    .id("desk")
-    .path("admin")
-    .brand("Desk")
+    .id("billing")
+    .brand("Billing")
     .navigation(NavigationType.APP)
     .page(ListPage("orders"))
 panel.mount(router)
@@ -34,9 +35,8 @@ panel.mount(router)
 
 ```java
 Panel panel = new Panel();
-panel.id("desk");
-panel.path("admin");
-panel.brand("Desk");
+panel.id("billing");
+panel.brand("Billing");
 panel.navigation(NavigationType.APP);
 panel.page(new ListPage("orders"));
 panel.mount(router);
@@ -45,57 +45,129 @@ panel.mount(router);
 </TabItem>
 </Tabs>
 
-`path("admin")` y `path("/admin/")` sirven ambos `/admin`. `path("")` y `path("/")` sirven la raíz del sitio. Un panel raíz registra cada página, pantalla de auth y página de recurso por nombre. No registra un comodín.
+If `path` is not set, the URL prefix is the panel id. The example above is `/billing/orders`. `path("admin")` and `path("/admin/")` both serve `/admin`. `path("")` and `path("/")` serve the site root. A root panel registers each page, auth screen, and resource page by name. It does not register a catch-all.
 
-Si una ruta ya está enrutada, `mount` lanza `FireflyException` y nombra ambos manejadores. Dos paneles pueden montarse en un router, uno en `path("")` y otro en `path("admin")`. `domain("ops.example")` rechaza una petición cuya cabecera `Host` no coincide, incluso cuando la cabecera incluye un puerto.
+If a path is already routed, `mount` throws `FireflyException` and names both handlers. Two panels can mount on one router when their prefixes differ: one can use its id, one can call `path("admin")`, and one can call `path("")`. `domain("ops.example")` rejects a request whose `Host` header does not match, including when the header includes a port.
 
-`mount(router, state)` evalúa los cierres contra ese mapa de estado. Un segundo `mount` lanza `Panel [id] is already mounted`.
+`mount(router, state)` evaluates closures against that state map. A second `mount` throws `Panel [id] is already mounted`.
 
-## Métodos
+## Methods you will call
 
-| Método | Qué hace |
+| Method | What you get |
 |--------|----------------|
-| `id` / `path` / `brand` / `domain` | Cadena o cierre `Get`. El id predeterminado es `admin`. El path predeterminado es `admin`. El brand predeterminado es `Firefly` |
-| `navigation` / `topNavigation()` | `NavigationType`. Predeterminado `APP`. Consulta [Navegación](/docs/firefly/navigation/) |
-| `theme(FireflyTheme)` | Tokens y parciales. Predeterminado `KonaTheme`. Consulta [Temas y CSS](/docs/firefly/themes/) |
-| `layout(PanelLayout)` | Sustituye la disposición de la cáscara |
-| `hook(Hook, html)` | Añade HTML en un hook del cromo |
-| `spa(true)` | Añade `wire:navigate` en los enlaces que tienen URL |
-| `authenticate(false)` | Las páginas no redirigen al inicio de sesión. El ejemplo hello hace esto |
-| `guard` / `useAuthGuard` / `reuseAppGuard` | Quién tiene sesión iniciada. Consulta más abajo |
-| `item` / `cluster` / `userMenu` | Árbol de navegación. Consulta [Navegación](/docs/firefly/navigation/) |
-| `page` / `resource` / `widget` | Registra una instancia sin descubrimiento |
-| `discover(path)` | Carga `pages/`, `widgets/` y `resources/`. Consulta [Registrar un panel](/docs/firefly/registration/) |
-| `tenant` | Añade un enlace de inquilino. Consulta [Tenencia](/docs/firefly/tenancy/) |
-| `plugin` | Llama a `register` de inmediato. `boot` corre dentro de `mount`. Consulta [Plugins](/docs/firefly/plugins/) |
-| `mount(router)` | Registra las rutas |
-| `render(request)` | El cromo de una petición, sin el cuerpo de la página |
-| `guardName()` | `firefly-{id}`, o el nombre que pasaste a `reuseAppGuard` |
+| `id` / `path` / `brand` / `domain` | String or `Get` closure. Id defaults to `admin`. If `path` is omitted, the prefix is the id. Brand defaults to `Firefly` |
+| `branding(PanelBranding)` / `logo` / `logoDark` / `logoHeight` / `brandDisplay` | Chrome brand mark: name, light/dark logos, height, `BrandDisplay` (`BOTH` / `LOGO` / `NAME`), copyright, fonts, primary/accent colors. See [Branding](#branding) |
+| `resolveBrandingOverrides(...)` | Runtime overlay (settings DB, company logo). Merged over panel branding; fonts stay on panel defaults |
+| `profilePage(ProfilePage)` | Per-panel account page. See [Pages](/docs/firefly/pages/#profile) |
+| `navigation` / `topNavigation()` | `NavigationType`. Default `APP`. See [Navigation](/docs/firefly/navigation/) |
+| `theme(FireflyTheme)` | Tokens and partials. Default `KonaTheme`. See [Themes and CSS](/docs/firefly/themes/) |
+| `layout(PanelLayout)` | Replaces the shell arrangement |
+| `maxWidth(token)` / `maxContentWidth(token)` | Default content column width for pages and resources (`xs`…`7xl`, `full`, `screen`, `prose`). Default is `7xl` (80rem). Pages and resources can override. Tables fill that column |
+| `hook(Hook, html)` | Appends HTML into a chrome hook |
+| `spa(true)` | Adds `wire:navigate` on links that have a URL |
+| `authenticate(false)` | Pages skip the login redirect. The hello samples do this |
+| `guard` / `useAuthGuard` / `reuseAppGuard` | Who is signed in. See below |
+| `item` / `cluster` / `userMenu` | Navigation tree. See [Navigation](/docs/firefly/navigation/) |
+| `page` / `resource` / `widget` | Register one instance without discovery |
+| `discover(path)` | Load `pages/`, `widgets/`, and `resources/`. See [Register a panel](/docs/firefly/registration/) |
+| `tenant` | Adds a tenant link. See [Tenancy](/docs/firefly/tenancy/) |
+| `plugin` | Calls `register` immediately. `boot` runs inside `mount`. See [Plugins](/docs/firefly/plugins/) |
+| `mount(router)` | Registers routes |
+| `render(request)` | The chrome for a request, without a page body |
+| `guardName()` | `firefly-{id}`, or the name you passed to `reuseAppGuard` |
 
-## Auth y el guard
+## Branding
 
-El guard del panel es `firefly-{id}` salvo que llames a `reuseAppGuard()` (el nombre del guard de la aplicación `web`) o a `reuseAppGuard("name")`. `useAuthGuard(guard)` adapta un `Guard` de la aplicación. Hasta que hagas eso, el panel conserva su propio `MemoryPanelGuard` y no sustituye el inicio de sesión ni la sesión de la aplicación.
+`brand("Desk")` still sets the display name. Prefer `branding(PanelBranding(...))` when you also want logos, copyright, or colors. Shorthand helpers: `logo`, `logoDark`, `logoHeight`, `brandLogoOnly()`, `brandNameOnly()`, `brandLogoAndName()`.
 
-Las pantallas son `/login`, `/register`, `/password-reset`, `/email-verify` y `/profile`, bajo el prefijo del panel. Las páginas exigen ese guard salvo que llames a `authenticate(false)`. El inicio de sesión y el registro leen `email` y `password` (el registro también lee `name`). Un campo ausente devuelve HTML 422. Un intento fallido devuelve HTML 422 y el mensaje `Those credentials do not match`.
+Each chrome and auth render builds an effective `FireflyBranding`: panel defaults, then `resolveBrandingOverrides` when you set one. Overrides may change name, logos, height, display mode, copyright, and colors — not fonts (`googleFont` / `fontFamily` / `fontUrl` stay on the panel). Logo-only mode falls back to the name when no logo URL is set. When `copyright` is set, it appears in the sidebar footer and on auth screens.
 
-Cuando el guard no tiene id, el chip del usuario lee **Invitado**.
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
-## Tema y hooks
+```kotlin
+Panel()
+    .branding(
+        PanelBranding(
+            name = "Desk",
+            logo = "/branding/kona-logo.svg",
+            logoDark = "/branding/kona-logo-dark.svg",
+            brandDisplay = BrandDisplay.BOTH,
+            copyright = "© Desk",
+            primaryColor = "#DF8723",
+            accentColor = "#74453F",
+        ),
+    )
+    .resolveBrandingOverrides { AppSettings.toPanelBranding() }
+```
 
-`theme(HarborTheme())` selecciona el tema de ejemplo publicado en el artefacto del panel: un color primario distinto, un parcial de barra lateral que conserva los marcadores de hook y una hoja de estilos extra pequeña bajo `.ff-panel`. `hook(Hook.BODY_END, "...")` sigue inyectando en la cáscara. El `Panel` de soporte es lo que aplica el tema, el layout y los hooks. Lee [Cromo del panel](/docs/firefly/chrome/) para slots y parciales.
+</TabItem>
+<TabItem label="Java">
 
-## Generar uno
+```java
+new Panel()
+    .branding(PanelBranding.builder()
+        .name("Desk")
+        .logo("/branding/kona-logo.svg")
+        .brandDisplay(BrandDisplay.BOTH)
+        .copyright("© Desk")
+        .primaryColor("#DF8723")
+        .accentColor("#74453F")
+        .build())
+    .resolveBrandingOverrides(ctx -> AppSettings.toPanelBranding());
+```
+
+</TabItem>
+</Tabs>
+
+`hello-kotlin` and `hello-java` ship a Settings branding form that writes an in-memory `AppSettings` store; the panel reads it through `resolveBrandingOverrides`. Persist the same fields on Cadence when you need them across restarts.
+
+## Sign-in and the guard
+
+The panel guard is `firefly-{id}` unless you call `reuseAppGuard()` (the application guard name `web`) or `reuseAppGuard("name")`. `reuseAppGuard` wires login to `Auth.guard(name)` with the request bound on each attempt, so Cadence users and bcrypt hashes from `./grind db:seed` work at `/admin/login`. `useAuthGuard(guard)` adapts a concrete application `Guard`. Until you do either, the panel keeps its own `MemoryPanelGuard` (plain in-memory passwords from `/register`) and leaves the application’s login and session in place. The Firefly kit panel calls `reuseAppGuard()` and `authenticate(true)`.
+
+The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, `/profile`, and `/logout` (POST), under the panel prefix. Pages require that guard unless you call `authenticate(false)`. Login and registration read `email` and `password` (registration also reads `name`). A missing field returns 422 HTML. A failed attempt returns 422 HTML and the message `Those credentials do not match`. With `reuseAppGuard`, panel `/register` does not create application users — seed or create them through the app Auth stack. Sign out posts to `/logout`; profile POST saves the account form.
+
+When the guard has no id, the user chip reads **Guest**.
+
+## Content max width
+
+The page column defaults to **7xl** (80rem), centered in the body. List and manage tables stretch to **100%** of that column — they only shrink when you set a narrower max width on the panel, the page, or the resource.
+
+```kotlin
+Panel()
+    .id("admin")
+    .maxWidth("full") // or maxContentWidth("full")
+    .page(ListPage("orders").maxWidth("5xl"))
+```
+
+```java
+new Panel()
+    .id("admin")
+    .maxContentWidth("full")
+    .page(new ListPage("orders").maxWidth("5xl"));
+```
+
+Tokens: `xs`…`7xl`, `full`, `screen`, `prose`. An unknown token throws `FireflyException`. The panel emits `data-ff-max-width` on `.ff-panel`; a page or resource emits it on the page `<section>`. See [Pages](/docs/firefly/pages/) and [Resources](/docs/firefly/resources/).
+
+## Pick a theme and a hook
+
+`theme(HarborTheme())` selects the sample theme shipped on the panel artifact: a different primary color, a sidebar partial that keeps the hook markers, and a small extra stylesheet under `.ff-panel`. `hook(Hook.BODY_END, "...")` still injects into the shell. The support `Panel` applies the theme, the layout, and the hooks. Read [Panel chrome](/docs/firefly/chrome/) for slots and partials.
+
+## Generate the class
 
 ```bash
 ./grind make:firefly-panel
-./grind make:firefly-panel --lang=java --id=desk --path=admin
+./grind make:firefly-panel --id=billing
+./grind make:firefly-panel --lang=java --id=billing --path=staff
+./grind make:firefly-panel --id=billing --path=
 ./grind firefly:install
 ./grind make:firefly-theme Harbor
 ./grind firefly:publish
 ```
 
-`make:firefly-panel` y `firefly:install` escriben `Panel` más carpetas vacías `pages/`, `widgets/` y `resources/`. La clase generada pone solo `id` y `path`. `firefly:publish` copia el parcial de la barra lateral a `resources/views/firefly/sidebar.crema.html` para que puedas editarlo. El parcial debe conservar los marcadores de hook o el render lanza.
+`make:firefly-panel` and `firefly:install` write `app/panels/{id}/Panel` plus empty `pages/`, `widgets/`, and `resources/` folders. Omit `--path` and the class does not call `path`. `--path=staff` writes `path("staff")`. `--path=` writes `path("")`. `firefly:publish` copies the sidebar partial into `resources/views/firefly/sidebar.crema.html` so you can edit it. Keep the hook markers in that partial, or `render` throws.
 
-## Siguiente
+## Next
 
-[Páginas](/docs/firefly/pages/) son las pantallas a las que enruta este panel.
+[Pages](/docs/firefly/pages/) are the screens this panel routes to.

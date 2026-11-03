@@ -1,36 +1,40 @@
 ---
-
-title: 要求
-description: "安装 Firefly 面板之前需要的 JDK、Kona，以及面板依赖的部分。"
+title: Requirements
+description: "Confirm JDK 21 and a Kona app, then add the panel on the router you already serve. Firefly does not ask for a second runtime."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
 
-<FireflyShot file="app-ready.png" description="hello-kotlin 欢迎页，位于 http://127.0.0.1:4017/，一个在你打开面板之前就在提供路由的 Kona 应用。" />
-Firefly 运行在 Kona 应用内部。你不必安装第二套运行时。
+Check this list before you add the panel. You already have a Kona app. Add `kona-firefly`, write a `Panel`, and mount it on the router you already use.
 
-## 运行时
+<FireflyShot file="section-working-app.png" description="A running Firefly admin panel." />
 
-| 要求 | 你需要什么 |
-|------|------------|
-| **JDK** | 21 或更新。Kona 使用虚拟线程。 |
-| **一个 Kona 应用** | 用 `kona new` 创建，或一个已经依赖 `org.konaframework` 的现有 Gradle 项目。 |
-| **`kona` 和 `./grind`** | 全局 CLI 创建应用。应用内的 `./grind` 提供服务并运行 `make:firefly-*`。 |
-| **浏览器** | 当前的浏览器。Alpine 启动后，面板 HTML 就可以交互。 |
+`samples/hello-kotlin` and `samples/hello-java` are that app. `/` is still the welcome page. The desk is at `/admin`.
 
-面板构件是 `org.konaframework:kona-firefly`。它会带上支持、模式、动作、信息列表、表格、表单、通知和部件模块。你不必逐个加上那些坐标。
+<FireflyShot file="app-ready.png" description="The hello-kotlin welcome page at http://127.0.0.1:4017/, a Kona app serving a route before you open the panel." />
 
-## 面板期望已经存在的部分
+## What you need installed
 
-| 部分 | 原因 |
-|------|------|
-| HTTP 和 Crema | 页面是 HTML 响应。套件会登记这些提供者。 |
-| 会话 | 登录、密码重置和通知提示使用会话。 |
-| Cadence | 用 Cadence 模型调用 `model(...)` 的资源可以从 `query()` 构建 `ModelBuilder`。hello 示例也从内存行渲染表格，因此在迁移之前第一批屏幕就能工作。 |
-| Wire | 实时字段和动作点击通过 Wire 发送。面板 HTML 包含这些钩子。 |
+| Requirement | What you need |
+|-------------|----------------|
+| **JDK** | 21 or newer. Kona uses virtual threads. |
+| **A Kona app** | Created with `kona new`, or an existing Gradle project that already depends on `org.konaframework`. |
+| **`kona` and `./grind`** | The global CLI creates the app. `./grind` inside a standalone app serves it and runs `make:firefly-*`. |
+| **Browser** | A current browser. The panel HTML becomes interactive once Alpine starts. |
 
-提供面板不需要 Node。Chart.js 和 ApexCharts 随部件模块一起发布，并从 `/_firefly/widgets/` 提供。
+The panel artifact is `org.konaframework:kona-firefly`. It brings the support, schema, action, infolist, table, form, notification, and widget modules with it. Add that one coordinate.
 
-## 下一步
+## What the app already has to provide
 
-[安装](/docs/firefly/installation/) 会创建应用或加入依赖。
+| Piece | Why you need it |
+|-------|-----------------|
+| HTTP and Crema | Pages are HTML responses. The kit registers those providers. |
+| Session | Login, password reset, and notification toasts use the session. |
+| Cadence | A resource that calls `model(...)` with a Cadence model can build a `ModelBuilder` from `query()`. The hello samples also render tables from in-memory rows, so the first screens work before you migrate. |
+| Wire | Live fields and action clicks post through Wire. The panel HTML includes those hooks. |
+
+Chart.js and ApexCharts ship inside the widget module. The panel serves them from `/_firefly/widgets/`.
+
+## Next
+
+[Installation](/docs/firefly/installation/) creates the app or adds the dependency.

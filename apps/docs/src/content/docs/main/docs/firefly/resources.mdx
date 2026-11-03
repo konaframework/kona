@@ -8,6 +8,8 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 Add one class per record type, put it in the panel’s `resources/` folder, and discovery serves it. Bind a model, a form, an infolist, and a table on that class. If you define `form` but skip `infolist`, View (and manage View dialogs) derive a readonly infolist that **keeps the form’s layout** — root `schema.columns(...)` / `formColumns` (including breakpoint maps), sections, tabs, grids, fieldsets, column spans, and nested structure — while mapping fields to matching entry types (text, money, dates, toggles, colors, …). Hidden and chrome-only fields are skipped; empty layout wrappers drop out.
 
+<FireflyShot file="section-resources.png" description="Project resource index table." />
+
 Call `simple()` when you want one Manage page. Leave it off when you want list, create, edit, and view as their own URLs. The hello samples use both. The click-through is on [A working app](/docs/firefly/working-app/). This page is the method list.
 
 The sidebar gets **one entry per resource** (the list or manage page). Create, edit, view, and delete are page-header and row actions — never separate sidebar links. See [Navigation](/docs/firefly/navigation/).

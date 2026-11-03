@@ -1,87 +1,124 @@
 ---
 title: Installation
-description: "Créez un bureau avec kona new --kit=firefly et ouvrez /admin, ou ajoutez kona-firefly au fichier Gradle d’une application que vous avez déjà."
+description: "Run ./grind install firefly. It adds the dependency, the config, and a service provider that discovers panels under app/panels."
 ---
 
 import FireflyShot from '../../../../../../components/FireflyShot.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Créez une nouvelle application lorsque vous voulez que le panneau, les dossiers et la classe de démarrage soient écrits pour vous. Entrez dans le projet et lancez `./grind serve`. Le kit monte le panneau sur `/admin`. Vos propres routes restent où elles sont. La page d’accueil est toujours `/`.
+From the app directory, install Firefly and generate a panel. The provider mounts that panel when the app boots. You do not register the provider yourself.
 
-<FireflyShot file="empty-admin.png" description="Le chemin /admin d’une nouvelle application issue de kona new --kit=firefly, avant l’ajout d’une page ou d’une ressource." />
+<FireflyShot file="section-login.png" description="Firefly login screen." />
 
-## Créer l’application
+<FireflyShot file="empty-admin.png" description="The /admin path of a new app from kona new --kit=firefly, before any page or resource is added." />
+
+## Install Firefly
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
 
 ```bash
-kona new desk --kit=firefly
-cd desk
-./grind serve
+./grind install firefly
+./grind make:firefly-panel
 ```
 
 </TabItem>
 <TabItem label="Java">
 
 ```bash
-kona new desk --kit=firefly --lang=java
-cd desk
-./grind serve
+./grind install firefly --lang=java
+./grind make:firefly-panel --lang=java
 ```
 
 </TabItem>
 </Tabs>
 
-Ouvrez `http://127.0.0.1:4000/`. C’est la route d’accueil. Ouvrez `http://127.0.0.1:4000/admin` pour le panneau. Le fichier Gradle généré dépend de Maven Central. Le CLI écrit `org.konaframework:kona-firefly` à la même version que `kona-http` et les autres artefacts Kona de ce fichier.
+`./grind install firefly` adds `org.konaframework:kona-firefly` next to your other Kona dependencies. It writes `config/Firefly`, which is the `firefly` config key. It writes `app.providers.FireflyServiceProvider` and records that class in `META-INF/kona/providers`. The framework provider ships in the Firefly artifact, so both are loaded on boot.
 
-## L’ajouter à une application que vous avez déjà
+The generated panel is `app/panels/admin/Panel`. Its id is `admin`, and `path` is not set, so the panel is served at `/admin`. `pages/`, `widgets/`, and `resources/` sit beside that class. The provider reads them. The kit ships a `Dashboard` page (empty slug) so `GET /admin` is the panel home. If a panel has no empty-slug page, Firefly still mounts a welcome dashboard at the panel root.
 
-Placez la même coordonnée à côté de vos autres dépendances `org.konaframework`. Les applications Kotlin et Java de ce dépôt utilisent toutes deux le DSL Gradle Kotlin :
+Pass `--id=` when the panel should live somewhere else. The prefix is that id until you also pass `--path=`.
 
-```kotlin
-dependencies {
-    implementation("org.konaframework:kona-firefly:0.3.0")
-}
+```bash
+./grind make:firefly-panel --id=billing
+./grind make:firefly-panel --id=billing --path=staff
+./grind make:firefly-panel --id=billing --path=
 ```
 
-Faites correspondre la version aux autres lignes `org.konaframework` de ce fichier. La version de ce dépôt est `0.3.0`.
+The first command serves `/billing`. `--path=staff` serves `/staff`. `--path=` with an empty value serves the site root.
 
-Ajoutez ensuite un `Panel` et appelez `mount` sur le routeur après l’enregistrement de vos propres routes. [Enregistrer un panneau](/docs/firefly/registration/) est cette étape. La dépendance n’enregistre pas de routes toute seule.
+`./grind serve` starts the app. Open the prefix you chose. A welcome route on `/` stays on `/` when the panel prefix is not empty.
 
-Dans le dépôt Kona, les exemples hello dépendent du module directement :
+## What the config is for
+
+`app/panels` is always scanned, under `src/main/kotlin` and `src/main/java`. `discovery` in `config/Firefly` is a list of extra directories. Leave it empty until you have panels outside `app/panels`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+"discovery" to listOf("src/main/kotlin/app/more-panels"),
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+values.put("discovery", java.util.List.of("src/main/java/app/more-panels"));
+```
+
+</TabItem>
+</Tabs>
+
+The installer also adds `config.Firefly` to `bootstrap/App` when that file lists `Paths` the way a new Kona app does.
+
+## A new app
+
+`kona new desk --kit=firefly` writes a starter that mounts one panel at `/admin` (id `admin`; path defaults to the id). The kit still asks for a CSS stack (or accepts `--css=`) the same way Crema and Wire do — default **Tailwind** — so welcome and other non-panel pages get Vite + `package.json`. Panel chrome does **not** use that app build: `DefaultLayout` / `AuthLayout` inject the framework-shipped `firefly.css` under `.ff-panel` and `.ff-auth`. Use the kit when you want that starter. Use `./grind install firefly` when the app already exists.
+
+```bash
+kona new desk --kit=firefly
+cd desk
+./grind migrate --seed
+npm install && npm run dev   # terminal 1 — Vite for welcome / other pages
+./grind serve                # terminal 2
+```
+
+Open `http://127.0.0.1:4000/` for the welcome route and `http://127.0.0.1:4000/admin` for that kit panel. The panel reuses the application `web` guard (`reuseAppGuard()`), so sign in at `/admin/login` with the seeded demo user **`demo@kona.test`** / **`password`**. The same credentials work on the Crema `/login` page.
+
+Inside this repository, the hello samples depend on the module directly:
 
 ```kotlin
 implementation(project(":kona-firefly"))
 ```
 
-`samples/hello-kotlin` et `samples/hello-java` sont le bureau utilisé dans [Une application qui tourne](/docs/firefly/working-app/). Depuis la racine du dépôt, lancez `./gradlew :hello-kotlin:run` ou `./gradlew :hello-java:run`. Ces exemples ne livrent pas `./grind`. Une application autonome issue de `kona new` le fait.
+`samples/hello-kotlin` and `samples/hello-java` are the app in [A working app](/docs/firefly/working-app/). From the repository root, run `./gradlew :hello-kotlin:run` or `./gradlew :hello-java:run`.
 
-## Commandes que vous pouvez lancer
+## Commands you can run
 
-Depuis le répertoire de l’application, `./grind` accepte ces commandes Firefly. Passez `--lang=java` lorsque l’application est en Java. Kotlin est le défaut.
+From the app directory, `./grind` accepts these Firefly commands. Pass `--lang=java` when the app is Java. Kotlin is the default. `--panel=` chooses the panel directory. It defaults to `admin`.
 
-| Commande | Ce qu’elle écrit |
+| Command | What it writes |
 |---------|----------------|
-| `make:firefly-panel` | `app/firefly/Panel` plus `pages/`, `widgets/` et `resources/` |
-| `firefly:install` | Le même arbre que `make:firefly-panel` |
-| `make:firefly-page Desk` | Une `CustomPage` dans `pages/` |
-| `make:firefly-theme Harbor` | Une classe de thème dans `themes/` |
-| `make:firefly-resource Note --simple` | Une page Manage dans `resources/` |
-| `make:firefly-resource Order` | Pages list, create, edit et view, plus un gestionnaire de relation |
-| `make:firefly-field Price` | Une classe de champ et une vue Crema sous `fields/` |
-| `make:firefly-entry Note` | Une entrée d’infolist sous `entries/` |
-| `make:firefly-column Name` | Une colonne de tableau sous `columns/` |
-| `make:firefly-filter Status` | Un filtre de tableau sous `filters/` |
-| `make:firefly-action SaveRecord` | Une classe d’action et une vue sous `actions/` |
-| `make:firefly-layout Banner` | Un composant de layout sous `layouts/` |
-| `make:firefly-widget Revenue` | Un widget sous `widgets/` |
-| `firefly:publish` | Un partiel de barre latérale à `resources/views/firefly/sidebar.crema.html` |
+| `install firefly` | The dependency, `config/Firefly`, and `app.providers.FireflyServiceProvider` |
+| `make:firefly-panel` | `app/panels/{id}/Panel` plus `pages/`, `widgets/`, and `resources/` |
+| `firefly:install` | The same panel tree as `make:firefly-panel` |
+| `make:firefly-page Desk` | A `CustomPage` in that panel's `pages/` |
+| `make:firefly-widget Revenue` | A widget in that panel's `widgets/`, and a Crema view |
+| `make:firefly-resource Note --simple` | `resources/note/NoteResource` + `pages/ManageNote` |
+| `make:firefly-resource Order --generate` | Same layout; form/table/infolist from DB columns of `app.models.Order` |
+| `make:firefly-resource Order` | `resources/order/OrderResource` + List/Create/Edit/View pages (stub `name` field) |
+| `make:firefly-field Price` | A field class and a Crema view under `app/firefly/fields/` |
+| `make:firefly-entry Note` | An infolist entry under `app/firefly/entries/` |
+| `make:firefly-column Name` | A table column under `app/firefly/columns/` |
+| `make:firefly-filter Status` | A table filter under `app/firefly/filters/` |
+| `make:firefly-action SaveRecord` | An action class and view under `app/firefly/actions/` |
+| `make:firefly-layout Banner` | A layout component under `app/firefly/layouts/` |
+| `make:firefly-theme Harbor` | A theme class under `app/firefly/themes/` |
+| `firefly:publish` | A sidebar partial at `resources/views/firefly/sidebar.crema.html` |
 
-`make:firefly-panel` écrit une classe nommée `Panel`. Passer un autre nom de classe échoue. Les drapeaux optionnels `--id=` et `--path=` fixent l’id généré et le préfixe d’URL. `./grind firefly:install` écrit ce même arbre.
+`make:firefly-panel` writes a class named `Panel`. Passing another class name fails. `--id=` is the package folder and the panel id. Omit `--path=` and the generated class does not call `path`, so the prefix is the id. `./grind firefly:install` writes that same tree. It does not add the dependency or the provider. Use `./grind install firefly` for that.
 
-Ajoutez le kit, ou ajoutez la coordonnée Maven. Puis utilisez les commandes du tableau.
+## Next
 
-## Suite
-
-[Enregistrer un panneau](/docs/firefly/registration/) est le fichier que le kit a déjà créé, et comment la découverte trouve les pages, les widgets et les ressources.
+[Register a panel](/docs/firefly/registration/) opens the class you just generated and shows `Firefly.register` for a panel you build by hand.

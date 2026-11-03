@@ -1,20 +1,25 @@
 ---
-
-title: 对话框
-description: "共享的 Firefly 对话框 — 模态、侧栏和全屏 — 包括宽度、拖动和 configureUsing。"
+title: Dialog
+description: "Call Dialog.make, pick modal, sidebar, or fullscreen, and render the HTML. The page that embeds it decides when it opens."
 ---
 
 import FireflyShot from '../../../../../components/FireflyShot.astro';
+import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-<FireflyShot file="dialog.png" description="Desk 页上的编辑对话框，位于 http://127.0.0.1:4017/admin/desk，从编辑页眉动作打开，里面有笔记字段。" />
+Open a window on top of a page for a confirmation, a short form, or a side panel. There is one component, `Dialog`. Pick a mode, a width, a title, and a body, then call `render()`.
 
-`Dialog` 是唯一的对话框组件。你选择模式、宽度、标题和正文，然后 `render()` 返回 HTML。对话框不会自己打开，也不会向服务器发请求。嵌入这段 HTML 的页面决定何时显示它。拖动行为是给客户端的标记：`x-data="ffDialog"` 和 `data-ff-drag="true"`。支持构件不附带那段脚本。
+<FireflyShot file="section-dialog.png" description="Action confirmation dialog." />
 
-## 创建一个
+The dialog does not open itself, and it does not post to the server. The page that embeds the HTML decides when it is shown. On the Desk page the Edit action’s dialog is in the first response and stays closed until the button opens it.
 
-`Dialog.make(title)` 返回一个对话框。默认模式是模态，默认宽度是 `lg`，拖动是开着的。如果设置了 `configureUsing`，它会在 `make` 返回之前对新对话框运行。
+<FireflyShot file="dialog.png" description="The Edit dialog on the Desk page at http://127.0.0.1:4017/admin/desk, opened from the Edit header action, with a note field inside." />
 
-Kotlin：
+## Create one
+
+`Dialog.make(title)` returns a dialog. The default mode is modal, the default width is `lg`, and dragging is on. `configureUsing`, if set, runs on the new dialog before `make` returns.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 val html = Dialog.make("Edit category")
@@ -22,7 +27,8 @@ val html = Dialog.make("Edit category")
     .render()
 ```
 
-Java：
+</TabItem>
+<TabItem label="Java">
 
 ```java
 String html = Dialog.make("Edit category")
@@ -30,50 +36,63 @@ String html = Dialog.make("Edit category")
     .render();
 ```
 
-标题会被 HTML 转义。`A & B <tag> "q"` 变成 `A &amp; B &lt;tag&gt; &quot;q&quot;`。正文按你传入的字符串插入。正文 HTML 来自用户时，请自行转义。
+</TabItem>
+</Tabs>
 
-## 模式
+You get a modal titled **Edit category** with the body `Name`. The title is HTML-escaped. `A & B <tag> "q"` becomes `A &amp; B &lt;tag&gt; &quot;q&quot;`. The body is inserted as the string you passed. Escape body HTML yourself when it comes from a user.
 
-| 调用 | 根类 | 额外属性 |
-|------|------|----------|
+## Choose the mode
+
+| Call | Root classes | Extra attributes |
+|------|----------------|------------------|
 | `modal()` | `ff-dialog ff-dialog-modal ff-dialog-<width>` | `data-ff-align="top"` |
 | `slideOver()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="end"` |
 | `slideOverStart()` | `ff-dialog ff-dialog-sidebar ff-dialog-<width>` | `data-ff-position="start"` |
-| `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | 没有对齐、位置或拖动属性 |
+| `fullscreen()` | `ff-dialog ff-dialog-fullscreen ff-dialog-<width>` | none of the align, position, or drag attributes |
 
-根元素始终有 `role="dialog"`。内部是：遮罩（`ff-dialog-overlay`）、窗口（`ff-dialog-window`）、带标题的页眉（`ff-dialog-header`）和正文（`ff-dialog-body`）。
+The root element always has `role="dialog"`. Inside it: an overlay (`ff-dialog-overlay`), a window (`ff-dialog-window`), a header (`ff-dialog-header`) with the title and header actions, a body (`ff-dialog-body`), and — for modals — a resize handle.
 
-在 `slideOver()` 之后调用 `modal()` 会把模式切回模态。已存储的侧栏位置保持原样，并且不会渲染在模态上。
+Header actions (Shamar-shaped) sit in `.ff-dialog-header-actions`:
 
-`width("screen")` 只把宽度类改成 `ff-dialog-screen`。它不会让对话框全屏。全屏是 `fullscreen()`。
+| Control | Markup | Default |
+|---------|--------|---------|
+| Maximize / restore | `button.ff-dialog-expand` (`data-ff-dialog-expand`) | on for modal and slide-over; off for `fullscreen()` presentation |
+| Close | `button.ff-dialog-close` | on (`closeButton(false)` hides it) |
 
-## 宽度
+The header has a bottom divider. The dialog body scrolls on long content; `.ff-action-footer` stays pinned at the bottom of the window under a top divider, flush **right** (secondary then primary — Cancel / Close, then Submit / Edit).
 
-`width` 接受 `sm`、`md`、`lg`、`xl` 或 `screen`。其他值会抛出 `FireflyException`：
+Resource create / view / edit / delete actions all mount this same official `Dialog`. `Action.modalCloseButton(false)` calls `Dialog.closeButton(false)` to hide the header X. `Action.modalExpandable(false)` / `Dialog.expandable(false)` hide the maximize control. `Dialog.resizable(false)` hides the corner resize handle.
+
+Calling `modal()` after `slideOver()` switches the mode back to modal. The stored sidebar position is left as it was and is not rendered on a modal.
+
+`width("screen")` changes the width class to `ff-dialog-screen`. Presentation `fullscreen()` is a dedicated mode (no drag, expand, or resize). The maximize button toggles an expanded modal without changing the mode.
+
+## Set the width
+
+`width` accepts `sm`, `md`, `lg`, `xl`, or `screen`. Anything else throws `FireflyException`:
 
 ```text
 Unknown dialog width [<value>]
 ```
 
-默认是 `lg`，因此在你更改之前会有类 `ff-dialog-lg`。侧栏和全屏对话框也会渲染宽度类。
+The default is `lg`, so the class `ff-dialog-lg` is present until you change it. The width class is rendered for sidebar and fullscreen dialogs as well.
 
-## 拖动
+## Turn dragging on or off
 
-`draggable(true)` 是默认值。`draggable(false)` 会去掉拖动属性。
+`draggable(true)` is the default. `draggable(false)` removes the drag attributes.
 
-即使调用了 `draggable(true)`，全屏模式也会省略拖动。模态和侧栏对话框包含：
+Dragging is also omitted when the mode is fullscreen, even if `draggable(true)` was called. Modal and sidebar dialogs include `data-ff-drag="true"` on the root and `data-ff-dialog-drag-handle` on the header. Firefly chrome moves `.ff-dialog-window` on pointer drag (no Alpine required).
 
-```html
-x-data="ffDialog" data-ff-drag="true"
-```
+Drag position does not stick. Closing or reopening a dialog clears the inline `position`, `margin`, `left`, and `top` that drag wrote, so the window returns to its stylesheet center every time you open it.
 
-模态窗口由样式表偏移：`.ff-dialog-modal .ff-dialog-window` 的上边距是 `4rem`。这就是顶部对齐。侧栏和全屏窗口没有这个边距。
+The modal window is offset by the stylesheet: `.ff-dialog-modal .ff-dialog-window` has a top margin of `4rem`. That is the top alignment. Sidebar and fullscreen windows do not get that margin.
 
-## configureUsing
+## Set a default for later dialogs
 
-`Dialog.configureUsing` 存储一个 `Consumer<Dialog>`，供之后的 `make` 调用使用。传入 `null` 可以清除它。该设置是静态的，在你替换或清除之前，进程中每一次 `make` 都共享它。
+`Dialog.configureUsing` stores one `Consumer<Dialog>` used by later `make` calls. Pass `null` to clear it. The setting is static and shared by every `make` in the process until you replace or clear it.
 
-Kotlin：
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
 
 ```kotlin
 Dialog.configureUsing { dialog -> dialog.width("md") }
@@ -81,7 +100,8 @@ val html = Dialog.make("Edit").slideOver().render()
 Dialog.configureUsing(null)
 ```
 
-Java：
+</TabItem>
+<TabItem label="Java">
 
 ```java
 Dialog.configureUsing(dialog -> dialog.width("md"));
@@ -89,10 +109,13 @@ String html = Dialog.make("Edit").slideOver().render();
 Dialog.configureUsing(null);
 ```
 
-该示例的 HTML 包含 `ff-dialog-sidebar`、`ff-dialog-md` 和 `data-ff-position="end"`。它不包含 `data-ff-align`。
+</TabItem>
+</Tabs>
 
-配置器在你自己的调用之前运行，因此稍后在该实例上的 `width("xl")` 会替换配置的宽度。
+The example’s HTML contains `ff-dialog-sidebar`, `ff-dialog-md`, and `data-ff-position="end"`. It does not contain `data-ff-align`.
 
-## 动作
+A configurer runs before your own calls, so a later `width("xl")` on that instance replaces the configured width.
 
-[动作](/docs/firefly/actions/) 会打开这个对话框。`slideOver()`、`slideOverStart()`、`fullscreen()` 和默认模态都会调用 `Dialog.make`。动作提供标题、宽度和正文。
+## Open it from an action
+
+[Actions](/docs/firefly/actions/) open this dialog. `slideOver()`, `slideOverStart()`, `fullscreen()`, and the default modal call `Dialog.make`. The action supplies the title, the width, and the body. On the Desk page, the Edit header action opens a dialog with a note field.
