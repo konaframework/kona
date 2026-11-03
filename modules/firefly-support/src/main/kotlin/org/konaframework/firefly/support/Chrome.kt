@@ -216,10 +216,24 @@ class DefaultLayout(
                 "panel.querySelectorAll('.ff-dialog-window').forEach(function(dlg){" +
                 "dlg.classList.remove('ff-dialog-expanded');setExpandIcon(dlg,false);" +
                 "dlg.style.position='';dlg.style.margin='';dlg.style.left='';dlg.style.top='';dlg.style.width='';dlg.style.height='';dlg.style.maxWidth='';dlg.style.maxHeight='';dlg.style.transform='';});}" +
-                "function closeDialog(panel){if(!panel)return;resetDialogForms(panel);resetDialogDrag(panel);" +
-                "panel.classList.remove('ff-open');" +
+                "function prefersReducedMotion(){try{return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);}catch(e){return false;}}" +
+                "function finishCloseDialog(panel){if(!panel)return;" +
+                "if(panel._ffCloseTimer){clearTimeout(panel._ffCloseTimer);panel._ffCloseTimer=null;}" +
+                "if(panel._ffCloseEnd){panel.removeEventListener('transitionend',panel._ffCloseEnd);panel._ffCloseEnd=null;}" +
+                "resetDialogForms(panel);resetDialogDrag(panel);" +
+                "panel.classList.remove('ff-open','ff-closing');" +
                 "panel.setAttribute('hidden','');panel.style.display='none';panel.setAttribute('aria-hidden','true');}" +
-                "function closeDialogs(){root.querySelectorAll('[data-ff-dialog-panel].ff-open').forEach(closeDialog);}" +
+                "function closeDialog(panel,immediate){if(!panel)return;" +
+                "var skip=!!immediate||prefersReducedMotion()||!panel.classList.contains('ff-open')||panel.classList.contains('ff-closing');" +
+                "if(skip){finishCloseDialog(panel);return;}" +
+                "panel.classList.add('ff-closing');panel.classList.remove('ff-open');" +
+                "panel.style.display='block';panel.removeAttribute('hidden');" +
+                "var ended=false;function end(){if(ended)return;ended=true;finishCloseDialog(panel);}" +
+                "panel._ffCloseEnd=function(ev){if(!ev||ev.target!==panel&&!(ev.target&&ev.target.classList&&" +
+                "(ev.target.classList.contains('ff-dialog-window')||ev.target.classList.contains('ff-dialog-overlay')||ev.target.classList.contains('ff-dialog-backdrop'))))return;" +
+                "if(ev.propertyName&&ev.propertyName!=='opacity'&&ev.propertyName!=='transform')return;end();};" +
+                "panel.addEventListener('transitionend',panel._ffCloseEnd);panel._ffCloseTimer=setTimeout(end,420);}" +
+                "function closeDialogs(){root.querySelectorAll('[data-ff-dialog-panel].ff-open,[data-ff-dialog-panel].ff-closing').forEach(function(p){closeDialog(p,true);});}" +
                 // Row-action dialogs live inside a display:none menu until the ⋯ opens. Hoist the
                 // panel under .ff-panel so record-click / menu-item open can show it (#398).
                 "function hoistDialogPanel(panel){if(!panel||panel.getAttribute('data-ff-dialog-hoisted')==='true')return;" +
@@ -231,9 +245,11 @@ class DefaultLayout(
                 "panel.setAttribute('data-ff-dialog-mount-id',hid);}" +
                 "root.appendChild(panel);}" +
                 "function openDialog(panel){if(!panel)return;closeDialogs();hoistDialogPanel(panel);" +
-                "panel.classList.add('ff-open');" +
+                "panel.classList.remove('ff-closing');" +
                 "panel.removeAttribute('hidden');panel.style.display='block';panel.removeAttribute('aria-hidden');" +
-                "resetDialogDrag(panel);armMasks(panel);}" +
+                "resetDialogDrag(panel);armMasks(panel);" +
+                // Two frames so closed opacity/transform paint before .ff-open transitions in (#445).
+                "requestAnimationFrame(function(){requestAnimationFrame(function(){panel.classList.add('ff-open');});});}" +
                 "function toggleDialogExpand(win){if(!win)return;var on=!win.classList.contains('ff-dialog-expanded');" +
                 "win.classList.toggle('ff-dialog-expanded',on);setExpandIcon(win,on);" +
                 "if(on){win.style.position='fixed';win.style.margin='0';win.style.left='1rem';win.style.top='1rem';" +
