@@ -16,6 +16,7 @@ public class JavaTestingApiTest {
         app.resolve(org.konaframework.http.Router.class).get("/j", request -> Response.text("ok"));
         new HttpTestClient(app).get("/j").assertOk();
         assertEquals(0, new ConsoleTester().run("list").getExitCode());
+        // forApp overloads are covered from Kotlin tests against a booted Application.
         FakeMail mail = new FakeMail();
         assertTrue(mail.messages().isEmpty());
         FakeQueue queue = new FakeQueue();

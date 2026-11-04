@@ -2,6 +2,9 @@ package org.konaframework.testing
 
 import org.konaframework.cadence.ConnectionConfig
 import org.konaframework.cadence.Database
+import org.konaframework.grind.CommandRegistry
+import org.konaframework.grind.ConsoleCommand
+import org.konaframework.grind.GrindException
 import org.konaframework.http.HttpServiceProvider
 import org.konaframework.http.Response
 import org.konaframework.http.Router
@@ -78,6 +81,15 @@ class TestingHarnessTest {
         assertThrows(IllegalArgumentException::class.java) { ConsoleResult(1, "x").assertOk() }
         assertThrows(IllegalArgumentException::class.java) { ConsoleResult(1, "x").assertExit(0) }
         assertThrows(IllegalArgumentException::class.java) { ConsoleResult(0, "seen").assertDontSee("seen") }
+
+        app.commands(BootedConsoleProbe::class.java)
+        ConsoleTester(app)
+            .run("demo:booted-probe")
+            .assertOk()
+            .assertSee("probe=true")
+        assertThrows(IllegalArgumentException::class.java) { ConsoleTester(app).run() }
+        assertThrows(GrindException::class.java) { ConsoleTester(app).run("demo:missing") }
+        ConsoleTester(app, CommandRegistry()).run("demo:booted-probe").assertOk()
 
         val database = Database().addConnection(
             "default",
@@ -222,5 +234,13 @@ class TestingHarnessTest {
 
     class UnusedNotice : org.konaframework.notifications.Notification() {
         override fun via(notifiable: org.konaframework.notifications.Notifiable) = listOf("database")
+    }
+
+    class BootedConsoleProbe : ConsoleCommand() {
+        override val signature = "demo:booted-probe"
+        override fun handle(): Int {
+            info("probe=${hasApp()}")
+            return SUCCESS
+        }
     }
 }

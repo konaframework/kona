@@ -85,6 +85,44 @@ class ConsolePromptsTest {
     }
 
     @Test
+    fun lineAndWidgetSecret() {
+        val (p, out) = line("s3cret\n")
+        assertEquals("s3cret", p.secret("Password"))
+        assertTrue(out.toString().contains("*"))
+        val (p2, _) = line("again\n")
+        assertEquals("again", p2.password())
+        val (p3, _) = line("\n")
+        assertEquals("", p3.secret())
+        val enter = bytes(0x0D)
+        val (widgetPrompt, _) = widget(byteArrayOf('x'.code.toByte(), 'y'.code.toByte()) + enter)
+        assertEquals("xy", widgetPrompt.secret("Pin"))
+        val (emptySecret, _) = widget(enter)
+        assertEquals("", emptySecret.password("Pin"))
+
+        val outReader = ByteArrayOutputStream()
+        val withChars =
+            ConsolePrompts.forTest(
+                ByteArrayInputStream(ByteArray(0)),
+                PrintStream(outReader),
+                widgets = false,
+                passwordReader = { "from-reader".toCharArray() },
+            )
+        assertEquals("from-reader", withChars.secret())
+        val nullReader =
+            ConsolePrompts.forTest(
+                ByteArrayInputStream(ByteArray(0)),
+                PrintStream(outReader),
+                widgets = false,
+                passwordReader = { null },
+            )
+        assertEquals("", nullReader.password())
+        // Production reader path (null when no console is attached in CI/tests).
+        ConsolePrompts.readConsolePassword()
+        ConsolePrompts(ByteArrayInputStream("z\n".toByteArray()), PrintStream(ByteArrayOutputStream()), false)
+            .also { /* constructs production passwordReader binding */ }
+    }
+
+    @Test
     fun lineEofAndIo() {
         val out = ByteArrayOutputStream()
         val eof =

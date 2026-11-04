@@ -113,7 +113,7 @@ export async function buildSidebar() {
           translations: { es: 'Consola grind', fr: 'Console grind', 'zh-CN': 'Grind 控制台' },
           items: [
             { label: 'Overview', translations: { es: 'Resumen', fr: 'Vue d’ensemble', 'zh-CN': '概览' }, slug: 'docs/grind' },
-            { label: 'Creating commands', translations: { es: 'Crear comandos', fr: 'Créer des commandes', 'zh-CN': '创建命令' }, slug: 'docs/grind/creating-commands' },
+            { label: 'Writing commands', translations: { es: 'Escribir comandos', fr: 'Écrire des commandes', 'zh-CN': '编写命令' }, slug: 'docs/grind/creating-commands' },
             { label: 'Running commands', translations: { es: 'Ejecutar comandos', fr: 'Exécuter des commandes', 'zh-CN': '运行命令' }, slug: 'docs/grind/running-commands' },
             { label: 'Console IO & prompts', translations: { es: 'IO de consola y prompts', fr: 'E/S console et invites', 'zh-CN': '控制台 IO 与提示' }, slug: 'docs/grind/console' },
             { label: 'Built-in commands', translations: { es: 'Comandos integrados', fr: 'Commandes intégrées', 'zh-CN': '内置命令' }, slug: 'docs/grind/commands' },

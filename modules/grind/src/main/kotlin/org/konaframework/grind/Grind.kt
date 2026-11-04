@@ -150,14 +150,13 @@ constructor(
         io: GrindIO,
         options: Map<String, String>,
     ): Int {
-        val custom = registry.create(command)
-        if (custom != null) {
-            val base = options["base"]?.let { Path.of(it).toAbsolutePath().normalize() } ?: basePath
-            return CommandExecutor(base).run(custom, args)
+        val start = options["base"]?.let { Path.of(it).toAbsolutePath().normalize() } ?: basePath
+        val knownBefore = registry.has(command)
+        val code = AppCommandRunner.run(command, args, options, registry, start, io)
+        if (code == ConsoleCommand.FAILURE && !knownBefore && !registry.has(command)) {
+            printHelp(io)
         }
-        io.error("Unknown command: $command")
-        printHelp(io)
-        return 1
+        return code
     }
 
     private fun flatten(options: Map<String, String>): List<String> =

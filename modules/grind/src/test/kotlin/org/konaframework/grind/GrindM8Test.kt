@@ -115,6 +115,8 @@ class GrindM8Test {
         assertEquals("a", Prompts(ByteArrayInputStream("\n".toByteArray()), PrintStream(out)).choice("P", listOf("a", "b")))
         assertEquals("b", Prompts(ByteArrayInputStream("b\n".toByteArray()), PrintStream(out)).choice("P", listOf("a", "b")))
         assertEquals("a", Prompts(ByteArrayInputStream("zzz\n".toByteArray()), PrintStream(out)).choice("P", listOf("a", "b")))
+        assertEquals("s3cret", Prompts(ByteArrayInputStream("s3cret\n".toByteArray()), PrintStream(out)).secret())
+        assertEquals("x", Prompts(ByteArrayInputStream("x\n".toByteArray()), PrintStream(out)).password("Pin"))
         assertThrows(IllegalArgumentException::class.java) {
             Prompts(ByteArrayInputStream("\n".toByteArray()), PrintStream(out)).choice("P", emptyList())
         }

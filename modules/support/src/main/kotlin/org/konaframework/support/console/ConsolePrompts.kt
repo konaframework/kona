@@ -1,5 +1,6 @@
 package org.konaframework.support.console
 
+import org.konaframework.support.KoverExclude
 import java.io.BufferedReader
 import java.io.FileInputStream
 import java.io.IOException
@@ -26,6 +27,8 @@ class ConsolePrompts private constructor(
     private val columnsOverride: Int,
     private val forceWidgets: Boolean?,
     private val sourceOverride: ByteSource?,
+    private val passwordReader: () -> CharArray?,
+    private val preferPasswordReader: Boolean,
 ) {
     @JvmOverloads
     constructor(
@@ -45,6 +48,8 @@ class ConsolePrompts private constructor(
         columnsOverride = 0,
         forceWidgets = null,
         sourceOverride = null,
+        passwordReader = Companion::readConsolePassword,
+        preferPasswordReader = true,
     )
 
     private val style = ConsoleIO(output, output, color)
@@ -54,6 +59,19 @@ class ConsolePrompts private constructor(
     @JvmOverloads
     fun ask(question: String, default: String? = null): String =
         runPrompt({ askLine(question, default) }) { renderer -> askWidget(question, default, renderer) }
+
+    /**
+     * Hidden-input prompt (password). Typed characters are not echoed; the widget shows `*` masks.
+     * Line mode prefers [java.io.Console.readPassword] when a console is attached, otherwise reads
+     * a normal line (pipes / tests).
+     */
+    @JvmOverloads
+    fun secret(question: String = "Password"): String =
+        runPrompt({ secretLine(question) }) { renderer -> secretWidget(question, renderer) }
+
+    /** Alias of [secret]. */
+    @JvmOverloads
+    fun password(question: String = "Password"): String = secret(question)
 
     @JvmOverloads
     fun confirm(question: String, default: Boolean = false): Boolean =
@@ -142,6 +160,25 @@ class ConsolePrompts private constructor(
         return answer
     }
 
+    private fun secretLine(question: String): String {
+        style.promptFrame(question, listOf(""), pointerPrefix = false)
+        output.flush()
+        // Non-echoing reader on real stdin; injected streams (tests / pipes) use line input.
+        val answer =
+            if (preferPasswordReader && input === systemIn) {
+                val chars = passwordReader()
+                if (chars == null) {
+                    ""
+                } else {
+                    String(chars)
+                }
+            } else {
+                readLineOrEmpty()
+            }
+        style.promptSubmitted(question, if (answer.isEmpty()) "" else "*".repeat(answer.length.coerceAtMost(8)))
+        return answer
+    }
+
     private fun confirmLine(question: String, default: Boolean): Boolean {
         val options = listOf("Yes", "No")
         val pointer = if (default) 0 else 1
@@ -178,21 +215,38 @@ class ConsolePrompts private constructor(
         return picked
     }
 
-    private fun askWidget(question: String, default: String?, renderer: PromptRenderer): String {
+    private fun askWidget(question: String, default: String?, renderer: PromptRenderer): String =
+        editWidget(question, default, renderer, mask = false)
+
+    private fun secretWidget(question: String, renderer: PromptRenderer): String =
+        editWidget(question, null, renderer, mask = true)
+
+    private fun editWidget(
+        question: String,
+        default: String?,
+        renderer: PromptRenderer,
+        mask: Boolean,
+    ): String {
         val points = codePoints(default.orEmpty()).toMutableList()
         var cursor = points.size
         val decoder = keys()
         while (true) {
             val visible = visibleWindow(points, cursor, renderer.width)
+            val display = if (mask) "*".repeat(visible.text.length) else visible.text
             renderer.hideCursor()
-            renderer.drawAsk(question, visible.text, submitted = false)
+            renderer.drawAsk(question, display, submitted = false)
             renderer.parkCursorOnValue(PromptRenderer.VALUE_COLUMN + visible.cursor)
             renderer.showCursor()
             when (val key = decoder.next()) {
                 TerminalKey.Enter -> {
                     val answer = stringify(points)
+                    val submitted = if (mask) {
+                        if (answer.isEmpty()) "" else "*".repeat(answer.length.coerceAtMost(8))
+                    } else {
+                        answer
+                    }
                     renderer.hideCursor()
-                    renderer.drawAsk(question, answer, submitted = true)
+                    renderer.drawAsk(question, submitted, submitted = true)
                     renderer.finishSubmitted()
                     return answer
                 }
@@ -352,6 +406,11 @@ class ConsolePrompts private constructor(
     }
 
     companion object {
+        /** Production password reader (`System.console()` is not mockable in unit tests). */
+        @JvmStatic
+        @KoverExclude
+        internal fun readConsolePassword(): CharArray? = System.console()?.readPassword()
+
         @JvmStatic
         @JvmOverloads
         fun forTest(
@@ -366,6 +425,7 @@ class ConsolePrompts private constructor(
             env: Map<String, String> = emptyMap(),
             systemIn: InputStream = input,
             source: ByteSource? = null,
+            passwordReader: (() -> CharArray?)? = null,
         ): ConsolePrompts =
             ConsolePrompts(
                 input,
@@ -379,6 +439,8 @@ class ConsolePrompts private constructor(
                 columnsOverride = columns,
                 forceWidgets = widgets,
                 sourceOverride = source,
+                passwordReader = passwordReader ?: { null },
+                preferPasswordReader = passwordReader != null,
             )
     }
 }

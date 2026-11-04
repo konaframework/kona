@@ -12,7 +12,7 @@ All Kona terminal CLIs share one Termwind-inspired console style: caramel badges
 | `org.konaframework.support.console.ConsoleIO` | `kona-support` | Canonical implementation |
 | `org.konaframework.grind.GrindIO` | `kona-grind` | Wraps `ConsoleIO` with quiet / verbose filtering |
 | Helpers on `ConsoleCommand` | `kona-grind` | `info`, `success`, `warn`, `error`, `intro`, `outro`, `note`, `table`, `progress`, … |
-| `org.konaframework.grind.Prompts` | `kona-grind` | Interactive ask / confirm / choice |
+| `org.konaframework.grind.Prompts` | `kona-grind` | Interactive ask / confirm / choice / secret |
 
 Do **not** print user-facing output with raw `println` / unstyled `System.out` in commands; use these APIs.
 
@@ -170,6 +170,7 @@ val prompts = Prompts()
 val name = prompts.ask("Name", default = "Kona")
 val ok = prompts.confirm("Continue?", default = false)
 val pick = prompts.choice("Driver", listOf("array", "redis"), defaultIndex = 0)
+val password = prompts.secret("Password") // or prompts.password()
 ```
 
 </TabItem>
@@ -180,6 +181,7 @@ Prompts prompts = new Prompts();
 String name = prompts.ask("Name", "Kona");
 boolean ok = prompts.confirm("Continue?", false);
 String pick = prompts.choice("Driver", List.of("array", "redis"), 0);
+String password = prompts.secret("Password"); // or prompts.password()
 ```
 
 </TabItem>
@@ -188,6 +190,7 @@ String pick = prompts.choice("Driver", List.of("array", "redis"), 0);
 | Method | TTY widget | Line fallback (pipes / tests / `--no-interaction` callers) |
 |--------|------------|--------------------------------------------------------------|
 | `ask(question, default=null)` | Caret in the box; Enter submits the buffer (initialized to `default`) | Empty line uses `default` when set; otherwise empty string |
+| `secret(question="Password")` / `password(…)` | Caret in the box; value shown as `*` masks | Prefers `Console.readPassword` on a real TTY; otherwise a normal line (tests / pipes) |
 | `confirm(question, default=false)` | `›` on Yes/No; arrows toggle; `y`/`n` submit | Empty → default; `y`/`yes`/`1` → true; `n`/`no`/`2` → false |
 | `choice(question, options, defaultIndex=0)` | `›` + highlight; arrows wrap; digit `1`… submits | Empty → default; 1-based index or case-insensitive label; invalid → default |
 
@@ -206,7 +209,7 @@ Scripts and CI should treat any non-zero exit as failure. Built-ins typically re
 
 ## Testing output
 
-`ConsoleTester` captures **stdout** only while running `GrindApplication` — see [HTTP & console tests](../../testing/http-console/#console-grind). Assertions:
+`ConsoleTester` captures **stdout** while running `GrindApplication`, or use `ConsoleTester(app)` to run custom commands against an already-booted application — see [Writing commands](../creating-commands/#testing-with-a-booted-app). Assertions:
 
 | Method | Behavior |
 |--------|----------|

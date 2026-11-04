@@ -235,6 +235,10 @@ class EnvConfigApplicationTest {
         assertEquals(app, app.make(Application::class.java))
         assertSame(app.container, app.make(Container::class.java))
         assertSame(app.config, app.container.resolve<Config>("config"))
+        app.commands(String::class.java, Integer::class.java)
+        app.commands(String::class.java) // dedupe
+        assertEquals(2, app.consoleCommands().size)
+        assertEquals(String::class.java, app.consoleCommands()[0])
     }
 
     @Test
