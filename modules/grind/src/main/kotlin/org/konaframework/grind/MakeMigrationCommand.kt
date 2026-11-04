@@ -133,6 +133,9 @@ class MakeMigrationCommand @JvmOverloads constructor(
                 "    // table.boolean(\"active\").default(false)",
                 "    // table.date(\"due_on\").nullable()",
                 "    // table.dateTime(\"published_at\").nullable()",
+                "    // table.decimal(\"amount\", 16, 4).default(0)",
+                "    // table.enum(\"status\", listOf(\"draft\", \"posted\")).default(\"draft\")",
+                "    // table.foreignUuid(\"account_uuid\").constrained(\"accounts\", \"uuid\")",
                 "    table.timestamps()",
                 "}",
             ) to listOf("schema.dropIfExists(\"$table\")")
@@ -141,6 +144,7 @@ class MakeMigrationCommand @JvmOverloads constructor(
                 "    // table.string(\"nickname\").nullable()",
                 "    // table.date(\"labeled_on\").nullable()",
                 "    // table.dateTime(\"reviewed_at\").nullable()",
+                "    // table.decimal(\"discount\", 8, 2).nullable()",
                 "}",
             ) to listOf("schema.table(\"$table\") { table ->", "    // table.dropColumn(\"nickname\")", "}")
             Mode.BLANK -> listOf(
@@ -169,6 +173,9 @@ class MakeMigrationCommand @JvmOverloads constructor(
                 "    // table.bool(\"active\").withDefault(false);",
                 "    // table.date(\"due_on\").nullable();",
                 "    // table.dateTime(\"published_at\").nullable();",
+                "    // table.decimal(\"amount\", 16, 4).withDefault(0);",
+                "    // table.enumColumn(\"status\", List.of(\"draft\", \"posted\")).withDefault(\"draft\");",
+                "    // table.foreignUuid(\"account_uuid\").constrained(\"accounts\", \"uuid\");",
                 "    table.timestamps();",
                 "});",
             ) to listOf("schema.dropIfExists(\"$table\");")
@@ -177,6 +184,7 @@ class MakeMigrationCommand @JvmOverloads constructor(
                 "    // table.string(\"nickname\").nullable();",
                 "    // table.date(\"labeled_on\").nullable();",
                 "    // table.dateTime(\"reviewed_at\").nullable();",
+                "    // table.decimal(\"discount\", 8, 2).nullable();",
                 "});",
             ) to listOf("schema.table(\"$table\", table -> {", "    // table.dropColumn(\"nickname\");", "});")
             Mode.BLANK -> listOf("// schema.create(\"table\", table -> { table.id(); table.date(\"due_on\"); table.dateTime(\"published_at\"); });") to

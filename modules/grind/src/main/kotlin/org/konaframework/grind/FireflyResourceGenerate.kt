@@ -8,6 +8,7 @@ import org.konaframework.cadence.schema.Schema
 import org.konaframework.cadence.schema.SchemaColumn
 import org.konaframework.cadence.schema.SchemaForeignKey
 import org.konaframework.cadence.schema.SchemaGrammar
+import org.konaframework.support.str.Str
 
 /**
  * Builds form / table / infolist component lists for `make:firefly-resource`.
@@ -326,7 +327,7 @@ internal object FireflyResourceGenerate {
         if (!column.endsWith("_id")) return null
         val stem = column.removeSuffix("_id")
         if (stem.isEmpty()) return null
-        return SchemaForeignKey(column, referencedTable = stem + "s", referencedColumn = "id")
+        return SchemaForeignKey(column, referencedTable = Str.plural(stem), referencedColumn = "id")
     }
 
     private fun relationName(foreign: SchemaForeignKey): String {
