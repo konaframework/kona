@@ -62,6 +62,9 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
 
     fun password(): TextInput = apply { inputType = "password" }
 
+    /** True after [password]; the stored value is never rendered into the input. */
+    fun isPassword(): Boolean = inputType == "password"
+
     fun revealable(on: Boolean): TextInput = apply { revealableFlag = on }
 
     fun tel(): TextInput = apply {
@@ -171,7 +174,8 @@ open class TextInput protected constructor(name: String) : Field<TextInput>(name
     }
 
     override fun control(schema: Schema, get: Get, path: String, value: Any?): String {
-        val shown = if (value == null) "" else normalizeText(value.toString())
+        // A password input never echoes the stored (hashed) or posted value back into the page.
+        val shown = if (value == null || inputType == "password") "" else normalizeText(value.toString())
         val listId = if (datalistValues.isEmpty()) null else "$path-list"
         val actions = revealableFlag || copyableFlag
         val builder = StringBuilder()

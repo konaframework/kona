@@ -59,6 +59,9 @@ class AppSmokeTest {
         assertTrue(tasks.body.contains("Wire combobox"), tasks.body)
         assertEquals(200, projects.status)
         assertTrue(projects.body.contains("Desk"), projects.body)
+        // Toggle.default(true): a new project starts active (the create dialog), stored rows keep their value.
+        val createDialog = projects.body.substringAfter("""data-ff-action="create"""").substringBefore("</form>")
+        assertTrue(createDialog.contains("""aria-pressed="true""""), createDialog)
         assertTrue(orders.body.contains("ff-relation"), orders.body)
         assertTrue(orders.body.contains("/admin/orders/actions/rename"), orders.body)
         // app.policies.OrderPolicy forbids deleting orders: no bulk delete, so no row checkboxes.

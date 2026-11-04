@@ -759,14 +759,14 @@ open class Panel {
         if (key.isNullOrBlank()) return Response.html("Record id is required", 422)
         val record = source.find(key) ?: return Response.html("Record not found", 404)
         val action = source.action
-        val host = Schema.make().record(record).key(key).fill(source.attributes(record))
+        val host = Schema.make().operation(action.name).record(record).key(key).fill(source.attributes(record))
         if (action.isHidden(host) || action.isDisabled(host)) return Response.html("Action not available", 403)
         val back = returnLocation(request, fallback)
         val components = action.dialogComponents()
         var data: Map<String, Any?> = emptyMap()
         if (components.isNotEmpty()) {
             val input = request.all().filterKeys { it != FireflyCsrf.TOKEN_KEY && !it.startsWith("_") && it !in request.query }
-            val dialog = Schema.make().record(record).components(*components.toTypedArray()).fill(input)
+            val dialog = Schema.make().operation(action.name).record(record).components(*components.toTypedArray()).fill(input)
             val errors = FieldValidation.validate(dialog, dialog.components())
             if (errors.isNotEmpty()) {
                 flashNotice(request) { session ->
@@ -1185,7 +1185,16 @@ open class Panel {
             } else {
                 store.newRecord()
             }
-            store.fill(record, attrs)
+            val submission = resource.submit(
+                if (page is EditPage) "edit" else "create",
+                record,
+                if (page is EditPage) (request.input("id") ?: request.input("record")) else null,
+                attrs,
+            )
+            if (submission.errors.isNotEmpty()) {
+                return@use invalidForm(request, resource, page, submission)
+            }
+            store.fill(record, submission.attributes)
             store.save(record)
             if (page is EditPage) {
                 flashNotice(request, FireflyToasts::saved)
@@ -1194,6 +1203,35 @@ open class Panel {
             }
             Response.redirect(uri(resourceListSlug(resource)))
         }
+    }
+
+    /**
+     * A rejected create / edit post: flash a toast, the field errors and the old input, then send the
+     * user back to the form page (or the list when the resource only has manage dialogs).
+     */
+    private fun invalidForm(request: Request, resource: Resource, page: PanelPage, submission: FormSubmission): Response {
+        val edit = page is EditPage
+        val real = resource.pages().any { if (edit) it is EditPage else it is CreatePage }
+        val errors = submission.errors
+        val old = submission.oldInput(request.all().filterKeys { !it.startsWith("_") })
+        flashNotice(request) { session ->
+            FireflyNotification.make("form-invalid")
+                .title("Please fix the form")
+                .body(errors.values.flatten().joinToString(" "))
+                .danger()
+                .send(session)
+            if (real) {
+                session.flash(FormSubmission.ERRORS_FLASH, errors)
+                session.flashInput(old)
+            }
+        }
+        if (!real) return Response.redirect(uri(resourceListSlug(resource))).withErrors(errors).withInput(old)
+        var location = uri(resourcePagePath(resource.slug(), page.slug()))
+        if (edit) {
+            val id = request.input("id") ?: request.input("record")
+            location += "?id=${URLEncoder.encode(id, Charsets.UTF_8)}"
+        }
+        return Response.redirect(location).withErrors(errors).withInput(old)
     }
 
     /** Map posted field names onto model attributes (`create.name` → `name`). */

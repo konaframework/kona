@@ -363,7 +363,7 @@ open class RelationManager(private val name: String) {
             RelationOperation.CREATE -> {
                 val context = runtime.context(operation, null)
                 if (!permitted(operation, action, context)) return RelationOutcome.denied("Not authorized")
-                val submission = submitted(formSchema(action, binding.store().newRecord()), input)
+                val submission = submitted(formSchema(action, binding.store().newRecord(), "create"), input)
                 val data = submission.data ?: return submission.invalid(operation.token)
                 val (attributes, pivot) = split(action.mutate(data), runtime)
                 action.runBefore(context)
@@ -376,7 +376,7 @@ open class RelationManager(private val name: String) {
                 val record = scopedRecord(runtime, input, withTrashed = true) ?: return RelationOutcome.missing()
                 val context = runtime.context(operation, record)
                 if (!permitted(operation, action, context)) return RelationOutcome.denied("Not authorized")
-                val submission = submitted(formSchema(action, record), input)
+                val submission = submitted(formSchema(action, record, "edit"), input)
                 val data = submission.data ?: return submission.invalid(operation.token, input["id"])
                 val (attributes, pivot) = split(action.mutate(data), runtime)
                 action.runBefore(context)
@@ -530,7 +530,7 @@ open class RelationManager(private val name: String) {
     private fun headerBody(runtime: RelationRuntime, action: RelationAction, flash: RelationFormFlash?): String {
         val operation = action.operation
         val schema = if (operation == RelationOperation.CREATE) {
-            formSchema(action, runtime.binding.store().newRecord())
+            formSchema(action, runtime.binding.store().newRecord(), "create")
         } else {
             pickerSchema(runtime, action)
         }
@@ -544,12 +544,12 @@ open class RelationManager(private val name: String) {
     private fun viewBody(runtime: RelationRuntime, cell: Cell): String {
         // Missing only when a shared table renders outside its relation (no owner scope on the rows).
         val record = runtime.binding.find(cell.get("key").toString(), withTrashed = true) { modifyQuery(it, runtime) } ?: return ""
-        val schema = Schema.make().record(record).fill(attributesOf(record, cell))
+        val schema = Schema.make().operation("view").record(record).fill(attributesOf(record, cell))
         val using = infolistUsing
         if (using != null) {
             using.apply(schema)
         } else {
-            FormInfolist.fill(schema, formSchema(null, record))
+            FormInfolist.fill(schema, formSchema(null, record, "view"))
         }
         val canEdit = rowActions(runtime).any { it.operation == RelationOperation.EDIT } && !runtime.readOnly
         val editSwitch = if (canEdit) """<button type="button" class="ff-action-submit" data-ff-dialog-switch="edit">Edit</button>""" else ""
@@ -559,7 +559,7 @@ open class RelationManager(private val name: String) {
     private fun editBody(runtime: RelationRuntime, action: RelationAction, cell: Cell, flash: RelationFormFlash?): String {
         val key = cell.get("key").toString()
         val record = runtime.binding.find(key, withTrashed = true) { modifyQuery(it, runtime) } ?: return ""
-        val schema = formSchema(action, record).fill(attributesOf(record, cell))
+        val schema = formSchema(action, record, "edit").fill(attributesOf(record, cell))
         if (flash != null && flash.matches(RelationOperation.EDIT.token, key)) applyFlash(schema, flash)
         val hidden = """<input type="hidden" name="id" value="${escapeHtml(key)}" />"""
         return postForm(runtime.url(RelationOperation.EDIT), runtime.csrf, hidden, schema.render(), action.submitLabel())
@@ -596,9 +596,9 @@ open class RelationManager(private val name: String) {
         }
         val customize = action.recordSelectCustomizer()
         if (customize != null) select = customize.apply(select)
-        val schema = Schema.make().record(runtime.binding.store().newRecord()).components(select)
+        val schema = Schema.make().operation(action.operation.token).record(runtime.binding.store().newRecord()).components(select)
         val extra = action.formBuilder() ?: return schema
-        val fields = extra.apply(Schema.make()).components()
+        val fields = extra.apply(Schema.make().operation(action.operation.token)).components()
         return schema.components(select, *fields.toTypedArray())
     }
 
@@ -629,7 +629,7 @@ open class RelationManager(private val name: String) {
                 reopen = operation.token,
             )
         }
-        val extras = action.formBuilder()?.apply(Schema.make())
+        val extras = action.formBuilder()?.apply(Schema.make().operation(operation.token))
         val submission = if (extras == null) Submission(emptyMap(), emptyMap(), input) else submitted(extras, input)
         val data = submission.data ?: return submission.invalid(operation.token)
         val allowed = candidates(runtime, action, "").associateBy { keyOf(it) }
@@ -682,8 +682,8 @@ open class RelationManager(private val name: String) {
     // ——— Forms and data ———
 
     /** The create / edit form for [record] (action form wins over the manager form). */
-    private fun formSchema(action: RelationAction?, record: Any?): Schema {
-        val schema = Schema.make().record(record)
+    private fun formSchema(action: RelationAction?, record: Any?, operation: String): Schema {
+        val schema = Schema.make().operation(operation).record(record)
         val custom = action?.formBuilder()
         if (custom != null) return custom.apply(schema)
         val using = formUsing ?: formTemplate?.let { templateOf(it) } ?: return schema
@@ -703,6 +703,11 @@ open class RelationManager(private val name: String) {
         schema.fill(data)
         val errors = FieldValidation.validate(schema, schema.components())
         if (errors.isNotEmpty()) return Submission(null, errors, input)
+        // Same save rules as resource pages: dehydrated(predicate), hidden fields, dehydrateStateUsing.
+        val saved = schema.dehydrate()
+        for (path in data.keys.toList()) {
+            if (saved.containsKey(path)) data[path] = saved[path] else data.remove(path)
+        }
         return Submission(data, emptyMap(), input)
     }
 

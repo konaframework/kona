@@ -3,10 +3,11 @@ package org.konaframework.firefly.infolists
 import org.konaframework.firefly.schemas.Component
 import org.konaframework.firefly.schemas.Get
 import org.konaframework.firefly.schemas.Schema
+import kotlin.jvm.functions.Function0
 import kotlin.jvm.functions.Function1
 
 internal object SchemaBridge {
-    private val ctor = Get::class.java.getConstructor(Function1::class.java)
+    private val ctor = Get::class.java.getConstructor(Function1::class.java, Function0::class.java, Function0::class.java)
 
     fun open(schema: Schema, component: Component): Get {
         val method = Schema::class.java.getMethod("getFor\$kona_firefly_schemas", Component::class.java)
@@ -23,6 +24,12 @@ internal object SchemaBridge {
                 return base.get(path)
             }
         }
-        return ctor.newInstance(fn) as Get
+        val operation = object : Function0<String> {
+            override fun invoke(): String = base.operation
+        }
+        val record = object : Function0<Any?> {
+            override fun invoke(): Any? = base.record
+        }
+        return ctor.newInstance(fn, operation, record) as Get
     }
 }

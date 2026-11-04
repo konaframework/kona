@@ -289,6 +289,36 @@ class FireflyActionsTest {
     }
 
     @Test
+    fun modalSchemasCarryTheirOperation() {
+        // A form that names its operation keeps it when the modal rebuilds the schema (#463).
+        val edit = Action.make("edit").label("Edit").modal().modalHeading("Edit")
+            .schema(Schema.make().operation("edit").components(Text.make("OnlyEdit").visibleOn("edit"), Text.make("OnlyCreate").visibleOn("create")))
+            .postForm("edit", "")
+        val editHtml = page(edit)
+        assertFalse(visibleBlock(editHtml, "OnlyEdit").contains("ff-hidden"), editHtml)
+        assertTrue(visibleBlock(editHtml, "OnlyCreate").contains("ff-hidden"), editHtml)
+        // A form without an operation takes the action's name.
+        val publish = Action.make("publish").label("Publish").modal().modalHeading("Publish")
+            .schema(Schema.make().components(Text.make("OnPublish").visibleOn("publish")))
+            .postForm("publish", "")
+        assertFalse(visibleBlock(page(publish), "OnPublish").contains("ff-hidden"))
+        // Plain components too.
+        val plain = Action.make("approve").label("Approve").modal().modalHeading("Approve")
+            .schema(Text.make("OnApprove").visibleOn("approve"), Text.make("Elsewhere").visibleOn("create"))
+            .postForm("approve", "")
+        val plainHtml = page(plain)
+        assertFalse(visibleBlock(plainHtml, "OnApprove").contains("ff-hidden"))
+        assertTrue(visibleBlock(plainHtml, "Elsewhere").contains("ff-hidden"))
+    }
+
+    /** The component wrapper that precedes [text] in [html]. */
+    private fun visibleBlock(html: String, text: String): String {
+        val at = html.indexOf(text)
+        assertTrue(at >= 0, "missing $text in $html")
+        return html.substring(html.lastIndexOf("<div class=\"ff-component", at), at)
+    }
+
+    @Test
     fun dialogModesWidthsAndCopy() {
         assertTrue(page(Action.make("edit").slideOver().modalHeading("Edit")).contains("data-ff-position=\"end\""))
         assertTrue(page(Action.make("edit").slideOverStart()).contains("data-ff-position=\"start\""))

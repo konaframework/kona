@@ -64,8 +64,31 @@ fun interface HydratedHook {
     fun hydrated(state: Any?, get: Get, set: Set)
 }
 
-class Get internal constructor(private val lookup: (String) -> Any?) {
+/**
+ * Read access handed to every closure on a component: form state by path, plus the schema's
+ * [operation] (`create`, `edit`, `view`, …) and current [record]. In Kotlin read them as
+ * `get.operation` / `get.record`; in Java call `operation()` / `record()`.
+ */
+class Get internal constructor(
+    private val lookup: (String) -> Any?,
+    private val operationOf: () -> String,
+    private val recordOf: () -> Any?,
+) {
+    internal constructor(lookup: (String) -> Any?) : this(lookup, { "" }, { null })
+
     fun get(path: String): Any? = lookup(path)
+
+    /** The schema operation (`create`, `edit`, `view`, a relation or action name), or `""` when unset. */
+    val operation: String get() = operationOf()
+
+    /** The record the schema is bound to (a model, or the raw route id), or `null`. */
+    val record: Any? get() = recordOf()
+
+    /** Java-friendly form of [operation]. */
+    fun operation(): String = operationOf()
+
+    /** Java-friendly form of [record]. */
+    fun record(): Any? = recordOf()
 }
 
 class Set internal constructor(private val write: (String, Any?, Boolean) -> Unit) {

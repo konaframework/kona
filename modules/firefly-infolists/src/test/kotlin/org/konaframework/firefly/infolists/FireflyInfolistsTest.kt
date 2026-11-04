@@ -672,6 +672,20 @@ class FireflyInfolistsTest {
     }
 
     @Test
+    fun repeatableItemClosuresStillSeeTheOperationAndRecord() {
+        val comments = RepeatableEntry.make("comments")
+            .schema(
+                TextEntry.make("title").color { get ->
+                    if (get.operation == "view" && get.record == "row-1" && get.operation() == "view" && get.record() == "row-1") "ok" else "bad"
+                },
+            )
+        val schema = Schema.make().operation("view").record("row-1").components(comments)
+            .fill(mapOf("comments" to listOf(mapOf("title" to "Hi"))))
+        val rendered = schema.render()
+        assertTrue(rendered.contains("data-ff-color=\"ok\""), rendered)
+    }
+
+    @Test
     fun repeatableLayoutsAndBridge() {
         val comments = RepeatableEntry.make("comments")
             .schema(TextEntry.make("author.name").color { get ->

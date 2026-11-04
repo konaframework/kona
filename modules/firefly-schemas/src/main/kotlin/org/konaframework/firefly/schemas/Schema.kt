@@ -132,7 +132,7 @@ class Schema {
         for (component in walk()) {
             val path = component.absolutePath()
             if (path == null) continue
-            if (!component.isDehydrated()) continue
+            if (!component.isDehydrated(this)) continue
             if (component.isHidden(this) && !component.isDehydratedWhenHidden()) continue
             component.beforeDehydrated(getFor(component), setFor(component))
             out[path] = store.read(path)
@@ -201,12 +201,18 @@ class Schema {
     /** Public lookup by absolute state path (e.g. Select field name for form-options search). */
     fun component(path: String): Component? = find(path)
 
-    internal fun getFor(component: Component): Get = Get { relative ->
-        if (relative.isEmpty() || relative == "." || relative == "..") return@Get null
-        val resolved = resolve(component, relative)
-        if (resolved.isEmpty()) return@Get null
-        store.read(resolved)
-    }
+    internal fun getFor(component: Component): Get = Get(
+        { relative ->
+            if (relative.isEmpty() || relative == "." || relative == "..") {
+                null
+            } else {
+                val resolved = resolve(component, relative)
+                if (resolved.isEmpty()) null else store.read(resolved)
+            }
+        },
+        { operation },
+        { record },
+    )
 
     internal fun setFor(component: Component): Set = Set { relative, value, hooks ->
         val resolved = resolve(component, relative)

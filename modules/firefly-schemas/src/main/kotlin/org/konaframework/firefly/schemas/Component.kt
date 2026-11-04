@@ -40,6 +40,8 @@ open class Component protected constructor(val name: String) {
     private var pollInterval: String? = null
     private var viewName: String? = null
     private var dehydratedFlag: Boolean = true
+    private var dehydratedUsing: Predicate<Any?>? = null
+    private var defaultCreateOnly: Boolean = false
     private var dehydratedWhenHiddenFlag: Boolean = false
     private var defaultLiteral: Any? = null
     private var defaultSet: Boolean = false
@@ -214,9 +216,22 @@ open class Component protected constructor(val name: String) {
 
     fun view(name: String): Component = apply { viewName = name }
 
-    fun dehydrated(): Component = dehydrated(true)
+    open fun dehydrated(): Component = dehydrated(true)
 
-    fun dehydrated(on: Boolean): Component = apply { dehydratedFlag = on }
+    open fun dehydrated(on: Boolean): Component = apply {
+        dehydratedFlag = on
+        dehydratedUsing = null
+    }
+
+    /**
+     * Save the field only when [predicate] accepts its current state (Filament `dehydrated(fn)`),
+     * e.g. `dehydrated { !it?.toString().isNullOrBlank() }` leaves a blank password out of an edit.
+     * Replaces an earlier `dehydrated(Boolean)`. Validation is not affected.
+     */
+    open fun dehydrated(predicate: Predicate<Any?>): Component = apply {
+        dehydratedFlag = true
+        dehydratedUsing = predicate
+    }
 
     fun dehydratedWhenHidden(): Component = dehydratedWhenHidden(true)
 
@@ -226,12 +241,44 @@ open class Component protected constructor(val name: String) {
         defaultLiteral = value
         defaultSet = true
         defaultUsing = null
+        defaultCreateOnly = false
     }
 
     fun defaultUsing(provider: Function<Get, Any?>): Component = apply {
         defaultUsing = provider
         defaultSet = true
+        defaultCreateOnly = false
     }
+
+    /**
+     * Initial value for a new record (Filament `default()`). Applies when the schema operation is
+     * `create` (or unset for a standalone schema) and never on `edit` / `view`, so a stored value
+     * is never replaced. Kotlin: [default]. Java: `defaultOnCreate(value)` (`default` is a keyword).
+     */
+    open fun defaultOnCreate(value: Any?): Component = apply {
+        defaultLiteral = value
+        defaultSet = true
+        defaultUsing = null
+        defaultCreateOnly = true
+    }
+
+    /** Computed form of [defaultOnCreate]: [provider] reads other fields, the operation and the record. */
+    open fun defaultOnCreate(provider: Function<Get, Any?>): Component = apply {
+        defaultUsing = provider
+        defaultSet = true
+        defaultCreateOnly = true
+    }
+
+    /** Kotlin name of [defaultOnCreate]: `default(true)`. */
+    @JvmSynthetic
+    open fun default(value: Any?): Component = defaultOnCreate(value)
+
+    /**
+     * Kotlin trailing-lambda form: `default { get -> … }`. Without this overload a lambda would
+     * bind to the plain value overload and be stored as the value itself.
+     */
+    @JvmSynthetic
+    open fun default(provider: (Get) -> Any?): Component = defaultOnCreate(Function<Get, Any?> { get -> provider(get) })
 
     fun afterStateUpdated(hook: StateHook): Component = apply { updated = hook }
 
@@ -289,7 +336,16 @@ open class Component protected constructor(val name: String) {
         return false
     }
 
+    /** Static flag only; a [dehydrated] predicate counts as dehydrated. Used for validation and layout. */
     fun isDehydrated(): Boolean = dehydratedFlag
+
+    /** Whether the value is saved for [schema]'s current state: the flag and any [dehydrated] predicate. */
+    fun isDehydrated(schema: Schema): Boolean {
+        if (!dehydratedFlag) return false
+        val predicate = dehydratedUsing ?: return true
+        val path = absolutePath()
+        return predicate.test(if (path == null) null else schema.get(path))
+    }
 
     fun isDehydratedWhenHidden(): Boolean = dehydratedWhenHiddenFlag
 
@@ -330,6 +386,7 @@ open class Component protected constructor(val name: String) {
     }
 
     internal fun provideDefault(get: Get): Pair<Boolean, Any?> {
+        if (defaultCreateOnly && (get.operation == "edit" || get.operation == "view")) return false to null
         val provider = defaultUsing
         if (provider != null) return true to provider.apply(get)
         if (defaultSet) return true to defaultLiteral
