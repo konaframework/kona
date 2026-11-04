@@ -5,10 +5,12 @@ import org.konaframework.auth.HasCredentials
 import org.konaframework.auth.HasEmail
 import org.konaframework.cadence.Cadence
 import org.konaframework.cadence.CadenceCompanion
+import org.konaframework.cadence.CastType
 
 class User : Cadence<User>(), Authenticatable, HasCredentials, HasEmail {
     override val fillable = setOf("name", "email", "password", "remember_token")
     override val hidden = setOf("password", "remember_token")
+    override val casts = mapOf("password" to CastType.HASHED)
 
     companion object : CadenceCompanion<User>(User::class.java)
 

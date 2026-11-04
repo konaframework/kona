@@ -5,7 +5,9 @@ import org.konaframework.auth.HasCredentials;
 import org.konaframework.auth.HasEmail;
 import org.konaframework.cadence.Cadence;
 import org.konaframework.cadence.CadenceCompanion;
+import org.konaframework.cadence.CastType;
 
+import java.util.Map;
 import java.util.Set;
 
 public class User extends Cadence<User> implements Authenticatable, HasCredentials, HasEmail {
@@ -19,6 +21,11 @@ public class User extends Cadence<User> implements Authenticatable, HasCredentia
     @Override
     public Set<String> getHidden() {
         return Set.of("password", "remember_token");
+    }
+
+    @Override
+    public Map<String, Object> getCasts() {
+        return Map.of("password", CastType.HASHED);
     }
 
     @Override

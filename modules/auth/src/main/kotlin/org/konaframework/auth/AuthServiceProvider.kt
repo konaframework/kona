@@ -12,6 +12,7 @@ import org.konaframework.auth.tokens.DatabasePersonalAccessTokenRepository
 import org.konaframework.auth.tokens.InMemoryPersonalAccessTokenRepository
 import org.konaframework.auth.tokens.PersonalAccessTokenManager
 import org.konaframework.auth.tokens.PersonalAccessTokenRepository
+import org.konaframework.cadence.CastRegistry
 import org.konaframework.cadence.Database
 import org.konaframework.core.Application
 import org.konaframework.core.ServiceProvider
@@ -49,6 +50,7 @@ class AuthServiceProvider : ServiceProvider {
         app.container.instance(HashManager::class.java, hashManager)
         app.container.alias("hash", HashManager::class.java.name)
         Hash.setManager(hashManager)
+        CastRegistry.register("hashed") { HashedCast() }
 
         val users = InMemoryUserProvider(hashManager.driver())
         app.container.instance(InMemoryUserProvider::class.java, users)

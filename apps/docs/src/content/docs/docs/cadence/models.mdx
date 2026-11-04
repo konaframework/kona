@@ -197,6 +197,35 @@ A cast converts a stored column value into a convenient type on read. Declare ca
 | `DATETIME` | `java.time.LocalDateTime` |
 | `INSTANT` | `java.time.Instant` |
 
+Parameterized casts are `CastsAttributes` instances (or short strings) from the `CastType` factories:
+
+| Declaration | Read as | Notes |
+|-------------|---------|-------|
+| `CastType.decimal(2)` or `"decimal:2"` | `java.math.BigDecimal` | Scale with `HALF_UP`. Writes accept `BigDecimal`, integral numbers, or a numeric string without routing through `double`. `toMap()` / `toJson()` render the value as a plain decimal string so JavaScript clients keep precision. |
+| `CastType.enumType(OrderState.class)` / `enumCast(…)` or `OrderState::class` | enum constant | Stores `Enum.name`, or a declared `value` / `getValue()` property when present. Unknown values throw `CadenceException`. |
+| `CastType.enumCollection(Role::class.java)` | `List` of enums | Column holds a JSON array of backing strings. |
+| `CastType.HASHED`, `HashedCast()`, or `"hashed"` | String (unchanged on read) | Hashes plain text on write with `Hash.make`; leaves values that already look hashed alone (`Hash.isHashed`). The `kona new` User skeleton uses `CastType.HASHED` for `password`. |
+
+```kotlin
+override val casts = mapOf(
+    "amount" to CastType.decimal(2),
+    "state" to OrderState::class,
+    "roles" to CastType.enumCollection(Role::class.java),
+    "password" to CastType.HASHED,
+)
+```
+
+```java
+@Override
+public Map<String, Object> getCasts() {
+    return Map.of(
+        "amount", CastType.decimal(2),
+        "state", CastType.enumType(OrderState.class),
+        "password", CastType.HASHED
+    );
+}
+```
+
 Timestamp columns (and `deleted_at` on soft-deleting models) are cast to `Instant` automatically.
 
 ### Custom casts

@@ -43,4 +43,7 @@ class HashManager @JvmOverloads constructor(
     fun check(value: String, hashed: String): Boolean = driver().check(value, hashed)
 
     fun needsRehash(hashed: String): Boolean = driver().needsRehash(hashed)
+
+    /** True when [value] already looks like a stored password hash. */
+    fun isHashed(value: String): Boolean = org.konaframework.auth.Hash.isHashed(value)
 }
