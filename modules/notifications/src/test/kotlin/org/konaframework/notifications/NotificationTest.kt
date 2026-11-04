@@ -1,5 +1,8 @@
 package org.konaframework.notifications
 
+import org.konaframework.cadence.ConnectionConfig
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.Database
 import org.konaframework.core.Application
 import org.konaframework.mail.Content
 import org.konaframework.mail.Envelope
@@ -7,6 +10,8 @@ import org.konaframework.mail.LogTransport
 import org.konaframework.mail.MailServiceProvider
 import org.konaframework.mail.Mailable
 import org.konaframework.mail.Mailer
+import org.konaframework.queue.ShouldQueueAfterCommit
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -18,12 +23,21 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class NotificationTest {
+    @AfterEach
+    fun clearDb() {
+        Database.clearGlobal()
+    }
+
     class User(val email: String) : Notifiable {
         override fun routeNotificationFor(channel: String): String? =
             when (channel) {
                 "mail", "log", "database" -> email
                 else -> null
             }
+    }
+
+    class DeferredPaid : Notification(), ShouldQueueAfterCommit {
+        override fun via(notifiable: Notifiable) = listOf("log")
     }
 
     class InvoicePaid : Notification() {
@@ -41,6 +55,33 @@ class NotificationTest {
 
     class EmptyMail : Notification() {
         override fun via(notifiable: Notifiable) = listOf("mail")
+    }
+
+    @Test
+    fun defersAfterCommitNotifications() {
+        Database()
+            .addConnection(
+                "default",
+                ConnectionConfig("jdbc:h2:mem:notif_${System.nanoTime()};DB_CLOSE_DELAY=-1", "sa", ""),
+            )
+            .setAsGlobal()
+        val log = LogChannel()
+        val sender = NotificationSender().extend("log", log)
+        DB.transaction { _ ->
+            sender.send(User("u@x.com"), DeferredPaid())
+            assertEquals(0, log.entries().size)
+            1
+        }
+        assertEquals(1, log.entries().size)
+
+        log.clear()
+        sender.send(User("u@x.com"), DeferredPaid())
+        assertEquals(1, log.entries().size)
+
+        Database.clearGlobal()
+        log.clear()
+        sender.send(User("u@x.com"), DeferredPaid())
+        assertEquals(1, log.entries().size)
     }
 
     @Test

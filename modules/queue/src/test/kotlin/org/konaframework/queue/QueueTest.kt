@@ -2,6 +2,8 @@ package org.konaframework.queue
 
 import org.konaframework.core.Application
 import org.konaframework.core.Config
+import org.konaframework.cadence.ConnectionConfig
+import org.konaframework.cadence.DB
 import org.konaframework.cadence.Database
 import org.konaframework.redis.InMemoryRedisConnection
 import org.konaframework.redis.RedisManager
@@ -38,6 +40,7 @@ class QueueTest {
     @AfterEach
     fun reset() {
         JobRegistry.clear()
+        Database.clearGlobal()
     }
 
     class CountingJob(private val counter: AtomicInteger) : Job, ShouldQueue, JobContract {
@@ -90,6 +93,82 @@ class QueueTest {
         assertEquals(1, Worker(arrayMgr).run())
         assertEquals(4, counter.get())
         assertEquals(0, Worker(arrayMgr).run(maxJobs = 0))
+    }
+
+    @Test
+    fun defersDispatchUntilAfterCommit() {
+        Database()
+            .addConnection(
+                "default",
+                ConnectionConfig("jdbc:h2:mem:queue_after_${System.nanoTime()};DB_CLOSE_DELAY=-1", "sa", ""),
+            )
+            .setAsGlobal()
+        val counter = AtomicInteger()
+        val arrayMgr = arrayManager()
+        val bus = Bus(arrayMgr)
+        val deferred = object : Job, ShouldQueue, ShouldQueueAfterCommit {
+            override fun handle() {
+                counter.incrementAndGet()
+            }
+        }
+        val optedIn = object : Job, ShouldQueue, JobContract {
+            override fun handle() {
+                counter.incrementAndGet()
+            }
+
+            override fun tries(): Int = 1
+
+            override fun backoffSeconds(): Long = 0
+
+            override fun displayName(): String = "opted"
+
+            override fun afterCommit(): Boolean = true
+        }
+
+        val contractNoDefer = object : Job, ShouldQueue, JobContract {
+            override fun handle() {
+                counter.incrementAndGet()
+            }
+
+            override fun tries(): Int = 1
+
+            override fun backoffSeconds(): Long = 0
+
+            override fun displayName(): String = "no-defer"
+
+            override fun afterCommit(): Boolean = false
+        }
+
+        val plainQueued = object : Job, ShouldQueue {
+            override fun handle() {
+                counter.incrementAndGet()
+            }
+        }
+
+        DB.transaction { _ ->
+            bus.dispatch(deferred)
+            bus.dispatch(optedIn)
+            bus.dispatch(contractNoDefer)
+            bus.dispatch(plainQueued)
+            assertEquals(2, (arrayMgr.connection() as ArrayQueue).size())
+            1
+        }
+        assertEquals(4, (arrayMgr.connection() as ArrayQueue).size())
+        assertEquals(4, Worker(arrayMgr).run(maxJobs = 10))
+        assertEquals(4, counter.get())
+
+        val defaultMgr = QueueManager(Config().also {
+            it.set("queue.default", "array")
+            it.set("queue.after_commit", true)
+        })
+        assertTrue(defaultMgr.afterCommitDefault())
+        val defaultBus = Bus(defaultMgr)
+        DB.transaction { _ ->
+            defaultBus.dispatch(CountingJob(counter))
+            assertEquals(0, (defaultMgr.connection() as ArrayQueue).size())
+            1
+        }
+        assertEquals(1, (defaultMgr.connection() as ArrayQueue).size())
     }
 
     @Test

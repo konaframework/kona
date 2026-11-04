@@ -1,0 +1,223 @@
+---
+title: Transactions
+description: Cadence database transactions — retries on deadlock, nested savepoints, afterCommit callbacks, and manual begin/commit/rollBack.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A **transaction** groups several database writes so they all succeed together or none of them do. Cadence binds one JDBC connection to the current thread for the duration of the transaction, commits when the block returns, and rolls back when the block throws.
+
+Use transactions whenever a business action writes more than one row that must stay consistent — for example an invoice, its journal lines, and a stock movement.
+
+## Basic usage
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+import org.konaframework.cadence.DB
+
+DB.transaction { connection ->
+    connection.table("accounts").where("id", 1).decrement("balance", 50)
+    connection.table("accounts").where("id", 2).increment("balance", 50)
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+import org.konaframework.cadence.DB;
+
+DB.transaction(connection -> {
+    connection.table("accounts").where("id", 1).decrement("balance", 50);
+    connection.table("accounts").where("id", 2).increment("balance", 50);
+    return null;
+});
+```
+
+</TabItem>
+</Tabs>
+
+The block receives the same `DatabaseConnection` you get from `DB.connection()`. Nested queries, models, and the query builder on that thread all share the open transaction.
+
+## Retries on deadlock
+
+Concurrent writers can hit a **deadlock** or **serialization failure**. Pass a second argument — the number of attempts — to retry the whole closure when Cadence detects those errors (SQLSTATE `40001` / `40P01`, MySQL deadlock `1213`, lock-wait timeout `1205`, and common vendor messages).
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DB.transaction({ connection ->
+    connection.table("stock").where("sku", sku).decrement("qty", 1)
+    connection.table("orders").insert(mapOf("sku" to sku, "qty" to 1))
+}, attempts = 5)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DB.transaction(connection -> {
+    connection.table("stock").where("sku", sku).decrement("qty", 1);
+    connection.table("orders").insert(Map.of("sku", sku, "qty", 1));
+    return null;
+}, 5);
+```
+
+</TabItem>
+</Tabs>
+
+Make the closure safe to run more than once. Cadence retries only concurrency failures; other exceptions still abort immediately.
+
+## Nested transactions (savepoints)
+
+Calling `transaction` inside another `transaction` does **not** open a second real database transaction. Cadence creates a JDBC **savepoint**. If the inner block throws, only the work after that savepoint is rolled back; the outer block can catch the exception and continue. The real `COMMIT` happens only when the outermost block succeeds.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DB.transaction { outer ->
+    outer.table("orders").insert(mapOf("id" to 1, "status" to "open"))
+    try {
+        outer.transaction { inner ->
+            inner.table("fraud_checks").insert(mapOf("order_id" to 1, "result" to "flagged"))
+            throw IllegalStateException("needs review")
+        }
+    } catch (_: IllegalStateException) {
+        outer.table("orders").where("id", 1).update(mapOf("status" to "manual_review"))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DB.transaction(outer -> {
+    outer.table("orders").insert(Map.of("id", 1, "status", "open"));
+    try {
+        outer.transaction(inner -> {
+            inner.table("fraud_checks").insert(Map.of("order_id", 1, "result", "flagged"));
+            throw new IllegalStateException("needs review");
+        });
+    } catch (IllegalStateException ignored) {
+        outer.table("orders").where("id", 1).update(Map.of("status", "manual_review"));
+    }
+    return null;
+});
+```
+
+</TabItem>
+</Tabs>
+
+## afterCommit callbacks
+
+Side effects that must not run for a rolled-back unit of work — queue jobs, emails, broadcasts, fiscal submissions — belong in **afterCommit** callbacks. They run only after the outermost transaction commits successfully. If anything rolls the outermost transaction back, the callbacks are discarded. When no transaction is open, the callback runs immediately.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DB.transaction { connection ->
+    connection.table("invoices").insert(mapOf("total" to 100))
+    DB.afterCommit {
+        // Safe: the invoice row is durable for other connections.
+        bus.dispatch(SubmitFiscalJob(invoiceId))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DB.transaction(connection -> {
+    connection.table("invoices").insert(Map.of("total", 100));
+    DB.afterCommit(() -> bus.dispatch(new SubmitFiscalJob(invoiceId)));
+    return null;
+});
+```
+
+</TabItem>
+</Tabs>
+
+### Queue, events, notifications, and broadcasting
+
+These surfaces can opt into the same timing without calling `DB.afterCommit` by hand:
+
+| Surface | Opt-in |
+|---------|--------|
+| Queue jobs | Implement `ShouldQueueAfterCommit`, return `true` from `JobContract.afterCommit()`, or set `queue.after_commit` to `true` |
+| Events | Implement `ShouldDispatchAfterCommit` on the event type |
+| Notifications | Implement `ShouldQueueAfterCommit` on the notification |
+| Broadcasts | Implement `ShouldBroadcastAfterCommit` (together with `ShouldBroadcast`) |
+
+While a Cadence transaction is open, opted-in dispatches are deferred until the outermost commit. On rollback they never run.
+
+## Manual begin / commit / rollBack
+
+For advanced control — for example spanning multiple helper methods — use the imperative API. Always pair `beginTransaction` with `commit` or `rollBack`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+DB.beginTransaction()
+try {
+    DB.table("ledger").insert(mapOf("amount" to 10))
+    DB.beginTransaction() // savepoint
+    try {
+        DB.table("ledger").insert(mapOf("amount" to -10))
+        DB.rollBack() // undo only the savepoint
+    } catch (_: Exception) {
+        DB.rollBack()
+        throw
+    }
+    DB.commit()
+} catch (e: Exception) {
+    DB.rollBack()
+    throw e
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+DB.beginTransaction();
+try {
+    DB.table("ledger").insert(Map.of("amount", 10));
+    DB.beginTransaction(); // savepoint
+    try {
+        DB.table("ledger").insert(Map.of("amount", -10));
+        DB.rollBack(); // undo only the savepoint
+    } catch (Exception e) {
+        DB.rollBack();
+        throw e;
+    }
+    DB.commit();
+} catch (Exception e) {
+    DB.rollBack();
+    throw e;
+}
+```
+
+</TabItem>
+</Tabs>
+
+Helpers:
+
+- `DB.transactionLevel()` — nesting depth (`0` means not in a transaction)
+- `connection.inTransaction()` — `true` when the level is greater than zero
+- `DB.rollBack(toLevel)` — roll back to a specific depth (`0` ends the outermost transaction)
+
+The same methods exist on `Database` and `DatabaseConnection`.
+
+## Related guides
+
+- [Database connections](./database/) — pools, engines, and configuration
+- [Query builder](./query-builder/) — fluent SQL inside a transaction
+- [Models](./models/) — active-record writes share the bound connection

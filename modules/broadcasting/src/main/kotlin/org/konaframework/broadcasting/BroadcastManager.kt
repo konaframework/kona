@@ -1,5 +1,7 @@
 package org.konaframework.broadcasting
 
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.Database
 import org.konaframework.core.Config
 import java.util.concurrent.ConcurrentHashMap
 
@@ -8,6 +10,9 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * - `broadcasting.default` — connection name (default `log`)
  * - `broadcasting.connections.{name}.driver` — `log`, `null`/`none`, `websocket`/`ws`
+ *
+ * Events that also implement [ShouldBroadcastAfterCommit] are deferred until after the
+ * outermost Cadence transaction commits.
  */
 class BroadcastManager(
     private val config: Config,
@@ -28,6 +33,24 @@ class BroadcastManager(
     fun websocket(): WebsocketBroadcaster = websocketDriver
 
     fun broadcast(event: ShouldBroadcast) {
+        if (shouldDeferUntilCommit(event)) {
+            DB.afterCommit(Runnable { broadcastNow(event) })
+            return
+        }
+        broadcastNow(event)
+    }
+
+    private fun shouldDeferUntilCommit(event: ShouldBroadcast): Boolean {
+        if (event !is ShouldBroadcastAfterCommit) {
+            return false
+        }
+        if (!Database.hasGlobal()) {
+            return false
+        }
+        return DB.transactionLevel() > 0
+    }
+
+    private fun broadcastNow(event: ShouldBroadcast) {
         val channels = event.broadcastOn()
         if (channels.isEmpty()) return
         connection().broadcast(channels, event.broadcastAs(), event.broadcastWith())

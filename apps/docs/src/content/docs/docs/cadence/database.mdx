@@ -180,7 +180,7 @@ SQLite cannot freely reshape tables the way server engines can. Cadence’s SQLi
 
 ## Transactions and pools
 
-- `DB.transaction { … }` binds one JDBC connection to the current thread; nested work joins the same transaction.
+- `DB.transaction { … }` binds one JDBC connection to the current thread. Nested calls use savepoints; pass `attempts` to retry on deadlock. See [Transactions](./transactions/) for retries, `afterCommit`, and manual `beginTransaction` / `commit` / `rollBack`.
 - Pools open **lazily** on first use. `Database.close()` closes open pools; configuration remains so the next query can reconnect.
 - `disconnect(name)` closes one named pool without forgetting its config.
 

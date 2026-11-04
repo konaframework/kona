@@ -62,6 +62,31 @@ class Database @JvmOverloads constructor(
 
     fun <R> transaction(block: Function<DatabaseConnection, R>): R = connection().transaction(block)
 
+    fun <R> transaction(block: Function<DatabaseConnection, R>, attempts: Int): R =
+        connection().transaction(block, attempts)
+
+    fun afterCommit(callback: Runnable) {
+        connection().afterCommit(callback)
+    }
+
+    fun transactionLevel(): Int = connection().transactionLevel()
+
+    fun beginTransaction() {
+        connection().beginTransaction()
+    }
+
+    fun commit() {
+        connection().commit()
+    }
+
+    fun rollBack() {
+        connection().rollBack()
+    }
+
+    fun rollBack(toLevel: Int) {
+        connection().rollBack(toLevel)
+    }
+
     /** Closes and forgets the open pool for [name]; the config stays so it can reconnect. */
     @Synchronized
     fun disconnect(name: String) {

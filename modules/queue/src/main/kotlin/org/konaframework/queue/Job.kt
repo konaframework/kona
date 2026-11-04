@@ -12,6 +12,12 @@ fun interface Job {
 interface ShouldQueue
 
 /**
+ * Marker: when a database transaction is open, defer [Bus.dispatch] until after the outermost commit.
+ * Also honored when [JobContract.afterCommit] returns true or `queue.after_commit` is enabled.
+ */
+interface ShouldQueueAfterCommit
+
+/**
  * Optional job metadata. Defaults are applied in [JobRegistry.payloadFor] when absent.
  */
 interface JobContract : Job {
@@ -20,6 +26,9 @@ interface JobContract : Job {
     fun backoffSeconds(): Long
 
     fun displayName(): String
+
+    /** When true, [Bus] defers dispatch until after the outermost database commit. */
+    fun afterCommit(): Boolean = false
 }
 
 /** Jobs that expose middleware wrapping [Job.handle]. */

@@ -185,6 +185,7 @@ export async function buildSidebar() {
       items: [
         { label: 'Cadence overview', translations: { es: 'Resumen de Cadence', fr: 'Vue d’ensemble Cadence', 'zh-CN': 'Cadence 概览' }, slug: 'docs/cadence' },
         { label: 'Database connections', translations: { es: 'Conexiones de base de datos', fr: 'Connexions de base', 'zh-CN': '数据库连接' }, slug: 'docs/cadence/database' },
+        { label: 'Transactions', translations: { es: 'Transacciones', fr: 'Transactions', 'zh-CN': '事务' }, slug: 'docs/cadence/transactions' },
         { label: 'Models', translations: { es: 'Modelos', fr: 'Modèles', 'zh-CN': '模型' }, slug: 'docs/cadence/models' },
         { label: 'Query builder', translations: { es: 'Constructor de consultas', fr: 'Constructeur de requêtes', 'zh-CN': '查询构建器' }, slug: 'docs/cadence/query-builder' },
         { label: 'Relations', translations: { es: 'Relaciones', fr: 'Relations', 'zh-CN': '关系' }, slug: 'docs/cadence/relations' },
