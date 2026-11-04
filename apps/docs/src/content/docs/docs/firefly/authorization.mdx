@@ -1,0 +1,379 @@
+---
+title: Authorization
+description: "Decide who may see and change what in a Firefly panel. Resources ask your Kona policies, panels ask who may enter, and anything denied disappears from the page and answers 403 on its URL."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A panel is a window onto your data, so it needs the same rules as the rest of your app. Firefly does not invent a second permission system. It asks the **Kona Gate and policies** you already wrote, and it hides or blocks whatever they deny.
+
+Three questions are answered for you:
+
+1. **May this person enter the panel at all?** Panel access.
+2. **May they see, create, edit, or delete this kind of record?** Resource authorization.
+3. **May they touch the related rows under a record?** Relation managers.
+
+Everything on this page lives in `org.konaframework.firefly` (`kona-firefly`). If you have not met policies yet, read [Authorization](/docs/security/authorization/) first. It is short.
+
+## The idea in one minute
+
+A policy is a class with one method per ability. For an `Order` model it might look like this:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+package app.policies
+
+class OrderPolicy : Policy {
+    fun viewAny(user: Authenticatable?): Boolean = user != null
+
+    fun view(user: Authenticatable?, order: Order): Boolean = user != null
+
+    fun create(user: Authenticatable?): Boolean = user.isManager()
+
+    fun update(user: Authenticatable?, order: Order): Boolean = order.getAttribute("status") != "shipped"
+
+    fun delete(user: Authenticatable?, order: Order): Boolean = user.isAdmin()
+
+    override fun authorize(user: Authenticatable?, ability: String, model: Any): Boolean = false
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+package app.policies;
+
+public class OrderPolicy implements Policy {
+    public boolean viewAny(Authenticatable user) {
+        return user != null;
+    }
+
+    public boolean view(Authenticatable user, Order order) {
+        return user != null;
+    }
+
+    public boolean create(Authenticatable user) {
+        return Roles.isManager(user);
+    }
+
+    public boolean update(Authenticatable user, Order order) {
+        return !"shipped".equals(order.getAttribute("status"));
+    }
+
+    public boolean delete(Authenticatable user, Order order) {
+        return Roles.isAdmin(user);
+    }
+
+    @Override
+    public boolean authorize(Authenticatable user, String ability, Object model) {
+        return false;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+That is all Firefly needs. Any resource whose model is `Order` now follows it:
+
+| Where | Rule |
+|-------|------|
+| Sidebar entry and dashboard card | Shown when `viewAny` allows |
+| List and manage pages, bulk actions | `viewAny` |
+| Create page and **New** button | `create` |
+| Edit page and **Edit** button, row Edit | `update` on that record |
+| View page and **View** button, row View | `view` on that record |
+| Delete button, row Delete | `delete` on that record |
+| Bulk delete | `deleteAny`, and `delete` on each selected record |
+
+Denied controls are not rendered. Hiding is never the only defence: the server checks again, so opening the URL or posting the form directly answers **403**.
+
+## Where policies come from
+
+Firefly finds the policy for a model in this order:
+
+1. A policy you registered on the Gate (`gate.policy(Order::class.java, OrderPolicy())`).
+2. A class named `{Model}Policy` in `app.policies`. `Order` finds `app.policies.OrderPolicy`. Nothing needs registering.
+
+To look somewhere else, list packages in `config/firefly`:
+
+```
+firefly.policies=app.policies,app.billing.policies
+```
+
+Or set them in code, before the app boots:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Firefly.policyPackages("app.policies", "app.billing.policies")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Firefly.policyPackages("app.policies", "app.billing.policies");
+```
+
+</TabItem>
+</Tabs>
+
+Firefly uses the Gate that `AuthServiceProvider` puts in the container. To use a different Gate, call `Firefly.gate(gate)`.
+
+## A model without a policy
+
+If a model has no policy, Firefly **allows everything**. That keeps a fresh panel usable while you build it. Once you add a policy, it is in charge.
+
+To make a missing policy a refusal instead, turn on strict mode. You can do it for the whole app, for one panel, or for one resource:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Firefly.authorizeWithoutPolicy(false)                         // every panel
+Panel().id("admin").authorizeWithoutPolicy(false)            // one panel
+Resource("orders").model(Order::class.java).authorizeWithoutPolicy(false) // one resource
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Firefly.authorizeWithoutPolicy(false);                         // every panel
+new Panel().id("admin").authorizeWithoutPolicy(false);         // one panel
+new Resource("orders").model(Order.class).authorizeWithoutPolicy(false); // one resource
+```
+
+</TabItem>
+</Tabs>
+
+The same switch is available as `firefly.authorize_without_policy=false` in config. The most specific setting wins: resource, then panel, then global. A resource with no model at all is treated like a model without a policy.
+
+## Override one decision on the resource
+
+Sometimes the policy is right for most cases and you want a different answer for one resource. Override the matching `can…` method. Its default asks the policy, so calling `super` keeps that answer.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init { model(Order::class.java) }
+
+    // Nobody deletes orders from this panel, whatever the policy says.
+    override fun canDelete(record: Any): Boolean = false
+
+    // Editing needs the policy and an unlocked order.
+    override fun canEdit(record: Any): Boolean =
+        super.canEdit(record) && (record as Order).getAttribute("locked") != true
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        model(Order.class);
+    }
+
+    // Nobody deletes orders from this panel, whatever the policy says.
+    @Override
+    public boolean canDelete(Object record) {
+        return false;
+    }
+
+    // Editing needs the policy and an unlocked order.
+    @Override
+    public boolean canEdit(Object record) {
+        return super.canEdit(record) && !Boolean.TRUE.equals(((Order) record).getAttribute("locked"));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+| Method | Policy ability | Used for |
+|--------|----------------|----------|
+| `canViewAny()` | `viewAny` | Navigation, list and manage pages |
+| `canView(record)` | `view` | View page, View buttons |
+| `canCreate()` | `create` | Create page, New button |
+| `canEdit(record)` | `update` | Edit page, Edit buttons |
+| `canDelete(record)` | `delete` | Delete buttons |
+| `canDeleteAny()` | `deleteAny` | Bulk delete |
+| `canRestore(record)`, `canRestoreAny()` | `restore`, `restoreAny` | Your own restore actions |
+| `canForceDelete(record)`, `canForceDeleteAny()` | `forceDelete`, `forceDeleteAny` | Your own force-delete actions |
+| `canReplicate(record)` | `replicate` | Your own replicate action |
+| `canReorder()` | `reorder` | Your own reorder action |
+
+The last five have no built-in button. They exist so your custom actions can ask the same question: `can("restore", record)` returns the answer for any ability name, and `can("viewAny")` works without a record.
+
+An overridden method is respected even when the model has no policy.
+
+## Who may enter the panel
+
+Resource rules decide what a signed-in person can do. **Panel access** decides whether they get in at all. There are two ways to say it. Use either, or both. When both are present, both must allow.
+
+On the user model, implement `FireflyUser`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class User : Cadence<User>(), Authenticatable, FireflyUser {
+    override fun canAccessPanel(panel: Panel): Boolean = getAttribute("is_staff") == true
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class User extends Cadence<User> implements Authenticatable, FireflyUser {
+    @Override
+    public boolean canAccessPanel(Panel panel) {
+        return Boolean.TRUE.equals(getAttribute("is_staff"));
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+The `panel` argument says which panel is asking, so one user model can enter some panels and not others. Or decide on the panel itself:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Panel().id("admin").canAccess { user -> user != null && user.isStaff() }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+new Panel().id("admin").canAccess(user -> user != null && Roles.isStaff(user));
+```
+
+</TabItem>
+</Tabs>
+
+The check runs on every panel route, including pages, resource actions, and uploads. A signed-in user who is not allowed gets **403** with "You do not have access to this panel". The login page is still reachable so they can sign out or sign in as someone else. If they submit valid credentials for an account that may not enter, Firefly signs them out again and shows the same message.
+
+Signed-out visitors are sent to the login page as before. Panel access does not apply to panels that call `authenticate(false)`, because there is no user to ask. The Gate still runs for those panels with a `null` user.
+
+## Custom pages and navigation
+
+A page you write yourself is not tied to a model, so it asks for itself. Override `canAccess()`:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class Reports : PanelPage("reports") {
+    override fun canAccess(): Boolean = FireflyAuth.user()?.isManager() == true
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class Reports extends PanelPage {
+    public Reports() { super("reports"); }
+
+    @Override
+    public boolean canAccess() {
+        return Roles.isManager(FireflyAuth.user());
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+A page that denies access leaves the sidebar and answers 403. `FireflyAuth.user()` is the signed-in user for the current request. Custom navigation items can hide themselves too, with `NavigationItem.visible(true | false)` or `visible { get -> … }`.
+
+## Relation managers
+
+A [relation manager](/docs/firefly/relation-managers/) asks the policy of the **related** model, so a `tasks` manager follows `TaskPolicy`:
+
+| Operation | Ability |
+|-----------|---------|
+| The manager itself | `viewAny` |
+| View, Edit, Delete, Restore, Force delete a row | `view`, `update`, `delete`, `restore`, `forceDelete` on that row |
+| Create | `create` |
+| Reorder | `reorder` |
+| Bulk actions | `deleteAny` |
+| Associate, dissociate, attach, detach | `associate`, `dissociate`, `attach`, `detach`, but only if the policy declares a method with that name. Otherwise they are allowed |
+
+Linking is "allowed unless you say otherwise" because those abilities are rare. Everything else follows the policy.
+
+The `can…` predicates you may already use on a manager (`canCreate`, `canEdit`, `canViewForRecord`, and the rest) still win over the policy. A manager whose related model has no policy follows the same strict-mode setting; call `authorizeWithoutPolicy(false)` on the manager to be strict for just that one.
+
+A manager also needs the owner page to be open: editing the owner's relations needs `update` on the owner, and viewing them needs `view`.
+
+## What is checked, and when
+
+| Request | Checked |
+|---------|---------|
+| GET a list, manage, create, edit, view, or custom page | Panel access, then the page's rule. `403` when denied |
+| POST a create or edit form | `create`, or `update` on the record |
+| POST a delete | `delete` on the record |
+| POST a bulk action | `viewAny`; bulk delete also needs `deleteAny` and `delete` on every selected record |
+| POST a relation manager action | Owner page access, then the related model's rule |
+
+Policy answers for a record are cached for the length of one request, so a table of fifty rows loads each record once, not once per button.
+
+## Test it
+
+Authorization is plain Kona, so test it like the rest of your app. Policies are ordinary classes:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@Test
+fun managersCannotDeleteOrders() {
+    val resource = OrderResource()
+    FireflyAuth.actingAs(manager, Supplier {
+        assertTrue(resource.canCreate())
+        assertFalse(resource.canDelete(order))
+    })
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@Test
+void managersCannotDeleteOrders() {
+    OrderResource resource = new OrderResource();
+    FireflyAuth.actingAs(manager, () -> {
+        assertTrue(resource.canCreate());
+        assertFalse(resource.canDelete(order));
+        return null;
+    });
+}
+```
+
+</TabItem>
+</Tabs>
+
+`FireflyAuth.actingAs(user, supplier)` runs the block as that user, which is how Firefly itself carries the user through a request.
+
+## Next
+
+- [Resources](/docs/firefly/resources/) for what a resource serves.
+- [Relation managers](/docs/firefly/relation-managers/) for per-operation predicates.
+- [Panel](/docs/firefly/panel/) for sign-in and the guard.

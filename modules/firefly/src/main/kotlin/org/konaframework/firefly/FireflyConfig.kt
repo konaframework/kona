@@ -14,6 +14,14 @@ internal object FireflyConfig {
         return paths(raw)
     }
 
+    /** `firefly.policies`: packages searched for `{Model}Policy` (default `app.policies`). */
+    fun policies(config: Config): List<String> = paths(section(config)?.get("policies"))
+
+    /** `firefly.authorize_without_policy`: false denies models that have no policy. Null when unset. */
+    fun authorizeWithoutPolicy(config: Config): Boolean? = Config.toBoolean(section(config)?.get("authorize_without_policy"))
+
+    private fun section(config: Config): Map<*, *>? = config.all()["firefly"] as? Map<*, *>
+
     private fun paths(raw: Any?): List<String> = when (raw) {
         null -> emptyList()
         is Collection<*> -> raw.mapNotNull { item ->

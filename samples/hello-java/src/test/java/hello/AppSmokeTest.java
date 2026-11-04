@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AppSmokeTest {
@@ -63,6 +64,10 @@ class AppSmokeTest {
         assertTrue(projects.getBody().contains("Desk"), projects.getBody());
         assertTrue(orders.getBody().contains("ff-relation"), orders.getBody());
         assertTrue(orders.getBody().contains("/admin/orders/actions/rename"), orders.getBody());
+        // app.policies.OrderPolicy forbids deleting orders: no bulk delete, so no row checkboxes.
+        Response orderList = kernel.handle(Request.get("/admin/orders/list"));
+        assertEquals(200, orderList.getStatus());
+        assertFalse(orderList.getBody().contains("data-ff-selectable data-ff-total"), orderList.getBody());
     }
 
     @Test

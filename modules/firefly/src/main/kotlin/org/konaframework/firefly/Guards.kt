@@ -1,9 +1,11 @@
 package org.konaframework.firefly
 
+import org.konaframework.auth.Authenticatable
 import org.konaframework.auth.Guard
 import org.konaframework.auth.HasCredentials
 import org.konaframework.auth.HasEmail
 import org.konaframework.auth.HasName
+import org.konaframework.auth.SimpleUser
 
 /**
  * The guard a panel checks. It is separate from the application's guard unless the panel is
@@ -21,6 +23,12 @@ interface PanelGuard {
 
     /** Email for chrome, when the backing user exposes one. */
     fun email(): String?
+
+    /**
+     * The signed-in user the Kona Gate and [FireflyUser] see, or null for a guest. The application
+     * guard hands out its own user. Other guards expose none unless they override this.
+     */
+    fun user(): Authenticatable? = null
 
     fun logout()
 
@@ -62,6 +70,11 @@ class MemoryPanelGuard : PanelGuard {
     override fun name(): String? = current?.let { users.getValue(it).name }
 
     override fun email(): String? = current?.let { users.getValue(it).email }
+
+    override fun user(): Authenticatable? = current?.let {
+        val account = users.getValue(it)
+        SimpleUser(account.email, account.password, account.email, linkedMapOf("name" to account.name))
+    }
 
     override fun logout() {
         current = null
@@ -158,6 +171,8 @@ class AuthPanelGuard(private val resolve: () -> Guard) : PanelGuard {
         }
         return null
     }
+
+    override fun user(): Authenticatable? = resolve().user()
 
     override fun logout() {
         resolve().logout()

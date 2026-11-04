@@ -6,6 +6,7 @@ import org.konaframework.http.HttpKernel
 import org.konaframework.http.Request
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -60,6 +61,10 @@ class AppSmokeTest {
         assertTrue(projects.body.contains("Desk"), projects.body)
         assertTrue(orders.body.contains("ff-relation"), orders.body)
         assertTrue(orders.body.contains("/admin/orders/actions/rename"), orders.body)
+        // app.policies.OrderPolicy forbids deleting orders: no bulk delete, so no row checkboxes.
+        val orderList = kernel.handle(Request.get("/admin/orders/list"))
+        assertEquals(200, orderList.status)
+        assertFalse(orderList.body.contains("data-ff-selectable data-ff-total"), orderList.body)
     }
 
     @Test

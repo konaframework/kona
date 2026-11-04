@@ -90,6 +90,7 @@ class FireflyWidgetsTest {
                     .modifyQueryUsing { query -> query.where("name", "Ada") },
             )
             .widgets(revenue, orders)
+        assertEquals(listOf("create"), page.headerActionList().map { it.name })
         val html = page.render()
         assertTrue(html.contains("ff-dashboard"))
         assertTrue(html.contains("ff-page-heading"))

@@ -188,6 +188,10 @@ The hello samples mount a desk panel at `/admin` with a custom page, a widget, a
 
 Edit and view pages take extra header actions with server handlers. Override `getHeaderActions()` on an `EditPage` or `ViewPage` subclass (or call the page's `headerActions(...)`) and the extras render beside **Save**, **Edit**, **Delete**, and the other built-ins. Table `recordActions(...)` does the same for every row of the list or manage page. Handlers get the record, an optional dialog, the toast, and the redirect. [Record actions on resources](/docs/firefly/actions/#record-actions-on-resources) has the full API, the Filament naming differences, and the gate bridge.
 
+## Who may see and change it
+
+A resource asks the policy of its model for `viewAny`, `view`, `create`, `update`, and `delete`, and hides or blocks whatever is denied. Override `canViewAny()`, `canEdit(record)` and the other `can…` methods to change one decision. See [Authorization](/docs/firefly/authorization/).
+
 ## Content max width
 
 `Resource.maxWidth(token)` sets the default content column for every page of that resource (`xs`…`7xl`, `full`, `screen`, `prose`). It overrides the panel default when the page renders. A page that already called `maxWidth` keeps its own value. List and manage tables fill that column.
@@ -222,5 +226,6 @@ new Resource("orders").model(Order.class).formColumns(2).infolistColumns(3);
 | `label` / `pluralLabel` | Singular-or-base title vs list/nav plural heading (`pluralLabel` defaults from `label`) |
 | `icon` | Sidebar icon via kona-icons (short name or `heroicon-o-…`). Unset → `squares-2x2` |
 | `RelationManager` | Related records on a full resource's edit and view pages, scoped to the owner through a Cadence relationship. See [Relation managers](/docs/firefly/relation-managers/) |
+| `canViewAny`, `canView`, `canCreate`, `canEdit`, `canDelete` | Ask the model policy; override to decide yourself. See [Authorization](/docs/firefly/authorization/) |
 | `ManagePage` | The single page of a simple resource |
 | `query()` | `ModelBuilder` for a Cadence model |

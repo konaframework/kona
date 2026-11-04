@@ -579,6 +579,7 @@ class FireflyResourceTest {
 
     @Test
     fun bareResourcesStillResolveLabelsAndDefaultPages() {
+        database()
         val bareResource = Resource()
         val barePages = bareResource.pages()
         assertEquals(listOf("list", "create", "edit", "view"), barePages.map { it.slug() })
