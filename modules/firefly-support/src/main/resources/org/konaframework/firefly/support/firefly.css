@@ -732,6 +732,39 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   text-align: left;
 }
 
+/* Record actions (Action with a handler) inside the ⋯ menu read like menu links, not primary buttons. */
+.ff-panel .ff-row-action-menu .ff-action-mount,
+.ff-panel .ff-row-action-menu .ff-action-post,
+.ff-panel .ff-row-action-menu .ff-component.ff-action {
+  display: block;
+  width: 100%;
+}
+
+.ff-panel .ff-row-action-menu .ff-action-trigger,
+.ff-panel .ff-row-action-menu .ff-action-trigger.ff-action-button {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0.5rem 0.65rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--ff-body-text);
+  box-shadow: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ff-panel .ff-row-action-menu .ff-action-trigger:hover,
+.ff-panel .ff-row-action-menu .ff-action-trigger.ff-action-button:hover {
+  background: var(--ff-hover);
+  color: var(--ff-heading);
+  filter: none;
+}
+
 /* User trigger — avatar initial only; name/email live in the dropdown. */
 .ff-panel .ff-user-trigger {
   display: inline-flex;
@@ -1528,7 +1561,7 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 .ff-panel .ff-page-header .ff-action-button,
 .ff-panel .ff-page-header .ff-action-trigger.ff-action-button,
 .ff-panel .ff-manage > .ff-page-header .ff-action-button,
-.ff-panel button[type="submit"]:not(.ff-menu-item):not(.ff-action-outlined):not(.ff-action-cancel),
+.ff-panel button[type="submit"]:not(.ff-menu-item):not(.ff-action-outlined):not(.ff-action-cancel):not(.ff-action-trigger),
 .ff-panel .ff-page-header button.ff-action-trigger:not(.ff-action-outlined):not(.ff-action-link):not(.ff-action-icon-button) {
   display: inline-flex;
   align-items: center;
@@ -1554,7 +1587,7 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
 .ff-panel .ff-action-submit:hover,
 .ff-panel a.ff-action-submit:hover,
 .ff-panel button.ff-action-submit:hover,
-.ff-panel button[type="submit"]:not(.ff-menu-item):not(.ff-action-outlined):hover,
+.ff-panel button[type="submit"]:not(.ff-menu-item):not(.ff-action-outlined):not(.ff-action-trigger):hover,
 .ff-panel .ff-page-header button.ff-action-trigger:not(.ff-action-outlined):hover {
   filter: brightness(0.96);
 }

@@ -316,6 +316,11 @@ open class RelationManager(private val name: String) {
         }
         built.persistQueryParameters(mapOf("id" to runtime.ownerKey, "relation" to name))
         built.rowButtons(*rowButtons(runtime, flash).toTypedArray())
+        built.recordActionsEnabled(!runtime.readOnly)
+        built.recordActionsPostTo(
+            Function { action -> runtime.actionUrl(action.name) },
+            runtime.csrf + returnFieldHtml(state["returnUrl"]?.toString()),
+        )
         val orderCol = reorderColumnName
         if (orderCol != null) built.reorderable(orderCol)
         if (bulkEntryList == null && built.isBulkActionsConfigured()) bulkEntryList = built.bulkActionEntries()
@@ -862,6 +867,9 @@ internal class RelationRuntime(
     val csrf: String,
 ) {
     fun url(operation: RelationOperation): String = "$actionBase/${operation.token}?${query()}"
+
+    /** POST target of the manager table's record action [name] (`…/relations/actions/{name}`). */
+    fun actionUrl(name: String): String = "$actionBase/${Resource.ACTIONS_PATH}/$name?${query()}"
 
     fun optionsUrl(operation: RelationOperation): String = "$actionBase/options?${query()}&op=${operation.token}"
 

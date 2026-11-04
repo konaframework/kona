@@ -1,5 +1,6 @@
 package org.konaframework.firefly
 
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.infolists.Infolist
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.widgets.Page
@@ -93,20 +94,86 @@ open class CreatePage @JvmOverloads constructor(slug: String? = null) : PanelPag
     override fun modeLabel(): String? = "create"
 }
 
-open class EditPage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
+/**
+ * An edit or view page: the resource record is on the page. Add actions next to the built-in
+ * header actions with [getHeaderActions] or the fluent [headerActions]. Actions that carry a server
+ * handler (`Action.action { record -> … }`) run against the page record through
+ * `POST {panel}/{resource}/actions/{name}`; their `visibleForRecord`, `authorize("ability")` and
+ * dialog [schema][Action.schema] resolve against that record.
+ */
+open class RecordPage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
+    private val fluentHeader = ArrayList<Action>()
+
+    /**
+     * Extra header actions (Filament `getHeaderActions`). Override and return fresh actions; the
+     * panel calls this for every render and every action POST. An action named like a built-in
+     * (`save`, `edit`, `view`, `cancel`, `back`, `delete`) replaces it.
+     */
+    open fun getHeaderActions(): List<Action> = emptyList()
+
+    /**
+     * Extra header actions next to the built-in ones (not a replacement for them). Replaces earlier
+     * calls; [getHeaderActions] adds after these.
+     */
+    override fun headerActions(vararg actions: Action): RecordPage = apply {
+        fluentHeader.clear()
+        fluentHeader.addAll(actions)
+    }
+
+    /** Fluent and overridden extra header actions, in declaration order. */
+    fun extraHeaderActions(): List<Action> = fluentHeader + getHeaderActions()
+
+    /** Sets the rendered header: [defaults] with the extra actions merged in. */
+    internal fun mergeHeader(defaults: List<Action>) {
+        super.headerActions(*mergeActions(defaults, extraHeaderActions()).toTypedArray())
+    }
+}
+
+/**
+ * Merges [extras] into [defaults]: an extra named like a default replaces it in place, the rest follow
+ * the first (primary) default. Extra names must be unique.
+ */
+internal fun mergeActions(defaults: List<Action>, extras: List<Action>): List<Action> {
+    val byName = LinkedHashMap<String, Action>()
+    for (extra in extras) {
+        if (byName.put(extra.name, extra) != null) {
+            throw org.konaframework.firefly.support.FireflyException("Duplicate header action [${extra.name}]")
+        }
+    }
+    val defaultNames = defaults.map { it.name }.toSet()
+    val added = extras.filter { it.name !in defaultNames }
+    val merged = ArrayList<Action>()
+    defaults.forEachIndexed { index, action ->
+        merged.add(byName[action.name] ?: action)
+        if (index == 0) merged.addAll(added)
+    }
+    return merged
+}
+
+open class EditPage @JvmOverloads constructor(slug: String? = null) : RecordPage(slug) {
     override fun sectionClass(): String = "ff-page ff-edit"
 
     override fun fallbackTitle(): String = "Edit"
 
     override fun modeLabel(): String? = "edit"
+
+    override fun headerActions(vararg actions: Action): EditPage {
+        super.headerActions(*actions)
+        return this
+    }
 }
 
-open class ViewPage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {
+open class ViewPage @JvmOverloads constructor(slug: String? = null) : RecordPage(slug) {
     override fun sectionClass(): String = "ff-page ff-view"
 
     override fun fallbackTitle(): String = "View"
 
     override fun modeLabel(): String? = "detail"
+
+    override fun headerActions(vararg actions: Action): ViewPage {
+        super.headerActions(*actions)
+        return this
+    }
 }
 
 open class ManagePage @JvmOverloads constructor(slug: String? = null) : PanelPage(slug) {

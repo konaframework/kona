@@ -232,6 +232,97 @@ Order on success: `before`, the handler, `after`. The result `status` is `succes
 
 `argument("id")` reads the map passed to `arguments`. A later change to the original map does not change the stored value. A missing key is `null`.
 
+## Record actions on resources
+
+An action with a handler can run on one record of a resource: from the edit or view page header, from a row of the list or manage table, or from a row of a [relation manager](/docs/firefly/relation-managers/). The panel posts the click to `POST {panel}/{resource}/actions/{name}`, loads the record, runs `call`, flashes a toast, and redirects back. No Livewire round trip is involved.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class EditOrder : EditPage("edit") {
+    override fun getHeaderActions(): List<Action> = listOf(
+        Action.make("post")
+            .label("Post")
+            .visibleForRecord { record -> (record as Order).getAttribute("state") == "draft" }
+            .authorize("orders.post")
+            .successNotificationTitle("Order posted")
+            .action { record -> (record as Order).post() },
+        Action.make("rename")
+            .label("Rename")
+            .schema(TextInput.make("name").required())
+            .actionWithData { record, data ->
+                (record as Order).fill(mapOf("name" to data["name"])).save()
+            },
+    )
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class EditOrder extends EditPage {
+    public EditOrder() { super("edit"); }
+
+    @Override
+    public List<Action> getHeaderActions() {
+        return List.of(
+            Action.make("post")
+                .label("Post")
+                .visibleForRecord(record -> "draft".equals(((Order) record).getAttribute("state")))
+                .authorize("orders.post")
+                .successNotificationTitle("Order posted")
+                .action(record -> ((Order) record).post()),
+            Action.make("rename")
+                .label("Rename")
+                .schema(TextInput.make("name").required())
+                .actionWithData((record, data) -> {
+                    Order order = (Order) record;
+                    order.fill(Map.of("name", data.get("name")));
+                    order.save();
+                })
+        );
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Return the page from the resource's `getPages()`. For the table, pass the same kind of action to `Table.recordActions(...)` (see [Tables](/docs/firefly/tables/#record-actions)). Both reuse one `Action` instance for every record, so build it once and read the record from the callback.
+
+| Call | What it does |
+|---|---|
+| `action { record -> }` | Runs with the record (the Cadence model, or the row map for `Table.memory`) |
+| `actionWithData { record, data -> }` | Runs with the record and the validated dialog values, keyed by field name |
+| `visibleForRecord { record -> }` | Hides the action for records that fail the test. It also guards the POST, so a hidden action cannot be called by hand |
+| `authorize("ability")` | Checks the ability with the Kona `Gate` against the record. See [the gate bridge](#the-gate-bridge) |
+| `schema(...)` | Opens a dialog. The panel validates the fields before the handler runs; failed validation redirects back with the errors and a danger toast |
+| `successNotificationTitle("Posted")` | Flashes a success toast when the handler returns. Without a title no toast is shown |
+| `failureNotificationTitle("Could not post")` | Title of the danger toast when the handler calls `failure("reason")`. The reason is the toast body. Default title: **Action failed** |
+| `successRedirectUrl(url)` / `failureRedirectUrl(url)` | Where to go after the handler. Without them the user returns to the page they came from |
+
+Names must be unique within a header. The first action you add renders next to the primary built-in (**Save** on edit, **Edit** on view); the rest keep their defaults after it. An action named like a built-in (`save`, `edit`, `view`, `cancel`, `back`, `delete`) replaces that button. `headerActions(...)` on the page object adds extras fluently and `getHeaderActions()` adds more after those.
+
+The handler runs inside the resource's tenant scope. A record outside the tenant, outside the table's query, or outside a relation manager's owner returns **404**. A hidden or disabled action returns **403**. A missing `id` returns **422**.
+
+Hidden fields, fields with `dehydrated(false)`, and layout-only components are left out of `data`. The return location comes from a hidden `_return` field and must be a path on the same site; anything else falls back to the resource list.
+
+### Names that differ from Filament
+
+Kona's `Action` already has `visible { get -> }` (a predicate over form state) and `action { action, schema -> }`. To keep Kotlin and Java lambdas unambiguous, the record-shaped forms have their own names: `visibleForRecord { record -> }` and `actionWithData { record, data -> }`. `action { record -> }` takes one argument, so it stays `action`.
+
+### The gate bridge
+
+`Action.authorize("ability")` asks the `ActionGate`. Connect it to the application's `Gate` once at boot:
+
+```kotlin
+Firefly.authorizeActionsWith(gate)
+```
+
+After that `authorize("orders.post")` becomes `gate.allows("orders.post", record)`, so a policy can look at the record. `Firefly.authorizeActionsWith(null)` clears the bridge. Authorizing the standard create, edit, and delete pages is separate from this and not part of record actions.
+
 ## Write your own action
 
 Subclass `Action`. The constructor name is the Wire method name. The generator writes the class under `app/firefly/actions`. Reference it from a page or a resource. `discover` does not scan that folder.
@@ -275,7 +366,7 @@ public class Rename extends Action {
 
 Form fields, fill, and validation are on [Forms](/docs/firefly/forms/). Put a schema layout in `schema(...)` when the dialog only needs text, sections, or a wizard chrome.
 
-Infolist entries and table columns are their own pages. This module does not attach an action to a record or a toolbar. Row and header buttons on a table are `TableButton` on [Tables](/docs/firefly/tables/). Actions that run on the checked rows of a table are `BulkAction` (see [Bulk actions](/docs/firefly/tables/#bulk-actions)).
+Infolist entries and table columns are their own pages. `Action` itself does not know about records; a resource page binds it to one (see [Record actions on resources](#record-actions-on-resources)). Row and header buttons without a server handler are `TableButton` on [Tables](/docs/firefly/tables/). Actions that run on the checked rows of a table are `BulkAction` (see [Bulk actions](/docs/firefly/tables/#bulk-actions)).
 
 This module does not send notifications, import or export rows, wrap `call` in a database transaction, or rate-limit the handler. Toasts are on [Notifications](/docs/firefly/notifications/). CSV is on [Import and export](/docs/firefly/import-export/).
 

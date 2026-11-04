@@ -1,6 +1,9 @@
 package org.konaframework.firefly
 
+import org.konaframework.auth.authorization.Gate
 import org.konaframework.core.Application
+import org.konaframework.firefly.actions.Action
+import org.konaframework.firefly.actions.ActionGate
 import org.konaframework.filesystem.FilesystemManager
 import org.konaframework.firefly.forms.FireflyUploads
 import org.konaframework.firefly.forms.UploadDisks
@@ -42,6 +45,17 @@ object Firefly {
     @JvmStatic
     fun defaultProfilePage(provider: Supplier<ProfilePage>): Firefly = apply {
         defaultProfile = provider
+    }
+
+    /**
+     * Resolve `Action.authorize("ability")` through the Kona [Gate]: the ability is asked as
+     * `gate.allows(ability, record)` for the record the action is mounted on (a policy method on the
+     * record's model policy, or an ability defined on the gate), so `authorize("post")` hides the
+     * action for users the policy denies. Pass null to clear. [reset] leaves it installed.
+     */
+    @JvmStatic
+    fun authorizeActionsWith(gate: Gate?): Firefly = apply {
+        Action.gate(if (gate == null) null else ActionGate { ability, _, schema -> gate.allows(ability, schema.record()) })
     }
 
     internal fun resolveDefaultProfilePage(): ProfilePage? = defaultProfile?.get()

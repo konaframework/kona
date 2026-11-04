@@ -48,6 +48,12 @@ internal object FireflyCsrf {
     }
 }
 
+/** Hidden `_return` field: where the browser comes back to after a record action (empty without a [url]). */
+internal fun returnFieldHtml(url: String?): String {
+    if (url.isNullOrBlank()) return ""
+    return """<input type="hidden" name="_return" value="${escapeHtml(url)}" />"""
+}
+
 internal fun escapeHtml(text: String): String {
     val out = StringBuilder()
     for (ch in text) {

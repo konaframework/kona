@@ -184,6 +184,10 @@ Without flags, form / table / infolist stub a single `name` text field (searchab
 
 The hello samples mount a desk panel at `/admin` with a custom page, a widget, a simple note resource, and a full order resource.
 
+## Custom record actions
+
+Edit and view pages take extra header actions with server handlers. Override `getHeaderActions()` on an `EditPage` or `ViewPage` subclass (or call the page's `headerActions(...)`) and the extras render beside **Save**, **Edit**, **Delete**, and the other built-ins. Table `recordActions(...)` does the same for every row of the list or manage page. Handlers get the record, an optional dialog, the toast, and the redirect. [Record actions on resources](/docs/firefly/actions/#record-actions-on-resources) has the full API, the Filament naming differences, and the gate bridge.
+
 ## Content max width
 
 `Resource.maxWidth(token)` sets the default content column for every page of that resource (`xs`…`7xl`, `full`, `screen`, `prose`). It overrides the panel default when the page renders. A page that already called `maxWidth` keeps its own value. List and manage tables fill that column.

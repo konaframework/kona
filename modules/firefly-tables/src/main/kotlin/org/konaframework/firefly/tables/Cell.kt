@@ -4,7 +4,7 @@ import java.util.function.Function
 import java.util.function.Predicate
 
 /** Row or table state passed into a chainable closure. [get] reads a path. */
-class Cell(private val lookup: (String) -> Any?) {
+open class Cell(private val lookup: (String) -> Any?) {
     fun get(path: String): Any? = lookup(path)
 
     companion object {

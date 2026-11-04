@@ -418,6 +418,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
         )
         defaultBulkActions(built)
+        bindRecordActions(built, state, csrf)
         page.table(built)
         // Create alone lives in the header; Edit/View/Delete open from each row.
         page.headerActions(
@@ -465,6 +466,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
             TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
         )
         defaultBulkActions(built)
+        bindRecordActions(built, state, csrf)
         page.table(built)
         // Full-resource create is a header link — dialogs belong on simple/manage and delete.
         page.headerActions(Action.make("create").label("New").url("create"))
@@ -495,11 +497,16 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         }
         val recordId = state["record"]?.toString().orEmpty()
         val viewUrl = if (recordId.isEmpty()) "view" else "view?id=${encodeQuery(recordId)}"
-        page.headerActions(
-            Action.make("save").label("Save").submitForm("ff-form"),
-            Action.make("view").label("View").url(viewUrl).outlined(),
-            Action.make("cancel").label("Cancel").url("list").outlined(),
-            deleteAction(state),
+        bindHeaderActions(
+            page,
+            schema,
+            state,
+            listOf(
+                Action.make("save").label("Save").submitForm("ff-form"),
+                Action.make("view").label("View").url(viewUrl).outlined(),
+                Action.make("cancel").label("Cancel").url("list").outlined(),
+                deleteAction(state),
+            ),
         )
     }
 
@@ -533,11 +540,60 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         }
         val recordId = state["record"]?.toString().orEmpty()
         val editUrl = if (recordId.isEmpty()) "edit" else "edit?id=${encodeQuery(recordId)}"
-        page.headerActions(
-            Action.make("edit").label("Edit").url(editUrl),
-            Action.make("back").label("Back to list").url("list").outlined(),
-            deleteAction(state),
+        bindHeaderActions(
+            page,
+            schema,
+            state,
+            listOf(
+                Action.make("edit").label("Edit").url(editUrl),
+                Action.make("back").label("Back to list").url("list").outlined(),
+                deleteAction(state),
+            ),
         )
+    }
+
+    /**
+     * Header actions of an edit / view page: the built-in [defaults] with the page's own
+     * ([RecordPage.getHeaderActions] / fluent) merged in, rendered against the page record and
+     * posting handler actions to `actions/{name}`.
+     */
+    private fun bindHeaderActions(page: RecordPage, schema: Schema, state: Map<String, Any?>, defaults: List<Action>) {
+        page.mergeHeader(defaults)
+        page.actionHost(actionHost(schema))
+        val recordId = state["record"]?.toString().orEmpty()
+        val csrf = state["csrfField"] as? String ?: ""
+        val id = if (recordId.isEmpty()) "" else """<input type="hidden" name="id" value="${escapeHtml(recordId)}" />"""
+        val prefix = actionPrefix(state)
+        page.actionPost(Function { action -> "$prefix/${action.name}" }, csrf + id + returnField(state))
+    }
+
+    /** Posts the table's record actions to `actions/{name}` with the CSRF field and return location. */
+    private fun bindRecordActions(built: Table<*, *>, state: Map<String, Any?>, csrf: String) {
+        val prefix = actionPrefix(state)
+        built.recordActionsPostTo(Function { action -> "$prefix/${action.name}" }, csrf + returnField(state))
+    }
+
+    private fun actionPrefix(state: Map<String, Any?>): String {
+        val resourceBase = state["resourceBase"]
+        return if (resourceBase == null) ACTIONS_PATH else "$resourceBase/$ACTIONS_PATH"
+    }
+
+    private fun returnField(state: Map<String, Any?>): String = returnFieldHtml(state["returnUrl"]?.toString())
+
+    /** Schema that header actions render against: the page record with its attributes as state. */
+    private fun actionHost(schema: Schema): Schema {
+        val host = Schema.make().record(schema.record())
+        schema.key()?.let { host.key(it) }
+        // Edit and view schemas always carry a record (a blank one when no id is given).
+        val record = schema.record()!!
+        try {
+            @Suppress("UNCHECKED_CAST")
+            val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+            host.fill(store.attributes(record))
+        } catch (_: FireflyException) {
+            // No model store — the action still sees the record itself.
+        }
+        return host
     }
 
     private fun resourceCrumbs(
@@ -787,6 +843,52 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         class Group(val label: String, val runtimes: List<RelationRuntime>) : BoundEntry()
     }
 
+    /**
+     * The record action called [name] and how to load its record, or null when none matches:
+     * edit / view header actions first (found through [RecordPage.extraHeaderActions]), then the
+     * actions of this resource's list table. Only actions with a server handler qualify.
+     */
+    internal fun recordActionSource(name: String): RecordActionSource? {
+        val header = pages().filterIsInstance<RecordPage>()
+            .flatMap { it.extraHeaderActions() }
+            .firstOrNull { it.name == name && it.hasHandler() }
+        if (header != null) {
+            return RecordActionSource(header, { key -> findRecord(key) }, { record -> storeAttributes(record) })
+        }
+        @Suppress("UNCHECKED_CAST")
+        val table = table(listTable()) as Table<Any?, Any?>
+        val row = table.findRecordAction(name) ?: return null
+        return RecordActionSource(
+            row,
+            { key -> tenantScoped(table.findRecord(key)) },
+            { record -> table.recordAttributes(record) },
+        )
+    }
+
+    private fun storeAttributes(record: Any): Map<String, Any?> {
+        @Suppress("UNCHECKED_CAST")
+        val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+        return store.attributes(record)
+    }
+
+    /** A record of this resource by key, or null when missing or outside the current tenant. */
+    internal fun findRecord(key: String): Any? {
+        @Suppress("UNCHECKED_CAST")
+        val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+        return tenantScoped(store.find(key))
+    }
+
+    private fun tenantScoped(found: Any?): Any? {
+        val column = tenantColumn
+        val tenant = FireflyTenant.id()
+        if (found is org.konaframework.cadence.Cadence<*> && column != null && tenant != null &&
+            found.getAttribute(column)?.toString() != tenant
+        ) {
+            return null
+        }
+        return found
+    }
+
     /** The record a relation POST belongs to, or null when missing or outside the current tenant. */
     internal fun relationOwner(key: String): org.konaframework.cadence.Cadence<*>? {
         @Suppress("UNCHECKED_CAST")
@@ -801,6 +903,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     internal companion object {
         /** Relation POST / options routes under the resource (`{panel}/{resource}/relations/…`). */
         const val RELATIONS_PATH = "relations"
+
+        /** Record action POST route under the resource (`{panel}/{resource}/actions/{name}`). */
+        const val ACTIONS_PATH = "actions"
 
         /** Query value for the form / infolist tab when relation tabs are combined with content. */
         const val CONTENT_TAB: String = "content"
@@ -870,3 +975,14 @@ internal fun wrapCombinedResourceForm(body: String, state: Map<String, Any?>): S
     return """<form id="ff-form" class="ff-resource-form" method="post" action="$action">$csrf""" +
         """<input type="hidden" name="id" value="$recordId" />$body</form>"""
 }
+
+/**
+ * A record action found for a POST, with how to load its record and read the record's attributes.
+ * Resources hand out the edit / view header actions and list-table actions; relation managers hand out
+ * their table's actions for the related record.
+ */
+internal class RecordActionSource(
+    val action: Action,
+    val find: (String) -> Any?,
+    val attributes: (Any) -> Map<String, Any?>,
+)
