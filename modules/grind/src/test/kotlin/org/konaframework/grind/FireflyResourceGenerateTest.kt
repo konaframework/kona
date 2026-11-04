@@ -5,8 +5,10 @@ import org.konaframework.cadence.CastType
 import org.konaframework.cadence.ConnectionConfig
 import org.konaframework.cadence.Database
 import org.konaframework.cadence.SoftDeletes
+import org.konaframework.cadence.relations.BelongsTo
 import org.konaframework.cadence.schema.Schema
 import org.konaframework.cadence.schema.SchemaColumn
+import org.konaframework.cadence.schema.SchemaForeignKey
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -299,6 +301,161 @@ class FireflyResourceGenerateTest {
     }
 
     @Test
+    fun mapColumnsSkipsHiddenAndSensitiveColumns() {
+        // Hidden set alone removes ssn; password / tokens / secrets are skipped even when not hidden.
+        val model = object : Cadence<GeneratePost>() {
+            override val table: String = "users"
+            override val timestamps: Boolean = false
+            override val fillable: Set<String> = setOf(
+                "name", "email", "password", "remember_token", "api_token", "webhook_secret", "ssn",
+            )
+            override val hidden: Set<String> = setOf("ssn")
+        }
+        val fields = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("name", "VARCHAR", false, "", 255),
+                SchemaColumn("email", "VARCHAR", false, "", 255),
+                SchemaColumn("password", "VARCHAR", false, "", 255),
+                SchemaColumn("remember_token", "VARCHAR", true, "", 100),
+                SchemaColumn("api_token", "VARCHAR", true, "", 255),
+                SchemaColumn("webhook_secret", "VARCHAR", true, "", 255),
+                SchemaColumn("ssn", "VARCHAR", true, "", 32),
+            ),
+            model,
+            setOf("id"),
+        )
+        assertEquals(listOf("name", "email"), fields.form.map { it.name })
+        assertEquals(listOf("name", "email"), fields.table.map { it.name })
+        assertEquals(listOf("name", "email"), fields.infolist.map { it.name })
+        assertFalse(fields.form.any { it.name == "password" || it.name == "remember_token" })
+        assertFalse(fields.table.any { it.name.contains("token") || it.name.contains("secret") || it.name == "ssn" })
+        assertFalse(fields.infolist.any { it.name == "password" || it.name == "ssn" })
+    }
+
+    @Test
+    fun mapColumnsResolvesCamelCaseRelationsAndHumanLabels() {
+        // BelongsTo construction needs a global Database (Relation opens a related query).
+        val database = Database().addConnection(
+            Database.DEFAULT,
+            ConnectionConfig("jdbc:h2:mem:firefly_rel_names;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"),
+        )
+        database.setAsGlobal()
+        try {
+            mapColumnsResolvesCamelCaseRelationsAndHumanLabelsBody()
+        } finally {
+            Database.clearGlobal()
+        }
+    }
+
+    private fun mapColumnsResolvesCamelCaseRelationsAndHumanLabelsBody() {
+        // Model declares currentCompany() for current_company_id — use that name, not snake_case.
+        val withRelation = GenerateUser()
+        val resolved = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("name", "VARCHAR", false, "", 255),
+                SchemaColumn("current_company_id", "BIGINT", true, "", 19),
+            ),
+            withRelation,
+            setOf("id"),
+            mapOf(
+                "current_company_id" to SchemaForeignKey("current_company_id", "companies", "id"),
+            ),
+        )
+        assertTrue(
+            resolved.form.any {
+                it.callExpr().contains(
+                    "Select.make(\"current_company_id\").label(\"Current company\").relationship(\"currentCompany\", \"name\")",
+                )
+            },
+        )
+        assertTrue(
+            resolved.table.any {
+                it.name == "currentCompany.name" &&
+                    it.callExpr() == "TextColumn.make(\"currentCompany.name\").label(\"Current company\")"
+            },
+        )
+        assertTrue(
+            resolved.infolist.any {
+                it.name == "currentCompany.name" &&
+                    it.callExpr() == "TextEntry.make(\"currentCompany.name\").label(\"Current company\")"
+            },
+        )
+        // Method name differs from the column-stem guess — still prefer the model method.
+
+        val aliased = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("current_company_id", "BIGINT", true, "", 19),
+            ),
+            GenerateUserAliasedRelation(),
+            setOf("id"),
+            mapOf(
+                "current_company_id" to SchemaForeignKey("current_company_id", "companies", "id"),
+            ),
+        )
+        assertTrue(
+            aliased.form.any {
+                it.callExpr().contains(
+                    "Select.make(\"current_company_id\").label(\"Company\").relationship(\"company\", \"name\")",
+                )
+            },
+        )
+        assertTrue(aliased.table.any { it.name == "company.name" })
+        // No matching BelongsTo method → camelCase guess from the column stem.
+        val guessed = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("current_company_id", "BIGINT", true, "", 19),
+                SchemaColumn("tax_pin", "VARCHAR", true, "", 20),
+            ),
+            object : Cadence<GeneratePost>() {
+                override val table: String = "accounts"
+                override val timestamps: Boolean = false
+                override val fillable: Set<String> = setOf("current_company_id", "tax_pin")
+            },
+            setOf("id"),
+            mapOf(
+                "current_company_id" to SchemaForeignKey("current_company_id", "companies", "id"),
+            ),
+        )
+        assertTrue(
+            guessed.form.any {
+                it.callExpr().contains(
+                    "Select.make(\"current_company_id\").label(\"Current company\").relationship(\"currentCompany\", \"name\")",
+                )
+            },
+        )
+        assertTrue(guessed.table.any { it.name == "currentCompany.name" })
+        assertTrue(guessed.form.any { it.name == "tax_pin" && it.type == "TextInput" })
+        assertFalse(guessed.form.any { it.callExpr().contains("relationship(\"current_company\"") })
+        assertFalse(guessed.table.any { it.name == "current_company.name" })
+        // Wrong-FK / throwing / null BelongsTo methods are skipped; generator still camelCases.
+        val noisy = FireflyResourceGenerate.mapColumns(
+            listOf(
+                SchemaColumn("id", "BIGINT", false, "", 19),
+                SchemaColumn("current_company_id", "BIGINT", true, "", 19),
+                SchemaColumn("weird", "BIGINT", true, "", 19),
+            ),
+            GenerateUserNoisyRelations(),
+            setOf("id"),
+            mapOf(
+                "current_company_id" to SchemaForeignKey("current_company_id", "companies", "id"),
+                "weird" to SchemaForeignKey("weird", "___", "id"),
+            ),
+        )
+        assertTrue(
+            noisy.form.any {
+                it.callExpr().contains("relationship(\"currentCompany\", \"name\")") &&
+                    it.callExpr().contains("label(\"Current company\")")
+            },
+        )
+        // Empty camelCase stem still yields a Select (label falls back to the empty relation name).
+        assertTrue(noisy.form.any { it.name == "weird" && it.type == "Select" })
+    }
+
+    @Test
     fun fromModelReadsLiveTable() {
         val database = Database().addConnection(
             Database.DEFAULT,
@@ -547,4 +704,55 @@ class GeneratePost : Cadence<GeneratePost>(), SoftDeletes {
         "published" to CastType.BOOLEAN,
         "published_at" to CastType.DATETIME,
     )
+}
+
+/** Related company model for BelongsTo discovery in generate tests. */
+class GenerateCompany : Cadence<GenerateCompany>() {
+    override val table: String = "companies"
+    override val timestamps: Boolean = false
+}
+
+/** User-shaped model with a camelCase BelongsTo for `current_company_id` (#466). */
+class GenerateUser : Cadence<GenerateUser>() {
+    override val table: String = "users"
+    override val timestamps: Boolean = false
+    override val fillable: Set<String> = setOf("name", "email", "password", "remember_token", "current_company_id")
+    override val hidden: Set<String> = setOf("password", "remember_token")
+
+    fun currentCompany(): BelongsTo<GenerateCompany> =
+        belongsTo(GenerateCompany::class.java, "current_company_id", "id", "currentCompany")
+}
+
+/** BelongsTo method name differs from the camelCase column stem (`company` vs `currentCompany`). */
+class GenerateUserAliasedRelation : Cadence<GenerateUserAliasedRelation>() {
+    override val table: String = "users"
+    override val timestamps: Boolean = false
+    override val fillable: Set<String> = setOf("current_company_id")
+
+    fun company(): BelongsTo<GenerateCompany> =
+        belongsTo(GenerateCompany::class.java, "current_company_id", "id", "company")
+}
+
+/**
+ * BelongsTo discovery edge cases: a throwing method, a null-returning method, and a
+ * relation for a different foreign key must not block camelCase resolution (#466).
+ */
+class GenerateUserNoisyRelations : Cadence<GenerateUserNoisyRelations>() {
+    override val table: String = "users"
+    override val timestamps: Boolean = false
+    override val fillable: Set<String> = setOf("current_company_id", "weird")
+
+    /** Parameterized BelongsTo is ignored (generator only considers no-arg methods). */
+    @Suppress("UNUSED_PARAMETER")
+    fun ignoredCompany(flag: Boolean): BelongsTo<GenerateCompany> =
+        belongsTo(GenerateCompany::class.java, "ignored_id", "id", "ignoredCompany")
+
+    fun brokenCompany(): BelongsTo<GenerateCompany> {
+        error("should be skipped by generator")
+    }
+
+    fun nullCompany(): BelongsTo<GenerateCompany>? = null
+
+    fun otherCompany(): BelongsTo<GenerateCompany> =
+        belongsTo(GenerateCompany::class.java, "other_id", "id", "otherCompany")
 }

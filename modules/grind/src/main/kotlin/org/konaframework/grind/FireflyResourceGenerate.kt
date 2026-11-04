@@ -4,11 +4,13 @@ import org.konaframework.cadence.Cadence
 import org.konaframework.cadence.CastType
 import org.konaframework.cadence.Database
 import org.konaframework.cadence.SoftDeletes
+import org.konaframework.cadence.relations.BelongsTo
 import org.konaframework.cadence.schema.Schema
 import org.konaframework.cadence.schema.SchemaColumn
 import org.konaframework.cadence.schema.SchemaForeignKey
 import org.konaframework.cadence.schema.SchemaGrammar
 import org.konaframework.support.str.Str
+import java.util.Locale
 
 /**
  * Builds form / table / infolist component lists for `make:firefly-resource`.
@@ -90,6 +92,7 @@ internal object FireflyResourceGenerate {
         foreignKeys: Map<String, SchemaForeignKey> = emptyMap(),
     ): ResourceFieldSet {
         val skipForm = skipFormColumns(model, primaryKeys)
+        val skipEverywhere = skipEverywhereColumns(model)
         val casts = model.effectiveCasts()
         val fillable = model.fillable
         val form = ArrayList<GeneratedComponent>()
@@ -97,8 +100,9 @@ internal object FireflyResourceGenerate {
         val infolist = ArrayList<GeneratedComponent>()
         val timestampNames = timestampColumnNames(model)
         for (column in columns) {
+            if (column.name in skipEverywhere || isSensitiveColumn(column.name)) continue
             val fk = foreignKeys[column.name] ?: guessForeignKey(column.name, primaryKeys)
-            val mapped = mapColumn(column, casts[column.name], fk, timestampNames)
+            val mapped = mapColumn(column, casts[column.name], fk, timestampNames, model)
             if (column.name !in skipForm && (fillable.isEmpty() || column.name in fillable)) {
                 form.add(mapped.form)
             }
@@ -110,7 +114,7 @@ internal object FireflyResourceGenerate {
         if (form.isEmpty()) {
             throw GrindException(
                 "No form fields generated for [${model.javaClass.simpleName}] " +
-                    "(all columns skipped as primary key / timestamps / non-fillable).",
+                    "(all columns skipped as primary key / timestamps / non-fillable / hidden / sensitive).",
             )
         }
         return ResourceFieldSet(
@@ -136,6 +140,24 @@ internal object FireflyResourceGenerate {
         return skip
     }
 
+    /** Columns listed in the model's [Cadence.hidden] set (form, table, and infolist). */
+    private fun skipEverywhereColumns(model: Cadence<*>): Set<String> =
+        LinkedHashSet(model.effectiveHidden())
+
+    /**
+     * Password / remember_token / `*_token` / `*_secret` are omitted even when fillable (#466).
+     */
+    private fun isSensitiveColumn(name: String): Boolean {
+        val lower = name.lowercase(Locale.ROOT)
+        return when {
+            lower == "password" -> true
+            lower == "remember_token" -> true
+            lower.endsWith("_token") -> true
+            lower.endsWith("_secret") -> true
+            else -> false
+        }
+    }
+
     private fun timestampColumnNames(model: Cadence<*>): Set<String> {
         val names = LinkedHashSet<String>()
         if (model.timestamps) {
@@ -153,11 +175,12 @@ internal object FireflyResourceGenerate {
         cast: Any?,
         foreign: SchemaForeignKey?,
         timestampNames: Set<String>,
+        model: Cadence<*>,
     ): MappedColumn {
         val name = column.name
         if (foreign != null) {
-            val relation = relationName(foreign)
-            val label = relationLabel(relation)
+            val relation = resolveRelationName(model, foreign)
+            val label = humanLabel(relation)
             return MappedColumn(
                 form = GeneratedComponent(
                     "Select",
@@ -330,18 +353,49 @@ internal object FireflyResourceGenerate {
         return SchemaForeignKey(column, referencedTable = Str.plural(stem), referencedColumn = "id")
     }
 
-    private fun relationName(foreign: SchemaForeignKey): String {
-        val fromColumn = foreign.column
-        if (fromColumn.endsWith("_id") && fromColumn.length > 3) {
-            return fromColumn.removeSuffix("_id")
-        }
-        val table = foreign.referencedTable
-        return if (table.length > 1 && table.endsWith("s")) table.dropLast(1) else table
+    /**
+     * Prefer a BelongsTo method on [model] whose foreign key matches [foreign]
+     * (`currentCompany` for `current_company_id`). Otherwise camelCase the column/table stem —
+     * never snake_case (#466). Requires a global [Database] when invoking relations (same as
+     * `./grind make:firefly-resource --generate` after bootstrap).
+     */
+    private fun resolveRelationName(model: Cadence<*>, foreign: SchemaForeignKey): String {
+        val fromModel = findRelationMethodName(model, foreign.column)
+        return fromModel ?: guessedRelationName(foreign)
     }
 
-    /** `project` → `Project` for Select/TextEntry labels. */
-    private fun relationLabel(relation: String): String =
-        relation.take(1).uppercase() + relation.drop(1)
+    private fun findRelationMethodName(model: Cadence<*>, foreignKey: String): String? {
+        for (method in model.javaClass.declaredMethods) {
+            if (method.parameterCount != 0) continue
+            if (!BelongsTo::class.java.isAssignableFrom(method.returnType)) continue
+            val belongsTo = try {
+                method.isAccessible = true
+                method.invoke(model) as? BelongsTo<*>
+            } catch (_: Throwable) {
+                null
+            } ?: continue
+            if (belongsTo.foreignKey != foreignKey) continue
+            return method.name
+        }
+        return null
+    }
+
+    private fun guessedRelationName(foreign: SchemaForeignKey): String {
+        val fromColumn = foreign.column
+        if (fromColumn.endsWith("_id") && fromColumn.length > 3) {
+            return Str.camel(fromColumn.removeSuffix("_id"))
+        }
+        val table = foreign.referencedTable
+        val stem = if (table.length > 1 && table.endsWith("s")) table.dropLast(1) else table
+        return Str.camel(stem)
+    }
+
+    /** `currentCompany` / `current_company` → `Current company` (sentence case, no underscores). */
+    private fun humanLabel(relation: String): String {
+        val spaced = Str.snake(relation, " ").trim()
+        if (spaced.isEmpty()) return relation
+        return spaced[0].titlecase(Locale.ROOT) + spaced.substring(1)
+    }
 }
 
 internal data class GeneratedComponent(
