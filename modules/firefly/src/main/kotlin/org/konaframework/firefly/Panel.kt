@@ -1,6 +1,7 @@
 package org.konaframework.firefly
 
 import org.konaframework.auth.Auth
+import org.konaframework.auth.Authenticatable
 import org.konaframework.auth.Guard
 import org.konaframework.firefly.actions.ActionResult
 import org.konaframework.firefly.forms.Field
@@ -38,6 +39,8 @@ import org.konaframework.icons.Icons
 import java.net.URLEncoder
 import java.nio.file.Path
 import java.util.function.Function
+import java.util.function.Predicate
+import java.util.function.Supplier
 import org.konaframework.firefly.support.Panel as Chrome
 import org.konaframework.firefly.tables.BulkActionResult
 
@@ -87,6 +90,8 @@ open class Panel {
     private var resolvedPrefix: String = "admin"
     private var resolvedId: String = "admin"
     private var maxWidthLiteral: String? = null
+    private var accessUsing: Predicate<Authenticatable?>? = null
+    private var allowWithoutPolicy: Boolean? = null
 
     fun id(value: String): Panel = apply {
         if (value.isBlank()) throw FireflyException("Panel id is blank")
@@ -198,6 +203,28 @@ open class Panel {
 
     fun authenticate(on: Boolean): Panel = apply { authenticatePages = on }
 
+    /**
+     * Who may enter this panel (Filament `canAccessPanel`). [predicate] receives the signed-in user.
+     * It runs on every panel route except sign-in, registration, password reset, email verification
+     * and sign-out. A user model that implements [FireflyUser] is asked as well, and both must allow.
+     * A denied user gets 403, and cannot sign in to the panel.
+     */
+    fun canAccess(predicate: Predicate<Authenticatable?>): Panel = apply { accessUsing = predicate }
+
+    /** Whether [user] may enter this panel: [canAccess] and [FireflyUser.canAccessPanel] both allow. */
+    fun permits(user: Authenticatable?): Boolean {
+        val predicate = accessUsing
+        if (predicate != null && !predicate.test(user)) return false
+        if (user is FireflyUser && !user.canAccessPanel(this)) return false
+        return true
+    }
+
+    /**
+     * What resources of this panel answer when their model has no policy: true allows everything,
+     * false is strict mode. A resource's own [Resource.authorizeWithoutPolicy] wins.
+     */
+    fun authorizeWithoutPolicy(on: Boolean): Panel = apply { allowWithoutPolicy = on }
+
     fun guard(guard: PanelGuard): Panel = apply {
         panelGuard = guard
         guardNameLiteral = null
@@ -290,7 +317,7 @@ open class Panel {
             }
         }
         for (route in planned) {
-            router.match(listOf(route.method), route.uri, route.handler).name(route.name)
+            router.match(listOf(route.method), route.uri, secured(route)).name(route.name)
         }
         mounted = true
         return this
@@ -377,12 +404,17 @@ open class Panel {
             val key = page.slug()
             if (!seen.add(key)) throw FireflyException("Panel page [$key] is declared more than once")
         }
+        for (resource in resources) {
+            resource.inheritAuthorizeWithoutPolicy(allowWithoutPolicy)
+            resource.discoverPolicy()
+        }
         if (items.isEmpty()) {
             for (page in pages) {
                 val isHome = page.slug().isEmpty()
                 val node = NavigationItem(page.slug().ifEmpty { "dashboard" })
                     .label(page.navigationLabel())
                     .url(panelUri(resolvedPrefix, page.slug()))
+                    .visible(Predicate { page.canAccess() })
                     .dashboard(isHome)
                 val pageIcon = page.navigationIcon()
                 if (!pageIcon.isNullOrBlank()) node.icon(pageIcon)
@@ -406,6 +438,7 @@ open class Panel {
                     .label(resource.pluralLabel())
                     .url(panelUri(resolvedPrefix, resourcePagePath(resource.slug(), indexSlug)))
                     .matchPrefix(panelUri(resolvedPrefix, resource.slug()))
+                    .visible(Predicate { resource.canViewAny() })
                 val resourceIcon = resource.navigationIcon()
                 if (!resourceIcon.isNullOrBlank()) node.icon(resourceIcon)
                 items.add(node)
@@ -426,18 +459,38 @@ open class Panel {
         return null
     }
 
+    /**
+     * Wraps a route: opens the [FireflyAuth] scope for the signed-in user and, unless the route is
+     * [Planned.open], answers 403 to a signed-in user [permits] rejects. Guests fall through to the
+     * route, which redirects them to sign-in when the panel authenticates.
+     */
+    private fun secured(route: Planned): Handler = Handler { request ->
+        val guard = activeGuard(request)
+        val signedIn = guard.check()
+        val user = if (signedIn) guard.user() else null
+        FireflyAuth.actingAs(user, Supplier {
+            if (!route.open && signedIn && !permits(user)) {
+                forbidden("You do not have access to this panel")
+            } else {
+                route.handler.handle(request)
+            }
+        })
+    }
+
+    private fun forbidden(message: String): Response = Response.html(escapeHtml(message), 403)
+
     private fun authRoutes(planned: MutableList<Planned>) {
-        planned.add(Planned("GET", uri("login"), routeName("login")) { request -> loginGet(request) })
-        planned.add(Planned("POST", uri("login"), routeName("login.store")) { request -> loginPost(request) })
-        planned.add(Planned("GET", uri("register"), routeName("register")) { request -> registerGet(request) })
-        planned.add(Planned("POST", uri("register"), routeName("register.store")) { request -> registerPost(request) })
-        planned.add(Planned("GET", uri("password-reset"), routeName("password")) { request -> resetGet(request) })
-        planned.add(Planned("POST", uri("password-reset"), routeName("password.store")) { request -> resetPost(request) })
-        planned.add(Planned("GET", uri("email-verify"), routeName("verify")) { request -> verifyGet(request) })
-        planned.add(Planned("POST", uri("email-verify"), routeName("verify.store")) { request -> verifyPost(request) })
+        planned.add(Planned("GET", uri("login"), routeName("login"), open = true) { request -> loginGet(request) })
+        planned.add(Planned("POST", uri("login"), routeName("login.store"), open = true) { request -> loginPost(request) })
+        planned.add(Planned("GET", uri("register"), routeName("register"), open = true) { request -> registerGet(request) })
+        planned.add(Planned("POST", uri("register"), routeName("register.store"), open = true) { request -> registerPost(request) })
+        planned.add(Planned("GET", uri("password-reset"), routeName("password"), open = true) { request -> resetGet(request) })
+        planned.add(Planned("POST", uri("password-reset"), routeName("password.store"), open = true) { request -> resetPost(request) })
+        planned.add(Planned("GET", uri("email-verify"), routeName("verify"), open = true) { request -> verifyGet(request) })
+        planned.add(Planned("POST", uri("email-verify"), routeName("verify.store"), open = true) { request -> verifyPost(request) })
         planned.add(Planned("GET", uri("profile"), routeName("profile")) { request -> profileGet(request) })
         planned.add(Planned("POST", uri("profile"), routeName("profile.store")) { request -> profilePost(request) })
-        planned.add(Planned("POST", uri("logout"), routeName("logout")) { request -> logoutPost(request) })
+        planned.add(Planned("POST", uri("logout"), routeName("logout"), open = true) { request -> logoutPost(request) })
     }
 
     private fun pageRoutes(planned: MutableList<Planned>) {
@@ -478,6 +531,7 @@ open class Panel {
                                 "resourceList" to uri(listSlug),
                                 "resourceBase" to uri(resource.slug()),
                             ),
+                            resource,
                         )
                     },
                 )
@@ -491,7 +545,7 @@ open class Panel {
                     // List / manage tables post their bulk-action forms back to the page URL.
                     planned.add(
                         Planned("POST", uri(slug), routeName("resources.$slug.bulk")) { request ->
-                            bulkAction(request, page, mapOf("panelHome" to uri(""), "resourceList" to uri(listSlug)))
+                            bulkAction(request, page, mapOf("panelHome" to uri(""), "resourceList" to uri(listSlug)), resource)
                         },
                     )
                 }
@@ -782,6 +836,7 @@ open class Panel {
         val key = request.query["owner"].orEmpty()
         val owner = (if (key.isBlank()) null else resource.relationOwner(key))
             ?: return Response.html("Record not found", 404)
+        if (!resource.allowsPage(page, key)) return Response.html("Not authorized", 403)
         val runtime = try {
             manager.bind(owner, page, uri(resource.slug() + "/" + Resource.RELATIONS_PATH), "")
         } catch (e: FireflyException) {
@@ -822,6 +877,7 @@ open class Panel {
         request: Request,
         page: PanelPage,
         extras: Map<String, Any?> = emptyMap(),
+        resource: Resource? = null,
     ): Response {
         val denied = gate(request)
         if (denied != null) return denied
@@ -830,9 +886,14 @@ open class Panel {
         }
         val tenant = tenantId(request)
         return FireflyTenant.use(tenant) {
+            val allowed = if (resource == null) page.canAccess() else resource.allowsPage(page, recordKey(request))
+            if (!allowed) return@use forbidden("This action is unauthorized.")
             Response.html(draw(request, emptyMap(), page.render(pageState(request, dashboardExtras(extras)))))
         }
     }
+
+    /** The record a resource page names in `id` / `record`. */
+    private fun recordKey(request: Request): String? = request.input("id") ?: request.input("record")
 
     private fun widgetIdFrom(request: Request): String? {
         val routed = request.route("widgetId") ?: request.input("widgetId")
@@ -883,7 +944,7 @@ open class Panel {
 
     private fun navigationCards(): List<org.konaframework.firefly.widgets.NavigationCard> {
         val get = SchemaBridge.open(emptyMap())
-        return items.map { item ->
+        return items.filter { it.isVisible(get) }.map { item ->
             org.konaframework.firefly.widgets.NavigationCard(
                 label = item.labelText(get),
                 href = item.urlText(get),
@@ -896,7 +957,12 @@ open class Panel {
      * Run a table bulk action posted from [page] (`_bulk_action`, comma-separated `_bulk_keys`,
      * `_bulk_all=1` for every matching record), flash the result, and redirect back.
      */
-    private fun bulkAction(request: Request, page: PanelPage, extras: Map<String, Any?> = emptyMap()): Response {
+    private fun bulkAction(
+        request: Request,
+        page: PanelPage,
+        extras: Map<String, Any?> = emptyMap(),
+        resource: Resource? = null,
+    ): Response {
         val denied = gate(request)
         if (denied != null) return denied
         if (authenticatePages && !activeGuard(request).check()) {
@@ -911,6 +977,7 @@ open class Panel {
         }
         val tenant = tenantId(request)
         return FireflyTenant.use(tenant) {
+            if (resource != null && !resource.allowsBulk(name)) return@use forbidden("This action is unauthorized.")
             page.prepare(pageState(request, extras))
             val table = page.mountedTable() ?: return@use Response.html("Page has no table", 404)
             val keys = request.input(BULK_KEYS).orEmpty().split(',').map { it.trim() }
@@ -1040,6 +1107,7 @@ open class Panel {
             val store = org.konaframework.firefly.tables.RecordStores.open(resource.boundModel())
                 as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
             val found = store.find(key) ?: return@use Response.html("Record not found", 404)
+            if (!resource.canDelete(found)) return@use forbidden("This action is unauthorized.")
             store.delete(found)
             flashNotice(request, FireflyToasts::deleted)
             Response.redirect(uri(resourceListSlug(resource)))
@@ -1073,6 +1141,7 @@ open class Panel {
             @Suppress("UNCHECKED_CAST")
             val store = org.konaframework.firefly.tables.RecordStores.open(resource.boundModel())
                 as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+            if (page !is EditPage && !resource.canCreate()) return@use forbidden("This action is unauthorized.")
             val attrs = LinkedHashMap<String, Any?>()
             for ((key, value) in request.all()) {
                 if (key == FireflyCsrf.TOKEN_KEY || key == "id" || key.startsWith("_")) continue
@@ -1086,6 +1155,7 @@ open class Panel {
                 }
                 val found = store.find(key)
                 if (found == null) return@use Response.html("Record not found", 404)
+                if (!resource.canEdit(found)) return@use forbidden("This action is unauthorized.")
                 found
             } else {
                 store.newRecord()
@@ -1112,7 +1182,9 @@ open class Panel {
     private fun loginGet(request: Request): Response {
         val denied = gate(request)
         if (denied != null) return denied
-        if (activeGuard(request).check()) return Response.redirect(uri(""))
+        val guard = activeGuard(request)
+        // A signed-in user the panel rejects stays on the sign-in form to switch accounts.
+        if (guard.check() && permits(guard.user())) return Response.redirect(uri(""))
         return Response.html(authShell(request, "Sign in", authForm(request, AuthScreen.LOGIN, null)))
     }
 
@@ -1124,8 +1196,13 @@ open class Panel {
         if (email == null || email.isBlank() || password == null || password.isBlank()) {
             return Response.html(authShell(request, "Sign in", authForm(request, AuthScreen.LOGIN, "Email and password are required")), 422)
         }
-        if (!activeGuard(request).attempt(email, password)) {
+        val guard = activeGuard(request)
+        if (!guard.attempt(email, password)) {
             return Response.html(authShell(request, "Sign in", authForm(request, AuthScreen.LOGIN, "Those credentials do not match")), 422)
+        }
+        if (!permits(guard.user())) {
+            guard.logout()
+            return Response.html(authShell(request, "Sign in", authForm(request, AuthScreen.LOGIN, "You do not have access to this panel")), 403)
         }
         return Response.redirect(uri(""))
     }
@@ -1243,7 +1320,11 @@ open class Panel {
     }
 
     /** True when [request] comes from a signed-in user of this panel (FileUpload temp uploads). */
-    internal fun allowsUpload(request: Request): Boolean = gate(request) == null && activeGuard(request).check()
+    internal fun allowsUpload(request: Request): Boolean {
+        if (gate(request) != null) return false
+        val guard = activeGuard(request)
+        return guard.check() && permits(guard.user())
+    }
 
     private fun gate(request: Request): Response? {
         val expected = resolveDomain(SchemaBridge.open(emptyMap()))
@@ -1385,12 +1466,13 @@ open class Panel {
      * Active root is the last L1 whose own URL or any descendant matches [path]; otherwise the first L1.
      */
     private fun appTop(path: String, get: Get): List<NavigationItem> {
-        if (items.isEmpty()) return emptyList()
+        val shown = items.filter { it.isVisible(get) }
+        if (shown.isEmpty()) return emptyList()
         var active: NavigationItem? = null
-        for (item in items) {
+        for (item in shown) {
             if (itemOrDescendantActive(item, path, get)) active = item
         }
-        return (active ?: items.first()).children
+        return (active ?: shown.first()).children
     }
 
     private fun itemOrDescendantActive(item: NavigationItem, path: String, get: Get): Boolean {
@@ -1547,7 +1629,14 @@ open class Panel {
         return navigationLiteral
     }
 
-    private class Planned(val method: String, val uri: String, val name: String, val handler: Handler)
+    /** A route to mount. [open] routes (sign-in, registration, reset, verify, sign-out) skip [canAccess]. */
+    private class Planned(
+        val method: String,
+        val uri: String,
+        val name: String,
+        val open: Boolean = false,
+        val handler: Handler,
+    )
 
     private class Discovered(val pages: List<PanelPage>, val resources: List<Resource>, val widgets: List<Widget>)
 }

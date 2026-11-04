@@ -13,9 +13,11 @@ import org.konaframework.firefly.tables.BulkActionGroup
 import org.konaframework.firefly.tables.DeleteBulkAction
 import org.konaframework.firefly.tables.Table
 import org.konaframework.firefly.tables.TableButton
+import org.konaframework.firefly.tables.Cell
 import org.konaframework.firefly.widgets.Breadcrumb
 import org.konaframework.firefly.widgets.Page
 import java.util.function.Function
+import java.util.function.Predicate
 
 /**
  * A panel resource discovered from `resources/`. It binds one model to its pages, form,
@@ -266,6 +268,177 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     fun isSimple(): Boolean = simpleFlag
 
+    // ——— Authorization (Kona Gate / Policy) ———
+
+    private var allowWithoutPolicyFlag: Boolean? = null
+    private var inheritedWithoutPolicy: Boolean? = null
+
+    /**
+     * What this resource answers when its model has no policy: true (default) allows everything,
+     * false denies (strict mode). Wins over [Panel.authorizeWithoutPolicy] and [Firefly.authorizeWithoutPolicy].
+     */
+    fun authorizeWithoutPolicy(on: Boolean): Resource = apply { allowWithoutPolicyFlag = on }
+
+    internal fun inheritAuthorizeWithoutPolicy(on: Boolean?) {
+        inheritedWithoutPolicy = on
+    }
+
+    private fun allowsWithoutPolicy(): Boolean =
+        allowWithoutPolicyFlag ?: inheritedWithoutPolicy ?: Firefly.authorizesWithoutPolicy()
+
+    /**
+     * Asks the Kona Gate for [ability] on the current user (see [FireflyAuth]). With a [record] the
+     * policy receives it, without one the check is class level (`viewAny`, `create`, …). A model
+     * without a policy follows [authorizeWithoutPolicy]. Use it for custom abilities in your own hooks.
+     */
+    @JvmOverloads
+    fun can(ability: String, record: Any? = null): Boolean {
+        val model = try {
+            boundModel()
+        } catch (_: FireflyException) {
+            return allowsWithoutPolicy()
+        }
+        return FireflyPolicies.allows(model, ability, record, allowsWithoutPolicy())
+    }
+
+    /** Policy `viewAny`. Denied resources leave the navigation and answer 403 on their list. */
+    open fun canViewAny(): Boolean = can("viewAny")
+
+    /** Policy `view` for [record]. */
+    open fun canView(record: Any): Boolean = can("view", record)
+
+    /** Policy `create`. */
+    open fun canCreate(): Boolean = can("create")
+
+    /** Policy `update` for [record]. */
+    open fun canEdit(record: Any): Boolean = can("update", record)
+
+    /** Policy `delete` for [record]. */
+    open fun canDelete(record: Any): Boolean = can("delete", record)
+
+    /** Policy `deleteAny`: the bulk delete action. */
+    open fun canDeleteAny(): Boolean = can("deleteAny")
+
+    /** Policy `restore` for [record]. */
+    open fun canRestore(record: Any): Boolean = can("restore", record)
+
+    /** Policy `restoreAny`. */
+    open fun canRestoreAny(): Boolean = can("restoreAny")
+
+    /** Policy `forceDelete` for [record]. */
+    open fun canForceDelete(record: Any): Boolean = can("forceDelete", record)
+
+    /** Policy `forceDeleteAny`. */
+    open fun canForceDeleteAny(): Boolean = can("forceDeleteAny")
+
+    /** Policy `replicate` for [record]. */
+    open fun canReplicate(record: Any): Boolean = can("replicate", record)
+
+    /** Policy `reorder`. */
+    open fun canReorder(): Boolean = can("reorder")
+
+    /** Hooks a subclass overrides. A row check loads its record only for those or when a policy exists. */
+    private val overriddenHooks: Set<String> by lazy {
+        javaClass.methods
+            .filter { it.name.startsWith("can") && it.declaringClass != Resource::class.java }
+            .map { it.name }
+            .toSet()
+    }
+
+    /** Registers the model's policy found by convention (`app.policies.{Model}Policy`) with the Gate at mount. */
+    internal fun discoverPolicy() {
+        try {
+            Firefly.policyFor(boundModel())
+        } catch (_: FireflyException) {
+            // No model yet: nothing to discover.
+        }
+    }
+
+    private fun needsRecord(hook: String): Boolean {
+        if (hook in overriddenHooks) return true
+        val model = try {
+            boundModel()
+        } catch (_: FireflyException) {
+            return false
+        }
+        return FireflyPolicies.hasPolicy(model)
+    }
+
+    /** A row check for table buttons: hides the button when [check] denies the row's record. */
+    private fun rowCheck(hook: String, check: (Any) -> Boolean): Predicate<Cell> = Predicate { cell ->
+        if (!needsRecord(hook)) return@Predicate allowsWithoutPolicy()
+        val record = recordForAuth(cell.get("key").toString())
+        record != null && check(record)
+    }
+
+    private fun rowView(): Predicate<Cell> = rowCheck("canView") { canView(it) }
+
+    private fun rowEdit(): Predicate<Cell> = rowCheck("canEdit") { canEdit(it) }
+
+    private fun rowDelete(): Predicate<Cell> = rowCheck("canDelete") { canDelete(it) }
+
+    /** The record for [key] inside the current tenant, loaded once per request. Null when missing. */
+    internal fun recordForAuth(key: String): Any? =
+        FireflyAuth.remember("${slug()}:$key") { loadForAuth(key) }
+
+    private fun loadForAuth(key: String): Any? {
+        val found = try {
+            @Suppress("UNCHECKED_CAST")
+            (RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>).find(key)
+        } catch (_: RuntimeException) {
+            return null
+        }
+        val column = tenantColumn
+        val tenant = FireflyTenant.id()
+        if (found is org.konaframework.cadence.Cadence<*> && column != null && tenant != null &&
+            found.getAttribute(column)?.toString() != tenant
+        ) {
+            return null
+        }
+        return found
+    }
+
+    /**
+     * Whether the current user may open [page] (the record is [key] on edit and view pages).
+     * Edit and view pages need `update` / `view` on the record, create needs `create`, every
+     * other page needs `viewAny`. A page without a loadable record falls back to `viewAny`.
+     */
+    internal fun allowsPage(page: PanelPage, key: String?): Boolean {
+        if (!page.canAccess()) return false
+        if (page is CreatePage) return canCreate()
+        if (page is EditPage || page is ViewPage) {
+            val record = if (key.isNullOrBlank()) null else recordForAuth(key)
+            if (record == null) return canViewAny()
+            return if (page is EditPage) canEdit(record) else canView(record)
+        }
+        return canViewAny()
+    }
+
+    /** Whether the current user may run bulk action [name] posted to the list page. */
+    internal fun allowsBulk(name: String): Boolean = canViewAny() && (name != DELETE_BULK || canDeleteAny())
+
+    /** Hides the built-in header actions the current user may not run (create, view, edit, delete). */
+    private fun authorizeHeader(page: PanelPage, state: Map<String, Any?>) {
+        val actions = page.headerActionList()
+        if (page is ListPage || page is ManagePage) {
+            if (!canCreate()) denyActions(actions, "create")
+            return
+        }
+        if (page !is EditPage && page !is ViewPage) return
+        val key = state["record"]?.toString()
+        val record = if (key.isNullOrBlank()) null else recordForAuth(key)
+        if (record == null) return
+        if (!canView(record)) denyActions(actions, "view")
+        if (!canEdit(record)) denyActions(actions, "edit")
+        if (!canDelete(record)) denyActions(actions, "delete")
+    }
+
+    private fun denyActions(actions: List<Action>, name: String) {
+        for (action in actions) {
+            if (action.name == name) action.authorize(false)
+        }
+    }
+
     fun tenant(column: String): Resource = apply {
         if (column.isBlank()) throw FireflyException("Tenant column is blank")
         tenantColumn = column
@@ -371,7 +544,10 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         for ((key, page) in getPages()) {
             if (page !is PanelPage) throw FireflyException("Resource [${slug()}] page [$key] is not a panel page")
             if (key.isNotEmpty()) page.bindSlug(key)
-            page.onShow { state -> apply(page, state) }
+            page.onShow { state ->
+                apply(page, state)
+                authorizeHeader(page, state)
+            }
             built.add(page)
         }
         val frozen = built.toList()
@@ -415,7 +591,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         built.rowButtons(
             manageViewButton(),
             manageEditButton(csrf),
-            TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
+            TableButton.make("delete").label("Delete").visible(rowDelete()).confirmPost("delete", csrf),
         )
         defaultBulkActions(built)
         bindRecordActions(built, state, csrf)
@@ -434,14 +610,14 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
      * Full resources open View/Edit as pages — see [applyView] header Edit → edit page (#376).
      */
     private fun manageViewButton(): TableButton =
-        TableButton.make("view").label("View").modal().body { cell ->
+        TableButton.make("view").label("View").visible(rowView()).modal().body { cell ->
             val markup = prepareInfolist(liveSchema(mapOf("record" to cell.get("key").toString()))).render()
             """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button><button type="button" class="ff-action-submit" data-ff-dialog-switch="edit">Edit</button></div>"""
         }
 
     /** Row Edit: dialog with the filled form for that record (native POST). */
     private fun manageEditButton(csrf: String): TableButton =
-        TableButton.make("edit").label("Edit").modal().body { cell ->
+        TableButton.make("edit").label("Edit").visible(rowEdit()).modal().body { cell ->
             val key = cell.get("key").toString()
             val markup = prepareForm(liveSchema(mapOf("record" to key))).render()
             """<form method="post" action="edit" class="ff-action-form">$csrf<input type="hidden" name="id" value="${escapeHtml(key)}" /><div class="ff-action-schema">$markup</div><div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button><button type="submit" class="ff-action-submit">Save</button></div></form>"""
@@ -450,7 +626,11 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     /** Bulk delete in a "Bulk actions" dropdown unless [table] already configured bulk actions. */
     private fun defaultBulkActions(built: Table<*, *>) {
         if (built.isBulkActionsConfigured()) return
-        built.bulkActions(BulkActionGroup.make(DeleteBulkAction.make()))
+        if (!canDeleteAny()) {
+            built.bulkActions()
+            return
+        }
+        built.bulkActions(BulkActionGroup.make(DeleteBulkAction.make().authorizeIndividualRecords(rowDelete())))
     }
 
     private fun applyList(page: ListPage, state: Map<String, Any?>) {
@@ -461,9 +641,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         val csrf = state["csrfField"] as? String ?: ""
         // Row actions — never sidebar links — open the record pages (Shamar list toolbar).
         built.rowButtons(
-            TableButton.make("view").label("View").url(rowRecordUrl("view")),
-            TableButton.make("edit").label("Edit").url(rowRecordUrl("edit")),
-            TableButton.make("delete").label("Delete").confirmPost("delete", csrf),
+            TableButton.make("view").label("View").visible(rowView()).url(rowRecordUrl("view")),
+            TableButton.make("edit").label("Edit").visible(rowEdit()).url(rowRecordUrl("edit")),
+            TableButton.make("delete").label("Delete").visible(rowDelete()).confirmPost("delete", csrf),
         )
         defaultBulkActions(built)
         bindRecordActions(built, state, csrf)
@@ -909,6 +1089,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
         /** Query value for the form / infolist tab when relation tabs are combined with content. */
         const val CONTENT_TAB: String = "content"
+
+        /** Name of the default bulk delete action, gated by [canDeleteAny]. */
+        const val DELETE_BULK: String = "delete"
     }
 
     private fun rowRecordUrl(page: String): java.util.function.Function<org.konaframework.firefly.tables.Cell, String> =

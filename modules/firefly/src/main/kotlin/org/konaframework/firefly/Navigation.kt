@@ -6,6 +6,7 @@ import org.konaframework.firefly.support.FireflyException
 import org.konaframework.firefly.widgets.NavIcons
 import org.konaframework.icons.Icons
 import java.util.function.Function
+import java.util.function.Predicate
 
 /**
  * Where panel navigation links sit in the chrome.
@@ -35,6 +36,8 @@ class NavigationItem(val name: String) {
     private var clusterFlag: Boolean = false
     private var matchPrefixValue: String? = null
     private var dashboardFlag: Boolean = false
+    private var visibleLiteral: Boolean = true
+    private var visibleUsing: Predicate<Get>? = null
     internal var depth: Int = 1
     internal val children = ArrayList<NavigationItem>()
 
@@ -95,6 +98,23 @@ class NavigationItem(val name: String) {
     fun extraAttributes(provider: Function<Get, Map<String, String>>): NavigationItem = apply {
         attributesUsing = provider
         attributesLiteral = emptyMap()
+    }
+
+    /**
+     * Shows or hides the item (Filament `visible`). Hiding an item hides its children. Resource
+     * and page items already follow [Resource.canViewAny] and [PanelPage.canAccess].
+     */
+    fun visible(on: Boolean): NavigationItem = apply {
+        visibleLiteral = on
+        visibleUsing = null
+    }
+
+    fun visible(predicate: Predicate<Get>): NavigationItem = apply { visibleUsing = predicate }
+
+    fun isVisible(get: Get): Boolean {
+        val predicate = visibleUsing
+        if (predicate != null) return predicate.test(get)
+        return visibleLiteral
     }
 
     fun cluster(on: Boolean): NavigationItem = apply { clusterFlag = on }
@@ -174,9 +194,10 @@ internal fun renderItems(
     get: Get,
     nested: Boolean,
 ): String {
-    if (items.isEmpty()) return ""
+    val shown = items.filter { it.isVisible(get) }
+    if (shown.isEmpty()) return ""
     val out = StringBuilder()
-    val ordered = items.sortedBy { it.labelText(get) }
+    val ordered = shown.sortedBy { it.labelText(get) }
     for (item in ordered) {
         val url = item.urlText(get)
         val active = if (item.isActive(path, get)) " ff-active" else ""

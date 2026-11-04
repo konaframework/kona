@@ -57,6 +57,9 @@ open class Page {
         header.addAll(actions)
     }
 
+    /** The header actions currently mounted, in order. */
+    fun headerActionList(): List<Action> = header.toList()
+
     fun footerActions(vararg actions: Action): Page = apply {
         footer.clear()
         footer.addAll(actions)

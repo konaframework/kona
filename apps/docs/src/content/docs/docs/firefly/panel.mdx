@@ -130,6 +130,8 @@ The screens are `/login`, `/register`, `/password-reset`, `/email-verify`, `/pro
 
 When the guard has no id, the user chip reads **Guest**.
 
+To limit who may enter, call `canAccess { user -> … }` on the panel or implement `FireflyUser` on the user model. A signed-in user who is not allowed gets 403 on every panel route. See [Authorization](/docs/firefly/authorization/).
+
 ## Content max width
 
 The page column defaults to **7xl** (80rem), centered in the body. List and manage tables stretch to **100%** of that column — they only shrink when you set a narrower max width on the panel, the page, or the resource.

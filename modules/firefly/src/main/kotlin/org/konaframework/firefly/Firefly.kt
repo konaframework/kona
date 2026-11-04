@@ -1,6 +1,7 @@
 package org.konaframework.firefly
 
 import org.konaframework.auth.authorization.Gate
+import org.konaframework.auth.authorization.Policy
 import org.konaframework.core.Application
 import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.actions.ActionGate
@@ -10,6 +11,7 @@ import org.konaframework.firefly.forms.UploadDisks
 import org.konaframework.http.Request
 import org.konaframework.http.Router
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Function
 import java.util.function.Supplier
@@ -31,6 +33,18 @@ object Firefly {
 
     @Volatile
     private var defaultProfile: Supplier<ProfilePage>? = null
+
+    @Volatile
+    private var gate: Gate? = null
+
+    @Volatile
+    private var allowWithoutPolicy: Boolean = true
+
+    @Volatile
+    private var policyPackages: List<String> = listOf(DEFAULT_POLICY_PACKAGE)
+
+    /** Models whose policy package lookup already ran, so a missing policy is looked up once. */
+    private val lookedUp: MutableSet<Class<*>> = ConcurrentHashMap.newKeySet()
 
     /**
      * Global default [ProfilePage] for panels that do not call [Panel.profilePage].
@@ -77,6 +91,10 @@ object Firefly {
     fun reset() {
         manual.clear()
         defaultProfile = null
+        gate = null
+        allowWithoutPolicy = true
+        policyPackages = listOf(DEFAULT_POLICY_PACKAGE)
+        lookedUp.clear()
         mounted.set(false)
         mountedApp = null
     }
@@ -102,6 +120,7 @@ object Firefly {
     @JvmStatic
     fun mount(app: Application) {
         prepare(app)
+        wireAuthorization(app)
         if (!mounted.compareAndSet(false, true)) return
         if (!app.container.bound(Router::class.java)) {
             mounted.set(false)
@@ -132,6 +151,72 @@ object Firefly {
         mountedApp = app
     }
 
+    /**
+     * The [Gate] resources, relation managers and panels ask. Without one, Firefly uses the
+     * container's gate when the application boots, else [Gate.getDefault] when one is set.
+     * Pass null to go back to that default.
+     */
+    @JvmStatic
+    fun gate(gate: Gate?): Firefly = apply {
+        this.gate = gate
+        lookedUp.clear()
+    }
+
+    /**
+     * What a resource answers when its model has no policy (or no gate exists). The default is
+     * true: everything is allowed (Filament default). Pass false for strict mode, where a model
+     * without a policy is denied. [Resource.authorizeWithoutPolicy] and [Panel.authorizeWithoutPolicy]
+     * override this per resource or panel.
+     */
+    @JvmStatic
+    fun authorizeWithoutPolicy(on: Boolean): Firefly = apply { allowWithoutPolicy = on }
+
+    @JvmStatic
+    fun authorizesWithoutPolicy(): Boolean = allowWithoutPolicy
+
+    /**
+     * Packages searched for `{Model}Policy` when a resource model has no registered policy
+     * (default `app.policies`). The policy needs a no-argument constructor and must implement [Policy].
+     */
+    @JvmStatic
+    fun policyPackages(vararg packages: String): Firefly = apply {
+        policyPackages = packages.filter { it.isNotBlank() }
+        lookedUp.clear()
+    }
+
+    internal fun activeGate(): Gate? {
+        val explicit = gate
+        if (explicit != null) return explicit
+        if (Gate.hasDefault()) return Gate.getDefault()
+        return null
+    }
+
+    /**
+     * The policy for [model]: one registered on the gate, else one discovered by convention
+     * (`app.policies.{Model}Policy`) and registered through [Gate.discoverPolicy].
+     */
+    internal fun policyFor(model: Class<*>): Policy? {
+        val active = activeGate() ?: return null
+        val registered = active.getPolicyFor(model)
+        if (registered != null) return registered
+        if (!lookedUp.add(model)) return null
+        for (pack in policyPackages) {
+            if (active.discoverPolicy(model, pack)) return active.getPolicyFor(model)
+        }
+        return null
+    }
+
+    /** Takes the container [Gate] and the `firefly.policies` / `firefly.authorize_without_policy` config. */
+    private fun wireAuthorization(app: Application) {
+        if (gate == null && app.container.bound(Gate::class.java)) {
+            gate(app.resolve(Gate::class.java))
+        }
+        val packages = FireflyConfig.policies(app.config)
+        if (packages.isNotEmpty()) policyPackages(*packages.toTypedArray())
+        val strict = FireflyConfig.authorizeWithoutPolicy(app.config)
+        if (strict != null) authorizeWithoutPolicy(strict)
+    }
+
     internal fun uploadAllowed(request: Request, panels: List<Panel>): Boolean {
         if (FireflyCsrf.rejectIfInvalid(request) != null) return false
         return panels.any { it.allowsUpload(request) }
@@ -160,4 +245,6 @@ object Firefly {
         }
         return roots
     }
+
+    private const val DEFAULT_POLICY_PACKAGE = "app.policies"
 }

@@ -59,6 +59,7 @@ open class RelationManager(private val name: String) {
     private var bulkEntryList: List<BulkActionEntry>? = null
     private val permissions = EnumMap<RelationOperation, Predicate<RelationContext>>(RelationOperation::class.java)
     private var ownerGate: Predicate<RelationContext>? = null
+    private var allowWithoutPolicyFlag: Boolean? = null
     private var queryModifier: BiConsumer<Any, RelationContext>? = null
     private val pivotColumnList = ArrayList<String>()
     private var lazyFlag = false
@@ -246,6 +247,12 @@ open class RelationManager(private val name: String) {
 
     fun canForceDelete(predicate: Predicate<RelationContext>): RelationManager = can(RelationOperation.FORCE_DELETE, predicate)
 
+    /**
+     * What this manager answers when the related model has no policy: true (default, unless
+     * [Firefly.authorizeWithoutPolicy] says otherwise) allows, false denies.
+     */
+    fun authorizeWithoutPolicy(on: Boolean): RelationManager = apply { allowWithoutPolicyFlag = on }
+
     /** Whether the manager shows at all for an owner record (Filament `canViewForRecord`). */
     fun canViewForRecord(predicate: Predicate<RelationContext>): RelationManager = apply { ownerGate = predicate }
 
@@ -274,8 +281,9 @@ open class RelationManager(private val name: String) {
     }
 
     internal fun visibleFor(runtime: RelationRuntime): Boolean {
-        val gate = ownerGate ?: return true
-        return gate.test(runtime.context(RelationOperation.VIEW, null))
+        val context = runtime.context(RelationOperation.VIEW, null)
+        val gate = ownerGate ?: return RelationPolicies.allows(RelationOperation.VIEW, context, allowWithoutPolicyFlag)
+        return gate.test(context)
     }
 
     internal fun badgeFor(runtime: RelationRuntime): String? {
@@ -285,7 +293,7 @@ open class RelationManager(private val name: String) {
 
     internal fun allows(operation: RelationOperation, context: RelationContext): Boolean {
         if (operation.mutates && context.readOnly) return false
-        val predicate = permissions[operation] ?: return true
+        val predicate = permissions[operation] ?: return RelationPolicies.allows(operation, context, allowWithoutPolicyFlag)
         return predicate.test(context)
     }
 
@@ -874,10 +882,10 @@ internal class RelationRuntime(
     fun optionsUrl(operation: RelationOperation): String = "$actionBase/options?${query()}&op=${operation.token}"
 
     fun context(operation: RelationOperation, record: Any?): RelationContext =
-        RelationContext(manager, binding.owner, record, operation, pageSlug, readOnly)
+        RelationContext(manager, binding.owner, record, operation, pageSlug, readOnly, binding.relatedClass)
 
     fun rowContext(operation: RelationOperation, cell: Cell): RelationContext =
-        RelationContext(manager, binding.owner, RowRecord(cell), operation, pageSlug, readOnly)
+        RelationContext(manager, binding.owner, RowRecord(cell), operation, pageSlug, readOnly, binding.relatedClass)
 
     private fun query(): String =
         "relation=${encode(manager.name())}&owner=${encode(ownerKey)}&page=${encode(pageSlug)}"

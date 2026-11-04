@@ -53,6 +53,22 @@ M34 notifications and widgets are done. M35 panel, auth, navigation, and pages a
 | REL-14 | `RelationGroup`, combined tabs with content, lazy tabs | `RelationGroup.make`, `combinedRelationManagerTabsWithContent`, `contentTabLabel`, `RelationManager.lazy` | done (#392) |
 | REL-15 | Inverse relationship scoping, reorderable relation tables | `inverseRelationship` scopes associate/attach candidates via `whereDoesntHave`; `reorderable(column)` + `RelationOperation.REORDER` | done (#393) |
 
+### Authorization (#457)
+
+Resources, actions and panels honor Kona Gates and policies. Docs: Firefly → Authorization.
+
+| ID | Filament surface | Firefly | Status |
+|----|------------------|---------|--------|
+| AUTH-1 | Policy abilities on resources | `viewAny`, `view`, `create`, `update`, `delete`, `deleteAny`, `restore`, `restoreAny`, `forceDelete`, `forceDeleteAny`, `replicate`, `reorder` asked through `Gate`; record abilities get the record, class abilities the model class | done (#457) |
+| AUTH-2 | Overridable `canViewAny` / `canView` / `canCreate` / `canEdit` / `canDelete` … | Open `Resource.can*` hooks default to the policy; `can(ability, record?)` for custom actions | done (#457) |
+| AUTH-3 | No policy means allowed; strict opt-out | `authorizeWithoutPolicy(false)` on `Firefly`, `Panel`, `Resource`, and `firefly.authorize_without_policy` config (resource, then panel, then global) | done (#457) |
+| AUTH-4 | Denied abilities hide navigation, header, row and bulk actions | Nav items, header create/view/edit/delete, row view/edit/delete, bulk delete (`deleteAny` plus per-record `delete`) | done (#457) |
+| AUTH-5 | 403 on direct URL and POST | Pages, store, delete, bulk, relation routes answer 403 | done (#457) |
+| AUTH-6 | Relation managers follow the related model policy | `RelationPolicies`; `can…` predicates still override; linking abilities asked only when declared | done (#457) |
+| AUTH-7 | `canAccessPanel` | `FireflyUser.canAccessPanel(panel)` and `Panel.canAccess(Predicate)` enforced on every panel route; denied sign-in is logged out | done (#457) |
+| AUTH-8 | Policy discovery | `Gate.discoverPolicy` over `app.policies` (config `firefly.policies`, `Firefly.policyPackages`); `Firefly.gate(Gate)` | done (#457) |
+| AUTH-9 | Custom page and navigation visibility | `PanelPage.canAccess()`, `NavigationItem.visible` | done (#457) |
+
 ## M28 — support (`kona-firefly-support`)
 
 | ID | Filament surface | Firefly | Status |

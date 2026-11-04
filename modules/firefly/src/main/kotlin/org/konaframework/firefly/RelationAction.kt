@@ -59,6 +59,7 @@ class RelationContext internal constructor(
     val operation: RelationOperation,
     val page: String,
     val readOnly: Boolean,
+    internal val relatedClass: Class<*>? = null,
 ) {
     /** An attribute of [record], whether it is a model or a row map. */
     fun get(attribute: String): Any? = when (val current = record) {

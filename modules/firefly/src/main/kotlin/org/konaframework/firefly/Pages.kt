@@ -40,6 +40,12 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
         if (hook != null) hook.invoke(state)
     }
 
+    /**
+     * Whether the signed-in user may open this page (Filament `canAccess`). A denied page leaves
+     * the navigation and answers 403 on its URL. Ask [FireflyAuth.user] or a Kona `Gate` here.
+     */
+    open fun canAccess(): Boolean = true
+
     open fun navigationLabel(): String {
         val slug = slug()
         if (slug.isEmpty()) return "Dashboard"
