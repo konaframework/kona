@@ -30,6 +30,7 @@ class AuthServiceProviderTest {
         assertNotNull(app.make(InMemoryUserProvider::class.java))
         assertNotNull(app.make(PasswordBroker::class.java))
         assertNotNull(app.make(Gate::class.java))
+        assertTrue(Gate.hasDefault())
         assertNotNull(app.make(PersonalAccessTokenManager::class.java))
         assertNotNull(app.make(RateLimiter::class.java))
         assertNotNull(app.make(Encrypter::class.java))
@@ -37,6 +38,7 @@ class AuthServiceProviderTest {
         assertNotNull(Auth.manager())
         Hash.clearManager()
         Auth.clearManager()
+        assertTrue(!Gate.hasDefault())
     }
 
     @Test

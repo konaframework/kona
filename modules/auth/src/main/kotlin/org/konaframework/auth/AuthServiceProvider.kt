@@ -79,6 +79,7 @@ class AuthServiceProvider : ServiceProvider {
         app.container.alias("auth.password", PasswordBroker::class.java.name)
 
         val gate = Gate().setUserResolver { auth.user() }
+        Gate.setDefault(gate)
         app.container.instance(Gate::class.java, gate)
         app.container.alias("gate", Gate::class.java.name)
 
