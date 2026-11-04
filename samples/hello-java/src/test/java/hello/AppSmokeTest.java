@@ -62,6 +62,9 @@ class AppSmokeTest {
         assertTrue(tasks.getBody().contains("Wire combobox"), tasks.getBody());
         assertEquals(200, projects.getStatus());
         assertTrue(projects.getBody().contains("Desk"), projects.getBody());
+        // Toggle.defaultOnCreate(true): a new project starts active (the create dialog).
+        String createDialog = projects.getBody().split("data-ff-action=\"create\"", 2)[1].split("</form>", 2)[0];
+        assertTrue(createDialog.contains("aria-pressed=\"true\""), createDialog);
         assertTrue(orders.getBody().contains("ff-relation"), orders.getBody());
         assertTrue(orders.getBody().contains("/admin/orders/actions/rename"), orders.getBody());
         // app.policies.OrderPolicy forbids deleting orders: no bulk delete, so no row checkboxes.

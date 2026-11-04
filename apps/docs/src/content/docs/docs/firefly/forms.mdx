@@ -130,10 +130,14 @@ These methods are on the field base. Every concrete field has them.
 | `validationAttribute` | Rewrites “The name field” to your label |
 | `validationMessages` | Message per rule name |
 | `saved(false)` | Same as `dehydrated(false)` |
+| `dehydrated(false)`, `dehydrated { state -> ... }` | Never save the field, or save it only when the predicate accepts its state |
+| `default(value)`, `default { get -> ... }` | Starting value for a new record (Java `defaultOnCreate`). See [Field lifecycle](/docs/firefly/forms/field-lifecycle/) |
 | `formatStateUsing`, `dehydrateStateUsing` | Change the value written by `dehydrate()` |
 | `extraAttributes` | HTML attributes on the component root |
 | `extraInputAttributes` | HTML attributes on the control (`type`, `name`, and `value` stay owned by the field) |
 | `prefixAction`, `suffixAction`, `hintAction` | Render an `Action` beside chrome |
+
+Closures that receive `Get` can also read `get.operation` (`create`, `edit`, `view`) and `get.record`; see [Field lifecycle](/docs/firefly/forms/field-lifecycle/).
 
 `hidden`, `visible`, `live`, `liveOnBlur`, `liveDebounce`, and `afterStateUpdated` stay on the schema component. Call them on the field. They return the component base, so in Java finish the field chain before calling `live()`.
 
@@ -195,6 +199,7 @@ The command writes a class that extends the field base and a Crema view with `x-
 
 ## Related
 
+- [Field lifecycle](/docs/firefly/forms/field-lifecycle/) — operations, defaults, dehydration, and the password field
 - [Schemas and layouts](/docs/firefly/schemas/) — sections, tabs, and nesting
 - [Actions](/docs/firefly/actions/) — buttons used as prefix, suffix, hint, and repeater actions
 - [Resources](/docs/firefly/resources/) — forms on create and edit pages

@@ -121,4 +121,34 @@ class FireflyFormsJavaTest {
         assertTrue(Schema.make().components(CurrencyInput.make("feeKes", "KES")).render().contains("data-ff-currency=\"KES\""));
         CurrencyInput.configureUsing(null);
     }
+
+    @Test
+    void javaPasswordFieldIsRequiredOnCreateAndSkippedWhenBlank() {
+        TextInput password = TextInput.make("password")
+            .password()
+            .dehydrateStateUsing(value -> "hashed:" + value)
+            .required(get -> "create".equals(get.operation()));
+        password.dehydrated(state -> state != null && !state.toString().isBlank());
+        Schema create = Schema.make().operation("create").components(password);
+        assertTrue(password.isRequired(create));
+        Schema edit = Schema.make().operation("edit").components(password);
+        assertFalse(password.isRequired(edit));
+        edit.fill(Map.of("password", ""));
+        assertTrue(edit.dehydrate().isEmpty());
+        edit.fill(Map.of("password", "secret"));
+        assertEquals(Map.of("password", "hashed:secret"), edit.dehydrate());
+        assertTrue(password.isPassword());
+    }
+
+    @Test
+    void javaDefaultOnCreateAppliesToNewRecordsOnly() {
+        Toggle active = Toggle.make("active");
+        active.defaultOnCreate(true);
+        Schema create = Schema.make().operation("create").components(active);
+        create.render();
+        assertEquals(true, create.get("active"));
+        Schema edit = Schema.make().operation("edit").components(active);
+        edit.render();
+        assertEquals(null, edit.get("active"));
+    }
 }

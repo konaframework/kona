@@ -104,6 +104,10 @@ Shipped fields extend `Component` in this module. Schemas and support were not e
 | FRM-1 | Field chrome, value or closure | `Field` label, hint, prefix, suffix, placeholder, helper, above/below | done |
 | FRM-2 | `required` / `nullable` / rules | `required`, `nullable`, `rule`, `validationAttribute`, `validationMessages` | done |
 | FRM-3 | Dehydrate transforms | `formatStateUsing`, `dehydrateStateUsing`, `saved` | done |
+| FRM-3a | Operation-aware forms (`$operation`, `$record`) | Resource Create / Edit / View pages, manage dialogs, relation manager dialogs and action modals set `Schema.operation`; `Get.operation` / `Get.record` in every closure; `visibleOn` / `hiddenOn` work | done (#463) |
+| FRM-3b | `dehydrated(fn)` | `dehydrated(Predicate<state>)`; resource and relation saves honour it, hidden fields and `dehydrateStateUsing` | done (#463) |
+| FRM-3c | `default()` on create only | `default(value)` / `default { get -> }` (Java `defaultOnCreate`); never replaces a stored value on edit / view | done (#463) |
+| FRM-3d | Canonical password field | `password().dehydrateStateUsing { … }.dehydrated { notBlank }.required { it.operation == "create" }`; resource saves validate and redisplay errors; password inputs never echo a value | done (#463) |
 | FRM-4 | Text inputs | `TextInput`, `Textarea`, `Hidden` | done |
 | FRM-5 | Tags, color, slider, key-value | `TagsInput`, `ColorPicker`, `Slider`, `KeyValue` | done |
 | FRM-6 | Placeholder and view | `Placeholder`, `ViewField` | done |

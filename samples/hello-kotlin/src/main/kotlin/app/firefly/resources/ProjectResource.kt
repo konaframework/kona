@@ -23,7 +23,7 @@ class ProjectResource : Resource("projects") {
     override fun form(schema: Schema): Schema =
         schema.components(
             TextInput.make("name").label("Name").required(),
-            Toggle.make("active").label("Active"),
+            Toggle.make("active").label("Active").default(true),
         )
 
     override fun infolist(schema: Schema): Schema =

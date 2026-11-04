@@ -1187,6 +1187,67 @@ class RelationManagerTest {
 
     // ——— Fixtures ———
 
+    @Test
+    fun relationDialogsSetTheirOperationForClosures() {
+        // Required on create only; a blank name on edit is left out of the save (#463).
+        val manager = RelationManager("tasks")
+            .recordTitleAttribute("name")
+            .form(
+                Schema.make().components(
+                    TextInput.make("name").required { it.operation == "create" }.dehydrated { !it?.toString().isNullOrBlank() },
+                    TextInput.make("sort_order").visibleOn("create"),
+                ),
+            )
+            .table { table -> table.columns(TextColumn.make("name")) }
+        val alpha = task(p1, "Alpha")
+        val router = mount(projects(manager))
+        val session = RmSession()
+
+        val rejected = relationPost(router, "create", p1, "name=", "tasks", session = session)
+        assertEquals(302, rejected.status)
+        assertToast(session, "Please fix the form", "danger")
+        assertEquals(1L, RmTask().newQuery().count())
+
+        relationPost(router, "create", p1, "name=Fresh", "tasks", session = session)
+        assertEquals(2L, RmTask().newQuery().count())
+        assertToast(session, "Created", "success")
+
+        // Edit: name is optional, and blank is not saved; the create-only field is hidden so it is dropped.
+        relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=&sort_order=9", "tasks", session = session)
+        assertEquals("Alpha", reload(alpha).getAttribute("name"))
+        assertNull(reload(alpha).getAttribute("sort_order"))
+        relationPost(router, "edit", p1, "id=${alpha.getKey()}&name=Renamed", "tasks", session = session)
+        assertEquals("Renamed", reload(alpha).getAttribute("name"))
+
+        // The page renders create / edit / view dialogs without trouble.
+        val edit = page(router, "edit", p1)
+        assertTrue(edit.contains("Renamed"), edit)
+        assertTrue(page(router, "view", p1).contains("Renamed"))
+    }
+
+    @Test
+    fun attachExtrasSeeTheAttachOperation() {
+        val members = RelationManager("members")
+            .recordTitleAttribute("name")
+            .pivotColumns("role")
+            .form(Schema.make().components(TextInput.make("name").required(), TextInput.make("role")))
+            .table { table -> table.columns(TextColumn.make("name"), TextColumn.make("role")) }
+            .headerActions(
+                RelationAction.create(),
+                RelationAction.attach().form { schema -> schema.components(TextInput.make("role").required { it.operation == "attach" }) },
+            )
+        val bob = user("Bob")
+        val router = mount(projects(members))
+        val session = RmSession()
+        // The dialog itself is built for the attach operation: role is marked required.
+        assertTrue(page(router, "edit", p1).contains("ff-required-mark"))
+        relationPost(router, "attach", p1, "recordId=${bob.getKey()}&role=", "members", session = session)
+        assertToast(session, "Please fix the form", "danger")
+        assertNull(pivotRole(p1, bob))
+        relationPost(router, "attach", p1, "recordId=${bob.getKey()}&role=dev", "members", session = session)
+        assertEquals("dev", pivotRole(p1, bob))
+    }
+
     private fun tasks(): RelationManager = RelationManager("tasks")
         .recordTitleAttribute("name")
         .form(Schema.make().components(TextInput.make("name").required()))

@@ -1,0 +1,155 @@
+---
+title: Field lifecycle
+description: "Operations, defaults, dehydration, and the password field pattern for create, edit, and view forms."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+A form field lives through three moments: it gets a **starting value**, the user changes it, and it is **saved**. Firefly lets you shape each moment per page, so one form can serve create and edit.
+
+## The operation
+
+Every resource page sets the schema **operation** before your `form()` and `infolist()` run:
+
+| Where the schema is built | Operation |
+|---------------------------|-----------|
+| Resource create page, and the Create dialog on a manage page | `create` |
+| Resource edit page, and a row Edit dialog | `edit` |
+| Resource view page, and a row View dialog | `view` |
+| Relation manager create / edit / view dialogs | `create` / `edit` / `view` |
+| Relation manager associate / attach picker and its extra fields | `associate` / `attach` |
+| A custom action's dialog | the schema's own operation, or the action name |
+
+`visibleOn` and `hiddenOn` compare against it:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextInput.make("slug").hiddenOn("edit")
+TextInput.make("password").password().visibleOn("create")
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput.make("slug").hiddenOn("edit");
+TextInput.make("password").password().visibleOn("create");
+```
+
+</TabItem>
+</Tabs>
+
+## Read the operation and the record in a closure
+
+Every closure that receives a `Get` can read the operation and the record the schema is bound to.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextInput.make("code")
+    .required { get -> get.operation == "create" }
+    .disabled { get -> get.operation == "edit" }
+
+TextInput.make("note")
+    .placeholder { get -> "Editing #${(get.record as Order).getKey()}" }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput code = TextInput.make("code");
+code.required(get -> "create".equals(get.operation()));
+code.disabled(get -> "edit".equals(get.operation()));
+```
+
+</TabItem>
+</Tabs>
+
+On the edit and view pages `record` is the loaded model. On create it is a new, unsaved model (its key is `null`). A schema built by hand has operation `""` and no record.
+
+## Defaults
+
+`default(value)` gives a field its starting value on a **new** record. `default { get -> ... }` computes it from other fields, the operation, or the record.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Toggle.make("active").default(true)
+TextInput.make("currency").default { get -> "USD" }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Toggle.make("active").defaultOnCreate(true);
+TextInput.make("currency").defaultOnCreate(get -> "USD");
+```
+
+</TabItem>
+</Tabs>
+
+`default` applies when the operation is `create`, or when the schema has no operation. It never runs on `edit` or `view`, so a stored value, including a stored `false`, is never replaced. Without it a new toggle starts off and saves `false` over the column's database default.
+
+`defaultValue` and `defaultUsing` are unchanged: they fill any empty path on every operation. Java has no `default` method name because `default` is a keyword; use `defaultOnCreate`.
+
+## Dehydration
+
+*Dehydrating* is turning field state into the values you save.
+
+| Call | Effect |
+|------|--------|
+| `dehydrated(false)` / `saved(false)` | Never save this field |
+| `dehydrated { state -> ... }` | Save only when the predicate accepts the field's current state |
+| `dehydratedWhenHidden()` | Save even while the field is hidden |
+| `dehydrateStateUsing { value -> ... }` | Change the value that is saved (hash a password, trim, cast) |
+
+A hidden field is left out of the save, and so is a field whose predicate says no. Validation does not use the predicate: a blank `required` field still fails.
+
+Resource create and edit pages, manage dialogs, and relation manager dialogs all save through these rules, after validation.
+
+## The canonical password field
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+TextInput.make("password").password()
+    .dehydrateStateUsing { Hash.make(it.toString()) }
+    .dehydrated { !it?.toString().isNullOrBlank() }
+    .required { it.operation == "create" }
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+TextInput password = TextInput.make("password")
+    .password()
+    .dehydrateStateUsing(value -> Hash.make(value.toString()))
+    .required(get -> "create".equals(get.operation()));
+password.dehydrated(state -> state != null && !state.toString().isBlank());
+```
+
+</TabItem>
+</Tabs>
+
+- **Create:** the password is required. A blank one is rejected and the form comes back with the error and the other values, never the password.
+- **Edit:** the password is optional. Left blank, it is not saved and the stored hash stays. Filled in, it is hashed and saved.
+- A password input never renders a value, so the stored hash is not sent to the browser.
+
+## When a post is rejected
+
+A create or edit post that fails validation redirects back to the form (or to the list for a manage dialog), flashes a "Please fix the form" toast, shows each field's message under it, and refills the old input.
+
+## Related
+
+- [Forms overview](/docs/firefly/forms/) — the field catalog and shared helpers
+- [Schemas and layouts](/docs/firefly/schemas/) — `visibleOn`, `hiddenOn`, and state paths
+- [Resources](/docs/firefly/resources/) — pages that set the operation
+- [Relation managers](/docs/firefly/relation-managers/) — dialogs that set theirs

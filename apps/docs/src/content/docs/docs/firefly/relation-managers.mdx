@@ -288,6 +288,8 @@ Calling any of the three methods replaces that list only. So `headerActions(Rela
 
 `RelationAction.create()` opens a dialog with the manager form. On submit, Firefly validates the fields, saves a new related record through the relationship (the foreign key and morph type are filled for you), and refreshes the table. The create dialog also offers **Create & create another**, which saves and reopens an empty create dialog — call `createAnother(false)` to hide it. `RelationAction.edit()` opens the same form filled with the row.
 
+The form schema carries the operation of its dialog: `create`, `edit`, or `view` for the row view, and `associate` / `attach` for the picker and its extra fields. A field can be `required { it.operation == "create" }`, `visibleOn("edit")`, or `dehydrated { … }`, the same as on a resource page. See [Field lifecycle](/docs/firefly/forms/field-lifecycle/).
+
 Each action can change its own wording and data:
 
 <Tabs syncKey="lang">

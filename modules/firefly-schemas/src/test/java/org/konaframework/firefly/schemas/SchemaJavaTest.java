@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class SchemaJavaTest {
@@ -70,6 +71,39 @@ public class SchemaJavaTest {
         assertEquals("$", CurrencyFormat.symbol("USD"));
         assertEquals("$1.50", CurrencyFormat.format(1.5));
         assertEquals("$7.00", CurrencyFormat.formatOrRaw(7));
+    }
+
+    @Test
+    void javaClosuresReadTheOperationAndRecord() {
+        Schema schema = Schema.make().operation("create").record("row");
+        NameField name = new NameField();
+        name.hidden(get -> "create".equals(get.operation()) && "row".equals(get.record()));
+        schema.components(name);
+        assertTrue(name.isHidden(schema));
+        schema.operation("edit");
+        assertFalse(name.isHidden(schema));
+    }
+
+    @Test
+    void javaDehydratedPredicateAndDefaultOnCreate() {
+        NameField name = new NameField();
+        name.dehydrated(state -> state != null && !state.toString().isBlank());
+        name.defaultOnCreate("Ada");
+        Schema schema = Schema.make().operation("create").components(name);
+        schema.seedDefaults();
+        assertEquals("Ada", schema.get("name"));
+        assertTrue(name.isDehydrated(schema));
+        schema.fill(java.util.Map.of("name", ""));
+        assertFalse(name.isDehydrated(schema));
+
+        NameField computed = new NameField();
+        computed.defaultOnCreate(get -> get.operation() + "!");
+        Schema other = Schema.make().operation("create").components(computed);
+        other.seedDefaults();
+        assertEquals("create!", other.get("name"));
+        Schema edit = Schema.make().operation("edit").components(computed);
+        edit.seedDefaults();
+        assertEquals(null, edit.get("name"));
     }
 
     public static class NameField extends Component {

@@ -177,6 +177,8 @@ Inside a component under `statePath("user")`:
 
 `dehydrate()` returns a map of paths that should be saved. A hidden component is omitted unless `dehydratedWhenHidden(true)`. `dehydrated(false)` omits the component even when it is visible.
 
+`dehydrated { state -> ... }` omits the component when the predicate rejects its current state. `Get` also reads `operation` and `record`. Resource pages set the operation to `create`, `edit`, or `view`, which is what `visibleOn` and `hiddenOn` compare against. `default(value)` fills a new record only. See [Field lifecycle](/docs/firefly/forms/field-lifecycle/).
+
 `afterStateUpdated` runs after `set` when the path matches a component. The hook receives the new value, the old value, `Get`, and `Set`. `set.set("slug", "bea", false)` writes a sibling and skips that sibling’s update hook.
 
 ## Lay the screen out

@@ -25,7 +25,7 @@ public class ProjectResource extends Resource {
     public Schema form(Schema schema) {
         return schema.components(
             TextInput.make("name").label("Name").required(),
-            Toggle.make("active").label("Active")
+            Toggle.make("active").label("Active").defaultOnCreate(true)
         );
     }
 

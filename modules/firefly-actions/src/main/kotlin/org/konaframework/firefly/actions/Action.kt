@@ -586,13 +586,14 @@ open class Action protected constructor(name: String) : Component(name) {
                 if (form != null) {
                     val rebuilt =
                         Schema.make()
+                            .operation(form.operation().ifEmpty { name })
                             .record(form.record())
                             .components(*form.components().toTypedArray())
                     val layout = form.columnLayout()
                     if (layout != null) rebuilt.columns(layout)
                     rebuilt.render()
                 } else {
-                    Schema.make().components(*modalComponents.toTypedArray()).render()
+                    Schema.make().operation(name).components(*modalComponents.toTypedArray()).render()
                 }
             syncChildren()
             return """$icon$descriptionHtml<form method="post" action="${escapeHtml(post)}" class="ff-action-form">$extras<div class="ff-action-schema">$schemaHtml</div><div class="ff-action-footer">$footer</div></form>"""

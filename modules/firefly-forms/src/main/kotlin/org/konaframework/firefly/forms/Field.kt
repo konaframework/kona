@@ -220,6 +220,44 @@ open class Field<T : Field<T>> protected constructor(name: String) : Component(n
 
     fun saved(on: Boolean): T = self().apply { dehydrated(on) }
 
+    override fun dehydrated(): T {
+        super.dehydrated()
+        return self()
+    }
+
+    override fun dehydrated(on: Boolean): T {
+        super.dehydrated(on)
+        return self()
+    }
+
+    /** Save only when [predicate] accepts the state: `dehydrated { !it?.toString().isNullOrBlank() }`. */
+    override fun dehydrated(predicate: Predicate<Any?>): T {
+        super.dehydrated(predicate)
+        return self()
+    }
+
+    override fun defaultOnCreate(value: Any?): T {
+        super.defaultOnCreate(value)
+        return self()
+    }
+
+    override fun defaultOnCreate(provider: Function<Get, Any?>): T {
+        super.defaultOnCreate(provider)
+        return self()
+    }
+
+    @JvmSynthetic
+    override fun default(value: Any?): T {
+        super.default(value)
+        return self()
+    }
+
+    @JvmSynthetic
+    override fun default(provider: (Get) -> Any?): T {
+        super.default(provider)
+        return self()
+    }
+
     fun formatStateUsing(formatter: Function<Any?, Any?>): T = self().apply {
         this.formatter = formatter
         installTransform()

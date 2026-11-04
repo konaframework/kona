@@ -172,6 +172,56 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
      */
     open fun infolist(schema: Schema): Schema = schema
 
+    /**
+     * Validates and dehydrates a posted create / edit form (#463). The schema carries the
+     * [operation] and [record], so closures such as `required { it.operation == "create" }` and
+     * `dehydrated { … }` see them. Only posted paths are rewritten: a field that is not dehydrated
+     * (or is hidden) is left out of the saved attributes, and `dehydrateStateUsing` transforms apply.
+     */
+    internal fun submit(operation: String, record: Any?, key: String?, input: Map<String, Any?>): FormSubmission {
+        val schema = Schema.make().operation(operation).record(record)
+        if (key != null) schema.key(key)
+        if (operation == "edit") {
+            try {
+                @Suppress("UNCHECKED_CAST")
+                val store = RecordStores.open(boundModel()) as org.konaframework.firefly.tables.RecordStore<Any?, Any?>
+                schema.fill(store.attributes(record))
+            } catch (_: FireflyException) {
+                // No model store — only the posted values are state.
+            }
+        }
+        prepareForm(schema)
+        schema.fill(input)
+        // A path that was not posted only counts when it is a required field still empty; stored
+        // values of untouched fields are not re-validated.
+        val missing = missingRequired(schema, input)
+        val errors = org.konaframework.firefly.forms.FieldValidation.validate(schema, schema.components())
+            .filterKeys { it in input || it in missing }
+        if (errors.isNotEmpty()) return FormSubmission(errors, input, passwordPaths(schema))
+        val saved = schema.dehydrate()
+        val attributes = LinkedHashMap(input)
+        for (component in schema.walk()) {
+            if (component !is org.konaframework.firefly.forms.Field<*>) continue
+            val path = component.absolutePath() ?: continue
+            if (!input.containsKey(path)) continue
+            if (saved.containsKey(path)) attributes[path] = saved[path] else attributes.remove(path)
+        }
+        return FormSubmission(emptyMap(), attributes, emptySet())
+    }
+
+    private fun missingRequired(schema: Schema, input: Map<String, Any?>): Set<String> =
+        schema.walk().filterIsInstance<org.konaframework.firefly.forms.Field<*>>()
+            .filter { it.isRequired(schema) }
+            .mapNotNull { it.absolutePath() }
+            .filter { it !in input && schema.get(it)?.toString().isNullOrBlank() }
+            .toSet()
+
+    private fun passwordPaths(schema: Schema): Set<String> =
+        schema.walk().filterIsInstance<org.konaframework.firefly.forms.TextInput>()
+            .filter { it.isPassword() }
+            .mapNotNull { it.absolutePath() }
+            .toSet()
+
     /** Applies [formColumns] then [form], then loads dotted Cadence relations into state (#361). */
     private fun prepareForm(schema: Schema): Schema {
         val count = formColumnCount
@@ -192,7 +242,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
                 FieldOption(value, label, true, null)
             }
         }
-        val schema = prepareForm(liveSchema(emptyMap()))
+        val schema = prepareForm(liveSchema(emptyMap(), "create"))
         val select = schema.component(field) as? Select ?: return emptyList()
         return select.search(schema, query)
     }
@@ -206,7 +256,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         if (count != null) schema.columns(count)
         infolist(schema)
         if (schema.components().isEmpty()) {
-            val formOnly = Schema.make().record(schema.record())
+            val formOnly = Schema.make().operation(schema.operation()).record(schema.record())
             schema.key()?.let { formOnly.key(it) }
             // Match prepareForm so formColumns / schema.columns() on the form carry into View (#418).
             val formCount = formColumnCount
@@ -583,7 +633,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
         page.title(pluralLabel())
         page.breadcrumbs(resourceCrumbs(state, pluralLabel()))
         // Prototype record so Select.relationship can load options in the create dialog (#337).
-        val createForm = prepareForm(liveSchema(emptyMap()))
+        val createForm = prepareForm(liveSchema(emptyMap(), "create"))
         val built = table(listTable())
         applyTableQuery(built, state)
         val csrf = state["csrfField"] as? String ?: ""
@@ -611,7 +661,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
      */
     private fun manageViewButton(): TableButton =
         TableButton.make("view").label("View").visible(rowView()).modal().body { cell ->
-            val markup = prepareInfolist(liveSchema(mapOf("record" to cell.get("key").toString()))).render()
+            val markup = prepareInfolist(liveSchema(mapOf("record" to cell.get("key").toString()), "view")).render()
             """$markup<div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Close</button><button type="button" class="ff-action-submit" data-ff-dialog-switch="edit">Edit</button></div>"""
         }
 
@@ -619,7 +669,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun manageEditButton(csrf: String): TableButton =
         TableButton.make("edit").label("Edit").visible(rowEdit()).modal().body { cell ->
             val key = cell.get("key").toString()
-            val markup = prepareForm(liveSchema(mapOf("record" to key))).render()
+            val markup = prepareForm(liveSchema(mapOf("record" to key), "edit")).render()
             """<form method="post" action="edit" class="ff-action-form">$csrf<input type="hidden" name="id" value="${escapeHtml(key)}" /><div class="ff-action-schema">$markup</div><div class="ff-action-footer"><button type="button" class="ff-action-cancel" data-ff-dialog-close>Cancel</button><button type="submit" class="ff-action-submit">Save</button></div></form>"""
         }
 
@@ -655,7 +705,9 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyCreate(page: CreatePage, state: Map<String, Any?>) {
         page.title("New ${label()}")
         page.breadcrumbs(resourceCrumbs(state, "New ${label()}", listHref = true))
-        page.mountForm(prepareForm(liveSchema(state)))
+        val form = prepareForm(liveSchema(state, "create"))
+        applySubmitted(form, state)
+        page.mountForm(form)
         // Native form submit (Shamar) — Create posts #ff-form; Cancel is a list link.
         page.headerActions(
             Action.make("save").label("Create").submitForm("ff-form"),
@@ -666,7 +718,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyEdit(page: EditPage, state: Map<String, Any?>) {
         page.title("Edit ${label()}")
         page.breadcrumbs(resourceCrumbs(state, "Edit ${label()}", listHref = true))
-        val schema = prepareForm(liveSchema(state))
+        val schema = prepareForm(liveSchema(state, "edit"))
+        applySubmitted(schema, state)
         if (combinedRelationTabs) {
             page.relationsHtml(
                 relationMarkup(schema.record(), page, state, contentHtml = wrapResourceForm(schema.render(), state)),
@@ -711,7 +764,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private fun applyView(page: ViewPage, state: Map<String, Any?>) {
         page.title(label())
         page.breadcrumbs(resourceCrumbs(state, label(), listHref = true))
-        val schema = prepareInfolist(liveSchema(state))
+        val schema = prepareInfolist(liveSchema(state, "view"))
         if (combinedRelationTabs) {
             page.relationsHtml(relationMarkup(schema.record(), page, state, contentHtml = schema.render()))
         } else {
@@ -762,7 +815,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
 
     /** Schema that header actions render against: the page record with its attributes as state. */
     private fun actionHost(schema: Schema): Schema {
-        val host = Schema.make().record(schema.record())
+        val host = Schema.make().operation(schema.operation()).record(schema.record())
         schema.key()?.let { host.key(it) }
         // Edit and view schemas always carry a record (a blank one when no id is given).
         val record = schema.record()!!
@@ -828,8 +881,8 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
      * [state] carries the route id under `record` (from `?id=` / `?record=`).
      * Create / blank id binds a prototype model so [Select.relationship] can resolve options (#337).
      */
-    private fun liveSchema(state: Map<String, Any?>): Schema {
-        val schema = Schema.make()
+    private fun liveSchema(state: Map<String, Any?>, operation: String): Schema {
+        val schema = Schema.make().operation(operation)
         val raw = state["record"]
         val key = raw?.toString().orEmpty()
         // Preserve raw route ids for hooks when there is no model/store (e.g. memory-only resources).

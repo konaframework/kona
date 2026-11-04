@@ -286,6 +286,7 @@ export async function buildSidebar() {
           translations: { es: 'Formularios', fr: 'Formulaires', 'zh-CN': '表单' },
           items: [
             { label: 'Overview', translations: { es: 'Resumen', fr: 'Aperçu', 'zh-CN': '概览' }, slug: 'docs/firefly/forms' },
+            { label: 'Field lifecycle', translations: { es: 'Ciclo de vida del campo', fr: 'Cycle de vie du champ', 'zh-CN': '字段生命周期' }, slug: 'docs/firefly/forms/field-lifecycle' },
             { label: 'Text input', translations: { es: 'Entrada de texto', fr: 'Champ texte', 'zh-CN': '文本输入' }, slug: 'docs/firefly/forms/text-input' },
             { label: 'Textarea', translations: { es: 'Área de texto', fr: 'Zone de texte', 'zh-CN': '多行文本' }, slug: 'docs/firefly/forms/textarea' },
             { label: 'Select', translations: { es: 'Selector', fr: 'Liste déroulante', 'zh-CN': '选择器' }, slug: 'docs/firefly/forms/select' },
