@@ -16,6 +16,12 @@ object DatabaseEngines {
          * skeleton (SQLite is the zero-install `kona new` default).
          */
         val runtimeDependency: String?,
+        /** Host/port/database pieces for server engines; null for file-based engines. */
+        val defaultHost: String? = null,
+        val defaultPort: String? = null,
+        val defaultDatabase: String? = null,
+        /** True when [defaultUrl] is assembled from host/port/database in `config/Database`. */
+        val usesHostPieces: Boolean = false,
     )
 
     /** Engine used when `kona new` omits `--database=`. */
@@ -46,6 +52,10 @@ object DatabaseEngines {
             defaultUsername = "root",
             defaultPassword = "",
             runtimeDependency = "com.mysql:mysql-connector-j:9.2.0",
+            defaultHost = "127.0.0.1",
+            defaultPort = "3306",
+            defaultDatabase = "kona",
+            usesHostPieces = true,
         ),
         Engine(
             name = "mariadb",
@@ -54,6 +64,10 @@ object DatabaseEngines {
             defaultUsername = "root",
             defaultPassword = "",
             runtimeDependency = "org.mariadb.jdbc:mariadb-java-client:3.5.2",
+            defaultHost = "127.0.0.1",
+            defaultPort = "3306",
+            defaultDatabase = "kona",
+            usesHostPieces = true,
         ),
         Engine(
             name = "pgsql",
@@ -62,6 +76,10 @@ object DatabaseEngines {
             defaultUsername = "kona",
             defaultPassword = "",
             runtimeDependency = "org.postgresql:postgresql:42.7.5",
+            defaultHost = "127.0.0.1",
+            defaultPort = "5432",
+            defaultDatabase = "kona",
+            usesHostPieces = true,
         ),
         Engine(
             name = "sqlsrv",
@@ -70,6 +88,10 @@ object DatabaseEngines {
             defaultUsername = "sa",
             defaultPassword = "",
             runtimeDependency = "com.microsoft.sqlserver:mssql-jdbc:12.8.1.jre11",
+            defaultHost = "127.0.0.1",
+            defaultPort = "1433",
+            defaultDatabase = "kona",
+            usesHostPieces = true,
         ),
         Engine(
             name = "oracle",
@@ -78,6 +100,10 @@ object DatabaseEngines {
             defaultUsername = "kona",
             defaultPassword = "",
             runtimeDependency = "com.oracle.database.jdbc:ojdbc11:23.7.0.25.01",
+            defaultHost = "127.0.0.1",
+            defaultPort = "1521",
+            defaultDatabase = "FREEPDB1",
+            usesHostPieces = true,
         ),
     )
 

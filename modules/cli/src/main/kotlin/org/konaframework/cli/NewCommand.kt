@@ -50,7 +50,8 @@ constructor(
         applyDatabaseSelection(target, database, dbConnection)
         target.resolve("grind").toFile().setExecutable(true)
         target.resolve("gradlew").toFile().setExecutable(true)
-        writeKonaHomeProperty(target)
+        // Do not write kona.home — apps resolve published artifacts. Opt in with
+        // -Pkona.home=… / KONA_HOME (see settings.gradle.kts).
         if (!canPrompt) {
             io.intro("kona new")
         }
@@ -130,9 +131,10 @@ constructor(
         }
 
     /**
-     * Sets `DB_CONNECTION` / `DB_URL` in `.env` files and adds the engine's JDBC
-     * `runtimeOnly` coordinate when it is not the SQLite zero-install default
-     * (already on every skeleton).
+     * Sets `DB_CONNECTION` and engine host/port/database credentials in `.env` files.
+     * Leaves `DB_URL` commented so `DB_HOST` / `DB_PORT` / `DB_DATABASE` are honored.
+     * Adds the engine's JDBC `runtimeOnly` coordinate when it is not the SQLite
+     * zero-install default (already on every skeleton).
      */
     internal fun applyDatabaseSelection(
         target: Path,
@@ -145,15 +147,18 @@ constructor(
                 return@forEach
             }
             var text = Files.readString(path)
-            if (!text.contains("DB_CONNECTION=")) {
-                text = text.trimEnd() + "\n\nDB_CONNECTION=$dbConnection\n"
-            } else {
-                text = text.replace(Regex("(?m)^DB_CONNECTION=.*$"), "DB_CONNECTION=$dbConnection")
-            }
-            if (!Regex("(?m)^DB_URL=").containsMatchIn(text)) {
-                text = text.trimEnd() + "\nDB_URL=${engine.defaultUrl}\n"
-            } else {
-                text = text.replace(Regex("(?m)^DB_URL=.*$"), "DB_URL=${engine.defaultUrl}")
+            text = upsertEnvLine(text, "DB_CONNECTION", dbConnection)
+            // Prefer discrete host pieces; keep DB_URL as a commented documentation line.
+            text = upsertEnvLine(text, "DB_URL", engine.defaultUrl, commented = true)
+            if (engine.usesHostPieces) {
+                text = upsertEnvLine(text, "DB_HOST", engine.defaultHost!!)
+                text = upsertEnvLine(text, "DB_PORT", engine.defaultPort!!)
+                text = upsertEnvLine(text, "DB_DATABASE", engine.defaultDatabase!!)
+                text = upsertEnvLine(text, "DB_USERNAME", engine.defaultUsername)
+                text = upsertEnvLine(text, "DB_PASSWORD", engine.defaultPassword)
+            } else if (engine.defaultUsername.isNotEmpty()) {
+                text = upsertEnvLine(text, "DB_USERNAME", engine.defaultUsername)
+                text = upsertEnvLine(text, "DB_PASSWORD", engine.defaultPassword)
             }
             Files.writeString(path, text)
         }
@@ -179,10 +184,22 @@ constructor(
         Files.writeString(build, gradle)
     }
 
+    /** Inserts or replaces `KEY=value` (optionally commented) in dotenv text. */
+    internal fun upsertEnvLine(text: String, key: String, value: String, commented: Boolean = false): String {
+        val line = if (commented) "# $key=$value" else "$key=$value"
+        val pattern = Regex("(?m)^#?\\s*$key=.*$")
+        return if (pattern.containsMatchIn(text)) {
+            text.replace(pattern, line)
+        } else {
+            text.trimEnd() + "\n$line\n"
+        }
+    }
+
     /**
-     * Points the app at a local Kona checkout (`includeBuild`) when available so
-     * framework contributors can pick up unpublished modules without republishing.
-     * Generated apps resolve released coordinates from Maven Central by default.
+     * Optional helper for contributors: writes `kona.home` so `settings.gradle.kts`
+     * `includeBuild`s a local checkout. [kona new] does **not** call this — generated
+     * apps resolve Maven Central / Maven Local by default. Pass `-Pkona.home` or
+     * `KONA_HOME` instead.
      */
     internal fun writeKonaHomeProperty(target: Path, home: Path? = resolveKonaHome()) {
         if (home == null) {
@@ -195,9 +212,9 @@ constructor(
         val body = kept.joinToString("\n").trimEnd()
         val content =
             if (body.isEmpty()) {
-                "# Local Kona framework checkout (set by kona new / installer)\n$line\n"
+                "# Local Kona framework checkout (opt-in; prefer -Pkona.home / KONA_HOME)\n$line\n"
             } else {
-                "$body\n\n# Local Kona framework checkout (set by kona new / installer)\n$line\n"
+                "$body\n\n# Local Kona framework checkout (opt-in; prefer -Pkona.home / KONA_HOME)\n$line\n"
             }
         Files.writeString(props, content)
     }

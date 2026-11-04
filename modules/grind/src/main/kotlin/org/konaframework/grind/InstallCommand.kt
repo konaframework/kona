@@ -46,7 +46,9 @@ class InstallCommand(
             if (providers != null && providers.added.isNotEmpty()) {
                 io.success("Registered providers: ${providers.added.joinToString(", ")}")
             }
-            io.warn("Refresh Gradle / rebuild so the dependency is on the classpath.")
+            if (!dep.alreadyPresent) {
+                io.warn("Refresh Gradle / rebuild so the dependency is on the classpath.")
+            }
             if (isFireflyPackage(result.resolved.artifact)) {
                 FireflyProjectInstall.install(root, Names.lang(root, options))
                 io.success("Firefly config and service provider are in place.")
