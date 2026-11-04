@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - `queue.failed.driver` — `memory` (default), `file`, or `database`
  * - `queue.failed.path` — file path when driver is `file` (default `storage/framework/failed_jobs.json`)
  * - `queue.failed.table` — table when driver is `database` (default `failed_jobs`)
+ * - `queue.after_commit` — when true, defer every [Bus.dispatch] until after the outermost DB commit
  */
 class QueueManager(
     private val config: Config,
@@ -44,6 +45,9 @@ class QueueManager(
 
     fun defaultQueue(connection: String): String =
         config.getString("queue.connections.$connection.queue", "default")
+
+    /** Config default for after-commit job dispatch (`queue.after_commit`, default false). */
+    fun afterCommitDefault(): Boolean = config.getBoolean("queue.after_commit", false)
 
     private fun create(name: String): Queue {
         val configured = config.getString("queue.connections.$name.driver")

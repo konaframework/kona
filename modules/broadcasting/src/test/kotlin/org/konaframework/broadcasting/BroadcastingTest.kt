@@ -1,13 +1,18 @@
 package org.konaframework.broadcasting
 
+import org.konaframework.cadence.ConnectionConfig
+import org.konaframework.cadence.DB
+import org.konaframework.cadence.Database
 import org.konaframework.core.Application
 import org.konaframework.core.Config
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicInteger
 
 class OrderShipped : ShouldBroadcast {
     override fun broadcastOn(): List<Channel> =
@@ -16,6 +21,14 @@ class OrderShipped : ShouldBroadcast {
     override fun broadcastAs(): String = "order.shipped"
 
     override fun broadcastWith(): Map<String, Any?> = mapOf("id" to 7)
+}
+
+class DeferredShipped : ShouldBroadcast, ShouldBroadcastAfterCommit {
+    override fun broadcastOn(): List<Channel> = listOf(Channel.publicChannel("orders"))
+
+    override fun broadcastAs(): String = "order.deferred"
+
+    override fun broadcastWith(): Map<String, Any?> = mapOf("id" to 9)
 }
 
 class DefaultsEvent : ShouldBroadcast {
@@ -27,6 +40,49 @@ class EmptyChannels : ShouldBroadcast {
 }
 
 class BroadcastingTest {
+    @AfterEach
+    fun clearDb() {
+        Database.clearGlobal()
+    }
+
+    @Test
+    fun defersShouldBroadcastAfterCommitUntilTransactionCommits(@TempDir base: Path) {
+        val n = dbCounter.incrementAndGet()
+        Database()
+            .addConnection("default", ConnectionConfig("jdbc:h2:mem:bcast$n;DB_CLOSE_DELAY=-1", "sa", ""))
+            .setAsGlobal()
+        val app = Application(base)
+        app.config.set("broadcasting.default", "log")
+        app.config.set("broadcasting.connections.log.driver", "log")
+        app.register(BroadcastServiceProvider()).boot()
+        val manager = app.resolve(BroadcastManager::class.java)
+        manager.log().clear()
+
+        DB.transaction { _ ->
+            manager.broadcast(DeferredShipped())
+            assertEquals(0, manager.log().messages().size)
+            1
+        }
+        assertEquals(1, manager.log().messages().size)
+        assertEquals("order.deferred", manager.log().messages()[0].event)
+
+        manager.log().clear()
+        manager.broadcast(DeferredShipped())
+        assertEquals(1, manager.log().messages().size)
+
+        Database.clearGlobal()
+        manager.log().clear()
+        manager.broadcast(DeferredShipped())
+        assertEquals(1, manager.log().messages().size)
+
+        class DeferredEmpty : ShouldBroadcast, ShouldBroadcastAfterCommit {
+            override fun broadcastOn(): List<Channel> = emptyList()
+        }
+        val before = manager.log().messages().size
+        manager.broadcast(DeferredEmpty())
+        assertEquals(before, manager.log().messages().size)
+    }
+
     @Test
     fun managersDriversAndFacade(@TempDir base: Path) {
         val app = Application(base)
@@ -122,5 +178,9 @@ class BroadcastingTest {
         assertEquals(0, ws.listenerCount("user.1"))
         ws.clear()
         assertTrue(ws.messages().isEmpty())
+    }
+
+    companion object {
+        private val dbCounter = AtomicInteger()
     }
 }

@@ -6,7 +6,9 @@ plugins {
 
 dependencies {
     api(project(":kona-core"))
+    api(project(":kona-cadence"))
 
+    testImplementation(libs.h2)
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }

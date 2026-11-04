@@ -39,6 +39,45 @@ object DB {
     @JvmOverloads
     fun statement(sql: String, bindings: List<Any?> = emptyList()): Boolean = connection().statement(sql, bindings)
 
+    /** Runs [block] in a transaction on the default connection. */
     @JvmStatic
     fun <R> transaction(block: Function<DatabaseConnection, R>): R = connection().transaction(block)
+
+    /**
+     * Runs [block] in a transaction on the default connection.
+     * Pass [attempts] greater than 1 to retry on deadlock / serialization failure.
+     */
+    @JvmStatic
+    fun <R> transaction(block: Function<DatabaseConnection, R>, attempts: Int): R =
+        connection().transaction(block, attempts)
+
+    /** Registers work that runs after the outermost transaction commits (or immediately if none). */
+    @JvmStatic
+    fun afterCommit(callback: Runnable) {
+        connection().afterCommit(callback)
+    }
+
+    /** Current transaction nesting depth on the default connection. */
+    @JvmStatic
+    fun transactionLevel(): Int = connection().transactionLevel()
+
+    @JvmStatic
+    fun beginTransaction() {
+        connection().beginTransaction()
+    }
+
+    @JvmStatic
+    fun commit() {
+        connection().commit()
+    }
+
+    @JvmStatic
+    fun rollBack() {
+        connection().rollBack()
+    }
+
+    @JvmStatic
+    fun rollBack(toLevel: Int) {
+        connection().rollBack(toLevel)
+    }
 }
