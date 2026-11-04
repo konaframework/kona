@@ -1,6 +1,6 @@
 ---
 title: Authorization
-description: Gates, policies, discovery, and Authorize middleware.
+description: Gates, policies, class-level abilities, Authorizable users, and Authorize middleware.
 ---
 
 Authorization answers: *may this user do that?* After authentication identifies the user, gates and policies decide abilities.
@@ -41,6 +41,7 @@ gate.authorize("edit-post", post);
 | `discoverPolicy` | Load `{SimpleName}Policy` from a package by convention |
 | `forUser` | Scoped inspector (`allows` / `any` / `authorize` for one user) |
 | `has` | Whether an ability name is defined |
+| `setDefault` / `getDefault` | Process-wide gate used by `Authorizable` |
 
 ```kotlin
 gate.before { user, ability, _ ->
@@ -52,17 +53,59 @@ gate.none(listOf("delete"), post)
 
 ## Policies
 
-```kotlin
-gate.policy(Post::class.java, object : Policy {
-    override fun before(user: Authenticatable?, ability: String): Boolean? =
-        if (ability == "admin") true else null
+Register a policy for a model class. Ability checks pass either a **model instance** (`update`, `view`, `delete`) or the **model class** (`viewAny`, `create`, `deleteAny`).
 
-    override fun authorize(user: Authenticatable?, ability: String, model: Any): Boolean {
-        val post = model as Post
-        return ability == "update" && user?.getAuthIdentifier() == post.ownerId
-    }
-})
+```kotlin
+gate.policy(Post::class.java, PostPolicy())
+
+gate.allows("viewAny", Post::class.java)   // class-level
+gate.allows("create", Post::class.java)
+gate.allows("update", post)                // instance
 ```
+
+Prefer **ability-named methods** on the policy. The gate looks up a method matching the ability (kebab/snake names become camelCase: `view-any` → `viewAny`), runs `before`, then falls back to `authorizeClass` / `authorize`.
+
+```kotlin
+class PostPolicy : Policy {
+    override fun before(user: Authenticatable?, ability: String): Boolean? =
+        if (user is Admin) true else null
+
+    fun viewAny(user: Authenticatable?): Boolean =
+        user != null
+
+    fun create(user: Authenticatable?): Boolean =
+        user != null
+
+    fun update(user: Authenticatable?, post: Post): Boolean =
+        user?.getAuthIdentifier() == post.ownerId
+
+    override fun authorize(user: Authenticatable?, ability: String, model: Any): Boolean =
+        false
+}
+```
+
+```java
+public class PostPolicy implements Policy {
+    public boolean viewAny(Authenticatable user) {
+        return user != null;
+    }
+
+    public boolean create(Authenticatable user) {
+        return user != null;
+    }
+
+    public boolean update(Authenticatable user, Post post) {
+        return user != null && user.getAuthIdentifier().equals(post.ownerId);
+    }
+
+    @Override
+    public boolean authorize(Authenticatable user, String ability, Object model) {
+        return false;
+    }
+}
+```
+
+When the first argument is a `Class`, Kona resolves the policy for **that** class (not `java.lang.Class`). Class arguments used only for lookup are omitted when the policy method takes only the user (as with `create` / `viewAny`). Override `authorizeClass` when you need a fallback without a named method.
 
 Convention discovery:
 
@@ -77,6 +120,32 @@ Generate a stub with grind:
 ./grind make:policy CommentPolicy --lang=java
 ```
 
+## Authorizable users
+
+Implement `Authorizable` on user models for `can` / `cannot` / `canAny`. Defaults use `Gate.getDefault()` (set when `AuthServiceProvider` boots).
+
+```kotlin
+class User(...) : Authenticatable, Authorizable {
+    // authorizableGate() defaults to Gate.getDefault()
+}
+
+if (user.can("create", Post::class.java)) { /* … */ }
+if (user.cannot("update", post)) { /* … */ }
+if (user.canAny(listOf("publish", "edit"), post)) { /* … */ }
+```
+
+```java
+public class User implements Authenticatable, Authorizable {
+    // ...
+}
+
+user.can("create", Post.class);
+user.cannot("update", post);
+user.canAny(List.of("publish", "edit"), post);
+```
+
+Override `authorizableGate()` when a user must target a specific `Gate` instance instead of the default.
+
 ## Authorize middleware
 
 ```kotlin
@@ -85,6 +154,17 @@ router.put("/posts/{id}", handler).middleware(
         arrayOf(Post.find(request.route("id")!!))
     },
 )
+
+// Class-level: create / viewAny against the model type
+router.post("/posts", handler).middleware(
+    Authorize(gate, "create", Post::class.java),
+)
+```
+
+```java
+router.post("/posts", handler).middleware(
+    new Authorize(gate, "create", Post.class)
+);
 ```
 
 Denied checks throw `AuthorizationException` (HTTP 403).

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.konaframework.auth.authorization.Authorizable;
 import org.konaframework.auth.authorization.AuthorizationException;
 import org.konaframework.auth.authorization.Gate;
 import org.konaframework.auth.authorization.Policy;
@@ -90,6 +91,47 @@ public class JavaAuthApiTest {
         assertTrue(gate.any(List.of("hello", "missing")));
         assertThrows(AuthorizationException.class, () -> gate.authorize("write", "doc"));
         assertThrows(AuthorizationException.class, () -> new Authorize(gate, "write").handle(request, r -> Response.text("x")));
+
+        gate.policy(JavaPost.class, new Policy() {
+            public boolean viewAny(Authenticatable u) {
+                return u != null;
+            }
+
+            public boolean create(Authenticatable u) {
+                return u != null && Integer.valueOf(1).equals(u.getAuthIdentifier());
+            }
+
+            @Override
+            public boolean authorize(Authenticatable u, String ability, Object model) {
+                return false;
+            }
+        });
+        assertTrue(gate.allows("viewAny", JavaPost.class));
+        assertTrue(gate.allows("create", JavaPost.class));
+        new Authorize(gate, "create", JavaPost.class).handle(request, r -> Response.text("created"));
+        Gate.setDefault(gate);
+        assertTrue(Gate.hasDefault());
+        assertTrue(Gate.getDefault() == gate);
+        Authorizable authorizable = new Authorizable() {
+            @Override
+            public Object getAuthIdentifier() {
+                return 1;
+            }
+
+            @Override
+            public String getAuthPassword() {
+                return "x";
+            }
+        };
+        assertTrue(authorizable.can("create", JavaPost.class));
+        assertFalse(authorizable.cannot("viewAny", JavaPost.class));
+        assertTrue(authorizable.canAny(List.of("missing", "hello")));
+        Gate.clearDefault();
+        assertFalse(Gate.hasDefault());
+
+        gate.policy(JavaPost.class, new BoxedBooleanPolicy());
+        assertTrue(gate.allows(user, "publish", JavaPost.class));
+
         assertTrue(PasswordRules.min(8).contains("min:8"));
         assertEquals(60, RateLimit.perMinute(5).getDecaySeconds());
 
@@ -145,5 +187,26 @@ public class JavaAuthApiTest {
         assertEquals(4, new BcryptHasher(4).make("x").split("\\$")[2].length() > 0 ? 4 : 0);
         Hash.clearManager();
         Auth.clearManager();
+    }
+
+    /** Model type for class-level Gate / Authorizable regression from Java. */
+    public static final class JavaPost {
+        public final int id;
+
+        public JavaPost(int id) {
+            this.id = id;
+        }
+    }
+
+    /** Policy ability returning boxed {@link Boolean} for reflection coverage. */
+    public static final class BoxedBooleanPolicy implements Policy {
+        public Boolean publish(Authenticatable user) {
+            return user != null;
+        }
+
+        @Override
+        public boolean authorize(Authenticatable user, String ability, Object model) {
+            return false;
+        }
     }
 }

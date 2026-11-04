@@ -22,6 +22,12 @@ class Authorize(
     constructor(gate: Gate, ability: String, arguments: Array<out Any?>) :
         this(gate, ability, arguments, null)
 
+    /**
+     * Authorize [ability] against a model [Class] (class-level policies such as `create` / `viewAny`).
+     */
+    constructor(gate: Gate, ability: String, modelClass: Class<*>) :
+        this(gate, ability, arrayOf<Any?>(modelClass), null)
+
     constructor(
         gate: Gate,
         ability: String,

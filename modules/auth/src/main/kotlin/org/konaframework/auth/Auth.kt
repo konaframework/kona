@@ -1,5 +1,6 @@
 package org.konaframework.auth
 
+import org.konaframework.auth.authorization.Gate
 import org.konaframework.http.Request
 
 /**
@@ -19,6 +20,7 @@ object Auth {
     @JvmStatic
     fun clearManager() {
         manager = null
+        Gate.clearDefault()
     }
 
     @JvmStatic
