@@ -27,8 +27,9 @@ Durable audit of **grind** / `ConsoleIO` against Laravel Artisan Console and Alm
 | C14 | Exit codes | SUCCESS/FAILURE | 0/1 | Constants + docs | **done** |
 | C15 | Java-callable commands | N/A | Partial | Java subclass + tests | **done** |
 | C16 | `kona grind` proxy | N/A | Implemented | Documented | **done** |
-| C17 | Console testing | `$this->artisan()` | `ConsoleTester` | `assertExit` / `assertDontSee` | **done** |
+| C17 | Console testing | `$this->artisan()` | `ConsoleTester` | `assertExit` / `assertDontSee` / `forApp` | **done** |
 | C18 | Rich public docs | Digging Deeper Artisan | Thin pages | Progressive Console guides | **done** |
+| C19 | App boot for customs | Artisan boots app | Commands ran without boot | `AppCommandRunner` + `app` / DI / `secret` | **done** |
 
 ## Exit criteria
 

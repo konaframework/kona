@@ -117,7 +117,8 @@ public class JavaSupportApiTest {
         assertEquals(72, ConsoleIO.TASK_WIDTH);
         assertEquals(60, ConsoleIO.PROMPT_WIDTH);
 
-        java.io.ByteArrayInputStream in = new java.io.ByteArrayInputStream("Ada\n\ny\n1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        java.io.ByteArrayInputStream in =
+                new java.io.ByteArrayInputStream("Ada\n\ny\n1\nhidden\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         java.io.ByteArrayOutputStream promptOut = new java.io.ByteArrayOutputStream();
         java.io.PrintStream stream = new java.io.PrintStream(promptOut);
         ConsolePrompts prompts = new ConsolePrompts(in, stream, false, false);
@@ -125,6 +126,16 @@ public class JavaSupportApiTest {
         assertEquals("Kona", prompts.ask("Name", "Kona"));
         assertTrue(prompts.confirm("Ok?", false));
         assertEquals("array", prompts.choice("Driver", List.of("array", "redis"), 0));
+        assertEquals("hidden", prompts.secret("Password"));
+        assertEquals(
+                "x",
+                ConsolePrompts.forTest(
+                                new java.io.ByteArrayInputStream("x\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                                stream,
+                                false,
+                                false,
+                                false)
+                        .password());
         new ConsolePrompts();
         new ConsolePrompts(in);
         new ConsolePrompts(in, stream);

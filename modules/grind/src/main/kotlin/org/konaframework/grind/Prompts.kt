@@ -23,6 +23,14 @@ constructor(
     @JvmOverloads
     fun ask(question: String, default: String? = null): String = wrap { inner.ask(question, default) }
 
+    /** Hidden-input prompt (does not echo). */
+    @JvmOverloads
+    fun secret(question: String = "Password"): String = wrap { inner.secret(question) }
+
+    /** Alias of [secret]. */
+    @JvmOverloads
+    fun password(question: String = "Password"): String = secret(question)
+
     @JvmOverloads
     fun confirm(question: String, default: Boolean = false): Boolean = wrap { inner.confirm(question, default) }
 

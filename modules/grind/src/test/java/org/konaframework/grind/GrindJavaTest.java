@@ -227,13 +227,15 @@ class GrindJavaTest {
         io.promptSubmitted("Q", "a");
         Prompts prompts =
                 new Prompts(
-                        new java.io.ByteArrayInputStream("Ada\n\ny\n2\n".getBytes()),
+                        new java.io.ByteArrayInputStream("Ada\n\ny\n2\nsecret\n".getBytes()),
                         new PrintStream(out),
                         false);
         assertEquals("Ada", prompts.ask("Name"));
         assertEquals("Kona", prompts.ask("Name", "Kona"));
         assertTrue(prompts.confirm("Ok?", false));
         assertEquals("redis", prompts.choice("Driver", List.of("array", "redis"), 0));
+        assertEquals("secret", prompts.secret("Password"));
+        assertEquals("x", new Prompts(new java.io.ByteArrayInputStream("x\n".getBytes()), new PrintStream(out), false).password());
         new Prompts();
         new Prompts(new java.io.ByteArrayInputStream(new byte[0]));
         new Prompts(new java.io.ByteArrayInputStream(new byte[0]), new PrintStream(out));

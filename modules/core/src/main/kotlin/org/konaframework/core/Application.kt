@@ -58,6 +58,12 @@ class Application(val basePath: Path) {
     private val providers = CopyOnWriteArrayList<ServiceProvider>()
 
     /**
+     * Grind console command classes registered via [commands] (typically from a service provider).
+     * Stored as raw [Class] references so `kona-core` does not depend on `kona-grind`.
+     */
+    private val consoleCommandTypes = CopyOnWriteArrayList<Class<*>>()
+
+    /**
      * The application booted flag is used to indicate whether the application has been booted.
      * It is used to prevent the application from being booted multiple times.
      *
@@ -244,6 +250,23 @@ class Application(val basePath: Path) {
 
     /** Resolves a service from the container, throwing an exception if it is not found. */
     fun <T : Any> resolve(type: Class<T>): T = container.resolve(type)
+
+    /**
+     * Registers grind [ConsoleCommand][org.konaframework.grind.ConsoleCommand] classes to run after boot
+     * (Laravel `Artisan::starting` / `$this->commands([...])` shape). Types are stored as [Class] so core
+     * does not depend on the grind module; grind validates and constructs them via the container.
+     */
+    fun commands(vararg types: Class<*>): Application {
+        for (type in types) {
+            if (!consoleCommandTypes.contains(type)) {
+                consoleCommandTypes.add(type)
+            }
+        }
+        return this
+    }
+
+    /** Console command classes previously registered with [commands]. */
+    fun consoleCommands(): List<Class<*>> = consoleCommandTypes.toList()
 
     /***************************************************************************************************************************
      * Fluent bootstrap: configure, register all providers, then boot exactly once.

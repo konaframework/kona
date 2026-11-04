@@ -1,11 +1,11 @@
 ---
-title: Creating commands
-description: Write ConsoleCommand classes — signatures, discovery, isolation, IO helpers, Kotlin and Java.
+title: Writing commands
+description: Write ConsoleCommand classes — signatures, app boot, container injection, secrets, discovery, Kotlin and Java.
 ---
 
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
-Besides built-ins like `serve` and `migrate`, Grind Console runs **custom commands**: classes that extend `org.konaframework.grind.ConsoleCommand`. You declare a **signature**, an optional **description**, and a **`handle()`** method that returns an exit code. Grind binds CLI tokens to that signature, then calls `handle()`.
+Besides built-ins like `serve` and `migrate`, Grind Console runs **custom commands**: classes that extend `org.konaframework.grind.ConsoleCommand`. You declare a **signature**, an optional **description**, and a **`handle()`** method that returns an exit code. Grind binds CLI tokens to that signature, **boots your application**, then calls `handle()` with the container available.
 
 ## Generate a command
 
@@ -56,6 +56,9 @@ class SendDigestCommand : ConsoleCommand() {
         val user = argumentOrFail("user")
         val queue = option("queue", "default")
         info("Queueing digest for $user on $queue")
+        // app is the booted Application (config, container, Database, …)
+        val name = app.config.getString("app.name", "Kona")
+        verbose("Running in $name")
         return SUCCESS
     }
 }
@@ -85,6 +88,8 @@ public class SendDigestCommand extends ConsoleCommand {
         String user = argumentOrFail("user");
         String queue = option("queue", "default");
         info("Queueing digest for " + user + " on " + queue);
+        String name = getApp().getConfig().getString("app.name", "Kona");
+        verbose("Running in " + name);
         return SUCCESS;
     }
 }
@@ -102,12 +107,118 @@ public class SendDigestCommand extends ConsoleCommand {
 | `isolatable` / `getIsolatable()` | When `true`, `--isolated` takes a file lock (default `false`) |
 | `handle()` | Command body; return `SUCCESS` (`0`) or `FAILURE` (`1`) (or any non-zero) |
 | `name()` | Parsed command name from the signature (e.g. `mail:digest`) |
+| `app` / `getApp()` | Booted `Application` (config, container, providers) |
 | `io` | Bound `GrindIO` after the runner starts the command |
 | `argument` / `argumentOrFail` / `arguments` | Bound positional input |
 | `option` / `optionBool` / `hasOption` | Bound options |
+| `ask` / `confirm` / `choice` | Interactive prompts |
+| `secret` / `password` | Hidden-input prompts (no echo) |
 | `line` / `info` / `success` / `warn` / `error` / `title` / `table` / `progress` / `verbose` | IO helpers (prefer these over raw prints) |
 
 Exit codes: use `ConsoleCommand.SUCCESS` (`0`) or `FAILURE` (`1`). Any non-zero value fails the process for scripts and CI. When `--isolated` cannot acquire the lock, Grind Console returns `SUCCESS` **without** calling `handle()` — see [Isolation](#isolation).
+
+## Application boot
+
+Custom commands run **after** the same bootstrap path as `migrate` and `db:seed`:
+
+1. Resolve the project root (`--base=` or the current directory).
+2. When a Gradle wrapper is present, compile with `./gradlew classes`.
+3. Load `bootstrap.App` (or `--bootstrap=…`) through `AppLoader`.
+4. Merge `META-INF/kona/commands` discovery and commands registered with `app.commands(…)`.
+5. Construct the command (container when possible), bind `app`, then call `handle()`.
+
+You can point at a different bootstrap class:
+
+```bash
+./grind mail:digest 42 --bootstrap=bootstrap.App
+./grind mail:digest 42 --bootstrap=com.example.TestApp
+```
+
+Inside `handle()`, Cadence `Database`, the service container, config, and providers are available just as they are for HTTP requests.
+
+## Container injection
+
+### Constructor injection
+
+When the command is constructed through the booted application, constructor parameters are resolved from the container:
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class SyncAccessCommand(
+    private val sync: SyncAccessControl,
+) : ConsoleCommand() {
+    override val signature = "access:sync"
+    override fun handle(): Int {
+        sync.handle()
+        success("Access control synced")
+        return SUCCESS
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class SyncAccessCommand extends ConsoleCommand {
+    private final SyncAccessControl sync;
+
+    public SyncAccessCommand(SyncAccessControl sync) {
+        this.sync = sync;
+    }
+
+    @Override
+    public String getSignature() {
+        return "access:sync";
+    }
+
+    @Override
+    public int handle() {
+        sync.handle();
+        success("Access control synced");
+        return SUCCESS;
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Prefer registering constructor-injected commands with `app.commands(…)` from a provider (see below). META-INF discovery still works for no-arg constructors; when a no-arg constructor is missing, grind builds the class through the container.
+
+### `handle` parameter injection
+
+You may declare another `handle(deps…): Int` whose parameters are resolved from the container (the zero-arg `handle()` on the base type is skipped when a parameterized `handle` exists on your class):
+
+```kotlin
+class ReportCommand : ConsoleCommand() {
+    override val signature = "report:daily"
+
+    fun handle(mailer: Mailer): Int {
+        mailer.send(…)
+        return SUCCESS
+    }
+}
+```
+
+## Secrets and passwords
+
+Use `secret("Password")` or `password()` when prompting for sensitive values. Typed characters are **not echoed**; the TTY widget shows `*` masks. Prefer `--password=` (or similar) for scripts and CI so prompts are skipped.
+
+```kotlin
+override fun handle(): Int {
+    val password = option("password") ?: secret("New password")
+    val confirm = option("password") ?: password("Confirm password")
+    // …
+    return SUCCESS
+}
+```
+
+```bash
+./grind user:password admin@example.com --password='…'
+```
 
 ## Signature shape
 
@@ -134,8 +245,9 @@ Argument and option **names** must match `[A-Za-z_][A-Za-z0-9_-]*`.
 When you run `./grind mail:digest …`, Grind Console:
 
 1. Splits global-style flags (`--foo`, `--foo=bar`, `-v`, `-q`, `-h`) via `parseOptions`.
-2. Binds remaining positionals and known options to the signature.
-3. On bind failure (missing required arg, too many args), prints the error, prints command help, and exits `1`.
+2. Boots the application (see [Application boot](#application-boot)).
+3. Binds remaining positionals and known options to the signature.
+4. On bind failure (missing required arg, too many args), prints the error, prints command help, and exits `1`.
 
 | Situation | Behavior |
 |-----------|----------|
@@ -177,9 +289,40 @@ One fully qualified class name per line. `#` starts a comment; blank lines are i
 app.console.commands.SendDigestCommand
 ```
 
-`CommandDiscovery` loads every matching resource on the class loader, requires each type to extend `ConsoleCommand`, and registers a no-arg constructor factory on a `CommandRegistry`.
+`CommandDiscovery` loads every matching resource on the class loader, requires each type to extend `ConsoleCommand`, and registers a factory on a `CommandRegistry`.
 
-### 2. Compiled app outputs
+### 2. Provider registration (`app.commands(…)`)
+
+Register command classes from a service provider (same idea as Artisan’s `$this->commands([...])`):
+
+```kotlin
+class AppServiceProvider : ServiceProvider {
+    override fun register(app: Application) = Unit
+
+    override fun boot(app: Application) {
+        app.commands(
+            SendDigestCommand::class.java,
+            SyncAccessCommand::class.java,
+        )
+    }
+}
+```
+
+```java
+public class AppServiceProvider implements ServiceProvider {
+    @Override
+    public void register(Application app) {}
+
+    @Override
+    public void boot(Application app) {
+        app.commands(SendDigestCommand.class, SyncAccessCommand.class);
+    }
+}
+```
+
+Provider-registered commands are merged after boot when the command runs. Prefer this path for constructor-injected commands.
+
+### 3. Compiled app outputs
 
 On each run, `GrindApplication` also opens a `URLClassLoader` over these directories under `--base` (or the current app root), when they exist:
 
@@ -189,9 +332,9 @@ On each run, `GrindApplication` also opens a `URLClassLoader` over these directo
 
 So after you add a command, run `./gradlew classes` (or a full build) before expecting `./grind your:command` to see it. Discovery merges into the same registry used for `list` / help.
 
-### 3. Programmatic registration
+### 4. Programmatic registration
 
-Register factories on a `CommandRegistry` and pass it into `GrindApplication` or `Grind.call` (useful in tests):
+Register factories on a `CommandRegistry` and pass it into `GrindApplication`, `Grind.call`, or `ConsoleTester.forApp` (useful in tests):
 
 <Tabs syncKey="lang">
 <TabItem label="Kotlin">
@@ -221,6 +364,7 @@ int code = Grind.call("mail:digest", List.of("42"), registry);
 |--------------------------|----------|
 | `register(() -> ConsoleCommand)` | Probe once for `name()`, store factory |
 | `register(Class)` | No-arg constructor factory |
+| `registerApplicationCommands(app)` | Merge `app.commands(…)` types via the container |
 | `has` / `create` / `names` | Lookup |
 | `summaries()` | Name → description (or signature if description empty) for `list` |
 | `merge(other)` | Overlay factories from another registry |
@@ -257,15 +401,21 @@ Shared by most `make:*` generators (`Names.lang`):
 
 Source paths: `src/main/kotlin/…` or `src/main/java/…` under packages such as `app/console/commands`.
 
-## Calling services from a command
+## Testing with a booted app
 
-`ConsoleCommand` does not inject `Application`. Patterns that work today:
+`ConsoleTester(app)` runs custom commands against an already-booted test application (no `AppLoader` / Gradle compile):
 
-- Resolve services you already hold (constructor fields you set in tests or a factory).
-- Shell out or call `Grind.call` for other commands.
-- For long-lived work that needs the container, prefer a built-in that boots via `AppLoader` (migrate, schedule, queue, steam) or boot your own bootstrap in `handle()` the same way those commands do.
+```kotlin
+val app = TestApplication.create(temp) // or Application.builder(…).build()
+app.commands(SendDigestCommand::class.java)
 
-Do not invent a framework “command kernel” API that is not in source.
+ConsoleTester(app)
+    .run("mail:digest", "42")
+    .assertOk()
+    .assertSee("Queueing digest")
+```
+
+`Grind.call(name, args, registry, basePath, loader, app)` accepts the same booted `Application` for in-process calls.
 
 ## Pitfalls
 
@@ -276,18 +426,11 @@ Do not invent a framework “command kernel” API that is not in source.
 - **Overwrite protection** — generators throw if the target file already exists; delete or rename first.
 - **`argumentOrFail` after optional args** — only use it for required signature tokens.
 - **Quiet mode** — `info` / `success` / tables respect `-q`; `error` still prints.
-
-## Not available today
-
-- No attribute-/annotation-based command registration (only `META-INF` + registry).
-- No automatic dependency injection into `ConsoleCommand` subclasses.
-- No command groups, namespaces beyond the name string, or hidden commands API.
-- No `make:command` interactive questionnaire beyond flags listed above.
-- No Wire-specific `make:wire` in the grind dispatcher.
+- **Secrets in CI** — pass `--password=` (or equivalent) so `secret()` / `password()` are never required in non-interactive runs.
 
 ## Next
 
 - [Running commands](../running-commands/) — CLI flags, `list`, `help`, `Grind.call`, `kona grind`
-- [Console IO & prompts](../console/) — `info`, `table`, `Prompts`, verbosity
+- [Console IO & prompts](../console/) — `info`, `table`, `Prompts`, `secret`, verbosity
 - [Built-in commands](../commands/) — generators and ops catalog
 - [Task scheduling](../../scheduling/) — run work on a schedule with `schedule:run`
