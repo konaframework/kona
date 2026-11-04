@@ -16,6 +16,8 @@ public class NoteResource extends Resource {
     public NoteResource() {
         super("notes");
         label("Note");
+        navigationGroup("Work");
+        navigationSort(2);
         simple();
         model(Note.class);
         formColumns(2);

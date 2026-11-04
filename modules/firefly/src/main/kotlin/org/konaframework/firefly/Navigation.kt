@@ -38,6 +38,9 @@ class NavigationItem(val name: String) {
     private var dashboardFlag: Boolean = false
     private var visibleLiteral: Boolean = true
     private var visibleUsing: Predicate<Get>? = null
+    private var groupValue: String? = null
+    private var sortValue: Int? = null
+    private var badgeUsing: Function<Get, NavigationBadge?>? = null
     internal var depth: Int = 1
     internal val children = ArrayList<NavigationItem>()
 
@@ -120,6 +123,33 @@ class NavigationItem(val name: String) {
     fun cluster(on: Boolean): NavigationItem = apply { clusterFlag = on }
 
     /**
+     * Gathers this level-1 item under the sidebar heading [name]. Declare the heading's order and
+     * look with `Panel.navigationGroups(...)`. Ignored on nested items.
+     */
+    fun group(name: String): NavigationItem = apply {
+        if (name.isBlank()) throw FireflyException("Navigation item [${this.name}] group is blank")
+        groupValue = name
+    }
+
+    /** Orders siblings, lowest first. Items without a sort follow, by label. */
+    fun sort(value: Int): NavigationItem = apply { sortValue = value }
+
+    /** A fixed badge at the end of the link. */
+    fun badge(value: NavigationBadge): NavigationItem = apply { badgeUsing = Function { value } }
+
+    /** A badge computed on every render; return null for none. */
+    fun badge(provider: Function<Get, NavigationBadge?>): NavigationItem = apply { badgeUsing = provider }
+
+    fun groupName(): String? = groupValue
+
+    fun sortValue(): Int? = sortValue
+
+    fun badgeFor(get: Get): NavigationBadge? {
+        val provider = badgeUsing ?: return null
+        return provider.apply(get)
+    }
+
+    /**
      * Keeps this item highlighted across a whole URL subtree instead of only its own link.
      * A resource nav entry points at its list page but stays active on create/edit/view too.
      */
@@ -194,27 +224,36 @@ internal fun renderItems(
     get: Get,
     nested: Boolean,
 ): String {
-    val shown = items.filter { it.isVisible(get) }
-    if (shown.isEmpty()) return ""
+    val ordered = orderItems(items, get)
+    if (ordered.isEmpty()) return ""
     val out = StringBuilder()
-    val ordered = shown.sortedBy { it.labelText(get) }
-    for (item in ordered) {
-        val url = item.urlText(get)
-        val active = if (item.isActive(path, get)) " ff-active" else ""
-        val cluster = if (item.isCluster()) " ff-cluster" else ""
-        val navigate = if (spa && url.isNotEmpty()) " wire:navigate" else ""
-        val href = if (url.isEmpty()) "" else " href=\"${escapeHtml(url)}\""
-        val iconName = item.iconName(get)
-        val iconHtml = try {
-            Icons.svg(iconName).className("ff-nav-icon").attr("aria-hidden", "true").toHtml()
-        } catch (_: Exception) {
-            Icons.svg(NavIcons.DEFAULT).className("ff-nav-icon").attr("aria-hidden", "true").toHtml()
-        }
-        out.append(
-            """<li class="ff-nav-item$cluster$active"><a$href$navigate${htmlAttributes(item.attributes(get))}><span class="ff-nav-icon-wrap">$iconHtml</span><span class="ff-nav-label">${escapeHtml(item.labelText(get))}</span></a>""",
-        )
-        if (nested) out.append(renderItems(item.children, path, spa, get, true))
-        out.append("</li>")
-    }
+    for (item in ordered) out.append(renderItem(item, path, spa, get, nested))
     return """<ul class="ff-nav-list">$out</ul>"""
+}
+
+internal fun renderItem(item: NavigationItem, path: String, spa: Boolean, get: Get, nested: Boolean): String {
+    val url = item.urlText(get)
+    val active = if (item.isActive(path, get)) " ff-active" else ""
+    val cluster = if (item.isCluster()) " ff-cluster" else ""
+    val navigate = if (spa && url.isNotEmpty()) " wire:navigate" else ""
+    val href = if (url.isEmpty()) "" else " href=\"${escapeHtml(url)}\""
+    val iconName = item.iconName(get)
+    val iconHtml = try {
+        Icons.svg(iconName).className("ff-nav-icon").attr("aria-hidden", "true").toHtml()
+    } catch (_: Exception) {
+        Icons.svg(NavIcons.DEFAULT).className("ff-nav-icon").attr("aria-hidden", "true").toHtml()
+    }
+    val badge = item.badgeFor(get)
+    val badgeHtml = if (badge == null) {
+        ""
+    } else {
+        """<span class="ff-nav-badge" data-ff-color="${escapeHtml(badge.color)}">${escapeHtml(badge.text)}</span>"""
+    }
+    val out = StringBuilder()
+    out.append(
+        """<li class="ff-nav-item$cluster$active"><a$href$navigate${htmlAttributes(item.attributes(get))}><span class="ff-nav-icon-wrap">$iconHtml</span><span class="ff-nav-label">${escapeHtml(item.labelText(get))}</span>$badgeHtml</a>""",
+    )
+    if (nested) out.append(renderItems(item.children, path, spa, get, true))
+    out.append("</li>")
+    return out.toString()
 }

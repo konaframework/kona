@@ -16,6 +16,8 @@ import org.konaframework.firefly.tables.TextColumn
 class TaskResource : Resource("tasks") {
     init {
         label("Task")
+        navigationGroup("Work")
+        navigationSort(1)
         simple()
         model(Task::class.java)
         formColumns(2)

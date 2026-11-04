@@ -3,6 +3,7 @@ package app.firefly
 import app.firefly.pages.AccountProfile
 import app.models.AppSettings
 import org.konaframework.core.Kona
+import org.konaframework.firefly.NavigationGroup
 import org.konaframework.firefly.support.BrandDisplay
 import org.konaframework.firefly.support.PanelBranding
 
@@ -23,6 +24,10 @@ class Panel : org.konaframework.firefly.Panel() {
             ),
         )
         resolveBrandingOverrides { AppSettings.toPanelBranding() }
+        navigationGroups(
+            NavigationGroup.make("Work").icon("briefcase"),
+            NavigationGroup.make("Sales").icon("shopping-bag").collapsible(),
+        )
         profilePage(AccountProfile())
         authenticate(false)
         discover(Kona.app().basePath("src/main/kotlin/app/firefly"))

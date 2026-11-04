@@ -225,6 +225,7 @@ new Resource("orders").model(Order.class).formColumns(2).infolistColumns(3);
 | `Resource` | Model, form, infolist, table, actions, and pages. Optional `maxWidth(token)`, `formColumns(n)`, `infolistColumns(n)` |
 | `label` / `pluralLabel` | Singular-or-base title vs list/nav plural heading (`pluralLabel` defaults from `label`) |
 | `icon` | Sidebar icon via kona-icons (short name or `heroicon-o-…`). Unset → `squares-2x2` |
+| `navigationGroup`, `navigationSort`, `navigationLabel`, `navigationBadge`, `shouldRegisterNavigation` | Where and how the sidebar link appears. See [Group the sidebar](/docs/firefly/navigation/#group-the-sidebar) |
 | `RelationManager` | Related records on a full resource's edit and view pages, scoped to the owner through a Cadence relationship. See [Relation managers](/docs/firefly/relation-managers/) |
 | `canViewAny`, `canView`, `canCreate`, `canEdit`, `canDelete` | Ask the model policy; override to decide yourself. See [Authorization](/docs/firefly/authorization/) |
 | `ManagePage` | The single page of a simple resource |

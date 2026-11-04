@@ -74,6 +74,7 @@ open class Panel {
     private val hooks = ArrayList<Pair<Hook, String>>()
     private val items = ArrayList<NavigationItem>()
     private val userItems = ArrayList<NavigationItem>()
+    private val navigationGroupList = ArrayList<NavigationGroup>()
     private val pages = ArrayList<PanelPage>()
     private val resources = ArrayList<Resource>()
     private val widgets = ArrayList<Widget>()
@@ -257,6 +258,20 @@ open class Panel {
 
     fun item(item: NavigationItem): Panel = apply { items.add(item) }
 
+    /**
+     * Declares sidebar groups in display order, with icon and collapsibility. Items join a group by
+     * name (`Resource.navigationGroup`, `PanelPage.navigationGroup`, `NavigationItem.group`); groups
+     * left undeclared follow these, and a group with no visible item is not drawn.
+     */
+    fun navigationGroups(vararg groups: NavigationGroup): Panel = apply {
+        val seen = HashSet<String>()
+        for (group in groups) {
+            if (!seen.add(group.label)) throw FireflyException("Navigation group [${group.label}] is declared more than once")
+        }
+        navigationGroupList.clear()
+        navigationGroupList.addAll(groups)
+    }
+
     fun cluster(name: String): NavigationItem {
         val item = NavigationItem(name).cluster(true)
         items.add(item)
@@ -414,8 +429,13 @@ open class Panel {
                 val node = NavigationItem(page.slug().ifEmpty { "dashboard" })
                     .label(page.navigationLabel())
                     .url(panelUri(resolvedPrefix, page.slug()))
-                    .visible(Predicate { page.canAccess() })
+                    .visible(Predicate { page.shouldRegisterNavigation() && page.canAccess() })
+                    .badge(Function { page.navigationBadge() })
                     .dashboard(isHome)
+                val pageGroup = page.navigationGroup()
+                if (!pageGroup.isNullOrBlank()) node.group(pageGroup)
+                val pageSort = page.navigationSort()
+                if (pageSort != null) node.sort(pageSort)
                 val pageIcon = page.navigationIcon()
                 if (!pageIcon.isNullOrBlank()) node.icon(pageIcon)
                 val parent = page.parentName()
@@ -435,10 +455,15 @@ open class Panel {
                 val index = resourceIndexPage(resourcePages)
                 val indexSlug = if (index == null) "" else index.slug()
                 val node = NavigationItem(resource.slug())
-                    .label(resource.pluralLabel())
+                    .label(resource.navigationLabel())
                     .url(panelUri(resolvedPrefix, resourcePagePath(resource.slug(), indexSlug)))
                     .matchPrefix(panelUri(resolvedPrefix, resource.slug()))
-                    .visible(Predicate { resource.canViewAny() })
+                    .visible(Predicate { resource.shouldRegisterNavigation() && resource.canViewAny() })
+                    .badge(Function { resource.navigationBadge() })
+                val resourceGroup = resource.navigationGroup()
+                if (!resourceGroup.isNullOrBlank()) node.group(resourceGroup)
+                val resourceSort = resource.navigationSort()
+                if (resourceSort != null) node.sort(resourceSort)
                 val resourceIcon = resource.navigationIcon()
                 if (!resourceIcon.isNullOrBlank()) node.icon(resourceIcon)
                 items.add(node)
@@ -1421,7 +1446,7 @@ open class Panel {
         // APP: nested levels of the active L1 root (Shamar topbar secondary). TOP: full tree.
         when (type) {
             NavigationType.TOP ->
-                lead.append("""<nav class="ff-nav ff-nav-top">${renderItems(items, path, spaMode, get, true)}</nav>""")
+                lead.append("""<nav class="ff-nav ff-nav-top">${renderGrouped(items, navigationGroupList, path, spaMode, get, true, true)}</nav>""")
             NavigationType.APP -> {
                 val nested = appTop(path, get)
                 if (nested.isNotEmpty()) {
@@ -1445,7 +1470,7 @@ open class Panel {
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
         // APP: L1 roots only (children go to the top bar). SIDE: full nested tree in the sidebar.
         val nested = type == NavigationType.SIDE
-        val nav = """<nav class="ff-nav ff-nav-side">${renderItems(items, path, spaMode, get, nested)}</nav>"""
+        val nav = """<nav class="ff-nav ff-nav-side">${renderGrouped(items, navigationGroupList, path, spaMode, get, nested, false)}</nav>"""
         return brandBlock + nav + sidebarFootHtml(user, branding)
     }
 
@@ -1473,14 +1498,6 @@ open class Panel {
             if (itemOrDescendantActive(item, path, get)) active = item
         }
         return (active ?: shown.first()).children
-    }
-
-    private fun itemOrDescendantActive(item: NavigationItem, path: String, get: Get): Boolean {
-        if (item.isActive(path, get)) return true
-        for (child in item.children) {
-            if (itemOrDescendantActive(child, path, get)) return true
-        }
-        return false
     }
 
     private fun tenantId(request: Request): String? {

@@ -5,6 +5,7 @@ import org.konaframework.firefly.infolists.Infolist
 import org.konaframework.firefly.schemas.Schema
 import org.konaframework.firefly.widgets.Page
 import java.util.function.Function
+import java.util.function.Supplier
 
 /**
  * A page the panel can route to. List, create, edit, view, manage, and custom pages are pages.
@@ -15,6 +16,7 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
     private var onShow: ((Map<String, Any?>) -> Unit)? = null
     private var submitHandler: Function<Map<String, String>, String>? = null
     private var iconLiteral: String? = null
+    private val nav = NavigationSettings()
 
     fun slug(): String {
         val bound = boundSlug
@@ -46,11 +48,44 @@ open class PanelPage @JvmOverloads constructor(private val slugValue: String? = 
      */
     open fun canAccess(): Boolean = true
 
+    /** The navigation link text: [navigationLabel] with a value, else the slug (`Dashboard` for home). */
     open fun navigationLabel(): String {
+        val set = nav.label
+        if (set != null) return set
         val slug = slug()
         if (slug.isEmpty()) return "Dashboard"
         return slug
     }
+
+    fun navigationLabel(value: String): PanelPage = apply { nav.label(value) }
+
+    /** Sidebar heading this page sits under (declare its order with `Panel.navigationGroups`). */
+    open fun navigationGroup(): String? = nav.group
+
+    fun navigationGroup(name: String): PanelPage = apply { nav.group(name) }
+
+    /** Sort among its siblings, lowest first. Unset sorts last, by label. */
+    open fun navigationSort(): Int? = nav.sort
+
+    fun navigationSort(value: Int): PanelPage = apply { nav.sort = value }
+
+    /** Badge now (null for none). Override, or set a provider with `navigationBadge { count }`. */
+    open fun navigationBadge(): NavigationBadge? = nav.badge()
+
+    /** Badge text (null or blank hides it), recomputed on every render. */
+    fun navigationBadge(provider: Supplier<Any?>): PanelPage = apply { nav.badgeProvider = provider }
+
+    fun navigationBadge(color: String, provider: Supplier<Any?>): PanelPage = apply {
+        nav.badgeColor(color)
+        nav.badgeProvider = provider
+    }
+
+    fun navigationBadgeColor(color: String): PanelPage = apply { nav.badgeColor(color) }
+
+    /** Whether the page gets a navigation link (Filament `shouldRegisterNavigation`). The page still routes. */
+    open fun shouldRegisterNavigation(): Boolean = nav.register
+
+    fun shouldRegisterNavigation(on: Boolean): PanelPage = apply { nav.register = on }
 
     /** Navigation icon (kona-icons name or short alias). Unset → dashboard home / squares-2x2 default. */
     fun icon(name: String): PanelPage = apply { iconLiteral = name }

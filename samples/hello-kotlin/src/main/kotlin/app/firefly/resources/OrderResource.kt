@@ -19,6 +19,8 @@ import org.konaframework.firefly.widgets.Page
 class OrderResource : Resource("orders") {
     init {
         label("Order")
+        navigationGroup("Sales")
+        navigationBadge("info") { Order.query().count() }
         model(Order::class.java)
     }
 

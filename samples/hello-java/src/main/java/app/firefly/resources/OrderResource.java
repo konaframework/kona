@@ -24,6 +24,8 @@ public class OrderResource extends Resource {
     public OrderResource() {
         super("orders");
         label("Order");
+        navigationGroup("Sales");
+        navigationBadge("info", () -> Order.QUERY.query().count());
         model(Order.class);
     }
 

@@ -35,11 +35,109 @@ With `SIDE` and `APP` the brand sits in the sidebar brand block; on small screen
 The samples never call `item`. Discovery therefore builds:
 
 - A link for each page. The label is `navigationLabel()`, which is the slug. Desk’s link text is `desk`. The URL is `/admin/desk` because that panel calls `path("admin")`. When `path` is omitted, the same page is `/{id}/desk`.
-- **One sidebar entry per resource.** The label is `Resource.pluralLabel()` (`Notes`, `Orders`). The URL is the resource index: `/admin/notes/manage` for a simple resource, `/admin/orders/list` for a full resource. That entry stays highlighted on create, edit, and view because the panel matches the whole `/{prefix}/{resource}/…` subtree. Create / edit / view / delete are not navigation children.
+- **One sidebar entry per resource.** The label is `Resource.navigationLabel()`, which defaults to `Resource.pluralLabel()` (`Notes`, `Orders`). The URL is the resource index: `/admin/notes/manage` for a simple resource, `/admin/orders/list` for a full resource. That entry stays highlighted on create, edit, and view because the panel matches the whole `/{prefix}/{resource}/…` subtree. Create / edit / view / delete are not navigation children.
+- **Groups.** The samples declare **Work** (Projects, Tasks, Notes) and **Sales** (Orders, with a count badge) through `navigationGroups(...)` and `navigationGroup(...)`, so the sidebar reads as two headed sections. See [Group the sidebar](#group-the-sidebar).
 
 Use `cluster(...)` only when you want a **manual** group (for example Catalog → Orders). Resources themselves are never auto-clustered into list/create/edit/view children.
 
 Set `label` on a `NavigationItem` when you build the tree yourself and want a word instead of a slug.
+
+## Group the sidebar
+
+A flat list stops working once a panel has a dozen resources. Name a group on each resource or page, and declare the groups on the panel when you care about their order or look. Discovery keeps building the links, so no URL is written by hand and a new resource shows up on its own.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+class OrderResource : Resource("orders") {
+    init {
+        model(Order::class.java)
+        navigationGroup("Sales")
+        navigationSort(1)
+        navigationLabel("Sales orders")
+        navigationBadge("danger") { Order.query().where("status", "late").count() }
+    }
+}
+
+class ReportsPage : PanelPage("reports") {
+    init {
+        navigationGroup("Accounting")
+        navigationSort(10)
+        shouldRegisterNavigation(true)
+    }
+}
+
+val panel = Panel()
+    .navigationGroups(
+        NavigationGroup.make("Sales").icon("shopping-bag").collapsible(),
+        NavigationGroup.make("Accounting").icon("banknotes"),
+        NavigationGroup.make("Settings").icon("cog-6-tooth").collapsed(),
+    )
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+public class OrderResource extends Resource {
+    public OrderResource() {
+        super("orders");
+        model(Order.class);
+        navigationGroup("Sales");
+        navigationSort(1);
+        navigationLabel("Sales orders");
+        navigationBadge("danger", () -> Order.QUERY.query().where("status", "late").count());
+    }
+}
+
+Panel panel = new Panel();
+panel.navigationGroups(
+    NavigationGroup.make("Sales").icon("shopping-bag").collapsible(),
+    NavigationGroup.make("Accounting").icon("banknotes"),
+    NavigationGroup.make("Settings").icon("cog-6-tooth").collapsed()
+);
+```
+
+</TabItem>
+</Tabs>
+
+`Resource` and `PanelPage` carry the same settings. Each has a fluent setter that returns the resource or page, and a getter with the same name that you can override when the value depends on the request.
+
+| Method | What you get |
+|--------|----------------|
+| `navigationGroup(name)` | The sidebar heading the link sits under. Unset links stay above the groups |
+| `navigationSort(n)` | Order among siblings, lowest first. Links without a sort follow, by label |
+| `navigationLabel(text)` | The link text. A resource defaults to `pluralLabel()`, a page to its slug (`Dashboard` for home) |
+| `navigationBadge { value }` | Text at the end of the link, evaluated on every render. `null` or blank hides it. A `0` shows |
+| `navigationBadge(color) { value }` / `navigationBadgeColor(color)` | `primary` (the default), `success`, `warning`, `danger`, `info` or `gray` |
+| `shouldRegisterNavigation(false)` | No sidebar link. The routes still answer |
+
+A blank group, label or color throws `FireflyException`.
+
+`NavigationGroup.make(label)` declares a heading:
+
+| Method | What you get |
+|--------|----------------|
+| `icon(name)` | A [kona-icons](/docs/icons/) icon beside the heading |
+| `collapsible()` | The heading folds its links. It renders as a `<details>` element, so it needs no script |
+| `collapsed()` | Starts folded (and collapsible). A group that holds the current page stays open |
+
+`Panel.navigationGroups(...)` takes the groups in display order and fails when a label repeats. A group that no item names is not drawn. A group some item names but nobody declared is drawn as a plain heading after the declared ones.
+
+The order in the sidebar is: links with no group, then each declared group, then undeclared groups in the order their first link appears.
+
+### Hidden items and empty groups
+
+Group and badge settings never override [authorization](/docs/firefly/authorization/). A resource whose `canViewAny()` is false, a page whose `canAccess()` is false, and anything `shouldRegisterNavigation(false)` or `visible(false)` hides, all leave the sidebar. When that empties a group, the heading goes with it, whatever the group's declaration says.
+
+### Groups on a manual tree
+
+`NavigationItem` takes the same settings (`group(name)`, `sort(n)`, `badge(...)`), so a hand-built tree can use headings too. Groups apply to level-1 items. Nested items ignore them.
+
+### Groups and the navigation type
+
+With `SIDE` and `APP`, a group is a heading in the sidebar. With `TOP` there is no sidebar, so each group becomes a top-bar entry that holds its links.
 
 ## Build the tree yourself
 
@@ -84,13 +182,14 @@ A blank name throws `FireflyException` (`Navigation item name is blank`). A blan
 | `url(value)` / `url(provider)` | Link target. Empty until you set it |
 | `icon(value)` / `icon(provider)` | kona-icons name (short or `heroicon-o-…`). Unset → home / squares-2x2 default |
 | `extraAttributes(map)` / `extraAttributes(provider)` | HTML attributes on the link. A provider receives `Get` |
-| `cluster(true)` | Marks the node as a group |
+| `cluster(true)` | Marks the node as a cluster (a parent with no URL) |
+| `group(name)` / `sort(n)` / `badge(...)` | Sidebar heading, order and badge. See [Group the sidebar](#group-the-sidebar) |
 | `child(item)` | Appends a child and sets its depth |
 | `isCluster()` | Whether `cluster(true)` was set |
 | `labelText(get)` / `urlText(get)` / `attributes(get)` / `iconName(get)` | Resolves the closure or the stored value |
 | `find(name)` | This node or a descendant with that name |
 
-`PanelPage.icon(...)` and `Resource.icon(...)` feed the auto-built tree the same way when you leave discovery to mount the sidebar.
+`PanelPage.icon(...)` and `Resource.icon(...)` feed the auto-built tree the same way (as do the `navigation*` settings above) when you leave discovery to mount the sidebar.
 
 Active state: the current path equals the item URL, or starts with that URL plus `/`. An empty URL or `/` is never treated as a prefix match.
 

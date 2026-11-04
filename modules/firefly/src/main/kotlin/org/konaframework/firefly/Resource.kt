@@ -18,6 +18,7 @@ import org.konaframework.firefly.widgets.Breadcrumb
 import org.konaframework.firefly.widgets.Page
 import java.util.function.Function
 import java.util.function.Predicate
+import java.util.function.Supplier
 
 /**
  * A panel resource discovered from `resources/`. It binds one model to its pages, form,
@@ -34,6 +35,7 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     private var pluralLabelLiteral: String? = null
     private var pluralLabelUsing: Function<Get, String>? = null
     private var iconLiteral: String? = null
+    private val nav = NavigationSettings()
     private var modelClass: Class<*>? = null
     private var modelUsing: Function<Get, Class<*>?>? = null
     private var simpleFlag = false
@@ -104,6 +106,39 @@ open class Resource @JvmOverloads constructor(private val slugValue: String = ""
     fun icon(name: String): Resource = apply { iconLiteral = name }
 
     fun navigationIcon(): String? = iconLiteral
+
+    /** Navigation link text. Unset → [pluralLabel]. */
+    fun navigationLabel(value: String): Resource = apply { nav.label(value) }
+
+    open fun navigationLabel(): String = nav.label ?: pluralLabel()
+
+    /** Sidebar heading this resource sits under (declare its order with `Panel.navigationGroups`). */
+    fun navigationGroup(name: String): Resource = apply { nav.group(name) }
+
+    open fun navigationGroup(): String? = nav.group
+
+    /** Sort among its siblings, lowest first. Unset sorts last, by label. */
+    fun navigationSort(value: Int): Resource = apply { nav.sort = value }
+
+    open fun navigationSort(): Int? = nav.sort
+
+    /** Badge text at the end of the link, recomputed on every render. Null or blank hides it. */
+    fun navigationBadge(provider: Supplier<Any?>): Resource = apply { nav.badgeProvider = provider }
+
+    fun navigationBadge(color: String, provider: Supplier<Any?>): Resource = apply {
+        nav.badgeColor(color)
+        nav.badgeProvider = provider
+    }
+
+    fun navigationBadgeColor(color: String): Resource = apply { nav.badgeColor(color) }
+
+    /** Badge now (null for none). Override it, or set a provider with `navigationBadge { count }`. */
+    open fun navigationBadge(): NavigationBadge? = nav.badge()
+
+    /** Hides the resource from the navigation (Filament `shouldRegisterNavigation`). Its routes stay. */
+    fun shouldRegisterNavigation(on: Boolean): Resource = apply { nav.register = on }
+
+    open fun shouldRegisterNavigation(): Boolean = nav.register
 
     fun model(type: Class<*>): Resource = apply {
         modelClass = type
