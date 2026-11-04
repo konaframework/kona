@@ -1,0 +1,441 @@
+---
+title: Numbers
+description: Format, spell, abbreviate, and parse numbers and money with the Number helper.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`Number` is the number-formatting helper in `kona-support`. It turns raw values into text people can read: grouped thousands, money with the right symbol, percentages, file sizes, short forms like `1.2M`, English words, and ordinals. It also goes the other way and parses user-typed numbers back into exact values.
+
+Every method is a static function on a single object, so you can call it from controllers, jobs, mail builders, PDF renderers, or anything that produces text.
+
+```kotlin
+import org.konaframework.support.number.Number
+```
+
+:::note[Name clash in Java]
+Importing `org.konaframework.support.number.Number` in a Java file hides `java.lang.Number` in that file. If you need both, import one of them and use the fully qualified name for the other.
+:::
+
+## Your first call
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Number.format(1234567.891)                  // 1,234,567.891
+Number.currency(BigDecimal("1250"), "KES")   // KES1,250.00
+Number.percentage(12.5, precision = 1)      // 12.5%
+Number.fileSize(1_536_000)                  // 1 MB
+Number.abbreviate(1_250_000, 2)             // 1.25M
+Number.spell(42)                            // forty-two
+Number.ordinal(3)                           // 3rd
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Number.format(1234567.891);                    // 1,234,567.891
+Number.currency(new BigDecimal("1250"), "KES"); // KES1,250.00
+Number.percentage(12.5, 1);                    // 12.5%
+Number.fileSize(1_536_000);                    // 1 MB
+Number.abbreviate(1_250_000, 2);               // 1.25M
+Number.spell(42);                              // forty-two
+Number.ordinal(3);                             // 3rd
+```
+
+</TabItem>
+</Tabs>
+
+Every method accepts any numeric type: `Int`, `Long`, `Short`, `Byte`, `Double`, `Float`, `BigInteger`, `BigDecimal`, and other `java.lang.Number` subclasses such as `AtomicInteger`.
+
+## Exact values and rounding
+
+Kona converts every input to `java.math.BigDecimal` before formatting. A `BigDecimal` is never routed through `double`, so large or precise amounts keep every digit:
+
+```kotlin
+Number.format(BigDecimal("12345678901234567890.123456789"), maxPrecision = 9)
+// 12,345,678,901,234,567,890.123456789
+
+Number.currency(BigDecimal("12345678901234567.89"))
+// $12,345,678,901,234,567.89
+```
+
+`Double` and `Float` values are read from their shortest decimal text (`0.1` stays `0.1`, not `0.1000000000000000055…`).
+
+When digits must be dropped, rounding is **half-even**: a value exactly halfway between two candidates rounds to the even neighbour. `Number.format(2.5, 0)` is `2`, `Number.format(3.5, 0)` is `4`. Values that are not exactly halfway round normally (`1.236` → `1.24` at two digits).
+
+`NaN` and infinite `Double` / `Float` values throw `IllegalArgumentException`. Check `isFinite()` first if your data can contain them.
+
+## Locales
+
+A **locale** decides the grouping separator, the decimal mark, where the currency symbol goes, and the percent spacing. Kona accepts locale tags in either style: `en-KE` or `en_KE`.
+
+```kotlin
+Number.format(1234.5, locale = "en")    // 1,234.5
+Number.format(1234.5, locale = "de")    // 1.234,5
+Number.format(1234.5, locale = "fr")    // 1 234,5   (narrow no-break space)
+Number.format(1234.5, 2, null, "en_KE") // 1,234.50
+```
+
+When you omit `locale`, Kona uses the **default locale** (see [Defaults](#defaults-locale-and-currency)). It starts as `en`, and apps set it through `app.locale`.
+
+Formatting uses the locale data built into the JDK. Some locales use non-breaking spaces (`\u00A0`) or narrow non-breaking spaces (`\u202F`) where you might expect a plain space. This matters when you compare strings in tests.
+
+## Formatting numbers
+
+```kotlin
+fun format(number: Number, precision: Int? = null, maxPrecision: Int? = null, locale: String? = null): String
+```
+
+- No precision: up to **3** fraction digits, with trailing zeros dropped.
+- `precision`: exactly that many fraction digits (pads with zeros).
+- `maxPrecision`: at most that many fraction digits, with trailing zeros dropped. When both are given, `maxPrecision` wins.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Number.format(100000)                       // 100,000
+Number.format(100000, precision = 2)        // 100,000.00
+Number.format(100000.123, maxPrecision = 2) // 100,000.12
+Number.format(1234.5678)                    // 1,234.568
+Number.format(100000, locale = "de")        // 100.000
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Number.format(100000);              // 100,000
+Number.format(100000, 2);           // 100,000.00
+Number.format(100000.123, null, 2); // 100,000.12
+Number.format(1234.5678);           // 1,234.568
+Number.format(100000, null, null, "de"); // 100.000
+```
+
+</TabItem>
+</Tabs>
+
+## Money
+
+```kotlin
+fun currency(amount: Number, code: String = "", locale: String? = null, precision: Int? = null): String
+```
+
+`code` is an ISO-4217 currency code such as `USD`, `KES`, `EUR`, or `JPY`. It is case-insensitive and trimmed. A blank code uses the [default currency](#defaults-locale-and-currency). When you omit `precision`, the currency's own minor units apply: two digits for `USD` and `KES`, zero for `JPY`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+val total = BigDecimal("1234.5")
+
+Number.currency(total)                       // $1,234.50  (default USD)
+Number.currency(total, "EUR")                // €1,234.50
+Number.currency(total, "EUR", "de")          // 1.234,50 €
+Number.currency(total, "KES")                // KES1,234.50
+Number.currency(total, "KES", "en_KE")       // Ksh1,234.50
+Number.currency(total, "KES", "sw-KE")       // Ksh 1,234.50
+Number.currency(1234.4, "JPY")               // ¥1,234
+Number.currency(1000, "USD", precision = 0)  // $1,000
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+BigDecimal total = new BigDecimal("1234.5");
+
+Number.currency(total);                     // $1,234.50
+Number.currency(total, "EUR");              // €1,234.50
+Number.currency(total, "EUR", "de");        // 1.234,50 €
+Number.currency(total, "KES", "en_KE");     // Ksh1,234.50
+Number.currency(new BigDecimal("1234.6"), "KES", "en_KE", 0); // Ksh1,235
+```
+
+</TabItem>
+</Tabs>
+
+### Kenyan shillings and other regional symbols
+
+The symbol depends on the **locale**, not just the currency. These are the strings the JDK (21) produces for `KES`:
+
+| Call | Output |
+|------|--------|
+| `currency(1234.5, "KES", "en")` | `KES1,234.50` |
+| `currency(1234.5, "KES", "en_KE")` | `Ksh1,234.50` |
+| `currency(1234.5, "KES", "sw_KE")` | `Ksh 1,234.50` (no-break space) |
+
+The `en_KE` output has no space between `Ksh` and the amount. If your receipts need `KES 1,250.00` with a space, build the string yourself from `Number.format(amount, 2)` and the code.
+
+An unknown code (for example `"NOPE"`) throws `IllegalArgumentException`. Validate user-chosen currencies before formatting.
+
+## Percentages
+
+```kotlin
+fun percentage(number: Number, precision: Int = 0, maxPrecision: Int? = null, locale: String? = null): String
+```
+
+Pass the percentage itself (`10` means 10%), not a fraction:
+
+```kotlin
+Number.percentage(10)                       // 10%
+Number.percentage(10, precision = 2)        // 10.00%
+Number.percentage(10.123, maxPrecision = 2) // 10.12%
+Number.percentage(10, 2, null, "de")        // 10,00 %
+```
+
+## File sizes
+
+```kotlin
+fun fileSize(bytes: Number, precision: Int = 0, maxPrecision: Int? = null): String
+```
+
+Sizes step by **1024** through `B`, `KB`, `MB`, `GB`, `TB`, `PB`, `EB`, `ZB`, `YB`. Kona moves to the next unit once the value would be more than `0.9` of it, so `922` bytes already shows as `1 KB`.
+
+```kotlin
+Number.fileSize(1024)                         // 1 KB
+Number.fileSize(1264.12345, precision = 2)    // 1.23 KB
+Number.fileSize(1264.12345, maxPrecision = 3) // 1.234 KB
+Number.fileSize(5L * 1024 * 1024 * 1024)      // 5 GB
+Number.fileSize(921)                          // 921 B
+```
+
+File sizes use the default locale for the number part.
+
+## Short and human-readable forms
+
+`abbreviate` produces dashboard-style short numbers. `forHumans` uses words.
+
+```kotlin
+fun abbreviate(number: Number, precision: Int = 0, maxPrecision: Int? = null): String
+fun forHumans(number: Number, precision: Int = 0, maxPrecision: Int? = null, abbreviate: Boolean = false): String
+```
+
+| Value | `abbreviate` | `forHumans` |
+|-------|--------------|-------------|
+| `1000` | `1K` | `1 thousand` |
+| `489939` | `490K` | `490 thousand` |
+| `1_230_000` (precision 2) | `1.23M` | `1.23 million` |
+| `1_000_000_000` | `1B` | `1 billion` |
+| `10^12` | `1T` | `1 trillion` |
+| `10^15` | `1Q` | `1 quadrillion` |
+| `-1000` | `-1K` | `-1 thousand` |
+
+Values of `10^18` and above keep counting in quadrillions (`1KQ`, `1 thousand quadrillion`). Rounding can carry a value up to the next thousand inside the same unit: `999_999` abbreviates to `1,000K`. Zero renders as `0`, or as `0.00` when you pass a precision.
+
+## Words and ordinals
+
+```kotlin
+Number.spell(1234)        // one thousand two hundred thirty-four
+Number.spell(101)         // one hundred one
+Number.spell(-3)          // minus three
+Number.spell(1.05)        // one point zero five
+
+Number.ordinal(1)         // 1st
+Number.ordinal(22)        // 22nd
+Number.ordinal(113)       // 113th
+Number.ordinal(1013)      // 1,013th
+
+Number.spellOrdinal(1)    // first
+Number.spellOrdinal(21)   // twenty-first
+Number.spellOrdinal(100)  // one hundredth
+```
+
+`spell` takes two optional thresholds. Numbers at or below `after`, or at or above `until`, are formatted as digits instead of words. This is handy for style rules like "spell out numbers under ten":
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Number.spell(5, until = 10)   // five
+Number.spell(12, until = 10)  // 12
+Number.spell(10, after = 10)  // 10
+Number.spell(11, after = 10)  // eleven
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Number.spell(5, null, null, 10);  // five
+Number.spell(12, null, null, 10); // 12
+Number.spell(10, null, 10);       // 10
+Number.spell(11, "en", 10);       // eleven
+```
+
+</TabItem>
+</Tabs>
+
+**Language limits.** Words and ordinal suffixes are **English for every locale**. The `locale` argument on `spell`, `ordinal`, and `spellOrdinal` only affects the digit formatting used for fallbacks and for the number part of `ordinal` (`Number.ordinal(1001, "de")` is `1.001st`). Non-whole numbers have no ordinal, so `ordinal(1.5)` and `spellOrdinal(1.5)` return the formatted number. Whole numbers of `10^36` and above have no English scale word, so `spell` and `spellOrdinal` return the formatted number for them.
+
+## Clamp, pairs, and trim
+
+`clamp` keeps a value inside an inclusive range and returns the same numeric type you passed in:
+
+```kotlin
+Number.clamp(105, 0, 100)                               // 100
+Number.clamp(-5, 0, 100)                                // 0
+Number.clamp(BigDecimal("2.5"), BigDecimal.ONE, BigDecimal.TEN) // 2.5
+```
+
+`pairs` splits a range into consecutive chunks. This is useful for batching IDs or building page ranges. Each chunk is a `Pair(lower, upper)`. With the default `offset = 1`, the upper bound stops one short of the next chunk. The last chunk ends at `to`.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Number.pairs(25, 10)              // [(0, 9), (10, 19), (20, 25)]
+Number.pairs(25, 10, offset = 0)  // [(0, 10), (10, 20), (20, 25)]
+Number.pairs(25, 10, start = 5)   // [(5, 14), (15, 24)]
+
+Number.pairs(BigDecimal("1.00"), BigDecimal("0.25"), offset = BigDecimal.ZERO)
+// [(0, 0.25), (0.25, 0.50), (0.50, 0.75), (0.75, 1.00)]
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+List<Pair<Long, Long>> chunks = Number.pairs(25, 10); // kotlin.Pair
+chunks.get(0).getFirst();  // 0
+chunks.get(0).getSecond(); // 9
+Number.pairs(25, 10, 0, 0); // start 0, offset 0
+```
+
+</TabItem>
+</Tabs>
+
+`pairs` has a `Long` version and an exact `BigDecimal` version. A step (`by`) of zero or less throws `IllegalArgumentException`.
+
+`trim` removes trailing fractional zeros. `Double`, `Float`, and `BigDecimal` inputs come back as a `BigDecimal`. Whole-number types come back unchanged.
+
+```kotlin
+Number.trim(12.0)                // 12
+Number.trim(12.30)               // 12.3
+Number.trim(BigDecimal("1200.00")) // 1200
+Number.trim(5)                   // 5 (same Int)
+```
+
+## Parsing user input
+
+`parse` reads a locale-formatted string into an exact `BigDecimal`. It returns `null` when the whole string is not a number. Leading and trailing whitespace is ignored.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Number.parse("1,234.5")              // 1234.5
+Number.parse("1.234,5", "de")        // 1234.5
+Number.parse("1 234,5", "fr")        // 1234.5
+Number.parse("12abc")                // null
+Number.parse("")                     // null
+
+Number.parseInt("1,234.9")           // 1234   (truncated toward zero)
+Number.parseInt("99,999,999,999")    // null   (outside Int range)
+Number.parseFloat("1,234.5")         // 1234.5 (Double)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+BigDecimal amount = Number.parse("1,234.5");  // 1234.5, or null
+Integer qty = Number.parseInt("1,234");        // 1234, or null
+Double ratio = Number.parseFloat("1.234,5", "de");
+```
+
+</TabItem>
+</Tabs>
+
+When the locale groups thousands with a space (French, for example), `parse` accepts a plain space, a no-break space, or a narrow no-break space as the separator. Partial matches such as `"12abc"` and the infinity sign return `null`.
+
+## Defaults: locale and currency
+
+`Number` keeps a **default locale** (starts as `en`) and a **default currency** (starts as `USD`). Methods use them whenever you omit `locale` or pass a blank currency code.
+
+### From app configuration
+
+When your app registers `SupportServiceProvider`, Kona seeds both defaults at boot:
+
+| Config key | Environment variable | Default |
+|------------|----------------------|---------|
+| `app.locale` | `APP_LOCALE` | `en` |
+| `app.currency` | `APP_CURRENCY` | `USD` |
+
+```dotenv
+APP_LOCALE=en_KE
+APP_CURRENCY=KES
+```
+
+```kotlin
+Number.currency(1250) // Ksh1,250.00
+```
+
+### Changing defaults in code
+
+`useLocale` and `useCurrency` change the process-wide defaults. Blank values reset to `en` / `USD`, and currency codes are upper-cased.
+
+`withLocale` and `withCurrency` run a block with a temporary default. The override applies **only to the current thread**. Other requests running at the same time on other virtual threads keep their own defaults. The previous value comes back when the block finishes, even if it throws.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Number.useLocale("en_KE")
+Number.useCurrency("KES")
+Number.defaultLocale()    // en_KE
+Number.defaultCurrency()  // KES
+
+val receipt = Number.withLocale("de") {
+    Number.withCurrency("EUR") { Number.currency(BigDecimal("1234.5")) }
+}
+// 1.234,50 €
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Number.useCurrency("KES");
+String eur = Number.withCurrency("EUR", () -> Number.currency(new BigDecimal("12")));
+String de = Number.withLocale("de", () -> Number.format(1234.5)); // 1.234,5
+```
+
+</TabItem>
+</Tabs>
+
+`Number.resetDefaults()` restores `en` / `USD`. Call it in test teardown when a test changes the defaults.
+
+## Firefly money fields
+
+Firefly's currency table column and currency infolist entry format values through `Number.currency`. Admin panels therefore show the same symbols, grouping, and exact `BigDecimal` digits as the rest of your app. The money form input shows the matching currency symbol as its prefix. Firefly passes its own currency code and locale per field, and falls back to `en-US` when a field sets no locale.
+
+## Method reference
+
+| Method | Returns | Notes |
+|--------|---------|-------|
+| `format(number, precision?, maxPrecision?, locale?)` | `String` | Up to 3 fraction digits by default |
+| `currency(amount, code = default, locale?, precision?)` | `String` | Throws on unknown ISO code |
+| `percentage(number, precision = 0, maxPrecision?, locale?)` | `String` | `10` → `10%` |
+| `fileSize(bytes, precision = 0, maxPrecision?)` | `String` | 1024 steps, `B` … `YB` |
+| `abbreviate(number, precision = 0, maxPrecision?)` | `String` | `K`, `M`, `B`, `T`, `Q` |
+| `forHumans(number, precision = 0, maxPrecision?, abbreviate = false)` | `String` | `thousand` … `quadrillion` |
+| `spell(number, locale?, after?, until?)` | `String` | English words |
+| `ordinal(number, locale?)` | `String` | `1st`, `22nd` |
+| `spellOrdinal(number, locale?)` | `String` | `first`, `twenty-second` |
+| `clamp(number, min, max)` | same type | Inclusive range |
+| `pairs(to, by, start = 0, offset = 1)` | `List<Pair>` | `Long` and `BigDecimal` versions |
+| `trim(number)` | `Number` | Drops trailing zeros |
+| `parse(value, locale?)` | `BigDecimal?` | Exact; `null` when invalid |
+| `parseInt(value, locale?)` | `Int?` | Truncates toward zero |
+| `parseFloat(value, locale?)` | `Double?` | |
+| `useLocale` / `withLocale` / `defaultLocale` | | Default `en` |
+| `useCurrency` / `withCurrency` / `defaultCurrency` | | Default `USD` |
+| `resetDefaults()` | | Restores `en` / `USD` |
+
+Every method is a static method in Java. Kotlin default arguments become Java overloads, so you can drop trailing arguments in Java too.
+
+See also: [Support utilities](../) for strings, collections, and dates.

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.konaframework.crema.CremaEngine
 import org.konaframework.crema.FileViewFinder
 import org.konaframework.firefly.support.FireflyException
+import java.math.BigDecimal
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Locale
@@ -617,14 +618,18 @@ class FireflySchemasTest {
         assertEquals(Locale.forLanguageTag("fr-FR"), CurrencyFormat.localeOf("fr-FR"))
         // Invalid ISO code falls back to symbol + fixed decimals.
         assertTrue(CurrencyFormat.format(2, CurrencyFormat.options("ZZZ", "en-US"))!!.contains("2.00"))
-        assertEquals(1.5, CurrencyFormat.toFinite(1.5f))
-        assertEquals(2.0, CurrencyFormat.toFinite(2))
-        assertEquals(4.0, CurrencyFormat.toFinite("4"))
-        assertNull(CurrencyFormat.toFinite("  "))
-        assertNull(CurrencyFormat.toFinite("nope"))
-        assertNull(CurrencyFormat.toFinite(true))
-        assertNull(CurrencyFormat.toFinite(Double.NaN))
-        assertNull(CurrencyFormat.toFinite(Float.NEGATIVE_INFINITY))
+        assertEquals(BigDecimal("1.5"), CurrencyFormat.toDecimal(1.5f))
+        assertEquals(BigDecimal("2"), CurrencyFormat.toDecimal(2))
+        assertEquals(BigDecimal("4"), CurrencyFormat.toDecimal("4"))
+        assertNull(CurrencyFormat.toDecimal("  "))
+        assertNull(CurrencyFormat.toDecimal("nope"))
+        assertNull(CurrencyFormat.toDecimal(true))
+        assertNull(CurrencyFormat.toDecimal(Double.NaN))
+        assertNull(CurrencyFormat.toDecimal(Float.NEGATIVE_INFINITY))
+        val exact = BigDecimal("12345678901234567.89")
+        assertEquals(exact, CurrencyFormat.toDecimal(exact))
+        assertEquals("$12,345,678,901,234,567.89", CurrencyFormat.format(exact))
+        assertEquals("Ksh1,234.50", CurrencyFormat.format(BigDecimal("1234.5"), CurrencyFormat.options("KES", "en-KE")))
     }
 
     @Test
