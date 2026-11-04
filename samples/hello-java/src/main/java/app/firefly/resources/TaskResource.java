@@ -15,6 +15,8 @@ public class TaskResource extends Resource {
     public TaskResource() {
         super("tasks");
         label("Task");
+        navigationGroup("Work");
+        navigationSort(1);
         simple();
         model(Task.class);
         formColumns(2);

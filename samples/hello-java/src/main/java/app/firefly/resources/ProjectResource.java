@@ -15,6 +15,8 @@ public class ProjectResource extends Resource {
     public ProjectResource() {
         super("projects");
         label("Project");
+        navigationGroup("Work");
+        navigationSort(0);
         simple();
         model(Project.class);
         formColumns(2);

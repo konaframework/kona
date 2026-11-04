@@ -69,6 +69,19 @@ Resources, actions and panels honor Kona Gates and policies. Docs: Firefly → A
 | AUTH-8 | Policy discovery | `Gate.discoverPolicy` over `app.policies` (config `firefly.policies`, `Firefly.policyPackages`); `Firefly.gate(Gate)` | done (#457) |
 | AUTH-9 | Custom page and navigation visibility | `PanelPage.canAccess()`, `NavigationItem.visible` | done (#457) |
 
+### Navigation groups (#465)
+
+Auto-discovered navigation can be grouped, sorted and badged. Docs: Firefly → Navigation.
+
+| ID | Filament surface | Firefly | Status |
+|----|------------------|---------|--------|
+| NAV-1 | `navigationGroup`, `navigationSort`, `navigationLabel` | `Resource` and `PanelPage` fluent setters and overridable getters; discovery fills the tree, no hand-written URLs | done (#465) |
+| NAV-2 | `getNavigationBadge` / `getNavigationBadgeColor` | `navigationBadge { value }`, `navigationBadge(color) { value }`, `navigationBadgeColor`; evaluated on every render, null or blank hides | done (#465) |
+| NAV-3 | `shouldRegisterNavigation` | `shouldRegisterNavigation(false)` on `Resource` and `PanelPage`; routes still answer | done (#465) |
+| NAV-4 | `NavigationGroup::make()->icon()->collapsible()` | `NavigationGroup.make(label).icon(name).collapsible()` / `.collapsed()`; `Panel.navigationGroups(...)` sets order; undeclared groups follow | done (#465) |
+| NAV-5 | Denied items and empty groups hidden | Items hidden by `canViewAny` / `canAccess` / `visible` / `shouldRegisterNavigation` leave the sidebar; a group with no visible item is not drawn | done (#465) |
+| NAV-6 | Groups on a manual tree | `NavigationItem.group` / `sort` / `badge`; TOP navigation draws a group as a cluster entry | done (#465) |
+
 ## M28 — support (`kona-firefly-support`)
 
 | ID | Filament surface | Firefly | Status |

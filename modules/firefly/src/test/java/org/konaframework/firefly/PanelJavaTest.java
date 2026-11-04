@@ -45,4 +45,40 @@ public class PanelJavaTest {
         assertEquals(0, PanelDiscovery.widgets(dir).size());
         Widget.make("java");
     }
+
+    @Test
+    void javaDeclaresNavigationGroups() {
+        Resource orders = new Resource("orders") {
+            @Override
+            public Map<String, org.konaframework.firefly.widgets.Page> getPages() {
+                return Map.of("list", new ListPage("list"));
+            }
+        };
+        orders.navigationGroup("Sales").navigationSort(1).navigationLabel("Sales orders")
+            .navigationBadge("danger", () -> 3).shouldRegisterNavigation(true);
+        PanelPage reports = new PanelPage("reports");
+        reports.navigationGroup("Accounting").navigationSort(2).navigationBadge(() -> "new")
+            .navigationBadgeColor("success");
+        Router router = new Router();
+        Panel panel = new Panel();
+        panel.path("admin").authenticate(false).navigation(NavigationType.SIDE);
+        panel.navigationGroups(
+            NavigationGroup.make("Sales").icon("shopping-bag").collapsible(),
+            NavigationGroup.make("Accounting")
+        );
+        panel.resource(orders);
+        panel.page(reports);
+        panel.mount(router, Map.of());
+        String html = panel.render(new Request("GET", "/admin"));
+        assertTrue(html.contains("data-ff-nav-group=\"Sales\""));
+        assertTrue(html.contains("data-ff-nav-group=\"Accounting\""));
+        assertTrue(html.contains("<span class=\"ff-nav-badge\" data-ff-color=\"danger\">3</span>"));
+        assertTrue(html.contains("<span class=\"ff-nav-badge\" data-ff-color=\"success\">new</span>"));
+        assertTrue(html.contains("Sales orders"));
+        assertEquals("Sales", orders.navigationGroup());
+        assertEquals(Integer.valueOf(1), orders.navigationSort());
+        assertEquals("3", orders.navigationBadge().getText());
+        NavigationItem item = new NavigationItem("calc").group("Tools").sort(1).badge(new NavigationBadge("9"));
+        assertEquals("Tools", item.groupName());
+    }
 }

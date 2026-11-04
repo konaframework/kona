@@ -65,6 +65,13 @@ class AppSmokeTest {
         val orderList = kernel.handle(Request.get("/admin/orders/list"))
         assertEquals(200, orderList.status)
         assertFalse(orderList.body.contains("data-ff-selectable data-ff-total"), orderList.body)
+        // Navigation groups: Work (Projects, Tasks, Notes by sort) then Sales (collapsible, Orders badge).
+        val nav = orderList.body.substringAfter("<nav class=\"ff-nav ff-nav-side\">")
+        assertTrue(nav.contains("data-ff-nav-group=\"Work\""), nav)
+        assertTrue(nav.contains("<details class=\"ff-nav-group ff-nav-group-collapsible\" data-ff-nav-group=\"Sales\" open>"), nav)
+        assertTrue(nav.indexOf("Projects") < nav.indexOf("Tasks") && nav.indexOf("Tasks") < nav.indexOf("Notes"), nav)
+        assertTrue(nav.indexOf("data-ff-nav-group=\"Work\"") < nav.indexOf("data-ff-nav-group=\"Sales\""), nav)
+        assertTrue(nav.contains("class=\"ff-nav-badge\" data-ff-color=\"info\""), nav)
     }
 
     @Test

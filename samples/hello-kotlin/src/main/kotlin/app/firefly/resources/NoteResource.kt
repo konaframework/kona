@@ -13,6 +13,8 @@ import org.konaframework.firefly.tables.TextColumn
 class NoteResource : Resource("notes") {
     init {
         label("Note")
+        navigationGroup("Work")
+        navigationSort(2)
         simple()
         model(Note::class.java)
         formColumns(2)
