@@ -36,6 +36,8 @@ open class Action protected constructor(name: String) : Component(name) {
     private val modalWidthSetting = TextSetting()
     private val successRedirectSetting = TextSetting()
     private val failureRedirectSetting = TextSetting()
+    private val successTitleSetting = TextSetting()
+    private val failureTitleSetting = TextSetting()
     private val confirm = Flag(false)
     private val openInNewTab = Flag(false)
     private var style: String = "button"
@@ -58,6 +60,9 @@ open class Action protected constructor(name: String) : Component(name) {
     private var cancelAction: Action? = null
     private var footerActions: List<Action> = emptyList()
     private var callback: ActionCallback? = null
+    private var recordCallback: RecordCallback? = null
+    private var dataCallback: RecordDataCallback? = null
+    private var recordVisibility: Predicate<Any>? = null
     private var beforeCallback: ActionCallback? = null
     private var afterCallback: ActionCallback? = null
     private var arguments: Map<String, Any?> = emptyMap()
@@ -100,10 +105,18 @@ open class Action protected constructor(name: String) : Component(name) {
 
     override fun isHidden(schema: Schema): Boolean {
         if (!isAuthorized(schema)) return true
+        val forRecord = recordVisibility
+        if (forRecord != null) {
+            val record = schema.record()
+            if (record == null || !forRecord.test(record)) return true
+        }
         return super.isHidden(schema)
     }
 
     fun isAuthorized(schema: Schema): Boolean = authorization.permits(schema, this)
+
+    /** True when [Component.disabled] (or its predicate) applies for [schema]; [call] refuses a disabled action. */
+    fun isDisabled(schema: Schema): Boolean = disabledNow(schema)
 
     fun icon(value: String): Action = apply { iconSetting.setLiteral(value) }
 
@@ -166,6 +179,32 @@ open class Action protected constructor(name: String) : Component(name) {
         submitFormId = null
         requiresConfirmation(true)
         modal(true)
+    }
+
+    /**
+     * Render this action posting to [actionUrl] for the record in [schema], without changing the
+     * action: a plain action becomes a one-click form button, a confirmed or schema action
+     * posts from its dialog. [extrasHtml] carries the CSRF field and the record id. Tables render
+     * one shared action per row this way; the binding is scoped to the calling thread.
+     */
+    fun renderWithPost(schema: Schema, actionUrl: String): String = renderWithPost(schema, actionUrl, "")
+
+    fun renderWithPost(schema: Schema, actionUrl: String, extrasHtml: String): String {
+        if (actionUrl.isBlank()) throw FireflyException("Post form action is blank")
+        val previous = boundPost.get()
+        boundPost.set(PostTarget(this, actionUrl, extrasHtml))
+        try {
+            return render(schema)
+        } finally {
+            if (previous == null) boundPost.remove() else boundPost.set(previous)
+        }
+    }
+
+    private fun postTarget(get: Get): PostTarget? {
+        val bound = boundPost.get()
+        if (bound != null && bound.owner === this) return bound
+        val stored = postUrlSetting.resolve(get) ?: return null
+        return PostTarget(this, stored, formExtrasHtml)
     }
 
     fun placement(placement: ActionPlacement): Action = apply { placementToken = placement }
@@ -312,7 +351,62 @@ open class Action protected constructor(name: String) : Component(name) {
         syncChildren()
     }
 
-    fun action(callback: ActionCallback): Action = apply { this.callback = callback }
+    fun action(callback: ActionCallback): Action = apply {
+        this.callback = callback
+        recordCallback = null
+        dataCallback = null
+    }
+
+    /**
+     * Server handler that receives the record this action is mounted on (a resource record page
+     * header action or a table row action). Replaces any other handler.
+     *
+     * ```kotlin
+     * Action.make("post").requiresConfirmation().action { record -> (record as JournalEntry).post() }
+     * ```
+     */
+    fun action(callback: RecordCallback): Action = apply {
+        recordCallback = callback
+        this.callback = null
+        dataCallback = null
+    }
+
+    /**
+     * Server handler that receives the record and the validated values of the dialog [schema]
+     * (`action { record, data -> }` in Filament). Named apart from [action] so the two-argument
+     * `(action, schema)` form keeps resolving.
+     */
+    fun actionWithData(callback: RecordDataCallback): Action = apply {
+        dataCallback = callback
+        this.callback = null
+        recordCallback = null
+    }
+
+    /** True when [action] or [actionWithData] set a server handler. */
+    fun hasHandler(): Boolean = callback != null || recordCallback != null || dataCallback != null
+
+    /** True when [url] made this action a link instead of a handler. */
+    fun isLink(): Boolean = urlSetting.isSet()
+
+    /** Components passed to [schema]; the form the dialog collects before the handler runs. */
+    fun dialogComponents(): List<Component> = modalComponents.toList()
+
+    /**
+     * Show the action only when [predicate] passes for the page or row record
+     * (`visible(fn ($record) => …)` in Filament). Without a record the action is hidden.
+     * Named apart from [visible] because both take a one-argument lambda.
+     */
+    fun visibleForRecord(predicate: Predicate<Any>): Action = apply { recordVisibility = predicate }
+
+    /** Toast title shown after the handler succeeds. Without one no success toast is sent. */
+    fun successNotificationTitle(value: String): Action = apply { successTitleSetting.setLiteral(value) }
+
+    fun successNotificationTitle(value: Function<Get, String>): Action = apply { successTitleSetting.setUsing(value) }
+
+    /** Toast title shown when the handler calls [failure]. Defaults to "Action failed" in the panel. */
+    fun failureNotificationTitle(value: String): Action = apply { failureTitleSetting.setLiteral(value) }
+
+    fun failureNotificationTitle(value: Function<Get, String>): Action = apply { failureTitleSetting.setUsing(value) }
 
     fun before(callback: ActionCallback): Action = apply { beforeCallback = callback }
 
@@ -347,7 +441,13 @@ open class Action protected constructor(name: String) : Component(name) {
         return buildDialog(schema, get)
     }
 
-    fun call(schema: Schema): ActionResult {
+    fun call(schema: Schema): ActionResult = call(schema, emptyMap())
+
+    /**
+     * Run the action with the dialog [data] (already validated by the caller). The record handlers
+     * read the record from [Schema.record].
+     */
+    fun call(schema: Schema, data: Map<String, Any?>): ActionResult {
         if (isHidden(schema)) throw FireflyException("Action [$name] is hidden")
         if (disabledNow(schema)) throw FireflyException("Action [$name] is disabled")
         val get = SchemaBridge.reader(schema, this)
@@ -356,21 +456,42 @@ open class Action protected constructor(name: String) : Component(name) {
             if (before != null) before.run(this, schema)
             val resolved = urlSetting.resolve(get)
             if (resolved != null && resolved.isEmpty()) throw FireflyException("Action [$name] URL is empty")
-            if (resolved == null) {
-                val handler = callback
-                if (handler == null) throw FireflyException("Action [$name] has no handler")
-                handler.run(this, schema)
-            }
+            if (resolved == null) invokeHandler(schema, data)
             val after = afterCallback
             if (after != null) after.run(this, schema)
             val redirect = if (resolved != null) resolved else successRedirectSetting.resolve(get)
-            return ActionResult(ActionResult.SUCCESS, resolved, redirect, null)
+            return ActionResult(ActionResult.SUCCESS, resolved, redirect, null, successTitleSetting.resolve(get))
         } catch (halted: ActionHalt) {
             return ActionResult(ActionResult.HALTED, null, null, halted.message)
         } catch (failed: ActionFailure) {
-            return ActionResult(ActionResult.FAILED, null, failureRedirectSetting.resolve(get), failed.message)
+            return ActionResult(
+                ActionResult.FAILED,
+                null,
+                failureRedirectSetting.resolve(get),
+                failed.message,
+                failureTitleSetting.resolve(get),
+            )
         }
     }
+
+    private fun invokeHandler(schema: Schema, data: Map<String, Any?>) {
+        val withData = dataCallback
+        if (withData != null) {
+            withData.run(requiredRecord(schema), data)
+            return
+        }
+        val forRecord = recordCallback
+        if (forRecord != null) {
+            forRecord.run(requiredRecord(schema))
+            return
+        }
+        val handler = callback
+        if (handler == null) throw FireflyException("Action [$name] has no handler")
+        handler.run(this, schema)
+    }
+
+    private fun requiredRecord(schema: Schema): Any =
+        schema.record() ?: throw FireflyException("Action [$name] needs a record")
 
     override fun renderBody(schema: Schema): String {
         if (isHidden(schema)) return ""
@@ -449,7 +570,9 @@ open class Action protected constructor(name: String) : Component(name) {
             """<p class="ff-action-description">${escapeHtml(description)}</p>"""
         }
         val footer = footerHtml(schema, get)
-        val post = postUrlSetting.resolve(get)
+        val target = postTarget(get)
+        val post = target?.url
+        val extras = target?.extras.orEmpty()
         // Create/edit: one native form wraps fields + footer so inputs POST with Submit.
         // Confirm-only (delete): empty schema keeps a mini form around the submit button.
         // Close (X) lives on the official Dialog header — not duplicated in the body.
@@ -472,7 +595,7 @@ open class Action protected constructor(name: String) : Component(name) {
                     Schema.make().components(*modalComponents.toTypedArray()).render()
                 }
             syncChildren()
-            return """$icon$descriptionHtml<form method="post" action="${escapeHtml(post)}" class="ff-action-form">$formExtrasHtml<div class="ff-action-schema">$schemaHtml</div><div class="ff-action-footer">$footer</div></form>"""
+            return """$icon$descriptionHtml<form method="post" action="${escapeHtml(post)}" class="ff-action-form">$extras<div class="ff-action-schema">$schemaHtml</div><div class="ff-action-footer">$footer</div></form>"""
         }
         val schemaHtml = modalComponents.joinToString("") { it.render(schema) }
         return """$icon$descriptionHtml<div class="ff-action-schema">$schemaHtml</div><div class="ff-action-footer">$footer</div>"""
@@ -501,13 +624,14 @@ open class Action protected constructor(name: String) : Component(name) {
         val text = if (custom != null) custom else if (confirm.resolve(get)) "Confirm" else "Submit"
         val focus = if (autofocus) " autofocus" else ""
         val label = escapeHtml(text)
-        val post = postUrlSetting.resolve(get)
-        if (post != null) {
+        val target = postTarget(get)
+        if (target != null) {
+            val post = target.url
             if (modalComponents.isNotEmpty()) {
                 // dialogBody already opened the field POST form.
                 return """<button type="submit" class="ff-action-submit"$focus>$label</button>"""
             }
-            return """<form method="post" action="${escapeHtml(post)}" class="ff-action-post" style="display:inline">$formExtrasHtml<button type="submit" class="ff-action-submit"$focus>$label</button></form>"""
+            return """<form method="post" action="${escapeHtml(post)}" class="ff-action-post" style="display:inline">${target.extras}<button type="submit" class="ff-action-submit"$focus>$label</button></form>"""
         }
         val link = urlSetting.resolve(get)
         if (link != null) {
@@ -546,6 +670,11 @@ open class Action protected constructor(name: String) : Component(name) {
             return """<button type="submit" form="${escapeHtml(formId)}" class="$classes" data-ff-action="$name"$aria$attrs$disabledAttr>$inner$badge</button>"""
         }
         val link = urlSetting.resolve(get)
+        val target = postTarget(get)
+        if (link == null && target != null) {
+            val disabledAttr = if (disabled) " disabled" else ""
+            return """<form method="post" action="${escapeHtml(target.url)}" class="ff-action-post ff-action-inline" style="display:inline">${target.extras}<button type="submit" class="$classes" data-ff-action="$name"$aria$attrs$disabledAttr>$inner$badge</button></form>"""
+        }
         if (link != null) {
             if (disabled) {
                 return """<a class="$classes" data-ff-action="$name" x-data="ffAction('$name')" aria-disabled="true"$aria$attrs>$inner$badge</a>"""
@@ -622,7 +751,11 @@ open class Action protected constructor(name: String) : Component(name) {
         replaceChildren(all)
     }
 
+    /** A POST target bound to one [owner] action (see [renderWithPost]). */
+    private class PostTarget(val owner: Action, val url: String, val extras: String)
+
     companion object {
+        private val boundPost = ThreadLocal<PostTarget?>()
         private val WIDTHS = setOf("sm", "md", "lg", "xl", "screen")
         private val SIZES = setOf("xs", "sm", "md", "lg", "xl")
         private val ATTRIBUTE = Regex("^[A-Za-z_:][A-Za-z0-9_.:-]*$")

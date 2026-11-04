@@ -128,6 +128,8 @@ Shipped fields extend `Component` in this module. Schemas and support were not e
 | ACT-10 | Server call and local open state | `wire:click`, `ffAction`, Alpine `open` | done |
 | ACT-11 | Handler lifecycle | `action`, `before`, `after`, `halt`, `failure`, redirect URLs, `arguments` | done |
 | ACT-12 | Action scaffold | `make:firefly-action`, Kotlin and `--lang=java` | done |
+| ACT-13 | Record actions with server handlers | `Action.action { record -> }`, `actionWithData { record, data -> }`, `visibleForRecord`, `successNotificationTitle`, `failureNotificationTitle`; dialog `schema(...)` validated before the handler; `Firefly.authorizeActionsWith(Gate)` bridges `authorize("ability")` to the record. Filament's `visible { record -> }` and `action { record, data -> }` have distinct names (`visibleForRecord`, `actionWithData`) so Kotlin and Java lambdas stay unambiguous | done (#467) |
+| ACT-14 | Header actions on edit / view pages | `EditPage` / `ViewPage` `getHeaderActions()` and fluent `headerActions(...)` merge with the built-ins (replace by name); POST `{panel}/{resource}/actions/{name}` loads the record, runs the handler, flashes the toast, redirects to `_return` | done (#467) |
 
 Shipped modal content is the schema layouts and primes already on `main`. These Filament action helpers wait on a later milestone. They are not stubbed here:
 
@@ -135,7 +137,8 @@ Shipped modal content is the schema layouts and primes already on `main`. These 
 |--------|----------|
 | Form fields inside an action, `fillForm`, form data mutation, a disabled form, action `steps()` as a form wizard | M31 |
 | Infolist actions | M32 |
-| Record, bulk, and toolbar table actions | M33 |
+| Record and bulk table actions | done (`Table.recordActions`, `BulkAction.action`, `actionOnRecords`; see ACT-13, TBL-12, #467) |
+| Toolbar table actions | M33 |
 | Success and failure notifications | done (`FireflyNotification.success`, `info`, `warning`, `danger`, database bell, broadcast refresh) |
 | Import and export actions | M37 |
 | Parent-dialog cancellation, sticky header/footer, modal alignment, extra window attributes, widths outside `sm`/`md`/`lg`/`xl`/`screen`, database transactions, rate limits | `Dialog` does not expose them, or no rate-limit/transaction API is wired into this module |
@@ -158,7 +161,7 @@ Shipped modal content is the schema layouts and primes already on `main`. These 
 | TBL-9 | Row and header buttons | `TableButton` renders through `Dialog` and a schema. `label` accepts a string or a closure | done |
 | TBL-10 | Alpine column factory | `ffColumn` with `@entangle` and `$wire.$call` | done |
 | TBL-11 | Scaffolds | `make:firefly-column`, `make:firefly-filter`, Kotlin and `--lang=java` | done |
-| TBL-12 | Typed action objects | Still open. M30 is on `main`. Buttons stay `TableButton` | todo |
+| TBL-12 | Typed action objects | `Table.recordActions(Action…)` (list, manage, and relation-manager tables) with `action { record -> }` / `actionWithData`, row visibility, authorization, toasts, and redirects; `BulkAction.actionOnRecords { records -> }`. Header and row `TableButton`s stay for buttons without a server handler | done (#467) |
 
 ## M32 — infolists (`kona-firefly-infolists`)
 

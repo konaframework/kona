@@ -2,6 +2,9 @@ package org.konaframework.firefly
 
 import org.konaframework.auth.Auth
 import org.konaframework.auth.Guard
+import org.konaframework.firefly.actions.ActionResult
+import org.konaframework.firefly.forms.Field
+import org.konaframework.firefly.forms.FieldValidation
 import org.konaframework.firefly.notifications.FireflyNotification
 import org.konaframework.firefly.notifications.FireflyToasts
 import org.konaframework.firefly.schemas.Get
@@ -513,6 +516,12 @@ open class Panel {
                     },
                 )
             }
+            val actionSlug = "${resource.slug()}/${Resource.ACTIONS_PATH}/{action}"
+            planned.add(
+                Planned("POST", uri(actionSlug), routeName("resources.${resource.slug()}.actions")) { request ->
+                    resourceRecordAction(request, resource)
+                },
+            )
             val deleteSlug = resourcePagePath(resource.slug(), "delete")
             planned.add(
                 Planned("POST", uri(deleteSlug), routeName("resources.$deleteSlug")) { request ->
@@ -550,6 +559,11 @@ open class Panel {
                 relationOptions(request, resource)
             },
         )
+        planned.add(
+            Planned("POST", uri("$base/${Resource.ACTIONS_PATH}/{action}"), routeName("resources.$base/actions")) { request ->
+                relationRecordAction(request, resource)
+            },
+        )
     }
 
     private fun relationPost(request: Request, resource: Resource, operation: RelationOperation): Response {
@@ -564,9 +578,7 @@ open class Panel {
         return FireflyTenant.use(tenant) {
             val runtime = relationRuntime(request, resource)
             if (runtime !is RelationRuntime) return@use runtime as Response
-            val back = uri(resourcePagePath(resource.slug(), runtime.pageSlug)) +
-                "?id=${URLEncoder.encode(runtime.ownerKey, Charsets.UTF_8)}" +
-                "&relation=${URLEncoder.encode(runtime.manager.name(), Charsets.UTF_8)}"
+            val back = relationBack(resource, runtime)
             val input = request.all().filterKeys { it !in request.query && it != FireflyCsrf.TOKEN_KEY }
             if (operation == RelationOperation.BULK) {
                 if (runtime.readOnly) return@use Response.html("Relation is read-only here", 403)
@@ -609,6 +621,132 @@ open class Panel {
             if (outcome.oldInput.isNotEmpty()) response = response.withInput(outcome.oldInput)
             response
         }
+    }
+
+    /** The edit / view page of the owner with the manager's tab open. */
+    private fun relationBack(resource: Resource, runtime: RelationRuntime): String =
+        uri(resourcePagePath(resource.slug(), runtime.pageSlug)) +
+            "?id=${URLEncoder.encode(runtime.ownerKey, Charsets.UTF_8)}" +
+            "&relation=${URLEncoder.encode(runtime.manager.name(), Charsets.UTF_8)}"
+
+    /** `POST {resource}/relations/actions/{name}`: a record action of the manager's table on a related record. */
+    private fun relationRecordAction(request: Request, resource: Resource): Response = guardedPost(request) {
+        FireflyTenant.use(tenantId(request)) {
+            val runtime = relationRuntime(request, resource)
+            if (runtime !is RelationRuntime) return@use runtime as Response
+            if (runtime.readOnly) return@use Response.html("Relation is read-only here", 403)
+            @Suppress("UNCHECKED_CAST")
+            val table = runtime.manager.table(runtime, emptyMap()) as org.konaframework.firefly.tables.Table<Any?, Any?>
+            val action = table.findRecordAction(actionNameFrom(request)) ?: return@use Response.html("Unknown action", 404)
+            val source = RecordActionSource(
+                action,
+                { key -> RelationScope.with(runtime) { table.findRecord(key) } },
+                { record -> table.recordAttributes(record) },
+            )
+            runRecordAction(request, source, relationBack(resource, runtime))
+        }
+    }
+
+    /** `POST {resource}/actions/{name}`: an edit / view header action or list-table record action. */
+    private fun resourceRecordAction(request: Request, resource: Resource): Response = guardedPost(request) {
+        FireflyTenant.use(tenantId(request)) {
+            val source = resource.recordActionSource(actionNameFrom(request)) ?: return@use Response.html("Unknown action", 404)
+            runRecordAction(request, source, uri(resourceListSlug(resource)))
+        }
+    }
+
+    /** Panel host, sign-in, and CSRF checks shared by the record action POSTs. */
+    private fun guardedPost(request: Request, block: () -> Response): Response {
+        val denied = gate(request)
+        if (denied != null) return denied
+        if (authenticatePages && !activeGuard(request).check()) {
+            return Response.redirect(uri("login"))
+        }
+        val csrfError = FireflyCsrf.rejectIfInvalid(request)
+        if (csrfError != null) return csrfError
+        return block()
+    }
+
+    /** The `{action}` segment of a record action route. */
+    private fun actionNameFrom(request: Request): String = request.path.trimEnd('/').substringAfterLast('/')
+
+    /**
+     * Run a record action on the record posted as `id`: authorize against the record, validate the
+     * dialog schema, call the handler with the validated data, flash the success / failure toast,
+     * and redirect to the action's redirect URL, the `_return` location, or [fallback].
+     */
+    private fun runRecordAction(request: Request, source: RecordActionSource, fallback: String): Response {
+        val key = request.input("id") ?: request.input("record")
+        if (key.isNullOrBlank()) return Response.html("Record id is required", 422)
+        val record = source.find(key) ?: return Response.html("Record not found", 404)
+        val action = source.action
+        val host = Schema.make().record(record).key(key).fill(source.attributes(record))
+        if (action.isHidden(host) || action.isDisabled(host)) return Response.html("Action not available", 403)
+        val back = returnLocation(request, fallback)
+        val components = action.dialogComponents()
+        var data: Map<String, Any?> = emptyMap()
+        if (components.isNotEmpty()) {
+            val input = request.all().filterKeys { it != FireflyCsrf.TOKEN_KEY && !it.startsWith("_") && it !in request.query }
+            val dialog = Schema.make().record(record).components(*components.toTypedArray()).fill(input)
+            val errors = FieldValidation.validate(dialog, dialog.components())
+            if (errors.isNotEmpty()) {
+                flashNotice(request) { session ->
+                    FireflyNotification.make("action-${action.name}")
+                        .title("Please fix the form")
+                        .body(errors.values.flatten().joinToString(" "))
+                        .danger()
+                        .send(session)
+                }
+                return Response.redirect(back).withErrors(errors).withInput(input)
+            }
+            data = dialogData(dialog)
+        }
+        val result = action.call(host, data)
+        flashActionResult(request, action.name, result)
+        return Response.redirect(result.redirectUrl ?: back)
+    }
+
+    /** Validated dialog values keyed by field name. */
+    private fun dialogData(dialog: Schema): Map<String, Any?> {
+        val out = LinkedHashMap<String, Any?>()
+        for (component in dialog.walk()) {
+            if (component !is Field<*> || component.isHidden(dialog) || !component.isDehydrated()) continue
+            val path = component.absolutePath()!!
+            out[path] = dialog.get(path)
+        }
+        return out
+    }
+
+    /** Success toast when the action named a title; danger toast for a failure; nothing for a halt. */
+    private fun flashActionResult(request: Request, name: String, result: ActionResult) {
+        flashNotice(request) { session ->
+            when (result.status) {
+                ActionResult.SUCCESS -> {
+                    val title = result.notificationTitle
+                    if (title != null) FireflyNotification.make("action-$name").title(title).success().send(session)
+                }
+                ActionResult.FAILED -> {
+                    val toast = FireflyNotification.make("action-$name").title(result.notificationTitle ?: "Action failed")
+                    // A failed result always carries the ActionFailure message.
+                    toast.body(result.message!!).danger().send(session)
+                }
+            }
+        }
+    }
+
+    /** `_return` when it is a same-site path, else [fallback]. */
+    private fun returnLocation(request: Request, fallback: String): String {
+        val raw = request.input("_return") ?: return fallback
+        val local = raw.startsWith("/") && !raw.startsWith("//") && raw.none { it == '\\' || it.isISOControl() }
+        return if (local) raw else fallback
+    }
+
+    /** The request path with its query string. */
+    private fun locationOf(request: Request): String {
+        val query = request.query.entries.joinToString("&") { (key, value) ->
+            "${URLEncoder.encode(key, Charsets.UTF_8)}=${URLEncoder.encode(value, Charsets.UTF_8)}"
+        }
+        return if (query.isEmpty()) request.path else "${request.path}?$query"
     }
 
     /** Picker options for associate / attach: `[{value, label, enabled}]`, searched by `q`. */
@@ -783,10 +921,7 @@ open class Panel {
                 return@use Response.html(escapeHtml(e.message!!), 422)
             }
             flashBulk(request, result)
-            val query = request.query.entries.joinToString("&") { (key, value) ->
-                "${URLEncoder.encode(key, Charsets.UTF_8)}=${URLEncoder.encode(value, Charsets.UTF_8)}"
-            }
-            Response.redirect(if (query.isEmpty()) request.path else "${request.path}?$query")
+            Response.redirect(locationOf(request))
         }
     }
 
@@ -844,6 +979,7 @@ open class Panel {
         state["csrfField"] = FireflyCsrf.field(FireflyCsrf.ensure(request))
         state["formAction"] = request.path
         state["panelHome"] = uri("")
+        state["returnUrl"] = locationOf(request)
         val search = request.input("search")
         if (!search.isNullOrBlank()) state["search"] = search
         val sort = request.input("sort")

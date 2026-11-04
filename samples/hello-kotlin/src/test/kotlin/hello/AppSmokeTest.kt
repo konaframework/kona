@@ -59,6 +59,7 @@ class AppSmokeTest {
         assertEquals(200, projects.status)
         assertTrue(projects.body.contains("Desk"), projects.body)
         assertTrue(orders.body.contains("ff-relation"), orders.body)
+        assertTrue(orders.body.contains("/admin/orders/actions/rename"), orders.body)
     }
 
     @Test

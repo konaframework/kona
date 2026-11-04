@@ -26,6 +26,9 @@ open class Page {
     private var contentTable: Table<*, *>? = null
     private var maxWidthValue: String? = null
     private var maxWidthExplicit: Boolean = false
+    private var actionHostSchema: Schema? = null
+    private var actionPostUrl: Function<Action, String>? = null
+    private var actionPostExtras: String = ""
     /** Dashboard grid columns (1–4). Only emitted when [emitDashboardColumns] is true. */
     private var dashboardColumns: Int = 3
 
@@ -49,7 +52,7 @@ open class Page {
         crumbList.addAll(crumbs)
     }
 
-    fun headerActions(vararg actions: Action): Page = apply {
+    open fun headerActions(vararg actions: Action): Page = apply {
         header.clear()
         header.addAll(actions)
     }
@@ -57,6 +60,23 @@ open class Page {
     fun footerActions(vararg actions: Action): Page = apply {
         footer.clear()
         footer.addAll(actions)
+    }
+
+    /**
+     * The schema header and footer actions render against. Give it [Schema.record] (and the record's
+     * attributes as state) so `visibleForRecord`, `authorize("ability")` and `Get` closures resolve
+     * against the page's record. Without one the actions see an empty schema.
+     */
+    fun actionHost(schema: Schema?): Page = apply { actionHostSchema = schema }
+
+    /**
+     * Post header / footer actions that carry a server handler ([Action.action]) to [url] for the
+     * page record; [extrasHtml] carries the CSRF field, the record id, and the return location.
+     * Link and submit-form actions keep rendering as they are.
+     */
+    fun actionPost(url: Function<Action, String>, extrasHtml: String): Page = apply {
+        actionPostUrl = url
+        actionPostExtras = extrasHtml
     }
 
     fun widgets(vararg widgets: Widget): Page = apply {
@@ -266,7 +286,17 @@ open class Page {
 
     private fun renderActions(actions: List<Action>): String {
         if (actions.isEmpty()) return ""
-        return Schema().components(*actions.toTypedArray()).render()
+        val host = actionHostSchema ?: Schema()
+        host.components(*actions.toTypedArray())
+        val postUrl = actionPostUrl ?: return host.render()
+        val body = actions.joinToString("") { action ->
+            if (action.hasHandler() && !action.isLink()) {
+                action.renderWithPost(host, postUrl.apply(action), actionPostExtras)
+            } else {
+                action.render(host)
+            }
+        }
+        return """<div class="ff-schema">$body</div>"""
     }
 }
 

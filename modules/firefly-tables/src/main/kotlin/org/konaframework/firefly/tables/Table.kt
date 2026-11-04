@@ -2,6 +2,7 @@ package org.konaframework.firefly.tables
 
 import org.konaframework.cadence.Cadence
 import org.konaframework.cadence.ModelBuilder
+import org.konaframework.firefly.actions.Action
 import org.konaframework.firefly.schemas.ColumnLayout
 import org.konaframework.firefly.schemas.EmptyState
 import org.konaframework.firefly.schemas.Schema
@@ -51,6 +52,10 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     private val filterSet = TableFilters()
     private val headerButtonList = ArrayList<TableButton>()
     private val rowButtonList = ArrayList<TableButton>()
+    private val recordActionList = ArrayList<Action>()
+    private var recordActionUrl: Function<Action, String>? = null
+    private var recordActionFields = ""
+    private var recordActionsOn = true
     private val groupList = ArrayList<TableGroup>()
     private val hooks = ArrayList<Consumer<Q>>()
     private val selectedKeys = LinkedHashSet<String>()
@@ -291,6 +296,46 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
     }
 
     /**
+     * Server-side row actions (Filament `recordActions`). Each [Action] runs against the row's record:
+     * `Action.make("post").requiresConfirmation().action { record -> … }`. Their handlers run when the
+     * panel receives the POST bound with [recordActionsPostTo]; they render before the [rowButtons],
+     * share the ⋯ dropdown, and stay hidden for rows whose `visibleForRecord` / `authorize` fails.
+     */
+    fun recordActions(vararg actions: Action): Table<T, Q> = apply {
+        val seen = HashSet<String>()
+        for (action in actions) {
+            if (!seen.add(action.name)) throw FireflyException("Duplicate record action [${action.name}]")
+        }
+        recordActionList.clear()
+        recordActionList.addAll(actions)
+    }
+
+    /** The actions mounted with [recordActions]. */
+    fun recordActionList(): List<Action> = recordActionList.toList()
+
+    /** The record action called [name], or null. */
+    fun findRecordAction(name: String): Action? = recordActionList.firstOrNull { it.name == name }
+
+    /**
+     * Where record actions post: [url] resolves per action (`…/actions/{name}`), and [hiddenFieldsHtml]
+     * (the CSRF field, the return location) plus the row key (`id`) travel as hidden fields. Resources
+     * and relation managers set this; without it an action renders as a plain Wire trigger.
+     */
+    fun recordActionsPostTo(url: Function<Action, String>, hiddenFieldsHtml: String): Table<T, Q> = apply {
+        recordActionUrl = url
+        recordActionFields = hiddenFieldsHtml
+    }
+
+    /** Turn the rendering of [recordActions] off (a read-only relation) or back on. Default on. */
+    fun recordActionsEnabled(on: Boolean): Table<T, Q> = apply { recordActionsOn = on }
+
+    /** The record with [key] when it is in the table's query (hooks and filters apply), or null. */
+    fun findRecord(key: String): T? = scopedFind(key)
+
+    /** Attributes of [record] as the row sees them (what `Schema.fill` takes). */
+    fun recordAttributes(record: T): Map<String, Any?> = store.attributes(record)
+
+    /**
      * When true (default), two or more [rowButtons] render inside a ⋯ dropdown.
      * Pass false to show each action as its own button.
      */
@@ -483,7 +528,10 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         val max = maxSelectable
         if (max != null && requested.size > max) throw FireflyException("Select at most $max records")
         val records = requested
-            .map { key -> BulkRecord(key, scopedFind(key)?.let { store.attributes(it) }) }
+            .map { key ->
+                val found = scopedFind(key)
+                BulkRecord(key, found?.let { store.attributes(it) }, found)
+            }
             .filter { record -> record.attributes == null || isRecordSelectable(record.attributes, record.key) }
         val grouped = groupColumn
         if (groupsOnly && grouped != null) {
@@ -975,7 +1023,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
             val label = escapeHtml(column.heading(tableCell()))
             """<td data-label="$label">${column.render(values, key, rowCell(values, column.name))}</td>"""
         }
-        val actions = rowActions(values, key, asTableCell = true)
+        val actions = rowActions(values, key, record, asTableCell = true)
         val click = recordClickAttrs(rowActionCell(values, key))
         val selected = if (select.isNotEmpty() && key in selectedKeys) """ class="ff-selected"""" else ""
         val groupAttr = group?.let { """ data-ff-group="${escapeHtml(it)}"""" }.orEmpty()
@@ -1060,7 +1108,7 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
                     """<div class="ff-stack-field"><span class="ff-stack-label">${escapeHtml(column.heading(tableCell()))}</span><div class="ff-stack-value">${column.render(values, key, rowCell(values, column.name))}</div></div>"""
                 }
             }
-        val actions = rowActions(values, key, asTableCell = false)
+        val actions = rowActions(values, key, record, asTableCell = false)
         val click = recordClickAttrs(rowActionCell(values, key))
         return """<article class="ff-table-card$selected" data-ff-record="${escapeHtml(key)}"$groupAttr$click><div class="ff-table-card-main">$select<div class="ff-table-card-body">$fields</div></div>$actions</article>"""
     }
@@ -1089,13 +1137,30 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         }
     }
 
-    private fun rowActionCell(values: Map<String, Any?>, key: String): Cell =
-        Cell { path ->
-            when (path) {
-                "key", "recordKey" -> key
-                else -> values[path.removePrefix("/")]
-            }
+    private fun rowActionCell(values: Map<String, Any?>, key: String): Cell = rowActionCell(values, key, null)
+
+    private fun rowActionCell(values: Map<String, Any?>, key: String, record: Any?): Cell =
+        RowCell(values, key, record)
+
+    /** A row's [Cell] that also carries the row record for [recordActions]. */
+    private class RowCell(val values: Map<String, Any?>, val key: String, val record: Any?) : Cell({ path ->
+        when (path) {
+            "key", "recordKey" -> key
+            else -> values[path.removePrefix("/")]
         }
+    })
+
+    /** Adapts a record [Action] to the row button pipeline (⋯ menu, hidden rows). */
+    private inner class RecordActionButton(private val action: Action) : TableButton(action.name) {
+        override fun render(cell: Cell, selectionEmpty: Boolean, menuItem: Boolean): String {
+            val row = cell as RowCell
+            val schema = Schema.make().record(row.record).key(row.key).fill(row.values)
+            if (action.isHidden(schema)) return ""
+            val url = recordActionUrl ?: return action.render(schema)
+            val extras = recordActionFields + """<input type="hidden" name="id" value="${escapeHtml(row.key)}" />"""
+            return action.renderWithPost(schema, url.apply(action), extras)
+        }
+    }
 
     /**
      * Filament-shaped row click: explicit [recordUrl] / [recordAction], else View then Edit (#377).
@@ -1134,15 +1199,17 @@ open class Table<T, Q>(private val store: RecordStore<T, Q>) {
         return null
     }
 
-    private fun rowActions(values: Map<String, Any?>, key: String, asTableCell: Boolean): String {
-        if (rowButtonList.isEmpty()) return ""
-        val cell = rowActionCell(values, key)
+    private fun rowActions(values: Map<String, Any?>, key: String, record: T, asTableCell: Boolean): String {
+        val recordButtons = if (recordActionsOn) recordActionList.map { RecordActionButton(it) } else emptyList()
+        if (rowButtonList.isEmpty() && recordButtons.isEmpty()) return ""
+        val cell = rowActionCell(values, key, record)
         val emptySelection = selectedKeys.isEmpty()
+        val all = recordButtons + rowButtonList
         val buttons =
-            if (groupRowActionsFlag && rowButtonList.size > 1) {
-                listOf(TableButton.group(*rowButtonList.toTypedArray()))
+            if (groupRowActionsFlag && all.size > 1) {
+                listOf(TableButton.group(*all.toTypedArray()))
             } else {
-                rowButtonList
+                all
             }
         val html = buttons.joinToString("") { it.render(cell, emptySelection) }
         val inner = """<div class="ff-row-actions-inner">$html</div>"""

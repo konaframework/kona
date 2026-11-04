@@ -8,6 +8,7 @@ import org.konaframework.firefly.ListPage;
 import org.konaframework.firefly.RelationManager;
 import org.konaframework.firefly.Resource;
 import org.konaframework.firefly.ViewPage;
+import org.konaframework.firefly.actions.Action;
 import org.konaframework.firefly.forms.TextInput;
 import org.konaframework.firefly.infolists.TextEntry;
 import org.konaframework.firefly.schemas.Schema;
@@ -38,7 +39,18 @@ public class OrderResource extends Resource {
 
     @Override
     public Table<?, ?> table(Table<?, ?> table) {
-        return table.columns(TextColumn.make("name").label("Name").searchable().sortable());
+        return table
+            .columns(TextColumn.make("name").label("Name").searchable().sortable())
+            .recordActions(
+                Action.make("duplicate")
+                    .label("Duplicate")
+                    .successNotificationTitle("Order duplicated")
+                    .action(record -> {
+                        Order copy = new Order();
+                        copy.fill(Map.of("name", ((Order) record).getAttribute("name") + " (copy)"));
+                        copy.save();
+                    })
+            );
     }
 
     @Override
@@ -57,8 +69,30 @@ public class OrderResource extends Resource {
         Map<String, Page> pages = new LinkedHashMap<>();
         pages.put("list", new ListPage("list"));
         pages.put("create", new CreatePage("create"));
-        pages.put("edit", new EditPage("edit"));
+        pages.put("edit", new OrderEditPage());
         pages.put("view", new ViewPage("view"));
         return pages;
+    }
+
+    /** Edit page with an extra header action that posts to the server and shows a toast. */
+    public static class OrderEditPage extends EditPage {
+        public OrderEditPage() {
+            super("edit");
+        }
+
+        @Override
+        public List<Action> getHeaderActions() {
+            return List.of(
+                Action.make("rename")
+                    .label("Rename")
+                    .schema(TextInput.make("new_name").label("New name").required())
+                    .successNotificationTitle("Order renamed")
+                    .actionWithData((record, data) -> {
+                        Order order = (Order) record;
+                        order.fill(Map.of("name", String.valueOf(data.get("new_name"))));
+                        order.save();
+                    })
+            );
+        }
     }
 }

@@ -62,6 +62,7 @@ class AppSmokeTest {
         assertEquals(200, projects.getStatus());
         assertTrue(projects.getBody().contains("Desk"), projects.getBody());
         assertTrue(orders.getBody().contains("ff-relation"), orders.getBody());
+        assertTrue(orders.getBody().contains("/admin/orders/actions/rename"), orders.getBody());
     }
 
     @Test

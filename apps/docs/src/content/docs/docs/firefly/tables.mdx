@@ -329,6 +329,13 @@ The `context` gives you the selection:
 
 When an action does not need the records themselves, call `fetchSelectedRecords(false)` so `records()` stays empty and only `keys()` is filled. This saves a lookup per row.
 
+When you only want the record objects, `actionOnRecords { records -> }` skips the context. Each entry is the model (or row map) the table's record store loaded for a checked key, and `context.models()` returns the same list. Records the table's query cannot see are left out.
+
+```kotlin
+BulkAction.make("archive").actionOnRecords { records -> records.forEach { (it as Note).archive() } }
+```
+
+
 The default label comes from the name: `archiveAll` becomes "Archive all". `label { cell -> ... }`, `hidden()`, `visible { cell -> ... }`, and `disabled()` work the same way as on `TableButton`. A disabled action stays greyed out even when rows are checked. `tooltip("...")` adds a hover title. `button()` (the default) and `link()` choose the trigger style. `url(...)` posts the selection to another path, which you need when the table lives somewhere other than the page that renders it.
 
 ### Ask for input first
@@ -473,6 +480,41 @@ table.recordClickable(false);
 
 </TabItem>
 </Tabs>
+
+## Record actions
+
+`Table.recordActions(Action...)` puts an [`Action` with a server handler](/docs/firefly/actions/#record-actions-on-resources) on every row. On a resource list or manage page, and in a relation manager, the action posts to the panel (CSRF and return location included), so the handler runs on the server for that row.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+table.recordActions(
+    Action.make("archive")
+        .label("Archive")
+        .visibleForRecord { record -> (record as Note).getAttribute("archived") != true }
+        .successNotificationTitle("Archived")
+        .action { record -> (record as Note).archive() },
+)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+table.recordActions(
+    Action.make("archive")
+        .label("Archive")
+        .visibleForRecord(record -> !Boolean.TRUE.equals(((Note) record).getAttribute("archived")))
+        .successNotificationTitle("Archived")
+        .action(record -> ((Note) record).archive())
+);
+```
+
+</TabItem>
+</Tabs>
+
+Record actions render before `rowButtons` and share the ⋯ menu with them. Names must be unique. Outside a panel, `recordActionsPostTo(url, hiddenFieldsHtml)` chooses where the forms post; without it the actions use their own Wire handler. A relation manager shows record actions on edit pages only; a read-only (view) page hides them and refuses their POST.
 
 ## Put a button on the header or the row
 

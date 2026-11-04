@@ -34,7 +34,7 @@ class BulkCounts(
 )
 
 /** Selected key with its row attributes, or null attributes when the record no longer exists. */
-internal class BulkRecord(val key: String, val attributes: Map<String, Any?>?)
+internal class BulkRecord(val key: String, val attributes: Map<String, Any?>?, val record: Any? = null)
 
 /**
  * What a [BulkActionCallback] receives: the selected keys, the selected rows (as attribute maps),
@@ -59,6 +59,16 @@ class BulkActionContext internal constructor(
     fun records(): List<Map<String, Any?>> {
         if (!action.fetchesSelectedRecords()) return emptyList()
         return selected.mapNotNull { it.attributes }
+    }
+
+    /**
+     * The selected record objects (models for a Cadence table, whatever the table's store yields
+     * otherwise), for handlers that act on each record. Empty when [BulkAction.fetchSelectedRecords]
+     * is false.
+     */
+    fun models(): List<Any> {
+        if (!action.fetchesSelectedRecords()) return emptyList()
+        return selected.mapNotNull { it.record }
     }
 
     /** Walks [records] in slices of [BulkAction.chunkSelectedRecords] (all at once when unset). */
@@ -215,6 +225,13 @@ open class BulkAction(val name: String) : BulkActionEntry {
     }
 
     fun action(callback: BulkActionCallback): BulkAction = apply { this.callback = callback }
+
+    /**
+     * Filament-shaped `action(fn (Collection $records) => …)`: the handler receives the selected
+     * record objects (see [BulkActionContext.models]) that passed [authorizeIndividualRecords].
+     * Named apart from [action] so one-argument `{ context -> }` lambdas keep resolving.
+     */
+    fun actionOnRecords(handler: Consumer<List<Any>>): BulkAction = action { handler.accept(it.models()) }
 
     /** Only records passing [predicate] reach [action]; the rest count as failures. */
     fun authorizeIndividualRecords(predicate: Predicate<Cell>): BulkAction = apply { authorizer = predicate }
