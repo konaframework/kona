@@ -24,7 +24,13 @@ import java.time.temporal.ChronoUnit
  * ```kotlin
  * class User : Cadence<User>() {
  *     override val fillable = setOf("name", "email")
- *     override val casts = mapOf("admin" to CastType.BOOLEAN, "money" to MoneyCast())
+ *     override val casts = mapOf(
+ *         "admin" to CastType.BOOLEAN,
+ *         "price" to CastType.decimal(2),
+ *         "state" to OrderState::class,
+ *         "password" to CastType.HASHED,
+ *         "money" to MoneyCast(),
+ *     )
  *     companion object : CadenceCompanion<User>(User::class.java)
  * }
  * val ada = User.create(mapOf("name" to "Ada"))
@@ -241,7 +247,8 @@ abstract class Cadence<T : Cadence<T>> {
 
     /**
      * Declared [casts] plus `Instant` casts for timestamp and soft-delete columns.
-     * Values are [CastType] or [CastsAttributes].
+     * Values are [CastType], [CastsAttributes], enum [Class]/[kotlin.reflect.KClass],
+     * or cast strings such as `"decimal:2"` / `"hashed"`.
      */
     fun effectiveCasts(): Map<String, Any> {
         val result = linkedMapOf<String, Any>()
@@ -256,21 +263,39 @@ abstract class Cadence<T : Cadence<T>> {
         return result
     }
 
-    private fun applyCastGet(key: String, raw: Any?): Any? =
-        when (val cast = effectiveCasts()[key]) {
-            null -> raw
-            is CastType -> cast.get(raw)
-            is CastsAttributes -> cast.get(this, key, raw, attributes)
-            else -> throw CadenceException("Invalid cast for [$key]: ${cast.javaClass.name}")
+    private fun applyCastGet(key: String, raw: Any?): Any? {
+        val cast = resolveCast(key, effectiveCasts()[key]) ?: return raw
+        if (cast is CastType) {
+            return cast.get(raw)
         }
+        return (cast as CastsAttributes).get(this, key, raw, attributes)
+    }
 
-    private fun applyCastSet(key: String, value: Any?): Any? =
-        when (val cast = effectiveCasts()[key]) {
-            null -> value
-            is CastType -> cast.set(value)
-            is CastsAttributes -> cast.set(this, key, value, attributes)
-            else -> throw CadenceException("Invalid cast for [$key]: ${cast.javaClass.name}")
+    private fun applyCastSet(key: String, value: Any?): Any? {
+        val cast = resolveCast(key, effectiveCasts()[key]) ?: return value
+        if (cast is CastType) {
+            return cast.set(value)
         }
+        return (cast as CastsAttributes).set(this, key, value, attributes)
+    }
+
+    /**
+     * Resolves a cast declaration to [CastType] or [CastsAttributes].
+     * Accepts enum [Class] / [KClass], `"decimal"` / `"decimal:N"`, `"hashed"`, and [CastRegistry] names.
+     */
+    private fun resolveCast(key: String, cast: Any?): Any? {
+        if (cast == null) {
+            return null
+        }
+        if (cast is String) {
+            CastRegistry.create(cast)?.let { return it }
+        }
+        return try {
+            CastType.resolve(cast)
+        } catch (ex: CadenceException) {
+            throw CadenceException("Invalid cast for [$key]: $cast", ex)
+        }
+    }
 
     // ---- mass assignment ----
 
@@ -1019,7 +1044,7 @@ abstract class Cadence<T : Cadence<T>> {
         val hiddenKeys = effectiveHidden()
         attributes.keys.forEach { key ->
             if (shouldSerialize(key, visibleKeys, hiddenKeys)) {
-                result[key] = getAttribute(key)
+                result[key] = serializeAttribute(getAttribute(key))
             }
         }
         relations.forEach { (name, value) ->
@@ -1046,6 +1071,14 @@ abstract class Cadence<T : Cadence<T>> {
             return key in visibleKeys
         }
         return key !in hiddenKeys
+    }
+
+    /** BigDecimal becomes a plain string so JSON clients keep full precision. */
+    private fun serializeAttribute(value: Any?): Any? = when (value) {
+        is java.math.BigDecimal -> value.toPlainString()
+        is Enum<*> -> EnumCast.enumStoredValue(value)
+        is List<*> -> value.map { serializeAttribute(it) }
+        else -> value
     }
 
     override fun toString(): String = javaClass.simpleName + attributes

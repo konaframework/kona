@@ -1,8 +1,9 @@
 package org.konaframework.cadence
 
 /**
- * Custom attribute cast (Laravel `CastsAttributes`).
- * Declare on a model with `override val casts = mapOf("money" to MoneyCast())`.
+ * Custom attribute cast.
+ * Declare on a model with `override val casts = mapOf("money" to MoneyCast())`,
+ * or use built-in factories such as [CastType.decimal] / [CastType.enumCast].
  */
 interface CastsAttributes {
     /** Convert the stored (database) value to the value returned by [Cadence.getAttribute]. */
