@@ -190,6 +190,16 @@ object Str {
         }
     }
 
+    /**
+     * English plural of [value]'s last word: `user` → `users`, `currency` → `currencies`,
+     * `person` → `people`, `blog_post` → `blog_posts`. Returns [value] unchanged when [count] is 1
+     * or -1. Words that are already plural or uncountable (`news`, `equipment`) are kept.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun plural(value: String, count: Int = 2): String =
+        if (count == 1 || count == -1) value else Pluralizer.plural(value)
+
     @JvmStatic
     fun uuid(): String = UUID.randomUUID().toString()
 
@@ -221,6 +231,9 @@ class Stringable(
     fun slug(separator: String = "-"): Stringable = Stringable(Str.slug(value, separator))
 
     fun limit(limit: Int, end: String = "..."): Stringable = Stringable(Str.limit(value, limit, end))
+
+    @JvmOverloads
+    fun plural(count: Int = 2): Stringable = Stringable(Str.plural(value, count))
 
     fun append(suffix: String): Stringable = Stringable(value + suffix)
 

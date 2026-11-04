@@ -155,12 +155,23 @@ Two methods have different names in Java because their Kotlin names are Java key
 | `longText(name)` | `LONGTEXT` on MySQL; `TEXT` elsewhere (`CHARACTER VARYING` on H2) | unbounded text |
 | `json(name)` | `JSON` on MySQL/Postgres; `TEXT` on SQLite; `CHARACTER VARYING` on H2 | JSON documents |
 | `integer(name)` | `INTEGER` | |
+| `tinyInteger(name)` / `smallInteger(name)` | `TINYINT` / `SMALLINT` (engine-specific) | |
 | `bigInteger(name)` | `BIGINT` | |
+| `unsignedTinyInteger` / `unsignedSmallInteger` / `unsignedInteger` / `unsignedBigInteger` | same integer types | `unsigned()` where the engine supports it; otherwise a `CHECK (col >= 0)` constraint |
+| `decimal(name, precision = 8, scale = 2)` / `unsignedDecimal(...)` | `DECIMAL(p, s)` (`NUMERIC` on SQLite) | exact money and quantities — prefer this over `float` / `double` for ledgers |
+| `float(name, precision = 53)` / `double(name)` | floating point | approximate; do not store money here |
 | `boolean(name)` (Java: `bool`) | `BOOLEAN` | |
+| `char(name, length = 255)` | `CHAR(length)` | fixed-width text |
+| `uuid(name)` / `ulid(name)` | `CHAR(36)` / `CHAR(26)` | store the string form |
+| `foreignUuid(name)` / `foreignUlid(name)` | same as `uuid` / `ulid` | chain `constrained()` like `foreignId` |
+| `enum(name, values)` | native `ENUM` on MySQL; `VARCHAR` + `CHECK` elsewhere | pass the allowed string values |
 | `timestamp(name)` | `TIMESTAMP` | |
 | `date(name)` | `DATE` | calendar date without time |
 | `dateTime(name)` | `DATETIME` (MySQL) / `TIMESTAMP` or `DATETIME2` elsewhere | date and time |
+| `time(name)` | `TIME` | time of day without a date |
+| `year(name)` | `YEAR` (MySQL) / `INTEGER` elsewhere | four-digit year |
 | `foreignId(name)` | `BIGINT` | a key pointing at another table; chain `constrained()` |
+| `primary(columns…)` | composite primary key | for tables that are not keyed by a single `id` |
 | `timestamps()` | `created_at`, `updated_at` | both nullable |
 | `softDeletes()` | `deleted_at` | nullable, used by [soft deletes](../models/#soft-deletes) |
 | `morphs(name)` / `nullableMorphs` / `uuidMorphs` | `{name}_type` + `{name}_id` (+ index) | polymorphic columns; see [Relations](../relations/#polymorphic-relations) |
@@ -195,7 +206,7 @@ foreignId("editor_id").nullable().constrained("users").nullOnDelete()
 foreign("owner_id").references("id").on("owners").onDelete("restrict").onUpdate("cascade")
 ```
 
-`constrained()` guesses the table from the column name: `user_id` references `users`. Actions are `cascade`, `set null`, `restrict`, and `no action`; `cascadeOnDelete()` and `nullOnDelete()` are shortcuts. Constraints are named `<table>_<column>_foreign`.
+`constrained()` guesses the table from the column name with English pluralization (`user_id` → `users`, `currency_id` → `currencies`, `company_id` → `companies`). Pass the table explicitly when the guess would be wrong: `constrained("users")`. Actions are `cascade`, `set null`, `restrict`, and `no action`; `cascadeOnDelete()` and `nullOnDelete()` are shortcuts. Constraints are named `<table>_<column>_foreign`.
 
 ### Altering tables
 

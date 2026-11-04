@@ -14,6 +14,7 @@ import org.konaframework.cadence.relations.MorphTo
 import org.konaframework.cadence.relations.MorphToMany
 import org.konaframework.cadence.relations.Relation
 import org.konaframework.support.json.Json
+import org.konaframework.support.str.Str
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -799,7 +800,7 @@ abstract class Cadence<T : Cadence<T>> {
         return MorphToMany(
             this,
             other,
-            table ?: Relation.snake(name) + "s",
+            table ?: Str.plural(Relation.snake(name)),
             foreignPivotKey ?: "${name}_id",
             relatedPivotKey ?: other.defaultForeignKey(),
             parentKey ?: primaryKey,
@@ -840,7 +841,7 @@ abstract class Cadence<T : Cadence<T>> {
         return MorphToMany(
             this,
             owner,
-            table ?: Relation.snake(name) + "s",
+            table ?: Str.plural(Relation.snake(name)),
             foreignPivotKey ?: defaultForeignKey(),
             relatedPivotKey ?: "${name}_id",
             parentKey ?: primaryKey,
@@ -1099,8 +1100,6 @@ abstract class Cadence<T : Cadence<T>> {
     }
 
     companion object {
-        private val Y_PLURAL = Regex("[^aeiou]y$")
-        private val SIBILANT = Regex("(s|x|z|ch|sh)$")
         private val CAMEL = Regex("([a-z0-9])([A-Z])")
         private val COUNT_ALIAS = Regex("\\s+as\\s+", RegexOption.IGNORE_CASE)
 
@@ -1208,16 +1207,9 @@ abstract class Cadence<T : Cadence<T>> {
             of(type).observe(observer)
         }
 
-        /** `BlogPost` → `blog_posts`, `Category` → `categories`, `Box` → `boxes`. */
+        /** `BlogPost` → `blog_posts`, `Category` → `categories`, `Box` → `boxes`, `Person` → `people`. */
         @JvmStatic
-        fun tableNameFor(className: String): String {
-            val snake = CAMEL.replace(className, "$1_$2").lowercase()
-            return when {
-                Y_PLURAL.containsMatchIn(snake) -> snake.dropLast(1) + "ies"
-                SIBILANT.containsMatchIn(snake) -> snake + "es"
-                else -> snake + "s"
-            }
-        }
+        fun tableNameFor(className: String): String = Str.plural(CAMEL.replace(className, "$1_$2").lowercase())
 
         internal fun <M> instantiate(type: Class<M>): M = try {
             val constructor = type.getDeclaredConstructor()

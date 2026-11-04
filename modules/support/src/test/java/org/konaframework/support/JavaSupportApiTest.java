@@ -37,6 +37,10 @@ public class JavaSupportApiTest {
         assertEquals("hello-world", Str.slug("Hello World"));
         assertEquals("hello_world", Str.slug("Hello World", "_"));
         assertEquals("HELLO", Str.of("hello").upper().toString());
+        assertEquals("currencies", Str.plural("currency"));
+        assertEquals("person", Str.plural("person", 1));
+        assertEquals("People", Str.of("Person").plural().toString());
+        assertEquals("company", Str.of("company").plural(1).toString());
 
         KonaDate date = KonaDate.ofInstant(Instant.parse("2024-01-01T00:00:00Z"), ZoneOffset.UTC);
         assertEquals("2024-01-01", date.toDateString());

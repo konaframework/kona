@@ -1,28 +1,67 @@
 package org.konaframework.cadence.schema
 
+import org.konaframework.support.str.Str
+
 /** Column kinds understood by every [SchemaGrammar]. */
 enum class ColumnType {
     ID,
     STRING,
+    CHAR,
     TEXT,
     LONG_TEXT,
     JSON,
+    UUID,
+    ULID,
+    ENUM,
+    TINY_INTEGER,
+    SMALL_INTEGER,
     INTEGER,
     BIG_INTEGER,
+    DECIMAL,
+    FLOAT,
+    DOUBLE,
     BOOLEAN,
     TIMESTAMP,
     DATE,
     DATE_TIME,
+    TIME,
+    YEAR,
+    ;
+
+    /** True for integer and fixed/floating point kinds — the ones that accept [ColumnDefinition.unsigned]. */
+    val isNumeric: Boolean
+        get() = this in NUMERIC_TYPES
 }
 
-/** One column inside a [Blueprint]; modifiers return `this` so they chain from Kotlin and Java. */
+private val NUMERIC_TYPES = setOf(
+    ColumnType.TINY_INTEGER,
+    ColumnType.SMALL_INTEGER,
+    ColumnType.INTEGER,
+    ColumnType.BIG_INTEGER,
+    ColumnType.DECIMAL,
+    ColumnType.FLOAT,
+    ColumnType.DOUBLE,
+)
+
+/**
+ * One column inside a [Blueprint]; modifiers return `this` so they chain from Kotlin and Java.
+ *
+ * [length] is the size of `STRING` / `CHAR` / `UUID` / `ULID` columns; [precision] and [scale] are the
+ * total digits and digits after the point of `DECIMAL` (only [precision] for `FLOAT`); [allowed] holds
+ * the values of an `ENUM` column.
+ */
 class ColumnDefinition internal constructor(
     private val blueprint: Blueprint,
     val name: String,
     val type: ColumnType,
     val length: Int,
+    val precision: Int,
+    val scale: Int,
+    val allowed: List<String>,
 ) {
     var isNullable: Boolean = false
+        private set
+    var isUnsigned: Boolean = false
         private set
     var hasDefault: Boolean = false
         private set
@@ -48,15 +87,28 @@ class ColumnDefinition internal constructor(
 
     fun index(): ColumnDefinition = apply { blueprint.index(name) }
 
+    /** Makes this column (alone) the table's primary key; see [Blueprint.primary] for composite keys. */
+    fun primary(): ColumnDefinition = apply { blueprint.primary(name) }
+
     /**
-     * Adds a foreign key on this column. Without [table], the referenced table is derived from the
-     * column name: `user_id` → `users`.
+     * Rejects negative values. MySQL / MariaDB integer columns get the native `UNSIGNED` attribute;
+     * every other engine and type gets a `CHECK (column >= 0)` constraint. Only numeric columns.
+     */
+    fun unsigned(): ColumnDefinition = apply {
+        require(type.isNumeric) { "Column [$name] of type $type cannot be unsigned" }
+        isUnsigned = true
+    }
+
+    /**
+     * Adds a foreign key on this column. Without [table], the referenced table is the English plural
+     * of the column name minus `_{column}`: `user_id` → `users`, `currency_id` → `currencies`.
      */
     @JvmOverloads
     fun constrained(table: String? = null, column: String = "id"): ForeignKeyDefinition =
-        blueprint.foreign(name).references(column).on(table ?: guessTable(name))
+        blueprint.foreign(name).references(column).on(table ?: Str.plural(Str.beforeLast(name, "_$column")))
 
-    private fun guessTable(column: String): String = column.removeSuffix("_id") + "s"
+    /** Starts a foreign key on this column pointing at [column]; finish with [ForeignKeyDefinition.on]. */
+    fun references(column: String): ForeignKeyDefinition = blueprint.foreign(name).references(column)
 }
 
 /** A `FOREIGN KEY (column) REFERENCES table (references)` constraint. */
@@ -89,6 +141,9 @@ class ForeignKeyDefinition internal constructor(val table: String, val column: S
 /** A plain or unique index over one or more columns. */
 data class IndexDefinition(val name: String, val columns: List<String>, val unique: Boolean)
 
+/** A `PRIMARY KEY` over one or more columns, declared with [Blueprint.primary]. */
+data class PrimaryKeyDefinition(val name: String, val columns: List<String>)
+
 /**
  * Describes the shape of a table: the columns, indexes, and foreign keys to create (inside
  * [Schema.create]) or to add and drop (inside [Schema.table]).
@@ -106,6 +161,10 @@ class Blueprint(val table: String) {
     val dropColumns: List<String> get() = droppedColumns.toList()
     val dropIndexes: List<String> get() = droppedIndexes.toList()
 
+    /** The table-level primary key declared with [primary], or null. */
+    var primaryKey: PrimaryKeyDefinition? = null
+        private set
+
     /** Auto-incrementing `BIGINT` primary key. */
     @JvmOverloads
     fun id(name: String = "id"): ColumnDefinition = add(name, ColumnType.ID)
@@ -115,6 +174,79 @@ class Blueprint(val table: String) {
         require(length > 0) { "String column [$name] length must be positive" }
         return add(name, ColumnType.STRING, length)
     }
+
+    /** Fixed-length text (`CHAR(length)`; `NCHAR` on SQL Server). Java calls this `charColumn`. */
+    @JvmOverloads
+    @JvmName("charColumn")
+    fun char(name: String, length: Int = 255): ColumnDefinition {
+        require(length > 0) { "Char column [$name] length must be positive" }
+        return add(name, ColumnType.CHAR, length)
+    }
+
+    /** UUID text column (`CHAR(36)`), so string ids round-trip unchanged on every engine. */
+    @JvmOverloads
+    fun uuid(name: String = "uuid"): ColumnDefinition = add(name, ColumnType.UUID, 36)
+
+    /** ULID text column (`CHAR(26)`). */
+    @JvmOverloads
+    fun ulid(name: String = "ulid"): ColumnDefinition = add(name, ColumnType.ULID, 26)
+
+    /** [uuid] column meant to reference another table's UUID key; chain [ColumnDefinition.constrained]. */
+    fun foreignUuid(name: String): ColumnDefinition = uuid(name)
+
+    /** [ulid] column meant to reference another table's ULID key; chain [ColumnDefinition.constrained]. */
+    fun foreignUlid(name: String): ColumnDefinition = ulid(name)
+
+    /**
+     * Text column restricted to [values]: native `ENUM(...)` on MySQL / MariaDB, a `VARCHAR(255)`
+     * with `CHECK (column IN (...))` on every other engine. Java calls this `enumColumn`.
+     */
+    @JvmName("enumColumn")
+    fun enum(name: String, values: List<String>): ColumnDefinition {
+        require(values.isNotEmpty()) { "Enum column [$name] needs at least one allowed value" }
+        return add(name, ColumnType.ENUM, 255, allowed = values.toList())
+    }
+
+    /**
+     * Exact fixed-point number with [precision] total digits, [scale] of them after the decimal
+     * point (`DECIMAL(precision, scale)`). Use this — not [float] / [double] — for money.
+     */
+    @JvmOverloads
+    fun decimal(name: String, precision: Int = 8, scale: Int = 2): ColumnDefinition {
+        require(precision > 0) { "Decimal column [$name] precision must be positive" }
+        require(scale in 0..precision) { "Decimal column [$name] scale must be between 0 and $precision" }
+        return add(name, ColumnType.DECIMAL, precision = precision, scale = scale)
+    }
+
+    /** [decimal] that rejects negative values (see [ColumnDefinition.unsigned]). */
+    @JvmOverloads
+    fun unsignedDecimal(name: String, precision: Int = 8, scale: Int = 2): ColumnDefinition =
+        decimal(name, precision, scale).unsigned()
+
+    /** Approximate floating point with [precision] binary digits (`FLOAT(precision)`). Java: `floatColumn`. */
+    @JvmOverloads
+    @JvmName("floatColumn")
+    fun float(name: String, precision: Int = 53): ColumnDefinition {
+        require(precision > 0) { "Float column [$name] precision must be positive" }
+        return add(name, ColumnType.FLOAT, precision = precision)
+    }
+
+    /** Double-precision floating point (`DOUBLE PRECISION` / `DOUBLE`). Java calls this `doubleColumn`. */
+    @JvmName("doubleColumn")
+    fun double(name: String): ColumnDefinition = add(name, ColumnType.DOUBLE)
+
+    /** `TINYINT` where the engine has it (`SMALLINT` on PostgreSQL and standard SQL). */
+    fun tinyInteger(name: String): ColumnDefinition = add(name, ColumnType.TINY_INTEGER)
+
+    fun smallInteger(name: String): ColumnDefinition = add(name, ColumnType.SMALL_INTEGER)
+
+    fun unsignedTinyInteger(name: String): ColumnDefinition = tinyInteger(name).unsigned()
+
+    fun unsignedSmallInteger(name: String): ColumnDefinition = smallInteger(name).unsigned()
+
+    fun unsignedInteger(name: String): ColumnDefinition = integer(name).unsigned()
+
+    fun unsignedBigInteger(name: String): ColumnDefinition = bigInteger(name).unsigned()
 
     fun text(name: String): ColumnDefinition = add(name, ColumnType.TEXT)
 
@@ -139,6 +271,12 @@ class Blueprint(val table: String) {
 
     /** Date and time (`DATETIME` / `TIMESTAMP` depending on the engine). */
     fun dateTime(name: String): ColumnDefinition = add(name, ColumnType.DATE_TIME)
+
+    /** Time of day without a date (`TIME`; `DATE` on Oracle, which has no time-only type). */
+    fun time(name: String): ColumnDefinition = add(name, ColumnType.TIME)
+
+    /** Four-digit year (`YEAR` on MySQL / MariaDB, an integer elsewhere). */
+    fun year(name: String): ColumnDefinition = add(name, ColumnType.YEAR)
 
     /** `BIGINT` column meant to reference another table's `id`; chain [ColumnDefinition.constrained]. */
     fun foreignId(name: String): ColumnDefinition = add(name, ColumnType.BIG_INTEGER)
@@ -196,6 +334,18 @@ class Blueprint(val table: String) {
 
     fun unique(columns: List<String>, name: String?): IndexDefinition = addIndex(columns, name, unique = true)
 
+    /** Primary key over [columns] — pass several for a composite key (`primary("order_id", "line")`). */
+    fun primary(vararg columns: String): PrimaryKeyDefinition = primary(columns.toList(), null)
+
+    /** Primary key over [columns] named [name] (default `{table}_{columns}_primary`). One per table. */
+    fun primary(columns: List<String>, name: String?): PrimaryKeyDefinition {
+        require(columns.isNotEmpty()) { "A primary key on [$table] needs at least one column" }
+        check(primaryKey == null) { "Table [$table] already declares a primary key" }
+        val key = PrimaryKeyDefinition(name ?: "${table}_${columns.joinToString("_")}_primary", columns.toList())
+        primaryKey = key
+        return key
+    }
+
     fun foreign(column: String): ForeignKeyDefinition =
         ForeignKeyDefinition(table, column).also { foreignList += it }
 
@@ -207,8 +357,14 @@ class Blueprint(val table: String) {
         droppedIndexes += name
     }
 
-    private fun add(name: String, type: ColumnType, length: Int = 0): ColumnDefinition =
-        ColumnDefinition(this, name, type, length).also { columnList += it }
+    private fun add(
+        name: String,
+        type: ColumnType,
+        length: Int = 0,
+        precision: Int = 0,
+        scale: Int = 0,
+        allowed: List<String> = emptyList(),
+    ): ColumnDefinition = ColumnDefinition(this, name, type, length, precision, scale, allowed).also { columnList += it }
 
     private fun addIndex(columns: List<String>, name: String?, unique: Boolean): IndexDefinition {
         require(columns.isNotEmpty()) { "An index on [$table] needs at least one column" }
