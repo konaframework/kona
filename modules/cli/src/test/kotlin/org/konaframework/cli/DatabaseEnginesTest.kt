@@ -40,14 +40,41 @@ class DatabaseEnginesTest {
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=api", "--database=pgsql", "--no-interaction")))
         val env = Files.readString(app.resolve(".env"))
         assertTrue(env.contains("DB_CONNECTION=pgsql"))
-        assertTrue(env.contains("jdbc:postgresql://"))
+        assertTrue(env.contains("DB_HOST=127.0.0.1"))
+        assertTrue(env.contains("DB_PORT=5432"))
+        assertTrue(env.contains("DB_DATABASE=kona"))
+        assertTrue(env.contains("DB_USERNAME=kona"))
+        assertTrue(Regex("(?m)^# DB_URL=jdbc:postgresql://").containsMatchIn(env))
+        assertTrue(!Regex("(?m)^DB_URL=").containsMatchIn(env))
+        val props = app.resolve("gradle.properties")
+        assertTrue(!Files.isRegularFile(props) || !Files.readString(props).contains("kona.home="))
         val gradle = Files.readString(app.resolve("build.gradle.kts"))
         assertTrue(gradle.contains("org.xerial:sqlite-jdbc"))
         assertTrue(gradle.contains("org.postgresql:postgresql"))
+        assertTrue(gradle.contains("val runtimeCp = sourceSets"))
         val database = Files.readString(app.resolve("src/main/kotlin/config/Database.kt"))
         assertTrue(database.contains("\"pgsql\""))
         assertTrue(database.contains("DB_CONNECTION"))
         assertTrue(database.contains("\"default\" to Env.getOrDefault(\"DB_CONNECTION\", \"pgsql\")"))
+    }
+
+    @Test
+    fun eachServerEngineWritesHostPiecesWithoutActiveDbUrl() {
+        for (name in listOf("mysql", "mariadb", "pgsql", "sqlsrv", "oracle")) {
+            val app = temp.resolve("db-$name")
+            assertEquals(
+                0,
+                NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=api", "--database=$name", "--no-interaction")),
+            )
+            val env = Files.readString(app.resolve(".env"))
+            val engine = DatabaseEngines.require(name)
+            assertTrue(env.contains("DB_HOST=${engine.defaultHost}"))
+            assertTrue(env.contains("DB_PORT=${engine.defaultPort}"))
+            assertTrue(env.contains("DB_DATABASE=${engine.defaultDatabase}"))
+            assertTrue(env.contains("DB_USERNAME=${engine.defaultUsername}"))
+            assertTrue(Regex("(?m)^# DB_URL=").containsMatchIn(env))
+            assertTrue(!Regex("(?m)^DB_URL=").containsMatchIn(env))
+        }
     }
 
     @Test
@@ -60,12 +87,17 @@ class DatabaseEnginesTest {
         assertTrue(database.contains("\"oracle\""))
         val env = Files.readString(app.resolve(".env"))
         assertTrue(env.contains("DB_CONNECTION=sqlite"))
-        assertTrue(env.contains("jdbc:sqlite:storage/database/database.sqlite"))
+        assertTrue(Regex("(?m)^# DB_URL=jdbc:sqlite:").containsMatchIn(env))
+        assertTrue(!Regex("(?m)^DB_URL=").containsMatchIn(env))
         val gradle = Files.readString(app.resolve("build.gradle.kts"))
         assertTrue(gradle.contains("org.xerial:sqlite-jdbc"))
         assertTrue(!gradle.contains("org.postgresql:postgresql"))
         assertTrue(Files.isRegularFile(app.resolve("storage/database/.gitkeep")))
         assertTrue(Files.readString(app.resolve(".gitignore")).contains("storage/database/*"))
+        val props = app.resolve("gradle.properties")
+        if (Files.isRegularFile(props)) {
+            assertTrue(!Files.readString(props).contains("kona.home="))
+        }
     }
 
     @Test
@@ -74,7 +106,9 @@ class DatabaseEnginesTest {
         assertEquals(0, NewCommand().run(listOf(app.toString(), "--lang=kotlin", "--kit=api", "--database=h2", "--no-interaction")))
         val env = Files.readString(app.resolve(".env"))
         assertTrue(env.contains("DB_CONNECTION=main"))
-        assertTrue(env.contains("jdbc:h2:file:"))
+        assertTrue(Regex("(?m)^# DB_URL=jdbc:h2:file:").containsMatchIn(env))
+        assertTrue(env.contains("DB_USERNAME=sa"))
+        assertTrue(!Regex("(?m)^DB_URL=").containsMatchIn(env))
         val gradle = Files.readString(app.resolve("build.gradle.kts"))
         assertTrue(gradle.contains("org.xerial:sqlite-jdbc"))
         assertTrue(gradle.contains("com.h2database:h2"))
@@ -102,7 +136,9 @@ class DatabaseEnginesTest {
         )
         cmd.applyDatabaseSelection(withEnv, engine, "mysql")
         assertTrue(Files.readString(withEnv.resolve(".env")).contains("DB_CONNECTION=mysql"))
-        assertTrue(Files.readString(withEnv.resolve(".env.example")).contains("jdbc:mysql://"))
+        assertTrue(Files.readString(withEnv.resolve(".env")).contains("DB_HOST=127.0.0.1"))
+        assertTrue(Regex("(?m)^# DB_URL=jdbc:mysql://").containsMatchIn(Files.readString(withEnv.resolve(".env.example"))))
+        assertTrue(!Regex("(?m)^DB_URL=").containsMatchIn(Files.readString(withEnv.resolve(".env.example"))))
         val gradle = Files.readString(withEnv.resolve("build.gradle.kts"))
         assertTrue(gradle.contains("mysql-connector-j"))
         // Second apply: dependency already present → early return.
@@ -114,6 +150,8 @@ class DatabaseEnginesTest {
         Files.writeString(noBuild.resolve(".env"), "DB_CONNECTION=h2\nDB_URL=jdbc:h2:mem:x\n")
         cmd.applyDatabaseSelection(noBuild, engine, "mysql")
         assertTrue(Files.readString(noBuild.resolve(".env")).contains("DB_CONNECTION=mysql"))
-        assertTrue(Files.readString(noBuild.resolve(".env")).contains("jdbc:mysql://"))
+        assertTrue(Files.readString(noBuild.resolve(".env")).contains("DB_HOST=127.0.0.1"))
+        assertTrue(Regex("(?m)^# DB_URL=jdbc:mysql://").containsMatchIn(Files.readString(noBuild.resolve(".env"))))
+        assertTrue(!Regex("(?m)^DB_URL=").containsMatchIn(Files.readString(noBuild.resolve(".env"))))
     }
 }

@@ -133,6 +133,11 @@ class CliTest {
         NewCommand().writeKonaHomeProperty(app, null) // no-op
         assertFalse(Files.exists(app.resolve("gradle.properties")))
 
+        // Default-arg path exercises resolveKonaHome() / writeKonaHomeProperty without an explicit home.
+        NewCommand.resolveKonaHome()
+        NewCommand().writeKonaHomeProperty(app)
+        Files.deleteIfExists(app.resolve("gradle.properties"))
+
         NewCommand().writeKonaHomeProperty(app, fake)
         assertTrue(Files.readString(app.resolve("gradle.properties")).contains("kona.home=$fake"))
 
@@ -148,7 +153,7 @@ class CliTest {
         Files.createDirectories(app2)
         Files.writeString(app2.resolve("gradle.properties"), "")
         NewCommand().writeKonaHomeProperty(app2, fake)
-        assertTrue(Files.readString(app2.resolve("gradle.properties")).startsWith("# Local Kona"))
+        assertTrue(Files.readString(app2.resolve("gradle.properties")).contains("kona.home=$fake"))
     }
 
     @Test

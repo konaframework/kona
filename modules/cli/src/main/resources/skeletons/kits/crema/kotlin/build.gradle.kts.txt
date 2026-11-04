@@ -51,6 +51,9 @@ tasks.register<JavaExec>("grind") {
 tasks.register("konaClasspath") {
     group = "kona"
     description = "Print runtime classpath for grind serve --in-process"
+    // Resolve (and build substituted includeBuild modules) before printing paths.
+    val runtimeCp = sourceSets["main"].runtimeClasspath
+    dependsOn(runtimeCp)
     doLast {
         // Prefer exploded classes/resources over build/libs jars so `./grind serve` watch
         // can run `gradlew classes` / `:jar` without rewriting ZipFiles the JVM has mapped
@@ -70,7 +73,7 @@ tasks.register("konaClasspath") {
         }
         val sep = System.getProperty("path.separator")
         println(
-            sourceSets["main"].runtimeClasspath
+            runtimeCp
                 .filter { it.exists() }
                 .flatMap { expand(it) }
                 .distinct()
