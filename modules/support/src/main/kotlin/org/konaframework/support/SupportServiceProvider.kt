@@ -6,6 +6,7 @@ import org.konaframework.support.date.KonaDate
 import org.konaframework.support.lang.Lang
 import org.konaframework.support.lang.LangFiles
 import org.konaframework.support.lang.Translator
+import org.konaframework.support.number.Number
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.DateTimeException
@@ -18,7 +19,8 @@ import java.time.ZoneId
  * shared [Translator] via [LangFiles]. [Lang] is wired at register time so
  * `Translations.__` / [org.konaframework.support.lang.translate] work immediately after boot.
  *
- * `app.locale` / `app.fallback_locale` seed the translator; `app.timezone` seeds [KonaDate].
+ * `app.locale` / `app.fallback_locale` seed the translator; `app.locale` / `app.currency` seed
+ * [Number]; `app.timezone` seeds [KonaDate].
  */
 class SupportServiceProvider : ServiceProvider {
     override fun register(app: Application) {
@@ -30,6 +32,8 @@ class SupportServiceProvider : ServiceProvider {
                 LangFiles.loadInto(translator, langPath)
         }
         Lang.setTranslator(translator)
+        Number.useLocale(locale)
+        Number.useCurrency(app.config.getString("app.currency", Number.DEFAULT_CURRENCY))
         applyTimezone(app)
         app.container.instance(Translator::class.java, translator)
     }

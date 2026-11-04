@@ -1,6 +1,8 @@
 package org.konaframework.firefly.schemas
 
-import java.text.NumberFormat
+import org.konaframework.support.number.Number
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.util.Currency
 import java.util.Locale
 
@@ -13,7 +15,8 @@ data class CurrencyOptions(
 
 /**
  * Shared currency formatting for form prefixes, table columns, and infolist entries.
- * Uses `NumberFormat` currency style (symbol + amount); falls back to symbol + fixed decimals.
+ * Delegates to [Number.currency] (exact `BigDecimal` formatting); unknown ISO codes fall back to
+ * symbol + fixed decimals.
  */
 object CurrencyFormat {
     @JvmStatic
@@ -44,16 +47,12 @@ object CurrencyFormat {
     @JvmStatic
     @JvmOverloads
     fun format(value: Any?, options: CurrencyOptions = CurrencyOptions()): String? {
-        val number = toFinite(value) ?: return null
+        val number = toDecimal(value) ?: return null
         val opts = options(code = options.code, locale = options.locale, precision = options.precision)
         return try {
-            val format = NumberFormat.getCurrencyInstance(localeOf(opts.locale))
-            format.currency = Currency.getInstance(opts.code)
-            format.minimumFractionDigits = opts.precision
-            format.maximumFractionDigits = opts.precision
-            format.format(number)
-        } catch (_: Exception) {
-            symbol(opts.code, opts.locale) + String.format(Locale.US, "%.${opts.precision}f", number)
+            Number.currency(number, opts.code, localeOf(opts.locale).toLanguageTag(), opts.precision)
+        } catch (_: IllegalArgumentException) {
+            symbol(opts.code, opts.locale) + number.setScale(opts.precision, RoundingMode.HALF_EVEN).toPlainString()
         }
     }
 
@@ -73,20 +72,14 @@ object CurrencyFormat {
         return Locale.forLanguageTag(tag)
     }
 
-    internal fun toFinite(value: Any?): Double? {
-        val number = when (value) {
-            null -> return null
-            is Double -> value
-            is Float -> value.toDouble()
-            is Number -> value.toDouble()
-            is String -> {
-                val trimmed = value.trim()
-                if (trimmed.isEmpty()) return null
-                trimmed.toDoubleOrNull() ?: return null
-            }
+    /** Exact decimal for numbers and numeric strings; null for blanks, NaN, infinities, and text. */
+    internal fun toDecimal(value: Any?): BigDecimal? {
+        val text = when (value) {
+            is BigDecimal -> return value
+            is kotlin.Number -> value.toString()
+            is String -> value.trim()
             else -> return null
         }
-        if (number.isNaN() || number.isInfinite()) return null
-        return number
+        return text.toBigDecimalOrNull()
     }
 }

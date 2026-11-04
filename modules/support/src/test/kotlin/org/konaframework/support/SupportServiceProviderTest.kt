@@ -5,6 +5,7 @@ import org.konaframework.support.lang.Lang
 import org.konaframework.support.lang.Translator
 import org.konaframework.support.lang.translate
 import org.konaframework.support.date.KonaDate
+import org.konaframework.support.number.Number
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -19,6 +20,27 @@ class SupportServiceProviderTest {
     @AfterEach
     fun resetDate() {
         KonaDate.resetDefaultTimezone()
+        Number.resetDefaults()
+    }
+
+    @Test
+    fun seedsNumberLocaleAndCurrencyFromAppConfig(@TempDir base: Path) {
+        Application.builder(base)
+            .configure {
+                it.set("app.locale", "en_KE")
+                it.set("app.currency", "kes")
+            }
+            .withProvider(SupportServiceProvider())
+            .boot()
+        assertEquals("en_KE", Number.defaultLocale())
+        assertEquals("KES", Number.defaultCurrency())
+        assertEquals("Ksh1,250.00", Number.currency(1250))
+
+        Application.builder(base)
+            .withProvider(SupportServiceProvider())
+            .boot()
+        assertEquals("en", Number.defaultLocale())
+        assertEquals("USD", Number.defaultCurrency())
     }
 
     @Test

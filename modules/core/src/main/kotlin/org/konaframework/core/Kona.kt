@@ -65,6 +65,7 @@ object Kona {
         config.set("app.locale", Env.getOrDefault("APP_LOCALE", "en"))
         config.set("app.fallback_locale", Env.getOrDefault("APP_FALLBACK_LOCALE", "en"))
         config.set("app.faker_locale", Env.getOrDefault("APP_FAKER_LOCALE", "en_US"))
+        config.set("app.currency", Env.getOrDefault("APP_CURRENCY", "USD"))
         config.set("app.cipher", Env.getOrDefault("APP_CIPHER", "AES-256-GCM"))
         Env.get("APP_KEY")?.let { config.set("app.key", it) }
         config.set("app.previous_keys", Env.csv("APP_PREVIOUS_KEYS"))

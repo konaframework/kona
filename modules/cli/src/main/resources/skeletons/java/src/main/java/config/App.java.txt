@@ -99,6 +99,17 @@ public final class App implements ConfigFile {
 
         /*
         |--------------------------------------------------------------------------
+        | Default Currency
+        |--------------------------------------------------------------------------
+        |
+        | The ISO-4217 code used by Number.currency(...) when no currency is
+        | passed explicitly (for example "USD", "KES", "EUR").
+        |
+        */
+        values.put("currency", Env.getOrDefault("APP_CURRENCY", "USD"));
+
+        /*
+        |--------------------------------------------------------------------------
         | Encryption Key
         |--------------------------------------------------------------------------
         |

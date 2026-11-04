@@ -320,6 +320,7 @@ class EnvConfigApplicationTest {
         assertEquals("en", app.config.getString("app.locale"))
         assertEquals("en", app.config.getString("app.fallback_locale"))
         assertEquals("en_US", app.config.getString("app.faker_locale"))
+        assertEquals("USD", app.config.getString("app.currency"))
         assertEquals("AES-256-GCM", app.config.getString("app.cipher"))
         assertEquals("file", app.config.getString("app.maintenance.driver"))
         assertEquals("database", app.config.getString("app.maintenance.store"))
@@ -352,6 +353,7 @@ class EnvConfigApplicationTest {
             APP_LOCALE=sw
             APP_FALLBACK_LOCALE=en
             APP_FAKER_LOCALE=sw_KE
+            APP_CURRENCY=KES
             APP_PREVIOUS_KEYS=old-one, old-two
             APP_MAINTENANCE_DRIVER=cache
             APP_MAINTENANCE_STORE=redis
@@ -363,6 +365,7 @@ class EnvConfigApplicationTest {
         assertEquals("sw", app.config.getString("app.locale"))
         assertEquals("en", app.config.getString("app.fallback_locale"))
         assertEquals("sw_KE", app.config.getString("app.faker_locale"))
+        assertEquals("KES", app.config.getString("app.currency"))
         assertEquals(listOf("old-one", "old-two"), app.config.get<List<String>>("app.previous_keys"))
         assertEquals("cache", app.config.getString("app.maintenance.driver"))
         assertEquals("redis", app.config.getString("app.maintenance.store"))
