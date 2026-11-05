@@ -4861,6 +4861,20 @@ html.ff-dark .ff-auth .ff-brand-logo--dark {
   margin-top: 0.75rem;
 }
 
+/* SIDE: reserve a quiet left edge so the active-parent border does not shift layout (#498). */
+.ff-panel .ff-nav-side .ff-nav-group {
+  border-left: 2px solid transparent;
+  padding-left: 0.15rem;
+}
+
+.ff-panel .ff-nav-side .ff-nav-group.ff-nav-group-active {
+  border-left-color: color-mix(in srgb, var(--ff-primary) 72%, transparent);
+}
+
+.ff-panel .ff-nav-side .ff-nav-group.ff-nav-group-active > .ff-nav-group-label {
+  color: var(--ff-heading);
+}
+
 .ff-panel .ff-nav-group-label {
   display: flex;
   align-items: center;

@@ -357,6 +357,9 @@ class FireflySupportTest {
         assertTrue(css.contains(".ff-panel .ff-sidebar:focus-within .ff-nav-side"))
         assertTrue(css.contains(".ff-panel .ff-nav-side::-webkit-scrollbar"))
         assertTrue(css.contains(".ff-panel .ff-nav-side::-webkit-scrollbar-thumb"))
+        // SIDE active parent group: subtle left border (#498).
+        assertTrue(css.contains(".ff-panel .ff-nav-side .ff-nav-group.ff-nav-group-active"))
+        assertTrue(css.contains("border-left: 2px solid transparent"))
         assertTrue(css.contains(".ff-panel .ff-nav-item"))
         assertTrue(css.contains(".ff-panel .ff-page-heading"))
         assertTrue(css.contains(".ff-panel .ff-page-toolbar"))

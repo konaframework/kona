@@ -190,15 +190,16 @@ internal fun renderGrouped(
         val list = renderItems(bucket.items, path, spa, get, nested)
         val heading = bucket.group.iconHtml() + """<span class="ff-nav-label">${escapeHtml(bucket.group.label)}</span>"""
         val name = escapeHtml(bucket.group.label)
+        val holdsActive = bucket.items.any { itemOrDescendantActive(it, path, get) }
+        val activeClass = if (holdsActive) " ff-nav-group-active" else ""
         if (bucket.group.isCollapsible()) {
-            val holdsActive = bucket.items.any { itemOrDescendantActive(it, path, get) }
             val open = if (!bucket.group.isCollapsed() || holdsActive) " open" else ""
             out.append(
-                """<details class="ff-nav-group ff-nav-group-collapsible" data-ff-nav-group="$name"$open><summary class="ff-nav-group-label">$heading</summary>$list</details>""",
+                """<details class="ff-nav-group ff-nav-group-collapsible$activeClass" data-ff-nav-group="$name"$open><summary class="ff-nav-group-label">$heading</summary>$list</details>""",
             )
         } else {
             out.append(
-                """<section class="ff-nav-group" data-ff-nav-group="$name"><h3 class="ff-nav-group-label">$heading</h3>$list</section>""",
+                """<section class="ff-nav-group$activeClass" data-ff-nav-group="$name"><h3 class="ff-nav-group-label">$heading</h3>$list</section>""",
             )
         }
     }

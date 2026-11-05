@@ -202,6 +202,32 @@ class NavigationGroupsTest {
     }
 
     @Test
+    fun activeParentGroupMarkedWhenHoldingCurrentPage() {
+        fun build() =
+            panel()
+                .navigationGroups(
+                    NavigationGroup.make("Sales").collapsed(),
+                    NavigationGroup.make("Accounting"),
+                )
+                .resource(listed("orders").navigationGroup("Sales"))
+                .resource(listed("invoices").navigationGroup("Accounting"))
+        val idle = sidebar(body(build(), "/admin"))
+        assertFalse(idle.contains("ff-nav-group-active"))
+        val onOrders = sidebar(body(build(), "/admin/orders/list"))
+        assertTrue(
+            onOrders.contains(
+                """<details class="ff-nav-group ff-nav-group-collapsible ff-nav-group-active" data-ff-nav-group="Sales" open>""",
+            ),
+        )
+        assertTrue(onOrders.contains("""<section class="ff-nav-group" data-ff-nav-group="Accounting">"""))
+        val onInvoices = sidebar(body(build(), "/admin/invoices/list"))
+        assertTrue(
+            onInvoices.contains("""<section class="ff-nav-group ff-nav-group-active" data-ff-nav-group="Accounting">"""),
+        )
+        assertFalse(onInvoices.contains("ff-nav-group-collapsible ff-nav-group-active"))
+    }
+
+    @Test
     fun navigationAccordionMarksSideNavOnly() {
         val with =
             panel()
