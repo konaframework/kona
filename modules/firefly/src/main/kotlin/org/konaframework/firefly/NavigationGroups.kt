@@ -128,6 +128,32 @@ private fun bucketGroups(
 }
 
 /**
+ * Level-1 roots for [NavigationType.APP]: ungrouped items stay as roots; each navigation group
+ * becomes a cluster whose members are children (sidebar shows roots; top bar shows the active
+ * root’s children). SIDE keeps [renderGrouped] headings instead.
+ */
+internal fun appLevelOnes(
+    items: List<NavigationItem>,
+    declared: List<NavigationGroup>,
+    get: Get,
+): List<NavigationItem> {
+    if (items.none { it.groupName() != null }) return orderItems(items, get)
+    val (loose, buckets) = bucketGroups(items, declared, get)
+    val roots = ArrayList<NavigationItem>(loose.size + buckets.size)
+    roots.addAll(loose)
+    for (bucket in buckets) {
+        val root = NavigationItem(bucket.group.label).label(bucket.group.label).cluster(true)
+        val icon = bucket.group.navigationIcon()
+        if (!icon.isNullOrBlank()) root.icon(icon)
+        val firstUrl = bucket.items.firstOrNull()?.urlText(get).orEmpty()
+        if (firstUrl.isNotEmpty()) root.url(firstUrl)
+        for (member in bucket.items) root.child(member)
+        roots.add(root)
+    }
+    return roots
+}
+
+/**
  * Renders level-1 [items] gathered under [groups]. In the sidebar each group is a heading above its
  * own list; with [inline] (top bar) a group is a cluster entry that holds its items.
  */

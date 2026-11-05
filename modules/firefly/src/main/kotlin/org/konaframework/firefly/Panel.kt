@@ -1704,9 +1704,17 @@ open class Panel {
         val brandBlock =
             """<div class="ff-sidebar-brand$logoClass">${brandMarkHtml(branding)}""" +
                 """<button type="button" class="ff-sidebar-close" data-ff-sidebar-close aria-label="Close navigation">${Icon.X.svg()}</button></div>"""
-        // APP: L1 roots only (children go to the top bar). SIDE: full nested tree in the sidebar.
-        val nested = type == NavigationType.SIDE
-        val nav = """<nav class="ff-nav ff-nav-side">${renderGrouped(items, navigationGroupList, path, spaMode, get, nested, false)}</nav>"""
+        // APP: L1 roots only (groups promote to clusters; children go to the top bar).
+        // SIDE: full nested tree with group headings in the sidebar.
+        val nav = when (type) {
+            NavigationType.APP -> {
+                val roots = appLevelOnes(items, navigationGroupList, get)
+                """<nav class="ff-nav ff-nav-side">${renderItems(roots, path, spaMode, get, false)}</nav>"""
+            }
+            NavigationType.SIDE ->
+                """<nav class="ff-nav ff-nav-side">${renderGrouped(items, navigationGroupList, path, spaMode, get, true, false)}</nav>"""
+            NavigationType.TOP -> ""
+        }
         return brandBlock + nav + sidebarFootHtml(user, branding)
     }
 
@@ -1725,9 +1733,10 @@ open class Panel {
     /**
      * Children of the active level-1 item for [NavigationType.APP] top navigation.
      * Active root is the last L1 whose own URL or any descendant matches [path]; otherwise the first L1.
+     * Grouped resources are promoted to cluster roots via [appLevelOnes].
      */
     private fun appTop(path: String, get: Get): List<NavigationItem> {
-        val shown = items.filter { it.isVisible(get) }
+        val shown = appLevelOnes(items, navigationGroupList, get).filter { it.isVisible(get) }
         if (shown.isEmpty()) return emptyList()
         var active: NavigationItem? = null
         for (item in shown) {

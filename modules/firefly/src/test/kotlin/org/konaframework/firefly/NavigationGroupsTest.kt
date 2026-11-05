@@ -265,7 +265,8 @@ class NavigationGroupsTest {
             override fun table(table: Table<*, *>): Table<*, *> = table
         }
         val router = Router()
-        Panel().id("desk").path("admin").guard(guard)
+        // SIDE keeps group headings; visibility of empty/denied groups is the same under APP roots.
+        Panel().id("desk").path("admin").guard(guard).navigation(NavigationType.SIDE)
             .navigationGroups(NavigationGroup.make("Content").collapsible(), NavigationGroup.make("Empty"))
             .resource(posts)
             .resource(listed("free").navigationGroup("Misc"))
@@ -311,12 +312,26 @@ class NavigationGroupsTest {
     }
 
     @Test
-    fun appNavigationKeepsGroupsInTheSidebar() {
+    fun appNavigationPromotesGroupsToSidebarRoots() {
         val panel = Panel().path("admin").authenticate(false)
-            .navigationGroups(NavigationGroup.make("Sales"))
-            .resource(listed("orders").navigationGroup("Sales"))
+            .navigationGroups(NavigationGroup.make("Sales").icon("shopping-bag"))
+            .resource(listed("orders").navigationGroup("Sales").navigationLabel("Sales orders"))
+            .resource(listed("quotes").navigationGroup("Sales").navigationSort(1))
+            .resource(listed("loose").navigationLabel("Loose"))
         val html = body(panel, "/admin/orders/list")
-        assertTrue(sidebar(html).contains("""data-ff-nav-group="Sales""""))
-        assertTrue(sidebar(html).contains("""href="/admin/orders/list""""))
+        val side = sidebar(html)
+        // APP: group label is an L1 cluster in the sidebar; leaves are not SIDE-style group sections.
+        assertTrue(side.contains(">Sales<"))
+        assertTrue(side.contains("ff-cluster"))
+        assertFalse(side.contains("""data-ff-nav-group="Sales""""))
+        assertFalse(side.contains(">Sales orders<"))
+        assertFalse(side.contains(">quotes<"))
+        assertTrue(side.contains(">Loose<"))
+        // Active group’s children sit in the top bar.
+        val top = html.substringAfter("""<nav class="ff-nav ff-nav-top">""").substringBefore("</nav>")
+        assertTrue(top.contains(">Sales orders<"))
+        assertTrue(top.contains("""href="/admin/quotes/list""""))
+        assertFalse(top.contains(">Loose<"))
+        assertFalse(top.contains(">Sales<"))
     }
 }
