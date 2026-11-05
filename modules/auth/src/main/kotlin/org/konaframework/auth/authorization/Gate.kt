@@ -143,9 +143,13 @@ class Gate {
     fun discoverPolicy(modelClass: Class<*>, policyPackage: String): Boolean {
         val simple = modelClass.simpleName + "Policy"
         val fqn = "$policyPackage.$simple"
+        // Use the model's ClassLoader so grind SoftReload (child-first app types) and the
+        // session user share one identity. Class.forName(fqn) alone uses Gate's loader
+        // (parent), which makes `user as? User` fail in policies under SoftReloadClassLoader.
+        val loader = modelClass.classLoader ?: Thread.currentThread().contextClassLoader
         return try {
             @Suppress("UNCHECKED_CAST")
-            val policyClass = Class.forName(fqn) as Class<out Policy>
+            val policyClass = Class.forName(fqn, true, loader) as Class<out Policy>
             val instance = policyClass.getDeclaredConstructor().newInstance()
             policy(modelClass, instance)
             true
