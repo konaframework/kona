@@ -71,13 +71,24 @@ class AppSmokeTest {
         Response orderList = kernel.handle(Request.get("/admin/orders/list"));
         assertEquals(200, orderList.getStatus());
         assertFalse(orderList.getBody().contains("data-ff-selectable data-ff-total"), orderList.getBody());
-        // Navigation groups: Work (Projects, Tasks, Notes by sort) then Sales (collapsible, Orders badge).
-        String nav = orderList.getBody().substring(orderList.getBody().indexOf("<nav class=\"ff-nav ff-nav-side\">"));
-        assertTrue(nav.contains("data-ff-nav-group=\"Work\""), nav);
-        assertTrue(nav.contains("<details class=\"ff-nav-group ff-nav-group-collapsible\" data-ff-nav-group=\"Sales\" open>"), nav);
-        assertTrue(nav.indexOf("Projects") < nav.indexOf("Tasks") && nav.indexOf("Tasks") < nav.indexOf("Notes"), nav);
-        assertTrue(nav.indexOf("data-ff-nav-group=\"Work\"") < nav.indexOf("data-ff-nav-group=\"Sales\""), nav);
-        assertTrue(nav.contains("class=\"ff-nav-badge\" data-ff-color=\"info\""), nav);
+        // APP chrome: groups are L1 sidebar clusters; the active group's links sit in the top bar.
+        String side = orderList.getBody().substring(orderList.getBody().indexOf("<nav class=\"ff-nav ff-nav-side\">"));
+        side = side.substring(0, side.indexOf("</nav>"));
+        assertFalse(side.contains("data-ff-nav-group="), side);
+        assertTrue(side.contains(">Dashboard<"), side);
+        assertTrue(side.contains(">Sales<"), side);
+        assertTrue(side.contains(">Work<"), side);
+        assertTrue(side.indexOf(">Dashboard<") < side.indexOf(">Sales<") && side.indexOf(">Sales<") < side.indexOf(">Work<"), side);
+        assertTrue(side.contains("ff-nav-item ff-cluster ff-active"), side);
+        assertTrue(side.contains("href=\"/admin/orders/list\""), side);
+        String top = orderList.getBody().substring(orderList.getBody().indexOf("<nav class=\"ff-nav ff-nav-top\">"));
+        top = top.substring(0, top.indexOf("</nav>"));
+        assertTrue(top.contains(">Orders<"), top);
+        assertTrue(top.contains("class=\"ff-nav-badge\" data-ff-color=\"info\""), top);
+        assertFalse(top.contains(">Projects<"), top);
+        String workTop = projects.getBody().substring(projects.getBody().indexOf("<nav class=\"ff-nav ff-nav-top\">"));
+        workTop = workTop.substring(0, workTop.indexOf("</nav>"));
+        assertTrue(workTop.indexOf(">Projects<") < workTop.indexOf(">Tasks<") && workTop.indexOf(">Tasks<") < workTop.indexOf(">Notes<"), workTop);
     }
 
     @Test
