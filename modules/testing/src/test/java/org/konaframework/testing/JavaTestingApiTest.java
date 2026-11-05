@@ -35,5 +35,11 @@ public class JavaTestingApiTest {
         app.resolve(org.konaframework.http.Router.class)
                 .put("/u", request -> Response.json(java.util.Map.of("ok", true)));
         new HttpTestClient(app).putJson("/u", java.util.Map.of("a", 1)).assertOk().assertJson("ok", true);
+        app.resolve(org.konaframework.http.Router.class)
+                .post("/form", request -> Response.redirect("/j"));
+        new HttpTestClient(app)
+                .withHeader("X-Test", "1")
+                .post("/form", java.util.Map.of("name", "Ada"))
+                .assertRedirect("/j");
     }
 }

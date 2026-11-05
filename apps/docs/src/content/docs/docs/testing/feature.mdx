@@ -1,0 +1,77 @@
+---
+title: Feature tests
+description: "@KonaTest boots bootstrap.App under APP_ENV=testing with RefreshDatabase and database assertions."
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+`@KonaTest` is the JUnit 5 entry point for application feature tests (Laravel `TestCase`). It boots your app's `bootstrap.App` with `APP_ENV=testing` so `.env.testing` layers over `.env`, and injects helpers into test methods.
+
+## Annotate the class
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+@KonaTest(bootstrap = "bootstrap.App")
+@RefreshDatabase
+class LoginTest {
+    @Test
+    fun cashierCanSignIn(t: KonaTestContext) {
+        t.http()
+            .post("/login", mapOf("email" to "c@example.com", "password" to "secret"))
+            .assertRedirect("/pos")
+        t.assertions().assertDatabaseHas("sessions", mapOf(/* … */))
+    }
+}
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+@KonaTest(bootstrap = "bootstrap.App")
+@RefreshDatabase
+class LoginTest {
+    @Test
+    void cashierCanSignIn(KonaTestContext t) {
+        t.http()
+            .post("/login", Map.of("email", "c@example.com", "password", "secret"))
+            .assertRedirect("/pos");
+    }
+}
+```
+
+</TabItem>
+</Tabs>
+
+| Annotation | Behavior |
+| --- | --- |
+| `@KonaTest(bootstrap = "…")` | Required. Class with `create(String[])` returning the booted `Application` (`bootstrap.App`). Kotlin objects need `@JvmStatic`. |
+| `base` | Application base path (default: working directory) |
+| `environment` | `APP_ENV` value (default `testing`) |
+| `freshApplication` | Boot a new app per test instead of once per class |
+| `@RefreshDatabase` | Migrate once per booted app; each test runs in a rolled-back transaction |
+| `@LazilyRefreshDatabase` | Same, but only when the test touches the database / HTTP harness |
+| `@DatabaseTransactions` | Rolled-back transaction without migrating |
+
+Inject `KonaTestContext`, `Application`, `HttpTestClient`, or `DatabaseAssertions` as test method parameters.
+
+## Database assertions
+
+`DatabaseAssertions` (and `t.assertions()`) mirror Laravel's database helpers:
+
+| Method | Checks |
+| --- | --- |
+| `assertDatabaseHas` / `assertDatabaseMissing` | Row matching a column map (`null` → `IS NULL`) |
+| `assertDatabaseCount` / `assertDatabaseEmpty` | Exact row count |
+| `assertModelExists` / `assertModelMissing` | Row by the model's primary key |
+| `assertSoftDeleted` / `assertNotSoftDeleted` | `deleted_at` (or the model's soft-delete column) |
+
+Rows written inside the `@RefreshDatabase` transaction are visible to these asserts.
+
+## Next
+
+- [HTTP tests](../http-console/) — form posts, `actingAs`, redirects, Inertia  
+- [Database & fakes](../database-fakes/) — `DatabaseTest` and in-memory fakes  
+- Firefly resource drivers — `Firefly.livewire` in the Firefly docs under Testing  

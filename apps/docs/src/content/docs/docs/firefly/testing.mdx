@@ -1,0 +1,66 @@
+---
+title: Testing
+description: Firefly.test for rendered HTML and Firefly.livewire for resource page drivers.
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+Package: `org.konaframework.firefly.testing` (prefer the full name when `org.konaframework.firefly.Firefly` is also imported).
+
+## Render asserts
+
+`Firefly.test(page)` / `Firefly.test(html)` asserts on rendered markup:
+
+```kotlin
+Firefly.test(page)
+    .assertSee("Ada")
+    .assertFormField("sku")
+    .assertTable("Ada")
+    .assertDialog("Export")
+```
+
+## Livewire-style resource drivers
+
+`Firefly.livewire` mounts a resource page in-process (Filament `livewire(EditUser::class)` shape): fill the form, call `save`, assert errors, notifications, table records, and row-action visibility — no socket.
+
+<Tabs syncKey="lang">
+<TabItem label="Kotlin">
+
+```kotlin
+Firefly.livewire(UsersResource(), EditPage::class.java, user.getKey())
+    .fillForm(mapOf("name" to "Ada"))
+    .call("save")
+    .assertHasNoFormErrors()
+    .assertNotified("Saved")
+
+Firefly.livewire(UsersResource(), ListPage::class.java)
+    .assertCanSeeTableRecords(ada, bob)
+    .assertTableActionHidden("delete", bob)
+```
+
+</TabItem>
+<TabItem label="Java">
+
+```java
+Firefly.livewire(new UsersResource(), EditPage.class, user.getKey())
+    .fillForm(Map.of("name", "Ada"))
+    .call("save")
+    .assertHasNoFormErrors()
+    .assertNotified("Saved");
+```
+
+</TabItem>
+</Tabs>
+
+| Method | Role |
+| --- | --- |
+| `fillForm` / `setForm` | Posted form state |
+| `call("save")` | Validate + persist create / edit |
+| `assertHasNoFormErrors` / `assertHasFormErrors` | Validation outcome |
+| `assertNotified` / `assertNotNotified` | Toast title (`Saved`, `Created`, `Please fix the form`) |
+| `assertCanSeeTableRecords` / `assertCannotSeeTableRecords` | List / manage rows (`data-ff-record`) |
+| `assertTableActionHidden` / `assertTableActionVisible` | Row / record actions (`data-ff-action`) |
+| `actingAs` | Actor for later checks |
+| `assertSee` / `assertDontSee` / `assertFormField` | Rendered HTML |
+
+Pair with [`@KonaTest`](/docs/testing/feature/) and [HTTP tests](/docs/testing/http-console/) when you need the full panel stack (CSRF, guards, redirects).
