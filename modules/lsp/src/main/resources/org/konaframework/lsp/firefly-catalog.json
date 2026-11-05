@@ -73,7 +73,7 @@
     "name" : "Panel",
     "package" : "org.konaframework.firefly",
     "kind" : "panel",
-    "methods" : [ "authenticate", "authorizeWithoutPolicy", "brand", "brandDisplay", "brandLogoAndName", "brandLogoOnly", "brandNameOnly", "branding", "canAccess", "cluster", "discover", "domain", "guard", "guardName", "hook", "id", "item", "layout", "logo", "logoDark", "logoHeight", "maxContentWidth", "maxWidth", "mount", "navigation", "navigationGroups", "page", "path", "permits", "plugin", "profilePage", "render", "resolveBrandingOverrides", "resource", "reuseAppGuard", "spa", "tenant", "tenantDomain", "tenantLabel", "tenantMenu", "tenantMenuItems", "tenantMiddleware", "tenantProfile", "tenantRegistration", "theme", "topNavigation", "useAuthGuard", "userMenu", "usesAppGuard", "widget" ]
+    "methods" : [ "authenticate", "authorizeWithoutPolicy", "brand", "brandDisplay", "brandLogoAndName", "brandLogoOnly", "brandNameOnly", "branding", "canAccess", "cluster", "discover", "domain", "guard", "guardName", "hook", "id", "item", "layout", "logo", "logoDark", "logoHeight", "maxContentWidth", "maxWidth", "mount", "navigation", "navigationAccordion", "navigationGroups", "page", "path", "permits", "plugin", "profilePage", "render", "resolveBrandingOverrides", "resource", "reuseAppGuard", "spa", "tenant", "tenantDomain", "tenantLabel", "tenantMenu", "tenantMenuItems", "tenantMiddleware", "tenantProfile", "tenantRegistration", "theme", "topNavigation", "useAuthGuard", "userMenu", "usesAppGuard", "widget" ]
   }, {
     "name" : "PanelPage",
     "package" : "org.konaframework.firefly",
